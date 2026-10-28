@@ -474,15 +474,28 @@ with new or revealed enemies, `OurTeamSeesSomeone` runs (§2.9).
   ≥ `TIME_BETWEEN_RT_OPPLIST_DECAYS` = 20 world seconds have passed since the last decay (`OppList.cc:4535`,
   `OppList.h:23`). In practice that is every 4th real-time turn (inferred; real-time turns fall every 5020 ms, `15`
   §1.7). The decay runs, for **all** mercs, `VerifyAndDecayOpplist` (`:4265`), then `DecayPublicOpplist` for each active
-  team (`:4471`). ja2-node (`handleTacticalEndTurn`, `turns/turns.ts`) measures the 20 s on the tactical clock
-  (`OPPLIST_DECAY_MS`), not in world seconds.
+  team (`:4471`). The stamp (`uiTimeSinceLastOpplistDecay`) lives in `gTacticalStatus`: a sector load leaves it alone, a
+  save keeps it, and the test is a `UINT32` difference. ja2-node: `nonCombatDecayPublicOpplist` (`turns/turns.ts`) on
+  `RealtimeClock.lastOpplistDecaySeconds`, the campaign's clock shared by every loaded sector (also after a native
+  import, which reads the saved stamp, `14` §10).
   - `VerifyAndDecayOpplist`: life < OKLIFE wipes the list. A pending `bNewOppCnt` is radioed (PCs). For each known
     opponent: `ManLooksForMan(VERIFYANDDECAYOPPLIST)` (360°, aware), then `DecayOppListValue`. A target lost here goes
     1 → 2 → 3 in one call.
-  - `DecayPublicOpplist`: public noise volume halves (×7/10 in combat; the grid is forgotten at 0); public values decay
-    (forgotten → `UpdatePublic(…, 0, NOWHERE)`); `last_merc_to_radio` is cleared if nothing is publicly known; watched
-    locations decay.
-- On leaving combat the decay timer is set to "now − 20" and a decay runs immediately (`Overhead.cc:4103`).
+  - `DecayPublicOpplist` (`:4471-4532`), in this order: the public noise volume halves (×7/10 in combat; the grid is
+    forgotten at 0); for every living soldier of another team in `MercSlots` the public value decays (forgotten →
+    `UpdatePublic(…, NOT_HEARD_OR_SEEN, NOWHERE, 0)`); if no such soldier was publicly known before the decay,
+    `last_merc_to_radio` is cleared (so a known opponent forgotten in this call keeps the caller one more decay);
+    then `DecayWatchedLocs` (`:5028`) for every id of the team's range, present or not: a watched location with
+    nobody of another team on the 3×3 square around it (`GridSquare`, clipped at the map edge) first sets its reset
+    flag, and on the next decay with the flag still set halves its points and is dropped at 0 (a new sighting there
+    clears the flag, `13` §2.6). ja2-node: `decayPublicOpplist` (`perception/sight.ts`), `decayWatchedLocs`
+    (`perception/duel.ts`).
+  - Callers: `BeginTeamTurn` for each team whose turn starts (`TeamTurns.cc:323`, `10` §2.2) and
+    `NonCombatDecayPublicOpplist`.
+- On leaving combat `ExitCombatMode` first runs the real-time turn (`HandleTacticalEndTurn`, whose decay acts only if
+  20 world seconds have passed), then sets the stamp to `now − 20` and decays again, so up to two decays fall at once
+  (`Overhead.cc:4097-4104`). ja2-node does both in the forced real-time turn of `handleRealtimeTurns` (deviations
+  "Real-time turn after combat").
 - Every real-time turn, `EVENT_BeginMercTurn` (`Soldier_Control.cc:3998-4152`) also: `ubNoiseVolume−−` (forget the noise
   grid at 0), `bBlindedCounter−−` (at 0 `HandleSight(LOOK)`), `ubTurnsUntilCanSayHeardNoise−−`, `bTilesMoved = 0`,
   `ubMovementNoiseHeard = 0`. Order inside `HandleTacticalEndTurn`: opplist decay first, then the per-merc turn starts

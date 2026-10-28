@@ -120,6 +120,7 @@ export async function createSaveSession(
     civGroups: sim.state.civGroups,
     keyTable: sim.state.keyTable,
     boxing: sim.state.boxing,
+    realtimeClock: sim.state.realtimeClock,
   });
   importStrategicTime(strategic, save);
   strategic.worldSector = save.tactical.worldSector;

@@ -274,12 +274,12 @@ export interface TacticalState {
 
 export interface RealtimeClock {
   lastTurnMs: number;
-  lastDecayMs: number;
+  lastOpplistDecaySeconds: number;
   lastOverheadMs: number;
 }
 
 export function createRealtimeClock(): RealtimeClock {
-  return { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
+  return { lastTurnMs: 0, lastOpplistDecaySeconds: 0, lastOverheadMs: 0 };
 }
 
 export const RESET_AWAY_AI_CURSOR = 0xffff;

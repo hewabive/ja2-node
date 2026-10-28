@@ -562,6 +562,7 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.consNumTurnsWeHaventSeenButEnemyDoes = ts.consecutiveTurnsWeHaventSeenButEnemyDoes;
   turn.unlockUIAfterHiddenInterrupt = ts.unlockUiAfterHiddenInterrupt;
   t.smell.lastDecaySeconds = ts.decayBloodLastUpdate;
+  t.realtimeClock.lastOpplistDecaySeconds = ts.timeSinceLastOpplistDecay;
   ts.numFoughtInBattle.forEach((n, team) => {
     turn.numFoughtInBattle[team] = n;
   });

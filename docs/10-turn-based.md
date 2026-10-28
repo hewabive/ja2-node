@@ -205,8 +205,10 @@ EndTurnEvents():                                                          // :28
   DecayRottingCorpseAIWarnings() // policy corpse_warning_duration 0: inert
 ```
 `PtsToMoveDirection(s, s.path[0])` reads path step **0**, not `pathIndex` (quirk, kept). `UIHandleEndTurn`
-(`Handle_UI.cc:1066-1087`) first calls `CheckForEndOfCombatMode(FALSE)` and returns if combat ended, autosaves, then
-`EndTurn(OUR + 1)`.
+(`Handle_UI.cc:1066-1087`) first calls `CheckForEndOfCombatMode(FALSE)` and returns if combat ended (the turn does not
+end: real time goes on, no autosave and no Dead is Dead save), autosaves, then `EndTurn(OUR + 1)`. ja2-node: the
+`endTurn` command (`tactical-sim.ts`) runs the check after its refusals and answers `data {combatEnded: true}` when it
+ended combat (`29` §10, `27` §1.6).
 
 ### 2.3 `StartPlayerTeamTurn(doBattleSnd, entering)` (`TeamTurns.cc:81-157`)
 
@@ -781,7 +783,7 @@ nobodyAlerted = no non-OUR, non-neutral merc with life >= OKLIFE and alert >= RE
 if weSeeNoOne && nobodyAlerted: consNotSeen = 5                                  // "hack": exit now
 else:
   for s in MercSlots: if s.life >= OKLIFE && !s.neutral && SoldierHasSeenEnemiesLastFewTurns(s):
-    consNotSeen = 0; someone = true; if s.team == OUR || (MILITIA && FRIENDLY): we = true; break
+    consNotSeen = 0; someone = true; if s.team == OUR || (MILITIA && FRIENDLY): we = true; break   // else go on
   if someone: consWeHaventSeenButEnemyDoes = we ? 0 : +1; return false
   if increment: consNotSeen++
 consWeHaventSeenButEnemyDoes = 0
@@ -831,8 +833,8 @@ soldiers no OUR merc sees → `visible = −1`); `PauseAITemporarily()` (1500 ms
 `ClearIntList()`; unless in conversation `HandleStrategicTurnImplicationsOfExitingCombatMode()` (sync the real-time turn
 clock and run `HandleTacticalEndTurn` now, i.e. a real-time `EVENT_BeginMercTurn` for everyone,
 `Strategic/Strategic_Turns.cc:91-95`; ja2-node runs it on the next tick, deviations "Real-time turn after combat");
-force an opplist decay (`lastDecay = now − 20`; `NonCombatDecayPublicOpplist`). Not reset: `actionPoints` (real time
-recomputes them), alert statuses (except on victory), opplists, the AI list.
+force an opplist decay (stamp = now − 20 world seconds; `NonCombatDecayPublicOpplist`, `08` §2.6). Not reset:
+`actionPoints` (real time recomputes them), alert statuses (except on victory), opplists, the AI list.
 
 ### 8.4 Time
 
@@ -922,13 +924,9 @@ combat `aiForSlot` (`ai/control.ts`) calls `handleSoldierAI` for every slot on e
 
 Differences from the original found in the code (each also an entry of `gaps.md`):
 - `DisplayHiddenTurnbased` (case D of §1.5) is not implemented: an AI attack decided in real time does not enter combat.
-- The `endTurn` command calls `endTurn(t, OUR + 1)` without `UIHandleEndTurn`'s `CheckForEndOfCombatMode(FALSE)`
-  first (§2.2), so an End Turn while nobody sees anyone and no hostile is RED+ runs the other teams' turns before combat
-  ends at our next turn start (§8.1).
 - `standardInterruptConditionsMet` has no `EPC && !robot` and `assignment >= ON_DUTY` exclusions; `calcInterruptDuelPts`
   has no on-assignment `−10` (and no tank halving; tanks are not in tactical) (§1.3, §4.2).
-- `checkForPotentialAddToBattleIncrement` never counts civilians, so armed REBEL/KINGPIN/HICKS members do not make a
-  battle "fought" (§1.4); `commonEnterCombatModeCode` does not record `preCombatGridNo` (`09` §2.2).
+- `commonEnterCombatModeCode` does not record `preCombatGridNo` (`09` §2.2).
 - The AI list conditions (`satisfiesAIListConditions`) apply the neutral-civilian draws to every neutral civilian (no
   civ-group neutrality test) and without the `ubQuoteRecord` exemption (`13` §10.3).
 - `calcActionPoints` has no phobia factors (claustrophobic ×9/10 underground, fear of insects ×8/10),

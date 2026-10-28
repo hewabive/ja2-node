@@ -219,7 +219,8 @@ save's SHA-256, and a replay refuses a changed save.
 6. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
    arrive only half (§7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
 7. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted
-   guy, the rock thrower, team awareness and last radio operators, battle counters, `uiDecayBloodLastUpdate`, the
+   guy, the rock thrower, team awareness and last radio operators, battle counters, `uiDecayBloodLastUpdate`,
+   `uiTimeSinceLastOpplistDecay` (into the real-time clock, which the imported campaign shares with the sector), the
    selected soldier.
 8. The `PreRandom` ring and index (`PreRandom.restore`).
 9. `LightSetBaseLevel`: `gubEnvLightValue` above ground, the map's ambient underground; all lights are rendered with the

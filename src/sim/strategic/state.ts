@@ -21,6 +21,7 @@ import { createNpcRecordState, type NpcRecordState } from '../narrative/records.
 import { type GameOptions, gameOptions } from '../options.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
+import type { RealtimeClock } from '../tactical/state.ts';
 import {
   createMeanwhileState,
   createQueenState,
@@ -111,6 +112,7 @@ export interface StrategicStateOptions {
   readonly civGroups?: CivGroupState;
   readonly keyTable?: KeyTable;
   readonly boxing?: BoxingRecord;
+  readonly realtimeClock?: RealtimeClock;
 }
 
 const DEFAULT_SEED = 1;
@@ -155,7 +157,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     civGroups: options.civGroups ?? createCivGroupState(),
     keyTable: options.keyTable ?? createKeyTable(),
     roster: createRosterState(),
-    sectorFlow: createSectorFlowState(),
+    sectorFlow: createSectorFlowState(options.realtimeClock),
     shop: { session: null },
     talk: createTalkFlowState(seed),
     cosmetic: createCosmeticStreams(seed),

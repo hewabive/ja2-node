@@ -45,6 +45,7 @@ import {
 import {
   calcInterruptDuelPts,
   clearWatchedLocIncrements,
+  decayWatchedLocs,
   incrementWatchedLoc,
   markSeenOpponent,
   setWatchedLocAsUsed,
@@ -666,26 +667,35 @@ export function verifyAndDecayOpplist(t: TacticalState, s: Soldier): void {
   }
 }
 
-export function decayPublicOpplist(t: TacticalState, team: number): void {
+function decayPublicNoise(t: TacticalState, team: number): void {
   const p = t.perception;
   const volume = p.publicNoiseVolume[team] ?? 0;
-  if (volume) {
-    const next = t.inCombat ? Math.trunc((volume * 7) / 10) : Math.trunc(volume / 2);
-    p.publicNoiseVolume[team] = next;
-    if (next <= 0) p.publicNoiseGridNo[team] = -1;
-  }
-  const table = p.publicOpp[team];
-  if (!table) return;
-  for (let id = 0; id < table.length; id++) {
-    const value = table[id] ?? 0;
-    if (value === 0) continue;
+  if (!volume) return;
+  const next = t.inCombat ? Math.trunc((volume * 7) / 10) : Math.trunc(volume / 2);
+  p.publicNoiseVolume[team] = next;
+  if (next <= 0) p.publicNoiseGridNo[team] = NOWHERE;
+}
+
+function decayPublicOpponents(t: TacticalState, team: number): boolean {
+  const table = t.perception.publicOpp[team];
+  if (!table) return false;
+  let anyPubliclyKnown = false;
+  for (const opp of mercs(t)) {
+    if (!opp.life || opp.team === team) continue;
+    const value = table[opp.id] ?? Opp.NOT_HEARD_OR_SEEN;
+    if (value === Opp.NOT_HEARD_OR_SEEN) continue;
+    anyPubliclyKnown = true;
     const decayed = decayOppListValue(value);
-    if (decayed === 0) {
-      const opp = t.soldiers[id];
-      if (opp) updatePublic(t, team, opp, 0, -1);
-      else table[id] = 0;
-    } else table[id] = decayed;
+    table[opp.id] = decayed;
+    if (decayed === Opp.NOT_HEARD_OR_SEEN) updatePublic(t, team, opp, Opp.NOT_HEARD_OR_SEEN, NOWHERE);
   }
+  return anyPubliclyKnown;
+}
+
+export function decayPublicOpplist(t: TacticalState, team: number): void {
+  decayPublicNoise(t, team);
+  if (!decayPublicOpponents(t, team)) t.perception.lastMercToRadio[team] = null;
+  decayWatchedLocs(t, team);
 }
 
 export function publicOpp(t: TacticalState, team: number, opp: Soldier): number {

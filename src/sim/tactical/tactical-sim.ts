@@ -124,7 +124,7 @@ import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, own
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
-import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
+import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
 import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
 import { dynamicLightSprites } from './world-view.ts';
 
@@ -893,6 +893,7 @@ export class TacticalSim {
     if (t.gameEvents.length > 0) return refuse('orderQueued', QUEUED_ORDER);
     const busy = teamMembers(t, Team.OUR).find((x) => this.isBusy(x));
     if (busy) return refuse('mercActing', `soldier ${busy.id} is still acting`);
+    if (checkForEndOfCombatMode(t, false)) return { ok: true, data: { combatEnded: true } };
     endTurn(t, Team.OUR + 1);
     return { ok: true };
   }

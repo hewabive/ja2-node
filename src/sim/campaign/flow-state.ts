@@ -55,9 +55,9 @@ export function createSessionState(): SessionState {
   return { tick: 0, compressing: false, day: 0 };
 }
 
-export function createSectorFlowState(): SectorFlowState {
+export function createSectorFlowState(realtimeClock: RealtimeClock = createRealtimeClock()): SectorFlowState {
   return {
-    realtimeClock: createRealtimeClock(),
+    realtimeClock,
     jump: null,
     usingEdgepointsForEntry: false,
     overrideInsertionWithExitGrid: null,

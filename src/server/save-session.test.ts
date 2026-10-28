@@ -129,6 +129,8 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into the tactical
         expect((l.flags & LightSpriteFlags.ON) !== 0).toBe(scheduled === 0 || (scheduled & lightTime) !== 0);
       }
       expect(t.inCombat).toBe(save.tactical.inCombat);
+      expect(t.realtimeClock).toBe(session.campaign.state.sectorFlow.realtimeClock);
+      expect(t.realtimeClock.lastOpplistDecaySeconds).toBe(save.tactical.timeSinceLastOpplistDecay);
       const roster = session.roster;
       const mercs = save.soldiers.filter((e) => e.soldier.team === Team.OUR && e.soldier.active !== 0);
       expect(roster?.all().map((m) => m.id)).toEqual(mercs.map((e) => e.soldier.id).sort((a, b) => a - b));

@@ -10,20 +10,24 @@
 // @src BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
-// @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24).
+// @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24); Overhead.cc
+// @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28).
 
+import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { u8, u32 } from '../../../core/int.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
+import { findObjClass } from '../combat/reload.ts';
 import { DamageReason } from '../combat/types.ts';
 import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { handlePlayerServices, handleTeamServices } from '../first-aid.ts';
+import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
@@ -48,6 +52,7 @@ import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
 import {
   AlertStatus,
   Body,
+  CivilianGroup,
   isMonster,
   NO_INTERRUPT,
   NO_PROFILE,
@@ -71,7 +76,7 @@ const TEAM_SIDE = [Side.FRIENDLY, Side.ENEMY, Side.NONE, Side.FRIENDLY, Side.ENE
 const HUMAN_TEAM = [true, false, false, false, false, true] as const;
 const LAST_TEAM = Team.CIV;
 const MAX_DISTANCE_VISIBLE = 26;
-const OPPLIST_DECAY_MS = 20_000;
+const TIME_BETWEEN_RT_OPPLIST_DECAYS = 20;
 const LIFE_GAIN_PER_REGEN_POINT = 10;
 
 function pointsContext(t: TacticalState): PointsContext {
@@ -180,8 +185,8 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
   if (!t.inCombat && t.turn.forceRealtimeTurn) {
     t.turn.forceRealtimeTurn = false;
     clock.lastTurnMs = t.clockMs;
-    clock.lastDecayMs = t.clockMs - OPPLIST_DECAY_MS;
     handleTacticalEndTurn(t, clock);
+    forceOpplistDecay(t, clock);
     return;
   }
   if (t.clockMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return;
@@ -196,16 +201,26 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
   handleTacticalEndTurn(t, clock);
 }
 
+function nonCombatDecayPublicOpplist(t: TacticalState, clock: RealtimeClock, now: number): void {
+  if (u32(now - clock.lastOpplistDecaySeconds) < TIME_BETWEEN_RT_OPPLIST_DECAYS) return;
+  for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
+  for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
+  clock.lastOpplistDecaySeconds = now;
+}
+
+function forceOpplistDecay(t: TacticalState, clock: RealtimeClock): void {
+  const now = worldSeconds(t);
+  clock.lastOpplistDecaySeconds = u32(now - TIME_BETWEEN_RT_OPPLIST_DECAYS);
+  nonCombatDecayPublicOpplist(t, clock, now);
+}
+
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
+  const now = worldSeconds(t);
   decaySmokeEffects(t);
   decayLightEffects(t);
-  decayBloodAndSmells(t, worldSeconds(t));
+  decayBloodAndSmells(t, now);
   t.sectorHooks.addPendingEnemies(t);
-  if (t.clockMs - clock.lastDecayMs >= OPPLIST_DECAY_MS) {
-    for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
-    for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
-    clock.lastDecayMs = t.clockMs;
-  }
+  nonCombatDecayPublicOpplist(t, clock, now);
   if (!t.inCombat) {
     for (const s of teamMembers(t, Team.OUR)) {
       if (s.life <= 0) continue;
@@ -346,9 +361,15 @@ export function lastMercKillWasMonster(t: TacticalState): boolean {
   return killed !== null && isMonster(killed);
 }
 
+const CIV_GROUPS_THAT_FIGHT: ReadonlySet<number> = new Set([CivilianGroup.REBEL, CivilianGroup.KINGPIN, CivilianGroup.HICKS]);
+
+function armedFightingCivilian(t: TacticalState, s: Soldier): boolean {
+  return CIV_GROUPS_THAT_FIGHT.has(s.civilianGroup) && findObjClass(t.content.items, s, WEAPON_CLASSES) !== NO_SLOT;
+}
+
 export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldier): void {
   if (s.neutral || s.side === Side.FRIENDLY) return;
-  if (s.team === Team.CIV) return;
+  if (s.team === Team.CIV && !armedFightingCivilian(t, s)) return;
   t.turn.numFoughtInBattle[s.team] = (t.turn.numFoughtInBattle[s.team] ?? 0) + 1;
 }
 
@@ -431,8 +452,10 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
       if (s.life < OKLIFE || s.neutral || !soldierHasSeenEnemiesLastFewTurns(t, s)) continue;
       turn.consNumTurnsNotSeen = 0;
       someone = true;
-      if (s.team === Team.OUR || (s.team === Team.MILITIA && s.side === Side.FRIENDLY)) we = true;
-      break;
+      if (s.team === Team.OUR || (s.team === Team.MILITIA && s.side === Side.FRIENDLY)) {
+        we = true;
+        break;
+      }
     }
     if (someone) {
       turn.consNumTurnsWeHaventSeenButEnemyDoes = we ? 0 : turn.consNumTurnsWeHaventSeenButEnemyDoes + 1;

@@ -42,7 +42,8 @@ saved by ja2-node.
 it follows the loaded sector's `TacticalState.clockMs`. The strategic turn statics `guiLastTacticalRealTime`
 (`Strategic/Strategic_Turns.cc:14`, not saved) and the `STRATEGIC_OVERHEAD` counter deadline (20 ms,
 `Utils/Timer_Control.cc:28`) → `RealtimeClock.lastTurnMs`, `.lastOverheadMs` (`src/sim/tactical/state.ts`), shared
-across sector loads through `SectorFlowState.realtimeClock`.
+across sector loads through `SectorFlowState.realtimeClock`; the same object keeps the opplist decay stamp
+(`gTacticalStatus.uiTimeSinceLastOpplistDecay`, saved; world seconds, `08` §2.6) as `.lastOpplistDecaySeconds`.
 
 **Environment** (`TileEngine/Environment.cc:113-119`) → `env` (`src/sim/strategic/time/environment.ts`):
 `gubEnvLightValue` (saved in the clock section) → `lightValue`; `gubDesertTemperature`, `gubGlobalTemperature` (saved in

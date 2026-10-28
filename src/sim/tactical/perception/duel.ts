@@ -4,15 +4,27 @@
 // @src OppList.cc FindUnusedWatchedLoc, FindWatchedLocWithLessThanXPointsLeft, FindWatchedLoc, GetWatchedLocPoints,
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
 
-import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { gridSquare, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { interruptBasePoints } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
-import { NO_INTERRUPT, NOBODY, numSkillTraits, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
-import { type TacticalState, teamMembers } from '../state.ts';
+import {
+  NO_INTERRUPT,
+  NOBODY,
+  numSkillTraits,
+  OKBREATH,
+  OKLIFE,
+  SkillTrait,
+  type Soldier,
+  TEAM_FIRST_ID,
+  TEAM_SIZES,
+  Team,
+  TOTAL_SOLDIERS,
+} from '../soldier.ts';
+import { type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 import { atan8Of, Opp, SightFlags } from './opp.ts';
 
@@ -121,29 +133,30 @@ export function clearWatchedLocIncrements(t: TacticalState, id: number): void {
 }
 
 function watchedLocIsEmpty(t: TacticalState, g: number, level: number, team: number): boolean {
-  for (let dy = -WATCHED_LOC_RADIUS; dy <= WATCHED_LOC_RADIUS; dy++) {
-    for (let dx = -WATCHED_LOC_RADIUS; dx <= WATCHED_LOC_RADIUS; dx++) {
-      const id = t.occupant[level > 0 ? 1 : 0][g + dy * WORLD_COLS + dx] ?? -1;
-      const other = id >= 0 ? t.soldiers[id] : undefined;
-      if (other && other.team !== team) return false;
-    }
+  for (const near of gridSquare(g, WATCHED_LOC_RADIUS)) {
+    const other = whoIsThere(t, near, level);
+    if (other && other.team !== team) return false;
   }
   return true;
 }
 
-export function decayWatchedLocs(t: TacticalState, team: number): void {
+function decayWatchedLoc(t: TacticalState, at: number, team: number): void {
   const w = t.turn.watched;
-  for (const s of teamMembers(t, team)) {
-    for (let k = 0; k < NUM_WATCHED_LOCS; k++) {
-      const loc = w.gridNo[wk(s.id, k)] ?? NOWHERE;
-      if (loc === NOWHERE || !watchedLocIsEmpty(t, loc, w.level[wk(s.id, k)] ?? 0, team)) continue;
-      if (w.reset[wk(s.id, k)]) {
-        w.reset[wk(s.id, k)] = 0;
-        w.points[wk(s.id, k)] = Math.trunc((w.points[wk(s.id, k)] ?? 0) / 2);
-        if (w.points[wk(s.id, k)] === 0) w.gridNo[wk(s.id, k)] = NOWHERE;
-      } else w.reset[wk(s.id, k)] = 1;
-    }
+  const loc = w.gridNo[at] ?? NOWHERE;
+  if (loc === NOWHERE || !watchedLocIsEmpty(t, loc, w.level[at] ?? 0, team)) return;
+  if (!w.reset[at]) {
+    w.reset[at] = 1;
+    return;
   }
+  w.reset[at] = 0;
+  w.points[at] = Math.trunc((w.points[at] ?? 0) / 2);
+  if (w.points[at] === 0) w.gridNo[at] = NOWHERE;
+}
+
+export function decayWatchedLocs(t: TacticalState, team: number): void {
+  const first = TEAM_FIRST_ID[team] ?? 0;
+  const last = first + (TEAM_SIZES[team] ?? 0) - 1;
+  for (let id = first; id <= last; id++) for (let k = 0; k < NUM_WATCHED_LOCS; k++) decayWatchedLoc(t, wk(id, k), team);
 }
 
 const toInt8 = (v: number): number => ((v & 0xff) << 24) >> 24;

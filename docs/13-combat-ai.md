@@ -211,7 +211,7 @@ positive. Then every merc in `MercSlots` order, not `CONSIDERED_NEUTRAL(s, o)` a
   (`Tactical/OppList.cc:2479`), for every caller including the automatic radio after a sighting. Cleared when that
   soldier is removed as a target (`:2106`), by `DecayPublicOpplist` when the team knows nothing publicly (`:4527`), on
   sector init (`Overhead.cc:365, 5973`). ja2-node: `t.perception.lastMercToRadio[team]`, set by `radioSightings`,
-  cleared by `removeManAsTarget` and with each new sector's perception; no `DecayPublicOpplist` clear (§13.4).
+  cleared by `removeManAsTarget`, by `decayPublicOpplist` (`08` §2.6) and with each new sector's perception.
 - `HandleInitialRedAlert(team)` (`AIMain.cc:1899-1934`): ENEMY team with panic triggers → `MakeClosestEnemyChosenOne`
   (panic, §9.4); ENEMY team in Meduna (P3) → Queen and Joe to RED; then `Team[team].bAwareOfOpposition = TRUE`.
   Callers: the RED_ALERT action (§1.6), `RadioSightings` to MILITIA (`08` §2.5). Every non-CIV soldier of an aware team
@@ -254,7 +254,7 @@ climb = bestClimb; return best
 
 Per soldier, 3 slots `{grid, level, points ≤ 4, reset, incrementedThisLook}` (`NUM_WATCHED_LOCS 3`,
 `MAX_WATCHED_LOC_POINTS 4`, `WATCHED_LOC_RADIUS 1`). Used by RED "watch" (§5) and interrupt points (`10` §5).
-ja2-node: `t.turn.watched` (`perception/duel.ts`); `decayWatchedLocs` exists but nothing calls it (§13.4).
+ja2-node: `t.turn.watched` (`perception/duel.ts`).
 - `HandleSight` clears every `incrementedThisLook` of the looker (`:656-659`).
 - `ManSeesMan`, hostile new opponent not `SEEN_THIS_TURN` → `IncrementWatchedLoc(s, opp.grid, opp.level)`
   (`:1790`); already seen this turn → `SetWatchedLocAsUsed` (reset = false) (`:1801`).
@@ -263,8 +263,9 @@ ja2-node: `t.turn.watched` (`perception/duel.ts`); `decayWatchedLocs` exists but
   this look and < 4 → `++points`, communicate the new value; reset = false, incremented = true.
 - `CommunicateWatchedLoc(watcher, grid, level, pts)` (`:4917-4960`): every other teammate valid for sightings with
   `bLife >= OKLIFE`: same search; new → free slot or a slot with points ≤ `pts`, set to `pts`; existing → `max`.
-- `DecayWatchedLocs(team)` (`:5032-5060`, from `DecayPublicOpplist`): each used slot whose 3×3 area holds nobody of
-  another team: reset set → clear it and halve points (0 → slot freed); else set reset.
+- `DecayWatchedLocs(team)` (`:5032-5060`, from `DecayPublicOpplist`, `08` §2.6): every slot of every id in the team's
+  range (also ids nobody holds) whose 3×3 area (`GridSquare`, clipped at the map edge; `WhoIsThere2` on the slot's
+  level) holds nobody of another team: reset set → clear it and halve points (0 → slot freed); else set reset.
 - `GetHighestWatchedLocPoints(s)` = max points of used slots, 0 if none (`:4901-4914`).
   `GetHighestVisibleWatchedLoc(s)` (`:4873-4898`): first slot with strictly more points than the best so far that passes
   `SoldierTo3DLocationLineOfSightTest(s, grid, level, cubeLevel 3, DistanceVisible(s, IRRELEVANT, IRRELEVANT, grid,
@@ -1483,9 +1484,6 @@ AI specials", "AI threat value", "AI throw targets". Other gaps:
 - `handleInitialRedAlert` only sets `awareOfOpposition`: no chosen one, no Queen and Joe to RED in Meduna (§2.3).
 - The `Random(50)` civilian quote on a visible AI attack (§1.6) is not drawn: such an attack takes one main-stream
   number less than in the original.
-- `decayPublicOpplist` (`perception/sight.ts`) neither clears `lastMercToRadio` when the team knows no opponent
-  publicly nor calls `decayWatchedLocs`: watched locations never decay (§2.6), and the last radio caller stays
-  eligible for `closestReachableFriendInTrouble` after the team has forgotten every opponent (§2.3, §2.5).
 - `closestKnownOpponent` has neither the Carmen rule nor the same-building level skip (§4.4).
 - BLACK's toss branch skips the mortar room rule (§6.3).
 - `calcBestThrow` lacks the underground direct/adjacent test (§7.3).

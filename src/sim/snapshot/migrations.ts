@@ -288,6 +288,30 @@ function addBloodGraphics(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const REALTIME_CLOCK_KEYS = ['lastTurnMs', 'lastDecayMs', 'lastOverheadMs'];
+const TACTICAL_MS_DECAY_KEY = 'lastDecayMs';
+const WORLD_SECONDS_DECAY_KEY = 'lastOpplistDecaySeconds';
+const DECAY_DUE_AT_NEXT_REALTIME_TURN = 0;
+
+function isMsRealtimeClock(o: JsonObject): boolean {
+  return Object.keys(o).length === REALTIME_CLOCK_KEYS.length && REALTIME_CLOCK_KEYS.every((key) => typeof o[key] === 'number');
+}
+
+function withWorldSecondsDecayStamp(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withWorldSecondsDecayStamp(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withWorldSecondsDecayStamp(v);
+  if (!isMsRealtimeClock(mapped)) return mapped;
+  return replaceKey(mapped, TACTICAL_MS_DECAY_KEY, WORLD_SECONDS_DECAY_KEY, DECAY_DUE_AT_NEXT_REALTIME_TURN, []);
+}
+
+function opplistDecayOnWorldSeconds(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withWorldSecondsDecayStamp(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -299,5 +323,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     7: addTurnQuoteFlags,
     8: putOutStaleMuzzleFlashes,
     9: addBloodGraphics,
+    10: opplistDecayOnWorldSeconds,
   };
 }

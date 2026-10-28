@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { approachUntilCombat, inCombat, ourTurn, untilOurTurn } from '../../tests/support/save-scenarios.ts';
+import { approachUntilCombat, inCombat, ourTurn, tacticalOf, untilOurTurn } from '../../tests/support/save-scenarios.ts';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { pythSpacesAway } from '../content/world/grid.ts';
 import { PromptKind } from '../sim/strategic/forces/battle-state.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { AlertStatus, Team } from '../sim/tactical/soldier.ts';
+import { mercs } from '../sim/tactical/state.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { inflateSave, parseSaveText, type SaveKind } from './save-file.ts';
 import { groupsAboutToArrive, saveRefusal, saveStatus, startsMeanwhile, startsOurTurn } from './save-rules.ts';
@@ -201,6 +203,30 @@ describe('save rules', () => {
         const backups = writes.filter((w) => w.name === DEAD_IS_DEAD_NAME).length;
         expect(backups).toBeGreaterThanOrEqual(3);
         expect(await k.store.read(DEAD_IS_DEAD_NAME)).not.toBeNull();
+      });
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'in Dead is Dead save nothing at an End Turn that ends combat instead of the turn',
+    async () => {
+      await withKit(async (k) => {
+        const writes = recordWrites(k);
+        const session = await k.open({ seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME } });
+        approachUntilCombat(session, true);
+        untilOurTurn(session);
+        await k.saves.flush();
+        const before = writes.length;
+        const t = tacticalOf(session).state;
+        for (const s of mercs(t)) {
+          if (s.team === Team.OUR) s.ai.oppCount = 0;
+          else s.ai.alertStatus = AlertStatus.GREEN;
+        }
+        expect(session.dispatch({ type: 'endTurn' })).toMatchObject({ ok: true, data: { combatEnded: true } });
+        await k.saves.flush();
+        expect(inCombat(session)).toBe(false);
+        expect(writes.length).toBe(before);
       });
     },
     TEST_TIMEOUT_MS,

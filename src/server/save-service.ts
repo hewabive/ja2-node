@@ -192,6 +192,11 @@ export function loadProblemOf(err: unknown): LoadProblem {
   return 'corrupt';
 }
 
+function endTurnEndedCombat(result: CommandResult): boolean {
+  const data = result.data;
+  return typeof data === 'object' && data !== null && (data as { readonly combatEnded?: unknown }).combatEnded === true;
+}
+
 function textOf(sim: SessionSim): unknown {
   return sim instanceof CampaignSession ? sim.origin?.parts.narrative.texts : null;
 }
@@ -557,12 +562,11 @@ export class SaveService {
     const state = this.#state(session);
     const pending = state.pendingEndTurn;
     state.pendingEndTurn = null;
-    if (!pending || !result.ok) return;
+    if (!pending || !result.ok || endTurnEndedCombat(result)) return;
     if (pending.kind === 'deadIsDead') {
       void this.#write(pending);
       return;
     }
-    if (!inTurnBasedCombat(session.sim)) return;
     void this.#writeAuto(pending);
   }
 

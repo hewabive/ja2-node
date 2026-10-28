@@ -331,7 +331,7 @@ back to the server. Kinds, channel and fairness: `29` §28.
   log; attached through `Session.hooks`, which only read the simulation), `session-factory.ts` and
   `save-environment.ts` (the session factory, also from a log origin; the wiring shared by the server, the workers and
   the CLI), `repository-history.ts` (version 1 saves, `27` §1.4).
-- **Snapshots** are versioned (`SNAPSHOT_VERSION` 10, `src/sim/snapshot/session.ts`); restore migrates older ones step
+- **Snapshots** are versioned (`SNAPSHOT_VERSION` 11, `src/sim/snapshot/session.ts`); restore migrates older ones step
   by step with neutral values for new fields (`27` §1.3).
 
 ### 5.6. Determinism and multiple sessions

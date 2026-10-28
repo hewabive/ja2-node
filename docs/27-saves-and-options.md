@@ -163,14 +163,15 @@ interface SaveFile {
   sandbox none; `src/server/campaign-id.ts`), by which the client keys per-campaign UI state (the help screens seen,
   `29` §24).
 - **Versions.** `migrateSaveFile` runs `SAVE_MIGRATIONS` (1 → 2: the file list `contentFiles` moves to
-  `legacyContent`) before the snapshot's own `migrateSnapshot` (`SNAPSHOT_VERSION` 10, `snapshotMigrations` in
+  `legacyContent`) before the snapshot's own `migrateSnapshot` (`SNAPSHOT_VERSION` 11, `snapshotMigrations` in
   `src/sim/snapshot/migrations.ts`, one function per step: 1 the unified game options, 2 sprite frames → presentation
   timeline slots (needs the animation timelines, `snapshotMigrationContext`), 3 soldier and turn presentation state,
   4 the laptop's new-mail flag, 5 battles fought, 6 the heard-noise pause, 7 the turn quote flags, 8 stale muzzle
-  flashes put out, 9 the blood graphics). Problems: `notASave`, `versionTooNew`, `noMigration`, `corrupt`. **Rule:** a
-  change of the state's shape bumps `SNAPSHOT_VERSION` and adds a migration. `src/server/fixtures/` holds a landed
-  campaign and a sandbox saved by 0.7.0 on the stub pack with the soldiers they showed; `legacy-save.test.ts` loads
-  them, expects the same soldiers 400 ticks later and re-saves them.
+  flashes put out, 9 the blood graphics, 10 the opplist decay stamp in world seconds, due at the next real-time turn).
+  Problems: `notASave`, `versionTooNew`, `noMigration`, `corrupt`. **Rule:** a change of the state's shape bumps
+  `SNAPSHOT_VERSION` and adds a migration. `src/server/fixtures/` holds a landed campaign and a sandbox saved by 0.7.0
+  on the stub pack with the soldiers they showed; `legacy-save.test.ts` loads them, expects the same soldiers 400 ticks
+  later and re-saves them.
 - **Size.** A landed stub squad ≈ 2 MiB of JSON (40 KiB gzipped), the largest original-data import ≈ 4 MiB (150 KiB),
   mostly merchant inventories, the base64 cost table, the structure lists and the tactical typed arrays.
 
@@ -256,9 +257,10 @@ trustworthy; the log replays to the failure).
   sector). A campaign session the server did not build has no origin and answers `notSaveable`; bad names answer
   `invalidName` or `reservedName`. A won campaign may be saved.
 - **Autosave** (`SaveService`, through `Session.hooks`): before an `endTurn` in turn-based combat the service captures
-  the save if `canGameBeSaved` (in Dead is Dead: if writable), and writes it once the command is accepted and, outside
-  Dead is Dead, combat still goes on; the file holds the state at the original's `UIHandleEndTurn`. No other autosaves
-  (sector entry, daily), even for long agent campaigns.
+  the save if `canGameBeSaved` (in Dead is Dead: if writable), and writes it once the command is accepted and its
+  `CheckForEndOfCombatMode(FALSE)` did not end combat (`data.combatEnded`, `10` §2.2; then the original saves neither
+  file); the file holds the state at the original's `UIHandleEndTurn`, before that check (deviations "Dead is Dead
+  save points"). No other autosaves (sector entry, daily), even for long agent campaigns.
 - **Dead is Dead save points** are read from the input's effects: a `turnStarted` event of our team, a `meanwhile` or
   `meanwhileStarted` event, a `GROUP_ABOUT_TO_ARRIVE` strategic event that was due and left the queue during the
   advance. The save is written at the end of that input, or at the first later input boundary where the conditions hold

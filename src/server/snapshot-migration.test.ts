@@ -4,6 +4,7 @@ import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timeli
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
+import type { RealtimeClock } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -252,6 +253,68 @@ describe('snapshot version 9 (no blood graphics) migrates with every pool waitin
       const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
       expect(restored.view().blood).toEqual([]);
       expect(restored.view()).toEqual(sandbox.view());
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+});
+
+const LEGACY_DECAY_MS = 41_234;
+
+function withTacticalMsDecayStamp(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withTacticalMsDecayStamp(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === 'lastOpplistDecaySeconds') out.lastDecayMs = LEGACY_DECAY_MS;
+    else out[key] = withTacticalMsDecayStamp(v);
+  }
+  return out;
+}
+
+function versionTen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withTacticalMsDecayStamp(value)]);
+  return { ...snapshot, version: 10, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 10 (opplist decay on the tactical clock) migrates to a world-second stamp', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectDecayDueAtNextRealtimeTurn(session: SessionSim, clock: RealtimeClock): Promise<void> {
+    clock.lastOpplistDecaySeconds = 0;
+    const current = snapshotSession(session);
+    const legacy = versionTen(current.sim);
+    expect(JSON.stringify(legacy)).toContain(`"lastDecayMs":${LEGACY_DECAY_MS}`);
+    expect(JSON.stringify(legacy)).not.toContain('"lastOpplistDecaySeconds"');
+    expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it(
+    'a sandbox decays at its next real-time turn',
+    async () => {
+      const sandbox = await createSandboxSession(kit.read, false, 5);
+      await expectDecayDueAtNextRealtimeTurn(sandbox, sandbox.sim.state.realtimeClock);
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+
+  it(
+    'a landed campaign keeps one clock for the sector flow and the loaded sector',
+    async () => {
+      const campaign = await createCampaignSession(kit.read, exists, 9);
+      const clock = campaign.campaign.state.sectorFlow.realtimeClock;
+      expect(campaign.campaign.tactical?.state.realtimeClock).toBe(clock);
+      await expectDecayDueAtNextRealtimeTurn(campaign, clock);
     },
     SCENARIO_TIMEOUT_MS,
   );
