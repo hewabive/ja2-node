@@ -180,7 +180,7 @@ export function addSoldierToSector(
   animation: PlacementAnimation | null = null,
 ): boolean {
   keepElliotAliveInMeanwhile(t, s);
-  s.actionPoints = calcActionPoints(t.content, s, boxingHalvesPoints(t));
+  s.actionPoints = calcActionPoints(s, boxingHalvesPoints(t));
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
   let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
   if (gridNo === NOWHERE) gridNo = s.insertionGridNo;

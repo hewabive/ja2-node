@@ -1134,7 +1134,7 @@ function executeAttackChoice(
     const gun = s.inv[best.weaponIn];
     const burstCapable = (t.content.items.byIndex.get(gun?.item ?? NOTHING)?.weapon?.shotsPerBurst ?? 0) > 0;
     if (burstCapable && (bestShot.opponent?.life ?? 0) >= OKLIFE && (gun?.gunShotsLeft ?? 0) > 1 && s.team !== Team.OUR && gun) {
-      const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), gun);
+      const burstAPs = calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), gun);
       let reraise = 0;
       if (changeStanceFirst && hasFireReady(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
       if (s.actionPoints - (best.apCost - best.aimTime) - reraise >= burstAPs) {
@@ -1166,9 +1166,7 @@ function executeAttackChoice(
         if (t.pre.int(100) < chance) {
           best.aimTime = BURSTING;
           best.apCost = u8(
-            best.apCost -
-              best.aimTime +
-              calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), s.inv[InvSlot.HAND] as typeof gun),
+            best.apCost - best.aimTime + calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), s.inv[InvSlot.HAND] as typeof gun),
           );
           if (ai.attitude !== Attitude.ATTACKSLAYONLY) calcSpreadBurst(t, s, best.target, best.targetLevel);
         }

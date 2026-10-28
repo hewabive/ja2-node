@@ -71,20 +71,20 @@ describe('action points', () => {
   it('derives turn APs from experience, agility, dexterity, wounds and breath', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
-    expect(calcActionPoints(content, s)).toBe(21);
+    expect(calcActionPoints(s)).toBe(21);
     s.life = 50;
-    expect(calcActionPoints(content, s)).toBe(18);
+    expect(calcActionPoints(s)).toBe(18);
     s.breath = 50;
-    expect(calcActionPoints(content, s)).toBe(14);
+    expect(calcActionPoints(s)).toBe(14);
     s.life = 0;
-    expect(calcActionPoints(content, s)).toBe(0);
+    expect(calcActionPoints(s)).toBe(0);
   });
 
   it('carries at most five APs into the next turn', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
     s.actionPoints = 9;
-    calcNewActionPoints(content, s);
+    calcNewActionPoints(s);
     expect(s.actionPoints).toBe(MAX_AP_CARRIED + 21 > 25 ? 25 : MAX_AP_CARRIED + 21);
     expect(s.initialActionPoints).toBe(s.actionPoints);
   });

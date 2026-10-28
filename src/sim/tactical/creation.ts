@@ -724,7 +724,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   s.hasKeys = pp.hasKeys;
   if (pp.team === Team.CIV) s.neutral = civilianStartsNeutral(c, pp.profile, s.civilianGroup);
   if (pp.team === Team.OUR || pp.team === Team.MILITIA) s.visible = 1;
-  s.actionPoints = calcActionPoints(c.content, s, boxingHalvesPoints(c));
+  s.actionPoints = calcActionPoints(s, boxingHalvesPoints(c));
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   s.insertionGridNo = pp.insertionGridNo;
@@ -870,7 +870,7 @@ export function createHiredMerc(
   s.breath = INITIAL_BREATH;
   s.breathMax = INITIAL_BREATH_MAX;
   s.visible = 1;
-  s.actionPoints = calcActionPoints(c.content, s);
+  s.actionPoints = calcActionPoints(s);
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   bodyTypeSetup(c, s);

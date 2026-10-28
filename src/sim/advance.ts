@@ -193,7 +193,7 @@ export class AdvanceRun {
       this.#collected.push(...sim.drainEvents(), { type: 'worldTimeReached', tick: sim.tick, seconds: clock.worldTime().seconds });
       return this.#report('worldTime');
     }
-    if (this.#strategic && clock && clock.onMap() && !clock.compressing()) {
+    if (this.#strategic && clock?.onMap() && !clock.compressing()) {
       if (until.compressionStopped !== false) return this.#report('idle');
       const refused = this.#startCompression();
       if (refused) return this.#report('refused', refused);

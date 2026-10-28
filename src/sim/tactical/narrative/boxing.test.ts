@@ -234,10 +234,10 @@ describe('a round', () => {
     const { sim, merc } = fight();
     const t = sim.state;
     expect(boxingHalvesPoints(t)).toBe(true);
-    const full = calcActionPoints(content, merc);
-    expect(calcActionPoints(content, merc, true)).toBe(Math.trunc(full / 2));
+    const full = calcActionPoints(merc);
+    expect(calcActionPoints(merc, true)).toBe(Math.trunc(full / 2));
     merc.actionPoints = 4;
-    calcNewActionPoints(content, merc, true);
+    calcNewActionPoints(merc, true);
     expect(merc.actionPoints).toBe(2 + Math.trunc(full / 2));
   });
 

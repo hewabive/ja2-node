@@ -406,8 +406,8 @@ export class BoxingComparer {
         const s = this.#soldier(c, a.who);
         if (a.ap !== undefined) s.actionPoints = num(a.ap);
         const halves = boxingHalvesPoints(t);
-        const full = calcActionPoints(t.content, s, halves);
-        calcNewActionPoints(t.content, s, halves);
+        const full = calcActionPoints(s, halves);
+        calcNewActionPoints(s, halves);
         return [full, s.actionPoints, s.initialActionPoints];
       }
       default:

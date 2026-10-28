@@ -219,8 +219,7 @@ function compareCosts(ctx: Context, probe: Json): number {
   return report('costs', hash === probe.fnv1a32 && differing === 0, `fnv1a32 ${hash}/${probe.fnv1a32}, ${differing} differing entries`);
 }
 
-function soldierFacts(ctx: Context, s: Soldier): Json {
-  const t = ctx.sim.state;
+function soldierFacts(s: Soldier): Json {
   return {
     gridNo: s.gridNo,
     level: s.level,
@@ -237,7 +236,7 @@ function soldierFacts(ctx: Context, s: Soldier): Json {
     bleeding: s.bleeding,
     ap: s.actionPoints,
     initialAp: s.initialActionPoints,
-    apPerTurn: calcActionPoints(t.content, s),
+    apPerTurn: calcActionPoints(s),
     morale: s.morale,
     aiMorale: s.ai.morale,
     alert: s.ai.alertStatus,
@@ -294,7 +293,7 @@ function oracleFacts(o: Json): Json {
 function compareSoldier(ctx: Context, o: Json, line: unknown): number {
   const s = ctx.sim.state.soldiers[Number(o.id)];
   if (!s?.placed) return report(`soldier ${o.id} line ${line}`, false, 'missing in ja2-node');
-  const ours = soldierFacts(ctx, s);
+  const ours = soldierFacts(s);
   const theirs = oracleFacts(o);
   const differing = Object.keys(theirs).filter((k) => JSON.stringify(ours[k]) !== JSON.stringify(theirs[k]));
   const detail = differing.map((k) => `${k} ${JSON.stringify(ours[k])}/${JSON.stringify(theirs[k])}`).join('; ');

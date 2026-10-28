@@ -521,7 +521,7 @@ export function maxActionPoints(bodyType: number): number {
   return AP_LIMITS.MAXIMUM;
 }
 
-export function calcActionPoints(content: TacticalContent, s: Soldier, boxingRound = false): number {
+export function calcActionPoints(s: Soldier, boxingRound = false): number {
   if (!s.life) return 0;
   let points = 5 + Math.trunc((10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20) / 40);
   points &= 0xff;
@@ -540,10 +540,10 @@ export function calcActionPoints(content: TacticalContent, s: Soldier, boxingRou
   return points & 0xff;
 }
 
-export function calcNewActionPoints(content: TacticalContent, s: Soldier, boxingRound = false): void {
+export function calcNewActionPoints(s: Soldier, boxingRound = false): void {
   const carried = boxingRound ? Math.trunc(MAX_AP_CARRIED / BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
   if (s.actionPoints > carried) s.actionPoints = carried;
-  s.actionPoints += calcActionPoints(content, s, boxingRound);
+  s.actionPoints += calcActionPoints(s, boxingRound);
   s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));
   s.initialActionPoints = s.actionPoints;
 }

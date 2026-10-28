@@ -33,6 +33,8 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - Layer boundaries: tsconfig project references + `tools/check-imports.ts`. `core`, `content` and
   `sim` are DOM-free, Node-free and deterministic: no `Math.random`, `Date`, timers.
 - Fixed-width integer fields of the original go through `src/core/int.ts` (`u8`, `i16`, `idiv`…).
+- Constants of the original keep their literal values (`PI` is `3.1415926` as in `sgp/Types.h`, never `Math.PI`), so
+  Biome's `noApproximativeNumericConstant` is off. Any other Biome warning fails `pnpm lint`.
 - Files derived from original or Stracciatella logic start with:
   ```ts
   // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.

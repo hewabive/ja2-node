@@ -383,7 +383,7 @@ export class CreatureAiComparer {
     setSoldierPosition(t, s, num(d.gridNo));
     initNewSoldierAnim(t, s, num(d.animState), 0, true);
     syncSoldier(t, s, d, ai);
-    const apPerTurn = calcActionPoints(t.content, s);
+    const apPerTurn = calcActionPoints(s);
     const same = s.gridNo === num(d.gridNo) && apPerTurn === num(d.apPerTurn);
     return report(label, same, `body ${String(d.body)} at ${s.gridNo}/${String(d.gridNo)} ap per turn ${apPerTurn}/${String(d.apPerTurn)}`);
   }

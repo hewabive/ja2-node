@@ -2,8 +2,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import type { SimEvent } from '../../events.ts';
-import { eventFireSoldierWeapon, handleItem, ItemHandle } from '../combat/attack.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';

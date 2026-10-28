@@ -118,7 +118,7 @@ export function createPerception(maxSoldiers: number): Perception {
 }
 
 export function validForSightings(s: Soldier | undefined): s is Soldier {
-  return s !== undefined && s.placed && s.life > 0;
+  return s?.placed === true && s.life > 0;
 }
 
 export function hostile(a: Soldier, b: Soldier): boolean {

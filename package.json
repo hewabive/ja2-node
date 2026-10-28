@@ -17,7 +17,7 @@
     "stubs": "node stubs/build.ts",
     "cli": "node tools/cli.ts",
     "typecheck": "tsc -b",
-    "lint": "biome check .",
+    "lint": "biome check --error-on-warnings .",
     "format": "biome check --write .",
     "imports": "node tools/check-imports.ts",
     "test": "vitest run",

@@ -466,13 +466,13 @@ export function unregisterSoldier(t: TacticalState, s: Soldier): void {
 }
 
 export function mercs(t: Pick<TacticalState, 'mercSlots'>): Soldier[] {
-  return t.mercSlots.filter((s): s is Soldier => s !== null && s.placed);
+  return t.mercSlots.filter((s): s is Soldier => s?.placed === true);
 }
 
 export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {
-  return t.soldiers.filter((s): s is Soldier => s !== undefined && s.placed);
+  return t.soldiers.filter((s): s is Soldier => s?.placed === true);
 }
 
 export function teamMembers(t: Pick<TacticalState, 'soldiers'>, team: number): Soldier[] {
-  return t.soldiers.filter((s): s is Soldier => s !== undefined && s.placed && s.team === team);
+  return t.soldiers.filter((s): s is Soldier => s?.placed === true && s.team === team);
 }

@@ -37,7 +37,7 @@ import { decayIndividualOpplist, handleSight } from '../perception/sight.ts';
 import { animStructureDef, isValidStance } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
-import { effectiveExpLevel, effectiveLife, effectiveStrength } from '../skills.ts';
+import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';

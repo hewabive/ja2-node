@@ -391,7 +391,7 @@ function shotAttackValue(damage: number, hitRate: number, chanceToReallyHit: num
 export function calcBestShot(t: TacticalState, s: Soldier, best: AttackChoice = emptyAttackChoice()): AttackChoice {
   const hand = handObject(s);
   s.attackingWeapon = hand.item;
-  const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), hand);
+  const burstAPs = calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), hand);
   initAttackType(best);
   const standing = states(t.content.animations).STANDING;
   for (const opp of mercs(t)) {

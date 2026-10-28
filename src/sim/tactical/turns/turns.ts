@@ -155,7 +155,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   unusedAPsToBreath(pointsContext(t), s, t.explosives.gassed[s.id] === 1);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
   if (s.placed) checkForBreathCollapse(s);
-  calcNewActionPoints(t.content, s, boxingHalvesPoints(t));
+  calcNewActionPoints(s, boxingHalvesPoints(t));
   s.tilesMoved = 0;
   if (s.placed) {
     beginSoldierGetup(t, s);
@@ -363,7 +363,7 @@ function commonEnterCombatModeCode(t: TacticalState): void {
     t.turnHooks.cancelAIAction(t, s);
     s.aiTurnControl = false;
     checkForPotentialAddToBattleIncrement(t, s);
-    calcNewActionPoints(t.content, s, boxingHalvesPoints(t));
+    calcNewActionPoints(s, boxingHalvesPoints(t));
   }
   t.turn.round = 1;
 }

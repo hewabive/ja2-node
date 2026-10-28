@@ -320,7 +320,7 @@ export function getObjFrom(o: ItemObject, index: number): ItemObject | null {
 
 function applyComboMerge(table: ItemTable, target: ItemObject): void {
   const m = table.rules.comboMerges.find((c) => c.item === target.item);
-  if (!m || !m.attachments.every((a) => a === NOTHING || findAttachment(target, a) !== -1)) return;
+  if (!m?.attachments.every((a) => a === NOTHING || findAttachment(target, a) !== -1)) return;
   let total = target.status[0] ?? 0;
   let contributors = 1;
   for (const a of m.attachments) {

@@ -96,7 +96,7 @@ function creatureThreat(enemy: Soldier, myGrid: number): number {
 
 function soldierThreat(t: TacticalState, enemy: Soldier): number {
   let threat = enemy.stats.experience;
-  threat += calcActionPoints(t.content, enemy, boxingHalvesPoints(t));
+  threat += calcActionPoints(enemy, boxingHalvesPoints(t));
   threat += idiv(enemy.actionPoints, 2);
   threat += idiv(enemy.life, 10);
   threat += idiv(armourPercent(t.content.items, maxArmour(t.content.items), enemy), 4);

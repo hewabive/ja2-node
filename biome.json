@@ -18,7 +18,8 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "style": { "noNonNullAssertion": "off" }
+      "style": { "noNonNullAssertion": "off" },
+      "suspicious": { "noApproximativeNumericConstant": "off" }
     }
   },
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } }

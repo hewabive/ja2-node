@@ -59,7 +59,7 @@ function spawn(sim: TacticalSim, id: number, team: number, at: number, direction
   registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
-  s.actionPoints = calcActionPoints(content, s);
+  s.actionPoints = calcActionPoints(s);
   return s;
 }
 
@@ -145,7 +145,13 @@ describe('turn-based combat', () => {
     expect(watcher.oppList[merc.id]).not.toBe(1);
     const controlled: number[] = [];
     const start = t.turnHooks.startNPCAI;
-    t.turnHooks = { ...t.turnHooks, startNPCAI: (state, s) => (controlled.push(s.id), start(state, s)) };
+    t.turnHooks = {
+      ...t.turnHooks,
+      startNPCAI: (state, s) => {
+        controlled.push(s.id);
+        return start(state, s);
+      },
+    };
     sim.ai.green.decideActionBlack = () => AiAction.NONE;
     expect(sim.dispatch({ type: 'move', soldier: 0, to: gridNo(80, 70), mode: 'walk' }).ok).toBe(true);
     const events = run(sim);
