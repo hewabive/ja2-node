@@ -115,6 +115,7 @@ export class HintProvider implements GameClient {
   #shadowStale = 0;
   #shadowFailed = 0;
   #mismatchCount = 0;
+  #pendingReplies = 0;
   shadow: boolean;
 
   constructor(options: HintProviderOptions) {
@@ -140,6 +141,10 @@ export class HintProvider implements GameClient {
       latency: summary(this.#latencies),
       projection: summary(this.#projections),
     };
+  }
+
+  get pendingReplies(): number {
+    return this.#pendingReplies;
   }
 
   resetStats(): void {
@@ -174,6 +179,12 @@ export class HintProvider implements GameClient {
   }
 
   hint(request: CommandEnvelope): HintReply {
+    const reply = this.#reply(request);
+    if (reply.state === 'pending') this.#pendingReplies++;
+    return reply;
+  }
+
+  #reply(request: CommandEnvelope): HintReply {
     const view = this.#view();
     if (!view) return PENDING_HINT;
     const key = JSON.stringify(request);

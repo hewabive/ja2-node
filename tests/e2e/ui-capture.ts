@@ -10,6 +10,7 @@ const GOLDEN_DIR = join(import.meta.dirname, 'golden');
 const UPDATE_GOLDENS = process.env.JA2_UPDATE_GOLDENS === '1';
 const RGBA = 4;
 const TOLERANCE = 1;
+const SETTLE_ATTEMPTS = 40;
 
 export interface Area {
   readonly x: number;
@@ -44,14 +45,43 @@ function refuseOriginalData(): void {
 
 export type CaptureMoment = 'afterReads' | 'whileReading';
 
+interface Shot {
+  readonly pixels: CapturedPixels | null;
+  readonly areas: readonly Area[];
+}
+
+async function pendingHintReplies(page: Page): Promise<number> {
+  return page.evaluate(() => (window.__ja2Ui.hints?.pendingReplies ?? 0) + (window.__ja2Ui.map?.hints?.pendingReplies ?? 0));
+}
+
+async function shotOfSettledFrames(page: Page): Promise<Shot | null> {
+  await page.waitForFunction(() => (window.__ja2Ui.reads?.pendingReads ?? 0) === 0);
+  const pendingBefore = await pendingHintReplies(page);
+  await nextFrames(page);
+  return page.evaluate((before) => {
+    const ui = window.__ja2Ui;
+    const pending = (ui.hints?.pendingReplies ?? 0) + (ui.map?.hints?.pendingReplies ?? 0);
+    if (pending !== before || (ui.reads?.pendingReads ?? 0) > 0) return null;
+    return { pixels: ui.capture(), areas: ui.draw?.multiplyAreas ?? [] };
+  }, pendingBefore);
+}
+
+async function settledShot(page: Page): Promise<Shot | null> {
+  for (let attempt = 0; attempt < SETTLE_ATTEMPTS; attempt++) {
+    const shot = await shotOfSettledFrames(page);
+    if (shot) return shot;
+  }
+  return null;
+}
+
+async function shotAfterFrames(page: Page): Promise<Shot> {
+  await nextFrames(page);
+  return page.evaluate(() => ({ pixels: window.__ja2Ui.capture(), areas: window.__ja2Ui.draw?.multiplyAreas ?? [] }));
+}
+
 export async function capture(page: Page, moment: CaptureMoment = 'afterReads'): Promise<Capture> {
   refuseOriginalData();
-  if (moment === 'afterReads') await page.waitForFunction(() => (window.__ja2Ui.reads?.pendingReads ?? 0) === 0);
-  await nextFrames(page);
-  const shot: { pixels: CapturedPixels | null; areas: readonly Area[] } = await page.evaluate(() => ({
-    pixels: window.__ja2Ui.capture(),
-    areas: window.__ja2Ui.draw?.multiplyAreas ?? [],
-  }));
+  const shot = (moment === 'afterReads' ? await settledShot(page) : null) ?? (await shotAfterFrames(page));
   if (!shot.pixels) throw new Error('nothing was captured');
   return {
     width: shot.pixels.width,

@@ -1,4 +1,4 @@
-import { type Browser, expect, test } from '@playwright/test';
+import { type Browser, expect, type Page, test } from '@playwright/test';
 import { decodePng, type PngImage } from '../../src/content/formats/png.ts';
 import { type Resolution, resolveResolution } from '../../src/ui/resolution.ts';
 import { WEB_PORT } from '../e2e/env.ts';
@@ -13,6 +13,7 @@ const WINDOWS = [
   { width: 1366, height: 768 },
 ];
 const SETTLE_MS = 1_000;
+const STABLE_ATTEMPTS = 10;
 const RGB = 3;
 const RGBA = 4;
 
@@ -54,6 +55,14 @@ function mismatch(shot: PngImage, shown: Shown, fixed640: boolean): string | nul
   return pixels === 0 ? null : `${pixels} device pixels differ, first ${first}`;
 }
 
+async function shownNow(page: Page): Promise<Shown | null> {
+  return page.evaluate((): Shown | null => {
+    const capture = window.__ja2Ui.capture();
+    const stage = document.getElementById('stage')?.getBoundingClientRect();
+    return capture && stage ? { capture, stage: { width: stage.width, height: stage.height }, ratio: devicePixelRatio } : null;
+  });
+}
+
 async function presentationMismatch(browser: Browser, ratio: number, size: (typeof WINDOWS)[number], fixed640: boolean) {
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: ratio, baseURL: ORIGIN, storageState: STORAGE });
   try {
@@ -63,14 +72,14 @@ async function presentationMismatch(browser: Browser, ratio: number, size: (type
       const ui = window.__ja2Ui;
       return ui?.screen === 'mainMenu' && ui.draw !== null && ui.draw.missingImages.length === 0 && ui.draw.missingFonts.length === 0;
     });
-    await page.waitForTimeout(SETTLE_MS);
-    const shown = await page.evaluate((): Shown | null => {
-      const capture = window.__ja2Ui.capture();
-      const stage = document.getElementById('stage')?.getBoundingClientRect();
-      return capture && stage ? { capture, stage: { width: stage.width, height: stage.height }, ratio: devicePixelRatio } : null;
-    });
-    if (!shown) return 'nothing to capture';
-    return mismatch(decodePng(await page.screenshot({ scale: 'device' })), shown, fixed640);
+    for (let attempt = 1; ; attempt++) {
+      await page.waitForTimeout(SETTLE_MS);
+      const before = await shownNow(page);
+      const shot = decodePng(await page.screenshot({ scale: 'device' }));
+      const after = await shownNow(page);
+      if (!before || !after) return 'nothing to capture';
+      if (before.capture.rgba === after.capture.rgba || attempt === STABLE_ATTEMPTS) return mismatch(shot, after, fixed640);
+    }
   } finally {
     await context.close();
   }

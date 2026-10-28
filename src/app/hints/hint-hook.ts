@@ -10,6 +10,7 @@ export interface HintHook {
   shadow: boolean;
   last: { readonly request: CommandEnvelope; readonly reply: HintReply } | null;
   readonly stats: HintStats;
+  readonly pendingReplies: number;
   hintNow(request: CommandEnvelope): Promise<HintAnswer>;
   query(request: CommandEnvelope): Promise<HintAnswer>;
   resetStats(): void;
@@ -30,6 +31,9 @@ export function createHintHook(provider: HintProvider): HintHook {
     last: null,
     get stats() {
       return provider.stats;
+    },
+    get pendingReplies() {
+      return provider.pendingReplies;
     },
     hintNow: (request) => provider.hintNow(request),
     query: (request) => provider.query(request),
