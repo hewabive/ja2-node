@@ -1,0 +1,39 @@
+Licence of the ja2-node stub pack
+
+The stub pack is ja2-node's own content that lets the engine run without the game's data: the
+hand-made maps, the invented characters and their lines, the item, laptop, mail and help texts, and
+the pictures, sounds, music and video that `pnpm stubs` (stubs/build.ts) generates into dist/stubs.
+
+To the extent possible under law, the ja2-node authors have waived all copyright and related or
+neighboring rights to this content under CC0 1.0 Universal (LICENSE.txt, also at
+https://creativecommons.org/publicdomain/zero/1.0/legalcode). It is provided without any warranty.
+
+Covered
+  In the repository: stubs/maps/*.map.txt, stubs/text/*.json, stubs/npc/*.json,
+  stubs/profiles.json, stubs/locks.json.
+  In the generated pack: every file except the ones listed below.
+
+Not covered
+  The code that generates the pack (stubs/**/*.ts, stubs/tsconfig.json). It is part of ja2-node
+  and builds on ja2-node modules derived from the Jagged Alliance 2 source code, so it is
+  distributed with ja2-node under the Strategy First Source Code License Agreement (SFI-SCLA,
+  the LICENSE file at the repository root).
+
+  The Stub Pixel fonts: stubs/font/ in the repository, fonts/ in the pack. They are a subset of
+  Terminus Font under the SIL Open Font License 1.1 (OFL.txt and NOTICE.txt next to them).
+
+  The files that tie the content to the game. They list the game's file paths, sectors, tile and
+  animation slots, glyph numbers or map data, are built from JA2 Stracciatella's tables, and are
+  part of ja2-node under the SFI-SCLA:
+    stubs/maps/sector-kinds.json                     which of the game's sectors load which stub map
+    aliases.json                                     the game's file paths the pack's files stand in for
+    binarydata/ja2bin.dat                            the animation scripts in the engine's state slots
+    world/binarydata/ja2set.dat                      the stub tileset's files in the engine's tile slots
+    translation_tables/translation-table-stub.json   the glyph numbers of the English glyph table
+    interface/b_map.pcx                              the map board, coloured by the game's traversability
+
+Interfaces
+  The covered files address the engine by its own identifiers, file paths and numbers: item, quest,
+  fact, profile, palette and text keys, sector names, tile, state and quote numbers, and the game's
+  file formats. They are facts used for interoperability. This dedication claims no rights in them
+  and grants none in Jagged Alliance 2, its code, its data or its names.

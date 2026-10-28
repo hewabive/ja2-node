@@ -1,5 +1,5 @@
 ja2-node.map/1
-name: Stub airfield (an airstrip with a helipad, a hangar and a shed; the airport and Skyrider's farm)
+name: Stub airfield (an airstrip with a helipad, a hangar and a shed; the airport and the helicopter pilot's farm)
 tileset: 0
 origin: 30 44
 fill: land FIRSTTEXTURE 1

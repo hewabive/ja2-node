@@ -26,14 +26,14 @@ import { glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts'
 import { parseVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.ts';
 import { parseTileTables } from '../src/content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
-import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
+import { PROJECT_DATA_DIR, REPO_ROOT } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
 import { cursorFilePaths, cursorFramesUsed } from '../src/ui/cursors/cursor-table.ts';
 import { GENERIC_FACE, GENERIC_FACE_BODY_TYPES, genericFacePath } from '../src/ui/screens/tactical/generic-face.ts';
 import { sharedStubPackDir } from '../tests/support/stub-pack.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
-import { buildStubs } from './build.ts';
+import { buildStubs, STUB_LICENSE_FILE, STUB_NOTICE_FILE } from './build.ts';
 import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
 import { musicTracks } from './music.ts';
 import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
@@ -85,6 +85,8 @@ const HELP_TEXT_FILE = 'text/help.json';
 const LAPTOP_PAGES_FILE = 'text/laptop-pages.json';
 const HELP_CONSTANTS_TABLE = 'tables/ui-constants/HelpScreen.json';
 const HELP_RECORD_PREFIX = 'HLP_TXT_';
+const NOTICE_LISTED_FILE = /^ {4}(\S+)\s/;
+const REPOSITORY_STUBS_PREFIX = 'stubs/';
 const MIN_LOAD_SCREEN_NAMES = 40;
 const MIN_BOARD_COLOURS = 5;
 const EYE_FRAMES = 4;
@@ -166,6 +168,20 @@ describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       expect(soldier?.layer).toBe('stubs');
     } finally {
       await data.close();
+    }
+  });
+
+  it('carries its licence and a notice whose files left out of the dedication exist', async () => {
+    const pack = sharedStubPackDir();
+    for (const file of [STUB_LICENSE_FILE, STUB_NOTICE_FILE]) {
+      expect((await readFile(join(pack, file))).equals(await readFile(join(import.meta.dirname, file))), file).toBe(true);
+    }
+    const notice = await readFile(join(pack, STUB_NOTICE_FILE), 'utf8');
+    const listed = notice.split('\n').flatMap((line) => NOTICE_LISTED_FILE.exec(line)?.[1] ?? []);
+    expect(listed.length).toBeGreaterThan(0);
+    for (const file of listed) {
+      const root = file.startsWith(REPOSITORY_STUBS_PREFIX) ? REPO_ROOT : pack;
+      expect((await stat(join(root, file))).isFile(), file).toBe(true);
     }
   });
 });

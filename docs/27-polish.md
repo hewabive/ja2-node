@@ -1396,6 +1396,16 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
 
 - Nothing is traced, sampled or derived from the original data: sounds are synthesized, text is written fresh, maps
   are drawn in the ASCII format (`01` §4.4); names follow the original paths only so that one content table serves both.
+- The stub content is dedicated to the public domain under CC0 1.0 (`stubs/LICENSE.txt`, copied into the pack with
+  `stubs/NOTICE.txt`, which lists what the dedication covers). The generator code (`stubs/**/*.ts`) stays SFI-SCLA with
+  the rest of the code. A file that only ties the content to the game, listing its paths, sectors, tile or animation
+  slots, glyph numbers or map data from Stracciatella's tables (`aliases.json`, `sector-kinds.json`, `ja2bin.dat`,
+  `ja2set.dat`, the stub glyph table, the map board coloured by the traversability data), stays SFI-SCLA too: a new
+  one goes on the notice's list. Everything else must be own work so that the dedication can cover it.
+- Stub art draws what the layouts require (rectangles of the declared size, labels in the stub font, simple shapes) and
+  never imitates the original's look: no frames, textures, icons, ornaments or colour schemes taken from its screens.
+- Stub texts are written fresh and stay generic: they do not retell the original's story or use the names of its
+  characters and places; the game's identifiers appear only as keys.
 - The stub build stays deterministic (same bytes every build); generators take no time or randomness from the system.
 - Every new stub family gets a decoder round-trip test in `stubs/build.test.ts`.
 

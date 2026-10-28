@@ -505,6 +505,9 @@ converted to `MapDef`. The same files serve as test fixtures. A handful of gener
 kind (town, mine, cave, army camp, airfield; `stubs/maps/sector-kinds.json`), each listed sector an alias of its kind's
 map; an exit grid may lead to the sector the map is loaded for (`docs/27` §6.6).
 
+**Licence:** the stub content is dedicated to the public domain under CC0 1.0 (`stubs/NOTICE.txt` lists what it
+covers); the generator code stays SFI-SCLA with the rest of the code (`docs/27` §6.4).
+
 **Done criterion for each milestone:** the functionality also runs on stubs,
 and in CI only on them.
 

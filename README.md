@@ -24,6 +24,10 @@ player UI), the deviation log (`deviations.md`, every deliberate difference from
 
 - The code is distributed under the **SFI-SCLA** ([`LICENSE`](LICENSE)): non-commercial use only.
   Files ported from the original's logic carry a header with the date of the change.
+- **The stub pack's content** (the hand-made maps, texts and profiles in `stubs/` and the pictures, sounds, music and
+  video that `pnpm stubs` generates) is dedicated to the public domain under **CC0 1.0**
+  ([`stubs/LICENSE.txt`](stubs/LICENSE.txt)). [`stubs/NOTICE.txt`](stubs/NOTICE.txt) lists what it covers: the code that
+  builds the pack and the few files that tie it to the game stay under SFI-SCLA, the Stub Pixel fonts under SIL OFL 1.1.
 - **The original game data is not here and never will be.** You need your own copy of Jagged
   Alliance 2 (GOG, Steam). Without it the stub pack works: the project's own original assets.
 

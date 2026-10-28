@@ -14,6 +14,8 @@ The simulation is server-side (Node), the browser is a client, agents play throu
   in Russian.
 - Never commit original game data or anything derived from it (extracted files, JSON produced
   from `Ja2bin.dat`, screenshots). The data lives outside the repo, in `$JA2_DATA_DIR`.
+- Stub content is CC0 1.0 (`stubs/NOTICE.txt`): keep it own work; a stub file built from Stracciatella's tables goes
+  on the notice's SFI-SCLA list (`docs/27` §6.4).
 - `reference/` holds third-party sources: read-only, gitignored. Never copy code from
   `reference/ja2-web` (GPL claim).
 
