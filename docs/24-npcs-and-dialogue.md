@@ -1031,9 +1031,10 @@ talked to with EPC_WHO_IS_RECRUITED; other campaign rules: `25` §4.2.
 
 ### 9.5 RPCs leaving
 
-Dismissal and quitting: `22` §4. Only `ChangeSoldierTeam` to another team clears `RECRUITED`, so a departed RPC keeps it
-(inferred): profile insertion skips recruited profiles (`Soldier_Init_List.cc:1659`) and his backup records are never
-restored (§1.4); he does not come back.
+Dismissal and quitting: `22` §4; `StrategicRemoveMerc` writes his profile insertion data first (`35` §2.6, `22` §4.5).
+Only `ChangeSoldierTeam` to another team clears `RECRUITED`, so a departed RPC keeps it (inferred): profile insertion
+skips recruited profiles (`Soldier_Init_List.cc:1659`) and his backup records are never restored (§1.4); he does not
+come back.
 
 ### 9.6 Team changes in ja2-node
 

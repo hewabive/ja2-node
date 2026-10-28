@@ -61,6 +61,7 @@ export interface ContractContext {
   say(m: RosterMerc, quote: QuoteName, subject?: number): void;
   emit(e: ContractEventWithoutTick): void;
   history(code: number, profile: number, sector: Sector | null): void;
+  setupProfileInsertionData(m: RosterMerc): void;
   removeFromWorld(m: RosterMerc): void;
   enterMapScreen(): void;
 }

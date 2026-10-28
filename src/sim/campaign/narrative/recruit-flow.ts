@@ -37,7 +37,6 @@ import { soldierSlotTaken } from '../../tactical/init-list.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { autoPlaceObject, InvSlot, itemIn, NO_SLOT } from '../../tactical/inventory.ts';
 import type { RecruitActions } from '../../tactical/narrative/npc-actions/env.ts';
-import { setupProfileInsertionDataForSoldier } from '../../tactical/narrative/profile-insertion.ts';
 import { changeSoldierTeam } from '../../tactical/narrative/team-change.ts';
 import { kickOutWheelchair } from '../../tactical/narrative/wheelchair.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
@@ -319,13 +318,7 @@ export class RecruitFlow {
 
   internalUnescortEpc(merc: RosterMerc): EscortRelease {
     const narrative = this.#campaign.narrative;
-    const hooks = narrative.profileInsertionHooks(() => ({
-      worldSector: this.#campaign.state.worldSector ?? merc.sector,
-      mercSector: merc.sector,
-      startSector: merc.sector,
-      usingEdgepoints: false,
-    }));
-    setupProfileInsertionDataForSoldier(merc.soldier, { inSector: merc.soldier.placed, strategicInsertionCode: merc.insertionCode }, hooks);
+    narrative.setupProfileInsertionDataForMerc(merc, merc.soldier.placed);
     const info = getInfoForAbandoningEpc(this.#host, merc.profile);
     const p = this.#profile(merc.profile);
     if (info) {

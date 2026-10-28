@@ -3,7 +3,7 @@ import { EncounterCode } from '../forces/constants.ts';
 import { Fact } from './fact-ids.ts';
 import { createNarrativeState, factValue, setFact } from './facts.ts';
 import { Npc } from './npc-ids.ts';
-import { okayToUpgradeEliteToSpecialProfiledEnemy } from './profiled-enemies.ts';
+import { handleUniqueEventWhenPlayerLeavesTeam, okayToUpgradeEliteToSpecialProfiledEnemy } from './profiled-enemies.ts';
 
 const NO_PROFILE = 200;
 const elite = (onRoof = false) => ({ profile: NO_PROFILE, onRoof });
@@ -35,5 +35,16 @@ describe('OkayToUpgradeEliteToSpecialProfiledEnemy', () => {
       expect(pp.profile).toBe(NO_PROFILE);
     }
     expect(factValue(n, Fact.MIKE_AVAILABLE_TO_ARMY)).toBe(1);
+  });
+});
+
+describe('HandleUniqueEventWhenPlayerLeavesTeam', () => {
+  it('hands Iggy to the army only when he leaves still owed money', () => {
+    const n = createNarrativeState();
+    handleUniqueEventWhenPlayerLeavesTeam(n, Npc.IGGY, 0);
+    handleUniqueEventWhenPlayerLeavesTeam(n, Npc.MIKE, -90);
+    expect(factValue(n, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(0);
+    handleUniqueEventWhenPlayerLeavesTeam(n, Npc.IGGY, -1);
+    expect(factValue(n, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(1);
   });
 });

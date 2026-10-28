@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Create.cc OkayToUpgradeEliteToSpecialProfiledEnemy, gfProfiledEnemyAdded.
+// @src src/game/Tactical/Soldier_Create.cc OkayToUpgradeEliteToSpecialProfiledEnemy, gfProfiledEnemyAdded;
+// @src Strategic/Merc_Contract.cc HandleUniqueEventWhenPlayerLeavesTeam.
 
 import { EncounterCode } from '../forces/constants.ts';
 import { Fact } from './fact-ids.ts';
@@ -27,4 +28,8 @@ export function okayToUpgradeEliteToSpecialProfiledEnemy(n: NarrativeState, enco
   if (n.profiledEnemyAdded) return;
   if (encounterCode === EncounterCode.ENEMY_ENCOUNTER || encounterCode === EncounterCode.ENEMY_INVASION) return;
   if (!upgrade(n, pp, Fact.MIKE_AVAILABLE_TO_ARMY, Npc.MIKE)) upgrade(n, pp, Fact.IGGY_AVAILABLE_TO_ARMY, Npc.IGGY);
+}
+
+export function handleUniqueEventWhenPlayerLeavesTeam(n: NarrativeState, profile: number, balance: number): void {
+  if (profile === Npc.IGGY && balance < 0) setFact(n, Fact.IGGY_AVAILABLE_TO_ARMY, AVAILABLE);
 }

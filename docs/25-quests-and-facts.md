@@ -162,7 +162,7 @@ read only by records (265/266 also by fact 264), so not in the table: `MIGUEL_FO
 | 271 | `WILLIS_HEARD_ABOUT_JOEY_RESCUE` | T `SEH:618` | `ID:3333` |
 | 273 | `HILLBILLIES_KILLED` | T when a tactical victory in F10 leaves no living hick (`NPC:2607-2637`) | Keith's prices (`23`), Keith's business (`Strategic/Game_Event_Hook.cc:278`), Queen sector rules (`17`) |
 | 274 | `KEITH_OUT_OF_BUSINESS` | T by the event (`Strategic/Game_Event_Hook.cc:276-283`); F `ID:3197-3199`, `NPC:2631-2634` | `HandleShopKeepHasBeenShutDown` (`NPC:2640-2664`) |
-| 275, 283 | `MIKE/IGGY_AVAILABLE_TO_ARMY` | 275 = 1 at the 50 % progress mark (`Tactical/Campaign.cc:1308-1311`); 283 = 1 when Iggy leaves the team unpaid (`Strategic/Merc_Contract.cc:966-980`); either = 2 once used (`Tactical/Soldier_Create.cc:2068-2083`) | elite upgrade, `Strategic/Queen_Command.cc:558` |
+| 275, 283 | `MIKE/IGGY_AVAILABLE_TO_ARMY` | 275 = 1 at the 50 % progress mark (`Tactical/Campaign.cc:1308-1311`); 283 = 1 when Iggy leaves through the contract-ending event still owed money (`Strategic/Merc_Contract.cc:966-980`, `22` §4.3); either = 2 once used (`Tactical/Soldier_Create.cc:2068-2083`) | elite upgrade, `Strategic/Queen_Command.cc:558` |
 | 276 | `KINGPIN_CAN_SEND_ASSASSINS` | T `SEH:598` | placement overrides (`SIL:463-467`), schedules (`Strategic/Scheduling.cc:697`), assassins (`SM:766`) |
 | 277 | `ESTONI_REFUELLING_POSSIBLE` | records; T `ID:3816-3820` (with the Jake intercept) | Jake's stock (`23`), refuel sites (`HELI:628`) |
 | 278 | `MUSEUM_ALARM_WENT_OFF` | T by Eldin's sight rule (`OL:1591`) or the alarm (`TacticalAI/Knowledge.cc:119`); F on every sector exit (`SM:824`) | `OL:1586`, `TacticalAI/Knowledge.cc:108` |

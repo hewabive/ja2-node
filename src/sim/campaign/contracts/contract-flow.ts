@@ -208,6 +208,15 @@ export class ContractFlow implements ContractContext {
     this.emit({ type: 'historyAdded', code, profile, sector: valid ? sectorShortString(sector) : null });
   }
 
+  setupProfileInsertionData(m: RosterMerc): void {
+    this.campaign.narrative.setupProfileInsertionDataForMerc(m, this.#inLoadedSector(m));
+  }
+
+  #inLoadedSector(m: RosterMerc): boolean {
+    const t = this.campaign.tactical?.state;
+    return t !== undefined && (m.offGridInSector || t.mercSlots.includes(m.soldier));
+  }
+
   removeFromWorld(m: RosterMerc): void {
     removeCharacterFromSquads(this.economy, m.id);
     this.roster.removeFromTacticalSector(m.id);

@@ -263,6 +263,7 @@ export function strategicRemoveMerc(ctx: ContractContext, m: RosterMerc, equipme
   const history = c.leaveHistoryCode;
   const personnel = personnelList(m);
   const cause = departureCause(m);
+  if (m.kind === MercKind.NPC) ctx.setupProfileInsertionData(m);
   leaveMovementGroup(ctx, m);
   updateProfileForDeparture(ctx, m);
   if (!(m.statusFlags & SoldierStatusFlags.DEAD)) ctx.history(history, m.profile, m.sector);

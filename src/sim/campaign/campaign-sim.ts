@@ -180,7 +180,12 @@ export class CampaignSim {
       this.battle && hooks.laptop
         ? new LaptopFlow(this, hooks.laptop, { roster: this.battle.roster, tactical: this.battle.content })
         : null;
-    const contractHooks = { ...this.laptop?.contractHooks(), slayDailyEvent: () => this.narrative.slayDailyEvent(), ...hooks.contracts };
+    const contractHooks: Partial<ContractHooks> = {
+      ...this.laptop?.contractHooks(),
+      slayDailyEvent: () => this.narrative.slayDailyEvent(),
+      mercLeavingTeam: (m) => this.narrative.mercLeavingTeam(m),
+      ...hooks.contracts,
+    };
     this.contracts = this.battle
       ? new ContractFlow(this, { roster: this.battle.roster, content: this.battle.content, hooks: contractHooks })
       : null;

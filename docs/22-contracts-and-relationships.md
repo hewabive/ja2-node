@@ -441,8 +441,11 @@ answer elsewhere: inDrassen = primary shipping destination's sector (B13) not en
 answer rehire:    the merc stays; quote 116 if the price rose; the contract menu reopens for him (fromSequence unchanged)
 ```
 
-The box is the `mercDeparture` prompt (`departureOptions`, `departure.ts`). The Iggy rule is the `mercLeavingTeam` hook,
-which nothing wires (§10).
+The box is the `mercDeparture` prompt (`departureOptions`, `departure.ts`). The Iggy rule is the `mercLeavingTeam`
+contract hook, which the campaign wires to `NarrativeFlow.mercLeavingTeam` (`handleUniqueEventWhenPlayerLeavesTeam`,
+`strategic/narrative/profiled-enemies.ts`; the fact turns the next enemy elite into Iggy, `35` §2.6). It runs only in
+this event, after the pause and before the prompt: an RPC who quits unpaid (§4.7) skips it, so Iggy reaches the army
+only when he is dismissed or quits over a hated merc while still owed money.
 
 ### 4.4 Where the equipment goes (`Map_Screen_Interface.cc:973-1212`)
 
@@ -485,6 +488,13 @@ TacticalRemoveSoldier(s)                       // RemoveCharacterFromSquads, tea
 CheckAndHandleUnloadingOfCurrentWorld()        // 16
 StopTimeCompression()                          // reason mercLeft
 ```
+
+The profile insertion data of a departing kind-`NPC` merc (`35` §2.6) is written before he leaves his group, on every
+path into `StrategicRemoveMerc` (also the removal of a dead or captured RPC, which the original does not exclude). He is
+in the sector (`bInSector`) when the world is loaded and he holds a merc slot there or rides a vehicle in it
+(`offGridInSector`); a dead merc keeps his slot as the original keeps `bInSector`. Otherwise the profile takes his
+strategic insertion code (`insertionCode`) with data 0. ja2-node: `ContractFlow.setupProfileInsertionData`, through
+`NarrativeFlow.setupProfileInsertionDataForMerc` (shared with the escort release, `24` §9.4).
 
 What the countdowns mean for the sites: `21` §2.1–§2.2. `CheckAndHandleUnloadingOfCurrentWorld` is `16` §5.10. No morale
 event fires for anyone when a merc leaves or is fired; teammates feel it only through the hourly team opinion (§5.3) and
@@ -816,8 +826,8 @@ hourly slots `updateBuddyAndHatedCounters` and `hourlyMoraleUpdate` run in the h
 original's dialogue events run after the quotes. The prompts `contractRenewal`, `mercDeparture` and `insuranceExtension`
 are battle-flow prompts (`battle.prompt`). `ContractHooks` (`contracts/context.ts`, no-op defaults for sandbox sessions)
 connect the laptop (`laptop-flow.ts` `contractHooks()`: insurance cost, purchase and payout, the M.E.R.C. site update,
-Larry's relapse, Speck's lost-merc flag, history, mails and personnel lists) and the narrative (`slayDailyEvent`).
-Level-ups reach `ContractFlow` through `ExperienceHooks.levelGained`.
+Larry's relapse, Speck's lost-merc flag, history, mails and personnel lists) and the narrative (`slayDailyEvent`,
+`mercLeavingTeam`). Level-ups reach `ContractFlow` through `ExperienceHooks.levelGained`.
 
 ### 9.4 Data tables and stubs
 
@@ -867,6 +877,8 @@ the original's saves.
   or in combat in the sector.
 - M.E.R.C. and RPC mercs who quit over money take their equipment; the drop-here path keeps the profile inventory, the
   airport path zeroes it; an empty-handed departure claims no leave slot.
+- Iggy quitting unpaid skips the contract-ending event and so never becomes available to the army; dismissed while owed
+  money, he does (§4.3).
 - The medical refund comes from the paid deposit, rounded half up; the dead get a mail with the deposit as amount and no
   money.
 - Dead mercs stay on the team until removed and keep feeding the daily update (days served, morale events, reputation,
@@ -881,11 +893,6 @@ the original's saves.
 - POOR/GREAT morale skip the subject when he is between sectors.
 - `CheckIfMercGetsAnotherContract` draws only for fewer than 3 days left (V draws always).
 - `DAILY_UPDATE_OF_MERC_SITE` runs before `MERC_DAILY_UPDATE`, so an account that turns invalid empties the same midnight.
-
-**Limitations**:
-- The Iggy rule of the contract-ending event (`Merc_Contract.cc:966-980`) is the `mercLeavingTeam` hook, which no flow
-  wires.
-- `strategicRemoveMerc` does not call `SetupProfileInsertionDataForSoldier` for a departing RPC (kind `NPC`).
 
 **Inferred, still unverified**:
 - The recorded relationship lines name the slot's merc (the `subject` of `mercQuote`).

@@ -466,7 +466,8 @@ record and action id and, for `CHECKFORDEST`, call `NPCReachedDestination(…, F
 init-list node and to that node's schedule.
 
 **Taking NPCs out** (`SetupProfileInsertionDataForSoldier`, `SM:3137-3203`, for every civilian in the old world before a new
-sector loads or the world is trashed; `PERMANENT_INSERTION_CODE` → skip):
+sector loads or the world is trashed, for an escort the player releases (`24` §9.4) and for a departing RPC
+(`StrategicRemoveMerc`, `22` §4.5); `PERMANENT_INSERTION_CODE` → skip):
 - in the sector with a pending record and action: traversal codes → profile one sector on
   (`HandleNPCChangesForTacticalTraversal`, `NPC:2585-2604`; not for scheduled civilians), `useProfileInsertion = FALSE`,
   `HANDLE_DONE_TRAVERSAL` if he has a done-traversal record; other codes → insertion `GRIDNO` at his final destination

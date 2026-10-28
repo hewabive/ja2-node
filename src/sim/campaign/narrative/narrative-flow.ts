@@ -65,6 +65,7 @@ import {
   setProfileSector,
   type TougheningContext,
 } from '../../strategic/narrative/presence.ts';
+import { handleUniqueEventWhenPlayerLeavesTeam } from '../../strategic/narrative/profiled-enemies.ts';
 import {
   checkForQuests,
   endQuest,
@@ -83,7 +84,7 @@ import type { TacticalContent } from '../../tactical/content.ts';
 import type { InsertionContext } from '../../tactical/insertion.ts';
 import { anotherFightPossible, boxerAvailable, boxerExists, clearBoxers } from '../../tactical/narrative/boxing.ts';
 import type { PlacementNarrative } from '../../tactical/narrative/placement.ts';
-import type { ProfileInsertionHooks } from '../../tactical/narrative/profile-insertion.ts';
+import { type ProfileInsertionHooks, setupProfileInsertionDataForSoldier } from '../../tactical/narrative/profile-insertion.ts';
 import { isProfileDead, type ProfileProgress, profileProgress } from '../../tactical/profiles.ts';
 import type { Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
@@ -527,6 +528,11 @@ export class NarrativeFlow {
     handleSlayDailyEvent(this.#slayContext(), worldDay(this.state.clock), Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW);
   }
 
+  mercLeavingTeam(merc: RosterMerc): void {
+    const p = this.profile(merc.profile);
+    if (p) handleUniqueEventWhenPlayerLeavesTeam(this.state.narrative, merc.profile, p.balance);
+  }
+
   periodicSlots(progress: (() => ProgressMilestones) | null): PeriodicSlots {
     return {
       hourlyProgressUpdate: () => {
@@ -723,6 +729,16 @@ export class NarrativeFlow {
       reachedDestination: (s) => this.slots.npcReachedDestination(s),
       hasUnusedRecordWithApproach: (profile, approach) => this.slots.hasUnusedRecordWithApproach(profile, approach),
     };
+  }
+
+  setupProfileInsertionDataForMerc(merc: RosterMerc, inSector: boolean): void {
+    const hooks = this.profileInsertionHooks(() => ({
+      worldSector: this.state.worldSector ?? merc.sector,
+      mercSector: merc.sector,
+      startSector: merc.sector,
+      usingEdgepoints: false,
+    }));
+    setupProfileInsertionDataForSoldier(merc.soldier, { inSector, strategicInsertionCode: merc.insertionCode }, hooks);
   }
 
   placeHeadMiner(profile: number, sector: SectorPosition, town: number): void {

@@ -22,6 +22,7 @@ export function stubProfiles(items: ItemTable): MercProfile[] {
 
 export interface ContractHire {
   readonly profile: number;
+  readonly asProfile?: number;
   readonly kind?: number;
   readonly length?: number;
 }
@@ -41,7 +42,12 @@ export interface ContractCampaignOptions {
 export function createContractCampaign(kit: CampaignKit, options: ContractCampaignOptions): ContractCampaign {
   const state = createStrategicState({ seed: options.seed });
   const base = kit.sectors.content;
-  const content: TacticalContent = { ...base, profiles: stubProfiles(base.items) };
+  const profiles = stubProfiles(base.items);
+  for (const hire of options.hires) {
+    const source = profiles[hire.profile];
+    if (hire.asProfile !== undefined && source) profiles[hire.asProfile] = { ...source, id: hire.asProfile };
+  }
+  const content: TacticalContent = { ...base, profiles };
   let campaign: CampaignSim | null = null;
   const roster = new Roster({
     state: state.roster,
@@ -62,7 +68,7 @@ export function createContractCampaign(kit: CampaignKit, options: ContractCampai
   a9.numTroops = 0;
   a9.numElites = 0;
   for (const hire of options.hires) {
-    const profile = content.profiles[hire.profile];
+    const profile = content.profiles[hire.asProfile ?? hire.profile];
     if (!profile) throw new Error(`no stub profile ${hire.profile}`);
     const recruit = profileRecruit(profile, { content, gunNut: false });
     const terms = { kind: hire.kind ?? MercKind.AIM_MERC, length: hire.length ?? 7 };

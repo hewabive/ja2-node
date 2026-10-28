@@ -9,9 +9,14 @@ import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { factValue } from '../../strategic/narrative/facts.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_SEC_IN_MIN, Warp } from '../../strategic/time/constants.ts';
 import { warpGameTime, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
+import { Insertion } from '../../tactical/insertion.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
+import { QUOTE_ACTION_CHECK_FOR_DEST } from '../../tactical/narrative/profile-insertion.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { FinanceCode } from '../finances.ts';
 import { MercAccountStatus } from '../laptop/laptop-state.ts';
@@ -27,7 +32,7 @@ import {
   strategicRemoveMerc,
 } from './departure.ts';
 import { mercContractHandling } from './extension.ts';
-import { dailyUpdateOfMercSite } from './merc-account.ts';
+import { dailyUpdateOfMercSite, mercsContractIsFinished } from './merc-account.ts';
 import { HistoryCode } from './quotes.ts';
 import { contractOptions, findOutIfAnyMercAboutToLeaveIsGonnaRenew, findRefusalReason, willMercRenew } from './renewal.ts';
 
@@ -329,6 +334,66 @@ describe('leaving the team', () => {
     expect(cc.campaign.dispatch({ type: 'removeMerc', soldier: 0 }).ok).toBe(true);
     expect(profile(cc, STUB.kestrel).mercStatus).toBe(MercStatus.FIRED_AS_A_POW);
     expect(cc.campaign.dispatch({ type: 'removeMerc', soldier: 1 })).toMatchObject({ ok: false, reason: 'notDeadOrCaptured' });
+  });
+
+  it('hands an unpaid Iggy to the army when his contract-ending event runs, before the equipment prompt', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC, asProfile: Npc.IGGY }]);
+    const narrative = cc.campaign.state.narrative;
+    profile(cc, Npc.IGGY).balance = -90;
+    beginRemoveMercFromContract(cc.flow, merc(cc, 1));
+    expect(factValue(narrative, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(0);
+    cc.flow.settle();
+    expect(cc.campaign.state.battle.prompt).toMatchObject({ kind: 'mercDeparture', soldier: 1 });
+    expect(factValue(narrative, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(1);
+  });
+
+  it('keeps Iggy from the army when he leaves paid or quits unpaid without the contract-ending event', () => {
+    const paid = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC, asProfile: Npc.IGGY }]);
+    beginRemoveMercFromContract(paid.flow, merc(paid, 1));
+    paid.flow.settle();
+    expect(paid.campaign.state.battle.prompt).toMatchObject({ kind: 'mercDeparture', soldier: 1 });
+    expect(factValue(paid.campaign.state.narrative, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(0);
+    const unpaid = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC, asProfile: Npc.IGGY }]);
+    profile(unpaid, Npc.IGGY).balance = -270;
+    mercsContractIsFinished(unpaid.flow, merc(unpaid, 1));
+    unpaid.flow.settle();
+    expect(unpaid.roster.get(1)).toBeUndefined();
+    expect(factValue(unpaid.campaign.state.narrative, Fact.IGGY_AVAILABLE_TO_ARMY)).toBe(0);
+  });
+
+  it('writes a departing RPC profile insertion from his place in the loaded sector before he leaves the world', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
+    const hana = merc(cc, 1);
+    const p = profile(cc, STUB.hana);
+    p.useProfileInsertion = true;
+    strategicRemoveMerc(cc.flow, hana, 'none');
+    expect(p.useProfileInsertion).toBe(false);
+    const again = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
+    const waiting = merc(again, 1).soldier;
+    Object.assign(waiting, { quoteRecord: 7, quoteActionId: QUOTE_ACTION_CHECK_FOR_DEST, finalDestination: waiting.gridNo });
+    strategicRemoveMerc(again.flow, merc(again, 1), 'none');
+    expect(profile(again, STUB.hana)).toMatchObject({
+      useProfileInsertion: true,
+      insertionCode: Insertion.GRIDNO,
+      insertionData: waiting.gridNo,
+      quoteActionId: QUOTE_ACTION_CHECK_FOR_DEST,
+      quoteRecord: QUOTE_ACTION_CHECK_FOR_DEST,
+    });
+  });
+
+  it('gives an RPC away from the loaded sector his strategic insertion code and leaves other kinds alone', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
+    const [kestrel, hana] = [merc(cc, 0), merc(cc, 1)];
+    for (const m of [kestrel, hana]) {
+      cc.roster.removeFromTacticalSector(m.id);
+      m.sector = { x: 10, y: 1, z: 0 };
+      m.insertionCode = Insertion.WEST;
+      Object.assign(profile(cc, m.profile), { useProfileInsertion: false, insertionCode: Insertion.NORTH, insertionData: 1234 });
+    }
+    strategicRemoveMerc(cc.flow, hana, 'none');
+    strategicRemoveMerc(cc.flow, kestrel, 'none');
+    expect(profile(cc, STUB.hana)).toMatchObject({ useProfileInsertion: true, insertionCode: Insertion.WEST, insertionData: 0 });
+    expect(profile(cc, STUB.kestrel)).toMatchObject({ useProfileInsertion: false, insertionCode: Insertion.NORTH, insertionData: 1234 });
   });
 });
 
