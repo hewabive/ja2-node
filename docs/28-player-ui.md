@@ -171,9 +171,10 @@ one path. A game screen that cannot open shows `screen-unavailable` (`30` §1.11
 refused hello, a `closed` reply or a socket closed before the welcome. During play a closed socket, or a server silent
 for 20 s after a heartbeat ping (sent after 5 s without a message, id 0, its pong kept from the client), rejects the
 requests in flight, reports `reconnecting` and dials again after 0, 0.5, 1, 2 and then every 5 s with a hello for the
-same session; requests made meanwhile fail at once. A welcome of the same `instance` (`04` §5.2) restores the session
-and resets the client like a load in place; another instance or an unknown session ends it as `gone`; a `closed`
-message ends it with the server's reason. The flow shows the box `reconnecting` (OK leaves for the main menu, the box
+same session; requests made meanwhile fail at once, except `drive`, which records the wanted driver and settles (the
+welcome brings the server's driver back). A welcome of the same `instance` (`04` §5.2) restores the session and resets
+the client like a load in place; another instance or an unknown session ends it as `gone`; a `closed` message ends it
+with the server's reason. The flow shows the box `reconnecting` (OK leaves for the main menu, the box
 closes itself when the connection is back) and, when the session ends, leaves it for the main menu and names the
 reason in the box `sessionEnded` (own labels `reconnecting`, `sessionClosed`, `sessionLost`, `serverStopped`,
 `sessionGone`).

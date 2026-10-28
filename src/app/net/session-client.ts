@@ -357,7 +357,10 @@ export class SessionClient {
 
   async drive(driver: DriverMode): Promise<void> {
     this.driver = driver;
-    await this.#request({ t: 'drive', id: this.#nextId++, driver }, 'drive');
+    if (!this.#link.open) return;
+    await this.#request({ t: 'drive', id: this.#nextId++, driver }, 'drive').catch((error: unknown) => {
+      if (this.#link.open) throw error;
+    });
   }
 
   async ping(): Promise<PingReply> {

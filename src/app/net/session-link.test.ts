@@ -194,6 +194,28 @@ describe('a session closed on the server', () => {
   });
 });
 
+describe('the driver', () => {
+  it('settles quietly when the link is down, goes down before the answer or the session ended', async () => {
+    const rig = await connected('s1');
+    const inFlight = rig.client.drive({ mode: 'realtime', speed: 1 });
+    rig.sockets[0]?.drop();
+    await expect(inFlight).resolves.toBeUndefined();
+    await expect(rig.client.drive({ mode: 'manual' })).resolves.toBeUndefined();
+    expect(rig.client.driver).toEqual({ mode: 'manual' });
+    const ended = await connected('s2');
+    ended.sockets[0]?.deliver({ t: 'closed', session: 's2', reason: 'closed' });
+    await expect(ended.client.drive({ mode: 'manual' })).resolves.toBeUndefined();
+  });
+
+  it('still rejects a driver the server refuses on an open link', async () => {
+    const rig = await connected('s1');
+    const socket = rig.sockets[0] as FakeSocket;
+    const refused = rig.client.drive({ mode: 'realtime', speed: 1 });
+    socket.deliver({ t: 'error', id: (socket.sent.at(-1) as { id: number }).id, message: 'no driver' });
+    await expect(refused).rejects.toThrow('no driver');
+  });
+});
+
 describe('requests', () => {
   it('rejects only the request an error names and every request on an error without an id', async () => {
     const rig = await connected();
