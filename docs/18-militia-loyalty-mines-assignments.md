@@ -766,8 +766,14 @@ that refills a SAM garrison sets condition 100 and swaps the graphic back (`Stra
 `UpdateSAMDoneRepair`, `SAM_Sites.cc:37-67`; ja2-node `src/sim/strategic/ai/orders.ts`). The player cannot repair SAM
 sites (removed in V, `Assignments.c:449`).
 
-**Not ported**: the structure-damage listener. `src/sim/strategic/map/sam.ts` `damageSamIfFound` exists but nothing calls
-it, so explosions never lower a SAM's condition.
+The listener (`UpdateAndDamageSAMIfFound`, key `default:sam`, registered by `InitSAMSitesEngine`, `SAM_Sites.cc:19-23`)
+gets the hit tile (not the structure's base), the explosion's wound before the structure's armour as a `UINT8` and the
+loaded sector (`gWorldSector`), right after `DamageStructure` reports damage or destruction and before the structure is
+removed or swapped (`Explosion_Control.cc:373`); `default:brothel` (`35` §4.2) runs first, the listeners go in key
+order. Only explosions raise `OnStructureDamaged`; gunfire on a SAM does not wear it. ja2-node:
+`src/sim/tactical/explosions/structure-damage.ts` calls `SectorHooks.structureDamaged` with the tile and `u8(wound)`;
+the sector flow (`src/sim/campaign/sector-flow.ts`) passes it with the loaded sector to `damageSamIfFound`
+(`src/sim/strategic/map/sam.ts`), which lowers the condition and runs `updateAirspaceControl` at once.
 
 ### 4.3 `UpdateAirspaceControl` (`SAM_Sites.cc:69-96`)
 
@@ -1300,7 +1306,7 @@ stand-ins", "Implications of an attack" (head miner).
 
 ## 8. Limitations and unverified
 
-**Not ported**: civilian murder (§2.5); the activity rule for damaging enemies (§2.8); SAM damage by explosions (§4.2);
+**Not ported**: civilian murder (§2.5); the activity rule for damaging enemies (§2.8);
 the head-miner attack (§2.4); the hourly camouflage update and regen counters (§5.12); vehicle repair (§5.7).
 
 **Inferred, not traced end to end**:

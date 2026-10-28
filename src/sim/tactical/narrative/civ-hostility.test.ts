@@ -1,18 +1,23 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
-import { WORLD_MAX } from '../../../content/world/grid.ts';
+import { Orientation } from '../../../content/formats/jsd.ts';
+import { WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { createCivGroupState, makeCivGroupHostileOnNextSectorEntrance } from '../../strategic/narrative/civ-groups.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
 import { AlertStatus, Body, CivilianGroup, Orders, Side, Team } from '../soldier.ts';
+import { sectorMapOf } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import {
   addToShouldBecomeHostileOrSayQuoteList,
   checkHostileOrSayQuoteList,
   civilianGroupMemberChangesSides,
+  handleBrothelWallDestroyed,
   makeCivHostile,
   processImplicationsOfPCAttack,
   processImplicationsOfPCMessingWithDoor,
@@ -293,5 +298,61 @@ describe('messing with doors', () => {
     const warden = civilian(sim, 116, MERC_AT + 4, CivilianGroup.WARDEN, Profile.WARDEN);
     processImplicationsOfPCMessingWithDoor(sim.state, merc);
     expect(warden.ai.alertStatus).toBe(AlertStatus.RED);
+  });
+});
+
+describe('a destroyed brothel wall (HandleBrothelWallDestroyed)', () => {
+  const WALL = FAR + 20;
+  const C5 = { x: 5, y: 3, z: 0 };
+  const BROTHEL_ROOM = 100;
+
+  interface Blast {
+    readonly sector?: { x: number; y: number; z: number };
+    readonly flags?: number;
+    readonly destroyed?: boolean;
+    readonly rooms?: readonly (readonly [number, number])[];
+  }
+
+  function blowWall(blast: Blast) {
+    const { sim } = setup();
+    const t = sim.state;
+    t.sector = { ...(blast.sector ?? C5) };
+    for (const [g, room] of blast.rooms ?? [[WALL + WORLD_COLS, BROTHEL_ROOM]]) sectorMapOf(t).rooms[g] = room;
+    const goon = civilian(sim, 116, NEAR, CivilianGroup.KINGPIN);
+    const villager = civilian(sim, 117, NEAR + 1);
+    const wall = t.world.structures.add(WALL, 0, syntheticStructure(blast.flags ?? StructureFlags.WALL, Orientation.OUTSIDE_LEFT));
+    if (!wall) throw new Error('no wall');
+    handleBrothelWallDestroyed(t, WALL, wall, blast.destroyed ?? true);
+    return { goonNeutral: goon.neutral, villagerNeutral: villager.neutral, group: t.civGroups.hostility[CivilianGroup.KINGPIN] };
+  }
+
+  it("turns Kingpin's whole group hostile when a wall beside a brothel room of C5 is destroyed", () => {
+    expect(blowWall({})).toEqual({ goonNeutral: false, villagerNeutral: true, group: CivGroupHostility.HOSTILE });
+    expect(blowWall({ rooms: [[WALL, 91]] }).goonNeutral).toBe(false);
+    expect(blowWall({ rooms: [[WALL + 1, 119]] }).goonNeutral).toBe(false);
+  });
+
+  it('needs C5, a wall, its destruction and a brothel room on the tile, else south, else east of it', () => {
+    expect(blowWall({ destroyed: false }).goonNeutral).toBe(true);
+    expect(blowWall({ flags: StructureFlags.GENERIC }).goonNeutral).toBe(true);
+    expect(blowWall({ sector: { x: 5, y: 3, z: 1 } }).goonNeutral).toBe(true);
+    expect(blowWall({ sector: { x: 5, y: 4, z: 0 } }).goonNeutral).toBe(true);
+    expect(blowWall({ rooms: [[WALL + WORLD_COLS, 90]] }).goonNeutral).toBe(true);
+    expect(
+      blowWall({
+        rooms: [
+          [WALL, 5],
+          [WALL + WORLD_COLS, BROTHEL_ROOM],
+        ],
+      }).goonNeutral,
+    ).toBe(true);
+    expect(
+      blowWall({
+        rooms: [
+          [WALL + WORLD_COLS, 120],
+          [WALL + 1, BROTHEL_ROOM],
+        ],
+      }).goonNeutral,
+    ).toBe(true);
   });
 });

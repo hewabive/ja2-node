@@ -4,10 +4,11 @@
 // @src CivilianGroupMemberChangesSides, CivilianGroupChangesSides, HickCowAttacked, MilitiaChangesSides,
 // @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
 // @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
-// @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
+// @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor; Overhead.cc HandleBrothelWallDestroyed.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
-import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { Direction, directionIncrement, pythSpacesAway } from '../../../content/world/grid.ts';
+import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { civGroupHostility, setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -34,6 +35,7 @@ import {
 } from './constants.ts';
 
 const MAX_DISTANCE_VISIBLE = 26;
+const NO_ROOM = 0;
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const ProfileMiscFlag3 = { TOWN_DOESNT_CARE_ABOUT_DEATH: 0x40 } as const;
 const ProfileMiscFlag2 = { NEEDS_TO_SAY_HOSTILE_QUOTE: 0x10 } as const;
@@ -286,6 +288,21 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
 
 function inBrothel(t: TacticalState, room: number): boolean {
   return inSector(t, BROTHEL_SECTOR) && room >= BrothelRooms.FIRST && room <= BrothelRooms.LAST;
+}
+
+function roomBesideWall(t: TacticalState, gridNo: number): number {
+  const rooms = sectorMapOf(t).rooms;
+  for (const g of [gridNo, gridNo + directionIncrement(Direction.SOUTH), gridNo + directionIncrement(Direction.EAST)]) {
+    const room = rooms[g] ?? NO_ROOM;
+    if (room !== NO_ROOM) return room;
+  }
+  return NO_ROOM;
+}
+
+export function handleBrothelWallDestroyed(t: TacticalState, gridNo: number, s: StructureInstance, destroyed: boolean): void {
+  if (!inSector(t, BROTHEL_SECTOR) || !has(s.flags, StructureFlags.WALLSTUFF) || !destroyed) return;
+  const room = roomBesideWall(t, gridNo);
+  if (room !== NO_ROOM && inBrothel(t, room)) civilianGroupChangesSides(t, CivilianGroup.KINGPIN);
 }
 
 export function processImplicationsOfPCMessingWithDoor(t: TacticalState, s: Soldier): void {

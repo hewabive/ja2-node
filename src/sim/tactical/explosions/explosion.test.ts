@@ -3,7 +3,7 @@ import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { countDraws, itemId, objectOf, runExplosivesUntilIdle, stepWithExplosives } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
@@ -12,8 +12,9 @@ import { u8 } from '../../../core/int.ts';
 import { deleteObject } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { CivGroupHostility } from '../narrative/constants.ts';
+import { CivilianGroup, type Soldier, Team } from '../soldier.ts';
+import { NO_SECTOR_HOOKS, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { addItemToPool, itemsAt, Visibility } from '../world-items.ts';
 import { armourVersusExplosivesPercent, reduceDamageAmount } from './blast-damage.ts';
@@ -165,6 +166,62 @@ describe('blasts and structures', () => {
     runExplosivesUntilIdle(sim);
     expect(sheltered.life).toBe(100);
     expect(exposed.life).toBeLessThan(100);
+  });
+});
+
+describe('structure damage listeners (OnStructureDamaged)', () => {
+  interface Report {
+    readonly gridNo: number;
+    readonly damage: number;
+    readonly standing: boolean;
+    readonly kingpinHostile: boolean;
+  }
+
+  function listen(t: TacticalState): Report[] {
+    const reports: Report[] = [];
+    t.sectorHooks = {
+      ...NO_SECTOR_HOOKS,
+      structureDamaged: (at, g, damage) =>
+        reports.push({
+          gridNo: g,
+          damage,
+          standing: at.world.structures.find(g, StructureFlags.WALL) !== null,
+          kingpinHostile: at.civGroups.hostility[CivilianGroup.KINGPIN] === CivGroupHostility.HOSTILE,
+        }),
+    };
+    return reports;
+  }
+
+  it('reports every damaging hit with its tile and the wound before armour, while the structure still stands', () => {
+    for (const hitPoints of [100, 10]) {
+      const wall = north(1);
+      const sim = simWith(() => [wall], hitPoints);
+      const t = sim.state;
+      const reports = listen(t);
+      const rolls = recordRolls(t);
+      igniteExplosion(t, null, 0, BOMB, itemId(t, 'TNT'), 0);
+      runExplosivesUntilIdle(sim);
+      const wound = u8(blastWound(50, 5, rolls[0] ?? 0, 0));
+      expect(reports).toEqual([{ gridNo: wall, damage: wound, standing: true, kingpinHostile: false }]);
+    }
+  });
+
+  it("runs the brothel listener before the strategic one: a blown brothel wall turns Kingpin's men first", () => {
+    const wall = north(1);
+    const sim = simWith(() => [wall], 10);
+    const t = sim.state;
+    const rooms = new Uint8Array(WORLD_MAX);
+    rooms[wall] = 100;
+    Object.assign(t.world, { map: { ...t.world.map, rooms } });
+    t.sector = { x: 5, y: 3, z: 0 };
+    const goon = spawnSoldier(sim, 116, Team.CIV, south(30), Direction.NORTH);
+    goon.civilianGroup = CivilianGroup.KINGPIN;
+    expect(goon.neutral).toBe(true);
+    const reports = listen(t);
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'TNT'), 0);
+    runExplosivesUntilIdle(sim);
+    expect(reports.map((r) => r.kingpinHostile)).toEqual([true]);
+    expect(goon.neutral).toBe(false);
   });
 });
 

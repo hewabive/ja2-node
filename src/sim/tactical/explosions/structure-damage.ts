@@ -3,7 +3,8 @@
 // @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo, ExplosiveDamageGridNo, RemoveOnWall;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
 // @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
-// @src BeforeStructureDamaged listener); Tactical/Rotting_Corpses.cc VaporizeCorpse.
+// @src BeforeStructureDamaged listener); Tactical/Overhead.cc HandleBrothelWallDestroyed and Strategic/SAM_Sites.cc
+// @src UpdateAndDamageSAMIfFound (the OnStructureDamaged listeners, in key order); Tactical/Rotting_Corpses.cc VaporizeCorpse.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
@@ -14,6 +15,7 @@ import type { WindowShatterTile } from '../../events.ts';
 import { corpseOfStructure, isVehicleCorpse, removeCorpse } from '../combat/death.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
+import { handleBrothelWallDestroyed } from '../narrative/civ-hostility.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
@@ -129,6 +131,11 @@ function vaporizeCorpse(t: TacticalState, current: StructureInstance): void {
   if (corpse.level === 0) spreadEffect(t, g, CORPSE_BLOOD_RADIUS, NOTHING, null, Spread.BLOOD, 0, null);
 }
 
+function structureDamaged(t: TacticalState, g: number, current: StructureInstance, wound: number, destroyed: boolean): void {
+  handleBrothelWallDestroyed(t, g, current, destroyed);
+  t.sectorHooks.structureDamaged(t, g, u8(wound));
+}
+
 function explosiveDamageStructureAtGridNo(
   t: TacticalState,
   current: StructureInstance,
@@ -150,6 +157,7 @@ function explosiveDamageStructureAtGridNo(
   if (has(current.flags, StructureFlags.PERSON)) return true;
   let result = damageStructureByExplosion(t, current, wound);
   if (result === StructureDamage.NOT_DAMAGED) return true;
+  structureDamaged(t, g, current, wound, result === StructureDamage.DESTROYED);
   const base = t.world.structures.findBase(current) ?? current;
   const baseG = base.gridNo;
   if (has(base.flags, StructureFlags.OPENABLE) && !has(base.flags, StructureFlags.DOOR)) removeAllUnburiedItems(t, baseG, level);

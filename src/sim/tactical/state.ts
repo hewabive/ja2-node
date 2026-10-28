@@ -187,6 +187,7 @@ export interface SectorHooks {
   tacticalTurnEnded(t: TacticalState): void;
   combatEntered(t: TacticalState): void;
   enemyPresence(t: TacticalState): void;
+  structureDamaged(t: TacticalState, gridNo: number, damage: number): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -202,6 +203,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   tacticalTurnEnded: () => {},
   combatEntered: () => {},
   enemyPresence: () => {},
+  structureDamaged: () => {},
 };
 
 export interface TacticalState {

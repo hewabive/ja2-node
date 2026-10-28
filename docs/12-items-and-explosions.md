@@ -873,6 +873,13 @@ set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(RE
   "Vaporized corpses"). Corpses reached by wound ≤ 10 or from farther, or with blood and gore off, are not damaged;
   persons skipped; `DamageStructure(s, dmg, EXPLOSION)`: indestructible metal/stone immune; `armour =
   materialArmour/3` (explosion) or `/2`; `dmg < armour` → nothing; else HP −= dmg − armour, destroyed at ≤ 0.
+- **Listeners** (`Explosion_Control.cc:341-373`): first `BeforeStructureDamaged` may take the hit (the O3 statue, `26`
+  §5.3). Right after `DamageStructure` reports damage or destruction, `OnStructureDamaged(loaded sector, hit tile,
+  structure, wound as UINT8, destroyed)` calls its listeners in key order: `default:brothel` (a destroyed wall beside a
+  brothel room turns Kingpin's men hostile, `35` §4.2), then `default:sam` (a hit on a SAM tile wears the SAM down,
+  `18` §4.2). `destroyed` is the raw result, before a negative destruction partner turns it into a swap; the wound is
+  the one before the structure's armour. ja2-node: `structureDamaged` in `src/sim/tactical/explosions/structure-damage.ts`
+  calls the brothel listener and then `SectorHooks.structureDamaged`, which the sector flow implements.
 - **Destruction partner** `bDestructionPartner`: negative partner → swap to the damaged graphic `−partner` instead of
   removing (also when destroyed); positive partner on destruction → debris objects (`FIRSTEXPLDEBRIS + p` or
   `SECONDEXPLDEBRIS + p − 40` **+ Random(3)**, cosmetic) on the tiles and, for walls, the S/E neighbour; walls replace

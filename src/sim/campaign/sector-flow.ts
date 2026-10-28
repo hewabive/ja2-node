@@ -63,6 +63,7 @@ import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/po
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { loadScreenId } from '../strategic/map/loading-screen.ts';
+import { damageSamIfFound } from '../strategic/map/sam.ts';
 import {
   findUndergroundSector,
   getSectorFlagStatus,
@@ -456,6 +457,11 @@ export class SectorFlow {
     else this.#event({ type: 'enemyPresence', sector: sectorShortString(world) });
   }
 
+  #structureDamaged(gridNo: number, damage: number): void {
+    const world = this.world;
+    if (world) damageSamIfFound(this.ctx, world, gridNo, damage);
+  }
+
   #handleRpcDescriptionOfSector(sector: Sector, day: number): void {
     const s = this.campaign.state;
     s.narrative.guide.counting = false;
@@ -532,6 +538,7 @@ export class SectorFlow {
       tacticalTurnEnded: () => handleRpcDescription(this.campaign),
       combatEntered: () => this.#combatEntered(),
       enemyPresence: () => this.#enemyPresence(),
+      structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),
     };
   }
 

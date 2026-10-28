@@ -1256,7 +1256,8 @@ ja2-node: `map/control.ts`; the town, mine, SAM, morale, theft and notification 
 `UpdateAirspaceControl` (`SAM_Sites.cc:69-96`): for every surface sector, enemy air control iff the controlling SAM
 (air-control table − 1, ≥ 0) is in an enemy-controlled sector with condition ≥ 80; then the `OnAirspaceControlUpdated`
 listeners: the merc landing zone moves back to the start sector if its airspace turned hostile (`21`), refuel sites
-update (`25` §5.1). ja2-node: `updateAirspaceControl` (`map/control.ts`), SAM condition and repair in `map/sam.ts`.
+update (`25` §5.1). ja2-node: `updateAirspaceControl` (`map/control.ts`), SAM condition, explosion damage (`18` §4.2)
+and repair in `map/sam.ts`.
 
 ### 6.3 What the player knows about enemies (fog for D16)
 
@@ -1360,7 +1361,7 @@ the same answer without clearing the Skyrider flag. What the view exposes is `29
   sector, unloading).
 - The loaded sector's `TacticalSim` shares the campaign's `Random`/`PreRandom` streams, profiles, key table, real-time
   clock and light schedule; `TacticalState.sectorHooks` call back into the flow (deaths, map-edge escapes, pending
-  enemies, the end of the merc wait, the battle's end, enemy presence).
+  enemies, the end of the merc wait, the battle's end, enemy presence, structure damage for the SAM sites).
 - `17` callers: `prepareEnemyForSectorBattle` → `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers` →
   `assignEnemyGroupIds`; deaths and map-edge escapes → `trackEnemiesKilled`, `processQueenCmdImplicationsOfDeath`;
   tactical turn ends and `enemyReinforcementsArrived` → `addPossiblePendingEnemiesToBattle`; unload →

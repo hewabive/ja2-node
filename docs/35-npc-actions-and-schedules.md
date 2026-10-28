@@ -697,7 +697,8 @@ ja2-node: `StrategicState.civGroups`, shared with the loaded sector as `Tactical
 | that event | rebels still neutral → loyalty hit (never, they are 1 by then); group = 2 | `SEH:867-876` |
 | a neutral member sees an OUR merc while the group is ≥ 2 | hostile-quote list | `OL:1549-1556, 1673-1677` |
 | the hostile-quote list resolves | every listed neutral → `MakeCivHostile`; a listed member's group at 2 → 3; combat for the civilian team | `OL:566-592` |
-| `CivilianGroupChangesSides(group)` (a group's building blown up) | group = 3; every neutral living non-cow member → `MakeCivHostile` (+ quote list); in ja2-node nothing calls it (gap "Building owners") | `OH:2774-2800` |
+| `CivilianGroupChangesSides(group)` (a destroyed brothel wall, a group's building blown up) | group = 3; every neutral living non-cow member → `MakeCivHostile` (+ quote list); in ja2-node only the brothel wall calls it (gap "Building owners") | `OH:2774-2800` |
+| a destroyed brothel wall (`HandleBrothelWallDestroyed`, the `default:brothel` listener of `OnStructureDamaged`) | in C5 (surface), an explosion that destroys a `STRUCTURE_WALLSTUFF` structure (the raw result, before the destruction-partner downgrade) at a tile whose room, else the room south of it, else east of it (the first that is not `NO_ROOM`), is a brothel room 91–119 → `CivilianGroupChangesSides(KINGPIN)`; it runs before the SAM listener (`18` §4.2, listeners in key order) | `OH:316, 6218-6232` |
 | Kingpin alarm (action item) | Kingpin group = 3, members seeing an OUR merc hostile, combat | `TileEngine/Explosion_Control.cc:1788-1816` |
 | Kingpin's threat (§1.13) | Kingpin group = 2 | `SEH:601` |
 
@@ -900,7 +901,7 @@ All files carry the SFI-SCLA header; `sim` modules are deterministic and read th
 | `src/sim/campaign/laptop/aim.ts` `decideActiveTerrorists`; `src/sim/strategic/map/init.ts` `initNpcPlacements` | §2.2 |
 | `src/sim/tactical/narrative/`: `placement.ts`, `profile-insertion.ts` | §2.6: the `AddPlacementToWorld` filter and overrides, `AddProfiles…`, `SetupProfileInsertionData…`, `UpdateSoldierPointerDataIntoProfile` |
 | `schedules.ts`, `schedule-state.ts` | §3 (list, posting, auto-processing, shop hours); `src/sim/tactical/ai/decide-schedule.ts` the AI hook; `src/sim/tactical/away-slots.ts` |
-| `civ-hostility.ts`, `team-change.ts`, `wheelchair.ts` | §4.2–§4.3 and the door implications (§5.3); `ChangeSoldierTeam`; the kick-out (animation code 482) |
+| `civ-hostility.ts`, `team-change.ts`, `wheelchair.ts` | §4.2–§4.3 (`handleBrothelWallDestroyed` is called by `src/sim/tactical/explosions/structure-damage.ts`) and the door implications (§5.3); `ChangeSoldierTeam`; the kick-out (animation code 482) |
 | `src/sim/tactical/doors/` | §5: `door-table.ts`, `keys.ts`, `key-ring.ts`, `lock-attempts.ts`, `door-traps.ts`, `door-actions.ts`, `door-approach.ts`, `door-command.ts`, `door-view.ts`, `openables.ts`; lock table reader `src/content/formats/locks.ts` |
 
 Wiring:
@@ -942,7 +943,7 @@ departure, the `AI_HANDLE_EVERY_FRAME` bit set in `uiStatusFlags`, the corner te
 `MakeCivHostile` keeping the side (§4.2); the electric trap's breath `3 + 1000·PreRandom(3)` (§5.3).
 
 **Limitations in ja2-node** (not yet ported; `gaps.md` names in quotes): the door busy window ("Doors"); the A10 map
-changes of the basement trip ("Rebel basement trapdoor"); `CivilianGroupChangesSides` callers ("Building owners"); the
+changes of the basement trip ("Rebel basement trapdoor"); `HandleBuldingDestruction` ("Building owners"); the
 head-miner attack rule and firing back out of combat ("Implications of an attack"); `MakeNPCGrumpyForMinorOffense`
 (§4.4, "NPC draws first and minor offenses"); the profile move and done-traversal flag of `HandleAITacticalTraversal`
 (§2.6, "NPC traversal off the map").

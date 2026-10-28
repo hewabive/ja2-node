@@ -9,9 +9,12 @@ import {
   walkSquadToEastEdge,
 } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
+import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosives.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
-import { sectorId } from '../../content/strategic/sector-ids.ts';
+import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
@@ -19,6 +22,7 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
+import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, SoldierClass, Team } from '../tactical/soldier.ts';
@@ -43,6 +47,7 @@ const STRONG_SMELL = 40;
 const UNSEEN = -1;
 const A10 = { x: 10, y: 1, z: 0 };
 const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
+const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -390,6 +395,50 @@ describe('militia and reinforcements', () => {
     const east = new Set(t.edgepoints?.primary[1]?.gridNos ?? []);
     expect(arrived.filter((s) => east.has(s.insertionGridNo))).toHaveLength(3);
     expect(campaign.state.encounter.pendingEnemies).toBe(false);
+  });
+});
+
+describe('structure damage in a SAM sector', () => {
+  function atFirstSamSite() {
+    const { campaign, roster } = createTestCampaign(kit, { seed: 5, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    const { content, state } = flow.ctx;
+    const sam = content.samSites[0] ?? never();
+    const site = sectorFromId(sam.sector);
+    const info = sectorInfo(state.map, site);
+    Object.assign(info, NO_GARRISON_COUNTS);
+    for (const m of roster.all()) m.sector = { ...site };
+    for (const g of campaign.state.forces.groups) if (g.player) g.sector = { ...site };
+    expect(flow.setCurrentWorldSector(site)).toBe(true);
+    const element = (s: Sector) => state.map.elements[strategicIndex(s)] ?? never();
+    const covered = sectorFromId(content.samAirControl.indexOf(0));
+    const t = campaign.tactical?.state ?? never();
+    return { campaign, t, sam, other: content.samSites[1] ?? never(), site: element(site), covered: element(covered) };
+  }
+
+  it('wears down the SAM by the damage dealt to one of its two tiles and gives up its air below 80 (UpdateAndDamageSAMIfFound)', () => {
+    const { t, sam, other, site, covered } = atFirstSamSite();
+    const hit = (gridNo: number, damage: number) => t.sectorHooks.structureDamaged(t, gridNo, damage);
+    expect([site.enemyControlled, site.samCondition, covered.enemyAirControlled]).toEqual([true, 100, true]);
+    hit(sam.gridNos[0] ?? never(), 15);
+    hit((sam.gridNos[0] ?? never()) + 2, 90);
+    hit(other.gridNos[0] ?? never(), 90);
+    expect([site.samCondition, covered.enemyAirControlled]).toEqual([85, true]);
+    hit(sam.gridNos[1] ?? never(), 6);
+    expect([site.samCondition, covered.enemyAirControlled]).toEqual([79, false]);
+    hit(sam.gridNos[1] ?? never(), 255);
+    expect(site.samCondition).toBe(0);
+  });
+
+  it('takes the damage from an explosion on the SAM tile', () => {
+    const { campaign, t, sam, site, covered } = atFirstSamSite();
+    const g = sam.gridNos[0] ?? never();
+    t.world.structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+    igniteExplosion(t, null, 0, g, itemId(t, 'TNT'), 0);
+    runExplosivesUntilIdle(campaign.tactical ?? never());
+    expect(site.samCondition).toBeLessThan(80);
+    expect(covered.enemyAirControlled).toBe(false);
   });
 });
 
