@@ -9,7 +9,6 @@ interface LaptopPagesHook {
 }
 
 const LAPTOP = '/src/devtools/laptop/';
-const LAPTOP_PAGES_TEST_TIMEOUT_MS = 300_000;
 const SEED = 7;
 const SQUAD_SEED = 32;
 const WEEK_CONTRACT = 7;
@@ -25,8 +24,6 @@ const REPEATED = '.0';
 const FLOWER = 1;
 const DESTINATION_ROW = 3;
 const BLACK_ROSES_CHECK = 3;
-
-test.describe.configure({ timeout: LAPTOP_PAGES_TEST_TIMEOUT_MS });
 
 function laptopUrl(seed: number, hire: readonly (readonly [number, number])[]): string {
   const squad = hire.map(([profile, days]) => `${profile}:${days}`).join(',');

@@ -20,7 +20,6 @@ import {
   withGraphicFacts,
 } from './graphic-facts.ts';
 
-const SLOW_MS = 120_000;
 const PALETTE = new Uint8Array(768);
 const APP_DATA = { wallOrientation: 2, numberOfTiles: 3, tileLocationIndex: 4, currentFrame: 0, numberOfFrames: 9, flags: 1 };
 
@@ -110,31 +109,23 @@ describe('graphic facts', () => {
     expect(reads).toEqual(['tilecache/blast.sti', 'tilecache/missing.sti', 'tables/x.json']);
   });
 
-  it(
-    'give the stub tilesets the geometry their pictures have',
-    async () => {
-      const kit = await loadStubSectorKit();
-      try {
-        expect(await expectSameGeometry(vfsFileReader(kit.vfs), ['stubs/world/'], Number.POSITIVE_INFINITY)).toBeGreaterThan(0);
-      } finally {
-        await kit.dispose();
-      }
-    },
-    SLOW_MS,
-  );
+  it('give the stub tilesets the geometry their pictures have', async () => {
+    const kit = await loadStubSectorKit();
+    try {
+      expect(await expectSameGeometry(vfsFileReader(kit.vfs), ['stubs/world/'], Number.POSITIVE_INFINITY)).toBeGreaterThan(0);
+    } finally {
+      await kit.dispose();
+    }
+  });
 });
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('graphic facts on the original data', () => {
-  it(
-    'give the original tilesets the geometry their pictures have',
-    async () => {
-      const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
-      try {
-        expect(await expectSameGeometry(vfsFileReader(data.vfs), [''], 3)).toBeGreaterThan(100);
-      } finally {
-        await data.close();
-      }
-    },
-    SLOW_MS,
-  );
+  it('give the original tilesets the geometry their pictures have', async () => {
+    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
+    try {
+      expect(await expectSameGeometry(vfsFileReader(data.vfs), [''], 3)).toBeGreaterThan(100);
+    } finally {
+      await data.close();
+    }
+  });
 });

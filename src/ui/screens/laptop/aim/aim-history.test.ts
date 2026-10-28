@@ -12,8 +12,6 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/supp
 import { Bookmark, LaptopMode } from '../laptop-modes.ts';
 import { HISTORY_TOC_PAGE, HistoryMenu, historyMenuHeld, historyMenuTarget, NUM_AIM_HISTORY_PAGES } from './aim-history.ts';
 
-const SCREEN_TEST_TIMEOUT_MS = 120_000;
-
 let kit: StubSectorKit;
 let ui: LaptopUiKit;
 
@@ -37,35 +35,31 @@ describe('the A.I.M. history', () => {
     expect(historyMenuTarget(4, HistoryMenu.NEXT)).toBe(NUM_AIM_HISTORY_PAGES);
   });
 
-  it(
-    'opens a chapter from the index, pages to the signatures of the last chapters and links to the alumni',
-    async () => {
-      const h = await openLaptopHarness(kit, ui);
-      await openWebPage(h, Bookmark.AIM);
-      await clickWidget(h.t, 'historyLink');
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM_HISTORY);
-      expect(shownWidget(h.t, 'aimHistoryTitle').text).not.toBe('');
-      expect(shownWidget(h.t, 'aimHistorySlogan').text).toMatch(/^Professional soldiers/);
-      expect(shownWidget(h.t, 'aimHistoryTocTitle0').text).toBe('In the beginning');
-      expect(shownWidget(h.t, 'aimHistoryTocTitle4').text).toBe('Incorporation');
-      await clickWidget(h.t, 'aimHistoryToc0');
-      expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('In the beginning');
-      expect(shownWidget(h.t, 'aimHistoryParagraph2').text).toMatch(/^Word spread/);
-      expect(findWidget(h.t, 'aimHistoryToc0')?.visible ?? false).toBe(false);
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
-      expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('A word from the founder');
-      expect(shownWidget(h.t, 'aimHistoryFounderSignature').text).toBe('The founder, stub association');
-      expect(findWidget(h.t, 'aimHistoryParagraph2')?.visible).toBe(false);
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
-      expect(shownWidget(h.t, 'aimHistoryAuditSignature').text).toBe('An invented auditing firm');
-      expect(shownWidget(h.t, 'aimHistoryIncorporation3').text).toMatch(/^Today the association/);
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
-      expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('Incorporation');
-      await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.ALUMNI}`);
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS_ARCHIVES);
-    },
-    SCREEN_TEST_TIMEOUT_MS,
-  );
+  it('opens a chapter from the index, pages to the signatures of the last chapters and links to the alumni', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    await openWebPage(h, Bookmark.AIM);
+    await clickWidget(h.t, 'historyLink');
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM_HISTORY);
+    expect(shownWidget(h.t, 'aimHistoryTitle').text).not.toBe('');
+    expect(shownWidget(h.t, 'aimHistorySlogan').text).toMatch(/^Professional soldiers/);
+    expect(shownWidget(h.t, 'aimHistoryTocTitle0').text).toBe('In the beginning');
+    expect(shownWidget(h.t, 'aimHistoryTocTitle4').text).toBe('Incorporation');
+    await clickWidget(h.t, 'aimHistoryToc0');
+    expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('In the beginning');
+    expect(shownWidget(h.t, 'aimHistoryParagraph2').text).toMatch(/^Word spread/);
+    expect(findWidget(h.t, 'aimHistoryToc0')?.visible ?? false).toBe(false);
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
+    expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('A word from the founder');
+    expect(shownWidget(h.t, 'aimHistoryFounderSignature').text).toBe('The founder, stub association');
+    expect(findWidget(h.t, 'aimHistoryParagraph2')?.visible).toBe(false);
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
+    expect(shownWidget(h.t, 'aimHistoryAuditSignature').text).toBe('An invented auditing firm');
+    expect(shownWidget(h.t, 'aimHistoryIncorporation3').text).toMatch(/^Today the association/);
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.NEXT}`);
+    expect(shownWidget(h.t, 'aimHistoryChapterTitle').text).toBe('Incorporation');
+    await clickWidget(h.t, `aimHistoryMenu${HistoryMenu.ALUMNI}`);
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS_ARCHIVES);
+  });
 });

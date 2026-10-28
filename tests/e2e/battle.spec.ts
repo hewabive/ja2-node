@@ -41,7 +41,6 @@ interface Report {
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
 
 test('an MCP agent fights the stub garrison through its own session; the renderer gets the corpses and the blood', async ({ page }) => {
-  test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });

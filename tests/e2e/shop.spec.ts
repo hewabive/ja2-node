@@ -23,7 +23,6 @@ interface View {
 }
 
 test('walks a campaign squad out of A9 to the stub dealer and buys from the tactical shop panel', async ({ page }) => {
-  test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });

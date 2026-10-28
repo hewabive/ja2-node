@@ -13,7 +13,6 @@ import { teamMembers } from '../sim/tactical/state.ts';
 import { createSandboxSession, ORIGINAL_SANDBOX_MAP } from './sandbox.ts';
 import { Session } from './session.ts';
 
-const SLOW_MS = 240_000;
 const ITEM_SPREAD_STEP = 5;
 const NEAREST_DOORS = 10;
 
@@ -34,7 +33,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
     };
     doors = doorTiles(buildTacticalWorldFromInputs(a9));
     client = await clientSide(sources);
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await data.close();
@@ -53,33 +52,25 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
     return client.content.items.ordered.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
   }
 
-  it(
-    'agree on A9 in real time, doors and a spread of the item table included',
-    async () => {
-      const session = await sandbox(1);
-      kitSquad(session);
-      const view = serialisedView(session);
-      expect(doors.length).toBeGreaterThan(0);
-      const report = await expectHintsAgree(session, client, [
-        ...sampleActionHints(view, { doors, nearestDoors: NEAREST_DOORS }),
-        ...sampleInventoryHints(view, itemSpread()),
-      ]);
-      expect(report.answered).toBeGreaterThan(100);
-    },
-    SLOW_MS,
-  );
+  it('agree on A9 in real time, doors and a spread of the item table included', async () => {
+    const session = await sandbox(1);
+    kitSquad(session);
+    const view = serialisedView(session);
+    expect(doors.length).toBeGreaterThan(0);
+    const report = await expectHintsAgree(session, client, [
+      ...sampleActionHints(view, { doors, nearestDoors: NEAREST_DOORS }),
+      ...sampleInventoryHints(view, itemSpread()),
+    ]);
+    expect(report.answered).toBeGreaterThan(100);
+  });
 
-  it(
-    'agree in a battle on A9',
-    async () => {
-      const session = await sandbox(BATTLE_SANDBOX_SEED);
-      approachUntilCombat(session, true);
-      untilOurTurn(session);
-      kitSquad(session);
-      const view = serialisedView(session);
-      const report = await expectHintsAgree(session, client, [...sampleActionHints(view, { doors }), ...sampleInventoryHints(view)]);
-      expect(report.kinds.get('previewAction')).toBeGreaterThan(0);
-    },
-    SLOW_MS,
-  );
+  it('agree in a battle on A9', async () => {
+    const session = await sandbox(BATTLE_SANDBOX_SEED);
+    approachUntilCombat(session, true);
+    untilOurTurn(session);
+    kitSquad(session);
+    const view = serialisedView(session);
+    const report = await expectHintsAgree(session, client, [...sampleActionHints(view, { doors }), ...sampleInventoryHints(view)]);
+    expect(report.kinds.get('previewAction')).toBeGreaterThan(0);
+  });
 });

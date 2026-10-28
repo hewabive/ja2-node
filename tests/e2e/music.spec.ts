@@ -34,7 +34,6 @@ const music = (page: Page) => page.evaluate(() => ({ ...(window as unknown as Mu
 test('the tactical page plays the music of the session mode after the first gesture and switches to battle music in combat', async ({
   page,
 }) => {
-  test.setTimeout(150_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });
@@ -60,7 +59,7 @@ test('the tactical page plays the music of the session mode after the first gest
   expect(before.track).toBeNull();
 
   await page.click('#status');
-  await expect.poll(async () => (await music(page)).track, { timeout: 15_000 }).toMatch(/^music\/tensor /);
+  await expect.poll(async () => (await music(page)).track).toMatch(/^music\/tensor /);
 
   await page.click('[data-speed="instant"]');
   await page.click('[data-playback="16"]');
@@ -69,8 +68,8 @@ test('the tactical page plays the music of the session mode after the first gest
       await act({ type: 'move', soldier: s.id, to: s.gridNo + COLS * 3, mode: 'swat' });
   expect((await observe()).combat).toBeTruthy();
 
-  await expect.poll(async () => (await music(page)).serverMode, { timeout: 30_000 }).toBe('tacticalBattle');
-  await expect.poll(async () => (await music(page)).track, { timeout: 15_000 }).toMatch(/^music\/battle /);
+  await expect.poll(async () => (await music(page)).serverMode).toBe('tacticalBattle');
+  await expect.poll(async () => (await music(page)).track).toMatch(/^music\/battle /);
   const heard = await music(page);
   expect(heard.mode).toBe('tacticalBattle');
   expect(heard.tracks.some((t) => t.startsWith('music/tensor '))).toBe(true);

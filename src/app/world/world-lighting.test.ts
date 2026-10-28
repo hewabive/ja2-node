@@ -76,7 +76,7 @@ describe('client lighting on the stub village', () => {
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
     world = await openWorld(data, 'stubs/world/maps/village.dat');
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await data?.close();
@@ -127,7 +127,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('client lighting on original maps', () => {
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await data?.close();
@@ -135,5 +135,5 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('client lighting on original maps', () => {
 
   it('shades the lamps of D13 by the strongest light', async () => {
     await expectStrongestLightRule(await openWorld(data, 'maps/d13.dat'));
-  }, 60_000);
+  });
 });

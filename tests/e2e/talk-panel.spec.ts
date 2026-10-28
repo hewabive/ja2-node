@@ -13,8 +13,6 @@ const STUB_NPC = 94;
 const NEAR_NPC = 74 * COLS + 75;
 const STUB_RPC = 65;
 const NEAR_STUB_RPC = 72 * COLS + 81;
-const LOAD_TIMEOUT_MS = 60_000;
-const LINES_TIMEOUT_MS = 20_000;
 const MONEY = 'MONEY';
 
 interface SoldierView {
@@ -70,7 +68,7 @@ async function squadInA10(seed: number, mercs: number, near: number): Promise<{ 
 
 async function openTactical(page: Page, session: string, extra = ''): Promise<void> {
   await page.goto(`/play?session=${encodeURIComponent(session)}&shadowHints=1${extra}`);
-  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
   await nextFrames(page, 4);
@@ -86,12 +84,12 @@ async function lastCommand(page: Page): Promise<{ type: string; ok: boolean; rea
 }
 
 async function shownInSquad(page: Page, soldier: number): Promise<void> {
-  await page.waitForFunction((id) => window.__ja2Ui.tactical?.slots.includes(id) === true, soldier, { timeout: LINES_TIMEOUT_MS });
+  await page.waitForFunction((id) => window.__ja2Ui.tactical?.slots.includes(id) === true, soldier);
 }
 
 async function talkOpenAndQuiet(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true);
-  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.busy === false, null, { timeout: LINES_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.busy === false);
   await nextFrames(page, 2);
 }
 
@@ -107,7 +105,6 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     page,
     request,
   }) => {
-    test.setTimeout(150_000);
     const { session, leader } = await squadInA10(5, 3, NEAR_NPC);
     const agent = await mcp();
     const talk = (await agent.call('act', { session, command: { type: 'talk', soldier: leader, target: { npc: STUB_NPC } } })) as {
@@ -130,7 +127,6 @@ test.describe('talking through the canvas talk panel on stubs', () => {
   });
 
   test('plays the lines out, sends Direct and closes with Done', async ({ page, request }) => {
-    test.setTimeout(150_000);
     const { session, leader } = await squadInA10(5, 3, NEAR_NPC);
     await openTactical(page, session);
     await order(page, { type: 'talk', soldier: leader, target: { npc: STUB_NPC } });
@@ -149,19 +145,18 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     page,
     request,
   }) => {
-    test.setTimeout(180_000);
     const { session, leader } = await squadInA10(6, 3, NEAR_STUB_RPC);
     await openTactical(page, session);
     await order(page, { type: 'talk', soldier: leader, target: { npc: STUB_RPC } });
     await talkOpenAndQuiet(page);
     await clickWidget(page, 'talkOption5');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'approach', ok: true, reason: null });
-    await page.waitForFunction(() => window.__ja2Ui.modal === 'npcRequestBox', null, { timeout: LINES_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'npcRequestBox');
     await clickWidget(page, 'npcRequestBox.yes');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'answer', ok: true, reason: null });
     const agent = await mcp();
     const recruited = async () => ((await agent.call('observe', { session })) as View).soldiers.find((s) => s.profile === STUB_RPC);
-    await expect.poll(recruited, { timeout: LINES_TIMEOUT_MS }).toMatchObject({ team: 0, kind: 'rpc' });
+    await expect.poll(recruited).toMatchObject({ team: 0, kind: 'rpc' });
     const hired = (await recruited())?.id ?? -1;
     await agent.close();
     await shownInSquad(page, hired);

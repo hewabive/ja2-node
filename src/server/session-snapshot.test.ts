@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
@@ -23,7 +23,6 @@ import { restoreSession, snapshotSession } from './session-snapshot.ts';
 const STEP_EAST = 2;
 const SIX_HOURS = 6 * 3600;
 const SANDBOX_TICKS = 400;
-const SCENARIO_TIMEOUT_MS = 60_000;
 
 describe('session snapshots on the stub pack', () => {
   let kit: StubSectorKit;
@@ -81,29 +80,17 @@ describe('session snapshots on the stub pack', () => {
     return session;
   }
 
-  it(
-    'continues the sandbox exactly after a reload at every input',
-    async () => {
-      await expectReloadsInvisible(sandbox);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('continues the sandbox exactly after a reload at every input', async () => {
+    await expectReloadsInvisible(sandbox);
+  });
 
-  it(
-    'continues a new campaign from the laptop to the landing exactly after a reload at every input',
-    async () => {
-      await expectReloadsInvisible(laptopToLanding);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('continues a new campaign from the laptop to the landing exactly after a reload at every input', async () => {
+    await expectReloadsInvisible(laptopToLanding);
+  });
 
-  it(
-    'continues a landed squad through a sector change exactly after a reload at every input',
-    async () => {
-      await expectReloadsInvisible(landedSquad);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('continues a landed squad through a sector change exactly after a reload at every input', async () => {
+    await expectReloadsInvisible(landedSquad);
+  });
 
   it('restores a campaign through the asynchronous path with freshly loaded content and prepared maps', async () => {
     const session = await createCampaignSession(kit.read, exists, 19, {});
@@ -143,20 +130,16 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('snapshots of native save imports', () => {
     await data.close();
   });
 
-  it(
-    'round-trips a new campaign landed in Omerta with the original data and continues exactly',
-    async () => {
-      const session = await createCampaignSession(read, exists, 7, {});
-      session.drainEvents();
-      const json = JSON.stringify(snapshotSession(session));
-      const restored = await restoreSession(JSON.parse(json), read, exists);
-      expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
-      const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
-      expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
-      expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('round-trips a new campaign landed in Omerta with the original data and continues exactly', async () => {
+    const session = await createCampaignSession(read, exists, 7, {});
+    session.drainEvents();
+    const json = JSON.stringify(snapshotSession(session));
+    const restored = await restoreSession(JSON.parse(json), read, exists);
+    expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
+    const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+    expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+    expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
+  });
 
   it('round-trips the original-data sandbox and continues exactly', async () => {
     const session = await createSandboxSession(read, true, 5);
@@ -179,19 +162,15 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('snapshots of native save imports', () => {
   });
 
   for (const file of saveFiles) {
-    it(
-      `round-trips the import of ${file} against freshly loaded content and continues exactly`,
-      async () => {
-        const { session } = await createSaveSession(read, new Uint8Array(readFileSync(join(savesDir, file))), undefined, exists);
-        session.drainEvents();
-        const json = JSON.stringify(snapshotSession(session));
-        const restored = await restoreSession(JSON.parse(json), read, exists);
-        expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
-        const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
-        expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
-        expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
-      },
-      SCENARIO_TIMEOUT_MS,
-    );
+    it(`round-trips the import of ${file} against freshly loaded content and continues exactly`, async () => {
+      const { session } = await createSaveSession(read, new Uint8Array(readFileSync(join(savesDir, file))), undefined, exists);
+      session.drainEvents();
+      const json = JSON.stringify(snapshotSession(session));
+      const restored = await restoreSession(JSON.parse(json), read, exists);
+      expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
+      const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+      expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+      expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
+    });
   }
 });

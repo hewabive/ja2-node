@@ -19,7 +19,6 @@ afterAll(async () => {
 });
 
 const SLICE_SECONDS = 60;
-const TEST_TIMEOUT_MS = 30_000;
 
 function onTheMap(seed: number, to: string): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, { seed, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
@@ -59,59 +58,47 @@ function digest(c: CampaignSim, report: StopReport): string {
 }
 
 describe('advance on the strategic map', () => {
-  it(
-    'compresses time until the group reaches its final destination and reports the stop with the world time',
-    () => {
-      const c = onTheMap(3, 'B9');
-      const report = advance(c, { compressionStopped: true, mode: CompressMode.MIN30 });
-      expect(report.reason).toBe('event');
-      expect(report.events.find((e) => e.type === 'compressionStarted')).toMatchObject({ mode: CompressMode.MIN30 });
-      expect(report.events.at(-1)).toMatchObject({ type: 'compressionStopped', reason: 'arrived' });
-      expect(report.worldTime?.seconds).toBe(c.state.clock.seconds);
-      expect(c.state.forces.groups.find((g) => g.player)?.sector).toMatchObject({ x: 9, y: 2 });
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('compresses time until the group reaches its final destination and reports the stop with the world time', () => {
+    const c = onTheMap(3, 'B9');
+    const report = advance(c, { compressionStopped: true, mode: CompressMode.MIN30 });
+    expect(report.reason).toBe('event');
+    expect(report.events.find((e) => e.type === 'compressionStarted')).toMatchObject({ mode: CompressMode.MIN30 });
+    expect(report.events.at(-1)).toMatchObject({ type: 'compressionStopped', reason: 'arrived' });
+    expect(report.worldTime?.seconds).toBe(c.state.clock.seconds);
+    expect(c.state.forces.groups.find((g) => g.player)?.sector).toMatchObject({ x: 9, y: 2 });
+  });
 
-  it(
-    'stops compression at the first slice end at or past a world-time target',
-    () => {
-      const c = onTheMap(3, 'B9');
-      const start = c.state.clock.seconds;
-      const report = advance(c, { worldSeconds: 600, mode: CompressMode.MIN5 });
-      expect(report.reason).toBe('worldTime');
-      expect(report.events.at(-1)).toMatchObject({ type: 'worldTimeReached' });
-      expect(report.events.some((e) => e.type === 'compressionStopped' && e.reason === 'worldTime')).toBe(true);
-      const elapsed = c.state.clock.seconds - start;
-      expect(elapsed).toBeGreaterThanOrEqual(600);
-      expect(elapsed).toBeLessThan(600 + SLICE_SECONDS);
-      expect(c.state.clock.compressionOn).toBe(false);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('stops compression at the first slice end at or past a world-time target', () => {
+    const c = onTheMap(3, 'B9');
+    const start = c.state.clock.seconds;
+    const report = advance(c, { worldSeconds: 600, mode: CompressMode.MIN5 });
+    expect(report.reason).toBe('worldTime');
+    expect(report.events.at(-1)).toMatchObject({ type: 'worldTimeReached' });
+    expect(report.events.some((e) => e.type === 'compressionStopped' && e.reason === 'worldTime')).toBe(true);
+    const elapsed = c.state.clock.seconds - start;
+    expect(elapsed).toBeGreaterThanOrEqual(600);
+    expect(elapsed).toBeLessThan(600 + SLICE_SECONDS);
+    expect(c.state.clock.compressionOn).toBe(false);
+  });
 
-  it(
-    'reports a new day and accepts an absolute target, answering battles on the way',
-    () => {
-      const c = onTheMap(3, 'B9');
-      advance(c, { compressionStopped: true, mode: CompressMode.MIN30 });
-      const day = Math.trunc(c.state.clock.seconds / 86_400);
-      const target = { day: day + 1, hour: 1 };
-      const seen: string[] = [];
-      let report = advance(c, { worldTime: target, mode: CompressMode.MIN60 });
-      for (let k = 0; k < 20 && report.reason !== 'worldTime'; k++) {
-        seen.push(...report.events.map((e) => e.type));
-        const prompt = c.state.battle.prompt;
-        if (prompt) answerAnything(c);
-        report = advance(c, { worldTime: target, mode: CompressMode.MIN60 });
-      }
+  it('reports a new day and accepts an absolute target, answering battles on the way', () => {
+    const c = onTheMap(3, 'B9');
+    advance(c, { compressionStopped: true, mode: CompressMode.MIN30 });
+    const day = Math.trunc(c.state.clock.seconds / 86_400);
+    const target = { day: day + 1, hour: 1 };
+    const seen: string[] = [];
+    let report = advance(c, { worldTime: target, mode: CompressMode.MIN60 });
+    for (let k = 0; k < 20 && report.reason !== 'worldTime'; k++) {
       seen.push(...report.events.map((e) => e.type));
-      expect(report.reason).toBe('worldTime');
-      expect(seen).toContain('dayStarted');
-      expect(report.worldTime?.day).toBe(day + 1);
-    },
-    TEST_TIMEOUT_MS,
-  );
+      const prompt = c.state.battle.prompt;
+      if (prompt) answerAnything(c);
+      report = advance(c, { worldTime: target, mode: CompressMode.MIN60 });
+    }
+    seen.push(...report.events.map((e) => e.type));
+    expect(report.reason).toBe('worldTime');
+    expect(seen).toContain('dayStarted');
+    expect(report.worldTime?.day).toBe(day + 1);
+  });
 
   it('accepts a world-time target in tactical real time without compressing', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 4, mercs: 1, garrison: { admins: 0, troops: 0, elites: 0 } });
@@ -123,51 +110,39 @@ describe('advance on the strategic map', () => {
     expect(report.events.some((e) => e.type === 'compressionStarted')).toBe(false);
   });
 
-  it(
-    'reports a refused compression with its reason',
-    () => {
-      const c = onTheMap(3, 'B9');
-      c.state.atLeastOneMercHired = false;
-      const report = advance(c, { worldSeconds: 600 });
-      expect(report).toMatchObject({ reason: 'refused', refusal: 'no merc has been hired yet' });
-      expect(report.worldTime?.seconds).toBe(c.state.clock.seconds);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('reports a refused compression with its reason', () => {
+    const c = onTheMap(3, 'B9');
+    c.state.atLeastOneMercHired = false;
+    const report = advance(c, { worldSeconds: 600 });
+    expect(report).toMatchObject({ reason: 'refused', refusal: 'no merc has been hired yet' });
+    expect(report.worldTime?.seconds).toBe(c.state.clock.seconds);
+  });
 
-  it(
-    'compresses again after a stop when told to ignore compression stops',
-    () => {
-      const c = onTheMap(3, 'B9');
-      const report = advance(c, { worldSeconds: 3 * 3600, compressionStopped: false, mode: CompressMode.MIN30 });
-      const clockEvents = report.events.flatMap((e) =>
-        e.type === 'compressionStarted'
-          ? ['started']
-          : e.type === 'compressionStopped'
-            ? [e.reason]
-            : e.type === 'preBattle'
-              ? ['preBattle']
-              : [],
-      );
-      expect(clockEvents).toEqual(['started', 'arrived', 'started', 'preBattle', 'battle']);
-      expect(report.reason).toBe('decision');
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('compresses again after a stop when told to ignore compression stops', () => {
+    const c = onTheMap(3, 'B9');
+    const report = advance(c, { worldSeconds: 3 * 3600, compressionStopped: false, mode: CompressMode.MIN30 });
+    const clockEvents = report.events.flatMap((e) =>
+      e.type === 'compressionStarted'
+        ? ['started']
+        : e.type === 'compressionStopped'
+          ? [e.reason]
+          : e.type === 'preBattle'
+            ? ['preBattle']
+            : [],
+    );
+    expect(clockEvents).toEqual(['started', 'arrived', 'started', 'preBattle', 'battle']);
+    expect(report.reason).toBe('decision');
+  });
 
-  it(
-    'gives the same result under one advance and under many small ones',
-    () => {
-      const once = onTheMap(7, 'B9');
-      const a = advance(once, { compressionStopped: true, mode: CompressMode.MIN30 });
-      const chunked = onTheMap(7, 'B9');
-      expect(chunked.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toMatchObject({ ok: true });
-      let b = advance(chunked, { ticks: 7, events: ['compressionStopped'] });
-      while (b.reason === 'ticks') b = advance(chunked, { ticks: 7, events: ['compressionStopped'] });
-      expect(digest(chunked, { ...b, reason: 'event' })).toBe(digest(once, a));
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('gives the same result under one advance and under many small ones', () => {
+    const once = onTheMap(7, 'B9');
+    const a = advance(once, { compressionStopped: true, mode: CompressMode.MIN30 });
+    const chunked = onTheMap(7, 'B9');
+    expect(chunked.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toMatchObject({ ok: true });
+    let b = advance(chunked, { ticks: 7, events: ['compressionStopped'] });
+    while (b.reason === 'ticks') b = advance(chunked, { ticks: 7, events: ['compressionStopped'] });
+    expect(digest(chunked, { ...b, reason: 'event' })).toBe(digest(once, a));
+  });
 
   it('keeps a moving squad on its way when another member is routed to the same sector', () => {
     const c = onTheMap(3, 'B9');

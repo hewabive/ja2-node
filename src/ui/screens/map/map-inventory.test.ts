@@ -26,7 +26,6 @@ import type { MapClient, MapCommandReply, MapEnvironment, MapLayout } from './en
 import type { MapFacts } from './facts.ts';
 import { MapInventory } from './map-inventory.ts';
 
-const SLOW_MS = 120_000;
 const HAND = 5;
 const BIG_POCKET = 7;
 const SMALL_POCKET = 11;
@@ -45,7 +44,7 @@ beforeAll(async () => {
     ['map-screen', await loader.load(ORIGINAL_SKIN, 'map-screen')],
     ['map-inventory', await loader.load(ORIGINAL_SKIN, 'map-inventory')],
   ]);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -280,193 +279,159 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
 }
 
 describe('the map screen inventory over a scripted session', () => {
-  it(
-    'shows the selected merc inventory at the map positions with his armour, weight and camouflage',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name), view(SMALL_POCKET, gun.name)])]);
-      h.inventory.openMerc();
-      await h.settle();
-      expect(h.widget('mercSlot5').text).toContain(gun.longName);
-      expect(h.widget('armour').text).toBe(' 23%');
-      expect(h.widget('weight').text).toBe('31%');
-      expect(h.widget('camo').text).toBe('4%');
-      expect(h.widget('mercSlot11').rect).toMatchObject({ x: 22, y: 251 });
-      const drawn = h.t.list.items.filter((i) => i.kind === 'image' && i.asset === gun.inventoryGraphics.small.path.toLowerCase());
-      expect(drawn.length).toBeGreaterThanOrEqual(2);
-      expect(
-        h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/inventory_normal_male.sti' && i.x === 71 && i.y === 116),
-      ).toBe(true);
-    },
-    SLOW_MS,
-  );
+  it('shows the selected merc inventory at the map positions with his armour, weight and camouflage', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name), view(SMALL_POCKET, gun.name)])]);
+    h.inventory.openMerc();
+    await h.settle();
+    expect(h.widget('mercSlot5').text).toContain(gun.longName);
+    expect(h.widget('armour').text).toBe(' 23%');
+    expect(h.widget('weight').text).toBe('31%');
+    expect(h.widget('camo').text).toBe('4%');
+    expect(h.widget('mercSlot11').rect).toMatchObject({ x: 22, y: 251 });
+    const drawn = h.t.list.items.filter((i) => i.kind === 'image' && i.asset === gun.inventoryGraphics.small.path.toLowerCase());
+    expect(drawn.length).toBeGreaterThanOrEqual(2);
+    expect(
+      h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/inventory_normal_male.sti' && i.x === 71 && i.y === 116),
+    ).toBe(true);
+  });
 
-  it(
-    'moves an item between slots and to a teammate through the client cursor',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)]), merc(OTHER, 'Vant', 'D13', [])]);
-      h.inventory.openMerc();
-      await h.settle();
-      await h.click('mercSlot5');
-      expect(h.inventory.cursorItem).toBe(gun.name);
-      expect(h.inventory.holding).toBe(true);
-      await h.click('mercSlot7');
-      expect(h.client.commands.at(-1)).toEqual({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, count: 1 });
-      expect(h.inventory.holding).toBe(false);
-      await h.click('mercSlot5');
-      h.info = h.client.view.strategic?.mercs[1] ?? null;
-      await h.click('mercSlot7');
-      expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, toSoldier: OTHER });
-    },
-    SLOW_MS,
-  );
+  it('moves an item between slots and to a teammate through the client cursor', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)]), merc(OTHER, 'Vant', 'D13', [])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click('mercSlot5');
+    expect(h.inventory.cursorItem).toBe(gun.name);
+    expect(h.inventory.holding).toBe(true);
+    await h.click('mercSlot7');
+    expect(h.client.commands.at(-1)).toEqual({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, count: 1 });
+    expect(h.inventory.holding).toBe(false);
+    await h.click('mercSlot5');
+    h.info = h.client.view.strategic?.mercs[1] ?? null;
+    await h.click('mercSlot7');
+    expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, toSoldier: OTHER });
+  });
 
-  it(
-    'throws the cursor item away after the trash can question',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
-      h.inventory.openMerc();
-      await h.settle();
-      await h.click('mercSlot5');
-      h.answer = MessageBoxReturn.NO;
-      await h.click('trashCan');
-      expect(h.boxes).toEqual(['You’ll never see it again. You sure?'.replace('’', "'")]);
-      expect(h.client.commands).toEqual([]);
-      h.answer = MessageBoxReturn.YES;
-      await h.click('trashCan');
-      expect(h.client.commands).toEqual([{ type: 'discardItem', soldier: MERC, slot: HAND, count: 1 }]);
-      expect(h.inventory.holding).toBe(false);
-    },
-    SLOW_MS,
-  );
+  it('throws the cursor item away after the trash can question', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click('mercSlot5');
+    h.answer = MessageBoxReturn.NO;
+    await h.click('trashCan');
+    expect(h.boxes).toEqual(['You’ll never see it again. You sure?'.replace('’', "'")]);
+    expect(h.client.commands).toEqual([]);
+    h.answer = MessageBoxReturn.YES;
+    await h.click('trashCan');
+    expect(h.client.commands).toEqual([{ type: 'discardItem', soldier: MERC, slot: HAND, count: 1 }]);
+    expect(h.inventory.holding).toBe(false);
+  });
 
-  it(
-    'pages the sector inventory, counts its objects and blocks Done while an item is held',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
-      h.client.stash = Array.from({ length: 50 }, (_, i) => stashEntry(i, gun.name, i === 0 ? 3 : 1));
-      h.inventory.openPool();
-      await h.settle();
-      expect(h.client.queries.at(-1)).toEqual({ type: 'inventory', sector: 'D13' });
-      expect(h.widget('poolLocation').text).toBe('D13');
-      expect(h.widget('poolCount').text).toBe('52');
-      expect(h.widget('poolPage').text).toBe('1 / 2');
-      expect(h.widget('poolPrev')).toMatchObject({ enabled: false });
-      await h.click('poolNext');
-      expect(h.widget('poolPage').text).toBe('2 / 2');
-      await h.click('poolPrev');
-      await h.click('poolSlot0');
-      expect(h.inventory.pool.cursor).toMatchObject({ index: 0, count: 1 });
-      expect(h.widget('poolDone')).toMatchObject({ enabled: false });
-    },
-    SLOW_MS,
-  );
+  it('pages the sector inventory, counts its objects and blocks Done while an item is held', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.client.stash = Array.from({ length: 50 }, (_, i) => stashEntry(i, gun.name, i === 0 ? 3 : 1));
+    h.inventory.openPool();
+    await h.settle();
+    expect(h.client.queries.at(-1)).toEqual({ type: 'inventory', sector: 'D13' });
+    expect(h.widget('poolLocation').text).toBe('D13');
+    expect(h.widget('poolCount').text).toBe('52');
+    expect(h.widget('poolPage').text).toBe('1 / 2');
+    expect(h.widget('poolPrev')).toMatchObject({ enabled: false });
+    await h.click('poolNext');
+    expect(h.widget('poolPage').text).toBe('2 / 2');
+    await h.click('poolPrev');
+    await h.click('poolSlot0');
+    expect(h.inventory.pool.cursor).toMatchObject({ index: 0, count: 1 });
+    expect(h.widget('poolDone')).toMatchObject({ enabled: false });
+  });
 
-  it(
-    'puts a merc item into the pool and takes a pool item into a merc slot',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
-      h.client.stash = [stashEntry(0, gun.name, 2)];
-      h.inventory.openMerc();
-      h.inventory.openPool();
-      await h.settle();
-      await h.click('mercSlot5');
-      await h.click('poolSlot3');
-      expect(h.client.commands.at(-1)).toEqual({ type: 'moveItem', soldier: MERC, from: HAND, to: 'ground', sector: 'D13', count: 1 });
-      await h.click('mercSlot5');
-      await h.click('poolSlot0');
-      expect(h.client.commands.at(-1)).toMatchObject({ to: 'ground', stashIndex: 0 });
-      await h.click('poolSlot0', 0, KeyModifier.SHIFT);
-      expect(h.inventory.pool.cursor).toMatchObject({ index: 0, count: 'all' });
-      await h.click('mercSlot11');
-      expect(h.client.commands.at(-1)).toEqual({
-        type: 'moveItem',
-        soldier: MERC,
-        from: 'ground',
-        item: 0,
-        to: SMALL_POCKET,
-        sector: 'D13',
-      });
-      expect(h.inventory.pool.cursor).toBeNull();
-    },
-    SLOW_MS,
-  );
+  it('puts a merc item into the pool and takes a pool item into a merc slot', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.client.stash = [stashEntry(0, gun.name, 2)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    await h.click('mercSlot5');
+    await h.click('poolSlot3');
+    expect(h.client.commands.at(-1)).toEqual({ type: 'moveItem', soldier: MERC, from: HAND, to: 'ground', sector: 'D13', count: 1 });
+    await h.click('mercSlot5');
+    await h.click('poolSlot0');
+    expect(h.client.commands.at(-1)).toMatchObject({ to: 'ground', stashIndex: 0 });
+    await h.click('poolSlot0', 0, KeyModifier.SHIFT);
+    expect(h.inventory.pool.cursor).toMatchObject({ index: 0, count: 'all' });
+    await h.click('mercSlot11');
+    expect(h.client.commands.at(-1)).toEqual({
+      type: 'moveItem',
+      soldier: MERC,
+      from: 'ground',
+      item: 0,
+      to: SMALL_POCKET,
+      sector: 'D13',
+    });
+    expect(h.inventory.pool.cursor).toBeNull();
+  });
 
-  it(
-    'explains why a pool slot cannot be used, in the original order',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'C13', [])]);
-      h.client.stash = [stashEntry(0, gun.name, 1, false), stashEntry(1, gun.name)];
-      h.inventory.openPool();
-      await h.settle();
-      await h.click('poolSlot0');
-      await h.click('poolSlot1');
-      h.info = merc(MERC, 'Hollis', 'D13', []);
-      h.client.usable = false;
-      await h.inventory.pool.refresh();
-      await h.click('poolSlot1');
-      expect(h.boxes).toEqual([
-        h.text.string('gzLateLocalizedString', 37),
-        (h.text.string('pMapInventoryErrorString', 1) ?? '').replace('%s', 'Hollis'),
-        h.text.string('pMapInventoryErrorString', 2),
-      ]);
-      expect(h.client.commands).toEqual([]);
-      expect(h.inventory.pool.cursor).toBeNull();
-    },
-    SLOW_MS,
-  );
+  it('explains why a pool slot cannot be used, in the original order', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'C13', [])]);
+    h.client.stash = [stashEntry(0, gun.name, 1, false), stashEntry(1, gun.name)];
+    h.inventory.openPool();
+    await h.settle();
+    await h.click('poolSlot0');
+    await h.click('poolSlot1');
+    h.info = merc(MERC, 'Hollis', 'D13', []);
+    h.client.usable = false;
+    await h.inventory.pool.refresh();
+    await h.click('poolSlot1');
+    expect(h.boxes).toEqual([
+      h.text.string('gzLateLocalizedString', 37),
+      (h.text.string('pMapInventoryErrorString', 1) ?? '').replace('%s', 'Hollis'),
+      h.text.string('pMapInventoryErrorString', 2),
+    ]);
+    expect(h.client.commands).toEqual([]);
+    expect(h.inventory.pool.cursor).toBeNull();
+  });
 
-  it(
-    'opens the key ring of a merc in the loaded sector on the map grid',
-    async () => {
-      const key = item((i) => i.class === 'KEY');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
-      h.client.view = {
-        ...h.client.view,
-        soldiers: [{ id: MERC, team: 0, bodyType: 0, keys: [{ keyId: 1, count: 1, item: key.name }] }],
-      } as unknown as PlayerView;
-      h.inventory.openMerc();
-      await h.settle();
-      expect(
-        h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/gold_key_button.sti' && i.x === 217 && i.y === 271),
-      ).toBe(true);
-      await h.click('mercKeyRing');
-      expect(h.inventory.merc.keyRing.open).toBe(true);
-      const cells = h.t.list.items.filter((i) => i.kind === 'image' && i.asset === 'interface/extra_inventory.sti');
-      expect(cells[0]).toMatchObject({ x: 40, y: 107 + 15 });
-      expect(cells[4]).toMatchObject({ x: 40, y: 107 + 15 + 28 });
-    },
-    SLOW_MS,
-  );
+  it('opens the key ring of a merc in the loaded sector on the map grid', async () => {
+    const key = item((i) => i.class === 'KEY');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
+    h.client.view = {
+      ...h.client.view,
+      soldiers: [{ id: MERC, team: 0, bodyType: 0, keys: [{ keyId: 1, count: 1, item: key.name }] }],
+    } as unknown as PlayerView;
+    h.inventory.openMerc();
+    await h.settle();
+    expect(
+      h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/gold_key_button.sti' && i.x === 217 && i.y === 271),
+    ).toBe(true);
+    await h.click('mercKeyRing');
+    expect(h.inventory.merc.keyRing.open).toBe(true);
+    const cells = h.t.list.items.filter((i) => i.kind === 'image' && i.asset === 'interface/extra_inventory.sti');
+    expect(cells[0]).toMatchObject({ x: 40, y: 107 + 15 });
+    expect(cells[4]).toMatchObject({ x: 40, y: 107 + 15 + 28 });
+  });
 
-  it(
-    'closes the description, then the cursor, then the pool on Escape',
-    async () => {
-      const gun = item((i) => i.class === 'GUN');
-      const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
-      h.client.stash = [stashEntry(0, gun.name)];
-      h.inventory.openMerc();
-      h.inventory.openPool();
-      await h.settle();
-      await h.click('mercSlot5', 2);
-      expect(h.inventory.merc.description.open).toBe(true);
-      expect(h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/iteminfoc.sti' && i.x === 0 && i.y === 107)).toBe(
-        true,
-      );
-      expect(h.inventory.escape()).toBe(true);
-      expect(h.inventory.merc.description.open).toBe(false);
-      await h.click('poolSlot0');
-      expect(h.inventory.escape()).toBe(true);
-      expect(h.inventory.pool.cursor).toBeNull();
-      expect(h.inventory.escape()).toBe(true);
-      expect(h.inventory.pool.open).toBe(false);
-      expect(h.inventory.escape()).toBe(false);
-    },
-    SLOW_MS,
-  );
+  it('closes the description, then the cursor, then the pool on Escape', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);
+    h.client.stash = [stashEntry(0, gun.name)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    await h.click('mercSlot5', 2);
+    expect(h.inventory.merc.description.open).toBe(true);
+    expect(h.t.list.items.some((i) => i.kind === 'image' && i.asset === 'interface/iteminfoc.sti' && i.x === 0 && i.y === 107)).toBe(true);
+    expect(h.inventory.escape()).toBe(true);
+    expect(h.inventory.merc.description.open).toBe(false);
+    await h.click('poolSlot0');
+    expect(h.inventory.escape()).toBe(true);
+    expect(h.inventory.pool.cursor).toBeNull();
+    expect(h.inventory.escape()).toBe(true);
+    expect(h.inventory.pool.open).toBe(false);
+    expect(h.inventory.escape()).toBe(false);
+  });
 });

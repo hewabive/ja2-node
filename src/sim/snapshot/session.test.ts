@@ -47,7 +47,6 @@ const ROWS_SHORT_OF_THE_ENEMY = 7;
 const COLS = 160;
 const STEP_BUDGET = 3000;
 const IDLE_BUDGET = 20_000;
-const SCENARIO_TIMEOUT_MS = 60_000;
 const FLARE_RADIUS = 4;
 const FLARE_TURNS = 6;
 
@@ -97,34 +96,26 @@ function battle(mode: RunMode): CampaignSim {
 }
 
 describe('a campaign snapshot', () => {
-  it(
-    'continues a turn-based battle exactly from bullets and a grenade in flight',
-    async () => {
-      await expectReloadsInvisible((mode) => battle(mode));
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('continues a turn-based battle exactly from bullets and a grenade in flight', async () => {
+    await expectReloadsInvisible((mode) => battle(mode));
+  });
 
-  it(
-    'changes nothing when it is taken: snapshots between inputs leave the run as it was',
-    () => {
-      const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
-      const plain = createTestCampaign(kit, { ...options, mode: 'plain' }).campaign;
-      const created = createTestCampaign(kit, options).campaign;
-      const adapter = testCampaignAdapter(kit, options);
-      const observed = driven(created, { ...adapter, restore: (_snapshot, previous) => previous }, 'reload');
-      for (const c of [plain, observed]) {
-        landFirstSquad(c);
-        advance(c, { idle: true }, IDLE_BUDGET);
-        c.dispatch({ type: 'mapScreen' });
-        c.dispatch({ type: 'route', soldier: ourSoldiers(currentSim(c))[0]?.id ?? 0, to: 'A10' });
-        advance(c, { worldSeconds: 3600 });
-      }
-      expect(currentSim(observed)).toBe(created);
-      expectSameRun(plain, observed);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('changes nothing when it is taken: snapshots between inputs leave the run as it was', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const plain = createTestCampaign(kit, { ...options, mode: 'plain' }).campaign;
+    const created = createTestCampaign(kit, options).campaign;
+    const adapter = testCampaignAdapter(kit, options);
+    const observed = driven(created, { ...adapter, restore: (_snapshot, previous) => previous }, 'reload');
+    for (const c of [plain, observed]) {
+      landFirstSquad(c);
+      advance(c, { idle: true }, IDLE_BUDGET);
+      c.dispatch({ type: 'mapScreen' });
+      c.dispatch({ type: 'route', soldier: ourSoldiers(currentSim(c))[0]?.id ?? 0, to: 'A10' });
+      advance(c, { worldSeconds: 3600 });
+    }
+    expect(currentSim(observed)).toBe(created);
+    expectSameRun(plain, observed);
+  });
 
   it('rebuilds the loaded world and re-links the state shared between the strategic and the tactical layer', () => {
     const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };

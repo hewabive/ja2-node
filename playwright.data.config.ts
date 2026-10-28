@@ -1,8 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
-import { DATA_DIR, DATA_SAVE_DIR, E2E_MAX_SESSIONS, SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
+import {
+  DATA_DIR,
+  DATA_SAVE_DIR,
+  E2E_EXPECT_TIMEOUT_MS,
+  E2E_LONG_TEST_TIMEOUT_MS,
+  E2E_MAX_SESSIONS,
+  E2E_SERVER_START_TIMEOUT_MS,
+  SERVER_PORT,
+  TOKEN,
+  WEB_PORT,
+} from './tests/e2e/env.ts';
 
-const DATA_TEST_TIMEOUT_MS = 900_000;
-const SERVER_START_TIMEOUT_MS = 180_000;
 const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_WITHOUT_HELP = JSON.stringify({ version: 2, helpHidden: true });
 
@@ -12,7 +20,8 @@ export default defineConfig({
   testDir: 'tests/e2e-data',
   fullyParallel: false,
   workers: 1,
-  timeout: DATA_TEST_TIMEOUT_MS,
+  timeout: E2E_LONG_TEST_TIMEOUT_MS,
+  expect: { timeout: E2E_EXPECT_TIMEOUT_MS },
   reporter: [['list']],
   use: {
     baseURL: `http://127.0.0.1:${WEB_PORT}`,
@@ -30,7 +39,7 @@ export default defineConfig({
     command: 'node tools/dev.ts',
     url: `http://127.0.0.1:${WEB_PORT}/`,
     reuseExistingServer: false,
-    timeout: SERVER_START_TIMEOUT_MS,
+    timeout: E2E_SERVER_START_TIMEOUT_MS,
     env: {
       JA2_DATA_DIR: DATA_DIR,
       JA2_PORT: String(SERVER_PORT),

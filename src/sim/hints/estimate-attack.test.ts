@@ -6,7 +6,6 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { AP } from '../tactical/points.ts';
 import { Team } from '../tactical/soldier.ts';
 
-const SLOW_MS = 60_000;
 const MERC_AT = gridNo(80, 80);
 const PATIENT_AT = gridNo(80, 82);
 
@@ -25,14 +24,10 @@ function cursorFor(item: string) {
 }
 
 describe('the item cursor of the hand item', () => {
-  it(
-    'answers the medkit, the remote trigger and the tools with their cursor kind instead of a refusal',
-    () => {
-      expect(cursorFor('FIRSTAIDKIT')).toMatchObject({ ok: true, data: { cursor: 'aid', apCost: 0 } });
-      expect(cursorFor('REMOTETRIGGER')).toMatchObject({ ok: true, data: { cursor: 'remote', apCost: AP.USE_REMOTE } });
-      expect(cursorFor('WIRECUTTERS')).toMatchObject({ ok: true, data: { cursor: 'wirecutter' } });
-      expect(cursorFor('CANTEEN')).toMatchObject({ ok: true, data: { cursor: 'invalid' } });
-    },
-    SLOW_MS,
-  );
+  it('answers the medkit, the remote trigger and the tools with their cursor kind instead of a refusal', () => {
+    expect(cursorFor('FIRSTAIDKIT')).toMatchObject({ ok: true, data: { cursor: 'aid', apCost: 0 } });
+    expect(cursorFor('REMOTETRIGGER')).toMatchObject({ ok: true, data: { cursor: 'remote', apCost: AP.USE_REMOTE } });
+    expect(cursorFor('WIRECUTTERS')).toMatchObject({ ok: true, data: { cursor: 'wirecutter' } });
+    expect(cursorFor('CANTEEN')).toMatchObject({ ok: true, data: { cursor: 'invalid' } });
+  });
 });

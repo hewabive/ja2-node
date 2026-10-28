@@ -23,7 +23,6 @@ import {
   rowColour,
 } from './history-page.ts';
 
-const SCREEN_TEST_TIMEOUT_MS = 120_000;
 const MINUTES_PER_DAY = 1440;
 const QUEST_STARTED = 15;
 const SETTLED_ACCOUNTS = 4;
@@ -87,33 +86,29 @@ describe('the history page', () => {
     expect(rows[1]?.present).toBe(false);
   });
 
-  it(
-    'pages through the log with the arrows and keeps the page across laptop sessions',
-    async () => {
-      const h = await openLaptopHarness(kit, ui);
-      const l = h.session.campaign.state.laptop;
-      const start = l.history.length;
-      for (let i = 0; i < NUM_RECORDS_PER_PAGE + 3 - start; i++) addHistory(l, SETTLED_ACCOUNTS, 0, (i + 1) * MINUTES_PER_DAY, null);
-      await openProgram(h, 'historyButton');
-      expect(h.screen.shell.mode).toBe(LaptopMode.HISTORY);
-      expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}1 \/ 2$/);
-      expect(shownWidget(h.t, 'historyText0').text).not.toBe('');
-      expect(shownWidget(h.t, 'prevHistoryPage').enabled).toBe(false);
-      await clickWidget(h.t, 'nextHistoryPage');
-      expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
-      expect(shownWidget(h.t, 'historyText0').text).toBe('Settled Accounts at M.E.R.C.');
-      expect(shownWidget(h.t, 'historyLocation0').text).toBe('N/A');
-      expect(findWidget(h.t, 'historyText3')?.visible).toBe(false);
-      expect(shownWidget(h.t, 'nextHistoryPage').enabled).toBe(false);
-      await clickWidget(h.t, 'nextHistoryPage');
-      expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
-      await clickWidget(h.t, 'prevHistoryPage');
-      expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}1 \/ 2$/);
-      await clickWidget(h.t, 'nextHistoryPage');
-      await openProgram(h, 'financesButton');
-      await openProgram(h, 'historyButton');
-      expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
-    },
-    SCREEN_TEST_TIMEOUT_MS,
-  );
+  it('pages through the log with the arrows and keeps the page across laptop sessions', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    const l = h.session.campaign.state.laptop;
+    const start = l.history.length;
+    for (let i = 0; i < NUM_RECORDS_PER_PAGE + 3 - start; i++) addHistory(l, SETTLED_ACCOUNTS, 0, (i + 1) * MINUTES_PER_DAY, null);
+    await openProgram(h, 'historyButton');
+    expect(h.screen.shell.mode).toBe(LaptopMode.HISTORY);
+    expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}1 \/ 2$/);
+    expect(shownWidget(h.t, 'historyText0').text).not.toBe('');
+    expect(shownWidget(h.t, 'prevHistoryPage').enabled).toBe(false);
+    await clickWidget(h.t, 'nextHistoryPage');
+    expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
+    expect(shownWidget(h.t, 'historyText0').text).toBe('Settled Accounts at M.E.R.C.');
+    expect(shownWidget(h.t, 'historyLocation0').text).toBe('N/A');
+    expect(findWidget(h.t, 'historyText3')?.visible).toBe(false);
+    expect(shownWidget(h.t, 'nextHistoryPage').enabled).toBe(false);
+    await clickWidget(h.t, 'nextHistoryPage');
+    expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
+    await clickWidget(h.t, 'prevHistoryPage');
+    expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}1 \/ 2$/);
+    await clickWidget(h.t, 'nextHistoryPage');
+    await openProgram(h, 'financesButton');
+    await openProgram(h, 'historyButton');
+    expect(shownWidget(h.t, 'historyPage').text).toMatch(/ {2}2 \/ 2$/);
+  });
 });

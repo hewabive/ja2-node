@@ -11,7 +11,6 @@ const NEXT_BIG_POCKET = 8;
 const SMALL_POCKET = 11;
 const DROPPER = 3;
 const STEPS_EAST = 4;
-const BLINK_TIMEOUT_MS = 15_000;
 const QUIET_SEED = 1;
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
@@ -21,7 +20,7 @@ async function newSandbox(request: APIRequestContext): Promise<string> {
 
 async function openTactical(page: Page, session: string, extra = ''): Promise<void> {
   await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${extra}`);
-  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: 60_000 });
+  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
   await nextFrames(page, 4);
@@ -76,7 +75,7 @@ test.describe('the tactical HUD on the stub sandbox', () => {
 
   test('blinks the faces on the client clock', async ({ page }) => {
     await openTactical(page, session);
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.faces.some((f) => f.eye > 0) === true, null, { timeout: BLINK_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.faces.some((f) => f.eye > 0) === true);
   });
 
   test('selects a merc through the team panel and opens his single merc panel', async ({ page }) => {

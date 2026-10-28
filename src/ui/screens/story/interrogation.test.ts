@@ -5,7 +5,6 @@ import { inTheInterrogation } from '../../../../tests/support/story.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import { MusicMode } from '../../../protocol/music-modes.ts';
 
-const SLOW_MS = 120_000;
 const SEED = 51;
 const QUEEN = 75;
 const LINE_STEP_MS = 250;
@@ -21,7 +20,7 @@ let ui: TacticalUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await tacticalUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -31,7 +30,7 @@ function playOut(f: TacticalUiTest): void {
   for (let frames = 0; f.screen.dialogue.presenter.busy && frames < MAX_LINE_FRAMES; frames++) f.t.frame(LINE_STEP_MS);
 }
 
-describe('the interrogation on the tactical screen', { timeout: SLOW_MS }, () => {
+describe('the interrogation on the tactical screen', () => {
   it('shows the Queen’s talk panel, then the YES/NO/LIE box once the panel is gone, refuses every other command, ignores Escape and ends with the enemy-present music', async () => {
     const { session } = await inTheInterrogation(kit, SEED);
     const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };

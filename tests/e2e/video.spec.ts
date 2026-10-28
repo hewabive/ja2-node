@@ -33,7 +33,6 @@ const lastSequence = (page: Page) => page.evaluate(() => window.__ja2Video.video
 const idle = (page: Page) => page.waitForFunction(() => !window.__ja2Video.busy);
 
 test('the stub splash plays in the browser, Escape ends it, missing videos are skipped and the credits scroll', async ({ page }) => {
-  test.setTimeout(60_000);
   await page.goto('/src/devtools/video/');
   await page.waitForFunction(() => window.__ja2Video?.ready);
 

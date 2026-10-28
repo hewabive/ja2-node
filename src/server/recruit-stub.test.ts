@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -95,13 +95,9 @@ function escortMirela(session: CampaignSession, live: Session, merc: number): nu
 }
 
 describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
-  it(
-    'hires the RPC through the pay request: team, squad, weapon in hand, history and views, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(hireTheRpc);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('hires the RPC through the pay request: team, squad, weapon in hand, history and views, the same across reloads', async () => {
+    await expectReloadsInvisible(hireTheRpc);
+  });
 
   it('keeps the RPC when the pay request is refused', async () => {
     const { session, live, merc } = await inA10(22);
@@ -111,13 +107,9 @@ describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
     expect(session.campaign.battle?.roster.byProfile(MARSH)).toBeUndefined();
   });
 
-  it(
-    'escorts the EPC, talks to her as an escort and releases her in tactical through her wrong-sector record, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(escortAndRelease);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('escorts the EPC, talks to her as an escort and releases her in tactical through her wrong-sector record, the same across reloads', async () => {
+    await expectReloadsInvisible(escortAndRelease);
+  });
 });
 
 async function hireTheRpc(mode: RunMode): Promise<CampaignSession> {

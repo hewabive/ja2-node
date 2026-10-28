@@ -254,7 +254,7 @@ killed, reloads, seconds); exit code 0 for a won campaign. Default seed 1.
   steps compared and the differences; the campaign plays on in the loaded session. *Player load*: after the Drassen mine
   it saves (`campaign-bot-player`), loads with `reseed: true` into a new session and plays on there; the reseed takes
   the server's entropy (`27` §1.5), so a run after it is not reproducible.
-- **e2e** (`tests/e2e/campaign.spec.ts`, 90 s budget): the bot against the e2e stub server, seed 3, up to the end of the
+- **e2e** (`tests/e2e/campaign.spec.ts`): the bot against the e2e stub server, seed 3, up to the end of the
   landing battle with the exact load at round 2. Expected: the battle won with no merc lost, no difference in the
   mirrored session over more than 20 compared steps, the campaign continuing in the loaded session, A9 player
   controlled with no enemies.
@@ -499,11 +499,20 @@ A push or pull request that touches only `docs/`, Markdown files or `LICENSE` st
   `check` and `reload` run without `JA2_DATA_DIR`; `data`, `oracle` and `e2e:data` are skipped without it (the oracle
   also needs the probes in `JA2_ORACLE_DIR`, default `~/ja2-oracle`); `e2e:browsers` needs `DISPLAY` or `xvfb-run`.
   Each gate writes `.cache/gates/<gate>.log`. CI's `browsers` job uses the same table (§2.5).
-- **e2e.** Goldens capture after the page's VFS reads settle: the UI hook's `reads.pendingReads` counts the `/vfs`
-  reads in flight (`HttpVfsLayer`, `src/app/assets/http-vfs-layer.ts`), and `capture()` (`tests/e2e/ui-capture.ts`)
-  waits for none (`'afterReads'`) unless a golden holds a read on purpose (`'whileReading'`, the loading screen). Much of
+- **e2e.** Goldens capture after the page's VFS reads and cursor hints settle: the UI hook's `reads.pendingReads`
+  counts the `/vfs` reads in flight (`HttpVfsLayer`, `src/app/assets/http-vfs-layer.ts`) and `hints.pendingReplies`
+  (also on `map.hints`) every `pending` reply of a `HintProvider`; `capture()` (`tests/e2e/ui-capture.ts`) takes the
+  frame only when no read is open and no hint answered `pending` during the two frames before it, trying up to 40
+  times (`'afterReads'`), unless a golden holds a read on purpose (`'whileReading'`, the loading screen). A button
+  enabled by a hint (the map screen's tactical button, `canEnterSector`) is otherwise drawn hatched until the answer
+  arrives. The browser suite compares a screenshot only with a frame that did not change while it was taken. Much of
   the suite's wall time is the game in real time (the story test at speed 1, the talk panel at the original pace) and
   the browser (the Chrome GPU process under SwiftShader takes about half of the CPU).
+- **Timeouts.** One limit per runner, sized for a loaded machine (a busy hypervisor, parallel agents): vitest 10
+  minutes per test and hook (`vitest.config.ts`); Playwright 15 minutes per test (30 for the browser and original-data
+  suites), 2 minutes per `expect` and 5 minutes for the dev server to start (`tests/e2e/env.ts`). Tests and helpers set
+  no limits of their own, waits included; shorter ones remain only on waits that tolerate a miss (`.catch`) and in the
+  stall guard of `waitWhileLoading` (5 minutes without a finished request or a progress change).
 - **Tried, not adopted**: vitest `--pool=threads` (no gain); `--no-isolate` (faster, every test passing, but state
   shared between files would make results depend on the order); a test pace (the client clock and the real-time speed
   scaled together would save about 40 s of e2e but test a pace nobody plays at, every timed window eight times shorter).

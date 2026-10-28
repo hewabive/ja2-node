@@ -12,9 +12,6 @@ declare global {
 }
 
 const LAPTOP = '/src/devtools/laptop/';
-const TEST_TIMEOUT_MS = 240_000;
-const SAVE_TIMEOUT_MS = 180_000;
-const IMP_TEST_TIMEOUT_MS = 480_000;
 const BOBBY_RAY_ROW = 1;
 const MERC_ROW = 2;
 const IMP_ROW = 3;
@@ -22,8 +19,6 @@ const DRASSEN_ROW = 2;
 const DELIVERY_SECONDS = 5 * 24 * 3600;
 const IMP_CODE = 'XEP624';
 const MERCS_AFTER_IMP = 3;
-
-test.describe.configure({ timeout: TEST_TIMEOUT_MS });
 
 async function loadSession(request: APIRequestContext): Promise<string> {
   const response = await request.post('/api/sessions', { data: { load: LAPTOP_SITES_SAVE } });
@@ -87,7 +82,6 @@ async function mcp(): Promise<{ call: (name: string, args: Record<string, unknow
 test.describe('the laptop sites on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
   test.beforeAll(async () => {
-    test.setTimeout(SAVE_TIMEOUT_MS);
     await writeLaptopSitesSave(SAVE_DIR);
   });
   test.afterEach(async ({ page }) => closeSession(page));
@@ -150,7 +144,6 @@ test.describe('the laptop sites on stubs', () => {
   });
 
   test('creates an I.M.P. character through every page', async ({ page, request }) => {
-    test.setTimeout(IMP_TEST_TIMEOUT_MS);
     const session = await loadSession(request);
     await openSite(page, session, IMP_ROW, 'impHomeTitle');
     await expectGolden('laptop-imp-home', await capture(page));

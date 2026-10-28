@@ -5,10 +5,6 @@ import { SAVE_DIR } from './env.ts';
 import { expectShadowClean, imagesLoaded, waitWhileLoading, watchLoading } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
-const LOAD_TIMEOUT_MS = 120_000;
-const SAVE_TIMEOUT_MS = 180_000;
-const BATTLE_TIMEOUT_MS = 60_000;
-const BATTLE_TEST_TIMEOUT_MS = 240_000;
 const OPENING_MS = 1000;
 const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
 
@@ -35,29 +31,21 @@ async function battle(page: Page): Promise<BattleHook['state']> {
 
 async function arrive(page: Page): Promise<void> {
   await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), ARRIVAL_WAIT_SECONDS);
-  await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown', null, { timeout: BATTLE_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
   await nextFrames(page, 2);
 }
 
 async function autoresolve(page: Page): Promise<void> {
   await clickWidget(page, 'preBattleAutoresolve');
-  await page.waitForFunction(
-    () => window.__ja2Ui.screen === 'autoresolve' && window.__ja2Ui.battle?.state?.autoresolve?.opening === false,
-    null,
-    { timeout: BATTLE_TIMEOUT_MS },
-  );
+  await page.waitForFunction(() => window.__ja2Ui.screen === 'autoresolve' && window.__ja2Ui.battle?.state?.autoresolve?.opening === false);
 }
 
 async function finish(page: Page, status: string): Promise<void> {
   await clickWidget(page, 'arFinish');
-  await page.waitForFunction(
-    (wanted) => {
-      const ar = window.__ja2Ui.battle?.state?.autoresolve;
-      return ar?.status === wanted && ar.interface === 'done';
-    },
-    status,
-    { timeout: BATTLE_TIMEOUT_MS },
-  );
+  await page.waitForFunction((wanted) => {
+    const ar = window.__ja2Ui.battle?.state?.autoresolve;
+    return ar?.status === wanted && ar.interface === 'done';
+  }, status);
   await nextFrames(page, 2);
 }
 
@@ -66,11 +54,9 @@ async function visible(page: Page, id: string): Promise<boolean> {
 }
 
 test.describe('battle entry on the stub map-screen campaign', () => {
-  test.describe.configure({ timeout: BATTLE_TEST_TIMEOUT_MS });
   let session = '';
 
   test.beforeAll(async () => {
-    test.setTimeout(SAVE_TIMEOUT_MS);
     saves = await writeBattleEntrySaves(SAVE_DIR);
   });
 
@@ -113,9 +99,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     expect(await visible(page, 'arBandage')).toBe(true);
     expect((await battle(page))?.autoresolve?.elapsed).toMatch(/\d/);
     await clickWidget(page, 'arDoneWin');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.battle?.state?.screen === null, null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.battle?.state?.screen === null);
     expect((await page.evaluate(() => window.__ja2Ui.map?.screen?.flow)) ?? null).toBe('strategic');
   });
 
@@ -128,7 +112,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     expect(await visible(page, 'arDoneLose')).toBe(true);
     expect(await visible(page, 'arDoneWin')).toBe(false);
     await clickWidget(page, 'arDoneLose');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'map');
   });
 
   test('plays at Fast, pauses, retreats with the Retreat button and ends RETREATED', async ({ page, request }) => {
@@ -145,9 +129,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('manual');
     expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'fast' });
     await clickWidget(page, 'arRetreat');
-    await page.waitForFunction(() => window.__ja2Ui.battle?.commands.includes('autoresolveRetreat:ok') === true, null, {
-      timeout: BATTLE_TIMEOUT_MS,
-    });
+    await page.waitForFunction(() => window.__ja2Ui.battle?.commands.includes('autoresolveRetreat:ok') === true);
     await finish(page, 'retreat');
     expect(await visible(page, 'arDoneLose')).toBe(true);
   });
@@ -169,19 +151,17 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await page.mouse.down();
     await nextFrames(page);
     await page.mouse.up();
-    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown', null, { timeout: BATTLE_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
     expect((await battle(page))?.preBattle).toMatchObject({ persistent: false });
     expect(await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'preBattleRetreat')?.enabled)).toBe(false);
     await page.waitForTimeout(OPENING_MS / 4);
     await page.keyboard.press('Escape');
     await page.waitForFunction(
       () => window.__ja2Ui.battle?.state?.preBattle === null && window.__ja2Ui.battle.state.commands.at(-1)?.type === 'answer',
-      null,
-      { timeout: BATTLE_TIMEOUT_MS },
     );
     expect((await battle(page))?.commands.at(-1)).toMatchObject({ type: 'answer', choice: 'close', ok: true });
     await clickWidget(page, 'compressMore');
-    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown', null, { timeout: BATTLE_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown');
     expect((await battle(page))?.commands.at(-1)).toMatchObject({ type: 'showBattle', ok: true });
   });
 });

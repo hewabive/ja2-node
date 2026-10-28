@@ -41,7 +41,6 @@ const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), M
 const counters = (page: Page) => page.evaluate(() => ({ ...window.__ja2Audio.counters }));
 
 test('the tactical page plays a stub firefight with sound after the first gesture, and nothing at master volume 0', async ({ page }) => {
-  test.setTimeout(150_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });
@@ -79,9 +78,7 @@ test('the tactical page plays a stub firefight with sound after the first gestur
     if ((await observe()).combat) await act({ type: 'endTurn' });
   }
 
-  await expect
-    .poll(() => page.evaluate(() => window.__ja2Audio.played.some((f) => f.startsWith('sounds/weapons/'))), { timeout: 30_000 })
-    .toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__ja2Audio.played.some((f) => f.startsWith('sounds/weapons/')))).toBe(true);
   const fought = await counters(page);
   expect(fought.voicesStarted).toBeGreaterThan(0);
   expect(fought.filesMissing).toBe(0);
@@ -97,7 +94,7 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   for (const s of (await observe()).soldiers.filter((x) => x.team === 0 && (x.life ?? 0) >= 15))
     await act({ type: 'stance', soldier: s.id, stance: 'crouch' });
   if ((await observe()).combat) await act({ type: 'endTurn' });
-  await expect.poll(async () => (await counters(page)).cuesResolved, { timeout: 30_000 }).toBeGreaterThan(muted.cuesResolved);
+  await expect.poll(async () => (await counters(page)).cuesResolved).toBeGreaterThan(muted.cuesResolved);
   await page.waitForTimeout(1500);
   const after = await counters(page);
   expect(after.voicesStarted).toBe(muted.voicesStarted);

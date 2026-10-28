@@ -19,8 +19,6 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { createSandboxSession, ORIGINAL_SANDBOX_MAP } from './sandbox.ts';
 import { Session } from './session.ts';
 
-const SLOW_MS = 240_000;
-
 describe.skipIf(!ORIGINAL_DATA_DIR)('cursor hints on the original data, client against server', () => {
   let data: DataVfs;
   let sources: HintSources;
@@ -36,7 +34,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('cursor hints on the original data, client a
       world: (path) => (path === ORIGINAL_SANDBOX_MAP ? buildTacticalWorldFromInputs(a9) : null),
     };
     client = await clientSide(sources);
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await data.close();
@@ -46,29 +44,18 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('cursor hints on the original data, client a
     return withQueries(new Session('hints', await createSandboxSession(read, true, seed)), sources);
   }
 
-  it(
-    'agree on the move preview on A9 in real time',
-    async () => {
-      const session = await sandbox(1);
-      const report = await expectHintsAgree(session, client, sampleMoveHints(serialisedView(session), { radius: 20, step: 4 }));
-      expect(report.answered).toBeGreaterThan(100);
-    },
-    SLOW_MS,
-  );
+  it('agree on the move preview on A9 in real time', async () => {
+    const session = await sandbox(1);
+    const report = await expectHintsAgree(session, client, sampleMoveHints(serialisedView(session), { radius: 20, step: 4 }));
+    expect(report.answered).toBeGreaterThan(100);
+  });
 
-  it(
-    'agree on the move preview and the attack estimate in a battle on A9',
-    async () => {
-      const session = await sandbox(BATTLE_SANDBOX_SEED);
-      approachUntilCombat(session, true);
-      untilOurTurn(session);
-      const view = serialisedView(session);
-      const report = await expectHintsAgree(session, client, [
-        ...sampleMoveHints(view, { radius: 16, step: 4 }),
-        ...sampleAttackHints(view),
-      ]);
-      expect(report.kinds.get('estimateAttack')).toBeGreaterThan(0);
-    },
-    SLOW_MS,
-  );
+  it('agree on the move preview and the attack estimate in a battle on A9', async () => {
+    const session = await sandbox(BATTLE_SANDBOX_SEED);
+    approachUntilCombat(session, true);
+    untilOurTurn(session);
+    const view = serialisedView(session);
+    const report = await expectHintsAgree(session, client, [...sampleMoveHints(view, { radius: 16, step: 4 }), ...sampleAttackHints(view)]);
+    expect(report.kinds.get('estimateAttack')).toBeGreaterThan(0);
+  });
 });

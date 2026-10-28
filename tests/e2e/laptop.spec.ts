@@ -8,13 +8,10 @@ declare global {
 }
 
 const LAPTOP = '/src/devtools/laptop/';
-const LAPTOP_TEST_TIMEOUT_MS = 240_000;
 const SEED = 7;
 const MUG_ROWS = 5;
 const MUG_COLUMNS = 8;
 const VIEWER = '.0';
-
-test.describe.configure({ timeout: LAPTOP_TEST_TIMEOUT_MS });
 
 async function visible(page: Page, id: string): Promise<boolean> {
   return (await widgets(page)).some((w) => w.id === id && w.visible);
@@ -133,7 +130,7 @@ test.describe('the canvas laptop on stubs', () => {
     await clickWidget(page, 'transferFunds');
     await waitVisible(page, 'popupOk');
     await clickWidget(page, 'popupOk');
-    await page.waitForFunction(() => window.__ja2Ui.modal !== null, undefined, { timeout: 30_000 });
+    await page.waitForFunction(() => window.__ja2Ui.modal !== null);
     expect(await page.evaluate(() => window.__ja2Ui.modal)).toBeTruthy();
     expect(await widgetText(page, 'personnel')).not.toBe(before);
     await nextFrames(page);

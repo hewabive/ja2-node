@@ -6,7 +6,6 @@ import { expect, test } from './fixture.ts';
 import { expectNoMissingArt } from './structure.ts';
 
 const SEED = 1414;
-const FLOW_TIMEOUT_MS = 1_200_000;
 const API_HIRES = 3;
 const ROUTE_TO = 'B9';
 
@@ -16,7 +15,6 @@ test('the main flow on the original data, structure only: a new game, an A.I.M. 
   page,
   request,
 }) => {
-  test.setTimeout(FLOW_TIMEOUT_MS);
   await seedNewCampaigns(page, SEED);
   const game = await McpGame.connect(SERVER, TOKEN);
   const flow = new MainFlow(page, game);

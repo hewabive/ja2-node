@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { RELOAD_TEST_TIMEOUT_MS } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString, type Sector, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
@@ -131,7 +130,7 @@ function firstMerc(session: CampaignSession): number {
   return merc.id;
 }
 
-describe('stub sector kinds in a campaign', { timeout: RELOAD_TEST_TIMEOUT_MS }, () => {
+describe('stub sector kinds in a campaign', () => {
   it('liberates a stub mine whose head miner starts it, pays for it the next day and trains militia in the town', async () => {
     const c = await landedCampaign(61, ['B13', 'C13', 'D13']);
     teleportSquad(c.session, parseSectorString('C13'));

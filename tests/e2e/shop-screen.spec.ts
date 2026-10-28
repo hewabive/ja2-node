@@ -32,7 +32,6 @@ interface View {
 }
 
 test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one box and leaves with Done', async ({ page, request }) => {
-  test.setTimeout(180_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });
@@ -71,7 +70,7 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
       expect(((await call('advance', { session, idle: true })) as { reason: string }).reason).toBe('decision');
 
     await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&shadowHints=1&pinClock=1&fixed640=1&scale=1`);
-    await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: 60_000 });
+    await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
     expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
     await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true);

@@ -12,8 +12,6 @@ import { restoreSession, type SessionSnapshot, snapshotSession } from './session
 
 type JsonObject = { readonly [key: string]: Json };
 
-const SCENARIO_TIMEOUT_MS = 60_000;
-
 function object(value: Json | undefined): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('not an object');
   return value as JsonObject;
@@ -88,25 +86,17 @@ describe('snapshot version 1 (separate option copies) migrates to the unified ga
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   }
 
-  it(
-    'a sandbox keeps difficulty, sci-fi, gun nut and blood and gore',
-    async () => {
-      const sandbox = await createSandboxSession(kit.read, false, 5);
-      sandbox.dispatch({ type: 'setOption', bloodAndGore: false });
-      await expectMigratesExactly(sandbox);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a sandbox keeps difficulty, sci-fi, gun nut and blood and gore', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    sandbox.dispatch({ type: 'setOption', bloodAndGore: false });
+    await expectMigratesExactly(sandbox);
+  });
 
-  it(
-    'a landed campaign shares one options object between the layers again',
-    async () => {
-      const campaign = await createCampaignSession(kit.read, exists, 9, { options: { difficulty: 3, gunNut: true } });
-      expect(campaign.campaign.tactical?.state.options).toBe(campaign.campaign.state.options);
-      await expectMigratesExactly(campaign);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a landed campaign shares one options object between the layers again', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9, { options: { difficulty: 3, gunNut: true } });
+    expect(campaign.campaign.tactical?.state.options).toBe(campaign.campaign.state.options);
+    await expectMigratesExactly(campaign);
+  });
 });
 
 function withSpriteFrames(value: Json, presentation: PresentationTimeline): Json {
@@ -151,25 +141,17 @@ describe('snapshot version 2 (sprite frames in the soldiers) migrates to frame s
     expect(restored.view()).toEqual(session.view());
   }
 
-  it(
-    'a sandbox in the middle of a run keeps its frames and continues the same',
-    async () => {
-      const sandbox = await createSandboxSession(kit.read, false, 5);
-      for (const merc of sandbox.view().soldiers.filter((s) => s.team === 0))
-        sandbox.dispatch({ type: 'move', soldier: merc.id, to: merc.gridNo + STEP_SOUTH, mode: 'run' });
-      for (let i = 0; i < MOVE_TICKS; i++) sandbox.step();
-      await expectSameViews(sandbox);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a sandbox in the middle of a run keeps its frames and continues the same', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    for (const merc of sandbox.view().soldiers.filter((s) => s.team === 0))
+      sandbox.dispatch({ type: 'move', soldier: merc.id, to: merc.gridNo + STEP_SOUTH, mode: 'run' });
+    for (let i = 0; i < MOVE_TICKS; i++) sandbox.step();
+    await expectSameViews(sandbox);
+  });
 
-  it(
-    'a landed campaign keeps its frames and continues the same',
-    async () => {
-      await expectSameViews(await createCampaignSession(kit.read, exists, 9));
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a landed campaign keeps its frames and continues the same', async () => {
+    await expectSameViews(await createCampaignSession(kit.read, exists, 9));
+  });
 });
 
 function versionFour(snapshot: SimSnapshot): SimSnapshot {
@@ -195,22 +177,18 @@ describe('snapshot version 4 (no new-mail flag) migrates with the flag down', ()
     await kit.dispose();
   });
 
-  it(
-    'a campaign in the laptop restores the same laptop with newMail false',
-    async () => {
-      const campaign = await createCampaignSession(kit.read, exists, 9, { hire: [] });
-      expect(campaign.campaign.state.laptop.newMail).toBe(true);
-      campaign.campaign.state.laptop.newMail = false;
-      const current = snapshotSession(campaign);
-      const legacy = versionFour(current.sim);
-      expect(JSON.stringify(legacy)).not.toContain('"newMail"');
-      expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
-      const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
-      expect(restored.view().laptop?.newMail).toBe(false);
-      expect(restored.view()).toEqual(campaign.view());
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a campaign in the laptop restores the same laptop with newMail false', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9, { hire: [] });
+    expect(campaign.campaign.state.laptop.newMail).toBe(true);
+    campaign.campaign.state.laptop.newMail = false;
+    const current = snapshotSession(campaign);
+    const legacy = versionFour(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"newMail"');
+    expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(restored.view().laptop?.newMail).toBe(false);
+    expect(restored.view()).toEqual(campaign.view());
+  });
 });
 
 function versionNine(snapshot: SimSnapshot): SimSnapshot {
@@ -240,22 +218,18 @@ describe('snapshot version 9 (no blood graphics) migrates with every pool waitin
     await kit.dispose();
   });
 
-  it(
-    'a sandbox with blood nobody saw restores the same blood map and shows no pool yet',
-    async () => {
-      const sandbox = await createSandboxSession(kit.read, false, 5);
-      const t = sandbox.sim.state;
-      internalDropBlood(t, POOL_AT, 0, BloodKind.HUMAN, POOL_STRENGTH, UNSEEN);
-      const current = snapshotSession(sandbox);
-      const legacy = versionNine(current.sim);
-      expect(JSON.stringify(legacy)).not.toContain('"shownPools"');
-      expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
-      const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
-      expect(restored.view().blood).toEqual([]);
-      expect(restored.view()).toEqual(sandbox.view());
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a sandbox with blood nobody saw restores the same blood map and shows no pool yet', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    internalDropBlood(t, POOL_AT, 0, BloodKind.HUMAN, POOL_STRENGTH, UNSEEN);
+    const current = snapshotSession(sandbox);
+    const legacy = versionNine(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"shownPools"');
+    expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(restored.view().blood).toEqual([]);
+    expect(restored.view()).toEqual(sandbox.view());
+  });
 });
 
 const LEGACY_DECAY_MS = 41_234;
@@ -299,23 +273,15 @@ describe('snapshot version 10 (opplist decay on the tactical clock) migrates to 
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   }
 
-  it(
-    'a sandbox decays at its next real-time turn',
-    async () => {
-      const sandbox = await createSandboxSession(kit.read, false, 5);
-      await expectDecayDueAtNextRealtimeTurn(sandbox, sandbox.sim.state.realtimeClock);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a sandbox decays at its next real-time turn', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectDecayDueAtNextRealtimeTurn(sandbox, sandbox.sim.state.realtimeClock);
+  });
 
-  it(
-    'a landed campaign keeps one clock for the sector flow and the loaded sector',
-    async () => {
-      const campaign = await createCampaignSession(kit.read, exists, 9);
-      const clock = campaign.campaign.state.sectorFlow.realtimeClock;
-      expect(campaign.campaign.tactical?.state.realtimeClock).toBe(clock);
-      await expectDecayDueAtNextRealtimeTurn(campaign, clock);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('a landed campaign keeps one clock for the sector flow and the loaded sector', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const clock = campaign.campaign.state.sectorFlow.realtimeClock;
+    expect(campaign.campaign.tactical?.state.realtimeClock).toBe(clock);
+    await expectDecayDueAtNextRealtimeTurn(campaign, clock);
+  });
 });

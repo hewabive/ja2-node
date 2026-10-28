@@ -10,7 +10,6 @@ import { CampaignSession } from './campaign-session.ts';
 import { readSaveHead } from './save-file.ts';
 
 const token = 'options-api-test-token-0123456789';
-const TEST_TIMEOUT_MS = 120_000;
 const CHOSEN = { difficulty: 3, sciFi: false, gunNut: true, saveMode: 'ironMan', bloodAndGore: false } as const;
 
 let kit: StubSectorKit;
@@ -53,100 +52,88 @@ async function mcpClient(app: Awaited<ReturnType<typeof server>>) {
 }
 
 describe('game options over the agent API', () => {
-  it(
-    'a campaign started with options shows them in status, observe and the save header, and setOption changes blood and gore',
-    async () => {
-      const k = await createSaveKit(kit);
-      try {
-        const { client, call } = await mcpClient(await server(k));
-        expect((await call('status')).options).toEqual({
-          difficulty: 2,
-          sciFi: true,
-          gunNut: false,
-          saveMode: 'anywhere',
-          bloodAndGore: true,
-        });
-        const created = await call('newSession', { seed: 3, campaign: { options: CHOSEN, land: false, hire: [] } });
-        expect(created).toMatchObject({ session: 'sandbox-1', options: CHOSEN, saveMode: 'ironMan' });
-        const session = created.session as string;
-        expect((await call('observe', { session })).options).toEqual(CHOSEN);
-        expect(await call('act', { session, command: { type: 'setOption', bloodAndGore: true } })).toMatchObject({
-          ok: true,
-          data: { options: { ...CHOSEN, bloodAndGore: true } },
-        });
-        expect(await call('act', { session, command: { type: 'setOption', difficulty: 1 } })).toMatchObject({
-          ok: false,
-          data: { refusal: 'badOption' },
-        });
-        expect((await call('status', { session })).options).toEqual({ ...CHOSEN, bloodAndGore: true });
-        const live = await k.hosts.get(session)?.inputLog();
-        expect(live?.entries.map((e) => (e.payload as { cmd?: { type: string } }).cmd?.type)).toContain('setOption');
-        const saved = await call('save', { session, name: 'withOptions' });
-        expect(saved).toMatchObject({ ok: true, header: { options: { ...CHOSEN, bloodAndGore: true } } });
-        const bytes = await k.store.read('withOptions');
-        expect(bytes && readSaveHead(bytes).header.options).toEqual({ ...CHOSEN, bloodAndGore: true });
-        const listed = (await call('listSaves')) as { name: string; header: { options: unknown } }[];
-        expect(listed.find((s) => s.name === 'withOptions')?.header.options).toEqual({ ...CHOSEN, bloodAndGore: true });
-        await client.close();
-      } finally {
-        await k.dispose();
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('a campaign started with options shows them in status, observe and the save header, and setOption changes blood and gore', async () => {
+    const k = await createSaveKit(kit);
+    try {
+      const { client, call } = await mcpClient(await server(k));
+      expect((await call('status')).options).toEqual({
+        difficulty: 2,
+        sciFi: true,
+        gunNut: false,
+        saveMode: 'anywhere',
+        bloodAndGore: true,
+      });
+      const created = await call('newSession', { seed: 3, campaign: { options: CHOSEN, land: false, hire: [] } });
+      expect(created).toMatchObject({ session: 'sandbox-1', options: CHOSEN, saveMode: 'ironMan' });
+      const session = created.session as string;
+      expect((await call('observe', { session })).options).toEqual(CHOSEN);
+      expect(await call('act', { session, command: { type: 'setOption', bloodAndGore: true } })).toMatchObject({
+        ok: true,
+        data: { options: { ...CHOSEN, bloodAndGore: true } },
+      });
+      expect(await call('act', { session, command: { type: 'setOption', difficulty: 1 } })).toMatchObject({
+        ok: false,
+        data: { refusal: 'badOption' },
+      });
+      expect((await call('status', { session })).options).toEqual({ ...CHOSEN, bloodAndGore: true });
+      const live = await k.hosts.get(session)?.inputLog();
+      expect(live?.entries.map((e) => (e.payload as { cmd?: { type: string } }).cmd?.type)).toContain('setOption');
+      const saved = await call('save', { session, name: 'withOptions' });
+      expect(saved).toMatchObject({ ok: true, header: { options: { ...CHOSEN, bloodAndGore: true } } });
+      const bytes = await k.store.read('withOptions');
+      expect(bytes && readSaveHead(bytes).header.options).toEqual({ ...CHOSEN, bloodAndGore: true });
+      const listed = (await call('listSaves')) as { name: string; header: { options: unknown } }[];
+      expect(listed.find((s) => s.name === 'withOptions')?.header.options).toEqual({ ...CHOSEN, bloodAndGore: true });
+      await client.close();
+    } finally {
+      await k.dispose();
+    }
+  });
 
-  it(
-    'keeps campaign.difficulty and campaign.saveMode as aliases and refuses a contradiction',
-    async () => {
-      const k = await createSaveKit(kit);
-      try {
-        const { client, call } = await mcpClient(await server(k));
-        const aliased = await call('newSession', { campaign: { difficulty: 1, saveMode: 'deadIsDead', land: false, hire: [] } });
-        expect(aliased.options).toEqual({ difficulty: 1, sciFi: true, gunNut: false, saveMode: 'deadIsDead', bloodAndGore: true });
-        const both = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 1 }, land: false, hire: [] } });
-        expect(both.options.difficulty).toBe(1);
-        const contradiction = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 3 }, land: false, hire: [] } });
-        expect(contradiction.error).toMatch(/disagree/);
-        await client.close();
-      } finally {
-        await k.dispose();
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('keeps campaign.difficulty and campaign.saveMode as aliases and refuses a contradiction', async () => {
+    const k = await createSaveKit(kit);
+    try {
+      const { client, call } = await mcpClient(await server(k));
+      const aliased = await call('newSession', { campaign: { difficulty: 1, saveMode: 'deadIsDead', land: false, hire: [] } });
+      expect(aliased.options).toEqual({ difficulty: 1, sciFi: true, gunNut: false, saveMode: 'deadIsDead', bloodAndGore: true });
+      const both = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 1 }, land: false, hire: [] } });
+      expect(both.options.difficulty).toBe(1);
+      const contradiction = await call('newSession', { campaign: { difficulty: 1, options: { difficulty: 3 }, land: false, hire: [] } });
+      expect(contradiction.error).toMatch(/disagree/);
+      await client.close();
+    } finally {
+      await k.dispose();
+    }
+  });
 
-  it(
-    'takes the options in POST /api/sessions and refuses setOption while a prompt is open',
-    async () => {
-      const k = await createSaveKit(kit);
-      try {
-        const app = await server(k);
-        const auth = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
-        const response = await app.request('http://localhost/api/sessions', {
-          method: 'POST',
-          headers: auth,
-          body: JSON.stringify({ campaign: { options: { gunNut: true }, land: false, hire: [] } }),
-        });
-        const body = (await response.json()) as { session: string; options: unknown };
-        expect(body.options).toEqual({ difficulty: 2, sciFi: true, gunNut: true, saveMode: 'anywhere', bloodAndGore: true });
-        const session = k.hosts.get(body.session)?.session;
-        const sim = session?.sim;
-        if (!(sim instanceof CampaignSession)) throw new Error('not a campaign');
-        sim.campaign.state.battle.prompt = { id: 'p1', kind: PromptKind.NPC_OF_NOTE };
-        expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
-        expect(sim.campaign.state.options.bloodAndGore).toBe(true);
-        sim.campaign.state.battle.prompt = null;
-        const framed: string[] = [];
-        session?.subscribe((message) => {
-          if (message.t === 'frames') framed.push(...message.frames.flatMap((f) => (f.events ?? []).map((e) => e.type)));
-        });
-        expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: true });
-        expect(sim.campaign.state.options.bloodAndGore).toBe(false);
-        expect(framed).toContain('optionChanged');
-      } finally {
-        await k.dispose();
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('takes the options in POST /api/sessions and refuses setOption while a prompt is open', async () => {
+    const k = await createSaveKit(kit);
+    try {
+      const app = await server(k);
+      const auth = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+      const response = await app.request('http://localhost/api/sessions', {
+        method: 'POST',
+        headers: auth,
+        body: JSON.stringify({ campaign: { options: { gunNut: true }, land: false, hire: [] } }),
+      });
+      const body = (await response.json()) as { session: string; options: unknown };
+      expect(body.options).toEqual({ difficulty: 2, sciFi: true, gunNut: true, saveMode: 'anywhere', bloodAndGore: true });
+      const session = k.hosts.get(body.session)?.session;
+      const sim = session?.sim;
+      if (!(sim instanceof CampaignSession)) throw new Error('not a campaign');
+      sim.campaign.state.battle.prompt = { id: 'p1', kind: PromptKind.NPC_OF_NOTE };
+      expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
+      expect(sim.campaign.state.options.bloodAndGore).toBe(true);
+      sim.campaign.state.battle.prompt = null;
+      const framed: string[] = [];
+      session?.subscribe((message) => {
+        if (message.t === 'frames') framed.push(...message.frames.flatMap((f) => (f.events ?? []).map((e) => e.type)));
+      });
+      expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: true });
+      expect(sim.campaign.state.options.bloodAndGore).toBe(false);
+      expect(framed).toContain('optionChanged');
+    } finally {
+      await k.dispose();
+    }
+  });
 });

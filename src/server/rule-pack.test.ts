@@ -28,7 +28,6 @@ import { openRulePack, ruleSourceKey } from './rule-pack.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 
-const SLOW_MS = 300_000;
 const RUN_TICKS = 400;
 const STEP_SOUTH = 320;
 const OLD_PACKS = 6;
@@ -132,74 +131,60 @@ describe('the rule pack on the stub data', () => {
   beforeAll(async () => {
     kit = await loadStubSectorKit();
     pack = await kit.rulePack();
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await kit.dispose();
   });
 
-  it(
-    'answers every read and probe of the content loaders as the data does',
-    async () => {
-      expect(await expectPackAnswersLikeTheData(kit.vfs, pack, false)).toBeGreaterThan(500);
-    },
-    SLOW_MS,
-  );
+  it('answers every read and probe of the content loaders as the data does', async () => {
+    expect(await expectPackAnswersLikeTheData(kit.vfs, pack, false)).toBeGreaterThan(500);
+  });
 
-  it(
-    'runs a campaign and a sandbox while every graphic read throws',
-    async () => {
-      await expectRunsWithoutGraphics(kit.vfs, pack, false);
-    },
-    SLOW_MS,
-  );
+  it('runs a campaign and a sandbox while every graphic read throws', async () => {
+    await expectRunsWithoutGraphics(kit.vfs, pack, false);
+  });
 
-  it(
-    'is cached on disk, reads back plain byte arrays, is reused while the data stays, rebuilt when it changes, and old packs are pruned',
-    async () => {
-      const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
-      const ownStubs = await mkdtemp(join(tmpdir(), 'ja2-rules-stubs-'));
-      try {
-        for (let i = 0; i < OLD_PACKS; i++) {
-          const dir = join(cacheDir, `rules-old${i}`);
-          await mkdir(dir);
-          await writeFile(join(dir, 'pack.json'), '{}');
-          await utimes(join(dir, 'pack.json'), new Date(2000, 0, i + 1), new Date(2000, 0, i + 1));
-        }
-        const built = await openRulePack({ vfs: kit.vfs, source: 'stubs', cacheDir });
-        expect(built).toMatchObject({ cached: false, dir: join(cacheDir, `rules-${pack.allLayersHash}`) });
-        expect(built.pack.hash).toBe(pack.hash);
-        expect(
-          (await readdir(cacheDir, { withFileTypes: true })).filter((e) => e.isDirectory() && e.name.startsWith('rules-')),
-        ).toHaveLength(KEPT_PACKS);
-        const again = await openRulePack({ vfs: kit.vfs, source: 'stubs', cacheDir });
-        expect(again).toMatchObject({ cached: true, dir: built.dir });
-        expect(again.pack.manifest).toEqual(built.pack.manifest);
-        expect(sameBytes(await again.pack.read('stubs/world/maps/village.dat'), await pack.read('stubs/world/maps/village.dat'))).toBe(
-          true,
-        );
-        for (const read of [built.pack.read, again.pack.read])
-          expect(Object.getPrototypeOf(await read('stubs/world/maps/village.dat'))).toBe(Uint8Array.prototype);
-        const npc = kit.vfs.list().find((f) => f.path.startsWith('stubs/npcdata/') && f.path.endsWith('.npc'));
-        if (!npc) throw new Error('no stub NPC records');
-        await buildStubs(ownStubs);
-        await appendFile(join(ownStubs, npc.path.slice('stubs/'.length)), Uint8Array.of(0));
-        const changed = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: ownStubs });
-        try {
-          expect(ruleSourceKey(changed.vfs, 'stubs')).not.toBe(ruleSourceKey(kit.vfs, 'stubs'));
-          const rebuilt = await openRulePack({ vfs: changed.vfs, source: 'stubs', cacheDir });
-          expect(rebuilt.cached).toBe(false);
-          expect(rebuilt.pack.hash).not.toBe(pack.hash);
-        } finally {
-          await changed.close();
-        }
-      } finally {
-        await rm(cacheDir, { recursive: true, force: true });
-        await rm(ownStubs, { recursive: true, force: true });
+  it('is cached on disk, reads back plain byte arrays, is reused while the data stays, rebuilt when it changes, and old packs are pruned', async () => {
+    const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
+    const ownStubs = await mkdtemp(join(tmpdir(), 'ja2-rules-stubs-'));
+    try {
+      for (let i = 0; i < OLD_PACKS; i++) {
+        const dir = join(cacheDir, `rules-old${i}`);
+        await mkdir(dir);
+        await writeFile(join(dir, 'pack.json'), '{}');
+        await utimes(join(dir, 'pack.json'), new Date(2000, 0, i + 1), new Date(2000, 0, i + 1));
       }
-    },
-    SLOW_MS,
-  );
+      const built = await openRulePack({ vfs: kit.vfs, source: 'stubs', cacheDir });
+      expect(built).toMatchObject({ cached: false, dir: join(cacheDir, `rules-${pack.allLayersHash}`) });
+      expect(built.pack.hash).toBe(pack.hash);
+      expect((await readdir(cacheDir, { withFileTypes: true })).filter((e) => e.isDirectory() && e.name.startsWith('rules-'))).toHaveLength(
+        KEPT_PACKS,
+      );
+      const again = await openRulePack({ vfs: kit.vfs, source: 'stubs', cacheDir });
+      expect(again).toMatchObject({ cached: true, dir: built.dir });
+      expect(again.pack.manifest).toEqual(built.pack.manifest);
+      expect(sameBytes(await again.pack.read('stubs/world/maps/village.dat'), await pack.read('stubs/world/maps/village.dat'))).toBe(true);
+      for (const read of [built.pack.read, again.pack.read])
+        expect(Object.getPrototypeOf(await read('stubs/world/maps/village.dat'))).toBe(Uint8Array.prototype);
+      const npc = kit.vfs.list().find((f) => f.path.startsWith('stubs/npcdata/') && f.path.endsWith('.npc'));
+      if (!npc) throw new Error('no stub NPC records');
+      await buildStubs(ownStubs);
+      await appendFile(join(ownStubs, npc.path.slice('stubs/'.length)), Uint8Array.of(0));
+      const changed = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: ownStubs });
+      try {
+        expect(ruleSourceKey(changed.vfs, 'stubs')).not.toBe(ruleSourceKey(kit.vfs, 'stubs'));
+        const rebuilt = await openRulePack({ vfs: changed.vfs, source: 'stubs', cacheDir });
+        expect(rebuilt.cached).toBe(false);
+        expect(rebuilt.pack.hash).not.toBe(pack.hash);
+      } finally {
+        await changed.close();
+      }
+    } finally {
+      await rm(cacheDir, { recursive: true, force: true });
+      await rm(ownStubs, { recursive: true, force: true });
+    }
+  });
 });
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => {
@@ -209,47 +194,35 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     pack = (await openRulePack({ vfs: data.vfs, source: 'original', cacheDir: null })).pack;
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await data.close();
   });
 
-  it(
-    'answers every read and probe of the content loaders as the data does',
-    async () => {
-      expect(await expectPackAnswersLikeTheData(data.vfs, pack, true)).toBeGreaterThan(3000);
-    },
-    SLOW_MS,
-  );
+  it('answers every read and probe of the content loaders as the data does', async () => {
+    expect(await expectPackAnswersLikeTheData(data.vfs, pack, true)).toBeGreaterThan(3000);
+  });
 
-  it(
-    'runs a campaign and a sandbox while every graphic read throws',
-    async () => {
-      await expectRunsWithoutGraphics(data.vfs, pack, true);
-    },
-    SLOW_MS,
-  );
+  it('runs a campaign and a sandbox while every graphic read throws', async () => {
+    await expectRunsWithoutGraphics(data.vfs, pack, true);
+  });
 
-  it(
-    'reads the item records of every map from a pack cached on disk as from the data',
-    async () => {
-      const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
-      try {
-        const cached = (await openRulePack({ vfs: data.vfs, source: 'original', cacheDir })).pack;
-        let items = 0;
-        for (const f of data.vfs.list().filter((e) => isMapFile(e.path))) {
-          const fromData = parseMap(await data.vfs.read(f.path)).items;
-          expect(parseMap((await cached.read(f.path)) ?? new Uint8Array()).items, f.path).toEqual(fromData);
-          items += fromData.length;
-        }
-        expect(items).toBeGreaterThan(MIN_ORIGINAL_MAP_ITEMS);
-      } finally {
-        await rm(cacheDir, { recursive: true, force: true });
+  it('reads the item records of every map from a pack cached on disk as from the data', async () => {
+    const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
+    try {
+      const cached = (await openRulePack({ vfs: data.vfs, source: 'original', cacheDir })).pack;
+      let items = 0;
+      for (const f of data.vfs.list().filter((e) => isMapFile(e.path))) {
+        const fromData = parseMap(await data.vfs.read(f.path)).items;
+        expect(parseMap((await cached.read(f.path)) ?? new Uint8Array()).items, f.path).toEqual(fromData);
+        items += fromData.length;
       }
-    },
-    SLOW_MS,
-  );
+      expect(items).toBeGreaterThan(MIN_ORIGINAL_MAP_ITEMS);
+    } finally {
+      await rm(cacheDir, { recursive: true, force: true });
+    }
+  });
 
   it('times every speech file of both speech archives as the decoded sample does', async () => {
     const speech = data.vfs.list().filter((f) => isSpeechFile(f.path));

@@ -4,7 +4,6 @@ import { openTacticalSession } from './play-flow.ts';
 import { openUiPage } from './ui-capture.ts';
 
 const SAMPLED_FRAMES = 120;
-const SAMPLE_TIMEOUT_MS = 120_000;
 const LOOSE_P95_MS = 250;
 const LOOSE_MAX_MS = 2_000;
 const QUIET_SEED = 1;
@@ -25,7 +24,7 @@ async function sampleFrames(page: Page): Promise<FrameSample> {
     window.__ja2Ui.resetFrameStats();
     return window.__ja2Ui.presentedFrames;
   });
-  await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES, { timeout: SAMPLE_TIMEOUT_MS });
+  await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES);
   return page.evaluate((before) => ({ stats: window.__ja2Ui.frameStats, presented: window.__ja2Ui.presentedFrames - before }), presented);
 }
 

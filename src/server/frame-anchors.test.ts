@@ -14,7 +14,6 @@ import { createSandboxSession, tacticalPlayerView } from './sandbox.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
 import { PROFILE_VOICE } from './soldier-voice.ts';
 
-const SLOW_MS = 120_000;
 const IDLE_TICKS = 2000;
 const WALK_TICKS = 600;
 const FRAME_FIELDS = new Set(['frame', 'frameSlot', 'nextFrameTick']);
@@ -116,19 +115,15 @@ describe('soldier frames the client predicts from the last sent frame', () => {
 
   beforeAll(async () => {
     kit = await loadStubSectorKit();
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await kit.dispose();
   });
 
-  it(
-    'match the simulation at every frame tick on the stub sandbox, while breathing goes unsent',
-    async () => {
-      expectPredictedFrames(await playSandbox(kit.read, false));
-    },
-    SLOW_MS,
-  );
+  it('match the simulation at every frame tick on the stub sandbox, while breathing goes unsent', async () => {
+    expectPredictedFrames(await playSandbox(kit.read, false));
+  });
 
   it('count the next frame in the view ticks, and never while the tactical sim does not step', async () => {
     const timelines = await requireAnimationTimelines(kit.read);
@@ -151,17 +146,13 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('soldier frames the client predicts, on the 
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
-  }, SLOW_MS);
+  });
 
   afterAll(async () => {
     await data.close();
   });
 
-  it(
-    'match the simulation at every frame tick in A9, while breathing goes unsent',
-    async () => {
-      expectPredictedFrames(await playSandbox(read, true));
-    },
-    SLOW_MS,
-  );
+  it('match the simulation at every frame tick in A9, while breathing goes unsent', async () => {
+    expectPredictedFrames(await playSandbox(read, true));
+  });
 });

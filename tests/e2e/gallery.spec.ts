@@ -2,9 +2,6 @@ import { expect, test } from '@playwright/test';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames, openUiPage, widget, widgets, widgetText } from './ui-capture.ts';
 
 const GALLERY = '/src/devtools/ui-gallery/';
-const GALLERY_TEST_TIMEOUT_MS = 90_000;
-
-test.describe.configure({ timeout: GALLERY_TEST_TIMEOUT_MS });
 
 test.describe('the widget gallery on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });

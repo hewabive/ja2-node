@@ -16,7 +16,6 @@ import { createItem, createItems } from '../../../../sim/items/object.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import { conditionText } from './personnel-page.ts';
 
-const SCREEN_TEST_TIMEOUT_MS = 120_000;
 const CONTRACT_DAYS = 7;
 const EXTRA_ITEMS = [
   'FIRSTAIDKIT',
@@ -74,66 +73,62 @@ describe('the personnel page', () => {
     expect(conditionText(100, 27, 2, 15)).toBe('27/30');
   });
 
-  it(
-    'shows the team, pages the faces, switches the panels, scrolls the inventory and lists the departed',
-    async () => {
-      const h = await openLaptopHarness(kit, ui);
-      const { profiles, soldiers } = hireTwo(h);
-      fillPockets(h, soldiers[0] as number);
-      await openProgram(h, 'personnelButton');
-      expect(h.screen.shell.mode).toBe(LaptopMode.PERSONNEL);
-      const team = h.laptop().personnel.current;
-      expect(team.map((m) => m.profile)).toEqual(profiles);
-      expect(shownWidget(h.t, 'personnelTeamCount').text).toBe('Current Team ( 2 )');
-      expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
-      expect(shownWidget(h.t, 'personnelAssignment').text).not.toBe('');
-      expect(shownWidget(h.t, 'personnelStatLabel1').text).toBe('Agility:');
-      expect(shownWidget(h.t, 'personnelStat1').text).toBe(String(team[0]?.stats.agility));
-      expect(shownWidget(h.t, 'personnelStatLabel13').text).toBe('Hit Percentage:');
-      expect(shownWidget(h.t, 'personnelStat13').text).toBe('0 %');
-      expect(shownWidget(h.t, 'personnelMoney').text).toMatch(/^\$/);
-      expect(shownWidget(h.t, 'personnelHighest0').text).not.toBe('');
-      expect(shownWidget(h.t, 'personnelPrev').enabled).toBe(true);
+  it('shows the team, pages the faces, switches the panels, scrolls the inventory and lists the departed', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    const { profiles, soldiers } = hireTwo(h);
+    fillPockets(h, soldiers[0] as number);
+    await openProgram(h, 'personnelButton');
+    expect(h.screen.shell.mode).toBe(LaptopMode.PERSONNEL);
+    const team = h.laptop().personnel.current;
+    expect(team.map((m) => m.profile)).toEqual(profiles);
+    expect(shownWidget(h.t, 'personnelTeamCount').text).toBe('Current Team ( 2 )');
+    expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
+    expect(shownWidget(h.t, 'personnelAssignment').text).not.toBe('');
+    expect(shownWidget(h.t, 'personnelStatLabel1').text).toBe('Agility:');
+    expect(shownWidget(h.t, 'personnelStat1').text).toBe(String(team[0]?.stats.agility));
+    expect(shownWidget(h.t, 'personnelStatLabel13').text).toBe('Hit Percentage:');
+    expect(shownWidget(h.t, 'personnelStat13').text).toBe('0 %');
+    expect(shownWidget(h.t, 'personnelMoney').text).toMatch(/^\$/);
+    expect(shownWidget(h.t, 'personnelHighest0').text).not.toBe('');
+    expect(shownWidget(h.t, 'personnelPrev').enabled).toBe(true);
 
-      await clickWidget(h.t, 'personnelNext');
-      expect(shownWidget(h.t, 'personnelName').text).toBe(team[1]?.name);
-      await clickWidget(h.t, 'personnelPortrait0_0');
-      expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
+    await clickWidget(h.t, 'personnelNext');
+    expect(shownWidget(h.t, 'personnelName').text).toBe(team[1]?.name);
+    await clickWidget(h.t, 'personnelPortrait0_0');
+    expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
 
-      await clickWidget(h.t, 'personnelEmploymentButton');
-      expect(shownWidget(h.t, 'personnelEmploymentButton').state).toBe('pressed');
-      expect(shownWidget(h.t, 'personnelEmploymentLabel0').text).toBe('Remaining Contract:');
-      expect(shownWidget(h.t, 'personnelEmployment0').text).toMatch(/\/ 7d$/);
-      expect(shownWidget(h.t, 'personnelStat1').text).toBe('');
+    await clickWidget(h.t, 'personnelEmploymentButton');
+    expect(shownWidget(h.t, 'personnelEmploymentButton').state).toBe('pressed');
+    expect(shownWidget(h.t, 'personnelEmploymentLabel0').text).toBe('Remaining Contract:');
+    expect(shownWidget(h.t, 'personnelEmployment0').text).toMatch(/\/ 7d$/);
+    expect(shownWidget(h.t, 'personnelStat1').text).toBe('');
 
-      await clickWidget(h.t, 'personnelInventoryButton');
-      const items = team[0]?.inventory.length ?? 0;
-      expect(items).toBeGreaterThan(8);
-      const first = shownWidget(h.t, 'personnelItemName0').text;
-      expect(first).not.toBe('');
-      expect(shownWidget(h.t, 'personnelInventoryUp').enabled).toBe(false);
-      await clickWidget(h.t, 'personnelInventoryDown');
-      expect(shownWidget(h.t, 'personnelItemName0').text).not.toBe(first);
-      expect(shownWidget(h.t, 'personnelInventoryUp').enabled).toBe(true);
-      await clickWidget(h.t, 'personnelSliderZone0');
-      expect(shownWidget(h.t, 'personnelItemName0').text).toBe(first);
+    await clickWidget(h.t, 'personnelInventoryButton');
+    const items = team[0]?.inventory.length ?? 0;
+    expect(items).toBeGreaterThan(8);
+    const first = shownWidget(h.t, 'personnelItemName0').text;
+    expect(first).not.toBe('');
+    expect(shownWidget(h.t, 'personnelInventoryUp').enabled).toBe(false);
+    await clickWidget(h.t, 'personnelInventoryDown');
+    expect(shownWidget(h.t, 'personnelItemName0').text).not.toBe(first);
+    expect(shownWidget(h.t, 'personnelInventoryUp').enabled).toBe(true);
+    await clickWidget(h.t, 'personnelSliderZone0');
+    expect(shownWidget(h.t, 'personnelItemName0').text).toBe(first);
 
-      const l = h.session.campaign.state.laptop;
-      const gone = h.laptop().aim.find((a) => !profiles.includes(a.profile))?.profile ?? 0;
-      addToPersonnelList(l, 'dead', gone);
-      await settleLaptop(h.t);
-      await clickWidget(h.t, 'personnelDepartedToggle');
-      expect(shownWidget(h.t, 'personnelDepartedCount').text).toBe('Departures ( 1 )');
-      expect(shownWidget(h.t, 'personnelAssignment').text).toBe('Killed in Action');
-      expect(shownWidget(h.t, 'personnelStatsButton').state).toBe('pressed');
-      expect(shownWidget(h.t, 'personnelInventoryButton').enabled).toBe(false);
-      expect(shownWidget(h.t, 'personnelDepartedSummary0').text).toBe('1');
-      expect(shownWidget(h.t, 'personnelNext').enabled).toBe(false);
-      expect(findWidget(h.t, 'personnelItemName0')?.visible ?? false).toBe(false);
+    const l = h.session.campaign.state.laptop;
+    const gone = h.laptop().aim.find((a) => !profiles.includes(a.profile))?.profile ?? 0;
+    addToPersonnelList(l, 'dead', gone);
+    await settleLaptop(h.t);
+    await clickWidget(h.t, 'personnelDepartedToggle');
+    expect(shownWidget(h.t, 'personnelDepartedCount').text).toBe('Departures ( 1 )');
+    expect(shownWidget(h.t, 'personnelAssignment').text).toBe('Killed in Action');
+    expect(shownWidget(h.t, 'personnelStatsButton').state).toBe('pressed');
+    expect(shownWidget(h.t, 'personnelInventoryButton').enabled).toBe(false);
+    expect(shownWidget(h.t, 'personnelDepartedSummary0').text).toBe('1');
+    expect(shownWidget(h.t, 'personnelNext').enabled).toBe(false);
+    expect(findWidget(h.t, 'personnelItemName0')?.visible ?? false).toBe(false);
 
-      await clickWidget(h.t, 'personnelCurrentToggle');
-      expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
-    },
-    SCREEN_TEST_TIMEOUT_MS,
-  );
+    await clickWidget(h.t, 'personnelCurrentToggle');
+    expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
+  });
 });

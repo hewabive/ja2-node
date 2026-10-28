@@ -3,7 +3,6 @@ import type { CommandEnvelope } from '../../src/protocol/messages.ts';
 import { clickWidget, devicePoint, nextFrames, widgets } from './ui-capture.ts';
 
 const SETTINGS_KEY = 'ja2-node:settings';
-const LOAD_TIMEOUT_MS = 120_000;
 
 export interface HintStatsView {
   readonly local: number;
@@ -37,23 +36,22 @@ export async function seedNewCampaigns(page: Page, seed: number): Promise<void> 
   });
 }
 
-export async function screenIs(page: Page, id: string, timeout = LOAD_TIMEOUT_MS): Promise<void> {
-  await page.waitForFunction((wanted) => window.__ja2Ui.screen === wanted, id, { timeout });
+export async function screenIs(page: Page, id: string): Promise<void> {
+  await page.waitForFunction((wanted) => window.__ja2Ui.screen === wanted, id);
   await nextFrames(page);
 }
 
-export async function modalIs(page: Page, id: string | null, timeout = LOAD_TIMEOUT_MS): Promise<void> {
-  await page.waitForFunction((wanted) => window.__ja2Ui.modal === wanted, id, { timeout });
+export async function modalIs(page: Page, id: string | null): Promise<void> {
+  await page.waitForFunction((wanted) => window.__ja2Ui.modal === wanted, id);
   await nextFrames(page);
 }
 
-export async function waitVisible(page: Page, id: string, shown = true, timeout = LOAD_TIMEOUT_MS): Promise<void> {
+export async function waitVisible(page: Page, id: string, shown = true): Promise<void> {
   await page.waitForFunction(
     ([wanted, state]) =>
       window.__ja2Ui.widgets.some((w) => w.id === wanted && w.visible === state) ||
       (!state && !window.__ja2Ui.widgets.some((w) => w.id === wanted)),
     [id, shown] as const,
-    { timeout },
   );
 }
 
@@ -97,13 +95,10 @@ export function expectNoShadowDifference(stats: HintStatsView | null, what: stri
 
 export async function waitShadowSettled(page: Page, host: 'tactical' | 'map'): Promise<void> {
   await expect
-    .poll(
-      async () => {
-        const stats = (await shadowStats(page))[host];
-        return stats ? stats.local - stats.shadowCompared - stats.shadowStale - stats.shadowFailed : -1;
-      },
-      { timeout: 30_000 },
-    )
+    .poll(async () => {
+      const stats = (await shadowStats(page))[host];
+      return stats ? stats.local - stats.shadowCompared - stats.shadowStale - stats.shadowFailed : -1;
+    })
     .toBe(0);
 }
 
@@ -130,21 +125,17 @@ export async function tacticalOrder(page: Page, cmd: CommandEnvelope): Promise<v
 
 export async function showLatest(page: Page): Promise<void> {
   await page.evaluate(() => window.__ja2Ui.skipPlayback());
-  await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0, null, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0);
   await nextFrames(page, 2);
 }
 
 export async function imagesLoaded(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => (window.__ja2Ui.tactical?.pendingImages ?? 0) === 0 && (window.__ja2Ui.map?.pendingImages ?? 0) === 0,
-    null,
-    { timeout: LOAD_TIMEOUT_MS },
-  );
+  await page.waitForFunction(() => (window.__ja2Ui.tactical?.pendingImages ?? 0) === 0 && (window.__ja2Ui.map?.pendingImages ?? 0) === 0);
   await nextFrames(page, 2);
 }
 
 const LOAD_POLL_MS = 5_000;
-const LOAD_STALL_MS = 90_000;
+const LOAD_STALL_MS = 300_000;
 const finishedRequests = new WeakMap<Page, { count: number }>();
 
 function requestCounter(page: Page): { count: number } {

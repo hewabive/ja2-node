@@ -14,7 +14,6 @@ import { sectorKey } from '../sector-diff.ts';
 import { Bookmark, MercAccountStatus } from './laptop-state.ts';
 import { History } from './records.ts';
 
-const SLOW_SCENARIO_MS = 30_000;
 const VANT = 1;
 const HOLLIS = 3;
 const LASKO = 6;
@@ -110,7 +109,7 @@ describe('the laptop at the start of a new game', () => {
   });
 });
 
-describe('hiring from A.I.M.', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('hiring from A.I.M.', () => {
   it('charges salary plus kit and the deposit in two records, writes history and flies the merc in at 07:00', async () => {
     const session = await inLaptop(21);
     const profile = available(session, [0, 2])[0];
@@ -181,7 +180,7 @@ describe('hiring from A.I.M.', { timeout: SLOW_SCENARIO_MS }, () => {
   });
 });
 
-describe('after the landing', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('after the landing', () => {
   async function landed(seed: number): Promise<CampaignSession> {
     const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
     const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));

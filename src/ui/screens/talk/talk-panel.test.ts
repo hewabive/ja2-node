@@ -7,7 +7,6 @@ import type { DrawItem } from '../../draw-list.ts';
 import { FINAL_TALKING_DELAY_MS, textDelay } from '../../speech.ts';
 import { placeTalkPanel, popupOrientation, popupPosition } from './talk-panel.ts';
 
-const SLOW_MS = 120_000;
 const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
 const COLS = 160;
@@ -19,7 +18,7 @@ let ui: TacticalUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await tacticalUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -95,7 +94,7 @@ describe('talk panel geometry', () => {
   });
 });
 
-describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
+describe('the talk panel on the stub NPC', () => {
   it('opens on the conversation, says its lines with subtitles while busy, sends an approach and closes with Done', async () => {
     const { f, session } = await talkToTheStubNpc(5);
     const dialogue = f.screen.dialogue;

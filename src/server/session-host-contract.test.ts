@@ -15,7 +15,6 @@ import { openSessionEnvironment, type SessionEnvironmentConfig } from './session
 import type { HostFactory, SessionHost } from './session-host.ts';
 import { workerHostFactory } from './worker-host.ts';
 
-const TEST_TIMEOUT_MS = 240_000;
 const BATTLE_SEED = 7;
 const SOUTH_STEP = 160 * 3;
 const APPROACH_STEPS = 16;
@@ -246,111 +245,83 @@ async function both<T>(script: (r: Rig) => Promise<T>): Promise<[T, T]> {
 }
 
 describe('the session host contract, in process and in a worker thread', () => {
-  it(
-    'gives the same results, frames, snapshots, input log and save files for a scripted battle with a save, an autosave and a load',
-    async () => {
-      const [inProcess, worker] = await both(battleScript);
-      expect(inProcess.files).toEqual(expect.arrayContaining([`contract${SAVE_EXTENSION}`, `Auto01${SAVE_EXTENSION}`]));
-      expect(inProcess.autosave).not.toBeNull();
-      expect(inProcess.welcomes).toBe(2);
-      expect(inProcess.viewers).toEqual([0, 1, 0]);
-      expect(inProcess.closed).toEqual([{ t: 'closed', session: 'contract', reason: 'shutdown' }]);
-      expect(inProcess.frames.length).toBeGreaterThan(0);
-      expect(worker.results).toEqual(inProcess.results);
-      expect(worker.frames).toEqual(inProcess.frames);
-      expect(worker.welcomes).toBe(inProcess.welcomes);
-      expect(worker.viewers).toEqual(inProcess.viewers);
-      expect(worker.closed).toEqual(inProcess.closed);
-      expect(worker.snapshots).toEqual(inProcess.snapshots);
-      expect(worker.log).toEqual(inProcess.log);
-      expect(worker.files).toEqual(inProcess.files);
-      expect(worker.autosave).toEqual(inProcess.autosave);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('gives the same results, frames, snapshots, input log and save files for a scripted battle with a save, an autosave and a load', async () => {
+    const [inProcess, worker] = await both(battleScript);
+    expect(inProcess.files).toEqual(expect.arrayContaining([`contract${SAVE_EXTENSION}`, `Auto01${SAVE_EXTENSION}`]));
+    expect(inProcess.autosave).not.toBeNull();
+    expect(inProcess.welcomes).toBe(2);
+    expect(inProcess.viewers).toEqual([0, 1, 0]);
+    expect(inProcess.closed).toEqual([{ t: 'closed', session: 'contract', reason: 'shutdown' }]);
+    expect(inProcess.frames.length).toBeGreaterThan(0);
+    expect(worker.results).toEqual(inProcess.results);
+    expect(worker.frames).toEqual(inProcess.frames);
+    expect(worker.welcomes).toBe(inProcess.welcomes);
+    expect(worker.viewers).toEqual(inProcess.viewers);
+    expect(worker.closed).toEqual(inProcess.closed);
+    expect(worker.snapshots).toEqual(inProcess.snapshots);
+    expect(worker.log).toEqual(inProcess.log);
+    expect(worker.files).toEqual(inProcess.files);
+    expect(worker.autosave).toEqual(inProcess.autosave);
+  });
 
-  it(
-    'runs calls made without waiting strictly in arrival order',
-    async () => {
-      const [inProcess, worker] = await both(concurrentScript);
-      const moves = inProcess.order.filter((name) => name.startsWith('move'));
-      expect(inProcess.order).toEqual([...moves, 'advance', 'instant', 'stance', 'manual', 'ticks']);
-      expect(worker).toEqual(inProcess);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('runs calls made without waiting strictly in arrival order', async () => {
+    const [inProcess, worker] = await both(concurrentScript);
+    const moves = inProcess.order.filter((name) => name.startsWith('move'));
+    expect(inProcess.order).toEqual([...moves, 'advance', 'instant', 'stance', 'manual', 'ticks']);
+    expect(worker).toEqual(inProcess);
+  });
 
-  it(
-    'answers queries between ticks, outside the input queue and the input log',
-    async () => {
-      const [inProcess, worker] = await both(queryScript);
-      expect(inProcess.order).toEqual(['query', 'advance']);
-      expect(inProcess.during).toEqual({ ok: true, withinAdvance: true });
-      expect(inProcess.answers[0]).toMatchObject({ ok: true, data: { destination: 'ok' } });
-      expect(inProcess.answers[1]).toHaveProperty('tick');
-      expect(inProcess.logged).toEqual(['advance']);
-      expect(worker).toEqual(inProcess);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('answers queries between ticks, outside the input queue and the input log', async () => {
+    const [inProcess, worker] = await both(queryScript);
+    expect(inProcess.order).toEqual(['query', 'advance']);
+    expect(inProcess.during).toEqual({ ok: true, withinAdvance: true });
+    expect(inProcess.answers[0]).toMatchObject({ ok: true, data: { destination: 'ok' } });
+    expect(inProcess.answers[1]).toHaveProperty('tick');
+    expect(inProcess.logged).toEqual(['advance']);
+    expect(worker).toEqual(inProcess);
+  });
 
-  it(
-    'reports its health outside the input queue: the tick, the inputs in the queue and the last input with its ticks',
-    async () => {
-      const [inProcess, worker] = await both(healthScript);
-      const { start } = inProcess;
-      expect(inProcess.reports).toEqual([
-        { tick: start, pending: 0, last: null, loopDelayMs: 'number' },
-        { tick: start, pending: 0, last: { label: 'move', ticks: 0 }, loopDelayMs: 'number' },
-        { pending: 1 },
-        { tick: start + QUERY_ADVANCE_TICKS, pending: 0, last: { label: 'advance', ticks: QUERY_ADVANCE_TICKS }, loopDelayMs: 'number' },
-      ]);
-      expect(worker).toEqual(inProcess);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('reports its health outside the input queue: the tick, the inputs in the queue and the last input with its ticks', async () => {
+    const [inProcess, worker] = await both(healthScript);
+    const { start } = inProcess;
+    expect(inProcess.reports).toEqual([
+      { tick: start, pending: 0, last: null, loopDelayMs: 'number' },
+      { tick: start, pending: 0, last: { label: 'move', ticks: 0 }, loopDelayMs: 'number' },
+      { pending: 1 },
+      { tick: start + QUERY_ADVANCE_TICKS, pending: 0, last: { label: 'advance', ticks: QUERY_ADVANCE_TICKS }, loopDelayMs: 'number' },
+    ]);
+    expect(worker).toEqual(inProcess);
+  });
 
-  it(
-    'waits for real time in advance while the commands sent meanwhile go through, without logging an advance',
-    async () => {
-      for (const kind of ['inprocess', 'worker'] as const) {
-        const r = await rig(kind);
-        try {
-          expect(await realtimeWaitScript(r)).toEqual({ order: ['move', 'stance', 'advance'], reason: 'idle', ticks: true, logged: [] });
-        } finally {
-          await r.close();
-        }
+  it('waits for real time in advance while the commands sent meanwhile go through, without logging an advance', async () => {
+    for (const kind of ['inprocess', 'worker'] as const) {
+      const r = await rig(kind);
+      try {
+        expect(await realtimeWaitScript(r)).toEqual({ order: ['move', 'stance', 'advance'], reason: 'idle', ticks: true, logged: [] });
+      } finally {
+        await r.close();
       }
-    },
-    TEST_TIMEOUT_MS,
-  );
+    }
+  });
 
-  it(
-    'keeps Dead is Dead: explicit saves refused, quick save and the save point on close write the one file',
-    async () => {
-      const [inProcess, worker] = await both(deadIsDeadScript);
-      expect(inProcess.results[0]).toMatchObject({ ok: false, refused: 'deadIsDead' });
-      expect(inProcess.results[1]).toMatchObject({ ok: true, name: DEAD_IS_DEAD_NAME, kind: 'deadIsDead' });
-      expect(inProcess.written).not.toBeNull();
-      expect(worker).toEqual(inProcess);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('keeps Dead is Dead: explicit saves refused, quick save and the save point on close write the one file', async () => {
+    const [inProcess, worker] = await both(deadIsDeadScript);
+    expect(inProcess.results[0]).toMatchObject({ ok: false, refused: 'deadIsDead' });
+    expect(inProcess.results[1]).toMatchObject({ ok: true, name: DEAD_IS_DEAD_NAME, kind: 'deadIsDead' });
+    expect(inProcess.written).not.toBeNull();
+    expect(worker).toEqual(inProcess);
+  });
 
-  it(
-    'reports a failed creation as the load problem it is',
-    async () => {
-      for (const kind of ['inprocess', 'worker'] as const) {
-        const r = await rig(kind);
-        try {
-          await expect(r.create('missing', { seed: 1, load: { name: 'nothing', reseed: false } })).rejects.toMatchObject({
-            problem: 'notFound',
-          });
-        } finally {
-          await r.close();
-        }
+  it('reports a failed creation as the load problem it is', async () => {
+    for (const kind of ['inprocess', 'worker'] as const) {
+      const r = await rig(kind);
+      try {
+        await expect(r.create('missing', { seed: 1, load: { name: 'nothing', reseed: false } })).rejects.toMatchObject({
+          problem: 'notFound',
+        });
+      } finally {
+        await r.close();
       }
-    },
-    TEST_TIMEOUT_MS,
-  );
+    }
+  });
 });

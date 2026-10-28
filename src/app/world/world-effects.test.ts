@@ -56,7 +56,7 @@ describe('corpses and smoke on the stub pack', () => {
     const table = parseCorpseTable(JSON.parse(new TextDecoder().decode(await data.vfs.read(CORPSES_TABLE_PATH))));
     corpseType = table.types.indexOf('SMERC_JFK');
     backCorpseType = table.types.indexOf('SMERC_BCK');
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await data?.close();

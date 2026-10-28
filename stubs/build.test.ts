@@ -110,7 +110,6 @@ function crop(frame: Crop, x: number, y: number, width: number, height: number):
 function pixelsOf(frame: Crop): string {
   return crop(frame, 0, 0, frame.width, frame.height);
 }
-const STUB_BUILD_TIMEOUT_MS = 60_000;
 
 const dirs: string[] = [];
 afterAll(async () => {
@@ -136,7 +135,7 @@ async function mediaFiles(root: string): Promise<string[]> {
   return [...(await Promise.all(MEDIA_DIRS.map((d) => filesUnder(root, d)))).flat(), ...TEXT_FILES];
 }
 
-describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
+describe('stub pack', () => {
   it('builds deterministically', async () => {
     const [a, b] = [sharedStubPackDir(), await build()];
     const content = (await Promise.all(CONTENT_DIRS.map((d) => filesUnder(a, d)))).flat();
@@ -186,7 +185,7 @@ describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   });
 });
 
-describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
+describe('stub media', () => {
   let dir: string;
   let data: DataVfs;
   const stub = (path: string) => `${STUBS_PREFIX}/${path}`;
@@ -194,7 +193,7 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   beforeAll(async () => {
     dir = sharedStubPackDir();
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  }, STUB_BUILD_TIMEOUT_MS);
+  });
   afterAll(async () => {
     await data.close();
   });

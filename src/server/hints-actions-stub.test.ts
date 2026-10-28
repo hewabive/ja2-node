@@ -13,8 +13,6 @@ import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import { Session } from './session.ts';
 
-const SLOW_MS = 60_000;
-
 let kit: StubSectorKit;
 let sources: HintSources;
 let client: ClientSide;
@@ -32,7 +30,6 @@ afterAll(async () => {
 const ITEM_SPREAD_STEP = 7;
 const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
-const SLOW_SCENARIO_MS = 60_000;
 const HIDDEN_ENEMY = 40;
 
 async function sandbox(seed: number): Promise<Session> {
@@ -78,68 +75,52 @@ async function expectAgreement(session: Session, items: readonly number[] = []) 
   return expectHintsAgree(session, client, [...sampleActionHints(view, { doors: doorsOf(view) }), ...sampleInventoryHints(view, items)]);
 }
 
-describe('action and inventory hints on stub scenarios, client against server', { timeout: SLOW_SCENARIO_MS }, () => {
-  it(
-    'agree in the sandbox in real time, with items to place and a wounded merc to bandage',
-    async () => {
-      const session = await sandbox(1);
-      kitSquad(session);
-      const report = await expectAgreement(session, itemSpread());
-      expect(report.kinds.get('placements')).toBeGreaterThan(10);
-      expect(report.answered).toBeGreaterThan(80);
-    },
-    SLOW_MS,
-  );
+describe('action and inventory hints on stub scenarios, client against server', () => {
+  it('agree in the sandbox in real time, with items to place and a wounded merc to bandage', async () => {
+    const session = await sandbox(1);
+    kitSquad(session);
+    const report = await expectAgreement(session, itemSpread());
+    expect(report.kinds.get('placements')).toBeGreaterThan(10);
+    expect(report.answered).toBeGreaterThan(80);
+  });
 
-  it(
-    'agree in a turn-based battle',
-    async () => {
-      const session = await sandbox(BATTLE_SANDBOX_SEED);
-      approachUntilCombat(session, true);
-      untilOurTurn(session);
-      kitSquad(session);
-      const report = await expectAgreement(session);
-      expect(report.kinds.get('previewAction')).toBeGreaterThan(0);
-    },
-    SLOW_MS,
-  );
+  it('agree in a turn-based battle', async () => {
+    const session = await sandbox(BATTLE_SANDBOX_SEED);
+    approachUntilCombat(session, true);
+    untilOurTurn(session);
+    kitSquad(session);
+    const report = await expectAgreement(session);
+    expect(report.kinds.get('previewAction')).toBeGreaterThan(0);
+  });
 
-  it(
-    'let no unseen soldier on the paths or next to the mercs change an answer',
-    async () => {
-      const session = await sandbox(1);
-      kitSquad(session);
-      const view = serialisedView(session);
-      const requests = [...sampleActionHints(view, { doors: doorsOf(view) }), ...sampleInventoryHints(view)];
-      const answer = async () => {
-        const answers = [];
-        for (const q of requests) answers.push(await session.query(q));
-        return JSON.parse(JSON.stringify(answers)) as unknown;
-      };
-      const before = await answer();
-      const sim = tacticalOf(session);
-      const merc = view.soldiers.find((s) => s.team === Team.OUR);
-      if (!merc) throw new Error('no merc');
-      for (const [k, at] of [merc.gridNo + 1, merc.gridNo + 2, merc.gridNo + 160].entries()) {
-        const hidden = spawnSoldier(sim, HIDDEN_ENEMY + k, Team.ENEMY, at, 0);
-        expect(hidden.visible).toBe(-1);
-      }
-      expect(serialisedView(session).soldiers).toEqual(view.soldiers);
-      expect(await answer()).toEqual(before);
-    },
-    SLOW_MS,
-  );
+  it('let no unseen soldier on the paths or next to the mercs change an answer', async () => {
+    const session = await sandbox(1);
+    kitSquad(session);
+    const view = serialisedView(session);
+    const requests = [...sampleActionHints(view, { doors: doorsOf(view) }), ...sampleInventoryHints(view)];
+    const answer = async () => {
+      const answers = [];
+      for (const q of requests) answers.push(await session.query(q));
+      return JSON.parse(JSON.stringify(answers)) as unknown;
+    };
+    const before = await answer();
+    const sim = tacticalOf(session);
+    const merc = view.soldiers.find((s) => s.team === Team.OUR);
+    if (!merc) throw new Error('no merc');
+    for (const [k, at] of [merc.gridNo + 1, merc.gridNo + 2, merc.gridNo + 160].entries()) {
+      const hidden = spawnSoldier(sim, HIDDEN_ENEMY + k, Team.ENEMY, at, 0);
+      expect(hidden.visible).toBe(-1);
+    }
+    expect(serialisedView(session).soldiers).toEqual(view.soldiers);
+    expect(await answer()).toEqual(before);
+  });
 
-  it(
-    'agree in a campaign sector with NPCs, doors and items on the ground',
-    async () => {
-      const session = await inA10();
-      kitSquad(session);
-      const view = serialisedView(session);
-      expect(view.soldiers.some((s) => s.talkable)).toBe(true);
-      const report = await expectAgreement(session);
-      expect(report.answered).toBeGreaterThan(40);
-    },
-    SLOW_MS,
-  );
+  it('agree in a campaign sector with NPCs, doors and items on the ground', async () => {
+    const session = await inA10();
+    kitSquad(session);
+    const view = serialisedView(session);
+    expect(view.soldiers.some((s) => s.talkable)).toBe(true);
+    const report = await expectAgreement(session);
+    expect(report.answered).toBeGreaterThan(40);
+  });
 });

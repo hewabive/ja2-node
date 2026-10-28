@@ -13,7 +13,6 @@ import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { sharedStubPackDir } from '../tests/support/stub-pack.ts';
 import { kindOfSector, loadSectorKinds, parseSectorName, type SectorKindTable, sectorMapFile } from './sector-kinds.ts';
 
-const BUILD_TIMEOUT_MS = 60_000;
 const ENEMY_TEAM = 1;
 const CIV_TEAM = 4;
 const NO_PROFILE = 200;
@@ -39,7 +38,7 @@ let data: DataVfs;
 beforeAll(async () => {
   table = await loadSectorKinds();
   data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
-}, BUILD_TIMEOUT_MS);
+});
 
 afterAll(async () => {
   await data.close();
@@ -103,7 +102,7 @@ describe('the stub sector kinds table', () => {
   });
 });
 
-describe('the stub sector maps', { timeout: BUILD_TIMEOUT_MS }, () => {
+describe('the stub sector maps', () => {
   it('load the kind map of a listed sector through the alias manifest and the fallback elsewhere', async () => {
     for (const kind of table.kinds) {
       for (const name of kind.sectors) {

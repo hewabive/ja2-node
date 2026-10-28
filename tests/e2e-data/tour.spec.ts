@@ -8,7 +8,6 @@ const LAPTOP = '/src/devtools/laptop/?seed=7&wait=0&slide=0&scale=2';
 const OPTION_TOGGLES = 23;
 const MUG_SHOTS = 'mugRegion0_0';
 const HAND = 5;
-const STEP_TIMEOUT_MS = 120_000;
 const SANDBOX_SEED = 1;
 const SCROLL_MS = 500;
 const SCROLL_KEYS = ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight'];
@@ -37,10 +36,6 @@ async function failedVfsReads(page: Page): Promise<string[]> {
 }
 
 test.describe('a structural tour of the screens on the original data (no picture is taken)', () => {
-  test.beforeEach(({ page }) => {
-    page.setDefaultTimeout(STEP_TIMEOUT_MS);
-  });
-
   test('the front end: main menu, game init, options, save/load and credits', async ({ page }) => {
     const failed = await failedVfsReads(page);
     await openUiPage(page, '/play');

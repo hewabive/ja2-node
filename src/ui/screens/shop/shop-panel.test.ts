@@ -12,7 +12,6 @@ import {
   repairTimeString,
 } from './shop-panel.ts';
 
-const SLOW_MS = 120_000;
 const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
 const SETTLE_FRAMES = 6;
@@ -23,7 +22,7 @@ let ui: TacticalUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await tacticalUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -128,7 +127,7 @@ describe('shop geometry and texts', () => {
   });
 });
 
-describe('the shop screen at the stub dealer', { timeout: SLOW_MS }, () => {
+describe('the shop screen at the stub dealer', () => {
   it('opens from the talk panel with the single merc panel, buys a box and leaves after the farewell', async () => {
     const { f, merc } = await atTheDealer(4);
     const shop = f.screen.dialogue.shop;

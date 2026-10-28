@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -25,7 +25,6 @@ afterAll(async () => {
 
 const SURRENDER_LINES = 37;
 const POW = 32;
-const SLOW_SCENARIO_MS = 30_000;
 
 async function landedUnderFire(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session; enemy: Soldier }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -87,20 +86,12 @@ async function acceptedSurrender(mode?: RunMode): Promise<CampaignSession> {
   return session;
 }
 
-describe('the enemy surrender offer in a campaign', { timeout: SLOW_SCENARIO_MS }, () => {
-  it(
-    'barks the surrender line, opens the tactical surrender prompt and stops time until it is answered, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(rejectedSurrender);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+describe('the enemy surrender offer in a campaign', () => {
+  it('barks the surrender line, opens the tactical surrender prompt and stops time until it is answered, the same across reloads', async () => {
+    await expectReloadsInvisible(rejectedSurrender);
+  });
 
-  it(
-    'captures every merc in the sector when the surrender is accepted and loses the battle, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(acceptedSurrender);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('captures every merc in the sector when the surrender is accepted and loses the battle, the same across reloads', async () => {
+    await expectReloadsInvisible(acceptedSurrender);
+  });
 });

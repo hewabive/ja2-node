@@ -19,7 +19,6 @@ const TICKS_INTO_FLIGHT = 1;
 const MISS_ROWS_SOUTH = 6;
 const MISS_COLUMNS_EAST = 2;
 const TICKS_INTO_DUST = 40;
-const STEP_TIMEOUT_MS = 60_000;
 
 interface CommandReply {
   readonly ok: boolean;
@@ -42,10 +41,6 @@ async function restPointer(page: Page): Promise<void> {
 
 test.describe('goldens of the tactical screen on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
-  test.beforeEach(({ page }) => {
-    page.setDefaultTimeout(STEP_TIMEOUT_MS);
-  });
-
   test('the single merc panel, the item description box and the overhead map of the sandbox', async ({ page, request }) => {
     const session = await newSession(request, { seed: QUIET_SEED });
     try {

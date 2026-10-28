@@ -51,7 +51,6 @@ interface ActResult {
 test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases her twice, the second time in the browser', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });

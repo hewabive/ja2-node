@@ -21,7 +21,7 @@ describe('revealed rooms on the stub village', () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
     const available = new Set(data.vfs.list().map((f) => f.path));
     world = await loadWorld('stubs/world/maps/village.dat', available, (path) => data.vfs.read(path));
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await data?.close();
@@ -71,7 +71,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('wireframes on A9', () => {
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await data?.close();
@@ -88,7 +88,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('wireframes on A9', () => {
     const rooms = new Set([...w.level.rooms].filter((r) => r !== 0));
     const open = computeReveal(input, rooms);
     expect([...open.touched].some((g) => open.wireframes(g).some((n) => n.optional))).toBe(true);
-  }, 60_000);
+  });
 });
 
 function roofCount(scene: StaticScene): number {

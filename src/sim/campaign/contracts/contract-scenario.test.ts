@@ -34,7 +34,6 @@ const manual: Driver = (c, until, budget = 400_000) => {
   for (let i = 0; i < budget && !until(); i += chunk) for (let k = 0; k < chunk && !until(); k++) c.step();
 };
 
-const SCENARIO_TIMEOUT_MS = 120_000;
 const minute = (day: number, hour: number, min = 0) => day * NUM_MIN_IN_DAY + hour * 60 + min;
 const STUB = { kestrel: 0, moraga: 2, hollis: 3, brack: 42 } as const;
 
@@ -171,21 +170,13 @@ function haterScenario(drive: Driver): string {
 }
 
 describe('the stub contract scenario', () => {
-  it(
-    'warns at 05:30, renews, refuses and lets mercs go at 07:30, delivers gear at 13:30 and loses the unpaid M.E.R.C. merc',
-    () => {
-      const a = renewalScenario(instant);
-      expect(renewalScenario(manual)).toBe(a);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('warns at 05:30, renews, refuses and lets mercs go at 07:30, delivers gear at 13:30 and loses the unpaid M.E.R.C. merc', () => {
+    const a = renewalScenario(instant);
+    expect(renewalScenario(manual)).toBe(a);
+  });
 
-  it(
-    'makes the M.E.R.C. hater quit after six hours with the hated merc',
-    () => {
-      const a = haterScenario(instant);
-      expect(haterScenario(manual)).toBe(a);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('makes the M.E.R.C. hater quit after six hours with the hated merc', () => {
+    const a = haterScenario(instant);
+    expect(haterScenario(manual)).toBe(a);
+  });
 });

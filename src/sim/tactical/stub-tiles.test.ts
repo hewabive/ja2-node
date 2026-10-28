@@ -22,7 +22,6 @@ const VILLAGE = 'stubs/world/maps/village.dat';
 const YARD_X = 106;
 const YARD_Y = 66;
 const SIGHT_TILES = 20;
-const SLOW_SCENARIO_MS = 30_000;
 
 const at = (x: number, y: number) => gridNo(YARD_X + x, YARD_Y + y);
 
@@ -30,7 +29,7 @@ let kit: StubSectorKit;
 
 beforeAll(async () => {
   kit = await loadStubSectorKit();
-}, SLOW_SCENARIO_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -60,7 +59,7 @@ function structureAt(sim: TacticalSim, g: number, flags: number) {
   return s;
 }
 
-describe('the stub tile yard in the village', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('the stub tile yard in the village', () => {
   it('hops the wooden fence of the pen, the only way out', () => {
     const sim = village();
     const merc = spawnSoldier(sim, 0, Team.OUR, at(2, 3), Direction.NORTH);

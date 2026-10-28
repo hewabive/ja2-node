@@ -27,8 +27,6 @@ afterAll(async () => {
   await kit.sectors.dispose();
 });
 
-const RELOAD_TIMEOUT_MS = 120_000;
-
 function landed(seed: number, mode?: RunMode): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, {
     seed,
@@ -120,21 +118,13 @@ function nightAttack(mode?: RunMode): CampaignSim {
 }
 
 describe('creatures in the loaded sector (stub pack)', () => {
-  it(
-    'adds a town attack tactically next to the given grid and lets the mercs kill the creatures, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(townAttackFight);
-    },
-    RELOAD_TIMEOUT_MS,
-  );
+  it('adds a town attack tactically next to the given grid and lets the mercs kill the creatures, the same across reloads', async () => {
+    await expectReloadsInvisible(townAttackFight);
+  });
 });
 
 describe('creature attacks on militia towns', () => {
-  it(
-    'starts an autoresolved battle from the night attack and closes it on the map, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(nightAttack);
-    },
-    RELOAD_TIMEOUT_MS,
-  );
+  it('starts an autoresolved battle from the night attack and closes it on the map, the same across reloads', async () => {
+    await expectReloadsInvisible(nightAttack);
+  });
 });

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
-import { advance, expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../../tests/support/reload.ts';
+import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../events.ts';
@@ -142,13 +142,9 @@ describe('autoresolve from the strategic state', () => {
     expect(first.events.some((e) => e.type === 'arRetreated' || e.type === 'retreated')).toBe(true);
   });
 
-  it(
-    'continues exactly when the campaign is saved and restored after every input',
-    async () => {
-      await expectReloadsInvisible((mode) => runBattle(9, { retreatAtSlice: 3 }, mode).c);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('continues exactly when the campaign is saved and restored after every input', async () => {
+    await expectReloadsInvisible((mode) => runBattle(9, { retreatAtSlice: 3 }, mode).c);
+  });
 
   it('hands a tactical battle to autoresolve when every merc is down and militia still fight', () => {
     const { campaign: c, roster } = createTestCampaign(kit, { seed: 21, mercs: 2, garrison: { admins: 0, troops: 3, elites: 0 } });

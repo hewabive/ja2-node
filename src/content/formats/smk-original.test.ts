@@ -3,8 +3,6 @@ import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { createFrameReader, decodeAudio, openSmk } from './smk.ts';
 
-const DECODE_TIMEOUT_MS = 120_000;
-
 const PLAYED_VIDEOS = [
   'rebel_cr',
   'omerta',
@@ -33,15 +31,11 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('Smacker videos of the original data', () =>
     await data.close();
   });
 
-  it(
-    'opens all eleven videos of the intro archive',
-    async () => {
-      const videos = data.vfs.list().filter((f) => f.path.endsWith('.smk'));
-      expect(videos.map((f) => f.path.replace(/^intro\/|\.smk$/g, '')).sort()).toEqual([...PLAYED_VIDEOS, UNUSED_LOGO].sort());
-      for (const f of videos) expect(openSmk(await data.vfs.read(f.path)).frameCount, f.path).toBeGreaterThan(0);
-    },
-    DECODE_TIMEOUT_MS,
-  );
+  it('opens all eleven videos of the intro archive', async () => {
+    const videos = data.vfs.list().filter((f) => f.path.endsWith('.smk'));
+    expect(videos.map((f) => f.path.replace(/^intro\/|\.smk$/g, '')).sort()).toEqual([...PLAYED_VIDEOS, UNUSED_LOGO].sort());
+    for (const f of videos) expect(openSmk(await data.vfs.read(f.path)).frameCount, f.path).toBeGreaterThan(0);
+  });
 
   it.each(PLAYED_VIDEOS)('%s is SMK2 640x480 with one 16-bit stereo 44.1 kHz track, and its first frames decode', async (name) => {
     const video = openSmk(await data.vfs.read(`intro/${name}.smk`));
@@ -52,27 +46,23 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('Smacker videos of the original data', () =>
     for (let i = 0; i < FIRST_FRAMES; i++) expect(reader.nextFrame()?.index).toBe(i);
   });
 
-  it(
-    'decodes every frame of the beginning and the splash, and audio as long as the video',
-    async () => {
-      for (const name of ['rebel_cr', 'prague_cr', 'splashscreen']) {
-        const video = openSmk(await data.vfs.read(`intro/${name}.smk`));
-        const reader = createFrameReader(video);
-        let colours = 0;
-        for (let frame = reader.nextFrame(); frame; frame = reader.nextFrame()) colours = Math.max(colours, new Set(frame.indices).size);
-        expect(reader.frameIndex, name).toBe(video.frameCount);
-        expect(colours, name).toBeGreaterThan(1);
-        const [track] = video.audioTracks;
-        if (!track) throw new Error(`${name} has no audio`);
-        const channels = decodeAudio(video, track);
-        const videoSamples = (video.frameCount * video.microsPerFrame * track.sampleRate) / MICROS_PER_SECOND;
-        expect(channels.length).toBe(2);
-        expect(channels[0]?.length).toBe(channels[1]?.length);
-        expect(Math.abs((channels[0]?.length ?? 0) - videoSamples), name).toBeLessThan(
-          (track.sampleRate * video.microsPerFrame) / MICROS_PER_SECOND,
-        );
-      }
-    },
-    DECODE_TIMEOUT_MS,
-  );
+  it('decodes every frame of the beginning and the splash, and audio as long as the video', async () => {
+    for (const name of ['rebel_cr', 'prague_cr', 'splashscreen']) {
+      const video = openSmk(await data.vfs.read(`intro/${name}.smk`));
+      const reader = createFrameReader(video);
+      let colours = 0;
+      for (let frame = reader.nextFrame(); frame; frame = reader.nextFrame()) colours = Math.max(colours, new Set(frame.indices).size);
+      expect(reader.frameIndex, name).toBe(video.frameCount);
+      expect(colours, name).toBeGreaterThan(1);
+      const [track] = video.audioTracks;
+      if (!track) throw new Error(`${name} has no audio`);
+      const channels = decodeAudio(video, track);
+      const videoSamples = (video.frameCount * video.microsPerFrame * track.sampleRate) / MICROS_PER_SECOND;
+      expect(channels.length).toBe(2);
+      expect(channels[0]?.length).toBe(channels[1]?.length);
+      expect(Math.abs((channels[0]?.length ?? 0) - videoSamples), name).toBeLessThan(
+        (track.sampleRate * video.microsPerFrame) / MICROS_PER_SECOND,
+      );
+    }
+  });
 });

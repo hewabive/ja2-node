@@ -6,7 +6,6 @@ import { parseSectorString, sectorId } from '../../../content/strategic/sector-i
 import type { DrawItem } from '../../draw-list.ts';
 import type { BattleEntryHook } from './battle-entry.ts';
 
-const SLOW_MS = 180_000;
 const OPENING_MS = 1000;
 const FRAME_MS = 16;
 const CREATURES = 3;
@@ -17,7 +16,7 @@ let ui: MapUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await mapUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -91,164 +90,136 @@ function screenId(f: MapUiTest): string | null {
 }
 
 describe('the pre-battle interface on the stub map-screen campaign', () => {
-  it(
-    'opens the persistent panel over the map with the stretch, then shows the three buttons with their fast help',
-    async () => {
-      const f = await mapUiTest(kit, ui);
-      try {
-        arrangeBattle(f.session, BattleVariant.RETREAT);
-        f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
-        f.deliver();
-        f.t.frame(FRAME_MS);
-        expect(battle(f).preBattle).toMatchObject({ persistent: true, encounter: 'enemyInvasion', phase: 'opening' });
-        expect(f.battleSounds.powerUps).toBe(1);
-        expect(f.draw().items.some((i) => i.kind === 'snapshot' && i.source === 'preBattle.opening')).toBe(true);
-        await frames(f, OPENING_MS);
-        expect(battle(f).preBattle?.phase).toBe('shown');
-        expect(f.widget('preBattleAutoresolve')).toMatchObject({ enabled: true, rect: { x: 27, y: 54 } });
-        expect(f.widget('preBattleGoToSector')).toMatchObject({ enabled: true, rect: { x: 98, y: 54 } });
-        expect(f.widget('preBattleRetreat')).toMatchObject({ enabled: true, rect: { x: 169, y: 54 } });
-        expect(f.widget('preBattle.panel').text).toBe(f.screen.battle.panel ? 'ENEMY INVASION' : null);
-        expect(snapshotFrom(f, (i) => i.kind === 'image' && i.asset === 'interface/prebattlepanel.sti' && i.frame === 0)).toMatchSnapshot();
-      } finally {
-        await f.dispose();
-      }
-    },
-    SLOW_MS,
-  );
+  it('opens the persistent panel over the map with the stretch, then shows the three buttons with their fast help', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      arrangeBattle(f.session, BattleVariant.RETREAT);
+      f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
+      f.deliver();
+      f.t.frame(FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ persistent: true, encounter: 'enemyInvasion', phase: 'opening' });
+      expect(f.battleSounds.powerUps).toBe(1);
+      expect(f.draw().items.some((i) => i.kind === 'snapshot' && i.source === 'preBattle.opening')).toBe(true);
+      await frames(f, OPENING_MS);
+      expect(battle(f).preBattle?.phase).toBe('shown');
+      expect(f.widget('preBattleAutoresolve')).toMatchObject({ enabled: true, rect: { x: 27, y: 54 } });
+      expect(f.widget('preBattleGoToSector')).toMatchObject({ enabled: true, rect: { x: 98, y: 54 } });
+      expect(f.widget('preBattleRetreat')).toMatchObject({ enabled: true, rect: { x: 169, y: 54 } });
+      expect(f.widget('preBattle.panel').text).toBe(f.screen.battle.panel ? 'ENEMY INVASION' : null);
+      expect(snapshotFrom(f, (i) => i.kind === 'image' && i.asset === 'interface/prebattlepanel.sti' && i.frame === 0)).toMatchSnapshot();
+    } finally {
+      await f.dispose();
+    }
+  });
 
-  it(
-    'answers Autoresolve with the a key and switches to the autoresolve screen over the shaded map',
-    () =>
-      withBattle(BattleVariant.VICTORY, async (f) => {
-        f.key('a', 0, 'KeyA');
-        await frames(f, FRAME_MS * 2);
-        expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'autoresolve' });
-        expect(screenId(f)).toBe('autoresolve');
-        expect(battle(f).screen).toBe('autoresolve');
-        expect(battle(f).autoresolve?.opening).toBe(true);
-        expect(f.draw().items.some(fullScreenShadow)).toBe(true);
-        await frames(f, OPENING_MS + FRAME_MS);
-        expect(battle(f).autoresolve).toMatchObject({ opening: false, interface: 'battle', speed: 'play', paused: false });
-        expect(f.battleClient.drives.at(-1)).toEqual({ mode: 'realtime', speed: 1 });
-        expect(snapshotFrom(f, fullScreenShadow)).toMatchSnapshot();
-      }),
-    SLOW_MS,
-  );
+  it('answers Autoresolve with the a key and switches to the autoresolve screen over the shaded map', () =>
+    withBattle(BattleVariant.VICTORY, async (f) => {
+      f.key('a', 0, 'KeyA');
+      await frames(f, FRAME_MS * 2);
+      expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'autoresolve' });
+      expect(screenId(f)).toBe('autoresolve');
+      expect(battle(f).screen).toBe('autoresolve');
+      expect(battle(f).autoresolve?.opening).toBe(true);
+      expect(f.draw().items.some(fullScreenShadow)).toBe(true);
+      await frames(f, OPENING_MS + FRAME_MS);
+      expect(battle(f).autoresolve).toMatchObject({ opening: false, interface: 'battle', speed: 'play', paused: false });
+      expect(f.battleClient.drives.at(-1)).toEqual({ mode: 'realtime', speed: 1 });
+      expect(snapshotFrom(f, fullScreenShadow)).toMatchSnapshot();
+    }));
 
-  it(
-    'plays the stream at Fast, finishes a victory, offers Done and Bandage, and returns to the map',
-    () =>
-      withBattle(BattleVariant.VICTORY, async (f) => {
-        await f.click('preBattleAutoresolve');
-        await frames(f, OPENING_MS + FRAME_MS * 3);
-        await f.click('arFast');
-        expect(f.battleClient.drives.at(-1)).toEqual({ mode: 'realtime', speed: 4 });
-        f.session.advance({ ticks: 200 });
-        f.deliver();
-        await frames(f, 300);
-        expect(battle(f).autoresolve?.pending).toBe(0);
-        await finishBattle(f);
-        expect(f.battleClient.advances).toContainEqual({ idle: true });
-        expect(f.battleSounds.played).toContainEqual({ kind: 'effect', name: 'AUTORESOLVE_FINISHFX', loud: true });
-        const ar = battle(f).autoresolve;
-        expect(ar).toMatchObject({ status: 'victory', interface: 'done' });
-        expect(ar?.elapsed).toMatch(/\d+.* \d\d/);
-        expect(f.widget('arDoneWin').visible).toBe(true);
-        expect(f.widget('arBandage').visible).toBe(true);
-        expect(f.widget('arDoneLose').visible).toBe(false);
-        await f.click('arDoneWin');
-        await frames(f, FRAME_MS * 2);
-        expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'done' });
-        expect(screenId(f)).toBe('map');
-        expect(battle(f).screen).toBeNull();
-      }),
-    SLOW_MS,
-  );
+  it('plays the stream at Fast, finishes a victory, offers Done and Bandage, and returns to the map', () =>
+    withBattle(BattleVariant.VICTORY, async (f) => {
+      await f.click('preBattleAutoresolve');
+      await frames(f, OPENING_MS + FRAME_MS * 3);
+      await f.click('arFast');
+      expect(f.battleClient.drives.at(-1)).toEqual({ mode: 'realtime', speed: 4 });
+      f.session.advance({ ticks: 200 });
+      f.deliver();
+      await frames(f, 300);
+      expect(battle(f).autoresolve?.pending).toBe(0);
+      await finishBattle(f);
+      expect(f.battleClient.advances).toContainEqual({ idle: true });
+      expect(f.battleSounds.played).toContainEqual({ kind: 'effect', name: 'AUTORESOLVE_FINISHFX', loud: true });
+      const ar = battle(f).autoresolve;
+      expect(ar).toMatchObject({ status: 'victory', interface: 'done' });
+      expect(ar?.elapsed).toMatch(/\d+.* \d\d/);
+      expect(f.widget('arDoneWin').visible).toBe(true);
+      expect(f.widget('arBandage').visible).toBe(true);
+      expect(f.widget('arDoneLose').visible).toBe(false);
+      await f.click('arDoneWin');
+      await frames(f, FRAME_MS * 2);
+      expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'done' });
+      expect(screenId(f)).toBe('map');
+      expect(battle(f).screen).toBeNull();
+    }));
 
-  it(
-    'retreats every merc with the Retreat button and ends RETREATED',
-    () =>
-      withBattle(BattleVariant.RETREAT, async (f) => {
-        await f.click('preBattleAutoresolve');
-        await frames(f, OPENING_MS + FRAME_MS * 3);
-        await f.click('arRetreat');
-        expect(f.battleClient.commands.at(-1)?.cmd).toEqual({ type: 'autoresolveRetreat' });
-        expect(
-          battle(f)
-            .autoresolve?.cells.filter((c) => c.key.startsWith('merc:'))
-            .every((c) => c.state === 'retreating'),
-        ).toBe(true);
-        await finishBattle(f);
-        expect(battle(f).autoresolve).toMatchObject({ status: 'retreat', interface: 'done' });
-        expect(f.widget('arDoneLose').visible).toBe(true);
-        expect(f.widget('arBandage').visible).toBe(false);
-      }),
-    SLOW_MS,
-  );
+  it('retreats every merc with the Retreat button and ends RETREATED', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      await f.click('preBattleAutoresolve');
+      await frames(f, OPENING_MS + FRAME_MS * 3);
+      await f.click('arRetreat');
+      expect(f.battleClient.commands.at(-1)?.cmd).toEqual({ type: 'autoresolveRetreat' });
+      expect(
+        battle(f)
+          .autoresolve?.cells.filter((c) => c.key.startsWith('merc:'))
+          .every((c) => c.state === 'retreating'),
+      ).toBe(true);
+      await finishBattle(f);
+      expect(battle(f).autoresolve).toMatchObject({ status: 'retreat', interface: 'done' });
+      expect(f.widget('arDoneLose').visible).toBe(true);
+      expect(f.widget('arBandage').visible).toBe(false);
+    }));
 
-  it(
-    'ends a hopeless battle in DEFEAT with the lone Done button',
-    () =>
-      withBattle(BattleVariant.DEFEAT, async (f) => {
-        await f.click('preBattleAutoresolve');
-        await frames(f, OPENING_MS + FRAME_MS * 3);
-        await finishBattle(f);
-        expect(battle(f).autoresolve).toMatchObject({ status: 'defeat', interface: 'done' });
-        expect(f.widget('arDoneLose').visible).toBe(true);
-        expect(f.widget('arDoneWin').visible).toBe(false);
-      }),
-    SLOW_MS,
-  );
+  it('ends a hopeless battle in DEFEAT with the lone Done button', () =>
+    withBattle(BattleVariant.DEFEAT, async (f) => {
+      await f.click('preBattleAutoresolve');
+      await frames(f, OPENING_MS + FRAME_MS * 3);
+      await finishBattle(f);
+      expect(battle(f).autoresolve).toMatchObject({ status: 'defeat', interface: 'done' });
+      expect(f.widget('arDoneLose').visible).toBe(true);
+      expect(f.widget('arDoneWin').visible).toBe(false);
+    }));
 
-  it(
-    'shows an automatic start as the panel with Autoresolve pressed, then the autoresolve screen',
-    async () => {
-      const f = await mapUiTest(kit, ui);
-      try {
-        const campaign = campaignOf(f.session).campaign;
-        campaign.state.creatures.attack.sectorId = sectorId(parseSectorString(BATTLE_SECTOR));
-        campaign.state.creatures.attack.numAttacking = CREATURES;
-        campaign.battle?.openCreatureAttack(true);
-        f.session.advance({ ticks: 1 });
-        f.deliver();
-        await frames(f, FRAME_MS);
-        expect(battle(f).preBattle).toMatchObject({ autoStart: true, encounter: 'creatureAttack', phase: 'opening' });
-        expect(f.widget('preBattleGoToSector').enabled).toBe(false);
-        expect(f.widget('preBattleRetreat').enabled).toBe(false);
-        await frames(f, OPENING_MS + FRAME_MS * 3);
-        expect(screenId(f)).toBe('autoresolve');
-        expect(battle(f).autoresolve?.ratio).toMatch(/4/);
-      } finally {
-        await f.dispose();
-      }
-    },
-    SLOW_MS,
-  );
+  it('shows an automatic start as the panel with Autoresolve pressed, then the autoresolve screen', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      const campaign = campaignOf(f.session).campaign;
+      campaign.state.creatures.attack.sectorId = sectorId(parseSectorString(BATTLE_SECTOR));
+      campaign.state.creatures.attack.numAttacking = CREATURES;
+      campaign.battle?.openCreatureAttack(true);
+      f.session.advance({ ticks: 1 });
+      f.deliver();
+      await frames(f, FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ autoStart: true, encounter: 'creatureAttack', phase: 'opening' });
+      expect(f.widget('preBattleGoToSector').enabled).toBe(false);
+      expect(f.widget('preBattleRetreat').enabled).toBe(false);
+      await frames(f, OPENING_MS + FRAME_MS * 3);
+      expect(screenId(f)).toBe('autoresolve');
+      expect(battle(f).autoresolve?.ratio).toMatch(/4/);
+    } finally {
+      await f.dispose();
+    }
+  });
 
-  it(
-    'opens BATTLE IN PROGRESS from the battle locator during the tactical battle and closes it with Esc',
-    () =>
-      withBattle(BattleVariant.RETREAT, async (f) => {
-        await f.click('preBattleGoToSector');
-        expect(f.battleClient.commands.at(-1)?.reply.ok).toBe(true);
-        expect(f.client.view.strategic?.flow).toBe('tactical');
-        expect(f.session.dispatch({ type: 'mapScreen' }).ok).toBe(true);
-        f.client.refresh();
-        await frames(f, FRAME_MS * 2);
-        expect(battle(f).preBattle).toBeNull();
-        await f.clickSector(BATTLE_SECTOR);
-        expect(f.battleClient.commands.at(-1)?.cmd).toEqual({ type: 'showBattle' });
-        await frames(f, FRAME_MS);
-        expect(battle(f).preBattle).toMatchObject({ persistent: false, phase: 'opening' });
-        await frames(f, OPENING_MS);
-        expect(f.widget('preBattle.panel').text).toBe('BATTLE IN PROGRESS');
-        expect(f.widget('preBattleRetreat').enabled).toBe(false);
-        f.key('Escape', 0, 'Escape');
-        await frames(f, FRAME_MS * 2);
-        expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'close' });
-        expect(battle(f).preBattle).toBeNull();
-      }),
-    SLOW_MS,
-  );
+  it('opens BATTLE IN PROGRESS from the battle locator during the tactical battle and closes it with Esc', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      await f.click('preBattleGoToSector');
+      expect(f.battleClient.commands.at(-1)?.reply.ok).toBe(true);
+      expect(f.client.view.strategic?.flow).toBe('tactical');
+      expect(f.session.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+      f.client.refresh();
+      await frames(f, FRAME_MS * 2);
+      expect(battle(f).preBattle).toBeNull();
+      await f.clickSector(BATTLE_SECTOR);
+      expect(f.battleClient.commands.at(-1)?.cmd).toEqual({ type: 'showBattle' });
+      await frames(f, FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ persistent: false, phase: 'opening' });
+      await frames(f, OPENING_MS);
+      expect(f.widget('preBattle.panel').text).toBe('BATTLE IN PROGRESS');
+      expect(f.widget('preBattleRetreat').enabled).toBe(false);
+      f.key('Escape', 0, 'Escape');
+      await frames(f, FRAME_MS * 2);
+      expect(f.battleClient.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'close' });
+      expect(battle(f).preBattle).toBeNull();
+    }));
 });

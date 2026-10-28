@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { STUB_DEALER, stubCampaignInA10, walkNextToProfile } from '../../tests/support/stub-shops.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
@@ -122,11 +122,7 @@ async function moveMoney(mode?: RunMode): Promise<CampaignSession> {
 }
 
 describe('the money region and the money box on the stub campaign', () => {
-  it(
-    'withdraws, splits and deposits money with the ledger entries of the original, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(moveMoney);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('withdraws, splits and deposits money with the ledger entries of the original, the same across reloads', async () => {
+    await expectReloadsInvisible(moveMoney);
+  });
 });

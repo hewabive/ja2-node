@@ -6,9 +6,7 @@ import { MAP_SCREEN_SAVE, type MapScreenSave, writeMapScreenSave } from '../../t
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 
-const TIMEOUT_MS = 180_000;
-
-describe('the stub campaign save the map-screen e2e loads', { timeout: TIMEOUT_MS }, () => {
+describe('the stub campaign save the map-screen e2e loads', () => {
   let dir: string;
   let written: MapScreenSave;
   let kit: StubSectorKit;
@@ -19,7 +17,7 @@ describe('the stub campaign save the map-screen e2e loads', { timeout: TIMEOUT_M
     written = await writeMapScreenSave(dir);
     kit = await loadStubSectorKit();
     saves = await createSaveKit(kit, { dir });
-  }, TIMEOUT_MS);
+  });
 
   afterAll(async () => {
     await saves.dispose();

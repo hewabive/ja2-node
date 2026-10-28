@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { armSquadWithPistols } from '../../tests/support/pistol-kit.ts';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -91,9 +91,7 @@ async function nearVasko(seed: number, mode?: RunMode) {
   return { session, live, merc };
 }
 
-const SLOW_SCENARIO_MS = 30_000;
-
-describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('giving items and money to the stub NPC in A10', () => {
   it('returns a give at once and shows viewers its walk and the lines of the conversation it opens as advance runs them', async () => {
     const { session, live } = await inA10(21);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
@@ -212,28 +210,24 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(soldier(session, merc).inv[pocket]?.count ?? 0).toBe(0);
   });
 
-  it(
-    'gives to the NPC and to a squad mate the same way when the session is saved and restored after every input',
-    async () => {
-      await expectReloadsInvisible(async (mode) => {
-        const { session, live, merc } = await nearVasko(26, mode);
-        const step = (cmd: Record<string, unknown>) => {
-          const r = live.dispatch({ type: String(cmd.type), ...cmd });
-          live.advance({ idle: true });
-          return r;
-        };
-        const pocket = () => soldier(session, merc).inv.findIndex((o) => o.item === item(session, 'CLIP9_15'));
-        step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket(), count: 1 });
-        step({ type: 'closeTalk' });
-        step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: 'hand' });
-        step({ type: 'closeTalk' });
-        const mate = session.view().strategic?.mercs[1]?.id;
-        step({ type: 'give', soldier: merc, target: mate, slot: pocket(), count: 1 });
-        return session;
-      });
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('gives to the NPC and to a squad mate the same way when the session is saved and restored after every input', async () => {
+    await expectReloadsInvisible(async (mode) => {
+      const { session, live, merc } = await nearVasko(26, mode);
+      const step = (cmd: Record<string, unknown>) => {
+        const r = live.dispatch({ type: String(cmd.type), ...cmd });
+        live.advance({ idle: true });
+        return r;
+      };
+      const pocket = () => soldier(session, merc).inv.findIndex((o) => o.item === item(session, 'CLIP9_15'));
+      step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket(), count: 1 });
+      step({ type: 'closeTalk' });
+      step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: 'hand' });
+      step({ type: 'closeTalk' });
+      const mate = session.view().strategic?.mercs[1]?.id;
+      step({ type: 'give', soldier: merc, target: mate, slot: pocket(), count: 1 });
+      return session;
+    });
+  });
 
   it('ends in the same state under the instant and the manual driver', async () => {
     const digest = async (instant: boolean) => {

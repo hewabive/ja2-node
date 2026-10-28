@@ -65,12 +65,12 @@ async function routeForGoldens(page: Page): Promise<void> {
 }
 
 async function screenIs(page: Page, id: string): Promise<void> {
-  await page.waitForFunction((wanted) => window.__ja2Ui.screen === wanted, id, { timeout: 30_000 });
+  await page.waitForFunction((wanted) => window.__ja2Ui.screen === wanted, id);
   await nextFrames(page);
 }
 
 async function modalIs(page: Page, id: string | null): Promise<void> {
-  await page.waitForFunction((wanted) => window.__ja2Ui.modal === wanted, id, { timeout: 30_000 });
+  await page.waitForFunction((wanted) => window.__ja2Ui.modal === wanted, id);
   await nextFrames(page);
 }
 
@@ -216,11 +216,7 @@ test.describe('the canvas front end on stubs', () => {
     await screenIs(page, 'mainMenu');
     await clickWidget(page, 'credits');
     await screenIs(page, 'credits');
-    await page.waitForFunction(
-      () => (window.__ja2Ui.draw?.instances ?? 0) > 1 && window.__ja2Ui.widgets.some((w) => w.id === 'roll'),
-      null,
-      { timeout: 10_000 },
-    );
+    await page.waitForFunction(() => (window.__ja2Ui.draw?.instances ?? 0) > 1 && window.__ja2Ui.widgets.some((w) => w.id === 'roll'));
     await clickWidget(page, 'face4');
     expect((await widget(page, 'name')).visible).toBe(true);
     await page.keyboard.press('Escape');

@@ -7,11 +7,9 @@ import { SERVER, TOKEN } from './env.ts';
 const SEED = 3;
 const RELOAD_ROUND = 2;
 const MIN_COMPARED_STEPS = 20;
-const SEGMENT_TIMEOUT_MS = 90_000;
 const BOT_SAVES = ['campaign-bot-battle', 'Auto01', 'Auto02'];
 
 test('the campaign bot starts a stub campaign through MCP alone, wins the landing and an exact load in that battle plays on identically', async () => {
-  test.setTimeout(SEGMENT_TIMEOUT_MS);
   const game = await McpGame.connect(SERVER, TOKEN);
   try {
     const items = await loadItems();

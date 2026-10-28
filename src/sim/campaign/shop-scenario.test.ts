@@ -48,7 +48,6 @@ const OPEN = 8 * 60;
 const CLOSE = 20 * 60;
 const COLS = 160;
 const NEAR = [2, -2, 2 * COLS, -2 * COLS, 2 + COLS, -2 - COLS, 3, -3];
-const SCENARIO_TIMEOUT_MS = 60_000;
 
 type Driver = (c: CampaignSim, ticks: number) => void;
 const instant: Driver = (c, ticks) => {
@@ -193,51 +192,35 @@ function never(): never {
 }
 
 describe('shop scenario on the stub village', () => {
-  it(
-    'trades with Franz: buy with cash and balance, sell, gift, close; identical under both drivers',
-    () => {
-      const a = franzScenario(instant, 3).log;
-      const b = franzScenario(manual, 3).log;
-      expect(b.map((e) => e.type)).toEqual(a.map((e) => e.type));
-      expect(JSON.stringify(b)).toBe(JSON.stringify(a));
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('trades with Franz: buy with cash and balance, sell, gift, close; identical under both drivers', () => {
+    const a = franzScenario(instant, 3).log;
+    const b = franzScenario(manual, 3).log;
+    expect(b.map((e) => e.type)).toEqual(a.map((e) => e.type));
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  });
 
-  it(
-    'trades with Franz the same way when the campaign is saved and restored after every input',
-    async () => {
-      await expectReloadsInvisible((mode) => franzScenario(manual, 3, mode).c);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('trades with Franz the same way when the campaign is saved and restored after every input', async () => {
+    await expectReloadsInvisible((mode) => franzScenario(manual, 3, mode).c);
+  });
 
-  it(
-    'restocks dealers at 09:00 while the map runs for three days',
-    () => {
-      const c = startCampaign(4);
-      const ctx = c.merchants;
-      if (!ctx) throw new Error('no merchants');
-      expect(ctx.state.dealers.map((d) => d.status.cash)).toEqual(merchants.content.dealers.map((d) => d.initialCash));
-      expect(header(ctx.state, SAM, item('JAR')).total).toBeGreaterThanOrEqual(1);
-      const franz = ctx.state.dealers[FRANZ]?.status;
-      if (franz) franz.cash = 1;
-      const day = worldDay(c.state.clock);
-      expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
-      advance(c, { worldTime: { day: day + 3, hour: 9, minute: 30 }, mode: CompressMode.MIN60, compressionStopped: false });
-      expect(worldDay(c.state.clock)).toBe(day + 3);
-      expect(c.merchants?.state.dealers[FRANZ]?.status.cash).toBe(5000);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('restocks dealers at 09:00 while the map runs for three days', () => {
+    const c = startCampaign(4);
+    const ctx = c.merchants;
+    if (!ctx) throw new Error('no merchants');
+    expect(ctx.state.dealers.map((d) => d.status.cash)).toEqual(merchants.content.dealers.map((d) => d.initialCash));
+    expect(header(ctx.state, SAM, item('JAR')).total).toBeGreaterThanOrEqual(1);
+    const franz = ctx.state.dealers[FRANZ]?.status;
+    if (franz) franz.cash = 1;
+    const day = worldDay(c.state.clock);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    advance(c, { worldTime: { day: day + 3, hour: 9, minute: 30 }, mode: CompressMode.MIN60, compressionStopped: false });
+    expect(worldDay(c.state.clock)).toBe(day + 3);
+    expect(c.merchants?.state.dealers[FRANZ]?.status.cash).toBe(5000);
+  });
 
-  it(
-    'repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(perkoRepair);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit, the same across reloads', async () => {
+    await expectReloadsInvisible(perkoRepair);
+  });
 });
 
 function perkoRepair(mode: RunMode): CampaignSim {

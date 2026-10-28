@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, runTicks } from '../../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../../tests/support/sectors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { CompressMode, EventKind, Warp } from '../../strategic/time/constants.ts';
@@ -99,13 +99,9 @@ function villagerDay(mode?: RunMode): CampaignSim {
 }
 
 describe('NPC schedules in the stub A10', () => {
-  it(
-    'walks the villager to the square at 09:00, puts him to bed by compression and sends the default civilian away overnight, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(villagerDay);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('walks the villager to the square at 09:00, puts him to bed by compression and sends the default civilian away overnight, the same across reloads', async () => {
+    await expectReloadsInvisible(villagerDay);
+  });
 
   it('walks the default civilian two tiles past the map edge at his leave time and leaves him stuck there, in the sector (kept quirk)', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 22, garrison: NO_GARRISON });

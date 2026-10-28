@@ -18,8 +18,6 @@ import { Body, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
 import type { Session } from './session.ts';
 
-const SETUP_TIMEOUT_MS = 240_000;
-const TEST_TIMEOUT_MS = 120_000;
 const CREATURES = 3;
 const PLAY_CLICK_WINDOW_SECONDS = 60;
 const FAST_CLICK_WINDOW_SECONDS = 30;
@@ -34,7 +32,7 @@ beforeAll(async () => {
   const { session } = await buildMapScreenCampaign(saves, kit);
   const saved = await saves.saves.save(session, { name: BATTLE_BASE_SAVE, description: 'battle entry base' });
   if (!saved.ok) throw new Error(JSON.stringify(saved));
-}, SETUP_TIMEOUT_MS);
+});
 
 afterAll(async () => {
   await saves.dispose();
@@ -76,100 +74,84 @@ function merc(session: Session, id: number): StrategicMercView {
 }
 
 describe('the pre-battle prompt on the stub map-screen campaign', () => {
-  it(
-    'shows the persistent panel of an invasion with the locator, the involved rows and the plural count',
-    async () => {
-      const { session } = await battle(BattleVariant.RETREAT);
-      const p = prompt(session, 'preBattle');
-      expect(p).toMatchObject({ sector: BATTLE_SECTOR, persistent: true, encounter: 'enemyInvasion', involvedGroups: 1 });
-      expect(p.involved).toHaveLength(4);
-      expect(p.involved.every((m) => m.condition === 'excellent' && m.hp === 100)).toBe(true);
-      expect(p.uninvolved).toEqual([]);
-      expect(p.options.map((o) => [o.choice, o.enabled])).toEqual([
-        ['autoresolve', true],
-        ['enterSector', true],
-        ['retreat', true],
-      ]);
-      expect(view(session).strategic?.battleLocator).toBe(BATTLE_SECTOR);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('shows the persistent panel of an invasion with the locator, the involved rows and the plural count', async () => {
+    const { session } = await battle(BattleVariant.RETREAT);
+    const p = prompt(session, 'preBattle');
+    expect(p).toMatchObject({ sector: BATTLE_SECTOR, persistent: true, encounter: 'enemyInvasion', involvedGroups: 1 });
+    expect(p.involved).toHaveLength(4);
+    expect(p.involved.every((m) => m.condition === 'excellent' && m.hp === 100)).toBe(true);
+    expect(p.uninvolved).toEqual([]);
+    expect(p.options.map((o) => [o.choice, o.enabled])).toEqual([
+      ['autoresolve', true],
+      ['enterSector', true],
+      ['retreat', true],
+    ]);
+    expect(view(session).strategic?.battleLocator).toBe(BATTLE_SECTOR);
+  });
 
-  it(
-    'lists an uninvolved merc with the original destination rule and the contract departure',
-    async () => {
-      const { session } = await battle(null);
-      const campaign = campaignOf(session).campaign;
-      const roster = campaign.battle?.roster.all() ?? [];
-      const away = roster[0];
-      if (!away) throw new Error('no merc');
-      away.sector = { ...parseSectorString('C13'), z: 0 };
-      away.path.splice(0, away.path.length, strategicIndex(parseSectorString('B13')));
-      arrangeBattle(session, BattleVariant.RETREAT);
-      session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
-      const p = prompt(session, 'preBattle');
-      const row = p.uninvolved.find((u) => u.soldier === away.id);
-      expect(row).toMatchObject({ location: 'C13', destination: 'B13', betweenSectors: false });
-      const contract = merc(session, away.id).contract;
-      expect(row?.departure).toBe(contract && 'minutesLeft' in contract ? (contract.minutesLeft ?? null) : null);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('lists an uninvolved merc with the original destination rule and the contract departure', async () => {
+    const { session } = await battle(null);
+    const campaign = campaignOf(session).campaign;
+    const roster = campaign.battle?.roster.all() ?? [];
+    const away = roster[0];
+    if (!away) throw new Error('no merc');
+    away.sector = { ...parseSectorString('C13'), z: 0 };
+    away.path.splice(0, away.path.length, strategicIndex(parseSectorString('B13')));
+    arrangeBattle(session, BattleVariant.RETREAT);
+    session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
+    const p = prompt(session, 'preBattle');
+    const row = p.uninvolved.find((u) => u.soldier === away.id);
+    expect(row).toMatchObject({ location: 'C13', destination: 'B13', betweenSectors: false });
+    const contract = merc(session, away.id).contract;
+    expect(row?.departure).toBe(contract && 'minutesLeft' in contract ? (contract.minutesLeft ?? null) : null);
+  });
 });
 
 describe('the autoresolve view and events', () => {
-  it(
-    'carries the encounter, the merc faces and the female flag, names the weapons of shots and the bandage state',
-    async () => {
-      const { session, events } = await battle(BattleVariant.VICTORY);
-      const pbi = prompt(session, 'preBattle');
-      expect(session.dispatch({ type: 'answer', prompt: pbi.id, choice: 'autoresolve' }).ok).toBe(true);
-      const ar = campaignOf(session).campaign.state.battle.autoresolve?.ar;
-      const enemy = ar?.enemies[0];
-      if (!enemy) throw new Error('no enemy cell');
-      enemy.soldier.bodyType = Body.REGFEMALE;
-      const started = view(session).autoresolve;
-      expect(started?.encounter).toBe('enemyInvasion');
-      for (const cell of started?.cells.filter((c) => c.side === 'merc') ?? [])
-        expect(cell.profile).toBe(merc(session, cell.soldier ?? -1).profile);
-      expect(started?.cells.find((c) => c.side === 'enemy')).toMatchObject({ female: true });
-      session.advance({ idle: true });
-      const shots = events.filter((e) => e.type === 'arAttack' && e.kind === 'shot');
-      expect(shots.length).toBeGreaterThan(0);
-      expect(shots.every((e) => e.type === 'arAttack' && typeof e.weapon === 'number')).toBe(true);
-      const done = prompt(session, 'autoresolveDone');
-      expect(done.status).toBe('victory');
-      expect(done.bandageRefusal === null || ['nobodyWounded', 'noDoctor', 'noKit'].includes(done.bandageRefusal ?? '')).toBe(true);
-      expect(done.canBandage).toBe(done.bandageRefusal === null);
-      if (done.canBandage) {
-        const bandaged = session.dispatch({ type: 'answer', prompt: done.id, choice: 'bandage' });
-        expect(bandaged).toMatchObject({ ok: true, data: { bandaged: expect.stringMatching(/^(complete|incomplete)$/) } });
-      } else
-        expect(session.dispatch({ type: 'answer', prompt: done.id, choice: 'bandage' })).toMatchObject({
-          ok: false,
-          data: { refusal: done.bandageRefusal },
-        });
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('carries the encounter, the merc faces and the female flag, names the weapons of shots and the bandage state', async () => {
+    const { session, events } = await battle(BattleVariant.VICTORY);
+    const pbi = prompt(session, 'preBattle');
+    expect(session.dispatch({ type: 'answer', prompt: pbi.id, choice: 'autoresolve' }).ok).toBe(true);
+    const ar = campaignOf(session).campaign.state.battle.autoresolve?.ar;
+    const enemy = ar?.enemies[0];
+    if (!enemy) throw new Error('no enemy cell');
+    enemy.soldier.bodyType = Body.REGFEMALE;
+    const started = view(session).autoresolve;
+    expect(started?.encounter).toBe('enemyInvasion');
+    for (const cell of started?.cells.filter((c) => c.side === 'merc') ?? [])
+      expect(cell.profile).toBe(merc(session, cell.soldier ?? -1).profile);
+    expect(started?.cells.find((c) => c.side === 'enemy')).toMatchObject({ female: true });
+    session.advance({ idle: true });
+    const shots = events.filter((e) => e.type === 'arAttack' && e.kind === 'shot');
+    expect(shots.length).toBeGreaterThan(0);
+    expect(shots.every((e) => e.type === 'arAttack' && typeof e.weapon === 'number')).toBe(true);
+    const done = prompt(session, 'autoresolveDone');
+    expect(done.status).toBe('victory');
+    expect(done.bandageRefusal === null || ['nobodyWounded', 'noDoctor', 'noKit'].includes(done.bandageRefusal ?? '')).toBe(true);
+    expect(done.canBandage).toBe(done.bandageRefusal === null);
+    if (done.canBandage) {
+      const bandaged = session.dispatch({ type: 'answer', prompt: done.id, choice: 'bandage' });
+      expect(bandaged).toMatchObject({ ok: true, data: { bandaged: expect.stringMatching(/^(complete|incomplete)$/) } });
+    } else
+      expect(session.dispatch({ type: 'answer', prompt: done.id, choice: 'bandage' })).toMatchObject({
+        ok: false,
+        data: { refusal: done.bandageRefusal },
+      });
+  });
 
-  it(
-    'emits the panel with an automatic start, before the battle begins',
-    async () => {
-      const { session, events } = await battle(null);
-      const campaign = campaignOf(session).campaign;
-      campaign.state.creatures.attack.sectorId = sectorId(parseSectorString(BATTLE_SECTOR));
-      campaign.state.creatures.attack.numAttacking = CREATURES;
-      campaign.battle?.openCreatureAttack(true);
-      const emitted = campaign.battle?.drainEvents() ?? [];
-      const pre = emitted.find((e) => e.type === 'preBattle');
-      expect(pre).toMatchObject({ autoStart: true, encounter: 'creatureAttack', panel: { sector: BATTLE_SECTOR, enemies: 'unknown' } });
-      if (pre?.type !== 'preBattle') return;
-      expect(pre.panel?.involved).toHaveLength(4);
-      expect(events.some((e) => e.type === 'preBattle')).toBe(false);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('emits the panel with an automatic start, before the battle begins', async () => {
+    const { session, events } = await battle(null);
+    const campaign = campaignOf(session).campaign;
+    campaign.state.creatures.attack.sectorId = sectorId(parseSectorString(BATTLE_SECTOR));
+    campaign.state.creatures.attack.numAttacking = CREATURES;
+    campaign.battle?.openCreatureAttack(true);
+    const emitted = campaign.battle?.drainEvents() ?? [];
+    const pre = emitted.find((e) => e.type === 'preBattle');
+    expect(pre).toMatchObject({ autoStart: true, encounter: 'creatureAttack', panel: { sector: BATTLE_SECTOR, enemies: 'unknown' } });
+    if (pre?.type !== 'preBattle') return;
+    expect(pre.panel?.involved).toHaveLength(4);
+    expect(events.some((e) => e.type === 'preBattle')).toBe(false);
+  });
 });
 
 describe('the stub battles the end-to-end spec plays', () => {
@@ -182,15 +164,11 @@ describe('the stub battles the end-to-end spec plays', () => {
     return prompt(session, 'autoresolveDone').status;
   }
 
-  it(
-    'ends the victory, defeat and retreat variants as named',
-    async () => {
-      expect(await outcome(BattleVariant.VICTORY, false)).toBe('victory');
-      expect(await outcome(BattleVariant.DEFEAT, false)).toBe('defeat');
-      expect(await outcome(BattleVariant.RETREAT, true)).toBe('retreat');
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('ends the victory, defeat and retreat variants as named', async () => {
+    expect(await outcome(BattleVariant.VICTORY, false)).toBe('victory');
+    expect(await outcome(BattleVariant.DEFEAT, false)).toBe('defeat');
+    expect(await outcome(BattleVariant.RETREAT, true)).toBe('retreat');
+  });
 
   async function battleSeconds(variant: BattleVariant): Promise<number | undefined> {
     const { session } = await battle(variant);
@@ -200,48 +178,40 @@ describe('the stub battles the end-to-end spec plays', () => {
     return view(session).autoresolve?.battleSeconds;
   }
 
-  it(
-    'lasts the victory battle through the Finish click at Play and the retreat battle through Pause after Fast on a loaded machine',
-    async () => {
-      expect(await battleSeconds(BattleVariant.VICTORY)).toBeGreaterThan(PLAY_CLICK_WINDOW_SECONDS);
-      expect(await battleSeconds(BattleVariant.RETREAT)).toBeGreaterThan(FAST_CLICK_WINDOW_SECONDS * FAST_PACE);
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('lasts the victory battle through the Finish click at Play and the retreat battle through Pause after Fast on a loaded machine', async () => {
+    expect(await battleSeconds(BattleVariant.VICTORY)).toBeGreaterThan(PLAY_CLICK_WINDOW_SECONDS);
+    expect(await battleSeconds(BattleVariant.RETREAT)).toBeGreaterThan(FAST_CLICK_WINDOW_SECONDS * FAST_PACE);
+  });
 });
 
 describe('showBattle', () => {
-  it(
-    'refuses without a battle and opens the non-persistent summary during a tactical battle, which closes without a choice',
-    async () => {
-      const quiet = await battle(null);
-      expect(quiet.session.dispatch({ type: 'showBattle' })).toMatchObject({ ok: false, data: { refusal: 'noBattle' } });
-      const { session } = await battle(BattleVariant.RETREAT);
-      const pbi = prompt(session, 'preBattle');
-      expect((await session.prepareAndDispatch({ type: 'answer', prompt: pbi.id, choice: 'enterSector' })).ok).toBe(true);
-      expect(view(session).strategic?.flow).toBe('tactical');
-      expect(session.dispatch({ type: 'mapScreen' }).ok).toBe(true);
-      expect(view(session).strategic?.battleLocator).toBe(BATTLE_SECTOR);
-      const shown = session.dispatch({ type: 'showBattle' });
-      expect(shown.ok).toBe(true);
-      const summary = prompt(session, 'preBattle');
-      expect(summary).toMatchObject({ persistent: false, encounter: 'enemyInvasion' });
-      expect(summary.options.map((o) => [o.choice, o.enabled, o.reason ?? null])).toEqual([
-        ['autoresolve', true, null],
-        ['enterSector', true, null],
-        ['retreat', false, 'battleInProgress'],
-        ['close', true, null],
-      ]);
-      expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(false);
-      expect(session.dispatch({ type: 'answer', prompt: summary.id, choice: 'close' }).ok).toBe(true);
-      expect(view(session).prompt).toBeNull();
-      expect(session.dispatch({ type: 'showBattle' }).ok).toBe(true);
-      const again = prompt(session, 'preBattle');
-      expect(session.dispatch({ type: 'answer', prompt: again.id, choice: 'autoresolve' }).ok).toBe(true);
-      expect(view(session).strategic?.flow).toBe('autoresolve');
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('refuses without a battle and opens the non-persistent summary during a tactical battle, which closes without a choice', async () => {
+    const quiet = await battle(null);
+    expect(quiet.session.dispatch({ type: 'showBattle' })).toMatchObject({ ok: false, data: { refusal: 'noBattle' } });
+    const { session } = await battle(BattleVariant.RETREAT);
+    const pbi = prompt(session, 'preBattle');
+    expect((await session.prepareAndDispatch({ type: 'answer', prompt: pbi.id, choice: 'enterSector' })).ok).toBe(true);
+    expect(view(session).strategic?.flow).toBe('tactical');
+    expect(session.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(view(session).strategic?.battleLocator).toBe(BATTLE_SECTOR);
+    const shown = session.dispatch({ type: 'showBattle' });
+    expect(shown.ok).toBe(true);
+    const summary = prompt(session, 'preBattle');
+    expect(summary).toMatchObject({ persistent: false, encounter: 'enemyInvasion' });
+    expect(summary.options.map((o) => [o.choice, o.enabled, o.reason ?? null])).toEqual([
+      ['autoresolve', true, null],
+      ['enterSector', true, null],
+      ['retreat', false, 'battleInProgress'],
+      ['close', true, null],
+    ]);
+    expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(false);
+    expect(session.dispatch({ type: 'answer', prompt: summary.id, choice: 'close' }).ok).toBe(true);
+    expect(view(session).prompt).toBeNull();
+    expect(session.dispatch({ type: 'showBattle' }).ok).toBe(true);
+    const again = prompt(session, 'preBattle');
+    expect(session.dispatch({ type: 'answer', prompt: again.id, choice: 'autoresolve' }).ok).toBe(true);
+    expect(view(session).strategic?.flow).toBe('autoresolve');
+  });
 
   it('sees only hostile civilians when no enemy, creature or militia is left', () => {
     const soldier = (team: number, neutral: boolean): Soldier => ({ team, neutral, placed: true, life: 30 }) as Soldier;

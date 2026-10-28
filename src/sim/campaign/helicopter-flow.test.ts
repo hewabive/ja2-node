@@ -28,7 +28,6 @@ afterAll(async () => {
 });
 
 const A9 = { x: 9, y: 1, z: 0 };
-const TIMEOUT_MS = 60_000;
 
 function landedCampaign(mode?: RunMode): CampaignSim {
   const { campaign: c } = createTestCampaign(kit, {
@@ -107,45 +106,33 @@ function boardFlyAndLeave(mode?: RunMode): CampaignSim {
 }
 
 describe('the helicopter commands', () => {
-  it(
-    'boards, flies, bills, lets passengers off while hovering and refuses what the original refuses, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(boardFlyAndLeave);
-    },
-    TIMEOUT_MS,
-  );
+  it('boards, flies, bills, lets passengers off while hovering and refuses what the original refuses, the same across reloads', async () => {
+    await expectReloadsInvisible(boardFlyAndLeave);
+  });
 
-  it(
-    'grounds the helicopter while Skyrider is owed money',
-    () => {
-      const c = landedCampaign();
-      c.dispatch({ type: 'mapScreen' });
-      c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' });
-      c.state.finances.balance = 40;
-      expect(c.dispatch({ type: 'heliRoute', to: 'A10' }).ok).toBe(true);
-      const events = compressUntilStop(c);
-      expect(events.find((e) => e.type === 'heliOwed')).toMatchObject({ amount: 60 });
-      expect(events.find((e) => e.type === 'passengersDropped')).toMatchObject({ soldiers: [0] });
-      expect(strategicView(c)?.helicopter).toMatchObject({ canFly: false, reason: 'skyriderOwed', owed: 60 });
-      expect(refusalOf(c.dispatch({ type: 'heliRoute', to: 'A9' }))).toBe('skyriderOwed');
-      expect(refusalOf(c.dispatch({ type: 'boardVehicle', soldier: 1, vehicle: 'helicopter' }))).toBe('notAccessible');
-    },
-    TIMEOUT_MS,
-  );
+  it('grounds the helicopter while Skyrider is owed money', () => {
+    const c = landedCampaign();
+    c.dispatch({ type: 'mapScreen' });
+    c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' });
+    c.state.finances.balance = 40;
+    expect(c.dispatch({ type: 'heliRoute', to: 'A10' }).ok).toBe(true);
+    const events = compressUntilStop(c);
+    expect(events.find((e) => e.type === 'heliOwed')).toMatchObject({ amount: 60 });
+    expect(events.find((e) => e.type === 'passengersDropped')).toMatchObject({ soldiers: [0] });
+    expect(strategicView(c)?.helicopter).toMatchObject({ canFly: false, reason: 'skyriderOwed', owed: 60 });
+    expect(refusalOf(c.dispatch({ type: 'heliRoute', to: 'A9' }))).toBe('skyriderOwed');
+    expect(refusalOf(c.dispatch({ type: 'boardVehicle', soldier: 1, vehicle: 'helicopter' }))).toBe('notAccessible');
+  });
 });
 
 describe('the kill-chopper meanwhile', () => {
-  it(
-    'is pending for the strategic layer only in its own second, as AreInMeanwhile reports it',
-    () => {
-      const c = landedCampaign();
-      const world = c.strategic?.world;
-      expect(world?.inMeanwhile()).toBe(false);
-      addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds + 60, Meanwhile.KILL_CHOPPER);
-      expect(world?.inMeanwhile()).toBe(false);
-      addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds, Meanwhile.KILL_CHOPPER);
-      expect(world?.inMeanwhile()).toBe(true);
-    },
-    TIMEOUT_MS,
-  );
+  it('is pending for the strategic layer only in its own second, as AreInMeanwhile reports it', () => {
+    const c = landedCampaign();
+    const world = c.strategic?.world;
+    expect(world?.inMeanwhile()).toBe(false);
+    addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds + 60, Meanwhile.KILL_CHOPPER);
+    expect(world?.inMeanwhile()).toBe(false);
+    addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds, Meanwhile.KILL_CHOPPER);
+    expect(world?.inMeanwhile()).toBe(true);
+  });
 });

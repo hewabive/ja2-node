@@ -3,9 +3,6 @@ import { STORY_MAP_SAVE, STORY_MEANWHILE_SAVE, STORY_PALACE_SAVE, STORY_SCENE, w
 import { SAVE_DIR } from './env.ts';
 import { capture, clickWidget, expectGolden, nextFrames, widget } from './ui-capture.ts';
 
-const SAVE_TIMEOUT_MS = 180_000;
-const LOAD_TIMEOUT_MS = 60_000;
-const STORY_TIMEOUT_MS = 90_000;
 const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_VERSION = 2;
 const GOLDEN_QUERY = '&pinClock=1&fixed640=1&scale=1';
@@ -33,13 +30,13 @@ async function settings(page: Page, values: Record<string, unknown>): Promise<vo
 
 async function openGame(page: Page, session: string, screen: string, extra = ''): Promise<void> {
   await page.goto(`/play?session=${encodeURIComponent(session)}${extra}`);
-  await page.waitForFunction((wanted) => window.__ja2Ui?.screen === wanted || window.__ja2Ui?.error, screen, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction((wanted) => window.__ja2Ui?.screen === wanted || window.__ja2Ui?.error, screen);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
 }
 
 async function openMap(page: Page, session: string, extra = ''): Promise<void> {
   await openGame(page, session, 'map', extra);
-  await page.waitForFunction(() => window.__ja2Ui.map?.ready === true, null, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui.map?.ready === true);
   await nextFrames(page, 4);
 }
 
@@ -50,7 +47,6 @@ async function compressTime(page: Page): Promise<void> {
 
 test.describe('the story and the help screens on /play', () => {
   test.beforeAll(async () => {
-    test.setTimeout(SAVE_TIMEOUT_MS);
     await writeStorySaves(SAVE_DIR);
   });
 
@@ -62,12 +58,11 @@ test.describe('the story and the help screens on /play', () => {
     page,
     request,
   }) => {
-    test.setTimeout(STORY_TIMEOUT_MS);
     await settings(page, { helpHidden: true });
     const session = await loadSession(request, STORY_MEANWHILE_SAVE);
     await openMap(page, session, GOLDEN_QUERY);
     await compressTime(page);
-    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox', null, { timeout: STORY_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
     expect((await widget(page, 'meanwhileBox')).text).toBe('Meanwhile.....');
     expect(await page.evaluate(() => window.__ja2Ui.widgets.filter((w) => w.id.startsWith('meanwhileBox.')).map((w) => w.id))).toEqual([
       'meanwhileBox.ok',
@@ -83,12 +78,11 @@ test.describe('the story and the help screens on /play', () => {
   });
 
   test('a scene seen before offers OK and Skip, and Skip goes on without a scene', async ({ page, request }) => {
-    test.setTimeout(STORY_TIMEOUT_MS);
     await settings(page, { helpHidden: true, meanwhileScenesSeen: 1 << STORY_SCENE });
     const session = await loadSession(request, STORY_MEANWHILE_SAVE);
     await openMap(page, session);
     await compressTime(page);
-    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox', null, { timeout: STORY_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
     expect([(await widget(page, 'meanwhileBox.yes')).text, (await widget(page, 'meanwhileBox.no')).text]).toEqual(['OK', 'Skip']);
     await clickWidget(page, 'meanwhileBox.no');
     await page.waitForFunction(() => window.__ja2Ui.modal === null && window.__ja2Ui.story?.step === null);
@@ -99,11 +93,10 @@ test.describe('the story and the help screens on /play', () => {
     page,
     request,
   }) => {
-    test.setTimeout(STORY_TIMEOUT_MS);
     await settings(page, { helpHidden: true });
     const session = await loadSession(request, STORY_PALACE_SAVE);
     await openGame(page, session, 'tactical');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'credits', null, { timeout: STORY_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'credits');
     expect(await page.evaluate(() => window.__ja2Ui.story?.played)).toEqual(['upstairs', 'ending']);
     const ending = await page.evaluate(() => window.__ja2Ui.video?.sequences.at(-1) ?? null);
     expect(ending?.plan).toMatchObject({ sequence: 'ending', followedBy: 'credits' });
@@ -119,12 +112,11 @@ test.describe('the story and the help screens on /play', () => {
     page,
     request,
   }) => {
-    test.setTimeout(STORY_TIMEOUT_MS);
     const session = await loadSession(request, STORY_MAP_SAVE);
     await page.goto('/play?screen=testPattern');
     await page.evaluate((key) => localStorage.removeItem(key), SETTINGS_KEY);
     await openGame(page, session, 'map', GOLDEN_QUERY);
-    await page.waitForFunction(() => window.__ja2Ui.modal === 'helpScreen', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.modal === 'helpScreen');
     expect(await page.evaluate(() => window.__ja2Ui.help)).toMatchObject({ open: 'map', forced: false, page: 0 });
     expect((await widget(page, 'helpTitle')).text).toBe('Stub map screen');
     expect((await widget(page, 'helpDontShowAgain')).visible).toBe(true);
@@ -138,9 +130,7 @@ test.describe('the story and the help screens on /play', () => {
     await page.waitForFunction(() => window.__ja2Ui.modal === null);
     await page.reload();
     await openGame(page, session, 'map', GOLDEN_QUERY);
-    await page.waitForFunction(() => window.__ja2Ui.map?.ready === true && window.__ja2Ui.map.lagTicks === 0, null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
+    await page.waitForFunction(() => window.__ja2Ui.map?.ready === true && window.__ja2Ui.map.lagTicks === 0);
     await nextFrames(page, 10);
     expect(await page.evaluate(() => window.__ja2Ui.modal)).toBeNull();
     await page.keyboard.press('KeyH');

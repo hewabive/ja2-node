@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { ReloadingSession } from '../../tests/support/session-reload.ts';
 import { STUB_DEALER, STUB_REPAIRMAN, stubCampaignInA10, walkNextToProfile } from '../../tests/support/stub-shops.ts';
@@ -43,13 +43,9 @@ describe('stub dealers in A10', () => {
     );
   });
 
-  it(
-    'buy and sell at the dealer, then a repair at the repairman, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(tradeAndRepair);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('buy and sell at the dealer, then a repair at the repairman, the same across reloads', async () => {
+    await expectReloadsInvisible(tradeAndRepair);
+  });
 });
 
 describe('the shop screen fields of the stub dealer', () => {

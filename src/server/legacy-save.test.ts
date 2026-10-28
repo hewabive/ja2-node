@@ -17,7 +17,6 @@ const LEGACY_VERSION = '0.7.0';
 const STEP_SOUTH = 320;
 const TICKS_BEFORE_MOVE = 200;
 const TICKS_AFTER_MOVE = 200;
-const TEST_TIMEOUT_MS = 120_000;
 const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
 const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
@@ -159,38 +158,30 @@ afterAll(async () => {
 
 describe(`saves written by ${LEGACY_VERSION} on the stub pack`, () => {
   for (const name of SAVE_NAMES) {
-    it(
-      `loads the ${name} save exactly and continues as ${LEGACY_VERSION} did`,
-      async () => {
-        const run = expected[name];
-        if (!run) throw new Error(`no expected run for ${name}`);
-        const session = await saves.open({ load: name, reseed: false });
-        expect(saves.saves.lastLoad(session)?.warnings).toEqual([]);
-        expect(soldiers(session)).toEqual(run.afterLoad);
-        expect(run.afterLoad).toEqual(run.atSave);
-        session.advance({ ticks: TICKS_BEFORE_MOVE });
-        moveSquad(session);
-        session.advance({ ticks: TICKS_AFTER_MOVE });
-        expect(soldiers(session)).toEqual(run.after400);
-        expect(session.sim.tick).toBe(run.tick);
-        const resaved = await saves.saves.save(session, { name: `${name}-again` });
-        expect(resaved).toMatchObject({ ok: true, header: { content: { source: 'stubs', logic: saves.pack.hash } } });
-        const again = await saves.open({ load: `${name}-again`, reseed: false });
-        expect(soldiers(again)).toEqual(run.after400);
-      },
-      TEST_TIMEOUT_MS,
-    );
+    it(`loads the ${name} save exactly and continues as ${LEGACY_VERSION} did`, async () => {
+      const run = expected[name];
+      if (!run) throw new Error(`no expected run for ${name}`);
+      const session = await saves.open({ load: name, reseed: false });
+      expect(saves.saves.lastLoad(session)?.warnings).toEqual([]);
+      expect(soldiers(session)).toEqual(run.afterLoad);
+      expect(run.afterLoad).toEqual(run.atSave);
+      session.advance({ ticks: TICKS_BEFORE_MOVE });
+      moveSquad(session);
+      session.advance({ ticks: TICKS_AFTER_MOVE });
+      expect(soldiers(session)).toEqual(run.after400);
+      expect(session.sim.tick).toBe(run.tick);
+      const resaved = await saves.saves.save(session, { name: `${name}-again` });
+      expect(resaved).toMatchObject({ ok: true, header: { content: { source: 'stubs', logic: saves.pack.hash } } });
+      const again = await saves.open({ load: `${name}-again`, reseed: false });
+      expect(soldiers(again)).toEqual(run.after400);
+    });
   }
 
   for (const name of SAVE_NAMES) {
-    it(
-      `loads the ${name} save with a warning after a stub file it recorded changed`,
-      async () => {
-        const session = await changedStubs.open({ load: name, reseed: false });
-        expect(changedStubs.saves.lastLoad(session)?.warnings).toEqual(['stubPackDiffers']);
-        expect(soldiers(session)).toEqual(expected[name]?.afterLoad);
-      },
-      TEST_TIMEOUT_MS,
-    );
+    it(`loads the ${name} save with a warning after a stub file it recorded changed`, async () => {
+      const session = await changedStubs.open({ load: name, reseed: false });
+      expect(changedStubs.saves.lastLoad(session)?.warnings).toEqual(['stubPackDiffers']);
+      expect(soldiers(session)).toEqual(expected[name]?.afterLoad);
+    });
   }
 });

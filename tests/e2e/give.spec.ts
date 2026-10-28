@@ -50,7 +50,6 @@ interface AdvanceReport {
 }
 
 test('an MCP agent gives the stub NPC a magazine he keeps and a pistol he hands back', async () => {
-  test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });

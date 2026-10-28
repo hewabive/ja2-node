@@ -39,7 +39,7 @@ test('shows the stub sandbox squad and walks the selected merc to a clicked tile
   await page.mouse.click(box.x + box.width / 2 - 200, box.y + box.height / 2 + 60);
   await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toContain(': ok');
   await page.click('[data-speed="8"]');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo), { timeout: 15_000 }).not.toBe(start);
+  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo)).not.toBe(start);
 });
 
 test('runs orders instantly on the server and plays them back at the chosen speed', async ({ page }) => {
@@ -55,7 +55,7 @@ test('runs orders instantly on the server and plays them back at the chosen spee
   await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toContain(': ok');
   await expect(page.locator('#info')).toContainText('instant');
   await page.click('#skip');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo), { timeout: 15_000 }).not.toBe(start);
+  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.selectedGridNo)).not.toBe(start);
 });
 
 test('draws the world in few batches on a tile-centred camera and picks soldiers by their sprite', async ({ page }) => {

@@ -16,10 +16,9 @@ import { Session } from './session.ts';
 const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const SAVES = ['SaveGame01.sav', 'SaveGame02.sav', 'SaveGame07.sav', 'SaveGame10.sav'].map((name) => join(gameRoot, 'SavedGames', name));
-const TIMEOUT_MS = 300_000;
 const SAMPLE_STEP = 4;
 
-describe.skipIf(!ORIGINAL_DATA_DIR)('strategic cursor hints on the original data, client against server', { timeout: TIMEOUT_MS }, () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('strategic cursor hints on the original data, client against server', () => {
   let data: DataVfs;
   let sources: HintSources;
   let client: ClientSide;

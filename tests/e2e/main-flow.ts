@@ -23,9 +23,6 @@ import { clickWidget, nextFrames, openUiPage, widgets } from './ui-capture.ts';
 
 export const MAIN_FLOW_PAGE = '/play?shadowHints=1&drive=manual';
 export const MAIN_FLOW_SETTINGS = { websiteLoadingTimeScale: 0 };
-const LOAD_TIMEOUT_MS = 120_000;
-const HINT_TIMEOUT_MS = 30_000;
-const CURSOR_TIMEOUT_MS = 20_000;
 const HINT_POLL_MS = 500;
 const API_HIRE_CONTRACT_DAYS = 7;
 const MUG_ROWS = 5;
@@ -38,10 +35,8 @@ const AIM_ABOVE_FEET = 15;
 const DESTINATION_COLUMN = 4;
 const FIRST_ROW = 0;
 const MAX_BEGINNING_VIDEOS = 8;
-const HIRE_TIMEOUT_MS = 120_000;
 const SAVE_DESCRIPTION_FIELD = 'description.0';
-const STEP_TIMEOUT_MS = 120_000;
-const MARKER_TIMEOUT_MS = 5_000;
+const MARKER_TIMEOUT_MS = 30_000;
 
 export interface ShadowTally {
   tactical: number;
@@ -66,7 +61,7 @@ async function mapReady(page: Page): Promise<void> {
 }
 
 async function warmTacticalHints(page: Page, request: CommandEnvelope): Promise<void> {
-  await page.waitForFunction(() => window.__ja2Ui.hints?.ready === true, null, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction(() => window.__ja2Ui.hints?.ready === true);
   expect(await page.evaluate(() => window.__ja2Ui.hints?.error ?? null)).toBeNull();
   expect(await page.evaluate(() => window.__ja2Ui.hints?.usable), 'the client rules and engine match the server').toBe(true);
   await page.waitForFunction(
@@ -78,7 +73,7 @@ async function warmTacticalHints(page: Page, request: CommandEnvelope): Promise<
       return hints.stats.local > before;
     },
     request,
-    { polling: HINT_POLL_MS, timeout: LOAD_TIMEOUT_MS },
+    { polling: HINT_POLL_MS },
   );
 }
 
@@ -116,7 +111,6 @@ export class MainFlow {
   constructor(page: Page, game: McpGame) {
     this.page = page;
     this.game = game;
-    page.setDefaultTimeout(STEP_TIMEOUT_MS);
   }
 
   async newGame(): Promise<string> {
@@ -190,7 +184,7 @@ export class MainFlow {
     const popup = (await widgets(page)).find((w) => w.id === 'popupTexts')?.text ?? '';
     await clickWidget(page, 'popupOk');
     await page
-      .waitForFunction(() => window.__ja2Ui.modal === 'messageBox', null, { timeout: HIRE_TIMEOUT_MS })
+      .waitForFunction(() => window.__ja2Ui.modal === 'messageBox')
       .catch(() => {
         throw new Error(`no arrival box after the hire; the popup said "${popup}"`);
       });
@@ -273,7 +267,7 @@ export class MainFlow {
 
   async cursorsInCombat(): Promise<void> {
     const page = this.page;
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.topMessage === 'playerTurn', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.topMessage === 'playerTurn');
     await clickWidget(page, 'teamFaceRegion0');
     const selected = await page.evaluate(() => window.__ja2Ui.tactical?.selected ?? null);
     expect(selected).not.toBeNull();
@@ -300,13 +294,13 @@ export class MainFlow {
     await nextFrames(page, 2);
     const at = await soldierPoint(page, enemy.id);
     await pointAt(page, at.x, at.y - AIM_ABOVE_FEET);
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.uiMode === 'CONFIRM_ACTION_MODE', null, { timeout: CURSOR_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.uiMode === 'CONFIRM_ACTION_MODE');
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.uiCursor)).toMatch(/^ACTION_/);
     expect(await page.evaluate(() => window.__ja2Ui.cursor?.visible)).toBe(true);
     await this.settleTacticalShadow();
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.feedback === null, null, { timeout: CURSOR_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.feedback === null);
     await clickAt(page, at.x, at.y - AIM_ABOVE_FEET);
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'attack', null, { timeout: CURSOR_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'attack');
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1))).toEqual({ type: 'attack', ok: true, reason: null });
     return true;
   }
@@ -363,11 +357,11 @@ export class MainFlow {
     if (!target) throw new Error(`no sector ${sector} on the map`);
     const before = await page.evaluate(() => window.__ja2Ui.map?.hints.stats.local ?? 0);
     await pointAt(page, target.x, target.y);
-    await page.waitForFunction((n) => (window.__ja2Ui.map?.hints.stats.local ?? 0) > n, before, { timeout: HINT_TIMEOUT_MS });
+    await page.waitForFunction((n) => (window.__ja2Ui.map?.hints.stats.local ?? 0) > n, before);
     await clickAt(page, target.x, target.y);
     await page.waitForFunction((s) => window.__ja2Ui.map?.screen?.plotting?.legs.at(-1) === s, sector);
     await clickAt(page, target.x, target.y);
-    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'route', null, { timeout: HINT_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'route');
     expect(await page.evaluate(() => window.__ja2Ui.map?.commands.at(-1))).toEqual({ type: 'route', ok: true, reason: null });
     expect(await page.evaluate(() => window.__ja2Ui.map?.screen?.plotting ?? null)).toBeNull();
     await this.settleMapShadow();

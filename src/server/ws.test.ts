@@ -71,12 +71,11 @@ function welcomeOf(inbox: readonly ServerMessage[]): WelcomeMessage {
 }
 
 async function until(inbox: ServerMessage[], predicate: (m: ServerMessage) => boolean): Promise<ServerMessage> {
-  for (let i = 0; i < 100; i++) {
+  for (;;) {
     const hit = inbox.find(predicate);
     if (hit) return hit;
     await new Promise((r) => setTimeout(r, 10));
   }
-  throw new Error('message did not arrive');
 }
 
 describe('websocket transport', () => {

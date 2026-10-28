@@ -13,7 +13,6 @@ import { createSaveSession } from './save-session.ts';
 const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const SAVE = join(gameRoot, 'SavedGames', 'SaveGame01.sav');
-const TIMEOUT_MS = 300_000;
 const TOWNS_WITH_SECTORS = 12;
 const MINES = 6;
 const SECRETS = new Set(['J9', 'K4', 'D2', 'D15', 'I8', 'N4']);
@@ -31,7 +30,7 @@ function expectConsistentEconomy(s: StrategicView): void {
   for (const sector of s.secretsFound ?? []) expect(SECRETS.has(sector)).toBe(true);
 }
 
-describe.skipIf(!ORIGINAL_DATA_DIR)('map-screen view fields on the original data', { timeout: TIMEOUT_MS }, () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('map-screen view fields on the original data', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
   const exists = (path: string) => data.vfs.stat(path) !== undefined;

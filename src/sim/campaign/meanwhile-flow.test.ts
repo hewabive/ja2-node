@@ -3,7 +3,7 @@ import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../t
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { testProfile } from '../../../tests/support/profiles.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode, reloadPoint } from '../../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode, reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
@@ -89,21 +89,13 @@ function sceneInTactical(mode?: RunMode): CampaignSim {
 }
 
 describe('meanwhile scenes in a campaign', () => {
-  it(
-    'resolves a scene on the map with the played effects: compression stopped and reset, NPC profile side effects, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(sceneOnTheMap);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('resolves a scene on the map with the played effects: compression stopped and reset, NPC profile side effects, the same across reloads', async () => {
+    await expectReloadsInvisible(sceneOnTheMap);
+  });
 
-  it(
-    'resolves a scene in tactical without touching the compression mode or Joe, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(sceneInTactical);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('resolves a scene in tactical without touching the compression mode or Joe, the same across reloads', async () => {
+    await expectReloadsInvisible(sceneInTactical);
+  });
 
   it('waits while a battle prompt is open and refuses compression while a scene tries to start', () => {
     const c = landed(33);

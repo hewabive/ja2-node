@@ -11,7 +11,6 @@ export const RUN_MODES: readonly RunMode[] = ['plain', 'reload'];
 
 const RELOAD_ENV = 'JA2_RELOAD';
 
-export const RELOAD_TEST_TIMEOUT_MS = 120_000;
 const DIFFERENCE_CONTEXT = 300;
 
 export function defaultRunMode(): RunMode | null {

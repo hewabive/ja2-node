@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withQueries } from '../../tests/support/hints.ts';
-import { RELOAD_TEST_TIMEOUT_MS } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString, type Sector, strategicIndex } from '../content/strategic/sector-ids.ts';
@@ -113,7 +112,7 @@ function withHelicopter(c: Campaign, at: string): void {
   setUpHelicopterForPlayer(ctx, parseSectorString(at));
 }
 
-describe('map screen view fields and commands in a stub campaign', { timeout: RELOAD_TEST_TIMEOUT_MS }, () => {
+describe('map screen view fields and commands in a stub campaign', () => {
   it('shows the clock, the mercs, the towns, the mines and the sectors the map screen prints', async () => {
     const c = await landedCampaign(81, 3, ['A10', 'B9', 'B10']);
     const view = c.session.view();

@@ -1,7 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
-import { E2E_MAX_SESSIONS, SAVE_DIR, SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
+import {
+  E2E_EXPECT_TIMEOUT_MS,
+  E2E_MAX_SESSIONS,
+  E2E_SERVER_START_TIMEOUT_MS,
+  E2E_TEST_TIMEOUT_MS,
+  SAVE_DIR,
+  SERVER_PORT,
+  TOKEN,
+  WEB_PORT,
+} from './tests/e2e/env.ts';
 
-const CANVAS_TEST_TIMEOUT_MS = 90_000;
 const LOCAL_WORKERS = 3;
 const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_WITHOUT_HELP = JSON.stringify({ version: 2, helpHidden: true });
@@ -11,7 +19,8 @@ export default defineConfig({
   globalSetup: './tests/e2e/dev-server-stub-pack.ts',
   fullyParallel: false,
   ...(process.env.CI ? {} : { workers: LOCAL_WORKERS }),
-  timeout: CANVAS_TEST_TIMEOUT_MS,
+  timeout: E2E_TEST_TIMEOUT_MS,
+  expect: { timeout: E2E_EXPECT_TIMEOUT_MS },
   reporter: [['list']],
   use: {
     baseURL: `http://127.0.0.1:${WEB_PORT}`,
@@ -26,7 +35,7 @@ export default defineConfig({
     command: 'node tools/dev.ts',
     url: `http://127.0.0.1:${WEB_PORT}/`,
     reuseExistingServer: false,
-    timeout: 60_000,
+    timeout: E2E_SERVER_START_TIMEOUT_MS,
     env: {
       JA2_DATA_DIR: '',
       JA2_PORT: String(SERVER_PORT),

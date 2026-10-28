@@ -20,7 +20,6 @@ const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = process.env.JA2_SAVES_DIR || join(gameRoot, 'SavedGames');
 const nativeSaves = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
-const SCENARIO_TIMEOUT_MS = 180_000;
 const CONTINUE_TICKS = 300;
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () => {
@@ -60,18 +59,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () 
     return loaded;
   }
 
-  it(
-    'saves a new campaign, replays its log and loads it exactly',
-    async () => {
-      const session = await factory('campaign', { seed: 7, campaign: {} });
-      session.advance({ ticks: CONTINUE_TICKS });
-      const loaded = await saveAndReload(session, 'campaign');
-      session.advance({ ticks: CONTINUE_TICKS });
-      loaded.advance({ ticks: CONTINUE_TICKS });
-      expect(snapshotText(sessionSnapshot(loaded)) === snapshotText(sessionSnapshot(session))).toBe(true);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('saves a new campaign, replays its log and loads it exactly', async () => {
+    const session = await factory('campaign', { seed: 7, campaign: {} });
+    session.advance({ ticks: CONTINUE_TICKS });
+    const loaded = await saveAndReload(session, 'campaign');
+    session.advance({ ticks: CONTINUE_TICKS });
+    loaded.advance({ ticks: CONTINUE_TICKS });
+    expect(snapshotText(sessionSnapshot(loaded)) === snapshotText(sessionSnapshot(session))).toBe(true);
+  });
 
   it.skipIf(nativeSaves.length === 0)(
     'continues a native save in ja2-node format: import, save, replay from the native file, load',
@@ -85,6 +80,5 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () 
       loaded.advance({ ticks: CONTINUE_TICKS });
       expect(snapshotText(sessionSnapshot(loaded)) === snapshotText(sessionSnapshot(session))).toBe(true);
     },
-    SCENARIO_TIMEOUT_MS,
   );
 });

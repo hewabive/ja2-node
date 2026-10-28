@@ -5,10 +5,7 @@ import { SAVE_DIR } from './env.ts';
 import { waitWhileLoading, watchLoading } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
-const LOAD_TIMEOUT_MS = 60_000;
-const SAVE_TIMEOUT_MS = 180_000;
 const PLOT_REST_MS = 400;
-const FLIGHT_TIMEOUT_MS = 30_000;
 const HINT_POLL_MS = 500;
 const ASSIGNMENT_TRAIN = 5;
 const TRAIN_TOWN_LINE = 1;
@@ -88,7 +85,6 @@ test.describe('the map screen on the stub map-screen campaign', () => {
   let session = '';
 
   test.beforeAll(async () => {
-    test.setTimeout(SAVE_TIMEOUT_MS);
     save = await writeMapScreenSave(SAVE_DIR);
   });
 
@@ -124,7 +120,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
         return hints.stats.local > before;
       },
       { type: 'canEnterSector', sector: save.sector },
-      { polling: HINT_POLL_MS, timeout: LOAD_TIMEOUT_MS },
+      { polling: HINT_POLL_MS },
     );
     for (const request of [
       { type: 'previewRoute', soldier, to: 'B13', extend: true },
@@ -147,9 +143,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     expect(await lastCommand(page)).toMatchObject({ type: 'route', ok: true });
     expect((await mapHook(page))?.plotting).toBeNull();
     await clickWidget(page, 'compressMore');
-    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.messages.some((m) => m.includes('C13')) === true, null, {
-      timeout: FLIGHT_TIMEOUT_MS,
-    });
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.messages.some((m) => m.includes('C13')) === true);
   });
 
   test('trains militia through the assignment popup and the payment box', async ({ page }) => {
@@ -198,14 +192,10 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickWidget(page, 'compressMore');
     await page.waitForFunction(() => window.__ja2Ui.map?.screen?.rows !== undefined && window.__ja2Ui.map.helicopterPoint() !== null);
     const start = heli;
-    await page.waitForFunction(
-      (from) => {
-        const p = window.__ja2Ui.map?.helicopterPoint();
-        return p !== null && p !== undefined && p.y < from.y;
-      },
-      start,
-      { timeout: FLIGHT_TIMEOUT_MS },
-    );
+    await page.waitForFunction((from) => {
+      const p = window.__ja2Ui.map?.helicopterPoint();
+      return p !== null && p !== undefined && p.y < from.y;
+    }, start);
   });
 
   test('opens the laptop from the map and comes back to it', async ({ page }) => {
@@ -216,7 +206,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     if (await page.evaluate(() => window.__ja2Ui.widgets.some((w) => w.id === 'newMailOk' && w.visible)))
       await clickWidget(page, 'newMailOk');
     await clickWidget(page, 'powerButton');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'map');
     expect((await mapHook(page))?.flow).toBe('strategic');
   });
 
@@ -228,12 +218,10 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await waitWhileLoading(page, () => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical');
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.map ?? null)).toContain('d13');
     await clickWidget(page, 'teamMapScreen');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.screen === 'map');
     expect((await mapHook(page))?.flow).toBe('strategic');
     await clickWidget(page, 'tacticalButton');
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical', null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.driver === 'realtime', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical');
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.driver === 'realtime');
   });
 });

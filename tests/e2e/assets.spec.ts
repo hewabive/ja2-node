@@ -6,7 +6,6 @@ const MAP = 'stubs/world/maps/village.dat';
 const MIN_FILES = 1000;
 
 test('the browser builds its asset source from the manifest and agrees with the server on the rule pack', async ({ page }) => {
-  test.setTimeout(60_000);
   await page.goto('/');
   const result = await page.evaluate(
     async ({ sourceModule, rulesModule, map }) => {

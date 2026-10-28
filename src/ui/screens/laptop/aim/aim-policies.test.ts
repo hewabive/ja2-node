@@ -23,8 +23,6 @@ import {
   stackedTops,
 } from './aim-policies.ts';
 
-const SCREEN_TEST_TIMEOUT_MS = 120_000;
-
 let kit: StubSectorKit;
 let ui: LaptopUiKit;
 
@@ -69,49 +67,41 @@ describe('the A.I.M. policies', () => {
     expect(visits.visit(1)).toBe(true);
   });
 
-  it(
-    'agrees to the policies, opens a section from the index, pages through and keeps the page across a program switch',
-    async () => {
-      const h = await openLaptopHarness(kit, ui);
-      await openWebPage(h, Bookmark.AIM);
-      await clickWidget(h.t, 'policiesLink');
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM_POLICIES);
-      expect(shownWidget(h.t, 'aimPolicyStatementTitle').text).toBe('Statement of policy');
-      expect(shownWidget(h.t, 'aimPolicyStatement1').text).toMatch(/^Policy clause 1\./);
-      expect(findWidget(h.t, 'aimPolicyMenu0')?.visible).toBe(false);
-      await clickWidget(h.t, 'aimPolicyAgreement1');
-      expect(shownWidget(h.t, 'aimPolicyTitle').text).toBe('Statement of policy');
-      expect(shownWidget(h.t, 'aimPolicyTocTitle2').text).toBe('3. Location of engagement');
-      expect(shownWidget(h.t, 'aimPolicyMenu3').visible).toBe(true);
-      await clickWidget(h.t, 'aimPolicyToc2');
-      expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('3. Location of engagement');
-      expect(shownWidget(h.t, 'aimPolicyNumber0').text).toBe('3.1');
-      expect(shownWidget(h.t, 'aimPolicySubNumber2').text).toBe('3.21');
-      expect(findWidget(h.t, 'aimPolicyToc0')?.visible ?? false).toBe(false);
-      await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.NEXT}`);
-      expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('4. Contract extensions');
-      await openProgram(h, 'emailButton');
-      await clickWidget(h.t, 'webButton');
-      await settleLaptop(h.t, 12);
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM_POLICIES);
-      expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('4. Contract extensions');
-      await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.INDEX}`);
-      expect(shownWidget(h.t, 'aimPolicyTocTitle0').text).toBe('1. Definitions');
-      await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.HOME}`);
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM);
-    },
-    SCREEN_TEST_TIMEOUT_MS,
-  );
+  it('agrees to the policies, opens a section from the index, pages through and keeps the page across a program switch', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    await openWebPage(h, Bookmark.AIM);
+    await clickWidget(h.t, 'policiesLink');
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM_POLICIES);
+    expect(shownWidget(h.t, 'aimPolicyStatementTitle').text).toBe('Statement of policy');
+    expect(shownWidget(h.t, 'aimPolicyStatement1').text).toMatch(/^Policy clause 1\./);
+    expect(findWidget(h.t, 'aimPolicyMenu0')?.visible).toBe(false);
+    await clickWidget(h.t, 'aimPolicyAgreement1');
+    expect(shownWidget(h.t, 'aimPolicyTitle').text).toBe('Statement of policy');
+    expect(shownWidget(h.t, 'aimPolicyTocTitle2').text).toBe('3. Location of engagement');
+    expect(shownWidget(h.t, 'aimPolicyMenu3').visible).toBe(true);
+    await clickWidget(h.t, 'aimPolicyToc2');
+    expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('3. Location of engagement');
+    expect(shownWidget(h.t, 'aimPolicyNumber0').text).toBe('3.1');
+    expect(shownWidget(h.t, 'aimPolicySubNumber2').text).toBe('3.21');
+    expect(findWidget(h.t, 'aimPolicyToc0')?.visible ?? false).toBe(false);
+    await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.NEXT}`);
+    expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('4. Contract extensions');
+    await openProgram(h, 'emailButton');
+    await clickWidget(h.t, 'webButton');
+    await settleLaptop(h.t, 12);
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM_POLICIES);
+    expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('4. Contract extensions');
+    await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.INDEX}`);
+    expect(shownWidget(h.t, 'aimPolicyTocTitle0').text).toBe('1. Definitions');
+    await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.HOME}`);
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM);
+  });
 
-  it(
-    'returns to the A.I.M. home page on disagree',
-    async () => {
-      const h = await openLaptopHarness(kit, ui);
-      await openWebPage(h, Bookmark.AIM);
-      await clickWidget(h.t, 'policiesLink');
-      await clickWidget(h.t, 'aimPolicyAgreement0');
-      expect(h.screen.shell.mode).toBe(LaptopMode.AIM);
-    },
-    SCREEN_TEST_TIMEOUT_MS,
-  );
+  it('returns to the A.I.M. home page on disagree', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    await openWebPage(h, Bookmark.AIM);
+    await clickWidget(h.t, 'policiesLink');
+    await clickWidget(h.t, 'aimPolicyAgreement0');
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM);
+  });
 });

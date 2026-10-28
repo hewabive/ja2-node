@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { RELOAD_TEST_TIMEOUT_MS } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { LoadingScreen } from '../content/strategic/loading-screens.ts';
@@ -68,7 +67,7 @@ function routeSquadTo(c: Campaign, name: string): SimEvent[] {
   return events;
 }
 
-describe('strategic HUD events and refusals in a stub campaign', { timeout: RELOAD_TEST_TIMEOUT_MS }, () => {
+describe('strategic HUD events and refusals in a stub campaign', () => {
   it('reports the arrival, draws the town loading screen on entry and refuses with tokens', async () => {
     const c = await landedCampaign(71, ['B13', 'C13', 'D13']);
     const merc = firstMerc(c.session);

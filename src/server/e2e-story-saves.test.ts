@@ -7,14 +7,13 @@ import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import type { SimEvent } from '../sim/events.ts';
 
-const TIMEOUT_MS = 180_000;
 const BLEED_TICKS = 1100;
 const COMPRESS_STEPS = 20;
 const COMPRESS_TICKS = 200;
 
 const types = (events: readonly SimEvent[]) => events.map((e) => e.type);
 
-describe('the stub saves the story e2e loads', { timeout: TIMEOUT_MS }, () => {
+describe('the stub saves the story e2e loads', () => {
   let dir: string;
   let kit: StubSectorKit;
   let saves: SaveKit;
@@ -24,7 +23,7 @@ describe('the stub saves the story e2e loads', { timeout: TIMEOUT_MS }, () => {
     await writeStorySaves(dir);
     kit = await loadStubSectorKit();
     saves = await createSaveKit(kit, { dir });
-  }, TIMEOUT_MS);
+  });
 
   afterAll(async () => {
     await saves.dispose();

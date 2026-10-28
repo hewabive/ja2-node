@@ -34,7 +34,6 @@ const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
 const AID_SLICE_TICKS = 2000;
 const AID_SLICES = 40;
-const SLOW_SCENARIO_MS = 60_000;
 
 interface Squad {
   readonly session: CampaignSession;
@@ -95,7 +94,7 @@ function events(report: { readonly events: readonly SimEvent[] }, type: string):
   return report.events.filter((e) => e.type === type);
 }
 
-describe('inventory commands in a stub campaign', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('inventory commands in a stub campaign', () => {
   it('buys a rifle and magazines from the dealer, puts the rifle into the hand, reloads it, fires it, unloads and reloads by hand', async () => {
     const squad = await inA10(4);
     const merc = squad.mercs[0] as number;

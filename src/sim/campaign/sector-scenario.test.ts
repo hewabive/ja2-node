@@ -25,8 +25,6 @@ afterAll(async () => {
 const B9 = { x: 9, y: 2, z: 0 };
 const COLS = 160;
 const MAX_ROUNDS = 150;
-const RELOAD_SCENARIO_TIMEOUT_MS = 240_000;
-const SCENARIO_TIMEOUT_MS = 60_000;
 
 type Driver = (c: CampaignSim, until: () => boolean, budget?: number) => void;
 
@@ -176,28 +174,20 @@ function scenario(drive: Driver, mode: RunMode): ScenarioResult {
 }
 
 describe('the stub scenario', () => {
-  it(
-    'routes A9 to B9, wins the battle, leaves and finds B9 as it was, the same under both drivers',
-    () => {
-      const a = scenario(instant, 'plain');
-      expect(a.enemiesLeft).toBe(0);
-      expect(a.corpsesAfter).toBe(a.corpsesBefore);
-      expect(a.corpsesBefore).toBeGreaterThan(0);
-      expect(a.itemsAfter).toBe(a.itemsBefore);
-      expect(c9Key()).toBe('9,2,0');
-      const b = scenario(manual, 'plain');
-      expect(b.digest).toBe(a.digest);
-    },
-    SCENARIO_TIMEOUT_MS,
-  );
+  it('routes A9 to B9, wins the battle, leaves and finds B9 as it was, the same under both drivers', () => {
+    const a = scenario(instant, 'plain');
+    expect(a.enemiesLeft).toBe(0);
+    expect(a.corpsesAfter).toBe(a.corpsesBefore);
+    expect(a.corpsesBefore).toBeGreaterThan(0);
+    expect(a.itemsAfter).toBe(a.itemsBefore);
+    expect(c9Key()).toBe('9,2,0');
+    const b = scenario(manual, 'plain');
+    expect(b.digest).toBe(a.digest);
+  });
 
-  it(
-    'plays the same scenario when the campaign is saved and restored after every input',
-    async () => {
-      await expectReloadsInvisible((mode) => scenario(instant, mode).c);
-    },
-    RELOAD_SCENARIO_TIMEOUT_MS,
-  );
+  it('plays the same scenario when the campaign is saved and restored after every input', async () => {
+    await expectReloadsInvisible((mode) => scenario(instant, mode).c);
+  });
 });
 
 function c9Key(): string {

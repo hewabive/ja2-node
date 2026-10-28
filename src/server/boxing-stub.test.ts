@@ -196,14 +196,8 @@ async function boxingMatch(mode?: RunMode): Promise<CampaignSession> {
   return session;
 }
 
-const BOXING_TIMEOUT_MS = 60_000;
-
 describe('a boxing match at the stub club', () => {
-  it(
-    'is bet on through the requestor, fought bare-handed with attack and closed by the owner, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(boxingMatch);
-    },
-    BOXING_TIMEOUT_MS,
-  );
+  it('is bet on through the requestor, fought bare-handed with attack and closed by the owner, the same across reloads', async () => {
+    await expectReloadsInvisible(boxingMatch);
+  });
 });

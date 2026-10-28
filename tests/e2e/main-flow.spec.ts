@@ -5,7 +5,6 @@ import { MAIN_FLOW_SETTINGS, MainFlow } from './main-flow.ts';
 import { flowStorage, seedNewCampaigns } from './play-flow.ts';
 
 const SEED = 1414;
-const FLOW_TIMEOUT_MS = 900_000;
 const CANVAS_HIRE = 'Marlow';
 const API_HIRES = 3;
 const ROUTE_TO = 'B9';
@@ -19,7 +18,6 @@ test('the main flow on /play with the shadow mode on: a new game, an A.I.M. hire
   page,
   request,
 }) => {
-  test.setTimeout(FLOW_TIMEOUT_MS);
   await seedNewCampaigns(page, SEED);
   const game = await McpGame.connect(SERVER, TOKEN);
   const flow = new MainFlow(page, game);

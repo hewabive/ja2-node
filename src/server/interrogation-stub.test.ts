@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -29,7 +29,6 @@ afterAll(async () => {
 });
 
 const N7_MAP = 'stubs/world/maps/n7.dat';
-const SLOW_SCENARIO_MS = 30_000;
 const INTERROGATION_GRIDNOS = [7756, 7757];
 
 async function capturedTwice(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
@@ -125,14 +124,10 @@ async function answeredYes(mode?: RunMode): Promise<CampaignSession> {
   return session;
 }
 
-describe('the interrogation in the stub prison yard', { timeout: SLOW_SCENARIO_MS }, () => {
-  it(
-    'loads N7 with the captives, asks the lie question and leaves the captives free on a squad, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(answeredYes);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+describe('the interrogation in the stub prison yard', () => {
+  it('loads N7 with the captives, asks the lie question and leaves the captives free on a squad, the same across reloads', async () => {
+    await expectReloadsInvisible(answeredYes);
+  });
 
   it('runs the liar through the skill check and ends the scene either way', async () => {
     const { session, live } = await untilThePrompt(52);

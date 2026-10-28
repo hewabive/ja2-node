@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -94,9 +94,7 @@ function walkUpAndTalk(session: CampaignSession, live: Session, merc: number) {
   return session.view().conversation ?? null;
 }
 
-const SLOW_SCENARIO_MS = 30_000;
-
-describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('the stub NPC in A10', () => {
   it('talks: initial quote, approaches, a quest, a scripted walk and a tile trigger', async () => {
     const { session, live } = await inA10(5);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
@@ -297,35 +295,27 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.view().conversation?.lastQuotes.map((q) => q.quote)).toEqual([22]);
   });
 
-  it(
-    'continues exactly when the session is saved and restored after every input',
-    async () => {
-      await expectReloadsInvisible(async (mode) => {
-        const { session, live } = await inA10(9, mode);
-        const merc = session.view().strategic?.mercs[0]?.id ?? 0;
-        walkUpAndTalk(session, live, merc);
-        talkThrough(session, live, { type: 'approach', kind: 'direct' });
-        talkThrough(session, live, { type: 'approach', kind: 'recruit' });
-        live.advance({ ticks: 10 });
-        talkThrough(session, live, { type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
-        talkThrough(session, live, { type: 'approach', kind: 'friendly' });
-        session.dispatch({ type: 'approach', kind: 'friendly' });
-        live.advance({ idle: true });
-        session.dispatch({ type: 'closeTalk' });
-        live.advance({ ticks: 200 });
-        return session;
-      });
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('continues exactly when the session is saved and restored after every input', async () => {
+    await expectReloadsInvisible(async (mode) => {
+      const { session, live } = await inA10(9, mode);
+      const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+      walkUpAndTalk(session, live, merc);
+      talkThrough(session, live, { type: 'approach', kind: 'direct' });
+      talkThrough(session, live, { type: 'approach', kind: 'recruit' });
+      live.advance({ ticks: 10 });
+      talkThrough(session, live, { type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
+      talkThrough(session, live, { type: 'approach', kind: 'friendly' });
+      session.dispatch({ type: 'approach', kind: 'friendly' });
+      live.advance({ idle: true });
+      session.dispatch({ type: 'closeTalk' });
+      live.advance({ ticks: 200 });
+      return session;
+    });
+  });
 
-  it(
-    'lets an unnamed civilian bark a civilian quote instead of opening a panel, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(civilianBark);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+  it('lets an unnamed civilian bark a civilian quote instead of opening a panel, the same across reloads', async () => {
+    await expectReloadsInvisible(civilianBark);
+  });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {
     const { session, live } = await inA10(7);

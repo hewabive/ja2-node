@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -28,7 +28,6 @@ afterAll(async () => {
 
 const BASEMENT = { x: 3, y: 16, z: 1 } as const;
 const PALACE_MAPS = ['stubs/world/maps/p3.dat', 'stubs/world/maps/p3_b1.dat'];
-const SLOW_SCENARIO_MS = 30_000;
 
 async function inThePalaceBasement(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -68,14 +67,10 @@ function killTheQueen(session: CampaignSession): void {
 
 const types = (events: readonly SimEvent[]) => events.map((e) => e.type);
 
-describe('the end of the campaign in the stub palace', { timeout: SLOW_SCENARIO_MS }, () => {
-  it(
-    'kills the Queen in the basement, moves the squad upstairs, runs Derek and Oliver and ends the campaign, the same across reloads',
-    async () => {
-      await expectReloadsInvisible(winTheCampaign);
-    },
-    RELOAD_TEST_TIMEOUT_MS,
-  );
+describe('the end of the campaign in the stub palace', () => {
+  it('kills the Queen in the basement, moves the squad upstairs, runs Derek and Oliver and ends the campaign, the same across reloads', async () => {
+    await expectReloadsInvisible(winTheCampaign);
+  });
 
   it('defers the ending while the creature quest runs and wins once the creature queen dies', async () => {
     const { session, live } = await inThePalaceBasement(42);

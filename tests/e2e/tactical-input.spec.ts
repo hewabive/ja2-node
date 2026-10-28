@@ -13,7 +13,6 @@ const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const EDGE_INSET = 4;
 const SETTLE_FRAMES = 6;
-const PLAYBACK_TIMEOUT_MS = 30_000;
 
 async function newSession(request: APIRequestContext, data: Record<string, unknown>): Promise<string> {
   const created = (await (await request.post('/api/sessions', { data })).json()) as { session: string };
@@ -22,7 +21,7 @@ async function newSession(request: APIRequestContext, data: Record<string, unkno
 
 async function openTactical(page: Page, session: string): Promise<void> {
   await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual`);
-  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: 60_000 });
+  await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
   await nextFrames(page, 4);
@@ -90,7 +89,7 @@ test.describe('the tactical input on the stub sandbox', () => {
     await clickHere(page);
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'move', ok: true, reason: null });
     await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
-    await expect.poll(() => soldierGridNo(page, 0), { timeout: PLAYBACK_TIMEOUT_MS }).toBe(tile);
+    await expect.poll(() => soldierGridNo(page, 0)).toBe(tile);
 
     await page.keyboard.press('c');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'stance', ok: true, reason: null });
@@ -116,7 +115,7 @@ test.describe('the door menu on the stub sandbox', () => {
   test('opens the door menu when the merc reaches the locked door and examines it', async ({ page }) => {
     await openTactical(page, session);
     await order(page, { type: 'door', soldier: 1, gridNo: LOCKED_DOOR, action: 'open' });
-    await expect.poll(() => field(page, 'doorMenuOpen'), { timeout: PLAYBACK_TIMEOUT_MS }).toBe(true);
+    await expect.poll(() => field(page, 'doorMenuOpen')).toBe(true);
     expect(await field(page, 'uiMode')).toBe('OPENDOOR_MENU_MODE');
     await clickWidget(page, 'doorExamine');
     await expect.poll(() => field(page, 'doorMenuOpen')).toBe(false);
@@ -159,7 +158,7 @@ test.describe('the tactical input in a stub battle', () => {
     const at = await page.evaluate((id) => window.__ja2Ui.tactical?.soldierScreen(id) ?? null, enemy.id);
     if (!at) throw new Error('no screen position for the enemy');
     await pointAt(page, at.x, at.y - 15);
-    await expect.poll(() => field(page, 'uiMode'), { timeout: 10_000 }).toBe('CONFIRM_ACTION_MODE');
+    await expect.poll(() => field(page, 'uiMode')).toBe('CONFIRM_ACTION_MODE');
     await expect.poll(() => field(page, 'feedback')).toBeNull();
     await clickHere(page);
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'attack', ok: true, reason: null });
@@ -193,9 +192,9 @@ test.describe('the sector exit dialog in a stub campaign', () => {
     await nextFrames(page, 2);
     const logical = await page.evaluate(() => window.__ja2Ui.logical);
     await pointAt(page, logical.width - EDGE_INSET, Math.floor(logical.height / 3));
-    await expect.poll(() => field(page, 'uiCursor'), { timeout: 10_000 }).toMatch(/EXIT_EAST/);
+    await expect.poll(() => field(page, 'uiCursor')).toMatch(/EXIT_EAST/);
     await clickHere(page);
-    await expect.poll(() => field(page, 'exitDialogOpen'), { timeout: 10_000 }).toBe(true);
+    await expect.poll(() => field(page, 'exitDialogOpen')).toBe(true);
     await clickWidget(page, 'exitOk');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'exitSector', ok: true, reason: null });
   });

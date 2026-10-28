@@ -63,7 +63,6 @@ interface AdvanceReport {
 test('an MCP agent walks a stub squad to A10, hears a villager and talks to the stub NPC, then the browser talks again', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
   });

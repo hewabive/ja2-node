@@ -4,14 +4,12 @@ import { nextFrames } from '../e2e/ui-capture.ts';
 import { expect, test } from './fixture.ts';
 
 const SAMPLED_FRAMES = 300;
-const SAMPLE_TIMEOUT_MS = 300_000;
 const FULL_HD = { width: 1920, height: 1080 };
 const SANDBOX_SEED = 1;
 
 test.use({ viewport: FULL_HD });
 
 test('measures the frame time of the A9 sandbox on /play at 1920×1080 in real time (logged)', async ({ page, request }) => {
-  test.setTimeout(SAMPLE_TIMEOUT_MS * 2);
   const session = ((await (await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } })).json()) as { session: string }).session;
   try {
     watchLoading(page);
@@ -24,7 +22,7 @@ test('measures the frame time of the A9 sandbox on /play at 1920×1080 in real t
       window.__ja2Ui.tactical?.resetTimes();
       return { at: performance.now(), frames: window.__ja2Ui.frameCount };
     });
-    await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES, { timeout: SAMPLE_TIMEOUT_MS });
+    await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES);
     const measured = await page.evaluate(
       (from) => ({
         meanIntervalMs: (performance.now() - from.at) / (window.__ja2Ui.frameCount - from.frames),

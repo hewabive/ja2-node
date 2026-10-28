@@ -22,7 +22,6 @@ import type { SessionSnapshot } from './session-snapshot.ts';
 
 const STEP_SOUTH = 160 * 2;
 const SANDBOX_TICKS = 300;
-const TEST_TIMEOUT_MS = 120_000;
 const PLAYER_SEED = 4242;
 
 let kit: StubSectorKit;
@@ -102,235 +101,207 @@ function preDraws(sim: SessionSim, n: number): number[] {
 }
 
 describe('saves and loads on the stub pack', () => {
-  it(
-    'saves a sandbox, lists it and loads it exactly and with a reseed',
-    async () => {
-      await withKit(async (k) => {
-        const session = await k.open({ seed: 5 });
-        session.advance({ ticks: SANDBOX_TICKS });
-        walk(session);
-        const saved = await k.saves.save(session, { description: 'after the walk' });
-        expect(saved).toMatchObject({ ok: true, kind: 'player' });
-        if (!saved.ok) return;
-        expect(saved.name).toMatch(/^2026-10-18t12-00-0\dz-after-the-walk$/);
-        expect(saved.header).toMatchObject({ description: 'after the walk', session: 'sandbox', sector: null, flow: 'tactical' });
-        expect((await k.saves.list()).map((s) => s.name)).toEqual([saved.name]);
+  it('saves a sandbox, lists it and loads it exactly and with a reseed', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 5 });
+      session.advance({ ticks: SANDBOX_TICKS });
+      walk(session);
+      const saved = await k.saves.save(session, { description: 'after the walk' });
+      expect(saved).toMatchObject({ ok: true, kind: 'player' });
+      if (!saved.ok) return;
+      expect(saved.name).toMatch(/^2026-10-18t12-00-0\dz-after-the-walk$/);
+      expect(saved.header).toMatchObject({ description: 'after the walk', session: 'sandbox', sector: null, flow: 'tactical' });
+      expect((await k.saves.list()).map((s) => s.name)).toEqual([saved.name]);
 
-        const exact = await k.open({ load: saved.name, reseed: false });
-        expect(k.saves.lastLoad(exact)).toMatchObject({ name: saved.name, seed: null, warnings: [] });
-        expect(text(exact)).toBe(text(session));
-        session.advance({ ticks: SANDBOX_TICKS });
-        exact.advance({ ticks: SANDBOX_TICKS });
-        expect(text(exact)).toBe(text(session));
+      const exact = await k.open({ load: saved.name, reseed: false });
+      expect(k.saves.lastLoad(exact)).toMatchObject({ name: saved.name, seed: null, warnings: [] });
+      expect(text(exact)).toBe(text(session));
+      session.advance({ ticks: SANDBOX_TICKS });
+      exact.advance({ ticks: SANDBOX_TICKS });
+      expect(text(exact)).toBe(text(session));
 
-        const player = await k.open({ load: saved.name });
-        expect(k.saves.lastLoad(player)?.seed).toBe(PLAYER_SEED);
-        const manual = await k.open({ load: saved.name, reseed: false });
-        reseedSessionSim(manual.sim, PLAYER_SEED);
-        expect(text(player)).toBe(text(manual));
-        expect(player.log.entries().map((e) => e.kind)).toEqual(['reseed']);
-        expect(await k.replay(saved.name)).toMatchObject({ equal: true, difference: null });
+      const player = await k.open({ load: saved.name });
+      expect(k.saves.lastLoad(player)?.seed).toBe(PLAYER_SEED);
+      const manual = await k.open({ load: saved.name, reseed: false });
+      reseedSessionSim(manual.sim, PLAYER_SEED);
+      expect(text(player)).toBe(text(manual));
+      expect(player.log.entries().map((e) => e.kind)).toEqual(['reseed']);
+      expect(await k.replay(saved.name)).toMatchObject({ equal: true, difference: null });
+    });
+  });
+
+  it('repeats the saved PreRandom ring after a player load until it is used up', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 6 });
+      session.advance({ ticks: SANDBOX_TICKS });
+      expect(await k.saves.save(session, { name: 'ring' })).toMatchObject({ ok: true });
+      const exact = await k.open({ load: 'ring', reseed: false });
+      const player = await k.open({ load: 'ring' });
+      const exactDraws = preDraws(exact.sim, PRE_RANDOM_RING_SIZE * 2);
+      const playerDraws = preDraws(player.sim, PRE_RANDOM_RING_SIZE * 2);
+      expect(playerDraws.slice(0, PRE_RANDOM_RING_SIZE)).toEqual(exactDraws.slice(0, PRE_RANDOM_RING_SIZE));
+      expect(playerDraws.slice(PRE_RANDOM_RING_SIZE)).not.toEqual(exactDraws.slice(PRE_RANDOM_RING_SIZE));
+    });
+  });
+
+  it('saves a landed campaign, loads it in place and replays both logs', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 9, campaign: {} });
+      expect(session.sim).toBeInstanceOf(CampaignSession);
+      walk(session);
+      const saved = await k.saves.save(session, { name: 'landed' });
+      expect(saved).toMatchObject({
+        ok: true,
+        name: 'landed',
+        header: { session: 'campaign', sector: 'A9', options: { saveMode: 'anywhere' } },
       });
-    },
-    TEST_TIMEOUT_MS,
-  );
+      expect(await k.replay('landed')).toMatchObject({ equal: true });
+      const before = text(session);
+      walk(session);
+      const messages: string[] = [];
+      session.subscribe((m) => messages.push(m.t));
+      const loaded = await k.saves.loadInto(session, 'landed', false);
+      expect(loaded).toMatchObject({ name: 'landed', seed: null });
+      expect(messages).toEqual(['welcome', 'welcome']);
+      expect(text(session)).toBe(before);
+      const report = session.advance({ ticks: 20 });
+      expect(report.events.filter((e) => (e as { type: string }).type === 'gameLoaded')).toEqual([
+        { type: 'gameLoaded', name: 'landed', seed: null, tick: expect.any(Number) },
+      ]);
+      walk(session);
+      expect(await k.saves.save(session, { name: 'again' })).toMatchObject({ ok: true });
+      const log = decodeInputLog((await k.store.readLog('again')) ?? new Uint8Array());
+      expect(log.origin).toMatchObject({ kind: 'load', name: 'landed' });
+      expect(await k.replay('again')).toMatchObject({ equal: true });
+    });
+  });
 
-  it(
-    'repeats the saved PreRandom ring after a player load until it is used up',
-    async () => {
-      await withKit(async (k) => {
-        const session = await k.open({ seed: 6 });
-        session.advance({ ticks: SANDBOX_TICKS });
-        expect(await k.saves.save(session, { name: 'ring' })).toMatchObject({ ok: true });
-        const exact = await k.open({ load: 'ring', reseed: false });
-        const player = await k.open({ load: 'ring' });
-        const exactDraws = preDraws(exact.sim, PRE_RANDOM_RING_SIZE * 2);
-        const playerDraws = preDraws(player.sim, PRE_RANDOM_RING_SIZE * 2);
-        expect(playerDraws.slice(0, PRE_RANDOM_RING_SIZE)).toEqual(exactDraws.slice(0, PRE_RANDOM_RING_SIZE));
-        expect(playerDraws.slice(PRE_RANDOM_RING_SIZE)).not.toEqual(exactDraws.slice(PRE_RANDOM_RING_SIZE));
-      });
-    },
-    TEST_TIMEOUT_MS,
-  );
-
-  it(
-    'saves a landed campaign, loads it in place and replays both logs',
-    async () => {
-      await withKit(async (k) => {
-        const session = await k.open({ seed: 9, campaign: {} });
-        expect(session.sim).toBeInstanceOf(CampaignSession);
-        walk(session);
-        const saved = await k.saves.save(session, { name: 'landed' });
-        expect(saved).toMatchObject({
-          ok: true,
-          name: 'landed',
-          header: { session: 'campaign', sector: 'A9', options: { saveMode: 'anywhere' } },
-        });
-        expect(await k.replay('landed')).toMatchObject({ equal: true });
-        const before = text(session);
-        walk(session);
-        const messages: string[] = [];
-        session.subscribe((m) => messages.push(m.t));
-        const loaded = await k.saves.loadInto(session, 'landed', false);
-        expect(loaded).toMatchObject({ name: 'landed', seed: null });
-        expect(messages).toEqual(['welcome', 'welcome']);
-        expect(text(session)).toBe(before);
-        const report = session.advance({ ticks: 20 });
-        expect(report.events.filter((e) => (e as { type: string }).type === 'gameLoaded')).toEqual([
-          { type: 'gameLoaded', name: 'landed', seed: null, tick: expect.any(Number) },
-        ]);
-        walk(session);
-        expect(await k.saves.save(session, { name: 'again' })).toMatchObject({ ok: true });
-        const log = decodeInputLog((await k.store.readLog('again')) ?? new Uint8Array());
-        expect(log.origin).toMatchObject({ kind: 'load', name: 'landed' });
-        expect(await k.replay('again')).toMatchObject({ equal: true });
-      });
-    },
-    TEST_TIMEOUT_MS,
-  );
-
-  it(
-    'autosaves into Auto01 and Auto02 when endTurn is accepted and combat goes on',
-    async () => {
-      await withKit(async (k) => {
-        const session = await battleSandbox(k);
-        expect(ourTurn(session)).toBe(true);
-        const before = text(session);
-        const tick = session.sim.tick;
-        expect(session.dispatch({ type: 'endTurn' })).toMatchObject({ ok: true });
-        expect(session.dispatch({ type: 'endTurn' })).toMatchObject({ ok: false });
+  it('autosaves into Auto01 and Auto02 when endTurn is accepted and combat goes on', async () => {
+    await withKit(async (k) => {
+      const session = await battleSandbox(k);
+      expect(ourTurn(session)).toBe(true);
+      const before = text(session);
+      const tick = session.sim.tick;
+      expect(session.dispatch({ type: 'endTurn' })).toMatchObject({ ok: true });
+      expect(session.dispatch({ type: 'endTurn' })).toMatchObject({ ok: false });
+      await k.saves.flush();
+      expect((await k.saves.list()).map((s) => s.name)).toEqual(['Auto01']);
+      const auto = await storedFile(k, 'Auto01');
+      expect(auto.header).toMatchObject({ kind: 'auto', description: 'Auto01', tick });
+      expect(snapshotText({ session: auto.session.kind, preparedMaps: auto.session.preparedMaps, sim: auto.sim } as SessionSnapshot)).toBe(
+        before,
+      );
+      expect(await k.replay('Auto01')).toMatchObject({ equal: true });
+      const events: SimEvent[] = [];
+      for (const name of ['Auto02', 'Auto01']) {
+        events.push(...session.advance({ idle: true }).events);
+        if (!ourTurn(session)) break;
+        expect(session.dispatch({ type: 'endTurn' }).ok).toBe(true);
         await k.saves.flush();
-        expect((await k.saves.list()).map((s) => s.name)).toEqual(['Auto01']);
-        const auto = await storedFile(k, 'Auto01');
-        expect(auto.header).toMatchObject({ kind: 'auto', description: 'Auto01', tick });
-        expect(
-          snapshotText({ session: auto.session.kind, preparedMaps: auto.session.preparedMaps, sim: auto.sim } as SessionSnapshot),
-        ).toBe(before);
-        expect(await k.replay('Auto01')).toMatchObject({ equal: true });
-        const events: SimEvent[] = [];
-        for (const name of ['Auto02', 'Auto01']) {
-          events.push(...session.advance({ idle: true }).events);
-          if (!ourTurn(session)) break;
-          expect(session.dispatch({ type: 'endTurn' }).ok).toBe(true);
-          await k.saves.flush();
-          expect((await storedFile(k, name)).header.tick).toBe(session.log.entries().at(-1)?.tick);
-        }
-        expect(events.some((e) => (e as { type: string }).type === 'gameSaved')).toBe(false);
-        expect((await k.saves.list()).map((s) => s.name).sort()).toEqual(['Auto01', 'Auto02']);
-        expect((await storedFile(k, 'Auto01')).header.tick).toBeGreaterThan((await storedFile(k, 'Auto02')).header.tick);
-      });
-    },
-    TEST_TIMEOUT_MS,
-  );
+        expect((await storedFile(k, name)).header.tick).toBe(session.log.entries().at(-1)?.tick);
+      }
+      expect(events.some((e) => (e as { type: string }).type === 'gameSaved')).toBe(false);
+      expect((await k.saves.list()).map((s) => s.name).sort()).toEqual(['Auto01', 'Auto02']);
+      expect((await storedFile(k, 'Auto01')).header.tick).toBeGreaterThan((await storedFile(k, 'Auto02')).header.tick);
+    });
+  });
 
-  it(
-    'refuses another source and newer versions, warns about another stub pack, text and engine',
-    async () => {
-      await withKit(async (k) => {
+  it('refuses another source and newer versions, warns about another stub pack, text and engine', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 5 });
+      session.advance({ ticks: 50 });
+      expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true });
+      await rewrite(k, 'base', 'logic', withLogic('x'));
+      await rewrite(k, 'base', 'u0b', withLogic(k.pack.allLayersHash));
+      await rewrite(k, 'base', 'source', (f) => ({
+        ...f,
+        header: { ...f.header, content: { ...f.header.content, source: 'original' } },
+      }));
+      const legacyFiles: ContentFileEntry[] = [
+        ['tables/tiles.json', 'f'],
+        ['npcdata/199.npc', 'm'],
+        ['stubs/world/maps/village.dat', 'f'],
+      ];
+      const legacyHash = await k.legacy.logicHash(legacyFiles);
+      await writeVersionOne(k, 'base', 'version1', legacyFiles, legacyHash);
+      await writeVersionOne(k, 'base', 'files', [...legacyFiles, ['stubs/world/maps/a9.dat', 'f']], legacyHash);
+      await rewrite(k, 'base', 'newer', (f) => ({ ...f, version: SAVE_VERSION + 1 }));
+      await rewrite(k, 'base', 'text', (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, text: 'other' } } }));
+      await rewrite(k, 'base', 'engine', (f) => ({ ...f, header: { ...f.header, engine: { version: '9.9.9', commit: 'zzz' } } }));
+      expect(await loadProblem(k, 'source')).toBe('contentMismatch');
+      expect(await loadProblem(k, 'newer')).toBe('versionTooNew');
+      expect(await loadProblem(k, 'missing')).toBe('notFound');
+      expect(await loadWarnings(k, 'logic')).toEqual(['stubPackDiffers']);
+      expect(await loadWarnings(k, 'files')).toEqual(['stubPackDiffers']);
+      expect(await loadWarnings(k, 'u0b')).toEqual([]);
+      expect(await loadWarnings(k, 'version1')).toEqual([]);
+      expect(await loadWarnings(k, 'text')).toEqual(['dataVersionDiffers']);
+      expect(await loadWarnings(k, 'engine')).toEqual(['engineDiffers']);
+      const listed = await k.saves.list();
+      expect(listed.find((s) => s.name === 'newer')).toMatchObject({ compatible: false, problems: ['versionTooNew'] });
+      expect(listed.find((s) => s.name === 'source')).toMatchObject({ compatible: false, problems: ['contentMismatch'] });
+      expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: true, problems: [], warnings: ['stubPackDiffers'] });
+      expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [], warnings: [] });
+      expect(listed.find((s) => s.name === 'files')).toMatchObject({ compatible: true, problems: [], warnings: [] });
+      await expect(k.saves.loadInto(session, '../base')).rejects.toMatchObject({ problem: 'invalidName' });
+    });
+  });
+
+  it('refuses other game data on the original data, but takes a save with the identity U0b wrote', async () => {
+    await withKit(
+      async (k) => {
         const session = await k.open({ seed: 5 });
         session.advance({ ticks: 50 });
-        expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true });
+        expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true, header: { content: { source: 'original' } } });
         await rewrite(k, 'base', 'logic', withLogic('x'));
         await rewrite(k, 'base', 'u0b', withLogic(k.pack.allLayersHash));
-        await rewrite(k, 'base', 'source', (f) => ({
-          ...f,
-          header: { ...f.header, content: { ...f.header.content, source: 'original' } },
-        }));
-        const legacyFiles: ContentFileEntry[] = [
-          ['tables/tiles.json', 'f'],
-          ['npcdata/199.npc', 'm'],
-          ['stubs/world/maps/village.dat', 'f'],
-        ];
-        const legacyHash = await k.legacy.logicHash(legacyFiles);
-        await writeVersionOne(k, 'base', 'version1', legacyFiles, legacyHash);
-        await writeVersionOne(k, 'base', 'files', [...legacyFiles, ['stubs/world/maps/a9.dat', 'f']], legacyHash);
-        await rewrite(k, 'base', 'newer', (f) => ({ ...f, version: SAVE_VERSION + 1 }));
-        await rewrite(k, 'base', 'text', (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, text: 'other' } } }));
-        await rewrite(k, 'base', 'engine', (f) => ({ ...f, header: { ...f.header, engine: { version: '9.9.9', commit: 'zzz' } } }));
-        expect(await loadProblem(k, 'source')).toBe('contentMismatch');
-        expect(await loadProblem(k, 'newer')).toBe('versionTooNew');
-        expect(await loadProblem(k, 'missing')).toBe('notFound');
-        expect(await loadWarnings(k, 'logic')).toEqual(['stubPackDiffers']);
-        expect(await loadWarnings(k, 'files')).toEqual(['stubPackDiffers']);
+        expect(await loadProblem(k, 'logic')).toBe('contentMismatch');
         expect(await loadWarnings(k, 'u0b')).toEqual([]);
-        expect(await loadWarnings(k, 'version1')).toEqual([]);
-        expect(await loadWarnings(k, 'text')).toEqual(['dataVersionDiffers']);
-        expect(await loadWarnings(k, 'engine')).toEqual(['engineDiffers']);
+        expect(await loadWarnings(k, 'base')).toEqual([]);
         const listed = await k.saves.list();
-        expect(listed.find((s) => s.name === 'newer')).toMatchObject({ compatible: false, problems: ['versionTooNew'] });
-        expect(listed.find((s) => s.name === 'source')).toMatchObject({ compatible: false, problems: ['contentMismatch'] });
-        expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: true, problems: [], warnings: ['stubPackDiffers'] });
-        expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [], warnings: [] });
-        expect(listed.find((s) => s.name === 'files')).toMatchObject({ compatible: true, problems: [], warnings: [] });
-        await expect(k.saves.loadInto(session, '../base')).rejects.toMatchObject({ problem: 'invalidName' });
-      });
-    },
-    TEST_TIMEOUT_MS,
-  );
+        expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: false, problems: ['contentMismatch'], warnings: [] });
+        expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [] });
+      },
+      { source: 'original' },
+    );
+  });
 
-  it(
-    'refuses other game data on the original data, but takes a save with the identity U0b wrote',
-    async () => {
+  it('validates uploads, hands out downloads and lists native saves read only', async () => {
+    const nativeDir = await mkdtemp(join(tmpdir(), 'ja2-native-'));
+    await writeFile(join(nativeDir, 'SaveGame05.sav'), syntheticSaveHeaderBytes('Synthetic native'));
+    try {
       await withKit(
         async (k) => {
           const session = await k.open({ seed: 5 });
-          session.advance({ ticks: 50 });
-          expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true, header: { content: { source: 'original' } } });
-          await rewrite(k, 'base', 'logic', withLogic('x'));
-          await rewrite(k, 'base', 'u0b', withLogic(k.pack.allLayersHash));
-          expect(await loadProblem(k, 'logic')).toBe('contentMismatch');
-          expect(await loadWarnings(k, 'u0b')).toEqual([]);
-          expect(await loadWarnings(k, 'base')).toEqual([]);
+          expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true });
+          const bytes = await k.saves.download('base');
+          expect(await k.saves.upload('copy', bytes)).toMatchObject({ ok: true, name: 'copy', warnings: [] });
+          await expect(k.saves.upload('junk', new TextEncoder().encode('junk'))).rejects.toMatchObject({ problem: 'notASave' });
+          await expect(k.saves.upload('huge', new Uint8Array(MAX_UPLOAD_BYTES + 1))).rejects.toMatchObject({ problem: 'tooLarge' });
+          await expect(k.saves.upload('QuickSave', bytes)).rejects.toMatchObject({ problem: 'invalidName' });
           const listed = await k.saves.list();
-          expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: false, problems: ['contentMismatch'], warnings: [] });
-          expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [] });
+          expect(
+            listed
+              .filter((s) => !s.native)
+              .map((s) => s.name)
+              .sort(),
+          ).toEqual(['base', 'copy']);
+          expect(listed.find((s) => s.native)).toMatchObject({
+            name: 'SaveGame05',
+            native: true,
+            header: { description: 'Synthetic native', world: { day: 2, hour: 3, minute: 4 }, mercs: 1 },
+            compatible: false,
+            problems: ['needsOriginalData'],
+          });
+          expect(await k.saves.delete('copy')).toBe(true);
+          await expect(k.saves.download('copy')).rejects.toMatchObject({ problem: 'notFound' });
         },
-        { source: 'original' },
+        { nativeDir },
       );
-    },
-    TEST_TIMEOUT_MS,
-  );
-
-  it(
-    'validates uploads, hands out downloads and lists native saves read only',
-    async () => {
-      const nativeDir = await mkdtemp(join(tmpdir(), 'ja2-native-'));
-      await writeFile(join(nativeDir, 'SaveGame05.sav'), syntheticSaveHeaderBytes('Synthetic native'));
-      try {
-        await withKit(
-          async (k) => {
-            const session = await k.open({ seed: 5 });
-            expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true });
-            const bytes = await k.saves.download('base');
-            expect(await k.saves.upload('copy', bytes)).toMatchObject({ ok: true, name: 'copy', warnings: [] });
-            await expect(k.saves.upload('junk', new TextEncoder().encode('junk'))).rejects.toMatchObject({ problem: 'notASave' });
-            await expect(k.saves.upload('huge', new Uint8Array(MAX_UPLOAD_BYTES + 1))).rejects.toMatchObject({ problem: 'tooLarge' });
-            await expect(k.saves.upload('QuickSave', bytes)).rejects.toMatchObject({ problem: 'invalidName' });
-            const listed = await k.saves.list();
-            expect(
-              listed
-                .filter((s) => !s.native)
-                .map((s) => s.name)
-                .sort(),
-            ).toEqual(['base', 'copy']);
-            expect(listed.find((s) => s.native)).toMatchObject({
-              name: 'SaveGame05',
-              native: true,
-              header: { description: 'Synthetic native', world: { day: 2, hour: 3, minute: 4 }, mercs: 1 },
-              compatible: false,
-              problems: ['needsOriginalData'],
-            });
-            expect(await k.saves.delete('copy')).toBe(true);
-            await expect(k.saves.download('copy')).rejects.toMatchObject({ problem: 'notFound' });
-          },
-          { nativeDir },
-        );
-      } finally {
-        await rm(nativeDir, { recursive: true, force: true });
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+    } finally {
+      await rm(nativeDir, { recursive: true, force: true });
+    }
+  });
 
   it('writes the input log as Error.log.jsonl.gz when a command throws', async () => {
     await withKit(async (k) => {

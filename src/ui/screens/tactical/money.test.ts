@@ -8,7 +8,6 @@ import type { InventoryPanel } from './inventory.ts';
 import { MoneyActions } from './money-actions.ts';
 import { MAX_MONEY_PER_SLOT, MoneyBox } from './money-box.ts';
 
-const SLOW_MS = 120_000;
 const MONEY = 'MONEY';
 
 let kit: StubSectorKit;
@@ -17,7 +16,7 @@ let ui: TacticalUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await tacticalUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -80,7 +79,7 @@ describe('money actions in the shop', () => {
   });
 });
 
-describe('money through the single merc panel in a stub campaign', { timeout: SLOW_MS }, () => {
+describe('money through the single merc panel in a stub campaign', () => {
   it('withdraws through the money region, splits a pocket through the money box and deposits the split', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

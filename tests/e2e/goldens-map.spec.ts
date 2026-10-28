@@ -5,9 +5,6 @@ import { clickAt, pointAt, waitVisible, waitWhileLoading, watchLoading } from '.
 import { type CaptureMoment, capture, clickWidget, expectGolden, nextFrames } from './ui-capture.ts';
 
 const GOLDEN_SAVE = 'u14-map-goldens';
-const LOAD_TIMEOUT_MS = 120_000;
-const SAVE_TIMEOUT_MS = 180_000;
-const STEP_TIMEOUT_MS = 60_000;
 const ASSIGNMENT_COLUMN = 1;
 const ROUTE_TO = 'C13';
 const HELI_TO = 'B13';
@@ -72,12 +69,10 @@ test.describe('goldens of the map screen on the stub map-screen campaign', () =>
   let session = '';
 
   test.beforeAll(async () => {
-    test.setTimeout(SAVE_TIMEOUT_MS);
     save = await writeMapScreenSave(SAVE_DIR, { name: GOLDEN_SAVE, tired: true });
   });
 
-  test.beforeEach(async ({ page, request }) => {
-    page.setDefaultTimeout(STEP_TIMEOUT_MS);
+  test.beforeEach(async ({ request }) => {
     session = await loadSession(request);
   });
 
@@ -100,13 +95,10 @@ test.describe('goldens of the map screen on the stub map-screen campaign', () =>
       await route.fallback();
     });
     await page.goto(`/play?session=${encodeURIComponent(session)}&${PINNED}`);
-    await page.waitForFunction(() => window.__ja2Ui?.screen === 'loading', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui?.screen === 'loading');
     await page.waitForFunction(
       (percent) => window.__ja2Ui.widgets.some((w) => w.kind === 'progressBar' && w.state === percent),
       STEPS_WITHOUT_RULES,
-      {
-        timeout: LOAD_TIMEOUT_MS,
-      },
     );
     await nextFrames(page, 4);
     await golden(page, 'front-end-loading', 'whileReading');
@@ -185,7 +177,7 @@ test.describe('goldens of the map screen on the stub map-screen campaign', () =>
   test('the update box after a tired merc off duty falls asleep', async ({ page }) => {
     await openMap(page, session);
     await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), AN_HOUR);
-    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.updateBox !== null, null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(() => window.__ja2Ui.map?.screen?.updateBox !== null);
     await restPointer(page);
     await golden(page, 'map-update-box');
   });

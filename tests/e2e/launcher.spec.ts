@@ -61,14 +61,13 @@ async function deleteSaves(page: Page): Promise<void> {
 
 async function quick(page: Page, key: 'KeyS' | 'KeyL', count: 'saves' | 'loads', before: number): Promise<SaveKeysHook> {
   await page.keyboard.press(`Alt+${key}`);
-  await expect.poll(async () => (await saveKeys(page))?.[count], { timeout: 20_000 }).toBe(before + 1);
+  await expect.poll(async () => (await saveKeys(page))?.[count]).toBe(before + 1);
   return (await saveKeys(page)) as SaveKeysHook;
 }
 
 test('the launcher starts a campaign with options, the tactical page quick saves and loads, the save list downloads, uploads and speaks Russian', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
   await page.goto('/?seed=1');
   await page.waitForFunction(() => (window as unknown as PageHooks).__ja2Launcher?.ready);
   await deleteSaves(page);
@@ -112,7 +111,7 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toBe(saved.last?.text);
 
   await page.click('[data-speed="8"]');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.tick), { timeout: 20_000 }).toBeGreaterThan(savedAt + 50);
+  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.tick)).toBeGreaterThan(savedAt + 50);
   const loaded = await quick(page, 'KeyL', 'loads', 0);
   expect(loaded.last).toMatchObject({ action: 'load', ok: true });
   expect(loaded.last?.text.startsWith(entry(english, 'zSaveLoadText', SLG_LOAD_GAME_OK))).toBe(true);

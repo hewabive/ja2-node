@@ -13,7 +13,6 @@ import { HistoryCode } from './history-labels.ts';
 
 const dataDir = ORIGINAL_DATA_DIR;
 const SEED = 7;
-const ORIGINAL_TEST_TIMEOUT_MS = 120_000;
 const OMERTA = { x: 9, y: 1, z: 0 };
 
 describe.skipIf(!dataDir)('the U12 laptop pages on the original data', () => {
@@ -25,7 +24,7 @@ describe.skipIf(!dataDir)('the U12 laptop pages on the original data', () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });
     session = await createCampaignSession(read, (p) => data.vfs.stat(p) !== undefined, SEED, { hire: [] });
     session.useLabels(await loadUiStrings(read, 'eng'));
-  }, ORIGINAL_TEST_TIMEOUT_MS);
+  });
   afterAll(async () => {
     await data.close();
   });

@@ -5,7 +5,6 @@ import { type TacticalUiKit, tacticalUiKit, tacticalUiTest } from '../../../../t
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, textDelay } from '../../speech.ts';
 import { civQuotePosition } from './speech-surfaces.ts';
 
-const SLOW_MS = 120_000;
 const COLS = 160;
 const VILLAGER_TILE = 75 * COLS + 88;
 const NEAR_VILLAGER = VILLAGER_TILE + 2;
@@ -16,7 +15,7 @@ let ui: TacticalUiKit;
 beforeAll(async () => {
   kit = await loadStubSectorKit();
   ui = await tacticalUiKit(kit);
-}, SLOW_MS);
+});
 
 afterAll(async () => {
   await kit.dispose();
@@ -31,7 +30,7 @@ describe('civilian quote placement', () => {
   });
 });
 
-describe('speech surfaces in a stub campaign', { timeout: SLOW_MS }, () => {
+describe('speech surfaces in a stub campaign', () => {
   it('shows a merc bark in the subtitle box at 110, 20 until the line ends', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);
