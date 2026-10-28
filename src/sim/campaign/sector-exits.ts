@@ -4,7 +4,6 @@
 // @src AllMercsHaveWalkedOffSector, SetupTacticalTraversalInformation, SetInsertionDataFromAdjacentMoveDirection,
 // @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector;
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu.
-// @src See docs/16 §5.9.
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { Direction } from '../../content/world/grid.ts';

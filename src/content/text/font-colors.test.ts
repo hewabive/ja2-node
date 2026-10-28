@@ -7,7 +7,7 @@ function palette(entries: Readonly<Record<number, readonly [number, number, numb
   return out;
 }
 
-describe('font colours resolved through the font palette (docs/28 §3.4)', () => {
+describe('font colours resolved through the font palette', () => {
   const pal = palette({ [FontColor.WHITE]: [255, 255, 255], [DEFAULT_SHADOW]: [4, 2, 4], 7: [40, 50, 60], 9: [7, 3, 7] });
 
   it('resolves the foreground, shadow and background indices to the palette colours', () => {

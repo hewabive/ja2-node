@@ -4,7 +4,7 @@
 // @src src/sgp/Line.cc LineDraw, RectangleDraw; src/sgp/VObject_Blitters.cc Blt16BPPBufferHatchRect,
 // @src Blt16BPPBufferLooseHatchRectWithColor, Blt8BPPDataTo16BPPBufferOutline, BltOutlineShadow; src/sgp/HImage.cc
 // @src Create16BPPPaletteShaded; src/sgp/VObject.cc BltVideoObject; src/sgp/Font.cc SetFontForeground, SetFontShadow,
-// @src SetFontBackground; src/sgp/VSurface.cc SetClippingRect, BltStretchVideoSurface. See docs/28 §3.11.
+// @src SetFontBackground; src/sgp/VSurface.cc SetClippingRect, BltStretchVideoSurface.
 
 import type { PaletteScale } from '../content/picture/shaded-palette.ts';
 

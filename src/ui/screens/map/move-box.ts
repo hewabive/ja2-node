@@ -5,7 +5,7 @@
 // @src region per line at MSYS_PRIORITY_HIGHEST, the heading and blank lines without callbacks), MoveMenuMvtCallback,
 // @src MoveMenuBtnCallback (a second click on the same line within DBL_CLICK_DELAY_FOR_MOVE_MENU acts as Plot when
 // @src something is picked), ReBuildMoveBox, CreateScreenMaskForMoveBox and MoveScreenMaskBtnCallbackPrimary (a mask at
-// @src MSYS_PRIORITY_HIGHEST - 4 that closes the box), ReportMapScreenMovementError. See docs/28 §7.6.
+// @src MSYS_PRIORITY_HIGHEST - 4 that closes the box), ReportMapScreenMovementError.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { DrawList } from '../../draw-list.ts';

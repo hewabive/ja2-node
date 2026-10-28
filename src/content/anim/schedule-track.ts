@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (frames, jumps, state changes, opcode 430 fires the
 // @src weapon, 499 ends the animation); Soldier_Control.cc EVENT_InitNewSoldierAnim (the first frame shows at once,
-// @src then one frame per sAniDelay). See docs/28 §2.3.
+// @src then one frame per sAniDelay).
 
 import { MAX_FRAMES_PER_ANIM } from '../formats/ja2bin.ts';
 import {

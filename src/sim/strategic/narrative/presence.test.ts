@@ -29,7 +29,7 @@ beforeAll(async () => {
 const profileItems = (): ProfileItems => ({ table: items, soldier: () => null });
 const id = (name: string) => items.byName.get(name)?.index ?? -1;
 
-describe('profile locations (docs/25 §4.1)', () => {
+describe('profile locations', () => {
   it('sends a profile that left the country nowhere and drops its insertion data', () => {
     const p = testProfile(Npc.CONRAD, { useProfileInsertion: true });
     changeNpcToDifferentSector(p, { x: 4, y: 5, z: 1 });
@@ -53,7 +53,7 @@ describe('profile locations (docs/25 §4.1)', () => {
   });
 });
 
-describe('terrorists and assassins (docs/25 §11.4, §11.6)', () => {
+describe('terrorists and assassins', () => {
   it('gives the remaining terrorists a mini grenade once a third of them is dead on medium', () => {
     const profiles = profileMap([
       testProfile(Npc.DRUGGIST, { sectorX: 13, sectorY: 3 }),
@@ -116,7 +116,7 @@ function morning(o: { world?: { x: number; y: number; z: number } | null; profil
   return { profiles, rolls, pre, narrative, hospital };
 }
 
-describe('the 04:00 event (docs/25 §4.3)', () => {
+describe('the 04:00 event', () => {
   it('draws Father, his move, Devin, Hamous and Carmen in order and Dave’s gas from PreRandom', () => {
     const m = morning({
       profiles: [
@@ -167,7 +167,7 @@ describe('the 04:00 event (docs/25 §4.3)', () => {
   });
 });
 
-describe('hourly NPC handlers (docs/25 §4.4)', () => {
+describe('hourly NPC handlers', () => {
   it('opens and closes the brothel, club and museum and rests the boxers', () => {
     const n = createNarrativeState();
     n.boxing.matchesWon = 3;

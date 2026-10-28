@@ -5,7 +5,7 @@
 // @src CTGTHandleBulletStructureInteraction, CalcChanceToGetThrough, *ChanceToGetThrough; Bullets.cc CreateBullet,
 // @src RemoveBullet, StopBullet, UpdateBullets, AddMissileTrail (fGoingOver is never reset within one MoveBullet);
 // @src Weapons.cc StructureHit, ShotMiss, WindowHit;
-// @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE. See docs/11 §3.
+// @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE.
 
 import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';

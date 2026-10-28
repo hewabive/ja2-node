@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Intro.cc EnterIntroScreen (no cursor, black screen), HandleIntroScreen (a missing video is skipped),
 // @src GetIntroScreenUserInput (Escape ends the sequence, Space the video, on key up), BackgroundRegionCallback (any
-// @src mouse button ends the video). See docs/27 §4.1, §4.3.
+// @src mouse button ends the video).
 
 import { IndexedFrameRenderer } from '../../render/indexed-frame.ts';
 import { fetchOptionalVfsFile } from '../net/vfs.ts';

@@ -6,7 +6,6 @@
 // @src cheat or a quest started and still in progress), DisplayPageNumberAndDateRange (1 / 1 and 1 - 1 without records;
 // @src the first and the last day of the page), GetNumberOfHistoryPages, LoadInHistoryRecords, LoadNextHistoryPage,
 // @src LoadPreviousHistoryPage, SetHistoryButtonStates, ScrollRegionCallback; Laptop/History.h HISTORY_CHEAT_ENABLED.
-// @src See docs/28 §9.3.
 
 import type { LaptopHistoryView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

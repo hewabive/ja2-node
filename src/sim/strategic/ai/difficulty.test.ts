@@ -26,7 +26,7 @@ beforeAll(async () => {
   army = await loadArmyTestContent();
 });
 
-describe('CalcDifficultyModifier (docs/17 §11)', () => {
+describe('CalcDifficultyModifier', () => {
   it('rounds the palace distance exactly and maps it to the location modifier', () => {
     const at = (s: string) => parseSectorString(s);
     expect(pythDistanceFromPalace(at('A9'))).toBe(16);

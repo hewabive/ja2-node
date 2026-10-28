@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc ReLoadSoldierAnimationDueToHandItemChange, IsRifle;
 // @src Interface_Panels.cc HandleTacticalEffectsOfEquipmentChange; Weapons.cc EnsureConsistentWeaponMode,
-// @src IsGunBurstCapable, HasLauncher, ChangeWeaponMode; Items.cc SwapHandItems, FindLaunchableAttachment. See docs/12 §3.4.
+// @src IsGunBurstCapable, HasLauncher, ChangeWeaponMode; Items.cc SwapHandItems, FindLaunchableAttachment.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';

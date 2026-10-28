@@ -6,7 +6,7 @@
 // @src (the team change); TacticalAI/NPC.cc UpdateDarrelScriptToGoTo, GetInfoForAbandoningEPC; Tactical/Soldier_Add.cc
 // @src FindGridNoFromSweetSpotExcludingSweetSpot; Strategic/Assignments.cc InternalUnescortEPC, UnEscortEPC; Laptop/Personnel.cc
 // @src AddCharacterToOtherList, RemoveNewlyHiredMercFromPersonnelDepartedList; Strategic/Strategic_Town_Loyalty.cc
-// @src HandleTownLoyaltyForNPCRecruitment. See docs/24 §9, docs/25 §9.
+// @src HandleTownLoyaltyForNPCRecruitment.
 
 import { isTwoHanded, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';

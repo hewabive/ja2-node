@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Movement.cc CheckConditionsForBattle, HandleOtherGroupsArrivingSimultaneously,
 // @src PossibleToCoordinateSimultaneousGroupArrivals, PlanSimultaneousGroupArrivalCallback, PrepareGroupsForSimultaneousArrival,
 // @src PrepareForPreBattleInterface, TriggerPrebattleInterface, NotifyPlayerOfBloodcatBattle, TestForBloodcatAmbush,
-// @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces. See docs/16 §4.
+// @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
 
 import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';

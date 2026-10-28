@@ -3,7 +3,7 @@
 // @src src/game/Laptop/Florist_Order_Form.cc CreateDestroyFlowerOrderDestDropDown (the rows every font height + 2, the
 // @src regions from +4 to the font height, the height of the list + 10, the tactpopup.sti border every 10 pixels, the
 // @src bottom row 6 pixels lower), SelectFlowerDropDownMovementCallBack (hovering selects), SelectFlowerDropDownRegionCallBack
-// @src (a click selects and closes), SelectFloristDisableDropDownRegionCallBack, FlowerOrderDrawSelectedCity. See docs/28 §9.8.
+// @src (a click selects and closes), SelectFloristDisableDropDownRegionCallBack, FlowerOrderDrawSelectedCity.
 
 const ROW_GAP = 2;
 const LIST_MARGIN = 10;

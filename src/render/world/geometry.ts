@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc GetMapXYWorldY, RenderTiles (z levels, positions), InitRenderParams;
-// @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords. See docs/05-render-pipeline.md §1, §3, §7.
+// @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords.
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 

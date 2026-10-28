@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Auto_Resolve.cc PlayAutoResolveSample (PlayJA2Sample at volume 50, MIDDLEPAN; HIGHVOLUME for the
 // @src merc death crunches and AUTORESOLVE_FINISHFX), DoTransitionFromPreBattleInterfaceToAutoResolve and
 // @src src/game/Strategic/PreBattle_Interface.cc DoTransitionFromMapscreenToPreBattleInterface (laptop power up at
-// @src HIGHVOLUME); src/game/Tactical/Soldier_Control.cc DoMercBattleSound (the battle voices). See docs/28 §11.
+// @src HIGHVOLUME); src/game/Tactical/Soldier_Control.cc DoMercBattleSound (the battle voices).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { AudioEngine } from '../../audio/engine.ts';

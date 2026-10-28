@@ -3,7 +3,7 @@
 // @src src/game/Laptop/EMail.cc LoadEMailText, AddEmailMessage (the subject), ReplaceMercNameAndAmountWithProperData,
 // @src HandleMailSpecialMessages, ModifyInsuranceEmails, PreProcessEmail (the body records, the subject skipped),
 // @src HandleIMPCharProfileResultsMessage (the I.M.P. report from impass.edt, the profile of the mail or the last
-// @src profiled character). See docs/21 §6.1.
+// @src profiled character).
 
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { mailOffset } from '../content/strategic/laptop-content.ts';

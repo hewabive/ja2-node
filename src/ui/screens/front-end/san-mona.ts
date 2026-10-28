@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/JAScreens.cc SexScreenHandle (sounds/sex.wav at HIGHVOLUME; a step every SMILY_DELAY ms, frame 0 for the
 // @src first 24 steps then step % 8; after 32 steps SMILY_END_DELAY ms, then back to the game). The game time warp is the
-// @src simulation's (docs/28 §12.5). See docs/28 §4.11.
+// @src simulation's.
 
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
 import { UiScreenKind, type UiSoundSink } from '../../widgets/button-sounds.ts';

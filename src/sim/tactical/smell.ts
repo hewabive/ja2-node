@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Smell.cc DecaySmells, DecayBlood, DecayBloodAndSmells, DropSmell, InternalDropBlood, DropBlood,
-// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics. See docs/13 §14, docs/11 §5.11.
+// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { u8 } from '../../core/int.ts';

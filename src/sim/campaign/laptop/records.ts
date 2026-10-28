@@ -4,7 +4,7 @@
 // @src Laptop/Files.cc AddFilesToPlayersLog, ProcessAndEnterAFilesRecord, GameInitFiles; Laptop/Personnel.cc
 // @src AddCharacterToDeadList, AddCharacterToFiredList, AddCharacterToOtherList,
 // @src RemoveNewlyHiredMercFromPersonnelDepartedList; Laptop/History.h (the codes this module writes, checked against
-// @src data/tables/merc-contracts.json). See docs/21 §6.2, §6.4, §7.4.
+// @src data/tables/merc-contracts.json).
 
 import { u8, u32 } from '../../../core/int.ts';
 import { type LaptopState, NO_PERSONNEL_ENTRY, type PersonnelLists } from './laptop-state.ts';

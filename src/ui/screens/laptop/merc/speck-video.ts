@@ -4,7 +4,7 @@
 // @src while Speck has something to say), HandleTalkingSpeck (the black intro of MERC_INTRO_TIME, the quotes one after the
 // @src other, the black exit of MERC_EXIT_TIME), DisplayMercVideoIntro, StartSpeckTalking, HandleSpeckTalking (the next
 // @src queued quote when one ends), BtnXToCloseMercVideoButtonCallback, MercSiteSubTitleRegionCallBack and
-// @src StopSpeckFromTalking (a click on the subtitles ends the current quote). Speck is a still portrait (docs/28 §9.2).
+// @src StopSpeckFromTalking (a click on the subtitles ends the current quote). Speck is a still portrait.
 
 export const SpeckMode = { NONE: 0, INIT: 1, VIDEO: 2, EXIT: 3 } as const;
 

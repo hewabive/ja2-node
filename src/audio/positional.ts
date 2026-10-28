@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Sound_Control.cc NewPositionSnd, SetPositionSndsVolumeAndPanning (the volume of 15, at most 10 for an
-// @src unseen source); Tactical/Soldier_Control.cc (QUEEN_AMBIENT_NOISE for the creature queen). See docs/27 §3.1.
+// @src unseen source); Tactical/Soldier_Control.cc (QUEEN_AMBIENT_NOISE for the creature queen).
 
 import { cueOf, mixCue } from '../content/audio/cue.ts';
 import { type CueBook, soundPath } from '../content/audio/cue-book.ts';

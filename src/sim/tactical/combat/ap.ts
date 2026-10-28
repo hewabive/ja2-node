@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc CalcAPsToBurst, CalcTotalAPsToAttack, MinAPsToAttack, CalcAimSkill, BaseAPsToShootOrStab,
 // @src GetAPChargeForShootOrStabWRTGunRaises, MinAPsToShootOrStab, MinAPsToPunch, EnoughAmmo (CalcTotalAPsToAttack with the
-// @src walk-to-attack cost and its sWalkToAttack cache). See docs/11 §1.5, §6.1.
+// @src walk-to-attack cost and its sWalkToAttack cache).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';

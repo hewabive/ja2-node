@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (pressure action items, noise and the stealthy footstep of a PC,
 // @src then sight, then interrupts);
 // @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise);
-// @src OppList.cc OurTeamSeesSomeone. See docs/08 §2.6, §2.8, §2.9 and docs/10 §4.8, §4.10.
+// @src OppList.cc OurTeamSeesSomeone.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, soldierGotoStationaryStance } from '../animation.ts';

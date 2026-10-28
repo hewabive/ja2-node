@@ -1,4 +1,4 @@
-# Creature and bloodcat placement from the map placements (docs/16 §5.13): decisions only, as the defence probes.
+# Creature and bloodcat placement from the map placements: decisions only, as the defence probes.
 sector F13 z=3
 creatureplacement queen=1 larvae=3 infants=4 ym=0 yf=0 am=3 af=2
 sector G13 z=3

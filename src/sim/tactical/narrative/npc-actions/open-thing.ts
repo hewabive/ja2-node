@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc NPCOpenThing, HandleNPCDoAction (NPC_ACTION_OPEN_CLOSEST_DOOR,
 // @src NPC_ACTION_OPEN_CLOSEST_CABINET, NPC_ACTION_GET_ITEMS_FROM_CLOSEST_CABINET);
-// @src TacticalAI/FindLocations.cc FindClosestDoor, FindNearestOpenableNonDoor. See docs/25 §3.2.
+// @src TacticalAI/FindLocations.cc FindClosestDoor, FindNearestOpenableNonDoor.
 
 import { Approach } from '../../../../content/narrative/npc-constants.ts';
 import { cardinalSpacesAway, pythSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';

@@ -6,7 +6,7 @@
 // @src HandleContractTimeFlashForMercThatIsAboutLeave, the sleep icon at 125 in the sleep column, the selected-character
 // @src arrow, HighLightAssigment/Destination/Sleep/Contract and GlowColor (red 25 × i, rows of a
 // @src selected set framed together, the vehicle gap closing the frame), HandleCommonGlowTimer (GLOW_DELAY 70 ms between
-// @src steps 0..10). See docs/28 §7.2.
+// @src steps 0..10).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';

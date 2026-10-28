@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.cc SoldierHasKey, KeyExistsInKeyRing, KeyExistsInInventory, DropKeysInKeyRing;
-// @src Items.cc CollectKey, CreateKeyObject; DefaultContentManager.cc getKeyItemForKeyId. See docs/25 §8.1.
+// @src Items.cc CollectKey, CreateKeyObject; DefaultContentManager.cc getKeyItemForKeyId.
 
 import { ANYKEY, INVALID_KEY_NUMBER, lockAt } from '../../../content/formats/locks.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';

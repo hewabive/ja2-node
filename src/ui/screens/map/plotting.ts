@@ -7,7 +7,7 @@
 // @src PATH_SHORTENED, ABORT_PLOTTING), AbortMovementPlottingMode ("Destination unchanged"), DestinationPlottingCompleted,
 // @src GetPathTravelTimeDuringPlotting (0 until the temporary path is drawn); src/game/Strategic/Map_Screen_Interface_Map.cc
 // @src PlotPathForCharacter, PlotATemporaryPathForCharacter, ClearPathAfterThisSectorForCharacter, PlotPathForHelicopter,
-// @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter. See docs/28 §7.6, §7.7.
+// @src PlotATemporaryPathForHelicopter, ClearPathAfterThisSectorForHelicopter.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';

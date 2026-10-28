@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc ChangeStat (experience level gains), CalcNewSalary, RoundOffSalary;
-// @src Campaign.h SALARY_CHANGE_PER_LEVEL, MAX_DAILY_SALARY, MAX_LARGE_SALARY. See docs/22 §3.7.
+// @src Campaign.h SALARY_CHANGE_PER_LEVEL, MAX_DAILY_SALARY, MAX_LARGE_SALARY.
 
 import { i16, idiv, u16, u32 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';

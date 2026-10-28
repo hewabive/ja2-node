@@ -14,7 +14,7 @@ const COMPRESS_TICKS = 200;
 
 const types = (events: readonly SimEvent[]) => events.map((e) => e.type);
 
-describe('the stub saves the story e2e loads (docs/28 §10)', { timeout: TIMEOUT_MS }, () => {
+describe('the stub saves the story e2e loads', { timeout: TIMEOUT_MS }, () => {
   let dir: string;
   let kit: StubSectorKit;
   let saves: SaveKit;

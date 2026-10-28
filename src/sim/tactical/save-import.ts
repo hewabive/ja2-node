@@ -7,7 +7,7 @@
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
-// @src (away slots of off-map soldiers). See docs/14 §10, docs/20, docs/25 §5.6.
+// @src (away slots of off-map soldiers).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';

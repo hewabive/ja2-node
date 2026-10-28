@@ -5,7 +5,7 @@
 // @src HandleTalkingAutoFace, SetupFinalTalkingDelay, SetFaceShade, HandleFaceHilights, DrawFaceRect,
 // @src HandleRenderFaceAdjustments (closed eyes, hatch, skull, enemy count, hatch for those who cannot act, the text over the
 // @src face, the right icons and the bottom-right icon), HandleAutoFaces (the portrait flash); src/game/Tactical/Gap.cc
-// @src PollAudioGap; src/game/Tactical/Interface.h FLASH_PORTRAIT_*. See docs/28 §5.5.
+// @src PollAudioGap; src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
 
 import { type AudioGap, inAudioGap } from '../../../content/formats/gap.ts';
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';

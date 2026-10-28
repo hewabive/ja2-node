@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Auto_Resolve.cc RemoveAutoResolveInterface, IsAnybodyWounded; Town_Militia.cc
 // @src CheckOneMilitiaForPromotion; Tactical/Tactical_Save.cc AddDeadSoldierToUnLoadedSector;
 // @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
-// @src the usBattlesFought count of every merc of the battle (2026-10-24). See docs/19 §2.18, docs/04 §6.33.
+// @src the usBattlesFought count of every merc of the battle (2026-10-24).
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';

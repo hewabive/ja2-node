@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h CIV_GROUP_* hostility; Strategic/Quests.h IN_BROTHEL, IN_BROTHEL_GUARD_ROOM;
 // @src Boxing.h BOXING_SECTOR_*;
-// @src Map_Screen_Interface_Map.h TIXA_SECTOR_*; Strategic_Town_Loyalty.h; externalized mercs-profile-info.json. See docs/25 §6.
+// @src Map_Screen_Interface_Map.h TIXA_SECTOR_*; Strategic_Town_Loyalty.h; externalized mercs-profile-info.json.
 
 export const NUM_CIV_GROUPS = 20;
 export const CivGroupHostility = { NEUTRAL: 0, WILL_EVENTUALLY_BECOME_HOSTILE: 1, WILL_BECOME_HOSTILE: 2, HOSTILE: 3 } as const;

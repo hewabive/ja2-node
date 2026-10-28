@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpotExcludingSweetSpot; TileEngine/GridSquare.cc GridSquare (the
-// @src row-major walk over the clipped square). See docs/25 §11.6.
+// @src row-major walk over the clipped square).
 
 import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { rangeInCellCoords } from './insertion.ts';

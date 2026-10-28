@@ -7,7 +7,6 @@
 // @src is on, roof soldiers brighter; one pixel per visible item at +6, black while blinking),
 // @src DisplayMercNameInOverhead (TINYFONT1 white, 13 above), GetClosestMercInOverheadMap (radius 1),
 // @src ClickOverheadRegionCallbackPrimary (centre the view there and close), ClickOverheadRegionCallbackSecondary.
-// @src See docs/28 §6.7.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { ItemView, SoldierView } from '../../../protocol/view.ts';

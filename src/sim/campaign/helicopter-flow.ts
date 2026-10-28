@@ -10,7 +10,6 @@
 // @src SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback; Strategic/Player_Command.cc
 // @src SetThisSectorAsPlayerControlled (the SAM congratulation); Map_Screen_Interface_Map.cc
 // @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path).
-// @src See docs/25 §10, §13.
 
 import {
   parseSectorString,

@@ -12,7 +12,7 @@
 // @src from its first page), SelectFloristCardGalleryLinkRegionCallBack, SelectFloristGalleryLinkRegionCallBack,
 // @src SelectFloristDropDownRegionCallBack, HandleFloristOrderKeyBoardInput (Esc never reaches the laptop from the form);
 // @src src/game/Laptop/Florist_Cards.cc EnterFloristCards, RenderFloristCards,
-// @src SelectFloristCardsRegionCallBack, BtnFlowerCardsBackButtonCallback. See docs/28 §9.8.
+// @src SelectFloristCardsRegionCallBack, BtnFlowerCardsBackButtonCallback.
 
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { fontHeight } from '../../../text/bitmap-font.ts';

@@ -3,8 +3,7 @@
 // @src src/game/Tactical/Interface_Dialogue.cc StartDialogueMessageBox (the basic YES/NO box per request: ESCORT_PROMPT
 // @src or STR_LATE_57 for John and Mary, HIRE_PROMPT with "$" and the salary, BOXING_PROMPT, BUY_VEST_PROMPT with the
 // @src vest's name and price, YESNOLIE_STR with YES/NO/LIE, FREE_MEDICAL_PROMPT, PAY_MONEY_PROMPT with the cost or
-// @src "$10000" for the vehicle, MARRY_DARYL_PROMPT, SPARE_KROTT_PROMPT), DialogueMessageBoxCallBack. See docs/24 §6.7,
-// @src docs/28 §5.8.
+// @src "$10000" for the vehicle, MARRY_DARYL_PROMPT, SPARE_KROTT_PROMPT), DialogueMessageBoxCallBack.
 
 import type { NpcRequestPromptView } from '../../../protocol/view.ts';
 import type { MessageBoxButtons } from '../../message-boxes.ts';

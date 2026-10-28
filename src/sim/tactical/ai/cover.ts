@@ -4,7 +4,7 @@
 // @src CalcAverageCTGTForPosition, CalcBestCTGT, CalcCoverValue, NumberOfTeamMatesAdjacent, FindBestNearbyCover,
 // @src FindSpotMaxDistFromOpponents, FindNearestUngassedLand, FindNearbyDarkerSpot; AIUtils.cc InGas, InGasOrSmoke,
 // @src InWaterOrGas, InWaterGasOrSmoke, InLightAtNight, GetTraversalQuoteActionID; TileEngine/Isometric_Utils.cc
-// @src GridNoOnEdgeOfMap; TileEngine/WorldMan.cc WaterTooDeepForAttacks. See docs/13 §8.
+// @src GridNoOnEdgeOfMap; TileEngine/WorldMan.cc WaterTooDeepForAttacks.
 
 import {
   CELL_X_SIZE,

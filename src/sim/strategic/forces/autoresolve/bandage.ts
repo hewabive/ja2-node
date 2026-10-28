@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc VirtualSoldierDressWound, FindMedicalKit, AutoBandageMercs, IsAnybodyWounded,
 // @src CanAnybodyBandage, DetermineBandageButtonState, SetupDoneInterface; Tactical/Items.cc TotalPoints, UseKitPoints.
-// See docs/19 §2.17.
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { i8, idiv, u8, u16, u32 } from '../../../../core/int.ts';

@@ -54,7 +54,7 @@ function stepUntilMoving(sim: TacticalSim, merc: Soldier): string {
   return animName(content, merc.state);
 }
 
-describe('the stance of the API joins the height and the run (docs/deviations.md "Stance")', () => {
+describe('the stance of the API joins the height and the run', () => {
   it('runs in combat after R, which costs nothing, and continues a halted run as a run', () => {
     const { sim, merc } = battle();
     const ap = merc.actionPoints;

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/VSurface.cc BltStretchVideoSurface (a copy of the screen stretched with nearest stepping);
 // @src src/game/Laptop/Laptop.cc, src/game/Strategic/Auto_Resolve.cc (the zooms that stretch a saved screen into a
-// @src growing or shrinking rectangle). See docs/28 §3.6.
+// @src growing or shrinking rectangle).
 
 import { idiv } from '../../core/int.ts';
 import { type Area, type DrawList, rgb } from '../draw-list.ts';

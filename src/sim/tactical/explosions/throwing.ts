@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc MinAPsToThrow, DeductAmmo (launchers); Weapons.cc CalcMaxTossRange,
 // @src CalcThrownChanceToHit, UseThrown, UseLauncher, WillExplosiveWeaponFail; Items.cc GetLauncherFromLaunchable,
-// @src RemoveAttachment; Handle_Items.cc HandleSoldierThrowItem; Soldier_Ani.cc opcodes 460/461. See docs/11 §7.1–§7.8.
+// @src RemoveAttachment; Handle_Items.cc HandleSoldierThrowItem; Soldier_Ani.cc opcodes 460/461.
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';

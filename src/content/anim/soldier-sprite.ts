@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CreateSoldierPalettes, SetPaletteReplacement, ConvertAniCodeToAniFrame;
-// @src TileEngine/RenderWorld.cc (merc screen position, shade and z). See docs/06 §1.3, §3, §4.
+// @src TileEngine/RenderWorld.cc (merc screen position, shade and z).
 
 import type { SoldierPalettes as PaletteData } from '../formats/ja2pal.ts';
 

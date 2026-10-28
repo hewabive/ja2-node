@@ -16,7 +16,7 @@
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
-// @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody). See docs/28 §5, §6.
+// @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';

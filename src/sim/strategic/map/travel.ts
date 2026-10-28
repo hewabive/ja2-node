@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup, FindTravelTimeBetweenWaypoints,
-// @src CalculateTravelTimeOfGroup. See docs/16 §3.5.
+// @src CalculateTravelTimeOfGroup.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { TransportMask } from '../../../content/strategic/policy.ts';

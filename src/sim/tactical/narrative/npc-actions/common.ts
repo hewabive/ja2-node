@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (FindSoldierByProfileID, DeleteTalkingMenu, TriggerNPCRecord,
-// @src EVENT_SetSoldierDesiredDirection, GetDirectionToGridNoFromGridNo as the actions use them). See docs/25 §3.1.
+// @src EVENT_SetSoldierDesiredDirection, GetDirectionToGridNoFromGridNo as the actions use them).
 
 import { deleteTalkingMenu, triggerNpcRecord } from '../../../narrative/converse.ts';
 import { soldierByProfile } from '../../../narrative/dialogue-queue.ts';

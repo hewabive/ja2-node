@@ -48,7 +48,7 @@ function liberateWithMilitia(campaign: CampaignSim, s: Sector): void {
   setThisSectorAsPlayerControlled(ctx, s, true);
 }
 
-describe('headless strategic AI scenario (docs/17 §16.3)', () => {
+describe('headless strategic AI scenario', () => {
   it('wakes after three victories on medium, waits out the grace period and attacks Drassen', () => {
     const campaign = newMediumCampaign();
     const q = campaign.queen;

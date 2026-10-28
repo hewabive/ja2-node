@@ -10,7 +10,7 @@
 // @src DoneInventoryMapBtnCallback (not with an item in the cursor or a stack popup up); src/game/Tactical/Interface_Panels.cc
 // @src KeyRingItemPanelButtonCallback (on the map screen the key ring opens at STD_SCREEN_X, MAP_START_KEYRING_Y in
 // @src 261 × (359 − 107)); src/game/Tactical/Interface_Items.cc InitKeyRingPopup and RenderKeyRingPopup in map mode
-// @src (cells 40, 15 off the panel, MAP_KEY_RING_ROW_WIDTH per row). See docs/28 §7.8.
+// @src (cells 40, 15 off the panel, MAP_KEY_RING_ROW_WIDTH per row).
 
 import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';

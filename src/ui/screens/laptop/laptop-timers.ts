@@ -6,7 +6,6 @@
 // @src the last one snapped), LaptopScreenHandle and LeaveLapTopScreen (the zoom: 1000 ms, the gravity factor, the scale
 // @src 10000 / (100 - p), the centre from (472, 424) to (320, 240)), FlickerHDLight (Random(2) every 50 ms, 3000 ms more
 // @src after the load), ExitLaptopDone (100 ms with the power light off), HandleWebBookMarkNotifyTimer (2000 ms).
-// @src See docs/28 §9.1.
 
 import { idiv } from '../../../core/int.ts';
 import type { Area } from '../../draw-list.ts';

@@ -1,4 +1,4 @@
-# Door, lock and trap probes on a Drassen save (docs/25 §8, §17). Soldiers 0-2 are the player's mercs.
+# Door, lock and trap probes on a Drassen save. Soldiers 0-2 are the player's mercs.
 save SaveGame09
 locks
 

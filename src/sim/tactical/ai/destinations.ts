@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/Movement.cc LegalNPCDestination, InternalGoAsFarAsPossibleTowards, NextPatrolPoint,
-// @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin. See docs/09 §2.4.
+// @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin.
 
 import { isVisibleTile, newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';

@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc ChangeSoldiersAssignment, SetTimeOfAssignmentChangeForMerc, AssignmentDone,
 // @src AssignmentAborted, ReEvaluateEveryonesNothingToDo; Town_Militia.cc AddSectorForSoldierToListOfSectorsThatCompletedMilitiaTraining.
-// See docs/18 §5.2, §5.10, docs/25 §11.3 (the hospital refund).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { refundUnusedHospitalPayment } from '../narrative/hospital.ts';

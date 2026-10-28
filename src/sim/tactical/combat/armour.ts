@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc CalcBodyImpactReduction, ArmourProtection, TotalArmourProtection, EffectiveArmour,
-// @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass. See docs/11 §4.3.
+// @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass.
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';

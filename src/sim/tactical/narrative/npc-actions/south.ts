@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (TRIGGER_MATT, KROTT_ALIVE_LOYALTY_BOOST,
 // @src TRIGGER_KROTT_11_OR_12, START_BLOODCAT_QUEST, TRIGGER_BREWSTER_BY_WARDEN_PROXIMITY, TRIGGER_JOE_32_OR_33);
-// @src Tactical/Rotting_Corpses.cc GetGridNoOfCorpseGivenProfileID. See docs/25 §3.8.
+// @src Tactical/Rotting_Corpses.cc GetGridNoOfCorpseGivenProfileID.
 
 import { pythSpacesAway } from '../../../../content/world/grid.ts';
 import { Town } from '../../../strategic/economy/constants.ts';

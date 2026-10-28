@@ -5,7 +5,7 @@
 // @src EnterNewIMPMode, CreateIMPButtons (the cancel button on every page but home, about us, main and confirm),
 // @src BtnIMPCancelCallback, InitIMPSubPageList, HasTheCurrentIMPPageBeenVisited; IMPVideoObjects.cc RenderProfileBackGround;
 // @src src/game/Laptop/Laptop.cc GoToWebPage (IMP_BOOKMARK resets iCurrentImpPage), HandleLapTopHandles (no page handler
-// @src while a load is pending). See docs/28 §9.7.
+// @src while a load is pending).
 
 import type { ControllerContract } from '../../../layout/controller.ts';
 import { ViewModelController } from '../../../layout/controller.ts';

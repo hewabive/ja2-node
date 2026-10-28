@@ -6,7 +6,7 @@
 // @src Cancel buttons of popupbuttons.sti at +65 and +135, +78; the game paused), UpdateSectorExitMenu (the check states
 // @src and the help texts), RenderSectorExitMenu (ESC cancels, ENTER confirms; FONT12ARIAL labels in dark grey when
 // @src disabled, light yellow under the pointer, else white), RemoveSectorExitMenu (MSG_EPC_CANT_TRAVERSE, the jump
-// @src code), CheckLoadMapCallback, SingleMoveAction, AllMoveAction, the region move callbacks. See docs/28 §6.6.
+// @src code), CheckLoadMapCallback, SingleMoveAction, AllMoveAction, the region move callbacks.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import type { ExitMenu, ExitSectorOptions } from '../../../protocol/hints.ts';

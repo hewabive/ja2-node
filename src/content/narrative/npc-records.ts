@@ -3,7 +3,6 @@
 // @src src/externalized/DefaultContentManager.cc loadAllScriptRecords, getScriptRecords, getAllScriptRecords;
 // @src src/externalized/content/NPCQuoteInfo.cc deserialize; src/game/TacticalAI/NPC.cc LoadCivQuoteFile,
 // @src gsCivQuoteSector, MINERS_CIV_QUOTE_INDEX; src/externalized/mercs/MercProfileInfo.cc (profile names and types).
-// @src See docs/24 §1.4, §12.
 
 import { FormatError } from '../binary/errors.ts';
 import {

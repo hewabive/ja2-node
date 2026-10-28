@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Merc_Contract.cc LoadContractRenewalDataFromSaveGameFile (CONTRACT_NEWAL_LIST_NODE);
-// @src Strategic/Map_Screen_Interface.cc LoadLeaveItemList; Laptop/LaptopSave.h gubPlayersMercAccountStatus. See docs/22 §0,
-// @src docs/14.
+// @src Strategic/Map_Screen_Interface.cc LoadLeaveItemList; Laptop/LaptopSave.h gubPlayersMercAccountStatus.
 
 import { FormatError } from '../binary/errors.ts';
 import { decodeObject, type ObjectRecord } from './object.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface.h MESSAGE_TYPES; Interface.cc AddTopMessage, EndTopMessage, InitPlayerUIBar (timed
 // @src turns off), InitEnemyUIBar, UpdateEnemyUIBar, CreateTopMessage (the bloodcat turn string); Overhead.cc
-// @src HostileBloodcatsPresent. See docs/28 §12.1 G6.
+// @src HostileBloodcatsPresent.
 
 import { hostileBloodcatsPresent } from '../sector-presence.ts';
 import { Team } from '../soldier.ts';

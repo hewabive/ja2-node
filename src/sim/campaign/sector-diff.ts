@@ -5,7 +5,7 @@
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
 // @src TileEngine/SaveLoadMap.cc revealed status, blood and smell, the openable statuses
 // @src (SaveBloodSmellAndRevealedStatesFromMapToTempFile, AddBloodOrSmellFromMapTempFileToMap,
-// @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files. See docs/16 §5.11, §5.12, §5.14.
+// @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { DetailedPlacement } from '../../content/formats/placement.ts';

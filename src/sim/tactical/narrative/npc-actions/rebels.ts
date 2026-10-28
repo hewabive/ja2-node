@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (GOTO_HIDEOUT, LEAVE_HIDEOUT, FATIMA_GIVE_LETTER,
 // @src SEND_PACOS_INTO_HIDING, HAVE_PACOS_FOLLOW, PUT_PACOS_IN_BASEMENT, TRIGGER_END_OF_FOOD_QUEST, TRIGGER_FATHER_18_20_OR_15,
 // @src SEND_ENRICO_MIGUEL_EMAIL), sBasementEnterGridNos, sBasementExitGridNos, DoneFadeOutActionBasement,
-// @src DoneFadeInActionBasement, DoneFadeOutActionLeaveBasement. See docs/25 §3.4.
+// @src DoneFadeInActionBasement, DoneFadeOutActionLeaveBasement.
 
 import { npcGotoGridNo, triggerNpcRecordImmediately } from '../../../narrative/converse.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';

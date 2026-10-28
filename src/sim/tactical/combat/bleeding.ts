@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount), SoldierBleed, CalcSoldierNextBleed. See docs/11 §5.11.
+// @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount), SoldierBleed, CalcSoldierNextBleed.
 
 import { profileProgress } from '../profiles.ts';
 import { effectiveLife } from '../skills.ts';

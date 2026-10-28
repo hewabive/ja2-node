@@ -8,7 +8,7 @@
 // @src HandleNPCTeamMemberDeath (MakeRemainingTerroristsTougher, MakeRemainingAssassinsTougher, the DYNAMO, KINGPIN and DOREEN
 // @src cases); Strategic/Hourly_Update.cc HourlyLarryUpdate (the merc side); Tactical/Soldier_Profile.cc SwapLarrysProfiles
 // @src (the soldier side); Strategic/Quests.cc CheckFact (the boxing inputs: AnotherFightPossible, BoxerAvailable, BoxerExists);
-// @src StrategicMap.cc HandleQuestCodeOnSectorEntry (gBoxer cleared in D5). See docs/25 §1–§4, §7, §11.12.
+// @src StrategicMap.cc HandleQuestCodeOnSectorEntry (gBoxer cleared in D5).
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';

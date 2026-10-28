@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/Knowledge.cc MostImportantNoiseHeard (personal and public heard entries, personal and team
-// @src noise), WhatIKnowThatPublicDont; AIUtils.cc ClosestKnownOpponent, GuySawEnemyThisTurnOrBefore. See docs/09 §4.2,
-// @src docs/13 §2.
+// @src noise), WhatIKnowThatPublicDont; AIUtils.cc ClosestKnownOpponent, GuySawEnemyThisTurnOrBefore.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { getInterveningClimbingLocation } from '../buildings.ts';

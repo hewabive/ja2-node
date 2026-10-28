@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Sound_Control.cc szSoundEffects; src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound (the
 // @src generic voice names); src/game/Tactical/Soldier_Create.cc (ubBattleSoundID per body); src/game/Tactical/Weapons.cc
-// @src GetBurstSoundName (the %d burst names). See docs/27 §3.1.
+// @src GetBurstSoundName (the %d burst names).
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asBool, asInt, asObject, asString, type JsonObject } from '../strategic/json-fields.ts';

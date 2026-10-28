@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Font.cc GetCharWidth, StringPixLength (a plain sum of advances), CenterAlign, RightAlign,
 // @src HCenterVCenterAlign, HRightVCenterAlign, FindFontCenterCoordinates, FindFontRightCoordinates (integer division
-// @src truncating towards zero). See docs/28 §3.4.
+// @src truncating towards zero).
 
 import { idiv } from '../../core/int.ts';
 import { type BitmapFont, drawableGlyph, fontHeight, glyphAdvance } from './bitmap-font.ts';

@@ -3,7 +3,6 @@
 // @src src/game/Tactical/TeamTurns.cc StandardInterruptConditionsMet, CalcInterruptDuelPts, InterruptDuel;
 // @src OppList.cc FindUnusedWatchedLoc, FindWatchedLocWithLessThanXPointsLeft, FindWatchedLoc, GetWatchedLocPoints,
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
-// @src See docs/10 §1.3, §4.2, §4.3, §4.9, docs/25 §7.2 (no interrupts while boxing).
 
 import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { AnimHeight, height, states } from '../animation.ts';

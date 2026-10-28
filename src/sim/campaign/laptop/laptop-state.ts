@@ -4,7 +4,7 @@
 // @src Laptop/Laptop.h (bookmarks); Laptop/Mercs.h MERC_ACCOUNT_*, MERC_SITE_*; Laptop/Store_Inventory.h STORE_INVENTORY;
 // @src Laptop/BobbyRMailOrder.h NewBobbyRayOrderStruct; Laptop/EMail.h Email; Laptop/History.cc HistoryUnit; Laptop/Files.cc
 // @src FilesUnit; Laptop/Laptop.cc LaptopScreenInit, InitLaptopAndLaptopScreens; Laptop/Mercs.cc GameInitMercs;
-// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector. See docs/21 §0.
+// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 

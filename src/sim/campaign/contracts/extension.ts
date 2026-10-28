@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Merc_Contract.cc MercContractHandling. See docs/22 §3.6.
+// @src src/game/Strategic/Merc_Contract.cc MercContractHandling.
 
 import { i8, i32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';

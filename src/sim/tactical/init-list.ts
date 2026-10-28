@@ -5,7 +5,7 @@
 // @src StripEnemyDetailedPlacementsIfSectorWasPlayerLiberated, FindSoldierInitNodeBySoldier;
 // @src Soldier_Create.cc RandomizeRelativeLevel, TacticalCreateEnemySoldier, CreateSoldierCommon (standing frame draw), the calls
 // @src of OkayToUpgradeEliteToSpecialProfiledEnemy and the gfProfiledEnemyAdded reset;
-// @src Strategic/Queen_Command.cc AddEnemiesToBattle. See docs/16 §5.13, docs/17 §10.
+// @src Strategic/Queen_Command.cc AddEnemiesToBattle.
 
 import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';

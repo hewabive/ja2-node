@@ -5,7 +5,7 @@
 // @src AffectAllTownsLoyaltyByDistanceFrom, CheckIfEntireTownHasBeenLiberated, CheckIfEntireTownHasBeenLost,
 // @src IncrementTownLoyaltyEverywhere, DecrementTownLoyaltyEverywhere, ReduceLoyaltyForRebelsBetrayed,
 // @src HandleTownLoyaltyForNPCRecruitment, MaximizeLoyaltyForDeidrannaKilled; Strategic/Player_Command.cc
-// @src SetThisSectorAsPlayerControlled, SetThisSectorAsEnemyControlled (loyalty, morale, mine and theft effects). See docs/18 §2.
+// @src SetThisSectorAsPlayerControlled, SetThisSectorAsEnemyControlled (loyalty, morale, mine and theft effects).
 
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i16, idiv, imod, u8, u32 } from '../../../core/int.ts';

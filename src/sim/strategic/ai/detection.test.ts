@@ -45,7 +45,7 @@ function fixture(garrisons: readonly GarrisonFixture[], hour = 12, facts: Record
   return { ...f, mercs };
 }
 
-describe('notice rolls (docs/17 §8.1)', () => {
+describe('notice rolls', () => {
   it('uses the full alertness by day and a third at night, with decay on success', () => {
     const { q, rolls } = fixture([]);
     rolls.push(19, 20);
@@ -62,7 +62,7 @@ describe('notice rolls (docs/17 §8.1)', () => {
   });
 });
 
-describe('who may be attacked (docs/17 §8.2)', () => {
+describe('who may be attacked', () => {
   it('applies the Omerta and Drassen time gates, the Kingpin and hillbilly facts and the grace period', () => {
     const early = fixture([], 12);
     early.q.state.clock.seconds = 2 * 86400 + 7 * 3600 + 44 * 60;
@@ -80,7 +80,7 @@ describe('who may be attacked (docs/17 §8.2)', () => {
   });
 });
 
-describe('arrival look-around (docs/17 §8.4)', () => {
+describe('arrival look-around', () => {
   it('looks north before west for an arriving enemy group and attacks the militia it notices', () => {
     const { q, rolls } = fixture([]);
     const g = createNewEnemyGroupDepartingFromSector(q, parseSectorId('G7'), 0, 8, 0);
@@ -133,7 +133,7 @@ describe('arrival look-around (docs/17 §8.4)', () => {
   });
 });
 
-describe('reactions (docs/17 §9)', () => {
+describe('reactions', () => {
   it('fortifies towns at wake from the nearest big patrol and converts the Omerta garrison', () => {
     const { q } = fixture([
       { sector: 'C13', composition: Composition.DRASSEN_DEFENCE, admins: 5 },

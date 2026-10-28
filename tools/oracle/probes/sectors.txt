@@ -1,4 +1,4 @@
-# Sector transitions (docs/16 §9.4): map edgepoints, the screen-space exit checks, walking off and on, the mirror
+# Sector transitions: map edgepoints, the screen-space exit checks, walking off and on, the mirror
 # position of a quick traversal, OKForSectorExit on saves, the soldier init list and the enemy defence placement.
 # Every defence probe adds soldiers and changes placement classes, so a fresh sector load follows it.
 newgame difficulty=2

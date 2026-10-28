@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc RequestToggleTimeCompression, RequestIncreaseInTimeCompression (start
 // @src over at 5 minutes per second), RequestDecreaseInTimeCompression; src/game/Strategic/Game_Clock.cc
 // @src IncreaseGameTimeCompressionRate and DecreaseGameTimeCompressionRate (the map screen skips X1);
-// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc DisplayCompressMode. See docs/28 §7.9.
+// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc DisplayCompressMode.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';

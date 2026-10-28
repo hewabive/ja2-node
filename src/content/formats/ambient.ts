@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Ambient_Types.h AMBIENTDATA_STRUCT; TileEngine/Ambient_Control.cc LoadAmbientControlFile,
-// @src SetupNewAmbientSound; src/game/Directories.h AMBIENTDIR. See docs/27 §3.1.
+// @src SetupNewAmbientSound; src/game/Directories.h AMBIENTDIR.
 
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';

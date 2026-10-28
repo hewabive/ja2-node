@@ -4,7 +4,7 @@
 // @src rectangle, the full-screen MSYS_PRIORITY_HIGHEST back region with the style's cursor, the button sets and their
 // @src positions, the game paused and the UI timers stopped), ExitMsgBox, MessageBoxScreenHandle (the keys on KEY_UP),
 // @src g_msg_box_style, MSGBOX_* defines; src/game/MessageBoxScreen.h MessageBoxFlags, MessageBoxReturnValue,
-// @src MessageBoxStyleID; src/game/Utils/Text.h MSG_OK, MSG_YES, MSG_NO, MSG_REHIRE, MSG_LIE, MSG_SKIP. See docs/28 §3.6.
+// @src MessageBoxStyleID; src/game/Utils/Text.h MSG_OK, MSG_YES, MSG_NO, MSG_REHIRE, MSG_LIE, MSG_SKIP.
 
 import { idiv } from '../../core/int.ts';
 import type { AssetKey, DrawList } from '../draw-list.ts';

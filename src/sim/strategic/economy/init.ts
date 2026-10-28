@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Init.cc InitStrategicLayer (InitTownLoyalty, InitializeMines), InitNewGame (starting cash).
-// See docs/15 §4.2–§4.3, docs/18 §3.2.
 
 import { addTransaction, createFinanceState, FinanceCode } from '../../campaign/finances.ts';
 import { initTownLoyalty } from './loyalty.ts';

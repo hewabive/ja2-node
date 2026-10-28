@@ -4,7 +4,7 @@
 // @src UseHandToHand; Soldier_Control.cc EVENT_SoldierGotHit (interrogation punches), SoldierTakeDamage (SOLDIER_NPC_SHOOTING,
 // @src bleeding), BeginSoldierGetup; Soldier_Add.cc InternalAddSoldierToSector (Elliot's life); Soldier_Ani.cc
 // @src CheckForAndHandleSoldierIncompacitated; Overhead.cc InternalReduceAttackBusyCount; TeamTurns.cc
-// @src DisplayHiddenTurnbased. See docs/26 §1.6.
+// @src DisplayHiddenTurnbased.
 
 import { Approach } from '../../../content/narrative/npc-constants.ts';
 import { OKLIFE, type Soldier } from '../soldier.ts';

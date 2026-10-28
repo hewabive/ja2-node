@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-28. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Faces.cc SetFaceTalking and HandleTalkingAutoFace (a line with valid speech lasts as long as
-// @src its sample plays); src/externalized/content/Dialogs.cc GetDialogueVoiceFilename. See docs/04 §6.37.
+// @src its sample plays); src/externalized/content/Dialogs.cc GetDialogueVoiceFilename.
 
 import { readWavInfo, wavDurationMs } from '../formats/wav.ts';
 import { normalizeVfsPath } from '../vfs/path.ts';

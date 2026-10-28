@@ -3,8 +3,7 @@
 // @src src/game/Laptop/AIMMembers.cc WillMercAcceptCall, CanMercBeHired (via relations/hiring-check.ts),
 // @src DisplayMercChargeAmount, DisplayMercsFace, BtnAnsweringMachineButtonCallback, AimMemberHireMerc, AIM_VIDEO_INIT_MODE
 // @src (default contract and kit), BtnHireButtonCallback (the check at HIRE, before the funds); Tactical/Dialogue_Control.h
-// @src (the quote ids); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists. See
-// @src docs/21 §2.1–§2.5, §8.1.
+// @src (the quote ids); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';

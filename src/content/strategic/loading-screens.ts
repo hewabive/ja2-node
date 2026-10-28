@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/externalized/LoadingScreenModel.cc PREDEFINED_SCREENS, LoadingScreenModel::deserialize, getScreenForSector;
-// @src src/game/Loading_Screen.h LoadingScreenID. See docs/28 §4.10.
+// @src src/game/Loading_Screen.h LoadingScreenID.
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asObject, asString } from './json-fields.ts';

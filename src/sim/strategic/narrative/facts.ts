@@ -7,7 +7,6 @@
 // @src gfProfiledEnemyAdded (not saved); Overhead_Types.h fCountingDownForGuideDescription, bGuideDescriptionCountDown,
 // @src ubGuideDescriptionToUse, bGuideDescriptionSectorX, bGuideDescriptionSectorY; Tactical/Overhead.h
 // @src TacticalStatusType::bBoxingState.
-// @src See docs/25 §0, §1.1.
 
 import { u8 } from '../../../core/int.ts';
 import { NOBODY } from '../../tactical/soldier.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Assignments.cc UpdateAssignments, BuildSectorsWithSoldiersList, RecordSleepStatusForPastHour,
 // @src IsThereASoldierInThisSector; Strategic/Hourly_Update.cc HandleHourlyUpdate, HandleQuarterHourUpdate, UpdateRegenCounters;
 // @src Strategic/Game_Event_Hook.cc (HOURLY_UPDATE, QUARTER_HOUR_UPDATE, SETUP_MINE_INCOME, HANDLE_MINE_INCOME,
-// @src CHECK_IF_MINE_CLEARED, BANDAGE_BLEEDING_MERCS, ENRICO_MAIL). See docs/15 §3.2–§3.3, docs/18 §5.3.
+// @src CHECK_IF_MINE_CLEARED, BANDAGE_BLEEDING_MERCS, ENRICO_MAIL).
 
 import { MAP_WORLD_X, MAP_WORLD_Y } from '../../../content/strategic/sector-ids.ts';
 import { EventKind } from '../time/constants.ts';

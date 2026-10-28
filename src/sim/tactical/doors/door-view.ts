@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc SetDoorString (perceived lock and trap state); Interface_Items.cc key ring popup
 // @src (RenderKeyRingPopup draws the key item of LockTable[keyID].usKeyItem); DefaultContentManager.cc getKeyItemForKeyId.
-// @src See docs/25 §13.4, docs/28 §12.1 G20.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import type { Soldier } from '../soldier.ts';

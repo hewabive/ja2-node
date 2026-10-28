@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HOSPITAL_UNSET…HOSPITAL_RANDOM_FREEBIE, CalcPatientMedicalCost, CalcMedicalCost;
 // @src Interface_Dialogue.h HOSPITAL_PATIENT_DISTANCE; Strategic/Assignments.cc SetTimeOfAssignmentChangeForMerc (the refund);
-// @src Strategic/Strategic_Event_Handler.cc CheckForMissingHospitalSupplies. See docs/25 §11.3.
+// @src Strategic/Strategic_Event_Handler.cc CheckForMissingHospitalSupplies.
 
 import { idiv, u32 } from '../../../core/int.ts';
 import { Fact } from './fact-ids.ts';

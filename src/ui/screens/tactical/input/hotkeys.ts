@@ -8,7 +8,7 @@
 // @src HandleItemMenuKeys, HandleTalkingMenuKeys, HandleStanceChangeFromUIKeys, HandleStealthChangeFromUIKeys,
 // @src ChangeCurrentSquad, HandleSelectMercSlot, GroupAutoReload; Handle_UI.cc ClimbUpOrDown, GotoHigherStance,
 // @src GotoLowerStance; Overhead.cc CycleThroughKnownEnemies, CycleVisibleEnemies; DisplayCover.cc DisplayRangeToTarget;
-// @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects. See docs/28 §6.3.
+// @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects.
 
 import type { UiKeyEvent } from '../../../input/events.ts';
 import { UiEvent, UiMode } from './ui-events.ts';

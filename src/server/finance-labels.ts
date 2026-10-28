@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Finances.cc ProcessTransactionString (the ledger row labels with the detailed GetSectorIDString,
-// @src sector-id-label.ts). See docs/21 §6.3.
+// @src sector-id-label.ts).
 
 import { sectorFromId } from '../content/strategic/sector-ids.ts';
 import { type UiStrings, uiString } from '../content/text/strings.ts';

@@ -8,7 +8,7 @@
 // @src names, the chance to hit, the AP cost that flashes when invalid), SetCursorSpecialFrame, SetCursorFlags,
 // @src RemoveCursorFlags (TARGET_OUT_OF_RANGE at MIDVOLUME when a CURSOR_TO_PLAY_SOUND cursor flashes on);
 // @src src/sgp/Video.cc MAX_CURSOR_WIDTH, MAX_CURSOR_HEIGHT, the cursor blit with gsMouseSizeYModifier;
-// @src src/game/Utils/Timer_Control.cc giTimerIntervals. See docs/28 §3.5.
+// @src src/game/Utils/Timer_Control.cc giTimerIntervals.
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/externalized/ExplosionAnimationModel.cc, SmokeEffectModel.cc; DefaultContentManager.cc smoke effect ids;
-// @src src/game/TileEngine/Tile_Cache.cc ubNumFrames from the STI aux data. See docs/12 §10.1.
+// @src src/game/TileEngine/Tile_Cache.cc ubNumFrames from the STI aux data.
 
 import { animationFrameCount, readGraphicFacts } from '../rules/graphic-facts.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';

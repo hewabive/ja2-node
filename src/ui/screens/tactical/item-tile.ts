@@ -4,7 +4,6 @@
 // @src outline shadow at (-2,+2), the index-254 outline colour, the rounds left by ammo type, JAMMED, the stack count, the
 // @src attachment star, the weapon mode marker), GetAttachmentHintColor, ITEMDESC_FONT*FORE; src/game/Tactical/Weapons.h
 // @src AMMO_*; src/game/Tactical/Interface_Utils.cc DrawItemUIBarEx (the status of keys, ammo and other items).
-// @src See docs/28 §5.3.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

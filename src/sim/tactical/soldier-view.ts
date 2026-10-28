@@ -4,7 +4,7 @@
 // @src Faces.cc HandleRenderFaceAdjustments (the hatch: OK_INTERRUPT_MERC, gfHiddenInterrupt); Soldier_Macros.h
 // @src OK_INTERRUPT_MERC; Points.cc UIOKMoveDestination / Soldier_Control.cc ContinueMercMovement (the continue
 // @src location); Interface.cc GetSoldierHealthString; RenderWorld.cc (the enemy glow test !bNeutral && bSide !=
-// @src FRIENDLY). See docs/28 §12.1 G1-G5.
+// @src FRIENDLY).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';

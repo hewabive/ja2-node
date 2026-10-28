@@ -6,7 +6,6 @@
 // @src HandleAITacticalTraversal (the away slot), the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
 // @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle (with PCs under AI control); creature/crow
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
-// @src See docs/09 §1, docs/13 §14, docs/25 §5.3, §7.2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';

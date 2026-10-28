@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Meanwhile.h, Meanwhile.cc gusMeanWhileGridNo, StartMeanwhile; Tactical/QArray.cc
 // @src QuoteExp_WitnessDeidrannaDeath, QuoteExp_WitnessQueenBugDeath (transcribed in data/tables/narrative-scenes.json).
-// @src See docs/26 §11.2.
 
 import { asArray, asBool, asInt, asObject, asString } from '../strategic/json-fields.ts';
 import { parseJsoncBytes } from '../strategic/jsonc.ts';

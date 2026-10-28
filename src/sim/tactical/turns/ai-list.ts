@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIList.cc RemoveFirstAIListEntry, InsertIntoAIList, SatisfiesAIListConditions,
-// @src MoveToFrontOfAIList, BuildAIListForTeam (and its InitEnemyUIBar). See docs/10 §6.3, docs/25 §7.2.
+// @src MoveToFrontOfAIList, BuildAIListForTeam (and its InitEnemyUIBar).
 
 import { boxingFight } from '../narrative/boxing-state.ts';
 import { turnOffTeamsMuzzleFlashes } from '../perception/sight.ts';

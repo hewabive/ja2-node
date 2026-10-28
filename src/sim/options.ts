@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/GameSettings.h GAME_OPTIONS, GameSaveMode; GameSettings.cc InitGameOptions, InitGameSettings
-// @src (TOPTION_BLOOD_N_GORE on); SaveLoadGame.cc ExtractGameOptions. See docs/27 §2.2.
+// @src (TOPTION_BLOOD_N_GORE on); SaveLoadGame.cc ExtractGameOptions.
 
 import type { SavedGameOptions } from '../content/formats/savegame-header.ts';
 

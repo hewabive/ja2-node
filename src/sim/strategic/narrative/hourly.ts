@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Hourly_Update.cc HourlyQuestUpdate, HourlyCheckIfSlayAloneSoHeCanLeave; Tactical/Campaign.cc
 // @src HourlyProgressUpdate (the milestone effects);
-// @src Strategic/StrategicMap.cc HandleSlayDailyEvent. See docs/25 §4.4.
+// @src Strategic/StrategicMap.cc HandleSlayDailyEvent.
 
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { ProgressMilestones } from '../ai/difficulty.ts';

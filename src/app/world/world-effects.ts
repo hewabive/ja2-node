@@ -11,7 +11,7 @@
 // @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); Rotting_Corpses.cc
 // @src VaporizeCorpse (gen_blow.sti in the struct layer, opaque); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
-// @src thrower's tile). See docs/28 §12.1 G8.
+// @src thrower's tile).
 
 import {
   CORPSES_TABLE_PATH,

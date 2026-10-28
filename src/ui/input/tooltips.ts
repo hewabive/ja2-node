@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/MouseSystem.cc RenderFastHelp (600 ms while the pointer rests with no button down), DisplayFastHelp
 // @src (size, placement and the double frame, the interior shaded twice), GetWidthOfString, DisplayHelpTokenizedString
-// @src ('|' bold gold 146, '^' light green, '~' light red, else beige). See docs/28 §3.2.
+// @src ('|' bold gold 146, '^' light green, '~' light red, else beige).
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { type DrawList, rgb } from '../draw-list.ts';

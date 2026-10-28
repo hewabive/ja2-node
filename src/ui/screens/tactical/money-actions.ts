@@ -4,7 +4,7 @@
 // @src CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT question; no item: the money box over LaptopSaveInfo.iCurrentBalance;
 // @src nothing while gfSMDisableForItems), ConfirmationToDepositMoneyToPlayersAccount; src/game/Tactical/Interface_Items.cc
 // @src RemoveMoney (a withdrawal books TRANSFER_FUNDS_TO_MERC, a split goes into the cursor, in the shop into the shop's
-// @src cursor to be offered). See docs/28 §5.1, §5.4, §5.9.
+// @src cursor to be offered).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';

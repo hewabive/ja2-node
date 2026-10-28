@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldDef.cc CompileWorldTerrainIDs, CompileTileMovementCosts, CompileWorldMovementCosts,
-// @src RecompileLocalMovementCostsFromRadius; src/game/Tactical/PathAI.h TRAVELCOST_*. See docs/07 §2.
+// @src RecompileLocalMovementCostsFromRadius; src/game/Tactical/PathAI.h TRAVELCOST_*.
 
 import { FormatError } from '../binary/errors.ts';
 import { Orientation } from '../formats/jsd.ts';

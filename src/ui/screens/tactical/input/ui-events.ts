@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.h UI_MODE, UIEventKind, UIEVENT_SINGLEEVENT, UIEVENT_SNAPMOUSE, MoveUITarget;
-// @src src/game/Tactical/Handle_UI.cc gEvents (each event's flags and the mode it changes to). See docs/28 §6.1.
+// @src src/game/Tactical/Handle_UI.cc gEvents (each event's flags and the mode it changes to).
 
 export const UiMode = {
   DONT_CHANGEMODE: 'DONT_CHANGEMODE',

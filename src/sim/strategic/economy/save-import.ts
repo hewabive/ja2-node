@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame (mine status, town loyalty, finances temp file, soldier assignment fields;
-// @src the strategic status is the Queen's import, src/sim/strategic/ai/save-import.ts). See docs/14 §4, docs/18 §8 (i).
+// @src the strategic status is the Queen's import, src/sim/strategic/ai/save-import.ts).
 
 import type { SavedEconomy, SavedSoldierAssignment } from '../../../content/formats/savegame-economy.ts';
 import { i32 } from '../../../core/int.ts';

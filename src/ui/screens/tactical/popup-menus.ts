@@ -6,7 +6,7 @@
 // @src action, cancel, sneak, talk, hand and crawl buttons with their help and disabled rules, the action picture by the
 // @src hand item), MovementMenuBackregionCallback, BtnMovementCallback, InitDoorOpenMenu (centred on the merc's bounding
 // @src box, clamped), PopupDoorOpenMenu, MakeButtonDoor (the "( AP )" help in combat, disabled without the tool or the
-// @src points), BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu. See docs/28 §6.6.
+// @src points), BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
 
 import type { DoorMenuAction, DoorMenuOption } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';

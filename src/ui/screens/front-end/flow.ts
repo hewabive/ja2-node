@@ -7,7 +7,7 @@
 // @src EnterSaveLoadScreen (gfLoadGameUponEntry loads the newest save without the warning box),
 // @src StartFadeOutForSaveLoadScreen and DoneFadeOutForSaveLoadScreen (fade out, load, fade in on the saved screen);
 // @src src/game/GameLoop.cc EndGameMessageBoxCallBack; src/game/Credits.cc (back to the main menu); src/game/JAScreens.cc
-// @src SexScreenHandle (a fade into the game). See docs/28 §4.1.
+// @src SexScreenHandle (a fade into the game).
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { GameOptions, SaveListing } from '../../client/api-types.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/EMail.cc AddEmailMessage, AddEmail, AddPreReadEmail, AddEmailWithSpecialData,
 // @src HandleAnySpecialEmailMessageEvents, HandleMailSpecialMessages (the bookmarks), DeleteEmail; Laptop/EMail.h (offsets,
-// @src senders). See docs/21 §6.1.
+// @src senders).
 
 import { FormatError } from '../../../content/binary/errors.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';

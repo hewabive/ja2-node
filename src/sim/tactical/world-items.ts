@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/World_Items.cc AddItemToWorld, LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
-// @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems; Overhead.cc FlatRoofAboveGridNo. See docs/12 §6, §9.
+// @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems; Overhead.cc FlatRoofAboveGridNo.
 
 import type { MapItem } from '../../content/formats/map.ts';
 import { decodeObject } from '../../content/formats/object.ts';

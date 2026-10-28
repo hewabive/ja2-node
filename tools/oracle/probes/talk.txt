@@ -1,4 +1,4 @@
-# NPC dialogue probes on the native saves (docs/24 §15): record arrays after the load, profile NPC fields,
+# NPC dialogue probes on the native saves: record arrays after the load, profile NPC fields,
 # CalcDesireToTalk, NPCConsiderTalking and ConverseFull without draining the queue. Merc 0 is the talker.
 save SaveGame02
 questdecode

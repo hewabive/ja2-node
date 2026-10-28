@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/NPCQuoteInfo.h NPCQuoteInfo and its constants; src/game/TacticalAI/NPC.cc
 // @src ExtractNPCQuoteInfoArrayFromFile, ConditionalInjectNPCQuoteInfoArrayIntoFile; Strategic/Facts.h FACT_NONE,
-// @src FACT_PLAYER_KILLED_BOXERS. See docs/24 §1.3.
+// @src FACT_PLAYER_KILLED_BOXERS.
 
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';

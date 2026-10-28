@@ -7,7 +7,7 @@
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
 // @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist, EndMuzzleFlash, TurnOffEveryonesMuzzleFlashes,
 // @src TurnOffTeamsMuzzleFlashes, DecideTrueVisibility (ManSeesMan's first-battle fact through the narrative
-// @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20, docs/25 §1.2, §7.2.
+// @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';

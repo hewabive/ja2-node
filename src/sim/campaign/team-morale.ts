@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc HourlyMoraleUpdate, DecayTacticalMoraleModifiers, DecayStrategicMoraleModifiers,
 // @src DecayTacticalMorale, DecayStrategicMorale; Strategic/Strategic_Merc_Handler.cc UpdateBuddyAndHatedCounters;
-// @src TacticalAI/AIUtils.cc DistanceToClosestFriend; Soldier_Profile.cc WhichHated. See docs/11 §9, docs/18 §5.12.
+// @src TacticalAI/AIUtils.cc DistanceToClosestFriend; Soldier_Profile.cc WhichHated.
 
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { clamp } from '../../core/int.ts';

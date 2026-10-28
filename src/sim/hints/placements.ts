@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc the pickup into the item cursor, the hatch drawn on invalid slots except the
 // @src second hand, the blocked second hand under a two-handed weapon, the compatible outline (InternalHandleCompatibleAmmoUI),
-// @src HandleAnyMercInSquadHasCompatibleStuff; Interface_Panels.cc ReevaluateItemHatches. See docs/28 §5.3.
+// @src HandleAnyMercInSquadHasCompatibleStuff; Interface_Panels.cc ReevaluateItemHatches.
 
 import { isTwoHanded, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';

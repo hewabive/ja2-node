@@ -3,7 +3,7 @@
 // @src src/game/Strategic/MapScreen.cc CreateDestroyMapInvButton, BltCharInvPanel (the armour as "{3d}%", the weight and
 // @src the camouflage as "{}%"), SetMapCursorItem and MAPEndItemPointer (the item picture as the cursor), HandleKeyESC;
 // @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc CreateDestroyMapInventoryPoolButtons,
-// @src CancelSectorInventoryDisplayIfOn. See docs/28 §7.8.
+// @src CancelSectorInventoryDisplayIfOn.
 
 import type { SoldierView, StrategicMercView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';

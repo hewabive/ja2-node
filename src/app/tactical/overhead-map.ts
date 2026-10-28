@@ -6,7 +6,7 @@
 // @src then objects, shadows and structures with IGNORE_WORLD_HEIGHT using the modified height, then roofs lifted by
 // @src WALL_HEIGHT / 5), GetOverheadScreenXYFromGridNo, InternalGetOverheadMouseGridNo (the -8 row adjustment and the
 // @src land height correction); src/game/TileEngine/Isometric_Utils.cc GetMapPosFromAbsoluteScreenXY; src/sgp/Shading.cc
-// @src BuildShadeTable (the shadow blit). Restricted maps keep the unrestricted origin (docs/deviations.md).
+// @src BuildShadeTable (the shadow blit). Restricted maps keep the unrestricted origin.
 
 import { decodeSti, type StiIndexed } from '../../content/formats/sti.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';

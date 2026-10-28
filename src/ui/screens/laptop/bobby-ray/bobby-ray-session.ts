@@ -5,7 +5,7 @@
 // @src GetNextPurchaseNumber (an entry is free when its slot and count are 0), UnPurchaseBobbyRayItem,
 // @src CalculateTotalPurchasePrice, guiLastBobbyRayPage; src/game/Laptop/BobbyRMailOrder.cc EnterInitBobbyRayOrder (the cart,
 // @src the speed and the city cleared on every laptop entry), BtnBobbyRClearOrderCallback, IsAnythingPurchasedFromBobbyRayPage,
-// @src CalcPackageTotalWeight. See docs/28 §9.6.
+// @src CalcPackageTotalWeight.
 
 import { DropDown } from '../../../widgets/drop-down.ts';
 import { LaptopMode } from '../laptop-modes.ts';

@@ -3,13 +3,12 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary, UIHandleItemPlacement, MergeMessageBoxCallBack,
 // @src HandleNailsVestFetish, SMInvClickCamoCallback, TMClickFirstHandInvCallbackSecondary; Interface_Items.cc
 // @src BeginItemPointer, CancelItemPointer, ItemDescAttachmentsCallbackPrimary, DoAttachment, ItemDescAmmoCallback,
-// @src DeleteItemDescriptionBox (AP_RELOAD_GUN when the attachments changed, charged per command, see docs/deviations.md),
+// @src DeleteItemDescriptionBox (AP_RELOAD_GUN when the attachments changed, charged per command),
 // @src ItemPopupRegionCallbackPrimary (one object of a stack), CompatibleItemForApplyingOnMerc; Turn_Based_Input.cc
 // @src HandleUIReloading; Points.cc GetAPsToAutoReload; Items.cc RemoveObjectFromSlot, ApplyCamo, ApplyCanteen,
 // @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box);
 // @src Interface_Items.cc RemoveMoney, BtnMoneyButtonCallback* (the money box splits money off a pocket into the cursor,
 // @src then the drop places it: one command).
-// @src See docs/12 §3–§5, docs/04 §6.23.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';

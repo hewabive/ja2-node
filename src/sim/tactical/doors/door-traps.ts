@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.cc HasDoorTrapGoneOff, HandleDoorTrap, ExamineDoorForTraps, AttemptToUntrapDoor,
 // @src UpdateDoorPerceivedValue; Handle_Doors.cc DoTrapCheckOnStartingMenu; TacticalAI/Knowledge.cc CallAvailableEnemiesTo,
-// @src CallAvailableTeamEnemiesTo, CallAvailableKingpinMenTo. See docs/25 §8.2–§8.3.
+// @src CallAvailableTeamEnemiesTo, CallAvailableKingpinMenTo.
 
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { calcTrapDetectLevel, SkillCheckReason, skillCheck } from '../combat/skill-check.ts';

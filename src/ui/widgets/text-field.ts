@@ -5,7 +5,7 @@
 // @src HandleRegularInput (full text and numeric filters), AddChar, DeleteHilitedText, RemoveChars, CalculateCursorPos,
 // @src MouseMovedInTextRegionCallback, MouseClickedInTextRegionCallback, RenderBackgroundField, RenderActiveTextField
 // @src (the caret blinks with GetJA2Clock() % 1000 < 500), RenderInactiveTextFieldNode, SelectNextField, SelectPrevField;
-// @src src/game/Utils/Text_Input.h TEXT_CURSOR_BLINK_INTERVAL. See docs/28 §3.6.
+// @src src/game/Utils/Text_Input.h TEXT_CURSOR_BLINK_INTERVAL.
 
 import { FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';

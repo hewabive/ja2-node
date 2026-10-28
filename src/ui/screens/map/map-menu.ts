@@ -4,7 +4,7 @@
 // @src MSYS_PRIORITY_HIGHEST - 4, the callbacks run for shaded lines too and decide themselves), AssignmentMenuMvtCallBack
 // @src (a shaded line is not highlighted), CreateDestroyScreenMaskForAssignmentAndContractMenus and
 // @src AssignmentScreenMaskBtnCallback (a full-screen mask that closes every menu on a button release, the first release
-// @src after opening ignored); src/game/Utils/PopUpBox.cc (the box itself). See docs/28 §7.4.
+// @src after opening ignored); src/game/Utils/PopUpBox.cc (the box itself).
 
 import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';

@@ -10,7 +10,7 @@
 // @src RenderGender; IMP_Personality_Entrance.cc and IMP_Attribute_Entrance.cc the begin buttons; IMP_Finish.cc
 // @src RenderCharFullName, BtnIMPFinishStartOverCallback, BtnIMPFinishDoneCallback, BtnIMPFinishPersonalityCallback (the
 // @src analysing label and the icon flipping every ANIMATE_MIN_TIME while pressed), BtnIMPFinishAttributesCallback;
-// @src IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo. See docs/28 §9.7.
+// @src IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo.
 
 import type { ControllerContract } from '../../../layout/controller.ts';
 import { ViewModelController } from '../../../layout/controller.ts';

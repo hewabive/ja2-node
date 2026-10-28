@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/End_Game.cc sStatueGridNos, DoesO3SectorStatueExistHere, ChangeO3SectorStatue,
-// @src HandleStatueDamaged; Tactical/Handle_Items.cc StartBombMessageBox (the REMOTETRIGGER branch). See docs/26 §5.3.
+// @src HandleStatueDamaged; Tactical/Handle_Items.cc StartBombMessageBox (the REMOTETRIGGER branch).
 
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';

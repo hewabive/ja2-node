@@ -3,7 +3,7 @@
 // @src src/externalized/strings/Localization.cc GetSuffix, GetArray, L10n_t::L10n_t (sizes in data/tables/l10n.json);
 // @src src/externalized/DefaultContentManager.cc loadStringRes, loadGameData, loadPrioritizedData;
 // @src src/externalized/strings/TranslatableString.cc FileLoader::getJsonTranslations; src/externalized/CalibreModel.cc,
-// @src ShippingDestinationModel.cc, strategic/TownModel.cc (the translation prefixes). See docs/27 §5.
+// @src ShippingDestinationModel.cc, strategic/TownModel.cc (the translation prefixes).
 
 import { FormatError } from '../binary/errors.ts';
 import { parseJsoncBytes } from '../strategic/jsonc.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (NPC_ACTION_SLAP, NPC_ACTION_FRUSTRATED_SLAP,
 // @src NPC_ACTION_PUNCH_PC_SLOT_0..2, NPC_ACTION_PUNCH_FIRST_LIVING_PC, NPC_ACTION_SHOOT_ELLIOT, NPC_ACTION_END_MEANWHILE,
-// @src NPC_ACTION_ENDGAME_STATE_1/2, the Queen's and Elliot's record selectors). See docs/26 §1.7, §8.
+// @src NPC_ACTION_ENDGAME_STATE_1/2, the Queen's and Elliot's record selectors).
 
 import { createItem } from '../../items/object.ts';
 import { soldierByProfile } from '../../narrative/dialogue-queue.ts';

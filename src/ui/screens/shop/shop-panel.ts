@@ -13,7 +13,7 @@
 // @src evaluation quote's chance 100/60/25/10/0 by the time since the last), GetShopKeeperInterfaceUserInput (ESC = Done,
 // @src SPACE = the next merc), BuildDoneWhenTimeString, BuildRepairTimeString, BuildItemHelpTextString,
 // @src SetSkiFaceRegionHelpText, InitShopKeeperItemDescBox (the placement quirks), IsGunOrAmmoOfSameTypeSelected,
-// @src SetSkiCursor. See docs/28 §5.9.
+// @src SetSkiCursor.
 
 import { speechPathForLine } from '../../../content/audio/speech.ts';
 import type { AudioGap } from '../../../content/formats/gap.ts';

@@ -110,7 +110,7 @@ describe('the meanwhile box (Meanwhile.cc BringupMeanwhileBox)', () => {
   });
 });
 
-describe('the story layer (docs/28 §10)', () => {
+describe('the story layer', () => {
   it('passes frames without a story event straight to the flow', () => {
     const { layer, released } = story();
     layer.frames([frame(1), frame(2)], (f) => released.push(...f.map((x) => x.tick)));

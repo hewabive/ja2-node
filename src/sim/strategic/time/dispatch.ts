@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Game_Event_Hook.cc ExecuteStrategicEvent, DelayEventIfBattleInProgress. See docs/15 §2.6–§2.7.
+// @src src/game/Strategic/Game_Event_Hook.cc ExecuteStrategicEvent, DelayEventIfBattleInProgress.
 
 import type { StrategicEvent } from './event-queue.ts';
 

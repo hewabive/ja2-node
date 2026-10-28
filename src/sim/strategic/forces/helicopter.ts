@@ -11,7 +11,7 @@
 // @src ExplainWhySkyriderCantFly, PlayerMercsInHelicopterSector, HandleNewDestConfirmation and CheckIfClickOnLastSectorInPath
 // @src (helicopter parts); Map_Screen_Interface_Map.cc PlotPathForHelicopter, GetLastSectorOfHelicoptersPath,
 // @src ClearPathAfterThisSectorForHelicopter; Player_Command.cc SetThisSectorAsPlayerControlled (Skyrider's SAM congratulation);
-// @src Tactical/Vehicles.cc OKUseVehicle. See docs/25 §10.
+// @src Tactical/Vehicles.cc OKUseVehicle.
 
 import {
   type Sector,

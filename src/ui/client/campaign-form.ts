@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/GameSettings.cc InitGameOptions (easy, sci-fi, reduced guns, save anywhere), InitGameSettings (blood on);
-// @src src/game/GameInitOptionsScreen.cc (the game init screen's choices). See docs/27 §2.2, §8.3.
+// @src src/game/GameInitOptionsScreen.cc (the game init screen's choices).
 
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { Difficulty, GameOptions, SaveMode } from './api-types.ts';

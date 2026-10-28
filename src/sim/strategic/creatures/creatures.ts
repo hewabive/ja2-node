@@ -4,7 +4,7 @@
 // @src AddCreatureToNode, PlaceNewCreature, SpreadCreatures, CreatureNightPlanning, CheckConditionsForTriggeringCreatureQuest,
 // @src EndCreatureQuest, CreaturesInUndergroundSector, MineClearOfMonsters, PlayerGroupIsInACreatureInfestedMine,
 // @src GetWarpOutOfMineCodes, LoadCreatureDirectives, CreatureWeightsByHabitat, DistributeCreaturesByWeight; Utils/Music_Control.cc
-// @src StartMusicBasedOnMode (the creature music ends with an above-ground victory). See docs/17 §12.1, docs/27 §3.3.
+// @src StartMusicBasedOnMode (the creature music ends with an above-ground victory).
 
 import { CreatureHabitat, type CreatureLair, lairContainsSector } from '../../../content/strategic/creature-lairs.ts';
 import type { MineDef } from '../../../content/strategic/economy-content.ts';

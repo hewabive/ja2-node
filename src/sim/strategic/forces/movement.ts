@@ -7,8 +7,8 @@
 // @src RetreatGroupToPreviousSector, CalculateGroupRetreatSector, ResetMovementForEnemyGroup, RandomizePatrolGroupLocation,
 // @src PlaceGroupInSector, MoveAllGroupsInCurrentSectorToSector, GroupWillMoveThroughSector, SpendVehicleFuel;
 // @src Strategic_Pathing.cc RebuildWayPointsForGroupPath, ClearMercPathsAndWaypointsForAllInGroup, MoveGroupFromSectorToSector*,
-// @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr. See docs/16 §3.4–§3.12.
-// @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event (docs/28 §12.2).
+// @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr.
+// @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import {

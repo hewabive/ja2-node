@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc HandleRepairmenInSector, DoActualRepair, DoRepair, RepairObject, HandleRepairBySoldier,
-// @src RepairItemsOnOthers, UnjamGunsOnSoldier, HandleRepairOfRobotBySoldier, RepairRobot. See docs/18 §5.7.
+// @src RepairItemsOnOthers, UnjamGunsOnSoldier, HandleRepairOfRobotBySoldier, RepairRobot.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { sameSector } from '../../../content/strategic/sector-ids.ts';

@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Dialogue_Control.h DialogQuoteIDs (the quotes of docs/22); Dialogue_Control.cc
+// @src src/game/Tactical/Dialogue_Control.h DialogQuoteIDs (the contract quotes); Dialogue_Control.cc
 // @src gubMercValidPrecedentQuoteID, GetQuoteBitNumberFromQuoteID; Laptop/History.h (contract history codes);
 // @src Tactical/Soldier_Profile.h NPCIDs. Checked against data/tables/merc-quotes.json and merc-contracts.json.
 

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc AttachObject (the in-game attachment with its skill check and the merges),
-// @src EvaluateValidMerge, ValidMerge, GetAttachmentInfo. See docs/12 §2.
+// @src EvaluateValidMerge, ValidMerge, GetAttachmentInfo.
 
 import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import {

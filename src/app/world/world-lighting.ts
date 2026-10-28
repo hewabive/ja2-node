@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Lighting.cc LightAddTileNode (ubMaxLights, ubShadeLevel), LightSetBaseLevel;
 // @src src/game/Tactical/Soldier_Control.cc PositionSoldierLight, CreateSoldierLight, SetSoldierPersonalLightLevel;
-// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel. See docs/20 §1, §4 and docs/05 §6.
+// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel.
 
 import type { MapDef } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';

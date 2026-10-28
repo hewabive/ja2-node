@@ -10,7 +10,6 @@
 // @src HandleTalkingMenuEscape (Done and Esc close when the queue is empty), HandleTalkingMenuBackspace,
 // @src CalculatePopupTextOrientation (bottom, left, top, right; the hard-coded 340 is the top of the inventory panel),
 // @src CalculatePopupTextPosition; src/game/Tactical/Faces.cc InitFace (faces/bNN.sti, Elliot's variants).
-// @src See docs/28 §5.8.
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { idiv } from '../../../core/int.ts';

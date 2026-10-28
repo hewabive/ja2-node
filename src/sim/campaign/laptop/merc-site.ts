@@ -9,7 +9,6 @@
 // @src IsAnyMercMercsHired, IsAnyMercMercsDead, CountNumberOfMercMercsHired, CountNumberOfMercMercsWhoAreDead, CalcMercDaysServed;
 // @src Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback; Laptop/Mercs_Files.cc BtnMercHireButtonCallback,
 // @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts, CalculateHowMuchPlayerOwesSpeck; Laptop/Speck_Quotes.h.
-// @src See docs/21 §3.
 
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';

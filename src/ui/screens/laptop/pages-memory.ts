@@ -3,8 +3,7 @@
 // @src src/game/Laptop/LaptopSave.h iCurrentHistoryPage; Laptop/Files.cc iHighLightFileLine, giFilesPage;
 // @src Laptop/Florist_Gallery.cc guiCurrentlySelectedFlower, gubCurFlowerIndex; Laptop/Florist_Cards.cc
 // @src gbCurrentlySelectedCard; Laptop/Florist_Order_Form.cc the check boxes, gubCurrentlySelectedFlowerLocation,
-// @src gsSentimentTextField, gsNameTextField; Laptop/Insurance_Contract.cc gusCurrentInsuranceMercIndex. See docs/28 §9.3,
-// @src §9.8.
+// @src gsSentimentTextField, gsNameTextField; Laptop/Insurance_Contract.cc gusCurrentInsuranceMercIndex.
 
 export const NO_FILE = -1;
 export const NO_CARD = -1;

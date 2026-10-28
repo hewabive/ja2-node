@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.h (compositions, actions), Strategic_AI.cc (sector lists, times), Campaign_Types.h (SEC_*);
-// @src Tactical/Interface_Dialogue.h (NPC actions), Tactical/Soldier_Profile.h, Strategic/Meanwhile.h. See docs/17 §15.
+// @src Tactical/Interface_Dialogue.h (NPC actions), Tactical/Soldier_Profile.h, Strategic/Meanwhile.h.
 
 import { parseSectorId } from '../../../content/strategic/sector-ids.ts';
 

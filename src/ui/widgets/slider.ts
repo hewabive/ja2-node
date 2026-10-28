@@ -4,7 +4,7 @@
 // @src (dragging continues outside the region from the pointer's y, also for horizontal sliders), RenderSelectedSliderBar,
 // @src RenderSliderBox, SelectedSliderMovementCallBack, SelectedSliderButtonCallBack (wheel steps of ceil(steps / 32)),
 // @src SetSliderPos (the vertical value is inverted), CalculateNewSliderIncrement, CalculateNewSliderBoxPosition,
-// @src SetSliderValue (a value at or above the step count is ignored). See docs/28 §3.6.
+// @src SetSliderValue (a value at or above the step count is ignored).
 
 import { idiv, u16 } from '../../core/int.ts';
 import { type AssetKey, type DrawList, rgb } from '../draw-list.ts';

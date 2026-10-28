@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (escorts arriving: Skyrider at his chopper, John and Mary at the Drassen
 // @src airport, Maria at the leather shop, Joey near Martha), HandleMaryArrival, HandleJohnArrival; TacticalAI/AIUtils.cc
-// @src ClosestPC (with the distance); Strategic/Quests.cc NPCInRoom. See docs/25 §9.3, §10.2, §11.5, §11.10, §11.14.
+// @src ClosestPC (with the distance); Strategic/Quests.cc NPCInRoom.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';

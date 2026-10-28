@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Profile.cc CalcCompetence, CalcMedicalDeposit; Tactical/Merc_Hiring.cc IsMercHireable,
-// @src IsMercDead. See docs/21 §2.1, §2.4.
+// @src IsMercDead.
 
 import { u16, u32 } from '../../../core/int.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';

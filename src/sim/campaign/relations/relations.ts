@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Profile.cc WhichBuddy, WhichHated, GetFirstBuddyOnTeam, FindSoldierByProfileIDOnPlayerTeam;
 // @src Tactical/Soldier_Add.cc IsMercOnTeam, IsMercOnTeamAndInOmertaAlreadyAndAlive; Soldier_Profile_Type.h BuddySlot,
-// @src HatedSlot, BUDDY_OPINION, HATED_OPINION. See docs/22 §5.1.
+// @src HatedSlot, BUDDY_OPINION, HATED_OPINION.
 
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { isProfileDead, type ProfileProgress } from '../../tactical/profiles.ts';

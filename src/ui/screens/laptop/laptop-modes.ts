@@ -3,7 +3,7 @@
 // @src src/game/Laptop/Laptop.h LaptopMode, the bookmark enum; src/game/Laptop/Laptop.cc the LAPTOP_PROGRAM_* enums,
 // @src EnterNewLaptopMode (the program, title and icon of each mode), BlitTitleBarIcons, HandleSlidingTitleBar (the
 // @src side button each title bar slides from), HandleAltTabKeyInLaptop, HandleShiftAltTabKeyInLaptop,
-// @src LaptopMinimizeProgramButtonCallback (the minimized titles). See docs/28 §9.1.
+// @src LaptopMinimizeProgramButtonCallback (the minimized titles).
 
 export const LaptopMode = {
   NONE: 0,

@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath; Strategic/Strategic.cc
 // @src HandleStrategicDeath; Strategic/Queen_Command.cc BeginCaptureSquence, EndCaptureSequence, CaptureSoldier,
 // @src EnemyCapturesPlayerSoldier (the quests through Strategic/Quests.cc StartQuest, InternalStartQuest, InternalEndQuest).
-// @src See docs/19 §3.8, docs/22 §4.9, docs/25 §2.1.
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { u8 } from '../../core/int.ts';

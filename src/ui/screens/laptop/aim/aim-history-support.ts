@@ -3,7 +3,7 @@
 // @src src/game/Laptop/AIMHistory.cc ChangingAimHistorySubPage, EnterInitAimHistory; AIMPolicies.cc
 // @src ChangingAimPoliciesSubPage, EnterInitAimPolicies; AIMArchives.cc ChangingAimArchiveSubPage, EnterInitAimArchives (the
 // @src visited flags of each site, reset at every laptop entry, a first visit loads slowly); src/game/Utils/WordWrap.cc
-// @src DisplayWrappedString (the height of a wrapped paragraph). See docs/28 §9.4.
+// @src DisplayWrappedString (the height of a wrapped paragraph).
 
 import { u16 } from '../../../../core/int.ts';
 import { type BitmapFont, fontHeight } from '../../../text/bitmap-font.ts';

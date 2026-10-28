@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionBoxerEnteringRing, DecideActionGreen (the boxing block),
-// @src DecideActionBlack (the boxer's closing in). See docs/25 §7.2.
+// @src DecideActionBlack (the boxer's closing in).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight } from '../animation.ts';

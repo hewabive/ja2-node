@@ -5,7 +5,6 @@
 // @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
-// @src See docs/12 §10.2–§10.4.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import {

@@ -5,8 +5,7 @@
 // @src the cursor, else the attachment into the cursor), ItemPopupRegionCallbackPrimary (one object of a stack);
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (place, swap, give to the merc of the panel, the
 // @src attach and merge branches), SMInvClickCamoCallback (apply on the merc), SMInvMoneyButtonCallback (money in the
-// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher), RemoveMoney (the split amount goes into the cursor). See docs/28 §5.3 and
-// @src the deviation "Item cursor".
+// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher), RemoveMoney (the split amount goes into the cursor).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';

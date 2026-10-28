@@ -4,7 +4,7 @@
 // @src Soldier_Control.cc EVENT_SoldierBeginGiveItem, SoldierCollapse (issue #2265);
 // @src externalized/Soldier.cc handlePendingAction (MERC_GIVEITEM); Soldier_Ani.cc code 486; Points.cc
 // @src GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
-// @src UnSetEngagedInConvFromPCAction. See docs/24 §4.1, docs/12 §6.
+// @src UnSetEngagedInConvFromPCAction.
 
 import { ItemClass } from '../../content/items/items.ts';
 import { i32 } from '../../core/int.ts';

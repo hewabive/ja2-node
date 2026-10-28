@@ -41,7 +41,7 @@ class Probe implements Modal {
 
 const TEXT: UiInputEvent = { kind: 'text', text: 'a' };
 
-describe('the screen and modal stacks (docs/28 §3.7)', () => {
+describe('the screen and modal stacks', () => {
   it('enters and exits screens as they are pushed, replaced and popped', () => {
     const log: string[] = [];
     const host = new ScreenHost();

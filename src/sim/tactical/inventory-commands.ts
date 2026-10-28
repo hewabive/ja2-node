@@ -4,7 +4,6 @@
 // @src vehicles); Interface_Items.cc HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
 // @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket).
-// @src See docs/04 §6.23, docs/12 §3–§5.
 
 import type { ItemTable } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';

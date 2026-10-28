@@ -39,7 +39,7 @@ function app() {
   });
 }
 
-describe('the item catalogue (docs/28 §12.1 G19)', () => {
+describe('the item catalogue', () => {
   it(
     'lists every item with its texts, graphics and static stats, revalidated by ETag',
     async () => {

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (muzzle flash frame count, opcodes 441 and 448),
-// @src HandleSoldierDeath (muzzle flash light). See docs/20.
+// @src HandleSoldierDeath (muzzle flash light).
 
 import { DIRECTION_INCREMENT, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import type { Soldier } from '../soldier.ts';

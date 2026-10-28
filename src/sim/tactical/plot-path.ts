@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc PlotPath (the costing, gusAPtsToMove, the footstep colour bands sFootOrder and the
-// @src real-time red steps), UIPlotPath (the interface level). See docs/28 §2.4, §6.4.
+// @src real-time red steps), UIPlotPath (the interface level).
 
 import { newGridNo } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';

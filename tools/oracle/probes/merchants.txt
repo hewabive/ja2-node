@@ -1,4 +1,4 @@
-# Merchants: dealer initialisation, daily restocks, prices, repairs and the shopkeeper entry (docs/23 §16.4).
+# Merchants: dealer initialisation, daily restocks, prices, repairs and the shopkeeper entry.
 # Dealer ids: 0 Tony, 1 Franz, 2 Keith, 3 Jake, 4 Gabby, 5 Devin, 6 Howard, 7 Sam, 8 Frank, 13 Micky,
 # 14 Arnie, 15 Fredo, 16 Perko, 17 Elgin, 18 Manny. Profiles: 44 Flo (weapon sale modifier 110), 7 Ivan.
 

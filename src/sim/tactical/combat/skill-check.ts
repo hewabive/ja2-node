@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/SkillCheck.cc SkillCheck, CalcTrapDetectLevel; SkillCheck.h SkillChecks. See docs/11 §1.7, §8.5,
-// @src docs/25 §8.3; the attaching checks for the item description box (docs/12 §2).
+// @src src/game/Tactical/SkillCheck.cc SkillCheck, CalcTrapDetectLevel; SkillCheck.h SkillChecks.
 
 import { findObj } from '../../strategic/economy/kits.ts';
 import {

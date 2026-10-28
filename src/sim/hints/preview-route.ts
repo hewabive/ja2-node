@@ -4,7 +4,7 @@
 // @src GetGroundTravelTimeOfSoldier for the ETA box); Map_Screen_Interface_Map.cc PlotPathForCharacter (a leg appended to
 // @src the merc path), PlotATemporaryPathForCharacter (from the last sector of the merc path);
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierMercPathPtr; Strategic_Pathing.cc FindStratPath
-// @src (Shift: the shortest route). See docs/28 §7.6.
+// @src (Shift: the shortest route).
 
 import { type Sector, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';

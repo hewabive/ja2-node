@@ -6,7 +6,7 @@
 // @src the panel is disabled for items, Map off in a conversation or the pickup menu), EnableSMPanelButtons (the item
 // @src pointer disables every action button, Options, Done, Map and the radar; prev and next stay), PrintStat
 // @src (CHANGE_STAT_RECENTLY_DURATION, light green after a rise, red after a fall, dark grey below OKLIFE),
-// @src RenderSMPanel ("{3d}" values). See docs/28 §5.1, §5.2.
+// @src RenderSMPanel ("{3d}" values).
 
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
 import { getPath } from '../../layout/controller.ts';

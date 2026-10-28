@@ -73,7 +73,7 @@ function underground(s: StrategicState, name: string, z: number) {
   return u;
 }
 
-describe('creature quest (docs/17 §12.1)', () => {
+describe('creature quest', () => {
   it('schedules the meanwhile once, needs an infestible mine, picks one at random and posts the spread and night events', () => {
     const s = state();
     const none = context(s, rolls([]));
@@ -139,7 +139,7 @@ describe('creature quest (docs/17 §12.1)', () => {
   });
 });
 
-describe('creature town attacks (docs/19 §1.2)', () => {
+describe('creature town attacks', () => {
   function ports(overrides: Partial<TownAttackPorts> = {}): TownAttackPorts & { eaten: number; battle: number | null } {
     const p = {
       eaten: 0,

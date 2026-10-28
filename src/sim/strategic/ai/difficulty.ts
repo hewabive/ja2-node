@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Create.cc CalcDifficultyModifier, GetLocationModifier, GetPythDistanceFromPalace;
 // @src Tactical/Campaign.cc CurrentPlayerProgressPercentage, HighestPlayerProgressPercentage, HourlyProgressUpdate,
-// @src CalcImportantSectorControl; Strategic/Town_Militia.cc MilitiaTrainingAllowedInSector. See docs/17 §11.
+// @src CalcImportantSectorControl; Strategic/Town_Militia.cc MilitiaTrainingAllowedInSector.
 
 import type { ProgressPolicy } from '../../../content/strategic/army.ts';
 import { MAP_SIDE, type Sector, strategicIndex } from '../../../content/strategic/sector-ids.ts';

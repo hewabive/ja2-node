@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc SetUpMovingListsForSector (who the move box lists),
 // @src HandleMoveoutOfSectorMovementTroops (mercs parting from their squad or vehicle join a compatible squad or a new
 // @src one), FindSquadThatSoldierCanJoin, HandleSettingTheSelectedListOfMercs (the first moving merc plots),
-// @src DeselectSelectedListMercsWhoCantMoveWithThisGuy, CanSoldierMoveWithVehicleId. See docs/28 §7.6, docs/04 §6.30.
+// @src DeselectSelectedListMercsWhoCantMoveWithThisGuy, CanSoldierMoveWithVehicleId.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';

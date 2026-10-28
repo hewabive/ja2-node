@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIUtils.cc ClosestPC. See docs/24 §5.3, §5.4.
+// @src src/game/TacticalAI/AIUtils.cc ClosestPC.
 
 import { pythSpacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { Opp } from '../perception/opp.ts';

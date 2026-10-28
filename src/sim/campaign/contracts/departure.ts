@@ -4,7 +4,7 @@
 // @src NotifyPlayerOfMercDepartureAndPromptEquipmentPlacement, MercDepartEquipmentBoxCallBack, StrategicRemoveMerc,
 // @src HandleSoldierLeavingWithLowMorale, HandleSoldierLeavingForAnotherContract, CalculateMedicalDepositRefund;
 // @src Strategic/Map_Screen_Interface.cc HandleLeavingOfEquipmentInCurrentSector, HandleMercLeavingEquipment,
-// @src SetUpDropItemListForMerc, HandleEquipmentLeft, START_SECTOR_LEAVE_EQUIP_GRIDNO. See docs/22 §4.
+// @src SetUpDropItemListForMerc, HandleEquipmentLeft, START_SECTOR_LEAVE_EQUIP_GRIDNO.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sectorFromId, sectorId, sectorShortString } from '../../../content/strategic/sector-ids.ts';

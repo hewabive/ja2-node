@@ -4,7 +4,6 @@
 // @src HandleShadingOfLinesForAssignmentMenus, HandleShadingOfLinesForSquadMenu, GetLastSquadListedInSquadMenu,
 // @src HandleShadingOfLinesForVehicleMenu, HandleShadingOfLinesForRepairMenu, DisplayRepairMenu,
 // @src HandleShadingOfLinesForTrainingMenu, HandleShadingOfLinesForAttributeMenus; Utils/PopUpBox.h PopUpShade.
-// @src See docs/28 §7.4.
 
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import {

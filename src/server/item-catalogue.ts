@@ -4,7 +4,6 @@
 // @src name and description), WeaponModels.cc, ArmourModel.cc, ExplosiveModel.cc (Bobby Ray's texts from braydesc.edt),
 // @src MagazineModel.cc (Bobby Ray's name is the short name), CalibreModel.cc (ammo-calibre, ammo-calibre-bobbyray),
 // @src WeaponModels.cc getRateOfFire (Bobby Ray's ROF column).
-// @src See docs/28 §12.1 G19.
 
 import { createHash } from 'node:crypto';
 import { ItemClass, type ItemDef, ItemFlags, type ItemTable } from '../content/items/items.ts';

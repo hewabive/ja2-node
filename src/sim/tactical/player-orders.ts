@@ -7,7 +7,7 @@
 // @src (the all-move), HandleMultiSelectionMove; Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
 // @src Soldier_Tile.cc SwapMercPositions, CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
 // @src Isometric_Utils.cc IsFacingClimableWindow; Structure_Wrap.cc IsJumpableWindowPresentAtGridNo;
-// @src Points.cc GetAPsToJumpFence. See docs/28 §12.4, docs/04 §6.29.
+// @src Points.cc GetAPsToJumpFence.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { Direction, isVisibleTile, newGridNo } from '../../content/world/grid.ts';

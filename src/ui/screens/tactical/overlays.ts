@@ -13,7 +13,7 @@
 // @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
 // @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
 // @src src/game/Tactical/Overhead.cc (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps); src/game/Tactical/
-// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast). See docs/28 §6.5.
+// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast).
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

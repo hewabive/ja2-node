@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc UpdateMercsInSector (the POW branch); Tactical/Overhead.cc DoPOWPathChecks;
-// @src Tactical/Interface_Dialogue.cc NPC_ACTION_GRANT_EXPERIENCE_3. See docs/26 §3.4.
+// @src Tactical/Interface_Dialogue.cc NPC_ACTION_GRANT_EXPERIENCE_3.
 
 import { sectorShortString } from '../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../events.ts';

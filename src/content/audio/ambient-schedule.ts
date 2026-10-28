@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Environment.cc DAWN_START, DAY_START, DUSK_START, NIGHT_START, BuildDayAmbientSounds;
 // @src TileEngine/Ambient_Control.cc HandleNewSectorAmbience, SetupNewAmbientSound; src/sgp/SoundMan.cc SoundPlayRandom,
-// @src SoundStartRandom (the gap between plays). See docs/27 §3.1.
+// @src SoundStartRandom (the gap between plays).
 
 import { type AmbientEntry, AmbientTime, ambientSoundPath } from '../formats/ambient.ts';
 import { type Cue, cueOf, type Rand } from './cue.ts';

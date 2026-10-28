@@ -5,7 +5,7 @@
 // @src mouse; the zero warning box), RenderAttributeBoxes (the slider at the value, the value 13, 3 into it), the arrow
 // @src callbacks (press and repeat), SliderRegionButtonCallback (a press on the slider starts a drag, a click elsewhere
 // @src jumps; the static last attribute and last x survive between drags), MouseXPosToSkillValue, DrawBonusPointsRemaining,
-// @src StatAtZeroBoxCallBack; IMP_Attribute_Finish.cc the yes and no buttons. See docs/28 §9.7.
+// @src StatAtZeroBoxCallBack; IMP_Attribute_Finish.cc the yes and no buttons.
 
 import type { ImpAttributeName } from '../../../../protocol/view.ts';
 import { MouseButtonMask } from '../../../input/mouse.ts';

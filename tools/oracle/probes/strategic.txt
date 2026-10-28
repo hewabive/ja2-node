@@ -1,4 +1,4 @@
-# Strategic movement: the travel table per transport, routes and the group state of the saves (docs/16 §9.4)
+# Strategic movement: the travel table per transport, routes and the group state of the saves
 stratcosts mask=FOOT
 stratcosts mask=CAR
 stratcosts mask=TRUCK

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Sound_Control.cc PlayJA2Sample, PlayLocationJA2Sample, PlaySoldierJA2Sample (the double scaling),
 // @src PlayJA2Ambient, SetPositionSndsVolumeAndPanning; Tactical/Soldier_Control.cc InternalDoMercBattleSound (volume and pan);
-// @src TileEngine/Ambient_Control.cc SetupNewAmbientSound. See docs/27 §3.1.
+// @src TileEngine/Ambient_Control.cc SetupNewAmbientSound.
 
 import { type CueBook, soundPath } from './cue-book.ts';
 import { NOWHERE, Pan, positionSoundVolume, type ScreenView, scaleVolume, soundDir, soundVolume } from './sound-position.ts';

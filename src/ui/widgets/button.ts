@@ -5,7 +5,6 @@
 // @src QuickButtonCallbackMButn (anchoring, toggles, check boxes, sounds, deferred deletion), DefaultMoveCallback,
 // @src ReleaseAnchorMode, RenderButtons, DrawButtonFromPtr, DrawQuickButton, DrawCheckBoxButton, DrawHatchOnButton,
 // @src DrawShadeOnButton, DrawIconOnButton, DrawTextOnButton, GUI_BUTTON::Hide/Show; src/sgp/Button_System.h.
-// See docs/28 §3.3.
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';

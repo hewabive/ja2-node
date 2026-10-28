@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc CheckItemForDamage, CheckForChainReaction, DamageItem, CheckEquipmentForDamage,
-// @src DamageItemOnGround. See docs/12 §10.7.
+// @src DamageItemOnGround.
 
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { i8 } from '../../../core/int.ts';

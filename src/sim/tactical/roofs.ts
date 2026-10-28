@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Isometric_Utils.cc FindHigherLevel, FindLowerLevel; WorldMan.cc IsHeigherLevel;
 // @src Tactical/Soldier_Control.cc BeginSoldierClimbUpRoof, BeginSoldierClimbDownRoof, SetSoldierHeight;
 // @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
-// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb. See docs/07 §6.
+// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb.
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';

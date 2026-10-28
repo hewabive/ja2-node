@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc (the contract fields), MercArrivesCallback (status, contract end,
-// @src equipment complaint), HandleMercArrivesQuotes. See docs/22 §1.2, docs/21 §2.5–§2.6.
+// @src equipment complaint), HandleMercArrivesQuotes.
 
 import { i8, u8, u32 } from '../../../core/int.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';

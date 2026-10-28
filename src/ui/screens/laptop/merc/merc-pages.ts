@@ -13,7 +13,7 @@
 // @src unavailable), LoadAndDisplayMercBio, DisplayMercsStats (the current life, three-pixel numerals, the salary after
 // @src its label), BtnMercPrevButtonCallback, BtnMercNextButtonCallback, BtnMercHireButtonCallback, MercFilesHireMerc,
 // @src BtnMercFilesBackButtonCallback, EnableDisableMercFilesNextPreviousButton; src/game/Laptop/BrokenLink.cc
-// @src RenderBrokenLink. See docs/28 §9.5.
+// @src RenderBrokenLink.
 
 import { type DataVersion, displayLanguageOf } from '../../../../content/text/data-version.ts';
 import type { MercListingView, MercSiteView } from '../../../../protocol/view.ts';

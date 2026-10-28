@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound, DoMercBattleSound, gBattleSndsData,
-// @src MIN_SUBSEQUENT_SNDS_DELAY; Tactical/Soldier_Create.cc (ubBattleSoundID). See docs/27 §3.1.
+// @src MIN_SUBSEQUENT_SNDS_DELAY; Tactical/Soldier_Create.cc (ubBattleSoundID).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook } from './cue-book.ts';

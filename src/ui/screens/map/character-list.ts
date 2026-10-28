@@ -7,7 +7,7 @@
 // @src GetMapscreenMercDestinationString, GetMapscreenMercDepartureString, DisplayCharacterList (the row colours);
 // @src src/game/Strategic/Map_Screen_Interface.cc SetEntryInSelectedCharacterList, ResetEntryForSelectedList,
 // @src ResetSelectedListForMapScreen, ToggleEntryInSelectedList, BuildSelectedListFromAToB, GetMoraleString,
-// @src MultipleCharacterListEntriesSelected. See docs/28 §7.1.
+// @src MultipleCharacterListEntriesSelected.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

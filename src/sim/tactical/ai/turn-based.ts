@@ -3,7 +3,7 @@
 // @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (the close call quotes unless somebody was hit, the civilian-group
 // @src proximity rule and its boxer exception),
 // @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable;
-// @src Soldier_Control.cc SetSoldierAsUnderAiControl. See docs/10 §6.
+// @src Soldier_Control.cc SetSoldierAsUnderAiControl.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight } from '../animation.ts';

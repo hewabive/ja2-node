@@ -16,7 +16,7 @@
 // @src SelectUnselectedMercsWhoMustMoveWithThisGuy, CanChangeSleepStatusForSoldier; src/game/Strategic/
 // @src Map_Screen_Interface_Bottom.cc EnableDisableBottomButtonsAndRegions, EnableDisableTimeCompressButtons,
 // @src CommonTimeCompressionChecks, AllowedToTimeCompress (the client half: plotting, menus, boxes, the sector inventory),
-// @src RequestTriggerExitFromMapscreen. See docs/28 §7.
+// @src RequestTriggerExitFromMapscreen.
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';

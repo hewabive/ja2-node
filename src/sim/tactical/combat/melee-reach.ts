@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch and blade tile choice);
 // @src Overhead.cc FindAdjacentGridEx (with and without fDoor), FindNextToAdjacentGridEx, FindAdjacentPunchTarget;
-// @src Soldier_Find.cc FindSoldier (FIND_SOLDIER_GRIDNO). See docs/11 §6.1.
+// @src Soldier_Find.cc FindSoldier (FIND_SOLDIER_GRIDNO).
 
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';

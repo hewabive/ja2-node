@@ -53,7 +53,7 @@ function open(kind: HelpOverlay['kind'], forced = false): HelpOverlay {
   return overlay;
 }
 
-describe('the help screen overlay (HelpScreen.cc, docs/28 §4.7)', () => {
+describe('the help screen overlay (HelpScreen.cc)', () => {
   it('sits centred over the viewport, small without page buttons, and on the laptop monitor', () => {
     expect(helpBoxOrigin(model, 'tactical', { width: 640, height: 480, stdX: 0, stdY: 0 })).toEqual({ x: 114, y: 34 });
     expect(helpBoxOrigin(model, 'sectorInventory', { width: 640, height: 480, stdX: 0, stdY: 0 })).toEqual({ x: 160, y: 34 });

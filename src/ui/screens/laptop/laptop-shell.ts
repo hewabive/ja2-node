@@ -10,7 +10,7 @@
 // @src UpdateListToReflectNewProgramOpened, SetCurrentToLastProgramOpened, HandleWebBookMarkNotifyTimer, FlickerHDLight,
 // @src ExitLaptopDone, HandleAltTabKeyInLaptop, HandleShiftAltTabKeyInLaptop; giCurrentSubPage (reset by EnterLaptop and by
 // @src every move between web pages) and the sub-page loads of ChangingAimHistorySubPage, ChangingAimPoliciesSubPage,
-// @src ChangingAimArchiveSubPage, ChangingFloristGallerySubPage and ChangingInsuranceInfoSubPage. See docs/28 §9.1.
+// @src ChangingAimArchiveSubPage, ChangingFloristGallerySubPage and ChangingInsuranceInfoSubPage.
 
 import {
   BOOKMARK_MODES,

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.h DOOR, DoorTrapTypes, perceived values, DOORTRAP flags; Keys.cc DoorTrapTable,
-// @src FindDoorInfoAtGridNo, RemoveDoorInfoFromTable; Handle_Doors.h HandleDoor. See docs/25 §8.1.
+// @src FindDoorInfoAtGridNo, RemoveDoorInfoFromTable; Handle_Doors.h HandleDoor.
 
 import type { MapDoor } from '../../../content/formats/map.ts';
 import type { TacticalState } from '../state.ts';

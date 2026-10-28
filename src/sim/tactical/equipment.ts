@@ -5,7 +5,7 @@
 // @src ChooseArmourForSoldierCreateStruct, ChooseSpecialWeaponsForSoldierCreateStruct, ChooseFaceGearForSoldierCreateStruct,
 // @src ChooseKitsForSoldierCreateStruct, ChooseMiscGearForSoldierCreateStruct, ChooseBombsForSoldierCreateStruct,
 // @src PlaceObjectInSoldierCreateStruct, MakeOneItemOfClassDroppable, RandomlyChooseWhichItemsAreDroppable,
-// @src ReplaceExtendedGuns, SelectStandardArmyGun; Items.cc RandomMagazine. See docs/12 §8.
+// @src ReplaceExtendedGuns, SelectStandardArmyGun; Items.cc RandomMagazine.
 
 import { AmmoType, ArmourClass, ItemClass, type ItemDef, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';

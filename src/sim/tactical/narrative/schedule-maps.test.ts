@@ -9,7 +9,7 @@ import { loadMapSchedules, MAX_SCHEDULE_ACTIONS, ScheduleAction, UNSET_SCHEDULE_
 const LAST_ACTION = ScheduleAction.WAKE;
 const MINUTES_PER_DAY = 1440;
 
-describe.skipIf(!ORIGINAL_DATA_DIR)('schedules of the original maps (docs/25 §5.1)', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('schedules of the original maps', () => {
   it('load with ids 1..n and valid entries, and most scheduled placements link a schedule of their map', async () => {
     const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     try {

@@ -10,7 +10,6 @@
 // @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
 // @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
-// @src See docs/28 §12.2.
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';

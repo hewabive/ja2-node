@@ -3,8 +3,7 @@
 // @src src/game/Tactical/ArmsDealerInvInit.cc GetCurrentSuitabilityForItem, ChanceOfItemTransaction, ItemTransactionOccurs,
 // @src DetermineInitialInvItems, HowManyItemsAreSold, HowManyItemsToReorder, CompareItemsForSorting,
 // @src GetDealerItemCategoryNumber, CanDealerItemBeSoldUsed; Arms_Dealer_Init.cc GetArmsDealerItemTypeFromItemNumber,
-// @src ItemIsARocketRifle, ItemContainsLiquid; Tactical/Items.cc ItemIsLegal. Shared with Bobby Ray (docs/21 §5).
-// See docs/23 §1.4, §4.
+// @src ItemIsARocketRifle, ItemContainsLiquid; Tactical/Items.cc ItemIsLegal. Shared with Bobby Ray.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../../../content/items/items.ts';
 import type { MerchantContent, MerchantTables } from '../../../../content/strategic/merchant-content.ts';

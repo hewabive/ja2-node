@@ -4,7 +4,7 @@
 // @src LIFE_INSURANCE_PAYOUT, BobbyRayOrderStruct; Laptop/BobbyRMailOrder.cc NewWayOfLoadingBobbyRMailOrdersToSaveGameFile,
 // @src NewBobbyRayOrderStruct; Laptop/History.cc OpenAndReadHistoryFile (record layout); Laptop/Files.cc OpenAndReadFilesFile;
 // @src LoadSaveEMail.cc LoadEMailFromFile; SaveLoadGame.cc LoadSavedMercProfiles (voice ids, I.M.P. slot states),
-// @src LoadGeneralInfo (g_merc_arrive_sector), LoadFileFromSavedGame. See docs/14-savegames.md, docs/21 §0.
+// @src LoadGeneralInfo (g_merc_arrive_sector), LoadFileFromSavedGame.
 
 import { FormatError } from '../binary/errors.ts';
 import type { SaveGame, SaveSection } from './savegame.ts';

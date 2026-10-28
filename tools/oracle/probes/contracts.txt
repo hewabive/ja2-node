@@ -1,4 +1,4 @@
-# Contracts and relationships (docs/22): the daily merc update, expiry warnings, the renewal sequence, extensions,
+# Contracts and relationships: the daily merc update, expiry warnings, the renewal sequence, extensions,
 # departures, the leave list, RPC pay, M.E.R.C. account days and level-up salaries on the user's saves.
 # Times are world minutes; the saves' squads arrived at day 1 07:00 (slot 07:30) on 7-day contracts.
 

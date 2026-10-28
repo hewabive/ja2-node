@@ -8,7 +8,7 @@
 // @src Laptop/BobbyRMailOrder.cc CalcCostFromWeightOfPackage, CalcPackageTotalWeight, CalculateOrderDelay,
 // @src PurchaseBobbyOrder, AddNewBobbyRShipment, AddJohnsGunShipment, RemovePurchasedItemsFromBobbyRayInventory, BtnBobbyRAcceptOrderCallback;
 // @src Strategic/Strategic_Event_Handler.cc BobbyRayPurchaseEventCallback, DropOffItemsInDestination
-// @src (the shipment facts), CloseCrate; Strategic/Player_Command.cc SetThisSectorAsPlayerControlled (site access). See docs/21 §5.
+// @src (the shipment facts), CloseCrate; Strategic/Player_Command.cc SetThisSectorAsPlayerControlled (site access).
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import type { ShippingDestination } from '../../../content/strategic/laptop-content.ts';

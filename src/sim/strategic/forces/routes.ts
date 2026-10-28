@@ -4,7 +4,6 @@
 // @src CancelPathForCharacter, CopyPathToCharactersSquadIfInOne, IsTheCursorAllowedToHighLightThisSector;
 // @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
 // @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters).
-// @src See docs/16 §3.1, §3.3.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, strategicIndex } from '../../../content/strategic/sector-ids.ts';

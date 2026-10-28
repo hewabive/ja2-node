@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc ValidQuickExchangePosition (the target, the distance, the line of sight and the path,
-// @src without the cursor timer); Soldier_Tile.cc CanExchangePlaces. See docs/28 §6.1.
+// @src without the cursor timer); Soldier_Tile.cc CanExchangePlaces.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';

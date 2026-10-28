@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Status.cc CalcDeathRate, ModifyPlayerReputation, MercThinksDeathRateTooHigh,
-// @src MercThinksBadReputationTooHigh, MercThinksHisMoraleIsTooLow; Strategic_Status.h REPUTATION_*. See docs/22 §6.
+// @src MercThinksBadReputationTooHigh, MercThinksHisMoraleIsTooLow; Strategic_Status.h REPUTATION_*.
 
 import { clamp, i8, u8, u32 } from '../../../core/int.ts';
 import type { StrategicStatus } from '../../strategic/ai/queen-state.ts';

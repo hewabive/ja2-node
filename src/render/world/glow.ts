@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc gsGlowFrames, RenderTiles (merc shade and glow), InitRenderParams (item
 // @src cycle colours); src/game/Utils/Timer_Control.cc GLOW_ENEMYS; src/game/Tactical/Soldier_Control.cc
-// @src SetSoldierPersonalLightLevel. See docs/28 §6.5 and the deviation "Enemy glow".
+// @src SetSoldierPersonalLightLevel.
 
 import { soldierShade } from '../../content/anim/soldier-sprite.ts';
 import { displayRgbFrom565, rgbTo565 } from '../../content/world/shading.ts';

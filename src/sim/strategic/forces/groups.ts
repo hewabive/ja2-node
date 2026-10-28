@@ -6,7 +6,7 @@
 // @src PlayerMercsInSector, PlayerGroupsInSector, FindPlayer/EnemyMovementGroupInSector, GroupAtFinalDestination,
 // @src GetFinalWaypoint, GroupHasInTransitDeadOrPOWMercs, DoesPlayerExistInPGroup; Queen_Command.cc NumEnemiesInSector,
 // @src NumHostilesInSector, NumEnemiesInAnySector; Town_Militia.cc CountAllMilitiaInSector; Vehicles.cc GetVehicleFromMvtGroup;
-// @src Map_Screen_Helicopter.cc IsGroupTheHelicopterGroup. See docs/16 §2, §3.11, §3.14.
+// @src Map_Screen_Helicopter.cc IsGroupTheHelicopterGroup.
 
 import { TransportMask } from '../../../content/strategic/policy.ts';
 import {

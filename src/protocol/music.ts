@@ -9,7 +9,6 @@
 // @src InitPreBattleInterface, RetreatMercsCallback; Strategic/Auto_Resolve.cc RenderAutoResolve; Strategic/Meanwhile.cc
 // @src StartMeanwhile, EndMeanwhile, DoneFadeOutMeanwhileOnceDone; Tactical/End_Game.cc HandleDeidrannaDeath,
 // @src DoneFadeOutKilledQueen, HandleQueenBitchDeath; Strategic/Creature_Spreading.cc PrepareCreaturesForBattle.
-// @src See docs/27 §3.1, §3.3.
 
 import type { SimEvent } from '../sim/events.ts';
 import { MusicMode, type MusicModeName } from './music-modes.ts';

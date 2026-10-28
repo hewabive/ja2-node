@@ -3,8 +3,7 @@
 // @src src/game/Laptop/Insurance_Text.cc GetInsuranceText (insurancesingle.edt below INS_MULTI_LINE_BEGINS, insurancemulti.edt
 // @src at n - INS_MULTI_LINE_BEGINS - 1); src/game/Laptop/Insurance_Text.h (the text numbers); src/game/Laptop/Insurance_Contract.cc
 // @src DisplayOrderGrid (the contract status text and its colour), SetNumberOfDisplayedInsuranceMercs,
-// @src DisableInsuranceContractNextPreviousbuttons, BtnInsContractPrevButtonCallback, BtnInsContractNextButtonCallBack. See
-// @src docs/28 §9.8.
+// @src DisableInsuranceContractNextPreviousbuttons, BtnInsContractPrevButtonCallback, BtnInsContractNextButtonCallBack.
 
 import type { InsuranceOfferView } from '../../../../protocol/view.ts';
 

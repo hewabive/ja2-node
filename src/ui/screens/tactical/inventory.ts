@@ -8,7 +8,7 @@
 // @src HandleCompatibleAmmoUI (white outlines after 100 ms over a slot), GetHelpTextForItem, RenderInvBodyPanel;
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary, SMInvClickCallbackSecondary (the stack popup for a
 // @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback,
-// @src MergeMessageBoxCallBack, ReevaluateItemHatches. See docs/28 §5.3.
+// @src MergeMessageBoxCallBack, ReevaluateItemHatches.
 
 import { idiv } from '../../../core/int.ts';
 import type { Placements } from '../../../protocol/hints.ts';

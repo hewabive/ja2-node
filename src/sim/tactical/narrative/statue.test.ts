@@ -30,7 +30,7 @@ function inO3(): TacticalSim {
   return sim;
 }
 
-describe('the O3 statue (docs/26 §5.3)', () => {
+describe('the O3 statue', () => {
   it('opens to the basement when an explosion hits it from at most one tile away, once', () => {
     const sim = inO3();
     const t = sim.state;

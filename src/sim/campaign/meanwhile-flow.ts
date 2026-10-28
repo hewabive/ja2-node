@@ -3,8 +3,7 @@
 // @src src/game/Strategic/Meanwhile.cc CheckForMeanwhileOKStart, BeginMeanwhileCallBack, StartMeanwhile, SetNPCMeanwhile,
 // @src DoneFadeOutMeanwhile, DoneFadeInMeanwhile, EndMeanwhile, RestoreNPCMeanwhile, DoneFadeOutMeanwhileOnceDone;
 // @src Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Interface_Dialogue.cc NPC_ACTION_SHOOT_ELLIOT (Elliot's
-// @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map). See docs/26 §1.4-§1.11,
-// @src §2.
+// @src counter); Strategic/MapScreen.cc (the compression mode lost after a played scene on the map).
 
 import { sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { i8 } from '../../core/int.ts';

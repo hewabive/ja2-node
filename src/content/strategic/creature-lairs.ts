@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/CreatureLairModel.cc (deserialize, creatureHabitatFromString, insertionCodeFromString);
-// @src src/game/Strategic/Creature_Spreading.h CreatureHabitat. See docs/17 §12.1.
+// @src src/game/Strategic/Creature_Spreading.h CreatureHabitat.
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asInt, asObject, asString } from './json-fields.ts';

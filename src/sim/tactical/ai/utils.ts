@@ -4,7 +4,7 @@
 // @src EstimatePathCostToLocation (with the climb estimates), ClosestSeenOpponent, ClosestPC; Tactical/PathAI.cc PlotPath,
 // @src EstimatePlotPath, RecalculatePathCost;
 // @src Tactical/Items.cc FindAIUsableObjClass(Within); Tactical/OppList.cc GetHighestVisibleWatchedLoc, GetHighestWatchedLocPoints;
-// @src Tactical/LOS.cc LocationToLocationLineOfSightTest. See docs/13 §2, §4.4.
+// @src Tactical/LOS.cc LocationToLocationLineOfSightTest.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';

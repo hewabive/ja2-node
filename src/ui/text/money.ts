@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Finances.cc InternalSPrintMoney, SPrintMoney, SPrintMoneyNoDollarOnZero (a comma every three
-// @src digits, the minus sign after the dollar). See docs/28 §3.4.
+// @src digits, the minus sign after the dollar).
 
 const DIGIT_GROUP = 3;
 

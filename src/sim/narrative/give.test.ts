@@ -51,7 +51,7 @@ function gun(status: number): ItemObject {
   return o;
 }
 
-describe('taking an item into the NPC profile (PlaceObjectInSoldierProfile, docs/24 §4.4)', () => {
+describe('taking an item into the NPC profile (PlaceObjectInSoldierProfile)', () => {
   it('fills the first free pocket and gives the soldier a fresh item: attachments and ammo are lost', () => {
     const { sim, host, npc } = scene();
     expect(placeObjectInSoldierProfile(host, sim.state, NPC, gun(55))).toBe(true);
@@ -120,7 +120,7 @@ describe('returning a refused item (ReturnItemToPlayer)', () => {
   });
 });
 
-describe('an NPC giving its gift (HandleNPCItemGiven, docs/24 §4.5)', () => {
+describe('an NPC giving its gift (HandleNPCItemGiven)', () => {
   it('drops a copy at the NPC when the talker is out of reach; the NPC keeps its own', () => {
     const { sim, host, npc } = scene(NPC, gridNo(80, 120));
     Object.assign(npc.inv[InvSlot.BIGPOCK1] as object, createItem(content.items, item('CANTEEN'), 100));

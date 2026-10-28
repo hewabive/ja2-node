@@ -6,7 +6,7 @@
 // @src AIM_POLICY_PARAGRAPH_GAP below the height of the last), DrawAimPolicyMenu (the section titles of the index),
 // @src DisplayAimPolicyStatement, DisplayAimPolicyParagraph ("{2.1f}", nothing for 0.0), DisplayAimPolicySubParagraph
 // @src ("{2.2f}"), SelectPolicyTocMenuRegionCallBack, BtnPoliciesAgreeButtonCallback, BtnPoliciesMenuButtonCallback,
-// @src DisableAimPolicyButton. See docs/28 §9.4.
+// @src DisableAimPolicyButton.
 
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { FontName } from '../../../text/fonts.ts';

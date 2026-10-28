@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc StatChange, ProcessStatChange, ChangeStat, ProcessUpdateStats, SubpointsPerPoint,
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
-// @src AgilityForEnemyMissingPlayer. See docs/11 §10, docs/22 §2.5, §3.7.
+// @src AgilityForEnemyMissingPlayer.
 
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';

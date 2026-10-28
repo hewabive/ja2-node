@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/ContentMusic.h MusicMode; src/externalized/DefaultContentManager.cc loadMusic (music.json
 // @src keys); src/game/Utils/Music_Control.cc MusicPoll (end rules, MUSICOVERHEAD steps), StartMusicBasedOnMode (creature
-// @src variants), MusicFadeOut; Strategic/StrategicMap.cc SetMusicFadeSpeed(5). See docs/27 §3.1.
+// @src variants), MusicFadeOut; Strategic/StrategicMap.cc SetMusicFadeSpeed(5).
 
 export const MUSIC_MODES = [
   'none',

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.h ARMY_COMPOSITION, PATROL_GROUP, GARRISON_GROUP; Strategic_AI.cc globals;
 // @src Strategic_Status.h STRATEGIC_STATUS; Meanwhile.cc uiMeanWhileFlags, ubCurrentMeanWhileId, gMeanwhileDef,
-// @src gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile, gNPCSaveData. See docs/17 §1, docs/26 §0.
+// @src gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile, gNPCSaveData.
 
 import type { ArmyCompositionTemplate, PatrolTemplate } from '../../../content/strategic/army.ts';
 

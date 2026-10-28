@@ -5,7 +5,6 @@
 // @src (the fast help of the hands: GetHelpTextForItem, DRIVER_POPUPTEXT, EXIT_VEHICLE_POPUPTEXT), MercFacePanelCallback*
 // @src (left: locate or select, right: the SM panel unless dead, an EPC or in a vehicle), EnemyIndicatorClickCallback,
 // @src TMClickFirstHandInvCallbackSecondary and TMClickSecondHandInvCallbackSecondary (swap hands, not the robot).
-// See docs/28 §5.2.
 
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
 import { getPath } from '../../layout/controller.ts';

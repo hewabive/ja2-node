@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc HandleCheckForExitArrowsInput (OKForSectorExit decides the arrow colour);
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog's toggles); Strategic/StrategicMap.cc
-// @src OKForSectorExit. See docs/28 §6.1.
+// @src OKForSectorExit.
 
 import { Direction } from '../../content/world/grid.ts';
 import {

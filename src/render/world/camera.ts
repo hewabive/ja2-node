@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc InitRenderParams, ApplyScrolling, HandleScrollDirections, SetRenderCenter;
 // @src src/game/TileEngine/Isometric_Utils.cc FromCellToScreenCoordinates, FromScreenToCellCoordinates;
-// @src src/game/Tactical/Interface.h scroll paddings. See docs/05-render-pipeline.md §1.3, §1.4.
+// @src src/game/Tactical/Interface.h scroll paddings.
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { type Camera, mapCenter, ROOF_LEVEL_HEIGHT, type Viewport } from './geometry.ts';

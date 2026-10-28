@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Timer_Control.cc PauseTime, GetJA2Clock (the UI clock that stops while a message box is open;
-// @src the wall clock GetClock keeps running for input repeat, double clicks and fast help). See docs/28 §3.6.
+// @src the wall clock GetClock keeps running for input repeat, double clicks and fast help).
 
 export class UiClock {
   #now = 0;

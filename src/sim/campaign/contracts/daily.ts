@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Merc_Handler.cc MercDailyUpdate, SoldierHasWorseEquipmentThanUsedTo,
 // @src MercComplainAboutEquipment; Strategic/Merc_Contract.cc CheckIfMercGetsAnotherContract; Tactical/Morale.cc
-// @src DailyMoraleUpdate; Tactical/Campaign.cc HandleUnhiredMercImprovement, HandleUnhiredMercDeaths. See docs/22 §2.
+// @src DailyMoraleUpdate; Tactical/Campaign.cc HandleUnhiredMercImprovement, HandleUnhiredMercDeaths.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';

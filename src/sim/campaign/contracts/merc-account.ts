@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Mercs.cc DailyUpdateOfMercSite (the account part), GetProfileIDFromMERCListing; Laptop/Mercs.h
 // @src MERC_NUM_DAYS_TILL_*; Strategic/Strategic_Merc_Handler.cc MercsContractIsFinished, MercDailyUpdate (the invalid
-// @src account loop). See docs/22 §4.7.
+// @src account loop).
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { i32 } from '../../../core/int.ts';

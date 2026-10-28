@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Physics.cc FindBestForceForTrajectory, FindBestAngleForTrajectory, CalculateObjectTrajectory,
 // @src ChanceToGetThroughObjectTrajectory, CalculateLaunchItemBasicParams, CalculateLaunchItemChanceToGetThrough,
 // @src CalculateForceFromRange, CalculateSoldierMaxForce, CalculateLaunchItemParamsForThrow, RandomGridFromRadius;
-// @src Tactical/LOS.cc SoldierToLocationWindowTest; Structure_Wrap.cc IsRoofPresentAtGridno. See docs/11 §7.5–§7.6.
+// @src Tactical/LOS.cc SoldierToLocationWindowTest; Structure_Wrap.cc IsRoofPresentAtGridno.
 
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';

@@ -5,7 +5,7 @@
 // @src INS_INFO_SPACE_BN_PARAGRAPHS, the bullets, the big red FRAUD followed by a paragraph that starts after its width);
 // @src src/game/Laptop/Insurance_Comments.cc DisplayComment (the bullet, the comment, the red line under it and the
 // @src commenter's name right-aligned 4 pixels lower); src/game/Laptop/Insurance.cc DisplaySmallRedLineWithShadow (a red
-// @src line and a black one a pixel lower right). See docs/28 §9.8.
+// @src line and a black one a pixel lower right).
 
 import { type Area, type DrawList, rgb } from '../../../draw-list.ts';
 import type { LayoutView } from '../../../layout/view.ts';

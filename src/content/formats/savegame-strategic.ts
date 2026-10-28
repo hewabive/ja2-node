@@ -3,7 +3,7 @@
 // @src src/game/Strategic/StrategicMap.cc LoadStrategicInfoFromSavedFile; LoadSaveStrategicMapElement.cc;
 // @src LoadSaveSectorInfo.cc; LoadSaveUndergroundSectorInfo.cc; Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile,
 // @src LoadPlayerGroupList, LoadEnemyGroupStructFromSavedGame, LoadWayPointList; Tactical/Vehicles.cc
-// @src LoadVehicleInformationFromSavedGameFile; LoadSaveVehicleType.cc ExtractVehicleTypeFromFile. See docs/14 §4, docs/16 §1–§2.
+// @src LoadVehicleInformationFromSavedGameFile; LoadSaveVehicleType.cc ExtractVehicleTypeFromFile.
 
 import type { SaveCursor } from './savegame-cursor.ts';
 import { field, type Layout, readLayout, skip } from './savegame-layout.ts';

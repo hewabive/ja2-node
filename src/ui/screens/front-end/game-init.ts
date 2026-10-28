@@ -5,7 +5,7 @@
 // @src (zGioDifConfirmText of the difficulty), ConfirmGioDifSettingMessageBoxCallBack, HandleGIOScreen (the Dead is Dead
 // @src OK box str_dead_is_dead_mode_enter_name before the save screen), DoneFadeOutForExitGameInitOptionScreen (the
 // @src options read from the radio groups), GetGIOScreenUserInput; src/game/GameSettings.cc InitGameOptions (the
-// @src defaults). See docs/28 §4.3.
+// @src defaults).
 
 import type { Difficulty, GameOptions, SaveMode } from '../../client/api-types.ts';
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';

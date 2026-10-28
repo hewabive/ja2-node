@@ -5,7 +5,7 @@
 // @src ExitVehicle (strategic part), SetSoldierExitHelicopterInsertionData, SetVehicleSectorValues, KillAllInVehicle,
 // @src KillPersonInVehicle, TeleportVehicleToItsClosestSector, MoveCharactersPathToVehicle, SetUpMvtGroupForVehicle,
 // @src IsThisVehicleAccessibleToSoldier (without OKUseVehicle); Strategic/Map_Screen_Interface_Map.cc CancelPathForVehicle;
-// @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter. See docs/16 §3.15, docs/25 §10.
+// @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter.
 
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';

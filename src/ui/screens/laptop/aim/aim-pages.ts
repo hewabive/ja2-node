@@ -5,7 +5,7 @@
 // @src src/game/Laptop/AIMSort.cc g_aim_sort_info, EnterAimSort (the regions sized by the label width), RenderAimSort,
 // @src SetSortCriterion, SetSortOrder, ExitAimSort; src/game/Laptop/AIMFacialIndex.cc EnterAimFacialIndex,
 // @src RenderAimFacialIndex, DrawMercsFaceToScreen (the overlays by state), the face callbacks; src/game/Laptop/AIMLinks.cc
-// @src gubLinkPages, SelectLinkRegionCallBack. See docs/28 §9.4.
+// @src gubLinkPages, SelectLinkRegionCallBack.
 
 import type { AimMercView, LaptopView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc AddAwaySlot, RemoveAwaySlot, MoveSoldierFromMercToAwaySlot,
-// @src MoveSoldierFromAwayToMercSlot. See docs/25 §5.3–§5.4.
+// @src MoveSoldierFromAwayToMercSlot.
 
 import { removeMercStructure } from './person-structure.ts';
 import type { Soldier } from './soldier.ts';

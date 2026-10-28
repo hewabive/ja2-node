@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE contract fields, SOLDIER_CONTRACT_RENEW_QUOTE_*, SOLDIER_QUOTE_SAID_*;
 // @src Strategic/Merc_Contract.h CONTRACT_EXTEND_*; Merc_Contract.cc ContractRenewalList, ubNumContractRenewals and the
-// @src sequence flags; Strategic/Map_Screen_Interface.cc gpLeaveListHead, guiLeaveListOwnerProfileId. See docs/22 §0.
+// @src sequence flags; Strategic/Map_Screen_Interface.cc gpLeaveListHead, guiLeaveListOwnerProfileId.
 
 import type { ItemObject } from '../../items/object.ts';
 import { NO_PROFILE } from '../../tactical/soldier.ts';

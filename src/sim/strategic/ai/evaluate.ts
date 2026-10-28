@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Strategic_AI.cc EvaluateQueenSituation, EvolveQueenPriorityPhase, UpgradeAdminsToTroops. See docs/17 §4.1, §6.1–§6.3.
+// @src src/game/Strategic/Strategic_AI.cc EvaluateQueenSituation, EvolveQueenPriorityPhase, UpgradeAdminsToTroops.
 
 import { byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

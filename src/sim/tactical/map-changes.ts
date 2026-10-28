@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/SaveLoadMap.cc AddStructToMapTempFile, RemoveStructFromMapTempFile,
-// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem. See docs/16 §5.11.
+// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem.
 
 import type { StructureFile } from '../../content/formats/jsd.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';

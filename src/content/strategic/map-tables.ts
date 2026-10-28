@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/{MovementCostsModel,TraversibilityMapping,TownModel,SectorLandTypes,UndergroundSectorModel,
 // @src SamSiteModel,SamSiteAirControlModel,StrategicMapSecretModel,CacheSectorsModel,BloodCatPlacementsModel,BloodCatSpawnsModel}.cc;
-// @src src/game/Strategic/Strategic_Movement_Costs.cc InitStrategicMovementCosts. See docs/16 §1.6–§1.7.
+// @src src/game/Strategic/Strategic_Movement_Costs.cc InitStrategicMovementCosts.
 
 import { FormatError } from '../binary/errors.ts';
 import {

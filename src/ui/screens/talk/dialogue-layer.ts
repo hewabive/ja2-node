@@ -6,7 +6,7 @@
 // @src key down, a key up advances a waiting line), HandleTalkingMenuKeys (Esc and Backspace on key up in the panel);
 // @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBoxIfActive; src/game/Tactical/ShopKeeper_Interface.cc
 // @src EnterShopKeeperInterface (the SM panel of the selected merc), ShopKeeperScreenHandle (leaving once the farewell is
-// @src said), InitShopKeeperSubTitledText (only with SUBTITLES). See docs/28 §5.8, §5.9.
+// @src said), InitShopKeeperSubTitledText (only with SUBTITLES).
 
 import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';

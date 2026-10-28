@@ -4,7 +4,6 @@
 // @src SoldierGotoStationaryStance, ChangeSoldierStance, EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection,
 // @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with
 // @src its BoxingMovementCheck).
-// See docs/03, docs/06 §5, docs/07 §4.
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';

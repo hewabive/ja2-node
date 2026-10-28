@@ -56,7 +56,7 @@ function fixture(difficulty = 2) {
 
 const minutes = (q: { state: { clock: { seconds: number } } }) => Math.trunc(q.state.clock.seconds / 60);
 
-describe('scheduling meanwhile scenes (docs/26 §1.2)', () => {
+describe('scheduling meanwhile scenes', () => {
   it('schedules each scene once with its definition, the last scheduled id and Elliot counted at scheduling', () => {
     const { q, elliot } = fixture();
     elliot.npcData = 2;
@@ -107,7 +107,7 @@ describe('scheduling meanwhile scenes (docs/26 §1.2)', () => {
   });
 });
 
-describe('the meanwhile event (docs/26 §1.4)', () => {
+describe('the meanwhile event', () => {
   it('delays from the event stamp while enemies are loaded and begins the scene otherwise', () => {
     const { q, rolls } = fixture();
     let enemies = true;
@@ -142,7 +142,7 @@ describe('the meanwhile event (docs/26 §1.4)', () => {
   });
 });
 
-describe('implications (docs/26 §1.9)', () => {
+describe('implications', () => {
   it('wakes the Queen on the first battle only on hard and on the town scenes always', () => {
     const normal = fixture(2);
     normal.q.state.queen.awake = false;
@@ -186,7 +186,7 @@ describe('implications (docs/26 §1.9)', () => {
   });
 });
 
-describe('the first battle (docs/26 §4.2)', () => {
+describe('the first battle', () => {
   it('waits for the world trash after a tactical town battle and posts at once after autoresolve or outside towns', () => {
     const town = fixture();
     handleFirstBattleEndingWhileInTown(town.q, parseSectorString('A9'), false);

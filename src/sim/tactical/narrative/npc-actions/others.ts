@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (Madlab and the robot, vehicles, Estoni, Chitzena,
 // @src Walter, Keith, Micky, Rat, Hans, the wheelchair, the married merc, EPC un-recruiting, the kids, Brenda, John and
-// @src Mary), WalterGivenMoney. See docs/25 §3.9.
+// @src Mary), WalterGivenMoney.
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { soldierOnPlayerTeam } from '../../../narrative/dialogue-queue.ts';

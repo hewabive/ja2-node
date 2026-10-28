@@ -1,4 +1,4 @@
-# Hourly team morale, the buddy and hated counters and the quarter-hour decay (docs/11 §9, docs/18 §5.12).
+# Hourly team morale, the buddy and hated counters and the quarter-hour decay.
 save SaveGame10
 moralecounter value=0
 morale

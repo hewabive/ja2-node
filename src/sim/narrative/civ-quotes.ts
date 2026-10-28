@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Civ_Quotes.cc DetermineCivQuoteEntry, StartCivQuote, BeginCivQuote, GetCivQuoteText,
 // @src EXTREAMLY_LOW_TOWN_LOYALTY, HIGH_TOWN_LOYALTY; TacticalAI/NPC.cc FindCivQuoteFileIndex, ConsiderCivilianQuotes.
-// @src See docs/24 §8.1-§8.5.
 
 import { NO_QUEST, NUM_NPC_QUOTE_RECORDS, QuoteFlag } from '../../content/formats/npc.ts';
 import { civQuoteTextKey, type TextKey } from '../../content/narrative/dialogue-text.ts';

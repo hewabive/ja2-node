@@ -5,7 +5,6 @@
 // @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
 // @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
 // @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
-// @src See docs/25 §6.2–§6.3, §7.3, §8.3.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc CheckFact (the inputs it reads from the strategic layer: gTownLoyalty, gfTownUsesLoyalty,
 // @src GetNumberOfWholeTownsUnderControl, IsTownUnderCompleteControlByPlayer, the head miner and mine helpers of
-// @src Strategic_Mines.cc, StrategicMap fEnemyControlled, SectorInfo bBloodCats, NumEnemiesInAnySector). See docs/25 §1.3.
+// @src Strategic_Mines.cc, StrategicMap fEnemyControlled, SectorInfo bBloodCats, NumEnemiesInAnySector).
 
 import { strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { mineIdForSector } from '../economy/mine-status.ts';

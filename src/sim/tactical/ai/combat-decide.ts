@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches).
-// @src See docs/13 §3, §5, §6, docs/25 §7.2.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';

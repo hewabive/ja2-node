@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc InitStrategicAI; src/externalized/strategic/CacheSectorsModel.cc pickSector, getNumTroops;
-// @src Strategic_Status.cc InitStrategicStatus. See docs/17 §3.
+// @src Strategic_Status.cc InitStrategicStatus.
 
 import { byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';

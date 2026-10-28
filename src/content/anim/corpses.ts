@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Rotting_Corpses.cc zCorpseFilenames, GetCorpseStructIndex, AddRottingCorpse (structure part);
-// @src Animation_Control.cc gubAnimSurfaceCorpseID. See docs/11 §5.10.
+// @src Animation_Control.cc gubAnimSurfaceCorpseID.
 
 import { FormatError } from '../binary/errors.ts';
 import { parseStructureFile, type StructureDef, type StructureFile } from '../formats/jsd.ts';

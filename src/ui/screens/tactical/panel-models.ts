@@ -2,8 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel, RenderTEAMPanel (the hands' fast help, the driver and
 // @src passenger texts), UpdateSMPanel (burst for a burst-capable gun or an under-barrel launcher in the hand, mute
-// @src always, stealth with the action buttons), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp. See
-// @src docs/28 §5.1, §5.2.
+// @src always, stealth with the action buttons), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp.
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import type { UiTextService } from '../../text/text-service.ts';

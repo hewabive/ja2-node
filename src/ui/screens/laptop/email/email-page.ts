@@ -6,7 +6,7 @@
 // @src delete it, on an empty row it acts as the laptop's right click), BtnMessageXCallback, BtnDeleteCallback,
 // @src BtnDeleteYesback/Noback, DeleteEmail, PrevListPage, NextListPage, PrevMailPage, NextMailPage,
 // @src UpdateStatusOfNextPreviousButtons, DisplayEmailMessage, DisplayEmailMessageSubjectDateFromLines, DisplayDeleteNotice,
-// @src DisplayNumberOfPagesToThisEmail, the sort button callbacks. See docs/28 §9.3.
+// @src DisplayNumberOfPagesToThisEmail, the sort button callbacks.
 
 import type { LaptopEmailView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';

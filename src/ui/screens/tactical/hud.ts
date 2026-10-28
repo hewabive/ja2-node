@@ -4,7 +4,6 @@
 // @src (pPausedGameText[0] while the player paused), CreateMouseRegionForPauseOfClock (pPausedGameText 1 when paused,
 // @src else 2), HandlePlayerPauseUnPauseOfGame (refused while engaged in a conversation); src/game/TileEngine/Radar_Screen.cc
 // @src RadarRegionMoveCallback, RadarRegionButtonCallbackPrimary (the camera follows a press and a drag), ToggleRadarScreenRender.
-// See docs/28 §5.7, §6.8.
 
 import type { ClockView } from '../../../protocol/view.ts';
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';

@@ -5,7 +5,7 @@
 // @src RefreshNPCScriptRecord, EnsureCivQuoteFileLoaded, ReloadCivQuoteFileIfLoaded, ShutdownNPCQuotes, ReloadAllQuoteFiles,
 // @src SetQuoteRecordAsUsed, ReplaceLocationInNPCData, ResetOncePerConvoRecords, ResetOncePerConvoRecordsForNPC,
 // @src ResetOncePerConvoRecordsForAllNPCsInLoadedSector, RecordHasDialogue, ActionIDForMovementRecord,
-// @src UpdateDarrelScriptToGoTo; src/externalized/DefaultContentManager.cc getScriptRecords. See docs/24 §1.4, §2.6-§2.7.
+// @src UpdateDarrelScriptToGoTo; src/externalized/DefaultContentManager.cc getScriptRecords.
 
 import { copyNpcRecords, NO_QUOTE, type NpcRecord, QuoteFlag, requiredGridNo } from '../../content/formats/npc.ts';
 import { NpcAction, NUM_CIVQUOTE_SECTORS, NUM_PROFILES, QuoteActionId } from '../../content/narrative/npc-constants.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Animation_Control.cc DetermineSoldierAnimationSurface; Tactical/Animation_Data.cc
 // @src InternalGetAnimationStructureRef; Tactical/Soldier_Control.cc GetStructureID; Tactical/PathAI.cc FindBestPath
-// @src (multi-tile set-up). See docs/07 §3.
+// @src (multi-tile set-up).
 
 import { AnimStruct, animStructType } from '../../content/anim/structures.ts';
 import { chooseSurface } from '../../content/anim/surface-choice.ts';

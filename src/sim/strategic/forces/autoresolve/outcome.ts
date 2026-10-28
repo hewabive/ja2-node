@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc RenderAutoResolve (the end-of-battle block run once after the battle ends).
-// See docs/19 §2.16.
 
 import { u32 } from '../../../../core/int.ts';
 import { Body, type Soldier } from '../../../tactical/soldier.ts';

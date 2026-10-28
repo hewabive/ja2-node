@@ -5,7 +5,7 @@
 // @src paragraph on page 4, two on the others), DisplayAimHistoryParagraph (the second paragraph AIM_HISTORY_SPACE_BETWEEN_
 // @src PARAGRAPHS below the height of the first), SelectHistoryTocMenuRegionCallBack, BtnHistoryMenuButtonCallback (button 3
 // @src opens the alumni archives), ResetAimHistoryButtons, DisableAimHistoryButton (previous held on the index, next held on
-// @src the last page). See docs/28 §9.4.
+// @src the last page).
 
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { FontName } from '../../../text/fonts.ts';

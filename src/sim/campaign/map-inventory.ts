@@ -6,7 +6,7 @@
 // @src CreateDestroyMapInventoryPoolButtons (the reachability of the loaded sector's items); MapScreen.cc
 // @src MAPInvClickCallbackPrimary, MAPBeginItemPointer, MapCharacterHasAccessibleInventory, MAPInvClickCamoCallback (no
 // @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
-// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar. See docs/04 §6.23.
+// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar.
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Mines.cc LoadMineStatusFromSavedGameFile; Strategic_Town_Loyalty.cc
 // @src LoadStrategicTownLoyaltyFromSavedGameFile;
 // @src Laptop/Finances.cc AppendFinanceToEndOfFile, GetBalanceFromDisk (finances.dat); Tactical/Soldier_Control.h SOLDIERTYPE
-// @src (assignment fields). See docs/14 §4, docs/18 §0.
+// @src (assignment fields).
 
 import { FormatError } from '../binary/errors.ts';
 import { decryptRecord as decryptWithOldKey } from './prof.ts';

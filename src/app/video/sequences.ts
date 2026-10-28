@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Intro.cc gpzSmackerFileNames, GetNextIntroVideo, PrepareToExitIntroScreen; src/game/Intro.h
-// @src INTRO_BEGINING, INTRO_ENDING, INTRO_SPLASH; src/game/Directories.h INTRODIR. See docs/27 §4.1, §4.3.
+// @src INTRO_BEGINING, INTRO_ENDING, INTRO_SPLASH; src/game/Directories.h INTRODIR.
 
 import type { CampaignEndingView } from '../../protocol/view.ts';
 import type { ClientSettings } from '../../ui/settings.ts';

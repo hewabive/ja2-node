@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/UILayout.cc UILayout::recalculatePositions (the team panel centred, the std640 offsets, the viewport),
 // @src getTeamPanelNumSlots, get_INV_INTERFACE_START_Y; src/game/UILayout.h TEAMPANEL_SLOT_WIDTH,
-// @src TEAMPANEL_BUTTONSBOX_WIDTH, TEAMPANEL_HEIGHT, INV_INTERFACE_HEIGHT. See docs/28 §2.6, §3.10.
+// @src TEAMPANEL_BUTTONSBOX_WIDTH, TEAMPANEL_HEIGHT, INV_INTERFACE_HEIGHT.
 
 import { idiv } from '../../core/int.ts';
 import { STD_SCREEN_HEIGHT, STD_SCREEN_WIDTH } from '../resolution.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/TeamTurns.cc CalcInterruptDuelPts (the robot and its controller); Tactical/Overhead.cc
 // @src UIOKMoveDestination, Tactical/UI_Cursors.cc, Tactical/Handle_UI.cc (an uncontrolled robot takes no orders);
-// @src Tactical/Soldier_Macros.h AM_A_ROBOT. See docs/25 §9.4.
+// @src Tactical/Soldier_Macros.h AM_A_ROBOT.
 
 import { effectiveExpLevel } from '../skills.ts';
 import { Body, type Soldier } from '../soldier.ts';

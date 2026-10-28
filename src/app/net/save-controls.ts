@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc (Alt+S quick save, the Iron Man message box; Alt+L quick load);
 // @src src/game/Strategic/MapScreen.cc (the same keys on the map screen); src/game/SaveLoadScreen.cc DoQuickSave,
-// @src DoQuickLoad (nothing happens without a quick save). See docs/27 §1.8.
+// @src DoQuickLoad (nothing happens without a quick save).
 
 import { QUICK_SAVE_ALIAS, QUICK_SAVE_NAME } from '../../ui/saves/save-rows.ts';
 import type { Labels } from '../../ui/text/labels.ts';

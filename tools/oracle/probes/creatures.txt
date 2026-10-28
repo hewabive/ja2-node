@@ -1,4 +1,4 @@
-# Creature quest, spreading, night planning and town attacks on the sci-fi saves (docs/17 §12.1).
+# Creature quest, spreading, night planning and town attacks on the sci-fi saves.
 # The quest needs three mines that are not enemy controlled, so the script hands the player the mine entrances first.
 save SaveGame10
 seed value=201 pre=reseed

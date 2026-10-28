@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h fCivGroupHostile, CIV_GROUP_*; Strategic/Strategic_Event_Handler.cc
-// @src MakeCivGroupHostileOnNextSectorEntrance; Overhead.cc CivilianGroupMemberChangesSides (scheduling). See docs/25 §6.1–§6.2.
+// @src MakeCivGroupHostileOnNextSectorEntrance; Overhead.cc CivilianGroupMemberChangesSides (scheduling).
 
 import { CivGroupHostility, NUM_CIV_GROUPS } from '../../tactical/narrative/constants.ts';
 

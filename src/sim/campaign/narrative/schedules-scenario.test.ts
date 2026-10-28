@@ -98,7 +98,7 @@ function villagerDay(mode?: RunMode): CampaignSim {
   return c;
 }
 
-describe('NPC schedules in the stub A10 (docs/25 §5)', () => {
+describe('NPC schedules in the stub A10', () => {
   it(
     'walks the villager to the square at 09:00, puts him to bed by compression and sends the default civilian away overnight, the same across reloads',
     async () => {

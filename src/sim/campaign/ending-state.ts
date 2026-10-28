@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/End_Game.cc gpKillerSoldier, gsGridNo, gbLevel; Tactical/Overhead_Types.h IN_DEIDRANNA_ENDGAME,
-// @src IN_ENDGAME_SEQUENCE. See docs/26 §0, §7.
+// @src IN_ENDGAME_SEQUENCE.
 
 export const EndgamePhase = {
   NONE: 'none',

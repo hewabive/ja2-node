@@ -36,7 +36,7 @@ export async function nextFrames(page: Page, count = 2): Promise<void> {
   await page.waitForFunction((n) => window.__ja2Ui.frameCount > n, frames + count - 1);
 }
 
-export const NO_ORIGINAL_DATA_PICTURES = 'pictures of the original data are never captured, compared or written (docs/28 §15)';
+export const NO_ORIGINAL_DATA_PICTURES = 'pictures of the original data are never captured, compared or written';
 
 function refuseOriginalData(): void {
   if (ORIGINAL_DATA_MODE) throw new Error(NO_ORIGINAL_DATA_PICTURES);

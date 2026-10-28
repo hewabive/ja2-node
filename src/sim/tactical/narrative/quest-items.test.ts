@@ -78,7 +78,7 @@ function walk(sim: TacticalSim, s: Soldier, to: number): ReturnType<typeof runUn
   return runUntilIdle(sim);
 }
 
-describe('the sex action item (docs/25 §11.5)', () => {
+describe('the sex action item', () => {
   it('stops a merc who walks into a room with a working girl, plays the scene and puts him back outside', () => {
     const sim = newCombatSim(content);
     const rooms = withRooms(sim);

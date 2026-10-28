@@ -4,7 +4,7 @@
 // @src Game_Clock.cc InitNewGameClock; Campaign_Init.cc InitNewCampaign; Tactical/Soldier_Profile.cc LoadMercProfiles;
 // @src Strategic/Quests.cc InitQuestEngine (InitStrategicLayer step 2);
 // @src Tactical/Arms_Dealer_Init.cc InitAllArmsDealers (InitNewGame step 3); Laptop/BobbyR.cc InitBobbyRayInventory; Laptop/Laptop.cc
-// @src LaptopScreenInit, InitLaptopAndLaptopScreens, SetLaptopNewGameFlag. See docs/15 §4, docs/21 §8, docs/22 §0, docs/23 §3.
+// @src LaptopScreenInit, InitLaptopAndLaptopScreens, SetLaptopNewGameFlag.
 
 import { initStrategicAiForNewCampaign } from '../strategic/ai/strategic-ai.ts';
 import { addStartingCash, initEconomyStrategicLayer } from '../strategic/economy/init.ts';

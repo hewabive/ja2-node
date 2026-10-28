@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AI.h ActionType, situation values; AIInternals.h delays; AIUtils.cc Urgency, MovementMode;
-// @src src/game/Tactical/Overhead.cc RT_DELAY_BETWEEN_AI_HANDLING; TacticalAI/AIMain.cc AI_DELAY. See docs/09.
+// @src src/game/Tactical/Overhead.cc RT_DELAY_BETWEEN_AI_HANDLING; TacticalAI/AIMain.cc AI_DELAY.
 
 export const AiAction = {
   NONE: 0,

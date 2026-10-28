@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Mines.cc GetTotalLeftInMine, GetMineIndexForSector, GetIdOfMineForSector,
 // @src PlayerControlsMine, QueenHasRegainedMineSector, ShutOffMineProduction, RestartMineProduction, IsMineShutDown,
 // @src GetMaxPeriodicRemovalFromMine, GetMaxDailyRemovalFromMine, GetTownAssociatedWithMine; DefaultContentManager.cc
-// @src getMineForSector. See docs/18 §3.
+// @src getMineForSector.
 
 import type { MineDef } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

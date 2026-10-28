@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Event_Handler.cc HandleNPCSystemEvent, CheckForKingpinsMoneyMissing,
 // @src CheckForMissingHospitalSupplies, HandleDelayedItemsArrival (the loaded and unloaded delivery sector);
-// @src Tactical/Interface_Dialogue.cc CalcMedicalCost; Tactical/Handle_Items.cc MoveItemPools. See docs/25 §3.13, §11.2-§11.4.
+// @src Tactical/Interface_Dialogue.cc CalcMedicalCost; Tactical/Handle_Items.cc MoveItemPools.
 
 import { sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';

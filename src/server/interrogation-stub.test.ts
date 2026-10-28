@@ -125,7 +125,7 @@ async function answeredYes(mode?: RunMode): Promise<CampaignSession> {
   return session;
 }
 
-describe('the interrogation in the stub prison yard (docs/26 §2.3)', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('the interrogation in the stub prison yard', { timeout: SLOW_SCENARIO_MS }, () => {
   it(
     'loads N7 with the captives, asks the lie question and leaves the captives free on a squad, the same across reloads',
     async () => {

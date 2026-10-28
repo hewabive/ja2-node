@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/Dialogs.cc GetDialogueTextFilename; DefaultContentManager.cc loadDialogQuoteFromFile;
-// @src src/game/Tactical/Dialogue_Control.cc FindDelayForString, GetDialogue; Civ_Quotes.cc GetCivQuoteText. See docs/24 §1.5,
-// @src §8.4, §11.5.
+// @src src/game/Tactical/Dialogue_Control.cc FindDelayForString, GetDialogue; Civ_Quotes.cc GetCivQuoteText.
 
 import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE, decodeEdtRow, type EdtEncoding, edtRowCount, utf32Length } from '../formats/edt.ts';
 import { sectorShortString } from '../strategic/sector-ids.ts';

@@ -90,7 +90,7 @@ function create(o: Partial<SoldierCreate> = {}): SoldierCreate {
   };
 }
 
-describe('AddPlacementToWorld profile filter (docs/25 §4.6)', () => {
+describe('AddPlacementToWorld profile filter', () => {
   it('needs the profile in the loaded sector including z, alive, free and without insertion data', () => {
     const base = { sectorX: 5, sectorY: 3, sectorZ: 0 };
     const allowed = (p: ProfileProgress, world = C5) => profilePlacementAllowed(narrative({ world, profiles: [p] }).n, p.id);
@@ -111,7 +111,7 @@ describe('AddPlacementToWorld profile filter (docs/25 §4.6)', () => {
   });
 });
 
-describe('civilian quest overrides (docs/25 §4.6)', () => {
+describe('civilian quest overrides', () => {
   it('posts Kingpin’s men around Hans’ door with two range draws and PreRandom orders', () => {
     const h = narrative({ hostility: { [CivilianGroup.KINGPIN]: 2 }, rolls: [0, 14], pre: [2] });
     const pp = create({ civilianGroup: CivilianGroup.KINGPIN });
@@ -193,7 +193,7 @@ function hooks(profiles: Map<number, ProfileProgress>): ProfileInsertionHooks {
   };
 }
 
-describe('taking NPCs out of a sector (docs/25 §4.6)', () => {
+describe('taking NPCs out of a sector', () => {
   it('keeps a pending walk as gridno insertion and overwrites the record with the action id', () => {
     const profiles = profileMap([testProfile(91)]);
     const s = soldierFor(40, Team.CIV, 91, 50);

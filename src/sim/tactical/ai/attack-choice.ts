@@ -6,7 +6,6 @@
 // @src TacticalAI/AIUtils.cc OKToAttack, ConsiderProne, StanceChange, ShootingStanceChange;
 // @src Tactical/Items.cc WeaponInHand, HasObjectImprint, FindObj, FindLaunchable, FindAmmo,
 // @src FindThrowableGrenade; Tactical/Weapons.cc CalcMaxTossRange (unarmed); TileEngine/Isometric_Utils.cc GetRangeFromGridNoDiff.
-// @src See docs/13 §6.7, §7.
 
 import { AmmoType, ItemClass, ItemFlags, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { validLaunchable } from '../../../content/items/rules.ts';

@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Render_Fun.cc SetGridNoRevealedFlag, RemoveRoomRoof; src/game/TileEngine/WorldMan.cc
 // @src SetStructAframeFlags, FindLevelNodeBasedOnStructure, SetRoofIndexFlagsFromTypeRange;
 // @src src/game/TileEngine/WorldDef.cc CalculateWorldWireFrameTiles, AddWireFrame, GetWireframeGraphicNumToUseForWall,
-// @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere. See docs/05-render-pipeline.md §5.
+// @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere.
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';

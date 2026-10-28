@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Init_List.cc AddPlacementToWorld (the profile filter, the ice-cream truck test and the
-// @src civilian quest overrides for Kingpin's men, the Queen's palace, Tixa and the freed kids). See docs/25 §4.6.
+// @src civilian quest overrides for Kingpin's men, the Queen's palace, Tixa and the freed kids).
 
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { SectorPosition } from '../../strategic/state.ts';

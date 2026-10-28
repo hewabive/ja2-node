@@ -9,7 +9,7 @@
 // @src pixels at the end), RenderTextBufferToScreen, ChangeToHelpScreenSubPage (clamped to the pages, the current page
 // @src does nothing), CreateScrollAreaButtons (the scroll area region at HLP_SCRN__SCROLL_POSY),
 // @src SelectHelpScrollAreaCallBack, SelectHelpScrollAreaMovementCallBack, DisplayHelpScreenTextBufferScrollBox (the
-// @src box drawn only when the page scrolls). See docs/28 §4.7.
+// @src box drawn only when the page scrolls).
 
 import { idiv } from '../../../core/int.ts';
 import { type Area, DrawList, rgb } from '../../draw-list.ts';

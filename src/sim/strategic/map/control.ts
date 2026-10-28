@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Player_Command.cc SetThisSectorAsPlayerControlled, SetThisSectorAsEnemyControlled;
 // @src SAM_Sites.cc InitializeSAMSites, UpdateAirspaceControl (with StrategicMap.cc's UpdateRefuelSiteAvailability call), IsThisSectorASAMSector, GetSAMIdFromSector;
-// @src StrategicMap_Secrets.cc InitMapSecrets, SetSectorSecretAsFound, GetMapSecretBySectorID, IsSecretFoundAt. See docs/16 §6.
+// @src StrategicMap_Secrets.cc InitMapSecrets, SetSectorSecretAsFound, GetMapSecretBySectorID, IsSecretFoundAt.
 
 import { MAP_SIDE, type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { MIN_CONDITION_FOR_SAM_SITE_TO_WORK, SAM_CONDITION_AT_START } from '../forces/constants.ts';

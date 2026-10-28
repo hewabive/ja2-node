@@ -1,4 +1,4 @@
-# Towns, mines and assignments (docs/18 §8): RNG-free strategic dumps, merc assignment fields and the pure point
+# Towns, mines and assignments: RNG-free strategic dumps, merc assignment fields and the pure point
 # estimates after loading each save, distance-adjusted loyalty events, then the same dumps after a warp.
 save SaveGame01
 strategic

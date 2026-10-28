@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Items.cc HandleItemPointerClick (the give branch, the alternative cursor),
 // @src InternalBeginItemPointer, RemoveMoney (the money box in steps of 10), BeginItemPointer; Interface_Panels.cc
 // @src SMInvClickCallbackPrimary; Items.cc GetObjFrom, PlaceObject (the object put back into its slot); Handle_UI.cc
-// @src SelectedGuyInBusyAnimation. See docs/24 §4.1, §11.1, docs/04 §6.16.
+// @src SelectedGuyInBusyAnimation.
 
 import { ItemClass } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';

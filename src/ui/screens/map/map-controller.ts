@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc (the buttons, regions and keys the map screen layout binds), GetMapKeyboardInput.
-// @src See docs/28 §7.
 
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
 import { getPath } from '../../layout/controller.ts';

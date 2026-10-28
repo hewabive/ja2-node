@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/DealerModel.cc (dealers.json), DealerInventory.cc (dealer-inventory-*.json),
 // @src DefaultContentManager.cc loadAllDealersAndInventory; src/externalized/mercs/MercProfileInfo.cc (weaponSaleModifier);
-// @src src/game/Tactical/Arms_Dealer.h. Tables in data/tables from tools/transcribe/merchant-tables.ts. See docs/23 §1, §15.
+// @src src/game/Tactical/Arms_Dealer.h. Tables in data/tables from tools/transcribe/merchant-tables.ts.
 
 import { FormatError } from '../binary/errors.ts';
 import { ItemClass, type ItemTable, WeaponClass } from '../items/items.ts';

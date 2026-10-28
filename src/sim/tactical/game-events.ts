@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Event_Pump.cc AddGameEvent, DequeAllGameEvents, ExecuteGameEvent (primary and secondary queue).
-// @src See docs/11 §1.2, §6.1.
 
 import { setDesiredDirection } from './animation.ts';
 import { eventFireSoldierWeapon, fireWeapon } from './combat/attack.ts';

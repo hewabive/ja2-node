@@ -6,7 +6,7 @@
 // @src CalculateSimpleItemRepairCost, CalculateOvernightRepairDelay, CalculateMinutesClosedBetween,
 // @src CountTotalItemsRepairDealerHasInForRepairs, RepairmanIsFixingItemsButNoneAreDoneYet, GetArmsDealerShopHours;
 // @src ShopKeeper_Interface.cc HandlePossibleRepairDelays, RepairmanFixingAnyItemsThatShouldBeDoneNow,
-// @src DelayRepairsInProgressBy, BuildRepairTimeString, BuildDoneWhenTimeString. See docs/23 §10.
+// @src DelayRepairsInProgressBy, BuildRepairTimeString, BuildDoneWhenTimeString.
 
 import { ItemFlags, NOTHING } from '../../../../content/items/items.ts';
 import { type DealerDef, DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';

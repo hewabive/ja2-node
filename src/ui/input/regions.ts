@@ -4,7 +4,6 @@
 // @src MSYS_UpdateMouseRegion (inclusive hit test, LOST/GAIN/MOVE, the press lock g_clicked_region, OR-ed button reasons,
 // @src cursor fall-through), DoubleDetectionState, MSYS_DefineRegion, MSYS_RemoveRegion, RefreshMouseRegions,
 // @src MOUSE_REGION::ChangeCursor; src/sgp/Input.cc ButtonState (repeat after 250 ms, then every 50 ms).
-// See docs/28 §3.1.
 
 import { MouseButton, type UiPointerEvent } from './events.ts';
 import {

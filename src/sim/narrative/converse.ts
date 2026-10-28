@@ -9,7 +9,7 @@
 // @src TalkPanelClickCallback, TalkPanelNameRegionClickCallback, NPCGotoGridNo, NPCDoAction,
 // @src SourceSoldierPointerIsValidAndReachableForGive, HandleNPCTriggerNPC, HandleNPCTrigger,
 // @src HandleWaitTimerForNPCTrigger, HandleNPCGotoGridNo; TacticalAI/AIUtils.cc ClosestPC; Dialogue_Control.cc
-// @src HandleDialogue (face flags). See docs/24 §3, §5, §6.3-§6.5.
+// @src HandleDialogue (face flags).
 
 import {
   FACT_NONE,

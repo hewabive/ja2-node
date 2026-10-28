@@ -5,7 +5,7 @@
 // @src RenderMapScreenNoOneHiredYetHelpScreen, RenderMapScreenNotYetInArulcoHelpScreen,
 // @src RenderMapScreenSectorInventoryHelpScreen, RenderTacticalHelpScreen (the paragraphs of each page: a loop adds one
 // @src font height after every paragraph, the laptop's one-paragraph pages do not), SetSizeAndPropertiesOfHelpScreen
-// @src (the page buttons per screen; the three map screen notes are small screens without buttons). See docs/28 §4.7.
+// @src (the page buttons per screen; the three map screen notes are small screens without buttons).
 
 export type HelpScreenKind = 'laptop' | 'map' | 'mapNoOneHired' | 'mapNotInArulco' | 'sectorInventory' | 'tactical';
 

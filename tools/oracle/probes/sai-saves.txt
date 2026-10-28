@@ -1,4 +1,4 @@
-# Strategic AI after loading each native save (docs/17 §16.4): the draws of the load-time recomputation, the state,
+# Strategic AI after loading each native save: the draws of the load-time recomputation, the state,
 # CalcDifficultyModifier per class, then seeded evaluations, periodic checks, the next enemy group arrivals and a state
 # dump after each.
 draws on

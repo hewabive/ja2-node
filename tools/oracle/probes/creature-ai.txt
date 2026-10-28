@@ -1,4 +1,4 @@
-# Creature and bloodcat decisions (CreatureDecideAction, CreatureDecideAlertStatus, CreatureCall, TrackScent; docs/13 §14),
+# Creature and bloodcat decisions (CreatureDecideAction, CreatureDecideAlertStatus, CreatureCall, TrackScent),
 # creature melee choice and impact, and the smell map, on the saved D13 positions. Every scenario reloads its save.
 # Turn-based: SaveGame07 (mercs 0 at 8519, 1 at 8360, 2 crouched at 12867; enemy 23 at 12397).
 # Real-time: SaveGame10 (mercs 0 at 8519, 1 at 8360, 2 at 8359; enemies 20-24).

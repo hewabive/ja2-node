@@ -4,7 +4,6 @@
 // @src (pMapErrorString[28] while someone trains militia, else zMarksMapScreenText[1], when the player has none),
 // @src ToggleShowTeamsMode, ToggleAirspaceMode (aborts helicopter plotting), ToggleItemsFilter, TurnOnShowTeamsMode,
 // @src TurnOnAirSpaceMode (aborts merc plotting, back to the surface), TurnOnItemFilterMode (aborts any plotting).
-// @src See docs/28 §7.5.
 
 import type { MapFilters } from './map-view.ts';
 

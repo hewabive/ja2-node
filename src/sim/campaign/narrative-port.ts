@@ -7,7 +7,7 @@
 // @src (the strategic event calls of the schedules); Tactical/Soldier_Control.cc CanRobotBeControlled, GetRobotController;
 // @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController); Tactical/Boxing.cc (PauseGame, UnPauseGame,
 // @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
-// @src (TriggerFriendWithHostileQuote). See docs/25 §1, §5, §6.2, §7, §9.4, §10.2.
+// @src (TriggerFriendWithHostileQuote).
 
 import { i8 } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';

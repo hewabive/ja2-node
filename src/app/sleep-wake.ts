@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc HandleRestFatigueAndSleepStatus (the update box only for mercs who fall asleep on
 // @src their own off a squad and for mercs off a squad or vehicle who wake up, when TOPTION_SLEEPWAKE_NOTIFICATION is on).
-// See docs/27 §2.2, deviations.md "Sleep and wake notification".
 
 import type { StopCondition } from '../protocol/messages.ts';
 import type { StrategicMercView, ViewFrame } from '../protocol/view.ts';

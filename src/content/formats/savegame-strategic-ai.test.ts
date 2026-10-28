@@ -59,7 +59,7 @@ function syntheticSave(): { bytes: Uint8Array; save: SaveGame } {
   return { bytes, save };
 }
 
-describe('strategic AI save sections (docs/14 §4, docs/17 §1.4)', () => {
+describe('strategic AI save sections', () => {
   it('decodes the header, the records, the denials, the status and the meanwhile flags', () => {
     const { bytes, save } = syntheticSave();
     const s = readStrategicAiSections(bytes, save);

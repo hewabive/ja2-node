@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Arms_Dealer_Init.cc LoadArmsDealerInventoryFromSavedGameFile. See docs/23 §15.4.
+// @src src/game/Tactical/Arms_Dealer_Init.cc LoadArmsDealerInventoryFromSavedGameFile.
 
 import type { SavedDealer, SavedDealerSpecial } from '../../../../content/formats/savegame-merchants.ts';
 import { type DealerSpecialItem, MAXITEMS, type MerchantState, resetMerchantState } from './state.ts';

@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Faces.cc InitFace (Elliot's beaten big faces b135a-e by bNPCData). See docs/28 §5.5.
+// @src src/game/Tactical/Faces.cc InitFace (Elliot's beaten big faces b135a-e by bNPCData).
 
 export type FaceVariant = 'a' | 'b' | 'c' | 'd' | 'e';
 

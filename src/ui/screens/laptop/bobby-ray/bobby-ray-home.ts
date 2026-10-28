@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/BobbyR.cc gubBobbyRPages (the order of the signs), EnterBobbyR (the sign regions disabled while the
 // @src site is under construction), ExitBobbyR (guiLastBobbyRayPage), RenderBobbyR, HandleBobbyRUnderConstructionAni (five
-// @src frames every 150 ms, the first one shown is frame 1), SelectBobbiesSignMenuRegionCallBack. See docs/28 §9.6.
+// @src frames every 150 ms, the first one shown is frame 1), SelectBobbiesSignMenuRegionCallBack.
 
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { FrameAnimator } from '../../../widgets/frame-animator.ts';

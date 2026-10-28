@@ -6,7 +6,6 @@
 // @src DisplayFormattedText (the white viewer, fRead set while the file is shown, a stale selection dropped),
 // @src LoadStringsIntoFileList (FILE_STRING_SIZE records of ris.edt and files.edt), LoadPreviousPage, LoadNextPage,
 // @src ScrollRegionCallback, HandleFileViewerButtonStates; iHighLightFileLine and giFilesPage kept across laptop sessions.
-// @src See docs/28 §9.3.
 
 import type { LaptopView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';

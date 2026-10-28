@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Event_Handler.cc HandleNPCSystemEvent, SetPabloToUnbribed, HandlePossiblyDamagedPackage,
 // @src HandleDelayedItemsArrival, PABLOS_STOLEN_DEST_GRIDNO, LOST_SHIPMENT_GRIDNO; Strategic/Game_Event_Hook.h
-// @src NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS. See docs/25 §3.13, §11.2, §11.4.
+// @src NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS.
 
 import { NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS, NpcActionCode } from '../../tactical/narrative/npc-actions/codes.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';

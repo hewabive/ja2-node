@@ -123,7 +123,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
 
 const ZEROS = (n: number) => new Array<number>(n).fill(0);
 
-describe('CreateDetailedPlacementGivenBasicPlacementInfo (docs/06 §7, docs/19 §2.4)', () => {
+describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
   it('clamps elites to the policy range 6..10 and leaves them out of ReduceHighExpLevels', () => {
     const { c, rolls } = creation(ZEROS(22));
     const pp = createDetailedPlacementGivenBasicPlacementInfo(
@@ -155,7 +155,7 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo (docs/06 §7, docs/19 �
   });
 });
 
-describe('TacticalCreateSoldier (docs/06 §3.2)', () => {
+describe('TacticalCreateSoldier', () => {
   it('gives elites night ops (and the expert level late in the game), then palettes, battle sound and the female sound', () => {
     const { c, rolls } = creation([10, 5, 0, 50, 2, 1], 60);
     const s = tacticalCreateSoldier(c, create({ soldierClass: SoldierClass.ELITE, bodyType: Body.REGFEMALE }), 30, ENV(40));

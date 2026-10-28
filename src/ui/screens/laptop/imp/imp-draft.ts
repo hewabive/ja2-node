@@ -12,7 +12,6 @@
 // @src IMP_Attribute_Finish.cc the yes/no buttons; IMP_Portraits.cc IncrementPictureIndex, DecrementPicture,
 // @src BtnIMPPortraitDoneCallback; IMP_Voices.cc IncrementVoice, DecrementVoice, BtnIMPVoicesDoneCallback; IMP_Finish.cc
 // @src EnterIMPFinish, BtnIMPFinishDoneCallback, FinishMessageBoxCallBack; IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo.
-// @src See docs/28 §9.7.
 
 import type { ImpAttributeName, ImpAttributeRulesView } from '../../../../protocol/view.ts';
 

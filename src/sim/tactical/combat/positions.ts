@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc CalculateSoldierZPos, GetTargetZPosFromStructureHeight, SoldierTo3DLocationLineOfSightTest,
-// @src SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight. See docs/11 §1.8, docs/08 §1.2.
+// @src SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight.
 
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';

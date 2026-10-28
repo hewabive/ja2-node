@@ -5,7 +5,6 @@
 // @src src/game/Strategic/StrategicMap_Secrets.cc IsTownFound (a town whose base sector holds no secret is always known);
 // @src src/externalized/strategic/TownModel.cc getBaseSector (the smallest sector of the town); src/game/Strategic/
 // @src Player_Command.cc GetSectorFacilitiesFlags (sFacilitiesStrings joined by commas, "none" without facilities).
-// @src See docs/28 §7.5, §7.8.
 
 import type { EconomyContent, MineDef } from '../../../content/strategic/economy-content.ts';
 import type { MapSecret, Town } from '../../../content/strategic/map-tables.ts';

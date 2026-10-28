@@ -8,7 +8,7 @@
 // @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc; Interface_Items.cc HandleItemPointerClick (the give branch,
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
-// @src line short). See docs/24 §4, §6, §9.4, §11, docs/04 §6.12, §6.16, §6.17.
+// @src line short).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Laptop/AIMSort.cc GameInitAimSort (price, descending), EnterAimSort (the list reset to the A.I.M. listing
 // @src order), ExitAimSort and MercArrayCompare (weekly salary, level, marksmanship, medical, explosives, mechanical; the
 // @src original's std::sort is unstable, the listing order breaks ties here); src/game/Laptop/AIMMembers.cc gbCurrentIndex,
-// @src giCurrentSubPage (the conference mode restored on re-entry), LaptopSaveInfo.sLastHiredMerc. See docs/28 §9.4.
+// @src giCurrentSubPage (the conference mode restored on re-entry), LaptopSaveInfo.sLastHiredMerc.
 
 import type { AimMercView } from '../../../../protocol/view.ts';
 

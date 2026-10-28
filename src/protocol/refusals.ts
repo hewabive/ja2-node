@@ -5,7 +5,7 @@
 // @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
 // @src (MSG_CANT_FIRE_HERE), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
 // @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime, HandleMilitiaRedistributionClick (pMapErrorString 30
-// @src and 31, pMilitiaString 2). See docs/28 §12.2.
+// @src and 31, pMilitiaString 2).
 
 export interface UiTextKey {
   readonly table: string;

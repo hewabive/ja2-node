@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (REPORT_SHIPMENT_SIZE, RETURN_STOLEN_SHIPMENT_ITEMS,
-// @src SET_DELAYED_PACKAGE_TIMER, SET_RANDOM_PACKAGE_DAMAGE_TIMER, ADD_JOHNS_GUN_SHIPMENT). See docs/25 §3.5.
+// @src SET_DELAYED_PACKAGE_TIMER, SET_RANDOM_PACKAGE_DAMAGE_TIMER, ADD_JOHNS_GUN_SHIPMENT).
 
 import { talkingMenuDialogue } from '../../../narrative/dialogue-queue.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';

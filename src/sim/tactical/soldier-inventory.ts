@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc PlaceObject (the robot controller, the face-item sight update and
-// @src EnsureConsistentWeaponMode at the end of a placement). See docs/12 §3.3.
+// @src EnsureConsistentWeaponMode at the end of a placement).
 
 import { ItemClass } from '../../content/items/items.ts';
 import type { ItemObject } from '../items/object.ts';

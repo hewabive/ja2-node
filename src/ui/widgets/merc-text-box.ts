@@ -3,7 +3,7 @@
 // @src src/game/Utils/MercTextBox.cc PrepareMercPopupBox (the size from the text, the margins and the icons, capped at
 // @src 349×199; the border tiled every 10 pixels; the text with IanDisplayWrappedString in FONT12ARIAL, gap 2),
 // @src GetMercPopupBoxFontColors, RenderMercPopUpBox, TEXT_POPUP_* and MERC_* defines; src/game/Utils/MercTextBox.h
-// @src MercPopUpBackground, MercPopUpBorder, MercPopupBoxFlags. See docs/28 §3.6.
+// @src MercPopUpBackground, MercPopUpBorder, MercPopupBoxFlags.
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../content/text/font-colors.ts';
 import { u16 } from '../../core/int.ts';

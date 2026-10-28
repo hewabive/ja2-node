@@ -40,7 +40,7 @@ function expectSane({ stats, presented }: FrameSample, what: string): void {
   expect(presented, `${what}: a still screen is left as shown on most frames`).toBeLessThan(stats.count * MOST_FRAMES_LEFT);
 }
 
-test.describe('the frame-time probe on stubs (docs/28 §15, §16)', () => {
+test.describe('the frame-time probe on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
 
   test('reports sane frame times for the main menu and the tactical screen at UI scale 2 and draws few frames of a still screen', async ({

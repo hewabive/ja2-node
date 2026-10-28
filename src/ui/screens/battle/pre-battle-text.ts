@@ -5,7 +5,6 @@
 // @src non-persistent panel, blinking for ambushes, creature attacks and bloodcat ambushes), RenderPreBattleInterface (the
 // @src enemy column label, the counts, the condition words, the HP and BP percentages), GetSoldierConditionInfo,
 // @src DoTransitionFromMapscreenToPreBattleInterface (the gravity-factored stretch from the battle sector to the panel).
-// See docs/28 §8.1.
 
 import { idiv, u16 } from '../../../core/int.ts';
 import type { PromptOptionView } from '../../../protocol/view.ts';

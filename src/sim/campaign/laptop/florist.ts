@@ -5,7 +5,6 @@
 // @src the bouquet price from the gallery text and the delivery cost), EnterFloristOrderForm (uiFlowerOrderNumber +=
 // @src Random(5) + 1), BtnFlowerOrderSendButtonCallback (the ledger, the Meduna meanwhile, uiFlowerOrderNumber += 1 +
 // @src Random(2)); Florist_Gallery.cc FLOR_GALLERY_NUMBER_FLORAL_IMAGES; Strategic/Meanwhile.cc HandleFlowersMeanwhileScene.
-// @src See docs/21 §7.3, docs/04 §6.33.
 
 import { sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';

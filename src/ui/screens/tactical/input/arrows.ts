@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface.h ARROWS_*; src/game/Tactical/Interface.cc RenderArrows (SECONDPOINTERS2, 3, 4, 7
 // @src and 8, the second arrow 20 pixels lower), GetArrowsBackground (ARROWS_X_OFFSET 10, UPARROW_Y_OFFSET -30,
 // @src DOWNARROW_Y_OFFSET -10, the above and below positions at -10 / -50, -70 and +10 from the merc's true screen
-// @src position). See docs/28 §6.4.
+// @src position).
 
 import type { ScreenPoint } from '../environment.ts';
 

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/PreBattle_Interface.h (saved PBI globals); Auto_Resolve.cc gsEnemyGainedControlOfSectorID,
 // @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*; Tactical/Overhead_Types.h ubLastBattleSector,
-// @src fLastBattleWon. See docs/19 §1.1, §5, docs/26 §0.
+// @src fLastBattleWon.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';

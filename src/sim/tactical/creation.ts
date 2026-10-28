@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Create.cc CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
-// @src Inventory_Choosing.cc AssignCreatureInventory; Soldier_Add.cc FindGridNoFromSweetSpot. See docs/06 §3.2, §7, docs/19 §2.4.
+// @src Inventory_Choosing.cc AssignCreatureInventory; Soldier_Add.cc FindGridNoFromSweetSpot.
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';

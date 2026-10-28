@@ -107,7 +107,7 @@ function expectedGarrisonRanges(difficulty: number, stream: Stream): number[] {
 const DIFFICULTIES = [1, 2, 3] as const;
 const STREAMS: readonly Stream[] = ['zeros', 'maxima'];
 
-describe('initStrategicAI draw order (docs/17 §3.8)', () => {
+describe('initStrategicAI draw order', () => {
   for (const difficulty of DIFFICULTIES) {
     for (const stream of STREAMS) {
       it(`draws in the original order on difficulty ${difficulty} with ${stream}`, () => {
@@ -137,7 +137,7 @@ describe('initStrategicAI draw order (docs/17 §3.8)', () => {
   }
 });
 
-describe('state after initStrategicAI (docs/17 §3.9)', () => {
+describe('state after initStrategicAI', () => {
   it('fills P3, A9, Drassen and the admin patrols as the original', () => {
     for (const difficulty of DIFFICULTIES) {
       const { q } = initialized(difficulty, 'zeros');

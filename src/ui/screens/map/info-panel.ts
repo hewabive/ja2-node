@@ -7,7 +7,7 @@
 // @src metal grey at 0, the maximum flashing after a change, "??" for a prisoner), DrawCharStats and PrintStat (green or
 // @src red for CHANGE_STAT_RECENTLY_DURATION after a change), RenderHandPosItem (not with the inventory open or for the
 // @src dead), RenderIconsForUpperLeftCornerPiece, ConvertMinTimeToETADayHourMinString; src/game/Strategic/
-// @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y). See docs/28 §7.2.
+// @src Map_Screen_Interface.cc RenderMapStatusBars (DrawSoldierUIBars at BAR_INFO_X, BAR_INFO_Y).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

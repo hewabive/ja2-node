@@ -15,7 +15,6 @@
 // @src (same town, ours and peaceful, at most MAX_ALLOWABLE_MILITIA_PER_SECTOR), HandleShutDownOfMilitiaPanelIfPeopleOnTheCursor,
 // @src CreateMilitiaPanelBottomButton (militia.sti 1/2, Auto disabled when CanMilitiaAutoDistribute fails at creation),
 // @src MilitiaAutoButtonCallback, MilitiaDoneButtonCallback, CheckAndUpdateStatesOfSelectedMilitiaSectorButtons.
-// @src See docs/28 §7.8.
 
 import { type Sector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';

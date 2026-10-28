@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/Dialogs.cc GetDialogueVoiceFilename (which file a text key's line is spoken from);
-// @src src/game/Tactical/Dialogue_Control.cc (speech at speech volume, middle pan). See docs/27 §3.1, §5.1.
+// @src src/game/Tactical/Dialogue_Control.cc (speech at speech volume, middle pan).
 
 import { MERCEDT_DIR, type TextKey } from '../narrative/dialogue-text.ts';
 import { NPCDATA_DIR } from '../narrative/npc-records.ts';

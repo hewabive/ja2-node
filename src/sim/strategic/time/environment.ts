@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Environment.cc BuildDayLightLevels, UpdateTemperature, SectorTemperature,
-// @src GetTimeOfDayAmbientLightLevel; Environment.h. See docs/15 §1.10.
+// @src GetTimeOfDayAmbientLightLevel; Environment.h.
 
 import { EventKind } from './constants.ts';
 import { addEveryDayStrategicEvent, type EventQueue } from './event-queue.ts';

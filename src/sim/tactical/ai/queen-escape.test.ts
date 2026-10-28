@@ -32,7 +32,7 @@ function palace(port: Partial<typeof NO_NARRATIVE_PORT> = {}): TacticalSim {
   return sim;
 }
 
-describe('the Queen heads for the basement (docs/26 §5.2)', () => {
+describe('the Queen heads for the basement', () => {
   it('walks to the staircase, traverses down next to it, and Joe follows only from red alert', () => {
     const sim = palace();
     const queen = spawnSoldier(sim, 140, Team.CIV, FAR_FROM_STAIRCASE, 0, { profile: QUEEN });

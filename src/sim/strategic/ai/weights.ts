@@ -4,7 +4,7 @@
 // @src RecalculateGroupWeight, TagSAIGroupWithGracePeriod, PermittedToFillPatrolGroup, FindPatrolGroupIndexForGroupID,
 // @src GarrisonReinforcementsRequested, PatrolReinforcementsRequested, ReinforcementsAvailable,
 // @src GarrisonCanProvideMinimumReinforcements, GarrisonRequestingMinimumReinforcements, PatrolRequestingMinimumReinforcements,
-// @src PlayerForceTooStrong. See docs/17 §5.
+// @src PlayerForceTooStrong.
 
 import { byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';

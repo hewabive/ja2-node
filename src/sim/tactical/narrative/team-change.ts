@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Profile.cc ChangeSoldierTeam; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier (the
 // @src tactical part), TacticalCreateSoldier (through tacticalCreateSoldier); Tactical/Soldier_Control.cc CreateSoldierCommon
-// @src (the standing frame draw); Tactical/Soldier_Add.cc AddSoldierToSectorNoCalculateDirectionUseAnimation. See docs/24 §9.2.
+// @src (the standing frame draw); Tactical/Soldier_Add.cc AddSoldierToSectorNoCalculateDirectionUseAnimation.
 
 import { emptyObject } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';

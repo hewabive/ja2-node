@@ -12,8 +12,7 @@
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
-// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules). See docs/16 §5,
-// @src docs/25 §4.5–§4.6, §5.2, §5.6.
+// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';

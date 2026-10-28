@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc WakeUpQueen, ExecuteStrategicAIAction, StrategicHandleQueenLosingControlOfSector,
-// @src StrategicHandleMineThatRanOut; Player_Command.cc (P3 basement). See docs/17 §9.
+// @src StrategicHandleMineThatRanOut; Player_Command.cc (P3 basement).
 
 import { byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

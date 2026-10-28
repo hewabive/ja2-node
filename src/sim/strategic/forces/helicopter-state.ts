@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Helicopter.cc InitializeHelicopter, g_refuel_site, the helicopter globals;
-// @src Map_Screen_Helicopter.h DRASSEN_REFUELING_SITE, ESTONI_REFUELING_SITE. See docs/25 §10.1.
+// @src Map_Screen_Helicopter.h DRASSEN_REFUELING_SITE, ESTONI_REFUELING_SITE.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 

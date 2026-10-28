@@ -7,7 +7,7 @@
 // @src the training percentage); Strategic/Map_Screen_Interface_Map.cc ShowItemsOnMap, DrawMapIndexBigMap (found secrets),
 // @src ShowTownText; Tactical/Tactical_Save.cc GetNumberOfVisibleWorldItemsFromSectorStructureForSector;
 // @src Laptop/Finances.cc GetProjectedTotalDailyIncome; Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress;
-// @src Strategic/Game_Clock.cc (giTimeCompressMode, gfGamePaused, gfLockPauseState). See docs/28 §7, §12.1 G9–G12.
+// @src Strategic/Game_Clock.cc (giTimeCompressMode, gfGamePaused, gfLockPauseState).
 
 import { MineType } from '../content/strategic/economy-content.ts';
 import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';

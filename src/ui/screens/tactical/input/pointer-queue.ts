@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/sgp/Input.cc QueueMouseEvent, DequeueSpecificEvent (button events queued and taken one per game loop);
 // @src src/game/Tactical/Turn_Based_Input.cc GetTBMouseButtonInput, Real_Time_Input.cc GetRTMouseButtonInput (the
-// @src button state read once per frame, a release outside the viewport ending a held button). See docs/28 §6.1.
+// @src button state read once per frame, a release outside the viewport ending a held button).
 
 import { MouseButtonMask, MouseReason } from '../../../input/mouse.ts';
 

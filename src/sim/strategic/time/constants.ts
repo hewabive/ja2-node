@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Game_Clock.h; Game_Events.h; Game_Event_Hook.h; Game_Clock.cc giTimeCompressSpeeds. See docs/15 §1–§2.
+// @src src/game/Strategic/Game_Clock.h; Game_Events.h; Game_Event_Hook.h; Game_Clock.cc giTimeCompressSpeeds.
 
 export const NUM_SEC_IN_DAY = 86400;
 export const NUM_SEC_IN_HOUR = 3600;

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID; the
 // @src AP sums), UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
-// @src GetAPsToBeginFirstAid; UI_Cursors.cc (the item cursors this port does not support yet). See docs/28 §2.4, §6.1.
+// @src GetAPsToBeginFirstAid; UI_Cursors.cc (the item cursors this port does not support yet).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';

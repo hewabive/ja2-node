@@ -4,7 +4,7 @@
 // @src Map_Screen_Interface_Map.cc PickUpATownPersonFromSector, DropAPersonInASector, HandleEveningOutOfTroopsAmongstSectors
 // @src (the AUTO button, with its quirk: militia counted in sectors with hostiles are not dealt back),
 // @src CanMilitiaAutoDistribute, CanRedistributeMilitiaInSector, GetBaseSectorForCurrentTown;
-// @src Strategic/StrategicMap_Secrets.cc IsTownFound; externalized/strategic/TownModel.cc getBaseSector. See docs/18 §1.8.
+// @src Strategic/StrategicMap_Secrets.cc IsTownFound; externalized/strategic/TownModel.cc getBaseSector.
 
 import type { Town as TownContent } from '../../../content/strategic/map-tables.ts';
 import { MAP_SIDE, type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

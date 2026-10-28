@@ -4,7 +4,7 @@
 // @src src/game/Tactical/Tactical_Save.cc SetSectorFlag, ReSetSectorFlag, GetSectorFlagStatus,
 // @src SetNumberOfVisibleWorldItemsInSectorStructureForSector; Queen_Command.cc FindUnderGroundSector;
 // @src StrategicMap.cc GetMapFileName; Strategic_Movement_Costs.cc GetTraversability, SectorIsPassable;
-// @src Strategic_Status.cc UpdateLastDayOfPlayerActivity. See docs/16 §1.
+// @src Strategic_Status.cc UpdateLastDayOfPlayerActivity.
 
 import { StrategicMove, TRAVERSABILITY_DIRECTIONS } from '../../../content/strategic/map-tables.ts';
 import { MAP_WORLD_CELLS, mapFileName, SECTOR_COUNT, type Sector, sameSector, sectorId } from '../../../content/strategic/sector-ids.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup (table data); Strategic_Pathing.cc;
-// @src Map_Screen_Helicopter.h; Campaign_Init.cc InitKnowFacilitiesFlags. Tables in data/tables, see docs/16 §1.8, §8.2.
+// @src Map_Screen_Helicopter.h; Campaign_Init.cc InitKnowFacilitiesFlags. Tables in data/tables.
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asInt, asObject, asString } from './json-fields.ts';

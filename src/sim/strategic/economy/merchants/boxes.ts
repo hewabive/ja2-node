@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/ShopKeeper_Interface.cc DetermineArmsDealersSellingInventory, AddItemsToTempDealerInventory,
 // @src StoreObjectsInNextFreeDealerInvSlot, RepairIsDone, RepairmanItemQsortCompare; ArmsDealerInvInit.cc
-// @src ArmsDealerItemQsortCompare. See docs/23 §2.3, §10.6.
+// @src ArmsDealerItemQsortCompare.
 
 import { NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';

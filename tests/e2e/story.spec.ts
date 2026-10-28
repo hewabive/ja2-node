@@ -48,7 +48,7 @@ async function compressTime(page: Page): Promise<void> {
   expect(reply).toMatchObject({ ok: true });
 }
 
-test.describe('the story and the help screens on /play (docs/28 §4.7, §10)', () => {
+test.describe('the story and the help screens on /play', () => {
   test.beforeAll(async () => {
     test.setTimeout(SAVE_TIMEOUT_MS);
     await writeStorySaves(SAVE_DIR);

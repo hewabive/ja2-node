@@ -4,7 +4,7 @@
 // @src closed CRDT_EYES_CLOSED_TIME + Random(CRDT_EYES_CLOSED_TIME) ms; the unsigned clock difference blinks every face at
 // @src once on entry), SelectCreditFaceMovementRegionCallBack, HandleCreditScreen (gzCreditNames, gzCreditNameTitle,
 // @src gzCreditNameFunny of the hovered face; the screen ends when the rows run out), GetCreditScreenUserInput, AddCreditNode
-// @src (the node height is the wrapped height + 1), DisplayCreditNode. See docs/28 §4.8.
+// @src (the node height is the wrapped height + 1), DisplayCreditNode.
 
 import type { CreditNode } from '../../../content/formats/credits.ts';
 import type { Area, DrawList, FontColors } from '../../draw-list.ts';

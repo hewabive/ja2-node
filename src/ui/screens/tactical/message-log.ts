@@ -5,7 +5,7 @@
 // @src MAX_AGE - 1000 per queued line, the ditched last line, one line in per frame when the top slot is free, the positions
 // @src Y_START - slot × the SMALLFONT1 height - WIDTH_BETWEEN_NEW_STRINGS per new string, the beep when slot 4 was free),
 // @src BlitString (TINYFONT1, DEFAULT_SHADOW, black background), HideMessagesDuringNPCDialogue and
-// @src UnHideMessagesDuringNPCDialogue (the age frozen while hidden), ClearDisplayedListOfTacticalStrings. See docs/28 §6.5.
+// @src UnHideMessagesDuringNPCDialogue (the age frozen while hidden), ClearDisplayedListOfTacticalStrings.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import type { DrawList } from '../../draw-list.ts';

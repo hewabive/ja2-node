@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Lighting.cc LightLoad (the .LHT layout: node count, LIGHT_NODE records, ray count, ray list);
-// @src src/externalized/content/LightTemplate.cc LightTemplate::deserialize (light-templates.json). See docs/20 §2.
+// @src src/externalized/content/LightTemplate.cc LightTemplate::deserialize (light-templates.json).
 
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';

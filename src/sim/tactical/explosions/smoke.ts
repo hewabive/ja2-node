@@ -4,7 +4,7 @@
 // @src AddSmokeEffectToTile, RemoveSmokeEffectFromTile, DecaySmokeEffects, IsSoldierAlreadyAffectedBySmokeEffect;
 // @src Explosion_Control.cc DishOutGasDamage; Tactical/Overhead.cc running into gas (HandleGotoNewGridNo);
 // @src Soldier_Control.cc SOLDIER_GASSED in SetSoldierGridNo and EVENT_BeginMercTurn; TacticalAI/AIUtils.cc InGas,
-// @src InSmoke. See docs/12 §11.
+// @src InSmoke.
 
 import { SmokeEffectId, type SmokeEffectType } from '../../../content/items/explosions.ts';
 import { Terrain } from '../../../content/world/terrain.ts';

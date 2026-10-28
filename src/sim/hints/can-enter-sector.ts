@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo (the Tactical button: a battle
-// @src elsewhere, a pending decision); StrategicMap.cc CanGoToTacticalInSector. See docs/28 §7.9.
+// @src elsewhere, a pending decision); StrategicMap.cc CanGoToTacticalInSector.
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';

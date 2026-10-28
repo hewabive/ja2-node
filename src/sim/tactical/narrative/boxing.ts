@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Boxing.cc ExitBoxing, EndBoxingMatch, BoxingPlayerDisqualified, TriggerEndOfBoxingRecord,
 // @src CountPeopleInBoxingRing, CountPeopleInBoxingRingAndDoActions, CheckOnBoxers, BoxerExists, PickABoxer, BoxerAvailable,
 // @src BoxersAvailable, AnotherFightPossible, BoxingMovementCheck, SetBoxingState, ClearAllBoxerFlags; Tactical/Interface_Dialogue.cc
-// @src NPC_ACTION_START_BOXING_MATCH (the state part); TacticalAI/FindLocations.cc FindClosestBoxingRingSpot. See docs/25 §7.
+// @src NPC_ACTION_START_BOXING_MATCH (the state part); TacticalAI/FindLocations.cc FindClosestBoxingRingSpot.
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Spread_Burst.cc AccumulateBurstLocation (up to MAX_BURST_LOCATIONS distinct gridNos in drag
 // @src order), PickBurstLocations (the FLOAT step over the shots per burst); Turn_Based_Input.cc and Real_Time_Input.cc
-// @src (fDoSpread on release). See docs/28 §6.1, §12.4.
+// @src (fDoSpread on release).
 
 import { isVisibleTile } from '../../../content/world/grid.ts';
 import type { Soldier } from '../soldier.ts';

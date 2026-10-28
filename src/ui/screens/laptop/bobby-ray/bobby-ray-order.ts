@@ -9,7 +9,7 @@
 // @src CreateDestroyBobbyRDropDown (the clear button disabled while the list is open), DrawSelectedCity (the accept button
 // @src enabled once something is bought and a city chosen), DisplayShippingLocationCity (the per-unit rates, kept while the
 // @src list is open), PurchaseBobbyOrder, ConfirmBobbyRPurchaseMessageBoxCallBack, CalcPackageTotalWeight,
-// @src DisplayPackageWeight, BtnBobbyRGotoShipmentPageCallback, CreateBobbyRayOrderTitle. See docs/28 §9.6.
+// @src DisplayPackageWeight, BtnBobbyRGotoShipmentPageCallback, CreateBobbyRayOrderTitle.
 
 import type { ShippingDestinationView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

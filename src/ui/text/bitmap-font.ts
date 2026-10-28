@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Font.cc GetGlyphIndex (one translation table for every font, '?' for a missing code point),
-// @src GetWidth (width + x offset), GetHeight, GetFontHeight (height + y offset of glyph 0). See docs/28 §3.4.
+// @src GetWidth (width + x offset), GetHeight, GetFontHeight (height + y offset of glyph 0).
 
 import type { Sti } from '../../content/formats/sti.ts';
 import { type GlyphTable, glyphIndexOf } from '../../content/text/glyph-table.ts';

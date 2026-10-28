@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc StartQuest, InternalStartQuest, EndQuest, InternalEndQuest, InitQuestEngine,
 // @src CheckForQuests; Laptop/History.h HISTORY_ACCEPTED_ASSIGNMENT_FROM_ENRICO, HISTORY_QUEST_STARTED, HISTORY_QUEST_FINISHED.
-// @src See docs/25 §2.2–§2.3.
 
 import type { SectorPosition } from '../state.ts';
 import { Quest } from './fact-ids.ts';

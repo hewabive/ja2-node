@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadGeneralInfo (gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile,
 // @src sWorldSectorLocationOfFirstBattle), LoadMeanwhileDefsFromSaveGameFile; LoadSaveTacticalStatusType.cc
-// @src (ubLastBattleSector, fLastBattleWon, IN_DEIDRANNA_ENDGAME, IN_ENDGAME_SEQUENCE). See docs/26 §11.5.
+// @src (ubLastBattleSector, fLastBattleWon, IN_DEIDRANNA_ENDGAME, IN_ENDGAME_SEQUENCE).
 
 import { NUM_MEANWHILES } from '../strategic/ai/queen-state.ts';
 import type { StrategicState } from '../strategic/state.ts';

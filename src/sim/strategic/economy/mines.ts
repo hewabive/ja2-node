@@ -7,7 +7,7 @@
 // @src PlayerSpokeToHeadMiner, PlayerAttackedHeadMiner, HasAnyMineBeenAttackedByMonsters, AreThereMinersInsideThisMine,
 // @src IsHisMineRunningOut, IsHisMineEmpty, IsHisMineDisloyal (LOW_MINE_LOYALTY_THRESHOLD), IsHisMineInfested,
 // @src IsHisMineLostAndRegained, IsHisMineAtMaxProduction, HasHisMineBeenProducingForPlayerForSomeTime, SpokenToHeadMiner;
-// @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry (head miners). See docs/18 §3.
+// @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry (head miners).
 
 import { MineType } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sectorFromId } from '../../../content/strategic/sector-ids.ts';

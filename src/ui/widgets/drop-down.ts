@@ -5,7 +5,7 @@
 // @src SelectDropDownRegionCallBack, SelectDropDownMovementCallBack (hovering a row selects it), DrawSelectedCity (the top
 // @src clamp, the highlighted row, the row of the first entry when nothing is selected), SelectScrollAreaDropDownRegionCallBack,
 // @src SelectScrollAreaDropDownMovementCallBack, SelectUpDownArrowOnScrollAreaRegionCallBack, DrawGoldRectangle,
-// @src SelectActivateCityDroDownRegionCallBack, SelectCloseDroDownRegionCallBack. See docs/28 §9.6.
+// @src SelectActivateCityDroDownRegionCallBack, SelectCloseDroDownRegionCallBack.
 
 import type { AssetKey, DrawList, RgbColor } from '../draw-list.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../input/mouse.ts';

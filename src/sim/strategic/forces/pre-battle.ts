@@ -5,7 +5,6 @@
 // @src ClearMovementForAllInvolvedPlayerGroups, RetreatAllInvolvedPlayerGroups, PlayerMercInvolvedInThisCombat,
 // @src PlayerGroupInvolvedInThisCombat, LogBattleResults (codes), CheckForRobotAndIfItsControlled (through the crew port);
 // @src Tactical/Soldier_Control.cc ControllingRobot.
-// @src See docs/19 §1.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';

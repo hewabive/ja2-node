@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc AwardExperienceBonusToActiveSquad (EXP_BONUS_* amounts); Strategic/Squads.cc
-// @src IsMercOnCurrentSquad; Strategic/Strategic_Town_Loyalty.cc HandleLoyaltyChangeForNPCAction. See docs/25 §2.4.
+// @src IsMercOnCurrentSquad; Strategic/Strategic_Town_Loyalty.cc HandleLoyaltyChangeForNPCAction.
 
 import { MercStatus } from '../../tactical/profiles.ts';
 import { isMechanical } from '../economy/conditions.ts';

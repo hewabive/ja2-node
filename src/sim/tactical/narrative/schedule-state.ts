@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Scheduling.h SCHEDULENODE, the SCHEDULE_ACTION_* enum and SCHEDULE_FLAGS_*; Scheduling.cc
-// @src gpScheduleList, gubScheduleID, LoadSchedules, LoadSchedulesFromSave, GetSchedule. See docs/25 §5.1, §5.6.
+// @src gpScheduleList, gubScheduleID, LoadSchedules, LoadSchedulesFromSave, GetSchedule.
 
 import type { MapSchedule } from '../../../content/formats/map.ts';
 

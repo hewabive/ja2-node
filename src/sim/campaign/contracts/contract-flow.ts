@@ -6,7 +6,7 @@
 // @src MercDismissConfirmCallBack, RemoveMercMenuBtnCallback; Tactical/Dialogue_Control.cc CanSayQuote; Tactical/Campaign.cc
 // @src ChangeStat (salary and the M.E.R.C. level-up email event); Strategic/Strategic_Merc_Handler.cc
 // @src StrategicHandlePlayerTeamMercDeath (history, insurance, M.E.R.C. contract end); Strategic/Strategic.cc
-// @src HandleSoldierDeadComments; Tactical/Overhead.cc HandlePlayerTeamMemberDeath (buddy quotes). See docs/22 §3, §4, §9.
+// @src HandleSoldierDeadComments; Tactical/Overhead.cc HandlePlayerTeamMemberDeath (buddy quotes).
 
 import { sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';

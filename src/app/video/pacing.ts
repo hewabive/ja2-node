@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Cinematics.cc SmkPlayFlic (milliseconds_per_frame), SmkSkipFrames (late frames are decoded, not
-// @src shown), SmkPollFlics (the video ends when the frame after the last one is due). See docs/27 §4.1, §4.3.
+// @src shown), SmkPollFlics (the video ends when the frame after the last one is due).
 
 const MICROS_PER_SECOND = 1_000_000;
 const MILLIS_PER_SECOND = 1000;

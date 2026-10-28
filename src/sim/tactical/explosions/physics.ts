@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Physics.cc CreatePhysicalObject, SimulateWorld, SimulateObject, PhysicsComputeForces,
 // @src PhysicsUpdateLife, PhysicsIntegrate, PhysicsHandleCollisions, PhysicsCheckForCollisions, PhysicsResolveCollision,
 // @src PhysicsMoveObject (the level node that decides when the catch is looked at), PhysicsDeleteObject,
-// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact, CheckForCollision, vector_3ToGridNo. See docs/11 §7.9.
+// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact, CheckForCollision, vector_3ToGridNo.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';

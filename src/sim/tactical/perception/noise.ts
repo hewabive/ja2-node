@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc MovementNoise, DoorOpeningNoise, MakeNoise, ProcessNoise, CalcEffVolume, DecideHearing,
 // @src HearNoise, TellPlayerAboutNoise (with QUOTE_HEARD_SOMETHING); Overhead.cc TeamMemberNear; SkillCheck.cc
-// @src EffectiveExpLevel, EffectiveDexterity. See docs/08 §3.
+// @src EffectiveExpLevel, EffectiveDexterity.
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';

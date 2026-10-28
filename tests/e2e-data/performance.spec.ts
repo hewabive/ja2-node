@@ -10,7 +10,7 @@ const SANDBOX_SEED = 1;
 
 test.use({ viewport: FULL_HD });
 
-test('measures the frame time of the A9 sandbox on /play at 1920×1080 in real time (logged, docs/28 §16)', async ({ page, request }) => {
+test('measures the frame time of the A9 sandbox on /play at 1920×1080 in real time (logged)', async ({ page, request }) => {
   test.setTimeout(SAMPLE_TIMEOUT_MS * 2);
   const session = ((await (await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } })).json()) as { session: string }).session;
   try {

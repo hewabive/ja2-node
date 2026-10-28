@@ -49,7 +49,7 @@ function port(sim: TacticalSim, overrides: Partial<NarrativePort>): PortLog {
   return log;
 }
 
-describe('the give action (docs/24 §4.1)', () => {
+describe('the give action', () => {
   it('hands one magazine to an adjacent squad mate at code 486 and deletes the whole source pocket', () => {
     const sim = newCombatSim(content);
     const giver = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);

@@ -5,7 +5,7 @@
 // @src the selected one), CreatePreviousShipmentsMouseRegions (one region per shipment in transit),
 // @src SelectPreviousShipmentsRegionCallBack (the n-th active shipment), CountNumberValidShipmentForTheShipmentsPage,
 // @src BtnBobbyRShipmentBackCallback, BtnBobbyRShipmentHomeCallback; src/game/Laptop/BobbyRMailOrder.cc DisplayPurchasedItems
-// @src and DisplayShippingCosts for a shipment. See docs/28 §9.6.
+// @src and DisplayShippingCosts for a shipment.
 
 import type { BobbyRayShipmentView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

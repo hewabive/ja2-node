@@ -4,7 +4,6 @@
 // @src GenerateConsString, RenderItemDescriptionBox (the weight in kilograms or pounds, status, range, damage, APs, burst APs,
 // @src the ROF bullets, the gun title, the ammo button); Items.cc Weight; Points.h DEFAULT_APS, DEFAULT_AIMSKILL;
 // @src externalized/WeaponModels.cc the weapon type index of WeaponType[]; Utils/Text.h Message ids STR_RELIABLE..STR_NONE.
-// @src See docs/28 §5.4.
 
 import { ItemClass, type ItemDef, type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
 import type { ItemObject } from '../items/object.ts';

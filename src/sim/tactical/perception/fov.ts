@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof.
-// See docs/08 §5.
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';

@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/AIMMembers.cc DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector with its town,
 // @src day = arrival / 1440, "HH:00", the German argument order), called by Mercs_Files.cc BtnMercHireButtonCallback.
-// @src See docs/28 §9.5.
 
 import { idiv } from '../../../core/int.ts';
 import { printf } from '../../text/printf.ts';

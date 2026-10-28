@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc TerrainActionPoints, TerrainBreathPoints, ActionPointCost, MinAPsToStartMovement,
 // @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h; Soldier_Control.cc CalcActionPoints,
-// @src CalcNewActionPoints (the boxing halving). See docs/07 §3.6, docs/25 §7.2.
+// @src CalcNewActionPoints (the boxing halving).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';

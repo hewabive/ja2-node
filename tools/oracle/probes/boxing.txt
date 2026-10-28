@@ -1,4 +1,4 @@
-# Boxing in San Mona (docs/25 §7) on the user's saves. No save stands in D5, so boxingsquad moves the listed mercs (and
+# Boxing in San Mona on the user's saves. No save stands in D5, so boxingsquad moves the listed mercs (and
 # their groups) to D5 with grid insertion, loads the sector with SetCurrentWorldSector, unpauses and gives the moved mercs
 # CalcActionPoints. The other commands run the original's functions on the loaded club: boxingstart is Darren's
 # START_BOXING_MATCH action, boxingstep teleports a soldier and runs BoxingMovementCheck while a match is tracked,

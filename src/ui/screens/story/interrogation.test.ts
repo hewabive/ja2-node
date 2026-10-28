@@ -31,7 +31,7 @@ function playOut(f: TacticalUiTest): void {
   for (let frames = 0; f.screen.dialogue.presenter.busy && frames < MAX_LINE_FRAMES; frames++) f.t.frame(LINE_STEP_MS);
 }
 
-describe('the interrogation on the tactical screen (docs/28 §10.1, docs/26 §2.3)', { timeout: SLOW_MS }, () => {
+describe('the interrogation on the tactical screen', { timeout: SLOW_MS }, () => {
   it('shows the Queen’s talk panel, then the YES/NO/LIE box once the panel is gone, refuses every other command, ignores Escape and ends with the enemy-present music', async () => {
     const { session } = await inTheInterrogation(kit, SEED);
     const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };

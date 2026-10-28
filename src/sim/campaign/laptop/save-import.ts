@@ -3,7 +3,7 @@
 // @src src/game/Laptop/Laptop.cc LoadLaptopInfoFromSavedGame; Laptop/Mercs.cc SyncLastMercFromSaveGame;
 // @src Laptop/BobbyRMailOrder.cc NewWayOfLoadingBobbyRMailOrdersToSaveGameFile; LoadSaveEMail.cc LoadEmailFromSavedGame;
 // @src Laptop/History.cc, Laptop/Files.cc (temp files); SaveLoadGame.cc LoadSavedMercProfiles (I.M.P. slot states, the
-// @src pre-104 fallback), LoadGeneralInfo (g_merc_arrive_sector, fNewMailFlag), the facts and quests. See docs/14-savegames.md, docs/21 §0.
+// @src pre-104 fallback), LoadGeneralInfo (g_merc_arrive_sector, fNewMailFlag), the facts and quests.
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import { readSavedLaptop, type SavedLaptop, type SavedLaptopInfo } from '../../../content/formats/savegame-laptop.ts';

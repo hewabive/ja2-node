@@ -6,7 +6,7 @@
 // @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
 // @src CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
-// @src spit gas). See docs/11 §4–§5.
+// @src spit gas).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';

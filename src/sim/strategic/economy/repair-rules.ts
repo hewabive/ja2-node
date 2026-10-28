@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Assignments.cc gRepairPassSlotList, IsAnythingAroundForSoldierToRepair, HasCharacterFinishedRepairing,
 // @src DoesCharacterHaveAnyItemsToRepair, BasicCanCharacterRepair, CanCharacterRepair, FindRepairableItemOnOtherSoldier,
 // @src CanCharacterRepairAnotherSoldiersStuff, CanCharacterRepairRobot, IsRobotInThisSector, CanCharacterRepairVehicle.
-// See docs/18 §5.7.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';

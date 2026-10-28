@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Auto_Resolve.cc CalculateAutoResolveInfo, CreateAutoResolveInterface (soldier creation and the
 // @src group association against the strategic counts), RemoveAutoResolveInterface (the strategic side of each record),
 // @src EliminateAllEnemies; Town_Militia.cc StrategicRemoveMilitiaFromSector (with the NATIVE_KILLED loyalty of the close).
-// @src See docs/19 §2.3, §2.4, §2.18, §2.19.
 
 import { type Sector, sameSector, sectorId } from '../../content/strategic/sector-ids.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';

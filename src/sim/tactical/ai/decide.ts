@@ -4,7 +4,6 @@
 // @src block), DecideAlertStatus (with its boxing gate);
 // @src AIMain.cc CheckForChangingOrders (with the creature branches), SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode;
 // @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause).
-// @src See docs/09 §1.4, §2, docs/25 §7.2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';

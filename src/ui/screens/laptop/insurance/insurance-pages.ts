@@ -9,7 +9,7 @@
 // @src HandleAcceptButton, PurchaseOrExtendInsuranceForSoldier (the "not enough funds" box), RenderInsuranceContract (the
 // @src box when nobody is insurable), InsContractNoMercsPopupCallBack, BtnInsContractPrevButtonCallback,
 // @src BtnInsContractNextButtonCallBack, SelectInsuranceContractRegionCallBack; src/game/Laptop/Insurance_Comments.cc
-// @src SelectInsuranceCommentLinkRegionCallBack. See docs/28 §9.8.
+// @src SelectInsuranceCommentLinkRegionCallBack.
 
 import type { InsuranceOfferView } from '../../../../protocol/view.ts';
 import type { DrawList } from '../../../draw-list.ts';

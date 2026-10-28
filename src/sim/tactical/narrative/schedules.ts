@@ -7,7 +7,7 @@
 // @src Tactical/Structure_Wrap.cc FindDoorAtGridNoOrAdjacent; Tactical/Keys.cc ModifyDoorStatus (with the structure sync of
 // @src UpdateDoorGraphicsFromStatus); Tactical/Soldier_Add.cc FindGridNoFromSweetSpotWithStructDataFromSoldier,
 // @src FindGridNoFromSweetSpotExcludingSweetSpot; Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter;
-// @src TacticalAI/FindLocations.cc FindNearestEdgePoint; TileEngine/Isometric_Utils.cc GridNoOnEdgeOfMap. See docs/25 §5.
+// @src TacticalAI/FindLocations.cc FindNearestEdgePoint; TileEngine/Isometric_Utils.cc GridNoOnEdgeOfMap.
 
 import {
   DIRECTION_COUNT,

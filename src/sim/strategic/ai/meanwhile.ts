@@ -6,7 +6,7 @@
 // @src HandleScientistAWOLMeanwhileScene, HandleFirstBattleVictory, HandleDelayedFirstBattleVictory,
 // @src HandleFirstBattleEndingWhileInTown, HandleFirstMeanWhileSetUpWithTrashWorld; Game_Event_Hook.cc EVENT_MEANWHILE,
 // @src DelayEventIfBattleInProgress; Queen_Command.cc EndCaptureSequence (the interrogation's schedule); Interface_Dialogue.cc
-// @src NPC_ACTION_ADD_RAT. See docs/17 §9.4, docs/26 §1.
+// @src NPC_ACTION_ADD_RAT.
 
 import { type Sector, sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i8, u32 } from '../../../core/int.ts';

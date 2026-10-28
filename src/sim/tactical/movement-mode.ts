@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc GetMoveStateBasedOnStance; Handle_UI.cc SetUIbasedOnStance, the real-time
 // @src move (the mode by stance and the one-shot fUIMovementFast); Soldier_Ani.cc code 499 (the mode after a stance
-// @src change). The stance of the API joins the height and the run mode into one value (docs/deviations.md "Stance").
+// @src change). The stance of the API joins the height and the run mode into one value.
 
 import { AnimHeight, endHeight, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';

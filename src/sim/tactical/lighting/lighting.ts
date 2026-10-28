@@ -6,7 +6,7 @@
 // @src TileEngine/LoadSaveLightSprite.cc ExtractLightSprite; TileEngine/WorldDef.cc LoadMapLights, LoadWorldFromSGPFile
 // @src (ambient light); TileEngine/Environment.cc TurnOnNightLights, TurnOffNightLights, TurnOnPrimeLights, TurnOffPrimeLights;
 // @src TileEngine/Environment.h light hours; Tactical/PathAI.cc InternalDoorTravelCost (perceived, no
-// @src soldier); Tactical/OppList.cc gbLightSighting, AdjustMaxSightRangeForEnvEffects. See docs/20.
+// @src soldier); Tactical/OppList.cc gbLightSighting, AdjustMaxSightRangeForEnvEffects.
 
 import type { MapDef, MapLights } from '../../../content/formats/map.ts';
 import { Direction, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';

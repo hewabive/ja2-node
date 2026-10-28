@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Clock.cc LoadGameClock; Game_Events.cc LoadStrategicEventsFromSavedGame;
-// @src SaveLoadGame.cc LoadSavedGame (clock and event queue). See docs/15 §5.
+// @src SaveLoadGame.cc LoadSavedGame (clock and event queue).
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import type { StrategicState } from '../state.ts';

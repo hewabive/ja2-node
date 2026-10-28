@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Physics.h REAL_OBJECT; Explosion_Control.h EXPLOSIONTYPE; SmokeEffects.h SMOKEEFFECT;
 // @src LightEffects.h LIGHTEFFECT; Tactical/Soldier_Control.h THROW_PARAMS, SOLDIER_GASSED, fHitByGasFlags,
-// @src SOLDIER_MISC_HURT_BY_EXPLOSION; WorldDef.h ubExtFlags. See docs/11 §7.9, docs/12 §10–§11.
+// @src SOLDIER_MISC_HURT_BY_EXPLOSION; WorldDef.h ubExtFlags.
 
 import type { ExplosionAnimation } from '../../../content/items/explosions.ts';
 import { WORLD_MAX } from '../../../content/world/grid.ts';

@@ -1,4 +1,4 @@
-# The florist (docs/21 §7.3, docs/04 §6.33): on the user's saves, entering the order form (the order number step), the
+# The florist: on the user's saves, entering the order form (the order number step), the
 # price (the gallery text's bouquet price, the extras and the destination's delivery cost) and sending the order (the
 # ledger and the second order number step). Destinations outside Meduna, so no meanwhile is posted.
 

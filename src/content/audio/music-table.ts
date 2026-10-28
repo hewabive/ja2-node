@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/DefaultContentManager.cc loadMusic, loadMusicModeList (music.json: a list of track paths per mode
-// @src key). See docs/27 §3.1.
+// @src key).
 
 import { FormatError } from '../binary/errors.ts';
 import { parseJsoncBytes } from '../strategic/jsonc.ts';

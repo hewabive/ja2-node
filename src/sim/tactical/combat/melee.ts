@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
 // @src EVENT_SoldierBeginPunchAttack; externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
 // @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab, CalcChanceToPunch, DishoutQueenSwipeDamage;
-// @src Soldier_Ani.cc opcodes 468 (end punch), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh). See docs/11 §6, docs/13 §14.
+// @src Soldier_Ani.cc opcodes 468 (end punch), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';

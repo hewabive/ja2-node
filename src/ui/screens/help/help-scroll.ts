@@ -5,7 +5,7 @@
 // @src the page has more lines than HLP_SCRN__MAX_NUMBER_DISPLAYED_LINES_IN_BUFFER), ChangeTopLineInTextBufferByAmount
 // @src (clamped to the last full screen, then to the first line), CalculateHeightAndPositionForHelpScreenScrollBox
 // @src (FLOAT ratios rounded by + 0.5), HelpScreenMouseMoveScrollBox (the grab offset kept from the first press),
-// @src SelectHelpScrollAreaCallBack (the wheel moves three lines). See docs/28 §4.7.
+// @src SelectHelpScrollAreaCallBack (the wheel moves three lines).
 
 import { idiv } from '../../../core/int.ts';
 

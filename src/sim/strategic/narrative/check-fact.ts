@@ -6,7 +6,6 @@
 // @src CheckTalkerUnpropositionedFemale, NumMalesPresent, FemalePresent, CheckPlayerHasHead, CheckNPCSector, AIMMercWithin,
 // @src CheckNPCCowering, CountBartenders, CheckNPCIsUnderFire, NPCHeardShot, InTownSectorWithTrainingLoyalty); Quests.h
 // @src LOYALTY_*_THRESHOLD; Interface_Dialogue.h HOSPITAL_PATIENT_DISTANCE; strategic-fact-params.json defaults.
-// @src See docs/25 §1.3–§1.4.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { NUM_PROFILES, ProfileMiscFlag, ProfileMiscFlag2, ProfileMiscFlag3 } from '../../campaign/profiles.ts';

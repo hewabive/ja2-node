@@ -36,7 +36,7 @@ function totalsMatchWeights(q: QueenContext): void {
   expect(queen.reinforcementPoints).toBe(negative);
 }
 
-describe('garrison and patrol weights (docs/17 §5)', () => {
+describe('garrison and patrol weights', () => {
   it('scales garrison weights by priority with a magnitude of at least 2', () => {
     expect(garrisonWeight(20, 20, 50)).toBe(0);
     expect(garrisonWeight(20, 19, 10)).toBe(2);

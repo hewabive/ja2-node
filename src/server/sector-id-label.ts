@@ -3,7 +3,6 @@
 // @src src/game/Strategic/StrategicMap.cc GetSectorIDString (nothing for an unvisited underground sector, the mine's town
 // @src and "Mine" when detailed), GetSectorLandTypeString (secrets and SAM sites first, the special facilities, the town,
 // @src the creature lair underground, the traversability); src/game/Strategic/Strategic_Mines.cc GetIdOfMineForSector.
-// @src See docs/21 §6.2, §6.3, docs/04 §6.33.
 
 import { type Sector, sectorId, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { type UiStrings, uiString } from '../content/text/strings.ts';

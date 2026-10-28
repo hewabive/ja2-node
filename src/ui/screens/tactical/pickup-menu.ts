@@ -9,8 +9,7 @@
 // @src outlined yellow when chosen, the count, the attachment star, the short name or the money in BLOCKFONT2 centred in
 // @src ITEMPICK_TEXT_WIDTH, white for the row under the pointer, black with ITEMDESC_FONTSHADOW2 otherwise),
 // @src ItemPickupAll, ItemPickupOK, ItemPickupCancel, ItemPickMenuMouseMoveCallback, ItemPickMenuMouseClickCallback (a
-// @src click toggles a row, the wheel turns the pages), RemoveItemPickupMenu. See docs/28 §5.4 and the deviation
-// @src "Item pickup menu".
+// @src click toggles a row, the wheel turns the pages), RemoveItemPickupMenu.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

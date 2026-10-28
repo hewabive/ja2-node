@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Button_Sound_Control.cc SpecifyButtonSoundScheme (the generic scheme chosen by the current screen),
 // @src PlayButtonSound (the in and out samples per scheme, "disabled button.wav", volume 15, middle pan);
-// @src src/sgp/Button_Sound_Control.h ButtonSoundScheme, ButtonSound. See docs/28 §3.3.
+// @src src/sgp/Button_Sound_Control.h ButtonSoundScheme, ButtonSound.
 
 export const ButtonSoundScheme = {
   NONE: 'none',

@@ -7,7 +7,7 @@
 // @src SelectedSaveRegionMovementCallBack, ScrollUp, ScrollDown, ScrollPositionTopMax, MoveSelectionUp,
 // @src MoveSelectionDown, GetSaveLoadScreenUserInput (Escape clears the selection first, then leaves; Enter; Delete
 // @src asks SLG_CONFIRM_DELETE), BtnSlgSaveLoadCallback, SaveLoadSelectedSave, SaveNewSave, DoSaveGame (from the game init
-// @src screen the save only names the Dead is Dead slot), RenderScrollBar (the indicator position). See docs/28 §4.5.
+// @src screen the save only names the Dead is Dead slot), RenderScrollBar (the indicator position).
 
 import { idiv } from '../../../core/int.ts';
 import type { SaveListing } from '../../client/api-types.ts';

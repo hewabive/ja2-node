@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc gfPauseAllAI, guiPauseAllAITimer, PAUSE_ALL_AI_DELAY, PauseAITemporarily,
-// @src PauseAIUntilManuallyUnpaused, UnPauseAI, ExecuteOverhead (the end of a timed pause). See docs/24 §3.6, §10.2.
+// @src PauseAIUntilManuallyUnpaused, UnPauseAI, ExecuteOverhead (the end of a timed pause).
 
 import type { TacticalState } from '../state.ts';
 

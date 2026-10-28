@@ -3,7 +3,7 @@
 // @src src/game/Tactical/End_Game.cc BeginHandleDeidrannaDeath, HandleDeidrannaDeath, DoneFadeOutKilledQueen,
 // @src DoneFadeInKilledQueen, EndQueenDeathEndgameBeginEndCimenatic, EndQueenDeathEndgame, DoneFadeOutEndCinematic,
 // @src BeginHandleQueenBitchDeath, HandleQueenBitchDeath; Tactical/Interface_Dialogue.cc NPC_ACTION_ENDGAME_STATE_1,
-// @src NPC_ACTION_ENDGAME_STATE_2; Intro.cc (the ending's Miguel and Skyrider variants). See docs/26 §6, §7.
+// @src NPC_ACTION_ENDGAME_STATE_2; Intro.cc (the ending's Miguel and Skyrider variants).
 
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';

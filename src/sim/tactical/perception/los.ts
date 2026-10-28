@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc LineOfSightTest, ResolveHitOnWall, CalculateSoldierZPos, SoldierToSoldierLineOfSightTest,
-// @src SoldierTo3DLocationLineOfSightTest; Tactical/Structure_Wrap.cc wall and door edge queries. See docs/08 §1.
+// @src SoldierTo3DLocationLineOfSightTest; Tactical/Structure_Wrap.cc wall and door edge queries.
 
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';

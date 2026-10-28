@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc CalcSoldierNeedForSleep, RestCharacter, FatigueCharacter, CharacterIsTakingItEasy,
 // @src HandleRestFatigueAndSleepStatus, SetMercAsleep, PutMercInAsleepState, SetMercAwake, PutMercInAwakeState,
-// @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving. See docs/18 §5.4, §5.5.
+// @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving.
 
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { getGroup } from '../forces/groups.ts';

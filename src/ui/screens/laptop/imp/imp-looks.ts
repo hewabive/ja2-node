@@ -4,7 +4,6 @@
 // @src portrait), IncrementPictureIndex, DecrementPicture, BtnIMPPortraitDoneCallback; IMP_Voices.cc EnterIMPVoices (the
 // @src sample played on entry), PlayVoice (speech/<profile>_001.wav at MIDVOLUME), IncrementVoice, DecrementVoice,
 // @src BtnIMPVoicesDoneCallback, IMPPortraitRegionButtonCallback, RenderVoiceIndex ("<pIMPVoicesStrings> <n>").
-// @src See docs/28 §9.7.
 
 import type { ControllerContract } from '../../../layout/controller.ts';
 import { ViewModelController } from '../../../layout/controller.ts';

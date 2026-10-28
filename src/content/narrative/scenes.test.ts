@@ -7,7 +7,7 @@ import { parseNarrativeScenes } from './scenes.ts';
 const TABLE = join(import.meta.dirname, '../../../data/tables/narrative-scenes.json');
 const scenes = parseNarrativeScenes(JSON.parse(readFileSync(TABLE, 'utf8')));
 
-describe('the transcribed meanwhile scenes (docs/26 §11.2)', () => {
+describe('the transcribed meanwhile scenes', () => {
   it('matches the meanwhile ids and flag bits the simulation uses', () => {
     expect(scenes.scenes.map((s) => [s.name, s.id])).toEqual(Object.entries(Meanwhile));
     expect(scenes.scenes.map((s) => s.flag)).toEqual(MEANWHILE_FLAGS);

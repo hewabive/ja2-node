@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields: docs/24 §1.2);
+// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields);
 // @src Soldier_Profile.cc LoadMercProfiles (ubFaceIndex is the profile id, whatever prof.dat holds);
 // @src src/sgp/LoadSaveData.cc DataReader::readUTF16 and src/externalized/mercs/BinaryProfileData.cc (Russian names)
 

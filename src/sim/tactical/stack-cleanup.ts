@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc CleanUpStack (ammo, kits and medkits only; the cursor's points first, then the stack's own,
 // @src each object's points moved down to the lower objects, an emptied object dropped from the top of the count);
-// @src Interface_Panels.cc UIHandleItemPlacement and SMInvClickCallbackPrimary (CTRL+click, free). See docs/28 §5.3.
+// @src Interface_Panels.cc UIHandleItemPlacement and SMInvClickCallbackPrimary (CTRL+click, free).
 
 import { ItemClass, type ItemTable } from '../../content/items/items.ts';
 import { deleteObject, type ItemObject } from '../items/object.ts';

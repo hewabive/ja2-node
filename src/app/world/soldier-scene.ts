@@ -4,7 +4,6 @@
 // @src CreateSoldierLight; src/game/Tactical/Overhead.cc ExecuteOverhead (stationary light placement);
 // @src src/game/Strategic/Game_Clock.cc NightTime; src/game/TileEngine/RenderWorld.cc RenderTiles (who glows: not
 // @src bNeutral, not bSide FRIENDLY; grey when the selected merc does not see him, except while on fire or exploding).
-// @src See docs/28 §6.5.
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';

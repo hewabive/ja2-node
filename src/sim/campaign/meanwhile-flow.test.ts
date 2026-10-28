@@ -88,7 +88,7 @@ function sceneInTactical(mode?: RunMode): CampaignSim {
   return c;
 }
 
-describe('meanwhile scenes in a campaign (docs/26 §2.1)', () => {
+describe('meanwhile scenes in a campaign', () => {
   it(
     'resolves a scene on the map with the played effects: compression stopped and reset, NPC profile side effects, the same across reloads',
     async () => {

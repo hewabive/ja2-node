@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/SAM_Sites.cc DoesSAMExistHere, UpdateAndDamageSAMIfFound, UpdateSAMDoneRepair,
 // @src GetNumberOfSAMSitesUnderPlayerControl, IsThereAFunctionalSAMSiteInSector;
-// @src src/externalized/strategic/SamSiteModel.cc doesSamExistHere. See docs/18 §4.
+// @src src/externalized/strategic/SamSiteModel.cc doesSamExistHere.
 
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { MIN_CONDITION_FOR_SAM_SITE_TO_WORK, SAM_CONDITION_AT_START } from '../forces/constants.ts';

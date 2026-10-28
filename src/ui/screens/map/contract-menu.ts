@@ -5,7 +5,6 @@
 // @src ContractMenuBtnCallbackPrimary (the extensions, Dismiss asking STR_LATE_48 outside the renewal sequence, Cancel
 // @src letting the merc go during the renewal sequence), CloseContractMenu; src/game/Strategic/MapScreen.cc
 // @src HandleShadingOfLinesForContractMenu (the shading comes from contractOptions or the renewal prompt).
-// @src See docs/28 §7.3.
 
 import type { ContractOptionView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
-// @src TileEngine/Exit_Grids.cc FindClosestExitGrid; Overhead.cc SetEnemyPresence. See docs/16 §5.6.
+// @src TileEngine/Exit_Grids.cc FindClosestExitGrid; Overhead.cc SetEnemyPresence.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';

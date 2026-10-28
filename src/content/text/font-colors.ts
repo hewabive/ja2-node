@@ -3,7 +3,6 @@
 // @src src/game/Utils/Font_Control.h FONT_MCOLOR_*, FONT_* colours, NO_SHADOW, DEFAULT_SHADOW; src/sgp/Font.cc
 // @src SetFontForeground, SetFontShadow, SetFontBackground; src/sgp/VObject_Blitters.cc
 // @src Blt8BPPDataTo16BPPBufferMonoShadowClip (0 background, 1 shadow, else foreground; a 16-bit 0 is not drawn).
-// See docs/28 §3.4.
 
 import { rgbToRgb565 } from '../formats/rgb565.ts';
 

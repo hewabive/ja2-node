@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Queen_Command.cc NumStationaryEnemiesInSector, NumMobileEnemiesInSector,
 // @src GetNumberOfMobileEnemiesInSector, GetNumberOfStationaryEnemiesInSector, GetNumberOfEnemiesInSector, PlayerSectorDefended.
-// @src See docs/17 §1.6.
 
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc HandleTrainingInSector, TownTrainerQsortCompare, TrainSoldierWithPts,
-// @src ReportTrainersTraineesWithoutPartners. See docs/18 §1.4, §5.8.
+// @src ReportTrainersTraineesWithoutPartners.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { assignmentDone } from './assignment-done.ts';

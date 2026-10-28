@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Lighting.cc LightCreateTemplateNode, LightAddTemplateNode, LightAddRayNode, LightInsertRayNode,
 // @src LightAddNode, LightInsertNode, LinearDistanceDouble, LightCastRay, LightGenerateElliptical, LightCreateOmni,
-// @src LightLoadCachedTemplate; assets/externalized/light-templates.json (form of the shipped templates). See docs/20.
+// @src LightLoadCachedTemplate; assets/externalized/light-templates.json (form of the shipped templates).
 
 import { i16, idiv } from '../../../core/int.ts';
 

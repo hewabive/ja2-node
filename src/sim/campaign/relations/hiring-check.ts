@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/AIMMembers.cc CanMercBeHired. See docs/22 §5.4, docs/21 §2.3.
+// @src src/game/Laptop/AIMMembers.cc CanMercBeHired.
 
 import type { StrategicStatus } from '../../strategic/ai/queen-state.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';

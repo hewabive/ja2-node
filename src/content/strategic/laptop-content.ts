@@ -5,7 +5,7 @@
 // @src (mercs-AIM-listings.json, the listing order); DealerInventory.cc (bobby-ray-inventory-*.json);
 // @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names);
 // @src src/game/Laptop/Florist_Gallery.cc FLOR_GALLERY_NUMBER_FLORAL_IMAGES, DisplayFloralDescriptions (the price column of
-// @src flowerdesc.edt read with sscanf "%hu"). See docs/21 §11, docs/04 §6.33.
+// @src flowerdesc.edt read with sscanf "%hu").
 
 import { u16 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';

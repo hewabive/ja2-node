@@ -49,7 +49,7 @@ describe('resetNextAttackCounter', () => {
 });
 
 describe('calculateAttackValues', () => {
-  it('rates a merc and a militiaman like the worked example of docs/19 §7.3', () => {
+  it('rates a merc and a militiaman like a worked example', () => {
     const merc = arSoldier(content, { ...strong, leadership: 80 });
     const militia = militiaSoldier(content, { ...strong, breath: 50, leadership: 10 });
     const ar = arState({ encounter: EncounterCode.ENEMY_ENCOUNTER, mercs: [{ soldier: merc }], militia: [militia] });

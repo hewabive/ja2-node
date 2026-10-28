@@ -6,7 +6,7 @@
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791, the battle cry of 717);
 // @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure, GetStructureOpenSound; TileEngine/Explosion_Control.cc
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down). See docs/27 §3.1.
+// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';

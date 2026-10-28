@@ -6,7 +6,7 @@
 // @src colours), RenderSoldierCellHealth (SMALLCOMPFONT under the face over the restored background: the health word by
 // @src bHealthStrRanges and its colour, the name of the dead in black, RETREATED, RETREATING every 450 of 900 ms, RETREAT
 // @src over a hovered merc), CreateAutoResolveInterface and MakeEnemyTroops (the generic face of each militia rank,
-// @src enemy class and creature, the female faces, the red palette 250, 25, 25). See docs/28 §8.2.
+// @src enemy class and creature, the female faces, the red palette 250, 25, 25).
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

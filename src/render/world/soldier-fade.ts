@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (fade in and out, NEW_FADE_DELAY: only a soldier still in the
 // @src sector whose bVisible drops to -1 fades out, so neither a dead soldier, whom TurnSoldierIntoCorpse takes off the
-// @src map, nor our own mercs, who stay visible). See docs/28 §6.5.
+// @src map, nor our own mercs, who stay visible).
 
 export const FADE_STEP_MS = 60;
 const SHADE_MIN = 15;

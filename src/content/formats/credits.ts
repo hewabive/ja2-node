@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Credits.cc CRDT_* codes and flags, EnterCreditsScreen defaults, GetNextCreditFromTextFile, GetNumber,
-// @src HandleCreditFlags, AddCreditNode; src/game/Utils/Font_Control.h FONT_MCOLOR_*. See docs/27 §4.1.
+// @src HandleCreditFlags, AddCreditNode; src/game/Utils/Font_Control.h FONT_MCOLOR_*.
 
 import { u8 } from '../../core/int.ts';
 

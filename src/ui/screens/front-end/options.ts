@@ -8,7 +8,7 @@
 // @src SpeechSliderChangeCallBack, MusicSliderChangeCallBack, HandleSliderBarMovementSounds (a test sample
 // @src OPT_MUSIC_SLIDER_PLAY_SOUND_DELAY ms after the effects or speech slider stops), BtnOptQuitCallback and
 // @src ConfirmQuitToMainMenuMessageBoxCallBack (OPT_RETURN_TO_MAIN YES/NO), ExitOptionsScreen (the settings saved on any
-// @src exit). See docs/28 §4.4.
+// @src exit).
 
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';

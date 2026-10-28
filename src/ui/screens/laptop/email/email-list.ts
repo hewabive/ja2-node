@@ -3,7 +3,7 @@
 // @src src/game/Laptop/EMail.cc SortMessages (each mail inserted before the first one it orders after, in the current
 // @src list order; the direction flags toggled before each sort; READ puts unread mails first), AddMessageToPages and
 // @src PlaceMessagesinPages (pages of MAX_MESSAGES_PAGE, the current page clamped), OpenMostRecentUnreadEmail (the unread
-// @src mail with the lowest date, the first on a tie), DisplayWhichPageOfEmailProgramIsDisplayed. See docs/28 §9.3.
+// @src mail with the lowest date, the first on a tie), DisplayWhichPageOfEmailProgramIsDisplayed.
 
 import type { LaptopEmailView } from '../../../../protocol/view.ts';
 

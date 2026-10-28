@@ -68,7 +68,7 @@ function killTheQueen(session: CampaignSession): void {
 
 const types = (events: readonly SimEvent[]) => events.map((e) => e.type);
 
-describe('the end of the campaign in the stub palace (docs/26 §7)', { timeout: SLOW_SCENARIO_MS }, () => {
+describe('the end of the campaign in the stub palace', { timeout: SLOW_SCENARIO_MS }, () => {
   it(
     'kills the Queen in the basement, moves the squad upstairs, runs Derek and Oliver and ends the campaign, the same across reloads',
     async () => {

@@ -32,7 +32,7 @@ function welcomeOf(session: Session): WelcomeMessage {
   return welcome;
 }
 
-describe('the campaign identity (docs/04 §6.34)', () => {
+describe('the campaign identity', () => {
   it('is new for a campaign, derived from the file for a native import and absent for a sandbox', () => {
     expect(campaignIdOfOrigin({ kind: 'campaign', seed: 1, campaign: {} }, () => 'fresh')).toBe('fresh');
     expect(campaignIdOfOrigin({ kind: 'import', seed: 1, save: 'SaveGame01', digest: DIGEST })).toBe('import:abcdef0123456789');

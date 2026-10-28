@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Town_Militia.cc MilitiaTrainingAllowedInSector, MilitiaTrainingAllowedInTown, IsAreaFullOfMilitia,
 // @src CountAllMilitiaInSector, MilitiaInSectorOfRank, CanNearbyMilitiaScoutThisSector; Strategic/Assignments.cc
-// @src CanSectorContainMilita, DoesSectorMercIsInHaveSufficientLoyaltyToTrainMilitia. See docs/18 §1.1–§1.2.
+// @src CanSectorContainMilita, DoesSectorMercIsInHaveSufficientLoyaltyToTrainMilitia.
 
 import { MAP_SIDE, type Sector, sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';

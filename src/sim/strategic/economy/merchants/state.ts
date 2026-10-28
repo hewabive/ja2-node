@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Arms_Dealer_Init.h ARMS_DEALER_STATUS, SPECIAL_ITEM_INFO, DEALER_SPECIAL_ITEM, DEALER_ITEM_HEADER;
-// @src Arms_Dealer_Init.cc SetSpecialItemInfoToDefaults, IsItemInfoSpecial. See docs/23 §0, §2.1.
+// @src Arms_Dealer_Init.cc SetSpecialItemInfoToDefaults, IsItemInfoSpecial.
 
 import { NOTHING } from '../../../../content/items/items.ts';
 import { MAX_ATTACHMENTS, NO_PROFILE } from '../../../items/object.ts';

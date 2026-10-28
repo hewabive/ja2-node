@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/MouseSystem.h MSYS_PRIORITY_*, MSYS_NO_CURSOR, MSYS_*_BUTTON, MSYS_CALLBACK_REASON_*; src/sgp/Input.cc
 // @src BUTTON_REPEAT_TIMEOUT, BUTTON_REPEAT_TIME; src/sgp/MouseSystem.cc MSYS_DOUBLECLICK_DELAY, gsFastHelpDelay.
-// See docs/28 §3.1.
 
 export const Priority = { LOWEST: 0, LOW: 15, NORMAL: 31, HIGH: 63, HIGHEST: 127 } as const;
 

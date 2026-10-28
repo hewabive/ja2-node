@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Gap.cc AudioGapListInit, PollAudioGap; src/game/Tactical/Gap.h AUDIO_GAP. See docs/27 §3.1.
+// @src src/game/Tactical/Gap.cc AudioGapListInit, PollAudioGap; src/game/Tactical/Gap.h AUDIO_GAP.
 
 export const GAP_EXTENSION = 'gap';
 export const AUDIO_GAP_BYTES = 8;

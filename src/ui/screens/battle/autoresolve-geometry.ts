@@ -4,7 +4,7 @@
 // @src centre column), CalculateSoldierCells (the cell positions, the gap row of a partly filled column, the time modifier
 // @src of big battles), BuildInterfaceBuffer (the panel rectangle, the texture, edges, corners and centre pieces),
 // @src CreateAutoResolveInterface (the button positions and the vertical offset), RenderAutoResolve (the title, result and
-// @src elapsed time positions). See docs/28 §8.2.
+// @src elapsed time positions).
 
 import { idiv, u8, u16 } from '../../../core/int.ts';
 

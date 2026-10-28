@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Loading_Screen.cc GetLoadScreenID (the Random(2) of town sectors on the gameplay generator);
-// @src Strategic/Game_Clock.cc NightTime; Strategic/Campaign_Types.h the traversability values. See docs/28 §4.10, §12.5.
+// @src Strategic/Game_Clock.cc NightTime; Strategic/Campaign_Types.h the traversability values.
 
 import { LoadingScreen } from '../../../content/strategic/loading-screens.ts';
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Laptop/Finances.cc DrawSummaryText (the figures), GetPreviousDaysBalance, GetTodaysBalance,
 // @src GetPreviousDaysIncome, GetTodaysDaysIncome, GetTodaysOtherDeposits, GetYesterdaysOtherDeposits, GetTodaysDebits,
 // @src GetYesterdaysDebits, GetProjectedTotalDailyIncome. The ledger is walked from the newest record backwards and the
-// @src day arithmetic is UINT32, as in the original. See docs/21 §6.3.
+// @src day arithmetic is UINT32, as in the original.
 
 import { i32, u32 } from '../../core/int.ts';
 import { FinanceCode, type FinanceRecord } from './finances.ts';

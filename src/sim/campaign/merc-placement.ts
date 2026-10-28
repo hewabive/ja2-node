@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/ShopKeeper_Interface.cc SKITryToAddInvToMercsInventory (money tops up the first MONEY pocket
 // @src below MoneySlotLimit first), GetInvSlotOfUnfullMoneyInMercInventory, ShopkeeperAutoPlaceObject (chunks of
-// @src MAX_OBJECTS_PER_SLOT through AutoPlaceObject). See docs/23 §9.5, §13.1.
+// @src MAX_OBJECTS_PER_SLOT through AutoPlaceObject).
 
 import { ItemClass, type ItemTable } from '../../content/items/items.ts';
 import { cloneObject, type ItemObject, MAX_OBJECTS_PER_SLOT } from '../items/object.ts';

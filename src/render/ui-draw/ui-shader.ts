@@ -4,7 +4,7 @@
 // @src from the clipped top-left corner), Blt8BPPDataTo16BPPBufferOutline (index 254 in a colour or skipped),
 // @src BltOutlineShadow (non-254 pixels darken), Blt8BPPDataTo16BPPBufferMonoShadowClip (0 background, 1 shadow,
 // @src else foreground); src/sgp/VSurface.cc InternalShadowVideoSurfaceRect (colour modulation), BltStretchVideoSurface
-// @src (destination pixel i takes source pixel floor(i × source size / destination size)). See docs/28 §3.11.
+// @src (destination pixel i takes source pixel floor(i × source size / destination size)).
 
 export const UiMode = {
   FILL: 0,

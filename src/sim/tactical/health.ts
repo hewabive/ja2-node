@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc bHealthStrRanges; Strategic/Auto_Resolve.cc RenderSoldierCellHealth;
 // @src Strategic/PreBattle_Interface.cc GetSoldierConditionInfo.
-// @src See docs/19 §5.3.
 
 export const HEALTH_CATEGORIES = ['dying', 'critical', 'wounded', 'poor', 'fair', 'good', 'excellent'] as const;
 export type HealthCategory = (typeof HEALTH_CATEGORIES)[number];

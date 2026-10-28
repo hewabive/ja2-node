@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Sound_Control.cc SoundDir, SoundVolume, PositionSoundDir, PositionSoundVolume,
 // @src CalculateSoundEffectsVolume, CalculateSpeechVolume; TileEngine/Isometric_Utils.cc GetAbsoluteScreenXYFromMapPos,
-// @src ConvertGridNoToCellXY; src/sgp/SoundMan.cc SoundServiceStreams (the mixer's balance). See docs/27 §3.1.
+// @src ConvertGridNoToCellXY; src/sgp/SoundMan.cc SoundServiceStreams (the mixer's balance).
 
 export const MAX_VOLUME = 127;
 export const NOWHERE = -1;

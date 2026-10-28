@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Merc_Contract.cc LoadContractRenewalDataFromSaveGameFile; Strategic/Map_Screen_Interface.cc
-// @src LoadLeaveItemList; Tactical/LoadSaveMercProfile.cc (uiTotalCostToDate). See docs/22 §0, §10.1.
+// @src LoadLeaveItemList; Tactical/LoadSaveMercProfile.cc (uiTotalCostToDate).
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import { readContractRenewals, readLeaveItemList, readMercAccountStatus } from '../../../content/formats/savegame-contracts.ts';

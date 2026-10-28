@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Structure.cc InternalSwapStructureForPartner (the node keeps its place, its index moves by
 // @src the partner delta); SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem (RemoveStruct, AddStructToHead,
 // @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
-// @src tile's first blood object at the head of its object layer). See docs/28 §12.1 G8.
+// @src tile's first blood object at the head of its object layer).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';

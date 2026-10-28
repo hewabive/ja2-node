@@ -45,7 +45,7 @@ function node(index: number, kind: 'PD' | 'P' | 'D' | 'B', soldierClass: number,
   };
 }
 
-describe('PrepareEnemyForSectorBattle (docs/17 §10.1)', () => {
+describe('PrepareEnemyForSectorBattle', () => {
   it('puts the garrison and the groups in the sector into the battle up to 32 and leaves the rest pending', () => {
     const { q } = battleAt('D13', 20, 4, 2);
     const g = createNewEnemyGroupDepartingFromSector(q, parseSectorId('D13'), 1, 8, 3);
@@ -108,7 +108,7 @@ describe('PrepareEnemyForSectorBattle (docs/17 §10.1)', () => {
   });
 });
 
-describe('deaths and the end of a battle (docs/17 §10.5, §10.7)', () => {
+describe('deaths and the end of a battle', () => {
   it('decrements the group by id, removes it when empty, and decrements the garrison otherwise', () => {
     const { q } = battleAt('D13', 3);
     const g = createNewEnemyGroupDepartingFromSector(q, parseSectorId('D13'), 0, 1, 0);
@@ -135,7 +135,7 @@ describe('deaths and the end of a battle (docs/17 §10.5, §10.7)', () => {
   });
 });
 
-describe('enemy defence placements (docs/17 §10.2)', () => {
+describe('enemy defence placements', () => {
   it('sorts into reversed PD, P and D blocks, then basic placements and existing soldiers', () => {
     const list = [
       node(0, 'B', SoldierClass.ARMY),

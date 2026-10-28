@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Status.cc HandleEnricoEmail, LackOfProgressTolerance, UpdateLastDayOfPlayerActivity.
-// See docs/18 §2.8.
 
 import { idiv, u8, u16 } from '../../../core/int.ts';
 import { worldDay } from '../time/world-clock.ts';

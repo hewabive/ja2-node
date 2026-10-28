@@ -5,7 +5,7 @@
 // @src RemoveSpecialItemFromArmsDealerInventoryAtElement, FreeSpecialItemArray, ArmsDealerGetsFreshStock,
 // @src DetermineDealerItemCondition, SetSpecialItemInfoFromObject, AddObjectToArmsDealerInventory,
 // @src AddAmmoToArmsDealerInventory, MakeObjectOutOfDealerItems, CountDistinctItemsInArmsDealersInventory,
-// @src CountActiveSpecialItemsInArmsDealersInventory, DealerItemIsSafeToStack. See docs/23 §2, §3.2.
+// @src CountActiveSpecialItemsInArmsDealersInventory, DealerItemIsSafeToStack.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';

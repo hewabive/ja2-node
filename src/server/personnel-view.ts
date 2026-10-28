@@ -8,7 +8,7 @@
 // @src capped at the contract length in transit, A.I.M. mercs and Slay; the salary by bTypeOfLastContract; the medical
 // @src deposit or the M.E.R.C. amount owed), GetSelectedPastMercInfo (dead, fired, then the other list: married to Hicks,
 // @src an A.I.M. merc whose contract expired, or quit), DisplayDepartedCharStats; Tactical/Soldier_Profile_Type.h
-// @src Attribute. See docs/21 §7.4, docs/28 §9.3, docs/04 §6.33.
+// @src Attribute.
 
 import { ItemClass, NOTHING } from '../content/items/items.ts';
 import { MercType } from '../content/strategic/economy-content.ts';

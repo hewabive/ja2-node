@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/Dialogs.cc GetDialogueVoiceFilename; src/game/Directories.h SPEECHDIR, NPC_SPEECHDIR;
-// @src src/game/Tactical/Dialogue_Control.cc GetDialogue (the Russian switch). See docs/27 §3, §5.1.
+// @src src/game/Tactical/Dialogue_Control.cc GetDialogue (the Russian switch).
 
 import { SharedDialogueFile } from './npc-constants.ts';
 import { threeDigits } from './npc-records.ts';

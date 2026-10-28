@@ -4,7 +4,7 @@
 // @src guess_by_language_specific_resources; src/game/GameRes.cc getStringEncType; src/externalized/strings/Localization.cc
 // @src GetSuffix; src/externalized/DefaultContentManager.cc loadTranslationTable; src/externalized/mercs/BinaryProfileData.cc
 // @src (isCorrectlyEncoded); src/game/TacticalAI/NPC.cc (the Russian record layout); src/externalized/content/Dialogs.cc
-// @src GetDialogueVoiceFilename. See docs/27 §5.
+// @src GetDialogueVoiceFilename.
 
 import type { EdtEncoding } from '../formats/edt.ts';
 import type { NpcRecordLayout } from '../formats/npc.ts';

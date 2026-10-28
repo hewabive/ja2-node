@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame (ShutdownNPCQuotes, LoadNPCInfoFromSavedGameFile,
 // @src LoadBackupNPCInfoFromSavedGameFile, ResetOncePerConvoRecordsForAllNPCsInLoadedSector); TacticalAI/NPC.cc
-// @src LoadNPCInfoFromSavedGameFile (the RefreshNPCScriptRecord passes for old saves). See docs/24 §1.4, §12.3.
+// @src LoadNPCInfoFromSavedGameFile (the RefreshNPCScriptRecord passes for old saves).
 
 import type { NpcRecord } from '../../content/formats/npc.ts';
 import type { SavedNpcRecords } from '../../content/formats/savegame-npc.ts';

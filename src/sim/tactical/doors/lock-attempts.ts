@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.cc AttemptToUnlockDoor, AttemptToLockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src AttemptToPickLock, AttemptToBlowUpLock, DOOR::damageLock; Items.cc FindObj, FindUsableObj, DamageObj. See docs/25 §8.3.
+// @src AttemptToPickLock, AttemptToBlowUpLock, DOOR::damageLock; Items.cc FindObj, FindUsableObj, DamageObj.
 
 import { LOCK_UNOPENABLE, LockType, lockAt, OPENING_NOT_POSSIBLE } from '../../../content/formats/locks.ts';
 import { damageObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';

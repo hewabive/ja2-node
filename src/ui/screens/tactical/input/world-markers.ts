@@ -8,7 +8,7 @@
 // @src VEHICLEMOVE1 with the prone -6 and roof -WALL_HEIGHT - 8 offsets, BADMARKER1, the AP number on MOCKFLOOR1 at
 // @src SNAPCURSOR_AP_X/Y_STARTVAL), GetSnapCursorIndex (the 3D cursor); Interface_Control.cc SetUpInterface (GOODRING1 and
 // @src FIRSTPOINTERS2 under the hovered merc, the show-move-grid marker); Interface.cc SetupPhysicsTrajectoryUI
-// @src (FIRSTPOINTERS8 or 12 at the impact tile). See docs/28 §6.4.
+// @src (FIRSTPOINTERS8 or 12 at the impact tile).
 
 import type { Footstep } from '../../../../protocol/hints.ts';
 import type { WorldMarker } from '../environment.ts';

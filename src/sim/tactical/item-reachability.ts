@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc HandleAllReachAbleItemsInTheSector; PathAI.cc GlobalItemsReachableTest;
-// @src Handle_Items.cc ItemTypeExistsAtLocation. See docs/12 §6, docs/04 §6.23.
+// @src Handle_Items.cc ItemTypeExistsAtLocation.
 
 import { DIRECTION_INCREMENT, newGridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';

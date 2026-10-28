@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionNamedNPC; TacticalAI/AI.h
-// @src QUOTE_ACTION_ID_TURNTOWARDSPLAYER; NPC.h NPC_TALK_RADIUS. See docs/24 §5.3, §5.4, docs/09 §5.
+// @src QUOTE_ACTION_ID_TURNTOWARDSPLAYER; NPC.h NPC_TALK_RADIUS.
 
 import { endHeight } from '../animation.ts';
 import { directionToward } from '../movement.ts';

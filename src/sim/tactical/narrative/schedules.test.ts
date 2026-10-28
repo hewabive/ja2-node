@@ -161,7 +161,7 @@ describe('schedule constants', () => {
   });
 });
 
-describe('posting schedules (docs/25 §5.2)', () => {
+describe('posting schedules', () => {
   it('posts the map schedules and the default schedules in init-list order, drawing the sleep time and two default times', () => {
     const { sim, clock } = scheduleSim(DAY_TWO + 600);
     const t = sim.state;
@@ -279,7 +279,7 @@ describe('posting schedules (docs/25 §5.2)', () => {
   });
 });
 
-describe('processing schedules (docs/25 §5.3–§5.5)', () => {
+describe('processing schedules', () => {
   it('activates the entry of the current minute in tactical and auto-processes on the map screen', () => {
     const { sim, clock } = scheduleSim(DAY_TWO + 540);
     const t = sim.state;

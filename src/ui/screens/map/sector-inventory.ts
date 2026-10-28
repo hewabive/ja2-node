@@ -10,7 +10,7 @@
 // @src MapInvenPoolScreenMaskCallbackSecondary, InventoryNextPage, InventoryPrevPage, DisplayPagesForMapInventoryPool,
 // @src DrawNumberOfInventoryPoolItems, DisplayCurrentSector (pMapVertIndex, pMapHortIndex, pMapDepthIndex),
 // @src DrawTextOnMapInventoryBackground (pMapInventoryStrings 0 and 1 wrapped right-justified at 268 and 369, 342 and
-// @src centred on their height, MAP_IVEN_FONT FONT_BEIGE), HandleButtonStatesWhileMapInventoryActive. See docs/28 §7.8.
+// @src centred on their height, MAP_IVEN_FONT FONT_BEIGE), HandleButtonStatesWhileMapInventoryActive.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleTOnTerrain (the range in tiles, the line of sight at cube level 3),
-// @src HandleTalkInit (the walk up: FindAdjacentGridEx, UIPlotPath, FindGridNoFromSweetSpot). See docs/24 §2, docs/28 §6.1.
+// @src HandleTalkInit (the walk up: FindAdjacentGridEx, UIPlotPath, FindGridNoFromSweetSpot).
 
 import { NPC_TALK_RADIUS } from '../../../content/narrative/npc-constants.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';

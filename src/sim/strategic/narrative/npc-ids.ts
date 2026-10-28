@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Profile.h enum NPCIDs (checked against data/tables/narrative.json). See docs/25.
+// @src src/game/Tactical/Soldier_Profile.h enum NPCIDs (checked against data/tables/narrative.json).
 
 export const Npc = {
   BARRY: 0,

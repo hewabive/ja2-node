@@ -9,7 +9,7 @@
 // @src PrintIMPPersonalityQuizQuestionAndAnswers (the records after IMP_QUESTION_1, answer widths 390 or 160),
 // @src OffSetQuestionForFemaleSpecificQuestions (questions 0, 3, 8, 9 and 13 after IMP_CON_3 for women);
 // @src IMP_Personality_Finish.cc EnterIMPPersonalityFinish, the yes and no buttons replaced by OK once one is chosen,
-// @src BtnIMPPersonalityFinishOkCallback. See docs/28 §9.7.
+// @src BtnIMPPersonalityFinishOkCallback.
 
 import type { ControllerContract } from '../../../layout/controller.ts';
 import { ViewModelController } from '../../../layout/controller.ts';

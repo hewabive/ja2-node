@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Creature_Spreading.cc ChooseTownSectorToAttack, CreatureAttackTown, DetermineCreatureTownComposition;
-// @src src/externalized/strategic/CreatureLairModel.cc chooseTownSectorToAttack, getTownAttackDetails. See docs/17 §12.1, docs/19 §1.2.
+// @src src/externalized/strategic/CreatureLairModel.cc chooseTownSectorToAttack, getTownAttackDetails.
 
 import { type CreatureAttackSector, CreatureHabitat } from '../../../content/strategic/creature-lairs.ts';
 import { type Sector, sameSector, sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

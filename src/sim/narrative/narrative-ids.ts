@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Facts.h (the facts the dialogue code reads and writes); externalized mercs-profile-info.json
 // @src (the profiles named in TacticalAI/NPC.cc, Tactical/Interface_Dialogue.cc and Dialogue_Control.cc);
-// @src Tactical/Soldier_Profile_Type.h PROFILE_MISC_FLAG*. See docs/24 §1.2, §2-§5.
+// @src Tactical/Soldier_Profile_Type.h PROFILE_MISC_FLAG*.
 
 export const NarrativeFact = {
   CURRENT_SECTOR_IS_SAFE: 31,

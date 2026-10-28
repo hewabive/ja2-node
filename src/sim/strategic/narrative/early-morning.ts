@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Event_Handler.cc HandleEarlyMorningEvents; externalized/strategic/NpcPlacementModel.cc
-// @src pickPlacementSector; Strategic/Strategic_Event_Handler.h HOSPITAL_SECTOR_*. See docs/25 §4.3.
+// @src pickPlacementSector; Strategic/Strategic_Event_Handler.h HOSPITAL_SECTOR_*.
 
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { i8 } from '../../../core/int.ts';

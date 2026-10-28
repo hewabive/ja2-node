@@ -1,4 +1,4 @@
-# Creature attacks autoresolved (docs/19 §2.3–§2.4): militia and the save's mercs against creature compositions drawn
+# Creature attacks autoresolved: militia and the save's mercs against creature compositions drawn
 # from the MINE_EXIT weights, then the aftermath with the eaten civilians.
 save SaveGame10
 seed value=301 pre=reseed

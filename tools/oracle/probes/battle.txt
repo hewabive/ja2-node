@@ -1,4 +1,4 @@
-# Battles from the strategic state (docs/19 §7.4): the encounter code of the pre-battle interface, enemy counts with the
+# Battles from the strategic state: the encounter code of the pre-battle interface, enemy counts with the
 # H1 roadblock id (Q12), autoresolve against enemy groups whose ranks do not match the cell classes (Q16), victories that
 # leave the sector enemy-controlled (Q14) and autoresolve of a loaded sector with militia in tactical (Q22). Each
 # autoresolve is compared at level 1 (core replay) and level 3 (aftermath on the imported save) by compare.ts.

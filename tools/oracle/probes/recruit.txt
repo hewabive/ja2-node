@@ -1,4 +1,4 @@
-# Recruiting RPCs, escorting and releasing EPCs, the robot (docs/24 §9, docs/25 §9) on the user's saves. addnpc creates a
+# Recruiting RPCs, escorting and releasing EPCs, the robot on the user's saves. addnpc creates a
 # profiled civilian at a gridno the way profile insertion does (TacticalCreateSoldier, AddSoldierToSectorNoCalculateDirection);
 # recruitset writes an inventory slot (place=1 goes through PlaceObject), profile town/attachment/salary/flags, facts, quests
 # and the current squad on both sides; recruit runs HandleNPCDoAction for RECRUIT_WITH_SALARY (rpc), RECRUIT (free),

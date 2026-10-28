@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Text_Utils.cc GetWeightUnitString, GetWeightBasedOnMetricOption (pounds = weight × 2.2 as a
-// @src float); src/game/Utils/Text.h MSG_KILOGRAM_ABBREVIATION, MSG_POUND_ABBREVIATION. See docs/28 §3.4.
+// @src float); src/game/Utils/Text.h MSG_KILOGRAM_ABBREVIATION, MSG_POUND_ABBREVIATION.
 
 import type { UiTextService } from './text-service.ts';
 

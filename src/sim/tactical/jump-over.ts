@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc IsValidJumpLocation (the four side directions, the movement costs both ways with
-// @src door costs, a prone soldier in between); Points.cc GetAPsToJumpOver. See docs/28 §6.1.
+// @src door costs, a prone soldier in between); Points.cc GetAPsToJumpOver.
 
 import { Direction, newGridNo } from '../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs.ts';

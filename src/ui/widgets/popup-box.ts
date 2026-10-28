@@ -5,7 +5,7 @@
 // @src column, centring), ResizeBoxToText, BORDER_WIDTH, BORDER_HEIGHT and the piece indices; src/game/Strategic/Assignments.cc
 // @src CreateDestroyMouseRegionsForAssignmentMenu, AssignmentMenuMvtCallBack, CreateDestroyScreenMaskForAssignmentAndContractMenus,
 // @src AssignmentScreenMaskBtnCallback (one region per line at MSYS_PRIORITY_HIGHEST - 4 over a screen mask that closes the
-// @src menu on a release). See docs/28 §3.6.
+// @src menu on a release).
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';

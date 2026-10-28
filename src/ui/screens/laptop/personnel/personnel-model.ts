@@ -8,7 +8,7 @@
 // @src FindPositionOfPersInvSlider, HandleSliderBarClickCallback (scroll count x relative y / (203 - 19)),
 // @src DisplayTeamStats (min with >=, max with <=, the integer average), DisplayCostOfCurrentTeam,
 // @src DisplayEmploymentinformation (the days and hours left of the contract), DisplayCharStats (the KM overrun rule of
-// @src the skill texts). See docs/28 §9.3.
+// @src the skill texts).
 
 import { idiv } from '../../../../core/int.ts';
 

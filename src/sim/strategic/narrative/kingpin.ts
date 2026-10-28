@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Event_Handler.cc CheckForKingpinsMoneyMissing and the FACT_KINGPIN_KNOWS_MONEY_GONE
-// @src branch of HandleNPCSystemEvent. See docs/25 §11.4, §3.13.
+// @src branch of HandleNPCSystemEvent.
 
 import { u32 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';

@@ -5,7 +5,7 @@
 // @src DrawRecordsText (NUM_RECORDS_PER_PAGE rows of the font height + 6; income black at the debit column, expenses red
 // @src at the credit column, the balance red when negative and the transaction text in the balance's colour),
 // @src SetLastPageInRecords, LoadPreviousPage, LoadNextPage, the first and last page buttons, SetFinanceButtonStates,
-// @src DisplayFinancePageNumberAndDateRange ("<header> n / last + 2"). See docs/28 §9.3.
+// @src DisplayFinancePageNumberAndDateRange ("<header> n / last + 2").
 
 import type { LaptopFinanceSummaryView, LaptopFinanceView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

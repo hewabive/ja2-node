@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Profile.cc InitProfileFromContent (dialogue check, medical deposit, attractiveness, optional gear
 // @src cost, relation counters),
 // @src LoadMercProfiles; Soldier_Profile_Type.h PROFILE_MISC_FLAG_*, PROFILE_MISC_FLAG2_*, PROFILE_MISC_FLAG3_*; Laptop/AIM.h MAX_NUMBER_MERCS; Laptop/Mercs.h
-// @src DAYS_TIL_M_E_R_C_AVAIL; src/externalized/mercs/MercProfile.cc (profile types). See docs/22 §0, docs/21 §0.
+// @src DAYS_TIL_M_E_R_C_AVAIL; src/externalized/mercs/MercProfile.cc (profile types).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, type ItemTable } from '../../content/items/items.ts';

@@ -48,7 +48,7 @@ function placer(placed: number[]) {
   };
 }
 
-describe('AddSoldierInitListCreatures (docs/16 §5.13)', () => {
+describe('AddSoldierInitListCreatures', () => {
   it('places the queen first, then priority nodes of matching bodies, then random free creature slots', () => {
     const list = [
       node(0, Team.CREATURE, Body.QUEENMONSTER, true),
@@ -86,7 +86,7 @@ describe('AddSoldierInitListCreatures (docs/16 §5.13)', () => {
   });
 });
 
-describe('AddSoldierInitListBloodcats (docs/16 §5.13)', () => {
+describe('AddSoldierInitListBloodcats', () => {
   it('recounts the placements of a sector without spawns and waits for the next visit when they changed', () => {
     const list = [node(0, Team.CREATURE, Body.BLOODCAT), node(1, Team.CREATURE, Body.BLOODCAT)];
     const sector = { bloodCats: 5, bloodCatPlacements: 7 };

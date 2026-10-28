@@ -5,7 +5,7 @@
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
 // @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
-// @src corpse), RemoveCorpse, FindCorpseBasedOnStructure. See docs/11 §5.
+// @src corpse), RemoveCorpse, FindCorpseBasedOnStructure.
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';

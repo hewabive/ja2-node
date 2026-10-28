@@ -31,7 +31,7 @@ function garrisonsWithH1AtIndex25() {
   return q;
 }
 
-describe('enemy counting helpers (docs/17 §1.6)', () => {
+describe('enemy counting helpers', () => {
   it('counts the H1 garrison twice because garrison index 25 equals ROADBLOCK', () => {
     const q = garrisonsWithH1AtIndex25();
     const h1 = parseSectorString('H1');

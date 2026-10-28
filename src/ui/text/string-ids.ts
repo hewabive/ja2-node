@@ -3,7 +3,6 @@
 // @src src/game/Utils/Text.h (the SLG_, GIO_, OPT_, MSG_, MERC_ACCOUNT_, STR_LATE_, STR_PB_ and TCTL_MSG__ enums);
 // @src src/game/GameSettings.h TOPTION_*; src/game/Laptop/Finances.cc DisplayFinancePageOfRecords (pFinanceHeaders[4]);
 // @src src/game/Strategic/Map_Screen_Interface.h UpdateBoxReason.
-// See docs/27 §8.3.
 
 export const SaveLoadText = {
   SAVE_GAME: 0,

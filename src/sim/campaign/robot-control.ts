@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc ControllingRobot, CanRobotBeControlled, UpdateRobotControllerGivenRobot,
 // @src UpdateRobotControllerGivenController; Tactical/Squads.cc IsRobotControllerInSquad; Tactical/Vehicles.cc
-// @src IsRobotControllerInVehicle; Strategic/PreBattle_Interface.cc CheckForRobotAndIfItsControlled. See docs/25 §9.4.
+// @src IsRobotControllerInVehicle; Strategic/PreBattle_Interface.cc CheckForRobotAndIfItsControlled.
 
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { Assignment, NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';

@@ -7,7 +7,7 @@
 // @src MoveToEndOfMapScreenMessageList, GetRangeOfMapScreenMessages; src/game/Strategic/Map_Screen_Interface_Bottom.cc
 // @src MapScreenMsgScrollUp, MapScreenMsgScrollDown, ChangeCurrentMapscreenMessageIndex, DisplayScrollBarSlider,
 // @src MapScreenMessageScrollBarCallBack, EnableDisableMessageScrollButtonsAndRegions; src/game/Tactical/Dialogue_Control.cc
-// @src (a dialogue line printed as `Name: "line"`). See docs/28 §7.9.
+// @src (a dialogue line printed as `Name: "line"`).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

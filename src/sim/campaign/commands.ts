@@ -3,7 +3,7 @@
 // @src src/game/Strategic/MapScreen.cc (plotting: legs, the Shift shortest route, the confirm on the last sector, the right
 // @src click on a path node); Map_Screen_Interface_Map.cc PlotPathForCharacter, ClearPathAfterThisSectorForCharacter;
 // @src Map_Screen_Interface.cc HandleMoveoutOfSectorMovementTroops, HandleSettingTheSelectedListOfMercs,
-// @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic. See docs/16 §7.1, docs/04 §6.30.
+// @src CopyPathToAllSelectedCharacters (MapScreen.cc), CanCharacterMoveInStrategic.
 
 import {
   parseSectorString,

@@ -2,8 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc, CreateSpecialItem, MercArrivesCallback, CheckForValidArrivalSector,
 // @src StrategicPythSpacesAway, UpdateAnyInTransitMercsWithGlobalArrivalSector; Tactical/Overhead.cc NumberOfMercsOnPlayerTeam;
-// @src Strategic/MapScreen.cc (moving the bullseye); Strategic/StrategicMap.cc HandleAirspaceControlUpdated. See docs/21 §2.5,
-// @src §2.6.
+// @src Strategic/MapScreen.cc (moving the bullseye); Strategic/StrategicMap.cc HandleAirspaceControlUpdated.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import { MAP_SIDE, type Sector, sectorFromId, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';

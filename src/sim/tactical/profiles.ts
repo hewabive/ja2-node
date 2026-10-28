@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields, the NPC
-// @src presence fields of docs/25 §0), bMercStatus
+// @src presence fields), bMercStatus
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
 // @src which prof.dat holds as leftovers, cleared)
 

@@ -3,8 +3,7 @@
 // @src src/game/Tactical/Tactical_Save.cc ChangeNpcToDifferentSector; Tactical/Items.cc PlaceObjectInSoldierProfile,
 // @src RemoveObjectFromSoldierProfile, SetMoneyInSoldierProfile; Tactical/Soldier_Profile.cc g_terrorist_infos,
 // @src g_assassin_info, MakeRemainingTerroristsTougher, DecideOnAssassin, MakeRemainingAssassinsTougher; Strategic_Event_Handler.cc
-// @src RemoveAssassin; sgp/Types.cc SGPSector::IsValid. See docs/25 §4.1,
-// @src §4.5, §11.4, §11.6.
+// @src RemoveAssassin; sgp/Types.cc SGPSector::IsValid.
 
 import { ItemClass, type ItemTable } from '../../../content/items/items.ts';
 import { InvSlot } from '../../tactical/inventory.ts';

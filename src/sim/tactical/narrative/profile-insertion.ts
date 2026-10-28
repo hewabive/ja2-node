@@ -4,7 +4,6 @@
 // @src FindSoldierInitListNodeByProfile; Strategic/StrategicMap.cc SetupProfileInsertionDataForSoldier,
 // @src SetupProfileInsertionDataForCivilians; TacticalAI/NPC.cc HandleNPCChangesForTacticalTraversal; Tactical/Soldier_Profile.cc
 // @src UpdateSoldierPointerDataIntoProfile; TacticalAI/AI.h QUOTE_ACTION_ID_*; TacticalAI/NPC.h APPROACH_DONE_TRAVERSAL.
-// @src See docs/25 §4.6.
 
 import type { SectorPosition } from '../../strategic/state.ts';
 import { QuoteAction } from '../ai/cover.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc WhatPlayerKnowsAboutEnemiesInSector, CanMercsScoutThisSector;
-// @src Town_Militia.cc CanNearbyMilitiaScoutThisSector; Map_Screen_Helicopter.cc IsSkyriderFlyingInSector. See docs/16 §6.3.
+// @src Town_Militia.cc CanNearbyMilitiaScoutThisSector; Map_Screen_Helicopter.cc IsSkyriderFlyingInSector.
 
 import { MAP_SIDE, SECTOR_COUNT, type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Finances.cc AddTransactionToPlayersBook, GetCurrentBalance, ProcessAndEnterAFinancialRecord;
-// @src Laptop/Finances.h transaction codes. See docs/18 §3.9.
+// @src Laptop/Finances.h transaction codes.
 
 import { i32, u8, u32 } from '../../core/int.ts';
 

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/NPC.cc CalcThreateningEffectiveness, CalcDesireToTalk, ApproachedForFirstTime,
 // @src NPCConsiderTalking, NPCConsiderQuote, UseQuote, NPCConsiderReceivingItemFromMerc, HandleNPCBeingGivenMoneyByPlayer;
-// @src Strategic/Quests.cc gubQuest, gubFact (the out-of-bounds quest read). See docs/24 §2, §4.2-§4.3.
+// @src Strategic/Quests.cc gubQuest, gubFact (the out-of-bounds quest read).
 
 import {
   ACCEPT_ANY_ITEM,

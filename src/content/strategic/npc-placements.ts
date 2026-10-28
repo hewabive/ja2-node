@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/NpcPlacementModel.cc deserialize; DefaultContentManager.cc listNpcPlacements
-// @src (a std::map keyed by profile id). See docs/15 §4.3 step 7.
+// @src (a std::map keyed by profile id).
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asBool, asInt, asObject, asString, optionalBool } from './json-fields.ts';

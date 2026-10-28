@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/WeaponModels.cc (calibre sound defaults, sReloadSound and sLocknLoadSound per weapon class);
-// @src src/externalized/ExplosionAnimationModel.cc getSounds; src/game/Utils/Sound_Control.cc szSoundEffects. See docs/27 §3.1.
+// @src src/externalized/ExplosionAnimationModel.cc getSounds; src/game/Utils/Sound_Control.cc szSoundEffects.
 
 import { asArray, asObject, asString, type JsonObject } from '../strategic/json-fields.ts';
 import { parseJsoncBytes } from '../strategic/jsonc.ts';

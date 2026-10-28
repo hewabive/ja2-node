@@ -3,7 +3,7 @@
 // @src src/game/GameSettings.cc CanGameBeSaved, DoDeadIsDeadSaveIfNecessary; SaveLoadScreen.cc DoQuickSave, DoAutoSave,
 // @src DoDeadIsDeadSave; Tactical/Handle_UI.cc UIHandleEndTurn; Tactical/TeamTurns.cc StartPlayerTeamTurn, EndTurn;
 // @src Strategic/Meanwhile.cc BeginMeanwhile; Strategic/Map_Screen_Interface.cc HandleGroupAboutToArrive;
-// @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo. See docs/27 §1.1, §1.6.
+// @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo.
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';

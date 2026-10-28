@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.h (assignments, train stats, BREATHMAX_*); Assignments.cc (rates and divisors);
 // @src Town_Militia.h; Strategic_Town_Loyalty.cc/.h; Strategic_Mines.cc/.h; Strategic_Status.h; Tactical/Overhead_Types.h;
-// @src Tactical/Soldier_Profile_Type.h SkillTrait; StrategicMap.h town ids. See docs/18.
+// @src Tactical/Soldier_Profile_Type.h SkillTrait; StrategicMap.h town ids.
 
 export const Assignment = {
   SQUAD_1: 0,

@@ -5,7 +5,7 @@
 // @src gfShowDialogueMenu, gfWaitingForTriggerTimer, guiWaitingForTriggerTime, gfConversationPending and the pending
 // @src soldiers; Dialogue_Control.cc ghDialogueQ, gpCurrentTalkingFace,
 // @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn; TacticalAI/NPC.cc giNPCSpecialReferenceCount;
-// @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm. See docs/24 §0, §7, docs/25 §1.4.
+// @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm.
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';

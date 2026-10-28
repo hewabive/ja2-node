@@ -37,7 +37,7 @@ function makePow(c: CampaignSim, m: RosterMerc): void {
   m.soldier.neutral = true;
 }
 
-describe('captives on a sector load (docs/26 §3.4)', () => {
+describe('captives on a sector load', () => {
   it('reports the POWs in Alma, leaves them prisoners and ends the Alma quest with the rescue experience', () => {
     const { c, mercs } = landed(61);
     const [a, b] = mercs;

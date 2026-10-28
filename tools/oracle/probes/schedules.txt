@@ -1,10 +1,10 @@
-# NPC schedules (docs/25 §5) on the user's saves: the schedules, civilians, door locks and PROCESS_TACTICAL_SCHEDULE events
+# NPC schedules on the user's saves: the schedules, civilians, door locks and PROCESS_TACTICAL_SCHEDULE events
 # after a load (PostSchedules without auto-processing, default schedules redrawn), after entering another sector (the
 # 24-hour replay with its draws, bumps and door changes), after time passes on the map screen (auto-processing) and in
 # tactical (the entry of the minute becomes active), the AI's schedule decisions step by step (schedmove teleports the
 # civilian as if he had walked), and the shop hours taken from a schedule. Times are game seconds (day 2 08:00 = 201600).
 # Sector entries come right after a load: the 04:00 event moves NPCs with draws that warps do not replay, and ja2-node does
-# not import the temp files of other sectors from a native save (see docs/deviations.md "Savegame import").
+# not import the temp files of other sectors from a native save.
 
 schedload name=SaveGame01
 schedentry sector=C13

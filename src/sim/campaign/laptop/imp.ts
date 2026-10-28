@@ -10,7 +10,7 @@
 // @src page's value order); IMP_Begin_Screen.cc
 // @src BtnIMPBeginScreenDoneCallback (names); IMP_HomePage.cc ProcessPlayerInputActivationString; IMP_MainPage.cc (begin);
 // @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
-// @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition. See docs/21 §4.
+// @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition.
 
 import { type MercProfile, zeroProfileNpcFields } from '../../../content/formats/prof.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';

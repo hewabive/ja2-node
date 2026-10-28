@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Game_Event_Hook.cc (EVENT_CREATURE_SPREAD, EVENT_CREATURE_NIGHT_PLANNING, EVENT_CREATURE_ATTACK);
 // @src Creature_Spreading.cc CreatureAttackTown (the battle start), PrepareCreaturesForBattle;
 // @src Strategic/Meanwhile.cc HandleCreatureRelease; Strategic_Town_Loyalty.cc AdjustLoyaltyForCivsEatenByMonsters.
-// @src See docs/17 §12.1, docs/19 §1.2.
 
 import { CreatureHabitat } from '../../content/strategic/creature-lairs.ts';
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';

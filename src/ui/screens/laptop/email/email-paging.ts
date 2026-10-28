@@ -5,7 +5,7 @@
 // @src MAX_EMAIL_MESSAGE_PAGE_SIZE, the total height + 10, one page below the cap, otherwise pages that never break a
 // @src record), GetFirstRecordOnThisPage, GetNumberOfPagesToEmail (counted over the whole record list, the subject
 // @src included, one more than the pages), DisplayEmailMessage (the strip tiles, the bottom piece with or without the page
-// @src indent), NextMailPage, HandleEmailViewerButtonStates. See docs/28 §9.3.
+// @src indent), NextMailPage, HandleEmailViewerButtonStates.
 
 import { idiv } from '../../../../core/int.ts';
 

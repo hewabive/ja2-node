@@ -6,7 +6,7 @@
 // @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
 // @src CallEldinTo; Tactical/Soldier_Tile.cc TeleportSoldier; Soldier_Add.cc FindGridNoFromSweetSpotWithStructData;
 // @src Action_Items.h ItemActionType; Item_Types.h DetonatorType and the bomb fields of OBJECTTYPE
-// @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld. See docs/25 §11.5, §6.2.
+// @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld.
 
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';

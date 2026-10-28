@@ -4,7 +4,7 @@
 // @src balance, or the deposit question with money in the cursor), ConfirmationToDepositMoneyToPlayersAccount
 // @src (MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT); src/game/Tactical/Interface_Items.cc RemoveMoney (TRANSFER_FUNDS_TO_MERC),
 // @src BtnMoneyButtonCallbackPrimary (a withdrawal stops at MAX_MONEY_PER_SLOT); src/game/Tactical/Interface.cc
-// @src SetCurrentTacticalPanelCurrentMerc (no single merc panel for escorts and non-merc bodies). See docs/23 §9.6, §13.1.
+// @src SetCurrentTacticalPanelCurrentMerc (no single merc panel for escorts and non-merc bodies).
 
 import { ItemClass } from '../../content/items/items.ts';
 import type { CommandResult } from '../command.ts';

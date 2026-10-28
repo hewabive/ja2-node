@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Overhead_Types.h BoxingStates; Tactical/Boxing.h BOXING_RING, DisqualificationReasons;
 // @src Tactical/Boxing.cc gsBoxerGridNo;
 // @src TacticalAI/DecideAction.cc CENTER_OF_RING (the state tests of Overhead.cc, Soldier_Control.cc, TeamTurns.cc, AIMain.cc,
-// @src AIList.cc, AIUtils.cc, OppList.cc, Soldier_Ani.cc). See docs/25 §7.
+// @src AIList.cc, AIUtils.cc, OppList.cc, Soldier_Ani.cc).
 
 import type { BoxingRecord } from '../../strategic/narrative/facts.ts';
 import type { BoxingStateName, DisqualificationName } from './boxing-events.ts';

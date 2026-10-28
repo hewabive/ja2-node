@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Keys.h LOCK, lock types, ANYKEY, OPENING_NOT_POSSIBLE; Keys.cc LoadLockTable. See docs/25 §8.1.
+// @src src/game/Tactical/Keys.h LOCK, lock types, ANYKEY, OPENING_NOT_POSSIBLE; Keys.cc LoadLockTable.
 
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';

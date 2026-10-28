@@ -12,7 +12,7 @@
 // @src closes the box); src/game/Strategic/Assignments.cc AssignmentDone (ASSIGNMENT_FINISHED_FOR_UPDATE),
 // @src HandleRestFatigueAndSleepStatus (ASLEEP_GOING_AUTO_FOR_UPDATE and ASSIGNMENT_RETURNING_FOR_UPDATE for mercs off a
 // @src squad or vehicle, TOPTION_SLEEPWAKE_NOTIFICATION); src/game/Strategic/Merc_Contract.cc
-// @src FindOutIfAnyMercAboutToLeaveIsGonnaRenew (CONTRACT_EXPIRE_WARNING_REASON). See docs/28 §7.10.
+// @src FindOutIfAnyMercAboutToLeaveIsGonnaRenew (CONTRACT_EXPIRE_WARNING_REASON).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

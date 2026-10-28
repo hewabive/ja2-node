@@ -10,8 +10,7 @@
 // @src BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
-// @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24). See docs/10 §1.4–§2,
-// @src §4.4–§4.7, §8, docs/25 §7.2, docs/04 §6.33.
+// @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';

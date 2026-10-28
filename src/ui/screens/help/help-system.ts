@@ -6,7 +6,7 @@
 // @src sets fHideHelpInAllScreens, and a checked box clears every bit), NewScreenSoResetHelpScreen (the frame count
 // @src restarts on a new screen); src/game/GameSettings.cc LoadGameSettings (every bit set unless the help is hidden);
 // @src src/game/GameLoop.cc HandleNewScreenChange; src/game/GameScreen.cc MainGameScreenHandle (not while the pre-battle
-// @src interface is up). See docs/28 §4.7.
+// @src interface is up).
 
 import type { LayoutModel } from '../../layout/model.ts';
 import type { UiRuntime } from '../../runtime.ts';

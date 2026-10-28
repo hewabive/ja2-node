@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc MoveSAIGroupToSector, EvaluateGroupSituation, ReassignAIGroup, SendGroupToPool,
 // @src TransferGroupToPool, RemoveGroupFromStrategicAILists, RepollSAIGroup, RedirectEnemyGroupsMovingThroughSector;
-// @src SAM_Sites.cc UpdateSAMDoneRepair. See docs/17 §7.
+// @src SAM_Sites.cc UpdateSAMDoneRepair.
 
 import { type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i32, u8 } from '../../../core/int.ts';

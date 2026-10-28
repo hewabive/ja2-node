@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (what the actions read and write outside the dialogue
-// @src code); src/externalized/content/NpcActionParamsModel.cc getGridNo, getAmount. See docs/25 §3.1.
+// @src code); src/externalized/content/NpcActionParamsModel.cc getGridNo, getAmount.
 
 import type { NarrativeHost } from '../../../narrative/host.ts';
 import type { HospitalAccount } from '../../../strategic/narrative/facts.ts';

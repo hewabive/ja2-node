@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Cursors.h UICURSOR_*; src/game/Tactical/Interface_Cursors.cc gUICursors (read from
-// @src data/tables/ui-cursors.json). See docs/28 §6.4.
+// @src data/tables/ui-cursors.json).
 
 export const UI_CURSORS_TABLE_PATH = 'tables/ui-cursors.json';
 

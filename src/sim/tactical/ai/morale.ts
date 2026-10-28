@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIUtils.cc CalcMorale, CalcManThreatValue, RangeChangeDesire; AIMain.cc ThreatPercent;
-// @src Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT. See docs/13 §4, docs/25 §7.2 (only boxers threaten while boxing).
+// @src Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT.
 
 import { type ItemTable, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Hourly_Update.cc HourlyLarryUpdate, LarryItems, BAR_TEMPTATION, LARRY_FALLS_OFF_WAGON (items and bars
-// @src checked against data/tables/narrative.json); Tactical/Soldier_Profile.cc SwapLarrysProfiles. See docs/25 §4.4, §4.8.
+// @src checked against data/tables/narrative.json); Tactical/Soldier_Profile.cc SwapLarrysProfiles.
 
 import { i8 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';

@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Init_List.cc SortSoldierInitList, AddSoldierInitListEnemyDefenceSoldiers. See docs/17 §10.2.
+// @src src/game/Tactical/Soldier_Init_List.cc SortSoldierInitList, AddSoldierInitListEnemyDefenceSoldiers.
 
 import { u8 } from '../../../core/int.ts';
 import { SoldierClass, Team } from '../../tactical/soldier.ts';

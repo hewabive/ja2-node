@@ -3,7 +3,7 @@
 // @src src/game/Strategic/MapScreen.cc GetPathTravelTimeDuringPlotting, GetGroundTravelTimeOfSoldier;
 // @src Map_Screen_Interface_Map.cc PlotATemporaryPathForCharacter, PlotATemporaryPathForHelicopter,
 // @src DisplayDistancesForHelicopter; Map_Screen_Helicopter.cc DistanceOfIntendedHelicopterPath, GetNumSafeSectorsInPath,
-// @src GetNumUnSafeSectorsInPath, GetLastSectorOfHelicoptersPath. See docs/28 §7.6, §7.7.
+// @src GetNumUnSafeSectorsInPath, GetLastSectorOfHelicoptersPath.
 
 import { type Sector, sectorFromStrategicIndex, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i32 } from '../../../core/int.ts';

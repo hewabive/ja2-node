@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc LoadStrategicAI; Strategic_AI.h ARMY_COMPOSITION, PATROL_GROUP, GARRISON_GROUP;
 // @src Strategic/Strategic_Status.h STRATEGIC_STATUS, Strategic_Status.cc LoadStrategicStatusFromSaveGameFile;
-// @src SaveLoadGame.cc LoadGeneralInfo (meanwhile flags). See docs/14 §4 sections 24, 34, 35; docs/17 §1.4–§1.5.
+// @src SaveLoadGame.cc LoadGeneralInfo (meanwhile flags).
 
 import { FormatError } from '../binary/errors.ts';
 import type { SaveGame } from './savegame.ts';

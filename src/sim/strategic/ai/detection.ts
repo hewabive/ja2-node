@@ -4,7 +4,7 @@
 // @src AttemptToNoticeEmptySectorSucceeds, AttemptToNoticeAdjacentGroupSucceeds, AdjacentSectorIsImportantAndUndefended,
 // @src HandlePlayerGroupNoticedByPatrolGroup, HandlePlayerGroupNoticedByGarrison, HandleMilitiaNoticedByPatrolGroup,
 // @src HandleEmptySectorNoticedByPatrolGroup, HandleEmptySectorNoticedByGarrison, EnemyNoticesPlayerArrival,
-// @src StrategicAILookForAdjacentGroups, CheckEnemyControlledSector. See docs/17 §7.5, §8.
+// @src StrategicAILookForAdjacentGroups, CheckEnemyControlledSector.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { MAP_SIDE, type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';

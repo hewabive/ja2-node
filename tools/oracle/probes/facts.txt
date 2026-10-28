@@ -1,4 +1,4 @@
-# Facts, quests and strategic NPC presence (docs/25 §1–§4) on the user's saves: the stored facts and quests, CheckFact
+# Facts, quests and strategic NPC presence on the user's saves: the stored facts and quests, CheckFact
 # over all 500 ids for several profiles and talk contexts (src/dest are soldier ids, -1 clears; the talk context outlives a
 # save load in the original, so every checkfact sets it), quest starts and ends with their history lines, the 04:00 event
 # with its draws, the hourly quest facts, Slay's check and Skyrider's debt, the quest code of sector entry and exit, and

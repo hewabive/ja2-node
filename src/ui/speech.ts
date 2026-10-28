@@ -9,7 +9,6 @@
 // @src (300 ms with the mouth closed, the key wait of a FACE_POTENTIAL_KEYWAIT face with KEY_ADVANCE_SPEECH when the
 // @src line had no voice or subtitles are on); src/game/Tactical/Civ_Quotes.cc BeginCivQuote (a new quote replaces
 // @src the old one, the lifetime of the quoted text plus 500 ms), ShutDownQuoteBox (a click closes after 300 ms).
-// @src See docs/28 §5.8, §11.
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { ViewFrame } from '../protocol/view.ts';

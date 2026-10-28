@@ -4,7 +4,7 @@
 // @src RemoveCharacterFromSquads, RebuildSquad, AddDeadCharacterToSquadDeadGuys, ResetDeadSquadMemberList, SectorSquadIsIn,
 // @src IsThisSquadOnTheMove, CopyPathOfSquadToCharacter, CopyPathOfCharacterToSquad, NumberOfPlayerControllableMercsInSquad,
 // @src DoesVehicleExistInSquad, CheckSquadMovementGroups; Strategic/Assignments.cc AssignMercToAMovementGroup;
-// @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles. See docs/16 §2.3–§2.4, §3.15.
+// @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import {

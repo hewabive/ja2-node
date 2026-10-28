@@ -4,7 +4,7 @@
 // @src DrawWarningBox (AIM_WARNING_TIME), DisplayAd (the first and last frames held 13 steps), DisplayFlowerAd (16 frames,
 // @src then frame 0 with the texts held 41 steps), DisplayBobbyRAd (the duck frames 0-6 twice, then 7-20, the last held
 // @src 13 steps), HandleTextOnAimAdd (the Bobby Ray texts by the next frame), SelectBannerRegionCallBack. One step at most
-// @src per update, when more than the delay passed since the last one, as the original does once per frame. See docs/28 §9.4.
+// @src per update, when more than the delay passed since the last one, as the original does once per frame.
 
 export const AimAd = {
   WARNING_BOX: 2,

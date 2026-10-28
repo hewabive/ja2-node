@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (see docs/14-savegames.md)
+// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls
 
 import { FormatError } from '../binary/errors.ts';
 import { decryptRecord as decryptWithOldKey } from './prof.ts';

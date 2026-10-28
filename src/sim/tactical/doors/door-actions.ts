@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc GetAnimStateForInteraction, InteractWithClosedDoor, InteractWithOpenableStruct,
 // @src HandleOpenableStruct; Interface.cc PopupDoorOpenMenu, MakeButtonDoor, BtnDoorMenuCallback, DoorAction;
-// @src Interactive_Tiles.cc StartInteractiveObject, SoldierHandleInteractiveObject; Soldier_Ani.cc code 495. See docs/25 §8.2–§8.3.
+// @src Interactive_Tiles.cc StartInteractiveObject, SoldierHandleInteractiveObject; Soldier_Ani.cc code 495.
 // @src vanilla Build/Tactical/HandleDoors.c InteractWithOpenableStruct and Interface.c PopupDoorOpenMenu, BtnDoorMenuCallback (the
 // @src closing menu Stracciatella dropped).
 

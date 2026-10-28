@@ -13,7 +13,7 @@
 // @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech,
 // @src InitVideoFaceTalking, DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms),
 // @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage. The random distortion and the impatience
-// @src quotes are not reproduced (docs/28 §9.2). See docs/28 §9.4.
+// @src quotes are not reproduced.
 
 export const VideoMode = {
   NOT_DISPLAYED: 0,

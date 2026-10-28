@@ -36,7 +36,7 @@ describe('SetMusicMode', () => {
   });
 });
 
-describe('musicMode follows the setters of docs/27 §3.1', () => {
+describe("musicMode follows the original's setters", () => {
   it('NONE: a new campaign starts silent and nothing in it sets none again', () => {
     expect(following(at(MusicMode.NONE), []).mode).toBe(MusicMode.NONE);
   });

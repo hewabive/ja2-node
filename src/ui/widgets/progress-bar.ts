@@ -3,7 +3,7 @@
 // @src src/game/Utils/Animated_ProgressBar.cc CreateLoadingScreenProgressBar (162,427 318×16 in the std640 frame),
 // @src CreateProgressBar (red fill), DefineProgressBarPanel (lighter and darker edges), SetProgressBarTitle,
 // @src SetRelativeStartAndEndPercentage (the panel and its title), RenderProgressBar (the load bar fill, or the grey
-// @src border, black interior and green fill), SetProgressBarColor. See docs/28 §3.6.
+// @src border, black interior and green fill), SetProgressBarColor.
 
 import { idiv } from '../../core/int.ts';
 import { type DrawList, type RgbColor, rgb } from '../draw-list.ts';

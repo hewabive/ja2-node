@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Cursors.h CursorTypeDefines (the ids code names; layouts name every cursor through
 // @src data/tables/cursors.json); src/sgp/Video.h VIDEO_NO_CURSOR, VIDEO_DEFAULT_TO_NO_CURSOR; src/sgp/Cursor_Control.h
-// @src EXTERN_CURSOR. See docs/28 §3.5.
+// @src EXTERN_CURSOR.
 
 export const CursorId = {
   NORMAL: 0,

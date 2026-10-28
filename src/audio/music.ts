@@ -4,7 +4,6 @@
 // @src MusicStop, MusicFadeOut, MusicPoll (one volume step per MUSICOVERHEAD, the victory track falls back to the nothing
 // @src mode, the defeat track to silence, any other track to the next of its mode), SetMusicMode, StartMusicBasedOnMode
 // @src (creature variants), SetMusicFadeSpeed; src/externalized/DefaultContentManager.cc getMusicForMode (a random track).
-// @src See docs/27 §3.1, §3.3.
 
 import { cueOf } from '../content/audio/cue.ts';
 import type { MusicTable } from '../content/audio/music-table.ts';

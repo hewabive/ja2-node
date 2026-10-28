@@ -41,7 +41,7 @@ function eventsOf<T extends SimEvent['type']>(events: readonly SimEvent[], type:
   return events.filter((e): e is Extract<SimEvent, { type: T }> => e.type === type);
 }
 
-describe('own soldiers in the view (docs/28 §12.1 G1-G4, G7)', () => {
+describe('own soldiers in the view', () => {
   it('carry the panel values the original computes and the animation schedule', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: 3 });

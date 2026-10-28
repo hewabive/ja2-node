@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc HandleDoctorsInSector, HealCharacters, HealStat, HealPatient,
 // @src CheckForAndHandleHospitalPatients, HealHospitalPatient, UpdatePatientsWhoAreDoneHealing,
-// @src BandageBleedingDyingPatientsBeingTreated. See docs/18 §5.6.
+// @src BandageBleedingDyingPatientsBeingTreated.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { sameSector } from '../../../content/strategic/sector-ids.ts';

@@ -14,7 +14,6 @@
 // @src gMoneyButtonLoc + gMoneyButtonOffsets, the "Separate" or "Withdraw" label, the amount to split or withdraw,
 // @src ItemDescDoneButtonCallback* (Done removes the money, a right click only closes), RemoveMoney;
 // @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance).
-// See docs/28 §5.4.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

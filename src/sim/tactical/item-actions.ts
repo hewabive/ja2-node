@@ -3,8 +3,7 @@
 // @src src/game/Tactical/Handle_Items.cc SoldierPickupItem, HandleSoldierPickupItem, SoldierGetItemFromWorld,
 // @src HandleAutoPlaceFail, ItemPoolOKForPickup, SoldierDropItem, SoldierHandleDropItem, AdjustGridNoForItemPlacement;
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
-// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give, docs/24 §4.1).
-// @src See docs/12 §6.5–§6.6.
+// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';

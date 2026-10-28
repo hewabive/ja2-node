@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Find.h SoldierFindFlags; Soldier_Find.cc GetSoldierFindFlags, IsValidTargetMerc,
 // @src FindRelativeSoldierPosition (head above 20 %, the middle down to 60 % standing or 70 % crouched, the feet below);
-// @src Soldier_Macros.h IsHostileToOurTeam; Overhead.cc OK_INTERRUPT_MERC. See docs/28 §6.1.
+// @src Soldier_Macros.h IsHostileToOurTeam; Overhead.cc OK_INTERRUPT_MERC.
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox, SoldierHeight } from '../environment.ts';

@@ -9,7 +9,7 @@
 // @src the calibre of a gun, the stack count; nothing for the robot), DisplayAmountOnChar, DisplayPersonnelSummary,
 // @src DisplayCostOfCurrentTeam, DisplayStateOfPastTeamMembers, DisplayTeamStats (the living team without the robot, or every
 // @src departed merc), UpDateStateOfStartButton (the three panel buttons and their enable rules), the button and region
-// @src callbacks; Tactical/Soldier_Profile_Type.h NO_SKILLTRAIT, NUM_SKILLTRAITS. See docs/28 §9.3.
+// @src callbacks; Tactical/Soldier_Profile_Type.h NO_SKILLTRAIT, NUM_SKILLTRAITS.
 
 import type { PersonnelDepartedView, PersonnelMercView } from '../../../../protocol/view.ts';
 import type { AssetKey } from '../../../draw-list.ts';

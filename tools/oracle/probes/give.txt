@@ -1,4 +1,4 @@
-# Giving items and money to NPCs (docs/24 §4, docs/25 §3.11, §11.5) on the native saves. give runs the animation's
+# Giving items and money to NPCs on the native saves. give runs the animation's
 # SoldierGiveItemFromAnimation with the object the UI would hand over (a whole pocket, one item of a stack, or money split
 # off a pocket) and the conversation it opens, headless; npcgive runs HandleNPCItemGiven for an NPC's gift; receive runs
 # NPCConsiderReceivingItemFromMerc as a dry run for the NPC money rules (no soldier needed); actionitem arms a quest

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (END_MEANWHILE, REMOVE_JOE_QUEEN,
 // @src REMOVE_ELLIOT_END_MEANWHILE, NO_SCI_FI_END_MEANWHILE, the Queen and Elliot record triggers, SLAP, FRUSTRATED_SLAP,
 // @src PUNCH_PC_SLOT_0..2, PUNCH_FIRST_LIVING_PC, SHOOT_ELLIOT, ENDGAME_STATE_1/2, END_DEMO, and the strategic AI codes
-// @src that do nothing here); Strategic/Queen_Command.cc gsInterrogationGridNo. See docs/25 §3.10, docs/26.
+// @src that do nothing here); Strategic/Queen_Command.cc gsInterrogationGridNo.
 
 import { Approach } from '../../../../content/narrative/npc-constants.ts';
 import { triggerNpcWithGivenApproach } from '../../../narrative/converse.ts';

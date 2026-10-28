@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DoneScheduleAction, DecideActionSchedule; TacticalAI/FindLocations.cc
-// @src FindNearbyPointOnEdgeOfMap. See docs/25 §5.3.
+// @src FindNearbyPointOnEdgeOfMap.
 
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';

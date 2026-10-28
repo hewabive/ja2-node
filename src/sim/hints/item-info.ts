@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc RenderItemDescriptionBox (the weapon branch, the money branch, the amount of an
 // @src ammo item or the status of any other, the weight), the gun title with the imprint, GenerateProsString,
-// @src GenerateConsString. See docs/28 §5.4.
+// @src GenerateConsString.
 
 import { ItemClass, type ItemTable, NOTHING, WEAPON_CLASSES } from '../../content/items/items.ts';
 import { createItem, type ItemObject } from '../items/object.ts';

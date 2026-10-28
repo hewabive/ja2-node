@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/UILayout.cc UILayout::recalculatePositions (m_stdScreenOffsetX/Y); src/game/UILayout.h STD_SCREEN_X,
-// @src STD_SCREEN_Y, MIN_INTERFACE_WIDTH, MIN_INTERFACE_HEIGHT. See docs/28 §2.6.
+// @src STD_SCREEN_Y, MIN_INTERFACE_WIDTH, MIN_INTERFACE_HEIGHT.
 
 export const STD_SCREEN_WIDTH = 640;
 export const STD_SCREEN_HEIGHT = 480;

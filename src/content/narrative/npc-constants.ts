@@ -5,7 +5,7 @@
 // @src Tactical/Interface_Dialogue.h NPCAction (the codes the dialogue mechanics use); Strategic/Quests.h Quests,
 // @src QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; src/externalized/internals/enums.cc getApproachEnumFromString,
 // @src getQuestEnumFromString; Tactical/Civ_Quotes.h CIV_QUOTE_*, NUM_CIV_QUOTES; Civ_Quotes.cc gubNumEntries,
-// @src CIV_QUOTE_HINT, CIV_QUOTE_TEXT_SIZE. See docs/24 §1, §2.5, §7.5, §8.
+// @src CIV_QUOTE_HINT, CIV_QUOTE_TEXT_SIZE.
 
 export const NUM_PROFILES = 200;
 export const NO_PROFILE = 200;

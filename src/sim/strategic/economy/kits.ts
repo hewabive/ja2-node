@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc TotalPoints, UseKitPoints, IsMedicalKitItem, FindObj, FindObjClass;
 // @src Strategic/Assignments.cc MakeSureMedKitIsInHand, MakeSureToolKitIsInHand, TotalMedicalKitPoints, ToolKitPoints,
-// @src IsItemRepairable. See docs/18 §5.6–§5.7.
+// @src IsItemRepairable.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { i8, u16 } from '../../../core/int.ts';

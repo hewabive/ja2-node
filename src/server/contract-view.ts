@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc GetMoraleString; Laptop/Personnel.cc (daily rate by contract type,
-// @src days served, total cost); Strategic/MapScreen.cc (contract time left). See docs/22 §1.3, §9.
+// @src days served, total cost); Strategic/MapScreen.cc (contract time left).
 
 import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
 import type { ContractPromptView, MercContractView, StrategicMercView } from '../protocol/view.ts';

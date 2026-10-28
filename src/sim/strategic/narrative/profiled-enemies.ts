@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Create.cc OkayToUpgradeEliteToSpecialProfiledEnemy, gfProfiledEnemyAdded. See docs/25 §4.6.
+// @src src/game/Tactical/Soldier_Create.cc OkayToUpgradeEliteToSpecialProfiledEnemy, gfProfiledEnemyAdded.
 
 import { EncounterCode } from '../forces/constants.ts';
 import { Fact } from './fact-ids.ts';

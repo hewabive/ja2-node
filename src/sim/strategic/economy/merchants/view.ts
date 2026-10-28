@@ -3,7 +3,6 @@
 // @src src/game/Tactical/ShopKeeper_Interface.cc DisplayInvSlot (unit price), BuildDoneWhenTimeString (ETA);
 // @src Tactical/Interface_Dialogue.cc (dealer type label); Arms_Dealer_Init.cc MakeObjectOutOfDealerItems (guns sold
 // @src empty, keeping their ammo type); ShopKeeper_Interface.cc RepairIsDone ("REPAIRED" in the player's offer area).
-// @src See docs/23 §13.4.
 
 import { NOTHING } from '../../../../content/items/items.ts';
 import { DealerType } from '../../../../content/strategic/merchant-content.ts';

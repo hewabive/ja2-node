@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the generic actions: facing, guns, running, recruiting,
 // @src hostility, combat, traversal, drinks, bartenders, stationary NPCs, removal, say-later, conversation mode, experience,
-// @src history, Tixa and Orta, closest doors and cabinets); TacticalAI/NPC.cc TriggerFriendWithHostileQuote. See docs/25 §3.2.
+// @src history, Tixa and Orta, closest doors and cabinets); TacticalAI/NPC.cc TriggerFriendWithHostileQuote.
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { Approach, QuoteActionId } from '../../../../content/narrative/npc-constants.ts';

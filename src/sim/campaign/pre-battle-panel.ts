@@ -5,7 +5,7 @@
 // @src prints: the enemy count or "?", the mercs, the militia, the involved and uninvolved rows), GetSoldierConditionInfo;
 // @src src/game/Strategic/MapScreen.cc GetMapscreenMercDestinationString (the arrival sector in transit, the last sector of
 // @src the path whenever there is one, else the group's next sector between sectors), GetMapscreenMercDepartureString
-// @src (A.I.M. mercs and Slay; the contract remainder capped at its length in transit). See docs/19 §1.4, §5.1.
+// @src (A.I.M. mercs and Slay; the contract remainder capped at its length in transit).
 
 import { type Sector, sectorFromId, sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import type { PreBattlePanel, PreBattlePanelInvolved, PreBattlePanelUninvolved } from '../events.ts';

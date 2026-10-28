@@ -4,8 +4,7 @@
 // @src Campaign_Init.cc InitNewCampaign, InitKnowFacilitiesFlags, BuildUndergroundSectorInfoList;
 // @src src/externalized/strategic/UndergroundSectorModel.cc createUndergroundSectorInfo; Strategic_Movement_Costs.cc
 // @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement,
-// @src hospital globals, Devin's counter); Map_Screen_Helicopter.cc InitializeHelicopter. See docs/16 §1.3–§1.4, docs/15 §4.3,
-// @src docs/25 §4.2.
+// @src hospital globals, Devin's counter); Map_Screen_Helicopter.cc InitializeHelicopter.
 
 import { sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u8, u32 } from '../../../core/int.ts';

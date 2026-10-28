@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (the assignment fields); Tactical/Campaign.cc StatChange;
 // @src Strategic/Auto_Resolve.cc VirtualSoldierDressWound; Tactical/Morale.cc HandleMoraleEvent; Strategic/Hourly_Update.cc.
-// See docs/18 §0, §5, §8.
 
 import type { ItemTable } from '../../../content/items/items.ts';
 import type { EconomyContent } from '../../../content/strategic/economy-content.ts';

@@ -67,7 +67,7 @@ function context(merc: LarryOnTeam & Log, npcData: number, rolls: readonly numbe
   };
 }
 
-describe('HourlyLarryUpdate (docs/25 §4.4)', () => {
+describe('HourlyLarryUpdate', () => {
   it('keeps the transcribed items and bars', () => {
     expect(LARRY_ITEMS).toEqual(table.larryItems);
     expect(LARRY_BARS.map((b) => sectorShortString(b))).toEqual(table.larryBars);

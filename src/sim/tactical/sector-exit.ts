@@ -4,7 +4,7 @@
 // @src PickGridNoToWalkIn, SetupTacticalTraversalInformation (mirror gridno); TileEngine/Isometric_Utils.cc
 // @src GetAbsoluteScreenXYFromMapPos, GetMapPosFromAbsoluteScreenXY, GridNoOnVisibleWorldTile; RenderWorld.cc InitRenderParams;
 // @src TileEngine/Exit_Grids.cc FindGridNoFromSweetSpotCloseToExitGrid; Tactical/Overhead.cc
-// @src SetActionToDoOnceMercsGetToLocation, ExecuteOverhead (wait actions and the 2500 ms timer). See docs/16 §5.9.
+// @src SetActionToDoOnceMercsGetToLocation, ExecuteOverhead (wait actions and the 2500 ms timer).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, outOfBounds, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16, u8 } from '../../core/int.ts';

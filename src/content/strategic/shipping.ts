@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/ShippingDestinationModel.cc (shipping-destinations.json), ContentManager getPrimaryShippingDestination.
-// @src See docs/22 §4.3, §4.4.
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asBool, asObject, asString } from './json-fields.ts';

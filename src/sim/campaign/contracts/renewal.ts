@@ -4,7 +4,7 @@
 // @src BeginContractRenewalSequence, HandleContractRenewalSequence, EndCurrentContractRenewal; Tactical/Dialogue_Control.cc
 // @src GetMercPrecedentQuoteBitStatus, SetMercPrecedentQuoteBitStatus; Strategic/Map_Screen_Interface.cc
 // @src CheckIfSalaryIncreasedAndSayQuote; Strategic/MapScreen.cc CanExtendContractForSoldier,
-// @src HandleShadingOfLinesForContractMenu. See docs/22 §3.1–§3.5.
+// @src HandleShadingOfLinesForContractMenu.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';

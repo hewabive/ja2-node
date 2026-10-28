@@ -4,7 +4,7 @@
 // @src whole pages of MAP_INVENTORY_POOL_SLOT_COUNT), CheckAndUnDateSlotAllocation (another page when fewer than two slots
 // @src are free), GetTotalNumberOfItemsInSectorStash, MapInvenPoolSlotsPrimary (the checks in their order: an unreachable
 // @src item, no merc selected, the merc not in the sector or on the road, a battle there), BeginInventoryPoolPtr (one object,
-// @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback. See docs/28 §7.8.
+// @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback.
 
 import type { StashEntryView } from '../../../protocol/map-inventory.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';

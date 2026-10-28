@@ -6,7 +6,7 @@
 // @src first record of page 0, record FILES_COUNTER_1_WIDTH starting page 1, records FILES_COUNTER_2_WIDTH and
 // @src FILES_COUNTER_3_WIDTH beside a picture, the pictures of pages 0, 4 and 5), HandleSpecialTerroristFile (records 4-6
 // @src beside the portrait drawn when record 4 is reached on page 0), the "gonna get cut off" stop and
-// @src fOnLastFilesPageFlag, OpenFirstUnreadFile (the last unread file: the loop has no break), g_file_info. See docs/28 §9.3.
+// @src fOnLastFilesPageFlag, OpenFirstUnreadFile (the last unread file: the loop has no break), g_file_info.
 
 export const ENRICO_FILE = 0;
 export const NO_FILE_LINE = -1;

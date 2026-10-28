@@ -12,7 +12,7 @@ const raw = (key: string, code: string, extra: Partial<RawKey> = {}): RawKey => 
   ...extra,
 });
 
-describe('key events (docs/28 §3.8)', () => {
+describe('key events', () => {
   it('takes printable ASCII from the key, lower-cased', () => {
     expect(uiKeyOf(raw('A', 'KeyA'))).toBe('a');
     expect(uiKeyOf(raw('/', 'Slash'))).toBe('/');

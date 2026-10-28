@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/externalized/policy/DefaultGamePolicy.cc (squad_size, campaign.start_sector, start_sector_revealed, merc_online_*,
 // @src unhired_merc_deaths_*);
-// @src src/externalized/VehicleModel.cc; src/game/Strategic/Campaign_Types.h VehicleMovementType. See docs/16 §1.7.
+// @src src/externalized/VehicleModel.cc; src/game/Strategic/Campaign_Types.h VehicleMovementType.
 
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asBool, asInt, asObject, asString } from './json-fields.ts';

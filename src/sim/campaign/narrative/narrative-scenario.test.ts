@@ -34,7 +34,7 @@ function compressTo(c: CampaignSim, hour: number): void {
   c.dispatch({ type: 'stopTime' });
 }
 
-describe('quests, facts and NPC presence in a stub campaign (docs/25 §2, §4)', () => {
+describe('quests, facts and NPC presence in a stub campaign', () => {
   it('starts the letter quest with Enrico’s assignment in the history at game start', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 11 });
     expect(c.state.narrative.quests[Quest.DELIVER_LETTER]).toBe(QuestStatus.IN_PROGRESS);

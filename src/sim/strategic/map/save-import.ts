@@ -4,7 +4,6 @@
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals).
-// @src See docs/14 §4, docs/16 §2.1, docs/27 §1.1.
 
 import type { SaveGame, StrategicGroup } from '../../../content/formats/savegame.ts';
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';

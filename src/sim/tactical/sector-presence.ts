@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector, HostileBloodcatsPresent; OppList.cc InitSoldierOppList;
-// @src Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule). See docs/16 §5, docs/25 §5.1.
+// @src Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule).
 
 import { removeFromAwaySlots } from './away-slots.ts';
 import { deleteScheduleNode } from './narrative/schedule-state.ts';

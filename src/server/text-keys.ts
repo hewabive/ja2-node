@@ -2,11 +2,11 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc GetMoraleString, CanCharacterMoveInStrategic, Map_Screen_Interface.h
 // @src MoveError; Strategic/PreBattle_Interface.cc GetSoldierConditionInfo; Tactical/Interface_Dialogue.cc (talk menu,
-// @src zDealerStrings by dealer type); Tactical/Interface.cc (pAssignmentStrings by bAssignment). See docs/27 §5.2.
+// @src zDealerStrings by dealer type); Tactical/Interface.cc (pAssignmentStrings by bAssignment).
 // @src Refusal messages: Points.cc EnoughPoints (NOT_ENOUGH_APS_STR), Turn_Based_Input.cc / Handle_UI.cc (NO_PATH,
 // @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
 // @src (MSG_CANT_FIRE_HERE), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
-// @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime. See docs/28 §12.2.
+// @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime.
 
 import { type UiStrings, uiString } from '../content/text/strings.ts';
 import { MOVE_REFUSAL_INDEX, REFUSAL_MESSAGES, type UiTextKey } from '../protocol/refusals.ts';

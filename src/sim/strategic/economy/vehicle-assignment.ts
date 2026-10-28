@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Assignments.cc CanCharacterVehicle, VehicleMenuBtnCallback, HandleShadingOfLinesForVehicleMenu;
 // @src Tactical/Vehicles.cc AddSoldierToVehicle (strategic part), PutSoldierInVehicle, IsThisVehicleAccessibleToSoldier,
 // @src AnyAccessibleVehiclesInSoldiersSector, CanSoldierDriveVehicle, OnlyThisSoldierCanDriveVehicle, SoldierMustDriveVehicle.
-// @src See docs/16 §3.15, docs/25 §10.3, §11.13.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { addPlayerToGroup, getGroup, NO_PASSENGER, removeGroup, removePlayerFromGroup, type VehicleRecord } from '../forces/groups.ts';

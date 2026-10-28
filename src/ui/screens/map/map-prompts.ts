@@ -8,7 +8,6 @@
 // @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired), HandleNotifyPlayerCanAffordInsurance
 // @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340). The
 // @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
-// @src See docs/28 §7.10, §8.
 
 import type { PromptView, StrategicView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';

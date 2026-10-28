@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Loading_Screen.cc DisplayLoadScreenWithID, Loading_Screen.h LOADINGSCREEN_* (the ids);
 // @src src/game/Utils/Animated_ProgressBar.cc SetRelativeStartAndEndPercentage, RenderProgressBar (the bar shows the
-// @src progress in percent); src/game/SaveLoadGame.cc LoadSavedGame (the blue bar of a save load). See docs/28 §4.10.
+// @src progress in percent); src/game/SaveLoadGame.cc LoadSavedGame (the blue bar of a save load).
 
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';

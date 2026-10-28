@@ -34,7 +34,7 @@ function harness(sciFi = true) {
 
 const D5 = { x: 5, y: 4, z: 0 };
 
-describe('facts store (docs/25 §1.1)', () => {
+describe('facts store', () => {
   it('gives Jake his gas only the first time Estoni refuelling becomes possible', () => {
     const n = createNarrativeState();
     let calls = 0;
@@ -53,7 +53,7 @@ describe('facts store (docs/25 §1.1)', () => {
   });
 });
 
-describe('quests (docs/25 §2.2–§2.3)', () => {
+describe('quests', () => {
   it('logs a start and an end once, and changes silently otherwise', () => {
     const h = harness();
     startQuest(h.ctx, Quest.KINGPIN_MONEY, D5);

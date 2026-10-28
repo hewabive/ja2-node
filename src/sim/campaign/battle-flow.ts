@@ -9,8 +9,7 @@
 // @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
-// @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack. See docs/19 §1.5,
-// @src §2.16, §2.18, §3.2–§3.4, §5, docs/25 §2.1, docs/24 §8.5.
+// @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack.
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';

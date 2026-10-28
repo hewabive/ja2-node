@@ -1,4 +1,4 @@
-# Strategic AI of a new game (docs/17 §16.4): seeded Random, InitNewCampaign with its draw log, state dumps,
+# Strategic AI of a new game: seeded Random, InitNewCampaign with its draw log, state dumps,
 # then the Queen woken (mass fortification), one evaluation, the periodic checks of a few garrisons and the next enemy
 # group arrivals (StrategicAILookForAdjacentGroups, EvaluateGroupSituation).
 seed value=1 pre=reseed

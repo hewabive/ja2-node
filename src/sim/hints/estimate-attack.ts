@@ -3,7 +3,7 @@
 // @src src/game/Tactical/UI_Cursors.cc GetActionModeCursor, HandleNonActivatedTargetCursor (the reload cursors, the chance
 // @src to get through below OK_CHANCE_TO_GET_THROUGH, InRange), HandleNonActivatedTossCursor (the launchable attachment, the
 // @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level);
-// @src Weapons.cc InRange; LOS.h OK_CHANCE_TO_GET_THROUGH. See docs/28 §2.4, §6.1.
+// @src Weapons.cc InRange; LOS.h OK_CHANCE_TO_GET_THROUGH.
 
 import { ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { CELL_X_SIZE, isVisibleTile } from '../../content/world/grid.ts';

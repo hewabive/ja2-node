@@ -4,7 +4,7 @@
 // @src faces/65face/NN.sti, faces/bigfaces/NN.sti);
 // @src src/game/Laptop/Laptop.h DEAD_MERC_COLOR_RED/GREEN/BLUE; src/game/Laptop/AIMFacialIndex.cc DrawMercsFaceToScreen,
 // @src src/game/Laptop/AIMMembers.cc DisplayMercsFace (a dead face through Create16BPPPaletteShaded with the luminance,
-// @src the other unavailable states under ShadowRect). See docs/28 §9.
+// @src the other unavailable states under ShadowRect).
 
 import type { AssetKey, DrawList, PaletteShade } from '../draw-list.ts';
 

@@ -7,7 +7,7 @@
 // @src HandlePunchCursor (REFINE_*_1/2), HandleAidCursor, HandleNonActivatedTossCursor, HandleBombCursor,
 // @src HandleRemoteCursor, HandleWirecutterCursor, HandleRepairCursor, HandleRefuelCursor, HandleJarCursor,
 // @src HandleTinCanCursor, HandleRightClickAdjustCursor, HandleWheelAdjustCursor; Overhead_Types.h REFINE_AIM_*,
-// @src REFINE_PUNCH_*, REFINE_KNIFE_*. See docs/28 §6.1, §6.4.
+// @src REFINE_PUNCH_*, REFINE_KNIFE_*.
 
 import type { EstimateAttack } from '../../../../protocol/hints.ts';
 

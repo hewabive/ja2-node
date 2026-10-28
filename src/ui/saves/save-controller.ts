@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadScreen.cc SaveLoadSelectedSave (overwrite asks SLG_CONFIRM_SAVE; one warning box before a load),
 // @src ConfirmSavedGameMessageBoxCallBack, ConfirmDeleteSavedGameCallBack (SLG_CONFIRM_DELETE), DoSaveGame
-// @src (SLG_SAVE_GAME_ERROR), DoneFadeOutForSaveLoadScreen (SLG_LOAD_GAME_ERROR). See docs/27 §1.8, docs/28 §4.5.
+// @src (SLG_SAVE_GAME_ERROR), DoneFadeOutForSaveLoadScreen (SLG_LOAD_GAME_ERROR).
 
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { Health, LoadSuccess, LoadWarning, Refusal, SaveListing, SaveSuccess } from '../client/api-types.ts';

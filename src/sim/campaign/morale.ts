@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEventForSoldier,
 // @src HandleMoraleEvent (the strategic events and the reputation change); Strategic/Strategic_Status.h REPUTATION_*.
-// @src See docs/11 §9, docs/19 §2.16, §3.6, docs/22 §6.2.
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import { clamp, i8, u8 } from '../../core/int.ts';

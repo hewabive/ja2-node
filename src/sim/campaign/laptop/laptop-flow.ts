@@ -13,7 +13,7 @@
 // @src Laptop/Florist.cc EnterFlorist, Laptop/Insurance.cc EnterInsurance (the effects of entering a site: visitSite);
 // @src Laptop/Laptop.cc LeaveLapTopScreen (fNewMailFlag cleared); Laptop/Files.cc DisplayFormattedText (fRead set when a
 // @src file is shown: readFile); Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the order number draw on entering the
-// @src form: visitSite floristOrderForm). See docs/21 §1, §6, §8, §10, docs/04 §6.33.
+// @src form: visitSite floristOrderForm).
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';

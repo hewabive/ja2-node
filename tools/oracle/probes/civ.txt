@@ -1,5 +1,5 @@
-# Civilian quotes, the enemy surrender offer, the hostility and sight hooks and the named-NPC AI (docs/24 §3.6, §5.4,
-# §8) on the native saves. Draws are traced and replayed by civ-compare.ts; outputs stay outside the repository.
+# Civilian quotes, the enemy surrender offer, the hostility and sight hooks and the named-NPC AI on the native saves.
+# Draws are traced and replayed by civ-compare.ts; outputs stay outside the repository.
 # Town 2 is Drassen; civset changes soldiers, loyalty, combat, facts, quests and the hostile-quote list in both engines.
 save SaveGame02
 civset pause=0

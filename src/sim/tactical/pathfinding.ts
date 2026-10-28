@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc FindBestPath, IsDoorObstacleIfClosed, GetDoorState; Overhead.cc NewOKDestination,
-// @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water. See docs/07 §3.
+// @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';

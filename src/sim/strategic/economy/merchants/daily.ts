@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Arms_Dealer_Init.cc InitAllArmsDealers, InitializeOneArmsDealer,
 // @src DailyUpdateOfArmsDealersInventory, SimulateArmsDealerCustomer, DailyCheckOnItemQuantities,
 // @src ConvertCreatureBloodToElixir, AdjustCertainDealersInventory, LimitArmsDealersInventory,
-// @src GuaranteeAtLeastOneItemOfType, GuaranteeMinimumAlcohol, CanDealerTransactItem (selling side). See docs/23 §3, §5.
+// @src GuaranteeAtLeastOneItemOfType, GuaranteeMinimumAlcohol, CanDealerTransactItem (selling side).
 
 import {
   type DealerDef,

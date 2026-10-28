@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc AutoReload, FindAmmoToReload, FindAmmo, FindObjExcludingSlot, FindObjClass;
-// @src Soldier_Control.cc IsValidSecondHandShotForReloadingPurposes. See docs/19 §2.8.1.
+// @src Soldier_Control.cc IsValidSecondHandShotForReloadingPurposes.
 
 import { ItemClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Merc_Hiring.cc GetMercArrivalTimeOfDay, HireMerc (contract end), MercArrivesCallback;
 // @src Merc_Hiring.h MERC_ARRIVE_TIME_SLOT_*, MIN_FLIGHT_PREP_TIME; Strategic/Merc_Contract.cc GetHourWhenContractDone,
 // @src ContractIsExpiring, ContractIsGoingToExpireSoon; Strategic/MapScreen.cc (contract column and info panel);
-// @src Laptop/Personnel.cc (contract time left). See docs/22 §1.2, §1.3, §3.1.
+// @src Laptop/Personnel.cc (contract time left).
 
 import { i32, u32 } from '../../../core/int.ts';
 import { NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';

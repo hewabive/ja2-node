@@ -4,7 +4,7 @@
 // @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire (with
 // @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
 // @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount; Handle_UI.cc
-// @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team). See docs/11 §8, docs/25 §7.2.
+// @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team).
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';

@@ -13,7 +13,6 @@
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote).
-// @src See docs/25 §1, §2.1, §3, §6, §7, §9.4, §11.5, docs/24 §4, §5.4, §8, docs/26 §1.6, §3.4, §6.1.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';

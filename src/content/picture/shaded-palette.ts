@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/HImage.cc Create16BPPPaletteShaded; src/game/Tactical/Faces.cc InitFace (the all-white palette of the portrait
-// @src flash and the grey ramp i % 128 + 128). See docs/28 §3.11.
+// @src flash and the grey ramp i % 128 + 128).
 
 const PALETTE_COLOURS = 256;
 const CHANNEL_MAX = 255;

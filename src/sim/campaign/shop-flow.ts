@@ -6,7 +6,7 @@
 // @src ShopkeeperAutoPlaceObject, ShopkeeperAddItemToPool, HandleShopKeeperDialog (opening quote);
 // @src RepairIsDone (collected repairs shown as "REPAIRED"), GetShopKeeperInterfaceUserInput (SPACE: the next merc prices);
 // @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
-// @src change gpSMCurrentMerc inside the shop). See docs/23 §9, §13.
+// @src change gpSMCurrentMerc inside the shop).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';

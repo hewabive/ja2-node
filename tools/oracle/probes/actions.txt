@@ -1,4 +1,4 @@
-# NPC actions, requestor boxes, NPC system events, Kingpin's money and the hospital (docs/25 §3, §11.3, §11.4) on the
+# NPC actions, requestor boxes, NPC system events, Kingpin's money and the hospital on the
 # user's saves. npcaction runs HandleNPCDoAction with a headless talk context (panel=0 unless given, dest defaults to the
 # NPC's soldier, src is a soldier id); npcbox answers a requestor through DialogueMessageBoxCallBack; npcevent runs
 # HandleNPCSystemEvent; kingpinmoney, hospitalsupplies and medicalcost call the original functions; npcset writes facts,

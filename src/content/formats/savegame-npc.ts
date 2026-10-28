@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/NPC.cc ConditionalExtractNPCQuoteInfoArrayFromFile, LoadNPCInfoFromSavedGameFile,
-// @src LoadBackupNPCInfoFromSavedGameFile; SaveLoadGame.cc NumProfilesInSavedGame, MAX_NUM_SOLDIERS. See docs/14 §4,
-// @src docs/24 §12.3.
+// @src LoadBackupNPCInfoFromSavedGameFile; SaveLoadGame.cc NumProfilesInSavedGame, MAX_NUM_SOLDIERS.
 
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';

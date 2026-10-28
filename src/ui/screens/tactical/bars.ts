@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Utils.cc DrawBar, DrawLifeUIBar, DrawBreathUIBar, DrawMoraleUIBar, DrawSoldierUIBars
 // @src (the colours, 3 × 42 bars at x, x + 6, x + 12, the bars.sti background), DrawItemUIBarEx (the 2-pixel status bar);
-// @src src/game/Tactical/Interface.cc DrawBarsInUIBox (the overhead box lines). See docs/28 §5.6, §6.5.
+// @src src/game/Tactical/Interface.cc DrawBarsInUIBox (the overhead box lines).
 
 import { idiv } from '../../../core/int.ts';
 import { type DrawList, type RgbColor, rgb } from '../../draw-list.ts';

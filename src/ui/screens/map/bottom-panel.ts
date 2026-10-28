@@ -6,7 +6,7 @@
 // @src combat, gpGameClockString with the day, hour and minute); src/game/Strategic/MapScreen.cc DisplayGroundEta (hours
 // @src and minutes under a day, else days and hours, at CLOCK_MIN_X_START − 5 and CLOCK_HOUR_X_START − 8 or − 9);
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayDistancesForHelicopter (the box above the bottom rows when
-// @src the pointer is on row 13 or lower, pHelicopterEtaStrings 0..4 and 6 right-aligned in MAP_FONT). See docs/28 §7.9.
+// @src the pointer is on row 13 or lower, pHelicopterEtaStrings 0..4 and 6 right-aligned in MAP_FONT).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';

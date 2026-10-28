@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/IMP_Text_System.cc OpenIMPTexts (binarydata/imptext.edt); IMP_MainPage.cc LoadIMPPortait (the
-// @src current portrait's face); the pages' DoLapTopMessageBox(MSG_BOX_IMP_STYLE, pImpPopUpStrings[n], ...). See docs/28 §9.7.
+// @src current portrait's face); the pages' DoLapTopMessageBox(MSG_BOX_IMP_STYLE, pImpPopUpStrings[n], ...).
 
 import type { ImpSiteView } from '../../../../protocol/view.ts';
 import type { MessageBoxFlag } from '../../../widgets/message-box.ts';

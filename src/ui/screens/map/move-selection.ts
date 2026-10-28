@@ -8,7 +8,7 @@
 // @src HowManyMovingSoldiersInSquad, SelectAllOtherSoldiersInList (pMapErrorString[46] when some cannot move),
 // @src DeselectAllOtherSoldiersInList, AllOtherSoldiersInListAreSelected (its test of bAssignment >= VEHICLE kept),
 // @src IsAnythingSelectedForMoving, MoveMenuBtnCallback (the soldier lines: pMapErrorString[41] between sectors, the last
-// @src mover of a squad or vehicle takes the unit along), AddStringsToMoveBox. See docs/28 §7.6.
+// @src mover of a squad or vehicle takes the unit along), AddStringsToMoveBox.
 
 import type { MoveBoxSoldier } from '../../../protocol/hints.ts';
 import type { StrategicMercView, StrategicView } from '../../../protocol/view.ts';

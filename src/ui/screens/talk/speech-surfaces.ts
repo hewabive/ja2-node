@@ -7,7 +7,7 @@
 // @src FaceOverlayClickCallback (a click shuts the face up after 500 ms), HandleDialogueEnd; src/game/Tactical/Civ_Quotes.cc
 // @src BeginCivQuote (the quoted line in a basic box centred on GetSoldierScreenPos, clamped to the screen width and the
 // @src viewport), QuoteOverlayClickCallback, ShutDownQuoteBox; src/game/Tactical/Faces.cc GetFaceRelativeCoordinates
-// @src (FACE_FORCE_SMALL uses the RPC small face offsets). See docs/28 §5.8.
+// @src (FACE_FORCE_SMALL uses the RPC small face offsets).
 
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';

@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Buildings.cc GenerateBuildings, GenerateBuilding, FindBuilding, FindClosestClimbPoint,
 // @src SameBuilding; Tactical/PathAI.cc RoofReachableTest; Tactical/Structure_Wrap.cc WallExistsOfTopLeftOrientation,
 // @src WallExistsOfTopRightOrientation; TacticalAI/AIUtils.cc FindClosestClimbPointAvailableToAI, ClimbingNecessary,
-// @src GetInterveningClimbingLocation. See docs/13 §2.4.
+// @src GetInterveningClimbingLocation.
 
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, pythSpacesAway, WORLD_MAX } from '../../content/world/grid.ts';

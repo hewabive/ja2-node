@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Arms_Dealer_Init.cc LoadArmsDealerInventoryFromSavedGameFile; Arms_Dealer_Init.h
-// @src ARMS_DEALER_STATUS, DEALER_ITEM_HEADER, DEALER_SPECIAL_ITEM, SPECIAL_ITEM_INFO. See docs/14 §4, docs/23 §15.4.
+// @src ARMS_DEALER_STATUS, DEALER_ITEM_HEADER, DEALER_SPECIAL_ITEM, SPECIAL_ITEM_INFO.
 
 import { FormatError } from '../binary/errors.ts';
 import type { SaveSection } from './savegame.ts';

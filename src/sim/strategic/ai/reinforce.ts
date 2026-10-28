@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc ReinforcementsApproved, RequestAttackOnSector, ChooseSuitableGarrisonToProvideReinforcements,
 // @src SendReinforcementsForGarrison, SendReinforcementsForPatrol, SectorDistance, RequestHighPriorityGarrisonReinforcements,
-// @src MassFortifyTowns. See docs/17 §6.4–§6.7, §9.2.
+// @src MassFortifyTowns.
 
 import { type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i32, idiv, u8, u16 } from '../../../core/int.ts';

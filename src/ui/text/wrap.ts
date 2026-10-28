@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/WordWrap.cc LineWrap, DisplayWrappedString, DrawTextToScreen, IanDrawTextToScreen,
 // @src IanDisplayWrappedString, CleanOutControlCodesFromString, IanWrappedStringHeight, ReduceStringLength;
-// @src src/game/Utils/WordWrap.h (the text codes and flags). See docs/28 §3.4.
+// @src src/game/Utils/WordWrap.h (the text codes and flags).
 
 import { DEFAULT_SHADOW, NO_SHADOW } from '../../content/text/font-colors.ts';
 import { idiv, u16 } from '../../core/int.ts';

@@ -5,7 +5,7 @@
 // @src the scene's sector loaded, a fade in); src/game/Tactical/End_Game.cc HandleDeidrannaDeath (after the quotes a
 // @src fade out into DoneFadeOutKilledQueen), DoneFadeOutKilledQueen (P3 loaded, then a fade in),
 // @src EndQueenDeathEndgameBeginEndCimenatic and DoneFadeOutEndCinematic (after the end-game comments a fade out into
-// @src the ending videos). See docs/28 §10, docs/26 §1.5–§1.8, §6.3–§6.7.
+// @src the ending videos).
 
 import type { CampaignEndingView, ViewFrame } from '../../../protocol/view.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';

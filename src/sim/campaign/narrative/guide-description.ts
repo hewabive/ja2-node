@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc HandleRPCDescriptionOfSector (sector_description); Tactical/Tactical_Turns.cc
 // @src HandleRPCDescription; Dialogue_Control.cc CharacterDialogueUsingAlternateFile; Overhead.cc NumEnemyInSector;
-// @src Soldier_Macros.h RPC_RECRUITED. See docs/24 §8.6.
+// @src Soldier_Macros.h RPC_RECRUITED.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { i8 } from '../../../core/int.ts';

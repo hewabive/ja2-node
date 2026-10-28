@@ -4,7 +4,7 @@
 // @src Fast 4000, Finish at once; Pause stops the battle), AttackTarget and TargetHitCallback (the cell flags the screen
 // @src draws: hit, fallen, dead, retreated), PlayButtonCallback, FastButtonCallback, FinishButtonCallback. ja2-node runs
 // @src the battle on the server in 1000 ms slices; the client plays each slice's events spread over the slice's real
-// @src time at the chosen speed. See docs/19 §2.6, docs/28 §8.2.
+// @src time at the chosen speed.
 
 import type { AutoresolveCellView, AutoresolveView, PromptView, ViewFrame } from '../../../protocol/view.ts';
 import { type DisplayCell, displayCell } from './autoresolve-cells.ts';

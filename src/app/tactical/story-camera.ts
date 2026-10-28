@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/GameScreen.cc EnterTacticalScreen (in a meanwhile scene the view locates the scene's NPC,
 // @src LocateToMeanwhileCharacter; while IN_DEIDRANNA_ENDGAME it locates gridno 4561); src/game/Strategic/Meanwhile.cc
-// @src LocateToMeanwhileCharacter (gCurrentMeanwhileDef.ubNPCNumber, QUEEN for every scene). See docs/26 §2.3, §6.2.
+// @src LocateToMeanwhileCharacter (gCurrentMeanwhileDef.ubNPCNumber, QUEEN for every scene).
 
 import type { PlayerView } from '../../protocol/view.ts';
 import { Npc } from '../../sim/strategic/narrative/npc-ids.ts';

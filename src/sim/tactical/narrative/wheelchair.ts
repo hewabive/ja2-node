@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc KickOutWheelchair and animation code 482 (END CRIPPLE KICKOUT). See docs/25 §3.9,
-// @src §3.12.
+// @src src/game/Tactical/Soldier_Ani.cc KickOutWheelchair and animation code 482 (END CRIPPLE KICKOUT).
 
 import { DIRECTION_INCREMENT, newGridNo } from '../../../content/world/grid.ts';
 import { anim } from '../anim-states.ts';

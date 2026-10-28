@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc ReevaluateItemHatches; Interface_Items.cc CompatibleAmmoForGun,
 // @src CompatibleGunForAmmo, CompatibleItemForApplyingOnMerc, SoldierContainsAnyCompatibleStuff,
-// @src InternalHandleCompatibleAmmoUI (the slots outlined for an item in the cursor). See docs/28 §5.3.
+// @src InternalHandleCompatibleAmmoUI (the slots outlined for an item in the cursor).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InternalGetNewSoldierPath, EVENT_InternalSetSoldierDestination, MoveMerc,
 // @src EVENT_SetSoldierPosition(XY), SetSoldierGridNo, EVENT_StopMerc; Overhead.cc HandleGotoNewGridNo, HandleAtNewGridNo;
 // @src Soldier_Tile.cc TileIsClear, HandleNextTile, HandleNextTileWaiting, SetDelayedTileWaiting, (Un)MarkMovementReserved;
-// @src Structure_Wrap.cc IsJumpableFencePresentAtGridno. See docs/07 §4.
+// @src Structure_Wrap.cc IsJumpableFencePresentAtGridno.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';

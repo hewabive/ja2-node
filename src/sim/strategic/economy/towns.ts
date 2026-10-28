@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Town_Loyalty.cc BuildListOfTownSectors, GetNumberOfWholeTownsUnderControl,
 // @src GetNumberOfWholeTownsUnderControlButExcludeCity,
 // @src IsTownUnderCompleteControlByPlayer; StrategicMap.cc GetTownIdForSector, GetTownSectorSize, GetTownSectorsUnderControl;
-// @src Town_Militia.cc SectorOursAndPeaceful. See docs/18 §1.1, §3.5.
+// @src Town_Militia.cc SectorOursAndPeaceful.
 
 import type { Town } from '../../../content/strategic/map-tables.ts';
 import { MAP_SIDE, type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';

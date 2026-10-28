@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc GunRange, CalcChanceToHitGun, AICalcChanceToHitGun; Soldier_Control.cc IsValidSecondHandShot;
 // @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff; TacticalAI/AIUtils.cc SoldierDifficultyLevel.
-// @src See docs/11 §2.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WEAPON_CLASSES, WeaponClass } from '../../../content/items/items.ts';
 import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';

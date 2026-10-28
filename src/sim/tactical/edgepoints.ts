@@ -4,7 +4,6 @@
 // @src InternallyClassifyEdgepoints, LoadMapEdgepoints, ChooseMapEdgepoint(s), BeginMapEdgepointSearch,
 // @src SearchClosestMapEdgepoint, CalcMapEdgepointClassInsertionCode; Tactical/PathAI.cc GlobalReachableTest;
 // @src TacticalAI/FindLocations.cc FindNearestEdgepointOnSpecifiedEdge; TileEngine/Isometric_Utils.cc GridNoOnEdgeOfMap.
-// @src See docs/16 §5.7.
 
 import type { MapDef, MapEdgepoints as SavedEdgepoints } from '../../content/formats/map.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';

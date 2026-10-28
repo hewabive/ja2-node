@@ -7,7 +7,7 @@
 // @src ItemPopupRegionCallback* (take one object, put the cursor item in, right click describes), ItemPopupFullRegionCallback*,
 // @src InitKeyRingPopup (NUMBER_KEYS_ON_KEYRING cells, KEY_RING_ROW_WIDTH per row at + TACTICAL_INVENTORY_KEYRING_GRAPHIC_OFFSET_X,
 // @src 8 down), RenderKeyRingPopup (the shade from x 0, the key item's graphic and count, a full bar);
-// @src src/game/Tactical/Interface_Panels.cc KeyRingItemPanelButtonCallback, KeyRingSlotInvClickCallback. See docs/28 §5.4.
+// @src src/game/Tactical/Interface_Panels.cc KeyRingItemPanelButtonCallback, KeyRingSlotInvClickCallback.
 
 import { slotLimitOf } from '../../../content/items/slot-limit.ts';
 import { idiv } from '../../../core/int.ts';

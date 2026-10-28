@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc SetUpMovingListsForSector (who the move box lists),
 // @src CanMoveBoxSoldierMoveStrategically and CanCharacterMoveInStrategic (the reason a merc cannot be picked, for the
 // @src squad and vehicle members the box does not list too: SelectSquadForMovement walks the whole squad).
-// @src See docs/28 §7.6, docs/04 §6.30.
 
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';

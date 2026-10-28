@@ -7,7 +7,7 @@
 // @src the impact, HIT1 while conscious, FALL_1, the merc's death sounds, BODY_SPLAT_1 or HEADSPLAT_1 below -60 life, else
 // @src DIE1), ProcessBattleFrame (ACR_SMELL_THREAT or ACR_SMELL_PREY), IsBattleOver (LAUGH1 of the first live enemy, or
 // @src ACR_EATFLESH in a creature attack, even after Finish). The variants come from the simulation's cosmetic stream
-// @src (docs/19 §4.3); the generic voice of militia and enemies and the splat choice are the client's. See docs/28 §8.2.
+// @src ; the generic voice of militia and enemies and the splat choice are the client's.
 
 import type { AutoresolveCellView } from '../../../protocol/view.ts';
 import { isCreatureCell } from './autoresolve-cells.ts';

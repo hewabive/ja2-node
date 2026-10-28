@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc CalculateHealingPointsForDoctor, CalculateRepairPointsForRepairman,
 // @src GetTrainingStatValue, GetSoldierTrainingPts, GetSoldierStudentPts, GetBonusTrainingPtsDueToInstructor,
-// @src GetTownTrainPtsForCharacter; Tactical/SkillCheck.cc GetPenaltyForFatigue, ReducePointsForFatigue. See docs/18 §1.4, §5.6–§5.8.
+// @src GetTownTrainPtsForCharacter; Tactical/SkillCheck.cc GetPenaltyForFatigue, ReducePointsForFatigue.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sameSector } from '../../../content/strategic/sector-ids.ts';

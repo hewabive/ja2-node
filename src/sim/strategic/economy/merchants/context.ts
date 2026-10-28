@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Arms_Dealer_Init.cc GetArmsDealerShopHours, IsMercADealer (FACT_MANNY_IS_BARTENDER);
-// @src Strategic/Scheduling.cc ExtractScheduleDoorLockAndUnlockInfo (as a hook). See docs/23 §16.1.
+// @src Strategic/Scheduling.cc ExtractScheduleDoorLockAndUnlockInfo (as a hook).
 
 import type { ItemTable } from '../../../../content/items/items.ts';
 import { type DealerDef, type DealerRole, type MerchantContent, NUM_ARMS_DEALERS } from '../../../../content/strategic/merchant-content.ts';

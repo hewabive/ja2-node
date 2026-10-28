@@ -5,7 +5,6 @@
 // @src SoldierGotoStationaryStance (the GIVING_AID branch); Overhead.cc HandleTeamServices, HandlePlayerServices;
 // @src Points.cc GetAPsToBeginFirstAid; Soldier_Ani.cc code 768; externalized/Soldier.cc handlePendingAction
 // @src (MERC_GIVEAID); Handle_UI.cc the medkit checks of the item cursor; RT_Time_Defines.h RT_FIRST_AID_GAIN_MODIFIER.
-// @src See docs/12 §5, docs/04 §6.23.
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { ItemClass } from '../../content/items/items.ts';

@@ -41,7 +41,7 @@ function post(body: unknown): RequestInit {
   return { method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-describe('closing a session (docs/28 §12.3)', () => {
+describe('closing a session', () => {
   it(
     'releases a session over HTTP and keeps the default session',
     async () => {

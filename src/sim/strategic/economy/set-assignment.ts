@@ -4,7 +4,7 @@
 // @src SetSoldierAssignmentPatient, SetSoldierAssignmentDoctor, SetSoldierAssignmentTrainTown, SetSoldierAssignmentTrainSelf,
 // @src SetSoldierAssignmentTrainTeammate, SetSoldierAssignmentTrainByOther, SetSoldierAssignmentRepair, SetAssignmentForList,
 // @src AssignMercToAMovementGroup, the TRAIN_MENU_TOWN branch of TrainingMenuBtnCallback, PutMercInAwakeState;
-// @src Tactical/Squads.cc AddCharacterToSquad (soldier side). See docs/18 §1.3, §5.2, §6.
+// @src Tactical/Squads.cc AddCharacterToSquad (soldier side).
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
 import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Input.h SHIFT_DOWN, CTRL_DOWN, ALT_DOWN, KEY_DOWN, KEY_UP, KEY_REPEAT, TEXT_INPUT; src/sgp/Input.cc
-// @src KeyDown, KeyUp, HandleSingleClicksAndButtonRepeats. See docs/28 §3.8.
+// @src KeyDown, KeyUp, HandleSingleClicksAndButtonRepeats.
 
 export const KeyModifier = { SHIFT: 1, CTRL: 2, ALT: 4 } as const;
 

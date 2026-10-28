@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc UIPlotPath (0 off the interface level), PlotPath (0 without a path, the footsteps).
-// @src See docs/28 §2.4, §6.4.
 
 import { pathMoveMode } from '../tactical/movement-mode.ts';
 import { findBestPath, PathCopy } from '../tactical/pathfinding.ts';

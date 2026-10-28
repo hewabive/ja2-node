@@ -4,8 +4,7 @@
 // @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE);
 // @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
-// @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc). See docs/05 §2.5,
-// @src docs/28 §6.4.
+// @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';

@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo, ExplosiveDamageGridNo, RemoveOnWall;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
 // @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
-// @src BeforeStructureDamaged listener); Tactical/Rotting_Corpses.cc VaporizeCorpse. See docs/12 §10.6, docs/26 §5.3.
+// @src BeforeStructureDamaged listener); Tactical/Rotting_Corpses.cc VaporizeCorpse.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';

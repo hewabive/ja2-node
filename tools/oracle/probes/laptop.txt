@@ -1,4 +1,4 @@
-# Laptop and hiring (docs/21): the new-game order of InitNewGame with its draw log (profiles, terrorists, mercs on
+# Laptop and hiring: the new-game order of InitNewGame with its draw log (profiles, terrorists, mercs on
 # assignment, dealers, Bobby Ray, mails, M.E.R.C. day), the arrival slots, then on the user's saves: A.I.M. hires
 # (acceptance quote, ledger, arrival, kit), the M.E.R.C. account, hire and payment, Bobby Ray orders, restocks and
 # deliveries, life insurance (offer, purchase, expiry, payout, investigation) and an I.M.P. character.

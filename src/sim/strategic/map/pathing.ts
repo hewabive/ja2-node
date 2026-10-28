@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Pathing.cc FindStratPath (queue, trail tree, QUESEARCH, ESTIMATE1, FARTHER),
 // @src BuildAStrategicPath, AppendStrategicPath, ClearStrategicPathListAfterThisSector, RemoveTailFromStrategicPath,
-// @src RemoveHeadFromStrategicPath, GetLengthOfPath. See docs/16 §3.2.
+// @src RemoveHeadFromStrategicPath, GetLengthOfPath.
 
 import { isValidSector, MAP_WORLD_CELLS, MAP_WORLD_X, sectorFromStrategicIndex, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { Direction } from '../../../content/world/grid.ts';

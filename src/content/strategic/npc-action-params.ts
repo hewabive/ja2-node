@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/content/NpcActionParamsModel.cc deserialize, getGridNo, getAmount; DefaultContentManager.cc
-// @src getNpcActionParams. See docs/25 §3.1, §14.1.
+// @src getNpcActionParams.
 
 import { asArray, asInt, asObject } from './json-fields.ts';
 

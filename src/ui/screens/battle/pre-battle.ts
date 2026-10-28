@@ -7,7 +7,7 @@
 // @src and the rows of the involved and the uninvolved mercs or None), ActivatePreBattleAutoresolveAction,
 // @src ActivatePreBattleEnterSectorAction, ActivatePreBattleRetreatAction (a, e and r act only on enabled buttons),
 // @src ActivateAutomaticAutoResolveStart (the Autoresolve button shown pressed), KillPreBattleInterface; src/game/Strategic/
-// @src MapScreen.cc HandleKeyESC (Esc closes the non-persistent panel). See docs/28 §8.1.
+// @src MapScreen.cc HandleKeyESC (Esc closes the non-persistent panel).
 
 import type { InvolvedMercView, PromptOptionView, StrategicView, UninvolvedMercView } from '../../../protocol/view.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';

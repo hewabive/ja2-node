@@ -198,7 +198,7 @@ async function boxingMatch(mode?: RunMode): Promise<CampaignSession> {
 
 const BOXING_TIMEOUT_MS = 60_000;
 
-describe('a boxing match at the stub club (docs/25 §7, docs/04 §6.20)', () => {
+describe('a boxing match at the stub club', () => {
   it(
     'is bet on through the requestor, fought bare-handed with attack and closed by the owner, the same across reloads',
     async () => {

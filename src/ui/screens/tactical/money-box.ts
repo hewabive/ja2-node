@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Items.cc InternalInitItemDescriptionBox (REMOVE_MONEY from the object, the $1000,
 // @src $100 and $10 buttons disabled below their amount), BtnMoneyButtonCallbackPrimary (a step moves from remaining to
 // @src removing when enough remains; a withdrawal above MAX_MONEY_PER_SLOT shows MONEY_TEXT_WITHDRAW_MORE_THEN_MAXIMUM),
-// @src BtnMoneyButtonCallbackSecondary (a step back); src/game/Tactical/Items.h MAX_MONEY_PER_SLOT. See docs/28 §5.4.
+// @src BtnMoneyButtonCallbackSecondary (a step back); src/game/Tactical/Items.h MAX_MONEY_PER_SLOT.
 
 export const MONEY_STEPS = [1000, 100, 10] as const;
 export const MAX_MONEY_PER_SLOT = 20000;

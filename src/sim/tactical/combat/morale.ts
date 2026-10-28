@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
-// @src (soldier-only tactical events). See docs/11 §9.
+// @src (soldier-only tactical events).
 
 import { profileProgress } from '../profiles.ts';
 import { Body, NO_PROFILE, type Soldier } from '../soldier.ts';

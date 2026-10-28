@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderTiles (the glow: our turn or the baton holder, grey when the selected
-// @src merc does not see the soldier and he is neither on fire nor exploding, the highlighted bad guy). See docs/28 §6.5.
+// @src merc does not see the soldier and he is neither on fire nor exploding, the highlighted bad guy).
 
 import type { CombatView, SoldierView } from '../../protocol/view.ts';
 import { type GlowContext, glowFrame } from '../../render/world/glow.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
 // @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival;
-// @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback. See docs/25 §8.2, §13.1.
+// @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback.
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';

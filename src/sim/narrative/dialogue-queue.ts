@@ -9,7 +9,7 @@
 // @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech), HandleTalkingAutoFace and
 // @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration), SetFaceTalking (a line
 // @src lasts as long as its sample with speech on, its text without); Strategic/Assignments.cc
-// @src DialogueEventRemoveEPC. See docs/24 §1.5, §7, §9.4, §11.6.
+// @src DialogueEventRemoveEPC.
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';

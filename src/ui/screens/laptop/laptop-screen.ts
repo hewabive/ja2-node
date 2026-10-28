@@ -8,7 +8,7 @@
 // @src bookmarks, the open mail, in that order), NewEmailIconCallback (the oldest unread mail), NewFileIconCallback,
 // @src DoLapTopMessageBox (MSG_BOX_LAPTOP_DEFAULT centred on the laptop screen), PrintDate, PrintNumberOnTeam,
 // @src DisplayTaskBarIcons; src/game/Laptop/EMail.cc CreateDestroyNewMailButton, DisplayNewMailBox (hidden during the A.I.M.
-// @src video conference and shown again after it, AIMMembers.cc DisableNewMailMessage). See docs/28 §9.1.
+// @src video conference and shown again after it, AIMMembers.cc DisableNewMailMessage).
 
 import type { LaptopView } from '../../../protocol/view.ts';
 import type { Area, DrawItem, DrawList } from '../../draw-list.ts';

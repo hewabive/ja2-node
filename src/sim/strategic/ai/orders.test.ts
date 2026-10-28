@@ -35,7 +35,7 @@ function arrived(q: QueenContext, sector: string, troops: number, admins = 0): G
   return g;
 }
 
-describe('EvaluateGroupSituation arrivals (docs/17 §7.2)', () => {
+describe('EvaluateGroupSituation arrivals', () => {
   it('merges reinforcements into the garrison after removing the surplus admins first', () => {
     const { q } = fixture([{ sector: 'C13', composition: Composition.DRASSEN_DEFENCE, admins: 15 }]);
     const g = arrived(q, 'C13', 10);
@@ -94,7 +94,7 @@ describe('EvaluateGroupSituation arrivals (docs/17 §7.2)', () => {
   });
 });
 
-describe('ReassignAIGroup (docs/17 §7.3)', () => {
+describe('ReassignAIGroup', () => {
   it('sends the group to the palace when nobody requests reinforcements', () => {
     const { q } = fixture([{ sector: 'M3', composition: Composition.LEVEL1_DEFENCE, troops: 20 }]);
     const g = arrived(q, 'K4', 6);
@@ -116,7 +116,7 @@ describe('ReassignAIGroup (docs/17 §7.3)', () => {
   });
 });
 
-describe('liberation grace and redirection (docs/17 §7.1, §9.3)', () => {
+describe('liberation grace and redirection', () => {
   it('blocks paths through a freshly liberated garrison sector and reroutes groups around it', () => {
     const { q, rolls } = fixture([{ sector: 'G9', composition: Composition.CAMBRIA_DEFENCE }]);
     const g = arrived(q, 'G7', 6);

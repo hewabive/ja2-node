@@ -1,4 +1,4 @@
-# Meanwhile scenes, captures, the progress milestones, the Queen's death on the strategic AI and the O3 statue (docs/26) on
+# Meanwhile scenes, captures, the progress milestones, the Queen's death on the strategic AI and the O3 statue on
 # the user's saves: the imported meanwhile state, every posting function with its draws (each scene once, Elliot counted at
 # scheduling), the event with and without enemies in the loaded sector followed by Skip (the implications), the NPC moves
 # of a played scene, the first-battle rules, the 35/50/70 % milestones with an overridden progress, the capture sequence

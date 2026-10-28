@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc, MercArrivesCallback (contract fields: contracts/contract-flow.ts);
 // @src Strategic/Map_Screen_Interface.cc
-// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs. See docs/15 §4.5.
+// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { type Sector, sectorFromId } from '../../content/strategic/sector-ids.ts';

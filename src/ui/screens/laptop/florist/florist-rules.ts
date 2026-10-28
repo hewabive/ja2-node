@@ -6,7 +6,7 @@
 // @src src/game/Laptop/Florist_Order_Form.cc gubFlowerOrder_AdditioanalServicePrices, SelectFlorsitCheckBoxRegionCallBack
 // @src (the next-day pair toggles together, the extras alone), DisplayFloristCheckBox, DisplayFlowerDynamicItems (the
 // @src extras, the bouquet price and the delivery cost in "$N.00 USD"); src/game/Laptop/Florist_Cards.cc RenderFloristCards
-// @src (the saying centred with UINT16 arithmetic). See docs/28 §9.8.
+// @src (the saying centred with UINT16 arithmetic).
 
 import { idiv, u16 } from '../../../../core/int.ts';
 import type { FloristOrderMemory } from '../pages-memory.ts';

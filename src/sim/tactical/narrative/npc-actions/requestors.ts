@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the requestor actions, PROMPT_PLAYER_TO_LIE,
 // @src TRIGGER_MARRY_DARYL_PROMPT, REDUCE_CONRAD_SALARY_CONDITIONS), StartDialogueMessageBox, DialogueMessageBoxCallBack,
-// @src ubRecordThatTriggeredLiePrompt; Tactical/Overhead.cc PlayerTeamFull. See docs/25 §3.3, §13.2.
+// @src ubRecordThatTriggeredLiePrompt; Tactical/Overhead.cc PlayerTeamFull.
 
 import { i8 } from '../../../../core/int.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';

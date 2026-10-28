@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc LoadStrategicAI (load-time recomputation), ValidateGroup;
-// @src Strategic_Status.cc LoadStrategicStatusFromSaveGameFile; SaveLoadGame.cc LoadGeneralInfo (meanwhile flags). See docs/17 §1.4, §4.3.
+// @src Strategic_Status.cc LoadStrategicStatusFromSaveGameFile; SaveLoadGame.cc LoadGeneralInfo (meanwhile flags).
 
 import type { SavedStrategicAiSections } from '../../../content/formats/savegame-strategic-ai.ts';
 import { NUM_ARMY_COMPOSITIONS } from '../../../content/strategic/army.ts';

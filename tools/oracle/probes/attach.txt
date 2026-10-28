@@ -1,4 +1,4 @@
-# Attachment AP through the item description box (docs/28 §12.5 item 3, docs/12 §5): DeleteItemDescriptionBox charges
+# Attachment AP through the item description box: DeleteItemDescriptionBox charges
 # AP_RELOAD_GUN once to gpAttachSoldier when the box closes in combat and the attachments (item, status) changed.
 # A step clickN clicks attachment slot N (attach with an item in the cursor, detach without); ITEM:STATUS puts an item
 # into the cursor. Soldiers 0-2 are the player's mercs of the Drassen save.

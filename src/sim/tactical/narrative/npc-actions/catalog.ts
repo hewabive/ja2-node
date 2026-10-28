@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the face-a-profile codes and the dispatch by code).
-// @src See docs/25 §3.1.
 
 import type { NpcActionPort } from '../../../narrative/host.ts';
 import { handleCambriaAction } from './cambria.ts';

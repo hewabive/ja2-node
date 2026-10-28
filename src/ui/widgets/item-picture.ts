@@ -3,7 +3,7 @@
 // @src src/game/Laptop/AIMMembers.cc DisplayMercsInventory (the small inventory graphic centred in its box with
 // @src abs((box - width) / 2) minus the frame offset, BltVideoObjectOutlineShadow two pixels left and down when
 // @src gamepolicy(f_draw_item_shadow), then BltVideoObjectOutline with SGP_TRANSPARENT); src/game/Tactical/Interface_Items.cc
-// @src GetSmallInventoryGraphicForItem. See docs/28 §3.11, §9.
+// @src GetSmallInventoryGraphicForItem.
 
 import { idiv } from '../../core/int.ts';
 import { type FrameMetrics, frameOf, type ImageCatalog } from '../assets.ts';

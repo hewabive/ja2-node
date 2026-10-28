@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Funeral.cc RenderFuneral (each link text centred in its carving over IanWrappedStringHeight),
 // @src SelectFuneralLinkRegionCallBack (the first link goes to the florist, the others show the closed sign),
-// @src SelectRipSignRegionCallBack. See docs/28 §9.8.
+// @src SelectRipSignRegionCallBack.
 
 import { idiv } from '../../../../core/int.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

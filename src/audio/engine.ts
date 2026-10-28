@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/sgp/SoundMan.cc SOUND_MAX_CHANNELS, SOUND_MAX_CACHED, SoundPlay, SoundGetFreeChannel (a new sound is dropped
-// @src when every channel is busy), SoundServiceStreams (linear balance), SoundStartSample (loops). See docs/27 §3.1, §3.3.
+// @src when every channel is busy), SoundServiceStreams (linear balance), SoundStartSample (loops).
 
 import { type Bus, type Cue, mixCue, type Volumes } from '../content/audio/cue.ts';
 import { balanceGains, MAX_VOLUME, type ScreenView } from '../content/audio/sound-position.ts';

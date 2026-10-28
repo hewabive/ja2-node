@@ -8,7 +8,7 @@
 // @src AddItemsInSectorToBox, PositionTownMineInfoBox (at the sector, kept inside MapScreenRect),
 // @src AddInventoryButtonForMapPopUpBox and MakeButton (mapinvbtns.sti frames 0/2 and 1/3, BLOCKFONT2 white text,
 // @src MSYS_PRIORITY_HIGHEST - 1, a third of the spare width around each), MapTownMineInventoryButtonCallBack,
-// @src MapTownMineExitButtonCallBack; src/game/Strategic/Strategic_Mines.cc GetMineSectorForTown. See docs/28 §7.8.
+// @src MapTownMineExitButtonCallBack; src/game/Strategic/Strategic_Mines.cc GetMineSectorForTown.
 
 import { type Sector, sectorFromId, sectorId, sectorLongString, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';

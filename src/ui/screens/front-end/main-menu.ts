@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/MainMenuScreen.cc InitMainMenu (Load disabled without saves), MenuButtonCallback (Alt+click on Load loads
 // @src the newest save at once), HandleMainMenuInput (c, Alt+C, o, s, Ctrl+Q; Esc quits in the original),
-// @src HandleMainMenuScreen. See docs/28 §4.2.
+// @src HandleMainMenuScreen.
 
 import { KeyModifier } from '../../input/events.ts';
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';

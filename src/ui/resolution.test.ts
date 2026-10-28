@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alignedOffset, autoUiScale, DEFAULT_SCALE_SETTING, resolveResolution, toLogical } from './resolution.ts';
 
-describe('the UI scale and the logical resolution (docs/28 §2.6)', () => {
+describe('the UI scale and the logical resolution', () => {
   it('picks the largest integer scale that keeps 640×480', () => {
     expect(autoUiScale(1920, 1080)).toBe(2);
     expect(autoUiScale(2560, 1440)).toBe(3);

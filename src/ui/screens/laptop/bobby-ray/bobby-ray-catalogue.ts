@@ -9,7 +9,7 @@
 // @src SetFirstLastPagesForNew, SetFirstLastPagesForUsed, CalcFirstIndexForPage, CreateMouseRegionForBigImage (the ammo help
 // @src text), SelectBigImageRegionCallBack, PurchaseBobbyRayItem, UnPurchaseBobbyRayItem, UpdateButtonText,
 // @src CalcBobbyRayCost, CalculateTotalPurchasePrice, DisableBobbyRButtons, CheckPlayersInventoryForGunMatchingGivenAmmoID;
-// @src BobbyRAmmo.cc, BobbyRArmour.cc, BobbyRMisc.cc, BobbyRUsed.cc (the five skins). See docs/28 §9.6.
+// @src BobbyRAmmo.cc, BobbyRArmour.cc, BobbyRMisc.cc, BobbyRUsed.cc (the five skins).
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { idiv } from '../../../../core/int.ts';

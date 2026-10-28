@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Font.cc MPrint, MPrintChar, MPrintBuffer (each glyph at the pen, the pen advanced by width + x offset;
-// @src the colours are the font's foreground, shadow and background). See docs/28 §3.4.
+// @src the colours are the font's foreground, shadow and background).
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import type { Area, DrawList, FontColors, PositionedGlyph } from '../draw-list.ts';

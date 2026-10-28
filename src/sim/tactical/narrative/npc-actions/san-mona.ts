@@ -2,8 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (Kingpin, Darren and the boxing actions, Madame and the
 // @src girls, Angel and Maria, Kyle's money, Joey, Carmen and the terrorists), CarmenLeavesSectorCallback, carmenSector;
-// @src JAScreens.cc SexScreenHandle (its WarpGameTime of 5 + Random(20) minutes, simulated at the action). See docs/25 §3.6,
-// @src docs/28 §12.5.
+// @src JAScreens.cc SexScreenHandle (its WarpGameTime of 5 + Random(20) minutes, simulated at the action).
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { i8, u32 } from '../../../../core/int.ts';

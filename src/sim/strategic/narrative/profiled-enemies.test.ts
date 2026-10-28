@@ -8,7 +8,7 @@ import { okayToUpgradeEliteToSpecialProfiledEnemy } from './profiled-enemies.ts'
 const NO_PROFILE = 200;
 const elite = (onRoof = false) => ({ profile: NO_PROFILE, onRoof });
 
-describe('OkayToUpgradeEliteToSpecialProfiledEnemy (docs/25 §4.6)', () => {
+describe('OkayToUpgradeEliteToSpecialProfiledEnemy', () => {
   it('turns the first elite on the ground into Mike, then nobody else until the flag is cleared, then Iggy', () => {
     const n = createNarrativeState();
     setFact(n, Fact.MIKE_AVAILABLE_TO_ARMY, 1);

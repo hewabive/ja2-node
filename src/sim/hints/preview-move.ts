@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOnTerrain (the height check, CANNOT_MOVE_UICURSOR), DrawUIMovementPath
 // @src (MOVEUI_TARGET_NONE), SelectedMercCanAffordMove (first step plus stance change); Overhead.cc UIOKMoveDestination;
-// @src PathAI.cc UIPlotPath, PlotPath. See docs/28 §2.4, §6.1, §6.4.
+// @src PathAI.cc UIPlotPath, PlotPath.
 
 import { isVisibleTile } from '../../content/world/grid.ts';
 import { withTemporaryFields } from '../knowledge/guard.ts';

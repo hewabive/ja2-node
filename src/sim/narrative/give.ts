@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Items.cc PlaceObjectInSoldierProfile, RemoveObjectFromSoldierProfile, SetMoneyInSoldierProfile,
 // @src RemoveInvObject, RemoveAttachment, RenumberAttachments; TacticalAI/NPC.cc ReturnItemToPlayer, ConverseFull (taking
 // @src the object); Tactical/Interface_Dialogue.cc HandleNPCItemGiven; Tactical/Handle_Items.cc SoldierGiveItemFromAnimation
-// @src (the dealer branch, InitiateConversationFull with APPROACH_GIVINGITEM). See docs/24 §4.1, §4.4, §4.5.
+// @src (the dealer branch, InitiateConversationFull with APPROACH_GIVINGITEM).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { Approach, NO_PROFILE } from '../../content/narrative/npc-constants.ts';

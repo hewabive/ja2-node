@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.h enum NPCAction (checked against data/tables/narrative.json);
-// @src Strategic/Game_Event_Hook.h NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS. See docs/25 §3.
+// @src Strategic/Game_Event_Hook.h NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS.
 
 export const NpcActionCode = {
   NONE: 0,

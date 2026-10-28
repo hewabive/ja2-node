@@ -5,7 +5,7 @@
 // @src InsuranceContractPayLifeInsuranceForDeadMerc, MercIsInsurable, GetTimeRemainingOnSoldiersInsuranceContract,
 // @src GetTimeRemainingOnSoldiersContract, PurchaseOrExtendInsuranceForSoldier, CanSoldierExtendInsuranceContract,
 // @src CalculateSoldiersInsuranceContractLength, CalcStartDayOfInsurance, HandleAcceptButton; INSURANCE_PREMIUM_RATE,
-// @src INS_CTRCT_*_BASE. See docs/21 §7.1–§7.2, docs/22 §7.
+// @src INS_CTRCT_*_BASE.
 
 import { i32, u8, u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';

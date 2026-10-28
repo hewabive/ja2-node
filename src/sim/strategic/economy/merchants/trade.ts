@@ -6,7 +6,7 @@
 // @src RemoveItemFromDealersInventory, MovePlayersItemsToBeRepairedToArmsDealersInventory, GivePlayerSomeChange,
 // @src DealerGetsBribed, OfferObjectToDealer, SplitComplexObjectIntoSubObjects, CountSubObjectsInObject,
 // @src EvaluateItemAddedToPlayersOfferArea, EvaluateInvSlot, WillShopKeeperRejectObjectsFromPlayer,
-// @src ConfirmToDeductMoneyFromPlayersAccountMessageBoxCallBack. See docs/23 §8, §9, §10.1–§10.3.
+// @src ConfirmToDeductMoneyFromPlayersAccountMessageBoxCallBack.
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';

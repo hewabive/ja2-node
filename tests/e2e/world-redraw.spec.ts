@@ -23,7 +23,7 @@ async function hold(page: Page, keys: readonly string[]): Promise<void> {
   for (const key of [...keys].reverse()) await page.keyboard.up(key);
 }
 
-test.describe('partial redraws of the tactical world (docs/28 §16)', () => {
+test.describe('partial redraws of the tactical world', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
 
   test('match a whole redraw while the squad breathes, walks and shoots and the camera scrolls', async ({ page, request }) => {

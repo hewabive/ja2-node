@@ -10,7 +10,6 @@
 // @src AutoBandageMercs (the STR_LATE_13 or STR_LATE_10 box), DetermineBandageButtonState, DoneButtonCallback,
 // @src SetupDoneInterface, SetupSurrenderInterface, HideSurrenderInterface (after a refusal every button stays hidden),
 // @src AcceptSurrenderCallback, RejectSurrenderCallback, HandleAutoResolveInput (Space keeps the speed, Alt+X).
-// @src See docs/28 §8.2, docs/19 §5.2.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import type { DriverMode } from '../../../protocol/messages.ts';

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo;
 // @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc
 // @src SetOpenableStructureToClosed; SaveLoadMap.cc SaveBloodSmellAndRevealedStatesFromMapToTempFile (the openable
-// @src statuses), SetOpenableStructStatusFromMapTempFile. See docs/07 §1.5.
+// @src statuses), SetOpenableStructStatusFromMapTempFile.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';

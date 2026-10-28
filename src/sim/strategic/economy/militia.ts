@@ -10,7 +10,6 @@
 // @src ResetDoneFlagForAllMilitiaTrainersInSector, SoldierClassToMilitiaRank; Strategic/Assignments.cc TrainTownInSector;
 // @src Tactical/Militia_Control.cc HandleMilitiaPromotions; Map_Screen_Interface.cc
 // @src ResetAssignmentsForMercsTrainingUnpaidSectorsInSelectedList, ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector.
-// See docs/18 §1.
 
 import { type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';

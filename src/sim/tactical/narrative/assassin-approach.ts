@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (a neutral assassin stepping within 8 tiles of a PC); TacticalAI/NPC.h
-// @src NPC_TALK_RADIUS. See docs/25 §11.1, docs/24 §5.4.
+// @src NPC_TALK_RADIUS.
 
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';

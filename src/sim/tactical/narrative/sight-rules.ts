@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc ManSeesMan (new sighting of an OUR merc: civilian groups, Carmen, Eldin, the
 // @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey).
-// @src See docs/25 §11.1, docs/24 §5.4.
 
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';

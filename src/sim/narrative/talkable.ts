@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Civ_Quotes.cc GetCivType; Tactical/Handle_UI.cc IsValidTalkableNPC; Tactical/Soldier_Macros.h
-// @src RPC_RECRUITED, AM_AN_EPC, AM_A_ROBOT. See docs/24 §6.1, §8.1.
+// @src RPC_RECRUITED, AM_AN_EPC, AM_A_ROBOT.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { hasAnimFlag } from '../tactical/animation.ts';

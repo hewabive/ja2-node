@@ -15,7 +15,7 @@
 // @src flashing white every 300 ms while hovered), RenderMapHighlight; src/game/Strategic/Strategic_Movement.cc
 // @src PlayersBetweenTheseSectors (vehicles count one less, the helicopter group skipped in airspace mode,
 // @src ABOUT_TO_ARRIVE_DELAY); src/game/Strategic/Map_Screen_Interface.cc HandleBlitOfSectorLocatorIcon (hilite.sti, red
-// @src frames from 0 and yellow from 13, ANIMATED_BATTLEICON_FRAME_TIME). See docs/28 §7.5, §7.7.
+// @src frames from 0 and yellow from 13, ANIMATED_BATTLEICON_FRAME_TIME).
 
 import { MAP_SIDE, type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';

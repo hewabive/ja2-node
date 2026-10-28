@@ -3,7 +3,6 @@
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (CHOOSE_DOCTOR, TRIGGER_VINCE_BY_LOYALTY,
 // @src DOCTOR_ESCORT_PATIENTS, START_DOCTORING, VINCE_UNRECRUITABLE, ENABLE_CAMBRIA_DOCTOR_BONUS, 24_HOURS_SINCE_*,
 // @src MARTHA_DIES, START_MINE, STOP_MINE, RESET_MINE_CAPTURED, SET_*_RECORD_13_USED), CHANCE_FOR_DOCTOR_TO_SAY_RANDOM_QUOTE.
-// @src See docs/25 §3.7, §11.3.
 
 import { pythSpacesAway } from '../../../../content/world/grid.ts';
 import { setQuoteRecordAsUsed } from '../../../narrative/records.ts';

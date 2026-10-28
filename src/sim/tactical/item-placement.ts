@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc FindNearestAvailableGridNoForItem; Tactical/Tactical_Save.cc
-// @src LoadAndAddWorldItemsFromTempFile (the sweet-spot search radii). See docs/19 §2.18.
+// @src LoadAndAddWorldItemsFromTempFile (the sweet-spot search radii).
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { rangeInCellCoords } from './insertion.ts';

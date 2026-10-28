@@ -5,7 +5,7 @@
 // @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
 // @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
-// @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun). See docs/11 §1, §6.
+// @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';

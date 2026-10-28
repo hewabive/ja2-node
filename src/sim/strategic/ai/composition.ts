@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.cc CalcNumTroopsBasedOnComposition, ConvertGroupTroopsToComposition,
-// @src RemoveSoldiersFromGarrisonBasedOnComposition, EliminateSurplusTroopsForGarrison. See docs/17 §5.5.
+// @src RemoveSoldiersFromGarrisonBasedOnComposition, EliminateSurplusTroopsForGarrison.
 
 import { idiv, u8 } from '../../../core/int.ts';
 import type { EnemyGroup, Group } from '../forces/groups.ts';

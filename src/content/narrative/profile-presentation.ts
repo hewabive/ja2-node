@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Faces.cc InitFace, GetFaceRelativeCoordinates (the profile's face index, eye and mouth offsets,
 // @src blink and expression frequencies, the RPC small faces); src/externalized/mercs/RPCSmallFaceModel.cc,
-// @src AIMListingModel.cc, MERCListingModel.cc (the bio rows). See docs/28 §5.5, §12.1 G18.
+// @src AIMListingModel.cc, MERCListingModel.cc (the bio rows).
 
 import type { MercProfile } from '../formats/prof.ts';
 import { asArray, asInt, asObject, asString } from '../strategic/json-fields.ts';

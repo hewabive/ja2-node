@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/sgp/Types.cc SGPSector (AsByte, AsStrategicIndex, FromStrategicIndex, AsShortString, AsLongString, IsValid);
-// @src src/game/Strategic/StrategicMap.cc GetMapFileName; src/externalized/JsonUtility.cc parseSectorID. See docs/16 §1.1.
+// @src src/game/Strategic/StrategicMap.cc GetMapFileName; src/externalized/JsonUtility.cc parseSectorID.
 
 import { FormatError } from '../binary/errors.ts';
 

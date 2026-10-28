@@ -3,7 +3,7 @@
 // @src src/game/Laptop/EMail.cc HandleIMPCharProfileResultsMessage, the IMP_RESULTS_*, IMP_PERSONALITY_*, IMP_ATTITUDE_*,
 // @src IMP_SKILLS_*, IMP_PHYSICAL_* and IMP_PORTRAIT_* defines; Laptop/IMP_Compile_Character.cc IMPCharacterHasBigBody,
 // @src FindIMPPortraitByFace; Tactical/Soldier_Profile_Type.h SUPER_STAT_VALUE and the other thresholds. The Random(32767)
-// @src parity that picks one of the two looks paragraphs is the caller's fixed choice. See docs/21 §6.1.
+// @src parity that picks one of the two looks paragraphs is the caller's fixed choice.
 
 import { Personality, SkillTrait } from '../../tactical/soldier.ts';
 

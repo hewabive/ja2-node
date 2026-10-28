@@ -22,7 +22,6 @@
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY.
-// @src See docs/28 §6.1–§6.4.
 
 import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';

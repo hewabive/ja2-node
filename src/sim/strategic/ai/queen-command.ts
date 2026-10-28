@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Queen_Command.cc PrepareEnemyForSectorBattle, PrepareEnemyForUndergroundBattle,
 // @src ProcessQueenCmdImplicationsOfDeath, AddPossiblePendingEnemiesToBattle, AddEnemiesToBattle (class roll and facing),
-// @src EndTacticalBattleForEnemy. See docs/17 §10.
+// @src EndTacticalBattleForEnemy.
 
 import { isValidSector, type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { Direction } from '../../../content/world/grid.ts';

@@ -19,7 +19,6 @@
 // @src when the merc's level has none); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump).
-// @src See docs/28 §6.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions } from '../../../protocol/hints.ts';

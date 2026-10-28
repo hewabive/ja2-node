@@ -3,7 +3,7 @@
 // @src src/game/GameSettings.cc InitGameSettings (the TOPTION defaults, volumes 63, sizes of the cover and LOS displays),
 // @src LoadGameSettings (speech or subtitles always on); src/game/Options_Screen.cc HandleOptionToggle (speech and subtitles
 // @src cannot both be off); src/game/HelpScreen.h HelpScreenID (the help mask bits); GameSettings.h GAME_SETTINGS; Tactical/DisplayCover.cc DC__MIN_SIZE,
-// @src DC__MAX_SIZE. See docs/27 §2.2.
+// @src DC__MAX_SIZE.
 
 import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
 import { AUTO_UI_SCALE, MAX_UI_SCALE } from './resolution.ts';

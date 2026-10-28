@@ -3,7 +3,6 @@
 // @src src/game/Strategic/Meanwhile.cc BringupMeanwhileBox ("<MSG_MEANWHILE>....." in MSG_BOX_BASIC_STYLE, OK only for
 // @src INTERROGATION or a scene not yet seen, OK and Skip otherwise), BeginMeanwhileCallBack; src/game/GameSettings.cc
 // @src MeanwhileSceneSeen, SetMeanwhileSceneSeen (set only when a scene has been played, Meanwhile.cc EndMeanwhile).
-// @src See docs/28 §10.1, docs/26 §1.5.
 
 import { INTERROGATION_SCENE, meanwhileSceneId } from '../../../protocol/meanwhile-scenes.ts';
 import type { MessageBoxButtons } from '../../message-boxes.ts';

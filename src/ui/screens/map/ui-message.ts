@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface.cc BeginMapUIMessage (the basic merc popup box, 200 wide, margin 10, transparent, centred
 // @src in the map view plus 20 pixels and the vertical offset, the position kept while a message shows), RenderUIMessage
 // @src (ShadowRect behind the box), CalcUIMessageDuration (1000 ms plus 50 ms per character), EndUIMessage;
-// @src src/game/Strategic/MapScreen.cc MonitorMapUIMessage, CancelMapUIMessage. See docs/28 §7.10.
+// @src src/game/Strategic/MapScreen.cc MonitorMapUIMessage, CancelMapUIMessage.
 
 import { idiv } from '../../../core/int.ts';
 import type { DrawList } from '../../draw-list.ts';

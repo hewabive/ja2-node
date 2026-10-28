@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/FindLocations.cc SearchForItems, IsGunUsable; AIUtils.cc FindBetterSpotForItem;
-// @src Tactical/Items.cc ValidAmmoType, TotalPoints. See docs/12 §6.6, docs/13 §12.2.
+// @src Tactical/Items.cc ValidAmmoType, TotalPoints.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';

@@ -5,7 +5,6 @@
 // @src the red end X, a node drawn only while MAP_VIEW_START_X < x < SCREEN_WIDTH - 2 * MAP_GRID_X and
 // @src MAP_VIEW_START_Y < y < MAP_VIEW_START_Y + MAP_VIEW_HEIGHT), TraceCharAnimatedRoute (the white arrow running along
 // @src the nodes every ARROW_DELAY, PAUSE_DELAY after the last node), the line and arrow frame defines of the map cursor.
-// See docs/28 §7.6.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { strategicIndex } from '../../../content/strategic/sector-ids.ts';

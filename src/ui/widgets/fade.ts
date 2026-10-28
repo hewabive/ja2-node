@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Fade_Screen.cc BeginFade (fade out: eleven steps of the 0.8 low-percent shade then black; fade in: the new
 // @src screen shaded 0.8^(8 − n) for n = 0…8), FadeScreenHandle (no cursor while fading), FadeFrameBufferRealFade,
-// @src FadeInFrameBufferRealFade. The original advances one step per loop pass; ja2-node uses fixed steps. See docs/28 §3.6.
+// @src FadeInFrameBufferRealFade. The original advances one step per loop pass; ja2-node uses fixed steps.
 
 import { type DrawList, LOW_PERCENT_SHADOW_FACTOR, rgb } from '../draw-list.ts';
 import type { UiInputEvent } from '../input/events.ts';

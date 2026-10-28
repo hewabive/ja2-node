@@ -6,7 +6,6 @@
 // @src (the choice is the server's answer), KillPreBattleInterface; src/game/Strategic/Auto_Resolve.cc EnterAutoResolveMode
 // @src and AutoResolveScreenHandle (a separate screen over the shaded map screen, back to the map when it closes);
 // @src src/game/Strategic/MapScreen.cc (the non-persistent panel from the battle locator or a refused compression).
-// See docs/28 §8.1, §8.2.
 
 import type { PlayerView, PromptView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';

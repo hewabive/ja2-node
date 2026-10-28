@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/sgp/FPS.cc ToggleOnOff, RenderPresentHook, UpdateTexture (white text at 11,23 over every screen, a line every
 // @src 12 pixels, the text refreshed once a second); src/sgp/SGP.cc MainLoop (Ctrl+F toggles it before the game sees the
-// @src key); vanilla Build/JAScreens.c DisplayFrameRate (SMALLFONT1, light red when the game runs slow). See docs/04 §6.36.
+// @src key); vanilla Build/JAScreens.c DisplayFrameRate (SMALLFONT1, light red when the game runs slow).
 
 import { FontColor } from '../content/text/font-colors.ts';
 import type { DrawList } from './draw-list.ts';

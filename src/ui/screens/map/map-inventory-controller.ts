@@ -6,7 +6,7 @@
 // @src an item in the cursor); src/game/Strategic/MapScreen.cc CreateDestroyMapInvButton (InitInvSlotInterface with
 // @src MAPInvClickCallbackPrimary, MAPInvClickCallbackSecondary and MAPInvMoveCallback, gMPanelRegion over the inventory),
 // @src CreateDestroyTrashCanRegion (the trash can and the Done button), BltCharInvPanel (the armour, weight and camouflage
-// @src values); src/game/Tactical/Interface_Items.cc InitMapKeyRingInterface. See docs/28 §7.8.
+// @src values); src/game/Tactical/Interface_Items.cc InitMapKeyRingInterface.
 
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
 import { getPath } from '../../layout/controller.ts';

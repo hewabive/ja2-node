@@ -11,7 +11,7 @@
 // @src stretched into 96 x 86, the answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights
 // @src (an 8 x 8 fill, green when selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector, day = arrival / 1440, "HH:00"; the German
-// @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode). See docs/28 §9.4.
+// @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode).
 
 import { idiv } from '../../../../core/int.ts';
 import type { AimMercView } from '../../../../protocol/view.ts';

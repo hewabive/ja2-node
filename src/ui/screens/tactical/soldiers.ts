@@ -5,7 +5,6 @@
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
 // @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead).
-// See docs/28 §5.1, §5.2.
 
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';

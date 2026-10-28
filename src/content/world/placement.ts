@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldDef.cc LoadWorldFromSGPFile (struct/roof/on-roof loops, FailedToAddNode);
-// @src src/game/TileEngine/WorldMan.cc AddNodeToWorld. See docs/07 §1.2.
+// @src src/game/TileEngine/WorldMan.cc AddNodeToWorld.
 
 import type { LayerName } from '../formats/map.ts';
 import { WORLD_MAX } from './grid.ts';

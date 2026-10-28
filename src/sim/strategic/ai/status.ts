@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Strategic_Status.cc TrackEnemiesKilled, SoldierClassToRankIndex; Strategic_Status.h. See docs/17 §1.5.
+// @src src/game/Strategic/Strategic_Status.cc TrackEnemiesKilled, SoldierClassToRankIndex; Strategic_Status.h.
 
 import { u16 } from '../../../core/int.ts';
 import { SoldierClass } from '../../tactical/soldier.ts';

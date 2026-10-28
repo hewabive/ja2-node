@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls).
-// @src See docs/07 §4.3, docs/25 §7.2.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderStaticWorld, RenderTiles (static layers, node filters, z levels,
-// @src blitter choice), MultiZBlitter; src/game/TileEngine/WorldMan.cc SetTreeTopStateForMap. See docs/05 §2–§5.
+// @src blitter choice), MultiZBlitter; src/game/TileEngine/WorldMan.cc SetTreeTopStateForMap.
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';

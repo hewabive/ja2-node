@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc HandleNPCTeamMemberDeath (civilian profile cases), HandlePlayerTeamMemberDeath
-// @src (SLAY, ROBOT). See docs/25 §11.12.
+// @src (SLAY, ROBOT).
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';

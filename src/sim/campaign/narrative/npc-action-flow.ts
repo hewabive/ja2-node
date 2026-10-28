@@ -5,7 +5,6 @@
 // @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
 // @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
 // @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound.
-// @src See docs/25 §3, §13.2.
 
 import type { CommandResult } from '../../command.ts';
 import { cloneObject, deleteObject } from '../../items/object.ts';

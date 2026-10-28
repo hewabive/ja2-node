@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Create.cc TacticalCreateMilitia, TacticalCreateEnemySoldier, TacticalCreateCreature (autoresolve screen),
 // @src ReserveTacticalSoldierForAutoresolve, TacticalCreateSoldier (the AUTORESOLVE_SCREEN branch: id 255, no camouflage
 // @src roll, no CreateSoldierCommon), the OkayToUpgradeEliteToSpecialProfiledEnemy call of TacticalCreateEnemySoldier;
-// @src Strategic/Auto_Resolve.cc ResetMortarsOnTeamCount. See docs/19 §2.4, docs/25 §4.6.
+// @src Strategic/Auto_Resolve.cc ResetMortarsOnTeamCount.
 
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { cloneObject } from '../items/object.ts';

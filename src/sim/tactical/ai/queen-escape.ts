@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/PanicButtons.cc HeadForTheStairCase; TacticalAI/DecideAction.cc DecideActionRed,
 // @src DecideActionBlack (the Queen's and Joe's escape in P3); TacticalAI/AIMain.cc ExecuteAction (AI_ACTION_TRAVERSE_DOWN).
-// @src See docs/26 §5.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { profileProgress } from '../profiles.ts';

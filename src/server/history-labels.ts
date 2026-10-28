@@ -3,7 +3,7 @@
 // @src src/game/Laptop/History.cc ProcessHistoryTransactionString (pHistoryStrings with the town's locative name, the
 // @src profile's full name or nickname, the quest strings of quests.edt), GetQuestStartedString, GetQuestEndedString,
 // @src DrawHistoryRecordsText (pHistoryLocations without a sector, the detailed GetSectorIDString otherwise; a quest-start
-// @src row of a quest in progress in red); Laptop/History.h (the codes). See docs/21 §6.2, docs/04 §6.33.
+// @src row of a quest in progress in red); Laptop/History.h (the codes).
 
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';

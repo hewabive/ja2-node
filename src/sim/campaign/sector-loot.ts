@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc AddItemsToUnLoadedSector, AddDeadSoldierToUnLoadedSector (the corpse and the
 // @src item records; the drop rules are in autoresolve/close.ts), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
-// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector. See docs/19 §2.18, §3.1.
+// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector.
 
 import { corpseTypeFor } from '../../content/anim/corpses.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';

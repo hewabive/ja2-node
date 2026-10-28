@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Merc_Handler.cc MercDailyUpdate (the RPC salary), NUM_DAYS_TILL_UNPAID_RPC_QUITS,
-// @src RPCWhineAboutNoPay. See docs/22 §4.8.
+// @src RPCWhineAboutNoPay.
 
 import { i32 } from '../../../core/int.ts';
 import { EventKind } from '../../strategic/time/constants.ts';

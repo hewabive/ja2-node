@@ -3,7 +3,7 @@
 // @src src/game/TacticalAI/CreatureDecideAction.cc CreatureCall (with the call kind code 717 of Soldier_Ani.cc cries),
 // @src CreatureDecideActionGreen/Yellow/Red/Black, CreatureDecideAction, CreatureDecideAlertStatus, CrowDecideActionGreen/Red,
 // @src CrowDecideAction; Movement.cc TrackScent; AIUtils.cc ValidCreatureTurn; Attacks.cc AdvanceToFiringRange;
-// @src Rotting_Corpses.cc FindNearestRottingCorpse; Realtime.cc REALTIME_CREATURE_AI_DELAY. See docs/13 §14.
+// @src Rotting_Corpses.cc FindNearestRottingCorpse; Realtime.cc REALTIME_CREATURE_AI_DELAY.
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';

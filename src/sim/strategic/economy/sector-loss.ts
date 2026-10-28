@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc NotifyPlayerWhenEnemyTakesControlOfImportantSector (which notice the
-// @src original shows; the reduced income of GetProjectedTotalDailyIncome). See docs/28 §12.2.
+// @src original shows; the reduced income of GetProjectedTotalDailyIncome).
 
 import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';

@@ -143,7 +143,7 @@ function context(f: Fixture): FactContext {
 
 const NPC = Npc.VINCE;
 
-describe('CheckFact (docs/25 §1.3)', () => {
+describe('CheckFact', () => {
   it('returns stored bytes for ids it does not compute and writes computed results back', () => {
     const f = fixture();
     setFact(f.n, Fact.FACT_38, 1);

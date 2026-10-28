@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Events.cc AddAdvancedStrategicEvent and the Add*StrategicEvent variants,
-// @src ProcessPendingGameEvents, AdjustClockToEventStamp, DeleteStrategicEvent, DeleteAllStrategicEventsOfType. See docs/15 §2.
+// @src ProcessPendingGameEvents, AdjustClockToEventStamp, DeleteStrategicEvent, DeleteAllStrategicEventsOfType.
 
 import { u32 } from '../../../core/int.ts';
 import { Frequency, NUM_MIN_IN_DAY, NUM_SEC_IN_DAY, NUM_SEC_IN_MIN, Warp, type WarpCode } from './constants.ts';

@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/strings/EncryptedString.cc LoadEncryptedData; src/externalized/strings/EDT.cc ClassicEDT::at;
 // @src src/externalized/DefaultContentManager.cc DIALOGUESIZE, loadDialogQuoteFromFile; Tactical/Civ_Quotes.cc
-// @src CIV_QUOTE_TEXT_SIZE; Tactical/Dialogue_Control.cc FindDelayForString. See docs/24 §1.5, docs/27 §5.
+// @src CIV_QUOTE_TEXT_SIZE; Tactical/Dialogue_Control.cc FindDelayForString.
 
 export const DIALOGUE_SIZE = 240;
 export const CIV_QUOTE_TEXT_SIZE = 160;

@@ -6,7 +6,7 @@
 // @src the current page and closes the popup), DisableAimArchiveButton, DisplayAlumniOldMercPopUp (11 sections plus one
 // @src per AIM_POPUP_TEXT_WIDTH of the description's width, the name and description fields of alumni.edt),
 // @src InitAlumniFaceRegions and RemoveAimAlumniFaceRegion (no face regions while the popup shows),
-// @src CreateDestroyDoneMouseRegion, SelectAlumniDoneRegionCallBack. See docs/28 §9.4.
+// @src CreateDestroyDoneMouseRegion, SelectAlumniDoneRegionCallBack.
 
 import { idiv } from '../../../../core/int.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';

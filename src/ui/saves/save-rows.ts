@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadScreen.cc DisplaySaveGameEntry (the row fields, the tooltip, the Dead is Dead skull),
 // @src SaveLoadSelectedSave (one warning box before a load); src/game/Laptop/Finances.cc InternalSPrintMoney;
-// @src src/game/Strategic/Game_Clock.h STARTING_TIME; src/sgp/Types.cc SGPSector::IsValid. See docs/27 §1.8, §8.3.
+// @src src/game/Strategic/Game_Clock.h STARTING_TIME; src/sgp/Types.cc SGPSector::IsValid.
 
 import { isValidSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import type { GameOptions, Health, LoadWarning, SaveHeader, SaveKind, SaveListing, SessionKind, WorldTime } from '../client/api-types.ts';

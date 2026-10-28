@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Credits.cc HandleCreditScreen (when the next row is read, when the screen ends), HandleCreditNodes
 // @src (1 px per scroll delay, the head node dropped above the screen), AddCreditNode, CRDT_START_POS_Y,
-// @src CRDT_TEXT_START_LOC, CRDT_WIDTH_OF_TEXT_AREA. See docs/27 §4.1.
+// @src CRDT_TEXT_START_LOC, CRDT_WIDTH_OF_TEXT_AREA.
 
 import { type CreditNode, type CreditStyle, INITIAL_CREDIT_STYLE, readCreditRow } from '../../content/formats/credits.ts';
 

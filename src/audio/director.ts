@@ -14,7 +14,7 @@
 // @src strikes); TileEngine/Physics.cc (a thrown object landing, the mortar whistle, CATCH_OBJECT as a catch ends);
 // @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code
 // @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
-// @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1). See docs/27 §3.1, §3.3.
+// @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';

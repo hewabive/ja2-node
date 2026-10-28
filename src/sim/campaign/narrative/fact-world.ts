@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Profile.cc FindSoldierByProfileID (every active soldier, OUR team first),
 // @src FindSoldierByProfileIDOnPlayerTeam; Tactical/Overhead.h FOR_EACH_MERC (the soldiers in the loaded sector),
 // @src CFOR_EACH_IN_TEAM; Tactical/Items.cc FindObjInObjRange; Tactical/Handle_Items.cc GetItemPool, IsItemPoolVisible,
-// @src ItemTypeExistsAtLocation. See docs/25 §1.3.
+// @src ItemTypeExistsAtLocation.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import type { FactSoldier, FactWorld } from '../../strategic/narrative/check-fact.ts';

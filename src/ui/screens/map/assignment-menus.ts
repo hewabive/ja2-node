@@ -11,7 +11,6 @@
 // @src messages), TrainingMenuBtnCallbackSecondary, AttributesMenuBtnCallback, RemoveMercMenuBtnCallback,
 // @src SetAssignmentForList, NotifyPlayerOfAssignmentAttemptFailure (pMapErrorString[18], [48] for militia),
 // @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint).
-// @src See docs/28 §7.4.
 
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
 import type { StrategicView } from '../../../protocol/view.ts';

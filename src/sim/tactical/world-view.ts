@@ -5,8 +5,7 @@
 // @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
 // @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
 // @src tile it hangs on); Physics.cc PhysicsMoveObject (a thrown object's tile at its position, raised by the land
-// @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows). See
-// @src docs/28 §12.1 G8.
+// @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows).
 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16 } from '../../core/int.ts';

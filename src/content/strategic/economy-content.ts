@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/MineModel.cc (strategic-mines.json); src/externalized/policy/DefaultGamePolicy.cc
 // @src (starting_cash_*, enable_stat_healing); src/externalized/mercs/MercProfileInfo.cc (type). Tables in data/tables
-// @src from tools/transcribe/town-loyalty.ts and head-miners.ts. See docs/18 §3.1, §7.
+// @src from tools/transcribe/town-loyalty.ts and head-miners.ts.
 
 import { FormatError } from '../binary/errors.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';

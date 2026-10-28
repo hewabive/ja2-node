@@ -41,7 +41,7 @@ function evaluationEvents(q: ReturnType<typeof fixture>['q']) {
   return q.state.queue.events.filter((e) => e.kind === EventKind.EVALUATE_QUEEN_SITUATION);
 }
 
-describe('EvaluateQueenSituation (docs/17 §4.1, §6.1)', () => {
+describe('EvaluateQueenSituation', () => {
   it('reschedules with two draws and decides nothing while asleep', () => {
     const { q, rolls } = fixture();
     q.state.queen.awake = false;

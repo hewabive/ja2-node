@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/army/{ArmyCompositionModel,GarrisonGroupModel,PatrolGroupModel}.cc;
-// @src src/externalized/policy/DefaultStrategicAIPolicy.cc; DefaultGamePolicy.cc (progress). See docs/17 §2, §15.
+// @src src/externalized/policy/DefaultStrategicAIPolicy.cc; DefaultGamePolicy.cc (progress).
 
 import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';

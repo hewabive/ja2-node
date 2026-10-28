@@ -6,7 +6,7 @@
 // @src CanCharacterTrainTeammates, CanCharacterBeTrainedByOther, CanCharacterSleep, CanCharacterBeAwakened, CanCharacterSquad,
 // @src IsCharacterInTransit, EnoughTimeOnAssignment, GetMinHealingSkillNeeded, CanSoldierBeHealedByDoctor,
 // @src GetNumberThatCanBeDoctored, AnyDoctorWhoCanHealThisPatient, ValidTrainingPartnerInSameSectorOnAssignmentFound,
-// @src PlayerSoldierTooTiredToTravel; MapScreen.cc CanChangeSleepStatusForSoldier. See docs/18 §5.1, §5.2, §5.4, §5.6, §5.8.
+// @src PlayerSoldierTooTiredToTravel; MapScreen.cc CanChangeSleepStatusForSoldier.
 
 import { sameSector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { numEnemiesInAnySector, numEnemiesInSector, playerMercsInSector } from '../forces/groups.ts';

@@ -2,7 +2,6 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc LoadQuestInfoFromSavedGameFile; SaveLoadGame.cc LoadGeneralInfo (the narrative globals);
 // @src LoadSaveTacticalStatusType.cc (the guide description countdown), ExtractTacticalStatusTypeFromFile (bBoxingState).
-// @src See docs/25 §0, docs/14 §10.
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
 import type { StrategicState } from '../state.ts';
