@@ -372,9 +372,10 @@ Autoresolve reuses the damage functions from `rules`, just as the original reuse
 - In headless tests, the scenario driver answers.
 
 **Where the original waits for speech,** the simulation doesn't depend on audio:
-- A line's duration in the simulation is always 60 ms per character plus the final 300 ms with the mouth closed.
-  That's how the original computes it when speech is off (`FindDelayForString`, `TEXT_DELAY_MODIFIER`,
-  `SetupFinalTalkingDelay`); a voice that ends earlier ends it through the client's `skipLine` (`04` §6.37).
+- A line's duration in the simulation is the longer of its sample's length (speech on in the original) and 60 ms
+  per character (speech off: `FindDelayForString`, `TEXT_DELAY_MODIFIER`), plus the final 300 ms with the mouth closed
+  (`SetupFinalTalkingDelay`). The sample lengths come from the rule pack, not from audio; the viewer that finished
+  saying the line first ends it through `skipLine` (`04` §6.37).
 - "Speech channel busy until tick T" is a state field. It is checked at the places where the original waits for
   an empty quote queue (`04`, §3).
 - The client plays the sound however long it lasts.
@@ -438,7 +439,8 @@ lazy (`Blob.slice` or a sync access handle in a worker); archives are never load
 **The rule pack** (as built in M8, U0b; `28` §1.3, §17.4). The simulation does not read the VFS directly: the server
 builds a **rule pack** from it at start, every file the simulation reads (the rule families: project tables, the rule
 binaries, maps, structure files, NPC records, text files) plus the few numbers it takes from graphics (tileset frame
-geometry and app data, explosion frame counts) as derived *graphic facts*, and loads every session's content from it;
+geometry and app data, explosion frame counts) as derived *graphic facts*, the length of every speech sample as the
+derived *voice lengths*, and loads every session's content from it;
 the pack refuses any other path, so no graphic is read by the rules. It is cached in `.ja2/cache/rules-<hash>/`, its
 hash (over the inputs of the game data: the user's data on the original data, the stub pack on the stubs, never the
 tables that ship with the engine; U0c, `27` §1.7) is the logic hash that saves are bound to, and `welcome` names it,
@@ -675,7 +677,7 @@ and in CI only on them.
 **Deliberate deviations** from the original (the list is kept in `docs/deviations.md`):
 - dependencies on FPS and CPU speed are replaced with deterministic constants: bullet speed
   in ticks per tile, burst tempo, the real-time AI slice;
-- a line's duration in the simulation is always 60 ms per character plus 300 ms, even if the sound is longer;
+- a line's duration in the simulation is the longer of its voice and its text plus 300 ms, shortened by the first viewer to finish it;
 - the 15 s and 25 s watchdog timers are not carried over: a hang is a bug;
 - in real time, orders can be given while paused (in the original, pause blocks input);
 - cosmetics are moved to a separate randomness stream;

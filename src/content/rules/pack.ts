@@ -1,4 +1,12 @@
 import { ANIMATION_SCRIPTS_PATHS } from '../anim/timelines.ts';
+import {
+  encodeSpeechLengths,
+  isSpeechLengthsPath,
+  measureSpeech,
+  SPEECH_LENGTHS_LAYER,
+  SPEECH_LENGTHS_PATH,
+  speechLengthMs,
+} from '../audio/speech-lengths.ts';
 import { FormatError } from '../binary/errors.ts';
 import { PROJECT_DATA_LAYER, REPOSITORY_LAYERS } from '../vfs/layers.ts';
 import { normalizeVfsPath } from '../vfs/path.ts';
@@ -154,7 +162,7 @@ export function manifestIdentity(manifest: Pick<RulePackManifest, 'source' | 'fi
   return {
     source: manifest.source,
     files: manifest.files
-      .filter((f) => !isGraphicFactsPath(f.path))
+      .filter((f) => !isGraphicFactsPath(f.path) && !isSpeechLengthsPath(f.path))
       .map((f) => ({ path: f.path, size: f.size, hash: contentHashOf(f.sha256), layer: f.layer })),
     graphics: manifest.graphics,
     layers: manifest.layers,
@@ -248,6 +256,8 @@ export async function buildRulePackManifest(input: RulePackBuildInput): Promise<
     graphics.push({ path, size: bytes.length, hash: contentHashOf(sha256), layer });
     files.push(await storeBlob(input, graphicFactsPath(path), layer, encodeGraphicFacts(graphicFactsOf(path, bytes))));
   }
+  const voices = await measureSpeech(listed.keys(), async (path) => speechLengthMs(await input.read(path)));
+  if (voices.size > 0) files.push(await storeBlob(input, SPEECH_LENGTHS_PATH, SPEECH_LENGTHS_LAYER, encodeSpeechLengths(voices)));
   files.sort(byPath);
   const layers = rules.filter((e) => e.layers > 1).map((e): RuleLayerCount => [e.path, e.layers]);
   const identity = manifestIdentity({ source: input.source, files, graphics, layers });
@@ -335,7 +345,7 @@ export class RulePack {
     const normalized = normalizeVfsPath(path);
     const entry = this.#files.get(normalized);
     if (entry) return entry;
-    if (isRuleFile(normalized) || isGraphicFactsPath(normalized)) return null;
+    if (isRuleFile(normalized) || isGraphicFactsPath(normalized) || isSpeechLengthsPath(normalized)) return null;
     throw new NotARuleFileError(path);
   }
 

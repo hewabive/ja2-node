@@ -109,7 +109,7 @@ option open, every subsystem can name the tick of its next event
 | Bullet: one step no more often than every `bulletSpeed/10` ms and no more often than once per loop frame | `TileEngine/LOS.cc:3155–3184` | N tiles per tick, deterministically (deviation) |
 | Real-time AI: "how many soldiers can we fit into 10 ms of CPU" | `Tactical/Overhead.cc:1041–1052` | A fixed number of soldiers per pass (deviation) |
 | 3 s pause "enemy sighted on their turn" | `Tactical/OppList.cc:2588–2602` | Playback only. The simulation does not wait for it |
-| Quote duration: the length of the sound if speech is on; 60 ms per character without speech; then 300 ms with the mouth closed | `Tactical/Faces.cc:629–636, 1233, 1304`; `Tactical/Dialogue_Control.cc:67, 1521` | Always 60 ms per character plus 300 ms in the simulation: deterministic and audio-free; a voice that ends earlier ends it through `skipLine` (§6.37). On the client the sound plays for as long as it plays (deviation) |
+| Quote duration: the length of the sound if speech is on; 60 ms per character without speech; then 300 ms with the mouth closed | `Tactical/Faces.cc:629–636, 1233, 1304`; `Tactical/Dialogue_Control.cc:67, 1521` | The longer of the sample's length (from the rule pack's voice lengths) and 60 ms per character, plus 300 ms: deterministic and audio-free; the viewer that finished saying it first ends it through `skipLine` (§6.37) |
 | Logic waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | "Speech channel busy until tick T", where T is computed as in the row above |
 | Message boxes and dialogues with choices | UI screens | Decision prompt (D15). Time stands still until an answer arrives |
 | Deferred calls at 2, 3 and 10 s; bomb queue `1000 + Random(500)` ms | `Tactical/Overhead.cc:5069–5073, 6210`; `TileEngine/Explosion_Control.cc:2054–2095` | Ticks |
@@ -536,7 +536,8 @@ The game data splits into the **rule pack** (everything the simulation reads) an
   cache; `rules-index.json` finds it by a key over every VFS file's path, size, layer count and stamp, so a change of
   the data rebuilds it). It holds the rule files (project tables, `ja2bin.dat`, `ja2set.dat`, `prof.dat`, `locks.bin`, maps,
   structure files, NPC records, text files, the stub profiles) and the **graphic facts** (`@rules/graphics/<path>.json`:
-  the frame geometry and app data of the tileset surfaces and the explosion animations), and refuses every other path.
+  the frame geometry and app data of the tileset surfaces and the explosion animations) and the **voice lengths**
+  (`@rules/speech/lengths.json`: the length of every speech sample, §6.37), and refuses every other path.
   Sessions read their content through it, so the simulation never reads an STI file. Its hash (inputs by content hash,
   text files by presence) is the logic hash of the content identity and covers only the **game data**: the entries whose
   winning VFS layer is the data folder or an SLF archive on the original data, the stub pack on the stubs (U0c). The
@@ -829,11 +830,11 @@ NPC record arrays (`state.npcRecords`, imported from native saves) and the dialo
 - `closeTalk {}`: Done or Esc, with the once-per-conversation reset. Once nothing is queued it closes even while the NPC
   still speaks and cuts his line short, as `HandleTalkingMenuEscape` and `DeleteTalkingMenu` do. Refusals
   `noConversation`, `busy` (lines still queued, a trigger wait or a pending conversation).
-- `skipLine {profile?, tick?, voiceEnded?}`: cuts the line being said short, as Backspace (`StopAnyCurrentlyTalkingSpeech`)
+- `skipLine {profile?, tick?, talkEnded?}`: cuts the line being said short, as Backspace (`StopAnyCurrentlyTalkingSpeech`)
   or a click on the talking face does; with `profile` and `tick` (those of its quote event) only that line, so a skip
-  that arrives after the line ended does not cut the next one (`data.skipped` false). With `voiceEnded` the line's voice
-  is over and only its final 300 ms remain. Every viewer gets `lineCut {profile, saidAt, tail}`. Accepted in every
-  state, a meanwhile, the endgame and a boxing lock included.
+  that arrives after the line ended does not cut the next one (`data.skipped` false). With `talkEnded` a viewer finished
+  saying the line (its voice or its text) and only its final 300 ms remain. Every viewer gets
+  `lineCut {profile, saidAt, tail}`. Accepted in every state, a meanwhile, the endgame and a boxing lock included.
 - `openShop {dealer, soldier}` (campaigns with narrative): the shop's checks, then `talk` + `approach buySell`: `data` is
   the shop when it opens at once (a dealer without opening lines), otherwise the talk reply, and the shop opens in the
   tick the opening lines end (`state.talk.shopAfterOpening`) unless the opening closed the panel or a BUYSELL record plays.
@@ -856,8 +857,8 @@ profile, by: player|script}`, `npcQuote {profile, soldier, quote, record?, textK
 and `chars` for lines from the queue), `npcMessage {kind, profile?, amount?}`, `scriptedSequence {active}`,
 `talkAborted {soldier, reason}`. Facts, quests, records, desire and opinions stay hidden.
 
-The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character, then 60
-ticks with the mouth closed). The session
+The simulation only carries text keys `{file, row, width}` and lengths (the longer of the voice and 12 ticks per
+character, then 60 ticks with the mouth closed). The session
 resolves keys to `text` in `observe`, command results and events from the EDT files of the VFS (original data, or the
 stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R` (token-protected) serves a single row (§6.21).
 Since M7 `save` is refused with `conversation` while a session is open, a scripted sequence runs or the dialogue
@@ -1909,17 +1910,25 @@ lines now take the same ticks as any other time instead of running inside the co
   follow: the real-time driver's while a player watches, so the simulation stays on the tick the screen shows and an
   NPC that walks off after its last line (Fatima with Enrico's letter) starts when the player sees the line end, early
   enough for a merc to follow her; `advance` for an agent, which stops with `decision` once the panel waits for a choice.
-- **A line lasts its text and 300 ms.** As in the original (`HandleTalkingAutoFace`, `SetupFinalTalkingDelay`), a
-  line holds the queue for 12 ticks per character plus 60 ticks with the mouth closed (`lineTicks`), the same time the
-  client plays it, so the client no longer falls 300 ms behind the simulation with every line.
-- **A skipped line ends in the simulation.** The client sends `skipLine {profile, tick}` when the player cuts a line
-  short (a click after 500 ms, Backspace, Esc with nothing queued): the face stops at once (`InternalShutupaYoFace`).
-  When a voiced line's voice ends it sends `skipLine {profile, tick, voiceEnded: true}`: the original times a voiced
-  line by its voice, so the simulation keeps only the final 300 ms (`endTalkingVoice`); without it a voice shorter than
-  60 ms per character would leave the simulation still talking while the menu is already lit. A voice longer than that
-  is not waited for: the simulation's line ends on its text and the client plays the next line once the voice is over
-  (`Speech` in `docs/deviations.md`). `TacticalHost` listens to `SpeechPresenter.onLineStopped` and sends the command,
-  which goes into the input log like any other.
+- **A line lasts the longer of its voice and its text, then 300 ms.** The original times a line by its sample with
+  speech on and by 60 ms per character without (`SetFaceTalking`, `HandleTalkingAutoFace`), then keeps the mouth closed
+  for 300 ms (`SetupFinalTalkingDelay`). Speech is the viewer's option and one simulation serves every viewer, so a
+  line holds the queue for the longer of the two (`voicedLineTicks`, `lineTicks`) plus 60 ticks: no viewer is still
+  saying a line the simulation has already left. The voice lengths are data: the rule pack carries
+  `@rules/speech/lengths.json`, the length of every sample of `npc_speech/` and `speech/` (the stub pack's synthetic
+  ones behind the data's), read from the WAV headers when the pack is built (`SpeechLengths`, `speechPathForLine`
+  with the Russian `r_` of a recruited R.P.C.), and kept out of the pack's hash like the graphic facts, so saves and
+  logs keep matching. Raw readers get it from `withSpeechLengths`. In the original data 71% of the NPC samples and 65%
+  of the merc samples are longer than 60 ms per character (by 0.8 s and 0.5 s at the median), so timing by the text
+  alone left a player who listens 0.5-0.8 s behind the simulation with every such line.
+- **The viewer that finished moves the line on.** The client sends `skipLine {profile, tick, talkEnded: true}` when it
+  finished saying a line, its voice or, without one (speech off, a sample that cannot play), its text: the simulation
+  keeps only the final 300 ms (`finishTalking`). So a player who listens follows the voice and a player who reads
+  follows the text, both on the simulation's tick. When the player cuts a line short (a click after 500 ms,
+  Backspace, Esc with nothing queued) it sends `skipLine {profile, tick}` and the face stops at once
+  (`InternalShutupaYoFace`). `TacticalHost` listens to `SpeechPresenter.onLineStopped` and sends the command, which
+  goes into the input log like any other. With several viewers the first one to finish moves the line on and a viewer
+  with the other speech option trails by the difference.
 - **Every viewer follows the simulation's cut.** A cut reaches every client as `lineCut {profile, saidAt, tail}`:
   `SpeechPresenter.cut` ends that line (or drops it from the queue) without reporting it back, and `tail` (a voice that
   ended elsewhere) only closes the mouth of a line timed by its text, since a voice of the same length ends on its own.

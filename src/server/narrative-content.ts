@@ -1,3 +1,4 @@
+import { SpeechLengths } from '../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../content/formats/prof.ts';
 import type { ItemTable } from '../content/items/items.ts';
 import { DialogueTexts, dialogueFileCandidates } from '../content/narrative/dialogue-text.ts';
@@ -18,6 +19,7 @@ import { MAIL_TEXT_FILES } from './mail-text.ts';
 interface LoadedNarrative {
   readonly records: NpcRecordContent;
   readonly texts: DialogueTexts;
+  readonly voices: SpeechLengths;
   readonly scenes: NarrativeScenes;
 }
 
@@ -32,16 +34,17 @@ async function narrativeSource(read: ReadFile): Promise<ReadFile> {
 
 async function load(base: ReadFile, items: ItemTable, layers: LayerCount | undefined, decoding: DataDecoding): Promise<LoadedNarrative> {
   const read = await narrativeSource(base);
-  const [records, texts, scenes] = await Promise.all([
+  const [records, texts, voices, scenes] = await Promise.all([
     loadNpcRecordContent({ read, items, layout: decoding.npcRecords, ...(layers ? { layerCount: layers } : {}) }),
     DialogueTexts.load(read, decoding.edt, [...dialogueFileCandidates(), ...MAIL_TEXT_FILES, ...HISTORY_TEXT_FILES]),
+    SpeechLengths.load(read, decoding.rpcSpeechPrefixed),
     loadNarrativeScenes(read),
   ]);
-  return { records, texts, scenes };
+  return { records, texts, voices, scenes };
 }
 
 function decodingKey(decoding: DataDecoding): string {
-  return `${decoding.edt}/${decoding.npcRecords}`;
+  return `${decoding.edt}/${decoding.npcRecords}/${decoding.rpcSpeechPrefixed}`;
 }
 
 export function narrativeContent(
@@ -66,7 +69,7 @@ export async function narrativeSetup(
   profiles: readonly MercProfile[],
   layers?: LayerCount,
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
-): Promise<NarrativeSetup & { readonly texts: DialogueTexts }> {
-  const { records, texts, scenes } = await narrativeContent(read, items, layers, decoding);
-  return { records, texts, items, profiles, scenes };
+): Promise<NarrativeSetup & { readonly texts: DialogueTexts; readonly voices: SpeechLengths }> {
+  const { records, texts, voices, scenes } = await narrativeContent(read, items, layers, decoding);
+  return { records, texts, voices, items, profiles, scenes };
 }

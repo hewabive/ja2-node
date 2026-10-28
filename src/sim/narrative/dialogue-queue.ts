@@ -7,7 +7,8 @@
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
 // @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech), InternalShutupaYoFace
 // @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech), HandleTalkingAutoFace and
-// @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration); Strategic/Assignments.cc
+// @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration), SetFaceTalking (a line
+// @src lasts as long as its sample with speech on, its text without); Strategic/Assignments.cc
 // @src DialogueEventRemoveEPC. See docs/24 §1.5, §7, §9.4, §11.6.
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
@@ -26,6 +27,16 @@ export const FINAL_TALKING_DELAY_TICKS = FINAL_TALKING_DELAY_MS / TICK_MS;
 
 export function lineTicks(chars: number): number {
   return chars * TICKS_PER_CHARACTER + 1 + FINAL_TALKING_DELAY_TICKS;
+}
+
+export function voicedLineTicks(voiceMs: number): number {
+  return Math.ceil(voiceMs / TICK_MS) + FINAL_TALKING_DELAY_TICKS;
+}
+
+function talkingTicks(host: NarrativeHost, speaker: number, textKey: TextKey, chars: number): number {
+  const recruitedNpcOrRpc = isNpcOrRpc(host, speaker) && host.recruited(speaker);
+  const voiceMs = host.voiceLengths.ms({ profile: speaker, textKey, recruitedNpcOrRpc });
+  return voiceMs === null ? lineTicks(chars) : Math.max(voicedLineTicks(voiceMs), lineTicks(chars));
 }
 const CONSCIOUSNESS = 10;
 const QUOTE_SERIOUSLY_WOUNDED = 10;
@@ -149,7 +160,7 @@ export function executeCharacterDialogue(
   const chars = host.quoteLengths.chars(key);
   if (chars === 0) return false;
   const skipped = host.skipsSpeech?.() ?? false;
-  const busyUntil = skipped ? tick : tick + lineTicks(chars);
+  const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
   host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null };
   const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
   const withRecord = record !== null ? { record } : {};
@@ -167,7 +178,7 @@ export function cutTalkingFace(talk: TalkState, tick: number): boolean {
   return true;
 }
 
-export function endTalkingVoice(talk: TalkState, tick: number): boolean {
+export function finishTalking(talk: TalkState, tick: number): boolean {
   return cutTalkingFace(talk, tick + FINAL_TALKING_DELAY_TICKS);
 }
 

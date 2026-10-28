@@ -5,6 +5,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildStubs } from '../../stubs/build.ts';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { isSpeechFile, SpeechLengths, withSpeechLengths } from '../content/audio/speech-lengths.ts';
+import { readWavInfo, wavDurationMs } from '../content/formats/wav.ts';
+import { npcDialogueFile, textKey } from '../content/narrative/dialogue-text.ts';
 import { isMapFile } from '../content/rules/families.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import type { RulePack, RuleSource } from '../content/rules/pack.ts';
@@ -35,7 +38,7 @@ function decodingOf(vfs: Vfs, originalData: boolean) {
 }
 
 async function recordedReads(vfs: Vfs, originalData: boolean): Promise<{ ledger: ContentLedger; live: ReadFile }> {
-  const live = withGraphicFacts(vfsFileReader(vfs));
+  const live = withSpeechLengths(withGraphicFacts(vfsFileReader(vfs)), vfs);
   const ledger = new ContentLedger(originalData ? 'original' : 'stubs', live, (path) => vfs.stat(path) !== undefined);
   const layers = (path: string) => vfs.layerCount(path);
   const decoding = decodingOf(vfs, originalData);
@@ -223,4 +226,14 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => 
     },
     SLOW_MS,
   );
+
+  it('times every speech file of both speech archives as the decoded sample does', async () => {
+    const speech = data.vfs.list().filter((f) => isSpeechFile(f.path));
+    const voices = await SpeechLengths.load(pack.read, false);
+    expect(voices.size).toBe(speech.length);
+    expect(speech.length).toBeGreaterThan(8000);
+    const firstNpcLine = { profile: 57, textKey: textKey(npcDialogueFile(57), 0), recruitedNpcOrRpc: false };
+    const sample = await data.vfs.read('npc_speech/057_000.wav');
+    expect(voices.ms(firstNpcLine)).toBe(Math.ceil(wavDurationMs(readWavInfo(sample))));
+  });
 });

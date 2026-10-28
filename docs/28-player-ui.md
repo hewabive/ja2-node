@@ -1008,8 +1008,9 @@ absent black); choosing a squad sets the client's current squad. Blank during me
 
 ### 5.8 Talk panel and speech (`Tactical/Interface_Dialogue.cc`, `Dialogue_Control.cc`, `Utils/MercTextBox.cc`)
 
-- **Speech presenter** (client, DOM-free in `ui`): the simulation finishes lines in ticks (60 ms per character,
-  deviation "Speech") and never waits; the client queues the lines as playback reaches the frames that carry them
+- **Speech presenter** (client, DOM-free in `ui`): the simulation finishes lines in ticks (the longer of the voice and
+  60 ms per character, deviation "Speech") and never waits for a viewer, which ends a line early when it finished
+  saying it (`04` §6.37); the client queues the lines as playback reaches the frames that carry them
   (`npcQuote`, `mercQuote`, `civQuote`, `skyriderQuote`, `headMinerQuote`, conversation lines; a conversation
   command's lines take the ticks after it and arrive as frames like any others, `04` §6.37), plays the speech sample, shows the subtitle box for
   the sample's length (`chars × 60 ms` without a voice) + 300 ms, honours Backspace (stop), click and key-advance, and
@@ -2086,7 +2087,9 @@ geometry (`loadTileSurfaceGeometry`) and the explosion frame counts (`loadExplos
 `@rules/graphics/<graphic path>.json`, the frame offsets and widths, the app data and the kind of a graphic (indexed,
 RGB, stub sprite, not an STI, broken). The rule pack stores these files; `withGraphicFacts(read)` derives them on demand
 for callers that read the raw VFS (tests, the oracle tools, the benchmarks). The render path (`loadTileSurfaces`)
-still decodes the pictures.
+still decodes the pictures. The **voice lengths** (`@rules/speech/lengths.json`, `src/content/audio/speech-lengths.ts`)
+follow the same pattern for the speech samples (`04` §6.37): built with the pack, out of its hash, derived for raw
+readers by `withSpeechLengths(read, vfs)` from the WAV headers.
 
 **The split scripts** (`src/content/anim/timelines.ts`). `splitAnimationScripts` turns `ja2bin.dat` into a
 **logic timeline** (per slot: frame, empty, opcode, jump, state transition, or an empty step for the sound-range codes

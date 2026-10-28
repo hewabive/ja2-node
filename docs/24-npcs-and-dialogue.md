@@ -176,7 +176,8 @@ use `miners.npc` and never load `L12.npc`; their hint *text* still comes from `L
   three English code points). A missing or empty row makes `ExecuteCharacterDialogue` return without talking (§7.2).
 - **Duration** without speech (the only one ja2-node uses, `01` §3.8): 60 ms × UTF-32 length of the decoded quote
   (`Tactical/Faces.cc:1229-1234`, `Dialogue_Control.cc:67, 1521-1524`) = **12 ticks per character**, then 300 ms with
-  the mouth closed (`SetupFinalTalkingDelay`, `Faces.cc:1304`) = 60 ticks before the face is done. Civilian boxes:
+  the mouth closed (`SetupFinalTalkingDelay`, `Faces.cc:1304`) = 60 ticks before the face is done. ja2-node takes the
+  longer of that and the sample's length (`04` §6.37). Civilian boxes:
   `FindDelayForString("\"" + text + "\"") + 500` ms (`Civ_Quotes.cc:381`), presentation only.
 
 ---
@@ -817,7 +818,7 @@ panel) another NPC's quote numbers are spoken by the panel NPC (quirk, inferred 
 | Item | Kind |
 |---|---|
 | text, faces, subtitles, speech files, locator, camera, map-screen messages | presentation (events with text keys, §11.5) |
-| speech duration (12 ticks per character, then 60 ticks) | state: it holds the queue and delays everything behind it |
+| speech duration (the longer of the voice and 12 ticks per character, then 60 ticks) | state: it holds the queue and delays everything behind it |
 | `ubLastQuoteSaid/ProfileNUm` in `gTacticalStatus` | state (skips immediate repeats) |
 | waking a merc to talk and putting him back to sleep | state |
 | stop-time quotes | state (stop compression, `15`) |
@@ -1039,7 +1040,7 @@ are never restored (§1.4) — he does not come back.
 | Original | ja2-node |
 |---|---|
 | one queue event per frame | one per 5 ms tick, after the tactical step |
-| speech: audio length, or 60 ms per character, then 300 ms with the mouth closed | 12 ticks per character of the decoded quote, then 60 ticks; a voice that ends earlier leaves only the 60 ticks through `skipLine {voiceEnded}` (existing deviation "Speech") |
+| speech: audio length, or 60 ms per character, then 300 ms with the mouth closed | the longer of the sample's length (rule pack) and 12 ticks per character of the decoded quote, then 60 ticks; the viewer that finished saying it leaves only the 60 ticks through `skipLine {talkEnded}` (existing deviation "Speech") |
 | a click or Backspace stops the face (`ShutupaYoFace`, `StopAnyCurrentlyTalkingSpeech`), the queue moves on | `skipLine`: the face finishes in the command, the next event runs on the next tick; every viewer gets `lineCut` and ends the line too (`04` §6.37) |
 | quote waits while the speaker's battle sound plays | never waits |
 | trigger wait 500 ms (`GetJA2Clock`) | 100 ticks of tactical time |
@@ -1067,7 +1068,7 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 | `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `busy`, `notADealer`, `isADealer`. Runs `Converse` and returns the talk reply; the lines follow in the next ticks |
 | `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Returns `{walking, to}` or `{giving}` at once; the walk, opcode 486 and §4.1's branches run during `advance`, with an NPC target the conversation it opens (*implemented*, `docs/04` §6.16) |
 | `closeTalk {}` | Done or Esc (§6.5) including the once-per-conversation reset; with nothing queued it cuts the NPC's line short (`DeleteTalkingMenu`). `noConversation`, `busy` |
-| `skipLine {profile?, tick?, voiceEnded?}` | Cuts the line being said short (Backspace, a click on the face); with `profile` and `tick` only that line; `voiceEnded` leaves its final 300 ms. Event `lineCut`. `data.skipped`. Accepted in every state |
+| `skipLine {profile?, tick?, talkEnded?}` | Cuts the line being said short (Backspace, a click on the face); with `profile` and `tick` only that line; `talkEnded` (a viewer finished saying it) leaves its final 300 ms. Event `lineCut`. `data.skipped`. Accepted in every state |
 | `unescort {soldier}` | §9.4 by the player: map screen → the abandoning quote and the release at once, `{released: [{profile, quote}], lines}`; tactical → the wrong-sector record, the talk result plus `triggered`. Refusals `noSuchSoldier`, `notAnEpc`, `notInSector`, `notAvailable` and the modal ones (`docs/04` §6.17). *Implemented* |
 | `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command: the shop at once when the opening says nothing, otherwise the talk reply and the shop opens when the opening lines end, unless the script closed the panel, a prompt opened or a BUYSELL record plays (§16) |
 | `answer {prompt, choice}` | `npcRequest`: `yes`/`no` (`lie` too for the lie prompt); `surrender` (`context: 'tactical'`): `accept`/`reject` |
@@ -1126,7 +1127,8 @@ a message printed, the last date spoken to, the hostile list.
   acts when the player sees them end; an agent runs them with `advance`, which stops with `decision` once the panel
   waits for a choice (or waits for real time when a viewer drives it).
 - `skipLine` ends the current line in the simulation: the client sends it when the player cuts a line short and when a
-  voiced line's voice ends (`voiceEnded`: the final 300 ms still run); every viewer ends the line on `lineCut`.
+  finished saying a line, by its voice or its text (`talkEnded`: the final 300 ms still run); every viewer ends the
+  line on `lineCut`.
   `setSpeech skip` (a session setting for agents) ends every line on the tick after it is said.
 - An idle open session stops time: `advance` returns `refused` with `conversationOpen`.
 - A scripted sequence (`ENGAGED_IN_CONV` without a panel, a pending conversation, a trigger wait): player commands are
@@ -1428,8 +1430,8 @@ list, recruiting and escorting where a candidate stands. Outputs stay outside th
 
 **Deviations to log in `docs/deviations.md`**:
 - *Talk session time*: nothing runs while the menu waits for the player; the original keeps running tactical frames.
-- *Dialogue queue cadence*: one event per 5 ms tick; speech is always 12 ticks per character from the decoded text and
-  the final 60; no
+- *Dialogue queue cadence*: one event per 5 ms tick; speech is the longer of the voice and 12 ticks per character from
+  the decoded text, then the final 60; no
   waits for battle sounds (extends the "Speech" row).
 - *Wall-clock timers*: the 500 ms trigger wait, the 60 s idle, the 1500 ms AI pause in ticks; the civilian box is
   presentation and the surrender prompt opens at once.

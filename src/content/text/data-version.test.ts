@@ -31,14 +31,19 @@ describe('data version', () => {
     expect(displayLanguageOf('stubs')).toBe('eng');
   });
 
-  it('selects the EDT mode, the NPC record layout and the profile name fix', () => {
-    expect(dataDecoding('english')).toEqual({ edt: 'english', npcRecords: 'standard', profileNames: 'correct' });
+  it('selects the EDT mode, the NPC record layout, the profile name fix and the R.P.C. speech prefix', () => {
+    expect(dataDecoding('english')).toEqual({ edt: 'english', npcRecords: 'standard', profileNames: 'correct', rpcSpeechPrefixed: false });
     expect(dataDecoding('simplifiedChinese').edt).toBe('english');
     expect(dataDecoding('stubs')).toEqual(dataDecoding('english'));
     expect(dataDecoding('polish').edt).toBe('polish');
     expect(dataDecoding('german').edt).toBe('other');
-    expect(dataDecoding('russian')).toEqual({ edt: 'russian', npcRecords: 'russian', profileNames: 'russian' });
-    expect(dataDecoding('russianGold')).toEqual({ edt: 'russian', npcRecords: 'standard', profileNames: 'russian' });
+    expect(dataDecoding('russian')).toEqual({ edt: 'russian', npcRecords: 'russian', profileNames: 'russian', rpcSpeechPrefixed: true });
+    expect(dataDecoding('russianGold')).toEqual({
+      edt: 'russian',
+      npcRecords: 'standard',
+      profileNames: 'russian',
+      rpcSpeechPrefixed: true,
+    });
   });
 
   it('names the glyph table and the speech prefix per version', () => {

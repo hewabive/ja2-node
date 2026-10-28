@@ -187,7 +187,7 @@ describe('SpeechPresenter', () => {
     expect(voices).toHaveLength(1);
   });
 
-  it('reports a line stopped by a skip or a flush while talking, or by its voice ending, but not by its text timer or in its tail', () => {
+  it('reports a line cut by a skip or a flush while talking, and the end of its voice or text, but nothing in its tail', () => {
     const { p, voices } = presenter();
     const stopped: string[] = [];
     p.onLineStopped((l, how) => stopped.push(`${l.profile} ${how}`));
@@ -201,14 +201,18 @@ describe('SpeechPresenter', () => {
     p.update(700);
     expect(p.current?.phase).toBe('tail');
     p.skip(800, true);
-    expect(stopped).toEqual(['1 cut', '2 cut', '3 voiceEnded']);
+    expect(stopped).toEqual(['1 cut', '2 cut', '3 talkEnded']);
     const silent = presenter({ speech: false });
     silent.p.onLineStopped((l, how) => stopped.push(`${l.profile} ${how}`));
     silent.p.update(0);
     silent.p.enqueue(line({ profile: 4, chars: 1 }));
+    silent.p.update(textDelay(1));
+    expect(silent.p.current?.phase).toBe('tail');
+    silent.p.enqueue(line({ profile: 5, chars: 1, voice: null }));
     silent.p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    silent.p.update(2 * textDelay(1) + 2 * FINAL_TALKING_DELAY_MS);
     expect(silent.p.busy).toBe(false);
-    expect(stopped).toEqual(['1 cut', '2 cut', '3 voiceEnded']);
+    expect(stopped).toEqual(['1 cut', '2 cut', '3 talkEnded', '4 talkEnded', '5 talkEnded']);
   });
 
   it('ends a line the server cut short without reporting it back, drops it from the queue, and closes the mouth of a text-timed one', () => {

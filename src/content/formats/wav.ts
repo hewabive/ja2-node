@@ -73,7 +73,7 @@ function fourCc(bytes: Uint8Array, at: number): string {
   return String.fromCharCode(bytes[at] ?? 0, bytes[at + 1] ?? 0, bytes[at + 2] ?? 0, bytes[at + 3] ?? 0);
 }
 
-function findChunks(bytes: Uint8Array, view: DataView): Chunks {
+function findChunks(bytes: Uint8Array, view: DataView, fileSize: number): Chunks {
   if (bytes.length < RIFF_HEADER_BYTES || fourCc(bytes, 0) !== 'RIFF' || fourCc(bytes, 8) !== 'WAVE') {
     throw new FormatError('not a RIFF/WAVE file');
   }
@@ -85,7 +85,7 @@ function findChunks(bytes: Uint8Array, view: DataView): Chunks {
     const body = pos + CHUNK_HEADER_BYTES;
     if (id === 'data') {
       found.dataOffset = body;
-      found.dataLength = Math.min(size, bytes.length - body);
+      found.dataLength = Math.min(size, fileSize - body);
     } else if (body + size > bytes.length) {
       break;
     } else if (id === 'fmt ') {
@@ -120,9 +120,9 @@ function unsupportedTag(tag: number): FormatError {
   );
 }
 
-export function readWavInfo(bytes: Uint8Array): WavInfo {
+export function readWavInfo(bytes: Uint8Array, fileSize = bytes.length): WavInfo {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const chunks = findChunks(bytes, view);
+  const chunks = findChunks(bytes, view, fileSize);
   const at = chunks.fmtOffset;
   const formatTag = view.getUint16(at, true);
   const channelCount = view.getUint16(at + 2, true);

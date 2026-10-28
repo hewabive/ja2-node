@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { SPEECH_LENGTHS_VERSION } from '../content/audio/speech-lengths.ts';
 import { RULE_FAMILIES_SIGNATURE } from '../content/rules/families.ts';
 import { GRAPHIC_FACTS_VERSION } from '../content/rules/graphic-facts.ts';
 import {
@@ -60,7 +61,7 @@ export function vfsRuleListing(vfs: Vfs): RuleListingEntry[] {
 
 export function ruleSourceKey(vfs: Vfs, source: RuleSource): string | null {
   const hash = createHash('sha256');
-  hash.update([RULE_PACK_VERSION, GRAPHIC_FACTS_VERSION, RULE_FAMILIES_SIGNATURE, source].join('\n'));
+  hash.update([RULE_PACK_VERSION, GRAPHIC_FACTS_VERSION, SPEECH_LENGTHS_VERSION, RULE_FAMILIES_SIGNATURE, source].join('\n'));
   for (const f of vfs.list()) {
     const stamp = vfs.stamp(f.path);
     if (stamp === null) return null;

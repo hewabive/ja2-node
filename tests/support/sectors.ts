@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type AnimationTimelines, requireAnimationTimelines } from '../../src/content/anim/timelines.ts';
+import { withSpeechLengths } from '../../src/content/audio/speech-lengths.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { buildMemoryRulePack, type RulePack } from '../../src/content/rules/pack.ts';
 import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
@@ -54,7 +55,7 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
   const stubs = await openStubPack();
   const dir = stubs.dir;
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
+  const read: ReadFile = withSpeechLengths(withGraphicFacts(vfsFileReader(data.vfs)), data.vfs);
   const content = await loadTacticalContent(read);
   const inputs = new Map<string, TacticalWorldInputs>();
   for (const path of STUB_MAPS) inputs.set(path, await loadTacticalWorldInputs(read, path));

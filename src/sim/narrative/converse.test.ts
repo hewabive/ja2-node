@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { type FakeHost, fakeHost, NPC_TYPE, recordArray, testSoldier } from '../../../tests/support/narrative.ts';
 import { type NpcRecord, QuoteFlag, UiCode } from '../../content/formats/npc.ts';
 import { Approach, NpcAction, StandardQuote } from '../../content/narrative/npc-constants.ts';
+import { TICK_MS } from '../clock.ts';
 import { TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import {
   converse,
@@ -14,7 +15,7 @@ import {
   stepDialogue,
   triggerNpcRecord,
 } from './converse.ts';
-import { lineTicks } from './dialogue-queue.ts';
+import { lineTicks, voicedLineTicks } from './dialogue-queue.ts';
 import { NarrativeFact, NarrativeProfile } from './narrative-ids.ts';
 import type { DialogueEvent } from './talk-state.ts';
 
@@ -197,6 +198,28 @@ describe('the dialogue queue', () => {
     expect(started).toEqual([0, hold, 2 * hold]);
     expect(host.actionsRun).toEqual([[NPC, 24, 0]]);
     expect(host.emitted.filter((e) => e.type === 'npcQuote').map((e) => (e as { quote: number }).quote)).toEqual([10, 11]);
+  });
+
+  it('holds the queue for the longer of the voice and the text of a line, then the final 300 ms', () => {
+    const LONG_VOICE_MS = 1234;
+    const SHORT_VOICE_MS = 100;
+    const voiceMs = (line: { readonly textKey: { readonly row: number } }) => (line.textKey.row === 10 ? LONG_VOICE_MS : SHORT_VOICE_MS);
+    const host = setup(recordArray({ 0: { approachRequired: Approach.FRIENDLY, quoteNum: 10, numQuotes: 2, actionData: 24 } }), {
+      voiceMs,
+    });
+    open(host);
+    converse(host, NPC, MERC, Approach.FRIENDLY);
+    const started: number[] = [];
+    for (let i = 0; i < 1000 && host.talk.queue.length > 0; i++) {
+      const before = host.talk.queue.length;
+      stepDialogue(host);
+      if (host.talk.queue.length < before) started.push(host.now);
+      host.advance();
+    }
+    expect(voicedLineTicks(LONG_VOICE_MS)).toBe(Math.ceil(LONG_VOICE_MS / TICK_MS) + 60);
+    expect(voicedLineTicks(LONG_VOICE_MS)).toBeGreaterThan(lineTicks(CHARS));
+    expect(voicedLineTicks(SHORT_VOICE_MS)).toBeLessThan(lineTicks(CHARS));
+    expect(started).toEqual([0, voicedLineTicks(LONG_VOICE_MS), voicedLineTicks(LONG_VOICE_MS) + lineTicks(CHARS)]);
   });
 
   it('keeps a delayed quote until it is our turn and lets a silent line pass in one tick', () => {

@@ -1,3 +1,4 @@
+import type { VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import type { Soldier } from '../tactical/soldier.ts';
@@ -58,6 +59,7 @@ export interface NarrativeHost extends RecordsEnv {
   readonly mercLines: MercLinePort;
   readonly civ: CivQuotePort;
   readonly quoteLengths: QuoteLengths;
+  readonly voiceLengths: VoiceLengths;
   tick(): number;
   day(): number;
   random(n: number): number;

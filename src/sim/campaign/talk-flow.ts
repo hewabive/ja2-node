@@ -10,6 +10,7 @@
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
 // @src line short). See docs/24 §4, §6, §9.4, §11, docs/04 §6.12, §6.16, §6.17.
 
+import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../content/items/items.ts';
 import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
@@ -25,7 +26,7 @@ import {
   closestPC,
   converse,
   deleteTalkingMenu,
-  endTalkingFaceVoice,
+  finishTalkingFace,
   handleTalkingMenuEscape,
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
@@ -188,6 +189,7 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
 export interface NarrativeSetup {
   readonly records: NpcRecordContent;
   readonly texts: QuoteLengths;
+  readonly voices?: VoiceLengths;
   readonly items: ItemTable;
   readonly profiles: readonly MercProfile[];
   readonly scenes?: NarrativeScenes;
@@ -443,6 +445,7 @@ export class TalkFlow {
         },
       },
       quoteLengths: setup.texts,
+      voiceLengths: setup.voices ?? NO_VOICE_LENGTHS,
       tick: () => campaign.tick,
       day: () => worldDay(state.clock),
       random: (n) => state.rng.int(n),
@@ -867,7 +870,7 @@ export class TalkFlow {
     const face = this.talk.face;
     const differs = (wanted: unknown, actual: number) => isInt(wanted) && wanted !== actual;
     if (!face || differs(cmd.profile, face.speaker) || differs(cmd.tick, face.saidAt)) return { ok: true, data: { skipped: false } };
-    const skipped = cmd.voiceEnded === true ? endTalkingFaceVoice(this.host) : shutUpTalkingFace(this.host);
+    const skipped = cmd.talkEnded === true ? finishTalkingFace(this.host) : shutUpTalkingFace(this.host);
     return { ok: true, data: { skipped } };
   }
 

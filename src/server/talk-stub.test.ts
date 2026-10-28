@@ -190,15 +190,15 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.campaign.talk?.frozen()).toBe(true);
   });
 
-  it('ends a line 300 ms after its voice when skipLine says the voice is over, as the original closes the mouth first', async () => {
+  it('ends a line 300 ms after a viewer said it without a voice, as the original closes the mouth first', async () => {
     const { session, live } = await inA10(5);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
     walkUpAndTalk(session, live, merc);
     expect(session.dispatch({ type: 'approach', kind: 'direct' }).ok).toBe(true);
     const first = live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
-    const voiceOver = { type: 'skipLine', profile: VASKO, tick: first?.tick, voiceEnded: true };
-    expect(session.dispatch(voiceOver)).toEqual({ ok: true, data: { skipped: true } });
-    expect(session.dispatch(voiceOver)).toEqual({ ok: true, data: { skipped: false } });
+    const talkOver = { type: 'skipLine', profile: VASKO, tick: first?.tick, talkEnded: true };
+    expect(session.dispatch(talkOver)).toEqual({ ok: true, data: { skipped: true } });
+    expect(session.dispatch(talkOver)).toEqual({ ok: true, data: { skipped: false } });
     const next = live.advance({ events: ['npcQuote'] }).events;
     expect(next.filter((e) => e.type === 'lineCut')).toEqual([
       expect.objectContaining({ profile: VASKO, saidAt: first?.tick, tail: true }),

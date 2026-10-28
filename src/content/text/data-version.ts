@@ -39,6 +39,7 @@ export interface DataDecoding {
   readonly edt: EdtEncoding;
   readonly npcRecords: NpcRecordLayout;
   readonly profileNames: ProfileNameEncoding;
+  readonly rpcSpeechPrefixed: boolean;
 }
 
 const COMBINED_SUFFIX: Readonly<Record<VanillaVersion, UiLanguage>> = {
@@ -102,6 +103,7 @@ export function dataDecoding(version: DataVersion): DataDecoding {
     edt: edtEncodingOf(version),
     npcRecords: version === 'russian' ? 'russian' : 'standard',
     profileNames: isRussianVersion(version) ? 'russian' : 'correct',
+    rpcSpeechPrefixed: rpcSpeechPrefixed(version),
   };
 }
 

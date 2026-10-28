@@ -39,8 +39,8 @@ import {
   addDialogueEvent,
   cutTalkingFace,
   type DialogueHandlers,
-  endTalkingVoice,
   faceFinished,
+  finishTalking,
   handleDialogue,
   soldierByProfile,
   tacticalCharacterDialogue,
@@ -915,9 +915,9 @@ export function shutUpTalkingFace(host: NarrativeHost): boolean {
   return true;
 }
 
-export function endTalkingFaceVoice(host: NarrativeHost): boolean {
+export function finishTalkingFace(host: NarrativeHost): boolean {
   const face = host.talk.face;
-  if (!face || !endTalkingVoice(host.talk, host.tick())) return false;
+  if (!face || !finishTalking(host.talk, host.tick())) return false;
   host.emit({ type: 'lineCut', profile: face.speaker, saidAt: face.saidAt, tail: true });
   return true;
 }

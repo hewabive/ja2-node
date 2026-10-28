@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { withSpeechLengths } from '../../src/content/audio/speech-lengths.ts';
 import type { LayerCount } from '../../src/content/narrative/npc-records.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import {
@@ -47,7 +48,10 @@ export async function openBenchData(options: BenchDataOptions): Promise<BenchDat
   if (!existsSync(stubsDir)) throw new Error(`no stub pack at ${stubsDir}: run pnpm stubs`);
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: options.dataDir || undefined, stubsDir });
   const overlay = new Map<string, Uint8Array>();
-  const read: ReadFile = withGraphicFacts(async (path) => overlay.get(path) ?? (data.vfs.stat(path) ? data.vfs.read(path) : null));
+  const read: ReadFile = withSpeechLengths(
+    withGraphicFacts(async (path) => overlay.get(path) ?? (data.vfs.stat(path) ? data.vfs.read(path) : null)),
+    data.vfs,
+  );
   let content: Promise<TacticalContent> | null = null;
   let tables: TileTables | null = null;
   const worlds = new Map<string, Promise<TacticalWorldInputs>>();

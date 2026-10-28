@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { pcmWav } from '../../../tests/support/fake-audio.ts';
 import { readDataJson } from '../../../tests/support/tactical.ts';
+import { SPEECH_LENGTHS_PATH, SpeechLengths } from '../audio/speech-lengths.ts';
 import { writeAnimationScripts } from '../formats/ja2bin.ts';
 import { writeTilesetDatabase } from '../formats/ja2set.ts';
 import { encodeStiIndexed } from '../formats/sti.ts';
+import { mercDialogueFile, npcDialogueFile, textKey } from '../narrative/dialogue-text.ts';
 import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../vfs/layers.ts';
 import { TILE_TABLES_PATH } from '../world/tile-tables.ts';
 import { readGraphicFacts } from './graphic-facts.ts';
@@ -147,6 +150,20 @@ describe('the rule pack', () => {
     expect((await packOf(dataSet({ 'maps/b9.dat': text('new map') }))).hash).not.toBe(base);
     expect((await packOf(dataSet({ [SURFACE]: grassSti(4) }))).hash).not.toBe(base);
     expect((await packOf(dataSet(), { layers: { 'npcdata/000.npc': 2 } })).hash).not.toBe(base);
+  });
+
+  it('derives the voice lengths from the speech files, read through the pack and kept out of its hash', async () => {
+    const plain = await packOf(dataSet());
+    expect(await plain.read(SPEECH_LENGTHS_PATH)).toBeNull();
+    const voiced = await packOf(dataSet({ 'npc_speech/057_000.wav': pcmWav(22_050), 'speech/003_010.wav': pcmWav(11_025, 1, 22_050) }));
+    expect(voiced.manifest.files.map((f) => f.path)).toContain(SPEECH_LENGTHS_PATH);
+    const lengths = await SpeechLengths.load(voiced.read, false);
+    expect(lengths.ms({ profile: 57, textKey: textKey(npcDialogueFile(57), 0), recruitedNpcOrRpc: false })).toBe(2000);
+    expect(lengths.ms({ profile: 3, textKey: textKey(mercDialogueFile(3), 10), recruitedNpcOrRpc: false })).toBe(500);
+    await expect(voiced.read('npc_speech/057_000.wav')).rejects.toBeInstanceOf(NotARuleFileError);
+    expect(voiced.hash).toBe(plain.hash);
+    expect(voiced.allLayersHash).toBe(plain.allLayersHash);
+    expect(await verifyRulePackManifest(voiced.manifest, sha256)).toBe(true);
   });
 
   it('round-trips its manifest and notices a manifest that does not match its hash', async () => {

@@ -1213,7 +1213,7 @@ to `SoundRange` on `Random`, which is why Strac's `pre` sequence differs from V'
 | Player orders (retreat) arrive between frames | button callbacks | Commands between slices |
 | First frame only records the clock | `:3550-3559` | None |
 | PBI and AR zoom transitions (1 s), header blink, cell flash 150 ms, "retreating" text blink 900 ms | `:530-622`, `:364-411`, `:806-813`, `:2384-2392` | Client playback only |
-| Quote before the PBI waits for speech | `Dialogue_Control.cc:412-417` | 60 ms per character (docs/01 §3.8); the clock is paused anyway |
+| Quote before the PBI waits for speech | `Dialogue_Control.cc:412-417` | The longer of the voice and 60 ms per character (docs/01 §3.8); the clock is paused anyway |
 | World clock: AR battle time applied by `WarpGameTime(ms/1000, NO_PROCESSING)` | `:1819` | Same jump in world seconds; overdue events run on the next clock update (docs/15) |
 
 ### 4.3 `fSound`

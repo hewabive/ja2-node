@@ -1,3 +1,4 @@
+import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../src/content/audio/speech-lengths.ts';
 import {
   emptyNpcRecord,
   FACT_NONE,
@@ -91,6 +92,7 @@ export interface FakeHostOptions {
   readonly facts?: Readonly<Record<number, boolean>>;
   readonly quests?: Readonly<Record<number, number>>;
   readonly chars?: (key: TextKey) => number;
+  readonly voiceMs?: VoiceLengths['ms'];
   readonly day?: number;
   readonly draws?: readonly number[];
   readonly inCombat?: boolean;
@@ -204,6 +206,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
       playerControlsMineOf: () => options.mineControlled ?? false,
     },
     quoteLengths: { chars: options.chars ?? (() => 10) },
+    voiceLengths: options.voiceMs ? { ms: options.voiceMs } : NO_VOICE_LENGTHS,
     tick: () => host.now,
     day: () => host.today,
     random: (n) => {

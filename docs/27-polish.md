@@ -826,7 +826,7 @@ the mouth frame is `Random(6)` every 120 ms (`Tactical/Faces.cc:1057-1067`).
 
 | Original coupling | ja2-node (as of M7) |
 |---|---|
-| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | 60 ms per character plus 300 ms always; a voice that ends earlier ends it through `skipLine` (`deviations.md` "Speech") |
+| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | the longer of the sample's length and 60 ms per character, plus 300 ms; the viewer that finished first ends it through `skipLine` (`deviations.md` "Speech") |
 | A quote waits for the speaker's battle sound (`Tactical/Dialogue_Control.cc:632-637`); critical battle sounds cut speech (`Tactical/Soldier_Control.cc:5973-5980`) | never waits, never cut ("Speech") |
 | The defeat track's end unloads the sector (`Utils/Music_Control.cc:188-193`), in parallel with a 10 s timer (`Tactical/Overhead.cc:4378-4381`) | the 10 s timer only (`src/sim/campaign/battle-flow.ts:319-323`) |
 | Skyrider's destruction runs in a sound's end callback (`Strategic/Map_Screen_Helicopter.cc:1041-1044`) | at once ("Helicopter destruction") |
@@ -1263,8 +1263,9 @@ EDT rows (`<file>.edt.json`, `src/externalized/strings/EDT.cc:48-129`) and fonts
 The display language never reaches the simulation. The data version does, in exactly these places, all faithful to the
 original version the user owns:
 
-1. **Quote durations**: 60 ms per character of the decoded EDT line (`deviations.md` "Speech"; `24` §11.5); a Russian
-   line has a different length than the English one, so the speech channel frees at another tick.
+1. **Quote durations**: the longer of the sample and 60 ms per character of the decoded EDT line (`deviations.md`
+   "Speech"; `24` §11.5); a Russian line and its voice have other lengths than the English ones, so the speech channel
+   frees at another tick.
 2. **NPC record layout** (Russian Buka): the same records, read from a different byte layout
    (`src/content/formats/npc.ts` already has `'russian'`).
 3. **The battle-sound branch** of `Tactical/OppList.cc:2388-2402`: one extra `Random(100)` in English and Chinese, if

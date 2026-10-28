@@ -71,7 +71,7 @@ export interface SpeechSettings {
 }
 
 export type LinePhase = 'talking' | 'tail' | 'keyWait';
-export type LineStop = 'cut' | 'voiceEnded';
+export type LineStop = 'cut' | 'talkEnded';
 
 export interface ActiveLine {
   readonly line: SpeechLine;
@@ -288,7 +288,7 @@ export class SpeechPresenter {
       if (r.voice?.failed && r.talkingUntil === null) r.talkingUntil = r.startedAt + textDelay(r.line.chars);
       const done = r.talkingUntil !== null ? now >= r.talkingUntil : !(r.voice?.active ?? false);
       if (!done) return false;
-      if (r.talkingUntil === null) this.#stop(r.line, 'voiceEnded');
+      this.#stop(r.line, 'talkEnded');
       this.#finalDelay(r, r.talkingUntil !== null ? Math.min(now, r.talkingUntil) : now);
       return true;
     }
