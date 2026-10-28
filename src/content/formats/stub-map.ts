@@ -402,23 +402,31 @@ function entryGridNo(source: StubMapSource, name: StubEntryName, fallback: numbe
   return at ? localGridNo(source, at.x, at.y) : fallback;
 }
 
-export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBytes'> {
-  const lists = Object.fromEntries(
-    LAYER_NAMES.map((n) => [n, Array.from({ length: WORLD_MAX }, () => [] as { type: number; subIndex: number }[])]),
-  ) as Record<LayerName, { type: number; subIndex: number }[][]>;
-  const rooms = new Uint8Array(WORLD_MAX);
-  const place = (g: number, l: Legend) => {
-    for (const t of l.tiles) lists[t.layer][g]?.push({ type: t.type, subIndex: t.subIndex });
-    rooms[g] = l.room;
-  };
-  for (let g = 0; g < WORLD_MAX; g++) place(g, source.fill);
+function legendsByGridNo(source: StubMapSource): Legend[] {
+  const legends = new Array<Legend>(WORLD_MAX).fill(source.fill);
   source.rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
-      const g = (source.origin.y + y) * WORLD_COLS + source.origin.x + x;
-      for (const name of LAYER_NAMES) (lists[name][g] as unknown[]).length = 0;
-      place(g, source.legend.get(ch) as Legend);
+      legends[(source.origin.y + y) * WORLD_COLS + source.origin.x + x] = source.legend.get(ch) as Legend;
     });
   });
+  return legends;
+}
+
+function layerLists(legends: readonly Legend[], layer: LayerName): (readonly TileRef[])[] {
+  const tilesOf = new Map<Legend, readonly TileRef[]>();
+  return legends.map((legend) => {
+    let tiles = tilesOf.get(legend);
+    if (!tiles) {
+      tiles = legend.tiles.filter((t) => t.layer === layer);
+      tilesOf.set(legend, tiles);
+    }
+    return tiles;
+  });
+}
+
+export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBytes'> {
+  const legends = legendsByGridNo(source);
+  const rooms = Uint8Array.from(legends, (l) => l.room);
   const center =
     (source.origin.y + Math.floor(source.rows.length / 2)) * WORLD_COLS + source.origin.x + Math.floor((source.rows[0]?.length ?? 0) / 2);
   return {
@@ -434,7 +442,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
     worldFlags: new Uint8Array(WORLD_MAX),
-    layers: Object.fromEntries(LAYER_NAMES.map((n) => [n, tileLayerFromLists(lists[n])])) as MapDef['layers'],
+    layers: Object.fromEntries(LAYER_NAMES.map((n) => [n, tileLayerFromLists(layerLists(legends, n))])) as MapDef['layers'],
     rooms,
     items: [],
     ambient: source.basement ? { basement: true, caves: false, lightLevel: BASEMENT_AMBIENT_LIGHT } : null,

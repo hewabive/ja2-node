@@ -303,12 +303,16 @@ interface Token {
   readonly value: number;
 }
 
-function blockPixels(indices: Uint8Array, width: number, block: number, blocksPerRow: number): Uint8Array {
+function blockOrigin(width: number, block: number, blocksPerRow: number): number {
   const column = block % blocksPerRow;
   const row = (block - column) / blocksPerRow;
+  return row * SMK_BLOCK_SIZE * width + column * SMK_BLOCK_SIZE;
+}
+
+function blockPixels(indices: Uint8Array, width: number, origin: number): Uint8Array {
   const out = new Uint8Array(BLOCK_PIXELS);
   for (let y = 0; y < SMK_BLOCK_SIZE; y++) {
-    const at = (row * SMK_BLOCK_SIZE + y) * width + column * SMK_BLOCK_SIZE;
+    const at = origin + y * width;
     out.set(indices.subarray(at, at + SMK_BLOCK_SIZE), y * SMK_BLOCK_SIZE);
   }
   return out;
@@ -320,12 +324,19 @@ interface BlockChoice {
   readonly tokens: readonly Token[];
 }
 
-function sameBlock(a: Uint8Array, b: Uint8Array): boolean {
-  return a.every((v, i) => v === b[i]);
+const VOID_CHOICE: BlockChoice = { kind: SmkBlock.VOID, extra: 0, tokens: [] };
+
+function sameBlock(current: Uint8Array, previous: Uint8Array, width: number, origin: number): boolean {
+  for (let y = 0; y < SMK_BLOCK_SIZE; y++) {
+    const at = origin + y * width;
+    for (let x = at; x < at + SMK_BLOCK_SIZE; x++) if (current[x] !== previous[x]) return false;
+  }
+  return true;
 }
 
-function chooseBlock(pixels: Uint8Array, previous: Uint8Array): BlockChoice {
-  if (sameBlock(pixels, previous)) return { kind: SmkBlock.VOID, extra: 0, tokens: [] };
+function chooseBlock(current: Uint8Array, previous: Uint8Array, width: number, origin: number): BlockChoice {
+  if (sameBlock(current, previous, width, origin)) return VOID_CHOICE;
+  const pixels = blockPixels(current, width, origin);
   const colours = [...new Set(pixels)].sort((a, b) => a - b);
   if (colours.length === 1) return { kind: SmkBlock.SOLID, extra: colours[0] ?? 0, tokens: [] };
   if (colours.length === 2) {
@@ -372,7 +383,7 @@ function frameTokens(input: SmkEncodeInput, current: Uint8Array, previous: Uint8
   const blocksPerRow = input.width >> 2;
   const blocks = blocksPerRow * (input.height >> 2);
   const choices = Array.from({ length: blocks }, (_, b) =>
-    chooseBlock(blockPixels(current, input.width, b, blocksPerRow), blockPixels(previous, input.width, b, blocksPerRow)),
+    chooseBlock(current, previous, input.width, blockOrigin(input.width, b, blocksPerRow)),
   );
   const tokens: Token[] = [];
   let block = 0;

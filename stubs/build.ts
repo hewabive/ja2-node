@@ -11,6 +11,7 @@ import { encodeVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.t
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { buildStubAnimationScripts } from './anim-scripts.ts';
 import { buildStubEffects } from './effects.ts';
+import { replaceStubPack } from './ensure.ts';
 import { buildStubMedia } from './media.ts';
 import { buildStubNpcData } from './npc.ts';
 import { buildPalette } from './palette.ts';
@@ -138,7 +139,7 @@ export async function buildStubs(outDir: string): Promise<string[]> {
 if (import.meta.main) {
   const { values } = parseArgs({ options: { out: { type: 'string' } } });
   const out = values.out ?? DEFAULT_STUBS_DIR;
-  const files = await buildStubs(out);
+  const files = await replaceStubPack(out, buildStubs);
   console.log(`stub pack: ${files.length} sprites → ${out}`);
   for (const f of files) console.log(`  ${f}`);
 }

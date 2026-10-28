@@ -49,10 +49,16 @@ Everything else must be own work, so that the dedication can cover it.
 
 ### 1.4 Build, mounting and aliases
 
-- **Build.** `pnpm stubs` (`stubs/build.ts`, `buildStubs`) writes the pack to `dist/stubs` (about 1,200 files, 17 MB)
-  with `README.txt`, `LICENSE.txt` and `NOTICE.txt`; `pnpm dev` rebuilds it first. Budgets in `stubs/build.test.ts`:
-  media folders (`synth`, `music`, `mercedt`, `intro`, `fonts`, `cursors`, `interface`, `laptop`, `loadscreens`) below
-  7 MiB, the splash below 64 KiB.
+- **Build.** `pnpm stubs` (`stubs/build.ts`, `buildStubs`) writes the pack to `dist/stubs` (about 1,200 files, 17 MB,
+  about 1.5 s on the development VM) with `README.txt`, `LICENSE.txt` and `NOTICE.txt`. The build goes into a sibling
+  folder that is then renamed over the pack (`replaceStubPack`, `stubs/ensure.ts`), so the pack changes in one step, not
+  file by file. Budgets in `stubs/build.test.ts`: media folders (`synth`, `music`, `mercedt`, `intro`, `fonts`,
+  `cursors`, `interface`, `laptop`, `loadscreens`) below 7 MiB, the splash below 64 KiB.
+- **Rebuild only on change.** `pnpm dev` and the campaign bot call `ensureStubPack`, which rebuilds only when the
+  inputs digest differs from the one recorded in `dist/stubs.inputs`: SHA-256 over the modules `stubs/build.ts`
+  imports (relative imports, matched like `tools/check-imports.ts` does), every non-test file of `stubs/` and `data/`
+  (the only folders the build reads at run time), `pnpm-lock.yaml` and the Node version. The check takes about 0.1 s.
+  `pnpm stubs` always rebuilds and records the digest too.
 - **Data version** without original data: `stubs` (`31` §3.2), i.e. English text and EDT mode, the stub glyph table.
 - **Mounting.** `openDataVfs` (`src/node/data-vfs.ts`) mounts the pack (`JA2_STUBS_DIR`, default `dist/stubs`) as the
   stubs layer under the `stubs/` prefix, after the repository's `data/` and the original data (`DirLayer`,

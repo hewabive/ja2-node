@@ -47,8 +47,15 @@ export function etrleDecode(src: Uint8Array, width: number, height: number): Etr
   return { pixels, anomalies };
 }
 
+function worstCaseEncodedBytes(width: number, height: number): number {
+  const controlPerPixel = 1;
+  const endOfRow = 1;
+  return height * (width * (1 + controlPerPixel) + endOfRow);
+}
+
 export function etrleEncode(pixels: Uint8Array, width: number, height: number): Uint8Array {
-  const out: number[] = [];
+  const out = new Uint8Array(worstCaseEncodedBytes(width, height));
+  let size = 0;
   for (let y = 0; y < height; y++) {
     const row = pixels.subarray(y * width, (y + 1) * width);
     let x = 0;
@@ -57,14 +64,16 @@ export function etrleEncode(pixels: Uint8Array, width: number, height: number): 
       let runLength = 0;
       while (x + runLength < width && runLength < MAX_RUN_LENGTH && (row[x + runLength] === TRANSPARENT_INDEX) === transparent) runLength++;
       if (transparent) {
-        out.push(TRANSPARENT_RUN_FLAG | runLength);
+        out[size++] = TRANSPARENT_RUN_FLAG | runLength;
       } else {
-        out.push(runLength);
-        out.push(...row.subarray(x, x + runLength));
+        out[size++] = runLength;
+        const opaque = row.subarray(x, x + runLength);
+        out.set(opaque, size);
+        size += opaque.length;
       }
       x += runLength;
     }
-    out.push(END_OF_ROW);
+    out[size++] = END_OF_ROW;
   }
-  return Uint8Array.from(out);
+  return out.slice(0, size);
 }

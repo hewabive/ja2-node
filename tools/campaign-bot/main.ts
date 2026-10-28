@@ -1,5 +1,5 @@
 import { DEFAULT_STUBS_DIR } from '../../src/node/repo.ts';
-import { buildStubs } from '../../stubs/build.ts';
+import { ensureStubPack } from '../../stubs/ensure.ts';
 import { type CampaignSummary, playCampaign } from './campaign.ts';
 import { loadItems } from './items.ts';
 import { McpGame } from './mcp-game.ts';
@@ -52,7 +52,7 @@ async function connect(args: CampaignArgs): Promise<{ game: McpGame; stop: () =>
     if (!args.token) throw new Error('--server needs --token');
     return { game: await McpGame.connect(args.server, args.token), stop: async () => {} };
   }
-  await buildStubs(DEFAULT_STUBS_DIR);
+  await ensureStubPack(DEFAULT_STUBS_DIR);
   const server = await startStubServer(portOf(args.port));
   try {
     return { game: await McpGame.connect(server.url, server.token), stop: () => server.stop() };

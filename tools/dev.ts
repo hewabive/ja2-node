@@ -2,10 +2,10 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { DEFAULT_STUBS_DIR, REPO_ROOT } from '../src/node/repo.ts';
 import { loadOrCreateToken } from '../src/node/token.ts';
-import { buildStubs } from '../stubs/build.ts';
+import { ensureStubPack } from '../stubs/ensure.ts';
 
-console.log('[dev] building stub pack…');
-await buildStubs(DEFAULT_STUBS_DIR);
+const rebuilt = await ensureStubPack(DEFAULT_STUBS_DIR, () => console.log('[dev] building stub pack…'));
+if (!rebuilt) console.log('[dev] stub pack is up to date');
 
 function createSharedTokenBeforeSpawningChildren(): void {
   loadOrCreateToken();
