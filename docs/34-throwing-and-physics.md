@@ -27,7 +27,7 @@ it dies (§11).
 | `IC_LAUNCHER` (`LAUNCHER`, `WeaponModels.cc:1347`, `TRAJECTORYCURS`) | GLAUNCHER (range 500), UNDER_GLAUNCHER (450, attachment, `WM_ATTACHED`), MORTAR (550) | `UseLauncher` (`Weapons.cc:1336`) | physics object (the attached launchable: GL_*_GRENADE, MORTAR_SHELL) |
 | `IC_GUN`, `NOT_GUN` (`LAW`, `CANNON`, `WeaponModels.cc:1389,1432`) | ROCKET_LAUNCHER (single-use LAW), TANK_CANNON | `UseGun` | **bullet** with `BULLET_FLAG_MISSILE` / `_TANK_CANNON` (`LOS.cc:3262-3269`); explodes C1 / TANK_SHELL on stop or hit (`Weapons.cc:1511-1519, 1622-1646`) |
 | `IC_THROWING_KNIFE` | THROWING_KNIFE | `UseGun` | bullet with `BULLET_FLAG_KNIFE` (`11` §1.9, `11` §3); only its CTH is `CalcThrownChanceToHit` (`Weapons.cc:654-657`) |
-| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (`12` §6.6; ja2-node `toss.ts`, deviations "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
+| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (`12` §6.6; ja2-node `toss.ts`, gaps "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
 
 `EXPLOSIVE_GUN(x)` = ROCKET_LAUNCHER or TANK_CANNON (`Item_Types.h:215`). Vanilla data has no RPG; ROCKET_RIFLE and
 AUTO_ROCKET_RIFLE are ordinary guns with `BULLET_FLAG_SMALL_MISSILE` (`11` §3.1).
@@ -280,7 +280,7 @@ function findBestForce(src, dst, startZ, endZ, deg, item) { // Physics.cc:1229-1
 - Consequences: a GL or mortar cannot shoot shorter than the min force (15 tiles at 45°; at the GL's π/8 roughly
   10–11 tiles on flat ground, inferred). Throws beyond `CalcMaxTossRange` are capped by `maxF` and fall short. Indoors
   (any roof over the thrower or a ground-level target, caves, basements) the arc is flat (π/30) and `maxF` doubles.
-- V differences: §14. ja2-node does not model the cave and basement arc (`gfCaves || gfBasement`; deviations
+- V differences: §14. ja2-node does not model the cave and basement arc (`gfCaves || gfBasement`; gaps
   "Underground throws").
 
 `CalculateLaunchItemChanceToGetThrough` (`:1613-1678`; UI cursor and AI `CalcBestThrow`) runs the same params through
@@ -553,7 +553,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
 - Dud → timed bomb: `bDelay` decremented by `DecayBombTimers` (`Explosion_Control.cc:2054-2095`) in `EndTurnEvents`
   (`TeamTurns.cc:288`, once per round, inferred) and on every 5 s real-time turn (`Tactical_Turns.cc:92`); at 0 it
   joins the bomb queue (`12` §10.9). ja2-node lays the dud down invisible and armed after the same draws, with no timer
-  (deviations "Duds and timed bombs").
+  (gaps "Duds and timed bombs").
 - Flight time is a fixed number of 20 ms physics ticks for given launch parameters; turn-based and real time use the
   same integrator. The turn waits on the busy count until the object dies.
 
@@ -644,8 +644,8 @@ is a cosmetic draw on `pre` in the original and stays there (§9.4); the unseque
 explosions"): battle and impact sounds, the curse after a dud, the `Random(40)` curse on gun misses, the missile-trail
 frame delay `main(100)`.
 
-Not ported: timed re-armed duds (§10; deviations "Duds and timed bombs"); the cave and basement throw arc (§6;
-deviations "Underground throws").
+Not ported: timed re-armed duds (§10; gaps "Duds and timed bombs"); the cave and basement throw arc (§6;
+gaps "Underground throws").
 
 Verification: no oracle probe covers throws or physics; the unit tests next to the code (`explosions/throwing.test.ts`,
 `physics.test.ts`, `grenade-attack.test.ts`) check them against this spec.

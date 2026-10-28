@@ -70,10 +70,11 @@ Abbreviated (values illustrative):
 - **Real time** only through the manual driver or by waiting on a viewer's real time (§6); real-time control by an LLM
   agent without pausing is a non-goal.
 - **A long campaign** is thousands of actions: prefer the events of `advance` reports over repeated `observe`.
-- **Not built as commands** (shown disabled by the client; the matching deviations stay): stealing, operating and using
-  items on things, planting bombs, wire cutters, gas cans, jars and tin cans (`previewAction` answers `notSupported`),
-  walk-up melee (deviation "Melee without walking"), auto-bandage, key-ring editing, the placement GUI, drugs and
-  alcohol (`notPorted`), reloading the robot (`robotReload`). Vehicles' condition and fuel are not in the view.
+- **Not built as commands** (shown disabled by the client; each keeps its entry in `gaps.md` or `deviations.md`):
+  stealing, operating and using items on things, planting bombs, wire cutters, gas cans, jars and tin cans
+  (`previewAction` answers `notSupported`), walk-up melee (gap "Melee without walking"), auto-bandage, key-ring editing,
+  the placement GUI, drugs and alcohol (`notPorted`), reloading the robot (`robotReload`). Vehicles' condition and fuel
+  are not in the view.
 
 ## 5. Commands, refusals and decisions
 
@@ -229,7 +230,7 @@ rules:
   graphic was added while its cloud had fewer than two turns left (`AddSmokeEffectToTile`, bit 0x40 of the tile flags).
 - `light {ambient, sprites [{x, y, template, dynamic?}]}`: `ubAmbientLightLevel` and every active light sprite,
   `dynamic: true` on muzzle flashes (`L-R03.LHT`), explosions (`L-R04.LHT`) and flares; the renderer adds only the
-  dynamic ones to the map's own lights, the hints read all. Light effects cannot be created (deviation "Light effects").
+  dynamic ones to the map's own lights, the hints read all.
 - `tileChanges [{kind: remove|add, gridNo, level, tile}]`: structure graphics changed since the map loaded, in order,
   from the sector diff's map changes (wrecked structures, the O3 statue, window hits; a bullet's window hit is recorded
   like an explosion's, `AddWindowHitToMapTempFile`, so it stays broken on the next load).
@@ -261,7 +262,7 @@ interrupt, not green friendly militia), `enemyTurnProgress {done, total}` (every
 and the helicopter included (`who` the `MSG_ARRIVE` subject: a merc, a squad or a vehicle type); `invasion {sector,
 kind: sam|town|other}` (`NotifyPlayerOfInvasionByEnemyForces`); `sectorControlChanged {sector, controller, kind?,
 dailyIncome?}` (`kind` `sam|mine|town` for the notice of `NotifyPlayerWhenEnemyTakesControlOfImportantSector`,
-`dailyIncome` the income left after a producing mine is lost; not emitted for an uncontested takeover, deviation "Lost
+`dailyIncome` the income left after a producing mine is lost; not emitted for an uncontested takeover, gap "Lost
 sector notices without a battle"); `sectorLoaded {sector, loadScreen?, hostiles?, enemyPresence?, firstArrival?}`
 (`GetLoadScreenID` at every sector entry outside a save load and the pre-battle transition, drawing `Random(2)` on the
 gameplay stream for town sectors without a mapped picture), `sectorUnloaded`, `mercsLeftSector {sector, to,
@@ -352,7 +353,7 @@ flow.
 | `turn {soldier, direction \| toward}` | `MakeSoldierTurn`: `EnoughPoints(GetAPsToLook)`; a merc without AP first goes stationary |
 | `stance {soldier, stance: run\|stand\|crouch\|prone}` | `UIHandleSoldierStanceChange` and `r` (deviation "Stance"). `run` makes a standing merc run for no AP and keeps `continueTo` (`usUIMovementMode = RUNNING`, `fUIMovementFast`); crouched or prone he stands first and runs once the change ends (`Soldier_Ani.cc` code 499 sets the mode by the new stance and keeps a run while standing); in real time `run` holds for the next move only. `stand`, `crouch`, `prone` set the mode by the stance and clear the run; in combat they pay the change and clear `continueTo` also in the current stance (0 AP: `s` ends a halted run); a merc moving in real time changes gait on the way |
 | `stop {soldier}`, `endTurn` | `endTurn` only on our turn (`UIHandleEndTurn` → `EndTurn`); it also closes an interrupt in our favour (`EndInterrupt(FALSE)`) |
-| `attack {soldier, target, level?, aimTime?: 0..4, bodyPart?, burst?, spread?}` | `HandleItem` with the hand item: gun, attached or held grenade launcher, throwing knife, thrown grenade or rock, knife or fists (no walk-up, deviation "Melee without walking"; no UI-level target checks, deviation "Attack refusals"). Without `burst` it fires in the merc's `weaponMode` (`EnsureConsistentWeaponMode` first). `spread`: up to 50 distinct tiles in drag order (`AccumulateBurstLocation`), the burst spread with `PickBurstLocations`' float step; burst mode only; a refused attack clears it |
+| `attack {soldier, target, level?, aimTime?: 0..4, bodyPart?, burst?, spread?}` | `HandleItem` with the hand item: gun, attached or held grenade launcher, throwing knife, thrown grenade or rock, knife or fists (no walk-up, gap "Melee without walking"; no UI-level target checks, deviation "Attack refusals"). Without `burst` it fires in the merc's `weaponMode` (`EnsureConsistentWeaponMode` first). `spread`: up to 50 distinct tiles in drag order (`AccumulateBurstLocation`), the burst spread with `PickBurstLocations`' float step; burst mode only; a refused attack clears it |
 | `pickUp {soldier, gridNo?, zLevel?, items?}` | The visible items on the soldier's tile or an adjacent blocked tile; `items` index that tile's list (default all), instead of the pickup menu (deviation "Picking up items"); `AP_PICKUP_ITEM` |
 | `climb {soldier}` | Onto the adjacent roof edge or down (`FindHigherLevel`/`FindLowerLevel`) |
 | `weaponMode {soldier, mode?}` | `ChangeWeaponMode`: single → burst (burst-capable gun) → launcher (a loaded under-barrel launcher) → single; `mode` sets one; in launcher mode `attack` fires the attached launcher (`UNDER_GLAUNCHER`) |

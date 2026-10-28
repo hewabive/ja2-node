@@ -78,13 +78,13 @@ body scaling do not reach sight.
 standing and his `bOverTerrainType` is FLAT_GROUND, LOW_GRASS or HIGH_GRASS, then
 `limit -= limit*(eff/3)/100` (UINT8). `eff` is also passed on as the camouflage factor for foliage. `bTilesMoved` resets
 at each turn start, which in real time means every 5 s (`Tactical/Soldier_Control.cc:4075`). ja2-node passes camouflage
-0 and has neither the tank rules nor the N5 arena skip (`deviations` "Vision and hearing modifiers").
+0 and has neither the tank rules nor the N5 arena skip (`gaps` "Vision and hearing modifiers").
 
 ### 1.4 `LineOfSightTest` (`LOS.cc:575-1298`)
 
 Returns 0 for "not seen", otherwise a positive cover-adjusted distance. Callers only test for non-zero. There is no
 randomness. `ubTreeSightReduction` is UINT8. ja2-node's `lineOfSightTest` (`perception/los.ts`) follows this
-pseudocode except the gas block at the end of the outer loop (`deviations` "Vision and hearing modifiers").
+pseudocode except the gas block at the end of the outer loop (`gaps` "Vision and hearing modifiers").
 
 ```ts
 // Helpers. All q* values are INT32 FIXEDPT; use `| 0` / Math.imul where a product may exceed 2^31.
@@ -335,7 +335,7 @@ not at all for a muzzle-flashing target at night. Strac always applies it and tr
 
 ja2-node: `distanceVisible` (`perception/sight.ts`, light table in `adjustMaxSightRangeForEnvEffects`,
 `lighting/lighting.ts`). Not ported: the tank lines, the robot's 360° view (`SOLDIER_ROBOT` only gets the night bonus)
-and the smoke cap (`deviations` "Vision and hearing modifiers").
+and the smoke cap (`gaps` "Vision and hearing modifiers").
 
 ### 2.2 `ManLooksForMan(me, opp, caller)` (`:1335-1505`)
 
@@ -443,7 +443,7 @@ Values: `SEEN_CURRENTLY 1`, `SEEN_THIS_TURN 2`, `SEEN_LAST_TURN 3`, `SEEN_2_TURN
 
 `UpdatePersonal/UpdatePublic(…, new, grid, level)` (`:2159`, `:2110`): the value is replaced only if
 `gubKnowledgeValue[old+4][new+4] > 0` or `new == 0`. The last-known grid and level are **always** overwritten
-(ja2-node keeps the grid only, `Soldier.lastKnownOpp` and `Perception.publicLastKnown`; `deviations` "AI throw targets").
+(ja2-node keeps the grid only, `Soldier.lastKnownOpp` and `Perception.publicLastKnown`; `gaps` "AI throw targets").
 `gubKnowledgeValue` (`:105-126`, rows = old −4..5, columns = new −4..5):
 ```
 -4: 0 1 2 3 0 5 4 3 2 1     -3: 0 0 1 2 0 4 3 2 1 0     -2: 0 0 0 1 0 3 2 1 0 0     -1: 0 0 0 0 0 2 1 0 0 0
@@ -499,7 +499,7 @@ The exception is a loss found by `VerifyAndDecayOpplist` (§2.6), which no `Deci
 lasts until the next look involving that soldier. `BetweenTurnsVisibilityAdjustments` (`:2265`; turn end, combat exit,
 deaths) forces −1 when no OUR-team member sees the soldier. Animation speed reads visibility (unseen soldiers animate
 with delay 0 in combat, `Soldier_Control.cc:4930`), so `bVisible` is simulation state. ja2-node: `Soldier.visible` takes
-1, 0 and −1 only (no fade state; the unseen speed-up applies at once: `deviations` "Unseen soldiers in combat");
+1, 0 and −1 only (no fade state; the unseen speed-up applies at once: `gaps` "Unseen soldiers in combat");
 `betweenTurnsVisibilityAdjustments` is in `turns/turns.ts`.
 
 ### 2.8 When sight runs (real time)
@@ -634,7 +634,7 @@ DecideHearing: tank −5; monster −10; else h = (bExpLevel > 3) + count(NIGHTO
 ```
 There are no walls in hearing: only distance, levels and the floor/non-floor terrain test. There is no randomness. Range in
 tiles ≈ `base + hearing − oppCnt`: an army footstep (8–9) is heard about 8–9 tiles away in daylight (inferred example).
-ja2-node has no walkman, extended ear, NIGHTOPS or tank term (`deviations` "Vision and hearing modifiers").
+ja2-node has no walkman, extended ear, NIGHTOPS or tank term (`gaps` "Vision and hearing modifiers").
 
 ### 3.5 `HearNoise(L, source, grid, level, vol, kind, &seen)` (`:3895-4222`)
 
@@ -759,7 +759,7 @@ ja2-node (`perception/fov.ts`, state `TacticalState.fog`: `revealed` with `GROUN
 first-visit markers): `revealRoofsAndItems` follows the pseudocode; `removeRoomRoof` marks the room's tiles revealed,
 clears `roomHidden` and emits `roomRevealed`; the client derives hidden roofs, A-frames, show-through and wireframes from
 the revealed rooms (`src/render/world/reveal.ts`). Both arrays are saved in the sector diff (`sim/campaign/sector-diff.ts`).
-Not ported: `MercLooksForDoors` (perceived doors equal real ones, `deviations` "Doors"), `ExamineSlantRoofFOVSlots`, the
+Not ported: `MercLooksForDoors` (perceived doors equal real ones, `gaps` "Doors"), `ExamineSlantRoofFOVSlots`, the
 item reveal and quote of `RemoveRoomRoof` (so no `Random(2)`), and the vehicle and blindness skips.
 
 ---

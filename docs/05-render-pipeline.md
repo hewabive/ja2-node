@@ -721,7 +721,7 @@ restriction-0 constants for every map; the night shade and the dots are drawn by
     - steps 8 px per tile and 2 px per row; heights are divided by 5;
     - is pure painter's order with no z: land; then per row objects, shadows, structs; then non-hidden roofs.
 
-    ja2-node composes it once per sector (`src/app/tactical/overhead-map.ts`; `deviations`, "Overhead map").
+    ja2-node composes it once per sector (`src/app/tactical/overhead-map.ts`; `gaps`, "Overhead map").
 13. **Frame-to-frame state.** Static rendering is a pure function of the map, the node flags, the camera,
     `gsRenderHeight`, shade levels and the shadow flag. Light changes trigger a partial "marked" re-render that does
     *not* clear the z-buffer (`RenderWorld.cc:1789-1816`). Treat the full render as canonical.

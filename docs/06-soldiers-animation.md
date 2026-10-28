@@ -535,7 +535,7 @@ BIGMERC transitions take 90 ms, PRONE_DOWN/UP 100 ms. **PRONE, PRONE_DOWN, PRONE
   - `EffectiveAgility` = drunk-adjusted agility × 100 / `sWeightCarriedAtTurnStart` when that is > 100
     (`SkillCheck.cc:35-40`).
 - **Unseen soldiers.** In combat, unseen soldiers get delay 0 (`:4928-4936`); ja2-node does so as soon as `visible`
-  is −1, without the fade (`deviations`, "Unseen soldiers in combat").
+  is −1, without the fade (`gaps`, "Unseen soldiers in combat").
 - **When it is recomputed.** On each new state; on each tile change, for terrain (`07` §4); and by fast turns (§5.4).
 - **Example.** Agility 80, life 100, breath 100, realtime: walk = 5 + 0 + 0 + 30 = 35 ms/frame; stand = 200 ms/frame.
 

@@ -757,7 +757,7 @@ SetupDoneInterface(); return TRUE                                               
 - No time limit, no morale check, no enemy retreat: only the player side can retreat, and the battle runs until one of the
   endings above (or a capture). A battle where nobody can act (only unconscious mercs against only unconscious human
   enemies) never ends; ja2-node's `runAutoresolve` stops at the caller's slice budget (`'budget'`), and the campaign has no
-  rule for it (deviations.md "Autoresolve stalemate").
+  rule for it (gaps.md "Autoresolve stalemate").
 
 ### 2.13 Capture and surrender (`AttemptPlayerCapture`, `:3359-3433`)
 

@@ -119,7 +119,7 @@ simulation stream; per-soldier presentation memory is the client's (§1.4, `dire
 | Skyrider's destruction runs in a sound's end callback (`Strategic/Map_Screen_Helicopter.cc:1041-1044`) | at once (deviations "Helicopter destruction") |
 | `EVENT_AMBIENT` events carry sound-cache slots in the saved queue (`Strategic/Game_Event_Hook.cc:101`) | not queued, dropped on import ("Ambient sound events") |
 | Sound picks draw on the gameplay generator: `SoundRange`, footstep variants, battle-sound variants, explosion sounds, door sounds, the music track, ambient timing, mouth frames, cows, crows, bloodcat growls | not drawn, or drawn from the client PRNG ("Cosmetic draws …", "Footstep variants", "Music track choice") |
-| The first helicopter drop waits for the engine sound to fade before unlocking and calling in enemies (`Tactical/Merc_Entering.cc:529-562`) | the drop sequence is not ported: `INSERTION_CODE_CHOPPER` places the mercs at the north entry point at once (deviations "Helicopter entrance"); once ported, its end must follow the script's ticks, never a fade |
+| The first helicopter drop waits for the engine sound to fade before unlocking and calling in enemies (`Tactical/Merc_Entering.cc:529-562`) | the drop sequence is not ported: `INSERTION_CODE_CHOPPER` places the mercs at the north entry point at once (gaps "Helicopter entrance"); once ported, its end must follow the script's ticks, never a fade |
 
 **Event facts for sound**: optional event fields, never state, never read back by the simulation (catalogue: `29` §9):
 `shotFired {item, silenced, burst, rounds}` (`rounds` = the burst size on a burst's first bullet, 0 on the others, 1
@@ -261,7 +261,7 @@ whatever plays; victory falls back to the nothing mode, defeat to silence; the l
 "Sounds out of sight", "Queen's positional sound", "Idle sounds of unseen animals", "Music mode on the server", "Last
 kill talked about", "Creature music clear", "Ambient sound events".
 
-**Limitations.** Not played yet (deviations "Sound coverage"): a driving vehicle's movement sound and a turning tank's
+**Limitations.** Not played yet (gaps "Sound coverage"): a driving vehicle's movement sound and a turning tank's
 turret (nothing drives a vehicle or turns a tank in tactical; `vehicleMoved` does not exist), a vehicle's battle
 sounds; the boarding sound plays on the map screen at full volume. Button click schemes
 (`src/sgp/Button_Sound_Control.cc:11-50`) belong to the canvas UI (`30` §8).
@@ -551,7 +551,7 @@ So a save records `dataVersion` and a hash of the quote lengths it ran with (`qu
 
 - The guesser has only the language-folder half of `guess.rs`, not the resource-pack hashes: French, Simplified
   Chinese and Russian Gold data (and anything recognisable only by hash) run as English unless `JA2_DATA_VERSION`
-  names the version.
+  names the version (gap "Data version detection").
 - The English/Chinese battle-sound branch waits for the "see enemy" quote, which `src/sim` does not port.
 - Cyrillic with English data on the canvas (`/play`): the page draws with the data's fonts and the data version's glyph
   table (`glyphTablePath` in `src/app/game/ui-boot.ts`), whose English fonts carry upper-case Cyrillic only, so other

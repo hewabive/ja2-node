@@ -551,7 +551,7 @@ movement group, update the refuel sites. While the helicopter stands at a refuel
 (six structure pieces, mercs within 5 tiles bumped, `HELI:1146-1189`) and Skyrider's profile is put in that sector
 (`HandleHelicopterOnGround`, `HELI:972-1022`, called on every sector load, `SM:463, 501, 520, 872`); otherwise the pieces
 are removed and Skyrider's profile sector is cleared (his soldier removed unless on our team). Before set-up the helicopter
-"is" at Drassen (`HELI:1024-1040`). ja2-node does not place the pieces (deviations "Helicopter on the map", "Profile sectors
+"is" at Drassen (`HELI:1024-1040`). ja2-node does not place the pieces (gaps "Helicopter on the map", "Profile sectors
 of Skyrider and the helicopter").
 
 ### 5.3 Flying
@@ -728,7 +728,7 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
   sight comes back, a non-player trigger is freed, and a changed door makes all teams look and our mercs reveal roofs.
   Performed: `ACTION_ITEM_CLOSE_DOOR` (the room item's door and any map's door closers), `KINGPIN_ALARM`, `SEX` and
   `MUSEUM_ALARM`; the other action items, and switches operated by hand (`ActivateSwitchInGridNo`, with it
-  `ACTION_ITEM_TOGGLE_PRESSURE_ITEMS`), stay inert (deviation "Map items"). The museum alarm calls Eldin while sight is
+  `ACTION_ITEM_TOGGLE_PRESSURE_ITEMS`), stay inert (gap "Map items"). The museum alarm calls Eldin while sight is
   disallowed, so his line-of-sight test fails and he always runs to the spot (the "I hate you" branch is dead from the
   alarm); the alarm's "zap" clears the disabled flag, so it can ring again.
 - **Maria**: quest 6 by records; escort (§4); a Kingpin goon seeing her or a Kingpin civilian turning hostile or being hurt
@@ -741,7 +741,7 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
 
 - Placement (`35` §2.2), files (154), heads: a head item comes from decapitating a corpse with a knife
   (`Tactical/Rotting_Corpses.cc:1183-1229`): CHRIS → `HEAD_2`, T_REX `HEAD_3`, SLAY `HEAD_4`, DRUGGIST `HEAD_5`, ANNIE `HEAD_6`,
-  TIFFANY `HEAD_7`, anyone else `HEAD_1`. ja2-node has no decapitation (deviation "Corpses").
+  TIFFANY `HEAD_7`, anyone else `HEAD_1`. ja2-node has no decapitation (gap "Corpses").
 - Carmen counts terrorists left and heads held (156), leaves (157/158 with a 10 000 ms timer), returns at 04:00 to C13 paying
   $10000 per head (`35` §2.3), and ends the quest when none are left (159 → `35` §2.5). Carmen roams C5/C13/G9 daily.
 - Every terrorist death makes the rest tougher (`MakeRemainingTerroristsTougher`, `SP:303-383`: remaining = living placed
@@ -758,7 +758,7 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
 trigger, new situation; else a loud noise there, red alert, walk to it unless already doing so with the alarm known;
 `MUSEUM_ALARM_WENT_OFF`); leaving the sector clears the alarm fact; a merc in L12 rooms 22–41 cannot leave strategically while
 Eldin lives and anyone of ours carries the chalice (`ME_MUSEUM`, `Strategic/Map_Screen_Interface.cc:3805-3817`; not in
-ja2-node, deviation "Strategic move refusals"); any sector entry with the chalice in a merc's inventory sets `CHALICE_STOLEN`
+ja2-node, gap "Strategic move refusals"); any sector entry with the chalice in a merc's inventory sets `CHALICE_STOLEN`
 (`35` §2.5); Yanni's records (185) and loyalty (§2.4); killing Eldin costs Balime loyalty.
 
 ### 6.8 Tixa, Alma and the army's profiled soldiers
@@ -812,7 +812,7 @@ awards (and for our team when the skull is released); not ported: the NPC death 
 The hummer: Dave (GERARD) sells it (requestor 169, his money rule with $10000, records, 211 → `OK_USE_HUMMER` in 24 h),
 `DAVE_HAS_GAS` daily, `FILL_UP_CAR` (202). The ice-cream truck moves with Hamous daily (`35` §2.3), `OK_USE_ICECREAM` from
 records, the placement quirk (`35` §2.6). Boarding is gated by `OKUseVehicle` (`Tactical/Vehicles.cc:847-866`); ja2-node
-boards only vehicles already on our team (deviation "Ground vehicles").
+boards only vehicles already on our team (gap "Ground vehicles").
 
 ### 6.14 John and Mary (the tourists)
 
@@ -962,10 +962,10 @@ Kingpin's later money check on the loaded world (§6.4); damaged goods left at g
 strict vs inclusive 9 tiles, double-counted supply markers (§6.3); unsigned hospital refunds (`35` §1.11); the hourly
 Skyrider payment taking all the money (`35` §2.4).
 
-**Limitations in ja2-node** (not yet ported; each has a deviation entry): decapitation ("Corpses"); the museum and fuel move
-refusals ("Strategic move refusals"); other action items and hand-operated switches ("Map items"); civilian ground vehicles
-("Ground vehicles"); the helicopter map pieces ("Helicopter on the map"); the guard-room run (`OL:1282-1294`, §6.1, "Guard
-room run"); the NPC death history lines and death message ("History writers") and `HandleMurderOfCivilian` (§6.12,
-"Civilian murder").
+**Limitations in ja2-node** (not yet ported; each has an entry in `gaps.md`): decapitation ("Corpses"); the museum and
+fuel move refusals ("Strategic move refusals"); other action items and hand-operated switches ("Map items"); civilian
+ground vehicles ("Ground vehicles"); the helicopter map pieces ("Helicopter on the map"); the guard-room run
+(`OL:1282-1294`, §6.1, "Guard room run"); the NPC death history lines and death message ("History writers") and
+`HandleMurderOfCivilian` (§6.12, "Civilian murder").
 
 **Inferred, not verified**: checking Skyrider's monologues per strategic step matches redraw timing (§5.8).

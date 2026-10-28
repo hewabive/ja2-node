@@ -400,7 +400,7 @@ selectors would read at play time (§1.7): `wholeTownsExceptOmerta`, `samSitesCo
 `functionalSamInLastBattleSector`, `firstBattleTown` (`drassen`, `cambria`, `other`), `sciFi`, `elliotBefore`,
 `elliotAfter`; all player-known. It was meant for a server-side playback of the scene (a disposable tactical session on
 `P3_m` running the scene's records from the frozen context on the `fx` stream, never touching the campaign); that sandbox
-is not built, so the client shows only the box and nothing is marked seen (`30` §7, deviations.md "Meanwhile scene
+is not built, so the client shows only the box and nothing is marked seen (`30` §7, gaps.md "Meanwhile scene
 playback").
 
 ---

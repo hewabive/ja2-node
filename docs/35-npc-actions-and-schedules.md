@@ -132,7 +132,7 @@ formats it.
 
 | Code | Action | Effect | Lines |
 |---|---|---|---|
-| 100 | `GOTO_HIDEOUT` | add an exit grid at gridno 7887 of A10 (map temp file) to A10-1 gridno 12722; every OUR soldier ≥ OKLIFE in sector on the **current squad**: tactical traversal on, group sector = A10-1, the first six get insertion `GRIDNO` 13362, 13363, 13364, 13365, 13525, 13524; `ChangeNpcToDifferentSector(FATIMA, A10-1)`, same for DIMITRI; fade out → load A10-1; in A10's temp file the crate structure moves from 7887 to 8207 and trapdoor debris is added at 7887; fade in → Carlos present → CARLOS 1 at once (`ID:4510-4549`). ja2-node moves the squad and loads at once, without the A10 changes (deviation "Rebel basement") | `ID:1600-1649` |
+| 100 | `GOTO_HIDEOUT` | add an exit grid at gridno 7887 of A10 (map temp file) to A10-1 gridno 12722; every OUR soldier ≥ OKLIFE in sector on the **current squad**: tactical traversal on, group sector = A10-1, the first six get insertion `GRIDNO` 13362, 13363, 13364, 13365, 13525, 13524; `ChangeNpcToDifferentSector(FATIMA, A10-1)`, same for DIMITRI; fade out → load A10-1; in A10's temp file the crate structure moves from 7887 to 8207 and trapdoor debris is added at 7887; fade in → Carlos present → CARLOS 1 at once (`ID:4510-4549`). ja2-node moves the squad and loads at once, without the A10 changes (deviation "Rebel basement", gap "Rebel basement trapdoor") | `ID:1600-1649` |
 | 102 | `LEAVE_HIDEOUT` | menu; ignored while a walk-off is pending; **every** OUR soldier ≥ OKLIFE in sector (not just the squad): group sector = A10, the first eight get insertion gridnos 8047, 8207, 8208, 8048, 7888, 7728, 7727, 7567; fade → load A10; clears `ENGAGED_IN_CONV` | `ID:1892-1936`, `4554-4574` |
 | 101 | `FATIMA_GIVE_LETTER` | menu; Fatima's `LETTER` handed to Miguel's soldier (`SoldierGiveItem`; ja2-node hands it over at once, deviation "NPC gives an item") | `ID:1651-1674` |
 | 113, 114 | `SEND_PACOS_INTO_HIDING`, `HAVE_PACOS_FOLLOW` | Pacos walks to 16028 / 18193, or to the first `FindAdjacentGridEx` tile if the gridno is not a valid destination (`NPCGotoGridNo`, `24`) | `ID:2074-2118` |
@@ -668,7 +668,7 @@ entry, inferred harmless); saves written after several loads carry two to four e
 of the dropped default schedules then point at the redrawn ones with the same ids (oracle-checked). Off-map civilians
 (`SOLDIER_OFF_MAP`) return to the away slots. ja2-node's own saves restore schedules (temporary ones included) and events
 exactly and do not re-post (`SectorFlow.reattachLoadedSector`); native import re-posts as the original
-(`SectorFlow.adoptLoadedSector`, deviation "Savegame import").
+(`SectorFlow.adoptLoadedSector`, gap "Savegame import").
 
 ---
 
@@ -696,7 +696,7 @@ ja2-node: `StrategicState.civGroups`, shared with the loaded sector as `Tactical
 | that event | rebels still neutral → loyalty hit (never, they are 1 by then); group = 2 | `SEH:867-876` |
 | a neutral member sees an OUR merc while the group is ≥ 2 | hostile-quote list | `OL:1549-1556, 1673-1677` |
 | the hostile-quote list resolves | every listed neutral → `MakeCivHostile`; a listed member's group at 2 → 3; combat for the civilian team | `OL:566-592` |
-| `CivilianGroupChangesSides(group)` (a group's building blown up) | group = 3; every neutral living non-cow member → `MakeCivHostile` (+ quote list); in ja2-node nothing calls it (deviation "Building owners") | `OH:2774-2800` |
+| `CivilianGroupChangesSides(group)` (a group's building blown up) | group = 3; every neutral living non-cow member → `MakeCivHostile` (+ quote list); in ja2-node nothing calls it (gap "Building owners") | `OH:2774-2800` |
 | Kingpin alarm (action item) | Kingpin group = 3, members seeing an OUR merc hostile, combat | `TileEngine/Explosion_Control.cc:1788-1816` |
 | Kingpin's threat (§1.13) | Kingpin group = 2 | `SEH:601` |
 
@@ -707,7 +707,7 @@ side (and move to the enemy team); everyone else just stops being neutral and ke
 `Overhead.c:3075-3077` also set `bSide`). So rebels stay allied with the army and `MilitiaChangesSides` leaves friendly
 militia friendly (they are not neutral, so nothing changes); oracle-confirmed, kept. Kingpin group: Maria quest in
 progress, not boxing, Maria in sector → `MARIA_ESCAPE_NOTICED`. BILLY → `FARPATROL`. Neutral → non-neutral, opponent
-counts; in combat → added to the battle. Team changes follow the original (deviation "Team changes" for the one unhandled
+counts; in combat → added to the battle. Team changes follow the original (gap "Team changes" for the one unhandled
 case).
 
 ### 4.3 `ProcessImplicationsOfPCAttack` (`OH:5342-5470`), the quest parts
@@ -720,7 +720,7 @@ record 3; else the hostile-quote list and, unless the profile has `TOWN_DOESNT_C
 else: Carmen attacked by anyone but Slay → `AGGRESSIVE`; a group member on our team or neutral →
 `CivilianGroupMemberChangesSides` (+ quote if profiled, ≥ OKLIFE and visible); a non-neutral group member that is not a
 boxer → proximity rule; our own merc out of combat → no combat. ja2-node runs all of these but the head-miner rule and our
-mercs' firing back (deviation "Implications of an attack").
+mercs' firing back (gap "Implications of an attack").
 
 ### 4.4 Owned items and nuisance
 
@@ -754,7 +754,7 @@ pools. Not ported: in ja2-node an owned item angers nobody (limitation, §9).
 
 ### 5.2 Opening a closed door (`InteractWithOpenableStruct`, `HD:196-262`)
 
-A door with `DOOR_BUSY` stops the merc (ja2-node has no busy window, deviation "Doors"). An open door just closes (ja2-node
+A door with `DOOR_BUSY` stops the merc (ja2-node has no busy window, gap "Doors"). An open door just closes (ja2-node
 first gives our mercs vanilla's closing menu, deviation "Closing an open door"). A closed door in the door table and
 **locked** opens the door menu for our mercs (`HD:233-251`) after `DoTrapCheckOnStartingMenu` (`HD:175-194`: a locked,
 trapped door with an unknown trap is noticed when `CalcTrapDetectLevel(s, FALSE) ≥ trapLevel` → quote, perceived trapped,
@@ -816,7 +816,7 @@ if ≥ 30 minutes passed since the player was last in tactical and any non-playe
 status is closed (`HandleDoorChangeFromGridNo(…, TRUE)`, no animation). It never fires: `SetCurrentWorldSector` sets
 `uiTimeSinceLastInTactical` to now just before the call (`SM:499` before `:509`), so ja2-node does not run it.
 `MercLooksForDoors`/`AllMercsLookForDoor` (`KEYS:934-1006`) update the perceived open state within sight (the
-perceived/real split is deviation "Doors").
+perceived/real split is missing, gap "Doors").
 
 ### 5.6 `NPCOpenThing` (`ID:4576-4662`)
 
@@ -829,7 +829,7 @@ none → false); start the interaction there or walk there; `PENDING_ACTION`.
 `FindAdjacentGridEx` (ja2-node `findAdjacentGridExForDoor`: raw movement costs, the door's orientation drops sides, a
 switch is reached through its wall, standing on the door tile faces south or east). A walking NPC carries the interaction
 as a pending `openStruct` door action that `InteractWithOpenableStruct` runs on arrival, without the original's "dialogue
-queue empty" check (deviation "NPC opens a door on arrival"). Action 40 picks up with `ITEM_IGNORE_Z_LEVEL` (every item on
+queue empty" check (gap "NPC opens a door on arrival"). Action 40 picks up with `ITEM_IGNORE_Z_LEVEL` (every item on
 the tile, whatever its height).
 
 ---
@@ -940,11 +940,11 @@ departure, the `AI_HANDLE_EVERY_FRAME` bit set in `uiStatusFlags`, the corner te
 `sOffWorldGridNo` 0 (§3.3, §3.4); a second schedule event and redrawn default schedules after a native load (§3.6);
 `MakeCivHostile` keeping the side (§4.2); the electric trap's breath `3 + 1000·PreRandom(3)` (§5.3).
 
-**Limitations in ja2-node** (not yet ported; deviation names in quotes): the door busy window ("Doors"); the A10 map changes
-of the basement trip ("Rebel basement"); `CivilianGroupChangesSides` callers ("Building owners"); the head-miner attack rule
-and firing back out of combat ("Implications of an attack"); `MakeNPCGrumpyForMinorOffense` (§4.4, "NPC draws first and
-minor offenses"); the profile move and done-traversal flag of `HandleAITacticalTraversal` (§2.6, "NPC traversal off the
-map").
+**Limitations in ja2-node** (not yet ported; `gaps.md` names in quotes): the door busy window ("Doors"); the A10 map
+changes of the basement trip ("Rebel basement trapdoor"); `CivilianGroupChangesSides` callers ("Building owners"); the
+head-miner attack rule and firing back out of combat ("Implications of an attack"); `MakeNPCGrumpyForMinorOffense`
+(§4.4, "NPC draws first and minor offenses"); the profile move and done-traversal flag of `HandleAITacticalTraversal`
+(§2.6, "NPC traversal off the map").
 
 **Inferred, not verified**: the transient requestor and talk globals cannot be saved in the original (no save while a box or
 panel is open, §0); a walked departure ends in an away slot at the next load (§3.3); shop hours are known only while the

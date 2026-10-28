@@ -265,7 +265,7 @@ cursor goes back at once (deviations.md "Item cursor").
   weapon into HANDPOS and a second one-handed gun into SECONDHANDPOS (`TacticalAI/Attacks.cc:1573-1592`);
   `FindAIUsableObjClass` skips `OBJECT_AI_UNUSABLE`, status < USABLE and, for `IC_GUN`, EXPLOSIVE_GUNs
   (`Tactical/Items.cc:420-444`). `WearGasMaskIfAvailable` swaps a gas mask to the face (`AIUtils.cc:1566-1577`); not
-  ported (deviations.md "Ambush").
+  ported (gaps.md "Ambush").
 
 ### 3.5 Keys
 
@@ -384,8 +384,8 @@ back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345`).
 
 The item `BP_*` constants (`BP_RELOAD_GUN`, `BP_THROW_ITEM`, `BP_READY_*`, `Points.h`) are never used; breath for these
 actions comes only from the per-animation breath rates (`GetBreathPerAP`, `Points.cc:764-840`). ja2-node: `applyItem`
-refuses drugs and alcohol (deviations.md "Drugs and alcohol"); planting, wire cutters, repair, refuel, jars and tin cans
-have no command ("Unbuilt item actions").
+refuses drugs and alcohol (gaps.md "Drugs and alcohol"); planting, wire cutters, repair, refuel, jars and tin cans
+have no command (gaps.md "Unbuilt item actions").
 
 **Hand item breakage** (`HandItemWorks`, `Tactical/Handle_Items.cc:2639-2696`), first step of every `HandleItem` call:
 for an `ITEM_DAMAGEABLE` hand item that is not a pressure explosive, medkit or gas can: status < `USABLE` → fails; else
@@ -403,7 +403,7 @@ incapacitation, death, teleport, suppression and hand item changes; `BeginSoldie
 bandaged costs `AIM_PENALTY_GETTINGAID` 20 in gun, thrown and close-combat chances (`11` §2, `34` §4, `11` §4.2); the
 interrupt duel takes 2 from both partners (`10` §1.3). ja2-node: `first-aid.ts`, soldier fields `servicePartner`,
 `serviceCount`, `pendingAid` (imported from native saves); the stub `START_AID` script jumps to the `GIVING_AID` loop
-like the original's. Auto-bandage is not ported (deviations.md "Auto-bandage").
+like the original's. Auto-bandage is not ported (gaps.md "Auto-bandage").
 
 ---
 
@@ -437,7 +437,7 @@ Skipped entirely for a sector visited before (its items come from the save). For
    (`BOMB_PRESSURE`), `ARMED_BOMB` flag, `MAPELEMENT_ENEMY_MINE_PRESENT` on the tile. Armed bombs are BURIED.
 6. `AddItemToPool(grid, o, bVisible, level, flags, zHeight)`; then terrorist/queen ownership clean-ups (`:353-430`).
 
-ja2-node (`loadWorldItemsFromMap`) keeps the draw and the filters; which armed items act: §12 (deviations.md "Map
+ja2-node (`loadWorldItemsFromMap`) keeps the draw and the filters; which armed items act: §12 (gaps.md "Map
 items").
 
 ### 6.3 `AddItemToPool` (`Handle_Items.cc:1427-1629`)
@@ -486,7 +486,7 @@ fit stays on the ground (deviations.md "Picking up items").
   `Soldier_Control.cc:8240-8256`).
 - Give: walk adjacent, `MERC_GIVEITEM`, code **486** transfers (`Handle_Items.cc:1056-1094, 2306`; ja2-node `give.ts`).
 - Toss (non-explosive): `THROW_ITEM`/`LOB_ITEM` animation, physics object, `AP_TOSS_ITEM` at code 460/461
-  (`Handle_Items.cc:988-1053`; `34` §0; ja2-node `toss.ts`, catching in `explosions/catching.ts`; deviations.md
+  (`Handle_Items.cc:988-1053`; `34` §0; ja2-node `toss.ts`, catching in `explosions/catching.ts`; gaps.md
   "Tossing from the item cursor").
 - AI item search (`SearchForItems`, `TacticalAI/FindLocations.cc:1489-1676`; ja2-node `ai/item-search.ts`): range from
   difficulty and attitude, capped at wisdom/10, halved in real time, then halved; scores better weapons/armour/ammo
@@ -844,7 +844,7 @@ Reduce(d, r, dist) = r == 0 ? d : dist < r ? d − d·dist/r : (d/r)/2          
 ```
 
 Example, HAND_GRENADE (25/4, roll 50): wound 37 at the centre, 28/19/10 at 1/2/3 tiles, 4 at 4 tiles.
-`HandleBuldingDestruction` has no effect in ja2-node (deviations.md "Building owners").
+`HandleBuldingDestruction` has no effect in ja2-node (gaps.md "Building owners").
 
 ### 10.5 Damage to soldiers (`DamageSoldierFromBlast`, `:708-744`)
 
@@ -884,7 +884,7 @@ set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(RE
   explosion** (`InternalIgniteExplosion(RDX)`); `dist > 1` returns.
 - Gunfire on an explosive structure: `Random(2)` → `STRUCTURE_IGNITE` (`Structure.cc:1176-1185`).
 
-ja2-node changes structures only: no debris, decals, end pieces or fence partners (deviations.md "Wrecked
+ja2-node changes structures only: no debris, decals, end pieces or fence partners (gaps.md "Wrecked
 structures").
 
 ### 10.7 Items in the blast and chain reactions (`Tactical/Items.cc:3044-3277`)
@@ -906,8 +906,8 @@ DamageItemOnGround → removed if it blew up or is a single object below USABLE
 ### 10.8 What sets explosions off
 
 - **Thrown grenades and mortar shells**: `HandleArmedObjectImpact` (`34` §9.6: dud test, re-arming, light effect,
-  `IgniteExplosionXY`; deviations.md "Dud test operand order", "Duds and timed bombs"). Armed objects landing in water
-  ignite from a ripple anitile (delay 50, key frame 11, `34` §10) as a water blast, which does nothing (§10.1).
+  `IgniteExplosionXY`; deviations.md "Dud test operand order"; gaps.md "Duds and timed bombs"). Armed objects landing in
+  water ignite from a ripple anitile (delay 50, key frame 11, `34` §10) as a water blast, which does nothing (§10.1).
 - **Launchers** (`WillExplosiveWeaponFail`, the LAW's C1, the tank cannon's TANK_SHELL): `34` §8.
 - Others: exploding door trap → HAND_GRENADE (`Tactical/Keys.cc:540`); shaped charge on a lock (`:664`); vehicle death →
   GREAT_BIG_EXPLOSION (`Tactical/Vehicles.cc:672`); booby-trapped item → MINI_GRENADE (`Handle_Items.cc:2723-2729`);
@@ -1006,7 +1006,7 @@ Tear gas: breath 2000–2900, no wound; mustard: wound 15–29, breath 4000–59
 - Sight (`08` §1.4, §2.1): standing in tear/mustard without a mask (or in a mask-ignoring gas) caps sight at 2 tiles
   (`Tactical/OppList.cc:1019-1028`); LOS through smoke (`Tactical/LOS.cc:1247-1283`): SMOKE blocks after 3 tiles,
   tear/mustard cost 2 tiles of range per tile, creature gas does not block. ja2-node models neither the sight cap nor
-  the smoke LOS terms (deviations.md "Vision and hearing modifiers").
+  the smoke LOS terms (gaps.md "Vision and hearing modifiers").
 
 ### 11.5 Light (flares) (`TileEngine/LightEffects.cc`)
 
@@ -1023,7 +1023,7 @@ queue. The light itself is the lighting model of `20`.
 
 The original's rules; ja2-node does not simulate them. Map mines load armed (BURIED, armed-bomb flag, §6.2) but never go
 off; there is no planting or disarming command, no timed or remote bomb, no `DecayBombTimers` and no explosive bomb
-queue entry, no booby trap on pickup (deviations.md "Map items", "Duds and timed bombs", "Unbuilt item actions",
+queue entry, no booby trap on pickup (gaps.md "Map items", "Duds and timed bombs", "Unbuilt item actions",
 "Turn-based hooks"). The pressure action items and switches that `25` §6.5 needs do work, and `useRemote` only opens
 the O3 statue (`src/sim/tactical/narrative/statue.ts`).
 

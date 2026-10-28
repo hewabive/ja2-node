@@ -221,7 +221,7 @@ Runs for each living member of the team whose turn starts (and every 5 s in real
 `Tactical_Turns.cc:80-158`, `15`).
 
 1. `if underFire != 0: underFire--` (2 = shot at this turn, 1 = last turn).
-2. `HandleEndTurnDrugAdjustments` (drugs: deviations "Drugs and alcohol"; ja2-node runs only the regeneration points).
+2. `HandleEndTurnDrugAdjustments` (drugs: gaps "Drugs and alcohol"; ja2-node runs only the regeneration points).
 3. Unless auto-bandaging, for non-vehicles/robots with `bleeding != 0 || life < OKLIFE`: `CheckBleeding` (`33` §2.11;
    `Soldier_Control.cc:7804-7918`, `CalcSoldierNextBleed :8056-8063`), drop blood if in sector.
 4. `if life == 0: return` (bled to death; death handling follows the usual path).
@@ -764,7 +764,7 @@ therefore sets how many ticks an unseen enemy's action takes.
 
 ja2-node: `setSoldierAniSpeed` (`animation.ts`) gives delay 0 to any soldier with `visible == −1` in combat, without the
 `lastRenderVisible` test; the fade is drawn by the client (`src/render/world/soldier-fade.ts`) and `lastRenderVisible`
-is only carried through saves, so an unseen soldier speeds up at once rather than after his fade-out (deviations
+is only carried through saves, so an unseen soldier speeds up at once rather than after his fade-out (gaps
 "Unseen soldiers in combat").
 
 ---
@@ -920,7 +920,7 @@ combat `aiForSlot` (`ai/control.ts`) calls `handleSoldierAI` for every slot on e
 
 ### 10.4 Known gaps
 
-Differences from the original found in the code and not in `deviations.md`:
+Differences from the original found in the code (each also an entry of `gaps.md`):
 - `DisplayHiddenTurnbased` (case D of §1.5) is not implemented: an AI attack decided in real time does not enter combat.
 - The `endTurn` command calls `endTurn(t, OUR + 1)` without `UIHandleEndTurn`'s `CheckForEndOfCombatMode(FALSE)`
   first (§2.2), so an End Turn while nobody sees anyone and no hostile is RED+ runs the other teams' turns before combat

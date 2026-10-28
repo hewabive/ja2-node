@@ -217,7 +217,7 @@ on round 1; dual pistols pay only for the main hand.
 Fire states use a fixed `sSpeed` (100 ms per frame for rifle shots and bursts, 150 for dual, 110 for LAW and mortar), so
 combat halving does not apply; `READY_RIFLE_STAND` has speed 0 (stat-computed, `Soldier_Control.cc:4763-4918`). In
 combat, soldiers not visible to the player get delay 0 (every pass, `:4928-4936`; ja2-node applies it at once, without
-the fade, deviations "Unseen soldiers in combat"). Opcode layout (frames as `[n]`):
+the fade, gaps "Unseen soldiers in combat"). Opcode layout (frames as `[n]`):
 
 | State | Script (gameplay opcodes) |
 |---|---|
@@ -741,7 +741,7 @@ bullet. Callers: `SoldierToSoldierBodyPartChanceToGetThrough` (target body-part 
    which the target is directly reachable, else `FindAdjacentGridEx`; blades use `FindAdjacentGridEx` (bloodcats and
    distant creatures: `FindNextToAdjacentGridEx`). Not adjacent → pending action (`MERC_PUNCH`/`MERC_KNIFEATTACK`),
    walk there first, attack on arrival (in ja2-node the AI does; the agent `attack` order refuses a target that needs
-   a walk, deviations "Melee without walking"). **No AP check here**; UI and AI check affordability
+   a walk, gaps "Melee without walking"). **No AP check here**; UI and AI check affordability
    (`CalcTotalAPsToAttack`, §1.5, which includes the walk). Queen tentacles (`IC_TENTACLES`) pay at order time and play
    `QUEEN_SWIPE` (`:844-853`; damage at opcode 755 → `DishoutQueenSwipeDamage`, `Weapons.cc:3815-3867`).
 2. **Begin**: `EVENT_SoldierBeginBladeAttack` (`Soldier_Control.cc:6574-6716`) / `EVENT_SoldierBeginPunchAttack`
@@ -756,7 +756,7 @@ bullet. Callers: `SoldierToSoldierBodyPartChanceToGetThrough` (target body-part 
      the blade rule; quirk, keep); target prone → `PUNCH_LOW` after crouching (civilian bodies just `PUNCH`).
    - Both set `sTargetGridNo`, `bTargetLevel = bLevel`, `target`; punch also sets `sLastTarget`.
    - ja2-node has no `DECAPITATE` (an empty tile gets `STAB`/`CROUCH_STAB`), no `NINJA_*` states (martial artists punch
-     with `PUNCH`/`PUNCH_LOW` and keep their trait bonuses) and no stealing (deviations "Melee specials"); a prone
+     with `PUNCH`/`PUNCH_LOW` and keep their trait bonuses) and no stealing (gaps "Melee specials"); a prone
      attacker who turns is not laid down again mid-attack (deviations "Melee from a prone turn").
 3. **Animation** (`Ja2bin.dat`): `STAB`/`SLICE` 70 ms: `757 [0-6] 727 492 [7-8] 430 [9-14] 442 → KNIFE_GOTOBREATH`
    (`[0-3] 442 753 → KNIFE_BREATH`); `CROUCH_STAB` `757 … 492 … 430 … 753 442 499`; `PUNCH` 70 ms `757 [0-5] 727 492
@@ -1002,9 +1002,9 @@ to right (deviations "Dud test operand order").
 ### 6.4 Not ported
 
 - `HandleItem` refusals and the rocket-rifle imprint check (deviations "Attack refusals").
-- Martial-arts `NINJA_*` states, decapitation and stealing (deviations "Melee specials"); agent melee orders need the
-  attacker adjacent (deviations "Melee without walking").
-- The fade before the delay 0 of unseen soldiers (deviations "Unseen soldiers in combat").
+- Martial-arts `NINJA_*` states, decapitation and stealing (gaps "Melee specials"); agent melee orders need the
+  attacker adjacent (gaps "Melee without walking").
+- The fade before the delay 0 of unseen soldiers (gaps "Unseen soldiers in combat").
 
 ### 6.5 Verification
 

@@ -215,7 +215,7 @@ their values (`deviations.md` §2 lists every change):
 | Real-time turn (bleeding, breath, smoke, light and opplist decay) | Every 5000 ms × compression (`Strategic/Strategic_Turns.cc:30-84`, `Tactical/Tactical_Turns.cc:80-160`) | Checked every 20 game ms, fires after more than 5000: every 5020 ms (`src/sim/tactical/turns/turns.ts`) |
 | Explosion damage | At a keyframe, 3–18 frames × 20–80 ms (`Explosion_Control.cc:205-209`) | Frame `k` at `k·(delay + 5)` game ms (`12` §10.2) |
 | Melee hit, enemy sighted on their turn | 20 ms (`Weapons.cc:987`), 3000 ms (`OppList.cc:2588-2602`) of wall clock | The same in game ms |
-| `DOOR_BUSY`, bomb queue (`1000 + R(500)` ms, `Explosion_Control.cc:2054-2095`) | Tile-animation and wall-clock windows | Not ported (`deviations.md` "Doors", "Duds and timed bombs") |
+| `DOOR_BUSY`, bomb queue (`1000 + R(500)` ms, `Explosion_Control.cc:2054-2095`) | Tile-animation and wall-clock windows | Not ported (`gaps.md` "Doors", "Duds and timed bombs") |
 | Watchdogs: 15 s AI (`AIMain.cc:366-380`), 25 s UI busy (`Handle_UI.cc:405-419`) | Break hangs | Not ported: a hang is a bug and fails the tests |
 
 **Time modes.** On the strategic map tactical ticks stop and world time runs at compression 0, 1×, 5, 30 or 60 minutes
@@ -270,7 +270,7 @@ timeline** (sprite frames, sound codes) for the views and clients. The logic tim
 of the 700s, 753, 755, 757, 761, 765, 768 and 772 (`isSimulationOpcode`). A soldier keeps `state`, `pc`, `frameSlot`
 and `nextFrameAt`; views find the sprite by body, state, frame and direction. Movement opcodes run in
 `src/sim/tactical/animation.ts`, the rest through the tactical hooks. Not run from the script: 491 (idle animations are
-client-only, `06` §1.6), the jar damage of 721/722, and the 700s codes whose systems are gaps (`deviations.md`). The
+client-only, `06` §1.6), the jar damage of 721/722, and the 700s codes whose systems are gaps (`gaps.md`). The
 stub pack has invented scripts for every state; clients with other scripts: `28`.
 
 **Why markers stay in the simulation.** Paying AP and applying effects at command confirmation, with the animation as
@@ -639,7 +639,7 @@ can affect (`check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browser
 **Deliberate deviations** are listed in `deviations.md`: wall clocks, frame rates and CPU slices become game time
 (§3.3), sound lengths rule-pack numbers (§3.8), screens and message boxes commands and prompts (D15); cosmetic draws
 leave the gameplay generators (§3.6); saving has no side effects; watchdogs are not ported; in real time orders can be
-given while paused; bugs are fixed as Stracciatella fixes them.
+given while paused; bugs are fixed as Stracciatella fixes them. What is not ported yet is listed in `gaps.md`.
 
 ---
 
@@ -718,5 +718,6 @@ Files are `docs/NN-<name>.md`.
 | `34` throwing-and-physics | Throwing, launchers, item physics, fuses |
 | `35` npc-actions-and-schedules | The NPC action catalog, strategic NPC presence, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
+| `gaps.md` | Behaviour not ported yet |
 | `releases.md` | Release notes |
 | `tools/oracle/README.md` | The native oracle: build, probes, comparers |

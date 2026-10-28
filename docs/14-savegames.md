@@ -230,9 +230,9 @@ Sentinels are converted to ja2-node's: `NOWHERE` is `WORLD_MAX + 1` (25601) in t
 `NO_DESIRED_HEIGHT` for "no pending stance").
 
 What the import leaves out (revealed tiles and roofs, smoke and light effect records, other sectors' temp files) is
-deviations.md "Savegame import"; see also "Strategic AI load hooks", "Underground traversal flag", "Talk context after a
-load" and "Bobby Ray theft counter". The loaded sector's difficulty modifier and progress are computed as at any campaign
-sector load ("Difficulty and progress in tactical").
+gaps.md "Savegame import"; what it does differently on purpose: deviations.md "Strategic AI load hooks", "Underground
+traversal flag", "Talk context after a load" and "Bobby Ray theft counter". The loaded sector's difficulty modifier and
+progress are computed as at any campaign sector load ("Difficulty and progress in tactical").
 
 Verification: `tools/oracle/save-probes.ts` writes probes for any saves (soldier dumps, hit chance and sight for every
 opposed pair, AI best shot, paths, lights), the native oracle runs them, and `tools/oracle/compare.ts` rebuilds each

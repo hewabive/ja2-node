@@ -722,7 +722,7 @@ else the panel closes and the shop opens (no further AP; `23` §9); "Give" → �
   his soldier exists, a merc within 10 tiles with LOS, picked by `Random(n)`, says 58 (`QUOTE_LISTEN_LIKABLE_PERSON`,
   filtered by gender) or 39 (`QUOTE_ANNOYING_PC`) (`Dialogue_Control.cc:1386-1471`); both profiles and the fact are
   reset even if no merc qualified, but only when the NPC's soldier exists. ja2-node resets them but queues no merc line
-  (deviation "Say-later merc lines").
+  (gap "Say-later merc lines").
 - **Other closers** (none resets once-per-conversation records): queued `NPCClosePanel`, scripted walks, the
   recruit/requestor/close/enter-combat/friendly/shop/lie/marry actions, `ChangeSoldierTeam` (`Soldier_Profile.cc:593`),
   triggers with dialogue (§5.2), our first sighting in a virgin sector (`OppList.cc:2408-2413`), other menus opening

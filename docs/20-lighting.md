@@ -205,7 +205,7 @@ or effect lasts) and the light-dependent AI decisions; they are covered by unit 
 
 ## 8. Gaps
 
-- Muzzle flashes do not count as daylight in `DistanceVisible` (`deviations`, "Vision and hearing modifiers").
+- Muzzle flashes do not count as daylight in `DistanceVisible` (`gaps`, "Vision and hearing modifiers").
 - An imported save starts from its `gubEnvLightValue` without the hot-desert rule until the next light event; the
   sandbox stays at 12:00, ambient 3 (`deviations`, "Ambient light and light schedule").
 - Cave lights are not switched on by sight (§4): they stay off.

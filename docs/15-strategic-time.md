@@ -224,7 +224,7 @@ AdvanceClock(code):                              // :170-219
 | Code | Meaning | Callers (original) | ja2-node |
 |---|---|---|---|
 | `WARPTIME_PROCESS_EVENTS_NORMALLY` | events inside the window run in order, the clock steps to each stamp | `UpdateClock` (every slice); the first helicopter arrival, 21600 s (`GameScreen.cc:691`); quest debug | `updateClock`; `teamJackedInAndGearedToGo` |
-| `WARPTIME_NO_PROCESSING_OF_EVENTS` | the clock jumps; skipped events stay queued in the past and run at the next normal advance | autoresolve battle time (`Strategic/Auto_Resolve.cc:1819`), PBI retreat 300 s (`Strategic/PreBattle_Interface.cc:1067`), last group retreating from a hostile sector 300 s (`Strategic/StrategicMap.cc:1810`), auto-bandage duration (`Tactical/Auto_Bandage.cc:356`), brothel 5–24 min with `Random(20)` (`JAScreens.cc:483`) | `BattleFlow` (autoresolve, PBI retreat), `src/sim/campaign/sector-exits.ts` (retreat), the brothel (`TalkFlow`, the NPC action port; deviation "Brothel time warp"); no auto-bandage (deviation "Auto-bandage") |
+| `WARPTIME_NO_PROCESSING_OF_EVENTS` | the clock jumps; skipped events stay queued in the past and run at the next normal advance | autoresolve battle time (`Strategic/Auto_Resolve.cc:1819`), PBI retreat 300 s (`Strategic/PreBattle_Interface.cc:1067`), last group retreating from a hostile sector 300 s (`Strategic/StrategicMap.cc:1810`), auto-bandage duration (`Tactical/Auto_Bandage.cc:356`), brothel 5–24 min with `Random(20)` (`JAScreens.cc:483`) | `BattleFlow` (autoresolve, PBI retreat), `src/sim/campaign/sector-exits.ts` (retreat), the brothel (`TalkFlow`, the NPC action port; deviation "Brothel time warp"); no auto-bandage (gap "Auto-bandage") |
 | `WARPTIME_PROCESS_TARGET_TIME_FIRST` | only the **last** event stamped exactly at the target second runs; earlier ones are skipped and stay queued | adjacent-sector traversal: to the start of minute `now + 5` above ground, `now + 1` underground (`StrategicMap.cc:1817-1827`); see `16` | `sector-exits.ts` |
 
 ### 1.5 Pausing, locks and what freezes the clock
@@ -342,7 +342,7 @@ ja2-node: `handleRealtimeTurns` (`src/sim/tactical/turns/turns.ts`, from the ove
 re-syncs `lastTurnMs` in combat; the turn after combat: deviation "Real-time turn after combat". `handleTacticalEndTurn`
 runs `beginMercTurn` only for soldiers placed in the loaded sector, and the strategic flow runs no strategic turn, so
 mercs outside the loaded sector never bleed, recover breath or get first aid between hourly updates, on the map at any
-compression or in tactical (limitation, §7; deviation "Absent mercs between hourly updates").
+compression or in tactical (limitation, §7; gap "Absent mercs between hourly updates").
 
 ### 1.8 Ticks and world seconds in ja2-node
 
@@ -1014,12 +1014,13 @@ Only here:
 
 - `HandleTacticalEndTurn` rots corpses on every turn: `uiTimeSinceLastStrategicUpdate − now > 1200` is a wrapped u32
   comparison, true whenever `now` differs from the last value (`Tactical_Turns.cc:86-90`); corpse rotting is not ported
-  (deviation "Corpses").
+  (gap "Corpses").
 - `MercArrivesCallback`'s equipment complaint uses `540 + Random(660)` (comment says 9–10 am).
 
 **Deviations** in `deviations.md`: "Ambient sound events", "Real-time pause", "Time compression checks", "Time
 compression for healing", "Ambient light and light schedule", "World clock for smoke and light", "Real-time turn after
-combat", "Brothel time warp", "Auto-bandage", "Corpses", "Absent mercs between hourly updates". Not listed there yet:
+combat", "Brothel time warp". **Gaps** in `gaps.md`: "Auto-bandage", "Corpses", "Absent mercs between hourly updates".
+Deviations not listed there yet:
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|

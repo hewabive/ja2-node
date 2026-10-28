@@ -110,7 +110,7 @@ stationary, `SoldierTriesToContinueAlongPath`, which finds `usActionData == NOWH
    charged again (`AP_LOOK_STANDING/CROUCHED/PRONE` = 1/2/2 by end height, in
    `EVENT_InternalSetSoldierDesiredDirection`, `Soldier_Control.cc:3859-3881`). A visible enemy turns one octant per ~200 ms frame, so repeated re-decisions can
    drain APs. Unseen soldiers animate with delay 0 in combat (`08` §2.7) and finish the turn at once (ja2-node without
-   the fade: deviations "Unseen soldiers in combat").
+   the fade: gaps "Unseen soldiers in combat").
 2. The extra `CancelAIAction` resets `SkipCoverCheck = FALSE` and `bBypassToGreen = 0`: the skip set by
    CHANGE_FACING/CHANGE_STANCE (§1.6) never reaches the next decision, and every movement action ending through the
    continue branch clears the bypass (RT too, which `09` §1.2 calls "harmless").
@@ -618,7 +618,7 @@ Notes:
 - RT `bNextAction = END_TURN`: `RTHandleAI` makes it the action; `ExecuteAction(END_TURN)` only does `ActionDone` (no
   turn to end) and returns false.
 - Step 15 terminates: each iteration sets at least the best of the four to −99.
-- ja2-node: steps 2 (panic) and 5 (Tixa mask) not ported (deviations "Combat AI specials"); step 9 omitted
+- ja2-node: steps 2 (panic) and 5 (Tixa mask) not ported (gaps "Combat AI specials"); step 9 omitted
   (unreachable).
 
 ### 5.1 RNG order of one RED decision (TB, ENEMY, no panic, not Tixa)
@@ -659,7 +659,7 @@ until a `CalcBest*` fills them (each calls `InitAttackType`, §7).
     team, NumPCsInSector() < 4, Team[ENEMY].bMenInSector >= 3 · NumPCsInSector(), quest HELD_IN_ALMA not started (or
     done and INTERROGATION not started) → ENEMY_OFFERED_SURRENDER flag, OFFER_SURRENDER (the offer: `24` §8.5)
 ```
-ja2-node: step 2 (panic) and the Tixa mask draw are not ported (deviations "Combat AI specials"); step 6 is
+ja2-node: step 2 (panic) and the Tixa mask draw are not ported (gaps "Combat AI specials"); step 6 is
 `offersSurrender` with `t.turn.enemyOfferedSurrender`.
 
 ### 6.2 Can attack? (`:2662-2771`)
@@ -725,7 +725,7 @@ BestAttack = the struct of the chosen action (FIRE_GUN → BestShot, TOSS → Be
    none → zeroed)
 ```
 `BestAttack.ubChanceToReallyHit = 0` is set before the block (`:2778`) and matters only when nothing was chosen.
-ja2-node gaps: a throwing knife in the KNIFE branch is rated "not possible" (deviations "Combat AI specials"); the
+ja2-node gaps: a throwing knife in the KNIFE branch is rated "not possible" (gaps "Combat AI specials"); the
 TOSS branch skips the mortar room rule (only RED's long-range toss applies it, §13.4).
 
 ### 6.4 Low-chance shot reconsidered (`:3057-3078`)
@@ -969,7 +969,7 @@ FindThrowableGrenade (Items.cc:488): ambient light 12 (night) and bLife > bLifeM
 - Targets: MORTAR/GL need `SEEN_CURRENTLY` personally or publicly (real grid); others: SEEN_CURRENTLY → real grid;
   SEEN_LAST_TURN → `CloseEnoughForGrenadeToss(real, lastKnown)` and last-known grid/level; HEARD_LAST_TURN →
   **`PreRandom(3)`, skip on 0**, then close-enough, then only a BREAK_LIGHT or when `bUnderFire`/`bShock`.
-  `threat[k] = CalcManThreatValue(opp, s.grid, FALSE, s)`. ja2-node aims at the opponent's current level (deviations
+  `threat[k] = CalcManThreatValue(opp, s.grid, FALSE, s)`. ja2-node aims at the opponent's current level (gaps
   "AI throw targets").
 - Pre-gate (not BREAK_LIGHT), fewer than 2 targets: difficulty 0–1 and `bLife > bLifeMax/2` → none; difficulty 2 and
   `bLife > idiv(bLifeMax, 4)·3` → none.
@@ -1258,7 +1258,7 @@ player's `bSide`, so their opponents are the enemies and hostile civilians. Diff
 | Warden, `the_chosen_one`, panic (§9.4) | scripted sectors (Tixa, alarm switches) | not ported |
 | Tanks | `TANK()` branches | the branches exist, no vehicles in tactical |
 
-"Not ported" and the tanks are deviations "Combat AI specials".
+"Not ported" and the tanks are gaps "Combat AI specials".
 
 ### 9.4 Panic AI (`TacticalAI/PanicButtons.cc`)
 
@@ -1477,9 +1477,9 @@ edge escapes through `sectorHooks.soldierLeftMap` (§8.3).
 
 ### 13.4 Gaps
 
-Deviations: "Combat AI specials", "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs",
-"Recalculated path cost", "GoAsFar fallback", "AI threat value", "AI path-cost cache", "AI throw targets", "Difficulty
-and progress in tactical". Other gaps:
+Deviations (`deviations.md`): "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated
+path cost", "GoAsFar fallback", "AI path-cost cache", "Difficulty and progress in tactical". Gaps (`gaps.md`): "Combat
+AI specials", "AI threat value", "AI throw targets". Other gaps:
 - `handleInitialRedAlert` only sets `awareOfOpposition`: no chosen one, no Queen and Joe to RED in Meduna (§2.3).
 - The `Random(50)` civilian quote on a visible AI attack (§1.6) is not drawn: such an attack takes one main-stream
   number less than in the original.

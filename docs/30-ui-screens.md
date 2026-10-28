@@ -8,7 +8,7 @@ command, query, view field and event a screen uses is in `29`.
 **Conventions.** Paths without a prefix are relative to `reference/stracciatella/src/game/`, `src/sgp/…` to
 `reference/stracciatella/`; ja2-node paths start with `src/`, `data/`, `stubs/` or `tools/`; `interface/…`, `faces/…`,
 `sounds/…` are game data. Coordinates are in the `std640` frame (`28` §3.10). A quoted name ("Item cursor on the
-canvas") is a row of `deviations.md`.
+canvas") is a row of `deviations.md` or `gaps.md` (names are unique across both).
 
 ## 1. Front-end screens
 
@@ -132,7 +132,8 @@ new game. Music: `MAIN_MENU` without a session (`FrontEndMusicPlayer`; the sessi
   native saves are imported), in game in place through the WebSocket `load` (a fresh `welcome`), then the screen of the
   header's flow; a load error stays on the screen (the session is untouched); the refusal texts.
 - Location column: the save header carries only the sector code, so the row shows it instead of
-  `GetSectorIDString`'s town or land-type form (deviation "Save list in the launcher and on the canvas").
+  `GetSectorIDString`'s town or land-type form (deviation "Save list in the launcher and on the canvas", gap "Save
+  location on the canvas").
 
 ### 1.6 Message box (`MessageBoxScreen.cc`, `Utils/MercTextBox.cc`)
 
@@ -251,7 +252,7 @@ steps, no cursor during a fade.
 | Ctrl+S, Ctrl+L, o, h | tactical, map | save screen, load screen, options, help |
 | Ctrl+F | everywhere | the diagnostics overlay (`29` §30) |
 
-Alt+S and Alt+L (quick save and load) are not wired on the canvas (deviation "Tactical keys not yet ported"); `v` prints
+Alt+S and Alt+L (quick save and load) are not wired on the canvas (gap "Tactical keys not yet ported"); `v` prints
 the version and gun option lines in tactical only.
 
 ---
@@ -285,7 +286,7 @@ unless it already runs.
 | `inventory_bottom_panel.sti`, face plate (gold when selected on our turn, the other plate when disabled for items) | selection, turn | |
 | Face 48×43 at (13,6) | §2.5 | |
 | Life, breath, morale bars at (69,47) | `life`, `lifeMax`, `bleeding`, `breath`, `breathMax`, `morale` | §2.6; tooltips life/max, breath/max, the morale text |
-| AP (67,53) `TINYFONT1`, only in combat above `OKLIFE` | `ap`; light yellow in stealth | original: dark red below `MinAPsToAttack` on the last target, light blue under the influence; ja2-node: dark red only for negative AP (deviation "Tactical HUD details") |
+| AP (67,53) `TINYFONT1`, only in combat above `OKLIFE` | `ap`; light yellow in stealth | original: dark red below `MinAPsToAttack` on the last target, light blue under the influence; ja2-node: dark red only for negative AP (gap "Tactical HUD details") |
 | Name (11,53) `BLOCKFONT2` | `name`, `stealth` | |
 | Ten stats, labels colour 6, values colour 5, `"%3d"`; green for 60 s after a rise, red after a fall | `stats` | flashes from `statChanged` events |
 | Armour %, weight %, camo % | `armour`, `weight`, `camo`, computed by the server | `ArmourPercent` (`Weapons.cc:123-147`), `CalculateCarriedWeight` |
@@ -302,7 +303,7 @@ progress (D16).
 |---|---|---|
 | Stance up / down | `stance` (the next height up or down) | not standing / a valid lower stance; every action button is off when the merc is not the selected one, below OKLIFE, not on our turn, or the panel is disabled for items |
 | Stealth | `stealth {soldiers, on}` (logs the line the z key logs; deviation "Stealth button message") | as stance |
-| Climb | `climb`, then the fence `jump` | whenever the merc may act; the server refuses where he cannot climb (deviation "Tactical HUD details") |
+| Climb | `climb`, then the fence `jump` | whenever the merc may act; the server refuses where he cannot climb (gap "Tactical HUD details") |
 | Burst mode | `weaponMode`: normal → burst → under-barrel launcher | a burst-capable gun or an attached launcher in the hand |
 | Look, hand, talk | toggle the input's cursor modes (§3.1) and show their state | |
 | Level view | the client's interface level | |
@@ -355,7 +356,7 @@ selected merc who dies stays selected through the animation; then the next merc 
   `detach`. A refusal keeps the cursor; a swap shows the displaced item back in its slot; a cursor item does not
   survive a switch to the map screen. On the map, the cursor gives to a talkable soldier or a merc of ours within
   passing range, tosses (`toss`, with the catch of a merc of ours further away) beyond the next tile or at anybody
-  else, and drops otherwise; the throw arc is not drawn (deviation "Tossing from the item cursor"). An item cursor
+  else, and drops otherwise; the throw arc is not drawn (gap "Tossing from the item cursor"). An item cursor
   without a drop command (a money split) is put back on a viewport click.
 - Not built: Ctrl+click stack combining (`combineStack` exists as a command), moving keys in and out of the key ring.
 
@@ -400,7 +401,7 @@ selected merc who dies stays selected through the animation; then the next merc 
   and position come from the speech presenter's line and the voice handle (`VoiceHandle.elapsedMs`,
   `SoundDirector.speaking`).
 - Overlays: closed eyes and hatch below consciousness, `p_dead.sti` + hatch when dead, the selection rectangle (white,
-  blue moving, yellow stealth moving; the moving state follows the animation's moving flag, deviation "Tactical HUD
+  blue moving, yellow stealth moving; the moving state follows the animation's moving flag, gap "Tactical HUD
   details"), the red rectangle for compatible items, the enemy count box, the hatch when the merc cannot act
   (`canAct`), assignment icons (`portraiticons.sti`), the blinded, adrenaline and drunk icons; the hit flash from white
   to red at 150 ms, run in its original steps from each `soldierHit`; shades below OKLIFE and at 0 AP (`InitFace`'s grey
@@ -435,7 +436,7 @@ current squad light green, others present dark green, absent black); choosing a 
   `(chars + 2) × 60 + 500` ms, a new quote replaces the old, a click closes it after 300 ms. Voices play through the UI
   audio engine (`src/app/tactical/speech-voices.ts`); the sound director hands quote speech to the presenter
   (`setSpeechOwner`); lip sync reads the presenter's line. The presenter lives in `TacticalHost`; the map screen plays
-  no speech and its info face does not lip-sync (deviation "Map screen speech").
+  no speech and its info face does not lip-sync (gap "Map screen speech").
 - **NPC talk panel** (`src/ui/screens/talk/talk-panel.ts`, layout `talk-panel.json`; `Interface_Dialogue.cc:100-133`):
   placed by `InitTalkingMenu` at the cell origin of the NPC's tile, clamped to the screen width and the viewport; the
   big face `faces/bNN.sti` (Elliot's variant from `faceVariant`) with blink and lip sync; the approaches (repeat,
@@ -471,9 +472,9 @@ current squad light green, others present dark green, absent black); choosing a 
   merc changes; the cosmetic quotes 12–15 and 21 on client timers. The SM panel shows the pricing merc with only the
   inventory and previous/next active, offered pockets hatched, a merc out of reach hatched whole; Esc is Done, Space the
   next merc. Purchases, change and repairs go straight into pockets with the new-item glow.
-- Differences (deviation "Shop screen details"): no repairman's split parts, the entry quote at once (not 800 ms
+- Differences (gap "Shop screen details"): no repairman's split parts, the entry quote at once (not 800 ms
   later), the compatible-item outline only for calibres and the gun's attachments, no owner portrait tooltips; inside
-  the shop the money region, dropping and rearranging pockets are off.
+  the shop the money region, dropping and rearranging pockets are off (deviation "Shop screen pockets").
 - **Money** (`money-box.ts`, `money-actions.ts`; the `REMOVE_MONEY` rules): the description box's money mode ($1000,
   $100, $10 and Done on `info_bil.sti`, Separate or Withdraw). A pocket's split goes into the item cursor and then into
   a pocket (`splitMoney`), onto a soldier (`give {money}`) or onto the money region (`depositCash` after the original's
@@ -519,11 +520,11 @@ box as `MSG_UI_FEEDBACK`:
 | Attack, turn-based guns: right click or `u` → action mode; hovering a visible enemy enters action mode and, after 80 ms with ammo, confirm mode by itself; right clicks add aim (a yellow full ring at the limit, then wrap), the wheel steps aim without wrapping (Stracciatella default); left click shoots; an own or militia target asks "attack your own man?" | `UI_Cursors.cc:129-139`, `:978-1309`, `Handle_UI.cc:2115-2295` | `estimateAttack` → `attack {soldier, target, level, aimTime, bodyPart, burst}`, fired in the soldier's weapon mode |
 | Attack, real time: a click shoots with aim 0; a red target cursor for 500 ms; a right click lowers the weapon | `Real_Time_Input.cc:154-184` | `attack` |
 | Burst spread: drag with the button held over up to 50 tiles, release after 300 ms | `Spread_Burst.cc`, `Turn_Based_Input.cc:339-368` | `attack {spread: gridNo[]}` (`PickBurstLocations`); marks at tile centres (deviation "Burst spread marks") |
-| Melee: two aim levels (0 and 3 AP), the walk to an adjacent tile plotted | `UI_Cursors.cc:1118-1209` | `attack`; the walk-up is not built (deviation "Melee without walking"): the cursor shows the refusal |
+| Melee: two aim levels (0 and 3 AP), the walk to an adjacent tile plotted | `UI_Cursors.cc:1118-1209` | `attack`; the walk-up is not built (gap "Melee without walking"): the cursor shows the refusal |
 | Throw and launch: impact tile marker, no arc in the original; one click throws | `UI_Cursors.cc:1026-1028` | `estimateAttack` throw branch → `attack` |
 | Medkit: the item cursor with the walk to an adjacent tile and the total AP | `DrawUIMovementPath` | `previewAction {kind: aid}` → `bandage` |
 | Wire cutters, toolkit, gas can, jar, tin can, bombs, remote, steal, enter vehicle | `DrawUIMovementPath` | not built: `previewAction` answers `notSupported` |
-| Doors, switches, openable structures | `UIHandleInteractiveTilesAndItemsOnTerrain` | `door`; the door menu from the server's `doorMenu` event (§3.6). Interactive tiles are the openable structure on the tile under the pointer: no pixel test, no stack cycling, no green shading (deviation "Interactive tiles") |
+| Doors, switches, openable structures | `UIHandleInteractiveTilesAndItemsOnTerrain` | `door`; the door menu from the server's `doorMenu` event (§3.6). Interactive tiles are the openable structure on the tile under the pointer: no pixel test, no stack cycling, no green shading (gap "Interactive tiles") |
 | Items on the ground: 1.5 s on a pool switches to the hand cursor; Ctrl holds the hand | `Handle_UI.cc:1230-1265` | `pickUp` (§2.4) |
 | Look (`l`, middle click in turn-based) | `Handle_UI.cc:3789-3881` | `turn {toward}`; all band-selected mercs in real time |
 | Talk: red balloon over a valid target (flashing without line of sight), plain within 4 tiles | `UIHandleTOnTerrain` | `previewAction {kind: talk}` → `talk` |
@@ -560,7 +561,7 @@ time only modal flows lock. The 25 s watchdog is not ported (deviation "Watchdog
   down), 40 px across and 20 px down per 20 ms step (Shift 80/40); the first step only arms the scroll (the original's
   pending scroll); Alt suppresses it; limits and the tile-centre snap of `05` §1.4 (`camera.ts`). Radar and
   overhead-map clicks jump the camera (`RenderWorld.cc:1925-2112`). Where the original slides the camera to a tile
-  (enemy sighted, locate), the canvas jumps (deviation "Tactical HUD details").
+  (enemy sighted, locate), the canvas jumps (gap "Tactical HUD details").
 - Cursor bounds: the viewport above the team or SM panel; picking by the exact inverse projection (`05` §7) plus
   soldier picking by sprite (`28` §2.7).
 
@@ -613,7 +614,7 @@ F11, Ctrl+C/E/H/K/O/T/U/W/Z, Ctrl+PgUp/PgDn, Alt+M/N, the Alt cheats).
 | Ctrl+S, Ctrl+L, Alt+X | save screen, load screen, exit prompt | §1 |
 | Ctrl+F (every screen) | Stracciatella's FPS overlay (`FPS.cc`), with the cell under the pointer and network, playback, server and read lines | `29` §30 |
 
-Do nothing yet (deviation "Tactical keys not yet ported"): `*` and `,` (red item glow), a (auto-bandage, deviation
+Do nothing yet (gap "Tactical keys not yet ported"): `*` and `,` (red item glow), a (auto-bandage, gap
 "Auto-bandage"), n (cycle stacked soldiers or structures), `-` and `=` with End or Delete held (the cover and sight
 sizes), Ctrl+N (head gear), Alt+- (music volume), Alt+S and Alt+L (quick save and load), the difficulty, save style and
 game style lines of v. The 3D cursor itself is not built, by decision.
@@ -666,7 +667,7 @@ dismisses a feedback popup; any key up unpauses a player pause and advances key-
   20×20 buttons in `interface/button_frame.sti` (icons `interface/newicons3.sti`), anchored at the mouse, clamped: Look,
   Run, Walk / Action (icon by hand item), Cancel, Sneak / Talk, Hand, Crawl; tooltips `pTacticalPopupButtonStrings`.
   Sneak and crawl are disabled only for vehicles, run for vehicles and the robot (the original also checks stances and
-  water; deviation "Movement menu stances").
+  water; gap "Movement menu stances").
 - **Door menu** (`InitDoorOpenMenu`, `PopupDoorOpenMenu`, `Interface.cc:1265-1436`): the same frame centred on the merc,
   opened by the server's `doorMenu` event and answered with `door {action}`; open (`openManually` on a locked door), key
   ring, crowbar, examine, cancel, lockpick, boot, untrap, explosive (`interface/door_op2.sti`); the "( AP )" help in
@@ -677,7 +678,7 @@ dismisses a feedback popup; any key up unpauses a player pause and advances key-
 - **Overhead map** (Insert; `TileEngine/Overhead_Map.cc`; `overhead-map.ts` and `src/app/tactical/overhead-map.ts`):
   the map composed once per sector from the tilesets' `t/` small tiles in the three passes of `RenderOverheadMap` into
   an RGB picture, the persons by team, the item dots, the merc names; a click centres the view. Normal shade over the
-  map's light colour, all roofs, restricted maps unrestricted, no item pool list, panel buttons enabled (deviation
+  map's light colour, all roofs, restricted maps unrestricted, no item pool list, panel buttons enabled (gap
   "Overhead map"). The stub pack has no small tiles, so on the stubs the map is black
   under the persons.
 - Menus, the dialog and the overhead map pause the game through the modal pause (`28` §1.4); the original freezes the
@@ -694,7 +695,7 @@ its turn (`aiTurn`), the story camera on entering a meanwhile or the endgame (`s
 
 "Day N, HH:MM" in `COMPFONT` (`UpdateGameClockGlobals`), light green in real time, red in combat, centred in 66×13 at
 `(teamPanel.x + slots width + 56, H − 23)` with the sector name above (`Game_Clock.cc:241-255`; the sector box shows
-the code, deviation "Tactical HUD details"); "Paused" (`pPausedGameText`) while the player pauses. The clock shows only
+the code, gap "Tactical HUD details"); "Paused" (`pPausedGameText`) while the player pauses. The clock shows only
 in a campaign (the sandbox has no world clock). The player pause (`HandlePlayerPauseUnPauseOfGame`, refused during a
 conversation) is the real-time driver at `manual` plus a mask that refuses orders; any click or key up resumes. The API
 still takes commands while paused (deviation "Real-time pause").
@@ -756,7 +757,7 @@ glow, flashes).
   M.E.R.C. `{len}d/{hired}d`; N/A), salary by the type of the last contract, medical deposit, the three corner icons
   with tooltips, bars at (66,61) (`DrawSoldierUIBars` at `BAR_INFO_X/Y`), the hand item at (6,81) (not with the
   inventory open or for the dead), previous/next merc buttons (`info-panel.ts`). Vehicles show no condition or fuel
-  (deviation "Vehicles as characters").
+  (gap "Vehicles as characters").
 - The merc inventory replaces the list for an accessible merc (not in transit, not a prisoner, not a vehicle or robot,
   not an EPC, above `OKLIFE`): the tactical inventory widget at the map slot table (`UILayout.cc:93-111`), armour
   `{3d}%`, weight and camo `{}%`, key ring, trash can, Done (`merc-inventory.ts`, `map-inventory.ts`,
@@ -766,9 +767,9 @@ glow, flashes).
   the trash can asks `pTrashItemText[0]` and sends `discardItem` (`GlowTrashCan` never shows a glow: its colour index
   stays 0, reproduced); Done is refused with an item in the cursor or a stack popup up.
 - Commands as on the tactical screen (`moveItem` without AP, passing items to another merc, into the sector pool).
-  Deviations: "Map inventory cursor" (the cursor stays in the client, Esc drops it), "Trash can warning for mission
-  items", "Map item description" (`itemInfo` by item type; status, ammunition and attachments from the view, since the
-  client's knowledge has no loaded sector on the map), "Map inventory details". The description box shows the money
+  Deviations: "Map inventory cursor" (the cursor stays in the client, Esc drops it), "Map item description" (`itemInfo`
+  by item type; status, ammunition and attachments from the view, since the client's knowledge has no loaded sector on
+  the map); gaps: "Trash can warning for mission items", "Map inventory details". The description box shows the money
   buttons at the original's offsets, but a split on the map does nothing (§2.9).
 
 ### 4.3 Contract button and menu
@@ -973,7 +974,7 @@ Any key first ends a player pause and closes fast help; only exact modifier stat
 | c, h, i, l, m, o, t, w, z | contract menu, help (§1.7), items filter, laptop, mines, options, teams, towns, militia |
 | Ctrl+S, Ctrl+L, Alt+X, Alt+A | save screen, load screen, exit prompt, assignment menu |
 | Ctrl+I | sector inventory (Stracciatella) |
-| v, Alt+S, Alt+L | bound but do nothing (deviation "Map screen speech" for `v`) |
+| v, Alt+S, Alt+L | bound but do nothing (gap "Map screen speech" for `v`) |
 
 ### 4.12 Implementation
 
@@ -1019,7 +1020,7 @@ it and popped when the battle closes. Server side: `29` §20.
   whenever there is a path) come from `src/sim/campaign/pre-battle-panel.ts`.
 - `showBattle` is a prompt rather than a summary query so the summary keeps the original's side effects (the wake-up,
   the stopped compression) and the panel needs no second code path.
-- The retreat-path preview is not drawn (deviation "Pre-battle retreat preview").
+- The retreat-path preview is not drawn (gap "Pre-battle retreat preview").
 
 ### 5.2 Autoresolve (`Strategic/Auto_Resolve.cc`)
 
@@ -1164,8 +1165,8 @@ talking; the "just hired" box with the arrival time (`pMessageStrings[66]`, the 
 face with speech and subtitles timed `max(1500, 80 × characters)` ms. The greeting at the end of a snow never plays
 after the connection snow (`DisplaySnowBackground` clears `gfFirstTimeInContactScreen`, as in the original). Not
 reproduced: the random distortion (its `Random(200)` is on the main stream in the original, `AIMMembers.cc:1973`;
-deviation "Cosmetic laptop draws"), the impatience quotes, the animated face. No golden: its snow and video run on the
-UI clock.
+deviation "Cosmetic laptop draws", gap "A.I.M. conference distortion"), the impatience quotes, the animated face. No
+golden: its snow and video run on the UI clock.
 
 ### 6.4 M.E.R.C. and the broken link
 
@@ -1195,15 +1196,15 @@ prices"). Speed indices: 0 overnight express, 1 two business days, 2 standard se
 `charProfilePage` hosts the fourteen sub pages with their own sub-page loads (fast once visited in the laptop session,
 none for the first page), the global cancel button and IMP-style boxes; the draft (`ImpDraft`) lives in
 `LaptopMemory`. Home with the activation code (Enter on key up, `impCheckCode {code}` → `ok | badCode | noSlot`), about
-us, main with the step blockers and the face icon, begin (name, nickname, gender; deviation "I.M.P. begin page
+us, main with the step blockers and the face icon, begin (name, nickname, gender; gap "I.M.P. begin page
 focus"), the quiz (answer buttons on the press, the long, short and short2 indents, the women's questions behind
 `IMP_CON_3`), the personality finish, the attribute entrance, the attributes (arrows on press and repeat, the slider
 drag and click of `SliderRegionButtonCallback`, the per-frame drag past the bar ends, the zero warning; budget, bounds
 and display order from the server's form rules), the attribute finish, portrait, voice (the sample on entry and on each
-step; deviation "I.M.P. voice samples"), finish (the analysing label and icon while pressed), confirm through
+step; gap "I.M.P. voice samples"), finish (the analysing label and icon while pressed), confirm through
 `impCreate`; the results mail via `emailText`. On the original data the attribute page's label records match the value
 order; only the comments in `IMP_Text_System.cc` name the last three skill rows wrongly. The direct skill pick and the
-saved I.M.P. profiles are not built (deviation "I.M.P. skill page and saved profiles").
+saved I.M.P. profiles are not built (gap "I.M.P. skill page and saved profiles").
 
 ### 6.7 Insurance, florist, funeral
 
@@ -1257,7 +1258,7 @@ arrive before the page has a tactical screen reach it when it is built.
   queue; `26` §1.5), so the event arrives at the right moment.
 - The box is a client modal: the real-time driver goes manual while it is up (`28` §1.4; deviation "Meanwhile box
   timing").
-- Meduna scenes are not played (deviations "Meanwhile scenes", "Meanwhile scene playback": the scene sandbox of
+- Meduna scenes are not played (deviations "Meanwhile scenes"; gaps "Meanwhile scene playback": the scene sandbox of
   `26` §2.4 is not built). OK and Skip both continue; a scene is marked seen only when played, as in the original, so
   none is ever marked and Skip shows only where the setting already marks the scene.
 

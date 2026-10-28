@@ -396,7 +396,7 @@ for every listed character in his group or selected (`Strategic/Map_Screen_Inter
 | Maria in C5 | custom |
 
 ja2-node: `forces/routes.ts` (people and vehicles), `forces/move-permission.ts` (`canEntireMovementGroupMove`; no fuel
-or museum check, deviation "Strategic move refusals"), `forces/move-box.ts`; a route is one command, not cursor clicks
+or museum check, gap "Strategic move refusals"), `forces/move-box.ts`; a route is one command, not cursor clicks
 (deviations "Map route plotting", "Move box regrouping").
 
 ### 3.4 Waypoints: `RebuildWayPointsForGroupPath(path, g)` and `AddWaypointToPGroup` (`Strategic_Pathing.cc:799-897`)
@@ -506,7 +506,7 @@ and returns true. Hourly `FatigueCharacter` (`:2073-2117`; a walker's `bBreathMa
 `bStrength < 100` and carried > 50% → `points = traverse / (450 / (100 − str))`,
 `StatChange(STRAMT, points·(carried − 50)/100)` (called even with 0). Integer divisions; `450 / (100 − x)` is 4 at 0,
 450 at 99. Vehicles (not the heli): fuel `sBreathRed −= traverse·6` (min 0), `bBreath = (sBreathRed + 99) / 100`; empty
-→ message, paths cleared (`Strategic_Movement.cc:3106-3118, 1163-1176`). ja2-node does not model fuel (deviation
+→ message, paths cleared (`Strategic_Movement.cc:3106-3118, 1163-1176`). ja2-node does not model fuel (gap
 "Vehicles as characters").
 
 ### 3.9 Arrival: `GroupArrivedAtSector(g, checkForBattle, neverLeft)` (`Strategic_Movement.cc:1077-1380`)
@@ -553,8 +553,8 @@ waitingForInput = false
 
 `AddCorpsesToBloodcatLair` writes three JFK-type corpses (grid 14319, 9835, 11262, one `Random(8)` direction for all,
 time of death now − 2 days, `ROTTING_CORPSE_FIND_SWEETSPOT_FROM_GRIDNO`) into the lair's corpse diff (`:1029-1068`).
-ja2-node: the `TacticalWorldPort.addCorpsesToBloodcatLair` hook (unimplemented, §7.7). The "arrived" message becomes the
-`groupArrived` event (`29`).
+ja2-node: the `TacticalWorldPort.addCorpsesToBloodcatLair` hook (unimplemented, §7.7; gap "Bloodcat lair corpses"). The
+"arrived" message becomes the `groupArrived` event (`29`).
 
 ### 3.10 Non-combat arrival (`:1383-1440`, `:3458-3608`)
 
@@ -584,7 +584,7 @@ heli, or while another prompt is open; fires when `WildernessSectorWithAllProfil
 box is OK at the final destination, Continue/Stop otherwise; Yes/OK → `PlayerGroupArrivedSafelyInSector(g, FALSE)`; No →
 clear paths, select the sector, stop compression (`:3584-3608`). ja2-node: the prompt record is
 `movement.groupPrompting`, answered by `answerNpcOfNotePrompt` (deviation "Strategic prompts"); the sector test is the
-`TacticalWorldPort.npcOfNoteInSector` hook, which only has its default `false` (§7.7).
+`TacticalWorldPort.npcOfNoteInSector` hook, which only has its default `false` (§7.7; gap "NPC-of-note test").
 
 `CalculateNextMoveIntention(g)` (`:915-992`, enemy): if not between sectors, with waypoints, and standing on
 `waypoint[nextId]`: ONE_WAY → stop at the last one, else `nextId++`; CIRCULAR → wrap to 0; ENDTOEND_FORWARDS → at the
@@ -657,7 +657,7 @@ ja2-node: `forces/vehicles.ts` and `economy/vehicle-assignment.ts` (`VehicleReco
 when the last passenger leaves a ground vehicle, its soldier returns to the vehicle group with `ASSIGNMENT_EMPTY` and a
 vehicle between sectors is put in its closest sector, `TeleportVehicleToItsClosestSector`; `soldierMustDriveVehicle` for
 sleep and fatigue). A vehicle soldier exists only for vehicles imported from a native save (`VehicleRecord.soldierId`,
-else −1), so a ground vehicle without one cannot be boarded; no condition or fuel (deviations "Vehicles as characters",
+else −1), so a ground vehicle without one cannot be boarded; no condition or fuel (gaps "Vehicles as characters",
 "Ground vehicles").
 
 ### 3.16 Helicopter
@@ -833,7 +833,7 @@ if !loading: music; HandleRPCDescriptionOfSector (docs/24 §8.6; Random(5)); Set
 before the call at `:509`: the doors are never closed (vanilla `V: Strategic/StrategicMap.c:877,904` too). ja2-node
 (`SectorFlow.setCurrentWorldSector(sector, {autoPlacement, battleLocatorShown})`) runs this order with the sector diff,
 without `ExamineDoorsOnEnteringSector` (same result); the cosmetic `Random(20)` and `Random(5)` are drawn from `main`
-and discarded, keeping the draw order; there is no `IN_CREATURE_LAIR` state (deviation "Creature quest scripting").
+and discarded, keeping the draw order; there is no `IN_CREATURE_LAIR` state (gap "Creature quest scripting").
 
 ### 5.3 `EnterSector(s)` (`StrategicMap.cc:837-906`)
 
@@ -1210,7 +1210,7 @@ function per original function; creature and bloodcat bodies and their placement
 
 | What | Rule |
 |---|---|
-| Corpses | `AddRottingCorpse` (not loading): older than 1 day (1440 min) and a fresh merc type (`≤ FMERC_FALLF`) → `ROTTING_STAGE2`; older than 3 days → not added (`Tactical/Rotting_Corpses.cc:51-52, 446-459`); town, indoors, ≥ 30 min → not added (§5.11). ja2-node ages them when the sector loads (`agedCorpse`), with no rotting while loaded (deviation "Corpses") |
+| Corpses | `AddRottingCorpse` (not loading): older than 1 day (1440 min) and a fresh merc type (`≤ FMERC_FALLF`) → `ROTTING_STAGE2`; older than 3 days → not added (`Tactical/Rotting_Corpses.cc:51-52, 446-459`); town, indoors, ≥ 30 min → not added (§5.11). ja2-node ages them when the sector loads (`agedCorpse`), with no rotting while loaded (gap "Corpses") |
 | Preserved enemies | discarded after 300 min or on a stationary count change (§5.12) |
 | Civilians | +1 life per 15 min (§5.12) |
 | Items | stolen when the enemy takes a visited sector (`RemoveRandomItemsInSector`, chance `min(5·enemies, 90)`, visible and reachable items, `Strategic/Strategic_Town_Loyalty.cc:616-`); town theft (`18`) |
@@ -1407,8 +1407,8 @@ re-entering, with the same digest under the instant and the manual driver.
   no caller).
 - No placement GUI (§5.8); no vehicle soldier, condition or fuel for vehicles ja2-node adds (§3.15); no fuel or museum
   move refusal (§3.3); no heli arrival clamp (§3.16).
-- Native temp files of sectors other than the loaded one are not imported (deviation "Savegame import"); no rotting or
-  crows in the loaded sector (deviation "Corpses").
+- Native temp files of sectors other than the loaded one are not imported (gap "Savegame import"); no rotting or
+  crows in the loaded sector (gap "Corpses").
 - Not probed: strategic `advance` with replayed draws (enemy sleep, queued battles, reversals in one run), and ETAs with
   a soldier's encumbrance other than through `groups` when every member is in the loaded sector.
 
@@ -1449,15 +1449,16 @@ Original behaviour (vanilla too unless marked), each stated in its section:
   rolls `PreChance(95)` and returns false (§4.2).
 - Enemy groups are sized troops + elites (§2.2).
 
-### 8.2 Deviations
+### 8.2 Deviations and gaps
 
-Entries in `deviations.md`: "Cosmetic draws in strategic movement" (§4.4, §3.9), "Cosmetic draws of the helicopter",
-"Waiting for mercs to exit" (§5.9), "Sector temp files" (§5.11), "Underground traversal flag", "Strategic prompts"
-(§3.10, §3.12, §4.1), "Exit dialog" (§5.9), "Tactical placement" (§5.8), "Map route plotting", "Move box regrouping",
-"Strategic move refusals" (§3.3), "Vehicles as characters", "Ground vehicles" (§3.15), "Helicopter on the map", "Map and
-tactical screens" (§5.1), "Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in
-tactical", "Corpses", "Corpse sweet spot", "Savegame import", "Map changes of the loaded sector on import", "Strategic
-AI PD placement pass" (§5.13). "Doors on entering a sector" describes a door rule the original never runs (§5.2).
+Entries in `deviations.md`: "Cosmetic draws in strategic movement" (§4.4), "Cosmetic draws of the helicopter", "Waiting
+for mercs to exit" (§5.9), "Sector temp files" (§5.11), "Underground traversal flag", "Strategic prompts" (§3.10, §3.12,
+§4.1), "Exit dialog" (§5.9), "Tactical placement" (§5.8), "Map route plotting", "Move box regrouping", "Map and tactical
+screens" (§5.1), "Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map
+changes of the loaded sector on import", "Strategic AI PD placement pass" (§5.13). Entries in `gaps.md`: "Bloodcat lair
+corpses" (§3.9), "NPC-of-note test" (§3.10), "Strategic move refusals" (§3.3), "Vehicles as characters", "Ground
+vehicles" (§3.15), "Helicopter on the map", "Corpses", "Corpse sweet spot", "Savegame import". "Doors on entering a
+sector" describes a door rule the original never runs (§5.2).
 
 ### 8.3 Unverified
 

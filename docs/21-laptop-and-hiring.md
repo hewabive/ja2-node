@@ -550,7 +550,7 @@ so only the order relative to other laptop commands can differ, inferred).
 - **Direct skill pick** (policy `imp.pick_skills_directly`, default false; `IMP_SkillTraits.cc`): replaces the quiz; up to
   2 of 14 traits (martial arts hidden for women); no personality/attitude; bonus points: none picked +10, one of
   `ELECTRONICS`/`AMBIDEXT`/`CAMOUFLAGED` +5, otherwise 0 (`:554-591`). ja2-node accepts it in `impCreate` (the canvas page
-  is a deviation, "I.M.P. skill page and saved profiles").
+  is not built, gap "I.M.P. skill page and saved profiles").
 - **Attributes** (`IMP_Attribute_Selection.cc`): all ten start at 55 (health, agility, dexterity, strength, wisdom,
   leadership, marksmanship, medical, mechanical, explosives); pool = `imp.bonus_attribute_points` 40 (+ the direct-pick
   bonus) (`SetAttributes`, `:729-748`). +1 costs 1 point below `max_attribute_points` 85; a value at 0 needs 15 points and
@@ -827,7 +827,7 @@ started 15 and finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`
 64–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`, by encounter code and outcome); RPC joined 23; Walker 20,
 married off 21, Tixa/Orta 30/31, rocket rifles 32, Deidranna's dead bodies 33, boxing matches 34, something in the mines
 35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74, Carmen's head 75 (`25` §2.4, `35` §1).
-Which of them ja2-node writes: deviation "History writers". The server renders the row texts
+Which of them ja2-node writes: gap "History writers". The server renders the row texts
 (`src/server/history-labels.ts`).
 
 **Logic reader**: only `GetTimeQuestWasStarted(quest)` (`History.cc:737-753`: the date of the first `QUEST_STARTED` with
@@ -1160,9 +1160,10 @@ and the profiles.
   flowers; autoresolve deaths never suspicious; a fraud slot never freed.
 
 **Deviations** (full entries in `deviations.md`): "A.I.M. annoyance", "Speck's opening", "Cosmetic laptop draws",
-"Cosmetic face and frame draws", "Soldier creation draws", "Email order", "I.M.P. empty skill list", "I.M.P. skill page and
-saved profiles", "Laptop as commands", "Speck payment record", "Bobby Ray theft counter", "Bobby Ray's shipment prices",
-"Florist order form entry", "History writers". The canvas pages' own differences are listed there too (`30` §6).
+"Cosmetic face and frame draws", "Soldier creation draws", "Email order", "I.M.P. empty skill list", "Laptop as
+commands", "Speck payment record", "Bobby Ray theft counter", "Bobby Ray's shipment prices", "Florist order form entry",
+"Cheats". **Gaps** (`gaps.md`): "History writers", "I.M.P. skill page and saved profiles", "A.I.M. conference
+distortion". The canvas pages' own differences and gaps are listed there too (`30` §6).
 
 **Limitations**: the content identity hashes text files by presence, so a data folder whose florist gallery text carries
 other bouquet prices is not told apart from the one a save was made with.

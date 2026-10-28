@@ -562,7 +562,7 @@ reach the AI through `TacticalHooks` (`turnFinished` → `freeUpFromTurning`, `s
 
 ### 7.4 Known gaps
 
-Differences from the original found in the code and not in `deviations.md`:
+Differences from the original found in the code (most of them also in `gaps.md`, "AI decision details"):
 - `realtimeDelay` treats Kingpin's men as civilians (`REALTIME_CIV_AI_DELAY`) and has no brothel ÷3 (§1.4).
 - The look-around branch of `decideActionGreen` has neither the turn-based `GetAPsToLook <= bActionPoints` gate nor the
   `InternalIsValidStance` test (§2.3 step 10), so in turn-based combat a soldier without the APs draws `PreRandom(100)`

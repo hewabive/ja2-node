@@ -473,7 +473,7 @@ Amounts are before sentiment scaling; "everywhere" = every started town, no dist
 
 Stracciatella has no robbery or building-damage loyalty (the vanilla stubs are gone; the multipliers at `:63-68` are
 unused). ja2-node wires every row (quest rows through the NPC actions) except civilian murder (§2.5) and the head-miner
-attack (`playerAttackedHeadMiner` exists, nothing calls it; `deviations.md` "Implications of an attack").
+attack (`playerAttackedHeadMiner` exists, nothing calls it; `gaps.md` "Implications of an attack").
 
 ### 2.5 Civilian murder
 
@@ -1058,7 +1058,7 @@ RepairItemsOnOthers(r, &left):                                        // :7049-7
 transit/POW/dead, and r (sic) not mechanical and not an EPC. Every gun is unjammed (in every pass, repeatedly) before
 items. `IsItemRepairable` = status < 100 and `ITEM_REPAIRABLE` (`:2027-2030`). ja2-node: `repair.ts`, `repair-rules.ts`
 (the passes are `REPAIR_PASS_SLOTS`); events `itemRepaired`, `gunUnjammed`. Vehicle repair is a hook that repairs nothing
-until vehicles have a condition (`deviations.md` "Strategic economy stand-ins").
+until vehicles have a condition (`gaps.md` "Strategic economy stand-ins").
 
 ### 5.8 Training stats
 
@@ -1295,8 +1295,8 @@ All read in Stracciatella; V where marked.
 
 Deviations (full entries in `deviations.md`): "Time compression for healing", "Nothing-to-do re-evaluation", "Loyalty
 distance path", "Militia trainer ties", "Militia payment and continue prompts", "Militia redistribution", "Strategic morale
-decay counter", "Finance ledger", "Assignment presentation", "Update box timing", "Strategic economy stand-ins",
-"Implications of an attack" (head miner).
+decay counter", "Finance ledger", "Assignment presentation", "Update box timing". Gaps (`gaps.md`): "Strategic economy
+stand-ins", "Implications of an attack" (head miner).
 
 ## 8. Limitations and unverified
 

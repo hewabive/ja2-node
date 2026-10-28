@@ -128,7 +128,7 @@ Roof and on-roof tiles are added with `level = 1`, so their structures get `sCub
 - Door status: `DOOR_STATUS` records exist only after a door changed state (`Tactical/Keys.cc:843-905`), keyed by the
   base gridno, flagging that tile `MAPELEMENT_EXT_DOOR_STATUS_PRESENT`; `DOOR_PERCEIVED_OPEN` is what the player believes.
   On a fresh map load there are none, so pathing reads the structure flags. In ja2-node the perceived state always
-  equals the real one (`deviations` "Doors").
+  equals the real one (`gaps` "Doors").
 - Strac tile-database fix for mis-flagged double doors (`TileEngine/TileDef.cc:122-149`): edits shared DB records
   (orientation, armour, DDOOR left/right); `fixDoubleDoors` in `src/content/world/tile-database.ts`.
 - Map door table (`MapDef.doors`: locked, trap, lock id, lock damage, perceived lock and trap): the pathfinder consults it
@@ -300,7 +300,7 @@ the original write out of bounds or into the wrapped row (**(inferred)**: no shi
 - `HandleNextTile` treats a non-visible next tile as clear (paths out of the map, `Soldier_Tile.cc:280-283`); leaving
   the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is in `16` §5.7 and `16` §5.9.
 - ja2-node: `isVisibleTile` (`src/content/world/grid.ts`) uses the full-map diamond everywhere; the smaller basement
-  bounds apply only to sector exits and schedules (`deviations` "Visible area in basements").
+  bounds apply only to sector exits and schedules (`gaps` "Visible area in basements").
 
 ---
 
@@ -364,7 +364,7 @@ FindBestPath(s, dest, level, mode, copy, flags, budget, distLimit, circular):
       if height[n] != height[cur.loc]: continue
       if distLimit && (circular ? PythSpacesAway : SpacesAway)(org, n) > distLimit: continue
       mine flags: skip ENEMY_MINE for non-friendly; friendly skip PLAYER_MINE unless (OUR_TEAM && n==dest) (:1025-1053)
-                  [not in ja2-node: map mines are inert, `deviations` "Map items"]
+                  [not in ja2-node: map mines are inert, `gaps` "Map items"]
       c = cost[n][d][level]
       if c == NOT_STANDING: c = terrainCost(n)
       elif c == EXITGRID:   if gfPlotPathToExitGrid: c = terrainCost(n)
@@ -796,7 +796,7 @@ Continuing a halted move: `ContinueMercMovement` / `CheckForMercContMove` (`Sold
 ja2-node's `handleAtNewGridNo` (`movement.ts`) does 2 and 8, steps 5–7 in the `atNewGridNo` hook of
 `perception/wiring.ts` (pressure action items of our soldiers, `setOffActionItemsInGridNo`; the footstep noise plus a
 `stealthyFootstep` event for a sneaking merc; `HandleSight`), 10 through `newAiSituation`, and of 11 the escort
-arrivals and the assassin's approach. Step 1 is presentation; bombs and mines are inert (`deviations` "Map items").
+arrivals and the assassin's approach. Step 1 is presentation; bombs and mines are inert (`gaps` "Map items").
 Not ported here: the early return of 3 (a squad walking off the map still makes noise and looks), the breath collapse
 check of 4 and the mine sense of 9.
 
@@ -828,7 +828,7 @@ stationary; `ChangeSoldierStance` and `sFinalDestination = sGridNo` (`:2843-2857
 |---|---|---|
 | AP | never deducted or checked (`Points.cc:462-465, 495-498`) | per step at the centre; first step must be affordable |
 | BP | `× 1.25` | plain |
-| Frame delay | full; `× 2` in stealth | `/ 2`; unseen soldiers 0 (ja2-node: without the fade, `deviations` "Unseen soldiers in combat") |
+| Frame delay | full; `× 2` in stealth | `/ 2`; unseen soldiers 0 (ja2-node: without the fade, `gaps` "Unseen soldiers in combat") |
 | Tile reservation | yes (`HandleNextTile`) | no |
 | New order while walking | re-plan from `sDestination` with dummy step (§4.1) | UI blocks until stationary/halted |
 | Halt reasons | blocked tile, mines, gas, sighting → `EVENT_StopMerc` (AI) | plus out of APs and interrupts → `fNoAPToFinishMove` freeze |

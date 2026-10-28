@@ -1073,7 +1073,7 @@ only; creature cells AF, AM, YF, YM from the composition), the loaded sector (cr
 deviations.md "Creature attacks in tactical") or eats civilians. A sector load adds bloodcats and the creatures of a
 mine level or a pending attack; entering J9 b2 starts the quest. A won tactical battle runs
 `KillIncompacitatedEnemyInSector` first. Time compression is refused while a player group is in an infested mine.
-Quest scripting gaps: deviations.md "Creature quest scripting".
+Quest scripting gaps: gaps.md "Creature quest scripting".
 
 ---
 

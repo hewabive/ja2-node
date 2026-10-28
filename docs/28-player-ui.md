@@ -3,14 +3,15 @@
 **Conventions.** Paths without a prefix are relative to `reference/stracciatella/src/game/`; `src/sgp/…` to
 `reference/stracciatella/`. ja2-node paths start with `src/` (other than `src/sgp/`), `data/`, `stubs/`, `tools/`,
 `tests/` or `docs/` and are relative to the repository. Fixed-screen coordinates are in the `std640` frame (§3.10). A difference a player
-can see is a row of `deviations.md`, named here in quotes ("Item cursor on the canvas").
+can see is a row of `deviations.md` and a missing piece a row of `gaps.md`, named here in quotes ("Item cursor on the
+canvas").
 
 **Companions.** `30` (the screens: front end, tactical panels and input, map screen, battle entry, laptop, story, UI
 sound), `01` (D8–D10, D15, D16, the layers), `04` §4 (drivers and playback), `04` §5 (the server; `04` §5.10 the rule
 pack and asset serving), `29` (agent API: every command, query, view field and event a screen uses), `05` (tactical
 rendering), `20` (lighting), `21`–`23` (laptop, contracts, merchants), `24` (dialogue and speech timing), `26`
 (meanwhiles and the ending), `27` §1–§2 (saves, options), `31` §1–3 (sound, video, text and glyph tables), `32` §1–3
-(stubs, performance, the launcher), `deviations.md`.
+(stubs, performance, the launcher), `deviations.md`, `gaps.md`.
 
 ## 0. Scope
 
@@ -337,8 +338,8 @@ shading as `05` specifies; the client's lighting is `20` §8.
 | Items, corpses, smoke | items with the item tables' `tileGraphic` (`item-tiles.ts`) at `8·wy + 1` or the on-roof z, raised by `height`, hidden when `notRendered`, outlined with the 20-step white (red, yellow on roofs) cycle. `world-effects.ts`: corpses at the start frame of their direction block (vehicles loop at 150 ms) with `CreateCorpsePalette`'s palette in 16 shaded rows, z strips and shadow pixels; smoke tiles cycle 12 frames from a per-tile start and delay as a 50 % blend (deviation "Translucency"), static and opaque with "animate smoke" off |
 | Tile changes, blood, bullets, effects | `tile-changes.ts` applies the view's `tileChanges` (`29` §7) to the struct and on-roof layers, updates the touched tiles' level render data and reveal state and rebuilds only their rows (windows crack and shatter, wrecked structures go, the O3 statue opens); blood pools from the view's `blood`; bullets and thrown objects (`bullet-nodes.ts`, `src/app/net/bullet-track.ts`) and impact, trail and explosion animations (`effect-animations.ts`) as `05` describes |
 
-**Limitations.** Known mines and bombs have nothing to show (deviations "Map items", "Duds and timed bombs"); the
-helicopter's pieces on the map need the simulation (deviation "Helicopter on the map"); the cover and line-of-sight
+**Limitations.** Known mines and bombs have nothing to show (gaps "Map items", "Duds and timed bombs"); the
+helicopter's pieces on the map need the simulation (gap "Helicopter on the map"); the cover and line-of-sight
 tiles (`LEVELNODE_REVEAL`) are not drawn; the stub world has no pointer tiles, so cursor markers draw only on the
 original data (§4).
 
@@ -506,7 +507,7 @@ never a path; with a display language other than the data's, these pictures keep
 | Merc popup box (text box) | `Utils/MercTextBox.cc` | `MercTextBox`: `PrepareMercPopupBox` sizes with the 349×199 cap (the height clamped at 199 instead of throwing), 10-pixel border tiles over a tiled background, Ian wrap, the styles BASIC (`interface/tactpopup.sti`), red-on-white, blue-on-grey, laptop, I.M.P., icons, colours by background. Subtitles, message boxes, civilian quotes, laptop popups |
 | Message box | `MessageBoxScreen.cc` | `MessageBox` (`message-box.ts`, a modal, `30` §1.6): 300 wide with margins 40/10/30, centred on the screen or a rectangle, a full-screen `HIGHEST` back region with the style's cursor, every button set at the original positions, its keys as a hotkey table on release, the UI clock paused, `pauseGame` called (§1.4), the screen frozen under it (its draw list, not pixels), its buttons sounding with the underlying screen's scheme. No pointer warp onto a button (deviation "Pointer warp") |
 | Slider | `Utils/Slider.cc` | `Slider`: both styles, thumb `interface/sliderbox.sti`, range 0–127, the off-region drag from the pointer's y, wheel steps, the inverted value, `SetSliderValue` ignoring the maximum |
-| Text field | `Utils/Text_Input.cc` | `TextFieldGroup`: the default bevel scheme, full text and numeric filters, selection, caret keys, Tab order, Ctrl+Delete, unmodified keys swallowed while editing, the caret on the UI clock, `ENTERING_TEXT`/`REMOVING_TEXT`; no editor input types and no IME (deviation "Text input") |
+| Text field | `Utils/Text_Input.cc` | `TextFieldGroup`: the default bevel scheme, full text and numeric filters, selection, caret keys, Tab order, Ctrl+Delete, unmodified keys swallowed while editing, the caret on the UI clock, `ENTERING_TEXT`/`REMOVING_TEXT`; no editor input types (deviation "Text input") and no IME (gap "IME composition") |
 | Progress bar | `Utils/Animated_ProgressBar.cc` | `ProgressBar` (the load bar and the panel style), driven by the client's preload (`30` §1.10) |
 | Fade | `Fade_Screen.cc` | `Fade`: 11 steps out then black, 9 in, 16 ms each on the UI clock; a step multiplies the frozen frame by 0.8^k once instead of k shade-table passes (deviation "Fades"); no cursor during a fade |
 | Snapshot zoom | laptop open/close (`Laptop/Laptop.cc:1048`, `:1430`), A.I.M. video window, autoresolve opening, sector change (`Strategic/StrategicMap.cc:227-237`) | `SnapshotZoom`: render-to-texture (the `capture` and `snapshot` draw items) with `BltStretchVideoSurface`'s stepping in the shader; the 2 s sector-change zoom is not built |

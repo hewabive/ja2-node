@@ -68,5 +68,6 @@ code paths and `file:line` in `reference/stracciatella`.
 - `docs/30`–`32`: the original screens in the client; sound, music, video, localization; stub pack, performance, launcher.
 - `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
+- `docs/gaps.md`: behaviour not ported yet; add to it when leaving something out, drop the entry when it is done.
 - `docs/releases.md`: release notes.
 - `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).

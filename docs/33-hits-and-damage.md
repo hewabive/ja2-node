@@ -629,7 +629,7 @@ Runs at 440 (or 497 with gore off) if `bLife == 0` and not yet DEAD:
    `drop_everything`) and not `ITEM_DEFAULT_UNDROPPABLE`; non-player ammo stacks become `1 + main(count)` clips (slot
    order); visibility: ours/Queen visible, others hidden unless `all_dropped_visible`; keys; then
    `AllSoldiersLookforItems`; non-player → `TacticalRemoveSoldier`, ours → `RemoveSoldierFromGridNo`; add the corpse
-   (item drops in detail: `12` §9.1; ja2-node: no rotting, crows or decapitation, deviations "Corpses").
+   (item drops in detail: `12` §9.1; ja2-node: no rotting, crows or decapitation, gaps "Corpses").
 4. `RemoveManAsTarget` (public and personal opplists cleared, `OppList.cc:2075`), `BetweenTurnsVisibilityAdjustments`.
 5. Non-player and not external death → `ReleaseSoldiersAttacker`.
 
@@ -907,7 +907,7 @@ or neutral civ-group member → `CivilianGroupMemberChangesSides`, other groups 
 our own mercs attacked out of combat readies his weapon for free and fires back through `HandleItem` (burst if he can),
 with `fEnterCombat = false`; Carmen and the head miner have their own hooks. Explosions call it per victim with
 `REASON_EXPLOSION` (`Explosion_Control.cc:740, 852`). ja2-node ports neither the fire-back nor the head-miner rule
-(deviations "Implications of an attack").
+(gaps "Implications of an attack").
 
 ### 3.5 Being shot at: `NoticeUnseenAttacker`, interrupts, `bUnderFire`, close calls
 
@@ -994,7 +994,7 @@ function refreshSoldierMorale(s) {                         // Morale.cc:244-265
 - Only profiled soldiers have morale: enemies and unprofiled NPCs pass through `updateSoldierMorale` unchanged. Only
   `SOLDIER_PC` reads `bMorale`; everyone else uses `bAIMorale`.
 - ja2-node takes `progressPct()` from the value computed at sector load (deviations "Difficulty and progress in
-  tactical") and has no drug terms (deviations "Morale without drugs").
+  tactical") and has no drug terms (gaps "Morale without drugs").
 - Decay: tactical modifier every quarter hour (`HandleQuarterHourUpdate`, `Strategic/Hourly_Update.cc:85-92` →
   `Morale.cc:138-217`): positive `max(0, m − (8 − m/10))`, negative `min(0, m + (6 + m/10))`. Claustrophobic
   underground and Nervous alone keep re-applying their events instead. Strategic modifier every 3 hours
@@ -1132,10 +1132,10 @@ the silent skill-check curse `main(100) < 40`, impact sounds and grunts.
 ### 6.3 Not ported
 
 - Fragile-item damage on falls: opcode 721, `CheckEquipmentForFragileItemDamage(20)` and its `pre` draws (§2.11).
-- Our mercs firing back when attacked out of combat; the head-miner rule (deviations "Implications of an attack",
+- Our mercs firing back when attacked out of combat; the head-miner rule (gaps "Implications of an attack",
   §3.4).
-- Drug terms in morale (deviations "Morale without drugs"); corpse rotting, crows and corpse warnings (deviations
-  "Corpses"); the fade before the delay 0 of unseen soldiers (deviations "Unseen soldiers in combat", §2.4).
+- Drug terms in morale (gaps "Morale without drugs"); corpse rotting, crows and corpse warnings (gaps
+  "Corpses"); the fade before the delay 0 of unseen soldiers (gaps "Unseen soldiers in combat", §2.4).
 
 ### 6.4 Verification
 
