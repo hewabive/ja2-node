@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { describe, expect, it } from 'vitest';
+import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { Vfs } from '../content/vfs/vfs.ts';
 import type { SoldierView } from '../protocol/view.ts';
 import { createApp } from './app.ts';
@@ -46,7 +47,7 @@ async function mcpClient(app: ReturnType<typeof createApp>) {
   const client = new Client({ name: 'test', version: '1' });
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
-    const r = await client.callTool({ name, arguments: args });
+    const r = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     return JSON.parse((r.content as { text: string }[])[0]?.text ?? 'null');
   };
   return { client, call };
@@ -72,7 +73,7 @@ describe('MCP endpoint', () => {
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(tools).toEqual(['act', 'advance', 'observe', 'status']);
     const call = async (name: string, args: Record<string, unknown> = {}) => {
-      const r = await client.callTool({ name, arguments: args });
+      const r = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
       return JSON.parse((r.content as { text: string }[])[0]?.text ?? 'null');
     };
     expect(await call('status')).toMatchObject({ session: 'sandbox', tick: 0, map: 'maps/a9.dat', soldiers: 1 });

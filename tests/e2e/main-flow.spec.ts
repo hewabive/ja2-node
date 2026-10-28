@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { McpGame } from '../../tools/campaign-bot/mcp-game.ts';
-import { SERVER, TOKEN, WEB_PORT } from './env.ts';
+import { E2E_TEST_TIMEOUT_MS, SERVER, TOKEN, WEB_PORT } from './env.ts';
 import { MAIN_FLOW_SETTINGS, MainFlow } from './main-flow.ts';
 import { flowStorage, seedNewCampaigns } from './play-flow.ts';
 
@@ -19,7 +19,7 @@ test('the main flow on /play with the shadow mode on: a new game, an A.I.M. hire
   request,
 }) => {
   await seedNewCampaigns(page, SEED);
-  const game = await McpGame.connect(SERVER, TOKEN);
+  const game = await McpGame.connect(SERVER, TOKEN, E2E_TEST_TIMEOUT_MS);
   const flow = new MainFlow(page, game);
   const description = `main flow ${Date.now() % 100_000}`;
   const step = async <T>(name: string, run: () => Promise<T>): Promise<T> => {

@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { LAPTOP_SITES_SAVE, writeLaptopSitesSave } from '../support/e2e-laptop-saves.ts';
-import { SAVE_DIR, SERVER, TOKEN } from './env.ts';
+import { MCP_CALL_OPTIONS, SAVE_DIR, SERVER, TOKEN } from './env.ts';
 import { capture, clickWidget, expectGolden, nextFrames, openUiPage, widgets, widgetText } from './ui-capture.ts';
 
 declare global {
@@ -72,7 +72,7 @@ async function mcp(): Promise<{ call: (name: string, args: Record<string, unknow
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   return {
     call: async (name, args) => {
-      const result = await client.callTool({ name, arguments: args });
+      const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
       return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
     },
     close: () => client.close(),

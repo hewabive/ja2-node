@@ -11,6 +11,7 @@ export const E2E_TEST_TIMEOUT_MS = 900_000;
 export const E2E_LONG_TEST_TIMEOUT_MS = 1_800_000;
 export const E2E_EXPECT_TIMEOUT_MS = 120_000;
 export const E2E_SERVER_START_TIMEOUT_MS = 300_000;
+export const MCP_CALL_OPTIONS = { timeout: E2E_TEST_TIMEOUT_MS };
 export const DATA_DIR = process.env.JA2_E2E_DATA_DIR ?? '';
 export const ORIGINAL_DATA_MODE = DATA_DIR !== '';
 export const DATA_SAVE_DIR = process.env.JA2_E2E_SAVE_DIR ?? join(tmpdir(), `ja2-e2e-data-saves-${SERVER_PORT}`);

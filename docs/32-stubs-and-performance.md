@@ -509,10 +509,12 @@ A push or pull request that touches only `docs/`, Markdown files or `LICENSE` st
   the suite's wall time is the game in real time (the story test at speed 1, the talk panel at the original pace) and
   the browser (the Chrome GPU process under SwiftShader takes about half of the CPU).
 - **Timeouts.** One limit per runner, sized for a loaded machine (a busy hypervisor, parallel agents): vitest 10
-  minutes per test and hook (`vitest.config.ts`); Playwright 15 minutes per test (30 for the browser and original-data
-  suites), 2 minutes per `expect` and 5 minutes for the dev server to start (`tests/e2e/env.ts`). Tests and helpers set
-  no limits of their own, waits included; shorter ones remain only on waits that tolerate a miss (`.catch`) and in the
-  stall guard of `waitWhileLoading` (5 minutes without a finished request or a progress change).
+  minutes per test and hook (`tests/support/patience.ts`); Playwright 15 minutes per test (30 for the browser and
+  original-data suites), 2 minutes per `expect` and 5 minutes for the dev server to start (`tests/e2e/env.ts`). Tests and
+  helpers set no limits of their own, waits included; MCP calls pass the runner's limit (`MCP_CALL_OPTIONS`, and
+  `McpGame.connect`'s request timeout in e2e) instead of the SDK's 60 s. Shorter limits remain only on waits that
+  tolerate a miss (`.catch`) and in the stall guard of `waitWhileLoading` (5 minutes without a finished request or a
+  progress change).
 - **Tried, not adopted**: vitest `--pool=threads` (no gain); `--no-isolate` (faster, every test passing, but state
   shared between files would make results depend on the order); a test pace (the client clock and the real-time speed
   scaled together would save about 40 s of e2e but test a pace nobody plays at, every timed window eight times shorter).

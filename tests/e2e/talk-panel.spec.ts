@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import type { TacticalHook } from '../../src/app/tactical/tactical-hook.ts';
-import { SERVER, TOKEN } from './env.ts';
+import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
 import { expectShadowClean } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
@@ -37,7 +37,7 @@ async function mcp(): Promise<{ call: (name: string, args?: Record<string, unkno
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   return {
     call: async (name, args = {}) => {
-      const result = await client.callTool({ name, arguments: args });
+      const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
       return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
     },
     close: () => client.close(),

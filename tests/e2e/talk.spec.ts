@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
-import { SERVER, TOKEN } from './env.ts';
+import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
 
 const COLS = 160;
 const EAST_EDGE_ROW = 75;
@@ -69,7 +69,7 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
   const client = new Client({ name: 'e2e-talk', version: '1' });
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
-    const result = await client.callTool({ name, arguments: args });
+    const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
   };
   const { session } = (await call('newSession', { seed: 5, campaign: { difficulty: 1, mercs: 4 } })) as { session: string };

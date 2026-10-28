@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { Vfs } from '../content/vfs/vfs.ts';
@@ -44,7 +45,7 @@ async function mcpClient(app: Awaited<ReturnType<typeof server>>) {
   const client = new Client({ name: 'options-test', version: '1' });
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
-    const r = await client.callTool({ name, arguments: args });
+    const r = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     const text = (r.content as { text: string }[])[0]?.text ?? 'null';
     return r.isError ? { error: text } : JSON.parse(text);
   };

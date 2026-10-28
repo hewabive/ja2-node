@@ -1,5 +1,5 @@
 import { McpGame } from '../../tools/campaign-bot/mcp-game.ts';
-import { SERVER, TOKEN, WEB_PORT } from '../e2e/env.ts';
+import { E2E_LONG_TEST_TIMEOUT_MS, SERVER, TOKEN, WEB_PORT } from '../e2e/env.ts';
 import { MAIN_FLOW_SETTINGS, MainFlow } from '../e2e/main-flow.ts';
 import { flowStorage, seedNewCampaigns } from '../e2e/play-flow.ts';
 import { expect, test } from './fixture.ts';
@@ -16,7 +16,7 @@ test('the main flow on the original data, structure only: a new game, an A.I.M. 
   request,
 }) => {
   await seedNewCampaigns(page, SEED);
-  const game = await McpGame.connect(SERVER, TOKEN);
+  const game = await McpGame.connect(SERVER, TOKEN, E2E_LONG_TEST_TIMEOUT_MS);
   const flow = new MainFlow(page, game);
   const description = `main flow ${Date.now() % 100_000}`;
   try {

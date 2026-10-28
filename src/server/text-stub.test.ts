@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { describe, expect, it } from 'vitest';
+import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { encodeEdtFile, encodeEdtRecords } from '../content/formats/edt.ts';
 import { UI_LANGUAGES } from '../content/text/data-version.ts';
 import { LANGUAGE_FILES } from '../content/text/strings.ts';
@@ -201,7 +202,7 @@ describe('per-session display language', () => {
     const client = new Client({ name: 'test', version: '1' });
     await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
     const call = async (name: string, args: Record<string, unknown> = {}) => {
-      const r = await client.callTool({ name, arguments: args });
+      const r = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
       return JSON.parse((r.content as { text: string }[])[0]?.text ?? 'null');
     };
     const created = await call('newSession', { language: 'rus' });

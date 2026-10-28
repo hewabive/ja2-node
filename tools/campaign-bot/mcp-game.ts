@@ -83,19 +83,21 @@ export interface Game {
 
 export class McpGame implements Game {
   readonly #client: Client;
+  readonly #requestTimeoutMs: number | undefined;
   #calls = 0;
 
-  private constructor(client: Client) {
+  private constructor(client: Client, requestTimeoutMs: number | undefined) {
     this.#client = client;
+    this.#requestTimeoutMs = requestTimeoutMs;
   }
 
-  static async connect(server: string, token: string): Promise<McpGame> {
+  static async connect(server: string, token: string, requestTimeoutMs?: number): Promise<McpGame> {
     const transport = new StreamableHTTPClientTransport(new URL(`${server}/mcp`), {
       requestInit: { headers: { authorization: `Bearer ${token}` } },
     });
     const client = new Client({ name: 'ja2-node-campaign-bot', version: '1' });
     await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
-    return new McpGame(client);
+    return new McpGame(client, requestTimeoutMs);
   }
 
   get calls(): number {
@@ -104,7 +106,8 @@ export class McpGame implements Game {
 
   async call<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
     this.#calls++;
-    const result = await this.#client.callTool({ name, arguments: args });
+    const options = this.#requestTimeoutMs === undefined ? undefined : { timeout: this.#requestTimeoutMs };
+    const result = await this.#client.callTool({ name, arguments: args }, undefined, options);
     const text = (result.content as readonly { readonly text?: string }[])[0]?.text ?? 'null';
     if (result.isError) throw new Error(`${name} failed: ${text}`);
     return JSON.parse(text) as T;

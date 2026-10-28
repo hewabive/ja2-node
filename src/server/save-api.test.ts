@@ -5,6 +5,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
+import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { createSaveKit, type SaveKit, TEST_ENGINE } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { Vfs } from '../content/vfs/vfs.ts';
@@ -58,7 +59,7 @@ describe('save API', () => {
       expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(['save', 'load', 'listSaves', 'deleteSave', 'newSession']));
       expect(tools.find((t) => t.name === 'load')?.description).toMatch(/reseed: false/);
       const call = async (name: string, args: Record<string, unknown> = {}) => {
-        const r = await client.callTool({ name, arguments: args });
+        const r = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
         return JSON.parse((r.content as { text: string }[])[0]?.text ?? 'null');
       };
       expect(await call('status')).toMatchObject({ saveMode: 'anywhere', canSave: true });

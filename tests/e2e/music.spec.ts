@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, type Page, test } from '@playwright/test';
-import { SERVER, TOKEN } from './env.ts';
+import { MCP_CALL_OPTIONS, SERVER, TOKEN } from './env.ts';
 
 interface MusicHook {
   readonly ready: boolean;
@@ -40,7 +40,7 @@ test('the tactical page plays the music of the session mode after the first gest
   const client = new Client({ name: 'e2e-music', version: '1' });
   await client.connect(transport as unknown as Parameters<typeof client.connect>[0]);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
-    const result = await client.callTool({ name, arguments: args });
+    const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
   };
   const { session } = (await call('newSession', { seed: 7 })) as { session: string };

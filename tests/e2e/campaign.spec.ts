@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { playCampaign } from '../../tools/campaign-bot/campaign.ts';
 import { loadItems } from '../../tools/campaign-bot/items.ts';
 import { McpGame } from '../../tools/campaign-bot/mcp-game.ts';
-import { SERVER, TOKEN } from './env.ts';
+import { E2E_TEST_TIMEOUT_MS, SERVER, TOKEN } from './env.ts';
 
 const SEED = 3;
 const RELOAD_ROUND = 2;
@@ -10,7 +10,7 @@ const MIN_COMPARED_STEPS = 20;
 const BOT_SAVES = ['campaign-bot-battle', 'Auto01', 'Auto02'];
 
 test('the campaign bot starts a stub campaign through MCP alone, wins the landing and an exact load in that battle plays on identically', async () => {
-  const game = await McpGame.connect(SERVER, TOKEN);
+  const game = await McpGame.connect(SERVER, TOKEN, E2E_TEST_TIMEOUT_MS);
   try {
     const items = await loadItems();
     const summary = await playCampaign(game, items, {
