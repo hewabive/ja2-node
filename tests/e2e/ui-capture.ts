@@ -145,15 +145,27 @@ export async function devicePoint(page: Page, x: number, y: number): Promise<{ x
   return { x: box.x + offsetX + x * view.scale + view.scale / 2, y: box.y + offsetY + y * view.scale + view.scale / 2 };
 }
 
-export async function clickWidget(page: Page, id: string): Promise<void> {
+export async function widgetPoint(page: Page, id: string): Promise<{ x: number; y: number }> {
   const { rect } = await widget(page, id);
-  const at = await devicePoint(page, rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2));
+  return devicePoint(page, rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2));
+}
+
+export async function pointAtWidget(page: Page, id: string): Promise<void> {
+  const at = await widgetPoint(page, id);
   await page.mouse.move(at.x, at.y);
   await nextFrames(page);
+}
+
+export async function pressPointer(page: Page): Promise<void> {
   await page.mouse.down();
   await nextFrames(page);
   await page.mouse.up();
   await nextFrames(page);
+}
+
+export async function clickWidget(page: Page, id: string): Promise<void> {
+  await pointAtWidget(page, id);
+  await pressPointer(page);
 }
 
 export async function widgetText(page: Page, id: string): Promise<string | null> {

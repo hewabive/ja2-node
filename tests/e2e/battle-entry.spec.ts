@@ -3,7 +3,7 @@ import type { BattleHook } from '../../src/app/battle/battle-hook.ts';
 import { ARRIVAL_WAIT_SECONDS, BATTLE_SECTOR, type BattleEntrySaves, writeBattleEntrySaves } from '../support/battle-entry.ts';
 import { SAVE_DIR } from './env.ts';
 import { expectShadowClean, imagesLoaded, waitWhileLoading, watchLoading } from './play-flow.ts';
-import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
+import { capture, clickWidget, devicePoint, expectGolden, nextFrames, pointAtWidget, pressPointer, widgetPoint } from './ui-capture.ts';
 
 const OPENING_MS = 1000;
 const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
@@ -35,8 +35,9 @@ async function arrive(page: Page): Promise<void> {
   await nextFrames(page, 2);
 }
 
-async function autoresolve(page: Page): Promise<void> {
+async function autoresolve(page: Page, pointedDuringOpening?: string): Promise<void> {
   await clickWidget(page, 'preBattleAutoresolve');
+  if (pointedDuringOpening) await pointAtWidget(page, pointedDuringOpening);
   await page.waitForFunction(() => window.__ja2Ui.screen === 'autoresolve' && window.__ja2Ui.battle?.state?.autoresolve?.opening === false);
 }
 
@@ -119,13 +120,20 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     session = await loadSession(request, saves.names.retreat);
     await openMap(page, session);
     await arrive(page);
-    await autoresolve(page);
-    await clickWidget(page, 'arPause');
+    await autoresolve(page, 'arPause');
+    await pressPointer(page);
     expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'play' });
+    const pause = await widgetPoint(page, 'arPause');
     await clickWidget(page, 'arFast');
-    expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('realtime:4');
-    expect((await battle(page))?.autoresolve).toMatchObject({ paused: false, speed: 'fast' });
-    await clickWidget(page, 'arPause');
+    const fast = await page.evaluate(() => ({
+      drive: window.__ja2Ui.battle?.drives.at(-1),
+      state: window.__ja2Ui.battle?.state?.autoresolve,
+    }));
+    await page.mouse.move(pause.x, pause.y);
+    await nextFrames(page);
+    await pressPointer(page);
+    expect(fast.drive).toBe('realtime:4');
+    expect(fast.state).toMatchObject({ paused: false, speed: 'fast' });
     expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('manual');
     expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'fast' });
     await clickWidget(page, 'arRetreat');

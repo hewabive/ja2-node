@@ -937,7 +937,9 @@ Module `plotting.ts` (legs, the 200 ms rest, previews, confirmation, shortening,
   Menus, plotting, boxes, the town box, the militia popup, the inventories and the update box hold time (the driver goes
   manual), like `InterruptTimeForMenus` and `UpdatePausedStatesDueToTimeCompression`; after the server stops on an
   event the driver restarts once playback has caught up and nothing holds it; leaving the map stops it so the tactical
-  driver starts clean.
+  driver starts clean. While the campaign is in the autoresolve flow it never starts: the autoresolve screen owns the
+  clock from the answer to the pre-battle panel on, as in the original, where strategic time stands still during
+  autoresolve (otherwise the battle ran at the map's pace while the client was still switching screens).
 
 ### 4.10 Boxes and prompts
 

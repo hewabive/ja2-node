@@ -10,6 +10,7 @@ export const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fe
 const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1, pauseOn: UPDATE_BOX_EVENTS };
 const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';
+const AUTORESOLVE_FLOW = 'autoresolve';
 
 export interface MapCommandRecord {
   readonly cmd: CommandEnvelope;
@@ -77,7 +78,15 @@ export class SessionMapClient implements MapClient {
 
   #wantsTime(): boolean {
     const view = this.#session.latestView;
-    return this.#enabled && !this.#paused && !this.#serverStopped && this.#holds.size === 0 && !view?.prompt && !view?.contractPrompt;
+    return (
+      this.#enabled &&
+      !this.#paused &&
+      !this.#serverStopped &&
+      this.#holds.size === 0 &&
+      !view?.prompt &&
+      !view?.contractPrompt &&
+      view?.strategic?.flow !== AUTORESOLVE_FLOW
+    );
   }
 
   sync(): void {
