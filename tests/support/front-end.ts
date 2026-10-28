@@ -4,7 +4,7 @@ import { loadUiStrings } from '../../src/content/text/strings.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import type { PlayerView } from '../../src/protocol/view.ts';
 import type { GameOptions, Health, LoadSuccess, Refusal, SaveHeader, SaveListing, SaveSuccess } from '../../src/ui/client/api-types.ts';
-import type { FrontEndClient, NewCampaign, SessionStatus } from '../../src/ui/client/front-end-client.ts';
+import type { FrontEndClient, NewCampaign, SessionConnection, SessionStatus } from '../../src/ui/client/front-end-client.ts';
 import type { DrawList } from '../../src/ui/draw-list.ts';
 import { MouseButton } from '../../src/ui/input/events.ts';
 import type { LayoutModel } from '../../src/ui/layout/model.ts';
@@ -67,6 +67,7 @@ export class FakeClient implements FrontEndClient {
   readonly deleted: string[] = [];
   readonly bloodAndGore: boolean[] = [];
   nextFlow: 'laptop' | 'strategic' | 'tactical' = 'strategic';
+  onConnection: ((connection: SessionConnection) => void) | null = null;
   #sessions = 0;
 
   async health(): Promise<Health> {
@@ -109,10 +110,14 @@ export class FakeClient implements FrontEndClient {
     this.bloodAndGore.push(on);
   }
 
-  async closeSession(): Promise<void> {
-    this.calls.push('closeSession');
+  async quitSession(): Promise<void> {
+    this.calls.push('quitSession');
     this.session = null;
     this.view = null;
+  }
+
+  connectionChanged(connection: SessionConnection): void {
+    this.onConnection?.(connection);
   }
 
   leaveSession(): void {

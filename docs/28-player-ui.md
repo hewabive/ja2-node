@@ -166,6 +166,17 @@ shows another flow while a game screen is up re-enters the game, so every screen
 Tactical and Laptop buttons, the team panel's Map button, a pre-battle `enterSector`, the laptop's power button) takes
 one path. A game screen that cannot open shows `screen-unavailable` (`30` §1.11).
 
+**Connection** (`src/app/net/session-link.ts` under `SessionClient`). `connect` resolves on the welcome and fails on a
+refused hello, a `closed` reply or a socket closed before the welcome. During play a closed socket, or a server silent
+for 20 s after a heartbeat ping (sent after 5 s without a message, id 0, its pong kept from the client), rejects the
+requests in flight, reports `reconnecting` and dials again after 0, 0.5, 1, 2 and then every 5 s with a hello for the
+same session; requests made meanwhile fail at once. A welcome of the same `instance` (`04` §5.2) restores the session
+and resets the client like a load in place; another instance or an unknown session ends it as `gone`; a `closed`
+message ends it with the server's reason. The flow shows the box `reconnecting` (OK leaves for the main menu, the box
+closes itself when the connection is back) and, when the session ends, leaves it for the main menu and names the
+reason in the box `sessionEnded` (own labels `reconnecting`, `sessionClosed`, `sessionLost`, `serverStopped`,
+`sessionGone`).
+
 **Test hook.** `window.__ja2Ui` (`src/app/game/ui-hook.ts`) reports screen, modal, scale, origin, logical size, widgets
 (id, kind, rect, visible, enabled, state, text, frame), cursor, sounds, frame counts and times, playback lag, the last
 command and its result, music, video, help and story state and the `/vfs` reads in flight, and offers `capture()` (the
@@ -796,8 +807,8 @@ after the screen has loaded; the server answers the hints until then.
 Limitations of single screens are in `30`.
 
 - **Not measured:** the 60 FPS target of §6.1 needs a GPU machine; only SwiftShader numbers exist.
-- **Page:** no "connection lost" panel for a WebSocket dropped during play (a page that cannot boot has its panel, §2.2;
-  a screen that cannot open, `30` §1.11).
+- **Disconnects:** a dropped connection does not pause the game; a real-time driver keeps running on the server until
+  the client is back (the modal pause of §1.4 cannot reach the server).
 - **Goldens missing:** the San Mona screen (no stub brothel scenario; `san-mona.test.ts` covers it) and the A.I.M.
   conference (its snow and video run on the UI clock). The main flow hires three of its four mercs through MCP and lets
   the campaign bot fight, so the canvas path covers one hire, the cursors and one shot.

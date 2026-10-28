@@ -2,7 +2,7 @@ import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { Health, LoadSuccess, Refusal, SaveListing, SaveSuccess } from '../../ui/client/api-types.ts';
 import { campaignRequest, DEFAULT_CAMPAIGN_FORM } from '../../ui/client/campaign-form.ts';
-import type { FrontEndClient, NewCampaign, SessionStatus } from '../../ui/client/front-end-client.ts';
+import type { FrontEndClient, NewCampaign, SessionConnection, SessionStatus } from '../../ui/client/front-end-client.ts';
 import type { CreatedSession, SaveRequest, SessionStart } from '../../ui/saves/save-controller.ts';
 import { createSession, deleteSave, fetchHealth, fetchSaves, fetchSessions, saveSession } from '../launcher/api.ts';
 import { SessionClient } from '../net/session-client.ts';
@@ -13,6 +13,7 @@ export type ConnectSession = (session: string) => Promise<SessionClient>;
 
 export class HttpFrontEndClient implements FrontEndClient {
   onConnected: ((client: SessionClient | null) => void) | null = null;
+  onConnection: ((connection: SessionConnection) => void) | null = null;
   readonly #language: () => UiLanguage | null;
   readonly #connectTo: ConnectSession;
   #client: SessionClient | null = null;
@@ -67,8 +68,12 @@ export class HttpFrontEndClient implements FrontEndClient {
   async connect(session: string): Promise<void> {
     this.#client?.close();
     this.#client = null;
-    this.#client = await this.#connectTo(session);
-    this.onConnected?.(this.#client);
+    const client = await this.#connectTo(session);
+    client.onConnection = (connection) => {
+      if (this.#client === client) this.onConnection?.(connection);
+    };
+    this.#client = client;
+    this.onConnected?.(client);
   }
 
   async status(): Promise<SessionStatus> {
@@ -81,8 +86,8 @@ export class HttpFrontEndClient implements FrontEndClient {
     await this.#client?.command({ type: SET_OPTION, bloodAndGore: on });
   }
 
-  async closeSession(): Promise<void> {
-    await this.#client?.closeSession().catch(() => undefined);
+  async quitSession(): Promise<void> {
+    await this.#client?.leave().catch(() => undefined);
     this.leaveSession();
   }
 

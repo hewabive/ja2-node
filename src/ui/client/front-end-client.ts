@@ -1,3 +1,4 @@
+import type { SessionCloseReason } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { SaveApi } from '../saves/save-controller.ts';
 import type { GameOptions, Health, SaveListing } from './api-types.ts';
@@ -12,6 +13,13 @@ export interface NewCampaign {
   readonly deadIsDead?: DeadIsDeadSlot;
 }
 
+export type SessionEndReason = SessionCloseReason | 'gone';
+
+export type SessionConnection =
+  | { readonly state: 'open' }
+  | { readonly state: 'reconnecting' }
+  | { readonly state: 'ended'; readonly reason: SessionEndReason };
+
 export interface SessionStatus {
   readonly canSave: boolean;
   readonly options: GameOptions | null;
@@ -20,12 +28,13 @@ export interface SessionStatus {
 export interface FrontEndClient extends SaveApi {
   readonly session: string | null;
   readonly view: PlayerView | null;
+  onConnection: ((connection: SessionConnection) => void) | null;
   health(): Promise<Health>;
   saves(): Promise<SaveListing[]>;
   newCampaign(campaign: NewCampaign): Promise<string>;
   connect(session: string): Promise<void>;
   status(): Promise<SessionStatus>;
   setBloodAndGore(on: boolean): Promise<void>;
-  closeSession(): Promise<void>;
+  quitSession(): Promise<void>;
   leaveSession(): void;
 }

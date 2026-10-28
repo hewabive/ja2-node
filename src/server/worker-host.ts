@@ -1,6 +1,13 @@
 import { Worker } from 'node:worker_threads';
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
-import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport, SessionHealthView } from '../protocol/messages.ts';
+import type {
+  CommandEnvelope,
+  DriverMode,
+  ServerMessage,
+  SessionAdvanceReport,
+  SessionCloseReason,
+  SessionHealthView,
+} from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { LogSegment } from './input-log.ts';
@@ -10,7 +17,15 @@ import { SaveFileError } from './save-file.ts';
 import { type LoadOutcome, type LoadProblem, SaveLoadError, type SaveOutcome, type SaveRequest } from './save-service.ts';
 import type { Listener } from './session.ts';
 import type { SessionEnvironmentConfig } from './session-environment.ts';
-import type { AdvanceOptions, CreationReport, HostFactory, SessionDescription, SessionHost, SessionObservation } from './session-host.ts';
+import {
+  type AdvanceOptions,
+  type CreationReport,
+  closedSessionError,
+  type HostFactory,
+  type SessionDescription,
+  type SessionHost,
+  type SessionObservation,
+} from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
 const WORKER_ENTRY = new URL('./session-worker.ts', import.meta.url);
@@ -159,11 +174,21 @@ export class WorkerHost implements SessionHost {
     }
   }
 
+  get viewers(): number {
+    return this.#listeners.size;
+  }
+
+  #lostMessage(): ServerMessage {
+    return { t: 'closed', session: this.id, reason: 'lost' };
+  }
+
   #lost(err: Error): void {
     this.#gone ??= err;
     for (const call of this.#pending.values()) call.reject(this.#gone);
     this.#pending.clear();
+    const listeners = [...this.#listeners.values()];
     this.#listeners.clear();
+    for (const listener of listeners) listener(this.#lostMessage());
   }
 
   #post(message: ToWorker): void {
@@ -172,7 +197,7 @@ export class WorkerHost implements SessionHost {
 
   #call<T>(method: HostCall, ...args: unknown[]): Promise<T> {
     if (this.#gone) return Promise.reject(this.#gone);
-    if (this.#closing && method !== 'close') return Promise.reject(new Error(`session ${this.id} is closed`));
+    if (this.#closing && method !== 'close') return Promise.reject(closedSessionError(this.id));
     const seq = ++this.#seq;
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(seq, { resolve: resolve as (value: unknown) => void, reject });
@@ -201,7 +226,10 @@ export class WorkerHost implements SessionHost {
   }
 
   subscribe(listener: Listener): () => void {
-    if (this.#gone) return () => undefined;
+    if (this.#gone) {
+      listener(this.#lostMessage());
+      return () => undefined;
+    }
     const sub = ++this.#sub;
     this.#listeners.set(sub, listener);
     this.#post({ op: 'subscribe', sub });
@@ -251,9 +279,12 @@ export class WorkerHost implements SessionHost {
     return { ...worker, loopDelayMs: Math.max(worker.loopDelayMs, threadLoopDelay().takeMaxMs()) };
   }
 
-  close(): Promise<void> {
-    this.#closing ??= (this.#gone ? Promise.resolve() : this.#call<void>('close'))
-      .finally(() => this.#worker.terminate())
+  close(reason: SessionCloseReason = 'closed'): Promise<void> {
+    this.#closing ??= (this.#gone ? Promise.resolve() : this.#call<void>('close', reason))
+      .finally(() => {
+        this.#listeners.clear();
+        return this.#worker.terminate();
+      })
       .then(() => undefined);
     return this.#closing;
   }

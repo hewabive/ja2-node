@@ -258,18 +258,31 @@ One protocol for every client, in `src/protocol/` (no DOM, no Node). The browser
 
 | Client → server (`ClientMessage`) | Server → client (`ServerMessage`) |
 |---|---|
-| `hello {session?}` | `welcome {session, view, driver, messages, engine {version, commit}, rules {pack, scripts}, campaign?}`, also after a load in place |
+| `hello {session?}` | `welcome {session, instance, view, driver, messages, engine {version, commit}, rules {pack, scripts}, campaign?}`, also after a load in place |
 | `cmd {id, cmd}` (prompt answers are commands of type `answer`) | `result {id, ok, reason?, data?}`; `frames {frames: ViewFrame[]}` (§4.4) |
 | `query {id, q}` (`29` §28) | `answer {id, ok, tick, reason?, data?}` |
 | `advance {id, until}` | `stopped {id, report}` (`id` 0 for a driver's own stop) |
 | `drive {id, driver}` (§4.3) | `result` |
 | `save {id, name?, description?}`, `load {id, name, reseed?}` (`29` §26) | `result` (`data` the outcome, `reason` the refusal code) |
 | `closeSession {id}` (`29` §6) | `result` |
+| `leave {id}` (`29` §6) | `result {data: {closed}}` |
 | `ping {id}` (`29` §30) | `pong {id, health?}` |
-| | `error {message}` |
+| | `closed {session, reason}`: `closed`, `lost` or `shutdown` |
+| | `error {id?, message}` |
 
 A connection's replies follow the order of its requests, except `answer` and `pong`, which go out as soon as they are
-ready. Messages are at most 1 MiB; `permessage-deflate` compresses messages from 128 bytes on, with the context kept
+ready. A request that fails is answered by `error` with its `id`; an `error` without one refuses the connection's
+message (malformed, `no such session` for a hello).
+
+**Session lifecycle on a connection** (`src/server/ws.ts`). `instance` is a random id of the session object
+(`Session.instance`): session ids are reused after a close and after a restart, so a reconnecting client compares the
+instance, not the id. A closing session sends `closed` to every viewer before it drops them: `closed` after
+`closeSession`, `DELETE /api/sessions/:id` or the last `leave`, `lost` when its worker dies (also to a hello that reaches
+a dead worker, §5.9), `shutdown` when the server stops. The socket stays open and may say hello again; until then
+requests get `error {id, 'say hello first'}`. `leave` detaches the connection and closes the session only when no
+other connection watches it (`SessionHost.viewers`; the default session stays). On SIGINT or SIGTERM the server closes
+every session with `shutdown`, flushes the saves, closes the sockets with 1001 (going away) and then the HTTP server,
+which otherwise waits for open sockets. Messages are at most 1 MiB; `permessage-deflate` compresses messages from 128 bytes on, with the context kept
 between messages. A frame resends every field of a changed soldier, so an idle A9 sandbox in real time streams about
 25 frames a second for the breathing animation alone: 40 KB/s uncompressed, about 1 KB/s compressed.
 

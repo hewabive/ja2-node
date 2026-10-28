@@ -1,5 +1,5 @@
 import { type MessagePort, parentPort, workerData } from 'node:worker_threads';
-import type { CommandEnvelope, DriverMode } from '../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode, SessionCloseReason } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { SaveRequest } from './save-service.ts';
 import { openSessionEnvironment } from './session-environment.ts';
@@ -28,7 +28,7 @@ const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
 
 interface Booted {
   readonly host: SessionHost;
-  close(): Promise<void>;
+  close(reason: SessionCloseReason): Promise<void>;
 }
 
 async function boot(start: WorkerStart, post: (m: FromWorker) => void): Promise<Booted> {
@@ -37,8 +37,8 @@ async function boot(start: WorkerStart, post: (m: FromWorker) => void): Promise<
     const host = await environment.createHost(start.id, start.request);
     return {
       host,
-      close: async () => {
-        await host.close();
+      close: async (reason) => {
+        await host.close(reason);
         await environment.close();
       },
     };
@@ -69,9 +69,11 @@ function serve(port: MessagePort, booted: Booted, post: (m: FromWorker) => void)
         return;
       case 'call':
         if (m.method === 'close') {
-          for (const unsubscribe of subscriptions.values()) unsubscribe();
-          subscriptions.clear();
-          return void answer(m.seq, booted.close());
+          const closing = booted.close(m.args[0] as SessionCloseReason).finally(() => {
+            for (const unsubscribe of subscriptions.values()) unsubscribe();
+            subscriptions.clear();
+          });
+          return void answer(m.seq, closing);
         }
         return void answer(m.seq, CALLS[m.method](booted.host, m.args));
     }

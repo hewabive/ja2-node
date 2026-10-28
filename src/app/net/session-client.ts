@@ -34,7 +34,9 @@ import {
   type StrategicView,
   type ViewFrame,
 } from '../../protocol/view.ts';
+import type { SessionConnection } from '../../ui/client/front-end-client.ts';
 import { BulletTrack } from './bullet-track.ts';
+import { type LinkOptions, SessionLink } from './session-link.ts';
 
 interface Pending {
   readonly resolve: (m: ServerMessage) => void;
@@ -65,6 +67,10 @@ export interface PingReply {
 }
 
 const DRIVER_STOP_ID = 0;
+const NOT_CONNECTED = 'not connected to the game session';
+const CONNECTION_LOST = 'the connection to the game server was lost';
+const SESSION_ENDED = 'the game session ended';
+const LEFT = 'left the game session';
 
 export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
@@ -77,10 +83,12 @@ export class SessionClient {
   onWelcome: (() => void) | null = null;
   onReceive: ((frames: readonly ViewFrame[]) => void) | null = null;
   onReply: ((label: string, ms: number) => void) | null = null;
+  onConnection: ((connection: SessionConnection) => void) | null = null;
+  connection: SessionConnection = { state: 'open' };
   rules: RulePackIdentityView | null = null;
   lastCommand: CommandEnvelope | null = null;
   lastReply: CommandReply | null = null;
-  readonly #socket: WebSocket;
+  readonly #link: SessionLink;
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
   readonly #bullets = new BulletTrack();
@@ -90,23 +98,14 @@ export class SessionClient {
   #shownTick = 0;
   #messages: MessageEntry[] = [];
 
-  private constructor(socket: WebSocket) {
-    this.#socket = socket;
-    socket.addEventListener('message', (e) => this.#receive(JSON.parse(String(e.data)) as ServerMessage));
+  private constructor(session: string | undefined, options: LinkOptions) {
+    this.#link = new SessionLink(session, { message: (m) => this.#receive(m), connection: (c) => this.#connectionChanged(c) }, options);
   }
 
-  static connect(session?: string): Promise<SessionClient> {
-    const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
-    const socket = new WebSocket(url);
-    const client = new SessionClient(socket);
-    return new Promise((resolve, reject) => {
-      socket.addEventListener('error', () => reject(new Error('cannot connect to the game server')));
-      socket.addEventListener('open', () => {
-        client.#send({ t: 'hello', ...(session ? { session } : {}) });
-        const wait = () => (client.view ? resolve(client) : setTimeout(wait, 10));
-        wait();
-      });
-    });
+  static async connect(session?: string, options: LinkOptions = {}): Promise<SessionClient> {
+    const client = new SessionClient(session, options);
+    await client.#link.start();
+    return client;
   }
 
   get view(): PlayerView | null {
@@ -225,15 +224,25 @@ export class SessionClient {
     return this.#frames;
   }
 
-  #send(message: ClientMessage): void {
-    this.#socket.send(JSON.stringify(message));
-  }
-
   #request(message: ClientMessage & { id: number }, label: string): Promise<ServerMessage> {
     return new Promise((resolve, reject) => {
+      if (!this.#link.open) return reject(new Error(NOT_CONNECTED));
       this.#pending.set(message.id, { resolve, reject, label, sentAt: performance.now() });
-      this.#send(message);
+      this.#link.send(message);
     });
+  }
+
+  #rejectPending(reason: string): void {
+    const pending = [...this.#pending.values()];
+    this.#pending.clear();
+    for (const p of pending) p.reject(new Error(reason));
+  }
+
+  #connectionChanged(connection: SessionConnection): void {
+    if (connection.state !== 'open') this.#rejectPending(connection.state === 'reconnecting' ? CONNECTION_LOST : SESSION_ENDED);
+    this.connection = connection;
+    this.onConnection?.(connection);
+    this.onChange?.();
   }
 
   openRequests(now = performance.now()): OpenRequests | null {
@@ -274,10 +283,16 @@ export class SessionClient {
         p?.resolve(m);
         break;
       }
-      case 'error':
-        for (const p of this.#pending.values()) p.reject(new Error(m.message));
-        this.#pending.clear();
+      case 'error': {
+        if (m.id === undefined) {
+          this.#rejectPending(m.message);
+          break;
+        }
+        const p = this.#pending.get(m.id);
+        this.#pending.delete(m.id);
+        p?.reject(new Error(m.message));
         break;
+      }
     }
     this.onChange?.();
   }
@@ -331,8 +346,8 @@ export class SessionClient {
     return this.#reply(await this.#request({ t: 'load', id: this.#nextId++, name, ...(reseed !== undefined ? { reseed } : {}) }, 'load'));
   }
 
-  async closeSession(): Promise<CommandReply> {
-    return this.#reply(await this.#request({ t: 'closeSession', id: this.#nextId++ }, 'closeSession'));
+  async leave(): Promise<CommandReply> {
+    return this.#reply(await this.#request({ t: 'leave', id: this.#nextId++ }, 'leave'));
   }
 
   #reply(m: ServerMessage): CommandReply {
@@ -352,6 +367,7 @@ export class SessionClient {
   }
 
   close(): void {
-    this.#socket.close();
+    this.#link.close();
+    this.#rejectPending(LEFT);
   }
 }

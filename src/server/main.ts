@@ -15,7 +15,7 @@ import { type HostFactory, inProcessHostFactory, type SessionHost, sessionHostKi
 import { SliceScheduler } from './slicing.ts';
 import { TextService } from './text-service.ts';
 import { workerHostFactory } from './worker-host.ts';
-import { attachWebSocket } from './ws.ts';
+import { attachWebSocket, closeSockets } from './ws.ts';
 
 const host = process.env.JA2_HOST ?? '127.0.0.1';
 const port = Number(process.env.JA2_PORT ?? 7420);
@@ -98,13 +98,14 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });
 
-attachWebSocket(server, { token, sessions, defaultSession });
+const sockets = attachWebSocket(server, { token, sessions, defaultSession });
 
 const shutdown = (): void => {
-  void Promise.all([...sessions.values()].map((session) => session.close()))
+  void Promise.all([...sessions.values()].map((session) => session.close('shutdown')))
     .then(() => Promise.all([saves.flush(), hashes.flush()]))
     .catch((err: Error) => console.error(`saving on shutdown failed: ${err.message}`))
     .finally(() => {
+      closeSockets(sockets);
       server.close(() => {
         void data.close().then(() => process.exit(0));
       });

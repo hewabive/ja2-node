@@ -84,6 +84,8 @@ interface Transcript {
   readonly results: unknown[];
   readonly frames: ViewFrame[];
   readonly welcomes: number;
+  readonly viewers: readonly number[];
+  readonly closed: readonly ServerMessage[];
   readonly snapshots: string[];
   readonly log: unknown;
   readonly files: string[];
@@ -93,7 +95,9 @@ interface Transcript {
 async function battleScript(r: Rig): Promise<Transcript> {
   const host = await r.create('contract', { seed: BATTLE_SEED });
   const messages: ServerMessage[] = [];
+  const viewers = [host.viewers];
   host.subscribe((m) => messages.push(m));
+  viewers.push(host.viewers);
   const results: unknown[] = [await host.describe()];
   for (let step = 0; step < APPROACH_STEPS && !(await inCombat(host)); step++) {
     for (const s of await ownSoldiers(host))
@@ -112,11 +116,14 @@ async function battleScript(r: Rig): Promise<Transcript> {
   results.push(await host.advance({ ticks: SETTLE_TICKS }));
   snapshots.push(await host.snapshot());
   const log = (await host.inputLog()).entries;
-  await host.close();
+  await host.close('shutdown');
+  viewers.push(host.viewers);
   return {
     results: results.map(stable),
     frames: messages.flatMap((m) => (m.t === 'frames' ? m.frames : [])),
     welcomes: messages.filter((m) => m.t === 'welcome').length,
+    viewers,
+    closed: messages.filter((m) => m.t === 'closed'),
     snapshots,
     log: stable(log),
     files: (await readdir(r.dir)).filter((f) => !f.startsWith('.')).sort(),
@@ -246,10 +253,14 @@ describe('the session host contract, in process and in a worker thread', () => {
       expect(inProcess.files).toEqual(expect.arrayContaining([`contract${SAVE_EXTENSION}`, `Auto01${SAVE_EXTENSION}`]));
       expect(inProcess.autosave).not.toBeNull();
       expect(inProcess.welcomes).toBe(2);
+      expect(inProcess.viewers).toEqual([0, 1, 0]);
+      expect(inProcess.closed).toEqual([{ t: 'closed', session: 'contract', reason: 'shutdown' }]);
       expect(inProcess.frames.length).toBeGreaterThan(0);
       expect(worker.results).toEqual(inProcess.results);
       expect(worker.frames).toEqual(inProcess.frames);
       expect(worker.welcomes).toBe(inProcess.welcomes);
+      expect(worker.viewers).toEqual(inProcess.viewers);
+      expect(worker.closed).toEqual(inProcess.closed);
       expect(worker.snapshots).toEqual(inProcess.snapshots);
       expect(worker.log).toEqual(inProcess.log);
       expect(worker.files).toEqual(inProcess.files);

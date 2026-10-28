@@ -12,11 +12,13 @@
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { GameOptions, SaveListing } from '../../client/api-types.ts';
 import { failureText } from '../../client/failure-text.ts';
-import type { DeadIsDeadSlot, FrontEndClient } from '../../client/front-end-client.ts';
+import type { DeadIsDeadSlot, FrontEndClient, SessionConnection, SessionEndReason } from '../../client/front-end-client.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { SaveController } from '../../saves/save-controller.ts';
 import type { Screen } from '../../screen.ts';
+import type { LabelId } from '../../text/labels.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
+import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import type { RowFeed } from '../credit-roll.ts';
 import type { MapFlow } from '../map/environment.ts';
 import type { TacticalFlow } from '../tactical/environment.ts';
@@ -81,6 +83,15 @@ const BOXING_IN_PROGRESS = 'boxingInProgress';
 const TACTICAL_SCREEN_ID = 'tactical';
 const MAP_SCREEN_ID = 'map';
 const BLACK_SCREEN = 'black';
+export const RECONNECTING_BOX = 'reconnecting';
+export const SESSION_ENDED_BOX = 'sessionEnded';
+
+const SESSION_END_TEXT: Readonly<Record<SessionEndReason, LabelId>> = {
+  closed: 'sessionClosed',
+  lost: 'sessionLost',
+  shutdown: 'serverStopped',
+  gone: 'sessionGone',
+};
 
 class BlackScreen implements Screen {
   readonly id = BLACK_SCREEN;
@@ -131,6 +142,8 @@ export class FrontEndFlow {
   #pendingOptions: GameOptions | null = null;
   #optionsOrigin: OptionsOrigin = 'mainMenu';
   #listings: readonly SaveListing[] = [];
+  #connection: SessionConnection = { state: 'open' };
+  #reconnectShown = false;
 
   constructor(env: FrontEndEnvironment, client: FrontEndClient, settings: SettingsStore, host: FrontEndHost) {
     this.#env = env;
@@ -146,6 +159,29 @@ export class FrontEndFlow {
       () => undefined,
     );
     this.saves = new SaveController({ labels: env.labels, health: () => health, box: env.boxes, api: client });
+    client.onConnection = (connection) => this.#connectionChanged(connection);
+  }
+
+  #connectionChanged(connection: SessionConnection): void {
+    this.#connection = connection;
+    if (connection.state === 'reconnecting') void this.#awaitReconnect();
+    else if (connection.state === 'ended') void this.#sessionEnded(connection.reason);
+  }
+
+  async #awaitReconnect(): Promise<void> {
+    if (this.#reconnectShown) return;
+    this.#reconnectShown = true;
+    const answer = await this.#env.boxes.ask(this.#env.labels().text('reconnecting'), 'ok', {
+      id: RECONNECTING_BOX,
+      closeWhen: () => this.#connection.state !== 'reconnecting',
+    });
+    this.#reconnectShown = false;
+    if (answer === MessageBoxReturn.OK) this.leaveGame();
+  }
+
+  async #sessionEnded(reason: SessionEndReason): Promise<void> {
+    this.leaveGame();
+    await this.#env.boxes.ask(this.#env.labels().text(SESSION_END_TEXT[reason]), 'ok', { id: SESSION_ENDED_BOX });
   }
 
   get #screens() {
@@ -260,7 +296,7 @@ export class FrontEndFlow {
   }
 
   async #quitToMainMenu(): Promise<void> {
-    await this.#client.closeSession();
+    await this.#client.quitSession();
     this.mainMenu();
   }
 

@@ -10,6 +10,8 @@ export type { StopCondition, StopReport };
 
 export type SessionStopReason = StopReport['reason'] | 'loaded';
 
+export type SessionCloseReason = 'closed' | 'lost' | 'shutdown';
+
 export interface SessionAdvanceReport extends StopReport {
   readonly messages: readonly MessageEntry[];
 }
@@ -38,6 +40,7 @@ export type ClientMessage =
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
   | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean }
   | { readonly t: 'closeSession'; readonly id: number }
+  | { readonly t: 'leave'; readonly id: number }
   | { readonly t: 'ping'; readonly id: number };
 
 export interface InputTimingView {
@@ -77,6 +80,7 @@ export const UNKNOWN_IDENTITY: WelcomeIdentity = {
 export interface WelcomeMessage extends WelcomeIdentity {
   readonly t: 'welcome';
   readonly session: string;
+  readonly instance: string;
   readonly view: PlayerView;
   readonly driver: DriverMode;
   readonly messages: readonly MessageEntry[];
@@ -99,7 +103,8 @@ export type ServerMessage =
   | AnswerMessage
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
   | { readonly t: 'pong'; readonly id: number; readonly health?: SessionHealthView }
-  | { readonly t: 'error'; readonly message: string };
+  | { readonly t: 'closed'; readonly session: string; readonly reason: SessionCloseReason }
+  | { readonly t: 'error'; readonly id?: number; readonly message: string };
 
 export function parseClientMessage(text: string): ClientMessage | null {
   let value: unknown;
@@ -141,6 +146,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
         ? (m as ClientMessage)
         : null;
     case 'closeSession':
+    case 'leave':
     case 'ping':
       return typeof m.id === 'number' ? (m as ClientMessage) : null;
     default:

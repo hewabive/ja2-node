@@ -148,7 +148,9 @@ campaign?}` (`NEW_SESSION_SHAPE`, `src/server/session-registry.ts`):
 
 **Closing.** WebSocket `closeSession` and `DELETE /api/sessions/:id` run the Dead is Dead save point "when the session
 is closed" (`27` §1.6) and release the session; the default session is refused (`defaultSession`, 409), an unknown one
-is 404.
+is 404. WebSocket `leave` detaches the connection and closes the session the same way only when no other WebSocket
+watches it (`data.closed` says which; the player's Main Menu in the options sends it). Every viewer of a closing
+session gets `closed {session, reason}` (`04` §5.2); MCP calls on a closed session fail with `no session <id>`.
 
 **Flows** (`status.flow`): `tactical` (the loaded sector steps in real time or turns), `strategic` (the map screen: the
 world clock runs, compressed on request; a loaded sector is frozen), `autoresolve` (§20), `laptop`, `meanwhile`,

@@ -13,6 +13,8 @@ const MAX_MESSAGE_BYTES = 1 << 20;
 const COMPRESS_FROM_BYTES = 128;
 const PER_MESSAGE_DEFLATE = { threshold: COMPRESS_FROM_BYTES };
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+const GOING_AWAY = 1001;
+const SERVER_STOPPED = 'server stopped';
 
 export interface UpgradeServer {
   on(event: 'upgrade', listener: (req: IncomingMessage, socket: Duplex, head: Buffer) => void): unknown;
@@ -75,6 +77,12 @@ async function closeReply(options: WebSocketOptions, host: SessionHost, id: numb
   return { t: 'result', id, ok: outcome === 'closed', ...(outcome === 'closed' ? {} : { reason: outcome }) };
 }
 
+async function leaveReply(options: WebSocketOptions, host: SessionHost, id: number): Promise<Reply> {
+  const watched = host.viewers > 0;
+  const outcome = watched ? null : await closeRegisteredSession(options.sessions, options.defaultSession, host.id);
+  return { t: 'result', id, ok: true, data: { closed: outcome === 'closed' } };
+}
+
 function answerOf(id: number, a: QueryAnswer): ServerMessage {
   return {
     t: 'answer',
@@ -89,7 +97,7 @@ function answerOf(id: number, a: QueryAnswer): ServerMessage {
 function reply(
   options: WebSocketOptions,
   host: SessionHost,
-  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' }>,
+  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' } | { t: 'leave' }>,
 ): Promise<Reply> {
   switch (message.t) {
     case 'closeSession':
@@ -114,28 +122,42 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
   const send = (m: ServerMessage) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
   };
-  const inOrder = (pending: Promise<Reply>) => {
+  const detach = () => {
+    unsubscribe?.();
+    unsubscribe = null;
+    host = null;
+  };
+  const watch = (watched: SessionHost) => {
+    host = watched;
+    const stop = watched.subscribe((m) => {
+      if (m.t === 'closed' && host === watched) {
+        host = null;
+        unsubscribe = null;
+      }
+      send(m);
+    });
+    if (host === watched) unsubscribe = stop;
+  };
+  const inOrder = (id: number, pending: Promise<Reply>) => {
     replies = replies
       .then(() => pending)
       .then(
         (m) => {
           if (m) send(m);
         },
-        (err: Error) => send({ t: 'error', message: err.message }),
+        (err: Error) => send({ t: 'error', id, message: err.message }),
       );
   };
   ws.on('message', (data) => {
     const message = parseClientMessage(data.toString());
     if (!message) return send({ t: 'error', message: 'malformed message' });
     if (message.t === 'hello') {
-      unsubscribe?.();
-      unsubscribe = null;
-      host = options.sessions.get(message.session ?? options.defaultSession) ?? null;
-      if (!host) return send({ t: 'error', message: 'no such session' });
-      unsubscribe = host.subscribe(send);
-      return;
+      detach();
+      const found = options.sessions.get(message.session ?? options.defaultSession);
+      if (!found) return send({ t: 'error', message: 'no such session' });
+      return watch(found);
     }
-    if (!host) return send({ t: 'error', message: 'say hello first' });
+    if (!host) return send({ t: 'error', id: message.id, message: 'say hello first' });
     if (message.t === 'ping') {
       const id = message.id;
       host.health().then(
@@ -152,9 +174,14 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       );
       return;
     }
-    inOrder(reply(options, host, message));
+    if (message.t === 'leave') {
+      const left = host;
+      detach();
+      return inOrder(message.id, leaveReply(options, left, message.id));
+    }
+    inOrder(message.id, reply(options, host, message));
   });
-  ws.on('close', () => unsubscribe?.());
+  ws.on('close', detach);
 }
 
 export function attachWebSocket(server: UpgradeServer, options: WebSocketOptions): WebSocketServer {
@@ -168,4 +195,9 @@ export function attachWebSocket(server: UpgradeServer, options: WebSocketOptions
     wss.handleUpgrade(req, socket, head, (ws) => serve(ws, options));
   });
   return wss;
+}
+
+export function closeSockets(wss: WebSocketServer): void {
+  for (const client of wss.clients) client.close(GOING_AWAY, SERVER_STOPPED);
+  wss.close();
 }

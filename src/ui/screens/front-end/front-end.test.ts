@@ -3,7 +3,7 @@ import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/supp
 import { KeyModifier } from '../../input/events.ts';
 import type { Screen } from '../../screen.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
-import type { LaptopFlow } from './flow.ts';
+import { type LaptopFlow, RECONNECTING_BOX, SESSION_ENDED_BOX } from './flow.ts';
 import { OPTION_TOGGLES } from './options.ts';
 
 let f: FrontEndTest;
@@ -183,7 +183,7 @@ describe('the options screen', () => {
     expect(f.t.sounds.played).toContainEqual({ file: 'sounds/weapons/lmg reload.wav', volume: 127 });
   });
 
-  it('in a game enables Save by the session, pauses the game and returns to the main menu through the closing of the session', async () => {
+  it('in a game enables Save by the session, pauses the game and returns to the main menu by quitting the session', async () => {
     await f.client.newCampaign({ options: { difficulty: 1, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true } });
     await f.flow.options('game');
     await f.settle();
@@ -196,7 +196,7 @@ describe('the options screen', () => {
     await until(() => f.modal() === 'messageBox');
     await answer('messageBox', 'yes');
     await f.settle();
-    expect(f.client.calls).toContain('closeSession');
+    expect(f.client.calls).toContain('quitSession');
     expect(f.screen()).toBe('mainMenu');
     expect(f.pauses).toEqual([true, true, false, false]);
   });
@@ -321,9 +321,54 @@ describe('in the game', () => {
     expect(f.pauses).toEqual([true]);
     await answer('exitBoxLaptop', 'yes');
     expect(f.client.calls).toContain('leaveSession');
-    expect(f.client.calls).not.toContain('closeSession');
+    expect(f.client.calls).not.toContain('quitSession');
     expect(f.screen()).toBe('mainMenu');
     expect(f.pauses).toEqual([true, false]);
+  });
+
+  it('says that the connection was lost while it reconnects and closes the box once the session answers again', async () => {
+    f.client.connectionChanged({ state: 'reconnecting' });
+    await until(() => f.modal() === RECONNECTING_BOX);
+    expect(f.widget(RECONNECTING_BOX).text).toContain('The connection to the game server was lost.');
+    f.client.connectionChanged({ state: 'open' });
+    await until(() => f.modal() === null);
+    expect(f.screen()).toBe('laptopUnavailable');
+    expect(f.client.calls).not.toContain('leaveSession');
+  });
+
+  it('leaves the game for the main menu when the player stops waiting for the server', async () => {
+    f.client.connectionChanged({ state: 'reconnecting' });
+    f.client.connectionChanged({ state: 'reconnecting' });
+    await answer(RECONNECTING_BOX, 'ok');
+    expect(f.modal()).toBeNull();
+    expect(f.client.calls).toContain('leaveSession');
+    expect(f.screen()).toBe('mainMenu');
+  });
+
+  it('returns to the main menu and says why when the session ends on the server', async () => {
+    f.client.connectionChanged({ state: 'reconnecting' });
+    await until(() => f.modal() === RECONNECTING_BOX);
+    f.client.connectionChanged({ state: 'ended', reason: 'gone' });
+    await until(() => f.modal() === SESSION_ENDED_BOX);
+    expect(f.screen()).toBe('mainMenu');
+    expect(f.client.calls).toContain('leaveSession');
+    expect(f.widget(SESSION_ENDED_BOX).text).toBe('The game session no longer exists on the server.');
+    await answer(SESSION_ENDED_BOX, 'ok');
+    expect(f.modal()).toBeNull();
+    expect(f.screen()).toBe('mainMenu');
+  });
+
+  it('names a server that stopped and a session closed elsewhere', async () => {
+    f.client.connectionChanged({ state: 'ended', reason: 'shutdown' });
+    await until(() => f.modal() === SESSION_ENDED_BOX);
+    expect(f.widget(SESSION_ENDED_BOX).text).toBe('The game server was stopped.');
+    await answer(SESSION_ENDED_BOX, 'ok');
+    await f.client.newCampaign({ options: { difficulty: 1, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true } });
+    f.flow.enterGame();
+    await f.settle();
+    f.client.connectionChanged({ state: 'ended', reason: 'closed' });
+    await until(() => f.modal() === SESSION_ENDED_BOX);
+    expect(f.widget(SESSION_ENDED_BOX).text).toBe('The game session was closed on the server.');
   });
 
   it('loads a save in place from the in-game load screen', async () => {

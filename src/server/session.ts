@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { AnimationTimelines } from '../content/anim/timelines.ts';
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
@@ -8,6 +9,7 @@ import {
   type DriverMode,
   type ServerMessage,
   type SessionAdvanceReport,
+  type SessionCloseReason,
   type SessionStopReport,
   UNKNOWN_IDENTITY,
   type WelcomeIdentity,
@@ -125,6 +127,7 @@ async function sliced<T>(run: Run<T>, slicer: Slicer): Promise<T> {
 
 export class Session {
   readonly id: string;
+  readonly instance = randomUUID();
   readonly dataVersion: DataVersion;
   readonly log: InputLog;
   language: UiLanguage;
@@ -259,6 +262,10 @@ export class Session {
     return this.#listeners.size > 0;
   }
 
+  get viewers(): number {
+    return this.#listeners.size;
+  }
+
   get busy(): boolean {
     return this.#depth > 0;
   }
@@ -277,6 +284,7 @@ export class Session {
     return {
       t: 'welcome',
       session: this.id,
+      instance: this.instance,
       view,
       driver: this.#driver,
       messages: this.#messages,
@@ -630,9 +638,10 @@ export class Session {
     return { tick: this.#sim.tick, reason: 'loaded', events: [] };
   }
 
-  close(): void {
+  close(reason: SessionCloseReason = 'closed'): void {
     this.#stopTimer();
     this.#settleWaits('refused', REALTIME_LEFT);
+    this.#broadcast({ t: 'closed', session: this.id, reason });
     this.#listeners.clear();
   }
 }

@@ -98,7 +98,8 @@ new game. Music: `MAIN_MENU` without a session (`FrontEndMusicPlayer`; the sessi
   and speech sliders play a test sample 75 ms after they stop (`sounds/weapons/lmg reload.wav`,
   `battlesnds/m_cool.wav`), music applies at once (`settings-store.ts` applies volumes to the audio engine and the
   music); Save is enabled only in a game that can save and not in Dead is Dead; Main Menu asks `OPT_RETURN_TO_MAIN`
-  YES/NO, then closes the session (`closeSession`, the Dead is Dead save point, `29` §7); every exit (Done or Esc)
+  YES/NO, then leaves the session (`leave`: it closes, with the Dead is Dead save point, only when no other client
+  watches it, `29` §6); every exit (Done or Esc)
   writes the settings; the screen holds game time (`28` §1.4).
 - Mapping (`OPTION_TOGGLES`): `speech`, `muteConfirmations`, `subtitles`, `keyAdvanceSpeech`, `sleepWakeNotification`;
   the other 17 under `display.*` of the client settings; `volumes.effects/speech/music`; blood and gore → `setOption
@@ -214,14 +215,16 @@ steps, no cursor during a fade.
 - Alt+X in tactical, the map screen, the laptop, the shop, autoresolve and the overhead map: YES/NO `MSG_EXITGAME` in
   the screen's style (`GameLoop.cc:278-311`; `exit-box.ts`, the laptop, map and game variants of
   `HandleShortCutExitState`). Yes leaves the game for the main menu; the session stays on the server unless the player
-  chose Main Menu in the options, which closes it (deviation "Main menu Esc, Quit and the exit box").
+  chose Main Menu in the options, which closes it when no other client watches it (deviation "Main menu Esc, Quit and
+  the exit box").
 - A laptop, map or tactical screen that cannot open (its load throws, or the host has no session client for it) shows
   the debug layout `screen-unavailable` (`screen-unavailable.ts`): which screen, the reason
   (`src/ui/client/failure-text.ts` names the browsers' network failures, "Failed to fetch" and its Firefox and Safari
   wordings, and a lost connection; any other error stays as it is), the session, the in-game keys, Retry (Enter:
   reconnects to the session, then enters the game again; on failure the panel shows the new reason) and Main menu
   (leaves the session running). A page that fails to boot shows the same heading, reason and Retry as plain HTML
-  (`28` §2.2). A WebSocket that drops during play is not handled: there is no "connection lost" panel.
+  (`28` §2.2). A connection that drops during play shows the reconnecting box, a session that ends on the server the
+  main menu with the reason (`28` §2.2).
 - San Mona brothel screen (`JAScreens.cc:416-499`; `san-mona.ts`, layout `san-mona.json`): black, no cursor,
   `interface/luckysmile.sti` centred, a step every `SMILY_DELAY` (100 ms): frame 0 for the first 24 steps, then step
   modulo 8; after 32 steps `SMILY_END_DELAY` (1 s); `sounds/sex.wav` at `HIGHVOLUME`; then a fade into tactical. The

@@ -167,6 +167,14 @@ export const LABELS = {
   tacticalUnavailable: own('The tactical screen could not be opened.', 'Не удалось открыть тактический экран.'),
   connectionLost: own('The connection to the server was lost (%s).', 'Связь с сервером потеряна (%s).'),
   notConnected: own('Not connected to a game session.', 'Нет связи с игровой сессией.'),
+  reconnecting: own(
+    'The connection to the game server was lost. Reconnecting...  Close this box to return to the main menu.',
+    'Связь с игровым сервером потеряна. Переподключение...  Закройте это окно, чтобы выйти в главное меню.',
+  ),
+  sessionClosed: own('The game session was closed on the server.', 'Игровая сессия закрыта на сервере.'),
+  sessionLost: own('The game session failed on the server.', 'Игровая сессия на сервере завершилась сбоем.'),
+  serverStopped: own('The game server was stopped.', 'Игровой сервер остановлен.'),
+  sessionGone: own('The game session no longer exists on the server.', 'Игровой сессии больше нет на сервере.'),
   retry: own('Retry', 'Повторить'),
   mainMenu: own('Main menu', 'Главное меню'),
   gameKeys: own(

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { waitWhileLoading } from './play-flow.ts';
+import { openTacticalSession, waitWhileLoading } from './play-flow.ts';
 import { capture, clickWidget, expectGolden, nextFrames, openUiPage, widget, widgets } from './ui-capture.ts';
 
 const PLAY = '/play';
@@ -154,6 +154,37 @@ test.describe('the canvas front end on stubs', () => {
     await screenIs(page, 'mainMenu');
     await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     if (loaded) await request.delete(`/api/sessions/${encodeURIComponent(loaded)}`);
+  });
+
+  test('leaves a session another page watches on Main Menu, and that page returns to the main menu with the reason once the session is closed', async ({
+    page,
+    request,
+  }) => {
+    const created = (await (await request.post('/api/sessions', { data: { seed: 7 } })).json()) as { session: string };
+    const listed = async () =>
+      ((await (await request.get('/api/sessions')).json()) as { session: string }[]).some((s) => s.session === created.session);
+    const other = await page.context().newPage();
+    try {
+      await openTacticalSession(page, created.session);
+      await openTacticalSession(other, created.session);
+      await page.keyboard.press('KeyO');
+      await screenIs(page, 'options');
+      await clickWidget(page, 'mainMenu');
+      await modalIs(page, 'messageBox');
+      await clickWidget(page, 'messageBox.yes');
+      await screenIs(page, 'mainMenu');
+      expect(await listed()).toBe(true);
+      expect(await other.evaluate(() => [window.__ja2Ui.screen, window.__ja2Ui.modal])).toEqual(['tactical', null]);
+      expect((await request.delete(`/api/sessions/${encodeURIComponent(created.session)}`)).ok()).toBe(true);
+      await modalIs(other, 'sessionEnded');
+      expect(await other.evaluate(() => [window.__ja2Ui.screen, window.__ja2Ui.session])).toEqual(['mainMenu', null]);
+      expect((await widget(other, 'sessionEnded')).text).toBe('The game session was closed on the server.');
+      await clickWidget(other, 'sessionEnded.ok');
+      await modalIs(other, null);
+    } finally {
+      await other.close();
+      if (await listed()) await request.delete(`/api/sessions/${encodeURIComponent(created.session)}`);
+    }
   });
 
   test('keeps the options toggles across a reload', async ({ page }) => {

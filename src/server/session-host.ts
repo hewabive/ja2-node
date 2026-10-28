@@ -1,6 +1,13 @@
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { DataVersion, UiLanguage } from '../content/text/data-version.ts';
-import type { CommandEnvelope, DriverMode, InputTimingView, SessionAdvanceReport, SessionHealthView } from '../protocol/messages.ts';
+import type {
+  CommandEnvelope,
+  DriverMode,
+  InputTimingView,
+  SessionAdvanceReport,
+  SessionCloseReason,
+  SessionHealthView,
+} from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -38,6 +45,7 @@ export interface SessionHost {
   readonly id: string;
   readonly kind: SessionHostKind;
   readonly savesAvailable: boolean;
+  readonly viewers: number;
   dispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   query(q: CommandEnvelope): Promise<QueryAnswer>;
@@ -54,7 +62,7 @@ export interface SessionHost {
   inputLog(): Promise<LogSegment>;
   profiles(): Promise<readonly ProfileFaceRecord[]>;
   health(): Promise<SessionHealthView>;
-  close(): Promise<void>;
+  close(reason?: SessionCloseReason): Promise<void>;
 }
 
 export type HostFactory = (id: string, request: SessionRequest) => Promise<SessionHost>;
@@ -86,6 +94,10 @@ export interface InProcessHostOptions {
 
 const NO_SAVES = 'saves are not available';
 
+export function closedSessionError(id: string): Error {
+  return new Error(`session ${id} is closed`);
+}
+
 export class InProcessHost implements SessionHost {
   readonly kind = 'inprocess';
   readonly session: Session;
@@ -110,8 +122,12 @@ export class InProcessHost implements SessionHost {
     return this.#saves !== null;
   }
 
+  get viewers(): number {
+    return this.session.viewers;
+  }
+
   #queued<T>(label: string, work: () => T | Promise<T>): Promise<T> {
-    if (this.#closing) return Promise.reject(new Error(`session ${this.id} is closed`));
+    if (this.#closing) return Promise.reject(closedSessionError(this.id));
     const queuedAt = performance.now();
     this.#pending++;
     const run = this.#tail.then(() => this.#timed(label, queuedAt, work));
@@ -153,7 +169,7 @@ export class InProcessHost implements SessionHost {
   }
 
   query(q: CommandEnvelope): Promise<QueryAnswer> {
-    if (this.#closing) return Promise.reject(new Error(`session ${this.id} is closed`));
+    if (this.#closing) return Promise.reject(closedSessionError(this.id));
     return Promise.resolve().then(() => this.session.query(q));
   }
 
@@ -216,6 +232,7 @@ export class InProcessHost implements SessionHost {
   }
 
   health(): Promise<SessionHealthView> {
+    if (this.#closing) return Promise.reject(closedSessionError(this.id));
     return Promise.resolve().then(() => ({
       tick: this.session.sim.tick,
       pending: this.#pending,
@@ -224,10 +241,10 @@ export class InProcessHost implements SessionHost {
     }));
   }
 
-  close(): Promise<void> {
+  close(reason: SessionCloseReason = 'closed'): Promise<void> {
     this.#closing ??= this.#queued('close', async () => {
       if (this.#saves) await this.#saves.closeSession(this.session);
-      this.session.close();
+      this.session.close(reason);
     });
     return this.#closing;
   }
