@@ -1,12 +1,11 @@
-<!-- Tactical lighting for gameplay: light templates, light sprites, LightTrueLevel and its consumers, and the ja2-node
-port. 2026-10-15. Source: reference/stracciatella/src (ae6bf01). Verified against the native oracle (tools/oracle) on the
-user's six saves and on every original map with lights. -->
-
 # 20 — Lighting
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/`. Light levels are shades: **lower is
 brighter**, 1 (`SHADE_MAX`) is the brightest, 15 (`SHADE_MIN`) the darkest; day is 3 (`NORMAL_LIGHTLEVEL_DAY`), night 12
 (`NORMAL_LIGHTLEVEL_NIGHT`, `TileEngine/Environment.h:21-22`). The code is `src/sim/tactical/lighting/`.
+
+**Scope.** Light templates, light sprites and their ray casting, `LightTrueLevel` and its gameplay consumers. How the
+renderer shades tiles and soldiers is `05` §6 and `06` §3.4.
 
 ## 1. What gameplay reads
 
@@ -55,13 +54,12 @@ A template is a list of nodes (`dx`, `dy`, `light`) and a list of rays: node ind
   (`templates.test.ts`) checks the result against the user's `.LHT` files.
 - **`Light0` … `Light6`** (flares, break lights and merc lights) are not in the Gold files and not reproducible from
   the source. Stracciatella ships them in its `light-templates.json`, which is in the repository with the other
-  externalized tables (`data/externalized/`, kept verbatim since M2); by the maintainer's decision of 2026-10-19 the
-  simulation and the renderer use that copy: `loadTacticalContent` reads `externalized/light-templates.json` and keeps
-  the templates the generator does not make (`shippedLightTemplates`, `TacticalContent.lightTemplates`);
-  `LightSpriteCreate` takes a generated template first, then a shipped one. `TRANSLUC.LHT` is loaded the same way
-  but only `ApplyTranslucencyToWalls` (rendering) uses it.
-- Every original map uses only `L-R02` … `L-R08` (2,300 `L-R05`, 1,836 `L-R08`, …); explosions use `L-R04`, muzzle
-  flashes `L-R03`.
+  externalized tables (`data/externalized/`), so the simulation and the renderer use that copy:
+  `loadTacticalContent` reads `externalized/light-templates.json` and keeps the templates the generator does not make
+  (`shippedLightTemplates`, `TacticalContent.lightTemplates`); `LightSpriteCreate` takes a generated template first,
+  then a shipped one. `TRANSLUC.LHT` is in the same file, but only `ApplyTranslucencyToWalls` (rendering) uses it, and
+  ja2-node does not (`deviations`, "Wall translucency template").
+- Every original map uses only `L-R02` … `L-R08` **(data)**; explosions use `L-R04`, muzzle flashes `L-R03`.
 
 ## 3. Light sprites and ray casting
 
@@ -133,6 +131,10 @@ sector load only sandbags and containers holding items have it. ja2-node mirrors
   prime-time lights when it is ≥ 21, unflagged lights always, nothing in caves. This is the only place the clock powers
   lights directly; later the strategic events `TURN_ON/OFF_NIGHT_LIGHTS` (21:00, 07:00) and `TURN_ON/OFF_PRIME_LIGHTS`
   (21:00, 00:00) only flip ON (`Environment.cc:412-463`), and the change shows at the next render.
+- **Cave lights.** In caves a map light is switched on and drawn when sight first reaches its tile:
+  `RemoveFogFromGridNo` (`TileEngine/Fog_Of_War.cc:10`), called from `RevealRoofsAndItems` (`Tactical/FOV.cc:633`,
+  ground level, for a tile in a room or without a roof) and `SetGridNoRevealedFlag` (`TileEngine/Render_Fun.cc:97`),
+  powers the first unpowered sprite on that tile and calls `LightDraw`. ja2-node does not port it (§8).
 - **Ambient changes**: `EnvironmentController` (`Environment.cc:122`, every game-screen pass) calls `LightSetBaseLevel`
   (`:212`) when `gfDoLighting` is set: `EVENT_CHANGELIGHTVAL` (dawn 06:47–07:03, dusk 20:57–21:13, every 2 minutes),
   temperature events and a loaded clock. `LightSetBaseLevel` resets the natural level and renders everything.
@@ -173,39 +175,39 @@ sector load only sandbags and containers holding items have it. ja2-node mirrors
   and roof sums, 256 sprite slots), `lightTrueLevel`, the sprite API, `lightSetBaseLevel`, `lightSpriteRenderAll`,
   `loadMapLights`/`initLighting` (light time from an hour), the four schedule switches for the strategic clock.
 - `lighting/muzzle-flash.ts`: opcode 441, the frame count and the early put-outs.
-- Explosions own an `L-R04` sprite (`explosions/explosion.ts`); light effects own a `Light{radius}` sprite that is
-  never created (`explosions/light.ts`).
+- Explosions own an `L-R04` sprite (`explosions/explosion.ts`). Light effects (`explosions/light.ts`: `newLightEffect`
+  when a break light or flare lands, `decayLightEffects` at the end of a turn) own a `Light{radius}` sprite rebuilt on
+  every decay step.
 - Sessions: `TacticalSim` initialises lighting from the map (the sandbox is 12:00 with ambient 3 above ground, the map's
-  own ambient underground); the sandbox renders again after loading map items, as `InitLoadedWorld` does. A savegame
+  own ambient underground); the sandbox (`src/server/sandbox.ts`) and a campaign sector load
+  (`src/sim/campaign/sector-flow.ts`) render again after loading the map items, as `InitLoadedWorld` does. A savegame
   reloads the map lights with the saved hour and renders after the import with `gubEnvLightValue` above ground or the
-  map's ambient underground (`save-import.ts`).
-- The stub village has one night light (`light:` lines in `stubs/maps/*.map.txt`).
+  map's ambient underground (`src/sim/tactical/save-import.ts`).
+- Campaigns dispatch `EVENT_CHANGELIGHTVAL`, the temperature events and the four light events to the loaded sector
+  (`campaign-sim.ts`; `changeLightValue` and `timeOfDayAmbientLightLevel` with `HOT_DAY_LIGHTLEVEL` 2,
+  `src/sim/strategic/time/environment.ts`).
+- The view carries the ambient level and the powered sprites (`lightView`; dynamic ones marked `dynamic`); the browser
+  shades the world with these functions (`05` §6).
+- Stub maps carry night lights (`light:` lines in `stubs/maps/*.map.txt`).
 
 ## 7. Verification
 
 `tools/oracle` probes `lights [level=0]` (all 25,600 true levels), `light g= viewer=` and, for bare map loads,
 `sector … hour=<h>` plus `ambient level=<n>` (`tools/oracle/README.md`).
 
-- The six saves (`save-probes.ts`): 12 light dumps (both levels, with the sprite lists) and 728 `light … viewer=` probes
-  match, with every other probe: **6,815 comparisons, all equal**. SaveGame07 tile 12400 is 10 against the ambient 12
-  and gives soldier 2 a `DistanceVisible` of 15.
-- Every original map with lights (`map-light-probes.ts`, 112 maps at 22:00, 03:00 and 12:00, ambient 15 after load):
-  **672 dumps equal**, once the harness copies the oracle's structure height cache (`structureHeights` in the `sector`
-  line), because whether map items in containers exist is a `PreRandom` roll that the two processes make differently.
-- The A9 cost, path and LOS probes still match.
+- The reference saves (`save-probes.ts`): light dumps of both levels with the sprite lists, and `light … viewer=`.
+- Every original map with lights (`map-light-probes.ts`, at 22:00, 03:00 and 12:00, ambient 15 after load). The
+  harness copies the oracle's structure height cache (`structureHeights` in the `sector` line), because whether map
+  items in containers exist is a `PreRandom` roll that the two processes make differently.
 
-Not verified against the oracle: explosion and muzzle-flash lights (they exist only while an animation plays) and the
-light-dependent AI decisions; they are covered by unit tests.
+Not verified against the oracle: explosion, muzzle-flash and light-effect lights (they exist only while an animation
+or effect lasts) and the light-dependent AI decisions; they are covered by unit tests.
 
 ## 8. Gaps
 
-See `docs/deviations.md`: the ambient level and the light schedule stay as they were at session start until the strategic clock drives
-`EnvironmentController`; hot desert days (`HOT_DAY_LIGHTLEVEL` 2) are not modelled in imported saves; muzzle flashes do
-not yet count as daylight in `DistanceVisible`. The renderer shades the world from the map's light sprites and the
-merc lights, computed in the browser with these functions (`src/app/world/world-lighting.ts`, `docs/28` §17.4 "U4");
-since U4b the ambient level comes from the view's `light.ambient` (hot desert days included) and the explosion and
-muzzle-flash sprites from `light.sprites` (the ones marked `dynamic`), drawn with the same strongest-light rule. Merc
-lights take `Light2`, `Light3` (night goggles) or `Light4` (UV goggles) by the merc's head slots, from Stracciatella's
-`light-templates.json` (`src/app/world/light-templates.ts`); a loose `.LHT` file in the user's data overrides it, and
-the generated `L-R06`, `L-R07`, `L-R08` stand in only when neither exists. The map templates of the user's data
-(`L-R0n.LHT`) equal the generated ones.
+- Muzzle flashes do not count as daylight in `DistanceVisible` (`deviations`, "Vision and hearing modifiers").
+- An imported save starts from its `gubEnvLightValue` without the hot-desert rule until the next light event; the
+  sandbox stays at 12:00, ambient 3 (`deviations`, "Ambient light and light schedule").
+- Cave lights are not switched on by sight (§4): they stay off.
+- Fake merc lights (§1) are not simulated; they cancel out of the true level. The browser draws them (`05` §6).
+- `BuildAIExposedTileMap` is not ported (§5).

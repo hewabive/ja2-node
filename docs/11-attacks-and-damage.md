@@ -1,29 +1,31 @@
-<!-- Attacks and damage in JA2 (Stracciatella): guns, bullets, hit resolution, death, melee, throws and launchers,
-suppression, morale and experience from attacks. An implementable spec for M3. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–09, 12, 13), cross-checked against vanilla
-(reference/vanilla/ja2/Build). Read-only research: nothing was built. Animation scripts were read from a Steam 1.12
-Ja2bin.dat with tools/spikes/ja2bin-timelines.py and a throw-away dumper (opcode positions and frame counts are quoted;
-the data itself is not committed). Four research passes (guns and bullets; hit and death; throws and launchers;
-suppression, morale and experience) were merged and spot-checked against the code. -->
-
 # 11 — Attacks and damage
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless marked V (vanilla `Build/`).
 "(inferred)" marks conclusions not traced end to end. C integer semantics apply everywhere: `/` truncates toward zero
 (`idiv` in `src/core/int.ts`), `%` keeps the dividend's sign, `INT8`/`UINT8`/`INT16` stores wrap (`i8`, `u8`, `i16`).
-`f32(x)` = `Math.fround(x)`; `trunc` = `Math.trunc`. `wsm(x)` = `WEAPON_STATUS_MOD` (§1.1).
+`f32(x)` = `Math.fround(x)`; `trunc` = `Math.trunc`. `wsm(x)` = `WEAPON_STATUS_MOD` (§1.1). Animation frame counts,
+speeds and opcode positions (§1.6, §5.5, §6.1, §7.7) were read from one release (Steam 1.12 `Ja2bin.dat`, with
+`tools/spikes/ja2bin-timelines.py`; speeds from `gAnimControl`); other releases may differ, and ja2-node reads the
+scripts from the user's data at load time (§12.1).
 
 **RNG.** `pre(n)` = `PreRandom(n)` (stream `pre`), `main(n)` = `Random(n)` (stream `main`), `preChance(p)` =
-`pre(100) < p`, `CoinToss()` draws `main`. `n = 0` returns 0 and **draws nothing** (`sgp/Random.cc:62-83`; our
-`Rng.int(0)` matches). The C parameter is `UINT32`, so a negative `INT32` argument wraps: pass `n >>> 0` (our `Rng.int`
-throws on negatives). The order of two calls inside one C++ expression is unspecified; where that happens this doc
+`pre(100) < p`, `CoinToss()` draws `main`. `n = 0` returns 0 and **draws nothing** (`sgp/Random.cc:62-83`; ja2-node's
+`Rng.int(0)` matches). The C parameter is `UINT32`, so a negative `INT32` argument wraps: pass `n >>> 0` (ja2-node's
+`Rng.int` throws on negatives). The order of two calls inside one C++ expression is unspecified; where that happens this doc
 assumes left to right and says so. Cosmetic draws (sounds, curses, quotes, blood graphics) share `main` in the original;
-which of them move to the cosmetic stream is a per-call decision listed in §12.4.
+ja2-node does not make them (§12.3). In ja2-node `main` is `t.rng` and `pre` is `t.pre`.
 
 **Directions and units.** N 0 … NW 7; `GetDirectionFromGridNo(g, s)` is the direction **from `s` towards `g`**
 (`Soldier_Control.cc:6334-6349`). World units: 10 per tile horizontally; height units: 256 per storey, 64 per cube
 (docs/08 §1.1). Teams: OUR 0, ENEMY 1, CREATURE 2, MILITIA 3, CIV 4. `OKLIFE 15`, `CONSCIOUSNESS 10`, `OKBREATH 10`,
 `USABLE 10` (minimum item status). `AIM_SHOT_RANDOM 0, HEAD 1, TORSO 2, LEGS 3, GLAND 4`.
+
+**Scope.** Gun, melee, throw and launcher attacks from the order to the end of the attack: `Tactical/Weapons.cc`, the
+bullet half of `Tactical/LOS.cc` and `Tactical/Bullets.cc`, the attack and hit parts of `Tactical/Handle_Items.cc`,
+`Soldier_Control.cc` and `Soldier_Ani.cc`, `TileEngine/Physics.cc`, the attack busy count and suppression
+(`Tactical/Overhead.cc`), morale (`Tactical/Morale.cc`) and `StatChange` (`Strategic/Campaign.cc`). Elsewhere: `08`
+LOS, sight and noise; `10` turns and interrupts; `12` items, inventory and explosions (from `IgniteExplosion` on,
+`12` §10); `13` the combat AI; `04` §6 the agent API (the `attack` command, `estimateAttack`, the attack events).
 
 ## 0. Overview
 
@@ -45,7 +47,7 @@ order ─ HandleItem: checks, AP check only, (psycho burst roll)             §1
     attacker, combat entry, stat points, deferred noise, end of battle     §8.4
 ```
 
-Invariants the port must keep:
+Invariants:
 1. **Who rolls when.** Guns, melee and launchers roll at the fire frame (opcode 430), against the world at that
    moment; thrown objects roll at the order (§7.1). APs for guns and melee are paid at the fire frame, for throws at the
    release frame (460/461).
@@ -70,7 +72,7 @@ Invariants the port must keep:
 | `weapons.json` (`WeaponModels.cc:165-600`) | `internalType` → item class and `ubWeaponClass` (PISTOL/M_PISTOL → HANDGUN, SMG → SMG, RIFLE/SN_RIFLE/ASRIFLE/LAW/CANNON/LAUNCHER → RIFLE, SHOTGUN → SHOTGUN, LMG → MG, BLADE/THROWINGBLADE → KNIFE, MONSTSPIT → MONSTER). `LAW` and `CANNON` are `IC_GUN` (impact 80 for LAW, `:1389-1395`); `LAUNCHER` is `IC_LAUNCHER`. `ubImpact`, `usRange` (world units, 10 per tile), `ubShotsPerBurst` (max 6, MINIMI), `ubBurstPenalty`, `ubBulletSpeed` (20–30), `ubReadyTime`, `ubShotsPer4Turns`, `ubMagSize`, `ubAttackVolume`, `ubHitVolume`, `bReliability`, `bTwoHanded` |
 | `ammo-types.json` | `AMMO_REGULAR 0, HP 1, AP 2, SUPER_AP 3, BUCKSHOT 4, FLECHETTE 5, GRENADE 6, MONSTER 7, KNIFE 8, HE 9, HEAT 10, SLEEP_DART 11, FLAME 12` (`Weapons.h:66-81`); a gun's current type is `inv[hand].ubGunAmmoType` |
 | `armours.json` | `armourClass` (HELMET 0, VEST 1, LEGGINGS 2, PLATE 3, MONST 4), `protection`, `explosivesProtection`, `degradePercentage`, `ignoreForMaxProtection` |
-| `game.json` (`DefaultGamePolicy.cc:31-54`) | `chance_to_hit_minimum` 1, `_maximum` 99, `tactical_head_damage_multiplier` 1.5, `tactical_legs_damage_multiplier` 0.5, `aim_bonus_per_std_ap` 10, `aim_bonus_sniperscope` 20, `aim_bonus_laserscope` 20, `range_penalty_silencer` 0, `range_bonus_barrel_extender` 100, `fixed_cost_to_shoot` false, `ai.better_aiming_choice` false, `suppression_fire_modifier` 6, `suppression_fire_reaction_threshold` 130 |
+| `game.json` (`DefaultGamePolicy.cc:31-54`; ja2-node compiles in these defaults) | `chance_to_hit_minimum` 1, `_maximum` 99, `tactical_head_damage_multiplier` 1.5, `tactical_legs_damage_multiplier` 0.5, `aim_bonus_per_std_ap` 10, `aim_bonus_sniperscope` 20, `aim_bonus_laserscope` 20, `range_penalty_silencer` 0, `range_bonus_barrel_extender` 100, `fixed_cost_to_shoot` false, `ai.better_aiming_choice` false, `suppression_fire_modifier` 6, `suppression_fire_reaction_threshold` 130 |
 | JSD (`content/formats/jsd.ts`) | per structure `armour` (material index into `gubMaterialArmour`, `TileEngine/Structure.cc:119-149`), `density` (%), flags, shape |
 
 `WEAPON_STATUS_MOD(x) = x >= 85 ? 100 : idiv(x*100, 85)` (`Weapons.cc:74`). `GunRange(o) = usRange +
@@ -95,17 +97,19 @@ Main loop order per frame: `SimulateWorld` (physics) → `UpdateBullets` → `Ex
 … → `DequeAllGameEvents` (`GameScreen.cc:343, 424, 427, 456`). Opcode 430 only *queues* `EV_S_FIREWEAPON`
 (`Soldier_Ani.cc:313-323`); it runs after every soldier's pass of that frame, in queue order
 (`Utils/Event_Pump.cc:238-260`). Events with a delay (melee `EV_S_WEAPONHIT`, 20 ms) move to a secondary queue and fire
-when `now − stamp > delay` (strict, `:100-122`). **Port this as a per-tick event queue drained after the soldier pass**,
-not as direct calls from the opcode handler: it decides whether a soldier later in the same pass sees the pre-shot
-world.
+when `now − stamp > delay` (strict, `:100-122`). The queue, not a direct call from the opcode handler, decides whether
+a soldier later in the same pass sees the pre-shot world; ja2-node drains it after each tick's soldier pass (§12.2).
 
 ### 1.3 The order: `HandleItem` for `IC_GUN` / `IC_THROWING_KNIFE`
 
 In order (`Handle_Items.cc`):
 1. Realtime: `ubAttackBusyCount = 0` (`:214-219`). `tgt = WhoIsThere2(grid, level)`; `tgt.bBeingAttackedCount = 0`
    (`:221`).
-2. Fail if `bLife < OKLIFE` (unconscious) or the hand item is broken (`:224-225`). Player refusals (good guys, buddies,
-   rebels; `:230-266`) and rocket-rifle imprint (`:269-313`) — UI-level, port later.
+2. Fail if `bLife < OKLIFE` (unconscious) or `HandItemWorks(HANDPOS)` fails (`:224-225`, `:2639-2694`): an
+   `ITEM_DAMAGEABLE` item (not a pressure-triggered mine, a medkit or the gas can) below status 10 does not work, and
+   at ≥ 10 it **breaks when `main(80) + 20 >= status + 50`** (status becomes `1 + main(9)`); a working main-hand gun
+   with a second gun of status ≥ 10 and shots left repeats the test for that gun. Player refusals (good guys, buddies,
+   rebels; `:230-266`) and the rocket-rifle imprint (`:269-313`) are not ported (deviations "Attack refusals").
 3. Not a throwing knife: `EnoughAmmo(HANDPOS)` else `NOAMMO` and `fDoSpread = FALSE` (`:315-324`;
    `Points.cc:1322-1350`).
 4. `targetGrid = tgt ? tgt.sGridNo : grid`. Player in combat: the "bad chance to get through" quote may cancel
@@ -121,7 +125,7 @@ In order (`Handle_Items.cc`):
    (`:396-419`).
 
 The AI path is `ExecuteAction(AI_ACTION_FIRE_GUN)` → optional civ quote **`main(50) == 0`** for a visible, non-militia,
-profile-less merc body → `HandleItem(s, usActionData, bTargetLevel, hand item, fromUI=FALSE)`
+profile-less merc body (not drawn by ja2-node) → `HandleItem(s, usActionData, bTargetLevel, hand item, fromUI=FALSE)`
 (`TacticalAI/AIMain.cc:1587-1619`). `DecideActionRed/Black` sets `bAimShotLocation = AIM_SHOT_RANDOM` before choosing
 (`DecideAction.cc:2784`). The player sets it from the cursor: head/torso/legs on a non-prone merc, otherwise RANDOM
 (`UI_Cursors.cc:487-573`); agents pass it explicitly.
@@ -194,17 +198,18 @@ baseAPsToShootOrStab(aps, skill, o) {                     // :1006, fixed_cost_t
 calcAPsToBurst(aps, o) = o.item === G11 ? 1
   : max(3, idiv(5*aps + 24, 25)) [* 100 / (100 + idiv(springStatus, 5)) with spring-and-bolt]   // :843
 ```
-`calcActionPoints(s)` is the full per-turn AP pool (already ported for M2). Aiming: `bAimTime` 0..4 extra APs
+`calcActionPoints(s)` is the full per-turn AP pool. Aiming: `bAimTime` 0..4 extra APs
 (`AP_MAX_AIM_ATTACK 4`, `Points.h:79-80`), each +10 CTH if the target is visible and not bursting; bursts and attached
 launchers ignore it. At the fire frame `UseGun` recomputes `CalcTotalAPsToAttack(addTurning=FALSE)` — the soldier is now
 in an `ANIM_FIRE` state, so no raise cost — and deducts it: that is target change + base + aim/burst
 (`Weapons.cc:591-623`). Bursts pay only on round 1; dual pistols pay only for the main hand.
 
-### 1.6 Firing animations (scripts from `Ja2bin.dat`, read with `tools/spikes/ja2bin-timelines.py`)
+### 1.6 Firing animations (`Ja2bin.dat` scripts)
 
 Fire states use a fixed `sSpeed` (100 ms per frame for rifle shots and bursts, 150 for dual, 110 for LAW and mortar), so
 combat halving does not apply; `READY_RIFLE_STAND` has speed 0 (stat-computed, `Soldier_Control.cc:4763-4918`). In
-combat soldiers not visible to the player get delay 0 (every pass, `:4928-4936`). Opcode layout (frames shown as `[n]`):
+combat soldiers not visible to the player get delay 0 (every pass, `:4928-4936`; ja2-node applies it at once, without
+the fade, deviations "Unseen soldiers in combat"). Opcode layout (frames shown as `[n]`):
 
 | State | Script (gameplay opcodes) |
 |---|---|
@@ -259,7 +264,7 @@ return FIREABLE;
 So guns above status 80 never jam (both draws still happen); a jam costs one round. `SkillCheck(UNJAM)`
 (`SkillCheck.cc:146-421`): skill = `30 + idiv(effMech, 2)`, minus `idiv(idiv(skill·fatigue%, 100), 2)`, plus the
 modifier and `GetMoraleModifier`, clamped 0..99; roll **`pre(100)`**; on failure **`main(100) < 40`** is drawn (the
-unjam check is silent, the draw still happens).
+unjam check is silent, the draw still happens; ja2-node does not make it, §12.3).
 
 `OKFireWeapon` (`:324-340`): second-hand shot without ammo → FAILED for the player team; else `CheckForGunJam`. Opcode
 470 on JAMMED: `usAniCode += 4` and the loop's own `++` skip the next 4 entries (441, 430 and two frames, so no shot),
@@ -476,7 +481,8 @@ getting aid −20, shock −5/pt, psycho 15, target crouched −20, prone −40,
 16`, `MIN_PRONE_RANGE 50`, `MIN_SCOPE_RANGE 60`, `NORMAL_RANGE 90`, `MIN_TANK_RANGE 120`, `MaxDistanceVisible() = 26`
 (`OppList.cc:875`). `gbDiff[DIFF_ENEMY_TO_HIT_MOD] = {−10, −5, 0, 5, 10}` by `SoldierDifficultyLevel` 0..4
 (`TacticalAI/AIMain.cc:53-61`, `AIUtils.cc:2068-2120`); for guns only the negative part applies (`min(0, …)`), for melee
-the full value does (§6.2). `effectiveLife()` is `Soldier_Control.h:821`; `EffectiveStrength/Agility/ExpLevel/…` are
+the full value does (§6.2). ja2-node computes the `CalcDifficultyModifier` behind
+`SoldierDifficultyLevel` at sector load (deviations "Difficulty and progress in tactical"). `effectiveLife()` is `Soldier_Control.h:821`; `EffectiveStrength/Agility/ExpLevel/…` are
 `SkillCheck.cc:14-118` (drunkenness, carried weight for agility, life for strength).
 
 **Vanilla differences** (V `Weapons.c:2280-2800`): the injury term used `lifeMax − life + bandaged/2` (bandaging made it
@@ -570,9 +576,9 @@ draws and no deviation, i.e. angle-based increments. Misses step one world unit 
 `UpdateBullets` runs once per main-loop frame before `ExecuteOverhead` (`Bullets.cc:187-260`). `MoveBullet` returns
 early unless `now − uiLastUpdate ≥ usClockTicksPerUpdate` (2–3 ms for guns, 30 for knives; `LOS.cc:3496-3504`), then
 advances `ubTilesPerUpdate` tiles. With the frame rate far below 300 Hz this is one tile per frame (≈16 ms at 60 fps),
-so bullet flight time and burst overlap depend on the frame rate (`03` §3). **Simulation:** advance every live real
-bullet by one tile per 5 ms tick at the start of the tick (after physics, before soldiers); the first tile happens
-inside `FireWeapon`. Knives: one tile per 30 ms (6 ticks). Log this with the existing timing deviation.
+so bullet flight time and burst overlap depend on the frame rate (`11` §0). ja2-node moves every live bullet one tile
+per 5 ms tick at the start of the tick (after physics, before the soldier pass); the first tile is moved inside
+`FireWeapon`, knives move every 30 ms (6 ticks) (deviations "Bullet flight").
 
 ### 3.4 `MoveBullet(b)` per tile (`:3446-4241`)
 
@@ -636,7 +642,7 @@ loop and the neighbour loop can both count the same soldier.
   small missiles, flames and spit before step 5, and the fast-forward's `fGoingOver` stays set for the rest of the
   `MoveBullet` call once a trail falls in a stretch, so every later stretch of that call leaves one too. Each trail's
   frame delay is `100 + Random(100)` (100 for flames), a cosmetic draw the simulation leaves to the browser
-  (`deviations.md` "Cosmetic draws in attacks"); it emits `missileTrail` (`04` §4.4).
+  (`deviations.md` "Cosmetic draws in attacks"); it emits `missileTrail` (`04` §6.9).
 - **Otherwise**, at each LOS cell / cube: cube ≥ 8 skips tests; cube 4–7 tests roof-level (`sCubeOffset` 4) structures
   with `cube − 4`. For each `local` structure of that level whose shape has the bit:
   - **person** → `BulletHitMerc(b, s, intended)` (§4.1). Stopped → return. Passed through → remove it from `local`.
@@ -681,7 +687,7 @@ if (pre(100) < s.density) {
 }
 return pass(1);
 ```
-`MATERIAL_ARMOUR` (`Structure.cc:119-149`): timber 25, plywood 20, live wood 30, light vegetation 3, upholstery 10,
+`MATERIAL_ARMOUR` (`Structure.cc:119-149`; `data/tables/material-armour.json`, indexed by the JSD `armour`): timber 25, plywood 20, live wood 30, light vegetation 3, upholstery 10,
 porcelain 47, cactus/hay 10, stone 55, concrete 63, reinforced 70, rock 85, rubber 9, sand 40, cloth 1, sandbag 40,
 light metal 37, thick metal 57, heavy metal 85, indestructible 127.
 
@@ -691,16 +697,17 @@ shooter's side; unless the same structure was hit last, `MakeNoise(firer, tile, 
 LAW → remove, `FreeUpAttacker`, `IgniteExplosion(C1)`; tank cannon → `TANK_SHELL`; a real structure →
 `DamageStructure(GUNFIRE)`: indestructible materials ignore it, an `EXPLOSIVE` structure explodes on **`main(2)`**,
 otherwise no hit points are lost (`TileEngine/Structure.cc:1150-1212`). Guns: player-team single shots curse on
-`main(40) == 0`. A stopped bullet then plays a miss animation (`FIRSTMISS1`, 80 ms/frame; water adds a ripple) with
+`main(40) == 0` (cosmetic, §12.3). A stopped bullet then plays a miss animation (`FIRSTMISS1`, 80 ms/frame; water adds a ripple) with
 `ANITILE_RELEASE_ATTACKER_WHEN_DONE`, and **`RemoveBullet` + `FreeUpAttacker` happen when that animation ends**
 (`TileEngine/Tile_Animation.cc:238-246`). `FIRSTMISS1` has 5 frames (`TileEngine/TileDat.cc:567-576, 620-623`); the tile
 steps when more than 80 ms have passed since the last step (strict, `Tile_Animation.cc:140, 267-282`) and the fifth step
-deletes it, so the release comes 5 × 85 ms = 425 ms after the stop on 5 ms ticks. HE/HEAT ammo plays a mini-explosion
+deletes it, so the release comes 5 × 85 ms = 425 ms after the stop on 5 ms ticks (ja2-node uses 425 ms everywhere,
+also for a splash in water, deviations "Miss animation in water"). HE/HEAT ammo plays a mini-explosion
 and frees at once; hitting the same structure twice frees at once. Knives that hit the ground become a `THROWING_KNIFE`
 item.
 
-`ShotMiss(b)` (bullet left the world, `Weapons.cc:3170-3212`): dodge agility gain to `opponent`, curse `main(40)`,
-sound, `FreeUpAttacker`. `RemoveBullet` decrements `firer.bBulletsLeft` for real bullets (`Bullets.cc:130-170`);
+`ShotMiss(b)` (bullet left the world, `Weapons.cc:3170-3212`): dodge agility gain to `opponent`, curse `main(40)`
+(cosmetic), sound, `FreeUpAttacker`. `RemoveBullet` decrements `firer.bBulletsLeft` for real bullets (`Bullets.cc:130-170`);
 `FreeUpAttacker` only lowers the busy count once `bBulletsLeft` is 0 and the firer holds a gun
 (`Overhead.cc:5529-5537`), so the attack's own busy +1 is released by the **last** bullet of the attack, whatever ended
 it.
@@ -790,7 +797,8 @@ weaponHit(tgt, firer.attackingWeapon, damage, breathLoss, hitDir, tgt.x, tgt.y, 
 return stopped;
 ```
 A bullet that passes through continues in the same tile with the person removed from its list; it can hit others,
-including the original target only once per tile.
+including the original target only once per tile. `BodyImpactReduction[AIM_SHOT_GLAND]` reads past the 4-entry table;
+ja2-node uses 0.
 
 ### 4.2 `BulletImpact(firer, tgt, loc, impact, hitBy, &special)` (`Weapons.cc:2743-3116`)
 
@@ -847,8 +855,8 @@ return dmg;
 (`Soldier_Control.cc:5636`) and restarts the display (`:5693-5700`); `ExecuteOverhead` steps the display every 250 ms
 (`DAMAGE_DISPLAY_DELAY`) and zeroes `sDamage` after 8 steps (`Overhead.cc:525-541`). So chest hits landing within ≈2 s
 of each other add up toward the 85-point "blown away" kill. The display, and so the reset, only starts for a target in
-sector with `bVisible != -1`; hits on soldiers the player cannot see accumulate until a visible hit. Keep it as a
-game-ms timer (8 × 250 ms). The head/torso "instant kill" draws use **`main`**, the rest `pre`. The stat loss is
+sector with `bVisible != -1`; hits on soldiers the player cannot see accumulate until a visible hit. ja2-node keeps
+it as a game-ms timer (`damageWindow`, stepped by `updateDamageDisplay`). The head/torso "instant kill" draws use **`main`**, the rest `pre`. The stat loss is
 permanent (the `*Damage` fields allow healing back, see §5.11). `fluke`/`hitBy` are applied before armour, HP ×1.7 and
 location after armour.
 
@@ -957,7 +965,7 @@ function eventSoldierGotHit(t, weapon, dmg: i16, breath: i16, dir, range, att, s
 - `freeUpAttackerGivenTarget(t)` = `InternalReduceAttackBusyCount(t.attacker, calledByAttacker=TRUE, t)`: returns
   without decrementing while the attacker holds a gun and `bBulletsLeft > 0` (`Overhead.cc:5528-5537`). Since the
   hit animation's `+1` was added first, the count **cannot reach 0 here**; the zero-barrier work (suppression,
-  combat entry, end of battle, `03` §4) always runs later, when the hit animation releases.
+  combat entry, end of battle, `10` §5) always runs later, when the hit animation releases.
 - `sleepDartSuccumbChance` (`:5235`): `effStr > 90 ? 110-s : > 80 ? 120-s : > 70 ? 130-s : 140-s`, plus
   `10 - bSleepDrugCounter` (0 on the hit itself).
 - V: same, except Strac also treats weapon `NOTHING` as a punch.
@@ -1091,7 +1099,9 @@ crouch → `SoldierCollapse`. Prone → `SoldierCollapse`.
 
 **Entering a hit/die state** (`EVENT_InitNewSoldierAnim`, `:870-1766`):
 - `fInNonintAnim` set → the request is **silently dropped** (`:897-901`). Damage, busy `+1` and
-  `bBeingAttackedCount+1` already happened; they are all released together later (§5.9).
+  `bBeingAttackedCount+1` already happened; they are all released together later (§5.9), or never if nothing ends the
+  non-interruptible state (ja2-node releases that hit's count at once, deviations "Hit during a non-interruptible
+  animation").
 - `ANIM_NONINTERRUPT` states set `fInNonintAnim` (`:1350`); it is cleared by opcode 442.
 - AP/BP on entry: `FALLBACK_HIT_STAND`, `FALLFORWARD_FROMHIT_STAND` → `DeductPoints(4, 250)`;
   `FALLFORWARD_FROMHIT_CROUCH` → `(2, 125)` (`:1557-1566`).
@@ -1104,8 +1114,7 @@ crouch → `SoldierCollapse`. Prone → `SoldierCollapse`.
 
 ### 5.5 Hit animation timelines (frames × `gAnimControl` speed)
 
-Frame counts and opcode positions come from `Ja2bin.dat` via `tools/spikes/ja2bin-timelines.py` (do not commit the
-data; regenerate). "after Fk" = executes `(k+1) × speed` ms after entry. Sounds and flashes omitted.
+Frame data as in §1.6. "after Fk" = executes `(k+1) × speed` ms after entry. Sounds and flashes omitted.
 
 | State | ms/frame | Frames | Gameplay markers |
 |---|---|---|---|
@@ -1179,9 +1188,10 @@ FALLBACK_HIT_STAND)` then the tile one step away from the attacker, same directi
 **`ChangeToFallbackAnimation(dir)`** (`:8439`): one tile, one step of `Opposite(t.bDirection)`;
 `FALLBACK_HIT_STAND`. Both `removePendingAction` first.
 Special-move states move `dMovementChange = 1.6` world units per frame along the path; the occupancy switch happens at
-the tile boundary as in walking, but `HandleAtNewGridNo` (mines, movement noise, sight, `03` §2) runs **only on the
+the tile boundary as in walking, but `HandleAtNewGridNo` (mines, movement noise, sight, `07` §4) runs **only on the
 final tile** (`Overhead.cc:729-733`). Arriving with `bLife >= 15` and no pending action calls
-`SoldierGotoStationaryStance`, which the non-interrupt flag swallows for `FALLBACK_HIT_STAND` (inferred).
+`SoldierGotoStationaryStance`, which the non-interrupt flag swallows for `FALLBACK_HIT_STAND` (inferred). In ja2-node
+the sighting pause does not freeze a soldier in a special move (deviations "Knock-back and the sighting pause").
 
 **`SoldierCollapse`** (`:7945-8053`): monsters get 5000 breath back and return. Else `bCollapsed = TRUE`, cancel
 services, `HandleSight(LOOK)`, clear a pending give; by end height: stand → deep/low water `DEEP_WATER_DIE` /
@@ -1261,26 +1271,25 @@ sector or in map screen, our dead merc → `StrategicHandlePlayerTeamMercDeath`.
 ### 5.9 Busy-count accounting for the target
 
 - `+1` per hit on a non-vehicle (`EVENT_SoldierGotHit`), counted in `bBeingAttackedCount`.
-- **`ReleaseSoldiersAttacker(t)`** (`Soldier_Control.cc:6439-6476`): if `previous_attacker != attacker` →
-  `next_to_previous_attacker = previous_attacker`; `previous_attacker = attacker`; `n = bBeingAttackedCount`,
-  zero it, then `n × ReduceAttackBusyCount(t.attacker, FALSE)`; `attacker = NULL` unless dead or the Queen. One
-  release frees every hit that landed during the sequence, including hits whose animation was swallowed.
+- **`ReleaseSoldiersAttacker(t)`** (§8.2) pays all `bBeingAttackedCount` decrements at once: one release frees every
+  hit that landed during the sequence, including hits whose animation was swallowed.
 - Release points:
   - **`CheckForFreeupFromHit`** on any state change: old state `ANIM_HITSTART`, new state not `HITFINISH` /
     `IGNOREHITFINISH`, states differ, not turning from a hit (`:813-840`). This is the normal survivor path (hit
-    animation → 472/499 → stand or aim). Also a `main.int(10) === 0` curse for our conscious soldiers.
+    animation → 472/499 → stand or aim). Also a `main.int(10) === 0` curse for our conscious soldiers (cosmetic).
   - 480 (no current script uses it on a hit path), 497 with HITFINISH (unconscious), the end of turning from a hit,
     leaving a twitch.
   - Death: `HandleSoldierDeath` for non-player soldiers (unless `fDoingExternalDeath`); for **our** mercs only in
     `HandlePlayerTeamMemberDeathAfterSkullAnimation`, after the portrait close + skull UI animation (12 frames ×
     160 ms wall clock, `Interface_Panels.cc:2936-3025`) or `FinishAnySkullPanelAnimations` on leaving the screen.
-    Until then the barrier stays up.
+    Until then the barrier stays up (ja2-node: 1920 game ms after 440, deviations "Our merc's death").
   - `SoldierGotHitGunFire` on an already DEAD soldier releases at once.
 - `ReduceAttackBusyCount(attacker, FALSE)` never checks `bBulletsLeft`; reaching 0 runs the zero-barrier work
-  (`03` §4) including `HandleSuppressionFire`, `ProcessImplicationsOfPCAttack`, `NoticeUnseenAttacker`, the
+  (`10` §5) including `HandleSuppressionFire`, `ProcessImplicationsOfPCAttack`, `NoticeUnseenAttacker`, the
   killed-enemy quote, `CheckForEndOfBattle` (`Overhead.cc:5510-5787`).
 - A shooter who is hit mid-burst (burst states are interruptible) keeps `bBulletsLeft` for the rounds never fired;
-  nothing resets it (inferred: the attack's busy hold then leaks until the 25 s watchdog; mostly a real-time case).
+  nothing resets it (inferred: the attack's busy hold then leaks until the 25 s watchdog; mostly a real-time case,
+  where the next order zeroes the count, §1.3). ja2-node does not special-case it.
 
 ### 5.10 `HandleSoldierDeath` → corpse (`Soldier_Ani.cc:2855-2997`)
 
@@ -1290,7 +1299,7 @@ Runs at 440 (or 497 with gore off) if `bLife == 0` and not yet DEAD:
    `gfKillingGuysForLosingBattle`.
    **Others:**
    a. attacker on our team and busy > 0 → remember for the "killed enemy" quote at busy 0; else if the victim is
-      visible → `main.int(3) === 0` and attacker not a creature → attacker laughs (draw happens whenever visible).
+      visible → `main.int(3) === 0` and attacker not a creature → attacker laughs (draw happens whenever visible; cosmetic).
    b. **`HandleNPCTeamMemberDeath`** (`Overhead.cc:2273-2522`): `SOLDIER_DEAD`; `VerifyPublicOpplistDueToDeath`;
       profiled → `MERC_IS_DEAD`, history; civilians: quest/fact hooks per profile (Brenda, Pablo → event in
       `480 + Random(60)` min, terrorists, assassins, Eldin, Joey/Martha, Dynamo, Kingpin, Doreen, Queen) and
@@ -1309,7 +1318,8 @@ Runs at 440 (or 497 with gore off) if `bLife == 0` and not yet DEAD:
    jars two rows south, else every inventory slot not `UNDROPPABLE` (always for our team or with policy
    `drop_everything`) and not `ITEM_DEFAULT_UNDROPPABLE`; non-player ammo stacks become `1 + main.int(count)` clips
    (slot order); visibility: ours/Queen visible, others hidden unless `all_dropped_visible`; keys; then
-   `AllSoldiersLookforItems`; non-player → `TacticalRemoveSoldier`, ours → `RemoveSoldierFromGridNo`; add the corpse.
+   `AllSoldiersLookforItems`; non-player → `TacticalRemoveSoldier`, ours → `RemoveSoldierFromGridNo`; add the corpse
+   (item drops in detail: `12` §9.1; ja2-node: no rotting, crows or decapitation, deviations "Corpses").
 4. `RemoveManAsTarget` (public and personal opplists cleared, `OppList.cc:2075`), `BetweenTurnsVisibilityAdjustments`.
 5. Non-player and not external death → `ReleaseSoldiersAttacker`.
 
@@ -1349,9 +1359,10 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
   `FLYBACK_HIT_BLOOD_STAND`); these two always drop a full pool (7) and draw it at once. A corpse a blast blows apart
   sprays 7, 5 and 3 around its tile (`12` §10.6). A new corpse wipes the blood under every tile of its structure
   (`AddRottingCorpse`). Gameplay-relevant only through creature smell and the decay
-  draws; the pools the player sees are `04` §6.27.
+  draws; the pools the player sees are `04` §6.7.
 - **Fragile items** on falls: 721 in `FALLFORWARD_FROMHIT_STAND` → `CheckEquipmentForFragileItemDamage(20)` (jars;
-  `pre` per item). The 722 branch for `FALLFORWARD_FROMHIT_CROUCH` is dead (that script has no 722).
+  `pre` per item). The 722 branch for `FALLFORWARD_FROMHIT_CROUCH` is dead (that script has no 722). Not ported:
+  ja2-node treats 721 as a sound cue only, so these `pre` draws are missing (§12.4).
 
 ### 5.12 Turn-based vs real time
 
@@ -1363,22 +1374,6 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
 | Busy barrier | blocks interrupts, defers noise and AI | still counted (muzzle flash cleared at 0) |
 | Locate camera on our hit merc | yes | no |
 
-### 5.13 RNG calls in order (one bullet, after `BulletImpact`)
-
-1. `main` head item slot `Random(2)`, then `Random(impact/2)` if occupied (head hits); spit goggles `Random(impact/2)`.
-2. `main` `Random(100)` touchy neutral (our firer, no target, neutral not Kingpin/hicks).
-3. `pre` pass-through `PreRandom(100)`, then armour rolls inside `TotalArmourProtection` if it succeeds.
-4. `main` blood pool `Random(3)` / graphic `Random(4)` (pass-through spray).
-5. `EVENT_SoldierGotHit`: `pre` sleep-dart succumb → `SoldierTakeDamage`: `pre` equipment (blasts), `main`
-   bloodloss `Random(2)` (unprofiled hostiles), **`main` weapon drop `Random(100)`** (every non-bleed hit on a
-   non-robot), `main` blood, `pre` `StatChange` loops (explosives for the attacker, experience for our target).
-6. cosmetic impact/grunt sounds; `main` `Random(2)` civilian `CIV_DIE2`.
-7. Entering the hit state: `main` `Random(10)` start (burning/exploding), `Random(50)` fall side (leg fall-down via
-   `SoldierCollapse`, blast fall forward), **478: `Random(100)` [+ `Random(50)`]**.
-8. Later frames: **433: `Random(100)` [+ `Random(50)`]**; `Random(10)` curse on release; 447 none;
-   `HandleSoldierDeath`: `Random(3)` laugh, `pre` kill/assist `StatChange`, `Random(60)` (Pablo), ammo
-   `1 + Random(n)` per ammo slot; getting up: `pre` sleep-drug roll at turn start.
-
 ## 6. Melee: knife, punch, steal
 
 ### 6.1 Flow
@@ -1386,7 +1381,8 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
 1. **Order** (`Handle_Items.cc:435-497` punch, `:792-842` blade). Find an adjacent tile: for punches first a neighbour
    from which the target is directly reachable, else `FindAdjacentGridEx`; blades use `FindAdjacentGridEx` (bloodcats
    and distant creatures: `FindNextToAdjacentGridEx`). Not adjacent → set a pending action
-   (`MERC_PUNCH`/`MERC_KNIFEATTACK`) and walk there first; the attack begins on arrival. **No AP check here**; UI and AI
+   (`MERC_PUNCH`/`MERC_KNIFEATTACK`) and walk there first; the attack begins on arrival (in ja2-node the AI does; the
+   agent `attack` order refuses a target that needs a walk, deviations "Melee without walking"). **No AP check here**; UI and AI
    check affordability (`CalcTotalAPsToAttack`, §1.5, which includes the walk). Queen tentacles (`IC_TENTACLES`) pay at
    order time and play `QUEEN_SWIPE` (`:844-853`; damage at opcode 755 → `DishoutQueenSwipeDamage`,
    `Weapons.cc:3815-3867`).
@@ -1399,7 +1395,10 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
    `NINJA_GOTOBREATH` then `DoNinjaAttack`; else target standing or crouched → `PUNCH` (crowbar: `CROWBAR_ATTACK`), and
    if the target is **unaware** he is stopped and turned (the opposite of the blade rule; quirk, keep); target prone →
    `PUNCH_LOW` after crouching (civilian bodies just `PUNCH`). Both set `sTargetGridNo`, `bTargetLevel = bLevel`,
-   `target`; punch also sets `sLastTarget`.
+   `target`; punch also sets `sLastTarget`. ja2-node has no `DECAPITATE` (an empty tile gets `STAB`/`CROUCH_STAB`), no
+   `NINJA_*` states (martial artists punch with `PUNCH`/`PUNCH_LOW` and keep their trait bonuses) and no stealing
+   (deviations "Melee specials"); a prone attacker who turns is not laid down again mid-attack (deviations "Melee from
+   a prone turn").
 3. **Animation** (`Ja2bin.dat`): `STAB`/`SLICE` 70 ms: `757 [0-6] 727 492 [7-8] 430 [9-14] 442 → KNIFE_GOTOBREATH`
    (`[0-3] 442 753 → KNIFE_BREATH`); `CROUCH_STAB` `757 … 492 … 430 … 753 442 499`; `PUNCH` 70 ms `757 [0-5] 727 492
    [6-8] 430 [9-15] 753 442 468`; `PUNCH_LOW` has no dodge; `NINJA_PUNCH`/`_LOWKICK`/`_SPINKICK` 50–70 ms with 492 a few
@@ -1540,8 +1539,8 @@ smell. Punch: `pre(100)` → [spin kick `pre(cth)`] → STR+DEX `StatChange` (pl
 
 Quirk: `EVENT_SoldierBeginPunchAttack` raises the busy count and returns if nobody is on the target tile, and
 `UseHandToHand` with an empty tile frees nothing (`Soldier_Control.cc:6731-6739`, `Weapons.cc:1058-1258`), so a punch at
-a soldier who stepped away leaks one busy count until the 25 s UI watchdog (inferred). ja2-node has no watchdog: release
-the attacker there and log it as a deviation.
+a soldier who stepped away leaks one busy count until the 25 s UI watchdog (inferred). ja2-node releases the hold at
+once (deviations "Melee hold leaks").
 
 ## 7. Throwing and launchers
 
@@ -1558,7 +1557,7 @@ are specified in `12` §10; this section ends at `IgniteExplosion`.
 | `IC_LAUNCHER` (`LAUNCHER`, `WeaponModels.cc:1347`, `TRAJECTORYCURS`) | GLAUNCHER (range 500), UNDER_GLAUNCHER (450, attachment, `WM_ATTACHED`), MORTAR (550) | `UseLauncher` (`Weapons.cc:1336`) | physics object (the attached launchable: GL_*_GRENADE, MORTAR_SHELL) |
 | `IC_GUN`, `NOT_GUN` (`LAW`, `CANNON`, `WeaponModels.cc:1389,1432`) | ROCKET_LAUNCHER (single-use LAW), TANK_CANNON | `UseGun` | **bullet** with `BULLET_FLAG_MISSILE` / `_TANK_CANNON` (`LOS.cc:3262-3269`); explodes C1 / TANK_SHELL on stop or hit (`Weapons.cc:1511-1519, 1622-1646`) |
 | `IC_THROWING_KNIFE` | THROWING_KNIFE | `UseGun` | bullet with `BULLET_FLAG_KNIFE` (§1.9, §3); only its CTH is `CalcThrownChanceToHit` (`Weapons.cc:654-657`) |
-| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
+| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (ja2-node `toss.ts`, deviations "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
 
 `EXPLOSIVE_GUN(x)` = ROCKET_LAUNCHER or TANK_CANNON (`Item_Types.h:215`). There is no RPG in vanilla data; ROCKET_RIFLE
 and AUTO_ROCKET_RIFLE are ordinary guns with `BULLET_FLAG_SMALL_MISSILE` (§3.1).
@@ -1700,9 +1699,7 @@ Notes:
   negative and *raise* the chance. Keep `i8`.
 - With a UGL, the status used for the final multiplier is the **rifle's** `bStatus[0]` (`inv[HANDPOS]`), not the
   attachment's (quirk).
-- **Dev vs V** (`V Tactical/Weapons.c:3761-3900`): mechanical base uses `bExpLevel` (raw, not ×10) in V; injury term
-  is `lifeMax − life + bandaged/2` in V (bandaging *hurts*) vs `lifeMax − effectiveLife` in Strac; sun goggles always
-  give the −10% range in V, only in light brighter than normal day in Strac.
+- V differences: §7.14.
 
 ### 7.5 Miss deviation (`CalculateLaunchItemParamsForThrow`, `TileEngine/Physics.cc:1717-1835`)
 
@@ -1817,9 +1814,8 @@ function findBestForce(src, dst, startZ, endZ, deg, item) { // Physics.cc:1229-1
 - Consequences: a GL or mortar cannot shoot shorter than the min force (15 tiles at 45°; at the GL's π/8 that is
   roughly 10–11 tiles on flat ground, inferred). Throws beyond `CalcMaxTossRange` are capped by `maxF` and fall short.
   Indoors (any roof over thrower or ground-level target, caves, basements) the arc is flat (π/30) and `maxF` doubles.
-- **Dev vs V:** V uses start Z `level*256` (without +50) for the mortar force search but +50 for the actual launch
-  (`V Physics.c:1577, 1906`); Strac uses +50 in both. V `UseLauncher` passes `endZ = 0` instead of
-  `bTargetLevel*256` (`V Weapons.c:1746`).
+- V differences: §7.14. ja2-node does not model the cave and basement arc (`gfCaves || gfBasement`; deviations
+  "Underground throws").
 
 `CalculateLaunchItemChanceToGetThrough` (`:1613-1678`, UI cursor and AI `CalcBestThrow`) runs the same params
 through a `TEST_OBJECT_NOTWALLROOF_COLLISIONS` object (structure collisions on, first 3 tiles ignored as in §7.9.3);
@@ -1858,8 +1854,8 @@ No RNG. Same tile as the thrower → false (Strac guard against an endless loop)
   soldier under AI control with `IS_NEW_SITUATION` (`:8774-8813`): `AutoPlaceObject(pTempObject)`, clear it, cancel
   the pending animation, `ReduceAttackBusyCount`. `pThrowParams` is left allocated (harmless). **Quirk:**
   `pTempObject` is a copy of the whole hand stack taken *before* `RemoveObjs(…, 1)`, so returning it can duplicate
-  stacked grenades (inferred; kept: `haltFromSighting` returns the copy as the original does). ja2-node ports the
-  halt (`perception/wiring.ts`); `HandleSystemNewAISituation` is still the no-op `newAiSituation` hook (`27` §14).
+  stacked grenades (inferred; ja2-node keeps it: `haltFromSighting` in `perception/wiring.ts` and
+  `handleSystemNewAISituation` in `ai/system-situation.ts` both return the copy through `returnThrownObject`).
 - Hit while in `THROW_ITEM`/`LOB_ITEM`/`SHOOT_ROCKET`/`SHOOT_MORTAR`: `EVENT_SoldierGotHit` calls
   `ReduceAttackBusyCount` (`Soldier_Control.cc:2636-2645`). If the hit animation replaces the throw before 460, the
   object in `pTempObject` is never launched and is lost at the next `SetTempObject` (inferred).
@@ -2088,10 +2084,12 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
   `OBJECT_DETONATE_ON_IMPACT`, `:65`).
 - In water, armed objects explode 11 ripple frames × 50 ms = 550 ms (tile-animation clock) after splashdown, with no
   dud check. The throw's busy count is released one tick after the splash, before that explosion (inferred). The
-  keyframe reads the freed `REAL_OBJECT` slot (`pNode->v.object`), which a new object could reuse (inferred).
+  keyframe reads the freed `REAL_OBJECT` slot (`pNode->v.object`), which a new object could reuse (inferred); ja2-node
+  keeps the ripple's own owner and item (deviations "Water ripple").
 - Dud → timed bomb: `bDelay` decremented by `DecayBombTimers` (`Explosion_Control.cc:2054-2095`) in `EndTurnEvents`
   (`TeamTurns.cc:288`, once per round, inferred) and on every 5 s real-time turn (`Tactical_Turns.cc:92`); at 0 it
-  joins the bomb queue (`03` §6).
+  joins the bomb queue (`01` §3.5). ja2-node lays the dud down invisible and armed after the same draws, with no timer
+  (deviations "Duds and timed bombs").
 - Flight time is a fixed number of 20 ms physics ticks for given launch parameters; turn-based and real time use the
   same integrator. The turn waits on the busy count until the object dies.
 
@@ -2116,7 +2114,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
 3. If `missBy > 0`: `RandomGridFromRadius` loop: `pre(max)`, `pre(max)` [reject → repeat], `pre(2)`, `pre(2)`
    [same tile → repeat].
 4. Force/angle search: none.
-5. Flight: catching `pre(100)` (catch tosses only); soldier hit → `EVENT_SoldierGotHit` (§5.13 draws);
+5. Flight: catching `pre(100)` (catch tosses only); soldier hit → `EVENT_SoldierGotHit` (draws as in §11);
    mortar smoke trail `pre(100)` per new tile after the 2nd.
 6. Landing: dud test `pre(100)`, `pre(50)` (only on the ground plane, out of water, status ≥ 10); if a dud: again
    `pre(100)`, `pre(50)`, then `pre(4)`, `pre(2)` if re-armed.
@@ -2130,22 +2128,20 @@ shooters) → `pre(100)` hit roll → `RandomGridFromRadius` → flight/landing 
 then `FireBulletGivenTarget` deviation, then wear `pre(15 + 3·reliability)` (`Weapons.cc:870-875`), then
 `Random(2)` smell decay if `bMonsterSmell > 0` (§1.9).
 
-Cosmetic `main` draws in this area (battle sounds, `Random(40)` curse on gun misses) belong to the cosmetic stream
-per `deviations.md`.
+Cosmetic `main` draws in this area (battle sounds, `Random(40)` curse on gun misses) are not drawn by ja2-node
+(§12.3).
 
 ### 7.13 Determinism and exactness
 
-- **Exact (must match):** `CalcThrownChanceToHit`, `CalcMaxTossRange`, `MinAPsToThrow` and its evaluation points, the
-  hit roll, the miss-radius table and every `pre` draw above in order (including the mortar smoke-trail draw), the
-  dud logic, the busy-count bookkeeping.
-- **Physics:** deterministic per 20 ms tick; the original is frame-rate dependent only through the wall-clock gate
-  (one tick per frame at most) and therefore in real time through *where soldiers are* when the object passes. Port
-  the integrator in float32 (`Math.fround` after every float operation, 11 sub-steps). Residual risk: the initial
-  force estimate uses double `sqrt`/`sin` and `sinf`/`sqrtf` may differ from V8's `Math.sin` in the last ulp, which
-  can rarely change a landing tile. `docs/02` §(c) accepts approximate grenade spread; log any divergence.
-- Recommendation: one physics tick per 4 simulation ticks of 5 ms (20 ms), objects in slot order, after the soldier
-  frame updates of the same game ms if we keep `03` §7's ordering (inferred: in the original physics runs first in
-  the frame).
+- Exact in integers and draws: `CalcThrownChanceToHit`, `CalcMaxTossRange`, `MinAPsToThrow` and its evaluation points,
+  the hit roll, the miss radius and every `pre` draw above in order (including the mortar smoke-trail draw), the dud
+  logic, the busy-count bookkeeping.
+- Physics is deterministic per 20 ms tick; the original depends on the frame rate only through the wall-clock gate (at
+  most one tick per frame), so in real time only through where soldiers are when the object passes. ja2-node runs it
+  every 20 game ms at the start of the tick, before bullets and the soldier pass (`stepThrownObjects`), objects in
+  slot order, in float32 (`Math.fround` after every float operation, 11 sub-steps). The initial force estimate uses
+  double `sqrt`/`sin`; `sinf`/`sqrtf` may differ in the last ulp and can rarely change a landing tile (deviations
+  "Physics cadence and floats"; `docs/01` §(c) accepts approximate grenade spread).
 
 ### 7.14 Vanilla differences found (summary)
 
@@ -2157,6 +2153,9 @@ per `deviations.md`.
 | Launcher end Z | 0 | `bTargetLevel · 256` |
 | Mortar force-search start Z | `level·256` | `level·256 + 50` |
 | Hand refill after a throw | no | next identical item moves to the hand |
+
+Sources: thrown CTH `V Tactical/Weapons.c:3761-3900`; launcher end Z `V Weapons.c:1746`; mortar start Z
+`V Physics.c:1577, 1906` (V adds the +50 only for the actual launch).
 
 ## 8. The attack barrier, suppression and the end of an attack
 
@@ -2327,7 +2326,12 @@ for (const s of MercSlots) {                               // slot order, every 
   take him one step further, because `total` (not the increment) is tested.
 - Re-entry: the stance change raises the busy count, so §8.4 returns early (`:5574-5578`). When the last stance change
   ends (499), §8.4 runs again with `pSoldier = suppressor`. `HandleSuppressionFire` is then a no-op, because
-  `ubAPsLostToSuppression` already equals `total`, and the rest of §8.4 runs **once**.
+  `ubAPsLostToSuppression` already equals `total`, and the rest of §8.4 runs **once**. If that call starts another
+  stance change of the same soldier (crouch, then prone), ja2-node returns from the end of the finished animation
+  instead of falling through to `SoldierGotoStationaryStance` (deviations "Suppression stance change from the end of
+  the previous one").
+- `bActionPoints` may go negative here; `CalcNewActionPoints` at the next turn start caps carried points at 5 from
+  above only and adds the new pool, so the debt carries (`Soldier_Control.cc:420-447`).
 - **V diff** (`V Overhead.c:5811-5976`): in the crouch→prone branch V refunds `AP_PRONE − lost` APs, or subtracts
   AP_PRONE from `lost`, even though the stance change is free. Strac removed that refund. V also has no
   `InternalGivingSoldierCancelServices`, and V's busy increment is gated on `TURNBASED && INCOMBAT`.
@@ -2380,14 +2384,15 @@ civ group → hostile-or-quote list plus `MilitiaChangesSides` (Hicks' cow and P
 or neutral civ-group member → `CivilianGroupMemberChangesSides`, other groups → `…ChangeSidesWithinProximity`; one of
 our own mercs attacked out of combat readies his weapon for free and fires back through `HandleItem` (burst if he can),
 with `fEnterCombat = false`; Carmen and the head miner have their own hooks. Explosions call it per victim with
-`REASON_EXPLOSION` (`Explosion_Control.cc:740, 852`).
+`REASON_EXPLOSION` (`Explosion_Control.cc:740, 852`). ja2-node ports neither the fire-back nor the head-miner rule
+(deviations "Implications of an attack").
 
 ### 8.5 Being shot at: `NoticeUnseenAttacker`, interrupts, `bUnderFire`, close calls
 
 **`NoticeUnseenAttacker(att, def)`** (`OppList.cc:4608-4752`). Returns at once unless `INCOMBAT`. Then, in order:
 1. Dart gun: `SkillCheck(def, NOTICE_DART_CHECK, 0) < 0` → return. The skill is `EffectiveWisdom/10 + EffectiveExpLevel`
    minus fatigue, plus the morale modifier, clamped 0–99. RNG: `pre.PreRandom(100)`; on failure also `main.Random(100)`
-   (a silent curse test) (`SkillCheck.cc:273-276, 305-372`).
+   (a silent curse test, cosmetic) (`SkillCheck.cc:273-276, 305-372`).
 2. Larvae, or a vehicle on our team → return.
 3. Within `MaxDistanceVisible`: the defender's `DistanceVisible`, ignoring the muzzle flash unless he faces within ±1
    octant, then `SoldierToSoldierLineOfSightTest(def, att, limit, aware=TRUE)`.
@@ -2469,6 +2474,8 @@ function refreshSoldierMorale(s) {                         // Morale.cc:244-265
 
 - Only profiled soldiers have morale. Enemies and unprofiled NPCs pass through `updateSoldierMorale` unchanged. Only
   `SOLDIER_PC` reads `bMorale`; everyone else uses `bAIMorale`.
+- ja2-node takes `progressPct()` from the value computed at sector load (deviations "Difficulty and progress in
+  tactical") and has no drug terms (deviations "Morale without drugs").
 - Decay: tactical modifier every quarter hour (`HandleQuarterHourUpdate`, `Hourly_Update.cc:85-92` → `Morale.cc:138-217`): positive `max(0, m − (8 − m/10))`,
   negative `min(0, m + (6 + m/10))`. Claustrophobic underground and Nervous alone keep re-applying their events instead.
   Strategic modifier every 3 hours (`Morale.cc:810-813`).
@@ -2525,8 +2532,9 @@ function processStatChange(p, stat, n, cause) {           // Campaign.cc:102-371
 - It is **deferred while `ubAttackBusyCount > 0`, the merc is in sector and `INCOMBAT`** (`:761-766`), so in combat
   points land at §8.4 step 8. It also skips mercs below OKLIFE.
 - Per changed stat, `ChangeStat` draws `main.Random(100) < 25` to choose between the quote and a plain message. The draw
-  is skipped for HEALTH, and for EXPERAMT, which always gets the quote (`:583`). Level-ups also change salary
-  (`02` §4).
+  is skipped for HEALTH, and for EXPERAMT, which always gets the quote (`:583`); ja2-node never draws it (§12.3).
+  Level-ups also change salary
+  (`11` §10).
 
 **Call sites in the attack path** (`gain` = number of chances):
 
@@ -2560,184 +2568,145 @@ function processStatChange(p, stat, n, cause) {           // Campaign.cc:102-371
   an assist. A militia kill therefore totals +3 (quirk).
 - `usBattlesFought++` at battle end (`Overhead.cc:4560`).
 
-### 10.1 RNG calls in §8–§10, in order
-
-1. Bullet tile, per person structure in list order (interleaved with the structure-hit `pre` rolls):
-   - [`pre` PreRandom(100) accidental-hit test, only for a visible standing non-target within range];
-   - [`main` Random(2) if buckshot];
-   - [`pre` PreRandom(4) ×0–2 by stance].
-
-   Then per adjacent direction 0–7: [`main` Random(2) if buckshot], [`pre` PreRandom(4) ×0–2].
-2. `UseGun` order: `pre` hit roll → `DeductAmmo` → **MARK `StatChange`: one `pre` draw per chance** → (rocket
-   launcher fail check) → `FireBulletGivenTarget` deviation draws. The experience draws therefore sit between the hit
-   roll and the bullet's rolls for player shooters in combat. `UseBlade`, `UseHandToHand` and `UseThrown` likewise draw
-   their `StatChange` rolls right after their own hit roll.
-3. Agility dodge `StatChange` draws happen inside `StructureHit` and `ShotMiss`, at the bullet's end.
-4. §8.4: `HandleSuppressionFire` draws nothing. `NoticeUnseenAttacker` for a dart draws `pre` (+ `main` on failure).
-   `HandleAnyStatChangesAfterAttack` → `ChangeStat` draws `main` Random(100) per changed stat. Quotes and battle sounds
-   (`HandleKilledQuote`, `DoMercBattleSound`) may draw `main` (not traced).
-5. Turn end: `SayCloseCallQuotes` draws `main` Random(3) per eligible merc.
-
-### 10.2 Port notes for §8–§10
-
-- Replace the global busy count with the resolution barrier (`03` §7), but keep its **trigger identity**: §8.4 runs
-  with the soldier whose release emptied the barrier, and suppression runs before everything else and can re-arm the
-  barrier.
-- Suppression is turn-based only. Real time still accrues points, `fCloseCall` and `bUnderFire`.
-- Keep the deferral of stat-point application during attacks (it moves the `main` quote draw), and the "1 pre draw per
-  chance" loop even when the chance is 0.
-
 ---
 
 ## 11. RNG order, end to end: one aimed shot that kills
 
 A player merc in combat (a profile, so the jam test and `StatChange` draw) fires one aimed round at a visible enemy on
 the ground; the bullet crosses one tile with a bush and a crouched bystander, hits the torso, the enemy falls forward
-and dies. Brackets mark conditional draws. Section numbers give the conditions.
+and dies. Brackets mark conditional draws, (c) the cosmetic draws ja2-node does not make (§12.3). Section numbers give
+the conditions.
 
 | When | Draws, in order |
 |---|---|
-| order (`HandleItem`) | [PSYCHO, burst-capable, not bursting: `main(3 + aim)`] (§1.3). AI shooters: [`main(50)` civ quote] |
+| order (`HandleItem`) | AI shooters: [`main(50)` civ quote (c)]; `HandItemWorks`: `main(80)` [+ `main(9)` on breaking] per damageable item tested (the main gun, then a second gun); [PSYCHO, burst-capable, not bursting: `main(3 + aim)`] (§1.3) |
 | fire state entered (`SelectFireAnimation`, standing single shot) | [`pre(100)` body part if `AIM_SHOT_RANDOM` and a soldier on the tile] (§1.8) |
-| opcode 470 | `CheckForGunJam`: `pre(100)`, `pre(100)`; jammed gun: `SkillCheck` `pre(100)` [+ `main(100)`] (§1.7) |
+| opcode 470 | `CheckForGunJam`: `pre(100)`, `pre(100)`; jammed gun: `SkillCheck` `pre(100)` [+ `main(100)` (c)] (§1.7) |
 | opcode 430 → `UseGun` | [`pre(100)` body part if still random]; [barrel extender `main(2)`, `main(35)`, `main(35)`]; **`pre(100)` hit roll**; MARK `StatChange`: one `pre(100)` per chance (§10); [LAW `pre(40)`, `pre(40)`, [`pre(2)`]]; `FireBulletGivenTarget`: [miss: `pre(50)`, `pre(2)`, `pre(100)`] (§3.2); first `MoveBullet` (below); wear `pre(15 + 3·reliability)`; [`main(2)` monster smell] |
-| each tile entered | structures in list order: fences/obstacles [`pre(100)` vs `ChanceOfBulletHittingStructure`]; persons [`pre(100) < 3` accidental test, short-circuited]; suppression award per person and then per neighbour [buckshot `main(2)`] [`pre(4)` ×0–2 by stance] (§3.4, §8.1) |
-| inside the tile | per structure hit: [lock `pre(2)`, `pre(dmg)`]; density `pre(100)`; [explosive structure `main(2)`]; [stopped: curse `main(40)` (player, single shot)] (§3.5) |
-| `BulletHitMerc` | [adult monster gland `pre(100)`]; [spit: goggles `pre(100)` ×≤2]; `BulletImpact`: `pre(51)` fluke, armour `pre(100)` per piece (plates, vest), [`main(10)` instant kill], [head `pre(22)` / legs `pre(10)`], [knife stealth `pre(100)` + `main(10)`], [critical `pre(crit/2 + 5·aim)`, `pre(crit/2)`, torso `preChance(50)`] (§4.2); [head: `main(2)`, `main(impact/2)`]; [touchy neutral `main(100)`]; [pass-through `pre(100)` + armour `pre(100)` per piece] (§4.1) |
-| `EVENT_SoldierGotHit` | [sleep dart `pre(100)`]; `SoldierTakeDamage`: [blast equipment `pre`], [unprofiled bleed `main(2)`], **`main(100)` weapon drop**, [blood `main`], [EXPER `StatChange` `pre`×n for our victim] (§5.2); hit state entry: **opcode 478 `main(100)` [+ `main(50)`]** (§5.6) |
-| hit animation frames | **433 `main(100)` [+ `main(50)` fall side]**; release curse [`main(10)`]; 447 none (§5.7) |
-| opcode 440 (`HandleSoldierDeath`) | [visible victim: `main(3)` laugh]; kill/assist EXPER `StatChange` `pre`×n; corpse: ammo `1 + main(n)` per non-player ammo stack (§5.10) |
-| barrier reaches 0 | `HandleAnyStatChangesAfterAttack`: `main(100)` per changed stat; [dart: `NoticeUnseenAttacker` `pre(100)` [+ `main(100)`]] (§8.4, §10) |
+| each tile entered | structures in list order: fences/obstacles [`pre(100)` vs `ChanceOfBulletHittingStructure`]; persons [`pre(100) < 3` accidental test, short-circuited]; suppression award per person and then per neighbour in direction order 0–7 [buckshot `main(2)`] [`pre(4)` ×0–2 by stance] (§3.4, §8.1) |
+| inside the tile | per structure hit: [lock `pre(2)`, `pre(dmg)`]; density `pre(100)`; [explosive structure `main(2)`]; [stopped: curse `main(40)` (c) (player, single shot)]; [stopped, or left the map in `ShotMiss`: agility `StatChange` `pre`×n for the shooter's `opponent`] (§3.5, §10) |
+| `BulletHitMerc` | [adult monster gland `pre(100)`]; [spit: goggles `pre(100)` ×≤2]; `BulletImpact`: `pre(51)` fluke, armour `pre(100)` per piece (plates, vest), [`main(10)` instant kill], [head `pre(22)` / legs `pre(10)`], [knife stealth `pre(100)` + `main(10)`], [critical `pre(crit/2 + 5·aim)`, `pre(crit/2)`, torso `preChance(50)`] (§4.2); [spit in the face: goggles `main(impact/2)`; head: slot `main(2)`, then `main(impact/2)` if it holds an item]; [touchy neutral `main(100)`]; [pass-through `pre(100)` + armour `pre(100)` per piece; blood behind the target: decay `main(3)`, graphic `main(4)` (c)] (§4.1, §5.11) |
+| `EVENT_SoldierGotHit` | [sleep dart `pre(100)`]; `SoldierTakeDamage`: [blast equipment `pre` per item], [unprofiled bleed `main(2)`], **`main(100)` weapon drop** (every non-bleed hit on a non-robot), [blood: decay `main(3)`, graphic `main(4)` (c)], [EXPLODE `StatChange` `pre`×n for our attacker of a blast], [EXPER `StatChange` `pre`×n for our victim] (§5.2); cosmetic impact and grunt sounds; animation choice: [civilian `CIV_DIE2` `main(2)`]; entering the hit state: [`main(10)` start index of `CHARIOTS_OF_FIRE`/`BODYEXPLODING`], [`main(50)` fall side of a leg fall-down through `SoldierCollapse` or a blast fall forward], **opcode 478 `main(100)` [+ `main(50)`]** (§5.4, §5.6) |
+| hit animation frames | **433 `main(100)` [+ `main(50)` fall side]**; release curse [`main(10)` (c)]; 447 none (§5.7) |
+| opcode 440 (`HandleSoldierDeath`) | [visible victim: `main(3)` laugh (c)]; kill/assist EXPER `StatChange` `pre`×n; [Pablo: `Random(60)` for his event]; corpse: ammo `1 + main(n)` per non-player ammo stack, in slot order (§5.10) |
+| barrier reaches 0 | `HandleSuppressionFire` none; [dart: `NoticeUnseenAttacker` `pre(100)` [+ `main(100)` (c)]]; `HandleAnyStatChangesAfterAttack`: `main(100) < 25` message per changed stat (c); quotes (`HandleKilledQuote`, battle sounds) may draw `main` (not traced) (§8.4, §10) |
+| team turn start | [getting up: sleep-drug `pre(100)`] (§5.11) |
 | turn end | `SayCloseCallQuotes`: `main(3)` per eligible merc (§8.5) |
 
-Bursts repeat the 430 row per round (jam only on round 1, XP only on round 2). A miss that stops in a wall adds the
-agility `StatChange` of the shooter's `opponent` inside `StructureHit`; a miss that leaves the map adds it inside
-`ShotMiss`. Melee: §6.5. Throws and launchers: §7.12. Suppression resolution draws nothing (§8.3).
+Bursts repeat the 430 row per round (jam only on round 1, XP only on round 2). `UseBlade`, `UseHandToHand` and
+`UseThrown` likewise draw their `StatChange` rolls right after their own hit roll. Melee: §6.5. Throws and launchers:
+§7.12.
 
 ---
 
-## 12. Minimal M3 implementation (attacks and damage)
+## 12. Implementation in ja2-node
 
-M3 already has the item model (`content/items/items.ts`, `sim/items/object.ts`, `sim/tactical/inventory.ts`; `12`
-§1–§3), the LOS ray (`perception/los.ts`), sight and noise, the animation interpreter and the AP pool. The combat AI
-(`13`) and explosions (`12` §10) are separate specs that call into this one.
+### 12.1 State and modules
 
-### 12.1 First: single shots with pistols and rifles, damage, death
+Paths are under `src/sim/tactical/`. The soldier (`soldier.ts`) keeps the original's attack and hit fields under their
+names without the type prefix (`bBulletsLeft` → `bulletsLeft`, `ubSuppressionPoints` → `suppressionPoints`,
+`fCloseCall` → `closeCall`); `sDamage` is `damageWindow`, `bUnderFire` is `ai.underFire`. `TacticalState`
+(`state.ts`) holds the attack busy count `turn.attackBusyCount` (`turns/turn-state.ts`), the live `bullets`, the
+pending miss releases `missAnimations`, the queued `gameEvents`, our dead mercs waiting for the skull delay
+`pendingSkullReleases`, and the physics objects and throw parameters `explosives` (`explosions/state.ts`).
 
-Everything here consumes RNG on every shot, so it has to be exact from the first commit.
+Content: weapons, ammo types, armours and explosives from `data/externalized/*.json` through `content/items/items.ts`
+(`12` §1); structure armour and density from the JSD (`content/formats/jsd.ts`) and
+`data/tables/material-armour.json`; animation scripts from the user's `binarydata/ja2bin.dat`
+(`content/formats/ja2bin.ts`, `content/anim/timelines.ts`) with speeds and flags from `data/tables/anim-control.json`.
+The stub pack builds its own scripts with the same gameplay opcodes and shorter frame counts (`stubs/anim-scripts.ts`,
+`27`). The `game.json` values of §1.1 are the defaults, compiled in as constants.
 
-1. **Data.** Weapon fields from `weapons.json` (§1.1; LAW impact 80 is hard-coded); ammo types; `armours.json` plus the
-   max-protection-per-class table (§4.3); `MATERIAL_ARMOUR` (`data/tables/` via a transcription tool); JSD `armour`
-   and `density`; the policy values (§1.1).
-2. **Soldier fields.** `aimTime`, `aimShotLocation`, `doBurst`, `bulletsLeft`, `attackingHand`, `attackingWeapon`,
-   `target`, `opponent`, `targetGrid/Level/CubeLevel`, `lastTarget`, `turningToShoot`, `dontChargeReadyAPs`,
-   `dontChargeTurningAPs`, `dontUnsetLastTargetFromTurn`, `muzzleFlash`; target side: `attacker`, `previousAttacker`,
-   `nextToPreviousAttacker`, `beingAttackedCount`, `hitLocation`, `gettingHit`, `goBackToAimAfterHit`, `sDamage` and
-   its display counter, `shock`, `bleeding`, `nextBleed`, `breathRed`, `collapsed`, `tryingToFall`, `startFallDir`,
-   `fallClockwise`, `numPelletsHitBy`, `intendedTarget`, `suppressionPoints`, `suppressor`, `closeCall`, `underFire`,
-   `apsLostToSuppression`, the `*Damage` stat fields, flags (`ATTACK_NOTICED`, `DEAD`, `GASSED`, `PC`).
-3. **Pure functions with golden tests:** effective stats (`SkillCheck.cc:14-118`), `moraleModifier`, fatigue penalty,
-   `CalcChanceToHitGun` (§2; attachments may be absent but the no-attachment path must be exact), the AP functions
-   (§1.5), `BulletImpact`, armour, `AdjustImpactByHitLocation`, `CalcBodyImpactReduction`,
-   `ChanceOfBulletHittingStructure`, `StructureResistanceIncreasedByRange`.
-4. **Attack flow.** `HandleItem` gun path (refusals and imprint can wait; the psycho roll cannot), a per-tick event
-   queue drained after the soldier pass (`EV_S_BEGINFIREWEAPON`, `EV_S_FIREWEAPON`, delayed `EV_S_WEAPONHIT`),
-   `EVENT_FireSoldierWeapon`, ready/turn AP rules, `SelectFireAnimation`, opcodes 757, 753, 470, 441 (no-op), 430, 473,
-   477 (no-op), 772, `CheckForGunJam` with unjam, `UseGun`, `GetTargetWorldPositions`, wear, gunfire noise and the
-   muzzle-flash flag for sight.
-5. **Bullets.** `FireBulletGivenTarget`, `CalculateFiringIncrements`, `MoveBullet` one tile per 5 ms tick (knives one
-   per 30 ms), structures, persons (intended and accidental), suppression **accrual** (it draws `pre`), close calls,
-   windows, corpses, roof and ground stops, map exit, the drop beyond 2× range, `HandleBulletStructureInteraction`,
-   `StructureHit` (noise, `DamageStructure` gunfire branch, release 425 ms later when the miss animation ends, §3.5),
-   `ShotMiss`, `RemoveBullet`/`FreeUpAttacker`, and the fake-bullet CTGT for the AI.
-6. **Impact and target.** `BulletHitMerc`, `WeaponHit`, `EVENT_SoldierGotHit` (gun branch), `SoldierTakeDamage`,
-   `DeductPoints`, the gun hit-animation choice, opcodes 478, 472, 433, 447 + `OKFallDirection`, `FALLBACK_HIT_STAND`
-   and `FLYBACK_HIT` special moves, 497, 440, 465, the twitch table, `CheckForFreeupFromHit`,
-   `ReleaseSoldiersAttacker`, `HandleSoldierDeath` with `HandleNPCTeamMemberDeath` bookkeeping (kill credit, team
-   counts, morale event, opplist cleanup; quest hooks can wait), `TurnSoldierIntoCorpse` (corpse structure for LOS and
-   bullets; item drop as soon as world items exist, `12` §9), bleeding at turn start, getting up.
-7. **Barrier.** The busy counter with its exact guard rules (§8.2) and the end-of-attack steps that matter without
-   NPC scripts: suppression (§8.3, turn-based only), `NoticeUnseenAttacker` and `bUnderFire`, combat entry from a
-   noticed attack, `sLastTarget`, stat-point application, deferred noise, `CheckForEndOfBattle`.
-8. **Experience.** `StatChange` with its per-chance `pre` loop for every call site in §10, even if level-ups and their
-   salary effects come later: the draws shift every later `pre` roll.
-9. **Agent API.** `attack({ soldier, grid, level, aimTime: 0..4, bodyPart: head|torso|legs|random })` returning the
-   `ITEM_HANDLE_*` result; `chanceToHit` and `chanceToGetThrough` queries (the `fModify = FALSE` and fake-bullet
-   paths, no RNG); events `shotFired`, `bulletStopped`, `soldierHit {gridNo, location, special, conscious, damage?}`, `soldierDied`,
-   `attackResolved` (barrier at 0).
-10. **Tests.** CTH and damage golden tables computed by hand from §2/§4; RNG-count tests per scenario (how many `pre`
-    and `main` draws a shot consumes); bullet paths on stub worlds (wall, window, bush density, intended tile,
-    bystander); tick counts for the hit and death timelines (§5.5); save/load in the middle of a bullet flight.
+| Module | Implements |
+|---|---|
+| `combat/attack.ts` | `HandleItem` with its gun, throw and launcher branches, `HandItemWorks`, ready and turn rules, `SelectFireAnimation`, `EVENT_FireSoldierWeapon`, `CheckForGunJam`, `GetTargetWorldPositions`, `FireWeapon`, `UseGun`, the fire opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 477, 753, 757 (§1) |
+| `combat/ap.ts` | attack AP costs, `MinAPsToThrow`, `EnoughAmmo` (§1.5, §7.2) |
+| `combat/chance.ts` | `CalcChanceToHitGun`, `AICalcChanceToHitGun`, `GunRange`, `SoldierDifficultyLevel` (§2) |
+| `combat/positions.ts` | soldier and target Z, body-part LOS over `perception/los.ts` (§1.8, `08`) |
+| `combat/bullets.ts` | `FireBulletGivenTarget`, `MoveBullet`, structure hits, `ShotMiss`, the miss-animation release, the chance to get through (§3) |
+| `combat/hit.ts` | `BulletHitMerc`, `WeaponHit`, `EVENT_SoldierGotHit`, the hit animation choice, falls and `SoldierCollapse`, `SoldierTakeDamage`, `ReleaseSoldiersAttacker`, `CheckForFreeupFromHit`, the damage window (§4.1, §4.4, §5.1–§5.6) |
+| `combat/impact.ts`, `combat/armour.ts` | `BulletImpact`, `AdjustImpactByHitLocation`; armour, body impact reduction, `ArmourPercent` (§4.2, §4.3) |
+| `combat/death.ts` | opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497, 765; `HandleSoldierDeath`, corpses, `BeginSoldierGetup`, the skull delay (§5.6–§5.11) |
+| `combat/bleeding.ts` | `CheckBleeding`, the next-bleed time (§5.11) |
+| `combat/melee.ts`, `combat/melee-reach.ts` | melee orders and begin events, `CalcChanceHTH`, `UseBlade`, `UseHandToHand`, `HTHImpact`, opcodes 468, 492, 755, 761; the adjacent-tile searches (§6) |
+| `combat/barrier.ts` | the busy-count entry points, `HandleSuppressionFire`, `NoticeUnseenAttacker`, the end of an attack (§8.2–§8.5) |
+| `combat/experience.ts`, `combat/skill-check.ts` | `StatChange`, `ProcessUpdateStats`, `ModifyExpGainByTarget`, `AgilityForEnemyMissingPlayer`; `SkillCheck` (§10) |
+| `combat/morale.ts` | the tactical morale events of soldiers and `RefreshSoldierMorale` (§9); the strategic events, the `TEAMMATE_DIED` fan-out and the decay are `sim/campaign/morale.ts` |
+| `combat/spread-burst.ts` | the AI's spread-burst locations (`sSpreadLocations`) |
+| `combat/context.ts` | `CombatContext`, the narrow state `bulletImpact`, `hthImpact` and `statChange` need, so autoresolve reuses them (`AUTORESOLVE_IMPACT`, `19`) |
+| `skills.ts`, `points.ts` | effective stats, `moraleModifier`, fatigue penalties; `DeductPoints`, `CalcNewActionPoints` |
+| `game-events.ts` | the event pump: `beginFireWeapon`, `fireWeapon`, `desiredDirection` and the delayed `weaponHit` (§1.2, §6.1) |
+| `explosions/throwing.ts` | `UseThrown`, `UseLauncher`, `CalcThrownChanceToHit`, `CalcMaxTossRange`, `WillExplosiveWeaponFail`, the release opcodes 460/461 (§7.1–§7.4, §7.7, §7.8) |
+| `explosions/trajectory.ts` | `CalculateLaunchItemParamsForThrow`, `RandomGridFromRadius`, the force and angle search, `CalculateLaunchItemChanceToGetThrough` (§7.5, §7.6) |
+| `explosions/physics.ts`, `explosions/catching.ts` | physics objects, collisions, end of life, `HandleArmedObjectImpact`; catches (§7.9) |
+| `toss.ts` | inventory tosses (§7.0) |
+| `perception/wiring.ts`, `ai/system-situation.ts` | `haltFromSighting`, `HandleSystemNewAISituation` (aborted throws, §7.7) |
 
-### 12.2 Next: bursts, melee, throws
+The attack busy count keeps the original's semantics, including who brings it to 0 (§8.2), the suppression re-entry
+(§8.3), turn-based-only suppression (points, close calls and `bUnderFire` still accrue in real time) and the deferral of
+stat points while it is above 0 (§10). The agent API (the `attack` order, `estimateAttack`, the events `shotFired`,
+`bulletStopped`, `bulletImpact`, `soldierHit`, `soldierDied`, `attackResolved` and others) is `04` §6; the attack hint
+(`sim/hints/estimate-attack.ts`) calls `calcChanceToHitGun` with `fModify = FALSE` on the player's view (`28`).
 
-- Bursts (448/449, burst AP and penalty, `STANDING_BURST_HIT`, XP on round 2), buckshot pellets and spread table,
-  dual pistols (458/459, `SHOOT_DUAL_*`), AI spread bursts (`sSpreadLocations`).
-- Melee (§6): punch and knife, 492 dodge, the 20 ms hit event, punch damage as breath, knife dulling, the blade/punch
-  animation rules; then martial arts (`NINJA_*`, spin kick) and stealing.
-- Throwing knives (bullet path with `CalcThrownChanceToHit`, knife items placed on the target or the ground).
-- Grenades and rocks (§7.1–§7.7, §7.9–§7.11) with the explosion hand-off to `12` §10; launchers GL/UGL/mortar (§7.8).
-- Morale events and `GetMoraleModifier` for profiled mercs (§9), close-call and heavy-fire quotes.
+### 12.2 Tick order and timers
 
-### 12.3 Can wait
+Each 5 ms tick (`tactical-sim.ts`, `overheadHooks`) runs, before the soldier pass: physics (`stepThrownObjects`, every
+20 ms), bullets (`updateBullets`), explosions (`stepExplosions`, `12` §10), action items and AI pauses, miss-animation
+releases (`updateMissAnimations`), skull releases (`updateSkullReleases`), the real-time turn (`handleRealtimeTurns`);
+then the soldier pass (`overhead.ts`: animation opcodes, `updateDamageDisplay`); then `dequeueAllGameEvents`. This is
+the original frame order (`GameScreen.cc:343, 424, 427, 456`) on a fixed tick (deviations "Game events").
 
-Attachments (sniper scope, laser scope, bipod, barrel extender, silencer, duckbill, spring-and-bolt, under-barrel GL);
-LAW and tank cannon; monster spit, sleep darts, HE/HEAT rounds; creatures, robots, vehicles, the Queen; boxing,
-Meanwhile scenes and NPC quest hooks on death; the cosmetic layer (blood pools, muzzle light, damage numbers on screen,
-battle sounds); fragile-item damage on falls; weapon drop **effects** (the `main(100)` draw itself is in 12.1).
+Every timer runs on game ms: bullets one tile per tick, knives every 30 ms (§3.3); the miss-animation release 425 ms
+(§3.5); the damage window 8 × 250 ms (§4.2); our dead merc's release 1920 ms after 440 (§5.9); physics every 20 ms
+(§7.9.2); the delayed melee hit on the first tick more than 20 ms later, i.e. at 25 ms (§6.1). There are no watchdogs:
+holds the original leaves to its 15 s or 25 s breaker are released where they arise (deviations "Watchdogs", "Melee
+hold leaks", "Hit during a non-interruptible animation", "Knock-back and the sighting pause", "Melee from a prone turn",
+"Suppression stance change from the end of the previous one").
 
-### 12.4 Deviations to log in `docs/deviations.md`
+### 12.3 Randomness
 
-| Area | Original | ja2-node |
-|---|---|---|
-| Bullet flight | `MoveBullet` gated by a 2–3 ms wall clock and called once per frame: about one tile per frame, so flight time and burst overlap depend on the frame rate | One tile per 5 ms tick, first tile inside `FireWeapon`; knives every 30 ms |
-| Event timing | Fire and hit events run in the frame's event pump; delayed events fire when `now − stamp > delay` | Same order, drained after each tick's soldier pass; a 20 ms delay fires on the first tick after 20 ms (25 ms) |
-| Our merc's death | The barrier is released after the portrait/skull UI animation (12 × 160 ms wall clock) | A fixed 1920 game-ms delay after opcode 440 |
-| Watchdog-dependent leaks | A punch at an empty tile and a shooter hit mid-burst leave the busy count up until the 25 s UI watchdog (inferred) | Release the hold immediately (zero `bBulletsLeft` when a fire animation is interrupted) |
-| Aborted throw | An AI throw aborted before release returns the whole copied stack (inferred duplication) | Decide: keep (oracle-checked) or return one item |
-| Gland pass-through | `BodyImpactReduction[AIM_SHOT_GLAND]` reads past a 4-entry table | Use 0 |
-| Unsequenced draws | `pre(100) < status + pre(50)` (grenade duds) has no defined order | Left to right |
-| Cosmetic RNG | Sound picks, curses (`main(10)`, `main(40)`), laugh `main(3)`, blood `main(3)/main(4)`, stat messages `main(100) < 25`, silent skill-check curse `main(100) < 40`, civ quote `main(50)` share `main` | Move to the cosmetic stream; keep on `main`: 433, 478, fall side, weapon drop, instant-kill bonus, head-gear damage, touchy neutral, explosive structures, barrel extender, monster smell, psycho burst, `CoinToss` for stab/slice, `CIV_DIE2`, corpse ammo |
-| Physics floats | `sinf`/`sqrtf` and float32 integration | `Math.fround` everywhere; last-ulp differences in the force estimate may rarely move a landing tile |
+Gameplay draws keep the original order on `main` (`t.rng`) and `pre` (`t.pre`), `src/core/rng.ts`, `01` §3.6. Not
+drawn (deviations "Cosmetic draws in attacks"): the curses `main(10)` on the release from a hit and `main(40)` on a
+stopped or missed single shot, the laugh `main(3)`, the blood-pool graphic `main(4)`, the stat-change message
+`main(100) < 25`, the silent skill-check curse `main(100) < 40`, the missile-trail frame delay `main(100)`, battle and
+impact sounds; also the AI's civ quote `main(50)` before `HandleItem` (§1.3). Kept on `main`: `HandItemWorks`, the
+psycho burst, the barrel extender, monster smell, `CoinToss` for stab or slice, blade dulling, the instant-kill bonus,
+head-gear damage, the touchy neutral, explosive structures, the weapon drop, the blood decay `main(3)`, `CIV_DIE2`, the
+burning and exploding start frame, the fall side, opcodes 433 and 478, corpse ammo, the close-call quote. The mortar
+smoke-trail delay is a cosmetic draw on `pre` in the original and stays there (§7.9.4). Unsequenced pairs (the dud
+test) are drawn left to right (deviations "Dud test operand order").
 
-Keep without a deviation entry (they are exact under game-ms timers): the `sDamage` window (8 × 250 ms after the last
-visible hit), the miss-animation release delay, burst cadence (2 frames × 100 ms).
+### 12.4 Not ported
 
----
+- `HandleItem` refusals and the rocket-rifle imprint check (deviations "Attack refusals").
+- Martial-arts `NINJA_*` states, decapitation and stealing (deviations "Melee specials"); agent melee orders need the
+  attacker adjacent (deviations "Melee without walking").
+- Fragile-item damage on falls: opcode 721, `CheckEquipmentForFragileItemDamage(20)` and its `pre` draws (§5.11).
+- Our mercs firing back when attacked out of combat; the head-miner rule (deviations "Implications of an attack").
+- Timed re-armed duds (deviations "Duds and timed bombs"); the cave and basement throw arc (deviations "Underground
+  throws").
+- Drug terms in morale (deviations "Morale without drugs"); corpse rotting, crows and corpse warnings (deviations
+  "Corpses"); the fade before the delay 0 of unseen soldiers (deviations "Unseen soldiers in combat").
 
-## 13. Open questions and inferred points
+### 12.5 Verification
 
-**Guns and bullets (§1–§4).**
-- The 425 ms miss-animation hold (§3.5): `UpdateAniTiles` runs inside `ExecuteOverhead` (`Overhead.cc:487`), i.e. on
-  the 5 ms pass, so it is exact on our ticks; in the original a slow frame rate stretches it.
-- The XP condition `!bDoBurst || bDoBurst == 2` grants burst XP on round 2 (comment in the source says round 1).
-- `GetTargetWorldPositions` in `SelectFireAnimation` makes the body-part roll at fire-state entry for standing single
-  shots and inside `UseGun` otherwise; the draw count is the same, the position in the stream differs.
-- `CalcChanceToHitGun` bonus at 4–5 tiles for a prone shooter aiming at a standing target's legs/torso (formula turns
-  positive) is kept as written.
-- `sDamage` accumulates indefinitely on targets the player cannot see (the display, and therefore the reset, only
-  starts for `bVisible != -1`).
+The oracle probes `cth` (chance to hit, AP cost and chance to get through per aim level), `bestshot`, `stab`,
+`beststab` and `pcattack` compare ja2-node with the native build, also over the user's saves (`save-probes.ts`;
+`tools/oracle/README.md`). Bullets, impact, hit and death animations, physics and the barrier are checked against this
+spec by the unit tests next to the code (`combat/*.test.ts`, `explosions/*.test.ts`) and exercised by the stub
+campaign bot (`tools/campaign-bot`), which found two of the hold leaks of §12.2.
 
-**Hit and death (§5).** From the hit pass: the skull-UI delay and the `sDamage` timer are presentation timers with
-gameplay effects; `FALLBACK_DEATHTWICH` never releasing and the hit-during-own-burst leak are static traces; the
-`(UINT8)` conversion of a negative float breath in `DeductPoints` assumes x86 truncate-then-wrap; the return-to-aim AP
-recharge after a hit is inferred from `fDontChargeReadyAPs`; special-move overshoot past the final tile was not traced;
-vehicles, boxing, Meanwhile/Elliot and Queen branches are listed, not detailed.
+## 13. Open points
 
-**Throws and launchers (§7).** Whether `AP_CHANGE_TARGET` is always charged and the stance term always 0 at the release
-frame; the stack duplication on aborted throws and the lost grenade on a hit during the throw animation; the C++
-evaluation order of the dud test; how often `EndTurnEvents` decays bomb timers; the effective GL minimum range
-(≈10–11 tiles flat, derived); landing Z vs terrain height on elevated maps; the water-explosion keyframe reading a freed
-object slot; the neighbour order of the XP victim search.
-
-**Barrier, suppression, morale, experience (§8–§10).** Whether `EnterCombatMode` resets the attack's own suppression
-points; how a negative `bActionPoints` left by suppression is treated at the next turn start; the dodge gain for a
-bullet that passed through someone and then stopped in a wall; which RNG `HandleKilledQuote` and the item-locator
-quote consume; the pummel-quote condition `bLife − bOldLife > 20` (sign error carried over from V, kept).
-
-**Animation data.** Opcode positions were read from one release (Steam 1.12 `Ja2bin.dat`); other releases may differ.
-Read them from the user's file at load time, never from tables in the repository.
-
-**Verified by reading code** (line numbers from grep): every formula, constant and call order quoted in §1–§10;
-the `Ja2bin.dat` scripts for the fire, burst, hit, death, melee and throw states; the 11 physics sub-steps
-(`Math.fround` check); the vanilla differences marked V.
+Inferred from reading the source, not checked against the native build:
+- §5.8.2: `FALLBACK_DEATHTWICH` (a hit in `FLYBACKHIT_STOP`) never releases the attacker; believed unreachable.
+- §5.9: a shooter hit mid-burst keeps `bBulletsLeft`, so the attack's hold leaks; ja2-node does not special-case it.
+- §5.3: the `(UINT8)` conversion of a negative float breath assumes x86 truncate-then-wrap (ja2-node does the same).
+- §5.6: the ready APs charged again on returning to aim after a hit; special-move overshoot past the final tile.
+- §7.2: at the release frame `AP_CHANGE_TARGET` is always charged and the stance term is 0.
+- §7.7: an aborted throw returns the whole copied stack; a hit during the throw animation loses the grenade.
+- §7.6: the GL minimum range on flat ground (≈ 10–11 tiles, derived); §7.9.1: object Z ignores the terrain height.
+- §8.3: whether the turn start that `EnterCombatMode` runs clears the suppression points of the attack that began it.
+- §10: the agility gain for a bullet that passed through someone and then stopped in a wall.
+- §8.4: which draws `HandleKilledQuote` and the item-locator quote make.
+- Vehicles, boxing, Meanwhile (Elliot) and Queen branches are listed, not specified in detail.

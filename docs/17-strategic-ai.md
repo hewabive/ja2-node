@@ -1,36 +1,30 @@
-<!-- Strategic AI (the Queen: army pool, garrisons, patrols, reinforcements, attacks; Queen_Command: populating sectors,
-deaths; creatures and bloodcats summary): an implementable spec for M4. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–14), assets/externalized/*.json, cross-checked
-against vanilla (reference/vanilla/ja2/Build). Read-only research: nothing was built or run. -->
-
 # 17 — Strategic AI
 
-**Conventions.** As in `13`: paths are relative to `reference/stracciatella/src/game/` (paths starting with `sgp/` or
-`externalized/` are relative to `reference/stracciatella/src/`), `V:` is vanilla `Build/`,
-JSON files are `assets/externalized/<name>.json` (copied unchanged to `data/externalized/`), "(inferred)" marks
-conclusions not traced end to end. `R(n)` = `Random(n)` = our `main` stream (`[0, n)`, `R(0)` returns 0 **without a
-draw**, `sgp/Random.cc:65-71`); `C(p)` = `Chance(p)` = `R(100) < p`, which **always draws** and takes `UINT32`, so a
-negative `p` would always succeed (`sgp/Random.cc:73-76`); `PR(n)` = `PreRandom` = our `pre` stream. Every strategic-AI
-draw is `R`; only creature night planning, bloodcat ambushes and PBI ambushes use `PR`.
+**Conventions.** Paths are relative to `reference/stracciatella/src/game/` (`sgp/…` and `externalized/…` to
+`reference/stracciatella/src/`); `V:` is vanilla `Build/`; JSON files are `assets/externalized/<name>.json`, copied
+unchanged to `data/externalized/`; "(inferred)" marks conclusions not traced end to end. `R(n)` = `Random(n)` = the
+`main` stream (`[0, n)`; `R(0)` returns 0 **without a draw**, `sgp/Random.cc:65-71`); `C(p)` = `Chance(p)` =
+`R(100) < p`, which **always draws** and takes `UINT32`, so a negative `p` always succeeds (`sgp/Random.cc:73-76`);
+`PR(n)` = `PreRandom` = the `pre` stream. Every strategic-AI draw is `R`; only creature night planning, bloodcat
+ambushes and PBI ambushes use `PR`.
 
-**Ids.** Sector id (`SECTORINFO` index, `UINT8`) = `(y−1)·16 + (x−1)` with row letter A..P = y 1..16 and column x
-1..16 (`Strategic/Campaign_Types.h:10-28`), so A9 = 8, P3 = 242. `StrategicMap[]` uses `x + 18·y` (`docs/16`).
-Garrison index `gi` = position in `army-garrison-groups.json` (0..56), patrol index `pi` = position in
-`army-patrol-groups.json` (0..28), composition id `ci` = position in `army-compositions.json` (0..26; the `id` field is
-ignored, `externalized/army/ArmyCompositionModel.cc:27-45`). `NO_GARRISON = 255`. Group id 0 means "none" (real ids
-are 1..255, `Strategic/Strategic_Movement.cc:506-528`). Difficulty `d` = 1 easy, 2 medium, 3 hard
-(`GameSettings.h:78-81`). `MAX_STRATEGIC_TEAM_SIZE = 20` (`Strategic/StrategicMap.h:11`) is the nominal group and
-garrison cap; the enemy tactical team has **32** slots (`Tactical/Overhead.cc:217-225`). Times: world minutes
-(`GetWorldTotalMin`) and seconds; the event queue stores seconds (`docs/15`).
+**Ids.** Sector id (`SECTORINFO` index, `UINT8`) = `(y−1)·16 + (x−1)`, row A..P = y 1..16, column x 1..16
+(`Strategic/Campaign_Types.h:10-28`): A9 = 8, P3 = 242. `StrategicMap[]` uses `x + 18·y` (`docs/16`). Garrison index
+`gi` = position in `army-garrison-groups.json` (0..56), patrol index `pi` = position in `army-patrol-groups.json`
+(0..28), composition id `ci` = position in `army-compositions.json` (0..26; the `id` field is ignored,
+`externalized/army/ArmyCompositionModel.cc:27-45`). `NO_GARRISON = 255`. Group id 0 = none (real ids 1..255,
+`Strategic/Strategic_Movement.cc:506-528`). Difficulty `d` = 1 easy, 2 medium, 3 hard (`GameSettings.h:78-81`).
+`MAX_STRATEGIC_TEAM_SIZE = 20` (`Strategic/StrategicMap.h:11`) is the nominal group and garrison cap; the enemy
+tactical team has **32** slots (`Tactical/Overhead.cc:217-225`). Times are world minutes (`GetWorldTotalMin`) and
+seconds; the event queue stores seconds (`docs/15`).
 
-**Companion docs (do not duplicate).** `docs/15-strategic-time.md`: clock, event queue, `AddStrategicEvent` family,
-new-game init order. `docs/16-strategic-map-movement.md`: sectors, groups (`GROUP`, waypoints, `CreateNew*Group`,
-`RemoveGroup`, ids, group-list order), strategic A* (`MoveGroupFromSectorToSector*`), travel, arrival, battle checks,
-sector control (`SetThisSectorAs*Controlled`), sector load/unload and persistence, bloodcat ambush.
-`docs/18-militia-loyalty-mines-assignments.md`: militia counts, loyalty events, mine income, town liberation.
-`docs/19-autoresolve-pbi.md`: PBI, encounter codes, autoresolve. This doc owns `Strategic/Strategic_AI.cc`,
-`Strategic/Queen_Command.cc`, the strategic side of `Creature_Spreading.cc`, `CalcDifficultyModifier` and the
-interfaces between them.
+**Scope.** This doc owns `Strategic/Strategic_AI.cc`, `Strategic/Queen_Command.cc`, the strategic side of
+`Creature_Spreading.cc`, `CalcDifficultyModifier` and the interfaces between them. Elsewhere: `docs/15` clock, event
+queue, `AddStrategicEvent` family, new-game init order; `docs/16` sectors, groups (`GROUP`, waypoints,
+`CreateNew*Group`, `RemoveGroup`, ids, group-list order), strategic A*, travel, arrival, battle checks, sector control,
+sector load/unload and persistence, bloodcat ambush, the player's knowledge of enemies; `docs/18` militia, loyalty,
+mine income, town liberation; `docs/19` PBI, encounter codes, autoresolve; `26` meanwhile scenes and the capture
+sequence.
 
 ---
 
@@ -40,12 +34,12 @@ interfaces between them.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `uiFlags` | u32 | `SF_ENEMY_AMBUSH_LOCATION` 0x2 (roadblock garrisons, PBI ambush +20), `SF_PLAYER_KNOWS_ENEMIES_ARE_HERE` 0x4, `SF_ALREADY_VISITED` 0x20, `SF_USE_ALTERNATE_MAP` 0x40 (weapon cache), `SF_SKYRIDER_NOTICED_ENEMIES_HERE` 0x400, `SF_USE_MAP_SETTINGS` 0x1 (never set in the campaign, §10.1) |
+| `uiFlags` | u32 | `SF_ENEMY_AMBUSH_LOCATION` 0x2 (roadblock garrisons, PBI ambush +20), `SF_PLAYER_KNOWS_ENEMIES_ARE_HERE` 0x4 (set when the PBI shows an `ENEMY_ENCOUNTER_CODE` battle, cleared on the next clock advance once no enemy is in the loaded sector, `PreBattle_Interface.cc:430-441`, `Game_Clock.cc:211-216`), `SF_ALREADY_VISITED` 0x20, `SF_USE_ALTERNATE_MAP` 0x40 (weapon cache), `SF_SKYRIDER_NOTICED_ENEMIES_HERE` 0x400, `SF_USE_MAP_SETTINGS` 0x1 (never set in the campaign, §10.1) |
 | `ubGarrisonID` | u8 | index into `gGarrisonGroup`, 255 = none |
-| `ubPendingReinforcements` | i8 | unused by the AI (the group field of the same name is used) |
-| `ubNumTroops`, `ubNumElites`, `ubNumAdmins` | u8 | stationary enemies ("garrison"); only meaningful for the surface |
+| `ubPendingReinforcements` | i8 | unused by the AI (the group field of that name is used) |
+| `ubNumTroops`, `ubNumElites`, `ubNumAdmins` | u8 | stationary enemies (the garrison); surface only |
 | `ubNumCreatures` | u8 | creatures attacking this surface sector (set just before the battle) |
-| `ubTroopsInBattle`, `ubElitesInBattle`, `ubAdminsInBattle`, `ubCreaturesInBattle` | u8 | how many of the above were put into the current tactical battle |
+| `ubTroopsInBattle`, `ubElitesInBattle`, `ubAdminsInBattle`, `ubCreaturesInBattle` | u8 | how many of the above are in the current tactical battle |
 | `ubDayOfLastCreatureAttack` | u32 | creature attacks |
 | `ubTraversability[4]` (THROUGH) | u8 | `TOWN` = 0 marks a town sector for "important and undefended" |
 | `bBloodCats`, `bBloodCatPlacements` | i8 | −1 = not rolled yet |
@@ -56,7 +50,7 @@ Save layout (116 bytes, `Strategic/LoadSaveSectorInfo.cc:11-46`): flags 0, garri
 16, creatures 17, in-battle troops/elites/admins/creatures 18–21, bloodcats 39, placements 40, militia 43–45,
 `uiTimeLastPlayerLiberated` 60.
 
-`UNDERGROUND_SECTORINFO` (`Campaign_Types.h:198-210`) has the same enemy counts and in-battle counts (no garrison id),
+`UNDERGROUND_SECTORINFO` (`Campaign_Types.h:198-210`) has the same enemy and in-battle counts (no garrison id),
 `ubAdjacentSectors` and `ubCreatureHabitat`; it is a linked list in `strategic-map-underground-sectors.json` order.
 
 ### 1.2 Enemy groups (`Strategic/Strategic_Movement.h:9-116`, owned by `docs/16`)
@@ -66,14 +60,10 @@ Save layout (116 bytes, `Strategic/LoadSaveSectorInfo.cc:11-46`): flags 0, garri
 `PURSUIT 1`, `STAGING 2`, `PATROL 3`, `REINFORCEMENTS 4`, `ASSAULT 5` (never assigned). Move types: `ONE_WAY 0`,
 `CIRCULAR 1`, `ENDTOEND_FORWARDS 2`, `ENDTOEND_BACKWARDS 3`.
 
-`GROUP` fields the AI uses: `ubGroupID`, `ubGroupSize`, `ubSector`, `ubNext`, `ubPrev`, `ubOriginalSector`,
-`fBetweenSectors`, `ubMoveType`, `ubNextWaypointID`, `uiArrivalTime`, `uiTraverseTime`, waypoints, `fVehicle`,
-`fPlayer`, `ubCreatedSectorID`, `ubSectorIDOfLastReassignment` (debug only).
-
 `CreateNewEnemyGroupDepartingFromSector(sector, admins, troops, elites)` (`Strategic_Movement.cc:476-503`) sets
 `ubGroupSize = troops + elites` (**admins are not counted**; every AI call passes 0 admins), `ubMoveType = CIRCULAR`,
-intention 0, no waypoints, appends to the group list and takes the lowest free id. Group-list order matters: several
-loops below draw `R` per group in list order (`docs/16` must keep append order and lowest-free-id allocation).
+intention 0, no waypoints, appends to the group list and takes the lowest free id. Several loops below draw `R` per
+group in list order, so append order and lowest-free-id allocation are part of the behaviour.
 
 ### 1.3 Composition, garrison and patrol records (`Strategic/Strategic_AI.h:60-137`)
 
@@ -84,8 +74,8 @@ loops below draw `R` per group in list order (`docs/16` must keep append order a
 | `PATROL_GROUP` (20) | `bSize` i8, `bPriority` i8, `ubSectorID[4]` u8 (0 = unused), `bFillPermittedAfterDayMod100` i8 (init −1, `externalized/army/PatrolGroupModel.cc:15-22`), `ubGroupID` u8, `bWeight` i8, `ubPendingGroupID` u8 |
 
 Composition semantics (`army-compositions.json` header): elite% + troop% = 100 for every composition except
-`QUEEN_DEFENCE` (100/0) and `SANMONA_SMALL` (0/0). A **non-zero admin% means the start garrison is admin% of the
-start population as admins and nothing else** (except the mine/Cambria special case, §3.4). All refills use only the
+`QUEEN_DEFENCE` (100/0) and `SANMONA_SMALL` (0/0). A **non-zero admin% means the start garrison is admin% of the start
+population as admins and nothing else** (except the mine/Cambria special case, §3.4). All refills use only the
 troop/elite split.
 
 ### 1.4 Strategic-AI globals (`Strategic/Strategic_AI.cc:93-147`)
@@ -105,24 +95,24 @@ troop/elite split.
 | `gusPlayerBattleVictories` | u16 | yes | wakes the Queen at `5 − d` (§9.1) |
 | `gfMassFortificationOrdered` | bool | yes | `MassFortifyTowns` ran |
 | `gfFirstBattleMeanwhileScenePending` | bool | yes | meanwhile bookkeeping (`Strategic/Meanwhile.cc:760-810`) |
-| `gfUseAlternateQueenPosition` | bool | yes | set when P3 basement is taken (`Strategic/Player_Command.cc:197-200`), read by the tactical Queen AI |
+| `gfUseAlternateQueenPosition` | bool | yes | set when the P3 basement is taken (`Strategic/Player_Command.cc:197-200`), read by the tactical Queen AI |
 | `gfExtraElites` | bool | yes | only set by an unreachable action (§9.5) |
 | `gArmyComp[]`, `gGarrisonGroup[]`, `gPatrolGroup[]` | records | yes | mutable copies of the JSON |
 | `gubGarrisonReinforcementsDenied[]` | u8 per garrison | yes | grows on denials, **wraps at 256** |
-| `gfAutoAIAware` | bool | no | debug cheat toggle in the map screen (`Strategic/MapScreen.cc:2962`); not ported |
+| `gfAutoAIAware` | bool | no | debug toggle in the map screen (`Strategic/MapScreen.cc:2962`); not ported |
 | `gfPendingEnemies` | bool | no | `Queen_Command.cc:46`; battle-scoped (§10.4) |
 
-Save layout of the strategic-AI section (`Strategic_AI.cc:2020-2080`; `docs/14` section 35, currently skipped):
-offset 3 `gfExtraElites`, 4 garrison count i32, 8 patrol count i32, 12 pool, 16 force %, 20 alertness, 24 decay,
-28 awake u8, 29 reinforcement points i32, 33 request points i32, 37 aware battles, 38 SAI version (29), 39 phase,
-40 first-battle flag, 41 mass fortification, 42 min group size, 43 grace hours, 44 victories u16, 46 alternate Queen
-position, then 97 padding (header 144 bytes); 60 × 20 compositions, 50 × 20 patrols, 100 × 14 garrisons, `patrol
-count` skipped bytes, `garrison count` bytes of `gubGarrisonReinforcementsDenied`.
+Save layout (`Strategic_AI.cc:2020-2080`; savegame section 35, `docs/14`): offset 3 `gfExtraElites`, 4 garrison count
+i32, 8 patrol count i32, 12 pool, 16 force %, 20 alertness, 24 decay, 28 awake u8, 29 reinforcement points i32, 33
+request points i32, 37 aware battles, 38 SAI version (29), 39 phase, 40 first-battle flag, 41 mass fortification, 42
+min group size, 43 grace hours, 44 victories u16, 46 alternate Queen position, then 97 padding (header 144 bytes);
+60 × 20 compositions, 50 × 20 patrols, 100 × 14 garrisons, `patrol count` skipped bytes, `garrison count` bytes of
+`gubGarrisonReinforcementsDenied`.
 
 ### 1.5 `STRATEGIC_STATUS` fields involved (`Strategic/Strategic_Status.h:75-106`)
 
-`ubHighestProgress` (the progress used by `CalcDifficultyModifier`, admin upgrades, SAM counterattacks; updated
-hourly, `Tactical/Campaign.cc:1290-1325`), `usPlayerKills` (kills portion of progress; incremented per merc kill,
+`ubHighestProgress` (the progress of `CalcDifficultyModifier`, admin upgrades, SAM counterattacks; updated hourly,
+`Tactical/Campaign.cc:1290-1325`), `usPlayerKills` (kills portion of progress; incremented per merc kill,
 `Tactical/Soldier_Ani.cc:2936`, autoresolve, PBI "win"), `usEnemiesKilled[3][3]` (`TrackEnemiesKilled`, statistics),
 `uiFlags` and `ubNumCapturedForRescue` (captures, §10.11). Nothing else in the struct affects the AI.
 
@@ -139,39 +129,22 @@ hourly, `Tactical/Campaign.cc:1290-1325`), `usPlayerKills` (kills portion of pro
 
 **Quirk (vanilla too, `V:Strategic/QueenCommand.c:212,236`).** `NumMobile…`/`GetNumberOfMobile…` compare the garrison
 *index* with the composition enum `ROADBLOCK = 25`. Garrison 25 is **H1** (`WEST_GRUMM_DEFENCE`), so H1's garrison is
-counted twice by `GetNumberOfEnemiesInSector` (used by autoresolve and by the enemy temp-file reconciliation,
+counted twice by `GetNumberOfEnemiesInSector` (autoresolve and the enemy temp-file reconciliation,
 `Strategic/Auto_Resolve.cc:308,2076`, `Tactical/Enemy_Soldier_Save.cc:175`) and once as "mobile" by the PBI. Real
-roadblocks (gi 49–55) are never treated as mobile by these two functions. Keep it.
+roadblocks (gi 49–55) are never treated as mobile by these two functions.
 
 `PlayerSectorDefended(id)` (`Queen_Command.cc:1279-1291`): any militia in the sector, or
 `FindPlayerMovementGroupInSector` (a non-empty player group not between sectors, on the surface, without
 in-transit/dead/POW members, not the airborne helicopter; `Strategic_Movement.cc:2843-2860`).
 
-### 1.7 Proposed TS state (plain data, `GameState.strategic`)
-
-```ts
-interface ArmyComposition { priority: number; elitePct: number; troopPct: number; adminPct: number; desired: number; start: number }
-interface GarrisonGroup { sector: number; composition: number; weight: number; pendingGroup: number }
-interface PatrolGroup { size: number; priority: number; points: number[]; fillDayMod100: number; group: number; weight: number; pendingGroup: number }
-interface QueenState {
-  awake: boolean; extraElites: boolean; massFortificationOrdered: boolean; firstBattleMeanwhilePending: boolean;
-  useAlternateQueenPosition: boolean;
-  forcePercentage: number; alertness: number; alertnessDecay: number;          // i32
-  reinforcementPool: number; reinforcementPoints: number; requestPoints: number; // i32, pool may go negative
-  awareBattles: number; priorityPhase: number; minGroupSize: number; graceHours: number; // u8
-  playerBattleVictories: number;                                               // u16
-  compositions: ArmyComposition[]; garrisons: GarrisonGroup[]; patrols: PatrolGroup[];
-  garrisonDenied: number[];                                                    // u8 each
-}
-```
-
-Sector enemy fields live on the shared sector record of `docs/16`; `ENEMYGROUP` fields on its enemy groups. All
-fixed-width writes go through `core/int.ts` (`u8` for counts and denials, `i8` for weights and composition fields,
-`u16` for offence/defence points).
+**Player view.** The player never sees the Queen's state (garrison ids, compositions, class split, routes, intentions,
+pool, awake flag, alertness). Sector enemy knowledge is `WhatPlayerKnowsAboutEnemiesInSector` (`docs/16` §6.3): a
+scouted sector shows a count only while `NumStationaryEnemiesInSector == 0`, so garrisons show as presence ("?") while
+groups and roadblocks are counted.
 
 ---
 
-## 2. Data (`assets/externalized`, already in `data/externalized/`)
+## 2. Data (`data/externalized/`)
 
 ### 2.1 `strategic-ai-policy.json` (accessor `saipolicy_by_diff(x) = x[d−1]`, `externalized/policy/StrategicAIPolicy.h:9-29`)
 
@@ -191,94 +164,28 @@ fixed-width writes go through `core/int.ts` (`u8` for counts and denials, `i8` f
 
 ### 2.2 `army-compositions.json`
 
-| ci | Name | Prio | Elite% | Troop% | Admin% | Desired | Start |
-|---|---|---|---|---|---|---|---|
-| 0 | QUEEN_DEFENCE | 100 | 100 | 0 | 0 | 32 | 32 |
-| 1 | MEDUNA_DEFENCE | 95 | 55 | 45 | 0 | 16 | 20 |
-| 2 | MEDUNA_SAMSITE | 96 | 65 | 35 | 0 | 20 | 20 |
-| 3 | LEVEL1_DEFENCE | 40 | 20 | 80 | 0 | 12 | 20 |
-| 4 | LEVEL2_DEFENCE | 30 | 10 | 90 | 0 | 10 | 20 |
-| 5 | LEVEL3_DEFENCE | 20 | 5 | 95 | 0 | 8 | 20 |
-| 6 | ORTA_DEFENCE | 90 | 50 | 50 | 0 | 18 | 19 |
-| 7 | EAST_GRUMM_DEFENCE | 80 | 20 | 80 | 0 | 15 | 15 |
-| 8 | WEST_GRUMM_DEFENCE | 70 | 0 | 100 | 40 | 15 | 15 |
-| 9 | GRUMM_MINE | 85 | 25 | 75 | 45 | 15 | 15 |
-| 10 | OMERTA_WELCOME_WAGON | 0 | 0 | 100 | 0 | 0 | 3 |
-| 11 | BALIME_DEFENCE | 60 | 45 | 55 | 20 | 10 | 4 |
-| 12 | TIXA_PRISON | 80 | 10 | 90 | 15 | 15 | 15 |
-| 13 | TIXA_SAMSITE | 85 | 10 | 90 | 0 | 12 | 12 |
-| 14 | ALMA_DEFENCE | 74 | 15 | 85 | 0 | 11 | 20 |
-| 15 | ALMA_MINE | 80 | 20 | 80 | 45 | 15 | 20 |
-| 16 | CAMBRIA_DEFENCE | 50 | 0 | 100 | 30 | 10 | 6 |
-| 17 | CAMBRIA_MINE | 60 | 15 | 85 | 40 | 11 | 6 |
-| 18 | CHITZENA_DEFENCE | 30 | 0 | 100 | 75 | 12 | 10 |
-| 19 | CHITZENA_MINE | 40 | 0 | 100 | 75 | 10 | 10 |
-| 20 | CHITZENA_SAMSITE | 75 | 10 | 90 | 0 | 9 | 9 |
-| 21 | DRASSEN_AIRPORT | 30 | 0 | 100 | 85 | 12 | 10 |
-| 22 | DRASSEN_DEFENCE | 20 | 0 | 100 | 80 | 10 | 8 |
-| 23 | DRASSEN_MINE | 35 | 0 | 100 | 75 | 11 | 9 |
-| 24 | DRASSEN_SAMSITE | 50 | 0 | 100 | 0 | 10 | 10 |
-| 25 | ROADBLOCK | 20 | 2 | 98 | 0 | 8 | 0 |
-| 26 | SANMONA_SMALL | 0 | 0 | 0 | 0 | 0 | 0 |
+27 records, `ci` = position (0..26), with `priority`, `elitePercentage`, `troopPercentage`, `adminPercentage`,
+`desiredPopulation`, `startPopulation` (`ARMY_COMPOSITION`, §1.3). The names (`QUEEN_DEFENCE` 0 … `ROADBLOCK` 25,
+`SANMONA_SMALL` 26) are the composition enum the code tests and §2.3 references. Reading notes: a start population of
+exactly 20 marks a spawning location, neither scaled nor varied (§3.3, §3.4); `QUEEN_DEFENCE` alone goes above 20
+(32/32); `ROADBLOCK` has start 0 (its garrisons exist only through the 20% roll of §3.4); `OMERTA_WELCOME_WAGON` has
+desired 0, start 3; `SANMONA_SMALL` is all zeros. Difficulty scaling: §3.3 steps 3–5.
 
-A start population of exactly 20 marks a spawning location: it is neither scaled nor varied.
+### 2.3 `army-garrison-groups.json`
 
-### 2.3 `army-garrison-groups.json` (57 garrisons, in order)
+57 records `{sector, composition}`, `gi` = position (0..56); `composition` must match a composition name exactly. The
+indices the rules depend on: gi 0 P3 (`QUEEN_DEFENCE`); 25 H1 (`WEST_GRUMM_DEFENCE`, the §1.6 quirk); 28 A9
+(`OMERTA_WELCOME_WAGON`); 33..36 H13 H14 I13 (`ALMA_DEFENCE`) and I14 (`ALMA_MINE`), §6.6; 49–55 the roadblocks G12 M10
+G6 C9 K10 G7 G3; 56 C5 (`SANMONA_SMALL`).
 
-gi 0 P3 QUEEN; 1–3, 5 O3 O4 N3 N5 MEDUNA; 4 N4 MEDUNA_SAMSITE; 6–9 M3 M4 M5 N6 LEVEL1; 10–14 M2 L3 L4 L5 M6 LEVEL2;
-15 N7 LEVEL1; 16–21 L2 K3 K5 L6 M7 N8 LEVEL3; 22 K4 ORTA; 23 G1, 25 H1 WEST_GRUMM; 24 G2, 26 H2 EAST_GRUMM; 27 H3
-GRUMM_MINE; 28 A9 OMERTA_WELCOME_WAGON; 29–30 L11 L12 BALIME; 31 J9 TIXA_PRISON; 32 I8 TIXA_SAMSITE; 33–35 H13 H14 I13
-ALMA_DEFENCE; 36 I14 ALMA_MINE; 37–40 F8 F9 G8 G9 CAMBRIA_DEFENCE; 41 H8 CAMBRIA_MINE; 42 A2 CHITZENA_DEFENCE; 43 B2
-CHITZENA_MINE; 44 D2 CHITZENA_SAMSITE; 45 B13 DRASSEN_AIRPORT; 46 C13 DRASSEN_DEFENCE; 47 D13 DRASSEN_MINE; 48 D15
-DRASSEN_SAMSITE; 49–55 G12 M10 G6 C9 K10 G7 G3 ROADBLOCK; 56 C5 SANMONA_SMALL.
+### 2.4 `army-patrol-groups.json`
 
-### 2.4 `army-patrol-groups.json` (29 patrols: size, priority, points)
+29 records `{size, priority, points}`, `pi` = position (0..28), 2–4 points (`ubSectorID[4]`, 0 = unused). The group
+starts on `points[1]` (§3.6); pi 3 (B10 B12) and 4 (A11 A14 D14) are the admin patrols (§3.6). Consecutive points are
+axis-aligned (required by `AddWaypointToPGroup`, `Strategic_Movement.cc:360-458`). Some points overlap garrison sectors
+(G3, G7, G12, M10 are roadblocks) despite the JSON header's rule. Scaled sizes: §3.3 step 5.
 
-| pi | Size/prio | Points | pi | Size/prio | Points |
-|---|---|---|---|---|---|
-| 0 | 8/40 | B1 C1 C3 A3 | 15 | 13/70 | H9 I9 I10 J10 |
-| 1 | 6/35 | B4 B7 C7 | 16 | 11/70 | K11 K14 J14 |
-| 2 | 6/25 | A8 B8 B9 | 17 | 12/75 | J2 K2 |
-| 3 | 6/30 | B10 B12 (admins) | 18 | 12/80 | I3 J3 |
-| 4 | 7/45 | A11 A14 D14 (admins) | 19 | 12/80 | J6 K6 |
-| 5 | 6/50 | C8 C9 D9 | 20 | 13/85 | K7 K10 |
-| 6 | 12/55 | D3 G3 | 21 | 12/90 | L10 M10 |
-| 7 | 10/50 | D6 D7 F7 | 22 | 12/90 | N9 N10 |
-| 8 | 10/55 | E8 E11 F11 | 23 | 12/80 | L7 L8 M8 M9 |
-| 9 | 10/60 | E12 E15 | 24 | 14/80 | H4 H5 I5 |
-| 10 | 12/60 | G4 G7 | 25 | 7/40 | D4 E4 E5 |
-| 11 | 12/65 | G10 G12 F12 | 26 | 7/50 | C10 C11 D11 D12 |
-| 12 | 12/65 | G13 G15 | 27 | 8/40 | A15 C15 C16 |
-| 13 | 10/65 | H15 J15 | 28 | 12/30 | L13 M13 M14 L14 |
-| 14 | 14/65 | H12 J12 J13 | | | |
-
-Consecutive points are axis-aligned (required by `AddWaypointToPGroup`, `Strategic_Movement.cc:360-458`). Some points
-overlap garrison sectors (G3, G7, G12, M10 are roadblocks) despite the JSON header's rule.
-
-### 2.5 Values after difficulty scaling (computed from §3.3 steps 3–5)
-
-`desired/start` per ci after the easy/medium perimeter removal and `initial_garrison_percentages`:
-
-| ci | Easy | Medium | Hard | ci | Easy | Medium | Hard |
-|---|---|---|---|---|---|---|---|
-| 0 | 22/22 | 32/32 | 32/32 | 14 | 7/20 | 11/20 | 13/20 |
-| 1 | 11/20 | 16/20 | 20/20 | 15 | 10/20 | 15/20 | 18/20 |
-| 2 | 14/20 | 20/20 | 20/20 | 16 | 7/4 | 10/6 | 12/7 |
-| 3 | 8/20 | 12/20 | 15/20 | 17 | 7/4 | 11/6 | 13/7 |
-| 4 | 0/0 | 10/20 | 12/20 | 18 | 8/7 | 12/10 | 15/12 |
-| 5 | 0/0 | 0/0 | 10/20 | 19 | 7/7 | 10/10 | 12/12 |
-| 6 | 12/13 | 18/19 | 20/20 | 20 | 6/6 | 9/9 | 11/11 |
-| 7–9 | 10/10 | 15/15 | 18/18 | 21 | 8/7 | 12/10 | 15/12 |
-| 10 | 0/2 | 0/3 | 0/3 | 22 | 7/5 | 10/8 | 12/10 |
-| 11 | 7/2 | 10/4 | 12/5 | 23 | 7/6 | 11/9 | 13/11 |
-| 12 | 10/10 | 15/15 | 18/18 | 24 | 7/7 | 10/10 | 12/12 |
-| 13 | 8/8 | 12/12 | 15/15 | 25 | 5/0 | 8/0 | 10/0 |
-
-Patrol `bSize` after scaling (pi 0..28): easy `5,4,4,4,4,4,8,7,7,7,8,8,8,7,9,9,7,8,8,8,9,8,8,8,9,4,4,5,8` (sum 197),
-medium = JSON (sum 298), hard `10,7,7,7,8,7,15,12,12,12,15,15,15,12,17,16,13,15,15,15,16,15,15,15,17,8,8,10,15`
-(sum 364).
-
-### 2.6 Other files the AI reads
+### 2.5 Other files the AI reads
 
 `strategic-map-cache-sectors.json` (E11 H5 H10 J12 M9; troops 8/10/12, variance 0/0/0), `strategic-map-underground-
 sectors.json` (enemy and creature counts per difficulty, §3.2), `strategic-bloodcat-placements.json`,
@@ -297,18 +204,18 @@ enemy-controlled, `InitNewGameClock`, event queue cleared, daily events posted; 
 → `InitQuestEngine` → `InitNewCampaign` (`Strategic/Campaign_Init.cc:98-122`): `SectorInfo[]` zeroed,
 `InitStrategicMovementCosts`, `RemoveAllGroups`, facility flags, `BuildUndergroundSectorInfoList`, reveal of the
 start sector, **`InitStrategicAI`**, `InitStrategicStatus`. Later in `InitStrategicLayer`: `InitBloodCatSectors`
-(§12.2). Full ordering belongs to `docs/15`.
+(§12.2). Full order: `docs/15`.
 
 **The clock reads day 1, 01:00** (`STARTING_TIME = 86400 + 3600` s, `Strategic/Game_Clock.h:100`; vanilla
-`V:Strategic/GameClock.h:96`). `GetWorldHour() = 1`, which is "night" for enemy group movement (§3.6).
+`V:Strategic/GameClock.h:96`): `GetWorldHour() = 1`, which is night for enemy group movement (§3.6).
 
 ### 3.2 Underground enemies (`BuildUndergroundSectorInfoList`, before `InitStrategicAI`)
 
 For each record of `strategic-map-underground-sectors.json`, in file order
 (`externalized/strategic/UndergroundSectorModel.cc:13-25`): `troops = n[d−1] + R(var[d−1])`, then elites, then
-creatures, each a separate statement (so the order is fixed; `R(0)` draws nothing). Non-zero entries: J9 b1 troops
-8/11/15; J9 b2 creatures 4/6/8 + R(2) (no sci-fi check here); K4 b1 troops 8/10/12 + R(3), elites 5/6/7 + R(2); O3 b1
-the same as K4; P3 b1 elites 8/10/14 + R(3/5/6). These are static garrisons: the Queen never reinforces underground.
+creatures, each a separate statement (fixed order; `R(0)` draws nothing). Non-zero entries: J9 b1 troops 8/11/15; J9
+b2 creatures 4/6/8 + R(2) (no sci-fi check here); K4 b1 troops 8/10/12 + R(3), elites 5/6/7 + R(2); O3 b1 the same as
+K4; P3 b1 elites 8/10/14 + R(3/5/6). These are static garrisons: the Queen never reinforces underground.
 
 ### 3.3 `InitStrategicAI` (`Strategic_AI.cc:316-561`), step by step
 
@@ -317,16 +224,16 @@ the same as K4; P3 b1 elites 8/10/14 + R(3/5/6). These are static garrisons: the
 2. `giReinforcementPool`, `giForcePercentage`, `giArmyAlertness`, `giArmyAlertnessDecay`, `gubMinEnemyGroupSize`,
    `gubHoursGracePeriod` from policy (`:334-339`). **Draw 1:** `evaluate_time = 475 + time_evaluate_in_minutes +
    R(time_evaluate_variance)`; `AddStrategicEvent(EVENT_EVALUATE_QUEEN_SITUATION, evaluate_time, 0)` (`:340-342`).
-   The stamp is an **absolute** minute (835..1014 on medium), i.e. day 0, before the start clock (1500 min): the
-   event fires at the first event processing after the game starts (`Strategic/Game_Events.cc:59-80` processes past
-   stamps without moving the clock). The comment "7:55am on day 1" is wrong; keep the behaviour.
+   The stamp is an **absolute** minute (835..1014 on medium), i.e. day 0, before the start clock (1500 min): the event
+   fires at the first event processing after the game starts (`Strategic/Game_Events.cc:59-80` processes past stamps
+   without moving the clock). The comment "7:55am on day 1" is wrong; the behaviour stays.
 3. Every `SectorInfo[i].ubGarrisonID = 255` (`:345-348`); `gArmyComp` = JSON copy (`:352`).
 4. Easy: `LEVEL2_DEFENCE` and `LEVEL3_DEFENCE` desired = start = 0; medium: `LEVEL3_DEFENCE` (`:355-365`).
 5. `gPatrolGroup`, `gGarrisonGroup` = JSON copies; `gubGarrisonReinforcementsDenied` zeroed (`:368-374`). If
    `force% ≠ 100` (`:377-405`): for every composition except QUEEN: `desired = min(20, desired·f/100)`, and `start =
    min(20, start·f/100)` unless `start == 20`; QUEEN: `desired = min(32, desired·f/100)`, `start = desired`. Patrols:
-   `bSize = clamp(bSize·f/100, minGroupSize, 20)`. (Medium: nothing changes, patrols keep JSON sizes even if below
-   the minimum.)
+   `bSize = clamp(bSize·f/100, minGroupSize, 20)`. (Medium: nothing changes; patrols keep JSON sizes even below the
+   minimum.)
 6. Garrisons, in gi order (§3.4, §3.5).
 7. Patrols, in pi order (§3.6).
 8. Weapon cache (§3.7).
@@ -351,11 +258,11 @@ if start ≠ 0:
 if adminChance ≠ 0 and admins < minGroupSize: admins = minGroupSize
 ```
 
-Consequences (verified by reading, numbers computed): P3 = 32 elites on medium/hard (22 on easy) with 32 draws;
-**A9 = 3 / 4 / 6 troops** (start 3 → scaled/varied ≤ 3, then the minimum wins; the `R(51)` and the `R(100)` per troop
-are still drawn); Drassen, Chitzena, West Grumm (G1, H1), Balime and the C13/B13/D13 garrisons are admin-only
-(e.g. C13 medium: start 6..10 → 80% → 4..8 admins → at least 5); Cambria/Alma/Grumm mines get `admins` plus
-`start − admins` troops. Roadblocks exist in 20% of games each (desired 5/8/10 → varied).
+Consequences: P3 = 32 elites on medium/hard (22 on easy) with 32 draws; **A9 = 3 / 4 / 6 troops** (start 3 →
+scaled/varied ≤ 3, then the minimum wins; the `R(51)` and the `R(100)` per troop are still drawn); Drassen, Chitzena,
+West Grumm (G1, H1), Balime and the C13/B13/D13 garrisons are admin-only (e.g. C13 medium: start 6..10 → 80% → 4..8
+admins → at least 5); Cambria/Alma/Grumm mines get `admins` plus `start − admins` troops. Each roadblock exists in 20%
+of games (desired 5/8/10 → varied).
 
 ### 3.5 Initial weights (`:492-511`)
 
@@ -385,11 +292,11 @@ for each non-zero point in order: AddWaypointIDToPGroup(g, point)          // th
 RandomizePatrolGroupLocation(g)
 ```
 
-The first waypoint (`points[0]`, the group stands on `points[1]`) calls `InitiateGroupMovementToNextSector`
+The first waypoint (`points[0]`; the group stands on `points[1]`) calls `InitiateGroupMovementToNextSector`
 (`Strategic_Movement.cc:1643-1790`). For enemy groups on the surface it rolls sleep when `hour ≥ 21 || hour ≤ 4`
 (`:1704-1712`): **at init the hour is 1**, so it draws `C(67)` and, on success, `R(121)`: `uiTraverseTime =
-GetSectorMvtTimeForGroup(...) + 360 + R(121)`; otherwise the plain travel time. It sets `fBetweenSectors`, the
-arrival time and posts `EVENT_GROUP_ARRIVAL`.
+GetSectorMvtTimeForGroup(...) + 360 + R(121)`; otherwise the plain travel time. It sets `fBetweenSectors`, the arrival
+time and posts `EVENT_GROUP_ARRIVAL`.
 
 `RandomizePatrolGroupLocation` (`Strategic_Movement.cc:3186-3259`): deletes the arrival event; `max = (number of
 waypoints) − 1`; **draw** `c = R(2·max)`; `c ≥ max` → `ENDTOEND_BACKWARDS`, `ubNextWaypointID = c − max`, the group
@@ -397,15 +304,14 @@ stands on waypoint `c − max + 1`; else `ENDTOEND_FORWARDS`, `ubNextWaypointID 
 `gfRandomizingPatrolGroup` set: `SetEnemyGroupSector` (keeps the waypoints, clears `fBetweenSectors`), then
 `InitiateGroupMovementToNextSector` again: **draws** `C(67)` [+ `R(121)`] (still night), arrival = now + traverse,
 then `uiTraverseTime = 1 + R(uiTraverseTime − 1)` and the arrival is re-set to now + that (`:1756-1760`). A sleeping
-patrol therefore arrives anywhere in 1..(travel + 360..480) minutes.
-
-`GetSectorMvtTimeForGroup` and the waypoint code draw nothing.
+patrol therefore arrives anywhere in 1..(travel + 360..480) minutes. `GetSectorMvtTimeForGroup` and the waypoint code
+draw nothing.
 
 ### 3.7 Weapon cache (`:552-560`, `externalized/strategic/CacheSectorsModel.cc:21-34`)
 
 **Draw** `R(5)` picks one of E11 H5 H10 J12 M9; `SF_USE_ALTERNATE_MAP`; `ubNumTroops = 8/10/12 + R(0)` (no draw). The
-cache has no garrison id: it is never reinforced, detected from or counted in weights. (E11 is on patrol 8's route,
-M9 on patrol 23's.)
+cache has no garrison id: it is never reinforced, detected from or counted in weights. (E11 is on patrol 8's route, M9
+on patrol 23's.)
 
 ### 3.8 RNG order of `InitStrategicAI` (all `R`)
 
@@ -425,15 +331,15 @@ for pi in 0..28:
 R(5)                                                           // cache sector
 ```
 
-Preceded by the underground draws of §3.2 and followed by `InitBloodCatSectors` (no draws) and the rest of
+Preceded by the underground draws of §3.2, followed by `InitBloodCatSectors` (no draws) and the rest of
 `InitStrategicLayer` (`docs/15`).
 
-### 3.9 State after init (for tests)
+### 3.9 State after init
 
-1 queen-evaluation event (day 0 stamp), 57 periodic check events, 29 arrival events, 29 enemy groups (ids 1..29 if no
-other group exists), `awake = false`, `requestPoints` = sum of positive garrison weights, `reinforcementPoints` = sum
-of magnitudes of negative ones (Meduna's surplus of 4 gives only −2 each because of its priority 95), all patrol
-weights 0 (patrol weights are not computed at init).
+1 queen-evaluation event (day-0 stamp), 57 periodic check events, 29 arrival events, 29 enemy groups (ids 1..29 if no
+other group exists), `awake = false`, `requestPoints` = sum of positive garrison weights, `reinforcementPoints` = sum of
+magnitudes of negative ones (Meduna's surplus of 4 gives only −2 each because of its priority 95), all patrol weights 0
+(not computed at init).
 
 ---
 
@@ -441,7 +347,7 @@ weights 0 (patrol weights are not computed at init).
 
 ### 4.1 `EVENT_EVALUATE_QUEEN_SITUATION` (`Strategic/Game_Event_Hook.cc:246-248`)
 
-`EvaluateQueenSituation` (§6.1) reschedules itself at its start. Interval:
+`EvaluateQueenSituation` (§6.1) reschedules itself at its start:
 
 ```
 off = max(100 − requestPoints, 0)          // assigned to UINT32
@@ -478,6 +384,11 @@ real-time tactical play while world time runs, never during turn-based combat (w
 | Mine runs out (`Strategic_Mines.cc:321`) | `StrategicHandleMineThatRanOut` |
 | Loading a save (`Strategic_AI.cc:2463-2481`) | `EvolveQueenPriorityPhase(TRUE)`, `UpdateAirspaceControl`, `RepollSAIGroup` + `ValidateGroup` for every enemy group not between sectors and not in the loaded sector |
 
+Sector loads set `gpBattleGroup` for enemy-instigated battles (§10.1). Autoresolve takes its enemy roster from
+`GetNumberOfEnemiesInSector` (H1 quirk), calls `ProcessQueenCmdImplicationsOfDeath` per dead enemy with the autoresolve
+sector, and on victory removes the sector's garrison and groups, then calls `SetThisSectorAsPlayerControlled(…, true)`
+and `RecalculateSectorWeight`.
+
 ---
 
 ## 5. Weights, requests and helpers
@@ -493,8 +404,8 @@ gg.bWeight = i8(w)
 ```
 
 `desired` and `priority` are the *current* `gArmyComp` values (they change, §6.2, §9.6). Weight 0 only when the
-garrison is exactly at its desired size. Called before every use in the selection loops, so loops observe weights
-that may differ from the totals used for their random draw (keep the order exactly).
+garrison is exactly at its desired size. Called before every use in the selection loops, so loops observe weights that
+may differ from the totals used for their random draw (the order matters).
 
 `RecalculateSectorWeight(id)` (`:1501-1511`): the first garrison with that sector.
 
@@ -508,15 +419,15 @@ w = min(need · 3 · priority / 96, 2)            // sic: min, so 0, 1 or 2 (van
 pg.bWeight = w; requestPoints += w
 ```
 
-Patrol demand is therefore tiny (≤ 2) and a small deficit with low priority gives 0. A destroyed patrol (`group = 0`)
-keeps weight 2 forever but is never selected (§5.4), so these phantom points keep `requestPoints` positive.
+Patrol demand is tiny (≤ 2) and a small deficit with low priority gives 0. A destroyed patrol (`group = 0`) keeps
+weight 2 forever but is never selected (§5.4), so these phantom points keep `requestPoints` positive.
 
 ### 5.3 `RecalculateGroupWeight(g)` and grace (`:1517-1543`)
 
 For the patrol whose `group == g.id`: if `g.ubGroupSize == 0`, `TagSAIGroupWithGracePeriod` (`fillDayMod100 = (day +
 patrol_grace_period_in_days) % 100`) and `group = 0`; then `RecalculatePatrolWeight`. `PermittedToFillPatrolGroup`:
-`day ≥ fillDayMod100 + (day/100)·100` — the mod-100 arithmetic means a grace period crossing a day multiple of 100
-expires at once (quirk).
+`day ≥ fillDayMod100 + (day/100)·100` — the mod-100 arithmetic makes a grace period that crosses a day multiple of 100
+expire at once (quirk).
 
 ### 5.4 Request and supply predicates
 
@@ -594,15 +505,15 @@ RecalculateGarrisonWeight for every garrison
 load (forced) discards the difficulty scaling of town compositions (easy goes back up to JSON sizes ± f, hard down)
 and undoes `StrategicHandleMineThatRanOut`'s `/4` (§9.6). `SANMONA_SMALL` (not excluded) gets desired 6 but keeps
 priority 0; it can never be approved (offence 0, §6.4), so San Mona stays empty. Vanilla identical
-(`V:StrategicAI.c:4091-4230`). The extra-elites path is unreachable in practice (§9.5).
+(`V:StrategicAI.c:4091-4230`). The extra-elites path is unreachable in the campaign (§9.5).
 
 ### 6.3 `UpgradeAdminsToTroops` (`:3277-3351`)
 
 `minPrio = 100 − 10·HighestPlayerProgressPercentage()` (≤ 0 from 10% progress). For each garrison (skip the loaded
 sector id, i.e. `gWorldSector.AsByte()` regardless of z) with admins and composition priority `> minPrio`: for each
 admin, `C(priority)` → admin becomes troop. Then each enemy group in list order (skip empty, vehicles, groups in
-`gWorldSector`): priority = its patrol's `bPriority` if intention is `PATROL` (assert it has one), else 50; same rule.
-All draws in that order.
+`gWorldSector`): priority = its patrol's `bPriority` if intention is `PATROL` (asserted to have one), else 50; same
+rule. All draws in that order.
 
 ### 6.4 `ReinforcementsApproved(gi, &defence)` (`:927-961`)
 
@@ -628,7 +539,7 @@ if r < pool: QUEEN_POOL:
     if P3 not enemy-controlled or pool == 0: return
     n = min(req, pool)
     if n·3 < defence: denied[dst] += priority/2; return; else denied[dst] = 0
-    if extra and limited and n == max: if !C((n + extra)·100/defence): return     // defence 0 → division by zero (§17)
+    if extra and limited and n == max: if !C((n + extra)·100/defence): return     // defence 0 → division by zero
     g = CreateNew…(P3, 0, n, 0); Convert(g, dst comp); g.ubOriginalSector = dst; pool −= n; g.moveType = ONE_WAY
     pending[dst] = g; MoveSAIGroupToSector(g, dst, STAGE, extra ? STAGING : REINFORCEMENTS); return
 src = ChooseSuitableGarrisonToProvideReinforcements(dst, req)
@@ -645,10 +556,11 @@ if src sector ≠ gWorldSector:                                  // nothing at a
     if extra: g.ubPendingReinforcements = extra; Move(g, dst, STAGE, STAGING) else Move(g, dst, STAGE, REINFORCEMENTS)
 ```
 
-Notes: group sizes can exceed 20 (up to `max`, 60) — the tactical side handles that through pending enemies (§10.4).
-The pool path stages with intention `STAGING` but without `ubPendingReinforcements`. Draw order on the source path:
+Group sizes can exceed 20 (up to `max`, 60); the tactical side handles that through pending enemies (§10.4). The pool
+path stages with intention `STAGING` but without `ubPendingReinforcements`. Draw order on the source path:
 `R(points + pool)`, the draws inside `ChooseSuitable…`, optional `C`, then `Convert` draws, then `RemoveSoldiers…`
-draws, then the movement's night-sleep roll (§7.1).
+draws, then the movement's night-sleep roll (§7.1). The division by a zero defence is defined in ja2-node (deviations.md
+"Strategic AI undefined behaviour").
 
 ### 6.6 `ChooseSuitableGarrisonToProvideReinforcements(dst, req)` (`:1537-1641`)
 
@@ -684,7 +596,7 @@ for each garrison: recalc; w = −bWeight; if w > 0:
 ```
 
 No `CanProvideMinimum` check and no composition conversion (troops only). If the chosen garrison is the loaded sector
-the loop simply continues with a negative `r`.
+the loop continues with a negative `r`.
 
 ---
 
@@ -694,14 +606,13 @@ the loop simply continues with a negative `r`.
 
 If between sectors, `SetEnemyGroupSector(g, g.sector)` (teleport back, waypoints removed). `intention = …`,
 `moveType = ONE_WAY`. If already in `dst`: `EvaluateGroupSituation(g)`; a `true` result nulls the caller's pointer.
-Then path (`docs/16`): `STAGE` = avoid player-influenced sectors and stop one short (fallback: direct path stopping
-one short), `EVASIVE` = avoid player-influenced sectors (fallback: direct), `DIRECT` = plain A*. "Player influenced"
-= any merc, any militia, or `!OkayForEnemyToMoveThroughSector` for every path sector except the destination
-(`Strategic_Pathing.cc:298-312`).
-The new route is turned into waypoints (`RebuildWayPointsForGroupPath`, `Strategic_Pathing.cc:799-895`); the first
-waypoint starts the movement, which for an enemy group on the surface between 21:00 and 04:59 draws `C(67)` and on
-success `R(121)` (sleep 360..480 extra minutes, `Strategic_Movement.cc:1704-1712`). A one-node path (already there)
-adds nothing and the group stays.
+Then path (`docs/16`): `STAGE` = avoid player-influenced sectors and stop one short (fallback: direct path stopping one
+short), `EVASIVE` = avoid player-influenced sectors (fallback: direct), `DIRECT` = plain A*. "Player influenced" = any
+merc, any militia, or `!OkayForEnemyToMoveThroughSector` for every path sector except the destination
+(`Strategic_Pathing.cc:298-312`). The route becomes waypoints (`RebuildWayPointsForGroupPath`,
+`Strategic_Pathing.cc:799-895`); the first waypoint starts the movement, which for an enemy group on the surface between
+21:00 and 04:59 draws `C(67)` and on success `R(121)` (sleep 360..480 extra minutes, `Strategic_Movement.cc:1704-1712`).
+A one-node path (already there) adds nothing and the group stays.
 
 `OkayForEnemyToMoveThroughSector(id)` (`:572-581`): false while `uiTimeLastPlayerLiberated` is set and
 `liberated + graceHours·3600 > now`.
@@ -712,12 +623,13 @@ Only while awake. Returns true when the group was deleted or redirected.
 
 - `PURSUIT`: lost the target → `ReassignAIGroup`, true.
 - `REINFORCEMENTS`:
-  1. A garrison in this sector whose `pending == g`: if not P3: `EliminateSurplusTroopsForGarrison`, add the
-     group's admins/troops/elites to the garrison; at a SAM site set `bSAMCondition = 100` and `UpdateSAMDoneRepair`.
-     At P3 (`:1021-1042`): if elites < 20 and elites + size ≥ 20, the pool gains **`20 − elites`** (the number that
-     filled the guard, not the real overflow `size − (20 − elites)`) and elites = 20 (`MAX_STRATEGIC_TEAM_SIZE`, not
-     32); if elites + size < 20, elites += size (the whole group counts as elites); if elites ≥ 20, pool += size. Then `SetThisSectorAsEnemyControlled`,
-     `RemoveGroup`, `RecalculateGarrisonWeight`, true.
+  1. A garrison in this sector whose `pending == g`: if not P3: `EliminateSurplusTroopsForGarrison`, add the group's
+     admins/troops/elites to the garrison; at a SAM site set `bSAMCondition = 100` and `UpdateSAMDoneRepair` (the
+     repaired graphic goes to the map temp file, so the sector gets `SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS`). At P3
+     (`:1021-1042`): if elites < 20 and elites + size ≥ 20, the pool gains **`20 − elites`** (the number that filled
+     the guard, not the real overflow `size − (20 − elites)`) and elites = 20 (`MAX_STRATEGIC_TEAM_SIZE`, not 32); if
+     elites + size < 20, elites += size (the whole group counts as elites); if elites ≥ 20, pool += size. Then
+     `SetThisSectorAsEnemyControlled`, `RemoveGroup`, `RecalculateGarrisonWeight`, true.
   2. A patrol with `points[1] == sector` and `pending == g`: clear pending. If the patrol has a different live group:
      **warp** the counts into it ("cheat"), truncate it to 20 (removing admins, then troops, then elites from both
      records), `RemoveGroup(g)`, recalc, `ValidateLargeGroup`. Else `g` becomes the patrol: `group = g`, intention
@@ -749,8 +661,9 @@ for pi in 0..reloop: recalc; w > 0 and eligible → send, return        // reloo
 TransferGroupToPool(g)                                                 // instant: pool += size, RemoveGroup
 ```
 
-`ReinforcementsApproved` here also increments denials for rejected garrisons. `SendGroupToPool(g)` (`:3379-3390`):
-at P3 → `TransferGroupToPool`, else `Move(g, P3, EVASIVE, REINFORCEMENTS)` (not pending anywhere, see §7.2.3).
+`ReinforcementsApproved` here also increments denials for rejected garrisons. `SendGroupToPool(g)` (`:3379-3390`): at
+P3 → `TransferGroupToPool`, else `Move(g, P3, EVASIVE, REINFORCEMENTS)` (not pending anywhere, §7.2 case 3). The loop
+past the patrol array is defined in ja2-node (deviations.md "Strategic AI undefined behaviour").
 
 ### 7.4 Bookkeeping
 
@@ -764,11 +677,11 @@ at P3 → `TransferGroupToPool`, else `Move(g, P3, EVASIVE, REINFORCEMENTS)` (no
 
 ### 7.5 Staging (`CheckEnemyControlledSector` first half, `:1308-1355`)
 
-For the garrison of the checked sector with a pending group that is at its final destination: if
-`ubPendingReinforcements > 4`: `k = 3 + R(3)` troops are added (size += k, pending −= k), `RecalculateGroupWeight`;
-else all pending troops are added; else (nothing pending) if the group is not in the garrison sector,
-`Move(g, garrison sector, DIRECT, g.intention)`. So a staged group waits one sector short until the next periodic
-check of its target (80–123 min), tops up out of thin air, then attacks directly.
+For the garrison of the checked sector with a pending group at its final destination: if `ubPendingReinforcements > 4`:
+`k = 3 + R(3)` troops are added (size += k, pending −= k), `RecalculateGroupWeight`; else all pending troops are added;
+else (nothing pending) if the group is not in the garrison sector, `Move(g, garrison sector, DIRECT, g.intention)`. So
+a staged group waits one sector short until the next periodic check of its target (80–123 min), tops up out of thin
+air, then attacks directly.
 
 ---
 
@@ -788,10 +701,10 @@ night: if C(alertness/3): alertness = max(0, alertness − decay); true
 
 `permitted = OkayForEnemyToMoveThroughSector(id)`. With a group pointer and a garrison whose pending group is that
 group: permitted and at final destination → **true** (skips the rest); not permitted → `ReassignAIGroup(g)` (may null
-it). Then false if not permitted; special sectors: F10 false while `FACT_HILLBILLIES_KILLED` is false; A9/A10 false
-before minute 3345 (day 2 07:45); B13/C13/D13 false before 4710 (day 3 06:30); C5/C6/D5 = `FACT_KINGPIN_DEAD`; G1
-false if G2 and (H1 or H2) are player-defended; H2 false if **H2** and (G1 or G2) are defended (checks itself,
-quirk); otherwise true.
+it). Then false if not permitted; special sectors: F10 false while `FACT_HILLBILLIES_KILLED` is **set** (the code
+tests the fact; its comment says the opposite); A9/A10 false before minute 3345 (day 2 07:45); B13/C13/D13 false
+before 4710 (day 3 06:30); C5/C6/D5 = `FACT_KINGPIN_DEAD`; G1 false if G2 and (H1 or H2) are player-defended; H2 false
+if **H2** and (G1 or G2) are defended (checks itself, quirk); otherwise true.
 
 ### 8.3 `AdjacentSectorIsImportantAndUndefended(id)` (`:245-262`)
 
@@ -800,15 +713,16 @@ Town id not Omerta, San Mona, Estoni; no garrison enemies (groups ignored); `ubT
 
 ### 8.4 `StrategicAILookForAdjacentGroups(g)` (`:1165-1304`)
 
-**Asleep:** an enemy group at its final destination wakes the Queen (`WakeUpQueen`, §9.1) and, if in A9 or P3, is
-sent to the pool; then, unless just woken, return false. Patrols are `ENDTOEND`, never "at final destination", so
-only `ONE_WAY` groups (created by meanwhile actions) can do this. Player arrivals do nothing while asleep.
+**Asleep:** an enemy group at its final destination wakes the Queen (`WakeUpQueen`, §9.1) and, if in A9 or P3, is sent
+to the pool; then, unless just woken, return false. Patrols are `ENDTOEND`, never "at final destination", so only
+`ONE_WAY` groups (created by meanwhile actions) can do this. Player arrivals do nothing while asleep.
 
 **Enemy group:** at final destination → `EvaluateGroupSituation`. Else for N (−16), W (−1), S (+16), E (+1), each
 within the map and `EnemyPermittedToAttackSector(&g, adj)` (the group may be nulled by it; then stop):
 1. a player group in `adj` (`FindPlayerMovementGroupInSector`) and a notice → `HandlePlayerGroupNoticedByPatrolGroup`;
 2. else militia in `adj` and a notice → `HandleMilitiaNoticedByPatrolGroup`;
 3. else important-and-undefended and a notice → `HandleEmptySectorNoticedByPatrolGroup`.
+
 Each `else if` draws its own notice roll only when its first condition holds. The first handled direction returns.
 
 **Player group** (always returns false): surface only, own sector permitted; for N, E, S, W:
@@ -818,11 +732,11 @@ garrison with enemies and a notice → `HandlePlayerGroupNoticedByGarrison`. Fir
 
 ### 8.5 Handlers
 
-- `HandlePlayerGroupNoticedByPatrolGroup(pg, eg)` (`:670-709`): `offence = 2·admins + 4·troops + 6·elites` of the
-  enemy group; `target = pg.next.x ? pg.next : pg.sector`. If `PlayerForceTooStrong(pg.sector)` or `target` has a
-  garrison: `RequestAttackOnSector(pg.sector, defence)` (= `SendReinforcementsForGarrison` for the garrison of that
-  sector if it has no pending group, `:229-242`), false. Else `Move(eg, target, DIRECT, PURSUIT)`, true. The patrol
-  slot keeps pointing at the group until it arrives and is reassigned.
+- `HandlePlayerGroupNoticedByPatrolGroup(pg, eg)` (`:670-709`): `offence = 2·admins + 4·troops + 6·elites` of the enemy
+  group; `target = pg.next.x ? pg.next : pg.sector`. If `PlayerForceTooStrong(pg.sector)` or `target` has a garrison:
+  `RequestAttackOnSector(pg.sector, defence)` (= `SendReinforcementsForGarrison` for the garrison of that sector if it
+  has no pending group, `:229-242`), false. Else `Move(eg, target, DIRECT, PURSUIT)`, true. The patrol slot keeps
+  pointing at the group until it arrives and is reassigned.
 - `HandlePlayerGroupNoticedByGarrison(pg, id)` (`:716-766`): only if the player group is at its final destination.
   Offence from the garrison counts; too strong → request attack. Else `approved = enemies − desired/2`; if
   `approved·2 > pg.size·3` and `approved > minGroupSize`: group of `approved` troops from the garrison sector,
@@ -834,13 +748,13 @@ garrison with enemies and a notice → `HandlePlayerGroupNoticedByGarrison`. Fir
   `RemoveGroupFromStrategicAILists(g)` (the patrol is abandoned), `pending = g`, `Move(g, id, DIRECT,
   REINFORCEMENTS)`, true.
 - `HandleEmptySectorNoticedByGarrison(src, dst)` (`:889-924`): both garrisons, dst without pending, `avail = src
-  enemies ≥ 2·minGroupSize`: group of `avail/2` troops, `Convert(dst comp)`, `RemoveSoldiers…(src)`, pending, `Move
-  (DIRECT, REINFORCEMENTS)`. No loaded-sector guard (quirk: can split the garrison the player is fighting).
+  enemies ≥ 2·minGroupSize`: group of `avail/2` troops, `Convert(dst comp)`, `RemoveSoldiers…(src)`, pending,
+  `Move(DIRECT, REINFORCEMENTS)`. No loaded-sector guard (quirk: can split the garrison the player is fighting).
 
 ### 8.6 `CheckEnemyControlledSector(id)` second half (`:1356-1392`)
 
-Asleep → return (before staging too). If the sector still has garrison enemies: for N (−16), E (+1), S (+16), W
-(−1): permitted, important-and-undefended and a notice → `HandleEmptySectorNoticedByGarrison`, return.
+Asleep → return (before staging too). If the sector still has garrison enemies: for N (−16), E (+1), S (+16), W (−1):
+permitted, important-and-undefended and a notice → `HandleEmptySectorNoticedByGarrison`, return.
 
 ---
 
@@ -852,16 +766,18 @@ Asleep → return (before staging too). If the sector still has garrison enemies
 1. Meanwhile `END_OF_PLAYERS_FIRST_BATTLE` on hard only (`Meanwhile.cc:445-451`).
 2. Meanwhiles `DRASSEN/CAMBRIA/ALMA/GRUMM/CHITZENA/BALIME_LIBERATED` (`Meanwhile.cc:452-462`), posted 5 minutes after
    a whole town is liberated (`Meanwhile.cc:651-667`, called from `docs/18`).
-3. `gusPlayerBattleVictories == 5 − d` (4/3/2) in `StrategicHandleQueenLosingControlOfSector` — every contested
-   surface win counts, garrison or not, including re-wins of owned sectors (inferred from the call site).
+3. `gusPlayerBattleVictories == 5 − d` (4/3/2) in `StrategicHandleQueenLosingControlOfSector` — every contested surface
+   win counts, garrison or not, including re-wins of owned sectors (inferred from the call site).
 4. An enemy `ONE_WAY` group reaching its final destination while asleep (§8.4).
-5. Debug toggle (not ported). `STRATEGIC_AI_ACTION_QUEEN_DEAD` puts her back to sleep (`End_Game.cc:193`).
+5. Debug toggle (not ported).
+
+`STRATEGIC_AI_ACTION_QUEEN_DEAD` puts her back to sleep (`End_Game.cc:193`).
 
 ### 9.2 `MassFortifyTowns` (`:3036-3069`)
 
 For each garrison below desired with no pending group, not `ROADBLOCK`, `EnemyPermittedToAttackSector(null)`:
-`RequestHighPriorityGarrisonReinforcements(gi, desired − existing)`. Then if A9 has troops: a group of them leaves
-A9 (A9 troops = 0), intention `PATROL`, `ONE_WAY`, `ReassignAIGroup`, `RecalculateSectorWeight(A9)`.
+`RequestHighPriorityGarrisonReinforcements(gi, desired − existing)`. Then if A9 has troops: a group of them leaves A9
+(A9 troops = 0), intention `PATROL`, `ONE_WAY`, `ReassignAIGroup`, `RecalculateSectorWeight(A9)`.
 
 `RequestHighPriorityGarrisonReinforcements(gi, n)` (`:2905-3017`): nearest patrol group (Manhattan distance from its
 current sector; ties keep the first) with size ≥ n. If found and `size > n` and `size − n ≥ minGroupSize`: split a new
@@ -879,8 +795,9 @@ Pending group → `ReassignAIGroup`, pending = 0. Then `RedirectEnemyGroupsMovin
 
 ### 9.4 Meanwhile implications (`Meanwhile.cc:440-505`)
 
-Run when the scene ends **or is skipped**; scheduled at `now + 5 min` (`ScheduleMeanwhileEvent`, `:170-200`),
-delayed by `180 + R(121)` seconds while a battle is on (`Game_Event_Hook.cc:45-56`).
+Run when the scene ends **or is skipped**; the scene is scheduled at `now + 5 min` (`ScheduleMeanwhileEvent`,
+`:170-200`) and delayed by `180 + R(121)` seconds while a battle is on (`Game_Event_Hook.cc:45-56`). Scene flow and
+ja2-node's scenes without cutscenes: `26` (deviations.md "Meanwhile scenes").
 
 | Meanwhile | AI effect |
 |---|---|
@@ -895,8 +812,16 @@ delayed by `180 + R(121)` seconds while a battle is on (`Game_Event_Hook.cc:45-5
 | `WAKE_QUEEN` 1 | yes | `WakeUpQueen` |
 | `KINGPIN_DEAD` 2 | yes | nothing (body commented out); San Mona opens through §8.2 |
 | `QUEEN_DEAD` 3 | yes | `awake = false` |
-| `NPC_ACTION_SEND_TROOPS_TO_SAM` | yes | `n = 3 + d + HighestProgress/15`; `pool = max(0, pool − n)`; elite group of `n` from P3, `Move(STAGE, REINFORCEMENTS)`; the SAM garrison's previous pending group is removed from the lists and reassigned after the new group becomes pending |
-| `SEND_SOLDIERS_TO_DRASSEN` (30), `…_BATTLE_LOCATION`, `…_TO_OMERTA` (259), `ADD_MORE_ELITES` (260), `GIVE_KNOWLEDGE_OF_ALL_MERCS` (261) | **no** | implemented in `ExecuteStrategicAIAction` but no caller passes these codes: NPC scripts and meanwhiles route them to `HandleNPCDoAction`, which ignores them (vanilla too, `V:Tactical/InterfaceDialogue.c:3037-3042`). Port only for mods; documented sizes: Drassen `3 + 3d` (D13 50%, else B13 60%, else C13), battle location `4d` (the garrison test indexes `gArmyComp[!composition]`, a typo), Omerta `6d` troops + `6d/7` elites |
+| `NPC_ACTION_SEND_TROOPS_TO_SAM` (292) | yes | `n = 3 + d + HighestProgress/15`; `pool = max(0, pool − n)`; elite group of `n` from P3, `Move(STAGE, REINFORCEMENTS)`; the SAM garrison's previous pending group is removed from the lists and reassigned after the new group becomes pending |
+| `ADD_MORE_ELITES` (260) | **no** | `gfExtraElites = TRUE`, `EvolveQueenPriorityPhase(TRUE)` (§6.2) |
+| `GIVE_KNOWLEDGE_OF_ALL_MERCS` (261) | **no** | `gubNumAwareBattles = num_aware_battles` (§8.1) |
+| `SEND_SOLDIERS_TO_DRASSEN` (30), `…_BATTLE_LOCATION` (31), `…_TO_OMERTA` (259) | **no** | sizes: Drassen `3 + 3d` (D13 50%, else B13 60%, else C13), battle location `4d` (the garrison test indexes `gArmyComp[!composition]`, a typo), Omerta `6d` troops + `6d/7` elites |
+
+"No": implemented in `ExecuteStrategicAIAction` but no caller passes these codes; NPC scripts and meanwhiles route them
+to `HandleNPCDoAction`, which ignores them (vanilla too, `V:Tactical/InterfaceDialogue.c:3037-3042`); no other code
+sets `gfExtraElites` or `gubNumAwareBattles`. The Queen does **not** send a squad to the first battle's location.
+ja2-node ports `ADD_MORE_ELITES` and `GIVE_KNOWLEDGE_OF_ALL_MERCS` but not the three send actions (deviations.md
+"Unreachable Queen actions").
 
 ### 9.6 `StrategicHandleMineThatRanOut(id)` (`:3071-3098`)
 
@@ -918,8 +843,8 @@ extra-elite `5d` (dead), cache 8/10/12, underground counts, bloodcats and creatu
 
 ### 10.1 `PrepareEnemyForSectorBattle` (`Queen_Command.cc:308-527`)
 
-Called on sector load unless in a meanwhile (except INTERROGATION), and on re-entering the loaded sector when no
-enemy is in it (`StrategicMap.cc:448, 634`).
+Called on sector load unless in a meanwhile (except INTERROGATION), and on re-entering the loaded sector when no enemy
+is in it (`StrategicMap.cc:448, 634`).
 
 ```
 pendingEnemies = false
@@ -944,34 +869,17 @@ for each enemy group in this sector (until slots == 0):
     the group's in-battle counts (admins/troops/elites), at most ubGroupSize of them
 ```
 
-Group membership of individual soldiers is therefore by team-slot order, not by placement; that only matters for
-which strategic record a death decrements (§10.7).
+Group membership of individual soldiers is therefore by team-slot order, not by placement; that only matters for which
+strategic record a death decrements (§10.7).
 
 ### 10.2 `AddSoldierInitListEnemyDefenceSoldiers(A, T, E)` (`Tactical/Soldier_Init_List.cc:616-1025`)
 
-The class mix. Owned in detail by `docs/06` §7.2, but M4 must port it fully (the M3 sandbox fills only ARMY
-placements in map order, `src/sim/tactical/creation.ts` `chooseEnemyPlacements`):
-
-1. `SortSoldierInitList` (`:250-410`): placements with soldiers to the end; then the blocks are moved to the front so
-   the order becomes [priority+detailed] [priority] [detailed] [basic] [existing]. Each of the first three blocks is
-   built by moving nodes to the front one by one, so it ends up in **reverse map order** (inferred from the list
-   code; the basic block keeps map order).
-2. Count enemy slots per class (admin, elite, army) and per block (PD, P, D, B) (`:649-685`).
-3. For each block PD, P, D: for class admin, elite, army (enum order 1, 2, 3): walk the block; for each matching free
-   enemy placement: take it if `slots ≤ total || R(slots) < total`, then `slots−−`. **Strac bug in the PD pass**: the
-   loop body advances `curr` and so does `FOR_EACH`, so only every second node of the PD block is examined
-   (`:712-742`; vanilla walks every node, `V:Tactical/SoldierInitList.c` same function). Port as Strac (oracle
-   reference) and list it.
-4. "Priority slots must be filled" (`:865-904`): every still-free priority enemy placement (PD and P) takes a class by
-   `R(remaining)`: `< E` elite, `< E + T` army, else admin (the placement's class is overwritten).
-5. Block B with the slot rule per class (`:906-958`).
-6. Leftovers (`:963-1023`): count all free enemy placements; walk them all, accept with the slot rule, class by
-   `R(remaining)` as in step 4.
-
-Every accepted placement goes through `AddPlacementToWorld` (stats, palettes, `GenerateRandomEquipment` with
+The placement of the class mix (`SortSoldierInitList`'s reverse-map-order blocks, the PD, P, D passes with Strac's
+every-other-node PD walk, forced priority slots, block B, leftovers, class by `R(remaining)`) is `16` §5.13. Every
+accepted placement goes through `AddPlacementToWorld` (stats, palettes, `GenerateRandomEquipment` with
 `CalcDifficultyModifier`, §11); a failure (no free slot) stops the whole function.
 
-### 10.3 Revisiting a sector (summary; `docs/16` owns persistence)
+### 10.3 Revisiting a sector (`docs/16` owns persistence)
 
 If an enemy temp file younger than 300 minutes exists (`Tactical/Enemy_Soldier_Save.cc:127-133`), its soldiers
 replace placements, and only the strategic excess over them (`GetNumberOfEnemiesInSector`, with the H1 quirk) is added
@@ -980,17 +888,18 @@ through §10.2 (`:282-292`).
 ### 10.4 Pending enemies and mid-battle arrivals (`Queen_Command.cc:914-1047`)
 
 There is **no pull of reinforcements from adjacent garrisons** in vanilla or Strac (that is a 1.13 feature). Enemies
-join a running battle only when (a) a battle had more than 32 enemies, or (b) an enemy group's strategic movement
-ends in the loaded battle sector (`CheckConditionsForBattle` → `HandleArrivalOfReinforcements`,
+join a running battle only when (a) a battle had more than 32 enemies, or (b) an enemy group's strategic movement ends
+in the loaded battle sector (`CheckConditionsForBattle` → `HandleArrivalOfReinforcements`,
 `Strategic_Movement.cc:716-727, 2253-2290`: `pendingEnemies = true`, `ResetMortarsOnTeamCount`,
 `AddPossiblePendingEnemiesToBattle`). Arrivals need running world time, so they happen only in real time.
 
 `AddPossiblePendingEnemiesToBattle` (only if `pendingEnemies`): `slots` = free enemy slots; for each enemy group in
 list order in the loaded surface sector: while it has members not in battle and slots remain, add a troop if any left,
-else an elite, else an admin (in-battle counters++). If any were added: the entry side is where the group came from, using `ubPrev` if valid,
-else `ubNext` (`sector.x < prev.x` → `INSERTION_CODE_EAST`, `>` → WEST, `sector.y < prev.y` → SOUTH, `>` → NORTH),
-then `AddEnemiesToBattle`. At the end, `slots ≠ 0` → `pendingEnemies = false`. Called at the end of every
-tactical "turn" (`HandleTacticalEndTurn`, real time every 5 s and in TB) and in `EndTurn` when no interrupt is queued.
+else an elite, else an admin (in-battle counters++). If any were added: the entry side is where the group came from,
+using `ubPrev` if valid, else `ubNext` (`sector.x < prev.x` → `INSERTION_CODE_EAST`, `>` → WEST, `sector.y < prev.y` →
+SOUTH, `>` → NORTH), then `AddEnemiesToBattle`. At the end, `slots ≠ 0` → `pendingEnemies = false`. Called at the end
+of every tactical "turn" (`HandleTacticalEndTurn`, real time every 5 s and in TB) and in `EndTurn` when no interrupt is
+queued.
 
 `AddEnemiesToBattle(g, code, a, t, e)`: facing SE/SW/NW/NE for N/E/S/W; `ChooseMapEdgepoints(code, a + t + e)`
 (`TileEngine/Map_Edgepoints.cc:875-926`: primary edgepoints minus water tiles; all of them if not more than needed,
@@ -1034,29 +943,28 @@ The many "counters are bad" checks only log.
 
 An enemy that walks off the map edge (`docs/13` §8.3; `HandleAITacticalTraversal`, `TacticalAI/AIMain.cc:2013-2044`)
 goes through `ProcessQueenCmdImplicationsOfDeath` and `TacticalRemoveSoldier`: **strategically it is dead**; it does
-not join any group or adjacent sector. This closes the deviation "Map-edge escapes" once wired. Enemy groups whose
-battle ends with a player retreat or defeat are reset by `ResetMovementForEnemyGroupsInLocation` (→ `RepollSAIGroup`,
-§7.4; `docs/16`/`19`).
+not join any group or adjacent sector. Enemy groups whose battle ends with a player retreat or defeat are reset by
+`ResetMovementForEnemyGroupsInLocation` (→ `RepollSAIGroup`, §7.4; `docs/16`/`19`).
 
 ### 10.9 Not in battle: `NumFreeEnemySlots`
 
 Free = not active in the enemy team's 32 slots; a dead soldier frees its slot when it becomes a corpse
-(`Tactical/Rotting_Corpses.cc:735`), already modelled in M3.
+(`Tactical/Rotting_Corpses.cc:735`).
 
 ### 10.10 Underground (`:530-546`)
 
 `PrepareEnemyForUndergroundBattle`: if the record has enemies, in-battle += the not-yet-placed counts, but
 `AddSoldierInitListEnemyDefenceSoldiers` is called with the **total** counts (quirk). No groups underground.
 
-### 10.11 Capture (later milestone, summary)
+### 10.11 Capture
 
 `EnemyCapturesPlayerSoldier` (`:1165-1276`): after a lost tactical battle with 2–3 incapacitated mercs and enemies
 present (`Tactical/Overhead.cc:5011-5068`), after an autoresolve surrender/capture (`Auto_Resolve.cc:1676-1681`), or by
 civ-quote/turn-based-input paths. Not if both capture flags are set or more than 3 were captured; EPCs die; vehicles
 skipped. Morale event, assignment POW, neutral during the first capture, removed from squads, moved with items dropped
-to Alma I13 (first time; `QUEST_HELD_IN_ALMA`) or N7 (interrogation after that quest), bleeding 0, life
-`lifeMax/2` (≤ 35 → 35; ≥ 45 → `+ 10 − R(21)`), breath 50. Meanwhile INTERROGATION scheduled. M5/M6 (quests);
-until then a lost battle kills incapacitated mercs (deviation).
+to Alma I13 (first time; `QUEST_HELD_IN_ALMA`) or N7 (interrogation after that quest), bleeding 0, life `lifeMax/2`
+(≤ 35 → 35; ≥ 45 → `+ 10 − R(21)`), breath 50. Meanwhile INTERROGATION scheduled. ja2-node:
+`enemyCapturesPlayerSoldier` in `src/sim/campaign/merc-fate.ts`; the capture sequence and its entry points are `26`.
 
 ---
 
@@ -1085,8 +993,7 @@ modifier = `(20 − dist) · 30 / 20`. z is ignored. Deterministic integer form:
 `k` with `k(k−1) < n ≤ k(k+1)` (no ties exist for integer `n`). Examples: A9 n = 261 → 16 → 6; D13 n = 244 → 16 → 6;
 G9 n = 117 → 11 → 13; Alma → 15; Orta/Tixa → 24; N4 n = 5 → 2 → 27; P3 → 30.
 
-So at game start in A9 the real modifier is 1 (easy enemies: 0 + 6 − 5), 11 (medium) or 21 (hard), not the sandbox's
-30 (`docs/deviations.md` "Sandbox population").
+At game start in A9 the modifier is therefore 1 (easy enemies: 0 + 6 − 5), 11 (medium) or 21 (hard).
 
 `RandomizeRelativeLevel` (§10.4) also uses the location modifier: roll `R(10) + modifier/3 − 5`, clamp 0..9 (militia
 1..8), with autoresolve adjustments (`Soldier_Create.cc:1842-1900`, `docs/19`).
@@ -1106,12 +1013,14 @@ admin upgrades and the SAM squad.
 
 ### 11.4 In ja2-node
 
-Replace `TacticalState.campaign.difficultyModifier` (constant 30) with a pure function
-`difficultyModifier(campaign, soldierClass, battleSector)` evaluated at soldier creation and by
-`SoldierDifficultyLevel` (`docs/13` §4.3), fed by `campaign.highestProgress`, `predictedMineIncome` (`docs/18`), the
-difficulty and the battle sector passed explicitly (no global "current battle sector"). `campaign.progress` used by
-`GenerateRandomEquipment` stays `ubHighestProgress`. The sandbox keeps a fixed campaign record (progress 0, no income,
-medium) so A9 gets 11, and the deviation row is closed.
+`src/sim/strategic/ai/difficulty.ts`: `calcDifficultyModifier(inputs, class)` is pure over `DifficultyInputs`
+(difficulty, highest progress, predicted mine income, battle sector and its town); `difficultyModifierAt(q, class,
+battleSector)` takes the battle sector explicitly (no global "current battle sector"); `pythDistanceFromPalace` uses the
+integer rounding of §11.2. The progress functions of §11.3 live there too. `SectorFlow.difficultyModifier(class)`
+(`src/sim/campaign/sector-flow.ts`) feeds `PopulationEnv.difficultyModifier` at soldier creation; at sector load it
+also stores the ARMY value in `TacticalState.campaign.difficultyModifier` for `soldierDifficultyLevel` (`docs/13` §4.3;
+militia levels are fixed there), so that value does not follow progress changes during the battle. The sandbox (`server/sandbox.ts`) uses a medium game without progress or mine income (deviations.md
+"Sandbox population").
 
 ---
 
@@ -1131,404 +1040,168 @@ medium) so A9 gets 11, and the deviation row is closed.
   `EVENT_CREATURE_ATTACK` at `now + 1 + PR(429)`.
 - Town attack (`:512-606`): all creatures of the mine exit attack a weighted town sector (`R(total chance)`); with
   player mercs → PBI or tactical insertion; militia only → autoresolve; neither and player-owned → loyalty loss for
-  eaten civilians; enemy-owned → nothing. Tactical composition by habitat weights with `std::discrete_distribution`
-  over the shared engine (`:729-741`) — not reproducible bit-exactly; port as a weighted roll per creature.
+  eaten civilians; enemy-owned → nothing. Quirk: `ubDayOfLastCreatureAttack` is written on the event's mine sector, not
+  the attacked one. Tactical composition by habitat weights with `std::discrete_distribution` over the shared engine
+  (`:729-741`), not reproducible bit-exactly: ja2-node draws one weighted `Random(100)` per creature (deviations.md
+  "Creature bodies for town attacks").
 - Underground battles: `PrepareCreaturesForBattle` (`:797-882`) and `AddSoldierInitListCreatures`.
 
 ### 12.2 Bloodcats
 
 `InitBloodCatSectors` (`Game_Init.cc:118-138`): `bBloodCats = −1` everywhere; placements from
-`strategic-bloodcat-placements.json`; spawns (I16 lair 14/19/26, N5 arena 8/10/12) set both counts. Ambush on arrival
-(`TestForBloodcatAmbush`, `Strategic_Movement.cc:3263-3356`, owned by `docs/16`): first visit `PR(100) < 5d` rolls
-`min(R(4) + 2d + 3, max(progress/(7 − d), 3))`, capped by 2 × mercs (not on hard, minimum 3) and by placements; later
-visits re-ambush with 5% (`!PreChance(95)`); the lair regrows 1 per 18 h. `AddSoldierInitListBloodcats`
-(`Soldier_Init_List.cc:1495-1629`) places them. Bloodcat deaths decrement `bBloodCats` (§10.7).
+`strategic-bloodcat-placements.json`; spawns (I16 lair 14/19/26, N5 arena 8/10/12) set both counts. The ambush on arrival
+(`TestForBloodcatAmbush`, `Strategic_Movement.cc:3263-3356`: first visit `PR(100) < 5d`, size from difficulty and
+progress, later visits 5%, the lair regrows 1 per 18 h) is `docs/16`'s. `AddSoldierInitListBloodcats`
+(`Soldier_Init_List.cc:1495-1629`) places them. Bloodcat deaths decrement `bBloodCats` (§10.7). Bloodcats start
+neutral and turn hostile on sight (`MakeBloodcatsHostile`, with a `Random(2)` roar draw).
 
-### 12.3 What M4 needs
+### 12.3 In ja2-node
 
-- Creatures: load the lair data and keep `giLairID = 0`; **run M4 games with sci-fi off** (no quest trigger, no
-  creature events). The J9 b2 creature counts exist regardless but are only reachable in sci-fi. Spreading, attacks
-  and creature tactics wait for creature AI (`docs/13` §12.3).
-- Bloodcats: the strategic numbers (`InitBloodCatSectors`, ambush roll, death bookkeeping) are cheap and belong with
-  encounters (`docs/16`); the tactical bloodcat (body, animations, `CreatureDecideAction`) can wait. Until then treat
-  every bloodcat ambush as "no encounter" and skip `AddSoldierInitListBloodcats` (one deviation row).
-
----
-
-## 13. Interfaces with the companion modules
-
-What the strategic AI calls (`docs/16` unless noted):
-
-| Need | Original |
-|---|---|
-| Group CRUD and lookup | `CreateNewEnemyGroupDepartingFromSector`, `RemoveGroup`, `GetGroup`, group list iteration in order, `FindEnemyMovementGroupInSector`, `FindPlayerMovementGroupInSector`, `PlayerMercsInSector` |
-| Orders | `MoveGroupFromSectorToSector`, `…ButAvoidPlayerInfluencedSectors`, `…AndStopOneSectorBeforeEnd`, `SetEnemyGroupSector`, `AddWaypointIDToPGroup`, `RemoveGroupWaypoints`, `RandomizePatrolGroupLocation`, `CalculateNextMoveIntention`, `GroupAtFinalDestination`, `GetFinalWaypoint`, `GroupWillMoveThroughSector` |
-| Sector control | `SetThisSectorAsEnemyControlled` (runs loyalty/morale effects and item theft draws), `StrategicMap[].fEnemyControlled`, town ids, traversability |
-| Militia | `CountAllMilitiaInSector`, `ubNumberOfCivsAtLevel` (`docs/18`) |
-| Economy | `PredictIncomeFromPlayerMines`, `CalcMaxPlayerIncomeFromMines`, `MilitiaTrainingAllowedInSector` (`docs/18`) |
-| SAM | `IsThisSectorASAMSector`, `bSAMCondition`, `UpdateSAMDoneRepair`, `UpdateAirspaceControl` |
-| Clock and events | `AddStrategicEvent`, `AddPeriodStrategicEventWithOffset`, `DeleteAllStrategicEventsOfType`, `GetWorldTotalMin/Seconds`, `GetWorldHour`, `GetWorldDay`, `DayTime` (`docs/15`) |
-| Facts | `FACT_HILLBILLIES_KILLED`, `FACT_KINGPIN_DEAD`, `FACT_IGGY_AVAILABLE_TO_ARMY` (`docs/16`/M6) |
-| Tactical | `AddSoldierInitListEnemyDefenceSoldiers`, `TacticalCreateEnemySoldier`, `ChooseMapEdgepoints`, `UpdateMercInSector`, team slots |
-
-What the AI expects the others to call: §4.3. In particular `docs/16` must call `StrategicAILookForAdjacentGroups`
-after every non-battle arrival (player and enemy) **before** `CalculateNextMoveIntention`, `RemoveGroupFromStrategicAI
-Lists` from `RemoveGroup`, `RepollSAIGroup` from the battle-reset path, and `PrepareEnemyForSectorBattle` /
-`EndTacticalBattleForEnemy` around sector loads, with `gpBattleGroup` set for enemy-instigated battles. `docs/19` must
-use `GetNumberOfEnemiesInSector` (with the H1 quirk) for its enemy roster, call `ProcessQueenCmdImplicationsOfDeath`
-per dead enemy with the autoresolve sector, and on victory remove the sector's garrison and groups
-(`RemoveGroupFromStrategicAILists`, `RemoveGroup`), then `SetThisSectorAsPlayerControlled(…, true)` and
-`RecalculateSectorWeight`. Both decrement nothing else directly. The meanwhile system (M6) must at least run the
-implications of §9.4 at the scheduled time (§16.2).
-
----
-
-## 14. Agent API and player view (D16)
-
-The player never sees the Queen's state. The projection exposes, per surface sector, only
-`WhatPlayerKnowsAboutEnemiesInSector` (`Strategic/Map_Screen_Interface_Map.cc:3511-3562`), and the map shows nothing
-underground (`:3606-3632`) and nothing at game start (`DidGameJustStart`):
-
-| Knowledge | Condition | Shown |
-|---|---|---|
-| `KNOWS_HOW_MANY` | a merc able to scout is in the sector (not vehicle, POW, dead, in transit, asleep, < OKLIFE, in the helicopter, between sectors; `:3565-3603`), or militia within 1 sector (including diagonals, `Town_Militia.cc:623-639`), or `SF_PLAYER_KNOWS_ENEMIES_ARE_HERE` — **and** `NumStationaryEnemiesInSector == 0` | `NumEnemiesInSector` as a count (no class split) |
-| `KNOWS_THEYRE_THERE` | the same scouting conditions but stationary enemies present (garrisons stay "?", roadblocks are counted); or the sector was ever visited; or Skyrider noticed them while he is still over it | presence only ("?") |
-| `KNOWS_NOTHING` | otherwise | nothing |
-
-`SF_PLAYER_KNOWS_ENEMIES_ARE_HERE` is set when the PBI shows an `ENEMY_ENCOUNTER_CODE` battle and cleared on the next
-clock advance once no enemy is in the loaded sector (`PreBattle_Interface.cc:430-441`, `Game_Clock.cc:211-216`).
-
-Implications:
-- `observe`/`status` on the strategic map list sectors with `enemies: {count}` / `{present: true}` / nothing, from
-  this one function; the PBI view follows `docs/19`. No garrison ids, compositions, admin/troop/elite split, group
-  routes, intentions, the pool, awake flag or alertness. Seen enemy soldiers in tactical play may carry their class
-  (the uniform colours make it visible), unseen ones never.
-- Events that leak AI decisions must not exist; the original tells the player only: invasion/encounter prompts
-  (`docs/19`), "enemy took control of …" (`NotifyPlayerWhenEnemyTakesControlOfImportantSector`), meanwhile scenes
-  (which do show the Queen's orders, e.g. troops to a SAM site) and Skyrider's sighting quotes. A `meanwhile {id}`
-  event is fair once scenes exist; until then only the implications run.
-- Queries (`query`) about sectors go through the same projection. A dev-only omniscient `debugStrategic` view (whole
-  `QueenState`, groups) is allowed for tests and devtools, never for agents in play.
-
----
-
-## 15. Data tables and content loading
-
-- **No new transcription is required for the core AI**: compositions, garrisons, patrols, policy, cache sectors,
-  underground sectors, bloodcats and lairs are externalized JSON already in `data/externalized/`. Add a content parser
-  `src/content/strategic/army.ts` (JSONC: comments allowed) that resolves sector strings to ids and composition names to
-  indices (garrison `composition` must match a composition name exactly; unknown → error, as Strac's validation
-  `ArmyCompositionModel::validateData`), and validates counts (27 ≤ compositions ≤ 60, patrols ≤ 50, garrisons ≤ 100,
-  patrol points 2..4 and axis-aligned).
-- **Named constants in code** (SFI header, `@src Strategic/Strategic_AI.cc`): composition indices used by the code
-  (QUEEN_DEFENCE 0 … SANMONA_SMALL 26), `MAX_STRATEGIC_TEAM_SIZE 20`, `NO_GARRISON 255`, the special-sector lists of
-  §8.2, §6.6, §9.6, the start minute 475, minutes 3345/4710, the 67/121/360 sleep numbers (owned by `docs/16`),
-  `DIFF_FACTOR_*` (50/30/20, +5/−5), `PALACE_SECTOR 3,16`, `MAX_PALACE_DISTANCE 20`, Orta/Tixa 4, Alma 10.
-- **Later, if creatures are ported**: one generated table `data/tables/creature-habitats.json` from
-  `Creature_Spreading.cc` (`CreatureWeightsByHabitat` `:708-726`, habitat population caps `:323-353`, spread and
-  reproduction defines `:49-102`) via `tools/transcribe/creature-habitats.ts`, using `c-source.ts`.
-- **Stubs**: the stub pack needs a strategic map (`docs/16`) whose sectors can carry garrisons. Use the real JSON
-  (it is Stracciatella data, distributable under SFI-SCLA) with stub maps that contain enemy placements of all three
-  classes and edgepoints on every side; alternatively a stub override of the garrison/patrol JSON pointing at the stub
-  sectors. CI then exercises init, evaluation and population without original data.
-
----
-
-## 16. Minimal M4 implementation (strategic AI)
-
-### 16.1 Modules (`src/sim/strategic/forces/`, `01` §3.7)
+Sci-fi campaigns run the whole strategic creature quest; the tactical creature AI is `13`.
 
 | Module | Contents |
 |---|---|
-| `army-data.ts` (content, `src/content/strategic/army.ts`) | parsed JSON (§15) |
-| `queen-state.ts` | `QueenState`, sector/group enemy fields, `cloneForSave` (plain data) |
-| `counts.ts` | §1.6 helpers incl. the H1 quirk; `playerSectorDefended` |
-| `init.ts` | `initStrategicAI(state, data, d, rng, ports)` (§3) and the underground/cache parts |
-| `weights.ts` | §5 |
-| `composition.ts` | §5.5 |
-| `evaluate.ts` | `evaluateQueenSituation`, `evolveQueenPriorityPhase`, `upgradeAdminsToTroops` (§6.1–6.3) |
-| `reinforce.ts` | §6.4–6.7, `requestHighPriorityGarrisonReinforcements`, `massFortifyTowns` |
-| `orders.ts` | §7 |
-| `detection.ts` | §8 |
-| `reactions.ts` | §9: wake, losing control, actions, meanwhile implications, mine ran out |
-| `queen-command.ts` | §10: prepare/pending/end battle, deaths, edge escapes |
-| `difficulty.ts` | §11 (shared with tactical creation) |
-| `creatures.ts`, `bloodcats.ts` | §12 stubs |
+| `src/content/strategic/creature-lairs.ts` | `parseCreatureLair` → `StrategicContent.creatureLairs` (lair sectors with habitats, mine, entrance sector, attack sectors with chances and insertion codes, warp exit), `lairContainsSector` |
+| `src/sim/strategic/creatures/creatures.ts` | `CreatureState` and the §12.1 functions in camelCase (`initCreatureQuest`, `spreadCreatures`, `creatureNightPlanning`, `endCreatureQuest`, …), `distributeCreaturesByWeight`, `CREATURE_WEIGHTS_BY_HABITAT`, `importCreatureDirectives` (native saves) |
+| `src/sim/strategic/creatures/town-attack.ts` | `creatureAttackTown`, `determineCreatureTownComposition`, `clearSurfaceCreatures` |
+| `src/sim/campaign/creature-flow.ts` | `CreatureFlow` (`campaign.creatures`): the spread, night-planning and attack events, the CREATURES meanwhile (`now + 5`), the economy hooks, the quest end on the Queen's `creatureQuestEnded`, `battleSetup` (`PrepareCreaturesForBattle`), civilians eaten (`civiliansEaten` event) |
+| `src/sim/tactical/init-list.ts` | `addSoldierInitListCreatures`, `addSoldierInitListBloodcats` (pure `place…FromInitList` cores), `addCreaturesToBattle`, `tacticalCreateCreature` |
 
-`ports` is an interface implemented by `docs/16`/`15`/`18` modules (§13), so the AI can be unit-tested against fakes.
-The RNG parameter is an interface `{ int(n): number; chance(p): boolean }` so tests can inject a replay source (§16.4).
-Negative `int` arguments from i32 expressions (`R(points + pool)` with a negative pool) must be converted with
-`>>> 0` as the original's `UINT32` parameter does; `chance` must always draw.
+Creature and bloodcat bodies are built in `src/sim/tactical/creation.ts`; `makeBloodcatsHostile` is in
+`src/sim/tactical/perception/sight.ts`; `hostileBloodcatsPresent` (`src/sim/tactical/sector-presence.ts`) answers the
+PBI codes, group arrivals and the compression refusal. `CreatureState` (`StrategicState.creatures`): `lairId` (0 none,
+−1 destroyed), `habitatedDistance`, `populationModifier`, `destroyedLairId`, `meanwhileScenePlayed`,
+`useCreatureMusic`, and `attack {insertionCode, insertionGridNo, numAttacking, battleCode, sectorId}`, which holds the
+original's process globals `gsCreatureInsertionCode`, `gsCreatureInsertionGridNo`, `gubNumCreaturesAttackingTown`,
+`gubCreatureBattleCode`, `gubSectorIDOfCreatureAttack` as campaign state.
 
-### 16.2 Order of work
-
-1. Content parser + `QueenState` + `counts.ts` (tests: H1 double count, roadblock stationary 0, groups between
-   sectors counted at origin).
-2. `init.ts` with the full draw order (§3.8); new-game wiring in `docs/15`'s init sequence (clock at 01:00 before it
-   runs, underground draws first).
-3. `weights.ts`, `composition.ts` (table tests incl. the patrol `min` cap and initial-weight quirk).
-4. `evaluate.ts` + `reinforce.ts` + `orders.ts` against a fake group port; then against `docs/16`'s real groups.
-5. `detection.ts` and the arrival hook; `CheckEnemyControlledSector` events.
-6. `reactions.ts`: wake triggers, `MassFortifyTowns`, liberation grace, SAM squad, meanwhile implications run at the
-   meanwhile event time as if the scene were skipped (allowed in the original, so no outcome deviation).
-7. `queen-command.ts`: replace `SANDBOX_POPULATION`/`chooseEnemyPlacements` with `prepareEnemyForSectorBattle` +
-   a full port of `SortSoldierInitList` and `AddSoldierInitListEnemyDefenceSoldiers` (classes admin/elite/army,
-   Strac PD-pass quirk); soldier `groupId`; the tactical `soldierDied` hook → `processQueenCmdImplicationsOfDeath`;
-   `addPossiblePendingEnemiesToBattle` at tactical turn ends and on group arrival; edge escapes remove the soldier and
-   count as death (closes "Map-edge escapes"); `endTacticalBattleForEnemy` on unload.
-8. `difficulty.ts` and the tactical switch-over (closes "Sandbox population").
-9. Save/load: our saves snapshot `QueenState` (no re-derivation). Native save import: parse section 35 (§1.4), the
-   `SECTORINFO` enemy fields and the groups (`docs/14`, `docs/16`). Decide whether to run the original's load hooks
-   (§17, open question).
-10. Creatures/bloodcats stubs; sci-fi off.
-
-### 16.3 Tests
-
-- **Init RNG order**: a scripted RNG that records `(range)` per call; for each difficulty assert the exact range
-  sequence of §3.8 for a fixed scripted result stream (e.g. all zeros, all max), and the resulting counts: P3 32 elites
-  (22 easy), A9 3/4/6 troops, C13 admin-only ≥ 5, roadblocks 0 or desired-based, patrols 3/4 admins, patrol sizes in
-  `[size−1, size+1]` clamped, every patrol standing on one of its points with `ubNextWaypointID` consistent with its
-  move type, arrival times within `[1, traverse+sleep−1]`, 57 periodic events at 07:55 + gi, one evaluation event with
-  a day-0 stamp.
-- **Weights**: tables for garrison/patrol weights (sign rules, min/max 2, priority scaling, the `min` cap), totals
-  stay consistent after any sequence of recalculations (property test: `requestPoints` = sum of positive weights,
-  `reinforcementPoints` = sum of negative magnitudes, given the init quirk accounted for).
-- **Evaluation**: awake state with fake groups; scripted `R(requestPoints)` selects garrison k; approval/denial
-  (denial counter growth and u8 wrap); pool vs garrison source by scripted `R(points + pool)`; Alma preference for
-  Drassen/Cambria; the 67% rule; staging with `ubPendingReinforcements`; patrol reinforcement from a non-spawning
-  garrison producing an empty group; recruitment at pool 0 (×10 interval, +30).
-- **Orders**: arrival cases of §7.2 (garrison merge with surplus elimination, P3 overflow to the pool, patrol warp
-  with truncation to 20, new patrol), `ReassignAIGroup` passes and the final pool transfer, redirect around a
-  liberated sector, grace period blocking paths.
-- **Detection**: alertness changes day/night, the four-direction order (enemy N W S E, player N E S W, garrison N E S
-  W), special sectors and time gates, mass fortification at wake (nearest patrol split vs palace group, A9 conversion).
-- **Queen_Command**: placement selection on a stub map with PD/P/D/B placements of all classes (sort reversal, PD
-  every-second-node rule, priority overwrite, leftovers), group id assignment by team order, deaths decrementing group
-  vs sector, >32 pending enemies entering from the right edge as slots free, H1 roster, underground totals.
-- **Difficulty**: palace distance table (§11.2), class/easy militia rule, clamp.
-- **Scenario (headless, stubs)**: new game medium → wake by liberating sectors → the Queen sends a group that stages
-  and attacks; an agent sees only "?" or counts per §14.
-
-### 16.4 Oracle probes (extend `tools/oracle`)
-
-**Reproducibility.** The native engine is `std::mt19937 gRandomEngine` seeded from the clock and `random_device` in
-`InitializeRandom` (`sgp/Random.cc:42-61`); saves do not store it. A probe command `seed n` must call
-`gRandomEngine.seed(n)` and refill `guiPreRandomNums` (index 0) exactly as `InitializeRandom` does after seeding, at
-the point where the comparison starts (after `LoadSavedGame`, or right before `InitNewCampaign`). Even then our
-xoshiro + multiply mapping cannot reproduce mt19937 + `uniform_int_distribution`, so comparisons use a **draw log**:
-a small hook in `sgp/Random.cc` (added to `patches/`) that, when enabled, appends `(range, result)` for every `Random`
-call (and `PreRandom` separately). ja2-node then runs the same operation with a replay RNG that returns the native
-results in order and **asserts each requested range equals the native one** — this checks the draw order and the logic
-at once.
-
-Proposed commands (new branches in `Dispatch`, `tools/oracle/src/Oracle.cc`):
-
-| Command | Does |
-|---|---|
-| `seed n` | reseed as above |
-| `draws on\|off\|dump` | start/stop the draw log; `dump` emits `{"probe":"draws","random":[[r,v],…],"preRandom":[…]}` |
-| `newgame difficulty=2 scifi=0` | sets `gGameOptions`, runs `SetupNewStrategicGame(); InitNewCampaign();` (seed and `draws on` before it) |
-| `sai` | dumps `SectorInfo` enemy fields for all 256 sectors and the underground list, every garrison and patrol record, current compositions, all SAI globals, `gubGarrisonReinforcementsDenied`, the enemy group list in order (id, sector, next, prev, moveType, nextWaypointID, waypoints, intention, counts, in-battle counts, pending reinforcements, betweenSectors, arrival and traverse time) and SAI-related events (kind, stamp, param, period) |
-| `saievaluate [awake=1]` | runs `EvaluateQueenSituation()` (optionally after `gfQueenAIAwake = TRUE`) |
-| `saicheck sector=C13` | `CheckEnemyControlledSector(id)` |
-| `saiwake` | `WakeUpQueen()` |
-| `prepare` | after `save`/`sector`: `PrepareEnemyForSectorBattle()`; dumps created enemies with class, placement index, group id |
-| `diffmod class=3` | `CalcDifficultyModifier`, `HighestPlayerProgressPercentage`, `PredictIncomeFromPlayerMines`, the palace distance of the battle sector |
-
-`compare.ts` grows matching handlers: rebuild the same operation in ja2-node from the dumped prior state (or from the
-imported save) with the replayed draws, then compare the following `sai`/`prepare` dump field by field. Suggested
-scripts: `probes/newgame-{easy,medium,hard}.txt` (`seed`, `draws on`, `newgame`, `draws dump`, `sai`) for several
-seeds; `probes/saves-sai.txt` for the user's six saves (load, `sai`, `seed`, `draws on`, `saievaluate awake=1`,
-`draws dump`, `sai`, `diffmod` for each class, `prepare` where a sector is loaded). Outputs stay outside the repo.
-
-Fallback without the hook: compare distributions over many seeds (garrison totals per sector, patrol positions) with a
-χ² tolerance; weaker, but needs no patch.
-
-### 16.5 Can wait
-
-Creatures (spreading, attacks, lair), tactical bloodcats, capture and the Alma/N7 quests, Mike/Iggy profiled enemies,
-the unreachable NPC actions, `ReinitializeUnvisitedGarrisons` and the other save-version patches of
-`LoadStrategicAI` (only for very old native saves), debug toggles and logs.
+`CreatureAttackTown` reaches the PBI (player groups, encounter `creatureAttack`), autoresolve with auto-start (militia
+only; creature cells AF, AM, YF, YM from the composition), the loaded sector (creatures added at once, no pause;
+deviations.md "Creature attacks in tactical") or eats civilians. A sector load adds bloodcats and the creatures of a
+mine level or a pending attack; entering J9 b2 starts the quest. A won tactical battle runs
+`KillIncompacitatedEnemyInSector` first. Time compression is refused while a player group is in an infested mine.
+Quest scripting gaps: deviations.md "Creature quest scripting".
 
 ---
 
-## 17. Quirks to keep (or list in `deviations.md`)
+## 13. Implementation in ja2-node
 
-Keep (original behaviour, vanilla too unless marked):
-- First Queen evaluation fires at the first event processing (day-0 stamp, §3.3) and reschedules with draws even
-  while asleep (§4.1).
-- Initialisation runs at 01:00, so every patrol rolls the night-sleep `C(67)` twice (§3.6).
-- Patrol weight capped with `min(…, 2)`; destroyed patrols are never refilled but keep weight 2 (§5.2, §5.4).
+### 13.1 Content and state
+
+- `src/content/strategic/army.ts`: `loadArmyContent(read)` / `parseArmyContent` read five JSONC files
+  (`army-compositions`, `army-garrison-groups`, `army-patrol-groups`, `strategic-ai-policy`, `game.json` `progress`)
+  into `ArmyContent` (templates, `StrategicAiPolicy` per difficulty, `ProgressPolicy`), loaded next to
+  `StrategicContent`. Validation follows Strac's `ArmyCompositionModel::validateData`: a garrison's `composition` must
+  name a composition (unknown → error); 27 ≤ compositions ≤ 60, patrols ≤ 50, garrisons ≤ 100 (the save array
+  sizes); patrol points 2..4, consecutive points axis-aligned. No transcribed table is needed: the AI data is the
+  externalized JSON. The stub pack uses the same JSON; `stubs/sector-kinds.ts` gives every garrison, town, mine, SAM
+  and underground sector a stub map with the four edges and room for a garrison of 20.
+- Named constants of `Strategic_AI.cc` and `Meanwhile.cc` (composition indices, special-sector lists of §6.6, §8.2,
+  §9.6, minutes 475/3345/4710, check period, staging and SAM-squad numbers, offence/defence weights) are in
+  `src/sim/strategic/ai/constants.ts`; `DIFF_FACTOR_*` (50/30/20, +5/−5), `PALACE_SECTOR` (3,16),
+  `MAX_PALACE_DISTANCE` 20, Orta/Tixa 4, Alma 10 in `ai/difficulty.ts`.
+- `StrategicState` (`src/sim/strategic/state.ts`) holds `queen` (`QueenState`: the globals of §1.4 with the saved
+  `saiVersion`, plus `compositions`, `garrisons`, `patrols`, `garrisonDenied`), `status` (`StrategicStatus`, §1.5),
+  `meanwhile` (`MeanwhileState`, `26`) and `creatures` (§12.3); all plain data (`ai/queen-state.ts`,
+  `cloneQueenState`). Sector enemy fields live on the shared sector record of `docs/16`, `ENEMYGROUP` fields on its
+  enemy groups. Fixed-width writes go through `src/core/int.ts` (`u8` counts and denials, `i8` weights and composition
+  fields, `u16` offence/defence and victories).
+- RNG: every function takes a `RollSource` (`int(n)`, `chance(p)`; `src/sim/strategic/forces/ports.ts`).
+  `rollInt`/`rollChance` (`ai/context.ts`) pass the argument through `u32` as the original's `UINT32` parameter does,
+  so `R(points + pool)` with a negative pool and a negative `C(p)` behave as in the original; `rollChance` always draws.
+- Saves: ja2-node saves snapshot `QueenState` exactly, with no recomputation on load. Native import:
+  `readStrategicAiSections(bytes, save)` (`src/content/formats/savegame-strategic-ai.ts`) decodes section 35 (§1.4),
+  section 34 (`STRATEGIC_STATUS`, §1.5) and the meanwhile flags and first-battle sector of section 24;
+  `importStrategicAi(q, sections, {runLoadHooks})` (`ai/save-import.ts`) restores them and, for native saves, runs
+  `runStrategicAiLoadHooks` (the load hooks of §4.3; deviations.md "Strategic AI load hooks"). Not ported:
+  `ReinitializeUnvisitedGarrisons` and the patches for SAI versions below 29 (all known native saves are version 29).
+
+### 13.2 Modules (`src/sim/strategic/ai/`)
+
+Functions keep the original names in camelCase (`RecalculateGarrisonWeight` → `recalculateGarrisonWeight`). Each
+takes a `QueenContext` = `StrategicContext` (`docs/16`) + `ArmyContent` + `MineIncomePort` (`docs/18`) + `QueenHooks`
+(`samRepaired`, `creatureQuestEnded`, `profile`, `startQuest`), built by `createQueenContext` (`context.ts`, also
+`rollInt`/`rollChance`).
+
+| Module | Contents |
+|---|---|
+| `queen-state.ts` | `QueenState`, `StrategicStatus`, `MeanwhileState` and their records, `cloneQueenState` |
+| `constants.ts` | named constants (§13.1) |
+| `counts.ts`, `weights.ts`, `composition.ts` | §1.6, §5.1–§5.4, §5.5 |
+| `init.ts` | `initStrategicAI` (§3, draw order of §3.8), `initStrategicStatus` |
+| `evaluate.ts`, `reinforce.ts` | §6.1–§6.3; §6.4–§6.7 with `requestAttackOnSector`, `requestHighPriorityGarrisonReinforcements`, `massFortifyTowns` (§9.2) |
+| `orders.ts`, `detection.ts`, `reactions.ts` | §7, §8 (the notice rolls are `attemptToNotice{EmptySector,AdjacentGroup}Succeeds`), §9 (plus `queenBasementTaken`) |
+| `meanwhile.ts` | meanwhile scheduling, scene resolution and `processImplicationsOfMeanwhile` (§9.4; `26`) |
+| `queen-command.ts` | §10: `prepareEnemyForSectorBattle` returns a `SectorBattlePlan` (class counts for the defence placements, stationary count, enemy-instigated groups) and updates the in-battle counters and `pendingEnemies`; `assignEnemyGroupIds`; `processQueenCmdImplicationsOfDeath(q, dead, autoResolveSector)`; `addPossiblePendingEnemiesToBattle` returns `PendingArrival[]` (group, entry code, classes) for the tactical side to place; `endTacticalBattleForEnemy` returns whether `GLOBAL_LOYALTY_ABANDON_MILITIA` applies |
+| `defence-placement.ts` | §10.2 as pure functions over `PlacementNode`s with an injected roll source and an `add(node)` callback; `src/sim/tactical/init-list.ts` wraps them |
+| `difficulty.ts`, `status.ts` | §11 (§11.4); `trackEnemiesKilled`, `recordPlayerKill` |
+| `save-import.ts` | `importStrategicAi`, `runStrategicAiLoadHooks` (§13.1) |
+| `strategic-ai.ts` | `StrategicAi`, the `StrategicAiPort` of `docs/16` (`src/sim/strategic/forces/ports.ts`), bound with `bind(ctx)`; `initStrategicAiForNewCampaign`; `registerStrategicAiEvents` (`EVALUATE_QUEEN_SITUATION`, `CHECK_ENEMY_CONTROLLED_SECTOR`, `MEANWHILE`) |
+| `economy-link.ts` | bridge to `docs/18`: `queenMineIncome`, `queenEconomyHooks` (mine ran out, meanwhile postings), `queenEconomySlots` (hourly progress) |
+
+### 13.3 Wiring
+
+`CampaignSim` (`src/sim/campaign/campaign-sim.ts`) takes `hooks.queen = {army, mines?, hooks?}`, passes the
+`StrategicAi` as the strategic context's AI port, exposes the bound context as `campaign.queen`, registers its events
+and, with an economy, the mine income, mine-ran-out, meanwhile and hourly-progress hooks. The §4.3 callers: new game in
+`src/sim/campaign/new-game.ts` (`initStrategicLayerMap(…, {initStrategicAI})`); arrival, `RemoveGroup`, battle reset,
+avoid-player pathing and losing control in `docs/16`'s movement code through `StrategicAiPort`; sector load/unload,
+tactical deaths, map-edge escapes and pending enemies in `src/sim/campaign/sector-flow.ts`; autoresolve in
+`src/sim/campaign/autoresolve-strategic.ts`; the first battle in a town in `battle-flow.ts`; the end game in
+`endgame-flow.ts`.
+
+### 13.4 Verification
+
+Oracle: `tools/oracle/probes/sai-newgame.txt` and `sai-saves.txt` (patch `0003`, `tools/oracle/sai-compare.ts`) replay
+every native draw with asserted ranges and compare full `sai` and `diffmod` dumps for new games on all difficulties and
+the six native saves; creatures: `creatures.txt`, `creature-battles.txt`, `creature-placement.txt` (patch `0006`);
+placement: the `initlist` and `defence` probes of `docs/16` §7. Details: `tools/oracle/README.md` ("Strategic AI",
+"Creatures").
+
+---
+
+## 14. Quirks to keep
+
+Original behaviour (vanilla too unless marked), each stated in its section:
+- First evaluation at the first event processing (day-0 stamp, §3.3); rescheduling draws while asleep (§4.1).
+- Init at 01:00: every patrol rolls the night-sleep `C(67)` twice (§3.6).
 - Initial garrison weights use the modified local `start` (§3.5).
-- `EvolveQueenPriorityPhase` recomputes from the **unscaled** JSON, undoes the mine-ran-out `/4`, gives San Mona desired
-  6 but no approval (§6.2, §9.6).
-- H1 counted twice / as mobile because `ubGarrisonID` is compared with `ROADBLOCK` (§1.6).
-- Elite clamp `32 − A + T` in `PrepareEnemyForSectorBattle` (§10.1); underground battles place total counts (§10.10).
-- **Strac only**: the PD pass of `AddSoldierInitListEnemyDefenceSoldiers` examines every second node (§10.2). Verify
-  with the `prepare` probe, then decide (vanilla walks all nodes).
-- `SortSoldierInitList` reverses the PD, P and D blocks (inferred, verify with `prepare`).
-- Defence counts mercs ×5 in `PlayerForceTooStrong` but ×4 in `ReinforcementsApproved` (§5.4).
-- `gubGarrisonReinforcementsDenied` wraps at 256; the P3 extra-reinforcement value wraps when `20 − req < 0` (§5.4).
-- Groups larger than 20 (up to 60) from the pool/staging paths; `ubGroupSize` never counts admins at creation (§1.2,
-  §6.5).
-- P3 accepts arriving reinforcements as elites up to 20 only; when that cap is hit the pool gains `20 − elites`
-  instead of the real overflow (§7.2).
-- `SendReinforcementsForPatrol`: no P3-ownership check, no minimum check, may send an empty group (§6.7).
-- `ReinforcementsAvailable` = 0 outside spawning compositions; step 4 of the source choice can then abort (§6.6).
-- Pool can go negative through `RequestHighPriorityGarrisonReinforcements`; recruiting only at exactly 0 (§9.2).
-- H2 checks itself in `EnemyPermittedToAttackSector`; A9/A10/Drassen time gates (§8.2).
-- Garrison handlers of §8.5 can split the garrison of the loaded sector during real-time play.
+- Patrol weight `min(…, 2)`; destroyed patrols never refilled but keep weight 2 (§5.2, §5.4); mod-100 grace wrap (§5.3).
+- Mercs count ×5 in `PlayerForceTooStrong`, ×4 in `ReinforcementsApproved`; denials wrap at 256; the P3 extra value
+  wraps when `20 − req < 0` (§5.4, §6.4).
+- `EvolveQueenPriorityPhase` recomputes from the **unscaled** JSON, undoes the mine `/4`, gives San Mona desired 6 but
+  no approval (§6.2, §9.6).
+- Groups up to 60 from the pool/staging paths; `ubGroupSize` never counts admins at creation (§1.2, §6.5).
+- `ReinforcementsAvailable` = 0 outside spawning compositions, so step 4 of the source choice can abort (§6.6);
+  `SendReinforcementsForPatrol` has no P3-ownership or minimum check and may send an empty group (§6.7).
+- P3 takes reinforcements as elites up to 20 and credits the pool `20 − elites` (§7.2).
+- The pool can go negative through `RequestHighPriorityGarrisonReinforcements`; recruiting only at exactly 0 (§9.2).
+- F10 refused once the hillbillies are dead (code against comment); H2 checks itself; A9/A10/Drassen time gates (§8.2).
+- §8.5's garrison handlers can split the loaded sector's garrison in real time.
+- H1 counted twice / as mobile (`ubGarrisonID` compared with `ROADBLOCK`, §1.6).
+- `PrepareEnemyForSectorBattle`'s elite clamp `32 − A + T` (§10.1); underground battles place total counts (§10.10);
+  `SortSoldierInitList` reverses the PD, P and D blocks (§10.2).
 - Fleeing enemies are strategically dead (§10.8).
-- The battle-location/Drassen/Omerta/extra-elites/aware actions are unreachable (§9.5): the Queen does **not** send a
-  squad to the first battle's location.
-- `PermittedToFillPatrolGroup` mod-100 wrap (§5.3).
+- The send-soldiers, extra-elites and aware actions are unreachable; no squad goes to the first battle (§9.5).
+- `ubDayOfLastCreatureAttack` written on the mine sector (§12.1).
 - `R(0)` draws nothing, `C(p)` always draws; `Random` takes `UINT32`.
 
-List in `deviations.md` when ported:
-- **Undefined behaviour made defined**: division by zero in the pool path when `defence == 0` (§6.5; propose: skip the
-  `C` roll and send); `ReassignAIGroup`'s patrol reloop running past the array when `reloop` stays `size_t(−1)` (§7.3;
-  propose: stop at the last patrol); the PD-pass double advance dereferencing past the list end (§10.2; propose: stop).
-- **Meanwhile scenes** (M6): until then the implications of §9.4 run at the event time as a skipped scene.
-- **Creatures off** (sci-fi off) and **tactical bloodcats off** until creature AI exists (§12.3).
-- **Capture**: until M5/M6 incapacitated mercs of a lost battle die instead of being captured (§10.11).
-- **Load hooks** (open question): the original runs `EvolveQueenPriorityPhase(TRUE)` and repolls idle enemy groups on
-  every load, which changes desired populations and orders. Our snapshots restore state exactly; replicating the hooks
-  keeps save/load parity with the native game (and importing native saves needs them anyway), not replicating them
-  keeps "save = no effect". Propose: run them on native-save import only and log the deviation for our own saves.
-- Debug toggles `gfAutoAIAware`, strategic AI logs: not ported.
+Deviations (entries in `deviations.md`): "Strategic AI undefined behaviour" (§6.5, §7.3, §10.2), "Strategic AI PD
+placement pass" (Strac only, §10.2), "Unreachable Queen actions" (§9.5), "Strategic AI debug toggles", "Strategic AI
+load hooks" (§13.1), "Meanwhile scenes" (§9.4), "Sandbox population" (§11.4), "Creature bodies for town attacks"
+(§12.1).
 
 ---
 
-## 18. Verified vs inferred
+## 15. Unverified
 
-**Verified** by reading Strac (vanilla cross-checked where marked): every function of `Strategic_AI.cc` (globals,
-`InitStrategicAI` line by line with its draw order, weights and the patrol `min` cap (vanilla equal), request/supply
-predicates, `EvaluateQueenSituation` (vanilla equal timing), `EvolveQueenPriorityPhase` (vanilla equal),
-`ReinforcementsApproved`, both send functions, the source choice, `ReassignAIGroup`, `EvaluateGroupSituation`,
-detection and notice rolls, `CheckEnemyControlledSector`, `ExecuteStrategicAIAction`, losing control, mass
-fortification, mine ran out, admin upgrades, composition helpers, `MoveSAIGroupToSector`, redirect, save/load layout
-and load hooks); `Queen_Command.cc` (counting helpers and the `ROADBLOCK` index bug (vanilla equal), prepare,
-pending enemies, `AddEnemiesToBattle`, end of battle, deaths, underground, capture); `AddSoldierInitListEnemyDefence
-Soldiers` and its Strac PD-pass difference from vanilla; the clock at init (01:00, vanilla equal), the sleep roll and
-patrol randomisation in `Strategic_Movement.cc`; the event-queue handling of past stamps; the NPC-action no-ops
-(vanilla equal); meanwhile implications and timing; `CalcDifficultyModifier`, location modifier and progress formulas;
-the policy, composition, garrison, patrol, cache, underground, bloodcat and lair JSON; the player-knowledge rules.
-
-**Inferred** (not traced end to end): the reversal of blocks in `SortSoldierInitList`; groups sent to P3 without a
-pending slot staying there as mobile groups; garrison-launched attack groups staying after their battle; every
-contested win counting towards waking the Queen (depends on `docs/16`/`19` call sites); the double decrement for a
-stationary Mike/Iggy; the empty patrol-reinforcement group's later behaviour; the compiler-defined order of the two
-`R` calls in `TacticalCreateEnemySoldier`'s noise target; that no other code path sets `gfExtraElites` or
-`gubNumAwareBattles` (grep found none); the exact scaled tables of §2.5 (computed from the JSON with the §3.3 rules,
-not dumped from the native build). Everything inferred is a target for the `newgame`, `prepare` and `saievaluate`
-probes of §16.4.
-
----
-
-## 19. Implemented (2026-10-16): §16.2 steps 1–8 (strategic side) and the native-save part of step 9
-
-**Content.** `src/content/strategic/army.ts`: `loadArmyContent(read)` / `parseArmyContent` read the five JSONC files
-(`army-compositions`, `army-garrison-groups`, `army-patrol-groups`, `strategic-ai-policy`, `game.json` `progress`) into
-`ArmyContent` (templates, `StrategicAiPolicy` per difficulty, `ProgressPolicy`) with the §15 validation. It is loaded
-next to `StrategicContent`, not inside it. `src/content/formats/savegame-strategic-ai.ts`:
-`readStrategicAiSections(bytes, save)` decodes section 35 (§1.4), section 34 (`STRATEGIC_STATUS`, §1.5) and the meanwhile
-flags and first-battle sector of section 24, using the section offsets the save reader records.
-
-**State.** `StrategicState` gained `queen` (`QueenState` of §1.7 plus `saiVersion`), `status` (`StrategicStatus`) and
-`meanwhile` (`flags`, `currentId`); all plain data (`ai/queen-state.ts`, `cloneQueenState`).
-
-**Simulation** (`src/sim/strategic/ai/`, rather than `forces/` as §16.1 proposed; every function takes a `QueenContext`
-= `StrategicContext` + army content + `MineIncomePort` + `QueenHooks`, built by `createQueenContext`):
-
-| Module | Public API |
-|---|---|
-| `counts.ts` | `numStationaryEnemiesInSector`, `numMobileEnemiesInSector`, `getNumberOfEnemiesInSector` (H1 quirk), `playerSectorDefended` |
-| `weights.ts` | `recalculateGarrisonWeight`, `recalculatePatrolWeight`, `recalculateSectorWeight`, `recalculateGroupWeight`, the request/supply predicates of §5.4, `garrisonWeight` |
-| `composition.ts` | `calcNumTroopsBasedOnComposition`, `convertGroupTroopsToComposition`, `removeSoldiersFromGarrisonBasedOnComposition`, `eliminateSurplusTroopsForGarrison` |
-| `init.ts` | `initStrategicAI` (§3, draw order of §3.8), `initStrategicStatus` |
-| `evaluate.ts` | `evaluateQueenSituation`, `evolveQueenPriorityPhase`, `upgradeAdminsToTroops` |
-| `reinforce.ts` | `reinforcementsApproved`, `sendReinforcementsForGarrison`, `chooseSuitableGarrisonToProvideReinforcements`, `sendReinforcementsForPatrol`, `requestAttackOnSector`, `requestHighPriorityGarrisonReinforcements`, `massFortifyTowns` |
-| `orders.ts` | `moveSAIGroupToSector`, `evaluateGroupSituation`, `reassignAIGroup`, `sendGroupToPool`, `transferGroupToPool`, `removeGroupFromStrategicAILists`, `repollSAIGroup`, `redirectEnemyGroupsMovingThroughSector` |
-| `detection.ts` | `okayForEnemyToMoveThroughSector`, `enemyPermittedToAttackSector`, the notice rolls, the §8.5 handlers, `strategicAILookForAdjacentGroups`, `checkEnemyControlledSector` |
-| `reactions.ts` | `wakeUpQueen`, `executeStrategicAIAction`, `strategicHandleQueenLosingControlOfSector`, `strategicHandleMineThatRanOut`, `queenBasementTaken` |
-| `meanwhile.ts` | `scheduleMeanwhileEvent`, `handleMeanwhileEvent` (skipped scene), `handleMeanwhileEventPostingFor{TownLiberation,TownLoss,SamLiberation}`, `handleFirstBattleEndingWhileInTown`, `handleFirstMeanwhileSetUpWithTrashWorld`, `meanwhilePendingThisSecond` (for `AreInMeanwhile`) |
-| `queen-command.ts` | `prepareEnemyForSectorBattle` → `SectorBattlePlan` (class counts for the defence placements, stationary count, enemy-instigated groups; updates the in-battle counters and `pendingEnemies`), `assignEnemyGroupIds`, `processQueenCmdImplicationsOfDeath(q, dead, autoResolveSector)`, `addPossiblePendingEnemiesToBattle` → `PendingArrival[]` (group, entry code, classes), `nextArrivingSoldierClass`, `ARRIVAL_FACING`, `endTacticalBattleForEnemy` (returns whether `GLOBAL_LOYALTY_ABANDON_MILITIA` applies) |
-| `defence-placement.ts` | `sortSoldierInitList` and `addSoldierInitListEnemyDefenceSoldiers` as pure functions over `PlacementNode`s with an injected roll source and an `add(node)` callback (Strac PD every-second-node walk) |
-| `difficulty.ts` | `calcDifficultyModifier(inputs, class)`, `difficultyModifierAt(q, class, battleSector)`, `locationModifier`, `pythDistanceFromPalace` (exact integer rounding), `currentPlayerProgressPercentage`, `highestPlayerProgressPercentage`, `hourlyProgressUpdate`, `calcImportantSectorControl`, `militiaTrainingAllowedInSector` |
-| `status.ts` | `trackEnemiesKilled`, `recordPlayerKill` |
-| `save-import.ts` | `importStrategicAi(q, sections, {runLoadHooks})`, `runStrategicAiLoadHooks` |
-| `strategic-ai.ts` | `StrategicAi` (the `StrategicAiPort` of `docs/16`, bound with `bind(ctx)`), `initStrategicAiForNewCampaign` (the `initStrategicAI` hook of `initStrategicLayerMap`), `registerStrategicAiEvents` |
-| `economy-link.ts` | the bridge to `docs/18`'s economy: mine income port, `queenMineRanOut` and meanwhile hooks, the hourly progress slot |
-
-`CampaignSim` takes `hooks.queen = {army, mines?, hooks?}`, exposes `campaign.queen`, passes the `StrategicAi` as the
-strategic context's AI port and registers `EVALUATE_QUEEN_SITUATION`, `CHECK_ENEMY_CONTROLLED_SECTOR` and `MEANWHILE`;
-with an economy it wires the mine income, the mine-ran-out and meanwhile hooks and the hourly progress update.
-
-**Callers still to wire.** New-game init: `initStrategicLayerMap(ctx, {initStrategicAI: () =>
-initStrategicAiForNewCampaign(campaign.queen)})`. Autoresolve: `getNumberOfEnemiesInSector`,
-`processQueenCmdImplicationsOfDeath(q, dead, sector)`, `trackEnemiesKilled`, `removeGroupFromStrategicAILists`,
-`recalculateSectorWeight`, `handleFirstBattleEndingWhileInTown(q, sector, true)`. The sector loader callers are wired
-(`docs/16` §14).
-
-**Decisions on §17.** Stracciatella is followed everywhere, including the PD every-second-node quirk; the undefined
-cases are defined as `deviations.md` "Strategic AI undefined behaviour" lists; the load-time recomputation runs only on
-native-save import ("Strategic AI load hooks"). Correction to §8.2: F10 is refused when `FACT_HILLBILLIES_KILLED` is
-**set** (the code tests the fact, the comment says the opposite). Reinforcements reaching a SAM site set
-`SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS` (the repaired graphic is written to the map temp file); the graphic itself is a
-`QueenHooks.samRepaired` call.
-
-**Verified against the oracle** (`tools/oracle/probes/sai-newgame.txt`, `sai-saves.txt`, patch `0003`, README "Strategic
-AI"): seven new games over the three difficulties (with and without sci-fi), the six native saves with the load-time
-recomputation isolated by trace marks, a woken Queen's mass fortification, 15 evaluations, 30 periodic checks and 500
-enemy group arrivals: 6,085 native `Random` draws replayed with identical ranges, 51 complete `sai` dumps (globals,
-compositions, garrisons, patrols, denials, all 256 sectors, control, underground, every enemy group with its waypoints and
-times, the AI events) and 18 `diffmod` results identical. Unit tests cover §16.3 (draw order per difficulty with zero and
-maximum streams, weights, evaluation, orders, detection, reactions, Queen_Command, placements, difficulty) and a headless
-scenario (wake after three victories on medium, grace period, attack on Drassen).
-
-**Not yet.** The `prepare` probe (the placement level is covered by the `defence` probes of `docs/16` §14), periodic
-checks that reach a notice roll in the oracle (none of the probed situations had an important undefended neighbour),
-`ReinitializeUnvisitedGarrisons` and the SAI version patches. Creatures and bloodcats (step 10): §20.
-
-## 20. Implemented (2026-10-16): creatures and bloodcats (§12)
-
-§12.3 is superseded: sci-fi campaigns run the whole strategic creature quest; only the tactical creature AI waits
-(`docs/13` §12.3, `deviations.md` "Creature AI").
-
-**Content.** `src/content/strategic/creature-lairs.ts` parses `strategic-map-creature-lairs.json` (`CreatureLair`: lair
-sectors with habitats, the mine, the entrance sector, the attack sectors with chances and insertion codes, the warp
-exit) into `StrategicContent.creatureLairs`; `lairContainsSector`.
-
-**State.** `StrategicState.creatures` (`CreatureState`): `lairId` (0 none, −1 destroyed), `habitatedDistance`,
-`populationModifier`, `destroyedLairId`, `meanwhileScenePlayed`, `useCreatureMusic` and the attack globals
-`attack {insertionCode, insertionGridNo, numAttacking, battleCode, sectorId}` (`gubNumCreaturesAttackingTown`,
-`gubSectorIDOfCreatureAttack`, `gubCreatureBattleCode`, `gsCreatureInsertionCode`, `gsCreatureInsertionGridNo`; process
-globals in the original, campaign state here). Native saves import the creature directives section and the meanwhile flag
-(`savegame.ts`, `savegame-strategic-ai.ts`, `importCreatureDirectives`).
-
-**Simulation.**
-
-| Module | Public API |
-|---|---|
-| `strategic/creatures/creatures.ts` | `initCreatureLair`, `initCreatureQuest`, `spreadCreatures`, `creatureNightPlanning`, `checkConditionsForTriggeringCreatureQuest`, `endCreatureQuest`, `mineClearOfMonsters`, `playerGroupIsInACreatureInfestedMine`, `warpOutOfMineCodes`, `distributeCreaturesByWeight` (one weighted `Random(100)` per creature, `19` D5), `CREATURE_WEIGHTS_BY_HABITAT` |
-| `strategic/creatures/town-attack.ts` | `creatureAttackTown` (with the quirk that `ubDayOfLastCreatureAttack` is written on the event's mine sector, not the attacked one), `determineCreatureTownComposition`, `clearSurfaceCreatures`, `TownAttackPorts` |
-| `campaign/creature-flow.ts` | `CreatureFlow` (`campaign.creatures`): registers `CREATURE_SPREAD`, `CREATURE_NIGHT_PLANNING` and `CREATURE_ATTACK`; schedules the CREATURES meanwhile (`now + 5`); economy hooks `mineClearOfMonsters` and the quest trigger; the Queen's `creatureQuestEnded` ends the quest; `battleSetup` (`PrepareCreaturesForBattle` composition: tactical transfer or habitat weights); civilians eaten (`adjustLoyaltyForCivsEatenByMonsters`, event `civiliansEaten`) |
-| `tactical/init-list.ts` | `addSoldierInitListCreatures` / pure `placeCreaturesFromInitList`, `addSoldierInitListBloodcats` / pure `placeBloodcatsFromInitList`, `addCreaturesToBattle` (town attacks at the insertion edge or grid), `tacticalCreateCreature` |
-| `tactical/creation.ts` | creature and bloodcat bodies: levels by body (+ difficulty for lair bloodcats), natural weapons and hides, body-part drops, `FARPATROL`/`AGGRESSIVE`, smell; bloodcats start neutral |
-| `tactical/perception/sight.ts` | `MakeBloodcatsHostile` on sight (with the `Random(2)` roar draw), `CONSIDERED_NEUTRAL` for the creature team |
-| `tactical/sector-presence.ts` | `hostileBloodcatsPresent` (the world port's answer for the PBI codes, group arrivals and the compression refusal) |
-
-Battles. `CreatureAttackTown` reaches the PBI (player groups, `preBattle` with encounter `creatureAttack`), autoresolve
-with auto-start (militia only; `buildAutoresolveInput` creates the creature cells AF, AM, YF, YM from the composition), the
-loaded sector (creatures added at once, no pause) or eats civilians. A sector load adds bloodcats and the creatures of a
-mine level or a pending attack; the Tixa cave (J9 b2) starts the quest when entered. A won tactical battle runs
-`KillIncompacitatedEnemyInSector` first. Time compression is refused while a player group is in an infested mine.
-
-**Verified against the oracle** (patch `0006-creature-morale-oracle.patch`, probes `creatures.txt`,
-`creature-battles.txt`, `creature-placement.txt`, `tools/oracle/README.md` "Creatures"): quest start, triggers, spreading,
-night planning, town attacks (battle codes none, PBI and autoresolve; lairs 1, 3 and 4 — the saves never pick lair 2),
-the end of the quest and the composition, draw by draw with full creature dumps; six creature autoresolve battles at all
-three levels; five creature and five bloodcat init-list placements.
-
-**Not yet.** `CreatureDecideAction` and the creature attacks in tactical, blood and smell, the queen's tentacles, quest
-records, the meanwhile scene and creature music (M6).
+Not traced end to end and not reached by the oracle probes:
+- Groups sent to P3 without a pending slot stay there as mobile groups (§7.2).
+- Garrison-launched attack groups stay where their battle was (§8.5).
+- Every contested surface win counts towards waking the Queen (§9.1; depends on the `docs/16`/`19` call sites).
+- A stationary Mike/Iggy is decremented twice (§10.7).
+- The later behaviour of an empty patrol-reinforcement group (§6.7).
+- The order of the two `R` calls in `TacticalCreateEnemySoldier`'s noise target (compiler-defined, §10.4).
+- The garrison notice path of §8.6: no probed situation had an important undefended neighbour.
+- `PrepareEnemyForSectorBattle` as a whole (group ids by team order, the `32 − A + T` clamp): there is no `prepare`
+  probe; the placement decisions are covered by `defence`.

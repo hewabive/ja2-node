@@ -1,41 +1,36 @@
-<!-- Merc contracts and relationships: an implementable spec for M5. 2026-10-16.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–21) and reference/stracciatella/assets/externalized,
-cross-checked against vanilla (reference/vanilla/ja2/Build) where marked. Read-only research: nothing was built or run. -->
-
 # 22 — Merc contracts and relationships
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/`; `V:` is vanilla `Build/`; JSON files are
-`assets/externalized/*.json` (copied to `data/externalized/`). "(inferred)" marks conclusions not traced end to end;
-everything else was read in the code. C integer semantics apply: `/` truncates toward zero (`idiv`), unsigned
-subtraction wraps (`u32`), `INT8`/`UINT8` stores wrap (`i8`/`u8`). `Random` and `Chance` are the `main` stream,
-`PreRandom` the `pre` stream (`01` §3.6); `Chance(x)` is `Random(100) < x` and draws even for `x = 0`; `Random(0)` returns
-0 without drawing, `Random(1)` draws. Times are world minutes (`GetWorldTotalMin`) unless marked; `day`/`hour` are
-`GetWorldDay()`/`GetWorldHour()` (`15` §1.1). "Team order" is soldier id order over the OUR team, `FOR_EACH_IN_TEAM`.
-Quote numbers are the `Tactical/Dialogue_Control.h:11-160` enum values (§10.1). Merc kinds (`ubWhatKindOfMercAmI`):
-`PLAYER_CHARACTER 0` (I.M.P.), `AIM_MERC 1`, `MERC 2` (M.E.R.C.), `NPC 3` (recruited RPCs), `EPC 4`, `NPC_UNEXTENDABLE 5`,
-`VEHICLE 6` (`roster.ts` `MercKind`). Profile *types* (`AIM`, `MERC`, `IMP`, `RPC`, `NPC`) come from
-`mercs-profile-info.json` (`MercProfile::isRPC()` etc., `externalized/mercs/MercProfile.cc:52-94`) and are not the same thing
-as the soldier kind.
+`data/externalized/*.json`. "(inferred)" marks conclusions not traced end to end. C integer semantics apply: `/` truncates
+toward zero (`idiv`), unsigned subtraction wraps (`u32`), `INT8`/`UINT8` stores wrap (`i8`/`u8`). `Random` and `Chance` are
+the `main` stream, `PreRandom` the `pre` stream (`01` §3.6); `Chance(x)` is `Random(100) < x` and draws even for `x = 0`;
+`Random(0)` returns 0 without drawing, `Random(1)` draws. Times are world minutes (`GetWorldTotalMin`) unless marked;
+`day`/`hour` are `GetWorldDay()`/`GetWorldHour()` (`15` §1.1). "Team order" is soldier id order over the OUR team,
+`FOR_EACH_IN_TEAM`. Quote numbers are the `Tactical/Dialogue_Control.h:11-160` enum values (`data/tables/merc-quotes.json`).
+Merc kinds (`ubWhatKindOfMercAmI`): `PLAYER_CHARACTER 0` (I.M.P.), `AIM_MERC 1`, `MERC 2` (M.E.R.C.), `NPC 3` (recruited
+RPCs), `EPC 4`, `NPC_UNEXTENDABLE 5`, `VEHICLE 6` (`roster.ts` `MercKind`). Profile *types* (`AIM`, `MERC`, `IMP`, `RPC`,
+`NPC`) come from `mercs-profile-info.json` (`MercProfile::isRPC()` etc., `externalized/mercs/MercProfile.cc:52-94`) and are
+not the soldier kind.
 
-**Companions.** `21-laptop-and-hiring.md` owns the A.I.M., M.E.R.C. and I.M.P. sites, `HireMerc`, hire costs, the AIM video
-conference and its refusals flow, the M.E.R.C. account page (`SettleMercAccounts`), email, the history and personnel pages and
-the arrival callback as a whole; this spec gives the contract fields hiring must set (§1.2) and the relationship and
-reputation tests the AIM site calls (§5.4). `23-merchants.md` owns arms dealers and repairs. `11` §9 owns the morale event
-table and `UpdateSoldierMorale`; §10 owns `StatChange`/`ProcessStatChange`. `15` owns the clock, the event queue, the order of
-the 00:00 events and the hourly update. `16` owns squads, groups, `RemoveCharacterFromSquads`, `RemoveGroup` and
-`CheckAndHandleUnloadingOfCurrentWorld`. `18` §5 owns assignments (the training opinion bonus reads §5 opinions). `19` §3.8
-owns merc death and capture. `14` owns the savegame container.
+**Scope.** `21` owns the A.I.M., M.E.R.C. and I.M.P. sites, `HireMerc`, hire costs, the AIM refusals flow, the M.E.R.C.
+account page (`SettleMercAccounts`), email, history, personnel, life insurance and the arrival callback as a whole; this doc
+gives the contract fields hiring sets (§1.2) and the relationship and reputation tests the AIM site calls (§5.4). `23` owns
+dealers and repairs. `11` §9 owns the morale event table and `UpdateSoldierMorale`, `11` §10 `StatChange`/`ProcessStatChange`. `15`
+owns the clock, the event queue, the order of the 00:00 events and the hourly update. `16` owns squads, groups,
+`RemoveCharacterFromSquads`, `RemoveGroup` and `CheckAndHandleUnloadingOfCurrentWorld`. `18` §5 owns assignments (the training
+opinion bonus reads §5 opinions). `19` §3.7 owns merc death and capture. `14` owns the savegame container. The agent API
+(commands, prompts, events, view) is `04` §6.
 
 ---
 
-## 0. State this spec adds
+## 0. State
 
-**Soldier, OUR team** (all saved in the soldier record, `Tactical/LoadSaveSoldierType.cc:382-386, 400-405, 464-476,
-526-550`; every field is already in `SOLDIER_LAYOUT`, `savegame-soldier.ts`):
+**Soldier, OUR team**, in `MercRecord.contract` (`MercContract`, `src/sim/campaign/contracts/contract-state.ts`); imported from
+the soldier record (`Tactical/LoadSaveSoldierType.cc:382-386, 400-405, 464-476, 526-550`; `savegame-soldier.ts`):
 
 | Field | Original | Notes |
 |---|---|---|
-| `kind` | `ubWhatKindOfMercAmI` | `RosterMerc.kind` exists |
+| `kind` | `ubWhatKindOfMercAmI` | on `MercRecord` |
 | `contractEnd` | `iEndofContractTime` (INT32 minutes) | AIM: departure minute; M.E.R.C.: minute of death (§4.9); others: meaningless |
 | `contractStartDay` | `iStartContractTime` | M.E.R.C. only: day hired (display) |
 | `totalContractLength` | `iTotalContractLength` (INT32 days) | AIM: days bought so far; RPC: days on the team |
@@ -48,61 +43,43 @@ owns merc death and capture. `14` owns the savegame container.
 | `leaveHistoryCode` | `ubLeaveHistoryCode` | history code for the departure (§4.5) |
 | `medicalDeposit` | `usMedicalDeposit` | deposit actually paid at hire (AIM) |
 | `contractPriceIncreased` | `fContractPriceHasIncreased` | set by a level-up (§3.7) |
-| insurance | `usLifeInsurance`, `iStartOfInsuranceContract` (day), `iTotalLengthOfInsuranceContract` (days), `uiStartTimeOfInsuranceContract` (minute) | §7 |
-| morale | `bMorale`, `bTeamMoraleMod`, `bTacticalMoraleMod`, `bStrategicMoraleMod`, `bDelayedStrategicMoraleMod` | exist on `Soldier` (`11` §9) |
-| quote flags | `usQuoteSaidFlags` bits `LOW_MORAL 0x10`, `ANNOYING_MERC 0x40`, `LIKESGUN 0x80`, `PERSONALITY 0x4000`, `FOUND_SOMETHING_NICE 0x8000`; `bCorpseQuoteTolerance` | daily resets (§2.1) |
+| `lifeInsurance`, `startOfInsuranceContract`, `totalLengthOfInsuranceContract`, `startTimeOfInsuranceContract` | `usLifeInsurance`, `iStartOfInsuranceContract` (day), `iTotalLengthOfInsuranceContract` (days), `uiStartTimeOfInsuranceContract` (minute) | §7 |
+| morale | `bMorale`, `bTeamMoraleMod`, `bTacticalMoraleMod`, `bStrategicMoraleMod`, `bDelayedStrategicMoraleMod` | on `Soldier` (`11` §9) |
+| `quoteSaidFlags`, `corpseQuoteTolerance` | `usQuoteSaidFlags` bits `LOW_MORAL 0x10`, `ANNOYING_MERC 0x40`, `LIKESGUN 0x80`, `PERSONALITY 0x4000`, `FOUND_SOMETHING_NICE 0x8000`; `bCorpseQuoteTolerance` | on `MercRecord`; daily resets (§2.1) |
 
-**Campaign profile** (the game's mutable `gMercProfiles[]`, saved in section 5; initial values from `prof.dat`, imported, never
-committed). Fields this spec reads or writes, with their offsets in the 716-byte Windows record (computed from the extraction
-order in `Tactical/LoadSaveMercProfile.cc:36-208`; the anchors already used by `prof.ts`/`savegame-profile.ts` agree):
+**Campaign profile**: the game's mutable `gMercProfiles[]` is `ProfileProgress` (`src/sim/tactical/profiles.ts`) in
+`StrategicState.profiles`, built from `prof.dat` (or `stubs/profiles.json`) at the new game and imported from save
+section 5. Relations, opinions and counters are mutable campaign state there (slot 2 of `bBuddy`/`bHated` and `bMercOpinion[]`
+change at run time, §5.2); the morale fan-out, the training opinion bonus and this doc read the same record. Fields read or
+written here (ja2-node drops the Hungarian prefix: `bMercOpinion` → `opinions`, `bBuddy` → `buddies`, `iBalance` → `balance`;
+the offsets in the 716-byte record are in `src/content/formats/prof.ts`, computed from the extraction order in
+`Tactical/LoadSaveMercProfile.cc:36-208`): `bMercOpinion[75]`, `bBuddy[5]`, `bHated[5]`, `bHatedTime[5]`, `bHatedCount[5]`,
+`bLearnToLike`/`Time`/`Count`, `bLearnToHate`/`Time`/`Count`, `ubTimeTillNextHatedComplaint`, `bDeathRate`,
+`bReputationTolerance`, `bPersonalityTrait`, `bAttitude`, `bMercStatus`, `uiDayBecomesAvailable`, `usTotalDaysServed`,
+`sSalary` (i16), `uiWeeklySalary`, `uiBiWeeklySalary`, `bMedicalDeposit` (flag), `sMedicalDepositAmount`,
+`bMainGunAttractiveness`, `bArmourAttractiveness`, `usOptionalGearCost`, `iBalance`, `ubMiscFlags3`, `ubDaysOfMoraleHangover`,
+`uiPrecedentQuoteSaid`, `ubSuspiciousDeath`, `iMercMercContractLength`; `uiTotalCostToDate` lives in
+`state.finances.profileCostToDate`.
 
-| Field | Offset | Field | Offset |
-|---|---|---|---|
-| `bArmourAttractiveness` i8 (recomputed at load) | 230 | `bMercOpinion[75]` i8 | 576 (exists) |
-| `bSexist` u8 | 234 | `bMercStatus` i8 | 652 (exists in `savegame-profile.ts`) |
-| `bLearnToHate` i8 | 235 | `bHatedTime[5]` i8 | 653 |
-| `bDeathRate` i8 | 239 | `bLearnToLikeTime`, `bLearnToHateTime` i8 | 658, 659 |
-| `uiDayBecomesAvailable` u32 | 292 | `bHatedCount[5]` i8 | 660 |
-| `usTotalDaysServed` u16 | 322 (exists) | `bLearnToLikeCount`, `bLearnToHateCount` i8 | 665, 666 |
-| `sSalary` i16 | 332 (exists) | `iBalance` i32 | 676 |
-| `bReputationTolerance` i8 | 338 | `ubMiscFlags3` u8 | 689 (exists) |
-| `bBuddy[5]`, `bHated[5]` i8 | 342, 347 (exist) | `ubDaysOfMoraleHangover` u8 | 690 |
-| `bMainGunAttractiveness` i8 (recomputed at load) | 404 | `uiPrecedentQuoteSaid` u32 | 692 |
-| `uiWeeklySalary`, `uiBiWeeklySalary` u32 | 540, 544 | `ubTimeTillNextHatedComplaint` u8 | 702 |
-| `bMedicalDeposit` i8 (flag) | 548 | `ubSuspiciousDeath` u8 | 703 |
-| `sMedicalDepositAmount` u16 | 552 | `iMercMercContractLength` i32 | 704 |
-| `bLearnToLike` i8 | 554 | `uiTotalCostToDate` u32 | 708 (`state.finances.profileCostToDate`) |
-| `usOptionalGearCost` u16 (recomputed at load) | 574 | `bPersonalityTrait`, `bAttitude` | 336, 549 (exist) |
-
-At profile load (`InitProfileFromContent`, `Tactical/Soldier_Profile.cc:188-217`) the attractiveness values and the optional
-gear cost are recomputed from the profile inventory (last gun's `ubDeadliness`, last armour's protection, sum of prices) and
-**`bHatedCount[0..1] = bHatedTime[0..1]`, `bLearnToHateCount = bLearnToHateTime`, `bLearnToLikeCount = bLearnToLikeTime`**.
-`mercs-relations.json` may override opinions and relations (`DefaultContentManager.cc:1285-1290`,
-`MercProfile::deserializeStructRelations`); the shipped file is an empty array.
+At profile load (`InitProfileFromContent`, `Tactical/Soldier_Profile.cc:188-217`; `initProfileFromContent` in
+`src/sim/campaign/profiles.ts`) the attractiveness values and the optional gear cost are recomputed from the profile
+inventory (last gun's `ubDeadliness`, last armour's protection, sum of prices) and **`bHatedCount[0..1] = bHatedTime[0..1]`,
+`bLearnToHateCount = bLearnToHateTime`, `bLearnToLikeCount = bLearnToLikeTime`**. `mercs-relations.json` may override
+opinions and relations (`DefaultContentManager.cc:1285-1290`, `MercProfile::deserializeStructRelations`); the shipped file is
+an empty array.
 
 **Global** (saved): `strategicStatus.mercDeaths` (u8), `.manDaysPlayed` (u32), `.badReputation` (u8 0–100),
-`.insuranceInvestigations`, `.unhiredMercDeaths` (all exist in `state.status`); the renewal list `ContractRenewalList[20]` of
-profile ids and its count `ubNumContractRenewals` (save section 43, 81 bytes: 20 × {u8 profile, 3 filler} + u8 count,
-`Merc_Contract.cc:40-82`); transient renewal sequence flags `gfContractRenewalSquenceOn`, `ubCurrentContractRenewal`,
-`ubCurrentContractRenewalInProgress`, `gfInContractMenuFromRenewSequence` (not saved: a save cannot be made while the
-sequence locks the pause, inferred); the 20-slot leave item list and its owners (section 44, `Map_Screen_Interface.cc:4043-4128`);
-laptop info: `gubPlayersMercAccountStatus`, the life insurance payout list, the personnel dead/left/other lists
-(`Laptop/LaptopSave.h:83-110`, already in `savegame.ts`'s layout).
+`.insuranceInvestigations`, `.unhiredMercDeaths` (`state.status`); the renewal list `ContractRenewalList[20]` of profile ids
+and its count `ubNumContractRenewals` (save section 43, 81 bytes: 20 × {u8 profile, 3 filler} + u8 count,
+`Merc_Contract.cc:40-82`); the sequence flags `gfContractRenewalSquenceOn`, `ubCurrentContractRenewal`,
+`ubCurrentContractRenewalInProgress`, `gfInContractMenuFromRenewSequence` (not in the native save); the 20-slot leave item
+list and its owners (section 44, `Map_Screen_Interface.cc:4043-4128`); laptop info: `gubPlayersMercAccountStatus`, the
+life insurance payout list, the personnel dead/left/other lists (`Laptop/LaptopSave.h:83-110`). In ja2-node the renewal list
+and flags, the leave list and the queued endings are `StrategicState.contracts` (`ContractState`: `renewal`, `leaveList`,
+`pendingEndings`), the laptop info is `state.laptop`.
 
-**What M4 code must change** (findings):
-1. `ProfileProgress.buddies`/`.hated` are readonly copies of `prof.dat` and `Roster.opinion()` reads `content.profiles` (static).
-   The original's relations are mutable campaign state: slot 2 of `bBuddy`/`bHated` and `bMercOpinion[]` change at run time
-   (§5.2). The morale fan-out (`morale.ts` `teammateDied`), the training opinion bonus (`18` §5.8) and §5 must read one mutable
-   campaign profile.
-2. `MERC_DAILY_UPDATE` has no handler; the `updateBuddyAndHatedCounters` and `hourlyMoraleUpdate` slots of `PeriodicSlots` are
-   empty (deviation "Hourly morale"). §2, §5.2 and §5.3 fill them.
-3. `morale.ts` changes no reputation (§6.2) and lacks the low-morale quote flag (`11` §9).
-4. `hiring.ts` sets no contract field and `mercArrives` does not compute the contract end (§1.2); every hire is `AIM_MERC`.
-5. The roster cannot remove a merc. Dead mercs must stay on the roster with `ASSIGNMENT_DEAD` until the player removes them
-   (`removeMerc`, §4.1): the daily update still processes them (§2.1).
-6. `prof.ts`/`savegame-profile.ts` lack the fields above; the save import maps none of the soldier contract fields and skips
-   sections 43 and 44.
-7. `strategicHandlePlayerTeamMercDeath` must add the M5 parts (§4.9) and `mercDeaths` must wrap as a `u8`.
+Dead mercs stay on the roster with `ASSIGNMENT_DEAD` until the player removes them (`removeMerc`, §4.1): the daily update
+still processes them (§2.1).
 
 ---
 
@@ -114,9 +91,9 @@ laptop info: `gubPlayersMercAccountStatus`, the life insurance payout list, the 
 |---|---|---|---|
 | A.I.M. | 1, 7 or 14 days, extendable | renewal sequence at the arrival slot (§3) | up front: hire (`21`), extensions (§3.6) |
 | M.E.R.C. | open-ended | player dismisses, or quits when the account turns invalid (§4.7) | daily accrual settled on the M.E.R.C. site (`21`) |
-| RPC (kind `NPC`) | open-ended | dismissed; quits after 3 unpaid days (§4.8); hated-merc rules (§5.2); Slay leaves after a week (M6) | `sSalary` per day at 00:00 (§4.8) |
+| RPC (kind `NPC`) | open-ended | dismissed; quits after 3 unpaid days (§4.8); hated-merc rules (§5.2); Slay leaves after a week (`25`) | `sSalary` per day at 00:00 (§4.8) |
 | I.M.P. | none | dismissal only | none |
-| EPC | none | "unrecruit" from the assignment menu (M6) | none |
+| EPC | none | unescorted (`24`) | none |
 
 `CanExtendContractForSoldier` (`Strategic/MapScreen.cc:6779-6798`) gates the contract button and menu: not a vehicle, not an EPC,
 not `IN_TRANSIT`, not `ASSIGNMENT_POW`. Everyone else (I.M.P., M.E.R.C., RPCs, mercs below OKLIFE) gets the menu so that they can
@@ -140,8 +117,8 @@ M.E.R.C.: profile.iMercMercContractLength = 1; contractStartDay = day
 `MercArrivesCallback` (`:224-348`, at the arrival event) then sets `profile.bMercStatus = u8(totalContractLength)`,
 **`lastContractUpdate = now`** and recomputes **`contractEnd = MidnightOfFutureDay(totalContractLength) + ContractHour(s)*60`**
 (`:314-321`), and posts an equipment complaint at `540 + Random(660)` today if `SoldierHasWorseEquipmentThanUsedTo` (§2.2) and
-the minute is still ahead (`:324-337`). `HandleMercArrivesQuotes` (`:395-422`): every AIM merc on the team whose hated slot 1/2
-(not the learned slot) holds the arriving profile says quote 49/50 (`HATED_1/2_ARRIVES`).
+the minute is still ahead (`:324-337`). `HandleMercArrivesQuotes` (`:395-422`, skipped for a helicopter insertion): every AIM
+merc on the team whose hated slot 1/2 (not the learned slot) holds the arriving profile says quote 49/50 (`HATED_1/2_ARRIVES`).
 
 ```
 GetMercArrivalTimeOfDay():                                            // Merc_Hiring.cc:424-459 (21 owns the call)
@@ -170,7 +147,8 @@ day). Only A.I.M. mercs (and Slay) show a contract time; M.E.R.C. mercs show `un
 
 Morale is shown as a bar in tactical and as text on the map (`GetMoraleString`, `Map_Screen_Interface.cc:960-970`): dead → "Bad",
 `> 80` Great, `> 65` Good, `> 35` Stable, `> 20` Poor, else Panic. Opinions, relations, tolerances, the death rate and the
-reputation are never displayed.
+reputation are never displayed. The formulas are `contract-times.ts` (`remainingContractMinutes`, `teamListContract`,
+`personnelTimeLeft`).
 
 ---
 
@@ -215,12 +193,12 @@ for pid in 0 .. NUM_PROFILES−1 (200 in Strac, 170 in V; the extra slots are em
                                          : exp (set the flag only when day > 3, DAYS_TIL_M_E_R_C_AVAIL)
     if Random(100) < chance: p.status = WORKING_ELSEWHERE; p.dayBecomesAvailable = 1 + Random(6 + exp/2)
   if p.hangover > 0: p.hangover--                                                    // off-team profiles only
-HandleSlayDailyEvent()                                                               // M6: Slay leaves when contractEnd/1440 <= day
+HandleSlayDailyEvent()                                                               // Slay leaves when contractEnd/1440 <= day (25)
 ```
 
 V matches in order and content (V: `StrategicMercHandler.c:160-330`, RPC test by profile range). A dead merc who was not yet
 removed still gets days served, an equipment check, `DailyMoraleUpdate` (with its reputation side effects, §6.2) and the
-another-contract roll; this is why dead mercs must stay on the roster (§0).
+another-contract roll.
 
 ### 2.2 Equipment complaints
 
@@ -258,14 +236,10 @@ is the value at death).
 
 ### 2.5 Unhired A.I.M. and M.E.R.C. profiles (`Tactical/Campaign.cc:1041-1173`)
 
-These decide availability on the sites (`21` reads them). `HandleUnhiredMercImprovement(p)`: if `WORKING_ELSEWHERE`:
-`Random(100) < 20` → nothing; else for each stat `HEALTH..LEADERSHIP` (11, experience included)
-`ProfileStatChange(p, stat, wisdom/10, FROM_SUCCESS)`. Otherwise (at home): `Random(10) < exp`, **short-circuit**, else
-`Random(100) > wisdom` → nothing; else `do stat = HEALTH + Random(11) while stat == EXPERIENCE`;
-`ProfileStatChange(p, stat, wisdom/2, FROM_TRAINING)`. Then `ProfileUpdateStats(p)` (level-ups raise salaries, §3.7).
-`HandleUnhiredMercDeaths(pid)`: only with `PLAYER_HAD_CHANCE_TO_HIRE` and `status.unhiredMercDeaths < game.json
-unhired_merc_deaths_{easy,medium,hard}` (1/2/3); chance `10 − exp`, +2 for FORGETFUL/NERVOUS/PSYCHO, −1 per STEALTHY trait;
-`PreRandom(1000) < chance` → `MERC_IS_DEAD`, available day 0, counter +1, email if A.I.M.
+They decide availability on the sites: `HandleUnhiredMercImprovement` (stat gains while working elsewhere or at home,
+then `ProfileUpdateStats`, whose level-ups raise salaries, §3.7) and `HandleUnhiredMercDeaths` (`PreRandom(1000)` against
+`10 − exp` with the personality and stealth terms, capped by `game.json` `unhired_merc_deaths_*`) are `21` §2.2, with the
+per-profile loop of §2.1. ja2-node: `handleUnhiredMercImprovement`, `handleUnhiredMercDeaths` (`contracts/daily.ts`).
 
 ---
 
@@ -280,7 +254,7 @@ willing = []; quitter = null
 for s in OUR team, team order:
   skip life == 0, IN_TRANSIT, POW, kind != AIM; skip !ContractIsGoingToExpireSoon(s)
   s.renewalQuoteCode = NOT_USED
-  renewalList[count++] = s.profile                 // never cleared here, no de-duplication (§12)
+  renewalList[count++] = s.profile                 // never cleared here, no de-duplication (§10)
   if WillMercRenew(s, false): willing.push(s) else quitter = s       // the last unwilling one in team order
   update box: add s
 if willing: c = willing[Random(len)]; c says 89 (CONTRACTS_OVER); box reason CONTRACT_EXPIRE_WARNING; show; c.code = 89_USED
@@ -297,7 +271,7 @@ ContractIsExpiring(s)          = contractEnd/1440 <= day && hour == ContractHour
 
 Both test the **day** of the end, not the minute, and the hour of the arrival slot (`timeWillArrive`), not of `contractEnd`. An
 overdue contract (the player never resolved it) satisfies the day test on every later day: the merc is listed again at the next
-morning's warning for his slot and asked again at the slot (§12). The unsigned `− 2` makes hours 0 and 1 never "soon"; A.I.M.
+morning's warning for his slot and asked again at the slot. The unsigned `− 2` makes hours 0 and 1 never "soon"; A.I.M.
 contract hours are 7, 13, 19.
 
 ### 3.2 `BeginContractRenewalSequence` (`Merc_Contract.cc:88-111`)
@@ -312,7 +286,7 @@ sequence is on (`MapScreen.cc:6274-6277`).
 
 ```
 if !sequenceOn: return
-if current == count: count = 0; sequenceOn = false; UnLockPauseState()        // falls through with a stale index (§12)
+if current == count: count = 0; sequenceOn = false; UnLockPauseState()        // falls through with a stale index (§10)
 s = FindSoldierByProfileID(list[current]); if !s: EndCurrent(); return
 if inProgress: return                                                          // waiting for the player
 if !ContractIsExpiring(s): EndCurrent(); return
@@ -326,7 +300,9 @@ EndCurrent(): if sequenceOn: inProgress = false; fromSequence = false; current++
 
 The menu opens for unwilling mercs too (V the same, `MercContract.c:242-276`); choosing an extension then plays the refusal
 (§3.6). Quotes are only said when `CanSayQuote` holds (`Dialogue_Control.cc:517-531`: profile, `life ≥ OKLIFE`, not the robot,
-not gassed, not POW), but the menu opens regardless.
+not gassed, not POW), but the menu opens regardless. ja2-node advances the sequence synchronously after each answer
+(`ContractFlow.renewalStep`) instead of per frame behind the dialogue queue (deviation "Contract renewal sequence"); a listed
+merc who has died or been captured since the warning is skipped when let go (deviation "Renewal of a merc who cannot leave").
 
 ### 3.4 The contract menu (`Strategic/Assignments.cc:4460-4528`, `CreateContractBox` `:5294-5333`, shading `MapScreen.cc:5176-5211`)
 
@@ -341,6 +317,9 @@ Lines (`Map_Screen_Interface.h:122-131`): current funds, blank, **one day** (`$s
 | right click | — | closes the menu; in the sequence it stays open-ended until the player reopens the menu from the contract button |
 
 Outside the sequence the player opens the menu from the map screen at any time (never in tactical: `Assert(fInMapMode)`).
+ja2-node: `contractOptions` (`renewal.ts`) computes the shading with the reasons `notAimMerc`, `tooBadlyHurt`,
+`notEnoughMoney`, `inCombat`, `bleeding`; the menu is the `contractRenewal` prompt (deviation "Contract prompts"), which has
+no right click.
 
 ### 3.5 Will he renew? (`WillMercRenew`, `Merc_Contract.cc:396-451`; `FindRefusalReason`, `:343-393`)
 
@@ -352,7 +331,7 @@ WillMercRenew(s, say):
   buddy = GetFirstBuddyOnTeam(p) → slot 0/1/2 gives quote 103/104/105, none → NONE
   if say:
     q = buddy != NONE ? buddyQuote : reason
-    bit = (PrecedentIndex(q) − 1) & 31            // index in the 13-entry list below; not found → 0 → bit 31 (§12)
+    bit = (index(q) − 1) & 31                     // 0-based index in the 13-entry list below; not found → 0 → bit 31
     if p.precedentQuoteSaid has bit: quote 106 (PRECEDENT_TO_REPEATING_ONESELF_RENEW) else set bit
     quote q
   return buddy != NONE
@@ -376,9 +355,11 @@ GetFirstBuddyOnTeam(p):                            // Soldier_Profile.cc:878-889
   and that profile not MERC_IS_DEAD
 ```
 
-Precedent list (`Dialogue_Control.cc:84-99`), index order: 80, 81, 82, 83, 86, 87, 88, 95, 97, 99, 100, 101, 102. The bits are
-cleared for every living profile at each daily update (§2.1). V (`MercContract.c:417-612`) computes the buddy first, over
-all five slots (only three are ever filled) with "on team and alive", and reaches the same outcomes and quotes.
+Precedent list (`Dialogue_Control.cc:84-99`, `data/tables/merc-contracts.json` `precedentQuotes`), index order: 80, 81, 82,
+83, 86, 87, 88, 95, 97, 99, 100, 101, 102. The first entry and every unlisted quote (the buddy quotes 103–105 among them)
+share bit 31 (C++ leaves `1 << −1` undefined; deviation "Precedent quote bit"). The bits are cleared for every living
+profile at each daily update (§2.1). V (`MercContract.c:417-612`) computes the buddy first, over all five slots (only three
+are ever filled) with "on team and alive", and reaches the same outcomes and quotes.
 
 ### 3.6 Extending (`MercContractHandling`, `Merc_Contract.cc:228-340`)
 
@@ -407,12 +388,13 @@ return true
 
 The insurance box is raised before the contract charge is booked; its answer comes later, so the ledger order is contract
 charge, then the insurance transaction. No medical deposit is charged on extension. `lastContractUpdate` is **not** touched.
+The insurance box is the `insuranceExtension` prompt; the unaffordable box is an event.
 
 ### 3.7 Salary increases
 
 A level gained by an employed A.I.M. merc sets `contractPriceIncreased`; A.I.M. and M.E.R.C. (and unemployed A.I.M./M.E.R.C.
 profiles) multiply `sSalary`, `uiWeeklySalary`, `uiBiWeeklySalary` and `sMedicalDepositAmount` once per level gained
-(`Tactical/Campaign.cc:666-737`):
+(`Tactical/Campaign.cc:666-737`); employed RPCs and I.M.P.s keep their salary:
 
 ```
 CalcNewSalary(old, max):  if old == 0: 0; n = u32(old * 1.25) (= old + old/4 truncated); n = RoundOffSalary(n); min(n, max), at least 5
@@ -421,9 +403,9 @@ RoundOffSalary(n): multiple = 5 (≤250), 10 (≤500), 25 (≤1000), 50 (≤2000
 max: MAX_DAILY_SALARY 30000 for sSalary and the deposit, MAX_LARGE_SALARY 500000 for the others
 ```
 
-An employed M.E.R.C. merc's level-up also posts the "went up a level" email event at `now + 60 + Random(60)` (closes the
-deviation "Experience level-up side effects"). The soldier's paid `medicalDeposit` does not change. The next renewal shows the
-new prices; the merc says quote 116 (`MERC_GONE_UP_IN_PRICE`) once before the menu (§3.3, §4.3).
+An employed M.E.R.C. merc's level-up also posts the "went up a level" email event at `now + 60 + Random(60)` (`21` §3.5). The
+soldier's paid `medicalDeposit` does not change. The next renewal shows the new prices; the merc says quote 116
+(`MERC_GONE_UP_IN_PRICE`) once before the menu (§3.3, §4.3).
 
 ---
 
@@ -439,7 +421,7 @@ new prices; the merc says quote 116 (`MERC_GONE_UP_IN_PRICE`) once before the me
 | M.E.R.C. or RPC quits over a hated merc | hourly counters (§5.2) | 49/50 or 32 | prompt, no rehire | `MERC_QUIT 14` |
 | M.E.R.C. unpaid | account invalid at 00:00 (§4.7) | 54 | **none: he keeps everything** | 14 |
 | RPC unpaid 3 days | 00:00 (§4.8) | 55 | **none** | 14 |
-| Slay | his week ends (M6) | — | none | `SLAY_MYSTERIOUSLY_LEFT 76` |
+| Slay | his week ends (`25`) | — | none | `SLAY_MYSTERIOUSLY_LEFT 76` |
 | Dead or captured merc removed | map screen "remove merc" (`Assignments.cc:4330-4390`) | — | none (dropped earlier) | none for the dead; 22 for a POW |
 
 ### 4.2 `BeginRemoveMercFromContract(s)` (`Strategic/Assignments.cc:4397-4431`)
@@ -456,8 +438,8 @@ if u32(now − s.lastContractUpdate) < 180:                           // within 
 
 ### 4.3 The contract-ending prompt (`Merc_Contract.cc:548-587, 750-857`)
 
-The dialogue event (after the quotes): `InterruptTime`, `PauseGame`, `LockPauseState(CONTRACT_ENDING)`; Iggy becomes available to the army if the
-player still owes him money (`iBalance < 0`, `:966-980`, M6); an EPC is unescorted instead (M6); otherwise:
+The dialogue event (after the quotes): `InterruptTime`, `PauseGame`, `LockPauseState(CONTRACT_ENDING)`; Iggy becomes available
+to the army if the player still owes him money (`iBalance < 0`, `:966-980`); an EPC is unescorted instead; otherwise:
 
 ```
 rehire = requested && !s.signedAnotherContract && kind == AIM
@@ -471,6 +453,9 @@ answer elsewhere: inDrassen = primary shipping destination's sector (B13) not en
                   StrategicRemoveMerc(s)
 answer rehire:    the merc stays; quote 116 if the price rose; the contract menu reopens for him (fromSequence unchanged)
 ```
+
+The box is the `mercDeparture` prompt (`departureOptions`, `departure.ts`). The Iggy rule is the `mercLeavingTeam` hook,
+which nothing wires (§10).
 
 ### 4.4 Where the equipment goes (`Map_Screen_Interface.cc:973-1212`)
 
@@ -493,7 +478,7 @@ gear gets nothing, `21`); `MERC_LEAVE_EQUIP_IN_DRASSEN` or `_IN_OMERTA` is poste
 (`:1044-1096`): message "X left equipment in …"; the items go to the start sector at gridno 4868
 (`START_SECTOR_LEAVE_EQUIP_GRIDNO`) or to the primary airport's delivery sector at gridno 10433, into the loaded world
 (`VISIBLE`, level 0, `REACHABLE`) or the sector's item list; the slot is freed (its owner id is not reset). A merc with no items
-claims no slot, so a second departure can reuse the same slot before the first event fires (§12).
+claims no slot, so a second departure can reuse the same slot before the first event fires.
 
 ### 4.5 `StrategicRemoveMerc(s)` (`Merc_Contract.cc:613-708`)
 
@@ -501,7 +486,7 @@ claims no slot, so a second departure can reuse the same slot before the first e
 if fromSequence: EndCurrent()
 if s.leaveHistoryCode == 0: s.leaveHistoryCode = MERC_CONTRACT_EXPIRED (22)
 personnel lists: life <= 0 → dead; code FIRED or POW → "fired"; else "other"
-kind NPC: SetupProfileInsertionDataForSoldier (M6)
+kind NPC: SetupProfileInsertionDataForSoldier
 if s.assignment >= ON_DUTY && s.groupId: VEHICLE → TakeSoldierOutOfVehicle else RemoveGroup(his own group)   // 16
 if p.status != MERC_IS_DEAD:
   p.status = RETURNING_HOME; p.dayBecomesAvailable = 1 + Random(2)
@@ -510,42 +495,32 @@ if p.status != MERC_IS_DEAD:
 if !(s.statusFlags & DEAD): history(s.leaveHistoryCode, profile, now, s.sector)
 if s.assignment == POW: p.status = FIRED_AS_A_POW (never hireable again) else CalculateMedicalDepositRefund(s)   // §4.6
 TacticalRemoveSoldier(s)                       // RemoveCharacterFromSquads, team slot, map (Soldier_Create.cc:958-1022)
-CheckAndHandleUnloadingOfCurrentWorld()        // 16 §5.10
+CheckAndHandleUnloadingOfCurrentWorld()        // 16
 StopTimeCompression()                          // reason mercLeft
 ```
 
-No morale event fires for anyone when a merc leaves or is fired; teammates feel it only through the hourly team opinion (§5.3)
-and through buddies and hated mercs at later renewals and hires.
+`CheckAndHandleUnloadingOfCurrentWorld` is `16` §5.10. No morale event fires for anyone when a merc leaves or is fired;
+teammates feel it only through the hourly team opinion (§5.3) and through buddies and hated mercs at later renewals and hires.
 
 ### 4.6 Medical deposit refund (`Merc_Contract.cc:711-742`)
 
 Only if the profile's `bMedicalDeposit` flag is set; the amount is the soldier's paid `medicalDeposit`.
 `life == lifeMax` → `FULL_MEDICAL_REFUND (19)` +deposit; `life > 0` → `refund = (2*deposit*life/lifeMax + 1)/2`,
-`PARTIAL_MEDICAL_REFUND (20)`; dead → no transaction. An A.I.M. email reports each case (`21`).
+`PARTIAL_MEDICAL_REFUND (20)`; dead → no transaction. The A.I.M. mails per case are `21` §2.7.
 
 ### 4.7 M.E.R.C. accounts (`Laptop/Mercs.cc:513-588`, `Mercs.h:13-31`)
 
-`DailyUpdateOfMercSite` (everyday 00:00, skipped on Day 1), first of the 00:00 events:
+`DailyUpdateOfMercSite` (everyday 00:00, skipped on Day 1) is the first of the 00:00 events; `21` §3.5 owns it and `21` §3.4
+`SettleMercAccounts`. The part this doc depends on: per M.E.R.C. listing on the team, `p.mercMercContractLength++` unless dead
+(set to 1 at hire; days since last settled); `n` = the longest; `n > 12` → `INVALID`, `n > 9` → `SUSPENDED`, `n > 7` →
+`VALID_FIRST_WARNING`, each set (with its mail) when it differs from the current status, so a smaller `n` can move
+`SUSPENDED` back to `FIRST_WARNING`. Fired mercs keep their unpaid days frozen and still owed.
 
-```
-n = 0
-for each M.E.R.C. listing (mercs-MERC-listings.json order; Larry resolves to his drunk profile after a relapse):
-  if no soldier of that profile is on the team: continue
-  if profile not dead: p.mercMercContractLength++
-  n = max(n, p.mercMercContractLength)
-n > 12 → INVALID (email once) · n > 9 → SUSPENDED (email, Speck complains) · n > 7 → VALID_FIRST_WARNING (email, Speck complains)
-then new M.E.R.C. availability and the one-time site outage (21)
-```
-
-The counter is per profile (days since last settled), set to 1 at hire; fired mercs keep their unpaid days frozen and still owed.
-`SettleMercAccounts` (`Mercs_Account.cc:260-...`, `21`) pays merc by merc while affordable and resets their counters; a full
-payment sets `VALID`. Statuses only escalate in the daily update.
-
-`MercsContractIsFinished(s)` (`Strategic_Merc_Handler.cc:375-419`, for the invalid account in §2.1): enter the map screen;
-`InterruptTime`; `PauseGame`; quote 54 (`NOT_GETTING_PAID`); contract ending **without** the equipment prompt (straight to
-`StrategicRemoveMerc`, the items leave with him); `leaveHistoryCode = MERC_QUIT`. The account turns invalid when a counter
-passes 12 (the 12th midnight after hiring, the 13th after settling) and the mercs leave in the same midnight's
-`MercDailyUpdate`.
+`MercsContractIsFinished(s)` (`Strategic_Merc_Handler.cc:375-419`, for the invalid account in §2.1 and the unpaid RPC in §4.8):
+enter the map screen; `InterruptTime`; `PauseGame`; quote 54 (`NOT_GETTING_PAID`, M.E.R.C. with an invalid account) or 55 (kind
+`NPC`); contract ending **without** the equipment prompt (straight to `StrategicRemoveMerc`, the items leave with him);
+`leaveHistoryCode = MERC_QUIT`. The account turns invalid when a counter passes 12 (the 12th midnight after hiring, the 13th
+after settling) and the mercs leave in the same midnight's `MercDailyUpdate`.
 
 ### 4.8 RPC salary (`Strategic_Merc_Handler.cc:209-257`)
 
@@ -560,15 +535,16 @@ else:
 
 The third consecutive unpaid midnight makes him quit; a later payment settles the arrears in one transaction.
 
-### 4.9 Death bookkeeping (the M5 parts of `StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:52-130`)
+### 4.9 Death bookkeeping (the contract parts of `StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:52-130`)
 
-In order around what `19` §3.8 already does: history `MERC_KILLED (3)`, or `MERC_KILLED_CHARACTER (77)` when the attacker is
-on the OUR team, with the soldier's sector (the world sector if invalid); a screen message off the game screen; deaths +1
-(not EPC/robot); dead flags; `p.status = MERC_IS_DEAD`; **life insurance** (§7: suspicious-death rules unless in autoresolve,
-then `AddLifeInsurancePayout`); morale fan-out (not EPC/robot); M.E.R.C. kind: `contractEnd = now` and Speck's "lost a merc"
-flag; `HandleStrategicDeath`. On the map screen `HandleStrategicDeath` also makes each living teammate (life ≥ OKLIFE) whose
-buddy slot 0/1/2 holds the dead profile say 15/16/17 (`Strategic/Strategic.cc:44-63`); tactical deaths do the same for
-teammates in the sector (`Tactical/Overhead.cc:2208-2220`).
+In order around what `19` §3.7 does: history `MERC_KILLED (3)`, or `MERC_KILLED_CHARACTER (77)` when the attacker is on the OUR
+team, with the soldier's sector (the world sector if invalid); a screen message off the game screen; deaths +1 (not
+EPC/robot); dead flags; `p.status = MERC_IS_DEAD`; **life insurance** (suspicion and `AddLifeInsurancePayout`, `21` §7.2;
+never suspicious in autoresolve); morale fan-out (not EPC/robot); M.E.R.C. kind: `contractEnd = now` and Speck's "lost a
+merc" flag; `HandleStrategicDeath`. On the map screen `HandleStrategicDeath` also makes each living teammate (life ≥ OKLIFE)
+whose buddy slot 0/1/2 holds the dead profile say 15/16/17 (`Strategic/Strategic.cc:44-63`); tactical deaths do the same for
+teammates in the sector (`Tactical/Overhead.cc:2208-2220`). ja2-node: `merc-fate.ts` calls `ContractFlow.deathBookkeeping`,
+`lifeInsuranceOnDeath`, `mercMercDied` and `buddyKilledQuotes` in that order.
 
 ---
 
@@ -581,7 +557,8 @@ RPCs), usually in −25..+25; buddies `bBuddy[0..1]` and hated `bHated[0..1]` fr
 learning; `bHatedTime[0..1]` tolerances (hours together), `bLearnToLike`/`bLearnToLikeTime`, `bLearnToHate`/`bLearnToHateTime`;
 the running counts and `ubTimeTillNextHatedComplaint`. Constants: `BUDDY_OPINION +25`, `HATED_OPINION −25`,
 `TIME_BETWEEN_HATED_COMPLAINTS 24` (`Tactical/Soldier_Profile_Type.h:216-237, 430`). `WhichBuddy`/`WhichHated` return the first
-slot 0..2 holding the profile (`Soldier_Profile.cc:843-875`); `BUDDY_MERC`/`HATED_MERC` test slots 0..2.
+slot 0..2 holding the profile (`Soldier_Profile.cc:843-875`); `BUDDY_MERC`/`HATED_MERC` test slots 0..2. Opinions of profile
+ids ≥ 75 read 0 (deviation "Opinions of high profile ids").
 
 Everything lives on the profile, so tolerance spent in one contract stays spent after a rehire, and learned buddies or enemies
 are permanent for the campaign (counts are only initialised at new-game profile load, §0).
@@ -646,7 +623,7 @@ for s in OUR team, team order: skip NO_PROFILE, asleep, IN_TRANSIT, DEAD, POW
     if op == −25:
       slot = WhichHated(s.profile, o.profile)
       if slot == LEARNED_TO_HATE: foundHated = true; break
-      if slot is HATED1/2 && p.hatedCount[slot] <= p.hatedTime[slot]: foundHated = true; break    // always true (§12)
+      if slot is HATED1/2 && p.hatedCount[slot] <= p.hatedTime[slot]: foundHated = true; break    // always true (§10)
       (slot not found: −25 is mixed in unscaled)
     sum += op; n++; lead = max(lead, EffectiveLeadership(o))
   team = foundHated ? −25 : n > 0 ? i8(sum/n) + (lead − 50)/10 : 0
@@ -654,13 +631,15 @@ for s in OUR team, team order: skip NO_PROFILE, asleep, IN_TRANSIT, DEAD, POW
   d = team − s.teamMoraleMod; s.teamMoraleMod += d > 0 ? 1 + d/10 : d < 0 ? −1 + d/10 : 0; clamp ±50
   if s.delayedStrategicMoraleMod: s.strategicMoraleMod = clamp(+ delayed, ±50); delayed = 0
   RefreshSoldierMorale(s)
-if ++counter == 3: counter = 0; DecayStrategicMoraleModifiers()     // Morale.cc:220-241; counter not saved (deviation in 18)
+if ++counter == 3: counter = 0; DecayStrategicMoraleModifiers()     // Morale.cc:220-241
 ```
 
-A merc alone drifts toward 0; with a team the average opinion plus the best effective leadership around (his own included)
-pulls his team modifier by about a tenth of the gap per hour. A hated merc only forces −25 if the opinion value is exactly −25
-(the opinion table and the hated slots are separate data). V scales the hated opinion by spent tolerance and forces −25 only
-from half tolerance on (V: `Morale.c:713-734`); Strac's `<= hated_time` makes the scaling dead code. D1: port Strac (§12).
+The counter is function-static in the original; ja2-node keeps it in `state.teamMorale.strategicDecayCounter` (deviation
+"Strategic morale decay counter"). A merc alone drifts toward 0; with a team the average opinion plus the best effective
+leadership around (his own included) pulls his team modifier by about a tenth of the gap per hour. A hated merc only forces
+−25 if the opinion value is exactly −25 (the opinion table and the hated slots are separate data). V scales the hated opinion
+by spent tolerance and forces −25 only from half tolerance on (V: `Morale.c:713-734`); Strac's `<= hated_time` makes the
+scaling dead code. ja2-node ports Strac (D1).
 
 ### 5.4 Hiring refusals (`CanMercBeHired`, `Laptop/AIMMembers.cc:1769-1863`; called by the AIM site, `21`)
 
@@ -679,18 +658,19 @@ accept
 ```
 
 M.E.R.C. hiring checks no relationship, death rate or reputation (`Laptop/Mercs_Files.cc`). RPC recruiting mixes the NPC's
-opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, M6).
+opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). ja2-node: `canMercBeHired`
+(`relations/hiring-check.ts`) returns the quote and a refusal `hangover`, `hatesTeammate`, `deathRate` or `reputation`.
 
 ### 5.5 Other effects of relationships
 
-| Effect | Rule | Source | Milestone |
-|---|---|---|---|
-| Renewal | §3.5 | | M5 |
-| Death of a teammate | hated → +5 only; else −5 tactical if in sector, −5 strategic, buddy (slots 0..2) −15 | `11` §9, `Morale.cc:529-563` | M3 (fix to mutable slots, M5) |
-| Buddy killed quotes | 15/16/17 | §4.9 | M5 |
-| Training | instructor opinion bonus | `18` §5.8 | M4 (read mutable opinions) |
-| Attacking a buddy | an order from the UI to attack a merc in one's buddy slots is refused (quote 36) | `Tactical/Handle_Items.cc:243-250` | deviation "Attack refusals" (not ported) |
-| Cosmetic quotes | buddy did well 51/52/53 (`Tactical/SkillCheck.cc:385-420`, `Soldier_Ani.cc:2603-2681`); annoying teammate 39 when opinion < −2 (`Dialogue_Control.cc:785-800`); negative company 41/45 (`Handle_UI.cc:4710-4765`) | | client events |
+| Effect | Rule | Source |
+|---|---|---|
+| Renewal | §3.5 | |
+| Death of a teammate | hated → +5 only; else −5 tactical if in sector, −5 strategic, buddy (slots 0..2) −15 | `11` §9, `Morale.cc:529-563` |
+| Buddy killed quotes | 15/16/17 | §4.9 |
+| Training | instructor opinion bonus | `18` §5.8 |
+| Attacking a buddy | an order from the UI to attack a merc in one's buddy slots is refused (quote 36) | `Tactical/Handle_Items.cc:243-250`; not ported (deviation "Attack refusals") |
+| Cosmetic quotes | buddy did well 51/52/53 (`Tactical/SkillCheck.cc:385-420`, `Soldier_Ani.cc:2603-2681`); annoying teammate 39 when opinion < −2 (`Dialogue_Control.cc:785-800`); negative company 41/45 (`Handle_UI.cc:4710-4765`, the own-merc bark of `24`) | presentation; 39 and 51–53 are not emitted |
 
 ### 5.6 Personality, attitude and leadership
 
@@ -702,7 +682,7 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, M6).
 | Attitude FRIENDLY, LONER, ARROGANT, BIG_SHOT, ASSHOLE | none (quotes, I.M.P. email) | `Soldier_Profile_Type.h:177-190` |
 | Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18` §5.12, `11` §9 |
 | Personality FORGETFUL, NERVOUS, PSYCHO / skill STEALTHY | unhired death chance +2 / −1 | §2.5 |
-| `bSexist` | morale when a merc marries (M6) | `Morale.cc:565-602` |
+| `bSexist` | morale when a merc marries | `Morale.cc:565-602`, `25` |
 | `bReputationTolerance` | hiring (reputation) and the morale tolerance | §6.3 |
 | `bDeathRate` | hiring, renewal, daily morale | §6.3 |
 
@@ -715,7 +695,8 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, M6).
 `CalcDeathRate() = manDaysPlayed > 0 ? u8(u32(f32(mercDeaths) * 1.0f * 100 / manDaysPlayed)) : 0`, i.e.
 `u8(trunc(deaths*100/manDays))`: the `u8` wraps above 255 (3 deaths in one man-day give 44). Deaths: +1 per OUR death except EPCs
 and the robot (§4.9). Man-days: +1 per daily update per team member not dead and not in transit (§2.1). The first daily update
-(Day 2) always sees 0 man-days and grants the low-death-rate bonus.
+(Day 2) always sees 0 man-days and grants the low-death-rate bonus. ja2-node rounds each float step with `Math.fround`
+(`calcDeathRate`, `relations/reputation.ts`).
 
 ### 6.2 Reputation (`ModifyPlayerReputation`, `:129-138`; amounts `Strategic_Status.h:18-32`)
 
@@ -752,30 +733,12 @@ tolerance → renewal, daily morale, the departure hangover (§4.5).
 
 ## 7. Life insurance (contract coupling)
 
-The insurance site's purchase screen is laptop UI (`21`); the rules that touch contracts:
-
-```
-CalculateInsuranceContractCost(len, pid):                          // Laptop/Insurance_Contract.cc:709-775
-  s = OUR soldier of pid; rem = TimeRemainingOnContract(s)
-  if rem < 2 && !(s.lifeInsurance && rem >= 1): return 0; if POW: return 0
-  skill = (mark + med + mech + expl + lead)/5 (profile, INT16)
-  risk  = f32 product of Ratio(skill, 42) · Ratio(p.life, 85) · Ratio(p.expLevel, 3) · Ratio(100 − CalcDeathRate(), 90)
-  risk  = clamp(risk, 0.1f, 10.0f)
-  daily = u32(fround(fround(fround(sSalary*5) * risk) / 100) + 0.5)    // the + 0.5 is a double add; return daily * len
-Ratio(v, norm) = v > 0 ? clamp(fround(norm / v), 0.1f, 10.0f) : 10.0f   // every float step rounded with Math.fround
-TimeRemainingOnContract(s) = min(contractEnd/1440 − 1 + (contractEnd % 1440 ? 1 : 0) − day, totalContractLength)   // :1059-1077
-TimeRemainingOnInsurance(s) = !insured ? 0 : day < start ? totalLen : totalLen − (day − start)                    // :1043-1057
-```
-
-`PurchaseOrExtendInsuranceForSoldier(s, len)` (`:1082-1148`): new policy: start day = tomorrow (today for a merc still in
-transit, except at the game start), `uiStartTime = now`, `PURCHASED_INSURANCE (8)` if affordable (else a box, nothing bought); extension:
-start day recomputed, `EXTENDED_INSURANCE (10)`; then `totalLen += len` clamped so the policy never outlasts the contract.
-`DailyUpdateOfInsuredMercs` (00:00, `:675-700`): an insured, living merc whose remaining policy ≤ 0 (and not started today) loses
-the policy. On death (§4.9): `ubSuspiciousDeath = 2` if killed within 60 minutes of buying, else `1` if the killer is on the OUR
-team or no enemy is in the loaded sector (not in autoresolve); `AddLifeInsurancePayout` (`:835-912`): cost per day = cheapest of
-`sSalary`, `weekly/7`, `biweekly/14`; days = `totalLen − (day + 1 − start)`; event at tomorrow 16:00: suspicious or ≥ 2
-investigations → `INSURANCE_INVESTIGATION_STARTED` (lasts 1 day if very suspicious, else `2 + investigations + Random(3)` days,
-then pays unless very suspicious), else `PAY_LIFE_INSURANCE_FOR_DEAD_MERC` (`INSURANCE_PAYOUT (12)`, history, email).
+`21` §7.1 and `21` §7.2 own life insurance (premium `CalculateInsuranceContractCost`, `Laptop/Insurance_Contract.cc:709-775`, with
+`Math.fround` per float step; purchase and extension `PurchaseOrExtendInsuranceForSoldier`, `:1082-1148`; the 00:00
+`DailyUpdateOfInsuredMercs`, `:675-700`; payout and investigations, `:835-912`). The contract side touches it in three places:
+an extension of an insured merc offers to extend the policy by the extension's length, priced with the new contract end, after
+quote 90 (§3.6); the premium reads the death rate (§6.1); a death sets the suspicion and queues the payout (§4.9). The policy
+never outlasts the contract (`TimeRemainingOnContract`, `:1059-1077`).
 
 ---
 
@@ -793,202 +756,107 @@ then pays unless very suspicious), else `PAY_LIFE_INSURANCE_FOR_DEAD_MERC` (`INS
 | Leaving, equipment here | `RandomGridNo` pairs `Random(160)` (loaded sector without a gridno; unloaded sector without a GRIDNO insertion) | main |
 | `StrategicRemoveMerc` | `Random(2)`; `Random(4)` if morale too low; `Random(6 + exp/2)` if signed elsewhere | main |
 | M.E.R.C. level-up | `Random(60)` email delay | main |
-| Insurance investigation | `Random(3)` (not very suspicious) | main |
+| Insurance investigation | `Random(3)` (not very suspicious, `21` §7.2) | main |
 | Hourly counters, team morale, renewal decisions, pay, refunds | none | — |
 
 The contract-ending and renewal draws happen at the moment of the player's answer, so the `main` stream depends on the order of
 answers; prompts are part of the command log (`04` §5.5).
 
-### 8.2 Wall-clock dependencies and their replacements
+### 8.2 Wall-clock dependencies
 
-| Original | ja2-node |
+The original plays quotes through the dialogue queue (audio length or 60 ms/char), and the contract menu, the departure box and
+the update box wait for them (`CharacterDialogueEvent::MayExecute` also waits for a battle sound); `HandleContractRenewalSequence`
+advances once per map screen frame; the update box beep and the contract-time flashing (`fFlashContractFlag`) are UI. ja2-node
+opens the prompts at once and advances synchronously after each answer; quotes are `mercQuote` events (deviations "Contract
+renewal sequence", "Contract presentation", "Speech"; `Random` shared with cosmetic draws: "Random numbers").
+
+---
+
+## 9. Implementation in ja2-node
+
+### 9.1 State and content
+
+`MercRecord.contract` per merc, `StrategicState.contracts` (`ContractState`), `StrategicState.profiles`
+(`ProfileProgress`), `state.status`, `state.teamMorale`, `state.laptop.merc.accountStatus` (§0). New-game profiles come from
+`loadMercProfiles` (`src/sim/campaign/profiles.ts`; `mercKindForProfileType` maps the profile type to the soldier kind, every
+other type hires as `AIM_MERC`). Native saves: `importContracts` (`contracts/save-import.ts`) reads sections 43 and 44 and the
+M.E.R.C. account status through `src/content/formats/savegame-contracts.ts`; the soldier contract fields come with the
+soldier record and the profile fields with section 5 (`savegame-profile.ts`).
+
+### 9.2 Modules
+
+All under `src/sim/campaign/` with the SFI-SCLA header.
+
+| Module | Responsibility |
 |---|---|
-| Quotes play through the dialogue queue (audio length or 60 ms/char); the contract menu, the departure box and the update box wait for them; `CharacterDialogueEvent::MayExecute` waits for a battle sound | Prompts open at once; quotes are events with the 60 ms/char duration for presentation (D15, `01` §3.8) |
-| `HandleContractRenewalSequence` advances once per map screen frame | Advanced synchronously after each answer |
-| Update box beep, contract time flashing (`fFlashContractFlag`) | Client presentation |
-| Random shared with cosmetic draws | Existing deviation "Random numbers" |
+| `contracts/contract-state.ts` | `MercContract`, `ContractState`, the constants of §0 |
+| `contracts/contract-times.ts` | arrival slots, `hourWhenContractDone`, contract end at hire and arrival, the two expiry predicates, the displays of §1.3 |
+| `contracts/hire-contract.ts` | `hireContract`, `mercArrived` (§1.2), the hated-arrives quotes |
+| `contracts/daily.ts` | `mercDailyUpdate` (§2), equipment complaints, another contract, daily morale, unhired profiles |
+| `contracts/renewal.ts` | warnings, `findRefusalReason`, `mercRenewalWillingness`/`willMercRenew`, precedent bits, sequence steps, `contractOptions` (§3.1–§3.5) |
+| `contracts/extension.ts` | `mercContractHandling` (§3.6) |
+| `contracts/salary.ts` | `calcNewSalary`, `roundOffSalary`, `raiseSalaries` (§3.7) |
+| `contracts/departure.ts` | `beginRemoveMercFromContract`, `departureOptions`, equipment here/elsewhere, leave list and delivery, `strategicRemoveMerc`, medical refund (§4.2–§4.6) |
+| `contracts/merc-account.ts` | the account part of `dailyUpdateOfMercSite`, `mercsContractIsFinished` (§4.7) |
+| `contracts/rpc-pay.ts` | `rpcDailyPay`, `rpcWhineAboutNoPay` (§4.8) |
+| `contracts/quotes.ts` | the contract quote ids, `precedentBitMask`, history codes, special profile ids |
+| `contracts/contract-flow.ts` | `ContractFlow`: the `ContractContext`, event handlers, prompts and answers, commands, level-up and death hooks |
+| `relations/relations.ts` | `whichBuddy`, `whichHated`, `getFirstBuddyOnTeam`, team membership predicates |
+| `relations/reputation.ts` | `calcDeathRate`, `modifyPlayerReputation`, the three tolerances (§6) |
+| `relations/hiring-check.ts` | `canMercBeHired` (§5.4, called by the A.I.M. site) |
+| `team-morale.ts` | `updateBuddyAndHatedCounters` (§5.2), `hourlyMoraleUpdate` and the decays (§5.3) |
+| `morale.ts` | `handleMoraleEvent` (reputation once per call), the low-morale quote flag |
+| `merc-fate.ts` | death and capture (`19` §3.7), calling the §4.9 hooks |
+
+### 9.3 Wiring
+
+`ContractFlow.register` handles `MERC_DAILY_UPDATE`, `MERC_ABOUT_TO_LEAVE`, `BEGIN_CONTRACT_RENEWAL_SEQUENCE`,
+`RPC_WHINE_ABOUT_PAY`, `MERC_COMPLAIN_EQUIPMENT`, `MERC_LEAVE_EQUIP_IN_DRASSEN/OMERTA` and `DAILY_UPDATE_OF_MERC_SITE`; the
+hourly slots `updateBuddyAndHatedCounters` and `hourlyMoraleUpdate` run in the hourly update (`15` §3.2) through
+`battle-flow.ts`. Endings are queued in `contracts.pendingEndings` (`departure`, `withoutEquipment`, `enterMapScreen`) and
+`ContractFlow.settle` runs them, then the renewal sequence, while no prompt is open and the flow is not autoresolve, as the
+original's dialogue events run after the quotes. The prompts `contractRenewal`, `mercDeparture` and `insuranceExtension` are battle-flow
+prompts (`battle.prompt`). `ContractHooks` (`contracts/context.ts`, no-op defaults for sandbox sessions) connect the laptop
+(`laptop-flow.ts` `contractHooks()`: insurance cost, purchase and payout, the M.E.R.C. site update, Larry's relapse, Speck's
+lost-merc flag, history, mails and personnel lists) and the narrative (`slayDailyEvent`). Level-ups reach `ContractFlow`
+through `ExperienceHooks.levelGained`.
+
+### 9.4 Data tables and stubs
+
+Used directly (`data/externalized/`): `mercs-profile-info.json` (profile types: RPC salary, A.I.M./M.E.R.C. tests),
+`mercs-relations.json` (§0), `mercs-MERC-listings.json` (listing order, `21`), `shipping-destinations.json` (primary airport
+delivery sector, §4.4), `game.json` (`unhired_merc_deaths_*`, start sector), `items.json`/`weapons.json`/`armours.json`
+(deadliness, protection, prices for §2.2), strings (UI only).
+
+Transcribed (regenerate with `tools/transcribe/*.ts`, never edit): `data/tables/merc-quotes.json` (`merc-quotes.ts`: every
+quote id with its enum name and the camelCase event key; aliases such as `MERC_QUIT_HATED1 = HATED_1_ARRIVES` name the first
+entry with the number; `QUOTE_NONE = 0xFFFF`) and `data/tables/merc-contracts.json` (`merc-contracts.ts`: `precedentQuotes` in
+bit order, `specialProfiles` BIFF, LARRY_NORMAL, LARRY_DRUNK, DEVIN, SLAY, IGGY, CONRAD from `NPCIDs`, `historyCodes` by name).
+`quotes.ts` restates the ids it uses and is checked against both tables. Scalars (arrival slots, warning offset, 3 unpaid days,
+M.E.R.C. thresholds 7/9/12, reputation amounts, `TIME_BETWEEN_HATED_COMPLAINTS`, ±25, salary multiples and caps, leave gridnos
+4868/10433, 20 leave slots, 6 h delay) are named constants.
+
+Stubs: `stubs/profiles.json` (`27` §6) carries invented A.I.M., M.E.R.C. and RPC profiles with the relationship cases (a hated
+pair with a 6-hour tolerance, buddy pairs, learn-to-like and learn-to-hate targets with short times, an exact −25 opinion,
+`101` tolerances, a low death-rate tolerance, weekly < 7 × daily salaries, medical deposits).
+
+### 9.5 Verification
+
+The oracle probes `contracts`, `profiles`, `dailyupdate`, `relationshours`, `aboutleave`, `beginrenewal`, `renewalstep`,
+`extend`, `beginremove`, `removemerc`, `leaveequip`, `equipleft`, `mercsite`, `levelup`, `salary` and the state setters
+(`tools/oracle/README.md` "Contracts", `contract-compare.ts`) compare the contract state and the draws field by field on the
+original's saves.
 
 ---
 
-## 9. Agent API (D15, D16)
+## 10. Quirks, limitations and open questions
 
-**Commands** (strategic flow; refused in tactical, where the original has no contract menu, with reason `mapScreenOnly`):
-
-| Command | Original | Checks and result |
-|---|---|---|
-| `extendContract {soldier, length: 'day' \| 'week' \| 'twoWeeks'}` | contract menu line (§3.4) → `MercContractHandling` | `notAimMerc`, `cannotExtend` (§1.1), `tooBadlyHurt` (life < OKLIFE), `notEnoughMoney`; a refusal is `ok: true` with `{extended: false, reason}` (the merc said it); an open renewal prompt must be answered instead (`promptOpen`) |
-| `dismiss {soldier}` | Dismiss + confirmation | `cannotExtend`, `inCombat` (in combat and in the loaded sector), `bleeding` (> 12); then the `mercDeparture` prompt |
-| `removeMerc {soldier}` | "remove merc" box for the dead and POWs | only dead or POW; `StrategicRemoveMerc` directly |
-
-**Decision prompts** (time stops; battle-flow prompts answered with `answer {prompt, choice}`, no `defer`; the open one is
-`observe.contractPrompt` with the merc's `name`, the departure sectors as strings and the renewal `balance`):
-- `contractRenewal {soldier, fromSequence, balance, options: [{choice: 'day'|'week'|'twoWeeks', cost, enabled, reason?},
-  {choice: 'dismiss', enabled, reason?}, {choice: 'letGo'}]}` — the menu of §3.4, opened by the sequence (§3.3) or by `rehire`.
-  `letGo` is Cancel. Options for willing and unwilling mercs look the same; the quotes already said tell the player which.
-- `mercDeparture {soldier, sector, choices: ['here'] | ['here', 'elsewhere'] (+ 'rehire'), elsewhereSector}` (§4.3).
-- `insuranceExtension {soldier, days, cost}` → `yes`/`no` (§3.6); the unaffordable case is an event.
-
-**Events**: `mercQuote {soldier, quote, subject?}` for every quote of this spec (`quote` is the enum name in camelCase, e.g.
-`contractsOver`, `mercLeavingAlsucoSoon`, `hateMerc1OnTeamWontRenew`, `renewingCauseBuddy1OnTeam`, `precedentToRepeatingOneselfRenew`,
-`deathRateRenewal`, `refusalRenewDueToMorale`, `acceptContractRenewal`, `mercGoneUpInPrice`, `hatedMercOne`,
-`learnedToHateMerc`, `mercQuitHated1`, `notGettingPaid`, `whineEquipment`, `startingToWhine`; `subject` is the profile the line
-names: the slot's buddy or hated merc, inferred to match the recordings); `contractsExpiringSoon {soldiers}` (the update box,
-default stop condition, `continue`/`stop` per client policy as for the assignments box, `18` §6); `contractExtended {soldier,
-days, cost, endsAt}`; `contractRefused {soldier, reason: 'signedElsewhere'|'hatedMerc'|'learnedToHate'|'deathRate'|'morale'}`
-(what the spoken quote says); `insuranceUnaffordable {soldier, cost}`; `mercLeft {soldier, profile, cause, history,
-equipment: 'here'|'elsewhere'|'carried'|'none', refund?}`; `equipmentDelivered {sector, owner}`; `rpcUnpaid {soldier, amount}`;
-`mercAccountStatus {status}` (with the email, `21`); `historyAdded {code, profile, sector}` and `mailDue {mail, profile?,
-amount?}` until `21` stores them; `reputation` and `deathRate` are **not** events. As implemented, `mercQuote` also carries
-`profile` and the quote number `id`, `mercLeft` the personnel list (`personnel: 'dead'|'fired'|'other'`) and
-`equipmentDelivered` the item count (`items`).
-
-**Observation** (`PlayerView`; only what §1.3 shows): per merc `kind`; `contract` = A.I.M./Slay `{totalDays, remaining: {days,
-hours}, endsAt: {day, hour}, lastContract, dailyRate, renewalCosts: {day, week, twoWeeks}, medicalDeposit, insured,
-insuranceDays}`, M.E.R.C. `{unpaidDays, daysHired, owed}`, RPC `{dailyRate}`, others `null`; `morale` (0–100, the tactical bar)
-and `moraleText`; personnel figures `daysServed`, `totalCost` (the laptop's Personnel page reads its own blocks since M8:
-`observe.laptop.personnel.current` and `.departed`, with the record counters including `battlesFought`, `04` §6.33). Per
-campaign: M.E.R.C. account status (as the site shows it),
-pending equipment deliveries are not shown (only the later message). Never: opinions, buddy/hated slots, tolerances and
-counters, learn-to progress, the precedent bits, `signedAnotherContract`, the renewal list, reputation, death rate.
-
-**Queries**: `contractOptions {soldier}` → the `contractRenewal` options without opening the sequence (same shading, no
-willingness).
-
----
-
-## 10. Data tables and stubs
-
-### 10.1 Sources
-
-**Use directly** (`data/externalized/`): `mercs-profile-info.json` (profile types: RPC salary, A.I.M./M.E.R.C. tests),
-`mercs-relations.json` (apply as Strac does, §0), `mercs-MERC-listings.json` (listing order for §4.7, `21`),
-`shipping-destinations.json` (primary airport delivery sector for §4.4), `game.json` (`unhired_merc_deaths_*`, start sector),
-`items.json`/`weapons.json`/`armours.json` (deadliness, protection, prices for §2.2), strings (contract menu, morale texts,
-messages; UI only).
-
-**Transcribe** (`tools/transcribe/*.ts`, regenerate, never edit):
-
-| Table | Source | Notes |
-|---|---|---|
-| `merc-quotes.json`: the 117 quote ids with names and the aliases (`MERC_QUIT_HATED1 = HATED_1_ARRIVES`, …) | `Tactical/Dialogue_Control.h:11-160` | `sequentialEnum` needs alias and hex (`QUOTE_NONE = 0xFFFF`) support; M6 dialogue reuses it |
-| `merc-contracts.json`: precedent quote list (13), the special NPC profile ids (DEVIN, SLAY, IGGY, CONRAD, LARRY_NORMAL, LARRY_DRUNK, BIFF) from `NPCIDs`, history codes used here | `Dialogue_Control.cc:84-99`, `Soldier_Profile.h`, `Laptop/History.h` | history codes may move to a `21` table |
-
-Scalars (arrival slots, warning offset, 3 unpaid days, M.E.R.C. thresholds 7/9/12, reputation amounts, `TIME_BETWEEN_HATED_
-COMPLAINTS`, ±25, salary multiples and caps, insurance constants, leave gridnos 4868/10433, 20 leave slots, 6 h delay) are named
-constants with `@src` headers.
-
-**Imported from the user's data, never committed**: the profile fields of §0 (`prof.ts` for the new game, `savegame-profile.ts`
-for saves), the soldier contract fields (`readSoldierContracts` next to `readSoldierAssignments`), sections 43 and 44, the
-laptop info fields (account status, payouts, personnel lists).
-
-### 10.2 Stubs
-
-A hand-authored stub profile table in the stub pack (same `MercProfile` model, D8; invented names and numbers, nothing copied
-from `prof.dat`), at profile ids whose `mercs-profile-info.json` type fits (e.g. four A.I.M. ids, one M.E.R.C. id, one RPC id,
-avoiding the special NPC ids): salaries in the three tiers with weekly < 7 × daily, one deposit, tolerances including a 101 and a
-low death-rate tolerance, an A.I.M. pair where one hates the other (tolerance 6 h), a buddy pair, a learn-to-like and a
-learn-to-hate target with short times, opinions including an exact −25, a gun attractiveness for the equipment test. Stub mercs
-(`src/server/stub-mercs.ts`) must then carry these profile ids: relationship code requires a profile on every OUR soldier, as in
-the original.
-
----
-
-## 11. Minimal M5 implementation
-
-### 11.1 Modules (all with the SFI-SCLA header)
-
-1. `content`: `prof.ts` and `savegame-profile.ts` fields (§0); `readSoldierContracts`; sections 43/44 decoders; the two tables.
-2. `sim/campaign/profiles.ts`: the mutable campaign profile (status, availability, salaries, deposit, tolerances, relations with
-   slot 2, counts, timer, opinions, hangover, precedent bits, balance, M.E.R.C. days, cost, days served, misc flags 3, suspicious
-   death); `ProfileProgress` points into it; `Roster.opinion` reads it.
-3. `sim/campaign/relations/`: `relations.ts` (`whichBuddy`, `whichHated`, `getFirstBuddyOnTeam`, team membership predicates),
-   `reputation.ts` (`calcDeathRate`, `modifyPlayerReputation`, the three tolerances), `counters.ts` (§5.2), `team-morale.ts`
-   (§5.3 and strategic decay), `hiring-check.ts` (§5.4 for `21`).
-4. `sim/campaign/contracts/`: `contract-times.ts` (§1.2–§1.3 and the two expiry predicates), `daily.ts` (§2), `renewal.ts`
-   (§3.1–§3.5, prompts), `extension.ts` (§3.6), `salary.ts` (§3.7), `departure.ts` (§4.2–§4.6, leave list, delivery events),
-   `merc-account.ts` (§4.7), `rpc-pay.ts` (§4.8), `insurance.ts` (§7, if `21` does not own it).
-5. `morale.ts`: reputation after each event, the low-morale quote flag, mutable relations in the fan-out.
-6. `merc-fate.ts`: §4.9; `Roster.remove`; hiring/arrival contract fields (with `21`).
-7. Event handlers: `MERC_DAILY_UPDATE`, `MERC_ABOUT_TO_LEAVE`, `BEGIN_CONTRACT_RENEWAL_SEQUENCE`, `RPC_WHINE_ABOUT_PAY`,
-   `MERC_COMPLAIN_EQUIPMENT`, `MERC_LEAVE_EQUIP_IN_DRASSEN/OMERTA`, `DAILY_UPDATE_OF_MERC_SITE` (shared with `21`),
-   `HANDLE_INSURED_MERCS`, `PAY_LIFE_INSURANCE_FOR_DEAD_MERC`, `INSURANCE_INVESTIGATION_STARTED/OVER`; the two hourly slots.
-8. `protocol`/`server`: §9.
-
-### 11.2 Order of work
-
-(a) profile fields, mutable campaign profiles, save import of profiles and soldier contract fields; (b) relation predicates,
-death rate and reputation, `morale.ts` changes; (c) hourly counters and team morale (closes the M4 gap); (d) contract fields at
-hire and arrival with `21`, contract view; (e) the daily update; (f) warnings, renewal sequence and prompts; (g) extension,
-salary increases, insurance coupling; (h) departures, equipment, `StrategicRemoveMerc`, `removeMerc`; (i) M.E.R.C. account and
-RPC pay; (j) stubs and the scenario; (k) sections 43/44 and oracle probes.
-
-### 11.3 Tests
-
-Unit (scripted RNG where draws occur):
-- contract times: end at hire (start and later) and at arrival for each slot; `GetMercArrivalTimeOfDay` at hours 0, 1, 7, 8,
-  13, 14, 23; display formulas incl. the in-transit clamp and the `+59` rounding; `ContractIsExpiring`/`GoingToExpireSoon` for
-  on-time, overdue and the unsigned hour 0/1 case;
-- `CheckIfMercGetsAnotherContract`: gate times, `d` 0..3 and overdue, chance values, no draw at `d ≥ 3`;
-- `WillMercRenew`/`FindRefusalReason`: each reason alone and in combination, sector rules for tolerance > 0 and learn-to-hate
-  at half time, buddy override incl. an in-transit buddy and a dead one, signed elsewhere beats buddy, precedent bits incl. the
-  bit-31 case and the daily reset;
-- renewal: warning list building (willing/quitter choice with the `Random(n)` value, quote codes), list kept when no sequence
-  starts, sequence order, quotes per code, menu shading (money, OKLIFE, bleeding, combat), extension ledger/history, 2-week
-  `timeCanSignElsewhere`, insurance branch;
-- departures: early-firing window (179/180 minutes after arrival), quotes 98/85 boundary 2880, prompt choices per kind and
-  sector, drop-here gridno rules, leave list and 6 h delivery, `StrategicRemoveMerc` status/availability/hangover/another
-  contract with draws, POW, medical refund rounding (e.g. deposit 2500, life 37/80 → 1156);
-- M.E.R.C. thresholds 7/9/12 and same-midnight quitting with carried items; RPC 3rd unpaid day, arrears payment;
-- salary: `CalcNewSalary` on boundary values (250, 251, 1999, 25000, 29000 → cap);
-- relations: hated count path with complaints at `time/2` and multiples of 24, battle reset to 1, M.E.R.C. quit at 0, A.I.M.
-  daily complaint timer (shared, two quotes), learn-to-hate snap and opinion drift values, learn-to-like drift and snap, only
-  squad members, moving groups;
-- team morale: averages, leadership, alone, the exact −25 rule and the Strac quirk, step `1 + d/10`, delayed merge, decay
-  every third call;
-- death rate wrap and the first-day bonus; reputation per event, once per call, clamps; daily morale fan-out excluding a merc
-  on the road;
-- insurance cost with `Math.fround` against hand-computed values; payout days.
-
-Scenario (stubs, headless, instant and manual drivers identical): three A.I.M. stub mercs with 1-day contracts and a stub
-M.E.R.C. merc; on Day 2 05:30 the warning event, at 07:30 three prompts: extend one (ledger, end time), let one go (equipment to
-the airport, delivered at 13:30), one refuses because of the hated merc in the sector; the unpaid M.E.R.C. merc quits on the
-12th midnight after hiring with his gear; relationship counters make the stub M.E.R.C. hater quit after 6 h together.
-
-Original data (`describe.skipIf(!process.env.JA2_DATA_DIR)`): all 170 profiles parse with the new fields (A.I.M. salaries
-positive, weekly ≤ 7 × daily, counts equal times after init); the six saves import contract fields, profiles, sections 43/44
-without error and with plausible ends (contract hour 7/13/19 for every A.I.M. merc).
-
-### 11.4 Oracle probes (`tools/oracle`)
-
-New branches in `src/Oracle.cc` and a `patches/0006-contracts-oracle.patch` with wrappers and accessors for the static
-functions and globals; outputs stay outside the repo.
-
-| Command | Does | Output |
-|---|---|---|
-| `contracts` | per OUR soldier: kind, assignment, life, morale and the four modifiers, every §0 contract and insurance field, `GetHourWhenContractDone`, `ContractIsExpiring`, `ContractIsGoingToExpireSoon`, `FindRefusalReason` (wrappers), `WillMercRenew(s, FALSE)`, `GetFirstBuddyOnTeam`, the three tolerances, `SoldierHasWorseEquipmentThanUsedTo`, `CanExtendContractForSoldier`; globals: renewal list and count (accessor), sequence flags, `CalcDeathRate`, deaths, man-days, reputation, M.E.R.C. account status, balance, leave slots (owner, item count) | `{"probe":"contracts","mercs":[{"id":0,"profile":…,"kind":1,"end":…,"hour":7,"expiring":false,"soon":false,"refusal":65535,"willRenew":true,"buddy":-1,…}],"renewal":{"list":[…],"count":0,"on":false},"deathRate":0,"reputation":…}` |
-| `profiles team=1` / `who=a,b` | the §0 profile fields, opinions about every current team member | one object per profile |
-| `dailyupdate` | `draws on`, `MercDailyUpdate()`, `draws dump`, then `contracts` + `profiles team=1` | the draw log and both dumps |
-| `relationshours count=N` | `N` × (`UpdateBuddyAndHatedCounters(); HourlyMoraleUpdate();`), then `profiles` + `contracts` | no draws; the static decay counter counts calls since process start |
-| `warpto hour=H minute=M` | `WarpGameTime` to the next occurrence | then `contracts` |
-| `removemerc who= history=` | set `ubLeaveHistoryCode`, `StrategicRemoveMerc` with draws traced | profile status, availability, hangover, ledger tail, personnel lists |
-
-Script `probes/contracts.txt`: for SaveGame01, 02, 09 and 10 (07/08 are in turn-based combat): `save`, `contracts`,
-`profiles team=1`, `dailyupdate`, `relationshours count=24`, `warpto hour=5 minute=30`, `contracts` (renewal list, quote codes),
-`warpto hour=7 minute=30`, `contracts` (sequence flags). `contracts-compare.ts` imports each save into ja2-node, runs the same
-functions and compares field by field; RNG-dependent results are replayed from the draw log as for autoresolve. Risks: the
-dialogue queue, message boxes and `ReBuildCharactersList` called headless by these handlers (inferred harmless: queued, never
-pumped); `InterruptTime` from the renewal event may end a warp early (stop the warp at 07:29 and call
-`BeginContractRenewalSequence()` directly if so).
-
----
-
-## 12. Quirks to keep, deviations to log, verified vs inferred, open questions
-
-**Quirks to keep** (Strac; V where marked):
+**Quirks kept** (Strac; V where marked):
 - Contract hour = arrival slot hour (7/13/19); renewal at :30, warning at :30 two hours earlier; extensions keep the hour.
 - Expiry tests use the end day and the slot hour: an unresolved contract is asked again at the same slot every following day;
   POW days add a free day to the contract each midnight.
-- The renewal list is cleared only when a sequence completes; entries pile up across slots and may repeat.
+- The renewal list is cleared only when a sequence completes; entries pile up across slots and may repeat (capped at 20 and
+  the stale-index pass after the last entry, `Merc_Contract.cc:122-131`, is not emulated: deviation "Renewal list").
 - The sequence shows the menu to unwilling mercs; extensions then play the refusal and the departure prompt with a rehire
   button, which loops back to the menu.
 - Buddies (slots 0..2, on the team even in transit, not dead) override every refusal except "signed elsewhere"; the precedent
@@ -1005,42 +873,17 @@ pumped); `InterruptTime` from the renewal event may end a warp early (stop the w
 - Relationship counters tick only between squad members; team morale counts every awake teammate; counters and learned
   relations persist across rehires; snapping is postponed in a loaded sector with enemies.
 - Strac `HourlyMoraleUpdate`: a slot-1/2 hated merc whose opinion is exactly −25 always forces −25 (V scales until half
-  tolerance); kept per D1.
+  tolerance).
 - Death rate wraps as a `u8`; Day 2 always gives the low-death-rate bonus; reputation changes once per morale event call.
 - POOR/GREAT morale skip the subject when he is between sectors.
 - `CheckIfMercGetsAnotherContract` draws only for fewer than 3 days left (V draws always).
 - `DAILY_UPDATE_OF_MERC_SITE` runs before `MERC_DAILY_UPDATE`, so an account that turns invalid empties the same midnight.
 
-**Deviations to log in `docs/deviations.md`**:
-- *Contract renewal sequence*: prompts open at once and advance after each answer instead of per map screen frame behind the
-  dialogue queue; the flow switches to `strategic` as the original enters the map screen; other contract commands are refused
-  while a renewal prompt is open (the original lets the player open another merc's menu, which advances the sequence); the
-  right-click close is not modelled (the prompt must be answered or deferred).
-- *Renewal list*: capped at 20 entries (the original writes past the array); the stale-index pass after the last entry
-  (`Merc_Contract.cc:122-131`) is not emulated (it can only re-open a merc who is expiring and not in the list, inferred
-  unreachable).
-- *Precedent bit*: the undefined `1 << −1` is defined as bit 31 (x86 behaviour).
-- *Contract presentation*: quotes, update boxes, emails, history and screen messages are events and ledgers; no animation,
-  sound or wake/sleep dialogue toggles.
-- Narrowing of "Merc death and capture stand-ins", "Experience level-up side effects" and "Hourly morale" once §4.9, §3.7 and §5.3
-  land.
+**Limitations**:
+- The Iggy rule of the contract-ending event (`Merc_Contract.cc:966-980`) is the `mercLeavingTeam` hook, which no flow wires.
+- `strategicRemoveMerc` does not call `SetupProfileInsertionDataForSoldier` for a departing RPC (kind `NPC`).
 
-**Verified** by reading Strac (V cross-checks where marked): every function quoted with a line range — hiring/arrival contract
-fields, arrival slots, expiry predicates, the daily update (V), warnings, renewal sequence (V), contract menu and shading,
-`WillMercRenew`/`FindRefusalReason` (V), extension, salary increases, `BeginRemoveMercFromContract`, the departure prompt,
-equipment placement and the leave list, `StrategicRemoveMerc`, medical refund, M.E.R.C. account thresholds and quitting, RPC
-pay, death bookkeeping, hourly counters (V), team morale (V differs), hiring refusals, reputation, death rate, tolerances,
-insurance cost/purchase/payout; profile offsets were computed from the extraction order and agree with every offset `prof.ts`
-and `savegame-profile.ts` already use.
-
-**Inferred**: that the recorded relationship lines name the slot's merc (for `subject`); that no save can be written while the
-sequence holds the pause lock (so the transient flags need not be saved); that the stale-index pass is unreachable; that
-headless oracle calls survive the dialogue and message box code; that moving mercs' `sector` is the
-departure sector (`16`'s model) for the equipment drop and the sector tests.
-
-**Decisions** (the former open questions):
-1. Life insurance belongs to `21`; the contract side calls hooks with no-op defaults (`ContractHooks`, deviation "Contract
-   coupling to the laptop").
-2. Strac's `HourlyMoraleUpdate` hated rule is kept (D1).
-3. `endsAt` is exposed at hour precision, as on the personnel screen.
-4. History and email stores come with `21`; this spec emits `historyAdded` and `mailDue` events.
+**Inferred, still unverified**:
+- The recorded relationship lines name the slot's merc (the `subject` of `mercQuote`).
+- No native save holds an active renewal sequence (the pause lock blocks saving), so the transient flags are not imported.
+- A moving merc's `sector` is the departure sector (`16`'s model) for the equipment drop and the sector tests.

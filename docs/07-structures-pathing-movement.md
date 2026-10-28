@@ -1,13 +1,13 @@
-<!-- Structures, movement costs, pathfinding and walking. 2026-10-15, Stracciatella ae6bf01 cross-checked against vanilla.
-Paths are relative to reference/stracciatella/src/game/ ("vanilla:" = reference/vanilla/ja2/Build/). Read-only research,
-nothing was built. Numbers marked "(computed)" come from scratch scripts run on the user's JA2 Gold data, not from the game. -->
+# Structures, movement costs, pathfinding and walking
 
-# Structures, movement costs, pathfinding and walking: an implementable spec
+Paths are relative to `reference/stracciatella/src/game/` (Stracciatella `ae6bf01`; "vanilla:" =
+`reference/vanilla/ja2/Build/`). "(computed)" marks numbers from scratch scripts over the JA2 Gold data, **(inferred)**
+conclusions not traced end to end in the code; everything else was read in the code.
 
-Companion to [`03-logic-animation-coupling.md`](03-logic-animation-coupling.md) §2 (step protocol overview) and
-[`02-mechanics-catalog.md`](02-mechanics-catalog.md) §1 (AP costs). Everything not marked **(inferred)** was read in the
-code. Goal: mercs walk and run around Omerta (A9) in real time (RT) and turn-based (TB) mode, choosing exactly the
-original's paths.
+Companion to [`01-architecture.md`](01-architecture.md) §2 (step protocol overview) and
+[`01-architecture.md`](01-architecture.md) §1 (AP costs). Scope: structure instances and their collision rules,
+the movement cost table, `FindBestPath`, AP/BP of moves, and the walking protocol in real time (RT) and turn-based (TB)
+mode. The ja2-node modules are listed in §7.
 
 Grid conventions used throughout: `gridNo = y*160 + x`; NORTH is `y−1` (`DirIncrementer`, `TileEngine/Isometric_Utils.h:30-40`);
 directions `N=0, NE=1, E=2, SE=3, S=4, SW=5, W=6, NW=7` (`Tactical/Overhead_Types.h:215-228`); "odd" direction = diagonal.
@@ -23,11 +23,11 @@ directions `N=0, NE=1, E=2, SE=3, S=4, SW=5, W=6, NW=7` (`Tactical/Overhead_Type
 `DB_STRUCTURE {ubArmour, ubHitPoints, ubDensity, ubNumberOfTiles, fFlags, usStructureNumber, ubWallOrientation,
 bDestructionPartner, bPartnerDelta, bZTileOffsetX/Y}` plus `ubNumberOfTiles` × `DB_STRUCTURE_TILE {sPosRelToBase,
 bX/bYPosRelToBase, Shape[5][5] (4 height bits per column), fFlags (TILE_ON_ROOF=1, TILE_PASSABLE=2), ubVehicleHitLocation}`.
-Loading (`TileEngine/Structure.cc:311-377`, already mirrored by `src/content/formats/jsd.ts`):
+Loading (`TileEngine/Structure.cc:311-377`, mirrored by `src/content/formats/jsd.ts`):
 - `sPosRelToBase = bX + bY*160` (`:350`), then `NormalizeStructureTiles` makes the tile closest to 0 the base (`:273-309`).
 - Contiguous wall orientations 3/4 become `ORIENT_OUTSIDE_LEFT/RIGHT`, only when the file has aux data (`:357-371`).
-- `ubHitPoints` from the file is **replaced** by `filledCubes*100/255`, stored as **UINT8** (`:351, 374-375`).
-  `jsd.ts` currently keeps the untruncated value: it must be `& 0xFF` (wraps above 650 filled cubes).
+- `ubHitPoints` from the file is **replaced** by `filledCubes*100/255`, stored as **UINT8** (`:351, 374-375`): it wraps
+  above 650 filled cubes (`jsd.ts` keeps `& 0xFF`).
 
 **Instance level** (`STRUCTURE`, one per covered tile; `Structure_Internals.h:176-191`), built by `CreateStructureFromDB`
 (`Structure.cc:399-442`) and `AddStructureToWorld` (`:675-810`):
@@ -65,11 +65,11 @@ shadows (none), **roofs** (`AddRoofToTail` → level 1), **on-roof** (`AddOnRoof
 **deletes the node and throws `FailedToAddNode`** (`WorldMan.cc:519-533`). Only the struct-layer loop catches it
 (`WorldDef.cc:2221-2228`, "defective maps with overlapping objects"), so **a struct whose structure is rejected loses its
 graphic too** (no node, no buddy shadow). A failure on the roof/on-roof layers would propagate out of the loader
-(**(inferred)**: never happens in shipped data). The renderer must use the post-rejection struct list.
+(**(inferred)**: never happens in shipped data). ja2-node's `placeWorldStructures` (`src/content/world/placement.ts`)
+drops rejected struct nodes from the struct layer the renderer draws and throws on a roof/on-roof rejection.
 
-(computed) Simulating the static rules of §1.3 over all 261 maps of JA2 Gold: **A9 rejects nothing**; 6 maps
-(F6 4, G16 30, H15 22, J4 24, K13 1, K5 10) reject 91 struct nodes, all "obstacle vs obstacle" (mostly overlapping
-`FIRSTFULLSTRUCT` trees).
+(computed) The static rules of §1.3 over all 261 maps of JA2 Gold: 6 maps (F6 4, G16 30, H15 22, J4 24, K13 1, K5 10)
+reject 91 struct nodes, all "obstacle vs obstacle" (mostly overlapping `FIRSTFULLSTRUCT` trees); A9 rejects none.
 
 After the layers: `InitLoadedWorld` → `CompileWorldMovementCosts` (`WorldDef.cc:1644-1668`, again at `:2441` when
 edgepoints are generated), and `SetBlueFlagFlags` marks `BLUEFLAG_GRAPHIC` tiles `MAPELEMENT_PLAYER_MINE_PRESENT`
@@ -127,17 +127,16 @@ Roof and on-roof tiles are added with `level = 1`, so their structures get `sCub
   (`Tactical/Handle_Doors.cc:42-67`).
 - Door status: `DOOR_STATUS` records exist only after a door changed state (`Tactical/Keys.cc:843-905`), keyed by the
   base gridno, flagging that tile `MAPELEMENT_EXT_DOOR_STATUS_PRESENT`; `DOOR_PERCEIVED_OPEN` is what the player believes.
-  On a fresh map load there are none, so pathing reads the structure flags.
+  On a fresh map load there are none, so pathing reads the structure flags. In ja2-node the perceived state always
+  equals the real one (`deviations` "Doors").
 - Strac tile-database fix for mis-flagged double doors (`TileEngine/TileDef.cc:122-149`): edits shared DB records
-  (orientation, armour, DDOOR left/right). Missing from `src/content/world/tile-database.ts`.
-- Map door table (`MapDef.doors`: locked, trap, lock id, lock damage, perceived lock and trap): the pathfinder consults it for
-  AI keys (§3.4); the door actions, locks, keys and traps of `docs/25` §8 (`src/sim/tactical/doors/`) read and change it. It
-  lives in `TacticalWorldData.mapDoors` (a mutable map whose entries are replaced, never mutated) and travels with the sector
-  diff (`doorTable`). Perceived values are reset when a map loads and kept in the diff and in native saves.
-- Opening and closing (`docs/25` §8.2-§8.3): walking into a closed door calls `InteractWithOpenableStruct` (the door menu for
-  our mercs at locked doors); code 495 of the open/close animations computes `DoorOpeningNoise` first, then runs
-  `HandleOpenableStruct`, which swaps the structure, charges `doorAPs`/`BP_OPEN_DOOR` (or the action's cost) and, when the
-  door changed, makes the creak noise and lets everyone look.
+  (orientation, armour, DDOOR left/right); `fixDoubleDoors` in `src/content/world/tile-database.ts`.
+- Map door table (`MapDef.doors`: locked, trap, lock id, lock damage, perceived lock and trap): the pathfinder consults it
+  for AI keys (§3.4); door actions, locks, keys and traps are `docs/25` §8 (`src/sim/tactical/doors/`). It lives in
+  `TacticalWorldData.mapDoors` (entries are replaced, never mutated) and travels with the sector diff (`doorTable`).
+- Walking into a closed door calls `InteractWithOpenableStruct` (§4.5); code 495 of the open/close animations computes
+  `DoorOpeningNoise`, then `HandleOpenableStruct` swaps the structure, charges the cost and, when the door changed, makes
+  the creak noise and lets everyone look (`08` §2.8).
 
 ### 1.6 Structure queries used by movement and LOS
 
@@ -159,8 +158,9 @@ soldiers: TRUE if their animation JSD fits in any of the 8 directions; otherwise
 Soldiers own a person structure built from their animation JSD for the current direction
 (`AddMercStructureInfoFromAnimSurface`, `WorldMan.cc:1062-1092`), rebuilt on every direction change
 (`EVENT_SetSoldierDirection`, `Tactical/Soldier_Control.cc:3959-3994`). It never contributes movement costs (no
-`BLOCKSMOVES`). **(inferred)** For standing single-tile humans a per-level occupancy map with `WhoIsThere2` semantics is
-equivalent for movement; LOS needs the real shape later.
+`BLOCKSMOVES`). ja2-node keeps both: the person structure in the tile list (`addMercStructure`,
+`src/sim/tactical/person-structure.ts`; multi-tile checks, LOS and FOV list order) and a per-level occupancy map
+`TacticalState.occupant` that answers `WhoIsThere2` (`whoIsThere`, `state.ts`).
 
 ---
 
@@ -214,7 +214,8 @@ Per tile *type*, set by the tileset's `MovementCostFnc` before the tile DB is bu
 | FIRST..FOURTHFLOOR | FLAT_FLOOR | **FLAT_GROUND** | FLAT_FLOOR | FLAT_FLOOR except **SECONDFLOOR = FLAT_GROUND** |
 
 (Tileset ids from `TileEngine/World_Tileset_Enums.h`: 17 AIRSTRIP, 19 DEAD_AIRSTRIP, 33 TEMP_14, 37 TEMP_18,
-38 TEMP_19, 39 TEMP_20, 45–48 TEMP_26–29, 4 TROPICAL_1. **A9 uses tileset 9 OMERTA_1 → One.**)
+38 TEMP_19, 39 TEMP_20, 45–48 TEMP_26–29, 4 TROPICAL_1; e.g. A9 uses tileset 9 OMERTA_1 → One. ja2-node:
+`surfaceTerrainTable`, `src/content/world/terrain.ts`.)
 
 Per tile override (`TileEngine/TileDat.cc:742-749`): tile indices `REGWATERTEXTURE18..50`, `12`, `14`, `16` → FLAT_GROUND
 (shore pieces). The source also compares the tile index with the *type* constant `REGWATERTEXTURE` (= 7), so tile
@@ -224,9 +225,8 @@ index 7 (`FIRSTTEXTURE8`) is included too (harmless).
 `n` = **first** object node; TEMP_19 special case (`ANOTHERDEBRIS4/6/7` → LOW_WATER, `:330-341`); if no object, index
 ≥ NUMBEROFTILES or its terrain is NO_TERRAIN → `n` = **first** land node (the topmost, land is head-inserted). If
 `n`'s tile has > 1 tile locations, write its terrain to every `g + (offX, offY*160)`, else to `g`. Later gridnos
-overwrite earlier writes. Result: `gpWorldLevelData[g].ubTerrainID` (there is no `gubWorldTerrainType` in Strac).
-(computed) A9: FLAT_GROUND 7470, DIRT_ROAD 1803, FLAT_FLOOR 1503, LOW_GRASS 999 visible tiles; no water, one height,
-no multi-tile terrain objects.
+overwrite earlier writes. Result: `gpWorldLevelData[g].ubTerrainID` (there is no `gubWorldTerrainType` in Strac);
+ja2-node's `TacticalWorld.terrain` from `compileWorldTerrainIds`.
 
 ### 2.4 `CompileTileMovementCosts(g)` (`WorldDef.cc:367-1085`)
 
@@ -260,7 +260,7 @@ else:
      No orientation: all 8 `OBSTACLE`.
      **Order quirk:** the neighbour with the higher gridno (`g+160` for LEFT, `g+1` for RIGHT) is compiled *later*
      and its own terrain `SET` raises the forced 0 back to 9/10. So landing **north/west** of a fence costs 0, landing
-     **south/east** costs terrain. Replicate by compiling in ascending order with SET/FORCE semantics.
+     **south/east** costs terrain. ja2-node gets this by compiling in ascending order with SET/FORCE semantics.
    - armour `MATERIAL_SANDBAG` (18) and `StructureHeight < 2`: all 8 `OBSTACLE`; then if no `OBSTACLE` structure at
      `g−160` and `g+160`: `FORCE(g, N|S, 0, FENCE)`; if none at `g−1` and `g+1`: `FORCE(g, E|W, 0, FENCE)`. No landing
      `NONE`.
@@ -269,19 +269,16 @@ else:
    (`PathAI.cc:2531-2652`): `DOOR_CLOSED_HERE / _N / _W` = blocked iff the door at `g` / `g−160` / `g−1` is closed;
    `DOORS_CLOSED_X_Y` (212–219, Strac double-door diagonals) = blocked iff either of two doors is closed;
    `DOOR_OPEN_HERE / _N / _NE / … / _NW_W` = blocked iff the door at the named offset (`_N_N` = two north, `_W_W` = two
-   west, etc.) is open. **Standard door** (identical in vanilla, `vanilla:TileEngine/WorldDef.c:913-1057`):
-
-   | Orientation / tile | Entries `(offset) dir=cost` |
-   |---|---|
-   | OUTSIDE_LEFT base (frame) | here `NE=WALL N=CLOSED_HERE NW=WALL`; `(0,+1) SE=WALL S=CLOSED_N SW=WALL`; `(−1,0) NW=WALL`, `(+1,0) NE=WALL`, `(−1,+1) SW=WALL`, `(+1,+1) SE=WALL` |
-   | OUTSIDE_LEFT non-base (panel), not sliding | here `NE=WALL E=OPEN_N`; `(−1,0) W=OPEN_NE NW=WALL`; `(0,+1) SE=OPEN_N_N`; `(−1,+1) SW=OPEN_NE_N` |
-   | INSIDE_LEFT | here `NE=WALL N=CLOSED_HERE NW=WALL`; `(0,+1) SE=OBST S=CLOSED_N SW=OBST`; corners `(−1,0) NW, (+1,0) NE, (−1,+1) SW, (+1,+1) SE = OBST`; if not sliding: here `E,SE=OPEN_HERE`; `(−1,0) W,SW=OPEN_E`; `(0,−1) NE=OPEN_S`; `(−1,−1) NW=OPEN_SE` |
-   | OUTSIDE_RIGHT base | here `SW=OBST W=CLOSED_HERE NW=OBST`; `(+1,0) SE=OBST E=CLOSED_W NE=OBST`; corners `(+1,−1) NE, (0,−1) NW, (+1,+1) SE, (0,+1) SW = OBST` |
-   | OUTSIDE_RIGHT non-base, not sliding | here `S,SW=OPEN_W`; `(0,−1) N,NW=OPEN_SW`; `(+1,0) SE=OPEN_W_W`; `(+1,−1) NE=OPEN_SW_W` |
-   | INSIDE_RIGHT | as OUTSIDE_RIGHT base; if not sliding: here `S,SE=OPEN_HERE`; `(0,−1) N,NE=OPEN_S`; `(−1,0) SW=OPEN_E`; `(−1,−1) NW=OPEN_SE` |
-
-   Double doors (`DDOOR_LEFT` `:581-687`, `DDOOR_RIGHT` `:688-792`) and garage doors (`:793-849`) are Strac rewrites
-   of vanilla; transcribe those line ranges literally into a data table (`data/tables/`).
+   west, etc.) is open. Every door case is transcribed into `data/tables/door-costs.json`
+   (`tools/transcribe/door-costs.ts`, from this `ANYDOOR` block): rules apply in order to a door structure matching
+   `kind` (`STANDARD`, `DDOOR_LEFT` `:581-687`, `DDOOR_RIGHT` `:688-792`, `GARAGEDOOR` `:793-849`), `orientation`, `tile`
+   (`base` = the frame, `nonBase` = the panel, `any`) and `notSliding`; each `set` entry `[dx, dy, dir, cost]` raises
+   `cost[g + dx + 160·dy][dir][0]` with SET semantics. The standard door is identical in vanilla
+   (`vanilla:TileEngine/WorldDef.c:913-1057`): the frame puts `DOOR_CLOSED_HERE` and `DOOR_CLOSED_N` (left) or
+   `DOOR_CLOSED_W` (right) on the two moves through the door and blocks the other moves across that edge and its
+   corners (`WALL` for OUTSIDE_LEFT, otherwise `OBSTACLE`; INSIDE_LEFT keeps `WALL` on its own tile); the panel of a
+   non-sliding door (the OUTSIDE non-base tile, the INSIDE tile itself) puts `DOOR_OPEN_*` codes on the swing area.
+   Double and garage doors are Strac rewrites of vanilla.
 4. **`WALLSTUFF`** (walls and `WALLNWINDOW`; `:970-1005`): ORIENT_LEFT: here `NE,N,NW=WALL`; `(0,+1) SE,S,SW=WALL`;
    corners `(−1,0) NW, (+1,0) NE, (−1,+1) SW, (+1,+1) SE = WALL`, i.e. every move crossing the edge between rows
    `y` and `y+1` at column `x`. ORIENT_RIGHT: here `SW,W,NW=WALL`; `(+1,0) SE,E,NE=WALL`; corners `(+1,−1) NE,
@@ -290,7 +287,8 @@ else:
 
 All neighbour writes use raw `g ± k` (no `NewGridNo`); visible tiles never touch the array border (§2.5), and
 non-visible tiles with structures may raise costs of visible neighbours. A structure on the array border would make
-the original write out of bounds or into the wrapped row; guard the indices (inferred: no shipped map does this).
+the original write out of bounds or into the wrapped row (**(inferred)**: no shipped map does this); ja2-node's
+`MovementCosts.raise`/`force` drop writes outside `[0, WORLD_MAX)` and keep the row wrap.
 
 ### 2.5 Map edges
 
@@ -300,7 +298,9 @@ the original write out of bounds or into the wrapped row; guard the indices (inf
 - Non-visible tiles get `OFF_MAP` on both levels; `FindBestPath` rejects a non-visible origin and never enters an
   `OFF_MAP` tile; its raw `curLoc + DirIncrementer` step can therefore not wrap rows from a reachable tile.
 - `HandleNextTile` treats a non-visible next tile as clear (paths out of the map, `Soldier_Tile.cc:280-283`); leaving
-  the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is out of scope.
+  the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is in `16` §5.7 and `16` §5.9.
+- ja2-node: `isVisibleTile` (`src/content/world/grid.ts`) uses the full-map diamond everywhere; the smaller basement
+  bounds apply only to sector exits and schedules (`deviations` "Visible area in basements").
 
 ---
 
@@ -314,8 +314,9 @@ the original write out of bounds or into the wrapped row; guard the indices (inf
   `PATH_IGNORE_PERSON_AT_DEST 2`, `PATH_CLOSE_GOOD_ENOUGH 4` (radius 5).
 - Globals: `gubNPCAPBudget` (AP budget mode), `gubNPCDistLimit` + `gfNPCCircularDistLimit` (distance limit),
   `gubGlobalPathFlags` (ORed into flags), `gfPlotPathToExitGrid`, `gfEstimatePath` (multi-tile only),
-  `gfPlotDirectPath` (SHIFT, UI only). Budget and limit are reset to 0 on most exits and at the end of every
-  `ExecuteOverhead` pass (`Overhead.cc:1138-1139`). **Pass them as explicit arguments** (same semantics).
+  `gfPlotDirectPath` (SHIFT, UI only; not in ja2-node). Budget and limit are reset to 0 on most exits and at the end of
+  every `ExecuteOverhead` pass (`Overhead.cc:1138-1139`). ja2-node has no globals: `findBestPath(env, s, dest, level,
+  options)` takes them per call (`PathOptions`).
 - `PlotPath` / `UIPlotPath` / `EstimatePlotPath` / `RecalculatePathCost` (`PathAI.cc:1968-2405`) wrap it for AP
   estimates (§3.6). `EstimatePlotPath` does *not* ignore people for single-tile soldiers despite its comment
   (only `gfEstimatePath` changes, which only multi-tile code reads) (inferred).
@@ -358,11 +359,12 @@ FindBestPath(s, dest, level, mode, copy, flags, budget, distLimit, circular):
     for d in dirs:
       n = cur.loc + DirIncrementer[d]
       if n ∉ [0, GRIDSIZE): continue
-      [Strac AI only: enemy at night avoiding lit tiles seen by mercs, :808-815, :987-990]
+      [Strac AI only: enemy at night avoiding lit tiles seen by mercs, :808-815, :987-990; not in ja2-node]
       if copy==COPYREACHABLE && used[n]: continue
       if height[n] != height[cur.loc]: continue
       if distLimit && (circular ? PythSpacesAway : SpacesAway)(org, n) > distLimit: continue
       mine flags: skip ENEMY_MINE for non-friendly; friendly skip PLAYER_MINE unless (OUR_TEAM && n==dest) (:1025-1053)
+                  [not in ja2-node: map mines are inert, `deviations` "Map items"]
       c = cost[n][d][level]
       if c == NOT_STANDING: c = terrainCost(n)
       elif c == EXITGRID:   if gfPlotPathToExitGrid: c = terrainCost(n)
@@ -393,26 +395,27 @@ FindBestPath(s, dest, level, mode, copy, flags, budget, distLimit, circular):
   reset; return 0
 ```
 
-Consequences worth testing:
+Consequences:
 - The goal test is "destination at the head of the open list", and the last step costs 0, so the step into the
   destination ignores its terrain.
 - The heuristic underestimates strongly (about 3.6 per straight step vs. a real 9–10), so searches are broad. The pool
-  (1022 simultaneous open nodes) and trail (16382 insertions) limits can make long searches **fail**; reproduce them
-  exactly.
+  (1022 simultaneous open nodes) and trail (16382 insertions) limits can make long searches **fail**; ja2-node keeps
+  both (`POOL_NODES`, `MAX_TRAIL_TREE`). For the reachability floods that the original runs under
+  `ReconfigurePathAI(…, ABSMAX_TRAIL_TREE = 65536, …)` (`PathAI.cc:1831, 1878, 1898`), ja2-node passes
+  `maxTrailTree: ABSMAX_TRAIL_TREE` (edgepoints, item reachability).
 - The unmarked origin can be re-inserted (one more trail entry and pool node each time); stale nodes are re-expanded in
   7 directions. In non-budget mode neither can change the chosen path (inferred: costs are monotone, so a stale
   expansion never finds a strictly cheaper cost), but the origin re-insertions count toward the limits.
 - Paths are truncated to 30 steps for `COPYROUTE`; walking re-paths when they run out (§4.6).
-- RNG: the original draws from the shared `Random()` per inserted node. Path choice does not depend on it; recommend
-  no draws in the TS pathfinder and a line in `docs/deviations.md`.
+- RNG: the original draws from the shared `Random()` per inserted node. Path choice does not depend on it; ja2-node
+  draws nothing and uses that heap (`deviations` "Pathfinder RNG").
 
 ### 3.3 Continuous-turn / multi-tile search
 
-Only for `SOLDIER_MULTITILE` with an animation JSD (prone humans **(inferred)**, vehicles, monsters):
-`fContinuousTurnNeeded` (monster/animal/vehicle) explores clockwise/counter-clockwise from the last step direction
-and finally reverse (+50 per backward step) (`PathAI.cc:893-976, 1433-1437`). Not needed for walking/running mercs.
-
-**Implemented 2026-10-16** (`pathfinding.ts`, `multi-tile.ts`; checked by the creature AI oracle, `13` §14):
+Only for `SOLDIER_MULTITILE` with an animation JSD (prone humans, as the oracle's prone probe soldiers show; vehicles;
+monsters): `fContinuousTurnNeeded` (monster/animal/vehicle) explores clockwise/counter-clockwise from the last step
+direction and finally reverse (+50 per backward step) (`PathAI.cc:893-976, 1433-1437`). As ja2-node implements it
+(`pathfinding.ts`, `multi-tile.ts`; checked by the creature AI oracle, `13` §12):
 - `SOLDIER_MULTITILE` is the soldier's last added structure having more than one tile (`Soldier.multiTile`); the
   structure file is the one of the movement mode's surface (`DetermineSoldierAnimationSurface` with
   `SubstituteBodyTypeAnimation`), indexed by `OneCDirection(dir)`; no file → no multi-tile checks.
@@ -462,7 +465,8 @@ WALKING): RUNNING/ADULTMONSTER_WALKING `ap*10/18`; WALKING/ROBOT_WALK `ap−1`; 
 +2 for run/walk/swat, crawl skips. Door: `+doorAPs[forPlayer ? s.ubDoorHandleCode : HANDLE_DOOR_OPEN]` (3/4/5,
 `Points.h:102-107`). All in **UINT8**: walking onto a cost-0 tile gives `ap = 255`, so `curAP + 255` wraps to
 `curAP − 1` (or prunes at curAP 0). `goingThroughDoor` persists across directions if a later check skips the step
-(quirk). The start cost `MinAPsToStartMovement` is subtracted from the budget up front.
+(quirk). The start cost `MinAPsToStartMovement` is subtracted from the budget up front. ja2-node keeps the AI cost
+window `gubAIPathCosts` in a fresh array per search (`deviations` "AI path-cost cache").
 
 ### 3.6 AP and BP of a path
 
@@ -517,12 +521,14 @@ if FindBestPath(s, dest, s.bLevel, mode, copy, 0):            // (RecalculatePat
                    RUN: (int)(tile/1.8)+extra | WALK: tile−1+extra | SWAT: tile | CRAWL: tile+1 | other: tile
 return pts
 ```
-(`PlotPath` always reads `guiPathingData`, so a `COPYROUTE` call would cost a stale path; no caller does that.)
+(`PlotPath` always reads `guiPathingData`, so a `COPYROUTE` call would cost a stale path; no caller does that.
+ja2-node's `recalculatePathCost` (`ai/utils.ts`) re-costs the soldier's stored path, `deviations` "Recalculated path
+cost".)
 
 Breath per step (`TerrainBreathPoints`, `Points.cc:154-241`): from `cost[g][d][0]` (**always level 0**, even on
 roofs): `9|10→5, 12→10, 16→20, 20→35, 30→50, 36→75, 50→100`, door codes `→5`, else 0; `× carried-weight %`
 (`:117-151`); water forces walking; × run 3 / walk 1 / swat 2 / crawl 4; RT `× 1.25` (int). `DeductPoints`
-(`:488-582`) zeroes the AP part outside combat and scales BP by `AdjustBreathPts` (`:585-635`); see 02 §1.
+(`:488-582`) zeroes the AP part outside combat and scales BP by `AdjustBreathPts` (`:585-635`); see `10` §3.
 
 ---
 
@@ -576,7 +582,7 @@ and new != `SWATTING`: `HandleGotoNewGridNo(s, initial=TRUE, newState)`; if it r
 keep=false (no APs) → **return without changing the animation** (`:1224-1291`). Then: `WALKING/SWATTING/CRAWLING` clear
 pending anim/count; `RUNNING`: `DeductPoints(AP_START_RUN_COST)` if the previous state was not `RUNNING`
 (`:1426-1457`); `HOPFENCE`: `DeductPoints(6, 200)` (`:1551-1554`). Finally set the state, `sAniDelay`
-(`SetSoldierAniSpeed`, `:4921-4960`; formula in 03 §0, `:4763-4918`), reset the frame timer and execute the first frame
+(`SetSoldierAniSpeed`, `:4921-4960`; formula in `01` §3.3, `:4763-4918`), reset the frame timer and execute the first frame
 (`:1733-1740`).
 
 ### 4.3 Per-frame loop (`ExecuteOverhead`, `Tactical/Overhead.cc:477-1140`)
@@ -585,7 +591,7 @@ Every 5 ms pass, soldiers in `MercSlots` order (`:518`); this order decides RT r
 ```
 if s.sAniDelay != 10000 && frameTimerDone(s):
   if (!(anim & (MOVING|SPECIALMOVE)) || !s.fNoAPToFinishMove) && !s.fPauseAllAnimation:    // NoAP freezes moving anims
-    if !AdjustToNextAnimationFrame(s): continue                                         // runs opcodes, 03 §1
+    if !AdjustToNextAnimationFrame(s): continue                                         // runs opcodes, 01 §3.4
     if !(anim & SPECIALMOVE): HandleNextTileWaiting(s)                                   // §4.5
     if anim & (MOVING|SPECIALMOVE) && !(s.flags & PAUSEANIMOVE):
       keep = true; s.fPausedMove = false          // => opcode 402 never pauses movement (cleared after the frame ran; same in vanilla)
@@ -602,16 +608,17 @@ if s.sAniDelay != 10000 && frameTimerDone(s):
       if s.flags & PAUSEANIMOVE: keep = false     // opcodes 446/471
       if !s.fPausedMove && keep: MoveMerc(s, speed(s), s.bMovementDirection)                             // §4.4
     if anim & TURNING: TurnSoldier(s)                                                                   // §4.8
-AI (TB: every soldier every pass; RT: round robin, 03 §5)
+AI (TB: every soldier every pass; RT: round robin, 09 §1)
 ```
 `speed(s)`: `WALKING` uses `gubAnimWalkSpeeds[body].dMovementChange` (1.6 for mercs), all other states
 `gAnimControl[state].dMovementChange` (RUN 2.6, SWAT 2.2, START_SWAT 1.3, CRAWL 0.8; `Animation_Control.cc:37-52,
 351-425`). WALKING/RUNNING/SWATTING/CRAWLING scripts are 12-frame loops without pause opcodes (computed from
-`Ja2bin.dat`, cf. 04 §1).
+`Ja2bin.dat`, cf. `04` §1).
 
 Note the one-frame lag: the centre is crossed during frame N's `MoveMerc`; arrival logic runs at frame N+1, before
 that frame's `MoveMerc` heads for the next tile from the overshot position (the snap-to-centre lines are commented out,
-`:724-725`).
+`:724-725`). ja2-node's `overhead.ts` runs this loop once per 5 ms tick; `HandleBloodForNewGridNo` (the blood trail of a
+bleeding mover) is not ported.
 
 ### 4.4 `MoveMerc`, position and the occupancy switch
 
@@ -627,16 +634,9 @@ MoveMerc(s, speed, dir):                                         // Soldier_Cont
 EVENT_SetSoldierPositionXY: g = trunc(f32(y/10))*160 + trunc(f32(x/10)); s.dXPos=x; s.dYPos=y; s.sX/sY = trunc; SetSoldierGridNo(s, g)
 ```
 `SIN/COS` are the double results of `sin/cos((double)(float)angle)` with `PI = 3.1415926` (`sgp/Types.h:54`) and
-angles `[PI, 3PI/4, PI/2, PI/4, 0, −PI/4, −PI/2, −3PI/4]` for `N..NW`. Hard-code them (computed with glibc):
-
-| dir | angle (float) | sin | cos |
-|---|---|---|---|
-| N | 3.141592502593994 | 1.5099579909783707e-07 | −0.9999999999999886 |
-| NE | 2.356194496154785 | 0.7071067769704656 | −0.7071067854026294 |
-| E | 1.570796251296997 | 0.9999999999999971 | 7.549789954891874e-08 |
-| SE | 0.7853981256484985 | 0.7071067544940086 | 0.7071068078790854 |
-| S | 0 | 0 | 1 |
-| SW/W/NW | negated angles | −sin(SE/E/NE) | cos(SE/E/NE) |
+angles `[PI, 3PI/4, PI/2, PI/4, 0, −PI/4, −PI/2, −3PI/4]` for `N..NW`, so N is not exactly `(0, −1)` (sin
+`1.5099579909783707e-07`). ja2-node hard-codes the glibc values as `MOVE_SIN_COS` (`src/sim/tactical/constants.ts`),
+indexed by direction as `[sin, cos]`; SW/W/NW are SE/E/NE with sin negated.
 
 All position math is **float32** (`Math.fround` after every multiply-to-float and add); NE and SE x-steps differ in
 the last bits. Example (computed): walking east from x=505 the tile counts per tile are 7, 6, 6, **7**, 6 frames
@@ -649,7 +649,10 @@ structure, adjacency counts, roof marker, `UnMarkMovementReserved`), `sGridNo = 
 door (`bEndDoorOpenCode == 2`); insertion code; `UnMarkMovementReserved`; adjacency counts; `DropSmell`; fence z
 override; add merc level node + person structure (`AddMercToHead`), light; `bOverTerrainType = terrain(g)`; water
 transitions (`usUIMovementMode = WALKING` in water, deep-water swim animations, `WaterDamage` in MED/DEEP); gas flag;
-sneaking agility gain; `SetSoldierAniSpeed` (new terrain speed takes effect immediately).
+sneaking agility gain; `SetSoldierAniSpeed` (new terrain speed takes effect immediately). ja2-node's
+`setSoldierGridNo` (`movement.ts`) keeps the simulation steps in this order (occupancy, person structure, reservation,
+auto-close door, `dropSmell`, terrain, walking in water, animation speed; the gas flag through the `enteredGridNo`
+hook); deep-water swim animations, `WaterDamage` and the sneaking agility gain are not ported.
 
 ### 4.5 Next tile: blocking, reservation, waiting
 
@@ -681,7 +684,10 @@ else: HaltGuyFromNewGridNoBecauseOfNoAPs(s); s.bEndDoorOpenCode = 0; keep = fals
 return true
 ```
 (RNG note: `Random(100)` is drawn every step past index 2 for FORGETFUL mercs; the others only when their
-preconditions hold, left to right.)
+preconditions hold, left to right.) ja2-node's `handleGotoNewGridNo` (`movement.ts`) ports the breath, fence, door,
+`HandleNextTile`, AP and gas steps (gas through the `runningIntoGas` hook, `checkForRunningIntoGas` in
+`explosions/smoke.ts`, with its `PreRandom(5)`); the mine sense, marbles, blind and drunk falls and the FORGETFUL counter
+are not ported, so their draws do not happen.
 
 `HandleNextTile(s, d, g, final)` (`Soldier_Tile.cc:272-373`): non-visible `g` or `CROW_FLY` → TRUE.
 `b = TileIsClear(s, d, g, lvl)`; if blocked: (a) `g == final && ubWaitActionToDo == 0 && (OUR_TEAM ||
@@ -689,7 +695,8 @@ sAbsoluteFinalDestination == NOWHERE)` → `SetFinalTile` (`sFinalDestination = 
 (b) STATIONARY → `EVENT_StopMerc` keeping `sFinalDestination`, `SetDelayedTileWaiting(s, g, 1)` → FALSE; (c) TEMP →
 same with value 100 → FALSE. If clear: **RT only** `MarkMovementReserved(s, g)` (flag `MAPELEMENT_MOVEMENT_RESERVED`,
 `ubReservedSoldierID = s.ubID`, releases the previous reservation; `:75-90`); if `Water(g)`: crouched/prone →
-`fContinueMoveAfterStanceChange = TRUE; ChangeSoldierStance(STAND)`; `RUNNING → WALKING`. Return TRUE.
+`fContinueMoveAfterStanceChange = TRUE; ChangeSoldierStance(STAND)`; `RUNNING → WALKING`. Return TRUE. (ja2-node:
+only `RUNNING → WALKING`; the stand-up in water is not ported.)
 
 `TileIsClear(s, d, g, lvl)` (`:115-268`):
 ```
@@ -715,7 +722,7 @@ Reservations are released in `SetSoldierGridNo` on entering the tile, on removal
 and when halting for APs (`UnMarkMovementReserved`, `:93-112`; kept during `HOPFENCE` until the position reaches it).
 
 `HandleNextTileWaiting(s)` (`:376-625`), every animation frame while `fDelayedMovement`, gated by a **700 ms** timer
-(`NEXT_TILE_CHECK_DELAY`, `:25`; use game ms):
+(`NEXT_TILE_CHECK_DELAY`, `:25`; game ms in ja2-node, `Soldier.nextTileCheckAt`):
 ```
 b = TileIsClear(s, dirTo(cause), cause, lvl)
 if s.fDelayedMovement >= 100 && b == TEMP: if ++s.fDelayedMovement > 120: SetFinalTile(given up, "no path" msg); s.fDelayedMovement = 0
@@ -732,7 +739,7 @@ s.fDelayedMovement++ (the "cap at 99" line is a no-op); value 3: AI/autobandage 
 and within 5 tiles of the final destination (player): SetFinalTile
 ```
 `SetDelayedTileWaiting` also makes a player follower borrow the blocker's speed stats (`fUseMoverrideMoveSpeed`,
-`:27-58`).
+`:27-58`); ja2-node's `setDelayedTileWaiting` sets only the value, cause and timer.
 
 ### 4.6 Final destination, path exhaustion, stopping
 
@@ -786,7 +793,12 @@ Continuing a halted move: `ContinueMercMovement` / `CheckForMercContMove` (`Sold
 10. `HandleSystemNewAISituation`.
 11. Quest/NPC arrival triggers (EPCs, John/Mary, Maria, Joey; hostile hicks).
 
-For a first implementation 5–7, 9–11 are hooks returning "nothing happened".
+ja2-node's `handleAtNewGridNo` (`movement.ts`) does 2 and 8, steps 5–7 in the `atNewGridNo` hook of
+`perception/wiring.ts` (pressure action items of our soldiers, `setOffActionItemsInGridNo`; the footstep noise plus a
+`stealthyFootstep` event for a sneaking merc; `HandleSight`), 10 through `newAiSituation`, and of 11 the escort
+arrivals and the assassin's approach. Step 1 is presentation; bombs and mines are inert (`deviations` "Map items").
+Not ported here: the early return of 3 (a squad walking off the map still makes noise and looks), the breath collapse
+check of 4 and the mine sense of 9.
 
 ### 4.8 Turning while moving
 
@@ -816,7 +828,7 @@ stationary; `ChangeSoldierStance` and `sFinalDestination = sGridNo` (`:2843-2857
 |---|---|---|
 | AP | never deducted or checked (`Points.cc:462-465, 495-498`) | per step at the centre; first step must be affordable |
 | BP | `× 1.25` | plain |
-| Frame delay | full; `× 2` in stealth | `/ 2`; unseen soldiers 0 |
+| Frame delay | full; `× 2` in stealth | `/ 2`; unseen soldiers 0 (ja2-node: without the fade, `deviations` "Unseen soldiers in combat") |
 | Tile reservation | yes (`HandleNextTile`) | no |
 | New order while walking | re-plan from `sDestination` with dummy step (§4.1) | UI blocks until stationary/halted |
 | Halt reasons | blocked tile, mines, gas, sighting → `EVENT_StopMerc` (AI) | plus out of APs and interrupts → `fNoAPToFinishMove` freeze |
@@ -840,15 +852,21 @@ stationary; `ChangeSoldierStance` and `sFinalDestination = sGridNo` (`:2843-2857
 | `usUIMovementMode`, `usAnimState`, `usPendingAnimation` | chosen mode, current state, queued state |
 | `fNoAPToFinishMove`, `fDelayedMovement`, `sDelayedMovementCauseGridNo`, `sReservedMovementGridNo`, `fBlockedByAnotherMerc`, `bBlockedByAnotherMercDirection`, `bReverse`, `bPathStored`, `bOverTerrainType`, `fPrevInWater` | §4 |
 
+ja2-node's `Soldier` (`src/sim/tactical/soldier.ts`) uses the names without type prefix (`x`/`y` = `dXPos`/`dYPos`,
+`destX`, `pastX`, `path`, `pathIndex`, `delayedMovement`, `reservedGridNo`, …); reservations live in
+`TacticalState.reserved`.
+
 Helpers (`TileEngine/Isometric_Utils.{h,cc}`): `OppositeDirection = (d+4)%8`, `OneCDirection = (d+1)%8`,
 `OneCCDirection = (d+7)%8`, `TwoCDirection = (d+2)%8`; `DirectionInc(d)` (d > 7 → 1, `:307-315`);
 `NewGridNo(g, inc)` returns `g` when `OutOfBounds` (row wrap at columns 0/159, `< 0`, past the last row;
 `:262-304`; note the fast path tests `g > 160`, not `>=`); `PythSpacesAway = (int)hypot(Δrow, Δcol)`,
 `SpacesAway = max`, `CardinalSpacesAway = sum` (`:408-436`); `GETWORLDINDEXFROMWORLDCOORDS(y, x)` (`.h:48`).
-There is no `FindDirection`; use `GetDirectionToGridNoFromGridNo(dest, src)` = `atan8(src→dest)`
-(`Soldier_Control.cc:6334-6376`): `θ = atan2(−Δy, Δx)` mapped to `[0, 2π)`, `idx = (int)((8θ+π)/(2π)) % 8` into
-`[E, NE, N, NW, W, SW, S, SE]`; `Δ = 0` → EAST. Integer deltas never fall on a sector boundary (tan 22.5° is irrational),
-so `Math.atan2` is safe (inferred).
+There is no `FindDirection`; the direction between tiles is `GetDirectionToGridNoFromGridNo(dest, src)` =
+`atan8(src→dest)` (`Soldier_Control.cc:6334-6376`): `θ = atan2(−Δy, Δx)` mapped to `[0, 2π)` (`M_PI`, not the
+`PI` literal), `idx = (int)((8θ+π)/(2π)) % 8` into `[E, NE, N, NW, W, SW, S, SE]`; `Δ = 0` → EAST. Integer deltas never
+fall on a sector boundary (tan 22.5° is irrational), so `Math.atan2` is safe **(inferred)**. ja2-node: grid helpers in
+`src/content/world/grid.ts`, direction helpers in `src/sim/tactical/directions.ts` (`QuickestDirection` =
+`quickestTurnIncrement`), `directionToward` in `movement.ts`, `atan8` in `perception/opp.ts`.
 
 ---
 
@@ -867,38 +885,36 @@ so `Math.atan2` is safe (inferred).
   action: `FindHigherLevel` (ground, no roof overhead, cardinal neighbour with `NORMAL_ROOF` and free at level 1, fewest
   turns; `Isometric_Utils.cc:446-479`) → `CLIMBUPROOF`, 10 AP + stance to stand, 500 BP, 44 × 30 ms, commit at 408;
   `FindLowerLevel` → `CLIMBDOWNROOF`, 6 AP + stance to crouch, 250 BP (`Points.cc:1648-1660`,
-  `Soldier_Control.cc:1574-1588, 5188-5202, 6202-6216`). Global sight is disabled during both (03 §6).
+  `Soldier_Control.cc:1574-1588, 5188-5202, 6202-6216`). Global sight is disabled during both (`01` §3.5).
+- ja2-node: fence hop in `animation.ts` (`beginSoldierClimbFence`, `findFenceJumpDirection`), roof climbing in
+  `roofs.ts`; jumping over a prone soldier (`jump-over.ts`) and window climbing (`player-orders.ts`) are separate actions.
 
 ---
 
-## 7. Minimal implementation for A9 (RT and TB, exact path choice)
+## 7. Implementation in ja2-node
 
-A9 facts (computed): tileset 9 (OMERTA_1, terrain function One), one height level, no water, no exit grids, no rejected
-structs, 172 jumpable fence and 20 sandbag bases (so fence hopping **is** reachable by the original path choice),
-54 door bases (all closed at load → impassable for players), 716 walls, 663 roof tiles.
+**Content** (`src/content/`; `loadTacticalWorld` / `buildTacticalWorld` in `world/tactical-world.ts` build it per
+sector): `formats/jsd.ts` (§1.1); `world/tile-database.ts` (tile elements, terrain per tile type, shore override,
+`fixDoubleDoors`); `world/structures.ts` (`WorldStructures`: per-tile lists in add order, IDs from
+`INVALID_STRUCTURE_ID + 2`, `okayToAdd` = §1.3, `add`, `remove`, `find`, `findBase`); `world/placement.ts` (§1.2);
+`world/movement-costs.ts` (`MovementCosts`, a `Uint8Array` indexed `[g][dir][level]` with `raise` = SET and
+`force` = FORCE; the compile functions of §2; door rules from `data/tables/door-costs.json`).
 
-1. **Content** (`src/content`): terrain id per tile element (§2.3 including the shore override); `hitPoints & 0xFF`;
-   the Strac double-door DB fix (`TileDef.cc:122-149`); keep the JSD structure array per surface so `bPartnerDelta`
-   can be resolved later.
-2. **World build**: STRUCTURE instances and per-tile lists via `AddStructureToWorld` with the static rules of §1.3, in
-   load order (structs L0, roofs L1, on-roof L1); drop rejected struct nodes (renderer too); `CompileWorldTerrainIDs`;
-   `CompileWorldMovementCosts` in ascending order with SET/FORCE semantics (§2.4; transcribe door tables to
-   `data/tables/`); visible-tile predicate (§2.5). Golden test: dump the original's table for A9 if a Strac debug build
-   is ever available; until then unit-test the fence asymmetry, sandbag rule and wall edges.
-3. **Pathfinder**: exact port of §3.2 for single-tile soldiers including open-list order, direction order, stale-node
-   and origin quirks, pool/trail limits, 30-step `COPYROUTE`, `NO_COPYROUTE` `& 0xFF`, door resolution (§3.4),
-   `PATH_THROUGH_PEOPLE` / `IGNORE_PERSON_AT_DEST`, `NewOKDestination`. Budget mode can wait for the AI.
-4. **AP/BP**: `TerrainActionPoints`, `ActionPointCost`, `PtsToMoveDirection`, `MinAPsToStartMovement`, `PlotPath`
-   (UI cost), `TerrainBreathPoints` + `DeductPoints` (02 §1).
-5. **Soldier movement state** (§5) and the per-frame machine of §4.3: `EVENT_InternalGetNewSoldierPath` (both branches),
-   moving parts of `EVENT_InitNewSoldierAnim`, `HandleGotoNewGridNo`, `HandleNextTile`/`TileIsClear`/reservations/
-   `HandleNextTileWaiting`, float32 `MoveMerc` + `SetSoldierGridNo` occupancy switch, `HandleAtNewGridNo` with hooks,
-   final destination, path exhaustion re-plan, `EVENT_StopMerc`, NoAP freeze and resume, `TurnSoldier`,
-   `QuickestDirection`.
-6. **Timelines** (03 §7, 04 §1): WALKING, RUNNING, START_SWAT, SWATTING, CRAWLING, STANDING, CROUCHING, KNEEL_UP/DOWN,
-   END_HURT_WALKING, HOPFENCE (444/450/499 markers); `CalculateSoldierAniSpeed` incl. terrain speed table and TB/RT
-   factors.
-7. **Not needed yet**: door opening (players cannot path through closed doors anyway), mines, gas, water, exit grids,
-   multi-tile/prone pathing details, interrupts/sight/noise (hooks), roof climbing, AI budget mode.
-8. **Deviations to log**: no shared-RNG draws in the pathfinder (§3.2); the 700 ms waiting timer, frame timers and
-   AI cadence in game milliseconds instead of wall clock; any skipped hook.
+**State**: `TacticalState.world` (`costs`, `structures`, `terrain`, `level`, `mapDoors`), `occupant` (`WhoIsThere2`),
+`reserved` (RT reservations), `mercSlots` (pass order) and the movement fields of `Soldier` (§5). Door swaps
+(`doors.ts`, `doors/`, `25` §8), explosions and map changes recompile costs locally.
+
+**Simulation** (`src/sim/tactical/`):
+
+| Module | Responsibility |
+|---|---|
+| `pathfinding.ts` | `findBestPath` (§3.2–§3.5, including `COPYREACHABLE(_AND_APS)` with the AI cost window `AI_PATHCOST_RADIUS` 9), `newOKDestination(AndDirection)`, `isDestinationBlocked`; `PathEnv` bundles the world, `whoIsThere` and door statuses |
+| `multi-tile.ts`, `person-structure.ts` | Animation structure files, `Soldier.multiTile`, person structures, `okToAddMercToWorld` (§1.6, §3.3) |
+| `points.ts`, `plot-path.ts` | The AP/BP functions of §3.6 (`doorTravelCost` = `InternalDoorTravelCost`); `plotPathSteps` = `PlotPath`; the AI's `EstimatePlotPath` is `estimatePlotPathCost` (`ai/utils.ts`) |
+| `movement.ts` | The walking protocol of §4.1–§4.7 |
+| `overhead.ts` | `executeOverhead`: one soldier pass per 5 ms tick in `mercSlots` order (§4.3) |
+| `animation.ts`, `movement-mode.ts` | `initNewSoldierAnim`, `turnSoldier`, frame timers, the fence hop; mode by stance |
+
+Verification: the oracle probes `costs` (the whole table, byte by byte), `path` (length, directions, `PlotPath` AP
+cost) and the creature AI probes (multi-tile, continuous turn) match the native build (`tools/oracle/README.md`). Gaps
+are marked "not in ja2-node" / "not ported" where the rule is described (§1.5, §3.2, §4.3, §4.4, §4.5, §4.7).

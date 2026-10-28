@@ -7,8 +7,8 @@ laptop and the first landing to the Queen's death and the ending, with the origi
 default settings as the reference). It can be saved, loaded and replayed, it plays with sound, music and the videos,
 and its UI labels come in every language of Stracciatella's string tables. Agents play it through MCP; people start
 and load games in a DOM launcher and play through the developer pages. The canvas player UI with the original's
-screens is the next milestone (M8, release 0.8.0). What each milestone built is in `01-architecture.md` §12, M7's spec
-is `27-polish.md`.
+screens is the next milestone (M8, release 0.8.0). What each milestone built is in `deviations.md`, M7's spec
+is `27-platform.md`.
 
 ### What a player can do (browser)
 
@@ -94,13 +94,13 @@ strategic days, autoresolve, saves, the server and a campaign.
 - The stub campaign is a minimal world: generic maps by sector kind and only the scripts the tests and the stub
   campaign path need; the creature lairs have no way in on stubs, so play stub campaigns with sci-fi off. The scripted
   campaign bot (`pnpm cli campaign`) gets through Drassen and the recruiting but has not won a stub campaign yet: the
-  march and the Meduna outskirts beat it (`27-polish.md` §14, finding 31).
+  march and the Meduna outskirts beat it (`27-platform.md` §6.7, finding 31).
 - Sound: no lip sync, no button clicks and a few cues listed under "Sound coverage"; the playback speed, display
   toggles and key-advance speech settings are stored for M8.
 - Performance: the first save of a session on the original data takes about 150–190 ms (it builds the content index), an
   in-process save briefly stalls other sessions (the worker host avoids it), the client frame rate is not measured.
-- The open findings and decisions of M7 are in `27-polish.md` §14, the full "Left out of M7" list in
-  `01-architecture.md` §12.
+- The open findings and decisions of M7 are in `27-platform.md` §6.7, the full "Left out of M7" list in
+  `deviations.md`.
 
 ### Next: M8, the player UI (0.8.0)
 

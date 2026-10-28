@@ -1,13 +1,13 @@
-<!-- Sight, hearing, light-for-vision and player fog of war in JA2 (Stracciatella), written as a spec for M2.
-2026-10-15. Source: reference/stracciatella/src (same snapshot as docs 01–05, ae6bf01), cross-checked against vanilla
-(reference/vanilla/ja2/Build). Read-only research: nothing was built. Two throw-away scripts read the original data with
-our own parsers (JSD flags, map heights) and one emulated float maths in JS; their outputs are quoted below. The §1.4 pseudocode was also executed against stub worlds (§7). -->
-
 # 08 — Sight and noise
 
-**Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless marked V (vanilla `Build/`). "(inferred)"
-marks conclusions not traced end to end. C integer semantics apply everywhere: `/` truncates toward zero (`idiv` in
-`src/core/int.ts`), `%` keeps the dividend's sign, `INT8`/`UINT8` stores wrap. `f32(x)` means `Math.fround(x)`.
+Sight, hearing, light for vision and the player's fog of war, as the original does them and ja2-node implements them
+(modules in §6).
+
+**Conventions.** Paths are relative to `reference/stracciatella/src/game/` (Stracciatella `ae6bf01`) unless marked V
+(vanilla `reference/vanilla/ja2/Build/`). "(inferred)" marks conclusions not traced end to end; facts about the original
+data (JSD flags, map heights) were read with ja2-node's parsers. C integer semantics apply everywhere: `/` truncates
+toward zero (`idiv` in `src/core/int.ts`), `%` keeps the dividend's sign, `INT8`/`UINT8` stores wrap. `f32(x)` means
+`Math.fround(x)`.
 Teams: OUR 0, ENEMY 1, CREATURE 2, MILITIA 3, CIV 4. Directions: N 0 … NW 7, `DirIncrementer` = N −160, NE −159, E +1,
 SE +161, S +160, SW +159, W −1, NW −161 (`TileEngine/Isometric_Utils.h:30`).
 
@@ -35,17 +35,15 @@ head (an LOS test to the noise tile) and may thereby see its maker. The player's
 | FIXEDPT | `INT32`, 20 fractional bits (1 = 1048576); `FloatToFixed(f) = (INT32)(f*1048576)`; `FIXEDPT_TO_INT32(q) = q/1048576` (truncating division) | `LOS.h:12-21`, `LOS.cc:184` |
 | Ray step | 1 world unit of 3D distance (Z scaled by /25); `iDistance` steps from start to end | `LOS.cc:691-706` |
 | LOS cell | `((q>>20 as int) % 10) >> 1` → 0..4 in X and Y; Z cube = `heightUnits/64` | `LOS.h:20-21,50-53` |
-| Profile | `shape[x][y]`, bit z = cube z (`AtHeight = {1,2,4,8}`); in our `jsd.ts` the 25-byte array is `shape[x*5+y]` (inferred from C row-major layout) | `TileEngine/Structure_Internals.h:37-50` |
+| Profile | `shape[x][y]`, bit z = cube z (`AtHeight = {1,2,4,8}`); ja2-node's `jsd.ts` keeps the 25 bytes as `shape[x*5+y]` (C row-major) | `TileEngine/Structure_Internals.h:37-50` |
 | Wall / window | wall top 256; windows see-through only between 87 and 220 height units (absolute, ground storey only) | `LOS.h:102-104`, `LOS.cc:52-54` |
 | Structure levels | `sCubeOffset` 0 (ground) or 4 (roof storey). Ground structures are tested at cube 0–3 above land, roof-storey ones at cube 4–7 | `Structure_Internals.h:43-46` |
 
-`sCubeOffset = (tile.fFlags & TILE_ON_ROOF ? level+1 : level) * 4`. Struct-layer tiles are added with level 0, roof and
-on-roof layer tiles with level 1 (`TileEngine/Structure.cc:738`, `TileEngine/WorldMan.cc:519-529,1168,1284`). Structures
-on a tile are a list in insertion order (`Structure.cc:661`). Soldiers and corpses add their own structures; their JSD flags
-are `0x80000090` (PERSON|TRANSPARENT|MOBILE) and `0x40000180` (CORPSE|GENERIC|TRANSPARENT), so **LOS ignores people**.
-That was read from `Anims.slf` with our parser. A corpse of ≥10 tiles loses `TRANSPARENT` (`Structure.cc:752-760`). In
-tileset 0, trees, bushes and weeds are `STRUCTURE_TREE` (0x200); `OLDFENCE` is TRANSPARENT; windows are WALLNWINDOW
-(0x20000, plus OPEN 0x2 when open); flat roofs are NORMAL_ROOF.
+How `sCubeOffset` is set and the per-tile list order: `07` §1.1 and `07` §1.2. Soldiers and corpses add their own
+structures; their JSD flags are `0x80000090` (PERSON|TRANSPARENT|MOBILE) and `0x40000180` (CORPSE|GENERIC|TRANSPARENT) in
+`Anims.slf`, so **LOS ignores people**. A corpse of ≥10 tiles loses `TRANSPARENT` (`Structure.cc:752-760`). In tileset
+0, trees, bushes and weeds are `STRUCTURE_TREE` (0x200); `OLDFENCE` is TRANSPARENT; windows are WALLNWINDOW (0x20000,
+plus OPEN 0x2 when open); flat roofs are NORMAL_ROOF.
 
 ### 1.2 Eye and target heights (`CalculateSoldierZPos`, `LOS.cc:1301-1486`)
 
@@ -60,6 +58,9 @@ soldier standing in deep water, counts as prone; low or medium water counts as c
 
 The value is then adjusted in this order: kids `z*2/3`; robot, larvae, infant monster and bloodcat `z/3`; tank `z*4/3`
 (all float); `+256` if `bLevel > 0`; `+sHeight*256/50` of the soldier's own tile (`LOS.h:73-100`, `LOS.cc:1456-1486`).
+ja2-node: combat's `calculateSoldierZPos` (`combat/positions.ts`) has all of it; sight's `soldierEyeZ`
+(`perception/los.ts`) uses only the height class of the animation, the level and the land height, so water overrides and
+body scaling do not reach sight.
 
 ### 1.3 Callers
 
@@ -76,12 +77,14 @@ The value is then adjusted in this order: kids `z*2/3`; robot, larvae, infant mo
 `eff = bCamo*(100 − 5*bTilesMoved)/100` (a bloodcat uses `100 − 5*bTilesMoved`), clamped ≥ 0. If the target is not
 standing and his `bOverTerrainType` is FLAT_GROUND, LOW_GRASS or HIGH_GRASS, then
 `limit -= limit*(eff/3)/100` (UINT8). `eff` is also passed on as the camouflage factor for foliage. `bTilesMoved` resets
-at each turn start, which in real time means every 5 s (`Tactical/Soldier_Control.cc:4075`).
+at each turn start, which in real time means every 5 s (`Tactical/Soldier_Control.cc:4075`). ja2-node passes camouflage
+0 and has neither the tank rules nor the N5 arena skip (`deviations` "Vision and hearing modifiers").
 
 ### 1.4 `LineOfSightTest` (`LOS.cc:575-1298`)
 
 Returns 0 for "not seen", otherwise a positive cover-adjusted distance. Callers only test for non-zero. There is no
-randomness. `ubTreeSightReduction` is UINT8.
+randomness. `ubTreeSightReduction` is UINT8. ja2-node's `lineOfSightTest` (`perception/los.ts`) follows this
+pseudocode except the gas block at the end of the outer loop (`deviations` "Vision and hearing modifiers").
 
 ```ts
 // Helpers. All q* values are INT32 FIXEDPT; use `| 0` / Math.imul where a product may exceed 2^31.
@@ -94,7 +97,7 @@ const cubeOf = (hu: number) => Math.trunc(hu / 64);         // -1..-63 -> 0
 const landFix = (g: number) => Math.trunc(sHeight[g] * 256 / 50) * FIX;
 
 function lineOfSightTest(startG, startZ /*f32*/, endG, endZ /*f32*/, tileLimit, treeRed, aware, camo, smell, window?) {
-  if (tactical.flags & DISALLOW_SIGHT) return 0;                 // :653 (explosions, roof climbing; see doc 03 §6)
+  if (tactical.flags & DISALLOW_SIGHT) return 0;                 // :653 (explosions, roof climbing; see doc 01 §3.5)
   const sightLimit = tileLimit * 10; let adj = sightLimit;
   if (sightLimit === 0) return 0;
   if (!aware && !smell) treeRed = u8(Math.trunc(treeRed * 3 * (100 + camo) / 100));   // :663-669
@@ -190,7 +193,7 @@ function lineOfSightTest(startG, startZ /*f32*/, endG, endZ /*f32*/, tileLimit, 
     } while (tX === oldTX && tY === oldTY && loop < iDist);
 
     const lvl = cubeOf(fixInt(qZ)) > 3 ? 1 : 0;                  // gas in the tile just left (:1247-1283)
-    const fx = smokeOn(g, lvl);                                   // smoke-effects.json
+    const fx = smokeOn(g, lvl);                                   // data/externalized/smoke-effects.json
     if (fx) {
       if (fx.maxVisibility && !smell && ++smoke >= fx.maxVisibility) adj = 0;   // SMOKE: 3 tiles
       if (fx.lostVisibilityPerTile) adj -= fx.lostVisibilityPerTile * 10;       // tear/mustard: −2 tiles each
@@ -224,11 +227,12 @@ What the rules mean in play:
 - **Ground**: Z below land stops the ray.
 - **Smoke**: the 3rd smoke tile crossed zeroes the range. Tear and mustard gas each take 2 tiles off.
 
-### 1.5 Smell (monster viewers only, skip for M2)
+### 1.5 Smell (monster viewers only)
 
 Smell ignores foliage and open windows, and each other obstacle takes 80 units off the range (fails if `loop > 100` or
 `iDist > adj`). Walls still go through `ResolveHitOnWall` (`LOS.cc:1052-1101`). Range: `DistanceSmellable`
-(`OppList.cc:847`).
+(`OppList.cc:847`). ja2-node: the `smell` option of `lineOfSightTest`, `distanceSmellable` in `perception/sight.ts`
+(creature smell, `13` §12).
 
 ### 1.6 `ResolveHitOnWall` (`LOS.cc:232-425`)
 
@@ -255,7 +259,7 @@ if EW:
                   if !wL(g+E) && !wR(g+S) && !oL(g+E) && !oR(g+S) → pass
 otherwise blocked
 ```
-Neighbour gridnos are not bounds-checked in C. Add a guard (inferred harmless).
+Neighbour gridnos are not bounds-checked in C; ja2-node treats a gridno outside the map as "no wall" (inferred harmless).
 
 ### 1.7 Numeric exactness
 
@@ -267,15 +271,16 @@ Neighbour gridnos are not bounds-checked in C. Add a guard (inferred harmless).
   every JS engine; do not use `Math.hypot`. An emulation of libstdc++'s float `__hypot3` for every horizontal Pythagorean
   offset up to 39 tiles gave one non-exact result, (70,240) → 249.99998, but that still produces the same `iDist` (250).
   MSVC's power-of-two-scaled hypot is exact. So the formula matches all known builds (inferred for builds not checked).
+  ja2-node computes it this way.
 - `atan2` is only compared against 0 and ±PI/2, ±PI with `PI = 3.1415926`. Exact axis rays give exactly ±π/2, 0 or π in
   both glibc and V8. Because `PI/2` is slightly *smaller* than π/2, a ray going due south (dy>0, dx=0) counts as `EW`, a
   ray going due north counts as `NS`, and rays due east or west count as neither (always blocked at corner cells). Keep
   the literal.
 - FIXEDPT positions stay below 1605·2²⁰ ≈ 1.7e9 < 2³¹. `qInc*iDist ≈ delta·2²⁰` also fits. The only overflow is
   `qIncZ*1000001` when dx = dy = 0 (same tile, different level) on a tile without structures. That cannot happen in
-  practice, because a soldier on level 1 stands on a roof structure. Emulate it with `Math.imul` anyway.
-- 27 of 261 original maps have non-zero `sHeight` (for example A6–A8, D13, E5). On those the transposed-tile quirk changes
-  results. **A9 (Omerta) is flat** (all heights 0; 67 rooms), so M2 on A9 is unaffected, but implement the quirk literally.
+  practice, because a soldier on level 1 stands on a roof structure; ja2-node emulates it with `Math.imul` anyway.
+- 27 of 261 original maps have non-zero `sHeight` (for example A6–A8, D13, E5; A9 is flat). On those the transposed-tile
+  quirk changes results; ja2-node implements it literally.
 
 ### 1.8 Quirks to keep
 
@@ -322,16 +327,15 @@ if smoke with maxVisibilityWhenAffected on (viewer.sGridNo, LEVEL OF THE SUBJECT
 `LIGHT_PCT[0..15] = 80,86,93,100,94,88,82,76,70,64,58,51,43,30,17,9` (index 3 = day, 12 = night). The LOOK table is
 symmetric by octant difference: 0 → STRAIGHT, ±1 → ANGLE, ±2 → SIDE, ±3 → SBEHIND, 4 → BEHIND. "Wearing" means
 `inv[HEAD1POS]` or `inv[HEAD2POS]` holds the item (`Soldier_Control.h:1068`). `MaxDistanceVisible() = 26` (`:875`).
-
-| Tiles (no gear) | day (L3) | dawn (L8) | night (L12) |
-|---|---|---|---|
-| known target / straight / angle for mercs and alerted AI | 26 | 18 | 11 |
-| angle for an unalerted AI | 22 | 15 | 9 |
-| side (peripheral) | 14 | 9 | 6 |
-| behind | 0 | 0 | 0 |
+Without gear a known target (or straight ahead) is seen at 26 tiles by day (L3), 18 at dawn (L8), 11 at night (L12);
+peripheral (side) 14 / 9 / 6.
 
 **Vanilla differs** (V `OppList.c:923`): the light scaling was applied only when a soldier stood on the target tile, and
 not at all for a muzzle-flashing target at night. Strac always applies it and treats a flash as daylight.
+
+ja2-node: `distanceVisible` (`perception/sight.ts`, light table in `adjustMaxSightRangeForEnvEffects`,
+`lighting/lighting.ts`). Not ported: the tank lines, the robot's 360° view (`SOLDIER_ROBOT` only gets the night bonus)
+and the smoke cap (`deviations` "Vision and hearing modifiers").
 
 ### 2.2 `ManLooksForMan(me, opp, caller)` (`:1335-1505`)
 
@@ -346,10 +350,11 @@ d = aware ? DistanceVisible(me, IRRELEVANT, 0, opp.sGridNo, opp.bLevel)         
 if PythSpacesAway(me, opp) <= d && SoldierToSoldierLineOfSightTest(me, opp, u8(d), aware): ManSeesMan(me, opp, caller); ok = true
 if !ok && me.bOppList[opp] == SEEN_CURRENTLY: HandleManNoLongerSeen(me, opp)
 ```
-- `PythSpacesAway` = `trunc(hypot(Δrow, Δcol))` on tiles (`TileEngine/Isometric_Utils.cc:408`); use `Math.floor(Math.sqrt(n))`.
+- `PythSpacesAway` = `trunc(hypot(Δrow, Δcol))` on tiles (`TileEngine/Isometric_Utils.cc:408`); ja2-node truncates
+  `Math.sqrt` (`grid.ts`).
 - `atan8` uses the **sub-tile world positions** `sX, sY` (`Tactical/Soldier_Control.cc:6354`): `x = x2−x1`,
   `y = −(y2−y1)`, `θ = atan2(y, x)` (+2π if negative), `idx = trunc((8θ+π)/(2π)) % 8` into {E, NE, N, NW, W, SW, S, SE}.
-  `(0,0)` → E. So the simulation must keep `sX/sY` (truncated `dXPos/dYPos`) for walkers who are mid-step.
+  `(0,0)` → E. Walkers mid-step therefore count from their truncated float position (ja2-node: `Math.trunc(s.x)`).
 - An unaware look uses `bDesiredDirection`, not the current facing: during a turn, the view already points at the goal.
 
 ### 2.3 `ManSeesMan` and `HandleManNoLongerSeen` (`:1515-1929`, `:1266-1329`)
@@ -400,7 +405,7 @@ tmp = s.bNewSituation; s.bNewSituation = false
 if flags & LOOK:
   if s.bLife >= OKLIFE: ManLooksForOtherTeams(s)     // s looks at every valid soldier on other teams (:1228)
   OtherTeamsLookForMan(s)                            // every valid soldier on other teams looks at s (:1946)
-if INCOMBAT && flags & INTERRUPT: ResolveInterruptsVs(s, SIGHTINTERRUPT)          // combat, out of scope
+if INCOMBAT && flags & INTERRUPT: ResolveInterruptsVs(s, SIGHTINTERRUPT)          // interrupts: doc 10
 if bestSize == 3: HandleBestSightingPositionInRealtime()                        // may EnterCombatMode (§2.9)
 if s.bNewSituation && !(s is PC): HaultSoldierFromSighting(s, TRUE)
 s.bNewSituation = max(s.bNewSituation, tmp)
@@ -425,8 +430,9 @@ gubSightFlags |= INTERRUPT
   every OUR-team soldier does `HandleSight(RADIO)`, then outside combat `HandleBestSightingPositionInRealtime` and the size
   is reset to 3 (or 0 if combat started).
 - Iteration order: `FOR_EACH_MERC` walks `MercSlots` in the order soldiers were added to the sector (`Overhead.cc:242`).
-  `FOR_EACH_IN_TEAM` and `RadioSightings` walk by soldier ID. Keep both orders: they decide `bVisible` transitions,
-  `last_merc_to_radio`, ties in the best-sighting list, and `Random()` consumption.
+  `FOR_EACH_IN_TEAM` and `RadioSightings` walk by soldier ID. Both orders decide `bVisible` transitions,
+  `last_merc_to_radio`, ties in the best-sighting list, and `Random()` consumption; ja2-node keeps them (`mercs(t)` walks
+  `TacticalState.mercSlots`, team and radio loops walk `t.soldiers` by id).
 
 ### 2.5 Personal and public knowledge, radio
 
@@ -436,7 +442,8 @@ Values: `SEEN_CURRENTLY 1`, `SEEN_THIS_TURN 2`, `SEEN_LAST_TURN 3`, `SEEN_2_TURN
 `HEARD_THIS_TURN −1` … `HEARD_3_TURNS_AGO −4`, `NOT_HEARD_OR_SEEN 0` (`Overhead_Types.h:194-206`).
 
 `UpdatePersonal/UpdatePublic(…, new, grid, level)` (`:2159`, `:2110`): the value is replaced only if
-`gubKnowledgeValue[old+4][new+4] > 0` or `new == 0`. The last-known grid and level are **always** overwritten.
+`gubKnowledgeValue[old+4][new+4] > 0` or `new == 0`. The last-known grid and level are **always** overwritten
+(ja2-node keeps the grid only, `Soldier.lastKnownOpp` and `Perception.publicLastKnown`; `deviations` "AI throw targets").
 `gubKnowledgeValue` (`:105-126`, rows = old −4..5, columns = new −4..5):
 ```
 -4: 0 1 2 3 0 5 4 3 2 1     -3: 0 0 1 2 0 4 3 2 1 0     -2: 0 0 0 1 0 3 2 1 0 0     -1: 0 0 0 0 0 2 1 0 0 0
@@ -465,8 +472,10 @@ with new or revealed enemies, `OurTeamSeesSomeone` runs (§2.9).
 - **Real time:** `HandleTacticalEndTurn` runs every 5000 ms of game clock (strictly greater; ×time compression;
   `Strategic/Strategic_Turns.cc:64-82`). It calls `NonCombatDecayPublicOpplist(worldSeconds)`, which acts only if
   ≥ `TIME_BETWEEN_RT_OPPLIST_DECAYS` = 20 world seconds have passed since the last decay (`OppList.cc:4535`,
-  `OppList.h:23`). In practice that is every 4th real-time turn (inferred). It then runs, for **all** mercs,
-  `VerifyAndDecayOpplist` (`:4265`), and `DecayPublicOpplist` for each active team (`:4471`).
+  `OppList.h:23`). In practice that is every 4th real-time turn (inferred; real-time turns fall every 5020 ms, `15`
+  §1.7). The decay runs, for **all** mercs, `VerifyAndDecayOpplist` (`:4265`), then `DecayPublicOpplist` for each active
+  team (`:4471`). ja2-node (`handleTacticalEndTurn`, `turns/turns.ts`) measures the 20 s on the tactical clock
+  (`OPPLIST_DECAY_MS`), not in world seconds.
   - `VerifyAndDecayOpplist`: life < OKLIFE wipes the list. A pending `bNewOppCnt` is radioed (PCs). For each known
     opponent: `ManLooksForMan(VERIFYANDDECAYOPPLIST)` (360°, aware), then `DecayOppListValue`. A target lost here goes
     1 → 2 → 3 in one call.
@@ -488,8 +497,10 @@ soldier whose `bLastRenderVisibleValue == −1` (`TileEngine/RenderWorld.cc:938`
 (`:989`). In real time a `0` is normally turned into −1 within the same pass (`:1251-1256`, `DecideTrueVisibility`).
 The exception is a loss found by `VerifyAndDecayOpplist` (§2.6), which no `DecideTrueVisibility` follows, so the `0`
 lasts until the next look involving that soldier. `BetweenTurnsVisibilityAdjustments` (`:2265`; turn end, combat exit,
-deaths) forces −1 when no OUR-team member sees the soldier. Note that animation speed reads visibility (unseen soldiers animate with delay 0 in combat,
-`Soldier_Control.cc:4930`): keep `bVisible` as simulation state (inferred).
+deaths) forces −1 when no OUR-team member sees the soldier. Animation speed reads visibility (unseen soldiers animate
+with delay 0 in combat, `Soldier_Control.cc:4930`), so `bVisible` is simulation state. ja2-node: `Soldier.visible` takes
+1, 0 and −1 only (no fade state; the unseen speed-up applies at once: `deviations` "Unseen soldiers in combat");
+`betweenTurnsVisibilityAdjustments` is in `turns/turns.ts`.
 
 ### 2.8 When sight runs (real time)
 
@@ -508,7 +519,8 @@ deaths) forces −1 when no OUR-team member sees the soldier. Note that animatio
 
 There is no periodic look. Two stationary soldiers facing each other are not re-tested until one of them moves, turns or
 changes stance (or the 20 s verification, which covers known opponents only). Changes in ambient light do **not** trigger
-a look (`TileEngine/Environment.cc:218` is commented out).
+a look (`TileEngine/Environment.cc:218` is commented out). ja2-node wires the arrival, turn, stance-change and door
+triggers in `perception/wiring.ts` (`sightHooks`).
 
 ### 2.9 What a new sighting triggers in real time
 
@@ -519,12 +531,11 @@ a look (`TileEngine/Environment.cc:218` is commented out).
    `HandleBestSightingPositionInRealtime` (`OppList.cc:372`): if only one entry, or entries 0 and 1 (or 0 and 2) are on
    the same team, or there is no 3rd entry, then `EnterCombatMode(best[0].team)`; otherwise the 2nd-best team starts and
    best[0] gets an interrupt. `EnterCombatMode` (`Overhead.cc:3984`) does nothing without a capable enemy in the sector
-   and stops everyone (doc 03 §5). **This happens before the radio step**, so the merc's sighting quote follows combat
-   entry. M2 boundary: emit `combatWouldStart{team}` and freeze movement (as `CommonEnterCombatModeCode` does) until
-   turn-based play exists.
+   and stops everyone (doc `09` §1). **This happens before the radio step**, so the merc's sighting quote follows combat
+   entry. ja2-node: the `enterCombatMode` perception hook calls `enterCombatMode` (`turns/turns.ts`, `10`).
 3. Radio: `OurTeamSeesSomeone` (`:2408`). In a virgin sector: close any talk menu, play the seen quote, halt the merc,
    clear `fVirginSector`. Otherwise an OUR merc curses (only re-revealed enemies) or says the seen quote, and is halted
-   (`EVENT_StopMerc`). While it is the enemy's turn, that enemy gets a 3 s animation pause (doc 03 §4). Music switches to
+   (`EVENT_StopMerc`). While it is the enemy's turn, that enemy gets a 3 s animation pause (doc `10` §5). Music switches to
    battle in combat.
 4. First sightings may fire NPC/quest hooks (§2.3) and `AddToShouldBecomeHostileOrSayQuoteList`.
 
@@ -563,11 +574,12 @@ else:
   else: vol = 1 + (r − st + 1)/16; CRAWLING: vol = vol<=2 ? 0 : vol−2; SWATTING: vol −= 1; RUNNING: vol += 3
 ```
 Example: Exp 3, Dex 70 → st 60 → walking volume 1..6, running 1..9. V had a UINT8 wraparound and an unreachable water
-branch (doc 02). `PreRandom` is drawn **before** that step's sight check.
+branch (doc 02). `PreRandom` is drawn **before** that step's sight check. ja2-node: `movementNoise`
+(`perception/noise.ts`) on the `pre` stream, without the adrenaline term (drugs are not ported).
 
 ### 3.3 `MakeNoise` → `OurNoise` → `ProcessNoise` (`:3380`, `:3403`, `:3428-3770`)
 
-`MakeNoise` queues the noise as a demand event while `ubAttackBusyCount > 0` (released at the attack barrier, doc 03 §4).
+`MakeNoise` queues the noise as a demand event while `ubAttackBusyCount > 0` (released at the attack barrier, doc `10` §5).
 `OurNoise` = `ProcessNoise`, then (in combat, maker known, not a door-delay) `ResolveInterruptsVs(NOISE)`.
 ```
 ProcessNoise(maker, grid, level, base, kind):
@@ -602,6 +614,9 @@ ProcessNoise(maker, grid, level, base, kind):
       elif heard: UpdatePublic(team, source, HEARD_THIS_TURN, grid, level)
   gWhoThrewRock = null
 ```
+ja2-node: `makeNoise` defers to `TurnState.deferredNoises` while `attackBusyCount > 0` (`dequeueDeferredNoises`);
+`processNoise` derives `fEnemyInSector` from the placed soldiers and lacks the POW, Warden/General/Sergeant/Conrad and N5
+arena listener skips.
 
 ### 3.4 `CalcEffVolume` and `DecideHearing` (`:3773-3892`, `:1093-1150`)
 
@@ -619,6 +634,7 @@ DecideHearing: tank −5; monster −10; else h = (bExpLevel > 3) + count(NIGHTO
 ```
 There are no walls in hearing: only distance, levels and the floor/non-floor terrain test. There is no randomness. Range in
 tiles ≈ `base + hearing − oppCnt`: an army footstep (8–9) is heard about 8–9 tiles away in daylight (inferred example).
+ja2-node has no walkman, extended ear, NIGHTOPS or tank term (`deviations` "Vision and hearing modifiers").
 
 ### 3.5 `HearNoise(L, source, grid, level, vol, kind, &seen)` (`:3895-4222`)
 
@@ -647,6 +663,8 @@ else (source hidden):
 The AI reacts through `sNoiseGridno/ubNoiseVolume` and HEARD opplist entries. `DecideAlertStatus`
 (`TacticalAI/DecideAction.cc:3721`) moves GREEN → YELLOW when `MostImportantNoiseHeard` finds an uninvestigated noise,
 and YELLOW → GREEN when there is none and no action is in progress. RED never drops; `bOppCnt > 0` → BLACK.
+ja2-node's `hearNoise` omits the crows, the tank's turn rule and the alarm's gas mask; the AI side reads
+`perception/knowledge.ts` (`mostImportantNoiseHeard`).
 
 ### 3.6 What the player is told: `TellPlayerAboutNoise` (`:4225-4262`)
 
@@ -656,11 +674,12 @@ The original has **no on-map noise marker**. The loudest OUR listener gets a yel
 listener's level or is an explosion, scream, rock or grenade; otherwise "from above" or "from below". A faint noise also
 triggers `QUOTE_HEARD_SOMETHING` if not in a meanwhile or a conversation and `ubTurnsUntilCanSayHeardNoise == 0`, after
 which the countdown is set to 5 turns (2 in combat). The player never learns the grid. The public `HEARD_THIS_TURN` entry
-is not rendered (no renderer reads it). So our `PlayerView` noise event is
-`{listener, kind, volumeClass, dir8 | above | below}`. A UI marker drawn from the listener's position in that direction is
-a presentation choice. A marker at the true grid would leak hidden state (D16).
-The same hearing (the loudest listener, his direction and the loudness class) is what the browser gets for the sounds of
-sources out of sight (`heard`, `04` §4.4 "Sounds out of sight"), whether or not the noise is told.
+is not rendered (no renderer reads it).
+
+ja2-node's `tellPlayerAboutNoise` emits `noiseHeard {listener, kind, volumeClass 0–3, direction: 0–7 | 'above' |
+'below'}` and says the quote; the grid is never sent, since a marker at the true grid would leak hidden state (D16).
+`squadHears` computes the same hearing (loudest listener, direction, loudness class) for the sounds of sources out of
+sight (`unseen-sources.ts`, `04` §6.9), whether or not the noise is told.
 
 ---
 
@@ -675,10 +694,11 @@ sources out of sight (`heard`, `04` §4.4 "Sounds out of sight"), whether or not
   check are in `docs/20-lighting.md`.
 - Ambient above ground (`TileEngine/Environment.cc:369`, `:229-279`): `gubEnvLightValue` steps every 2 minutes: 11 → 3
   from 06:47 to 07:03, and 4 → 12 from 20:57 to 21:13. Day is 3, night 12; hot desert sectors at midday use 2. Underground
-  levels store their own ambient in the map (`TileEngine/WorldDef.cc:2334`). A9 is not a desert sector (inferred from
-  the sector temperature table).
+  levels store their own ambient in the map (`TileEngine/WorldDef.cc:2334`). ja2-node keeps it in
+  `TacticalState.lighting.ambient` (the sandbox stays at ambient 3, `deviations` "Ambient light and light schedule").
 - Light matters for sight at three points: the target tile's light (§2.1); `DecideHearing` (ambient); the FOV item range
-  (§5). Interrupts, sun goggles in the hit chance and the AI read it too (`docs/20` §5).
+  (§5). Interrupts, sun goggles in the hit chance and the AI read it too (`docs/20` §5). ja2-node: `lightTrueLevel` and
+  `adjustMaxSightRangeForEnvEffects` in `src/sim/tactical/lighting/lighting.ts`.
 
 ---
 
@@ -697,7 +717,7 @@ life < OKLIFE, or who are blinded.
 MercLooksForDoors(merc)                                   // perceived door states (Keys.cc)
 range = gassed ? 1 : (AdjustMaxSightRangeForEnvEffects(LightTrueLevel(merc tile), 13) + 13) / 2   // day 13, night 9
 Dir[0..4] = BuildSightDir(bDirection) = {DLEFT, DRIGHT, UP(=facing), LEFT, RIGHT}; NOVIEW = stay
-table = bDirection odd ? ViewPath2 : ViewPath            // 17 paths × 13 steps, FOV.cc:56-97 (transcribe as data)
+table = bDirection odd ? ViewPath2 : ViewPath            // 17 paths × 13 steps, FOV.cc:56-97 (`VIEW_PATH(_2)`, fov.ts)
 for each path p:
   marker = merc.sGridNo; revealItems = true; flags reset
   for k in 0 until range:
@@ -724,8 +744,8 @@ ExamineSlantRoofFOVSlots()
   handle them. A window returns a window kind and a door returns FULL (closed) or a door kind, both immediately. Otherwise
   the result depends on the **last** level-matching structure: a person or corpse → NOTHING; a tree or fence seen
   earlier → REDUCE_RANGE; else NEXT_TILE. Soldiers' structures are appended after the map's, so a bush tile with a
-  soldier standing in it does not stop the ray. To reproduce this, keep person structures in the tile list (inferred
-  consequence of list order).
+  soldier standing in it does not stop the ray (inferred consequence of list order). ja2-node's `blockingStructureInfo`
+  returns NOTHING whenever the occupancy map has a soldier on the tile, whatever the list order.
 - `RemoveRoomRoof(room)` (`TileEngine/Render_Fun.cc:176`) loops over the whole map. For every tile of that room it calls
   `SetGridNoRevealedFlag`: roof nodes FIRSTROOF..FOURTHROOF get `LEVELNODE_HIDDEN`, the room's A-frames are hidden,
   obstacle structures get `SHOW_THROUGH`, the tile gets `REVEALED`, and `gubWorldRoomHidden[room] = FALSE`. It also
@@ -733,87 +753,71 @@ ExamineSlantRoofFOVSlots()
   a room disappears as soon as one tile of it is revealed**, and it stays hidden: the revealed flags are saved with the
   sector (`TileEngine/SaveLoadMap.cc:335,487`). The renderer skips hidden roof nodes unless `SHOW_ALL_ROOFS` is set
   (`RenderWorld.cc:1114`).
-- Rooms come from the map's room array (our `MapDef.rooms`); room 0 = `NO_ROOM`.
+- Rooms come from the map's room array (`MapDef.rooms`, `Level.rooms`); room 0 = `NO_ROOM`.
+
+ja2-node (`perception/fov.ts`, state `TacticalState.fog`: `revealed` with `GROUND`/`ROOF` bits, `roomHidden`, the
+first-visit markers): `revealRoofsAndItems` follows the pseudocode; `removeRoomRoof` marks the room's tiles revealed,
+clears `roomHidden` and emits `roomRevealed`; the client derives hidden roofs, A-frames, show-through and wireframes from
+the revealed rooms (`src/render/world/reveal.ts`). Both arrays are saved in the sector diff (`sim/campaign/sector-diff.ts`).
+Not ported: `MercLooksForDoors` (perceived doors equal real ones, `deviations` "Doors"), `ExamineSlantRoofFOVSlots`, the
+item reveal and quote of `RemoveRoomRoof` (so no `Random(2)`), and the vehicle and blindness skips.
 
 ---
 
-## 6. Minimal implementation for M2
+## 6. Implementation in ja2-node
 
-### 6.1 Data prerequisites
+### 6.1 State
 
-1. **Structure world** (`sim/tactical/world`, doc 01 §3.7): for each tile, a list of instances in insertion order. Each instance comes from a JSD structure
-   tile and carries: shape (25 bytes), flags (garage-door fix and STRUCTURE_HIDDEN clearing as in `Structure.cc:405-418`;
-   BASE_TILE; PASSABLE from the tile flags), `sCubeOffset`, wall orientation (base tile only for multi-tile walls),
-   cached `StructureHeight` (highest set bit + 1), and a base/ID link for multi-tile objects. Load order: struct layer
-   (level 0), then roof and on-roof layers (level 1), then soldiers and corpses (transparent; appended, moved by
-   remove + append). Doors swap to their partner structure when opened or closed. Placement collisions
-   (`OkayToAddStructureToWorld`) were left open in M1.
-2. Tile land heights, terrain type per tile (`ubTerrainID`), each soldier's `bOverTerrainType`.
-3. Movement-cost table `gubWorldMovementCosts[grid][dir][level]` (needed for pathing anyway) plus door perceived state,
-   used by FOV.
-4. Rooms array; `roomHidden[]`; per-tile `REVEALED`/`REVEALED_ROOF`; `hidden` on roof nodes in the render data.
-5. Ambient light schedule (§4); `LightTrueLevel` = ambient only.
-6. Soldier fields: `sX, sY` (sub-tile), `sGridNo, bLevel, bDirection, bDesiredDirection, usAnimState` (stance via
-   `ubEndHeight`), `bTeam, bSide, bNeutral, bLife, bBreath, bAlertStatus, bAction, bOppCnt, bNewOppCnt, bNewSituation,
-   bOppList[], bVisible, bCamo, bTilesMoved, bStealthMode, ubNoiseVolume, sNoiseGridno, bNoiseLevel,
-   ubMovementNoiseHeard, ubTurnsUntilCanSayHeardNoise, bInterruptDuelPts, bBlindedCounter, fMuzzleFlash`; head slots for
-   goggles, gas mask, walkman and extended ear (item IDs can be placeholders for M2); skill traits; experience and
-   dexterity.
-7. Team table `{active, bHuman, bAwareOfOpposition, last_merc_to_radio}` and tactical flags `INCOMBAT, DISALLOW_SIGHT,
-   fVirginSector, fEnemyInSector` (set when a hostile soldier is added to a virgin sector, `Soldier_Add.cc:928`,
-   `Overhead.cc:4108`), difficulty.
+- Structures: `TacticalState.world.structures` (`WorldStructures`, `07` §7), per-tile lists in insertion order with
+  shape, flags, `cubeOffset`, wall orientation and cached height; soldiers and corpses append their own (transparent)
+  structures. Land heights `world.level.heights`, terrain `world.terrain`, rooms `world.level.rooms`.
+- `TacticalState.perception` (`Perception`, `perception/sight.ts`): `publicOpp[team][id]`, `publicLastKnown`, the
+  public noise per team, `lastMercToRadio`, `awareOfOpposition`, the best-sighting list (`bestSize`, `best`) and
+  `disallowSight` (`DISALLOW_SIGHT`).
+- `TacticalState.turn` (`turns/turn-state.ts`): `seenOpponents` (`gbSeenOpponents`), watched locations, `sightFlags`,
+  `deferredNoises`, `enemySightingOnTheirTurn`, `delayResolvingBestSightingDueToDoor`, `interruptProvoker`.
+- `TacticalState.fog` (§5), `TacticalState.lighting` (§4).
+- `Soldier`: `oppList`, `lastKnownOpp`, `visible`, `newOppCnt`, `interruptDuelPts`, `movementNoiseHeard`,
+  `turnsUntilCanSayHeardNoise`, `blindedCounter`, `muzzleFlash`, `tilesMoved`, `stealthMode`, and in `ai`: `oppCount`,
+  `alertStatus`, `newSituation`, `noiseGridNo`, `noiseVolume`, `noiseLevel`.
 
-### 6.2 Modules (`sim/tactical/perception`, pure where marked)
+### 6.2 Modules (`src/sim/tactical/perception/`)
 
-- **los.ts (pure)**: `calcSoldierZ`, `lineOfSightTest` (§1.4), `resolveHitOnWall`, the wrappers of §1.3,
-  `pythSpacesAway`, `atan8`. Golden tests: open field, a wall corner per octant, a bush line, a prone target behind a
-  low crate (aware vs unaware), a roof edge from the ground, window band, 2/3 smoke tiles. Later, cross-check against a
-  small Strac LOS oracle harness (`LineOfSightTest` is `static`, so the harness needs a wrapper) (inferred plan).
-- **vision.ts (pure)**: `distanceVisible`, the light table, the look table.
-- **opplist.ts**: knowledge arrays, `manLooksForMan`, `manSeesMan` (NPC hooks as emitted events, no-ops for M2),
-  `handleManNoLongerSeen`, `teamNoLongerSeesMan`, `updatePersonal/Public`, `radioSightings`,
-  `ourTeamRadiosRandomlyAbout` (main RNG `Random`), `handleSight`, `allTeamsLookForAll`, `decideTrueVisibility`, decay
-  (§2.6). Watched locations and interrupt points can be stubbed: in real time they only rank the best-sighting list
-  (keep the size-3 list and `EnterCombatMode` as an event).
-- **noise.ts**: `movementNoise` (PreRandom stream), `doorOpeningNoise`, `makeNoise` (deferred while the resolution
-  barrier is busy), `processNoise`, `calcEffVolume`, `decideHearing`, `hearNoise`, `tellPlayerAboutNoise` → `NoiseHeard`
-  event.
-- **fov.ts**: `revealRoofsAndItems` with the two view-path tables, `getBlockingStructureInfo`, `removeRoomRoof`.
-
-### 6.3 Per goal
-
-| Goal | Needs |
+| Module | Responsibility |
 |---|---|
-| Mercs and enemies see each other in real time on A9 | 6.1 items 1, 2, 5, 6 (A9 is flat, so heights are 0). los.ts + vision.ts + opplist.ts. Call `handleSight(LOOK\|RADIO\|INTERRUPT)` at tile centres right after the footstep noise; on stationary turns (next pass); at the end of stance changes; on door open; `allTeamsLookForAll(TRUE)` on sector load. Real-time turn on the first fire of the 20 ms overhead counter with more than 5000 ms elapsed, i.e. every 5020 ms (`docs/15` §1.7; `turns.ts` `handleRealtimeTurns`): `EVENT_BeginMercTurn` subset (§2.6) plus the 20 s decay. Consequences: `bOppCnt`, alert BLACK/RED, `SetNewSituation`, halts, best-sighting → `combatWouldStart` |
-| Player sees only what mercs see | `bVisible` maintained exactly (§2.7); `PlayerView` lists other-team soldiers only with `bVisible ≥ 0` (OUR and MILITIA always). Items only when VISIBLE (FOV). Opplist knowledge for the agent API: OUR public opplist + last-known grids (seen states only; heard ones carry no grid for the player) |
-| Roof hiding when mercs look into rooms | fov.ts + 6.1 items 3 and 4; renderer reads `hidden` on roof nodes and the per-tile REVEALED flag (also the M1 leftovers: wireframes, show-through) |
-| Noise markers | noise.ts; footsteps at tile centres for all soldiers (the army is always 8–9); `NoiseHeard{listener, kind, volumeClass, dir|above|below}` to OUR team only; AI side: `sNoiseGridno/ubNoiseVolume` + HEARD entries for the later YELLOW logic |
+| `los.ts` | `lineOfSightTest`, `resolveHitOnWall`, `soldierEyeZ`, `soldierToSoldierLineOfSight`, `soldierToLocationLineOfSight` (§1) |
+| `sight.ts` | `distanceVisible`, `manLooksForMan`, `manSeesMan`, `handleManNoLongerSeen`, `updatePersonal/Public`, `radioSightings`, `ourTeamRadiosRandomlyAbout`, `handleSight`, `allTeamsLookForAll`, the best-sighting list, decay, muzzle flashes (§2) |
+| `opp.ts` | Opplist values, sight flags, callers, `atan8` |
+| `duel.ts` | `calcInterruptDuelPts`, `standardInterruptConditionsMet`, watched locations (`10`) |
+| `enemy-stance.ts` | `ReevaluateEnemyStance` after an enemy's sighting |
+| `noise.ts` | `movementNoise`, `doorOpeningNoise`, `makeNoise`, `processNoise`, `calcEffVolume`, `decideHearing`, `hearNoise`, `tellPlayerAboutNoise`, `squadHears` (§3) |
+| `knowledge.ts` | The AI's reading of heard noises and known opponents (`MostImportantNoiseHeard`, `ClosestKnownOpponent`, …) |
+| `fov.ts` | `revealRoofsAndItems`, `blockingStructureInfo`, `removeRoomRoof` (§5) |
+| `wiring.ts` | `sightHooks` and `perceptionHooks`: the triggers of §2.8, halting on a sighting (`haltFromSighting`), `OurTeamSeesSomeone`, combat entry |
 
-### 6.4 Determinism checklist
+NPC and quest reactions to a first sighting go through `narrative/sight-rules.ts` (`newSightingRules`). What the player
+and an agent see of all this (soldiers by `visible`, our team's sightings, `noiseHeard`) is the player view of `04`.
 
-- PreRandom draws: per tile step `MovementNoise` (army 1; mercs 0–2), door noise (through `MovementNoise`), rock and
-  grenade impacts. Main `Random`: `OurTeamRadiosRandomlyAbout` order (once per merc per radio), bloodcat roar, the
-  room-roof item quote, hostile-quote speaker choice.
+### 6.3 Verification
+
+The oracle probes `los` (`LineOfSightTest` and `SoldierToSoldierLineOfSightTest`), `light` (distance visible) and the
+`soldier` dumps (visibility, opplist) match the native build (`tools/oracle/README.md`); the sighting quotes of Mike and
+Joey are traced by patch 0022.
+
+### 6.4 Determinism
+
+- `PreRandom` draws: per tile step `MovementNoise` (army 1; mercs 0–2), door noise (through `MovementNoise`), rock and
+  grenade impacts. Main `Random`: the `OurTeamRadiosRandomlyAbout` order (once per merc per radio), the bloodcat roar,
+  the hostile-quote speaker choice; the original's room-roof item quote (`Random(2)`) is not drawn in ja2-node (§5).
 - Iteration orders as in §2.4. One `handleSight` runs to completion (including nested `UpdatePublic` looks) before the
   next simulation event.
 - `DISALLOW_SIGHT` windows (explosions, roof climbs) make every LOS test return 0, so known targets are lost during them
-  (doc 03 §6).
-- The `bVisible`/`bLastRenderVisibleValue` handshake: treat it as simulation state updated once per overhead pass
-  (inferred), because animation speed reads it.
+  (doc `01` §3.5).
 
 ---
 
-## 7. Verified vs inferred
+## 7. Inferred, not verified
 
-**Verified** by reading the code (Strac, with V cross-checks where noted): all formulas, tables and file:line references
-in §1–§5; V `LineOfSightTest` is identical except `sqrt` vs `hypot`, centring arithmetic and smoke flags; V
-`DistanceVisible` light handling; V `CalcEffVolume` sleeping −5 and its always-true terrain check. Read from the original
-data with our parsers: person, corpse and vehicle JSD flags (`Anims.slf`); tileset 0 tree, window and roof flags; 27
-maps with non-zero heights; A9 flat with 67 rooms. Emulated in JS: libstdc++ float `__hypot3` on horizontal Pythagorean
-offsets. The §1.4 pseudocode was run as-is against stub worlds (open field, full block, crates with aware and unaware
-viewers, bush rows, roof-plane crossings from and to a roof) and gave the outcomes described in §1.4.
-
-**Inferred**: the `shape[x*5+y]` index in our `jsd.ts`; that structure-list order only matters for FOV (LOS return
-values are order-independent apart from the window test); the 20 s decay landing on every 4th 5 s turn; hypot agreement
-on builds not checked; the M2 boundary choices (`combatWouldStart`, ambient-only light, stubbed interrupt points); hearing
-range examples; A9's temperature class; the exact `MercSlots` order after soldiers leave and re-enter.
+- Structure-list order matters only for FOV; LOS results are order-independent apart from the window test.
+- The `hypot` agreement of §1.7 on builds not checked.
+- The exact `MercSlots` order after soldiers leave and re-enter the sector (ja2-node reuses the first free slot).

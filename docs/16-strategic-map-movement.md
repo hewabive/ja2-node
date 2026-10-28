@@ -1,66 +1,29 @@
-<!-- Strategic map, squads, groups, routes, travel, encounters and sector transitions: an implementable spec for M4.
-2026-10-15. Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–14) and
-reference/stracciatella/assets/externalized (copied unchanged to data/externalized), cross-checked against vanilla
-(reference/vanilla/ja2/Build) where marked. Read-only research: nothing was built or run. -->
-
 # 16 — The strategic map: sectors, squads, groups, routes, travel, encounters and sector transitions
 
-**Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless they start with `sgp/`, `externalized/`
-(both under `reference/stracciatella/src/`) or `assets/` (under `reference/stracciatella/`); `V:` is vanilla `Build/`.
-"(inferred)" marks conclusions not traced end to end; everything else was read in the code. C integer semantics apply:
-`/` truncates (`idiv`), `UINT8`/`INT8` stores wrap. `Random` = `main` stream, `PreRandom` = `pre` stream (`01` §3.6);
-`Random(0)` and `PreRandom(0)` return 0 without drawing, `Chance(x)` is `Random(100) < x`, `PreChance(x)` is
-`PreRandom(100) < x` (`sgp/Random.cc:63-89`). Strategic time is world seconds; most strategic APIs use **world
-minutes** (`GetWorldTotalMin`), and `AddStrategicEvent(kind, minute, param)` stores `minute * 60` seconds
-(`Strategic/Game_Events.cc:200-205`); the clock, the event queue and its ordering belong to `docs/15-strategic-time.md`.
-"Sector" without qualification means an `SGPSector {x 1..16, y 1..16 (A..P), z 0..3}`. Directions: tactical world
-directions `NORTH 0 … NORTHWEST 7` (`07`); strategic moves `NORTH_STRATEGIC_MOVE 0, EAST 1, SOUTH 2, WEST 3, THROUGH 4`
+**Conventions.** Paths are relative to `reference/stracciatella/src/game/` (snapshot `ae6bf01`) unless they start with
+`sgp/`, `externalized/` (both under `reference/stracciatella/src/`) or `assets/` (under `reference/stracciatella/`); `V:`
+is vanilla `Build/`. JSON files are `assets/externalized/<name>.json`, copied unchanged to `data/externalized/`.
+"(inferred)" marks conclusions not traced end to end. C integer semantics apply: `/` truncates (`idiv`), `UINT8`/`INT8`
+stores wrap. `Random` = `main` stream, `PreRandom` = `pre` stream (`01` §3.6); `Random(0)` and `PreRandom(0)` return 0
+without drawing, `Chance(x)` is `Random(100) < x`, `PreChance(x)` is `PreRandom(100) < x` (`sgp/Random.cc:63-89`).
+Strategic time is world seconds; most strategic APIs use **world minutes** (`GetWorldTotalMin`), and
+`AddStrategicEvent(kind, minute, param)` stores `minute * 60` seconds (`Strategic/Game_Events.cc:200-205`). "Sector"
+without qualification means an `SGPSector {x 1..16, y 1..16 (A..P), z 0..3}`. Directions: tactical world directions
+`NORTH 0 … NORTHWEST 7` (`07`); strategic moves `NORTH_STRATEGIC_MOVE 0, EAST 1, SOUTH 2, WEST 3, THROUGH 4`
 (`Strategic/Strategic_Movement.h:29-36`). Teams and soldier id ranges as in `docs/14` §7. Policy values are
-Stracciatella defaults from `assets/externalized/game.json` (`squad_size` 6, `start_sector` "A9",
-`start_sector_revealed` true).
+Stracciatella defaults from `game.json` (`squad_size` 6, `start_sector` "A9", `start_sector_revealed` true).
 
-**Companions.** `docs/15-strategic-time.md` (clock, compression, event queue, `WarpGameTime`, new-game init),
-`docs/17-strategic-ai.md` (Queen, garrisons and patrols, enemy group decisions incl. `StrategicAILookForAdjacentGroups`,
-creature spreading), `docs/18-militia-loyalty-mines-assignments.md` (militia counts and their tactical placement rules,
-loyalty events, mines, assignments incl. sleep and `FatigueCharacter`), `docs/19-autoresolve-pbi.md` (everything from
-`InitPreBattleInterface` on: encounter-code refinement, PBI choices, retreat, autoresolve). Tactical: `07` (pathing),
-`08` (sight), `10` (turns, `CheckForEndOfBattle`), `12` (items, smoke), `14` (savegame reader and the native temp-file
-framing). This document owns: the sector tables, groups and squads, strategic routes and travel time, arrival
-processing up to the PBI hand-off, entering/leaving/unloading a tactical sector, per-sector persistence, and turning
-strategic enemy counts into placed soldiers.
-
----
-
-## 0. State this spec adds
-
-`GameState.strategic` (`01` §3.2) gains (names are ja2-node proposals; originals in brackets):
-
-- **Map** `sectors[256]` (`SectorInfo`, §1.3), `mapElements[324]` (`StrategicMap`, §1.2), `underground[]` (ordered
-  list, `gpUndergroundSectorInfoHead`, §1.4), `worldSector | null` (`gWorldSector`, invalid = z −1),
-  `selectedSector` (`sSelMap`, UI but read by `HandleNonCombatGroupArrival`), `mercArriveSector`
-  (`g_merc_arrive_sector`, M5).
-- **Groups** `groups[]` in list order (`gpGroupList`; order matters for every `FOR_EACH_GROUP`), `groupIdMask`
-  (`uniqueIDMask[8]`), `squads[20][squad_size]` (`Squad`), `squadGroupIds[20]` (`SquadMovementGroups`, INT8),
-  `deadSquadMembers[20][6]` (`sDeadMercs`, profile ids, −1 empty), `currentSquad` (`iCurrentTacticalSquad`, UI-ish:
-  used by tactical exits), `vehicleGroupIds[10]` (`gubVehicleMovementGroups`), vehicles (§3.15), helicopter (§3.16).
-- **Transient flow flags** (not in the native save): `waitingForInput` (`gfWaitingForInput`),
-  `pendingSimultaneousGroup`, `groupPrompting`, `initPrebattleGroup`, `numGroupsArrivedSimultaneously`,
-  `tacticalTraversal {active, groupId, chosenSoldier}` (`gfTacticalTraversal`, `gpTacticalTraversalGroup`,
-  `gpTacticalTraversalChosenSoldier`), `undergroundTacticalTraversal` (`gfUndergroundTacticalTraversal`, §3.6, §10 quirk 7),
-  `adjacentJump {group, jumpCode, traverseMin, direction, additional, target}` (`gpAdjacentGroup` …,
-  `StrategicMap.cc:135-140`), `waitingForMercsToExit {code, remaining, sinceMs}` (`Overhead.cc:5834-5844`),
-  `usingEdgepointsForEntry` (`fUsingEdgePointsForStrategicEntry`).
-- **Encounter globals** shared with `docs/19`: `encounterCode` (`gubEnemyEncounterCode`), `explicitEncounterCode`,
-  `highPotentialForAmbush`, `autoAmbush` (cheat, always false), `cantRetreatInPBI`, `battleGroup` (`gpBattleGroup`),
-  `pbSector`, `blitBattleSectorLocator`, `pendingEnemies` (`gfPendingEnemies`), `numAwareBattles` (owned by `docs/17`).
-- **Per soldier** (player team records live in the campaign roster, not in the tactical state; §9.1): `sector`
-  (`sSector`), `betweenSectors`, `groupId` (`ubGroupID`, 0 = none), `prevSectorId` (`ubPrevSectorID`, byte id,
-  255 = none), `insertionCode`/`insertionData` (`ubStrategicInsertionCode`/`usStrategicInsertionData`),
-  `insertionDirection` (`ubInsertionDirection`, ≥100 = forced facing), `insertionGridNo` (`sInsertionGridNo`),
-  `useExitGridForReentryDirection`, `preTraversalGridNo`, `pendingActionData2` (edgepoint search seed), `path`
-  (`pMercPath`, list of strategic indices), `assignment` (`bAssignment`), `vehicleId` (`iVehicleId`), `inSector`
-  (`bInSector`), `waitActionToDo` (`ubWaitActionToDo`), `pendingActionData1` (exit direction).
-- **Per visited sector** `sectorDiffs[sectorKey]` replacing the native temp files (§5.11).
+**Scope.** This doc owns the sector tables, groups and squads, strategic routes and travel time, arrival processing up
+to the PBI hand-off, entering/leaving/unloading a tactical sector, per-sector persistence, turning strategic enemy counts
+into placed soldiers (the soldier init list), sector control, airspace and the player's knowledge of enemies. Elsewhere:
+`docs/15` (clock, compression, the event queue and its same-timestamp order, `WarpGameTime`, new-game init); `docs/17`
+(`Queen_Command.cc` incl. `PrepareEnemyForSectorBattle` and pending reinforcements, the Queen, garrisons and patrols,
+enemy group decisions incl. `StrategicAILookForAdjacentGroups`, creature spreading); `docs/18` (militia counts and their
+tactical placement rules, loyalty events, mines, theft, assignments incl. sleep and `FatigueCharacter`); `docs/19`
+(everything from `InitPreBattleInterface` on: encounter-code refinement, PBI choices, retreat, autoresolve); `25` §10
+(the helicopter); `04` §6 (the agent API: route and sector commands, prompts, events, the strategic view). Tactical:
+`07` (pathing), `08` (sight), `10` (turns, `CheckForEndOfBattle`), `12` (items, smoke), `14` (savegame reader and the
+native temp-file framing).
 
 ---
 
@@ -80,7 +43,8 @@ strategic enemy counts into placed soldiers.
 strategic indices; groups and soldiers carry `SGPSector`. Byte id 255 (P16, an EDGEOFWORLD sector) doubles as "no
 previous sector": soldiers are created with `ubPrevSectorID = 255` (`Tactical/Soldier_Create.cc:946`), so a fresh
 group's `ubPrev` is P16 and `RetreatGroupToPreviousSector` treats `ubPrev == (16,16)` as "none"
-(`Strategic/Strategic_Movement.cc:2769-2773`).
+(`Strategic/Strategic_Movement.cc:2769-2773`). ja2-node: `src/content/strategic/sector-ids.ts` (`sectorId`,
+`sectorFromId`, `strategicIndex`, `sectorShortString`/`sectorLongString`, `mapFileName`, `NO_PREVIOUS_SECTOR_ID`).
 
 ### 1.2 `StrategicMapElement` (324 entries, `Strategic/StrategicMap.h:133-141`)
 
@@ -97,30 +61,32 @@ bytes, then `BOOLEAN` "Orta found" (`StrategicMap.cc:2329-2373`).
 
 ### 1.3 `SECTORINFO` (256 entries, `Strategic/Campaign_Types.h:152-189`)
 
-| Field (save offset) | Type | Meaning | Owner | M4 |
-|---|---|---|---|---|
-| `uiFlags` (0) | u32 | `SF_*` (§1.5) | this doc §1.5 | yes |
-| `ubGarrisonID` (5) | u8 | Garrison index, 255 none | `docs/17` | read by `NumStationaryEnemiesInSector` |
-| `ubPendingReinforcements` (6) | i8 | | `docs/17` | no |
-| `fMilitiaTrainingPaid`, `ubMilitiaTrainingPercentDone`, `…Hundredths` (7–9) | | | `docs/18` | no |
-| `ubNumTroops/Elites/Admins/Creatures` (14–17) | u8 | Stationary enemy counts | `docs/17` | yes (encounters, placement) |
-| `ub{Troops,Elites,Admins,Creatures}InBattle` (18–21) | u8 | Already placed in the loaded battle | §5.13 | yes |
-| `ubDayOfLastCreatureAttack` (24) | u32 | | `docs/17` | no |
-| `uiFacilitiesFlags` (28) | u32 | `SFCF_*`: hospital 1, industry 2, prison 4, military 8, airport 0x10, gun range 0x20 | `InitKnowFacilitiesFlags` (`Strategic/Campaign_Init.cc:30-66`), `SetSectorFlag` (§1.5) | display |
-| `ubTraversability[5]` (32–36) | u8 | Edge types N, E, S, W and "through" (§1.6) | `InitStrategicMovementCosts` | **yes** |
-| `bBloodCats` (39) | i8 | −1 = not rolled yet; ≥0 population | `InitBloodCatSectors` (`Strategic/Game_Init.cc:118-137`), §4.2 | yes |
-| `bBloodCatPlacements` (40) | i8 | Placements in the map | same; recounted on load (§5.13) | yes |
-| `ubTravelRating` (42) | u8 | Unused by game logic (comment in JSON) | `InitStrategicMovementCosts` | no |
-| `ubNumberOfCivsAtLevel[3]` (43–45) | u8 | Militia green/regular/elite | `docs/18` | encounters, scouting |
-| `uiTimeCurrentSectorWasLastLoaded` (52) | u32 min | Last time the player left it loaded | §5.11 | yes |
-| `uiTimeLastPlayerLiberated` (60) | u32 **seconds** | | `docs/17`/`19` | §5.13 strip rule |
-| `fSurfaceWasEverPlayerControlled` (64) | bool | | §6.1 | yes |
-| `uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer` (68) | u32 | Map-inventory count | §5.11 | observation |
+| Field (save offset) | Type | Meaning | Owner |
+|---|---|---|---|
+| `uiFlags` (0) | u32 | `SF_*` (§1.5) | §1.5 |
+| `ubGarrisonID` (5) | u8 | Garrison index, 255 none; read by `NumStationaryEnemiesInSector` | `docs/17` |
+| `ubPendingReinforcements` (6) | i8 | | `docs/17` |
+| `fMilitiaTrainingPaid`, `ubMilitiaTrainingPercentDone`, `…Hundredths` (7–9) | | | `docs/18` |
+| `ubNumTroops/Elites/Admins/Creatures` (14–17) | u8 | Stationary enemy counts (encounters, placement) | `docs/17` |
+| `ub{Troops,Elites,Admins,Creatures}InBattle` (18–21) | u8 | Already placed in the loaded battle | §5.13 |
+| `ubDayOfLastCreatureAttack` (24) | u32 | | `docs/17` |
+| `uiFacilitiesFlags` (28) | u32 | `SFCF_*`: hospital 1, industry 2, prison 4, military 8, airport 0x10, gun range 0x20 (display) | `InitKnowFacilitiesFlags` (`Strategic/Campaign_Init.cc:30-66`), `SetSectorFlag` (§1.5) |
+| `ubTraversability[5]` (32–36) | u8 | Edge types N, E, S, W and "through" (§1.6) | `InitStrategicMovementCosts` |
+| `bBloodCats` (39) | i8 | −1 = not rolled yet; ≥0 population | `InitBloodCatSectors` (`Strategic/Game_Init.cc:118-137`), §4.2 |
+| `bBloodCatPlacements` (40) | i8 | Placements in the map | same; recounted on load (§5.13) |
+| `ubTravelRating` (42) | u8 | Unused by game logic (comment in JSON) | `InitStrategicMovementCosts` |
+| `ubNumberOfCivsAtLevel[3]` (43–45) | u8 | Militia green/regular/elite (encounters, scouting) | `docs/18` |
+| `uiTimeCurrentSectorWasLastLoaded` (52) | u32 min | Last time the player left it loaded | §5.11 |
+| `uiTimeLastPlayerLiberated` (60) | u32 **seconds** | §5.13 strip rule | `docs/17`/`19` |
+| `fSurfaceWasEverPlayerControlled` (64) | bool | | §6.1 |
+| `uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer` (68) | u32 | Map-inventory count | §5.11 |
 
 Save record 116 bytes (`Strategic/LoadSaveSectorInfo.cc:7-48`); skipped bytes are vanilla's `ubInvestigativeState`
 (4), `fPlayer[4]` (10–13), `bLastKnownEnemies` (22), `bNameId`, `bUSUSED` (37–38), `UNUSEDbSAMCondition` (41) and
 fillers (`V: Strategic/CampaignTypes.h:407-467`). Vanilla's `fPlayer[]` ("player thinks he controls it") was written
-but never read (`V: Strategic/PlayerCommand.c:128-380`); Strac dropped it: **not needed**.
+but never read (`V: Strategic/PlayerCommand.c:128-380`); Strac dropped it. ja2-node: `SectorInfo`
+(`src/sim/strategic/map/sectors.ts`) holds every saved field under camelCase names (`flags`, `garrisonId`,
+`militia[3]`, `timeLastLoaded`, `timeLastPlayerLiberated`, `visibleItems`, …).
 
 `InitNewCampaign` zero-fills all 256 records, then `InitStrategicMovementCosts`, `RemoveAllGroups`,
 `InitKnowFacilitiesFlags`, `BuildUndergroundSectorInfoList`, start-sector reveal (`SetSectorFlag(A9,
@@ -148,17 +114,19 @@ the shipped JSON (A10, B2, D4, D5 b1 empty; J9 b1/b2; K4 b1; O3 b1 ↔ P3 b1; fi
 | `SF_PLAYER_KNOWS_ENEMIES_ARE_HERE` | 0x4 | PBI with `ENEMY_ENCOUNTER_CODE` (`Strategic/PreBattle_Interface.cc:431-440`) | all 256 cleared on the next clock advance while `!fEnemyInSector` (`Strategic/Game_Clock.cc:211-216`) |
 | `SF_ALREADY_VISITED` | 0x20 | arrival of a non-heli player group (§3.9), `EnterSector` (not in meanwhile), start sector at init | never cleared; fog, enemy knowledge, theft, bloodcat lair corpses |
 | `SF_USE_ALTERNATE_MAP` | 0x40 | `InitNPCs` (NPC placements), cache sector (`docs/17`), Tixa b1 if not sci-fi (`Game_Init.cc:73-116`) | map file name |
-| `SF_PENDING_ALTERNATE_MAP` | 0x80 | quest code (M6) | |
+| `SF_PENDING_ALTERNATE_MAP` | 0x80 | quest code (`25`) | |
 | `SF_ALREADY_LOADED` | 0x100 | `SetCurrentWorldSector` after `EnterSector` | item temp file replaces map items (§5.11) |
 | `SF_HAS_ENTERED_TACTICAL` | 0x200 | `SetCurrentWorldSector` | mods only |
-| `SF_SKYRIDER_NOTICED_ENEMIES_HERE` | 0x400 | heli scouting (§3.16) | cleared when Skyrider leaves |
-| `SF_HAVE_USED_GUIDE_QUOTE` | 0x800 | RPC sector description (M6) | |
+| `SF_SKYRIDER_NOTICED_ENEMIES_HERE` | 0x400 | heli scouting (`25` §10.3) | cleared when Skyrider leaves (§6.3) |
+| `SF_HAVE_USED_GUIDE_QUOTE` | 0x800 | RPC sector description (`25`) | |
 | `SF_*_TEMP_FILE_EXISTS` | 0x00100000 … 0x80000000 | §5.11 | §5.11 |
 
 `SetSectorFlag(sector, SF_ALREADY_VISITED)` also: Tixa (J9) visited → `SectorInfo[SEC_J9].uiFacilitiesFlags |=
 SFCF_PRISON`; the gun range sector (13, H, 0) → H13/H14/I13/I14 gain `SFCF_GUN_RANGE`; and if the flag was not yet set,
 `++ubNumNewSectorsVisitedToday == NEW_SECTORS_EQUAL_TO_ACTIVITY` updates the player-activity day (`docs/17`)
 (`Tactical/Tactical_Save.cc:773-812`). Underground flags go to the node if it exists, silently nowhere otherwise.
+ja2-node: `setSectorFlag`/`resetSectorFlag`/`getSectorFlagStatus` in `map/sectors.ts` with these side effects; the
+activity counters are `map.activity`.
 
 ### 1.6 Traversability (`Campaign_Types.h:100-147`) and the movement-cost table
 
@@ -181,37 +149,37 @@ EDGEOFWORLD, used by the map UI and `Strategic_AI.cc:260`), `IsTheCursorAllowedT
 and one tactical rule (`Tactical/Soldier_Control.cc:5451`, `!= TOWN`). `GetTraversability(byteFrom, byteTo)` picks the
 direction from the byte difference (−1 W, +1 E, +16 S, else N) (`Strategic_Movement_Costs.cc:33-60`).
 
-### 1.7 Externalized tables (all in `data/externalized`, JSON with `//` and `/* */` comments, no trailing commas)
+### 1.7 Externalized tables (`data/externalized`, JSON with `//` and `/* */` comments, no trailing commas)
 
-| File | Fields | Consumer | M4 |
-|---|---|---|---|
-| `strategic-map-movement-costs.json` | §1.6 | `InitStrategicMovementCosts` | **yes** |
-| `strategic-map-traversibility-ratings.json` | letter → enum | the model loader | **yes** |
-| `strategic-map-towns.json` | `townId` 1..12, `internalName`, `sectors[]`, `militiaMapBaseSector` (art), `townPoint` (label ×10 sectors), `isMilitiaTrainingAllowed` | `bNameId`, `FOR_EACH_SECTOR_IN_TOWN`, loyalty, militia | **yes** (`bNameId`, NPC-of-note rule, invasion messages) |
-| `strategic-map-sectors-descriptions.json` | `sector`, `sectorLevel`, `landType` | `GetSectorLandTypeString` (B13 airport, F8 hospital, N3 airport, five underground facilities) | text only |
-| `strategic-map-underground-sectors.json` | §1.4 | `BuildUndergroundSectorInfoList` | **yes** |
-| `strategic-map-sam-sites.json` | 4 × `sector` (D2, D15, I8, N4 — order fixed), `gridNos[2]` (controller tiles) | SAM ids, structure damage, `IsThisSectorASAMSector` | airspace, encounters (SAM = "important") |
-| `strategic-map-sam-sites-air-control.json` | 16 × 16 of `samId + 1`, 0 = no SAM covers it | `UpdateAirspaceControl` | heli, observation |
-| `strategic-map-secrets.json` | `sector`, `isSAMSite`, `secretMapIcon`, `secretLandType`, `foundLandType` (Tixa, Orta, 4 SAMs) | found on arrival (§3.9) or by quests; the native save keeps Tixa's state in the general-info block, Orta's after the strategic info and the SAM sites' as an array (`SaveLoadGame.cc:1880,1908`, `StrategicMap.cc:2346-2348`) | yes |
-| `strategic-map-cache-sectors.json` | `sectors[5]`, `numTroops[3]`, `numTroopsVariance[3]` | `InitStrategicAI` (`Strategic/Strategic_AI.cc:552-560`) | `docs/17` |
-| `strategic-map-npc-placements.json` | `profile`, `sectors[]`, `placedAtStart`, `useAlternateMap`, `sciFiOnly` | `InitNPCs`, daily NPC moves | M6 (NPC of note uses profile sectors) |
-| `strategic-bloodcat-placements.json` | `sector`, `bloodCatPlacements` | `InitBloodCatSectors` | yes |
-| `strategic-bloodcat-spawns.json` | `sector`, `isLair`/`isArena`, spawns by difficulty (I16 lair, N5 arena) | same, §4.2 | yes |
-| `strategic-map-creature-lairs.json`, `strategic-mines.json`, `strategic-ai-policy.json`, army-*.json | | `docs/17`, `docs/18` | not here |
-| `vehicles.json` | per vehicle type: sounds, `profile`, `movementType` (FOOT/CAR/TRUCK/TRACKED/AIR), `armourType`, `seats` (≤ 10) | `AddVehicleToList` sets the group's transport mask (`Tactical/Vehicles.cc:114`) | §3.15 |
-| `game.json` | `squad_size`, `start_sector`, `start_sector_revealed` | squads, new game | yes |
+| File | Fields | Consumer |
+|---|---|---|
+| `strategic-map-movement-costs.json` | §1.6 | `InitStrategicMovementCosts` |
+| `strategic-map-traversibility-ratings.json` | letter → enum | the model loader |
+| `strategic-map-towns.json` | `townId` 1..12, `internalName`, `sectors[]`, `militiaMapBaseSector` (art), `townPoint` (label ×10 sectors), `isMilitiaTrainingAllowed` | `bNameId`, `FOR_EACH_SECTOR_IN_TOWN`, loyalty, militia, NPC-of-note rule, invasion messages |
+| `strategic-map-sectors-descriptions.json` | `sector`, `sectorLevel`, `landType` | `GetSectorLandTypeString` (B13 airport, F8 hospital, N3 airport, five underground facilities); text only |
+| `strategic-map-underground-sectors.json` | §1.4 | `BuildUndergroundSectorInfoList` |
+| `strategic-map-sam-sites.json` | 4 × `sector` (D2, D15, I8, N4 — order fixed), `gridNos[2]` (controller tiles) | SAM ids, structure damage, `IsThisSectorASAMSector`; airspace, encounters (SAM = "important") |
+| `strategic-map-sam-sites-air-control.json` | 16 × 16 of `samId + 1`, 0 = no SAM covers it | `UpdateAirspaceControl` |
+| `strategic-map-secrets.json` | `sector`, `isSAMSite`, `secretMapIcon`, `secretLandType`, `foundLandType` (Tixa, Orta, 4 SAMs) | found on arrival (§3.9) or by quests; the native save keeps Tixa's state in the general-info block, Orta's after the strategic info and the SAM sites' as an array (`SaveLoadGame.cc:1880,1908`, `StrategicMap.cc:2346-2348`) |
+| `strategic-map-cache-sectors.json` | `sectors[5]`, `numTroops[3]`, `numTroopsVariance[3]` | `InitStrategicAI` (`Strategic/Strategic_AI.cc:552-560`, `docs/17`) |
+| `strategic-map-npc-placements.json` | `profile`, `sectors[]`, `placedAtStart`, `useAlternateMap`, `sciFiOnly` | `InitNPCs`, daily NPC moves (`25`) |
+| `strategic-bloodcat-placements.json` | `sector`, `bloodCatPlacements` | `InitBloodCatSectors` |
+| `strategic-bloodcat-spawns.json` | `sector`, `isLair`/`isArena`, spawns by difficulty (I16 lair, N5 arena) | same, §4.2 |
+| `strategic-map-creature-lairs.json`, `strategic-mines.json`, `strategic-ai-policy.json`, `army-*.json` | | `docs/17`, `docs/18` |
+| `vehicles.json` | per vehicle type: sounds, `profile`, `movementType` (FOOT/CAR/TRUCK/TRACKED/AIR), `armourType`, `seats` (≤ 10); order fixed (HELICOPTER is index 5) | `AddVehicleToList` sets the group's transport mask (`Tactical/Vehicles.cc:114`) |
+| `game.json` | `squad_size`, `start_sector`, `start_sector_revealed` | squads, new game |
 
 ### 1.8 Tables that exist only in C sources
 
-| Table | Source | Use |
-|---|---|---|
-| Travel times per transport and edge type | `Strategic/Strategic_Movement.cc:2065-2190` | §3.5 |
-| Facilities per sector (hospital, airport, prison, military…) | `Strategic/Campaign_Init.cc:30-66` | display, `docs/18` |
-| `SectorIncrementer[8]` (dx, dy per tactical direction) | `Strategic/StrategicMap.cc:157-167` | §5.9 |
-| Edgepoint generator corners `gsTLGridNo 13286, gsTRGridNo 1043, gsBLGridNo 24878, gsBRGridNo 12635` | `TileEngine/Map_Edgepoints.cc:51-54` | §5.7 |
-| RPC sector descriptions (33 sectors, quote ids) | `StrategicMap.cc:355-393` | M6 |
-| Heli refuel sites (Drassen B13 grid 9001, Estoni I6 grid 13067), heli costs | `Strategic/Map_Screen_Helicopter.cc:44-84`, `.h:12-13` | §3.16 |
-| Bloodcat lair corpses (3 gridnos) | `Strategic_Movement.cc:1029-1068` | §3.9 |
+| Table | Source | Use | ja2-node |
+|---|---|---|---|
+| Travel times per transport and edge type | `Strategic/Strategic_Movement.cc:2065-2190` | §3.5 | `data/tables/strategic-travel.json` (§7.1) |
+| Facilities per sector (hospital, airport, prison, military…) | `Strategic/Campaign_Init.cc:30-66` | display, `docs/18` | `data/tables/sector-facilities.json` |
+| `SectorIncrementer[8]` (dx, dy per tactical direction) | `Strategic/StrategicMap.cc:157-167` | §5.9 | `SECTOR_STEP` in `campaign/sector-exits.ts` |
+| Edgepoint generator corners `gsTLGridNo 13286, gsTRGridNo 1043, gsBLGridNo 24878, gsBRGridNo 12635` | `TileEngine/Map_Edgepoints.cc:51-54` | §5.7 | `tactical/edgepoints.ts` |
+| RPC sector descriptions (33 sectors, quote ids) | `StrategicMap.cc:355-393` | `25` | `campaign/narrative/guide-description.ts` |
+| Heli refuel sites (Drassen B13 grid 9001, Estoni I6 grid 13067), heli costs | `Strategic/Map_Screen_Helicopter.cc:44-84`, `.h:12-13` | §3.16 | `forces/helicopter-state.ts`; costs in the travel table |
+| Bloodcat lair corpses (3 gridnos) | `Strategic_Movement.cc:1029-1068` | §3.9 | not ported (§7.7) |
 
 ---
 
@@ -245,7 +213,9 @@ arrival 20, traverse 24, mask 36, flags 40, created 44, reassignment 45); player
 profile`; enemy: 29 bytes (troops 0, elites 1, admins 2, pending 4, adminsInBattle 5, intention 6, troopsInBattle 7,
 elitesInBattle 8); `u32 n` × 8-byte waypoints (x 0, y 1); finally the 32-byte id mask, which the loader skips and
 rebuilds from the loaded ids (`Strategic_Movement.cc:2394-2717`). Squads: 120 × 12 bytes (`i16 soldier id` 0, `u8`
-format 2, `i8 squad` 3) + `INT8 SquadMovementGroups[20]` (`Tactical/Squads.cc:643-730`).
+format 2, `i8 squad` 3) + `INT8 SquadMovementGroups[20]` (`Tactical/Squads.cc:643-730`). ja2-node: `Group`
+(`forces/groups.ts`) has the same fields in camelCase; `members` holds soldier ids, `enemy` is the `ENEMYGROUP` record
+or null.
 
 ### 2.2 Group ids and the list
 
@@ -255,7 +225,8 @@ it, and **appends** the group to the end of `gpGroupList`; 255 groups max, then 
 list scan. New game: `InitNewCampaign` → `RemoveAllGroups`, then `InitStrategicAI` creates the patrol groups first
 (`docs/17`), then `InitSquads` creates 20 persistent player groups at (1,1) (`Squads.cc:41-56`), then `InitVehicles`
 10 persistent vehicle groups at (1,1) with mask CAR (`Tactical/Vehicles.cc:51-61`) (`Strategic/Game_Init.cc:140-151`).
-So squad group ids depend on the number of patrol groups; tests must not hard-code them.
+So squad group ids depend on the number of patrol groups: address squads by index, never by group id. ja2-node's
+`lowestFreeGroupId` takes the lowest id not used by a listed group, which is what `uniqueIDMask` always holds.
 
 Creation (`Strategic_Movement.cc`):
 
@@ -316,8 +287,8 @@ for slot in Squad[q] (in order):
 false                                                // squad full
 ```
 
-Note `SetGroupSectorValue` (§3.11) **removes the squad group's waypoints and arrival event** each time a member is
-added — adding a merc resets the squad's movement (fine, a moving squad refuses new members).
+`SetGroupSectorValue` (§3.11) **removes the squad group's waypoints and arrival event** each time a member is added —
+adding a merc resets the squad's movement (harmless: a moving squad refuses new members).
 
 - `AddCharacterToAnySquad(s)` (`:214-255`): first non-empty squad (ascending) that accepts him, else the first empty one,
   else `logic_error`.
@@ -341,6 +312,7 @@ occupies or departed), stored on every member (`pMercPath`) and on the vehicle (
 squad share copies (`CopyPathToCharactersSquadIfInOne`). `GetSoldierMercPathPtr`/`GetSoldierGroup`: in a vehicle → the
 vehicle's path/group; is a vehicle → its own entry; else the soldier's (`Strategic/Strategic_Pathing.cc:1049-1090`).
 The group moves along **waypoints** built from the path at its pivots (§3.4). Arrival removes the path head (§3.9).
+ja2-node keeps paths as arrays of strategic indices (`StrategicMerc.path`, `VehicleRecord.path`).
 
 ### 3.2 `FindStratPath(start, dest, group, tacticalTraversal)` (`Strategic_Pathing.cc:188-441`)
 
@@ -372,12 +344,13 @@ do:
       insert before the first queue node with total > t; among equal totals, after every node whose
       Manhattan distance to dest is smaller than the new node's (FARTHER), i.e. before equal-distance ones
 while queue not empty and head.loc != dest
-found → reverse the trail chain from the head node; emit up to MAX_PATH_LIST_SIZE directions (0/2/4/6); return count
+found → reverse the trail chain from the head node; emit up to MAX_PATH_LIST_SIZE (30) directions (0/2/4/6); return count
 else 0
 ```
 
 The heuristic is in sectors while costs are minutes, so in practice it only breaks ties: the search is Dijkstra
-ordered by minutes, then by estimate, then by Manhattan distance, then LIFO. No random numbers.
+ordered by minutes, then by estimate, then by Manhattan distance, then LIFO. No random numbers. ja2-node:
+`findStratPath` (`map/pathing.ts`) runs the literal queue and trail tree with both limits.
 
 `BuildAStrategicPath(start, end, group, tt)` (`:444-487`): `end < 17` → null; otherwise a list `[start, …, end]`
 following the directions; any step landing below index 17 clears it. `AppendStrategicPath(new, old)` drops the new
@@ -420,6 +393,10 @@ every character in the list who is in his group or selected (`Strategic/Map_Scre
 | `PlayerSoldierTooTiredToTravel` (§3.7) | custom |
 | robot without its controller in the squad/vehicle; EPC with no non-EPC in the squad/vehicle | `ME_ROBOT_ALONE` 49 / custom |
 | Maria in C5 | custom |
+
+ja2-node: `forces/routes.ts` (people and vehicles), `forces/move-permission.ts` (`canEntireMovementGroupMove`; no fuel
+or museum check, deviation "Strategic move refusals"), `forces/move-box.ts`; a route is one command, not cursor clicks
+(deviations "Map route plotting", "Move box regrouping").
 
 ### 3.4 Waypoints: `RebuildWayPointsForGroupPath(path, g)` and `AddWaypointToPGroup` (`Strategic_Pathing.cc:799-897`)
 
@@ -467,26 +444,13 @@ if mask & AIR:     best = min(best, 10)
 return best
 ```
 
-Resulting minutes (integer division):
-
-| Edge | Foot | Car | Truck | Tracked | Air |
-|---|---|---|---|---|---|
-| TOWN | 5 | 5 | 5 | 5 | 10 |
-| ROAD | 89 | 30 | 32 | 46 | 10 |
-| PLAINS | 104 | — | 42 | 46 | 10 |
-| SAND | 178 | — | — | 65 | 10 |
-| SPARSE | 127 | — | 53 | 76 | 10 |
-| DENSE | 148 | — | — | — | 10 |
-| SWAMP | 254 | — | — | — | 10 |
-| WATER | 356 | — | — | 460 | 10 |
-| HILLS | 178 | — | 64 | 76 | 10 |
-| NS/EW_RIVER | 356 | — | — | 230 | 10 |
-| GROUNDBARRIER | — | — | — | — | 10 |
-
-`CalculateCarriedWeight` is the existing `carriedWeightPercent` (`src/sim/tactical/inventory.ts:375`). Fatigue does not
-change speed; it stops the group at the next sector (§3.10). There is no strongest- or slowest-member rule beyond the
-encumbrance maximum (the most loaded walker slows the whole group; vehicle passengers never count). Any mask bit whose
-terrain is impossible makes the whole edge impossible (mixed masks never occur for players).
+Integer divisions throughout (foot on plains `89·100/85 = 104`, tracked on water `46·100/10 = 460`; AIR is 10 on every
+edge but EDGEOFWORLD, GROUNDBARRIER included). The constants are transcribed into `data/tables/strategic-travel.json`
+(§7.1). Fatigue does not change speed; it stops the group at the next sector (§3.10). There is no strongest- or
+slowest-member rule beyond the encumbrance maximum (the most loaded walker slows the whole group; vehicle passengers
+never count). Any mask bit whose terrain is impossible makes the whole edge impossible (mixed masks never occur for
+players). ja2-node: `getSectorMvtTimeForGroup`/`sectorMovementTime` (`map/travel.ts`); `CalculateCarriedWeight` is
+`MercPort.carriedWeightPercent` (`carriedWeightPercent`, `src/sim/tactical/inventory.ts`).
 
 ETA: `FindTravelTimeBetweenWaypoints(a, b, g)` walks byte ids from `a` to `b` one step at a time (direction from the
 sign of the byte difference and divisibility by 16) summing edge times (`:1989-2062`); `CalculateTravelTimeOfGroup(g)` =
@@ -533,7 +497,7 @@ Events: `EVENT_GROUP_ARRIVAL` (18) → `GroupArrivedAtSector(g, TRUE, FALSE)`; `
 forced driver counts; asleep and not awakenable, or awake with `bBreathMax < BREATHMAX_GOTTA_STOP_MOVING` (30).
 `AnyMercInGroupCantContinueMoving(g)` (`:6318-6343`) puts every such member to sleep (`fMercCollapsedFlag`) with quotes and
 returns true. Hourly `FatigueCharacter` (`:2073-2117`) lowers `bBreathMax`, ×encumbrance/100 above 100% for walkers: owned
-by `docs/18`.
+by `docs/18`. ja2-node reaches both through `MercPort.tooTiredToTravel`/`collapseFromFatigue`.
 
 ### 3.8 Experience and fuel on arrival
 
@@ -542,6 +506,7 @@ by `docs/18`.
 carried > 50% → `points = traverse / (450 / (100 − str))`, `StatChange(STRAMT, points·(carried − 50)/100)` (called even
 with 0). Integer divisions; `450 / (100 − x)` is 4 at 0, 450 at 99. Vehicles (not the heli): fuel `sBreathRed −=
 traverse·6` (min 0), `bBreath = (sBreathRed + 99) / 100`; empty → message, paths cleared (`:3106-3118, 1163-1176`).
+ja2-node does not model fuel (deviation "Vehicles as characters").
 
 ### 3.9 Arrival: `GroupArrivedAtSector(g, checkForBattle, neverLeft)` (`Strategic_Movement.cc:1077-1380`)
 
@@ -587,6 +552,8 @@ waitingForInput = false
 
 `AddCorpsesToBloodcatLair` writes three JFK-type corpses (grid 14319, 9835, 11262, one `Random(8)` direction for all,
 time of death now − 2 days, `ROTTING_CORPSE_FIND_SWEETSPOT_FROM_GRIDNO`) into the lair's corpse diff (`:1029-1068`).
+ja2-node calls the `TacticalWorldPort.addCorpsesToBloodcatLair` hook, which has no implementation (§7.7). The "arrived"
+message becomes the `groupArrived` event (`04` §6).
 
 ### 3.10 Non-combat arrival (`:1383-1440`, `:3458-3608`)
 
@@ -614,7 +581,9 @@ heli, or while another prompt is open; fires when `WildernessSectorWithAllProfil
 `bNameId == BLANK_SECTOR`, not a SAM sector, and every non-player, non-vehicle, alive profile located there has
 `ubLastDateSpokenTo == 0` and is not recruited/escorted (one spoken-to NPC there cancels the prompt) (`:3539-3581`). The
 box is OK at the final destination, Continue/Stop otherwise; Yes/OK → `PlayerGroupArrivedSafelyInSector(g, FALSE)`; No →
-clear paths, select the sector, stop compression (`:3584-3608`).
+clear paths, select the sector, stop compression (`:3584-3608`). ja2-node: the prompt record is `movement.groupPrompting`,
+answered by `answerNpcOfNotePrompt` (deviation "Strategic prompts"); the sector test is the
+`TacticalWorldPort.npcOfNoteInSector` hook, which only has its default `false` (§7.7).
 
 `CalculateNextMoveIntention(g)` (`:915-992`, enemy): if not between sectors and it has waypoints and stands on
 `waypoint[nextId]`: ONE_WAY → stop at the last one else `nextId++`; CIRCULAR → wrap to 0; ENDTOEND_FORWARDS → at the end
@@ -641,7 +610,8 @@ clear paths, select the sector, stop compression (`:3584-3608`).
 `HandleOtherGroupsArrivingSimultaneously(sector)` runs at the start of every battle check: scanning the queue from its
 head while `timestamp ≤ now (seconds)`, every non-deleted `GROUP_ARRIVAL` whose group is between sectors with `next ==
 sector` is arrived immediately with `GroupArrivedAtSector(it, FALSE, FALSE)`, flagged `ARRIVED_SIMULTANEOUSLY`, counted,
-its event deleted, and the scan restarts. They join the battle (or are released after a non-combat arrival, §3.9).
+its event deleted, and the scan restarts. They join the battle (or are released after a non-combat arrival, §3.9). The
+result depends on the queue's same-timestamp order (`docs/15`).
 
 `PossibleToCoordinateSimultaneousGroupArrivals(first)`: not if already APPROVED/CHECKED or the heli; count other player
 groups between sectors heading to `first.sector`, not CHECKED, not the heli, marking them CHECKED; none → false;
@@ -649,6 +619,7 @@ otherwise pause, remember `first`, ask "Coordinate a simultaneous arrival?" (ene
 true`, return true. Yes → `PrepareGroupsForSimultaneousArrival`: latest arrival among those groups; each gets APPROVED,
 its event re-posted at that time (+ about-to-arrive), `DelayEnemyGroupsIfPathsCross`; the first group is warped back
 (`next = sector, sector = prev`, between, same arrival, events). No → `PrepareForPreBattleInterface(first, first)`.
+ja2-node: the prompt record is `encounter.simultaneousArrival`, answered by `answerSimultaneousArrival`.
 
 ### 3.13 Underground
 
@@ -666,9 +637,10 @@ not (`:2193-2212`). `FindPlayerMovementGroupInSector(s)` — the PBI "involved g
 every non-vehicle enemy group whose `ubSector == s` — **including groups that departed `s` and are still between
 sectors**; `NumHostilesInSector` adds creatures and handles z > 0 via the underground node; `NumStationaryEnemiesInSector`
 is 0 without a garrison or for a ROADBLOCK composition; `NumMobileEnemiesInSector` compares `ubGarrisonID` with
-`ROADBLOCK` (a composition id; a Strac/vanilla bug owned by `docs/17`).
+`ROADBLOCK` (a composition id; a Strac/vanilla bug owned by `docs/17`). ja2-node: `forces/groups.ts`; the stationary
+counts come through `StrategicAiPort`.
 
-### 3.15 Vehicles (basics; full use in M5/M6)
+### 3.15 Vehicles
 
 `VEHICLETYPE {pMercPath, ubMovementGroup, ubVehicleType, sSector, pPassengers[10], fBetweenSectors, fDestroyed,
 fValid}` (`Tactical/Vehicles.h`). `AddVehicleToList(sector, grid, type)` reuses the first invalid slot (garbage-collects
@@ -678,31 +650,23 @@ mask from `vehicles.json`, sector/next, traverse = arrival = 0 (`Vehicles.cc:75-
 vehicle first joins a unique squad and its group; the passenger leaves his squad (or his own group is removed),
 assignment VEHICLE, joins the vehicle group, first one is `SOLDIER_DRIVER`. Movement is the group's (mask CAR: roads and
 towns only). Fuel in `sBreathRed` (10000 full), gas can adds `status·50` (`Strategic_Movement.cc:3121-3150`).
-`vehicles.json` order is fixed (HELICOPTER is index 5).
 
-*Implemented (M6, 2026-10-16):* `forces/vehicles.ts` and `economy/vehicle-assignment.ts`: `AddVehicleToList`, seats in slot
-order (`VehicleRecord.passengers` holds ten slots, −1 empty, imported from the save's slots), `AddSoldierToVehicle` (the vehicle
-soldier joins a unique squad and its vehicle group when the first passenger boards; the first passenger drives),
-`RemoveSoldierFromVehicle` and `TakeSoldierOutOfVehicle` (the empty ground vehicle hands its soldier back to its group with
-`ASSIGNMENT_EMPTY`, a driverless vehicle between sectors is teleported to the nearer sector), `SetVehicleSectorValues` on
-arrival, vehicle paths in `PlotPathForCharacter`/`CancelPathForCharacter`/`ClearPathAfterThisSectorForCharacter`
-(`SetUpMvtGroupForVehicle`, `MoveCharactersPathToVehicle`, `CancelPathForVehicle`), `SoldierMustDriveVehicle` for sleep and
-fatigue, and `AddCharacterToSquad`'s vehicle branches (`fExitingVehicleToSquad` is `movement.exitingVehicleToSquad`). Taking over
-a civilian vehicle and positioning passengers at a ground vehicle in tactical are not ported (deviation "Ground vehicles").
+ja2-node: `forces/vehicles.ts` and `economy/vehicle-assignment.ts` port these (`VehicleRecord.passengers`: ten slots,
+−1 empty; when the last passenger leaves a ground vehicle, its soldier returns to the vehicle group with
+`ASSIGNMENT_EMPTY` and a vehicle between sectors is put in its closest sector, `TeleportVehicleToItsClosestSector`;
+`soldierMustDriveVehicle` for sleep and fatigue). A vehicle soldier exists only for vehicles imported from a native save (`VehicleRecord.soldierId`, else −1),
+so a ground vehicle without one cannot be boarded; no condition or fuel (deviations "Vehicles as characters", "Ground
+vehicles").
 
-### 3.16 Helicopter (summary; can wait until the Skyrider quest, M6)
+### 3.16 Helicopter
 
 The heli is vehicle `iHelicopterVehicleId` with mask AIR (10 min per edge, all terrain but EDGEOFWORLD, towns included).
-Routes cost 100 per sector left in safe airspace, 1000 in enemy airspace (unless SHIFT). Arrival (`HandleHeliEnteringSector`,
-`Strategic/Map_Screen_Helicopter.cc:199-295`): SAM attack if the sector is enemy airspace covered by a working SAM:
-`PreRandom(100) < min(condition, 33)` → hit 1 minor, hit 2 returns to base, hit 3 destroyed (`:1046-1136`); enemies below
-and unknown → `PreRandom(100) < 60 + n` sets `SF_SKYRIDER_NOTICED_ENEMIES_HERE` (+ quote `Random(2)`); unless returning
-to base or never left, bill +100/+1000; at the path end: hover (events `HOVER_TOO_LONG` 29 at +10 min,
-`HOVER_WAY_TOO_LONG` 30 at start + 20), pay if safe, land at a refuel site. `setArrivalTime` clamps the heli to
-`now + traverse` (`Strategic_Movement.cc:3401-3430`); the heli never joins simultaneous arrivals. The clamp can only bite
-after a delay longer than the 10-minute edge; the queued-battle delay (3–5 minutes) never reaches it, so ja2-node does not
-model it. *Implemented in M6* (`docs/25` §10): `GroupArrivedAtSector` runs `HandleHeliEnteringSector` and skips the rest of
-the arrival when the helicopter is destroyed.
+Routes cost 100 per sector left in safe airspace, 1000 in enemy airspace, unless SHIFT (§3.2). Arrival runs
+`HandleHeliEnteringSector` (`Strategic/Map_Screen_Helicopter.cc:199-295`) from `GroupArrivedAtSector` (§3.9); SAM fire,
+Skyrider noticing enemies, the bill, hovering and landing are `25` §10, and a destroyed helicopter skips the rest
+of the arrival. `setArrivalTime` clamps the heli to `now + traverse` (`Strategic_Movement.cc:3401-3430`); the heli never
+joins simultaneous arrivals. The clamp can only bite after a delay longer than the 10-minute edge; the queued-battle
+delay (3–5 minutes) never reaches it, so ja2-node does not model it.
 
 ---
 
@@ -749,6 +713,8 @@ return true
 dialogue queue (`:905-910`). `NotifyPlayerOfInvasionByEnemyForces` (`Map_Screen_Interface.cc:3711-3740`) does nothing for
 z > 0 or an enemy-controlled sector, shows a box (and then calls back) for SAM and town sectors, and only prints a
 message for other sectors — **no callback** there (inferred: militia exist only in towns/SAM sectors, so unreachable).
+ja2-node closes the informational boxes at once (`PreBattleNotice` on the hand-off, deviation "Strategic prompts"), so
+`TriggerPrebattleInterface` runs immediately.
 
 ### 4.2 Bloodcats: `TestForBloodcatAmbush(g)` (`:3263-3360`)
 
@@ -772,8 +738,8 @@ if !alreadyAmbushed && !arena && cats > 0 && !g.vehicle && NumEnemiesInSector ==
 else encounterCode = NO_ENCOUNTER; false
 ```
 
-Note the first-visit branch leaves `cats` at −1 when the `PreChance` fails, so every later visit rolls again; a
-sector with `bBloodCats == 0` rolls `PreChance(95)` and still returns false.
+The first-visit branch leaves `cats` at −1 when the `PreChance` fails, so every later visit rolls again; a sector with
+`bBloodCats == 0` rolls `PreChance(95)` and still returns false.
 
 ### 4.3 Encounter codes (`Strategic/PreBattle_Interface.h`)
 
@@ -805,6 +771,10 @@ encounter-code refinement, autoresolve, "go to sector", retreat) is `docs/19`'s;
 for a tactical traversal of that group or underground (`PreBattle_Interface.cc:205-208`). The `Random(n)` speaker choice
 is cosmetic (quote only) except that for traversal it picks the one who speaks after loading: also cosmetic.
 
+ja2-node writes the hand-off record `encounter.preBattle` (`PreBattleHandoff`: groups, sector, code, notice, the
+speaker candidates instead of a `Random(n)` draw, deviation "Cosmetic draws in strategic movement"); the PBI
+(`docs/19`) clears it and `movement.disableMapInterfaceDueToBattle`, as closing the PBI does.
+
 ### 4.5 Enemy groups arriving at player sectors
 
 An enemy group's arrival runs the same check: a player group present (alive member) or militia → battle; only
@@ -814,17 +784,12 @@ an empty player sector is `docs/17`'s (`SetThisSectorAsEnemyControlled`, §6.1).
 
 ### 4.6 Reinforcements into the loaded battle
 
-- `HandleArrivalOfReinforcements(g)` (`:2253-2290`): player group → insertion code from `ubSector` vs `ubPrev` (as §3.9;
-  same sector → `logic_error`), each member `UpdateMercInSector(s, (x,y,0))`, the first says "reached destination", a
-  message. Enemy group → `gfPendingEnemies = true`, `ResetMortarsOnTeamCount`, `AddPossiblePendingEnemiesToBattle`.
-- `AddPossiblePendingEnemiesToBattle()` (`Queen_Command.cc:914-999`): only if pending; free enemy slots (inactive ids of
-  the enemy team); for each enemy group in the loaded surface sector (list order) while slots remain: add one at a time
-  troops first, then elites, then admins until the group's not-yet-in-battle count or the slots run out; insertion code
-  from `ubPrev` (else from `ubNext`) as for players; `AddEnemiesToBattle`. Slots left → pending = false.
-- `AddEnemiesToBattle(g, code, a, t, e)` (`:1002-1047`): facing N→SE, E→SW, S→NW, W→NE; `ChooseMapEdgepoints(code, n)`;
-  repeatedly `roll = Random(remaining)`: `< elites` elite, `< elites + troops` troop, else admin; `TacticalCreateEnemySoldier`,
-  group id set; slot `k` < edgepoints → `INSERTION_CODE_GRIDNO` at that edgepoint, else the entry point;
-  `UpdateMercInSector`.
+`HandleArrivalOfReinforcements(g)` (`:2253-2290`): player group → insertion code from `ubSector` vs `ubPrev` (as §3.9;
+same sector → `logic_error`), each member `UpdateMercInSector(s, (x,y,0))`, the first says "reached destination", a
+message. Enemy group → `gfPendingEnemies = true`, `ResetMortarsOnTeamCount`, `AddPossiblePendingEnemiesToBattle`. That
+function and `AddEnemiesToBattle` (`Queen_Command.cc:914-1047`: free slots, troops-first order, entry side from
+`ubPrev`/`ubNext`, edgepoints, class rolls) are `17` §10.4. ja2-node: the enemy side goes through
+`TacticalWorldPort.enemyReinforcementsArrived` to `SectorFlow.addPossiblePendingEnemiesToBattle`.
 
 ---
 
@@ -841,7 +806,8 @@ an empty player sector is `docs/17`'s (`SetThisSectorAsEnemyControlled`, §6.1).
 | Savegame load | `docs/14`, `docs/15` | `SetCurrentWorldSector(save sector)` with `LOADING_SAVED_GAME` |
 
 The original lets the player open the map screen from tactical at any time without unloading; that is a view switch,
-not a simulation step (`docs/15` decides time compression there).
+not a simulation step (deviation "Map and tactical screens"; the clock rules are `docs/15`'s). ja2-node's gate is
+`SectorFlow.enterSectorRefusal` (`canGoToTacticalInSector`); the UI-only gates do not exist.
 
 ### 5.2 `SetCurrentWorldSector(s)` (`StrategicMap.cc:433-560`)
 
@@ -857,18 +823,26 @@ if loading a save: music
 else: stop speech; Tixa caves (9,10,2) → InitCreatureQuest; uiTimeSinceLastInTactical = nowMin;
       InitializeTacticalStatusAtBattleStart(); HandleHelicopterOnGround(false)
 EnterSector(s)                                                    // §5.3
-if !loading: InitAI(); ExamineDoorsOnEnteringSector()             // dead code, see §10
+if !loading: InitAI(); ExamineDoorsOnEnteringSector()             // never fires: compares with the stamp set above
 UpdateDoorGraphicsFromStatus(); SetSectorFlag(s, SF_ALREADY_LOADED); HandleHelicopterOnGround(true)
-if !loading: music; HandleRPCDescriptionOfSector (M6, Random(5)); SetSectorFlag(s, SF_HAS_ENTERED_TACTICAL);
+if !loading: music; HandleRPCDescriptionOfSector (25; Random(5)); SetSectorFlag(s, SF_HAS_ENTERED_TACTICAL);
              fHasEnteredCombatModeSinceEntering = false; fDontAddNewCrows = false;
              sCreatureTenseQuoteDelay = 10 + Random(20); z ≥ 2 and a mine warp exists → IN_CREATURE_LAIR else clear;
              ubNumCrowsPossible = 5 + Random(5)
 ```
 
+`ExamineDoorsOnEnteringSector` (`Tactical/Keys.cc:1242-1263`) returns when `GetWorldTotalMin() −
+uiTimeSinceLastInTactical < 30`, and `SetCurrentWorldSector` sets that stamp at `:499`, ten lines before the call at
+`:509`: the doors are never closed (vanilla `V: Strategic/StrategicMap.c:877,904` too). ja2-node
+(`SectorFlow.setCurrentWorldSector(sector, {autoPlacement, battleLocatorShown})`) runs this order with the sector diff;
+it does not run `ExamineDoorsOnEnteringSector` (same result); the cosmetic `Random(20)` and `Random(5)` are drawn from
+`main` and discarded, which keeps the draw order; there is no `IN_CREATURE_LAIR` state (deviation "Creature quest
+scripting").
+
 ### 5.3 `EnterSector(s)` (`StrategicMap.cc:837-906`)
 
 Pause; if a world was loaded, `SetupProfileInsertionDataForCivilians` (profiled civilians' positions into their
-profiles, `:3137-3204`); unless loading, `HandleQuestCodeOnSectorEntry(s)` (M6; it also places head miners with
+profiles, `:3137-3204`); unless loading, `HandleQuestCodeOnSectorEntry(s)` (`25`; it also places head miners with
 `Random(4)` loops and may roll `Random(10 + militia) < 3` for Kingpin's assassin, `:669-799`); load screen;
 `RemoveMercsInSector` (our soldiers off their gridnos); `SF_ALREADY_VISITED` unless in meanwhile; `LoadWorld(map file)`
 (`07`, incl. exit grids and edgepoints §5.7); unless loading a save, `LoadCurrentSectorsInformationFromTempItemsFile`
@@ -895,7 +869,7 @@ if !loading:
   AddProfilesNotUsingProfileInsertionData()
   if !meanwhile || meanwhile == INTERROGATION: PrepareEnemyForSectorBattle()       // §5.13
   gfRestoringEnemySoldiersFromTempFile = false
-  AddProfilesUsingProfileInsertionData(); PostSchedules()                          // M6
+  AddProfilesUsingProfileInsertionData(); PostSchedules()                          // 25
 CallAvailableTeamEnemiesToAmbush(sCenterGridNo)                   // ambush codes only: CallAvailableEnemiesTo(centre),
                                                                   // a public noise at the centre (TacticalAI/Knowledge.cc:48-60)
 if !loading: UnPauseGame
@@ -922,7 +896,7 @@ then:
 | `GRIDNO 4` | `insertionData` |
 | `PRIMARY_EDGEINDEX 7`, `SECONDARY_EDGEINDEX 8` | `SearchForClosest{Primary,Secondary}MapEdgepoint(pendingActionData2, insertionData)`; NOWHERE → code = data, retry |
 | `ARRIVING_GAME 5` | start sector loaded → 4379, else code NORTH, north gridno |
-| `CHOPPER 6` | `AddMercToHeli` (M5 arrival), return |
+| `CHOPPER 6` | `AddMercToHeli` (arrival by helicopter, `21`), return |
 | other | map centre `80·160 + 80` |
 
 Then `sInsertionGridNo = g` and `AddSoldierToSector(s)` (`Tactical/Soldier_Add.cc:683-785`): merc slot (or away slot if
@@ -933,19 +907,21 @@ struct-data spot trying their insertion direction first (radius 12); everyone el
 `ubInsertionDirection` < 100 set on arrival is therefore ignored for people. Placement (`:861-980`): position, facing,
 `RevealRoofsAndItems` and stop for our team, `ARRIVING_GAME` walks in from the north sweet spot, enemy presence flag for
 hostiles (not bloodcats), roof check, stand (or lie down if life < OKLIFE, sleep if asleep, patient/doctor/repair poses).
-ja2-node's `addSoldierToSector` (`src/sim/tactical/creation.ts:236`) matches the sweet spot but not the facing rules yet.
+ja2-node: `updateMercInSector` and `addSoldierToSector` (`src/sim/tactical/insertion.ts`) follow both tables and the
+facing rules; `SectorFlow.updateMercsInSector` runs the loop over the roster.
 
 ### 5.7 Map edgepoints (`TileEngine/Map_Edgepoints.cc`)
 
 Two classes per side N, E, S, W: primary (`gps1st*`, reachable from the main area) and secondary (`gps2nd*`, isolated
 areas, e.g. parts of Grumm and Alma), each a gridno list with a `middle` index (start of the inner row). Maps with the
-`MAP_EDGEPOINTS_SAVED` flag and version ≥ 22 load them (`LoadMapEdgepoints`, `:802-831`, already parsed by
+`MAP_EDGEPOINTS_SAVED` flag and version ≥ 22 load them (`LoadMapEdgepoints`, `:802-831`, parsed by
 `src/content/formats/map.ts`); otherwise `LoadWorld` compiles movement costs and calls `GenerateMapEdgepoints` after
 `InitLoadedWorld` (`TileEngine/WorldDef.cc:2391-2443`): a reachability flood from the first existing entry point
 (N, E, S, W, centre), then for each side with an entry point two diagonal rows along the visible-map edge from the corner
 constants (§1.8), keeping reachable tiles that are outdoors or in a basement (`:315-760`), then validation and
-classification (`:84-312`, not traced line by line: port literally). Stub maps have no saved edgepoints, so M4 needs the
-generator.
+classification (`:84-312`, ported literally; the generated lists match the oracle, §7.6; neighbouring points must be
+reachable from each other within `EDGE_OF_MAP_SEARCH` 5 tiles, 250 on I14, a "special case map", `EdgepointsClose`,
+`:1110-1137`). Stub maps have no saved edgepoints, so they always run the generator.
 
 - `ChooseMapEdgepoint(code)`: a primary point by `Random(size)` (`:862-874`).
 - `ChooseMapEdgepoints(info, code, n)` (`:877-928`): primary list without MED/DEEP water tiles; `n ≥ size` → all;
@@ -956,8 +932,10 @@ generator.
   unreserved listed gridno; reserved on success.
 - `CalcMapEdgepointClassInsertionCode(g)` (`:1141-1227`): no isolated gridno → PRIMARY; else nearest point of each class
   on the exit side (`gubTacticalDirection`) by Pythagorean distance, path tests with a fake enemy-team soldier (distance
-  limit 15); equal validity → the closer class (ties primary); else the valid one. It runs on the **old** map, before
-  the next sector loads.
+  limit 15, `:1203`); equal validity → the closer class (ties primary); else the valid one. It runs on the **old** map,
+  before the next sector loads.
+
+ja2-node: `src/sim/tactical/edgepoints.ts`, one function per original function.
 
 ### 5.8 Tactical placement GUI
 
@@ -965,6 +943,8 @@ Entering from the PBI for the first time (`gfEnterTacticalPlacementGUI`) shows t
 mercs on their entry edge (`TileEngine/Tactical_Placement_GUI.cc`); "auto place" is `ChooseRandomEdgepoints`: per
 non-vehicle merc `ChooseMapEdgepoint(code)` → `INSERTION_CODE_GRIDNO`, else keep the code (`:545-571`); manual placement
 uses `SearchForClosestPrimaryMapEdgepoint`. Done → `KillTacticalPlacementGUI` → `PrepareLoadedSector` (`:491-539`).
+ja2-node has no placement GUI: `setCurrentWorldSector(sector, {autoPlacement: true})` runs the automatic start
+(deviation "Tactical placement").
 
 ### 5.9 Leaving a sector from tactical
 
@@ -973,7 +953,7 @@ confirm cursor opens the exit menu; an exit grid tile under the cursor does the 
 (`Tactical/Handle_UI.cc:670-806`, `Tactical/Turn_Based_Input.cc:2575-2665`). Below creature lairs (z ≥ 2) after the
 creature quest, a Yes/No box offers a warp to the surface (`InitSectorExitMenu`, `Tactical/Strategic_Exit_GUI.cc:436-453`;
 the warp sets every living in-sector merc's group to the warp sector with `INSERTION_CODE_GRIDNO` and facing 100+NW and
-loads it, `:384-418`).
+loads it, `:384-418`); ja2-node does not offer the warp (§7.7).
 
 **`SoldierOKForSectorExit(s, dir, grid)`** (`StrategicMap.cc:1945-2032`): on the map, on the ground; edges compare the
 soldier's absolute screen position (`GetAbsoluteScreenXYFromMapPos`, `TileEngine/Isometric_Utils.cc:209-232`) with the
@@ -983,7 +963,7 @@ render bounds (`InitRenderParams`, `TileEngine/RenderWorld.cc:2114-2150`); with 
 ```
 absX = 2·(cx − 800) − 2·(cy − 800) − leftX        absY = (cx − 800) + (cy − 800) + 1625 − topY
 default map (restricted scroll 0): leftX −1580, topY 860, width 3180, height 1540
-basement (restricted scroll 1):    leftX −640,  topY 1330, width 1280, height 590      (derived, verify by probe)
+basement (restricted scroll 1):    leftX −640,  topY 1330, width 1280, height 590      (derived from InitRenderParams)
 EAST: absX ≥ width − 160   WEST: absX ≤ 160   SOUTH: absY ≥ height − 200   NORTH: absY ≤ 200
 exit grid: (real time: movement mode from stance) FindGridNoFromSweetSpotCloseToExitGrid(s, grid, 10) != NOWHERE,
            in combat also EnoughPoints(PlotPath AP cost)
@@ -998,7 +978,7 @@ with `atLeast < squad || atLeast == 1` → lone-EPC refusal; one merc with EPCs 
 edge time (z > 0 uses the entry-point test) impossible → 0; result 1 if the selected merc is near, 2 if `atLeast ==
 squad count`. Exit grids report 0 minutes.
 
-**Exit menu → jump code** (`Strategic_Exit_GUI.cc:119-376, 685-805`), as a decision table for the API:
+**Exit menu → jump code** (`Strategic_Exit_GUI.cc:119-376, 685-805`), as a decision table:
 
 ```
 loadOffered = minutes ≤ 5
@@ -1016,7 +996,9 @@ confirm: jump = (squad ? ALL : SINGLE) + (load && loadOffered ? LOAD_NEW : NO_LO
 ```
 
 So wilderness edges (> 5 min) always use NO_LOAD: the group travels strategically and the world unloads when nobody is
-left (§5.10); towns, underground edges and exit grids may load the next sector at once.
+left (§5.10); towns, underground edges and exit grids may load the next sector at once. ja2-node: `okForSectorExit`,
+`exitMenu`, `jumpCodeOf` (`campaign/sector-exits.ts`) evaluate both tables for the `exitSector` command, which refuses a
+combination the menu would not allow (deviation "Exit dialog", `04` §6).
 
 **`JumpIntoAdjacentSector(dir, code, grid)`** (`:1379-1572`): ALL → the first controllable merc of the current squad (his
 group); SINGLE → the selected merc, `HandleSoldierLeavingSectorByThemSelf` (NO_LOAD) or `AddCharacterToUniqueSquad`
@@ -1031,7 +1013,9 @@ are removed from squads. `SetActionToDoOnceMercsGetToLocation(WALKOFF_SCREEN | W
 Walking off (`Tactical/Overhead.cc:788-816, 1080-1134`): a merc reaching his tile with wait code 2 gets two more steps
 off the map edge (`AdjustSoldierPathToGoOffEdge`, NE/SW/NW/SE for E/W/N/S, `StrategicMap.cc:2446-2594`) and code 1; code
 1 on arrival → counter − 1, stationary, exit grids remove him from the sector. Counter 0 or 2500 ms elapsed (all wait
-codes reset) → clear `DISALLOW_SIGHT`, then `AllMercsHaveWalkedOffSector` or `AllMercsWalkedToExitGrid`.
+codes reset) → clear `DISALLOW_SIGHT`, then `AllMercsHaveWalkedOffSector` or `AllMercsWalkedToExitGrid`. The 2500 ms
+are game milliseconds in ja2-node (deviation "Waiting for mercs to exit"); tactical commands are refused while
+`TacticalState.mercsWaiting` runs, as `LU_BEGINUILOCK` does.
 
 **`AllMercsHaveWalkedOffSector()`** (`:1751-1846`):
 
@@ -1040,7 +1024,7 @@ enemies = NumEnemiesInAnySector(world) > 0
 if enemies: HandleLoyaltyImplicationsOfMercRetreat(TACTICAL_TRAVERSAL, world) (docs/18); ClearAIExposedTileMap
 if minutes ≤ 5: tacticalTraversal = {true, group}; target.z > 0 → undergroundTacticalTraversal = true
 ClearMercPathsAndWaypointsForAllInGroup(group); AddWaypointToPGroup(group, target)      // departs, §3.6
-target.z > 0 && minutes ≤ 5 → undergroundTacticalTraversal = true (again; never cleared, §10)
+target.z > 0 && minutes ≤ 5 → undergroundTacticalTraversal = true (again; never cleared, §8.1)
 SetupTacticalTraversalInformation()
 NO_LOAD: RemoveSoldierFromTacticalSector for members; default squad
 LOAD:  enemies → ResetMovementForEnemyGroupsInLocation; minutes > 5 → WarpGameTime(300 s, no events)
@@ -1069,6 +1053,10 @@ LOAD → traversal flag on; members below OKLIFE are moved to unique squads (lef
 mercs are in the **target** sector, `HandleLoyaltyImplicationsOfMercRetreat(…, target)` (`docs/18`; the argument looks
 wrong but is literal).
 
+ja2-node: the strategic half in `campaign/sector-exits.ts`, the tactical half (render bounds for both scroll modes,
+walk-off, walk-in, mirror gridno, the merc wait) in `src/sim/tactical/sector-exit.ts`. Fleeing AI soldiers leave the
+map the same way (`handleAITacticalTraversal`, `src/sim/tactical/ai/control.ts`).
+
 ### 5.10 Unloading
 
 `CheckAndHandleUnloadingOfCurrentWorld()` (`StrategicMap.cc:3003-3129`) runs whenever mercs leave (departure,
@@ -1088,7 +1076,7 @@ flag and `INCOMBAT` off; new map: `SaveCurrentSectorsInformationToTempItemFile` 
 
 `TrashWorld` (`TileEngine/WorldDef.cc:2507-`): world items, smoke and light effects decayed and reset, **every non-player
 soldier removed** (`TacticalRemoveSoldier`), our soldiers only lose their level node, corpses, tile animations, both
-soldier init lists, schedules. Our mercs keep their records (sector, inventory, life…) in the roster.
+soldier init lists, schedules. Our mercs keep their records (sector, inventory, life…) in the roster (§7.2).
 
 ### 5.11 What is saved per sector (temp files → `SectorDiff`)
 
@@ -1096,32 +1084,35 @@ soldier init lists, schedules. Our mercs keep their records (sector, inventory, 
 `SaveBloodSmellAndRevealedStatesFromMapToTempFile` (blood/smell records into `m_`, revealed bits), reachability of
 items, then in order: items `i_`, corpses `r_`, door table `d_`, revealed `v_`, door status `ds_`, enemies `e_`,
 civilians `c_`, smoke `sm_`, lights `l_`, NPC data into profiles (only while saving a game), `uiTimeCurrentSectorWasLastLoaded
-= nowMin` (`:517-533`). Names `<prefix>_<map file name without _a>` (`:1003-1025`); framing in `docs/14` §5.
+= nowMin` (`:517-533`). Names `<prefix>_<map file name without _a>` (`:1003-1025`); framing in `docs/14` §5. ja2-node
+keeps one `SectorDiff` per sector in the campaign state instead (§7.2, deviation "Sector temp files").
 
 | Diff | Native | Content | Restore |
 |---|---|---|---|
-| items | `i_`, `u32 n` × 52-byte `WORLDITEM` | all world items incl. non-existing slots | `SF_ALREADY_LOADED` → map items trashed first; else added to the map's; `GRIDNO_NOT_SET_USE_ENTRY_POINT` → centre gridno; `FIND_SWEETSPOT_FROM_GRIDNO` → nearest free within 5, then 15 (`:556-594`) |
+| items | `i_`, `u32 n` × 52-byte `WORLDITEM` | all world items incl. non-existing slots | `SF_ALREADY_LOADED` → map items trashed first; else added to the map's; `GRIDNO_NOT_SET_USE_ENTRY_POINT` → centre gridno; `FIND_SWEETSPOT_FROM_GRIDNO` → nearest free within 5, then 15 (`:556-594`; ja2-node does not resolve the sweet-spot flags) |
 | corpses | `r_`, `u32 n` × 160 | `ROTTING_CORPSE_DEFINITION` incl. time of death | `RemoveCorpses`; sweet spot / entry-point flags; skip invalid gridno; in a town, not loading a save, indoors and dead ≥ 30 min → dropped; `AddRottingCorpse` rots and drops by age (§5.14); `HandleRottingCorpses` (`:624-693`) |
-| map changes | `m_`, 8-byte `MODIFY_MAP` (`TileEngine/SaveLoadMap.h`) | `SLM_LAND…ONROOF` add/remove graphics, `BLOOD_SMELL`, `DAMAGED_STRUCT`, `EXIT_GRIDS`, `OPENABLE_STRUCT`, `WINDOW_HIT` | `LoadAllMapChangesFromMapTempFileAndApplyThem` |
-| blood and smell | `m_`, `SLM_BLOOD_SMELL` records: every tile with `ubBloodInfo` or `ubSmellInfo` | the tile's blood and smell bytes (`bloodSmell [{gridNo, blood, smell}]`, ja2-node 2026-10-27) | `AddBloodOrSmellFromMapTempFileToMap`: the blood byte, then with blood and gore on the tile's pool redrawn at its present strength (the type is read before the smell byte, `docs/14` §10), then the smell byte; the records are consumed and written again when the sector is left, with `SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS` |
+| map changes | `m_`, 8-byte `MODIFY_MAP` (`TileEngine/SaveLoadMap.h`) | `SLM_LAND…ONROOF` add/remove graphics, `BLOOD_SMELL`, `DAMAGED_STRUCT`, `EXIT_GRIDS`, `OPENABLE_STRUCT`, `WINDOW_HIT` | `LoadAllMapChangesFromMapTempFileAndApplyThem`; ja2-node stores structure records (`tactical/map-changes.ts`) |
+| blood and smell | `m_`, `SLM_BLOOD_SMELL` records: every tile with `ubBloodInfo` or `ubSmellInfo` | the tile's blood and smell bytes (ja2-node `bloodSmell [{gridNo, blood, smell}]`) | `AddBloodOrSmellFromMapTempFileToMap`: the blood byte, then with blood and gore on the tile's pool redrawn at its present strength (the type is read before the smell byte, `docs/14` §10), then the smell byte; the records are consumed and written again when the sector is left, with `SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS` |
 | door table | `d_`, `u8 n` × 14 | locks, traps, lock damage, perceived state | replaces the map's |
-| revealed | `v_`, 3200 bytes (bit per gridno) | `MAPELEMENT_REVEALED` | `SetMapRevealedStatus` (`TileEngine/SaveLoadMap.cc:411-467`) |
+| revealed | `v_`, 3200 bytes (bit per gridno) | `MAPELEMENT_REVEALED` | `SetMapRevealedStatus` (`TileEngine/SaveLoadMap.cc:411-467`); ja2-node also keeps the room-hidden bits |
 | door status | `ds_`, `u8 n` × 4 | open/closed, perceived | then `UpdateDoorGraphicsFromStatus` |
 | enemies / civilians | `e_` / `c_` | §5.12 | §5.12 |
 | smoke / lights | `sm_` / `l_` | effect records (`docs/12`) | restored as saved and re-spread; aging continues by world time |
 
-Writers into **unloaded** sectors (needed by `docs/19` and later milestones): `AddItemsToUnLoadedSector` (first
-non-existing slot or append, NOWHERE → entry-point flag, `:228-267`), `AddWorldItemsToUnLoadedSector`,
+Writers into **unloaded** sectors (used by `docs/18`, `19`, `25`): `AddItemsToUnLoadedSector` (first non-existing slot
+or append, NOWHERE → entry-point flag, `:228-267`), `AddWorldItemsToUnLoadedSector`,
 `AddRottingCorpseToUnloadedSectorsRottingCorpseFile` (`:748-770`), `AddDeadSoldierToUnLoadedSector` (`:834-912`:
 non-player inventory slots each `Random(100) < 75` → kept undroppable, else dropped (ammo reduced), keys, corpse with
 `Random(4)` death animation), `ChangeStatusOfOpenableStructInUnloadedSector`, `AddStructToUnLoadedMapTempFile`. Each
 updates `uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer` (visible, map-inventory-visible items × count,
-`:1031-1112`).
+`:1031-1112`). ja2-node: `addItemsToUnloadedSector`, `addDeadSoldierToUnloadedSector` (`campaign/sector-loot.ts`),
+`changeOpenableInUnloadedSector` (`campaign/sector-diff.ts`).
 
 `HandleAllReachAbleItemsInTheSector` (`:322-410`): flood from the centre (else N, E, S, W) entry point, plus the isolated
 gridno if any living merc there can path to it; an item is reachable unless trapped, owned (`OWNERSHIP` item at the
 tile), or the chalice; reachable if its tile is reachable, it is on a roof, or one of the 4 side neighbours is reachable
-with a non-wall, non-door movement cost toward it. Theft (`docs/18`) only takes visible reachable items.
+with a non-wall, non-door movement cost toward it. Theft (`docs/18`) only takes visible reachable items. ja2-node:
+`handleAllReachableItemsInTheSector` (`tactical/item-reachability.ts`), run when the sector is left.
 
 ### 5.12 Preserved enemies and civilians (`Tactical/Enemy_Soldier_Save.cc`)
 
@@ -1132,7 +1123,8 @@ sector, class, team, facing, name, patrol points, palettes and **inventory**, an
 (`PreRandom(2)` ≠ 0) or the placement's original** (gridno and roof). None → file and flag removed. Header `i16 y`, init-list
 links (`u8 n` × {node id, soldier id}), `i16 x`, `i32 slots` (0 while saving a game: only links), `u32 minute`, `i8 z`,
 then per soldier the `SOLDIERCREATE_STRUCT` record (`InjectSoldierCreateIntoFile`) + `u16` checksum
-(`CalcSoldierCreateCheckSum`), then the sector byte id.
+(`CalcSoldierCreateCheckSum`), then the sector byte id. ja2-node: `preserveSoldiers` (`campaign/sector-diff.ts`) keeps
+`{savedMinute, links, records}` without checksums.
 
 **Load enemies** (`:34-271`): not loading a save → count classes in the file and compare with the sector's
 **stationary** counts (`SectorInfo` elites/troops/admins/creatures; underground nodes are not read here, so any
@@ -1147,43 +1139,28 @@ The restored nodes are later created by `PrepareEnemyForSectorBattle` through th
 first, §5.13). Because the file is only accepted when it matches the stationary counts, `extra` is exactly the mobile
 groups' strength, and `PrepareEnemyForSectorBattle` then adds those groups' not-yet-in-battle soldiers again (its
 in-battle counters were not raised by the load): mobile enemies that arrived after the player left appear twice
-(inferred from the code paths; confirm with an oracle save, §12).
+(inferred from the code paths, §8.3).
 
 **Load civilians** (`:274-425`): no age limit; same node matching but skipping profiled detailed nodes; life below max
 gains `minutes / 15` (4 per hour) up to max; afterwards every non-priority, unprofiled node of the **last record's team**
-is deleted from the list (dead or departed civilians stay gone).
+is deleted from the list (dead or departed civilians stay gone). ja2-node: `applyPreservedEnemyRecord`,
+`loadPreservedCivilians` (`campaign/sector-diff.ts`), driven by `SectorFlow`.
 
 ### 5.13 Enemies from strategic counts (tactical side)
 
-`PrepareEnemyForSectorBattle()` (`Queen_Command.cc:308-527`):
-
-```
-gfPendingEnemies = false
-z > 0: node = FindUnderGroundSector(world); no enemies → return
-       inBattle += remaining; AddSoldierInitListEnemyDefenceSoldiers(node.admins, node.troops, node.elites)   // full counts
-       return
-if battleGroup is an enemy group: HandleArrivalOfReinforcements(it) and every other enemy group here with nothing in battle; return
-NumEnemiesInSector(world) > 32 → pending = true
-SF_USE_MAP_SETTINGS: counts = enemy placements by class; sector counts := them; inBattle := 0
-else counts = sector counts − inBattle
-if stationary total > 32: admins = min(a, 32); troops = min(t, 32 − admins); elites = min(e, 32 − admins + troops)   // precedence bug kept
-sector inBattle += counts
-slots = free enemy ids (should be all 32) − stationary total
-for g in groups (list order) while slots: skip vehicles; g.sector == world (surface):
-  enemy: admins, then troops, then elites not yet in battle, each cut to the remaining slots (cut → pending), added to inBattle and totals
-  player not between sectors with members: RemoveGroupWaypoints(g)          // player route destroyed by a battle
-nothing → return
-AddSoldierInitListEnemyDefenceSoldiers(admins, troops, elites)
-slots = 32 − stationary; for each enemy group here: assign its in-battle admins/troops/elites to group-less enemy soldiers
-  of matching class in id order (s.ubGroupID = g.id) until its size or slots are used
-```
+`PrepareEnemyForSectorBattle()` (`Queen_Command.cc:308-527`) is `17` §10.1: underground nodes place their full counts;
+an enemy battle group enters as reinforcements (§4.6); otherwise the stationary counts not yet in battle (with the
+`32 − admins + troops` elite clamp) plus every enemy group in the sector, in list order, up to 32 slots (overflow →
+`gfPendingEnemies`), go through `AddSoldierInitListEnemyDefenceSoldiers` below, and the groups' ids are then handed to
+group-less enemy soldiers by class in id order. On the way it calls `RemoveGroupWaypoints` on every player group in the
+sector that is not between sectors: **a battle destroys the player's route there.**
 
 `SortSoldierInitList()` (`Tactical/Soldier_Init_List.cc:250-409`): (1) from the tail backwards, nodes with a soldier
 (other than the tail) move to the tail; (2) forward, nodes without soldier, non-priority, detailed, other than the head,
 move to the head; (3) same for priority without detailed; (4) same for priority with detailed. Moving to the head while
 scanning forward **reverses** each class: final order = [priority+detailed reversed] [priority-only reversed]
 [detailed-only reversed] [basic, map order] [existing soldiers]. (The head node of a pass is never moved, which keeps
-the reversal consistent.) ja2-node's `chooseEnemyPlacements` keeps map order (`deviations.md` "Sandbox population").
+the reversal consistent.) ja2-node: `sortSoldierInitList` (`src/sim/strategic/ai/defence-placement.ts`).
 
 `AddSoldierInitListEnemyDefenceSoldiers(admins, troops, elites)` (`:616-1021`), draws from `Random`:
 
@@ -1205,35 +1182,42 @@ leftover: free = enemy nodes without soldier; for every node: if free ≤ max ||
   class by Random(max) as above; AddPlacementToWorld; max−−;   free−−    (stop when free or max is 0)
 ```
 
+The PD pass's every-other-node walk is Strac's (vanilla visits every node, `V: Tactical/SoldierInitList.c:788-807`);
+ja2-node keeps it and guards against the list end (deviation "Strategic AI PD placement pass"). The decision logic is
+`addSoldierInitListEnemyDefenceSoldiers` in `strategic/ai/defence-placement.ts` over placement nodes with an injected roll
+source, wrapped by `tactical/init-list.ts`.
+
 `AddPlacementToWorld(node)` (`:412-568`): a profiled detailed placement only if that profile is in this sector, not
 recruited/escorted, alive and not using profile insertion; ice-cream truck rule; detailed → static detailed placement,
-else `CreateDetailedPlacementGivenBasicPlacementInfo` (existing `createFromPlacement`); civilian quest overrides (Kingpin
-C5 with `PreRandom(3)` orders and `uniform_int_distribution` grid offsets, the Queen's palace P3, liberated Tixa, freed
-kids C13); elite enemies may become Mike or Iggy (`OkayToUpgradeEliteToSpecialProfiledEnemy`, M6); `TacticalCreateSoldier`;
-`AddSoldierToSectorNoCalculateDirection` (keeps the placement facing). Others: `AddSoldierInitListTeamToWorld(team)` —
-sort, caves tileset turns undetailed civilians into miners, then nodes in order until the first node with a soldier,
-stopping at the first failure except for civilians (`:571-613`). Militia (`:1028-1260`, rules owned by `docs/18`):
-enemy/militia placements are reused, orders STATIONARY, `Random(MAXATTITUDES)` attitude, detailed data deleted with
-`RandomizeRelativeLevel` twice. Bloodcats (`:1495-1628`): placements recounted on first load when no spawn entry exists
-(mismatch resets `bBloodCats` to −1); `bBloodCats` cats: priority bloodcat nodes first, then selection sampling.
+else `CreateDetailedPlacementGivenBasicPlacementInfo` (ja2-node `src/sim/tactical/creation.ts`); civilian quest
+overrides (Kingpin C5 with `PreRandom(3)` orders and `uniform_int_distribution` grid offsets, the Queen's palace P3,
+liberated Tixa, freed kids C13); elite enemies may become Mike or Iggy (`OkayToUpgradeEliteToSpecialProfiledEnemy`,
+`25`); `TacticalCreateSoldier`; `AddSoldierToSectorNoCalculateDirection` (keeps the placement facing). Others:
+`AddSoldierInitListTeamToWorld(team)` — sort, caves tileset turns undetailed civilians into miners, then nodes in order
+until the first node with a soldier, stopping at the first failure except for civilians (`:571-613`). Militia
+(`:1028-1260`, rules owned by `docs/18`): enemy/militia placements are reused, orders STATIONARY, `Random(MAXATTITUDES)`
+attitude, detailed data deleted with `RandomizeRelativeLevel` twice; the loop also stops at the first node with a
+soldier. Bloodcats (`:1495-1628`): placements recounted on first load when no spawn entry exists (mismatch resets
+`bBloodCats` to −1); `bBloodCats` cats: priority bloodcat nodes first, then selection sampling.
 `StripEnemyDetailedPlacementsIfSectorWasPlayerLiberated` (`:1786-1820`): on the surface, once `uiTimeLastPlayerLiberated
 != 0`, every enemy detailed placement becomes basic (priority off, random body, `RandomizeRelativeLevel` ×2): tanks and
 special enemies never return. `EvaluateDeathEffectsToSoldierInitList` (`:1460-1468`): a killed non-militia soldier's
-detailed placement is deleted.
+detailed placement is deleted. ja2-node: `tactical/init-list.ts`, one function per original function; creature and
+bloodcat bodies and their placement are `docs/17` §12.3.
 
 ### 5.14 Time passing while away
 
-| What | Rule | Milestone |
-|---|---|---|
-| Corpses | `AddRottingCorpse` (not loading): older than 1 day (1440 min) and a fresh merc type (`≤ FMERC_FALLF`) → `ROTTING_STAGE2`; older than 3 days → not added (`Tactical/Rotting_Corpses.cc:51-52, 446-459`); town, indoors, ≥ 30 min → not added (§5.11) | M4 (removes the "Corpses" deviation's strategic part) |
-| Preserved enemies | discarded after 300 min or on a stationary count change (§5.12) | M4 |
-| Civilians | +1 life per 15 min (§5.12) | M4 |
-| Items | stolen when the enemy takes a visited sector (`RemoveRandomItemsInSector`, chance `min(5·enemies, 90)`, visible and reachable items, `Strategic/Strategic_Town_Loyalty.cc:616-`); town theft | `docs/18` |
-| Bloodcats | lair/arena +1 per 18 hours away (§4.2) | M4 |
-| Smoke, lights | saved records keep aging on world time | M4 (`docs/12`) |
-| NPCs | profile sectors move by daily events, schedules post on load | M6 |
-| Doors | `ExamineDoorsOnEnteringSector` would close open doors after ≥ 30 min away, but it compares with a timestamp set moments earlier and never fires (§10) | — |
-| Enemy movement | groups between sectors keep their arrival times; `ResetMovementForEnemyGroupsInLocation` on a retreat | M4 |
+| What | Rule |
+|---|---|
+| Corpses | `AddRottingCorpse` (not loading): older than 1 day (1440 min) and a fresh merc type (`≤ FMERC_FALLF`) → `ROTTING_STAGE2`; older than 3 days → not added (`Tactical/Rotting_Corpses.cc:51-52, 446-459`); town, indoors, ≥ 30 min → not added (§5.11). ja2-node ages them when the sector loads (`agedCorpse`), with no rotting while loaded (deviation "Corpses") |
+| Preserved enemies | discarded after 300 min or on a stationary count change (§5.12) |
+| Civilians | +1 life per 15 min (§5.12) |
+| Items | stolen when the enemy takes a visited sector (`RemoveRandomItemsInSector`, chance `min(5·enemies, 90)`, visible and reachable items, `Strategic/Strategic_Town_Loyalty.cc:616-`); town theft (`docs/18`) |
+| Bloodcats | lair/arena +1 per 18 hours away (§4.2) |
+| Smoke, lights | saved records keep aging on world time (`docs/12`) |
+| NPCs | profile sectors move by daily events, schedules post on load (`25`) |
+| Doors | `ExamineDoorsOnEnteringSector` would close open doors after ≥ 30 min away but never fires (§5.2) |
+| Enemy movement | groups between sectors keep their arrival times; `ResetMovementForEnemyGroupsInLocation` on a retreat |
 
 ---
 
@@ -1262,12 +1246,17 @@ mine, SAM events, refuel update, notification; visited sector → theft (`min(5�
 | Strategic AI takes a sector (`Strategic_AI.cc:1045`), map screen notice (`MapScreen.cc:7618`) | enemy (`docs/17`) |
 | End game (`Tactical/End_Game.cc:274`) | player contested |
 
+ja2-node: `map/control.ts`; the town, mine, SAM, morale, theft and notification effects go through
+`TacticalWorldPort.sectorLiberated` / `sectorTakenByEnemy` to the economy (`docs/18`), the Queen's reactions through
+`StrategicAiPort`; the tactical callers are in `campaign/battle-flow.ts`.
+
 ### 6.2 Airspace
 
 `UpdateAirspaceControl` (`SAM_Sites.cc:69-96`): for every surface sector, enemy air control iff the controlling SAM
 (air-control table − 1, ≥ 0) is in an enemy-controlled sector with condition ≥ 80; then the
 `OnAirspaceControlUpdated` listeners: the merc landing zone moves back to the start sector if its airspace turned hostile
-(M5), refuel sites update.
+(`21`), refuel sites update (`25` §10.1). ja2-node: `updateAirspaceControl` (`map/control.ts`), SAM condition and repair
+in `map/sam.ts`.
 
 ### 6.3 What the player knows about enemies (fog for D16)
 
@@ -1279,445 +1268,200 @@ a read with a side effect); otherwise `KNOWS_NOTHING`. The map shows nothing on 
 (`HandleShowingOfEnemyForcesInSector`, `:3606-3632`). Shading: unvisited sectors dark; the airspace view shows
 `fEnemyAirControlled` for every sector (`DrawMap`, `:487-541`).
 
----
-
-## 7. Agent API (D15, D16)
-
-### 7.1 Commands
-
-| Command | Original | Checks and result |
-|---|---|---|
-| `route {soldier, to, via?: Sector[], shortest?: bool}` | `PlotPathForCharacter` legs (start = last path sector), copy to squad/vehicle, `RebuildWayPointsForGroupPath` | `CanEntireMovementGroupMercIsInMove` (§3.3 codes as `reason`), cursor rule, passable "through", `shortest` = the SHIFT mode; returns path, waypoints, ETA. Replaces an existing path: clear to the current sector first (UI: cancel then plot); `extend: true` appends the legs instead, as the map screen's plotting does (built in M8, U8: `via`, `shortest`, `extend`, the path as sector names) |
-| `cancelRoute {soldier}` | `CancelPathForCharacter` | reverses a moving group (§3.4) |
-| `shortenRoute {soldier, at}` | `ClearPathAfterThisSectorForCharacter` + rebuild | built in M8 (U8, `04` §6.30) |
-| `routeGroup {soldiers, squads?, vehicles?, to, via?, shortest?}` | the move box (`HandleMoveoutOfSectorMovementTroops`) | built in M8 (U8): regroups the mercs parting from their units, then routes every moving group |
-| `assignSquad {soldier, squad: 0..19 \| 'new' \| 'any'}` | `AddCharacterToSquad` / `…UniqueSquad` / `…AnySquad` | reasons: `full`, `onTheMove`, `otherSector`, `vehicleSquad`; leaving assignments is `docs/18` |
-| `enterSector {sector}` | `AllowedToExitFromMapscreenTo(TACTICAL)` + `SetCurrentWorldSector` | §5.1 gates; refuses during prompts |
-| `exitSector {soldier, direction?: 'north'\|'east'\|'south'\|'west', exitGrid?: gridNo, who: 'squad'\|'merc', load?: bool}` | `OKForSectorExit` + exit menu table + `JumpIntoAdjacentSector` | `soldier` plays the selected merc; refusals `tooFar`, `invalidTraversal`, `loneEPC`, `abandonEPC`, `squadNotAllowed`, `mercNotAllowed`, `loadDisabled`; `load` defaults to the menu default |
-| `placeMercs {auto: true} \| {positions: {soldier: gridNo}}` | placement GUI | answers the placement prompt (§7.2) |
-| `boardVehicle {soldier, vehicle}`, `leaveVehicle {soldier, squad?}`, `heliRoute {to}`, `heliCancel` | `PutSoldierInVehicle`, the squad menu for a passenger, heli plotting | M6, `docs/04` §6.13; `refuel` (gas cans) comes with the ground-vehicle quests |
-
-No "exit tactical" command: the strategic view is always observable; leaving a sector is `exitSector` or moving
-everyone away by `route` (which unloads the world when nobody remains, §5.10).
-
-### 7.2 Decision prompts
-
-| Prompt | Original | Answers |
-|---|---|---|
-| `simultaneousArrival {sector, groups, enemyType}` | `PossibleToCoordinateSimultaneousGroupArrivals` | `yes` / `no` |
-| `npcOfNote {group, sector, final}` | §3.10 | `continue` / `stop` (`ok` at the final destination) |
-| `warpToSurface` | lair exit | `yes` / `no` (no → exit menu as a normal `exitSector`) |
-| `placement {sector, mercs, sides}` | §5.8 | `placeMercs` |
-| `bloodcatBattle`, `invasion`, `unconsciousMercsAttacked` | message boxes before the PBI | informational: auto-closed by policy, then `docs/19`'s PBI prompt |
-
-### 7.3 Events
-
-`groupDeparted {group, from, to, arrivalMinute}`, `groupArrived {group, sector, final}`, `groupReversed`, `groupStopped
-{group, reason: 'tired' | 'npcOfNote' | 'outOfFuel' | 'battle'}`, `encounter {sector, code}` (only what the player is
-told), `reinforcementsArrived {team: 'ours' | 'enemy', side}` (enemies only once visible), `sectorLoaded {sector}`,
-`sectorUnloaded {sector}`, `mercsLeftSector {sector, to}`, `sectorControlChanged {sector, by}` (only for sectors the
-player can see change, §6.3), `secretFound {sector}`, `squadChanged {soldier, squad}`.
-
-### 7.4 Observation (`PlayerView.strategic`)
-
-- `time` (`docs/15`), `worldSector`, `selectedSquad`.
-- `sectors[256]` (only what the player sees): `id`, `visited`, `townId`, `land` (land-type text key incl. found secrets
-  and facilities), `airspace` (`fEnemyAirControlled`), `controlled` for visited sectors and found town/SAM sectors
-  (inferred to match what the map UI reveals; revisit with the M7 UI audit), `enemies: number | '?' | null` by §6.3,
-  `militia` counts (own), `visibleItems` (map-inventory count).
-- `edges`: traversability per border (public data; lets the agent reason about routes without `query`).
-- `groups` (ours only): id, members, squad, `sector`, `betweenSectors`, `next`, `prev`, `arrivalMinute`, `etaMinutes`
-  (`CalculateTravelTimeOfGroup`), `path`, `waypoints`, transport, vehicle; enemy groups appear only through `enemies`.
-- `squads[20]`, `vehicles` (position, passengers, seats, path) and `helicopter` (M6, `docs/04` §6.13); fuel comes with the
-  ground vehicles.
-- `prompts`.
-
-### 7.5 Queries and `advance`
-
-Queries: `routePreview {soldier, to, via?, shortest?}` (`PlotATemporaryPathForCharacter`: path + per-edge minutes + ETA,
-no state change), `exitCheck {soldier, direction | exitGrid}` (`OKForSectorExit` result and menu options),
-`travelTime {from, direction, transport}`. `advance` on the strategic map stops on `groupArrived` with `final`, any
-prompt, `encounter`, and every `StopTimeCompression` call of the original (`docs/15` maps them to stop events).
+ja2-node: `whatPlayerKnowsAboutEnemiesInSector` (`map/knowledge.ts`, `EnemyKnowledge {NOTHING 0, THEYRE_THERE 1,
+HOW_MANY 2}`) for gameplay callers (heli scouting, encounter codes, battle flow); the player view uses the side-effect-free
+`surfaceKnowledgeOfEnemies`/`peekPlayerKnowledgeOfEnemies`, which return the same answer without clearing the Skyrider
+flag. What the view exposes is `04` §6.
 
 ---
 
-## 8. Data tables and stubs
+## 7. Implementation in ja2-node
 
-### 8.1 Loading externalized JSON
+### 7.1 Content and data tables
 
-`data/externalized` files are JSONC (`//` and `/* */`, verified: all 16 `strategic-*.json`, `vehicles.json` and
-`game.json` parse after stripping comments outside strings, no trailing commas). Add a comment stripper in `content`
-(DOM- and Node-free) and loaders `content/strategic/*.ts` producing a frozen `StrategicContent`: traversability grid,
-towns, underground templates, SAM sites and air control, secrets, bloodcat placements/spawns, NPC placements, cache
-sectors, vehicles, policies. No transcription needed for these.
+- `parseJsonc` (`src/content/strategic/jsonc.ts`) reads the `data/externalized` files; `loadStrategicContent(read)`
+  (`content/strategic/strategic-content.ts`) builds the frozen `StrategicContent` from the files listed in
+  `STRATEGIC_CONTENT_PATHS` (`map-tables.ts`: traversability, movement costs, towns, descriptions, underground
+  templates, SAM sites and air control, secrets, cache sectors, bloodcats; `policy.ts`: `game.json` policies and
+  vehicle types; `travel-table.ts`). Everything is in `data/`, so the strategic layer runs on stubs.
+- `data/tables/strategic-travel.json` (`tools/transcribe/strategic-travel.ts` from `Strategic_Movement.cc:2065-2190`,
+  `Strategic_Pathing.cc:151`, `Map_Screen_Helicopter.h:12-13`): `transports` in evaluation order, each with `mask`,
+  `baseMinutes` and per-terrain `modifiers`; `minutes = baseMinutes·100/modifiers[terrain]` (integer), a terrain missing
+  from `modifiers` is impossible, `modifiers: null` means every terrain at `baseMinutes`, EDGEOFWORLD is impossible for
+  all, TOWN costs `townMinutes` unless the mask is exactly AIR; plus `flatStrategicTravelTime` and `airspaceCost`.
+- `data/tables/sector-facilities.json` (`tools/transcribe/sector-facilities.ts` from `Campaign_Init.cc:30-66`): facility
+  flags applied in order with `|=`.
+- Enums (traversability, insertion codes, `SF_*`, `SFCF_*`, group flags, encounter codes, assignments, move types) are
+  named constants in `src/sim/strategic/forces/constants.ts`, `map/sectors.ts` and `src/sim/tactical/insertion.ts`.
 
-### 8.2 `data/tables` to generate with `tools/transcribe`
+### 7.2 State
 
-| Table | Generator | Source |
-|---|---|---|
-| `strategic-travel.json`: base minutes (`FOOT_TRAVEL_TIME` 89, CAR 30, TRUCK 32, TRACKED 46, AIR 10), terrain modifiers per transport, TOWN = 5, `FLAT_STRATEGIC_TRAVEL_TIME` 60, heli costs 100/1000 | `tools/transcribe/strategic-travel.ts` (parse the `#define`s and the five `switch` blocks of `GetSectorMvtTimeForGroup`) | `Strategic/Strategic_Movement.cc:2065-2190`, `Strategic/Strategic_Pathing.cc:151`, `Strategic/Map_Screen_Helicopter.h:12-13` |
-| `sector-facilities.json` | `tools/transcribe/sector-facilities.ts` | `Strategic/Campaign_Init.cc:30-66` |
-| enum tables (traversability names, insertion codes, `SF_*`, encounter codes, `MODIFY_MAP` types) | code constants with the SFI header (small, stable) | headers above |
-| later: RPC sector descriptions, refuel sites | `tools/transcribe/…` | `StrategicMap.cc:355-393`, `Map_Screen_Helicopter.cc:80-84` |
+`StrategicState` (`src/sim/strategic/state.ts`), plain data; original globals in brackets:
 
-Nothing derived from original data files; `SectorDiff`s produced at runtime from the user's maps are game state, not
-repository content.
+- `map` (`map/sectors.ts`): `sectors[256]` (`SectorInfo`), `elements[324]` (`StrategicMap`), `underground[]` in file
+  order (`gpUndergroundSectorInfoHead`), `secretsFound[]` parallel to the secrets table, `selectedSector` (`sSelMap`,
+  read by `HandleNonCombatGroupArrival`), `activity` (the player-activity counters of `SetSectorFlag`).
+  `worldSector` (`gWorldSector`, null = none).
+- `forces` (`forces/groups.ts`): `groups[]` in list order (`gpGroupList`; every `FOR_EACH_GROUP` depends on it),
+  `squads[20]` as soldier-id lists, `squadGroupIds` (`SquadMovementGroups`), `deadSquadMembers` (`sDeadMercs`, profile
+  ids), `currentSquad` (`iCurrentTacticalSquad`), `vehicleGroupIds` (`gubVehicleMovementGroups`), `vehicles`, the
+  helicopter id, airborne flag and record (`25` §10).
+- `movement` (`forces/flow-state.ts`, not in the native save): `waitingForInput`, `pendingSimultaneousGroup`,
+  `groupPrompting`, `initPrebattleGroup`, `numGroupsArrivedSimultaneously`, `tacticalTraversal {active, groupId,
+  chosenSoldier}`, `undergroundTacticalTraversal`, `randomizingPatrolGroup`, `disableMapInterfaceDueToBattle`,
+  `exitingVehicleToSquad`.
+- `encounter` (same file, shared with `docs/19`): `code` (`gubEnemyEncounterCode`), `explicitCode`,
+  `highPotentialForAmbush`, `autoAmbush` (cheat, always false), `cantRetreatInPBI`, `delayAutoResolveStart`,
+  `usePersistentPBI`, `battleGroup` (`gpBattleGroup`), `pendingEnemies` (`gfPendingEnemies`), `numAwareBattles`
+  (`docs/17`), `preBattle` (§4.4), `simultaneousArrival` (§3.12).
+- `sectorFlow` (`campaign/flow-state.ts`): `jump` (the adjacent-jump globals `gpAdjacentGroup`…, `StrategicMap.cc:135-140`),
+  `usingEdgepointsForEntry`, `overrideInsertionWithExitGrid`, `hasEnteredCombatModeSinceEntering`, `pendingWait`, the
+  POW squad.
+- `sectorDiffs` (`Map<sectorKey, SectorDiff>`, `campaign/sector-diff.ts`) replaces the temp files (§5.11): `items`
+  (`WORLDITEM` fields incl. non-existing slots), `corpses` (with time of death), `mapChanges` (in order), `doorTable`,
+  `revealed` (revealed and room-hidden bits), `doorStatus`, `openables`, `bloodSmell`, `enemies`/`civilians`
+  (`{savedMinute, links: [node, soldier][], records}`), `smoke`, `lights`; a null member is a missing temp file, and the
+  `SF_*_TEMP_FILE_EXISTS` flags mirror them.
+- `roster` (`campaign/merc-record.ts`, `campaign/roster.ts`): player soldiers live in the campaign roster across loads;
+  the tactical state references them while they are in the loaded sector. Non-player soldiers are created on load and
+  dropped on unload, as in `TrashWorld`. Strategic code sees a merc through `MercPort` (`forces/ports.ts`) as a
+  `StrategicMerc` (sector, between sectors, group, previous sector id, insertion code and direction, path, assignment,
+  vehicle id, life, strength and body flags). The traversal fields (`insertionGridNo`, `insertionData`,
+  `pendingActionData1/2`, `preTraversalGridNo`, `waitActionToDo`, `useExitGridForReentryDirection`) are on the tactical
+  `Soldier`; the merc wait (`Overhead.cc:5834-5844`) is `TacticalState.mercsWaiting`.
 
-### 8.3 Stubs
+### 7.3 Modules
 
-- **Country map**: none to author. The externalized tables (from Stracciatella's source, SFI-SCLA) ship in `data/` and
-  work in CI; unit tests that need a tiny world build a synthetic `StrategicContent` (e.g. 4×4 with a town, a river and
-  a barrier).
-- **Sector maps**: CI has only `stubs/maps/village.map.txt`. Proposed minimal set: `a9` (the village, start sector; its
-  garrison moves to a strategic-count test), `a10` (a town sector with an exit grid down), `a10_b1` (basement,
-  restricted scroll 1, exit grid up), `b9` (wilderness with a road, enemy placements of several classes and priorities,
-  bloodcat placements), plus one generic `wilderness` stub that the stub data stack serves for any other sector
-  (stub-pack rule in `node`/`server`, not a simulation deviation).
-- **Stub map format** additions (`src/content/formats/stub-map.ts` currently writes no entry points, exit grids or
-  edgepoints): `entry: north|east|south|west|center x y`, `isolated: x y`, `exit: x y -> A10 z=1 at x y`,
-  `scroll: basement`, placement flags `priority`, `detailed`, classes `ADMIN ELITE ARMY`, `body: BLOODCAT`. Edgepoints
-  come from `GenerateMapEdgepoints` at load (stubs omit `MAP_EDGEPOINTS_SAVED`).
-
----
-
-## 9. Minimal M4 implementation (map and movement)
-
-Goal: on the original data and the stubs, squads walk across the country map on plotted routes with exact travel times,
-meet enemies (hand-off to `docs/19`), enter and leave sectors tactically, and find every visited sector as they left it.
-
-### 9.1 Modules
-
-| Module | Contents |
+| Module | Covers |
 |---|---|
-| `content/strategic/` | JSONC loader, `StrategicContent`, traversability parse (§1.6), transcribed travel table |
-| `sim/strategic/map/sectors.ts` | ids and conversions, `SectorInfo`/map elements/underground state, flags with `SetSectorFlag` side effects, control (§6.1), airspace (§6.2), knowledge (§6.3) |
-| `sim/strategic/map/travel.ts` | `GetSectorMvtTimeForGroup`, `FindTravelTimeBetweenWaypoints`, `CalculateTravelTimeOfGroup` |
-| `sim/strategic/map/pathing.ts` | `FindStratPath` with the exact queue, `BuildAStrategicPath`, path list helpers |
-| `sim/strategic/forces/groups.ts` | group list and ids, creation/removal, membership, waypoints, departure, arrival, reversal, retreat, simultaneous arrivals, counting helpers |
-| `sim/strategic/forces/squads.ts` | squads, dead lists, movement-group bookkeeping |
-| `sim/strategic/forces/encounters.ts` | `CheckConditionsForBattle`, bloodcat test, `PrepareForPreBattleInterface` hand-off, reinforcements |
-| `sim/flow/sector-load.ts` | `SetCurrentWorldSector`, `EnterSector`, `PrepareLoadedSector`, `UpdateMercsInSector`, unloading, placement prompt |
-| `sim/flow/sector-exit.ts` | exit checks and menu table, `JumpIntoAdjacentSector`, walk-off/walk-in, traversal setup |
-| `sim/flow/sector-diff.ts` | `SectorDiff` save/restore (§5.11), unloaded-sector writers, preserved soldiers (§5.12) |
-| `sim/tactical/edgepoints.ts` | edgepoint lists, generator, choose/search/classify |
-| `sim/tactical/init-list.ts` | soldier init list with node ids and links, sort, enemy/militia/bloodcat/team placement, strip/death rules |
+| `src/content/strategic/sector-ids.ts`, `sector-maps.ts` | §1.1; map path choice (§7.5) |
+| `src/sim/strategic/map/sectors.ts`, `init.ts` | §1.3–§1.6; new-campaign map init (`initNewCampaignMap`, `initBloodCatSectors`, `initTixaBasementWithoutSciFi`, `initStrategicLayerMap(ctx, {initStrategicAI, initNpcs})` = the map and forces part of `InitStrategicLayer`) |
+| `map/control.ts`, `map/sam.ts`, `map/knowledge.ts` | §6 |
+| `map/travel.ts`, `map/pathing.ts`, `map/plotting.ts` | §3.2, §3.5; plotting ETAs for the map screen |
+| `map/save-import.ts` | `importStrategicMap(ctx, save)`: the native sections of §1–§2 |
+| `forces/groups.ts`, `forces/squads.ts` | §2, §3.11, §3.14 |
+| `forces/movement.ts` | §3.4, §3.6–§3.11 |
+| `forces/routes.ts`, `forces/move-permission.ts`, `forces/move-box.ts` | §3.3 |
+| `forces/encounters.ts`, `forces/pre-battle.ts` | §3.12, §4; the PBI side (`docs/19`) |
+| `forces/vehicles.ts`, `forces/helicopter*.ts`, `economy/vehicle-assignment.ts` | §3.15, §3.16 (`25` §10) |
+| `forces/ports.ts`, `forces/context.ts` | `StrategicContext` = state + content + `MercPort` + `StrategicAiPort` + `TacticalWorldPort` + `HelicopterPort` + clock + `random`/`preRandom` roll sources; `createStrategicContext`; default ports (AI hooks answer `false` or do nothing) |
+| `src/sim/campaign/sector-flow.ts` | `SectorFlow`: §5.1–§5.6, §5.10–§5.12, the tactical side of §5.13 and §4.6; `adoptLoadedSector(links)` for imported saves; `mapsNeededSoon(target)` |
+| `campaign/sector-exits.ts`, `src/sim/tactical/sector-exit.ts` | §5.9 (strategic and tactical halves) |
+| `campaign/sector-diff.ts`, `campaign/sector-loot.ts`, `tactical/map-changes.ts`, `tactical/item-reachability.ts` | §5.11–§5.12 |
+| `tactical/edgepoints.ts`, `tactical/insertion.ts`, `tactical/init-list.ts` | §5.6, §5.7, §5.13 |
 
-**Roster.** Player soldiers (ids 0..19) move out of `TacticalState` into a campaign roster that persists across loads;
-the tactical state references them while `inSector`. Non-player soldiers are created on load and dropped on unload, as
-in `TrashWorld`. The `TacticalSim` becomes a child of a `CampaignSim` that owns `GameState.strategic`, the event queue
-(`docs/15`) and the loaded sector.
+### 7.4 Wiring
 
-**`SectorDiff`** keyed by `x,y,z`: `items: WorldItem[]` (exact `WORLDITEM` fields incl. non-existing slots and flags),
-`corpses: CorpseDef[]`, `mapChanges: ModifyMap[]` (in order), `bloodSmell`, `doorTable`, `doorStatus`, `revealed: Uint8Array(3200)`,
-`enemies` / `civilians: {links: [node, soldier][], savedMinute, records: SoldierCreate[]}`, `smoke`, `lights`. The
-`SF_*_TEMP_FILE_EXISTS` flags mirror which members exist. Save import (`docs/14`) converts every native temp file into
-diffs; the reader already keeps them as raw bytes.
+- `CampaignSim` (`src/sim/campaign/campaign-sim.ts`) takes `hooks.strategic` (content and optional mercs, AI and world
+  ports) and `hooks.sectors = {worlds: SectorWorlds, content, roster}`, exposes `campaign.strategic` and
+  `campaign.sectors`, and registers `GROUP_ARRIVAL` (`GroupArrivedAtSector(group, TRUE, FALSE)`) and
+  `GROUP_ABOUT_TO_ARRIVE` (no effect). The `TacticalWorldPort` is layered: economy, laptop, helicopter, narrative
+  (meanwhile, boxing) and the sector flow (`sectorWorldPort`: enemy presence, reinforcement arrival into the loaded
+  sector, unloading).
+- The loaded sector's `TacticalSim` shares the campaign's `Random`/`PreRandom` streams, profiles, key table, real-time
+  clock and light schedule; `TacticalState.sectorHooks` call back into the flow (deaths, map-edge escapes, pending
+  enemies, the end of the merc wait, the battle's end, enemy presence).
+- `docs/17` callers: `prepareEnemyForSectorBattle` → `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers` →
+  `assignEnemyGroupIds`; deaths and map-edge escapes → `trackEnemiesKilled`, `processQueenCmdImplicationsOfDeath`;
+  tactical turn ends and `enemyReinforcementsArrived` → `addPossiblePendingEnemiesToBattle`; unload →
+  `endTacticalBattleForEnemy` and, whenever the world is trashed, `handleFirstMeanwhileSetUpWithTrashWorld`; soldier
+  creation → `difficultyModifierAt` (computed at sector load, deviation "Difficulty and progress in tactical").
+- `loadStartSector(campaign)` is the default `CampaignHooks.loadStartSector`. `server/world-cache.ts` (`WorldCache`)
+  loads the maps of `mapsNeededSoon` before a command (`CampaignSession.prepare`); a save session
+  (`createSaveSession`) gets a `SectorFlow` when it has a `FileExists`, runs `importStrategicMap` and adopts the loaded
+  sector's preserved-soldier links.
+- The sandbox (`server/sandbox.ts`, no campaign) populates A9 through the same init-list code (deviation "Sandbox
+  population").
+- Commands, prompts, events and the strategic view: `04` §6.
 
-### 9.2 Order of work
+### 7.5 Stubs
 
-1. Content: JSONC stripper, loaders, `strategic-travel.json` transcription, `game.json` policies.
-2. Sector state and conversions; new-campaign init of the map part (§1.3, §1.4; the rest is `docs/15`/`17`).
-3. Travel time and `FindStratPath`; paths; waypoints; `AddWaypointToPGroup`; reversal.
-4. Groups and squads (ids, list order, membership, persistence), roster split, `AssignMercToAMovementGroup`.
-5. Departure and arrival with the event queue of `docs/15` (stub `StrategicAILookForAdjacentGroups` → false,
-   `CalculateNextMoveIntention` real); experience on arrival; fatigue stop hook (`docs/18`).
-6. Encounters: battle check, simultaneous arrivals, bloodcat test, prompts; hand-off stub until `docs/19` lands
-   (open the PBI prompt with the group and code).
-7. Edgepoints (load + generator), `UpdateMercInSector` insertion table, `AddSoldierToSector` facing rules.
-8. Soldier init list with node ids, `SortSoldierInitList`, `AddSoldierInitListEnemyDefenceSoldiers`,
-   `PrepareEnemyForSectorBattle` (replaces `SANDBOX_POPULATION`), team/militia/bloodcat placement, strip/death rules.
-9. Sector load/unload flow, `SectorDiff` save/restore, preserved enemies/civilians, corpse aging, revealed bits.
-10. Tactical exits: exit checks, menu table, walk-off with `DISALLOW_SIGHT` and the 2500 ms timer, traversal setup,
-    walk-in, exit grids, no-load departures.
-11. API: commands, prompts, events, `PlayerView.strategic`, queries; MCP tools gain `route`, `assignSquad`,
-    `enterSector`, `exitSector`.
-12. Save import of the strategic sections (11–14 and all temp files) so native campaigns continue (`docs/14` §9).
+- The country map needs no stub: the externalized tables ship in `data/` and work in CI; unit tests that need a tiny
+  world build a synthetic `StrategicContent`.
+- `sectorMapPath` (`content/strategic/sector-maps.ts`) picks the original map, else that sector's map in the built stub
+  pack (`stubs/world/maps/`), else `wilderness.dat`, so the campaign runs on stubs anywhere. Hand-made sector stubs:
+  `stubs/maps/a9.map.txt` (start village: entry points, garrison placements of every class), `a10.map.txt` (exit grid
+  to `a10_b1.map.txt`, a basement with `scroll: basement`), `d5`, `n7`, `p3`, `p3_b1`; `stubs/maps/sector-kinds.json`
+  aliases the other garrison, town, mine, SAM and underground sectors to generic kind maps (`27`). Serving a generic map
+  for a sector without one is a stub-pack rule, not a simulation deviation.
+- Stub map keys for this domain (`src/content/formats/stub-map.ts`): `entry: north|east|south|west|center|isolated <x>
+  <y>`, `exit: <x> <y> -> <SECTOR|here> [z=<n>] at <worldX> <worldY>`, `scroll: basement|default`, and the `optional`
+  flag on `soldier:` lines (priority existence off). Stubs carry no saved edgepoints (§5.7).
 
-Can wait (hooks with defaults): helicopter (no heli group), vehicles beyond data structures, NPC-of-note prompt (no
-profiles placed until M6 → never fires), quest code on entry/exit, RPC descriptions, meanwhile, POW handling, creature
-lairs and warps, militia placement details (`docs/18`), theft (`docs/18`), smoke/light effect diffs (save as records,
-spread later).
+### 7.6 Verification
 
-### 9.3 Tests (Vitest, CI on stubs and data/)
+Oracle (`tools/oracle/README.md`): `probes/strategic.txt` ("Strategic movement": `stratcosts` for all five masks,
+`stratpath` incl. tactical traversals, `groups` after loading each native save: every group, waypoint, squad, dead list,
+`SECTORINFO`, map element, underground node, arrival event, merc path and secret) and an all-pairs `stratpath` sweep
+for FOOT, AIR and TRACKED; `probes/sectors.txt` (patch `0004`, "Sector transitions": loaded and generated edgepoints on
+eight maps incl. the A10 basement, `soldierexit`, `walkoff`, `walkin`, `mirror`, `initlist`, `defence` with replayed
+decision draws, `exitcheck`). All match exactly. Creature and bloodcat placement: `docs/17` §12.3. Unit tests sit next to
+the modules; `sector-scenario.test.ts` plays A9 → B9 by `route`, the PBI hand-off, `enterSector`, the battle, leaving and
+re-entering, with the same digest under the instant and the manual driver.
 
-- Ids: byte/strategic/short-string round trips; P16 sentinel; map file names incl. `_a`, `_b<z>`.
-- Traversability: per-sector N/E/S/W/through from the JSON grid shapes (16×17, 17×16); `GetTraversability`.
-- Travel: the table of §3.5 for every transport; encumbrance (max over walkers, floor 100, integer); TOWN 5 vs AIR 10;
-  impossible edges.
-- `FindStratPath`: synthetic grids for Dijkstra order, heuristic/FARTHER/LIFO tie-breaks, the tactical-traversal zero
-  cost, the SHIFT mode overriding heli costs, the 512/4096 limits; A9→P3 on the real table against the oracle.
-- Waypoints: pivots only; reversal arrival `traverse − arrival + 2·now`; 90° replan counts as reversal; never-left
-  arrival (`neverLeft` skips experience and fuel).
-- Groups: lowest free id, append order, reuse after removal, persistent park; squad add/remove rules and compaction.
-- Departure/arrival: enemy sleep draws only between 21:00 and 04:59; queue-battle delay `3 + Random(3)`; insertion codes
-  by direction; edge-index codes preserved; `ABOUT_TO_ARRIVE` only if strictly ahead.
-- Encounters: the battle-check matrix (player/enemy group × mercs alive/combat-able × militia × bloodcats), simultaneous
-  arrival prompt and its yes/no outcomes, `HandleOtherGroupsArrivingSimultaneously` restart scan.
-- Init list: sort reversal per class; enemy defence placement with an injected roll source, including the Strac
-  every-other-node PD pass and the leftover class reassignment.
-- Persistence: leave and re-enter a stub sector: items (incl. moved and dropped), corpses (aged 1 day → stage 2, 3 days →
-  gone), open doors, revealed tiles, preserved enemies (≤ 300 min and count match restore; mismatch or > 300 min
-  re-place), civilians healed by `minutes / 15`.
-- Exits: screen thresholds at the four edges on a default and a basement map; the exit-menu decision table; walk-off
-  completes or times out at 2500 ms; LOAD within 5 min loads the next stub sector with walk-in; NO_LOAD departs.
-- Scenario (headless, seeded): an agent routes a squad A9 → B9 on stubs, meets placed enemies (PBI prompt), enters,
-  wins (`docs/10`), leaves east, and the sector diff survives a reload; identical under the instant and manual drivers.
+### 7.7 Limitations
 
-### 9.4 Oracle probes (`tools/oracle`, extend `src/Oracle.cc` and the hooks patch)
-
-The oracle already initialises the strategic engine (`InitializeJA2` → `InitStrategicMovementCosts`), so movement data is
-available without a save.
-
-| Probe | Does | Compare |
-|---|---|---|
-| `stratcosts [mask=FOOT\|CAR\|TRUCK\|TRACKED\|AIR]` | dumps `ubTraversability[5]` of all 256 sectors and `GetSectorMvtTimeForGroup` per direction with a fake enemy group (no encumbrance) | JSON parse and travel rules |
-| `stratpath from=A9 to=P3 [mask=…] [who=<soldier>] [tactical=1]` | `BuildAStrategicPath`, per-edge minutes, `CalculateTravelTimeOfGroup` after `RebuildWayPointsForGroupPath` on a scratch group | path, waypoints, ETA (with `who` after `save`: real encumbrance) |
-| `groups` (after `save`) | group list in order (all fields, waypoints, members), squads, `SquadMovementGroups`, sector flags and counts, underground list, pending `GROUP_ARRIVAL` events, merc paths | save import of sections 3, 11–14 |
-| `edgepoints [generate=1]` (after `sector`) | the eight lists and middle indices, optionally regenerated with `GenerateMapEdgepoints` | loader and generator on real maps |
-| `exitcheck dir=E\|W\|N\|S\|grid=<g>` (after `save`) | `OKForSectorExit`, minutes, per-soldier `SoldierOKForSectorExit`, the `gf*` flags | exit checks and screen thresholds |
-| `walkoff who=<id> dir=E`, `walkin who=<id> code=WEST`, `mirror who=<id> dir=E` | wrappers for the static `PickGridNoNearestEdge`, `PickGridNoToWalkIn`, the mirror gridno and `CalcMapEdgepointClassInsertionCode` | walk-off/walk-in targets |
-| `initlist` (after `sector`) | `SortSoldierInitList` order (node id, team, class, priority, detailed, soldier) via a wrapper | sort reversal |
-| `defence admins= troops= elites=` (after `sector`) | `AddSoldierInitListEnemyDefenceSoldiers` with a **Random tap** (patch `Random` to log `(range, result)`) | ja2-node replays the same rolls through an injected roll source; chosen nodes and classes must match |
-| `advance minutes=N` (after `save`, with the tap) | `WarpGameTime` processing events; dump `groups` afterwards | arrivals, reversals, battle checks with replayed rolls (needs `docs/15`/`17`) |
-
-The Random tap is the general answer to D6 (different generators): native rolls become inputs, as in `01` §3.6
-("rules take rolls as parameters").
+- NPC of note (§3.10): `TacticalWorldPort.npcOfNoteInSector` only has its default (`false`), so the prompt never opens.
+- `AddCorpsesToBloodcatLair` (§3.9) is a port hook without an implementation: no lair corpses.
+- The warp out of a creature lair (§5.9) is not offered (`warpOutOfMineCodes` in `strategic/creatures/creatures.ts` has no
+  caller).
+- No placement GUI (§5.8); no vehicle soldier, condition or fuel for vehicles ja2-node adds (§3.15); no fuel or museum
+  move refusal (§3.3); no heli arrival clamp (§3.16).
+- Native temp files of sectors other than the loaded one are not imported (deviation "Savegame import"); no rotting or
+  crows in the loaded sector (deviation "Corpses").
+- Not probed: strategic `advance` with replayed draws (enemy sleep, queued battles, reversals in one run) and ETAs with
+  a soldier's encumbrance other than through `groups` when every member is in the loaded sector.
 
 ---
 
-## 10. Quirks to keep, deviations to log
+## 8. Quirks, deviations and open points
 
-**Quirks to keep** (all read in Strac; vanilla-identical unless noted):
+### 8.1 Quirks to keep
 
-1. Enemy groups that departed a sector still count as being in it (`ubSector` is the departed sector) for
-   `NumEnemiesInSector`, `PrepareEnemyForSectorBattle` and reinforcements.
-2. `NumEnemiesInSector` ignores z: an underground tactical traversal checks the **surface** counts of the same x,y in
-   `CheckConditionsForBattle`.
-3. Reversal arrival `traverse − arrival + 2·now`; a 90° replan while moving is a reversal.
-4. Only pivots become waypoints; any added waypoint resets every member's insertion code to 0 (NORTH).
-5. Group flags (incl. simultaneous-arrival approvals and the ambush potential) clear on every arrival; the battle branch
-   also decrements `gubNumAwareBattles` when no battle starts because a prompt opened or `checkForBattle` was false.
-6. `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` is set only when leaving a hostile sector through an **exit grid**
-   (`HandlePotentialMoraleHitForSkimmingSectors`), not by edge exits.
-7. `gfUndergroundTacticalTraversal` is set (twice) and never cleared: after the first underground edge traversal every
-   later tactical traversal group arrives after 1 minute instead of 5, while the clock still warps 5 minutes
-   (`StrategicMap.cc:1772-1782`; `V: Strategic/StrategicMap.c:2675-2687` has the same second assignment, while an older
-   code path there resets it to FALSE at `:2516`). It is not saved; a fresh process starts FALSE.
-8. `OKForSectorExit` uses `gWorldSector.z > 1` in the per-soldier branch: at z == 1 a squad member away from the edge
-   makes the edge "invalid" (`:2119`).
-9. Facing on entry is toward the map centre; the strategic insertion direction (< 100) is ignored for people.
-10. `DISALLOW_SIGHT` during walk-off and walk-in: nobody sees anybody until all mercs arrived or 2.5 s passed.
-11. Enemy defence placement in Strac visits **every other node** in the priority+detailed pass (`FOR_EACH` plus
-    `curr = curr->next`, `Soldier_Init_List.cc:712-743`); vanilla visits every node (`V: Tactical/SoldierInitList.c:788-807`).
-    D1 says Strac: keep, list as a Strac-introduced difference, and guard against the end of the list (Strac would
-    dereference null if every node were priority+detailed).
-12. `SortSoldierInitList` reverses each class.
-13. `32 − admins + troops` cap for elites in `PrepareEnemyForSectorBattle`; underground battles add the full node counts.
-14. Preserved enemy files are compared with stationary counts only (any mobile enemy present at save → discarded) and
-    never restore underground; 300-minute limit; `PreRandom(2)` current-or-original position per soldier.
-15. Civilian file pruning uses the team of the last record read.
-16. `SetThisSectorAsEnemyControlled` sets the flag before its "mercs still there" early return.
-17. `ExamineDoorsOnEnteringSector` never fires (the 30-minute test uses a timestamp set just before; same in vanilla
-    `V: Strategic/StrategicMap.c:877,904`).
-18. `NotifyPlayerOfInvasionByEnemyForces` calls back only for town/SAM sectors (§4.1).
-19. Heli route cost depends on the airspace of the sector being left; SHIFT overrides heli costs.
-20. `AllMercsWalkedToExitGrid` passes the target sector to the retreat loyalty check.
-21. Bloodcat first-visit roll repeats until it succeeds; `bBloodCats == 0` still rolls `PreChance(95)`.
-22. `CreateNewEnemyGroupDepartingFromSector` sizes groups as troops + elites.
-23. (inferred) Restoring a preserved enemy file while mobile groups have arrived since places those groups twice (§5.12).
+Original behaviour (vanilla too unless marked), each stated in its section:
+- Departed enemy groups still count in the sector they left (`ubSector`) for `NumEnemiesInSector`,
+  `PrepareEnemyForSectorBattle` and reinforcements (§3.14).
+- `NumEnemiesInSector` ignores z: an underground tactical traversal checks the **surface** counts (§4.1).
+- Reversal arrival `traverse − arrival + 2·now`; a 90° replan while moving is a reversal (§3.4).
+- Only pivots become waypoints; any added waypoint resets every member's insertion code to 0 (NORTH) (§3.4).
+- Group flags clear on every arrival; `numAwareBattles` also drops when a prompt opened or `checkForBattle` was false
+  (§3.9).
+- `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` only from leaving a hostile sector through an **exit grid** (§5.9).
+- `gfUndergroundTacticalTraversal` is set (twice) and never cleared: after the first underground edge traversal every
+  later tactical traversal group arrives after 1 minute instead of 5 while the clock still warps 5
+  (`StrategicMap.cc:1772-1782`; `V: Strategic/StrategicMap.c:2675-2687` has the second assignment too, an older path
+  resets it at `:2516`); not saved (deviation "Underground traversal flag").
+- `OKForSectorExit` tests `gWorldSector.z > 1` per soldier: at z == 1 a squad member away from the edge makes the edge
+  invalid (`:2119`, §5.9).
+- Facing on entry is toward the map centre; the strategic insertion direction (< 100) is ignored for people (§5.6).
+- `DISALLOW_SIGHT` during walk-off and walk-in (§5.9).
+- Strac's PD pass visits every other node; `SortSoldierInitList` reverses each class (§5.13); the `32 − admins + troops`
+  elite clamp and full underground counts (`17` §10.1).
+- Preserved enemy files: stationary counts only, never underground, 300 minutes, `PreRandom(2)` position; civilian
+  pruning by the last record's team (§5.12).
+- `SetThisSectorAsEnemyControlled` sets the flag before its early return (§6.1).
+- `ExamineDoorsOnEnteringSector` never fires (§5.2).
+- `NotifyPlayerOfInvasionByEnemyForces` calls back only for town/SAM sectors (§4.1).
+- Heli route cost by the airspace of the sector left; SHIFT overrides heli costs (§3.2).
+- `AllMercsWalkedToExitGrid` passes the target sector to the retreat loyalty check (§5.9).
+- Bloodcat first-visit roll repeats until it succeeds; `bBloodCats == 0` still rolls `PreChance(95)` (§4.2).
+- Enemy groups are sized troops + elites (§2.2).
 
-**Deviations to add to `docs/deviations.md`:**
+### 8.2 Deviations
 
-| Area | Original | ja2-node | Why |
-|---|---|---|---|
-| Strategic map UI flow | Click-to-plot with temporary paths, confirm by clicking the last sector, SHIFT for the shortest route, cursor and dialogue-queue gates | `route` builds and confirms in one command; `shortest` flag; UI-only gates (dialogue queue, held item, boxes) dropped | API has no cursor (D15) |
-| Exit menu | Modal box with radio buttons and a load checkbox; selected merc is a UI choice | `exitSector` with `who`/`load` validated by the same table; `soldier` plays the selected merc | API (D15) |
-| Prompts | Message boxes (simultaneous arrival, NPC of note, warp, placement GUI) | Decision prompts with the same outcomes; informational boxes auto-closed | D15 |
-| Exit wait timer | 2500 ms of `GetJA2Clock` (wall clock) | 2500 game ms on ticks | All timers on game time |
-| Cosmetic draws | `Random(n)` speaker choices (`PrepareForPreBattleInterface`, `RandomMercInGroupSaysQuote`), heli quote `Random(2)`, lair corpse facing `Random(8)`, dead-soldier corpse animation `Random(4)` | `fx` stream | They only pick quotes and graphics |
-| Temp files | Binary files in a temp directory, checksummed placement records and a "file hack" exit on any mismatch | `SectorDiff` objects in `GameState`; no checksums | Plain state (D7) |
-| Underground traversal flag | Process-global, not saved | Session state, reset on load | Matches a fresh native process after loading |
-| Stub sectors | Every sector has a map | The stub pack serves a generic wilderness map for sectors without a stub map | CI without original data |
-| Sandbox population | (existing row) | Replaced by `PrepareEnemyForSectorBattle` in M4 | |
+Entries in `deviations.md`: "Cosmetic draws in strategic movement" (§4.4, §3.9), "Cosmetic draws of the helicopter",
+"Waiting for mercs to exit" (§5.9), "Sector temp files" (§5.11), "Underground traversal flag", "Strategic prompts"
+(§3.10, §3.12, §4.1), "Exit dialog" (§5.9), "Tactical placement" (§5.8), "Map route plotting", "Move box regrouping",
+"Strategic move refusals" (§3.3), "Vehicles as characters", "Ground vehicles" (§3.15), "Helicopter on the map", "Map and
+tactical screens" (§5.1), "Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in
+tactical", "Corpses", "Corpse sweet spot", "Savegame import", "Map changes of the loaded sector on import", "Strategic AI
+PD placement pass" (§5.13). "Doors on entering a sector" describes a door rule the original never runs (§5.2).
 
----
+### 8.3 Unverified
 
-## 11. Verified vs inferred
-
-**Verified** by reading Strac (vanilla cross-checks where marked): sector ids and conversions; `SECTORINFO`,
-underground, map element and group save layouts; traversability loading; `GetSectorMvtTimeForGroup` and the travel
-table; `FindStratPath` incl. queue and tie-breaks; path helpers; `RebuildWayPointsForGroupPath`, `AddWaypointToPGroup`,
-reversal; `InitiateGroupMovementToNextSector`, `GroupArrivedAtSector`, `HandleNonCombatGroupArrival`,
-`CheckConditionsForBattle`, `TestForBloodcatAmbush`, simultaneous arrivals, `DelayEnemyGroupsIfPathsCross`, retreat;
-squads; `CanCharacterMoveInStrategic`; `SetCurrentWorldSector`, `EnterSector`, `PrepareLoadedSector`,
-`UpdateMercsInSector`/`UpdateMercInSector`, `AddSoldierToSector` facing; edgepoint load/choose/search/classify; exit
-checks, exit menu, `JumpIntoAdjacentSector`, walk-off, `AllMercsHaveWalkedOffSector`, `AllMercsWalkedToExitGrid`,
-`DoneFadeOut*`; unloading and `TrashWorld`; temp-file save/load order and item/corpse rules; preserved enemies and
-civilians; `PrepareEnemyForSectorBattle`, `SortSoldierInitList`, `AddSoldierInitListEnemyDefenceSoldiers` (vanilla
-compared for the PD pass), militia/bloodcat placement, strip and death rules; sector control functions; airspace;
-enemy knowledge; heli arrival rules; the quirks of §10 (items 7 and 17 checked in vanilla too; item 11 differs there).
-
-**Inferred** (not traced end to end): the screen-space thresholds for the basement restriction (computed from
-`InitRenderParams`); `GenerateMapEdgepoints`' validation/classification internals (only the first rows were read);
-`CalculateTravelTimeOfGroup` ignoring `ubNextWaypointID` being harmless; `SF_USE_MAP_SETTINGS` unused in vanilla data;
-the militia-only case of `NotifyPlayerOfInvasionByEnemyForces` being unreachable; which sectors the map UI reveals as
-controlled (§7.4); the effect of quirk 7 on event order (depends on what else is queued in those 4 minutes); the double
-placement of quirk 23.
-
----
-
-## 12. Open questions
-
-1. Quirk 11 (Strac's every-other-node pass) and quirk 7 (stuck underground flag) are Strac/vanilla bugs with visible
-   effects; D1 says keep — confirm with the maintainer before shipping, and record the choice in `deviations.md`.
-2. Do any of the 261 vanilla maps lack saved edgepoints (version < 22 or no flag), i.e. does the generator ever run on
-   original data? `pnpm cli inspect` over the maps answers it; the generator is needed for stubs anyway.
-3. Same-timestamp event order (two groups arriving in the same minute, `ABOUT_TO_ARRIVE` vs arrivals) is `docs/15`'s;
-   `HandleOtherGroupsArrivingSimultaneously` depends on it.
-4. Group ids at a new game depend on `InitStrategicAI`'s group creation (`docs/17`); tests should address squads by
-   index, not by group id.
-5. `PlayerView.strategic.controlled`: exactly which control information the original map shows (town info boxes, militia
-   panel) needs a UI pass; until then expose control only for visited sectors and found town/SAM sectors.
-6. The roster split (player soldiers outside `TacticalState`) touches save import and the sandbox; agree on it before
-   step 4 of §9.2.
-7. Quirk 23 (mobile enemies placed twice after restoring a preserved enemy file) needs an oracle check: save beside an
-   enemy sector, let a patrol enter it, re-enter, and count the enemy team.
-
----
-
-## 13. Implemented (2026-10-16): §9.2 steps 1–6 and the strategic part of step 12
-
-**Content** (`src/content/strategic/`): `sector-ids.ts` (byte id, strategic index, short/long strings, map file names),
-`map-tables.ts` (traversability letters, the movement-cost grids turned into the five per-sector values of
-`InitStrategicMovementCosts`, towns, sector descriptions, underground templates, SAM sites and air control, secrets,
-cache sectors, bloodcat placements and spawns), `policy.ts` (`squad_size`, start sector, reveal flag, vehicle movement
-types), `travel-table.ts` (`data/tables/strategic-travel.json` from `tools/transcribe/strategic-travel.ts` and
-`data/tables/sector-facilities.json` from `tools/transcribe/sector-facilities.ts`), `strategic-content.ts`
-(`StrategicContent`, `loadStrategicContent(read)`; everything is in `data/`, so the strategic layer runs on stubs).
-
-**State** (`StrategicState`, plain data): `map` (`sectors[256]`, `elements[324]`, `underground[]` in file order,
-`secretsFound[]` parallel to the secrets table, `selectedSector`, `activity` = the player-activity counters of
-`SetSectorFlag`), `forces` (`groups[]` in list order, `squads[20]` as compact soldier-id lists, `squadGroupIds`,
-`deadSquadMembers`, `vehicleGroupIds`, `vehicles`, helicopter id and airborne flag), `movement` (the transient flow flags
-of §0), `encounter` (encounter globals, `preBattle` hand-off, `simultaneousArrival` prompt) and `options` (difficulty,
-sci-fi, gun nut). Group ids are the lowest id not used by a listed group, which is what `uniqueIDMask` always holds.
-
-**Simulation** (`src/sim/strategic/`):
-
-| Module | Public API |
-|---|---|
-| `map/sectors.ts` | `SectorInfo`, `MapElement`, `UndergroundSector`, `sectorInfo`, `findUndergroundSector`, `getSectorFlags`/`getSectorFlagStatus`/`setSectorFlag`/`resetSectorFlag` (Tixa prison, gun range, activity day), `mapFileNameForSector`, `traversabilityBetween` (`GetTraversability`), `sectorIsPassable`, `isSectorDesert`, `totalMilitia` |
-| `map/init.ts` | `initializeMapStructure`, `setupNewStrategicMap`, `initNewCampaignMap` (zero, movement costs, remove groups, facilities, underground draws, start sector), `initBloodCatSectors`, `initTixaBasementWithoutSciFi`, `initStrategicLayerMap(ctx, {initStrategicAI, initNpcs})` (the `InitStrategicLayer` order for the map and forces) |
-| `map/control.ts` | `setThisSectorAsPlayerControlled`, `setThisSectorAsEnemyControlled`, `updateAirspaceControl`, `initializeSamSites`, `samIdOfSector`, `isThisSectorASamSector`, `townIdOfSector`, secrets |
-| `map/knowledge.ts` | `whatPlayerKnowsAboutEnemiesInSector` (§6.3) |
-| `map/travel.ts` | `getSectorMvtTimeForGroup`, `sectorMovementTime` (pure), `findTravelTimeBetweenWaypoints`, `calculateTravelTimeOfGroup`, `TRAVERSE_TIME_IMPOSSIBLE` |
-| `map/pathing.ts` | `findStratPath` (the literal queue, trail tree, 512/4096 limits, 30-direction cap), `buildStrategicPath`, path helpers |
-| `map/save-import.ts` | `importStrategicMap(ctx, save)` |
-| `forces/groups.ts` | `Group`, `getGroup`, `create{Player,Vehicle,Enemy}Group…`, `removeGroup`, `removeAllGroups`, `addPlayerToGroup`, `removePlayerFromPGroup`/`removePlayerFromGroup`, `setGroupSectorValue`, `setEnemyGroupSector`, `findPlayer/EnemyMovementGroupInSector`, `playerMercsInSector`, `numEnemiesInSector`, `numHostilesInSector`, `numEnemiesInAnySector`, `countAllMilitiaInSector`, `groupAtFinalDestination` |
-| `forces/movement.ts` | `addWaypointToPGroup` (+ id variants), `initiateGroupMovementToNextSector`, `rebuildWayPointsForGroupPath`, `groupArrivedAtSector`, `calculateNextMoveIntention`, `groupReversingDirectionsBetweenSectors`, `retreatGroupToPreviousSector`, `resetMovementForEnemyGroup(sInLocation)`, `randomizePatrolGroupLocation`, `placeGroupInSector`, `moveGroupFromSectorToSector` (+ avoid-player variants), `buildAStrategicPath`, `clearMercPathsAndWaypointsForAllInGroup`, `answerNpcOfNotePrompt` |
-| `forces/squads.ts` | `initSquads`, `initVehicles`, `addCharacterToSquad`/`…AnySquad`/`…UniqueSquad`, `removeCharacterFromSquads`, `assignMercToAMovementGroup`, `handleSoldierLeavingSectorByThemSelf`, `checkSquadMovementGroups`, dead lists |
-| `forces/routes.ts` | `plotPathForCharacter`, `confirmPathForCharacter`, `cancelPathForCharacter`, `clearPathAfterThisSectorForCharacter` (people; vehicles later) |
-| `forces/encounters.ts` | `checkConditionsForBattle`, `handleOtherGroupsArrivingSimultaneously`, `answerSimultaneousArrival`, `prepareForPreBattleInterface`, `testForBloodcatAmbush`, `handleArrivalOfReinforcements` |
-| `forces/ports.ts`, `forces/context.ts` | `StrategicContext` = state + content + `MercPort` + `StrategicAiPort` + `TacticalWorldPort` + clock + `random`/`preRandom` roll sources; `createStrategicContext`, default ports (AI hooks return `false`/no-op, as §9.2 asks) |
-
-`CampaignSim` takes `hooks.strategic = {content, mercs?, ai?, world?}`, exposes `campaign.strategic` and registers
-`GROUP_ARRIVAL` (`GroupArrivedAtSector(group, TRUE, FALSE)`) and `GROUP_ABOUT_TO_ARRIVE` (no effect). Player soldiers are
-soldier ids 0..19 resolved through `MercPort` (`StrategicMerc` holds the strategic soldier fields: sector, between
-sectors, group, previous sector, insertion code and direction, path, assignment, vehicle; `changeAssignment` is
-expected to do `SetMercAwake`/`SetTimeOfAssignmentChangeForMerc` when the assignment changes). The PBI consumer
-(`docs/19`) reads `encounter.preBattle` and must clear it and `movement.disableMapInterfaceDueToBattle`, as closing the
-PBI does in the original.
-
-**Verified against the oracle** (`tools/oracle/probes/strategic.txt`, `README.md` "Strategic movement"): `stratcosts` for
-all five masks, 21 `stratpath` routes (A9→P3 for each mask, unreachable corners, tactical traversals, trivial routes) and
-`groups` after loading each of the six saves (every group field and waypoint, members, squads, squad and vehicle groups,
-dead lists, all `SECTORINFO` fields, map elements, underground, arrival events, merc paths, secrets, selected sector)
-match exactly; a sweep of all 256 × 256 routes for FOOT, AIR and TRACKED (196,608) and every adjacent tactical
-traversal also matches. Unit tests cover §9.3's ids, traversability, travel table, `FindStratPath` tie-breaks and limits,
-waypoints and reversal, group ids and order, squads, departure and arrival through the event queue (enemy sleep, queued
-battle delay, insertion codes, about-to-arrive), and the encounter matrix with simultaneous arrivals and bloodcats.
-
-**Not yet:** RNG-replay probes (`advance` with a Random tap), `stratpath who=` with a soldier's encumbrance,
-NPC-of-note detection (a `TacticalWorldPort` hook), §3.3's `CanCharacterMoveInStrategic`, theft and loyalty effects of control changes (ports for `docs/17`/`18`), and wiring
-`importStrategicMap` and a roster-backed `MercPort` into `createSaveSession` (campaign integration).
-
-**Stubs (2026-10-16).** The stub map format gained `entry: north|east|south|west|center|isolated <x> <y>`,
-`exit: <x> <y> -> <SECTOR> [z=<n>] at <worldX> <worldY>` and an `optional` flag on `soldier:` lines (priority
-existence off). `stubs/maps/a9.map.txt` is the start village with entry points and garrison placements of every class,
-`stubs/maps/wilderness.map.txt` the generic sector. `content/strategic/sector-maps.ts` `sectorMapPath` picks the original
-map, else a stub of the same sector, else the generic wilderness stub, so the campaign runs on stubs anywhere.
-
-## 14. Implemented (2026-10-16): §9.2 steps 7–10
-
-**Tactical side** (`src/sim/tactical/`):
-
-| Module | Public API |
-|---|---|
-| `edgepoints.ts` | `MapEdgepoints` (primary and secondary lists with middle indices, N/E/S/W), `savedMapEdgepoints` (map version ≥ 22), `generateMapEdgepoints(t, sector)` (global reachability from the first entry point, two rows per side from the corner gridnos, `ValidateEdgepoints`, classification against the isolated gridno, the I14 range), `loadMapEdgepoints`, `chooseMapEdgepoint(s)`, `begin/endMapEdgepointSearch`, `searchForClosestPrimary/SecondaryMapEdgepoint`, `calcMapEdgepointClassInsertionCode`, `findNearestEdgepointOnSpecifiedEdge` |
-| `insertion.ts` | `Insertion` codes, `updateMercInSector(t, s, order, ctx)` (the §5.6 table: edgepoints, gridno, entry points, exit-grid re-entry, sleep and patient animations), `addSoldierToSector` (sweet spot, facing the centre, exit-grid facing) |
-| `init-list.ts` | `SoldierInitNode`, `buildSoldierInitList`, `sortInitList`, `PopulationEnv`, `addPlacementToWorld`, `addSoldierInitListTeamToWorld`, `addSoldierInitListEnemyDefenceSoldiers`, `addSoldierInitListMilitia` (with the loop-stops-at-the-first-soldier quirk), `evaluateDeathEffectsToSoldierInitList`, `stripEnemyDetailedPlacements`, `randomizeRelativeLevel`, `tacticalCreateEnemySoldier`, `addEnemiesToBattle` |
-| `map-changes.ts` | `MapChange` records written by structure damage (damage, destroy, partner swap, wall-hung removal, window hits) and `applyMapChanges` |
-| `sector-exit.ts` | render bounds and screen coordinates (default and basement), `soldierOKForSectorExit`, `pickGridNoNearestEdge`, `adjustSoldierPathToGoOffEdge`, `pickGridNoToWalkIn`, `mirrorGridNo`, `findGridNoFromSweetSpotCloseToExitGrid`, `setActionToDoOnceMercsGetToLocation`, `checkMercsWaiting` (2500 ms) |
-
-`new TacticalSim(world, content, seed, {streams, profiles, startMs, realtimeClock, hour, dayAmbient})` shares the
-campaign's `Random`/`PreRandom` streams, profile progress, real-time clock and light schedule. `TacticalState` gains the
-edgepoints, the init list, the map changes, the merc wait (`mercsWaiting`; tactical commands are refused while it runs,
-as `LU_BEGINUILOCK`) and `sectorHooks` (`soldierDied`, `soldierLeftMap`, `addPendingEnemies`, `mercsWaitOver`). Fleeing AI
-soldiers keep the traversal quote action of `FindFleeSpot` and leave the map (`handleAITacticalTraversal`), which closes
-"Map-edge escapes".
-
-**Campaign side** (`src/sim/campaign/`):
-
-| Module | Public API |
-|---|---|
-| `sector-diff.ts` | `SectorDiff` (items incl. non-existing slots, corpses with time of death, map changes, blood and smell, door table and status, revealed and room-hidden bits, preserved enemies and civilians with their init-list links, smoke and light records), `sectorKey`, the `capture*`/`restore*` pairs, `preserveSoldiers`, `agedCorpse`, `loadPreservedCivilians` |
-| `sector-flow.ts` | `SectorFlow`: `setCurrentWorldSector(sector, {autoPlacement, battleLocatorShown})` (§5.2–§5.5 with the diff, flags, enemies from the strategic counts or the preserved records, militia, civilians, the ambush call, guide flag, cosmetic draws), `adoptLoadedSector(links)` for save sessions, `checkAndHandleUnloadingOfCurrentWorld`, `handleDefiniteUnloadingOfWorld`, `saveCurrentSectorsInformation`, `trashWorld`, `prepareEnemyForSectorBattle`, `addPossiblePendingEnemiesToBattle`, `prepareMilitiaForTactical`, `resetMilitia`, `difficultyModifier`, `populationEnv`, `mapsNeededSoon(target)`, `enterSectorRefusal`; free functions `sectorWorldPort`, `dispatchSectorCommand`, `loadStartSector` |
-| `sector-exits.ts` | `okForSectorExit`, `exitMenu` (the dialog's checkbox table), `singleMoveAction`, `allMoveAction`, `jumpCodeOf`, `jumpIntoAdjacentSector`, `allMercsHaveWalkedOffSector` (warp to the start of minute + 5 or + 1, `WARPTIME_PROCESS_TARGET_TIME_FIRST`, 300 s retreat warp), `allMercsWalkedToExitGrid`, `exitCheck`, `exitSectorCommand` |
-
-**Integration.** `CampaignSim` takes `hooks.sectors = {worlds: SectorWorlds, content, roster}` and exposes
-`campaign.sectors`. Commands: `enterSector {sector: 'B9' | {x, y, z}}` and `exitSector {soldier, direction:
-'north'|'east'|'south'|'west' | exitGrid: gridNo, who: 'squad'|'merc', load?: boolean}`; the result carries `minutes`,
-`who`, `load`, `target` and `level`, a refusal one of `tooFar`, `invalidTraversal`, `loneEPC`, `abandonEPC`,
-`squadNotAllowed`, `mercNotAllowed`, `loadDisabled`. Events: `sectorLoaded`, `sectorUnloaded`, `mercsLeftSector`.
-`loadStartSector(campaign)` is the default `CampaignHooks.loadStartSector`. `server/world-cache.ts` (`WorldCache`) loads
-the maps of `mapsNeededSoon` before a command (`CampaignSession.prepare`, `Session.prepareAndDispatch`, used by the
-WebSocket queue and MCP `act`); save sessions get a flow when `createSaveSession` receives a `FileExists`. The strategic
-world port (`sectorWorldPort`) answers `enemyReinforcementsArrived` and the reinforcement checks with the loaded sector.
-
-**For the PBI (`docs/19`).** "Enter sector" clears `encounter.preBattle` and `movement.disableMapInterfaceDueToBattle`,
-then calls `campaign.sectors.setCurrentWorldSector(sector, {autoPlacement: firstVisit, battleLocatorShown: true})` or
-dispatches `enterSector`; retreat and the end of a battle unload through `checkAndHandleUnloadingOfCurrentWorld()`. The
-tactical end of battle (`docs/19` §3.2: control, `LogBattleResults`, morale and loyalty) is not wired: `checkForEndOfBattle`
-only emits `combatEnded`.
-
-**`docs/17` callers wired:** `prepareEnemyForSectorBattle` → `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers`
-→ `assignEnemyGroupIds`; deaths and map-edge escapes → `trackEnemiesKilled`, `processQueenCmdImplicationsOfDeath`;
-tactical turn ends and `enemyReinforcementsArrived` → `addPossiblePendingEnemiesToBattle` (arrivals through the edgepoints);
-unload → `endTacticalBattleForEnemy` and, whenever the world is trashed, `handleFirstMeanwhileSetUpWithTrashWorld`; soldier
-creation → `difficultyModifierAt`.
-
-**Sandbox.** `server/sandbox.ts` populates A9 through the init list (civilians, then `addSoldierInitListEnemyDefenceSoldiers`
-with 4 troops and the modifier of a medium game without progress, 11); `SANDBOX_POPULATION`, `chooseEnemyPlacements` and
-the old `addSoldierToSector` are gone ("Sandbox population" narrowed in `deviations.md`).
-
-**Tests** (stubs: `stubs/maps/a10.map.txt` with an exit grid to `a10_b1.map.txt`, a basement with `scroll: basement`):
-`edgepoints.test.ts`, `sector-exit.test.ts` (thresholds on a default and a basement map, walk-off and walk-in targets, the
-2500 ms release), `init-list.test.ts` (sort, defence placement, militia, death and strip rules, relative levels),
-`sector-flow.test.ts` (landing with the garrison, guide flags, Queen notification, walk-off to A10 within 2505 ms and
-+5 minutes with the UI lock, items/corpses/revealed tiles after a day away, `tooFar`, a lone merc leaving without load,
-preserved enemies at 300/301 minutes and on a count change, civilians healed, militia, the ambush call, pending
-reinforcements through the edgepoints, the A10 stairs into the basement and back), `sector-scenario.test.ts` (A9 → B9 by
-`route`, PBI hand-off, `enterSector`, the battle fought to the end, leave, re-enter after an hour, the same digest under
-the instant and the manual driver).
-
-**Verified against the oracle** (`tools/oracle/probes/sectors.txt`, patch `0004`, README "Sector transitions"): 13
-edgepoint dumps (loaded and generated on A9, D13, H13, I14, I13, G1, D6 and the A10 basement), 18 `soldierexit`, 20
-`walkoff`, 15 `walkin`, 31 `mirror` (class codes on H13 and I14), 4 `initlist` sorts, 10 `defence` placements
-(4–64 enemies on 32–64 placements, decision draws replayed with the native placement outcomes) and 21 `exitcheck` on
-SaveGame10, 07 (in combat) and 01 match exactly.
-
-**Not yet:** native temp files of other sectors in save sessions (only the loaded sector's preserved-soldier links), the
-placement GUI (auto placement only), NPC profile insertion and quest placements (M6), rotting
-and crows in the loaded sector, the API side of step 11 (MCP tools and `PlayerView.strategic` for the new commands) and
-the tactical end of battle (above). Creatures and bloodcats are placed since `docs/17` §20 (`addSoldierInitListCreatures`,
-`addSoldierInitListBloodcats`, `addCreaturesToBattle`; oracle `creatureplacement`/`bloodcatplacement`).
+- Mobile enemies that arrive after the player left appear twice when a preserved enemy file is restored (§5.12);
+  oracle check: save beside an enemy sector, let a patrol enter it, re-enter, count the enemy team.
+- The effect of the stuck underground flag (§8.1) on event order depends on what else is queued in those 4 minutes.
+- `CalculateTravelTimeOfGroup` ignoring `ubNextWaypointID` is harmless for ONE_WAY player groups (§3.5).
+- Whether any of the 261 vanilla maps lacks saved edgepoints, i.e. whether the generator ever runs on original data
+  (§5.7).

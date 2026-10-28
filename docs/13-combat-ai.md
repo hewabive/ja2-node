@@ -1,13 +1,16 @@
-<!-- Combat AI (YELLOW, RED, BLACK, turn-based driver): an implementable spec for M3. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–09), cross-checked against vanilla
-(reference/vanilla/ja2/Build). Read-only research: nothing was built. -->
-
 # 13 — Combat AI
 
+**Scope.** The AI above GREEN: YELLOW, RED and BLACK decisions, their attack, cover and flight searches, the combat
+actions and their completion, the civilian, militia and creature variants. The turn-based loop (team turns, AI list,
+`TurnBasedHandleNPCAI`) is `10` §6; the real-time scheduler, `DecideAlertStatus` and the green decision are `09`.
+
 **Conventions.** As in `09`: paths are relative to `reference/stracciatella/src/game/`, `V:` is vanilla `Build/`,
-"(inferred)" marks conclusions not traced end to end, `Random` = our `main` stream, `PreRandom` = our `pre` stream.
-"TB" = turn-based (`gfTurnBasedAI = INCOMBAT`), "RT" = real time. All `(INT16)PreRandom(100) < iChance` tests draw
-even when `iChance <= 0`; the draw is skipped only where a condition before it short-circuits (each case is stated).
+"(inferred)" marks conclusions not traced end to end, `Random` = the `main` stream (`t.rng`), `PreRandom` = the `pre`
+stream (`t.pre`). "TB" = turn-based (`gfTurnBasedAI = INCOMBAT`), "RT" = real time. All `(INT16)PreRandom(100) <
+iChance` tests draw even when `iChance <= 0`; the draw is skipped only where a condition before it short-circuits
+(each case is stated). Stracciatella's AI policies (`avoid_light_tiles_at_night`, `stay_on_rooftop`,
+`ai_go_prone_more_often`, `ai_better_aiming_choice`, the corpse warning) are not configurable in ja2-node: every
+policy branch runs as its default (off).
 Distances: `SpacesAway` = Chebyshev tiles, `PythSpacesAway` = rounded Euclidean tiles (`07`).
 `MaxDistanceVisible() = 26` (`Tactical/OppList.cc:875`).
 
@@ -29,12 +32,12 @@ FEARLESS 4`. Stance heights: `ANIM_STAND 6, ANIM_CROUCH 3, ANIM_PRONE 1` (`06`).
 `ROBOTNOWEAPON` only stand; in water no crouch/prone; EPCs never prone; a collapsed soldier with `bBreath < OKBREATH`
 cannot stand or crouch; then the stance's animation structure (`STANDING`/`CROUCHING`/`PRONE` surface for the body)
 must fit at `sGridNo, bLevel` in direction `dir` (`OkayToAddStructureToWorld`). The prone structure is the 2-tile
-footprint, so prone tests need multi-tile soldiers (not in M2). `IsValidStance(s, st)` uses `bDirection`.
+footprint; ja2-node soldiers carry person structures (`person-structure.ts`: `internalIsValidStance`,
+`isValidStance`), so prone is valid wherever it fits, as in the original. `IsValidStance(s, st)` uses `bDirection`.
 
-**Dependencies kept abstract.** Attacks (chance to hit, damage estimates, AP costs, bursts, throws, stabs) and items
-(inventory slots, ammo, item classes, pocket swaps, item search) are specified by the attack and item docs (11/12).
-This doc names the queries the AI makes (§7.6, §12) and assumes they exist. The turn-based core (team turns, AP
-refresh, interrupts, `ubAttackBusyCount`, `DeductPoints`) is assumed as in `03` §4.
+**Dependencies.** Attacks (chance to hit, AP costs, bursts, throws, stabs) and items (inventory slots, ammo, item
+classes) are specified by `11` and `12`; §7.6 lists the queries the AI makes and where ja2-node implements them. The
+turn-based core (team turns, AP refresh, interrupts, `ubAttackBusyCount`, `DeductPoints`) is `10` and `10` §5.
 
 ---
 
@@ -42,47 +45,25 @@ refresh, interrupts, `ubAttackBusyCount`, `DeductPoints`) is assumed as in `03` 
 
 ### 1.1 `HandleSoldierAI` in TB (`TacticalAI/AIMain.cc:86-519`)
 
-Same function as the RT path of `09` §1.2, with these TB differences, in order:
-1. Gates `:91-99` as in RT. `gfTurnBasedAI = TRUE` (`:118-126`).
-2. `:128-158`: return if `bTeam != OUR && ubCurrentTeam == OUR`; return unless `SOLDIER_UNDERAICONTROL`; a soldier not
-   on `ubCurrentTeam` loses the flag and returns; `bMoved` → `EndAIGuysTurn`, return. No `AICounter` gate.
-3. `fGettingHit` → return; boxing, dying (`bLife < OKLIFE`), `AI_ASLEEP` (in TB a sleeper with `bVisible != 0` wakes
-   up; −1 counts as true, so nearly every sleeper does, `:216-235`), `!bInSector`, vehicle/robot, `bCollapsed` (`CancelAIAction` first) → each `EndAIGuysTurn`, return.
-4. Profiles SERGEANT/MIKE/JOE in combat with a talk panel or a non-empty dialogue queue → return (`:281-284`).
-5. **New situation** (`:288-357`): if `bNewSituation == IS`: with `ubAttackBusyCount > 0` it is processed only if the
-   soldier's action is FIRE_GUN and no bullet is in flight (`guiNumBullets == 0`), or TOSS_PROJECTILE and no physics
-   object is in flight (`guiNumObjectSlots == 0`; this one also zeroes the busy count). Processing: `CancelAIAction`;
-   `bNextAction = NONE` (the END_COWER_AND_MOVE guard is always true, `09` §1.2); `DecideAlertStatus`. Else `NOT`.
-6. `:366-381` 15 s deadlock breaker (not ported, `deviations.md`).
-7. `bAction == NONE` → `EndMuzzleFlash`, **`TurnBasedHandleNPCAI`**; else the **continue branch** `:408-511`, shared
-   with RT: for `FIRST_MOVEMENT_ACTION <= bAction <= LAST_MOVEMENT_ACTION` (1..21, Strac) and not `fDelayedMovement`:
-   path exhausted → `MOVE_TO_CLIMB` at its destination becomes a queued CLIMB_ROOF if affordable (`:464-480`:
-   `bAction = CLIMB_ROOF; if IsActionAffordable: bAction = NONE, bNextAction = CLIMB_ROOF`), then `ActionDone`;
-   then `fNoAPToFinishMove` → `SoldierTriesToContinueAlongPath`, or stationary-animation continue as in `09` §1.2.
+The gate order is `10` §6.2 (RT path `09` §1.2). Details the combat AI depends on:
+- A sleeper wakes in TB when `bVisible != 0`; −1 counts as true, so nearly every sleeper does (`:216-235`).
+- Profiles SERGEANT/MIKE/JOE in combat with a talk panel or a non-empty dialogue queue → return (`:281-284`).
+- **New situation** (`:288-357`): with `ubAttackBusyCount > 0` it is processed only if the soldier's action is
+  FIRE_GUN and no bullet is in flight (`guiNumBullets == 0`), or TOSS_PROJECTILE and no physics object is in flight
+  (`guiNumObjectSlots == 0`; this one also zeroes the busy count). Processing: `CancelAIAction`; `bNextAction = NONE`;
+  `DecideAlertStatus`.
+- Continue branch (`:408-511`): MOVE_TO_CLIMB with an exhausted path at its destination becomes a queued CLIMB_ROOF
+  if affordable (`:464-480`: `bAction = CLIMB_ROOF; if IsActionAffordable: bAction = NONE, bNextAction =
+  CLIMB_ROOF`), then `ActionDone`.
 
 Because `TurnBasedHandleNPCAI` is only reached with `bAction == NONE`, an action in progress is never re-decided:
 it ends only through one of the completion hooks of §1.4.
 
 ### 1.2 `TurnBasedHandleNPCAI` (`AIMain.cc:965-1222`)
 
-```
-(:1032-1066 dead: bAction is always NONE here, so ActionInProgress is never called; same in RTHandleAI)
-bActionInProgress = false; bPathStored = false
-if bNextAction != NONE:
-   END_COWER_AND_MOVE: as RT (09 §1.3): STOP_COWERING / CHANGE_STANCE(ANIM_STAND) / NONE, then WALK to the data or NONE
-   else: bAction = bNextAction; usActionData = usNextActionData; bTargetLevel = bNextTargetLevel; clear the three (data 0)
-   PICKUP_ITEM: uiPendingActionData1 = iNextActionSpecialData                                     // items doc
-elif sAbsoluteFinalDestination != NOWHERE: bAction = schedule ? SCHEDULE_MOVE : WALK; usActionData = it    // hook
-elif !ENGAGED_IN_CONV: bAction = creature ? CreatureDecideAction : crow ? CrowDecideAction : DecideAction(s)
-if bAction == ABSOLUTELY_NONE: bAction = NONE
-if bAction == NONE: NPCDoesNothing(s) → EndAIGuysTurn(s); return
-if IsActionAffordable(s):
-   NPCDoesAct(s)                      // TB: hidden-interrupt display hooks; bDesiredDirection = bDirection
-   bActionInProgress = ExecuteAction(s)
-   if !bActionInProgress && sAbsoluteFinalDestination != NOWHERE: EndAIGuysTurn(s)
-else: HaltMoveForSoldierOutOfPoints(s)   // Movement.cc:616-632: unless ANIM_SPECIALMOVE: fNoAPToFinishMove = true,
-                                         // EndAIGuysTurn; the action is KEPT for the next turn
-```
+The flow is `10` §6.5. A queued `bNextAction` is taken with `usNextActionData` and `bNextTargetLevel` (the three
+are cleared, data to 0); an unaffordable action goes to `HaltMoveForSoldierOutOfPoints` (`Movement.cc:616-632`:
+unless `ANIM_SPECIALMOVE`, `fNoAPToFinishMove = true`, `EndAIGuysTurn`), which **keeps** the action for the next turn.
 A kept action resumes next turn through the continue branch (`fNoAPToFinishMove` → `SoldierTriesToContinueAlongPath`)
 at GREEN/YELLOW; at RED/BLACK `RefreshAI` sets a new situation, which cancels it first (§1.5). A kept non-movement
 action has no continue path and would hang until the deadlock breaker; the deciders never pick one they cannot
@@ -101,7 +82,7 @@ time, so the RNG order across soldiers is the AI list order (§10.3).
 | CHANGE_FACING | `GetAPsToLook` = stand 1, crouch 2, prone `2 + 2·AP_PRONE` = 6 (`Tactical/Points.cc:1566-1585`) |
 | all movement (RANDOM_PATROL … WALK, MOVE_TO_CLIMB, door actions) | `MinPtsToMove` = cheapest `ActionPointCost` of the 8 neighbours in `usUIMovementMode`, 127 for tanks (`Points.cc:1217-1240`) |
 | PICKUP_ITEM | `max(MinPtsToMove, 3)`; DROP_ITEM 3 |
-| FIRE_GUN, TOSS_PROJECTILE, KNIFE_MOVE, THROW_KNIFE | `MinAPsToAttack(s, usActionData, ADDTURNCOST)` (attack doc) |
+| FIRE_GUN, TOSS_PROJECTILE, KNIFE_MOVE, THROW_KNIFE | `MinAPsToAttack(s, usActionData, ADDTURNCOST)` (`11`) |
 | YELLOW_ALERT, RED_ALERT, CREATURE_CALL | `AP_RADIO` 5 |
 | CHANGE_STANCE | `AP_CROUCH` 2 (whatever the target stance) |
 | CLIMB_ROOF | 10 up, 6 down |
@@ -122,7 +103,7 @@ zeroes AP costs outside combat, `Points.cc:488-498`), so RT checks pass except r
 | CLIMB_ROOF | `FreeUpNPCFromRoofClimb` at the climb commit opcodes | `Soldier_Ani.cc:252, 269, 1172` |
 | WAIT, LOWER_GUN, END_TURN | inside `ExecuteAction` | §1.6 |
 
-**Truncation (inferred from the call graph; the first thing to check with the oracle).** Strac's
+**Truncation (inferred from the call graph, not oracle-checked).** Strac's
 `LAST_MOVEMENT_ACTION = CHANGE_STANCE` puts CHANGE_FACING and CHANGE_STANCE into the continue branch. Their path data
 is empty (`EVENT_StopMerc` cleared it), so on the next overhead pass after `ExecuteAction` the branch calls
 `ActionDone` (`AIMain.cc:482`) and then, because the animation is stationary, `SoldierTriesToContinueAlongPath`, which
@@ -132,36 +113,28 @@ finds `usActionData == NOWHERE` and calls `CancelAIAction` (`Movement.cc:563-567
    `NPCDoesAct` cancels the turn in progress and the new turn is charged again: `AP_LOOK_STANDING/CROUCHED/PRONE` =
    1/2/2 by end height, in `EVENT_InternalSetSoldierDesiredDirection` (`Soldier_Control.cc:3859-3881`). A visible
    enemy turns one octant per ~200 ms frame, so repeated re-decisions can drain APs. Unseen soldiers animate with
-   delay 0 in combat (`08` §2.7) and finish the turn at once.
+   delay 0 in combat (`08` §2.7) and finish the turn at once; ja2-node does the same, without the fade (deviations
+   "Unseen soldiers in combat").
 2. The extra `CancelAIAction` resets `SkipCoverCheck = FALSE` and `bBypassToGreen = 0`, so the cover-check skip set by
    CHANGE_FACING/CHANGE_STANCE (§1.6) never survives to the next decision, and every movement action that ends
    through the continue branch also clears the bypass (RT too: `09` §1.2 called it "harmless", but it does reset
    these two).
 Vanilla ends the range at MOVE_TO_CLIMB (`V:TacticalAI/AI.h:32`): the turn ends in `FreeUpNPCFromTurning`, the stance
-in `FreeUpNPCFromStanceChange`, and `SkipCoverCheck` stays set. Keep `LAST_MOVEMENT_ACTION` as a named constant
-(`09`), port the Strac value, and make the vanilla value a one-line switch tested against the oracle. Note also that
+in `FreeUpNPCFromStanceChange`, and `SkipCoverCheck` stays set. ja2-node ports the Strac value
+(`LAST_MOVEMENT_ACTION = CHANGE_STANCE` in `ai/actions.ts`; the vanilla value would be MOVE_TO_CLIMB). Note also that
 `IsActionAffordable` asks for 6 APs to turn when prone (`GetAPsToLook`) but only 2 are charged.
 
 ### 1.5 Turn start, turn end, AI list
 
-- `BeginTeamTurn(team)` (`Tactical/TeamTurns.cc:297-375`): `DecayPublicOpplist(team)`, `EVENT_BeginMercTurn` for
-  each living member (opplist decay, `CalcNewActionPoints`: `min(ap, 5) + CalcActionPoints`, capped by body type,
-  `bInitialActionPoints = ap`, `Soldier_Control.cc:410-436`), Strac's `BuildAIExposedTileMap` only with
-  `avoid_light_tiles_at_night` (default off), then `BuildAIListForTeam` and `StartNPCAI(first)`.
-- `StartNPCAI(s)` (`AIMain.cc:605-646`): `SOLDIER_UNDERAICONTROL`, `fTurnInProgress`, `sLastTwoLocations = NOWHERE`,
-  **`RefreshAI(s)`**, locator (presentation), **`DecideAlertStatus(s)`** again.
-- `RefreshAI(s)` (`:1228-1266`): `bLastAttackHit = false`; `DecideAlertStatus`; YELLOW → `SkipCoverCheck = false`;
-  TB: RED/BLACK → `bNewSituation = IS` (fresh rethink at turn start, which also zaps any queued `bNextAction` on the
-  first visit, §1.1 step 5); GREEN/YELLOW → `bPathStored = false` and `ManChecksOnFriends(s)`; `bLastAction = NONE`.
-- `ManChecksOnFriends(s)` (`:1937-1986`), TB only: for each active merc (`ActiveMercs`, slot order) on the same side,
-  not neutral, not self, with `PythSpacesAway <= DistanceVisible(s, IRRELEVANT, IRRELEVANT, friend)` and
-  `SoldierToSoldierLineOfSightTest(s, friend, dist, TRUE)`: friend RED/BLACK, under fire or `bLife < OKLIFE` →
-  `s` RED, `CheckForChangingOrders`, `SetNewSituation`, stop; friend YELLOW while `s` is GREEN → `s` YELLOW,
-  `SetNewSituation`, `sNoiseGridno = friend.sGridNo`, `ubNoiseVolume = 3`, continue.
-- `EndAIGuysTurn(s)` (`:522-574`), TB only: close-call quotes, hostile civ group spreads, `EndRadioLocator`,
-  clear `SOLDIER_UNDERAICONTROL` and `fTurnInProgress`, `bMoved = TRUE`, **`bBypassToGreen = 0`**, then the next AI
-  list entry (`StartNPCAI`) or `EndAITurn`.
-- `BuildAIListForTeam` and the AI list priorities: §10.3.
+`BeginTeamTurn` is `10` §2.1 (`CalcNewActionPoints`: `10` §2.5; Strac's `BuildAIExposedTileMap` runs only with
+`avoid_light_tiles_at_night`), `StartNPCAI`/`RefreshAI`/`ManChecksOnFriends` `10` §6.4, `EndAIGuysTurn` `10` §6.8, the
+AI list `10` §6.3 and §10. The combat-relevant effects:
+- `RefreshAI(s)` (`AIMain.cc:1228-1266`): `bLastAttackHit = false`; YELLOW → `SkipCoverCheck = false`; TB RED/BLACK →
+  `bNewSituation = IS`, a fresh rethink at turn start that also zaps any queued `bNextAction` on the first visit
+  (§1.1); GREEN/YELLOW → `bPathStored = false` and `ManChecksOnFriends(s)` (`:1937-1986`; friends within
+  `DistanceVisible(s, IRRELEVANT, IRRELEVANT, friend)` with `SoldierToSoldierLineOfSightTest(s, friend, dist, TRUE)`);
+  `bLastAction = NONE`. `StartNPCAI` then calls `DecideAlertStatus` again.
+- `EndAIGuysTurn(s)` (`:522-574`) clears **`bBypassToGreen`**.
 
 ### 1.6 `ExecuteAction` for combat actions (`AIMain.cc:1305-1829`)
 
@@ -173,11 +146,13 @@ Entry: `SkipCoverCheck = FALSE; bLastAttackHit = FALSE`. Then (green actions as 
   and recurses if affordable (else returns false, the action stays); the **TB loop detector** (`:1410-1434`, TB and
   alert < BLACK): `sLastTwoLocations[0..1]` fill with the grid at each move start; when
   `usActionData == last[1] && sGridNo == last[0]` → `ActionDone` + `EndAIGuysTurn` (and the move still continues to
-  `NewDest`, quirk, inferred harmless because the turn ended); else shift. Bloodcat growl `Random(2)` in combat (skip).
+  `NewDest`, quirk, inferred harmless because the turn ended); else shift. Bloodcat growl `Random(2)` in combat
+  (`:1436-1446`; cosmetic, not drawn: deviations "Cosmetic draws of creatures").
 - **TOSS_PROJECTILE** → `LoadWeaponIfNeeded`; **KNIFE_MOVE** → `usUIMovementMode = DetermineMovementMode(KNIFE_MOVE)`;
   then FIRE_GUN/THROW_KNIFE too: if `bVisible != -1`, not militia, merc body without profile: `Random(50) == 0` →
-  `StartCivQuote` (**main-stream draw on every visible attack**); `HandleItem(s, usActionData, bTargetLevel,
-  inv[HANDPOS], FALSE)` (attack doc); not OK → `CancelAIAction`, `EndAIGuysTurn`.
+  `StartCivQuote` (`:1585-1603`, **main-stream draw on every visible attack**; not drawn in ja2-node, §13.4);
+  `HandleItem(s, usActionData, bTargetLevel,
+  inv[HANDPOS], FALSE)` (`11`); not OK → `CancelAIAction`, `EndAIGuysTurn`.
 - **RED_ALERT** (`:1657-1671`): non-PC and (`!bAwareOfOpposition` or (panic triggers here and no chosen one)) →
   `HandleInitialRedAlert(team)`; then falls into **YELLOW_ALERT** (`:1672-1681`): `DeductPoints(AP_RADIO, 0)`,
   `RadioSightings(s, EVERYBODY, team)` (`08` §2.5), `AIDecideRadioAnimation(s)`, return true.
@@ -188,7 +163,8 @@ Entry: `SkipCoverCheck = FALSE; bLastAttackHit = FALSE`. Then (green actions as 
 - **COWER**: cowering → `ActionDone`, false; else `usActionData = ANIM_CROUCH`, `SetSoldierCowerState(TRUE)`
   (`START_COWER`, `ubDesiredHeight = CROUCH`, `Soldier_Control.cc:8462-8495`). **STOP_COWERING** as `09`.
 - **LOWER_GUN**: `ActionDone` ("for now"). **CLIMB_ROOF**: `BeginSoldierClimbUpRoof` / `…DownRoof` by `bLevel`.
-- **OFFER_SURRENDER**: `StartCivQuote` (strategic hook). PICKUP/DROP/GIVE_AID/doors/panic: items and NPC docs.
+- **OFFER_SURRENDER**: `StartCivQuote` (the offer and its answer: `24` §8.5). PICKUP/DROP/GIVE_AID/doors/panic:
+  `12`, `24`, `25`, §9.4.
 
 ### 1.7 Movement in TB: AP reserve, budget, continuing
 
@@ -201,14 +177,10 @@ Entry: `SkipCoverCheck = FALSE; bLastAttackHit = FALSE`. Then (green actions as 
 - **`gubNPCAPBudget` / `gubNPCDistLimit`**: reset to 0 at the end of every overhead pass (`Overhead.cc:1138-1139`).
   Only the cover/flight/item searches set them (§8.1): the flood then covers only tiles reachable within the budget.
   `FindBestPath` resets both to 0 on exit (`PathAI.cc:1785, 1812`), so they never leak into a later search (`07` §3).
-- **`SoldierTriesToContinueAlongPath`** (`Movement.cc:546-613`), from the continue branch when `fNoAPToFinishMove`:
-  new situation → cancel; data ≥ GRIDSIZE → cancel; `!NewOKDestination(data, people)` → cancel; affordable → if not in
-  progress: `NPCDoesAct`, `ExecuteAction`; else `CancelAIAction`. Then the next step's `EstimateActionPointCost` ≤ APs →
-  `NewDest(s, nextTile)`, `bActionInProgress = TRUE`; else `CancelAIAction`. (The second part runs even after a cancel,
-  quirk: it reads the path that `ActionDone`/`EVENT_StopMerc` just cleared, inferred harmless.)
-- **Out of points while walking**: the walking code halts the soldier (`HaltGuyFromNewGridNoBecauseOfNoAPs` →
-  `HaltMoveForSoldierOutOfPoints`, `Overhead.cc:866, 1143-1159`, `Movement.cc:616-632`): `fNoAPToFinishMove`, stop at
-  the tile, and for a soldier under AI control `EndAIGuysTurn`; the action is kept for next turn (§1.2).
+- **`SoldierTriesToContinueAlongPath`** (`Movement.cc:546-613`) and **out of points while walking**
+  (`HaltGuyFromNewGridNoBecauseOfNoAPs` → `HaltMoveForSoldierOutOfPoints`, `Overhead.cc:866, 1143-1159`): `10` §6.7.
+  The continue step runs even after its own `CancelAIAction` and reads the path that `ActionDone`/`EVENT_StopMerc`
+  just cleared (quirk, inferred harmless); a halted soldier keeps his action for next turn (§1.2).
 - **`NewDest`** (`AIUtils.cc:356-435`), combat cases: TAKE_COVER by a merc body with attitude DEFENSIVE/CUNNINGSOLO/
   CUNNINGAID and `SoldierDifficultyLevel >= 2`: mode `m = MovementMode[TAKE_COVER][Urgency[alert][morale]]` (always
   RUNNING); if `m != SWATTING`: SWATTING if `EnoughPoints(s, RecalculatePathCost(s, SWATTING), 0, FALSE)` or
@@ -223,11 +195,12 @@ Entry: `SkipCoverCheck = FALSE; bLastAttackHit = FALSE`. Then (green actions as 
 
 ### 2.1 `MostImportantNoiseHeard(s) → {grid, value, climb, reachable}` (`TacticalAI/Knowledge.cc:26-300`)
 
-The grid part is ported (`src/sim/tactical/perception/knowledge.ts`, `09` §4.2). Combat needs the outputs too:
+The grid is `09` §4.2. ja2-node: `noiseHeard` returns all four outputs, `mostImportantNoiseHeard` the grid only
+(`perception/knowledge.ts`).
 - `value` = the best (largest, ≤ 0) candidate value; initial best `−10000`, strict `>` keeps the first of equal values.
 - `reachable` (only when a grid was found, `:247-288`): starts true. The civ/profiled room test (`:251-263`) compares
-  `GetRoom(usPatrolGrid[0])` with itself, so it never fires (same in vanilla, `V:Knowledge.c:243-254`; quirk, port
-  as dead). Then `GetInterveningClimbingLocation(s, grid, level)` (§2.4): climbing needed and no climb point →
+  `GetRoom(usPatrolGrid[0])` with itself, so it never fires (same in vanilla, `V:Knowledge.c:243-254`; dead code).
+  Then `GetInterveningClimbingLocation(s, grid, level)` (§2.4): climbing needed and no climb point →
   `reachable = false`; climbing needed and found → **the returned grid becomes the climb point** and `climb = true`.
 - Callers that pass no out-parameters get only the grid (no climb substitution).
 
@@ -243,9 +216,11 @@ positive. Then for every merc in `MercSlots` order that is not `CONSIDERED_NEUTR
 - `RadioSightings(s, EVERYBODY, team)` is in `08` §2.5. Add: its first statement sets
   `Team[s.bTeam].last_merc_to_radio = s` (`Tactical/OppList.cc:2479`), for every caller (the automatic radio after a
   sighting too). It is cleared when that soldier is removed as a target (`:2106`), by `DecayPublicOpplist` when the team
-  knows nothing publicly (`:4527`), and on sector init (`Overhead.cc:365, 5973`). The port has no such field yet.
+  knows nothing publicly (`:4527`), and on sector init (`Overhead.cc:365, 5973`). ja2-node:
+  `t.perception.lastMercToRadio[team]`, set by `radioSightings` and cleared by `removeManAsTarget` and with every new
+  sector's perception; the `DecayPublicOpplist` clear is missing (§13.4).
 - `HandleInitialRedAlert(team)` (`AIMain.cc:1899-1934`): ENEMY team with panic triggers → `MakeClosestEnemyChosenOne`
-  (panic hook); ENEMY team in Meduna (P3) → Queen and Joe to RED; then `Team[team].bAwareOfOpposition = TRUE`. Callers:
+  (panic, §9.4); ENEMY team in Meduna (P3) → Queen and Joe to RED; then `Team[team].bAwareOfOpposition = TRUE`. Callers:
   the RED_ALERT action (§1.6), `RadioSightings` to MILITIA (`08` §2.5). Every non-CIV soldier of an aware team goes RED
   at his next `DecideAlertStatus` (`09` §2.2).
 
@@ -285,7 +260,7 @@ climb = bestClimb; return best
 ### 2.6 Watched locations (`Tactical/OppList.cc:134-141, 4805-5060`)
 
 Per soldier, 3 slots `{grid, level, points ≤ 4, reset, incrementedThisLook}` (`NUM_WATCHED_LOCS 3`,
-`MAX_WATCHED_LOC_POINTS 4`, `WATCHED_LOC_RADIUS 1`). Used by RED "watch" (§5) and interrupt points (`03` §4).
+`MAX_WATCHED_LOC_POINTS 4`, `WATCHED_LOC_RADIUS 1`). Used by RED "watch" (§5) and interrupt points (`10` §5).
 - `HandleSight` clears every `incrementedThisLook` of the looker (`:656-659`).
 - `ManSeesMan`, hostile new opponent not `SEEN_THIS_TURN` → `IncrementWatchedLoc(s, opp.grid, opp.level)`
   (`:1790`); already seen this turn → `SetWatchedLocAsUsed` (reset = false) (`:1801`).
@@ -295,7 +270,8 @@ Per soldier, 3 slots `{grid, level, points ≤ 4, reset, incrementedThisLook}` (
 - `CommunicateWatchedLoc(watcher, grid, level, pts)` (`:4917-4960`): every other teammate valid for sightings with
   `bLife >= OKLIFE`: same search; new → free slot or a slot with points ≤ `pts`, set to `pts`; existing → `max`.
 - `DecayWatchedLocs(team)` (`:5032-5060`, from `DecayPublicOpplist`): each used slot whose 3×3 area holds nobody of
-  another team: reset set → clear it and halve points (0 → slot freed); else set reset.
+  another team: reset set → clear it and halve points (0 → slot freed); else set reset. ja2-node keeps the slots in
+  `t.turn.watched` (`perception/duel.ts`); `decayWatchedLocs` exists but nothing calls it (§13.4).
 - `GetHighestWatchedLocPoints(s)` = max points of used slots, 0 if none (`:4901-4914`).
   `GetHighestVisibleWatchedLoc(s)` (`:4873-4898`): first slot with strictly more points than the best so far that passes
   `SoldierTo3DLocationLineOfSightTest(s, grid, level, cubeLevel 3, DistanceVisible(s, IRRELEVANT, IRRELEVANT, grid,
@@ -305,7 +281,7 @@ Per soldier, 3 slots `{grid, level, points ≤ 4, reset, incrementedThisLook}` (
 
 `AIMain.cc:1859-1883` (the GREEN case is in `09` §2.2): ONGUARD → CLOSEPATROL, CLOSEPATROL → FARPATROL (`bOrders++`);
 else MILITIA → SEEKENEMY; else creatures not STATIONARY/ONCALL → SEEKENEMY; WARDEN → `MakeClosestEnemyChosenOne`
-(panic hook). Called by `DecideAlertStatus` on every BLACK evaluation (`bOppCnt > 0`, so a soldier seeing enemies is
+(panic, §9.4). Called by `DecideAlertStatus` on every BLACK evaluation (`bOppCnt > 0`, so a soldier seeing enemies is
 re-escalated at each status check: ONGUARD reaches FARPATROL after two checks) and on the first RED/BLACK entry.
 `gbDiff` (`AIMain.cc:53-62`) and `SoldierDifficultyLevel`: §4.3.
 
@@ -317,7 +293,7 @@ re-escalated at each status check: ONGUARD reaches FARPATROL after two checks) a
 
 ```
  1. civilian: cowering → usActionData = ANIM_STAND, STOP_COWERING
-              RT and profiled → a = DecideActionNamedNPC(s) (hook, 09 §5); a != NONE → return a
+              RT and profiled → a = DecideActionNamedNPC(s) (09 §5); a != NONE → return a
  2. {noise, value, climb, reachable} = MostImportantNoiseHeard(s)            // §2.1
     noise == NOWHERE → NONE
  3. TURN (:1135-1159): dir = GetDirectionToGridNoFromGridNo(s.grid, noise)
@@ -391,13 +367,13 @@ Notes:
   recomputed by `CalcMorale` (§4.1) at RED/BLACK or in step 7d, and it starts at the placement value: 0 = HOPELESS for
   basic placements (zero-initialised create struct; `Soldier_Create.cc:823`; inferred for map placements, check the
   detailed-placement value). A soldier who never computed morale therefore has urgency HIGH at YELLOW: SEEK_NOISE and
-  SEEK_FRIEND **run** (`MovementMode` rows `{WALKING, SWATTING, RUNNING}` and `{WALKING, RUNNING, RUNNING}`). The
-  port's `ai.morale` default 0 matches.
+  SEEK_FRIEND **run** (`MovementMode` rows `{WALKING, SWATTING, RUNNING}` and `{WALKING, RUNNING, RUNNING}`).
+  ja2-node's `ai.morale` also starts at 0.
 
 ### 3.1 RNG order of one YELLOW decision
 
 1. `DecideAlertStatus` (RT `RefreshAI`): `Random(1000)` only if it calls `SetNewSituation` (RT only).
-2. Named-NPC hook (RT civilians with profile).
+2. Named NPC (RT civilians with profile).
 3. `MostImportantNoiseHeard`: none (LOS tests and path costs only).
 4. Turn: `PreRandom(100)` if the guard passed.
 5. Radio: `PreRandom(100)` if the guard and `chance != 0 && !deep water` passed.
@@ -456,7 +432,7 @@ if enemy.bLife >= OKLIFE: reduceForCover and myGrid != NOWHERE →
 elif t > 0: t = idiv(t, 4 + (OKLIFE − enemy.bLife))
 return max(t, 1)
 ```
-Items: `ArmourPercent`, `ubDeadliness`. LOS: the cover call (attack doc; it writes `enemy.CTGTTarget`).
+Items: `ArmourPercent`, `ubDeadliness`. LOS: the cover call (`11`; it writes `enemy.CTGTTarget`).
 
 ### 4.3 Difficulty: `gbDiff` and `SoldierDifficultyLevel` (`AIMain.cc:53-62`, `AIUtils.cc:2068-2120`)
 
@@ -464,22 +440,25 @@ Items: `ArmourPercent`, `ubDeadliness`. LOS: the cover call (attack doc; it writ
 |---|---|---|---|---|---|---|
 | `DIFF_RADIO_RED_ALERT` | 50 | 65 | 80 | 90 | 95 | YELLOW/RED/militia radio |
 | `DIFF_MAX_COVER_RANGE` | 4 | 6 | 8 | 10 | 13 | `FindBestNearbyCover`, `SearchForItems` |
-| `DIFF_ENEMY_TO_HIT_MOD` | −10 | −5 | 0 | 5 | 10 | CTH (attack doc) |
+| `DIFF_ENEMY_TO_HIT_MOD` | −10 | −5 | 0 | 5 | 10 | CTH (`11`) |
 
 ```
 SoldierDifficultyLevel(s): base = 1 + idiv(CalcDifficultyModifier(class), 34)       // 0..33 → 1, 34..67 → 2, 68+ → 3
    ADMINISTRATOR base − 1; ARMY base; ELITE base + 1; GREEN/REG/ELITE militia 2/3/4
    other: creature team base + bLevel/4, else base + bLevel/4 − 1 (bLevel is 0/1, so base / base − 1); clamp 0..4
 ```
-`CalcDifficultyModifier` (`Tactical/Soldier_Create.cc:1035-1111`) is the strategic 0..100 value (`02` §6); the M2
-sandbox fixes it at 30 (`deviations.md`), giving base 1: admins 0, troops 1, elites 2.
+`CalcDifficultyModifier` (`Tactical/Soldier_Create.cc:1035-1111`) is the strategic 0..100 value (`13`); its class
+argument only matters for militia, whose levels are fixed here. ja2-node (`combat/chance.ts`
+`soldierDifficultyLevel`) reads `t.campaign.difficultyModifier`, computed once at sector load for ARMY (deviations
+"Difficulty and progress in tactical"); the sandbox fixes it at 30, giving base 1: admins 0, troops 1, elites 2.
 
 ### 4.4 Closest opponents and disturbances
 
 - **`ClosestKnownOpponent(s, &g, &lvl)`** (`:964-1061`): opponents (not neutral, other side, Carmen rule) known
   personally or publicly, unconscious allowed; location by knowledge choice; skip NOWHERE (Strac only), own grid, and
   `lvl != s.bLevel` in the same building; minimum `GetRangeInCellCoordsFromGridNoDiff` (strict, start 1500); outputs
-  default NOWHERE / −1.
+  default NOWHERE / −1. ja2-node (`perception/knowledge.ts`) returns the grid only and has neither the Carmen rule
+  nor the same-building level skip (§13.4).
 - **`ClosestSeenOpponent(s, &g, &lvl)`** (`:1063-1136`): same with `pers == SEEN_CURRENTLY` and the real grid/level.
 - **`ClosestReachableDisturbance(s, unconsciousOK, &climb)`** (`:776-961`); `unconsciousOK` is **unused**:
   ```
@@ -520,7 +499,7 @@ TRUE`; BLACK calls it with FALSE (§6.3).
     canMove = AP >= MinPtsToMove(s)
  2. PANIC (:1481-1500): (not CIV team or WARDEN) and (bAwareOfOpposition or s is the chosen one or WARDEN) and panic
     bombs/triggers here → PanicAI(s, canMove) (§9.4); result != -1 → return it
- 3. QUEEN/JOE in Meduna, canMove, not the alternate position → HeadForTheStairCase (hook); != NONE → return it
+ 3. QUEEN/JOE in Meduna, canMove, not the alternate position → HeadForTheStairCase (§9.3); != NONE → return it
  4. inWater = Water, inDeepWater = DeepWater, inGas = InGasOrSmoke(s, grid)        // gas: items/explosions doc
  5. TIXA only, !inGas: PreRandom(10) == 0 and WearGasMaskIfAvailable(s) → re-evaluate inGas      // draw only in Tixa
  6. inGas and canMove: d = FindNearestUngassedLand(s) (§8.4); != NOWHERE → LEAVE_WATER_GAS
@@ -624,7 +603,7 @@ TRUE`; BLACK calls it with FALSE (§6.3).
 18. TANK (:2291-2338): random look (PreRandom(8) / PreRandom(100) < 60 / PreRandom(100) < 60 for the next-action
     END_TURN or WAIT REALTIME_AI_DELAY); then NONE. (Skip: no tanks before late game.)
 19. PICKUP (:2351-2359): canMove and !bNeutral and (TB or ENEMY team): a = SearchForItems(s, SEARCH_GENERAL_ITEMS,
-    inv[HANDPOS]) (items doc); != NONE → return a
+    inv[HANDPOS]) (§8.6); != NONE → return a
 20. BYPASS TO GREEN (:2385-2398): alert != BLACK and !bUnderFire and canMove and (RT or AP >= bInitialActionPoints)
     and ClosestReachableDisturbance(s, TRUE, &climb) == NOWHERE:
        bBleeding > MIN_BLEEDING_THRESHOLD (12) → bBleeding = max(0, bBleeding − AP); NONE
@@ -648,6 +627,8 @@ Notes:
 - `bNextAction = END_TURN` in RT: `RTHandleAI` turns it into the action; `ExecuteAction(END_TURN)` does `ActionDone`
   only (no turn to end), returns false.
 - Step 15 loop termination: every iteration sets at least the best of the four to −99, so it ends.
+- ja2-node: steps 2 (panic) and 5 (Tixa mask) are not ported (deviations "Combat AI specials"); step 9 is omitted
+  (unreachable).
 
 ### 5.1 RNG order of one RED decision (TB, ENEMY, no panic, not Tixa)
 
@@ -674,8 +655,8 @@ garbage until a `CalcBest*` fills them (they call `InitAttackType` themselves, �
  2. PANIC: (ENEMY team or WARDEN) and panic triggers here and no chosen one: closest panic trigger, not (an alarm
     while the team is aware), within Pyth < 10 → PossiblyMakeThisEnemyChosenOne(s); s is the chosen one →
     PanicAI(s, canMove); != -1 → return it                                                     // §9.4
- 3. QUEEN in Meduna → HeadForTheStairCase (hook)
- 4. boxer: PRE_BOXING → DecideActionBoxerEnteringRing (hook); BOXING → inDeepWater = inGas = false, bAIMorale =
+ 3. QUEEN in Meduna → HeadForTheStairCase (§9.3)
+ 4. boxer: PRE_BOXING → DecideActionBoxerEnteringRing (`25` §7); BOXING → inDeepWater = inGas = false, bAIMorale =
     CalcMorale; other state → NONE
     else: inDeepWater = WaterTooDeepForAttacks(grid); inGas = InGasOrSmoke; bAIMorale = CalcMorale(s) (§4.1)
           TIXA only, !inGas: PreRandom(10) == 0 and WearGasMaskIfAvailable → inGas = false
@@ -685,9 +666,10 @@ garbage until a `CalcBest*` fills them (they call `InitAttackType` themselves, �
     → RUN_AWAY; else bAIMorale = HOPELESS
  6. SURRENDER (:2641-2654): ENEMY team, bVisible == TRUE (1), not yet offered, bLife >= bLifeMax / 2, no active MILITIA
     team, NumPCsInSector() < 4, Team[ENEMY].bMenInSector >= 3 · NumPCsInSector(), quest HELD_IN_ALMA not started (or
-    done and INTERROGATION not started) → ENEMY_OFFERED_SURRENDER flag, OFFER_SURRENDER (strategic hook; M3: treat as
-    a stub that never fires or log a deviation)
+    done and INTERROGATION not started) → ENEMY_OFFERED_SURRENDER flag, OFFER_SURRENDER (the offer: `24` §8.5)
 ```
+ja2-node: step 2 (panic) and the Tixa mask draw are not ported (deviations "Combat AI specials"); step 6 is
+`offersSurrender` with `t.turn.enemyOfferedSurrender`.
 
 ### 6.2 Can attack? (`:2662-2771`)
 
@@ -701,9 +683,10 @@ else:
          if fCivilian:
             NOSHOOT_NOWEAPON and not boxer and body not COW/CRIPPLECIV → civilian cower block (§9.1, BLACK variant)
             any other case leaves the negative code in canAttack, which is neither TRUE nor FALSE, so the do-while
-            repeats with the same result forever (inferred; port as "cannot attack" and log it, §11)
+            repeats with the same result forever (inferred; ja2-node: "cannot attack", deviations "Armed civilian
+            without ammo")
          elif NOSHOOT_NOAMMO and canMove and !bNeutral:
-            a = SearchForItems(s, SEARCH_AMMO, inv[HANDPOS]) (items doc); a != NONE → return a
+            a = SearchForItems(s, SEARCH_AMMO, inv[HANDPOS]) (§8.6); a != NONE → return a
             else: inv[HANDPOS].fFlags |= OBJECT_AI_UNUSABLE; AutoPlaceObject(hand item) (moves it to a pocket); loop again
          else canAttack = false
    while canAttack is neither TRUE nor FALSE
@@ -751,6 +734,8 @@ BestAttack = the struct of the chosen action (FIRE_GUN → BestShot, TOSS → Be
    none → zeroed)
 ```
 `BestAttack.ubChanceToReallyHit = 0` is set before the block (`:2778`) and only matters when nothing was chosen.
+ja2-node gaps: a throwing knife in the KNIFE branch is rated "not possible" (deviations "Combat AI specials"), and the
+TOSS branch skips the mortar room rule (only RED's long-range toss applies it, §13.4).
 
 ### 6.4 Low-chance shot reconsidered (`:3057-3078`)
 
@@ -831,7 +816,7 @@ if action != NONE:
                        usActionData = stance → CHANGE_STANCE
    else usActionData = target; bTargetLevel = level → action
 ```
-`bAimTime`/`bDoBurst`/`bAimShotLocation` are the soldier's attack parameters read by `HandleItem` (attack doc).
+`bAimTime`/`bDoBurst`/`bAimShotLocation` are the soldier's attack parameters read by `HandleItem` (`11`).
 `ubReadyTime` re-raise is a Strac deviation from vanilla (`V:DecideAction.c:3360` lacks it).
 
 ### 6.7 `ShootingStanceChange` and `StanceChange` (`TacticalAI/AIUtils.cc:120-311`)
@@ -847,7 +832,7 @@ ShootingStanceChange(s, attack, dir):
       !InternalIsValidStance(s, dir, {STAND, CROUCH, PRONE}[loop]) → skip
       temporarily set usAnimState = STANDING / CROUCHING / PRONE
       v = SoldierToLocationChanceToGetThrough(s, target, s.bTargetLevel, s.bTargetCubeLevel, attack.opponent)
-          · CalcChanceToHitGun(s, target, attack.ubAimTime, AIM_SHOT_TORSO, false) / 100     // attack doc
+          · CalcChanceToHitGun(s, target, attack.ubAimTime, AIM_SHOT_TORSO, false) / 100     // 11
       if v > 0: CROUCHING: range > 16 + 10·(20/3) = 76 → +10; else range > 16 → +3·((range − 16) / 10)
                 PRONE: range <= 50 → v = 0; else +3·((range − 16) / 10)
       diff == 0 → curValue = v;  v > best → best = v, bestState, bestDiff = diff
@@ -908,7 +893,7 @@ unreachable in practice: those soldiers cannot crouch or already ran).
 4. `FindBestNearbyCover` (none, §8.2).
 5. §6.6: stance `PreRandom(100)`; `ShootingStanceChange` (none); burst `PreRandom(100)`; `CalcSpreadBurst` `Random(2)`.
 6. Fallbacks: `FindSpotMaxDistFromOpponents` (none), spotter `PreRandom(100)`, militia radio `PreRandom(100)`.
-7. Execution: `Random(50)` civ quote on a visible attack, then the attack's own draws (attack doc).
+7. Execution: `Random(50)` civ quote on a visible attack, then the attack's own draws (`11`).
 
 ---
 
@@ -985,7 +970,7 @@ CheckIfTossPossible(s, &best):
 FindThrowableGrenade (Items.cc:488): ambient light 12 (night) and bLife > bLifeMax/2 → first BREAK_LIGHT;
    else first IC_GRENADE that is not launchable
 ```
-`CalcBestThrow` in short (full detail in the attack doc):
+`CalcBestThrow` (`calcBestThrow` in `ai/attack-choice.ts`):
 - Range: LAW/tank cannon `usRange/10`, else `CalcMaxTossRange(s, item, TRUE)`. Launchers need a launchable (else
   return before `InitAttackType`); safety margin = explosive's `max(blast r, stun r, smoke maxR, light r/2)` (LAW: C1
   blast radius 6).
@@ -993,17 +978,19 @@ FindThrowableGrenade (Items.cc:488): ambient light 12 (night) and bLife > bLifeM
 - Targets: MORTAR/GL need `SEEN_CURRENTLY` personally or publicly (real grid); others: SEEN_CURRENTLY → real grid;
   SEEN_LAST_TURN → `CloseEnoughForGrenadeToss(real, lastKnown)` and last-known grid/level; HEARD_LAST_TURN →
   **`PreRandom(3)`, skip on 0**, then close-enough, then only a BREAK_LIGHT or when `bUnderFire`/`bShock`.
-  `threat[k] = CalcManThreatValue(opp, s.grid, FALSE, s)`.
+  `threat[k] = CalcManThreatValue(opp, s.grid, FALSE, s)`. ja2-node aims at the opponent's current level (deviations
+  "AI throw targets").
 - Pre-gate (not BREAK_LIGHT): difficulty 0–1: fewer than 2 targets and `bLife > bLifeMax/2` → none; difficulty 2:
   fewer than 2 and `bLife > idiv(bLifeMax, 4)·3` → none.
 - Candidate tiles: the 3×3 around each target in order (`dy` outer, `dx` inner, raw `+dx+160·dy`, bounds only),
   within range, not already in gas of the same kind, not excluded, `MinAPsToAttack(s, g, ADDTURNCOST) <= AP`, no
   friend on that level within the margin. Score: for each target within Pyth ≤ 3: `e = EstimateThrowDamage`, scaled
   `(100 − 20·dist)%`, `total += threat·e`; live targets count `inRange`, `adj` (dist < 2). Easy difficulty skips tiles
-  with no direct hit and fewer than 2 adjacent; others need `inRange > 0` (underground also the direct/adjacent test).
-  Tiles with `adj >= 1` are excluded from re-evaluation (max 100).
+  with no direct hit and fewer than 2 adjacent; others need `inRange > 0` (underground also the direct/adjacent test,
+  `Attacks.cc:768`; missing in ja2-node, §13.4). Tiles with `adj >= 1` are excluded from re-evaluation (max 100).
 - Cover: LAW/cannon `AISoldierToLocationChanceToGetThrough`; thrown/launched `CalculateLaunchItemChanceToGetThrough`
-  → 100, or a landing-distance penalty when it falls short on the same level.
+  (`11` §7.6) → 100, or a landing-distance penalty when it falls short on the same level. The original's landing
+  test only succeeds when the arc ends in a structure or a body (quirk, kept).
 - MORTAR or LAW with fewer than 2 targets in range and `bLife > bLifeMax/2` → skip.
 - Aim is always the maximum `min(4, AP − minAP)`; `cth` by `AICalcChanceToHitGun` (LAW/cannon, +50 %, cap 100,
   not mortar) or `CalcThrownChanceToHit`; `value = idiv(rate · ctrh · total, 1000)`; strictly highest value wins.
@@ -1019,13 +1006,13 @@ FindThrowableGrenade (Items.cc:488): ambient light 12 (night) and bLife > bLifeM
   does not see `s` → `cth = MAXCHANCETOHIT` (policy, default 99); else `CalcChanceToStab`/`CalcChanceToPunch`.
   Same aim loop and switch rule as §7.2, cover ignored (`ctrh = cth`), threat without cover, value with
   `EstimateStabDamage`. (Vanilla subtracts 1 unconditionally, no floor.)
-- **KNIFE_MOVE execution**: `HandleItem` walks to the target and stabs (attack doc).
+- **KNIFE_MOVE execution**: `HandleItem` walks to the target and stabs (`11`).
 - **`CalcSpreadBurst(s, first, level)`** (`Attacks.cc:1786-1955`): looks for up to 4 seen soldiers adjacent to the
   target in a fixed direction pattern (`CountAdjacentSpreadTargets`), recurses toward a better-packed neighbour, then
   if more than one: **`Random(2)`** (main) may reverse the list, and `AIPickBurstLocations` spreads
   `ubShotsPerBurst` shots over them (float32 step), `fDoSpread = TRUE`. No side or life check on the extra targets.
 - `LoadWeaponIfNeeded` (`:47-85`) attaches a launchable to GL/mortar/cannon at TOSS execution.
-- `CalcTentacleAttack` (queen) and `AdvanceToFiringRange` (creatures): creature doc.
+- `CalcTentacleAttack` (queen) and `AdvanceToFiringRange` (creatures): §12.2.
 
 ### 7.5 AI damage estimates (`Attacks.cc:1266-1543`)
 
@@ -1040,7 +1027,7 @@ EstimateShotDamage(s, opp, cth):
    legs  = leggings (not MONSTER/KNIFE) ? idiv(prot · status, 100) : 0
    tp = idiv(15·head + 75·torso + 5·legs, 100); HP ammo tp·3/2, AP ammo tp·3/4, SUPER_AP tp/2 (idiv each)
    dmg −= tp; HP ammo: dmg = idiv(dmg · 17, 10)
-   MONSTER spit: + idiv(gas damage · NumMercsCloseTo(opp.grid, gas maxRadius) · 3, 2)     // creature doc
+   MONSTER spit: + idiv(gas damage · NumMercsCloseTo(opp.grid, gas maxRadius) · 3, 2)     // §12.2
    return max(dmg, 1)
 EstimateThrowDamage(s, pocket, opp, g):
    smoke grenades → 5; BREAK_LIGHT → 5 · (LightTrueLevel(opp) − 3); X = explosive (LAW: C1)
@@ -1058,18 +1045,20 @@ EstimateStabDamage(s, opp, cth, blade):
    return max(imp, 1)
 ```
 
-### 7.6 What the attack and item docs must provide
+### 7.6 Queries into attacks and items
 
-| Query | Source | Used by |
-|---|---|---|
-| `MinAPsToAttack(s, grid, addTurn, afterMoving)` | `Tactical/Points.cc:964` | affordability, attack pre-checks, seek reserves |
-| `MinAPsToShootOrStab`, `MinAPsToThrow`, `CalcTotalAPsToAttack`, `CalcAPsToBurst`, `GetAPsToReadyWeapon` | `Points.cc:1081, 1692, 866, 843, 1612` | §6, §7 |
-| `AICalcChanceToHitGun(s, grid, aim, pos)` (no RNG), `CalcChanceToHitGun`, `CalcThrownChanceToHit`, `CalcChanceToStab/Punch`, `CalcMaxTossRange` | `Weapons.cc:2551, 1979, 3585, 3489/3494, 3525` | §6.7, §7 |
-| `AISoldierToSoldierChanceToGetThrough`, `AISoldierToLocationChanceToGetThrough`, `SoldierToLocationChanceToGetThrough`, `CalculateLaunchItemChanceToGetThrough` | `LOS.cc:2979, 3010, 2954`; `Physics.cc:1613` | §4.2, §6.7, §7, §8 |
-| armour protection and status, `ArmourPercent`, `ArmourVersusExplosivesPercent`, explosive data, `EffectiveStrength`, skill traits, `LightTrueLevel` | `Weapons.cc:123, 177`, items, `SkillCheck.cc:14`, `Lighting.cc:508` | §4.2, §7.5 |
-| `IsGunBurstCapable`, `Weapon[].usRange/ubReadyTime/ubShotsPerBurst/ubDeadliness/ubImpact`, `ubGunShotsLeft`, `bGunStatus` | items | §6.6, §4.2 |
-| `FindAIUsableObjClass`, `FindObj`, `FindObjWithin`, `FindThrowableGrenade`, `FindLaunchable`, `FindAmmo`, `ReloadGun`, `RearrangePocket` (= swap), `AutoPlaceObject`, `SearchForItems` | `Items.cc`, `AIUtils.cc:2013`, `FindLocations.cc` | §6.2, §6.3, §7 |
-| `HandleItem(s, grid, level, item, FALSE)` (starts the attack), `bAimTime/bDoBurst/bAimShotLocation/fDoSpread/sSpreadLocations`, `bLastAttackHit` | `Handle_Items.cc` | §1.6, §6.6 |
+Modules are under `src/sim/tactical/`.
+
+| Query | Source | ja2-node | Used by |
+|---|---|---|---|
+| `MinAPsToAttack(s, grid, addTurn, afterMoving)` | `Tactical/Points.cc:964` | `combat/ap.ts` | affordability, attack pre-checks, seek reserves |
+| `MinAPsToShootOrStab`, `MinAPsToThrow`, `CalcTotalAPsToAttack`, `CalcAPsToBurst`, `GetAPsToReadyWeapon` | `Points.cc:1081, 1692, 866, 843, 1612` | `combat/ap.ts`; `points.ts` (`apsToReadyWeapon`) | §6, §7 |
+| `AICalcChanceToHitGun(s, grid, aim, pos)` (no RNG), `CalcChanceToHitGun`, `CalcThrownChanceToHit`, `CalcChanceToStab/Punch`, `CalcMaxTossRange` | `Weapons.cc:2551, 1979, 3585, 3489/3494, 3525` | `combat/chance.ts`, `explosions/throwing.ts`, `combat/melee.ts` | §6.7, §7 |
+| `AISoldierToSoldierChanceToGetThrough`, `AISoldierToLocationChanceToGetThrough`, `SoldierToLocationChanceToGetThrough`, `CalculateLaunchItemChanceToGetThrough` | `LOS.cc:2979, 3010, 2954`; `Physics.cc:1613` | `combat/bullets.ts`, `explosions/trajectory.ts` | §4.2, §6.7, §7, §8 |
+| armour protection and status, `ArmourPercent`, `ArmourVersusExplosivesPercent`, explosive data, `EffectiveStrength`, skill traits, `LightTrueLevel` | `Weapons.cc:123, 177`, items, `SkillCheck.cc:14`, `Lighting.cc:508` | `combat/armour.ts`, `explosions/blast-damage.ts`, `skills.ts`, `lighting/lighting.ts` | §4.2, §7.5 |
+| `IsGunBurstCapable`, `Weapon[].usRange/ubReadyTime/ubShotsPerBurst/ubDeadliness/ubImpact`, `ubGunShotsLeft`, `bGunStatus` | items | `hand-item.ts`, item content | §6.6, §4.2 |
+| `FindAIUsableObjClass`, `FindObj`, `FindObjWithin`, `FindThrowableGrenade`, `FindLaunchable`, `FindAmmo`, `ReloadGun`, `RearrangePocket` (= swap), `AutoPlaceObject`, `SearchForItems` | `Items.cc`, `AIUtils.cc:2013`, `FindLocations.cc` | `ai/utils.ts`, `ai/attack-choice.ts`, `inventory.ts`, `ai/item-search.ts` | §6.2, §6.3, §7 |
+| `HandleItem(s, grid, level, item, FALSE)` (starts the attack), `bAimTime/bDoBurst/bAimShotLocation/fDoSpread/sSpreadLocations`, `bLastAttackHit` | `Handle_Items.cc` | `combat/attack.ts` (`handleItem`, through `turnHooks.aiAttack`) | §1.6, §6.6 |
 
 ### 7.7 RNG inside attack evaluation
 
@@ -1168,8 +1157,8 @@ CalcBestCTGT(him, me, myGrid, myLvl, myAps): for d = 1..8 (DirectionInc(8) = inc
          v = CalcWorstCTGTForPosition(him, me, myGrid, myLvl, myAps); best = max; 100 → stop
    (the caller restores his position)
 ```
-Everything here is deterministic: the CTGT queries are the attack doc's `SoldierToLocationChanceToGetThrough` (a
-simulated bullet with no RNG, inferred); the hidden pathfinder `Random(4)` is already removed in ja2-node.
+Everything here is deterministic: the CTGT queries are `11`'s `SoldierToLocationChanceToGetThrough` (a
+simulated bullet with no RNG, inferred); ja2-node's pathfinder draws no `Random(4)` (deviations "Pathfinder RNG").
 
 ### 8.3 `FindSpotMaxDistFromOpponents(s)` (`:985-1254`)
 
@@ -1190,7 +1179,11 @@ reset; bestDir != −1 → s.ubQuoteActionID = GetTraversalQuoteActionID(bestDir
    the map at the edge, AIMain.cc:442-459); return best
 ```
 Enemies that run away therefore head for the map edge and leave the sector (`HandleAITacticalTraversal` →
-`TacticalRemoveSoldier`): M3 needs at least the removal; the strategic effects are M4 hooks.
+`TacticalRemoveSoldier`, `AIMain.cc:2013-2044`). ja2-node: `executeMovement` (`ai/control.ts`) extends the path off the
+map with `adjustSoldierPathToGoOffEdge` (`sector-exit.ts`; `AIMain.cc:1521-1541`); at the path's end
+`handleAITacticalTraversal` clears `quoteActionId`, ends the turn, removes the soldier as a target, moves a scheduled
+civilian to the away slots and otherwise removes the soldier through `sectorHooks.soldierLeftMap` (campaign:
+init-list death effects and `processQueenCmdImplicationsOfDeath`, `17` §10), then runs `checkForEndOfBattle`.
 
 ### 8.4 `FindNearestUngassedLand(s)` (`:1256-1349`)
 
@@ -1207,15 +1200,16 @@ it (`09` §2.3 step 6), where a kid civilian's `DetermineMovementMode` draws `Ra
   §8.4; tiles within `Pyth(origin, t) <= roam`; `diff = gbLightSighting[0][cur] − gbLightSighting[0][LightTrueLevel(t)]`,
   skip `diff <= 1`; `c = LegalNPCDestination(ENSURE_PATH_COST)`, skip 0; `v = 2c − diff < best` (start 1000, kept) →
   spot; stop at the first ring with a spot.
-- Needs the light map of `08` §4 plus light sources; until then `InLightAtNight` is false (deviation).
+- `LightTrueLevel` is the true light level of `20`.
 
-### 8.6 `SearchForItems(s, reason, hand)` (`:1487-1689`), summary for the item doc
+### 8.6 `SearchForItems(s, reason, hand)` (`:1487-1689`)
 
 `AP < 3` or non-merc body → NONE. `R = gbDiff[MAX_COVER_RANGE][diff]` + attitude (DEFENSIVE −1, BRAVE* +2, CUNNING* −2,
 AGGRESSIVE +1), `min(R, wisdom/10)`, RT halves, then halves again. Flood with budget `AP − 3` (exactly 3 → unlimited),
 mode PICKUP_ITEM; candidate tiles with an item pool, not in gas/smoke, best `3·value / (3 + Pyth)`; item status ≥ 70;
 scores: gun `shotsLeft · deadliness / myDeadliness`, ammo `TotalPoints`, weapon `100·new/cur` (or `200 + deadliness`
 when unarmed); Strac never picks armour. A gun that does not fit queues DROP_ITEM then PICKUP_ITEM. No RNG.
+ja2-node's PICKUP_ITEM walks through `turnHooks.aiPickup` and picks up in the arrival pending-action hook.
 
 ---
 
@@ -1241,7 +1235,7 @@ cowering → `bLastAction == COWER` ? NONE : (flee spot → `RUN_AWAY` queued + 
 COWER (no battle test, no WAIT).
 - `bLastAction` is reset to NONE by `RefreshAI` each TB turn start, so a cowering civilian alternates: turn start →
   STOP_COWERING + queued RUN_AWAY (if a flee spot exists), and after the run, COWER again at the next decision
-  (inferred from the flow; verify).
+  (inferred from the flow).
 - `fEnemyInSector` is set by `SetEnemyPresence` only on the first enemy sighting in a *virgin* sector
   (`Overhead.cc:4105-4132`) and cleared when a battle is won or lost (`:4463, :4524`) and on sector load
   (`Strategic/StrategicMap.cc:2922, 3115`). In RT without it, a RED civilian cowers for one `REALTIME_CIV_AI_DELAY`,
@@ -1265,15 +1259,22 @@ Same deciders as soldiers (`fCivilian` false), with these differences:
 
 ### 9.3 Profiled NPCs, Queen, Joe, Warden, boxers, tanks, creatures
 
-All hooks for M3: `DecideActionNamedNPC` (RT YELLOW/GREEN only), `HeadForTheStairCase` (Meduna), Warden and
-`the_chosen_one` (Tixa panic), boxing (`DecideActionBoxerEnteringRing`, punch-only BLACK), tanks (`TANK()` branches),
-creatures (`CreatureDecideAction`, separate file, implemented in §14), crows (§14.1). None occurs in Omerta/A9.
+| Special | Original | ja2-node |
+|---|---|---|
+| Named NPCs | `DecideActionNamedNPC` (RT YELLOW/GREEN only) | `ai/decide-named-npc.ts` (`24`) |
+| Queen and Joe in Meduna | `HeadForTheStairCase` (RED step 3, BLACK step 3), TRAVERSE_DOWN | `ai/queen-escape.ts` (`26` §5.2) |
+| Boxers | `DecideActionBoxerEnteringRing`, punch-only BLACK and its closing in (§6.8) | `ai/decide-boxing.ts` (`25` §7) |
+| Creatures, bloodcats, crows | `CreatureDecideAction`, `CrowDecideAction` | `ai/creature-decide.ts` (§12) |
+| Warden, `the_chosen_one`, panic (§9.4) | scripted sectors (Tixa, alarm switches) | not ported |
+| Tanks | `TANK()` branches | the branches exist, no vehicles in tactical |
+
+"Not ported" and the tanks are deviations "Combat AI specials".
 
 ### 9.4 Panic AI (`TacticalAI/PanicButtons.cc`)
 
-Scripted sectors only: `InitPanicSystem` (from `InitAI`) scans world bombs with `PANIC_FREQUENCY(_2/_3)`
+Not ported. Scripted sectors only: `InitPanicSystem` (from `InitAI`) scans world bombs with `PANIC_FREQUENCY(_2/_3)`
 (`Tactical/World_Items.cc:72`): a SWITCH sets a trigger (grid, tolerance, alarm flag) and `PANIC_TRIGGERS_HERE`, any
-other such bomb sets `PANIC_BOMBS_HERE`. Without them `fPanicFlags = 0` and nothing below runs (Omerta, A9).
+other such bomb sets `PANIC_BOMBS_HERE`. Without them `fPanicFlags = 0` and nothing below runs (most sectors).
 - `PanicAI(s, canMove)`: panic bombs and `s` holds a `REMOTEBOMBTRIGGER` → USE_DETONATOR if `AP >= 2`, else NONE;
   triggers and `s` is `the_chosen_one`: on the trigger → PULL_TRIGGER (AP ≥ 2); reachable → GET_CLOSER to it; cannot
   move → NONE; otherwise lose the status and `MakeClosestEnemyChosenOne`; else −1 (no decision).
@@ -1307,37 +1308,21 @@ his next turn (§1.2), and `RefreshAI` runs `ManChecksOnFriends` for them.
 
 ### 10.3 AI list (`TacticalAI/AIList.cc`)
 
-```
-BuildAIListForTeam(team) (:192-218): muzzle flashes off; clear; for s in MercSlots with s.bTeam == team:
-   if SatisfiesAIListConditions(s, &nDone, randomChecks = true): priority = bAlertStatus + (bVisible == TRUE ? 3 : 0)
-      insert before the first entry with strictly lower priority (equal priorities keep slot order)
-   return count > 0
-   // order: visible BLACK 6, visible RED 5, visible YELLOW 4, visible GREEN = unseen BLACK 3, unseen RED 2, YELLOW 1, GREEN 0
-SatisfiesAIListConditions(s, nDone, rnd) (:117-172), in order:
-   boxing and not a boxer → false; inactive, not in sector, bLife < OKLIFE or bBreath < OKBREATH → false
-   bMoved → (AP <= 1 → ++nDone) false
-   DecideAlertStatus(s)                                   // side effects; no RNG in TB
-   CIV team: COW/CROW → false
-      neutral and (NON_CIV_GROUP or the group is neutral):
-         alert < RED: rnd and PreRandom(10) != 0 and !ubQuoteRecord → false     // idle civilians act 1 turn in 10
-         alert >= RED and cowering: !bVisible → false (only 0 = limbo; −1 passes, quirk); profiled → false;
-                                    rnd and PreRandom(3) != 0 → false
-         alert >= RED and CRIPPLECIV: rnd and PreRandom(3) != 0 → false
-      cowering → bLastAction = NONE
-   true
-RemoveFirstAIListEntry (:75-87): pop until an entry passes the conditions again (rnd = false: DecideAlertStatus runs
-   again, no draws)
-MoveToFrontOfAIList(s) (:175-190): conditions without RNG; insert at the head with the head's priority (100 if empty)
-```
-Callers: enemy/militia/civ team start (`TeamTurns.cc:366`) and interrupt rebuilds (`:655, 881-887`), each re-drawing
-the civilian `PreRandom`s in slot order. The `PreRandom(10)` is drawn before the quote-record test.
+The list and its conditions are `10` §6.3 (ja2-node `turns/ai-list.ts`). For the combat AI:
+- Priority `bAlertStatus + (bVisible == TRUE ? 3 : 0)`, FIFO among equals: visible BLACK 6, visible RED 5, visible
+  YELLOW 4, visible GREEN = unseen BLACK 3, unseen RED 2, YELLOW 1, GREEN 0.
+- Idle neutral civilians (alert < RED) act 1 turn in 10: the `PreRandom(10)` is drawn before the quote-record test.
+  A cowering neutral civilian at RED+ is skipped only when `bVisible == 0` (limbo); −1 passes (quirk).
+- `RemoveFirstAIListEntry` re-checks without random checks, but `DecideAlertStatus` runs again.
+- Callers: enemy/militia/civ team start (`TeamTurns.cc:366`) and interrupt rebuilds (`:655, 881-887`), each re-drawing
+  the civilian `PreRandom`s in slot order.
 
 ---
 
-## 11. Quirks to keep (or list in `deviations.md`)
+## 11. Quirks to keep
 
 - **Strac movement-range truncation** (§1.4): CHANGE_FACING/CHANGE_STANCE end on the next pass; re-decisions can
-  re-pay turns; the extra `CancelAIAction` clears `SkipCoverCheck` and `bBypassToGreen`. Vanilla differs. Verify first.
+  re-pay turns; the extra `CancelAIAction` clears `SkipCoverCheck` and `bBypassToGreen`. Vanilla differs; unverified.
 - `SkipCoverCheck` is **one global** for all soldiers (`AIMain.cc:866`), set by any soldier's facing/stance execution
   and cleared by any `ExecuteAction`/`CancelAIAction`/YELLOW `RefreshAI`.
 - `bAIMorale` starts at 0 (HOPELESS) for basic placements: YELLOW urgency HIGH, so SEEK_NOISE/SEEK_FRIEND run (§3).
@@ -1355,7 +1340,8 @@ the civilian `PreRandom`s in slot order. The `PreRandom(10)` is drawn before the
   and `inv[weaponIn]` in the other; `NPCDoesAct` even when a throwing-knife target was rejected; THROW_KNIFE's
   LOWER_GUN is overwritten by the return value and a second THROW_KNIFE stays queued.
 - BLACK: an armed civilian whose `CanNPCAttack` returns a code other than NOWEAPON (or a COW/CRIPPLECIV with
-  NOWEAPON) loops forever in §6.2 (inferred). Port with a guard that treats it as "cannot attack" and log it.
+  NOWEAPON) loops forever in §6.2 (inferred); ja2-node treats it as "cannot attack" (deviations "Armed civilian
+  without ammo").
 - `ShootingStanceChange` reads `s.bTargetLevel/bTargetCubeLevel` (last attack), not the planned target's level.
 - `IsActionAffordable`: turning while prone needs 6 APs but costs 2; CHANGE_STANCE always needs 2.
 - TB loop detector ends the turn but still starts the move (`NewDest` runs after `EndAIGuysTurn`).
@@ -1371,124 +1357,9 @@ the civilian `PreRandom`s in slot order. The `PreRandom(10)` is drawn before the
 
 ---
 
-## 12. Minimal M3 implementation (combat AI)
+## 12. Creatures and bloodcats (`TacticalAI/CreatureDecideAction.cc`)
 
-Module layout (inferred, matching `src/sim/tactical/ai/`): `turn.ts` (TB driver, AI list, affordability, completion
-hooks), `knowledge.ts` additions in `perception/` (noise outputs, `whatIKnowThatPublicDont`, `lastMercToRadio`,
-watched locations), `yellow.ts`, `red.ts`, `black.ts`, `morale.ts`, `cover.ts` (`FindLocations`), `attack-choice.ts`
-(`CalcBestShot` and friends over an abstract `AttackOracle`), plus an `AiItems` interface. Keep `GreenHooks` as is and
-replace `decideActionYellow` / the RED/BLACK `NONE` in `decideAction` with the real deciders.
-
-### 12.1 Port first: YELLOW and a basic BLACK shooter that uses cover
-
-1. **TB driver** (§1): the TB gates of `HandleSoldierAI`, `TurnBasedHandleNPCAI`, `IsActionAffordable`, `NPCDoesAct`
-   (TB form), `NPCDoesNothing`/`EndAIGuysTurn`, `StartNPCAI`, `RefreshAI` with `ManChecksOnFriends`, the AI list
-   (§10.3), `HaltMoveForSoldierOutOfPoints`, the TB parts of `InternalGoAsFarAsPossibleTowards` (reserve, start-run
-   cost, `FLAG_CAUTIOUS`, `FLAG_STOPSHORT`), `SoldierTriesToContinueAlongPath` in full, the loop detector, the `NewDest`
-   TAKE_COVER swat rule and the ENEMY-at-RED swat roll, `gubNPCAPBudget`/`gubNPCDistLimit` reset per pass, the
-   completion hooks of §1.4 (`FreeUpNPCFromAttacking` at busy count 0, `FreeUpNPCFromPendingAction` at the radio
-   animation's 499), `ExecuteAction` cases NONE, WAIT, END_TURN, CHANGE_FACING, CHANGE_STANCE, movement group,
-   FIRE_GUN (through the attack interface), YELLOW/RED_ALERT, COWER, STOP_COWERING, LOWER_GUN. One global
-   `SkipCoverCheck` in the AI control state.
-2. **Knowledge** (§2): `MostImportantNoiseHeard` returning `{grid, value, climb, reachable}` (climb branch through a
-   `climbPoint` hook that returns NOWHERE until roofs exist), `WhatIKnowThatPublicDont`, `last_merc_to_radio`
-   (set/clear points of §2.3), `HandleInitialRedAlert` (flag; Meduna/panic as hooks), `GuySawEnemyThisTurnOrBefore`,
-   `ClosestReachableFriendInTrouble` with `EstimatePathCostToLocation` (ground branch exact; climb branches via the
-   hook), watched locations (§2.6) including their decay in `DecayPublicOpplist`.
-3. **`DecideActionYellow`** in full (§3), RT and TB, with the YELLOW_ALERT action, `RadioSightings(EVERYBODY)` and
-   `AIDecideRadioAnimation` (`AI_RADIO`/`AI_CR_RADIO` for REGMALE/BIGMALE; stubs need the two scripts ending in 499).
-   This also closes the M2 deviation "YELLOW alert".
-4. **Morale and threat** (§4): `CalcMorale`, `CalcManThreatValue` (needs `SoldierToLocationChanceToGetThrough` from
-   the attack doc), `SoldierDifficultyLevel`, `gbDiff`, `RangeChangeDesire` (`bConsNumTurnsWeHaventSeenButEnemyDoes`,
-   maintained at turn end, `Overhead.cc:4290-4312`).
-5. **Cover and flight** (§8): `CalcCoverValue`, `FindBestNearbyCover` (with the AP-budget flood), `CalcPercentBetter`,
-   `FindSpotMaxDistFromOpponents`. `InLightAtNight` returns false and `InGasOrSmoke` false until light/smoke exist.
-6. **`DecideActionBlack`, gun only**: prelude without panic/Queen/boxing/Tixa/surrender (hooks), §6.2 with
-   `CanNPCAttack` (including the reload side effect and drawing a pocketed weapon), §6.3 gun branch with
-   `CalcBestShot` (§7.2), §6.4, §6.5, §6.6 stance (`ShootingStanceChange`) and burst decision (`CalcSpreadBurst` as a
-   hook that returns without spreading), §6.7, §6.8 (TAKE_COVER, RUN_AWAY, crouch via `StanceChange`, face, militia
-   radio; spotters as dead code until throws exist). Knife/throw/punch branches return "not possible".
-7. **`DecideActionRed`** in full except the hooks: panic, Queen/Joe, Tixa mask, long-range toss/spotters (no
-   launchers yet), light (false), `SearchForItems` (NONE), tanks. RED is needed as soon as BLACK exists: BLACK calls it
-   for unconscious targets, and RED is the state between sightings.
-8. **Civilians and militia** (§9.1, §9.2): the cowering blocks (RED and BLACK), flee via `FindSpotMaxDistFromOpponents`,
-   militia differences.
-9. **Map-edge escape** (§8.3): `ubQuoteActionID = TRAVERSE_*`, `AdjustSoldierPathToGoOffEdge` in the movement case of
-   `ExecuteAction` (`AIMain.cc:1521-1541`), and at path end `HandleAITacticalTraversal` (`:2013-2044`): end the turn,
-   remove the soldier from the sector; the strategic part (`ProcessQueenCmdImplicationsOfDeath`, group bookkeeping) is
-   an M4 hook. HOPELESS enemies reach this quickly, so it cannot wait.
-10. **State** to add: soldier `actionPoints`, `initialActionPoints`, `moved`, `shock`, `bleeding`, `lastTarget`
-   (`sLastTarget`), `attackingWeapon`, `aimTime`, `doBurst`, `aimShotLocation`, `targetLevel`, `nextTargetLevel`,
-   `lastAttackHit`, `lastTwoLocations[2]`, `turnInProgress`, `quoteActionID`, `blackList` (exists); perception: last-known
-   **levels** (personal and public), `gbSeenOpponents`, public noise level, `lastMercToRadio[team]`, watched locations;
-   tactical status: `spottersCalledForBy`, `consNumTurnsWeHaventSeenButEnemyDoes`, `fEnemyInSector`, `menInSector`
-   per team, `gfHiddenInterrupt` (TB core), AI-control `skipCoverCheck`.
-11. **Tests**: chance tables per orders/attitude/morale (YELLOW turn, radio, seek noise, seek friend, cover; RED radio,
-   seek/help/hide/watch points; BLACK offense/defense, stance, burst); RNG-sequence tests per decider with stubbed
-   oracles (§3.1, §5.1, §6.9); `CalcBestShot` aim/switch rule tables; `FindBestNearbyCover` on a stub map with a wall;
-   a TB scenario where a BLACK soldier shoots, then takes cover when outgunned, then RED seeks; the YELLOW → radio →
-   team RED chain.
-
-### 12.2 Next
-
-- ~~Throws~~ Done 2026-10-15: `CheckIfTossPossible`, `CalcBestThrow` (with the original's quirk that the landing test
-  only succeeds when the arc ends in a structure or a body), `LoadWeaponIfNeeded`, the mortar room rule and GET_CLOSER,
-  RED long-range toss and spotters.
-- Knives and punches: `CalcBestStab`, KNIFE_MOVE, THROW_KNIFE (+ the LOWER_GUN quirk), punching fallback.
-- `CalcSpreadBurst` and `AIPickBurstLocations`.
-- ~~`SearchForItems` (ammo, weapons, general pickups; PICKUP_ITEM execution) with the item doc.~~ Done 2026-10-15
-  (`ai/item-search.ts`; walking pickup through the arrival pending-action hook).
-- Prone stances (needs multi-tile soldiers; until then `InternalIsValidStance(PRONE)` is false).
-- ~~Roofs~~ Done 2026-10-15: `buildings.ts` (`GenerateBuildings` with its `Random` draws at world load, climb spots,
-  `FindClosestClimbPoint`, `GetInterveningClimbingLocation`, `EstimatePathCostToLocation` climb branches),
-  MOVE_TO_CLIMB/CLIMB_ROOF execution and `roofs.ts` (the climb itself, `FreeUpNPCFromRoofClimb`).
-- Light at night (`InLightAtNight`, `FindNearbyDarkerSpot`) and gas (`InGasOrSmoke`, `FindNearestUngassedLand`,
-  LEAVE_WATER_GAS, BLACK's gassed run-away) once the light map and smoke exist.
-
-### 12.3 Can wait
-
-Panic AI and the chosen one (Tixa, alarms), Queen/Joe staircase, Warden, boxing, tanks (creatures and crows: done, §14),
-surrender offers, Kingpin/assassin specials, `DecideActionNamedNPC`, schedules, corpse-warning and
-`avoid_light_tiles_at_night`/`stay_on_rooftop`/`ai_go_prone_more_often`/`ai_better_aiming_choice` policies (all default
-off), the 15 s deadlock breaker (never).
-
-### 12.4 Deviations to log
-
-All logged in `deviations.md` (2026-10-15): "Combat AI specials", "Armed civilian without ammo", "AI and roofs",
-"AI light and gas", "Recalculated path cost", "GoAsFar fallback", "AI threat value", "Map-edge escapes", "AI path-cost
-cache". Prone is valid wherever the prone person structure fits, as in the original, since soldiers are multi-tile
-person structures now. The §1.4 truncation and Strac's `LAST_MOVEMENT_ACTION` still await the oracle.
-
----
-
-## 13. Verified vs inferred
-
-**Verified** by reading Strac (vanilla cross-checked where marked): the TB branches of `HandleSoldierAI`,
-`TurnBasedHandleNPCAI` (and that `ActionInProgress` is unreachable), `IsActionAffordable`, the completion hooks,
-`ExecuteAction` for every combat action, `DecideActionYellow`/`Red`/`Black` line by line, `ShootingStanceChange`,
-`StanceChange`, `RangeChangeDesire`, `CalcMorale`, `ClosestReachableDisturbance`, `ClosestKnownOpponent`,
-`ClosestReachableFriendInTrouble`, climbing helpers, watched locations, `FindBestNearbyCover` setup and loop,
-`FindSpotMaxDistFromOpponents` loop, the `CalcBestShot` switch rule, the AI list, policy defaults (`game.json`), and the
-vanilla equality of the BLACK aim-time bug and the RED/BLACK structure. The rest of §7 and §8 (throws, stabs, spread
-bursts, damage estimates, `CalcCoverValue` internals, CTGT helpers, darker spot, item search) comes from a full read
-of `Attacks.cc` and `FindLocations.cc` with spot checks.
-
-**Inferred**: the TB truncation of CHANGE_FACING/CHANGE_STANCE and its AP drain (§1.4, check first); `bAIMorale = 0` for
-map placements; the BLACK civilian infinite loop; the THROW_KNIFE double queue; the cowering alternation of §9.1; tired
-soldiers re-deciding every pass; `ubQuoteActionID` persisting after a cancelled flight; costs in `gubAIPathCosts`
-excluding the start cost; `SoldierToLocationChanceToGetThrough` drawing no RNG; RT AP checks passing.
-
-
----
-
-## 14. Creatures and bloodcats (`TacticalAI/CreatureDecideAction.cc`)
-
-**Implemented 2026-10-16**: `ai/creature-decide.ts` (decisions, calls, scent, crows), `smell.ts` (smell and blood map),
-`multi-tile.ts` with the multi-tile part of `pathfinding.ts` (`07` §3.3), the creature branches of `combat/melee.ts`,
-`combat/hit.ts`, `perception/` and `turns/`. The oracle script `creature-ai.txt` (69 decisions, melee choice and
-impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "Creature AI").
-
-### 14.1 Dispatch and alert status
+### 12.1 Dispatch and alert status
 
 - `CREATURE_OR_BLOODCAT(s)` (bodies `ADULTFEMALEMONSTER`..`QUEENMONSTER` and `BLOODCAT`) → `CreatureDecideAction`,
   `CROW` → `CrowDecideAction`, everyone else `DecideAction` (§1.2, RT `RTDecideAction`).
@@ -1507,7 +1378,7 @@ impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "C
   1000·Random(3)` ms (twice that for a crawler's random patrol), and `RTDecideAction` uses the same delay between
   decisions of creatures and bloodcats that are not hunting.
 
-### 14.2 BLACK
+### 12.2 BLACK
 
 1. No AP → NONE; resting crawler → NONE.
 2. Calls (not bloodcats, larvae or infants; `AP ≥ AP_RADIO`, more than one in sector): hurt (`bLife < bOldLife` and
@@ -1528,7 +1399,7 @@ impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "C
    `MinAPsToAttack` with the hand item, claws for males, quirk kept) then `GoAsFarAsPossibleTowards`; else turn to face
    (`ValidCreatureTurn`: every intermediate facing must fit the standing structure). Fleeing bodies run away.
 
-### 14.3 Calls, scent, eating
+### 12.3 Calls, scent, eating
 
 - `CreatureCall`: team aware, `MONSTER_UP`/`QUEEN_CALL`; priority `gbCallPriority[call][female|male|queen]` (hunting
   females `gbHuntCallPriority`) minus `Pyth/30`; receivers below BLACK, alive ≥ OKLIFE, not larvae, infants or the queen,
@@ -1541,7 +1412,7 @@ impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "C
   a helpless victim (`bLife < OKLIFE` or collapsed) plays the eating animations with opcode 761 (a head bite with item 2,
   25/25, range 50) and adds a regeneration point; each point heals 10 life at the creature's next turn.
 
-### 14.4 Senses, smell and blood
+### 12.4 Senses, smell and blood
 
 - Monsters see by smell: `DistanceVisible` is `DistanceSmellable` (0 for an empty tile, `26·(normal − monster)/10` for
   a human target), the line of sight runs with `fSmell` (trees and open windows pass, other obstacles cost 80); hearing
@@ -1553,10 +1424,110 @@ impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "C
   are `11` §5.11.
 - Movement noise: bloodcats +50, `STEALTHY` +25 per trait.
 
-### 14.5 Data quirks
+### 12.5 Data quirks
 
 - Strac's `CREATURE_QUEEN_TENTACLES` has `internalType` BLADE (vanilla `IC_TENTACLES`), so `FindObjClass(IC_TENTACLES)`
   finds nothing: the queen only spits and calls. `CalcTentacleAttack`, `QUEEN_SWIPE` and opcode 755
   (`DishoutQueenSwipeDamage`) are ported but unreachable with that data.
 - Creatures and bloodcats are multi-tile: paths, destinations and adjacent attack tiles use their animation structures
   (`07` §3.3).
+
+---
+
+## 13. Implementation in ja2-node
+
+### 13.1 State
+
+- `Soldier` (`src/sim/tactical/soldier.ts`). `ai: AiState` holds the decider state: `alertStatus`, `orders`,
+  `attitude`, `action`/`actionData`, `nextAction`/`nextActionData`/`nextTargetLevel`, `lastAction`,
+  `actionInProgress`, `newSituation` (`Situation` in `ai/actions.ts`), `bypassToGreen`, `blackList`,
+  `noiseGridNo`/`noiseLevel`/`noiseVolume`, `oppCount`, `underFire`, `morale` (`bAIMorale`, starts at 0), `cautious`
+  (`AI_CAUTIOUS`) and the creature fields (`mobility`, `callPriority`, `caller`, `callerGridNo`, `callActedUpon`,
+  `frenzied`). Turn and attack fields sit on the soldier: `actionPoints`, `initialActionPoints`, `moved`,
+  `aiTurnControl`, `turnInProgress`, `lastTwoLocations`, `shock`, `bleeding`, `lastTarget`, `attackingWeapon`,
+  `aimTime`, `aimShotLocation`, `doBurst`, `doSpread`, `spreadLocations`, `targetLevel`, `targetCubeLevel`,
+  `lastAttackHit`, `ctgtTarget`, `quoteActionId`, `walkToAttackGridNo`/`walkToAttackCost`, `oppList`, `lastKnownOpp`.
+- `TurnState` (`t.turn`, `turns/turn-state.ts`): `aiList`, `skipCoverCheck` (the one global of §11),
+  `spottersCalledForBy` (−1 = NOBODY), `consNumTurnsWeHaventSeenButEnemyDoes`, `enemyInSector`, `hiddenInterrupt`,
+  `seenOpponents` (`gbSeenOpponents`), `watched` (§2.6, 3 slots per soldier), `enemyOfferedSurrender`,
+  `attackBusyCount`.
+- `Perception` (`t.perception`, `perception/sight.ts`): `publicOpp`, `publicLastKnown`,
+  `publicNoiseGridNo/Volume/Level`, `lastMercToRadio`, `awareOfOpposition` (`bAwareOfOpposition`).
+- `t.campaign.difficultyModifier` (§4.3).
+- Not stored: the personal and public last-known opponent levels (`gbLastKnownOppLevel`,
+  `gbPublicLastKnownOppLevel`); the helpers use the opponent's current level.
+- `gubNPCAPBudget`/`gubNPCDistLimit` are arguments of `reachabilityFlood` (`ai/cover.ts` → `findBestPath`), not
+  globals, so nothing can leak between searches; `gubAIPathCosts` is a fresh array per flood (deviations "AI
+  path-cost cache").
+- Fixed-width arithmetic goes through `src/core/int.ts` (`i8` for the RED points, `i16` for chances, `u8` for chances
+  to hit, aim and AP costs).
+
+### 13.2 Modules (`src/sim/tactical/`)
+
+| Module | Contents |
+|---|---|
+| `ai/actions.ts` | action ids, `FIRST_MOVEMENT_ACTION`/`LAST_MOVEMENT_ACTION` (Strac range, §1.4), `Situation`, `URGENCY`, `MOVEMENT_MODE`, delays |
+| `ai/control.ts` | `handleSoldierAI` (RT and TB paths, the new-situation busy-count rule of §1.1), `executeAction` (§1.6), `actionDone`, `cancelAIAction`, the completion hooks `freeUpFromTurning`/`StanceChange`/`RoofClimb`/`PendingAction` (§1.4), `npcDoesAct`, `newDest` (§1.7), the loop detector, `triesToContinueAlongPath`, `handleAITacticalTraversal` (§8.3), the RT cadence (`beginAiPass`, `aiForSlot`, away slots); `createAiControl` wires the deciders |
+| `ai/turn-based.ts` | `isActionAffordable` (§1.3), `startNPCAI`, `refreshAI`, `manChecksOnFriends`, `turnBasedHandleNPCAI`, `endAIGuysTurn` |
+| `turns/ai-list.ts` | `buildAIListForTeam`, `removeFirstAIListEntry`, `moveToFrontOfAIList` (§10.3) |
+| `ai/decide.ts` | `decideAction`, `decideAlertStatus`, `checkForChangingOrders` (§2.7), `determineMovementMode`, the green decision (`09`) |
+| `ai/combat-decide.ts` | `decideActionYellow` (§3), `decideActionRed` with `redMainChoice`, `longRangeToss`, `civilianCower` (§5, §9.1), `decideActionBlack` with `executeAttackChoice` and `offersSurrender` (§6) |
+| `ai/attack-choice.ts` | §7: `canNPCAttack`/`okToAttack`, `calcBestShot`, `checkIfTossPossible`/`calcBestThrow`, `calcBestStab`, `calcTentacleAttack`, `calcSpreadBurst` (with `AIPickBurstLocations`), the damage estimates, `shootingStanceChange`, `stanceChange`, `loadWeaponIfNeeded`, `rearrangePocket` |
+| `ai/morale.ts` | `calcMorale`, `calcManThreatValue`, `rangeChangeDesire`, `threatPercent`, the knowledge choice of §4 |
+| `ai/cover.ts` | §8: `findBestNearbyCover` with `calcCoverValue` and the CTGT helpers, `findSpotMaxDistFromOpponents`/`findFleeSpot` and the edge-escape quote actions, `findNearestUngassedLand`, `findNearbyDarkerSpot`, `inLightAtNight`, `reachabilityFlood` |
+| `ai/utils.ts` | `closestReachableDisturbance`, `closestReachableFriendInTrouble`, `estimatePathCostToLocation` (§2.4, §2.5, §4.4), `closestSeenOpponent`, the watched-location queries, `findAIUsableObjClass`, `recalculatePathCost` |
+| `ai/destinations.ts` | `internalGoAsFarAsPossibleTowards` (TB reserve and flags, §1.7), `legalNPCDestination`, roaming range |
+| `ai/item-search.ts` | `searchForItems` (§8.6) |
+| `perception/knowledge.ts` | `noiseHeard`/`mostImportantNoiseHeard`, `whatIKnowThatPublicDont`, `closestKnownOpponent`, `guySawEnemyThisTurnOrBefore` |
+| `perception/duel.ts`, `perception/sight.ts` | watched locations (§2.6); `radioSightings`, the public opplist and its decay |
+| `buildings.ts`, `roofs.ts` | climb points and `getInterveningClimbingLocation` (§2.4), roof climbing and `freeUpFromRoofClimb` |
+| `ai/queen-escape.ts`, `ai/decide-boxing.ts`, `ai/decide-named-npc.ts` | the specials of §9.3 |
+| `ai/creature-decide.ts`, `smell.ts`, `multi-tile.ts` | §12: creature, bloodcat and crow decisions, calls and scent; smell and blood map; multi-tile structures with the multi-tile part of `pathfinding.ts` (`07` §3.3); the creature branches live in `combat/melee.ts`, `combat/hit.ts`, `perception/` and `turns/` |
+
+### 13.3 Wiring
+
+`TacticalSim` (`tactical-sim.ts`) builds the `AiControl` (`createAiControl`), runs `beginAiPass` before each overhead
+pass and `aiForSlot` for every merc slot; in combat every slot is handled on every pass (`10` §6.1). Team turns
+(`turns/turns.ts`) build the AI list and start the first soldier. The deciders reach the rest of the tactical layer
+through hooks on the state: attacks through `turnHooks.aiAttack` (`handleItem`, `combat/attack.ts`), pickups and drops
+through `turnHooks.aiPickup`/`aiDropHandItem`, the surrender offer through `t.narrative.offerSurrender` (`24` §8.5),
+edge escapes through `sectorHooks.soldierLeftMap` (§8.3).
+
+### 13.4 Gaps
+
+Beyond the deviations named in the text ("Combat AI specials", "Armed civilian without ammo", "AI climb that cannot
+start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "AI threat value", "AI path-cost cache", "AI throw
+targets", "Difficulty and progress in tactical"):
+- `handleInitialRedAlert` only sets `awareOfOpposition`: no chosen one, no Queen and Joe to RED in Meduna (§2.3).
+- The `Random(50)` civilian quote on a visible AI attack (§1.6) is not drawn, so such an attack takes one main-stream
+  number less than in the original.
+- `decayPublicOpplist` (`perception/sight.ts`) neither clears `lastMercToRadio` when the team knows no opponent
+  publicly nor calls `decayWatchedLocs`: watched locations never decay (§2.6), and the last radio caller stays
+  eligible for `closestReachableFriendInTrouble` after the team has forgotten every opponent (§2.3, §2.5).
+- `closestKnownOpponent` has neither the Carmen rule nor the same-building level skip (§4.4).
+- BLACK's toss branch skips the mortar room rule (§6.3).
+- `calcBestThrow` lacks the underground direct/adjacent test (§7.3).
+
+### 13.5 Verification
+
+Unit tests next to the modules (`ai/*.test.ts`) cover morale and threat, cover, flight and light, `calcBestShot`,
+`canNPCAttack`, `calcBestStab`, `calcSpreadBurst` and short turn-based scenarios (shooting, an interrupt, seeking
+after a radio call, an item pickup, knife attacks). Oracle probes (`tools/oracle/README.md`): `bestshot`
+(`CalcBestShot` for every armed soldier of the saves), `civ` (the surrender condition, the named-NPC AI), `boxing`,
+and `creature-ai` (creature and bloodcat decisions, melee choice, calls, smell and scent, draw for draw). No probe
+compares the human YELLOW/RED/BLACK decisions.
+
+---
+
+## 14. Unverified
+
+Not traced end to end in the original:
+- The TB truncation of CHANGE_FACING/CHANGE_STANCE and its AP drain (§1.4); ja2-node follows it.
+- `bAIMorale = 0` for map placements (§3), which makes YELLOW movement urgent.
+- The BLACK civilian infinite loop (§6.2), the basis of the "Armed civilian without ammo" deviation.
+- The cowering alternation of §9.1.
+- Tired soldiers re-deciding every pass (§11).
+- `ubQuoteActionID` persisting after a cancelled flight (§8.3, §11).
+- Costs in `gubAIPathCosts` excluding the start cost (§8.1).
+- `SoldierToLocationChanceToGetThrough` drawing no RNG (§8.2).
+- The THROW_KNIFE double queue (§6.6).

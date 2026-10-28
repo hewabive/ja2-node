@@ -15,7 +15,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - Never commit original game data or anything derived from it (extracted files, JSON produced
   from `Ja2bin.dat`, screenshots). The data lives outside the repo, in `$JA2_DATA_DIR`.
 - Stub content is CC0 1.0 (`stubs/NOTICE.txt`): keep it own work; a stub file built from Stracciatella's tables goes
-  on the notice's SFI-SCLA list (`docs/27` §6.4).
+  on the notice's SFI-SCLA list (`docs/27` §6.2).
 - `reference/` holds third-party sources: read-only, gitignored. Never copy code from
   `reference/ja2-web` (GPL claim).
 
@@ -51,19 +51,20 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 
 ## Docs
 
-- `docs/01-architecture.md`: decisions D1–D16, layers, milestones (current status in §12).
-- `docs/04-time-and-server.md`: tick model, time drivers, server, agent API.
-- `docs/05-render-pipeline.md`: how the original draws the tactical map (order, z, shading).
-- `docs/06`–`09`: soldiers and animation, structures/pathing/walking, sight and noise, green AI.
+Docs describe the current product; history stays in git. Code does not cite doc sections (numbers move); docs cite
+code paths and `file:line` in `reference/stracciatella`.
+
+- `docs/01-architecture.md`: licensing, decisions D1–D16, layers, sim-core rules (time, RNG streams, state),
+  Stracciatella vs vanilla, documentation map.
+- `docs/04-time-and-server.md`: tick model, time drivers, server and sessions, rule pack, the agent API (§6, by topic).
+- `docs/05`–`09`: render pipeline, soldiers and animation, structures/pathing/walking, sight and noise, green AI.
 - `docs/10`–`14`: turn-based, attacks, items and explosions, combat AI, savegames (import in §10).
-- `docs/15`–`19` (M4 specs): strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
+- `docs/15`–`19`: strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
 - `docs/20`: tactical lighting (light sprites, true light level).
-- `docs/21`–`23` (M5 specs): laptop and hiring, contracts and relationships, merchants.
-- `docs/24`–`26` (M6 specs): NPCs and dialogue, quests/facts/NPC actions/schedules, meanwhiles and the ending.
-- `docs/27` (M7 spec): saves, options, sound and music, video, localization, stubs, performance, player-UI scope (M8).
-- `docs/28` (M8 spec): data scenarios and the rule pack, the `ui` layer, client-side cursor hints, layouts as data, the
-  original screens, server additions.
+- `docs/21`–`23`: laptop and hiring, contracts and relationships, merchants.
+- `docs/24`–`26`: NPCs and dialogue, quests/facts/NPC actions/schedules, meanwhiles and the ending.
+- `docs/27-platform.md`: saves, options, sound and music, video, localization, stubs, performance.
+- `docs/28-player-ui.md`: the `ui` layer, widgets, layouts as data, fonts, the original screens, client-side hints.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
-- `docs/releases.md`: release notes (0.7.0 is M7).
-- `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
-  behaviour with `file:line` references into `reference/stracciatella`.
+- `docs/releases.md`: release notes.
+- `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).

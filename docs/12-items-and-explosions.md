@@ -1,50 +1,17 @@
-<!-- Items, inventory and explosions: an implementable spec for M3. 2026-10-15.
-Source: reference/stracciatella/src (same snapshot as docs 01–09), cross-checked against vanilla
-(reference/vanilla/ja2/Build). Read-only research: nothing was built. Two throw-away scripts decoded Prof.dat and the A9
-map items with our own parsers (src/content/formats); their outputs are quoted as (data). -->
-
 # 12 — Items, inventory and explosions
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/`; `X:` is `src/externalized/`, `V:` is vanilla
 `Build/`, `J:` is `data/externalized/` (verbatim copy of the Stracciatella JSON). "(inferred)" marks conclusions not
-traced end to end; everything else was read in the code. `Random` = our `main` stream, `PreRandom` = our `pre` stream
-(`01` §3.6). Game options are Stracciatella's defaults: **reduced gun list** (`fGunNut = FALSE`), sci-fi on
-(`GameSettings.cc:182-183`), `game.json` as shipped (`drop_everything: false`, `all_drops_visible: false`,
-`enemy_weapon_minimal_status: 0`, `extra_attachments: false`). Item ids are the `ITEMDEFINE` enum
-(`Tactical/Item_Types.h:221-615`); JSON `internalName`s equal the enum names.
+traced end to end. `Random` = the `main` stream, `PreRandom` = the `pre` stream (`01` §3.6). Game options are
+Stracciatella's defaults: **reduced gun list** (`fGunNut = FALSE`), sci-fi on (`GameSettings.cc:182-183`), `game.json`
+as shipped (`drop_everything: false`, `all_drops_visible: false`, `enemy_weapon_minimal_status: 0`,
+`extra_attachments: false`). Item ids are the `ITEMDEFINE` enum (`Tactical/Item_Types.h:221-615`); JSON
+`internalName`s equal the enum names.
 
-## 0. Cheat sheet
-
-- One item table indexed by item id (0..350). Behaviour is chosen by the **item class** bitmask (`IC_GUN`, `IC_AMMO`,
-  `IC_GRENADE`, …) plus a few hard-coded item ids. Kind-specific data (weapon, magazine, armour, explosive) hangs off
-  the item.
-- An **`OBJECTTYPE`** is one inventory slot or one world item: 1..8 identical objects with a status each, or one gun with
-  its loaded ammo, plus up to 4 attachments (§2).
-- A soldier has **19 slots**: helmet, vest, legs, 2 face, 2 hands, 4 big pockets, 8 small pockets (§3).
-- **Encumbrance** is a percentage of `EffectiveStrength × 500 g`; above 100 % it scales APs, agility and breath costs,
-  sampled at turn start (§3.6).
-- **Reload** = 5 AP (10 with a magazine of another size), swaps or tops off; the AI only reloads with same-size
-  magazines (§4).
-- World items live in per-tile **item pools**; visibility values gate what the player sees and can pick up (§6).
-- Enemies get gear from **`GenerateRandomEquipment`**: gun table row by equipment rating, armour/helmet by coolness,
-  grenades, kits; most of it is flagged undroppable by rolls (§8). Drops happen at the **end of the death animation** (§9).
-- Explosions damage the whole radius at one animation key frame (125–1530 ms after ignition), wreck structures, chain
-  into other explosives, and spawn smoke/gas clouds that grow and decay **per turn** (checked every 5 s in real time);
-  flares fade over world time; planted bombs and mines go through a timed queue (§10–§12).
-
-**(data) A9 and the sandbox squad.**
-
-| What | Content |
-|---|---|
-| A9 map items (`MapDef.items`, 4) | CROWBAR 11013 (status 74, always), WIRECUTTERS 11489 (70, `ubNonExistChance` 30), BLOODY_THROWING_KNIFE 13358 (77, 35), CANTEEN 18143 (85, 45, flag `WORLD_ITEM_DONTRENDER`). All ground level, `bVisible = INVISIBLE` (−1), no traps. |
-| Barry (0) | STEEL_HELMET 97, FLAK_JACKET 98, SW38 91 (hand), 5× CLIP38_6, TNT, DETONATOR, LOCKSMITHKIT |
-| Grizzly (3) | STEEL_HELMET 99, FLAK_JACKET 100, DESERTEAGLE 92, 5× CLIP357_9, COMBAT_KNIFE 98 |
-| Vicki (4) | STEEL_HELMET 99, KEVLAR_VEST 100, 2× M1911 → **GLOCK_17** (reduced guns), 6× CLIP45_7 → **CLIP9_15**, TOOLKIT 98, HAND_GRENADE |
-| Ivan (7) | STEEL_HELMET 99, KEVLAR_VEST 99, MP53 97 → **MP5K**, 3× CLIP556_30_AP → **CLIP9_30_AP** (§7) |
-| Fox (14) | STEEL_HELMET 98, FLAK_JACKET 94, GLOCK_17 99, 2× CLIP9_15, MEDICKIT |
-| Gus (16) | KEVLAR_HELMET, KEVLAR_VEST, KEVLAR_LEGGINGS, G41, 4× CLIP556_30_AP, MEDICKIT (all 100) |
-
-Profile slots are 0 helmet, 1 vest, 2 legs, 5 hand, 7.. pockets; `ubInvUndroppable` and `uiMoney` are 0 for all six.
+**Scope.** Item content, `OBJECTTYPE`, soldier inventory, reload, item AP costs, first aid, world items, profile and
+enemy equipment, drops, explosions, smoke, gas and flares. Elsewhere: gun and melee attacks, hits, armour against
+bullets, throwing (AP cost, range, chance, physics, duds) and launchers (`11`); locks, door traps, action items and
+switches (`25`); merchants (`23`); the inventory commands of the agent API (`04` §6); the inventory screens (`28`).
 
 ---
 
@@ -66,15 +33,15 @@ Order: `ammo-types` → `calibres` → `explosive-calibres` → `smoke-effects` 
   dropped (`:531-534`); magazines and calibres named `NOAMMO` are skipped (`:693-700, 718-721`).
 - Names and descriptions come from `binarydata/itemdesc.edt` (80+80+240 UTF-16 chars per item, by `itemIndex`) unless
   the JSON gives `name`/`shortName`/`description` (`X:ItemModel.cc:167-193`). That file is original data: the content
-  importer reads it, nothing in the simulation needs it.
+  importer reads it, nothing in the simulation needs it (the stub pack writes its own, `stubs/text.ts`).
 
 ### 1.2 Common item fields (`X:ItemModel.h:21-152`, `items.json`)
 
 | Field | Used by the tactical game for |
 |---|---|
 | `usItemClass` | everything: `IC_*` bits (`Item_Types.h:145-177`); `IC_WEAPON` = gun, blade, throwing knife, launcher, tentacles; `IC_EXPLOSV` = grenade, bomb |
-| `ubCursor` | `HandleItem` dispatch: `REMOTECURS`, `BOMBCURS`, `TOSSCURS`, `INVALIDCURS` (§5); `ubClassIndex` is unused |
-| `ubWeight` | hectograms (×100 g): carried weight (§3.6), throw range (§10.8) |
+| `ubCursor` | `HandleItem` dispatch: `REMOTECURS`, `BOMBCURS`, `TOSSCURS`, `INVALIDCURS` (§5); `ubClassIndex` is unused here (key items use it, §3.5) |
+| `ubWeight` | hectograms (×100 g): carried weight (§3.6), throw range (`11` §7.3) |
 | `ubPerPocket` | 0 = big pockets/hands only; stack size in big pockets, halved in small pockets (§3.2); weight multiplier |
 | `bReliability` | weapon wear chance `1/(15 + 3·rel)` per shot (`Tactical/Weapons.cc:871-875`); unjam skill modifier ×4 (`:298-299`) |
 | `ubCoolness` | enemy gear choice (§8), dealers, Bobby Ray |
@@ -91,9 +58,14 @@ Flags (`Item_Types.h:180-211`, JSON `bDamageable` …, `X:ItemModel.cc:321-341`)
 `OBJECT_UNDROPPABLE` at creation, `Tactical/Items.cc:2633-2636`), `ITEM_UNAERODYNAMIC` (toss range 1),
 `ITEM_ELECTRONIC`, `ITEM_INSEPARABLE` (attachment cannot be removed, `Tactical/Items.cc:2823-2826`).
 
+`WaterDamage` (`Items.cc:3315-3376`; per tile of medium or deep water, `Soldier_Control.cc:2052-2055`): deep water
+only, per `ITEM_WATER_DAMAGES` slot `PreRandom(100) < 10` → `bStatus[0] = max(1, status − 10 + roll)`; camouflage −2
+(deep) / −1 unless CAMOUFLAGED; our monster smell −1 on `Random(deep ? 10 : 20) == 0`. Not ported in ja2-node.
+
 ### 1.3 Weapons (`X:WeaponModels.cc:153-664`, `weapons.json`, 66 entries)
 
-`internalType` picks the class, cursor and weapon class (`Tactical/Weapons.h:45-56`); the constructors fix the rest:
+`internalType` picks the class, cursor and weapon class (`Tactical/Weapons.h:45-56`); the constructors fix the rest
+(ja2-node: `WEAPON_KINDS` in `src/content/items/items.ts`):
 
 | `internalType` | Item class | Cursor | `ubWeaponClass` | Notes |
 |---|---|---|---|---|
@@ -126,11 +98,11 @@ Fields the tactical game reads: `calibre`, `explosiveCalibre`, `ubReadyTime` (AP
 
 ### 1.4 Calibres, ammo types, magazines (`X:MagazineModel.cc`, `X:CalibreModel.h`, `magazines.json` 45 entries)
 
-- Ammo types (`ammo-types.json`, = `Tactical/Weapons.h:68-83`): 0 REGULAR, 1 HP, 2 AP, 3 SUPER_AP, 4 BUCKSHOT,
+- Ammo types (`J:ammo-types.json`, index = `Tactical/Weapons.h:68-83`): 0 REGULAR, 1 HP, 2 AP, 3 SUPER_AP, 4 BUCKSHOT,
   5 FLECHETTE, 6 GRENADE, 7 MONSTER, 8 KNIFE, 9 HE, 10 HEAT, 11 SLEEP_DART, 12 FLAME. Their damage/armour factors are
   hard-coded macros (`Weapons.h:85-105`).
-- Calibres: 1 AMMO38, 2 AMMO9, 3 AMMO45, 4 AMMO357, 5 AMMO12G, 6 AMMOCAWS, 7 AMMO545, 8 AMMO556, 9 AMMO762N,
-  10 AMMO762W, 11 AMMO47, 12 AMMO57, 13 AMMOMONST, 14 AMMOROCKET, 15 AMMODART, 16 AMMOFLAME.
+- Calibres: `J:calibres.json` (`index` 1..16, AMMO38 … AMMOFLAME; 0 = NOAMMO), plus `monsterWeapon` and
+  `showInHelpText`.
 - Magazine = item (`IC_AMMO`) with `calibre`, `capacity`, `ammoType`, `dontUseAsDefaultMagazine` (CLIP12G_7,
   CLIPCAWS_10_SAP). Item ids 71..115; sizes of one calibre sit at **adjacent ids** (CLIP9_15 = 71, CLIP9_30 = 72),
   which `ReloadGun` relies on (§4.1).
@@ -154,22 +126,26 @@ Fields the tactical game reads: `calibre`, `explosiveCalibre`, `ubReadyTime` (AP
 - Readers: `EffectiveArmour = prot·status/100 + plate·plateStatus/100` (`Tactical/Weapons.cc:106-120`);
   `ArmourPercent = 65·vest/maxVest + 15·helmet/maxHelmet + 25·legs/maxLegs` (`:123-149`, AI and UI);
   `ExplosiveEffectiveArmour` / `ArmourVersusExplosivesPercent` (same with `explosivesProtection`, each term capped at
-  65/15/25, `:152-200`, used by blasts §10.4); `ArmourProtection`/`TotalArmourProtection` for bullets (PreRandom
-  weak-spot roll, plates first, armour destroyed below `USABLE`, `:2588-2741`) belong to the combat spec.
+  65/15/25, `:152-200`, used by blasts §10.5); `ArmourProtection`/`TotalArmourProtection` for bullets (PreRandom
+  weak-spot roll, plates first, armour destroyed below `USABLE`, `:2588-2741`) are `11`'s.
 
 ### 1.6 Explosives (`X:ExplosiveModel.cc`, `explosives.json` 30 entries)
 
-See §10.1 for the fields and their values.
+Fields and their use: §10.1.
 
-### 1.7 Hard-coded tables (`Tactical/Items.cc:53-217`) — transcribe into `data/tables/`
+### 1.7 Attachment, merge and face-item tables (`Tactical/Items.cc:53-217`)
 
-| Table | Content |
-|---|---|
-| `AttachmentInfo` (`:66-91`) | attachment → host class and skill check: SPRING_AND_BOLT_UPGRADE and GUN_BARREL_EXTENDER need `ATTACHING_SPECIAL_ITEM_CHECK`, DETONATOR `ATTACHING_DETONATOR_CHECK`, REMDETONATOR the remote check −10, XRAY_BULB/COPPER_WIRE electronic −15/+20; the rest `NO_CHECK` |
-| `g_attachments` (`:93-104`) | non-model attachments: (REM)DETONATOR → TNT, HMX, C1, C4; SPRING → ALUMINUM_ROD; QUICK_GLUE, DUCT_TAPE → STEEL_ROD; XRAY_BULB, CHEWING_GUM → FUMBLE_PAK; BATTERIES → XRAY_DEVICE; COPPER_WIRE → LAME_BOY |
-| `CompatibleFaceItems` (`:106-116`) | NIGHT/SUN/UV goggles or GASMASK may share the face with EXTENDEDEAR or WALKMAN; nothing else pairs |
-| `Merge` (`:139-198`) | kit/drink `COMBINE_POINTS`; COMPOUND18 / JAR_QUEEN_CREATURE_BLOOD `TREAT_ARMOUR` (→ `_18` / `_Y`, or `DESTRUCTION` on the other treatment); RDX+TNT → HMX, RDX+C1 → C4 (`EXPLOSIVE`); STRING+TIN_CAN (`EASY_MERGE`); FLASH_DEVICE+DISPLAY_UNIT → XRAY_DEVICE (`ELECTRONIC_MERGE`). Same-id ammo merges as `COMBINE_POINTS` (`:786-809`) |
-| `AttachmentComboMerge` (`:211-217`) | ALUMINUM_ROD+SPRING → SPRING_AND_BOLT_UPGRADE; STEEL_ROD+QUICK_GLUE+DUCT_TAPE → GUN_BARREL_EXTENDER; FUMBLE_PAK+XRAY_BULB+CHEWING_GUM → FLASH_DEVICE; LAME_BOY+COPPER_WIRE → DISPLAY_UNIT |
+The hard-coded tables are transcribed into `data/tables/item-tables.json` by `tools/transcribe/item-tables.ts` and
+parsed by `parseItemRules` (`src/content/items/rules.ts`); item names are `internalName`s, `NOTHING` is item 0:
+
+| Key | Original | Meaning |
+|---|---|---|
+| `attachmentInfo` | `AttachmentInfo` (`:66-91`) | attachment, host class, skill check (`NO_CHECK`, `ATTACHING_SPECIAL_ITEM_CHECK`, `ATTACHING_DETONATOR_CHECK`, `ATTACHING_REMOTE_DETONATOR_CHECK`, `ATTACHING_SPECIAL_ELECTRONIC_ITEM_CHECK`) and its modifier |
+| `attachments` | `g_attachments` (`:93-104`) | non-model attachment → hosts (detonators on TNT, HMX, C1, C4; the parts of the combo merges) |
+| `compatibleFaceItems` | `CompatibleFaceItems` (`:106-116`) | the face pairs that may share HEAD1/HEAD2; nothing else pairs |
+| `merges` | `Merge` (`:139-198`) | `item1` + `item2` → `result` with `action` ∈ `COMBINE_POINTS`, `TREAT_ARMOUR`, `DESTRUCTION`, `EXPLOSIVE`, `EASY_MERGE`, `ELECTRONIC_MERGE`; same-id ammo merges as `COMBINE_POINTS` in code (`:786-809`) |
+| `comboMerges` | `AttachmentComboMerge` (`:211-217`) | base item with both listed attachments (`NOTHING` = none) → `result` |
+| `platesCanBeAttached` | `X:ArmourModel.cc:9-22` | the 12 vests that take CERAMIC_PLATES (§1.5) |
 
 - `ValidAttachment(a, item)` = the item model's `canBeAttached` (weapons §1.3, vest plates §1.5) or `g_attachments`
   (`:628-643`). `ValidItemAttachment` adds: a gun with UNDER_GLAUNCHER accepts 40 mm grenades; no duplicate attachment;
@@ -177,19 +153,12 @@ See §10.1 for the fields and their values.
 - `ValidLaunchable(l, w)`: `l` is an explosive with an explosive calibre that weapon `w` matches (`:747-763`).
 - `ValidAmmoType(gun, ammo)`: gun calibre = magazine calibre, any size (`:725-732`).
 
-### 1.8 Proposed content shape
-
-`src/content/items/` grows from `weapons.ts` into one `ItemTable`: `items[id] = { id, name, cls, cursor, weight,
-perPocket, coolness, reliability, flags, weapon?, magazine?, armour?, explosive? }`, built from the five JSON files in
-the load order above, plus the transcribed tables of §1.7 and the calibre/ammo-type/smoke/explosion-animation lists.
-Keep `handClass` as a derived helper. All of it is DOM-free content (`01` layers).
-
 ---
 
 ## 2. `OBJECTTYPE` (`Tactical/Item_Types.h:55-141`)
 
-36 bytes, little-endian; the same layout is embedded in `WORLDITEM` (map items, §6.1) and in detailed placements
-(`06` §7.1), so one decoder serves all three.
+36 bytes, little-endian; the same layout is embedded in `WORLDITEM` (map items, §6.1), in detailed placements
+(`06` §7.1) and in saves (`14`), so one decoder serves all of them (`decodeObject`, `src/content/formats/object.ts`).
 
 | Off | Field | Notes |
 |---|---|---|
@@ -210,7 +179,7 @@ round status); **stack** `bStatus[8]` / `ubShotsLeft[8]` at 4..11 (one value per
 rounds in each magazine); **money** `bMoneyStatus` 4, `uiMoneyAmount` u32 8; **bomb** `bBombStatus` 4,
 `bDetonatorType` 5 (1 timed, 2 remote, 3 pressure, 4 switch), `usBombItem` 6, `bDelay`/`bFrequency` 8, `ubBombOwner`
 9 (soldier id + 2), `bActionValue` 10, `ubTolerance` 11; **key** `bKeyStatus[6]` 4, `ubKeyID` 10; **ownership**
-`ubOwnerProfile` 4, `ubOwnerCivGroup` 5.
+`ubOwnerProfile` 4, `ubOwnerCivGroup` 5. ja2-node keeps separate fields (deviations.md "Object union").
 
 Rules:
 - Status is a percentage 1..100; `USABLE = 10` is the floor for use (`Item_Types.h:36`). `bStatus[0]` doubles as
@@ -221,15 +190,17 @@ Rules:
   everything else `bStatus[0] = status`. A status outside 1..100 is replaced by 70. `ITEM_DEFAULT_UNDROPPABLE` → flag.
   `CreateItems(item, status, n)` copies `bStatus[0]` into slots 1..n−1 (`:2640-2662`).
 - Stack operations: `RemoveObjFrom`, `RemoveObjs`, `GetObjFrom`, `StackObjs`, `PlaceObjectAtObjectIndex` shift the
-  status array (`:883-1074`). `CleanUpStack` (ctrl-click) pools points of ammo/kits/medkits into fewer objects
-  (`:990-1050`).
+  status array (`:883-1074`). `CleanUpStack` (ctrl-click, free) pools points of ammo/kits/medkits into fewer objects
+  (`:990-1050`): the cursor's points first, then the stack's own, each object's points moved down to the lower objects,
+  an emptied object dropped from the top of the count.
 - **Attach** `AttachObject(s, target, att, indexInStack)` (`:1515-1727`): launchables replace a launchable of the same
   class (refused for a stack of grenades); other attachments replace the same item or take the first free slot. If a
-  soldier does it, `AttachmentInfo` skill checks run (`SkillCheck` draws `PreRandom(100)`, `Tactical/SkillCheck.cc:342`);
-  failure damages both items by the margin. UNDER_GLAUNCHER carries its loaded grenade over. Combo merges fire after.
-  Otherwise try **merges**: non-`COMBINE_POINTS` merges cost `AP_MERGE` 8; `COMBINE_POINTS` moves points into
-  `bStatus[indexInStack]` up to 100 (magazines: capacity); explosive and electronic merges need a skill check −30;
-  default merges average the statuses (not for `TREAT_ARMOUR`).
+  soldier does it, the `AttachmentInfo` skill checks run (`ATTACHING_*` skills of `SkillCheck.cc:191-299`; `SkillCheck`
+  draws `PreRandom(100)`, `Tactical/SkillCheck.cc:342`); failure damages both items by the margin. UNDER_GLAUNCHER
+  carries its loaded grenade over. Combo merges fire after (mechanical experience). Otherwise try **merges**:
+  non-`COMBINE_POINTS` merges cost `AP_MERGE` 8; `COMBINE_POINTS` moves points into `bStatus[indexInStack]` up to 100
+  (magazines: capacity); explosive and electronic merges need a skill check −30 (explosives experience); default
+  merges average the statuses (not for `TREAT_ARMOUR`). Without a soldier (enemy gear, §8.5) no check runs.
 - `RemoveAttachment` refuses `ITEM_INSEPARABLE`; removing a UNDER_GLAUNCHER takes its grenade along (`:2810-2856`).
 
 ---
@@ -239,7 +210,8 @@ Rules:
 ### 3.1 Slots (`Tactical/Soldier_Control.h:226-249`)
 
 `0 HELMETPOS, 1 VESTPOS, 2 LEGPOS, 3 HEAD1POS, 4 HEAD2POS, 5 HANDPOS, 6 SECONDHANDPOS, 7..10 BIGPOCK1..4POS,
-11..18 SMALLPOCK1..8POS`. Profile/placement inventories use the same 19 indices.
+11..18 SMALLPOCK1..8POS`. Profile/placement inventories use the same 19 indices (`InvSlot` in
+`src/sim/tactical/inventory.ts`).
 
 ### 3.2 What can go where (`CanItemFitInPosition`, `Tactical/Items.cc:1730-1825`; `ItemSlotLimit`, `:273-289`)
 
@@ -264,7 +236,8 @@ Rules:
 4. Different item: ammo onto a gun of its calibre, or a launchable onto its launcher, **reloads** (`ReloadGun`, §4);
    a two-handed item into HANDPOS swaps only if SECONDHANDPOS is empty; otherwise swap if the object fits, else
    `DropObjIfThereIsRoom`.
-5. Face items re-run sight (`HandleSight`); `EnsureConsistentWeaponMode` (`Tactical/Weapons.cc:3747-3765`).
+5. Face items re-run sight (`HandleSight`); `EnsureConsistentWeaponMode` drops a burst or launcher mode the new hand
+   item cannot fire (`Tactical/Weapons.cc:3747-3765`).
 
 `AutoPlaceObject(s, obj, newItem)`:
 1. One-handed `IC_GUN|BLADE|LAUNCHER|BOMB|GRENADE` → empty HANDPOS, else empty SECONDHANDPOS if the main hand is not
@@ -276,9 +249,8 @@ Rules:
 `FindEmptySlotWithin` skips SECONDHANDPOS behind a two-handed main hand (`:467-486`). `SwapHandItems` (`:3286-3312`)
 moves the main-hand item to a pocket first if the second hand holds a two-handed item.
 
-**Moving items inside one soldier's inventory is free** in combat; handing an item to another merc through the panel
-needs 3 AP and charges 2 AP to each conscious party (`Tactical/Interface_Panels.cc:1673-1712, 1549-1561`); tossing to a
-merc in range charges 3 + 3 (`Tactical/Interface_Items.cc:3404-3420`).
+ja2-node: each inventory command is one pick-up plus one `PlaceObject`, checked on copies first; what stays in the
+cursor goes back at once (deviations.md "Item cursor").
 
 ### 3.4 Hands
 
@@ -286,20 +258,25 @@ merc in range charges 3 + 3 (`Tactical/Interface_Items.cc:3404-3420`).
   `bGunStatus ≥ USABLE`, shots left, not bursting (`Tactical/Soldier_Control.cc:8624-8633`); readying both costs
   `AP_READY_DUAL` 1.
 - Weapon modes `WM_NORMAL → WM_BURST → WM_ATTACHED` (UGL with a grenade attached) (`Weapons.cc:3770-3811`).
+- `HandleTacticalEffectsOfEquipmentChange` (`Interface_Panels.cc`) after each pick-up and placement: the launcher-mode
+  check and, for hand slots, `ReLoadSoldierAnimationDueToHandItemChange` (burst off for guns without burst, out of the
+  aim, first aid ends, `LOWER_RIFLE`/`RAISE_RIFLE` when standing). NPC action 6 (`LOWER_GUN`) calls it too.
 - AI: `RearrangePocket` is a **free swap** (`TacticalAI/AIUtils.cc:2013-2017`); `CanNPCAttack` swaps the first usable
   weapon into HANDPOS and a second one-handed gun into SECONDHANDPOS (`TacticalAI/Attacks.cc:1573-1592`);
   `FindAIUsableObjClass` skips `OBJECT_AI_UNUSABLE`, status < USABLE and, for `IC_GUN`, EXPLOSIVE_GUNs
-  (`Tactical/Items.cc:420-444`). `WearGasMaskIfAvailable` swaps a gas mask to the face (`AIUtils.cc:1566-1577`).
+  (`Tactical/Items.cc:420-444`). `WearGasMaskIfAvailable` swaps a gas mask to the face (`AIUtils.cc:1566-1577`); not
+  ported (deviations.md "Ambush").
 
 ### 3.5 Keys
 
 PCs collect keys on a key ring (`pKeyRing`, `KEY_ON_RING {ubKeyID, ubNumber}`), managed by the UI
 (`Tactical/Items.cc:2324-2391`); key objects store `ubKeyID` (byte 10 of the 36-byte record, the union slot after
 `bKeyStatus[6]`). Enemies "with keys" and profiled NPCs hold key items in pockets (`Tactical/Soldier_Create.cc:1993-2013`).
-ja2-node: `ItemObject.keyId`, `Soldier.keyRing` (our team only, 64 slots, imported from native saves), `KeyTable`
-(where and when each key was first placed into a PC's inventory, `CollectKey` in `PlaceObject`), key items found through
-`classIndex == LockTable[keyId].usKeyItem` (`CreateKeyObject`). The key ring drops with the corpse and with left equipment
-(`DropKeysInKeyRing`). Locks, door actions and traps: `25` §8 (`src/sim/tactical/doors/`).
+ja2-node (`src/sim/tactical/doors/keys.ts`, `key-ring.ts`): `ItemObject.keyId`, `Soldier.keyRing` (our team only,
+`NUM_KEYS` 64 slots, imported from native saves), `KeyTable` (where and when each key was first placed into a PC's
+inventory, `collectKey` from `PlaceObject`), key items found through `classIndex == LockTable[keyId].usKeyItem`
+(`createKeyObject`). The key ring drops with the corpse and with left equipment (`dropKeysInKeyRing`). Locks, door
+actions and traps: `25` §8 (`src/sim/tactical/doors/`).
 
 ### 3.6 Weight and encumbrance (`Tactical/Items.cc:819-867`)
 
@@ -314,7 +291,7 @@ percent    = (100·carried) / (str'·500)                                       
 ```
 
 Vanilla stores `ubWeight` per object and computes `10·Σ / (str'/2)` (`V:Tactical/Items.c:1836-1860`), which differs for
-odd strengths; follow Stracciatella.
+odd strengths; ja2-node follows Stracciatella (`carriedWeightPercent`, `inventory.ts`).
 
 Effects (all integer):
 - `s.sWeightCarriedAtTurnStart = percent` at `EVENT_BeginMercTurn` (`Tactical/Soldier_Control.cc:4061`), before
@@ -325,7 +302,8 @@ Effects (all integer):
   CTH, everything.
 - **Breath**: `BreathPointAdjustmentForCarriedWeight` = 100 up to 100 %; `100 + 3·(p−100)` up to 150; `+ (p−150)` up to
   200; `+ (p−200)` above (`Tactical/Points.cc:117-151`; the comments say 1 %/2 %/3 %, the code says 3/4/5). Terrain
-  breath cost ×adj/100 (`:195`); unused-AP breath recovery ×100/adj (`:674, 746`).
+  breath cost ×adj/100 (`:195`); unused-AP breath recovery ×100/adj (`:674, 746`). Unlike APs and agility, breath uses
+  the current weight, not the turn-start value (`breathAdjustmentForCarriedWeight`, `points.ts`).
 - Strategic travel speed and assignments also read it (`Strategic/Strategic_Movement.cc:1018`, `Assignments.cc:2088`).
 
 ---
@@ -374,7 +352,7 @@ loaded rounds back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345
 - Firing: `EnoughAmmo` (`Points.cc:1322-1350`; launchers need an attached grenade/bomb; `WM_ATTACHED` always true);
   `DeductAmmo` decrements `ubGunShotsLeft` or removes the launcher's attached round (`:1353-1405`). Jams (PCs only,
   PreRandom, `bGunAmmoStatus` negated) and wear (`!PreRandom(15 + 3·reliability)` → status −1, `Weapons.cc:871-875`)
-  belong to the combat spec (`Weapons.cc:245-321`).
+  are `11`'s (`Weapons.cc:245-321`).
 - A fired ROCKET_LAUNCHER becomes DISCARDED_LAW with the same status (`Weapons.cc:791, 828`).
 
 ---
@@ -384,17 +362,17 @@ loaded rounds back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345
 | Action | AP | Breath | Source |
 |---|---|---|---|
 | Reload (cursor, hotkey, magazine dropped on the gun) | 5 (`AP_RELOAD_GUN`); 10 with a wrong-size magazine; free in real time | – | `Points.cc:1432-1448`; `Items.cc` `ReloadGun` |
-| Attach in the item box | 5 must be left (merges: §2); closing the box in combat charges 5 (`AP_RELOAD_GUN`) once to the cursor's merc, or the box owner, when the attachments (item and status) changed; ja2-node charges 5 per accepted `attach` that changes them (deviation "Attachment AP") | – | `Interface_Items.cc:1987`, `:1816-1822`, `:2530-2588` |
+| Attach in the item box | 5 must be left (merges: §2); closing the box in combat charges 5 (`AP_RELOAD_GUN`) once to the cursor's merc, or the box owner, when the attachments (item and status) changed; ja2-node charges 5 per accepted `attach` that changes them (deviations.md "Attachment AP") | – | `Interface_Items.cc:1987`, `:1816-1822`, `:2530-2588` |
 | Remove an attachment in the item box | 8 (`AP_RELOAD_GUN + AP_PICKUP_ITEM`) must be left; the closing charge above; ja2-node charges 5 per accepted `detach` | – | `Interface_Items.cc:2001` |
 | Unload the magazine (item box ammo button) | 0 | – | `Interface_Items.cc` `ItemDescAmmoCallback` |
 | Move inside one inventory | 0 | – | `Interface_Panels.cc` `SMInvClickCallbackPrimary` |
-| Hand to another merc through the panel | 3 each must be left, 2 each spent (conscious mercs only) | – | `Interface_Panels.cc:1549-1561, 1673-1712` |
+| Hand to another merc through the panel | 3 each must be left, 2 each spent (conscious mercs only); passing to a merc in range from the cursor: 3 + 3 | – | `Interface_Panels.cc:1549-1561, 1673-1712`; `Interface_Items.cc:3404-3420` |
 | Pick up item | 3 (`AP_PICKUP_ITEM`) + path cost | – | `Handle_Items.cc:1295-1297`; `Points.cc:1417-1423` |
 | Give item (to adjacent soldier) | 1 (`AP_GIVE_ITEM`) + path | – | `Points.cc:1426-1429` |
 | Drop item from the cursor on the own tile | 3 (`AP_PICKUP_ITEM`), unless the pickup was free | – | `Interface_Items.cc` `HandleItemPointerClick`; `Handle_Items.cc:970-984` |
 | Toss item (non-explosive throw) | 8 (`AP_TOSS_ITEM`), charged at the release frame | – | `Soldier_Ani.cc:857-866` |
-| Throw grenade | `MinAPsToThrow` (+ aim): `AP_CHANGE_TARGET` 1 if new target + stance→stand + `(100·2·fullAP / (18·(50+dex/2)/10) + 1)/2`, capped at full APs | – | `Points.cc:1692-1742` |
-| Fire launcher | `MinAPsToShootOrStab` + aim (combat spec) | | `Points.cc:1081` |
+| Throw grenade | `MinAPsToThrow` (`11` §7.2) | – | `Points.cc:1692-1742` |
+| Fire launcher | `MinAPsToShootOrStab` + aim (`11` §7.8) | | `Points.cc:1081` |
 | Plant bomb / mine | 3 (`AP_DROP_BOMB`) + path | | `Points.cc:1745-1755` |
 | Use remote / detonator | 2 (`AP_USE_REMOTE`) | 0 | `Handle_Items.cc:737-755` |
 | Merge (not combine) | 8 (`AP_MERGE`) | | `Items.cc:1635-1639` |
@@ -406,12 +384,28 @@ loaded rounds back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345
 | Ready weapon | `ubReadyTime` (dual: 1) | – | `Points.cc:1612-1645` |
 
 The item `BP_*` constants (`BP_RELOAD_GUN`, `BP_THROW_ITEM`, `BP_READY_*`, `Points.h`) are never used; breath for these
-actions comes only from the per-animation breath rates (`GetBreathPerAP`, `Points.cc:764-840`).
+actions comes only from the per-animation breath rates (`GetBreathPerAP`, `Points.cc:764-840`). ja2-node: `applyItem`
+refuses drugs and alcohol (deviations.md "Drugs and alcohol"); planting, wire cutters, repair, refuel, jars and tin cans
+have no command ("Unbuilt item actions").
 
 **Hand item breakage** (`HandItemWorks`, `Tactical/Handle_Items.cc:2639-2696`), run by every `HandleItem` call before
 anything else: for an `ITEM_DAMAGEABLE` hand item that is not a pressure explosive, medkit or gas can — status <
 `USABLE` → fails; else `Random(80) + 20 ≥ status + 50` → **breaks**, status = `1 + Random(9)` (main stream; only
-items below 50 % can break). A working main-hand gun also checks a loaded second-hand gun.
+items below 50 % can break). A working main-hand gun also checks a loaded second-hand gun (`handItemWorks`,
+`src/sim/tactical/combat/attack.ts`).
+
+### 5.1 First aid (`Handle_Items.cc` `HandleItem` medkit branch; `Soldier_Control.cc`; `Overhead.cc`)
+
+`EVENT_SoldierBeginFirstAid` (refusals: `PCDoesFirstAidOnNPC`, creatures, hostile soldiers) → `START_AID` →
+`GIVING_AID` loop → `END_AID` (code 768; stands up when no enemy is left); `SoldierGotoStationaryStance` returns a medic
+to `GIVING_AID`. `SoldierDressWound` heals with `RT_FIRST_AID_GAIN_MODIFIER` from `HandlePlayerServices` in
+`EndTurnEvents` and `HandleTacticalEndTurn`. `InternalReceivingSoldierCancelServices` /
+`InternalGivingSoldierCancelServices` end it at movement start, stop, stance change, climbs, blasts, collapse,
+incapacitation, death, teleport, suppression and hand item changes; `BeginSoldierGetup` waits for the bandage. Being
+bandaged costs `AIM_PENALTY_GETTINGAID` 20 in gun, thrown and close-combat chances and the interrupt duel (`11`).
+ja2-node: `first-aid.ts`, soldier fields `servicePartner`, `serviceCount`, `pendingAid` (imported from native saves);
+the stub `START_AID` script jumps to the `GIVING_AID` loop like the original's. Auto-bandage is not ported
+(deviations.md "Auto-bandage").
 
 ---
 
@@ -419,13 +413,16 @@ items below 50 % can break). A working main-hand gun also checks a loaded second
 
 ### 6.1 Records (`Tactical/World_Items.h:10-35`)
 
-`WORLDITEM` (52 bytes, raw in map files): `fExists` 0, `sGridNo` i16 2, `ubLevel` 4, `o` OBJECTTYPE 8..43, `usFlags`
-u16 44 (`DONTRENDER 0x01`, `FIND_SWEETSPOT_FROM_GRIDNO 0x02`, `ARMED_BOMB 0x40`, `SCIFI_ONLY 0x80`, `REALISTIC_ONLY
-0x100`, `REACHABLE 0x200`, `GRIDNO_NOT_SET_USE_ENTRY_POINT 0x400`), `bRenderZHeightAboveLevel` i8 46, `bVisible` i8 47,
-`ubNonExistChance` 48. `src/content/formats/map.ts` already exposes these plus `raw`; decode `o` with the §2 table.
+`WORLDITEM` (52 bytes, raw in map files and save temp files): `fExists` 0, `sGridNo` i16 2, `ubLevel` 4, `o`
+OBJECTTYPE 8..43, `usFlags` u16 44 (`DONTRENDER 0x01`, `FIND_SWEETSPOT_FROM_GRIDNO 0x02`, `ARMED_BOMB 0x40`,
+`SCIFI_ONLY 0x80`, `REALISTIC_ONLY 0x100`, `REACHABLE 0x200`, `GRIDNO_NOT_SET_USE_ENTRY_POINT 0x400`),
+`bRenderZHeightAboveLevel` i8 46, `bVisible` i8 47, `ubNonExistChance` 48. `src/content/formats/map.ts` exposes these
+plus `raw`; `o` decodes with §2.
 
 `gWorldItems` is a vector of slots reused first-free (`World_Items.cc:122-134`); `gWorldBombs` indexes armed bombs.
-Per tile and level an **item pool** is a linked list in insertion order (`Handle_Items.cc:1427-1629`).
+Per tile and level an **item pool** is a linked list in insertion order (`Handle_Items.cc:1427-1629`). ja2-node keeps
+one list `TacticalState.worldItems` (`WorldItem {gridNo, level, object, flags, zHeight, visible}`,
+`src/sim/tactical/world-items.ts`); a tile's pool is its entries in list order (`itemsAt`).
 
 Visibility (`Handle_Items.h:28-37`): `HIDDEN_ITEM −4` (needs a search on the tile), `BURIED −3` (armed bombs, pits),
 `HIDDEN_IN_OBJECT −2` (closed openable), `INVISIBLE −1` (not yet seen), `VISIBLE 1`.
@@ -442,14 +439,17 @@ For each record in file order (skipped entirely when the sector was visited befo
    (`BOMB_PRESSURE`), `ARMED_BOMB` flag, `MAPELEMENT_ENEMY_MINE_PRESENT` on the tile. Armed bombs are BURIED.
 6. `AddItemToPool(grid, o, bVisible, level, flags, zHeight)`; then terrorist/queen ownership clean-ups (`:353-430`).
 
+ja2-node (`loadWorldItemsFromMap`) keeps the draw and the filters; which armed items act is in §12 (deviations.md "Map
+items").
+
 ### 6.3 `AddItemToPool` (`Handle_Items.cc:1427-1629`)
 
 - `NOWHERE` → map centre (logged). **Water + `ITEM_SINKS` → item destroyed** (returns −1).
-- Level 1 without a flat roof above → level 0.
+- Level 1 without a flat roof above → level 0 (ja2-node: any roof-layer tile counts as a flat roof).
 - `zHeight == −1` means "force on ground". A blocking structure on the tile at that level (not person/corpse; OWNERSHIP
   and ACTION_ITEM ignore structures): the item moves to the structure's base tile; an **openable** sets
   `DONTRENDER`, `HIDDEN_IN_OBJECT` while closed, z = structure height; a `STRUCTURE_GENERIC` puts the item on top at its
-  densest level and sets `STRUCTURE_HASITEMONTOP`.
+  densest level and sets `STRUCTURE_HASITEMONTOP` (ja2-node: no structure flag).
 - SWITCH items become BURIED pressure/switch triggers; pits mark `MAPELEMENT_ENEMY_MINE_PRESENT`.
 - Appends to the pool, sets `MAPELEMENT_ITEMPOOL_PRESENT`.
 
@@ -478,17 +478,27 @@ For each record in file order (skipped entirely when the sector was visited befo
    to activate, else `RemoveItemFromPool` + `AutoPlaceObject`; an item that does not fit goes to the cursor (players)
    and the pickup is then free (`gfDontChargeAPsToPickup`). Charges `AP_PICKUP_ITEM` once.
 
+ja2-node (`src/sim/tactical/item-actions.ts`): the command names the entries instead of the menu, an item that does
+not fit stays on the ground (deviations.md "Picking up items").
+
 ### 6.6 Dropping, giving, tossing
 
 - Drop: object copied to `pTempObject`; standing → `DROP_ITEM` animation, code **487** adds it `VISIBLE` at the
   soldier's tile (`zHeight −1`); crouched/prone → immediate (`Handle_Items.cc:970-984, 1097-1101`;
   `Soldier_Control.cc:8240-8256`).
-- Give: walk adjacent, `MERC_GIVEITEM`, code **486** transfers (`Handle_Items.cc:1056-1094, 2306`).
+- Give: walk adjacent, `MERC_GIVEITEM`, code **486** transfers (`Handle_Items.cc:1056-1094, 2306`; ja2-node `give.ts`).
 - Toss (non-explosive): `THROW_ITEM`/`LOB_ITEM` animation, physics object, `AP_TOSS_ITEM` at code 460/461
-  (`Handle_Items.cc:988-1053`).
-- AI item search (`SearchForItems`, `TacticalAI/FindLocations.cc:1489-1676`): range from difficulty and attitude, capped
-  at wisdom/10, halved in real time, then halved; scores better weapons/armour/ammo over all items in reach,
-  discounted by `3/(3 + distance)`; may drop or destroy the hand item first.
+  (`Handle_Items.cc:988-1053`; ja2-node `toss.ts`, catching in `explosions/catching.ts`; deviations.md "Tossing from
+  the item cursor").
+- AI item search (`SearchForItems`, `TacticalAI/FindLocations.cc:1489-1676`; ja2-node `ai/item-search.ts`): range from
+  difficulty and attitude, capped at wisdom/10, halved in real time, then halved; scores better weapons/armour/ammo
+  over all items in reach, discounted by `3/(3 + distance)`; may drop or destroy the hand item first.
+
+### 6.7 Sector inventory on the map screen
+
+The loaded sector's world items, or another visited sector's diff items (`src/sim/campaign/map-inventory.ts`). The
+reachable flag comes from `HandleAllReachAbleItemsInTheSector` (`Tactical_Save.cc`), also run when a sector is saved,
+so items left in a visited sector are takeable on the map screen and stealable by `RemoveRandomItemsInSector` (`18`).
 
 ---
 
@@ -499,19 +509,20 @@ For each record in file order (skipped entirely when the sector was visited befo
   `money` (`X:mercs/MercProfile.cc:324-347`); the shipped `mercs-profile-info.json` only has a commented-out example.
 - `InitProfileFromContent` (`Tactical/Soldier_Profile.cc:126-218`), reduced guns: every big-list gun is replaced by its
   `standardReplacement`, and every magazine that fitted the old gun (calibre **and** size) by
-  `FindReplacementMagazine(newCalibre, newSize, sameAmmoType)` (`:161-183`). Examples (inferred from code + data): Vicki's
-  M1911/CLIP45_7 become GLOCK_17/CLIP9_15; Ivan's MP53 (5.56, 30) becomes MP5K (9 mm, 30) and his CLIP556_30_AP becomes
+  `FindReplacementMagazine(newCalibre, newSize, sameAmmoType)` (`:161-183`). Examples (inferred from code + JSON):
+  M1911/CLIP45_7 become GLOCK_17/CLIP9_15; MP53 (5.56, 30) becomes MP5K (9 mm, 30) and CLIP556_30_AP becomes
   CLIP9_30_AP. Then `bMainGunAttractiveness`, `bArmourAttractiveness` and `usOptionalGearCost` (sum of prices).
+  ja2-node: `reducedGunListInventory` (`inventory.ts`).
 - `CopyProfileItems` (`Tactical/Soldier_Create.cc:1981-2060`):
   - **Player team** (hiring with "buy equipment" from AIM, always for MERC/IMP, `Laptop/AIMMembers.cc:1194`,
     `Mercs_Files.cc:428`, `IMP_Confirm.cc:142`): clear the inventory, then for each profile slot in order
     `CreateItems(item, status, count)`, `TryToAttach` (an `ITEM_ATTACHMENT` item goes onto the first valid host,
     `:1963-1978`) or `AutoPlaceObject`. The profile slot indices are **not** kept. Without the option the merc arrives
-    empty.
+    empty. ja2-node: `hiredMercInventory`.
   - **Other teams** (profiled NPCs, Mike/Iggy as enemies): slot-for-slot copy; keys only for Brewster 19, Skipper 11,
     Doreen 32; ROCKET_RIFLE/AUTO_ROCKET_RIFLE imprinted; `ubInvUndroppable & gubItemDroppableFlag[slot]`
     (`0x01,0x02,0x04,0,0,0x08,0,0x10,0x20,0x40,0x80,0…`, `:75-96`) → `OBJECT_UNDROPPABLE`; money split over empty
-    pockets by `MoneySlotLimit`.
+    pockets by `MoneySlotLimit`. ja2-node: `npcProfileInventory` (`DROPPABLE_FLAG`).
 
 ---
 
@@ -520,6 +531,8 @@ For each record in file order (skipped entirely when the sector was visited befo
 All draws are **`Random`** (main stream), none PreRandom. `Chance(n)` = `Random(100) < n` and always draws;
 `Random(0)` returns 0 without drawing; `Random(1)` draws (`sgp/Random.cc:62-74`; libstdc++ consumes the engine for a
 one-value range, inferred). Keep both rules: single-entry gun levels and single matches call `Random(1)`.
+ja2-node: `src/sim/tactical/equipment.ts` (`generateRandomEquipment`, `replaceExtendedGuns`, `equipTank`), called from
+`creation.ts`.
 
 ### 8.1 Where it runs
 
@@ -552,8 +565,9 @@ mod  = bRelativeEquipmentLevel (0..4) + diff/10 − 5
 r    = clamp(base + mod, 1, 11);  base 1 admin / green militia, 3 army / regular militia, 5 elite / elite militia
 ```
 
-A9 at a new game: distance 16 → location 6 → diff easy 1, medium **11**, hard 21. **(data)** The six priority ARMY
-placements have equipment level 3 (19417) and 0 (the other five), so on medium r = 2 and 1.
+A9 at a new game: distance 16 → location 6 → diff easy 1, medium **11**, hard 21. `CalcDifficultyModifier` is `17`
+§11; ja2-node computes it once per sector load (deviations.md "Difficulty and progress in tactical"; the sandbox uses
+the medium value 11, "Sandbox population").
 
 ### 8.3 Budget per class (`:170-420`), in draw order
 
@@ -584,10 +598,10 @@ elite / elite militia:  weapon = helmet = vest = leggings = attach = grenade = k
 ```
 
 **Slot pass** (`:423-486`): every slot without NO_OVERWRITE becomes empty with `fFlags = OBJECT_UNDROPPABLE` (the 0x01
-seen on A9's static slots). A NO_OVERWRITE item switches the matching generator off: a gun other than the LAW negates
-`weaponClass` (pre-selected gun, §8.5; two locked guns flip it back — quirk), the LAW clears the LAW flag, ammo sets
-clips 0, a knife sets knife 0, a launcher clears GL and mortar, armour zeroes its class, grenades zero count and class,
-kits/misc/bombs zero their class. Militia lose `bomb` after its `Chance(25)` was drawn (`:490-493`).
+seen on static placement slots). A NO_OVERWRITE item switches the matching generator off: a gun other than the LAW
+negates `weaponClass` (pre-selected gun, §8.5; two locked guns flip it back — quirk), the LAW clears the LAW flag, ammo
+sets clips 0, a knife sets knife 0, a launcher clears GL and mortar, armour zeroes its class, grenades zero count and
+class, kits/misc/bombs zero their class. Militia lose `bomb` after its `Chance(25)` was drawn (`:490-493`).
 
 Then, in order (`:497-506`): weapon → grenades → armour → special weapons → face gear → kits → misc → bombs →
 location-specific → droppability.
@@ -595,23 +609,9 @@ location-specific → droppability.
 ### 8.4 Gun tables (`J:army-gun-choice-{normal,extended}.json`; loader `X:DefaultContentManager.cc:791-807`)
 
 `SelectStandardArmyGun(level)` = `list[Random(list.size())]` from the **normal** table (extended only with
-`fGunNut`) (`Inventory_Choosing.cc:1925-1948`). Level = weapon class − 1.
-
-| Level | Normal | Extended |
-|---|---|---|
-| 0 | SW38, DESERTEAGLE | SW38, BARRACUDA, DESERTEAGLE, GLOCK_17, M1911 |
-| 1 | GLOCK_17, BERETTA_93R | GLOCK_18, BERETTA_93R, BERETTA_92F, M870 |
-| 2 | M870, MP5K | TYPE85, THOMPSON, MP53, MP5K, SPAS15 |
-| 3 | MINI14 | MINI14, SKS |
-| 4 | MAC10, COMMANDO | MAC10, AKSU74, COMMANDO |
-| 5 | G41 | AKM, G3A3, G41, AK74 |
-| 6 | M24 | DRAGUNOV, M24 |
-| 7 | M14, C7 | FAMAS, M14, AUG, C7 |
-| 8 | FNFAL | FNFAL |
-| 9 | MINIMI | MINIMI, RPK74, HK21E |
-| 10 | ROCKET_RIFLE, MINIMI | ROCKET_RIFLE ×2, RPK74, HK21E |
-
-`army-compositions.json` only sizes garrisons (`06` §7.2); it has no equipment.
+`fGunNut`) (`Inventory_Choosing.cc:1925-1948`). Level = weapon class − 1; each file holds 11 levels (0..10) of gun
+`internalName`s (a repeated name weighs double); ja2-node: `ItemTable.gunChoice`. The extended table also defines the
+gun **types** of the first-drop rule (§8.7). `army-compositions.json` only sizes garrisons (`06` §7.2); it has no equipment.
 
 ### 8.5 Choosers (all iterate items in container order = ascending item id)
 
@@ -666,8 +666,9 @@ clip and GL grenade stacks cap at 4, mortar shells at 2.
 Everything starts undroppable. Then:
 1. **First drop of each gun type** (enemy classes, not autoresolve, no RNG): each weapon slot whose item is not yet in
    `alreadyDroppedWeapons` becomes droppable and its extended-table level is marked (`:51-88`;
-   `Strategic/Strategic_Status.cc:26-27, 457-472`, saved). `InitArmyGunTypes` pre-marks level 0 (SW38, BARRACUDA,
-   DESERTEAGLE, GLOCK_17, M1911) at campaign start. Marking happens at **generation**, not death.
+   `Strategic/Strategic_Status.cc:26-27, 457-472`, saved). `InitArmyGunTypes` pre-marks level 0 of the extended table at
+   campaign start. Marking happens at **generation**, not death. ja2-node: `EquipmentState.weaponsAlreadyDropped`,
+   shared with the strategic status (`sharedWeaponsDropped`) at sector load and in autoresolve.
 2. Rates: militia ammo 5, grenade 3, other 2; everyone else 50 / 25 / 15 (`:23-30`).
 3. **Eight draws, always, in order**: ammo `< A`, weapon `< O`, armour `< O`, knife `< O`, grenade `< G`, kit `< O`,
    face `< O/3`, misc `< O`.
@@ -676,13 +677,9 @@ Everything starts undroppable. Then:
    counts matches `n`, then walks them drawing `Random(n−−)` until a 0 (the last candidate draws `Random(1)`)
    (`:1489-1521`).
 
-**(inferred) A9, medium, r = 1 trooper**: SW38 or DESERTEAGLE, status `60 + Random(16)` floored at marksmanship, 2–3
-regular clips (91 %), no armour, knife or grenades, FAK 50 % / medikit 12.5 %, rarely a gas mask or night goggles; gun
-type already marked, so the gun drops only through the 15 % roll. The r = 2 trooper can get FLAK_JACKET, STEEL_HELMET,
-COMBAT_KNIFE and GLOCK_17/BERETTA_93R (or M870/MP5K or a level-0 pistol via the `Random(7)` tweak).
-
-Creatures (`AssignCreatureInventory`, `:1758-1853`) get claws/spit/hides (default-undroppable) and part drops (BIGPOCK1..3)
-by `Random(100) <` 30/15/5 (adult/young/infant; bloodcat 30). Profiled enemies (Mike, Iggy) carry their profile items.
+Creatures (`AssignCreatureInventory`, `:1758-1853`; ja2-node `creation.ts`) get claws/spit/hides (default-undroppable)
+and part drops (BIGPOCK1..3) by `Random(100) <` 30/15/5 (adult/young/infant; bloodcat 30). Profiled enemies (Mike, Iggy)
+carry their profile items.
 
 ---
 
@@ -691,11 +688,11 @@ by `Random(100) <` 30/15/5 (adult/young/infant; bloodcat 30). Profiled enemies (
 ### 9.1 On death (`Tactical/Rotting_Corpses.cc:609-758`)
 
 Frame code **440** of the death animation → `CheckForAndHandleSoldierDeath` → `HandleSoldierDeath` →
-`TurnSoldierIntoCorpse` (`Tactical/Soldier_Ani.cc:1678-1681, 2855-2986`; `03` §6 "dying").
+`TurnSoldierIntoCorpse` (`Tactical/Soldier_Ani.cc:1678-1681, 2855-2986`; `01` §3.5 "dying").
 
 ```
 vis = (team == OUR_TEAM || profile == QUEEN) ? VISIBLE : INVISIBLE
-queen: 6/5/4 (easy/medium/hard) jars of queen blood two rows south; robot: nothing
+queen monster corpse: 6/5/4 (easy/medium/hard) JAR_QUEEN_CREATURE_BLOOD two rows south; robot: nothing
 else for slot 0..18 with an item:
    if (!(fFlags & UNDROPPABLE) || team == OUR_TEAM || drop_everything) && !(item.flags & ITEM_DEFAULT_UNDROPPABLE):
       if team != OUR_TEAM && item is IC_AMMO: count = 1 + Random(count)            // ReduceAmmoDroppedByNonPlayerSoldiers, :1273-1281
@@ -705,13 +702,14 @@ AllSoldiersLookforItems()                                     // RevealRoofsAndI
 non-player: TacticalRemoveSoldier; corpse added
 ```
 
+ja2-node (`turnSoldierIntoCorpse`, `src/sim/tactical/combat/death.ts`) drops VISIBLE only for our team: Deidranna's
+items fall INVISIBLE and the creature queen leaves no jars.
+
 ### 9.2 Weapon knocked out of the hand (`SoldierTakeDamage`, `Tactical/Soldier_Control.cc:5715-5756`)
 
-Not for blood loss or robots:
-`chance = max(0, 2·max(lifeLoss, breathLoss/100) (+20 vs a bloodcat attacker) − EffectiveStrength) − (hand undroppable ?
-30 : 0)`; **`Random(100) < (UINT16)chance` is always drawn**; a droppable hand item is added to the pool (VISIBLE for
-our team, else INVISIBLE, zHeight −1) and deleted. A negative chance wraps to a huge value, but the undroppable check then
-blocks the drop.
+`11` §5.2: on every hit except blood loss (not robots) `Random(100) < (UINT16)chance` is always drawn; a droppable hand
+item falls VISIBLE for our team, else INVISIBLE (zHeight −1). A negative chance (undroppable item, −30) wraps to a huge
+value, but the undroppable check then blocks the drop.
 
 ---
 
@@ -721,75 +719,42 @@ blocks the drop.
 
 Stracciatella replaces vanilla's `EXPLOSIVETYPE.ubType` (NORMAL, STUN, TEARGAS, MUSTGAS, FLARE, NOISE, SMOKE,
 CREATUREGAS; `V:Tactical/Weapons.h:112-119`) by optional effect blocks (`X:ExplosiveModel.h:9-34`,
-`X:ExplosiveModel.cc:136-226`): `blastEffect {damage, radius, structuralDamageDivisor}`, `stunEffect {breathDamage,
-radius}`, `smokeEffect {type, initialRadius, maxRadius, duration}`, `lightEffect {radius, duration}`, plus `noise`,
-`volatility`, `isPressureTriggered`, `calibre` (launchable rounds) and `animation`. There is no fire, burnable gas or
-flashbang.
+`X:ExplosiveModel.cc:136-226`). There is no fire, burnable gas or flashbang.
+
+**`J:explosives.json`** (items 131–160; ja2-node `ExplosiveDef`): `blastEffect {damage, radius,
+structuralDamageDivisor}`, `stunEffect {breathDamage, radius}`, `smokeEffect {type, initialRadius, maxRadius,
+duration}` (`type` names a smoke effect), `lightEffect {radius, duration}`, `noise` (§10.3), `volatility` (§10.7),
+`isPressureTriggered` (MINE, TRIP_FLARE, TRIP_KLAXON), `calibre` (launchable rounds: 40MM_GRENADE, MORTAR_SHELL,
+TANK_SHELL) and `animation`. TRIP_FLARE and BREAK_LIGHT only light, TRIP_KLAXON only makes noise; STRUCTURE_IGNITE
+(153) has blast 100 with radius 0 (`Reduce` returns the full damage, §10.4). The creature gases (158–160) have no
+animation: `InternalIgniteExplosion` rejects them after raising the busy count (quirk), and creature code spawns them
+with `NewSmokeEffect` directly (inferred).
 
 **`structuralDamageDivisor` is never read**: the parser asks for `"structuralDamageDisivor"` (`X:ExplosiveModel.cc:189`),
 the JSON says `"structuralDamageDivisor": 3` (STUN, MINI, HAND, GL_HE, GL_STUN grenades, CREATURE_COCKTAIL), so the
 divisor is 0 and grenades do **full** structural damage. Vanilla divides grenade structure damage by 3
-(`V:TileEngine/ExplosionControl.c:1374`). Decision in §14.
+(`V:TileEngine/ExplosionControl.c:1374`). ja2-node parses the value and does not use it (deviations.md "Structural
+damage of grenades").
 
-| Item | Blast dmg/r | Stun bd/r | Smoke type init/max/dur | Light r/dur | Noise | Vol | Animation |
-|---|---|---|---|---|---|---|---|
-| 131 STUN_GRENADE | 1/4 | 70/4 | | | 0 | 0 | STUN_BLAST |
-| 132 TEARGAS_GRENADE | | | TEARGAS 1/4/5 | | 0 | 0 | TARGAS_EXP |
-| 133 MUSTARD_GRENADE | | | MUSTARDGAS 1/4/5 | | 0 | 0 | MUSTARD_EXP |
-| 134 MINI_GRENADE | 15/3 | 7/3 | | | 15 | 1 | BLAST_1 |
-| 135 HAND_GRENADE | 25/4 | 10/4 | | | 25 | 1 | BLAST_1 |
-| 136 RDX | 40/5 | 12/5 | | | 20 | 10 | BLAST_2 |
-| 137 TNT | 50/5 | 15/5 | | | 50 | 2 | BLAST_2 |
-| 138 HMX | 60/6 | 15/6 | | | 60 | 2 | BLAST_2 |
-| 139 C1 | 55/6 | 15/6 | | | 55 | 0 | BLAST_2 |
-| 140 MORTAR_SHELL | 50/6 | 22/6 | | | 50 | 2 | BLAST_2 |
-| 141 MINE (pressure) | 30/2 | 30/2 | | | 30 | 2 | BLAST_1 |
-| 142 C4 | 65/7 | 30/7 | | | 65 | 0 | BLAST_1 |
-| 143 TRIP_FLARE (pressure) | | | | 6/6 | 0 | 0 | BLAST_1 |
-| 144 TRIP_KLAXON (pressure) | | | | | 50 | 0 | BLAST_1 |
-| 145 SHAPED_CHARGE | 20/1 | 0/1 | | | 20 | 0 | BLAST_1 |
-| 146 BREAK_LIGHT | | | | 6/6 | 0 | 0 | BLAST_1 |
-| 147 GL_HE_GRENADE | 25/4 | 5/4 | | | 25 | 1 | BLAST_1 |
-| 148 GL_TEARGAS_GRENADE | | | TEARGAS 1/3/5 | | 0 | 0 | TARGAS_EXP |
-| 149 GL_STUN_GRENADE | 1/4 | 50/4 | | | 0 | 0 | STUN_BLAST |
-| 150 GL_SMOKE_GRENADE | | | SMOKE 1/3/5 | | 0 | 0 | SMOKE_EXP |
-| 151 SMOKE_GRENADE | | | SMOKE 1/4/5 | | 0 | 0 | SMOKE_EXP |
-| 152 TANK_SHELL | 60/6 | 20/6 | | | 60 | 2 | BLAST_2 |
-| 153 STRUCTURE_IGNITE | 100/0 | | | | 0 | 0 | BLAST_1 |
-| 155 STRUCTURE_EXPLOSION | 50/5 | 10/5 | | | 50 | 2 | BLAST_2 |
-| 156 GREAT_BIG_EXPLOSION | 50/5 | 10/5 | | | 50 | 2 | BLAST_3 |
-| 157 BIG_TEAR_GAS | | | TEARGAS 1/4/5 | | 0 | 0 | TARGAS_EXP |
-| 158/159/160 creature gases | | | CREATUREGAS 1/1/3, 3/3/3, 0/0/2 | | 0 | 0 | none |
+`getSafetyMargin` = max(blast r, stun r, smoke maxRadius, light r/2) (AI, `X:ExplosiveModel.cc:277-292`).
 
-`getSafetyMargin` = max(blast r, stun r, smoke maxRadius, light r/2) (AI, `X:ExplosiveModel.cc:277-292`). Creature gases
-have no animation; `InternalIgniteExplosion` rejects them after raising the busy count (quirk), and creature code spawns
-them with `NewSmokeEffect` directly (inferred).
+**`J:explosion-animations.json`**: `id` 1..8 (BLAST_1, BLAST_2, BLAST_3, STUN_BLAST, WATER_BLAST, TARGAS_EXP,
+SMOKE_EXP, MUSTARD_EXP), `blastSpeed` = frame delay in ms, `damageKeyframe`, `transparentKeyframe` (cosmetic),
+`graphics` (STI), `sounds`, `waterAnimation`. The frame count is not in the JSON: `Tile_Cache.cc:149-150` takes it from
+the STI aux data, as ja2-node does (`FrameCountOf` in `src/content/items/explosions.ts`, graphic facts in the rule pack,
+`04`), with `damageKeyframe + 1` when the graphic is missing (stub pack).
 
-**Explosion animations** (`J:explosion-animations.json`; frame counts are **(data)** from the STI aux data, which is what
-`Tile_Cache.cc:149-150` uses):
+Frame `k` is reached at `k·(delay + 5)` ms (5 ms ticks and the strict `>` test of §10.2; deviations.md "Explosion
+timing"), so damage lands 125 ms (STUN_BLAST: frame 5, 20 ms) to 1530 ms (the gas animations: frame 18, 80 ms) after
+ignition; BLAST_1 at 255 ms, BLAST_2/3 at 425 ms. An explosion centred on a water tile switches to WATER_BLAST but keeps
+the original delay; its 13 frames never reach key frame 18, so **it deals no damage and spawns no gas** (data + code,
+vanilla identical).
 
-| Id | Name | STI | Frames | Delay ms | Damage frame | Damage at | Ends at |
-|---|---|---|---|---|---|---|---|
-| 1 | BLAST_1 | zgrav_d | 21 | 80 | 3 | 255 ms | 1785 ms |
-| 2 | BLAST_2 | zgrav_c | 33 | 80 | 5 | 425 | 2805 |
-| 3 | BLAST_3 | zgrav_b | 33 | 80 | 5 | 425 | 2805 |
-| 4 | STUN_BLAST | shckwave | 19 | 20 | 5 | 125 | 475 |
-| 5 | WATER_BLAST | wat_exp | 13 | (original's) | 18 | **never** | 13·(delay+5) |
-| 6/7/8 | TARGAS/SMOKE/MUSTARD_EXP | tear_exp/tear_exp/must_exp | 20 | 80 | 18 | 1530 | 1700 |
-
-Times assume our 5 ms ticks and the strict `>` test below: frame `k` at `k·(delay + 5)` ms (inferred). An explosion
-centred on a water tile switches to WATER_BLAST but keeps the original delay; its 13 frames never reach key frame 18, so
-**it deals no damage and spawns no gas** (data + code, vanilla identical).
-
-**Smoke effect types** (`J:smoke-effects.json`, ids by position: SMOKE 1, TEARGAS 2, MUSTARDGAS 3, CREATUREGAS 4,
-`X:DefaultContentManager.cc:604-615`):
-
-| Type | damage | breathDamage | lostVisibilityPerTile | maxVisibility | maxVisibilityWhenAffected | ignoresGasMask | affectsRobot | affectsMonsters |
-|---|---|---|---|---|---|---|---|---|
-| SMOKE | 0 | 0 | 0 | 3 | 0 | no | no | yes |
-| TEARGAS | 0 | 20 | 2 | 0 | 2 | no | no | yes |
-| MUSTARDGAS | 15 | 40 | 2 | 0 | 2 | no | no | yes |
-| CREATUREGAS | 5 | 0 | 0 | 0 | 0 | yes | yes | no |
+**`J:smoke-effects.json`**: ids by position (SMOKE 1, TEARGAS 2, MUSTARDGAS 3, CREATUREGAS 4,
+`X:DefaultContentManager.cc:604-615`; `SmokeEffectId`). `damage` and `breathDamage` feed `DishOutGasDamage` (§11.3);
+`lostVisibilityPerTile`, `maxVisibility` and `maxVisibilityWhenAffected` the sight rules of §11.4; `ignoresGasMask`
+(default false), `affectsRobot` (default false; dead code, §11.3) and `affectsMonsters` (default true); the graphics are
+client-only. As shipped SMOKE does no damage, and only CREATUREGAS ignores masks, affects robots and spares monsters.
 
 Tile flags `ubExtFlags[level]`: SMOKE 0x01, TEARGAS 0x02, MUSTARD 0x04, CREATUREGAS 0x80; lookup priority SMOKE > TEAR >
 MUSTARD > CREATURE (`TileEngine/WorldDef.h:86-101`; `SmokeEffects.cc:78-100`).
@@ -798,7 +763,7 @@ MUSTARD > CREATURE (`TileEngine/WorldDef.h:86-101`; `SmokeEffects.cc:78-100`).
 
 ```
 InternalIgniteExplosion(owner, x, y, z, grid, item, locate, level):
-  if queue empty: flags |= DISALLOW_SIGHT | CHECK_SIGHT_AT_END_OF_ATTACK         // every LOS test fails (03 §6)
+  if queue empty: flags |= DISALLOW_SIGHT | CHECK_SIGHT_AT_END_OF_ATTACK         // every LOS test fails (01 §3.5)
   ubAttackBusyCount++
   slot = first free of 100 (none, or no animation: return with the busy count raised — leak)
   anitile: delay = animation.blastSpeed, frame 0; on water switch to the water animation
@@ -815,7 +780,8 @@ UpdateAniTiles (first thing in each overhead pass, Overhead.cc:481-490):
 
 When the busy count reaches 0, `CHECK_SIGHT_AT_END_OF_ATTACK` runs `AllTeamsLookForAll` and our team's
 `RevealRoofsAndItems` (`Tactical/Overhead.cc:5748-5761`). Secondary explosions (chain reactions, structures, carried
-explosives) create their own anitiles immediately and damage after their own key frame.
+explosives) create their own anitiles immediately and damage after their own key frame. ja2-node (`stepExplosions`)
+keeps the early `return` within the explosion and water-ripple list (deviations.md "Tile-animation pass").
 
 ### 10.3 `SpreadEffect(grid, radius, item, owner, sub, level, smoke)` (`:1275-1473`)
 
@@ -884,6 +850,7 @@ Reduce(d, r, dist) = r == 0 ? d : dist < r ? d − d·dist/r : (d/r)/2          
 ```
 
 Example, HAND_GRENADE (25/4, roll 50): wound 37 at the centre, 28/19/10 at 1/2/3 tiles, 4 at 4 tiles.
+`HandleBuldingDestruction` has no effect in ja2-node (deviations.md "Building owners").
 
 ### 10.5 Damage to soldiers (`DamageSoldierFromBlast`, `:708-744`)
 
@@ -895,12 +862,9 @@ EVENT_SoldierGotHit(s, item, wound', breath, dirFromBomb, dist, owner, 0, hitLoc
 set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(REASON_EXPLOSION)
 ```
 
-`EVENT_SoldierGotHit` / `SoldierTakeDamage` with an explosion reason (`Tactical/Soldier_Control.cc:2628-2804,
-3241-3330, 5432-5810`): creatures take a quarter, vehicles double above 50; `CheckEquipmentForDamage(s, lifeLoss)`
-damages carried items and may chain-explode them (§10.7); AP loss `lifeLoss/4`, shock, bleeding; animation: with the
-blood option, radius ≥ 3, killed and not prone → `CHARIOTS_OF_FIRE` (dist 2–4) or `BODYEXPLODING` (≤ 1); standing or
-crouched victims face the bomb and are thrown back if `OKFallDirection` allows, else fall forward; prone ones collapse.
-These hit animations belong to the combat spec.
+`EVENT_SoldierGotHit` / `SoldierTakeDamage` with an explosion reason (`11` §5.1, §5.2; the `CHARIOTS_OF_FIRE`,
+`BODYEXPLODING` and fall-back animations `11` §5.4): creatures take a quarter, vehicles double above 50;
+`CheckEquipmentForDamage(s, lifeLoss)` damages carried items and may chain-explode them (§10.7).
 
 ### 10.6 Structures (`:257-705`; `TileEngine/Structure.cc:119-149, 1150-1215`)
 
@@ -908,12 +872,12 @@ These hit animations belong to the combat spec.
 - An explosive base structure (barrel) gets HP 0. Only `sCubeOffset == 0` structures are damaged, and nothing on level 1
   (roof explosions never hurt structures).
 - Per structure `ExplosiveDamageStructureAtGridNo`: corpses with the blood option, wound > 10, dist ≤ 1 are vaporised
-  (`VaporizeCorpse`, `Tactical/Rotting_Corpses.cc:1000-1052`; ja2-node 2026-10-27): a vehicle's corpse stays; otherwise
-  the corpse and its structure go and, on the ground, `SpreadEffect(base, 2, NOTHING, NULL, BLOOD_SPREAD_EFFECT)` sprays
-  blood 7, 5 and 3 (`Random(3)` decay draws for new pools) along the rays of a radius-2 spread; `BODY_EXPLODE_1` plays.
-  The original does all but the sound only while the corpse's base tile is on screen (deviation "Vaporized corpses");
-  corpses that wound ≤ 10 or a farther blast reaches, or with blood and gore off, are not damaged;
-  persons skipped; `DamageStructure(s, dmg, EXPLOSION)`: indestructible metal/stone immune; `armour =
+  (`VaporizeCorpse`, `Tactical/Rotting_Corpses.cc:1000-1052`): a vehicle's corpse stays; otherwise the corpse and its
+  structure go and, on the ground, `SpreadEffect(base, 2, NOTHING, NULL, BLOOD_SPREAD_EFFECT)` sprays blood 7, 5 and 3
+  (`Random(3)` decay draws for new pools) along the rays of a radius-2 spread; `BODY_EXPLODE_1` plays. The original
+  does all but the sound only while the corpse's base tile is on screen; ja2-node always does it (deviations.md
+  "Vaporized corpses"). Corpses that wound ≤ 10 or a farther blast reaches, or with blood and gore off, are not
+  damaged; persons skipped; `DamageStructure(s, dmg, EXPLOSION)`: indestructible metal/stone immune; `armour =
   materialArmour/3` (explosion) or `/2`; `dmg < armour` → nothing; else HP −= dmg − armour, destroyed at ≤ 0.
 - **Destruction partner** `bDestructionPartner`: negative partner → swap to the damaged graphic `−partner` instead of
   removing (also when destroyed); positive partner on destruction → debris objects (`FIRSTEXPLDEBRIS + p` or
@@ -925,6 +889,9 @@ These hit animations belong to the combat spec.
   its tiles holding another `STRUCTURE_MULTI` with the same SPECIAL flag is damaged recursively **and gets a real RDX
   explosion** (`InternalIgniteExplosion(RDX)`); `dist > 1` returns.
 - Gunfire on an explosive structure: `Random(2)` → `STRUCTURE_IGNITE` (`Structure.cc:1176-1185`).
+
+ja2-node changes structures only: no debris, decals, end pieces or fence partners (deviations.md "Wrecked
+structures").
 
 ### 10.7 Items in the blast and chain reactions (`Tactical/Items.cc:3044-3277`)
 
@@ -944,24 +911,14 @@ DamageItemOnGround → removed if it blew up or is a single object below USABLE
 
 ### 10.8 What sets explosions off
 
-- **Thrown grenades and mortar shells** (`TileEngine/Physics.cc:2004-2118`, `HandleArmedObjectImpact`): object count 1;
-  for grenades and MORTAR_SHELL the dud test is skipped if the object stopped off the floor (`sZ ≠ 0`) or in water,
-  else it explodes iff `status ≥ USABLE && PreRandom(100) < status + PreRandom(50)` (operand evaluation order is
-  unspecified in C++; pick left-to-right and log it). A dud repeats the same test; success → `bDelay = 1 + PreRandom(2)`,
-  timed, `WORLD_ITEM_ARMED_BOMB` (after `PreRandom(4)`); the dud lands INVISIBLE (level 1 after a roof bounce).
-  Non-duds: light effect (BREAK_LIGHT on the ground; on a roof it becomes a visible item), then
-  `IgniteExplosionXY(owner, x, y, sZ, grid, item, level)` for grenades with blast/stun/smoke and for mortar shells.
-  Re-armed duds have `usBombItem` aliasing `bStatus[2..3]` (= 0), so the queue just removes them (inferred).
-  Armed objects that land in water ignite from a ripple anitile (delay 50, key frame 11) and then do nothing (water
-  blast, §10.1).
-- **Throw range** (`Tactical/Weapons.cc:3524-3577`): launcher `usRange/10`; unaerodynamic 1; grenade
-  `2 + ((2·str + 100)/3) / min(3 + weight/3, 4)`; other `2 + str/(5 + weight)`; then `−range·(100 − breath)/200`,
-  throwing trait bonus, ≥ 1. Thrown CTH and the physics/scatter (`RandomGridFromRadius` with PreRandom) belong to the
-  throwing spec (`Weapons.cc:3580-3700`; `Physics.cc:1739-1786, 2172-2210`).
-- **Launchers** (`Weapons.cc:1336-1433`): for OUR_TEAM or visible shooters `WillExplosiveWeaponFail`:
-  `(INT8)(PreRandom(40) + PreRandom(40)) > status` and `PreRandom(2) == 1` → the round explodes at the shooter
-  (`:3870-3886`); then CTH roll and a physics object like a throw. LAW: the same failure test → DISCARDED_LAW + C1 at
-  the shooter; a hit ignites C1 (`:787-801, 1511-1519, 1622-1636`). Tank cannon → TANK_SHELL.
+- **Thrown grenades and mortar shells**: `HandleArmedObjectImpact` with the dud test and re-arming, `11` §7.9.6
+  (ja2-node evaluates the unsequenced dud operands left to right, deviations.md "Dud test operand order"; a re-armed dud
+  lies INVISIBLE with the armed-bomb flag and no timer, "Duds and timed bombs"). Non-duds: light effect (BREAK_LIGHT on
+  the ground; on a roof it becomes a visible item), then `IgniteExplosionXY(owner, x, y, sZ, grid, item, level)` for
+  grenades with blast/stun/smoke and for mortar shells. Armed objects that land in water ignite from a ripple anitile
+  (delay 50, key frame 11, `11` §7.10) and then do nothing (water blast, §10.1).
+- **Throw range** `11` §7.3; **launchers** (`WillExplosiveWeaponFail`, the LAW's C1, the tank cannon's TANK_SHELL)
+  `11` §7.8.
 - Others: exploding door trap → HAND_GRENADE (`Tactical/Keys.cc:540`); shaped charge on a lock (`:664`); vehicle death →
   GREAT_BIG_EXPLOSION (`Tactical/Vehicles.cc:672`); booby-trapped item → MINI_GRENADE (`Handle_Items.cc:2723-2729`);
   botched bomb planting (§12); bomb queue (§10.9).
@@ -978,6 +935,8 @@ clear the mine flags, `owner = ubBombOwner > 1 ? soldier(ubBombOwner − 2) : NU
 `IgniteExplosion(owner, 0, grid, usBombItem, level)`. When the queue empties (and the busy count is 0): clear
 `DISALLOW_SIGHT`, re-run sight if it may have changed, unlock the UI.
 
+ja2-node ports only the action-item branch (`handleActionItemQueue`, `25` §11.5); see §12.
+
 ### 10.10 RNG per event (order)
 
 | Event | Draws |
@@ -990,6 +949,8 @@ clear the mine flags, `owner = ubBombOwner > 1 ? soldier(ubBombOwner − 2) : NU
 | Grenade landing | `PreRandom(100)`, `PreRandom(50)` [dud: again, then `PreRandom(4)`, `PreRandom(2)`] |
 | Launcher fire | `PreRandom(40)`, `PreRandom(40)` [`PreRandom(2)`] |
 | Bomb queue | `Random(500)` per queued bomb |
+
+ja2-node draws none of the cosmetic picks (deviations.md "Cosmetic draws in explosions").
 
 ---
 
@@ -1007,7 +968,8 @@ animation start frame `Random(5)`, delay `300 + Random(300)` (cosmetic, default 
 
 Called once per turn-based round in `EndTurnEvents` before our team starts (`Tactical/TeamTurns.cc:280-307`), and in
 real time from `HandleTacticalEndTurn` every 5 s (`Strategic/Strategic_Turns.cc:64-84`), with the world-seconds clock
-(which stops during turn-based combat, `Strategic/Game_Clock.cc:616-617`).
+(which stops during turn-based combat, `Strategic/Game_Clock.cc:616-617`). ja2-node campaigns use the world clock; the
+sandbox counts `explosives.worldMs` (deviations.md "World clock for smoke and light").
 
 ```
 clear fHitByGasFlags on all mercs
@@ -1050,10 +1012,12 @@ Tear gas: breath 2000–2900, no wound; mustard: wound 15–29, breath 4000–59
   (`Tactical/Overhead.cc:1433-1472`, before the mine check at `:1782`).
 - `SetSoldierGridNo` onto **any** smoke tile without a mask ≥ 70 sets `SOLDIER_GASSED` (`Soldier_Control.cc:2066-2072`);
   `EVENT_BeginMercTurn` clears it with a mask or off smoke (`:4044-4053`). Gassed: CTH −50 (`AIM_PENALTY_GASSED`), melee
-  −50, no interrupts, no AP→breath regain, FOV range 1 (`Tactical/FOV.cc:246`).
+  −50, no interrupts, no AP→breath regain, FOV range 1 (`Tactical/FOV.cc:246`). ja2-node keeps these flags per soldier id
+  in `explosives` (deviations.md "Gassed soldiers").
 - Standing in tear/mustard without a mask (or in a mask-ignoring gas) caps sight at 2 tiles (`Tactical/OppList.cc:1019-1028`).
 - LOS through smoke (`Tactical/LOS.cc:1247-1283`): SMOKE blocks after 3 tiles; tear/mustard cost 2 tiles of range per
-  tile; creature gas does not block. These are the "smoke" modifiers `08` deferred.
+  tile; creature gas does not block. These are the "smoke" modifiers of `08`.
+- ja2-node does not model the sight cap or the smoke LOS terms (deviations.md "Vision and hearing modifiers").
 
 ### 11.5 Light (flares) (`TileEngine/LightEffects.cc`)
 
@@ -1066,7 +1030,13 @@ queue. The light itself is the lighting model of `docs/20`.
 
 ---
 
-## 12. Mines and booby traps (brief)
+## 12. Mines and booby traps
+
+The original's rules; ja2-node does not simulate them. Map mines load armed (BURIED, armed-bomb flag, §6.2) but never go
+off; there is no planting or disarming command, no timed or remote bomb, no `DecayBombTimers` and no explosive bomb
+queue entry, no booby trap on pickup (deviations.md "Map items", "Duds and timed bombs", "Unbuilt item actions",
+"Turn-based hooks"). The pressure action items and switches that `25` §11.5 needs do work, and `useRemote` only opens
+the O3 statue (`src/sim/tactical/narrative/statue.ts`).
 
 - **Arming** (`ArmBomb`, `Tactical/Items.cc:2672-2763`): ACTION_ITEM → remote (pits: pressure); DETONATOR → timed
   (`bDelay = setting`, +1 in real time); REMDETONATOR → remote frequency; pressure-triggered explosive (MINE,
@@ -1076,98 +1046,57 @@ queue. The light itself is the lighting model of `docs/20`.
   `PLANTING_(REMOTE_)BOMB_CHECK`: failure ≥ −20 → timer `+Random(3) − 1` (min 1), worse → immediate blast.
 - **Map mines**: §6.2 step 5.
 - **Stepping on a mine**: `SetOffBombsInGridNo` at tile arrival after the breath-collapse check, before noise
-  (`Overhead.cc:1782-1788`; `03` §7); pressure bombs only; non-player soldiers only react to pressure explosives,
+  (`Overhead.cc:1782-1788`; `01` §3.5); pressure bombs only; non-player soldiers only react to pressure explosives,
   players and militia ignore player-owned bombs; queues them and stops the walker (`Explosion_Control.cc:2165-2235`).
 - **Timed bombs**: `DecayBombTimers` once per round / 5-s turn, `--bDelay == 0` → queue (`:2054-2094`). Remote and panic
   triggers: `SetOffBombsByFrequency` (`:2097-2162`; AI panic frequencies 125–127).
 - **Booby traps on pickup**: `ContinuePastBoobyTrap` → `DISARM_TRAP_CHECK`; failure sets the bombs off or the MINI_GRENADE
-  trap (`Handle_Items.cc:2735-2930`); detection `NearbyGroundSeemsWrong` (`:3051`, `02` §5). Door traps are `07`'s.
+  trap (`Handle_Items.cc:2735-2930`); detection `NearbyGroundSeemsWrong` (`:3051`, `12`). Door traps are `25`'s.
 
 ---
 
-## 13. Minimal M3 implementation (items and explosions)
+## 13. Implementation in ja2-node
 
-**First** (attacks need it):
-1. Content: one `ItemTable` from `items/weapons/magazines/armours/explosives.json` + calibres, ammo types, explosion
-   animations, smoke effects, light templates, army gun tables (JSON, read as is); transcribe the §1.7 tables,
-   `gubItemDroppableFlag` and the AP constants into `data/tables/` with `tools/transcribe`. Tests: load order, `DefaultMagazine`,
-   `RandomMagazine` candidate order, `maxArmourPerClass` (51/36/36).
-2. `ObjectType` record (§2) with a 36-byte codec shared by map items, placements and saves; `CreateItem/CreateItems/
-   CreateGun`, stack helpers, `DamageObj`.
-3. Soldier inventory: 19 slots, `CanItemFitInPosition`, `PlaceObject`, `AutoPlaceObject`, `SwapHandItems`, two-handed
-   rule, `Weight`/`CalculateCarriedWeight` and its three effects (APs, agility, breath) at turn start.
-4. Mercs: `InitProfileFromContent` big-gun replacement + `CopyProfileItems` (player path = auto-place). The sandbox squad
-   then fights with SW38, DESERTEAGLE, GLOCK_17, MP5K, G41 and real magazines.
-5. Reload: `ReloadGun` (combat path), `FindAmmoToReload`, `AutoReload`, the AI's `TryToReload`, `EnoughAmmo`/`DeductAmmo`,
-   `bGunAmmoStatus` (jams), `HandItemWorks`. Armour readers of §1.5 for the combat spec.
-6. Enemies: `CalcDifficultyModifier` (real formula; retire the fixed 30), `GenerateRandomEquipment` for ARMY/ADMIN/ELITE
-   with the exact draw order (§8.3–8.7), `PlaceObjectInSoldierCreateStruct`, NO_OVERWRITE merge for static placements,
-   droppability rolls and `alreadyDroppedWeapons`.
-7. Death drops (§9.1) and weapon knock-out (§9.2); world items: `AddItemToPool` (ground level, water sinking, structures as
-   far as `07` provides), visibility values, reveal by sight (`SetItemsVisibilityOn` from the FOV sweep), pickup/drop with
-   their animation codes 493/487 and AP; map items (§6.2, one `PreRandom(100)` per record).
+### 13.1 Content
 
-**Next** (grenades, explosions, smoke):
-8. Grenade throw: `MinAPsToThrow`, `CalcMaxTossRange`, dud test, `IgniteExplosion`; launchers (GLAUNCHER, UNDER_GLAUNCHER
-   in `WM_ATTACHED`, LAW, mortar) with `WillExplosiveWeaponFail`.
-9. Explosion slots with key-frame timing (§10.2) and the busy/`DISALLOW_SIGHT` barrier (`03` §7), `SpreadEffect`,
-   `GetRayStopInfo`, `ExpAffect`, `DamageSoldierFromBlast` + `ArmourVersusExplosivesPercent`, noise.
-10. Structures: `DamageStructure` with material armour, destruction partners, walls, multi-tile RDX chains, movement-cost
-    recompile (`07`); explosive barrels.
-11. Item damage and chain reactions (ground and carried).
-12. Smoke clouds and `DecaySmokeEffects` per round / 5-s turn, `DishOutGasDamage`, gas masks, the gassed state, smoke in
-    LOS and sight caps (`08`); flares (`NewLightEffect`, decay) once lighting is simulated.
+- `src/content/items/items.ts`: `loadItemTable` / `parseItemTable` read `ITEM_TABLE_PATHS` (the five item files,
+  `calibres.json`, `ammo-types.json`, `tables/item-tables.json`, both gun choice files) into `ItemTable {byIndex,
+  byName, ordered, magazines, rules, gunChoice, helpTextCalibres}`. `ordered` is the container order of §1.1; a duplicate
+  index is an error. `ItemDef` carries the common fields of §1.2 plus `weapon`, `magazine`, `armour`, `explosive` kind
+  records; `handClass` (`nothing`, `pistol`, `rifle`) is derived for the animations.
+- `rules.ts` (§1.7), `slot-limit.ts`, `explosions.ts` (`loadExplosionContent`: animations with frame counts, smoke
+  effect types). `src/content/formats/object.ts` decodes the 36-byte record, `objectFromRecord` / `objectToRecord`
+  (`src/sim/items/object.ts`) convert it. AP constants and `gubItemDroppableFlag` are named constants in the modules.
+  The stub pack uses the same JSON with its own item texts (`stubs/text.ts`) and profile inventories
+  (`stubs/profiles.json`).
 
-**Can wait**: merges, combo merges, kit points, camouflage/canteen/elixir use, keys and key rings, money, attachments
-UI (silencer/scope effects belong to combat), mines, booby traps, timed/remote bombs and the bomb queue, panic triggers,
-action items, creatures' inventory and gases, tanks, dealers, militia equipment ratings, item search by the AI, water
-damage, reduced/extended gun switch (stay on reduced), ownership items.
+### 13.2 State
 
----
+`ItemObject` (`src/sim/items/object.ts`: `item`, `count`, `status[]`, the gun fields, `money`, `attachments[4]`, `flags`,
+`trap`, `imprintId`, `keyId`); per soldier `inv` (19), `keyRing`, `weightCarriedAtTurnStart`, `camo` and the first-aid
+fields; `TacticalState.worldItems` (§6.1), `keyTable`, `equipment` (`EquipmentState`, §8.7) and `explosives`
+(`ExplosivesState`, `explosions/state.ts`: physics objects, anitiles, 25 smoke clouds, 25 light effects, smoke tile
+flags per level, throw parameters, the per-soldier gas and blast flags, the sandbox's `worldMs`). Other sectors' items,
+smoke clouds and light effects live in the campaign's sector diffs (`src/sim/campaign/sector-diff.ts`); saves `27`,
+native import `14`.
 
-## 14. Deviations to log (`docs/deviations.md`)
+### 13.3 Modules (`src/sim/tactical/` unless stated)
 
-| Area | Original | Proposal |
-|---|---|---|
-| Structural damage of grenades | Stracciatella reads `structuralDamageDisivor` (typo), so the JSON divisor 3 is ignored and grenades wreck structures at full damage; vanilla divides by 3 | Decide: follow the data (/3, vanilla) and log it, or keep Stracciatella's full damage |
-| Cosmetic draws | Explosion sound, debris variant (`Random(3)`), smoke animation frame/delay, battle sounds share the main stream | Cosmetic stream (already covered by the RNG entry; list these call sites) |
-| Explosion timing | Wall-clock anitile frames, no catch-up | Game-ms frames at `k·(delay + 5)`; frame counts from the STI aux data |
-| Anitile pass | The damage key frame `return`s, so later anitiles skip one pass | Keep (5 ms) or drop and log |
-| Re-armed duds | Timed but `usBombItem` is 0, so the queue deletes them (inferred) | Keep and log; verify with the tracing oracle |
-| Dud test operand order | `PreRandom(100) < status + PreRandom(50)` has unspecified evaluation order | Fixed left-to-right |
-| Sandbox equipment | `GenerateRandomEquipment` with the real `CalcDifficultyModifier` (A9 medium: 11) | Today: no equipment, modifier 30 (existing "Sandbox population" entry); drop those parts once §8 is ported |
-| Inventory UI paths | Item cursor, item description box, merge prompts, transfer by tossing | Agent API commands (`moveItem`, `attach`, `detach`, `unload`, `reload`, `swapHands`, `applyItem`, `bandage`, `pickUp`, `drop`, `give`) with the same AP rules; logged as "Item cursor" (§15) |
+| Module | Contents |
+|---|---|
+| `src/sim/items/object.ts` | §2 without a soldier: creation, stacks, `damageObject`, magazines, attach/detach, `emptyWeaponMagazine` |
+| `inventory.ts`, `soldier-inventory.ts`, `hand-item.ts`, `stack-cleanup.ts`, `item-merge.ts` | §3, §4.1, §7; `AttachObject` with a soldier and the merges (§2) |
+| `combat/reload.ts` | §4.2 |
+| `inventory-panel.ts`, `inventory-commands.ts`, `item-compatibility.ts`, `item-description.ts` | the cursor commands (§3.3, §5), slot hints, description box values |
+| `first-aid.ts` | §5.1 |
+| `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-placement.ts`, `item-reachability.ts`; `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | §6 |
+| `equipment.ts`, `creation.ts`; `combat/death.ts` | §8; §9.1 |
+| `explosions/explosion.ts`, `blast-damage.ts`, `structure-damage.ts`, `item-damage.ts`, `smoke.ts`, `light.ts` | §10, §11 (decay called from `turns/turns.ts`) |
+| `explosions/throwing.ts`, `trajectory.ts`, `physics.ts`, `catching.ts` | throwing and launchers (`11` §7) |
 
----
+### 13.4 Verification
 
-## 15. As built: the inventory commands (M7, 2026-10-18)
-
-The agent API commands of `04` §6.24 (`src/sim/tactical/inventory-panel.ts`, `inventory-commands.ts`, `item-merge.ts`,
-`hand-item.ts`, `first-aid.ts`, `item-reachability.ts`; the map screen in `src/sim/campaign/map-inventory.ts`):
-
-- **Cursor.** A command takes the whole slot (`RemoveObjectFromSlot`, the shift-click) or one object (`GetObjFrom`, the
-  stack popup), places it with `PlaceObject` and cancels what is left (`CancelItemPointer`). Before anything moves the
-  placement runs on copies, so a refused move changes nothing (the original keeps a refused item in the cursor).
-- **`PlaceObject` endings.** Every placement now ends like the original: a face item re-runs the soldier's sight and
-  `EnsureConsistentWeaponMode` drops a burst or launcher mode the new hand item cannot fire (`soldier-inventory.ts`).
-- **`HandleTacticalEffectsOfEquipmentChange`** after each pick-up and placement: the launcher mode check, and for hand
-  slots `ReLoadSoldierAnimationDueToHandItemChange` (burst off for guns without burst, out of the aim, first aid ends,
-  `LOWER_RIFLE`/`RAISE_RIFLE` when standing). NPC action 6 (`LOWER_GUN`) now calls it as the original does.
-- **`AttachObject` with a soldier** (`item-merge.ts`): the `ATTACHING_*` skill checks (`SkillCheck` gained the four
-  attaching skills of `SkillCheck.cc:191-299`), combo merges with mechanical experience, and the merges: `COMBINE_POINTS`
-  into the chosen stack object (ammo capacity or 100), `TREAT_ARMOUR`, `DESTRUCTION`, `ELECTRONIC_MERGE` and
-  `EXPLOSIVE` (−30 checks, explosives experience), `AP_MERGE` for all but point merges. `RemoveAttachment`,
-  `RenumberAttachments` and `EmptyWeaponMagazine` live in `src/sim/items/object.ts`.
-- **First aid** (§5 costs): `EVENT_SoldierBeginFirstAid` (NPC refusal through `PCDoesFirstAidOnNPC`, creatures, hostile
-  soldiers), the `START_AID`/`GIVING_AID`/`END_AID` animations (stub scripts copy the original's: `START_AID` jumps to
-  the `GIVING_AID` loop, `END_AID` runs code 768, standing up when no enemy is left), `SoldierGotoStationaryStance`
-  returning a medic to `GIVING_AID`, `SoldierDressWound` with `RT_FIRST_AID_GAIN_MODIFIER`, `HandlePlayerServices` in
-  `EndTurnEvents` and `HandleTacticalEndTurn`, the cancellations (`InternalReceivingSoldierCancelServices`,
-  `InternalGivingSoldierCancelServices`) at movement start, stop, stance change, climbs, blasts, collapse,
-  incapacitation, death, teleport, suppression and hand item changes, `BeginSoldierGetup` waiting for the bandage, and
-  the `AIM_PENALTY_GETTINGAID` terms of gun, thrown and close-combat chances plus the interrupt duel. The soldier carries
-  `servicePartner`, `serviceCount` and `pendingAid` (imported from native saves). Auto-bandage after a battle is not
-  ported (deviation).
-- **Map screen.** The sector inventory is the loaded sector's world items or the sector diff's items; the reachable flag
-  comes from `HandleAllReachAbleItemsInTheSector`, now also run when a sector is saved, so items left in a visited
-  sector become takeable on the map screen and stealable by `RemoveRandomItemsInSector` as in the original.
+Unit tests next to the modules. Oracle (`tools/oracle/README.md`): the `attach` probe ("Attachment AP"), inventories
+in the `soldier` dumps, and the autoresolve setup level, which compares every created militia and enemy soldier's
+inventory with status and ammo and so replays `GenerateRandomEquipment` ("Autoresolve"). Explosions, smoke and flares
+have no probe.

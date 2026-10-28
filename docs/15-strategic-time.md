@@ -1,63 +1,65 @@
-<!-- Strategic time: the world clock, time compression, the strategic event queue, periodic updates and new-game
-initialisation. An implementable spec for M4. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–14) and reference/stracciatella/assets/externalized,
-cross-checked against vanilla (reference/vanilla/ja2/Build) where marked. Read-only research: nothing was built or run. -->
-
 # 15 — Strategic time: the game clock, the event queue and new-game initialisation
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless they start with `sgp/` (then relative to
-`reference/stracciatella/src/`) or `assets/` (relative to `reference/stracciatella/`); `V:` is vanilla `Build/`.
-"(inferred)" marks conclusions not traced end to end; everything else was read in the code. C integer semantics apply:
-`/` truncates toward zero, `UINT32` arithmetic wraps. `Random` and `Chance` are the `main` stream, `PreRandom` the `pre`
-stream (`01` §3.6); `Random(0)` returns 0 **without** drawing (`sgp/Random.cc:63-69`), `Chance(x)` is `Random(100) < x`.
-"World seconds" are `guiGameClock` units (the strategic clock). "Real ms" are `guiBaseJA2Clock` units: the original's
-wall-clock-driven millisecond counter (`Utils/Timer_Control.h:49-51`, advanced in `sgp/SGP.cc:125-126`), which ja2-node
-replaces with a virtual counter advanced 5 ms per tick (D3). "Policy" values are Stracciatella defaults from
-`assets/externalized/game.json` and `strategic-ai-policy.json` (copied unchanged into `data/externalized/`). Difficulty
-values: `DIF_LEVEL_EASY 1, MEDIUM 2, HARD 3` (`GameSettings.h:78-81`).
+`reference/stracciatella/src/`) or `assets/` (relative to `reference/stracciatella/`); `V:` is vanilla `Build/`;
+ja2-node paths start with `src/`, `data/` or `tools/`. "(inferred)" marks conclusions not traced end to end; everything
+else was read in the code. C integer semantics apply: `/` truncates toward zero, `UINT32` arithmetic wraps. `Random` and
+`Chance` are the `main` stream, `PreRandom` the `pre` stream (`01` §3.6); `Random(0)` returns 0 **without** drawing
+(`sgp/Random.cc:63-69`), `Chance(x)` is `Random(100) < x`. "World seconds" are `guiGameClock` units (the strategic clock).
+"Real ms" are `guiBaseJA2Clock` units: the original's wall-clock-driven millisecond counter (`Utils/Timer_Control.h:49-51`,
+advanced in `sgp/SGP.cc:125-126`), which ja2-node replaces with a virtual counter advanced 5 ms per tick (D3). "Policy"
+values are Stracciatella defaults from `assets/externalized/game.json` and `strategic-ai-policy.json` (copied unchanged
+into `data/externalized/`). Difficulty values: `DIF_LEVEL_EASY 1, MEDIUM 2, HARD 3` (`GameSettings.h:78-81`).
 
-**Companions** (written in parallel; referenced by file name, not duplicated): `16-strategic-map-movement.md` (sectors,
-groups, routes, travel, `GroupArrivedAtSector`, encounters, sector transitions and persistence), `17-strategic-ai.md`
-(Queen, garrisons, patrols, `InitStrategicAI` details, `EvaluateQueenSituation`, creatures), `18-militia-loyalty-mines-
-assignments.md` (hourly assignment work, militia, loyalty, mines), `19-autoresolve-pbi.md` (pre-battle interface,
-autoresolve). Earlier docs: `04` (drivers, `advance`), `08` §2 (the real-time turn), `10` §8.4 (time in combat), `14`
-(savegame sections).
+**Related:** `16` (sectors, groups, routes, travel, `GroupArrivedAtSector`, encounters, sector transitions), `17` (Queen,
+garrisons, patrols, `InitStrategicAI`, `EvaluateQueenSituation`, creatures), `18` (hourly assignment work, militia,
+loyalty, mines), `19` (pre-battle interface, autoresolve); `04` (drivers, `advance`, the agent API in §6), `08` §2 (the
+real-time turn), `10` §8.4 (time in combat), `14` (savegame sections).
 
 ---
 
-## 0. State this spec adds
+## 0. State
 
-**World clock** (`Strategic/Game_Clock.cc:64-87`, all saved unless marked transient):
-`worldSeconds` (`guiGameClock`, u32), `previousWorldSeconds` (`guiPreviousGameClock`, monotonic guard), `compressionMode`
-(`giTimeCompressMode`, i32, 0..4), `secondsPerRealSecond` (`guiGameSecondsPerRealSecond`, u32), `resolution`
-(`gubClockResolution`, u8, updates per real second, 0..60), `compressionOn` (`gfTimeCompressionOn`), `paused`
-(`gfGamePaused`), `pauseLocked` + `pauseLockReason` (`gfLockPauseState`, `guiLockPauseStateLastReasonId`),
-`timeInterrupt` (`gfTimeInterrupt`), `timeInterruptPause` (`gfTimeInterruptPause`, transient), `playerPause`
-(`gfPauseDueToPlayerGamePause`), `lastEventQuerySeconds` (`guiTimeOfLastEventQuery`), `resetPlayerKnowsEnemies`
-(`gfResetAllPlayerKnowsEnemiesFlags`), `compressedSinceMapEntry` (`fTimeCompressHasOccured`, transient). The derived
-`day`, `hour`, `minute` (`guiDay`, `guiHour`, `guiMin`) are recomputed after every change (`UpdateGameClockGlobals`,
-`:923-931`).
+The original's globals → ja2-node's `StrategicState` (`src/sim/strategic/state.ts`).
 
-**Clock driver statics** (function statics of `UpdateClock`, `:587-589`, and `guiTimesThisSecondProcessed :73`; not
-saved): `lastSecondMs`, `lastProcessed`, `lastResolution` (initially 1), `timesThisSecond`.
+**World clock** (`Strategic/Game_Clock.cc:64-87`, all saved unless marked transient) → `clock`
+(`src/sim/strategic/time/world-clock.ts`): `guiGameClock` (u32) → `seconds`; `guiPreviousGameClock` (monotonic guard) →
+`previousSeconds`; `giTimeCompressMode` (i32, 0..4) → `mode`; `guiGameSecondsPerRealSecond` (u32) →
+`secondsPerRealSecond`; `gubClockResolution` (u8, updates per real second, 0..60) → `resolution`; `gfTimeCompressionOn` →
+`compressionOn`; `gfGamePaused` → `paused`; `gfLockPauseState`, `guiLockPauseStateLastReasonId` → `pauseLocked`,
+`pauseLockReason`; `gfTimeInterrupt` → `timeInterrupt`; `gfTimeInterruptPause` (transient) → `timeInterruptPause`;
+`gfPauseDueToPlayerGamePause` → `playerPause`; `guiTimeOfLastEventQuery` → `lastEventQuerySeconds`;
+`fTimeCompressHasOccured` (transient) → `compressedSinceMapEntry`; `gfResetAllPlayerKnowsEnemiesFlags` →
+`battle.resetAllPlayerKnowsEnemiesFlags` (`src/sim/strategic/forces/battle-state.ts`). The original recomputes `guiDay`,
+`guiHour`, `guiMin` after every change (`UpdateGameClockGlobals`, `:923-931`); ja2-node derives them on demand.
+`clock.stopReason` (ja2-node only) is the reason of the last compression stop (§2.9).
 
-**Real-time counter**: `realMs` (`guiBaseJA2Clock`, saved in general info, `SaveLoadGame.cc:1865`), plus the strategic
-turn statics `lastTacticalTurnMs` (`guiLastTacticalRealTime`, `Strategic/Strategic_Turns.cc:14`, not saved) and the
-`STRATEGIC_OVERHEAD` counter deadline (20 ms, `Utils/Timer_Control.cc:28`).
+**Clock driver statics** (function statics of `UpdateClock`, `:587-589`, and `guiTimesThisSecondProcessed :73`; not saved
+in the original) → `clock.driver`: `lastSecondMs`, `lastProcessed`, `lastResolution` (initially 1), `timesThisSecond`;
+saved with the ja2-node state.
 
-**Environment** (`TileEngine/Environment.cc:113-119`): `envLightValue` (`gubEnvLightValue`, saved in the clock section),
-`desertTemperature`, `globalTemperature` (`gubDesertTemperature`, `gubGlobalTemperature`, saved in general info,
-`SaveLoadGame.cc:1922-1923`), `doLighting` (`gfDoLighting`, transient).
+**Real-time counter**: `guiBaseJA2Clock` (saved in general info, `SaveLoadGame.cc:1865`) → `realMs`; in the tactical flow
+it follows the loaded sector's `TacticalState.clockMs`. The strategic turn statics `guiLastTacticalRealTime`
+(`Strategic/Strategic_Turns.cc:14`, not saved) and the `STRATEGIC_OVERHEAD` counter deadline (20 ms,
+`Utils/Timer_Control.cc:28`) → `RealtimeClock.lastTurnMs`, `.lastOverheadMs` (`src/sim/tactical/state.ts`), shared
+across sector loads through `SectorFlowState.realtimeClock`.
+
+**Environment** (`TileEngine/Environment.cc:113-119`) → `env` (`src/sim/strategic/time/environment.ts`):
+`gubEnvLightValue` (saved in the clock section) → `lightValue`; `gubDesertTemperature`, `gubGlobalTemperature` (saved in
+general info, `SaveLoadGame.cc:1922-1923`) → `desertTemperature`, `globalTemperature`; `gfDoLighting` (transient) →
+`doLighting`.
 
 **Event queue** (`Strategic/Game_Events.cc:9-15`): an ordered list of `{stamp, kind, frequency, param, offset, flags}`
-plus the processing guard `executingStamp` (`guiTimeStampOfCurrentlyExecutingEvent`) and `processing`
-(`gfProcessingGameEvents`), both transient.
+plus the processing guard `guiTimeStampOfCurrentlyExecutingEvent` and `gfProcessingGameEvents`, both transient →
+`queue` (`src/sim/strategic/time/event-queue.ts`): `events` (`{stamp, kind, frequency, param, offset, seq}`), `nextSeq`,
+`processing`, `executingStamp`. No flags: deletion is immediate (§2.4).
 
-**Campaign start flags**: `didGameJustStart` (`gTacticalStatus.fDidGameJustStart`, set by `InitOverhead`,
-`Tactical/Overhead.cc:348`; cleared after the first helicopter warp, `GameScreen.cc:696`), `gameStarted`
-(`fHasAGameBeenStarted`), `screenCount` (`gubScreenCount`, the new-game state machine, `Strategic/Game_Init.cc:70`),
-`atLeastOneMercHired` (`gfAtLeastOneMercWasHired`). ja2-node also needs the flow (`01` §3.2 `FlowState`): `strategic`
-(the original's `MAP_SCREEN`) or `tactical` (`GAME_SCREEN`); every other screen stops the clock (§1.5).
+**Campaign start flags**: `gTacticalStatus.fDidGameJustStart` (set by `InitOverhead`, `Tactical/Overhead.cc:348`;
+cleared after the first helicopter warp, `GameScreen.cc:696`) → `didGameJustStart`; `gfAtLeastOneMercWasHired` →
+`atLeastOneMercHired`. `fHasAGameBeenStarted` and `gubScreenCount` (the new-game state machine,
+`Strategic/Game_Init.cc:70`) have no counterpart: `initNewGame` and the laptop flow replace the state machine (§4).
+`flow` stands for the screen: `strategic` (the original's `MAP_SCREEN`), `tactical` (`GAME_SCREEN`), `autoresolve` and
+`laptop`; the last two stop the clock like every other screen (§1.5).
 
 ---
 
@@ -82,6 +84,9 @@ plus the processing guard `executingStamp` (`guiTimeStampOfCurrentlyExecutingEve
 
 Day numbering starts at 0 (`clock < 86400`), but a campaign starts on Day 1. The clock string is
 `"<Day> <day>, HH:MM"` (`:930`). `GotoNextTimeOfDay` is declared but not defined (dead).
+
+ja2-node: constants in `src/sim/strategic/time/constants.ts`, helpers in `world-clock.ts` (`worldDay`, …,
+`midnightOfFutureDayInMinutes`, `isDayTime`).
 
 ### 1.2 Compression modes, speed and resolution
 
@@ -122,7 +127,7 @@ fallback in `HandleStrategicTurn` (`Strategic_Turns.cc:47-50`) is therefore dead
   soldier in the sector, `Tactical/Overhead.cc:5867-5879`).
 - `StopTimeCompression()` (`:266-273`): if on, set the resolution of X0 **but keep `mode`** (remembered for the next
   start). `compressionOn` becomes false.
-- `IsTimeBeingCompressed()` (`:324-330`) = `compressionOn && mode != X0 && !paused`. Note: false in tactical (X1 has
+- `IsTimeBeingCompressed()` (`:324-330`) = `compressionOn && mode != X0 && !paused`. False in tactical (X1 has
   `compressionOn = false`).
 - Map buttons (`Strategic/Map_Screen_Interface.cc:3929-3990`): toggle = start/stop; "+" when stopped jumps to 5MINS
   (`SetGameTimeCompressionLevel(5MINS)`, "ARM change"), when running increases; "−" when running decreases, when stopped
@@ -131,6 +136,13 @@ fallback in `HandleStrategicTurn` (`Strategic_Turns.cc:47-50`) is therefore dead
   X0. Leaving it (`MapScreen.cc:3238-3256`): to tactical → `SetGameTimeCompressionLevel(X1)`; to any other screen →
   `StopTimeCompression()`; then `UnLockPauseState()`, the auto-pause update, and `UnPauseGame()` when going to tactical
   without a player pause.
+
+ja2-node ports these in `world-clock.ts` (`CompressMode` `{X0, X1, MIN5, MIN30, MIN60}`; the dead modes are not ported),
+returning the refusal text; the `ClockContext` hook `compressionModeSet` is the first-arrival hook.
+`ClearTacticalStuffDueToTimeCompression` is not ported (the hook `firstCompressionSinceMapEntry` is empty and
+`compressedSinceMapEntry` is never reset), so soldiers of a loaded sector keep their actions across a compression
+(limitation). The map buttons are the commands `compressTime {mode?}` (a mode: `setGameTimeCompressionLevel`, then
+`startTimeCompression`) and `stopTime` (`04` §6); `src/sim/campaign/screens.ts` applies the entry and exit rules.
 
 ### 1.3 `UpdateClock`: how the clock advances (`Game_Clock.cc:581-692`)
 
@@ -167,7 +179,7 @@ UpdateClock(realMs):
               lastSecondMs = realMs
 ```
 
-On an ideal 5 ms loop (ja2-node) this gives, per real second measured from `lastSecondMs`:
+On the 5 ms tick (ja2-node) this gives, per real second measured from `lastSecondMs`:
 
 - X1: one 1-second advance when `elapsed` reaches 1000, i.e. every 200 ticks.
 - 5MINS: a 60 s slice at elapsed 200, 400, 600, 800, 1000 ms.
@@ -177,6 +189,9 @@ On an ideal 5 ms loop (ja2-node) this gives, per real second measured from `last
 
 Two clock drifts are part of the behaviour: `lastSecondMs` is reset to the pass time (not advanced by 1000), and every
 pause, fade or screen change re-phases it.
+
+ja2-node: `updateClock` is a literal port; `ctx.screen()` is `other` for the `autoresolve` and `laptop` flows; there are
+no fades.
 
 ### 1.4 `AdvanceClock` and `WarpGameTime` (`Game_Clock.cc:160-219`)
 
@@ -201,13 +216,16 @@ AdvanceClock(code):                              // :170-219
 `ForecastDayEvents` only acts when `day != guiEnvDay`: it stores the day and calls `BuildDayAmbientSounds()` (ranged
 `EVENT_AMBIENT` events, §2.7); the light rebuild and the rain forecast are commented out.
 
-**Warp codes** (`Game_Clock.h:110-115`) and every caller:
+ja2-node: the `afterAdvance` hook does the enemy-knowledge reset (`CampaignSim.#clearFlashingEnemyCounts`);
+`ForecastDayEvents` is not ported, it only builds ambient sounds (deviation "Ambient sound events").
 
-| Code | Meaning | Callers |
-|---|---|---|
-| `WARPTIME_PROCESS_EVENTS_NORMALLY` | events inside the window run in order, the clock steps to each stamp | `UpdateClock` (every slice); the first helicopter arrival, 21600 s (`GameScreen.cc:691`); quest debug |
-| `WARPTIME_NO_PROCESSING_OF_EVENTS` | the clock jumps; skipped events stay queued in the past and run at the next normal advance | autoresolve battle time (`Strategic/Auto_Resolve.cc:1819`), PBI retreat 300 s (`Strategic/PreBattle_Interface.cc:1067`), last group retreating from a hostile sector 300 s (`Strategic/StrategicMap.cc:1810`), auto-bandage duration (`Tactical/Auto_Bandage.cc:356`), brothel 5–24 min with `Random(20)` (`JAScreens.cc:483`) |
-| `WARPTIME_PROCESS_TARGET_TIME_FIRST` | only the **last** event stamped exactly at the target second runs; earlier ones are skipped and stay queued | adjacent-sector traversal: to the start of minute `now + 5` above ground, `now + 1` underground (`StrategicMap.cc:1817-1827`); see `16` |
+**Warp codes** (`Game_Clock.h:110-115`, ja2-node `Warp.NORMAL`, `NO_PROCESSING`, `TARGET_TIME_FIRST`) and every caller:
+
+| Code | Meaning | Callers (original) | ja2-node |
+|---|---|---|---|
+| `WARPTIME_PROCESS_EVENTS_NORMALLY` | events inside the window run in order, the clock steps to each stamp | `UpdateClock` (every slice); the first helicopter arrival, 21600 s (`GameScreen.cc:691`); quest debug | `updateClock`; `teamJackedInAndGearedToGo` |
+| `WARPTIME_NO_PROCESSING_OF_EVENTS` | the clock jumps; skipped events stay queued in the past and run at the next normal advance | autoresolve battle time (`Strategic/Auto_Resolve.cc:1819`), PBI retreat 300 s (`Strategic/PreBattle_Interface.cc:1067`), last group retreating from a hostile sector 300 s (`Strategic/StrategicMap.cc:1810`), auto-bandage duration (`Tactical/Auto_Bandage.cc:356`), brothel 5–24 min with `Random(20)` (`JAScreens.cc:483`) | `BattleFlow` (autoresolve, PBI retreat), `src/sim/campaign/sector-exits.ts` (retreat), the brothel (`TalkFlow`, the NPC action port; deviation "Brothel time warp"); no auto-bandage (deviation "Auto-bandage") |
+| `WARPTIME_PROCESS_TARGET_TIME_FIRST` | only the **last** event stamped exactly at the target second runs; earlier ones are skipped and stay queued | adjacent-sector traversal: to the start of minute `now + 5` above ground, `now + 1` underground (`StrategicMap.cc:1817-1827`); see `16` | `sector-exits.ts` |
 
 ### 1.5 Pausing, locks and what freezes the clock
 
@@ -242,6 +260,11 @@ laptop (`Laptop/Laptop.cc:462`), shop keeper, options, help, boxing, auto-bandag
 The player's pause (`HandlePlayerPauseUnPauseOfGame`, `:793-828`): ignored while `ENGAGED_IN_CONV`; toggles
 `PauseGame`/`PauseTime` together with `playerPause`; unpausing in `GAME_SCREEN` with mode X0 first sets X1.
 
+ja2-node: the ported subsystems lock with the original reasons (`PauseLock` 11–13 in
+`src/sim/strategic/forces/constants.ts`; meanwhile 6, contracts 7 and 8, conversations 14 in their modules).
+`PauseTime(TRUE)` has no counterpart: an open decision prompt stops the whole simulation (D15, `01` §3.8). The player's
+pause is the manual driver (deviation "Real-time pause"); `playerPause` only feeds the automatic pause (§1.6).
+
 ### 1.6 `AllowedToTimeCompress` and the automatic pause (`Strategic/Map_Screen_Interface_Bottom.cc:732-836`)
 
 False when any holds, in this order: leaving the map screen or an exit is pending; the pause is locked; a meanwhile is
@@ -261,6 +284,13 @@ Every map-screen frame `UpdatePausedStatesDueToTimeCompression()` (`MapScreen.cc
 the game when time is being compressed but no longer allowed, and unpauses it when compression is wanted
 (`compressionOn`), there is no player pause, and it is allowed again. This is how a quote on the map (non-empty dialogue
 queue) or the update box stops time **without** stopping compression: the clock resumes on its own afterwards.
+
+ja2-node: the `compressionRefusal` hook (a campaign hook, else the default) checks in this order: no merc ever hired,
+a meanwhile about to start, no usable merc (alive, not a vehicle, robot or EPC, not POW or dead), `inCombat`,
+`fEnemyInSector`, a player group in a creature-infested mine, a bloodcat ambush with hostile bloodcats, the contract
+renewal sequence; tokens and texts in `src/sim/campaign/compression-refusals.ts`. UI states, the dialogue queue and the
+timed bomb are not checked and no PBI opens (deviation "Time compression checks"). The automatic pause runs on every
+strategic step after the dialogue step and after `compressTime`.
 
 ### 1.7 Tactical: real time, turn-based combat and the strategic turn
 
@@ -297,42 +327,50 @@ new game (`StrategicTurnsNewGame`), every `SetCurrentWorldSector` (`StrategicMap
 Consequences, on an ideal 5 ms loop:
 
 - In tactical the counter fires every 20 ms, so the turn falls on the first fire with more than 5000 ms elapsed: **every
-  5020 ms**, not 5005 (`08` §6.3 inferred 5005; the existing `handleRealtimeTurns` checks every tick).
+  5020 ms**, not 5005.
 - On the map while compressing, `check` ≤ 1 makes every counter fire a turn: **one `HandleTacticalEndTurn` per 20 real ms**,
   which is 10 turns per world minute at 5MINS, 1⅔ at 30MINS and ⅚ at 60MINS. The original's real rate depends on its frame
   rate (at 144 Hz a 20 ms counter polled every 6.94 ms fires every ~20.8 ms). The intent of the formula
   (`5000/(C·10)` real ms = one turn per 0.5 world s) is defeated by integer truncation and the counter.
 - `HandleTacticalEndTurn` (`Tactical/Tactical_Turns.cc:80-157`) runs `EVENT_BeginMercTurn` for **every** living,
-  non-mechanical merc on the player's team, in any sector, and for the loaded sector's other soldiers: bleeding (`10`
-  §2.7, `nextBleed −= 0.5`), breath, shock, drug decay, first aid (`HandlePlayerServices`, which only acts on a merc
+  non-mechanical merc on the player's team, in any sector, and for the loaded sector's other soldiers: bleeding
+  (`11` §5.11, `nextBleed −= 0.5`), breath, shock, drug decay, first aid (`HandlePlayerServices`, which only acts on a merc
   playing the `GIVING_AID` animation, `Overhead.cc:3830-3833`), plus smoke/light/blood decays of the loaded sector by
   world seconds, pending enemies, and the public opplist decay. So **how fast a wounded merc bleeds per world minute
-  on the map depends on the compression level** (12× slower at 60MINS than at 5MINS). This is gameplay-relevant and must
-  be reproduced deterministically (§1.8).
+  on the map depends on the compression level** (12× slower at 60MINS than at 5MINS).
 - No real-time turn runs while the game is paused (conversation, heli drop, item pickup menu, …).
 
-### 1.8 Ticks and world seconds in ja2-node; what the drivers do
+ja2-node: `handleRealtimeTurns` (`src/sim/tactical/turns/turns.ts`, from the overhead pass) runs on the 20 ms counter
+with `RT_TURN_MS` 5000 and a strict `>` (5020 ms); it returns while a conversation is engaged (the original's pause) and
+re-syncs `lastTurnMs` in combat; the turn after combat: deviation "Real-time turn after combat". `handleTacticalEndTurn`
+runs `beginMercTurn` only for soldiers placed in the loaded sector, and the strategic flow runs no strategic turn. So
+mercs outside the loaded sector never bleed, recover breath or get first aid between hourly updates, on the map at any
+compression or in tactical (limitation, §7).
 
-**Normative model.** The session owns one virtual real-ms counter `realMs` (the original's `guiBaseJA2Clock`). Every
-tick adds 5 ms in every flow; nothing steps while a decision prompt is open (D15), which matches `PauseTime(TRUE)` under
-message boxes. Per tick, in the original's loop order:
+### 1.8 Ticks and world seconds in ja2-node
+
+The campaign has one virtual real-ms counter, `StrategicState.realMs` (the original's `guiBaseJA2Clock`), stepped by
+`CampaignSim.step()` (`src/sim/campaign/campaign-sim.ts`). A step does nothing while a battle-flow prompt (`19`, `22`),
+a conversation decision, a shop or the laptop is open (D15), which covers `PauseTime(TRUE)` under message boxes.
+Otherwise, per tick, in the original's loop order (screen work, then `UpdateClock`):
 
 ```
-tick():
-  realMs += 5
-  if flow == tactical:
-      apply a pending light change (EnvironmentController, GameScreen.cc:333)          // §1.10
-      tactical pass (doc 10 order), in which handleStrategicTurn runs when the 20 ms counter fires (GameScreen.cc:346)
-  else if flow == strategic:
-      handleStrategicTurn on the 20 ms counter (MapScreen.cc:1618)
-      speech/dialogue queue progress (MapScreen.cc:1901), auto-pause update (§1.6, :1908), meanwhile and PBI hooks
-  updateClock(realMs)                                                                  // §1.3, events §2.5
+step():
+  session.tick++
+  flow tactical:    apply a pending light change (EnvironmentController, GameScreen.cc:333)            // §1.10
+                    tactical.step(): one pass of the loaded sector (doc 10 order), including
+                                     handleRealtimeTurns on the 20 ms counter (GameScreen.cc:346)
+                    realMs = tactical.clockMs (+5 per tactical tick); dialogue step
+  flow autoresolve: one autoresolve step; realMs stands still (another screen, §1.5)
+  flow strategic:   realMs += 5; dialogue step (MapScreen.cc:1901); automatic pause (§1.6, :1908)
+  updateClock(realMs)                                                                                   // §1.3, events §2.5
+  meanwhile and endgame hand-offs, helicopter (map only), battle hand-offs (PBI), contract settlement,
+  then the clock events (compressionStarted/Stopped, dayStarted)
 ```
 
-Port `UpdateClock` and `HandleStrategicTurn` literally with their statics as state; the slice cadences of §1.3 and the
-strategic-turn rate of §1.7 then follow without special cases. Tactical soldiers are not stepped while the flow is
-`strategic` (the original never calls `ExecuteOverhead` from the map); their absolute deadlines are simply in the past on
-return, like an expired `TIMECOUNTER`.
+The loaded sector is not stepped while the flow is `strategic` (the original never calls `ExecuteOverhead` from the
+map): its `clockMs` stands still and its deadlines are in the past on return, like an expired `TIMECOUNTER`. A sector
+load starts the tactical clock at `realMs` (`src/sim/campaign/sector-flow.ts`).
 
 | Situation | World seconds per tick | Ticks per world minute |
 |---|---|---|
@@ -343,19 +381,15 @@ return, like an expired `TIMECOUNTER`.
 | Map, 30MINS | 60 per 6–7 ticks (30 per 200) | 6.67 |
 | Map, 60MINS | 60 per 3–4 ticks (60 per 200) | 3.33 |
 
-A world day costs 57,600 ticks at 5MINS and 4,800 at 60MINS; each map tick is an `updateClock` call plus, every fourth
-tick, a strategic turn. Event jumping (`04` §2, level 1b) can skip to the next slice or counter deadline later; it is
-not needed for M4.
+A world day costs 57,600 ticks at 5MINS and 4,800 at 60MINS.
 
-**Drivers** (`04` §4.3), on the strategic map:
-
-- *Real time ×k*: as today, `realMs` advances `k·5` ms of virtual time per 5 wall ms; at k = 1 a human sees the original's
-  pacing (5 min of world time per second at 5MINS). Compression itself is sim state changed only by commands (D15).
-- *Instant*: after an accepted command, run to `idle`. On the map `idle` means "time is not flowing and nothing is
-  pending": `!IsTimeBeingCompressed()`, empty speech queue, no auto-unpause due. So `startTimeCompression` under the
-  instant driver compresses until compression stops (arrival, battle, message box, …).
-- *Manual*: `advance` with world-time or event stop conditions (§6). `DEFAULT_ADVANCE_BUDGET_TICKS` (200,000 ticks =
-  1000 virtual s) covers 3.5 world days at 5MINS and 41 at 60MINS; strategic `advance` should take a world-seconds budget.
+**Drivers** (`04` §4.3) on the map: compression is sim state changed only by commands (D15); under real time ×k a human
+at k = 1 sees the original's pacing (5 world minutes per second at 5MINS). `isIdle()` on the map means "not compressing"
+(`!isTimeBeingCompressed`, so an automatic pause counts) and no meanwhile or endgame in progress, so `compressTime` under
+the instant driver compresses until something stops or pauses it. A strategic `advance` (`04` §6) stops compression
+itself at the first tick boundary where the clock reaches a `worldTime` target, so the clock lands on a slice end at most
+59 s past it; its budget, 2,000,000 ticks or 7 world days (`src/sim/advance.ts`), binds on the days at every compression
+level (7 days cost 403,200 ticks at 5MINS).
 
 ### 1.9 Compression-dependent rules
 
@@ -363,9 +397,11 @@ Beyond the strategic-turn rate (§1.7), these read the compression state and are
 
 - Natural healing: the activity divisor is LOW ("basically resting") when `IsTimeBeingCompressed()` and the merc's group is
   not moving, else HIGH (`Strategic/Assignments.cc:2886-2897`), evaluated inside the hourly update (`18`). An hour that ticks
-  over in tactical, or on the map while not compressing, heals less.
+  over in tactical, or on the map while not compressing, heals less. ja2-node tests the strategic flow instead (deviation
+  "Time compression for healing").
 - `RandomMercInGroupSaysQuote` returns early during tactical traversal or underground unless compressing
-  (`Map_Screen_Interface.cc:1403-1406`), which changes whether a `Random(n)` draw happens.
+  (`Map_Screen_Interface.cc:1403-1406`), which changes whether a `Random(n)` draw happens; ja2-node does not draw it
+  (deviation "Cosmetic draws in strategic movement").
 - Tactical screen messages are suppressed while compressing (`Utils/Message.cc:304`); cosmetic.
 
 ### 1.10 Time of day: light and temperature (`TileEngine/Environment.cc`, `.h`)
@@ -394,6 +430,11 @@ warm, 9:00 hot, 17:00 warm, 19:00 cool; global: 9:00 warm, 12:00 hot, 14:00 warm
 - `envLightValue` starts at **0** in a fresh process (`:115`) and is reset by nothing but the event; `InitNewGameClock`
   does not touch it. At 07:00 on Day 1, when the first squad lands, the 6:59 event has set it to 5; it reaches 3 at 7:03.
 
+ja2-node: `src/sim/strategic/time/environment.ts` (light 0 at creation); `CampaignSim` registers the light, temperature
+and light-sprite events (`TacticalSim.powerNightLights`, `powerPrimeLights`) and applies `doLighting` before each
+tactical step (`TacticalSim.setAmbientLight`). Imported saves and the sandbox: deviation "Ambient light and light
+schedule".
+
 ---
 
 ## 2. The strategic event queue
@@ -408,15 +449,15 @@ StrategicEventFrequency { ONETIME_EVENT 0, RANGED_EVENT 1, ENDRANGED_EVENT 2, EV
 ```
 
 Saved as `u32 n` then n × 28 bytes in list order: 4 skipped, stamp, param, offset, type, kind, flags, 9 skipped
-(`Game_Events.cc:325-351`); loading rebuilds the list in file order (`:354-384`). The reader already decodes it
-(`src/content/formats/savegame.ts` `readStrategicEvents`).
+(`Game_Events.cc:325-351`); loading rebuilds the list in file order (`:354-384`). The reader decodes it
+(`src/content/formats/savegame.ts` `readStrategicEvents`); ja2-node's `StrategicEvent` drops `flags` and adds `seq`.
 
 ### 2.2 Ordering and tie-breaking
 
 `AddAdvancedStrategicEvent` (`:171-197`) inserts the new node **after every node with stamp ≤ its own** (the scan stops at
-the first strictly greater stamp, `:191`). The list is therefore sorted by stamp and FIFO among equal stamps. Equivalent
-implementation: a priority queue keyed by `(stamp, seq)`, `seq` a global counter incremented at every insertion
-(reposts included); on load `seq` = file index. Deleting never reorders.
+the first strictly greater stamp, `:191`). The list is therefore sorted by stamp and FIFO among equal stamps. ja2-node keeps
+`queue.events` sorted by `(stamp, seq)`, `seq` = `queue.nextSeq++` at every insertion (reposts included); an import
+assigns `seq` in file order. Deleting never reorders.
 
 ### 2.3 Posting API (`Game_Events.cc:159-264`, declared in `Game_Event_Hook.h:76-116`)
 
@@ -449,9 +490,12 @@ the window), then 22:30 (inferred from the code, `Creature_Spreading.cc:249-257`
 - During a callback (`gfPreventDeletionOfAnyEvent`, set by `ExecuteStrategicEvent`, `Game_Event_Hook.cc:62-63`) deletion
   only flags the node (`SEF_DELETION_PENDING`); flagged nodes are skipped by the processing loop (`ExecuteStrategicEvent`
   returns FALSE for them, `:68-72`) and unlinked at the end of `ProcessPendingGameEvents` (`Game_Events.cc:152`).
-  ja2-node can remove immediately: no reader observes a flagged node in between (inferred). The executing event itself is
-  already out of the queue; deleting its own kind from its callback does **not** prevent its repost (the repost decision
-  depends only on the return value, which is TRUE because the flag check precedes the callback).
+  The executing event itself is already out of the queue; deleting its own kind from its callback does **not** prevent
+  its repost (the repost decision depends only on the return value, which is TRUE because the flag check precedes the
+  callback).
+
+ja2-node deletes immediately and unlinks the executing event before its callback; no reader observes a flagged node in
+between (inferred). The import drops nodes saved with `SEF_DELETION_PENDING`.
 
 ### 2.5 `ProcessPendingGameEvents(adjust, code)` (`Game_Events.cc:59-156`)
 
@@ -490,6 +534,9 @@ Properties to keep:
 - `TARGET_TIME_FIRST` executes the target event **before** all earlier-due events (they run at the next normal advance):
   a tactical traversal processes the traversing group's arrival first.
 
+ja2-node walks with a `(stamp, seq)` cursor instead of restarting at the head; since the guard puts every post after the
+executing stamp, it visits the events in the original's order.
+
 ### 2.6 `ExecuteStrategicEvent` (`Strategic/Game_Event_Hook.cc:58-319`)
 
 ```
@@ -504,69 +551,81 @@ ExecuteStrategicEvent(e):
 `DelayEventIfBattleInProgress(e)` (`:45-56`, used only by `EVENT_MEANWHILE`): if `fEnemyInSector`, repost a copy (same
 frequency, kind, param, offset) at `e.stamp + 180 + Random(121)` seconds and return TRUE (the callback does nothing else).
 
+ja2-node: `EventDispatch` holds one handler per kind (a later `register` replaces an earlier one) and always returns
+true; no `OnStrategicEvent`; `DelayEventIfBattleInProgress` is part of the meanwhile handler
+(`src/sim/strategic/ai/meanwhile.ts`).
+
 ### 2.7 Dispatch table: every event kind (`Game_Event_Hook.h:6-70`)
 
-Milestone: **M4** = needed by M4 (strategy); **M4h** = M4 hook with no visible effect yet; **M5** campaign/laptop;
-**M6** narrative; **—** never posted / no effect. "Poster" names who schedules it.
+"Poster" names who schedules it. The ja2-node column names the module under `src/sim/` that registers the handler:
+`sim` `campaign/campaign-sim.ts`, `laptop` `campaign/laptop/laptop-flow.ts`, `contracts`
+`campaign/contracts/contract-flow.ts`, `narrative` `campaign/narrative/narrative-flow.ts`, `npc-port`
+`campaign/narrative-port.ts`, `creatures` `campaign/creature-flow.ts`, `heli` `campaign/helicopter-flow.ts`, `economy`
+`strategic/economy/update.ts`, `queen` `strategic/ai/strategic-ai.ts`; — none.
 
-| Id | Kind | Frequency, poster | Handler (file) and effect | MS |
+| Id | Kind | Frequency, poster | Handler (file) and effect | ja2-node |
 |---|---|---|---|---|
-| 1 | `CHANGELIGHTVAL` | everyday ×18, `BuildDayLightLevels` | `envLightValue = param`, `doLighting` (§1.10) | M4 |
-| 4 | `CHECKFORQUESTS` | everyday 08:00, `SetupNewStrategicGame` | `CheckForQuests(day)` (`Quests.cc:1182`): starts DELIVER_LETTER once, history entry | M6 |
-| 5 | `AMBIENT` | ranged, `BuildDayAmbientSounds` (`Environment.cc:289-316`), rebuilt on sector load (`Ambient_Control.cc:41-60`) | start (`param` overwritten by the sound handle) / stop a random ambient sound | — (client) |
-| 6 | `AIM_RESET_MERC_ANNOYANCE` | one-shot, `AIMMembers.cc:2234` | `ResetMercAnnoyanceAtPlayer` | M5 |
-| 7 | `BOBBYRAY_PURCHASE` | one-shot day+N at 08:00, 09:00, 10:00 or 11:00 (`(8 + Random(4))·60`), `BobbyRMailOrder.cc:1843` | `BobbyRayPurchaseEventCallback` (`Strategic_Event_Handler.cc:54-343`): delivery, loss/theft `Random`, facts, email, `StopTimeCompression` | M5 |
-| 8 | `DAILY_UPDATE_BOBBY_RAY_INVENTORY` | everyday 09:00 | Bobby Ray new/used and arms dealers' daily stock (`BobbyR.cc:514, 565`; `Arms_Dealer_Init.cc:239`) | M5 |
-| 9 | `UPDATE_BOBBY_RAY_INVENTORY` | one-shot, `BobbyR.cc:659` | `AddFreshBobbyRayInventory(item)` | M5 |
-| 10 | `DAILY_UPDATE_OF_MERC_SITE` | everyday 00:00 | `DailyUpdateOfMercSite` (`Laptop/Mercs.cc:513`) | M5 |
-| 11 | `DAY3_ADD_EMAIL_FROM_SPECK` | one-shot Day 1+N 07:00, `Game_Init.cc:263` | M.E.R.C. intro email | M5 |
-| 12 | `DELAYED_HIRING_OF_MERC` | one-shot, `Merc_Hiring.cc:158` | `MercArrivesCallback(soldier)` (`:224-…`): squad, insertion, contract end, `StopTimeCompression` | M4 (initial squad), M5 |
-| 13 | `HANDLE_INSURED_MERCS` | everyday 00:00 | `DailyUpdateOfInsuredMercs` (`Insurance_Contract.cc:675`) | M5 |
-| 14 | `PAY_LIFE_INSURANCE_FOR_DEAD_MERC` | one-shot, `Insurance_Contract.cc:908` | payout | M5 |
-| 15 | `MERC_DAILY_UPDATE` | everyday 00:00 | `MercDailyUpdate` (`Strategic_Merc_Handler.cc:135-370`), §3.4 | M4 core, M5 rest |
-| 18 | `GROUP_ARRIVAL` | one-shot, `Strategic_Movement.cc:280, 1138, 1507, 1538, 1636, 1779, 2809, 2963` | `GroupArrivedAtSector(group, TRUE, FALSE)` (`:1077`), see `16` | M4 |
-| 19 | `DAY2_ADD_EMAIL_FROM_IMP` | one-shot, `IMP_Confirm.cc:206` | IMP results email if the policy sends it | M5 |
-| 20 | `MERC_COMPLAIN_EQUIPMENT` | one-shot, `Strategic_Merc_Handler.cc:200`, `Merc_Hiring.cc:334` | quote | M5 |
-| 21 | `HOURLY_UPDATE` | periodic 60 min, `StrategicMap.cc:2256` | `HandleHourlyUpdate` (`Hourly_Update.cc:35-73`), §3.2 | M4 |
-| 22 | `HANDLE_MINE_INCOME` | one-shot 09/12/15/18:00, `Strategic_Mines.cc:522` | `HandleIncomeFromMines` (`:527-540`), see `18` | M4 |
-| 23 | `SETUP_MINE_INCOME` | everyday 00:00 | `PostEventsForMineProduction` (`:516-524`): posts the four income events | M4 |
-| 27 | `SET_BY_NPC_SYSTEM` | one-shot, `Interface_Dialogue.cc` (14 sites), `Strategic_Event_Handler.cc:322-665` | `HandleNPCSystemEvent` (`:549-691`): facts or NPC actions (`param ≥ 10000`) | M6 |
-| 28 | `SECOND_AIRPORT_ATTENDANT_ARRIVED` | one-shot, `Overhead.cc:2318` | Sal placed at the airport | M6 |
-| 29, 30 | `HELICOPTER_HOVER_TOO_LONG`, `_WAY_TOO_LONG` | one-shot +10/+20 min, `Map_Screen_Helicopter.cc:444, 453` | Skyrider complains / returns to base | M6 (`16`) |
-| 32, 33 | `MERC_LEAVE_EQUIP_IN_OMERTA`, `_DRASSEN` | one-shot +6 h, `Map_Screen_Interface.cc:1032` | dismissed merc's gear appears (`:1086-1097`) | M5 |
-| 34 | `DAILY_EARLY_MORNING_EVENTS` | everyday 04:00 | `HandleEarlyMorningEvents` (`Strategic_Event_Handler.cc:693-865`), §3.4 | M6 |
-| 35 | `GROUP_ABOUT_TO_ARRIVE` | one-shot arrival − 5 min, player groups only (`Strategic_Movement.cc:55, 281-288`) | `HandleGroupAboutToArrive` (`Map_Screen_Interface.cc:1226-1235`): redraw + Dead-is-Dead autosave | M4 |
-| 36 | `PROCESS_TACTICAL_SCHEDULE` | one-shot, `Scheduling.cc:826-1031` | `ProcessTacticalSchedule` | M6 |
+| 1 | `CHANGELIGHTVAL` | everyday ×18, `BuildDayLightLevels` | `envLightValue = param`, `doLighting` (§1.10) | `sim` |
+| 4 | `CHECKFORQUESTS` | everyday 08:00, `SetupNewStrategicGame` | `CheckForQuests(day)` (`Quests.cc:1182`): starts DELIVER_LETTER once, history entry | `narrative` |
+| 5 | `AMBIENT` | ranged, `BuildDayAmbientSounds` (`Environment.cc:289-316`), rebuilt on sector load (`Ambient_Control.cc:41-60`) | start (`param` overwritten by the sound handle) / stop a random ambient sound | — (dropped on import) |
+| 6 | `AIM_RESET_MERC_ANNOYANCE` | one-shot, `AIMMembers.cc:2234` | `ResetMercAnnoyanceAtPlayer` | `laptop` |
+| 7 | `BOBBYRAY_PURCHASE` | one-shot day+N at 08:00, 09:00, 10:00 or 11:00 (`(8 + Random(4))·60`), `BobbyRMailOrder.cc:1843` | `BobbyRayPurchaseEventCallback` (`Strategic_Event_Handler.cc:54-343`): delivery, loss/theft `Random`, facts, email, `StopTimeCompression` | `laptop` |
+| 8 | `DAILY_UPDATE_BOBBY_RAY_INVENTORY` | everyday 09:00 | Bobby Ray new/used and arms dealers' daily stock (`BobbyR.cc:514, 565`; `Arms_Dealer_Init.cc:239`) | `sim` |
+| 9 | `UPDATE_BOBBY_RAY_INVENTORY` | one-shot, `BobbyR.cc:659` | `AddFreshBobbyRayInventory(item)` | `laptop` |
+| 10 | `DAILY_UPDATE_OF_MERC_SITE` | everyday 00:00 | `DailyUpdateOfMercSite` (`Laptop/Mercs.cc:513`) | `contracts` |
+| 11 | `DAY3_ADD_EMAIL_FROM_SPECK` | one-shot Day 1+N 07:00, `Game_Init.cc:263` | M.E.R.C. intro email | `laptop` |
+| 12 | `DELAYED_HIRING_OF_MERC` | one-shot, `Merc_Hiring.cc:158` | `MercArrivesCallback(soldier)` (`:224-…`): squad, insertion, contract end, `StopTimeCompression` | `laptop` (`sim` without a laptop) |
+| 13 | `HANDLE_INSURED_MERCS` | everyday 00:00 | `DailyUpdateOfInsuredMercs` (`Insurance_Contract.cc:675`) | `laptop` |
+| 14 | `PAY_LIFE_INSURANCE_FOR_DEAD_MERC` | one-shot, `Insurance_Contract.cc:908` | payout | `laptop` |
+| 15 | `MERC_DAILY_UPDATE` | everyday 00:00 | `MercDailyUpdate` (`Strategic_Merc_Handler.cc:135-370`), §3.4 | `contracts` |
+| 18 | `GROUP_ARRIVAL` | one-shot, `Strategic_Movement.cc:280, 1138, 1507, 1538, 1636, 1779, 2809, 2963` | `GroupArrivedAtSector(group, TRUE, FALSE)` (`:1077`), see `16` | `sim` |
+| 19 | `DAY2_ADD_EMAIL_FROM_IMP` | one-shot, `IMP_Confirm.cc:206` | IMP results email if the policy sends it | `laptop` |
+| 20 | `MERC_COMPLAIN_EQUIPMENT` | one-shot, `Strategic_Merc_Handler.cc:200`, `Merc_Hiring.cc:334` | quote | `contracts` |
+| 21 | `HOURLY_UPDATE` | periodic 60 min, `StrategicMap.cc:2256` | `HandleHourlyUpdate` (`Hourly_Update.cc:35-73`), §3.2 | `economy` |
+| 22 | `HANDLE_MINE_INCOME` | one-shot 09/12/15/18:00, `Strategic_Mines.cc:522` | `HandleIncomeFromMines` (`:527-540`), see `18` | `economy` |
+| 23 | `SETUP_MINE_INCOME` | everyday 00:00 | `PostEventsForMineProduction` (`:516-524`): posts the four income events | `economy` |
+| 27 | `SET_BY_NPC_SYSTEM` | one-shot, `Interface_Dialogue.cc` (14 sites), `Strategic_Event_Handler.cc:322-665` | `HandleNPCSystemEvent` (`:549-691`): facts or NPC actions (`param ≥ 10000`) | `narrative` |
+| 28 | `SECOND_AIRPORT_ATTENDANT_ARRIVED` | one-shot, `Overhead.cc:2318` | Sal placed at the airport | `narrative` |
+| 29, 30 | `HELICOPTER_HOVER_TOO_LONG`, `_WAY_TOO_LONG` | one-shot +10/+20 min, `Map_Screen_Helicopter.cc:444, 453` | Skyrider complains / returns to base (`16`) | `heli` |
+| 32, 33 | `MERC_LEAVE_EQUIP_IN_OMERTA`, `_DRASSEN` | one-shot +6 h, `Map_Screen_Interface.cc:1032` | dismissed merc's gear appears (`:1086-1097`) | `contracts` |
+| 34 | `DAILY_EARLY_MORNING_EVENTS` | everyday 04:00 | `HandleEarlyMorningEvents` (`Strategic_Event_Handler.cc:693-865`), §3.4 | `narrative` |
+| 35 | `GROUP_ABOUT_TO_ARRIVE` | one-shot arrival − 5 min, player groups only (`Strategic_Movement.cc:55, 281-288`) | `HandleGroupAboutToArrive` (`Map_Screen_Interface.cc:1226-1235`): redraw + Dead-is-Dead autosave | `sim` |
+| 36 | `PROCESS_TACTICAL_SCHEDULE` | one-shot, `Scheduling.cc:826-1031` | `ProcessTacticalSchedule` | `npc-port` |
 | 37, 38, 75 | `BEGINRAINSTORM`, `ENDRAINSTORM`, `RAINSTORM` | never posted (`Environment.cc:338-363` commented out) | empty | — |
-| 41 | `MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE` | one-shot +300 min, `Overhead.cc:2767` | rebel loyalty hit, group "will become hostile" (`Strategic_Event_Handler.cc:867-876`) | M6 |
+| 41 | `MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE` | one-shot +300 min, `Overhead.cc:2767` | rebel loyalty hit, group "will become hostile" (`Strategic_Event_Handler.cc:867-876`) | `npc-port` |
 | 42 | `BEGIN_AIR_RAID` | never | no case | — |
-| 44 | `MEANWHILE` | one-shot, `Meanwhile.cc:197` | delayed if `fEnemyInSector` (§2.6), else `BeginMeanwhile` + `InterruptTime` | M6 |
-| 46 | `CREATURE_SPREAD` | periodic 510/450/390 min, `Creature_Spreading.cc:249-257` | `SpreadCreatures` | `17` (M4 or M6) |
-| 48 | `CREATURE_NIGHT_PLANNING` | everyday 22:00, `:264` | `CreatureNightPlanning` (`:884`): may post `CREATURE_ATTACK` at `now + 1 + PreRandom(429)` min | `17` |
-| 49 | `CREATURE_ATTACK` | one-shot, `:518, 892` | `CreatureAttackTown`: PBI or tactical add, `InterruptTime` + pause + lock | `17` |
-| 50 | `EVALUATE_QUEEN_SITUATION` | one-shot, self-reposting (`Strategic_AI.cc:342, 1948, 1953`) | `EvaluateQueenSituation` (`:1930`), see `17` | M4 |
-| 51 | `CHECK_ENEMY_CONTROLLED_SECTOR` | periodic per garrison (`Strategic_AI.cc:515`) | `CheckEnemyControlledSector(sector)` (`:1308`), see `17` | M4 |
-| 52–55 | `TURN_ON/OFF_NIGHT_LIGHTS`, `TURN_ON/OFF_PRIME_LIGHTS` | everyday 21:00 / 07:00 / 21:00 / 00:00 | power map light sprites with the NIGHTTIME/PRIMETIME flag (`Environment.cc:412-463`) | M4h (lighting) |
-| 56 | `MERC_ABOUT_TO_LEAVE` | one-shot 05:30/11:30/17:30, posted daily | `FindOutIfAnyMercAboutToLeaveIsGonnaRenew` (`Merc_Contract.cc:863`) | M5 |
-| 58 | `ENRICO_MAIL` | everyday 07:00 | `HandleEnricoEmail` (`Strategic_Status.cc:246`): progress emails | M5 |
-| 59, 60 | `INSURANCE_INVESTIGATION_STARTED`, `_OVER` | one-shot, `Insurance_Contract.cc:903, 944` | investigation | M5 |
+| 44 | `MEANWHILE` | one-shot, `Meanwhile.cc:197` | delayed if `fEnemyInSector` (§2.6), else `BeginMeanwhile` + `InterruptTime` | `queen` |
+| 46 | `CREATURE_SPREAD` | periodic 510/450/390 min, `Creature_Spreading.cc:249-257` | `SpreadCreatures` (`17`) | `creatures` |
+| 48 | `CREATURE_NIGHT_PLANNING` | everyday 22:00, `:264` | `CreatureNightPlanning` (`:884`): may post `CREATURE_ATTACK` at `now + 1 + PreRandom(429)` min | `creatures` |
+| 49 | `CREATURE_ATTACK` | one-shot, `:518, 892` | `CreatureAttackTown`: PBI or tactical add, `InterruptTime` + pause + lock | `creatures` |
+| 50 | `EVALUATE_QUEEN_SITUATION` | one-shot, self-reposting (`Strategic_AI.cc:342, 1948, 1953`) | `EvaluateQueenSituation` (`:1930`), see `17` | `queen` |
+| 51 | `CHECK_ENEMY_CONTROLLED_SECTOR` | periodic per garrison (`Strategic_AI.cc:515`) | `CheckEnemyControlledSector(sector)` (`:1308`), see `17` | `queen` |
+| 52–55 | `TURN_ON/OFF_NIGHT_LIGHTS`, `TURN_ON/OFF_PRIME_LIGHTS` | everyday 21:00 / 07:00 / 21:00 / 00:00 | power map light sprites with the NIGHTTIME/PRIMETIME flag (`Environment.cc:412-463`) | `sim` |
+| 56 | `MERC_ABOUT_TO_LEAVE` | one-shot 05:30/11:30/17:30, posted daily | `FindOutIfAnyMercAboutToLeaveIsGonnaRenew` (`Merc_Contract.cc:863`) | `contracts` |
+| 58 | `ENRICO_MAIL` | everyday 07:00 | `HandleEnricoEmail` (`Strategic_Status.cc:246`): progress emails | `laptop` (`economy` without a laptop) |
+| 59, 60 | `INSURANCE_INVESTIGATION_STARTED`, `_OVER` | one-shot, `Insurance_Contract.cc:903, 944` | investigation | `laptop` |
 | 61 | `MINUTE_UPDATE` | never | empty | — |
-| 62 | `TEMPERATURE_UPDATE` | everyday ×8 | `UpdateTemperature(code)` (§1.10) | M4 |
-| 63 | `KEITH_GOING_OUT_OF_BUSINESS` | one-shot +6 days, `Interface_Dialogue.cc:3194` | fact | M6 |
-| 64 | `MERC_SITE_BACK_ONLINE` | one-shot, `Mercs.cc:586` | | M5 |
-| 66 | `CHECK_IF_MINE_CLEARED` | one-shot +15 s, `Queen_Command.cc:887` | `HourlyMinesUpdate` (restart a cleared mine), see `18` | M4 |
-| 67 | `REMOVE_ASSASSIN` | one-shot +3..5 h, `Soldier_Profile.cc:410` | assassin leaves, life restored | M6 |
-| 68 | `BANDAGE_BLEEDING_MERCS` | one-shot +1 min, `Assignments.cc:322, 6526`, `Auto_Resolve.cc:1649` | `BandageBleedingDyingPatientsBeingTreated` (`Assignments.cc:6461`), see `18`/`19` | M4 |
-| 72 | `BEGIN_CONTRACT_RENEWAL_SEQUENCE` | one-shot 07:30/13:30/19:30, posted daily | `BeginContractRenewalSequence` (`Merc_Contract.cc:88`) | M5 |
-| 73 | `RPC_WHINE_ABOUT_PAY` | one-shot 07:30 | quote | M5 |
-| 74 | `HAVENT_MADE_IMP_CHARACTER_EMAIL` | one-shot Day 2 8–11 h, `Laptop.cc:1447` | email | M5 |
-| 76 | `QUARTER_HOUR_UPDATE` | periodic 15 min, `StrategicMap.cc:2257` | `HandleQuarterHourUpdate` (`Hourly_Update.cc:85-92`), §3.3 | M4 |
-| 77 | `MERC_MERC_WENT_UP_LEVEL_EMAIL_DELAY` | one-shot, `Campaign.cc:703` | email | M5 |
-| 78 | `MERC_SITE_NEW_MERC_AVAILABLE` | one-shot, `Mercs.cc:1591` | | M5 |
+| 62 | `TEMPERATURE_UPDATE` | everyday ×8 | `UpdateTemperature(code)` (§1.10) | `sim` |
+| 63 | `KEITH_GOING_OUT_OF_BUSINESS` | one-shot +6 days, `Interface_Dialogue.cc:3194` | fact | `narrative` |
+| 64 | `MERC_SITE_BACK_ONLINE` | one-shot, `Mercs.cc:586` | | `laptop` |
+| 66 | `CHECK_IF_MINE_CLEARED` | one-shot +15 s, `Queen_Command.cc:887` | `HourlyMinesUpdate` (restart a cleared mine), see `18` | `economy` |
+| 67 | `REMOVE_ASSASSIN` | one-shot +3..5 h, `Soldier_Profile.cc:410` | assassin leaves, life restored | `narrative` |
+| 68 | `BANDAGE_BLEEDING_MERCS` | one-shot +1 min, `Assignments.cc:322, 6526`, `Auto_Resolve.cc:1649` | `BandageBleedingDyingPatientsBeingTreated` (`Assignments.cc:6461`), see `18`/`19` | `economy` |
+| 72 | `BEGIN_CONTRACT_RENEWAL_SEQUENCE` | one-shot 07:30/13:30/19:30, posted daily | `BeginContractRenewalSequence` (`Merc_Contract.cc:88`) | `contracts` |
+| 73 | `RPC_WHINE_ABOUT_PAY` | one-shot 07:30 | quote | `contracts` |
+| 74 | `HAVENT_MADE_IMP_CHARACTER_EMAIL` | one-shot Day 2 8–11 h, `Laptop.cc:1447` | email | `laptop` |
+| 76 | `QUARTER_HOUR_UPDATE` | periodic 15 min, `StrategicMap.cc:2257` | `HandleQuarterHourUpdate` (`Hourly_Update.cc:85-92`), §3.3 | `economy` |
+| 77 | `MERC_MERC_WENT_UP_LEVEL_EMAIL_DELAY` | one-shot, `Campaign.cc:703` | email | `contracts` |
+| 78 | `MERC_SITE_NEW_MERC_AVAILABLE` | one-shot, `Mercs.cc:1591` | | `laptop` |
 
-**Rule for M4**: every kind exists in the queue with its original id, frequency and reposting, so the queue matches the
-original in content and order; kinds whose subsystem is missing get a no-op handler (returns TRUE, so periodic and
-everyday ones keep reposting). The single exception is `AMBIENT` (deviation, §9).
+Every kind keeps its original id, frequency and reposting, so the queue matches the original in content and order; a
+kind without a handler returns TRUE, so everyday and periodic ones keep reposting. `EventKind`
+(`src/sim/strategic/time/constants.ts`) lists the posted kinds; the never-posted ones (37, 38, 42, 61, 75) have no name and
+would stay no-ops in an import. `AMBIENT` is never queued (deviation "Ambient sound events").
+
+The player view never shows the queue (D16; `STATE_FIELDS` in `src/sim/knowledge/strategic-state.ts` leaves it out):
+only derived times the player sees in the original (own groups' ETAs, merc arrivals, contract ends, the fixed mine-income
+times).
 
 ### 2.8 Processing order within one time step
 
@@ -575,7 +634,9 @@ Inside one tick (§1.8) the order is: screen work (tactical pass or map handlers
 slices worth after a re-phase); inside it, events in `(stamp, seq)` order, each with the clock set to its stamp, reposts
 interleaved by stamp; then the rest of the window, `UpdateGameClockGlobals`, the enemy-knowledge reset, and
 `ForecastDayEvents`. State changes made by events (a stopped compression, a pause, a PBI, a new light value, enemies added
-to the loaded sector) are seen by the screen work of the **next** tick.
+to the loaded sector) are seen by the screen work of the **next** tick. ja2-node runs the hand-offs the original's
+screens make on the next frame (meanwhile start, the PBI, contract settlement) at the end of the same tick, after
+`updateClock` (§1.8).
 
 ### 2.9 Interaction with compression: three ways an event stops time
 
@@ -587,7 +648,7 @@ to the loaded sector) are seen by the screen work of the **next** tick.
 
 Typical combinations: battle at arrival = `InterruptTime` + `PauseGame` + lock (`Strategic_Movement.cc:660-683`); message
 box = all four including `PauseTime`; merc arrival, group at final destination, assignment done, head miner quote = only
-`StopTimeCompression`. Every `StopTimeCompression` caller in M4 scope: group at final destination
+`StopTimeCompression`. Every `StopTimeCompression` caller: group at final destination
 (`Strategic_Movement.cc:1411`), halted group (`:3489, 3601`), PBI opened (`PreBattle_Interface.cc:421, 968, 1003, 1075`;
 `Strategic_Movement.cc:907`), merc arrived (`Merc_Hiring.cc:244`), merc died on the map (`Strategic.cc:41`), merc left
 (`Merc_Contract.cc:705`), repair done / assignment aborted / old assignment resumed (`Assignments.cc:1974, 2740, 7039,
@@ -595,6 +656,9 @@ box = all four including `PauseTime`; merc arrival, group at final destination, 
 militia training unpaid (`Town_Militia.cc:568, 574`), leaving the map screen (`Map_Screen_Interface_Bottom.cc:1121`),
 helicopter events (`Map_Screen_Helicopter.cc:230, 276, 286, 459, 1096, 1442`), Bobby Ray delivery
 (`Strategic_Event_Handler.cc:329`).
+
+ja2-node passes a reason with each `stopTimeCompression` call (`CompressionStop`, `world-clock.ts`), kept in
+`clock.stopReason` and reported with `compressionStopped` (`04` §6).
 
 ---
 
@@ -640,49 +704,44 @@ savegame keeps whatever order it carries.
 
 Returns at once while `didGameJustStart` (until the first squad lands, §4.5). Then, in order:
 
-| # | Call | File | Draws | Owner |
+| # | Call | File | Draws | ja2-node |
 |---|---|---|---|---|
-| 1 | `UpdateAssignments()` | `Assignments.cc:954-1029` | `PreRandom` via `StatChange` → `ProcessStatChange` (training, doctoring, repair skill gain, `Campaign.cc:261, 336`); `Random(100)` toolkit wear per repairman (`:1991`) | `18` |
-| 2 | `UpdateBuddyAndHatedCounters()` | `Strategic_Merc_Handler.cc:526-730` | none; quotes, `StopTimeCompression` | M5 |
-| 3 | `HourlyMoraleUpdate()` | `Tactical/Morale.cc:664` | none | M4 |
-| 4 | `HourlyCamouflageUpdate()` | `Strategic_Merc_Handler.cc:733-759` | none (camo −2, monster smell −1) | M4 |
-| 5 | `HourlyMinesUpdate()` | `Strategic_Mines.cc:162-234` | none | `18` |
-| 6 | `HourlyProgressUpdate()` | `Tactical/Campaign.cc:1289-1325` | none; first crossings of 35/50/70 % trigger the Madlab meanwhile, Mike, Iggy (policy `progress.event_*_min`) | M4 (record), M6 (effects) |
-| 7 | `HourlyQuestUpdate()` | `Hourly_Update.cc:95-152` | none; brothel/club/museum facts by hour, boxers' rest | M6 |
-| 8 | `HourlyLarryUpdate()` | `:170-305` | `Random(temptation)`, `Random(2)` | M6 |
-| 9 | `HourlyCheckIfSlayAloneSoHeCanLeave()` | `:308-328` | `Chance(15)` | M6 |
-| 10 | `PayOffSkyriderDebtIfAny()` | `Map_Screen_Helicopter.cc:1387-1415` | none | M6 |
-| 11 | every 6th hour (`hour % 6 == 0`): `UpdateRegenCounters()` | `:76-82` | none | M5 |
+| 1 | `UpdateAssignments()` | `Assignments.cc:954-1029` | `PreRandom` via `StatChange` → `ProcessStatChange` (training, doctoring, repair skill gain, `Campaign.cc:261, 336`); `Random(100)` toolkit wear per repairman (`:1991`) | `updateAssignments` (`18`) |
+| 2 | `UpdateBuddyAndHatedCounters()` | `Strategic_Merc_Handler.cc:526-730` | none; quotes, `StopTimeCompression` | `BattleFlow.updateBuddyAndHatedCounters` (`22`) |
+| 3 | `HourlyMoraleUpdate()` | `Tactical/Morale.cc:664` | none | `BattleFlow.hourlyMoraleUpdate` |
+| 4 | `HourlyCamouflageUpdate()` | `Strategic_Merc_Handler.cc:733-759` | none (camo −2, monster smell −1) | not wired (camouflage is not simulated) |
+| 5 | `HourlyMinesUpdate()` | `Strategic_Mines.cc:162-234` | none | `hourlyMinesUpdate` (`18`) |
+| 6 | `HourlyProgressUpdate()` | `Tactical/Campaign.cc:1289-1325` | none; first crossings of 35/50/70 % trigger the Madlab meanwhile, Mike, Iggy (policy `progress.event_*_min`) | `hourlyProgressUpdate` (`src/sim/strategic/ai/difficulty.ts`) and the narrative milestones |
+| 7 | `HourlyQuestUpdate()` | `Hourly_Update.cc:95-152` | none; brothel/club/museum facts by hour, boxers' rest | `src/sim/strategic/narrative/hourly.ts` |
+| 8 | `HourlyLarryUpdate()` | `:170-305` | `Random(temptation)`, `Random(2)` | `src/sim/strategic/narrative/larry.ts` |
+| 9 | `HourlyCheckIfSlayAloneSoHeCanLeave()` | `:308-328` | `Chance(15)` | `narrative/hourly.ts` |
+| 10 | `PayOffSkyriderDebtIfAny()` | `Map_Screen_Helicopter.cc:1387-1415` | none | `HelicopterFlow.payOffSkyriderDebtIfAny` |
+| 11 | every 6th hour (`hour % 6 == 0`): `UpdateRegenCounters()` | `:76-82` | none | not wired (drugs are not simulated) |
 
-`UpdateAssignments` itself (owned by `18`; order matters for draws): build the sectors-with-soldiers list, record who
-slept through the past hour, natural healing, hospital patients, trainers/trainees without partners, clear the
-militia-completed list, rest/fatigue/sleep, then for `x` 0..15 (outer), `y` 0..15, `z` 0..3 with soldiers present:
-doctors, repairmen, training; then patients done healing, the update box, continued town training, "nothing to do"
-re-evaluation. The sector loop is column-major (x outer).
+ja2-node: `handleHourlyUpdate` (`src/sim/strategic/economy/update.ts`) calls the steps in this order, the non-economy ones
+through `EconomyContext.slots` filled by `CampaignSim`.
+
+`UpdateAssignments`' own order (the sector loop is column-major: `x` outer, then `y`, `z`): `18` §5.3; its draws:
+`18` §5.15.
 
 ### 3.3 `HandleQuarterHourUpdate` (`Hourly_Update.cc:85-92`)
 
-Returns while `didGameJustStart`; else `DecayTacticalMoraleModifiers()` (`Tactical/Morale.cc:138-…`, no draws). M4.
+Returns while `didGameJustStart`; else `DecayTacticalMoraleModifiers()` (`Tactical/Morale.cc:138-…`, no draws).
+ja2-node: `handleQuarterHourUpdate` (`economy/update.ts`).
 
 ### 3.4 Daily updates
 
-- **00:00 `MERC_DAILY_UPDATE`** (`Strategic_Merc_Handler.cc:135-370`). Skipped on Day 1. Low death rate (< 5) → team
-  morale event; posts `MERC_ABOUT_TO_LEAVE` at slot − 2 h and `BEGIN_CONTRACT_RENEWAL_SEQUENCE` at each slot (7:30,
-  13:30, 19:30, `Tactical/Merc_Hiring.h:14-16`). Per merc on the team: POW → contract end +1440 min; otherwise (not in
-  transit) reset once-a-day quote flags, corpse tolerance −1, personality flag reset, worse-equipment check → complaint at
-  `360 + Random(1080)` min, days served +1, RPC pay, `DailyMoraleUpdate`, `CheckIfMercGetsAnotherContract` (`Chance`);
-  man-days +1 for non-dead, non-transit. Then MERC account check; then for every profile 0..NUM_PROFILES−1 not dead:
-  precedent quote reset; skip team members; AIM/MERC mercs: `HandleUnhiredMercImprovement` (`Random`) and, if working
-  elsewhere, `HandleUnhiredMercDeaths` (`PreRandom(1000)`, `Campaign.cc:1157`); availability countdown, or
-  `Random(100) < chance` → busy for `1 + Random(6 + exp/2)` days; morale hangover −1. Then `HandleSlayDailyEvent`.
-  M4 needs days served, man-days, daily morale and the death-rate bonus; the rest is M5.
+- **00:00 `MERC_DAILY_UPDATE`** (`Strategic_Merc_Handler.cc:135-370`, step by step in `22` §2.1). Skipped on Day 1;
+  posts `MERC_ABOUT_TO_LEAVE` at slot − 2 h and `BEGIN_CONTRACT_RENEWAL_SEQUENCE` at each slot (7:30, 13:30, 19:30,
+  `Tactical/Merc_Hiring.h:14-16`); draws the equipment complaint time `360 + Random(1080)`,
+  `CheckIfMercGetsAnotherContract` (`Chance`), unhired improvement (`Random`), unhired deaths (`PreRandom(1000)`,
+  `Campaign.cc:1157`) and availability (`Random(100) < chance`, then `1 + Random(6 + exp/2)` days). ja2-node:
+  `ContractFlow`.
 - **00:00 `SETUP_MINE_INCOME`**: four `HANDLE_MINE_INCOME` one-shots at 09:00 + k·3 h (`Strategic_Mines.cc:34-36`).
-- **04:00 `DAILY_EARLY_MORNING_EVENTS`** (`Strategic_Event_Handler.cc:693-865`), M6, but it runs during the very first warp
-  (§4.5): NPC default-response flags; Walker `bNPCData = Random(4)`; `Random(2)` → Walker swaps C13/D13 unless loaded;
-  Tony (`Random(4)`, only once spoken to); Devin moves when `bNPCData > 3` (`pickPlacementSector`, `Random(n)`); Hamous
-  moves (`Random(n)`); Rat leaves; money resets (Vince, Steve, Jenny, Darren 15000); Carmen placement (`Random(n)`) or head
-  reward; **`PreRandom(3)` → Dave has gas**; hospital supplies check if loaded.
-- **Other daily kinds** (09:00 Bobby Ray, 00:00 MERC site and insurance, 07:00 Enrico, 08:00 quests) are M5/M6 (§2.7).
+- **04:00 `DAILY_EARLY_MORNING_EVENTS`** (`Strategic_Event_Handler.cc:693-865`, step by step in `25` §4.3), which also
+  runs during the very first warp (§4.5): NPC resets and moves with `Random` draws (Walker, Tony, Devin, Hamous, Carmen)
+  and **`PreRandom(3)` → Dave has gas**. ja2-node: `src/sim/strategic/narrative/early-morning.ts`.
+- **Other daily kinds** (09:00 Bobby Ray, 00:00 MERC site and insurance, 07:00 Enrico, 08:00 quests): handlers in §2.7.
 
 ### 3.5 RNG summary of the periodic layer
 
@@ -695,7 +754,7 @@ stream: `StatChange` from assignments (hourly), unhired merc deaths (daily), Dav
 
 ## 4. New game initialisation
 
-### 4.1 Flow (original)
+### 4.1 Flow
 
 Main menu → game options screen (`GameInitOptionsScreen.cc:709-730` sets gun nut, sci-fi, difficulty, save mode) →
 intro → `INIT_SCREEN` → `InitNewGame()` (`JAScreens.cc:181-185`, state 4) → laptop (paused, hire mercs) → the laptop
@@ -704,12 +763,16 @@ exits to the map screen (`LeaveLapTopScreen` overrides the `INIT_SCREEN` exit, `
 player starts compression → the 6-hour warp and the helicopter drop (§4.5). Restarting from the main menu runs `ReStartingGame()`
 (`Game_Init.cc:291-354`: delete all events, re-init overhead (`didGameJustStart = true`), profiles, laptop, world).
 
+ja2-node: `createCampaignSession` (`src/server/campaign-factory.ts`) runs `initNewGame`, hires through the laptop and,
+unless `land: false`, dispatches the first `compressTime` (`04` §6.6); there is no restart (a won campaign ends the
+session, deviation "Endgame timing").
+
 ### 4.2 `InitNewGame()` (`Strategic/Game_Init.cc:200-277`), first call (`screenCount == 0`)
 
 1. `uiMeanWhileFlags = 0`; `SetSelectedMan(0)`; reset cheat level.
 2. `LoadMercProfiles()` (`Tactical/Soldier_Profile.cc:221-238`): profiles from content; `DecideActiveTerrorists()`
    (`:246-301`); `StartSomeMercsOnAssignment()` (`:485-514`).
-3. `InitAllArmsDealers()` (`Tactical/Arms_Dealer_Init.cc:51-70`), `InitBobbyRayInventory()` (`Laptop/BobbyR.cc:422`). M5.
+3. `InitAllArmsDealers()` (`Tactical/Arms_Dealer_Init.cc:51-70`), `InitBobbyRayInventory()` (`Laptop/BobbyR.cc:422`).
 4. Clear the tactical and map-screen message queues; `ResetGameStates()`; `InitScriptingEngine()` (only `enums.lua` ships).
 5. `InitLaptopAndLaptopScreens()` (finances, history).
 6. **`InitStrategicLayer()`** (§4.3).
@@ -722,6 +785,12 @@ player starts compression → the 6-hour warp and the helicopter drop (§4.5). R
    d)` = Day 1+d, 07:00.
 10. Laptop exit screen `INIT_SCREEN` (later overridden by the map screen); pending screen `LAPTOP`; `screenCount = 1`;
     `gameStarted = true`.
+
+ja2-node: `initNewGame` (`src/sim/campaign/new-game.ts`) runs, in this order: the profiles (`ContractFlow.loadMercProfiles`,
+`LaptopFlow.initNewGameProfiles` = `decideActiveTerrorists`, `startSomeMercsOnAssignment`), `initAllArmsDealers`, Bobby
+Ray, the laptop screens, `setupNewStrategicGame`, `initQuestEngine`, `initStrategicLayerMap` (§4.3), mode X0, the
+new-game mails, `addStartingCash`, the M.E.R.C. day draw, `didGameJustStart = true`, and the laptop opens. Steps 1, 4 and
+10 have no counterpart (a session starts from a fresh `StrategicState`; no scripting engine, no screen state machine).
 
 ### 4.3 `InitStrategicLayer()` (`Game_Init.cc:140-188`)
 
@@ -749,31 +818,31 @@ player starts compression → the 6-hour warp and the helicopter drop (§4.5). R
       file order, troops/elites/creatures = base + `Random(variance)` each (three calls; zero variance draws nothing);
    6. start sector `SF_ALREADY_VISITED` if `campaign.start_sector_revealed` (`game.json:269`: true; the code default when
       absent is false, `externalized/policy/DefaultGamePolicy.cc:105`);
-   7. **`InitStrategicAI()`** (`Strategic_AI.cc:316-561`, details in `17`): pools and alertness from policy; the first
+   7. **`InitStrategicAI()`** (`Strategic_AI.cc:316-561`, step by step in `17` §3.3 and `17` §3.4): the first
       `EVALUATE_QUEEN_SITUATION` at absolute minute `475 + time_evaluate_in_minutes + Random(time_evaluate_variance)`
-      (`:338-342`; medium 835..1014 = Day 0, 13:55–16:54, **before** the start time); garrisons in table order: roadblock
-      `Chance(20)`, size `·(100 + Random(51) − 25)/100` unless it is `MAX_STRATEGIC_TEAM_SIZE` (20,
-      `StrategicMap.h:11`) or the sector is P3, per soldier `Random(100)` when the composition has no admin percentage,
-      then a `CHECK_ENEMY_CONTROLLED_SECTOR` periodic event every `140 − 20·difficulty + Random(4)`
-      min from Day 1 `7:55 + i` min (`:515`); patrols: `Random(3)` size, group creation, `RandomizePatrolGroupLocation`
-      (`Random(waypoints)`); weapon cache sector `Random(5)` (`strategic-map-cache-sectors.json`) with
-      `numTroops + Random(variance 0)`;
+      (`:338-342`; medium 835..1014 = Day 0, 13:55–16:54, **before** the start time); garrisons in table order, each
+      with a `CHECK_ENEMY_CONTROLLED_SECTOR` periodic event every `140 − 20·difficulty + Random(4)` min from Day 1
+      `7:55 + i` min (`:515`); patrols; the weapon cache sector (draws in §4.6);
    8. `InitStrategicStatus()` (zeroed, army gun "already dropped" flags).
 4. `InitSquads()`, `InitVehicles()`, `InitTownLoyalty()` (`18`).
-5. `InitializeMines()` (`Strategic_Mines.cc:61-159`, `18`): base rates; 25 (easy, medium) or 20 (hard) increments, each
-   `Random(#mines)` repeated until a producing mine; the depleting mine `Random(#mines)` repeated until producing and not
-   `noDepletion`; its ore = 10 or 20 (`delayDepletion`) days of full production.
+5. `InitializeMines()` (`Strategic_Mines.cc:61-159`, `18` §3.2): base rates, rejection-sampled production increments,
+   the depleting mine.
 6. `InitMapScreenFlags()`.
-7. `InitNPCs()` (`Game_Init.cc:73-116`): for every NPC placement in profile-id order (`std::map`), skipping sci-fi-only
-   ones without sci-fi: `pickPlacementSector()` = `Random(#sectors)` (`externalized/strategic/NpcPlacementModel.cc:32-40`);
-   alternate map flag; place if `placedAtStart`. Then Tixa B1 alternate map without sci-fi; hospital values 0; Devin
-   `bNPCData = 3`. (Placements are M6, but the draws and alternate-map flags happen here.)
+7. `InitNPCs()` (`Game_Init.cc:73-116`, `25` §4.2): per NPC placement in profile-id order (sci-fi-only ones skipped
+   without sci-fi) `pickPlacementSector()` = `Random(#sectors)` (`externalized/strategic/NpcPlacementModel.cc:32-40`), the
+   alternate-map flag, the placement if `placedAtStart`; Tixa's alternate map without sci-fi; Devin `bNPCData = 3`.
 8. `InitializeHelicopter()`, `ClearOutVehicleList()`.
 9. `InitBloodCatSectors()` (`:118-137`): `bBloodCats = −1` for sectors 0..**254**; placements and spawns by difficulty
    from JSON (no draws).
 10. `InitializeSAMSites()`, `InitMapSecrets()`, leave lists.
 11. `SetGameTimeCompressionLevel(X0)`: the screen is `INIT_SCREEN`, so no remapping: mode X0, resolution 0, speed 0.
 12. `ChangeSelectedMapSector(start_sector)`; clear the battle-disable flags.
+
+ja2-node: step 1 is `setupNewStrategicGame` (`new-game.ts`: clock, events) plus `setupNewStrategicMap` (enemy control);
+steps 3–10 and 12 are `initStrategicLayerMap` (`src/sim/strategic/map/init.ts`: `initNewCampaignMap` with
+`initStrategicAiForNewCampaign` (`17`), squads, vehicles, `initEconomyStrategicLayer` = town loyalty and mines (`18`), NPC
+placements, helicopter, bloodcats, SAM sites, secrets, the selected sector); the facility sectors of step 3.4 come from
+`data/tables/sector-facilities.json`. Step 11 is the mode reset in `initNewGame`.
 
 ### 4.4 Strategic state after initialisation
 
@@ -787,6 +856,8 @@ player starts compression → the 6-hour warp and the helicopter drop (§4.5). R
 | Groups | patrol groups (`17`), no player groups |
 | Event queue | 38 everyday + 2 periodic + 1 Queen evaluation + 1 periodic per garrison + Speck's email (if d > 0) |
 | Campaign | balance = starting cash; `didGameJustStart` true; `atLeastOneMercHired` false (no compression possible) |
+
+ja2-node's clock starts unpaused (`createWorldClock`); the laptop flow stops it instead (§1.5).
 
 ### 4.5 Start date, the first squad and the first advance
 
@@ -812,26 +883,34 @@ and `QUARTER_HOUR_UPDATE`. **All hourly and quarter-hour updates during the warp
 the 04:00 event, the light and temperature events and the Queen evaluation run. The `CHECK_ENEMY_CONTROLLED_SECTOR`
 events (from 07:55) are after the window.
 
+ja2-node (`src/sim/campaign/hiring.ts`): `hireMerc` posts the arrival at `FIRST_ARRIVAL_MINUTE` (or the contract's
+arrival, `21`) with CHOPPER insertion and the letter for soldier 0; `compressionModeSet` calls
+`teamJackedInAndGearedToGo`: load the start sector (`loadStartSector`, `src/sim/campaign/sector-flow.ts`),
+`warpGameTime(21600, NORMAL)`, the laptop's `firstLanding` (Enrico's email), `didGameJustStart = false`, and X1 when the
+flow is tactical.
+
 ### 4.6 RNG draw order of a new game
 
 All draws during initialisation are on the `main` stream; none is a `PreRandom`. Order:
 
-1. `DecideActiveTerrorists`: 2 × `Chance(70|50|30)`; then sweeps over the terrorist list: per unplaced candidate
-   `Random(100)` (< 40 places), then `Random(#sectors)` repeated until an unused sector.
-2. `StartSomeMercsOnAssignment`: per AIM/MERC profile in content order `Random(100)`, and `Random(6 + exp/2)` when busy.
-3. Arms dealers, then Bobby Ray new and used inventories (M5; their draw counts depend on item tables).
+1. `DecideActiveTerrorists` (`25` §4.2): 2 × `Chance(70|50|30)`; then sweeps over the terrorist list: per unplaced
+   candidate `Random(100)` (< 40 places), then `Random(#sectors)` repeated until an unused sector.
+2. `StartSomeMercsOnAssignment` (`21` §2.2): per AIM/MERC profile in content order `Random(100)`, and `Random(6 + exp/2)`
+   when busy.
+3. Arms dealers, then Bobby Ray new and used inventories (their draw counts depend on the item tables).
 4. `BuildUndergroundSectorInfoList`: per entry up to three `Random(variance)`.
-5. `InitStrategicAI`: evaluation variance; per garrison (roadblock `Chance(20)`; `Random(51)`; per-soldier `Random(100)`;
-   `Random(4)` for the check period); per patrol (`Random(3)`, then the location draw); cache `Random(5)`.
-6. `InitializeMines`: rejection-sampled increments and the depleting mine.
+5. `InitStrategicAI`: evaluation variance; per garrison (roadblock `Chance(20)`; size `Random(51)` unless
+   `MAX_STRATEGIC_TEAM_SIZE` or P3; per-soldier `Random(100)` without an admin percentage; `Random(4)` for the check
+   period); per patrol (`Random(3)` size, then `Random(waypoints)`); cache sector `Random(5)`.
+6. `InitializeMines`: 25 (easy, medium) or 20 (hard) increments, each `Random(#mines)` repeated until a producing mine;
+   the depleting mine `Random(#mines)` repeated until producing and not `noDepletion`.
 7. `InitNPCs`: one `Random(#sectors)` per eligible placement.
 8. `Random(merc_online_max − min + 1)`.
 
 No initialisation expression evaluates two draws as unsequenced function arguments (checked on this path), so the order
 is fully defined. Then, at the first warp, the periodic draws of §4.5. ja2-node does not reproduce `mt19937` streams
-(`01` §3.6), so this order matters for ja2-node's own determinism ("same seed, same campaign") and for oracle checks with
-a replayed draw log (§8.4). Adding M5 subsystems (dealers, Bobby Ray) later shifts every draw after them: pin values in
-tests with a scripted RNG, not with a seed.
+(`01` §3.6), so this order matters for "same seed, same campaign" and for the oracle comparers that replay native draw
+logs (`newgame`, `newgamefull`; `tools/oracle/README.md`).
 
 ### 4.7 Policy values used by time and initialisation
 
@@ -846,225 +925,100 @@ tests with a scripted RNG, not with a seed.
 
 ## 5. State owned by the time layer and savegames
 
-Mapping to the save sections of `14` §4 (decoded = the reader already exposes it):
+Mapping to the save sections of `14` §4. Native import: `importStrategicTime` (`src/sim/strategic/time/save-import.ts`),
+called by `src/server/save-session.ts`.
 
-| Section | Field | ja2-node state | Notes |
+| Section | Field | ja2-node state | Native import |
 |---|---|---|---|
-| 1 Tactical status | `fDidGameJustStart`, `fHasAGameBeenStarted` | `campaign.didGameJustStart`, `.gameStarted` | not yet decoded |
-| 1 | `uiFlags & INCOMBAT`, `fEnemyInSector` | tactical | decoded / derived |
-| 1 | `uiTimeSinceLastInTactical` (min) | `campaign.lastInTacticalMinute` | `GameScreen.cc:260`, `StrategicMap.cc:499` |
-| 2 Game clock | `giTimeCompressMode` | `clock.compressionMode` | decoded (`GameClock`) |
-| 2 | `gubClockResolution`, `guiGameSecondsPerRealSecond` | `clock.resolution`, `.secondsPerRealSecond` | keep as saved (may be stale, §2.9) |
-| 2 | `gfGamePaused` | `clock.paused` | the value **before** the save paused the game (`SaveLoadGame.cc:273-274`) |
-| 2 | `gfTimeInterrupt` | `clock.timeInterrupt` | |
+| 1 Tactical status | `fDidGameJustStart`, `fHasAGameBeenStarted` | `didGameJustStart`; no `gameStarted` | decoded, not imported (stays false) |
+| 1 | `uiFlags & INCOMBAT`, `fEnemyInSector` | tactical | with the tactical status (`14`) |
+| 1 | `uiTimeSinceLastInTactical` (min, `GameScreen.cc:260`, `StrategicMap.cc:499`) | — | decoded, not used |
+| 2 Game clock | `giTimeCompressMode` | `clock.mode` | imported |
+| 2 | `gubClockResolution`, `guiGameSecondsPerRealSecond` | `clock.resolution`, `.secondsPerRealSecond` | as saved (may be stale, §2.9) |
+| 2 | `gfGamePaused` | `clock.paused` | the saved value is the one **before** the save paused the game (`SaveLoadGame.cc:273-274`); the session import clears it |
+| 2 | `gfTimeInterrupt` | `clock.timeInterrupt` | imported |
 | 2 | `fSuperCompression` | — | dead |
-| 2 | `guiGameClock`, `guiPreviousGameClock` | `clock.worldSeconds`, `.previousWorldSeconds` | |
-| 2 | `ubAmbientLightLevel` | tactical base light | already imported (`14` §10) |
-| 2 | `guiEnvTime`, `guiEnvDay` | — | ambient bookkeeping (deviation, §9) |
-| 2 | `gubEnvLightValue` | `environment.lightValue` | |
-| 2 | `guiTimeOfLastEventQuery` | `clock.lastEventQuerySeconds` | read by schedules (`Scheduling.cc:217`, M6) |
-| 2 | `gfLockPauseState`, `guiLockPauseStateLastReasonId` | `clock.pauseLocked`, `.pauseLockReason` | saved value is the pre-save lock |
-| 2 | `gfPauseDueToPlayerGamePause` | driver | import: start with the manual driver (deviation "Real-time pause") |
-| 2 | `gfResetAllPlayerKnowsEnemiesFlags`, `gfTimeCompressionOn` | `strategic.resetPlayerKnowsEnemies`, `clock.compressionOn` | |
-| 3 Strategic events | all | `strategic.events` with `seq` = file index | decoded; drop `EVENT_AMBIENT` (§9) |
+| 2 | `guiGameClock`, `guiPreviousGameClock` | `clock.seconds`, `.previousSeconds` | imported |
+| 2 | `ubAmbientLightLevel` | tactical base light | by the tactical import (`14` §10) |
+| 2 | `guiEnvTime`, `guiEnvDay` | — | ambient bookkeeping, not ported |
+| 2 | `gubEnvLightValue` | `env.lightValue` | imported |
+| 2 | `guiTimeOfLastEventQuery` | `clock.lastEventQuerySeconds` | imported; read by schedules (`Scheduling.cc:217`) |
+| 2 | `gfLockPauseState`, `guiLockPauseStateLastReasonId` | `clock.pauseLocked`, `.pauseLockReason` | the saved lock is the pre-save one; the reason is imported, the lock cleared |
+| 2 | `gfPauseDueToPlayerGamePause` | `clock.playerPause` | imported; the pause itself is the driver (deviation "Real-time pause") |
+| 2 | `gfResetAllPlayerKnowsEnemiesFlags` | `battle.resetAllPlayerKnowsEnemiesFlags` | decoded, not imported |
+| 2 | `gfTimeCompressionOn` | `clock.compressionOn` | imported |
+| 3 Strategic events | all | `queue.events` with `seq` = file index | imported without `EVENT_AMBIENT` and nodes pending deletion |
 | 11 Strategic info | `SectorInfo.uiTimeCurrentSectorWasLastLoaded`, `uiTimeLastPlayerLiberated` | `16`, `17` | |
-| 22 PreRandom | ring and index | `rng.pre` | decoded |
-| 24 General info | `guiBaseJA2Clock` | `clock.realMs` | decoded (`baseJA2Clock`) |
-| 24 | `gubScreenCount`, `gfAtLeastOneMercWasHired` | `campaign.screenCount`, `.atLeastOneMercHired` | the hire flag is decoded, the screen count not yet |
-| 24 | `gubDesertTemperature`, `gubGlobalTemperature` | `environment.*Temperature` | not yet decoded (`SaveLoadGame.cc:1922-1923`) |
+| 22 PreRandom | ring and index | `rng.pre` | imported |
+| 24 General info | `guiBaseJA2Clock` | `realMs` | the imported tactical clock (`clockMs` = `guiBaseJA2Clock`); `driver.lastSecondMs = realMs` |
+| 24 | `gubScreenCount`, `gfAtLeastOneMercWasHired` | —, `atLeastOneMercHired` | the hire flag is imported, the screen count decoded only |
+| 24 | `gubDesertTemperature`, `gubGlobalTemperature` | `env.*Temperature` | decoded, not imported (cool until the next temperature event) |
 | 24 | `guiEnvWeather` | — | rain is disabled in the original |
-| 24 | `uiMeanWhileFlags`, `gfPersistantPBI`, `gubEnemyEncounterCode`, `gubPBSector`, `g_merc_arrive_sector` | M6, `19`, `16` | |
+| 24 | `uiMeanWhileFlags`, `gfPersistantPBI`, `gubEnemyEncounterCode`, `gubPBSector`, `g_merc_arrive_sector` | `26`, `19`, `16` | |
 | Header | day, hour, minute | derived | |
 
-Not saved, rebuilt as defaults on load: the `UpdateClock` statics (a fresh process has `lastSecondMs = 0`, so the first
-tactical pass after a load advances one second at once, inferred), `lastTacticalTurnMs`, the counter deadline,
-`executingStamp`, `doLighting` (`LoadGameClock` sets it for surface sectors, `Game_Clock.cc:745-746`).
+Not saved in the original, rebuilt as defaults on load: the `UpdateClock` statics (a fresh process has
+`lastSecondMs = 0`, so the first tactical pass after a load advances one second at once, inferred; the ja2-node import
+sets `lastSecondMs = realMs`, so it does not), `lastTacticalTurnMs`, the counter deadline, `executingStamp`, `doLighting`
+(`LoadGameClock` sets it for surface sectors, `Game_Clock.cc:745-746`).
 
-ja2-node's own save stores the whole `GameState` (D7), including `seq` and the statics, so a reload continues
-bit-identically; native import maps the table above.
-
----
-
-## 6. Agent API (D14, D15, D16)
-
-**Commands** (refusals carry the `TellPlayerWhyHeCantCompressTime` reason; on the strategic flow):
-
-| Command | Original | Effect |
-|---|---|---|
-| `setTimeCompression {mode: '5min' \| '30min' \| '60min'}` | `SetGameTimeCompressionLevel` / "+"/"−" | sets the mode (starts compressing, like the "+" button from stopped) |
-| `startTimeCompression` | `RequestToggleTimeCompression` (stopped) | resumes the remembered mode (X0/X1 → 5MINS); may open the PBI when enemies are in the loaded sector (§1.6) |
-| `stopTimeCompression` | toggle (running) | `StopTimeCompression` between ticks, like a player click between frames |
-
-The player's pause is not a command: the manual driver is the pause (existing deviation "Real-time pause").
-
-**`advance` on the strategic map**: `advance {until: {compressionStopped?: true (default), worldTime?: {day, hour,
-minute} | seconds, events?: [...], worldSeconds?: n}, mode?}`. If time is not being compressed it first runs
-`startTimeCompression` (with `mode` if given), then steps ticks until:
-
-1. a decision prompt opens (PBI, message box, simultaneous arrival, update box, contract renewal, meanwhile) → `decision`;
-2. compression stopped (any `StopTimeCompression`, §2.9) → `event` with `compressionStopped {reason}`; a temporary
-   automatic pause (quote, update box) does **not** stop `advance`: the instant driver plays it out in virtual time;
-3. `worldTime` reached: at the first tick boundary where `worldSeconds ≥ target`, `advance` issues `stopTimeCompression`
-   itself (equivalent to a player click on that frame; the clock lands on a slice end, ≤ 59 s past the target);
-4. a watched event (`groupArrived` at an intermediate sector, `mercArrived`, `mineIncome`, `dayStarted`, …);
-5. the budget (in world seconds).
-
-In tactical real time the existing `advance` keeps working; `worldTime` is also accepted there (1 world s = 200 ticks).
-
-**Events** to add (`04` §4.4 list): `compressionStarted {mode}`, `compressionStopped {reason}` with reasons
-`arrived | halted | battle | mercArrived | mercDied | mercLeft | assignmentDone | mineEvent | complaint | requested |
-mapExit | helicopter | shipment`, `worldTimeReached`, `dayStarted {day}`. Every stop report carries the world time.
-
-**Status and view** (D16): `status` shows `Day d, HH:MM`, compression `{mode, on}`, `paused` and the lock reason
-(player-visible: the clock, the compression buttons, the reason message). The view must **not** expose the event queue:
-Queen evaluations, enemy group arrivals, creature attacks, NPC-system timers and meanwhiles are hidden. Player-visible
-derived times only: own groups' ETAs, mercs' arrival times (`uiTimeSoldierWillArrive`), contract ends, the four fixed
-mine-income times.
-
-**Prompts** owned elsewhere (`16`, `18`, `19`) all stop `advance` with `decision`; while open nothing steps, as with
-`PauseTime` under a message box.
-
-**Status (2026-10-16).** Implemented in `sim/advance.ts` against `Steppable.worldClock` (`CampaignSim.worldClock`,
-forwarded by the server sessions); `protocol/messages.ts` reuses `StopCondition`, so the WebSocket `advance` message
-takes the new fields as they are (the MCP tool schema still has to list them):
-- `StopCondition` gains `worldTime` (absolute seconds or `{day, hour?, minute?}`), `worldSeconds` (relative),
-  `compressionStopped` and `mode`. `mode` sits inside `until`, not beside it. Any of the four makes the advance strategic:
-  budget 2,000,000 ticks and 7 world days; on the map with time not compressed it first starts compression (refusal →
-  reason `refused` with `refusal: <text>`). `compressionStopped: false` restarts compression after every stop instead of
-  returning (until a decision, the target, a watched event, a refusal or the budget).
-- Stop reasons: `decision` (checked again right after each step, before watched events), `event`, `worldTime`
-  (`advance` stops compression with reason `worldTime`, then appends `worldTimeReached {seconds}`), `idle` (on the map
-  and no longer compressing), `budget`, `refused`; in tactical `worldTime`/`worldSeconds` run real time. Every report
-  carries `worldTime {day, hour, minute, seconds}` when a campaign is attached.
-- Events: `compressionStarted {mode}`, `compressionStopped {reason}` with the reasons listed above plus
-  `militiaTraining`, `worldTime` and `paused` (the map's automatic pause when compression stops being allowed),
-  `dayStarted {day}`.
+ja2-node's own save stores the whole state (D7), including `seq` and `clock.driver`, so a reload continues
+bit-identically.
 
 ---
 
-## 7. Data tables and stubs
+## 6. Data tables and stubs
 
-**Transcribe** (`tools/transcribe/strategic-time.ts` → `data/tables/strategic-time.json`, with `c-source.ts`):
-
-| Content | Source | Helper |
-|---|---|---|
-| `StrategicEventKind` ids and names, `NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS` | `Strategic/Game_Event_Hook.h:6-74` | `sequentialEnum` (explicit values are supported) |
-| `StrategicEventFrequency`, `SEF_DELETION_PENDING` | `Strategic/Game_Events.h:7, 21-29` | `sequentialEnum` |
-| Compression enum, `LockPauseReason`, warp codes | `Strategic/Game_Clock.h:27-47, 83-93, 110-115` | `sequentialEnum` |
-| `giTimeCompressSpeeds` | `Strategic/Game_Clock.cc:79` | `arrayItems` + `evaluateIntExpression`, which must learn `*` (it handles `+ − ( )` only) |
-
-The ids matter for savegame import and for the dispatch table. Scalar `#define`s stay as named constants in code under
-the SFI-SCLA header (`src/sim/strategic/time/constants.ts`): `STARTING_TIME`, `FIRST_ARRIVAL_DELAY`, the daily times
-(`StrategicMap.cc:122-126`), light and temperature times and levels (`Environment.cc:26-34, 100-110`, `Environment.h:8-22`),
-mine production times (`Strategic_Mines.cc:34-36`), merc arrival slots (`Merc_Hiring.h:14-16`), `ABOUT_TO_ARRIVE_DELAY 5`,
-`STRATEGIC_OVERHEAD 20` ms, `NUM_REAL_SEC_PER_TACTICAL_TURN 5000`, `RT_COMPRESSION_TACTICAL_TURN_MODIFIER 10`, the hospital
-and airport facility sectors (`Campaign_Init.cc:33-66`).
-
-**Already distributable** (`data/externalized/`, SFI-SCLA, in CI): `game.json`, `strategic-ai-policy.json`,
-`strategic-map-*.json` (movement costs, traversability, underground sectors, NPC placements, cache sectors, towns, SAM
-sites, secrets, creature lairs), `strategic-mines.json`, `army-*.json`, `strategic-bloodcat-*.json`. The time layer and
-the whole strategic initialisation run on these alone; nothing in this spec reads original game files.
-
-**Stubs needed** to run the strategic layer without original data:
-
-- The starting squad's merc profiles (the stub pack has 3–5; `prof.dat` is original data).
-- Missing NPC profiles: handlers that touch NPC profiles (04:00 events, Larry, Slay, Skyrider, Carmen, …) are M6; until then
-  they are no-ops, and later they must skip absent profiles on stubs.
-- Sector maps for tactical entry: a sector → stub map mapping (owned by `16`); autoresolve and the map itself need none.
-- No ambient `.bad` files (ambient is not simulated), no strings beyond `data/externalized/strings/`.
+- **Ids.** Event kinds, frequencies, compression modes and warp codes are constants with the original values in
+  `src/sim/strategic/time/constants.ts` (from `Strategic/Game_Event_Hook.h:6-74`, `Game_Events.h:7, 21-29`,
+  `Game_Clock.h:83-93, 110-115`; `giTimeCompressSpeeds` `Game_Clock.cc:79`); the save import and the dispatch table depend
+  on them. Lock reasons (`Game_Clock.h:27-47`) are constants in the modules that lock (§1.5).
+- **Scalar times** stay with their users (under `src/sim/`): the daily event times (`StrategicMap.cc:122-126`) in
+  `campaign/new-game.ts`; light and temperature times and levels (`Environment.cc:26-34, 100-110`, `Environment.h:8-22`)
+  in `strategic/time/environment.ts`; `FIRST_ARRIVAL_MINUTE` in `campaign/hiring.ts`; `STRATEGIC_OVERHEAD_MS` and
+  `RT_TURN_MS` in `tactical/turns/turns.ts`; the mine production times in `strategic/economy/mines.ts`;
+  `MERC_ARRIVE_TIME_SLOTS` in `campaign/contracts/contract-times.ts`.
+- **Tables.** The facility sectors of `InitKnowFacilitiesFlags` (`Campaign_Init.cc:33-66`):
+  `data/tables/sector-facilities.json`, generated by `tools/transcribe/sector-facilities.ts`.
+- **Distributable data** (`data/externalized/`, SFI-SCLA, in CI): `game.json`, `strategic-ai-policy.json`,
+  `strategic-map-*.json` (movement costs, traversability, underground sectors, NPC placements, cache sectors, towns, SAM
+  sites, secrets, creature lairs), `strategic-mines.json`, `army-*.json`, `strategic-bloodcat-*.json`. The time layer and
+  the strategic initialisation read nothing else; merc profiles and sector maps come from the stub pack without the
+  original data (`27`). Ambient `.bad` files are client-only.
 
 ---
 
-## 8. Minimal M4 implementation (time and events)
+## 7. Implementation in ja2-node
 
-Goal: a campaign session that starts a new game exactly as `InitStrategicLayer` does, lands the first squad at Day 1
-07:00 after the 6-hour warp, runs the world clock in tactical (1 s per 200 ticks) and on the map (60 s slices), fires the
-strategic events in the original order with their reposting, freezes time in turn-based combat, and lets an agent
-compress time until something happens.
-
-### 8.1 Modules (`src/sim/strategic/time/`, all with the SFI-SCLA header)
-
-| Module | Contents |
+| Module | Responsibility |
 |---|---|
-| `constants.ts` | §7 scalars; transcribed enums loaded from `data/tables/strategic-time.json` |
-| `world-clock.ts` | `WorldClock` state (§0), helpers (§1.1), `setClockResolutionToCompressMode`, `startTimeCompression`, `stopTimeCompression`, `setGameTimeCompressionLevel`, increase/decrease, `pauseGame`/`unPauseGame`/locks, `interruptTime`, `updateClock`, `advanceClock`, `warpGameTime` |
-| `event-queue.ts` | `StrategicEvent {stamp, kind, frequency, param, offset, seq}`, the `(stamp, seq)` queue, all `add*` variants with the posting guard, deletes, `processPendingGameEvents` with the three warp codes |
-| `dispatch.ts` | `executeStrategicEvent` + a handler registry `Map<kind, (state, event) => void>`; subsystems register their handlers (breaks the original's include cycles, `01` §3.7); unregistered kinds are no-ops returning TRUE; `delayEventIfBattleInProgress` |
-| `environment.ts` | light/temperature handlers, `timeOfDayAmbientLightLevel`, `sectorTemperature`, the pending-light application for tactical |
-| `periodic.ts` | `handleHourlyUpdate`, `handleQuarterHourUpdate`, `mercDailyUpdate` (M4 parts), registering into `dispatch` and calling `18`/`17` modules |
-| `strategic-turn.ts` | `handleStrategicTurn` with the 20 ms counter, `syncStrategicTurnTimes`, the map-side `handleTacticalEndTurn` call |
-| `new-game.ts` | `initNewGame`/`initStrategicLayer` orchestration (§4.2–4.3) calling the init functions of `16`, `17`, `18`; the start-squad hire and `handleTimeCompressWithTeamJackedInAndGearedToGo` |
-| `src/sim/campaign-sim.ts` | the session's top-level sim: `realMs`, flow, the loaded `TacticalSim`, the per-tick order of §1.8, `isIdle`/`hasPendingDecision`, commands of §6 |
+| `src/sim/strategic/time/constants.ts` | units, `STARTING_TIME`, `FIRST_ARRIVAL_DELAY`, `CompressMode`, `COMPRESS_SPEEDS`, `Warp`, `Frequency`, `EventKind` |
+| `src/sim/strategic/time/world-clock.ts` | `WorldClock` state, helpers, compression, pause, lock and interrupt functions, `updateClock`, `advanceClock`, `warpGameTime`; the `ClockContext` hooks are how the clock reaches the campaign |
+| `src/sim/strategic/time/event-queue.ts` | `StrategicEvent`, `EventQueue`, the `add*` variants with the guard, deletes, `processPendingGameEvents` with the three warp codes |
+| `src/sim/strategic/time/dispatch.ts` | `EventDispatch`: subsystems register handlers per kind, which breaks the original's include cycles (`01` §3.7) |
+| `src/sim/strategic/time/environment.ts` | light and temperature schedule, handlers, `timeOfDayAmbientLightLevel` |
+| `src/sim/strategic/time/save-import.ts` | `importStrategicTime` (§5) |
+| `src/sim/campaign/campaign-sim.ts` | `CampaignSim`: `StrategicState`, the loaded `TacticalSim`, the `ClockContext`, the tick order (§1.8), environment and movement handlers, the default refusal and the automatic pause, `compressTime`/`stopTime` |
+| `src/sim/campaign/new-game.ts` | `initNewGame`, `setupNewStrategicGame` (§4.2, §4.3) |
+| `src/sim/campaign/hiring.ts` | game-start hiring, `mercArrives`, `teamJackedInAndGearedToGo` (§4.5) |
+| `src/sim/campaign/screens.ts` | the map/tactical switch with its compression rules (§1.2) |
+| `src/sim/strategic/economy/update.ts` | hourly and quarter-hour updates, mine income and the other economy events (§3) |
+| `src/sim/advance.ts` | `advance` with world-time stop conditions (`04` §6) |
 
-### 8.2 Order of work
+**Verification.** Unit tests next to the modules (`world-clock.test.ts`, `event-queue.test.ts`, `save-import.test.ts`,
+`new-game.test.ts`, `strategic-advance.test.ts`); the oracle's `warp` probe (`WarpGameTime` with every
+event, economy handlers compared) and the `newgame`/`newgamefull` draw-log replays (`tools/oracle/README.md`).
 
-1. Transcription script and table; constants.
-2. `world-clock.ts` + `event-queue.ts` + `dispatch.ts` with unit tests (§8.3 items 1–9); no subsystem yet.
-3. `CampaignSim` skeleton with the tick order, flows `strategic`/`tactical`, drivers and `advance` stop conditions, the
-   `status` fields; X0/X1/compression commands.
-4. Tactical integration: the world clock replaces `explosives.worldMs` (remove the deviation row "World clock for smoke and
-   light"); `handleRealtimeTurns` gated by the 20 ms counter and by `paused` (5020 ms period); world clock frozen in
-   combat; ambient light from `environment.ts` instead of the sandbox constant; the sandbox keeps a clock at a fixed day,
-   running at X1 with an empty queue.
-5. `environment.ts` and the light/temperature events; `strategic-turn.ts` on the map.
-6. `new-game.ts` with the init functions available from `16`/`17`/`18` (stubs for M5/M6 pieces); the start-squad
-   shortcut (`newGame {difficulty, gunNut, sciFi, saveMode, seed, squad: [profileIds], contractDays}`) mirroring the
-   game-start `HireMerc` path, then the first-compression warp.
-7. `periodic.ts` wiring as `17`/`18` land; `MercDailyUpdate` M4 parts.
-8. Own save format (clock, queue with `seq`, statics); native import of the §5 fields (decode temperatures, start flags).
-9. Oracle probes and `compare.ts` handlers (§8.4).
+**Limitations** (still true in the code):
 
-### 8.3 Tests
-
-1. Helpers: `worldTimeOf` for 0, 86399, 90000; `GetMidnightOfFutureDayInMinutes`; `DayTime` boundaries 06:59/07:00/21:00.
-2. `updateClock` cadence on 5 ms ticks: X1 → +1 s every 200 ticks; 5MINS → +60 at ticks 40, 80, …; 30MINS → slices at
-   elapsed 35, 70, 100, 135, 170, 200 ms; 60MINS → 20, 35, 50, 70, 85, 100 ms; exactly 300/1800/3600 world s per 200 ticks;
-   resolution change mid-second (5MINS → 60MINS) rescales `timesThisSecond`/`lastProcessed`; a pause re-phases;
-   combat freezes and the first pass after combat adds 1 s.
-3. Queue order: equal stamps FIFO; a repost lands after existing equal-stamp events; save/load preserves order.
-4. Frequencies: periodic repost at `stamp + offset` (catch-up after a `NO_PROCESSING` warp fires every missed period);
-   everyday `+86400`; ranged → ENDRANGED with offset 0 → deleted.
-5. Posting guard: a callback posting at `≤ executingStamp` is rejected (returns false, no node); outside processing a past
-   stamp is accepted and runs at the next advance without moving the clock back.
-6. `interruptTime` stops after the current event, keeps the clock at its stamp, leaves same-stamp successors queued;
-   `stopTimeCompression` inside an event finishes the slice.
-7. `TARGET_TIME_FIRST`: only the last event at the target second runs; earlier ones run at the next advance.
-8. Deletion during a callback; deleting the executing kind does not stop its periodic repost.
-9. `AddPeriodStrategicEvent` anchored at midnight (posted at 15:00 with 450 min fires twice in the next window).
-10. New game: the event list after `initStrategicLayer` (kinds, frequencies, stamps of the non-random events, order); the
-    Queen evaluation stamp in `[835, 1014]·60` on medium; two sessions with the same seed are identical; a scripted RNG
-    sees exactly the draw ranges of §4.6.
-11. First warp: hourly/quarter updates suppressed, the 04:00 event and Queen evaluation run, the squad arrives at 07:00
-    after `TURN_OFF_NIGHT_LIGHTS` and `ENRICO_MAIL`, light 5 at 07:00 and 3 at 07:03, `didGameJustStart` false after.
-12. Daily tie order at 00:00 and 09:00 as in §3.1 (dailies before hourly; mine income before hourly).
-13. Strategic turn: tactical period 5020 ms; on the map 10/1⅔/⅚ turns per world minute at 5/30/60MINS over a 30-minute run;
-    none while paused.
-14. `advance` on the map: stops on `compressionStopped` (group at final destination), on a PBI prompt, at a `worldTime`
-    target (lands on the next slice end), does not stop on a quote auto-pause; identical results under instant and manual
-    drivers.
-15. Native import: `worldSeconds` equals the oracle `save` probe value for the six saves; the event lists round-trip.
-
-### 8.4 Oracle probes (`tools/oracle/`)
-
-New commands in `src/Oracle.cc` (and hooks in `patches/` where noted):
-
-| Probe | Does | Hook |
-|---|---|---|
-| `clock` | dumps every §0 clock field, day/hour/minute, environment light and temperatures | none (globals; `gubClockResolution` and `guiGameSecondsPerRealSecond` are `static`: add getters to `Game_Clock.cc`) |
-| `events` | dumps `gpEventList` in order: stamp, kind, frequency, param, offset, flags | none |
-| `newgame difficulty= gunnut= scifi= seed=` | seeds `gRandomEngine`, refills the `PreRandom` table, sets `gGameOptions`, runs `InitNewGame()`, then `clock`, `events` and a strategic summary (garrisons, underground list, mines, NPC sectors, terrorists, balance) | none expected (inferred: `InitNewGame` is headless-safe after `InitializeJA2`) |
-| `warp seconds= code=normal\|noevents\|target` | `WarpGameTime` and a log of executed events `{stamp, kind, frequency, param, clockAtExecution}` | listener on `OnStrategicEvent` (`Game_Event_Hook.cc:43, 75`), which leaves `handled` false |
-| `ticks ms=5 count= screen=map\|game mode=` | sets `guiCurrentScreen`, the compression mode, then repeats `guiBaseJA2Clock += ms; UpdateClock()` and logs every clock change and executed event | an exported wrapper around the static `SetClockResolutionToCompressMode` |
-| `rnglog on\|off` | every `Random`/`PreRandom` call emits `{fn, range, value}` in the output of the following probes | hook in `sgp/Random.cc` |
-
-`compare.ts` replays: `newgame` in ja2-node with a scripted RNG fed from the native draw log (fails on any range or order
-mismatch, then compares the state dumps); `warp` and `ticks` against ja2-node's executed-event log and clock trace;
-`save` + `events`/`clock` against the native import. This verifies draw order and handler logic despite different RNG
-engines.
+- No strategic turn on the map and real-time turns only for soldiers placed in the loaded sector (§1.7).
+- `ClearTacticalStuffDueToTimeCompression` is not ported (§1.2).
+- `HourlyCamouflageUpdate` and `UpdateRegenCounters` are not wired (§3.2).
+- The native import leaves `didGameJustStart`, the temperatures and the enemy-knowledge reset at their defaults (§5).
 
 ---
 
-## 9. Quirks and deviations
+## 8. Quirks and deviations
 
 **Quirks to keep:**
 
@@ -1076,7 +1030,7 @@ engines.
 - FIFO among equal stamps; daily updates before the hourly update at midnight, mine income before it at 09/12/15/18.
 - Compression moves the clock in 60 s slices; `StopTimeCompression` finishes the slice, `InterruptTime` stops at the event.
 - `UpdateClock` drift: `lastSecondMs` reset to the pass time; at most one real second per pass; +1 s after combat.
-- The 5020 ms real-time turn (20 ms counter) and the compression-dependent strategic-turn rate on the map.
+- The 5020 ms real-time turn (20 ms counter); on the map the compression-dependent turn rate (not implemented, §1.7).
 - Natural healing reads `IsTimeBeingCompressed()` at the hourly event.
 - Hourly and quarter-hour updates are suppressed until the first squad lands; the 04:00 event, Queen evaluation and light
   events are not; `MercDailyUpdate` skips Day 1.
@@ -1088,40 +1042,35 @@ engines.
 - The END copy of a ranged event has offset 0; deleting the executing kind does not stop its periodic repost.
 - A light change does not trigger sight checks (`AllTeamsLookForAll` commented out).
 - `HandleTacticalEndTurn` rots corpses on every turn: `uiTimeSinceLastStrategicUpdate − now > 1200` is a wrapped u32
-  comparison that is true whenever `now` differs from the last value (`Tactical_Turns.cc:86-90`).
+  comparison that is true whenever `now` differs from the last value (`Tactical_Turns.cc:86-90`); corpse rotting is not
+  ported (deviation "Corpses").
 - `InitBloodCatSectors` leaves `SectorInfo[255].bBloodCats = 0` (loop to 254).
 - `UpdateAssignments` walks sectors x-outer, y-inner.
 - `MercArrivesCallback`'s equipment complaint uses `540 + Random(660)` (comment says 9–10 am).
 
-**Deviations to log in `docs/deviations.md`:**
+**Deviations** in `deviations.md`: "Ambient sound events", "Real-time pause", "Time compression checks", "Time
+compression for healing", "Ambient light and light schedule", "World clock for smoke and light", "Real-time turn after
+combat", "Brothel time warp", "Auto-bandage", "Corpses". Not listed there yet:
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|
-| Strategic map pacing | Slices and strategic turns follow the wall clock and the frame rate (144 Hz loop, 20 ms counter) | A virtual 5 ms tick drives `UpdateClock` and the 20 ms counter exactly ("ideal machine"); turns per world minute are 10, 1⅔, ⅚ at 5/30/60 min compression | Determinism (`04` §3) |
-| Ambient sounds | `EVENT_AMBIENT` ranged events in the strategic queue, rebuilt on sector load and each new day, parameter overwritten by a sound handle | Not queued; the client derives ambience from the clock and the sector; native imports drop these events | Cosmetic and non-deterministic |
-| Fades | The clock does not run during screen fades | Fades are presentation; transitions take no time | No presentation in the sim |
-| Prompt time | Some locks pause only the world clock while tactical animation runs underneath (conversation, item pickup, heli entry) | Every decision prompt stops the whole simulation | D15 (already in `01` §3.3) |
-| Script hooks | `OnStrategicEvent`, `OnCheckQuests` Lua observers | Not ported | No mods (`02` "Policy objects") |
-| Dead code | `TIME_SUPER_COMPRESS`, `SetGameHours/MinutesPerSecond`, rain events, `MINUTE_UPDATE`, `BEGIN_AIR_RAID` | Not ported (kinds kept as no-ops for import) | Same behaviour |
-| Real-time turn period | 5020 ms (the turn check runs on the 20 ms counter) | Implemented: `handleRealtimeTurns` runs on the same 20 ms counter | Fixed |
-| World clock for smoke and light | (existing row) | Remove when the world clock lands | |
+| Strategic map pacing | Slices follow the wall clock and the frame rate (144 Hz loop) | A virtual 5 ms tick drives `updateClock` exactly ("ideal machine", §1.3) | Determinism (`04` §3) |
+| Fades | The clock does not run during screen fades | No fades in the simulation; transitions take no time | No presentation in the sim |
+| Prompt time | Some locks pause only the world clock while tactical animation runs underneath (conversation, item pickup, heli entry) | Every decision prompt stops the whole simulation | D15 (`01` §3.8) |
+| Script hooks | `OnStrategicEvent`, `OnCheckQuests` Lua observers | Not ported | No mods |
+| Dead code | `TIME_SUPER_COMPRESS`, `SetGameHours/MinutesPerSecond`, rain events, `MINUTE_UPDATE`, `BEGIN_AIR_RAID` | Not ported; imported events of those kinds are no-ops | Same behaviour |
 
 ---
 
-## 10. Verified vs inferred
+## 9. Unverified
 
-**Verified** by reading Stracciatella (vanilla where marked): every function quoted with a line range — the clock fields,
-helpers, compression functions and table, `UpdateClock` with its slice arithmetic, `AdvanceClock`, `WarpGameTime` and
-all its callers, pause and lock functions with every lock site, `AllowedToTimeCompress`, the automatic pause,
-`HandleStrategicTurn` and its constants, `HandleTacticalEndTurn`, the event record, insertion order, posting variants
-and guard, deletion, `ProcessPendingGameEvents` and the repost rules, `ExecuteStrategicEvent` and the whole dispatch
-table with every poster, the hourly/quarter/daily handlers and their draws, the environment schedule, `InitNewGame`,
-`InitStrategicLayer`, `SetupNewStrategicGame`, `InitNewCampaign`, the draw sites of the initialisation path, the
-first-arrival warp, the save layout of the clock and events, the general-info clock and temperature fields, the 144 Hz
-loop and the 20 ms counter.
-
-**Inferred**: the exact slice tick positions on a 5 ms loop (computed from the integer formulas, not run); the
-strategic-turn rates per world minute (derived from the counter and `check`); the steady-state tie order of §3.1 (derived
-from the FIFO rule and posting times); that immediate deletion is equivalent to the deferred flag; the catch-up example
-for `AddPeriodStrategicEvent`; that `InitNewGame` runs headless in the oracle; that a fresh process loading a save
-advances one world second on the first tactical pass; the original's frame-rate-dependent strategic-turn rate (~20.8 ms).
+- The slice tick positions on a 5 ms loop (§1.3): computed from the integer formulas and unit-tested on the port, not
+  run on the native build (no clock-trace probe).
+- The map strategic-turn rates per world minute (§1.7): derived from the counter and `check`; the original's real rate is
+  frame-rate dependent (~20.8 ms at 144 Hz).
+- The steady-state tie order of §3.1: derived from the FIFO rule and the posting times.
+- That immediate deletion is equivalent to the deferred flag (§2.4), and the catch-up example of §2.3.
+- That a fresh process loading a save advances one world second on the first tactical pass (§5).
+- ja2-node, from reading the code (not run): `tacticalScreen` back into the loaded sector sets `realMs` to the frozen
+  `TacticalState.clockMs`, which is behind the map's `clock.driver.lastSecondMs`; `updateClock` then advances no world
+  second until the tactical clock passes it, so the world clock may stand still in tactical for as long as the map ran.

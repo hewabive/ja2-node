@@ -1,21 +1,18 @@
-<!-- Native savegame format (.sav) and the ja2-node reader. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01), SaveLoadGame.cc LoadSavedGame and the loaders it calls. Verified by
-parsing six vanilla JA2 Gold 1.12 saves (version 99) to the last byte with matching profile and soldier checksums. -->
-
 # 14 — Savegames
 
-**Scope.** The reader only: `src/content/formats/savegame.ts` (`parseSaveGame`) plus `savegame-header.ts`,
-`savegame-soldier.ts`, `savegame-profile.ts`, `savegame-tactical.ts`, `savegame-temp-files.ts`, `savegame-layout.ts`,
-`savegame-cursor.ts`. Rebuilding a tactical situation from it is later work (`01` §8 "Save import").
-`pnpm cli inspect save <file.sav>` prints a summary. Paths below are relative to `reference/stracciatella/src/game/`.
+**Scope.** The native savegame format (`.sav` of vanilla JA2 Gold 1.12 and Stracciatella), read by
+`src/content/formats/savegame.ts` (`parseSaveGame`) and the other `src/content/formats/savegame-*.ts` modules, and its
+import into a ja2-node campaign session (§10). ja2-node's own saves are `27`. `pnpm cli inspect save <file.sav>` prints
+a summary. Paths below are relative to `reference/stracciatella/src/game/`.
 
 ## 1. Container
 
-There is no table of contents, no section tag and no section length. A save is the header (432 or 688 bytes) followed by the
-sections in the fixed order of `LoadSavedGame` (`SaveLoadGame.cc:644`); each section is either fixed-size, a counted
-list, or a length-prefixed blob, and some contain nested counts (temp files depend on sector flags read earlier,
-special dealer items on per-item counts). So every section has to be walked to find the next one. The reader records
-`sections` (name, offset, size) and fails unless it ends exactly at the end of the file.
+There is no table of contents, no section tag and no section length. A save is the header (432 or 688 bytes) followed
+by the sections in the fixed order of `LoadSavedGame` (`SaveLoadGame.cc:644`); each section is either fixed-size, a
+counted list, or a length-prefixed blob, and some contain nested counts (temp files depend on sector flags read
+earlier, special dealer items on per-item counts). So every section has to be walked to find the next one.
+`parseSaveGame` records `sections` (name, offset, size) and fails unless it ends exactly at the end of the file; the
+section readers decode the sections it only skips from those offsets.
 
 Supported versions: 85..105 (`MIN_SAVE_VERSION`..`MAX_SAVE_VERSION`). Older saves change several framings (smoke and
 light effects in the file, old vehicle movement block, shorter creature block) and are rejected.
@@ -44,44 +41,44 @@ wraps, i.e. for large balances.
 
 ## 4. Section order
 
+"Parser" = decoded by `parseSaveGame`; a module name = decoded by that section reader from the recorded offset.
+
 | # | Section (loader) | Framing | Decoded |
 |---|---|---|---|
-| 1 | Tactical status (`ExtractTacticalStatusTypeFromFile`) + `i16 x, i16 y, i8 z` world sector | 316 / 360 + 5 | flags, teams, current team, interrupt flags, sector |
-| 2 | Game clock (`LoadGameClock`) | 42 + 20 padding | all; `gameClock` is world seconds |
-| 3 | Strategic events | `u32 n` × 28 | all |
-| 4 | Laptop info | 7440, then Bobby Ray orders (`size × 84` if `used ≠ 0`) and insurance payouts (`n × 8` if `used ≠ 0`) | all logic fields (`savegame-laptop.ts`, §11): bookmarks, balance, I.M.P. flags and voice, personnel lists, M.E.R.C. fields, both Bobby Ray lists (8-byte `STORE_INVENTORY`) cut to `usInventoryListLength`, site flags, Speck flags, florist number, payouts; the old order array is skipped |
-| 5 | Merc profiles | 170 (200 from v105) × encrypted 716 / 796; v104+: `n` voice ids + `n` IMP slot states | `prof.dat` fields + kills, status…; voice ids and I.M.P. slot states (`savegame-laptop.ts`) |
-| 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | see §6; the assignment fields (`bTrainStat`, sleep, collapse, nothing-to-do, last change) also by `readSoldierAssignments` (`savegame-economy.ts`) |
-| 7–9 | Finances, history, files temp files | `u32 size` + data each | finances (`i32` balance + 14-byte records) decoded by `savegame-economy.ts`; history (12-byte records) and files (263-byte records) by `savegame-laptop.ts` |
-| 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | all (`savegame-laptop.ts`) |
-| 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | all (`savegame-strategic.ts`): map elements, every `SECTORINFO` field, Orta found |
-| 12 | Underground sectors | `u32 n` × 72 | all |
-| 13 | Squads | 120 × 12 (`i16 id`, format version, squad id from v101, 8) + 20 movement group ids | members |
-| 14 | Strategic movement groups | `u32 n` × (84; player: `u32 n` × `u32 profile` if size > 0; enemy: 29; `u32 n` × 8 waypoints) + 32 | all (`GROUP`, `ENEMYGROUP`, waypoints) |
-| 15 | Map temp files | see §5 | items, doors, door states of the current sector |
-| 16 | Quests and facts | 30 + 500 | all |
-| 17 | Opplists | 936 + 3 × 24336 + 2 × 936 + 12 | see §7 |
+| 1 | Tactical status (`ExtractTacticalStatusTypeFromFile`) + `i16 x, i16 y, i8 z` world sector | 316 / 360 + 5 | parser (§7): flags, teams, turn and interrupt state, civilian group hostility, last battle, boxing, guide countdown, blood decay time, sector |
+| 2 | Game clock (`LoadGameClock`) | 42 + 20 padding | parser, all; `gameClock` is world seconds |
+| 3 | Strategic events | `u32 n` × 28 | parser, all |
+| 4 | Laptop info | 7440, then Bobby Ray orders (`size × 84` if `used ≠ 0`) and insurance payouts (`n × 8` if `used ≠ 0`) | `savegame-laptop.ts` (§11; Bobby Ray lists of 8-byte `STORE_INVENTORY` cut to `usInventoryListLength`, the old order array skipped); M.E.R.C. account status by `savegame-contracts.ts` |
+| 5 | Merc profiles | 170 (200 from v105) × encrypted 716 / 796; v104+: `n` voice ids + `n` IMP slot states | parser (§6); voice ids and I.M.P. slot states by `savegame-laptop.ts` (§11) |
+| 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | parser (§6); the assignment fields (`bTrainStat`, sleep, collapse, nothing-to-do, last change) also by `readSoldierAssignments` (`savegame-economy.ts`) |
+| 7–9 | Finances, history, files temp files | `u32 size` + data each | finances (`i32` balance + 14-byte records) by `savegame-economy.ts`; history and files by `savegame-laptop.ts` (§11) |
+| 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | `savegame-laptop.ts` (§11) |
+| 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | parser (`savegame-strategic.ts`): map elements, every `SECTORINFO` field, Orta found |
+| 12 | Underground sectors | `u32 n` × 72 | parser, all |
+| 13 | Squads | 120 × 12 (`i16 id`, format version, squad id from v101, 8) + 20 movement group ids | parser, members |
+| 14 | Strategic movement groups | `u32 n` × (84; player: `u32 n` × `u32 profile` if size > 0; enemy: 29; `u32 n` × 8 waypoints) + 32 | parser, all (`GROUP`, `ENEMYGROUP`, waypoints) |
+| 15 | Map temp files | see §5 | parser |
+| 16 | Quests and facts | 30 + 500 | parser, all |
+| 17 | Opplists | 936 + 3 × 24336 + 2 × 936 + 12 | parser, see §7 |
 | 18 | Map screen messages | 3 + 256 × (`u32 size`; if > 0: text + 28) | skipped |
-| 19 | NPC quote info | (profiles + 20 civ sectors) × (`u8 present` + 50 × 32) | skipped |
-| 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | `keyTable`, imported into the shared key table (`25` §8.1) |
+| 19 | NPC quote info | (profiles + 20 civ sectors) × (`u8 present` + 50 × 32) | `savegame-npc.ts` |
+| 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | parser, `keyTable` (`25` §8.1) |
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
-| 22 | PreRandom | `u32 index` + 256 × `u32` | all |
-| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | all: status, headers and special elements (`savegame-merchants.ts`, `docs/23` §15.4) |
-| 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector; `g_merc_arrive_sector` (8 bytes after `sSelMap.z`) by `savegame-laptop.ts` |
-| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty decoded by `savegame-economy.ts` (`readSavedEconomy`), vehicles decoded, the rest skipped |
-| 31 | Team turns | 174 | interrupt queue, hidden interrupt, last interrupted |
+| 22 | PreRandom | `u32 index` + 256 × `u32` | parser, all |
+| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | `savegame-merchants.ts`, all: status, headers and special elements (`docs/23` §14.2) |
+| 24 | General info (`LoadGeneralInfo`) | 1024 | parser: selected soldier, render centre, panel, music mode, options, clock base, helicopter, Tixa and SAM secrets, dead squad members, selected map sector, meanwhile scene, narrative globals; `savegame-strategic-ai.ts`: meanwhile flags, first-battle sector, creature meanwhile; `savegame-laptop.ts`: `g_merc_arrive_sector` (8 bytes after `sSelMap.z`) |
+| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty by `savegame-economy.ts` (`readSavedEconomy`); vehicles by the parser; bullets, physics objects and air raid skipped |
+| 31 | Team turns | 174 | parser: interrupt queue, hidden interrupt, last interrupted, rock thrower |
 | 32 | Explosions | 4 + 40 × 12 queue, `u32 n` × 36 | skipped |
-| 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | creature directives skipped; strategic status decoded by `savegame-strategic-ai.ts` (flags, captures, highest progress, deaths, reputation, kills, activity) |
-| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | all (`savegame-strategic-ai.ts`, `docs/17` §1.4); the meanwhile flags and first-battle sector of section 24 too |
-| 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | all |
-| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36: 4 skipped, times, data1, data2 as `u16[4]` each, actions `u8[4]`, id, soldier id, flags `u16`), vehicle movement groups (10) | | schedules and vehicle movement groups decoded, the rest skipped |
+| 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | creature directives by the parser (habitat distance, population modifier, lair, creature music, destroyed lair); strategic status by `savegame-strategic-ai.ts` (flags, captures, highest progress, deaths, reputation, kills, activity, weapons already dropped) |
+| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | `savegame-strategic-ai.ts`, all (`docs/17` §1.4) |
+| 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | parser, all |
+| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36: 4 skipped, times, data1, data2 as `u16[4]` each, actions `u8[4]`, id, soldier id, flags `u16`), vehicle movement groups (10) | | item cursor and civ quotes skipped; backup NPC info by `savegame-npc.ts`; meanwhile definitions, schedules and vehicle movement groups by the parser |
 | 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | renewals and leave list by `savegame-contracts.ts`; shipments by `savegame-laptop.ts` |
-| 46 | Game states (v101+) | `u32 len` + JSON text | text |
+| 46 | Game states (v101+) | `u32 len` + JSON text | parser, text; `StrategicStatus::alreadyDroppedWeapons` read by `savegame-strategic-ai.ts` (it replaces the flags of section 34) |
 
-Sections 11–14, the vehicles, the vehicle movement groups and the strategic part of the general info feed
-`importStrategicMap` (`src/sim/strategic/map/save-import.ts`, `docs/16` "Implemented"). Native saves keep the
-traversability table they were started with: vanilla saves differ from Stracciatella's JSON on the I2/I3 border, and
-Stracciatella does not re-initialise it on load, so the import keeps the saved values.
+Native saves keep the traversability table they were started with: vanilla saves differ from Stracciatella's JSON on
+the I2/I3 border, and Stracciatella does not re-initialise it on load, so the import keeps the saved values (`16`).
 
 ## 5. Map temp files
 
@@ -89,17 +86,20 @@ Sectors y = 1..16, x = 1..16 (flags from section 11, index `(y−1)·16 + x−1`
 (flags from section 12). For each sector, for each flag in this order, if set: `u32 size` + the file:
 `i_` items `0x10000000`, `r_` corpses `0x20000000`, `m_` map modifications `0x40000000`, `d_` door table `0x80000000`,
 `v_` revealed `0x01000000`, `ds_` door status `0x02000000`, `e_` enemies `0x04000000`, `c_` civilians `0x08000000`,
-`sm_` smoke `0x00100000`, `l_` lights `0x00200000` (`Tactical_Save.cc:51`). All files are kept as raw bytes
-(`tempFiles`); for the current sector (`gWorldSector` from section 1) three are decoded:
+`sm_` smoke `0x00100000`, `l_` lights `0x00200000` (`Tactical_Save.cc:51`; `TEMP_FILE_KINDS`). All files are kept as raw
+bytes (`tempFiles`); for the current sector (`gWorldSector` from section 1) these are decoded (`currentSector`):
 
 - items: `u32 n` × 52-byte `WORLDITEM` (`fExists` 0, `sGridNo` 2, `ubLevel` 4, `OBJECTTYPE` 8 via `decodeObject`,
-  `usFlags` 44, `bRenderZHeightAboveLevel` 46, `bVisible` 47, `ubNonExistChance` 48);
+  `usFlags` 44, `bRenderZHeightAboveLevel` 46, `bVisible` 47, `ubNonExistChance` 48; `12` §6.1);
 - door table: `u8 n` × 14 (`sGridNo`, `fLocked`, trap level, trap id, lock id, perceived locked, perceived trapped,
   lock damage, 5 padding);
-- door status: `u8 n` × 4 (`sGridNo`, `ubFlags`, 1 padding).
+- door status: `u8 n` × 4 (`sGridNo`, `ubFlags`, 1 padding);
+- rotting corpses: `u32 n` × 160-byte records (`decodeRottingCorpsesFile`);
+- map modifications: 8-byte `MODIFY_MAP` records (`decodeMapModificationsFile`).
 
-The game saves the current sector into its temp files right before writing (`SaveCurrentSectorsInformationToTempItemFile`),
-so these are the live state.
+The session also decodes the soldier link records of the current sector's `e_` and `c_` files
+(`decodePreservedSoldierLinks`, from `NewWayOfLoadingEnemySoldierInitListLinks`). The game saves the current sector into
+its temp files right before writing (`SaveCurrentSectorsInformationToTempItemFile`), so these are the live state.
 
 ## 6. SOLDIERTYPE (2328 bytes Windows, 2352 Strac Linux)
 
@@ -129,7 +129,7 @@ The Linux layout inserts 2 bytes before `name`, stores `name` as UTF-32 and inse
 etc., offset 820) is read only from version 103; before that the bytes are ignored. `ubPathingData` is stored as
 30 × u16 and truncated to bytes.
 
-Profiles are the 716-byte `prof.dat` record (`docs/12`, `prof.ts`), parsed with the same code; the reader adds the
+Profiles are the 716-byte `prof.dat` record (`12` §7, `prof.ts`), parsed with the same code; the reader adds the
 campaign fields kills 310, assists 312, shots fired/hit 314/316, battles 318, wounds 320, days served 322, salary 332,
 `bMercStatus` 652, sector z 669, and verifies the checksum at 696 (`SoldierProfileChecksum`: the soldier formula
 without the profile term, over `inv` and `bInvNumber`). The Linux profile (796) stores name and nickname as UTF-32:
@@ -159,77 +159,90 @@ the reader converts them and reuses the Windows parser.
   vanilla files, `TURNBASED` `0x4` and `TRANSLUCENCY_TYPE` `0x80`, bits Strac no longer defines (`V: Tactical/OverheadTypes.h:32-38`).
 - The vanilla temp NPC quote file is a real blob (tens of kilobytes in the tested saves); Strac skips it by its size.
 
-## 9. Open points
+## 9. Limitations
 
 - The Strac Linux layout is implemented from the source and covered by a synthetic test only; no real Linux save was
-  available.
-- Versions 100–105 are covered by the version gates in the code but were not tested against real files.
-- The skipped sections (NPC scripts, bullets, physics objects,
-  explosions) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
-  need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
-  160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`
-  records) are decoded for the current sector.
+  available. Versions 100–105 are covered by the version gates but not by real files.
+- Not decoded: map screen messages, the temp NPC quote file, bullets, physics objects, the air raid block, explosions
+  (bomb queue and explosion records), the item cursor and civ quotes; of the temp files, the revealed tiles, smoke and
+  light files and every temp file of a sector other than the loaded one stay raw. A save made with a bullet or a thrown
+  object in flight, a queued bomb or an item in the cursor loses them on import.
+- A save made during a meanwhile scene or the endgame sequence is refused (`storyImportRefusal`,
+  `src/sim/campaign/story-import.ts`).
 
-## 10. Import into the tactical simulation
+## 10. Import
 
-`src/sim/tactical/save-import.ts` rebuilds the loaded sector of a save inside a `TacticalSim`;
-`src/server/save-session.ts` (`createSaveSession`) wires it up: parse, load `saveMapPath(save)` (`maps/d13.dat`,
-`_b<z>` underground, `_a` for the alternate map), replace the map's door table with the saved one
-(`worldWithSavedDoors`), construct the sim (which runs `GenerateBuildings` as `LoadWorld` does), then `importSave`.
-MCP `newSession {save: "SaveGame07"}` and `JA2_SAVE=SaveGame07` for the default session use it; the files come from
-`$JA2_SAVES_DIR` or `SavedGames` next to the data folder.
+`createSaveSession` (`src/server/save-session.ts`) turns a native save into a `CampaignSession`. Native saves come from
+`$JA2_SAVES_DIR` or `SavedGames` next to the data folder and need the original data; MCP `newSession {save:
+"SaveGame07"}` and `JA2_SAVE=SaveGame07` (default session) use it. The input log records the origin `import` with the
+save's SHA-256, and a replay refuses a changed save.
 
-Order, as in `LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame`:
+1. `parseSaveGame`, `readStrategicAiSections`; refuse meanwhile and endgame saves (§9).
+2. Load the world `saveMapPath(save)` (`maps/d13.dat`, `_b<z>` underground, `_a` for the alternate map) and the content
+   parts; `importNativeGameOptions` takes difficulty, sci-fi, gun nut and save mode and reports a turn time limit as
+   dropped (`droppedOptions`).
+3. Build the `TacticalSim` on `worldWithSavedDoors(world, save)` (the saved door table with its perceived lock and trap
+   values; construction runs `GenerateBuildings` as `LoadWorld` does), then `importSave` (below).
+4. `createStrategicState` sharing the tactical `main` and `pre` streams, profiles, civilian groups, key table and boxing
+   state; `importStrategicTime` (clock and event queue, `15`).
+5. `addSavedMercsToRoster`: every active soldier record of our team with its profile becomes a roster merc.
+6. `importMerchants` (`23`), `importStrategicMap` (sections 11–14, vehicles, vehicle movement groups, strategic general
+   info; `16`), `importStrategicAi(…, {runLoadHooks: true})` (`17`), `importStory` (meanwhile definitions, battle
+   sectors; `26`), creature directives, `importEconomy` (`18`), `importContracts` (`22`), `importLaptop` (§11),
+   `importNarrativeSave` (quests, facts, narrative globals; `25`), the soldier assignment fields, `importNpcRecords`
+   (`24`), `adoptLoadedSector` with the loaded sector's preserved-soldier links, the saved music mode.
 
-0. The loaded sector (`t.sector`), the civilian group hostility (`fCivGroupHostile`, tactical status) and the key table.
-   The door table keeps its perceived lock and trap values (`worldWithSavedDoors`).
-1. Game options from `LoadGeneralInfo` (gun nut, sci-fi, difficulty), the tactical clock from `guiBaseJA2Clock`, and
-   the map lights reloaded with the saved hour (`LoadMapLights` runs after `LoadGameClock`, `docs/20` §4).
-2. World items replace the map items (`AddItemToPool` with the saved visibility, flags and z height;
+`importSave` (`src/sim/tactical/save-import.ts`) rebuilds the loaded sector in the order of
+`LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame`:
+
+0. The tactical clock from `guiBaseJA2Clock`, the loaded sector (`t.sector`), the civilian group hostility
+   (`fCivGroupHostile`), the key table, profile progress (`progressFromProfile`), and the map lights loaded for the
+   saved hour (`LoadMapLights` runs after `LoadGameClock`, `docs/20` §4).
+1. World items replace the map items (`AddItemToPool` with the saved visibility, flags and z height;
    `WORLD_ITEM_GRIDNO_NOT_SET_USE_ENTRY_POINT` goes to the centre entry point).
-3. Rotting corpses add their corpse structures.
-4. Map modifications: `SLM_OPENABLE_STRUCT` swaps openable structures to the saved state and shows or hides the items
+2. Rotting corpses add their corpse structures.
+3. Map modifications: `SLM_OPENABLE_STRUCT` swaps openable structures to the saved state and shows or hides the items
    inside; blood and smell records fill the smell map and, with blood and gore on, redraw the tile's pool at once
    (`AddBloodOrSmellFromMapTempFileToMap` reads the blood type before the record's smell byte is set, so a creature
    pool comes back as human blood, as in the original); any other record type is counted in
    `skippedMapModifications` (none occur in the tested saves).
-5. Door status: perceived open state, then `SynchronizeDoorStatusToStructureData` swaps door structures whose
+4. Door status: perceived open state, then `SynchronizeDoorStatusToStructureData` swaps door structures whose
    `DOOR_OPEN` bit disagrees. Then the whole movement cost table is recompiled (`InitLoadedWorld`).
-6. Soldiers that are active, in the sector, not between sectors and not dead, off map, drivers or passengers, in id
+5. Soldiers that are active, in the sector, not between sectors and not dead, off map, drivers or passengers, in id
    order (so merc slots fill like `UpdateMercsInSector`). Stats, inventory, AP, breath, morale, AI and interrupt fields,
    path, animation state and script position come from the record. The position is the saved `sGridNo` with the
    coordinates at the tile centre: `EVENT_SetSoldierPosition` re-centres everyone on load, as the oracle confirms.
-   Target, opponent and attacker ids are linked after all soldiers exist. Our mercs keep their key rings (the 128 bytes after
-   the merc path), `ubDoorHandleCode` and the skill-check memory (`bLastSkillCheck`, `ubSkillCheckAttempts`,
-   `sSkillCheckGridNo`).
-7. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
-   arrive only half (see §7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
-8. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted
-   guy, the rock thrower, team awareness and last radio operators, battle counters.
-9. The `PreRandom` ring and index (`PreRandom.restore`).
-10. `LightSetBaseLevel`: `gubEnvLightValue` above ground, the map's ambient underground; all lights are rendered with the
-    imported doors, structures and height cache (`SaveLoadGame.cc:1044`).
+   Target, opponent and attacker ids are linked after all soldiers exist. Our mercs keep their key rings (the 128 bytes
+   after the merc path), `ubDoorHandleCode` and the skill-check memory (`bLastSkillCheck`, `ubSkillCheckAttempts`,
+   `sSkillCheckGridNo`). Off-map soldiers of the sector go into the away slots; then the schedules
+   (`loadSavedSchedules`, `25` §5.6).
+6. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
+   arrive only half (§7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
+7. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted
+   guy, the rock thrower, team awareness and last radio operators, battle counters, `uiDecayBloodLastUpdate`, the
+   selected soldier.
+8. The `PreRandom` ring and index (`PreRandom.restore`).
+9. `LightSetBaseLevel`: `gubEnvLightValue` above ground, the map's ambient underground; all lights are rendered with the
+   imported doors, structures and height cache (`SaveLoadGame.cc:1044`).
 
 Sentinels are converted to ja2-node's: `NOWHERE` is `WORLD_MAX + 1` (25601) in the original and `-1` here,
 `NO_PENDING_ANIMATION` is 32001, `NO_PENDING_DIRECTION` 253 and `NO_PENDING_STANCE` 254 (ja2-node uses
 `NO_DESIRED_HEIGHT` for "no pending stance").
 
-Not imported (see `docs/deviations.md`): smoke and light effect records, revealed tiles and roofs, the strategic layer,
-profile progress, the difficulty modifier (`CalcDifficultyModifier` needs strategic progress; the sandbox constant is
-used).
+What the import leaves out (revealed tiles and roofs, smoke and light effect records, other sectors' temp files) is
+deviations.md "Savegame import"; see also "Strategic AI load hooks", "Underground traversal flag", "Talk context after a
+load" and "Bobby Ray theft counter". The loaded sector's difficulty modifier and progress are computed as at any campaign
+sector load ("Difficulty and progress in tactical").
 
-Verification: `tools/oracle/save-probes.ts` writes a probe script for any saves (soldier dumps, hit chance for every
-opposed pair, AI best shot, soldier-to-soldier sight, paths, light dumps, light at soldiers and around fighters), the
-native oracle runs it, and `tools/oracle/compare.ts` rebuilds every probe from the imported save. On 2026-10-15 all
-6,815 comparisons over the six vanilla saves matched, including the `lights` dumps of both levels and 728
-`light … viewer=` probes; a tile lit by a map light (`LightTrueLevel` 10 instead of the ambient 12 at 02:00 in D13)
-extends `DistanceVisible` from 11 to 15 tiles in both.
+Verification: `tools/oracle/save-probes.ts` writes probes for any saves (soldier dumps, hit chance and sight for every
+opposed pair, AI best shot, paths, lights), the native oracle runs them, and `tools/oracle/compare.ts` rebuilds each
+from the imported save (`tools/oracle/README.md` "Savegames"); most other comparers also start from imported saves.
 
 ## 11. Laptop sections
 
 `src/content/formats/savegame-laptop.ts` (`readSavedLaptop`) decodes the laptop part of a save from the section offsets
-the parser records, and `src/sim/campaign/laptop/save-import.ts` (`importLaptop`, called by `createSaveSession` after
-the contract import) fills `StrategicState.laptop` and the narrative facts and quests (`docs/21` §0):
+the parser records, and `src/sim/campaign/laptop/save-import.ts` (`importLaptop`, after the contract import) fills
+`StrategicState.laptop` and the narrative facts and quests (`docs/21` §0):
 
 | Source | Layout | Imported as |
 |---|---|---|
@@ -241,10 +254,8 @@ the contract import) fills `StrategicState.laptop` and the narrative facts and q
 | Files file (section 9) | 263-byte records: `u8 code`, 261 bytes, `u8 read` | file list |
 | Email (section 10) | per mail `u32 subjectSize` + subject (Strac 0) + 44 bytes: `u16 offset`, `u16 length`, `u8 sender`, 3, `u32 date`, 4, `i32 first`, `u32 second`, 16, `bool read`, 3 | mails in save order with fresh sequential ids |
 | Merc profiles (section 5, v104+) | the last `2n` bytes: voice ids, then I.M.P. slot states (1 = taken) | taken I.M.P. slots (their saved profiles become the characters' records); before v104 the slot `51 + iVoiceId` when `fIMPCompletedFlag` is set (`LoadSavedMercProfiles`) |
-| General info (section 24) | `g_merc_arrive_sector` as `i16 x, i16 y` | landing zone; an invalid sector falls back to the start sector as `LoadGeneralInfo` does |
+| General info (section 24) | `g_merc_arrive_sector` as `i16 x, i16 y`; `fNewMailFlag` | landing zone (an invalid sector falls back to the start sector as `LoadGeneralInfo` does); new-mail flag |
 
 `SyncLastMercFromSaveGame` is applied: when `ubLastMercAvailableId` names Numb or Cougar and `gubLastMercIndex` is one
 past that merc's listing (old saves with both Larry profiles in the list), the index moves back by one. The soldier
-records also give `fUseLandingZoneForArrival` (`contract.useLandingZone`). On 2026-10-16 the six vanilla saves decode
-and import: the balance matches `iCurrentBalance`, both Bobby Ray lists match their saved lengths, every mail offset is
-a known mail and every hired A.I.M. merc keeps a 07/13/19 contract hour.
+records also give `fUseLandingZoneForArrival` (`contract.useLandingZone`).

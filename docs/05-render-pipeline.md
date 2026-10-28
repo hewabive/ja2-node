@@ -1,82 +1,15 @@
-<!-- Static tactical map rendering in JA2 (Stracciatella), written as a spec for the WebGL2 renderer.
-2026-10-15. Source: reference/stracciatella/src (same snapshot as docs 01–04). Read-only research, nothing was built or run
-except `pnpm cli inspect` on the original data. -->
-
 # 05 — Static tactical map render pipeline
 
-This document says how the original draws the **static** world: land, objects, shadows, structures, roofs, on-roof and
-topmost. It leaves out mercs, items, corpses, animated tiles and the editor, except where they affect ordering. The goal
-is a WebGL2 renderer whose output matches the original pixel order: one quad per sprite, a GPU depth buffer, and multi-tile
-structure images split into 20 px strips.
-
-**Status (2026-10-19, M8 slice U4).** Implemented in `src/render/world/` (`static-scene.ts`, `dynamic-scene.ts`,
-`world-program.ts`, `camera.ts`, `reveal.ts`; `docs/28` §17.4 "U4"): the projection and heights (§1), the camera snap
-and scroll limits (§1.4), every static and dynamic pass with its node filters (§2), the z formulas, strips and
-blitter comparisons (§3) on a GPU depth buffer per §3.5, shadows (§4), roofs, revealed rooms and wireframes (§5),
-per-tile shade from the client's lighting with the strongest-light rule and the light colour (§6), picking (§7) and the
-merc, item, UI-node and animated-tile layers this document leaves out. Differences, all in `docs/deviations.md`: pass 4
-is drawn per segment instead of per row (exact, because the segments write depth and never tie), the obscured pass
-draws its dithered halves before its depth-writing halves, structure nodes take their tile's land shade (no wall
-orientation filters), every sprite of a visible row is drawn (no horizontal sweep window), and `MAPELEMENT_REDUNDENT`
-is not used (§2.4: it changes nothing visible).
-
-**Status (2026-10-19, M8 slice U4b).** The dynamic pass also draws the animation tiles of the world view
-(`docs/28` §17.4 "U4b"): corpses (z of the tile to the north-west plus 20, vehicles at the structure z of their
-structure's z offset, on roofs the doubled on-roof offset) with their z strips, shadow pixels and the tile's shade, ahead
-of every merc, because `AddRottingCorpse` makes them paused animation tiles (`ANITILE_PAUSED`) that the original draws
-with the static world (a corpse in a merc's own row otherwise covered him); smoke and gas translucent (§4) at the object
-z, on roofs at the on-roof z, in the structure (or on-roof) layer of the dynamic pass. Multi-tile soldiers
-(prone mercs, vehicles, the tank, large creatures) go to the struct-merc pass with the z-strip info of their animation
-structure; items lying on a structure are raised by their height at the structure z. Structure graphics changed in the
-simulation (`tileChanges`) patch the struct and on-roof layers and rebuild the static scene.
-
-**Status (2026-10-27, bullets).** Bullets in flight (`docs/04` §4.4 "Bullets in flight") are drawn as `UpdateBullets`
-adds them (`Tactical/Bullets.cc:187-290`): two struct nodes at the tail of the bullet tile's struct list, `BULLETTILE1`
-at the bullet's height and `BULLETTILE2`, the shadow, at the land height of the tile. Both have
-`LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT` and `DEFAULT_SHADE_LEVEL` (4). An absolute node is placed from its
-world position minus `CELL_Y_SIZE` in x (`RenderWorld.cc:657-679`), so a bullet over a tile centre sits on that tile's
-box and is raised by its `sRelativeZ`. Its z is the structure z of its tile (`:781-840`), so walls and soldiers in
-front of it hide it. In the original data both frames of `tilesets/0/bull.sti` are a single pixel at offset (19, 10)
-**(data)**. In ja2-node they are struct nodes of `DynamicScene` (`structNodes`, `src/app/world/bullet-nodes.ts`).
-
-**Status (2026-10-27, impact animations).** The miss animations of `StructureHit` are struct-layer animation tiles at the
-tail of the impact tile's list (`ForceStructToTail`), placed at the bullet's absolute position and raised by its height:
-`FIRSTMISS1` (5 frames, `miss1.sti`), in low or deep water `THIRDMISS1` (the ripple, 14 frames) and then `SECONDMISS1`
-(the splash, 5 frames), both animated through their aux data **(data)**. `WindowHit` adds the `WINDOWSHATTER` tile on
-the window's own tile or the next one the glass falls to. Every animation tile has `LEVELNODE_USEZ`
-(`Tile_Animation.cc:120`), so in the struct layer its z is `ONROOF_Z_LEVEL + (world_y + sRelativeZ) · Z_SUBLAYERS`
-(`RenderWorld.cc:826-838`), not the structure z. The HE miniboom (`tilecache/miniboom.sti`, 13 frames, 100 ms) is a
-cached animation tile on the topmost layer, always translucent, placed like a merc at its world position minus the
-tile's land height and its `sRelativeZ` (`RenderWorld.cc:583-622`). All of them take `DEFAULT_SHADE_LEVEL`. A frame
-lasts until more than its delay has passed, so 85, 55 or 105 ms on 5 ms ticks.
-
-A thrown knife is a cached animation tile too (`HandleBulletSpecialFlags`, `Bullets.cc:72-123`): `knifing.sti` in the
-struct layer and the same frame in the shadow layer with `sRelativeZ` 0, both hanging on the tile the knife left from.
-`UpdateBullets` moves only their world position and sets the knife's `sRelativeZ` to its height minus the land height
-under it, so the knife sorts at the on-roof z of the thrower's tile raised by that height and the tile's own land height
-is taken off its position. The shadow layer draws it flat without a depth test (§2.6).
-
-A missile trail (`AddMissileTrail`, `Bullets.cc:296-353`) is a cached animation tile in the struct layer of the
-bullet's tile, always translucent: `msle_smk.sti` behind rockets, tank shells and flames, `msle_sma.sti` behind small
-missiles, `msle_spt.sti` behind creature spit, 9 frames each at 100 + `Random(100)` ms (flames 100 ms), raised by the
-height minus the shooter's land height.
-
-An explosion (`GenerateExplosionFromExplosionPointer`, `Explosion_Control.cc:159-213`) is a cached animation tile on the
-topmost layer at the blast point raised by its z: the graphics of its animation (the water animation in water), one
-frame per blast speed, translucent in water and from the animation's transparent key frame on (`ANI_KEYFRAME_BEGIN_
-TRANSLUCENCY`, checked as a frame is entered, so key frame 0 never applies). The stub pack has no explosion graphics,
-because the simulation takes an explosion's frame count from them and the stubs keep the fallback count; on the stubs
-only the explosion's light shows.
-
-A thrown object (`PhysicsMoveObject`, `Physics.cc:1097-1220`) is its item's tile as a struct node at the tail of its
-current tile's list with `LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT | LEVELNODE_PHYSICSOBJECT`, raised by its
-height plus the land height, at the on-roof z of the tile raised by the same (`RenderWorld.cc:805-808`), and the same tile
-at the head of the tile's shadow list at the land height, drawn flat.
+**Scope.** How the original draws the tactical world: the static layers (land, objects, shadows, structures, roofs,
+on-roof, topmost), their order and z, shadows, roofs and room reveals, tile shading, picking and the radar, plus where
+the animation tiles, corpses and bullets of the dynamic pass go (§10). Soldiers are `06`; how light levels are computed
+is `20`. ja2-node's WebGL2 renderer in `src/render/world/` reproduces this pixel order with one quad per sprite (multi-Z
+structures split into 20 px strips) on a GPU depth buffer (§11).
 
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
-- **(inferred)** marks my derivations and assumptions.
-- **(data)** marks things I checked in the original Gold 1.12 data with `pnpm cli inspect`.
+- **(inferred)** marks derivations and assumptions not traced end to end.
+- **(data)** marks things checked in the original Gold 1.12 data with `pnpm cli inspect`.
 
 File paths are relative to `reference/stracciatella/src/`, and only basenames are used below:
 
@@ -84,7 +17,7 @@ File paths are relative to `reference/stracciatella/src/`, and only basenames ar
 |---|---|
 | `RenderWorld.cc/.h`, `Isometric_Utils.cc/.h`, `WorldDef.cc/.h`, `WorldMan.cc`, `Lighting.cc/.h`, `Structure.cc`, `Structure_Internals.h`, `TileDef.cc/.h`, `TileDat.cc/.h`, `Tile_Surface.cc`, `Render_Fun.cc`, `Radar_Screen.cc/.h`, `Overhead_Map.cc`, `Environment.cc/.h`, `Tile_Animation.cc`, `Explosion_Control.cc`, `SaveLoadMap.cc`, `Fog_Of_War.cc`, `LoadSaveLightSprite.cc` | `game/TileEngine/` |
 | `VObject.cc/.h`, `VObject_Blitters.cc`, `HImage.cc/.h`, `Shading.cc/.h`, `Video.cc` | `sgp/` |
-| `Handle_UI.cc`, `Interface.h`, `Interface_Cursors.cc`, `FOV.cc`, `DisplayCover.cc` | `game/Tactical/` |
+| `Handle_UI.cc`, `Interface.h`, `Interface_Cursors.cc`, `FOV.cc`, `DisplayCover.cc`, `Bullets.cc`, `Physics.cc` | `game/Tactical/` |
 | `UILayout.cc/.h`, `Init.cc`, `GameSettings.cc` | `game/` |
 | `StrategicMap.cc`, `Game_Clock.cc` | `game/Strategic/` |
 | `Timer_Control.cc` | `game/Utils/` |
@@ -162,6 +95,9 @@ rectangle inscribed in the diamond:
   (`:2252-2278`).
 - **Stored for the radar:** `gsTopLeftWorldX/Y = TopLeft − (gsLeftX, gsTopY)`, and likewise for BottomRight (`:2295-2299`).
 
+ja2-node: `src/render/world/camera.ts` (`scrollLimits` for both restrictions, `snapCamera`, `applyScrolling`,
+`setRenderCenter`).
+
 ### 1.5 Where a tile sprite goes
 
 `CalcRenderParameters` (`RenderWorld.cc:3436-3516`) picks a start tile and its screen position. `RenderTiles` then steps
@@ -177,7 +113,7 @@ oy(X,Y) = cy + 10·(X + Y) − 10 − (rcx + rcy)
   `(ox+20, oy+10)` and the bottom vertex `(ox+20, oy+20)`.
 - **Consistency check (inferred).** A merc standing at the tile centre, positioned via `FloatFromCellToScreenCoordinates`
   minus `gsRenderWorldOffsetY = 10` (`:959-972, 203`), lands at `(ox+20, oy+10)`.
-- **Exactness (inferred).** Checked by hand for 640×480. `FromScreenToCellCoordinates` floors, so the formula is exact
+- **Exactness (inferred, checked by hand for 640×480).** `FromScreenToCellCoordinates` floors, so the formula is exact
   only when `cx` is even and `cx/2 + cy` is even. 640×480, 1024×768, 1280×720 and 1920×1080 all qualify. Otherwise the
   whole static layer is shifted by 1–2 px.
 - **Frame offset.** Every blitter draws pixel (0,0) of an ETRLE frame at `(sXPos + sOffsetX, sYPos + sOffsetY)`
@@ -186,6 +122,8 @@ oy(X,Y) = cy + 10·(X + Y) − 10 − (rcx + rcy)
   Other objects carry negative offsets, e.g. `roofvent.sti` #0 is 61×39 at (−11,−23).
 - **Transparency** comes only from ETRLE runs with bit 0x80; every pixel of an opaque run is drawn through the palette
   (`VObject_Blitters.cc:1981-1997`).
+
+ja2-node: `worldOrigin`, `cameraOffset` and `tileOrigin` in `src/render/world/geometry.ts`.
 
 ### 1.6 Heights
 
@@ -210,8 +148,8 @@ sYPos += gsRenderHeight                                   (:1110)
   decide *where in the land list* a new land piece is inserted (`TileDef.cc:279-303`, `WorldMan.cc:490-516`). It has no
   effect on screen position.
 - **Runtime-only position flags.** `LEVELNODE_USERELPOS`, `USEZ`, `USEABSOLUTEPOS` and `IGNOREHEIGHT`
-  (`RenderWorld.cc:647-679`) are used by bullets, physics objects and UI. The map loader never sets them **(inferred:
-  the loader only calls the plain `Add*To*` functions, `WorldDef.cc:2121-2296`)**.
+  (`RenderWorld.cc:647-679`) are used by bullets, physics objects and UI (§10). The map loader never sets them
+  **(inferred: the loader only calls the plain `Add*To*` functions, `WorldDef.cc:2121-2296`)**.
 
 ---
 
@@ -237,7 +175,7 @@ RenderTiles(OBSCURED, STATIC_STRUCTS, STATIC_ONROOF)                            
 
 ### 2.2 The row sweep (`RenderTiles::Render`, `RenderWorld.cc:353-1534`)
 
-**Important:** the row loop is the outer loop, and the list of layers passed to the call is the inner loop.
+The row loop is the outer loop, and the list of layers passed to the call is the inner loop.
 
 ```
 anchor = (startX_M, startY_M, startX_S, startY_S); odd = false
@@ -261,7 +199,7 @@ while anchor.y_S < endYS
   (`:58-61, 1765, 3489-3515`). It covers tile origins from (left−120, top−200) to (right+120, bottom+200). The dynamic
   render uses only 40/40 (`:1825, 3448-3485`). **(inferred)** A sprite whose origin is outside the window is not drawn
   even if part of it would be visible. This only affects sprites taller than ~200 px, or wider than ~120 px beyond the
-  edge.
+  edge. ja2-node draws every sprite of the visible rows (`deviations`, "Sweep window").
 
 ### 2.3 Node order inside one tile's layer
 
@@ -284,14 +222,14 @@ while anchor.y_S < endYS
   - If no piece is full, `pLandStart` stays NULL and nothing is drawn. `AdjustForFullTile` would add a random background
     piece only on later edits (`:349-377`).
   - `ubFullTile` comes from aux data, `gFullBaseTileValues` for base textures, and all floors (`TileDef.cc:91-94`,
-    `TileDat.cc:731-740`).
+    `TileDat.cc:731-740`; transcribed in `data/tables/tiles.json` `fullBaseTileValues`).
 - **Buddy shadows.**
   - Added for every struct whose tile element has `HAS_SHADOW_BUDDY`, unless `GridNoIndoors(g)`
     (`WorldMan.cc:551-555`).
   - `GridNoIndoors` = basement, caves, or a `FIRSTFLOOR..LASTFLOOR` land piece on the tile (`WorldDef.cc:130-137`).
     During loading `gfBasement`/`gfCaves` are still FALSE (`:2033-2034`), so only the floor test counts.
-  - The struct↔shadow type pairs are in `g_shadow_buddies` (`TileDat.cc:103-140`). The shadow index is
-    `struct_idx − first_struct + first_shadow`.
+  - The struct↔shadow type pairs are in `g_shadow_buddies` (`TileDat.cc:103-140`; `data/tables/tiles.json`
+    `shadowBuddies`). The shadow index is `struct_idx − first_struct + first_shadow`.
   - A shadow element **inherits all flags of its struct buddy**, e.g. `DYNAMIC_TILE` or `ANIMATED_TILE`
     (`TileDat.cc:595-600`).
   - Buddy shadows are not saved back to the map (`WorldDef.cc:1516`).
@@ -304,7 +242,7 @@ All in `RenderWorld.cc`, in order:
 1. **Redundant tile.** On LAND and OBJECTS only, the whole tile list is skipped if `MAPELEMENT_REDUNDENT` is set
    (`:448-454`). This is an optimisation: `ExamineZBufferForHiddenTiles` sets the flag when a land-diamond-shaped area at
    the tile is completely covered by z ≥ the tile's struct z (`:3344-3433, 3526-3573`). **(inferred)** Skipping it does
-   not change the picture except at odd sprite overhangs. Not needed for v1.
+   not change the picture except at odd sprite overhangs. ja2-node does not use the flag.
 2. **`LEVELNODE_REVEAL`.** Not drawn in static passes; drawn translucent in the dynamic pass (`:466-477`).
 3. **`LEVELNODE_REVEALTREES`.** Draw `usIndex + 2` instead of `usIndex` (`:503-505`). See §9.6.
 4. **Animated and dynamic.** Skipped in static passes if the tile has `ANIMATED_TILE`, or (`DYNAMIC_TILE` or
@@ -335,8 +273,9 @@ A node is drawn in a dynamic layer if (`:518-532`):
 - its tile has `ANIMATED_TILE`, in which case it is drawn with frame `pusFrames[bCurrentFrame]`. Frames advance every
   200 ms (`:1596-1603`; `Timer_Control.cc:18`).
 
-To reproduce the full static picture, draw these nodes after the static passes, with the dynamic blitters of §3.3.
-Map-relevant `DYNAMIC_TILE` sources (`TileDat.cc:620-729`):
+These nodes are drawn after the static passes, with the dynamic blitters of §3.3 (ja2-node: `dynamicMapNodes` in
+`src/render/world/dynamic-scene.ts`, `ANIMATED_TILE_FRAME_MS = 200`). Map-relevant `DYNAMIC_TILE` sources
+(`TileDat.cc:620-729`):
 - the second frame of every triple in `FIRSTFULLSTRUCT1..SECONDFULLSTRUCT12` (tree "top" frame, `:655-663`);
 - `MOCKFLOOR1`;
 - the shadows of those frames (flag inherited).
@@ -383,7 +322,7 @@ TOPMOST_Z_LEVEL = 32767                                                         
 ```
 
 The z key is therefore `80·(X+Y) + sublayer + const`. Every tile in one screen row shares the same z for a given
-layer.
+layer. ja2-node: `worldY` and the `*Z` functions of `src/render/world/geometry.ts`.
 
 ### 3.2 Per-layer formula (static and dynamic share it; `RenderWorld.cc:710-885`)
 
@@ -406,11 +345,10 @@ layer.
   (`:785-794, 1043-1051`), and in the ZStrip setup of `STRUCTURE_MOBILE | STRUCTURE_CORPSE` frames (`Structure.cc:1563-1575`).
   **Static tiles do not use it.**
 - **Wrap-around.** `sZLevel` is `INT16` and the blitters take `UINT16`, so a negative z wraps to ~65 000, i.e. "nearest
-  of all".
+  of all". ja2-node emulates it with `wrap16(z) = z & 0xFFFF`.
   - **(inferred)** With restriction 0, structures, roofs and USEZHEIGHT objects on rows `X+Y <= 83` get wrapped z. These
     rows sit at the extreme top edge of the scrollable area.
   - Multi-Z strips are computed in `int` and cast to `UINT16` the same way (`:2369, 2482`).
-  - Emulate with `z16 = z & 0xFFFF` if exactness at the top border matters.
 - **Shadow clamp.** A shadow clamped to 0 never passes the strict `zbuf < z` test, because zbuf is ≥ 0. **(inferred)**
   With restriction 0, shadows on rows `X+Y <= 91` are therefore invisible.
 - **Consequences (inferred, from the formulas).**
@@ -480,7 +418,7 @@ pbZChange = [+1]*nInc ++ [0]*nStable ++ [−1]*nDec ++ zeros (to 16)
 bInitialZChange = nInc > 0 ? −nInc : (nStable > 0 ? 0 : −nDec)
 ```
 
-Source lines: `Structure.cc:1579-1687`.
+Source lines: `Structure.cc:1579-1687`; ja2-node `zStripInfo` in `src/content/world/zstrip.ts`.
 - All divisions are C integer divisions. `%` takes the sign of the dividend, so in the "all on the left side" case
   `right % 20` is ≤ 0 and `left` ends up ≥ `width`.
 
@@ -500,34 +438,35 @@ Here `base` is the layer z of §3.2, i.e. `8·wy + 4` for structs. Rows do not c
 - `right = 60` gives nStable 1 and nDec 3; init = −3.
 - Strips: [0,20) base−240, [20,40) −160, [40,60) −80, [60,80) base, [80,100) base, [100,120) −80, [120,140) −160.
 
-In words: the 40 px above the base tile carry the base z, and z drops by 80 (one row) per 20 px further out.
+In words: the 40 px above the base tile carry the base z, and z drops by 80 (one row) per 20 px further out. ja2-node
+emits one quad per strip with depth `base + dz`; only the first strip has a different width.
 
-**For the WebGL renderer.** Precompute per frame a list `(x0, x1, dz)` and emit one quad per strip, with depth
-`base + dz`. These are exactly the "20 px strips". Only the first strip has a different width.
+### 3.5 GPU depth buffer (ja2-node)
 
-### 3.5 Mapping to a GPU depth buffer (inferred)
+How `src/render/world/world-program.ts` maps §2.6 and §3.3 onto WebGL2 (`DrawState` in `instances.ts`):
 
-- **Depth values.** Use `DEPTH_COMPONENT32F` (or 24-bit), clear to 0, and set depth = `z16 / 65536`. Integer z values
-  stay distinct and keep their order.
-  - `zbuf <= z` → `gl.depthFunc(GEQUAL)`.
-  - `zbuf < z` → `GREATER`.
+- **Depth values.** A `DEPTH_COMPONENT24` buffer cleared to 0; depth = `z16 / 65535`. Integer z values stay distinct and
+  keep their order.
+  - `zbuf <= z` → `gl.depthFunc(GEQUAL)` with write (`NEARER_OR_EQUAL_WRITE`).
+  - `zbuf < z` → `GREATER` with write (`NEARER_WRITE`).
   - LAND: depth test and depth write off.
   - Dynamic NB layers: depth mask off.
-- **Draw order.** GL guarantees primitive order for depth and blending. Submitting quads in exactly the order of §2
-  therefore reproduces the result, including ties between equal z values. Ties are common: every tile in a row has the
-  same z.
+- **Draw order.** GL guarantees primitive order for depth and blending, so submitting quads in the order of §2
+  reproduces the result, including ties between equal z values (every tile in a row has the same z).
 - **No single-func encoding.** Strict and non-strict tests cannot be folded into one depth func while still writing the
-  same z (I checked: impossible with one comparison and written = tested value). Split draw calls whenever the compare
-  func changes. In pass 4 that happens only around multi-Z non-wall structs and between layers. Cache the static result
-  in a texture while the camera is still.
-- **Shadows.** Depth `GREATER` with write enabled; blend `dst × 0.48` (e.g. `blendFunc(ZERO, SRC_COLOR)` with the shader
-  outputting 0.48 for every opaque texel). Because of the strict test, overlapping shadows *of the same row* darken once,
+  same z, so the draw calls split whenever the compare func changes.
+- **Pass 4 by segment.** The static scene keeps one instance list per segment and row (`StaticSegment` in
+  `static-scene.ts`: LAND, OBJECTS, SHADOWS, STRUCTS, STRICT_STRIPS, ROOFS, ON_ROOF, TOPMOST, OBSCURED_DITHER,
+  OBSCURED_STRIP_DITHER, OBSCURED) and draws pass 4 segment by segment instead of interleaved per row. This is exact:
+  every segment writes depth, and z values of different segments tie only between plain structures (`<=`) and strict
+  strips (`<`), where the plain structure wins in either order. Wall strips stay in STRUCTS.
+- **Shadows.** Depth `GREATER` with write enabled; blend `dst × 0.48` (`blendFunc(ZERO, SRC_COLOR)`, the shader outputs
+  `SHADOW_FACTOR` for every opaque texel). Because of the strict test, overlapping shadows *of the same row* darken once,
   while shadows of different rows darken again (0.48²).
-- **Obscured blitter.** Draw twice per sprite:
-  1. depth `GREATER` with write;
-  2. depth `ALWAYS`, `discard` where `(gl_FragCoord.x + gl_FragCoord.y)` is odd, writing z only for the multi-Z variant.
-
-  Here x,y are original-screen pixel coordinates (top-left origin).
+- **Obscured pass.** Non-multi-Z: first all dithered halves (`(x + y)` odd discarded, depth `LEQUAL`, no write), then
+  all visible halves (`GREATER` with write); the original draws both halves sprite by sprite (`deviations`,
+  "Show-through order"). Multi-Z: the dithered strips with `ALWAYS` and write, then `GREATER` with write. x,y are
+  screen pixel coordinates (top-left origin).
 
 ---
 
@@ -544,7 +483,7 @@ In words: the 40 px above the base tile carry the base z, and z drops by 80 (one
 - **Overhead map.** It draws shadows always, with the non-z shadow blitter (`Overhead_Map.cc:581-593`).
 - **Translucency** (`LEVELNODE_REVEAL`, dynamic pass only). The result is `((pal >> 1) & mask) + ((dst >> 1) & mask)`,
   where `mask = 0x7BEF` for RGB565 (each channel's top bit cleared): a 50 % average (`VObject_Blitters.cc:184-186`;
-  `Video.cc:576`).
+  `Video.cc:576`). ja2-node blends 50 % in 24-bit colour (`deviations`, "Translucency").
   - The static map never sets REVEAL. It comes from cover display, `ANITILE_ALWAYS_TRANSLUCENT` and similar
     (`DisplayCover.cc:343`, `Tile_Animation.cc:123`).
   - `LightHideWall` only *clears* it (`Lighting.cc:1556, 1565`).
@@ -570,8 +509,8 @@ In words: the 40 px above the base tile carry the base z, and z drops by 80 (one
   - Sets `gubWorldRoomHidden[room] = FALSE` (`:127`).
 - **Re-applying on visits.** Revealed tiles are persisted in the sector temp file and re-applied with
   `SetGridNoRevealedFlag` on later visits (`SaveLoadMap.cc:488`).
-- **On-roof layer.** No code path hides ONROOF nodes on reveal **(fact by absence; inferred: on-roof objects stay
-  visible over a revealed room — verify in game)**.
+- **On-roof layer.** No code path hides ONROOF nodes on reveal **(fact by absence)**, so on-roof objects stay visible
+  over a revealed room (§12).
 - **Roof interface level.** `gsRenderHeight += 50` and `SHOW_ALL_ROOFS`, so HIDDEN `ROOF_TILE` nodes are drawn again
   while HIDDEN AFRAME walls are not (`Handle_UI.cc:1134-1145`, `RenderWorld.cc:1114-1117`). `ROOF_TILE` covers types
   `FIRSTROOF..SECONDSLANTROOF`, `FIRSTHIGHROOF` and `SECONDHIGHROOF` (`TileDat.cc:751-756`).
@@ -588,12 +527,12 @@ In words: the 40 px above the base tile carry the base z, and z drops by 80 (one
   - **Option flag.** `LEVELNODE_WIREFRAME` is set only when the neighbour is already revealed, and only flagged nodes
     obey the wireframe option (default on). With default options every wireframe tile is drawn.
   - **(data)** `tilesets/0/wirefram.sti` holds 13 thin white wall and door outlines, e.g. #9 is 20×55 at (17,−35).
-  - **(inferred)** At load this outlines the walls between outdoor tiles and roofed buildings. Verify visually before
-    deciding whether v1 needs it.
+  - **(inferred)** At load this outlines the walls between outdoor tiles and roofed buildings.
 
-**v1 rule:** draw every roof and on-roof node, plus wireframes if verified. Once room revealing exists: for each revealed room, skip
-`FIRSTROOF..FOURTHROOF` roof nodes, AFRAME roof nodes (on the tile and its S and E neighbours) and slanted-roof structs
-on its tiles, and move obstacles there to the obscured pass.
+ja2-node: `computeReveal` (`src/render/world/reveal.ts`) applies `SetGridNoRevealedFlag` to every tile of the rooms in
+the view's `revealedRooms` (from `revealedRooms`, `src/sim/tactical/perception/fov.ts`) and recomputes the wireframes of
+the whole map on every change; node flags are `HIDDEN` and `SHOW_THROUGH`, and a wireframe marked `optional` is the
+`LEVELNODE_WIREFRAME` case. The static scene rebuilds only the rows whose tiles changed (`changedRevealTiles`).
 
 ---
 
@@ -616,6 +555,9 @@ A shade index into 16 palettes, 1 = lightest, 15 = darkest; `SHADE_MAX = 1`, `SH
   - `LIGHT_SPR_ONROOF` lights: ROOF and ONROOF only.
 - **New nodes** start at the current ambient (`WorldMan.cc:26-36`).
 
+ja2-node keeps one land shade and one roof shade per tile; every node of a tile takes one of them (`deviations`,
+"Light on structures"). How the browser computes them: §11.
+
 ### 6.2 Ambient level
 
 - **Above ground:** `GetTimeOfDayAmbientLightLevel()` (`WorldDef.cc:2344-2347`).
@@ -627,18 +569,11 @@ A shade index into 16 palettes, 1 = lightest, 15 = darkest; `SHADE_MAX = 1`, `SH
   (`WorldDef.cc:2334-2339`). The editor and map utility use 4.
 - **Shadows** are drawn only while the ambient is < 8 (§2.1).
 
-### 6.3 Map light sprites (v1 can skip)
+### 6.3 Map light sprites
 
-- **Map file data** (`LoadMapLights`, `WorldDef.cc:2911-2946`; `LoadSaveLightSprite.cc:10-58`):
-  - light colours (`LColors[0]` is used);
-  - per light: tile X/Y, flags and a template name.
-- **Templates** (`LTO1..8.LHT` etc.) come from `assets/externalized/light-templates.json`. Each holds ray lists of
-  `(dX, dY, flags, ubLight)` nodes; omni templates decay 0.9 per tile (`Lighting.cc:866-886`, `Lighting.h:24-26`).
-- **Drawing.** `LightDraw` walks the rays and stops a ray at blocking walls, doors and big obstacles. That logic is
-  Stracciatella's `IlluminationFilter` (`Lighting.cc:297-462, 1401-1519`).
-- **Power.** Lights flagged `LIGHT_NIGHTTIME` or `LIGHT_PRIMETIME` are powered only 21:00–07:00 or 21:00–24:00
-  (`Environment.h:8-11`, `WorldDef.cc:2927-2939`). In caves all lights start off and switch on when seen
-  (`Fog_Of_War.cc`).
+`LoadMapLights` (`WorldDef.cc:2911-2946`; `LoadSaveLightSprite.cc:10-58`) reads the light colours (`LColors[0]` is
+used, §6.4) and per light the tile X/Y, flags and a template name. Templates, the ray walk with its
+`IlluminationFilter` and the power schedule are `20` §2–§4.
 
 ### 6.4 Palettes (tile surfaces)
 
@@ -655,7 +590,7 @@ shade s≥1 : c.r = min(S[s].r · r / 256, 255) etc. (integer division)         
             (Create16BPPPaletteShaded / Get16BPPColor, HImage.cc:96-153; RGB565 surfaces, Video.cc:126-181)
 ```
 
-`S[s]` is `gusShadeLevels` (JA2 Gold values, `Lighting.cc:154-172`):
+`S[s]` is `gusShadeLevels` (JA2 Gold values, `Lighting.cc:154-172`; `SHADE_LEVELS` in `src/content/world/shading.ts`):
 
 | s | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -667,14 +602,15 @@ shade s≥1 : c.r = min(S[s].r · r / 256, 255) etc. (integer division)         
   never reaches them, because ambient tops out at 12; strong darkening is not in the map data.
 - **Light colour.** Almost every map uses black, i.e. no tint (vanilla saved the cache only for black,
   `vanilla:TileEngine/Lighting.c:3168`).
-- **Palette texture recipe (inferred).** Build a 256 × 16 texture per tile surface, index × shade → RGB, using the
-  formula above. Quantise through 565, then expand back to 8 bits for exact colours.
+- **ja2-node** builds the 16 palettes per tile surface with `shadedPalette565` (quantised through RGB565) and expands
+  them back to 8 bits like SDL (`displayRgbFrom565`: `(r << 3) | (r >> 2)`, …) into palette rows of a texture
+  (`src/render/palettes.ts`, `palette-rows.ts`).
 - **`.sha` files.** Stracciatella never reads `Data/ShadeTables/*.sha`. Vanilla used them as a cache
   (`vanilla:TileEngine/ShadeTableUtil.c:111-148`): per tile-surface file, 16 × 256 × UINT16 in the format recorded in
   `RGBDist.dat`.
   - **(data)** 306 files of 8192 bytes; `RGBDist.dat` = masks F800/07E0/001F, i.e. RGB565.
-  - They make a ready test oracle for shades 1–15. Shade 0 may differ by luminance rounding: vanilla truncates each
-    term.
+  - A data test (`src/content/world/shading.test.ts`) checks shades 1–15 of `shadedPalette565` against them. Shade 0
+    may differ by luminance rounding: vanilla truncates each term.
 
 ---
 
@@ -705,6 +641,9 @@ gridno = (wy/10)*160 + wx/10                                           // MAPROW
     **(inferred)**.
 - **Visible-tile test** (also used by the radar): `GridNoOnVisibleWorldTile` (`Isometric_Utils.cc:544-557`).
 
+ja2-node: `screenToGridNo` (`src/render/world/geometry.ts`, `WorldRenderer.gridNoAt`); soldiers under the pointer:
+`pickSoldierAt` (`picking.ts`).
+
 ---
 
 ## 8. Radar map
@@ -734,6 +673,9 @@ y2 = RY + min(round((gsBottomRightWorldY + 70)·sy − 1), 43)
 - **Click to centre:** `(rel − 44, rel − 22) / scale` is rounded to whole steps of 40 / 40 px, converted to cells and
   passed to `SetRenderCenter(800 + …)` (`Radar_Screen.cc:311-348`).
 
+ja2-node: the geometry is `src/app/world/radar.ts` (`radarViewportBox`, `radarDotOf`, `radarCellAt`), with the
+restriction-0 constants for every map; the night shade and the dots are drawn by `src/ui/screens/tactical/tactical-screen.ts`.
+
 ---
 
 ## 9. Other things a reimplementation must know
@@ -744,7 +686,7 @@ y2 = RY + min(round((gsBottomRightWorldY + 70)·sy − 1), 43)
    Clear to black. In the editor, out-of-world tiles are painted black (`RenderWorld.cc:1494-1509`).
 3. **Off-map positions.** The sweep visits positions with X or Y outside 0..159. If `r*160 + c < 25600`, the wrong tile
    (row-wrapped) is drawn there (`Isometric_Utils.h:47`). **(inferred)** Such positions lie in the diamond's corners,
-   beyond the scroll limits, so in practice: skip out-of-range X/Y.
+   beyond the scroll limits; ja2-node iterates only valid X,Y.
 4. **Restricted maps.** `ubRestrictedScrollID = 1` changes the scroll rectangle, `gsTopY` (hence the z constant and its
    clamps) and the radar scale. The overhead map additionally paints black borders (`Overhead_Map.cc:704-725`).
 5. **Layers absent from the map file.** MERC and TOPMOST are never in the file. Object types `>= FIRSTPOINTERS` are
@@ -771,22 +713,115 @@ y2 = RY + min(round((gsBottomRightWorldY + 70)·sy − 1), 43)
     surface (`TileDef.cc:153-164`).
 11. **Tile database layout.** Tile index = `gTileTypeStartIndex[type] + subIndex − 1`, and type order follows
     `TileTypeDefines` (`TileDef.cc:240-245`, `TileDat.h:2923-…`). Surfaces come from `tilesets/<id>/<file>.sti`, falling
-    back to the default tileset (0, or JA25's) when a tileset leaves a type empty (`WorldDef.cc:193-234`).
+    back to the default tileset (0, or JA25's) when a tileset leaves a type empty (`WorldDef.cc:193-234`). ja2-node:
+    `data/tables/tiles.json` (`types`, `numberOfTiles`), `src/content/world/tile-database.ts` (`TileFlags`),
+    `tileset-loader.ts`.
 12. **Overhead map** (`Overhead_Map.cc:471-734`):
     - uses 1/5-scale tiles from `tilesets/<id>/t/*.sti` (8×4 land, **(data)**) with the same shade tables;
     - steps 8 px per tile and 2 px per row; heights are divided by 5;
     - is pure painter's order with no z: land; then per row objects, shadows, structs; then non-hidden roofs.
+
+    ja2-node composes it once per sector (`src/app/tactical/overhead-map.ts`; `deviations`, "Overhead map").
 13. **Frame-to-frame state.** Static rendering is a pure function of the map, the node flags, the camera,
     `gsRenderHeight`, shade levels and the shadow flag. Light changes trigger a partial "marked" re-render that does
     *not* clear the z-buffer (`RenderWorld.cc:1789-1816`). Treat the full render as canonical.
 
 ---
 
-## 10. Open points to verify against the running game
+## 10. Animation tiles, corpses and bullets
 
-- That on-roof decorations stay visible after a room's roof is removed (§5).
-- What the load-time wireframe outlines look like over unrevealed buildings (§5).
-- Wrapped z and missing shadows at the top border of the scroll area (§3.2). These are visible only when scrolled fully
-  up.
-- Any sprites taller than the 200 px sweep margin near the bottom edge (§2.2).
-- A pixel diff of a palette built per §6.4 against the vanilla `.sha` files, for one tileset.
+Where the dynamic pass puts the world content that is not a soldier. In ja2-node these are the animation tiles and
+struct nodes of `DynamicScene` (`src/render/world/dynamic-scene.ts`), fed by `src/app/world/world-effects.ts` (corpses,
+smoke), `effect-animations.ts` (misses, window shatter, miniboom, trails, explosions) and `bullet-nodes.ts`.
+
+- **Corpses.** `AddRottingCorpse` makes a corpse a paused animation tile (`ANITILE_PAUSED`) that the original draws with
+  the static world, so corpses go ahead of every merc (a corpse in a merc's own row otherwise covered him). Z is that of
+  the tile to the north-west plus 20 world-y (`corpseZ`), vehicles at the structure z of their structure's z offset, on
+  roofs the doubled on-roof offset (`roofCorpseZ`); with z strips, shadow pixels and the tile's shade.
+- **Smoke and gas.** Translucent, at the object z (on roofs the on-roof z), in the structure (or on-roof) layer of the
+  dynamic pass.
+- **Items on structures** are raised by the structure's height at the structure z. Multi-tile soldiers (prone mercs,
+  vehicles, the tank, large creatures) go to the struct-merc pass with the z strips of their animation structure
+  (`06` §4.4).
+- **Structure changes.** Structure graphics changed in the simulation (the view's `tileChanges`, blood pools) patch the
+  struct and on-roof layers (`src/render/world/tile-changes.ts`) and rebuild the static rows they touch.
+- **Bullets** (`UpdateBullets`, `Bullets.cc:187-290`): two struct nodes at the tail of the bullet tile's struct list,
+  `BULLETTILE1` at the bullet's height and `BULLETTILE2`, the shadow, at the land height of the tile. Both have
+  `LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT` and `DEFAULT_SHADE_LEVEL` (4). An absolute node is placed from its
+  world position minus `CELL_Y_SIZE` in x (`RenderWorld.cc:657-679`), so a bullet over a tile centre sits on that tile's
+  box and is raised by its `sRelativeZ`. Its z is the structure z of its tile (`:781-840`), so walls and soldiers in
+  front of it hide it. **(data)** Both frames of `tilesets/0/bull.sti` are a single pixel at offset (19, 10). The
+  browser draws them only for soldiers the squad sees (`deviations`, "Bullets of unseen shooters").
+- **Miss animations** of `StructureHit` are struct-layer animation tiles at the tail of the impact tile's list
+  (`ForceStructToTail`), placed at the bullet's absolute position and raised by its height: `FIRSTMISS1` (5 frames,
+  `miss1.sti`), in low or deep water `THIRDMISS1` (the ripple, 14 frames) and then `SECONDMISS1` (the splash, 5
+  frames), both animated through their aux data **(data)**. `WindowHit` adds the `WINDOWSHATTER` tile on the window's
+  own tile or the next one the glass falls to. Every animation tile has `LEVELNODE_USEZ` (`Tile_Animation.cc:120`), so
+  in the struct layer its z is `ONROOF_Z_LEVEL + (world_y + sRelativeZ) · Z_SUBLAYERS` (`RenderWorld.cc:826-838`), not
+  the structure z.
+- **Miniboom.** The HE miniboom (`tilecache/miniboom.sti`, 13 frames, 100 ms) is a cached animation tile on the topmost
+  layer, always translucent, placed like a merc at its world position minus the tile's land height and its
+  `sRelativeZ` (`RenderWorld.cc:583-622`). All of these take `DEFAULT_SHADE_LEVEL`. A frame lasts until more than its
+  delay has passed, so 85, 55 or 105 ms on 5 ms ticks.
+- **Thrown knife** (`HandleBulletSpecialFlags`, `Bullets.cc:72-123`): a cached animation tile, `knifing.sti` in the
+  struct layer and the same frame in the shadow layer with `sRelativeZ` 0, both hanging on the tile the knife left
+  from. `UpdateBullets` moves only their world position and sets the knife's `sRelativeZ` to its height minus the land
+  height under it, so the knife sorts at the on-roof z of the thrower's tile raised by that height and the tile's own
+  land height is taken off its position. The shadow layer draws it flat without a depth test (§2.6).
+- **Missile trail** (`AddMissileTrail`, `Bullets.cc:296-353`): a cached animation tile in the struct layer of the
+  bullet's tile, always translucent: `msle_smk.sti` behind rockets, tank shells and flames, `msle_sma.sti` behind small
+  missiles, `msle_spt.sti` behind creature spit, 9 frames each at 100 + `Random(100)` ms (flames 100 ms), raised by the
+  height minus the shooter's land height. The browser draws the random part itself.
+- **Explosion** (`GenerateExplosionFromExplosionPointer`, `Explosion_Control.cc:159-213`): a cached animation tile on
+  the topmost layer at the blast point raised by its z: the graphics of its animation (the water animation in water),
+  one frame per blast speed, translucent in water and from the animation's transparent key frame on
+  (`ANI_KEYFRAME_BEGIN_TRANSLUCENCY`, checked as a frame is entered, so key frame 0 never applies). The stub pack has no
+  explosion graphics, because the simulation takes an explosion's frame count from them and the stubs keep the fallback
+  count; on the stubs only the explosion's light shows.
+- **Thrown object** (`PhysicsMoveObject`, `Physics.cc:1097-1220`): its item's tile as a struct node at the tail of its
+  current tile's list with `LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT | LEVELNODE_PHYSICSOBJECT`, raised by its
+  height plus the land height, at the on-roof z of the tile raised by the same (`RenderWorld.cc:805-808`), and the same
+  tile at the head of the tile's shadow list at the land height, drawn flat.
+
+---
+
+## 11. Implementation in ja2-node
+
+The world renderer runs in the browser only; the simulation never depends on the picture.
+
+- **Content.** `src/content/world/`: `tile-database.ts` (tile elements and `TileFlags`, from `data/tables/tiles.json`
+  and the tileset `ja2set.dat`), `tileset-loader.ts`, `level.ts` (layer lists per tile), `zstrip.ts`, `shading.ts`
+  (shade palettes). `src/app/world/world-loader.ts` loads a map and its tile surfaces; `renderWorldOf` hands them to
+  the renderer.
+- **Static scene** (`src/render/world/static-scene.ts`): per segment and row, the instances of §2 with the node
+  filters of §2.4 (except `MAPELEMENT_REDUNDENT`), the z of §3.2 and the strips of §3.4, given `StaticState`
+  (reveal flags, open doors and other openable structures, tree tops, wireframes, roof level). `level-render-data.ts`
+  holds `pLandStart`, the shadow lists after `OptimizeMapForShadows`, `gsRenderHeight` and the `NOBURN` tiles.
+- **Dynamic scene** (`dynamic-scene.ts`): the dynamic map nodes of §2.5, soldiers (`06` §4), items, UI nodes and §10,
+  rebuilt every frame for the visible rows.
+- **Renderer** (`world-renderer.ts`, `world-program.ts`): draws LAND, OBJECTS, SHADOWS (when the ambient is
+  `< LIGHT_DUSK_CUTOFF`), STRUCTS, STRICT_STRIPS, ROOFS, ON_ROOF, TOPMOST, the obscured segments and items, then the
+  dynamic runs, with the depth states of §3.5. Shades come from a per-tile texture (land shade, roof shade) and palette
+  rows per surface.
+- **Partial redraws** replace the original's save buffer and dirty rects: `PictureMemo` (`picture-memo.ts`) compares
+  the instance records of consecutive frames, shifts the last picture with the camera and redraws at most 8 merged
+  rectangles (`dirty-rects.ts`), or the whole view once they cover 60 % of it. `?worldCheck=1` on the game page makes
+  `PartialRedrawCheck` compare every partial redraw with a full one.
+- **Shading.** `WorldLighting` (`src/app/world/world-lighting.ts`) runs the simulation's lighting functions (`20`) in
+  the browser over the map's light sprites, the view's dynamic light sprites (`light.sprites` marked `dynamic`:
+  explosions, muzzle flashes, light effects; `dynamicLightSprites`, `src/sim/tactical/world-view.ts`) and the merc
+  lights, one sprite at a time, and keeps per tile the strongest light (§6.1); the ambient level is the view's
+  `light.ambient`. Merc lights take `Light2`, `Light3` (night goggles) or `Light4` (UV goggles) by the
+  merc's head slots (`src/app/world/light-templates.ts`): a loose `.LHT` file in the user's data first, then
+  Stracciatella's `light-templates.json`, and the generated `L-R06`, `L-R07`, `L-R08` only when neither has it.
+- **Verification.** Unit tests next to each module (`static-scene.test.ts`, `dynamic-scene.test.ts`, `reveal.test.ts`,
+  `zstrip.test.ts`, …); the shade palettes against the vanilla `.sha` files (§6.4). No oracle renders a frame, so the
+  pixel order itself is checked only against the code.
+
+---
+
+## 12. Unverified
+
+- On-roof decorations stay visible after a room's roof is removed (§5), derived from the absence of any hiding code.
+- Wrapped z and missing shadows at the top border of the scroll area (§3.2), derived from the formulas; visible only
+  when scrolled fully up.

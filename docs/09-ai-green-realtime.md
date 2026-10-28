@@ -1,37 +1,14 @@
-<!-- Green-alert AI in real time: an implementable spec for M2. 2026-10-15.
-Source: reference/stracciatella/src (ae6bf01, same snapshot as docs 01–08), cross-checked against vanilla
-(reference/vanilla/ja2/Build). Read-only research: nothing was built. Two throw-away scripts decoded the A9 placements
-(Maps.slf) and Prof.dat with our own parsers (src/content/formats); their outputs are quoted as (data). -->
-
 # 09 — Green-alert AI in real time
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/`; `V:` is vanilla `Build/`. "(inferred)"
-marks conclusions not traced end to end; everything else was read in the code. `Random` = our `main` stream,
-`PreRandom` = our `pre` stream (`01` §3.6). All times are **game milliseconds**; a tick is 5 ms. A **visit** is a
-`HandleSoldierAI` call for one soldier that passes its timer gate (§1.2). Orders: `STATIONARY 0, ONGUARD 1,
-CLOSEPATROL 2, FARPATROL 3, POINTPATROL 4, ONCALL 5, SEEKENEMY 6, RNDPTPATROL 7`. Attitudes: `DEFENSIVE 0, BRAVESOLO 1,
-BRAVEAID 2, CUNNINGSOLO 3, CUNNINGAID 4, AGGRESSIVE 5, ATTACKSLAYONLY 6`. Alert: `GREEN 0, YELLOW 1, RED 2, BLACK 3`.
-Action ids: `AI.h:29-90` (NONE 0, RANDOM_PATROL 1, SEEK_FRIEND 2, POINT_PATROL 6, LEAVE_WATER_GAS 7, SEEK_NOISE 8,
-WALK 17, MOVE_TO_CLIMB 19, CHANGE_FACING 20, CHANGE_STANCE 21, YELLOW_ALERT 22, WAIT 32, COWER 35, STOP_COWERING 36,
-ABSOLUTELY_NONE 41, END_COWER_AND_MOVE 44).
-
-## 0. A9 facts this spec relies on (data)
-
-| Who | Placement | Orders / attitude | Notes |
-|---|---|---|---|
-| ARMY, priority + detailed | 19417 | ONCALL / CUNNINGSOLO | the 6 priority placements are filled first (`06` §7.2); start garrison is 3, 4 or 6 troops (inferred, `06` §7.2) |
-| | 21358 | SEEKENEMY / CUNNINGAID | |
-| | 18188, 19255, 11704 | SEEKENEMY / AGGRESSIVE | |
-| | 13901 | SEEKENEMY / CUNNINGSOLO | |
-| ARMY, basic (26) | various | STATIONARY 4, ONGUARD 7, CLOSEPATROL 4, FARPATROL 5, ONCALL 2, SEEKENEMY 4 (mixed attitudes) | only used when the garrison exceeds 6 |
-| CIV Fatima (101), Pacos (114) | 11291, 11289, dir W | STATIONARY / DEFENSIVE | Prof.dat sector (9,1) = A9, civ group 1 (REBEL) → neutral (`Tactical/Soldier_Create.cc:221-225`); `sPreCombatGridNo` = **0**, not NOWHERE (Prof.dat offset 700) |
-| CIV Ray (143), Olga (144) | 15758, 11566 | FARPATROL / CUNNINGSOLO | Prof.dat sector (0,0) → **not placed** (`Tactical/Soldier_Init_List.cc:422-427`); they are the queen's assassins, placed in towns later (`Tactical/Soldier_Profile.cc:103-111`) |
-
-- `bPatrolCnt = 0` on every placement: POINTPATROL/RNDPTPATROL never occur in A9 (they are still cheap to port, §2.4).
-- 4 map schedules, each a single `SCHEDULE_ACTION_STAYINSECTOR` (8) with all times `0xFFFF`. STAYINSECTOR has no runtime
-  handler (only `Editor/EditorMercs.cc`), so no schedule ever sets `AI_CHECK_SCHEDULE` (`Strategic/Scheduling.cc:237`)
-  in A9 (inferred from data + code).
-- No water, no `fOnRoof` placements. Gas only comes from explosives. 54 doors (closed at load; `07` §7).
+marks conclusions not traced end to end. `Random` = the `main` stream, `PreRandom` = the `pre` stream (`01` §3.6). All
+times are **game milliseconds**; a tick is 5 ms. A **visit** is a `HandleSoldierAI` call for one soldier that passes
+its timer gate (§1.2). Orders: `STATIONARY 0, ONGUARD 1, CLOSEPATROL 2, FARPATROL 3, POINTPATROL 4, ONCALL 5,
+SEEKENEMY 6, RNDPTPATROL 7`. Attitudes: `DEFENSIVE 0, BRAVESOLO 1, BRAVEAID 2, CUNNINGSOLO 3, CUNNINGAID 4,
+AGGRESSIVE 5, ATTACKSLAYONLY 6`. Alert: `GREEN 0, YELLOW 1, RED 2, BLACK 3`. Action ids: `AI.h:29-90` (NONE 0,
+RANDOM_PATROL 1, SEEK_FRIEND 2, POINT_PATROL 6, LEAVE_WATER_GAS 7, SEEK_NOISE 8, WALK 17, MOVE_TO_CLIMB 19,
+CHANGE_FACING 20, CHANGE_STANCE 21, YELLOW_ALERT 22, WAIT 32, COWER 35, STOP_COWERING 36, ABSOLUTELY_NONE 41,
+END_COWER_AND_MOVE 44). Turn-based AI and the YELLOW/RED/BLACK deciders: `13`.
 
 ---
 
@@ -51,21 +28,20 @@ every overhead pass (5 ms):
      if !pauseAll && (INCOMBAT || (handleAI && cursor == cnt) || s.fAIFlags & AI_HANDLE_EVERY_FRAME || autoBandage):
         HandleSoldierAI(s)
         if !INCOMBAT: handleAI = (clock − passStart > 10) ? false : nextAIToHandle(cursor)
-  away slots (off-map schedule NPCs): ignore for M2
+  away slots (:1058-1070): if !pauseAll && !INCOMBAT && cursor == OFFMAP && awayCursor != RESET:
+     HandleSoldierAI(AwaySlots[awayCursor]) if it has AI_CHECK_SCHEDULE   // off-map schedule NPCs (25)
   end of pass: gubNPCAPBudget = gubNPCDistLimit = 0
 nextAIToHandle(cur): for c from (cur >= len ? 0 : cur+1) to len−1: if team != OUR (or PC under AI): cursor = c; return true
                      cursor = OFFMAP; (away-slot cursor advance); return false
 ```
 
 Consequences:
-- The strict `>` makes the tick period **55 ms** with idealised 5 ms passes (inferred; `01` §3.3 says "every 10 ticks",
-  it should be 11).
+- The strict `>` makes the tick period **55 ms** with 5 ms passes.
 - On any modern CPU one AI tick never exceeds 10 ms of wall clock, so each tick visits **every AI slot after the cursor
-  in slot order**, and the next tick restarts at slot 0 (cursor = OFFMAP). Port: no slice limit (a fixed "all" instead
-  of the CPU budget; already listed in `deviations.md`). Quirk: the initial cursor 0 makes the very first tick start at
-  slot 1.
-- `HandleSoldierAI(s)` runs after `s`'s own frame step and before `s+1`'s, inside the same pass. Keep this order: it
-  fixes the RNG order (all AI soldiers in `MercSlots` order).
+  in slot order**, and the next tick restarts at slot 0 (cursor = OFFMAP). ja2-node has no slice limit (deviations
+  "Timing"). Quirk: the initial cursor 0 makes the very first tick start at slot 1.
+- `HandleSoldierAI(s)` runs after `s`'s own frame step and before `s+1`'s, inside the same pass. This order fixes the
+  RNG order (all AI soldiers in `MercSlots` order).
 
 ### 1.2 `HandleSoldierAI`, real-time path (`TacticalAI/AIMain.cc:86-511`), in order
 
@@ -80,26 +56,32 @@ Consequences:
 5. Return on `fGettingHit` (`:181`); boxing gate (`:186-199`); `bLife < OKLIFE` or inactive (`:202-215`); `AI_ASLEEP`
    without `AI_CHECK_SCHEDULE` (`:217-233`); `!bInSector` (`:237`); vehicle/robot (`:248`); `bCollapsed` →
    `CancelAIAction` (`:260-275`). `EndAIGuysTurn` is a no-op in RT (`:517`).
-6. **New situation** (`:288-353`): if `bNewSituation == IS_NEW_SITUATION` and `ubAttackBusyCount == 0` and
-   `ubQuoteRecord == 0`: `CancelAIAction(s)`; `bNextAction = NONE` (the guard `bAction != END_COWER_AND_MOVE` is always
-   true because `CancelAIAction` already cleared `bAction`); `DecideAlertStatus(s)`. With a quote record: alert = GREEN,
-   `bNewSituation = WAS`. Otherwise (`!= IS`): `bNewSituation = NOT_NEW_SITUATION`.
+6. **New situation** (`:288-353`, the same block in TB): if `bNewSituation == IS_NEW_SITUATION`, it is processed when
+   `ubAttackBusyCount == 0`, or (busy-count hack) when the soldier's action is FIRE_GUN and no bullet is in flight, or
+   TOSS_PROJECTILE and no physics object is in flight (this one zeroes the busy count). Processing: a soldier under AI
+   control traversing off the map (TRAVERSE quote action, off the visible world) ignores it; else with
+   `ubQuoteRecord == 0` and no autobandage: `CancelAIAction(s)`; `bNextAction = NONE` (the guard
+   `bAction != END_COWER_AND_MOVE` is always true because `CancelAIAction` already cleared `bAction`);
+   `DecideAlertStatus(s)`; else a quote record sets alert = GREEN, and `bNewSituation = WAS`. Otherwise (`!= IS`):
+   `bNewSituation = NOT_NEW_SITUATION`.
 7. `bAction == NONE` → `EndMuzzleFlash`; `RTHandleAI(s)` (`:382-404`).
 8. Else **continue** (`:408-511`): if `FIRST_MOVEMENT_ACTION <= bAction <= LAST_MOVEMENT_ACTION && !fDelayedMovement`:
    - if `ubPathIndex == ubPathDataSize` (path done or empty): NPC-script destination handling when
-     `sAbsoluteFinalDestination != NOWHERE` (hook; note `:451` sets `uiStatusFlags |= AI_HANDLE_EVERY_FRAME`, the wrong
-     field — quirk); traversal (hook); MOVE_TO_CLIMB → CLIMB_ROOF; then **`ActionDone(s)`** (`:482`);
+     `sAbsoluteFinalDestination != NOWHERE` (`:451` sets `uiStatusFlags |= AI_HANDLE_EVERY_FRAME`, the wrong field:
+     0x10 there is `SOLDIER_ATTACK_NOTICED`, quirk); traversal; MOVE_TO_CLIMB → CLIMB_ROOF; then **`ActionDone(s)`**
+     (`:482`);
    - then: `fNoAPToFinishMove` → `SoldierTriesToContinueAlongPath`; else if the animation is `ANIM_STATIONARY` and not
      `fContinueMoveAfterStanceChange`, not `bEndDoorOpenCode`, no moving pending animation →
      `SoldierTriesToContinueAlongPath` (`:485-509`).
-   - **Range:** Strac `LAST_MOVEMENT_ACTION = AI_ACTION_CHANGE_STANCE` (`AI.h:28`) — it includes CHANGE_FACING and
+   - **Range:** Strac `LAST_MOVEMENT_ACTION = AI_ACTION_CHANGE_STANCE` (`AI.h:28`) includes CHANGE_FACING and
      CHANGE_STANCE. Vanilla ends at MOVE_TO_CLIMB (`V:TacticalAI/AI.h:32`). Strac widened it together with the
      `MovementMode` table ("extrapolated" rows, `AIUtils.cc:68-71`). Effect in §1.7.
 
 `SoldierTriesToContinueAlongPath` (`Movement.cc:546-613`): new situation → `CancelAIAction`; `usActionData >= GRIDSIZE`
-→ `CancelAIAction` (this is what happens right after `ActionDone`, which set it to NOWHERE: a harmless extra cancel);
-`!NewOKDestination(usActionData, people)` → cancel; affordable (RT APs are never spent, so always, inferred) → if not in
-progress `ExecuteAction`; then `NewDest(s, next tile of the path)` if the estimated AP cost fits. Rare in green RT.
+→ `CancelAIAction` (this is what happens right after `ActionDone`, which set it to NOWHERE: an extra cancel, which also
+clears `SkipCoverCheck` and `bBypassToGreen`, `13` §1.4); `!NewOKDestination(usActionData, people)` → cancel;
+affordable (RT APs are never spent, so always, inferred) → if not in progress `ExecuteAction`; then `NewDest(s, next
+tile of the path)` if the estimated AP cost fits. Rare in green RT.
 
 ### 1.3 `RTHandleAI` (`TacticalAI/Realtime.cc:93-248`)
 
@@ -111,7 +93,7 @@ if bNextAction != NONE:
    if END_COWER_AND_MOVE: bAction = cowering ? STOP_COWERING(ANIM_STAND) : endHeight < STAND ? CHANGE_STANCE(ANIM_STAND) : NONE
                           bNextAction = sGridNo == usNextActionData ? NONE (data NOWHERE) : WALK (data kept)
    else: bAction = bNextAction; usActionData = usNextActionData; bTargetLevel = bNextTargetLevel; clear the three (data 0)
-elif sAbsoluteFinalDestination != NOWHERE: bAction = schedule ? SCHEDULE_MOVE : WALK; usActionData = it      // hook
+elif sAbsoluteFinalDestination != NOWHERE: bAction = schedule ? SCHEDULE_MOVE : WALK; usActionData = it
 elif !(uiFlags & ENGAGED_IN_CONV): bAction = RTDecideAction(s)
 if bAction == NONE: bAction = WAIT; usActionData = civ/militia (not Kingpin) ? REALTIME_CIV_AI_DELAY
                                                  : creature && !hunting ? REALTIME_CREATURE_AI_DELAY
@@ -120,20 +102,21 @@ elif bAction == ABSOLUTELY_NONE: bAction = NONE                        // re-thi
 NPCDoesAct(s)              // RT: if bDesiredDirection != bDirection: bDesiredDirection = bDirection (AIMain.cc:876-901)
 bActionInProgress = ExecuteAction(s)
 ```
-`RTDecideAction` (`:34-63`): creatures → `CreatureDecideAction`, crows → `CrowDecideAction`, OUR team → autobandage or
-`DecideAction`; others: NPC "done traversal" hook (→ WAIT 100), else `DecideAction`.
+`RTDecideAction` (`:34-63`): creatures → `CreatureDecideAction`, crows → `CrowDecideAction` (`13` §12), OUR team →
+autobandage or `DecideAction`; others: NPC "done traversal" (→ WAIT 100), else `DecideAction`.
 
 ### 1.4 Delays (`TacticalAI/AIInternals.h:59-61`, `Realtime.cc:65-90`)
 
-| Macro | Value | A9 |
+| Macro | Value | Example |
 |---|---|---|
 | `REALTIME_AI_DELAY` | `10000 + Random(1000)` | troops: 10000–10999 |
 | `REALTIME_CIV_AI_DELAY` | `1000·(Team[MILITIA].bMenInSector + Team[CIV].bMenInSector) + 5000 + 2000·Random(3)` | 2 civs: 7000 / 9000 / 11000 |
 | `REALTIME_CREATURE_AI_DELAY` | `10000 + 1000·Random(3)` | — |
 
-`RealtimeDelay(s)` returns the same per soldier class; green branches call it **at decision time** (one `Random` draw
-then), while the NONE→WAIT conversion draws in `RTHandleAI`. Every `RESETTIMECOUNTER` is multiplied by
-`g_durations_multiplier` (1.0 by default, `Timer_Control.cc:159-163`).
+`RealtimeDelay(s)` picks by the same classes as the WAIT conversion of §1.3 (Kingpin's men get `REALTIME_AI_DELAY`,
+÷3 in the brothel). Green branches call it **at decision time** (one `Random` draw then), while the NONE→WAIT
+conversion draws in `RTHandleAI`. Every `RESETTIMECOUNTER` is multiplied by `g_durations_multiplier` (1.0 by default,
+`Timer_Control.cc:159-163`).
 
 ### 1.5 State fields and defaults
 
@@ -176,24 +159,24 @@ SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autoba
 - **CHANGE_FACING** → `SendSoldierSetDesiredDirectionEvent(usActionData)` (`:1343-1366`): a game event, applied after the
   overhead pass (`GameScreen.cc:427, 456`; `Utils/Event_Pump.cc:195-214`) by `EVENT_SetSoldierDesiredDirection`
   (`Soldier_Control.cc:3833-3941`: `bTurningIncrement = QuickestDirection`, no AP in RT). One octant per frame of the
-  STANDING animation (`2·bBreath + 100 − bLife` ms, ≥ 40; A9 troops ≈ 243–258 ms; enemies never fast-turn, `06` §5.4).
-  Each stationary octant does `HandleSight(LOOK|RADIO)` + `HandleSystemNewAISituation` on the next frame
-  (`:4229-4240, 4466-4470`). When `bDirection == bDesiredDirection`, `FreeUpNPCFromTurning` → `ActionDone` (`:4332`;
-  `AIMain.cc:742-751`).
-  **Strac truncation (inferred from the code path, verify with the oracle):** CHANGE_FACING is inside the Strac movement
-  range and its path is empty, so the next visit (+110 ms) calls `ActionDone`; the visit after (+220 ms) starts the
-  queued WAIT, and `NPCDoesAct` sets `bDesiredDirection = bDirection`. A random green turn therefore gets ≈ 220 ms:
-  usually one octant, sometimes none (frame ≈ 250 ms). In vanilla the action lasts until the turn completes. Default:
-  follow Strac (`LAST_MOVEMENT_ACTION` as a named constant so the vanilla variant is a one-line switch).
+  STANDING animation (`2·bBreath + 100 − bLife` ms, ≥ 40; troops with breath 99 and life 40–55 ≈ 243–258 ms; enemies
+  never fast-turn, `06` §5.4). Each stationary octant does `HandleSight(LOOK|RADIO)` + `HandleSystemNewAISituation` on the
+  next frame (`:4229-4240, 4466-4470`). When `bDirection == bDesiredDirection`, `FreeUpNPCFromTurning` → `ActionDone`
+  (`:4332`; `AIMain.cc:742-751`).
+  **Strac truncation (inferred from the code path):** CHANGE_FACING is inside the Strac movement range and its path is
+  empty, so the next visit (+110 ms) calls `ActionDone`; the visit after (+220 ms) starts the queued WAIT, and
+  `NPCDoesAct` sets `bDesiredDirection = bDirection`. A random green turn therefore gets ≈ 220 ms: usually one octant,
+  sometimes none (frame ≈ 250 ms). In vanilla the action lasts until the turn completes. ja2-node follows Strac;
+  `LAST_MOVEMENT_ACTION` is a named constant, so the vanilla variant is a one-line switch.
 - **Movement** (RANDOM_PATROL, SEEK_FRIEND, POINT_PATROL, LEAVE_WATER_GAS, WALK, APPROACH_MERC, SCHEDULE_MOVE…;
   `:1392-1559`):
   ```
-  [TB-only loop detector :1427-1449]
+  [TB-only loop detector :1427-1449, 13]
   if !bPathStored:
      flags = (sAbsoluteFinalDestination != NOWHERE || autobandage) && !INCOMBAT ? PATH_THROUGH_PEOPLE : 0
      if LegalNPCDestination(s, usActionData, ENSURE_PATH, WATEROK, flags): bPathStored = true
-     if still none: scripted NPC move → retries / WAIT REALTIME_AI_DELAY (hook); else CancelAIAction; return false
-  traversal path extension (hook)
+     if still none: scripted NPC move → retries / WAIT REALTIME_AI_DELAY; else CancelAIAction; return false
+  traversal path extension (map-edge escape, 13)
   NewDest(s, usActionData)                                        // §3
   if sFinalDestination != usActionData: sBlackList = usActionData; CancelAIAction; return false
   sBlackList = NOWHERE; return true
@@ -226,12 +209,12 @@ SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autoba
 
 Clear `AI_CAUTIOUS`. If `bBypassToGreen && bAlertStatus < BLACK` → `DecideActionGreen`, then (RT) `bBypassToGreen = 0`.
 Else by `bAlertStatus`: GREEN → `DecideActionGreen`, YELLOW → `DecideActionYellow`, RED → `DecideActionRed(TRUE)`,
-BLACK → `DecideActionBlack`.
+BLACK → `DecideActionBlack` (`13` §3, `13` §5, `13` §6).
 
 ### 2.2 `DecideAlertStatus` (`:3721-3866`)
 
 ```
-if SOLDIER_MONSTER: CreatureDecideAlertStatus; return
+if SOLDIER_MONSTER: CreatureDecideAlertStatus; return                  // creatures: 13
 old = bAlertStatus
 if bOppCnt > 0: BLACK; CheckForChangingOrders(s)
 else switch old:
@@ -251,48 +234,48 @@ if not boxing:
 `sPreCombatGridNo != NOWHERE` (not Queen's group) → `bNextAction = END_COWER_AND_MOVE` to it, then `sPreCombatGridNo =
 NOWHERE`; cowering → STOP_COWERING; else `bNextAction = CHANGE_STANCE(ANIM_STAND)`. YELLOW: nothing. RED/BLACK:
 ONGUARD→CLOSEPATROL, CLOSEPATROL→FARPATROL (`bOrders++`), militia → SEEKENEMY, creatures → SEEKENEMY (unless
-STATIONARY/ONCALL), Warden hook. Note the queued next action is usually zapped by the new-situation path of §1.2 step 6
-on the following visit.
+STATIONARY/ONCALL), Warden → `MakeClosestEnemyChosenOne`. The queued next action is usually zapped by the
+new-situation path of §1.2 step 6 on the following visit.
 
 ### 2.3 `DecideActionGreen` (`:641-1072`), every branch in order
 
 0. `fCivilian = CIV team && (NON_CIV_GROUP || bNeutral || FATCIV <= body <= CRIPPLECIV)`; `fCivOrMilitia`;
    `gubNPCPathCount = 0` (`:646-655`). `FindBestPath` increments `gubNPCPathCount` on every call that passes its early
    exits (`Tactical/PathAI.cc:659`).
-1. Boxing (`:657-723`) → hook (not in A9). Tank → NONE (`:725`).
+1. Boxing (`:657-723`, `25` §7). Tank → NONE (`:725`).
 2. `bInWater = Water(grid)`, `bInGas = InGasOrSmoke(s, grid)` (`:731-734`).
 3. **Civilians** (`:739-792`): cowering → `usActionData = ANIM_STAND`, STOP_COWERING. RT only: `AI_CHECK_SCHEDULE` →
-   `DecideActionSchedule` (hook, inert in A9); profile → `DecideActionNamedNPC` (hook, §5), non-NONE result returned;
+   `DecideActionSchedule` (`25` §5); profile → `DecideActionNamedNPC` (§5), non-NONE result returned;
    `uiTimeSinceLastSpoke && now < uiTimeSinceLastSpoke + 60000` → NONE, else clear it. Then
    `!bInWater && PreRandom(5) != 0` → **NONE (80%)** (`PreRandom` only drawn when not in water).
 4. **POINTPATROL** and `bBreath >= 75` (`:800-817`): `PointPatrolAI` true → `bNextAction = WAIT, usNextActionData =
-   RealtimeDelay` → POINT_PATROL; false → `gubNPCPathCount = 0`.
+   RealtimeDelay` (RT) → POINT_PATROL; false → `gubNPCPathCount = 0`.
 5. **RNDPTPATROL** and `bBreath >= 75` (`:819-837`): same with `RandomPointPatrolAI`.
-6. **Water / gas** (`:844-851`): `FindNearestUngassedLand` != NOWHERE → LEAVE_WATER_GAS (no wait queued). Hook in A9.
+6. **Water / gas** (`:844-851`): `FindNearestUngassedLand` (`13` §8.4) != NOWHERE → LEAVE_WATER_GAS (no wait queued).
 7. **Rest**: `bBreath < 75 && !bInWater` → NONE, `usActionData = NOWHERE` (`:859-865`).
 8. **Random patrol** (`:872-945`), only if `gubNPCPathCount == 0`:
    `iChance = 25 + bBypassToGreen`; orders: STATIONARY −20, ONGUARD −15, ONCALL 0, CLOSEPATROL +15, POINT/RNDPT
    **= 0** (assignment, drops the bypass), FARPATROL +25, SEEKENEMY −10; attitude: DEFENSIVE −10, BRAVESOLO +5,
    BRAVEAID 0, CUNNINGSOLO +5, CUNNINGAID 0, AGGRESSIVE +10, ATTACKSLAYONLY +10; `− (bLifeMax − bLife) − (100 −
    bBreath)`. If `bInWater || (INT16)PreRandom(100) < iChance`: `dest = RandDestWithinRange(s)`; if != NOWHERE:
-   `dest = GoAsFarAsPossibleTowards(s, dest, RANDOM_PATROL)`; if != NOWHERE: `bNextAction = WAIT, usNextActionData =
-   RealtimeDelay(s)`, `usActionData = dest` → **RANDOM_PATROL**.
+   `dest = GoAsFarAsPossibleTowards(s, dest, RANDOM_PATROL)`; if != NOWHERE: (RT) `bNextAction = WAIT,
+   usNextActionData = RealtimeDelay(s)`, `usActionData = dest` → **RANDOM_PATROL**.
 9. **Seek friend** (`:947-1004`), only if `gubNPCPathCount == 0` — any path search in step 8 suppresses it:
    `iChance = 25 + bBypassToGreen`; orders: STATIONARY −20, ONGUARD −15, ONCALL 0, CLOSEPATROL +10, POINT/RNDPT **= −10**,
    FARPATROL +20, SEEKENEMY −10; attitude: BRAVESOLO `/2`, CUNNINGSOLO `/2` (C truncation), BRAVEAID +10, CUNNINGAID +10,
    others 0; `− injury − (100 − bBreath)`. If `PreRandom(100) < iChance && RandomFriendWithin(s) &&
    GoAsFarAsPossibleTowards(s, usActionData, SEEK_FRIEND) == usActionData` (only a full-length approach counts):
-   civ/militia → `bNextAction = WAIT, usNextActionData = REALTIME_CIV_AI_DELAY` → **SEEK_FRIEND**. A partial result
+   civ/militia (RT) → `bNextAction = WAIT, usNextActionData = REALTIME_CIV_AI_DELAY` → **SEEK_FRIEND**. A partial result
    still leaves `GoAsFar`'s side effects (`sFinalDestination`, `ubPathDataSize`, mode) until the next `ActionDone`.
-10. **Look around** (`:1010-1061`), RT always eligible; only if `bLastAction != CHANGE_FACING` (in RT `bLastAction` is
-    normally WAIT here, so the guard rarely fires, inferred): `iChance = 25 + bBypassToGreen + (STATIONARY ? 25) +
-    (ONGUARD ? 20) + (DEFENSIVE ? 25)`. If `PreRandom(100) < iChance`:
+10. **Look around** (`:1010-1061`), only if `!gfTurnBasedAI || GetAPsToLook <= bActionPoints` and `bLastAction !=
+    CHANGE_FACING` (in RT `bLastAction` is normally WAIT here, so the guard rarely fires, inferred): `iChance = 25 +
+    bBypassToGreen + (STATIONARY ? 25) + (ONGUARD ? 20) + (DEFENSIVE ? 25)`. If `PreRandom(100) < iChance`:
     ```
     do { if 0 <= bDominantDir <= 8 && bDirection != bDominantDir && PreRandom(2): dir = bDominantDir   // 8 is accepted (quirk)
          else dir = PreRandom(8) } while (dir == bDirection)
     ```
     If `InternalIsValidStance(s, dir, endHeight)` (`Soldier_Control.cc:7606`; true for a standing single-tile soldier,
-    inferred): `bNextAction = WAIT, usNextActionData = RealtimeDelay(s)` → **CHANGE_FACING** (`usActionData = dir`).
+    inferred): (RT) `bNextAction = WAIT, usNextActionData = RealtimeDelay(s)` → **CHANGE_FACING** (`usActionData = dir`).
 11. **NONE**, `usActionData = NOWHERE` (`:1070`).
 
 There is no roof climbing, stance change or item pickup in green; climbing (`AI_ACTION_MOVE_TO_CLIMB` /
@@ -318,9 +301,10 @@ POINT/RNDPT → `usPatrolGrid[bNextPatrolPnt]`; SEEKENEMY → current grid; else
 `dest = origin + (Random(maxLeft+maxRight+1) − maxLeft) + 160·(Random(maxUp+maxDown+1) − maxUp)` (two `Random` draws,
 x first; `Random(1)` must still consume a draw for call parity, inferred). Else `dest = PreRandom(GRIDSIZE)` (the whole
 map). Room filter: reject if `GetRoom(dest)` is a **different room** (outdoor `NO_ROOM` tiles pass). Then
-`LegalNPCDestination(dest, ENSURE_PATH, NOWATER, 0)`; success sets `bPathStored`. Larvae: ±1 tile variant (skip).
+`LegalNPCDestination(dest, ENSURE_PATH, NOWATER, 0)`; success sets `bPathStored`. Larvae: ±1 tile variant.
 
-**`InternalGoAsFarAsPossibleTowards(s, des, reserve=-1, action, flags=0)`** (`TacticalAI/Movement.cc:281-539`):
+**`InternalGoAsFarAsPossibleTowards(s, des, reserve=-1, action, flags=0)`** (`TacticalAI/Movement.cc:281-539`; TB AP
+reserve and flags: `13` §1.7):
 ```
 range = RoamingRange(s, &origin)
 roomRequired = orders <= CLOSEPATROL && (CIV || profiled) && sAbsoluteFinalDestination != NOWHERE ? GetRoom(usPatrolGrid[0]) : NO_ROOM
@@ -348,8 +332,8 @@ return go                                                                       
 - **Strac vs vanilla:** vanilla applies the room limit only when `sAbsoluteFinalDestination == NOWHERE`
   (`V:TacticalAI/Movement.c:393-400`); Strac's condition is inverted, so ordinary green wandering is not room-limited
   here (only by `RandDestWithinRange`'s filter). Vanilla also picks the fallback neighbour with a `Random(8)` loop and
-  `DirectionInc(dir + 1)` (`V:Movement.c:465-490`). Follow Strac; port the shuffle as a Fisher–Yates over the main
-  stream (not bit-exact with libstdc++, consistent with `01` §3.6).
+  `DirectionInc(dir + 1)` (`V:Movement.c:465-490`). ja2-node follows Strac and replaces `std::shuffle` by a
+  Fisher–Yates shuffle on the main stream (deviations "GoAsFar fallback").
 
 **`RandomFriendWithin(s)`** (`AIUtils.cc:552-638`): range/origin as above; origin ≥ GRIDSIZE → false. Friends (in
 `MercSlots` order): every other soldier with `candidate.bNeutral ? s.bNeutral : s.bSide == candidate.bSide` and
@@ -376,7 +360,7 @@ NOWHERE → false. `RandomPointPatrolAI`: same, but the next point is `usPatrolG
 while it equals the own grid or (counter < cnt and invalid); if the counter reached `bPatrolCnt`, reset
 `bNextPatrolPnt = 0` and search linearly; at own grid → false (no order change); temporary orders SEEKENEMY.
 
-### 2.5 RNG call order of one green decision (enemy, A9; nothing is drawn in `HandleSoldierAI` itself)
+### 2.5 RNG call order of one green decision (enemy; nothing is drawn in `HandleSoldierAI` itself)
 
 1. `DecideAlertStatus` (via `RefreshAI`): `Random(1000)` only if it calls `SetNewSituation`.
 2. Random patrol: `PreRandom(100)`; on success `RandDestWithinRange` (`Random(xRange)`, `Random(yRange)` or
@@ -390,23 +374,15 @@ while it equals the own grid or (counter < cnt and invalid); if the counter reac
 6. Execution of a move: `NewDest` → `DetermineMovementMode` again (kids `Random(10)`); each tile step then draws the
    footstep `PreRandom(2)` for army soldiers (`08` §3.2).
 
-### 2.6 Orders and attitude sources, and A9 chances
+### 2.6 Orders and attitude sources
 
 Basic placements copy `bOrders, bAttitude, bDirection` (`Soldier_Create.cc:1216-1218`); profiled detailed placements
 copy them from the basic placement and return early (`:1480-1491`); `RandomizeNewSoldierStats` (random attitude,
 FARPATROL) is only used by debug creation (`:99-119, 1950`).
 
-Per-decision chances (`bLifeMax == bLife` assumed, `bBreath = 99`):
-
-| Soldier | Range | Patrol | Friend | Look |
-|---|---|---|---|---|
-| 19417 ONCALL / CUNNINGSOLO | 10 from home | 29 | 25/2 − 1 = 11 | 25 |
-| 21358 SEEKENEMY / CUNNINGAID | whole map, from current | 14 | 24 | 25 |
-| 18188, 19255, 11704 SEEKENEMY / AGGRESSIVE | whole map | 24 | 14 | 25 |
-| 13901 SEEKENEMY / CUNNINGSOLO | whole map | 19 | 15/2 − 1 = 6 | 25 |
-| Fatima, Pacos (after the 1-in-5 gate) | 0 (STATIONARY, profiled) | −6: `PreRandom(100)` drawn, never succeeds | 4, but range 0 makes `RandomFriendWithin` fail | 75 |
-
-So the two civilians never walk in green; they turn, on average once per ~7 decisions (inferred).
+Edge case of the §2.3 formulas: a profiled STATIONARY / DEFENSIVE civilian (unhurt, breath 99) has range 0, a patrol
+chance of −6 (`PreRandom(100)` is still drawn and never succeeds) and a seek-friend chance of 4 that `RandomFriendWithin`
+cannot use with range 0, so after the 1-in-5 civilian gate he only turns (look chance 75): he **never walks in green**.
 
 ---
 
@@ -414,25 +390,25 @@ So the two civilians never walk in green; they turn, on average once per ~7 deci
 
 - **`DetermineMovementMode(s, action)`** (`AIUtils.cc:314-353`), first match: `fUIMovementFast` → RUNNING; creature →
   GREEN ? WALKING : RUNNING; cow/crow → WALKING; `AI_CAUTIOUS` and table says RUNNING → WALKING; SEEK_NOISE by a
-  non-merc-body civilian → WALKING; `(HATKIDCIV || KIDCIV) && GREEN && Random(10) == 0` → **KID_SKIPPING** (Pacos);
+  non-merc-body civilian → WALKING; `(HATKIDCIV || KIDCIV) && GREEN && Random(10) == 0` → **KID_SKIPPING**;
   else `MovementMode[action][Urgency[alert][bAIMorale]]` (`:36-72`). `Urgency[GREEN][*]` is all LOW, and the LOW column
   is WALKING for every green action (RUNNING only for TAKE_COVER, ESCORTED_MOVE, KNIFE_MOVE, TRACK, EAT, RUN). **Green
   AI always walks** (kids skip 10% of the time; NPC scripts may set `fUIMovementFast`).
 - **`NewDest(s, grid)`** (`:356-435`): the TAKE_COVER swat logic and the ENEMY-at-RED `PreRandom(5 − difficulty)`
-  swat roll do not apply in green; `usUIMovementMode = DetermineMovementMode(s, bAction)`; SWATTING on a non-merc body →
-  WALKING; `EVENT_InternalGetNewSoldierPath(s, grid, mode, fromUI = 0, force = fNoAPToFinishMove)` — with
-  `bPathStored` it reuses the stored route, then starts the walk (`07` §4.1; the AI never takes the re-path branch).
+  swat roll (`13` §1.7) do not apply in green; `usUIMovementMode = DetermineMovementMode(s, bAction)`; SWATTING on a
+  non-merc body → WALKING; `EVENT_InternalGetNewSoldierPath(s, grid, mode, fromUI = 0, force = fNoAPToFinishMove)` —
+  with `bPathStored` it reuses the stored route, then starts the walk (`07` §4.1; the AI never takes the re-path branch).
 - **Path searches in green**: `FindBestPath(s, dest, bLevel, WALKING, COPYROUTE, 0)` via `LegalNPCDestination`.
   `gubNPCDistLimit` and `gubNPCAPBudget` stay 0 (they are only set by `FindLocations.cc`, `Map_Edgepoints.cc` and
   `PathAI.cc:1857`; `Movement.cc:343` is commented out). `PATH_THROUGH_PEOPLE` only for scripted NPC moves,
   `PATH_CLOSE_GOOD_ENOUGH` only for creatures. The person at the destination is no obstacle for AI paths
-  (`fConsiderPersonAtDestAsObstacle` is player-only, `Tactical/PathAI.cc:638`), but `NewOKDestination` already rejects occupied
-  destinations.
+  (`fConsiderPersonAtDestAsObstacle` is player-only, `Tactical/PathAI.cc:638`), but `NewOKDestination` already rejects
+  occupied destinations.
 - **Doors:** AI soldiers path through closed, unlocked doors (or locked ones with `bHasKeys`) (`07` §3.4). At the door
   `HandleGotoNewGridNo` opens it and sets `bEndDoorOpenCode = 1` (`Overhead.cc:1331-1384`); at the end of the open-door
   animation opcode 499 sets it to 2 and re-paths to `sFinalDestination` (`Soldier_Ani.cc:1837-1860`); entering the next
   tile closes the door behind him (`Soldier_Control.cc:1933-1937`). Opening runs opcode 495 (door noise, look for all,
-  `HandleSystemNewAISituation`, `03` §6). Wandering A9 troops will do this.
+  `HandleSystemNewAISituation`, `01` §3.5). Wandering troops do this.
 - **Blocked**: `HandleNextTile` / `TileIsClear` / `HandleNextTileWaiting` (`07` §4.5), including the AI-only
   repath-or-swap with a mutually blocked soldier and the forced swap at waiting value 3. While `fDelayedMovement` is set
   the continue branch of §1.2 is skipped, so the action stays in progress until the waiting logic re-paths or gives up
@@ -448,26 +424,26 @@ So the two civilians never walk in green; they turn, on average once per ~7 deci
 
 `ManSeesMan` for a hostile pair on a new or moved opponent, or during RANDOM_PATROL / SEEK_FRIEND / POINT_PATROL /
 LEAVE_WATER_GAS / SEEK_OPPONENT / SEEK_NOISE (`Tactical/OppList.cc:1800-1832`); `HearNoise` whenever the maker stays
-unseen (`:4025-4064`); `DecideAlertStatus` on a status change or low breath; assassin hook (`:1595-1615`);
+unseen (`:4025-4064`); `DecideAlertStatus` on a status change or low breath; assassin case (`:1595-1615`);
 `CallAvailableTeamEnemiesTo` (`TacticalAI/Knowledge.cc:28-46`).
 
 ### 4.2 GREEN → YELLOW
 
-Only through `DecideAlertStatus` when `MostImportantNoiseHeard` (`Knowledge.cc:125-299`) is not NOWHERE. It returns
-the best (closest to zero) of: personal HEARD entries `bOppList[x] < 0` of **hostile** soldiers (value × `SpacesAway`
-to the last known grid); public HEARD entries likewise; the personal misc noise `sNoiseGridno`
-(`(ubNoiseVolume/2 − 6) × distance`) — **not filtered by hostility** — unless it is on the same level within 6 tiles
-and in line of sight, which wipes it; the team's public misc noise (non-CIV teams and Kingpin's men only).
+Only through `DecideAlertStatus` when `MostImportantNoiseHeard` (`Knowledge.cc:125-299`, full description `13` §2.1)
+is not NOWHERE. It returns the best (closest to zero) of: personal HEARD entries `bOppList[x] < 0` of **hostile**
+soldiers (value × `SpacesAway` to the last known grid); public HEARD entries likewise; the personal misc noise
+`sNoiseGridno` (`(ubNoiseVolume/2 − 6) × distance`) — **not filtered by hostility** — unless it is on the same level
+within 6 tiles and in line of sight, which wipes it; the team's public misc noise (non-CIV teams and Kingpin's men only).
 
-Consequence (verified in code, frequency inferred): `ProcessNoise`/`HearNoise` have no neutrality filter
-(`OppList.cc:3428-3770, 3895-4080`), only "listener already sees the maker" and a few team exceptions. A civilian who
-hears an unseen army soldier walk (footstep 8–9, heard ≈ 9 tiles outdoors, ≈ 4 through a floor/outdoor boundary, `08`
-§3.4) stores `sNoiseGridno` and goes **YELLOW without the player being involved**; troops hearing a walking civilian
-likewise. SEEKENEMY troops roam the whole map, so this happens in the A9 sandbox. The noise is forgotten after
+Consequence (frequency inferred): `ProcessNoise`/`HearNoise` have no neutrality filter (`OppList.cc:3428-3770,
+3895-4080`), only "listener already sees the maker" and a few team exceptions. A civilian who hears an unseen army
+soldier walk (footstep 8–9, heard ≈ 9 tiles outdoors, ≈ 4 through a floor/outdoor boundary, `08` §3.4) stores
+`sNoiseGridno` and goes **YELLOW without the player being involved**; troops hearing a walking civilian likewise.
+SEEKENEMY troops roam the whole map, so this happens wherever they share a map with civilians. The noise is forgotten after
 `ubNoiseVolume` real-time turns (one per 5 s, `08` §2.6) or when seen up close. Radio (AI_ACTION_YELLOW_ALERT /
 RED_ALERT, `AIMain.cc:1659-1679`) copies a louder personal noise into the team's public noise (`08` §2.5); it is only
 chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nearby) runs **only in turn-based**
-(`AIMain.cc:1243-1263, 1937-1986`).
+(`AIMain.cc:1243-1263, 1937-1986`, `13` §1.5).
 
 ### 4.3 → RED and → BLACK
 
@@ -477,6 +453,8 @@ chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nea
   `bUnderFire` (non-civilians); unseen gunfire/bullet impact with volume ≥ 3 (`OppList.cc:4029-4036`), explosion or
   silent alarm with volume ≥ 3 (`:4145-4155`), a seen grenade/impact spot (`:4187-4197`); a neutral who *sees* gunfire
   with volume ≥ 3 (`:4008-4021`).
+- A hostile sighting in real time also feeds the best-sighting list, which enters turn-based combat (`08` §2.9,
+  `10` §1.2).
 
 ### 4.4 `HandleSystemNewAISituation`, halts, `NewDest`
 
@@ -490,26 +468,14 @@ chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nea
   (`CancelAIAction` → `ActionDone` → `EVENT_StopMerc`), i.e. within `Random(1000)` ms.
 - Status change on the same visit: the new-situation path calls `DecideAlertStatus`, which may `SetNewSituation`
   again, so the action chosen right after a GREEN→YELLOW change is usually cancelled at the next visit and re-decided
-  (port literally).
+  (ported literally).
 
-### 4.5 The YELLOW decision, for reference (`DecideAction.cc:1075-1446`)
+### 4.5 The YELLOW decision (`DecideAction.cc:1075-1446`)
 
-Civilians: cowering → STOP_COWERING; RT profiled → `DecideActionNamedNPC`. `MostImportantNoiseHeard` NOWHERE → NONE.
-Then in order: **turn to noise** if not facing it and within `MaxDistanceVisible`: 60 (STATIONARY/ONGUARD) or 35, +15
-DEFENSIVE, `PreRandom(100)` (`:1131-1157`); **radio** (non-civ, > 1 man in sector, `5 × WhatIKnowThatPublicDont` + difficulty
-+ orders/attitude, `:1163-1211`); breath < 25 → NONE; except profiled civilians (not Eldin): militia/civ within 5 tiles
-seeing the spot forget it; **seek noise** `95 + value/3` ± orders/attitude, `GoAsFar(noise, SEEK_NOISE)`
-(`:1230-1301`); **seek friend who radioed** (`ClosestReachableFriendInTrouble`, `:1305-1356`); cover (TB only); then
-**50%: `bBypassToGreen = 15` and `DecideActionGreen`** (`:1414-1421`); non-civilians crouch; NONE. For Fatima/Pacos this
-reduces to: turn toward the noise (75%), else 50% green behaviour, else NONE.
-
-### 4.6 What M2 needs
-
-- Hostile sighting in RT → best-sighting list → `EnterCombatMode` (`08` §2.9). M2 boundary: emit `combatWouldStart`,
-  stop everyone (as `CommonEnterCombatModeCode`), freeze AI. `DecideActionRed/Black` are not needed.
-- `DecideAlertStatus` and `MostImportantNoiseHeard` must be exact, because YELLOW is reachable without the player
-  (§4.2). `DecideActionYellow` is either ported (≈ 370 lines; needs `ClosestReachableFriendInTrouble`,
-  `WhatIKnowThatPublicDont`, the YELLOW_ALERT radio action + `AI_RADIO` animation) or a hook (see §7).
+Owned by `13` §3. In short: civilians stop cowering, profiled ones try `DecideActionNamedNPC`; no noise → NONE; then
+turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: `bBypassToGreen = 15` and
+`DecideActionGreen`**. For profiled civilians other than Eldin (Fatima, Pacos) this reduces to: turn toward the noise
+(75%), else 50% green behaviour, else NONE.
 
 ---
 
@@ -517,22 +483,25 @@ reduces to: turn toward the noise (75%), else 50% green behaviour, else NONE.
 
 - **Green civilians** take the civilian prelude of §2.3 step 3 (80% NONE), then the same branches as soldiers, with civ
   waits (§1.4). Cowering is chosen only at RED/BLACK (`DecideAction.cc:1602-1613, 1704-1715, 2710-2712`: cower in battle,
-  or cower + WAIT `REALTIME_CIV_AI_DELAY` when no enemy is in the sector); a green civilian who is still cowering stops.
-- **Profiled NPCs** (Fatima, Pacos): `DecideActionNamedNPC` (`:553-638`): a pending quote record with
+  or cower + WAIT `REALTIME_CIV_AI_DELAY` when no enemy is in the sector; `13` §9.1); a green civilian who is still
+  cowering stops.
+- **Profiled NPCs**: `DecideActionNamedNPC` (`:553-638`): a pending quote record with
   `QUOTE_ACTION_ID_TURNTOWARDSPLAYER` → face the closest PC / trigger when within `2 × NPC_TALK_RADIUS` (8), returning
   ABSOLUTELY_NONE; otherwise `NPCConsiderInitiatingConv` (`TacticalAI/NPC.cc:1960-2006`: a friendly merc this NPC
   currently sees, with an initiating quote) → APPROACH_MERC; assassins (Jim, Jack, Olaf, Ray, Olga, Tyrone) stalk the
-  closest PC. After a conversation they idle for 60 s (`uiTimeSinceLastSpoke`). Then generic civilian logic with
-  STATIONARY range 0: **they stay at their spots and only turn**.
-- Quirk: after a YELLOW→GREEN drop, `CheckForChangingOrders` queues END_COWER_AND_MOVE to `sPreCombatGridNo = 0`
-  (Prof.dat); it becomes a WAIT and is zapped by the pending new situation, then `sPreCombatGridNo = NOWHERE` (inferred;
-  harmless, keep).
-- **Schedules** are ignored for M2 (inert in A9, §0). `DecideActionSchedule` (`:58-516`) is a hook. *Implemented in M6
-  with the away slots and the asleep checks of `HandleSoldierAI` (`docs/25` §5.3).*
+  closest PC (`24`). After a conversation they idle for 60 s (`uiTimeSinceLastSpoke`). Then generic civilian logic;
+  with STATIONARY orders (range 0, §2.6) **they stay at their spots and only turn**.
+- Quirk: Prof.dat gives some placed NPCs (Fatima, Pacos) `sPreCombatGridNo = 0`, not NOWHERE. After a YELLOW→GREEN drop
+  `CheckForChangingOrders` queues END_COWER_AND_MOVE to grid 0; it becomes a WAIT and is zapped by the pending new
+  situation, then `sPreCombatGridNo = NOWHERE` (inferred; harmless). `sPreCombatGridNo` is set when combat starts
+  (`10` §1.4).
+- **Schedules**: `DecideActionSchedule` (`:58-516`) and the away slots: `25` §5. `SCHEDULE_ACTION_STAYINSECTOR` (8) has
+  no runtime handler (only `Editor/EditorMercs.cc`), so a map schedule made only of STAYINSECTOR entries never sets
+  `AI_CHECK_SCHEDULE` (`Strategic/Scheduling.cc:237`; inferred from data + code).
 
 ---
 
-## 6. Quirks to keep (or list in `deviations.md`)
+## 6. Quirks to keep
 
 - 55 ms AI tick; every AI slot visited per tick; per-soldier 100 ms gate → 110 ms visits; first tick starts at slot 1.
 - CHANGE_FACING/CHANGE_STANCE inside the Strac movement range (turn cut after ≈ 220 ms); vanilla differs.
@@ -542,58 +511,73 @@ reduces to: turn toward the noise (75%), else 50% green behaviour, else NONE.
 - Seek friend is skipped whenever the random-patrol branch made a path search.
 - POINT/RNDPT patrol resets the random-patrol chance to 0 and seek-friend to −10 (the bypass bonus is lost).
 - `bDominantDir <= 8` accepted; `GoAsFar` sets `ubPathDataSize` one too large; misc noise not filtered by hostility.
-- Strac's inverted room condition in `GoAsFar`; std::shuffle fallback (port as Fisher–Yates, log as deviation).
-- `AI_HANDLE_EVERY_FRAME` written into `uiStatusFlags` at `AIMain.cc:451` (NPC scripts only).
+- Strac's inverted room condition in `GoAsFar`.
+- `AI_HANDLE_EVERY_FRAME` written into `uiStatusFlags` at `AIMain.cc:451` (NPC scripts only): ja2-node sets
+  `attackNoticed` there (`markAttackNoticedByMisplacedEveryFrameFlag`).
 
 ---
 
-## 7. Minimal M2 implementation (A9, green, real time)
+## 7. Implementation in ja2-node
 
-**Port exactly** (`sim/tactical/ai/`):
-1. *Scheduler*: AI tick (`now − last > 50`, 11 ticks), slot cursor over `MercSlots` (stable insertion order), no time
-   slice, `AI_HANDLE_EVERY_FRAME`, per-soldier `AICounter` (100 ms, absolute deadline), `gfPauseAllAI` 1500 ms, call
-   placement inside the overhead loop (§1.1).
-2. *`HandleSoldierAI` RT path* (§1.2) incl. the new-situation block and the continue branch with
-   `LAST_MOVEMENT_ACTION = CHANGE_STANCE` (Strac; constant), and the minimal `SoldierTriesToContinueAlongPath`.
-3. *`RTHandleAI`*, `RealtimeDelay` and the three delay formulas (§1.3–1.4).
-4. *Actions*: `ActionDone`, `CancelAIAction`, `SetNewSituation`, `NPCDoesAct`, `ExecuteAction` for NONE, WAIT,
-   CHANGE_FACING, the movement group, CHANGE_STANCE, STOP_COWERING, ABSOLUTELY_NONE; `FreeUpNPCFromTurning` and
-   `FreeUpNPCFromStanceChange` hooked into `TurnSoldier` / stance completion (§1.6–1.7).
-5. *Alert*: `DecideAlertStatus`, `CheckForChangingOrders`, `MostImportantNoiseHeard` (needs the `08` opplist and noise
-   fields), `HandleInitialRedAlert` (flag only) (§2.2, §4.2).
-6. *Green decision*: `DecideAction` dispatch and the whole `DecideActionGreen` (§2.3), with `RoamingRange`,
-   `RandDestWithinRange`, `InternalGoAsFarAsPossibleTowards`, `RandomFriendWithin`, `LegalNPCDestination`,
-   `NextPatrolPoint`/`PointPatrolAI`/`RandomPointPatrolAI`, `DetermineMovementMode` + `Urgency`/`MovementMode` tables,
-   `NewDest` (§2.4, §3), and the `gubNPCPathCount` counter in the pathfinder.
-7. *Movement support* beyond `07` §7: AI door opening and closing behind (§3), `sBlackList`, the AI cases of
-   `TileIsClear`/`HandleNextTileWaiting`.
-8. *Fields* of §1.5 on the soldier record, initialised from placements (§2.6).
+### 7.1 State
 
-**Hooks** (default behaviour in brackets):
-- `decideActionNamedNPC` [NONE] — dialogue, Fatima's approach, assassins; `uiTimeSinceLastSpoke` gate [never set].
-- `decideActionSchedule` [NONE; `AI_CHECK_SCHEDULE` never set in A9]; NPC-script moves via `sAbsoluteFinalDestination`,
-  traversal, quote records, `ENGAGED_IN_CONV` [absent].
-- `findNearestUngassedLand` [NOWHERE: no water in A9, gas only after explosions]; boxing, tanks, creatures, crows,
-  Kingpin brothel delay, `AI_ASLEEP` [absent].
-- `decideActionYellow` [either the full port of §4.5, or AI_ACTION_NONE + a `deviations.md` entry; recommended: port it
-  in M2 if civilians' reactions to passing troops should look right, otherwise early M3].
-- `decideActionRed/Black` and combat entry [unreachable: the first hostile sighting emits `combatWouldStart` and freezes].
-- `HandleSystemNewAISituation` [no-op in RT].
+- `Soldier.ai: AiState` (`src/sim/tactical/soldier.ts`) holds the AI fields of §1.5 in camelCase without the type
+  prefix (`counter` = `AICounter` as an absolute game-ms deadline, `morale` = `bAIMorale`, `patrolCount` =
+  `bPatrolCnt`); the `fAIFlags` bits are booleans `cautious`, `handleEveryFrame`, `asleep`, `checkSchedule`. The
+  soldier itself carries `pathStored`, `delayedMovement`, `absoluteFinalDestination`, `initialGridNo`, `quoteRecord`,
+  `quoteActionId`, `timeSinceLastSpoke`, `underAiControl` (`SOLDIER_PCUNDERAICONTROL`) and `aiTurnControl`
+  (`SOLDIER_UNDERAICONTROL`, `10`). `patrolGrid[0]` and `initialGridNo` are set on the first `setSoldierGridNo`
+  (`movement.ts`).
+- `TacticalState.aiPass: AiPassState` (`state.ts`): `lastTickMs` (`guiRTAILastUpdateTime`), `cursor` (starts 0),
+  `awayCursor`, `handleThisPass`, `paused`. `TurnState.pauseAllAi` / `pauseAllAiSinceMs` are `gfPauseAllAI` and its
+  timer (`ai/pause.ts`, `PAUSE_ALL_AI_DELAY_MS` 1500).
+- `gubNPCPathCount` is `pathEnv.stats.searches` (incremented by `findBestPath` after its early exits, wraps at 256).
+- Constants in `ai/actions.ts`: `AiAction`, `FIRST_MOVEMENT_ACTION`, `LAST_MOVEMENT_ACTION` (= `CHANGE_STANCE`),
+  `Situation`, `AI_DELAY` 100, `RT_DELAY_BETWEEN_AI_HANDLING` 50, `MAX_ROAMING_RANGE` 160,
+  `NEW_SITUATION_DELAY_RANGE` 1000, `URGENCY`, `MOVEMENT_MODE`. The delay constants of §1.4 are in `ai/decide.ts`.
+- RNG: `t.rng` is `Random`, `t.pre` is `PreRandom`. Waits and `uiTimeSinceLastSpoke` run on game time (deviations
+  "Frame timers").
 
-**Deviations to log**: AI tick as 11 fixed ticks with no CPU slice; wall clock → game ms (incl. `uiTimeSinceLastSpoke`);
-`g_durations_multiplier` = 1; std::shuffle → Fisher–Yates on the main stream; any hook left at its default.
+### 7.2 Modules (`src/sim/tactical/ai/`)
 
-**Tests**: chance formulas per orders/attitude (table §2.6); RNG-order tests that stub the streams and assert the call
-sequence of §2.5; timeline tests (WAIT expiry rounded up to 55 ms ticks, CHANGE_FACING truncation, SEEK_FRIEND without
-wait); an A9 seeded sandbox run where no soldier ever leaves its roaming range and civilians never move.
+| Module | Contents |
+|---|---|
+| `control.ts` | `handleSoldierAI` (§1.2, both paths), `rtHandleAI` (§1.3), `executeAction`, `actionDone`, `cancelAIAction`, `npcDoesAct`, the `FreeUpNPCFrom*` hooks, `triesToContinueAlongPath`, `newDest`, the pass scheduler `beginAiPass` / `aiForSlot` / `awayAiForPass` with `nextAIToHandle` (§1.1); `createAiControl` binds the deciders |
+| `decide.ts` | `decideAction`, `decideAlertStatus`, `checkForChangingOrders`, `setNewSituation`, `decideActionGreen` (§2.3), `realtimeDelay` and the delays, `determineMovementMode` |
+| `destinations.ts` | `roamingRange`, `randDestWithinRange`, `internalGoAsFarAsPossibleTowards` (with the Fisher–Yates fallback), `randomFriendWithin`, `legalNPCDestination`, `nextPatrolPoint`, `pointPatrolAI`, `randomPointPatrolAI` |
+| `pause.ts`, `system-situation.ts` | `gfPauseAllAI` (§1.1); `handleSystemNewAISituation` (§4.4) |
+| `decide-named-npc.ts`, `decide-schedule.ts`, `decide-boxing.ts` | §5 and `24`, `25` §5, `25` §7 |
+| `combat-decide.ts`, `creature-decide.ts`, `turn-based.ts` | YELLOW/RED/BLACK, creatures and crows, the turn-based driver (`13`) |
+
+`MostImportantNoiseHeard` is `perception/knowledge.ts`. Doors opened by walking AI soldiers are `doors/` (`07`).
+
+### 7.3 Wiring
+
+`TacticalSim` (`src/sim/tactical/tactical-sim.ts`) creates the `AiControl` with the real `mostImportantNoiseHeard` and
+`awareOfOpposition` and installs the overhead hooks: `beforePass` ends a timed AI pause (`endTimedAiPause`), runs the
+real-time turn and the enemy-sighting pause, then `beginAiPass`; `executeOverhead` (`overhead.ts`) calls `aiForSlot`
+for each `mercSlots` entry right after its frame step; `afterPass` runs `awayAiForPass` and then drains the game-event
+queue (where the CHANGE_FACING desired-direction event lands). Turning, stance changes, roof climbs and pending actions
+reach the AI through `TacticalHooks` (`turnFinished` → `freeUpFromTurning`, `stanceFreeUp`, …).
+
+### 7.4 Known gaps
+
+Differences from the original found in the code and not in `deviations.md`:
+- `realtimeDelay` treats Kingpin's men as civilians (`REALTIME_CIV_AI_DELAY`) and has no brothel ÷3 (§1.4).
+- The look-around branch of `decideActionGreen` has neither the turn-based `GetAPsToLook <= bActionPoints` gate nor the
+  `InternalIsValidStance` test (§2.3 step 10), so in turn-based combat a soldier without the APs draws `PreRandom(100)`
+  and may choose an unaffordable turn.
+- `checkForChangingOrders` has no END_COWER_AND_MOVE branch (`sPreCombatGridNo` is not modelled, §2.2, §5).
+- The new-situation block of `handleSoldierAI` has no quote-record / autobandage branch (alert GREEN, `WAS`), and its
+  off-map traversal test uses `offMap` instead of the visible-world test (§1.2 step 6).
+- `randomFriendWithin` builds the friend list from `t.soldiers` (soldier-id order), not `MercSlots` order, which changes
+  which friend `PreRandom(count)` picks when the two orders differ.
 
 ---
 
-## 8. Verified vs inferred
+## 8. Unverified
 
-**Verified** by reading Strac (vanilla cross-checks where marked): scheduling, gates, `RTHandleAI`, `ExecuteAction`
-branches, every `DecideActionGreen` branch and helper, `DecideAlertStatus`, noise/hearing filters, door opening for AI,
-the movement-range and room-condition differences from vanilla. **(data)**: A9 placements and schedules, Prof.dat
-sectors/civ groups/`sPreCombatGridNo`. **Inferred**: the 55 ms tick and "all slots per tick" (idealised timing, modern
-CPU); the CHANGE_FACING truncation in practice; RT AP checks always passing; `HandleSystemNewAISituation` being a no-op
-in RT; 30-tile legs; how often civilians go YELLOW; `InternalIsValidStance` always true for standing soldiers.
+- The 55 ms tick and "all slots per tick" assume ideal 5 ms passes and a fast CPU; ja2-node's model is built on them.
+- The CHANGE_FACING / CHANGE_STANCE truncation in practice (§1.7, `13` §1.4).
+- RT AP checks always passing; `HandleSystemNewAISituation` being a no-op in RT; 30-tile green legs.
+- `InternalIsValidStance` being true for every standing soldier in the look-around branch.
