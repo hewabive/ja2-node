@@ -78,8 +78,7 @@ turn-based combat: actions then cost AP, `attack` fires at a gridNo, `endTurn` h
 starts the sandbox, `{"save":"SaveGame07"}` the tactical situation of a native savegame (needs `JA2_DATA_DIR`), or
 `{"campaign":{"options":{"difficulty":2}}}` a new campaign; queries (`estimateAttack`, `inventory`, `quoteTrade`, …)
 and prompt answers (`answer`) are `act` commands too. Every command with its fields and refusals is in the tool
-descriptions of [`src/server/mcp.ts`](src/server/mcp.ts) and in [`docs/04-time-and-server.md`](docs/04-time-and-server.md)
-§6.
+descriptions of [`src/server/mcp.ts`](src/server/mcp.ts) and in [`docs/29-agent-api.md`](docs/29-agent-api.md).
 
 Sessions share the server process and take turns in 10 ms slices, so one agent's long enemy turn does not hold up the
 others; `JA2_SESSION_HOST=worker` runs every session in its own worker thread instead (more memory and a content load

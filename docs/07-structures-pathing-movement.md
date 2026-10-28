@@ -132,7 +132,7 @@ Roof and on-roof tiles are added with `level = 1`, so their structures get `sCub
 - Strac tile-database fix for mis-flagged double doors (`TileEngine/TileDef.cc:122-149`): edits shared DB records
   (orientation, armour, DDOOR left/right); `fixDoubleDoors` in `src/content/world/tile-database.ts`.
 - Map door table (`MapDef.doors`: locked, trap, lock id, lock damage, perceived lock and trap): the pathfinder consults it
-  for AI keys (§3.4); door actions, locks, keys and traps are `docs/25` §8 (`src/sim/tactical/doors/`). It lives in
+  for AI keys (§3.4); door actions, locks, keys and traps are `docs/35` §5 (`src/sim/tactical/doors/`). It lives in
   `TacticalWorldData.mapDoors` (entries are replaced, never mutated) and travels with the sector diff (`doorTable`).
 - Walking into a closed door calls `InteractWithOpenableStruct` (§4.5); code 495 of the open/close animations computes
   `DoorOpeningNoise`, then `HandleOpenableStruct` swaps the structure, charges the cost and, when the door changed, makes
@@ -902,7 +902,7 @@ sector): `formats/jsd.ts` (§1.1); `world/tile-database.ts` (tile elements, terr
 
 **State**: `TacticalState.world` (`costs`, `structures`, `terrain`, `level`, `mapDoors`), `occupant` (`WhoIsThere2`),
 `reserved` (RT reservations), `mercSlots` (pass order) and the movement fields of `Soldier` (§5). Door swaps
-(`doors.ts`, `doors/`, `25` §8), explosions and map changes recompile costs locally.
+(`doors.ts`, `doors/`, `35` §5), explosions and map changes recompile costs locally.
 
 **Simulation** (`src/sim/tactical/`):
 

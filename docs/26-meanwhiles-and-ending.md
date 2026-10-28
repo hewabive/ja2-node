@@ -12,17 +12,17 @@ box" is its "Meanwhile....." message box.
 
 **Scope.** This doc owns `Strategic/Meanwhile.cc`, `Tactical/End_Game.cc`, the end of the campaign (ending videos,
 credits, restart), the 35/50/70 % progress events, the narrative effects of the first battle, the POW story pieces nobody
-else owns (§3) and the NPC actions that only meanwhile scenes and the ending use (§1.7, §6.5; `25`'s catalog points
+else owns (§3) and the NPC actions that only meanwhile scenes and the ending use (§1.7, §6.5; `35`'s catalog points
 here). Elsewhere: `15` event queue, `InterruptTime`, pause locks, compression and its stop reasons; `16` sector load and
 unload, temp files (`SectorDiff`), exit grids, map file names (`_m` for the Meduna meanwhile map), the helicopter; `17`
 the Queen's AI, with `17` §9.4 (meanwhile implications on the AI), `17` §9.5 (`ExecuteStrategicAIAction`), `17` §10.11
 (capture), `17` §11.3 (progress); `18` town liberation and loss, SAM sites, loyalty and morale; `19` first-battle facts
 from autoresolve, autoresolve capture and surrender (`19` §2.13), the end of a tactical battle (`19` §3.2); `21` the
-florist, Enrico's mails, history; `22` POW contract rules, death bookkeeping; `11` death commit and melee; `13` the AI
+florist, Enrico's mails, history; `22` POW contract rules, death bookkeeping; `33` death commit, `11` melee; `13` the AI
 hooks `HeadForTheStairCase` and `OFFER_SURRENDER`; `14` save sections; `24` NPC records and their selection, approaches,
 `TriggerNPCRecord*`, the talk interface, the dialogue queue and the "nobody is talking" test, NPC action dispatch,
-civilian quotes; `25` facts, quests and `StartQuest`/`EndQuest`, the NPC action catalog, NPC placement and `InitNPCs`,
-Skyrider; `28` §10 the story screens of the client; `04` §6 the agent API (flows, refusals, prompts, events, view
+civilian quotes; `25` facts, quests and `StartQuest`/`EndQuest`, Skyrider; `35` the NPC action catalog, NPC placement and
+`InitNPCs`; `30` §7 the story screens of the client; `29` the agent API (flows, refusals, prompts, events, view
 fields).
 
 ---
@@ -291,7 +291,7 @@ implications run while the scene map is loaded; nothing in them reads the loaded
 | Scene marked seen (settings) | yes | no | yes |
 | Profile side effects on QUEEN/ELLIOT/JOE (§1.8) | yes | no | yes |
 | `ELLIOT.npcData = 17` in `OUTSKIRTS_MEDUNA` | yes | no | if reached before ESC |
-| Player's world unloaded and reloaded (temp files, sector-exit and entry quest code (`25`), first-battle trash hook, `InitializeTacticalStatusAtBattleStart`, militia reset, the entry draws of `16` §5.3) | yes | no | yes |
+| Player's world unloaded and reloaded (temp files, sector-exit and entry quest code (`35`), first-battle trash hook, `InitializeTacticalStatusAtBattleStart`, militia reset, the entry draws of `16` §5.3) | yes | no | yes |
 | Map screen: compression stopped, mode X0 | yes | no (compression resumes) | yes |
 
 ### 1.11 Interplay summary
@@ -351,7 +351,7 @@ reload").
 
 The box offers no choice that changes campaign state once the reload is gone (§1.10), so a Meduna scene is **not** a
 decision prompt and does not wait for the client (D15: informational). It surfaces as the `meanwhile` event and the scene
-log (`04` §6). On the map the compression stop (`compressionStopped {reason: 'meanwhile'}`) ends a default strategic
+log (`29`). On the map the compression stop (`compressionStopped {reason: 'meanwhile'}`) ends a default strategic
 `advance` (`04` §4.2), mirroring the original's interruption; a tactical `advance` does not stop on `meanwhile` by default.
 While `trying` is set, the campaign is not idle, compression is refused (`compressionRefusal`) and saves are refused
 (`meanwhileStarting`, `src/server/save-rules.ts`). Only `INTERROGATION` contains real decisions (§2.3).
@@ -395,12 +395,12 @@ in N7. It is simulated on `24`'s record engine and `11`'s melee:
 ### 2.4 The scene log
 
 Each resolved scene appends `{seq, id, at, context}` to `meanwhile.log` (the view lists it as
-`observe.strategic.meanwhiles`, `04` §6). `context` (`MeanwhileContext`, `queen-state.ts`) freezes what the scene's record
+`observe.strategic.meanwhiles`, `29`). `context` (`MeanwhileContext`, `queen-state.ts`) freezes what the scene's record
 selectors would read at play time (§1.7): `wholeTownsExceptOmerta`, `samSitesControlled`, `lastBattleWon`,
 `functionalSamInLastBattleSector`, `firstBattleTown` (`drassen`, `cambria`, `other`), `sciFi`, `elliotBefore`,
 `elliotAfter`; all player-known. It was meant for a server-side playback of the scene (a disposable tactical session on
 `P3_m` running the scene's records from the frozen context on the `fx` stream, never touching the campaign); that sandbox
-is not built, so the client shows only the box and nothing is marked seen (`28` §10, deviations.md "Meanwhile scene
+is not built, so the client shows only the box and nothing is marked seen (`30` §7, deviations.md "Meanwhile scene
 playback").
 
 ---
@@ -523,7 +523,7 @@ the creature quest triggers (`17` §12).
 
 ## 5. Meduna: the palace, the Queen's escape, the statue
 
-### 5.1 Palace placement (`25` owns placement)
+### 5.1 Palace placement (`35` owns placement)
 
 In P3 outside meanwhiles (`Tactical/Soldier_Init_List.cc:500-519`): with `FACT_QUEEN_DEAD` the Queen's civilian group
 (`QUEENS_CIV_GROUP`) is not placed; otherwise the Queen stands at 11448 when `gfUseAlternateQueenPosition`, and civilians
@@ -550,11 +550,11 @@ at 13669 to O3 b1 gridno 13037 and reveal 13669, recompute movement costs around
 in O3 room 4 (`Tactical/Handle_Items.cc:2541-2552`, otherwise a curse), or an explosion's structure damage at distance ≤ 1
 from 13829, 13830, 13669 or 13670 while O3 is loaded and the exit grid does not exist yet (`HandleStatueDamaged`, listener
 on `BeforeStructureDamaged`, `Overhead.cc:317`, `Explosion_Control.cc:341-348`): the statue then takes no damage. Who hands
-out the remote is `25`'s business.
+out the remote is `35`'s business.
 
 ja2-node: `src/sim/tactical/narrative/statue.ts` (`changeO3SectorStatue` with a recompile radius of 5, recording the
 structure swap and the exit grid in the map changes; `statueTakesExplosion` from the structure-damage code;
-`useStatueRemote` from the `useRemote` command, 2 AP and 2 more when standing, `04` §6), event `statueOpened {sector,
+`useStatueRemote` from the `useRemote` command, 2 AP and 2 more when standing, `29`), event `statueOpened {sector,
 destroyed}`.
 
 ### 5.4 The Queen's story reactions beyond `17`
@@ -572,7 +572,7 @@ three infestible mines starts the creature quest at the moment she dies.
 
 ### 6.1 Trigger
 
-At the death commit (`11` §5.10) `HandleNPCTeamMemberDeath` (`Tactical/Overhead.cc:2273-2529`) marks the profile dead
+At the death commit (`33` §2.10) `HandleNPCTeamMemberDeath` (`Tactical/Overhead.cc:2273-2529`) marks the profile dead
 (`bMercStatus = MERC_IS_DEAD`, life 0, history, `:2282-2293`), and in the civilian-team branch, after the per-profile
 switch, calls `BeginHandleDeidrannaDeath(killer, gridNo, level)` for profile QUEEN (`:2423-2426`); `killer` is the
 soldier's `attacker` and may be null. For a creature with body `QUEENMONSTER` killed by someone (killer not null) it calls
@@ -645,7 +645,7 @@ delay the ending.
 ### 6.6 The creature queen (`BeginHandleQueenBitchDeath`, `:378-413`; `HandleQueenBitchDeath`, `:416-458`)
 
 Lock the UI as in §6.2 (without `IN_DEIDRANNA_ENDGAME`); a 3-second timer; immediately every living creature-team soldier
-takes a 10 000-damage hit (`EVENT_SoldierGotHit`, attack-busy count raised per creature, `11`). After 3 s: victory music;
+takes a 10 000-damage hit (`EVENT_SoldierGotHit`, attack-busy count raised per creature, `33`). After 3 s: victory music;
 the killer and line-of-sight witnesses marked in `QuoteExp_WitnessQueenBugDeath` (`QArray.cc:419`) say
 `QUOTE_KILLING_QUEEN`; then `FACT_QUEEN_DEAD` → `EndQueenDeathEndgameBeginEndCimenatic()`, else just unlock. A creature
 queen dying **without a killer** skips all of this: with Deidranna already dead the end cinematic can then never start
@@ -691,7 +691,7 @@ hire. A player without money and mercs is stuck but never told the game is over.
 `src/sim/campaign/story-refusals.ts`): `ended` once `victory` is set, `endgame` while `inDeidrannaEndgame` or
 `inEndgameSequence`, `meanwhile` while `meanwhile.inScene`. `campaignStatus` gives `playing | endgame | won`. Refusals:
 `endgameInProgress` for every command but queries, `answer` and `skipLine`; `campaignOver` for everything once ended (the
-campaign's `step()` then does nothing and `advance` stops with `ended`, `04` §6). The creature-queen sequence of §6.6 runs
+campaign's `step()` then does nothing and `advance` stops with `ended`, `29`). The creature-queen sequence of §6.6 runs
 under the conversation lock without the `endgame` flow until the end cinematic.
 
 ### 7.2 Steps
@@ -730,7 +730,7 @@ Witnesses: life ≥ OKLIFE, placed, on a squad (assignment < `ON_DUTY` 20), not 
 (`narrative-scenes.json`, §10.2) and `soldierTo3DLocationLos` with `distanceVisible` to the death tile at cube level 3.
 Timers become ticks (`01` §3.3): 2 s → 400, 3 s → 600; ticks also run in turn-based combat, so the sequence proceeds
 whoever's turn it is, as the original's wall-clock timer does (deviations.md "Endgame timing", which also states who
-says the end comments). Fades, the ending videos and the credits are presentation (`28` §10; `endingPlan`,
+says the end comments). Fades, the ending videos and the credits are presentation (`30` §7; `endingPlan`,
 `src/app/video/sequences.ts`); `ReStartingGame` is not reproduced: the session ends.
 
 ### 7.3 Softlocks and quirks
@@ -744,20 +744,20 @@ says the end comments). Fades, the ending videos and the credits are presentatio
 
 ---
 
-## 8. Interfaces with `24`, `25` and the others
+## 8. Interfaces with `24`, `25`, `35` and the others
 
 **From `24`:** record triggers (`triggerNpcRecord`, `triggerNpcRecordImmediately`, `triggerNpcWithGivenApproach` with
 `TRIGGER_NPC`, `DONE_SLAPPED`, `DONE_PUNCH_0..2`); the per-scene record sets keyed by (meanwhile id, profile) from
 `J:script-records-control.json` (`npc-records.ts` `meanwhiles`), active while `inScene` for QUEEN and ELLIOT only;
 `reloadQuoteFile`; the dialogue queue with callback events, `dialogueQueueIsEmptyAndNobodyIsTalking`,
 `emptyDialogueQueue`, `deleteTalkingMenu`; the conversation lock; the `npcRequest` prompt; the NPC action dispatch; the
-civilian quote carrying the surrender offer (§3.2); profile `npcData`. **From `25`:** quests (`HELD_IN_ALMA`,
+civilian quote carrying the surrender offer (§3.2); profile `npcData`. **From `25` and `35`:** quests (`HELD_IN_ALMA`,
 `INTERROGATION`, `FIND_SCIENTIST`, `CREATURES`) with history, facts (`QUEEN_DEAD` computed, `MIKE_AVAILABLE_TO_ARMY`,
 `FIRST_BATTLE_*`, the unnamed interrogation facts), profile placement and `changeNpcToDifferentSector`, MADLAB's
 alternate-map sector from `InitNPCs`, the P3 placement rules (§5.1), the remote trigger's owner (§5.3), the generic
 actions `GRANT_EXPERIENCE_*`, `REMOVE_NPC`, `TRIGGER_JOE_32_OR_33`, facings.
 
-**NPC actions owned here (`25`'s catalog points here):** `SLAP`, `FRUSTRATED_SLAP`, `PUNCH_PC_SLOT_0/1/2`,
+**NPC actions owned here (`35`'s catalog points here):** `SLAP`, `FRUSTRATED_SLAP`, `PUNCH_PC_SLOT_0/1/2`,
 `PUNCH_FIRST_LIVING_PC`, `SHOOT_ELLIOT`, `TRIGGER_QUEEN_BY_CITIES_CONTROLLED`, `TRIGGER_QUEEN_BY_SAM_SITES_CONTROLLED`,
 `TRIGGER_ELLIOT_BY_BATTLE_RESULT`, `TRIGGER_ELLIOT_BY_SAM_DISABLED`, `ELLIOT_/QUEEN_DECIDE_WHICH_QUOTE_FOR_PLAYER_ATTACK`,
 `PROMPT_PLAYER_TO_LIE`, `REMOVE_JOE_QUEEN`, `END_MEANWHILE`, `REMOVE_ELLIOT_END_MEANWHILE`, `NO_SCI_FI_END_MEANWHILE`,
@@ -765,7 +765,7 @@ actions `GRANT_EXPERIENCE_*`, `REMOVE_NPC`, `TRIGGER_JOE_32_OR_33`, facings.
 `ADD_MORE_ELITES`, `GIVE_KNOWLEDGE_OF_ALL_MERCS`.
 
 **To others:** the posting functions of §1.1 (callers in §11.3); `inMeanwhile()`/`meanwhileId()` for the tactical rules of
-§1.6 (`10`, `11`, `13`, `24`); the two queens' death hooks (`11`); the statue hooks on explosions and remote use (`12`); POW
+§1.6 (`10`, `11`, `13`, `24`); the two queens' death hooks (`33`); the statue hooks on explosions and remote use (`12`); POW
 handling on sector load (`16`) and after doors and explosions (`12`).
 
 ---
@@ -787,7 +787,7 @@ handling on sector load (`16`) and after doors and explosions (`12`).
 | Interrogation: `lie` | `PR(100)` in `SkillCheck`; on failure `R(100)` | pre, main |
 | Endgame: creature check in the loyalty event | `InitCreatureQuest` draws when it starts (`17` §12) | main |
 | Endgame: reload of P3 | `16` §5.3 entry draws, placements | main |
-| Creature queen death | one 10 000-damage hit per creature through `11` | per `11` |
+| Creature queen death | one 10 000-damage hit per creature through `33` | per `33` |
 
 Meduna scenes resolved by ja2-node make **no** draws of their own; the played path's two sector loads (scene map and
 reload) are not made (deviations.md "Meanwhile without sector reload").

@@ -1,30 +1,30 @@
 # 18 — Towns and mercs between battles: militia, loyalty, mines, SAM sites, assignments
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/` (snapshot `ae6bf01`); `V:` is vanilla
-`Build/`; JSON files are `assets/externalized/*.json` (copied to `data/externalized/`). "(inferred)" marks conclusions
-not traced end to end. C integer semantics apply: `/` truncates toward zero (`idiv`), `%` keeps the sign of the dividend
-(`imod`), `UINT8`/`INT8`/`UINT16`/`INT16` stores wrap (`u8`/`i8`/`u16`/`i16`). `Random` = `main` stream, `PreRandom` =
-`pre` stream (`01` §3.6); `Chance(x)` is `Random(100) < x` (`sgp/Random.cc:71-74`) and draws even when `x` is 0 or ≥ 100.
-Times are game minutes unless marked (`GetWorldTotalMin`). Sector names are `A1..P16`; `SectorInfo[]` is indexed by the
+`Build/`; JSON files are `assets/externalized/*.json` (copied to `data/externalized/`); `game.json` values are
+Stracciatella defaults. C integer semantics: `/` truncates toward zero (`idiv`), `%` keeps the dividend's sign (`imod`),
+`UINT8`/`INT8`/`UINT16`/`INT16` stores wrap (`u8`/`i8`/`u16`/`i16`). `Random` = `main` stream, `PreRandom` = `pre`
+stream (`01` §3.6); `Chance(x)` is `Random(100) < x` (`sgp/Random.cc:71-74`) and draws even when `x` is 0 or ≥ 100.
+Times are game minutes unless marked (`GetWorldTotalMin`). Sectors are `A1..P16`; `SectorInfo[]` is indexed by the
 0–255 "byte" (`(y-1)*16 + (x-1)`), `StrategicMap[]` by the strategic index (`x + y*18`, `Strategic/Campaign_Types.h:8-11`).
-"Policy" values are Stracciatella defaults from `game.json`. Teams: `OUR 0, ENEMY 1, CREATURE 2, MILITIA 3, CIV 4`.
+Teams: `OUR 0, ENEMY 1, CREATURE 2, MILITIA 3, CIV 4`.
 Soldier classes: `ADMINISTRATOR 1, ELITE 2, ARMY 3, GREEN_MILITIA 4, REG_MILITIA 5, ELITE_MILITIA 6, CREATURE 7, MINER 8`.
 Militia ranks: `GREEN 0, REGULAR 1, ELITE 2` (`Strategic/Campaign_Types.h` `MilitiaLevel`). `OKLIFE 15`, `CONSCIOUSNESS 10`
 (`Tactical/Overhead_Types.h:70-71`), `TRAINING_RATING_CAP 85` (`Tactical/Campaign.h:55`). ja2-node modules are under
 `src/sim/strategic/economy/` unless a path says otherwise.
 
-**Scope.** This doc owns militia (`Strategic/Town_Militia.cc`, `Tactical/Militia_Control.cc`, the militia panel), town
-loyalty (`Strategic/Strategic_Town_Loyalty.cc` and the loyalty, morale, mine and theft effects of sector control changes),
-mines (`Strategic/Strategic_Mines.cc`), SAM condition and air control (`Strategic/SAM_Sites.cc`), the finance ledger
+**Scope.** Militia (`Strategic/Town_Militia.cc`, `Tactical/Militia_Control.cc`, the militia panel), town loyalty
+(`Strategic/Strategic_Town_Loyalty.cc` and the loyalty, morale, mine and theft effects of sector control changes), mines
+(`Strategic/Strategic_Mines.cc`), SAM condition and air control (`Strategic/SAM_Sites.cc`), the finance ledger
 (`AddTransactionToPlayersBook`) and assignments with the hourly `UpdateAssignments` (`Strategic/Assignments.cc`).
-Elsewhere: `15` the clock, the event queue, the order of the hourly/daily handlers and new-game init; `16` sectors,
-groups, routes, encounters, when `SetThisSectorAsPlayerControlled`/`SetThisSectorAsEnemyControlled` are called, sector
-persistence and `FindStratPath`; `17` the Queen (garrisons, progress, `CalcDifficultyModifier`,
+Elsewhere: `15` the clock, the event queue, the order of the hourly/daily handlers, new-game init; `16` sectors, groups,
+routes, encounters, when `SetThisSectorAsPlayerControlled`/`SetThisSectorAsEnemyControlled` are called, sector
+persistence, `FindStratPath`; `17` the Queen (garrisons, progress, `CalcDifficultyModifier`,
 `StrategicHandleQueenLosingControlOfSector`, `StrategicHandleMineThatRanOut`); `19` PBI and autoresolve (militia there,
-`VirtualSoldierDressWound`); `22` contracts, `MercDailyUpdate`, team morale and the buddy/hated counters; `25` quests and
-NPC actions (head miners, the hospital); `10` turns and the end of battle, `11` §9–§10 morale and `StatChange`, `12`
-items, `14` savegame sections; `04` §6 the agent API (assignment, sleep and militia commands, the militia prompts,
-economy events and the view).
+`VirtualSoldierDressWound`); `22` contracts, `MercDailyUpdate`, team morale, the buddy/hated counters; NPC actions for
+the head miners (`35` §1.7) and the hospital (`25` §6.3); `10` turns and the end of battle; `33` §4–5 morale and
+`StatChange`; `12` items; `14` savegame sections; `29` the agent API (assignment, sleep and militia commands, the
+militia prompts, economy events, the view).
 
 ---
 
@@ -44,19 +44,20 @@ Campaign state, all saved; ja2-node fields are under `StrategicState`.
 | Inactivity | `gStrategicStatus.usLastDayOfPlayerActivity`, `ubNumberOfDaysOfInactivity`, `ubNumNewSectorsVisitedToday`, `usEnricoEmailFlags`, `ubHighestProgress` | `map.activity` (the first three), `status.enricoEmailFlags`, `status.highestProgress`; section 34 |
 | Militia promotion counters | `gbMilitiaPromotions`, `gbGreenToElitePromotions`, `gbGreenToRegPromotions`, `gbRegToElitePromotions` | `economy.militiaPromotions`; message only |
 
-ja2-node also keeps `economy.strategicMilitiaChangesMade` (`gfStrategicMilitiaChangesMade`), `economy.militiaTrainingCompletedBy`
-(the completed-training list of the running hourly update) and `economy.prompts` (deferred militia prompts, §1.3).
+ja2-node also keeps `economy.strategicMilitiaChangesMade` (`gfStrategicMilitiaChangesMade`),
+`economy.militiaTrainingCompletedBy` (the completed-training list of the running hourly update) and `economy.prompts`
+(deferred militia prompts, §1.3).
 
 **Soldier (OUR team)**: `assignment` (`bAssignment`, §5.1), `trainStat` (`bTrainStat`), `lastAssignmentChangeMin`
 (`uiLastAssignmentChangeMin`), `asleep` (`fMercAsleep`), `collapsed` (`fMercCollapsedFlag`), `forcedToStayAwake`,
 `complainedThatTired`, `nothingToDo` (`fDoneAssignmentAndNothingToDoFlag`), `fixingRobot`, `vehicleUnderRepair`
 (`bVehicleUnderRepairID`, −1), `fractLife` (`sFractLife`, INT16 hundredths of life), `breathMax`, `bleeding`, stat damage
 fields (`bAgilityDamage` …, only with `enable_stat_healing`), `groupId`, `hospitalPriceModifier`, `doneQuoteSaid`
-(`SOLDIER_QUOTE_SAID_DONE_ASSIGNMENT`). In ja2-node these are `CrewMember` fields (`ports.ts`) backed by the roster record
-(`src/sim/campaign/roster.ts`). **Militia soldier**: `militiaKills` (`ubMilitiaKills`, UINT8). **Profile** (from
-`prof.dat`, `Tactical/LoadSaveMercProfile.cc`; read by `src/content/formats/prof.ts`): `needForSleep` (`ubNeedForSleep`,
-:190), `town` (`bTown`, :166), `townAttachment` (`bTownAttachment`, :167), `mercOpinion[]` (`bMercOpinion`, :170), `salary`
-(`sSalary`, :110), `miscFlags3` (:193; bit `PROFILE_MISC_FLAG3_TOWN_DOESNT_CARE_ABOUT_DEATH`).
+(`SOLDIER_QUOTE_SAID_DONE_ASSIGNMENT`); ja2-node `CrewMember` fields (`ports.ts`) backed by the roster record
+(`src/sim/campaign/roster.ts`). **Militia soldier**: `militiaKills` (`ubMilitiaKills`, UINT8). **Profile** (`prof.dat`,
+`Tactical/LoadSaveMercProfile.cc`; read by `src/content/formats/prof.ts`): `needForSleep` (`ubNeedForSleep`, :190), `town`
+(`bTown`, :166), `townAttachment` (`bTownAttachment`, :167), `mercOpinion[]` (`bMercOpinion`, :170), `salary` (`sSalary`,
+:110), `miscFlags3` (:193; bit `PROFILE_MISC_FLAG3_TOWN_DOESNT_CARE_ABOUT_DEATH`).
 
 ---
 
@@ -74,18 +75,18 @@ fields (`bAgilityDamage` …, only with `enable_stat_healing`), `groupId`, `hosp
 | `TOWN_TRAINING_RATE` | 4 | `:217` |
 | `TEACH_BONUS_TO_TRAIN`, `RPC_BONUS_TO_TRAIN` | 30, 10 (percent) | `:222-224` |
 
-Where militia may exist (`CanSectorContainMilita`, `Assignments.cc:616-621`): a surface sector with a town id, or a SAM
-sector (`IsThisSectorASAMSector`). Where they may be trained (`MilitiaTrainingAllowedInSector`, `Town_Militia.cc:900-919`):
-surface only; any SAM sector; otherwise `strategic-map-towns.json` `isMilitiaTrainingAllowed` of the town (true for
-Drassen, Alma, Grumm, Cambria, Balime, Meduna, Chitzena; false for Omerta, Tixa, San Mona, Estoni, Orta). N4 is both a
-Meduna sector and a SAM site: always trainable (SAM rule), but it needs Meduna's loyalty, counts as Meduna for "full" and
-overflows into Meduna like any town sector. D2, D15 and I8 are wilderness SAM sites (no loyalty needed, no overflow).
+Militia may exist (`CanSectorContainMilita`, `Assignments.cc:616-621`) in a surface sector with a town id or in a SAM
+sector (`IsThisSectorASAMSector`). Training is allowed (`MilitiaTrainingAllowedInSector`, `Town_Militia.cc:900-919`) on
+the surface only: in any SAM sector, otherwise per the town's `strategic-map-towns.json` `isMilitiaTrainingAllowed` (true
+for Drassen, Alma, Grumm, Cambria, Balime, Meduna, Chitzena; false for Omerta, Tixa, San Mona, Estoni, Orta). N4 is both
+a Meduna sector and a SAM site: always trainable (SAM rule), but it needs Meduna's loyalty, counts as Meduna for "full"
+and overflows into Meduna like any town sector. D2, D15, I8 are wilderness SAM sites (no loyalty needed, no overflow).
 
-"Our and peaceful" (`SectorOursAndPeaceful`, `Town_Militia.cc:351-376`), used everywhere militia are touched:
-1. if the sector is the loaded one and (`fEnemyInSector` or `INCOMBAT`): false;
-2. surface and `StrategicMap.fEnemyControlled`: false;
+"Our and peaceful" (`SectorOursAndPeaceful`, `Town_Militia.cc:351-376`), used wherever militia are touched:
+1. the loaded sector and (`fEnemyInSector` or `INCOMBAT`) → false;
+2. surface and `StrategicMap.fEnemyControlled` → false;
 3. `NumHostilesInSector(sector) > 0` (stationary enemies + creatures + non-vehicle enemy groups there,
-   `Strategic/Queen_Command.cc:53-83`): false; else true.
+   `Strategic/Queen_Command.cc:53-83`) → false; else true.
 
 "Area full" (`IsAreaFullOfMilitia`, `Town_Militia.cc:643-674`): underground → true. Town: over all town sectors that are
 our and peaceful, `count += regulars + elites`, `max += 20`; SAM (non-town): same for that one sector; then
@@ -104,33 +105,33 @@ CanCharacterTrainMilitia(s) =                                        // :640-648
   && CountMilitiaTrainersInSoldiersSector(s) < 2                      // :670-684: other OUR mercs, life >= OKLIFE, TRAIN_TOWN, same sector
 ```
 
-The loyalty test reads `ubRating` even when `fStarted` is false (rating 0 then) and does not check `gfTownUsesLoyalty`
-(all trainable towns use loyalty).
+The loyalty test reads `ubRating` even when `fStarted` is false (rating 0 then) and ignores `gfTownUsesLoyalty` (all
+trainable towns use loyalty).
 
 ### 1.3 Paying for a session (the prompt flow)
 
-Assigning `TRAIN_TOWN` from the menu (`Assignments.cc:4702-4777`) re-runs the checks with messages, then **first**
-changes the assignment (`PreChangeAssignment`, time stamp if new, `ChangeSoldiersAssignment(TRAIN_TOWN)`, movement group),
-then:
-- if `SectorInfo[sector].fMilitiaTrainingPaid`: `SetAssignmentForList(TRAIN_TOWN)` for the other selected mercs (§5.2);
+Assigning `TRAIN_TOWN` from the menu (`Assignments.cc:4702-4777`) re-runs the checks with messages, **first** changes
+the assignment (`PreChangeAssignment`, time stamp if new, `ChangeSoldiersAssignment(TRAIN_TOWN)`, movement group), then:
+- `SectorInfo[sector].fMilitiaTrainingPaid` → `SetAssignmentForList(TRAIN_TOWN)` for the other selected mercs (§5.2);
 - else `HandleInterfaceMessageForCostOfTrainingMilitia(s)` (`Town_Militia.cc:422-465`):
   - unpaid sectors = distinct sectors of the selected mercs (plus the assigning one) that pass `CanCharacterTrainMilitia`
     and are not paid (`BuildListOfUnpaidTrainableSectors`, `:788-824`; tactical: only the one merc);
   - cost = 750 × n; balance < cost → "can't afford" box → `MilitiaTrainingRejected`;
   - else a yes/no box. Yes (balance re-checked) → `StartTrainingInAllUnpaidTrainableSectors` (`:842-852`):
-    `SetAssignmentForList(TRAIN_TOWN)` then, for each unpaid sector, `PayForTrainingInSector` (`:870-882`):
+    `SetAssignmentForList(TRAIN_TOWN)`, then per unpaid sector `PayForTrainingInSector` (`:870-882`):
     `AddTransactionToPlayersBook(TRAIN_TOWN_MILITIA, sectorByte, now, −750)`, `fMilitiaTrainingPaid = TRUE`, clear the
     done flags of trainers there. No → `StopTimeCompression`, `MilitiaTrainingRejected` (`:589-604`): every TRAIN_TOWN
     merc of an unpaid sector in the character list goes to `ResumeOldAssignment` = `AddCharacterToAnySquad`
     (`Map_Screen_Interface.cc:358-371`, `Assignments.cc:7030-7046`), not back to the old assignment.
 
-Payment is per session, not per trainer: a second trainer joining a paid sector pays nothing. Progress and the paid flag
-survive if trainers leave mid-session; the next trainer continues for free.
+Payment is per session, not per trainer: a trainer joining a paid sector pays nothing; progress and the paid flag
+survive trainers leaving mid-session.
 
 ja2-node (`militia.ts` `startMilitiaPaymentFlow`/`answerMilitiaPayment`): the yes/no box is the decision prompt
 `militiaPayment` (`EconomyDecisions` answers `yes`/`no`/`defer`; a deferred prompt waits in `economy.prompts` with
-compression stopped, `deviations.md` "Militia payment and continue prompts"); "can't afford", "no" and the continue-prompt
-refusals of §1.5 are the `militiaTrainingRejected` event (`declined`, `cannotAfford`, `loyaltyTooLow`, `militiaFull`).
+compression stopped, `deviations.md` "Militia payment and continue prompts"); "can't afford", "no" and the
+continue-prompt refusals of §1.5 are the `militiaTrainingRejected` event (`declined`, `cannotAfford`, `loyaltyTooLow`,
+`militiaFull`).
 
 ### 1.4 Training points and session progress
 
@@ -146,18 +147,18 @@ GetTownTrainPtsForCharacter(t):                                      // Assignme
 The town-loyalty factor is commented out (`:2701-2708`). Example: Wis 80, Ldr 70, level 4, rested: 760/h → a session
 (10000) takes 14 hours alone, 7 with two equal trainers; TEACHING makes it 988/h.
 
-Militia part of `HandleTrainingInSector(sector)` (`Assignments.cc:2252-2309`, after stat training of §5.8), only if the
-sector is our and peaceful (`:2146-2151`, else no training of any kind this hour) and can contain militia:
+The militia part of `HandleTrainingInSector(sector)` (`Assignments.cc:2252-2309`, after the stat training of §5.8) runs
+only if the sector is our and peaceful (`:2146-2151`; else no training of any kind this hour) and can contain militia:
 1. collect trainers in **team id order**: same sector, `TRAIN_TOWN`, `EnoughTimeOnAssignment` (≥45 min, §5.2),
    not asleep during the past hour (§5.3), `pts > 0`;
 2. sort descending by points (`qsort`, `:2287`, comparator `:2313-2318`; ja2-node sorts stably, so ties keep id order,
    `deviations.md` "Militia trainer ties");
 3. for each in order: `TrainTownInSector(t, sector, pts)` (`:2621-2660`); stop after the one that completes the session
-   (no carry-over).
+   (no carry-over; the rest get no LDR chance).
 
 ```
 TrainTownInSector(t, sector, pts):
-  StatChange(t, LDRAMT, 1 + pts/200, FROM_SUCCESS)                   // pre draws (11 §10)
+  StatChange(t, LDRAMT, 1 + pts/200, FROM_SUCCESS)                   // pre draws (33 §5)
   si.percentDone  += pts/100                                          // UINT8
   si.hundredths   += pts%100
   if si.hundredths >= 100: si.percentDone++; si.hundredths -= 100
@@ -166,8 +167,8 @@ TrainTownInSector(t, sector, pts):
     TownMilitiaTrainingCompleted(t, sector); return true
   return false
 ```
-Progress accrues whether or not the sector is paid; the command layer is what guarantees payment (§1.3). Training in a
-full area still accrues and is wasted at completion (§1.5).
+Progress accrues whether or not the sector is paid; the command layer guarantees payment (§1.3). Training in a full area
+still accrues and is wasted at completion (§1.5).
 
 ### 1.5 Session completion
 
@@ -196,28 +197,29 @@ TownMilitiaTrainingCompleted(trainer, sector):                       // Town_Mil
 `g_town_sectors` is column-major, so overflow fills e.g. Cambria in the order F8, G8, H8, F9, G9 and Drassen B13, C13,
 D13. A session never creates elites. The loyalty bonus is lost only if the very first militia could not be placed.
 
-**Continue prompt** (`HandleContinueOfTownTraining`, `Town_Militia.cc:735-785`, called at the end of every hourly
+**Continue prompt** (`HandleContinueOfTownTraining`, `Town_Militia.cc:735-785`, at the end of every hourly
 `UpdateAssignments`): for each sector in the completed list (one entry per sector, keyed by the first trainer,
 `:695-725`), a dialogue event runs `HandleInterfaceMessageForContinuingTrainingMilitia` (`:468-534`):
-- loyalty below 20 → message + reject; area full → message + reject; balance < 750 → message + reject;
+- loyalty below 20, area full, or balance < 750 → message + reject;
 - else yes/no "continue training in X for $750?". Yes → `PayForTrainingInSector` for the trainer's sector. No → every
   TRAIN_TOWN merc of that sector goes to a squad (`ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector`,
   `Map_Screen_Interface.cc:374-387`).
+
 Trainers keep `TRAIN_TOWN` while the prompt is open; the original switches to the map screen and the box pauses time.
-In ja2-node the question is the `militiaContinue` prompt (§1.3).
+ja2-node: the `militiaContinue` prompt (§1.3).
 
 ### 1.6 Ranks and promotions after a battle
 
 Kill points (`ubMilitiaKills`, per militia soldier, tactical): +1 in `HandleNPCTeamMemberDeath` when the killer is
 militia (`Tactical/Overhead.cc:2516-2519`), +2 for the killer and +1 for the assister at the death commit
-(`Tactical/Soldier_Ani.cc:2929-2960`). A militia kill therefore gives **3** points, an assist 1 (`11` §10; ja2-node
+(`Tactical/Soldier_Ani.cc:2929-2960`): a militia kill gives **3** points, an assist 1 (`33` §5; ja2-node
 `src/sim/tactical/combat/death.ts`).
 
-Promotions are applied when the tactical world is unloaded (`HandleDefiniteUnloadingOfWorld`, both "load new map" and
-"trash world", `Strategic/StrategicMap.cc:2902-2953`) through `HandleMilitiaStatusInCurrentMapBeforeLoadingNewMap`
-(`Town_Militia.cc:608-620`): if the militia team is no longer friendly → defections (§1.7) and the side is reset;
-else, unless the battle is about to be finished in autoresolve (`gfAutomaticallyStartAutoResolve`),
-`HandleMilitiaPromotions` (`Tactical/Militia_Control.cc:62-106`):
+Promotions apply when the tactical world is unloaded (`HandleDefiniteUnloadingOfWorld`, both "load new map" and "trash
+world", `Strategic/StrategicMap.cc:2902-2953`) through `HandleMilitiaStatusInCurrentMapBeforeLoadingNewMap`
+(`Town_Militia.cc:608-620`): militia team no longer friendly → defections (§1.7) and the side is reset; else, unless the
+battle is about to be finished in autoresolve (`gfAutomaticallyStartAutoResolve`), `HandleMilitiaPromotions`
+(`Tactical/Militia_Control.cc:62-106`):
 
 ```
 reset the four counters
@@ -237,15 +239,15 @@ CheckOneMilitiaForPromotion(sector, &rank, kp):                       // Town_Mi
     REGULAR: if kp < 5: break; if !Chance(10*kp): break; promote REG→ELITE; n++
   return n
 ```
-The strategic counts change, not the soldier (he is about to be removed). A later `BuildMilitiaPromotionsString` box
-on the map screen reports the counters (`MapScreen.cc:7627-7631`; ja2-node event `militiaPromoted`). **Vanilla differs**
+The strategic counts change, not the soldier (he is about to be removed). A later `BuildMilitiaPromotionsString` box on
+the map screen reports the counters (`MapScreen.cc:7627-7631`; ja2-node event `militiaPromoted`). **Vanilla differs**
 (V: `TownMilitia.c:258-296`): no rank fallback, and `Random(100)` is drawn even when the chance is 0; ja2-node follows
 Stracciatella (D1). Autoresolve calls the same `checkOneMilitiaForPromotion` (`19`).
 
 ### 1.7 Casualties and defections
 
 - A militia soldier dies in tactical (`Overhead.cc:2435-2448`): `StrategicRemoveMilitiaFromSector(worldSector, rank, 1)`
-  if his class is a militia class (the remove is a no-op when the count is already 0, `Town_Militia.cc:232-249`), then
+  if his class is a militia class (no-op when the count is already 0, `Town_Militia.cc:232-249`), then
   `HandleMurderOfCivilian` (returns at once: the victim is not CIV team, §2.5), then
   `HandleGlobalLoyaltyEvent(NATIVE_KILLED, worldSector)` (−50, §2.3).
 - The player attacks friendly militia (`Overhead.cc:5386-5390`): `MilitiaChangesSides` (`:2830-2846`) makes every
@@ -258,13 +260,13 @@ Stracciatella (D1). Autoresolve calls the same `checkOneMilitiaForPromotion` (`1
 ### 1.8 Moving militia: redistribution inside a town
 
 Stracciatella (default) has no mobile militia and no militia reinforcements; militia never leave their town. The map
-screen militia panel lets the player move them between sectors **of the same town** (`Strategic/Map_Screen_Interface_Map.cc`):
+screen militia panel moves them between sectors **of the same town** (`Strategic/Map_Screen_Interface_Map.cc`):
 - pick up one of a rank (`PickUpATownPersonFromSector`, `:2631-2646`): sector in the selected town, our and peaceful,
   count > 0 → count−−, cursor+1; mark the loaded sector changed;
 - drop one (`DropAPersonInASector`, `:2649-2667`): same town, our and peaceful, sector total < 20, cursor > 0;
-- closing the panel with militia still on the cursor (`HandleShutDownOfMilitiaPanelIfPeopleOnTheCursor`,
-  `:3137-3182`): for each town sector in `g_town_sectors` order that is our and peaceful, with `n = 20 − total` free
-  slots: round-robin green, regular, elite one at a time until `n` is used up or the cursor is empty;
+- closing the panel with militia on the cursor (`HandleShutDownOfMilitiaPanelIfPeopleOnTheCursor`, `:3137-3182`): for
+  each town sector in `g_town_sectors` order that is our and peaceful, with `n = 20 − total` free slots: round-robin
+  green, regular, elite one at a time until `n` is used up or the cursor is empty;
 - **auto** (`HandleEveningOutOfTroopsAmongstSectors`, `:3187-3275`, enabled when some non-enemy-controlled town sector
   has militia, `:3714-3732`): `k = GetTownSectorsUnderControl(town)` (§3.5); sum each rank over the town's sectors in the
   panel's 3×3 box that are not enemy controlled (**including sectors with hostiles**), plus the cursor; every town sector
@@ -272,7 +274,7 @@ screen militia panel lets the player move them between sectors **of the same tow
   its total < 20; the cursor is zeroed. Militia counted in a sector with hostiles but not redistributed back, and
   leftovers that hit the 20 cap, are lost (quirk, §7).
 
-ja2-node (`militia-moves.ts`, strategic map only): the server has no cursor. `moveMilitia(from, to, rank, count)` is
+ja2-node (`militia-moves.ts`, strategic map only) has no server-side cursor. `moveMilitia(from, to, rank, count)` is
 atomic (same town, both sectors ours and peaceful, enough militia of the rank, target total + count ≤ 20) after the panel
 refusals of `HandleMilitiaRedistributionClick` (`militiaPanelRefusal`: underground, not a known town, a SAM site, a town
 without militia, the town fighting in the loaded sector); `distributeMilitia(town)` is the AUTO button with its quirk,
@@ -321,8 +323,8 @@ AddSoldierInitListMilitia(g, r, e):                                  // Tactical
         AddPlacementToWorld(node) ? max-- : return
       free--
 ```
-Militia use the map's **enemy** placements. Soldier creation (`src/sim/tactical/creation.ts`) has these militia
-specifics (`Tactical/Soldier_Create.cc`):
+Militia use the map's **enemy** placements. Militia specifics of soldier creation (`Tactical/Soldier_Create.cc`;
+ja2-node `src/sim/tactical/creation.ts`):
 - `bVisible = 1` at creation (`:201-202`, "we see what militia see");
 - palettes GREENVEST / JEANVEST / BLUEVEST with BEIGEPANTS (`:696-710`);
 - experience level 2/4/6 + modifier like admin/army/elite (`:1284-1292`);
@@ -330,22 +332,22 @@ specifics (`Tactical/Soldier_Create.cc`):
   classes**; −5 with no mine income (`PredictIncomeFromPlayerMines() == 0`, §3.8). `DIFF_MODIFIER_DRASSEN_MILITIA` (+10,
   `:60`) is defined and unused. Campaigns compute it at sector load (`deviations.md` "Difficulty and progress in
   tactical"); the sandbox uses a fixed modifier ("Sandbox population");
-- `RandomizeRelativeLevel` (`:1842-1925`): `Random(10) + location/3 − 5`, militia clamped to 1..8 (never bad or great)
-  and then +1 in autoresolve (so "great" is possible there); 0 bad, 1–2 poor, 3–6 average, 7–8 good, 9 great;
+- `RandomizeRelativeLevel` (`:1842-1925`): `Random(10) + location/3 − 5`, militia clamped to 1..8 (never bad or great),
+  then +1 in autoresolve (so "great" is possible there); 0 bad, 1–2 poor, 3–6 average, 7–8 good, 9 great;
 - nightops for elite/regular militia like elite/army enemies (`:842-870`, two `Chance` draws; `deviations.md` "Soldier
   creation draws");
 - equipment by militia class and the militia drop rates 5/3/2 % (`Tactical/Inventory_Choosing.cc`).
 
-After the battle: `CheckForEndOfBattle` sets militia GREEN/STATIONARY and stops bleeding (`10` §8.2); militia alone with
-enemies when the player leaves (`HandlePotentialBringUpAutoresolveToFinishBattle`, `StrategicMap.cc:2955-2990`) hand the
-fight to autoresolve (`19`); abandoning them costs loyalty (§2.4). The promotions of §1.6 follow on unload.
+After the battle: `CheckForEndOfBattle` sets militia GREEN/STATIONARY and stops bleeding (`10` §8.2); militia left alone
+with enemies when the player leaves (`HandlePotentialBringUpAutoresolveToFinishBattle`, `StrategicMap.cc:2955-2990`) hand
+the fight to autoresolve (`19`); abandoning them costs loyalty (§2.4). The promotions of §1.6 follow on unload.
 
 ### 1.10 Other readers of militia counts
 
 Queen defence and attack evaluation (`Strategic/Strategic_AI.cc:214-216, 934-936`: green 1, regular 2, elite 3 points;
 `17`); `PlayerSectorDefended` (`Queen_Command.cc:1279-1290`); `CanNearbyMilitiaScoutThisSector`
 (`Town_Militia.cc:623-640`: any militia within ±1 sector lets the map show enemy counts; `16`); `IsAreaFullOfMilitia`;
-save load fix-ups that clamp totals above 20 (`SaveLoadGame.cc:2286-2330`, `Strategic_AI.cc:2368-2379`, save import only).
+save-load fix-ups that clamp totals above 20 (`SaveLoadGame.cc:2286-2330`, `Strategic_AI.cc:2368-2379`; save import only).
 
 ### 1.11 RNG in militia code
 
@@ -364,9 +366,9 @@ Training, completion, redistribution: no RNG (the trainer's `StatChange` draws `
 ### 2.1 Ranges, towns and starting values
 
 `ubRating` is 0..100 (`MAX_LOYALTY_VALUE`, `Strategic/Strategic_Town_Loyalty.cc:38`); every change goes through the
-hundredths accumulator `sChange` with `GAIN_PTS_PER_LOYALTY_PT = 500` per point (`Strategic_Town_Loyalty.h:9`), so the
-"hundredths" in the comments are really 1/500 of a point. Hardcoded tables (`Strategic_Town_Loyalty.cc:96-128`, = V;
-transcribed to `data/tables/town-loyalty.json`, §6.1):
+accumulator `sChange` with `GAIN_PTS_PER_LOYALTY_PT = 500` per point (`Strategic_Town_Loyalty.h:9`), so the "hundredths"
+of the source comments are 1/500 of a point. Hardcoded tables (`Strategic_Town_Loyalty.cc:96-128`, = V; transcribed to
+`data/tables/town-loyalty.json`, §6.1):
 
 | Town (id) | Rebel sentiment | Uses loyalty |
 |---|---|---|
@@ -386,8 +388,8 @@ transcribed to `data/tables/town-loyalty.json`, §6.1):
 `InitTownLoyalty` (`:134-146`) zeroes everything. A town starts tracking only through
 `StartTownLoyaltyIfFirstTime(town)` (`:149-180`), called whenever a sector of it becomes player controlled
 (`Player_Command.cc:111`): if `!fStarted && usesLoyalty`: rating = sentiment; if `!FACT_MIGUEL_READ_LETTER ||
-FACT_REBELS_HATE_PLAYER`: Omerta 0, others sentiment/2; `sChange = 0`; started. `SetTownLoyalty` (`:184-197`) sets rating,
-clears `sChange` and marks the town started (only for towns that use loyalty).
+FACT_REBELS_HATE_PLAYER`: Omerta 0, others sentiment/2; `sChange = 0`; started. `SetTownLoyalty` (`:184-197`) sets the
+rating, clears `sChange` and marks the town started (only towns that use loyalty).
 
 ### 2.2 The accumulator
 
@@ -449,8 +451,8 @@ AffectAllTownsLoyaltyByDistanceFrom(change, sector):                 // :926-102
 | `GAIN_SAM` / `LOSE_SAM` | +250 / −250 | §2.6 |
 
 The pathfinder honours the SHIFT key ("direct path", `Strategic/Strategic_Pathing.cc:204-208`) even for this hidden
-call; ja2-node never holds it (`deviations.md` "Loyalty distance path"). ja2-node computes the distances in
-`shortestTownDistances` with a throw-away foot group and `16`'s `findStratPath`.
+call; ja2-node never holds it (`deviations.md` "Loyalty distance path"). ja2-node: `shortestTownDistances` with a
+throw-away foot group and `16`'s `findStratPath`.
 
 ### 2.4 Event catalogue (all loyalty changes)
 
@@ -466,13 +468,12 @@ Amounts are before sentiment scaling; "everywhere" = every started town, no dist
 | Creatures eat civilians | −n × 5000 × 2 (decrement) | strategic creature town attack (`:808-826`) |
 | Inactivity | everywhere −5000 × k | §2.8 |
 | Rebels betrayed | Omerta → 10 (and capped at 10 while rebels hostile); other towns → rating/3 via `SetTownLoyalty` | `REBEL_CIV_GROUP` turns hostile (`Overhead.cc:2759-2765`, `Strategic_Event_Handler.cc:872`) |
-| Quests (`HandleLoyaltyChangeForNPCAction`, `:1081-1126`; `Overhead.cc:2363-2411`; `Interface_Dialogue.cc:2720, 3441`) | Miguel reads letter +5000 Omerta; Doreen spared +10000 / killed +5000 Drassen (−10000 if killed after her change of heart); Martha (Joey alive) +7500, Keith +7500 Cambria; Yanni +10000 Chitzena then +5000 everywhere; Auntie, Matt, Krott +10000 Alma; terrorists +2500 everywhere; monster queen +5000 everywhere; Eldin killed −10000 Balime; Joey killed −5000 or Martha's heart attack −10000 Cambria | |
+| Quests | `25` §2.4 (amounts per NPC and per death) | `HandleLoyaltyChangeForNPCAction` (`:1081-1126`); `Overhead.cc:2363-2411`; `Interface_Dialogue.cc:2720, 3441` |
 | Deidranna killed | every loyalty town → 100 | `MaximizeLoyaltyForDeidrannaKilled` (`:1210-1220`) |
 
-There is no robbery or building-damage loyalty in Stracciatella (the vanilla stubs are gone; the multipliers at
-`:63-68` are unused). In ja2-node every row is wired (quest rows through the NPC actions, `25`) except the civilian
-murder (§2.5, not ported) and the head-miner attack (`playerAttackedHeadMiner` exists, nothing calls it; `deviations.md`
-"Implications of an attack").
+Stracciatella has no robbery or building-damage loyalty (the vanilla stubs are gone; the multipliers at `:63-68` are
+unused). ja2-node wires every row (quest rows through the NPC actions) except civilian murder (§2.5) and the head-miner
+attack (`playerAttackedHeadMiner` exists, nothing calls it; `deviations.md` "Implications of an attack").
 
 ### 2.5 Civilian murder
 
@@ -502,14 +503,12 @@ HandleMurderOfCivilian(v):                                           // :351-591
   x = x*100/175                                                       // compensates the distance-0 +75 %
   AffectAllTownsLoyaltyByDistanceFrom(x, v.sector)
 ```
-In the MILITIA case with rebels hostile and the CREATURE case with a non-monster killer, `fIncrement` keeps its initial
-FALSE, so the change is a **decrement** of the unmodified amount (the source comments suggest otherwise; read at
-`:358, 537-572`).
+The two "nothing is set" cases decrement because `fIncrement` keeps its initial FALSE (`:358`), although the source
+comments suggest otherwise (`:537-572`).
 
 **Not ported**: ja2-node has no `HandleMurderOfCivilian` (the civilian death rules in
 `src/sim/tactical/narrative/death-rules.ts` cover only named profiles), so killing a civilian changes neither loyalty nor
-morale. The body cost table is
-transcribed (`town-loyalty.json` `civilianMurderCost`) and unused.
+morale. The body cost table is transcribed (`town-loyalty.json` `civilianMurderCost`) and unused.
 
 ### 2.6 Sector control changes
 
@@ -549,16 +548,16 @@ sector's stored items that exist, are visible and reachable).
 `CheckIfEntireTownHasBeenLiberated(town, sector)` (`Strategic_Town_Loyalty.cc:1033-1062`): if `!fLiberatedAlready` and
 every town sector is under control (`GetTownSectorsUnderControl == GetTownSectorSize`, §3.5): if the town allows militia
 training → `LIBERATE_WHOLE_TOWN`, history, meanwhile (`26`); activity until `day + 2` (+4 on hard); `fLiberatedAlready =
-true` (even for Orta/Tixa). Because it runs only on contested captures, a town completed by walking into an empty last
-sector never gets the bonus (quirk, §7). `CheckIfEntireTownHasBeenLost` (`:1064-1076`) only posts a meanwhile.
+true` (even for Orta/Tixa). It runs only on contested captures, so a town completed by walking into an empty last sector
+never gets the bonus (quirk, §7). `CheckIfEntireTownHasBeenLost` (`:1064-1076`) only posts a meanwhile.
 `GetNumberOfWholeTownsUnderControl` (`:758-775`) counts loyalty towns fully held (dialogue, Queen).
 
 ### 2.8 Daily drift: none; the inactivity penalty
 
 Stracciatella has no periodic loyalty drift (vanilla's `HandleTownLoyalty` drift and civilian theft were already
 commented out, V: `StrategicTownLoyalty.c:380-411`, and the call is gone). The only periodic change is Enrico's
-inactivity check, `HandleEnricoEmail` at 07:00 daily (`Strategic/Strategic_Status.cc:246-391`,
-`ENRICO_MAIL_TIME`, `StrategicMap.cc:126`):
+inactivity check, `HandleEnricoEmail` at 07:00 daily (`Strategic/Strategic_Status.cc:246-391`, `ENRICO_MAIL_TIME`,
+`StrategicMap.cc:126`):
 
 ```
 tolerance = hard ? 7 − 2 + highest/42 : 6 − difficulty + highest/42        // :231-243; EASY 1, MEDIUM 2, HARD 3 → 5/4/5 days (+0..2)
@@ -575,11 +574,11 @@ first matching branch only:
       DecrementTownLoyaltyEverywhere(5000 × (inactive − t + (mail 2 sent, today's included ? 1 : 0)))
 newSectorsToday = min(newSectorsToday, 4) / 3
 ```
-So a day with a progress or setback mail does not count as inactive, and a day with a creature or progress mail also
-keeps the full new-sector count. Activity (`UpdateLastDayOfPlayerActivity(day)` resets the counter when
+A day with a progress or setback mail therefore does not count as inactive, and a day with a creature or progress mail
+also keeps the full new-sector count. Activity (`UpdateLastDayOfPlayerActivity(day)` resets the counter when
 `day > lastActiveDay`, `:221-228`): damage to an enemy in a sector that is enemy controlled or not `TOWN` traversability,
 damage to any creature (`Soldier_Control.cc:5442-5459`); the 4th new sector visited in a day (`Tactical_Save.cc:795-800`);
-whole-town liberation (+2/+4 days) and first SAM capture (+1/+2).
+whole-town liberation (+2/+4 days); first SAM capture (+1/+2).
 
 ja2-node: `inactivity.ts` `handleEnricoEmail` returns the mail kind and the penalty; the laptop flow
 (`src/sim/campaign/laptop/laptop-flow.ts`) owns the `ENRICO_MAIL` event, sends the mail and writes the complaint history.
@@ -599,11 +598,11 @@ ja2-node: `inactivity.ts` `handleEnricoEmail` returns the mail kind and the pena
 | Facts `LOYALTY_LOW` < 30, `OKAY` 30..49, `HIGH` ≥ 80 (started loyalty towns only) | | `Strategic/Quests.cc:785-830`, `Quests.h:211-213` |
 | Civilian quotes | cosmetic | `Tactical/Civ_Quotes.cc:563-569` |
 
-No effect on prices, sector income other than mines, or enemy behaviour.
+No effect on prices, on sector income other than mines, or on enemy behaviour.
 
 ### 2.10 RNG in loyalty code
 
-`Random(100)` false accusal in `HandleMurderOfCivilian` (only for non-player killers; not ported, §2.5); `Random(100)` per
+`Random(100)` false accusal in `HandleMurderOfCivilian` (non-player killers only; not ported, §2.5); `Random(100)` per
 item in `RemoveRandomItemsInSector`. Everything else is deterministic (the LOS tests and `FindStratPath` draw nothing).
 
 ---
@@ -638,19 +637,19 @@ production is fixed per difficulty; which mine grows and which one depletes is r
 
 On the first surface entry into any non-abandoned mine sector (`HandleQuestCodeOnSectorEntry`, `StrategicMap.cc:668-741`):
 unless the mine has `headMinerAssigned` (Alma/Matt), FRED is placed there with `bTown` = that mine's town; then each
-other non-abandoned mine without an assigned miner gets one of profiles {106, 156, 157, 158} by
-`do Random(4) while used` until 4 have been placed; `FACT_MINERS_PLACED`. The head miner's `bTown` links him to the mine
-(`GetHeadMinersMineIndex`, `Strategic_Mines.cc:798-814`). ja2-node: `mines.ts` `placeHeadMinersOnSectorEntry`, called by
-the narrative flow on sector entry.
+other non-abandoned mine without an assigned miner gets one of profiles {106, 156, 157, 158} by `do Random(4) while used`
+until 4 have been placed; `FACT_MINERS_PLACED`. The head miner's `bTown` links him to the mine (`GetHeadMinersMineIndex`,
+`Strategic_Mines.cc:798-814`). ja2-node: `mines.ts` `placeHeadMinersOnSectorEntry`, called by the narrative flow on
+sector entry.
 
 **Production for the player requires `fSpokeToHeadMiner`**, set by `PlayerSpokeToHeadMiner` from the NPC action
 `NPC_ACTION_START_MINE` (`Tactical/Interface_Dialogue.cc:2788-2800`, also restarts a shut-down mine);
 `NPC_ACTION_STOP_MINE` shuts it down; `NPC_ACTION_RESET_MINE_CAPTURED` clears `fQueenRetookProducingMine`. ja2-node runs
-them as NPC actions (`src/sim/tactical/narrative/npc-actions/cambria.ts`, `25`).
+them as NPC actions (`src/sim/tactical/narrative/npc-actions/cambria.ts`, `35` §1.7).
 
 ### 3.4 The income event
 
-`EVENT_SETUP_MINE_INCOME` runs every day at 00:00 (`StrategicMap.cc:2251`) and `PostEventsForMineProduction`
+`EVENT_SETUP_MINE_INCOME` runs every day at 00:00 (`StrategicMap.cc:2251`); `PostEventsForMineProduction`
 (`Strategic_Mines.cc:516-524`) posts four one-shot `EVENT_HANDLE_MINE_INCOME` events at today + 540, 720, 900, 1080
 minutes. Each runs `HandleIncomeFromMines` (`:527-540`; dispatch `Game_Event_Hook.cc:170-176`):
 
@@ -690,17 +689,17 @@ ExtractOreFromMine(i, amount):                                        // Strateg
       if PlayerControlsMine(i) && !warned: head miner quote (stops compression); warned = true; history
   return got
 ```
-The rate is recomputed after every extraction below the warning point (≈ 10 % of the remaining ore per period at full
+Below the warning point the rate is recomputed after every extraction (≈ 10 % of the remaining ore per period at full
 workforce), so a depleting mine dwindles over several days and the Queen's extraction can run it dry while she holds it.
 Example: Drassen with 4 bumps (rate 1800), loyalty 60, all 3 sectors held: 1800 × 60/100 = 1080 per period, $4320 a day.
 ja2-node's `runningOutRemovalRate` reproduces the float steps with `Math.fround`.
 
 ### 3.6 Ownership change effects
 
-Capturing a mine entrance with ore left: morale +8 for everyone, `GAIN_MINE` (+1000 base). Losing it:
-`QueenHasRegainedMineSector` (sets `fQueenRetookProducingMine` if it ever produced for the player; head miner dialogue,
-`25`), morale −8, `LOSE_MINE` (−1500). Control of the town's other sectors only changes the workforce share. The town's
-loyalty is not touched by the mine changing hands beyond these global events.
+Capture and loss run the mine branches of §2.6 (morale ±8, `GAIN_MINE` +1000 / `LOSE_MINE` −1500 base). On loss,
+`QueenHasRegainedMineSector` sets `fQueenRetookProducingMine` if the mine ever produced for the player (head miner
+dialogue, `25` §1.3). Control of the town's other sectors only changes the workforce share (§3.5); the mine changing
+hands touches the town's loyalty only through these global events.
 
 ### 3.7 Monsters and shutdowns
 
@@ -717,12 +716,12 @@ first time → shut down, permanent, −10000 loyalty (not called in ja2-node, �
 ### 3.8 Prediction, UI values, progress, difficulty
 
 - `PredictDailyIncomeFromAMine(i)` (`Strategic_Mines.cc:543-556`) = `PlayerControlsMine ? min(4 × rate(i, workforcePlayer), supply) : 0`;
-  `PredictIncomeFromPlayerMines` sums it. This is the map screen's projected income
-  (`GetProjectedTotalDailyIncome`, `Laptop/Finances.cc:224-242`) and feeds `CalcDifficultyModifier` (−5 when 0, §1.9).
+  `PredictIncomeFromPlayerMines` sums it: the map screen's projected income (`GetProjectedTotalDailyIncome`,
+  `Laptop/Finances.cc:224-242`) and the input of `CalcDifficultyModifier` (−5 when 0, §1.9).
 - `GetMaxDailyRemovalFromMine` (`:263-273`) = `shutDown ? 0 : min(4 × maxRemovalRate, supply)`.
-- `CalcMaxPlayerIncomeFromMines` (`:574-582`) = Σ 4 × `maxRemovalRate` over all mines — after a mine empties its rate
-  is 0, so the denominator of the income share of `CurrentPlayerProgressPercentage` shrinks (`Tactical/Campaign.cc:1189-`,
-  weights from `game.json` `progress`, 50 % income; `17`).
+- `CalcMaxPlayerIncomeFromMines` (`:574-582`) = Σ 4 × `maxRemovalRate` over all mines. An emptied mine's rate is 0, so
+  the denominator of the income share of `CurrentPlayerProgressPercentage` shrinks (`Tactical/Campaign.cc:1189-`, weights
+  from `game.json` `progress`, 50 % income; `17`).
 - Mine info box (`Map_Screen_Interface_TownMine_Info.cc:236-310`): status (abandoned / shut down / running out /
   producing), predicted daily income, max daily removal, production % (predicted × 100 / max), town control %, loyalty
   (if started), type. Remaining ore is debug-only.
@@ -735,7 +734,7 @@ first time → shut down, permanent, −10000 loyalty (not called in ja2-node, �
   append `{code, secondCode, minute, amount, balanceAfter}`; for `HIRED_MERC`, `IMP_PROFILE`, `PAYMENT_TO_NPC`,
   `EXTENDED_CONTRACT_*` also `profile[secondCode].uiTotalCostToDate += −amount`. It never refuses: callers check the
   balance (militia: `balance >= cost`). Codes (`Laptop/Finances.h:15-45`) used here: `DEPOSIT_FROM_SILVER_MINE`,
-  `TRAIN_TOWN_MILITIA`, `PAYMENT_TO_NPC` (daily RPC salary, `22`), `TRANSFER_FUNDS_TO_MERC` (Larry, `25`).
+  `TRAIN_TOWN_MILITIA`, `PAYMENT_TO_NPC` (daily RPC salary, `22`), `TRANSFER_FUNDS_TO_MERC` (Larry, `35` §2.4).
 - Skyrider's per-sector bill (§4.4) is accumulated and paid through the same function (`16`).
 
 ja2-node: `src/sim/campaign/finances.ts` (`FinanceCode`, `addTransaction`, `currentBalance`) on `StrategicState.finances`
@@ -787,7 +786,7 @@ one became enemy air (`StrategicMap.cc:2296-2310`, `21`). ja2-node: `src/sim/str
 | SAM shot | on entering an enemy-air sector whose SAM works: `PreRandom(100) < min(condition, 33)` → hit; 1st minor damage, 2nd forced return to base, 3rd destroyed | `Map_Screen_Helicopter.cc:1046-1130` |
 | Refuel sites | unavailable if the site sector is enemy controlled or enemy air (Estoni also needs a fact) | `:615-640` |
 | Unsafe-sector counts for the route UI | `GetNumSafeSectorsInPath`/`GetNumUnSafeSectorsInPath` | `:1236-1350` |
-| Militia | any SAM sector may train militia (wilderness SAMs need no loyalty; N4 needs Meduna's), cap 20 there | §1 |
+| Militia | any SAM sector may hold and train militia | §1.1 |
 | Loyalty/morale | capture/loss events (§2.6) | |
 
 ---
@@ -799,11 +798,12 @@ one became enemy air (`StrategicMap.cc:2296-2310`, `21`). ja2-node: `src/sim/str
 `Assignments` (`Strategic/Assignments.h:28-65`): `SQUAD_1..SQUAD_20` (0–19), `ON_DUTY` 20 (the boundary, never assigned
 itself), `DOCTOR`, `PATIENT`, `VEHICLE`, `IN_TRANSIT` (hired, not arrived), `REPAIR`, `TRAIN_SELF`, `TRAIN_TOWN`,
 `TRAIN_TEAMMATE`, `TRAIN_BY_OTHER`, `ASSIGNMENT_DEAD`, `ASSIGNMENT_UNCONCIOUS` (unused), `ASSIGNMENT_POW`,
-`ASSIGNMENT_HOSPITAL`, `ASSIGNMENT_EMPTY`. "On a squad" means `assignment < ON_DUTY`; everything from `DOCTOR` up except
+`ASSIGNMENT_HOSPITAL`, `ASSIGNMENT_EMPTY`. "On a squad" = `assignment < ON_DUTY`; everything from `DOCTOR` up except
 `VEHICLE` is a non-combat assignment. Trainable stats (`:70-82`): STRENGTH, DEXTERITY, AGILITY, HEALTH, MARKSMANSHIP,
 MEDICAL, MECHANICAL, LEADERSHIP, EXPLOSIVE (not wisdom).
 
-`AreAssignmentConditionsMet(s, allowed)` (`Assignments.cc:356-369`): each condition holds unless its flag is passed:
+`AreAssignmentConditionsMet(s, allowed)` (`Assignments.cc:356-369`): each condition holds unless its flag is passed;
+always: not `IN_TRANSIT`, not POW.
 
 | Flag | Condition when not allowed |
 |---|---|
@@ -816,13 +816,11 @@ MEDICAL, MECHANICAL, LEADERSHIP, EXPLOSIVE (not wisdom).
 | `AC_MOVING` | not between sectors |
 | `AC_UNDERGROUND` | surface |
 
-and always: not `IN_TRANSIT`, not POW.
-
 | Kind | Eligibility | Source |
 |---|---|---|
 | Doctor | medical > 0, conditions (underground allowed), a `MEDICKIT` in HANDPOS..SMALLPOCK8 (first aid kits do not count) | `:372-398`; `Tactical/Items.cc:3280-3283` |
 | Patient | life > 0, (life < max or stats damaged with `enable_stat_healing`), conditions allowing unconscious, EPC, underground | `:594-613` |
-| Hospital | as patient; Cambria F8 (`HOSPITAL_SECTOR_*`), paid via Vince (`25`) | `:5948-5956` |
+| Hospital | as patient; Cambria F8 (`HOSPITAL_SECTOR_*`), paid via Vince (`25` §6.3) | `:5948-5956` |
 | Repair | mechanical > 0, conditions (underground allowed), a `TOOLKIT`, and something to repair: own/others' items (jammed or damaged repairable), the robot, or an accessible damaged vehicle (never the helicopter) | `:406-592` |
 | Train self / by other | conditions `AC_NONE`, stat ≠ 0 and < 85 | `:710-721` |
 | Train teammate | conditions `AC_NONE`, stat ≥ 25 (`MIN_RATING_TO_TEACH`) | same |
@@ -840,10 +838,11 @@ to exist when assigning (the mercs just flash).
 1. re-check eligibility (silent failure; the list version reports one failure box);
 2. `PreChangeAssignment` (`:3376-3380`): leave the vehicle; `RemoveCharacterFromSquads`;
 3. if the assignment (or the repair target) differs: `SetTimeOfAssignmentChangeForMerc` (`:6299-6315`): leaving the
-   hospital refunds the unused payment (`25`); `lastAssignmentChangeMin = now`; request a nothing-to-do re-evaluation;
+   hospital refunds the unused payment (`25` §6.3); `lastAssignmentChangeMin = now`; request a nothing-to-do
+   re-evaluation;
 4. kind specifics: doctor/repair swap the kit into HANDPOS (`MakeSureMedKitIsInHand`/`MakeSureToolKitIsInHand`,
-   `:3472-3530`: first kit from SECONDHANDPOS on is swapped with the hand; if SECONDHANDPOS is empty and the swapped-out
-   object is not, it goes to SECONDHANDPOS); training sets `trainStat`; hospital stops bleeding; repair sets
+   `:3472-3530`: the first kit from SECONDHANDPOS on is swapped with the hand; if SECONDHANDPOS is empty and the
+   swapped-out object is not, it goes to SECONDHANDPOS); training sets `trainStat`; hospital stops bleeding; repair sets
    `fixingRobot`/`vehicleUnderRepair`; militia may open the payment prompt (§1.3);
 5. `ChangeSoldiersAssignment` (`:297-331`): set it; non-REPAIR clears the repair target; DEAD sets life 0;
    DOCTOR/PATIENT/HOSPITAL post `EVENT_BANDAGE_BLEEDING_MERCS` at now + 1 (§5.6);
@@ -853,13 +852,12 @@ to exist when assigning (the mercs just flash).
 Joining a squad (`AddCharacterToSquad`, `Tactical/Squads.cc:180-200`) wakes a sleeping merc and stamps the time when the
 assignment changes. `EnoughTimeOnAssignment(s)` = `now − lastAssignmentChangeMin ≥ 45` (`:1213-1216`): nothing pays out
 in the first 45 minutes, and a merc in that window counts as taking it easy (§5.4). ja2-node: `set-assignment.ts`
-`assignSoldiers(ctx, ids, target)` runs this per soldier in the given order, each checked independently (`04` §6).
+`assignSoldiers(ctx, ids, target)` runs this per soldier in the given order, each checked independently (`29`).
 
 ### 5.3 The hourly order
 
 `HandleHourlyUpdate` (`Strategic/Hourly_Update.cc:35-73`; order and owners in `15` §3.2) starts with `UpdateAssignments`;
-`HandleQuarterHourUpdate` (`:85-92`) runs `DecayTacticalMoraleModifiers` every 15 minutes (`11` §9 says hourly; it is
-quarter-hourly).
+`HandleQuarterHourUpdate` (`:85-92`) runs `DecayTacticalMoraleModifiers` every 15 minutes.
 
 ```
 UpdateAssignments():                                                 // Assignments.cc:954-1029
@@ -878,10 +876,10 @@ UpdateAssignments():                                                 // Assignme
  11. HandleContinueOfTownTraining()       // §1.5 prompts
  12. ReEvaluateEveryonesNothingToDo()     // §5.10
 ```
-Vanilla has no step 2 and reads the live `fMercAsleep` in step 8 (V: `Assignments.c:1661-1734, 1989`); because step 7
-wakes and beds mercs first, vanilla credits the hour to whoever is awake *after* step 7. Stracciatella credits whoever
-was asleep *before* it (D1: follow Strac). ja2-node: `update.ts` `updateAssignments`; the box of step 10 is the client's
-(`deviations.md` "Update box timing").
+Vanilla has no step 2 and reads the live `fMercAsleep` in step 8 (V: `Assignments.c:1661-1734, 1989`), so it credits the
+hour by the sleep state *after* step 7 has woken and bedded mercs; Stracciatella uses the state *before* it (D1: follow
+Strac). ja2-node: `update.ts` `updateAssignments`; the box of step 10 is the client's (`deviations.md` "Update box
+timing").
 
 ### 5.4 Rest, fatigue and sleep
 
@@ -993,8 +991,8 @@ HealPatient(p, d, h):                                                 // :1426-1
 used. Kit points are the objects' status (`TotalPoints`, `:2394-2404`): a full medical kit heals 100 life points.
 ja2-node: `kits.ts` (kit points, kit to hand), `doctor.ts`; aborts are `assignmentAborted` events.
 
-**Bandaging on assignment** (`BandageBleedingDyingPatientsBeingTreated`, `:6461-6528`, the minute event from §5.2):
-for each OUR merc bleeding or below OKLIFE on PATIENT/DOCTOR/HOSPITAL: hospital → bleeding 0, life at least OKLIFE, free;
+**Bandaging on assignment** (`BandageBleedingDyingPatientsBeingTreated`, `:6461-6528`, the minute event of §5.2): for
+each OUR merc bleeding or below OKLIFE on PATIENT/DOCTOR/HOSPITAL: hospital → bleeding 0, life at least OKLIFE, free;
 else the first doctor who could ever heal him (`AnyDoctorWhoCanHealThisPatient`, id order) uses his first IC_MEDKIT item
 (first aid kit or medical kit, `FindObjClass`): `VirtualSoldierDressWound(d, p, kit, total, total)` with 12 APs
 (`RT_FIRST_AID_GAIN_MODIFIER`, `Strategic/Auto_Resolve.cc:910-1056`; formula in `19`), `UseKitPoints(kit, cost)`. Then
@@ -1003,8 +1001,8 @@ all pending copies of the event are deleted and one is re-posted for now + 1 if 
 (quirk; tactical `SoldierDressWound` uses HANDPOS, `Soldier_Control.cc:7040`). Its `StatChange` calls draw `pre`.
 ja2-node reaches it through the crew port's `dressWound` (autoresolve's port of the function).
 
-**Hospital** (paid through Vince, `25`): `HealHospitalPatient` 5 points per hour (2 per life point below OKLIFE), done at
-full life (`:1634-1714`).
+**Hospital** (paid through Vince, `25` §6.3): `HealHospitalPatient` 5 points per hour (2 per life point below OKLIFE),
+done at full life (`:1634-1714`).
 
 ### 5.7 Repair
 
@@ -1091,7 +1089,7 @@ GetBonusTrainingPtsDueToInstructor(t, student|null, stat, gunRange, &max):   // 
    hour **and not flagged nothing-to-do** (Strac, `:2208-2213`; V trains a partnerless student at his own rate,
    V: `Assignments.c:3117`): `pts = GetSoldierTrainingPts`; TRAIN_BY_OTHER with an instructor for his stat adds
    `GetBonusTrainingPtsDueToInstructor(instructor, student, …)`; `TrainSoldierWithPts` (`:2591-2617`):
-   `StatChange(s, statAmt, pts, FROM_TRAINING)` if pts > 0 (`11` §10: chance 0 at ≥ 85, wisdom applies to physical
+   `StatChange(s, statAmt, pts, FROM_TRAINING)` if pts > 0 (`33` §5: chance 0 at ≥ 85, wisdom applies to physical
    stats when training);
 3. militia (§1.4). Instructors themselves gain nothing.
 
@@ -1101,9 +1099,8 @@ training a 60 stat alone: 80 × 25 / 1000 = 2 chances per hour.
 
 ### 5.9 Training militia
 
-See §1.2–§1.5. On the assignment side: one of the three per-sector handlers of step 8, after stat training; trainers who
-are asleep during the past hour or within their first 45 minutes contribute nothing; a trainer whose
-`CanCharacterTrainMilitia` fails (area full, loyalty dropped) is "nothing to do" but keeps training.
+§1.2–§1.5; the militia handler is the last training step of §5.8, inside step 8 of §5.3. A trainer whose
+`CanCharacterTrainMilitia` fails (area full, loyalty dropped) is flagged nothing-to-do (§5.10) but keeps training.
 
 ### 5.10 Nothing to do, done, aborted
 
@@ -1122,9 +1119,9 @@ assignment. `AssignmentAborted` (`:2736-2744`): message + stop compression.
 
 ### 5.11 Interaction with travel and the clock
 
-- A merc on a non-squad, non-vehicle assignment has his own player group and cannot be given a route (`ME_BUSY`,
-  `Map_Screen_Interface.cc:3818-3820`): the player puts him back on a squad first. Mercs between sectors cannot take any
-  non-squad assignment (no kind allows `AC_MOVING`; only sleeping does); doctors cannot treat moving patients.
+- A merc on a non-squad, non-vehicle assignment has his own player group and cannot be given a route until he is back
+  on a squad (`ME_BUSY`, `Map_Screen_Interface.cc:3818-3820`). Mercs between sectors cannot take any non-squad
+  assignment (no kind allows `AC_MOVING`; only sleeping does); doctors cannot treat moving patients.
 - Fatigue applies while travelling (on foot, with encumbrance; vehicle passengers rest unless driving). On arrival in a
   sector that is not the destination, `AnyMercInGroupCantContinueMoving` (`Assignments.cc:6318-6343`, from
   `Strategic_Movement.cc:3477`) stops the whole group if anyone is too tired (`PlayerSoldierTooTiredToTravel`, `:6346-6363`:
@@ -1134,8 +1131,8 @@ assignment. `AssignmentAborted` (`:2736-2744`): message + stop compression.
   merc port's `tooTiredToTravel`/`collapseFromFatigue`.
 - A battle wakes everyone involved (`WakeUpAllMercsInSectorUnderAttack`, `PreBattle_Interface.cc:1284-1296`, forced); PBI
   "retreat/fight" put non-squad mercs onto squads (`19`).
-- All of it runs on game minutes: `EnoughTimeOnAssignment`, the hourly event and the bandage minute event (`15`). In
-  turn-based combat the world clock is frozen (`10` §8.4), so no assignment progress happens.
+- Everything runs on game minutes: `EnoughTimeOnAssignment`, the hourly event and the bandage minute event (`15`). In
+  turn-based combat the world clock is frozen (`10` §8.4), so assignments make no progress.
 
 ### 5.12 Merc-side periodic updates
 
@@ -1144,14 +1141,14 @@ assignment. `AssignmentAborted` (`:2736-2744`): message + stop compression.
 | Bleeding, breath regeneration, shock decay | every real-time tactical turn for **all** OUR mercs, wherever they are (blood drops only in sector) | `EVENT_BeginMercTurn` (`10` §2.4); on the strategic map the turn cadence follows time compression (`15` §1.7) | `Tactical/Tactical_Turns.cc:80-139`, `Soldier_Control.cc:4000-4030` |
 | Natural healing | hourly | §5.5 | |
 | Rest/fatigue/sleep | hourly | §5.4 | |
-| Tactical morale decay | every 15 min | `DecayTacticalMoraleModifiers` (`11` §9; nervous/claustrophobic cases) | `Morale.cc:138-217` |
+| Tactical morale decay | every 15 min | `DecayTacticalMoraleModifiers` (`33` §4; nervous/claustrophobic cases) | `Morale.cc:138-217` |
 | Buddy/hated counters, team morale | hourly, in that order | `UpdateBuddyAndHatedCounters`, `HourlyMoraleUpdate` (`22` §5.2–§5.3); every 3rd call decays the strategic modifier (function-static counter, not saved) | `Strategic_Merc_Handler.cc:526-730`, `Morale.cc:664-815` |
 | Camouflage | hourly | −2 % (not CAMOUFLAGED trait); monster smell −1 | `Strategic_Merc_Handler.cc:733-759` |
 | Daily merc update | 00:00 (not day 1) | `MercDailyUpdate` (`22` §2.1): low death rate morale, quote flags, equipment complaint, days served, RPC salary (`PAYMENT_TO_NPC`), `DailyMoraleUpdate`, contract offers, unhired mercs | `Strategic_Merc_Handler.cc:135-370`, `Morale.cc:818-856` |
 | Merc death bookkeeping | on death | history, death count, `SOLDIER_DEAD`, breath 0, profile dead, insurance, teammate morale (`19` §3.7) | `:52-130` |
 
 ja2-node: `src/sim/campaign/team-morale.ts` (`hourlyMoraleUpdate`, `updateBuddyAndHatedCounters`,
-`decayTacticalMoraleModifiers`) run with the roster from `BattleFlow`; the decay counter is saved
+`decayTacticalMoraleModifiers`), run with the roster from `BattleFlow`; the decay counter is saved
 (`state.teamMorale.strategicDecayCounter`, `deviations.md` "Strategic morale decay counter"). **Not ported**: the hourly
 camouflage update (applied camouflage never wears off) and `UpdateRegenCounters` (drugs are not modelled).
 
@@ -1164,20 +1161,21 @@ salary (deducted at 00:00 if affordable, `Strategic_Merc_Handler.cc:209-257`) ar
 
 `SECTORINFO.uiFacilitiesFlags` (hospital, industry, prison, military, airport, gun range) are display flags only
 (`Player_Command.cc:33-53`; the flags known at a new campaign come from `InitKnowFacilitiesFlags`,
-`data/tables/sector-facilities.json`); the gun range bonus is hardcoded to H13 (§5.8). No facility assignments exist in
-Stracciatella (a 1.13 feature).
+`data/tables/sector-facilities.json`); the gun range bonus is hardcoded to H13 (§5.8). Stracciatella has no facility
+assignments (a 1.13 feature).
 
 ### 5.15 RNG in the hourly update
 
 In order: step 8 sectors column-major, per sector doctors → repairmen → training, mercs in id order:
 - doctor: `StatChange` MEDICAL (used/100 chances), DEX (used/200), WIS (used/200): one `pre` draw per chance, plus
-  `main` `Random(100) < 25` per stat point gained (`11` §10);
+  `main` `Random(100) < 25` per stat point gained (`33` §5);
 - repair: unjam MECH 5 + DEX 5 per gun (`pre`), then MECH and DEX used/2 each (`pre`), then `main` `Random(100)` toolkit
   wear;
 - training: students' `StatChange` chances (`pre`), trainers of militia LDR `1 + pts/200` (`pre`);
 - bandage minute event: `VirtualSoldierDressWound` MEDICAL actual/2, DEX actual/4 (`pre`).
+
 Rest, fatigue, sleep, natural healing, hospital, militia completion: none. Other hourly handlers: `HourlyLarryUpdate`
-`Random(n)`, Slay `Chance(15)` (`25`).
+`Random(n)`, Slay `Chance(15)` (`35` §2.4).
 
 ---
 
@@ -1206,7 +1204,7 @@ nothing else here needs original data.
 
 | Module (`src/sim/strategic/economy/`) | Responsibility |
 |---|---|
-| `state.ts`, `constants.ts`, `events.ts` | `EconomyState` (§0); enums and constants of the original; `EconomyEvent` (the events of `04` §6) |
+| `state.ts`, `constants.ts`, `events.ts` | `EconomyState` (§0); enums and constants of the original; `EconomyEvent` (the events of `29`) |
 | `ports.ts`, `context.ts` | `CrewPort`/`CrewMember` (the active OUR team in id order, vehicles and the robot included; `statChange`, `healStat`, `opinion`, `dressWound`), `EconomyHooks` (morale events, theft, monsters, Queen mine-ran-out, rebels hostile, meanwhiles, head miners, vehicle repair, history), `EconomyDecisions` (militia prompts), `PeriodicSlots` (the other hourly and quarter-hour handlers); `createEconomyContext` (an `EconomyContext` is also a `StrategicContext` whose `mercs` is the crew port), `economyWorldPort` |
 | `towns.ts` | `buildTownSectors` (column-major), `townOf`, `townSize`, `sectorsUnderControl`, `isTownUnderCompleteControl`, `numberOfWholeTownsUnderControl`, `sectorOursAndPeaceful` |
 | `loyalty.ts`, `inactivity.ts` | §2: accumulator, global events and distances, whole towns, control-change effects, theft chance, quest and recruit changes; `handleEnricoEmail`, `lackOfProgressTolerance` |
@@ -1223,7 +1221,7 @@ Elsewhere: `src/sim/strategic/map/control.ts` (control changes, `updateAirspaceC
 `src/sim/campaign/sector-flow.ts` (militia population and reset, militia and enemy deaths, promotions and defections on
 unload, retreat loyalty), `battle-flow.ts` (battle won/lost, theft via `sector-loot.ts`); `src/sim/tactical/init-list.ts`,
 `tactical/combat/death.ts`, `tactical/narrative/civ-hostility.ts`; `src/sim/campaign/commands.ts` (the `assign`, `sleep`,
-`wake`, `moveMilitia` and `distributeMilitia` commands, `04` §6).
+`wake`, `moveMilitia` and `distributeMilitia` commands, `29`).
 
 ### 6.3 Wiring
 
@@ -1246,8 +1244,8 @@ unload, retreat loyalty), `battle-flow.ts` (battle won/lost, theft via `sector-l
 loyalty) and the finances temp file; `importEconomy(state, saved, balance)` loads them; `readSoldierAssignments` decodes
 the assignment fields of every soldier record for `applySavedAssignment` (`src/server/save-session.ts`). Section 11's
 militia and training fields come with `importStrategicMap`; section 34 (Enrico flags, highest progress, activity
-counters) with the Queen's `savegame-strategic-ai.ts` and `ai/save-import.ts`. Native profiles import the relation fields,
-so imported campaigns keep their buddy/hated counters.
+counters) with the Queen's `savegame-strategic-ai.ts` and `ai/save-import.ts`. Native profiles import the relation
+fields, so imported campaigns keep their buddy/hated counters.
 
 ### 6.5 Verification
 
@@ -1264,31 +1262,36 @@ result.
 
 All read in Stracciatella; V where marked.
 
-- `g_town_sectors` is column-major; it drives militia overflow and redistribution order.
-- Training progress accrues regardless of the paid flag; payment survives trainers leaving; no carry-over past 100 %;
-  the completing trainer stops the others that hour (they get no LDR chance).
-- A session creates up to 10 greens or promotes greens, never elites; loyalty bonus only if ≥1 militia placed.
-- Militia kills give 3 points, assists 1; promotions only at sector unload, not after autoresolve hand-off; rank fallback
-  to higher ranks; double promotion green → elite possible.
-- Militia placement: no attitude roll and no detail drop in the class-matched basic pass.
-- Redistribution AUTO counts militia in hostile-occupied sectors but never gives them back; leftovers over 20 are lost.
-- Loyalty: remainder keeps its sign; reaching the cap exactly zeroes the remainder; increments/decrements of unstarted
-  towns are dropped; `SetTownLoyalty` starts towns (rebels betrayed starts unvisited towns at 0).
-- Distance 0 for both "same sector" and "no path".
-- Uncontested captures give no sector, liberation, mine or SAM loyalty and never complete a town's liberation.
+- `g_town_sectors` is column-major: militia overflow and redistribution order (§1.5, §1.8).
+- Training: progress accrues regardless of the paid flag; payment survives trainers leaving; no carry-over past 100 %;
+  the completing trainer stops the others that hour (§1.3, §1.4).
+- A session creates up to 10 greens or promotes greens, never elites; loyalty bonus only if ≥1 militia placed (§1.5).
+- Militia kills give 3 points, assists 1; promotions only at sector unload, not after autoresolve hand-off; rank
+  fallback to higher ranks; double promotion green → elite possible (§1.6).
+- Militia placement: no attitude roll and no detail drop in the class-matched basic pass (§1.9).
+- Redistribution AUTO counts militia in hostile-occupied sectors but never gives them back; leftovers over 20 are lost
+  (§1.8).
+- Loyalty: the remainder keeps its sign; reaching the cap exactly zeroes the remainder; increments/decrements of
+  unstarted towns are dropped; `SetTownLoyalty` starts towns (rebels betrayed starts unvisited towns at 0) (§2.1–§2.2,
+  §2.4).
+- Distance 0 for both "same sector" and "no path" (§2.3).
+- Uncontested captures give no sector, liberation, mine or SAM loyalty and never complete a town's liberation (§2.6,
+  §2.7).
 - `HandleMurderOfCivilian` falls through to a full decrement for rebel-hostile militia and non-monster creature killers;
-  militia deaths never count as murder.
-- Theft happens on every enemy takeover call, also for reinforcements.
+  militia deaths never count as murder (§2.5).
+- Theft happens on every enemy takeover call, also for reinforcements (§2.6).
 - Inactivity is not counted on days with a progress or setback mail; creature/progress mail days skip the new-sector
-  counter reset.
+  counter reset (§2.8).
 - Mines: Queen extraction only after the mine produced for the player; the running-out rate uses float math; the max
-  income denominator shrinks when a mine empties.
+  income denominator shrinks when a mine empties (§3.5, §3.8).
 - Assignments: doctors are patients too; the odd point below OKLIFE is wasted; kits are consumed from the last object;
   tiny damage (cost rounds to 0) is fixed for free even with 0 points left; unjamming runs for every pass;
   `CanCharacterRepairAnotherSoldiersStuff` tests the repairer for mechanical/EPC; `VirtualSoldierDressWound` reads
-  HELMETPOS for the medical kit bonus; rested squad mercs oscillate around 95 breathMax; dying awake mercs are fatigued.
+  HELMETPOS for the medical kit bonus; rested squad mercs oscillate around 95 breathMax; dying awake mercs are fatigued
+  (§5.4, §5.6, §5.7).
 - Strac changes vs V, kept per D1: sleep status recorded before the hourly rest step; partnerless students do not train;
-  `CalcSoldierNeedForSleep` health term fixed (V: integer bug); militia promotion without draws below the thresholds.
+  `CalcSoldierNeedForSleep` health term fixed (V: integer bug); militia promotion without draws below the thresholds
+  (§1.6, §5.3, §5.4, §5.8).
 
 Deviations (full entries in `deviations.md`): "Time compression for healing", "Nothing-to-do re-evaluation", "Loyalty
 distance path", "Militia trainer ties", "Militia payment and continue prompts", "Militia redistribution", "Strategic morale

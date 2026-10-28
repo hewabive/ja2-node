@@ -19,10 +19,10 @@ insertion order (`NOTHING`, `items.json`, `magazines.json`, `weapons.json`, `exp
 event queue, the 09:00 `DAILY_UPDATE_BOBBY_RAY_INVENTORY` event and the new-game order (`15` §4.2 step 3). `16` owns NPC
 placement in loaded sectors (`profileHere`) and sector diffs (items dropped by a dead dealer). `18` owns finances
 (`addTransaction`) and the mercs' own repair assignment (`18` §5.7; unrelated to repairmen here). `14` §4 row 23 is the save
-section. `21` owns Bobby Ray's online shop, which reuses the supply functions of §4. `22` owns contracts. `11` owns the death
+section. `21` owns Bobby Ray's online shop, which reuses the supply functions of §4. `22` owns contracts. `33` owns the death
 commit (opcode 440) that calls the dead-dealer hook (§10.7). `24` owns talking (the talk menu, BUYSELL records, giving items),
-`25` the facts, the 04:00 event and schedules. The shop screen is `28` §5.9; the shop commands, queries, events and view are
-`04` §6.
+`25` the facts, `35` the 04:00 event and schedules. The shop screen is `30` §2.9; the shop commands, queries, events and view are
+`29`.
 
 ---
 
@@ -396,7 +396,7 @@ whether his sector is loaded.
 - Set to `initialCash` at the new game and every 09:00 (§5.3, before restock; not for dead dealers).
 - Increases: money items the player hands over (any transaction, including gifts to `ACCEPTS_GIFTS` dealers), the part
   of a price paid from the player's balance (`ShopKeeper_Interface.cc:3364-3368`), money given to Frank outside the SKI
-  (`TacticalAI/NPC.cc:1013-1016`, `25` §3.11).
+  (`TacticalAI/NPC.cc:1013-1016`, `35` §1.11).
 - Decreases: change handed to the player (`GivePlayerSomeChange`, `:5903-5927`). Jake: if his cash is below the change it
   is first raised to exactly the change (he never refuses, "quote 27 was never recorded", `:3311-3319, 5916-5921`).
 - Limits buying: a `BUYS_ONLY`/`BUYS_SELLS` dealer refuses a transaction when `change > cash` **before** the offered money
@@ -502,7 +502,7 @@ taken with the gun (§2.2). Money (`IC_MONEY`: MONEY, MONEY_FOR_PLAYERS_ACCOUNT,
 Ways in: the talk menu's 5th entry (labelled with the dealer type, `Tactical/Interface_Dialogue.cc:738-741`) when the
 NPC has no unused `APPROACH_BUYSELL` record (else that record plays, `24`) (`:800-830`); the NPC script action
 `NPC_ACTION_INITIATE_SHOPKEEPER_INTERFACE` after `HandleShopKeepHasBeenShutDown` (Keith out of business or low loyalty
-plays a record instead, `TacticalAI/NPC.cc:2640-2665`, `25` §3.2 action 41) (`Interface_Dialogue.cc:3578-3585`); giving an
+plays a record instead, `TacticalAI/NPC.cc:2640-2665`, `35` §1.2 action 41) (`Interface_Dialogue.cc:3578-3585`); giving an
 item to a dealer who would not accept it as a quest item opens the SKI with that item already offered
 (`Tactical/Handle_Items.cc:2347-2390`, `24`). Starting to talk costs `AP_TALK` 6 (`Tactical/Soldier_Control.cc:8564-8567`);
 the talk preconditions are `24` (`Tactical/Handle_UI.cc:4560-4840`: talkable NPC, visible, not moving outside combat, LOS,
@@ -594,7 +594,7 @@ Cash objects in the POA pay first; the balance only covers the shortfall, and on
 `PURCHASED_ITEM_FROM_DEALER` 26, second code = dealer profile). Change is a MONEY object. Moving money between the account
 and a merc is a general SM-panel feature, not part of trading: withdraw → `TRANSFER_FUNDS_TO_MERC` (`Interface_Items.cc:
 4977-4984`), deposit → `MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT` (`Interface_Panels.cc:3646-3715`); ja2-node:
-`src/sim/campaign/money-flow.ts` (`04` §6).
+`src/sim/campaign/money-flow.ts` (`29`).
 
 ---
 
@@ -651,7 +651,7 @@ CalculateOvernightRepairDelay(d, start, fix):                           // :2376
 ```
 `GetArmsDealerShopHours` (`:2356-2372`) takes the `SCHEDULE_ACTION_UNLOCKDOOR`/`LOCKDOOR` times of the dealer's map
 schedule (`Strategic/Scheduling.cc:1036-1076`). ja2-node: the `shopHours` merchant hook, which `campaign-sim.ts` answers from
-the loaded tactical sector's schedules (`extractScheduleDoorLockAndUnlockInfo`, `25` §5.5) for the dealer's soldier there,
+the loaded tactical sector's schedules (`extractScheduleDoorLockAndUnlockInfo`, `35` §3.5) for the dealer's soldier there,
 else `null`. A job started after closing pays a full night although part of it has passed; a job started at night before
 opening may finish at night; with no hours there is no delay.
 
@@ -709,12 +709,12 @@ arrays freed; his cash as one MONEY object; cash 0. A dead dealer is skipped by 
 
 | Condition | Where |
 |---|---|
-| Dealer soldier present: profile sector = loaded sector, not hired, not dead, map placement with his profile | `profileHere` (`sector-flow.ts`; `25` §4.6) |
+| Dealer soldier present: profile sector = loaded sector, not hired, not dead, map placement with his profile | `profileHere` (`sector-flow.ts`; `35` §2.6) |
 | Not out of business | §10.7 |
 | Manny is a dealer only with `FACT_MANNY_IS_BARTENDER` | §1.2 |
-| Unused `APPROACH_BUYSELL` NPC record plays first; Keith's shutdown records | §9.1 (`24`, `25` §3.2) |
-| Tony available 3 days in 4 once spoken to: at 04:00, if C5 is not loaded, `Random(4)` ≠ 0 → C5, else `FACT_TONY_NOT_AVAILABLE` and no sector | `Strategic/Strategic_Event_Handler.cc:733-747`; `25` §4.3 (`early-morning.ts`) |
-| Devin moves daily while never spoken to (counter starts at 3, `Game_Init.cc:115`) to a random sector of his placement list | `:752-766`, `J:strategic-map-npc-placements.json`; `25` §4.3 |
+| Unused `APPROACH_BUYSELL` NPC record plays first; Keith's shutdown records | §9.1 (`24`, `35` §1.2) |
+| Tony available 3 days in 4 once spoken to: at 04:00, if C5 is not loaded, `Random(4)` ≠ 0 → C5, else `FACT_TONY_NOT_AVAILABLE` and no sector | `Strategic/Strategic_Event_Handler.cc:733-747`; `35` §2.3 (`early-morning.ts`) |
+| Devin moves daily while never spoken to (counter starts at 3, `Game_Init.cc:115`) to a random sector of his placement list | `:752-766`, `J:strategic-map-npc-placements.json`; `35` §2.3 |
 | Micky (and Gabby, sci-fi) placed at a random listed sector at game start | `InitNPCs`, `Game_Init.cc:73-116` (`docs/15` §4.3 step 7; `src/sim/strategic/map/init.ts`) |
 | Repairmen's shop hours | map schedules (§10.3) |
 
@@ -723,8 +723,8 @@ arrays freed; his cash as one MONEY object; cash 0. A dead dealer is skipped by 
 ## 12. Other paid services
 
 Bartenders are ordinary `SELLS_ONLY` dealers (§1.1); drinking is item use (`docs/12`). The hospital (Vince, Steve Willis:
-`CalcPatientMedicalCost`, `CalcMedicalCost`, `Interface_Dialogue.cc:4065-4152`) is `25` §11.3; Dave's gas, Waldo, Darren's
-fights, Kingpin and Carmen's bounties are NPC dialogue (`25`); Skyrider's fares are `docs/16`; Bobby Ray is `docs/21`.
+`CalcPatientMedicalCost`, `CalcMedicalCost`, `Interface_Dialogue.cc:4065-4152`) is `25` §6.3; Dave's gas, Waldo, Darren's
+fights, Kingpin and Carmen's bounties are NPC dialogue (`24`, `35`); Skyrider's fares are `docs/16`; Bobby Ray is `docs/21`.
 
 ---
 
@@ -764,7 +764,7 @@ Transcribed: `data/tables/merchant-tables.json` (`tools/transcribe/merchant-tabl
 (suitability chances, coolness windows, price class bounds 100/1000, Tony's limits 2/3/8, reorder days, alcohol ⅓, gas
 4 + `Random(3)`, repair minimums 15 min and $10, rocket rifle surcharge 100, 12 offer slots, repair limit 4, the 6-hour delay
 and 180-minute gap, damage threshold 30, `AP_TALK` 6, `NPC_TALK_RADIUS` 4, Franz's and Fredo's 0x01 flags, ledger code 26)
-are named constants. The SKI layout, pages, hatching, description box, subtitles and quote timing are client UI (`28` §5.9).
+are named constants. The SKI layout, pages, hatching, description box, subtitles and quote timing are client UI (`30` §2.9).
 
 Original data (imported through the profile, map and `.npc` importers, never committed): dealer sectors and soldier stats
 (`prof.dat`), dealer placements and schedules (maps), BUYSELL records and Keith's shutdown records (`.npc`).
@@ -808,7 +808,7 @@ Under `src/sim/strategic/economy/merchants/`, with the SFI-SCLA header:
 Wiring (`src/sim/campaign/campaign-sim.ts`): the merchant context exists when the campaign has merchant content; the 09:00
 `DAILY_UPDATE_BOBBY_RAY_INVENTORY` handler runs the laptop's Bobby Ray update, then `dailyUpdateOfArmsDealersInventory`;
 `shopHours` reads the loaded sector's schedules (§10.3); `buySellRecordPending` and `shopClosedByScript` come from the talk
-and NPC-action flows (`24`, `25`).
+and NPC-action flows (`24`, `35`).
 
 ### 14.4 The shop session
 
@@ -819,11 +819,11 @@ checks of §9.1 (`CanMercInteractWithSelectedShopkeeper`), `AP_TALK` and facing,
 time and the collection of finished repairs, delivered at once with the §9.5 rules. A trade is one atomic `PerformTransaction`
 (`planTrade`/`executeTrade`) whose purchases, change and split-off repair parts are delivered at once with the Done rules;
 the offer areas are not state (deviations "Shop as commands", "Talking to dealers", "Giving to a dealer"). The commands,
-queries, events and view are `04` §6; the screen is `28` §5.9.
+queries, events and view are `29`; the screen is `30` §2.9.
 
 ### 14.5 Stubs and verification
 
-Stubs: `stubs/profiles.json` (`27` §6) has invented profiles at most dealer profile ids (Tony, Franz, Keith, Jake, Howard,
+Stubs: `stubs/profiles.json` (`32` §1) has invented profiles at most dealer profile ids (Tony, Franz, Keith, Jake, Howard,
 Sam, two bar brothers, Arnie, Fredo) with sectors in the stub map; `J:dealers.json` and the inventories apply unchanged.
 
 Oracle: the probes `dealers`, `dealerinit`, `dealerdaily`, `progress`, `fact`, `dealerprice`, `dealersell`, `shophours`,

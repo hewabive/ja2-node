@@ -1,16 +1,16 @@
 # Native oracle (JA2 Stracciatella probe build)
 
-A patched JA2 Stracciatella build that runs headless against the original game data, executes a probe script and prints
-JSON lines. `compare.ts` rebuilds every probe with ja2-node and reports mismatches. It is verification level 6 (`01` §8).
+A patched JA2 Stracciatella build that runs headless on the original game data, executes a probe script and prints JSON
+lines; `compare.ts` rebuilds every probe with ja2-node and reports mismatches. Verification level 6 (`01` §8).
 
-Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from the original data:
-keep them in the work dir outside the repository (default `~/ja2-oracle`) and never commit them.
+Nothing in this directory contains or produces game data by itself, but probe **outputs** derive from the original data:
+keep them in the work dir outside the repository (default `~/ja2-oracle`), never commit them.
 
 ## What is probed
 
 | Area | Probes | Scripts (`probes/`) | Comparer | Patches | Spec |
 |---|---|---|---|---|---|
-| Tactical map and combat | movement costs, paths, line of sight, soldier dumps, chance to hit and AP of an aimed shot, the AI's best shot, light levels | `a9-*.txt`, scripts written by `save-probes.ts` and `map-light-probes.ts` | `compare.ts` | 0001 | `07`, `08`, `11`, `13`, `14`, `20` |
+| Tactical map and combat | movement costs, paths, line of sight, soldier dumps, chance to hit and AP of an aimed shot, the AI's best shot, light levels | `a9-*.txt`, scripts written by `save-probes.ts` and `map-light-probes.ts` | `compare.ts` | 0001 | `07`, `08`, `11` §1–§2, `13`, `14`, `20` |
 | Sector transitions | edgepoints, exit thresholds, walking off and in, the quick-traversal mirror, `OKForSectorExit`, the soldier init list, defence, creature and bloodcat placements | `sectors.txt`, `creature-placement.txt` | `sector-compare.ts` | 0004 | `16` |
 | Strategic movement | travel table, strategic paths, the groups of a save | `strategic.txt` | `strategic-compare.ts` | | `16` |
 | Strategic AI | new campaign, evaluation, garrison checks, the Queen waking, group arrivals, difficulty modifier, the load-time recomputation | `sai-newgame.txt`, `sai-saves.txt` | `sai-compare.ts` | 0003 | `17` |
@@ -22,21 +22,21 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`) and ne
 | Contracts | daily merc update, renewal sequence, extensions, departures, leave list | `contracts.txt` | `contract-compare.ts` | 0007 | `22` |
 | Creature AI | creature and bloodcat decisions, melee, calls, smell | `creature-ai.txt` | `creature-ai-compare.ts` | 0009 | `13` |
 | Laptop | `InitNewGame`, A.I.M., M.E.R.C. and I.M.P. hires, Bobby Ray's, insurance, the florist | `laptop.txt`, `florist.txt` | `laptop-compare.ts` | 0010, 0025 | `21` |
-| Doors and civilian groups | locks, traps, door actions, civilian hostility | `doors.txt` | `doors-compare.ts` | 0011 | `25` |
+| Doors and civilian groups | locks, traps, door actions, civilian hostility | `doors.txt` | `doors-compare.ts` | 0011 | `35` §4, §5 |
 | Attachment AP | the item description box | `attach.txt` | `attach-compare.ts` | | `12` |
-| Facts and NPC presence | facts, quests, `CheckFact`, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement | `facts.txt` | `facts-compare.ts` | 0012 | `25` |
+| Facts and NPC presence | facts, quests, `CheckFact`, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement | `facts.txt` | `facts-compare.ts` | 0012 | `25` §1, §2, `35` §2 |
 | Talk | NPC records, desire to talk, record choice, conversation steps | `talk.txt` | `talk-compare.ts` | 0013 | `24` |
 | Give | items and money to NPCs, NPC gifts, quest action items | `give.txt` | `give-compare.ts` | 0017 | `24` |
 | Civilians | civilian quotes, named-NPC AI, the hostile-quote list and its AI pause, the surrender offer | `civ.txt` | `civ-compare.ts` | 0020, 0022 | `24` |
-| Helicopter | flights, SAM fire, billing, hovering, landing, boarding, monologues | `heli.txt` | `heli-compare.ts` | 0014 | `25` |
-| NPC actions | action catalog, requestor answers, NPC system events, Kingpin's money, the hospital | `actions.txt` | `actions-compare.ts` | 0015 | `25` |
-| Schedules | posting, the 24-hour replay, processing, the AI's schedule steps | `schedules.txt` | `schedules-compare.ts` | 0016 | `25` |
+| Helicopter | flights, SAM fire, billing, hovering, landing, boarding, monologues | `heli.txt` | `heli-compare.ts` | 0014 | `25` §5 |
+| NPC actions | action catalog, requestor answers, NPC system events, Kingpin's money, the hospital | `actions.txt` | `actions-compare.ts` | 0015 | `35` §1 |
+| Schedules | posting, the 24-hour replay, processing, the AI's schedule steps | `schedules.txt` | `schedules-compare.ts` | 0016 | `35` §3 |
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
-| Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
+| Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` §3 |
 
-Every comparer that replays draws relies on the draw trace of 0002; the narrative comparers also rely on the `CheckFact`
-and dialogue traces of 0013, 0015 and 0018.
+Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
+traces of 0013, 0015 and 0018.
 
 ## Layout
 
@@ -53,13 +53,13 @@ and dialogue traces of 0013, 0015 and 0018.
 | `patches/*.patch` | Hooks into Stracciatella ("Hooks") |
 | `probes/*.txt` | The shipped probe scripts ("Shipped probes") |
 
-`reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds `src/` (the patched
-copy), `build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella home with `ja2.json` and copied saves),
-`tmp/` (engine temp files and `ja2.log`), `oracle.log` (engine stderr of the last run) and the probe outputs.
+`reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds `src/` (the patched copy),
+`build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella home with `ja2.json` and copied saves), `tmp/`
+(engine temp files, `ja2.log`), `oracle.log` (engine stderr of the last run) and the probe outputs.
 
 ## Requirements
 
-Tested on Ubuntu 26.04 with GCC 15.2, CMake 4.2.3, Ninja, Rust/Cargo 1.93.1 (distribution packages; the minimum is in
+Tested on Ubuntu 26.04 with GCC 15.2, CMake 4.2.3, Ninja, Rust/Cargo 1.93.1 (distribution packages; minimum in
 `reference/stracciatella/min-rust-version`, 1.85.1), SDL 3.4.2:
 
 ```sh
@@ -67,8 +67,8 @@ sudo apt-get install build-essential cmake ninja-build pkg-config libsdl3-dev ca
 ```
 
 The first configure downloads pinned dependencies (magic_enum, Lua 5.3.6, sol2, string_theory, miniaudio) and the build
-fetches the Rust crates, so it needs network access once. FLTK, gtest and the Rust tool binaries are not needed: the build
-turns off the launcher, the unit tests and `ja2-resource-pack`.
+fetches the Rust crates, so network access is needed once. FLTK, gtest and the Rust tool binaries are not needed: the
+build turns off the launcher, the unit tests and `ja2-resource-pack`.
 
 ## Build
 
@@ -76,16 +76,16 @@ turns off the launcher, the unit tests and `ja2-resource-pack`.
 tools/oracle/build.sh
 ```
 
-About 3.5 minutes from scratch on 8 cores, about 1.5 s for a no-op rerun, seconds when only `src/Oracle.cc` changed. Every
-run re-creates the copy from `reference/stracciatella` (commit recorded in the binary version as `oracle.<commit>`), copies
-`src/`, applies the patches in file-name order, and syncs the result into `$JA2_ORACLE_DIR/src` by content, so unchanged
+About 3.5 minutes from scratch on 8 cores, 1.5 s for a no-op rerun, seconds when only `src/Oracle.cc` changed. Every run
+re-creates the copy from `reference/stracciatella` (commit recorded in the binary version as `oracle.<commit>`), copies
+`src/`, applies the patches in file-name order and syncs the result into `$JA2_ORACLE_DIR/src` by content, so unchanged
 files keep their timestamps.
 
 Environment: `JA2_ORACLE_DIR` (work dir, must be outside the repo), `JA2_ORACLE_BUILD_TYPE` (default `RelWithDebInfo`),
 `JA2_ORACLE_JOBS` (default `nproc`).
 
-CMake prints `fatal: not a git repository` once during configure: Stracciatella asks git for a version hash and the copy
-has no `.git`. It is harmless.
+Configure prints `fatal: not a git repository` once (Stracciatella asks git for a version hash; the copy has no `.git`):
+harmless.
 
 ## Run
 
@@ -96,8 +96,8 @@ tools/oracle/run.sh tools/oracle/probes/a9-paths.txt                      # JSON
 mkdir -p "$O/doors" && tools/oracle/run.sh tools/oracle/probes/doors.txt "$O/doors/doors.jsonl"
 ```
 
-The second argument, if given, is the output file (its directory must exist). The exit status is 0 when every command
-succeeded, 1 when some command failed (its line carries `error`), 2 for usage errors.
+The optional second argument is the output file (its directory must exist). Exit status: 0 when every command succeeded,
+1 when some command failed (its line carries `error`), 2 for usage errors.
 
 | Variable | Meaning |
 |---|---|
@@ -108,9 +108,9 @@ succeeded, 1 when some command failed (its line carries `error`), 2 for usage er
 | `JA2_ORACLE_DIR` | Work dir (default `~/ja2-oracle`) |
 
 Headless: `SDL_VIDEO_DRIVER=dummy` (SDL3 creates its window and renderer on the dummy video driver),
-`SDL_AUDIO_DRIVER=dummy`, `-nosound`, `HOME` pointing at `$JA2_ORACLE_DIR/home` so the user's own `~/.ja2` is never
-touched, and `TMPDIR` inside the work dir. The engine starts normally up to `InitializeGame()`, then the oracle takes over
-instead of the main loop, so no frame is ever rendered. Saves are copied (never linked) into the isolated home.
+`SDL_AUDIO_DRIVER=dummy`, `-nosound`, `HOME` = `$JA2_ORACLE_DIR/home` so the user's own `~/.ja2` is never touched, and
+`TMPDIR` inside the work dir. The engine starts normally up to `InitializeGame()`, then the oracle runs instead of the
+main loop, so no frame is ever rendered. Saves are copied (never linked) into the isolated home.
 
 Running the binary by hand is equivalent:
 
@@ -120,49 +120,49 @@ HOME=~/ja2-oracle/home SDL_VIDEO_DRIVER=dummy JA2_ORACLE=/abs/path/script.txt JA
   ./ja2 -gamedir "$HOME/Jagged Alliance 2 Gold" -nosound
 ```
 
-`JA2_ORACLE` (the script path) switches the oracle mode on. `JA2_ORACLE_OUT` is optional. In oracle mode the process
-stdout carries only JSONL: everything the engine prints goes to stderr.
+`JA2_ORACLE` (the script path) switches oracle mode on; `JA2_ORACLE_OUT` is optional. In oracle mode stdout carries only
+JSONL: everything the engine prints goes to stderr.
 
 ## Probe scripts
 
-One command per line, `#` starts a comment, arguments are `key=value` (sector and save names may also be positional). Grid
+One command per line, `#` starts a comment, arguments are `key=value` (sector and save names may be positional). Grid
 numbers are `y * 160 + x`. Commands run in order; every output line carries `probe` and the script `line`; a failing
 command emits an `error` line and the script continues. The last line is always
 `{"probe":"end","commands":N,"failures":F}`.
 
-The commands of this table are shared or belong to the tactical, strategic, autoresolve and sector-transition probes; the
-other domains list theirs in their sections below.
+This table holds the shared commands and those of the tactical, strategic, autoresolve and sector-transition probes; the
+other domains list theirs in their sections under "Comparing with ja2-node".
 
 | Command | Arguments | Does |
 |---|---|---|
-| `sector A9` | `z=0`, `map=<file>`, `hour=<0..23>` | Sets `gWorldSector` (and the game clock to that hour of day 1) and calls `LoadWorld` on the sector's map |
+| `sector A9` | `z=0`, `map=<file>`, `hour=<0..23>` | Sets `gWorldSector` (and the game clock to that hour of day 1), `LoadWorld` on the sector's map |
 | `save SaveGame01` | | `LoadSavedGame` from the isolated home's `SavedGames` |
-| `seed` | `value=<n>`, `pre=keep\|reseed` | Reseeds the `Random` engine (the save restores the `PreRandom` ring, not the engine); `reseed` also refills the ring from it and resets its index |
+| `seed` | `value=<n>`, `pre=keep\|reseed` | Reseeds the `Random` engine (a save restores the `PreRandom` ring and its index, not the engine); `reseed` also refills the ring from it and resets its index |
 | `draws` | `on\|off\|dump` | Starts or stops a `Random`/`PreRandom` trace across commands; `dump` emits and clears it (used around `save` for the load-time recomputation) |
-| `soldiers` | `detail=0\|1` | Lists soldiers in the loaded sector; `detail=1` dumps each one like `soldier` |
+| `soldiers` | `detail=0\|1` | Soldiers in the loaded sector; `detail=1` dumps each like `soldier` |
 | `soldier` | `who=<id>` | Full dump of one soldier of the loaded save |
 | `costs` | `format=base64` (or `none`) | Dumps `gubWorldMovementCosts` |
 | `path` | see below | `FindBestPath` + `PlotPath` |
 | `los` | see below | `LineOfSightTest` and `SoldierToSoldierLineOfSightTest` |
-| `cth` | see below | `CalcChanceToHitGun` + `CalcTotalAPsToAttack` for an aimed shot, as the attack cursor prepares it |
+| `cth` | see below | `CalcChanceToHitGun` + `CalcTotalAPsToAttack` for an aimed shot, prepared as the attack cursor does |
 | `bestshot` | `who=<id>`, `keepAim=0\|1` | The AI's `CalcBestShot` on a soldier of the loaded save |
 | `light` | `g=<g>`, `level=0`, `viewer=<id>` | `LightTrueLevel` of a tile, the ambient level and, with a viewer, `DistanceVisible` to it |
-| `lights` | `level=0`, `format=base64` (or `none`) | `LightTrueLevel` of every tile, the ambient level and the light sprites |
+| `lights` | `level=0`, `format=base64` (or `none`) | `LightTrueLevel` of every tile, the ambient level, the light sprites |
 | `ambient` | `level=<n>` | `LightSetBaseLevel(n)`: new ambient level, every light rendered again |
 | `stratcosts` | `mask=FOOT\|CAR\|TRUCK\|TRACKED\|AIR` | `ubTraversability[5]` of the 256 sectors and `GetSectorMvtTimeForGroup` per direction |
 | `stratpath` | `from=<sector>`, `to=<sector>`, `mask=…`, `tactical=0\|1` | `BuildAStrategicPath`, `RebuildWayPointsForGroupPath` and `CalculateTravelTimeOfGroup` on a scratch group |
 | `groups` | | The strategic movement state of a loaded save: groups, squads, vehicles, sectors, underground, arrival events, merc paths |
 | `arsetup` | `sector=<A1..P16>`, `code=invasion\|encounter\|creature`, `militia=<g>,<r>,<e>`, `enemies=<admins>,<troops>,<elites>`, `creatures=<n>`, `persistent=0\|1` (default 1), `day=<n>`, `groups=<a>:<t>:<e>/…`, `tacticalmilitia=1` | Writes the sector's militia and garrison counts, `gubEnemyEncounterCode`, `gubPBSector`, `gfPersistantPBI` and optionally the world day (capture needs day 4); `groups` adds enemy groups with `CreateNewEnemyGroupDepartingFromSector` (ids in the output); `tacticalmilitia` needs the sector loaded and runs `ResetMilitia()` so the militia stand in tactical (the hand-off case) |
 | `enemycounts` | `sector=<A1..P16>` | Garrison id and counts, `NumStationaryEnemiesInSector`, `NumMobileEnemiesInSector`, `GetNumberOfEnemiesInSector`, `NumEnemiesInSector` |
-| `pbi` | `sector=<A1..P16>`, `group=player\|enemy\|creature`, `enemies=<a>,<t>,<e>`, `highpotential=1`, `cantretreat=1`, `mercslife=<n>` | Sets `gfHighPotentialForAmbush` and `gfCantRetreatInPBI`, optionally the life of our mercs in the sector, and runs `WakeUpAllMercsInSectorUnderAttack` and the encounter-code block of `InitPreBattleInterface` (0005) for the save's player group there, a new enemy group (default 0,4,0) or a creature attack; dumps the code, the flags and the traced draws |
-| `autoresolve` | `trace=1`, `retreat=<slice>:<soldier id>\|all,…`, `surrender=reject\|accept`, `bandage=0\|1`, `maxSlices=<n>` | Runs a headless Finish-mode autoresolve (0002) on the save's mercs in the `arsetup` sector and dumps the cells after creation and after the ratings, the commands, the result (per cell, team state, clock warp, militia, promotions, sector counts, loyalty) and the traced draws |
-| `strategic` | | Towns (rating, change, started, liberated, `GetTownSectorsUnderControl`), every town and SAM sector (militia, training paid/percent/hundredths, ever controlled, enemy controlled, `SectorOursAndPeaceful`, `MilitiaTrainingAllowedInSector`, `IsAreaFullOfMilitia`, SAM condition), the mines (every `MINE_STATUS_TYPE` field, `PredictDailyIncomeFromAMine`, `GetMaxDailyRemovalFromMine`), `fEnemyAirControlled` of the 256 sectors, balance, `PredictIncomeFromPlayerMines`, `CalcMaxPlayerIncomeFromMines`, progress, Enrico flags and the activity counters |
+| `pbi` | `sector=<A1..P16>`, `group=player\|enemy\|creature`, `enemies=<a>,<t>,<e>`, `highpotential=1`, `cantretreat=1`, `mercslife=<n>` | Sets `gfHighPotentialForAmbush`, `gfCantRetreatInPBI` and optionally the life of our mercs in the sector, runs `WakeUpAllMercsInSectorUnderAttack` and the encounter-code block of `InitPreBattleInterface` (0005) for the save's player group there, a new enemy group (default 0,4,0) or a creature attack; dumps the code, the flags and the traced draws |
+| `autoresolve` | `trace=1`, `retreat=<slice>:<soldier id>\|all,…`, `surrender=reject\|accept`, `bandage=0\|1`, `maxSlices=<n>` | Headless Finish-mode autoresolve (0002) on the save's mercs in the `arsetup` sector; dumps the cells after creation and after the ratings, the commands, the result (per cell, team state, clock warp, militia, promotions, sector counts, loyalty) and the traced draws |
+| `strategic` | | Towns (rating, change, started, liberated, `GetTownSectorsUnderControl`), every town and SAM sector (militia, training paid/percent/hundredths, ever controlled, enemy controlled, `SectorOursAndPeaceful`, `MilitiaTrainingAllowedInSector`, `IsAreaFullOfMilitia`, SAM condition), the mines (every `MINE_STATUS_TYPE` field, `PredictDailyIncomeFromAMine`, `GetMaxDailyRemovalFromMine`), `fEnemyAirControlled` of the 256 sectors, balance, `PredictIncomeFromPlayerMines`, `CalcMaxPlayerIncomeFromMines`, progress, Enrico flags, the activity counters |
 | `mercs` | `detail=strategic` | Per OUR merc: assignment, train stat, sleep/collapse/forced-awake/tired/nothing-to-do flags, breath, life, `sFractLife`, bleeding, last assignment change, need for sleep, and the estimates `CalculateHealingPointsForDoctor`, `CalculateRepairPointsForRepairman` (both with `fMakeSureKitIsInHand = FALSE`), `GetTownTrainPtsForCharacter`, and for the nine trainable stats `GetSoldierTrainingPts`, `GetSoldierStudentPts`, `GetBonusTrainingPtsDueToInstructor(s, NULL)` (points and max) |
-| `loyalty` | `event=<GLOBAL_LOYALTY_ name without prefix>`, `sector=<A1..P16>`, `z=0` | `HandleGlobalLoyaltyEvent` and the town loyalties before and after |
+| `loyalty` | `event=<GLOBAL_LOYALTY_ name without prefix>`, `sector=<A1..P16>`, `z=0` | `HandleGlobalLoyaltyEvent`, the town loyalties before and after |
 | `assign` | `who=<id>`, `kind=<assignment number>`, `stat=<n>` | `RemoveCharacterFromSquads`, `SetTimeOfAssignmentChangeForMerc` (if the assignment changes), `ChangeSoldiersAssignment`, `bTrainStat`; no eligibility checks, no payment |
 | `warp` | `seconds=<n>` | `WarpGameTime(n, WARPTIME_PROCESS_EVENTS_NORMALLY)`: every event of the span runs, hourly updates included |
-| `newgame` | `difficulty=1\|2\|3`, `scifi=0\|1` | Sets the game options and runs `SetupNewStrategicGame(); InitNewCampaign();` with its draws traced |
-| `sai` | | Dumps the strategic AI: globals, compositions, garrisons, denials, patrols, the AI fields of all 256 sectors, enemy control, underground counts, every enemy group, the AI events (evaluation, checks, arrivals, meanwhiles), status, meanwhile flags, progress and mine income |
+| `newgame` | `difficulty=1\|2\|3`, `scifi=0\|1` | Sets the game options, runs `SetupNewStrategicGame(); InitNewCampaign();`, draws traced |
+| `sai` | | Dumps the strategic AI: globals, compositions, garrisons, denials, patrols, the AI fields of all 256 sectors, enemy control, underground counts, every enemy group, the AI events (evaluation, checks, arrivals, meanwhiles), status, meanwhile flags, progress, mine income |
 | `saievaluate` | `awake=0\|1` | `EvaluateQueenSituation()` (after `gfQueenAIAwake = TRUE` with `awake=1`), draws traced |
 | `saicheck` | `sector=<A1..P16>` | `CheckEnemyControlledSector(sector)`, draws traced |
 | `saiwake` | | `WakeUpQueen()` (mass fortification on the first call), draws traced |
@@ -173,18 +173,18 @@ other domains list theirs in their sections below.
 | `walkoff` | `from=<g>`, `dir=N\|E\|S\|W` | `PickGridNoNearestEdge` (0004) for a probe soldier |
 | `walkin` | `from=<g>`, `code=N\|S\|E\|W` | `PickGridNoToWalkIn` (0004): gridno and attempts |
 | `mirror` | `from=<g>`, `dir=N\|E\|S\|W` | The "mirror" gridno of `SetupTacticalTraversalInformation` and `CalcMapEdgepointClassInsertionCode(from)` with `gubTacticalDirection = dir` |
-| `exitcheck` | `who=<id>`, `dir=N\|E\|S\|W` or `grid=<g>` | After a `save`: selects the soldier, makes his squad current and runs `OKForSectorExit`: result, minutes (−1 when untouched), `gfInvalidTraversal`, `gfLoneEPCAttemptingTraversal`, `gubLoneMercAttemptingToAbandonEPCs`, and `SoldierOKForSectorExit` per merc in the sector |
+| `exitcheck` | `who=<id>`, `dir=N\|E\|S\|W` or `grid=<g>` | After a `save`: selects the soldier, makes his squad current, runs `OKForSectorExit`: result, minutes (−1 when untouched), `gfInvalidTraversal`, `gfLoneEPCAttemptingTraversal`, `gubLoneMercAttemptingToAbandonEPCs`, and `SoldierOKForSectorExit` per merc in the sector |
 | `move` | `who=<id>`, `to=<g>` | `EVENT_SetSoldierPositionNoCenter` on a soldier of the loaded save |
 | `initlist` | | The soldier init list in list order, then `SortSoldierInitList()` (0004) and the sorted list: node id, team, class, priority existence, detailed, soldier id and class |
-| `defence` | `admins=`, `troops=`, `elites=` | `AddSoldierInitListEnemyDefenceSoldiers` with its draws traced (placements marked by 0004) and the init list before and after |
+| `defence` | `admins=`, `troops=`, `elites=` | `AddSoldierInitListEnemyDefenceSoldiers`, draws traced (placements marked by 0004), the init list before and after |
 
-`sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and buildings, but there is no
+`sector` is a bare map load: `LoadWorld` compiles movement costs and builds structures, rooms and buildings; there is no
 strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`, and doors keep their map state. `save` runs the full
-`LoadSavedGame` (strategic state, the sector's temp files, soldiers, door states), so probes then see the world as it was
-saved.
+`LoadSavedGame` (strategic state, the sector's temp files, soldiers, door states), so probes see the world as saved.
 
-`cth` and `bestshot` change soldier fields while they run and restore them before the next command, so a script can mix
-them freely with other probes: a `soldiers detail=1` before and after them prints identical soldiers.
+`cth` and `bestshot` draw no random numbers and create no soldiers (the chance-to-get-through calls create and remove a
+fake bullet each); they change soldier fields while they run and restore them before the next command, so they mix
+freely with other probes: `soldiers detail=1` before and after them prints identical soldiers.
 
 ### `save`
 
@@ -194,17 +194,17 @@ them freely with other probes: a `soldiers detail=1` before and after them print
  "preRandomIndex":178,"worldSeconds":180106,"soldiers":[{"id":0,"team":0,"profile":2,...},...]}
 ```
 
-- `tactical`: `gTacticalStatus.uiFlags`, `ubCurrentTeam`, `uiFlags & INCOMBAT`, `ubAttackBusyCount` and
-  `fInterruptOccurred` after the load.
+- `tactical`: `gTacticalStatus.uiFlags`, `ubCurrentTeam`, `uiFlags & INCOMBAT`, `ubAttackBusyCount`, `fInterruptOccurred`
+  after the load.
 - `preRandomIndex`: `guiPreRandomIndex`, the read position in the saved `PreRandom` table.
 - `worldSeconds`: `GetWorldTotalSeconds()`.
-- `soldiers`: the short form, as in `soldiers` without `detail`.
+- `soldiers`: the short form of `soldiers` without `detail`.
 
 ### `soldier` and `soldiers detail=1`
 
-`soldier who=<id>` emits one soldier, `soldiers detail=1` emits every in-sector soldier in one line
-(`{"probe":"soldiers","line":N,"detail":true,"soldiers":[...]}`, same objects). Without `detail`, `soldiers` keeps the short
-form of `save` and `sector` (`"detail":false`).
+`soldier who=<id>` emits one soldier; `soldiers detail=1` emits every in-sector soldier in one line
+(`{"probe":"soldiers","line":N,"detail":true,"soldiers":[...]}`, same objects). Without `detail`, `soldiers` keeps the
+short form of `save` and `sector` (`"detail":false`).
 
 ```json
 {"probe":"soldier","line":3,"soldier":{"id":2,"name":"<nickname>","team":0,"side":0,"profile":<n>,"body":3,
@@ -229,9 +229,9 @@ form of `save` and `sector` (`"detail":false`).
   turn), `bInitialActionPoints`, `bMorale`, `bAIMorale`, `bAlertStatus` (`alert`), `bOrders`, `bAttitude`, `bVisible`,
   `uiStatusFlags`, `bCollapsed`, `bBreathCollapsed`, `fNoAPToFinishMove`, `sLastTarget` (25601 is `NOWHERE`), `bTilesMoved`,
   `ubServiceCount`. `stance` is the end height of `usAnimState`, as everywhere.
-- `attack`: the attack fields that `cth` and `bestshot` read or change: `usAttackingWeapon`, `ubAttackingHand`,
-  `bWeaponMode`, `bDoBurst`, `bAimTime`, `bShownAimTime`, `bAimShotLocation` (0 random, 1 head, 2 torso, 3 legs),
-  `bTargetLevel`, `bTargetCubeLevel`, `fDontChargeReadyAPs` and `CTGTTarget` (soldier id or `null`).
+- `attack`: the attack fields `cth` and `bestshot` read or change: `usAttackingWeapon`, `ubAttackingHand`, `bWeaponMode`,
+  `bDoBurst`, `bAimTime`, `bShownAimTime`, `bAimShotLocation` (0 random, 1 head, 2 torso, 3 legs), `bTargetLevel`,
+  `bTargetCubeLevel`, `fDontChargeReadyAPs`, `CTGTTarget` (soldier id or `null`).
 - `stats`: the raw stats; `effective`: `EffectiveMarksmanship`, `EffectiveDexterity`, `EffectiveAgility`,
   `EffectiveWisdom`, `EffectiveExpLevel`; `apPerTurn`: `CalcActionPoints` (the APs of a new turn before carry-over, after
   breath, injury and weight penalties).
@@ -239,7 +239,7 @@ form of `save` and `sector` (`"detail":false`).
   profile.
 - `oppList`: all `MAX_NUM_SOLDIERS` entries of `bOppList` (1 is `SEEN_CURRENTLY`).
 - `inventory`: the non-empty slots; `status` is `bStatus[0]`; guns add `ubGunShotsLeft` (`gunAmmo`), `usGunAmmoItem`
-  (`ammoItem`) and `ubGunAmmoType` (`ammoType`); `attachments` (item and status) appears when the object has any.
+  (`ammoItem`), `ubGunAmmoType` (`ammoType`); `attachments` (item and status) appears when the object has any.
 
 ### `path`
 
@@ -248,9 +248,9 @@ form of `save` and `sector` (`"detail":false`).
 or `who=<soldier id>` instead of `from`/`level`/`stance`/`team`/`body` to path an existing soldier of a loaded save.
 
 Without `who`, a probe soldier is created with `TacticalCreateSoldier` (no profile, default team `enemy`, body `regmale`,
-direction south), put into the sector, moved exactly to `from` if the sweet-spot search placed it elsewhere, set to the
-stance without transition animations, and removed afterwards. `team=player` matters: the original paths for the player with
-perceived door states. `flags` are `PATH_THROUGH_PEOPLE` (1), `PATH_IGNORE_PERSON_AT_DEST` (2), `PATH_CLOSE_GOOD_ENOUGH` (4).
+facing south), put into the sector, moved to `from` if the sweet-spot search placed it elsewhere, set to the stance
+without transition animations, and removed afterwards. `team=player` matters: the original paths for the player with
+perceived door states. `flags`: `PATH_THROUGH_PEOPLE` (1), `PATH_IGNORE_PERSON_AT_DEST` (2), `PATH_CLOSE_GOOD_ENOUGH` (4).
 `estimate=1` sets `gfEstimatePath` (what `EstimatePlotPath` does for the AI).
 
 ```json
@@ -259,13 +259,13 @@ perceived door states. `flags` are `PATH_THROUGH_PEOPLE` (1), `PATH_IGNORE_PERSO
  "length":23,"directions":[2,2,...],"gridNos":[11743,11744,...],"apCost":46}
 ```
 
-- `length`: the return value of `FindBestPath(s, to, toLevel, mode, NO_COPYROUTE, flags)`, 0 when no path exists (including
-  an unreachable destination or a different level).
-- `directions`: `guiPathingData[0..length)`, direction codes 0 = north … 7 = northwest.
-- `gridNos`: the tiles visited, obtained by stepping `NewGridNo(g, DirectionInc(dir))` from `from`.
-- `apCost`: `PlotPath(s, to, NO_COPYROUTE, NO_PLOT, mode, 0)`, the AP cost shown by the UI, including the start-moving and
-  stance costs; 0 when there is no path.
-- `soldier`: the soldier as placed (`team` and `body` are the engine enum values, `terrain` is `bOverTerrainType`).
+- `length`: the return value of `FindBestPath(s, to, toLevel, mode, NO_COPYROUTE, flags)`; 0 when no path exists
+  (including an unreachable destination or a different level).
+- `directions`: `guiPathingData[0..length)`, 0 = north … 7 = northwest.
+- `gridNos`: the tiles visited, stepping `NewGridNo(g, DirectionInc(dir))` from `from`.
+- `apCost`: `PlotPath(s, to, NO_COPYROUTE, NO_PLOT, mode, 0)`, the AP cost the UI shows, start-moving and stance costs
+  included; 0 without a path.
+- `soldier`: the soldier as placed (`team` and `body` are engine enum values, `terrain` is `bOverTerrainType`).
 
 ### `los`
 
@@ -280,13 +280,13 @@ loaded save.
 ```
 
 - `lineOfSight`: the static `LineOfSightTest(from, fromZ, to, toZ, tileLimit, treeReduction, aware, 0, FALSE, NULL)`
-  through an exported wrapper, without any soldier on the map. `fromZ`/`toZ` are computed like
-  `CalculateSoldierZPos(LOS_POS)` for a regular body on dry land: 175/111/31 for stand/crouch/prone, +256 on a roof,
-  + `sHeight * 256 / 50` of the tile. `treeReduction` is `gubTreeSightReduction` of the target stance (6/7/8).
-- `soldierToSoldier`: `SoldierToSoldierLineOfSightTest(viewer, target, tileLimit, aware)` with real soldiers placed like the
-  path probe soldier (viewer `enemy`, target `player`). This path adds what the raw call leaves out: water stance
-  overrides, camouflage, kid heights, tanks, the soldiers' own structures. `soldiers=0` skips it.
-- Both values are 0 when the target is not visible, otherwise the cover-adjusted distance.
+  through an exported wrapper, with no soldier on the map. `fromZ`/`toZ` as `CalculateSoldierZPos(LOS_POS)` computes them
+  for a regular body on dry land: 175/111/31 for stand/crouch/prone, +256 on a roof, + `sHeight * 256 / 50` of the tile.
+  `treeReduction` is `gubTreeSightReduction` of the target stance (6/7/8).
+- `soldierToSoldier`: `SoldierToSoldierLineOfSightTest(viewer, target, tileLimit, aware)` with real soldiers placed like
+  the path probe soldier (viewer `enemy`, target `player`). It adds what the raw call leaves out: water stance overrides,
+  camouflage, kid heights, tanks, the soldiers' own structures. `soldiers=0` skips it.
+- Both are 0 when the target is not visible, otherwise the cover-adjusted distance.
 
 ### `costs`
 
@@ -295,10 +295,10 @@ loaded save.
  "fnv1a32":"53026593","histogram":{"0":145,"9":13857,"10":71222,...},"base64":"..."}
 ```
 
-`base64` holds the raw 409,600 bytes of `gubWorldMovementCosts` in the engine layout, index
-`(gridNo * 8 + direction) * 2 + level`, the same layout as `MovementCosts.values` in `src/content/world/movement-costs.ts`.
-`fnv1a32` (FNV-1a, 32-bit, over those bytes) and `histogram` (value → count) allow a quick comparison without decoding.
-With `format=none` only the hash and histogram are printed. Reading it from Node:
+`base64`: the raw 409,600 bytes of `gubWorldMovementCosts` in the engine layout, index
+`(gridNo * 8 + direction) * 2 + level`, the layout of `MovementCosts.values` in `src/content/world/movement-costs.ts`.
+`fnv1a32` (FNV-1a, 32-bit, over those bytes) and `histogram` (value → count) allow a quick comparison without decoding;
+`format=none` prints only these two. Reading it from Node:
 
 ```ts
 const line = JSON.parse(text.split('\n').find((l) => l.includes('"probe":"costs"')) ?? '{}');
@@ -317,31 +317,31 @@ aim at a tile. Needs a loaded save; fails when the shooter has no gun in `HANDPO
   ...,{"aim":4,"chance":92,"apCost":10,"cursorChance":92}],"restored":["2.bAimTime","2.bAimShotLocation"]}
 ```
 
-The shooter is prepared like ja2-node's attack estimate: `bAimShotLocation` = `location` when a soldier stands on the
-target tile (`WhoIsThere2(targetGridNo, targetLevel)`, or the `target` soldier) whose `usAnimState` end height is not prone,
-otherwise `AIM_SHOT_RANDOM`; `bWeaponMode` = `WM_NORMAL`, `bDoBurst` = 0, `ubAttackingHand` = `HANDPOS`,
-`usAttackingWeapon` = the item in hand, `bTargetLevel` = the target level, `bTargetCubeLevel` = 0, and `bAimTime` = the aim
-of each result. Then:
+The shooter is prepared like ja2-node's attack estimate: `bAimShotLocation` = `location` when a soldier whose
+`usAnimState` end height is not prone stands on the target tile (`WhoIsThere2(targetGridNo, targetLevel)`, or the
+`target` soldier), otherwise `AIM_SHOT_RANDOM`; `bWeaponMode` = `WM_NORMAL`, `bDoBurst` = 0, `ubAttackingHand` =
+`HANDPOS`, `usAttackingWeapon` = the item in hand, `bTargetLevel` = the target level, `bTargetCubeLevel` = 0, `bAimTime` =
+the aim of each result. Then:
 
 - `apCost`: `CalcTotalAPsToAttack(s, victim ? victim->sGridNo : targetGridNo, TRUE, aim)`.
 - `chance`: `CalcChanceToHitGun(s, targetGridNo, aim, aimShotLocation, FALSE)`.
 - `chanceToGetThrough`: `SoldierToSoldierBodyPartChanceToGetThrough(s, victim, aimShotLocation)` with a soldier on the
   tile, else `SoldierToLocationChanceToGetThrough(s, targetGridNo, targetLevel, 0, NULL)`.
-- `cursorChance`: `chance` scaled by `chanceToGetThrough` exactly like the `show_hit_chance` cursor (`int` times
+- `cursorChance`: `chance` scaled by `chanceToGetThrough` as the `show_hit_chance` cursor does (`int` times
   `ctgt / 100.0f`, truncated).
 - `ap`: the shooter's `bActionPoints`. Every requested aim is reported, affordable or not.
-- `restored`: the `soldier.field` pairs that differed from the save after the probe and were put back (the setup above,
-  plus engine side effects such as `CTGTTarget`, which every chance-to-get-through call sets, and `fDontChargeReadyAPs`,
-  which `MinAPsToShootOrStab` clears when it charges a raise).
+- `restored`: the `soldier.field` pairs that differed from the save after the probe and were put back: the setup above
+  plus engine side effects such as `CTGTTarget` (set by every chance-to-get-through call) and `fDontChargeReadyAPs`
+  (cleared by `MinAPsToShootOrStab` when it charges a raise).
 
 Where the original UI differs from this setup:
 
 - With the default `show_hit_chance: false` the cursor shows only the AP cost
   `CalcTotalAPsToAttack(s, target, TRUE, bShownAimTime / 2)`; with it on, `cursorChance` from the soldier's real fields.
 - The aim location comes from the pixel under the mouse on the target's sprite (`DetermineCursorBodyLocation`: head,
-  torso or legs, `AIM_SHOT_RANDOM` off the body); it is forced to random when the target's current height (`ubHeight`, not
-  `ubEndHeight`) is prone or a non-player target has `bVisible == -1`; crows get legs; while `ubAttackBusyCount > 0` the
-  previous value is kept.
+  torso or legs, `AIM_SHOT_RANDOM` off the body); it is forced to random when the target's current height (`ubHeight`,
+  not `ubEndHeight`) is prone or a non-player target has `bVisible == -1`; crows get legs; while `ubAttackBusyCount > 0`
+  the previous value is kept.
 - The UI keeps the soldier's own `bWeaponMode`/`bDoBurst`, `ubAttackingHand` and `bTargetCubeLevel`, and refreshes
   `usAttackingWeapon` only while `ubAttackBusyCount == 0`. The cursor sets `bTargetLevel` to the target's level; the real
   shot (`HandleItem`) overwrites it with `gsInterfaceLevel`, the level the player is viewing.
@@ -353,10 +353,10 @@ Where the original UI differs from this setup:
 
 ### `bestshot`
 
-`bestshot who=<id> [keepAim=0|1]` runs `CalcBestShot(&s, &best)` (`TacticalAI/Attacks.cc`) on a soldier of the loaded save,
-set up like the gun branch of `DecideActionBlack`: the first gun found by `FindAIUsableObjClass(s, IC_GUN)` is swapped into
-`HANDPOS` (`RearrangePocket`), and `bAimShotLocation` is set to `AIM_SHOT_RANDOM` (`keepAim=1` keeps the saved value). Fails
-when the soldier has no AI-usable gun.
+`bestshot who=<id> [keepAim=0|1]` runs `CalcBestShot(&s, &best)` (`TacticalAI/Attacks.cc`) on a soldier of the loaded
+save, set up like the gun branch of `DecideActionBlack`: the first gun found by `FindAIUsableObjClass(s, IC_GUN)` is
+swapped into `HANDPOS` (`RearrangePocket`), and `bAimShotLocation` = `AIM_SHOT_RANDOM` (`keepAim=1` keeps the saved
+value). Fails when the soldier has no AI-usable gun.
 
 ```json
 {"probe":"bestshot","line":16,"who":23,"weaponSlot":5,"weapon":7,"ap":14,"aimShotLocation":0,
@@ -365,20 +365,21 @@ when the soldier has no AI-usable gun.
 ```
 
 - `possible`, `opponent`, `target`, `targetLevel`, `aimTime`, `chanceToReallyHit`, `apCost`, `attackValue`: `ATTACKTYPE`
-  `ubPossible`, `opponent` (id or `null`), `sTarget` (25601 `NOWHERE` when nothing is possible), `bTargetLevel`, `ubAimTime`,
-  `ubChanceToReallyHit`, `ubAPCost`, `iAttackValue`.
+  `ubPossible`, `opponent` (id or `null`), `sTarget` (25601 `NOWHERE` when nothing is possible), `bTargetLevel`,
+  `ubAimTime`, `ubChanceToReallyHit`, `ubAPCost`, `iAttackValue`.
 - `weaponSlot`/`weapon`: the slot the gun came from and its item; `ap`: `bActionPoints`.
 - `aimShotLocation`, `soldierTargetLevel`: the shooter's `bAimShotLocation` and `bTargetLevel` during the call.
   `CalcBestShot` never sets `bTargetLevel`, but `CalcChanceToHitGun` reads it (to find the target soldier and for the
-  up/down penalties), so the value left over from the soldier's last attack matters. `bAimShotLocation` picks the end point
-  of the body-part line of sight (random uses `TARGET_POS`).
-- `restored`: as in `cth`. `CalcBestShot` itself sets `usAttackingWeapon` to the item in hand, clears `fDontChargeReadyAPs`
-  (through `MinAPsToAttack`), sets the shooter's `CTGTTarget` to `NULL` (`AISoldierToSoldierChanceToGetThrough`) and each
-  considered opponent's `CTGTTarget` to the shooter (`CalcManThreatValue`); `AICalcChanceToHitGun` and
-  `AISoldierToSoldierChanceToGetThrough` fake `usAnimState = STANDING` and put it back themselves. In the game these changes
-  persist; the probe undoes them and the pocket swap.
-- Not reproduced from `DecideActionBlack`: `CanNPCAttack`, the `MinAPsToAttack(s, sLastTarget)` check before the call, and
-  the rule that drops a shot of `OUR_TEAM` below 30% `chanceToReallyHit`.
+  up/down penalties), so the value left over from the soldier's last attack matters. `bAimShotLocation` picks the end
+  point of the body-part line of sight (random uses `TARGET_POS`).
+- `restored`: as in `cth`. `CalcBestShot` itself sets `usAttackingWeapon` to the item in hand, clears
+  `fDontChargeReadyAPs` (through `MinAPsToAttack`), sets the shooter's `CTGTTarget` to `NULL`
+  (`AISoldierToSoldierChanceToGetThrough`) and each considered opponent's `CTGTTarget` to the shooter
+  (`CalcManThreatValue`); `AICalcChanceToHitGun` and `AISoldierToSoldierChanceToGetThrough` fake
+  `usAnimState = STANDING` and put it back themselves. In the game these changes persist; the probe undoes them and the
+  pocket swap.
+- Not reproduced from `DecideActionBlack`: `CanNPCAttack`, the `MinAPsToAttack(s, sLastTarget)` check before the call,
+  and the rule that drops a shot of `OUR_TEAM` below 30% `chanceToReallyHit`.
 
 ### `light`
 
@@ -386,8 +387,8 @@ when the soldier has no AI-usable gun.
 {"probe":"light","line":3,"g":12400,"level":0,"ambient":12,"trueLevel":10,"viewer":2,"distanceVisible":15}
 ```
 
-`ambient` is `LightGetAmbient()`, `trueLevel` is `LightTrueLevel(g, level)` (lower is brighter; it includes map light
-sprites), `distanceVisible` is `DistanceVisible(viewer, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, g, level)`.
+`ambient` = `LightGetAmbient()`; `trueLevel` = `LightTrueLevel(g, level)` (lower is brighter; includes map light
+sprites); `distanceVisible` = `DistanceVisible(viewer, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, g, level)`.
 
 ### `lights`
 
@@ -397,17 +398,17 @@ sprites), `distanceVisible` is `DistanceVisible(viewer, DIRECTION_IRRELEVANT, DI
  "sprites":[{"x":59,"y":119,"flags":267,"template":"L-R08.LHT"},...],"base64":"..."}
 ```
 
-`base64` holds `LightTrueLevel(g, level)` for every `g` in grid order (25,600 bytes), `fnv1a32` and `histogram` are over
-those bytes as in `costs`. `sprites` lists the active light sprites with `uiFlags` (ON 0x2, ERASE 0x8, PRIMETIME 0x80,
-NIGHTTIME 0x100) and the template name.
+`base64`: `LightTrueLevel(g, level)` for every `g` in grid order (25,600 bytes); `fnv1a32` and `histogram` over those bytes
+as in `costs`. `sprites`: the active light sprites with `uiFlags` (ON 0x2, ERASE 0x8, PRIMETIME 0x80, NIGHTTIME 0x100) and
+the template name.
 
 ### `sector … hour=` and `ambient`
 
 A bare `sector` load uses the clock of a fresh process (00:00, `gubEnvLightValue` 0, so every tile is shade 1). `hour=<h>`
-sets the clock to that hour first, which decides which night and prime-time map lights `LoadMapLights` powers; the `sector`
-line reports the resulting `hour` and `ambient` and `structureHeights`, the `[gridNo, index]` pairs of structures whose
-height is already cached (`ubStructureHeight`), because only those obstacles can block light. `ambient level=<n>` then
-renders the lights at a useful ambient level.
+sets the clock to that hour first, which decides which night and prime-time map lights `LoadMapLights` powers. The
+`sector` line reports the resulting `hour` and `ambient`, and `structureHeights`: the `[gridNo, index]` pairs of
+structures whose height is already cached (`ubStructureHeight`), because only those obstacles can block light.
+`ambient level=<n>` then renders the lights at a useful ambient level.
 
 ### `stratcosts`
 
@@ -415,11 +416,11 @@ renders the lights at a useful ambient level.
 {"probe":"stratcosts","line":2,"mask":"FOOT","maskValue":1,"traversability":[[12,2,2,12,13],...],"minutes":[[-1,104,104,-1],...]}
 ```
 
-A local `GROUP` with `fPlayer = FALSE` and the given `ubTransportationMask` (no encumbrance). `traversability[id]` is
-`SectorInfo[id].ubTraversability` (N, E, S, W, through) and `minutes[id]` the `INT32` result of
+Uses a local `GROUP` with `fPlayer = FALSE` and the given `ubTransportationMask` (no encumbrance). `traversability[id]` =
+`SectorInfo[id].ubTraversability` (N, E, S, W, through); `minutes[id]` = the `INT32` result of
 `GetSectorMvtTimeForGroup(id, dir, &g)` for N, E, S, W (−1 is `TRAVERSE_TIME_IMPOSSIBLE`). Without a save these are the
-values `InitializeJA2` loads from `strategic-map-movement-costs.json`; after `save` they are the saved ones (vanilla saves
-carry vanilla's table, which differs from the JSON on the I2/I3 border).
+values `InitializeJA2` loads from `strategic-map-movement-costs.json`; after `save`, the saved ones (vanilla saves carry
+vanilla's table, which differs from the JSON on the I2/I3 border).
 
 ### `stratpath`
 
@@ -429,23 +430,23 @@ carry vanilla's table, which differs from the JSON on the I2/I3 border).
 ```
 
 The probe detaches `gpGroupList`, creates a player group at `from` with `CreateNewPlayerGroupDepartingFromSector` (no
-members, so no encumbrance and no `DelayEnemyGroupsIfPathsCross` side effects), sets the mask and runs
-`BuildAStrategicPath(from, to, group, tactical)`. `path` holds the strategic indices (`x + 18·y`), `minutes` the
-`GetSectorMvtTimeForGroup` of each edge. Then `RebuildWayPointsForGroupPath` starts the group: `waypoints`, `next`,
-`betweenSectors`, the arrival relative to now and `traverseTime`; `eta` is `CalculateTravelTimeOfGroup`. Afterwards the
-group, its arrival and about-to-arrive events are removed and the list restored, so the probe leaves no trace. The SHIFT
-("shortest route") mode and the helicopter's airspace costs are not reachable from a probe.
+members: no encumbrance, no `DelayEnemyGroupsIfPathsCross` side effects), sets the mask and runs
+`BuildAStrategicPath(from, to, group, tactical)`. `path`: the strategic indices (`x + 18·y`); `minutes`: the
+`GetSectorMvtTimeForGroup` of each edge. `RebuildWayPointsForGroupPath` then starts the group: `waypoints`, `next`,
+`betweenSectors`, the arrival relative to now, `traverseTime`; `eta` is `CalculateTravelTimeOfGroup`. Afterwards the
+group and its arrival and about-to-arrive events are removed and the list restored, so the probe leaves no trace. The
+SHIFT ("shortest route") mode and the helicopter's airspace costs are not reachable from a probe.
 
 ### `groups`
 
 Needs a loaded save. One line with: `groups` (every `GROUP` in list order with all fields, `atFinalDestination`, `eta` =
-`CalculateTravelTimeOfGroup`, waypoints, and member soldier ids or the `ENEMYGROUP` counts), `squads` (soldier ids per slot,
-−1 empty), `squadGroups`, `deadSquadMembers`, `vehicleGroups`, `vehicles`, `helicopterVehicleId`, `helicopterAirborne`,
-`selectedSector`, `sectors` (per `SECTORINFO`: flags, garrison, pending reinforcements, troops, elites, admins, creatures,
-the four in-battle counts, facilities, bloodcats, placements, travel rating, militia ×3, last loaded, last liberated, ever
-player controlled, visible items), `elements` (`bNameId`, enemy controlled, enemy airspace, SAM condition), `underground`,
-`events` (`GROUP_ARRIVAL` and `GROUP_ABOUT_TO_ARRIVE`: stamp, kind, param), `mercs` (player team: group, sector, assignment,
-previous sector, insertion code, `pMercPath`), `secrets` and `worldMinutes`.
+`CalculateTravelTimeOfGroup`, waypoints, and member soldier ids or the `ENEMYGROUP` counts), `squads` (soldier ids per
+slot, −1 empty), `squadGroups`, `deadSquadMembers`, `vehicleGroups`, `vehicles`, `helicopterVehicleId`,
+`helicopterAirborne`, `selectedSector`, `sectors` (per `SECTORINFO`: flags, garrison, pending reinforcements, troops,
+elites, admins, creatures, the four in-battle counts, facilities, bloodcats, placements, travel rating, militia ×3, last
+loaded, last liberated, ever player controlled, visible items), `elements` (`bNameId`, enemy controlled, enemy airspace,
+SAM condition), `underground`, `events` (`GROUP_ARRIVAL` and `GROUP_ABOUT_TO_ARRIVE`: stamp, kind, param), `mercs` (player
+team: group, sector, assignment, previous sector, insertion code, `pMercPath`), `secrets` and `worldMinutes`.
 
 ## Comparing with ja2-node
 
@@ -455,27 +456,34 @@ node tools/oracle/compare.ts ~/ja2-oracle/a9-costs.jsonl ~/ja2-oracle/a9-paths.j
 tools/oracle/compare-all.sh
 ```
 
-`compare.ts` walks each output file in order with fresh comparers per file. A `sector` line loads that map (A9 when a file
-has none), a `save` line imports the save into fresh ja2-node sessions (`14` §10; saves from `$JA2_SAVES_DIR` or
-`SavedGames` next to the data folder), and every following probe is rebuilt in that context by the comparer that owns its
-command. It prints one line per probe plus a summary; the exit status is 1 on any mismatch or oracle error. Comparing needs
-the original data and the saves, but not the native build.
+`compare.ts` walks each output file in order with fresh comparers per file. A `sector` line loads that map (A9 when a
+file has none); a `save` line imports the save into fresh ja2-node sessions (`14` §10; saves from `$JA2_SAVES_DIR` or
+`SavedGames` next to the data folder); the comparer owning each following probe's command rebuilds it in that context.
+Output: one line per probe plus a summary; exit status 1 on any mismatch or oracle error. Comparing needs the original
+data and the saves, not the native build.
 
 `compare-all.sh` runs `compare.ts` over the outputs listed in "Shipped probes" under `$JA2_ORACLE_DIR`; `attach` and
-`florist` are optional and skipped with a hint when missing. It is the `oracle` gate of `pnpm gates` (skipped when the work
-dir is missing; needs `JA2_DATA_DIR`).
+`florist` are optional, skipped with a hint when missing. It is the `oracle` gate of `pnpm gates` (skipped without the
+work dir; needs `JA2_DATA_DIR`).
+
+The domain sections from "Creatures" on list their commands (comments name the native code a command runs) and what the
+output lines print. Unless a section says otherwise, the commands work on a loaded `save` and soldier ids (`who`, `merc`,
+`src`, `dest`, `target`) are the save's; merchant and laptop commands also run on a fresh process, and `schedload` loads
+its save itself. By default a comparer imports the save into a ja2-node campaign session, applies the same commands and
+settings, replays the native draws (both streams) and the traced `CheckFact` results strictly ("Draw replay") and
+compares the printed state field by field after every command.
 
 ### Draw replay
 
 Most comparers replay the native random draws instead of seeding ja2-node:
 
-- **Trace** (0002): a `draws` array of `[stream, range, value, ring index]` entries, `m` for `Random`, `p` for `PreRandom`
-  (hence also `Chance`, `PreChance`), `d` for a weighted pick of `DistributeCreaturesByWeight` (0006: weight total and the
-  lower bound of the chosen bucket), `k` for a mark. Calls with range 0 draw nothing and are not traced.
+- **Trace** (0002): a `draws` array of `[stream, range, value, ring index]` entries: `m` = `Random`, `p` = `PreRandom`
+  (hence also `Chance`, `PreChance`), `d` = a weighted pick of `DistributeCreaturesByWeight` (0006: weight total and
+  lower bound of the chosen bucket), `k` = a mark. Calls with range 0 draw nothing and are not traced.
 - **Replay**: the comparer feeds the traced values into ja2-node's streams (`ReplayStream`,
-  `src/sim/strategic/forces/autoresolve/replay-rng.ts`, or a comparer's own roll source), asserting each requested range.
-  *Strict* means in order with none left over. A `d` entry is replayed as the `Random(100)` that falls into the same bucket
-  (ja2-node draws one weighted `main(100)` per creature; `deviations.md`).
+  `src/sim/strategic/forces/autoresolve/replay-rng.ts`, or its own roll source), asserting each requested range.
+  *Strict* = in order, none left over. A `d` entry replays as the `Random(100)` that falls into the same bucket (ja2-node
+  draws one weighted `main(100)` per creature; `deviations.md`).
 - **Marks** bound the draws a comparer keeps or drops:
 
 | Mark | Patch | Around |
@@ -487,39 +495,39 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
 
-- **Cosmetic draws** that ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or
-  an action ("Cosmetic face and frame draws"), and in comparers that match `Random` in order rather than strictly, the
+- **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
+  action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
   native extras (curses, door creaks, explosion sounds, other systems' events during a warp).
-- **`CheckFact`**: the narrative comparers replay the native `CheckFact` results in call order (traced by 0013 and 0015);
-  a different call order is a mismatch; the values are written into ja2-node's fact store, as the native computed facts
+- **`CheckFact`**: the narrative comparers replay the native `CheckFact` results in call order (traced by 0013 and 0015;
+  a different call order is a mismatch) and write the values into ja2-node's fact store, as the native computed facts
   are.
 
-The engine is seeded from the clock at start, so an unseeded script draws differently on every run and must match on every
-run; scripts seed (`seed value=<n> pre=reseed`) where a setup step's draws are not replayed (probe soldiers' random stats)
-or a fixed scenario is wanted.
+The engine is seeded from the clock at start, so an unseeded script draws differently on every run and must match on
+every run. Scripts seed (`seed value=<n> pre=reseed`) where a setup step's draws are not replayed (probe soldiers' random
+stats) or a fixed scenario is wanted.
 
 ### Tactical map and combat
 
 `compare.ts` itself compares:
 
-- `costs`: the full movement cost table, byte by byte and the FNV-1a hash;
-- `path`: length, directions and the `PlotPath` AP cost (probe soldiers after `sector`, the save's soldiers after `save`);
+- `costs`: the full movement cost table, byte by byte, and the FNV-1a hash;
+- `path`: length, directions, `PlotPath` AP cost (probe soldiers after `sector`, the save's soldiers after `save`);
 - `los`: `lineOfSight` and `soldierToSoldier`;
 - `soldier`/`soldiers detail=1`: position, facing, animation, life, breath, AP, AP per turn, morale, alert, orders,
-  visibility, last target, effective stats, personality, opplist and inventory;
+  visibility, last target, effective stats, personality, opplist, inventory;
 - `cth`: chance, AP cost and chance to get through for every aim level, for shooters of any team;
-- `bestshot`: possible, opponent, target, aim, chance to really hit, AP cost and attack value;
-- `light`: ambient, true level and distance visible;
+- `bestshot`: possible, opponent, target, aim, chance to really hit, AP cost, attack value;
+- `light`: ambient, true level, distance visible;
 - `lights`: the true level of every tile (byte by byte and the hash), the ambient level and the light sprites (position,
-  template, ON/PRIMETIME/NIGHTTIME; fake merc lights are skipped). After a `sector` line with `hour`, the session reloads
-  the map lights for that hour and takes the oracle's ambient level and structure-height cache; `ambient` lines set the
-  level again.
+  template, ON/PRIMETIME/NIGHTTIME; fake merc lights skipped). After a `sector` line with `hour`, the session reloads the
+  map lights for that hour and takes the oracle's ambient level and structure-height cache; `ambient` lines set the level
+  again.
 
 ### Lights
 
-`map-light-probes.ts [hour...]` writes, for every original map with light sprites, a `sector … hour=<h>` load, a hash-only
-`lights`, `ambient level=15` and a full `lights` dump (hours 22, 3 and 12 by default: prime and night lights, night lights
-only, always-on lights only). The sweep is not part of `compare-all.sh`.
+`map-light-probes.ts [hour...]` writes, for every original map with light sprites, a `sector … hour=<h>` load, a
+hash-only `lights`, `ambient level=15` and a full `lights` dump; default hours 22, 3 and 12 (prime and night lights, night
+lights only, always-on lights only). The sweep is not part of `compare-all.sh`.
 
 ```sh
 node tools/oracle/map-light-probes.ts > ~/ja2-oracle/map-lights.txt
@@ -529,11 +537,11 @@ node tools/oracle/compare.ts ~/ja2-oracle/map-lights.jsonl
 
 ### Savegames
 
-`save-probes.ts <SaveGame name>...` writes a probe script for any saves: a soldier dump, `lights` for both levels, `cth`
+`save-probes.ts <SaveGame name>...` writes a probe script for any saves: a soldier dump; `lights` for both levels; `cth`
 (torso, head, legs) and `bestshot` for every armed soldier of the player, enemy and militia teams against every opposed
-soldier, `los` for every opposed pair, `path` from each fighter to each opposed fighter and twelve tiles out in eight
-directions, `light` with each fighter as viewer at every opposed soldier and four and eight tiles out in eight directions,
-then a second dump.
+soldier; `los` for every opposed pair; `path` from each fighter to each opposed fighter and twelve tiles out in eight
+directions; `light` with each fighter as viewer at every opposed soldier and four and eight tiles out in eight
+directions; a second dump.
 
 ```sh
 node tools/oracle/save-probes.ts SaveGame01 SaveGame02 SaveGame07 SaveGame08 SaveGame09 SaveGame10 \
@@ -543,88 +551,88 @@ tools/oracle/run.sh ~/ja2-oracle/save-probes/all-saves.txt ~/ja2-oracle/save-pro
 
 ### Sector transitions
 
-`sector-compare.ts` keeps the loaded map's edgepoints (`loadMapEdgepoints`, replaced by `generateMapEdgepoints` after
+`sector-compare.ts` keeps the loaded map's edgepoints (`loadMapEdgepoints`; `generateMapEdgepoints` after
 `edgepoints generate=1`) and an init list built from the map (`buildSoldierInitList`), mutated like the native one by
 `initlist` (the sort is not idempotent) and `defence`. Probe soldiers are rebuilt from the dumped soldier (gridno, level,
 stance, team, body). `defence`, `creatureplacement` and `bloodcatplacement` replay only the placement decisions: draws
 between the placement marks are skipped, the rest go through `addSoldierInitListEnemyDefenceSoldiers` of
-`src/sim/strategic/ai/defence-placement.ts` (or the creature and bloodcat equivalents) with a roll source that asserts each
-range, each `AddPlacementToWorld` is answered with the native outcome, and the order of the offered nodes, the final list
-(classes, soldiers) and the consumed draws are compared. `exitcheck` and `move` run on a second session of the save created
-with the data VFS as `FileExists`, so it has a `SectorFlow`; `okForSectorExit` gets the selected merc (whose squad is the
-current one, as in the oracle).
+`src/sim/strategic/ai/defence-placement.ts` (or the creature and bloodcat equivalents) with a roll source asserting each
+range, each `AddPlacementToWorld` is answered with the native outcome, and the comparer checks the order of the offered
+nodes, the final list (classes, soldiers) and the consumed draws. `exitcheck` and `move` run on a second session of the
+save created with the data VFS as `FileExists`, so it has a `SectorFlow`; `okForSectorExit` gets the selected merc (whose
+squad is current, as in the oracle).
 
 - I14 regenerates edgepoints differently from its saved lists; ja2-node follows the generator.
-- Probe soldiers made prone by the harness cannot path at all in the oracle (they become `SOLDIER_MULTITILE` and every
+- Probe soldiers made prone by the harness cannot path at all in the oracle (they become `SOLDIER_MULTITILE`; every
   `FindBestPath` returns 0, crawling included), so there are no prone walk-off probes.
 
 ### Strategic movement
 
 `strategic-compare.ts` compares `stratcosts` (every traversability and edge time, on the shipped `strategic-*.json` after
 `initStrategicLayerMap`, or on the imported save after `save`), `stratpath` (path, edge times, waypoints, next sector,
-arrival, traverse time and ETA on the same scratch group) and `groups` (the `importStrategicMap` result of the save against
+arrival, traverse time, ETA on the same scratch group) and `groups` (the `importStrategicMap` result of the save against
 the whole dump; player group ETAs only when every member is in the loaded sector, because encumbrance comes from the
 tactical soldier).
 
 ### Strategic AI
 
 `sai-compare.ts` replays the traced draws of every operation (`newgame`, `saievaluate`, `saicheck`, `saiwake`,
-`saiarrive`, and the load-time recomputation between marks 101/102) strictly, then compares the following `sai` dump field
-by field. `newgame` runs `initializeMapStructure`, `setupNewStrategicMap` and `initNewCampaignMap` with the AI hook on a
-fresh state; a `save` imports time, map and AI without the load hooks, which run at the next `sai` with the native mine
-income from that dump (the economy is not imported here). `diffmod` recomputes `calcDifficultyModifier` from the imported
-state and the dumped mine income.
+`saiarrive`, and the load-time recomputation between marks 101/102) strictly, then compares the following `sai` dump
+field by field. `newgame` runs `initializeMapStructure`, `setupNewStrategicMap` and `initNewCampaignMap` with the AI hook
+on a fresh state. A `save` imports time, map and AI without the load hooks; they run at the next `sai` with the native
+mine income from that dump (the economy is not imported here). `diffmod` recomputes `calcDifficultyModifier` from the
+imported state and the dumped mine income.
 
 ### Economy
 
 `economy-compare.ts` imports each save (`importStrategicTime`, `importStrategicMap`, `importEconomy`, the crew from the
-saved soldiers with `readSoldierAssignments`) and compares the dumps field by field; `loyalty` replays the event on the same
-state, `assign` applies the same changes, `warp` runs `warpGameTime` through ja2-node's event dispatch with the economy
-handlers (all other events do nothing; the flow is tactical, as in the oracle, which never compresses time).
+saved soldiers with `readSoldierAssignments`) and compares the dumps field by field. `loyalty` replays the event on the
+same state, `assign` applies the same changes, `warp` runs `warpGameTime` through ja2-node's event dispatch with the
+economy handlers (other events do nothing; the flow is tactical, as in the oracle, which never compresses time).
 
-- After a `warp`, stat gains are RNG-dependent (`StatChange` draws `PreRandom`), so the stat-derived estimates of `mercs`
+- After a `warp`, stat gains depend on the RNG (`StatChange` draws `PreRandom`), so the stat-derived estimates of `mercs`
   are not compared; everything else must match.
-- A longer warp that completes a training session diverges by a few hundredths because the trainers' leadership rises in
-  the oracle.
+- A longer warp that completes a training session diverges by a few hundredths: the trainers' leadership rises in the
+  oracle.
 
 ### Autoresolve
 
 `autoresolve` dumps the AR cells right after `CreateAutoResolveInterface` (soldiers with stats, inventory, profile
-progress) and traces every draw with marks between the phases. Three comparers run on each probe:
+progress) and traces every draw, with marks between the phases. Three comparers run on each probe:
 
-1. **Core replay** (`autoresolve-compare.ts`): rebuilds the AR state from the setup dump, replays the traced draws through
-   ja2-node's `calculateAttackValues`, `runAutoresolve`, `endOfBattle`, `autoBandageMercs` and `closeAutoresolve` with
-   streams that assert every requested range (cosmetic draws routed to `main` with `cosmeticOnMain`), applies the same
-   retreat orders and surrender answer at the same slices, and compares the ratings, team sums, status, battle time, every
-   cell (life, bleeding, flags, timers, pending bullets, inventory, militia kill points, merc profile counters and stat
-   progress), the time warp, militia counts and promotions after closing, and that no draw is left over. Creature attacks
-   (`arsetup code=creature creatures=<n>`) replay the `d` entries.
-2. **Setup** (`autoresolve-creation.ts`), on a second session of the same save: the `arsetup` is applied,
-   `buildAutoresolveInput` creates the militia, enemy and creature soldiers with streams that replay the draws between the
-   setup and ratings marks (the creature composition of `CalculateAutoResolveInfo` first), and every created soldier is
-   compared with the dumped cell (class, body, stats, life, morale, breath, traits, AP, inventory with status and ammo). No
-   draw may be left over except the pathfinder's `Random(4)` and the preserved-soldier `PreRandom(2)` of the native world
-   unload.
-3. **Aftermath** (`autoresolve-aftermath.ts`), for every `autoresolve` after a `save`: the save is imported into a campaign
-   session, the `arsetup` is applied (counts, enemy groups, day, `ResetMilitia`), the counts and town loyalty before the
-   battle are compared, the replayed battle is handed to the battle flow (`adoptAutoresolve`), the `bandage` and `done`
-   answers go through `dispatch` with the traced close draws, and the world seconds, enemy counts (stationary, total, in
-   sector), militia, `fEnemyControlled` and town loyalty after the close are compared, plus the enemy group id of every cell
-   from a fresh `associateEnemiesWithStrategicGroups`.
+1. **Core replay** (`autoresolve-compare.ts`): rebuilds the AR state from the setup dump; replays the traced draws
+   through ja2-node's `calculateAttackValues`, `runAutoresolve`, `endOfBattle`, `autoBandageMercs` and
+   `closeAutoresolve` with streams that assert every requested range (cosmetic draws routed to `main` with
+   `cosmeticOnMain`); applies the same retreat orders and surrender answer at the same slices; compares ratings, team
+   sums, status, battle time, every cell (life, bleeding, flags, timers, pending bullets, inventory, militia kill points,
+   merc profile counters and stat progress), the time warp, militia counts and promotions after closing, and that no
+   draw is left over. Creature attacks (`arsetup code=creature creatures=<n>`) replay the `d` entries.
+2. **Setup** (`autoresolve-creation.ts`), on a second session of the same save: applies the `arsetup`;
+   `buildAutoresolveInput` creates the militia, enemy and creature soldiers with streams replaying the draws between the
+   setup and ratings marks (the creature composition of `CalculateAutoResolveInfo` first); every created soldier is
+   compared with the dumped cell (class, body, stats, life, morale, breath, traits, AP, inventory with status and ammo).
+   No draw may be left over except the pathfinder's `Random(4)` and the preserved-soldier `PreRandom(2)` of the native
+   world unload.
+3. **Aftermath** (`autoresolve-aftermath.ts`), for every `autoresolve` after a `save`: imports the save into a campaign
+   session and applies the `arsetup` (counts, enemy groups, day, `ResetMilitia`); compares the counts and town loyalty
+   before the battle; hands the replayed battle to the battle flow (`adoptAutoresolve`); sends the `bandage` and `done`
+   answers through `dispatch` with the traced close draws; compares world seconds, enemy counts (stationary, total, in
+   sector), militia, `fEnemyControlled` and town loyalty after the close, plus the enemy group id of every cell from a
+   fresh `associateEnemiesWithStrategicGroups`.
 
-`pre-battle-compare.ts` compares `pbi` (the encounter code, the flags and the draws); `autoresolve-aftermath.ts` also
-compares `enemycounts`. `battle.txt` checks the autoresolve quirks of `19`: Q12 (the H1 garrison, id 25, is counted both as
-stationary and as mobile), Q14 (victories leave D13 enemy-controlled), Q16 (enemy groups whose ranks do not match the cell
-classes) and Q22 (the town loyalty after closing a battle with militia loaded in tactical includes the `ABANDON_MILITIA`
-penalty of `EndTacticalBattleForEnemy`).
+`pre-battle-compare.ts` compares `pbi` (encounter code, flags, draws); `autoresolve-aftermath.ts` also compares
+`enemycounts`. `battle.txt` checks the autoresolve quirks of `19`: Q12 (the H1 garrison, id 25, counts both as stationary
+and as mobile), Q14 (victories leave D13 enemy-controlled), Q16 (enemy groups whose ranks do not match the cell classes)
+and Q22 (the town loyalty after closing a battle with militia loaded in tactical includes the `ABANDON_MILITIA` penalty of
+`EndTacticalBattleForEnemy`).
 
 The saves are on easy with 2–4 % progress, so the random-ambush branch (`PreRandom(100)` against the ambush chance) is not
-reachable natively; its arithmetic is covered by unit tests only.
+reachable natively; only unit tests cover its arithmetic.
 
 ### Creatures
 
-Commands (after a `save`; each prints its arguments, the creature and attack globals, the creature counts of every surface
-and underground sector, and the draws it made):
+Each command prints its arguments, the creature and attack globals, the creature counts of every surface and underground
+sector, and its draws:
 
 ```
 options [scifi=0|1] [difficulty=1..3]
@@ -638,16 +646,16 @@ creatureplacement [queen=1] [larvae=] [infants=] [ym=] [yf=] [am=] [af=]   # aft
 bloodcatplacement [cats=<n>] [placements=<n>]      # after `sector`: AddSoldierInitListBloodcats
 ```
 
-`creature-compare.ts` imports the save (strategic map, economy, creature directives and meanwhile flag), replays each
-operation through `src/sim/strategic/creatures/` strictly (`d` entries as `Random(100)`) and compares the whole dump. The
-attack globals are process state in the native build, so the comparer carries them across `save` lines.
-`creatureplacement` and `bloodcatplacement` are compared by `sector-compare.ts` ("Sector transitions").
+`creature-compare.ts` imports the save (strategic map, economy, creature directives, meanwhile flag), replays each
+operation through `src/sim/strategic/creatures/` (`d` entries as `Random(100)`) and compares the whole dump. The attack
+globals are process state in the native build, so the comparer carries them across `save` lines. `sector-compare.ts`
+compares `creatureplacement` and `bloodcatplacement` ("Sector transitions").
 
 ### Morale
 
-Commands (each prints the decay counter, progress, `fEnemyInSector`, the world minutes and per OUR merc the sector, group,
+Each command prints the decay counter, progress, `fEnemyInSector`, the world minutes and, per OUR merc, sector, group,
 motion, assignment, sleep, life, effective leadership, morale, the four modifiers, opinions of the teammates, hated, buddy
-and learn slots, personality and attitude):
+and learn slots, personality and attitude:
 
 ```
 morale
@@ -660,13 +668,12 @@ hourlymorale [count=<n>]                           # UpdateBuddyAndHatedCounters
 quartermorale [count=<n>]                          # DecayTacticalMoraleModifiers
 ```
 
-`morale-compare.ts` applies the same changes to a campaign session of the save and runs ja2-node's morale updates
-(`src/sim/campaign/team-morale.ts`).
+`morale-compare.ts` applies the same changes and runs ja2-node's morale updates (`src/sim/campaign/team-morale.ts`).
 
 ### Merchants
 
-Commands (dealer ids 0–18 as in `dealers.json`; every dump also prints the world day and minutes, the highest progress,
-gun nut and `FACT_ESTONI_REFUELLING_POSSIBLE`):
+Dealer ids 0–18 as in `dealers.json`; every dump also prints the world day and minutes, the highest progress, gun nut and
+`FACT_ESTONI_REFUELLING_POSSIBLE`:
 
 ```
 dealers                                     # status and every non-empty item header with its special elements
@@ -690,11 +697,11 @@ interleaved) and compare the dumps field by field; prices, repairs and sales com
 
 ### Contracts
 
-Commands (each prints its arguments, the draws it made, the contract state and the profiles of the team, or of `who=` and
-`range=`. The state holds the world minutes, balance, merc deaths, man-days, death rate, bad reputation, unhired deaths, the
-M.E.R.C. account status, the renewal list and sequence flags, the leave list, the pending contract events and per OUR merc
-every contract field with the expiry predicates, `FindRefusalReason`, `WillMercRenew`, the first buddy on the team, the
-death-rate, reputation and morale checks and the equipment check):
+Each command prints its arguments, draws, the contract state and the profiles of the team (or of `who=` and `range=`).
+State: world minutes, balance, merc deaths, man-days, death rate, bad reputation, unhired deaths, M.E.R.C. account
+status, renewal list and sequence flags, leave list, pending contract events and, per OUR merc, every contract field
+with the expiry predicates, `FindRefusalReason`, `WillMercRenew`, the first buddy on the team, the death-rate,
+reputation and morale checks and the equipment check:
 
 ```
 contracts | profiles [who=<id>] [range=<from>:<to>]
@@ -714,14 +721,13 @@ leaveequip who=<id> where=here|drassen|omerta | equipleft slot=<n> where=drassen
 mercsite | levelup who=<id> | salary values=<a,b,…> max=<n> | setrenewals profiles=<a,b,…>
 ```
 
-`contract-compare.ts` applies the same changes to a campaign session of the save, replays the traced draws through
-`ContractFlow.useRandom` and compares the dump after every command.
+`contract-compare.ts` replays the traced draws through `ContractFlow.useRandom`.
 
 ### Creature AI
 
-Commands (after a `save`; the soldier commands print the full soldier dump plus the AI state: side, smells, mobility,
-caller, call priority, frenzy, hunting, old life, regeneration, action fields, noise, patrol grid, aim, walk-to-attack
-cache, hand items, inventory flags and `bAwareOfOpposition` of the team):
+The soldier commands print the full soldier dump plus the AI state: side, smells, mobility, caller, call priority,
+frenzy, hunting, old life, regeneration, action fields, noise, patrol grid, aim, walk-to-attack cache, hand items,
+inventory flags, and `bAwareOfOpposition` of the team:
 
 ```
 addsoldier [team=creature] body=af|am|yf|ym|larva|infant|queen|bloodcat|regmale|… at=<grid> [dir=] [level=] [settings]
@@ -736,26 +742,26 @@ dropsmell who=<id>
 trackscent who=<id> [actionData=]
 ```
 
-Settings: `alert`, `orders`, `attitude`, `ap`, `initialAp`, `life`, `oldLife`, `breath`, `hunting`, `frenzied`, `underFire`,
-`opps`, `lastAction`, `actionData`, `monsterSmell`, `lastTarget`, `noise=<grid>:<volume>[:<level>]`,
-`caller=<id>:<grid>:<priority>`, `aware=0|1`, `face=<dir>`. `addsoldier` uses `TacticalCreateSoldier` with random stats and
-`AddSoldierToSectorNoCalculateDirection`, so seed the engine first. `decide` sets `gfTurnBasedAI` from `INCOMBAT` and
+Settings: `alert`, `orders`, `attitude`, `ap`, `initialAp`, `life`, `oldLife`, `breath`, `hunting`, `frenzied`,
+`underFire`, `opps`, `lastAction`, `actionData`, `monsterSmell`, `lastTarget`, `noise=<grid>:<volume>[:<level>]`,
+`caller=<id>:<grid>:<priority>`, `aware=0|1`, `face=<dir>`. `addsoldier` uses `TacticalCreateSoldier` with random stats
+and `AddSoldierToSectorNoCalculateDirection`, so seed the engine first. `decide` sets `gfTurnBasedAI` from `INCOMBAT` and
 traces the draws; the pathfinder's draws between marks 301/302 are dropped.
 
 `creature-ai-compare.ts` imports the save into a tactical session, builds each added soldier from the dump (stats,
 inventory with status and flags, life, breath, AP, alert, orders, smells) at the dumped id and grid, and copies the dumped
-state after every `setsoldier`/`seen`; `decide`, `beststab`, `stab`, `creaturecall` and `trackscent` replay the native draws
-into `rng`/`pre` strictly and compare the result (action, action data, next action, alert, mobility, caller fields, frenzy,
-old life, aim, movement mode, final destination, walk-to-attack cache, facing, AP, hand items, inventory flags).
+state after every `setsoldier`/`seen`. `decide`, `beststab`, `stab`, `creaturecall` and `trackscent` replay the native
+draws into `rng`/`pre` strictly and compare the result: action, action data, next action, alert, mobility, caller fields,
+frenzy, old life, aim, movement mode, final destination, walk-to-attack cache, facing, AP, hand items, inventory flags.
 
 ### Laptop
 
-Commands (each prints its arguments, the draws it made, a result, the laptop state (new-game flag, bookmarks, balance,
-I.M.P. flags, personnel lists, the M.E.R.C. fields, Bobby Ray's flags, new and used lists with item, on hand, on order,
-quality and eligibility, shipments, insurance payouts, mails, the landing zone, the hired flag, the pending laptop events,
-the world minutes), every OUR merc's contract fields and inventory, and the selected profiles (status, availability,
-salaries, deposit, kit cost, `CalcCompetence`, attractiveness, flags, hangover, precedent quotes, M.E.R.C. days, sector,
-traits, stats, inventory, taken I.M.P. slot)):
+Each command prints its arguments, draws, a result, the laptop state, every OUR merc's contract fields and inventory,
+and the selected profiles. Laptop state: new-game flag, bookmarks, balance, I.M.P. flags, personnel lists, M.E.R.C.
+fields, Bobby Ray's flags, new and used lists (item, on hand, on order, quality, eligibility), shipments, insurance
+payouts, mails, landing zone, hired flag, pending laptop events, world minutes. Profiles: status, availability, salaries,
+deposit, kit cost, `CalcCompetence`, attractiveness, flags, hangover, precedent quotes, M.E.R.C. days, sector, traits,
+stats, inventory, taken I.M.P. slot.
 
 ```
 newgamefull [difficulty=1..3] [gunnut=0|1] [scifi=0|1]   # after `seed`: profiles reset, mails and laptop init, the traced
@@ -776,18 +782,18 @@ flowers flower=<0-9> dest=<id> [nextday=0|1] [extras=crushed,blackRoses,wilted,f
 ```
 
 `laptop-compare.ts` builds the new game through `buildNewCampaign` with the traced draws in the state's streams (the
-`InitFace` triples of the preloaded NPC faces dropped), or opens a campaign session of the save, applies the same command
-through the laptop modules with `LaptopFlow.useRandom` (hire probes drop the face and first-frame draws), and compares the
-whole dump; the `newgamefull` and save probes also compare every profile's sector (`InitNPCs`, the terrorists). The Bobby
-Ray theft counter is a function static in the original, so the comparer carries it across the saves of one file. For
-`flowers` it replays `visitSite floristOrderForm` and `orderFlowers` with the traced draws and compares the order number
-before, after entering and after sending, the price and the laptop dump.
+`InitFace` triples of the preloaded NPC faces dropped), or opens a campaign session of the save and applies the same
+command through the laptop modules with `LaptopFlow.useRandom` (hire probes drop the face and first-frame draws). It
+compares the whole dump; `newgamefull` and the save probes also compare every profile's sector (`InitNPCs`, the
+terrorists). The Bobby Ray theft counter is a function static in the original, so the comparer carries it across the
+saves of one file. `flowers` replays `visitSite floristOrderForm` and `orderFlowers` with the traced draws and compares
+the order number (before, after entering, after sending), the price and the laptop dump.
 
 ### Doors
 
-Commands (each prints its arguments; the door commands print the door entry before and after, the soldier before and after
-with AP, life, breath, bleeding, the skill-check memory, inventory, key ring, profile gains and stats, the attack busy count
-and the draws):
+Each command prints its arguments; the door commands also print the door entry and the soldier before and after (AP,
+life, breath, bleeding, skill-check memory, inventory, key ring, profile gains and stats), the attack busy count and the
+draws:
 
 ```
 locks                                                 # the 64 entries of LockTable
@@ -803,9 +809,9 @@ makecivhostile who=<id> | pcattack who=<id> target=<id> | hostilelist   # with f
                                                       # hostile-quote list (0011) and the pending civ-group events
 ```
 
-`doors-compare.ts` applies the same settings to a campaign session of the save and replays the `PreRandom` draws strictly;
-`Random` draws are matched in order with the native cosmetic extras skipped. The AP of a menu action stopped by the trap
-check is not compared: the native cost reads past `doorAPs` ("Trap check cost of menu actions").
+`doors-compare.ts` replays the `PreRandom` draws strictly and matches `Random` draws in order, native cosmetic extras
+skipped. Not compared: the AP of a menu action stopped by the trap check (the native cost reads past `doorAPs`, "Trap
+check cost of menu actions").
 
 ### Attachment AP
 
@@ -817,11 +823,11 @@ attachbox who=<id> [slot=5] [host=<item>:<status>] [hostAttach=<item>:<status>,.
 ```
 
 It writes the host object into the slot, puts the cursor item into `gItemPointer` for `cursorWho` (default `who`), sets
-`FACT_ATTACHED_ITEM_BEFORE` (no help balloon), opens the box with `InitItemDescriptionBox`, then per step either clicks
-attachment slot N (`clickN`: the region's own callback, so `ItemDescAttachmentsCallbackPrimary` attaches with an item in the
-cursor or detaches into the cursor without one) or puts a new item into the cursor (`<item>:<status>`), and closes the box
-with `DeleteItemDescriptionBox`. It prints the AP of both soldiers and the attachments before, after each step and after
-closing, and the host object.
+`FACT_ATTACHED_ITEM_BEFORE` (no help balloon) and opens the box with `InitItemDescriptionBox`. Each step either clicks
+attachment slot N (`clickN`: the region's own callback, so `ItemDescAttachmentsCallbackPrimary` attaches with an item in
+the cursor or detaches into the cursor without one) or puts a new item into the cursor (`<item>:<status>`);
+`DeleteItemDescriptionBox` closes the box. Printed: the AP of both soldiers and the attachments before, after each step
+and after closing, and the host object.
 
 `attach-compare.ts` replays each line on a fresh campaign session of the save with the commands a player sends (`attach`
 from a pocket holding the cursor item, `detach` into a pocket) and checks the attachments, the host, the native box rule
@@ -831,10 +837,10 @@ command must give the same AP on both sides.
 
 ### Facts and NPC presence
 
-Commands (each prints its arguments, the draws, a result, the narrative state (the 500 facts, the 30 quests, the boxing
-globals, the terrorist count, the balance, the world minutes and sector) and the presence fields of the selected profiles
-(`ids=a,b,…`, default every NPC, RPC and vehicle: sector with z, the three misc flag bytes, `bNPCData`/`bNPCData2`, money,
-balance, life, status, town, last date spoken to, profile insertion, quote record and action, inventory)):
+Each command prints its arguments, draws, a result, the narrative state (500 facts, 30 quests, boxing globals,
+terrorist count, balance, world minutes and sector) and the presence fields of the selected profiles (`ids=a,b,…`,
+default every NPC, RPC and vehicle): sector with z, the three misc flag bytes, `bNPCData`/`bNPCData2`, money, balance,
+life, status, town, last date spoken to, profile insertion, quote record and action, inventory:
 
 ```
 narrative [ids=…]                                   # dump only
@@ -851,16 +857,15 @@ questentry sector= [z=] | questexit sector= [z=]    # HandleQuestCodeOnSectorEnt
 entersector sector= [z=]                            # SetCurrentWorldSector: the profiled non-player soldiers (active)
 ```
 
-`facts-compare.ts` imports the save into a campaign session, applies the same command through the narrative modules with
-the native draws replayed strictly (both streams), and compares the state and the profiles. `checkfact` compares the 500
-results. Fact 284 (`FACT_PC_HAS_CONRADS_RECRUIT_OPINION`, computed through `CalcDesireToTalk`) is masked in every fact
-comparison of this comparer (`UNKNOWN_INPUT_FACTS`). `entersector` compares the sorted profiles of the active soldiers, those away by schedule included as in `FOR_EACH_SOLDIER`
-(`setCurrentWorldSector` bypassing the merc check, as the native call does). The talk context outlives a save load in the
-original, so every `checkfact` sets it.
+`facts-compare.ts` applies each command through the narrative modules; `checkfact` compares the 500 results. Fact 284
+(`FACT_PC_HAS_CONRADS_RECRUIT_OPINION`, computed through `CalcDesireToTalk`) is masked in every fact comparison of this
+comparer (`UNKNOWN_INPUT_FACTS`). `entersector` compares the sorted profiles of the active soldiers, those away by
+schedule included as in `FOR_EACH_SOLDIER` (`setCurrentWorldSector` bypassing the merc check, as the native call does).
+The talk context outlives a save load in the original, so every `checkfact` sets it.
 
 ### Talk
 
-Commands (after a `save`; `merc` is a soldier id of the save, its profile is the talker):
+`merc` is a soldier id of the save; its profile is the talker:
 
 ```
 npcrecords [profile=<id>]                 # gpNPCQuoteInfoArray and the backups (19 numbers per record), the civilian arrays
@@ -877,14 +882,12 @@ questdecode                               # &gubFact - &gubQuest and NPCConsider
 ```
 
 Approaches: `friendly`, `direct`, `threaten`, `recruit`, `repeat`, `initial`, `whoareyou`, `trigger`, `buysell`,
-`initiating`, `givingitem`, `declaration`, `enemy`, `notsafe`. `talk-compare.ts` imports the save into a campaign session
-with NPC records, replays the native `CheckFact` results and the `Random` draws, runs `converseFull` on the same headless
-panel and compares the queue, facts, quests, flags, the engaged state and the profile. `questdecode` gives an offset of
-−512 and 0 for every quest-100/200 read.
+`initiating`, `givingitem`, `declaration`, `enemy`, `notsafe`. `talk-compare.ts` imports the save with NPC records,
+replays the native `CheckFact` results and the `Random` draws, runs `converseFull` on the same headless panel and compares
+the queue, facts, quests, flags, the engaged state and the profile. `questdecode` gives an offset of −512 and 0 for every
+quest-100/200 read.
 
 ### Give
-
-Commands (after a `save`; soldier ids are the save's):
 
 ```
 receive npc=<profile> [merc=<soldier>] money=<n>|item=<name>:<status>:<count> [setup]
@@ -905,15 +908,13 @@ actionitem who=<soldier> action=<n> [det=<n>] [freq=<n>] [owner=<n>] [switch=1 a
 ```
 
 `setup` is any of `fact=<id>:<v>,…`, `quest=<id>:<v>,…`, `balance=<n>` and `npcdata=<n>` (the NPC profile),
-`hospital=<temp>:<refund>`, `said=<record>` and `mercsex=<n>`; each probe prints what it applied. `give-compare.ts` imports
-the save, applies the same setup, replays the native `CheckFact` results, `CalcMedicalCost` values (0017) and draws, and
-runs `npcConsiderReceivingItemFromMerc`, `giveItemOpcode` with the narrative port pointed at the replay,
-`handleNpcItemGiven` and the action item queue. For a give to a dealer whose shop opens, the comparer applies the
-original's `RemoveObjFrom` to the giver's pocket first ("Giving to a dealer" in `deviations.md`).
+`hospital=<temp>:<refund>`, `said=<record>` and `mercsex=<n>`; each probe prints what it applied. `give-compare.ts` applies
+the same setup, replays the native `CheckFact` results, `CalcMedicalCost` values (0017) and draws, and runs
+`npcConsiderReceivingItemFromMerc`, `giveItemOpcode` with the narrative port pointed at the replay, `handleNpcItemGiven`
+and the action item queue. For a give to a dealer whose shop opens, it first applies the original's `RemoveObjFrom` to
+the giver's pocket ("Giving to a dealer" in `deviations.md`).
 
 ### Civilians
-
-Commands (after a `save`; soldier ids are the save's):
 
 ```
 civset [who=<soldier> quote= delta= action= life= class= visible= quoteRecord= quoteAction= neutral= group= cower=0|1
@@ -940,23 +941,23 @@ surrenderanswer value=yes|no who=<soldier>
         # sector, insertion, neutral), quests, the capture flags and count, the offering soldier's action, draws
 ```
 
-`civ-compare.ts` imports the save, applies the same `civset` changes and runs ja2-node's code with the native draws and
-`CheckFact` results replayed: `startCivQuote` (the hint checks with profile 200 replayed, the civilian entry fed from the
-traced `Random` into the cosmetic stream), `decideActionNamedNPC`, `npcConsiderInitiatingConv`, `pcsNearNpc`,
-`pcDoesFirstAidOnNpc`, `triggerFriendWithHostileQuote`, `checkHostileOrSayQuoteList`, `offersSurrender`, and the tactical
-surrender prompt of the battle flow answered through `answer`. Draws after the native ones come from a fallback stream:
-the lost battle that follows in ja2-node runs later in the original. The AI pause is compared only for `friendhostile` and
-`hostilecheck`; the native flag survives a `save`, hence `civset pause=0` after each one. The sighting quotes for Mike and
-Joey (0022) reach the dialogue traces of all comparers.
+`civ-compare.ts` applies the same `civset` changes and runs ja2-node's `startCivQuote` (the hint checks with profile 200
+replayed, the civilian entry fed from the traced `Random` into the cosmetic stream), `decideActionNamedNPC`,
+`npcConsiderInitiatingConv`, `pcsNearNpc`, `pcDoesFirstAidOnNpc`, `triggerFriendWithHostileQuote`,
+`checkHostileOrSayQuoteList`, `offersSurrender`, and the tactical surrender prompt of the battle flow answered through
+`answer`. Draws after the native ones come from a fallback stream: the lost battle that follows in ja2-node runs later in
+the original. The AI pause is compared only for `friendhostile` and `hostilecheck`; the native flag survives a `save`,
+hence `civset pause=0` after each one. The sighting quotes for Mike and Joey (0022) reach the dialogue traces of all
+comparers.
 
 ### Helicopter
 
-None of the maintainer's saves owns the helicopter, so every scenario starts with `helisetup` (`SetUpHelicopterForPlayer`).
-Every command prints the helicopter globals, the vehicle (sector, ten passenger slots, path), its group (sector, next,
-prev, between, arrival and traverse times, waypoints, members), Skyrider's balance and life, the money, facts 43, 45, 136
-and 277, the sectors flagged `SF_SKYRIDER_NOTICED_ENEMIES_HERE`, the four SAM secrets, the mercs (assignment, vehicle id,
-sector, between, group, `bInSector`, insertion code and data, driver/passenger role, life), the squads, the pending
-helicopter, hover and meanwhile events, the quotes Skyrider said since the last command (0014) and the draws:
+None of the maintainer's saves owns the helicopter, so every scenario starts with `helisetup`
+(`SetUpHelicopterForPlayer`). Every command prints helicopter globals; the vehicle (sector, ten passenger slots, path)
+and its group (sector, next, prev, between, arrival and traverse times, waypoints, members); Skyrider's balance and life;
+money; facts 43, 45, 136 and 277; sectors flagged `SF_SKYRIDER_NOTICED_ENEMIES_HERE`; the four SAM secrets; mercs
+(assignment, vehicle id, sector, between, group, `bInSector`, insertion code and data, driver/passenger role, life);
+squads; pending helicopter, hover and meanwhile events; quotes Skyrider said since the last command (0014); draws:
 
 ```
 heli                                                  # dump only
@@ -975,20 +976,19 @@ helipaydebt                                           # PayOffSkyriderDebtIfAny
 helireturn                                            # MakeHeliReturnToBase
 ```
 
-The probes set `fShowAircraftFlag`, as the map screen does when plotting for the helicopter. `heli-compare.ts` applies the
-same steps to a campaign session of the save and replays the draws: `PreRandom` strictly (SAM fire and scouting), `Random`
-matched in order with the native extras skipped (other systems' events during the warps, the cosmetic "enemies spotted"
-quote pick). The "enemies spotted" quotes 34 and 35 are compared as one. A merc's insertion code and data are compared only
-outside the loaded tactical sector: the original rewrites them on every tile step (`SetSoldierGridNo`), ja2-node keeps them
-in the roster.
+The probes set `fShowAircraftFlag`, as the map screen does when plotting for the helicopter. `heli-compare.ts` replays
+`PreRandom` strictly (SAM fire, scouting) and matches `Random` in order with the native extras skipped (other systems'
+events during the warps, the cosmetic "enemies spotted" quote pick). The "enemies spotted" quotes 34 and 35 are compared
+as one. A merc's insertion code and data are compared only outside the loaded tactical sector: the original rewrites them
+on every tile step (`SetSoldierGridNo`), ja2-node keeps them in the roster.
 
 ### NPC actions
 
-Commands (after a `save`; `src`/`dest` are soldier ids, `dest` defaults to the NPC's soldier, `panel=1` sets
-`gfInTalkPanel`; each prints the queued dialogue events, the `CheckFact` calls, both random streams, the fact and quest
-changes, the new strategic events, history lines and mails, the hospital globals, the requestor box that opened (type and
-the lie record), the combat flags, the mercs and the NPC soldier (`soldiers=all`: every soldier in sector), the profiles of
-the NPC and of `ids=`, the items at the primary delivery gridno and at gridnos 1 and 2, and the loaded world's money):
+`dest` defaults to the NPC's soldier; `panel=1` sets `gfInTalkPanel`. Each command prints queued dialogue events,
+`CheckFact` calls, both random streams, fact and quest changes, new strategic events, history lines and mails, hospital
+globals, the requestor box that opened (type, lie record), combat flags, the mercs and the NPC soldier (`soldiers=all`:
+every soldier in sector), the profiles of the NPC and of `ids=`, the items at the primary delivery gridno and at gridnos 1
+and 2, and the loaded world's money:
 
 ```
 npcaction npc= code= [record=] [src=] [dest=] [panel=] [ids=] [soldiers=all]   # HandleNPCDoAction, the queue not drained
@@ -1002,18 +1002,17 @@ npcset [facts=id:v,...] [quests=id:v,...] [modifier=] [temp=] [refund=] [objects
        [who=<soldier> life= bleeding= patientmod= neutral=] [profile= balance= npcdata= npcdata2= salary= status= money= sector= z=]
 ```
 
-`actions-compare.ts` imports the save into a campaign session, sets the same headless talk context, replays the native
-`CheckFact` results and both streams strictly, runs the catalog (`handleNpcDoAction`), `answerNpcRequest`,
-`npcSystemEvent`, `kingpinMoneyCheck` and `hospitalSuppliesCheck` and compares the same fields; `npcset` writes both sides.
-The `InitFace` draws of a panel opened by action 232 are dropped from the native trace.
+`actions-compare.ts` sets the same headless talk context and runs the catalog (`handleNpcDoAction`), `answerNpcRequest`,
+`npcSystemEvent`, `kingpinMoneyCheck` and `hospitalSuppliesCheck`; `npcset` writes both sides. The `InitFace` draws of a
+panel opened by action 232 are dropped from the native trace.
 
 ### Schedules
 
-Every command prints its arguments, the draws, a result and the schedule state: the world and last event query seconds,
-`gubScheduleID`, the schedule list in list order (id, flags, the four times, data and actions, the soldier), every active
+Every command prints its arguments, draws, a result and the schedule state: world and last event query seconds;
+`gubScheduleID`; the schedule list in list order (id, flags, the four times, data and actions, soldier); every active
 civilian (gridno, level, `bInSector`, `SOLDIER_OFF_MAP`, `AI_ASLEEP`, `AI_CHECK_SCHEDULE`, `AI_LOCK_DOOR_INCLUDES_CLOSE`,
-schedule id and progress, initial and off-world gridno, first patrol point, quote action, body and life), the door table
-(gridno, locked, structure open) and the pending `EVENT_PROCESS_TACTICAL_SCHEDULE` events (stamp, schedule id):
+schedule id and progress, initial and off-world gridno, first patrol point, quote action, body, life); the door table
+(gridno, locked, structure open); pending `EVENT_PROCESS_TACTICAL_SCHEDULE` events (stamp, schedule id):
 
 ```
 schedules                                   # dump only
@@ -1027,17 +1026,16 @@ schedmove soldier= gridNo=                  # EVENT_SetSoldierPositionNoCenter, 
 schedshophours profile=                     # FindSoldierByProfileID + ExtractScheduleDoorLockAndUnlockInfo
 ```
 
-`schedules-compare.ts` imports the save into a campaign session and compares the whole state after each command. The
-draws between marks 2001/2000 (pathfinder draws left out) are replayed strictly: on `schedentry` through
+`schedules-compare.ts` replays the draws between marks 2001/2000 (pathfinder draws left out): on `schedentry` through
 `SectorFlow.postSchedulesOfLoadedSector`, on `schedload` after undoing the session's own post-load posting (saved
 schedules, soldier schedule ids, the events added after the saved ones). Not compared: body and life (the civilians'
-creation draws are not replayed) and a decision's data when it returns no action (stale fields). Sector entries come right
-after a load: the 04:00 event moves NPCs with draws that warps do not replay, and the temp files of other sectors are not
-imported from native saves.
+creation draws are not replayed) and a decision's data when it returns no action (stale fields). Sector entries come
+right after a load: the 04:00 event moves NPCs with draws that warps do not replay, and the temp files of other sectors
+are not imported from native saves.
 
 ### Recruiting
 
-Commands (after a `save`; `src`/`dest` as for `npcaction`, `ids=` adds profiles to the dump):
+`src`/`dest` as for `npcaction`; `ids=` adds profiles to the dump:
 
 ```
 addnpc profile= at=<grid> [dir=]       # a profiled civilian: TacticalCreateSoldier, AddSoldierToSectorNoCalculateDirection
@@ -1053,23 +1051,22 @@ robotcontrol [update=1] [opp=<id>]     # ControllingRobot per merc, the robot's 
                                        # CalcInterruptDuelPts against that soldier
 ```
 
-`recruit` and `unescort` print the queued dialogue events, the `CheckFact` calls, both streams, fact and quest changes, new
+`recruit` and `unescort` print queued dialogue events, `CheckFact` calls, both streams, fact and quest changes, new
 events and history lines, our team (id, profile, kind, assignment, sector, group, tile, stats, bleeding, breath, morale,
-camouflage, visibility, body, contract end, remote holder, insertion code off the map, insertion direction, inventory), the
-squads, the current squad, the civilians in the sector, the profiles, the personnel "other" list, the town loyalties and the
-NPC's salary. `recruit-compare.ts` imports the save, reserves the slots of the save's off-map civilians (away slots of the
-schedules), replays the native `CheckFact` results and both streams strictly (without the face draws of a new merc and the
-pathfinder's draws) and runs the catalog, the escort answer, `RecruitFlow.internalUnescortEpc`/`removeEpc` or the
-wrong-sector trigger.
+camouflage, visibility, body, contract end, remote holder, insertion code off the map, insertion direction, inventory),
+squads, the current squad, civilians in the sector, profiles, the personnel "other" list, town loyalties and the NPC's
+salary. `recruit-compare.ts` reserves the slots of the save's off-map civilians (away slots of the schedules), leaves
+the face draws of a new merc and the pathfinder's draws out of the replay, and runs the catalog, the escort answer,
+`RecruitFlow.internalUnescortEpc`/`removeEpc` or the wrong-sector trigger.
 
 ### Meanwhile
 
-Every command after a `save` prints its arguments, the draws (both streams), a result and the meanwhile state:
-`uiMeanWhileFlags`, the 17 definitions and the current one (sector, trigger, id, NPC), `gfMeanwhileTryingToStart`,
-`gfInMeanwhile`, the last scheduled id, the pending `EVENT_MEANWHILE` events (stamp, param, offset), the first-battle flag
-and sector, the profiles of the Queen, Elliot, Joe, Rat, Madlab, the robot and Iggy (sector, gridno, profile insertion,
-`bNPCData`), the quests 11, 8, 9 and 15, `FACT_MIKE_AVAILABLE_TO_ARMY`, the highest progress, the Queen's AI flag, the
-strategic status flags and capture count, the pause state and the world seconds:
+Every command prints its arguments, draws (both streams), a result and the meanwhile state: `uiMeanWhileFlags`; the 17
+definitions and the current one (sector, trigger, id, NPC); `gfMeanwhileTryingToStart`; `gfInMeanwhile`; the last
+scheduled id; pending `EVENT_MEANWHILE` events (stamp, param, offset); the first-battle flag and sector; the profiles of
+the Queen, Elliot, Joe, Rat, Madlab, the robot and Iggy (sector, gridno, profile insertion, `bNPCData`); quests 11, 8, 9
+and 15; `FACT_MIKE_AVAILABLE_TO_ARMY`; highest progress; the Queen's AI flag; strategic status flags and capture count;
+pause state; world seconds:
 
 ```
 meanwhiles                                          # dump only
@@ -1091,18 +1088,17 @@ After a `sector O3`, `statue mode=remote|explosion [dist=] [gridno=]` runs `Chan
 `HandleStatueDamaged` and prints the struct indexes at 13830, the exit grid at 13669 and its revealed flag before and
 after, and the skip flag.
 
-`meanwhile-compare.ts` imports the save into a campaign session and replays both streams strictly. The first `meanwhiles`
-after a load copies the pause state and the last scheduled id into the session: native loads keep the saved pause
-(ja2-node save sessions resume unpaused) and the last scheduled id is a static that survives loads. A `begun` scene is
-skipped the native way (the trying flag cleared, the implications, unlock and unpause). The statue probes run on a fresh O3
-world per `sector` line and compare the statue tiles only.
+In `meanwhile-compare.ts` the first `meanwhiles` after a load copies the pause state and the last scheduled id into the
+session: native loads keep the saved pause (ja2-node save sessions resume unpaused), and the last scheduled id is a static
+that survives loads. A `begun` scene is skipped the native way (trying flag cleared, implications, unlock, unpause). The
+statue probes run on a fresh O3 world per `sector` line and compare the statue tiles only.
 
 ### Boxing
 
-No save stands in San Mona, so every block starts with `boxingsquad`: the listed mercs and their groups move to D5 with grid
-insertion (`SetGroupSectorValue`), the club is loaded with `SetCurrentWorldSector`, the game is unpaused and the moved mercs
-get `CalcActionPoints` (ja2-node recomputes APs on insertion, the original keeps the old ones; the probe normalises both).
-Commands (soldier ids of the loaded club):
+No save stands in San Mona, so every block starts with `boxingsquad`: the listed mercs and their groups move to D5 with
+grid insertion (`SetGroupSectorValue`), the club is loaded with `SetCurrentWorldSector`, the game is unpaused and the
+moved mercs get `CalcActionPoints` (ja2-node recomputes APs on insertion, the original keeps the old ones; the probe
+normalises both). Soldier ids are those of the loaded club:
 
 ```
 boxingsquad sector=D5 who=<ids> grids=<gridnos>   # the squad into the club; prints every soldier in sector
@@ -1123,11 +1119,10 @@ boxingpoints who= ap=                            # CalcActionPoints and CalcNewA
 ```
 
 Each prints the boxing globals (state, recorded boxers, fought flags, wins, rests, resting, last won, paused, combat and
-current team) and the mercs, the recorded boxers and the flagged soldiers (gridno, neutral, life, breath, APs, alert, three
-stats, first trait, collapse and its turn count, under fire, boxer and PC-under-AI flags), plus the queued dialogue, the
-`CheckFact` calls, both streams and new history lines. `boxing-compare.ts` imports the save, repeats the setup and runs the
-same functions, replaying both streams strictly (the pathfinder's draws and the music picks dropped) and the native
-`CheckFact` results. Accepted differences:
+current team); the mercs, recorded boxers and flagged soldiers (gridno, neutral, life, breath, APs, alert, three stats,
+first trait, collapse and its turn count, under fire, boxer and PC-under-AI flags); queued dialogue, `CheckFact` calls,
+both streams and new history lines. `boxing-compare.ts` repeats the setup and runs the same functions, with the
+pathfinder's draws and the music picks dropped from the replay. Accepted differences:
 
 - A probe that ends combat also gets the forced real-time turn the original runs inside `ExitCombatMode` ("Real-time turn
   after combat" in `deviations.md`).
@@ -1211,7 +1206,7 @@ unless the oracle sets them.
 | 0025 | `game/Laptop/Florist_Order_Form.cc` | The order number step of `EnterFloristOrderForm` moves into the static `AdvanceFlowerOrderNumberOnEntry`, the price computation of `DisplayFlowerDynamicItems` into `CalcFlowerOrderPrice`, the body of `BtnFlowerOrderSendButtonCallback` into `SendFlowerOrder`; `OracleFlowerOrder` sets the form's selection (and opens the gallery text when no florist page did); `OracleFlowerOrderFormEntered`, `OracleFlowerOrderPrice`, `OracleFlowerOrderSend` call the three |
 
 `Oracle_Run()` calls `InitializeJA2()` (animation, lighting, strategic and tactical engines, world and tile cache), parses
-the script, then dispatches each command. Everything else is plain engine API, so a new probe is a new branch in `Dispatch`
+the script and dispatches each command. Everything else is plain engine API, so a new probe is a new branch in `Dispatch`
 in `src/Oracle.cc`. Edit `src/Oracle.cc` here in the repo, not in the copy: `build.sh` overwrites the copy.
 
 To change a hook: edit the files in `$JA2_ORACLE_DIR/src`, rebuild with `cmake --build ~/ja2-oracle/build`, then
@@ -1223,7 +1218,7 @@ for f in src/game/CMakeLists.txt src/sgp/SGP.cc src/game/Tactical/LOS.cc; do
 done > /tmp/hooks.patch
 ```
 
-The base of the diff is `reference/stracciatella` with the earlier patches applied, which differs from the plain reference
+The base of the diff is `reference/stracciatella` with the earlier patches applied; it differs from the plain reference
 only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004, 0012),
 `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020) and
 `Tactical/OppList.cc` (0011, 0022).
@@ -1234,14 +1229,10 @@ only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/S
   C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame07` and `08` were saved in turn-based combat in D13,
   `SaveGame10` in D13 in real time; `09` and `10` are the sci-fi saves; all are on easy with 2–4 % progress. Other saves
   need other scripts (`save-probes.ts` writes one for any saves).
-- **Seeds.** The `Random` engine is seeded from the clock at start (see "Draw replay"). A `save` restores the `PreRandom`
-  ring and its index, not the engine.
 - Probe soldiers consume `Random()` (stats in `RandomizeNewSoldierStats`, `TacticalCreateSoldier`), and `FindBestPath`
-  draws skip-list levels from `Random()`. None of it changes probe results.
+  draws skip-list levels from `Random()`; none of it changes probe results.
 - Probe soldiers take the first free slot of their team (ids 0+ for `player`, 20+ for `enemy`), so in a loaded save they
-  may get ids of dead or absent soldiers. Existing soldiers in a save do block paths and the probe soldier's own structure
+  may get ids of dead or absent soldiers. Existing soldiers in a save block paths, and the probe soldier's own structure
   is present during `soldierToSoldier`, as in the game.
 - Each `path`/`los` command removes the soldiers it created, so commands do not influence each other (apart from the
   `Random()` state).
-- `cth` and `bestshot` draw no random numbers and create no soldiers; the chance-to-get-through calls create and remove a
-  fake bullet each.

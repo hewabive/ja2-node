@@ -15,7 +15,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - Never commit original game data or anything derived from it (extracted files, JSON produced
   from `Ja2bin.dat`, screenshots). The data lives outside the repo, in `$JA2_DATA_DIR`.
 - Stub content is CC0 1.0 (`stubs/NOTICE.txt`): keep it own work; a stub file built from Stracciatella's tables goes
-  on the notice's SFI-SCLA list (`docs/27` §6.2).
+  on the notice's SFI-SCLA list (`docs/32` §1.2).
 - `reference/` holds third-party sources: read-only, gitignored. Never copy code from
   `reference/ja2-web` (GPL claim).
 
@@ -26,7 +26,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `pnpm gates`: the gates the changed files can affect (`--list` shows the plan, `--all` runs every one).
   `pnpm test:data` (with `JA2_DATA_DIR`) and `pnpm test:reload` run only the unit tests those modes change.
 - `pnpm dev`: server (7420) + Vite (5173). Add `JA2_DATA_DIR="…/Data"` for the original data.
-- `pnpm stubs`, `pnpm cli inspect …` (`pnpm cli --help`), `pnpm cli bench <scenario|all>` (`docs/27` §7).
+- `pnpm stubs`, `pnpm cli inspect …` (`pnpm cli --help`), `pnpm cli bench <scenario|all>` (`docs/32` §2).
 
 ## Conventions
 
@@ -56,15 +56,17 @@ code paths and `file:line` in `reference/stracciatella`.
 
 - `docs/01-architecture.md`: licensing, decisions D1–D16, layers, sim-core rules (time, RNG streams, state),
   Stracciatella vs vanilla, documentation map.
-- `docs/04-time-and-server.md`: tick model, time drivers, server and sessions, rule pack, the agent API (§6, by topic).
+- `docs/04-time-and-server.md`: tick model, time drivers, server and sessions, protocol, rule pack.
 - `docs/05`–`09`: render pipeline, soldiers and animation, structures/pathing/walking, sight and noise, green AI.
-- `docs/10`–`14`: turn-based, attacks, items and explosions, combat AI, savegames (import in §10).
+- `docs/10`–`14`: turn-based, attacks (guns, bullets, melee), items and explosions, combat AI, savegames.
 - `docs/15`–`19`: strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
 - `docs/20`: tactical lighting (light sprites, true light level).
 - `docs/21`–`23`: laptop and hiring, contracts and relationships, merchants.
-- `docs/24`–`26`: NPCs and dialogue, quests/facts/NPC actions/schedules, meanwhiles and the ending.
-- `docs/27-platform.md`: saves, options, sound and music, video, localization, stubs, performance.
-- `docs/28-player-ui.md`: the `ui` layer, widgets, layouts as data, fonts, the original screens, client-side hints.
+- `docs/24`–`26`: NPCs and dialogue, quests/facts/campaign rules, meanwhiles and the ending.
+- `docs/27`: saves and options. `docs/28`: the player UI's `ui` layer, widgets, layouts as data, fonts, cursor hints.
+- `docs/29-agent-api.md`: the agent API by topic.
+- `docs/30`–`32`: the original screens in the client; sound, music, video, localization; stub pack, performance, launcher.
+- `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/releases.md`: release notes.
 - `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).

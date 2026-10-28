@@ -2,24 +2,25 @@
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless they start with `externalized/` (then
 `reference/stracciatella/src/externalized/`); `V:` is vanilla `Build/`; JSON files are `assets/externalized/*.json`
-(copied to `data/externalized/`). "(inferred)" marks conclusions not traced end to end. C integer semantics apply: `/`
-truncates toward zero (`idiv`), `UINT8`/`INT8`/`INT16`/`UINT16` stores wrap (`u8`, `i8`, `i16`, `u16`). `Random` = `main`
-stream, `PreRandom` = `pre` stream (`01` §3.6); `Random(0)` returns 0 without drawing; `Chance(x)` is `Random(100) < x`.
-Times are game minutes (`GetWorldTotalMin`) unless marked; "Day d hh:mm" is minute `d·1440 + hh·60 + mm`; `midnight(n)` is
+(copied to `data/externalized/`). "(inferred)" marks conclusions not traced end to end. C integer semantics: `/` truncates
+toward zero (`idiv`); `UINT8`/`INT8`/`INT16`/`UINT16` stores wrap (`u8`, `i8`, `i16`, `u16`). `Random` = `main` stream,
+`PreRandom` = `pre` stream (`01` §3.6); `Random(0)` returns 0 without drawing; `Chance(x)` = `Random(100) < x`. Times are
+game minutes (`GetWorldTotalMin`) unless marked; "Day d hh:mm" = minute `d·1440 + hh·60 + mm`; `midnight(n)` =
 `GetMidnightOfFutureDayInMinutes(n) = now + n·1440 − minutesInDay` (`Strategic/Game_Clock.cc:150-153`). "Policy" values
 are Stracciatella defaults from `game.json`. Profile ids follow `mercs-profile-info.json` (types `AIM` 0–39, `MERC` 40–50,
-`IMP` 51–56, RPC/NPC above); internal names such as `BIFF` or `NAILS` are the Stracciatella source names. No profile
+`IMP` 51–56, RPC/NPC above); internal names such as `BIFF` or `NAILS` are Stracciatella source names. No profile
 statistics are quoted: they live in the user's `prof.dat`.
 
-**Scope.** This doc owns the laptop as game logic (`Laptop/*.cc`: A.I.M., M.E.R.C., I.M.P., Bobby Ray's, email, history,
-files, insurance, florist, funeral, the personnel lists), `HireMerc`, `GetMercArrivalTimeOfDay`, `MercArrivesCallback`, the
-landing zone, `StartSomeMercsOnAssignment`, the medical deposit refund and the laptop parts of `InitNewGame`. Elsewhere:
-`22` contract fields, renewal, departures (`StrategicRemoveMerc`), the daily merc update (`MercDailyUpdate` with the
-unhired-profile loop), salary growth, `CanMercBeHired` and the tolerances, RPC pay; `23` arms dealers and the dealer stock
-code Bobby Ray's shares; `15` the clock, the event queue, `InitNewGame`/`InitStrategicLayer`; `16` squads, groups,
-`UpdateMercInSector`, airspace; `18` §3.9 the finance ledger and the hourly update; `19` §3.7 merc death and
-capture; `25` facts, quests, NPC actions (Kulba, Pablo, `DecideActiveTerrorists`); `26` meanwhile scenes; `14` the save
-layout; `28` §9 the laptop's pages (client); `04` §6 the agent API (laptop commands, queries, view and events).
+**Scope.** The laptop as game logic (`Laptop/*.cc`: A.I.M., M.E.R.C. and its account, I.M.P., Bobby Ray's, email,
+history, files, insurance, florist, funeral, the personnel lists), `HireMerc` with the contract fields it sets, the
+arrival (`GetMercArrivalTimeOfDay`, `MercArrivesCallback`, the landing zone), `StartSomeMercsOnAssignment` and the laptop
+parts of `InitNewGame`. Elsewhere: `22` what follows the hire (the contract hour, renewal, departures with
+`StrategicRemoveMerc` and the medical deposit refund, the daily merc update `MercDailyUpdate` with the unhired-profile
+loop, salary growth, `CanMercBeHired` and the tolerances, RPC pay); `23` arms dealers and the stock code Bobby Ray's
+shares; `15` the clock, the event queue, `InitNewGame`/`InitStrategicLayer`; `16` squads, groups, `UpdateMercInSector`,
+airspace; `18` §3.9 the finance ledger and the hourly update; `19` §3.7 merc death and capture; `25` §1–§2 facts and
+quests, `35` §1 NPC actions (Kulba, Pablo), `35` §2.2 `DecideActiveTerrorists`; `26` meanwhiles; `14` the save layout;
+`30` §6 the laptop pages (client); `29` the agent API (laptop commands, queries, view, events).
 
 ---
 
@@ -39,7 +40,7 @@ layout; `28` §9 the laptop's pages (client); `04` §6 the agent API (laptop com
 | Bobby Ray | `bobbyRay`: `fBobbyRSiteCanBeAccessed`, `ubHaveBeenToBobbyRaysAtLeastOnceWhileUnderConstruction` (`underConstructionVisit`), `BobbyRayInventory[]`/`BobbyRayUsedInventory[]` (`inventory`, `used`), the shipments, `shipmentsSinceNoBribes` | §5 |
 | Insurance | `pLifeInsurancePayouts[]`, `ubNumberLifeInsurancePayoutUsed` → `insurance.{payouts, used}` | §7.1 |
 | Florist | `uiFlowerOrderNumber` → `floristOrderNumber` | §7.3 |
-| Landing zone | `g_merc_arrive_sector` (`Tactical/Merc_Hiring.cc:46`; general info, `SaveLoadGame.cc:1923-1924`, the start sector on load, `:2081`) → `mercArriveSector` | §2.6 |
+| Landing zone | `g_merc_arrive_sector` (`Tactical/Merc_Hiring.cc:46`; general info, `SaveLoadGame.cc:1923-1924`; the start sector on load, `:2081`) → `mercArriveSector` | §2.6 |
 | Bookmarks | `iBookMarkList[20]` (−1 terminated) → `bookmarks` (`Bookmark`: AIM 0, BOBBYR 1, IMP 2, MERC 3, FUNERAL 4, FLORIST 5, INSURANCE 6); A.I.M. is set on every laptop entry (`Laptop/Laptop.cc:519`) | §1.4 |
 | Hire popup | `sLastHiredMerc` → `lastHiredMerc {profile, arrival}` | §2.5 |
 | UI only (not simulated) | `fVisitedBookmarkAlready[]`, `iCurrentHistoryPage`, `iCurrentFinancesPage`, `iCurrentEmailPage` | — |
@@ -57,13 +58,13 @@ layout; `28` §9 the laptop's pages (client); `04` §6 the agent API (laptop com
 INT16), `weeklySalary`, `biWeeklySalary` (UINT32), `medicalDeposit` (`bMedicalDeposit`, flag from data),
 `medicalDepositAmount` (`sMedicalDepositAmount` UINT16, computed, §2.4), `optionalGearCost` (`usOptionalGearCost` UINT16,
 computed, zeroed once the kit is bought), `totalDaysServed`, `mercMercContractLength` (`iMercMercContractLength`, §3),
-`suspiciousDeath` (`ubSuspiciousDeath`, §7.2), `balance` (`iBalance`, RPC pay, `22`); read-only from `prof.dat`:
+`suspiciousDeath` (`ubSuspiciousDeath`, §7.2), `balance` (`iBalance`, RPC pay, `22` §4.8); read-only from `prof.dat`:
 `bDeathRate`, `bReputationTolerance`, `bHatedTime[2]`, the learn-to-hate/like counters. `uiTotalCostToDate` is
 `finances.profileCostToDate`.
 
-**Soldier contract fields**: `RosterMerc.contract` (`MercContract`, `src/sim/campaign/contracts/contract-state.ts`; the
-field table is `22` §0). This doc writes the hire and arrival fields (§2.5, §2.6), the paid `medicalDeposit` and the four
-insurance fields (§7.1).
+**Soldier contract fields**: `RosterMerc.contract` (`MercContract`, `src/sim/campaign/contracts/contract-state.ts`; field
+table `22` §0). This doc writes the hire and arrival fields (§2.5, §2.6), the paid `medicalDeposit` and the four insurance
+fields (§7.1).
 
 ---
 
@@ -72,8 +73,8 @@ insurance fields (§7.1).
 ### 1.1 Time
 
 - Entering the laptop calls `PauseGame()` (`Laptop/Laptop.cc:461-462`), leaving `UnPauseGame()` (`:627-628`); the world
-  clock only runs on `GAME_SCREEN` and `MAP_SCREEN` anyway (`docs/15` §1.5). **Nothing in the laptop takes game time**:
-  hiring, ordering, the I.M.P. questionnaire and reading mail all happen at one world minute.
+  clock runs only on `GAME_SCREEN` and `MAP_SCREEN` anyway (`15` §1.5). **Nothing in the laptop takes game time**: hiring,
+  ordering, the I.M.P. questionnaire and reading mail all happen at one world minute.
 - Opening the laptop from the map screen **stops time compression** (`HandleExitsFromMapScreen`,
   `Strategic/Map_Screen_Interface_Bottom.cc:1091-1121`); leaving always returns to the map screen (`LeaveLapTopScreen`,
   `Laptop/Laptop.cc:1349`), where compression stays stopped until the player restarts it.
@@ -83,44 +84,43 @@ insurance fields (§7.1).
 
 ### 1.2 When the laptop is available
 
-The laptop is reached only from the map screen (the bottom-panel button or `l`, `Strategic/MapScreen.cc:2847`,
+Only from the map screen (the bottom-panel button or `l`, `Strategic/MapScreen.cc:2847`,
 `Map_Screen_Interface_Bottom.cc:272, 299`). `AllowedToExitFromMapscreenTo(MAP_EXIT_TO_LAPTOP)`
 (`Map_Screen_Interface_Bottom.cc:987-1070`) refuses while: already leaving the map screen; another exit is pending; the
 dialogue queue is not empty; a meanwhile is trying to start; the pause state is locked (message boxes, contract
-renewal/ending, PBI, simultaneous arrival, conversations, `docs/15` §1.5); an inventory item is held; the assignment update
+renewal/ending, PBI, simultaneous arrival, conversations, `15` §1.5); an inventory item is held; the assignment update
 box, town info or the militia popup is shown; the contract renewal sequence is on; a battle is about to start
 (`fDisableDueToBattleRoster`, `fDisableMapInterfaceDueToBattle`: the PBI is pending or open); the sector inventory is
-open. There is no money, combat or "enemies in sector" test.
+open. No money, combat or "enemies in sector" test.
 
 At a new game the laptop is the first screen (`InitNewGame` sets the pending screen to `LAPTOP_SCREEN`,
-`Strategic/Game_Init.cc:266-267`), and `LeaveLapTopScreen` overrides the `INIT_SCREEN` exit with the map screen (`docs/15`
-§4.1).
+`Strategic/Game_Init.cc:266-267`); `LeaveLapTopScreen` overrides the `INIT_SCREEN` exit with the map screen (`15` §4.1).
 
 ### 1.3 The laptop flow in ja2-node
 
-`flow = 'laptop'` behaves like the laptop screen: the clock does not run, the loaded sector is frozen, and `advance` and
-every non-laptop command are refused (`laptop: the laptop is open, closeLaptop first`); laptop commands with the laptop
-closed answer `laptopClosed`. Queries (`04` §6) work in any flow and never act.
+`flow = 'laptop'` behaves like the laptop screen: the clock stops, the loaded sector is frozen, `advance` and every
+non-laptop command are refused (`laptop: the laptop is open, closeLaptop first`); laptop commands with the laptop closed
+answer `laptopClosed`. Queries (`29`) work in any flow and never act.
 
 - `openLaptop` (strategic flow only): refused while a battle prompt is open, while the pre-battle interface is pending, or
   during the renewal sequence (the state-based conditions of §1.2 that exist in ja2-node; the speech channel never blocks
   commands). Effect: `stopTimeCompression` (`REQUESTED`), `flow = 'laptop'`, the A.I.M. bookmark,
   `mercSiteOpenedThisSession = false`.
 - `closeLaptop` runs `HandleExit` and `LeaveLapTopScreen` (`Laptop.cc:1439-1454, 1345-1366`), in order:
-  1. if `gfNewGameLaptop` and `CanCreateAnotherIMPCharacter()` (§4.1) and `!fSentImpWarningAlready`:
+  1. if `gfNewGameLaptop`, `CanCreateAnotherIMPCharacter()` (§4.1) and `!fSentImpWarningAlready`:
      `AddFutureDayStrategicEvent(HAVENT_MADE_IMP_CHARACTER_EMAIL, (8 + Random(4))·60, 0, 1)` (tomorrow 08:00–11:00; one
-     `Random(4)` per such exit; posted again on every exit until the flag clears, the handler ignores duplicates once the
-     mail went out, §6.1);
+     `Random(4)` per such exit, posted again on every exit until the flag clears; once the mail went out the handler
+     ignores duplicates, §6.1);
   2. if `atLeastOneMercHired` and `gfNewGameLaptop`: `gfNewGameLaptop = false` (the original returns once more and leaves
      on the next frame; no state difference);
   3. `newMail = false` (`fNewMailFlag`, cleared in `ExitLaptop`, `Laptop.cc:605-609`);
   4. `flow = 'strategic'`.
 - `visitSite {site}` runs what entering a site's page does (`EnterBobbyR`, `EnterMercs`, `EnterFuneral`, `EnterFlorist`,
   `EnterInsurance`, `EnterFloristOrderForm`): `bobbyRay` sets its bookmark and, while the site is under construction,
-  `underConstructionVisit = BEEN_TO_SITE_ONCE` (the gate of the `BOBBYR_NOW_OPEN` mail, §5.1); `funeral`, `florist` and
+  `underConstructionVisit = BEEN_TO_SITE_ONCE` (gate of the `BOBBYR_NOW_OPEN` mail, §5.1); `funeral`, `florist` and
   `insurance` set their bookmarks; `merc` (refused `noBookmark` without its bookmark and `siteDown` during the outage, when
-  the browser shows the broken link) increments `ubPlayerBeenToMercSiteStatus` and runs Speck's opening (§3.6) the first
-  time in a laptop session; `floristOrderForm` draws the order-number step (§7.3). No time passes; which page is shown is
+  the browser shows the broken link) increments `ubPlayerBeenToMercSiteStatus` and, the first time in a laptop session,
+  runs Speck's opening (§3.6); `floristOrderForm` draws the order-number step (§7.3). No time passes; the page shown is
   client state.
 - A new campaign starts in the flow (§8).
 
@@ -158,7 +158,7 @@ kept). ja2-node refuses I.M.P. and M.E.R.C. commands with `noBookmark` until the
 
 ### 2.1 Profile status
 
-`bMercStatus` (INT8, `Tactical/Soldier_Profile_Type.h:53-78`) is either a non-negative number or a negative state:
+`bMercStatus` (INT8, `Tactical/Soldier_Profile_Type.h:53-78`) is a non-negative number or a negative state:
 
 | Value | Name | Meaning, writers |
 |---|---|---|
@@ -173,44 +173,40 @@ kept). ja2-node refuses I.M.P. and M.E.R.C. commands with `noBookmark` until the
 | −7 | `MERC_WORKING_ELSEWHERE` | away on another job (`Soldier_Profile.cc:501`, `Strategic_Merc_Handler.cc:358`, `Merc_Contract.cc:470`) |
 | −8 | `MERC_FIRED_AS_A_POW` | left the team while a POW (`Merc_Contract.cc:683`); the countdown never resets it (`Strategic_Merc_Handler.cc:315-316`), but once the countdown is 0 the daily away roll (§2.2) can still turn it into `WORKING_ELSEWHERE`, after which it becomes `MERC_OK` (quirk) |
 
-`IsMercHireable(p)` (`Merc_Hiring.cc:351-364`) = `status ≤ 0` and status ∉ {−1, −4, −5, −6, −7, −8} and
+`IsMercHireable(p)` (`Merc_Hiring.cc:351-364`) = `status ≤ 0`, status ∉ {−1, −4, −5, −6, −7, −8} and
 `uiDayBecomesAvailable == 0`. So −2 is hireable; −3 passes this test but is refused first by `WillMercAcceptCall` (§2.3)
 and by `HireMerc`'s status gate; a returning or away merc is hireable only once the countdown is 0 **and** the status was
 reset.
 
 ### 2.2 Availability over time
 
-**New game** (`LoadMercProfiles` → `StartSomeMercsOnAssignment`, `Soldier_Profile.cc:485-513`; `docs/15` §4.6 step 2), for
-each AIM or MERC profile in content order (`GCM->listMercProfiles()`, id order):
+**New game** (`LoadMercProfiles` → `StartSomeMercsOnAssignment`, `Soldier_Profile.cc:485-513`; `15` §4.6 step 2), per AIM
+or MERC profile in content order (`GCM->listMercProfiles()`, id order):
 ```
 if Random(100) < 5·expLevel:  status = WORKING_ELSEWHERE; dayBecomesAvailable = 1 + Random(6 + expLevel/2)
 else:                         status = MERC_OK;           dayBecomesAvailable = 0
 precedentQuoteSaid = 0; daysOfMoraleHangover = 0
 ```
 
-**Daily, 00:00** (the profile loop of `MercDailyUpdate`, `Strategic_Merc_Handler.cc:286-366`, skipped on Day 1; the loop is
-`22` §2.1, the unhired improvement and death rolls `22` §2.5). For availability:
-- profiles on the team (`IsMercOnTeam`: any OUR soldier with the profile, in transit or dead and not yet removed included)
-  and dead profiles are skipped;
+**Daily, 00:00**: the profile loop of `MercDailyUpdate` (`Strategic_Merc_Handler.cc:286-366`, skipped on Day 1;
+pseudocode `22` §2.1, the unhired improvement and death rolls `22` §2.5). For availability:
+- profiles on the team (`IsMercOnTeam`: any OUR soldier with the profile, in transit or dead and not yet removed
+  included) and dead profiles are skipped;
 - a running countdown decrements; at 0 the status becomes `MERC_OK` from any status but `FIRED_AS_A_POW` (also from
-  `RETURNING_HOME` and `WORKING_ELSEWHERE`), and if `PLAYER_LEFT_MSG_FOR_MERC_AT_AIM` is set it is cleared and
-  `AddEmail(AIM_REPLY_BARRY + id·AIM_REPLY_LENGTH_BARRY, AIM_REPLY_LENGTH_BARRY, 6 + id, now)` is sent;
-- the "go away" roll (`Random(100) < chance` → `WORKING_ELSEWHERE`, countdown `1 + Random(6 + expLevel/2)`) is made only on
-  days that started with the countdown at 0, so a merc who came back today cannot leave before tomorrow; it is rolled for
-  available *and* annoyed (−2/−3) mercs; the chance is `2·expLevel` for `id < MAX_NUMBER_MERCS (40)` (`Laptop/AIM.h:6`,
-  not the profile type; sets `PLAYER_HAD_CHANCE_TO_HIRE`), else `expLevel` (the flag only after `DAYS_TIL_M_E_R_C_AVAIL`,
-  day > 3);
-- an unhired death (`(INT16)PreRandom(1000) < chance`, needs `PLAYER_HAD_CHANCE_TO_HIRE`, capped by `unhiredMercDeaths <
-  unhired_merc_deaths_<difficulty>`, policy 1/2/3, `game.json:254-256`) sends `MERC_DIED_ON_OTHER_ASSIGNMENT` for AIM
-  profiles only (sender `AIM_SITE`, second data = profile).
+  `RETURNING_HOME` and `WORKING_ELSEWHERE`); a set `PLAYER_LEFT_MSG_FOR_MERC_AT_AIM` is cleared and
+  `AddEmail(AIM_REPLY_BARRY + id·AIM_REPLY_LENGTH_BARRY, AIM_REPLY_LENGTH_BARRY, 6 + id, now)` sent;
+- the "go away" roll (`Random(100) < chance` → `WORKING_ELSEWHERE`, countdown `1 + Random(6 + expLevel/2)`) runs only on
+  days that started with the countdown at 0, so a merc who came back today cannot leave before tomorrow; available *and*
+  annoyed (−2/−3) mercs roll; chance `2·expLevel` for `id < MAX_NUMBER_MERCS (40)` (`Laptop/AIM.h:6`, not the profile
+  type; sets `PLAYER_HAD_CHANCE_TO_HIRE`), else `expLevel` (the flag only after `DAYS_TIL_M_E_R_C_AVAIL`, day > 3);
+- an unhired death sends `MERC_DIED_ON_OTHER_ASSIGNMENT` for AIM profiles only (sender `AIM_SITE`, second data =
+  profile).
 
-**Departure** (`StrategicRemoveMerc`, `22` §4.5): a living profile goes `RETURNING_HOME` for `1 + Random(2)` days; morale
-too low adds a hangover of `3 + Random(4)` days (`Merc_Contract.cc:454-462`); a merc who signed elsewhere goes
-`WORKING_ELSEWHERE` for `+= 1 + Random(6 + expLevel/2)` days (`:465-472`); a POW then gets `FIRED_AS_A_POW`, the others the
-medical deposit refund (§2.7).
+**Departure**: `StrategicRemoveMerc` sets the returning-home, hangover and working-elsewhere countdowns, or
+`FIRED_AS_A_POW` (`22` §4.5).
 
 **Annoyance** (`HandleMercAttitude`, `AIMMembers.cc:2188-2249`): while the video conference waits for the player, the merc
-escalates every 3 s (first step) / 10 s of *wall clock* (`GetJA2Clock`); at the hang-up step `0 → −2`, `−2 → −3` and
+escalates every 3 s (first step) / 10 s of *wall clock* (`GetJA2Clock`); at the hang-up step `0 → −2`, `−2 → −3`, and
 `EVENT_AIM_RESET_MERC_ANNOYANCE` is posted at `now + 360 + Random(600)`; its handler (`ResetMercAnnoyanceAtPlayer`,
 `:2708-2724`, with the Larry profile swap) sets −2/−3 back to 0. ja2-node never escalates (deviation "A.I.M. annoyance");
 the statuses and the reset event (with the Larry swap) stay for imported saves.
@@ -220,25 +216,13 @@ the statuses and the reset event (with the Larry swap) stay for imported saves.
 **Contact** (`WillMercAcceptCall`, `AIMMembers.cc:1754-1766`): status −3 → "unavailable" (lame refusal, hang-up, no state
 change); `IsMercHireable` → first contact; otherwise the answering machine, where the player may leave a message
 (`BtnAnsweringMachineButtonCallback`, `:1578-1605`): `miscFlags3 |= PLAYER_LEFT_MSG_FOR_MERC_AT_AIM`, which produces the
-"back from assignment" mail of §2.2 (ja2-node: `aimLeaveMessage` is refused unless the merc is on the answering machine and
-refused again once a message is left). The face overlay (`DisplayMercsFace`, `:955-1015`) shows dead; POW
-(`FIRED_AS_A_POW` or on the team as `ASSIGNMENT_POW`); already hired (on the team); "on assignment" (any other
-non-hireable state); nothing.
+"back from assignment" mail of §2.2. ja2-node refuses `aimLeaveMessage` unless the merc is on the answering machine, and
+again once a message is left. The face overlay (`DisplayMercsFace`, `:955-1015`) shows dead; POW (`FIRED_AS_A_POW` or on
+the team as `ASSIGNMENT_POW`); already hired (on the team); "on assignment" (any other non-hireable state); nothing.
 
-**Asking to hire** (`CanMercBeHired`, `AIMMembers.cc:1769-1863`; the pseudocode with its quote ids is `22` §5.4, the
-tolerances `22` §6.3): evaluated when the player presses HIRE in first contact, before the contract page and the funds,
-not again at payment. In order: a morale hangover refuses, buddy or no buddy; a hated merc (slots 0, 1 and the learned
-slot 2) on the team, arrived and alive (`IsMercOnTeamAndInOmertaAlreadyAndAlive`, `Tactical/Soldier_Add.cc:991-995`)
-refuses unless a buddy is on the team (accept at once) or it is slot 0/1 with `bHatedTime[i] ≥ 24` (tolerated, a
-"personality bias" quote); a buddy on the team accepts, skipping the rest; then the death rate
-(`MercThinksDeathRateTooHigh`, `Strategic/Strategic_Status.cc:141-162`) and the reputation (`MercThinksBadReputationTooHigh`,
-`:165-186`), each off at tolerance 101. The buddy is `GetFirstBuddyOnTeam` (`Soldier_Profile.cc:878-889`): the first of
-`bBuddy[0..2]` (two buddies, then the learned-to-like slot) on the team (`IsMercOnTeam`, in transit included) and not
-dead. `CalcDeathRate()` (`Strategic_Status.cc:114-126`) = `u8(idiv(mercDeaths·100, manDaysPlayed))`, 0 while `manDaysPlayed == 0`,
-**wrapping at 256** (computed as `(UINT8)(UINT32)(mercDeaths · 1.0f · 100 / manDaysPlayed)`; the float quotient never
-rounds across an integer for realistic counts, inferred). Its inputs and the reputation are `22` §6: `mercDeaths` (our
-dead except EPCs and the robot, `Strategic_Merc_Handler.cc:78-82`), `manDaysPlayed` (+1 per living, non-transit team member
-per daily update, `:263-269`), `badReputation` (0 saint … 100, `ModifyPlayerReputation`, `Strategic_Status.cc:129-138`).
+**Asking to hire**: `CanMercBeHired` (`AIMMembers.cc:1769-1863`; pseudocode and quotes `22` §5.4, death rate, reputation
+and tolerances `22` §6) runs when the player presses HIRE in first contact, before the contract page and the funds, and
+not again at payment.
 
 ### 2.4 Prices
 
@@ -249,12 +233,12 @@ amount = {1 day: sSalary, 1 week: uiWeeklySalary, 2 weeks: uiBiWeeklySalary}[con
 if bMedicalDeposit: amount += sMedicalDepositAmount
 if gear:            amount += usOptionalGearCost
 ```
-The video conference opens with **1 week** selected and the kit selected iff `usOptionalGearCost != 0` (`:2379-2381`); the
-kit button is disabled when the cost is 0 (`:2456-2459`). ja2-node's defaults are the same (`aimHire` without `gear` takes
-the kit iff it has a cost; `gear: true` on a 0-cost kit is refused).
+The video conference opens with **1 week** and, iff `usOptionalGearCost != 0`, the kit selected (`:2379-2381`); the kit
+button is disabled at cost 0 (`:2456-2459`). ja2-node's `aimHire` without `gear` takes the kit iff it has a cost;
+`gear: true` on a 0-cost kit is refused.
 
 - **Medical deposit** (`CalcMedicalDeposit`, `Soldier_Profile.cc:560-568`, computed once per new game by
-  `InitProfileFromContent :146`; the `prof.dat` value is overwritten): `bMedicalDeposit ? (5·competence + 50) / 100 · 100 :
+  `InitProfileFromContent :146`, overwriting the `prof.dat` value): `bMedicalDeposit ? (5·competence + 50) / 100 · 100 :
   0` (UINT16). `CalcCompetence(p)` (`:527-557`) uses doubles:
   ```
   stats  = (2·lifeMax + str + agi + dex + (ldr + wis)/2) / 3                      // integer
@@ -263,21 +247,22 @@ the kit iff it has a cost; `gear: true` on a 0-cost kit is refused).
   n      = (skillTrait != 0) + (skillTrait2 != 0)
   competence = (UINT16)(pow(exp, 0.2) · stats · skills · (aps − 6) · (1 + 0.05·n) / 1000)
   ```
-  ja2-node (`profile-state.ts`): the `x³/10000` terms are exact in doubles; `pow(exp, 0.2)` for `exp` 0..10 is an 11-entry
-  table of the correctly rounded doubles (`04` §5.6 forbids `Math.pow` in `core`/`sim`); the product is evaluated left to
-  right in doubles as written (`0.05` is a double literal; `aps − 6` is UINT32 arithmetic), then truncated to UINT16.
+  ja2-node (`profile-state.ts`): the `x³/10000` terms are exact in doubles; `pow(exp, 0.2)` for `exp` 0..10 is an
+  11-entry table of the correctly rounded doubles (`04` §5.6 forbids `Math.pow` in `core`/`sim`); the product is evaluated
+  left to right in doubles as written (`0.05` is a double literal; `aps − 6` is UINT32 arithmetic), then truncated to
+  UINT16.
 - **Kit cost** (`InitProfileFromContent`, `Soldier_Profile.cc:187-206`): after the non-gun-nut gun replacement
   (`:161-185`), `usOptionalGearCost = Σ getPrice()` over the profile's inventory slots (one price per slot, **not**
   multiplied by `bInvNumber`; UINT16 sum). Buying the kit copies the profile items to the soldier and sets
   `usOptionalGearCost = 0` (`Tactical/Soldier_Create.cc:2045-2059`), so a re-hire offers no kit.
-- **Salary growth** (`CalcNewSalary`, `22` §3.7): every experience level gained raises `sSalary`, `uiWeeklySalary`,
-  `uiBiWeeklySalary` and `sMedicalDepositAmount` once, for AIM and MERC profiles on or off the team (unhired improvement
-  included), never for RPCs; the soldier's paid `usMedicalDeposit` is not raised.
+- **Salary growth** at level-ups (the three prices and `sMedicalDepositAmount`, not the soldier's paid
+  `usMedicalDeposit`): `CalcNewSalary`, `22` §3.7.
 
 ### 2.5 Hiring (`AimMemberHireMerc` + `HireMerc`)
 
-The player picks a contract (1/7/14 days) and the kit, then authorizes (`BtnAuthorizeButtonCallback`, `AIMMembers.cc:1118-
-1167`). `AimMemberHireMerc` (`:1170-1255`) and `HireMerc` (`Tactical/Merc_Hiring.cc:62-218`), merged in execution order:
+The player picks a contract (1/7/14 days) and the kit, then authorizes (`BtnAuthorizeButtonCallback`,
+`AIMMembers.cc:1118-1167`). `AimMemberHireMerc` (`:1170-1255`) and `HireMerc` (`Tactical/Merc_Hiring.cc:62-218`), merged in
+execution order:
 
 ```
 if balance < amount: refuse "not enough funds"                      // §2.4 amount; checked before everything else here
@@ -295,7 +280,7 @@ HireMerc(h = {profile, sector: mercArriveSector, useLandingZone: true, insertion
   s.timeSoldierWillArrive = h.arrival                                // set BEFORE the next line (quirk, §2.6)
   if didGameJustStart: h.arrival = (STARTING_TIME + FIRST_ARRIVAL_DELAY)/60 (Day 1 07:00)
                        s.endOfContract = midnight(length) + hour(timeSoldierWillArrive)·60
-  else:                s.endOfContract = midnight(1 + length) + hour(timeSoldierWillArrive)·60
+  else:                s.endOfContract = midnight(1 + length) + hour(timeSoldierWillArrive)·60   // provisional, "+1 for the flight"
   lastHiredMerc = {profile, h.arrival}                               // popup only
   if h.arrival != 0: AddStrategicEvent(DELAYED_HIRING_OF_MERC, h.arrival, s.id); p.status = HIRED_BUT_NOT_ARRIVED_YET
   s.kind = AIM; s.typeOfLastContract = {1: EXTEND_1_DAY, 7: EXTEND_1_WEEK, 14: EXTEND_2_WEEK}
@@ -309,15 +294,17 @@ AddTransactionToPlayersBook(HIRED_MERC, profile, now, −amount + p.sMedicalDepo
 if p.bMedicalDeposit: AddTransactionToPlayersBook(MEDICAL_DEPOSIT, profile, now, −p.sMedicalDepositAmount)
 AddHistoryToPlayersLog(HISTORY_HIRED_MERC_FROM_AIM, profile, now, (−1, −1))
 ```
+`h.length` is 1/7/14 for A.I.M., 1 for M.E.R.C. (§3.3), −1 for I.M.P. (§4.3).
 - Money leaves the balance **at hire**, in two ledger records (`HIRED_MERC` = salary + kit, which also counts toward
   `uiTotalCostToDate`, `Laptop/Finances.cc:173-182`; `MEDICAL_DEPOSIT`). The `+ sMedicalDepositAmount` in the first record
-  is unconditional, but the amount is 0 when `bMedicalDeposit` is 0, so the sum always equals `amount`.
-- Refusal order for the whole flow: contact (§2.3 `WillMercAcceptCall`), `CanMercBeHired`, funds, status, team size.
+  is unconditional, but the amount is 0 when `bMedicalDeposit` is 0, so the sum always equals `amount`. The deposit comes
+  back at departure (`22` §4.6).
+- Refusal order of the whole flow: contact (§2.3 `WillMercAcceptCall`), `CanMercBeHired`, funds, status, team size.
   "Already hired" is caught at contact (answering machine). ja2-node's `aimHire` checks the same order after its argument
   checks (A.I.M. profile, contract length, kit).
 - `TacticalCreateSoldier` for an OUR soldier with a profile is `createHiredMerc` (`src/sim/tactical/creation.ts`; draws:
   deviation "Soldier creation draws"); with `copyItems` it copies the profile inventory and `hireMercCore` zeroes
-  `optionalGearCost`. The contract fields are set by `contracts/hire-contract.ts` `hireContract` (`22` §1.2).
+  `optionalGearCost`. `contracts/hire-contract.ts` `hireContract` sets the contract fields.
 
 ### 2.6 Arrival time and place
 
@@ -331,25 +318,26 @@ AddHistoryToPlayersLog(HISTORY_HIRED_MERC_FROM_AIM, profile, now, (−1, −1))
 | `h + 6 ≤ 13` (02:00–07:59) | today 13:30 |
 | otherwise (08:00–13:59) | today 19:30 |
 
+- **Contract end** = `midnight(n) + hour(timeSoldierWillArrive)·60` (the contract hour, `22` §1.2): provisional at hire
+  (§2.5), recomputed at arrival from the arrival day (step 8). Hired at 02:00 for 7 days, arriving 13:30 the same day →
+  ends Day+7 13:00, 30 minutes short of seven full days; hired on Day 5 at 10:00 → flies at 19:30, a 1-day contract ends
+  Day 6 19:00. Renewal and extension: `22` §3.
 - **First squad**: hired at Day 1 01:00 → `timeSoldierWillArrive` = Day 1 **07:30** (what the map screen shows,
-  `MapScreen.cc:804`, and what fixes the contract-end hour at 07), but the arrival event is at Day 1 **07:00**, reached by
-  the six-hour warp of `docs/15` §4.5. Same in V (`V:Tactical/MercHiring.c:171-201`). Keep.
-- **Contract end**: hour of `timeSoldierWillArrive` on the day `midnight(n)`; recomputed at arrival from the arrival day
-  (`MercArrivesCallback`, `:321`), so a merc hired at 02:00 for 7 days and arriving 13:30 the same day ends at Day+7 13:00,
-  30 minutes short of seven full days; the renewal machinery around it is `22`.
+  `MapScreen.cc:804`, and what fixes the contract hour at 07), but the arrival event is at Day 1 **07:00**, reached by the
+  six-hour warp of `15` §4.5; a 7-day contract ends at Day 8 07:00. Same in V (`V:Tactical/MercHiring.c:171-201`). Keep.
 - **Landing zone** (`g_merc_arrive_sector`): the start sector after `SetupNewStrategicGame` (`StrategicMap.cc:2265`). The
   player moves the "bullseye" on the map screen (airspace view) only after the first landing (`CanMoveBullseyeAndClickedOnIt`,
   `MapScreen.cc:7521-7540`), to any surface sector whose strategic-move traversability is not `GROUNDBARRIER` and that is
   not enemy air controlled (`:2391-2425`); every in-transit merc with `useLandingZone` follows
   (`UpdateAnyInTransitMercsWithGlobalArrivalSector`, `Merc_Hiring.cc:462-471`). No airport is needed (the airport matters
-  for Bobby Ray, §5). When an airspace update makes the landing zone enemy air controlled, it snaps back to the start sector
-  with a message box (`HandleAirspaceControlUpdated`, `StrategicMap.cc:2295-2320`, registered on
-  `OnAirspaceControlUpdated`). ja2-node: `setLandingZone` (`hire.ts`), the boxes become the events `arrivalRerouted` and
+  for Bobby Ray, §5). When an airspace update makes the landing zone enemy air controlled, it snaps back to the start
+  sector with a message box (`HandleAirspaceControlUpdated`, `StrategicMap.cc:2295-2320`, registered on
+  `OnAirspaceControlUpdated`). ja2-node: `setLandingZone` (`hire.ts`); the boxes become the events `arrivalRerouted` and
   `landingZoneReset`.
 - **`MercArrivesCallback(s)`** (`Merc_Hiring.cc:224-348`; ja2-node `LaptopFlow.mercArrives` for steps 1–6, then
   `contracts/hire-contract.ts` `mercArrived` for 8–10):
-  1. if `!didGameJustStart` and the landing zone is the start sector and the loaded sector is not the start sector:
-     `EliminateAllEnemies(start sector)` (`19` §2.19) — the start sector is "always safe";
+  1. if `!didGameJustStart`, the landing zone is the start sector and the loaded sector is not:
+     `EliminateAllEnemies(start sector)` (`19` §2.19); the start sector is "always safe";
   2. `CheckForValidArrivalSector()` (`:487-553`): if the landing zone is enemy controlled, scan `dy = −4..4` (outer), `dx =
      −4..4` (inner) over strategic indices `idx = zone + 18·dy + dx` with `1 ≤ idx < 289` and on the same row; candidates
      not enemy controlled and not enemy air controlled; distance `(INT16)hypot(dx, dy)` (truncated); keep the first
@@ -360,32 +348,18 @@ AddHistoryToPlayersLog(HISTORY_HIRED_MERC_FROM_AIM, profile, now, (−1, −1))
   5. `if useLandingZone: s.sector = mercArriveSector`;
   6. if the sector is loaded: a non-chopper arrival into the loaded *start* sector becomes a helicopter run
      (`gfTacticalDoHeliRun`, insertion `CHOPPER`, and the map screen requests tactical); then `UpdateMercInSector`
-     (`docs/16` §5.6: `ARRIVING_GAME` walks in from the north, or from gridno 4379 in the start sector); else insertion
+     (`16` §5.6: `ARRIVING_GAME` walks in from the north, or from gridno 4379 in the start sector); else insertion
      `NORTH`;
   7. non-chopper arrivals: "has arrived" message and arrival quote (presentation);
-  8. `p.status = s.totalContractLength`; `s.timeOfLastContractUpdate = now`; `s.endOfContract = midnight(length) +
-     hour(timeSoldierWillArrive)·60`;
+  8. `p.status = u8(s.totalContractLength)`; `s.timeOfLastContractUpdate = now` (the only writer: early firing and the
+     48-hour quote measure from arrival, `22` §4.2); `s.endOfContract = midnight(length) + hour(timeSoldierWillArrive)·60`
+     (`:314-321`);
   9. if `SoldierHasWorseEquipmentThanUsedTo(s)` (`Strategic_Merc_Handler.cc:434-488`, `22` §2.2): `t = 540 + Random(660)`;
-     if `minutesInDay < t`: `AddSameDayStrategicEvent(MERC_COMPLAIN_EQUIPMENT, t, profile)`;
-  10. `HandleMercArrivesQuotes` (non-chopper: the hated-merc gripes of AIM teammates, `22` §1.2; the I.M.P. Omerta quote
-     is presentation); select the arrival sector if the selected one has nobody (UI).
-
-### 2.7 Medical deposit refund
-
-Only in `StrategicRemoveMerc` (contract end, firing, quitting, or the player removing a dead merc from the team list,
-`Strategic/Assignments.cc:4358-4363`), and never for a POW (`Merc_Contract.cc:680-689`). `CalculateMedicalDepositRefund`
-(`:711-742`; ja2-node `contracts/departure.ts`), using the soldier's paid `usMedicalDeposit`:
-
-| Condition | Ledger | Amount | Mail (`AIM_SITE`, first data = amount, second = profile) |
-|---|---|---|---|
-| `!bMedicalDeposit` (profile flag) | — | — | — |
-| `life == lifeMax` | `FULL_MEDICAL_REFUND` | deposit | `AIM_MEDICAL_DEPOSIT_REFUND` |
-| `0 < life < lifeMax` | `PARTIAL_MEDICAL_REFUND` | `(2·deposit·life/lifeMax + 1)/2` (rounded half up) | `AIM_MEDICAL_DEPOSIT_PARTIAL_REFUND` |
-| `life ≤ 0` | none (`NO_MEDICAL_REFUND` is commented out) | 0 | `AIM_MEDICAL_DEPOSIT_NO_REFUND` (first data = the deposit) |
-
-The life is the current life at departure (bleeding and unhealed wounds reduce the refund). A merc who dies keeps his
-body on the team list until the player removes it; only then is the "no refund" mail sent. M.E.R.C. mercs never pay a
-deposit (§3.3).
+     if `minutesInDay < t`: `AddSameDayStrategicEvent(MERC_COMPLAIN_EQUIPMENT, t, profile)` (`:324-337`);
+  10. `HandleMercArrivesQuotes` (`:395-422`, skipped for a helicopter insertion): every AIM merc on the team whose
+     `WhichHated` slot for the arriving profile is `HATED_SLOT1`/`2` (not the learned slot) says quote 49/50
+     (`HATED_1/2_ARRIVES`); the I.M.P. Omerta quote is presentation; select the arrival sector if the selected one has
+     nobody (UI).
 
 ---
 
@@ -406,7 +380,7 @@ deposit (§3.3).
   (`Mercs.cc:1485-1504`) = `!fMercSiteHasGoneDownYet && ubLastMercAvailableId ≥ 1 (Larry revealed) && status == VALID &&
   Random(100) < day·2 + 10` (the draw only when the three conditions hold). Then `fMercSiteHasGoneDownYet = true` and
   `MERC_SITE_BACK_ONLINE` (64) at `midnight(1) + 18·60` (`:574-587`). While down (`fMercSiteHasGoneDownYet &&
-  !fFirstVisitSinceServerWentDown`, i.e. until that event fires, `Laptop/Laptop.cc:1784-1797`), the bookmark shows the
+  !fFirstVisitSinceServerWentDown`, until that event fires, `Laptop/Laptop.cc:1784-1797`), the bookmark shows the
   broken-link page: no hiring, no payments, fees keep accruing. `GetMercSiteBackOnline` (`Mercs.cc:1507-1514`): mail
   `MERC_NEW_SITE_ADDRESS` (opening it re-sets the bookmark, `EMail.cc:1705-1708`), `fFirstVisitSinceServerWentDown = 1`
   (Speck's next opening sets 2). Until the outage the site's first load is the long one (`LONG_UNIT_TIME`, presentation).
@@ -426,15 +400,15 @@ gubLastMercIndex` (`Mercs_Files.cc:235, 476`); `IsMercMercAvailable` adds `IsMer
 - Initial state: `GameInitMercs` → `MakeNewMercsAvailable(false)` at laptop init (`Laptop.cc:351-387`), giving
   `gubLastMercIndex = 5` with fresh profiles (stale on a restart in one process, inferred; ja2-node sets 5).
 - `ScheduleNewMercsToBeAvailable` (`:1579-1593`), every midnight from the daily update regardless of account or mail: if
-  any listing is eligible, `MERC_SITE_NEW_MERC_AVAILABLE` (78) at `midnight(1) + 420 + Random(180)`; nothing de-duplicates,
-  so a new event (and draw) is posted every midnight while eligibility lasts; the handler re-evaluates
+  any listing is eligible, `MERC_SITE_NEW_MERC_AVAILABLE` (78) at `midnight(1) + 420 + Random(180)`; nothing
+  de-duplicates, so a new event (and draw) is posted every midnight while eligibility lasts; the handler re-evaluates
   (`NewMercsAvailableAtMercSiteCallBack`, `:1686-1689`) and later events usually reveal nothing.
 - Unlocks therefore depend on **money paid to Speck** and the day, not on hires.
 - Larry: the listing resolves to `LARRY_DRUNK` when `FACT_LARRY_CHANGED` (`Mercs.cc:600-608`); the swap
-  (`Soldier_Profile.cc:955-978, 1026-1033`, `25`) copies status, inventory and stats but not `iMercMercContractLength` or
-  `uiTotalCostToDate` (unpaid days stay on the other profile; same in V). Biff: `uiDayBecomesAvailable = Random(2) + 2` when
-  Speck tells of Flo's death or marriage (`Mercs.cc:1554-1557`, §3.6). Flo shows as married after
-  `FACT_PC_MARRYING_DARYL_IS_FLO` (the files page's overlay).
+  (`Soldier_Profile.cc:955-978, 1026-1033`, `35` §2.4) copies status, inventory and stats but not
+  `iMercMercContractLength` or `uiTotalCostToDate` (unpaid days stay on the other profile; same in V). Biff:
+  `uiDayBecomesAvailable = Random(2) + 2` when Speck tells of Flo's death or marriage (`Mercs.cc:1554-1557`, §3.6). Flo
+  shows as married after `FACT_PC_MARRYING_DARYL_IS_FLO` (the files page's overlay).
 - Away and dead M.E.R.C. mercs follow §2.2 (chance `1·expLevel`; the death roll needs `PLAYER_HAD_CHANCE_TO_HIRE`, set
   only after day 3; no mail for M.E.R.C. deaths).
 
@@ -458,9 +432,10 @@ on the main stream (deviation "Speck's opening": ja2-node draws it at `mercHire`
 
 ### 3.4 Fees, debt and payment
 
-- Debt per merc = `sSalary · iMercMercContractLength` (`Mercs_Account.cc:246, 428`), with the *current* salary (it rises
-  with levels, §2.4); `CalculateHowMuchPlayerOwesSpeck` sums every listing, on the team or not (`:421-432`). The account
-  page lists the mercs on the team or still owed money (`DisplayHiredMercs`).
+- `iMercMercContractLength` counts the days owed since the hire or the last settlement. Debt per merc =
+  `sSalary · iMercMercContractLength` (`Mercs_Account.cc:246, 428`), with the *current* salary (it rises with levels,
+  §2.4); `CalculateHowMuchPlayerOwesSpeck` sums every listing, on the team or not (`:421-432`). The account page lists the
+  mercs on the team or still owed money (`DisplayHiredMercs`).
 - `SettleMercAccounts` (`Mercs_Account.cc:260-326`), greedy in listing order, balance not decremented until the end:
   ```
   paid = 0
@@ -480,9 +455,9 @@ on the main stream (deviation "Speck's opening": ja2-node draws it at `mercHire`
 
 ### 3.5 The daily updates
 
-`DAILY_UPDATE_OF_MERC_SITE` (10, every day 00:00, before `MERC_DAILY_UPDATE`, `docs/15` §3.1) → `DailyUpdateOfMercSite`
-(`Mercs.cc:513-588`; ja2-node: the account part in `contracts/merc-account.ts`, the rest in `merc-site.ts`
-`mercSiteDailyUpdate`):
+`DAILY_UPDATE_OF_MERC_SITE` (10, every day 00:00, the first 00:00 event, before `MERC_DAILY_UPDATE`, `15` §3.1) →
+`DailyUpdateOfMercSite` (`Mercs.cc:513-588`; ja2-node: the account part in `contracts/merc-account.ts`, the rest in
+`merc-site.ts` `mercSiteDailyUpdate`):
 ```
 if day == 1: return
 n = 0
@@ -496,15 +471,16 @@ ScheduleNewMercsToBeAvailable()          // Random(180) iff something is eligibl
 if ShouldTheMercSiteServerGoDown(): …    // Random(100) iff its preconditions hold (§3.1)
 ```
 Thresholds `Mercs.h:13-15`. Counted from the hire day (length 1), the warning comes after 7 midnights, suspension after 9,
-invalid after 12. Because the tests are `!=`, a smaller `n` (a merc fired or paid) moves `SUSPENDED` back to
-`FIRST_WARNING` and resends that mail; `n ≤ 7` leaves the status alone. Fired mercs stop counting toward `n` but stay owed.
-A merc in transit, a POW or a dead body still on the team counts (dead ones do not accrue).
+invalid after 12 (after a settlement: 8, 10, 13). Because the tests are `!=`, a smaller `n` (a merc fired or paid) moves
+`SUSPENDED` back to `FIRST_WARNING` and resends that mail; `n ≤ 7` leaves the status alone. Fired mercs stop counting
+toward `n` but stay owed (their days frozen). A merc in transit, a POW or a dead body still on the team counts (dead ones
+do not accrue).
 
 `MERC_DAILY_UPDATE` then (`Strategic_Merc_Handler.cc:274-284`): if the status is `INVALID`, every MERC soldier not POW, not
 in transit and with `life ≥ CONSCIOUSNESS` gets `MercsContractIsFinished` (`:375-406`; `22` §4.7: the "not getting paid"
-quote, contract end without the equipment question, leave code `HISTORY_MERC_QUIT`). It repeats every midnight while
-`INVALID`. Death of a M.E.R.C. merc sets `iEndofContractTime = now` and `ubSpeckCanSayPlayersLostQuote = 1` (`:122-127`);
-unpaid days stay owed, nothing is refunded.
+quote, contract end without the equipment question, leave code `HISTORY_MERC_QUIT`), so the account empties the midnight
+it turns invalid, and again every midnight while `INVALID`. Death of a M.E.R.C. merc sets `iEndofContractTime = now` and
+`ubSpeckCanSayPlayersLostQuote = 1` (`:122-127`); unpaid days stay owed, nothing is refunded.
 
 Level-ups of hired M.E.R.C. mercs post `MERC_MERC_WENT_UP_LEVEL_EMAIL_DELAY` (77) at `now + 60 + Random(60)` with param
 `profile − BIFF` (−1 more from `LARRY_DRUNK − BIFF` on), whose mail is `MERC_UP_LEVEL_BIFF + 2·param`
@@ -516,9 +492,9 @@ Level-ups of hired M.E.R.C. mercs post `MERC_MERC_WENT_UP_LEVEL_EMAIL_DELAY` (77
 the video intro, a UI timer). Effects that matter: `ubPlayerBeenToMercSiteStatus` increments per entry (0–3,
 `:276-288`); `fFirstVisitSinceServerWentDown 1 → 2`; `ubSpeckCanSayPlayersLostQuote → 0` (with ≥ 2 dead M.E.R.C. mercs);
 `SENT_EMAIL_ABOUT_LACK_OF_PAYMENT` and `fNewMercsAvailableAtMercSite` cleared; `fHasAMercDiedAtMercSite`; per dead listing
-`miscFlags3 |= MERC_MERC_IS_DEAD_AND_QUOTE_SAID`; **Biff goes away for `Random(2) + 2` days** when Speck tells of Flo's death
-(Biff alive) or of her marriage (`fSpeckSaidFloMarriedCousinQuote`); the Larry relapse flag in `uiSpeckQuoteFlags`. The
-opening also draws `Random(100)`, `Chance(50)`, `Random(4)` for the quote choice (`:1274-1334`).
+`miscFlags3 |= MERC_MERC_IS_DEAD_AND_QUOTE_SAID`; **Biff goes away for `Random(2) + 2` days** when Speck tells of Flo's
+death (Biff alive) or of her marriage (`fSpeckSaidFloMarriedCousinQuote`); the Larry relapse flag in `uiSpeckQuoteFlags`.
+The opening also draws `Random(100)`, `Chance(50)`, `Random(4)` for the quote choice (`:1274-1334`).
 
 Quote order (`merc-site.ts` `speckOpening`): the first visit says 0, then the tags below, then 1–8 (each later call of
 `GetSpeckConditionalOpening` queues the next intro quote); the second visit 10; later visits one branch (11 nobody hired
@@ -558,14 +534,14 @@ so only the order relative to other laptop commands can differ, inferred).
 - **Name**: full name ≤ 29 characters, nickname ≤ 8; trimmed; empty full name refused; empty nickname = the first word of
   the full name, left 8 (`IMP_Begin_Screen.cc:45, 107-127, 274-299`). **Gender** male/female.
 - **Personality quiz** (`IMP_Personality_Quiz.cc`): 16 questions; answers per question Q0 6, Q3 5, Q5 5, Q10 5, Q11 8,
-  others 4 (`:248-257`). `CompileQuestionsInStatsAndWhatNot` (`:424-562`) appends, in question order, to three lists (skill,
-  attitude, personality; each capped at 20 entries). The effect of every answer is `impQuiz` in `data/tables/laptop.json`
-  (per question an array over the answers: `null` = no effect, `{list, value}` with the `SkillTrait`/attitude/personality
-  enum value, or `{list: 'skill', male, female}` for Q0 a0 and Q11 a0: `MARTIALARTS` for men, `AMBIDEXT` for women).
-  V differs at Q8 a1 (V adds `PESSIMIST`, Strac nothing). `AddAPersonalityToPersonalityList` keeps only `PSYCHO`
-  (`IMP_Compile_Character.cc:417-430`): the quiz's `CLAUSTROPHOBIC`, `FORGETFUL`, `NERVOUS` and `HEAT_INTOLERANT` answers
-  do nothing. The gender used for Q0/Q11 is the one chosen *before* the quiz; changing gender afterwards does not recompute
-  (martial arts become hand-to-hand for women and big bodies at confirm anyway).
+  others 4 (`:248-257`). `CompileQuestionsInStatsAndWhatNot` (`:424-562`) appends, in question order, to three lists
+  (skill, attitude, personality; each capped at 20 entries). The effect of every answer is `impQuiz` in
+  `data/tables/laptop.json` (per question an array over the answers: `null` = no effect, `{list, value}` with the
+  `SkillTrait`/attitude/personality enum value, or `{list: 'skill', male, female}` for Q0 a0 and Q11 a0: `MARTIALARTS` for
+  men, `AMBIDEXT` for women). V differs at Q8 a1 (V adds `PESSIMIST`, Strac nothing). `AddAPersonalityToPersonalityList`
+  keeps only `PSYCHO` (`IMP_Compile_Character.cc:417-430`): the quiz's `CLAUSTROPHOBIC`, `FORGETFUL`, `NERVOUS` and
+  `HEAT_INTOLERANT` answers do nothing. Q0/Q11 use the gender chosen *before* the quiz; changing gender afterwards does not
+  recompute (martial arts become hand-to-hand for women and big bodies at confirm anyway).
 - **Personality and attitude** (`CreatePlayersPersonalitySkillsAndAttitude`, on the personality-finish page,
   `IMP_Personality_Finish.cc:306, 334`): personality = `PSYCHO` if the personality list is non-empty, else none
   (`:433-444`). Attitude (`:240-298`): empty list → `ATT_NORMAL` (no draw); else count hits per attitude, `H` = max, `k` =
@@ -587,8 +563,8 @@ so only the order relative to other laptop commands can differ, inferred).
 At "done" (`CreateACharacterFromPlayerEnteredStats`, `IMP_Compile_Character.cc:200-238`) the slot's profile gets name,
 nickname, sex, `ubVoiceId = voices[i].profile`, life = lifeMax = health, the nine other stats, personality, attitude,
 `bExpLevel = imp.json starting_level` (1), `bMercStatus = MERC_OK`, face/hair/skin from the portrait (`:504-531`); the
-slot starts from an empty default profile (`docs/06` §6.2) with white vest and black pants (`Soldier_Profile.cc:158-159`);
-no salary, no deposit, no misc flags.
+slot starts from an empty default profile (`06` §6.2) with white vest and black pants (`Soldier_Profile.cc:158-159`); no
+salary, no deposit, no misc flags.
 
 Confirm "yes" (`IMP_Confirm.cc:157-217`):
 ```
@@ -620,29 +596,30 @@ if imp.json send_profile_results_email: AddFutureDayStrategicEvent(DAY2_ADD_EMAI
   it` (expert) unless it is `ELECTRONICS`/`AMBIDEXT`/`CAMOUFLAGED` (`B = none`); two → `L[0]`, `L[1]`; no draws.
   **Body**: male with a `big_body` portrait and `strength − strengthDelta ≥ 75` → `BIGMALE`, else `REGMALE`; female →
   `REGFEMALE`; `BIGMALE` and female turn `MARTIALARTS` into `HANDTOHAND` in both slots (`:176-186, 544-563`).
-- **Starting gear** (`imp.json` `inventory`, `externalized/policy/DefaultIMPPolicy.cc:152-202`, `IMPPolicy.h:54-111`): sets
-  in file order; each condition is a `≥` pair (`[STAT, n]`, `[n, STAT]`, `RND100` = **`PreRandom(100)`**, `[SKILL, X]` =
-  `HasSkillTrait`), stopping at the first false one; items go to the named slot or the first empty small pocket (if
-  `perPocket ≠ 0`), then big pockets 1–4, status 100, count 1 (`IMP_Confirm.cc:229-279`). Shipped: canteen and flak
-  jacket; helmet if `wisdom ≥ PreRandom(100)` (V: `<`, an off-by-one in Strac's data); MP5K + 2 magazines at marksmanship ≥
-  80, else Beretta 93R + 3; medical kit ≥ 60, first aid kit 30–59; toolkit at mechanical ≥ 50; TNT + detonator at
-  explosives ≥ 50; one item per skill (lockpicking kit, brass knuckles, metal detector, break light, throwing knife,
-  silencer, combat knife). `HireMerc` then copies the profile items onto the soldier (auto-placement decides the final
-  layout, inferred).
+- **Starting gear** (`imp.json` `inventory`, `externalized/policy/DefaultIMPPolicy.cc:152-202`, `IMPPolicy.h:54-111`):
+  sets in file order; each condition is a `≥` pair (`[STAT, n]`, `[n, STAT]`, `RND100` = **`PreRandom(100)`**,
+  `[SKILL, X]` = `HasSkillTrait`), stopping at the first false one; items go to the named slot or the first empty small
+  pocket (if `perPocket ≠ 0`), then big pockets 1–4, status 100, count 1 (`IMP_Confirm.cc:229-279`). Shipped: canteen and
+  flak jacket; helmet if `wisdom ≥ PreRandom(100)` (V: `<`, an off-by-one in Strac's data); MP5K + 2 magazines at
+  marksmanship ≥ 80, else Beretta 93R + 3; medical kit ≥ 60, first aid kit 30–59; toolkit at mechanical ≥ 50; TNT +
+  detonator at explosives ≥ 50; one item per skill (lockpicking kit, brass knuckles, metal detector, break light, throwing
+  knife, silencer, combat knife). `HireMerc` then copies the profile items onto the soldier (auto-placement decides the
+  final layout, inferred).
 - **Contract**: `length = −1`, so `bMercStatus = (UINT8)−1 = −1` (`MERC_HAS_NO_TEXT_FILE`) at hire and again at arrival,
   and `iEndofContractTime = midnight(0) + hour·60` (today): harmless because nothing reads them for `PLAYER_CHARACTER`
-  (quirk; the renewal code is AIM-only, `22`). I.M.P. mercs are never paid (no daily cost path; inferred: no branch found).
+  (quirk; the renewal code is AIM-only, `22` §3). I.M.P. mercs are never paid (no daily cost path; inferred: no branch
+  found).
 - **Edge case**: `HireMerc` returning `MERC_HIRE_OVER_20_MERCS_HIRED (−1)` counts as success, so with a full team the slot
   is marked taken, no soldier exists and nothing is charged; reachable only if the team fills between Begin and confirm.
   ja2-node checks the team in the same command, so it is unreachable (a full team is refused `teamFull` before anything
   changes).
-- Not saved in the original: the in-progress creation (inferred). ja2-node has no in-progress state (§4.4).
+- The original does not save an in-progress creation (inferred). ja2-node has no in-progress state (§4.4).
 
 ### 4.4 `impCreate`: one command
 
 The draft stays in the client; `impCreate` carries every choice (`code`, `name`, `nickname?`, `gender`, `answers[16]` in
 quiz mode or `skills[0..2]` with `imp.pick_skills_directly`, the ten `attributes`, `portrait` and `voice` as indices within
-the gender's entries; shape in `04` §6) and performs the confirm in one step (`imp.ts`).
+the gender's entries; shape in `29`) and performs the confirm in one step (`imp.ts`).
 
 Validation, in order: the I.M.P. bookmark; the code; `CanCreateAnotherIMPCharacter`; balance ≥ 3000; team < 18 (Begin);
 the name rules; each answer in range (or the direct skills: distinct, at most 2, no martial arts for women); the
@@ -654,7 +631,7 @@ inverse, the 0 ↔ 35 step is the only non-linear one, refunds are unbounded; in
 Execution: compile the quiz → lists; personality and attitude (the attitude draw); write the profile; then §4.3 (skill
 draws, the `PreRandom(100)` helmet, the hire). The I.M.P. view gives the page rules (`impCheckCode`, the begin refusal,
 the attribute budget and order, the portrait and voice lists, the answer counts) and `impPreview` the three lists for given
-answers without draws (`04` §6).
+answers without draws (`29`).
 
 ---
 
@@ -676,9 +653,9 @@ Two lists of `STORE_INVENTORY {usItemIndex u16, ubQtyOnHand u8, ubQtyOnOrder u8,
 65535, lengths in `usInventoryListLength[2]`).
 
 **Building the lists** (`InitBobbyRayInventory`, `BobbyR.cc:422-435`, in `InitNewGame` after `InitAllArmsDealers`,
-`docs/15` §4.2 step 3): new list = items whose `bobby-ray-inventory-new.json` max is non-zero, not `ITEM_NOT_BUYABLE`, and
-`ItemIsLegal` (no big-gun-list guns/ammo without gun nut; no sci-fi filter) (`:438-469`); used list = the same with the used
-JSON plus `CanDealerItemBeSoldUsed` (damageable and a category that allows used sales: handgun, shotgun, SMG, rifle,
+`15` §4.2 step 3): new list = items whose `bobby-ray-inventory-new.json` max is non-zero, not `ITEM_NOT_BUYABLE`, and
+`ItemIsLegal` (no big-gun-list guns/ammo without gun nut; no sci-fi filter) (`:438-469`); used list = the same with the
+used JSON plus `CanDealerItemBeSoldUsed` (damageable and a category that allows used sales: handgun, shotgun, SMG, rifle,
 armour, face, misc) (`:472-506`). Both are sorted with the dealer comparator (`Tactical/ArmsDealerInvInit.cc:377-499`,
 `23` §1.4).
 
@@ -694,26 +671,27 @@ DetermineInitialInvItems(max)` (`ArmsDealerInvInit.cc:314-330`: `max` buying rol
 used: if `bought > 0`, quantity 1 and quality `20 + Random(60)`. The progress used here is the value before
 `InitStrategicStatus` (0 in a fresh process; stale on a restart in the same process, inferred; ja2-node uses 0).
 
-**Daily restock** (`DAILY_UPDATE_BOBBY_RAY_INVENTORY` 8, 09:00; handler order new, used, then dealers, `Game_Event_Hook.cc:112-
-116`):
-- New (`BobbyR.cc:514-562`): customers: for each slot with stock, one selling roll per unit, remove the sold ones
-  (`:721-736`); reorder: for each slot with JSON max ≠ 0, nothing on order and `onHand ≤ max/2`: remember `prev =
+**Daily restock** (`DAILY_UPDATE_BOBBY_RAY_INVENTORY` 8, 09:00; handler order new, used, then dealers,
+`Game_Event_Hook.cc:112-116`):
+- New (`BobbyR.cc:514-562`): customers: per slot with stock, one selling roll per unit, remove the sold ones
+  (`:721-736`); reorder: per slot with JSON max ≠ 0, nothing on order and `onHand ≤ max/2`: remember `prev =
   fPreviouslyEligible`; one buying roll; on success `n = max − onHand`, `Random(3)`: 0 → `n += n/2`, 1 → `n −= n/2`, 2 →
   unchanged (`HowManyItemsToReorder`, `ArmsDealerInvInit.cc:353-373`); if `n > 0`: `onOrder = n`, then `!prev` →
   `AddFreshBobbyRayInventory(item)` at once (newly eligible item: instant), else `UPDATE_BOBBY_RAY_INVENTORY` (9) at `now +
   1440 + Random(720)` (`:616-660`).
-- Used (`:565-612`): customers likewise; for each slot with nothing on order and stock 0: one buying roll; success orders 1
+- Used (`:565-612`): customers likewise; per slot with nothing on order and stock 0: one buying roll; success orders 1
   (no `Random(3)`); `prev` → event with param `item + 1000`; `!prev` → `AddFreshBobbyRayInventory(item)` **without** the
   +1000 (`:602`, same in V): it adds the *new* slot's on-order count to new stock, and the used slot keeps 1 on order
   forever (never restocks again) (quirk, inferred effect).
-- `AddFreshBobbyRayInventory(param)` (`:663-700`): `param ≥ 1000` → used, `param −= 1000`, quality `20 + Random(60)` (drawn
-  before the slot lookup); else new, quality 100; `onHand += onOrder`, quality set, `onOrder = 0`.
+- `AddFreshBobbyRayInventory(param)` (`:663-700`): `param ≥ 1000` → used, `param −= 1000`, quality `20 + Random(60)`
+  (drawn before the slot lookup); else new, quality 100; `onHand += onOrder`, quality set, `onOrder = 0`.
 - Used stock is therefore always 0 or 1 unit, with one quality per slot.
 
 ### 5.3 Prices
 
-`CalcBobbyRayCost` (`Laptop/BobbyRGuns.cc:1311-1321`): new = item `usPrice`; used = `(UINT16)(price · (0.5 + 0.5·q/100) + 0.5)`
-in doubles with the slot's quality (`Math.trunc(price * (0.5 + 0.5 * q / 100) + 0.5)` reproduces it). No policy factor.
+`CalcBobbyRayCost` (`Laptop/BobbyRGuns.cc:1311-1321`): new = item `usPrice`; used =
+`(UINT16)(price · (0.5 + 0.5·q/100) + 0.5)` in doubles with the slot's quality
+(`Math.trunc(price * (0.5 + 0.5 * q / 100) + 0.5)` reproduces it). No policy factor.
 
 ### 5.4 Ordering
 
@@ -721,30 +699,32 @@ in doubles with the slot's quality (`Math.trunc(price * (0.5 + 0.5 * q / 100) + 
   quality (100 or the used slot's), slot index, used}`; adding a unit needs `onHand ≥ count + 1`; at most 10 lines
   (`MAX_PURCHASE_AMOUNT`); a line takes another unit while it holds `≤ 200` (`BOBBY_RAY_MAX_AMOUNT_OF_ITEMS_TO_PURCHASE`,
   `BobbyRGuns.cc:1171, 1208`), so it can reach 201 (`BobbyRGuns.cc:1136-1263`). New and used are separate lines. ja2-node
-  takes the whole cart in one `bobbyRayOrder` (deviation "Laptop as commands"; the canvas keeps the cart as a client draft).
-- **Order form**: destination −1 or 0–16 (`shipping-destinations.json`, 17 entries, all listed); speed 0 overnight (1 day),
-  1 two business days (2 days; weekends do not exist), 2 standard (3 days) (`CalculateOrderDelay`).
-- **Totals** (`BobbyRMailOrder.cc:693-831, 1472-1529`): subtotal = Σ unit cost × count; weight `w = Σ ubWeight × count` (100 g
-  units), at least `MIN_SHIPPING_WEIGHT 20`; shipping = `(UINT32)((w / 10.0f) · rate + .5)` =
+  takes the whole cart in one `bobbyRayOrder` (deviation "Laptop as commands"; the canvas keeps the cart as a client
+  draft).
+- **Order form**: destination −1 or 0–16 (`shipping-destinations.json`, 17 entries, all listed); speed 0 overnight (1
+  day), 1 two business days (2 days; weekends do not exist), 2 standard (3 days) (`CalculateOrderDelay`).
+- **Totals** (`BobbyRMailOrder.cc:693-831, 1472-1529`): subtotal = Σ unit cost × count; weight `w = Σ ubWeight × count`
+  (100 g units), at least `MIN_SHIPPING_WEIGHT 20`; shipping = `(UINT32)((w / 10.0f) · rate + .5)` =
   `Math.trunc(Math.fround(Math.fround(w / 10) * rate) + 0.5)`, `rate` = the destination's per-kg charge for the speed
   (Strac data: Drassen 200/100/50; V: 500/200/100); no destination → 0 (the form before a city is chosen). Grand total =
   subtotal + shipping.
-- **Accept** (`:616-652`): needs a non-empty cart and a destination; `balance < grand` → "can't afford" (the only refusal:
-  no weight limit, no destination check); a destination other than the primary, or the primary while its sector is enemy
-  held, asks "ship to X?" first.
+- **Accept** (`:616-652`): needs a non-empty cart and a destination; `balance < grand` → "can't afford" (the only
+  refusal: no weight limit, no destination check); a destination other than the primary, or the primary while its sector
+  is enemy held, asks "ship to X?" first.
 - **Purchase** (`PurchaseBobbyOrder`, `:1586-1610`): if the destination `canDeliver`, `AddNewBobbyRShipment`; **always**
   `AddTransactionToPlayersBook(BOBBYR_PURCHASE, 0, now, −grand)` (orders to Austin and other non-delivering cities take the
-  money and nothing arrives); remove the units from stock (`onHand = max(onHand − count, 0)`, `:1276-1289`); clear the cart.
-- **Shipment record** (`NewBobbyRayOrderStruct`, `BobbyRMailOrder.h:27-41`, 104 bytes; `gpNewBobbyrShipments`, save section
-  after the laptop block, `SaveLoadGame.cc:478, 988-995`): active, destination, method, 10 lines, line count, weight
-  (`max(w, 20)`), order day, shown-on-shipments-page. `AddNewBobbyRShipment` (`:1763-1844`) reuses slot 0 if it is
+  money and nothing arrives); remove the units from stock (`onHand = max(onHand − count, 0)`, `:1276-1289`); clear the
+  cart.
+- **Shipment record** (`NewBobbyRayOrderStruct`, `BobbyRMailOrder.h:27-41`, 104 bytes; `gpNewBobbyrShipments`, save
+  section after the laptop block, `SaveLoadGame.cc:478, 988-995`): active, destination, method, 10 lines, line count,
+  weight (`max(w, 20)`), order day, shown-on-shipments-page. `AddNewBobbyRShipment` (`:1763-1844`) reuses slot 0 if it is
   inactive, otherwise appends (the reuse loop tests `[0]`, not `[i]`; same in V; the list only grows); days ahead =
   `CalculateOrderDelay(speed)` = 1/2/3, `+ Random(5) + 1` if Sal is dead (`bLife == 0`, `:1550-1580`); then
-  `AddFutureDayStrategicEvent(BOBBYRAY_PURCHASE (7), (8 + Random(4))·60, index, days)`: delivery at **08:00, 09:00, 10:00 or
-  11:00** of the target day. Draws: `[Random(5)]`, then `Random(4)`. The shipments page prices its rows from the stored
+  `AddFutureDayStrategicEvent(BOBBYRAY_PURCHASE (7), (8 + Random(4))·60, index, days)`: delivery at **08:00, 09:00, 10:00
+  or 11:00** of the target day. Draws: `[Random(5)]`, then `Random(4)`. The shipments page prices its rows from the stored
   package weight and the speed (`DisplayShippingCosts`); its line prices are deviation "Bobby Ray's shipment prices".
-- John Kulba's gift (NPC action 188, `25`; `:1612-1666`): two Automag III and two magazines, primary destination, 5 days
-  (standard 3 + 2, plus the Sal penalty), not on the shipments page.
+- John Kulba's gift (NPC action 188, `35` §1.5; `:1612-1666`): two Automag III and two magazines, primary destination, 5
+  days (standard 3 + 2, plus the Sal penalty), not on the shipments page.
 
 ### 5.5 Delivery (`BobbyRayPurchaseEventCallback`, `Strategic/Strategic_Event_Handler.cc:54-343`)
 
@@ -778,11 +758,11 @@ counter"). Non-primary destinations (Meduna N3, gridno 10959; `:939-1025`): enem
 stacked hidden items, no theft, no facts, no compression stop, no draws, mail offset 220; the loop bound reads shipment
 `[0]`'s line count (same in V: lines are lost when shipment 0 has fewer). The Pablo follow-ups (returned goods with two
 `Random(10)`, the 24-hour delay, the 70 % damage roll, Sal replacing Pablo) run from NPC actions and events
-(`Strategic_Event_Handler.cc:346-474`, `Overhead.cc:2317, 5354-5356`, `Quests.cc:64-71, 498-531`; `25`).
+(`Strategic_Event_Handler.cc:346-474`, `Overhead.cc:2317, 5354-5356`, `Quests.cc:64-71, 498-531`; `25` §6.2).
 
 ja2-node: the facts are the narrative fact store (`state.narrative`, `src/sim/strategic/narrative/facts.ts`); delivered
 items land hidden in the sector's item state through `sector-loot.ts` `addItemsToUnloadedSector` or the loaded world's
-`addItemToPool`; the crate closes through `sector-diff.ts` in an unloaded sector. Events `shipmentDelivered` and
+`addItemToPool`; in an unloaded sector the crate closes through `sector-diff.ts`. Events `shipmentDelivered` and
 `shipmentLost {reason: crashed | prevented | enemyHeld}`.
 
 ---
@@ -791,25 +771,25 @@ items land hidden in the sector's item state through `sector-loot.ts` `addItemsT
 
 ### 6.1 Email
 
-**Record** (`Laptop/EMail.h:136-148`): `usOffset` (u16: the first record in `email.edt`, which is also the mail's *type*),
+**Record** (`Laptop/EMail.h:136-148`): `usOffset` (u16: the first record in `email.edt`, also the mail's *type*),
 `usLength` (records), `ubSender` (u8), `iDate` (world minutes), `iFirstData` (i32), `uiSecondData` (u32), `fRead`. The
 subject is derived from the text (not state). Senders (`:152-166`): `MAIL_ENRICO 0`, `CHAR_PROFILE_SITE 1`, `GAME_HELP 2`
 (unused), `IMP_PROFILE_RESULTS 3`, `SPECK_FROM_MERC 4`, `RIS_EMAIL 5`, `6 + profile` for A.I.M. mercs 0–39 (`BARRY_MAIL 6`
 … `MELTDOWN_MAIL 45`), `INSURANCE_COMPANY 46`, `BOBBY_R 47`, `KING_PIN 48`, `JOHN_KULBA 49`, `AIM_SITE 50`. ja2-node gives
 each mail an `id` (arrival counter); offsets, lengths and senders come from `data/tables/laptop.json` (`mail`, `senders`).
 
-**List**: arrival order; `AddEmail` (unread, data 0/0), `AddPreReadEmail` (read), `AddEmailWithSpecialData(off, len, sender,
-date, first, second)` (`EMail.cc:492-569`). The player may delete any mail (`:1402`); sorting relinks the list in the
-original, ja2-node keeps arrival order and the client sorts (deviation "Email order"). Opening a mail
+**List**: arrival order; `AddEmail` (unread, data 0/0), `AddPreReadEmail` (read), `AddEmailWithSpecialData(off, len,
+sender, date, first, second)` (`EMail.cc:492-569`). The player may delete any mail (`:1402`); sorting relinks the list in
+the original, ja2-node keeps arrival order and the client sorts (deviation "Email order"). Opening a mail
 (`DisplayEmailMessage`, `:986-1052`) sets `fRead` and runs `HandleAnySpecialEmailMessageEvents` and
 `HandleMailSpecialMessages` (`:1641-1720`) on every display (idempotent): **the only effects of reading** are the I.M.P.
 bookmark (`IMP_EMAIL_INTRO`, `IMP_EMAIL_AGAIN`) and the M.E.R.C. bookmark (`MERC_INTRO`, `MERC_NEW_SITE_ADDRESS`).
 `$MERCNAME$` is `profile(uiSecondData).zName`, `$AMOUN$` is `iFirstData` as money (`:2439-2470`); the server renders
 subjects and bodies, the I.M.P. results mail assembled from `impass.edt` (`src/server/mail-text.ts`,
-`laptop/imp-report.ts`; its `Random(32767)` paragraph choice is deviation "Cosmetic laptop draws"). `fNewMailFlag` (general
-info) is set by every added mail, pre-read ones included (`EMail.cc:562`), and cleared when the laptop closes (ja2-node
-`newMail`); `fUnReadMailFlag` is derived. Save: section 10 (`u32 n`, per mail `u32 subjectSize` (Strac 0) + 44 bytes,
-`LoadSaveEMail.cc`).
+`laptop/imp-report.ts`; its `Random(32767)` paragraph choice is deviation "Cosmetic laptop draws"). `fNewMailFlag`
+(general info) is set by every added mail, pre-read ones included (`EMail.cc:562`), and cleared when the laptop closes
+(ja2-node `newMail`); `fUnReadMailFlag` is derived. Save: section 10 (`u32 n`, per mail `u32 subjectSize` (Strac 0) + 44
+bytes, `LoadSaveEMail.cc`).
 
 **Catalogue** ("data" = special data; no mail other than the four above has an effect when read):
 
@@ -826,45 +806,46 @@ info) is set by every added mail, pre-read ones included (`EMail.cc:562`), and c
 | `MERC_UP_LEVEL_*` (10, `MERC_UP_LEVEL_BIFF + 2·k`) | event 77 (§3.5) | — |
 | `AIM_REPLY_*` (40, `AIM_REPLY_BARRY + 2·id`) | §2.2 (merc back, message left); sender `6 + id` | — |
 | `MERC_DIED_ON_OTHER_ASSIGNMENT` | §2.2 (AIM profiles only) | second = profile |
-| `AIM_MEDICAL_DEPOSIT_REFUND`, `_PARTIAL_REFUND`, `_NO_REFUND` | §2.7 | first = amount, second = profile |
+| `AIM_MEDICAL_DEPOSIT_REFUND`, `_PARTIAL_REFUND`, `_NO_REFUND` | `22` §4.6 | first = amount, second = profile |
 | `INSUR_PAYMENT`, `INSUR_SUSPIC`, `INSUR_SUSPIC_2`, `INSUR_INVEST_OVER`, `INSUR_1HOUR_FRAUD` | §7.2 | first = payout, second = profile |
 | `BOBBYR_NOW_OPEN` | §5.1 | — |
 | `BOBBYR_SHIPMENT_ARRIVED`, `JOHN_KULBA_GIFT`, `BOBBY_R_MEDUNA_SHIPMENT` | §5.5 (offsets also in `shipping-destinations.json`) | — |
 | `ENRICO_PROG_20/55/80`, `ENRICO_SETBACK`, `_SETBACK_2`, `ENRICO_CREATURES`, `LACK_PLAYER_PROGRESS_1/2/3` | `HandleEnricoEmail` (`Strategic_Status.cc:246-376`; the decision tree is `economy/inactivity.ts`; lack of progress also writes `HISTORY_ENRICO_COMPLAINED`) | — |
-| `ENRICO_MIGUEL` | NPC action → `SET_BY_NPC_SYSTEM` next day `390 + Random(60)` (`Interface_Dialogue.cc:3464-3465`, `25`) | — |
-| `KING_PIN_LETTER` | Kingpin money chain (`Strategic_Event_Handler.cc:476-592`, `Random(120)` reposts, `25`) | — |
+| `ENRICO_MIGUEL` | NPC action → `SET_BY_NPC_SYSTEM` next day `390 + Random(60)` (`Interface_Dialogue.cc:3464-3465`, `35` §1.13) | — |
+| `KING_PIN_LETTER` | Kingpin money chain (`Strategic_Event_Handler.cc:476-592`, `Random(120)` reposts, `25` §6.4) | — |
 
 ### 6.2 History
 
-**Record** (`Laptop/History.cc:32-39`): `ubCode`, `ubSecondCode` (usually a profile, a town or a quest), `uiDate` (minutes),
-sector `(x, y, z)` or `(−1, −1)`; appended by `AddHistoryToPlayersLog` (`:111-122`); save section 8 (12-byte records; V
-writes z = 0 and a colour byte). Codes (`History.h`, 0–77) and their writers: hired from A.I.M. 1 / M.E.R.C. 2 (§2.5,
-§3.3); merc killed 3, or 77 when killed by our team (`Strategic_Merc_Handler.cc:66-68`); settled M.E.R.C. account 4;
-character generated 6 (§4.3, second code 0); insurance purchased 7, payout 9 (8 unused); contract extended 10–12 (`22`);
-fired 13, quit 14, contract expired 22, Slay left 76 (`StrategicRemoveMerc :677`, not for the dead); quest started 15 and
-finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`); miner talk and mine events 17, 26–29
+**Record** (`Laptop/History.cc:32-39`): `ubCode`, `ubSecondCode` (usually a profile, a town or a quest), `uiDate`
+(minutes), sector `(x, y, z)` or `(−1, −1)`; appended by `AddHistoryToPlayersLog` (`:111-122`); save section 8 (12-byte
+records; V writes z = 0 and a colour byte). Codes (`History.h`, 0–77) and their writers: hired from A.I.M. 1 / M.E.R.C. 2
+(§2.5, §3.3); merc killed 3, or 77 when killed by our team (`Strategic_Merc_Handler.cc:66-68`); settled M.E.R.C. account
+4; character generated 6 (§4.3, second code 0); insurance purchased 7, payout 9 (8 unused); contract extended 10–12
+(`22` §3.6); fired 13, quit 14, contract expired 22, Slay left 76 (`StrategicRemoveMerc :677`, not for the dead); quest
+started 15 and finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`); miner talk and mine events 17, 26–29
 (`Strategic_Mines.cc:283-287`, second code = town); liberated town 18; cheat 19; Enrico complained 24; battle results 25,
 64–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`, by encounter code and outcome); RPC joined 23; Walker 20,
 married off 21, Tixa/Orta 30/31, rocket rifles 32, Deidranna's dead bodies 33, boxing matches 34, something in the mines
-35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74, Carmen's head 75 (`25`). Which of
-them ja2-node writes: deviation "History writers". The row texts are rendered by the server (`src/server/history-labels.ts`).
+35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74, Carmen's head 75 (`25` §2.4, `35` §1).
+Which of them ja2-node writes: deviation "History writers". The server renders the row texts
+(`src/server/history-labels.ts`).
 
 **Logic reader**: only `GetTimeQuestWasStarted(quest)` (`History.cc:737-753`: the date of the first `QUEST_STARTED` with
 that second code, 0 if none; `records.ts` `timeQuestWasStarted`), used by `FACT_BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO`
-(`Quests.cc:876-878`, `25`). Everything else is a record for the player.
+(`Quests.cc:876-878`, `25` §1.3). Everything else is a record for the player.
 
 ### 6.3 Finances
 
 The ledger is `src/sim/campaign/finances.ts` (codes 0–27, the cost-to-date code set, records `{code, secondCode, minute,
-amount, balanceAfter}`, `docs/18` §3.9). Codes written by the laptop: `ANONYMOUS_DEPOSIT` (starting cash), `HIRED_MERC`,
+amount, balanceAfter}`, `18` §3.9). Codes written by the laptop: `ANONYMOUS_DEPOSIT` (starting cash), `HIRED_MERC`,
 `MEDICAL_DEPOSIT`, `BOBBYR_PURCHASE` (second code 0), `PAY_SPECK_FOR_MERC`, `IMP_PROFILE`, `PURCHASED_INSURANCE`,
-`EXTENDED_INSURANCE`, `INSURANCE_PAYOUT`, `PURCHASED_FLOWERS` (0), `FULL_MEDICAL_REFUND`, `PARTIAL_MEDICAL_REFUND`; by others:
-`EXTENDED_CONTRACT_*` and `PAYMENT_TO_NPC` (`22`), `TRANSFER_FUNDS_TO_MERC`/`MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT`
-(inventory money, `12`), `PURCHASED_ITEM_FROM_DEALER` (`23`). Never written: `ACCRUED_INTEREST` (there is no interest),
-`TRANSACTION_FEE`, `REDUCED_INSURANCE`, `CANCELLED_INSURANCE`, `NO_MEDICAL_REFUND`, `TRANSFER_FUNDS_FROM_MERC`,
-`DEPOSIT_FROM_GOLD_MINE` (all mine income is `DEPOSIT_FROM_SILVER_MINE`, `Strategic_Mines.cc:538`). `uiTotalCostToDate`
-also changes outside the ledger: +charge on M.E.R.C. payment (§3.4) and money handed to NPCs (`TacticalAI/NPC.cc:878,
-928`, `25`).
+`EXTENDED_INSURANCE`, `INSURANCE_PAYOUT`, `PURCHASED_FLOWERS` (0); by others: `FULL_MEDICAL_REFUND`,
+`PARTIAL_MEDICAL_REFUND`, `EXTENDED_CONTRACT_*` and `PAYMENT_TO_NPC` (`22`), `TRANSFER_FUNDS_TO_MERC`/
+`MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT` (inventory money, `12`), `PURCHASED_ITEM_FROM_DEALER` (`23`). Never written:
+`ACCRUED_INTEREST` (there is no interest), `TRANSACTION_FEE`, `REDUCED_INSURANCE`, `CANCELLED_INSURANCE`,
+`NO_MEDICAL_REFUND`, `TRANSFER_FUNDS_FROM_MERC`, `DEPOSIT_FROM_GOLD_MINE` (all mine income is `DEPOSIT_FROM_SILVER_MINE`,
+`Strategic_Mines.cc:538`). `uiTotalCostToDate` also changes outside the ledger: +charge on M.E.R.C. payment (§3.4) and
+money handed to NPCs (`TacticalAI/NPC.cc:878, 928`, `35` §1.11).
 
 Game logic reads only the balance. The "yesterday/today" summaries (`Finances.cc:989-1294`) are display, computed by
 `src/sim/campaign/finance-summary.ts` so their quirks stay out of the client: the functions walk the ledger from the newest
@@ -874,17 +855,17 @@ yesterday's closing balance is the balance after the newest record of yesterday,
 yesterday's sums count the first record of the day before yesterday too; today's sums re-arm their flag on every record of
 today, so they count every matching record of today and, when today's oldest record does not match, yesterday's newest
 record if it matches; the debits are what the balances leave over. `GetProjectedTotalDailyIncome` is
-`PredictIncomeFromPlayerMines`. The ledger row labels (`ProcessTransactionString`, `Finances.cc:777-825`) are rendered by
-the server in the session's display language (`src/server/finance-labels.ts`): `pTransactionText` verbatim (a silver-mine
-deposit shows the gold-mine text), the profile's nickname for the codes that name a merc, the detailed sector label for
-militia training.
+`PredictIncomeFromPlayerMines`. The server renders the ledger row labels (`ProcessTransactionString`,
+`Finances.cc:777-825`) in the session's display language (`src/server/finance-labels.ts`): `pTransactionText` verbatim (a
+silver-mine deposit shows the gold-mine text), the profile's nickname for the codes that name a merc, the detailed sector
+label for militia training.
 
 ### 6.4 Files
 
-Records `{ubCode, fRead}`, added idempotently by code (`Files.cc:310-326`); save section 9. `ENRICO_BACKGROUND` (0) at laptop
-init (`GameInitFiles`, `:184-192`); the six terrorist files (1–6) when Carmen's NPC action runs (`AddFilesAboutTerrorists`,
-`:1009-1015`, all six regardless of which are active; `25`). Showing a file sets `fRead` (`DisplayFormattedText`; ja2-node
-`readFile {code}`). No other logic.
+Records `{ubCode, fRead}`, added idempotently by code (`Files.cc:310-326`); save section 9. `ENRICO_BACKGROUND` (0) at
+laptop init (`GameInitFiles`, `:184-192`); the six terrorist files (1–6) when Carmen's NPC action runs
+(`AddFilesAboutTerrorists`, `:1009-1015`, all six regardless of which are active; `35` §1.6). Showing a file sets `fRead`
+(`DisplayFormattedText`; ja2-node `readFile {code}`). No other logic.
 
 ---
 
@@ -922,7 +903,7 @@ ja2-node: `Math.fround` after each float operation (`ratio`, each product, `·ri
 truncate. No age, claims or other factor.
 
 **Buy or extend** (`PurchaseOrExtendInsuranceForSoldier(s, len)`, `:1082-1148`; the site passes `insuranceLength(s)`, the
-contract extension path of `22` passes the contract length):
+contract extension of `22` §3.6 the extension's length):
 ```
 if !insured: s.start = startDay(s); s.startTime = now           // startDay: today if IN_TRANSIT && !didGameJustStart, else tomorrow
 cost = premium(len)
@@ -932,15 +913,15 @@ else: ledger PURCHASED_INSURANCE −cost; history PURCHASED_INSURANCE; insured =
 s.totalLength += len                                                          // …but the length is added anyway (quirk)
 if insuranceDaysLeft > contractDaysLeft: s.totalLength −= the difference
 ```
-There is no reduce, cancel or refund. **Daily** (`HANDLE_INSURED_MERCS` 13, 00:00; `DailyUpdateOfInsuredMercs`,
-`:675-698`): an insured soldier with `day ≠ start`, `insuranceDaysLeft == 0` (u32) and a living profile loses all three
-fields; no renewal charge.
+No reduce, cancel or refund. **Daily** (`HANDLE_INSURED_MERCS` 13, 00:00; `DailyUpdateOfInsuredMercs`, `:675-698`): an
+insured soldier with `day ≠ start`, `insuranceDaysLeft == 0` (u32) and a living profile loses all three fields; no
+renewal charge.
 
 ### 7.2 Death, payout, investigation
 
-At death (`StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:94-112`; `19` §3.7 and `22` §4.9 own the rest of
-it), if insured and **not on the autoresolve screen**: `now ≥ startTime && now − startTime < 60` → `VERY_SUSPICIOUS`; else
-killed by our team or `!fEnemyInSector` → `SUSPICIOUS`; then `AddLifeInsurancePayout` (`:835-912`):
+At death (`StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:94-112`; `19` §3.7 and `22` §4.9 own the rest
+of it), if insured and **not on the autoresolve screen**: `now ≥ startTime && now − startTime < 60` → `VERY_SUSPICIOUS`;
+else killed by our team or `!fEnemyInSector` → `SUSPICIOUS`; then `AddLifeInsurancePayout` (`:835-912`):
 ```
 slot = first inactive among [0, used) (grow the array if needed)
 costPerDay = min(sSalary, uiWeeklySalary/7, uiBiWeeklySalary/14)             // current profile salaries
@@ -951,8 +932,8 @@ used++
 - `StartInsuranceInvestigation` (`:915-948`): mail `INSUR_SUSPIC` (first) or `INSUR_SUSPIC_2`; length 1 day if very
   suspicious, else `2 + investigations + Random(3)`; `INSURANCE_INVESTIGATION_OVER` (60) at `midnight(len) + 16·60`;
   `investigations++`.
-- `EndInsuranceInvestigation` (`:951-967`): very suspicious → mail `INSUR_1HOUR_FRAUD`, no payout, the slot is never freed;
-  else mail `INSUR_INVEST_OVER` and pay at once.
+- `EndInsuranceInvestigation` (`:951-967`): very suspicious → mail `INSUR_1HOUR_FRAUD`, no payout, the slot is never
+  freed; else mail `INSUR_INVEST_OVER` and pay at once.
 - Pay (`:970-997`): clear `usLifeInsurance` if the dead soldier is still on the team; ledger `INSURANCE_PAYOUT +payout`;
   history `INSURANCE_CLAIM_PAYOUT`; mail `INSUR_PAYMENT` only if `ubSuspiciousDeath == 0` (a clean death investigated
   because of the counter gets both mails); `used--`; slot inactive. ja2-node emits `insurancePaid`.
@@ -965,9 +946,9 @@ used++
   `flowersWhenItGetsThereCost` (`shipping-destinations.json`) + extras {crushed 10, black roses 20, wilted 10, fruit cake
   10} (`:191, 611-655`). The bouquet price (10 bouquets) is the price column of the localized gallery text
   `binarydata/flowerdesc.edt`, read with `sscanf("%hu")` (`:641-642`); ja2-node reads it at content load
-  (`LaptopContent.bouquetPrices`; 0 when the text is absent). Send (`BtnFlowerOrderSendButtonCallback`, `:472-498`): ledger
-  `PURCHASED_FLOWERS −price` with **no balance check** (inferred: none found); if the destination's delivery sector is in
-  Meduna: `HandleFlowersMeanwhileScene(nextDay ? 0 : 1)` (`Strategic/Meanwhile.cc:693-716`, `26`): once per game
+  (`LaptopContent.bouquetPrices`; 0 when the text is absent). Send (`BtnFlowerOrderSendButtonCallback`, `:472-498`):
+  ledger `PURCHASED_FLOWERS −price` with **no balance check** (inferred: none found); if the destination's delivery sector
+  is in Meduna: `HandleFlowersMeanwhileScene(nextDay ? 0 : 1)` (`Strategic/Meanwhile.cc:693-716`, `26`): once per game
   (meanwhile flag), the FLOWERS meanwhile at `now + 60·(20 + Random(5))` or `now + 60·(24 + Random(48))`. The order number
   (`uiFlowerOrderNumber`, display only) grows by `1 + Random(5)` on entering the order form (`EnterFloristOrderForm`,
   `:300`) and by `1 + Random(2)` after the charge and the meanwhile on sending, both on the main stream; ja2-node draws the
@@ -985,8 +966,8 @@ actions, not laptop ones.
 
 The page shows the profile counters; `battlesFought` (`usBattlesFought`) grows for every merc of an autoresolve battle when
 it closes (dead, captured or not) and for every merc in the sector when a tactical battle with enemies, creatures or
-civilians in it is won (not a boxing match). The server builds the page's blocks (`src/server/personnel-view.ts`, `04`
-§6).
+civilians in it is won (not a boxing match). The server builds the page's blocks (`src/server/personnel-view.ts`,
+`29`).
 
 ---
 
@@ -994,14 +975,14 @@ civilians in it is won (not a boxing match). The server builds the page's blocks
 
 ### 8.1 The original sequence
 
-1. **`InitNewGame`** (`Game_Init.cc:200-277`, `docs/15` §4.2), laptop parts in order: `LoadMercProfiles` (per profile
+1. **`InitNewGame`** (`Game_Init.cc:200-277`, `15` §4.2), laptop parts in order: `LoadMercProfiles` (per profile
    `InitProfileFromContent`: status from the text check, medical deposit, gun replacement without gun nut, kit cost; then
-   `DecideActiveTerrorists` (draws, `25`) and `StartSomeMercsOnAssignment` (§2.2, draws)); `InitAllArmsDealers` (`23`,
-   draws); `InitBobbyRayInventory` (§5.2, draws); `InitLaptopAndLaptopScreens` (finances and history cleared,
+   `DecideActiveTerrorists` (draws, `35` §2.2) and `StartSomeMercsOnAssignment` (§2.2, draws)); `InitAllArmsDealers`
+   (`23`, draws); `InitBobbyRayInventory` (§5.2, draws); `InitLaptopAndLaptopScreens` (finances and history cleared,
    `fIMPCompletedFlag`, `fBobbyRSiteCanBeAccessed` false); `InitStrategicLayer`; `SetLaptopNewGameFlag`; the four pre-read
    mails and the I.M.P. intro; starting cash (45000/35000/30000); the M.E.R.C. online day draw; pending screen `LAPTOP`.
-   The laptop-wide init (`LaptopScreenInit`: zeroed `LaptopSaveInfo`, `gubLastMercIndex = 5`, the `ENRICO_BACKGROUND` file,
-   empty bookmarks) runs at program start or in `ReStartingGame` (`Game_Init.cc:291-354`).
+   The laptop-wide init (`LaptopScreenInit`: zeroed `LaptopSaveInfo`, `gubLastMercIndex = 5`, the `ENRICO_BACKGROUND`
+   file, empty bookmarks) runs at program start or in `ReStartingGame` (`Game_Init.cc:291-354`).
 2. **The laptop at Day 1 01:00**, clock paused: four read mails and the unread I.M.P. intro, A.I.M. bookmarked. Every hire
    (A.I.M., or I.M.P. after opening its mail) arrives Day 1 07:00 (shown 07:30) and the letter goes to soldier 0 whoever it
    is; insurance needs ≥ 2 contract days (start day tomorrow); a Bobby Ray's visit (under construction) arms the "now
@@ -1011,7 +992,7 @@ civilians in it is won (not a boxing match). The server builds the page's blocks
    still arrives at 07:00).
 4. **The first compression** → `HandleTimeCompressWithTeamJackedInAndGearedToGo` → start sector load, six-hour warp,
    arrivals at 07:00 (`MercArrivesCallback` × n in hire order), `ENRICO_CONGRATS`, tactical with the helicopter run
-   (`docs/15` §4.5).
+   (`15` §4.5).
 
 ### 8.2 In ja2-node
 
@@ -1019,18 +1000,19 @@ civilians in it is won (not a boxing match). The server builds the page's blocks
 part: fresh `LaptopState`, `MakeNewMercsAvailable(false)`, the `ENRICO_BACKGROUND` file, `atLeastOneMercHired = false`);
 `loadMercProfiles` (`src/sim/campaign/profiles.ts` `initProfileFromContent`); `initNewGameProfiles` (undeclared profiles
 reset to empty structs, `decideActiveTerrorists`, `startSomeMercsOnAssignment`); `initAllArmsDealers`; `initBobbyRay`;
-`initLaptopScreens`; `setupNewStrategicGame`, the quest engine and `initStrategicLayerMap` (with `InitNPCs`' placement draws
-and alternate maps, so the M.E.R.C. day draw is in the original's place); the clock at X0; the new-game mails; the starting
-cash; the M.E.R.C. day draw and event; `didGameJustStart = true`; `openForNewGame` (`flow = 'laptop'`, the A.I.M. bookmark).
-The first landing is `hiring.ts` `teamJackedInAndGearedToGo` (start sector load, the six-hour warp, `ENRICO_CONGRATS`).
+`initLaptopScreens`; `setupNewStrategicGame`, the quest engine and `initStrategicLayerMap` (with `InitNPCs`' placement
+draws and alternate maps, so the M.E.R.C. day draw is in the original's place); the clock at X0; the new-game mails; the
+starting cash; the M.E.R.C. day draw and event; `didGameJustStart = true`; `openForNewGame` (`flow = 'laptop'`, the A.I.M.
+bookmark). The first landing is `hiring.ts` `teamJackedInAndGearedToGo` (start sector load, the six-hour warp,
+`ENRICO_CONGRATS`).
 
-The session factory (`src/server/campaign-factory.ts`, `04` §6) hires through the same commands: `campaign.hire [{profile,
+The session factory (`src/server/campaign-factory.ts`, `29`) hires through the same commands: `campaign.hire [{profile,
 contract? (default 7), gear?}]` as `aimHire` commands (a refusal fails session creation), `campaign.imp` as `readEmail` of
 the I.M.P. intro plus `impCreate`, then `closeLaptop` and, unless `land: false`, the first compression; without `hire` it
 hires from `DEFAULT_AIM_SQUAD` (`[0, 3, 4, 7, 14, 16]`; on stubs A.I.M. stubs 0–11) whatever the starting cash and the
 refusals allow, up to `campaign.mercs` (default 6, on stubs 4); `hire: []` without `imp` leaves the session in the laptop
-for the agent or the UI. Every
-new-game draw shifts all later draws: new-game tests pin values with a scripted RNG (`docs/15` §4.6).
+for the agent or the UI. Every new-game draw shifts all later draws: new-game tests pin values with a scripted RNG
+(`15` §4.6).
 
 ---
 
@@ -1046,8 +1028,7 @@ new-game draw shifts all later draws: new-game tests pin values with a scripted 
 | `closeLaptop` | main | `[Random(4)]` I.M.P. reminder |
 | `aimHire`, `mercHire`, `impCreate` | main (+pre) | soldier creation (`06`); I.M.P.: `Random(k)` attitude, `Random(n)` ×1–2 skills, `PreRandom(100)` helmet; `mercHire`: `CoinToss` thank-you quote |
 | Arrival (`MercArrivesCallback`) | main | `[Random(660)]` equipment complaint |
-| `MERC_DAILY_UPDATE` profile loop | main + pre | per profile in id order: improvement (`Random(100)` or `Random(10)`,`[Random(100)]`, `Random(n)`…, `PreRandom` per stat chance), `[PreRandom(1000)]` death, `[Random(100)]`, `[Random(6 + exp/2)]` (`22` §8.1) |
-| Departure (`StrategicRemoveMerc`) | main | `Random(2)`, `[Random(4)]` hangover, `[Random(6 + exp/2)]` |
+| `MERC_DAILY_UPDATE` profile loop, departures (`StrategicRemoveMerc`) | main + pre | `22` §8.1 |
 | `DAILY_UPDATE_OF_MERC_SITE` | main | `[Random(180)]`, `[Random(100)]` |
 | M.E.R.C. account, opening | main | `Random(99999)`; opening `Random(100)`, `Chance(50)`, `Random(4)`, `Random(2)` (Biff) |
 | Level-up of a hired M.E.R.C. merc | main | `Random(60)` |
@@ -1074,19 +1055,19 @@ new-game draw shifts all later draws: new-game tests pin values with a scripted 
 ## 10. Data and stubs
 
 **Used directly** (`data/externalized/`): `mercs-profile-info.json` (types), `mercs-MERC-listings.json` (order, unlock
-thresholds, Speck quote ids), `mercs-AIM-listings.json` (display order), `imp.json`, `game.json` (`imp.*`, `merc_online_*`,
-`starting_cash_*`, `unhired_merc_deaths_*`, `pablo_wont_steal`, `campaign.start_sector`), `bobby-ray-inventory-new.json`/
-`-used.json`, `shipping-destinations.json` (rates, flower costs, delivery flags, sectors, gridnos, mail offsets),
-`items.json`/`weapons.json`/`magazines.json`/`armours.json` (price, weight, coolness, per pocket, flags, standard
-replacements). Loaded by `src/content/strategic/laptop-content.ts` (`LaptopContent`).
+thresholds, Speck quote ids), `mercs-AIM-listings.json` (display order), `imp.json`, `game.json` (`imp.*`,
+`merc_online_*`, `starting_cash_*`, `unhired_merc_deaths_*`, `pablo_wont_steal`, `campaign.start_sector`),
+`bobby-ray-inventory-new.json`/`-used.json`, `shipping-destinations.json` (rates, flower costs, delivery flags, sectors,
+gridnos, mail offsets), `items.json`/`weapons.json`/`magazines.json`/`armours.json` (price, weight, coolness, per pocket,
+flags, standard replacements). Loaded by `src/content/strategic/laptop-content.ts` (`LaptopContent`).
 
 **Transcribed** (regenerate, never edit): `data/tables/laptop.json` by `tools/transcribe/laptop.ts`: `mail` (every
 `email.edt` record define of `Laptop/EMail.h:15-166`, offsets and lengths by name), `senders`, `impQuiz`
 (`IMP_Personality_Quiz.cc:424-562`, §4.2), `profiles` (the profile ids the laptop code names: `NAILS`, `BIFF`, `FLO`,
-`BUBBA`, the two Larrys, `NUMB`, `COUGAR`, `SAL`, `CARMEN`, …) and `terrorists` (`g_terrorist_infos`, `25`). The dealer sort
-and staple tables are `data/tables/merchant-tables.json` (`23`). Enums (merc and account status, insertion codes,
-contract types, history codes in `records.ts` `History`) and the scalar constants of §2–§7 are named constants in the
-modules.
+`BUBBA`, the two Larrys, `NUMB`, `COUGAR`, `SAL`, `CARMEN`, …) and `terrorists` (`g_terrorist_infos`, `35` §2.2). The
+dealer sort and staple tables are `data/tables/merchant-tables.json` (`23`). Enums (merc and account status, insertion
+codes, contract types, history codes in `records.ts` `History`) and the scalar constants of §2–§7 are named constants in
+the modules.
 
 **From the user's data, never committed**: the `prof.dat` fields of §0; the bouquet prices (`binarydata/flowerdesc.edt`);
 mail, file and bio texts (rendered by the server from the VFS).
@@ -1095,8 +1076,8 @@ mail, file and bio texts (rendered by the server from the VFS).
 `prof.dat` is absent): A.I.M. profiles 0–11 with salaries, deposit flags, inventories and tolerances (profile 0 has
 `bDeathRate 101`, hated pairs among them), M.E.R.C. profile 42 and NPC stand-ins; invented laptop texts (`stubs/text/`:
 `email.json`, `imptext.json`, `aimbios.json`, `mercbios.json`, `laptop-pages.json` with bouquet descriptions and prices).
-Bobby Ray, the I.M.P. gear and the letter use the externalized item tables. Delivery needs no map when the airport sector is
-not loaded (`sector-loot.ts`).
+Bobby Ray, the I.M.P. gear and the letter use the externalized item tables. Delivery needs no map when the airport sector
+is not loaded (`sector-loot.ts`).
 
 ---
 
@@ -1106,9 +1087,10 @@ not loaded (`sector-loot.ts`).
 
 `StrategicState.laptop` (§0) is plain data in the strategic state, saved with it and imported from native saves
 (`src/content/formats/savegame-laptop.ts` reads section 4 with the Bobby Ray lists and insurance payouts, the shipments
-section, the history, files and email sections, the I.M.P. slot states and voices, the landing zone; `laptop/save-import.ts`
-`importLaptop` applies them with the general info's `fNewMailFlag`, the facts and the quests). Profile state is
-`StrategicState.profiles` (`ProfileProgress`), contract state `RosterMerc.contract`. `LaptopContent` (§10) is read-only.
+section, the history, files and email sections, the I.M.P. slot states and voices, the landing zone;
+`laptop/save-import.ts` `importLaptop` applies them with the general info's `fNewMailFlag`, the facts and the quests).
+Profile state is `StrategicState.profiles` (`ProfileProgress`), contract state `RosterMerc.contract`. `LaptopContent`
+(§10) is read-only.
 
 ### 11.2 Modules (`src/sim/campaign/laptop/` unless noted)
 
@@ -1126,24 +1108,24 @@ section, the history, files and email sections, the I.M.P. slot states and voice
 | `bobby-ray.ts` | lists, stock, restock, prices, quotes, orders, shipments, Kulba's gift, delivery |
 | `insurance.ts`, `florist.ts` | §7.1–§7.2; §7.3 |
 | `save-import.ts` | native save import |
-| `src/sim/campaign/contracts/` | `hire-contract.ts` (contract fields at hire and arrival, the complaint draw, hated arrival quotes), `contract-times.ts` (`mercArrivalTimeOfDay`, contract end), `departure.ts` (the refund), `merc-account.ts` (the account part of the daily site update), `daily.ts` (the profile loop), `salary.ts` (`22`) |
+| `src/sim/campaign/contracts/` | `hire-contract.ts` (contract fields at hire and arrival, the complaint draw, hated arrival quotes), `contract-times.ts` (`mercArrivalTimeOfDay`, contract end), `merc-account.ts` (the account part of the daily site update); the other modules `22` §9.2 |
 | `src/sim/campaign/relations/hiring-check.ts` | `canMercBeHired` (`22` §5.4) |
 | `src/sim/campaign/` | `profiles.ts` (`initProfileFromContent`, `loadMercProfiles`), `new-game.ts`, `hiring.ts` (`teamJackedInAndGearedToGo`; `hireMerc`/`mercArrives` hire without a laptop for tests and campaigns built without one), `finances.ts`, `finance-summary.ts` |
-| `src/server/` | `laptop-view.ts` (the laptop view), `mail-text.ts`, `history-labels.ts`, `finance-labels.ts`, `personnel-view.ts`, `campaign-factory.ts` (`04` §6) |
+| `src/server/` | `laptop-view.ts` (the laptop view), `mail-text.ts`, `history-labels.ts`, `finance-labels.ts`, `personnel-view.ts`, `campaign-factory.ts` (`29`) |
 
 ### 11.3 Wiring
 
 `CampaignSim` owns one `LaptopFlow` and passes it every command after the story refusals and the talk and shop flows,
-before the battle flow (laptop commands, queries, `openLaptop`, `setLandingZone`, and the laptop refusal of everything else
-while open). `LaptopFlow.register` handles the event kinds
-`DAY3_ADD_EMAIL_FROM_SPECK`, `DAY2_ADD_EMAIL_FROM_IMP`, `HAVENT_MADE_IMP_CHARACTER_EMAIL`, `AIM_RESET_MERC_ANNOYANCE`,
-`BOBBYRAY_PURCHASE`, `UPDATE_BOBBY_RAY_INVENTORY`, `MERC_SITE_BACK_ONLINE`, `MERC_SITE_NEW_MERC_AVAILABLE`,
-`HANDLE_INSURED_MERCS`, `PAY_LIFE_INSURANCE_FOR_DEAD_MERC`, `INSURANCE_INVESTIGATION_STARTED`/`_OVER`,
-`DELAYED_HIRING_OF_MERC` and `ENRICO_MAIL`; `CampaignSim` registers `DAILY_UPDATE_BOBBY_RAY_INVENTORY` itself, running
-Bobby Ray's update (`bobbyRayDaily`) before the dealers'. The contract flow calls it through `ContractHooks` (insurance cost, purchase and payout, the site's daily part,
-Larry's relapse, Speck's lost-merc flag, history, mails and personnel lists); the strategic layer through
-`surfaceSectorTaken` (§5.1) and `airspaceControlUpdated` (§2.6); NPC actions through `addJohnsGunShipment` and
-`terroristFiles`; the florist through `scheduleFlowersMeanwhile`.
+before the battle flow (laptop commands, queries, `openLaptop`, `setLandingZone`, and the laptop refusal of everything
+else while open). `LaptopFlow.register` handles the event kinds `DAY3_ADD_EMAIL_FROM_SPECK`, `DAY2_ADD_EMAIL_FROM_IMP`,
+`HAVENT_MADE_IMP_CHARACTER_EMAIL`, `AIM_RESET_MERC_ANNOYANCE`, `BOBBYRAY_PURCHASE`, `UPDATE_BOBBY_RAY_INVENTORY`,
+`MERC_SITE_BACK_ONLINE`, `MERC_SITE_NEW_MERC_AVAILABLE`, `HANDLE_INSURED_MERCS`, `PAY_LIFE_INSURANCE_FOR_DEAD_MERC`,
+`INSURANCE_INVESTIGATION_STARTED`/`_OVER`, `DELAYED_HIRING_OF_MERC` and `ENRICO_MAIL`; `CampaignSim` registers
+`DAILY_UPDATE_BOBBY_RAY_INVENTORY` itself, running Bobby Ray's update (`bobbyRayDaily`) before the dealers'. The contract
+flow calls the laptop through `ContractHooks` (insurance cost, purchase and payout, the site's daily part, Larry's
+relapse, Speck's lost-merc flag, history, mails and personnel lists); the strategic layer through `surfaceSectorTaken`
+(§5.1) and `airspaceControlUpdated` (§2.6); NPC actions through `addJohnsGunShipment` and `terroristFiles`; the florist
+through `scheduleFlowersMeanwhile`.
 
 ### 11.4 Verification
 
@@ -1162,26 +1144,25 @@ and the profiles.
 - Hiring and arrival (§2.5–§2.6): displayed arrival 07:30 vs real 07:00 for the first squad, contract hour from the
   displayed time, contract end recomputed at arrival; row P never chosen by `CheckForValidArrivalSector`, truncated
   `hypot`; M.E.R.C. insertion `NORTH`; the Nails jacket (not V); kit cost per slot, zeroed for good once bought.
-- Money (§2.5, §2.7): `HIRED_MERC` = salary + kit, `MEDICAL_DEPOSIT` separate; refund from the paid deposit, half up; the
-  dead get a mail with the deposit as amount and no money.
-- Status (§2.1–§2.3): `CalcDeathRate` wraps at 256; buddies override death rate and reputation; hated time ≥ 24
-  tolerated; `MERC_HAS_NO_TEXT_FILE` overwritten at new game; I.M.P. characters carry −1; the away roll by `id < 40`,
-  open to `FIRED_AS_A_POW`; the countdown's end resets any non-POW status.
+- Money (§2.5): `HIRED_MERC` = salary + kit, `MEDICAL_DEPOSIT` separate. The refund quirks are `22` §10.
+- Status (§2.1–§2.2): `MERC_HAS_NO_TEXT_FILE` overwritten at new game; I.M.P. characters carry −1; the away roll by
+  `id < 40`, open to `FIRED_AS_A_POW`; the countdown's end resets any non-POW status. The hiring tests' quirks are
+  `22` §10.
 - M.E.R.C. (§3): the new-merc event reposted every midnight; `!=` tests move suspended back to warning; re-hiring erases
   unpaid days; a dead merc's unpaid days stay owed.
-- I.M.P. (§4): helmet `wisdom ≥ PreRandom(100)` (V `<`); `Random(k)` for a single winning attitude; swap-removal before the
-  skill draws; the too-many-mercs return counts as success.
-- Bobby Ray (§5): Strac's JSON rates (V: Drassen 500/200/100, Hong Kong standard 30 instead of 300) and used caps (22 items
-  copy the new amount; V 1) kept per D1; a cart line can reach 201; the slot-0 reuse, the Meduna loop bound, the used
-  restock without +1000, reloaded guns in recreated stacks, money taken for non-delivering destinations, deliveries on the
-  hour.
+- I.M.P. (§4): helmet `wisdom ≥ PreRandom(100)` (V `<`); `Random(k)` for a single winning attitude; swap-removal before
+  the skill draws; the too-many-mercs return counts as success.
+- Bobby Ray (§5): Strac's JSON rates (V: Drassen 500/200/100, Hong Kong standard 30 instead of 300) and used caps (22
+  items copy the new amount; V 1) kept per D1; a cart line can reach 201; the slot-0 reuse, the Meduna loop bound, the
+  used restock without +1000, reloaded guns in recreated stacks, money taken for non-delivering destinations, deliveries
+  on the hour.
 - Insurance and florist (§7): the length added although the purchase was refused; no balance check on extensions or
   flowers; autoresolve deaths never suspicious; a fraud slot never freed.
 
 **Deviations** (full entries in `deviations.md`): "A.I.M. annoyance", "Speck's opening", "Cosmetic laptop draws",
 "Cosmetic face and frame draws", "Soldier creation draws", "Email order", "I.M.P. empty skill list", "I.M.P. skill page and
 saved profiles", "Laptop as commands", "Speck payment record", "Bobby Ray theft counter", "Bobby Ray's shipment prices",
-"Florist order form entry", "History writers". The canvas pages' own differences are listed there too (`28` §9).
+"Florist order form entry", "History writers". The canvas pages' own differences are listed there too (`30` §6).
 
 **Limitations**: the content identity hashes text files by presence, so a data folder whose florist gallery text carries
 other bouquet prices is not told apart from the one a save was made with.
@@ -1190,7 +1171,6 @@ other bouquet prices is not told apart from the one a save was made with.
 - that the map screen, and so the laptop, is reachable during a tactical battle in the original;
 - the stale values of a restart in one process (M.E.R.C. index, Bobby Ray progress, I.M.P. `L[0]`), which ja2-node replaces
   with fresh-process values;
-- that `CalcDeathRate`'s float never rounds across an integer;
 - that the I.M.P. attribute page reaches exactly the sets `impCreate` accepts;
 - the used-restock bug's effect (§5.2); that I.M.P. mercs are never paid; that re-hiring a M.E.R.C. merc erases his debt;
 - that the FLOWERS meanwhile has no implications (`26`).

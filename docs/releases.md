@@ -8,7 +8,7 @@ default settings as the reference). It can be saved, loaded and replayed, it pla
 and its UI labels come in every language of Stracciatella's string tables. Agents play it through MCP; people start
 and load games in a DOM launcher and play through the developer pages. The canvas player UI with the original's
 screens is the next milestone (M8, release 0.8.0). What each milestone built is in `deviations.md`, M7's spec
-is `27-platform.md`.
+is now `27`, `31` and `32`.
 
 ### What a player can do (browser)
 
@@ -30,7 +30,7 @@ These are developer pages: text panels and the rendered map, not the original's 
 ### What an agent can do (MCP)
 
 - Nine tools: `status`, `observe`, `act`, `advance`, `newSession`, `save`, `load`, `listSaves`, `deleteSave`
-  (`04-time-and-server.md` §6; the tool descriptions list every command with its refusals).
+  (`29-agent-api.md`; the tool descriptions list every command with its refusals).
 - Every player action is a command and every modal moment a decision prompt: tactical orders, attacks with
   `estimateAttack`, the inventory, reloading and first aid, doors, conversations, giving, recruiting and escorts, the
   strategic map, assignments, militia, contracts, shops, the laptop, the helicopter, prompt answers.
@@ -94,12 +94,12 @@ strategic days, autoresolve, saves, the server and a campaign.
 - The stub campaign is a minimal world: generic maps by sector kind and only the scripts the tests and the stub
   campaign path need; the creature lairs have no way in on stubs, so play stub campaigns with sci-fi off. The scripted
   campaign bot (`pnpm cli campaign`) gets through Drassen and the recruiting but has not won a stub campaign yet: the
-  march and the Meduna outskirts beat it (`27-platform.md` §6.7, finding 31).
+  march and the Meduna outskirts beat it (`32-stubs-and-performance.md` §1.8, finding 31).
 - Sound: no lip sync, no button clicks and a few cues listed under "Sound coverage"; the playback speed, display
   toggles and key-advance speech settings are stored for M8.
 - Performance: the first save of a session on the original data takes about 150–190 ms (it builds the content index), an
   in-process save briefly stalls other sessions (the worker host avoids it), the client frame rate is not measured.
-- The open findings and decisions of M7 are in `27-platform.md` §6.7, the full "Left out of M7" list in
+- The open findings and decisions of M7 are in `32-stubs-and-performance.md` §1.8, the full "Left out of M7" list in
   `deviations.md`.
 
 ### Next: M8, the player UI (0.8.0)

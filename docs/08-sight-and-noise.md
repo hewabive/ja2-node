@@ -679,7 +679,7 @@ is not rendered (no renderer reads it).
 ja2-node's `tellPlayerAboutNoise` emits `noiseHeard {listener, kind, volumeClass 0–3, direction: 0–7 | 'above' |
 'below'}` and says the quote; the grid is never sent, since a marker at the true grid would leak hidden state (D16).
 `squadHears` computes the same hearing (loudest listener, direction, loudness class) for the sounds of sources out of
-sight (`unseen-sources.ts`, `04` §6.9), whether or not the noise is told.
+sight (`unseen-sources.ts`, `29` §9), whether or not the noise is told.
 
 ---
 
@@ -796,7 +796,7 @@ item reveal and quote of `RemoveRoomRoof` (so no `Random(2)`), and the vehicle a
 | `wiring.ts` | `sightHooks` and `perceptionHooks`: the triggers of §2.8, halting on a sighting (`haltFromSighting`), `OurTeamSeesSomeone`, combat entry |
 
 NPC and quest reactions to a first sighting go through `narrative/sight-rules.ts` (`newSightingRules`). What the player
-and an agent see of all this (soldiers by `visible`, our team's sightings, `noiseHeard`) is the player view of `04`.
+and an agent see of all this (soldiers by `visible`, our team's sightings, `noiseHeard`) is the player view (`04` §5.3, `29` §7).
 
 ### 6.3 Verification
 

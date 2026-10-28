@@ -2,31 +2,30 @@
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/`, except `sgp/…` (`reference/stracciatella/src/sgp/`)
 and the `*.json` files (`reference/stracciatella/assets/externalized/`, copied unchanged to `data/externalized/`); V marks
-vanilla (`reference/vanilla/ja2/Build/`). "(inferred)" marks conclusions not traced end to end (§8). C integer semantics
-apply: `/` truncates toward zero (`idiv`), `UINT16` fields wrap (`u16`), `INT8` fields wrap (`i8`). **AR** = autoresolve,
-**PBI** = pre-battle interface. Q*n* are the quirks of §7.1, D*n* the deviations of §7.2.
+vanilla (`reference/vanilla/ja2/Build/`). "(inferred)" marks conclusions not traced end to end (§8). C integer semantics:
+`/` truncates toward zero (`idiv`), `UINT16` fields wrap (`u16`), `INT8` fields wrap (`i8`). **AR** = autoresolve,
+**PBI** = pre-battle interface. Q*n* = quirks (§7.1), D*n* = deviations (§7.2).
 
 **RNG.** `pre(n)` = `PreRandom(n)` (stream `pre`), `main(n)` = `Random(n)` (stream `main`), `chance(p)` = `main(100) < p`,
-`fx(n)` = ja2-node's cosmetic stream. `n = 0` returns 0 and draws nothing (`sgp/Random.cc:63-84`). Every `pre` call also
-refills the used ring slot from the `main` engine (`sgp/Random.cc:17-35`), so in the original every `pre` call advances `main`
-too; ja2-node does the same (docs/01 §3.6).
+`fx(n)` = ja2-node's cosmetic stream. `n = 0` returns 0 and draws nothing (`sgp/Random.cc:63-84`). Every `pre` call
+refills its ring slot from the `main` engine (`sgp/Random.cc:17-35`), so it advances `main` too (docs/01 §3.6).
 
 **Constants.** `OKLIFE 15`, `CONSCIOUSNESS 10` (`Tactical/Overhead_Types.h:70-71`), `OKBREATH 10`,
 `MIN_BLEEDING_THRESHOLD 12` (`Tactical/Soldier_Control.h:131`), `MAX_ALLOWABLE_MILITIA_PER_SECTOR 20`
 (`Strategic/Town_Militia.h:13`), `MAX_STRATEGIC_TEAM_SIZE 20`, `RT_FIRST_AID_GAIN_MODIFIER 12` (`Tactical/RT_Time_Defines.h:11`),
-native `NOWHERE = GRIDSIZE + 1 = 25601` (`TileEngine/Isometric_Utils.h:15`; ja2-node's soldier `NOWHERE` is −1, see §2.8.4).
+native `NOWHERE = GRIDSIZE + 1 = 25601` (`TileEngine/Isometric_Utils.h:15`; ja2-node's soldier `NOWHERE` is −1, §2.8.4).
 Teams: OUR 0, ENEMY 1, CREATURE 2, MILITIA 3, CIV 4. Difficulty `DIF_LEVEL_EASY 1`, `MEDIUM 2`, `HARD 3` (`GameSettings.h:78-80`).
 Sector `A9` = (x 9, y 1); a sector ID byte is `(y − 1)·16 + (x − 1)`.
 
-**Clocks.** "World time" is the strategic clock in seconds/minutes (docs/15). "Battle ms" is AR's private clock
+**Clocks.** "World time" = the strategic clock in seconds/minutes (docs/15). "Battle ms" = AR's private clock
 (`uiTotalElapsedBattleTimeInMilliseconds`), converted to world time only when AR closes (§2.16, §2.18).
 
-**Ownership.** Specified elsewhere and only summarised here: when an arrival becomes an encounter and the bloodcat ambush
-roll (docs/16, `CheckConditionsForBattle`, `TestForBloodcatAmbush`), travel times and the retreat trip itself (docs/16),
-enemy strategic counts, garrisons and `ProcessQueenCmdImplicationsOfDeath` (docs/17), militia counts and promotions,
-loyalty event values and their distance fan-out, doctoring (docs/18), the tactical end-of-battle core (docs/10 §8.2),
-`BulletImpact`, armour, `HTHImpact`, `StatChange`, morale (docs/11 §4, §6.5, §9, §10), the prompts, commands, events and
-the AR view of the agent API (`04` §6), the PBI panel and AR screen (`28`).
+**Ownership.** Summarised here, owned elsewhere: when an arrival becomes an encounter, the bloodcat ambush roll, travel
+times and the retreat trip itself (docs/16, `CheckConditionsForBattle`, `TestForBloodcatAmbush`); enemy strategic counts,
+garrisons, `ProcessQueenCmdImplicationsOfDeath` (docs/17); militia counts and promotions, loyalty event values and their
+distance fan-out, doctoring (docs/18); the tactical end-of-battle core (docs/10 §8.2); `BulletImpact`, armour, `HTHImpact`,
+`StatChange`, morale (docs/33 §1, docs/11 §4.5, docs/33 §4, §5); the agent API's prompts, commands, events and AR view (`29` §20); the
+PBI panel and AR screen (`30` §5).
 
 ---
 
@@ -49,14 +48,14 @@ after any battle: sector control (Player_Command.cc), loyalty, morale, militia, 
 ```
 
 Invariants:
-1. **No world time passes inside the PBI or AR.** The battle time is applied when AR closes, multiplied by 3 (+5 min on a
-   retreat), as one jump that does not process events (§2.16, §2.18, docs/15).
-2. **AR is a cell model.** Each side's cells attack on randomized timers; targets are picked with probability proportional to
-   their defence; a hit runs the tactical `BulletImpact` without criticals or specials, or `HTHImpact` (§2.5–§2.9).
-3. **Slice size matters.** The original sizes slices from the wall clock and the speed button; ja2-node always uses the
-   original's "Finish" semantics, fixed 1000 ms slices, the only deterministic mode of the original (§2.6, §4.2, D1).
+1. **No world time passes inside the PBI or AR.** The battle time ×3 (+5 min on a retreat) is applied when AR closes, as
+   one jump without event processing (§2.16, §2.18, docs/15).
+2. **AR is a cell model.** Cells attack on randomized timers; targets are picked with probability proportional to their
+   defence; a hit runs the tactical `BulletImpact` without criticals or specials, or `HTHImpact` (§2.5–§2.9).
+3. **Slice size matters.** The original sizes slices from the wall clock and the speed button; ja2-node always runs fixed
+   1000 ms slices, the original's "Finish" semantics and its only deterministic mode (§2.6, §4.2, D1).
 4. **Strategic bookkeeping happens when AR closes** (enemy deaths, militia deaths and promotions, merc deaths and captures,
-   corpses, items), except the morale/loyalty/control block, which runs at the moment the battle ends (§2.16, §2.18).
+   corpses, items), except the morale/loyalty/control block, which runs when the battle ends (§2.16, §2.18).
 5. **Every change of sector control goes through `SetThisSectorAsPlayerControlled` / `SetThisSectorAsEnemyControlled`**
    (`Strategic/Player_Command.cc:56-324`, §3.1).
 
@@ -72,7 +71,7 @@ Saved globals (`PreBattle_Interface.h:51-75`, "SAVE START … SAVE END"):
 |---|---|
 | `gfPersistantPBI` | `TRUE` for the real PBI before a battle; `FALSE` for the summary shown over a running tactical battle (§1.4) |
 | `gubEnemyEncounterCode` | `NO_ENCOUNTER 0`, `ENEMY_INVASION 1`, `ENEMY_ENCOUNTER 2`, `ENEMY_AMBUSH 3`, `ENTERING_ENEMY_SECTOR 4`, `CREATURE_ATTACK 5`, `BLOODCAT_AMBUSH 6`, `ENTERING_BLOODCAT_LAIR 7` (`PreBattle_Interface.h:24-41`) |
-| `gubExplicitEnemyEncounterCode` | superset for the non-persistent PBI: the codes above plus `FIGHTING_CREATURES 8`, `HOSTILE_CIVILIANS 9`, `HOSTILE_BLOODCATS 10` (declared `BOOLEAN`, holds these values) |
+| `gubExplicitEnemyEncounterCode` | for the non-persistent PBI: the codes above plus `FIGHTING_CREATURES 8`, `HOSTILE_CIVILIANS 9`, `HOSTILE_BLOODCATS 10` (declared `BOOLEAN`, holds these values) |
 | `gfBlitBattleSectorLocator`, `gubPBSector` | a battle is going on in `gubPBSector` (map locator); used by `GetCurrentBattleSectorXYZ` |
 | `gfCantRetreatInPBI` | the next PBI must disable Retreat (set by an intercepted retreating group, §1.2) |
 
@@ -98,26 +97,22 @@ hand-off of docs/16), `StrategicState.battle` (`BattleState`, `forces/battle-sta
 | 4 | In tactical every merc is dead or below `OKLIFE` while friendly militia (life ≥ `OKLIFE`) fight on, or every merc left the sector while militia and enemies remain | `CheckForLosingEndOfBattle` (`Tactical/Overhead.cc:4985-5000`), `CheckAndHandleUnloadingOfCurrentWorld` (`StrategicMap.cc:3051`) → `HandlePotentialBringUpAutoresolveToFinishBattle` (`StrategicMap.cc:2956-3000`) | **non-persistent**, auto-start | sets `gfTransferTacticalOppositionToAutoResolve`; code forced to `ENEMY_INVASION` unless `CREATURE_ATTACK` (§3.3) |
 | 5 | On the map screen during a tactical battle in the loaded sector: a click on the battle sector while the locator is on, or an attempt to compress time | `MapScreen.cc:2475-2480`, `:6297-6310` | non-persistent | not when only hostile civilians are left (a message instead) |
 
-Path 1 (`CheckConditionsForBattle`, docs/16 owns the conditions):
-- **A conscious merc can talk** (dialog group has a merc with life ≥ `OKLIFE`, not robot, vehicle or EPC):
-  `PrepareForPreBattleInterface(dialogGroup, group)` (`:608-694`) picks the speaker `mercs[main(count)]` (`:652` or `:679`),
-  sets `gfCantRetreatInPBI` if the dialog group carries `GROUPFLAG_JUST_RETREATED_FROM_BATTLE` (`:647`, `:674`), queues
-  `QUOTE_ENEMY_PRESENCE` with `FACE_TRIGGER_PREBATTLE_INT`, then `InterruptTime`, `PauseGame`, `LockPauseState`. When the face
-  finishes talking, `Tactical/Dialogue_Control.cc:412-417` unlocks the pause state and calls `InitPreBattleInterface(group, true)`.
-  An enemy group arriving into the loaded surface sector takes the same quote path; a tactical-traversal group gets no quote
-  and no PBI, only the pause, because it enters the sector tactically (`:643-662`).
-- **Nobody can talk but someone is alive** (only unconscious mercs, EPCs, the robot, or militia): `gfDelayAutoResolveStart =
-  TRUE`, a message box (the invasion notice when militia are present, else `STR_DIALOG_ENEMIES_ATTACK_UNCONCIOUSMERCS`); on OK,
+Path 1 (`CheckConditionsForBattle`; docs/16 owns the conditions):
+- **A conscious merc can talk** (a dialog-group merc with life ≥ `OKLIFE`, not robot, vehicle or EPC):
+  `PrepareForPreBattleInterface(dialogGroup, group)` (`:608-694`): speaker `mercs[main(count)]` (`:652` or `:679`);
+  `gfCantRetreatInPBI` if the dialog group carries `GROUPFLAG_JUST_RETREATED_FROM_BATTLE` (`:647`, `:674`); queues
+  `QUOTE_ENEMY_PRESENCE` with `FACE_TRIGGER_PREBATTLE_INT`; `InterruptTime`, `PauseGame`, `LockPauseState`. When the face
+  finishes, `Tactical/Dialogue_Control.cc:412-417` unlocks the pause state and calls `InitPreBattleInterface(group, true)`.
+  An enemy group arriving into the loaded surface sector takes the same path; a tactical-traversal group gets only the
+  pause (no quote, no PBI): it enters the sector tactically (`:643-662`).
+- **Nobody can talk, someone is alive** (only unconscious mercs, EPCs, the robot, or militia): `gfDelayAutoResolveStart =
+  TRUE`; message box (the invasion notice with militia, else `STR_DIALOG_ENEMIES_ATTACK_UNCONCIOUSMERCS`); OK →
   `TriggerPrebattleInterface` (`:905-910`) → `InitPreBattleInterface(group, true)`. On the next map frames
-  `HandlePreBattleInterfaceStates` (`PreBattle_Interface.cc:1429-1454`) first converts the delay flag into
-  `gfAutomaticallyStartAutoResolve`, then `ActivateAutomaticAutoResolveStart` (`:1139-1144`) starts AR.
+  `HandlePreBattleInterfaceStates` (`PreBattle_Interface.cc:1429-1454`) turns the delay flag into
+  `gfAutomaticallyStartAutoResolve`; `ActivateAutomaticAutoResolveStart` (`:1139-1144`) starts AR.
 - **Nobody alive** (empty vehicle, all dead): no battle; enemies ignore it (`:829-833`).
 
-`InitPreBattleInterface(…, true)` called while the tactical screen is up only stores the group and switches to the map
-screen; `HandlePreBattleInterfaceStates` calls it again there (`:191-198`, `:1431-1442`). With `gfTacticalTraversal` and the
-traversal group (or underground) it returns without a PBI (`:200-203`): the traversing group fights in tactical.
-
-ja2-node: the movement code leaves the hand-off in `encounter.preBattle` and `BattleFlow` (`src/sim/campaign/battle-flow.ts`)
+ja2-node: the movement code leaves the hand-off in `encounter.preBattle`; `BattleFlow` (`src/sim/campaign/battle-flow.ts`)
 opens the PBI at the end of the step, without the quote time (D4); a delayed auto-start emits `preBattle {autoStart: true}`
 and starts AR at once.
 
@@ -130,8 +125,9 @@ gfPersistantPBI = persistent
 if persistent:
    locator on, header blink off
    if code ∉ {BLOODCAT_AMBUSH, ENTERING_BLOODCAT_LAIR} and !FACT_FIRST_BATTLE_FOUGHT: FACT_FIRST_BATTLE_BEING_FOUGHT = TRUE
-   if tactical screen and (group or persistent): gpBattleGroup = group; go to the map screen; return      // re-entered there
-   if gfTacticalTraversal and (group == traversal group or world z > 0): return
+   if tactical screen and (group or persistent): gpBattleGroup = group; go to the map screen; return
+         // :191-198; HandlePreBattleInterfaceStates calls it again there (:1431-1442)
+   if gfTacticalTraversal and (group == traversal group or world z > 0): return    // :200-203: the group fights in tactical
    gpBattleGroup = group; gubPBSector = group ? group.sector : SGPSector(gubSectorIDOfCreatureAttack)
 else:                                                                                                      // :228-264
    explicit = HostileCiviliansPresent() ? HOSTILE_CIVILIANS
@@ -177,18 +173,18 @@ else if group.fPlayer:
 else:                              // the enemy group initiated
   GetTownIdForSector(s) != BLANK_SECTOR or IsThisSectorASAMSector(s) ? ENEMY_INVASION : ENEMY_ENCOUNTER
 ```
-`mobile` = `NumMobileEnemiesInSector` (`Queen_Command.cc:154-176`: enemy groups in the sector, plus the stationary troops when
-the sector's garrison id equals `ROADBLOCK`, Q12), `mercs` = `PlayerMercsInSector`, `progress` =
+`mobile` = `NumMobileEnemiesInSector` (`Queen_Command.cc:154-176`: enemy groups in the sector, + the stationary troops when
+the sector's garrison id equals `ROADBLOCK`, Q12); `mercs` = `PlayerMercsInSector`; `progress` =
 `CurrentPlayerProgressPercentage()` (docs/17). `CheckConditionsForBattle` sets `gfHighPotentialForAmbush` when the arriving
-player group carries `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` (`Strategic_Movement.cc:791-796`); only `AllMercsWalkedToExitGrid`
-sets that flag (`StrategicMap.cc:1618-1622`, `:3207-3222`: the group left through an exit grid from a sector with enemies
-before combat started).
+player group carries `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` (`Strategic_Movement.cc:791-796`), which only
+`AllMercsWalkedToExitGrid` sets (`StrategicMap.cc:1618-1622`, `:3207-3222`: the group left a sector with enemies through an
+exit grid before combat started).
 
 `WhatPlayerKnowsAboutEnemiesInSector` (`Strategic/Map_Screen_Interface_Map.cc:3511-3561`) returns `KNOWS_HOW_MANY` or
-`KNOWS_THEYRE_THERE` as soon as an awake merc with life ≥ `OKLIFE`, not between sectors and not in the helicopter, stands in
-the sector (`CanMercsScoutThisSector`, `:3565-3600`), and `WakeUpAllMercsInSectorUnderAttack` has just woken the involved
-mercs. So the random-ambush branch runs only when every merc in the sector is below `OKLIFE` or aboard the helicopter
-(inferred; V has the same check). Kept as written (Q2).
+`KNOWS_THEYRE_THERE` as soon as an awake merc with life ≥ `OKLIFE`, not between sectors and not in the helicopter, is in the
+sector (`CanMercsScoutThisSector`, `:3565-3600`), and `WakeUpAllMercsInSectorUnderAttack` has just woken the involved mercs.
+So the random-ambush branch runs only when every merc there is below `OKLIFE` or aboard the helicopter (inferred; V has
+the same check). Kept (Q2).
 
 ### 1.4 Codes, buttons and disabled reasons
 
@@ -204,21 +200,21 @@ Persistent PBI (`:445-484`):
 | `BLOODCAT_AMBUSH` | bloodcat ambush | disabled: ambush | enabled | disabled | no: map centre | – |
 | `ENTERING_BLOODCAT_LAIR` | entering the lair | disabled: player-initiated attack | enabled | enabled¹ | yes | – |
 
-¹ Retreat is also disabled when `gfAutomaticallyStartAutoResolve` or `gfCantRetreatInPBI` is set; disabling consumes
-`gfCantRetreatInPBI` (reset to `FALSE`, `:473-481`). Enter is disabled when `gfAutomaticallyStartAutoResolve` (`:413-417`, `:469`).
+¹ Retreat is also disabled by `gfAutomaticallyStartAutoResolve` or `gfCantRetreatInPBI`; disabling consumes
+`gfCantRetreatInPBI` (reset to `FALSE`, `:473-481`). Enter is disabled by `gfAutomaticallyStartAutoResolve` (`:413-417`, `:469`).
 ² An auto-started AR ignores the button state (§1.5.1); with an ambush code `EnterAutoResolveMode` logs "illegal" and the
 bonus stays 0 (`Auto_Resolve.cc:452-456`).
 
 Non-persistent PBI (`:485-513`): Retreat always disabled ("battle in progress", `gzNonPersistantPBIText[0]`); Go to sector
-always enabled; Autoresolve enabled only for the explicit codes `CREATURE_ATTACK`, `ENEMY_ENCOUNTER`, `ENEMY_INVASION`, and
-disabled with a reason for `ENTERING_ENEMY_SECTOR` (`[3]`), `ENEMY_AMBUSH` (`[4]`), `FIGHTING_CREATURES` (`[5]`),
-`HOSTILE_CIVILIANS` (`[6]`), the bloodcat codes (`[7]`). Escape closes the non-persistent PBI only.
-`CalculateNonPersistantPBIInfo` (`:1147-1199`) recomputes the codes when the locator is off or elsewhere: hostile civilians,
-bloodcats, else creatures in battle → `FIGHTING_CREATURES`, enemies in battle → `ENTERING_ENEMY_SECTOR` (both codes). It runs
+always enabled; Autoresolve enabled only for the explicit codes `CREATURE_ATTACK`, `ENEMY_ENCOUNTER`, `ENEMY_INVASION`,
+otherwise disabled with a reason: `ENTERING_ENEMY_SECTOR` (`[3]`), `ENEMY_AMBUSH` (`[4]`), `FIGHTING_CREATURES` (`[5]`),
+`HOSTILE_CIVILIANS` (`[6]`), the bloodcat codes (`[7]`). Escape closes only the non-persistent PBI.
+`CalculateNonPersistantPBIInfo` (`:1147-1199`) recomputes both codes when the locator is off or elsewhere: hostile
+civilians, bloodcats, else creatures in battle → `FIGHTING_CREATURES`, enemies in battle → `ENTERING_ENEMY_SECTOR`. It runs
 when a soldier turns hostile or neutral (`Tactical/Overhead.cc:2564-2590`) and on loading a traversed sector
 (`StrategicMap.cc:658-661`).
 
-What the panel shows (`RenderPreBattleInterface`, `:745-944`; the `preBattle` prompt carries the same, `04` §6):
+Panel data (`RenderPreBattleInterface`, `:745-944`; the `preBattle` prompt carries the same, `29` §20; layout `30` §5.1):
 - sector; enemies: `?` for creature and bloodcat codes or unless `WhatPlayerKnowsAboutEnemiesInSector == KNOWS_HOW_MANY`
   (a stationary garrison always shows `?`), else `NumEnemiesInSector` (stationary + mobile, creatures excluded); involved mercs
   count; `CountAllMilitiaInSector`;
@@ -230,9 +226,9 @@ What the panel shows (`RenderPreBattleInterface`, `:745-944`; the `preBattle` pr
 ### 1.5 The three choices
 
 #### 1.5.1 Autoresolve (`AutoResolveBattleCallback`, `:947-975`)
-Sets `gfEnterAutoResolveMode`; at the end of the next `RenderPreBattleInterface` → `EnterAutoResolveMode(gubPBSector)`
+Sets `gfEnterAutoResolveMode`; the next `RenderPreBattleInterface` ends with `EnterAutoResolveMode(gubPBSector)`
 (`:937-941`) → §2. ALT with the cheat level (persistent only) runs `EliminateAllEnemies` instead (§2.19).
-`ActivateAutomaticAutoResolveStart` calls the callback directly, without checking whether the button is enabled.
+`ActivateAutomaticAutoResolveStart` calls the callback directly, ignoring the button state.
 
 #### 1.5.2 Enter sector (`GoToSectorCallback`, `:982-1046`)
 ```
@@ -247,9 +243,9 @@ SetCurrentWorldSector(gubPBSector)                                 // load the m
 KillPreBattleInterface()
 ```
 `PutNonSquadMercsInBattleSectorOnSquads(exitVehicles)`, per involved group: a grounded helicopter group →
-`MoveAllInHelicopterToFootMovementGroup`; otherwise every live, non-vehicle, involved member whose assignment is ≥ `ON_DUTY`
-(any off-duty assignment, vehicle passengers included): in a vehicle group and `exitVehicles` → `TakeSoldierOutOfVehicle` and
-`AddCharacterToSquad(first empty squad)` (one squad per vehicle group); in a vehicle group without `exitVehicles` → nothing;
+`MoveAllInHelicopterToFootMovementGroup`; otherwise each live, non-vehicle, involved member with assignment ≥ `ON_DUTY`
+(any off-duty assignment, vehicle passengers included): vehicle group with `exitVehicles` → `TakeSoldierOutOfVehicle` and
+`AddCharacterToSquad(first empty squad)` (one squad per vehicle group); vehicle group without `exitVehicles` → nothing;
 else `AddCharacterToAnySquad`; then `MakeSoldiersTacticalAnimationReflectAssignment`. ja2-node has no placement GUI: the
 mercs keep the automatic edgepoints (deviations.md "Tactical placement").
 
@@ -266,35 +262,34 @@ close the PBI; gpBattleGroup = NULL; locator off; music
 `RetreatAllInvolvedPlayerGroups`: `PutNonSquadMercsInBattleSectorOnSquads(FALSE)`, then for every involved group except
 vehicle groups without passengers: `ClearMercPathsAndWaypointsForAllInGroup`, `RetreatGroupToPreviousSector` (§3.5).
 `HandleLoyaltyImplicationsOfMercRetreat` (`Strategic/Strategic_Town_Loyalty.cc:1187-1206`): militia in the sector →
-`GLOBAL_LOYALTY_ABANDON_MILITIA`; then `MORALE_RAN_AWAY` (for `RETREAT_PBI` and `RETREAT_AUTORESOLVE` always; for a tactical
-retreat only if enemies are present and `PlayerStrength·2 >= EnemyStrength`).
+`GLOBAL_LOYALTY_ABANDON_MILITIA`; then `MORALE_RAN_AWAY`, always for `RETREAT_PBI` and `RETREAT_AUTORESOLVE`, for a tactical
+retreat only if enemies are present and `PlayerStrength·2 >= EnemyStrength`.
 
 ### 1.6 Who is involved (`:1329-1368`)
 
 - `PlayerMercInvolvedInThisCombat(s)`: not between sectors; assignment ∉ {`IN_TRANSIT`, `ASSIGNMENT_POW`,
   `ASSIGNMENT_DEAD`}; not a vehicle; the robot only with a controller; not aboard an airborne helicopter;
-  `s.sSector == GetCurrentBattleSectorXYZ()` (AR sector if AR is open, else the PBI sector if the PBI is open, else the
-  loaded world, `Auto_Resolve.cc:3746-3769`). Unconscious mercs are involved.
+  `s.sSector == GetCurrentBattleSectorXYZ()` (the AR sector while AR is open, else the PBI sector while the PBI is open,
+  else the loaded world, `Auto_Resolve.cc:3746-3769`). Unconscious mercs are involved.
 - `PlayerGroupInvolvedInThisCombat(g)`: player group, size > 0, not between sectors, no in-transit, dead or POW members, not the
   airborne helicopter, in the battle sector.
 
 ### 1.7 Timing relative to the clock
 
-- The arrival event fires at its minute (docs/15, docs/16). Before the PBI opens the game is paused (`PauseGame` and
-  `LockPauseState` in `PrepareForPreBattleInterface`, `Strategic_Movement.cc:660-662`, `:681-683`; `CreatureAttackTown`
-  `Creature_Spreading.cc:603-605`), the speaker's quote plays, and `InitPreBattleInterface` stops time compression. The paths
-  that open the PBI without the quote rely on the message box and `StopTimeCompression` (inferred: at 1× the clock could tick
-  under such a PBI); ja2-node freezes the clock under every `preBattle` prompt (D4).
-- Under AR the world clock is frozen: `UpdateClock` returns at once outside the game and map screens (`Game_Clock.cc:602-607`).
-  The battle time is applied when AR closes (§2.18).
-- Retreat: the groups' arrival times are computed from the current minute, then the 300 s warp happens, so 5 minutes of the
-  trip are spent at once (§3.5).
+- The game is paused before the PBI opens (`PauseGame` and `LockPauseState` in `PrepareForPreBattleInterface`,
+  `Strategic_Movement.cc:660-662`, `:681-683`; `CreatureAttackTown`, `Creature_Spreading.cc:603-605`), the speaker's quote
+  plays, and `InitPreBattleInterface` stops time compression. Paths without the quote rely on the message box and
+  `StopTimeCompression` (inferred: at 1× the clock could tick under such a PBI); ja2-node freezes the clock under every
+  `preBattle` prompt (D4).
+- Under AR the world clock is frozen: `UpdateClock` returns at once outside the game and map screens (`Game_Clock.cc:602-607`);
+  the battle time is applied when AR closes (§2.18).
+- Retreat: arrival times are computed before the 300 s warp, so 5 minutes of the trip are spent at once (§3.5).
 - Enter: time resumes in tactical (frozen during turn-based combat, docs/10 §8.4).
 
 ### 1.8 UI-only parts
 
 The 1 s zoom transitions (`:530-622`, `Auto_Resolve.cc:364-411`, wall clock), the header blink (667 ms of each 1000), the
-retreat arrows drawn while the mouse is over Retreat, help texts, music, sounds, button art. None of them changes state.
+retreat arrows while the mouse is over Retreat, help texts, music, sounds and button art change no state (client: `30` §5).
 
 ---
 
@@ -341,13 +336,13 @@ Cell flags (`:177-216`): `MERC`, `MILITIA`, `ELITE`, `TROOP`, `ADMIN`, `AF/AM/YF
 `PROCESSED`, `ASSIGNED`, `EPC`, `ROBOT`. Groups: `PLAYER = MERC|MILITIA`, `ENEMY = ELITE|TROOP|ADMIN`, `CREATURE` = the four,
 `FEMALECREATURE = AF|YF`, `MALECREATURE = AM|YM`.
 
-ja2-node (`src/sim/strategic/forces/autoresolve/state.ts`): `AutoresolveState` is plain data with `mercs[]`, `militia[]`,
-`enemies[]` (`ArCell`) in index order, the same flag values (`CellFlag`, `CellGroup`) and statuses (`BattleStatus`); a
+ja2-node (`src/sim/strategic/forces/autoresolve/state.ts`): `AutoresolveState` is plain data: `mercs[]`, `militia[]`,
+`enemies[]` (`ArCell`) in index order, the original flag values (`CellFlag`, `CellGroup`) and statuses (`BattleStatus`); a
 cell reference (`pAttacker`, event targets) is `CellRef {side: 'merc' | 'militia' | 'enemy', index}`; `robot` is the
-robot's merc index (−1 none). The created militia, enemy and creature soldiers live inside the cells (the original's heap
+robot's merc index (−1 none). Created militia, enemy and creature soldiers live inside the cells (the original's heap
 soldiers with id 255); merc cells hold the roster's soldiers, which AR mutates in place (life, bleeding, ammo, armour,
-stats, profile counters). `uiPreRandomIndex`, `fSound`, `fInstantFinish`, `fPaused` and `ubTimeModifierPercentage` have no
-counterpart.
+stats, profile counters). No counterpart: `uiPreRandomIndex`, `fSound`, `fInstantFinish`, `fPaused`,
+`ubTimeModifierPercentage`.
 
 ### 2.3 Entry, counts and cell classes
 
@@ -358,7 +353,7 @@ logged, 0.
 `CalculateAutoResolveInfo` (`:2070-2128`):
 - Not a creature attack: `GetNumberOfEnemiesInSector` → admins, troops, elites = stationary + mobile groups (+ roadblock quirk,
   `Queen_Command.cc:179-228`, docs/17); `ubEnemies = min(sum, 32)`.
-- Creature attack: if `gfTransferTacticalOppositionToAutoResolve`, `DetermineCreatureTownCompositionBasedOnTacticalInformation`
+- Creature attack: with `gfTransferTacticalOppositionToAutoResolve`, `DetermineCreatureTownCompositionBasedOnTacticalInformation`
   (`Creature_Spreading.cc:758-790`: counts live in-sector creature-team soldiers by body; zeroes the sector's `ubNumCreatures`
   and `ubCreaturesInBattle`), else `DetermineCreatureTownComposition(gubNumCreaturesAttackingTown)` (`:744-756`: each creature
   independently from the `MINE_EXIT` weights, young male 10, young female 65, adult male 5, adult female 20 of 100,
@@ -366,7 +361,7 @@ logged, 0.
   `ubEnemies = min(sum, 32)`. The transfer flag is cleared.
 - `ubCivs = CountAllMilitiaInSector(sector)`.
 - Merc cells: for each group in group-list order with `PlayerGroupInvolvedInThisCombat`, each member in group order with
-  `PlayerMercInvolvedInThisCombat`, appended (array of 20; more would overflow, D10). An EPC sets
+  `PlayerMercInvolvedInThisCombat` is appended (array of 20; more would overflow, D10). An EPC sets
   `fCaptureNotPermittedDueToEPCs`; the robot becomes `pRobotCell` and gets `UpdateRobotControllerGivenRobot`.
 
 `CalculateSoldierCells` (`:616-733`), logic part:
@@ -398,12 +393,12 @@ else: locator off
 (build the panel, buttons; Retreat disabled when ubMercs == 0)
 ```
 
-Soldier creation (`Tactical/Soldier_Create.cc`), with `guiCurrentScreen == AUTORESOLVE_SCREEN` and `IsAutoResolveActive()`:
+Soldier creation (`Tactical/Soldier_Create.cc`) with `guiCurrentScreen == AUTORESOLVE_SCREEN` and `IsAutoResolveActive()`:
 - **`TacticalCreateMilitia(cls)`** (`:1799-1816`): `RandomizeRelativeLevel` for attributes, then for equipment; team
   `MILITIA`, orders `STATIONARY`, attitude `main(MAXATTITUDES)`, body random; `CreateDetailedPlacementGivenBasicPlacementInfo`;
   `TacticalCreateSoldier`, whose AR branch allocates a free-standing soldier with id 255 (`:142-147`), skips the enemy
   camouflage roll (`:321`) and returns before `CreateSoldierCommon`/`AddManToTeam` (`:436-440`).
-- **`TacticalCreateEnemySoldier(cls)`** (`:1754-1797`): if the PBI is non-persistent, `ReserveTacticalSoldierForAutoresolve(cls)`
+- **`TacticalCreateEnemySoldier(cls)`** (`:1754-1797`): with a non-persistent PBI, `ReserveTacticalSoldierForAutoresolve(cls)`
   (`:1721-1751`): the first in-sector live tactical soldier of that class (team order) whose gridNo is not `NOWHERE` is marked
   (gridNo := `NOWHERE`) and copied with its exact life, stats and inventory; no draws. Otherwise `RandomizeRelativeLevel` ×2,
   orders `SEEKENEMY`, attitude `main(MAXATTITUDES)`, body random, placement; for elites
@@ -426,17 +421,17 @@ ja2-node: `src/sim/tactical/creation-basic.ts` (`tacticalCreateMilitiaForAutores
 flag; `randomizeRelativeLevel` is in `src/sim/tactical/init-list.ts`, `locationModifier` in `src/sim/strategic/ai/difficulty.ts`.
 When the reserved copies of a class run out, the missing cells are created fresh (D9).
 
-`AssociateEnemiesWithStrategicGroups` (`:524-607`, not for creatures): first the stationary garrison: for enemy cells in index
-order, a cell whose class still has a stationary counter left takes one (`ELITE` → `ubNumElites`, …), group 0, `ASSIGNED`. Then
-for each enemy group in the sector (group-list order), for every unassigned cell in index order: if both the remaining
-mobile elites and the group's elites are non-zero, take an elite slot; else a troop slot; else an admin slot; else skip; the
-cell gets the group's id. The second phase **does not look at the cell's class** (Q16): a troop cell can fill a group's elite
-slot. The group id decides which strategic record loses the soldier when he dies (§2.18, docs/17).
+`AssociateEnemiesWithStrategicGroups` (`:524-607`, not for creatures): first the stationary garrison: enemy cells in index
+order each take one unit of their class's stationary counter while it lasts (`ELITE` → `ubNumElites`, …), group 0,
+`ASSIGNED`. Then for each enemy group in the sector (group-list order), each unassigned cell in index order takes an elite
+slot if both the remaining mobile elites and the group's elites are non-zero, else a troop slot, else an admin slot, else
+is skipped; the cell gets the group's id. The second phase **ignores the cell's class** (Q16): a troop cell can fill a
+group's elite slot. The group id decides which strategic record loses the soldier when he dies (§2.18, docs/17).
 
 ### 2.5 Ratings
 
 `DetermineTeamLeader` (`:2414-2455`): `ubPlayerLeadership` = the highest raw `bLeadership` over all merc cells (dead ones, EPCs and
-the robot included) and then all militia cells; `ubEnemyLeadership` = the highest over the enemy cells. The `TEAMLEADER` flag is
+the robot included), then all militia cells; `ubEnemyLeadership` = the highest over the enemy cells. The `TEAMLEADER` flag is
 debug output.
 
 `CalculateAttackValues` (`:2469-2643`) uses raw soldier fields, not the `Effective*` functions:
@@ -479,18 +474,17 @@ breath 50: att 185 → 238.
 
 #### 2.6.1 The original (`ProcessBattleFrame`, `:3522-3723`)
 
-Called once per screen frame. The first call only records `GetJA2Clock()`. Afterwards
-`iTimeSlice = (now − prev)·uiTimeSlice/1000` wall ms × speed, where `uiTimeSlice` is `1000·pct/100` for Play (the default),
-4000 for Fast, and `0xffffffff` for Finish, which makes `iTimeSlice = 0x7fffffff` (`:3565-3572`). The frame processes slices
-of `min(iTimeSlice, 1000)` battle ms; Play and Fast subtract 1000 per slice, Finish never does (`:3718-3721`), so Finish runs
-1000 ms slices until the battle ends. A frame stops early, keeping its loop variables in statics, when more than 17 wall ms
-have passed (not in Finish) or when more than `(mercs + civs + enemies)/4` attacks were made this frame (`fInstantFinish` is
-never set), and resumes inside the same slice at the next frame (`goto CONTINUE_BATTLE`, which also skips the pause check).
-Finish also clears `fSound` for good (`:1883-1892`).
+Called once per screen frame; the first call only records `GetJA2Clock()`. Then `iTimeSlice = (now − prev)·uiTimeSlice/1000`
+wall ms × speed; `uiTimeSlice` = `1000·pct/100` for Play (the default), 4000 for Fast, `0xffffffff` for Finish
+(→ `iTimeSlice = 0x7fffffff`, `:3565-3572`). A frame processes slices of `min(iTimeSlice, 1000)` battle ms; Play and Fast
+subtract 1000 per slice, Finish never does (`:3718-3721`), so Finish runs 1000 ms slices until the battle ends. A frame
+stops early after more than 17 wall ms (not in Finish) or more than `(mercs + civs + enemies)/4` attacks (`fInstantFinish`
+is never set), keeping its loop variables in statics, and resumes inside the same slice next frame (`goto CONTINUE_BATTLE`,
+which also skips the pause check). Finish also clears `fSound` for good (`:1883-1892`).
 
-In Play and Fast the slice length is the frame time (≈25 ms at Stracciatella's default `target_fps` 40) times the speed, so
-the outcome depends on the frame rate, and retreat clicks land between frames, at wall-clock moments. Finish is
-deterministic: every slice is exactly 1000 ms and the early stops resume in the same slice.
+Play and Fast slices last the frame time (≈25 ms at Stracciatella's default `target_fps` 40) × the speed: the outcome
+depends on the frame rate, and retreat clicks land between frames at wall-clock moments. Finish is deterministic: 1000 ms
+slices, early stops resume in the same slice.
 
 #### 2.6.2 ja2-node's schedule (= Finish)
 
@@ -515,9 +509,9 @@ slice(ar):
 
 pick(cells): repeat { c = cells[pre(cells.length)] } until !c.PROCESSED; c.PROCESSED = TRUE; return c
 ```
-Every cell, dead or alive, is picked exactly once per slice; dead cells still cost draws. The rejection loop draws a variable
-number of `pre` values. A capture check that returns `TRUE` without ending the battle (failed roll) abandons the slice: the
-next slice starts with a fresh +1000 ms, exactly like the original's next frame in Finish mode.
+Every cell, dead or alive, is picked once per slice: dead cells still cost draws, and the rejection loop draws a variable
+number of `pre` values. A capture check that returns `TRUE` without ending the battle (failed roll) abandons the slice; the
+next slice starts with a fresh +1000 ms, like the original's next frame under Finish.
 
 #### 2.6.3 Processing a picked cell (`:3653-3716`)
 
@@ -546,7 +540,7 @@ process(c, slice):
 - A retreated cell's pending bullets never land. Unconscious non-creature cells still receive bullets.
 - With 1000 ms slices a pending bullet (50–449 ms) lands at the target's next pick: in the same slice if the target is picked
   later, otherwise in the next one.
-- A creature whose reset value is below 1000 (attack rating above ≈960) can end up with `nextAttack + t < 0`, which wraps to
+- A creature whose reset value is below 1000 (attack rating above ≈960) can reach `nextAttack + t < 0`, which wraps to
   ≈65 000 ms (inferred edge, never seen with real creature stats).
 
 ### 2.7 `ChooseTarget` (`:2697-2761`)
@@ -609,7 +603,7 @@ attackTarget(a, t):
         t.bleeding = t.lifeMax − t.bleeding − dmg >= t.life ? t.bleeding + dmg : t.lifeMax − t.life
      if t.life == 0: removeFromTotals(t)                                          // §2.10
 ```
-The `StatChange` calls draw `pre` (docs/11 §10): they are part of the RNG order.
+The `StatChange` calls draw `pre` (docs/33 §5) and are part of the RNG order.
 
 #### 2.8.1 `FireAShot` (`:2765-2810`)
 ```
@@ -625,12 +619,12 @@ a.weaponSlot = −1; return FALSE
 ```
 - The first gun in slot order fires, pockets included, but only the gun in `HANDPOS` is ever reloaded: a pocket gun stops at
   its last shot (Q9).
-- No AP cost, no jams, no condition loss, no bursts, one bullet per attack. `IC_LAUNCHER` items (grenade launchers, mortars)
-  are not guns and never fire. The LAW is an `IC_GUN` whose reload always fails (`ReloadGun`, `Items.cc:1093`); it fires while
-  its counter is above 0 (inferred).
-- `AutoReload` → `ReloadGun` with `INCOMBAT` clear (no AP check, top-off rules of real time, `Items.cc:1082-…`): magazines are
-  consumed from the inventory (docs/12). The second-gun reload inside `AutoReload` checks `EnoughPoints` against the soldier's
-  leftover APs (inferred). ja2-node: `autoReload` and `findAmmoToReload` in `src/sim/tactical/combat/reload.ts`.
+- No AP cost, jams, condition loss or bursts; one bullet per attack. `IC_LAUNCHER` items (grenade launchers, mortars) are not
+  guns and never fire. The LAW is an `IC_GUN` whose reload always fails (`ReloadGun`, `Items.cc:1093`); it fires while its
+  counter is above 0 (inferred).
+- `AutoReload` → `ReloadGun` with `INCOMBAT` clear (no AP check, real-time top-off rules, `Items.cc:1082-…`): magazines are
+  consumed from the inventory (docs/12). The second-gun reload inside `AutoReload` checks `EnoughPoints` against the
+  soldier's leftover APs (inferred). ja2-node: `autoReload` and `findAmmoToReload` in `src/sim/tactical/combat/reload.ts`.
 
 #### 2.8.2 `TargetHasLoadedGun` (`:2821-2836`)
 Any inventory slot of the target holds an `IC_GUN` with shots left.
@@ -640,21 +634,21 @@ Any inventory slot of the target holds an `IC_GUN` with shots left.
 target's rating. Strac fixes V, which let negative margins wrap and could pass a negative range (`V AutoResolve.c:3393`).
 
 #### 2.8.4 `BulletImpact` and `HTHImpact` under AR
-`BulletImpact(a, t, loc, impact, acc, NULL)` (`Tactical/Weapons.cc:2743-3116`, docs/11 §4.2) behaves like this in AR:
+`BulletImpact(a, t, loc, impact, acc, NULL)` (`Tactical/Weapons.cc:2743-3116`, docs/33 §1.2) under AR:
 - Ammo type = `a.inv[a.ubAttackingHand].ubGunAmmoType`: the attacking hand, not the slot that fired (`HANDPOS` for created
   soldiers, the last tactical value for mercs); the throwing-knife test reads `a.usAttackingWeapon` (0 for created soldiers;
-  whatever a merc last used, or the last AR melee weapon). Q10.
+  for a merc whatever he last used, or the last AR melee weapon). Q10.
 - `pre(51) − 25` fluke, `+acc/2 %`; armour via `TotalArmourProtection` with one `pre(100)` per piece consulted; armour wear
-  and destruction persist (docs/11 §4.3).
+  and destruction persist (docs/33 §1.3).
 - The head and torso instant kills need `PythSpacesAway(a.gridNo, t.gridNo) ≤ 7`. Every AR soldier is off the map: created
   soldiers start at `NOWHERE`, reserved tactical enemies are set to `NOWHERE` before the copy, and mercs leave the grid when the
   world unloads (`RemoveSoldierFromGridNo`, `Tactical/Soldier_Control.cc:1771-1792`). Both at 25601 → distance 0 → always
   "close": head `crit > 55 && crit < life`, torso `dmg > 55 && dmg < life`, or torso `dmg + sDamage > 85` → `life + main(10)`.
-  `sDamage` is 0 for created soldiers and leftover for mercs and copies (inferred, §8).
+  `sDamage` is 0 for created soldiers, leftover for mercs and copies (inferred, §8).
 - `pubSpecial == NULL` skips the head-explosion and leg-fall branches with their `pre` draws, and the chest-explosion flag.
 - The stealth-knife kill and the critical stat loss sit under `!IsAutoResolveActive()`: never in AR.
 
-`HTHImpact(a, t, acc, blade)` (`Weapons.cc:3119-3167`, docs/11 §6.5): `EffectiveExpLevel/2`, then blade: `+EffectiveStrength/20
+`HTHImpact(a, t, acc, blade)` (`Weapons.cc:3119-3167`, docs/11 §4.5): `EffectiveExpLevel/2`, then blade: `+EffectiveStrength/20
 + weapon impact` (robot target /4); punch: `+EffectiveStrength/5`, `+ weapon impact` with a non-martial weapon (robot /2), else
 `+5` (robot 0); `·(100 + pre(51) − 25 + acc/2)/100`; martial-arts and hand-to-hand multipliers. In AR the result is life
 damage, not breath (tactical punches hit breath).
@@ -663,8 +657,8 @@ ja2-node: `bulletImpact`, `hthImpact`, `totalArmourProtection` and `statChange` 
 (`src/sim/tactical/combat/context.ts`: content, `pre`, `rng`, optional cosmetic `fx`, profiles, combat flag, attack-busy
 count, stat events), which `TacticalState` satisfies structurally and AR builds per call (`combatContext` in `state.ts`).
 `bulletImpact` takes an `ImpactMode`: `TACTICAL_IMPACT`, or `AUTORESOLVE_IMPACT` = `{specials: false, criticals: false,
-close: true}` (no specials, no criticals or stealth-knife kill, "close" passed explicitly because ja2-node's `NOWHERE` is
-−1, D6).
+close: true}` (`criticals: false` also drops the stealth-knife kill; `close` is explicit because ja2-node's `NOWHERE` is −1,
+D6).
 
 ### 2.9 `TargetHitCallback`: a bullet lands (`:3085-3264`)
 
@@ -696,7 +690,7 @@ targetHit(t, j):
 ```
 - `t.bLevel` is the map level (0 ground, 1 roof), not the experience level (`bExpLevel`, which tactical uses,
   `Tactical/Overhead.cc:2501`, `:2512`): kill and assist XP is 0 chances for created soldiers (V too, Q3).
-- Assist slots are stale pointers: whoever last used those slots, possibly long resolved. Only one assist is credited.
+- Assist slots are stale pointers (whoever last used those slots, possibly long resolved); only one assist is credited.
 - A fourth bullet while all three slots are pending adds its damage to slot 2 and is credited to slot 2's attacker, even if
   slot 2 was a miss (Q8). Strac resets `hitDamage[j]` when a slot is reused (`:2917-2918`; V let a miss land with a stale
   damage value).
@@ -704,9 +698,9 @@ targetHit(t, j):
 ### 2.10 Deaths and the team totals
 
 `removeFromTotals(c)` (`:3051-3080`, `:3233-3261`): merc or militia: `playerAttack −= att`, `playerDefence −= def`, alive count
-−1; enemy or creature: the enemy sums, `ubAliveEnemies −= 1`; `att = def = 0`. Only at life 0: an unconscious cell keeps its
-defence in the sums and stays a target. AR changes no breath and no morale (except `MORALE_KILLED_ENEMY`), and bleeding
-does not drain life during the battle.
+−1; enemy or creature: the enemy sums, `ubAliveEnemies −= 1`; then `att = def = 0`. Only at life 0: an unconscious cell keeps
+its defence in the sums and stays a target. AR changes no breath and no morale (except `MORALE_KILLED_ENEMY`); bleeding does
+not drain life during the battle.
 
 ### 2.11 Retreat orders
 
@@ -727,11 +721,11 @@ if a robot cell exists: no controller → robot not retreating, next 0xffff;
 ```
 - `c.next` is the current remaining timer; the products overflow and wrap (a late-entry cell with a large timer can get a
   short one, Q7).
-- A cell ordered to retreat stops attacking at once; it is still a target, at 70 % attack against it (§2.8), until its timer
+- A cell ordered to retreat stops attacking at once; it stays a target, at 70 % attack against it (§2.8), until its timer
   expires and it becomes `RETREATED` (§2.6.3).
 - A cell that falls unconscious loses `RETREATING` (§2.8, §2.9) but keeps attack 0. A dead or unconscious cell ordered to
   retreat never completes it (it is skipped before the timer), yet attacks against it suffer the 70 % factor (Q11).
-- ja2-node: orders are queued (`orderRetreat`, `end.ts`) and applied between slices (D1); the command is `04` §6.
+- ja2-node: orders are queued (`orderRetreat`, `end.ts`) and applied between slices (D1); the command is in `29` §20.
 
 ### 2.12 `IsBattleOver` (`:3267-3352`)
 
@@ -754,16 +748,16 @@ else if aliveEnemies == 0: status = VICTORY
 else: return FALSE
 SetupDoneInterface(); return TRUE                                                   // UI: Done/Bandage buttons
 ```
-- Victory needs every enemy cell at life 0; unconscious enemies keep the battle going (they do not attack unless creatures).
-- Defeat and retreat need every non-retreated, non-EPC merc dead: unconscious mercs keep the battle going and keep being shot
-  at (80 % forced hits, §2.8) unless a capture ends it (§2.13). If any merc retreated, the end is `RETREAT`, never `DEFEAT`.
+- Victory: every enemy cell at life 0; unconscious enemies keep the battle going (only creatures attack while unconscious).
+- Defeat and retreat: every non-retreated, non-EPC merc dead; unconscious mercs keep the battle going and keep being shot at
+  (80 % forced hits, §2.8) unless a capture ends it (§2.13). Any merc retreated → `RETREAT`, never `DEFEAT`.
 - The robot branch also fires when the robot is already dead and the lone remaining merc is its unconscious controller: the
   dead robot is "killed" again, `aliveMercs` drops twice and the battle ends while that merc is alive (inferred edge, Q21).
 - Militia keep the battle going while any is alive (`aliveCivs` counts unconscious militia).
-- There is no time limit, no morale check and no enemy retreat in AR: only the player side can retreat, and the battle runs
-  until one of the endings above (or a capture) happens. A battle where nobody can act (only unconscious mercs against only
-  unconscious human enemies) never ends; ja2-node's `runAutoresolve` stops at the caller's slice budget (`'budget'`), and
-  the campaign has no rule for it (deviations.md "Autoresolve stalemate").
+- No time limit, no morale check, no enemy retreat: only the player side can retreat, and the battle runs until one of the
+  endings above (or a capture). A battle where nobody can act (only unconscious mercs against only unconscious human
+  enemies) never ends; ja2-node's `runAutoresolve` stops at the caller's slice budget (`'budget'`), and the campaign has no
+  rule for it (deviations.md "Autoresolve stalemate").
 
 ### 2.13 Capture and surrender (`AttemptPlayerCapture`, `:3359-3433`)
 
@@ -807,22 +801,22 @@ Each failed roll costs a fresh 1000 ms slice under Finish semantics (§2.6.2), s
 | AR closes | every merc cell | `usBattlesFought++` (§2.18) |
 
 `StatChange` (`Tactical/Campaign.cc:48-75`) ignores non-OUR soldiers, profile-less ones, vehicles, the robot, POWs and soldiers
-below `CONSCIOUSNESS`, and applies `ProcessUpdateStats` at once (docs/11 §10). Every chance draws `pre(100)`. `ChangeStat`
+below `CONSCIOUSNESS`, and applies `ProcessUpdateStats` at once (docs/33 §5). Every chance draws `pre(100)`. `ChangeStat`
 draws `Random(100)` for the stat-change quote whenever a stat other than health or experience level changes (cosmetic: `fx`
-in ja2-node, D2), and a M.E.R.C. merc's level gain draws `main(60)` for the email delay (docs/22).
+in ja2-node, D2); a M.E.R.C. merc's level gain draws `main(60)` for the email delay (docs/22).
 
 ### 2.15 Items
 
-- Mercs: magazines consumed by `AutoReload`, one round per shot, armour status reduced and armour below 10 % destroyed by
-  `TotalArmourProtection`, medical kit points used by bandaging (§2.17). Nothing is dropped by survivors; dead mercs drop
-  everything (§2.18). Knives and claws are not dulled (no `UseBlade`).
+- Mercs: `AutoReload` consumes magazines, each shot one round; `TotalArmourProtection` reduces armour status and destroys
+  armour below 10 %; bandaging uses medical kit points (§2.17). Survivors drop nothing; dead mercs drop everything (§2.18).
+  Knives and claws are not dulled (no `UseBlade`).
 - Militia and enemy soldiers are temporary: their consumption only matters for what the dead drop (§2.18).
-- No item is picked up.
+- Nothing is picked up.
 
 ### 2.16 The battle ends: elapsed time, morale, loyalty, control (`RenderAutoResolve`, `:1271-1347`)
 
-Runs once (`fMoraleEventsHandled`) at the first render after the status left `IN_PROGRESS`, i.e. immediately after the slice
-that ended the battle, before the player can bandage or press Done. `s` = the AR sector with z forced to 0.
+Runs once (`fMoraleEventsHandled`) at the first render after the status left `IN_PROGRESS`, right after the slice that
+ended the battle and before the player can bandage or press Done. `s` = the AR sector with z forced to 0.
 ```
 elapsedMs *= 3
 if !FACT_FIRST_BATTLE_FOUGHT: set it; VICTORY → FACT_FIRST_BATTLE_WON; SetTheFirstBattleSector(s);
@@ -843,17 +837,18 @@ switch status:
                not creature: gsEnemyGainedControlOfSectorID = s
                creature with aliveEnemies > 0: gsEnemyGainedControlOfSectorID = s; gsCiviliansEatenByMonsters = aliveEnemies
 ```
-Morale events (`Tactical/Morale.cc:27-64`, `:438-527`, docs/11 §9): `KILLED_ENEMY` +4 to the killer; `BATTLE_WON` +4 to
-OUR soldiers in the sector (not between sectors), `HEARD_BATTLE_WON` +2 to the others; `HEARD_BATTLE_LOST` −2 everyone; `MERC_CAPTURED` −5 everyone, once per captured merc here
-and again in `EnemyCapturesPlayerSoldier` (Q13); `RAN_AWAY` −5 for those in the sector or just retreated from it (doubled for
-aggressive mercs, none for cowards), `HEARD_BATTLE_LOST` for everyone else (`:453-484`). Reputation changes ride on the same
-events (`:626-…`, docs/22). Loyalty values and their distance fan-out: docs/18 (`Strategic_Town_Loyalty.cc:850-…`:
-`BATTLE_WON` 500, `BATTLE_LOST` −750, `ENEMY_KILLED` 50, `NATIVE_KILLED` −50, `ABANDON_MILITIA` −750, in hundredths). The end
-block also picks a music track with `Random` (cosmetic; not drawn in ja2-node, D2).
+Morale events (`Tactical/Morale.cc:27-64`, `:438-527`, docs/33 §4): `KILLED_ENEMY` +4 to the killer; `BATTLE_WON` +4 to
+OUR soldiers in the sector (not between sectors), `HEARD_BATTLE_WON` +2 to the others; `HEARD_BATTLE_LOST` −2 everyone;
+`MERC_CAPTURED` −5 everyone, once per captured merc here and again in `EnemyCapturesPlayerSoldier` (Q13); `RAN_AWAY` −5 for
+those in the sector or just retreated from it (doubled for aggressive mercs, none for cowards), `HEARD_BATTLE_LOST` for
+everyone else (`:453-484`). Reputation changes ride on the same events (`:626-…`, docs/22). Loyalty values and their
+distance fan-out: docs/18 (`Strategic_Town_Loyalty.cc:850-…`: `BATTLE_WON` 500, `BATTLE_LOST` −750, `ENEMY_KILLED` 50,
+`NATIVE_KILLED` −50, `ABANDON_MILITIA` −750, in hundredths). The end block also picks a music track with `Random` (cosmetic;
+not drawn in ja2-node, D2).
 
 ja2-node: `endOfBattle` (`outcome.ts`) applies the ×3 and the +5 min and returns the consequences as data
-(`AutoresolveOutcome`: morale, loyalty, captured mercs, control, civilians eaten, retreat implications, the battle log); the
-battle flow applies them.
+(`AutoresolveOutcome`: morale, loyalty, captured mercs, control, civilians eaten, retreat implications, the battle log),
+which the battle flow applies.
 
 ### 2.17 Bandaging after a victory (`AutoBandageMercs`, `:1076-1149`; `VirtualSoldierDressWound`, `:910-1057`)
 
@@ -904,8 +899,8 @@ if actual/2: StatChange(medic, MEDICALAMT, actual/2, FROM_SUCCESS)
 if actual/4: StatChange(medic, DEXTAMT, actual/4, FROM_SUCCESS)
 return cost
 ```
-A medic whose `possible` is 0 makes the second loop spin forever in the original (`dressWound` returns 0 and the bleeding
-never drops); ja2-node stops a pass that makes no progress and reports the bandaging incomplete (D7).
+A medic whose `possible` is 0 makes the second loop spin forever in the original (`dressWound` returns 0, the bleeding never
+drops); ja2-node stops a pass without progress and reports the bandaging incomplete (D7).
 
 ### 2.18 Closing AR (`RemoveAutoResolveInterface`, `:1634-1840`)
 
@@ -942,16 +937,16 @@ WarpGameTime(elapsedMs/1000, WARPTIME_NO_PROCESSING_OF_EVENTS)               // 
 free AR; gTacticalStatus.ubCurrentTeam = OUR_TEAM; gpBattleGroup = NULL
 creature attack: gubNumCreaturesAttackingTown = 0; gubSectorIDOfCreatureAttack = 0
 ```
-`AddDeadSoldierToUnLoadedSector` (`Tactical/Tactical_Save.cc:834-912`): unless the robot, every non-empty slot: for a non-OUR
-soldier `main(100) < 75` → marked undroppable and skipped, already-undroppable items skipped, ammo stacks reduced to
-`1 + main(count)` (`Rotting_Corpses.cc:1273-1281`); the item goes to the sector's item list (visible, reachable, placed at a sweet
-spot near the grid when loaded); keys from the key ring; a corpse with `main(4)` death animation and the time of death.
-`RandomGridNo` (`TileEngine/Isometric_Utils.cc:667-677`) draws `main(160)`, `main(160)` until the tile is on the visible world
-diamond. The enemy and militia drops are where AR loot comes from; dead mercs' gear lands in the sector and, after a lost
-battle, can be stolen when the enemy takes the sector (§3.1).
+`AddDeadSoldierToUnLoadedSector` (`Tactical/Tactical_Save.cc:834-912`), unless the robot, for every non-empty slot: a non-OUR
+soldier's item is marked undroppable and skipped on `main(100) < 75`, already-undroppable items are skipped, ammo stacks
+are reduced to `1 + main(count)` (`Rotting_Corpses.cc:1273-1281`); the item goes to the sector's item list (visible,
+reachable, placed at a sweet spot near the grid when loaded); keys come from the key ring; then a corpse with a `main(4)`
+death animation and the time of death. `RandomGridNo` (`TileEngine/Isometric_Utils.cc:667-677`) draws `main(160)`,
+`main(160)` until the tile is on the visible world diamond. The enemy and militia drops are AR's loot; dead mercs' gear
+lands in the sector and, after a lost battle, can be stolen when the enemy takes the sector (§3.1).
 
 `HandlePostAutoresolveMessages` (`MapScreen.cc:7594-7630`), on map frames after AR: civilians eaten (≥ 1) →
-`AdjustLoyaltyForCivsEatenByMonsters(sector, n)` (docs/18) and both globals reset on the next frame (no control change);
+`AdjustLoyaltyForCivsEatenByMonsters(sector, n)` (docs/18), both globals reset on the next frame (no control change);
 else `gsEnemyGainedControlOfSectorID ≥ 0` → `SetThisSectorAsEnemyControlled(sector)` (§3.1), reset on the next frame; else
 promotions → message box (UI). ja2-node runs them at `done` (deviations.md "Autoresolve session").
 
@@ -1003,12 +998,12 @@ Per slice (§2.6.2), per pick:
 Battle end and close:
 12. `IsBattleOver` cosmetic `main` battle sounds for the robot, EPC deaths and the enemy laugh (not gated by `fSound`); the
     end block's music pick.
-13. Morale, loyalty and control (§2.16): no draws (`Morale.cc`, `Strategic_Town_Loyalty.cc` have no draws on these paths).
+13. Morale, loyalty and control (§2.16): no draws (`Morale.cc`, `Strategic_Town_Loyalty.cc` have none on these paths).
 14. Bandaging: `StatChange` draws.
 15. Closing: per dead merc `RandomGridNo` pairs and the corpse `main(4)`; per militia slot, dead → `RandomGridNo`, drop
     draws, corpse; alive → `chance(25·kills)` (green with ≥ 2 kill points), `chance(10·kills)` (regular, ≥ 5); per dead enemy
-    → `RandomGridNo`, drop draws, corpse. `EnemyCapturesPlayerSoldier` draws `main(21)` for a life adjustment
-    when half the maximum life is at least 45 (`Queen_Command.cc:1260-1270`).
+    → `RandomGridNo`, drop draws, corpse. `EnemyCapturesPlayerSoldier` draws `main(21)` for a life adjustment when half the
+    maximum life is at least 45 (`Queen_Command.cc:1260-1270`).
 16. Later, `SetThisSectorAsEnemyControlled` → `RemoveRandomItemsInSector` `main(100)` per visible reachable item
     (`Strategic_Town_Loyalty.cc:616-660`).
 
@@ -1017,11 +1012,10 @@ the music pick are not drawn (§4.1, D2).
 
 ### 2.21 What is UI-only
 
-| UI-only (client) | Logic (simulation) |
-|---|---|
-| Panel layout, rows and columns, faces, health/breath/morale bars, condition texts, flashes, "retreating" blink, sounds, music, the 1 s zoom, the Pause/Play/Fast/Finish buttons (playback speed in ja2-node) | Cells, ratings, timers, slices, picks, attacks, bullets, damage, deaths, retreats, capture and surrender, the ×3 time, bookkeeping |
-| `ubTimeModifierPercentage` (Play speed) | `fSound`-gated `pre(3)`: removed (§4.3) |
-| Messages: battle result text, promotions, bandage result | Retreat (all / per merc), surrender accept/reject, bandage, done: commands and prompts (`04` §6) |
+Client only (`30` §5.2): panel layout, rows and columns, faces, health/breath/morale bars, condition texts, flashes, the
+"retreating" blink, sounds, music, the 1 s zoom, the Pause/Play/Fast/Finish buttons (playback speed in ja2-node),
+`ubTimeModifierPercentage` (Play speed), the battle result, promotion and bandage messages. Everything else is simulation;
+retreat (all / per merc), surrender accept/reject, bandage and done are commands and prompts (`29` §20).
 
 Militia and enemy cells show only a health category, `bHealthStrRanges` by absolute life (`Tactical/Soldier_Control.cc:160-169`:
 < 15 dying, < 30 critical, < 45 wounded, < 60 poor, < 75 fair, < 90 good, else excellent); a soldier at full life shows at least
@@ -1079,21 +1073,21 @@ return wasPlayer
 ```
 Callers: tactical defeat while non-creature enemies remain (`Overhead.cc:4490-4493`), the map screen after a lost or retreated
 AR (`MapScreen.cc:7616-7620`), the strategic AI when a group reaches the Queen's sector (`Strategic_AI.cc:1045`, docs/17). The
-theft runs outside the `wasPlayer` branch on purpose (later reinforcements steal again). Retreating from a sector does not by
-itself flip control (inferred; enemy groups take empty sectors through the strategic AI, docs/17).
+theft runs outside the `wasPlayer` branch on purpose (later reinforcements steal again). Retreating from a sector does not
+flip control by itself (inferred; enemy groups take empty sectors through the strategic AI, docs/17).
 
 ja2-node: `setThisSectorAsPlayerControlled` / `setThisSectorAsEnemyControlled` in `src/sim/strategic/map/control.ts`; the
-town, mine, SAM, meanwhile and theft effects go through the context's `world` hooks (`sectorLiberated`, `sectorTakenByEnemy`)
-and the Queen's through `ctx.ai`. The `gfAutomaticallyStartAutoResolve` guard reads `state.battle.autoStart`.
+town, mine, SAM, meanwhile and theft effects go through the context's `world` hooks (`sectorLiberated`, `sectorTakenByEnemy`),
+the Queen's through `ctx.ai`. The `gfAutomaticallyStartAutoResolve` guard reads `state.battle.autoStart`.
 
 ### 3.2 A tactical battle ends (`CheckForEndOfBattle`, `Tactical/Overhead.cc:4392-4705`, docs/10 §8.2)
 
-Strategic consequences, in the order of the code:
+Strategic consequences, in code order:
 - **Lost** (`:4453-4503`): `EndAllAITurns`; `fEnemyInSector = FALSE`; exit combat; `MORALE_HEARD_BATTLE_LOST`;
   `GLOBAL_LOYALTY_BATTLE_LOST`; defeat music and a 10 s timer (`DeathNoMessageTimerCallback`; ja2-node: 10 s of tactical game
   time, `battle.lostBattleUnloadAtMs`, then the unload of §3.3); the first-battle facts and
   `HandleFirstBattleEndingWhileInTown(s, FALSE)`; if non-creature enemies remain, `SetThisSectorAsEnemyControlled(gWorldSector)`;
-  `LogBattleResults(LOG_DEFEAT)`; locator off. `CheckForLosingEndOfBattle` (`:4937-5081`) first decides between the militia
+  `LogBattleResults(LOG_DEFEAT)`; locator off. `CheckForLosingEndOfBattle` (`:4937-5081`) first chooses between the militia
   hand-off (§3.3), a capture (2–3 unconscious real mercs, an active enemy team, Alma or interrogation quest state;
   `BeginCaptureSquence`, `EnemyCapturesPlayerSoldier`, `EndCaptureSequence`) and killing the unconscious mercs, EPCs and the
   robot (`HandleSoldierDeath`).
@@ -1103,20 +1097,21 @@ Strategic consequences, in the order of the code:
   (`ShouldBeginAutoBandage`, docs/18), quotes; militia back to green, stationary orders, bleeding cleared for those ≥ `OKLIFE`;
   civilians back to green; `LogBattleResults(LOG_VICTORY)`; `SetThisSectorAsPlayerControlled(gWorldSector, TRUE)`;
   `HandleVictoryInNPCSector` (docs/25); first-battle facts and `TriggerNPCRecord(PACOS, 18)`; a 3 s notice timer.
-- Each death during the battle already updated the strategic layer: enemies and creatures through
-  `ProcessQueenCmdImplicationsOfDeath` (docs/17, called from the death path, docs/11 §5.10), `TrackEnemiesKilled`,
+- Each death during the battle has already updated the strategic layer: enemies and creatures through
+  `ProcessQueenCmdImplicationsOfDeath` (docs/17, called from the death path, docs/33 §2.10), `TrackEnemiesKilled`,
   `GLOBAL_LOYALTY_ENEMY_KILLED`; militia deaths through the militia status hand-off when the map unloads (docs/18); OUR deaths
   through `StrategicHandlePlayerTeamMercDeath` (`Strategic/Strategic_Merc_Handler.cc:52-130`, §3.7). An enemy that walks off the
-  map is treated as dead strategically (`TacticalAI/AIMain.cc:2012-2043`).
+  map counts as dead strategically (`TacticalAI/AIMain.cc:2012-2043`).
 - Militia kills in tactical feed `HandleMilitiaPromotions` (`Tactical/Militia_Control.cc:60-105`, docs/18).
-- Reinforcements: a won battle is not won while `gfPendingEnemies` (`:4438-4447`, docs/16/17).
+- Reinforcements: a battle is not won while `gfPendingEnemies` (`:4438-4447`, docs/16/17).
 
 ja2-node: the tactical layer reports these moments through `SectorHooks` (`src/sim/tactical/state.ts`: `mercDied`,
 `pendingEnemies`, `militiaFinishBattle`, `battleLost`, `battleEnded`), which `BattleFlow` implements.
 
 ### 3.3 Leaving the battle sector, and AR of a battle already loaded in tactical
 
-`CheckAndHandleUnloadingOfCurrentWorld` (`StrategicMap.cc:3003-3134`) runs when the loaded world may be trashed:
+`CheckAndHandleUnloadingOfCurrentWorld` (`StrategicMap.cc:3003-3134`; the full unload is `16` §5.10) runs when the loaded
+world may be trashed:
 ```
 if no world, or the game just started in the start sector: return FALSE
 if the AR screen is up and the AR sector is the loaded one:
@@ -1155,13 +1150,12 @@ battle sector's map (`mapsNeededSoon`).
 
 ### 3.4 Retreating from tactical combat to an adjacent sector
 
-The squad walks off a map edge (or into an exit grid) and the player confirms the move (`JumpIntoAdjacentSector`,
-`StrategicMap.cc:1379-1573`; edge rule `SoldierOKForSectorExit` `:1945-2032`, allowed in combat; docs/16 owns the flow).
-Battle-specific consequences when the last mercs leave (`AllMercsHaveWalkedOffSector`, `:1751-1847`):
+The squad walks off a map edge or into an exit grid and the player confirms the move (`JumpIntoAdjacentSector`,
+`StrategicMap.cc:1379-1573`; edge rule `SoldierOKForSectorExit` `:1945-2032`, allowed in combat); the flow is `16` §5.9.
+Battle consequences when the last mercs leave (`AllMercsHaveWalkedOffSector`, `:1751-1847`):
 ```
 if NumEnemiesInAnySector(world) > 0:
-   HandleLoyaltyImplicationsOfMercRetreat(RETREAT_TACTICAL_TRAVERSAL, world)   // militia present → ABANDON_MILITIA;
-                                                                                // MORALE_RAN_AWAY if enemies present and PlayerStrength·2 ≥ EnemyStrength
+   HandleLoyaltyImplicationsOfMercRetreat(RETREAT_TACTICAL_TRAVERSAL, world)   // §1.5.3
    clear the AI exposed-tile map
 the group travels to the adjacent sector (waypoint; traverse time ≤ 5 min → immediate load, docs/16)
 if no other mercs stay and enemies were present:
@@ -1169,9 +1163,9 @@ if no other mercs stay and enemies were present:
    if traverse time > 5: WarpGameTime(300, NO_PROCESSING_OF_EVENTS)              // +5 min
 the world unloads (§3.3): militia left with enemies → AR hand-off
 ```
-Exit grids (`AllMercsWalkedToExitGrid`, `:1618-1690`) additionally set `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` on the group when
-combat never started though enemies were present (`:3207-3222`), and call the retreat implications with the destination
-sector (sic, Q23).
+Exit grids (`AllMercsWalkedToExitGrid`, `:1618-1690`) also set `GROUPFLAG_HIGH_POTENTIAL_FOR_AMBUSH` on the group when
+combat never started though enemies were present (`:3207-3222`), and pass the destination sector to the retreat
+implications (sic, Q23).
 
 ### 3.5 Retreat travel (`Strategic/Strategic_Movement.cc`)
 
@@ -1186,8 +1180,8 @@ EVENT_GROUP_ARRIVAL at the arrival minute; player group: EVENT_GROUP_ABOUT_TO_AR
 still in the future; each member fBetweenSectors = TRUE and RemoveSoldierFromTacticalSector
 ```
 `CalculateGroupRetreatSector(g)` (`:2720-2761`): `ubPrev = ubSector`, then the first of north, east, west, south whose
-traversability is neither `GROUNDBARRIER` nor `EDGEOFWORLD`; members' `ubPrevSectorID` updated. If the group is intercepted
-on the way (`GROUPFLAG_JUST_RETREATED_FROM_BATTLE`), its next PBI cannot retreat (§1.2).
+traversability is neither `GROUNDBARRIER` nor `EDGEOFWORLD`; members' `ubPrevSectorID` updated. A group intercepted on the
+way (`GROUPFLAG_JUST_RETREATED_FROM_BATTLE`) cannot retreat in its next PBI (§1.2).
 
 The arrival time is computed before the PBI's 300 s warp or AR's battle-time warp, so those minutes of the trip are already
 spent when the clock resumes; the group may arrive at the very next clock update (Q26).
@@ -1195,22 +1189,22 @@ spent when the clock resumes; the group may arrive at the very next clock update
 ### 3.6 Enemy and player groups after a battle
 
 - **Enemy groups** after an AR defeat or retreat, a PBI retreat or a tactical retreat:
-  `ResetMovementForEnemyGroupsInLocation` (`Strategic_Movement.cc:2915-2971`): for each enemy group in the battle sector, a
-  group between sectors gets its arrival re-posted at now + its traverse time (traverse > 400 min shortened to 90), a group
-  not moving is re-polled by the strategic AI (`RepollSAIGroup`, docs/17). After an AR victory `EliminateAllEnemies` removes
-  what AR could not seat (§2.19); the dead go through `ProcessQueenCmdImplicationsOfDeath` by the cell's group id (0 =
-  garrison, §2.4, §2.18).
+  `ResetMovementForEnemyGroupsInLocation` (`Strategic_Movement.cc:2915-2971`): each enemy group in the battle sector that is
+  between sectors gets its arrival re-posted at now + its traverse time (traverse > 400 min shortened to 90); a group not
+  moving is re-polled by the strategic AI (`RepollSAIGroup`, docs/17). After an AR victory `EliminateAllEnemies` removes what
+  AR could not seat (§2.19); the dead go through `ProcessQueenCmdImplicationsOfDeath` by the cell's group id (0 = garrison,
+  §2.4, §2.18).
 - **Player groups** after an AR victory: `PlayerGroupArrivedSafelyInSector` per group of the live conscious mercs: NPC-of-note
   prompt for the first group (wilderness sectors with unmet profiled NPCs), then stop (someone cannot move on) or rebuild
   the waypoints and continue (`Strategic_Movement.cc:3458-3497`, docs/16).
-- **Militia**: AR deaths and promotions §2.18; in tactical the militia soldiers' state is handed back to the sector counts
-  when the map unloads, promotions by `HandleMilitiaPromotions` (docs/18).
+- **Militia**: AR deaths and promotions §2.18; in tactical the militia soldiers' state goes back to the sector counts when
+  the map unloads, promotions by `HandleMilitiaPromotions` (docs/18).
 
 ### 3.7 Mercs killed or captured
 
 - **Killed** (AR at close, tactical at death): `StrategicHandlePlayerTeamMercDeath` (`Strategic_Merc_Handler.cc:52-130`): history
   entry, `ubMercDeaths++` (not EPCs or the robot), `SOLDIER_DEAD`, breath 0, awake, profile `MERC_IS_DEAD`, life insurance
-  payout and the suspicious-death rules (docs/22), `MORALE_TEAMMATE_DIED` fan-out (docs/11 §9), M.E.R.C. contract bookkeeping,
+  payout and the suspicious-death rules (docs/22), `MORALE_TEAMMATE_DIED` fan-out (docs/33 §4), M.E.R.C. contract bookkeeping,
   then `HandleStrategicDeath` (`Strategic/Strategic.cc:18-41`): out of the vehicle, out of the squad, `ASSIGNMENT_DEAD`;
   the corpse in the sector (AR adds it itself, §2.18).
 - **Captured**: `EnemyCapturesPlayerSoldier` (`Queen_Command.cc:1165-1276`): skipped once both capture flags are set or after 4
@@ -1237,14 +1231,14 @@ the captive life draw, `beginCaptureSequence`, `endCaptureSequence`).
 | AR sound picks (`SoundRange` miss/impact/swoosh/smell, `Chance(50)` claw sound), the stat-change quote, battle sounds (`DoMercBattleSound` draws `Random`, `Tactical/Soldier_Control.cc:5866-6115`), the end block's music pick | `main` in the original; in ja2-node the sound picks and the quote on **`fx`**, battle sounds and music **not drawn** (D2) |
 | Splat sound `PreRandom(3)` (only when `fSound`) | `pre` in the original; **not drawn** in ja2-node (D2) |
 
-ja2-node does not draw the PBI speaker either (deviations.md "Cosmetic draws in strategic movement"). V used `PreRandom`
-for most AR sound picks (`V AutoResolve.c:3375`, `:3407`, `:3453`, `:3549`, `:3569`, `:4052`); Strac moved them to
-`SoundRange` on `Random`, which is why Strac's `pre` sequence differs from V's.
+ja2-node does not draw the PBI speaker either (deviations.md "Cosmetic draws in strategic movement"). V drew most AR sound
+picks with `PreRandom` (`V AutoResolve.c:3375`, `:3407`, `:3453`, `:3549`, `:3569`, `:4052`); Strac moved them to
+`SoundRange` on `Random`, so Strac's `pre` sequence differs from V's.
 
 Native mechanics: `Random` and `PreRandom` use `std::uniform_int_distribution` over `mt19937` (`sgp/Random.cc:63-84`), so a call
 may consume more than one engine value; `std::discrete_distribution` (creature composition) draws doubles from the engine
-(`generate_canonical`). ja2-node replaces it by one weighted `main(100)` pick per creature (D5; same distribution, different
-number stream).
+(`generate_canonical`). ja2-node: one weighted `main(100)` pick per creature instead (D5; same distribution, different number
+stream).
 
 ### 4.2 Wall-clock dependencies and their replacements
 
@@ -1260,17 +1254,17 @@ number stream).
 
 ### 4.3 `fSound`
 
-`fSound` starts `TRUE` and Finish clears it for the rest of the battle. It gates `DoMercBattleSound` calls in `AttackTarget` and
-`TargetHitCallback` (cosmetic `main` draws) and the `PreRandom(3)` splat choice (`:3206-3215`). In the original the `pre` sequence
-therefore depends on whether, and when, the player pressed Finish. ja2-node runs as if Finish were pressed before the first
-slice: no battle sounds, no splat draw (the client picks the splat sound from `arDied.splat`), sound picks on `fx`. This
-matches the native Finish run exactly as far as `pre` is concerned (§6.4).
+`fSound` starts `TRUE`; Finish clears it for the rest of the battle. It gates the `DoMercBattleSound` calls in `AttackTarget`
+and `TargetHitCallback` (cosmetic `main` draws) and the `PreRandom(3)` splat choice (`:3206-3215`), so in the original the
+`pre` sequence depends on whether, and when, the player pressed Finish. ja2-node runs as if Finish were pressed before the
+first slice: no battle sounds, no splat draw (the client picks the splat sound from `arDied.splat`), sound picks on `fx`.
+As far as `pre` is concerned this matches the native Finish run exactly (§6.4).
 
 ### 4.4 Canonical schedule and commands
 
 AR in ja2-node is a pure function of (AR state, `pre`/`main`/`fx` streams, the ordered list of player commands with their slice
-numbers). The client's Pause/Play/Fast/Finish only choose how fast the slice log is played back. Two sessions with the same
-seed and command log produce the same AR log (docs/04 §5.6).
+numbers). The client's Pause/Play/Fast/Finish only choose how fast the slice log is played back. Same seed and command log →
+same AR log (docs/04 §5.6).
 
 ---
 
@@ -1282,7 +1276,7 @@ PBI and AR read only externalized JSON already in the content model (`data/exter
 |---|---|
 | `weapons.json` | `ubImpact` for AR shots and spit, magazine size for reloads, gun class (`IC_GUN`) |
 | `items.json`, `magazines.json`, `ammo-types.json` | item classes `IC_GUN`, `IC_BLADE`, `IC_MEDKIT`, `IC_AMMO`; `AutoReload`; ammo types for armour |
-| `armours.json` | `TotalArmourProtection` in AR (docs/11 §4.3) |
+| `armours.json` | `TotalArmourProtection` in AR (docs/33 §1.3) |
 | `army-garrison-groups.json`, `army-compositions.json` | stationary counts; the **order** of the garrison list is the garrison id (`Strategic_AI.cc:408-413`) and the composition list order is the enum (`ROADBLOCK = 25`), which Q12 depends on |
 | `strategic-map-towns.json`, `strategic-map-sam-sites.json`, `strategic-mines.json`, `shipping-destinations.json` | invasion vs encounter code, control effects (town, SAM, mine, Bobby Ray's) |
 | `strategic-map-traversibility-ratings.json`, `strategic-map-movement-costs.json` | retreat sector choice and retreat time (docs/16) |
@@ -1293,7 +1287,7 @@ Code tables from Stracciatella sources: `MORALE_EVENTS` (the 36 `gbMoraleEvent` 
 `MINE_EXIT` row) in `src/sim/strategic/creatures/creatures.ts`; `bHealthStrRanges` (`Tactical/Soldier_Control.cc:160-169`) in
 `src/sim/tactical/health.ts`. Every other number of §1–§3 is a named constant in the module that uses it. Strings
 (`gpStrategicString`, `gzNonPersistantPBIText`, `gzLateLocalizedString`) come from the language files and are client-only, as
-are the panel media and layouts (`28`). AR needs no media, so it runs headless on the stub pack.
+are the panel media and layouts (`30` §5). AR needs no media, so it runs headless on the stub pack.
 
 ---
 
@@ -1303,15 +1297,15 @@ are the panel media and layouts (`28`). AR needs no media, so it runs headless o
 
 The PBI globals are `StrategicState.encounter` and `StrategicState.battle` (§1.1). `battle.autoresolve` is the AR session
 (`AutoresolveSession`: the `AutoresolveState` of §2.2, its sector, the replay streams of an oracle run or `null`, a tick
-counter, `ended`), and `state.flow` is `'autoresolve'` while it runs. The cosmetic stream is `state.cosmetic.autoresolve`,
-seeded once from the session seed. Saving is refused while a battle prompt is open or AR runs (`promptOpen` in
-`src/server/save-rules.ts`, `27`), as in the original.
+counter, `ended`); `state.flow` is `'autoresolve'` while it runs. The cosmetic stream `state.cosmetic.autoresolve` is seeded
+once from the session seed. As in the original, saving is refused while a battle prompt is open or AR runs (`promptOpen` in
+`src/server/save-rules.ts`, `27` §1.6).
 
 ### 6.2 Modules
 
 Functions keep the original names in camelCase. Every AR function takes an `AutoresolveEnv` (content, profiles, `ArRng
-{pre, main, fx}`, the world day and capture flag, decision hooks), so tests and the oracle inject scripted streams. AR
-modules are in `src/sim/strategic/forces/autoresolve/` (`…/`).
+{pre, main, fx}`, the world day and capture flag, decision hooks), so tests and the oracle inject scripted streams.
+`…/` = `src/sim/strategic/forces/autoresolve/`.
 
 | Module | Contents |
 |---|---|
@@ -1328,23 +1322,24 @@ modules are in `src/sim/strategic/forces/autoresolve/` (`…/`).
 | `src/sim/campaign/merc-fate.ts`, `morale.ts`, `sector-loot.ts` | §3.7; the `gbMoraleEvent` table and `RefreshSoldierMorale`; corpses and items into unloaded sectors, theft |
 | `src/sim/tactical/item-placement.ts`, `health.ts` | `sweetSpotForUnloadedDrop` (radius 5, then 15) for the sector diff's sweet-spot items and corpses; §1.4 condition, §2.21 health category |
 | `src/sim/strategic/map/control.ts` | §3.1 |
-| `src/server/battle-view.ts` | the prompt and AR projection of `04` §6, without ratings, timers, pending bullets or the enemies' exact life |
+| `src/server/battle-view.ts` | the prompt and AR projection of `29` §20, without ratings, timers, pending bullets or the enemies' exact life |
 
 ### 6.3 Wiring
 
-`BattleFlow` (owned by `CampaignSim`) settles after each step (`afterStep` → `settle`): it opens the prompts in order
+`BattleFlow` (owned by `CampaignSim`) settles after each step (`afterStep` → `settle`). It opens the prompts in order
 (simultaneous arrival, NPC of note, the non-persistent auto-start of the militia hand-off (`enterPreBattlePending`), the
-PBI hand-off of docs/16, the militia prompts of docs/18), auto-starts AR for the delayed start, the militia hand-off and
-militia-only creature attacks (`openCreatureAttack`, called by `creature-flow.ts`), answers the prompts (§1.5), and runs AR
-as a flow: `stepAutoresolve` runs one 1000 ms slice every `TICKS_PER_AUTORESOLVE_SLICE` (200) ticks, converts the AR events, opens the `surrender` prompt and, at the
-end, applies §2.16 and opens `autoresolveDone`; `bandage` runs §2.17, `done` runs §2.18 (corpses and drops into the sector
-diff, `EVENT_BANDAGE_BLEEDING_MERCS`, insertion `CENTER`, the warp without event processing, the post-AR messages) and
-returns to the `strategic` flow, with a loaded sector still loaded. Nothing steps while a prompt is open; during AR the
-real-time clock stands still (clock screen `other`). The tactical aftermath of §3.2–§3.4 arrives through the `SectorHooks`
-of §3.2: merc deaths, the militia hand-off, a lost battle (2–3 unconscious mercs captured, otherwise killed), victory and
-defeat, and the unload 10 s after a defeat (`#unloadAfterLostBattle`). `SectorFlow.unloadForAutoresolve` empties a loaded
-battle sector before its AR (§3.3). The agent API (prompts, `autoresolveRetreat`, `autoresolveBattle`, `showBattle`, the
-events and `observe.autoresolve`) is `04` §6; the PBI panel and the AR screen are `src/ui/screens/battle/` (`28`).
+PBI hand-off of docs/16, the militia prompts of docs/18); auto-starts AR for the delayed start, the militia hand-off and
+militia-only creature attacks (`openCreatureAttack`, called by `creature-flow.ts`); answers the prompts (§1.5); and runs AR
+as a flow: `stepAutoresolve` runs one 1000 ms slice every `TICKS_PER_AUTORESOLVE_SLICE` (200) ticks, converts the AR
+events, opens the `surrender` prompt and, at the end, applies §2.16 and opens `autoresolveDone`. `bandage` runs §2.17;
+`done` runs §2.18 (corpses and drops into the sector diff, `EVENT_BANDAGE_BLEEDING_MERCS`, insertion `CENTER`, the warp
+without event processing, the post-AR messages) and returns to the `strategic` flow, a loaded sector staying loaded.
+Nothing steps while a prompt is open; during AR the real-time clock stands still (clock screen `other`). The tactical
+aftermath of §3.2–§3.4 arrives through the `SectorHooks` of §3.2: merc deaths, the militia hand-off, a lost battle (2–3
+unconscious mercs captured, otherwise killed), victory and defeat, and the unload 10 s after a defeat
+(`#unloadAfterLostBattle`). `SectorFlow.unloadForAutoresolve` empties a loaded battle sector before its AR (§3.3). Agent API
+(prompts, `autoresolveRetreat`, `autoresolveBattle`, `showBattle`, the events, `observe.autoresolve`): `29` §20; the PBI
+panel and the AR screen: `src/ui/screens/battle/` (`30` §5).
 
 ### 6.4 Verification
 
@@ -1375,7 +1370,7 @@ level 3 "aftermath" (`autoresolve-aftermath.ts`: the close through the battle fl
 | Q9 | Only `HANDPOS` is reloaded; pocket guns fire until empty | `:2779-2796`, `Items.cc:1418-1463` |
 | Q10 | `BulletImpact` reads the ammo type from the attacking hand and the knife test from the last attacking weapon | `Weapons.cc:2751-2760` |
 | Q11 | Dead or unconscious cells can be ordered to retreat: never completes, but attacks on them get ×7/10 | `:1899-1907`, `:2034-2041`, `:2868-2872` |
-| Q12 | `GetNumberOfMobileEnemiesInSector` and `NumMobileEnemiesInSector` compare the garrison **id** with the composition `ROADBLOCK` (25): the garrison at index 25 of `army-garrison-groups.json` (H1, West Grumm) is counted as stationary and mobile by `GetNumberOfEnemiesInSector` (AR counts, the PBI cheat's loyalty credit, `Tactical/Enemy_Soldier_Save.cc:175`) and by the PBI's ambush test. Rarely visible: a garrison attack cannot be autoresolved, a held H1 has no stationary enemies, the PBI shows `NumEnemiesInSector`; the main reach is the enemy reload of a visited H1 (docs/16/17) | `Queen_Command.cc:170`, `:197` |
+| Q12 | `GetNumberOfMobileEnemiesInSector` and `NumMobileEnemiesInSector` compare the garrison **id** with the composition `ROADBLOCK` (25): the garrison at index 25 of `army-garrison-groups.json` (H1, West Grumm) counts as stationary and mobile in `GetNumberOfEnemiesInSector` (AR counts, the PBI cheat's loyalty credit, `Tactical/Enemy_Soldier_Save.cc:175`) and in the PBI's ambush test. Rarely visible: a garrison attack cannot be autoresolved, a held H1 has no stationary enemies, the PBI shows `NumEnemiesInSector`; the main reach is the enemy reload of a visited H1 (docs/16/17) | `Queen_Command.cc:170`, `:197` |
 | Q13 | `MORALE_MERC_CAPTURED` applies twice per merc captured in AR (`RenderAutoResolve` and `EnemyCapturesPlayerSoldier`) | `:1302-1313`, `Queen_Command.cc:1217` |
 | Q14 | An AR victory calls `SetThisSectorAsPlayerControlled` while the dead enemies are still counted: no effect unless the excess-enemy elimination runs; an enemy-controlled sector stays so until a later non-combat arrival | `:1296`, `Player_Command.cc:82-85` |
 | Q15 | After a victory, mercs who retreated one by one stay in the sector; only a `RETREAT` ending moves the involved groups | `:3302-3311`, `:1693-1708` |
@@ -1398,7 +1393,7 @@ The oracle confirms Q12, Q14, Q16 and Q22 (§6.4).
 
 ### 7.2 Deviations
 
-Full entries in `deviations.md`; the ids are cited by the sections above and by the code.
+Full entries in `deviations.md`; the sections above and the code cite the ids.
 
 | # | ja2-node | `deviations.md` entry |
 |---|---|---|

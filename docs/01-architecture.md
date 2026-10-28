@@ -154,10 +154,10 @@ function advance(sim: Steppable, until: StopCondition, budget?: number): StopRep
   `event`, `ticks`, `budget`, `worldTime`, `refused`, `ended`, `timeout`. `AdvanceRun` is its resumable form, which the
   server slices without changing what a tick does (`04` §4.2, §5.9).
 - **Commands** are intents (`move`, `attack`, `door`, `endTurn`, `route`, `aimHire`, `trade`, `talk`, `answer`, …;
-  catalog in `04` §6 and the tool descriptions of `src/server/mcp.ts`).
+  catalog in `29` and the tool descriptions of `src/server/mcp.ts`).
 - **Events** are facts for presentation and agents; the simulation does not need them. The session records view frames
   every 10 ticks (changed soldiers plus the events and message entries of their ticks), from which a client rebuilds the
-  picture at any speed or skips it (`04` §6.9).
+  picture at any speed or skips it (`29` §9).
 - **Queries** (`estimateAttack`, the cursor hints, `quoteTrade`, `inventory`, …) run the rule functions the simulation
   uses, over the projection, and change nothing: the hit chance on screen is computed by the code that rolls it.
 
@@ -297,7 +297,7 @@ The skeleton of tactics; its ordering is behaviour (details in the specs).
 4. **Throw**: rolled at the order (miss tile, force and angle fixed then); AP and launch at 460/461; an NPC who sights
    something first aborts it with no AP spent. Launchers roll at their 430 frame. **Melee**: at the strike frame,
    against whoever stands on the tile then; the hit lands 20 ms later.
-5. **Barrier** (D5; `10` §5, `11` §8). While the busy count is above 0: no interrupts, noise deferred, no new AI
+5. **Barrier** (D5; `10` §5, `33` §3). While the busy count is above 0: no interrupts, noise deferred, no new AI
    situations. At 0 (`Overhead.cc:5510-5787`): suppression → attack consequences (unseen attacker noticed, combat
    entry, NPC hostility) → end-of-attack sight check → deferred noises with their interrupts → end-of-battle check.
 6. **Two-stage death**: life 0 at impact; corpse, items, kill credit and visibility at opcode 440, at the end of the
@@ -387,13 +387,13 @@ sim/items, snapshot     the object model; the snapshot codec and its migrations
 **Where the original waits for the player**, the simulation opens a decision prompt (id, kind, options): an interrupt in
 the player's favour, a dialogue choice, an NPC's question, the pre-battle choice, a contract renewal, a story encounter.
 Every `advance` stops on it (`decision`) and time stands still until the `answer` command; informational boxes are
-events. Commands, prompts and refusals: `04` §6.
+events. Commands, prompts and refusals: `29`.
 
 **Where the original waits for speech**, the simulation does not depend on audio: a line lasts the longer of its
 sample's length (speech on) and 60 ms per character (speech off: `FindDelayForString`, `TEXT_DELAY_MODIFIER`), plus the
 final 300 ms with the mouth closed (`SetupFinalTalkingDelay`; `src/sim/narrative/dialogue-queue.ts`). Sample lengths come
 from the rule pack's voice lengths, not from audio; the viewer that finished the line first ends it with `skipLine`
-(`04` §6.14). The dialogue queue covers the places where the original waits for an empty quote queue (NPC hostility,
+(`29` §14). The dialogue queue covers the places where the original waits for an empty quote queue (NPC hostility,
 some named NPCs' AI, notifications; `OppList.cc:559`, `AIMain.cc:281`, `Overhead.cc:840, 6205`).
 
 The simulation contains no `await` and no timer and never waits for a client. Logic the original keeps in screens
@@ -514,13 +514,13 @@ Decoders (`src/content/formats/`) work on byte arrays without DOM or Node and ru
 
 The server imports the logic content and serves media through `/vfs`; STI decodes in the browser, because WebGL needs
 the colour indices. The data version (English or a localized release) is detected like Stracciatella's guesser
-(`src/content/text/data-version.ts`; `JA2_DATA_VERSION` overrides) and is separate from the display language (`27` §5).
+(`src/content/text/data-version.ts`; `JA2_DATA_VERSION` overrides) and is separate from the display language (`31` §3).
 
 ### 4.4 Stubs
 
 The stub pack is ja2-node's own content that runs the whole game without the original data; CI runs only on it, and
 every feature must also work on it; its licence is in §0. `pnpm stubs` (`stubs/build.ts`) builds it deterministically
-into `dist/stubs` (contents and gaps: `27` §6):
+into `dist/stubs` (contents and gaps: `32` §1):
 - **Logic**, written by hand without numbers or data from the original's binaries: profiles (`stubs/profiles.json`),
   invented animation scripts for every state, a stub tileset with its structures, locks, NPC records and text
   (`stubs/npc/`, `stubs/text/`).
@@ -557,9 +557,9 @@ help. They emit a draw list that `src/render/ui-draw` draws into a logical frame
 
 ### 5.3 Sound and video
 
-Web Audio directly (`src/audio`, `27` §3): the original's 16 voices, linear panning by screen X, the sample rate of the
+Web Audio directly (`src/audio`, `31` §1): the original's 16 voices, linear panning by screen X, the sample rate of the
 device context, unlocked by the first user gesture. The client derives every sound from events, view frames and the
-animation sound codes; the server computes the music mode, the browser picks and fades the tracks. Video (`27` §4): the
+animation sound codes; the server computes the music mode, the browser picks and fades the tracks. Video (`31` §2): the
 Smacker intro and ending videos through a decoder written from the format description, a WebGL player paced by the
 audio clock; cutscenes can be skipped.
 
@@ -584,7 +584,7 @@ commands and names, never paths.
 The MCP adapter (`src/server/mcp.ts`) speaks the same protocol through nine tools: `status`, `observe`, `act`,
 `advance`, `newSession`, `save`, `load`, `listSaves`, `deleteSave`. Queries and prompt answers are `act` commands;
 `observe` returns the JSON player view with labels in the session's language; events arrive with `advance`. Claude Code
-connects with `claude mcp add` to the local server. The agent API: `04` §6.
+connects with `claude mcp add` to the local server. The agent API: `29`.
 
 ### 6.3 Client
 
@@ -627,7 +627,7 @@ runs both); touch input is not a goal.
 | 4. Saves and replay | Snapshot round trips and migrations; each save carries its input log, and `pnpm cli replay <name>` must reproduce it byte for byte | CI, locally |
 | 5. End to end | Playwright on the stubs (`tests/e2e`, screenshot goldens on stubs only), on the original data (`pnpm e2e:data`), pixel-exact in Chromium and Firefox (`pnpm e2e:browsers`); the campaign bot (`pnpm cli campaign`) plays a stub campaign through MCP alone | CI, locally |
 | 6. **Oracle** | Comparison with native Stracciatella on the original data | Locally |
-| 7. Performance | `pnpm cli bench` (enemy turn, real time, strategic, autoresolve, server, campaign, save); a smoke run in CI (`27` §7) | CI, locally |
+| 7. Performance | `pnpm cli bench` (enemy turn, real time, strategic, autoresolve, server, campaign, save); a smoke run in CI (`32` §2) | CI, locally |
 
 **The oracle** (`tools/oracle/README.md`): `build.sh` builds a patched Stracciatella outside the repository; with
 `JA2_ORACLE=<script>` it starts headless, loads a map or a save, runs scripted probes and prints JSONL; the compare
@@ -685,14 +685,14 @@ Files are `docs/NN-<name>.md`.
 | Doc | Scope |
 |---|---|
 | `01` architecture | This document: decisions, layers, the simulation core's cross-cutting rules, content model, verification, repository, licensing |
-| `04` time-and-server | Time model and drivers, playback, the server, sessions and hosts, the protocol, the player-view projection, the rule pack and asset serving; the whole agent API (§6) |
+| `04` time-and-server | Time model and drivers, playback, the server, sessions and hosts, the protocol, the player-view projection, the rule pack and asset serving |
 | `05` render-pipeline | How the original draws the tactical map: order, z, shading |
 | `06` soldiers-animation | Animation surfaces, frames, palettes, frame timing, profiles, soldier creation |
 | `07` structures-pathing-movement | Structures, movement costs, pathfinding, the walking protocol |
 | `08` sight-and-noise | Line of sight, vision range and opplists, noise and hearing, light for vision, fog of war |
 | `09` ai-green-realtime | Green-alert AI and the real-time AI cadence |
 | `10` turn-based | Entering combat, team turns, AP, interrupts, the busy count, the AI turn, leaving combat |
-| `11` attacks-and-damage | Gun, melee and thrown attacks, bullets, damage, armour, hit reactions, death, suppression, morale, experience |
+| `11` attacks | Gun and melee attacks: the order, AP costs, chance to hit, bullets and what they pass through, the RNG order of a shot |
 | `12` items-and-explosions | Items and inventory, reloading, world items, enemy equipment, explosions, smoke and gas |
 | `13` combat-ai | Yellow, red and black decisions, attack choice, cover, creatures and bloodcats |
 | `14` savegames | The native savegame format and its import |
@@ -706,10 +706,17 @@ Files are `docs/NN-<name>.md`.
 | `22` contracts-and-relationships | Contracts, renewals, departures, relationships, reputation |
 | `23` merchants | Dealers' stock, prices, trading, repairs |
 | `24` npcs-and-dialogue | NPC records, conversations, the dialogue queue, civilian quotes, recruiting |
-| `25` quests-facts-and-npc-actions | Facts, quests, NPC actions, presence and schedules, civilian groups, boxing, keys, the robot, Skyrider |
+| `25` quests-and-facts | Facts, quests, boxing, escorts and the robot, Skyrider, quest-specific campaign rules |
 | `26` meanwhiles-and-ending | Meanwhile scenes, prisoners, Meduna, the end of the campaign |
-| `27` platform | Saves, options, sound and music, video, localization, stubs, performance |
-| `28` player-ui | The player UI: `ui` layer, widgets, layouts, fonts, the original screens, client rendering of UI, cursor hints |
+| `27` saves-and-options | Saves (snapshots, files, the input log), game options and client settings |
+| `28` player-ui | The player UI's architecture: the `ui` layer, the client's copy of the game, widgets, layouts, fonts, cursors, cursor hints, the stub skin, UI performance |
+| `29` agent-api | The agent API by topic: commands, refusals, decisions, the player view, events, queries |
+| `30` ui-screens | The original screens in the client: front end, tactical panels and input, map screen, battle entry, laptop, story |
+| `31` sound-video-and-localization | Sound and music, speech, video, data versions and display languages |
+| `32` stubs-and-performance | The stub pack, benchmarks and profiling, test runs and gates, the launcher, data tables |
+| `33` hits-and-damage | A bullet hitting a soldier, armour, damage, hit reactions, death, the end of an attack, suppression, morale, experience |
+| `34` throwing-and-physics | Throwing, launchers, item physics, fuses |
+| `35` npc-actions-and-schedules | The NPC action catalog, strategic NPC presence, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
 | `releases.md` | Release notes |
 | `tools/oracle/README.md` | The native oracle: build, probes, comparers |
