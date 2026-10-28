@@ -82,8 +82,8 @@ class DirRuleBlobs implements RuleBlobSink, RuleBlobSource {
     if (!existsSync(path)) await writeFile(path, bytes);
   }
 
-  get(sha256: string): Promise<Uint8Array> {
-    return readFile(join(this.#dir, sha256));
+  async get(sha256: string): Promise<Uint8Array> {
+    return new Uint8Array(await readFile(join(this.#dir, sha256)));
   }
 }
 

@@ -6,6 +6,7 @@ import { buildStubs } from '../../stubs/build.ts';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { isSpeechFile, SpeechLengths, withSpeechLengths } from '../content/audio/speech-lengths.ts';
+import { parseMap } from '../content/formats/map.ts';
 import { readWavInfo, wavDurationMs } from '../content/formats/wav.ts';
 import { npcDialogueFile, textKey } from '../content/narrative/dialogue-text.ts';
 import { isMapFile } from '../content/rules/families.ts';
@@ -32,6 +33,7 @@ const RUN_TICKS = 400;
 const STEP_SOUTH = 320;
 const OLD_PACKS = 6;
 const KEPT_PACKS = 4;
+const MIN_ORIGINAL_MAP_ITEMS = 3000;
 
 function decodingOf(vfs: Vfs, originalData: boolean) {
   return dataDecoding(detectDataVersion(vfs, originalData, {}).version);
@@ -153,7 +155,7 @@ describe('the rule pack on the stub data', () => {
   );
 
   it(
-    'is cached on disk, reused while the data stays, rebuilt when it changes, and old packs are pruned',
+    'is cached on disk, reads back plain byte arrays, is reused while the data stays, rebuilt when it changes, and old packs are pruned',
     async () => {
       const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
       const ownStubs = await mkdtemp(join(tmpdir(), 'ja2-rules-stubs-'));
@@ -176,6 +178,8 @@ describe('the rule pack on the stub data', () => {
         expect(sameBytes(await again.pack.read('stubs/world/maps/village.dat'), await pack.read('stubs/world/maps/village.dat'))).toBe(
           true,
         );
+        for (const read of [built.pack.read, again.pack.read])
+          expect(Object.getPrototypeOf(await read('stubs/world/maps/village.dat'))).toBe(Uint8Array.prototype);
         const npc = kit.vfs.list().find((f) => f.path.startsWith('stubs/npcdata/') && f.path.endsWith('.npc'));
         if (!npc) throw new Error('no stub NPC records');
         await buildStubs(ownStubs);
@@ -223,6 +227,26 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => 
     'runs a campaign and a sandbox while every graphic read throws',
     async () => {
       await expectRunsWithoutGraphics(data.vfs, pack, true);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'reads the item records of every map from a pack cached on disk as from the data',
+    async () => {
+      const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
+      try {
+        const cached = (await openRulePack({ vfs: data.vfs, source: 'original', cacheDir })).pack;
+        let items = 0;
+        for (const f of data.vfs.list().filter((e) => isMapFile(e.path))) {
+          const fromData = parseMap(await data.vfs.read(f.path)).items;
+          expect(parseMap((await cached.read(f.path)) ?? new Uint8Array()).items, f.path).toEqual(fromData);
+          items += fromData.length;
+        }
+        expect(items).toBeGreaterThan(MIN_ORIGINAL_MAP_ITEMS);
+      } finally {
+        await rm(cacheDir, { recursive: true, force: true });
+      }
     },
     SLOW_MS,
   );

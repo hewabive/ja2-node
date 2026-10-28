@@ -184,7 +184,7 @@ function readLayer(r: BinaryReader, counts: Uint8Array, wideSubIndex: boolean): 
 
 function readItem(r: BinaryReader): MapItem {
   const raw = r.bytesView(WORLD_ITEM_BYTES).slice();
-  const v = new DataView(raw.buffer);
+  const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   return {
     gridNo: v.getInt16(2, true),
     level: v.getUint8(4),

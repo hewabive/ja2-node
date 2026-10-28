@@ -1,7 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { FormatError } from '../binary/errors.ts';
 import { WORLD_MAX } from '../world/grid.ts';
-import { emptyTileLayer, LAYER_NAMES, type MapDef, MapFlags, parseMap, tileLayerFromLists, tilesAt, writeMap } from './map.ts';
+import {
+  emptyTileLayer,
+  LAYER_NAMES,
+  type MapDef,
+  MapFlags,
+  type MapItem,
+  parseMap,
+  tileLayerFromLists,
+  tilesAt,
+  writeMap,
+} from './map.ts';
+
+const WORLD_ITEM_BYTES = 52;
+
+function itemRecord(fields: Omit<MapItem, 'raw'>): MapItem {
+  const raw = new Uint8Array(WORLD_ITEM_BYTES);
+  const v = new DataView(raw.buffer);
+  v.setInt16(2, fields.gridNo, true);
+  v.setUint8(4, fields.level);
+  v.setUint16(8, fields.item, true);
+  v.setUint16(44, fields.flags, true);
+  v.setInt8(46, fields.renderZHeightAboveLevel);
+  v.setInt8(47, fields.visible);
+  v.setUint8(48, fields.nonExistChance);
+  return { ...fields, raw };
+}
+
+const plainItems = (items: readonly MapItem[]) => items.map((i) => ({ ...i, raw: [...i.raw] }));
 
 function sampleMap(minorVersion = 25): Omit<MapDef, 'trailingBytes'> {
   const lists = Array.from({ length: WORLD_MAX }, () => [] as { type: number; subIndex: number }[]);
@@ -20,6 +47,7 @@ function sampleMap(minorVersion = 25): Omit<MapDef, 'trailingBytes'> {
     majorVersion: 5,
     minorVersion,
     flags:
+      MapFlags.WORLD_ITEMS |
       MapFlags.WORLD_LIGHTS |
       MapFlags.EXIT_GRIDS |
       MapFlags.DOOR_TABLE |
@@ -31,7 +59,10 @@ function sampleMap(minorVersion = 25): Omit<MapDef, 'trailingBytes'> {
     worldFlags: new Uint8Array(WORLD_MAX),
     layers: { ...layers, land: tileLayerFromLists(lists), objects: tileLayerFromLists(objects) },
     rooms,
-    items: [],
+    items: [
+      itemRecord({ gridNo: 12345, level: 0, item: 7, flags: 0x81, renderZHeightAboveLevel: 25, visible: -1, nonExistChance: 30 }),
+      itemRecord({ gridNo: 200, level: 1, item: 300, flags: 0, renderZHeightAboveLevel: 0, visible: 1, nonExistChance: 0 }),
+    ],
     ambient: { basement: true, caves: false, lightLevel: 12 },
     lights: { colors: [[255, 200, 100]], sprites: [{ x: 10, y: 20, flags: 0x100, template: 'L-R04.LHT' }] },
     info: {
@@ -67,6 +98,11 @@ describe('map .dat', () => {
       { type: 5, subIndex: 1 },
     ]);
     expect(tilesAt(parsed.layers.objects, 7)).toEqual([{ type: 40, subIndex: 300 }]);
+  });
+
+  it('reads item records from a Node Buffer, whose slice shares the whole file', () => {
+    const map = sampleMap();
+    expect(plainItems(parseMap(Buffer.from(writeMap(map))).items)).toEqual(plainItems(map.items));
   });
 
   it('uses one-byte object sub-indices before minor version 15 and ignores trailing bytes', () => {
