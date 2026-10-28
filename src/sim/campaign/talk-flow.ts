@@ -25,6 +25,7 @@ import {
   closestPC,
   converse,
   deleteTalkingMenu,
+  endTalkingFaceVoice,
   handleTalkingMenuEscape,
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
@@ -213,6 +214,7 @@ export interface ConversationView {
   readonly initiatedBy: 'player' | 'npc';
   readonly menu: readonly string[];
   readonly lastQuotes: readonly ConversationLineView[];
+  readonly busy: boolean;
 }
 
 type Json = Readonly<Record<string, unknown>>;
@@ -865,7 +867,8 @@ export class TalkFlow {
     const face = this.talk.face;
     const differs = (wanted: unknown, actual: number) => isInt(wanted) && wanted !== actual;
     if (!face || differs(cmd.profile, face.speaker) || differs(cmd.tick, face.saidAt)) return { ok: true, data: { skipped: false } };
-    return { ok: true, data: { skipped: shutUpTalkingFace(this.host) } };
+    const skipped = cmd.voiceEnded === true ? endTalkingFaceVoice(this.host) : shutUpTalkingFace(this.host);
+    return { ok: true, data: { skipped } };
   }
 
   get skipsSpeech(): boolean {
@@ -1065,6 +1068,7 @@ export class TalkFlow {
       initiatedBy: this.talk.initiatedBy,
       menu: this.#menu(),
       lastQuotes: this.talk.lines.map((l) => this.#lineView(l)),
+      busy: !dialogueIdle(this.talk),
     };
   }
 

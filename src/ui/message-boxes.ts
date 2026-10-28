@@ -16,6 +16,7 @@ export interface MessageBoxRequest {
   readonly style?: number;
   readonly centering?: MessageBoxRect;
   readonly id?: string;
+  readonly closeWhen?: () => boolean;
 }
 
 export interface MessageBoxes {
@@ -58,6 +59,7 @@ export class CanvasMessageBoxes implements MessageBoxes {
           labels: labels(),
           ...(request.centering ? { centeringRect: request.centering } : {}),
           ...(request.id ? { id: request.id } : {}),
+          ...(request.closeWhen ? { closeWhen: request.closeWhen } : {}),
           onClose: resolve,
         }),
       );

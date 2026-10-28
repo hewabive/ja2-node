@@ -826,7 +826,7 @@ the mouth frame is `Random(6)` every 120 ms (`Tactical/Faces.cc:1057-1067`).
 
 | Original coupling | ja2-node (as of M7) |
 |---|---|
-| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | 60 ms per character always (`deviations.md` "Speech") |
+| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | 60 ms per character plus 300 ms always; a voice that ends earlier ends it through `skipLine` (`deviations.md` "Speech") |
 | A quote waits for the speaker's battle sound (`Tactical/Dialogue_Control.cc:632-637`); critical battle sounds cut speech (`Tactical/Soldier_Control.cc:5973-5980`) | never waits, never cut ("Speech") |
 | The defeat track's end unloads the sector (`Utils/Music_Control.cc:188-193`), in parallel with a 10 s timer (`Tactical/Overhead.cc:4378-4381`) | the 10 s timer only (`src/sim/campaign/battle-flow.ts:319-323`) |
 | Skyrider's destruction runs in a sound's end callback (`Strategic/Map_Screen_Helicopter.cc:1041-1044`) | at once ("Helicopter destruction") |

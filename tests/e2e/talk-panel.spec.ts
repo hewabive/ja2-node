@@ -85,8 +85,8 @@ async function lastCommand(page: Page): Promise<{ type: string; ok: boolean; rea
   return page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1) ?? null);
 }
 
-async function playedBack(page: Page): Promise<void> {
-  await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0, null, { timeout: LINES_TIMEOUT_MS });
+async function shownInSquad(page: Page, soldier: number): Promise<void> {
+  await page.waitForFunction((id) => window.__ja2Ui.tactical?.slots.includes(id) === true, soldier, { timeout: LINES_TIMEOUT_MS });
 }
 
 async function talkOpenAndQuiet(page: Page): Promise<void> {
@@ -162,8 +162,9 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     const agent = await mcp();
     const recruited = async () => ((await agent.call('observe', { session })) as View).soldiers.find((s) => s.profile === STUB_RPC);
     await expect.poll(recruited, { timeout: LINES_TIMEOUT_MS }).toMatchObject({ team: 0, kind: 'rpc' });
+    const hired = (await recruited())?.id ?? -1;
     await agent.close();
-    await playedBack(page);
+    await shownInSquad(page, hired);
     if (await page.evaluate(() => window.__ja2Ui.tactical?.talk.open)) {
       await talkOpenAndQuiet(page);
       await clickWidget(page, 'talkDone');

@@ -372,8 +372,9 @@ Autoresolve reuses the damage functions from `rules`, just as the original reuse
 - In headless tests, the scenario driver answers.
 
 **Where the original waits for speech,** the simulation doesn't depend on audio:
-- A line's duration in the simulation is always 60 ms per character. That's how the original computes it
-  when speech is off (`FindDelayForString`, `TEXT_DELAY_MODIFIER`).
+- A line's duration in the simulation is always 60 ms per character plus the final 300 ms with the mouth closed.
+  That's how the original computes it when speech is off (`FindDelayForString`, `TEXT_DELAY_MODIFIER`,
+  `SetupFinalTalkingDelay`); a voice that ends earlier ends it through the client's `skipLine` (`04` §6.37).
 - "Speech channel busy until tick T" is a state field. It is checked at the places where the original waits for
   an empty quote queue (`04`, §3).
 - The client plays the sound however long it lasts.
@@ -674,7 +675,7 @@ and in CI only on them.
 **Deliberate deviations** from the original (the list is kept in `docs/deviations.md`):
 - dependencies on FPS and CPU speed are replaced with deterministic constants: bullet speed
   in ticks per tile, burst tempo, the real-time AI slice;
-- a line's duration in the simulation is always 60 ms per character, even if the sound is longer or shorter;
+- a line's duration in the simulation is always 60 ms per character plus 300 ms, even if the sound is longer;
 - the 15 s and 25 s watchdog timers are not carried over: a hang is a bug;
 - in real time, orders can be given while paused (in the original, pause blocks input);
 - cosmetics are moved to a separate randomness stream;

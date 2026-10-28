@@ -71,6 +71,7 @@ export interface SpeechSettings {
 }
 
 export type LinePhase = 'talking' | 'tail' | 'keyWait';
+export type LineStop = 'cut' | 'voiceEnded';
 
 export interface ActiveLine {
   readonly line: SpeechLine;
@@ -137,7 +138,7 @@ export class SpeechPresenter {
   #now = 0;
   readonly #started: ((line: SpeechLine) => void)[] = [];
   readonly #ended: ((line: SpeechLine) => void)[] = [];
-  readonly #stopped: ((line: SpeechLine) => void)[] = [];
+  readonly #stopped: ((line: SpeechLine, how: LineStop) => void)[] = [];
 
   constructor(options: SpeechPresenterOptions) {
     this.#o = options;
@@ -151,7 +152,7 @@ export class SpeechPresenter {
     this.#ended.push(listener);
   }
 
-  onLineStopped(listener: (line: SpeechLine) => void): void {
+  onLineStopped(listener: (line: SpeechLine, how: LineStop) => void): void {
     this.#stopped.push(listener);
   }
 
@@ -245,6 +246,18 @@ export class SpeechPresenter {
     this.#queue.length = 0;
   }
 
+  cut(profile: number, saidAt: number, tail: boolean): void {
+    const said = (line: SpeechLine) => line.profile === profile && line.saidAt === saidAt;
+    const r = this.#running;
+    if (r && said(r.line)) {
+      if (!tail) this.#finish(r);
+      else if (r.phase === 'talking' && !this.#validSpeech(r)) this.#finalDelay(r, this.#now);
+      return;
+    }
+    const queued = tail ? -1 : this.#queue.findIndex(said);
+    if (queued >= 0) this.#queue.splice(queued, 1);
+  }
+
   cutSpeaker(soldier: number): void {
     const r = this.#running;
     if (r && r.line.soldier === soldier && r.voice?.active) this.#finish(r);
@@ -275,7 +288,7 @@ export class SpeechPresenter {
       if (r.voice?.failed && r.talkingUntil === null) r.talkingUntil = r.startedAt + textDelay(r.line.chars);
       const done = r.talkingUntil !== null ? now >= r.talkingUntil : !(r.voice?.active ?? false);
       if (!done) return false;
-      if (r.talkingUntil === null) this.#stop(r.line);
+      if (r.talkingUntil === null) this.#stop(r.line, 'voiceEnded');
       this.#finalDelay(r, r.talkingUntil !== null ? Math.min(now, r.talkingUntil) : now);
       return true;
     }
@@ -296,12 +309,12 @@ export class SpeechPresenter {
   }
 
   #cutShort(r: Running): void {
-    if (r.phase === 'talking') this.#stop(r.line);
+    if (r.phase === 'talking') this.#stop(r.line, 'cut');
     this.#finish(r);
   }
 
-  #stop(line: SpeechLine): void {
-    for (const listener of this.#stopped) listener(line);
+  #stop(line: SpeechLine, how: LineStop): void {
+    for (const listener of this.#stopped) listener(line, how);
   }
 
   #finish(r: Running): void {
@@ -338,7 +351,11 @@ export function isQuoteEvent(event: { readonly type: string }): event is QuoteEv
 }
 
 export function isQueuedQuoteEvent(event: { readonly type: string }): boolean {
-  return isQuoteEvent(event) && event.type !== 'civQuote';
+  return isQuoteEvent(event) && event.type !== 'civQuote' && !skippedQuote(event);
+}
+
+function skippedQuote(event: QuoteEvent): boolean {
+  return 'skipped' in event && event.skipped === true;
 }
 
 interface QuoteFields {
@@ -385,6 +402,7 @@ function request(
 }
 
 export function speechLineOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineRequest | null {
+  if (skippedQuote(event)) return null;
   const line = speechRequestOf(event, routing);
   return line && { ...line, saidAt: event.tick };
 }

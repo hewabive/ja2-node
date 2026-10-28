@@ -12,6 +12,7 @@ export interface MercQuoteEvent extends ContractEventBase {
   readonly textKey?: { readonly file: string; readonly row: number; readonly width: number };
   readonly chars?: number;
   readonly sector?: string;
+  readonly skipped?: boolean;
 }
 
 export interface ContractsExpiringSoonEvent extends ContractEventBase {

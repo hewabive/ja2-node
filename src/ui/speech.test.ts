@@ -3,6 +3,7 @@ import {
   civQuoteLifetime,
   civQuoteOf,
   FINAL_TALKING_DELAY_MS,
+  isQueuedQuoteEvent,
   type QuoteEvent,
   type SpeechLineRequest,
   SpeechPresenter,
@@ -188,8 +189,8 @@ describe('SpeechPresenter', () => {
 
   it('reports a line stopped by a skip or a flush while talking, or by its voice ending, but not by its text timer or in its tail', () => {
     const { p, voices } = presenter();
-    const stopped: number[] = [];
-    p.onLineStopped((l) => stopped.push(l.profile));
+    const stopped: string[] = [];
+    p.onLineStopped((l, how) => stopped.push(`${l.profile} ${how}`));
     p.update(0);
     p.enqueue(line({ profile: 1 }));
     p.skip(600, false);
@@ -200,14 +201,58 @@ describe('SpeechPresenter', () => {
     p.update(700);
     expect(p.current?.phase).toBe('tail');
     p.skip(800, true);
-    expect(stopped).toEqual([1, 2, 3]);
+    expect(stopped).toEqual(['1 cut', '2 cut', '3 voiceEnded']);
     const silent = presenter({ speech: false });
-    silent.p.onLineStopped((l) => stopped.push(l.profile));
+    silent.p.onLineStopped((l, how) => stopped.push(`${l.profile} ${how}`));
     silent.p.update(0);
     silent.p.enqueue(line({ profile: 4, chars: 1 }));
     silent.p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
     expect(silent.p.busy).toBe(false);
-    expect(stopped).toEqual([1, 2, 3]);
+    expect(stopped).toEqual(['1 cut', '2 cut', '3 voiceEnded']);
+  });
+
+  it('ends a line the server cut short without reporting it back, drops it from the queue, and closes the mouth of a text-timed one', () => {
+    const { p, voices } = presenter();
+    const stopped: number[] = [];
+    p.onLineStopped((l) => stopped.push(l.profile));
+    p.update(0);
+    p.enqueue(line({ profile: 1, saidAt: 10 }));
+    p.enqueue(line({ profile: 2, saidAt: 20 }));
+    p.enqueue(line({ profile: 3, saidAt: 30 }));
+    p.cut(3, 30, false);
+    p.cut(1, 11, false);
+    expect(p.current?.line.profile).toBe(1);
+    p.cut(1, 10, true);
+    expect(p.current?.phase).toBe('talking');
+    p.cut(1, 10, false);
+    expect(voices[0]?.stopped).toBe(true);
+    p.update(1);
+    expect(p.current?.line.profile).toBe(2);
+    expect(p.queued).toHaveLength(0);
+    expect(stopped).toEqual([]);
+    const silent = presenter({ speech: false });
+    silent.p.update(100);
+    silent.p.enqueue(line({ profile: 4, saidAt: 40 }));
+    silent.p.cut(4, 40, true);
+    expect(silent.p.current?.phase).toBe('tail');
+    silent.p.update(100 + FINAL_TALKING_DELAY_MS);
+    expect(silent.p.busy).toBe(false);
+  });
+
+  it('shows no line the server skipped as it was said, and does not count it as one still to come', () => {
+    const event = {
+      type: 'npcQuote',
+      tick: 5,
+      profile: 94,
+      soldier: 7,
+      quote: 1,
+      textKey: { file: 'npcdata/094.edt', row: 1, width: 240 },
+      chars: 11,
+      skipped: true,
+    } as QuoteEvent;
+    expect(speechLineOf(event, routing)).toBeNull();
+    expect(isQueuedQuoteEvent(event)).toBe(false);
+    expect(isQueuedQuoteEvent({ ...event, skipped: false } as QuoteEvent)).toBe(true);
   });
 
   it('keeps a civilian quote for its lifetime, replaces it, and closes it on a click after 300 ms', () => {

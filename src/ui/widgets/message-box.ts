@@ -92,6 +92,7 @@ export interface MessageBoxOptions {
   readonly centeringRect?: MessageBoxRect;
   readonly onClose?: (result: number) => void;
   readonly id?: string;
+  readonly closeWhen?: () => boolean;
 }
 
 export function messageBoxLabels(text: UiTextService): MessageBoxLabels {
@@ -299,7 +300,8 @@ export class MessageBox implements Modal {
   }
 
   update(): void {
-    if (this.#handled === MessageBoxReturn.NONE || this.#closed) return;
+    if (this.#closed) return;
+    if (this.#handled === MessageBoxReturn.NONE && !this.#options.closeWhen?.()) return;
     this.#closed = true;
     this.#services.host.closeModal(this);
     this.#options.onClose?.(this.#handled);

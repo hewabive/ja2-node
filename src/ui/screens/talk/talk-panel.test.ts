@@ -154,10 +154,51 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'direct' });
     f.client.queued = [];
     f.frames(frames.slice(second));
+    f.client.refresh();
     expect(dialogue.presenter.current?.line.surface).toBe('panel');
     playOut(f);
     expect(dialogue.talk.busy).toBe(false);
     expect(f.widget('talkDone').enabled).toBe(true);
+  });
+
+  it('stays greyed out after a cut line until the next one is said, as the original does while its queue is not empty', async () => {
+    const { f, session } = await talkToTheStubNpc(5);
+    const dialogue = f.screen.dialogue;
+    playOut(f);
+    await f.click('talkOption2');
+    session.advance({ idle: true });
+    const frames = f.client.takeFrames();
+    const second = frames.findLastIndex((frame) => frame.events?.some((e) => e.type === 'npcQuote'));
+    f.frames(frames.slice(0, second));
+    expect(dialogue.presenter.current?.line.surface).toBe('panel');
+    f.key('Backspace');
+    expect(dialogue.presenter.busy).toBe(false);
+    expect(f.client.queuedFrames).toHaveLength(0);
+    expect(f.client.view.conversation?.busy).toBe(true);
+    expect(dialogue.talk.busy).toBe(true);
+    expect(f.widget('talkOption1').enabled).toBe(false);
+    expect(f.draw().items.some((i) => i.kind === 'shadow')).toBe(true);
+    f.frames(frames.slice(second));
+    f.client.refresh();
+    playOut(f);
+    expect(dialogue.talk.busy).toBe(false);
+  });
+
+  it('stops a line another viewer cut short and plays the next one when the server says it', async () => {
+    const { f, session } = await talkToTheStubNpc(5);
+    const presenter = f.screen.dialogue.presenter;
+    playOut(f);
+    await f.click('talkOption2');
+    f.advance(1);
+    f.deliver();
+    const cut = presenter.current?.line;
+    expect(cut?.surface).toBe('panel');
+    expect(session.dispatch({ type: 'skipLine', profile: cut?.profile, tick: cut?.saidAt }).data).toEqual({ skipped: true });
+    f.advance(1);
+    f.deliver();
+    expect(presenter.current?.line.saidAt).not.toBe(cut?.saidAt);
+    expect(presenter.current?.line.surface).toBe('panel');
+    expect(f.client.commands.some((c) => c.cmd.type === 'skipLine')).toBe(false);
   });
 
   it('skips a line on a click after 500 ms, stops it at once with Backspace and closes with Esc', async () => {
@@ -201,5 +242,28 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     expect(lastCommand(f)).toMatchObject({ type: 'answer', choice: 'yes' });
     runTheLines(f, a10.session);
     expect(f.client.view.soldiers.find((s) => s.profile === STUB_RPC)).toMatchObject({ team: 0, kind: 'rpc' });
+  });
+
+  it('closes the hire box when another viewer answers it', async () => {
+    const a10 = await campaignInA10(kit, 6, 3);
+    const f = await tacticalUiTest(kit, ui, 6, a10.session);
+    const merc = a10.mercs[0] ?? 0;
+    expect((await f.client.command({ type: 'move', soldier: merc, to: NEAR_STUB_RPC, mode: 'walk' })).ok).toBe(true);
+    a10.session.advance({ idle: true });
+    expect((await f.client.command({ type: 'talk', soldier: merc, target: { npc: STUB_RPC } })).ok).toBe(true);
+    runTheLines(f, a10.session);
+    playOut(f);
+    await f.click('talkOption5');
+    runTheLines(f, a10.session);
+    playOut(f);
+    await f.settle();
+    expect(f.t.runtime.host.modal?.id).toBe('npcRequestBox');
+    const request = f.client.view.npcRequest;
+    expect(a10.session.dispatch({ type: 'answer', prompt: request?.id, choice: 'no' }).ok).toBe(true);
+    f.client.refresh();
+    f.t.frame();
+    await f.settle();
+    expect(f.t.runtime.host.modal).toBeNull();
+    expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'recruit' });
   });
 });

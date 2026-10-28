@@ -6,7 +6,7 @@ import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView, ViewFrame } from '../protocol/view.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { TICKS_PER_CHARACTER } from '../sim/narrative/dialogue-queue.ts';
+import { FINAL_TALKING_DELAY_TICKS, lineTicks, TICKS_PER_CHARACTER } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { questStatus } from '../sim/strategic/narrative/facts.ts';
 import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
@@ -153,16 +153,22 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
       if (m.t === 'frames') frames.push(...m.frames);
     });
     const start = session.tick;
+    expect(session.view().conversation?.busy).toBe(false);
     expect(live.dispatch({ type: 'approach', kind: 'direct' })).toMatchObject({ ok: true, data: { pending: true } });
     expect(session.tick).toBe(start);
+    expect(session.view().conversation?.busy).toBe(true);
     expect(live.advance({ idle: true }).reason).toBe('decision');
+    expect(session.view().conversation?.busy).toBe(false);
     const shown = linesShown(frames);
     expect(shown.map((l) => l.quote)).toEqual([14, 15]);
     expect(shown.every((l) => l.shown >= l.said && l.shown - l.said < FRAME_TICKS)).toBe(true);
     const [first, second] = shown;
     expect(first?.said).toBe(start + 1);
-    const chars = session.view().conversation?.lastQuotes[0]?.chars ?? 0;
-    expect((second?.said ?? start) - (first?.said ?? start)).toBeGreaterThanOrEqual(chars * TICKS_PER_CHARACTER);
+    const said = frames.flatMap((f) => f.events ?? []).find((e) => e.type === 'npcQuote');
+    expect((second?.said ?? start) - (first?.said ?? start)).toBe(lineTicks(said?.type === 'npcQuote' ? said.chars : 0));
+    const busy = frames.filter((f) => f.conversation !== undefined).map((f) => [f.tick, f.conversation?.busy]);
+    expect(busy.at(-1)).toEqual([session.tick, false]);
+    expect(busy.slice(0, -1).every(([, b]) => b === true)).toBe(true);
   });
 
   it('cuts a line short on skipLine, so the next one follows on the next tick, and ignores a skip of a line already over', async () => {
@@ -174,12 +180,30 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(first).toMatchObject({ quote: 14, tick: session.tick });
     const skip = { type: 'skipLine', profile: VASKO, tick: first?.tick };
     expect(session.dispatch(skip)).toEqual({ ok: true, data: { skipped: true } });
-    const second = live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
+    const next = live.advance({ events: ['npcQuote'] }).events;
+    expect(next.find((e) => e.type === 'lineCut')).toMatchObject({ profile: VASKO, saidAt: first?.tick, tail: false });
+    const second = next.find((e) => e.type === 'npcQuote');
     expect(second).toMatchObject({ quote: 15, tick: (first?.tick ?? 0) + 1 });
     expect(session.dispatch(skip)).toEqual({ ok: true, data: { skipped: false } });
     expect(session.dispatch({ type: 'skipLine', profile: DEALER })).toEqual({ ok: true, data: { skipped: false } });
     expect(session.dispatch({ type: 'skipLine' })).toEqual({ ok: true, data: { skipped: true } });
     expect(session.campaign.talk?.frozen()).toBe(true);
+  });
+
+  it('ends a line 300 ms after its voice when skipLine says the voice is over, as the original closes the mouth first', async () => {
+    const { session, live } = await inA10(5);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    walkUpAndTalk(session, live, merc);
+    expect(session.dispatch({ type: 'approach', kind: 'direct' }).ok).toBe(true);
+    const first = live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
+    const voiceOver = { type: 'skipLine', profile: VASKO, tick: first?.tick, voiceEnded: true };
+    expect(session.dispatch(voiceOver)).toEqual({ ok: true, data: { skipped: true } });
+    expect(session.dispatch(voiceOver)).toEqual({ ok: true, data: { skipped: false } });
+    const next = live.advance({ events: ['npcQuote'] }).events;
+    expect(next.filter((e) => e.type === 'lineCut')).toEqual([
+      expect.objectContaining({ profile: VASKO, saidAt: first?.tick, tail: true }),
+    ]);
+    expect(next.find((e) => e.type === 'npcQuote')).toMatchObject({ quote: 15, tick: (first?.tick ?? 0) + FINAL_TALKING_DELAY_TICKS });
   });
 
   it('says every line for one tick under setSpeech skip, kept across a load of the session', async () => {
@@ -191,6 +215,7 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     const start = session.tick;
     const direct = talkThrough(session, live, { type: 'approach', kind: 'direct' });
     expect(direct.quotes).toEqual([14, 15]);
+    expect(direct.report.events.filter((e) => e.type === 'npcQuote').every((e) => e.skipped === true)).toBe(true);
     expect(direct.report.tick - start).toBeLessThanOrEqual(3);
     expect(
       live.log
@@ -199,7 +224,9 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
         .map((e) => e.payload),
     ).toEqual([{ mode: 'skip' }]);
     expect(live.dispatch({ type: 'setSpeech', mode: 'listen' }).ok).toBe(true);
-    expect(talkThrough(session, live, { type: 'approach', kind: 'direct' }).report.tick - start).toBeGreaterThan(TICKS_PER_CHARACTER);
+    const listened = talkThrough(session, live, { type: 'approach', kind: 'direct' });
+    expect(listened.report.tick - start).toBeGreaterThan(TICKS_PER_CHARACTER);
+    expect(listened.report.events.some((e) => e.type === 'npcQuote' && e.skipped)).toBe(false);
   });
 
   it('gives defaults once and then sends the squad away, the same day opens silently', async () => {

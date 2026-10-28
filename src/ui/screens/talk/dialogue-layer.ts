@@ -29,6 +29,7 @@ import {
 } from '../../speech.ts';
 import { FontName } from '../../text/fonts.ts';
 import type { MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
+import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { ShopPanel } from '../shop/shop-panel.ts';
 import type { BarValues } from '../tactical/bars.ts';
@@ -260,6 +261,10 @@ export class DialogueLayer {
   }
 
   #event(event: FrameEvent): void {
+    if (event.type === 'lineCut') {
+      this.presenter.cut(event.profile, event.saidAt, event.tail);
+      return;
+    }
     if (!isQuoteEvent(event)) return;
     const routing = this.#routing();
     if (event.type === 'civQuote') {
@@ -291,9 +296,11 @@ export class DialogueLayer {
     if (!request || request.id === this.#askedRequest || this.presenter.busy) return;
     this.#askedRequest = request.id;
     const box = npcRequestBox(request, this.#env.text, this.#env.media.item(KEVLAR_VEST)?.longName ?? '');
-    void this.#env.boxes
-      .ask(box.text, box.buttons, { id: REQUEST_BOX_ID })
-      .then((result) => this.#env.client.command({ type: 'answer', prompt: request.id, choice: npcRequestChoice(result) }));
+    const answeredElsewhere = () => this.#env.client.latestView?.npcRequest?.id !== request.id;
+    void this.#env.boxes.ask(box.text, box.buttons, { id: REQUEST_BOX_ID, closeWhen: answeredElsewhere }).then((result) => {
+      if (result !== MessageBoxReturn.NONE)
+        void this.#env.client.command({ type: 'answer', prompt: request.id, choice: npcRequestChoice(result) });
+    });
   }
 
   #linesComing(): boolean {

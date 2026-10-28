@@ -901,6 +901,7 @@ export interface ConversationView {
   readonly initiatedBy: 'player' | 'npc';
   readonly menu: readonly string[];
   readonly lastQuotes: readonly ConversationLineView[];
+  readonly busy: boolean;
 }
 
 export interface BoxingView {

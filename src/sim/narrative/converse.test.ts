@@ -14,7 +14,7 @@ import {
   stepDialogue,
   triggerNpcRecord,
 } from './converse.ts';
-import { TICKS_PER_CHARACTER } from './dialogue-queue.ts';
+import { lineTicks } from './dialogue-queue.ts';
 import { NarrativeFact, NarrativeProfile } from './narrative-ids.ts';
 import type { DialogueEvent } from './talk-state.ts';
 
@@ -182,7 +182,7 @@ describe('ConverseFull', () => {
 });
 
 describe('the dialogue queue', () => {
-  it('runs one event per tick and holds the queue for 12 ticks per character', () => {
+  it('runs one event per tick and holds the queue for 12 ticks per character and the final 300 ms', () => {
     const host = setup(recordArray({ 0: { approachRequired: Approach.FRIENDLY, quoteNum: 10, numQuotes: 2, actionData: 24 } }));
     open(host);
     converse(host, NPC, MERC, Approach.FRIENDLY);
@@ -193,7 +193,7 @@ describe('the dialogue queue', () => {
       if (host.talk.queue.length < before) started.push(host.now);
       host.advance();
     }
-    const hold = CHARS * TICKS_PER_CHARACTER + 1;
+    const hold = lineTicks(CHARS);
     expect(started).toEqual([0, hold, 2 * hold]);
     expect(host.actionsRun).toEqual([[NPC, 24, 0]]);
     expect(host.emitted.filter((e) => e.type === 'npcQuote').map((e) => (e as { quote: number }).quote)).toEqual([10, 11]);

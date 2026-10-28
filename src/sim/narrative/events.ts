@@ -25,6 +25,14 @@ export interface NpcQuoteEvent extends SimEventBase {
   readonly record?: number;
   readonly textKey: TextKey;
   readonly chars: number;
+  readonly skipped?: boolean;
+}
+
+export interface LineCutEvent extends SimEventBase {
+  readonly type: 'lineCut';
+  readonly profile: number;
+  readonly saidAt: number;
+  readonly tail: boolean;
 }
 
 export interface CivQuoteEvent extends SimEventBase {
@@ -122,6 +130,7 @@ export type NarrativeEvent =
   | ConversationOpenedEvent
   | ConversationClosedEvent
   | NpcQuoteEvent
+  | LineCutEvent
   | CivQuoteEvent
   | SurrenderOfferedEvent
   | NpcMessageEvent

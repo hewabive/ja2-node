@@ -109,7 +109,7 @@ option open, every subsystem can name the tick of its next event
 | Bullet: one step no more often than every `bulletSpeed/10` ms and no more often than once per loop frame | `TileEngine/LOS.cc:3155–3184` | N tiles per tick, deterministically (deviation) |
 | Real-time AI: "how many soldiers can we fit into 10 ms of CPU" | `Tactical/Overhead.cc:1041–1052` | A fixed number of soldiers per pass (deviation) |
 | 3 s pause "enemy sighted on their turn" | `Tactical/OppList.cc:2588–2602` | Playback only. The simulation does not wait for it |
-| Quote duration: the length of the sound if speech is on; 60 ms per character without speech | `Tactical/Faces.cc:629–636, 1233`; `Tactical/Dialogue_Control.cc:67, 1521` | Always 60 ms per character in the simulation: deterministic and audio-free. On the client the sound plays for as long as it plays (deviation) |
+| Quote duration: the length of the sound if speech is on; 60 ms per character without speech; then 300 ms with the mouth closed | `Tactical/Faces.cc:629–636, 1233, 1304`; `Tactical/Dialogue_Control.cc:67, 1521` | Always 60 ms per character plus 300 ms in the simulation: deterministic and audio-free; a voice that ends earlier ends it through `skipLine` (§6.37). On the client the sound plays for as long as it plays (deviation) |
 | Logic waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | "Speech channel busy until tick T", where T is computed as in the row above |
 | Message boxes and dialogues with choices | UI screens | Decision prompt (D15). Time stands still until an answer arrives |
 | Deferred calls at 2, 3 and 10 s; bomb queue `1000 + Random(500)` ms | `Tactical/Overhead.cc:5069–5073, 6210`; `TileEngine/Explosion_Control.cc:2054–2095` | Ticks |
@@ -829,10 +829,11 @@ NPC record arrays (`state.npcRecords`, imported from native saves) and the dialo
 - `closeTalk {}`: Done or Esc, with the once-per-conversation reset. Once nothing is queued it closes even while the NPC
   still speaks and cuts his line short, as `HandleTalkingMenuEscape` and `DeleteTalkingMenu` do. Refusals
   `noConversation`, `busy` (lines still queued, a trigger wait or a pending conversation).
-- `skipLine {profile?, tick?}`: cuts the line being said short, as Backspace (`StopAnyCurrentlyTalkingSpeech`) or a click
-  on the talking face does; with `profile` and `tick` (those of its quote event) only that line, so a skip that arrives
-  after the line ended does not cut the next one (`data.skipped` false). Accepted in every state, a meanwhile, the
-  endgame and a boxing lock included.
+- `skipLine {profile?, tick?, voiceEnded?}`: cuts the line being said short, as Backspace (`StopAnyCurrentlyTalkingSpeech`)
+  or a click on the talking face does; with `profile` and `tick` (those of its quote event) only that line, so a skip
+  that arrives after the line ended does not cut the next one (`data.skipped` false). With `voiceEnded` the line's voice
+  is over and only its final 300 ms remain. Every viewer gets `lineCut {profile, saidAt, tail}`. Accepted in every
+  state, a meanwhile, the endgame and a boxing lock included.
 - `openShop {dealer, soldier}` (campaigns with narrative): the shop's checks, then `talk` + `approach buySell`: `data` is
   the shop when it opens at once (a dealer without opening lines), otherwise the talk reply, and the shop opens in the
   tick the opening lines end (`state.talk.shopAfterOpening`) unless the opening closed the panel or a BUYSELL record plays.
@@ -855,7 +856,8 @@ profile, by: player|script}`, `npcQuote {profile, soldier, quote, record?, textK
 and `chars` for lines from the queue), `npcMessage {kind, profile?, amount?}`, `scriptedSequence {active}`,
 `talkAborted {soldier, reason}`. Facts, quests, records, desire and opinions stay hidden.
 
-The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character). The session
+The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character, then 60
+ticks with the mouth closed). The session
 resolves keys to `text` in `observe`, command results and events from the EDT files of the VFS (original data, or the
 stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R` (token-protected) serves a single row (§6.21).
 Since M7 `save` is refused with `conversation` while a session is open, a scripted sequence runs or the dialogue
@@ -1894,7 +1896,7 @@ the length of the lines, while the real-time driver kept adding ticks by the wal
 few conversations the maintainer measured `__ja2Ui.lagTicks × 5` at 8000 ms, and every later order showed that late. The
 overlay named it as `game time +G ms` on the conversation command and as the playback lag. §6.37 removes the cause.
 
-### 6.37. Conversations in game time (2026-10-27)
+### 6.37. Conversations in game time (2026-10-27, viewers 2026-10-28)
 
 In the original a conversation stops the world clock (`HandleDialogue`: `PauseGame` and
 `LockPauseState(LOCK_PAUSE_ENGAGED_IN_CONV)` while `ENGAGED_IN_CONV` is set) and freezes AI decisions, but the tactical
@@ -1907,13 +1909,31 @@ lines now take the same ticks as any other time instead of running inside the co
   follow: the real-time driver's while a player watches, so the simulation stays on the tick the screen shows and an
   NPC that walks off after its last line (Fatima with Enrico's letter) starts when the player sees the line end, early
   enough for a merc to follow her; `advance` for an agent, which stops with `decision` once the panel waits for a choice.
+- **A line lasts its text and 300 ms.** As in the original (`HandleTalkingAutoFace`, `SetupFinalTalkingDelay`), a
+  line holds the queue for 12 ticks per character plus 60 ticks with the mouth closed (`lineTicks`), the same time the
+  client plays it, so the client no longer falls 300 ms behind the simulation with every line.
 - **A skipped line ends in the simulation.** The client sends `skipLine {profile, tick}` when the player cuts a line
-  short (a click after 500 ms, Backspace, Esc with nothing queued) and when a voiced line's voice ends: the original
-  times a voiced line by its voice, and a voice shorter than 60 ms per character would otherwise leave the simulation
-  still talking while the menu is already lit. A voice longer than that is not waited for: the simulation's line ends
-  after 12 ticks per character and the client plays the next line once the voice is over (`Speech` in
-  `docs/deviations.md`). `TacticalHost` listens to `SpeechPresenter.onLineStopped` and sends the command, which goes into
-  the input log like any other.
+  short (a click after 500 ms, Backspace, Esc with nothing queued): the face stops at once (`InternalShutupaYoFace`).
+  When a voiced line's voice ends it sends `skipLine {profile, tick, voiceEnded: true}`: the original times a voiced
+  line by its voice, so the simulation keeps only the final 300 ms (`endTalkingVoice`); without it a voice shorter than
+  60 ms per character would leave the simulation still talking while the menu is already lit. A voice longer than that
+  is not waited for: the simulation's line ends on its text and the client plays the next line once the voice is over
+  (`Speech` in `docs/deviations.md`). `TacticalHost` listens to `SpeechPresenter.onLineStopped` and sends the command,
+  which goes into the input log like any other.
+- **Every viewer follows the simulation's cut.** A cut reaches every client as `lineCut {profile, saidAt, tail}`:
+  `SpeechPresenter.cut` ends that line (or drops it from the queue) without reporting it back, and `tail` (a voice that
+  ended elsewhere) only closes the mouth of a line timed by its text, since a voice of the same length ends on its own.
+  So one viewer's click or Backspace, an agent's `skipLine` and `closeTalk` cut the line on every screen, and no screen
+  trails the simulation by the lines another one skipped.
+- **The menu greys out by the simulation's queue.** The original shades the talk menu and disables its regions while
+  the face talks or the dialogue queue is not empty (`RenderTalkingMenu`). The client cannot see the simulation's queue,
+  so between a cut line and the next one, which the simulation says a tick later and the client receives a frame later,
+  the menu lit up for a moment, and so did it before an NPC closed the panel himself. `ConversationView.busy`
+  (`!dialogueIdle`) carries the queue: the panel is busy while the shown frame says so, its own lines play or a received
+  frame still holds a line. A viewer that joins in the middle of a line also sees the menu greyed out.
+- **An NPC's question answered elsewhere closes.** Every viewer opens the NPC request box (the R.P.C.'s pay, the lie
+  question) once its lines are said; when the latest view no longer holds that request, another viewer or an agent
+  answered it and the box closes without an answer (`MessageBoxRequest.closeWhen`), as the map screen's prompt boxes do.
 - **An agent's `advance` waits in real time.** While a viewer runs the session in real time (the browser's default),
   the MCP `advance` runs no ticks (`SessionHost.advance(until, budget, {waitInRealtime: true})`):
   `Session.waitInRealtime` observes the real-time batches with the same stop conditions (`AdvanceRun.observe`) and
@@ -1922,7 +1942,8 @@ lines now take the same ticks as any other time instead of running inside the co
   skipped line among them, go through while the agent waits, and nothing enters the input log. The browser's own
   `advance` requests (a compression to a world time, the autoresolve slices) still run their ticks.
 - **`speech: skip` for agents playing alone.** `newSession {speech: 'skip'}` or the command `setSpeech {mode:
-  'skip'|'listen'}` makes every line end on the tick after it is said, as if the player pressed Backspace at once. It is
+  'skip'|'listen'}` makes every line end on the tick after it is said, as if the player pressed Backspace at once; its
+  quote event carries `skipped: true` and a client shows nothing for it. It is
   a session setting: logged (`speech` entries, replayed), kept across loads and passed to a reloaded simulation, never
   saved, so a player loading the agent's save hears the lines. Under the manual driver lines cost milliseconds anyway;
   the setting matters when the session runs in real time with nobody watching.

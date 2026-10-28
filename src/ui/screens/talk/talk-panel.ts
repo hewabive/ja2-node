@@ -229,7 +229,7 @@ export class TalkPanel {
   }
 
   get busy(): boolean {
-    return this.#hooks.presenter.busy || this.#hooks.linesComing();
+    return (this.#conversation?.busy ?? false) || this.#hooks.presenter.busy || this.#hooks.linesComing();
   }
 
   get face(): FaceAnimator | null {

@@ -106,8 +106,10 @@ export class TacticalHost {
     this.#presenter.onLineStarted(() => {
       this.#spoken++;
     });
-    this.#presenter.onLineStopped((line) => {
-      if (line.saidAt !== undefined) void this.#command({ type: 'skipLine', profile: line.profile, tick: line.saidAt });
+    this.#presenter.onLineStopped((line, how) => {
+      if (line.saidAt === undefined) return;
+      const voiceEnded = how === 'voiceEnded' ? { voiceEnded: true } : {};
+      void this.#command({ type: 'skipLine', profile: line.profile, tick: line.saidAt, ...voiceEnded });
     });
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
     this.#hints = new HintProvider({ channel: options.session, knowledge: () => this.#knowledge, now: () => performance.now(), shadow });

@@ -39,6 +39,7 @@ import {
   addDialogueEvent,
   cutTalkingFace,
   type DialogueHandlers,
+  endTalkingVoice,
   faceFinished,
   handleDialogue,
   soldierByProfile,
@@ -907,7 +908,16 @@ export function stepDialogue(host: NarrativeHost): void {
 }
 
 export function shutUpTalkingFace(host: NarrativeHost): boolean {
-  if (!cutTalkingFace(host.talk, host.tick())) return false;
+  const face = host.talk.face;
+  if (!face || !cutTalkingFace(host.talk, host.tick())) return false;
+  host.emit({ type: 'lineCut', profile: face.speaker, saidAt: face.saidAt, tail: false });
   faceFinished(host, dialogueHandlers(host));
+  return true;
+}
+
+export function endTalkingFaceVoice(host: NarrativeHost): boolean {
+  const face = host.talk.face;
+  if (!face || !endTalkingVoice(host.talk, host.tick())) return false;
+  host.emit({ type: 'lineCut', profile: face.speaker, saidAt: face.saidAt, tail: true });
   return true;
 }
