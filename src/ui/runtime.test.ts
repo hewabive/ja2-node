@@ -97,6 +97,25 @@ describe('the ui runtime', () => {
     expect(keys).toEqual(['f']);
   });
 
+  it('draws the cell the top screen points at above the sampled lines, every frame', () => {
+    let gridNo: number | null = 12345;
+    t.runtime.host.push({ ...contentScreen(false), pointedCell: () => ({ gridNo, level: 0, map: 'maps/a9.dat' }) });
+    t.runtime.input({ kind: 'keyDown', key: 'f', code: 'KeyF', modifiers: KeyModifier.CTRL });
+    t.runtime.diagnostics.show([{ text: '60 FPS', alarm: false }]);
+    t.frame();
+    const rows = () => t.list.items.filter((i) => i.kind === 'glyphs').map((r) => ({ y: r.glyphs[0]?.y, glyphs: r.glyphs.length }));
+    expect(rows()).toEqual([
+      { y: 23, glyphs: 'cell 12345 (x 25, y 77), level 0, maps/a9.dat'.length },
+      { y: 35, glyphs: '60 FPS'.length },
+    ]);
+    gridNo = null;
+    t.frame();
+    expect(rows()[0]).toEqual({ y: 23, glyphs: 'cell: none'.length });
+    t.runtime.host.openModal(new Fade(t.runtime, { direction: 'out' }));
+    t.frame();
+    expect(rows()).toEqual([{ y: 23, glyphs: '60 FPS'.length }]);
+  });
+
   it('keeps the held keys and modifiers for polling', () => {
     t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
     t.runtime.input({ kind: 'keyDown', key: 'a', code: 'KeyA', modifiers: KeyModifier.SHIFT });

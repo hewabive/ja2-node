@@ -1180,10 +1180,12 @@ tile, which explores the whole map as the original does).
 
 The game page shows where time goes in Stracciatella's FPS overlay (`src/sgp/FPS.cc`): Ctrl+F on any screen (the key
 reaches no screen, as in `SGP.cc`), white `SMALLFONT1` text at 11,23 refreshed once a second, a line light red when
-slow (vanilla below 20 FPS). `src/ui/diagnostics-overlay.ts` draws, `src/app/game/diagnostics.ts` samples:
+slow (vanilla below 20 FPS), with the pointed cell above the sampled lines. `src/ui/diagnostics-overlay.ts` draws,
+`src/app/game/diagnostics.ts` samples:
 
 | Line | Source | Light red when |
 |---|---|---|
+| `cell G (x X, y Y), level L, map` | the top screen's `pointedCell()`, every frame: the tactical screen gives the cell under the pointer (the overhead map's while it is open, `cell: none` off the map), the interface level and the view's `mapPath`; other screens give none | never |
 | `N FPS, N drawn, frame A ms (max M)` | animation and drawn frames per second, the page's JavaScript time per frame | below 20 FPS |
 | `ping R ms, server loop L ms` | a `ping`'s round trip, the server's event-loop delay | R > 250 ms or L > 100 ms |
 | `playback lag P ms, behind server B ms` | latest received minus shown tick; the tick of the last `pong` minus the shown tick | either > 250 ms |

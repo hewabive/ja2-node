@@ -1,3 +1,4 @@
+import type { PointedCell } from './diagnostics-overlay.ts';
 import { type DrawItem, DrawList } from './draw-list.ts';
 import type { UiInputEvent } from './input/events.ts';
 import type { UiScreenKind } from './widgets/button-sounds.ts';
@@ -14,6 +15,7 @@ export interface Screen {
   input(event: UiInputEvent): boolean;
   render(list: DrawList): void;
   describe?(): readonly WidgetInfo[];
+  pointedCell?(): PointedCell;
 }
 
 export interface Modal extends Screen {

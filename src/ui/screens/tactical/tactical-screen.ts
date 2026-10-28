@@ -25,6 +25,7 @@ import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
+import type { PointedCell } from '../../diagnostics-overlay.ts';
 import { type Area, type DrawList, rgb } from '../../draw-list.ts';
 import { isPointerEvent, type UiInputEvent } from '../../input/events.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../../input/mouse.ts';
@@ -1012,6 +1013,10 @@ export class TacticalScreen implements Screen {
     this.controls.renderOverhead(list);
     this.dialogue.render(list);
     if (this.dialogue.shopOpen && this.description.open) this.description.render(list, ctx, this.#env.runtime.images);
+  }
+
+  pointedCell(): PointedCell {
+    return { gridNo: this.controls.pointedGridNo(), level: this.#interfaceLevel, map: this.#view()?.mapPath ?? null };
   }
 
   describe(): readonly WidgetInfo[] {

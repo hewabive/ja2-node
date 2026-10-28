@@ -608,7 +608,7 @@ F11, Ctrl+C/E/H/K/O/T/U/W/Z, Ctrl+PgUp/PgDn, Alt+M/N, the Alt cheats).
 | Arrows | scroll (§3.2) | client |
 | Wheel | aim refinement in the confirm-action mode | client |
 | Ctrl+S, Ctrl+L, Alt+X | save screen, load screen, exit prompt | §1 |
-| Ctrl+F (every screen) | Stracciatella's FPS overlay (`FPS.cc`), with network, playback, server and read lines | `29` §30 |
+| Ctrl+F (every screen) | Stracciatella's FPS overlay (`FPS.cc`), with the cell under the pointer and network, playback, server and read lines | `29` §30 |
 
 Do nothing yet (deviation "Tactical keys not yet ported"): `*` and `,` (red item glow), a (auto-bandage, deviation
 "Auto-bandage"), n (cycle stacked soldiers or structures), `-` and `=` with End or Delete held (the cover and sight

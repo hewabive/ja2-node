@@ -118,7 +118,7 @@ export class UiRuntime implements UiServices {
     this.cursor.tick(this.clock.ja2Now, region?.animatesCursor ?? false, region?.flashesCursor ?? false);
     this.host.render(list);
     this.#renderTooltips(list, now);
-    this.diagnostics.render(list, this.fonts);
+    this.diagnostics.render(list, this.fonts, this.host.top?.pointedCell?.() ?? null);
     this.#renderCursor(list);
   }
 

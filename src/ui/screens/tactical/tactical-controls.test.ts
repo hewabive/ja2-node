@@ -262,6 +262,29 @@ describe('the tactical input on the tactical screen', () => {
   );
 
   it(
+    'points the diagnostics at the cell under the pointer, none over the panels, the overhead map cell while it is open',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const tile = merc(f, 0).gridNo + 3;
+      const at = f.world.pickPoint(tile);
+      f.t.move(at.x, at.y);
+      f.t.frame();
+      expect(f.screen.pointedCell()).toEqual({ gridNo: tile, level: 0, map: f.client.view.mapPath });
+      const radar = f.widget('radarRegion').rect;
+      f.t.move(radar.x + 1, radar.y + 1);
+      f.t.frame();
+      expect(f.screen.pointedCell().gridNo).toBeNull();
+      f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+      f.key('Insert');
+      const map = f.widget('overheadMap').rect;
+      f.t.move(map.x + 5, map.y + 5);
+      f.t.frame();
+      expect(f.screen.pointedCell().gridNo).toBe(12345);
+    },
+    SLOW_MS,
+  );
+
+  it(
     'locks our turn while a received frame that locks the interface or passes the turn waits for playback',
     async () => {
       const f = await inCombat();

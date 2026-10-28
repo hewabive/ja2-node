@@ -261,6 +261,10 @@ export class TacticalControls {
     }
   }
 
+  pointedGridNo(): number | null {
+    return this.overhead.open ? this.overhead.mouseGridNo() : this.input.hover.gridNo;
+  }
+
   get menuOpen(): boolean {
     return this.movementMenu.open || this.doorMenu.open || this.exitDialog.open || this.overhead.open;
   }

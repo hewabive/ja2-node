@@ -5,6 +5,7 @@
 // @src key); vanilla Build/JAScreens.c DisplayFrameRate (SMALLFONT1, light red when the game runs slow).
 
 import { FontColor } from '../content/text/font-colors.ts';
+import { gridX, gridY } from '../content/world/grid.ts';
 import type { DrawList } from './draw-list.ts';
 import { KeyModifier, type UiInputEvent } from './input/events.ts';
 import { FontName, type FontSet } from './text/fonts.ts';
@@ -15,12 +16,24 @@ export interface DiagnosticLine {
   readonly alarm: boolean;
 }
 
+export interface PointedCell {
+  readonly gridNo: number | null;
+  readonly level: number;
+  readonly map: string | null;
+}
+
 const OVERLAY_X = 11;
 const OVERLAY_Y = 23;
 const LINE_SPACING = 12;
 const TOGGLE_KEY = 'f';
 const NORMAL_COLOR = FontColor.WHITE;
 const ALARM_COLOR = FontColor.MCOLOR_LTRED;
+
+export function pointedCellLine(cell: PointedCell): DiagnosticLine {
+  if (cell.gridNo === null) return { text: 'cell: none', alarm: false };
+  const map = cell.map ? `, ${cell.map}` : '';
+  return { text: `cell ${cell.gridNo} (x ${gridX(cell.gridNo)}, y ${gridY(cell.gridNo)}), level ${cell.level}${map}`, alarm: false };
+}
 
 export class DiagnosticsOverlay {
   #enabled = false;
@@ -47,10 +60,11 @@ export class DiagnosticsOverlay {
     if (this.#enabled) this.#lines = lines;
   }
 
-  render(list: DrawList, fonts: FontSet): void {
+  render(list: DrawList, fonts: FontSet, cell: PointedCell | null): void {
     const font = fonts.find(FontName.SMALLFONT1);
     if (!this.#enabled || !font) return;
-    this.#lines.forEach((line, i) => {
+    const lines = cell ? [pointedCellLine(cell), ...this.#lines] : this.#lines;
+    lines.forEach((line, i) => {
       const colors = fontColors(line.alarm ? ALARM_COLOR : NORMAL_COLOR);
       mprint(list, font, OVERLAY_X, OVERLAY_Y + i * LINE_SPACING, line.text, colors);
     });
