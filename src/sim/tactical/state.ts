@@ -176,6 +176,8 @@ export type BattleResult = 'won' | 'lost';
 
 export interface SectorHooks {
   soldierDied(t: TacticalState, s: Soldier): void;
+  murderOfCivilian(t: TacticalState, s: Soldier): void;
+  soldierTakingDamage(t: TacticalState, s: Soldier): void;
   addPendingEnemies(t: TacticalState): void;
   soldierLeftMap(t: TacticalState, s: Soldier): void;
   mercsWaitOver(t: TacticalState, code: number): void;
@@ -192,6 +194,8 @@ export interface SectorHooks {
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
   soldierDied: () => {},
+  murderOfCivilian: () => {},
+  soldierTakingDamage: () => {},
   addPendingEnemies: () => {},
   soldierLeftMap: () => {},
   mercsWaitOver: () => {},

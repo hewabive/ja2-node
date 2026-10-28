@@ -4,10 +4,19 @@
 // @src src/game/Tactical/Tactical_Save.cc SetSectorFlag, ReSetSectorFlag, GetSectorFlagStatus,
 // @src SetNumberOfVisibleWorldItemsInSectorStructureForSector; Queen_Command.cc FindUnderGroundSector;
 // @src StrategicMap.cc GetMapFileName; Strategic_Movement_Costs.cc GetTraversability, SectorIsPassable;
-// @src Strategic_Status.cc UpdateLastDayOfPlayerActivity.
+// @src Strategic_Status.cc UpdateLastDayOfPlayerActivity; Soldier_Control.cc SoldierTakeDamage (the sectors where hurting an
+// @src enemy is player activity).
 
 import { StrategicMove, TRAVERSABILITY_DIRECTIONS } from '../../../content/strategic/map-tables.ts';
-import { MAP_WORLD_CELLS, mapFileName, SECTOR_COUNT, type Sector, sameSector, sectorId } from '../../../content/strategic/sector-ids.ts';
+import {
+  MAP_WORLD_CELLS,
+  mapFileName,
+  SECTOR_COUNT,
+  type Sector,
+  sameSector,
+  sectorId,
+  strategicIndex,
+} from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
 import { Facility, NEW_SECTORS_EQUAL_TO_ACTIVITY, SectorFlag } from '../forces/constants.ts';
 
@@ -200,6 +209,13 @@ export function updateLastDayOfPlayerActivity(map: StrategicMapState, day: numbe
   if (day <= map.activity.lastDayOfPlayerActivity) return;
   map.activity.lastDayOfPlayerActivity = day;
   map.activity.daysOfInactivity = 0;
+}
+
+export function hurtingEnemiesCountsAsActivity(map: StrategicMapState, s: { readonly x: number; readonly y: number }): boolean {
+  return (
+    map.elements[strategicIndex(s)]?.enemyControlled === true ||
+    sectorInfo(map, s).traversability[StrategicMove.THROUGH] !== Traversability.TOWN
+  );
 }
 
 export function setSectorFlag(map: StrategicMapState, s: Sector, flag: number, worldDay: number): void {

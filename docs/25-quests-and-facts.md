@@ -804,8 +804,10 @@ message. Civilian-team cases: BRENDA (`OH:2305-2316`, fact, HANS 10 if Hans is w
 attendant), ROBOT, the terrorists, the assassins, ELDIN, JOEY, DYNAMO, KINGPIN, DOREEN (all above), QUEEN
 (`BeginHandleDeidrannaDeath`, `26`); then `HandleMurderOfCivilian` for every civilian but crows and cows (`18`, `OH:2427-2433`).
 Our-team deaths (`OH:2221-2250`): SLAY (Carmen), ROBOT (facts 203/206, 202 false). ja2-node runs these before the experience
-awards (and for our team when the skull is released); not ported: the NPC death history lines, the death message and
-`HandleMurderOfCivilian` (§10).
+awards (and for our team when the skull is released): the history line through the narrative port's `addHistory` right
+after the profile is marked dead, the civilian cases (`src/sim/tactical/narrative/death-rules.ts`), then
+`HandleMurderOfCivilian` through the sector hook `murderOfCivilian` (`src/sim/campaign/civilian-murder.ts`, `18` §2.5);
+the death message is the server's `soldierDied` line (`src/server/message-entries.ts`).
 
 ### 6.13 Vehicles
 
@@ -965,7 +967,6 @@ Skyrider payment taking all the money (`35` §2.4).
 **Limitations in ja2-node** (not yet ported; each has an entry in `gaps.md`): decapitation ("Corpses"); the museum and
 fuel move refusals ("Strategic move refusals"); other action items and hand-operated switches ("Map items"); civilian
 ground vehicles ("Ground vehicles"); the helicopter map pieces ("Helicopter on the map"); the guard-room run
-(`OL:1282-1294`, §6.1, "Guard room run"); the NPC death history lines and death message ("History writers") and
-`HandleMurderOfCivilian` (§6.12, "Civilian murder").
+(`OL:1282-1294`, §6.1, "Guard room run").
 
 **Inferred, not verified**: checking Skyrider's monologues per strategic step matches redraw timing (§5.8).

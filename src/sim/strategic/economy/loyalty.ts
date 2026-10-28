@@ -67,7 +67,7 @@ function sentiment(ctx: EconomyContext, town: number): number {
   return ctx.economy.loyalty.rebelSentiment[town] ?? 0;
 }
 
-function usesLoyalty(ctx: EconomyContext, town: number): boolean {
+export function usesLoyalty(ctx: EconomyContext, town: number): boolean {
   return ctx.economy.loyalty.usesLoyalty[town] === true;
 }
 

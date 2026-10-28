@@ -472,7 +472,7 @@ Amounts are before sentiment scaling; "everywhere" = every started town, no dist
 | Deidranna killed | every loyalty town → 100 | `MaximizeLoyaltyForDeidrannaKilled` (`:1210-1220`) |
 
 Stracciatella has no robbery or building-damage loyalty (the vanilla stubs are gone; the multipliers at `:63-68` are
-unused). ja2-node wires every row (quest rows through the NPC actions) except civilian murder (§2.5) and the head-miner
+unused). ja2-node wires every row (quest rows through the NPC actions) except the head-miner
 attack (`playerAttackedHeadMiner` exists, nothing calls it; `gaps.md` "Implications of an attack").
 
 ### 2.5 Civilian murder
@@ -506,9 +506,13 @@ HandleMurderOfCivilian(v):                                           // :351-591
 The two "nothing is set" cases decrement because `fIncrement` keeps its initial FALSE (`:358`), although the source
 comments suggest otherwise (`:537-572`).
 
-**Not ported**: ja2-node has no `HandleMurderOfCivilian` (the civilian death rules in
-`src/sim/tactical/narrative/death-rules.ts` cover only named profiles), so killing a civilian changes neither loyalty nor
-morale. The body cost table is transcribed (`town-loyalty.json` `civilianMurderCost`) and unused.
+ja2-node: `src/sim/campaign/civilian-murder.ts` `handleMurderOfCivilian` with the transcribed body costs
+(`town-loyalty.json` `civilianMurderCost`). `handleNPCTeamMemberDeath` (`src/sim/tactical/combat/death.ts`) calls it
+through the sector hook `murderOfCivilian` right after the civilian death rules (not for crows and cows, and not for
+militia, where it would return at once), so the witness tests see the tactical state at the moment of death and the blame
+draw comes before the experience awards' `PreRandom` draws, as in the original. The morale event goes through the economy
+hook `moraleEvent`; the witness tests use `soldierToSoldierLos` with its eye-height limits (`gaps.md` "Sight and hearing
+details").
 
 ### 2.6 Sector control changes
 
@@ -582,8 +586,11 @@ whole-town liberation (+2/+4 days); first SAM capture (+1/+2).
 
 ja2-node: `inactivity.ts` `handleEnricoEmail` returns the mail kind and the penalty; the laptop flow
 (`src/sim/campaign/laptop/laptop-flow.ts`) owns the `ENRICO_MAIL` event, sends the mail and writes the complaint history.
-**Not ported**: the damage rule of `Soldier_Control.cc:5442-5459`, so fighting without capturing a sector or visiting a
-4th new one in a day does not count as activity.
+The damage rule: `soldierTakeDamage` (`src/sim/tactical/combat/hit.ts`) first calls the sector hook
+`soldierTakingDamage`; `sector-flow.ts` counts a creature, or an enemy when `hurtingEnemiesCountsAsActivity`
+(`src/sim/strategic/map/sectors.ts`) holds for the loaded sector (its surface control and traversability, also
+underground, as `gWorldSector.AsStrategicIndex()`/`AsByte()` ignore the level), with
+`updateLastDayOfPlayerActivity(u16(day))`: today, no grace days.
 
 ### 2.9 Effects of loyalty
 
@@ -602,7 +609,8 @@ No effect on prices, on sector income other than mines, or on enemy behaviour.
 
 ### 2.10 RNG in loyalty code
 
-`Random(100)` false accusal in `HandleMurderOfCivilian` (non-player killers only; not ported, §2.5); `Random(100)` per
+`Random(100)` false accusal in `HandleMurderOfCivilian` (non-player killers in a loyalty town only, drawn even when the
+chance is 0, §2.5); `Random(100)` per
 item in `RemoveRandomItemsInSector`. Everything else is deterministic (the LOS tests and `FindStratPath` draw nothing).
 
 ---
@@ -1306,8 +1314,7 @@ stand-ins", "Implications of an attack" (head miner).
 
 ## 8. Limitations and unverified
 
-**Not ported**: civilian murder (§2.5); the activity rule for damaging enemies (§2.8);
-the head-miner attack (§2.4); the hourly camouflage update and regen counters (§5.12); vehicle repair (§5.7).
+**Not ported**: the head-miner attack (§2.4); the hourly camouflage update and regen counters (§5.12); vehicle repair (§5.7).
 
 **Inferred, not traced end to end**:
 - that `FindStratPath` distances never exceed 30 on the real map, and that no town is unreachable for a foot group (an

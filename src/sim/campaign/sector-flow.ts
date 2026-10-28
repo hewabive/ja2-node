@@ -12,7 +12,8 @@
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
-// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules).
+// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
+// @src SoldierTakeDamage (the player activity of a hit).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -27,6 +28,7 @@ import {
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { u16 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { LoadScreenView, SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
@@ -67,11 +69,13 @@ import { damageSamIfFound } from '../strategic/map/sam.ts';
 import {
   findUndergroundSector,
   getSectorFlagStatus,
+  hurtingEnemiesCountsAsActivity,
   isSectorDesert,
   resetSectorFlag,
   sectorInfo,
   setSectorFlag,
   setVisibleItemCount,
+  updateLastDayOfPlayerActivity,
 } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
@@ -124,6 +128,7 @@ import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } fro
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
 import {
@@ -525,6 +530,8 @@ export class SectorFlow {
     sim.state.scheduleClock = campaignScheduleClock(this.campaign);
     sim.state.sectorHooks = {
       soldierDied: (_t, dead) => this.#soldierDied(dead),
+      murderOfCivilian: (t, dead) => this.#murderOfCivilian(t, dead),
+      soldierTakingDamage: (_t, hurt) => this.#soldierTakingDamage(hurt),
       addPendingEnemies: () => this.addPossiblePendingEnemiesToBattle(),
       soldierLeftMap: (_t, gone) => this.#soldierLeftMap(gone),
       mercsWaitOver: (_t, code) => {
@@ -1034,6 +1041,20 @@ export class SectorFlow {
       addDeadArmsDealerItemsToWorld(merchants, dead.profile, (o) => addItemToPool(t, dead.initialGridNo, o, Visibility.INVISIBLE, 0, 0, 0));
     const q = this.queen;
     if (q) processQueenCmdImplicationsOfDeath(q, this.deadEnemyRecord(dead));
+  }
+
+  #murderOfCivilian(t: TacticalState, dead: Soldier): void {
+    const world = this.world;
+    const economy = this.economy;
+    if (world && economy) handleMurderOfCivilian(economy, t, dead, world);
+  }
+
+  #soldierTakingDamage(hurt: Soldier): void {
+    const world = this.world;
+    if (!world) return;
+    const map = this.campaign.state.map;
+    if (hurt.team === Team.CREATURE || (hurt.team === Team.ENEMY && hurtingEnemiesCountsAsActivity(map, world)))
+      updateLastDayOfPlayerActivity(map, u16(worldDay(this.campaign.state.clock)));
   }
 
   #creatureQueenKilled(world: Sector): void {

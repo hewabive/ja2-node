@@ -14,6 +14,7 @@ import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
 import { ObjectFlags } from '../../items/object.ts';
+import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -73,6 +74,7 @@ export function corpseLook(s: Soldier): Pick<Corpse, 'palettes' | 'camo'> {
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
+const isVehicleOrTank = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const oneC = (d: number) => (d + 1) % 8;
 const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
@@ -243,6 +245,10 @@ function checkForAlertWhenEnemyDies(t: TacticalState, dying: Soldier): void {
   }
 }
 
+function npcDeathHistory(killer: Soldier | null): number {
+  return killer?.team === Team.OUR ? NarrativeHistory.MERC_KILLED_CHARACTER : NarrativeHistory.NPC_KILLED;
+}
+
 function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
   old.dead = true;
   verifyPublicOpplistDueToDeath(t, old);
@@ -253,8 +259,12 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
       p.mercStatus = MercStatus.IS_DEAD;
       p.life = 0;
     }
+    if (!isVehicleOrTank(old)) t.narrative.addHistory(npcDeathHistory(killer), old.profile);
   }
-  if (old.team === Team.CIV) civilianDeathRules(t, old, killer);
+  if (old.team === Team.CIV) {
+    civilianDeathRules(t, old, killer);
+    if (old.bodyType !== Body.CROW && old.bodyType !== Body.COW) t.sectorHooks.murderOfCivilian(t, old);
+  }
   if (old.team !== Team.CIV && old.team !== Team.MILITIA) {
     if (old.bodyType === Body.QUEENMONSTER) t.narrative.creatureQueenDied(killer, old.gridNo, old.level);
     if (killer?.team === Team.OUR) handleMoraleEvent(t, killer, MoraleEvent.KILLED_ENEMY);

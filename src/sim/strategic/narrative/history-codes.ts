@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/History.h (the history codes of the NPC actions, the NPC system events, the Kingpin money check and boxing;
-// @src checked against data/tables/merc-contracts.json).
+// @src src/game/Laptop/History.h (the history codes of the NPC actions, the NPC system events, the Kingpin money check, boxing
+// @src and NPC deaths; checked against data/tables/merc-contracts.json).
 
 export const NarrativeHistory = {
   TALKED_TO_FATHER_WALKER: 20,
@@ -41,5 +41,7 @@ export const NarrativeHistory = {
   DISQUALIFIED_BOXING: 61,
   FOUND_MONEY: 62,
   ASSASSIN: 63,
+  NPC_KILLED: 74,
   GAVE_CARMEN_HEAD: 75,
+  MERC_KILLED_CHARACTER: 77,
 } as const;

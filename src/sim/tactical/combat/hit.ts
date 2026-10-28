@@ -671,6 +671,7 @@ export function soldierTakeDamage(
   let life = i16(lifeIn);
   let breath = i16(breathIn);
   s.lastDamageReason = reason;
+  t.sectorHooks.soldierTakingDamage(t, s);
   noticeMariaEscapeWhenKingpinsManIsHurt(t, s);
   const oldLife = s.life;
   if (isVehicle(s)) return 0;

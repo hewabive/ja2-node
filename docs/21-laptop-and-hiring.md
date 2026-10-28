@@ -826,9 +826,9 @@ started 15 and finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`
 (`Strategic_Mines.cc:283-287`, second code = town); liberated town 18; cheat 19; Enrico complained 24; battle results 25,
 64–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`, by encounter code and outcome); RPC joined 23; Walker 20,
 married off 21, Tixa/Orta 30/31, rocket rifles 32, Deidranna's dead bodies 33, boxing matches 34, something in the mines
-35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74, Carmen's head 75 (`25` §2.4, `35` §1).
-Which of them ja2-node writes: gap "History writers". The server renders the row texts
-(`src/server/history-labels.ts`).
+35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74 (77 when our team killed him,
+`Overhead.cc:2288-2292`, not for vehicles and tanks; `25` §6.12), Carmen's head 75 (`25` §2.4, `35` §1). ja2-node
+writes all of them but the cheat (deviations "Cheats"). The server renders the row texts (`src/server/history-labels.ts`).
 
 **Logic reader**: only `GetTimeQuestWasStarted(quest)` (`History.cc:737-753`: the date of the first `QUEST_STARTED` with
 that second code, 0 if none; `records.ts` `timeQuestWasStarted`), used by `FACT_BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO`
@@ -1162,7 +1162,7 @@ and the profiles.
 **Deviations** (full entries in `deviations.md`): "A.I.M. annoyance", "Speck's opening", "Cosmetic laptop draws",
 "Cosmetic face and frame draws", "Soldier creation draws", "Email order", "I.M.P. empty skill list", "Laptop as
 commands", "Speck payment record", "Bobby Ray theft counter", "Bobby Ray's shipment prices", "Florist order form entry",
-"Cheats". **Gaps** (`gaps.md`): "History writers", "I.M.P. skill page and saved profiles", "A.I.M. conference
+"Cheats". **Gaps** (`gaps.md`): "I.M.P. skill page and saved profiles", "A.I.M. conference
 distortion". The canvas pages' own differences and gaps are listed there too (`30` §6).
 
 **Limitations**: the content identity hashes text files by presence, so a data folder whose florist gallery text carries
