@@ -679,10 +679,11 @@ dismisses a feedback popup; any key up unpauses a player pause and advances key-
   also answers `enemyInSector` for `SingleMoveAction`), its radio rules and keys, ending in `exitSector {who, load}`.
 - **Overhead map** (Insert; `TileEngine/Overhead_Map.cc`; `overhead-map.ts` and `src/app/tactical/overhead-map.ts`):
   the map composed once per sector from the tilesets' `t/` small tiles in the three passes of `RenderOverheadMap` into
-  an RGB picture, the persons by team, the item dots, the merc names; a click centres the view. Normal shade over the
-  map's light colour, all roofs, restricted maps unrestricted, no item pool list, panel buttons enabled (gap
-  "Overhead map"). The stub pack has no small tiles, so on the stubs the map is black
-  under the persons.
+  an RGB picture, the persons by team, the item dots, the merc names; a click centres the view. Dots and the clicked cell
+  go through the absolute screen projection of `render-bounds.ts` divided by 5 (`GetOverheadScreenXYFromGridNo`,
+  `InternalGetOverheadMouseGridNo` with its 8-row lift). Normal shade over the map's light colour, all roofs, restricted
+  maps unrestricted, no item pool list, panel buttons enabled (gap "Overhead map"). The stub pack has no small tiles, so
+  on the stubs the map is black under the persons.
 - Menus, the dialog and the overhead map pause the game through the modal pause (`28` §1.4); the original freezes the
   tactical world while they are open.
 

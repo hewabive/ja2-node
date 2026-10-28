@@ -5,12 +5,13 @@
 // @src three passes over the 640 × 320 area in 8 × 2 steps with the odd rows shifted by 4: land from its start node,
 // @src then objects, shadows and structures with IGNORE_WORLD_HEIGHT using the modified height, then roofs lifted by
 // @src WALL_HEIGHT / 5), GetOverheadScreenXYFromGridNo, InternalGetOverheadMouseGridNo (the -8 row adjustment and the
-// @src land height correction); src/game/TileEngine/Isometric_Utils.cc GetMapPosFromAbsoluteScreenXY; src/sgp/Shading.cc
+// @src land height correction, both through the absolute screen projection of render-bounds.ts); src/sgp/Shading.cc
 // @src BuildShadeTable (the shadow blit). Restricted maps keep the unrestricted origin.
 
 import { decodeSti, type StiIndexed } from '../../content/formats/sti.ts';
-import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
+import { absoluteScreenXY, RestrictedScroll, worldXYFromAbsoluteScreenXY } from '../../content/world/render-bounds.ts';
 import { NORMAL_SHADE, SHADOW_FACTOR, shadedPalette565 } from '../../content/world/shading.ts';
 import { TileFlags } from '../../content/world/tile-database.ts';
 import type { DrawList } from '../../ui/draw-list.ts';
@@ -30,9 +31,6 @@ const WALL_HEIGHT = 50;
 const CLIFF_STEP = 80;
 const EDGE = 5;
 const MOUSE_ROW_ADJUST = -8;
-const ABS_LEFT_X = 1580;
-const ABS_TOP_Y = 860;
-const CELL = 10;
 const FALLBACK_SMALL = 'tilesets/0/t/grass.sti';
 
 interface SmallTile {
@@ -103,7 +101,7 @@ export class OverheadPicture implements OverheadMapView {
   }
 
   pointOf(gridNo: number): ScreenPoint {
-    const at = absoluteOfGridNo(gridNo);
+    const at = absoluteScreenXY(RestrictedScroll.NONE, gridNo);
     const height = this.#world.level.heights[gridNo] ?? 0;
     return {
       x: Math.trunc(at.x / SCALE) + EDGE,
@@ -121,20 +119,11 @@ export class OverheadPicture implements OverheadMapView {
   }
 }
 
-function absoluteOfGridNo(gridNo: number): ScreenPoint {
-  const cellX = (gridNo % WORLD_COLS) * CELL;
-  const cellY = Math.floor(gridNo / WORLD_COLS) * CELL;
-  return { x: 2 * (cellX - cellY) + ABS_LEFT_X, y: cellX + cellY - ABS_TOP_Y };
-}
-
 function gridNoFromAbsolute(x: number, y: number): number | null {
-  const dx = x - ABS_LEFT_X;
-  const dy = y + ABS_TOP_Y;
-  const cellX = Math.trunc((dx + 2 * dy) / 4);
-  const cellY = Math.trunc((2 * dy - dx) / 4);
-  if (cellX < 0 || cellY < 0) return null;
-  const g = Math.trunc(cellY / CELL) * WORLD_COLS + Math.trunc(cellX / CELL);
-  return g >= 0 && g < WORLD_MAX && Math.trunc(cellX / CELL) < WORLD_COLS ? g : null;
+  const world = worldXYFromAbsoluteScreenXY(RestrictedScroll.NONE, x, y);
+  const col = Math.trunc(world.x / CELL_Y_SIZE);
+  const row = Math.trunc(world.y / CELL_X_SIZE);
+  return col >= 0 && col < WORLD_COLS && row >= 0 && row < WORLD_ROWS ? row * WORLD_COLS + col : null;
 }
 
 class Painter {

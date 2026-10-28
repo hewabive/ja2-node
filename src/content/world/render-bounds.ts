@@ -24,6 +24,11 @@ export interface ScreenXY {
   readonly y: number;
 }
 
+export interface WorldXY {
+  readonly x: number;
+  readonly y: number;
+}
+
 const ROOF_LEVEL_HEIGHT = 50;
 const CENTER_WORLD_X = 800;
 const CENTER_WORLD_Y = 800;
@@ -79,13 +84,16 @@ export function absoluteScreenXY(restrictedScrollId: number, g: number): ScreenX
   return { x: screenXOf(b, g), y: screenYOf(b, g) };
 }
 
-export function mapPosFromAbsoluteScreenXY(restrictedScrollId: number, x: number, y: number): number {
+export function worldXYFromAbsoluteScreenXY(restrictedScrollId: number, x: number, y: number): WorldXY {
   const b = renderBounds(restrictedScrollId);
   const dx = x - MAP_CENTER_SCREEN_X + b.leftX;
   const dy = y - MAP_CENTER_SCREEN_Y + b.topY;
-  const worldX = Math.trunc((dx + 2 * dy) / 4) + CENTER_WORLD_X;
-  const worldY = Math.trunc((2 * dy - dx) / 4) + CENTER_WORLD_Y;
-  return Math.trunc(worldY / CELL_X_SIZE) * WORLD_COLS + Math.trunc(worldX / CELL_Y_SIZE);
+  return { x: Math.trunc((dx + 2 * dy) / 4) + CENTER_WORLD_X, y: Math.trunc((2 * dy - dx) / 4) + CENTER_WORLD_Y };
+}
+
+export function mapPosFromAbsoluteScreenXY(restrictedScrollId: number, x: number, y: number): number {
+  const world = worldXYFromAbsoluteScreenXY(restrictedScrollId, x, y);
+  return Math.trunc(world.y / CELL_X_SIZE) * WORLD_COLS + Math.trunc(world.x / CELL_Y_SIZE);
 }
 
 export function gridNoOnVisibleWorldTile(restrictedScrollId: number, g: number): boolean {
