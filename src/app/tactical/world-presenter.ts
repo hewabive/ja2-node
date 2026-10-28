@@ -48,7 +48,7 @@ import type {
 } from '../../ui/screens/tactical/environment.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { AiTurnHolder } from '../world/ai-turn.ts';
-import { gridNoOnScreen, RADAR_HEIGHT, RADAR_WIDTH, radarCellAt, radarDotOf, radarViewportBox } from '../world/radar.ts';
+import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
@@ -100,6 +100,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   readonly #animations: AnimationTables;
   readonly #sources: PresenterSources;
   readonly #limits: ScrollLimits;
+  readonly #restrictedScrollId: number;
   readonly #palettes = new Map<string, Uint8Array>();
   #camera: Camera;
   #viewport: Viewport = { width: 640, height: 360 };
@@ -127,7 +128,8 @@ export class TacticalWorldPresenter implements WorldPresenter {
     this.#animations = animations;
     this.#sources = sources;
     this.radarImage = radarImage;
-    this.#limits = scrollLimits(world.world.map.info.restrictedScrollId);
+    this.#restrictedScrollId = world.world.map.info.restrictedScrollId;
+    this.#limits = scrollLimits(this.#restrictedScrollId);
     this.#camera = cameraOnGridNo(world.world.map.info.centerGridNo);
   }
 
@@ -254,11 +256,11 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   radarViewport(): RadarBox | null {
-    return radarViewportBox({ ...this.#viewport, camera: this.#camera });
+    return radarViewportBox(this.#restrictedScrollId, { ...this.#viewport, camera: this.#camera });
   }
 
   radarDot(gridNo: number): ScreenPoint | null {
-    return radarDotOf(gridNo);
+    return radarDotOf(this.#restrictedScrollId, gridNo);
   }
 
   centerOn(gridNo: number): void {
@@ -266,12 +268,12 @@ export class TacticalWorldPresenter implements WorldPresenter {
   }
 
   locate(gridNo: number): void {
-    if (!gridNoOnScreen(gridNo, { ...this.#viewport, camera: this.#camera }, this.#top > 0)) this.centerOn(gridNo);
+    if (!gridNoOnScreen(this.#restrictedScrollId, gridNo, { ...this.#viewport, camera: this.#camera }, this.#top > 0))
+      this.centerOn(gridNo);
   }
 
   centerFromRadar(x: number, y: number): void {
-    const cell = radarCellAt(x / RADAR_WIDTH, y / RADAR_HEIGHT);
-    this.#camera = setRenderCenter({ centerX: cell.cellX, centerY: cell.cellY }, this.#viewport, this.#limits);
+    this.#camera = setRenderCenter(radarRenderCenter(this.#restrictedScrollId, x, y, this.#viewport), this.#viewport, this.#limits);
   }
 
   setViewport(top: number, _bottom: number): void {

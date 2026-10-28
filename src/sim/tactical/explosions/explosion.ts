@@ -7,15 +7,7 @@
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
 
 import { NOTHING } from '../../../content/items/items.ts';
-import {
-  CELL_X_SIZE,
-  CELL_Y_SIZE,
-  DIRECTION_INCREMENT,
-  Direction,
-  isVisibleTile,
-  newGridNo,
-  WORLD_COLS,
-} from '../../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, recompileLocalMovementCosts, TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -44,7 +36,7 @@ import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts'
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import type { Soldier } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
 import { itemsAt, removeWorldItem } from '../world-items.ts';
 import { damageSoldierFromBlast, reduceDamageAmount } from './blast-damage.ts';
 import { damageItemOnGround } from './item-damage.ts';
@@ -383,7 +375,7 @@ function damageStructuresAround(t: TacticalState, ctx: SpreadContext, g: number,
   explosiveDamageGridNo(t, g, wound, distance, false, -1, ctx.owner, ctx.level, ctx.changes);
   for (const dir of [Direction.NORTH, Direction.WEST]) {
     const next = newGridNo(g, inc(dir));
-    if (isVisibleTile(next)) explosiveDamageGridNo(t, next, wound, distance, true, -1, ctx.owner, ctx.level, ctx.changes);
+    if (onVisibleWorldTile(t, next)) explosiveDamageGridNo(t, next, wound, distance, true, -1, ctx.owner, ctx.level, ctx.changes);
   }
 }
 

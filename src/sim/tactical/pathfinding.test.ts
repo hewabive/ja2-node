@@ -5,6 +5,7 @@ import { Orientation, type StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { parseDoorCostTable } from '../../content/world/movement-costs.ts';
+import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { findBestPath, MAX_PATH_LIST_SIZE, PathCopy, type PathEnv, PathFlags, type PathSoldier } from './pathfinding.ts';
@@ -38,6 +39,7 @@ function env(place: (s: WorldStructures) => void = () => {}, people: PathSoldier
       structures: w.structures,
       mapDoors: new Map(doors.map((d) => [d.gridNo, d])),
     },
+    restrictedScrollId: RestrictedScroll.NONE,
     whoIsThere: (g, level) => people.find((p) => p.gridNo === g && p.level === level) ?? null,
     doorStatus: () => null,
     showAllMercs: false,

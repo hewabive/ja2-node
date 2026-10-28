@@ -139,6 +139,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     ground[s.gridNo] = s.id;
   }
   const tactical = {
+    world: {},
     soldiers: byId,
     occupant: [ground, new Int16Array(WORLD_TILES).fill(-1)],
     clockMs: 0,

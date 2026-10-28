@@ -52,8 +52,9 @@ export function buildTacticalWorld(
 ): TacticalWorld {
   const tiles = buildTileDatabase(tables, surfaces, map.tilesetId);
   const placed = placeWorldStructures(buildLevel(map, tables, tiles), tiles);
-  const terrain = compileWorldTerrainIds(placed.level, tiles, tables);
+  const terrain = compileWorldTerrainIds(placed.level, tiles, tables, map.info.restrictedScrollId);
   const movement: MovementWorld = {
+    map,
     level: placed.level,
     structures: placed.structures,
     terrain,

@@ -9,7 +9,7 @@
 
 import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, isVisibleTile, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -35,7 +35,7 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
@@ -680,8 +680,8 @@ function adjacentSuppression(t: TacticalState, b: Bullet, p: Soldier): void {
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
 
-function outOfWorld(b: Bullet, elevation: number): boolean {
-  return !isVisibleTile(b.tileX + b.tileY * WORLD_COLS) || (b.cubesZ > PROFILE_Z_SIZE * elevation && fixInt(b.incZ) > 0);
+function outOfWorld(t: TacticalState, b: Bullet, elevation: number): boolean {
+  return !onVisibleWorldTile(t, b.tileX + b.tileY * WORLD_COLS) || (b.cubesZ > PROFILE_Z_SIZE * elevation && fixInt(b.incZ) > 0);
 }
 
 interface LocalStructure {
@@ -697,7 +697,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
   let goingOver = false;
   do {
     const g = b.tileX + b.tileY * WORLD_COLS;
-    if (outOfWorld(b, elevation)) {
+    if (outOfWorld(t, b, elevation)) {
       removeBullet(t, b);
       shotMiss(t, b);
       return;
@@ -886,7 +886,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
         b.tileY = Math.trunc(fixInt(b.y) / 10);
       }
     } while (b.tileX === oldTileX && b.tileY === oldTileY);
-    if (outOfWorld(b, elevation)) {
+    if (outOfWorld(t, b, elevation)) {
       removeBullet(t, b);
       shotMiss(t, b);
       return;

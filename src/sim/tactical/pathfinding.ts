@@ -5,16 +5,9 @@
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
-import {
-  DIRECTION_INCREMENT,
-  Direction,
-  isVisibleTile,
-  pythSpacesAway,
-  spacesAway,
-  WORLD_COLS,
-  WORLD_MAX,
-} from '../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, pythSpacesAway, spacesAway, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { isDoorTravelCost, type MovementCosts, TravelCost } from '../../content/world/movement-costs.ts';
+import { gridNoOnVisibleWorldTile } from '../../content/world/render-bounds.ts';
 import {
   has,
   IGNORE_PEOPLE_STRUCTURE_ID,
@@ -87,6 +80,7 @@ export interface PathWorld {
 
 export interface PathEnv {
   readonly world: PathWorld;
+  readonly restrictedScrollId: number;
   whoIsThere(g: number, level: number): PathSoldier | null;
   doorStatus(g: number): DoorStatus | null;
   readonly showAllMercs: boolean;
@@ -170,7 +164,7 @@ export function newOKDestination(
   plotToExitGrid = false,
   estimate = false,
 ): boolean {
-  if (!isVisibleTile(g)) return false;
+  if (!gridNoOnVisibleWorldTile(env.restrictedScrollId, g)) return false;
   if (peopleToo && personBlocksDestination(env, s, g, level)) return false;
   const shape = estimate ? null : (env.multiTile?.(s, null) ?? null);
   if (shape) {
@@ -411,7 +405,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   const distLimit = copyCosts ? Math.min(options.distLimit ?? 0, AI_PATHCOST_RADIUS) : (options.distLimit ?? 0);
   let budget = options.budget ?? 0;
   const org = s.gridNo;
-  if (org < 0 || org >= WORLD_MAX || !isVisibleTile(org) || s.level !== level) return NO_PATH;
+  if (org < 0 || org >= WORLD_MAX || !gridNoOnVisibleWorldTile(env.restrictedScrollId, org) || s.level !== level) return NO_PATH;
 
   const forPlayer = s.team === Team.OUR && !env.autoBandage && !s.underAiControl;
   const nonMerc = !isMercBody(s);

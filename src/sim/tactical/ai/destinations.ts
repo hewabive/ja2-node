@@ -3,12 +3,12 @@
 // @src src/game/TacticalAI/Movement.cc LegalNPCDestination, InternalGoAsFarAsPossibleTowards, NextPatrolPoint,
 // @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin.
 
-import { isVisibleTile, newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
+import { newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
 import { estimateActionPointCost } from '../points.ts';
 import { AlertStatus, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { onVisibleWorldTile, type TacticalState } from '../state.ts';
 import { MAX_ROAMING_RANGE } from './actions.ts';
 
 export const PathMode = { IGNORE_PATH: 0, ENSURE_PATH: 1, ENSURE_PATH_COST: 2 } as const;
@@ -26,7 +26,7 @@ export function roomAt(t: TacticalState, g: number): number {
 export function legalNPCDestination(t: TacticalState, s: Soldier, g: number, mode: number, waterOK: boolean, flags: number): boolean {
   if (g < 0 || g >= WORLD_MAX) return false;
   const heights = t.world.level.heights;
-  if (isVisibleTile(s.gridNo) && heights[s.gridNo] !== heights[g]) return false;
+  if (onVisibleWorldTile(t, s.gridNo) && heights[s.gridNo] !== heights[g]) return false;
   const skipTilesWithMercs = t.inCombat && mode !== PathMode.IGNORE_PATH && spacesAway(s.gridNo, g) === 1;
   if (!newOKDestination(t.pathEnv, s, g, skipTilesWithMercs, s.level) || g === s.gridNo || g === s.ai.blackList) return false;
   if (!waterOK && isWater(t.pathWorld, g)) return false;

@@ -115,6 +115,7 @@ export class WorldLighting {
     };
     const pathEnv: PathEnv = {
       world: pathWorld,
+      restrictedScrollId: world.map.info.restrictedScrollId,
       whoIsThere: () => null,
       doorStatus: (g) => this.#doorStatus.get(g) ?? null,
       showAllMercs: false,

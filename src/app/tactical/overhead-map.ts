@@ -16,7 +16,6 @@ import { TileFlags } from '../../content/world/tile-database.ts';
 import type { DrawList } from '../../ui/draw-list.ts';
 import type { OverheadMapView, ScreenPoint } from '../../ui/screens/tactical/environment.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
-import { absoluteScreenOfGridNo } from '../world/radar.ts';
 import type { LoadedWorld } from '../world/world-loader.ts';
 import { mapLightColour } from '../world/world-loader.ts';
 
@@ -104,7 +103,7 @@ export class OverheadPicture implements OverheadMapView {
   }
 
   pointOf(gridNo: number): ScreenPoint {
-    const at = absoluteScreenOfGridNo(gridNo);
+    const at = absoluteOfGridNo(gridNo);
     const height = this.#world.level.heights[gridNo] ?? 0;
     return {
       x: Math.trunc(at.x / SCALE) + EDGE,
@@ -120,6 +119,12 @@ export class OverheadPicture implements OverheadMapView {
     worldY += (this.#world.level.heights[first] ?? 0) - this.#world.prepared.renderHeight;
     return gridNoFromAbsolute(worldX, worldY);
   }
+}
+
+function absoluteOfGridNo(gridNo: number): ScreenPoint {
+  const cellX = (gridNo % WORLD_COLS) * CELL;
+  const cellY = Math.floor(gridNo / WORLD_COLS) * CELL;
+  return { x: 2 * (cellX - cellY) + ABS_LEFT_X, y: cellX + cellY - ABS_TOP_Y };
 }
 
 function gridNoFromAbsolute(x: number, y: number): number | null {

@@ -19,6 +19,7 @@ import {
   WORLD_ROWS,
 } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
+import { absoluteScreenXY, renderedScreenSize, restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { i16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
@@ -32,9 +33,8 @@ import { setSoldierPosition, setSoldierPositionXY } from '../movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from '../pathfinding.ts';
 import { animStructureDef } from '../person-structure.ts';
 import { profileProgress } from '../profiles.ts';
-import { absoluteScreenXY, gridNoOnVisibleWorldTile, renderedScreenSize } from '../sector-exit.ts';
 import { Body, CivilianGroup, cellCentre, NO_PROFILE, OKLIFE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
 import {
   getSchedule,
   MAX_SCHEDULE_ACTIONS,
@@ -241,7 +241,7 @@ export function returnFromAwaySlot(t: TacticalState, s: Soldier): void {
 }
 
 export function bumpAnyExistingMerc(t: TacticalState, g: number): boolean {
-  if (!gridNoOnVisibleWorldTile(t, g)) return true;
+  if (!onVisibleWorldTile(t, g)) return true;
   const there = whoIsThere(t, g, 0) ?? awaySoldierAt(t, g, 0);
   if (!there) return true;
   const spot = findGridNoFromSweetSpotNearSoldier(t, there, BUMP_RADIUS);
@@ -262,8 +262,9 @@ export function gridNoOnEdgeOfMap(t: TacticalState, g: number): number | null {
 export function findNearestEdgePoint(t: TacticalState, g: number): number {
   const edgepoints = t.edgepoints;
   if (!edgepoints) return NOWHERE;
-  const { x, y } = absoluteScreenXY(t, g);
-  const size = renderedScreenSize(t);
+  const restriction = restrictedScrollIdOf(t.world);
+  const { x, y } = absoluteScreenXY(restriction, g);
+  const size = renderedScreenSize(restriction);
   const ranked = [
     { distance: i16(x), side: EdgeSide.WEST },
     { distance: i16(size.width - x), side: EdgeSide.EAST },

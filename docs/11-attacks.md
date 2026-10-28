@@ -712,7 +712,9 @@ animation ends** (`TileEngine/Tile_Animation.cc:238-246`). `FIRSTMISS1` has 5 fr
 water"). HE/HEAT ammo plays a mini-explosion and frees at once; hitting the same structure twice frees at once. Knives
 that hit the ground become a `THROWING_KNIFE` item.
 
-`ShotMiss(b)` (bullet left the world, `Weapons.cc:3170-3212`): dodge agility gain to `opponent`, curse `main(40)`
+`onVisibleWorldTile` is `GridNoOnVisibleWorldTile` on the loaded map's render bounds (`07` §2.5): in a basement a
+missed bullet leaves the world at the edge of the basement's visible area. `ShotMiss(b)` (bullet left the world,
+`Weapons.cc:3170-3212`): dodge agility gain to `opponent`, curse `main(40)`
 (cosmetic), sound, `FreeUpAttacker`. `RemoveBullet` decrements `firer.bBulletsLeft` for real bullets
 (`Bullets.cc:130-170`); `FreeUpAttacker` lowers the busy count only once `bBulletsLeft` is 0 and the firer holds a gun
 (`Overhead.cc:5529-5537`), so the attack's own busy +1 is released by the **last** bullet of the attack, whatever ended

@@ -1,25 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { Direction } from '../../content/world/grid.ts';
+import { absoluteScreenXY, mapPosFromAbsoluteScreenXY, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import { states } from './animation.ts';
 import { Insertion } from './insertion.ts';
 import { setSoldierPosition } from './movement.ts';
 import {
-  absoluteScreenXY,
   adjustSoldierPathToGoOffEdge,
   checkMercsWaiting,
   ExitDirection,
-  gridNoOnVisibleWorldTile,
-  mapPosFromAbsoluteScreenXY,
   mirrorGridNo,
   pickGridNoNearestEdge,
   pickGridNoToWalkIn,
-  renderBounds,
   setActionToDoOnceMercsGetToLocation,
   soldierOKForSectorExit,
 } from './sector-exit.ts';
 import { createSoldier, type Soldier, Team } from './soldier.ts';
-import { registerSoldier, WaitForMercs } from './state.ts';
+import { onVisibleWorldTile, registerSoldier, WaitForMercs } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 
 let kit: StubSectorKit;
@@ -65,16 +62,15 @@ function merc(sim: TacticalSim, gridNo: number, id = 0): Soldier {
   return s;
 }
 
-describe('screen-space exit thresholds', () => {
-  it('match the render bounds of the default and the basement maps', () => {
-    expect(renderBounds(0)).toEqual({ leftX: -1580, topY: 860, rightX: 1600, bottomY: 2400 });
-    expect(renderBounds(1)).toEqual({ leftX: -640, topY: 1330, rightX: 640, bottomY: 1920 });
-  });
+function screenOf(sim: TacticalSim, g: number): { readonly x: number; readonly y: number } {
+  return absoluteScreenXY(restrictedScrollIdOf(sim.state.world), g);
+}
 
+describe('screen-space exit thresholds', () => {
   it('allow an east exit only within 160 screen pixels of the edge', () => {
     const sim = new TacticalSim(kit.world('stubs/world/maps/a9.dat'), kit.content, 1);
     const near = merc(sim, 75 * 160 + 147);
-    expect(absoluteScreenXY(sim.state, near.gridNo).x).toBe(3020);
+    expect(screenOf(sim, near.gridNo).x).toBe(3020);
     expect(soldierOKForSectorExit(sim.state, near, ExitDirection.EAST, 0)).toBe(true);
     const far = merc(sim, 75 * 160 + 146, 1);
     expect(soldierOKForSectorExit(sim.state, far, ExitDirection.EAST, 0)).toBe(false);
@@ -83,17 +79,17 @@ describe('screen-space exit thresholds', () => {
 
   it('use the smaller visible area of a basement', () => {
     const sim = new TacticalSim(kit.world('stubs/world/maps/a10_b1.dat'), kit.content, 1);
-    expect(gridNoOnVisibleWorldTile(sim.state, 80 * 160 + 80)).toBe(true);
-    expect(gridNoOnVisibleWorldTile(sim.state, 80 * 160 + 112)).toBe(false);
+    expect(onVisibleWorldTile(sim.state, 80 * 160 + 80)).toBe(true);
+    expect(onVisibleWorldTile(sim.state, 80 * 160 + 112)).toBe(false);
     const a9 = new TacticalSim(kit.world('stubs/world/maps/a9.dat'), kit.content, 1);
-    expect(gridNoOnVisibleWorldTile(a9.state, 80 * 160 + 112)).toBe(true);
+    expect(onVisibleWorldTile(a9.state, 80 * 160 + 112)).toBe(true);
   });
 
   it('maps screen positions back to grid numbers', () => {
     const sim = new TacticalSim(kit.world('stubs/world/maps/a9.dat'), kit.content, 1);
     const g = 70 * 160 + 90;
-    const { x, y } = absoluteScreenXY(sim.state, g);
-    expect(mapPosFromAbsoluteScreenXY(sim.state, x, y)).toBe(g);
+    const { x, y } = screenOf(sim, g);
+    expect(mapPosFromAbsoluteScreenXY(restrictedScrollIdOf(sim.state.world), x, y)).toBe(g);
   });
 });
 
@@ -102,13 +98,13 @@ describe('walking off and on', () => {
     const sim = new TacticalSim(kit.world('stubs/world/maps/a9.dat'), kit.content, 1);
     const s = merc(sim, 75 * 160 + 140);
     const edge = pickGridNoNearestEdge(sim.state, s, Direction.EAST);
-    expect(gridNoOnVisibleWorldTile(sim.state, edge)).toBe(true);
-    expect(absoluteScreenXY(sim.state, edge).x).toBeGreaterThan(3020);
+    expect(onVisibleWorldTile(sim.state, edge)).toBe(true);
+    expect(screenOf(sim, edge).x).toBeGreaterThan(3020);
     const mirror = mirrorGridNo(sim.state, s, Direction.EAST);
-    expect(absoluteScreenXY(sim.state, mirror).x).toBeLessThanOrEqual(4);
+    expect(screenOf(sim, mirror).x).toBeLessThanOrEqual(4);
     const walkIn = pickGridNoToWalkIn(sim.state, s, Insertion.WEST);
     expect(walkIn.attempts).toBe(1);
-    expect(absoluteScreenXY(sim.state, walkIn.gridNo).x).toBeLessThan(80);
+    expect(screenOf(sim, walkIn.gridNo).x).toBeLessThan(80);
   });
 
   it('adds two steps beyond the edge to the path', () => {

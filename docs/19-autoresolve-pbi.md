@@ -942,7 +942,8 @@ soldier's item is marked undroppable and skipped on `main(100) < 75`, already-un
 are reduced to `1 + main(count)` (`Rotting_Corpses.cc:1273-1281`); the item goes to the sector's item list (visible,
 reachable, placed at a sweet spot near the grid when loaded); keys come from the key ring; then a corpse with a `main(4)`
 death animation and the time of death. `RandomGridNo` (`TileEngine/Isometric_Utils.cc:667-677`) draws `main(160)`,
-`main(160)` until the tile is on the visible world diamond. The enemy and militia drops are AR's loot; dead mercs' gear
+`main(160)` until the tile is on the visible world of the map loaded last; ja2-node draws within the full-map diamond
+(`gaps` "Random gridnos in unloaded sectors"). The enemy and militia drops are AR's loot; dead mercs' gear
 lands in the sector and, after a lost battle, can be stolen when the enemy takes the sector (§3.1).
 
 `HandlePostAutoresolveMessages` (`MapScreen.cc:7594-7630`), on map frames after AR: civilians eaten (≥ 1) →

@@ -6,7 +6,7 @@
 // @src Structure_Wrap.cc IsJumpableFencePresentAtGridno.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
-import { isVisibleTile, newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
+import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
 import {
@@ -35,7 +35,7 @@ import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type P
 import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { dropSmell } from './smell.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
-import { placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
+import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
 type MoveTileResult = (typeof MoveTile)[keyof typeof MoveTile];
@@ -100,7 +100,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   removeMercStructure(t, s);
   s.gridNo = g;
   s.placed = false;
-  s.offMap = !isVisibleTile(g);
+  s.offMap = !onVisibleWorldTile(t, g);
   if (s.offMap) return;
   if (s.endDoorOpenCode === 2) {
     s.endDoorOpenCode = 0;
@@ -246,7 +246,7 @@ function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): void {
 }
 
 export function handleNextTile(t: TacticalState, s: Soldier, direction: number, g: number, finalDest: number): boolean {
-  if (!isVisibleTile(g)) return true;
+  if (!onVisibleWorldTile(t, g)) return true;
   const blocked = tileIsClear(t, s, direction, g, s.level);
   if (blocked !== MoveTile.CLEAR) {
     if (g === finalDest && (s.team === Team.OUR || s.absoluteFinalDestination === NOWHERE)) {

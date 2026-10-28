@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/RenderWorld.cc GetMapXYWorldY, RenderTiles (z levels, positions), InitRenderParams;
+// @src src/game/TileEngine/RenderWorld.cc GetMapXYWorldY, RenderTiles (z levels, positions);
 // @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords.
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
+import { renderBounds } from '../../content/world/render-bounds.ts';
 
 export const Z_SUBLAYERS = 8;
 export const LAND_Z_LEVEL = 0;
@@ -30,7 +31,6 @@ export const SWEEP_MARGIN_Y = 200;
 export const ROW_SCREEN_STEP = 10;
 
 const SCREEN_CENTER_Y = 1625;
-const RESTRICTED_TOP_Y = [860, 1330] as const;
 
 export interface Camera {
   readonly centerX: number;
@@ -43,7 +43,7 @@ export interface Viewport {
 }
 
 export function topYOf(restrictedScrollId: number): number {
-  return RESTRICTED_TOP_Y[restrictedScrollId === 1 ? 1 : 0];
+  return renderBounds(restrictedScrollId).topY;
 }
 
 export function mapCenter(v: Viewport): { readonly x: number; readonly y: number } {

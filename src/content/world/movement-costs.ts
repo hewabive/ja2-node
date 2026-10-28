@@ -5,8 +5,10 @@
 
 import { FormatError } from '../binary/errors.ts';
 import { Orientation } from '../formats/jsd.ts';
-import { DIRECTION_COUNT, Direction, directionIncrement, isVisibleTile, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from './grid.ts';
+import type { MapDef } from '../formats/map.ts';
+import { DIRECTION_COUNT, Direction, directionIncrement, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from './grid.ts';
 import { type Level, levelTilesAt } from './level.ts';
+import { gridNoOnVisibleWorldTile, restrictedScrollIdOf } from './render-bounds.ts';
 import {
   has,
   ORIENT_LEFT,
@@ -129,6 +131,7 @@ export class MovementCosts {
 }
 
 export interface MovementWorld {
+  readonly map?: Partial<Pick<MapDef, 'info'>>;
   readonly level: Level;
   readonly structures: WorldStructures;
   readonly terrain: Uint8Array;
@@ -136,14 +139,19 @@ export interface MovementWorld {
   readonly doorCosts: DoorCostTable;
 }
 
-export function compileWorldTerrainIds(level: Level, db: readonly TileElement[], tables: TileTables): Uint8Array {
+export function compileWorldTerrainIds(
+  level: Level,
+  db: readonly TileElement[],
+  tables: TileTables,
+  restrictedScrollId: number,
+): Uint8Array {
   const terrain = new Uint8Array(WORLD_MAX);
   const poolTiles =
     level.tilesetId === Tileset.TEMP_19
       ? new Set(['ANOTHERDEBRIS4', 'ANOTHERDEBRIS6', 'ANOTHERDEBRIS7'].map((n) => tileIndex(tables, n)))
       : null;
   for (let g = 0; g < WORLD_MAX; g++) {
-    if (!isVisibleTile(g)) continue;
+    if (!gridNoOnVisibleWorldTile(restrictedScrollId, g)) continue;
     const firstObject = levelTilesAt(level.layers.objects, g)[0];
     if (firstObject !== undefined && poolTiles?.has(firstObject)) {
       terrain[g] = Terrain.LOW_WATER;
@@ -304,7 +312,7 @@ export function compileTileMovementCosts(costs: MovementCosts, w: MovementWorld,
   if (g < 0 || g >= WORLD_MAX) return;
   const heights = w.level.heights;
   const list = w.structures.at(g);
-  if (isVisibleTile(g)) {
+  if (gridNoOnVisibleWorldTile(restrictedScrollIdOf(w), g)) {
     for (let d = 0; d < DIRECTION_COUNT; d++) {
       if (heights[g] !== heights[g + directionIncrement(d)]) costs.raise(g, d, 0, TravelCost.OBSTACLE);
     }

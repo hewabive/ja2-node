@@ -79,8 +79,16 @@ rectangle inscribed in the diamond:
 - **Restriction 0 (normal):** limits are cells (10,800) and (1600,800). That gives `gsLeftX = −1580`, `gsRightX = 1600`,
   `gsTopY = 810 + ROOF_LEVEL_HEIGHT(50) = 860` and `gsBottomY = 2400` (`:2124-2148`; `Interface.h:42`).
 - **Restriction 1 (small maps):** `gMapInformation.ubRestrictedScrollID`; limits are cells (480,800) and (1120,800)
-  (`:2132-2137`).
+  (`:2132-2137`). That gives `gsLeftX = −640`, `gsRightX = 640`, `gsTopY = 1330` and `gsBottomY = 1920`.
 - `gsCX = 0` and `gsCY = 1625` are constants (`RenderWorld.h:94-95`).
+- **Absolute screen position of a tile** (`GetAbsoluteScreenXYFromMapPos`, `Isometric_Utils.cc:209-233`): with the
+  tile corner `(cx, cy)` in cells, `x = 2(cx − 800) − 2(cy − 800) − gsLeftX` and
+  `y = (cx − 800) + (cy − 800) + 1625 − gsTopY`, i.e. `wy` of §3.1. That is about 45 px lower than where the tile's
+  north vertex is drawn in the `gsTopLeftWorld` frame of §1.4 **(inferred)**. `GetMapPosFromAbsoluteScreenXY` is its
+  inverse (`:236-257`).
+
+ja2-node: `src/content/world/render-bounds.ts` (`renderBounds`, `absoluteScreenXY`, `mapPosFromAbsoluteScreenXY`,
+`gridNoOnVisibleWorldTile`), shared by the simulation, the camera's `scrollLimits` and the radar.
 
 ### 1.4 Camera and viewport
 
@@ -639,7 +647,8 @@ gridno = (wy/10)*160 + wx/10                                           // MAPROW
     pass with z 32767.
   - It is raised by the tile's `sHeight` like any node, so on raised tiles it shows above the mouse point
     **(inferred)**.
-- **Visible-tile test** (also used by the radar): `GridNoOnVisibleWorldTile` (`Isometric_Utils.cc:544-557`).
+- **Visible-tile test** (also used by the radar): `GridNoOnVisibleWorldTile` (`Isometric_Utils.cc:544-557`), on the
+  render bounds of the map's restriction (`07` §2.5).
 
 ja2-node: `screenToGridNo` (`src/render/world/geometry.ts`, `WorldRenderer.gridNoAt`); soldiers under the pointer:
 `pickSoldierAt` (`picking.ts`).
@@ -656,9 +665,10 @@ ja2-node: `screenToGridNo` (`src/render/world/geometry.ts`, `WorldRenderer.gridN
 - **Shading:** shade 0 = palette ×255/256; at night (before 07:00 or from 21:00, surface only) shade 1 = ×100/256
   (`Radar_Screen.cc:91-93, 205-215`; `Game_Clock.cc:898-901`).
 - **Scale:** `gdScaleX = 88 / (gsRightX − gsLeftX)`, `gdScaleY = 44 / (gsBottomY − gsTopY)`
-  (`RenderWorld.cc:2157-2158`). That is 88/3180 and 44/1540 for restriction 0. **(inferred)** The image spans the
-  scrollable rectangle of §1.3.
-- **Viewport rectangle:** a green (0,255,0) outline (`RectangleDraw`; `Radar_Screen.cc:235-240`):
+  (`RenderWorld.cc:2157-2158`). That is 88/3180 and 44/1540 for restriction 0, 88/1280 and 44/590 for restriction 1.
+  **(inferred)** The image spans the scrollable rectangle of §1.3.
+- **Viewport rectangle:** a green (0,255,0) outline (`RectangleDraw`; `Radar_Screen.cc:235-240`), from the view corners
+  stored in the frame of the map's bounds (§1.4); `round` rounds halves away from zero:
 
 ```
 x1 = RX + max(0, round((gsTopLeftWorldX + 30)·sx))
@@ -667,14 +677,16 @@ x2 = RX + min(round((gsBottomRightWorldX + 20)·sx − 1), 87)
 y2 = RY + min(round((gsBottomRightWorldY + 70)·sy − 1), 43)
 ```
 
-- **Soldier dots:** 2×2, at `floor(GetAbsoluteScreenXYFromMapPos(g) · scale)` (`Radar_Screen.cc:257-279`;
-  `Isometric_Utils.cc:209-233`). That function's y equals `wy` of §3.1, about 45 px lower than the tile's north vertex in
-  the `gsTopLeftWorldY` frame **(inferred; the radar is approximate)**.
-- **Click to centre:** `(rel − 44, rel − 22) / scale` is rounded to whole steps of 40 / 40 px, converted to cells and
-  passed to `SetRenderCenter(800 + …)` (`Radar_Screen.cc:311-348`).
+- **Soldier dots:** 2×2, at `floor(GetAbsoluteScreenXYFromMapPos(g) · scale)` (`Radar_Screen.cc:257-279`; §1.3), only
+  for soldiers on a visible world tile of the map (`:255`).
+- **Click to centre:** `(rel − 44, rel − 22) / scale`, truncated, is snapped to whole steps of 40 / 40 px around the
+  viewport centre, converted to cells with `FromScreenToCellCoordinates` and passed to `SetRenderCenter(800 + …)`
+  (`Radar_Screen.cc:311-348`). Only the scale depends on the restriction: the radar centre stands for the world centre.
 
-ja2-node: the geometry is `src/app/world/radar.ts` (`radarViewportBox`, `radarDotOf`, `radarCellAt`), with the
-restriction-0 constants for every map; the night shade and the dots are drawn by `src/ui/screens/tactical/tactical-screen.ts`.
+ja2-node: the geometry is `src/app/world/radar.ts` (`radarScale`, `radarViewportBox`, `radarDotOf`,
+`radarRenderCenter`, `gridNoOnScreen`), given the loaded map's `restrictedScrollId` by the world presenter
+(`src/app/tactical/world-presenter.ts`); the night shade and the dots are drawn by
+`src/ui/screens/tactical/tactical-screen.ts`.
 
 ---
 

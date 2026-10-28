@@ -6,7 +6,7 @@
 // @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact, CheckForCollision, vector_3ToGridNo.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
-import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
+import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { levelTilesAt } from '../../../content/world/level.ts';
 import { has, INVALID_STRUCTURE_ID, ORIENT_RIGHT, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
@@ -17,7 +17,7 @@ import { eventSoldierGotHit } from '../combat/hit.ts';
 import { Special } from '../combat/types.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { onVisibleWorldTile, type TacticalState } from '../state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility, WorldItemFlags } from '../world-items.ts';
 import { checkForCatcher, checkForCatchObject, endCatchAnimation } from './catching.ts';
 import { igniteExplosionXY } from './explosion.ts';
@@ -269,7 +269,7 @@ function integrate(o: RealObject): void {
 function physicsUpdateLife(t: TacticalState, o: RealObject): boolean {
   o.lifeSpan = f32(o.lifeSpan + DELTA_T);
   if (o.lifeLength !== -1 && o.lifeSpan > o.lifeLength) o.alive = false;
-  if (!isVisibleTile(o.gridNo)) o.alive = false;
+  if (!onVisibleWorldTile(t, o.gridNo)) o.alive = false;
   if (o.alive) return true;
   if (!o.testObject && whistles(t, o)) t.events.push({ type: 'mortarWhistle', sounding: false });
   if (!o.testObject) endOfLife(t, o);

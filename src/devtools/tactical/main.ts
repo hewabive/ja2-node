@@ -166,8 +166,8 @@ let hoverGridNo: number | null = null;
 let hoveredSoldier: number | null = null;
 let selected: number | null = null;
 let pointerTiles = { hover: -1, selected: -1 };
-const radar = new Radar(el<HTMLCanvasElement>('radar'), (cellX, cellY) => {
-  camera = setRenderCenter({ centerX: cellX, centerY: cellY }, viewport(), limits);
+const radar = new Radar(el<HTMLCanvasElement>('radar'), viewport, (target) => {
+  camera = setRenderCenter(target, viewport(), limits);
 });
 
 function setStatus(text: string, error = false): void {
@@ -497,7 +497,7 @@ async function loadSector(mapPath: string): Promise<void> {
   limits = scrollLimits(loaded.world.map.info.restrictedScrollId);
   pointerTiles = { hover: pointerTile(loaded.world.tables, HOVER_POINTER), selected: pointerTile(loaded.world.tables, SELECTED_POINTER) };
   await sound.setWorld(loaded.world);
-  await radar.load(mapPath, available);
+  await radar.load(mapPath, available, loaded.world.map.info.restrictedScrollId);
   const squad = soldiers().filter((s) => s.team === OUR_TEAM);
   selected = squad.find((s) => s.id === selected)?.id ?? squad[0]?.id ?? null;
   debug.selected = selected;

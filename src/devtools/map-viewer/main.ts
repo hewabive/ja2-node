@@ -65,8 +65,8 @@ let hoverGridNo: number | null = null;
 let hoverTile = 0;
 let frameRequested = false;
 let available: ReadonlySet<string> = new Set();
-const radar = new Radar(el<HTMLCanvasElement>('radar'), (cellX, cellY) => {
-  camera = setRenderCenter({ centerX: cellX, centerY: cellY }, viewport(), limits);
+const radar = new Radar(el<HTMLCanvasElement>('radar'), viewport, (target) => {
+  camera = setRenderCenter(target, viewport(), limits);
   requestFrame();
 });
 
@@ -156,7 +156,7 @@ async function open(path: string): Promise<void> {
     hoverTile = loaded.tables.tileIndexByName.has('FIRSTPOINTERS1') ? tileIndex(loaded.tables, 'FIRSTPOINTERS1') : -1;
     const center = loaded.map.info.centerGridNo;
     camera = setRenderCenter(cameraOnGridNo(center >= 0 && center < WORLD_MAX ? center : 80 * WORLD_COLS + 80), viewport(), limits);
-    await radar.load(path, available);
+    await radar.load(path, available, loaded.map.info.restrictedScrollId);
     debug.map = path;
     debug.error = null;
     setStatus(`${path} · tileset ${loaded.map.tilesetId} · ${loaded.surfaces.filter(Boolean).length} surfaces`);

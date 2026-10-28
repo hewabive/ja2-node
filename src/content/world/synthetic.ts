@@ -67,7 +67,7 @@ export function syntheticStructure(
   };
 }
 
-export interface SyntheticWorld extends MovementWorld {
+export interface SyntheticWorld extends Omit<MovementWorld, 'map'> {
   readonly costs: MovementCosts;
 }
 
@@ -92,7 +92,7 @@ export function syntheticWorld(
   };
   const structures = new WorldStructures(level.heights);
   place(structures);
-  const world: MovementWorld = {
+  const world: Omit<MovementWorld, 'map'> = {
     level,
     structures,
     terrain: new Uint8Array(WORLD_MAX).fill(Terrain.FLAT_GROUND),

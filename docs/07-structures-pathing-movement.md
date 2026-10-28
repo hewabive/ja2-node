@@ -293,14 +293,25 @@ the original write out of bounds or into the wrapped row (**(inferred)**: no shi
 ### 2.5 Map edges
 
 - `GridNoOnVisibleWorldTile` (`TileEngine/Isometric_Utils.cc:544-557`, constants `RenderWorld.cc:2114-2148`,
-  `RenderWorld.h:88-95`) reduces, for restriction 0, to **`86 ≤ x+y ≤ 235 && |x−y| ≤ 78`** (inferred algebra,
-  verified numerically: 11775 visible tiles). Visible tiles have `4 ≤ x,y ≤ 156`.
+  `RenderWorld.h:88-95`) tests the tile's absolute screen position against the render bounds that `InitRenderParams`
+  sets from the map's `ubRestrictedScrollID` when the map loads (`Map_Information.cc:98-105`, before the costs are
+  compiled). It reduces, for restriction 0, to **`86 ≤ x+y ≤ 235 && |x−y| ≤ 78`** (inferred algebra, verified
+  numerically: 11775 visible tiles, `4 ≤ x,y ≤ 156`); for restriction 1 (basements) to
+  **`133 ≤ x+y ≤ 187 && −31 ≤ x−y ≤ 30`** (1705 tiles, `51 ≤ x ≤ 108`, `52 ≤ y ≤ 109`).
 - Non-visible tiles get `OFF_MAP` on both levels; `FindBestPath` rejects a non-visible origin and never enters an
   `OFF_MAP` tile; its raw `curLoc + DirIncrementer` step can therefore not wrap rows from a reachable tile.
 - `HandleNextTile` treats a non-visible next tile as clear (paths out of the map, `Soldier_Tile.cc:280-283`); leaving
   the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is in `16` §5.7 and `16` §5.9.
-- ja2-node: `isVisibleTile` (`src/content/world/grid.ts`) uses the full-map diamond everywhere; the smaller basement
-  bounds apply only to sector exits and schedules (`gaps` "Visible area in basements").
+- The same test, on the loaded map's bounds, gates `CompileWorldTerrainIDs`, `NewOKDestination`, `WhoIsThere2`
+  (`WorldMan.cc:1481`), `SetSoldierGridNo` (a soldier set outside is not added to the world, `Soldier_Control.cc:1920`),
+  `LegalNPCDestination`'s height check (`TacticalAI/Movement.cc:34`), bullets (`LOS.cc:3514`, `:4205`), the wall damage
+  next to a blast (`Explosion_Control.cc:946`, `:954`) and thrown objects (`Physics.cc:378`).
+- ja2-node: `gridNoOnVisibleWorldTile(restrictedScrollId, g)` with the render bounds in
+  `src/content/world/render-bounds.ts`; the restriction comes from the map info (`restrictedScrollIdOf`;
+  `onVisibleWorldTile` in `src/sim/tactical/state.ts`; `PathEnv.restrictedScrollId` for the pathfinder). `isVisibleTile`
+  (`src/content/world/grid.ts`) is the closed form of restriction 0, used only where the original has no such test: the
+  agent API's gridNo validation and the insertion guard of `addSoldierToSector`. `randomGridNo` keeps the full map
+  (`gaps` "Random gridnos in unloaded sectors").
 
 ---
 

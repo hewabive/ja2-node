@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/RenderWorld.cc InitRenderParams, ApplyScrolling, HandleScrollDirections, SetRenderCenter;
+// @src src/game/TileEngine/RenderWorld.cc ApplyScrolling, HandleScrollDirections, SetRenderCenter;
 // @src src/game/TileEngine/Isometric_Utils.cc FromCellToScreenCoordinates, FromScreenToCellCoordinates;
 // @src src/game/Tactical/Interface.h scroll paddings.
 
-import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
-import { type Camera, mapCenter, ROOF_LEVEL_HEIGHT, type Viewport } from './geometry.ts';
+import { WORLD_COLS } from '../../content/world/grid.ts';
+import { renderBounds } from '../../content/world/render-bounds.ts';
+import { type Camera, mapCenter, type Viewport } from './geometry.ts';
 
 const CELL_SIZE = 10;
 const HALF_CELL = 5;
@@ -27,16 +28,7 @@ export interface ScrollLimits {
 }
 
 export function scrollLimits(restrictedScrollId: number): ScrollLimits {
-  const restricted = restrictedScrollId === 1;
-  const topLeft = restricted
-    ? { x: (CELL_SIZE * WORLD_ROWS * 3) / 10, y: (CELL_SIZE * WORLD_ROWS) / 2 }
-    : { x: CELL_SIZE, y: (CELL_SIZE * WORLD_ROWS) / 2 };
-  const bottomRight = restricted
-    ? { x: (CELL_SIZE * WORLD_ROWS * 7) / 10, y: (CELL_SIZE * WORLD_ROWS) / 2 }
-    : { x: CELL_SIZE * WORLD_COLS, y: (CELL_SIZE * WORLD_ROWS) / 2 };
-  const a = cellToScreen(topLeft.x, topLeft.y);
-  const b = cellToScreen(bottomRight.x, bottomRight.y);
-  return { leftX: a.x, rightX: b.x, topY: a.y + ROOF_LEVEL_HEIGHT, bottomY: b.y };
+  return renderBounds(restrictedScrollId);
 }
 
 export function cellToScreen(cellX: number, cellY: number): { readonly x: number; readonly y: number } {

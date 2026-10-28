@@ -1052,8 +1052,9 @@ squad. LOAD → traversal flag on; members below OKLIFE are moved to unique squa
 mercs are in the **target** sector, `HandleLoyaltyImplicationsOfMercRetreat(…, target)` (`18`; the argument looks wrong
 but is literal).
 
-ja2-node: the strategic half in `campaign/sector-exits.ts`, the tactical half (render bounds for both scroll modes,
-walk-off, walk-in, mirror gridno, the merc wait) in `src/sim/tactical/sector-exit.ts`. Fleeing AI soldiers leave the map
+ja2-node: the strategic half in `campaign/sector-exits.ts`, the tactical half (walk-off, walk-in, mirror gridno, the
+merc wait) in `src/sim/tactical/sector-exit.ts`, on the render bounds of both scroll modes in
+`src/content/world/render-bounds.ts`. Fleeing AI soldiers leave the map
 the same way (`handleAITacticalTraversal`, `src/sim/tactical/ai/control.ts`).
 
 ### 5.10 Unloading

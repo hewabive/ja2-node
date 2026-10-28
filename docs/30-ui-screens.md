@@ -418,9 +418,11 @@ Nothing at life 0.
 
 88×44 in the team panel's right box: the sector's `radarmaps/<map>.sti`, the green viewport rectangle, 2×2 dots for
 visible soldiers by team colour (the selected merc blinking, unconscious enemies grey, hostile civilians red, named
-civilians blue); a press and a drag move the camera (`RadarRegionButtonCallbackPrimary`, `RadarRegionMoveCallback`; the
-arithmetic in `src/app/world/radar.ts`). The squad button swaps it for the squad list (`squadpanel.sti`, `COMPFONT`, the
-current squad light green, others present dark green, absent black); choosing a squad sets the client's current squad.
+civilians blue; none for a soldier off the map's visible world); a press and a drag move the camera
+(`RadarRegionButtonCallbackPrimary`, `RadarRegionMoveCallback`). The scale, the box and the dots follow the render
+bounds of the loaded map's `restrictedScrollId` (`05` §8; the arithmetic in `src/app/world/radar.ts`). The squad button
+swaps it for the squad list (`squadpanel.sti`, `COMPFONT`, the current squad light green, others present dark green,
+absent black); choosing a squad sets the client's current squad.
 
 ### 2.8 Talk panel and speech (`Tactical/Interface_Dialogue.cc`, `Dialogue_Control.cc`, `Civ_Quotes.cc`)
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Orientation } from '../formats/jsd.ts';
+import type { MapInformation } from '../formats/map.ts';
 import { Direction, gridNo, WORLD_COLS } from './grid.ts';
 import {
   compileWorldMovementCosts,
@@ -10,6 +11,7 @@ import {
   recompileLocalMovementCosts,
   TravelCost,
 } from './movement-costs.ts';
+import { RestrictedScroll } from './render-bounds.ts';
 import { StructureFlags, type WorldStructures } from './structures.ts';
 import { syntheticStructure, syntheticWorld } from './synthetic.ts';
 
@@ -18,6 +20,21 @@ const { NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST } =
 
 function world(place: (s: WorldStructures) => void, roofs: ReadonlySet<number> = new Set()): MovementWorld {
   return syntheticWorld(doorCosts, place, roofs);
+}
+
+function mapInfo(restrictedScrollId: number): MapInformation {
+  return {
+    northGridNo: -1,
+    eastGridNo: -1,
+    southGridNo: -1,
+    westGridNo: -1,
+    numIndividuals: 0,
+    mapVersion: 0,
+    restrictedScrollId,
+    editorSmoothingType: 0,
+    centerGridNo: -1,
+    isolatedGridNo: -1,
+  };
 }
 
 const def = syntheticStructure;
@@ -34,6 +51,16 @@ describe('movement costs', () => {
     expect(costs.get(gridNo(2, 2), SOUTH, 1)).toBe(TravelCost.OFF_MAP);
     expect(costs.get(G, EAST, 0)).toBe(TravelCost.FLAT);
     expect(costs.get(G, EAST, 1)).toBe(TravelCost.OBSTACLE);
+  });
+
+  it('marks the tiles outside the smaller visible area of a basement off-map', () => {
+    const outsideBasement = gridNo(112, 80);
+    const surface = compileWorldMovementCosts({ ...world(() => {}), map: { info: mapInfo(RestrictedScroll.NONE) } });
+    expect(surface.get(outsideBasement, EAST, 0)).toBe(TravelCost.FLAT);
+    const basement = compileWorldMovementCosts({ ...world(() => {}), map: { info: mapInfo(RestrictedScroll.BASEMENT) } });
+    expect(basement.get(outsideBasement, EAST, 0)).toBe(TravelCost.OFF_MAP);
+    expect(basement.get(outsideBasement, EAST, 1)).toBe(TravelCost.OFF_MAP);
+    expect(basement.get(G, EAST, 0)).toBe(TravelCost.FLAT);
   });
 
   it('makes roofs walkable on level 1', () => {

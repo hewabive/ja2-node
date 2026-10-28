@@ -1,25 +1,28 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen, RadarRegionButtonCallback; RenderWorld.cc InitRenderParams;
-// @src src/game/TileEngine/Isometric_Utils.cc GetAbsoluteScreenXYFromMapPos; src/game/Tactical/Soldier_Find.cc GridNoOnScreen
+// @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen, AdjustWorldCenterFromRadarCoords; RenderWorld.cc
+// @src InitRenderParams (radar scale), ApplyScrolling (gsTopLeftWorldX/Y); src/game/Tactical/Soldier_Find.cc GridNoOnScreen
 
 import { rgb565ToRgba } from '../../content/formats/rgb565.ts';
 import { decodeSti, type Sti } from '../../content/formats/sti.ts';
-import { WORLD_COLS } from '../../content/world/grid.ts';
-import type { Camera, Viewport } from '../../render/world/geometry.ts';
+import { WORLD_TILE_X, WORLD_TILE_Y } from '../../content/world/grid.ts';
+import { absoluteScreenXY, gridNoOnVisibleWorldTile, renderBounds, renderedScreenSize } from '../../content/world/render-bounds.ts';
+import { cellToScreen, screenToCell } from '../../render/world/camera.ts';
+import { type Camera, mapCenter, type Viewport } from '../../render/world/geometry.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 export const RADAR_WIDTH = 88;
 export const RADAR_HEIGHT = 44;
-const LEFT_X = -1580;
-const RIGHT_X = 1600;
-const TOP_Y = 860;
-const BOTTOM_Y = 2400;
-const SCALE_X = RADAR_WIDTH / (RIGHT_X - LEFT_X);
-const SCALE_Y = RADAR_HEIGHT / (BOTTOM_Y - TOP_Y);
-const CELL_BLOCK = 10;
-const CELL_BLOCK_CENTRE = 5;
-const CELL_SIZE = 10;
+const RADAR_CENTRE_X = RADAR_WIDTH / 2;
+const RADAR_CENTRE_Y = RADAR_HEIGHT / 2;
+const SCROLL_X_STEP = WORLD_TILE_X;
+const SCROLL_Y_STEP = WORLD_TILE_Y * 2;
+const SCROLL_LEFT_PADDING = -30;
+const SCROLL_RIGHT_PADDING = 10;
+const SCROLL_TOP_PADDING = -50;
+const SCROLL_BOTTOM_PADDING = -20;
+const CENTER_WORLD_X = 800;
+const CENTER_WORLD_Y = 800;
 const VIEW_CENTRE_LIFT = 10;
 const ON_SCREEN_ALLOWANCE = 20;
 const ON_SCREEN_ALLOWANCE_UNDER_TOP_BAR = 40;
@@ -32,10 +35,12 @@ export interface RadarBox {
   readonly y2: number;
 }
 
-export interface RadarCell {
-  readonly cellX: number;
-  readonly cellY: number;
+export interface RadarScale {
+  readonly x: number;
+  readonly y: number;
 }
+
+type ViewOnMap = Viewport & { readonly camera: Camera };
 
 export function radarPathForMap(mapPath: string): string {
   return mapPath.replace(/(^|\/)maps\/([^/]+)\.dat$/, '$1radarmaps/$2.sti');
@@ -71,53 +76,58 @@ export async function loadRadarPixels(
   return radarPixels(decodeSti(await read(path)));
 }
 
-export function radarCellAt(fractionX: number, fractionY: number): RadarCell {
-  const ax = (fractionX * RADAR_WIDTH) / SCALE_X + LEFT_X;
-  const ay = (fractionY * RADAR_HEIGHT) / SCALE_Y + TOP_Y;
-  const cellX = Math.round((ax / 2 + ay) / 2);
-  const cellY = Math.round((ay - ax / 2) / 2);
+export function radarScale(restrictedScrollId: number): RadarScale {
+  const { width, height } = renderedScreenSize(restrictedScrollId);
+  return { x: RADAR_WIDTH / width, y: RADAR_HEIGHT / height };
+}
+
+const roundHalfAwayFromZero = (v: number) => Math.sign(v) * Math.round(Math.abs(v));
+
+const snapToStep = (v: number, centre: number, step: number) => Math.trunc((v - centre) / step) * step + centre;
+
+export function radarRenderCenter(restrictedScrollId: number, radarX: number, radarY: number, v: Viewport): Camera {
+  const scale = radarScale(restrictedScrollId);
+  const centre = mapCenter(v);
+  const screenX = snapToStep(Math.trunc((radarX - RADAR_CENTRE_X) / scale.x), centre.x, SCROLL_X_STEP);
+  const screenY = snapToStep(Math.trunc((radarY - RADAR_CENTRE_Y) / scale.y), centre.y, SCROLL_Y_STEP);
+  const cell = screenToCell(screenX, screenY);
+  return { centerX: CENTER_WORLD_X + cell.x, centerY: CENTER_WORLD_Y + cell.y };
+}
+
+export function visibleWorldBox(restrictedScrollId: number, o: ViewOnMap): RadarBox {
+  const bounds = renderBounds(restrictedScrollId);
+  const centre = mapCenter(o);
+  const screen = cellToScreen(o.camera.centerX, o.camera.centerY);
+  const screenY = screen.y - VIEW_CENTRE_LIFT;
   return {
-    cellX: Math.floor(cellX / CELL_BLOCK) * CELL_BLOCK + CELL_BLOCK_CENTRE,
-    cellY: Math.floor(cellY / CELL_BLOCK) * CELL_BLOCK + CELL_BLOCK_CENTRE,
+    x1: screen.x - centre.x - bounds.leftX,
+    y1: screenY - centre.y - bounds.topY,
+    x2: screen.x + centre.x - bounds.leftX,
+    y2: screenY + centre.y - bounds.topY,
   };
 }
 
-export function visibleWorldBox(o: Viewport & { readonly camera: Camera }): RadarBox {
-  const { centerX, centerY } = o.camera;
-  const screenX = 2 * (centerX - centerY);
-  const screenY = centerX + centerY - VIEW_CENTRE_LIFT;
-  return {
-    x1: screenX - Math.floor(o.width / 2) - LEFT_X,
-    y1: screenY - Math.floor(o.height / 2) - TOP_Y,
-    x2: screenX + Math.floor(o.width / 2) - LEFT_X,
-    y2: screenY + Math.floor(o.height / 2) - TOP_Y,
-  };
-}
-
-export function absoluteScreenOfGridNo(gridNo: number): { readonly x: number; readonly y: number } {
-  const cellX = (gridNo % WORLD_COLS) * CELL_SIZE;
-  const cellY = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE;
-  return { x: 2 * (cellX - cellY) - LEFT_X, y: cellX + cellY - TOP_Y };
-}
-
-export function gridNoOnScreen(gridNo: number, o: Viewport & { readonly camera: Camera }, underTopBar: boolean): boolean {
-  const box = visibleWorldBox(o);
-  const at = absoluteScreenOfGridNo(gridNo);
+export function gridNoOnScreen(restrictedScrollId: number, gridNo: number, o: ViewOnMap, underTopBar: boolean): boolean {
+  const box = visibleWorldBox(restrictedScrollId, o);
+  const at = absoluteScreenXY(restrictedScrollId, gridNo);
   const allowance = underTopBar ? ON_SCREEN_ALLOWANCE_UNDER_TOP_BAR : ON_SCREEN_ALLOWANCE;
   return box.x1 <= at.x && at.x <= box.x2 && box.y1 + allowance <= at.y && at.y <= box.y2 + ON_SCREEN_BOTTOM_ALLOWANCE;
 }
 
-export function radarDotOf(gridNo: number): { readonly x: number; readonly y: number } {
-  const at = absoluteScreenOfGridNo(gridNo);
-  return { x: Math.floor(at.x * SCALE_X), y: Math.floor(at.y * SCALE_Y) };
+export function radarDotOf(restrictedScrollId: number, gridNo: number): { readonly x: number; readonly y: number } | null {
+  if (!gridNoOnVisibleWorldTile(restrictedScrollId, gridNo)) return null;
+  const at = absoluteScreenXY(restrictedScrollId, gridNo);
+  const scale = radarScale(restrictedScrollId);
+  return { x: Math.floor(at.x * scale.x), y: Math.floor(at.y * scale.y) };
 }
 
-export function radarViewportBox(o: Viewport & { readonly camera: Camera }): RadarBox {
-  const { x1: topLeftX, y1: topLeftY, x2: bottomRightX, y2: bottomRightY } = visibleWorldBox(o);
+export function radarViewportBox(restrictedScrollId: number, o: ViewOnMap): RadarBox {
+  const box = visibleWorldBox(restrictedScrollId, o);
+  const scale = radarScale(restrictedScrollId);
   return {
-    x1: Math.max(0, Math.round((topLeftX + 30) * SCALE_X)),
-    y1: Math.max(0, Math.round((topLeftY + 50) * SCALE_Y)),
-    x2: Math.min(Math.round((bottomRightX + 20) * SCALE_X - 1), RADAR_WIDTH - 1),
-    y2: Math.min(Math.round((bottomRightY + 70) * SCALE_Y - 1), RADAR_HEIGHT - 1),
+    x1: Math.max(0, roundHalfAwayFromZero((box.x1 - SCROLL_LEFT_PADDING) * scale.x)),
+    y1: Math.max(0, roundHalfAwayFromZero((box.y1 - SCROLL_TOP_PADDING) * scale.y)),
+    x2: Math.min(roundHalfAwayFromZero((box.x2 - SCROLL_RIGHT_PADDING - SCROLL_LEFT_PADDING) * scale.x - 1), RADAR_WIDTH - 1),
+    y2: Math.min(roundHalfAwayFromZero((box.y2 - SCROLL_BOTTOM_PADDING - SCROLL_TOP_PADDING) * scale.y - 1), RADAR_HEIGHT - 1),
   };
 }

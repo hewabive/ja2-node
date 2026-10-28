@@ -4,6 +4,7 @@ import { parseJsoncBytes } from '../../src/content/strategic/jsonc.ts';
 import { type BloodCatSpawn, parseBloodCatSpawns } from '../../src/content/strategic/map-tables.ts';
 import { parseSectorString, type Sector } from '../../src/content/strategic/sector-ids.ts';
 import { STRATEGIC_CONTENT_PATHS } from '../../src/content/strategic/strategic-content.ts';
+import { absoluteScreenXY, restrictedScrollIdOf } from '../../src/content/world/render-bounds.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { createSaveSession, type SaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
@@ -26,13 +27,7 @@ import {
   type SoldierInitNode,
 } from '../../src/sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
-import {
-  absoluteScreenXY,
-  mirrorGridNo,
-  pickGridNoNearestEdge,
-  pickGridNoToWalkIn,
-  soldierOKForSectorExit,
-} from '../../src/sim/tactical/sector-exit.ts';
+import { mirrorGridNo, pickGridNoNearestEdge, pickGridNoToWalkIn, soldierOKForSectorExit } from '../../src/sim/tactical/sector-exit.ts';
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, unregisterSoldier } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
@@ -261,7 +256,7 @@ export class SectorComparer {
         `from ${s.gridNo} dir ${direction}: native ${grid(p.gridNo)} class ${p.classCode} ja2-node ${g} class ${code}`,
       );
     }
-    const { x, y } = absoluteScreenXY(t, s.gridNo);
+    const { x, y } = absoluteScreenXY(restrictedScrollIdOf(t.world), s.gridNo);
     const ok = soldierOKForSectorExit(t, s, Number(p.exitDirection), Number(p.exitGrid));
     const same = ok === p.ok && x === Number(p.screenX) && y === Number(p.screenY);
     return report(

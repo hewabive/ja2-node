@@ -1,7 +1,8 @@
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
-import { isVisibleTile, WORLD_MAX } from '../../content/world/grid.ts';
+import { WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
+import { gridNoOnVisibleWorldTile, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
@@ -334,6 +335,7 @@ export function pathEnvSettings(env: PathEnv): PathEnvSettings {
 }
 
 export interface PathEnvParts {
+  readonly world: TacticalWorldData;
   readonly pathWorld: PathWorld;
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly soldiers: Soldier[];
@@ -342,10 +344,11 @@ export interface PathEnvParts {
 }
 
 export function createPathEnv(parts: PathEnvParts, settings: PathEnvSettings): PathEnv {
-  const { pathWorld, occupant, soldiers, doorStatus, content } = parts;
+  const { world, pathWorld, occupant, soldiers, doorStatus, content } = parts;
   return {
     world: pathWorld,
-    whoIsThere: (g, level) => whoIsThere({ occupant, soldiers }, g, level),
+    restrictedScrollId: restrictedScrollIdOf(world),
+    whoIsThere: (g, level) => whoIsThere({ world, occupant, soldiers }, g, level),
     doorStatus: (g) => doorStatus.get(g) ?? null,
     showAllMercs: settings.showAllMercs,
     autoBandage: settings.autoBandage,
@@ -374,7 +377,7 @@ export function createTacticalState(
     structures: world.structures,
     mapDoors: world.mapDoors,
   };
-  const pathEnv = createPathEnv({ pathWorld, occupant, soldiers, doorStatus, content }, defaultPathEnvSettings());
+  const pathEnv = createPathEnv({ world, pathWorld, occupant, soldiers, doorStatus, content }, defaultPathEnvSettings());
   const options = shared.options ?? gameOptions();
   return {
     clockMs: 0,
@@ -439,8 +442,12 @@ export function createTacticalState(
   };
 }
 
-export function whoIsThere(state: Pick<TacticalState, 'occupant' | 'soldiers'>, g: number, level: number): Soldier | null {
-  if (!isVisibleTile(g)) return null;
+export function onVisibleWorldTile(t: { readonly world: TacticalWorldData }, g: number): boolean {
+  return gridNoOnVisibleWorldTile(restrictedScrollIdOf(t.world), g);
+}
+
+export function whoIsThere(state: Pick<TacticalState, 'world' | 'occupant' | 'soldiers'>, g: number, level: number): Soldier | null {
+  if (!onVisibleWorldTile(state, g)) return null;
   const id = state.occupant[level > 0 ? 1 : 0][g] ?? -1;
   return id < 0 ? null : (state.soldiers[id] ?? null);
 }
