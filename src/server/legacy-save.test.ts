@@ -41,6 +41,14 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'OPEN_STRUCT',
   'OPEN_STRUCT_CROUCHED',
 ];
+const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
+  'FALLFORWARD_FROMHIT_STAND',
+  'ENDFALLFORWARD_FROMHIT_CROUCH',
+  'FALLBACK_HIT_STAND',
+  'FLYBACK_HIT',
+  'JFK_HITDEATH',
+];
+const FALL_SOUNDS_ADDED_AFTER_070: ReadonlySet<number> = new Set([721, 722]);
 const RECORDED_ONE_SHOT_FRAMES = 8;
 const NONINTERRUPTIBLE_DONE = 442;
 const RT_NONINTERRUPTIBLE_DONE = 772;
@@ -114,15 +122,30 @@ function recordedOneShotScript(flags: number): number[] {
   ];
 }
 
+function replaceScript(codes: Uint16Array, state: number, script: readonly number[]): void {
+  const base = state * MAX_FRAMES_PER_ANIM;
+  codes.fill(0, base, base + MAX_FRAMES_PER_ANIM);
+  codes.set(script, base);
+}
+
+function scriptOf(codes: Uint16Array, state: number): number[] {
+  const base = state * MAX_FRAMES_PER_ANIM;
+  return Array.from(codes.subarray(base, base + MAX_FRAMES_PER_ANIM));
+}
+
 async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<Uint8Array> {
   const { codes } = parseAnimationScripts(await vfs.read(STUB_ANIMATION_SCRIPTS_PATH));
   for (const name of SCRIPTS_ADDED_AFTER_070) {
     const state = stateId(tables, name);
-    const base = state * MAX_FRAMES_PER_ANIM;
-    codes.fill(0, base, base + MAX_FRAMES_PER_ANIM);
-    recordedOneShotScript(tables.controls[state]?.flags ?? 0).forEach((code, pc) => {
-      codes[base + pc] = code;
-    });
+    replaceScript(codes, state, recordedOneShotScript(tables.controls[state]?.flags ?? 0));
+  }
+  for (const name of SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070) {
+    const state = stateId(tables, name);
+    replaceScript(
+      codes,
+      state,
+      scriptOf(codes, state).filter((code) => !FALL_SOUNDS_ADDED_AFTER_070.has(code)),
+    );
   }
   return writeAnimationScripts({ codes });
 }

@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497, 765,
+// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497, 721, 722, 765,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
 // @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
@@ -26,6 +26,7 @@ import {
   setSoldierDirection,
 } from '../animation.ts';
 import { dropKeysInKeyRing } from '../doors/keys.ts';
+import { checkEquipmentForFragileItemDamage } from '../explosions/item-damage.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { cancelAllServices } from '../first-aid.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
@@ -88,6 +89,10 @@ const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
 const VEHICLE_CORPSE_DIRECTION = 7;
 const COLLAPSED_TURNS_BEFORE_KNOCKOUT = 1;
+const FALL_TO_GROUND_CODE = 721;
+const HEAVY_FALL_CODE = 722;
+const STANDING_FALL_JAR_DAMAGE = 20;
+const CROUCHED_FALL_JAR_DAMAGE = 15;
 
 const DEATH_FROM_FALL: Readonly<Record<string, string>> = {
   FLYBACK_HIT: 'FLYBACK_HIT_DEATH',
@@ -540,6 +545,10 @@ function deathOrRelease(t: TacticalState, s: Soldier): OpOutcome {
   return 'stop';
 }
 
+function fallOnFragileItems(t: TacticalState, s: Soldier, fallState: string, damage: number): void {
+  if (animName(t.content, s.state) === fallState) checkEquipmentForFragileItemDamage(t, s, damage);
+}
+
 function dropFlybackBlood(t: TacticalState, s: Soldier): void {
   internalDropBlood(t, s.gridNo, s.level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
   const behind = newGridNo(s.gridNo, DIRECTION_INCREMENT[(s.direction + 4) % 8] ?? 0);
@@ -571,6 +580,12 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       return 'continue';
     case 765:
       dropFlybackBlood(t, s);
+      return 'continue';
+    case FALL_TO_GROUND_CODE:
+      fallOnFragileItems(t, s, 'FALLFORWARD_FROMHIT_STAND', STANDING_FALL_JAR_DAMAGE);
+      return 'continue';
+    case HEAVY_FALL_CODE:
+      fallOnFragileItems(t, s, 'FALLFORWARD_FROMHIT_CROUCH', CROUCHED_FALL_JAR_DAMAGE);
       return 'continue';
     case 480:
       releaseSoldiersAttacker(t, s);

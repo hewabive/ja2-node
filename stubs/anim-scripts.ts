@@ -83,6 +83,8 @@ const Sound = {
   PRONE_UP: 775,
   PRONE_DOWN: 776,
   PICK_UP: 777,
+  FALL_TO_GROUND: 721,
+  HEAVY_FALL: 722,
 } as const;
 const STEPPING_STATES = ['WALKING', 'RUNNING', 'SWATTING', 'CRAWLING'];
 const STANCE_SOUNDS: Readonly<Record<string, number>> = {
@@ -347,13 +349,21 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     Op.BACK_TO_AIM,
     END_OF_ANIMATION,
   ]);
-  m.set('FALLFORWARD_FROMHIT_STAND', [...frames(4), Op.TRY_TO_FALL, ...frames(8, 5), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('FALLFORWARD_FROMHIT_STAND', [
+    ...frames(4),
+    Op.TRY_TO_FALL,
+    ...frames(6, 5),
+    Sound.FALL_TO_GROUND,
+    ...frames(2, 11),
+    NONINTERRUPTIBLE_DONE,
+    Op.DEATH_OR_RELEASE,
+  ]);
   m.set('FALLFORWARD_FROMHIT_CROUCH', [...frames(4), Op.TRY_TO_FALL, 5, 6, NONINTERRUPTIBLE_DONE, to('ENDFALLFORWARD_FROMHIT_CROUCH')]);
-  m.set('ENDFALLFORWARD_FROMHIT_CROUCH', [...frames(8), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
-  m.set('FALLBACK_HIT_STAND', [...frames(9), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('ENDFALLFORWARD_FROMHIT_CROUCH', [...frames(5), Sound.FALL_TO_GROUND, ...frames(3, 6), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('FALLBACK_HIT_STAND', [...frames(5), Sound.HEAVY_FALL, ...frames(4, 6), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   m.set('PRONE_LAY_FROMHIT', [...frames(7), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
-  m.set('FLYBACK_HIT', [1, NONINTERRUPTIBLE_DONE, ...frames(10, 2), Op.DEATH_OR_RELEASE]);
-  m.set('JFK_HITDEATH', [...frames(12), Op.DEAD]);
+  m.set('FLYBACK_HIT', [1, NONINTERRUPTIBLE_DONE, ...frames(7, 2), Sound.HEAVY_FALL, ...frames(3, 9), Op.DEATH_OR_RELEASE]);
+  m.set('JFK_HITDEATH', [...frames(6), Sound.FALL_TO_GROUND, ...frames(3, 7), Sound.HEAVY_FALL, ...frames(3, 10), Op.DEAD]);
   for (const name of ['GENERIC_HIT_DEATH', 'FALLBACK_HIT_DEATH', 'PRONE_HIT_DEATH', 'FLYBACK_HIT_DEATH', 'CIV_DIE2'])
     m.set(name, [...frames(6), Op.DEAD]);
   for (const name of ['WATER_DIE', 'DEEP_WATER_DIE']) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);

@@ -208,10 +208,9 @@ handler acts on (`isSimulationOpcode`), at the same positions, so jumps and opco
 `adjustToNextAnimationFrame` (`src/sim/tactical/animation.ts`) walks the logic timeline and runs the opcodes of fence
 hops, pauses, doors and the end of an animation itself; every other opcode goes down the chain of subsystem `*Opcode`
 handlers (attack, death, items, roofs, throws, first aid) that `installTacticalHooks`
-(`src/sim/tactical/tactical-sim.ts`) wires. Not run: the random idle animations of 491 (gaps "Random idle animations")
-and the jar damage of 721/722 (gaps "Fragile items on falls"). The stub pack has invented scripts for every state with
-the same gameplay opcodes and shorter frames (`stubs/anim-scripts.ts`); a client whose scripts differ from the
-server's: `28`.
+(`src/sim/tactical/tactical-sim.ts`) wires. Not run: the random idle animations of 491 (gaps "Random idle animations").
+The stub pack has invented scripts for every state with the same gameplay opcodes and shorter frames
+(`stubs/anim-scripts.ts`); a client whose scripts differ from the server's: `28`.
 
 **Why markers stay in the simulation.** Paying AP and applying effects at command confirmation, with the animation as
 mere visualization, would lose what happens between an order and its marker: an interrupt, an NPC's throw cancelled

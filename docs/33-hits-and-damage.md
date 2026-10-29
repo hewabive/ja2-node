@@ -27,7 +27,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 |---|---|
 | `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window |
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills |
-| `combat/death.ts` | Incapacitation and death opcodes, corpses and dropped items, kill records, getting up, the skull delay |
+| `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
 | `combat/bleeding.ts` | Bleeding at turn start and the next-bleed time |
 | `combat/barrier.ts` | The attack busy count, suppression, noticing an unseen attacker, the end of an attack |
 | `combat/morale.ts` | Tactical morale events; strategic events and the death fan-out are `sim/campaign/morale.ts` |
@@ -86,6 +86,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | Bad news hurts one point more on a roof: the original reads the map level where it meant the experience level | `morale.test.ts` |
 | A militia kill counts three | `death.test.ts` |
 | A soldier knocked out on his own team's turn counts two turns down: the original runs its getting-up check twice | `death.test.ts` |
+| A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
 
 Not pinned yet:
@@ -107,5 +108,4 @@ Inferred from reading the source:
 - Which draws the item-locator quote makes. `HandleKilledQuote` is not ported (gaps "Kill quotes").
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Fragile items on falls", "Implications of an attack", "Morale without drugs", "Corpses", "Unseen
-soldiers in combat".
+Not ported: gaps "Implications of an attack", "Morale without drugs", "Corpses", "Unseen soldiers in combat".

@@ -149,9 +149,9 @@ source:
   flare never fades during turn-based combat.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Wrecked
-structures", "Building owners", "Deidranna's and the creature queen's drops", "Fragile items on falls", "Drugs and
-alcohol", "Auto-bandage", "Ambush" (gas masks), "Vision and hearing modifiers" (smoke and gas in sight), "Walking side
-effects" (water damage to items), "Tossing from the item cursor", "Inventory panel clicks". Other deviations of this
-domain: "Object union", "Item cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion
-timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and
-light", "Cosmetic draws in explosions".
+structures", "Building owners", "Deidranna's and the creature queen's drops", "Drugs and alcohol", "Auto-bandage",
+"Ambush" (gas masks), "Vision and hearing modifiers" (smoke and gas in sight), "Walking side effects" (water damage to
+items), "Tossing from the item cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
+cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
+pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and light", "Cosmetic draws in
+explosions".
