@@ -6,7 +6,7 @@ import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../../events.ts';
-import { createItem } from '../../items/object.ts';
+import { createItem, emptyObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
@@ -21,20 +21,31 @@ import { MercStatus } from '../../tactical/profiles.ts';
 import { FinanceCode } from '../finances.ts';
 import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
+import { ProfileMiscFlag3 } from '../profiles.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import { RenewalQuoteCode } from './contract-state.ts';
-import { checkIfMercGetsAnotherContract, dailyMoraleUpdate, mercDailyUpdate, soldierHasWorseEquipmentThanUsedTo } from './daily.ts';
+import {
+  checkIfMercGetsAnotherContract,
+  dailyMoraleUpdate,
+  mercDailyUpdate,
+  profileDailyUpdate,
+  soldierHasWorseEquipmentThanUsedTo,
+} from './daily.ts';
 import {
   beginRemoveMercFromContract,
   calculateMedicalDepositRefund,
   departureOptions,
+  handleEquipmentLeft,
   handleMercLeavingEquipment,
+  PRIMARY_AIRPORT_LEAVE_EQUIP_GRIDNO,
+  primaryAirportSector,
   strategicRemoveMerc,
 } from './departure.ts';
 import { mercContractHandling } from './extension.ts';
 import { dailyUpdateOfMercSite, mercsContractIsFinished } from './merc-account.ts';
 import { HistoryCode } from './quotes.ts';
 import { contractOptions, findOutIfAnyMercAboutToLeaveIsGonnaRenew, findRefusalReason, willMercRenew } from './renewal.ts';
+import { rpcWhineAboutNoPay } from './rpc-pay.ts';
 
 let kit: CampaignKit;
 
@@ -303,6 +314,26 @@ describe('leaving the team', () => {
     expect(event).toMatchObject({ stamp: (worldTotalMinutes(cc.campaign.state.clock) + 360) * 60, param: 0 });
   });
 
+  it('lets an empty-handed departure’s delivery carry the gear of the next merc who takes the same leave slot', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.vant }]);
+    const [emptyHanded, laden] = [merc(cc, 0), merc(cc, 1)];
+    emptyHanded.soldier.inv.forEach((_, slot) => {
+      emptyHanded.soldier.inv[slot] = emptyObject();
+    });
+    handleMercLeavingEquipment(cc.flow, emptyHanded, true);
+    handleMercLeavingEquipment(cc.flow, laden, false);
+    const leaveEvents: readonly number[] = [EventKind.MERC_LEAVE_EQUIP_IN_DRASSEN, EventKind.MERC_LEAVE_EQUIP_IN_OMERTA];
+    const deliveries = cc.campaign.state.queue.events.filter((e) => leaveEvents.includes(e.kind));
+    expect(deliveries.map((e) => [e.kind, e.param])).toEqual([
+      [EventKind.MERC_LEAVE_EQUIP_IN_DRASSEN, 0],
+      [EventKind.MERC_LEAVE_EQUIP_IN_OMERTA, 0],
+    ]);
+    cc.flow.drainEvents();
+    handleEquipmentLeft(cc.flow, 0, primaryAirportSector(cc.flow), PRIMARY_AIRPORT_LEAVE_EQUIP_GRIDNO, null);
+    expect(cc.flow.drainEvents()).toEqual([expect.objectContaining({ type: 'equipmentDelivered', owner: STUB.vant })]);
+    expect(cc.campaign.state.contracts.leaveList[0]?.items).toBeNull();
+  });
+
   it('sends the merc home with the draws of StrategicRemoveMerc and refunds the deposit by remaining life', () => {
     const cc = landed([{ profile: STUB.kestrel }]);
     const m = merc(cc, 0);
@@ -437,6 +468,63 @@ describe('the daily update', () => {
     expect(soldierHasWorseEquipmentThanUsedTo(cc.flow, m, p)).toBe(true);
   });
 
+  it('wraps the morale-scaled gun rating as a signed byte, so a top gun at high morale makes its owner complain', () => {
+    const cc = landed([{ profile: STUB.kestrel }]);
+    const m = merc(cc, 0);
+    const p = profile(cc, STUB.kestrel);
+    const items = cc.content.items;
+    const rifle = items.byName.get('AUTO_ROCKET_RIFLE');
+    if (!rifle) throw new Error('no auto rocket rifle');
+    m.soldier.inv.forEach((_, slot) => {
+      m.soldier.inv[slot] = emptyObject();
+    });
+    m.soldier.inv[InvSlot.HAND] = createItem(items, rifle.index, 100);
+    p.mainGunAttractiveness = 100;
+    m.soldier.morale = 81;
+    expect(soldierHasWorseEquipmentThanUsedTo(cc.flow, m, p)).toBe(false);
+    m.soldier.morale = 82;
+    expect(soldierHasWorseEquipmentThanUsedTo(cc.flow, m, p)).toBe(true);
+  });
+
+  it('keeps a dead merc on the team in the update: he serves a day, an R.P.C. is paid and his gloom costs reputation', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
+    setTime(cc, at(2, 0));
+    const s = cc.campaign.state;
+    s.finances.balance = 10_000;
+    const dead = [merc(cc, 0), merc(cc, 1)];
+    for (const m of dead) {
+      m.assignment = Assignment.ASSIGNMENT_DEAD;
+      m.soldier.life = 0;
+      m.soldier.morale = 10;
+      Object.assign(profile(cc, m.profile), { mercStatus: MercStatus.IS_DEAD, deathRate: 101, reputationTolerance: 101 });
+    }
+    Object.assign(profile(cc, STUB.kestrel), { reputationTolerance: 50 });
+    const served = dead.map((m) => profile(cc, m.profile).totalDaysServed);
+    const manDays = s.status.manDaysPlayed;
+    mercDailyUpdate(cc.flow);
+    expect(dead.map((m) => profile(cc, m.profile).totalDaysServed)).toEqual(served.map((days) => days + 1));
+    expect(s.finances.ledger.at(-1)).toMatchObject({ code: FinanceCode.PAYMENT_TO_NPC, amount: -90 });
+    expect(s.status.badReputation).toBe(3);
+    expect(s.status.manDaysPlayed).toBe(manDays);
+  });
+
+  it('lets a merc killed on another job take the same night’s new-job roll and come back alive', () => {
+    const cc = landed([{ profile: STUB.kestrel }]);
+    const p = profile(cc, STUB.tarrow);
+    Object.assign(p, { mercStatus: MercStatus.WORKING_ELSEWHERE, dayBecomesAvailable: 3 });
+    p.stats.experience = 5;
+    p.miscFlags3 |= ProfileMiscFlag3.PLAYER_HAD_CHANCE_TO_HIRE;
+    const DULL_DAY = 0;
+    const NEW_JOB = 0;
+    const rng = scripted(cc, [DULL_DAY, NEW_JOB, 3], [0]);
+    profileDailyUpdate(cc.flow, STUB.tarrow);
+    expect(rng.pre.requested).toEqual([1000]);
+    expect(rng.main.requested).toEqual([100, 100, 8]);
+    expect(cc.campaign.state.status.unhiredMercDeaths).toBe(1);
+    expect(cc.flow.drainEvents()).toContainEqual(expect.objectContaining({ mail: 'mercDiedOnOtherAssignment', profile: STUB.tarrow }));
+    expect(p).toMatchObject({ mercStatus: MercStatus.WORKING_ELSEWHERE, dayBecomesAvailable: 4 });
+  });
+
   it('lets a cheerful merc lift the morale of everyone in his sector, not of mercs on the road', () => {
     const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.vant }, { profile: STUB.tarrow }]);
     const [a, b, c] = [merc(cc, 0), merc(cc, 1), merc(cc, 2)];
@@ -465,6 +553,29 @@ describe('the daily update', () => {
     for (let day = 0; day < 3; day++) mercDailyUpdate(cc.flow);
     expect(merc(cc, 1).contract.leaveHistoryCode).toBe(HistoryCode.MERC_QUIT);
     expect(s.contracts.pendingEndings).toContainEqual({ kind: 'withoutEquipment', soldier: 1 });
+  });
+
+  it('pays an R.P.C. nothing unless the balance covers the arrears too, and has him quit with quote 55, not the whine 54', () => {
+    const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
+    setTime(cc, at(2, 0));
+    const s = cc.campaign.state;
+    const hana = profile(cc, STUB.hana);
+    s.finances.balance = 50;
+    mercDailyUpdate(cc.flow);
+    expect(hana.balance).toBe(-90);
+    const whine = s.queue.events.find((e) => e.kind === EventKind.RPC_WHINE_ABOUT_PAY);
+    expect(whine).toMatchObject({ param: 1 });
+    cc.flow.drainEvents();
+    rpcWhineAboutNoPay(cc.flow, whine?.param ?? -1);
+    expect(quotes(cc.flow.drainEvents())).toEqual([[1, 'notGettingPaid']]);
+    s.finances.balance = 100;
+    mercDailyUpdate(cc.flow);
+    expect(hana.balance).toBe(-180);
+    expect(s.finances.balance).toBe(100);
+    mercDailyUpdate(cc.flow);
+    const quit = cc.flow.drainEvents().filter((e) => e.type === 'mercQuote');
+    expect(quit).toEqual([expect.objectContaining({ soldier: 1, quote: 'aimSeenMike', id: 55 })]);
+    expect(merc(cc, 1).contract.leaveHistoryCode).toBe(HistoryCode.MERC_QUIT);
   });
 
   it('escalates the M.E.R.C. account after 7, 9 and 12 unpaid days', () => {

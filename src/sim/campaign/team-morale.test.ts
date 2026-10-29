@@ -111,7 +111,7 @@ describe('HourlyMoraleUpdate', () => {
     expect(team[0]?.soldier.morale).toBe(52);
   });
 
-  it('drops the whole opinion to hated when a hated teammate is past his tolerance', () => {
+  it('drops the whole opinion to hated for a hated teammate whose tolerance is untouched: the count is tested against the full time', () => {
     const team = [merc(0), merc(1)];
     const hated = [2, -1, -1, -1, -1];
     const { ctx } = context(team, {

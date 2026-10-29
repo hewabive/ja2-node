@@ -7,6 +7,7 @@
 // @src HandleShadingOfLinesForContractMenu.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { OKLIFE, SoldierStatusFlags } from '../../tactical/soldier.ts';
@@ -99,7 +100,7 @@ export function mercRenewalWillingness(ctx: ContractContext, m: RosterMerc, sayQ
     const quote = buddyQuote ?? refusal.quote;
     const mask = precedentBitMask(Quote[quote]);
     if ((p.precedentQuoteSaid & mask) !== 0) ctx.say(m, 'PRECEDENT_TO_REPEATING_ONESELF_RENEW');
-    else p.precedentQuoteSaid = (p.precedentQuoteSaid | mask) >>> 0;
+    else p.precedentQuoteSaid = u32(p.precedentQuoteSaid | mask);
     const subject = buddyQuote ? p.buddies[buddySlot] : refusal.subject;
     ctx.say(m, quote, subject);
   }

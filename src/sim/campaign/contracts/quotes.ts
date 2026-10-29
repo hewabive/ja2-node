@@ -4,6 +4,8 @@
 // @src gubMercValidPrecedentQuoteID, GetQuoteBitNumberFromQuoteID; Laptop/History.h (contract history codes);
 // @src Tactical/Soldier_Profile.h NPCIDs. Checked against data/tables/merc-quotes.json and merc-contracts.json.
 
+import { u32 } from '../../../core/int.ts';
+
 export const Quote = {
   BUDDY_ONE_KILLED: 15,
   BUDDY_TWO_KILLED: 16,
@@ -71,11 +73,16 @@ export const PRECEDENT_QUOTES: readonly number[] = [
 ];
 
 const BITS_IN_FLAGS = 32;
+const UNLISTED_QUOTE_INDEX = 0;
+
+function x86ShiftCount(shift: number): number {
+  return shift & (BITS_IN_FLAGS - 1);
+}
 
 export function precedentBitMask(quote: number): number {
-  const found = PRECEDENT_QUOTES.indexOf(quote);
-  const bit = (found < 0 ? 0 : found) - 1;
-  return (1 << (((bit % BITS_IN_FLAGS) + BITS_IN_FLAGS) % BITS_IN_FLAGS)) >>> 0;
+  const listed = PRECEDENT_QUOTES.indexOf(quote);
+  const index = listed < 0 ? UNLISTED_QUOTE_INDEX : listed;
+  return u32(1 << x86ShiftCount(index - 1));
 }
 
 export function quoteKey(name: QuoteName): string {

@@ -5,7 +5,7 @@
 // @src TacticalAI/AIUtils.cc DistanceToClosestFriend; Soldier_Profile.cc WhichHated.
 
 import { sameSector } from '../../content/strategic/sector-ids.ts';
-import { clamp } from '../../core/int.ts';
+import { clamp, i8 } from '../../core/int.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership } from '../tactical/skills.ts';
@@ -110,32 +110,31 @@ function teamOpinion(ctx: TeamMoraleContext, m: RosterMerc, p: ProfileProgress):
     const { opinion, hatedNow } = opinionOf(p, other);
     if (hatedNow) return { sum, members, foundHated: true, leadership };
     sum += opinion;
-    members = ((members + 1) << 24) >> 24;
+    members = i8(members + 1);
     leadership = Math.max(leadership, effectiveLeadership(other.soldier));
   }
   return { sum, members, foundHated: false, leadership };
 }
 
 function actualTeamOpinion(o: TeamOpinion): number {
-  let actual: number;
-  if (o.foundHated) actual = HATED_OPINION;
-  else if (o.members > 0)
-    actual = ((Math.trunc(o.sum / o.members) << 24) >> 24) + Math.trunc((o.leadership - LEADERSHIP_BASE) / LEADERSHIP_STEP);
-  else actual = 0;
-  return clamp((actual << 24) >> 24, HATED_OPINION, BUDDY_OPINION);
+  if (o.foundHated) return HATED_OPINION;
+  if (o.members <= 0) return 0;
+  const averageOpinion = i8(Math.trunc(o.sum / o.members));
+  const leadershipBonus = Math.trunc((o.leadership - LEADERSHIP_BASE) / LEADERSHIP_STEP);
+  return clamp(i8(averageOpinion + leadershipBonus), HATED_OPINION, BUDDY_OPINION);
 }
 
 function shiftTeamMorale(m: RosterMerc, actual: number): void {
   const s = m.soldier;
-  const diff = ((actual - s.teamMoraleMod) << 24) >> 24;
+  const diff = i8(actual - s.teamMoraleMod);
   const change = diff > 0 ? 1 + Math.trunc(diff / TEAM_MOD_STEP) : diff < 0 ? -1 + Math.trunc(diff / TEAM_MOD_STEP) : 0;
-  s.teamMoraleMod = clamp(((s.teamMoraleMod + change) << 24) >> 24, -MORALE_MOD_MAX, MORALE_MOD_MAX);
+  s.teamMoraleMod = clamp(i8(s.teamMoraleMod + change), -MORALE_MOD_MAX, MORALE_MOD_MAX);
 }
 
 function applyDelayedStrategicMorale(m: RosterMerc): void {
   const s = m.soldier;
   if (s.delayedStrategicMoraleMod === 0) return;
-  s.strategicMoraleMod = clamp(((s.strategicMoraleMod + s.delayedStrategicMoraleMod) << 24) >> 24, -MORALE_MOD_MAX, MORALE_MOD_MAX);
+  s.strategicMoraleMod = clamp(i8(s.strategicMoraleMod + s.delayedStrategicMoraleMod), -MORALE_MOD_MAX, MORALE_MOD_MAX);
   s.delayedStrategicMoraleMod = 0;
 }
 
@@ -170,7 +169,7 @@ export function hourlyMoraleUpdate(ctx: TeamMoraleContext): void {
     applyDelayedStrategicMorale(m);
     refreshMercMorale(ctx, m);
   }
-  ctx.morale.strategicDecayCounter = ((ctx.morale.strategicDecayCounter + 1) << 24) >> 24;
+  ctx.morale.strategicDecayCounter = i8(ctx.morale.strategicDecayCounter + 1);
   if (ctx.morale.strategicDecayCounter === HOURS_BETWEEN_STRATEGIC_DECAY) {
     ctx.morale.strategicDecayCounter = 0;
     decayStrategicMoraleModifiers(ctx);
@@ -303,7 +302,7 @@ function learnedHatePass(ctx: TeamMoraleContext, m: RosterMerc, p: ProfileProgre
   }
   if (p.learnToHateCount < Math.trunc(p.learnToHateTime / 2)) {
     const opinion = p.opinions[other] ?? 0;
-    p.opinions[other] = ((opinion + Math.trunc((HATED_OPINION - opinion) / (p.learnToHateCount + 1))) << 24) >> 24;
+    p.opinions[other] = i8(opinion + Math.trunc((HATED_OPINION - opinion) / (p.learnToHateCount + 1)));
   }
 }
 
@@ -315,7 +314,7 @@ function learnToLikePass(p: ProfileProgress, other: number): void {
     p.opinions[other] = BUDDY_OPINION;
   } else if (p.learnToLikeCount < Math.trunc(p.learnToLikeTime / 2)) {
     const opinion = p.opinions[other] ?? 0;
-    p.opinions[other] = ((opinion + Math.trunc((BUDDY_OPINION - opinion) / (p.learnToLikeCount + 1))) << 24) >> 24;
+    p.opinions[other] = i8(opinion + Math.trunc((BUDDY_OPINION - opinion) / (p.learnToLikeCount + 1)));
   }
 }
 

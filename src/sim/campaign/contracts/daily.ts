@@ -206,7 +206,7 @@ function countDownAvailability(ctx: ContractContext, id: number, p: ProfileProgr
   ctx.emit({ type: 'mailDue', mail: 'mercBackFromAssignment', profile: id });
 }
 
-function profileDailyUpdate(ctx: ContractContext, id: number): void {
+export function profileDailyUpdate(ctx: ContractContext, id: number): void {
   const p = ctx.profile(id);
   if (!p || isProfileDead(p)) return;
   p.precedentQuoteSaid = 0;
