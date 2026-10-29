@@ -177,6 +177,7 @@ export async function closeRegisteredSession<T extends { close(): Promise<void> 
 }
 
 const sessionsBeingCreated = new WeakMap<Map<string, unknown>, Set<string>>();
+const firstNumberNeverCreated = new WeakMap<Map<string, unknown>, number>();
 
 function creating(sessions: Map<string, unknown>): Set<string> {
   const ids = sessionsBeingCreated.get(sessions) ?? new Set<string>();
@@ -198,14 +199,15 @@ export async function openSession<T>(
   if (request.reseed !== undefined && !request.load) throw new Error('reseed goes with load');
   if (request.campaign?.deadIsDeadName !== undefined && request.campaign.deadIsDeadDescription !== undefined)
     throw new Error('pass deadIsDeadName or deadIsDeadDescription, not both');
-  let n = sessions.size + pending.size;
+  const openOrOpening = sessions.size + pending.size;
+  let n = Math.max(openOrOpening, firstNumberNeverCreated.get(sessions) ?? 0);
   const taken = (candidate: string) => sessions.has(candidate) || pending.has(candidate);
   while (taken(`${defaultSession}-${n}`)) n++;
   const id = `${defaultSession}-${n}`;
   pending.add(id);
   try {
     const created = await createSession(id, {
-      seed: request.seed ?? n,
+      seed: request.seed ?? openOrOpening,
       ...(request.language ? { language: request.language } : {}),
       ...(request.speech ? { speech: request.speech } : {}),
       ...(request.save ? { save: request.save } : {}),
@@ -213,6 +215,7 @@ export async function openSession<T>(
       ...(request.load ? { load: { name: request.load, reseed: request.reseed ?? true } } : {}),
     });
     sessions.set(id, created);
+    firstNumberNeverCreated.set(sessions, Math.max(n + 1, firstNumberNeverCreated.get(sessions) ?? 0));
     return created;
   } finally {
     pending.delete(id);

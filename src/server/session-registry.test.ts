@@ -29,6 +29,17 @@ describe('openSession', () => {
     const next = await openSession(sessions, 'sandbox', slowFactory([]), {});
     expect(next.id).toBe('sandbox-0');
   });
+
+  it("never gives a closed session's id to a new one, so a client still holding it cannot reach another session", async () => {
+    const sessions = new Map<string, Session>();
+    await openSession(sessions, 'sandbox', slowFactory([]), {});
+    const latest = await openSession(sessions, 'sandbox', slowFactory([]), {});
+    sessions.delete(latest.id);
+    const seeds: number[] = [];
+    const next = await openSession(sessions, 'sandbox', slowFactory(seeds), {});
+    expect(next.id).toBe('sandbox-2');
+    expect(seeds).toEqual([1]);
+  });
 });
 
 describe('sessionLimit', () => {
