@@ -164,6 +164,16 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, { ok: true }, facts)).toBeNull();
   });
 
+  it('quotes the line of a rocket rifle taking the fingerprints, and prints nothing for one that refuses them', () => {
+    const entries = messageEntriesOf(
+      [at({ type: 'gunImprint', soldier: 0, result: 'imprinted' }), at({ type: 'gunImprint', soldier: 0, result: 'denied' })],
+      facts,
+    );
+    expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'TacticalStr', index: 111, quoted: true }]);
+    const refused = { ok: false, reason: 'wrongFingerprint', data: { refusal: 'wrongFingerprint' } };
+    expect(refusalEntry(9, { type: 'attack', soldier: 0 }, refused, facts)).toBeNull();
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(

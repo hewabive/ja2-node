@@ -346,6 +346,7 @@ export class TacticalHost {
       sounds: {
         attention: (soldier) => this.#sound.director?.attention(soldier),
         newMessageBeep: () => this.#newMessageBeep(),
+        fingerprintDenied: () => this.#sound.director?.fingerprintDenied(),
       },
       random: (range) => this.#random.int(range),
       metric: () => loadSettings().display.useMetricSystem,

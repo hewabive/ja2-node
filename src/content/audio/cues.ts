@@ -6,7 +6,8 @@
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791, the battle cry of 717);
 // @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure, GetStructureOpenSound; TileEngine/Explosion_Control.cc
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down).
+// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
+// @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import type { CueBook, WeaponSounds } from './cue-book.ts';
@@ -139,6 +140,10 @@ export function gunshotCue(book: CueBook, gridNo: number, shot: ShotSound, exist
 
 export function dryFireCue(book: CueBook, gridNo: number): Cue | null {
   return effectCue(book, 'S_DRYFIRE1', 'location', VolumeLevel.MID, gridNo);
+}
+
+export function imprintCue(book: CueBook, imprinted: boolean): Cue | null {
+  return effectCue(book, imprinted ? 'RG_ID_IMPRINTED' : 'RG_ID_INVALID', 'fixed', VolumeLevel.HIGH);
 }
 
 export function reloadCue(book: CueBook, item: number): Cue | null {

@@ -26,7 +26,7 @@ function directiveCount(template: string): number {
   return count;
 }
 
-export function formatMessageEntry(entry: MessageEntry, sources: MessageFormatSources): string {
+function entryText(entry: MessageEntry, sources: MessageFormatSources): string {
   const args = (entry.args ?? []).map((a) => argText(a, sources));
   if (entry.table === undefined || entry.index === undefined) return args.map(String).join(' ');
   const template = sources.text.string(entry.table, entry.index) ?? '';
@@ -34,6 +34,11 @@ export function formatMessageEntry(entry: MessageEntry, sources: MessageFormatSo
   const extra = args.slice(used).map(String);
   const body = printf(template, args);
   return extra.length > 0 ? [body, ...extra].join(' ') : body;
+}
+
+export function formatMessageEntry(entry: MessageEntry, sources: MessageFormatSources): string {
+  const text = entryText(entry, sources);
+  return entry.quoted ? `"${text}"` : text;
 }
 
 export function showsInTacticalLog(entry: MessageEntry): boolean {

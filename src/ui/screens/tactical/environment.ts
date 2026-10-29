@@ -168,6 +168,7 @@ export interface TacticalFlow {
 export interface TacticalSounds {
   attention(soldier: number): void;
   newMessageBeep(): void;
+  fingerprintDenied(): void;
 }
 
 export interface TacticalEnvironment {

@@ -10,8 +10,9 @@
 // @src view's open containers, silent when Bobby Ray's delivery closes the crate as Strategic_Event_Handler.cc
 // @src CloseCrate does, the opener's battle sound 500 ms later); Tactical/Weapons.cc UseGun, BulletHitStructure,
 // @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the
-// @src simulation), DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet
-// @src strikes); TileEngine/Physics.cc (a thrown object landing, the mortar whistle, CATCH_OBJECT as a catch ends);
+// @src simulation), DoSpecialEffectAmmoMiss, WindowHit; Tactical/Handle_Items.cc HandleItem (the rocket rifle's RG_ID
+// @src sounds); TileEngine/Structure.cc DamageStructure (the material a bullet strikes); TileEngine/Physics.cc (a thrown
+// @src object landing, the mortar whistle, CATCH_OBJECT as a catch ends);
 // @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code
 // @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
 // @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1).
@@ -36,6 +37,7 @@ import {
   glassShatterCue,
   gunshotCue,
   impactCue,
+  imprintCue,
   isSoundOpcode,
   lockOutcomeCue,
   materialHitCue,
@@ -241,6 +243,10 @@ export class SoundDirector {
 
   locked(soldier: number): void {
     this.#battleSound(soldier, 'LOCKED', false);
+  }
+
+  fingerprintDenied(): void {
+    this.#play(imprintCue(this.#o.book, false));
   }
 
   applyFrames(frames: readonly ViewFrame[]): void {
@@ -498,6 +504,9 @@ export class SoundDirector {
       case 'gunJammed':
         if (!e.unjammed && this.#soldiers.get(e.soldier)?.team === OUR_TEAM)
           this.#play(this.#placed(dryFireCue(book, NOWHERE), this.#sourcePlace(e.soldier)));
+        return;
+      case 'gunImprint':
+        this.#play(imprintCue(book, e.result === 'imprinted'));
         return;
       case 'reloaded':
         if (this.#soldiers.has(e.soldier)) this.#play(reloadCue(book, e.item));

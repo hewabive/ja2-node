@@ -228,9 +228,10 @@ right after the command, and the `Session` holds them for the next report.
 
 **The message list** (`src/server/message-entries.ts`, `src/protocol/message-log.ts`): a presentation module outside
 `sim` turns events, and the refusals the original prints, into entries of the original's message list
-(`Utils/Message.cc`): a table, an index and arguments, never text, so every client prints them in its own language. The
-session keeps the last 256 in its presentation block: saved, sent whole in `welcome`, new ones in frames and in every
-`advance` report (`messages`). The simulation never reads them (deviation "Message list").
+(`Utils/Message.cc`): a table, an index and arguments, never text, so every client prints them in its own language;
+`quoted` marks the lines the original wraps in double quotes. The session keeps the last 256 in its presentation block:
+saved, sent whole in `welcome`, new ones in frames and in every `advance` report (`messages`). The simulation never
+reads them (deviation "Message list").
 
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
 what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps. The
@@ -260,9 +261,11 @@ mode the original keeps beside the stance (deviation "Stance"); a new `move` re-
 ("Continue a move"); `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
-reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A launcher without a round
-refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command of its
-own: move it to the hand, check with `estimateAttack`, `attack` the tile.
+reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. Our merc's first pull of a
+virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
+the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. A launcher without
+a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command
+of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
 
 ### 8.2 Doors, containers and remote triggers
 

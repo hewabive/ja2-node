@@ -35,6 +35,8 @@ import type { MouseRegion } from '../../../input/regions.ts';
 import { printf } from '../../../text/printf.ts';
 import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
 import { OKLIFE } from '../faces.ts';
+import { HAND_SLOT } from '../inventory.ts';
+import { slotItem } from '../item-cursor.ts';
 import { inCombat, isEpc, isRobot, nextActiveAndAliveMerc, OUR_TEAM, ourTurn, ownSoldiers, soldierById } from '../soldiers.ts';
 import { Arrows } from './arrows.ts';
 import {
@@ -73,6 +75,8 @@ export const NO_PX_SHOW_EXIT_CURS = 15;
 const AP_TALK = 6;
 const NPC_TALK_RADIUS = 4;
 const NO_PATH_STR = 114;
+const GUN_NOGOOD_FINGERPRINT = 112;
+const NO_PROFILE = 200;
 const NOBODY_USING_REMOTE_STR = 88;
 const CANT_MOVE_THERE_STR = 34;
 const OUT_OF_RANGE_STRING = 126;
@@ -1018,6 +1022,7 @@ export class TacticalInput {
     if (e.cursor === 'invalid') return false;
     const target = this.#hover.target;
     if (target?.id === sel.id && e.cursor !== 'aid') return false;
+    if (this.#wrongFingerprint(sel)) return false;
     if (e.cursor === 'punch') {
       if (!target) return false;
       if (e.apCost === 0) {
@@ -1026,6 +1031,14 @@ export class TacticalInput {
       }
     }
     if (e.cursor === 'aid' && !target) return false;
+    return true;
+  }
+
+  #wrongFingerprint(sel: SoldierView): boolean {
+    const imprint = slotItem(sel, HAND_SLOT)?.imprint;
+    if (imprint === undefined || imprint === (sel.profile ?? NO_PROFILE)) return false;
+    this.#env().sounds.fingerprintDenied();
+    this.#host.feedback(`"${this.#text('TacticalStr', GUN_NOGOOD_FINGERPRINT)}"`);
     return true;
   }
 

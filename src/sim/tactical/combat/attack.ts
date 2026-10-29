@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Items.cc HandleItem (gun path), HandItemWorks; Soldier_Control.cc EVENT_FireSoldierWeapon,
-// @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon, PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
+// @src src/game/Tactical/Handle_Items.cc HandleItem (gun path, the rocket rifle imprint), HandItemWorks;
+// @src Soldier_Control.cc EVENT_FireSoldierWeapon, SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon,
+// @src PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
 // @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
 // @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
@@ -52,6 +53,7 @@ import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
 
 const MEANWHILE_HIT_CHANCE = 100;
+const GENERIC_IMPRINT = NO_PROFILE + 1;
 
 export { ItemHandle };
 
@@ -155,9 +157,35 @@ function handleThrowOrLaunch(t: TacticalState, s: Soldier, g: number, level: num
   return ItemHandle.OK;
 }
 
+const isRocketRifle = (t: TacticalState, item: number) =>
+  item === itemIndex(t, 'ROCKET_RIFLE') || item === itemIndex(t, 'AUTO_ROCKET_RIFLE');
+
+function genericImprintAccepts(gun: ItemObject): boolean {
+  if (gun.imprintId === GENERIC_IMPRINT) return true;
+  if (gun.imprintId !== NO_PROFILE) return false;
+  gun.imprintId = GENERIC_IMPRINT;
+  return true;
+}
+
+function rocketRifleImprintAccepts(t: TacticalState, s: Soldier): boolean {
+  const gun = s.inv[s.attackingHand] as ItemObject;
+  if (s.profile === NO_PROFILE) return genericImprintAccepts(gun);
+  if (gun.imprintId === s.profile) return true;
+  const ours = s.team === Team.OUR;
+  if (gun.imprintId !== NO_PROFILE) {
+    if (ours) t.events.push({ type: 'gunImprint', soldier: s.id, result: 'denied' });
+    return false;
+  }
+  gun.imprintId = s.profile;
+  if (!ours) return true;
+  t.events.push({ type: 'gunImprint', soldier: s.id, result: 'imprinted' });
+  return false;
+}
+
 function handleGunAttack(t: TacticalState, s: Soldier, g: number, tgt: Soldier | null, handItem: number): number {
   const d = def(t, handItem);
   if (!d) return ItemHandle.BROKEN;
+  if (isRocketRifle(t, handItem) && !rocketRifleImprintAccepts(t, s)) return ItemHandle.BROKEN;
   if (d.itemClass !== ItemClass.THROWING_KNIFE && !enoughAmmo(t, s, InvSlot.HAND)) {
     s.doSpread = 0;
     return ItemHandle.NOAMMO;

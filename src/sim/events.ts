@@ -297,6 +297,12 @@ export interface GunJammedEvent extends SimEventBase {
   readonly unjammed: boolean;
 }
 
+export interface GunImprintEvent extends SimEventBase {
+  readonly type: 'gunImprint';
+  readonly soldier: number;
+  readonly result: 'imprinted' | 'denied';
+}
+
 export interface StatChangedEvent extends SimEventBase {
   readonly type: 'statChanged';
   readonly soldier: number;
@@ -628,6 +634,7 @@ export type SimEvent =
   | SoldierDiedEvent
   | AttackResolvedEvent
   | GunJammedEvent
+  | GunImprintEvent
   | ReloadedEvent
   | StatChangedEvent
   | ExplosionEvent

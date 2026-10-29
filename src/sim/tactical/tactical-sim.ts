@@ -7,7 +7,7 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
-import type { SimEvent } from '../events.ts';
+import type { GunImprintEvent, SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { KnowledgeLight } from '../knowledge/view.ts';
 import { applyOptionChange, type GameOptions, parseOptionChange } from '../options.ts';
@@ -231,6 +231,10 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
 const MELEE_ORDER_REFUSALS: Readonly<Record<MeleeOrderRefusal, string>> = {
   noPath: 'no path to the target',
   notEnoughAP: ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs',
+};
+const IMPRINT_REFUSALS: Readonly<Record<GunImprintEvent['result'], readonly [token: string, reason: string]>> = {
+  imprinted: ['gunImprinted', 'the rocket rifle took his fingerprints instead of firing; attack again to fire it'],
+  denied: ['wrongFingerprint', 'the rocket rifle is imprinted on another soldier'],
 };
 
 const _MELEE_CHANCE_TO_GET_THROUGH = 100;
@@ -881,9 +885,12 @@ export class TacticalSim {
       return refuse(ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo', ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo');
     const meleeRefusal = melee ? meleeOrderRefusal(t, s, target) : null;
     if (meleeRefusal) return refuse(meleeRefusal, MELEE_ORDER_REFUSALS[meleeRefusal]);
+    const eventsBefore = t.events.length;
     const result = handleItem(t, s, target, level, s.attackingWeapon);
     if (result !== ItemHandle.OK) {
       s.doSpread = 0;
+      const imprint = t.events.slice(eventsBefore).find((e): e is GunImprintEvent => e.type === 'gunImprint');
+      if (imprint) return refuse(...IMPRINT_REFUSALS[imprint.result]);
       return refuse(ATTACK_REFUSAL_TOKENS[result] ?? 'attackRefused', ATTACK_REFUSALS[result] ?? `attack refused (${result})`);
     }
     selectSoldier(t, s);

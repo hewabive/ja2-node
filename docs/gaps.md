@@ -72,7 +72,6 @@ The loaded sector: doors, sight, walking, combat, items, explosions, the AI and 
 | Big merc kneel | Big males with a rifle kneel and rise through `BIGMERC_CROUCH_TRANS_*` (`Tactical/Soldier_Control.cc:1127`) | `KNEEL_DOWN` and `KNEEL_UP`; the client takes the threaten stance from the body (`src/app/world/soldier-assets.ts`) | Changes the state agents see |
 | Reverse move animations | A reverse move steps sideways or backwards (`Tactical/Soldier_Control.cc:1145`) | The soldier turns and walks forward; the reverse AP surcharge is paid (`animation.ts`) | The backward states have their own timing |
 | Assignment animations in the loaded sector | `AssignmentDone`, `PutMercInAsleepState` and waking change the soldier's animation in the loaded sector (`Assignments.cc:2747-2769`, `:6232`) | Only placement at sector entry uses `SLEEPING`, `BEING_PATIENT` or `BEING_DOCTOR` (`placementAnimation`, `tactical/insertion.ts`); a merc who falls asleep, wakes or ends an assignment in the loaded sector keeps his animation and height | Related to "Sleeping mercs in combat" |
-| Rocket rifle imprint | `HandleItem` imprints a virgin rocket rifle on its first shooter and refuses to fire one imprinted on someone else, for every soldier (`Handle_Items.cc:266-312`) | `handleItem` (`combat/attack.ts`) neither checks nor sets `imprintId`; only the AI's weapon choice and the view read it | The imprint check and its sounds in the attack path |
 
 ## 2. Strategic layer
 

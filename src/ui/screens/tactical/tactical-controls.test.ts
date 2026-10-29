@@ -3,7 +3,7 @@ import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } fr
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
-import { emptyObject } from '../../../sim/items/object.ts';
+import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
@@ -407,6 +407,56 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle();
     expect(commandsOf(f, 'attack').at(-1)).toMatchObject({ soldier: 0, target: enemy.gridNo });
     expect(f.screen.controls.lockState()).toBe('ourTurn');
+  });
+
+  it('leaves the shot of an aim confirmed on an enemy to HandleItem, which denies a rocket rifle imprinted on someone else silently', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const t = tacticalOf(f.session).state;
+    const shooter = t.soldiers.find((v) => v?.id === 0);
+    const rifle = t.content.items.byName.get('ROCKET_RIFLE');
+    if (!shooter || !rifle) throw new Error('no merc 0 or rocket rifle');
+    shooter.inv[InvSlot.HAND] = { ...createItem(t.content.items, rifle.index, 100), imprintId: shooter.profile + 1 };
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    await f.settle(8);
+    await f.clickAt(at.x, at.y - 5);
+    await f.settle();
+    f.deliver();
+    expect(commandsOf(f, 'attack')).toHaveLength(1);
+    expect(f.fingerprintsDenied).toHaveLength(0);
+    expect(f.screen.feedbackText).toBeNull();
+    expect(shooter.inv[InvSlot.HAND]?.imprintId).toBe(shooter.profile + 1);
+  });
+
+  it('refuses on the client the first click of a merc holding a rocket rifle imprinted on someone else, sending no attack', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const t = tacticalOf(f.session).state;
+    const shooter = t.soldiers.find((v) => v?.id === 0);
+    const rifle = t.content.items.byName.get('ROCKET_RIFLE');
+    if (!shooter || !rifle) throw new Error('no merc 0 or rocket rifle');
+    shooter.inv[InvSlot.HAND] = { ...createItem(t.content.items, rifle.index, 100), imprintId: shooter.profile + 1 };
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    await f.settle(1);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    pointer(f, 'pointerDown', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerUp', at.x, at.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    await f.settle(1);
+    expect(f.fingerprintsDenied).toHaveLength(1);
+    expect(f.screen.feedbackText).toMatch(/^".+"$/);
+    expect(commandsOf(f, 'attack')).toHaveLength(0);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
   });
 
   it('draws the walk up to a punch target out of reach, footsteps and the move grid at the tile he strikes from', async () => {

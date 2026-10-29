@@ -339,6 +339,25 @@ describe('the sound director', () => {
     expect(whistle?.active).toBe(false);
   });
 
+  it('plays the rocket rifle ID sounds, unplaced at high volume: one when it is imprinted, one when it is denied', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'gunImprint', tick: 9, soldier: 1, result: 'imprinted' },
+          { type: 'gunImprint', tick: 9, soldier: 1, result: 'denied' },
+        ],
+      ),
+    ]);
+    r.director.fingerprintDenied();
+    const [imprinted, invalid] = [book.paths.get('RG_ID_IMPRINTED'), book.paths.get('RG_ID_INVALID')];
+    expect(files(r)).toEqual([imprinted, invalid, invalid]);
+    expect(r.cues[0]).toMatchObject({ mix: 'fixed', gridNo: -1 });
+  });
+
   it('curses about one in forty single-shot misses of our mercs, never a burst or another team', () => {
     const r = rig();
     const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;

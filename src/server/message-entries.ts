@@ -6,8 +6,9 @@
 // @src Keys.cc (locks and traps), Interface_Dialogue.cc and TacticalAI/NPC.cc (recruits, escorts, balances),
 // @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, unpaid RPCs),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
-// @src (repairs, aborted assignments), Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc
-// @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
+// @src (repairs, aborted assignments), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
+// @src Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc (refused first aid),
+// @src Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
 // @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
 
@@ -77,6 +78,7 @@ const MERC_OFF_STEALTH = 47;
 const MUTE_OFF = 64;
 const MUTE_ON = 65;
 const NO_PATH_FOR_MERC = 130;
+const GUN_GOT_FINGERPRINT = 111;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
   teamFull: { kind: 'uiFeedback', table: 'TacticalStr', index: 35 },
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
@@ -263,6 +265,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   squadStealthChanged: (e) => [line('pMessageStrings', e.on ? SQUAD_ON_STEALTH : SQUAD_OFF_STEALTH)],
   muteChanged: (e, facts) => [line('TacticalStr', e.on ? MUTE_ON : MUTE_OFF, [text(facts.soldierName(e.soldier))])],
   noPathForMerc: (e, facts) => [line('TacticalStr', NO_PATH_FOR_MERC, [text(facts.soldierName(e.soldier))])],
+  gunImprint: (e) => (e.result === 'imprinted' ? [{ ...line('TacticalStr', GUN_GOT_FINGERPRINT), quoted: true }] : []),
   itemCaught: (e, facts) => [
     line('pMessageStrings', MERC_CAUGHT_ITEM, [text(facts.soldierName(e.soldier)), { item: e.item, name: 'short' }]),
   ],

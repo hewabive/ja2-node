@@ -29,6 +29,7 @@ export interface MessageEntry {
   readonly textKey?: MessageTextKey;
   readonly speaker?: number;
   readonly args?: readonly MessageArg[];
+  readonly quoted?: true;
 }
 
 export const GAME_SAVED_MESSAGE: MessageStringRef = { table: 'pMessageStrings', index: 8 };

@@ -359,6 +359,7 @@ export interface TacticalUiTest {
   readonly screen: TacticalScreen;
   readonly attention: number[];
   readonly beeps: number[];
+  readonly fingerprintsDenied: number[];
   readonly flow: string[];
   readonly battleSounds: { readonly soldier: number; readonly sound: BattleSound }[];
   display: DisplaySettings;
@@ -441,6 +442,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
   const boxLabels = messageBoxLabels(text);
   const attention: number[] = [];
   const beeps: number[] = [];
+  const fingerprintsDenied: number[] = [];
   const flow: string[] = [];
   const battleSounds: { readonly soldier: number; readonly sound: BattleSound }[] = [];
   const uiCursors = parseUiCursorTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
@@ -462,7 +464,11 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
       exitGame: () => flow.push('exitGame'),
       mapScreen: () => flow.push('mapScreen'),
     },
-    sounds: { attention: (id) => attention.push(id), newMessageBeep: () => beeps.push(t.now) },
+    sounds: {
+      attention: (id) => attention.push(id),
+      newMessageBeep: () => beeps.push(t.now),
+      fingerprintDenied: () => fingerprintsDenied.push(t.now),
+    },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,
     uiCursors,
@@ -512,6 +518,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     screen,
     attention,
     beeps,
+    fingerprintsDenied,
     flow,
     battleSounds,
     get display() {
