@@ -45,7 +45,7 @@ import {
   states,
 } from './animation.ts';
 import { generateBuildings } from './buildings.ts';
-import { calcTotalAPsToAttack, minAPsToAttack } from './combat/ap.ts';
+import { calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
 import { updateBullets, updateMissAnimations } from './combat/bullets.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
@@ -204,6 +204,10 @@ const ATTACK_REFUSAL_TOKENS: Readonly<Record<number, string>> = {
   [ItemHandle.NOROOM]: 'noRoomToFire',
   [ItemHandle.REFUSAL]: 'refusesOrder',
 };
+
+function launcherWithoutRound(t: TacticalState, s: Soldier): boolean {
+  return t.content.items.byIndex.get(s.attackingWeapon)?.cursor === ItemCursor.TRAJECTORY && !enoughAmmo(t, s, InvSlot.HAND);
+}
 
 const DOOR_REFUSALS: Readonly<Record<string, string>> = {
   noDoor: 'there is no door on that tile',
@@ -871,6 +875,8 @@ export class TacticalSim {
     if ('error' in setup) return refuse(setup.token, setup.error);
     const { s, target, level, melee } = setup;
     if (target === s.gridNo) return refuse('ownTile', 'cannot attack own tile');
+    if (launcherWithoutRound(t, s))
+      return refuse(ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo', ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo');
     if (melee) {
       if (!meleeSpot(t, s, target, level)) return refuse('notAdjacent', NOT_ADJACENT);
       if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, s.aimTime)))

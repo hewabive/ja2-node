@@ -132,6 +132,20 @@ describe('launchers through the attack command', () => {
   it('kneels a standing merc down for the mortar without charging the stance change', () => {
     expect(fireMortar(false).spent).toBe(fireMortar(true).spent);
   });
+
+  it('refuses a launcher without a round, which the original cursor turns into a reload', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.HAND] = createItem(t.content.items, t.content.items.byName.get('GLAUNCHER')?.index ?? -1, 100);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 95) })).toMatchObject({ ok: false, data: { refusal: 'noAmmo' } });
+    expect(t.turn.attackBusyCount).toBe(0);
+    expect(merc.actionPoints).toBe(before);
+  });
 });
 
 describe('LAW', () => {
