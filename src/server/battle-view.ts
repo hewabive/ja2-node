@@ -87,7 +87,8 @@ export function promptView(campaign: CampaignSim): PromptView | null {
     case PromptKind.NPC_OF_NOTE: {
       const groupId = campaign.state.movement.groupPrompting ?? 0;
       const g = campaign.strategic ? getGroup(campaign.strategic, groupId) : undefined;
-      return { id: prompt.id, kind: 'npcOfNote', group: groupId, sector: g ? sectorName(g.sector) : '', choices: ['continue', 'stop'] };
+      const choices = campaign.battle?.npcOfNoteChoices() ?? [];
+      return { id: prompt.id, kind: 'npcOfNote', group: groupId, sector: g ? sectorName(g.sector) : '', choices };
     }
     case PromptKind.MILITIA_PAYMENT:
       return {

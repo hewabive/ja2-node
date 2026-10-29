@@ -1,4 +1,4 @@
-import { sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
@@ -22,6 +22,7 @@ import {
   handleGroupArrivalEvent,
   type StrategicContextOptions,
 } from '../strategic/forces/context.ts';
+import { wildernessSectorWithAllProfiledNpcsNotSpokenWith } from '../strategic/forces/npcs-of-note.ts';
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
@@ -338,8 +339,14 @@ export class CampaignSim {
         ...base,
         inMeanwhile: () => (this.queen ? areInMeanwhile(this.queen) : base.inMeanwhile()),
         boxing: () => this.state.narrative.boxing.state !== NOT_BOXING,
+        npcOfNoteInSector: (sector) => this.#npcOfNoteInSector(sector),
       },
     };
+  }
+
+  #npcOfNoteInSector(sector: Sector): boolean {
+    const strategic = this.strategic;
+    return strategic !== null && wildernessSectorWithAllProfiledNpcsNotSpokenWith(strategic, sector, this.narrative.listedProfiles());
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {

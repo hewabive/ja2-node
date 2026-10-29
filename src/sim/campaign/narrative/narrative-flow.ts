@@ -27,6 +27,7 @@ import { repairmanIsFixingItemsButNoneAreDoneYet } from '../../strategic/economy
 import { placeHeadMinersOnSectorEntry } from '../../strategic/economy/mines.ts';
 import type { PeriodicSlots } from '../../strategic/economy/ports.ts';
 import { countAllMilitiaInSector, playerMercsInSector } from '../../strategic/forces/groups.ts';
+import type { ListedProfile } from '../../strategic/forces/npcs-of-note.ts';
 import { townIdOfSector } from '../../strategic/map/control.ts';
 import {
   checkFact,
@@ -85,13 +86,14 @@ import type { InsertionContext } from '../../tactical/insertion.ts';
 import { anotherFightPossible, boxerAvailable, boxerExists, clearBoxers } from '../../tactical/narrative/boxing.ts';
 import type { PlacementNarrative } from '../../tactical/narrative/placement.ts';
 import { type ProfileInsertionHooks, setupProfileInsertionDataForSoldier } from '../../tactical/narrative/profile-insertion.ts';
-import { isProfileDead, type ProfileProgress, profileProgress } from '../../tactical/profiles.ts';
+import { isProfileDead, type ProfileProgress, profileProgress, progressFromProfile } from '../../tactical/profiles.ts';
 import type { Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { HistoryCode } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
 import type { TalkSoldiers } from '../flow-state.ts';
 import { addHistory, timeQuestWasStarted } from '../laptop/records.ts';
+import { NUM_PROFILES } from '../profiles.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
 import type { QuestEventWithoutTick } from './events.ts';
 import { campaignFactWorld, factSoldierById } from './fact-world.ts';
@@ -187,6 +189,18 @@ export class NarrativeFlow {
     if (existing) return existing;
     const content = this.content();
     return content ? profileProgress({ profiles: this.state.profiles, content }, id) : null;
+  }
+
+  listedProfiles(): ListedProfile[] {
+    const base = this.content()?.profiles ?? [];
+    const types = this.campaign.economy?.economy.mercTypes;
+    const listed: ListedProfile[] = [];
+    for (let id = 0; id < NUM_PROFILES; id++) {
+      const p = base[id];
+      const profile = this.state.profiles.get(id) ?? (p ? progressFromProfile(p) : null);
+      if (profile) listed.push({ type: types?.get(id) ?? MercType.NOT_USED, profile });
+    }
+    return listed;
   }
 
   factHooks(): FactHooks {

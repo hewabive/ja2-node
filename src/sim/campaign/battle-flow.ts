@@ -54,7 +54,7 @@ import {
 } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode } from '../strategic/forces/constants.ts';
 import { answerSimultaneousArrival } from '../strategic/forces/encounters.ts';
-import { getGroup } from '../strategic/forces/groups.ts';
+import { getGroup, groupAtFinalDestination } from '../strategic/forces/groups.ts';
 import { answerNpcOfNotePrompt, resetMovementForEnemyGroupsInLocation } from '../strategic/forces/movement.ts';
 import {
   calculateNonPersistentPbiInfo,
@@ -121,6 +121,9 @@ import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sec
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
+const NPC_OF_NOTE_STOP = 'stop';
+const NPC_OF_NOTE_ON_THE_WAY: readonly string[] = ['continue', NPC_OF_NOTE_STOP];
+const NPC_OF_NOTE_AT_DESTINATION: readonly string[] = ['ok'];
 const PACOS_FIRST_BATTLE_RECORD = 18;
 const NO_TACTICAL: Pick<TacticalState, 'soldiers'> = { soldiers: [] };
 const CREATURE_COMPOSITION_KEYS: Readonly<Record<number, keyof CreatureComposition>> = {
@@ -966,10 +969,16 @@ export class BattleFlow implements FateContext {
     return { ok: true };
   }
 
+  npcOfNoteChoices(): readonly string[] {
+    const g = getGroup(this.economy, this.state.movement.groupPrompting ?? -1);
+    return g && groupAtFinalDestination(g) ? NPC_OF_NOTE_AT_DESTINATION : NPC_OF_NOTE_ON_THE_WAY;
+  }
+
   #answerNpcOfNote(choice: string): CommandResult {
-    if (choice !== 'continue' && choice !== 'stop') return { ok: false, reason: "choose 'continue' or 'stop'" };
+    const choices = this.npcOfNoteChoices();
+    if (!choices.includes(choice)) return { ok: false, reason: `choose ${choices.map((c) => `'${c}'`).join(' or ')}` };
     this.state.battle.prompt = null;
-    answerNpcOfNotePrompt(this.economy, choice === 'continue');
+    answerNpcOfNotePrompt(this.economy, choice !== NPC_OF_NOTE_STOP);
     this.settle();
     return { ok: true };
   }

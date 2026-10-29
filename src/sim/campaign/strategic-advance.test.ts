@@ -43,7 +43,8 @@ function answerAnything(c: CampaignSim): void {
       c.dispatch({ type: 'answer', prompt: prompt.id, choice: choice?.choice });
     } else if (prompt.kind === 'surrender') c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'reject' });
     else if (prompt.kind === 'autoresolveDone') c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'done' });
-    else c.dispatch({ type: 'answer', prompt: prompt.id, choice: prompt.kind === 'npcOfNote' ? 'continue' : 'separately' });
+    else if (prompt.kind === 'npcOfNote') c.dispatch({ type: 'answer', prompt: prompt.id, choice: c.battle?.npcOfNoteChoices()[0] });
+    else c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'separately' });
     if (c.state.flow === 'autoresolve' && !c.state.battle.prompt) advance(c, { idle: true });
   }
 }

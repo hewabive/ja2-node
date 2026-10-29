@@ -20,7 +20,7 @@ GROUP_ARRIVAL → groupArrivedAtSector                forces/movement.ts
   ├ queued 3–5 minutes while another battle runs
   ├ battle check, simultaneous arrivals, bloodcats  forces/encounters.ts
   │  └ hand-off record encounter.preBattle → PBI    forces/pre-battle.ts, then 19
-  └ quiet arrival: control, next leg, NPC-of-note   forces/movement.ts, map/control.ts
+  └ quiet arrival: control, next leg, NPC-of-note   forces/movement.ts, map/control.ts, forces/npcs-of-note.ts
 map, PBI, game start, load → setCurrentWorldSector  campaign/sector-flow.ts (SectorFlow)
   sector diff restored                              campaign/sector-diff.ts
   soldiers placed                                   tactical/init-list.ts, tactical/insertion.ts
@@ -33,7 +33,7 @@ exitSector → exit check, exit menu, adjacent jump   campaign/sector-exits.ts
 |---|---|
 | `src/content/strategic/` | Sector ids and map file names (`sector-ids.ts`), the map file of a sector (`sector-maps.ts`), the externalized tables (`map-tables.ts`, `policy.ts`, `travel-table.ts`, `strategic-content.ts`) |
 | `strategic/map/` | Sector and map-element records, flags and their side effects (`sectors.ts`), new-campaign init (`init.ts`), edge times and ETAs (`travel.ts`), routes (`pathing.ts`), control and airspace (`control.ts`, `sam.ts`), the player's knowledge of enemies (`knowledge.ts`), the native save sections (`save-import.ts`) |
-| `strategic/forces/` | Groups and counting helpers (`groups.ts`), squads (`squads.ts`), movement and arrival (`movement.ts`), the battle check (`encounters.ts`), the PBI side (`pre-battle.ts`), vehicles and the helicopter, the ports (`ports.ts`, `context.ts`), flow state outside the native save (`flow-state.ts`) |
+| `strategic/forces/` | Groups and counting helpers (`groups.ts`), squads (`squads.ts`), movement and arrival (`movement.ts`), the NPC-of-note test (`npcs-of-note.ts`), the battle check (`encounters.ts`), the PBI side (`pre-battle.ts`), vehicles and the helicopter, the ports (`ports.ts`, `context.ts`), flow state outside the native save (`flow-state.ts`) |
 | `campaign/sector-flow.ts` | `SectorFlow`: loading, entering, placing and unloading the tactical sector, reinforcements into it |
 | `campaign/sector-exits.ts`, `tactical/sector-exit.ts` | Leaving a sector: the strategic half (exit check, menu, jump, traversal) and the tactical half (walk-off, walk-in, mirror gridno, the merc wait) |
 | `campaign/sector-diff.ts`, `campaign/sector-loot.ts` | What a sector keeps while unloaded; writing into unloaded sectors |
@@ -119,6 +119,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The enemy takes a sector while our mercs are still in it, so the later call, once they left, never counts the loss | `strategic/map/control.test.ts` |
 | The underground traversal flag is never lowered: after the first underground edge, every tactical traversal arrives after 1 minute while the clock still warps 5 | `campaign/sector-flow.test.ts` |
 | The defence placement's first pass looks at every other node (Stracciatella); the init-list sort reverses each class | `strategic/ai/queen-command.test.ts` |
+| One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a
@@ -158,9 +159,9 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Bloodcat lair corpses", "NPC-of-note test", "Strategic move refusals", "Vehicles as characters",
-"Ground vehicles", "Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses",
-"Corpse sweet spot", "Lost sector notices without a battle", "Savegame import". Other deviations of this domain:
-"Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and enemy counts", "Sandbox
-population", "Difficulty and progress in tactical", "Map changes of the loaded sector on import", "Strategic AI PD
-placement pass", "Cosmetic draws of the helicopter".
+Not ported: gaps "Bloodcat lair corpses", "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
+"Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses", "Corpse sweet spot",
+"Lost sector notices without a battle", "Savegame import". Other deviations of this domain: "Underground traversal
+flag", "Insertion data in the loaded sector", "Strategic hints and enemy counts", "Sandbox population", "Difficulty and
+progress in tactical", "Map changes of the loaded sector on import", "Strategic AI PD placement pass", "Cosmetic draws
+of the helicopter".
