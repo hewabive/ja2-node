@@ -48,7 +48,7 @@ Wall clocks, frames and sound lengths replaced by game time on 5 ms ticks (D3, `
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|
-| Timing | Wall-clock timers that never catch up; frame-rate dependent bullets, burst cadence and real-time AI slice | Fixed 5 ms ticks; bullets advance N tiles per tick; a fixed number of real-time AI soldiers per pass | Outcomes independent of FPS and CPU (`04` §3) |
+| Timing | Wall-clock timers that never catch up; frame-rate dependent bullets, burst cadence and real-time AI slice | Fixed 5 ms ticks; a bullet advances one tile per tick; the real-time AI visits every AI slot after its cursor each pass, with no CPU slice | Outcomes independent of FPS and CPU (`04` §3) |
 | Speech | A quote lasts its audio (speech on) or 60 ms per character, then 300 ms with the mouth closed | For every viewer the longer of the two (the rule pack's voice length, 12 ticks per character + 1; `24`), then 60 ticks mouth closed; never waits for the speaker's battle sound. The viewer that finished first (voice, or text with speech off) leaves only the 60 ticks (`skipLine {talkEnded}`, an input); a viewer with the other speech option trails by the difference | One simulation serves every viewer and must not depend on audio (`04` §3, `29` §14, `24`) |
 | Skipping every line | No such setting | `speech: skip` (`newSession`, `setSpeech`): every line ends on the tick after it is said, as if Backspace were pressed at once; its quote event carries `skipped` and no viewer shows it; a logged session setting, never saved | Agents playing with nobody listening (`29` §14) |
 | Watchdogs | 15 s AI deadlock breaker, 25 s UI busy breaker | Not ported | A hang is a bug and must fail tests |
