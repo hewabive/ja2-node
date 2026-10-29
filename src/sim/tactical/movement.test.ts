@@ -189,6 +189,32 @@ describe('a blocked next tile', () => {
       expect(mover.delayedMovement).toBe(waitAction ? 1 : 0);
     }
   });
+
+  it('swaps two enemies blocking each other head-on and stops both, but a multi-tile one leaves the other stopped', () => {
+    for (const multiTile of [false, true]) {
+      const t = tactical((w) => {
+        for (let x = 70; x <= 90; x++) {
+          w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.GENERIC));
+          w.add(gridNo(x, 81), 0, syntheticStructure(StructureFlags.GENERIC));
+        }
+        w.add(gridNo(89, 80), 0, syntheticStructure(StructureFlags.GENERIC));
+      });
+      const mover = spawn(t, START, Team.ENEMY);
+      const other = spawn(t, START + 1, Team.ENEMY);
+      other.finalDestination = gridNo(75, 80);
+      other.blockedByAnotherMerc = true;
+      other.blockedByAnotherMercDirection = Direction.WEST;
+      const moverFinal = gridNo(85, 80);
+      mover.finalDestination = moverFinal;
+      mover.multiTile = multiTile;
+      expect(handleNextTile(t, mover, Direction.EAST, START + 1, moverFinal)).toBe(false);
+      expect(mover.gridNo).toBe(multiTile ? START : START + 1);
+      expect(other.gridNo).toBe(multiTile ? START + 1 : START);
+      expect(mover.finalDestination).toBe(multiTile ? moverFinal : mover.gridNo);
+      expect(other.finalDestination).toBe(other.gridNo);
+      expect(other.blockedByAnotherMerc).toBe(multiTile);
+    }
+  });
 });
 
 describe('stopping a soldier in combat', () => {

@@ -208,11 +208,13 @@ function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number,
           const first = around.steps[0] ?? 0;
           return tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
         }
-        other.blockedByAnotherMerc = false;
-        other.finalDestination = savedFinal;
-        swapMercPositions(t, s, other);
-        getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
-        getNewSoldierPath(t, other, other.finalDestination, other.uiMovementMode);
+        if (!s.multiTile) {
+          other.blockedByAnotherMerc = false;
+          other.finalDestination = savedFinal;
+          swapMercPositions(t, s, other);
+          getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
+          getNewSoldierPath(t, other, other.finalDestination, other.uiMovementMode);
+        }
       }
       return MoveTile.TEMP_BLOCKED;
     }
