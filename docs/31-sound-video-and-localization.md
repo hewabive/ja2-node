@@ -99,10 +99,12 @@ bundles under LGPL 2.1, is neither read nor ported (`01`). It refuses what no ga
 and Y-doubled files, Bink audio, SMK4.
 
 **The player** decodes in a module Worker, which decodes up to the newest due frame and posts only that one, so late
-frames are decoded but never shown, as in the original. Frames are indexed colour on WebGL2 at an integer scale
-("Video scaling"), paced by the audio clock ("Video pacing"); the sound is one buffer at full volume under the master
-gain, like the original's `MAXVOLUME`. A missing file is skipped, as in the original. A sequence's files download one
-after another, so the next video arrives while one plays.
+frames are decoded but never shown, as in the original. A video ends once its clock passes the last frame and the Worker
+has decoded that frame, as `SmkSkipFrames` steps to `SMK_DONE` before `SmkPollFlics` closes the video
+(`Cinematics.cc:62-64`, `:266`); a slow page shows fewer frames but never ends a video short. Frames are indexed colour
+on WebGL2 at an integer scale ("Video scaling"), paced by the audio clock ("Video pacing"); the sound is one buffer at
+full volume under the master gain, like the original's `MAXVOLUME`. A missing file is skipped, as in the original. A
+sequence's files download one after another, so the next video arrives while one plays.
 
 **Where videos play.** The splash in the launcher after a first click ("Splash start"), never on `/play` ("Game page
 start"); the beginning after a new game, the ending after the victory; the client settings can turn off the splash and
@@ -160,7 +162,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A restore never returns to the victory or defeat track, but to the nothing music | `protocol/music.test.ts` |
 | Entering a sector switches to the nothing music unless battle plays, or enemy present with hostiles left; the interrogation's menu music gives way to it in N7 even with enemies there | `protocol/music.test.ts` |
 | After the victory track the nothing music, after the defeat track silence | `audio/music.test.ts` |
-| Late video frames are decoded but not shown | `app/video/pacing.test.ts` |
+| Late video frames are decoded but not shown, the last one too | `app/video/pacing.test.ts`, `player.test.ts` |
 | The TalonSoft logo is in the archive but never played | `app/video/sequences.test.ts` |
 | The credits never read row 0: the original counts its record up before the first read | `ui/screens/credit-roll.test.ts` |
 | Russian decoding shifts only 0xC0–0xFF, so Ё, ё and № stay CP1252 characters | `content/formats/edt.test.ts` |

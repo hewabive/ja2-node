@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { frameDueAt, frameToRequest, videoDurationSeconds, videoFinished, wallClock } from './pacing.ts';
+import { frameDueAt, frameToFinishDecoding, frameToRequest, videoDurationSeconds, videoFinished, wallClock } from './pacing.ts';
 
 const FIFTEEN_FPS = { frameCount: 30, microsPerFrame: 66_660 };
 
@@ -24,6 +24,11 @@ describe('video pacing', () => {
     expect(frameToRequest(FIFTEEN_FPS, 0, true, 0.5)).toBeNull();
     expect(frameToRequest(FIFTEEN_FPS, 7, false, 1.99)).toBe(29);
     expect(frameToRequest(FIFTEEN_FPS, 29, false, 2.5)).toBeNull();
+  });
+
+  it('decodes up to the last frame once the clock ends the video, as the original steps to SMK_DONE', () => {
+    expect(frameToFinishDecoding(FIFTEEN_FPS, 28)).toBe(29);
+    expect(frameToFinishDecoding(FIFTEEN_FPS, 30)).toBeNull();
   });
 
   it('counts wall time from its start', () => {

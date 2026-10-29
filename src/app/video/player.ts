@@ -1,6 +1,6 @@
 import type { IndexedFrameRenderer } from '../../render/indexed-frame.ts';
 import { unlessAborted } from './download-queue.ts';
-import { type ClockSource, frameToRequest, type VideoClock, videoFinished, wallClock } from './pacing.ts';
+import { type ClockSource, frameToFinishDecoding, frameToRequest, type VideoClock, videoFinished, wallClock } from './pacing.ts';
 import type { VideoSound } from './sound.ts';
 import type { DecoderReply, DecoderRequest, FrameReply, OpenedReply } from './worker-protocol.ts';
 
@@ -144,13 +144,23 @@ export async function playVideo(path: string, options: PlayVideoOptions): Promis
     const opened: OpenedReply = expectReply(await decoder.ask({ kind: 'open', bytes: buffer }, [buffer]), 'opened');
     progress.frameCount = opened.frameCount;
     fitCanvas(options.surface.canvas, opened.width, opened.height);
-    const show = (frame: FrameReply) => {
-      options.surface.renderer.draw(opened.width, opened.height, frame.indices, frame.palette);
-      progress.framesShown++;
+    const record = (reply: DecoderReply): FrameReply => {
+      const frame = expectReply(reply, 'frame');
       progress.framesDecoded = frame.decoded;
       progress.maxDecodeMs = Math.max(progress.maxDecodeMs, frame.decodeMs);
+      return frame;
     };
-    show(expectReply(await decoder.ask({ kind: 'frame', target: 0 }), 'frame'));
+    const show = (reply: DecoderReply) => {
+      const frame = record(reply);
+      options.surface.renderer.draw(opened.width, opened.height, frame.indices, frame.palette);
+      progress.framesShown++;
+    };
+    const decodeTheRest = async (latest: DecoderReply | null) => {
+      if (latest) record(latest);
+      const last = frameToFinishDecoding(opened, progress.framesDecoded);
+      if (last !== null) record(await decoder.ask({ kind: 'frame', target: last }));
+    };
+    show(await decoder.ask({ kind: 'frame', target: 0 }));
     clock = (opened.audio && options.sound?.start(opened.audio)) || wallClock(() => performance.now());
     progress.clock = clock.source;
     progress.audioStarted = clock.source === 'audio';
@@ -159,9 +169,12 @@ export async function playVideo(path: string, options: PlayVideoOptions): Promis
     let arrived: DecoderReply | null = null;
     while (!options.signal.aborted) {
       const elapsed = clock.elapsed();
-      if (videoFinished(opened, elapsed)) return result('ended');
+      if (videoFinished(opened, elapsed)) {
+        await decodeTheRest(arrived ?? (await pending));
+        return result('ended');
+      }
       if (arrived) {
-        show(expectReply(arrived, 'frame'));
+        show(arrived);
         arrived = null;
       }
       const target = frameToRequest(opened, requested, pending !== null, elapsed);

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Utils/Cinematics.cc SmkPlayFlic (milliseconds_per_frame), SmkSkipFrames (late frames are decoded, not
-// @src shown), SmkPollFlics (the video ends when the frame after the last one is due).
+// @src shown, up to SMK_DONE), SmkPollFlics (the video ends when the frame after the last one is due).
 
 const MICROS_PER_SECOND = 1_000_000;
 const MILLIS_PER_SECOND = 1000;
@@ -28,6 +28,10 @@ export function frameToRequest(timing: FrameTiming, lastRequested: number, inFli
   if (inFlight || videoFinished(timing, elapsedSeconds)) return null;
   const due = Math.min(timing.frameCount - 1, frameDueAt(timing, elapsedSeconds));
   return due > lastRequested ? due : null;
+}
+
+export function frameToFinishDecoding(timing: FrameTiming, framesDecoded: number): number | null {
+  return framesDecoded < timing.frameCount ? timing.frameCount - 1 : null;
 }
 
 export type ClockSource = 'audio' | 'wall';
