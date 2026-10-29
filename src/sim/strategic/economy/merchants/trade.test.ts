@@ -148,6 +148,28 @@ describe('shop transactions', () => {
     expect(header(f.ctx.state, MICKY, claws).total).toBe(0);
   });
 
+  it('pays Micky’s buying price: the original’s drunk price looks for Micky on the player’s team', () => {
+    const f = merchantFixture(t);
+    const micky = f.ctx.state.dealers[MICKY]?.status;
+    if (micky) micky.cash = 10000;
+    const plan = planTrade(f.ctx, input(MICKY, { sell: [offer(item('CREATURE_PART_CLAWS'))] }));
+    expect(plan).toMatchObject({ value: 500, refusal: null });
+  });
+
+  it('takes the bullets of a sold gun although they are worth nothing to him: the gun alone decides', () => {
+    const f = merchantFixture(t);
+    const franz = f.ctx.state.dealers[FRANZ]?.status;
+    if (franz) franz.cash = 100000;
+    const loaded = item('GLOCK_17', 90);
+    const empty = item('GLOCK_17', 90);
+    empty.gunShotsLeft = 0;
+    expect(loaded.gunShotsLeft).toBe(t.items.byIndex.get(loaded.gunAmmoItem)?.magazine?.capacity);
+    const plan = planTrade(f.ctx, input(FRANZ, { sell: [offer(loaded)] }));
+    expect(plan.value).toBe(planTrade(f.ctx, input(FRANZ, { sell: [offer(empty)] })).value);
+    executeTrade(f.ctx, plan);
+    expect(header(f.ctx.state, FRANZ, loaded.gunAmmoItem).total).toBe(1);
+  });
+
   it('sets Howard’s fact and Franz’s camera flag on a transaction', () => {
     const f = merchantFixture(t);
     addItemToArmsDealerInventory(f.ctx, HOWARD, itemId(t, 'FIRSTAIDKIT'), defaultItemInfo(), 1);

@@ -86,6 +86,22 @@ describe('dealer initialisation and daily update', () => {
     expect(header(f.ctx.state, GABBY, jar).total).toBe(0);
   });
 
+  it('sells every unit nobody should stock each morning, listed or not: Jake’s gas, Tony’s rocket rifles', () => {
+    const f = merchantFixture(t, { random: RecordingRolls.maxima() });
+    only(f, JAKE);
+    const [gas, crowbar] = [itemId(t, 'GAS_CAN'), itemId(t, 'CROWBAR')];
+    addItemToArmsDealerInventory(f.ctx, JAKE, gas, defaultItemInfo(), 5);
+    addItemToArmsDealerInventory(f.ctx, JAKE, crowbar, defaultItemInfo(), 1);
+    simulateArmsDealerCustomer(f.ctx);
+    expect(header(f.ctx.state, JAKE, gas).total).toBe(0);
+    expect(header(f.ctx.state, JAKE, crowbar).total).toBe(1);
+    only(f, TONY);
+    const rocketRifle = itemId(t, 'ROCKET_RIFLE');
+    addItemToArmsDealerInventory(f.ctx, TONY, rocketRifle, used(80), 1);
+    simulateArmsDealerCustomer(f.ctx);
+    expect(header(f.ctx.state, TONY, rocketRifle).total).toBe(0);
+  });
+
   it('turns all of Gabby’s creature blood into elixir without a draw', () => {
     const rolls = queued();
     const f = merchantFixture(t, { random: rolls });

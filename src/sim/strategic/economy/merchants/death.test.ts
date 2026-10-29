@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { itemId, loadMerchantTestContent, type MerchantTestContent, merchantFixture } from '../../../../../tests/support/merchants.ts';
 import { createItem, type ItemObject } from '../../../items/object.ts';
+import { isMercADealer } from './context.ts';
 import { addDeadArmsDealerItemsToWorld } from './death.ts';
 import { addItemToArmsDealerInventory } from './inventory.ts';
 import { giveObjectToArmsDealerForRepair } from './repair.ts';
@@ -16,6 +17,8 @@ const SAM = 7;
 const SAM_PROFILE = 126;
 const PERKO = 16;
 const PERKO_PROFILE = 74;
+const MANNY = 18;
+const MANNY_PROFILE = 155;
 const IVAN = 7;
 const NOT_A_DEALER = 3;
 
@@ -40,6 +43,17 @@ describe('dead dealers', () => {
     ]);
     expect(status).toMatchObject({ outOfBusiness: true, cash: 0 });
     expect(header(ctx.state, SAM, crowbar)).toMatchObject({ total: 0, specials: [] });
+  });
+
+  it('include Manny before he tends the bar: his stock drops and his shop closes for good', () => {
+    const { ctx } = merchantFixture(t);
+    const beer = itemId(t, 'BEER');
+    addItemToArmsDealerInventory(ctx, MANNY, beer, defaultItemInfo(), 2);
+    expect(isMercADealer(ctx, MANNY_PROFILE)).toBe(false);
+    const dropped: ItemObject[] = [];
+    expect(addDeadArmsDealerItemsToWorld(ctx, MANNY_PROFILE, (o) => dropped.push(o))).toBe(true);
+    expect(dropped.map((o) => [t.items.byIndex.get(o.item)?.name, o.count])).toEqual([['BEER', 2]]);
+    expect(ctx.state.dealers[MANNY]?.status.outOfBusiness).toBe(true);
   });
 
   it('return items in repair unrepaired', () => {

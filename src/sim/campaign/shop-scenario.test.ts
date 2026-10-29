@@ -9,6 +9,7 @@ import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, createMoney } from '../items/object.ts';
 import { addItemToArmsDealerInventory } from '../strategic/economy/merchants/inventory.ts';
+import { repairmanIsFixingItemsButNoneAreDoneYet } from '../strategic/economy/merchants/repair.ts';
 import { defaultItemInfo, emptyDealerState, header } from '../strategic/economy/merchants/state.ts';
 import type { ShopView } from '../strategic/economy/merchants/view.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
@@ -43,6 +44,9 @@ const FRANZ = 1;
 const FRANZ_PROFILE = 124;
 const SAM = 7;
 const PERKO_PROFILE = 74;
+const ARNIE = 14;
+const ARNIE_PROFILE = 128;
+const SK_QUOTE_FIRST_ENTERS = 11;
 const DEALER_SLOT = 12;
 const OPEN = 8 * 60;
 const CLOSE = 20 * 60;
@@ -220,6 +224,22 @@ describe('shop scenario on the stub village', () => {
 
   it('repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit, the same across reloads', async () => {
     await expectReloadsInvisible(perkoRepair);
+  });
+
+  it('greets with the usual quote at Arnie while his repairs are unfinished: the original overwrites quote 33', () => {
+    const c = startCampaign(6);
+    const merc = firstMerc(c);
+    spawnDealer(c, ARNIE_PROFILE, DEALER_SLOT, merc);
+    merc.inv[InvSlot.HAND] = createItem(merchants.items, item('GLOCK_17'), 50);
+    expect(c.dispatch({ type: 'openShop', dealer: ARNIE_PROFILE, soldier: merc.id }).ok).toBe(true);
+    const repaired = c.dispatch({ type: 'trade', repair: [{ soldier: merc.id, slot: 'hand' }], useBalance: true });
+    expect(repaired.ok, repaired.reason).toBe(true);
+    expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
+    c.drainEvents();
+    expect(c.dispatch({ type: 'openShop', dealer: ARNIE_PROFILE, soldier: merc.id }).ok).toBe(true);
+    expect(repairmanIsFixingItemsButNoneAreDoneYet(c.merchants ?? never(), ARNIE)).toBe(true);
+    const greeting = c.drainEvents().find((e) => e.type === 'shopkeeperQuote');
+    expect(greeting).toMatchObject({ dealer: ARNIE_PROFILE, quote: SK_QUOTE_FIRST_ENTERS });
   });
 });
 

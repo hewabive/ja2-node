@@ -5,7 +5,7 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../../../content/items/items.ts';
 import { DEFAULT_WEAPON_SALE_MODIFIER, doesItemAppearInDealerInventoryList } from '../../../../content/strategic/merchant-content.ts';
-import { i8, idiv, u16, u32 } from '../../../../core/int.ts';
+import { i8, i32, idiv, u16, u32 } from '../../../../core/int.ts';
 import { type ItemObject, MAX_OBJECTS_PER_SLOT } from '../../../items/object.ts';
 import { Fact } from '../../narrative/fact-ids.ts';
 import { fact } from '../../narrative/facts.ts';
@@ -110,7 +110,7 @@ export function calcShopKeeperItemPrice(ctx: MerchantContext, input: PriceInput,
   unit = u32(unit);
   if (itemClass & WEAPON_SALE_CLASSES) {
     const m = input.weaponSaleModifier ?? DEFAULT_WEAPON_SALE_MODIFIER;
-    const signed = unit | 0;
+    const signed = i32(unit);
     const discount = idiv(signed * (m - PERCENT), PERCENT);
     unit = dealerSelling ? u32(Math.max(MIN_SELLING_PRICE, signed - discount)) : u32(signed + discount);
   }

@@ -35,6 +35,7 @@ import { itemIsARocketRifle } from './supply.ts';
 export const OFFER_AREA_SLOTS = 12;
 export const REALLY_BADLY_DAMAGED_THRESHOLD = 30;
 const FRANK_MIN_BRIBE = 10;
+const SLOTS_KEPT_FOR_CHANGE = 1;
 
 export const ShopQuote = {
   NOT_INTERESTED: 4,
@@ -374,15 +375,17 @@ function placeOffers(p: Planner): void {
   }
 }
 
+function roomForPurchases(p: Planner): number {
+  const valueless = p.poa.filter((e) => e && e.kind === 'part').length;
+  return Math.max(0, OFFER_AREA_SLOTS - valueless - SLOTS_KEPT_FOR_CHANGE);
+}
+
 function transactionRefusal(p: Planner, cost: number, value: number, cash: number): { fromBalance: number; balanceNeeded: number } {
   const ctx = p.ctx;
   const d = dealerDef(ctx, p.input.dealer);
   const none = { fromBalance: 0, balanceNeeded: 0 };
   if (d.type !== DealerType.REPAIRS) {
-    const valueless = p.poa.filter((e) => e && e.kind === 'part').length;
-    let room = OFFER_AREA_SLOTS - valueless;
-    if (room > 0) room--;
-    if (p.doa.length > room) {
+    if (p.doa.length > roomForPurchases(p)) {
       refuse(p, { reason: 'noRoomForPurchases' });
       return none;
     }
