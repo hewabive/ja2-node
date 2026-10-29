@@ -1,780 +1,130 @@
-# 06 — Soldiers: sprites, frames, palettes and movement
+# 06 — Soldiers: animation, sprites and creation
 
-**Scope.** Which STI a soldier shows, which frame of it, in which colours, at which pixel and z, how position and
-facing advance per animation frame, the `prof.dat` format and soldier creation (body, palette, placement). It builds on
-`01` §3.3–§3.4 (the clock model, gameplay opcodes), `04` (ticks), `05` (static render pipeline, shade tables, z,
-multi-Z strips) and `07` (the walking protocol). ja2-node: §8.
+What a soldier on the map is made of: animation states and their scripts, the frame clock, the sheet a state shows for
+a body and hand item, the frame and facing, turning and the step of a frame, palettes, shade and glow, merc profiles
+and creating soldiers from placements. Siblings: `01` the time model, the action timelines and the gameplay opcodes;
+`05` the render passes a soldier's quads join; `07` the walk (`MoveMerc`, the tile step); `10` the APs of turns and
+stance changes; `33` hit and death animations; `20` the light a soldier stands in; `17` enemy populations; `21` hiring.
+Each module's `@src` header names the Stracciatella functions it ports; read those for the formulas (frame delay,
+surface choice, palette rolls, glow tables, stats of a placement).
 
-**Notation** (as in `05`):
-- Unmarked statements were read in the code and carry `file:line`.
-- **(inferred)** marks derivations not traced end to end.
-- **(data)** marks checks against the original Gold 1.12 data.
-- `vanilla:` = `reference/vanilla/ja2/Build/`.
+## 1. The path of an animation
 
-| Basename | Path under `reference/stracciatella/src/` |
+Paths are under `src/` (`sim/tactical/` for bare names).
+
+```
+load: ja2bin.dat → logic and presentation timelines   content/formats/ja2bin.ts, content/anim/timelines.ts
+  anim-control.json, anim-surfaces.json               content/anim/tables.ts
+  animation structure files                           content/anim/structures.ts
+creation: placement or profile → Soldier              init-list.ts, creation.ts, creation-basic.ts, profiles.ts
+new state: initNewSoldierAnim                         animation.ts
+  body substitutions, validity from the surface table anim-substitution.ts, multi-tile.ts,
+                                                      content/anim/surface-choice.ts
+  person structure for state and facing               person-structure.ts
+  frame delay                                         animation.ts computedAnimationDelay
+every 5 ms tick: executeOverhead                      overhead.ts
+  frame due → adjustToNextAnimationFrame              animation.ts; other opcodes through the tactical hooks
+  moving state → moveMerc (07); turning state → turnSoldier
+view: state, frame slot, state tick, frame delay      tactical-sim.ts
+client: frame of the view                             app/world/soldier-frames.ts, content/anim/schedule-track.ts
+  sheet, palette from the standing sheet              app/world/soldier-assets.ts, content/anim/soldier-sprite.ts
+  shade, glow, fade, multi-tile z strips              app/world/soldier-scene.ts, render/world/glow.ts, soldier-fade.ts,
+                                                      soldier-palettes.ts
+  quads in the merc passes                            render/world/dynamic-scene.ts, geometry.ts (05)
+```
+
+| Data | Where |
 |---|---|
-| `Animation_Data.cc/.h`, `Animation_Control.cc/.h`, `Animation_Cache.cc/.h`, `Soldier_Ani.cc`, `Soldier_Control.cc/.h`, `Soldier_Create.cc/.h`, `Soldier_Init_List.cc`, `Soldier_Add.cc`, `Soldier_Profile.cc`, `Soldier_Profile_Type.h`, `LoadSaveMercProfile.cc/.h`, `LoadSaveSoldierCreate.cc`, `LoadSaveObjectType.cc`, `Overhead.cc`, `Overhead_Types.h`, `Tactical_Save.cc`, `SkillCheck.cc`, `Inventory_Choosing.cc` | `game/Tactical/` |
-| `RenderWorld.cc`, `Isometric_Utils.cc/.h`, `Lighting.cc`, `WorldMan.cc`, `Structure.cc`, `WorldDef.h`, `TileDef.h` | `game/TileEngine/` |
-| `Strategic_AI.cc`, `Queen_Command.cc` | `game/Strategic/` |
-| `Timer_Control.cc/.h`, `Utilities.cc` | `game/Utils/` |
-| `VObject_Blitters.cc`, `HImage.cc`, `Shading.cc`, `Types.h` | `sgp/` |
-| `DefaultContentManager.cc`, `mercs/BinaryProfileData.cc`, `mercs/MercProfile.cc` | `externalized/` |
-
----
-
-## 0. Cheat sheet
-
-```
-surface  = DetermineSoldierAnimationSurface(body, state, hand item, life<30, in water, big-guy flags)   §1.2
-frame    = (ja2bin value − 1) + framesPerDir(surface) · spriteDir                                       §1.3
-spriteDir: 8-dir STI → (dir+1)%8 ; 4-dir → ((dir+1)%8)/2 ; 1-dir → 0                                    §1.3
-palette  = STI palette of the soldier's STANDING surface, then ja2pal.dat ranges
-           HAIR 245–250, PANTS 205–219, SKIN 235–244, VEST 220–234 (data)                              §3
-shade    = pShades[max(nodeShade−2, 4)]  (tile formula of 05 §6.4);  enemies: pGlowShades[glow(+10)]     §3.4
-pixel 254 = shadow: dst = ShadeTable[dst] (×0.48), no separate shadow sprite                            §4.1
-anchor   = (cx + trunc(2(dX−rcx) − 2(dY−rcy)),  cy + trunc((dX−rcx)+(dY−rcy)) − tileH − 10 − sHeightAdj
-           + gsRenderHeight);  frame pixel (0,0) at anchor + (sOffsetX, sOffsetY)                       §4.2
-           at a tile centre the anchor is (ox+20, oy+10) of 05 §1.5
-z        = 8·wy(sGridNo) + 3, test zbuf < z, no z write; obscured tiles: checkerboard where hidden       §4.3
-move     = per frame: d·sin/cos(angle[dir]) in float32; walk 1.6, run 2.6, swat 2.2, crawl 0.8           §5.3
-           → 7,6,6,7,… frames per straight tile when walking, 9 per diagonal tile (inferred)
-turn     = one octant per animation frame while the state has ANIM_TURNING                               §5.4
-prof.dat = 170 × 716-byte records, each decoded with the 46-byte rotation key                            §6
-enemy    = body Random(4) (female → male unless elite), skin/hair random, vest/pants by class            §7
-```
-
----
-
-## 1. Animation surfaces
-
-### 1.1 `gAnimSurfaceDatabase`
-
-- **Row layout.** `{Filename, bStructDataType, ubFlags, ubNumDirections, bProfile, usNumFramesPerDir, bUsageCount,
-  hVideoObject}` (`Animation_Data.h:516-526`). The table has 396 rows (`Animation_Data.cc:38-464`), indexed by
-  `enum AnimationSurfaceTypes` (`Animation_Data.h:75-500`). Transcribed in `data/tables/anim-surfaces.json`
-  `surfaces[]`: `id` = row = enum value, `name` (the enum name), `file` (VFS path, `anims/s_merc/s_r_std.sti` for
-  `ANIMSDIR "/s_merc/s_r_std.sti"`), `struct`, `noFrames`, `directions`, `profile`.
-  - The `M(name, …)` macro **ignores `name`** (`Animation_Data.cc:36`); only a row's position counts.
-  - Two rows carry the wrong label in the source: slot 61 `RGMNPUNCH` is written `RGMPUNCH` (file `k_punch.sti`), and
-    slot 100 `BGMCROUCHAIM` is written `RGMCROUCHAIM` (file `m_cr_aim.sti`) **(data, parsed)**. The JSON uses the enum
-    names.
-  - `RGMTHROW` points to `s_lob.sti` and `RGMLOB` to `s_throw.sti` (`:78-79`).
-- **`bStructDataType`.** One of `S_STRUCT, C_STRUCT, P_STRUCT, F_STRUCT, FB_STRUCT, DEFAULT_STRUCT` (indices 0–5) or
-  `NO_STRUCT = 120` (`Animation_Data.h:503-513`). It selects the collision structure file (§1.5).
-- **`ubFlags`.** Only `ANIM_DATA_FLAG_NOFRAMES` exists (`:19`). The vehicle rotation sheets use it: the frame is the
-  direction alone (§1.3).
-- **`ubNumDirections`** **(data, parsed)**: 8 for 354 rows; 1 for helidrop, burn, queen and body explode (16); 4 for
-  climb roof, fall, fall forward, hop fence and kick door (15); 32 for the vehicle "basic" and tank ready sheets (6); 2
-  for the vehicle wrecks (4); 3 for `s_mclimb` (1).
-- **`bProfile`.** 0 for `RGMPRONE`, `BGMPRONE` and `RGFPRONE`; −1 everywhere else. It indexes `ja2prof.dat` hit-location
-  profiles (§1.5).
-- **`usNumFramesPerDir`** is not in the table (`TO_INIT = 0`, `:21`). `LoadAnimationSurface` sets it from the STI
-  auxiliary data of sub-image 0, `AuxObjectData.ubNumberOfFrames`. The app-data size must equal
-  `subImageCount × 16` (`:680-687`). If `dirs × framesPerDir ≠ subImageCount` it only logs a warning (`:710-713`).
-
-**(data)** Frames per direction (= `aux.numberOfFrames`). Every listed file has exactly `dirs × fpd` sub-images:
-
-| STI | fpd | STI | fpd | STI | fpd |
-|---|---|---|---|---|---|
-| `s_r_std`, `s_n_std`, `s_p_brth` | 8 | `s_r_walk`, `s_n_walk`, `s_i_wk_n/r` | 12 | `s_r_run`, `s_n_run` | 12 |
-| `s_r_swat`, `s_n_swat` | 22 | `s_r_c`, `s_n_crch` | 15 | `s_r_prn`, `s_n_prne` | 29 |
-| `m_breth2`, `m_r_std`, `m_n_std`, `m_p_brth` | 8 | `m_walk2`, `m_r_walk`, `m_n_walk` | 12 | `m_r_run`, `m_r_run2`, `m_n_run` | 12 |
-| `m_r_swat` | 22 | `m_r_c` | 15 | `m_c_tran` | 5 |
-| `f_breth2`, `n_breth2`, `f_p_brth` | 8 | `f_r_walk`, `f_n_walk`, `f_r_run`, `f_n_run` | 12 | `f_r_swat` / `f_r_c` / `f_r_prn` | 22 / 15 / 29 |
-| `s_climb` | 44 (4 dirs) | `s_mclimb` | 60 (3 dirs) | `s_helidrp` | 70 (1 dir) |
-| civilians `*_breath`/`*_brth`/`cp_breth` | 8 | civilians `*_walk`, `*_run` | 12 | `m_cower` | 12 |
-
-### 1.2 From (body type, state) to a surface
-
-`DetermineSoldierAnimationSurface` (`Animation_Control.cc:2598-2821`):
-
-```
-state   = SubstituteBodyTypeAnimation(s, state)                 :2414-2490
-          (queen/larvae/crow/bloodcat/adult creature/robot remaps; for civ bodies KNEEL_DOWN→START_COWER,
-           KNEEL_UP→END_COWER, sleep states→STANDING)
-surface = gubAnimSurfaceIndex[body][state]                      :2608
-          INVALID_ANIMATION → mark FOUND_INVALID_ANIMATION, return INVALID_ANIMATION_SURFACE (32000)  :2611-2622
-if surface == QUEENMONSTERSPIT_SW: pick per direction (gusQueenMonsterSpitAnimPerDir)              :2629-2638
-if body > REGFEMALE: return surface          ← civilians, animals, monsters, vehicles stop here     :2642-2645
-big guy:  BGMSTANDAIM2→BGMSTANDAIM if SUB_ANIM_BIGGUYSHOOT2                                         :2648-2654
-          BGMSTANDING→BGMTHREATENSTAND, BGMWALKING→BGMWALK2, BGMRUNNING→BGMRUN2, BGMRAISE→BGMRAISE2
-          if SUB_ANIM_BIGGUYTHREATENSTANCE                                                           :2656-2687
-if in water: surface = MidWaterSub[body][state][hand] if valid; hand = 0 for a two-handed gun or
-             launcher (not ROCKET_LAUNCHER), else 1                                                  :2693-2721
-else (item in HANDPOS):
-  not a gun/launcher, or ROCKET_LAUNCHER ("nothing"):
-       STANDING → gusNothingBreath[body]; other states → ItemSub[body][state] if valid               :2727-2746
-  one-handed gun/launcher ("pistol"): ItemSub[body][state] if valid;                                 :2754-2762
-       STANDING with a one-handed gun also in SECONDHANDPOS → *DBLBREATH                              :2764-2775
-  two-handed gun/launcher ("rifle"): keep the base surface
-  life < 30 (INJURED_CHANGE_THREASHOLD) and state == WALKING:
-       adjusted for item → *HURTWALKINGN, else → *HURTWALKINGR                                       :2792-2815
-```
-
-- `gubAnimSurfaceIndex`, `gubAnimSurfaceItemSubIndex` and `gubAnimSurfaceMidWaterSubIndex` are filled in code by
-  `InitAnimationSurfacesPerBodytype` (`:448-2398`). Unset entries are `INVALID_ANIMATION`. In
-  `data/tables/anim-surfaces.json`: `bodySurfaces[body][state]`, `itemSubSurfaces[body][state]`,
-  `midWaterSurfaces[body][state] = [two-handed, other]` (−1 = invalid), `nothingBreath[body]`, and
-  `injuredRifleWalk` / `injuredNothingWalk` / `doubleHandedStanding` as `{state, surfaces[body]}` for bodies 0–3;
-  absent keys are invalid.
-- **The flag is always on for big males.** Every `BIGMALE` soldier gets `SUB_ANIM_BIGGUYTHREATENSTANCE` at creation
-  (`Soldier_Create.cc:287-291`; vanilla does the same, `vanilla:Tactical/SoldierCreate.c:326-327`). So a big male with
-  a rifle stands in `m_breth2`, walks in `m_walk2` and runs in `m_r_run`. `m_r_std`, `m_r_walk` and `m_r_run2` are
-  effectively unused **(inferred)**. Profile flag `SUB_ANIM_BIGGUYSHOOT2` (0x1) is set on Grizzly and Steroid **(data)**.
-- **The surface is not a function of (body, state) alone.** It also depends on the hand item, on life < 30, on water
-  and on the sub-flags. ja2-node computes it in one place, `chooseSurface` (`src/content/anim/surface-choice.ts`),
-  for the simulation (`soldierAnimSurface`, `src/sim/tactical/multi-tile.ts`) and the client (`SoldierAssets`); the
-  water sub-surfaces are not implemented.
-- **Where the sim depends on it.** `IsAnimationValidForBodyType` = "surface != INVALID" gates every new state
-  (`Soldier_Control.cc:1124`, `Animation_Control.cc:2408-2411`). The surface's struct type selects the collision shape
-  (§1.5). Both come from the tables, never from file presence (§1.4).
-
-### 1.3 Frame index inside the STI
-
-- **Script values.** `gusAnimInst[320][100]` is `ja2bin.dat` read raw (`Animation_Control.cc:2401-2405`;
-  `Animation_Control.h:8-9`). In `AdjustToNextAnimationFrame` a value `< 399` is a **1-based** frame number:
-  `ConvertAniCodeToAniFrame(s, value − 1)`, then `usAniCode++`, and the frame is shown (`Soldier_Ani.cc:150-180`).
-  Values 501–598 jump to slot `value − 501` (`:1939-1944`). 600–699 switch to state `value − 600`, and 800–999 to
-  state `value − 700` (`:1945-1962`). See `01` §3.4 for the rest.
-- **`ConvertAniCodeToAniFrame`** (`Soldier_Control.cc:4155-4212`; ja2-node `soldierSheetFrame`,
-  `src/content/anim/soldier-sprite.ts`, without the 32-direction case):
-
-```
-d = OneCDirection(bDirection) = (bDirection + 1) % 8                         Isometric_Utils.h:25
-switch (ubNumDirections):  1 → d = 0;  4 → d = d / 2;  32 → d = (ubHiResDirection + 4) % 32;
-                           2 → d = {0,0,1,1,0,1,1,0}[bDirection];  3 → NW:1, W:0, E:2 (others keep d)
-if ubFlags & NOFRAMES: f = 0
-usAniFrame = f + usNumFramesPerDir · d;   if ≥ subImageCount → 0 (warning)
-```
-
-- **Screen meaning of the sprite direction blocks (inferred from `05` geometry):**
-
-  | World dir | N | NE | E | SE | S | SW | W | NW |
-  |---|---|---|---|---|---|---|---|---|
-  | 8-dir block | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 0 |
-  | Screen | up-right | right | down-right | down | down-left | left | up-left | up |
-  | 4-dir block | 0 | 1 | 1 | 2 | 2 | 3 | 3 | 0 |
-
-  Blocks run clockwise from "screen up". 4-direction sheets therefore hold N, E, S, W; the climbs and hops that use
-  them face cardinal directions.
-- **When the frame is recomputed.**
-  - When a frame code executes.
-  - In `EVENT_InitNewSoldierAnim`, which first sets frame 0 (`:1731`) and then runs `AdjustToNextAnimationFrame`
-    once (`:1740`).
-  - **A direction change alone does not recompute `usAniFrame`** **(inferred)**: `EVENT_SetSoldierDirection`,
-    `:3959-3994`, doesn't call it. The new facing shows on the next frame code. The ja2-node client derives the
-    sprite from (script frame, current direction), so a new facing shows at once (`deviations`, "Soldier frame on
-    turning").
-
-### 1.4 Loading and caching (`usAnimSurface`)
-
-- **What the original does.**
-  - `SetSoldierAnimationSurface` → `LoadSoldierAnimationSurface` → `s.AnimCache.cache(surface)` (`:2538-2582`).
-  - Each soldier has a 3-slot cache; the least-hit slot is evicted, but never the current surface
-    (`Animation_Cache.cc:19-93`, `Animation_Cache.h:6`).
-  - Surfaces are global and reference-counted per soldier (`Animation_Data.cc:654-766`).
-  - The renderer skips a soldier whose surface isn't loaded (`GetSoldierAnimationSurface`, `:2824-2842`;
-    `RenderWorld.cc:941-942`).
-- **A load failure changes the simulation.** It returns `INVALID_ANIMATION_SURFACE`, and `EVENT_InitNewSoldierAnim`
-  then returns without changing state (`Soldier_Control.cc:1656-1659`). ja2-node's simulation decides validity from the
-  tables alone and never loads an STI; the client loads sheets on demand and keeps them (`SoldierAssets`,
-  `src/app/world/soldier-assets.ts`).
-- **Z-strips.** On first load the surface gets z-strip info if its structure file is multi-tile; prone is
-  (`Animation_Data.cc:689-704`; §4.4).
-
-### 1.5 Structure and profile files
-
-- **Collision structure.** It comes from `gAnimStructureDatabase[body][bStructDataType]` (`Animation_Data.cc:491-521`;
-  ja2-node `ANIM_STRUCTURE_FILES`, `src/content/anim/structures.ts`): `M_STAND`, `M_CROUCH`, `M_PRONE`, `M_FALL`,
-  `M_FALLBACK`, `M_CROUCH` for the four merc bodies and the four adult civilian bodies; `K_STAND`/`K_CROUCH`/`M_PRONE`
-  for kids; and so on. Files are `anims/structdata/*.jsd`.
-- **Standing shape for some falls.** `FALLFORWARD_FROMHIT_STAND`, `GENERIC_HIT_STAND`, `FALLFORWARD_FROMHIT_CROUCH`
-  and `STANDING_BURST_HIT` use the standing shape (`:631-641`; `animStructType`).
-- **Per direction.** The structure index is `OneCDirection(bDirection)` (`WorldMan.cc:1076-1079`).
-  `SOLDIER_MULTITILE` is set when that structure has more than one tile (`:1089`).
-- **(data)** `m_stand.jsd` and `m_crouch.jsd` have 8 one-tile structures. `m_prone.jsd` has 2–3 tiles per direction,
-  so **prone and crawling soldiers are `SOLDIER_MULTITILE`**.
-- **Prone fix.** Stracciatella makes the non-base prone tiles passable for the four merc bodies (#2116,
-  `Animation_Data.cc:555-571`).
-- **Turning checks the structure.** `TurnSoldier` only turns if `OKToAddMercToWorld(newDir)` (`Soldier_Control.cc:4457`),
-  so prone turns can be blocked by walls. This is sim-relevant (ja2-node `okToAddMercToWorld`,
-  `src/sim/tactical/person-structure.ts`).
-- **`ja2prof.dat`** (`LoadAnimationProfiles`, `Animation_Data.cc:780-815`):
-  - Format: `u8 count`; then per profile and per each of 8 directions: `u8 nTiles`, then `nTiles × {u16 flags, i8 dx,
-    i8 dy}`.
-  - `HandleAnimationProfile` adds placeholder merc nodes (`LEVELNODE_MERCPLACEHOLDER`) with hit-location flags at
-    `sGridNo + dy·160 + dx`, indexed by **`bDirection`, not OneC** (`Soldier_Control.cc:6519-6552`).
-  - The renderer skips placeholders (`RenderWorld.cc:935`); only bullets use them. ja2-node does not load
-    `ja2prof.dat`.
-
-### 1.6 Random idle animations (`gRandomAnimDefs`)
-
-- **When.** Opcode 491 sits at the end of the `STANDING` loop. Every `TIME_FOR_RANDOM_ANIM_CHECK` passes it rolls
-  `Random(100)` and picks from `gRandomAnimDefs[body]` by hand item (rifle / nothing / irrelevant; one-handed guns
-  never), flags (casual: player team only, out of combat; injured; drunk), end height and roll range
-  (`Soldier_Ani.cc:1384-1500`; tables `Animation_Control.cc:720-761` etc.).
-- **ja2-node.** Presentation only, on the client's own generator (`04` §3). Only the sound entries of cows and crows
-  are rolled (`src/content/audio/idle-sounds.ts`; `deviations`, "Idle sounds of unseen animals"); the idle animations
-  are not ported.
-
----
-
-## 2. Body types and the basic-state files
-
-### 2.1 `SoldierBodyType` (`Animation_Data.h:31-67`)
-
-Ids are the positions in `data/tables/anim-control.json` `bodyTypes`: 0–3 the merc bodies REGMALE, BIGMALE,
-STOCKYMALE, REGFEMALE; 4–10 the creatures ADULTFEMALEMONSTER, AM_MONSTER, YAF_MONSTER, YAM_MONSTER, LARVAE_MONSTER,
-INFANT_MONSTER, QUEENMONSTER; 11–17 the civilians FATCIV, MANCIV, MINICIV, DRESSCIV, HATKIDCIV, KIDCIV, CRIPPLECIV;
-18 COW, 19 CROW, 20 BLOODCAT, 21 ROBOTNOWEAPON; 22–27 the vehicles HUMVEE, TANK_NW, TANK_NE, ELDORADO, ICECREAMTRUCK,
-JEEP (`TOTALBODYTYPES` = 28).
-
-- **Body groups.** `IS_MERC_BODY_TYPE` = body ≤ 3. `IS_CIV_BODY_TYPE` = 11..17 (`:26-27`). `BODY_RANDOM = −1`.
-- **STOCKYMALE is REGMALE in disguise.**
-  - Its surfaces (`s_merc`), item subs, speeds (`Animation_Control.cc:351-425`) and palettes are identical to
-    REGMALE's. Only 5 rare state entries are missing (diff of the two blocks, `:470-829` vs `:1194-1447`).
-  - Other code treats it differently only in a few places (AP table `Soldier_Control.cc:293`, civ quotes).
-  - **(data)** No `prof.dat` profile uses body 2.
-
-### 2.2 Merc bodies (0–3): surfaces for the first states
-
-The per-state surfaces are `bodySurfaces` and `itemSubSurfaces` of `data/tables/anim-surfaces.json` (§1.2); the
-sources are `Animation_Control.cc:470-487, 764-802` (REGMALE), `:832-848, 999-1000, 1045-1082` (BIGMALE),
-`:1194-1210, 1410-1447` (STOCKYMALE) and `:1553-1569, 1762-1799` (REGFEMALE). Reading them:
-
-- **Hand classes.** R = two-handed gun, P = one-handed gun, N = nothing, a non-gun or the rocket launcher. R uses the
-  base surface, P and N the item sub; P and N differ only in `STANDING` (P `*_p_brth`, N `gusNothingBreath`).
-- **Folders.** REGMALE and STOCKYMALE use `s_merc/`, BIGMALE `m_merc/` (with the threaten sheets, §1.2), REGFEMALE
-  `f_merc/`. For example REGMALE stands in `s_r_std` [1] (R), `s_p_brth` [73] (P) or `s_n_std` [20] (N).
-- **State groups sharing a surface.** WALKING and WALK_BACKWARDS; SWATTING, START_SWAT, END_SWAT and SWAT_BACKWARDS;
-  CROUCHING, KNEEL_DOWN and KNEEL_UP; PRONE, CRAWLING, PRONE_DOWN and PRONE_UP. WALKING at life < 30 uses
-  `*_i_wk_r` / `*_i_wk_n`. Turning has no state of its own: the current state's frames, with the direction stepping
-  (§5.4).
-- **Big-merc kneel.** With a rifle, KNEEL_DOWN/UP of a big male become `BIGMERC_CROUCH_TRANS_INTO/OUTOF` = `m_c_tran`
-  [174] (`Soldier_Control.cc:1127-1142`). `IsRifle()` decides that transition; the gun class (two-handed) decides the
-  surface.
-
-### 2.3 Script frame ranges (state-level, shared by all bodies) — **(data)**, `Ja2bin.dat` decoded
-
-| State (id) | Script | gAnimControl speed |
-|---|---|---|
-| WALKING (0) | f0–f11, loop | 0 → computed |
-| WALK_BACKWARDS (230) | f11→f0, loop | 110 |
-| STANDING (1) | f0→f7→f0, 491, loop | 0 → computed |
-| RUNNING (6) | f0–f11, loop | 0 |
-| START_SWAT (15) | f0–f4 → SWATTING; moving 1.3/frame | 40 |
-| SWATTING (5) | f4–f15, loop | 0 |
-| END_SWAT (16) | f17–f21, 499 | 40 |
-| KNEEL_DOWN (2) / KNEEL_UP (4) | f0–f4 / f4–f0, 499 | 90 |
-| CROUCHING (3) | f5→f14→f5, loop | 0 |
-| PRONE_DOWN (7) / PRONE_UP (9) | f0–f4 / f4–f0, 499 | 100 |
-| CRAWLING (8) | f5–f16, loop | 0 |
-| PRONE (10) | f20→f24→f20, loop | 0 |
-| BIGMERC_CROUCH_TRANS_INTO/OUTOF (239/240) | f0–f4 / f4–f0, 499 | 90 |
-| END_HURT_WALKING (277) | f4–f0, 499 | 80 |
-| civ START_COWER / COWERING / END_COWER (221–223) | f0–f4, 442 → COWERING / f4→f11→f4, loop / f4–f0, 442, 499 | 80 |
-
-- **Visual codes inside these scripts.** 703/704 footstep sound (`Soldier_Ani.cc:1972-1976`); 713 infant monster step;
-  750/751 vehicle bounce (no-op for people, `:2201`); 773–776 stance sounds (`:2421-2452`).
-- **What 499 does.** It goes to the stationary state of the end height, or chains the next stance step toward
-  `ubDesiredHeight`, or starts the pending animation (`Soldier_Ani.cc:1732-1932`). `SoldierGotoStationaryStance`
-  maps stand/crouch/prone → `STANDING`/`CROUCHING`/`PRONE` (`Soldier_Control.cc:3612-3678`).
-- **Unused trailing value.** Every 499 is followed by a raw `999`, which is never reached.
-
-### 2.4 Civilians (11–17)
-
-They have only `STANDING`, `WALKING` and `RUNNING`, plus the cower set, hits, deaths and "act". There are no
-crouch/swat/prone surfaces (`Animation_Control.cc:2027-2245`), and no hand-item variants (§1.2 returns early). Their
-sheets are `civs/<prefix>_breath|_walk|_run|_cower` with the prefixes `ft` (FATCIV, `ft_brth`), `m` (MANCIV), `mi`
-(MINICIV), `ds` (DRESSCIV), `h` (HATKIDCIV), `k` (KIDCIV) and `cp` (CRIPPLECIV, `cp_breth`, no cower); KNEEL_DOWN
-becomes START_COWER (§1.2).
-
-- **(data)** All are 8 directions with 8/12/12 frames per direction. `cp_walk`/`cp_run` contain no shadow pixels.
-- Enemies, militia and player mercs only use bodies 0–3. Bodies 11–17 appear for civilians and NPC profiles.
-
----
-
-## 3. Soldier palettes
-
-### 3.1 Composition (`CreateSoldierPalettes`, `Soldier_Control.cc:4638-4741`)
-
-1. `GetBodyTypePaletteSubstitution(s, body)` (`Animation_Control.cc:2493-2534`):
-   - **Bodies 0–3:**
-     - while burning or exploding → `""`, meaning "use the current surface's own palette";
-     - with `bCamo ≠ 0` → `anims/camo.COL`;
-     - otherwise none.
-   - **Creatures:** a fixed `.COL` (`fm_brite`, `mn_brite`, `femmon`, `monster`).
-   - **Queen, animals, vehicles and the robot:** `""`.
-   - **Civilian bodies:** none.
-2. **No substitution.** Copy the 256-colour palette of the soldier's **`STANDING` surface**
-   (`LoadSoldierAnimationSurface(s, STANDING)`, which is hand-item dependent per §1.2). Then apply `HeadPal`,
-   `VestPal`, `PantsPal` and `SkinPal`, in that order (`:4652-4667`; ja2-node `composeSoldierPalette`).
-3. **`.COL` file.** 8-byte header + 768 bytes RGB (`Utilities.cc:19-39`).
-4. **`SetPaletteReplacement`** (`:5026-5043`):
-   - Look up the ID with an exact, case-sensitive compare (`:5078-5087`). An unknown or empty ID does nothing.
-   - Copy `rgb[i − start]` over palette entries `start..end` of the replacement's sub-range.
-5. **`ja2pal.dat`** (`LoadPaletteData`, `:4966-5023`) is parsed by `src/content/formats/ja2pal.ts`.
-   **(data)** Sub-ranges, with IDs exactly as they appear:
-
-   | Range | Entries | IDs |
-   |---|---|---|
-   | 0 hair | 245–250 | `BLONDHEAD BROWNHEAD BLACKHEAD WHITEHEAD REDHEAD redbrown dirtblnde` |
-   | 1 pants | 205–219 | `GREENPANTS JEANPANTS TANPANTS BLACKPANTS BLUEPANTS BEIGEPANTS` |
-   | 2 skin | 235–244 | `PINKSKIN TANSKIN DARKSKIN BLACKSKIN` |
-   | 3 vest | 220–234 | `BROWNVEST greyVEST GREENVEST JEANVEST REDVEST BLUEVEST YELLOWVEST WHITEVEST BLACKSHIRT GYELLOWSHIRT PURPLESHIRT` |
-
-- **(data) One palette fits all of a soldier's sheets.**
-  - The STI palettes of different sheets differ at entries 0, 45–83 and 254.
-  - But the merc and civilian sprites only use entries 1–10 (prone), 173–203, 205–250 and 254. Among the used
-    entries, the sheets differ only at 254, the shadow marker, which is never looked up.
-  - So the single "STANDING palette" is correct for every sheet a soldier uses.
-- **When it is rebuilt.** At creation (`CreateSoldierCommon`, `:618`), on camo change and on hand-item reload, and for
-  the burn/explode/vehicle-die states (`:1746-1749`).
-- **ja2-node** composes every live soldier's palette from the STANDING sheet and the four names; the `.COL`
-  substitutions (camouflage, creatures) are applied to corpses only (`src/app/world/world-effects.ts`).
-
-### 3.2 Where the four names come from
-
-| Soldier kind | HAIR / SKIN | VEST / PANTS | Source |
-|---|---|---|---|
-| Profile (merc, NPC, RPC) | profile `HAIR`, `SKIN` | profile `VEST`, `PANTS`; empty → `WHITEVEST` / `BLACKPANTS` (Stracciatella) | `Soldier_Create.cc:490-493`; `Soldier_Profile.cc:158-159` |
-| Enemy ADMINISTRATOR | random | `YELLOWVEST` / `GREENPANTS` | `Soldier_Create.cc:681-685` |
-| Enemy ELITE | random | `BLACKSHIRT` / `BLACKPANTS` | `:686-690` |
-| Enemy ARMY | random | `REDVEST` / `GREENPANTS` | `:691-695` |
-| Militia GREEN / REG / ELITE | random | `GREENVEST` / `JEANVEST` / `BLUEVEST`, all with `BEIGEPANTS` | `:696-710` |
-| MINER | random | `greyVEST` / `BEIGEPANTS` | `:711-715` |
-| Civilian, class NONE, no pants or vest given | random | random scheme, below | `:722-798` |
-| Detailed placement with `fVisible` | **re-rolled** (see below) | kept from the placement, unless the class forces them | `:831-837, 907` |
-
-**`GeneratePaletteForSoldier`** (`Soldier_Create.cc:637-799`; vanilla identical, `vanilla:Tactical/SoldierCreate.c:673-703`;
-ja2-node `src/sim/tactical/creation.ts`). It uses the shared `Random`:
-- **Skin.** `Random(4)` → PINK, TAN, DARK or BLACK.
-- **Hair** (`ChooseHairColor`, `:544-634`), with roll `r = Random(100)`:
-  - **Pink or tan skin:** r < 12 red, < 34 blond, < 60 brown, < 92 black, else white.
-  - **Dark skin:** < 35 brown, < 84 black, else white.
-  - **Black skin:** < 84 black, else white.
-  - **Women and children don't get white hair.** For REGFEMALE, MINICIV, DRESSCIV, HATKIDCIV and KIDCIV it is
-    re-rolled: pink/tan → `Random(4) + 1`; dark → `Random(2) + 1`; black → BLACK.
-  - **CRIPPLECIV:** an extra `Chance(50)` → WHITE.
-  - The hair enum is `WHITE, BLACK, BROWN, BLONDE, RED` (0–4, `:536-541`). BLONDE maps to the ID `BLONDHEAD`.
-- **Forced classes** set vest and pants and return.
-- **Otherwise**, only if pants or vest is empty:
-  - **Civilians, 40% of the time, "cheesy" colours.** 30% `GYELLOWSHIRT` with pants `Random(3)` from
-    TAN/BEIGE/GREEN; 70% `JEANPANTS` with vest `Random(7)` from WHITE, BLACKSHIRT, PURPLESHIRT, BLUE, BROWN, JEAN, RED.
-  - **Otherwise, "merc" colours, `Random(3)`:**
-    - GREENPANTS with a vest from {YELLOW, WHITE, BROWN, GREEN};
-    - TANPANTS with a vest from {YELLOW, WHITE, BLACKSHIRT, BLUE, BROWN, GREEN, JEAN, RED};
-    - BLUEPANTS with a vest from {YELLOW, WHITE, RED, BLACKSHIRT}.
-- **Quirk (fact, both codebases).** Skin and hair are always re-rolled, even for `fVisible` placements whose names were
-  just copied.
-
-### 3.3 Shade tables built per soldier (`:4705-4740`)
-
-`NUM_SOLDIER_SHADES = 48` (`Overhead_Types.h:85`):
-
-| Slots | Build | Use |
-|---|---|---|
-| `pShades[0..15]` | `CreateBiasedShadedPalettes`: add the light colour (usually black), then the `gusShadeLevels` table; slot 0 mono 500 (`Lighting.cc:2007-2038`). Same formula as tiles, `05` | normal lit rendering |
-| `pShades[20]`, `[21..29]` | plain `×255/256` (`Create16BPPPaletteShaded(pal,255,255,255,FALSE)`, `HImage.cc:96-127`), then `CreateEnemyGlow(gOrangeGlowR[k], gOrangeGlowG[k])` | glowing enemy on a roof |
-| `pShades[30]`, `[31..38]`, `[39]` | mono `(100,100,100)`, then `CreateEnemyGreyGlow` with orange values; `[39]` reuses entry 18 | unseen enemy on a roof |
-| `pGlowShades[0]`, `[1..9]` | plain `×255/256`, then `CreateEnemyGlow(gRedGlowR[i], 0)` | glowing enemy on the ground |
-| `pGlowShades[10]`, `[11..18]`, `[19]` | mono `(100,100,100)`, then grey glow; `[19]` uses `gRedGlowR[18]` = 200, not 225 | unseen enemy on the ground |
-| `effect_shade` | mono `(100,100,100)` | other enemies while one is highlighted |
-
-- **Glow ramps.** `gRedGlowR` = `0,25,…,225` twice (`:4499-4523`). `gOrangeGlowR` is the same; `gOrangeGlowG` =
-  `0,20,…,180` twice (`:4553-4631`).
-- **`CreateEnemyGlow16BPPPalette`** (`:7477-7491`): `r = max(rscale, R)`, `g = max(gscale, G)`, `b = B`. There is no
-  scaling.
-- **`CreateEnemyGreyGlow16BPPPalette`** (`:7494-7516`):
-  `lum = (299R + 587G + 114B)/1000; c = 100·lum/256; r = max(rscale, c), g = max(gscale, c), b = c`.
-- All tables go through `Get16BPPColor` (RGB565; `05`).
-- ja2-node: `soldierPaletteRows` (`src/render/world/soldier-palettes.ts`) builds 16 shade rows, then 20 ground glow
-  rows (`pGlowShades`, grey from row 10) and 20 roof glow rows (`pShades[20..39]`).
-
-### 3.4 Which table a drawn soldier uses (`RenderWorld.cc:944-1039, 1081-1084`)
-
-- **Default.** `shade = max((node.ubShadeLevel & 15) − 2, DEFAULT_SHADE_LEVEL = 4) | (node.ubShadeLevel & 0x30)`
-  (`:952-954`; `WorldDef.h:33`; ja2-node `soldierShade`).
-  - A soldier is never darker than two levels brighter than his tile, nor brighter than normal.
-  - New merc nodes start at the ambient level (`WorldMan.cc:29-30`); light sprites add to that.
-  - The `0x30` bits never occur in Stracciatella, because the lighting code clamps the level to `0..15`
-    (`Lighting.cc:546-549`) **(inferred)**.
-- **Fading.** With `fBeginFade`, `shade = ubFadeLevel` (ja2-node `SoldierFades`, `src/render/world/soldier-fade.ts`).
-- **Enemies glow.** This applies to enemies (`!bNeutral && bSide != FRIENDLY`) while it is the player's team's turn
-  (`ubCurrentTeam == OUR_TEAM`) or while the soldier is under AI control. In realtime that is always **(inferred)**.
-  - **Table.** `table = (bLevel == 0 ? pGlowShades : pShades + 20)[gsGlowFrames[g] + off]`.
-  - **Offset.** `off = 10` if `bLastRenderVisibleValue == 0` or the selected merc doesn't currently see him, else 0.
-  - **Glow cycle.** `gsGlowFrames` = 20 × `0`, then `2,4,6,8,9,8,6,4,2,0` (`:135-140`). `g` advances every 100 ms
-    (`GLOW_ENEMYS`, `Timer_Control.cc:27`, `Timer_Control.h:29`; `RenderWorld.cc:1605-1610`). So there is a 3 s cycle
-    with a 1 s red pulse.
-  - **Effects.** Enemies ignore scene lighting. When `gsGlowFrames[g] ≥ 7`, or when the enemy is the hovered
-    `gSelectedGuy`, `z = TOPMOST` (`:1013-1014, 1031-1035`).
-  - ja2-node: `soldierLook` (`src/render/world/glow.ts`) picks the row and the topmost z; who glows and who is grey
-    is decided in `src/app/world/soldier-scene.ts`.
-- **Forced shade.** `fForceShade` (opcodes 431/438/439) overrides with `pForcedShade` (`:1081-1084`).
-- **Hidden soldiers.** A soldier with `bLastRenderVisibleValue == −1` isn't drawn unless `SHOW_ALL_MERCS` (`:938`).
-
----
-
-## 4. Shadows, screen position and z
-
-### 4.1 Shadows
-
-- **There are no separate shadow surfaces for people.** The shadow is drawn inside every frame with palette index
-  **254**. The merc blitters replace the destination with `ShadeTable[dst]` for those pixels and use the shade
-  palette for all other pixels.
-  - Sources: `VObject_Blitters.cc:611-644, 746-845` (line 830); obscured variant `:658-732`.
-  - `ShadeTable` = ×`guiShadePercent` = 0.48 (`Shading.cc:20-35`; `05`).
-- **What it ignores.** The shadow ignores the soldier's lighting, glow and palette.
-- **(data)** Index 254 makes up 13–27% of the opaque pixels in merc and civilian sheets, e.g. `s_r_std` 6464/37048.
-  Its palette colour varies by file (0,255,0 / 0,186,0 / 0,255,255) and is never used.
-- **Crows** have a separate shadow tile (`HandleCrowShadowNewPosition`, `Soldier_Control.cc:1823`).
-- ja2-node draws each soldier sprite as separate shadow and colour parts (`InstanceFlags.ONLY_SHADOW_INDEX`,
-  `EXCEPT_SHADOW_INDEX`, `SOLDIER_SHADOW_INDEX = 254`).
-
-### 4.2 Screen position (`RenderWorld.cc:958-975, 1110`)
-
-```
-dOffX = dXPos − gsRenderCenterX ; dOffY = dYPos − gsRenderCenterY             (float)
-sx = cx + (INT16)(2·dOffX − 2·dOffY)        FloatFromCellToScreenCoordinates, Isometric_Utils.cc:129-138
-sy = cy + (INT16)(dOffX + dOffY) − sTileHeight
-sx −= gsRenderWorldOffsetX (0) ; sy −= gsRenderWorldOffsetY (10)             RenderWorld.cc:202-203
-sy −= sHeightAdjustment ; sy += gsRenderHeight
-blit frame at (sx + sOffsetX, sy + sOffsetY)                                 (05 §1.5, "Frame offset")
-```
-
-- `cx`, `cy` are `g_ui.m_tacticalMapCenterX/Y` (`05`). `(INT16)` truncates toward zero, not floor; compute in
-  float32 **(inferred)**.
-- **`sTileHeight`** is `me.sHeight` of the tile whose merc list holds the node (`:460`), i.e. `sGridNo`.
-- **`sHeightAdjustment`** is `(INT16)dHeightAdjustment`. It is 0 on the ground and `SECOND_LEVEL_Z_OFFSET = 58` on a
-  roof (`WorldDef.h:99`; `Soldier_Control.cc:1864-1878`; `Soldier_Create.cc:448-451`).
-- **(data)** Frame offsets put the feet near the anchor: `s_r_std` frame 0 is 24×48 at (−14,−40), `m_breth2` 27×52 at
-  (−15,−44), `f_breth2` 26×46 at (−16,−39), `m_breath` 26×48 at (−17,−42).
-
-### 4.3 Z level (`RenderWorld.cc:1041-1079, 1089-1098`)
-
-`wy = GetMapXYWorldY(X, Y)` of the node's tile (`05`). The node lives on `sGridNo`, which switches to the next
-tile at the half-step (§5.3), so z jumps there.
-
-| Case | sZLevel | Restriction 0 |
-|---|---|---|
-| normal | `8·wy + 3` (`MERC_Z_LEVEL`) | `80(X+Y) − 6677` |
-| `dHeightAdjustment > 0` (roof) | `8·(wy + 50 + 20) + 6` (`ONROOF_Z_LEVEL`) | `80(X+Y) − 6114` |
-| `SOLDIER_MULTITILE` | `wy` taken at `(X + bZTileOffsetX, Y + bZTileOffsetY)` of the current structure, then as above | — |
-| vehicle | `8·wy + 4` | — |
-| `gsForceSoldierZLevel` (glow peak, hovered enemy) | `32767` | — |
-| `sZLevelOverride ≠ −1` (opcodes 451/452; reset on every new state, `Soldier_Control.cc:1669`) | override | — |
-| tile has `MAPELEMENT_EXT_NOBURN_STRUCT` | `+2`, and the non-obscured blitter | — |
-
-- **Precedence.** Rows are checked top to bottom: vehicle, then forced, then override, then roof (`:1058-1078`).
-- **When `NOBURN` is set.** When the struct added to the tail of the tile list is single-tile and is not a wall, or
-  when the struct added to the head is single-tile **and** a wall. The two cases disagree; this is `TODO0015`
-  (`WorldMan.cc:557-569, 614-626`).
-
-**Blit rules.** Mercs are in the dynamic layers. `RenderFX`: dynamic, no z-write, z-blit, `fMerc`
-(`RenderWorld.cc:313-317`). The layer is chosen per row (`05`; `:895-930`):
-- `DYN_MERCS` for `bLevel == 0`, not multi-tile;
-- `DYN_HIGHMERCS` for `bLevel > 0`;
-- `DYN_STRUCT_MERCS` for multi-tile soldiers (any level), and for `bLevel > 0` non-multi-tile ones. A soldier on a
-  roof is therefore drawn twice, in `DYN_STRUCT_MERCS` and in `DYN_HIGHMERCS`, both times with the roof z
-  **(inferred)**.
-
-| Blitter | Pixel 254 | Other pixels | z write |
-|---|---|---|---|
-| `TransShadowZNB` (`NOBURN` tiles) | `zbuf < z` → shade | `zbuf < z` → palette | no |
-| `TransShadowZNBObscured` (default) | `zbuf < z` → shade | `zbuf <= z`, **or** `(x+y)` even (checkerboard through walls) | no |
-
-- References: `VObject_Blitters.cc:825-831, 706-719`; `RenderWorld.cc:1388-1406`.
-- The checkerboard parity assumes a 4-byte-aligned frame buffer (`05`) **(inferred)**.
-- ja2-node: `mercZ`, `roofMercZ`, `NOBURN_Z_BONUS` (`src/render/world/geometry.ts`); the three merc passes and the
-  obscured part in `DynamicScene` (`dynamic-scene.ts`).
-
-### 4.4 Multi-tile soldiers (prone, crawling, creatures, vehicles)
-
-- **Blitter.** `DYN_STRUCT_MERCS` uses `BltTransZTransShadowInc[Obscure]` with strip index `OneCDirection(dir)` (queen:
-  0). It tests `zbuf <= zstrip`, **writes z**, and shades pixel 254 (`RenderWorld.cc:911-928, 1245-1258, 2835-3020`).
-- **Strips.** They come from `AddZStripInfoToVObject(vo, structFile, fromAnimation = TRUE, start)`
-  (`Structure.cc:1453-1600`; algorithm in `05`).
-  - One `ZStripInfo` per structure (direction), computed from frame `start + k·(subImages/8)`.
-  - `start = 5` for `RGMPRONE`, −1 (one direction) for the queen, and 0 otherwise — including `BGMPRONE`, `RGFPRONE`
-    and the handgun prone sheets (`Animation_Data.cc:693-703`).
-  - It is then applied to every frame of that direction **(inferred quirk)**.
-- **(data)** `m_prone.jsd` z-tile offset is (0,1) for structure indices 5–7, i.e. world directions S, SW and W.
-- **ja2-node** computes the strips in the browser from frame 0 of the current direction for every sheet
-  (`#multiTile`, `src/app/world/soldier-scene.ts`), so `RGMPRONE` uses frame 0 instead of 5.
-
----
-
-## 5. Movement and timing per frame
-
-### 5.1 `gAnimControl` columns (`Animation_Control.h:79-87`; table `Animation_Control.cc:34-348`)
-
-`{zAnimStr, dMovementChange, uiFlags, sSpeed (ms per frame; 0 = computed), ubHeight, ubEndHeight}`. Heights:
-`ANIM_STAND 6`, `ANIM_CROUCH 3`, `ANIM_PRONE 1` (`.h:69-74`). Flags at `.h:35-65`.
-
-Transcribed in `data/tables/anim-control.json`: `animations[]` (`index` = state id, `id`/`name`, `movement`, `flags` as
-a bit mask of the `flags` map, `speed`, `height`, `endHeight`) and `bodySpeeds` (per kind, per body id: `speed`,
-`movement`; §5.2, §5.3). The basic states: WALKING 1.6, RUNNING 2.6, SWATTING 2.2, CRAWLING 0.8, START_SWAT 1.3 at
-40 ms (END_SWAT 40 ms), SIDE_STEP 0.4 at 50 ms, WALK_BACKWARDS and SWAT_BACKWARDS 1.4 at 110 ms, all MOVING;
-STANDING, CROUCHING and PRONE are STATIONARY with BREATH and FASTTURN and a computed speed; KNEEL_DOWN/UP and the
-BIGMERC transitions take 90 ms, PRONE_DOWN/UP 100 ms. **PRONE, PRONE_DOWN, PRONE_UP and SIDE_STEP have no TURNING.**
-
-### 5.2 Frame delay (`SetSoldierAniSpeed` → `CalculateSoldierAniSpeed`, `Soldier_Control.cc:4921-4960, 4763-4918`; see also `01` §3.3)
-
-- **Fixed speed.** If `sSpeed ≠ 0` it is used as is.
-- **Breathing states.** `STANDING`, `PRONE` and `CROUCHING`: `delay = 2·bBreath + (100 − bLife)`, minimum 40.
-- **Moving states:**
-  ```
-  terrain + (50 − life/2) + min(50 − breath/2, 30) + (50 − EffectiveAgility/4) + additional
-  ```
-  - `terrain`: 5 on flat ground, floor or road; low grass 10; high grass 15; tracks/low water 20; mid water 25;
-    deep water 30 (`TERRAIN_SPEED_DELAY`, `src/sim/tactical/constants.ts`). A non-moving computed state uses 40.
-  - `additional`: the body's `gub*Speeds[body].sSpeed`, clamped to ≥ 0. For walking: REGMALE −5→0, BIGMALE 0,
-    REGFEMALE 0, FATCIV 40, MANCIV 10. Running: BIGMALE 5. Swat/crawl: BIGMALE 20 (`Animation_Control.cc:351-425`).
-  - Then ÷2 on adrenaline, ÷2 in combat, ×2 in realtime stealth.
-  - `EffectiveAgility` = drunk-adjusted agility × 100 / `sWeightCarriedAtTurnStart` when that is > 100
-    (`SkillCheck.cc:35-40`).
-- **Unseen soldiers.** In combat, unseen soldiers get delay 0 (`:4928-4936`); ja2-node does so as soon as `visible`
-  is −1, without the fade (`gaps`, "Unseen soldiers in combat").
-- **When it is recomputed.** On each new state; on each tile change, for terrain (`07`); and by fast turns (§5.4).
-- **Example.** Agility 80, life 100, breath 100, realtime: walk = 5 + 0 + 0 + 30 = 35 ms/frame; stand = 200 ms/frame.
-
-### 5.3 Position update per animation frame
-
-The per-frame order (`ExecuteOverhead`: frame, centre check, `MoveMerc`, `TurnSoldier`), `MoveMerc` in float32 with
-`PI = 3.1415926` and the sticky `fPastX/YDest`, the half-step occupancy switch of `SetSoldierGridNo`, how a move starts
-and how it ends are `07`. What belongs to the animation:
-
-- **Speed per frame.** **`WALKING` uses `gubAnimWalkSpeeds[body].dMovementChange`**: 1.6 for bodies 0–3, 1.3 for adult
-  civilians, 1.6 for kids, 0.9 for cows. Every other state, running included, uses
-  `gAnimControl[state].dMovementChange` (`Overhead.cc:990-1023`), so civilians also run at 2.6.
-- **No snap between tiles.** The overshoot carries over to the next tile (the snaps at `Overhead.cc:724-725` are
-  commented out). Only the final tile clamps.
-- **(inferred, float32 simulation of `MoveMerc`)** Frames per tile with the overshoot carried, starting from a
-  centre:
-
-  | Mode | Straight | Diagonal |
-  |---|---|---|
-  | walk 1.6 | 7,6,6,7,6,6,6,7 (51/8) | 9,9,9,9,9,9,8,9 |
-  | run 2.6 | 4,4,4,4,4,4,3,4 | 6,5,6,5,… |
-  | swat 2.2 | 5,5,4,5,4,5,4,5 | 7,6,7,6,… |
-  | crawl 0.8 | 13,13,12,13,… | 18,18,18,17,… |
-  | civ walk 1.3 | 8,8,8,7,… | 11 |
-
-- **ja2-node:** `moveMerc` (`src/sim/tactical/movement.ts`) with `Math.fround` on every stored value and the
-  precomputed float-angle sines and cosines `MOVE_SIN_COS` (`constants.ts`).
-
-### 5.4 Turning (`TurnSoldier`, `Soldier_Control.cc:4215-4480`)
-
-- **Increment.** Setting the desired direction computes `bTurningIncrement = QuickestDirection(cur, desired)`:
-  ±1, with a 180° turn always +1 (clockwise) (`:3936`; `Isometric_Utils.cc:514-519`, `.h:96`).
-- **Per frame.** On every animation frame of an `ANIM_TURNING` state with `bDirection ≠ bDesiredDirection`:
-  `dir = (dir + inc) mod 8`, if `OKToAddMercToWorld(dir)` (`:4438-4474`).
-  - It plays a footstep, except in water or on roads (`:4476-4479`).
-  - Stationary states look on the next turn frame: `SOLDIER_LOOK_NEXT_TURNSOLDIER` → `HandleSight` (`:4229-4241`;
-    `07`).
-- **Fast turn.** `AdjustForFastTurnAnimation` sets `sAniDelay = 30` ms (`FAST_TURN_ANIM_SPEED`) while turning in an
-  `ANIM_FASTTURN` state, for `OUR_TEAM` only (`:6379-6396`; `Animation_Control.h:30`). Enemies turn at their state's
-  delay, e.g. ~200 ms per octant when standing **(inferred)**.
-- **PRONE has no `ANIM_TURNING`.** A prone turn goes through crouch: `fTurningFromPronePosition`, `ChangeSoldierStance`
-  (`:3896-3911, 4337-4355`).
-- **Initial facing.** It is set directly with `EVENT_SetSoldierDirection` + `EVENT_SetSoldierDesiredDirection` when a
-  soldier is added (`Soldier_Add.cc:884-897`).
-
----
-
-## 6. Merc profiles
-
-### 6.1 `prof.dat` (`BinaryData/Prof.dat`)
-
-- **Layout.** 170 (`NUM_VANILLA_PROFILES`) records of `MERC_PROFILE_SIZE = 716` bytes (`Soldier_Profile_Type.h:10`;
-  `LoadSaveMercProfile.h:6`; `BinaryProfileData.cc:31-47`). **(data)** File size 121 720 = 170 × 716. The checksum
-  field is 0 in all records and isn't checked.
-- **Obfuscation.** `JA2EncryptedFileRead` is applied per record (`Tactical_Save.cc:984-1000`;
-  `vanilla:Tactical/TacticalSave.c:2429-2449`), with the key index and previous byte reset for each record:
-
-  ```
-  key = [132,235,125,99,15,220,140,89,205,132,254,144,217,78,156,58,215,76,163,187,55,49,65,48,156,140,201,
-         68,184,13,45,69,102,185,122,225,23,250,160,220,114,240,64,175,47,233]   // "057" in the C source is octal = 47
-  for i in 0..715: plain[i] = (enc[i] − enc[i−1] − key[i % 46]) & 255,  with enc[−1] = 0
-  ```
-
-  **(data)** Decoding with 47 yields correct names and stats.
-- **Strings.**
-  - The name and nickname are UTF-16LE in non-Russian versions (`isCorrectlyEncoded`,
-    `LoadSaveMercProfile.cc:40-47`).
-  - The palette IDs are 30-byte NUL-padded ASCII (`PaletteRepID_LENGTH`, `Overhead_Types.h:316`).
-
-**Field table** (`ExtractMercProfile`, `LoadSaveMercProfile.cc:36-212`; offsets computed from it and verified on data;
-ja2-node `src/content/formats/prof.ts`):
-
-| Off | Type | Field | Off | Type | Field |
-|---|---|---|---|---|---|
-| 0 | u16[30] | zName | 332 | i16 | sSalary |
-| 60 | u16[10] | zNickname | 334 | i8 | bLife |
-| 80 | — | skip 28 | 335 | i8 | bDexterity |
-| 108 | u8 | ubFaceIndex (overwritten, §6.2) | 336 | i8 | bPersonalityTrait |
-| 109 | char[30] | PANTS | 337 | i8 | bSkillTrait (NIGHTOPS etc.) |
-| 139 | char[30] | VEST | 338 | i8 | bReputationTolerance |
-| 169 | char[30] | SKIN | 339 | i8 | bExplosive |
-| 199 | char[30] | HAIR | 340 | i8 | bSkillTrait2 |
-| 229 | i8 | bSex | 341 | i8 | bLeadership |
-| 230–235 | i8/u8 | armour attr., MiscFlags2, evolution, MiscFlags, sexist, learnToHate | 342 / 347 | i8[5] | bBuddy / bHated |
-| 238 / 239 | u8 / i8 | ubQuoteRecord / bDeathRate | 352 | i8 | bExpLevel |
-| 242–259 | i16 ×9 | stat gains | 353 | i8 | bMarksmanship |
-| 260 | u8 | ubBodyType | 355 | i8 | bWisdom |
-| 261 | i8 | bMedical | 358 / 377 | u8[19] | bInvStatus / bInvNumber |
-| 262–269 | u16 ×4 | eyes X/Y, mouth X/Y | 396 | u16[4] | usApproachFactor |
-| 280 / 284 | u32 | blink / expression frequency | 405 | i8 | bAgility |
-| 288 / 290 | u16 | sSector.x / .y | 406 / 408 | u8 / i16 | fUseProfileInsertionInfo / sGridNo (both reset to 0) |
-| 292 | u32 | uiDayBecomesAvailable | 411 | i8 | bMechanical |
-| 296 | i8 | bStrength | 412 / 413 | u8 / u8[2] | ubInvUndroppable / ubRoomRangeStart |
-| 297 | i8 | bLifeMax | 416 | u16[19] | inv (slot 5 = HANDPOS → surface choice) |
-| 298–308 | i8 ×11 | stat deltas | 474 / 498 | u16[12] | stat change chances / successes |
-| 310–326 | u16/i16 | kills … strength gain | 523 | u8[2] | ubRoomRangeEnd |
-| 328 | u32 | uiBodyTypeSubFlags (0x1 BIGGUYSHOOT2, 0x2 THREATEN; `Overhead_Types.h:210-211`) | 529–538 | i8 | quote / race / nationality / … / racist |
-| 540–574 | | salaries, deposit, attitude, approaches, town | 576 | i8[75] | bMercOpinion |
-| 651–675 | | approached, merc status, hate/like timers, last quote, 669 sSector.z, insertion data, NPC data | 682 | u8 | ubCivilianGroup |
-| 676 | i32 | iBalance | 683 / 684 | u8 / u32 | ubNeedForSleep / uiMoney |
-| 688–695 | | NPCData2, MiscFlags3, hangover, drug use, precedent quote | 696 | u32 | checksum |
-| 700–715 | | pre-combat grid, complaint timer, suspicious death, MERC contract, total cost, skip 4 | | | |
-
-### 6.2 What Stracciatella does on top (`Soldier_Profile.cc:126-238`; `DefaultContentManager.cc:1258-1298`; `MercProfile.cc:147-374`)
-
-- **`mercs-profile-info.json`** gives each profile an `internalName` and `type` (AIM/MERC/IMP/RPC/NPC/NOT_USED).
-  - Optional fields override `prof.dat`: `fullName`, `nickname`, `sex`, `bodyType`, `bodyTypeSubstitution`, `face`,
-    `skinColor`, `hairColor`, `vestColor`, `pantsColor`, `stats{health, agility, …}`, traits, `sector`, `inventory`,
-    `contract` and others.
-  - The shipped file uses almost none of them; only a commented example for profile 0.
-  - **(data)** It lists 159 profiles; 51–56 (IMP slots) and 165–169 are absent. **An absent profile gets an empty
-    struct and its binary record is discarded** (`DefaultContentManager.cc:1291-1297`).
-- **`deserializeStruct` builds a new struct.** Fields it doesn't copy start zeroed (`MercProfile.cc:149`).
-- **`InitProfileFromContent`** then:
-  - sets `bMercStatus` by whether the dialogue file exists;
-  - sets **`ubFaceIndex = profile id`** (`Soldier_Profile.cc:150`; vanilla also, `vanilla:Tactical/SoldierProfile.c:177`);
-  - fills an empty VEST with `WHITEVEST` and empty PANTS with `BLACKPANTS` (`:158-159`);
-  - replaces extended-list guns if not gun-nut;
-  - computes attractiveness and the optional gear cost;
-  - resets `fUseProfileInsertionInfo` and `sGridNo` (`:209-210`).
-- **Copied into the soldier** (`TacticalCopySoldierFromProfile`, `Soldier_Create.cc:485-532`): the four palettes;
-  `name = zNickname`; life, lifeMax, agility, leadership, dexterity, strength, wisdom, exp, marksmanship, medical,
-  mechanical, explosive; `uiAnimSubFlags`; `ubBodyType`; `ubCivilianGroup`; both skill traits. The CAMOUFLAGED trait
-  sets `bCamo = 100`. Items come later, in `CopyProfileItems` (`:206`).
-- **ja2-node** decodes the records itself (`ubFaceIndex` = profile id) and reads `mercs-profile-info.json` for the
-  internal names and types; the campaign's mutable profile fields are `src/sim/tactical/profiles.ts`. Without
-  `prof.dat` (CI) the stub pack's authored profiles stand in (`stubs/profiles.json`, `21`).
-
----
-
-## 7. Soldier creation
-
-### 7.1 Placement records
-
-- **`BASIC_SOLDIERCREATE_STRUCT`** (parsed in `src/content/formats/map.ts`; `Soldier_Create.h:22-40`): start grid, team,
-  relative attribute/equipment level, direction, orders, attitude, `bBodyType` (−1 = random), patrol grid, roof flag,
-  `ubSoldierClass`, civ group, priority existence, has keys.
-- **Static detailed placement**, 1040 bytes (Windows format), in `detailedRaw` (`LoadSaveSoldierCreate.cc:41-104`):
-
-| Off | Field | Off | Field |
-|---|---|---|---|
-| 0 | fStatic | 716 / 746 / 776 / 806 | HeadPal / PantsPal / VestPal / SkinPal (char[30]) |
-| 1 | ubProfile (200 = NO_PROFILE) | 866 | sPatrolGrid i16[10] |
-| 6 / 8 | sSector x / y (i16) | 886 / 887 | bPatrolCnt / **fVisible** |
-| 10 | bDirection | 888 | name, UTF-16 ×10 |
-| 12 | sInsertionGridNo i16 | 908 / 909 / 910 | ubSoldierClass / fOnRoof / sSector.z |
-| 14 / 15 / 16 / 17 | bTeam / bBodyType / bAttitude / bOrders | 917 / 919 | ubCivilianGroup / ubScheduleID |
-| 18–31 | lifeMax, life, agility, dex, exp, marks, med, mech, expl, lead, str, wis, morale, AImorale (−1 = generate) | 920–922 | fUseGivenVehicle / vehicle id / fHasKeys |
-| 32 | Inv: 19 × OBJECTTYPE (36 bytes: `usItem` +0, `fFlags` +28, 0x80 = `OBJECT_NO_OVERWRITE`) | | |
-
-### 7.2 From a placement to a soldier
-
-ja2-node: `src/sim/tactical/init-list.ts` (population, `AddPlacementToWorld`) and `creation.ts` (the creation steps
-below).
-
-**Population**:
-- Civilians and militia: `AddSoldierInitListTeamToWorld(team)` (`Soldier_Init_List.cc:571-613`).
-- Enemies: `AddSoldierInitListEnemyDefenceSoldiers(admins, troops, elites)` with the counts of the strategic
-  `SECTORINFO` (`Queen_Command.cc:477`): placements by class, priority + detailed first, then priority, then detailed,
-  then basic, each slot taken if `slots ≤ remaining || Random(slots) < remaining` (`Soldier_Init_List.cc:616-1025`;
-  full pass in `17`).
-
-**`AddPlacementToWorld`** (`:412-568`):
-- **Detailed placement:** `CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo`
-  (`Soldier_Create.cc:1463-1543`).
-  - With a profile: copy team, direction, grid, orders etc. and stop there.
-  - Otherwise: run the basic generation, then overwrite the stats that are ≠ −1, the palettes if `fVisible`, and the
-    items flagged `NO_OVERWRITE`.
-- **Basic placement:** `CreateDetailedPlacementGivenBasicPlacementInfo` (`:1122-1393`):
-  - **Body type:** `bBodyType < 0` → `Random(4)`:
-    - OUR/ENEMY/MILITIA team → REG, BIG, STOCKY or FEMALE.
-    - Miner → `Random(3)` of REG, BIG or MANCIV.
-    - Other civilian → `Random(100)`: <8 FAT, <38 MAN, <57 MINI, <76 DRESS, <88 HATKID, else KID (`:1145-1213`).
-  - **Exp level** from class (admin 2, army 4, elite 6, militia 2/4/6) + difficulty modifier
-    `(diff/20) − 2` + relative level (`:1243-1343`).
-  - **Stats:** `49 + 4·statsLevel + Random(9) + Random(8)` each, in a fixed order (`:1349-1365`).
-  - **Equipment:** `GenerateRandomEquipment` for admin, army, elite and militia (`:1386-1392`).
-- **`TacticalCreateSoldier`** (`:128-456`):
-  1. Take a free id in the team's range; `InitSoldierStruct`: `usAnimState = STANDING`, breath 99/100 (`:913-955`).
-  2. Copy from the profile or from the create struct (§3.2 palettes).
-  3. Flags, side, direction, insertion grid.
-  4. Civilian stat tweaks by body (`:229-259`).
-  5. `ubBattleSoundID = Random(3)`.
-  6. **ENEMY_TEAM, no profile, REGFEMALE, not elite → `REGMALE + Random(3)`** (`:278-285`). Hair was already rolled
-     with the female rules.
-  7. BIGMALE → threaten flag (`:287-291`).
-  8. Face items moved; enemy camo roll if it carries a camo kit (`:319-327`).
-  9. `CreateSoldierCommon`: anim cache; `EVENT_InitNewSoldierAnim(STANDING, usAniCode = Random(10))` (desync between
-     soldiers); `CreateSoldierPalettes` (`Soldier_Control.cc:550-619`).
-  10. `fOnRoof` → `SetSoldierHeight(58)` (`:448-451`).
-- **`AddSoldierToSectorNoCalculateDirection`** (`Soldier_Add.cc:683-930`):
-  - `FindGridNoFromSweetSpot(insertionGrid, 7)` for non-creatures;
-  - then `EVENT_SetSoldierPosition` (tile centre), direction and desired direction;
-  - player mercs also get `EVENT_StopMerc`.
-- **RNG.** All of this uses the shared `Random`. Body, stats and palette rolls interleave, so a seeded replay must keep
-  this exact order (`01` §3.5, `01` §3.6); which creation paths draw is in `deviations`, "Soldier creation draws".
-- **Hand item → surfaces.** Army weapon class = `BAD_ARMY_EQUIPMENT_RATING + modifier`. Class 1–2 picks from the first
-  rows of `army-gun-choice-*.json`: SW38/Desert Eagle, Glock/Beretta 93R, … (`Inventory_Choosing.cc:216-230, 560-575`).
-  So early troops often hold pistols and use the P surfaces **(inferred)**.
-
----
-
-## 8. Implementation in ja2-node
-
-- **Content** (`src/content/anim/`): `tables.ts` parses `data/tables/anim-control.json` and `anim-surfaces.json`;
-  `surface-choice.ts` (§1.2); `structures.ts` (the animation structure files, §1.5); `script.ts` and `timelines.ts`
-  read and classify `ja2bin.dat` (`src/content/formats/ja2bin.ts`) into a logic timeline (opcodes the simulation runs)
-  and a presentation timeline (frames and sounds); `soldier-sprite.ts` (palette composition, sheet frame, shade).
-  `ja2pal.dat` and `prof.dat` have their parsers in `src/content/formats/`.
-- **Simulation** (`src/sim/tactical/`): `animation.ts` (new animations, frame delay, stance, direction, turning),
-  `overhead.ts` (the per-soldier pass), `movement.ts` (paths, `MoveMerc`, positions), `anim-substitution.ts`,
-  `multi-tile.ts`, `person-structure.ts`, `hand-item.ts`, `creation.ts` and `init-list.ts`. It never loads an STI.
-- **Client.** `SoldierAssets` (`src/app/world/soldier-assets.ts`) loads sheets and composes palettes; its surface
-  query takes the view's hand class and body only, so the double-pistol breath, the injured walks and
-  `SUB_ANIM_BIGGUYSHOOT2` do not show. `SoldierFrames` (`soldier-frames.ts`, `src/content/anim/schedule-track.ts`)
-  derives the frame from the view's animation state and the server's frame slot (exact with equal scripts, warped
-  between fire markers otherwise; `deviations`, "Soldier frames with other scripts"). `SoldierScene`
-  (`soldier-scene.ts`) adds glow, fades, merc lights and the multi-tile z strips; `DynamicScene` draws them (§4.3).
-- **Stubs.** Invented soldier sheets (`stubs/soldiers.ts`: stand, walk, run, crouch, prone; 18 frames per direction;
-  colours in the `ja2pal` ranges) and animation scripts (`stubs/anim-scripts.ts`, served as `stubs/binarydata/ja2bin.dat`);
-  creature and bloodcat bodies are single-tile with invented scripts (`deviations`, "Creature and bloodcat stub
-  bodies").
-- **Gaps.** No water sub-surfaces, no idle animations (§1.6), no `ja2prof.dat` (§1.5), no `.COL` palettes for live
-  soldiers (§3.1), prone z strips from frame 0 (§4.4).
-
----
-
-## 9. Quirks to keep
-
-- Big males always use the "threaten" sheets (§1.2). STOCKYMALE looks exactly like REGMALE (§2.1).
-- Skin and hair are re-rolled even for `fVisible` detailed placements (§3.2). An army REGFEMALE becomes male after her
-  hair was rolled with the female rules (§7.2).
-- Enemies ignore scene lighting and pop to TOPMOST z at the glow peak (§3.4). The peak grey glow uses 200, not 225
-  (§3.3).
-- Movement is float32 with overshoot carried and `PI = 3.1415926` (§5.3). Walking uses the per-body table, while
-  running ignores `gubAnimRunSpeeds[].dMovementChange` (§5.3).
-- Turning while walking happens at one octant per walk frame (§5.4). Only the player's soldiers fast-turn.
-- A direction change doesn't refresh `usAniFrame` until the next frame code (§1.3; the ja2-node client shows the new
-  facing at once).
-- Prone z-strips are computed from frame 5 for REGMALE but from frame 0 for big males and women (§4.4; ja2-node uses
-  frame 0 for all).
-- The initial standing frame is `Random(10)` from the shared RNG (§7.2).
+| Scripts per state | The user's `binarydata/ja2bin.dat`; the stub pack builds its own (`stubs/anim-scripts.ts`) |
+| Flags, speeds, heights per state; per-body speeds | `data/tables/anim-control.json` |
+| Sheets, directions, structure types; surfaces per body, state and hand | `data/tables/anim-surfaces.json` |
+| Palette replacements | The user's `binarydata/ja2pal.dat` (`content/formats/ja2pal.ts`) |
+| Merc profiles | The user's `binarydata/prof.dat` (`content/formats/prof.ts`) with Stracciatella's `mercs-profile-info.json`; the stub pack's `stubs/profiles.json` |
+| Stub sheets | `stubs/soldiers.ts`: stand, walk, run, crouch and prone, colours in the `ja2pal` ranges |
+
+## 2. Design
+
+**Animations are data the simulation steps.** One script per state serves every body. At load the scripts split into
+a logic timeline the simulation runs and a presentation timeline of sprite frames and sounds (`01`). A soldier keeps
+his state, script position, frame slot and next-frame deadline; opcodes that change the game run in `animation.ts` or
+through the tactical hooks (combat, doors, roofs, items). Frame counts, speeds and opcode positions come from the
+user's data, so the stub pack's shorter scripts give tests timings of their own.
+
+**The simulation never loads a sheet.** The surface a state shows depends on the body, the class of the item in hand,
+a second pistol, life below 30, water and the big-guy flags, not on the state alone. One function, `chooseSurface`,
+answers for both sides: the simulation asks it whether a state is valid for a body and which structure file gives the
+soldier's collision shape, the client asks it for the sheet. The original refuses a new state when its sheet fails to
+load; deciding from the tables keeps the simulation independent of the files a user has. The client falls back to a
+stub sheet of the same kind when a file is missing.
+
+**The frame clock is game time.** A frame lasts `aniDelay` game ms, checked every 5 ms tick (`01`, deviation "Frame
+timers"). States with speed 0 compute it from breath, life, agility, terrain and the body, halved in combat and doubled
+for stealth in real time; in the states marked for fast turns our mercs turn at 30 ms an octant.
+
+**The client shows the frame the server reached.** The view carries the state, the frame slot, the tick the state
+began and the frame delay. A client whose scripts hash like the server's predicts the slot between views exactly;
+one with other scripts walks its own and warps time between the state start and the fire markers (deviation "Soldier
+frames with other scripts"). The sheet frame comes from the script frame and the current facing at draw time, so a new
+facing shows at once (deviation "Soldier frame on turning").
+
+**Turning and stepping belong to the state.** A state with the turning flag turns one octant per frame while it plays,
+if the soldier's structure fits the new facing; prone has no turning flag, so a prone turn goes through a crouch.
+`WALKING` steps the body's walking speed per frame; every other state steps its own, whatever the body's table says.
+
+**One palette per soldier.** The palette of the soldier's standing sheet with the hair, skin, vest and pants
+replacements serves every sheet he shows: on the Gold data the sheets differ only at entries soldiers never use and at
+254, the shadow marker. Shadows are pixels of every frame (index 254); ja2-node draws them as a separate darkening part
+of the quad (`05`, deviation "Shadow darkening").
+
+**Enemies glow instead of being lit.** A soldier takes his tile's shade two levels brighter, never brighter than the
+default. A hostile soldier takes a glow row during our turn (always in real time) or under AI control, grey while the
+selected merc does not see him, and draws topmost at the pulse's peak or under the cursor. Soldiers coming into or
+leaving the view fade.
+
+**Creation draws in the original's order.** Body, stats, equipment, night ops, palettes and battle sounds come from
+the gameplay stream in the order of `CreateDetailedPlacementGivenBasicPlacementInfo` and `TacticalCreateSoldier`, so a
+seeded replay creates the same sector (deviation "Soldier creation draws"); the first standing frame's draw is
+cosmetic and not made (deviation "Cosmetic face and frame draws").
+
+**Profiles.** ja2-node decodes `prof.dat` itself; Stracciatella's `mercs-profile-info.json` gives each profile its
+internal name and type, the face index is the profile id, and an empty vest or pants become `WHITEVEST` and
+`BLACKPANTS` (Stracciatella's rule for the player's own characters). The campaign's changing profile fields live in
+`profiles.ts`.
+
+## 3. Quirks of the original the code keeps
+
+Each looks like a bug and is the original's behaviour. Pinned by tests in `src/sim/tactical/` and `src/render/world/`:
+
+| Quirk | Test |
+|---|---|
+| Only our mercs fast-turn; enemies turn at their state's delay | `animation.test.ts` |
+| A body's negative frame delay bonus never applies: women and big men walk with a man's delay | `animation.test.ts` |
+| A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
+| A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
+| An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
+| An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |
+
+Not pinned yet:
+- Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2`
+  and `m_raise` never show (`app/world/soldier-assets.ts` sets the flag from the body).
+- `STOCKYMALE` has the regular male's sheets, speeds and palettes; `RGMTHROW` plays `s_lob.sti` and `RGMLOB`
+  `s_throw.sti` (`data/tables/anim-surfaces.json`).
+- A half turn always goes clockwise (`quickestTurnIncrement`).
+
+## 4. Not checked against the native build
+
+No probe covers animation timing: frame delays, fast turns, turning and the step of a frame are checked against the
+source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). Inferred from reading the source:
+- A soldier's shade never carries the `0x30` bits: the lighting clamps levels to 0–15, so ja2-node drops them.
+- `ja2prof.dat` is not loaded: its placeholders only tell the original's aim cursor the body part under it on a
+  soldier in a prone sheet who is not lying yet (the cursor skips lying soldiers), and a facing change removes them.
+- ja2-node keeps the `prof.dat` records of the profiles `mercs-profile-info.json` leaves out (the I.M.P. slots 51–56,
+  165–169), which Stracciatella replaces by empty ones; no path is known to read them before I.M.P. creation
+  overwrites a slot.
+- The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
+
+Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Unseen soldiers in combat", "Ready
+animation speed", "Big merc kneel", "Reverse move animations", "Soldier draw height", "Drugs and alcohol" (adrenaline
+and drunkenness in the frame delay), "No-burn tiles". Other deviations of this domain: "Frame timers", "Soldier frame
+on turning", "Soldier frames with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle
+sounds of unseen animals".
