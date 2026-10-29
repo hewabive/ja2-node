@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { parseSectorLabel } from './facts.ts';
-import { MIN_WAIT_TIME_FOR_TEMP_PATH, type PlotClient, Plotting, type RouteAnswer } from './plotting.ts';
+import { MAP_GRID_X, MAP_GRID_Y, MAP_VIEW_HEIGHT, MAP_VIEW_START_X, MAP_VIEW_START_Y } from './map-view.ts';
+import { type PathGeometry, tracePathRoute } from './path-trace.ts';
+import { MIN_WAIT_TIME_FOR_TEMP_PATH, type PlotClient, Plotting, pathSectors, type RouteAnswer } from './plotting.ts';
 
 const SOLDIER = 3;
 const ROW = 0;
@@ -108,5 +110,22 @@ describe('route plotting on the map screen', () => {
     plot.click(sector('C13'));
     expect(plot.confirmCommand()).toEqual({ type: 'heliRoute', to: 'C13', extend: true, plotted: true });
     expect(plot.routeFor(SOLDIER)).toBeNull();
+  });
+});
+
+describe('the path drawn on the map', () => {
+  const geometry = (screenWidth: number): PathGeometry => ({
+    startX: MAP_VIEW_START_X,
+    startY: MAP_VIEW_START_Y,
+    gridX: MAP_GRID_X,
+    gridY: MAP_GRID_Y,
+    viewHeight: MAP_VIEW_HEIGHT,
+    screenWidth,
+  });
+  const toTheEastEdge = pathSectors(['C14', 'C15', 'C16']);
+
+  it('leaves out the column 16 pieces at 640 pixels wide: the original tests the node against the screen width', () => {
+    expect(tracePathRoute(toTheEastEdge, geometry(640), { x: 0, y: 0 })).toHaveLength(2);
+    expect(tracePathRoute(toTheEastEdge, geometry(800), { x: 80, y: 0 })).toHaveLength(3);
   });
 });

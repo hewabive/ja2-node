@@ -96,6 +96,12 @@ describe('the A.I.M. video conference', () => {
     expect(fresh.face).toBe('face');
   });
 
+  it('greets with nothing after the connection snow: the snow clears the first-contact flag the greeting waits for', () => {
+    const p = ports();
+    connect(new Conference(p, STEP_MS));
+    expect(p.said).toEqual([]);
+  });
+
   it('plays the answering machine and leaves a message', () => {
     const p = ports();
     p.answer = 'answeringMachine';

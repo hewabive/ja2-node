@@ -117,21 +117,23 @@ function contractExpiry(m: StrategicMercView): number {
   return c.endMinutes ?? c.endsAt.day * MINUTES_PER_DAY + c.endsAt.hour * MINUTES_PER_HOUR;
 }
 
-function compareLater(mode: number, view: StrategicView, a: StrategicMercView, b: StrategicMercView): boolean {
+function sortsBefore(mode: number, view: StrategicView, merc: StrategicMercView, earlier: StrategicMercView): boolean {
   switch (mode) {
     case SortMode.NAME:
-      return b.name > a.name;
+      return earlier.name > merc.name;
     case SortMode.ASSIGNMENT:
-      if (b.assignment > a.assignment) return true;
-      return b.assignment === a.assignment && b.assignment === Assignment.VEHICLE && (b.vehicle ?? 0) > (a.vehicle ?? 0);
+      if (earlier.assignment > merc.assignment) return true;
+      return (
+        earlier.assignment === merc.assignment && earlier.assignment === Assignment.VEHICLE && (earlier.vehicle ?? 0) > (merc.vehicle ?? 0)
+      );
     case SortMode.SLEEP:
-      return b.asleep && !a.asleep;
+      return earlier.asleep && !merc.asleep;
     case SortMode.LOCATION:
-      return locationValue(b) > locationValue(a);
+      return locationValue(earlier) > locationValue(merc);
     case SortMode.DESTINATION:
-      return lastPathSectorId(view, b) > lastPathSectorId(view, a);
+      return lastPathSectorId(view, earlier) > lastPathSectorId(view, merc);
     default:
-      return contractExpiry(b) > contractExpiry(a);
+      return contractExpiry(earlier) > contractExpiry(merc);
   }
 }
 
@@ -201,13 +203,13 @@ export class CharacterList {
   sort(view: StrategicView | undefined, retainSelected: boolean): void {
     if (!view) return;
     const infoMerc = this.slots[this.info]?.merc ?? null;
-    for (let i = 1; i < FIRST_VEHICLE; i++) {
-      const a = mercById(view, this.slots[i]?.merc ?? null);
-      if (!a) break;
-      for (let j = 0; j < FIRST_VEHICLE; j++) {
-        const b = mercById(view, this.slots[j]?.merc ?? null);
-        if (!b) break;
-        if (j < i && compareLater(this.sortMode, view, a, b)) this.#swap(i, j);
+    for (let row = 1; row < FIRST_VEHICLE; row++) {
+      const reached = mercById(view, this.slots[row]?.merc ?? null);
+      if (!reached) break;
+      for (let earlierRow = 0; earlierRow < row; earlierRow++) {
+        const earlier = mercById(view, this.slots[earlierRow]?.merc ?? null);
+        if (!earlier) break;
+        if (sortsBefore(this.sortMode, view, reached, earlier)) this.#swap(row, earlierRow);
       }
     }
     if (infoMerc !== null) this.info = this.rowOf(infoMerc);
