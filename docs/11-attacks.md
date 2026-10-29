@@ -89,8 +89,8 @@ refuses a target that needs a walk, where the AI walks up as the original (gap "
 tile its target has left releases the hold at once, where the original leaks it until its 25 s watchdog (deviation
 "Melee hold leaks"); a prone attacker who turns is not laid down mid-attack (deviation "Melee from a prone turn").
 
-**Refusals.** `HandleItem`'s player refusals and the rocket rifle's imprint are not ported (deviation "Attack
-refusals").
+**Refusals.** `HandleItem`'s player refusals are not ported (deviation "Attack refusals"), nor is the rocket rifle's
+imprint (gaps "Rocket rifle imprint").
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6): each call is made where the
 original makes it, so call order is draw order, and a draw whose result is thrown away is still made. Curses, laughs,
@@ -140,7 +140,8 @@ draw nothing. Inferred from reading the source:
 - The chance to punch, blade dulling, surprise attacks, the queen's swipe; the barrel extender and the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Not ported: gaps "Melee specials", "Melee without walking", "Unseen soldiers in combat", "Knife stopped by a window".
+Not ported: gaps "Melee specials", "Melee without walking", "Unseen soldiers in combat", "Knife stopped by a window",
+"Rocket rifle imprint".
 Other deviations of this domain: "Game events", "Bullet flight", "Miss animation in water", "Melee hold leaks", "Melee
 from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order", "Watchdogs", "Difficulty
 and progress in tactical".
