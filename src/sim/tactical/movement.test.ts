@@ -9,7 +9,15 @@ import { Rng } from '../../core/rng.ts';
 import { initNewSoldierAnim, states, TurningFromProne } from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
-import { getNewSoldierPath, handleAtNewGridNo, moveMerc, setSoldierDestination, setSoldierPosition, stopMerc } from './movement.ts';
+import {
+  getNewSoldierPath,
+  handleAtNewGridNo,
+  handleNextTile,
+  moveMerc,
+  setSoldierDestination,
+  setSoldierPosition,
+  stopMerc,
+} from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
@@ -162,6 +170,24 @@ describe('walking', () => {
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));
+  });
+});
+
+describe('a blocked next tile', () => {
+  const WALKING_TO_EXIT_GRID = 1;
+
+  it('gives up a final tile somebody stands on, unless the mover walks out of the sector', () => {
+    for (const waitAction of [0, WALKING_TO_EXIT_GRID]) {
+      const t = tactical();
+      const mover = spawn(t, START);
+      const finalTile = START + 1;
+      spawn(t, finalTile, Team.ENEMY);
+      mover.finalDestination = finalTile;
+      mover.waitActionToDo = waitAction;
+      expect(handleNextTile(t, mover, Direction.EAST, finalTile, finalTile)).toBe(false);
+      expect(mover.finalDestination).toBe(waitAction ? finalTile : START);
+      expect(mover.delayedMovement).toBe(waitAction ? 1 : 0);
+    }
   });
 });
 

@@ -249,7 +249,8 @@ export function handleNextTile(t: TacticalState, s: Soldier, direction: number, 
   if (!onVisibleWorldTile(t, g)) return true;
   const blocked = tileIsClear(t, s, direction, g, s.level);
   if (blocked !== MoveTile.CLEAR) {
-    if (g === finalDest && (s.team === Team.OUR || s.absoluteFinalDestination === NOWHERE)) {
+    const walkingOutOfSector = s.waitActionToDo !== 0;
+    if (g === finalDest && !walkingOutOfSector && (s.team === Team.OUR || s.absoluteFinalDestination === NOWHERE)) {
       setFinalTile(t, s, false);
       return false;
     }
