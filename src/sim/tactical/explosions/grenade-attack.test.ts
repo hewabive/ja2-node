@@ -2,11 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { createItem } from '../../items/object.ts';
+import { createItem, type ItemObject } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
 import { Team } from '../soldier.ts';
+import type { TacticalSim } from '../tactical-sim.ts';
+import { enterCombatMode } from '../turns/turns.ts';
 
 let content: TacticalContent;
 
@@ -93,6 +95,42 @@ describe('AI grenade throws', () => {
     const events = runUntilIdle(sim);
     expect(events.some((e) => e.type === 'explosion')).toBe(true);
     expect(a.life < 80 || b.life < 80).toBe(true);
+  });
+});
+
+describe('launchers through the attack command', () => {
+  function launcherWithRound(sim: TacticalSim, launcher: string, round: string): ItemObject {
+    const items = sim.state.content.items;
+    const loaded = createItem(items, items.byName.get(launcher)?.index ?? -1, 100);
+    const slot = loaded.attachments[0];
+    if (!slot) throw new Error('no attachment slot');
+    slot.item = items.byName.get(round)?.index ?? -1;
+    slot.status = 100;
+    return loaded;
+  }
+
+  function fireMortar(crouchFirst: boolean) {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.HAND] = launcherWithRound(sim, 'MORTAR', 'MORTAR_SHELL');
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(70, 100), Direction.NORTH);
+    sim.lookAround();
+    enterCombatMode(t, Team.OUR);
+    sim.drainEvents();
+    if (crouchFirst) {
+      expect(sim.dispatch({ type: 'stance', soldier: 0, stance: 'crouch' }).ok).toBe(true);
+      runUntilIdle(sim);
+    }
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 100) })).toEqual({ ok: true });
+    expect(runUntilIdle(sim).some((e) => e.type === 'explosion')).toBe(true);
+    expect(animName(t.content, merc.state)).toBe('CROUCHING');
+    return { sim, merc, spent: before - merc.actionPoints };
+  }
+
+  it('kneels a standing merc down for the mortar without charging the stance change', () => {
+    expect(fireMortar(false).spent).toBe(fireMortar(true).spent);
   });
 });
 

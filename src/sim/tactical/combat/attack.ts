@@ -134,6 +134,7 @@ function handleThrowOrLaunch(t: TacticalState, s: Soldier, g: number, level: num
   const apCost = minAPsToAttack(t, s, targetGrid, true);
   if (handItem === itemIndex(t, 'MORTAR')) {
     if (!mortarHasRoom(t, s, targetGrid)) return ItemHandle.NOROOM;
+    s.dontChargeAPsForStanceChange = true;
   } else if (d.itemClass === ItemClass.LAUNCHER) {
     const charge = apChargeForShootOrStab(t, s, targetGrid, true, false);
     if (height(t.content, s.state) === AnimHeight.STAND) {
