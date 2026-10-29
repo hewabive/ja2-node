@@ -54,24 +54,31 @@ async function pendingHintReplies(page: Page): Promise<number> {
   return page.evaluate(() => (window.__ja2Ui.hints?.pendingReplies ?? 0) + (window.__ja2Ui.map?.hints?.pendingReplies ?? 0));
 }
 
-async function shotOfSettledFrames(page: Page): Promise<Shot | null> {
+async function shotOfSettledFrames(page: Page, withPixels: boolean): Promise<Shot | null> {
   await page.waitForFunction(() => (window.__ja2Ui.reads?.pendingReads ?? 0) === 0);
   const pendingBefore = await pendingHintReplies(page);
   await nextFrames(page);
-  return page.evaluate((before) => {
-    const ui = window.__ja2Ui;
-    const pending = (ui.hints?.pendingReplies ?? 0) + (ui.map?.hints?.pendingReplies ?? 0);
-    if (pending !== before || (ui.reads?.pendingReads ?? 0) > 0) return null;
-    return { pixels: ui.capture(), areas: ui.draw?.multiplyAreas ?? [] };
-  }, pendingBefore);
+  return page.evaluate(
+    ([before, pixels]) => {
+      const ui = window.__ja2Ui;
+      const pending = (ui.hints?.pendingReplies ?? 0) + (ui.map?.hints?.pendingReplies ?? 0);
+      if (pending !== before || (ui.reads?.pendingReads ?? 0) > 0) return null;
+      return { pixels: pixels ? ui.capture() : null, areas: ui.draw?.multiplyAreas ?? [] };
+    },
+    [pendingBefore, withPixels] as const,
+  );
 }
 
-async function settledShot(page: Page): Promise<Shot | null> {
+async function settledShot(page: Page, withPixels = true): Promise<Shot | null> {
   for (let attempt = 0; attempt < SETTLE_ATTEMPTS; attempt++) {
-    const shot = await shotOfSettledFrames(page);
+    const shot = await shotOfSettledFrames(page, withPixels);
     if (shot) return shot;
   }
   return null;
+}
+
+export async function waitForSettledFrames(page: Page): Promise<void> {
+  if (!(await settledShot(page, false))) throw new Error('no two frames passed without an open read or a pending cursor hint');
 }
 
 async function shotAfterFrames(page: Page): Promise<Shot> {

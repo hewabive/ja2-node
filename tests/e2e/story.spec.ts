@@ -1,11 +1,13 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import { STORY_MAP_SAVE, STORY_MEANWHILE_SAVE, STORY_PALACE_SAVE, STORY_SCENE, writeStorySaves } from '../support/e2e-story-saves.ts';
 import { SAVE_DIR } from './env.ts';
-import { capture, clickWidget, expectGolden, nextFrames, widget } from './ui-capture.ts';
+import { capture, clickWidget, expectGolden, nextFrames, waitForSettledFrames, widget } from './ui-capture.ts';
 
 const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_VERSION = 2;
 const GOLDEN_QUERY = '&pinClock=1&fixed640=1&scale=1';
+const TIME_HELD = '&holdTime=1';
+const SCENE_DUE_WITHIN_SECONDS = 120;
 
 const sessions: string[] = [];
 
@@ -45,6 +47,16 @@ async function compressTime(page: Page): Promise<void> {
   expect(reply).toMatchObject({ ok: true });
 }
 
+async function compressTimeShownSettled(page: Page): Promise<void> {
+  await compressTime(page);
+  await page.waitForFunction(() => window.__ja2Ui.map?.screen?.compression?.compressing === true);
+  await waitForSettledFrames(page);
+}
+
+async function advanceToTheScene(page: Page): Promise<void> {
+  await page.evaluate((seconds) => window.__ja2Ui.map?.advance({ worldSeconds: seconds }), SCENE_DUE_WITHIN_SECONDS);
+}
+
 test.describe('the story and the help screens on /play', () => {
   test.beforeAll(async () => {
     await writeStorySaves(SAVE_DIR);
@@ -60,8 +72,9 @@ test.describe('the story and the help screens on /play', () => {
   }) => {
     await settings(page, { helpHidden: true });
     const session = await loadSession(request, STORY_MEANWHILE_SAVE);
-    await openMap(page, session, GOLDEN_QUERY);
-    await compressTime(page);
+    await openMap(page, session, `${GOLDEN_QUERY}${TIME_HELD}`);
+    await compressTimeShownSettled(page);
+    await advanceToTheScene(page);
     await page.waitForFunction(() => window.__ja2Ui.modal === 'meanwhileBox');
     expect((await widget(page, 'meanwhileBox')).text).toBe('Meanwhile.....');
     expect(await page.evaluate(() => window.__ja2Ui.widgets.filter((w) => w.id.startsWith('meanwhileBox.')).map((w) => w.id))).toEqual([
