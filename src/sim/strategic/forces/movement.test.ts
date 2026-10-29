@@ -188,6 +188,19 @@ describe('arrival', () => {
   });
 });
 
+describe("the queen's alert (Strategic_Movement.cc GroupArrivedAtSector)", () => {
+  it('takes one battle off the alert when an arriving group meets enemies', () => {
+    const { ctx, mercs } = squadContext();
+    ctx.state.queen.awareBattles = 2;
+    sectorInfo(ctx.state.map, S('B9')).numTroops = 3;
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    giveRoute(ctx, mercs, g, route('A9', 'B9'));
+    groupArrivedAtSector(ctx, g, true, false);
+    expect(ctx.state.encounter.preBattle?.battleGroupId).toBe(g.id);
+    expect(ctx.state.queen.awareBattles).toBe(1);
+  });
+});
+
 describe('arrivals during a boxing match', () => {
   const enemyReaching = (boxing: boolean, rolls: number[]) => {
     const { ctx } = squadContext({ random: new ScriptedRolls(rolls), world: { boxing: () => boxing } });

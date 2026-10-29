@@ -57,7 +57,6 @@ export interface EncounterState {
   usePersistentPBI: boolean;
   battleGroup: number | null;
   pendingEnemies: boolean;
-  numAwareBattles: number;
   preBattle: PreBattleHandoff | null;
   simultaneousArrival: SimultaneousArrivalPrompt | null;
 }
@@ -88,7 +87,6 @@ export function createEncounterState(): EncounterState {
     usePersistentPBI: false,
     battleGroup: null,
     pendingEnemies: false,
-    numAwareBattles: 0,
     preBattle: null,
     simultaneousArrival: null,
   };

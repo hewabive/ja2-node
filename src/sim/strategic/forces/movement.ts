@@ -458,7 +458,7 @@ export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBa
     releaseSimultaneousArrivals(ctx);
   } else {
     g.flags = 0;
-    if (ctx.state.encounter.numAwareBattles !== 0) ctx.state.encounter.numAwareBattles--;
+    if (ctx.state.queen.awareBattles !== 0) ctx.state.queen.awareBattles--;
   }
   flow.waitingForInput = false;
 }
