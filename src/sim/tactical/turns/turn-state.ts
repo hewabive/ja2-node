@@ -9,6 +9,7 @@ import type { AiProgress, TopMessage } from './top-message.ts';
 
 export const TEAM_COUNT = 6;
 export const NUM_WATCHED_LOCS = 3;
+export const ZERO_FILLED_SPOTTERS_CALLER = 0;
 
 export interface DeferredNoise {
   readonly maker: number;
@@ -110,7 +111,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     forceRealtimeTurn: false,
     someoneHit: false,
     skipCoverCheck: false,
-    spottersCalledForBy: -1,
+    spottersCalledForBy: ZERO_FILLED_SPOTTERS_CALLER,
     topMessage: null,
     aiProgress: { current: 0, next: 0, total: 0 },
     lastMercKill: null,

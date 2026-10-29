@@ -25,7 +25,7 @@ import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../pe
 import { distanceVisible } from '../perception/sight.ts';
 import { internalIsValidStance, isValidStance } from '../person-structure.ts';
 import { apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints, MAX_AP_CARRIED, minPtsToMove } from '../points.ts';
-import { AlertStatus, Attitude, Body, CivilianGroup, NO_PROFILE, NOWHERE, OKLIFE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, NO_PROFILE, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier, Team } from '../soldier.ts';
 import { soldierInventoryContext } from '../soldier-inventory.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, Situation } from './actions.ts';
@@ -360,7 +360,7 @@ function longRangeToss(t: TacticalState, s: Soldier): number | null {
     toss.weaponIn !== -1 &&
     calcMaxTossRange(t, s, weapon, true) > MAX_DISTANCE_VISIBLE &&
     menInSector(t, s.team) > 1 &&
-    t.turn.spottersCalledForBy === -1
+    t.turn.spottersCalledForBy === NOBODY
   ) {
     t.turn.spottersCalledForBy = s.id;
     s.actionPoints = 0;
@@ -1004,7 +1004,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     if (ai.actionData !== NOWHERE) return AiAction.RUN_AWAY;
   }
   if (
-    t.turn.spottersCalledForBy !== -1 &&
+    t.turn.spottersCalledForBy !== NOBODY &&
     s.actionPoints >= AP_RADIO &&
     ai.oppCount > 1 &&
     !civilian &&
