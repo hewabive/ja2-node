@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -11,6 +12,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { StatKind } from '../profiles.ts';
 import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { revealedRooms } from './fov.ts';
@@ -19,6 +21,7 @@ import { allTeamsLookForAll, distanceVisible, handleSight, Opp, SightFlags } fro
 import { perceptionHooks } from './wiring.ts';
 
 const doorCosts = testDoorCosts();
+const MERC_PROFILE = 5;
 let content: TacticalContent;
 
 beforeAll(async () => {
@@ -121,6 +124,21 @@ describe('sighting', () => {
     expect(enemy.visible).toBe(-1);
     expect(civ.visible).toBe(1);
     expect(t.inCombat).toBe(false);
+  });
+
+  it('gives a merc ten experience chances for an enemy he reveals who has not seen him, none for one who has', () => {
+    const chancesOnRevealing = (enemyFacing: number) => {
+      const t = tactical();
+      const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+      merc.profile = MERC_PROFILE;
+      const p = progressFor(MERC_PROFILE);
+      t.profiles.set(MERC_PROFILE, p);
+      spawn(t, Team.ENEMY, gridNo(80, 90), enemyFacing);
+      handleSight(t, merc, SightFlags.LOOK | SightFlags.RADIO);
+      return p.statChangeChances[StatKind.EXPERIENCE];
+    };
+    expect(chancesOnRevealing(Direction.SOUTH)).toBe(10);
+    expect(chancesOnRevealing(Direction.NORTH)).toBe(0);
   });
 
   it('turns every bloodcat hostile as soon as one is seen and lets creatures hunt neutral civilians', () => {

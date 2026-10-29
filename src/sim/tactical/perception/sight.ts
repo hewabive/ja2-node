@@ -12,11 +12,13 @@
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
+import { StatCause, statChange } from '../combat/experience.ts';
 import { withinOneOctant } from '../directions.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { newSightingRules } from '../narrative/sight-rules.ts';
+import { StatKind } from '../profiles.ts';
 import {
   AlertStatus,
   Body,
@@ -87,6 +89,7 @@ const BEST_SIGHTING_NONCOMBAT = 3;
 const TEAM_COUNT = 6;
 const DIFFICULTY_MEDIUM = 2;
 const NORMAL_HUMAN_SMELL_STRENGTH = 10;
+const UNSEEN_SPOTTING_EXPERIENCE_CHANCES = 10;
 
 export interface Perception {
   readonly publicOpp: Int8Array[];
@@ -461,6 +464,8 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
       if (publ === Opp.NOT_HEARD_OR_SEEN) {
         unknown++;
         contact = true;
+        if (opp.oppList[s.id] !== Opp.SEEN_CURRENTLY)
+          statChange(t, s, StatKind.EXPERIENCE, UNSEEN_SPOTTING_EXPERIENCE_CHANCES, StatCause.SUCCESS);
       } else if (publ !== Opp.SEEN_CURRENTLY && publ !== Opp.SEEN_THIS_TURN) {
         revealed++;
         contact = true;
