@@ -147,7 +147,7 @@ if ubFlags & NOFRAMES: f = 0
 usAniFrame = f + usNumFramesPerDir · d;   if ≥ subImageCount → 0 (warning)
 ```
 
-- **Screen meaning of the sprite direction blocks (inferred from `05` §1.1 geometry):**
+- **Screen meaning of the sprite direction blocks (inferred from `05` geometry):**
 
   | World dir | N | NE | E | SE | S | SW | W | NW |
   |---|---|---|---|---|---|---|---|---|
@@ -374,7 +374,7 @@ ja2-node `src/sim/tactical/creation.ts`). It uses the shared `Random`:
 
 | Slots | Build | Use |
 |---|---|---|
-| `pShades[0..15]` | `CreateBiasedShadedPalettes`: add the light colour (usually black), then the `gusShadeLevels` table; slot 0 mono 500 (`Lighting.cc:2007-2038`). Same formula as tiles, `05` §6.4 | normal lit rendering |
+| `pShades[0..15]` | `CreateBiasedShadedPalettes`: add the light colour (usually black), then the `gusShadeLevels` table; slot 0 mono 500 (`Lighting.cc:2007-2038`). Same formula as tiles, `05` | normal lit rendering |
 | `pShades[20]`, `[21..29]` | plain `×255/256` (`Create16BPPPaletteShaded(pal,255,255,255,FALSE)`, `HImage.cc:96-127`), then `CreateEnemyGlow(gOrangeGlowR[k], gOrangeGlowG[k])` | glowing enemy on a roof |
 | `pShades[30]`, `[31..38]`, `[39]` | mono `(100,100,100)`, then `CreateEnemyGreyGlow` with orange values; `[39]` reuses entry 18 | unseen enemy on a roof |
 | `pGlowShades[0]`, `[1..9]` | plain `×255/256`, then `CreateEnemyGlow(gRedGlowR[i], 0)` | glowing enemy on the ground |
@@ -387,7 +387,7 @@ ja2-node `src/sim/tactical/creation.ts`). It uses the shared `Random`:
   scaling.
 - **`CreateEnemyGreyGlow16BPPPalette`** (`:7494-7516`):
   `lum = (299R + 587G + 114B)/1000; c = 100·lum/256; r = max(rscale, c), g = max(gscale, c), b = c`.
-- All tables go through `Get16BPPColor` (RGB565; `05` §6.4).
+- All tables go through `Get16BPPColor` (RGB565; `05`).
 - ja2-node: `soldierPaletteRows` (`src/render/world/soldier-palettes.ts`) builds 16 shade rows, then 20 ground glow
   rows (`pGlowShades`, grey from row 10) and 20 roof glow rows (`pShades[20..39]`).
 
@@ -424,7 +424,7 @@ ja2-node `src/sim/tactical/creation.ts`). It uses the shared `Random`:
   **254**. The merc blitters replace the destination with `ShadeTable[dst]` for those pixels and use the shade
   palette for all other pixels.
   - Sources: `VObject_Blitters.cc:611-644, 746-845` (line 830); obscured variant `:658-732`.
-  - `ShadeTable` = ×`guiShadePercent` = 0.48 (`Shading.cc:20-35`; `05` §4).
+  - `ShadeTable` = ×`guiShadePercent` = 0.48 (`Shading.cc:20-35`; `05`).
 - **What it ignores.** The shadow ignores the soldier's lighting, glow and palette.
 - **(data)** Index 254 makes up 13–27% of the opaque pixels in merc and civilian sheets, e.g. `s_r_std` 6464/37048.
   Its palette colour varies by file (0,255,0 / 0,186,0 / 0,255,255) and is never used.
@@ -443,7 +443,7 @@ sy −= sHeightAdjustment ; sy += gsRenderHeight
 blit frame at (sx + sOffsetX, sy + sOffsetY)                                 (05 §1.5, "Frame offset")
 ```
 
-- `cx`, `cy` are `g_ui.m_tacticalMapCenterX/Y` (`05` §0). `(INT16)` truncates toward zero, not floor; compute in
+- `cx`, `cy` are `g_ui.m_tacticalMapCenterX/Y` (`05`). `(INT16)` truncates toward zero, not floor; compute in
   float32 **(inferred)**.
 - **`sTileHeight`** is `me.sHeight` of the tile whose merc list holds the node (`:460`), i.e. `sGridNo`.
 - **`sHeightAdjustment`** is `(INT16)dHeightAdjustment`. It is 0 on the ground and `SECOND_LEVEL_Z_OFFSET = 58` on a
@@ -453,7 +453,7 @@ blit frame at (sx + sOffsetX, sy + sOffsetY)                                 (05
 
 ### 4.3 Z level (`RenderWorld.cc:1041-1079, 1089-1098`)
 
-`wy = GetMapXYWorldY(X, Y)` of the node's tile (`05` §3.1). The node lives on `sGridNo`, which switches to the next
+`wy = GetMapXYWorldY(X, Y)` of the node's tile (`05`). The node lives on `sGridNo`, which switches to the next
 tile at the half-step (§5.3), so z jumps there.
 
 | Case | sZLevel | Restriction 0 |
@@ -472,7 +472,7 @@ tile at the half-step (§5.3), so z jumps there.
   (`WorldMan.cc:557-569, 614-626`).
 
 **Blit rules.** Mercs are in the dynamic layers. `RenderFX`: dynamic, no z-write, z-blit, `fMerc`
-(`RenderWorld.cc:313-317`). The layer is chosen per row (`05` §2.5; `:895-930`):
+(`RenderWorld.cc:313-317`). The layer is chosen per row (`05`; `:895-930`):
 - `DYN_MERCS` for `bLevel == 0`, not multi-tile;
 - `DYN_HIGHMERCS` for `bLevel > 0`;
 - `DYN_STRUCT_MERCS` for multi-tile soldiers (any level), and for `bLevel > 0` non-multi-tile ones. A soldier on a
@@ -485,7 +485,7 @@ tile at the half-step (§5.3), so z jumps there.
 | `TransShadowZNBObscured` (default) | `zbuf < z` → shade | `zbuf <= z`, **or** `(x+y)` even (checkerboard through walls) | no |
 
 - References: `VObject_Blitters.cc:825-831, 706-719`; `RenderWorld.cc:1388-1406`.
-- The checkerboard parity assumes a 4-byte-aligned frame buffer (`05` §3.3) **(inferred)**.
+- The checkerboard parity assumes a 4-byte-aligned frame buffer (`05`) **(inferred)**.
 - ja2-node: `mercZ`, `roofMercZ`, `NOBURN_Z_BONUS` (`src/render/world/geometry.ts`); the three merc passes and the
   obscured part in `DynamicScene` (`dynamic-scene.ts`).
 
@@ -494,7 +494,7 @@ tile at the half-step (§5.3), so z jumps there.
 - **Blitter.** `DYN_STRUCT_MERCS` uses `BltTransZTransShadowInc[Obscure]` with strip index `OneCDirection(dir)` (queen:
   0). It tests `zbuf <= zstrip`, **writes z**, and shades pixel 254 (`RenderWorld.cc:911-928, 1245-1258, 2835-3020`).
 - **Strips.** They come from `AddZStripInfoToVObject(vo, structFile, fromAnimation = TRUE, start)`
-  (`Structure.cc:1453-1600`; algorithm in `05` §3.4).
+  (`Structure.cc:1453-1600`; algorithm in `05`).
   - One `ZStripInfo` per structure (direction), computed from frame `start + k·(subImages/8)`.
   - `start = 5` for `RGMPRONE`, −1 (one direction) for the queen, and 0 otherwise — including `BGMPRONE`, `RGFPRONE`
     and the handgun prone sheets (`Animation_Data.cc:693-703`).

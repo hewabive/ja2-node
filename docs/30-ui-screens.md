@@ -420,7 +420,7 @@ Nothing at life 0.
 visible soldiers by team colour (the selected merc blinking, unconscious enemies grey, hostile civilians red, named
 civilians blue; none for a soldier off the map's visible world); a press and a drag move the camera
 (`RadarRegionButtonCallbackPrimary`, `RadarRegionMoveCallback`). The scale, the box and the dots follow the render
-bounds of the loaded map's `restrictedScrollId` (`05` §8; the arithmetic in `src/app/world/radar.ts`). The squad button
+bounds of the loaded map's `restrictedScrollId` (`05`; the arithmetic in `src/app/world/radar.ts`). The squad button
 swaps it for the squad list (`squadpanel.sti`, `COMPFONT`, the current squad light green, others present dark green,
 absent black); choosing a squad sets the client's current squad.
 
@@ -561,10 +561,10 @@ time only modal flows lock. The 25 s watchdog is not ported (deviation "Watchdog
   double clicks and holds come from the `ui` layer (`28` §3.1).
 - Scrolling (`TacticalControls`): the arrow keys and the outer pixels of the *screen* (the bottom of the panel scrolls
   down), 40 px across and 20 px down per 20 ms step (Shift 80/40); the first step only arms the scroll (the original's
-  pending scroll); Alt suppresses it; limits and the tile-centre snap of `05` §1.4 (`camera.ts`). Radar and
+  pending scroll); Alt suppresses it; limits and the tile-centre snap of `05` (`camera.ts`). Radar and
   overhead-map clicks jump the camera (`RenderWorld.cc:1925-2112`). Where the original slides the camera to a tile
   (enemy sighted, locate), the canvas jumps (gap "Tactical HUD details").
-- Cursor bounds: the viewport above the team or SM panel; picking by the exact inverse projection (`05` §7) plus
+- Cursor bounds: the viewport above the team or SM panel; picking by the exact inverse projection (`05`) plus
   soldier picking by sprite (`28` §2.7).
 
 ### 3.3 Hotkeys (`GetKeyboardInput`, `Turn_Based_Input.cc:2097-2420`)

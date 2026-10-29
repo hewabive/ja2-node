@@ -5,7 +5,7 @@ brighter**, 1 (`SHADE_MAX`) is the brightest, 15 (`SHADE_MIN`) the darkest; day 
 (`NORMAL_LIGHTLEVEL_NIGHT`, `TileEngine/Environment.h:21-22`). The code is `src/sim/tactical/lighting/`.
 
 **Scope.** Light templates, light sprites and their ray casting, `LightTrueLevel` and its gameplay consumers. How the
-renderer shades tiles and soldiers is `05` §6 and `06` §3.4.
+renderer shades tiles and soldiers is `05` and `06` §3.4.
 
 ## 1. What gameplay reads
 
@@ -187,7 +187,7 @@ sector load only sandbags and containers holding items have it. ja2-node mirrors
   (`campaign-sim.ts`; `changeLightValue` and `timeOfDayAmbientLightLevel` with `HOT_DAY_LIGHTLEVEL` 2,
   `src/sim/strategic/time/environment.ts`).
 - The view carries the ambient level and the powered sprites (`lightView`; dynamic ones marked `dynamic`); the browser
-  shades the world with these functions (`05` §6).
+  shades the world with these functions (`05`).
 - Stub maps carry night lights (`light:` lines in `stubs/maps/*.map.txt`).
 
 ## 7. Verification
@@ -209,5 +209,5 @@ or effect lasts) and the light-dependent AI decisions; they are covered by unit 
 - An imported save starts from its `gubEnvLightValue` without the hot-desert rule until the next light event; the
   sandbox stays at 12:00, ambient 3 (`deviations`, "Ambient light and light schedule").
 - Cave lights are not switched on by sight (§4): they stay off.
-- Fake merc lights (§1) are not simulated; they cancel out of the true level. The browser draws them (`05` §6).
+- Fake merc lights (§1) are not simulated; they cancel out of the true level. The browser draws them (`05`).
 - `BuildAIExposedTileMap` is not ported (§5).
