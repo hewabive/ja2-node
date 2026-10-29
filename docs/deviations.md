@@ -78,6 +78,9 @@ Wall clocks, frames and sound lengths replaced by game time on 5 ms ticks (D3, `
 | San Mona screen and time | `SexScreenHandle` is not the game screen, so the tactical loop stops while the world clock runs (`UpdateClock` runs on every screen); then the clock jumps by `5 + Random(20)` minutes | The game page holds the real-time driver while the screen is up, as for a modal: no game time passes during its 4.2 s; the jump is the server's, at the action | One clock; the original's few seconds of strategic time are not visible (`30` §7.4) |
 | Map screen pause during merc lines | A merc line queued on the map screen pauses the game (`LOCK_PAUSE_MERC_TALKING`) until the face finishes (`Dialogue_Control.cc:639-643`, `:425-429`) | Not paused: quotes are events, compression goes on | The simulation never waits for speech ("Speech") |
 | Lost battle unload delay | `DeathNoMessageTimerCallback` unloads the sector 10 s of wall clock after a lost tactical battle (`Overhead.cc:4479`) | 10 s of tactical game time (`lostBattleUnloadAtMs`, `battle-flow.ts`) | Game time |
+| Strategic map pacing | `UpdateClock` runs once per pass of a loop of up to 144 Hz and reads the wall clock, so where compression slices fall follows the frame rate (`Game_Clock.cc:581-692`) | `updateClock` reads `StrategicState.realMs`, 5 ms per tick: a slice every 40, 6–7 or 3–4 ticks at 5, 30 and 60 minutes per second | Determinism (`15`) |
+| Clock during fades | The world clock stands still while the screen fades in or out (`Game_Clock.cc:609`) | The simulation has no fades; screen changes take no time | Fades are presentation ("Fades") |
+| Prompt time | Some pause locks stop only the world clock while tactical animation runs on (a conversation, the item pickup menu, the helicopter entry); message boxes also stop the wall clock (`PauseTime`) | Every decision prompt stops the whole simulation until its answer | D15 (`01` §3.8) |
 
 ## 3. Tactical rules and AI
 
