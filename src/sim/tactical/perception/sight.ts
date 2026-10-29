@@ -42,6 +42,7 @@ import {
   checkForPotentialAddToBattleIncrement,
   doneAddingToIntList,
   InterruptKind,
+  isTeamActive,
   resolveInterruptsVs,
 } from '../turns/turns.ts';
 import {
@@ -436,6 +437,10 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
   return seen;
 }
 
+function putMilitiaOnRedAlert(t: TacticalState): void {
+  if (isTeamActive(t, Team.MILITIA)) t.perception.awareOfOpposition[Team.MILITIA] = true;
+}
+
 export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toTeam: number): void {
   const p = t.perception;
   p.lastMercToRadio[s.team] = s;
@@ -452,14 +457,9 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
     const publ = table[opp.id] ?? 0;
     if (pers === Opp.NOT_HEARD_OR_SEEN) continue;
     if (!knowledge(publ, pers) && publ !== pers) continue;
-    if (
-      s.team === Team.OUR &&
-      pers === Opp.SEEN_CURRENTLY &&
-      opp.side !== s.side &&
-      !opp.neutral &&
-      toTeam !== Team.MILITIA &&
-      opp.life >= OKLIFE
-    ) {
+    const ourMercSeesHostile = s.team === Team.OUR && pers === Opp.SEEN_CURRENTLY && opp.side !== s.side && !opp.neutral;
+    if (ourMercSeesHostile && toTeam === Team.MILITIA) putMilitiaOnRedAlert(t);
+    else if (ourMercSeesHostile && opp.life >= OKLIFE) {
       let contact = false;
       if (publ === Opp.NOT_HEARD_OR_SEEN) {
         unknown++;

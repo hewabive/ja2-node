@@ -141,6 +141,17 @@ describe('sighting', () => {
     expect(chancesOnRevealing(Direction.NORTH)).toBe(0);
   });
 
+  it('puts the militia on red alert when a merc radios them an enemy he sees', () => {
+    const t = tactical();
+    const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(t, Team.MILITIA, gridNo(60, 60), Direction.NORTH);
+    spawn(t, Team.ENEMY, gridNo(80, 90), Direction.SOUTH);
+    handleSight(t, merc, SightFlags.LOOK);
+    expect(t.perception.awareOfOpposition[Team.MILITIA]).toBe(false);
+    handleSight(t, merc, SightFlags.RADIO);
+    expect(t.perception.awareOfOpposition[Team.MILITIA]).toBe(true);
+  });
+
   it('turns every bloodcat hostile as soon as one is seen and lets creatures hunt neutral civilians', () => {
     const t = tactical();
     const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
