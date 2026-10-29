@@ -1,7 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { WORLD_COLS } from '../../../content/world/grid.ts';
+import { calcChanceToHitGun } from '../combat/chance.ts';
+import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
+import { InvSlot, itemIn } from '../inventory.ts';
 import { effectiveExpLevel } from '../skills.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -17,6 +21,7 @@ beforeAll(async () => {
 const AT = 12080;
 const NORTH = 0;
 const DISTRACTION = 2;
+const TARGET_ROWS_AWAY = 6;
 
 function robotSetup(controlled: boolean): { sim: TacticalSim; robot: Soldier; holder: Soldier } {
   const sim = newCombatSim(content);
@@ -51,5 +56,20 @@ describe('the robot in tactical (TeamTurns.cc, Overhead.cc UIOKMoveDestination)'
   it('obeys while a controller holds the remote', () => {
     const { sim, robot } = robotSetup(true);
     expect(sim.canAct(robot)).toBeNull();
+  });
+
+  it('aims with the marksmanship of its controller when that is better than its own (Weapons.cc CalcChanceToHitGun)', () => {
+    const chanceOfRobot = (controlled: boolean, own: number, controller: number) => {
+      const { sim, robot, holder } = robotSetup(controlled);
+      const target = spawnSoldier(sim, 2, Team.ENEMY, AT + 2 + TARGET_ROWS_AWAY * WORLD_COLS, NORTH);
+      robot.stats.marksmanship = own;
+      holder.stats.marksmanship = controller;
+      robot.attackingHand = InvSlot.HAND;
+      robot.attackingWeapon = itemIn(robot.inv, InvSlot.HAND);
+      return calcChanceToHitGun(sim.state, robot, target.gridNo, 0, AimShot.TORSO, false);
+    };
+    expect(chanceOfRobot(true, 40, 90)).toBe(chanceOfRobot(false, 90, 0));
+    expect(chanceOfRobot(true, 90, 40)).toBe(chanceOfRobot(false, 90, 0));
+    expect(chanceOfRobot(false, 40, 90)).toBeLessThan(chanceOfRobot(true, 40, 90));
   });
 });

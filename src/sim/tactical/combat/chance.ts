@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc GunRange, CalcChanceToHitGun, AICalcChanceToHitGun; Soldier_Control.cc IsValidSecondHandShot;
-// @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff; TacticalAI/AIUtils.cc SoldierDifficultyLevel.
+// @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff; TacticalAI/AIUtils.cc SoldierDifficultyLevel;
+// @src Soldier_Control.cc GetRobotController.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WEAPON_CLASSES, WeaponClass } from '../../../content/items/items.ts';
 import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';
@@ -11,6 +12,7 @@ import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { isGassed } from '../explosions/smoke.ts';
 import { isValidSecondHandShot, wearsHeadGear } from '../inventory.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
+import { isRobot } from '../narrative/robot.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import {
@@ -79,6 +81,12 @@ export function soldierDifficultyLevel(t: Pick<TacticalState, 'campaign'>, s: So
 
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 
+function aimingMarksmanship(t: TacticalState, s: Soldier): number {
+  const controller = isRobot(s) ? t.narrative.robotController(s) : null;
+  const own = effectiveMarksmanship(s);
+  return controller ? Math.max(own, effectiveMarksmanship(controller)) : own;
+}
+
 const EXTENDER_WEAR_RANGE = 2;
 const EXTENDER_HOLD_RANGE = 35;
 const EXTENDER_FALL_OFF_PENALTY = 30;
@@ -108,7 +116,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
     def?.name === 'ROCKET_LAUNCHER'
       ? Math.trunc((effectiveDexterity(s) + effectiveMarksmanship(s) + effectiveWisdom(s) + 10 * effectiveExpLevel(s)) / 4) +
         (SKILL_TRAIT_BONUS[SkillTrait.HEAVY_WEAPS] ?? 0) * numSkillTraits(s, SkillTrait.HEAVY_WEAPS)
-      : effectiveMarksmanship(s);
+      : aimingMarksmanship(t, s);
   mrk += moraleModifier(s);
   mrk -= Math.trunc(Math.trunc((mrk * fatiguePenaltyPercent(s)) / 100) / 2);
   let c = cond >= mrk ? mrk : Math.trunc((mrk + cond) / 2);
