@@ -3,7 +3,7 @@
 ja2-node's own saves (§1) and the options a game runs with (§2): what a save guarantees, holds and must never hold, how
 it is bound to the game data, how loads treat the random streams, the save rules, the input log and replay; which
 options reach the simulation and how. Siblings: `14` native `.sav` files and their import; `04` the session, its input
-log and the rule pack whose hash binds a save; `29` §26–§27 every save, load and option call with its refusals; `30` the
+log and the rule pack whose hash binds a save; `29` §10–§27 every save, load and option call with its refusals; `30` the
 save/load and options screens; `31` data versions, languages and the music state a save keeps; `01` §3.6 the random
 streams and §3.9 the game policy.
 
@@ -120,7 +120,7 @@ The snapshot stores `main`, `pre` and every cosmetic stream exactly; `load {rese
 beside the code. Native saves stay in `$JA2_SAVES_DIR`, read only; `newSession {save}` imports one (`14`), which can
 then be saved in ja2-node's format.
 
-**Names.** Clients pass names, never paths (`29` §26). `QuickSave`, `Auto01`, `Auto02` and `Error` are reserved. Every
+**Names.** Clients pass names, never paths (`29` §10). `QuickSave`, `Auto01`, `Auto02` and `Error` are reserved. Every
 write goes through a temporary file and a rename. The Dead is Dead file is the name the campaign was given at
 `newSession` (default `DeadIsDead`), after a load the loaded save, after an import the native file's name.
 
@@ -159,7 +159,7 @@ running it; queries are never logged. Besides commands and prompt answers:
 | `prepare` | the maps a command's asynchronous preparation added: the world cache is history-dependent |
 | `reseed` | the seed of a player load |
 | `load` | the name and digest of a load in place; a replay refuses a save that changed since |
-| `speech` | the session's speech mode (`29` §27) |
+| `speech` | the session's speech mode (`29` §4.5) |
 | `drive` | informational: the advances a driver causes are logged themselves, so a replay uses the manual driver |
 
 A save writes the segment since the last load as `<name>.log.jsonl.gz`, headed by its origin: a seed (and the campaign
@@ -237,7 +237,7 @@ world) and those hold nothing the codec cannot write. Rules for code that adds s
 check the content (§1.4), restore through `restoreSession` (fresh content through the rule pack, the same prepared
 maps, the loaded sector's world), compare the text identity. A load in place first takes the session's Dead is Dead
 save point, then `Session.replace` swaps the simulation, music, message log and campaign identity (every viewer gets a
-fresh `welcome`; a running real-time driver stops with `loaded`, `29` §26); a player load then reseeds. A new session
+fresh `welcome`; a running real-time driver stops with `loaded`, `29` §10); a player load then reseeds. A new session
 from a load gets the log origin `load`. An upload is parsed, migrated and checked against the content before it is
 written.
 
@@ -318,7 +318,7 @@ resolution); ja2-node has no mods (`32`), and the debug and cheat levels are not
   reads the campaign's values; the codec keeps the alias. A sandbox owns its own object.
 - **Blood and gore is the only option that changes during a game**, as on the original's options screen, and it changes
   the outcome, so it changes through a logged command: `setOption {bloodAndGore}` changes the shared object from the
-  next tick (refusals: `29` §27). It switches the gory shot and explosion deaths, the death animation chain, the corpse
+  next tick (refusals: `29` §10). It switches the gory shot and explosion deaths, the death animation chain, the corpse
   kind and the blood graphics (the readers of `options.bloodAndGore` under `src/sim/tactical/`). Corpse vaporizing does
   not depend on the camera (deviation "Vaporized corpses").
 - **Native saves** (`importNativeGameOptions`): the four options of the header; blood and gore on, because the original

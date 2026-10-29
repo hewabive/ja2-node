@@ -292,7 +292,7 @@ events. Commands, prompts and refusals: `29`.
 **Where the original waits for speech**, the simulation does not depend on audio: a line lasts the longer of its
 sample's length and its text time, plus the closing pause with the mouth shut (`src/sim/narrative/dialogue-queue.ts`;
 `24`, deviations "Speech"). Sample lengths come from the rule pack's voice lengths, not from audio; the viewer that
-finished the line first ends it with `skipLine` (`29` §14). Logic the original holds until its quote queue is empty
+finished the line first ends it with `skipLine` (`29` §4.5). Logic the original holds until its quote queue is empty
 (NPC hostility, some named NPCs' AI, notifications) waits on the same dialogue queue (`04` §3).
 
 The simulation contains no `await` and no timer and never waits for a client. Logic the original keeps in screens

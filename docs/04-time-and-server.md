@@ -100,7 +100,7 @@ finite list of places, all converted to game time, and on sound only through quo
 `advance` (`src/sim/advance.ts`) is a resumable `AdvanceRun` over the same `step()` the drivers use. A pending decision
 is checked right after each step, before the watched events, and always stops the run; `meanwhileEnded` and
 `endgameDeferred` always stop it too. A load in place sends subscribers `stopped {reason: 'loaded'}`; an agent's wait on
-a real-time session ends with `timeout` (`29` §6). Every campaign report carries the world time. The stop reasons and
+a real-time session ends with `timeout` (`29` §4.6). Every campaign report carries the world time. The stop reasons and
 budgets are in `advance.ts`; the MCP `advance` tool describes its fields.
 
 **On the strategic map** (the clock: `15`), any world-time field, `compressionStopped` or `mode` makes the advance
@@ -146,7 +146,7 @@ In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 
 Instead of gameplay events for the client to rebuild a picture from, the session sends **view frames**: every
 `FRAME_TICKS` (10 ticks, 50 ms) it diffs the player view (`diffPlayerView`/`applyViewFrame`, `src/protocol/view.ts`)
 and sends the changed and removed soldiers, every other changed view block whole, the events of that interval, the new
-message entries (`29` §8), bullet positions and the presentation events stamped with the session tick (`29` §9). Fine
+message entries (`29` §7), bullet positions and the presentation events stamped with the session tick (`29` §7). Fine
 animation between frames comes from the animation schedule each soldier entry carries and the client's copy of the
 scripts (`28` §3):
 
@@ -186,7 +186,7 @@ the time slicing and the worker host of §5.9. Benchmarks and measured turns: `3
 ```
 
 `src/server/main.ts` opens the data VFS (`JA2_DATA_DIR`, the stub pack, the project tables), detects the data version
-(`29` §25), builds the rule pack (§5.10), opens the save environment and creates the default session `sandbox`.
+(`31`), builds the rule pack (§5.10), opens the save environment and creates the default session `sandbox`.
 
 ### 5.1. Session
 
@@ -210,10 +210,10 @@ WebSocket endpoint `/ws`; MCP and HTTP map onto the same `SessionHost` calls (§
 |---|---|
 | `hello` | `welcome`: the session, its instance, the view, the driver, the message log, the engine and rule-pack identity (§5.10); again after a load in place |
 | `cmd` (prompt answers are commands of type `answer`) | `result`; `frames` (§4.4) |
-| `query` (`29` §28) | `answer` |
+| `query` (`29` §9) | `answer` |
 | `advance` | `stopped` (`id` 0 for a driver's own stop) |
-| `drive` (§4.3), `save`, `load` (`29` §26), `closeSession`, `leave` (`29` §6) | `result` |
-| `ping` (`29` §30) | `pong` |
+| `drive` (§4.3), `save`, `load` (`29` §10), `closeSession`, `leave` (`29` §6) | `result` |
+| `ping` (`29` §11) | `pong` |
 | | `closed` (`closed`, `lost` or `shutdown`); `error` |
 
 A connection's replies follow the order of its requests, except `answer` and `pong`, which go out as soon as they are
@@ -239,7 +239,7 @@ and compressed with `permessage-deflate`, the context kept between messages.
   and loudness (never a tile), the doors, items and world state the player knows, and the modal blocks of a campaign
   (`29` §7).
 - Unseen soldiers appear neither in the view nor in the events; events about them are reduced to what the squad hears
-  (`29` §9). There is no omniscient view.
+  (`29` §7). There is no omniscient view.
 - Rule: a field exists only when an original screen shows it at that moment; hidden state (the Queen, facts, opinions,
   tolerances, dealer cash, profile whereabouts, the event queue) never appears (each domain's section of `29` names
   what stays hidden).
@@ -256,7 +256,7 @@ back to the server. Kinds, channel and fairness: `29` §28.
 `27` §1 owns saves, the snapshot codec, content identity, the input log and the server's save modules. What the server
 guarantees:
 
-- **Files.** Saves live on the server, addressed by name, never by path (`29` §26); native `.sav` files are read from
+- **Files.** Saves live on the server, addressed by name, never by path (`29` §10); native `.sav` files are read from
   the original's `SavedGames` folder (`JA2_SAVES_DIR`, `14`).
 - **Input log.** Every session logs every input before running it; queries are never logged. A save writes the log
   beside the snapshot, and `pnpm cli replay <name>` re-runs it with the manual driver and compares the result with the
@@ -281,7 +281,7 @@ The core and the protocol depend on neither the DOM nor Node, so a session could
 - `/api`, `/vfs`, `/mcp` and `/ws` take the token of `.ja2/token` (or `$JA2_TOKEN`) as `Authorization: Bearer`, the
   HttpOnly cookie set by `/login?token=…`, or a `token` query. A Host check (`localhost`, `127.0.0.1`, `[::1]`) guards
   against DNS rebinding.
-- The API accepts game commands and save names, never file paths from the client (`29` §26).
+- The API accepts game commands and save names, never file paths from the client (`29` §10).
 
 ### 5.9. Heavy sessions: `SessionHost`
 
@@ -329,7 +329,7 @@ The game data splits into the **rule pack** (everything the simulation reads) an
 - the **graphic facts** (`src/content/rules/graphic-facts.ts`): the frame geometry and app data of every tileset
   surface and the frame counts of every explosion graphic, so the simulation never decodes an STI;
 - the **voice lengths**: the length of every speech sample from its WAV header (`src/content/audio/speech-lengths.ts`,
-  `29` §14), so no line waits for audio;
+  `29` §4.5), so no line waits for audio;
 - the layer count of each rule file present in several VFS layers, which the NPC record layering reads.
 
 `RulePack.read` answers from the pack and throws `NotARuleFileError` for any other path, so a rule that reaches for a

@@ -58,7 +58,7 @@ Everything else must be own work, so that the dedication can cover it.
   lowest layer under the `stubs/` prefix (`01` §4.2). Content loaders probe the original name first and
   `stubs/<name>` second (`readLayered` in `src/content/narrative/npc-records.ts`, `sectorMapPath`): original files
   always win, the pack fills only what the data lacks. `TextService` and `GET /vfs/<path>` fall back to `stubs/<path>`
-  only on the stub data version (`29` §25), so a client asks for `sounds/door open 01.wav` on both data sets. Without
+  only on the stub data version (`31`), so a client asks for `sounds/door open 01.wav` on both data sets. Without
   original data the data version is `stubs` (`31`).
 - **Aliases.** `aliases.json` at the pack root (`src/content/vfs/aliases.ts`) lets many original names share one
   generated file: the stub layer lists each alias as a file that reads its target; real files win; an alias to a missing
