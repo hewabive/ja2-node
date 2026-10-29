@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
@@ -9,12 +10,13 @@ import { directionToward } from '../movement.ts';
 import { assassinStepsCloseToPc } from '../narrative/assassin-approach.ts';
 import { Profile } from '../narrative/constants.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../narrative/port.ts';
+import { HANDLE_DONE_TRAVERSAL } from '../narrative/profile-insertion.ts';
 import { Opp } from '../perception/opp.ts';
 import { CivilianGroup, NOWHERE, Orders, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { AiAction } from './actions.ts';
 import { offersSurrender } from './combat-decide.ts';
-import { actionDone, executeAction } from './control.ts';
+import { actionDone, executeAction, handleSoldierAI } from './control.ts';
 import { decideActionGreen, NO_GREEN_HOOKS } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { endTimedAiPause, PAUSE_ALL_AI_DELAY_MS, pauseAiTemporarily, pauseAiUntilManuallyUnpaused, unPauseAi } from './pause.ts';
@@ -131,6 +133,23 @@ describe('a neutral assassin stepping onto a new tile', () => {
     s.oppList[merc.id] = Opp.SEEN_CURRENTLY;
     assassinStepsCloseToPc(sim.state, s);
     expect(sim.state.hostileQuoteList).toEqual([s]);
+  });
+});
+
+describe('an NPC who walked in from another sector (Realtime.cc RTDecideAction)', () => {
+  it('triggers his done-traversal records at his first real-time decision and waits 100 ms', () => {
+    const DONE_TRAVERSAL = 27;
+    const TRAVERSE_EAST = 5;
+    const { sim, calls } = setup({ triggerNpcWithGivenApproach: (p, approach) => calls.push(`approach ${p} ${approach}`) });
+    const t = sim.state;
+    const s = npc(sim);
+    const profile = progressFor(NAMED);
+    profile.miscFlags3 = HANDLE_DONE_TRAVERSAL;
+    t.profiles.set(NAMED, profile);
+    s.quoteActionId = TRAVERSE_EAST;
+    handleSoldierAI(t, s, sim.ai);
+    expect(calls).toEqual([`approach ${NAMED} ${DONE_TRAVERSAL}`]);
+    expect([profile.miscFlags3, s.quoteActionId, s.ai.counter]).toEqual([0, 0, t.clockMs + 100]);
   });
 });
 

@@ -28,6 +28,7 @@ import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { interactWithDoorAt } from '../doors/door-actions.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingIdlesNonBoxers } from '../narrative/boxing-state.ts';
+import { HANDLE_DONE_TRAVERSAL } from '../narrative/profile-insertion.ts';
 import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { endMuzzleFlash, radioSightings, removeManAsTarget } from '../perception/sight.ts';
@@ -74,6 +75,7 @@ const OFF_MAP_CURSOR = 0xffff;
 const MAX_DISTANCE_VISIBLE = 26;
 const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
+const DONE_TRAVERSAL_WAIT_MS = 100;
 
 export interface AiControl {
   readonly hooks: AiHooks;
@@ -479,6 +481,22 @@ export function decideNpcAction(t: TacticalState, s: Soldier, control: AiControl
   return decideAction(t, s, control.green);
 }
 
+function triggerDoneTraversal(t: TacticalState, s: Soldier): boolean {
+  const profile = s.profile === NO_PROFILE ? undefined : t.profiles.get(s.profile);
+  if (!profile || !(profile.miscFlags3 & HANDLE_DONE_TRAVERSAL)) return false;
+  t.narrative.triggerNpcWithGivenApproach(s.profile, Approach.DONE_TRAVERSAL);
+  profile.miscFlags3 &= ~HANDLE_DONE_TRAVERSAL;
+  s.quoteActionId = QuoteActionId.NONE;
+  s.ai.actionData = DONE_TRAVERSAL_WAIT_MS;
+  return true;
+}
+
+function rtDecideAction(t: TacticalState, s: Soldier, control: AiControl): number {
+  const decidesAsNpc = !decidesAsCreature(s) && !isCrow(s) && s.team !== Team.OUR;
+  if (decidesAsNpc && triggerDoneTraversal(t, s)) return AiAction.WAIT;
+  return decideNpcAction(t, s, control);
+}
+
 function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (ai.action === AiAction.NONE) {
@@ -513,7 +531,7 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       ai.action = ai.checkSchedule ? AiAction.SCHEDULE_MOVE : AiAction.WALK;
       ai.actionData = s.absoluteFinalDestination;
     } else if (!t.engagedInConv) {
-      ai.action = decideNpcAction(t, s, control);
+      ai.action = rtDecideAction(t, s, control);
     }
     if (ai.action === AiAction.NONE) {
       ai.action = AiAction.WAIT;

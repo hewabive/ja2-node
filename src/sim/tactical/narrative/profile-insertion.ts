@@ -19,7 +19,7 @@ import { getSchedule } from './schedule-state.ts';
 
 export const QUOTE_ACTION_CHECK_FOR_DEST = 1;
 const PERMANENT_INSERTION_CODE = 0x02;
-const HANDLE_DONE_TRAVERSAL = 0x08;
+export const HANDLE_DONE_TRAVERSAL = 0x08;
 const LEFT_COUNTRY = 0x02;
 const APPROACH_DONE_TRAVERSAL = 27;
 
