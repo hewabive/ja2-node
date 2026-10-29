@@ -11,9 +11,10 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { type Soldier, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { calcChanceToStab, hthImpact, useBlade } from './melee.ts';
+import { soldierDifficultyLevel } from './chance.ts';
+import { calcChanceToStab, eventSoldierBeginBladeAttack, eventSoldierBeginPunchAttack, hthImpact, useBlade } from './melee.ts';
 import { AiMorale, AimShot, WeaponMode } from './types.ts';
 
 let content: TacticalContent;
@@ -26,6 +27,8 @@ type EventOf<K extends SimEvent['type']> = Extract<SimEvent, { type: K }>;
 
 const KNIFE = 'COMBAT_KNIFE';
 const KNIFE_IMPACT = 18;
+const AVERAGE_DIFFICULTY_MODIFIER = 50;
+const TOP_DIFFICULTY_MODIFIER = 100;
 
 function master(s: Soldier): void {
   Object.assign(s.stats, { agility: 100, dexterity: 100, strength: 100, experience: 10 });
@@ -75,6 +78,23 @@ describe('melee chance and impact', () => {
     const fluke = clone.int(51) - 25;
     const base = Math.trunc(effectiveExpLevel(merc) / 2) + Math.trunc(effectiveStrength(merc) / 20) + KNIFE_IMPACT;
     expect(hthImpact(t, merc, enemy, 30, true)).toBe(Math.trunc((base * (100 + fluke + 15)) / 100));
+  });
+
+  it('gives an enemy the whole difficulty modifier, bonus included, where his gun takes only its penalties', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 81), Direction.NORTH, { gun: KNIFE });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    enemy.attackingWeapon = enemy.inv[InvSlot.HAND]?.item ?? 0;
+    enemy.aimShotLocation = AimShot.TORSO;
+    const chanceAtLevel = (soldierClass: number, difficultyModifier: number, level: number) => {
+      t.campaign.difficultyModifier = difficultyModifier;
+      Object.assign(enemy, { soldierClass });
+      expect(soldierDifficultyLevel(t, enemy)).toBe(level);
+      return calcChanceToStab(t, enemy, merc, 0);
+    };
+    const average = chanceAtLevel(SoldierClass.ARMY, AVERAGE_DIFFICULTY_MODIFIER, 2);
+    expect(chanceAtLevel(SoldierClass.ELITE, TOP_DIFFICULTY_MODIFIER, 4)).toBeGreaterThan(average);
   });
 });
 
@@ -186,6 +206,22 @@ describe('punches', () => {
     expect(before - merc.actionPoints).toBe(apCost);
     expect(t.turn.attackBusyCount).toBe(0);
     expect(animName(t.content, merc.state)).toBe('PUNCH_BREATH');
+  });
+
+  it('turns a target who did not see the punch coming toward the attacker, where a blade turns one who saw it', () => {
+    const turnsTarget = (hand: string | null, targetSees: boolean) => {
+      const { sim, merc, enemy } = duel(hand, gridNo(80, 81), Direction.SOUTH);
+      const t = sim.state;
+      enemy.oppList[merc.id] = targetSees ? Opp.SEEN_CURRENTLY : Opp.NOT_HEARD_OR_SEEN;
+      merc.targetGridNo = enemy.gridNo;
+      if (hand === null) eventSoldierBeginPunchAttack(t, merc, enemy.gridNo, Direction.SOUTH);
+      else eventSoldierBeginBladeAttack(t, merc, enemy.gridNo, Direction.SOUTH);
+      return t.gameEvents.some((e) => e.kind === 'desiredDirection' && e.soldier === enemy.id);
+    };
+    expect(turnsTarget(null, false)).toBe(true);
+    expect(turnsTarget(null, true)).toBe(false);
+    expect(turnsTarget(KNIFE, true)).toBe(true);
+    expect(turnsTarget(KNIFE, false)).toBe(false);
   });
 
   it('makes a target who sees the attacker dodge', () => {

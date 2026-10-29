@@ -12,6 +12,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemCursor, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { i8, i16, u8 } from '../../../core/int.ts';
 import { createItem, findAttachment, type ItemObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
@@ -48,7 +49,7 @@ import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
-import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, u8, WeaponMode } from './types.ts';
+import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
 
 const MEANWHILE_HIT_CHANCE = 100;
 
@@ -59,6 +60,9 @@ export const FireResult = { FIREABLE: 0, JAMMED: 1, UNJAMMED: 2, FAILED: 3, FIRE
 const INVALID_ANIMATION = -1;
 const BASIC_DEPRECIATE_CHANCE = 15;
 const BURST_ROUND_EARNING_MARKSMANSHIP = 2;
+const GUN_HIT_DIFFICULTY_DIVISOR = 25;
+const GUN_HIT_EXPERIENCE = 3;
+const GUN_SHOT_EXPERIENCE = 3;
 const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -68,7 +72,6 @@ const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Bod
 const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
 const isCreatureOrBloodcat = (s: Soldier) => isMonster(s) || s.bodyType === Body.BLOODCAT;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
-const i8 = (v: number) => ((v & 0xff) << 24) >> 24;
 
 export function handItemWorks(t: TacticalState, s: Soldier, slot: number): boolean {
   const o = s.inv[slot] as ItemObject;
@@ -446,11 +449,11 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
       if (soldierToSoldierBodyPartChanceToGetThrough(t, s, tgt, s.aimShotLocation) > 0) {
         let xp = 0;
         if (hit) {
-          xp += Math.trunc(u8(100 - chance) / 25);
+          xp += Math.trunc(u8(100 - chance) / GUN_HIT_DIFFICULTY_DIVISOR);
           if (s.aimTime && !s.doBurst) xp += Math.min(s.aimTime, xp);
-          xp += 3;
+          xp += GUN_HIT_EXPERIENCE;
         }
-        xp += 3;
+        xp += GUN_SHOT_EXPERIENCE;
         if (isValidSecondHandShot(items, s) && (hand.status[0] ?? 0) >= USABLE_STATUS && hand.gunAmmoStatus > 0)
           xp = Math.trunc((xp * 2) / 3);
         xp = modifyExpGainByTarget(xp, tgt);
@@ -476,7 +479,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   const volume = gunfireVolume(t, s, d?.weapon?.attackVolume ?? 0, knife || law);
   const shot = shownToPlayer(s) ? { target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
   t.events.push({ type: 'shotFired', soldier: s.id, ...shot, ...shotSound(t, s, item) });
-  fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, ((chance - roll) << 16) >> 16, buckshot, false);
+  fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, i16(chance - roll), buckshot, false);
   if (knife) takeThrownKnife(t, s);
   const gun = s.inv[s.attackingHand] as ItemObject;
   if (law) {
@@ -683,7 +686,7 @@ export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutc
     case 473:
       return checkForImproperFireGunEnd(t, s) ? 'stop' : 'continue';
     case 476:
-      changeSoldierState(t, s, s.pendingActionData2, (s.pendingActionData1 + 1) & 0xff);
+      changeSoldierState(t, s, s.pendingActionData2, u8(s.pendingActionData1 + 1));
       return 'stop';
     case 477:
       return 'continue';

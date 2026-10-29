@@ -9,7 +9,7 @@
 
 import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, pythSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -21,7 +21,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, u8 } from '../../../core/int.ts';
 import type { MissileTrail } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
@@ -34,7 +34,7 @@ import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, type Soldier, Team } from '../soldier.ts';
+import { Body, NO_PROFILE, type Soldier, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
@@ -305,7 +305,7 @@ function fireBullet(t: TacticalState, b: Bullet, fake: boolean): number {
   b.target = firer.target;
   b.lastUpdate = 0;
   b.tilesPerUpdate = 1;
-  if (firer.profile !== 200 && firer.team === Team.OUR && firer.target && firer.target.life > 0) firer.shotsFired++;
+  if (firer.profile !== NO_PROFILE && firer.team === Team.OUR && firer.target && firer.target.life > 0) firer.shotsFired++;
   const knife = t.content.items.byIndex.get(firer.attackingWeapon)?.itemClass === ItemClass.THROWING_KNIFE;
   b.msPerUpdate = knife ? 30 : Math.trunc((t.content.items.byIndex.get(firer.attackingWeapon)?.weapon?.bulletSpeed ?? 0) / 10);
   if (b.flags & BulletFlag.KNIFE) b.itemStatus = firer.inv[InvSlot.HAND]?.status[0] ?? 0;
@@ -674,7 +674,7 @@ function adjacentSuppression(t: TacticalState, b: Bullet, p: Soldier): void {
   const end = endHeight(t.content, p.state);
   if (end === AnimHeight.PRONE && t.pre.int(4) === 0) return;
   if ((end === AnimHeight.PRONE || end === AnimHeight.CROUCH) && t.pre.int(4) === 0) return;
-  p.suppressionPoints = (p.suppressionPoints + 1) & 0xff;
+  p.suppressionPoints = u8(p.suppressionPoints + 1);
   p.suppressor = b.firer;
 }
 
@@ -818,7 +818,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
                     let knifeGrid = g;
                     if (s.wallOrientation & ORIENT_RIGHT) {
                       if (!(b.incX > 0)) knifeGrid += 1;
-                    } else if (!(b.incY > 0)) knifeGrid += 160;
+                    } else if (!(b.incY > 0)) knifeGrid += WORLD_ROWS;
                     addItemToPool(
                       t,
                       knifeGrid,
@@ -1046,7 +1046,7 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
             const s = entry.s;
             if (s.cubeOffset !== level || !((s.tile.shape[b.losX * 5 + b.losY] ?? 0) & (1 << cubesAboveLevel))) continue;
             if (has(s.flags, StructureFlags.PERSON)) {
-              if (intended) return Math.trunc((chanceThrough * (b.impact - b.impactReduction)) / b.impact) & 0xff;
+              if (intended) return u8(Math.trunc((chanceThrough * (b.impact - b.impactReduction)) / b.impact));
               entry.timesHit++;
             } else if (has(s.flags, StructureFlags.WALLNWINDOW) && b.z >= winLo && b.z <= winHi) {
               if (resolveHitOnWall(losWorldOf(t), s, g, b.losX, b.losY, b.horizAngle) && b.flags & BulletFlag.KNIFE) entry.timesHit++;
@@ -1088,7 +1088,7 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
     }
   } while (b.loop < b.distanceLimit);
   chanceThrough = Math.trunc((chanceThrough * (b.impact - b.impactReduction)) / b.impact);
-  return Math.max(0, chanceThrough) & 0xff;
+  return u8(Math.max(0, chanceThrough));
 }
 
 function chanceToGetThrough(t: TacticalState, firer: Soldier, g: number, endZ: number): number {

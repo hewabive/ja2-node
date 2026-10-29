@@ -14,11 +14,12 @@ import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
-import { Team } from '../soldier.ts';
+import { Opp } from '../perception/opp.ts';
+import { Body, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { handleItem, ItemHandle } from './attack.ts';
+import { checkForGunJam, FireResult, handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure, soldierToSoldierChanceToGetThrough } from './bullets.ts';
-import { calcChanceToHitGun, gunRange } from './chance.ts';
+import { calcChanceToHitGun, ENEMY_TO_HIT_MOD, gunRange, soldierDifficultyLevel } from './chance.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { AimShot, DamageReason } from './types.ts';
@@ -33,6 +34,10 @@ const newSim = (walls: readonly number[] = []) => newCombatSim(content, walls);
 const spawn = (sim: TacticalSim, id: number, team: number, at: number, direction: number, marksmanship = 70, life = 80) =>
   spawnSoldier(sim, id, team, at, direction, { marksmanship, life });
 const run = runUntilIdle;
+const HARD_DIFFICULTY = 3;
+const AVERAGE_DIFFICULTY_MODIFIER = 50;
+const TOP_DIFFICULTY_MODIFIER = 100;
+const ATTACK_TICKS = 2000;
 
 describe('damage and structure rules', () => {
   it('scales head and leg hits like the original float maths', () => {
@@ -100,6 +105,44 @@ describe('gun range', () => {
   });
 });
 
+describe('chance to hit (Weapons.cc CalcChanceToHitGun)', () => {
+  function aimedAt(shooterTeam: number) {
+    const sim = newSim();
+    const shooter = spawn(sim, 0, shooterTeam, gridNo(80, 80), Direction.SOUTH);
+    const target = spawn(sim, 20, shooterTeam === Team.OUR ? Team.ENEMY : Team.OUR, gridNo(80, 86), Direction.NORTH);
+    shooter.attackingHand = InvSlot.HAND;
+    shooter.attackingWeapon = itemIn(shooter.inv, InvSlot.HAND);
+    const chance = () => calcChanceToHitGun(sim.state, shooter, target.gridNo, 0, AimShot.TORSO, false);
+    return { sim, shooter, target, chance };
+  }
+
+  it('lets a target who sees the shooter dodge only a shot of the creature queen: the original tests !(body != QUEENMONSTER)', () => {
+    const { shooter, target, chance } = aimedAt(Team.ENEMY);
+    target.stats.agility = 100;
+    const chanceWhenTargetSees = (sees: boolean) => {
+      target.oppList[shooter.id] = sees ? Opp.SEEN_CURRENTLY : Opp.NOT_HEARD_OR_SEEN;
+      return chance();
+    };
+    expect(chanceWhenTargetSees(true)).toBe(chanceWhenTargetSees(false));
+    shooter.bodyType = Body.QUEENMONSTER;
+    expect(chanceWhenTargetSees(true)).toBeLessThan(chanceWhenTargetSees(false));
+  });
+
+  it('gives an enemy only the penalties of the difficulty table, never its bonuses: the original takes min(0, mod)', () => {
+    const { sim, shooter, chance } = aimedAt(Team.ENEMY);
+    Object.assign(sim.state, { options: { ...sim.state.options, difficulty: HARD_DIFFICULTY } });
+    const chanceAtLevel = (soldierClass: number, difficultyModifier: number, level: number) => {
+      sim.state.campaign.difficultyModifier = difficultyModifier;
+      Object.assign(shooter, { soldierClass });
+      expect(soldierDifficultyLevel(sim.state, shooter)).toBe(level);
+      return chance();
+    };
+    const average = chanceAtLevel(SoldierClass.ARMY, AVERAGE_DIFFICULTY_MODIFIER, 2);
+    expect(chanceAtLevel(SoldierClass.ELITE, TOP_DIFFICULTY_MODIFIER, 4)).toBe(average);
+    expect(chanceAtLevel(SoldierClass.ADMINISTRATOR, 0, 0)).toBe(average + (ENEMY_TO_HIT_MOD[0] ?? 0));
+  });
+});
+
 describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
   const EXTENDER_STATUS = 30;
   const NO_WEAR = 0;
@@ -138,6 +181,18 @@ describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
 });
 
 describe('gun attacks', () => {
+  it('rolls PreRandom twice in the jam check even for a gun above 80 %, which can never jam', () => {
+    const sim = newSim();
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.attackingHand = InvSlot.HAND;
+    merc.attackingWeapon = itemIn(merc.inv, InvSlot.HAND);
+    expect(merc.inv[InvSlot.HAND]?.status[0]).toBe(100);
+    const pre = new ScriptedStream([], 0);
+    Object.assign(sim.state, { pre });
+    expect(checkForGunJam(sim.state, merc)).toBe(FireResult.FIREABLE);
+    expect(pre.requested).toEqual([100, 100]);
+  });
+
   it('charges the estimated APs, fires one bullet and releases the attack barrier', () => {
     const sim = newSim();
     const t = sim.state;
@@ -284,5 +339,26 @@ describe('gun attacks', () => {
     expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });
     expect(events.some((e) => e.type === 'soldierHit')).toBe(false);
     expect(enemy.life).toBe(80);
+  });
+
+  it('lets a bullet strike a bystander in its path only if the player sees him: MoveBullet tests bVisible', () => {
+    const hitSoldiers = (bystanderVisible: number) => {
+      const sim = newSim();
+      spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, 100);
+      const bystander = spawn(sim, 21, Team.ENEMY, gridNo(80, 84), Direction.NORTH);
+      const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+      sim.lookAround();
+      sim.drainEvents();
+      bystander.visible = bystanderVisible;
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, aimTime: 4 }).ok).toBe(true);
+      const events: SimEvent[] = [];
+      for (let tick = 0; tick < ATTACK_TICKS && !sim.isIdle(); tick++) {
+        sim.step();
+        events.push(...sim.drainEvents());
+      }
+      return events.flatMap((e) => (e.type === 'soldierHit' ? [e.soldier] : []));
+    };
+    expect(hitSoldiers(1)).toEqual([21]);
+    expect(hitSoldiers(0)).toEqual([20]);
   });
 });

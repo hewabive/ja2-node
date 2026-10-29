@@ -6,7 +6,7 @@
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
-import { idiv } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { findAttachment, findAttachmentByClass, type ItemObject } from '../../items/object.ts';
 import { plotPathCost } from '../ai/utils.ts';
 import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
@@ -32,7 +32,7 @@ export function calcAPsToBurstWith(items: ItemTable, baseAPs: number, o: ItemObj
   const base = Math.max(3, Math.trunc((AP.BURST * baseAPs + (AP_LIMITS.MAXIMUM - 1)) / AP_LIMITS.MAXIMUM));
   const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
   if (spring === -1) return base;
-  return Math.trunc((base * 100) / (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))) & 0xff;
+  return u8(Math.trunc((base * 100) / (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))));
 }
 
 export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject): number {
@@ -51,7 +51,7 @@ export function baseAPsToShootOrStabWith(items: ItemTable, aps: number, skill: n
   let bottom = Math.trunc(((50 + Math.trunc(skill / 2)) * rate) / 4);
   const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
   if (spring !== -1) bottom = Math.trunc((bottom * (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))) / 100);
-  return Math.trunc((Math.trunc((100 * top) / bottom) + 1) / 2) & 0xff;
+  return u8(Math.trunc((Math.trunc((100 * top) / bottom) + 1) / 2));
 }
 
 export function baseAPsToShootOrStab(t: TacticalState, aps: number, skill: number, o: ItemObject): number {
@@ -198,7 +198,11 @@ function meleeAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: b
     }
     cost += s.walkToAttackCost;
   }
-  return (cost + minAPsToAttack(t, s, targetGrid, addTurning) + aimTime) & 0xff;
+  return u8(cost + minAPsToAttack(t, s, targetGrid, addTurning) + aimTime);
+}
+
+function burstAPs(t: TacticalState, s: Soldier, gun: ItemObject): number {
+  return calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), gun);
 }
 
 export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, aimTime: number): number {
@@ -208,14 +212,8 @@ export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, ad
     case ItemClass.LAUNCHER:
     case ItemClass.TENTACLES:
     case ItemClass.THROWING_KNIFE:
-      return (
-        (minAPsToAttack(t, s, g, addTurning) +
-          (s.doBurst
-            ? calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), inHand)
-            : s.weaponMode === WeaponMode.ATTACHED
-              ? 0
-              : aimTime)) &
-        0xff
+      return u8(
+        minAPsToAttack(t, s, g, addTurning) + (s.doBurst ? burstAPs(t, s, inHand) : s.weaponMode === WeaponMode.ATTACHED ? 0 : aimTime),
       );
     case ItemClass.GRENADE:
     case ItemClass.BOMB:
