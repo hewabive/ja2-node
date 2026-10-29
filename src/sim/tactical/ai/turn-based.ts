@@ -127,7 +127,9 @@ function manChecksOnFriends(t: TacticalState, s: Soldier): void {
 }
 
 function refreshAI(t: TacticalState, s: Soldier, control: AiControl): void {
+  s.lastAttackHit = false;
   decideAlertStatus(t, s, control.hooks);
+  if (s.ai.alertStatus === AlertStatus.YELLOW) t.turn.skipCoverCheck = false;
   if (t.inCombat) {
     if (s.ai.alertStatus === AlertStatus.BLACK || s.ai.alertStatus === AlertStatus.RED) s.ai.newSituation = Situation.IS_NEW;
     else {
