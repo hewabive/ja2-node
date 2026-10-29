@@ -93,4 +93,16 @@ describe('the beating quote (Soldier_Control.cc SoldierTakeDamage)', () => {
     soldierTakeDamage(sim.state, merc, 0, 0, DamageReason.GUNFIRE, enemy);
     expect(merc.numHitsThisTurn).toBe(0);
   });
+
+  it('never comes from hits alone: the original asks for a life gain of more than 20 since the turn began', () => {
+    const { sim, merc, enemy, said } = underFire();
+    const rng = new ScriptedStream([], 1);
+    Object.assign(sim.state, { rng });
+    const hits = 5;
+    for (let hit = 0; hit < hits; hit++) soldierTakeDamage(sim.state, merc, 5, 0, DamageReason.GUNFIRE, enemy);
+    expect(said).toEqual([]);
+    expect(merc.numHitsThisTurn).toBe(hits);
+    const weaponDropRolls = rng.requested.filter((range) => range === 100);
+    expect(weaponDropRolls).toHaveLength(hits);
+  });
 });

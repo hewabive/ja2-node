@@ -4,6 +4,7 @@
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
 // @src AgilityForEnemyMissingPlayer.
 
+import { u16 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
@@ -20,8 +21,6 @@ const TRAINING_RATING_CAP = 85;
 const MAX_STAT_VALUE = 100;
 const MAX_EXP_LEVEL = 10;
 const STAT_QUOTE_RANGE = 100;
-
-const u16 = (v: number) => v & 0xffff;
 
 function subpointsPerPoint(stat: number, expLevel: number): number {
   switch (stat) {
@@ -165,7 +164,7 @@ export function profileUpdateStats(t: CombatContext, p: ProfileProgress): void {
 
 export function profileStatChange(t: CombatContext, p: ProfileProgress, stat: number, chances: number, cause: number): void {
   if (isProfileDead(p) || p.life < OKLIFE) return;
-  processStatChange(t, p, stat, chances & 0xffff, cause);
+  processStatChange(t, p, stat, u16(chances), cause);
   profileUpdateStats(t, p);
 }
 
@@ -176,7 +175,7 @@ export function statChange(t: CombatContext, s: Soldier, stat: number, chances: 
   if (s.life < CONSCIOUSNESS) return;
   const p = profileProgress(t, s.profile);
   if (!p) return;
-  processStatChange(t, p, stat, chances & 0xffff, cause);
+  processStatChange(t, p, stat, u16(chances), cause);
   processUpdateStats(t, s);
 }
 

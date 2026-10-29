@@ -14,6 +14,7 @@ import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../.
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { u16 } from '../../../core/int.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -726,7 +727,7 @@ export function soldierTakeDamage(
     const hand = s.inv[InvSlot.HAND];
     const undroppable = hand !== undefined && (hand.flags & ObjectFlags.UNDROPPABLE) !== 0;
     if (undroppable) drop -= 30;
-    if (t.rng.int(100) < (drop & 0xffff) && hand && hand.item !== NOTHING && !undroppable) {
+    if (t.rng.int(100) < u16(drop) && hand && hand.item !== NOTHING && !undroppable) {
       addItemToPool(t, s.gridNo, hand, s.team === Team.OUR ? Visibility.VISIBLE : Visibility.INVISIBLE, s.level);
       deleteObject(hand);
     }

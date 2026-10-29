@@ -48,7 +48,7 @@ import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
-import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
+import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, u8, WeaponMode } from './types.ts';
 
 const MEANWHILE_HIT_CHANCE = 100;
 
@@ -58,6 +58,7 @@ export const FireResult = { FIREABLE: 0, JAMMED: 1, UNJAMMED: 2, FAILED: 3, FIRE
 
 const INVALID_ANIMATION = -1;
 const BASIC_DEPRECIATE_CHANCE = 15;
+const BURST_ROUND_EARNING_MARKSMANSHIP = 2;
 const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -441,11 +442,11 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     if ((s.inv[s.attackingHand]?.gunShotsLeft ?? 0) === 0 && item !== itemIndex(t, 'ROCKET_LAUNCHER') && s.team === Team.OUR)
       s.sayAmmoQuotePending = true;
     const tgt = s.target;
-    if (s.team === Team.OUR && tgt && (!s.doBurst || s.doBurst === 2) && t.inCombat) {
+    if (s.team === Team.OUR && tgt && (!s.doBurst || s.doBurst === BURST_ROUND_EARNING_MARKSMANSHIP) && t.inCombat) {
       if (soldierToSoldierBodyPartChanceToGetThrough(t, s, tgt, s.aimShotLocation) > 0) {
         let xp = 0;
         if (hit) {
-          xp += Math.trunc(((100 - chance) & 0xff) / 25);
+          xp += Math.trunc(u8(100 - chance) / 25);
           if (s.aimTime && !s.doBurst) xp += Math.min(s.aimTime, xp);
           xp += 3;
         }
@@ -497,7 +498,7 @@ function knifeThrowExperience(t: TacticalState, s: Soldier, chance: number, hit:
   if (s.team !== Team.OUR || !s.target) return;
   let xp = 0;
   if (hit) {
-    xp += Math.trunc(((100 - chance) & 0xff) / KNIFE_HIT_DIFFICULTY_DIVISOR);
+    xp += Math.trunc(u8(100 - chance) / KNIFE_HIT_DIFFICULTY_DIVISOR);
     if (s.aimTime) xp += KNIFE_AIM_EXPERIENCE_FACTOR * Math.min(s.aimTime, xp);
     xp += KNIFE_HIT_EXPERIENCE;
   }

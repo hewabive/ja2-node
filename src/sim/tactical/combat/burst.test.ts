@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AmmoType } from '../../../content/items/items.ts';
@@ -8,8 +9,11 @@ import { createItem } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
+import { StatKind } from '../profiles.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { enterCombatMode } from '../turns/turns.ts';
+import { u8 } from './types.ts';
 
 let content: TacticalContent;
 
@@ -61,6 +65,37 @@ describe('bursts', () => {
     expect(merc.doBurst).toBe(1);
     expect(t.turn.attackBusyCount).toBe(0);
     expect(events.at(-1)?.type).toBe('attackResolved');
+  });
+
+  it('earns marksmanship on the second round of a burst, from that round alone, and none for a one-round burst', () => {
+    const MERC_PROFILE = 5;
+    const burstInCombat = (roundsInGun: number) => {
+      const sim = newCombatSim(content);
+      const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, {
+        gun: 'MP5K',
+        marksmanship: 60,
+        profile: MERC_PROFILE,
+      });
+      const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+      const gun = merc.inv[InvSlot.HAND];
+      if (gun) gun.gunShotsLeft = roundsInGun;
+      sim.lookAround();
+      enterCombatMode(sim.state, Team.OUR);
+      sim.drainEvents();
+      const progress = progressFor(MERC_PROFILE);
+      sim.state.profiles.set(MERC_PROFILE, progress);
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, burst: true }).ok).toBe(true);
+      const shots = runUntilIdle(sim).filter((e): e is ShotFired => e.type === 'shotFired');
+      return { shots, earned: progress.statChangeChances[StatKind.MARKSMANSHIP] };
+    };
+    const full = burstInCombat(30);
+    const second = full.shots[1];
+    const harderShotBonus = second?.hit ? 3 + Math.trunc(u8(100 - (second.chance ?? 0)) / 25) : 0;
+    expect(full.shots.length).toBeGreaterThan(2);
+    expect(full.earned).toBe(3 + harderShotBonus);
+    const single = burstInCombat(1);
+    expect(single.shots).toHaveLength(1);
+    expect(single.earned).toBe(0);
   });
 
   it('makes a standing target hit by a burst play STANDING_BURST_HIT', () => {
