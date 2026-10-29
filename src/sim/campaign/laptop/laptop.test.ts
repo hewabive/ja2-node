@@ -9,6 +9,7 @@ import { sectorInfo } from '../../strategic/map/sectors.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
+import { dailyUpdateOfMercSite } from '../contracts/merc-account.ts';
 import { FinanceCode } from '../finances.ts';
 import { sectorKey } from '../sector-diff.ts';
 import { Bookmark, MercAccountStatus } from './laptop-state.ts';
@@ -298,6 +299,40 @@ describe('after the landing', () => {
     expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: false, reason: 'nothingOwed' });
   });
 
+  it('forgets the unpaid days of a re-hired M.E.R.C. merc', async () => {
+    const session = await landed(36);
+    advanceTo(session, 3, 8);
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    session.dispatch({ type: 'readEmail', id: mailId(session, 'MERC_INTRO') });
+    session.dispatch({ type: 'mercOpenAccount' });
+    const p = session.campaign.state.profiles.get(42);
+    if (!p) throw new Error('no M.E.R.C. stub profile');
+    p.mercMercContractLength = 4;
+    expect(session.dispatch({ type: 'mercHire', profile: 42 })).toMatchObject({ ok: true });
+    expect(p.mercMercContractLength).toBe(1);
+  });
+
+  it('moves a suspended M.E.R.C. account back to a first warning, with the warning mail again', async () => {
+    const session = await landed(37);
+    advanceTo(session, 3, 8);
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    session.dispatch({ type: 'readEmail', id: mailId(session, 'MERC_INTRO') });
+    session.dispatch({ type: 'mercOpenAccount' });
+    expect(session.dispatch({ type: 'mercHire', profile: 42 })).toMatchObject({ ok: true });
+    const contracts = session.campaign.contracts;
+    const p = session.campaign.state.profiles.get(42);
+    if (!contracts || !p) throw new Error('no contract flow or M.E.R.C. stub profile');
+    const statuses: number[] = [];
+    for (const unpaidDays of [9, 7]) {
+      p.mercMercContractLength = unpaidDays;
+      dailyUpdateOfMercSite(contracts);
+      statuses.push(session.campaign.state.laptop.merc.accountStatus);
+    }
+    expect(statuses).toEqual([MercAccountStatus.SUSPENDED, MercAccountStatus.VALID_FIRST_WARNING]);
+    const mails = session.view().laptop?.emails ?? [];
+    expect(mails.slice(-2).map((m) => m.type)).toEqual(['MERC_WARNING', 'MERC_FIRST_WARNING']);
+  });
+
   it('sells, ships and delivers a Bobby Ray order to Drassen once the airport is held', async () => {
     const session = await landed(34);
     const c = session.campaign;
@@ -338,29 +373,30 @@ describe('after the landing', () => {
 });
 
 describe('I.M.P.', () => {
+  const command = {
+    type: 'impCreate',
+    code: 'XEP624',
+    name: 'Stub Tester',
+    gender: 'female',
+    answers: [1, 0, 0, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 1, 0, 0],
+    attributes: {
+      health: 75,
+      agility: 75,
+      dexterity: 70,
+      strength: 55,
+      wisdom: 60,
+      leadership: 35,
+      marksmanship: 75,
+      medical: 55,
+      mechanical: 55,
+      explosives: 0,
+    },
+    portrait: 0,
+    voice: 0,
+  };
+
   it('creates a character from one command and charges 3000', async () => {
     const session = await inLaptop(41);
-    const command = {
-      type: 'impCreate',
-      code: 'XEP624',
-      name: 'Stub Tester',
-      gender: 'female',
-      answers: [1, 0, 0, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 1, 0, 0],
-      attributes: {
-        health: 75,
-        agility: 75,
-        dexterity: 70,
-        strength: 55,
-        wisdom: 60,
-        leadership: 35,
-        marksmanship: 75,
-        medical: 55,
-        mechanical: 55,
-        explosives: 0,
-      },
-      portrait: 0,
-      voice: 0,
-    };
     expect(session.dispatch(command)).toEqual({ ok: false, reason: 'noBookmark' });
     session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     expect(session.dispatch({ ...command, code: 'nope' })).toEqual({ ok: false, reason: 'badCode' });
@@ -373,5 +409,18 @@ describe('I.M.P.', () => {
     expect(session.campaign.state.finances.ledger.at(-1)).toMatchObject({ code: FinanceCode.IMP_PROFILE, amount: -3000 });
     expect(session.view().laptop?.imp).toMatchObject({ canCreate: false, charactersLeft: 0 });
     expect(session.campaign.laptop?.roster.get(0)?.soldier.name).toBe('Stub');
+  });
+
+  it('lands the character with the profile status of his endless contract, -1 as for a merc without text', async () => {
+    const session = await inLaptop(42);
+    session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
+    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 51 } });
+    const p = session.campaign.state.profiles.get(51);
+    expect(p?.mercStatus).toBe(MercStatus.HIRED_BUT_NOT_ARRIVED_YET);
+    expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
+    await session.prepare({ type: 'compressTime', mode: 2 });
+    expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
+    expect(session.view().clock).toMatchObject({ day: 1, hour: 7, minute: 0 });
+    expect(session.campaign.state.profiles.get(51)?.mercStatus).toBe(MercStatus.HAS_NO_TEXT_FILE);
   });
 });

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { ItemClass, type ItemDef, type ItemTable } from '../../../content/items/items.ts';
+import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
+import { initProfileFromContent } from '../profiles.ts';
+import { emptyProfile } from './imp.ts';
 import { calcCompetence, calcMedicalDeposit, isMercHireable } from './profile-state.ts';
+
+const KIT_ITEM = 201;
+const KIT_ITEM_PRICE = 250;
 
 function profile(stats: Partial<ProfileProgress['stats']>, traits: [number, number] = [0, 0]): ProfileProgress {
   return {
@@ -48,5 +55,21 @@ describe('IsMercHireable', () => {
     expect(isMercHireable({ mercStatus: MercStatus.ANNOYED_WONT_CONTACT, dayBecomesAvailable: 0 })).toBe(true);
     expect(isMercHireable({ mercStatus: MercStatus.OK, dayBecomesAvailable: 2 })).toBe(false);
     for (const status of [7, -1, -4, -5, -6, -7, -8]) expect(isMercHireable({ mercStatus: status, dayBecomesAvailable: 0 })).toBe(false);
+  });
+});
+
+describe('the A.I.M. kit price', () => {
+  it('adds one price per inventory slot, whatever the number of items in the slot', () => {
+    const kitItem = { price: KIT_ITEM_PRICE, itemClass: ItemClass.MEDKIT } as ItemDef;
+    const items = { byIndex: new Map([[KIT_ITEM, kitItem]]) } as unknown as ItemTable;
+    const record = emptyProfile(0);
+    const inventory = [...record.inventory];
+    const inventoryCount = [...record.inventoryCount];
+    inventory[InvSlot.BIGPOCK1] = KIT_ITEM;
+    inventoryCount[InvSlot.BIGPOCK1] = 3;
+    inventory[InvSlot.BIGPOCK2] = KIT_ITEM;
+    inventoryCount[InvSlot.BIGPOCK2] = 1;
+    const p = initProfileFromContent({ ...record, inventory, inventoryCount }, items, true);
+    expect(p.optionalGearCost).toBe(2 * KIT_ITEM_PRICE);
   });
 });

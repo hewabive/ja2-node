@@ -64,6 +64,8 @@ const LOST_SHIPMENT_GRIDNO = 2;
 const PABLOS_STOLEN_DEST_GRIDNO = 1;
 const THEFT_BASE = 12;
 const THEFT_PER_SHIPMENT = 4;
+const FIRST_UNIT_STOLEN_FROM_UNLOADED = 2;
+const REUSED_SHIPMENT_SLOT = 0;
 const DAMAGE_BASE = 70;
 const DAMAGE_SPREAD = 11;
 const PERCENT = 100;
@@ -332,7 +334,7 @@ function addNewBobbyRShipment(
   purchasedFromBobbyRay = true,
 ): number {
   const shipments = ctx.laptop.bobbyRay.shipments;
-  let index = shipments.findIndex(() => shipments[0]?.active === false);
+  const index = shipments[REUSED_SHIPMENT_SLOT]?.active === false ? REUSED_SHIPMENT_SLOT : shipments.length;
   const shipment: Shipment = {
     active: true,
     destination,
@@ -342,10 +344,7 @@ function addNewBobbyRShipment(
     orderDay: ctx.day(),
     displayedOnShipmentsPage: purchasedFromBobbyRay,
   };
-  if (index < 0) {
-    shipments.push(shipment);
-    index = shipments.length - 1;
-  } else shipments[index] = shipment;
+  shipments[index] = shipment;
   const days = purchasedFromBobbyRay ? calculateOrderDelay(ctx, deliveryMethod) : deliveryMethod;
   const minute = (DELIVERY_FIRST_HOUR + ctx.rng.main.int(DELIVERY_HOURS)) * MINUTES_PER_HOUR;
   addFutureDayStrategicEvent(ctx.state.queue, ctx.state.clock, EventKind.BOBBYRAY_PURCHASE, minute, index, days);
@@ -463,8 +462,8 @@ function dropOffItemsInDestination(ctx: LaptopContext, index: number, dest: Ship
   }
   const loaded = closeCrate(ctx, sector, dest.gridNo, tactical);
   const objects: ItemObject[] = [];
-  const bound = shipments[0]?.lines.length ?? 0;
-  for (let i = 0; i < bound; i++) {
+  const linesOfFirstShipment = shipments[0]?.lines.length ?? 0;
+  for (let i = 0; i < linesOfFirstShipment; i++) {
     const line = shipment.lines[i];
     if (line) objects.push(...stackedObjects(ctx, line, line.count));
   }
@@ -552,7 +551,8 @@ export function bobbyRayPurchaseEvent(ctx: LaptopContext, index: number, tactica
     let toDeliver = 0;
     for (let j = 0; j < line.count; j++) {
       const roll = (bonus: number) => ctx.rng.main.int(DAILY_DIE) < chance + bonus;
-      const steals = loaded ? !stoleLast && chance > 0 && roll(line.count) : j > 1 && !stoleLast && chance > 0 && roll(j);
+      const mayTake = !stoleLast && chance > 0;
+      const steals = loaded ? mayTake && roll(line.count) : j >= FIRST_UNIT_STOLEN_FROM_UNLOADED && mayTake && roll(j);
       if (steals) {
         if (!loaded) stolen.push({ ...o, status: [...o.status] });
         stolenCount++;
