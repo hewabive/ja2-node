@@ -79,6 +79,7 @@ const SLEEPING_TRAVERSE_LIMIT = 400;
 const RESET_SLEEPING_TRAVERSE = 90;
 const NO_PREVIOUS_X = 16;
 const NO_PREVIOUS_Y = 16;
+const FORGOTTEN_ENTRY_INSERTION_CODE = InsertionCode.NORTH;
 
 export function nowMinutes(ctx: StrategicContext): number {
   return worldTotalMinutes(ctx.state.clock);
@@ -186,8 +187,12 @@ export function addWaypointToPGroup(ctx: StrategicContext, g: Group | undefined,
   const first = g.waypoints.length === 0;
   g.waypoints.push({ x: s.x, y: s.y, z: s.z });
   if (first && !reversing) initiateGroupMovementToNextSector(ctx, g);
-  if (g.player) for (const m of groupMembers(ctx, g)) m.insertionCode = InsertionCode.NORTH;
+  if (g.player) forgetTacticalTraversalEntry(ctx, g);
   return true;
+}
+
+function forgetTacticalTraversalEntry(ctx: StrategicContext, g: Group): void {
+  for (const m of groupMembers(ctx, g)) m.insertionCode = FORGOTTEN_ENTRY_INSERTION_CODE;
 }
 
 export function addWaypointIdToPGroup(ctx: StrategicContext, g: Group | undefined, id: number): boolean {

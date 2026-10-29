@@ -20,7 +20,7 @@ import {
   rebuildWayPointsForGroupPath,
   retreatGroupToPreviousSector,
 } from './movement.ts';
-import type { StrategicContext } from './ports.ts';
+import { type StrategicContext, TravelStat } from './ports.ts';
 
 let content: StrategicContent;
 
@@ -170,6 +170,26 @@ describe('arrival', () => {
     expect(mercs.get(1)?.insertionCode).toBe(InsertionCode.PRIMARY_EDGEINDEX);
   });
 
+  it('forgets an edge-index entry once the group gets a new waypoint, leaving code 0 (north) until it arrives from the west', () => {
+    const { ctx, mercs } = squadContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    const traveller = mercs.get(0);
+    if (traveller) traveller.insertionCode = InsertionCode.PRIMARY_EDGEINDEX;
+    giveRoute(ctx, mercs, g, route('A9', 'A10'));
+    expect(traveller?.insertionCode).toBe(InsertionCode.NORTH);
+    groupArrivedAtSector(ctx, g, false, false);
+    expect(traveller?.insertionCode).toBe(InsertionCode.WEST);
+  });
+
+  it('asks for a strength gain even when the leg earns zero points, while health needs at least one', () => {
+    const { ctx, mercs } = squadContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    mercs.encumbrance.set(0, 60);
+    giveRoute(ctx, mercs, g, route('A9', 'A10'));
+    groupArrivedAtSector(ctx, g, false, false);
+    expect(mercs.experience).toEqual([{ id: 0, stat: TravelStat.STRENGTH, points: 0 }]);
+  });
+
   it('delays the arrival by 3 to 5 minutes while another battle runs', () => {
     const rolls = new ScriptedRolls([2]);
     const { ctx, mercs } = squadContext({ random: rolls, world: { enemyInSector: () => true } });
@@ -197,6 +217,16 @@ describe("the queen's alert (Strategic_Movement.cc GroupArrivedAtSector)", () =>
     giveRoute(ctx, mercs, g, route('A9', 'B9'));
     groupArrivedAtSector(ctx, g, true, false);
     expect(ctx.state.encounter.preBattle?.battleGroupId).toBe(g.id);
+    expect(ctx.state.queen.awareBattles).toBe(1);
+  });
+
+  it('also takes one off for an arrival nobody checks for a battle, as every group pulled into a battle arrives', () => {
+    const { ctx, mercs } = squadContext();
+    ctx.state.queen.awareBattles = 2;
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    giveRoute(ctx, mercs, g, route('A9', 'B9'));
+    groupArrivedAtSector(ctx, g, false, false);
+    expect(g).toMatchObject({ sector: S('B9'), betweenSectors: false });
     expect(ctx.state.queen.awareBattles).toBe(1);
   });
 });

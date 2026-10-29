@@ -105,8 +105,15 @@ function projectedExitWorld(sk: StrategicKnowledge, tactical: TacticalKnowledge)
     mercs: () => mercs,
     inTactical: (m) => tactical.ownSoldier(m.id) !== null,
     canRobotBeControlled: (id) => sk.mercView(id)?.controlled === true,
-    traverseTime: (groupId, exitDirection, anyUnderground) =>
-      exitTraverseTime(ctx, world, tactical.state, groupId === null ? undefined : getGroup(ctx, groupId), exitDirection, anyUnderground),
+    traverseTime: (groupId, exitDirection, undergroundFromLevel) =>
+      exitTraverseTime(
+        ctx,
+        world,
+        tactical.state,
+        groupId === null ? undefined : getGroup(ctx, groupId),
+        exitDirection,
+        undergroundFromLevel,
+      ),
     controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(ctx, squad),
     militiaInWorld: () => (world ? countAllMilitiaInSector(ctx, world) : 0),
   };

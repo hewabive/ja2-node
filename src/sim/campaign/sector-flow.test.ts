@@ -135,6 +135,20 @@ describe('leaving a sector', () => {
     expect(campaign.tactical?.state.perception.disallowSight).toBe(false);
   });
 
+  it('never lowers the underground traversal flag, so every traversal after the first underground one takes a minute (StrategicMap.cc AllMercsHaveWalkedOffSector)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 7, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    walkSquadToEastEdge(campaign);
+    campaign.state.movement.undergroundTacticalTraversal = true;
+    const before = campaign.tactical?.state;
+    const result = campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' });
+    expect(result).toMatchObject({ ok: true, data: { load: true, target: 'A10' } });
+    runTicks(campaign, 2000, () => campaign.tactical?.state !== before);
+    expect(campaign.state.worldSector).toEqual(A10);
+    expect(campaign.state.movement.tacticalTraversal.active).toBe(false);
+    expect(campaign.state.movement.undergroundTacticalTraversal).toBe(true);
+  });
+
   it('keeps the dropped items, corpses and revealed tiles of A9 and ages the corpses by the days away', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);

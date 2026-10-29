@@ -6,7 +6,7 @@
 // @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
 
 import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { u32 } from '../../../core/int.ts';
+import { i8, idiv, u32 } from '../../../core/int.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -332,26 +332,26 @@ export function testForBloodcatAmbush(ctx: StrategicContext, g: Group): boolean 
   const spawn = ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(s));
   const lair = spawn?.isLair === true;
   const arena = spawn?.isArena === true;
-  const hours = Math.trunc(u32(nowMinutes(ctx) - info.timeLastLoaded) / MINUTES_PER_HOUR) | 0;
+  const hours = idiv(u32(nowMinutes(ctx) - info.timeLastLoaded), MINUTES_PER_HOUR);
   const enc = ctx.state.encounter;
   let alreadyAmbushed = false;
   if (lair || arena) {
     if (info.bloodCats === -1) info.bloodCats = info.bloodCatPlacements;
     else if (info.bloodCats > 0 && info.bloodCats < info.bloodCatPlacements) {
-      info.bloodCats =
-        ((info.bloodCats + Math.min(Math.trunc(hours / BLOODCAT_RECOVERY_HOURS), info.bloodCatPlacements - info.bloodCats)) << 24) >> 24;
+      const recovered = Math.min(idiv(hours, BLOODCAT_RECOVERY_HOURS), info.bloodCatPlacements - info.bloodCats);
+      info.bloodCats = i8(info.bloodCats + recovered);
     }
   } else if (info.bloodCats === -1) {
     if (enc.autoAmbush || ctx.preRandom.chance(chance)) {
       const byDifficulty = ctx.random.int(BLOODCAT_VARIANCE) + difficulty * 2 + BLOODCAT_BASE;
       const byProgress = Math.max(Math.trunc(ctx.ai.progressPercentage() / (BLOODCAT_PROGRESS_BASE - difficulty)), BLOODCAT_MIN);
-      const byMercs = ((playerMercsInSector(ctx, s) * BLOODCATS_PER_MERC) << 24) >> 24;
-      let cats = (Math.min(byDifficulty, byProgress) << 24) >> 24;
+      const byMercs = i8(playerMercsInSector(ctx, s) * BLOODCATS_PER_MERC);
+      let cats = i8(Math.min(byDifficulty, byProgress));
       if (difficulty !== Difficulty.HARD) {
         cats = Math.min(cats, byMercs);
         cats = Math.max(cats, BLOODCAT_MIN);
       }
-      info.bloodCats = (Math.min(cats, info.bloodCatPlacements) << 24) >> 24;
+      info.bloodCats = i8(Math.min(cats, info.bloodCatPlacements));
     }
   } else if (!lair) {
     if (!enc.autoAmbush && ctx.preRandom.chance(ALREADY_AMBUSHED_CHANCE)) alreadyAmbushed = true;

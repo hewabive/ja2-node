@@ -89,6 +89,8 @@ const RETREAT_WARP_SECONDS = 300;
 const SECONDS_PER_MINUTE = 60;
 const EXIT_SWEET_SPOT_RADIUS = 10;
 const UNDERGROUND_WARP_MINUTES = 1;
+const UNDERGROUND_FROM_LEVEL = 1;
+const UNDERGROUND_FROM_LEVEL_FOR_A_MERC_AWAY_FROM_THE_EDGE = 2;
 
 const STRATEGIC_MOVE_OF: Readonly<Record<number, number>> = {
   [Direction.NORTH]: ExitDirection.NORTH,
@@ -137,7 +139,7 @@ export interface ExitWorld {
   mercs(): readonly ExitMerc[];
   inTactical(m: ExitMerc): boolean;
   canRobotBeControlled(id: number): boolean;
-  traverseTime(groupId: number | null, exitDirection: number, anyUnderground: boolean): number;
+  traverseTime(groupId: number | null, exitDirection: number, undergroundFromLevel: number): number;
   controllableInSquad(squad: number): number;
   militiaInWorld(): number;
 }
@@ -168,16 +170,16 @@ export function exitTraverseTime(
   t: TacticalState | null,
   g: Group | undefined,
   exitDirection: number,
-  anyUnderground: boolean,
+  undergroundFromLevel: number,
 ): number {
   if (!world || !g) return TRAVERSE_TIME_IMPOSSIBLE;
   if (world.z === 0) return getSectorMvtTimeForGroup(ctx, sectorId(g.sector), exitDirection, g);
-  if (anyUnderground ? world.z > 0 : world.z > 1) return undergroundTraversalTime(t, exitDirection);
+  if (world.z >= undergroundFromLevel) return undergroundTraversalTime(t, exitDirection);
   return TRAVERSE_TIME_IMPOSSIBLE;
 }
 
-function traverseTime(flow: SectorFlow, g: Group | undefined, exitDirection: number, anyUnderground: boolean): number {
-  return exitTraverseTime(flow.ctx, flow.world, flow.campaign.tactical?.state ?? null, g, exitDirection, anyUnderground);
+function traverseTime(flow: SectorFlow, g: Group | undefined, exitDirection: number, undergroundFromLevel: number): number {
+  return exitTraverseTime(flow.ctx, flow.world, flow.campaign.tactical?.state ?? null, g, exitDirection, undergroundFromLevel);
 }
 
 export function flowExitWorld(flow: SectorFlow): ExitWorld {
@@ -190,8 +192,8 @@ export function flowExitWorld(flow: SectorFlow): ExitWorld {
     mercs: () => roster.all(),
     inTactical: (m) => t !== null && t.soldiers[m.id] === m.soldier && m.soldier.placed,
     canRobotBeControlled: (id) => roster.canRobotBeControlled(id),
-    traverseTime: (groupId, exitDirection, anyUnderground) =>
-      traverseTime(flow, groupId === null ? undefined : getGroup(flow.ctx, groupId), exitDirection, anyUnderground),
+    traverseTime: (groupId, exitDirection, undergroundFromLevel) =>
+      traverseTime(flow, groupId === null ? undefined : getGroup(flow.ctx, groupId), exitDirection, undergroundFromLevel),
     controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(flow.ctx, squad),
     militiaInWorld: () => (flow.world ? countAllMilitiaInSector(flow.ctx, flow.world) : 0),
   };
@@ -230,7 +232,7 @@ export function okForSectorExit(w: ExitWorld, exitDirection: number, exitGridNo:
       atLeast++;
       if (m.id === selected.id) onlySelected = true;
     } else if (exitDirection !== ExitDirection.EXIT_GRID) {
-      minutes = w.traverseTime(valid.groupId, exitDirection, false);
+      minutes = w.traverseTime(valid.groupId, exitDirection, UNDERGROUND_FROM_LEVEL_FOR_A_MERC_AWAY_FROM_THE_EDGE);
       if (minutes === TRAVERSE_TIME_IMPOSSIBLE) return refuse({ minutes, invalidTraversal: true });
     } else minutes = 0;
   }
@@ -242,7 +244,7 @@ export function okForSectorExit(w: ExitWorld, exitDirection: number, exitGridNo:
     } else if (epcs && mercs === 1 && atLeast < squadCount) return refuse({ minutes, abandonedEpcs: epcs });
   }
   if (exitDirection !== ExitDirection.EXIT_GRID) {
-    minutes = w.traverseTime(valid ? valid.groupId : null, exitDirection, true);
+    minutes = w.traverseTime(valid ? valid.groupId : null, exitDirection, UNDERGROUND_FROM_LEVEL);
     if (minutes === TRAVERSE_TIME_IMPOSSIBLE) return refuse({ minutes, invalidTraversal: true });
   } else minutes = 0;
   let result: 0 | 1 | 2 = 0;
@@ -385,7 +387,7 @@ export function jumpIntoAdjacentSector(
   const group = valid ? getGroup(flow.ctx, valid.groupId) : undefined;
   if (!valid || !group) return false;
   let minutes = 0;
-  if (direction !== DIRECTION_EXITGRID) minutes = traverseTime(flow, group, STRATEGIC_MOVE_OF[direction] ?? 0, true);
+  if (direction !== DIRECTION_EXITGRID) minutes = traverseTime(flow, group, STRATEGIC_MOVE_OF[direction] ?? 0, UNDERGROUND_FROM_LEVEL);
   let target: Sector;
   if (direction !== DIRECTION_EXITGRID) {
     const [dx, dy] = SECTOR_STEP[direction] ?? [0, 0];
