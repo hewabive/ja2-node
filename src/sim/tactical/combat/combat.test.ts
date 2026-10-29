@@ -1,11 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
+import { ProfileFlag } from '../../narrative/narrative-ids.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
@@ -41,6 +45,37 @@ describe('damage and structure rules', () => {
     expect(chanceOfBulletHittingStructure(180, 200, 10)).toBe(76);
     expect(chanceOfBulletHittingStructure(100, 200, -5)).toBe(40);
     expect(chanceOfBulletHittingStructure(260, 300, 10)).toBe(90);
+  });
+});
+
+describe('an NPC hurt by a soldier (Soldier_Control.cc SoldierTakeDamage)', () => {
+  function hurtPacos(attackerTeam: number) {
+    const sim = newSim();
+    const facts: number[] = [];
+    sim.state.narrative = {
+      ...sim.state.narrative,
+      isNpcOrRpcProfile: (profile) => profile === Npc.PACOS,
+      setFactTrue: (id) => facts.push(id),
+    };
+    const profile = testProfile(Npc.PACOS);
+    sim.state.profiles.set(Npc.PACOS, profile);
+    const attacker = spawn(sim, attackerTeam === Team.OUR ? 0 : 20, attackerTeam, gridNo(80, 80), Direction.SOUTH);
+    const pacos = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 84), Direction.NORTH, { profile: Npc.PACOS });
+    soldierTakeDamage(sim.state, pacos, 5, 0, DamageReason.GUNFIRE, attacker);
+    return { pacos, facts, flags: profile.miscFlags };
+  }
+
+  it('marks the profile wounded by the player when ours hurt him, and a mere wound sets "Pacos killed"', () => {
+    const { pacos, facts, flags } = hurtPacos(Team.OUR);
+    expect(pacos.life).toBeGreaterThan(0);
+    expect(flags & ProfileFlag.WOUNDEDBYPLAYER).toBe(ProfileFlag.WOUNDEDBYPLAYER);
+    expect(facts).toEqual([Fact.PACOS_KILLED]);
+  });
+
+  it('leaves the profile alone when someone else hurts him', () => {
+    const { facts, flags } = hurtPacos(Team.ENEMY);
+    expect(flags & ProfileFlag.WOUNDEDBYPLAYER).toBe(0);
+    expect(facts).toEqual([]);
   });
 });
 

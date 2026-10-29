@@ -16,6 +16,7 @@ import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { u16 } from '../../../core/int.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
+import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -741,9 +742,17 @@ export function soldierTakeDamage(
     statChange(t, s, StatKind.EXPERIENCE, 5 * combined, StatCause.FAILURE);
     if (!s.pummeledQuoteSaid && attacker && attacker !== s) countHitForBeatingQuote(t, s);
   }
+  markNpcWoundedByPlayer(t, s, attacker);
   handleTakeDamageDeath(t, s, reason);
   if (s.life < OKLIFE) decayIndividualOpplist(t, s);
   return combined;
+}
+
+function markNpcWoundedByPlayer(t: TacticalState, s: Soldier, attacker: Soldier | null): void {
+  if (attacker?.team !== Team.OUR || s.profile === NO_PROFILE || !t.narrative.isNpcOrRpcProfile(s.profile)) return;
+  const p = profileProgress(t, s.profile);
+  if (p) p.miscFlags |= ProfileFlag.WOUNDEDBYPLAYER;
+  if (s.profile === Npc.PACOS) t.narrative.setFactTrue(Fact.PACOS_KILLED);
 }
 
 const TAKEN_A_BEATING_QUOTE = 21;
