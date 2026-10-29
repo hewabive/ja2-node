@@ -503,7 +503,8 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
           if (forPlayer || s.monsterOrAnimal) nextCost = TravelCost.OBSTACLE;
           else {
             const mapDoor = world.mapDoors.get(ref.door);
-            if (!mapDoor?.locked || s.hasKeys) {
+            if (!mapDoor) nextCost = terrainCost(world, newLoc);
+            else if (!mapDoor.locked || s.hasKeys) {
               if (budget) goingThroughDoor = true;
               nextCost = terrainCost(world, newLoc);
             } else nextCost = TravelCost.OBSTACLE;

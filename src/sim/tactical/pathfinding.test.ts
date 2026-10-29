@@ -54,6 +54,31 @@ function walk(from: number, steps: readonly number[]): number {
   return steps.reduce((g, d) => g + (inc[d] as number), from);
 }
 
+const DOOR_GRIDNO = gridNo(80, 79);
+const AP_MOVEMENT_FLAT = 3;
+const WALK_AP_COST = -1;
+const DOOR_APS_OPEN = 3;
+
+function houseWithDoor(s: WorldStructures): void {
+  for (let x = 70; x <= 90; x++) {
+    const flags = x === 80 ? StructureFlags.DOOR | StructureFlags.OPENABLE : StructureFlags.WALL;
+    s.add(gridNo(x, 79), 0, syntheticStructure(flags, Orientation.INSIDE_LEFT));
+  }
+}
+
+function doorRecord(locked: boolean): MapDoor {
+  return {
+    gridNo: DOOR_GRIDNO,
+    locked,
+    trapLevel: 0,
+    trapId: 0,
+    lockId: 0,
+    perceivedLocked: 0,
+    perceivedTrapped: 0,
+    lockDamage: 0,
+  };
+}
+
 describe('findBestPath', () => {
   it('walks straight lines and diagonals', () => {
     const e = env();
@@ -108,30 +133,25 @@ describe('findBestPath', () => {
   });
 
   it('keeps players out of closed doors while enemies open unlocked ones', () => {
-    const house = (s: WorldStructures) => {
-      for (let x = 70; x <= 90; x++) {
-        const flags = x === 80 ? StructureFlags.DOOR | StructureFlags.OPENABLE : StructureFlags.WALL;
-        s.add(gridNo(x, 79), 0, syntheticStructure(flags, Orientation.INSIDE_LEFT));
-      }
-    };
-    const door: MapDoor = {
-      gridNo: gridNo(80, 79),
-      locked: true,
-      trapLevel: 0,
-      trapId: 0,
-      lockId: 0,
-      perceivedLocked: 0,
-      perceivedTrapped: 0,
-      lockDamage: 0,
-    };
-    const player = findBestPath(env(house), soldier(START), gridNo(80, 78), 0);
+    const player = findBestPath(env(houseWithDoor), soldier(START), gridNo(80, 78), 0);
     expect(player.length).toBeGreaterThan(10);
-    expect(findBestPath(env(house), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).steps).toEqual([NORTH, NORTH]);
-    expect(findBestPath(env(house, [], [door]), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).length).toBeGreaterThan(10);
-    expect(findBestPath(env(house, [], [door]), soldier(START, { team: Team.ENEMY, hasKeys: true }), gridNo(80, 78), 0).steps).toEqual([
-      NORTH,
-      NORTH,
-    ]);
+    expect(findBestPath(env(houseWithDoor), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).steps).toEqual([NORTH, NORTH]);
+    const locked = [doorRecord(true)];
+    expect(findBestPath(env(houseWithDoor, [], locked), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).length).toBeGreaterThan(10);
+    expect(
+      findBestPath(env(houseWithDoor, [], locked), soldier(START, { team: Team.ENEMY, hasKeys: true }), gridNo(80, 78), 0).steps,
+    ).toEqual([NORTH, NORTH]);
+  });
+
+  it('charges an AI budget for opening a closed door only when the map has a record of the door', () => {
+    const enemy = soldier(START, { team: Team.ENEMY });
+    const twoWalkingSteps = 2 * (AP_MOVEMENT_FLAT + WALK_AP_COST);
+    const throughDoor = twoWalkingSteps + DOOR_APS_OPEN;
+    const behindDoor = gridNo(80, 78);
+    expect(findBestPath(env(houseWithDoor), enemy, behindDoor, 0, { budget: twoWalkingSteps }).steps).toEqual([NORTH, NORTH]);
+    const recorded = env(houseWithDoor, [], [doorRecord(false)]);
+    expect(findBestPath(recorded, enemy, behindDoor, 0, { budget: throughDoor - 1 }).length).toBe(0);
+    expect(findBestPath(recorded, enemy, behindDoor, 0, { budget: throughDoor }).steps).toEqual([NORTH, NORTH]);
   });
 
   it('copies at most 30 steps into a route', () => {
