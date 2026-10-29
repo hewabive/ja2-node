@@ -39,6 +39,7 @@ import { NoiseKind } from '../perception/noise.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
+import { deductPoints } from '../points.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
@@ -49,10 +50,17 @@ import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { internalSoldierReadyWeapon } from './attack.ts';
 import { StatCause, statChange } from './experience.ts';
-import { beginTryingToFall, changeToFallbackAnimation, okFallDirection, releaseSoldiersAttacker } from './hit.ts';
+import {
+  beginTryingToFall,
+  changeToFallbackAnimation,
+  okFallDirection,
+  releaseSoldiersAttacker,
+  sleepDartSuccumbChance,
+  soldierCollapse,
+} from './hit.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { soldierTo3DLocationLos } from './positions.ts';
-import { AimShot, DamageReason } from './types.ts';
+import { AimShot, DamageReason, i16 } from './types.ts';
 
 export interface Corpse {
   readonly gridNo: number;
@@ -445,9 +453,11 @@ export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
       s.collapsedTurns++;
       if (boxingFight(t) && s.boxer && s.collapsedTurns > COLLAPSED_TURNS_BEFORE_KNOCKOUT) endBoxingMatch(t, s);
     }
-  } else if (s.sleepDrugCounter > 0) {
-    t.pre.int(100);
+  } else if (s.sleepDrugCounter > 0 && t.pre.int(100) < sleepDartSuccumbChance(s)) {
+    deductPoints(t.inCombat, s, 0, i16(s.breathMax * 100));
+    soldierCollapse(t, s);
   }
+  if (s.sleepDrugCounter > 0) s.sleepDrugCounter--;
 }
 
 function handleCheckForDeathCommonCode(t: TacticalState, s: Soldier): void {

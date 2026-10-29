@@ -276,7 +276,7 @@ export function weaponHit(
   eventSoldierGotHit(t, tgt, weapon, damage, breathLoss, direction, range, attacker, special, location);
 }
 
-function sleepDartSuccumbChance(s: Soldier): number {
+export function sleepDartSuccumbChance(s: Soldier): number {
   const str = effectiveStrength(s);
   const base = str > 90 ? 110 - str : str > 80 ? 120 - str : str > 70 ? 130 - str : 140 - str;
   return base + 10 - s.sleepDrugCounter;

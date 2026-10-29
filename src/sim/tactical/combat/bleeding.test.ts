@@ -2,12 +2,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { Team } from '../soldier.ts';
 import { beginMercTurn } from '../turns/turns.ts';
 import { calcSoldierNextBleed } from './bleeding.ts';
+import { beginSoldierGetup } from './death.ts';
 
 let content: TacticalContent;
 
@@ -102,5 +104,37 @@ describe('getting up at turn start', () => {
     beginMercTurn(t, s);
     expect(s.collapsed).toBe(true);
     expect(s.collapsedTurns).toBe(1);
+  });
+
+  it('keeps a soldier put to sleep by a dart down until the drug wears off, one turn at a time', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 40 });
+    t.inCombat = true;
+    s.state = anim(t.content, 'FALLBACKHIT_STOP');
+    s.collapsed = true;
+    s.breath = 60;
+    s.sleepDrugCounter = 2;
+    beginMercTurn(t, s);
+    expect(s.collapsed).toBe(true);
+    expect(s.sleepDrugCounter).toBe(1);
+    beginMercTurn(t, s);
+    expect(s.collapsed).toBe(true);
+    expect(s.sleepDrugCounter).toBe(0);
+    beginMercTurn(t, s);
+    expect(s.collapsed).toBe(false);
+  });
+
+  it('puts a drugged soldier who is still up to sleep when he fails the PreRandom roll against the drug', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 60 });
+    t.inCombat = true;
+    s.sleepDrugCounter = 5;
+    Object.assign(t, { pre: new ScriptedStream([0]) });
+    beginSoldierGetup(t, s);
+    expect(s.collapsed).toBe(true);
+    expect(s.breath).toBe(0);
+    expect(s.sleepDrugCounter).toBe(4);
   });
 });
