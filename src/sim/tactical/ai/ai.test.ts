@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { QuoteActionId } from '../../../content/narrative/npc-constants.ts';
-import { Direction, gridNo, spacesAway } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, gridNo, newGridNo, spacesAway } from '../../../content/world/grid.ts';
 import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
@@ -14,8 +14,17 @@ import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { AlertStatus, Body, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AI_DELAY, AiAction } from './actions.ts';
-import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning, handleSoldierAI } from './control.ts';
+import {
+  aiForSlot,
+  beginAiPass,
+  createAiControl,
+  executeAction,
+  freeUpFromStanceChange,
+  freeUpFromTurning,
+  handleSoldierAI,
+} from './control.ts';
 import { decideActionGreen, decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
+import { randomFriendWithin } from './destinations.ts';
 
 let content: TacticalContent;
 
@@ -129,6 +138,25 @@ describe('green real-time AI', () => {
     expect(decisions).toBe(500 / 5);
   });
 
+  it("cuts a random turn short: the turn ends through Stracciatella's movement branch and the queued wait stops it", () => {
+    const { t, hooks } = world(3);
+    const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
+    const QUEUED_WAIT_MS = 10_000;
+    guard.ai.action = AiAction.CHANGE_FACING;
+    guard.ai.actionData = Direction.NORTH;
+    guard.ai.nextAction = AiAction.WAIT;
+    guard.ai.nextActionData = QUEUED_WAIT_MS;
+    guard.ai.actionInProgress = executeAction(t, guard);
+    const facings: number[] = [];
+    run(t, hooks, 2000, () => {
+      if (facings.at(-1) !== guard.direction) facings.push(guard.direction);
+    });
+    expect(facings.length).toBeLessThan(4);
+    expect(guard.direction).not.toBe(Direction.NORTH);
+    expect(guard.desiredDirection).toBe(guard.direction);
+    expect(guard.ai.counter).toBeGreaterThan(QUEUED_WAIT_MS);
+  });
+
   it('runs the first AI tick after 55 ms starting at slot 1, so slot 0 is first visited at 110 ms', () => {
     const { t, hooks } = world(9);
     const s = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
@@ -211,5 +239,58 @@ describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
     Object.assign(t, { pre });
     expect(decideActionGreen(t, tank, createAiControl().green)).toBe(AiAction.NONE);
     expect(pre.requested).toEqual([]);
+  });
+
+  it('queues no wait after an enemy seeks a friend, only after a civilian or militiaman does', () => {
+    const PATROL_ROLL_FAILS = 99;
+    const SEEK_FRIEND_ROLL_SUCCEEDS = 0;
+    const nextActionAfterSeekingFriend = (team: number) => {
+      const { t } = world(3);
+      const s = spawn(t, team, gridNo(80, 80), Orders.FARPATROL);
+      spawn(t, team, gridNo(80, 86), Orders.STATIONARY);
+      Object.assign(t, { pre: new ScriptedStream([PATROL_ROLL_FAILS, SEEK_FRIEND_ROLL_SUCCEEDS], 0) });
+      expect(decideActionGreen(t, s, createAiControl().green)).toBe(AiAction.SEEK_FRIEND);
+      return s.ai.nextAction;
+    };
+    expect(nextActionAfterSeekingFriend(Team.ENEMY)).toBe(AiAction.NONE);
+    expect(nextActionAfterSeekingFriend(Team.MILITIA)).toBe(AiAction.WAIT);
+  });
+
+  it('skips the seek-friend roll once the patrol searched a path, even one it could not use', () => {
+    const { t } = world(3);
+    const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.ONGUARD);
+    guard.ai.patrolGrid[0] = gridNo(100, 80);
+    const PATROL_ROLL_SUCCEEDS = 0;
+    const LOOK_ROLL_FAILS = 99;
+    const pre = new ScriptedStream([PATROL_ROLL_SUCCEEDS, LOOK_ROLL_FAILS], 0);
+    Object.assign(t, { pre });
+    expect(decideActionGreen(t, guard, createAiControl().green)).toBe(AiAction.NONE);
+    expect(pre.requested).toEqual([100, 100]);
+  });
+});
+
+describe('the friend to visit (AIUtils.cc RandomFriendWithin)', () => {
+  it('never stands north of the friend and picks north-east twice as often: the direction is shifted by one', () => {
+    const { t } = world(3);
+    const visitor = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.SEEKENEMY);
+    const friend = spawn(t, Team.ENEMY, gridNo(80, 90), Orders.STATIONARY);
+    const beside = (direction: number) => newGridNo(friend.gridNo, DIRECTION_INCREMENT[direction] ?? 0);
+    const visits = new Map<number, number>();
+    for (let i = 0; i < 400; i++) {
+      expect(randomFriendWithin(t, visitor)).toBe(true);
+      visits.set(visitor.ai.actionData, (visits.get(visitor.ai.actionData) ?? 0) + 1);
+    }
+    expect(visits.has(beside(Direction.NORTH))).toBe(false);
+    expect(visits.size).toBe(7);
+    const northEast = visits.get(beside(Direction.NORTHEAST)) ?? 0;
+    for (const [tile, count] of visits) if (tile !== beside(Direction.NORTHEAST)) expect(count).toBeLessThan(northEast);
+  });
+
+  it("lets a neutral civilian visit an enemy soldier but not the other way round: the civilians' side is the enemy's", () => {
+    const { t } = world(3);
+    const civilian = spawn(t, Team.CIV, gridNo(80, 80), Orders.SEEKENEMY);
+    const soldier = spawn(t, Team.ENEMY, gridNo(80, 90), Orders.SEEKENEMY);
+    expect(randomFriendWithin(t, civilian)).toBe(true);
+    expect(randomFriendWithin(t, soldier)).toBe(false);
   });
 });

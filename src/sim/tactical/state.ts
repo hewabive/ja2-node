@@ -292,11 +292,10 @@ export interface AiPassState {
   cursor: number;
   awayCursor: number;
   handleThisPass: boolean;
-  paused: boolean;
 }
 
 export function createAiPassState(): AiPassState {
-  return { lastTickMs: 0, cursor: 0, awayCursor: RESET_AWAY_AI_CURSOR, handleThisPass: false, paused: false };
+  return { lastTickMs: 0, cursor: 0, awayCursor: RESET_AWAY_AI_CURSOR, handleThisPass: false };
 }
 
 export interface ActionItemQueue {

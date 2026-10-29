@@ -4,11 +4,12 @@
 // @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin.
 
 import { newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { DIRECTION_INCREMENT } from '../directions.ts';
+import { i8 } from '../../../core/int.ts';
+import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { inGas } from '../explosions/smoke.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
 import { estimateActionPointCost } from '../points.ts';
-import { AlertStatus, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, isCreatureOrBloodcat, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState } from '../state.ts';
 import { MAX_ROAMING_RANGE } from './actions.ts';
 
@@ -16,8 +17,10 @@ export const PathMode = { IGNORE_PATH: 0, ENSURE_PATH: 1, ENSURE_PATH_COST: 2 } 
 const NO_ROOM = 0;
 const MAX_PATROL_POINTS = 10;
 
-function step(direction: number): number {
-  return DIRECTION_INCREMENT[direction > 7 ? 1 : direction] ?? 0;
+const OUT_OF_RANGE_DIRECTION_STEPS_TO = Direction.NORTHEAST;
+
+function directionInc(direction: number): number {
+  return DIRECTION_INCREMENT[direction < DIRECTION_COUNT ? direction : OUT_OF_RANGE_DIRECTION_STEPS_TO] ?? 0;
 }
 
 export function roomAt(t: TacticalState, g: number): number {
@@ -153,8 +156,6 @@ const MAX_AP_CARRIED = 5;
 const AP_START_RUN_COST = 1;
 const PATH_CLOSE_GOOD_ENOUGH = 0x04;
 
-const isCreatureOrBloodcat = (s: Soldier) => (s.bodyType >= 4 && s.bodyType <= 10) || s.bodyType === 20;
-
 export function internalGoAsFarAsPossibleTowards(
   t: TacticalState,
   s: Soldier,
@@ -178,7 +179,7 @@ export function internalGoAsFarAsPossibleTowards(
     if (isCreatureOrBloodcat(s)) return NOWHERE;
     let found = false;
     for (const d of shuffledDirections(t)) {
-      const candidate = newGridNo(dest, step(d));
+      const candidate = newGridNo(dest, directionInc(d));
       if (candidate === dest) continue;
       if (legalNPCDestination(t, s, candidate, PathMode.ENSURE_PATH, false, 0)) {
         dest = candidate;
@@ -194,7 +195,7 @@ export function internalGoAsFarAsPossibleTowards(
   const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
   let i = 0;
   for (; i < s.pathSize - s.pathIndex; i++) {
-    const next = newGridNo(go, step(s.path[i] ?? 0));
+    const next = newGridNo(go, directionInc(s.path[i] ?? 0));
     if (next === go) break;
     if (spacesAway(origin, next) > range) break;
     if (roomRequired !== NO_ROOM && roomRequired !== roomAt(t, next)) break;
@@ -203,7 +204,7 @@ export function internalGoAsFarAsPossibleTowards(
     if (t.inCombat) {
       if (i === 0 && s.uiMovementMode === running) apCost += AP_START_RUN_COST;
       apCost += estimateActionPointCost(ctx, s, next, s.path[i] ?? 0, s.uiMovementMode, i, s.pathSize);
-      apsLeft = ((s.actionPoints - apCost) << 24) >> 24;
+      apsLeft = i8(s.actionPoints - apCost);
     }
     if (t.inCombat && apsLeft < reserve) break;
     go = next;
@@ -247,7 +248,7 @@ export function randomFriendWithin(t: TacticalState, s: Soldier): boolean {
         do direction = t.rng.int(8);
         while (checked[direction]);
         checked[direction] = true;
-        const dest = newGridNo(chosen.gridNo, step(direction + 1));
+        const dest = newGridNo(chosen.gridNo, directionInc(direction + 1));
         if (dest === chosen.gridNo) continue;
         if (spacesAway(origin, dest) <= range && legalNPCDestination(t, s, dest, PathMode.ENSURE_PATH, false, 0)) {
           s.ai.actionData = dest;

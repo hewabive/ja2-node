@@ -6,6 +6,7 @@
 // @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
+import { i16 } from '../../../core/int.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -246,10 +247,6 @@ function lookChance(s: Soldier): number {
   return chance;
 }
 
-function asInt16(n: number): number {
-  return (n << 16) >> 16;
-}
-
 export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHooks): number {
   const ai = s.ai;
   const stats = t.pathEnv.stats;
@@ -309,7 +306,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   }
   if (pathSearches() === 0) {
     const chance = patrolChance(s);
-    if (inWater || asInt16(t.pre.int(100)) < chance) {
+    if (inWater || i16(t.pre.int(100)) < chance) {
       ai.actionData = randDestWithinRange(t, s);
       if (ai.actionData !== NOWHERE) ai.actionData = goAsFarAsPossibleTowards(t, s, ai.actionData, AiAction.RANDOM_PATROL, mode);
       if (ai.actionData !== NOWHERE) {
@@ -323,7 +320,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   }
   if (pathSearches() === 0) {
     const chance = seekFriendChance(s);
-    if (asInt16(t.pre.int(100)) < chance && randomFriendWithin(t, s)) {
+    if (i16(t.pre.int(100)) < chance && randomFriendWithin(t, s)) {
       if (ai.actionData === goAsFarAsPossibleTowards(t, s, ai.actionData, AiAction.SEEK_FRIEND, mode)) {
         if (isCivOrMilitia(s) && !t.inCombat) {
           ai.nextAction = AiAction.WAIT;
@@ -333,7 +330,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
       }
     }
   }
-  if (ai.lastAction !== AiAction.CHANGE_FACING && asInt16(t.pre.int(100)) < lookChance(s)) {
+  if (ai.lastAction !== AiAction.CHANGE_FACING && i16(t.pre.int(100)) < lookChance(s)) {
     do {
       if (ai.dominantDir >= 0 && ai.dominantDir <= 8 && s.direction !== ai.dominantDir && t.pre.int(2) !== 0)
         ai.actionData = ai.dominantDir;
