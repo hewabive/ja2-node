@@ -11,9 +11,9 @@ import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
-import { ObjectFlags } from '../../items/object.ts';
+import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
@@ -33,7 +33,7 @@ import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
-import { TERRORISTS } from '../narrative/constants.ts';
+import { Profile, TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
 import { NoiseKind } from '../perception/noise.ts';
@@ -93,6 +93,12 @@ const FALL_TO_GROUND_CODE = 721;
 const HEAVY_FALL_CODE = 722;
 const STANDING_FALL_JAR_DAMAGE = 20;
 const CROUCHED_FALL_JAR_DAMAGE = 15;
+const QUEEN_MONSTER_DEAD = 'QUEEN_MONSTER_DEAD';
+const QUEEN_BLOOD_JAR = 'JAR_QUEEN_CREATURE_BLOOD';
+const QUEEN_BLOOD_JAR_STATUS = 100;
+const QUEEN_BLOOD_JARS_ON_EASY = 6;
+const QUEEN_BLOOD_ROWS_SOUTH = 2;
+const DIFFICULTY_EASY = 1;
 
 const DEATH_FROM_FALL: Readonly<Record<string, string>> = {
   FLYBACK_HIT: 'FLYBACK_HIT_DEATH',
@@ -301,22 +307,46 @@ function reduceAmmoDroppedByNonPlayerSoldiers(t: TacticalState, s: Soldier, o: S
   o.count = 1 + t.rng.int(o.count);
 }
 
-function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
-  if (s.gridNo < 0) return false;
-  const visible = s.team === Team.OUR ? Visibility.VISIBLE : Visibility.INVISIBLE;
-  if (s.bodyType !== Body.ROBOTNOWEAPON) {
-    for (const o of s.inv) {
-      if (o.item === NOTHING) continue;
-      if (!(o.flags & ObjectFlags.UNDROPPABLE) || s.team === Team.OUR) {
-        if (!((t.content.items.byIndex.get(o.item)?.flags ?? 0) & ItemFlags.DEFAULT_UNDROPPABLE)) {
-          reduceAmmoDroppedByNonPlayerSoldiers(t, s, o);
-          addItemToPool(t, s.gridNo, o, visible, s.level);
-        }
+function dropsVisible(s: Soldier): number {
+  return s.team === Team.OUR || s.profile === Profile.QUEEN ? Visibility.VISIBLE : Visibility.INVISIBLE;
+}
+
+function dropInventory(t: TacticalState, s: Soldier, visible: number): void {
+  for (const o of s.inv) {
+    if (o.item === NOTHING) continue;
+    if (!(o.flags & ObjectFlags.UNDROPPABLE) || s.team === Team.OUR) {
+      if (!((t.content.items.byIndex.get(o.item)?.flags ?? 0) & ItemFlags.DEFAULT_UNDROPPABLE)) {
+        reduceAmmoDroppedByNonPlayerSoldiers(t, s, o);
+        addItemToPool(t, s.gridNo, o, visible, s.level);
       }
     }
-    dropKeysInKeyRing(t, s, s.gridNo, s.level, visible);
   }
+  dropKeysInKeyRing(t, s, s.gridNo, s.level, visible);
+}
+
+function queenBloodJars(t: TacticalState): number {
+  return QUEEN_BLOOD_JARS_ON_EASY - (t.options.difficulty - DIFFICULTY_EASY);
+}
+
+function dropQueenBlood(t: TacticalState, s: Soldier, visible: number): void {
+  const jar = t.content.items.byName.get(QUEEN_BLOOD_JAR)?.index ?? NOTHING;
+  const below = s.gridNo + WORLD_COLS * QUEEN_BLOOD_ROWS_SOUTH;
+  const count = queenBloodJars(t);
+  for (let k = 0; k < count; k++) addItemToPool(t, below, createItem(t.content.items, jar, QUEEN_BLOOD_JAR_STATUS), visible, s.level);
+}
+
+function isQueenMonsterCorpse(t: TacticalState, type: number): boolean {
+  return t.content.corpses.table.types[type] === QUEEN_MONSTER_DEAD;
+}
+
+function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
+  if (s.gridNo < 0) return false;
   const type = corpseTypeFor(t.content.corpses.table, s.bodyType, s.state);
+  const visible = dropsVisible(s);
+  if (s.bodyType !== Body.ROBOTNOWEAPON) {
+    if (isQueenMonsterCorpse(t, type)) dropQueenBlood(t, s, visible);
+    else dropInventory(t, s, visible);
+  }
   const direction = corpseDirection(s);
   removeOccupant(t, s);
   removeMercStructure(t, s);

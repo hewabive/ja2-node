@@ -108,4 +108,5 @@ Inferred from reading the source:
 - Which draws the item-locator quote makes. `HandleKilledQuote` is not ported (gaps "Kill quotes").
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Implications of an attack", "Morale without drugs", "Corpses", "Unseen soldiers in combat".
+Not ported: gaps "Items seen at a death", "Implications of an attack", "Morale without drugs", "Corpses", "Unseen
+soldiers in combat".

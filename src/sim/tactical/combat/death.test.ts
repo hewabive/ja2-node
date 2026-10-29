@@ -4,7 +4,7 @@ import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../../content/vfs/vfs.ts';
-import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { createItems, type ItemObject } from '../../items/object.ts';
@@ -14,9 +14,11 @@ import { changeSoldierState, initNewSoldierAnim } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { loadTacticalContent } from '../load-content.ts';
+import { Profile } from '../narrative/constants.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { Visibility } from '../world-items.ts';
 import type { RandomStream } from './context.ts';
 import { deathOpcode, handleSoldierDeath } from './death.ts';
 
@@ -78,6 +80,48 @@ describe('going down unconscious (Soldier_Ani.cc HandleCheckForDeathCommonCode)'
     expect(other.s.collapsed).toBe(true);
     expect(other.s.collapsedTurns).toBe(0);
     expect(other.pose).toBe('STAND_FALLFORWARD_STOP');
+  });
+});
+
+describe('the drops at death (Rotting_Corpses.cc TurnSoldierIntoCorpse)', () => {
+  function dropsOf(team: number, profile?: number) {
+    const sim = newCombatSim(content);
+    const at = gridNo(80, 85);
+    const s = spawnSoldier(sim, TEAM_FIRST_ID[team] ?? 0, team, at, Direction.NORTH, profile === undefined ? {} : { profile });
+    s.life = 0;
+    handleSoldierDeath(sim.state, s);
+    return sim.state.worldItems.filter((i) => i.gridNo === at).map((i) => i.visible);
+  }
+
+  it('drops Deidranna’s items visible, as only our mercs’ are otherwise', () => {
+    expect(dropsOf(Team.CIV, Profile.QUEEN)).toEqual([Visibility.VISIBLE]);
+    expect(dropsOf(Team.CIV)).toEqual([Visibility.INVISIBLE]);
+    expect(dropsOf(Team.ENEMY)).toEqual([Visibility.INVISIBLE]);
+  });
+
+  it('leaves the creature queen’s inventory and drops 6, 5 or 4 jars of her blood two rows south of her by difficulty', () => {
+    function queenDrops(difficulty: number) {
+      const sim = newCombatSim(content);
+      Object.assign(sim.state.options, { difficulty });
+      const at = gridNo(80, 85);
+      const queen = spawnSoldier(sim, TEAM_FIRST_ID[Team.CREATURE], Team.CREATURE, at, Direction.NORTH);
+      queen.bodyType = Body.QUEENMONSTER;
+      queen.state = anim(sim.state.content, 'QUEEN_DIE');
+      queen.life = 0;
+      handleSoldierDeath(sim.state, queen);
+      const jar = sim.state.content.items.byName.get('JAR_QUEEN_CREATURE_BLOOD')?.index;
+      return sim.state.worldItems.map((i) => ({
+        at: i.gridNo - at,
+        jar: i.object.item === jar,
+        status: i.object.status[0],
+        visible: i.visible,
+      }));
+    }
+    const jars = (n: number) =>
+      Array.from({ length: n }, () => ({ at: 2 * WORLD_COLS, jar: true, status: 100, visible: Visibility.INVISIBLE }));
+    expect(queenDrops(1)).toEqual(jars(6));
+    expect(queenDrops(2)).toEqual(jars(5));
+    expect(queenDrops(3)).toEqual(jars(4));
   });
 });
 
