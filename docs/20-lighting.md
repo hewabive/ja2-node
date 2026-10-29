@@ -53,7 +53,7 @@ output, which Stracciatella ships converted in its `light-templates.json`. ja2-n
 conversion (`asShippedTemplate`), so nothing derived from the data is in the repository; the generator's double
 arithmetic is plain IEEE and runs unchanged. A data test checks the result against the user's `.LHT` files. `Light0` …
 `Light6` (flares, break lights, merc lights) cannot be generated and come from Stracciatella's file in
-`data/externalized/`. `TRANSLUC.LHT` there drives only wall translucency (deviation "Wall translucency template").
+`data/externalized/`. `TRANSLUC.LHT` there drives only wall translucency (gaps "Wall translucency").
 
 **Lights change only when drawn.** A sprite adds its light when placed and subtracts it when moved or destroyed;
 `lightSetBaseLevel` and `lightSpriteRenderAll` draw every powered sprite again. Switching power shows at the next
@@ -110,7 +110,6 @@ the source:
 - The window rule skips the original's test for a struct node on the window tile: all 1,853 window structures of the
   260 original maps are single-tile and carry their own node.
 
-Not ported: gaps "Cave lights", "Exposed tiles and mines in the pathfinder" (behind `avoid_light_tiles_at_night`, off
-in Stracciatella's default policy), "AI flares underground", "Savegame import" (light effect records). Other deviations
-of this domain: "Light on structures", "Ambient light and light schedule", "Wall translucency template", "Doors and
+Not ported: gaps "Cave lights", "Mines in the pathfinder", "AI flares underground", "Savegame import" (light effect records). Other deviations
+of this domain: "Light on structures", "Ambient light and light schedule", "Doors and
 light in the projection", "World clock for smoke and light".

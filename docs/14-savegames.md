@@ -197,7 +197,7 @@ save's SHA-256, and a replay refuses a changed save.
 
 0. The tactical clock from `guiBaseJA2Clock`, the loaded sector (`t.sector`), the civilian group hostility
    (`fCivGroupHostile`), the key table, profile progress (`progressFromProfile`), and the map lights loaded for the
-   saved hour (`LoadMapLights` runs after `LoadGameClock`, `docs/20` §4).
+   saved hour (`LoadMapLights` runs after `LoadGameClock`, `docs/20`).
 1. World items replace the map items (`AddItemToPool` with the saved visibility, flags and z height;
    `WORLD_ITEM_GRIDNO_NOT_SET_USE_ENTRY_POINT` goes to the centre entry point).
 2. Rotting corpses add their corpse structures.

@@ -326,7 +326,7 @@ The viewport size never reaches the simulation. A sharp-bilinear fit for non-int
 
 The tactical world renderer (`src/render/world/`, fed by `TacticalWorldView`, `src/app/world/tactical-world-view.ts`,
 and the per-session world presenter, `src/app/tactical/world-presenter.ts`) draws the original's passes, z values and
-shading as `05` specifies; the client's lighting is `20` §8.
+shading as `05` specifies; the client's lighting is `20`.
 
 | Part | Implementation |
 |---|---|
