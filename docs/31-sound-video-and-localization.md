@@ -277,7 +277,7 @@ beginning (`rebel_cr`, `omerta`, `prague_cr`, `prague`), five for the ending (`t
 `heli_flyby`, `heli_sky` or `heli_nosky`), the splash (`splashscreen`) and a TalonSoft logo that is never played
 (`talonsoftid_endhold`, `Intro.cc:322`, commented out). Only `Intro.cc` uses SMK: the A.I.M. video conference is the
 animated face system with STI static (`Laptop/AIMMembers.cc:1619-1627`, `:1866-1899`); a new game's helicopter drop is
-a tactical animation (`Tactical/Merc_Entering.cc:686-700`); meanwhile scenes are tactical scenes (`26` §1.6).
+a tactical animation (`Tactical/Merc_Entering.cc:686-700`); meanwhile scenes are tactical scenes (`26`).
 
 **Sequences** (`GetNextIntroVideo`, `Intro.cc:252-329`; the mode enum `Intro.h:12-18`):
 
@@ -285,7 +285,7 @@ a tactical animation (`Tactical/Merc_Entering.cc:686-700`); meanwhile scenes are
 |---|---|---|---|
 | `INTRO_SPLASH` | the splash | process start, English and Chinese versions only (`src/sgp/SGP.cc:441-444`); other versions blit an MLG splash picture (`JA2_Splash.cc:17-25`) | the Sir-Tech logo picture (`Intro.cc:364-370`), then the main menu after 500 ms (`JAScreens.h:8`) |
 | `INTRO_BEGINING` | the four beginning videos in order (`Intro.cc:262-278`) | every new game, after the game init options screen (`GameInitOptionsScreen.cc:725-730`); in Dead is Dead mode after the save screen (`:722-723`, `SaveLoadScreen.cc:1476-1494`) | `INIT_SCREEN` → `InitNewGame` → the laptop (`Intro.cc:229`, `JAScreens.cc:181-185`) |
-| `INTRO_ENDING` | Miguel's throne video by `gMercProfiles[MIGUEL].bMercStatus == MERC_IS_DEAD`, the fly-by, Skyrider's helicopter video by the same test on SKYRIDER (`Intro.cc:289-311`) | `DoneFadeOutEndCinematic` (`Tactical/End_Game.cc:351-366`, `26` §6.7) | `ReStartingGame()` and the credits (`Intro.cc:239-245`), then the main menu (`Credits.cc:169-186`) |
+| `INTRO_ENDING` | Miguel's throne video by `gMercProfiles[MIGUEL].bMercStatus == MERC_IS_DEAD`, the fly-by, Skyrider's helicopter video by the same test on SKYRIDER (`Intro.cc:289-311`) | `DoneFadeOutEndCinematic` (`Tactical/End_Game.cc:351-366`, `26`) | `ReStartingGame()` and the credits (`Intro.cc:239-245`), then the main menu (`Credits.cc:169-186`) |
 
 No setting turns the intro off: the beginning sequence plays on every new game and can only be skipped. Skipping
 (`Intro.cc:199-217`, on key up): Escape ends the sequence, Space or any mouse button the current video. While a sequence
@@ -340,7 +340,7 @@ decodes in about 1.4 ms on average and under 9 ms at worst (the first, full fram
 
 **Presentation only.** No video blocks the simulation or the server. The beginning intro plays in the browser while the
 new campaign session already exists and waits in its laptop flow (no input needed until the player acts); the ending
-plays after `campaignWon` from `observe.ended.ending {miguelAlive, skyriderAlive}` (`26` §7), the two choices of
+plays after `campaignWon` from `observe.ended.ending {miguelAlive, skyriderAlive}` (`26`), the two choices of
 `GetNextIntroVideo`. Agents never see videos.
 
 **No transcoding** to WebM or MP4, neither in the repository nor in a server cache: the browser decodes the user's own

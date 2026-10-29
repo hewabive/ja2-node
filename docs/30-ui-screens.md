@@ -233,7 +233,7 @@ steps, no cursor during a fade.
   (`:478-483`); **decision:** the simulation makes that warp and its draw at the action (`35`). The screen holds
   the real-time driver like a modal (deviation "San Mona screen and time"). It has no golden (no stub brothel scenario);
   `san-mona.test.ts` covers it.
-- The original has no defeat screen (`26` §6.8).
+- The original has no defeat screen (`26`).
 
 ### 1.12 Front-end hotkeys
 
@@ -1260,11 +1260,11 @@ arrive before the page has a tactical screen reach it when it is built.
   interrogation) open `BringupMeanwhileBox`'s BASIC box `"<MSG_MEANWHILE>....."` over whatever screen the event reaches
   (`meanwhile-box.ts`): OK alone for the interrogation or a scene the client setting `meanwhileScenesSeen` does not
   mark, OK and Skip otherwise. The simulation applies the original's gates (PBI closed, no panel switch, empty dialogue
-  queue; `26` §1.5), so the event arrives at the right moment.
+  queue; `26`), so the event arrives at the right moment.
 - The box is a client modal: the real-time driver goes manual while it is up (`28` §1.4; deviation "Meanwhile box
   timing").
 - Meduna scenes are not played (deviations "Meanwhile scenes"; gaps "Meanwhile scene playback": the scene sandbox of
-  `26` §2.4 is not built). OK and Skip both continue; a scene is marked seen only when played, as in the original, so
+  `26` is not built). OK and Skip both continue; a scene is marked seen only when played, as in the original, so
   none is ever marked and Skip shows only where the setting already marks the scene.
 
 ### 7.2 The interrogation

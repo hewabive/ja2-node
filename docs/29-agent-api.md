@@ -411,7 +411,7 @@ plays the open and close sounds from the changes of `openContainers` (`GetStruct
 of a Bobby Ray crate in the frame of its `shipmentDelivered` (`CloseCrate`).
 
 **`useRemote {soldier}`** presses the remote trigger in hand: 2 AP, 2 more when standing. In O3's statue room it opens
-the statue (`statueOpened {sector: 'O3', destroyed: false}` and an exit grid down to O3 b1, `26` §5.3); an explosion
+the statue (`statueOpened {sector: 'O3', destroyed: false}` and an exit grid down to O3 b1, `26`); an explosion
 next to the statue opens it too (`destroyed: true`). `data {result: statueOpened|nothing}`, `remoteUsed {soldier,
 result}`.
 
@@ -957,7 +957,7 @@ amount, accepted}`, `repairQueued {dealer, item, owner, doneAt}`, `repairCollect
 
 ## 24. Quests, meanwhiles and the ending
 
-Rules: `25` (quests), `26` §2 (meanwhiles), `26` §3 (prisoners), `26` §6, `26` §7 (the end). Scenes and the
+Rules: `25` (quests), `26` (meanwhiles), `26` (prisoners), `26`, `26` (the end). Scenes and the
 ending are not player actions: no command or prompt of their own; the flows `meanwhile`, `endgame` and `ended` lock the
 UI as the original does (§5).
 
