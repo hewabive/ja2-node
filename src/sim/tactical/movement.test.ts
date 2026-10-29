@@ -12,6 +12,7 @@ import type { TacticalContent } from './content.ts';
 import {
   getNewSoldierPath,
   handleAtNewGridNo,
+  handleGotoNewGridNo,
   handleNextTile,
   moveMerc,
   setSoldierDestination,
@@ -170,6 +171,26 @@ describe('walking', () => {
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));
+  });
+});
+
+describe('paying for a step', () => {
+  it('does not charge the first crawl step again after getting up to turn', () => {
+    const crawling = states(content.animations).CRAWLING;
+    const apsAfterFirstStep = (turning: number) => {
+      const t = tactical();
+      t.inCombat = true;
+      const s = spawn(t, START);
+      s.actionPoints = 20;
+      s.path = [Direction.EAST];
+      s.pathSize = 1;
+      s.finalDestination = START + 1;
+      s.turningFromPronePosition = turning;
+      expect(handleGotoNewGridNo(t, s, true, crawling).keepMoving).toBe(true);
+      return s.actionPoints;
+    };
+    expect(apsAfterFirstStep(TurningFromProne.OFF)).toBeLessThan(20);
+    expect(apsAfterFirstStep(TurningFromProne.ENDING_UP_FROM_MOVE)).toBe(20);
   });
 });
 

@@ -331,10 +331,14 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     return { ok: true, keepMoving: false };
   }
   if (t.hooks.runningIntoGas(t, s)) return { ok: true, keepMoving: false };
-  deductPoints(t.inCombat, s, ap, bp);
+  if (!stepPaidBeforeGettingUpToTurn(t, s, animState)) deductPoints(t.inCombat, s, ap, bp);
   setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
   return { ok: true, keepMoving: true };
+}
+
+function stepPaidBeforeGettingUpToTurn(t: TacticalState, s: Soldier, animState: number): boolean {
+  return animState === states(t.content.animations).CRAWLING && s.turningFromPronePosition >= TurningFromProne.START_UP_FROM_MOVE;
 }
 
 export function haltMoveForSoldierOutOfPoints(t: TacticalState, s: Soldier): void {
