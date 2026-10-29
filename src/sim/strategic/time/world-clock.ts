@@ -276,31 +276,46 @@ export function updateClock(ctx: ClockContext, realMs: number): void {
     return;
   }
   if (ctx.inCombat()) return;
-  d.lastSecondMs = Math.max(realMs - REAL_MS_PER_SECOND, d.lastSecondMs);
-  const elapsed = realMs - d.lastSecondMs;
-  if (elapsed >= REAL_MS_PER_SECOND && c.resolution === 1) {
-    d.lastSecondMs = realMs;
-    d.timesThisSecond = 0;
-    d.lastProcessed = 0;
-    advanceClock(ctx, Warp.NORMAL);
+  const oneRealSecondAgo = realMs - REAL_MS_PER_SECOND;
+  d.lastSecondMs = Math.max(oneRealSecondAgo, d.lastSecondMs);
+  const elapsedMs = realMs - d.lastSecondMs;
+  if (c.resolution === 1) {
+    if (elapsedMs >= REAL_MS_PER_SECOND) advanceOneSecond(ctx, realMs);
     return;
   }
-  if (c.resolution <= 1) return;
-  if (c.resolution !== d.lastResolution) {
-    d.timesThisSecond = Math.trunc((d.timesThisSecond * c.resolution) / d.lastResolution);
-    d.lastProcessed = Math.trunc((d.lastProcessed * c.resolution) / d.lastResolution);
-    d.lastResolution = c.resolution;
-  }
-  const slice = Math.trunc(MICROS_PER_SECOND / c.resolution);
-  if (elapsed < Math.trunc((slice * (d.timesThisSecond + 1)) / REAL_MS_PER_SECOND)) return;
-  d.timesThisSecond = Math.trunc((elapsed * REAL_MS_PER_SECOND) / slice);
-  const processed = Math.max(Math.trunc((c.secondsPerRealSecond * d.timesThisSecond) / c.resolution), d.lastProcessed);
-  warpGameTime(ctx, processed - d.lastProcessed, Warp.NORMAL);
-  if (processed < c.secondsPerRealSecond) {
-    d.lastProcessed = processed;
+  advanceDueSlices(ctx, realMs, elapsedMs);
+}
+
+function advanceOneSecond(ctx: ClockContext, realMs: number): void {
+  const d = ctx.clock.driver;
+  d.lastSecondMs = realMs;
+  d.timesThisSecond = 0;
+  d.lastProcessed = 0;
+  advanceClock(ctx, Warp.NORMAL);
+}
+
+function rescaleToResolution(d: ClockDriver, resolution: number): void {
+  d.timesThisSecond = Math.trunc((d.timesThisSecond * resolution) / d.lastResolution);
+  d.lastProcessed = Math.trunc((d.lastProcessed * resolution) / d.lastResolution);
+  d.lastResolution = resolution;
+}
+
+function advanceDueSlices(ctx: ClockContext, realMs: number, elapsedMs: number): void {
+  const c = ctx.clock;
+  const d = c.driver;
+  if (c.resolution !== d.lastResolution) rescaleToResolution(d, c.resolution);
+  const microsPerSlice = Math.trunc(MICROS_PER_SECOND / c.resolution);
+  const nextSliceDueMs = Math.trunc((microsPerSlice * (d.timesThisSecond + 1)) / REAL_MS_PER_SECOND);
+  if (elapsedMs < nextSliceDueMs) return;
+  d.timesThisSecond = Math.trunc((elapsedMs * REAL_MS_PER_SECOND) / microsPerSlice);
+  const secondsDue = Math.max(Math.trunc((c.secondsPerRealSecond * d.timesThisSecond) / c.resolution), d.lastProcessed);
+  warpGameTime(ctx, secondsDue - d.lastProcessed, Warp.NORMAL);
+  if (secondsDue < c.secondsPerRealSecond) {
+    d.lastProcessed = secondsDue;
     return;
   }
-  d.lastProcessed = processed % c.secondsPerRealSecond;
-  d.timesThisSecond = c.resolution > 0 ? d.timesThisSecond % c.resolution : 0;
+  const compressionStoppedInWarp = c.resolution === 0;
+  d.lastProcessed = secondsDue % c.secondsPerRealSecond;
+  d.timesThisSecond = compressionStoppedInWarp ? 0 : d.timesThisSecond % c.resolution;
   d.lastSecondMs = realMs;
 }

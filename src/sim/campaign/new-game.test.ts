@@ -7,8 +7,16 @@ import { parseSectorId, sectorFromId } from '../../content/strategic/sector-ids.
 import { gameOptions } from '../options.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { createStrategicState } from '../strategic/state.ts';
-import { CompressMode, EventKind, FIRST_ARRIVAL_DELAY, Frequency, STARTING_TIME } from '../strategic/time/constants.ts';
-import { worldHour } from '../strategic/time/world-clock.ts';
+import {
+  CompressMode,
+  EventKind,
+  FIRST_ARRIVAL_DELAY,
+  Frequency,
+  NUM_SEC_IN_HOUR,
+  STARTING_TIME,
+  Warp,
+} from '../strategic/time/constants.ts';
+import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { createSoldier, Team } from '../tactical/soldier.ts';
 import { CampaignSim } from './campaign-sim.ts';
@@ -19,6 +27,8 @@ import { Roster } from './roster.ts';
 let content: EconomyTestContent;
 let army: ArmyContent;
 let tactical: TacticalContent;
+
+const ONE_HOUR = NUM_SEC_IN_HOUR;
 
 beforeAll(async () => {
   content = await loadEconomyTestContent();
@@ -125,5 +135,36 @@ describe('a new game', () => {
     expect(state.didGameJustStart).toBe(false);
     expect(worldHour(state.clock)).toBe(7);
     expect(roster.all().every((m) => m.groupId > 0 && m.assignment === 0)).toBe(true);
+  });
+
+  it('runs no hourly or quarter-hour update in the warp to the first landing, only after it', () => {
+    const state = createStrategicState({ seed: 9 });
+    const roster = new Roster({
+      state: state.roster,
+      content: tactical,
+      combat: () => {
+        throw new Error('no combat');
+      },
+    });
+    let hourly = 0;
+    let quarterHourly = 0;
+    const campaign = new CampaignSim(state, null, {
+      strategic: { content: content.strategic, mercs: roster },
+      economy: {
+        economy: content.economy,
+        items: content.items,
+        crew: roster,
+        slots: { hourlyCamouflageUpdate: () => hourly++, decayTacticalMoraleModifiers: () => quarterHourly++ },
+      },
+      queen: { army },
+      loadStartSector: () => {},
+    });
+    initNewGame(campaign);
+    hireMerc(campaign, roster, recruit, tactical);
+    expect(campaign.dispatch({ type: 'compressTime', mode: CompressMode.MIN5 })).toEqual({ ok: true });
+    expect(worldHour(state.clock)).toBe(7);
+    expect([hourly, quarterHourly]).toEqual([0, 0]);
+    warpGameTime(campaign.clockContext, ONE_HOUR, Warp.NORMAL);
+    expect([hourly, quarterHourly]).toEqual([1, 4]);
   });
 });

@@ -7,11 +7,13 @@ import {
   CompressionStop,
   createWorldClock,
   isDayTime,
+  lockPauseState,
   midnightOfFutureDayInMinutes,
   pauseGame,
   setGameTimeCompressionLevel,
   startTimeCompression,
   stopTimeCompression,
+  unLockPauseState,
   unPauseGame,
   updateClock,
   worldDay,
@@ -191,5 +193,20 @@ describe('UpdateClock on 5 ms ticks', () => {
     h.compressionRefusal = () => 'enemies in sector';
     expect(startTimeCompression(h)).toBe('enemies in sector');
     expect(h.clock.compressionOn).toBe(false);
+  });
+});
+
+describe('pause locks', () => {
+  it('keeps one lock for every reason, so any unlock lifts it', () => {
+    const MEANWHILE_LOCK = 6;
+    const CONVERSATION_LOCK = 14;
+    const c = createWorldClock();
+    pauseGame(c);
+    lockPauseState(c, MEANWHILE_LOCK);
+    lockPauseState(c, CONVERSATION_LOCK);
+    expect(unPauseGame(c)).toBe(false);
+    unLockPauseState(c);
+    expect(unPauseGame(c)).toBe(true);
+    expect(c.paused).toBe(false);
   });
 });
