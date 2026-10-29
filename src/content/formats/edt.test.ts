@@ -48,6 +48,13 @@ describe('EDT rows', () => {
     expect(decodeEdtRow(rawRow([0xc1]), 0, DIALOGUE_SIZE, 'english')).toBe('À');
   });
 
+  it('leave the CP1251 letters Ё and ё and the sign № outside that range as their CP1252 characters', () => {
+    const cp1251 = { YO: 0xa8, SMALL_YO: 0xb8, NUMERO: 0xb9 };
+    const rot1 = (unit: number) => unit + 1;
+    const row = rawRow([cp1251.YO, cp1251.SMALL_YO, cp1251.NUMERO].map(rot1));
+    expect(decodeEdtRow(row, 0, DIALOGUE_SIZE, 'russian')).toBe('¨¸¹');
+  });
+
   it('decode multi-column records column by column', () => {
     const columns = [8, 4, 6];
     const file = encodeEdtRecords(

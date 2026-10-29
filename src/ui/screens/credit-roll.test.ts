@@ -61,7 +61,7 @@ describe('credits roll', () => {
 });
 
 describe('credit row feed', () => {
-  it('prefetches rows in order from row 1 and reports the end at the first missing row', async () => {
+  it('never reads row 0 (the original counts its record up before the first read), prefetches in order and ends at the first missing row', async () => {
     const asked: number[] = [];
     const feed = new CreditRowFeed(async (row) => {
       asked.push(row);
