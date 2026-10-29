@@ -30,6 +30,7 @@ import { handlePlayerServices, handleTeamServices } from '../first-aid.ts';
 import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
+import { removePendingAction } from '../pending-action.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
 import {
@@ -55,6 +56,8 @@ import {
   CivilianGroup,
   isMonster,
   NO_INTERRUPT,
+  NO_PENDING_ANIMATION,
+  NO_PENDING_DIRECTION,
   NO_PROFILE,
   NOWHERE,
   OKLIFE,
@@ -412,8 +415,9 @@ export function exitCombatMode(t: TacticalState): void {
       adjustNoAPToFinishMove(s, false);
       soldierGotoStationaryStance(t, s);
     }
-    s.pendingAnimation = -1;
-    s.pendingDirection = -1;
+    s.pendingAnimation = NO_PENDING_ANIMATION;
+    s.pendingDirection = NO_PENDING_DIRECTION;
+    removePendingAction(t, s);
     s.moved = false;
     s.finalDestination = s.gridNo;
     s.aiTurnControl = false;

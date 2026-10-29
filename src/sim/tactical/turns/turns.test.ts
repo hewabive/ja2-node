@@ -11,6 +11,7 @@ import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { hasPendingAction } from '../pending-action.ts';
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints } from '../points.ts';
 import { AlertStatus, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
@@ -187,6 +188,21 @@ describe('turn-based combat', () => {
     expect(events.some((e) => e.type === 'turnStarted')).toBe(false);
     expect(t.inCombat).toBe(false);
     expect(enemy.moved).toBe(false);
+  });
+
+  it('drops the pending actions of everyone when combat ends (Overhead.cc ExitCombatMode)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    merc.pendingTalk = enemy.id;
+    enemy.pendingTalk = merc.id;
+    t.turn.consNumTurnsNotSeen = 5;
+    merc.oppList[enemy.id] = Opp.NOT_HEARD_OR_SEEN;
+    enemy.oppList[merc.id] = Opp.NOT_HEARD_OR_SEEN;
+    expect(checkForEndOfCombatMode(t, false)).toBe(true);
+    expect([hasPendingAction(merc), hasPendingAction(enemy)]).toEqual([false, false]);
   });
 
   it('passes the turn when the end-of-combat check keeps combat going, without counting a turn nobody saw anyone', () => {
