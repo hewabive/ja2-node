@@ -7,7 +7,7 @@ import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { AiAction } from '../ai/actions.ts';
-import { initNewSoldierAnim, states } from '../animation.ts';
+import { initNewSoldierAnim, states, TurningFromProne } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
@@ -17,7 +17,13 @@ import { calcActionPoints } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
-import { checkForEndOfCombatMode, checkForPotentialAddToBattleIncrement } from './turns.ts';
+import {
+  addToIntList,
+  checkForEndOfCombatMode,
+  checkForPotentialAddToBattleIncrement,
+  displayHiddenInterrupt,
+  doneAddingToIntList,
+} from './turns.ts';
 
 let content: TacticalContent;
 
@@ -312,5 +318,54 @@ describe('the battle increment', () => {
     friendly.civ.side = Side.FRIENDLY;
     checkForPotentialAddToBattleIncrement(friendly.t, friendly.civ);
     expect([neutral.t.turn.numFoughtInBattle[Team.CIV], friendly.t.turn.numFoughtInBattle[Team.CIV]]).toEqual([0, 0]);
+  });
+});
+
+describe('the interrupt queue', () => {
+  const LOSES = false;
+  const GAINS = true;
+
+  function interrupt(t: TacticalState, currentTeam: number, entries: readonly [Soldier, boolean][]): void {
+    t.inCombat = true;
+    t.turn.currentTeam = currentTeam;
+    for (const [s, gains] of entries) addToIntList(t, s, gains);
+    doneAddingToIntList(t);
+  }
+
+  it('stops the soldier it freezes from lying down again after a turn he began prone (TeamTurns.cc)', () => {
+    const shown = newSim();
+    const merc = spawn(shown, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const mover = spawn(shown, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    mover.turningFromPronePosition = TurningFromProne.ON;
+    interrupt(shown.state, Team.ENEMY, [
+      [mover, LOSES],
+      [merc, GAINS],
+    ]);
+    expect([mover.noAPToFinishMove, mover.turningFromPronePosition]).toEqual([true, TurningFromProne.OFF]);
+
+    const hidden = newSim();
+    const crawler = spawn(hidden, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(hidden, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    crawler.turningFromPronePosition = TurningFromProne.ON;
+    interrupt(hidden.state, Team.OUR, [
+      [crawler, LOSES],
+      [enemy, GAINS],
+    ]);
+    expect(hidden.state.turn.hiddenInterrupt).toBe(true);
+    expect(crawler.turningFromPronePosition).toBe(TurningFromProne.ON);
+    displayHiddenInterrupt(hidden.state, enemy);
+    expect([crawler.noAPToFinishMove, crawler.turningFromPronePosition]).toEqual([true, TurningFromProne.OFF]);
+
+    const threeTeams = newSim();
+    const first = spawn(threeTeams, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    const ours = spawn(threeTeams, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const creature = spawn(threeTeams, 52, Team.CREATURE, gridNo(70, 90), Direction.EAST);
+    ours.turningFromPronePosition = TurningFromProne.ON;
+    interrupt(threeTeams.state, Team.ENEMY, [
+      [first, LOSES],
+      [ours, GAINS],
+      [creature, GAINS],
+    ]);
+    expect([ours.noAPToFinishMove, ours.turningFromPronePosition]).toEqual([true, TurningFromProne.OFF]);
   });
 });

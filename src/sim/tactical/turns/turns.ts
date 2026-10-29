@@ -17,7 +17,7 @@ import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8, u32 } from '../../../core/int.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
-import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
+import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
@@ -612,9 +612,14 @@ export function addToIntList(t: TacticalState, s: Soldier, gainControl: boolean)
   }
 }
 
+function freezeInterrupted(s: Soldier): void {
+  adjustNoAPToFinishMove(s, true);
+  s.turningFromPronePosition = TurningFromProne.OFF;
+}
+
 function freezeEntry(t: TacticalState, index: number): void {
   const s = t.turn.intList[index - 1];
-  if (s) adjustNoAPToFinishMove(s, true);
+  if (s) freezeInterrupted(s);
   deleteFromIntList(t, index);
 }
 
@@ -704,7 +709,7 @@ function startInterrupt(t: TacticalState): void {
   }
   if (!turn.hiddenInterrupt) {
     const latest = latestInterruptGuy(t);
-    if (latest) adjustNoAPToFinishMove(latest, true);
+    if (latest) freezeInterrupted(latest);
   }
 }
 
@@ -712,7 +717,7 @@ export function displayHiddenInterrupt(t: TacticalState, actor: Soldier): void {
   const turn = t.turn;
   if (!turn.hiddenInterrupt) return;
   const latest = latestInterruptGuy(t);
-  if (latest) adjustNoAPToFinishMove(latest, true);
+  if (latest) freezeInterrupted(latest);
   addTopMessage(t, actor.team === Team.MILITIA ? TopMessageKind.MILITIA_INTERRUPT : TopMessageKind.COMPUTER_INTERRUPT);
   turn.hiddenInterrupt = false;
   t.events.push({ type: 'interrupt', team: turn.currentTeam });
