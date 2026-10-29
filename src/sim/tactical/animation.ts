@@ -38,6 +38,7 @@ import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
+import { effectiveAgility } from './skills.ts';
 import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -160,7 +161,7 @@ export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
   const additional = table && (!bodyLimited || s.bodyType <= REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
   const terrain = control.flags & AnimFlags.MOVING ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
   const breathDeficit = Math.min(50 - Math.trunc(s.breath / 2), MAX_BREATH_DEFICIT);
-  const agilityDeficit = 50 - Math.trunc(s.stats.agility / 4);
+  const agilityDeficit = 50 - Math.trunc(effectiveAgility(s) / 4);
   const lifeDeficit = 50 - Math.trunc(s.life / 2);
   let delay = terrain + lifeDeficit + breathDeficit + agilityDeficit + additional;
   if (t.inCombat) delay = Math.trunc(delay / 2);
@@ -203,7 +204,7 @@ export function setSoldierDirection(t: TacticalState, s: Soldier, direction: num
   s.direction = direction;
   if (!s.dontUnsetLastTargetFromTurn) s.lastTarget = NOWHERE;
   addMercStructure(t, s);
-  if (hasAnimFlag(t.content, s.state, AnimFlags.FASTTURN) && s.team === Team.OUR) {
+  if (hasAnimFlag(t.content, s.state, AnimFlags.FASTTURN) && s.team === Team.OUR && !s.turningFromHit) {
     if (s.direction !== s.desiredDirection) s.aniDelay = FAST_TURN_DELAY;
     else setSoldierAniSpeed(t, s);
   }

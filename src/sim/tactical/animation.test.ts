@@ -4,14 +4,50 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
-import { adjustToNextAnimationFrame, initNewSoldierAnim } from './animation.ts';
+import {
+  adjustToNextAnimationFrame,
+  computedAnimationDelay,
+  initNewSoldierAnim,
+  setDesiredDirection,
+  setSoldierDirection,
+} from './animation.ts';
 import type { TacticalContent } from './content.ts';
-import { Team } from './soldier.ts';
+import { type Soldier, Team } from './soldier.ts';
+import type { TacticalState } from './state.ts';
 
 let content: TacticalContent;
 
 beforeAll(async () => {
   content = await loadTestContent();
+});
+
+function turnOneOctant(t: TacticalState, s: Soldier): void {
+  setDesiredDirection(t, s, (s.direction + 4) % 8);
+  setSoldierDirection(t, s, (s.direction + s.turnIncrement + 8) % 8);
+}
+
+describe('the frame delay', () => {
+  it('slows an overloaded mover by his effective agility', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    merc.state = anim(content, 'WALKING');
+    const unloaded = computedAnimationDelay(t, merc);
+    merc.weightCarriedAtTurnStart = 200;
+    const agilityDeficit = (agility: number) => 50 - Math.trunc(agility / 4);
+    expect(computedAnimationDelay(t, merc) - unloaded).toBe(agilityDeficit(35) - agilityDeficit(70));
+  });
+});
+
+describe('fast turns', () => {
+  it('leave a merc turning away from a hit to the head at his state speed', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    merc.turningFromHit = true;
+    turnOneOctant(t, merc);
+    expect(merc.aniDelay).toBe(computedAnimationDelay(t, merc));
+  });
 });
 
 describe('the end of a door opening', () => {
