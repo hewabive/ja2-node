@@ -19,6 +19,8 @@ afterAll(async () => {
 });
 
 const ONE_HOUR = 3600;
+const ONE_REAL_SECOND_OF_TICKS = 200;
+const TEN_REAL_SECONDS_OF_TICKS = 10 * ONE_REAL_SECOND_OF_TICKS;
 
 function landed(troops: number): CampaignSim {
   const { campaign } = createTestCampaign(kit, { seed: 8, mercs: 2, garrison: { admins: 0, troops, elites: 0 } });
@@ -66,5 +68,15 @@ describe('map and tactical screens', () => {
     expect(c.tactical?.state.clockMs).toBe(tacticalClock);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(c.state.clock.mode).toBe(CompressMode.X1);
+  });
+
+  it('runs the world clock at once when the map hands back to the loaded sector', () => {
+    const c = landed(0);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    for (let k = 0; k < TEN_REAL_SECONDS_OF_TICKS; k++) c.step();
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const start = c.state.clock.seconds;
+    for (let k = 0; k < ONE_REAL_SECOND_OF_TICKS; k++) c.step();
+    expect(c.state.clock.seconds - start).toBe(1);
   });
 });

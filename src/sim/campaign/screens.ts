@@ -48,7 +48,17 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
   if (s.flow !== 'strategic' || !world || !campaign.tactical) return { ok: false, reason: 'no sector is loaded' };
   if (!campaign.strategic?.mercs.all().some((m) => canGoToTactical(m, world)))
     return { ok: false, reason: 'no merc of yours is in the loaded sector' };
+  returnToLoadedSector(campaign);
+  return { ok: true };
+}
+
+export function returnToLoadedSector(campaign: CampaignSim): void {
+  const s = campaign.state;
+  const sectorClockMs = campaign.tactical?.state.clockMs;
+  if (sectorClockMs !== undefined) {
+    s.realMs = sectorClockMs;
+    s.clock.driver.lastSecondMs = sectorClockMs;
+  }
   s.flow = 'tactical';
   setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
-  return { ok: true };
 }

@@ -139,6 +139,7 @@ import {
 } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
+import { returnToLoadedSector } from './screens.ts';
 import {
   applyPreservedEnemyRecord,
   captureBloodAndSmell,
@@ -400,8 +401,7 @@ export class SectorFlow {
     const world = this.world;
     if (world && this.campaign.tactical && sameSector(world, sector)) {
       this.#reenterLoadedSector();
-      s.flow = 'tactical';
-      setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
+      returnToLoadedSector(this.campaign);
       return true;
     }
     const baseWorld = this.setup.worlds.world(this.mapPathOf(sector));
