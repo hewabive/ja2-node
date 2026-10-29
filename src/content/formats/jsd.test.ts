@@ -38,6 +38,13 @@ describe('JSD structure files', () => {
     expect(s).toMatchObject({ armour: 3, density: 70, destructionPartner: -2, zTileOffsetX: 1, zTileOffsetY: -1 });
   });
 
+  it('keeps only the low byte of the hit points of a structure with more than 650 filled cubes', () => {
+    const sevenTiles = Array.from({ length: 7 }, (_, x): [number, number] => [x, 0]);
+    const s = parseStructureFile(writeStructureFile({ structureCount: 1, structures: [structure(0, sevenTiles)] })).structures[0];
+    const filledCubes = 7 * 25 * 4;
+    expect(s?.hitPoints).toBe(Math.trunc((filledCubes * 100) / 255) - 256);
+  });
+
   it('moves a missing base tile to (0, 0) like NormalizeStructureTiles', () => {
     const s = parseStructureFile(
       writeStructureFile({

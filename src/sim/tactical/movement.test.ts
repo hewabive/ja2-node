@@ -20,6 +20,7 @@ import {
   stopMerc,
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
+import { MAX_PATH_LIST_SIZE } from './pathfinding.ts';
 import { createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
@@ -115,6 +116,27 @@ describe('walking', () => {
       framesPerTile.push(frames);
     }
     expect(framesPerTile).toEqual([7, 6, 6, 7, 6]);
+  });
+
+  it('arrives twice at the tile where a 30-step route runs out, making noise and looking again', () => {
+    const t = tactical();
+    const s = spawn(t, START);
+    const arrivals: number[] = [];
+    const hooks = t.hooks;
+    t.hooks = {
+      ...hooks,
+      atNewGridNo: (tt, soldier) => {
+        arrivals.push(soldier.gridNo);
+        return hooks.atNewGridNo(tt, soldier);
+      },
+    };
+    const destination = START + MAX_PATH_LIST_SIZE + 5;
+    expect(getNewSoldierPath(t, s, destination, s.uiMovementMode)).toBe(true);
+    runUntilStill(t);
+    expect(s.gridNo).toBe(destination);
+    const routeEnd = START + MAX_PATH_LIST_SIZE;
+    expect(arrivals.filter((g) => g === routeEnd)).toHaveLength(2);
+    expect(arrivals.filter((g) => g === routeEnd - 1 || g === routeEnd + 1)).toHaveLength(2);
   });
 
   it('stops short when a stationary soldier stands on the destination', () => {

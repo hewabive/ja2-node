@@ -56,6 +56,7 @@ export const TravelCost = {
 
 const MATERIAL_SANDBAG = 18;
 const LEVELS = 2;
+const LOCAL_RECOMPILE_RADIUS = 4;
 
 export function isDoorTravelCost(c: number): boolean {
   return c >= TravelCost.DOORS_CLOSED_W_SW && c <= TravelCost.DOOR_OPEN_NW_W;
@@ -348,7 +349,7 @@ function rowColToPos(y: number, x: number): number {
   return y < 0 || y >= WORLD_ROWS || x < 0 || x >= WORLD_COLS ? -1 : y * WORLD_COLS + x;
 }
 
-export function recompileLocalMovementCosts(costs: MovementCosts, w: MovementWorld, centre: number, radius = 4): void {
+export function recompileLocalMovementCosts(costs: MovementCosts, w: MovementWorld, centre: number, radius = LOCAL_RECOMPILE_RADIUS): void {
   if (radius === 0) {
     costs.clearTile(centre);
     compileTileMovementCosts(costs, w, centre);

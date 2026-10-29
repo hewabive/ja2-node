@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Structure.cc STRUCTURE_FILE_REF, CreateFileStructureArrays, NormalizeStructureTiles
 
+import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';
 import { BinaryWriter } from '../binary/writer.ts';
@@ -110,8 +111,8 @@ export function parseStructureFile(bytes: Uint8Array): StructureFile {
     auxData = [];
     for (let i = 0; i < structureCount; i++) auxData.push(readAux(r));
     for (let i = 0; i < tileLocationsStored; i++) {
-      const x = (r.u8() << 24) >> 24;
-      const y = (r.u8() << 24) >> 24;
+      const x = i8(r.u8());
+      const y = i8(r.u8());
       tileLocations.push({ x, y });
     }
   }
@@ -128,18 +129,18 @@ export function parseStructureFile(bytes: Uint8Array): StructureFile {
       const flags = data.u32();
       const number = data.u16();
       const storedOrientation = data.u8();
-      const destructionPartner = (data.u8() << 24) >> 24;
-      const partnerDelta = (data.u8() << 24) >> 24;
-      const zTileOffsetX = (data.u8() << 24) >> 24;
-      const zTileOffsetY = (data.u8() << 24) >> 24;
+      const destructionPartner = i8(data.u8());
+      const partnerDelta = i8(data.u8());
+      const zTileOffsetX = i8(data.u8());
+      const zTileOffsetY = i8(data.u8());
       data.skip(1);
       const tiles: StructureTile[] = [];
       let filled = 0;
       for (let t = 0; t < numberOfTiles; t++) {
         if (data.remaining < STRUCTURE_TILE_BYTES) throw new FormatError('JSD structure tile data truncated');
         data.i16();
-        const xRelToBase = (data.u8() << 24) >> 24;
-        const yRelToBase = (data.u8() << 24) >> 24;
+        const xRelToBase = i8(data.u8());
+        const yRelToBase = i8(data.u8());
         const shape = data.bytesView(PROFILE_CELLS).slice();
         const tileFlags = data.u8();
         const vehicleHitLocation = data.u8();
@@ -164,7 +165,7 @@ export function parseStructureFile(bytes: Uint8Array): StructureFile {
       structures[number] = {
         number,
         armour,
-        hitPoints: Math.trunc((filled * 100) / MAX_HIT_POINT_SCALE) & 0xff,
+        hitPoints: u8(Math.trunc((filled * 100) / MAX_HIT_POINT_SCALE)),
         density,
         flags,
         wallOrientation,

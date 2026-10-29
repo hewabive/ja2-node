@@ -138,6 +138,23 @@ describe('movement costs', () => {
     expect(costs.get(G - 2, WEST, 0)).toBe(225);
   });
 
+  it('clears one column and row less on the east and south than it recompiles, so costs of a removed structure stay there', () => {
+    const RADIUS = 4;
+    const clearedAfterRemoval = (x: number, y: number) => {
+      const at = gridNo(x, y);
+      const w = world((s) => s.add(at, 0, def(StructureFlags.GENERIC)));
+      const costs = compileWorldMovementCosts(w);
+      const block = w.structures.find(at, StructureFlags.GENERIC);
+      if (block) w.structures.remove(block);
+      recompileLocalMovementCosts(costs, w, G, RADIUS);
+      return costs.get(at, NORTH, 0) === TravelCost.FLAT;
+    };
+    expect(clearedAfterRemoval(80 - RADIUS, 80)).toBe(true);
+    expect(clearedAfterRemoval(80, 80 - RADIUS)).toBe(true);
+    expect(clearedAfterRemoval(80 + RADIUS, 80)).toBe(false);
+    expect(clearedAfterRemoval(80, 80 + RADIUS)).toBe(false);
+  });
+
   it('recompiles a neighbourhood to the same values after a change is undone', () => {
     const w = world((s) => s.add(G, 0, def(FENCE, Orientation.OUTSIDE_LEFT)));
     const costs = compileWorldMovementCosts(w);

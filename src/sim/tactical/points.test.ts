@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { syntheticWorld } from '../../content/world/synthetic.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
@@ -16,12 +17,15 @@ import {
   deductPoints,
   MAX_AP_CARRIED,
   ptsToMoveDirection,
+  terrainActionPoints,
+  terrainBreathPoints,
   unusedAPsToBreath,
 } from './points.ts';
 import { createSoldier, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from './state.ts';
 
 let content: TacticalContent;
+const ROOF = 1;
 
 beforeAll(async () => {
   content = await loadTestContent();
@@ -124,6 +128,25 @@ describe('action points', () => {
     s.actionPoints = 15;
     unusedAPsToBreath(ctx(t), s, false);
     expect(s.breath).toBeGreaterThan(70);
+  });
+});
+
+describe('breath', () => {
+  it("takes a roof step's breath from the ground costs under the roof", () => {
+    const blockedBelow = gridNo(80, 80);
+    const openBelow = blockedBelow + 1;
+    const world = syntheticWorld(
+      testDoorCosts(),
+      (w) => w.add(blockedBelow, 0, syntheticStructure(StructureFlags.GENERIC)),
+      new Set([blockedBelow - 1, blockedBelow, openBelow]),
+    );
+    const t = createTacticalState({ ...world, mapDoors: new Map() }, content, Rng.fromSeed(5));
+    const s = spawn(t, blockedBelow - 1);
+    s.level = ROOF;
+    const walking = states(content.animations).WALKING;
+    expect(terrainActionPoints(ctx(t), s, blockedBelow, Direction.EAST, ROOF)).toBe(AP.MOVEMENT_FLAT);
+    expect(terrainBreathPoints(ctx(t), s, blockedBelow, Direction.EAST, walking)).toBe(0);
+    expect(terrainBreathPoints(ctx(t), s, openBelow, Direction.EAST, walking)).toBeGreaterThan(0);
   });
 });
 

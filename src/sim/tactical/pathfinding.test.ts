@@ -8,7 +8,16 @@ import { parseDoorCostTable } from '../../content/world/movement-costs.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
-import { findBestPath, MAX_PATH_LIST_SIZE, PathCopy, type PathEnv, PathFlags, type PathSoldier } from './pathfinding.ts';
+import {
+  aiPathCostIndex,
+  findBestPath,
+  MAX_PATH_LIST_SIZE,
+  NOWHERE,
+  PathCopy,
+  type PathEnv,
+  PathFlags,
+  type PathSoldier,
+} from './pathfinding.ts';
 import { Team } from './soldier.ts';
 
 const doorCosts = parseDoorCostTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/door-costs.json'), 'utf8')));
@@ -58,6 +67,8 @@ const DOOR_GRIDNO = gridNo(80, 79);
 const AP_MOVEMENT_FLAT = 3;
 const WALK_AP_COST = -1;
 const DOOR_APS_OPEN = 3;
+const AP_JUMPFENCE = 6;
+const AP_CROUCH = 2;
 
 function houseWithDoor(s: WorldStructures): void {
   for (let x = 70; x <= 90; x++) {
@@ -122,6 +133,13 @@ describe('findBestPath', () => {
     expect(findBestPath(e, soldier(START, { team: Team.ENEMY }), gridNo(81, 80), 0).steps).toEqual([EAST]);
   });
 
+  it("routes a player around soldiers he cannot see, yet lets him walk at an unseen soldier's tile", () => {
+    const unseen = soldier(gridNo(81, 80), { id: 2, team: Team.ENEMY, visible: -1 });
+    const e = env(() => {}, [unseen]);
+    expect(walk(START, findBestPath(e, soldier(START), gridNo(82, 80), 0).steps.slice(0, 1))).not.toBe(unseen.gridNo);
+    expect(findBestPath(e, soldier(START), unseen.gridNo, 0).steps).toEqual([EAST]);
+  });
+
   it('hops fences for merc bodies only', () => {
     const fence = (s: WorldStructures) => {
       for (let x = 60; x <= 100; x++) s.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
@@ -133,14 +151,13 @@ describe('findBestPath', () => {
   });
 
   it('keeps players out of closed doors while enemies open unlocked ones', () => {
-    const player = findBestPath(env(houseWithDoor), soldier(START), gridNo(80, 78), 0);
-    expect(player.length).toBeGreaterThan(10);
-    expect(findBestPath(env(houseWithDoor), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).steps).toEqual([NORTH, NORTH]);
-    const locked = [doorRecord(true)];
-    expect(findBestPath(env(houseWithDoor, [], locked), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).length).toBeGreaterThan(10);
-    expect(
-      findBestPath(env(houseWithDoor, [], locked), soldier(START, { team: Team.ENEMY, hasKeys: true }), gridNo(80, 78), 0).steps,
-    ).toEqual([NORTH, NORTH]);
+    const behindDoor = gridNo(80, 78);
+    const enemy = soldier(START, { team: Team.ENEMY });
+    expect(findBestPath(env(houseWithDoor), soldier(START), behindDoor, 0).length).toBeGreaterThan(10);
+    expect(findBestPath(env(houseWithDoor), enemy, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
+    const locked = env(houseWithDoor, [], [doorRecord(true)]);
+    expect(findBestPath(locked, enemy, behindDoor, 0).length).toBeGreaterThan(10);
+    expect(findBestPath(locked, { ...enemy, hasKeys: true }, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
   });
 
   it('charges an AI budget for opening a closed door only when the map has a record of the door', () => {
@@ -152,6 +169,21 @@ describe('findBestPath', () => {
     const recorded = env(houseWithDoor, [], [doorRecord(false)]);
     expect(findBestPath(recorded, enemy, behindDoor, 0, { budget: throughDoor - 1 }).length).toBe(0);
     expect(findBestPath(recorded, enemy, behindDoor, 0, { budget: throughDoor }).steps).toEqual([NORTH, NORTH]);
+  });
+
+  it('gives a walker one AP of an AI budget back when he lands on the free tile behind a fence', () => {
+    const fence = (s: WorldStructures) => {
+      for (let x = 60; x <= 100; x++) s.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
+    };
+    const flood = findBestPath(env(fence), soldier(START, { team: Team.ENEMY }), NOWHERE, 0, {
+      copy: PathCopy.REACHABLE_AND_APS,
+      budget: 20,
+      distLimit: 5,
+    });
+    const apsTo = (x: number, y: number) => flood.apCosts?.[aiPathCostIndex(x - 80, y - 80)];
+    const hop = AP_JUMPFENCE + WALK_AP_COST + AP_CROUCH;
+    expect(apsTo(80, 79)).toBe(hop);
+    expect(apsTo(80, 78)).toBe(hop - 1);
   });
 
   it('copies at most 30 steps into a route', () => {

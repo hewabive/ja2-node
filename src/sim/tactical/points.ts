@@ -197,6 +197,7 @@ export const BP_PER_AP = {
 
 const toInt8 = (v: number): number => ((v & 0xff) << 24) >> 24;
 const BLOCKED_AP_COST = 100;
+const GROUND_LEVEL = 0;
 
 export type MoveClass = 'run' | 'walk' | 'swat' | 'crawl' | 'other';
 
@@ -375,7 +376,7 @@ function walkingState(content: TacticalContent): number {
 }
 
 export function terrainBreathPoints(ctx: PointsContext, s: Soldier, g: number, dir: number, mode: number): number {
-  const cost = ctx.env.world.costs.get(g, dir, 0);
+  const cost = ctx.env.world.costs.get(g, dir, GROUND_LEVEL);
   let points: number;
   switch (cost) {
     case TravelCost.DIRTROAD:

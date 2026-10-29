@@ -17,6 +17,7 @@ import {
   type WorldStructures,
 } from '../../content/world/structures.ts';
 import { TERRAIN_MOVEMENT_COST, Terrain } from '../../content/world/terrain.ts';
+import { u8, u16 } from '../../core/int.ts';
 import { Team } from './soldier.ts';
 
 export const PathFlags = { THROUGH_PEOPLE: 0x01, IGNORE_PERSON_AT_DEST: 0x02, CLOSE_GOOD_ENOUGH: 0x04 } as const;
@@ -36,6 +37,7 @@ const DIRECTIONS = 8;
 const BACKWARDS_STEP_PENALTY = 50;
 const Looping = { CLOCKWISE: 0, COUNTERCLOCKWISE: 1, REVERSE: 2 } as const;
 const EASYWATERCOST = 5;
+const LOWEST_STEP_COST = EASYWATERCOST;
 const MERC_BODY_MAX = 3;
 const DOOR_APS_OPEN = 3;
 const RUN_DIVISOR_X10 = 18;
@@ -258,7 +260,7 @@ export function doorState(env: PathEnv, g: number, perceived: boolean): number {
 }
 
 function heuristic(dx: number, dy: number): number {
-  return dx < dy ? Math.trunc((EASYWATERCOST * (dx * 14 + dy * 10)) / 14) : Math.trunc((EASYWATERCOST * (dy * 14 + dx * 10)) / 14);
+  return dx < dy ? Math.trunc((LOWEST_STEP_COST * (dx * 14 + dy * 10)) / 14) : Math.trunc((LOWEST_STEP_COST * (dy * 14 + dx * 10)) / 14);
 }
 
 interface OpenHead {
@@ -380,15 +382,15 @@ function budgetStepCost(nextCost: number, dir: number, mode: MoveMode, throughDo
   const water = nextCost === TravelCost.SHORE || nextCost === TravelCost.KNEEDEEP || nextCost === TravelCost.DEEPWATER;
   const apMode = water ? MoveMode.WALKING : mode;
   if (apMode === MoveMode.RUNNING) ap = Math.trunc((ap * 10) / RUN_DIVISOR_X10);
-  else if (apMode === MoveMode.WALKING) ap = (ap + WALK_COST) & 0xff;
-  else if (apMode === MoveMode.CRAWLING) ap = (ap + CRAWL_COST) & 0xff;
+  else if (apMode === MoveMode.WALKING) ap = u8(ap + WALK_COST);
+  else if (apMode === MoveMode.CRAWLING) ap = u8(ap + CRAWL_COST);
   if (nextCost === TravelCost.FENCE) {
     if (apMode === MoveMode.CRAWLING) return null;
     ap += AP_CROUCH;
   } else if (throughDoor) {
     ap += DOOR_APS_OPEN;
   }
-  return ap & 0xff;
+  return u8(ap);
 }
 
 export function aiPathCostIndex(dx: number, dy: number): number {
@@ -418,7 +420,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     if (closeLimit <= 0) return NO_PATH;
   }
   const personAtDestIsObstacle = forPlayer && aroundPeople && !(flags & PathFlags.IGNORE_PERSON_AT_DEST);
-  if (env.stats) env.stats.searches = (env.stats.searches + 1) & 0xff;
+  if (env.stats) env.stats.searches = u8(env.stats.searches + 1);
 
   let dest = destination;
   if (dest !== NOWHERE) {
@@ -460,9 +462,9 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   };
   const open = new OpenList();
   const remaining = (loc: number) => heuristic(Math.abs(destX - (loc % WORLD_COLS)), Math.abs(destY - Math.trunc(loc / WORLD_COLS)));
-  const legDistance = (loc: number) => (Math.abs(destX - (loc % WORLD_COLS)) + Math.abs(destY - Math.trunc(loc / WORLD_COLS))) & 0xff;
+  const legDistance = (loc: number) => u8(Math.abs(destX - (loc % WORLD_COLS)) + Math.abs(destY - Math.trunc(loc / WORLD_COLS)));
   const costToGo = (loc: number) => (copyReachable ? REACHABLE_COST_TO_GO : remaining(loc));
-  open.push(org, 0, costToGo(org) & 0xffff, legDistance(org), 0, 0);
+  open.push(org, 0, u16(costToGo(org)), legDistance(org), 0, 0);
   trailCost[org] = 0;
 
   let goingThroughDoor = false;
@@ -527,7 +529,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
       const step = budgetStepCost(nextCost, dir, mode, goingThroughDoor);
       if (step === null) return EXPANDED;
       if (goingThroughDoor && nextCost !== TravelCost.FENCE) goingThroughDoor = false;
-      newAp = (cur.ap + step) & 0xff;
+      newAp = u8(cur.ap + step);
       if (newAp > budget) return EXPANDED;
     }
 
@@ -547,8 +549,8 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     trailGrid.push(newLoc);
     trailBack.push(backwards);
     if (trailPrev.length >= maxTrailTree) return ABORTED;
-    const cost = newTotal & 0xffff;
-    open.push(newLoc, cost, (cost + costToGo(newLoc)) & 0xffff, legDistance(newLoc), trailPrev.length - 1, newAp);
+    const cost = u16(newTotal);
+    open.push(newLoc, cost, u16(cost + costToGo(newLoc)), legDistance(newLoc), trailPrev.length - 1, newAp);
     if (budget && apCosts) apCosts[apCostIndex(newLoc)] = newAp;
     trailCost[newLoc] = cost;
     used[newLoc] = 1;
@@ -624,5 +626,5 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     return { length: route.length, steps: route };
   }
   const plain = steps.slice(0, PLAIN_PATH_LIMIT);
-  return { length: plain.length & 0xff, steps: plain };
+  return { length: u8(plain.length), steps: plain };
 }
