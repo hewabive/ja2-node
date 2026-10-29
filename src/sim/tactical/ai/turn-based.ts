@@ -6,7 +6,8 @@
 // @src Soldier_Control.cc SetSoldierAsUnderAiControl.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { endHeight } from '../animation.ts';
+import { u8 } from '../../../core/int.ts';
+import { AnimHeight, endHeight } from '../animation.ts';
 import { haltMoveForSoldierOutOfPoints } from '../movement.ts';
 import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { civilianGroupMembersChangeSidesWithinProximity } from '../narrative/civ-hostility.ts';
@@ -110,7 +111,7 @@ function manChecksOnFriends(t: TacticalState, s: Soldier): void {
       level: friend.level,
       heightClass: endHeight(t.content, friend.state) as (typeof HeightClass)[keyof typeof HeightClass],
     };
-    if (soldierToSoldierLineOfSight(losWorld, eye, target, d & 0xff, true, t.perception.disallowSight, isMonster(s)) === 0) continue;
+    if (soldierToSoldierLineOfSight(losWorld, eye, target, u8(d), true, t.perception.disallowSight, isMonster(s)) === 0) continue;
     if (friend.ai.alertStatus >= AlertStatus.RED || friend.ai.underFire || friend.life < OKLIFE) {
       s.ai.alertStatus = AlertStatus.RED;
       checkForChangingOrders(s);
@@ -195,10 +196,10 @@ export function turnBasedHandleNPCAI(t: TacticalState, s: Soldier, control: AiCo
     if (ai.nextAction === AiAction.END_COWER_AND_MOVE) {
       if (s.cowering) {
         ai.action = AiAction.STOP_COWERING;
-        ai.actionData = 6;
-      } else if (endHeight(t.content, s.state) < 6) {
+        ai.actionData = AnimHeight.STAND;
+      } else if (endHeight(t.content, s.state) < AnimHeight.STAND) {
         ai.action = AiAction.CHANGE_STANCE;
-        ai.actionData = 6;
+        ai.actionData = AnimHeight.STAND;
       } else ai.action = AiAction.NONE;
       if (s.gridNo === ai.nextActionData) {
         ai.nextAction = AiAction.NONE;

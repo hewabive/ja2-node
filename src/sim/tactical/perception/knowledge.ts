@@ -4,14 +4,16 @@
 // @src noise), WhatIKnowThatPublicDont; AIUtils.cc ClosestKnownOpponent, GuySawEnemyThisTurnOrBefore.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { u8 } from '../../../core/int.ts';
 import { getInterveningClimbingLocation } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { CivilianGroup, NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { CivilianGroup, isCreatureOrBloodcat, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { knowledge, Opp } from './sight.ts';
 
 const NOISE_FORGET_DISTANCE = 6;
 const MAX_DISTANCE_VISIBLE = 26;
+const NO_NOISE_VALUE = -10000;
 
 export interface NoiseKnowledge {
   readonly gridNo: number;
@@ -24,7 +26,7 @@ function considered(s: Soldier, opp: Soldier): boolean {
   return (opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side;
 }
 
-function noiseStillUseful(t: TacticalState, s: Soldier, g: number, level: number): boolean {
+export function noiseStillUseful(t: TacticalState, s: Soldier, g: number, level: number): boolean {
   return (
     level !== s.level ||
     pythSpacesAway(s.gridNo, g) >= NOISE_FORGET_DISTANCE ||
@@ -32,16 +34,16 @@ function noiseStillUseful(t: TacticalState, s: Soldier, g: number, level: number
   );
 }
 
-export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
-  let best = NOWHERE;
-  let bestValue = -10000;
-  let bestLevel = 0;
-  const consider = (g: number, value: number, level: number) => {
-    if (value > bestValue) {
-      bestValue = value;
-      best = g;
-      bestLevel = level;
-    }
+interface LoudestNoise {
+  readonly gridNo: number;
+  readonly value: number;
+  readonly level: number;
+}
+
+function loudestNoise(t: TacticalState, s: Soldier): LoudestNoise {
+  let best: LoudestNoise = { gridNo: NOWHERE, value: NO_NOISE_VALUE, level: 0 };
+  const consider = (gridNo: number, value: number, level: number) => {
+    if (value > best.value) best = { gridNo, value, level };
   };
   for (const opp of t.mercSlots) {
     if (!opp?.placed || !opp.life || considered(s, opp)) continue;
@@ -58,7 +60,7 @@ export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
   }
   if (s.ai.noiseGridNo !== NOWHERE) {
     if (noiseStillUseful(t, s, s.ai.noiseGridNo, s.ai.noiseLevel))
-      consider(s.ai.noiseGridNo, (Math.trunc(s.ai.noiseVolume / 2) - 6) * spacesAway(s.gridNo, s.ai.noiseGridNo), s.ai.noiseLevel);
+      consider(s.ai.noiseGridNo, noiseValue(s.ai.noiseVolume, spacesAway(s.gridNo, s.ai.noiseGridNo)), s.ai.noiseLevel);
     else {
       s.ai.noiseGridNo = NOWHERE;
       s.ai.noiseVolume = 0;
@@ -68,75 +70,39 @@ export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
     const g = t.perception.publicNoiseGridNo[s.team] ?? NOWHERE;
     const level = t.perception.publicNoiseLevel[s.team] ?? 0;
     if (g !== NOWHERE && noiseStillUseful(t, s, g, level))
-      consider(g, (Math.trunc((t.perception.publicNoiseVolume[s.team] ?? 0) / 2) - 6) * spacesAway(s.gridNo, g), level);
+      consider(g, noiseValue(t.perception.publicNoiseVolume[s.team] ?? 0, spacesAway(s.gridNo, g)), level);
   }
-  let reachable = false;
-  let climb = false;
-  if (best !== NOWHERE) {
-    reachable = true;
-    const intervening = getInterveningClimbingLocation(t, s, best, bestLevel);
-    if (intervening.necessary) {
-      if (intervening.gridNo === NOWHERE) reachable = false;
-      else {
-        best = intervening.gridNo;
-        climb = true;
-      }
-    }
-  }
-  return { gridNo: best, value: bestValue, climb, reachable };
+  return best;
+}
+
+function noiseValue(volume: number, distance: number): number {
+  return (Math.trunc(volume / 2) - 6) * distance;
+}
+
+export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
+  const { gridNo, value, level } = loudestNoise(t, s);
+  if (gridNo === NOWHERE) return { gridNo, value, climb: false, reachable: false };
+  const intervening = getInterveningClimbingLocation(t, s, gridNo, level);
+  if (!intervening.necessary) return { gridNo, value, climb: false, reachable: true };
+  if (intervening.gridNo === NOWHERE) return { gridNo, value, climb: false, reachable: false };
+  return { gridNo: intervening.gridNo, value, climb: true, reachable: true };
 }
 
 export function mostImportantNoiseHeard(t: TacticalState, s: Soldier): number {
-  let best = NOWHERE;
-  let bestValue = -10000;
-  const consider = (g: number, value: number) => {
-    if (value > bestValue) {
-      bestValue = value;
-      best = g;
-    }
-  };
-  for (const opp of t.mercSlots) {
-    if (!opp?.placed || !opp.life || considered(s, opp)) continue;
-    const personal = s.oppList[opp.id] ?? 0;
-    if (personal < Opp.NOT_HEARD_OR_SEEN) {
-      const g = s.lastKnownOpp[opp.id] ?? NOWHERE;
-      consider(g, personal * spacesAway(s.gridNo, g));
-    }
-    const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
-    if (publicValue < Opp.NOT_HEARD_OR_SEEN) {
-      const g = t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE;
-      consider(g, publicValue * spacesAway(s.gridNo, g));
-    }
-  }
-  if (s.ai.noiseGridNo !== NOWHERE) {
-    if (noiseStillUseful(t, s, s.ai.noiseGridNo, s.ai.noiseLevel))
-      consider(s.ai.noiseGridNo, (Math.trunc(s.ai.noiseVolume / 2) - 6) * spacesAway(s.gridNo, s.ai.noiseGridNo));
-    else {
-      s.ai.noiseGridNo = NOWHERE;
-      s.ai.noiseVolume = 0;
-    }
-  }
-  if (s.team !== Team.CIV || s.civilianGroup === CivilianGroup.KINGPIN) {
-    const g = t.perception.publicNoiseGridNo[s.team] ?? NOWHERE;
-    const level = t.perception.publicNoiseLevel[s.team] ?? 0;
-    if (g !== NOWHERE && noiseStillUseful(t, s, g, level))
-      consider(g, (Math.trunc((t.perception.publicNoiseVolume[s.team] ?? 0) / 2) - 6) * spacesAway(s.gridNo, g));
-  }
-  return best;
+  return loudestNoise(t, s).gridNo;
 }
 
 export function whatIKnowThatPublicDont(t: TacticalState, s: Soldier, inSightOnly: boolean): number {
   let total = 0;
   const publicVolume = t.perception.publicNoiseVolume[s.team] ?? 0;
-  const creature = (s.bodyType >= 4 && s.bodyType <= 10) || s.bodyType === 20;
-  if (!creature && s.ai.noiseVolume > publicVolume) total = (total + s.ai.noiseVolume - publicVolume) & 0xff;
+  if (!isCreatureOrBloodcat(s) && s.ai.noiseVolume > publicVolume) total = u8(total + s.ai.noiseVolume - publicVolume);
   for (const opp of t.mercSlots) {
     if (!opp?.placed || considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (inSightOnly) {
-      if (personal === Opp.SEEN_CURRENTLY && publicValue !== Opp.SEEN_CURRENTLY) total = (total + 1) & 0xff;
-    } else total = (total + knowledge(publicValue, personal)) & 0xff;
+      if (personal === Opp.SEEN_CURRENTLY && publicValue !== Opp.SEEN_CURRENTLY) total = u8(total + 1);
+    } else total = u8(total + knowledge(publicValue, personal));
   }
   return total;
 }

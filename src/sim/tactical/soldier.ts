@@ -6,6 +6,7 @@
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
+import { AiMorale } from './combat/types.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
 import type { LightSprite } from './lighting/lighting.ts';
@@ -691,7 +692,7 @@ export function createSoldier(init: SoldierInit): Soldier {
       noiseVolume: 0,
       oppCount: 0,
       underFire: 0,
-      morale: 0,
+      morale: AiMorale.HOPELESS,
       cautious: false,
       mobility: 0,
       callPriority: 0,

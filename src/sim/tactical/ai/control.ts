@@ -31,11 +31,11 @@ import { boxingIdlesNonBoxers } from '../narrative/boxing-state.ts';
 import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { endMuzzleFlash, radioSightings, removeManAsTarget } from '../perception/sight.ts';
-import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
+import { AP, deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { AlertStatus, Attitude, CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
@@ -170,7 +170,7 @@ export function freeUpFromPendingAction(t: TacticalState, s: Soldier): void {
 }
 
 function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
-  if (s.bodyType !== 0 && s.bodyType !== 1) {
+  if (s.bodyType !== Body.REGMALE && s.bodyType !== Body.BIGMALE) {
     actionDone(t, s);
     return;
   }
@@ -189,7 +189,7 @@ function handleInitialRedAlert(t: TacticalState, team: number): void {
 }
 
 function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
-  if (s.bodyType === 21) return;
+  if (s.bodyType === Body.ROBOTNOWEAPON) return;
   if (on) {
     if (!s.cowering) {
       initNewSoldierAnim(t, s, anim(t.content, 'START_COWER'), 0, false);
@@ -202,8 +202,6 @@ function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
     s.desiredHeight = AnimHeight.STAND;
   }
 }
-
-const AP_RADIO = 5;
 
 export function npcDoesAct(t: TacticalState, s: Soldier): void {
   if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t, s);
@@ -418,12 +416,12 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     case AiAction.YELLOW_ALERT:
       if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && !t.perception.awareOfOpposition[s.team])
         handleInitialRedAlert(t, s.team);
-      deductPoints(t.inCombat, s, AP_RADIO, 0);
+      deductPoints(t.inCombat, s, AP.RADIO, 0);
       radioSightings(t, s, null, s.team);
       aiDecideRadioAnimation(t, s);
       return true;
     case AiAction.CREATURE_CALL:
-      deductPoints(t.inCombat, s, AP_RADIO, 0);
+      deductPoints(t.inCombat, s, AP.RADIO, 0);
       creatureCall(t, s);
       return true;
     case AiAction.PICKUP_ITEM:
@@ -493,10 +491,10 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       if (ai.nextAction === AiAction.END_COWER_AND_MOVE) {
         if (s.cowering) {
           ai.action = AiAction.STOP_COWERING;
-          ai.actionData = 6;
-        } else if (height(t.content, s.state) < 6) {
+          ai.actionData = AnimHeight.STAND;
+        } else if (height(t.content, s.state) < AnimHeight.STAND) {
           ai.action = AiAction.CHANGE_STANCE;
-          ai.actionData = 6;
+          ai.actionData = AnimHeight.STAND;
         } else ai.action = AiAction.NONE;
         if (s.gridNo === ai.nextActionData) {
           ai.nextAction = AiAction.NONE;

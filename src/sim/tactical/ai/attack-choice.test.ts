@@ -88,6 +88,24 @@ describe('calcBestShot', () => {
     expect(enemy.attackingWeapon).toBe(item('GLOCK_17'));
   });
 
+  it('switches to a later target worth exactly as much as the one it has', () => {
+    const LEFT = 0;
+    const RIGHT = 1;
+    const shotAt = (ids: readonly number[]) => {
+      const t = newState();
+      const enemy = spawn(t, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+      for (const id of ids) spawn(t, id, Team.OUR, id === LEFT ? gridNo(77, 86) : gridNo(83, 86), Direction.NORTH);
+      allTeamsLookForAll(t);
+      return calcBestShot(t, enemy);
+    };
+    const left = shotAt([LEFT]);
+    const right = shotAt([RIGHT]);
+    expect(left.possible).toBe(true);
+    expect(left.attackValue).toBe(right.attackValue);
+    expect(left.chanceToReallyHit).toBe(right.chanceToReallyHit);
+    expect(shotAt([LEFT, RIGHT]).opponent?.id).toBe(RIGHT);
+  });
+
   it('ignores opponents that are known but not currently seen', () => {
     const t = newState();
     const merc = spawn(t, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

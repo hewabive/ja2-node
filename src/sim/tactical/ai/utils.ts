@@ -7,12 +7,13 @@
 // @src Tactical/LOS.cc LocationToLocationLineOfSightTest.
 
 import { ItemClass } from '../../../content/items/items.ts';
-import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
+import { rangeInUnits } from '../combat/chance.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { findBestPath, PathCopy } from '../pathfinding.ts';
-import { guySawEnemyThisTurnOrBefore } from '../perception/knowledge.ts';
+import { guySawEnemyThisTurnOrBefore, noiseStillUseful } from '../perception/knowledge.ts';
 import { landHeightUnits, lineOfSightTest, STANDING_TREE_REDUCTION } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible, knowledge } from '../perception/sight.ts';
@@ -22,11 +23,12 @@ import { NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 
-const MAX_DISTANCE_VISIBLE = 26;
 const IRRELEVANT = -1;
 const STANDING_LOS_POS = 175;
 const HEIGHT_UNITS = 256;
 const UNSEEN_PC_DISTANCE_PENALTY = 10;
+const DEGRADED_NOISE_TILES_WEST = 2;
+const ADJACENT = 1;
 
 export function findAIUsableObjClass(t: TacticalState, s: Soldier, itemClass: number): number {
   return findAIUsableObjClassWithin(t, s, itemClass, 0, s.inv.length - 1);
@@ -158,19 +160,19 @@ export function closestReachableDisturbance(t: TacticalState, s: Soldier): Distu
   const publicNoise = t.perception.publicNoiseGridNo[s.team] ?? NOWHERE;
   if (publicNoise !== NOWHERE && publicNoise !== disturbance) {
     const level = t.perception.publicNoiseLevel[s.team] ?? 0;
-    if (
-      s.level !== level ||
-      pythSpacesAway(s.gridNo, publicNoise) >= 6 ||
-      soldierTo3DLocationLos(t, s, publicNoise, level, 0, MAX_DISTANCE_VISIBLE, false) === 0
-    ) {
+    if (noiseStillUseful(t, s, publicNoise, level)) {
       const r = estimatePathCostToLocation(t, s, publicNoise, level, false);
       if (r.cost !== 0) {
         disturbance = r.climb ? r.climbGridNo : publicNoise;
         climb = r.climb;
       }
-    } else t.perception.publicNoiseGridNo[s.team] = publicNoise - 2;
+    } else degradePublicNoise(t, s.team, publicNoise);
   }
   return { gridNo: disturbance, climb };
+}
+
+function degradePublicNoise(t: TacticalState, team: number, noise: number): void {
+  t.perception.publicNoiseGridNo[team] = noise - DEGRADED_NOISE_TILES_WEST;
 }
 
 export function closestReachableFriendInTrouble(t: TacticalState, s: Soldier): Disturbance | null {
@@ -181,9 +183,7 @@ export function closestReachableFriendInTrouble(t: TacticalState, s: Soldier): D
   for (const friend of t.mercSlots) {
     if (!friend?.placed || friend.neutral || s.side !== friend.side || friend === s) continue;
     if (!friend.ai.underFire && (friend !== t.perception.lastMercToRadio[friend.team] || !guySawEnemyThisTurnOrBefore(t, friend))) continue;
-    const dx = Math.abs((s.gridNo % WORLD_COLS) - (friend.gridNo % WORLD_COLS));
-    const dy = Math.abs(Math.trunc(s.gridNo / WORLD_COLS) - Math.trunc(friend.gridNo / WORLD_COLS));
-    if (Math.max(dx, dy) === 1) continue;
+    if (spacesAway(s.gridNo, friend.gridNo) === ADJACENT) continue;
     const r = estimatePathCostToLocation(t, s, friend.gridNo, friend.level, true);
     if (r.cost !== 0 && r.cost < shortest) {
       closest = r.climb ? r.climbGridNo : friend.gridNo;
@@ -262,9 +262,7 @@ export function closestSeenOpponent(t: TacticalState, s: Soldier): number {
   for (const opp of t.mercSlots) {
     if (!opp?.placed || considered(s, opp)) continue;
     if ((s.oppList[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY || opp.gridNo === s.gridNo) continue;
-    const dx = (s.gridNo % WORLD_COLS) - (opp.gridNo % WORLD_COLS);
-    const dy = Math.trunc(s.gridNo / WORLD_COLS) - Math.trunc(opp.gridNo / WORLD_COLS);
-    const range = Math.trunc(Math.sqrt(dx * dx + dy * dy) * 10);
+    const range = rangeInUnits(s.gridNo, opp.gridNo);
     if (range < closestRange) {
       closestRange = range;
       closest = opp.gridNo;

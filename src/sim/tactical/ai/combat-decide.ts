@@ -2,21 +2,23 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches).
 
+import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { ObjectFlags } from '../../items/object.ts';
+import { i8, i16, u8 } from '../../../core/int.ts';
+import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
-import { AnimHeight, endHeight, height } from '../animation.ts';
+import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
-import { soldierDifficultyLevel } from '../combat/chance.ts';
+import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { okFallDirection } from '../combat/hit.ts';
-import { AiMorale } from '../combat/types.ts';
+import { AiMorale, AimShot } from '../combat/types.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { calcMaxTossRange } from '../explosions/throwing.ts';
-import { autoPlaceObject, InvSlot } from '../inventory.ts';
+import { autoPlaceObject, InvSlot, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { BoxingState, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { CivGroupHostility } from '../narrative/constants.ts';
@@ -86,10 +88,9 @@ const MIN_BLEEDING_THRESHOLD = 12;
 const AP_RADIO = 5;
 const AP_CROUCH = 2;
 const RADIO_RED_ALERT_BY_DIFFICULTY = [50, 65, 80, 90, 95];
+const IRRELEVANT = -1;
+const OPPONENT_LEVEL_UNTRACKED = 0;
 
-const i8 = (v: number) => ((v & 0xff) << 24) >> 24;
-const i16 = (v: number) => ((v & 0xffff) << 16) >> 16;
-const u8 = (v: number) => v & 0xff;
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 const deepWater = (t: TacticalState, g: number) => (t.world.terrain[g] ?? 0) === Terrain.DEEP_WATER;
@@ -355,9 +356,9 @@ function longRangeToss(t: TacticalState, s: Soldier): number | null {
     s.aimTime = toss.aimTime;
     return AiAction.TOSS_PROJECTILE;
   }
-  const weapon = toss.weaponIn === -1 ? NOTHING : (s.inv[toss.weaponIn]?.item ?? NOTHING);
+  const weapon = toss.weaponIn === NO_SLOT ? NOTHING : (s.inv[toss.weaponIn]?.item ?? NOTHING);
   if (
-    toss.weaponIn !== -1 &&
+    toss.weaponIn !== NO_SLOT &&
     calcMaxTossRange(t, s, weapon, true) > MAX_DISTANCE_VISIBLE &&
     menInSector(t, s.team) > 1 &&
     t.turn.spottersCalledForBy === NOBODY
@@ -373,7 +374,7 @@ function longRangeToss(t: TacticalState, s: Soldier): number | null {
 function civilianCower(t: TacticalState, s: Soldier): number | null {
   const ai = s.ai;
   if (s.bodyType === Body.COW || s.bodyType === Body.CRIPPLECIV) return null;
-  if (findAIUsableObjClass(t, s, WEAPON_CLASSES) !== -1) return null;
+  if (findAIUsableObjClass(t, s, WEAPON_CLASSES) !== NO_SLOT) return null;
   if (s.cowering) {
     if (t.inCombat || t.turn.enemyInSector) {
       if (ai.lastAction === AiAction.COWER) {
@@ -506,7 +507,7 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     const opponent = closestKnownOpponent(t, s);
     if (opponent !== NOWHERE) {
       const dir = directionToward(s.gridNo, opponent);
-      const visible = distanceVisible(t, s, -1, -1, opponent, 0);
+      const visible = distanceVisible(t, s, IRRELEVANT, IRRELEVANT, opponent, OPPONENT_LEVEL_UNTRACKED);
       if (s.direction !== dir && pythSpacesAway(s.gridNo, opponent) <= visible) {
         let chance = ai.orders === Orders.STATIONARY || ai.orders === Orders.ONGUARD ? 50 : 25;
         if (ai.attitude === Attitude.DEFENSIVE) chance += 25;
@@ -834,7 +835,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       }
     }
   }
-  if (findAIUsableObjClass(t, s, ItemClass.GUN) === -1 && canMove && !s.neutral) {
+  if (findAIUsableObjClass(t, s, ItemClass.GUN) === NO_SLOT && canMove && !s.neutral) {
     const weapon = searchForItems(t, s, ItemSearch.WEAPONS, handItem(s));
     if (weapon.action !== AiAction.NONE) {
       ai.actionData = weapon.gridNo;
@@ -847,13 +848,13 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
   let bestAttack = emptyAttackChoice();
   let bestAction: number = AiAction.NONE;
   if (canAttack) {
-    s.aimShotLocation = 0;
+    s.aimShotLocation = AimShot.RANDOM;
     let weaponIn = findAIUsableObjClass(t, s, ItemClass.GUN);
-    if (weaponIn !== -1) {
+    if (weaponIn !== NO_SLOT) {
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
       const hand = s.inv[InvSlot.HAND];
       const def = t.content.items.byIndex.get(hand?.item ?? NOTHING);
-      if (def?.itemClass === ItemClass.GUN && (hand?.status[0] ?? 0) >= 10) {
+      if (def?.itemClass === ItemClass.GUN && (hand?.status[0] ?? 0) >= USABLE_STATUS) {
         const minAP = minAPsToAttack(t, s, s.lastTarget, false);
         if (s.actionPoints >= minAP) {
           bestShot = { ...calcBestShot(t, s), weaponIn };
@@ -872,7 +873,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     bestThrow = checkIfTossPossible(t, s);
     if (bestThrow.possible) hooks.npcDoesAct(t, s);
     weaponIn = findAIUsableObjClass(t, s, ItemClass.BLADE | ItemClass.THROWING_KNIFE);
-    if (weaponIn !== -1) {
+    if (weaponIn !== NO_SLOT) {
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
       const minAP = minAPsToAttack(t, s, s.lastTarget, false);
       if (s.actionPoints >= minAP) {
@@ -894,7 +895,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     if (bestThrow.possible && (bestThrow.attackValue > value || bestAction === AiAction.NONE)) bestAction = AiAction.TOSS_PROJECTILE;
     if (bestAction === AiAction.NONE && tryPunching) {
       const fist = s.inv.findIndex((o, k) => k <= InvSlot.SMALLPOCK8 && o.item === NOTHING);
-      if (fist !== -1) {
+      if (fist !== NO_SLOT) {
         if (fist !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, fist);
         const minAP = minAPsToAttack(t, s, s.lastTarget, false);
         if (s.actionPoints >= minAP) {
@@ -1115,7 +1116,7 @@ function executeAttackChoice(
             break;
         }
       }
-      if (t.pre.int(100) < chance || rangeInCells(s.gridNo, best.target) <= MIN_PRONE_RANGE) {
+      if (t.pre.int(100) < chance || rangeInUnits(s.gridNo, best.target) <= MIN_PRONE_RANGE) {
         const dir = directionToward(s.gridNo, best.target);
         bestStance = shootingStanceChange(t, s, best, dir);
         if (bestStance !== 0) {
@@ -1135,7 +1136,7 @@ function executeAttackChoice(
     if (burstCapable && (bestShot.opponent?.life ?? 0) >= OKLIFE && (gun?.gunShotsLeft ?? 0) > 1 && s.team !== Team.OUR && gun) {
       const burstAPs = calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), gun);
       let reraise = 0;
-      if (changeStanceFirst && hasFireReady(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
+      if (changeStanceFirst && weaponRaised(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
       if (s.actionPoints - (best.apCost - best.aimTime) - reraise >= burstAPs) {
         let chance: number;
         if (isTank(s)) chance = 100;
@@ -1193,13 +1194,6 @@ function throwingKnifeAttackNotPorted(): AttackChoice {
   return emptyAttackChoice();
 }
 
-function hasFireReady(t: TacticalState, s: Soldier): boolean {
-  const flags = t.content.animations.controls[s.state]?.flags ?? 0;
-  return (flags & (0x40 | 0x20000000)) !== 0;
-}
-
-function rangeInCells(a: number, b: number): number {
-  const dx = (a % WORLD_COLS) - (b % WORLD_COLS);
-  const dy = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
-  return Math.trunc(Math.sqrt(dx * dx + dy * dy) * 10);
+function weaponRaised(t: TacticalState, s: Soldier): boolean {
+  return hasAnimFlag(t.content, s.state, AnimFlags.FIREREADY | AnimFlags.FIRE);
 }

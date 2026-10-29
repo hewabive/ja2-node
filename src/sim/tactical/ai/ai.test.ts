@@ -8,10 +8,11 @@ import type { TacticalContent } from '../content.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
-import { createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
-import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning } from './control.ts';
+import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning, handleSoldierAI } from './control.ts';
+import { decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
 
 let content: TacticalContent;
 
@@ -120,5 +121,38 @@ describe('green real-time AI', () => {
       }
     });
     expect(visits[0]).toBe(110);
+  });
+});
+
+describe('a sleeper in turn-based combat (AIMain.cc HandleSoldierAI)', () => {
+  const UNSEEN = -1;
+  const NEVER_SEEN = 0;
+
+  function sleeperOnHisTurn(visible: number): Soldier {
+    const { t } = world(3);
+    const sleeper = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    t.inCombat = true;
+    t.turn.currentTeam = Team.CIV;
+    sleeper.aiTurnControl = true;
+    sleeper.ai.asleep = true;
+    sleeper.visible = visible;
+    handleSoldierAI(t, sleeper, createAiControl());
+    return sleeper;
+  }
+
+  it('wakes up when the player does not see him: the original tests bVisible as a boolean and -1 is true', () => {
+    expect(sleeperOnHisTurn(UNSEEN).ai.asleep).toBe(false);
+    expect(sleeperOnHisTurn(NEVER_SEEN).ai.asleep).toBe(true);
+  });
+});
+
+describe('alert status (DecideAction.cc DecideAlertStatus, AIMain.cc CheckForChangingOrders)', () => {
+  it('sends an on-guard soldier who spots an enemy on far patrol at once: the original raises his orders twice', () => {
+    const { t } = world(3);
+    const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.ONGUARD);
+    guard.ai.oppCount = 1;
+    decideAlertStatus(t, guard, NO_AI_HOOKS);
+    expect(guard.ai.alertStatus).toBe(AlertStatus.BLACK);
+    expect(guard.ai.orders).toBe(Orders.FARPATROL);
   });
 });
