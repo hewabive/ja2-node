@@ -70,7 +70,7 @@ turn-based outcome.
 | 1b. Event jumping (not built) | Level 1, but the scheduler jumps to the next marker, tile or bullet step | Another 10–100× | Same |
 | 2. Atomic actions (rejected) | A command resolves at once, the time inside the action is discarded | Yes | **Changes** |
 
-Level 2 would lose: a burst at a falling target (later bullets aim at its new final height, `11` §0); real-time races
+Level 2 would lose: a burst at a falling target (later bullets aim at its new final height, `11`); real-time races
 (who arrives, sees or steps into the bullet first); explosion damage delayed to the keyframe, chained explosions with
 intervals, vision disabled during an explosion; the "door busy" window and vision disabled during a roof climb; an NPC
 cancelling a throw before release without paying AP. Level 1 already gives instant execution and accuracy; 1b is an

@@ -10,7 +10,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 
 | Area | Probes | Scripts (`probes/`) | Comparer | Patches | Spec |
 |---|---|---|---|---|---|
-| Tactical map and combat | movement costs, paths, line of sight, soldier dumps, chance to hit and AP of an aimed shot, the AI's best shot, light levels | `a9-*.txt`, scripts written by `save-probes.ts` and `map-light-probes.ts` | `compare.ts` | 0001 | `07`, `08`, `11` §1–§2, `13`, `14`, `20` |
+| Tactical map and combat | movement costs, paths, line of sight, soldier dumps, chance to hit and AP of an aimed shot, the AI's best shot, light levels | `a9-*.txt`, scripts written by `save-probes.ts` and `map-light-probes.ts` | `compare.ts` | 0001 | `07`, `08`, `11`, `13`, `14`, `20` |
 | Sector transitions | edgepoints, exit thresholds, walking off and in, the quick-traversal mirror, `OKForSectorExit`, the soldier init list, defence, creature and bloodcat placements | `sectors.txt`, `creature-placement.txt` | `sector-compare.ts` | 0004 | `16` |
 | Strategic movement | travel table, strategic paths, the groups of a save | `strategic.txt` | `strategic-compare.ts` | | `16` |
 | Strategic AI | new campaign, evaluation, garrison checks, the Queen waking, group arrivals, difficulty modifier, the load-time recomputation | `sai-newgame.txt`, `sai-saves.txt` | `sai-compare.ts` | 0003 | `17` |
@@ -346,7 +346,7 @@ Where the original UI differs from this setup:
   `usAttackingWeapon` only while `ubAttackBusyCount == 0`. The cursor sets `bTargetLevel` to the target's level; the real
   shot (`HandleItem`) overwrites it with `gsInterfaceLevel`, the level the player is viewing.
 - The real shot uses `fModify = TRUE` (matters only with a barrel extender, which can fall off) and, with
-  `AIM_SHOT_RANDOM`, first rolls the body part (`11` §1.8), so head and legs penalties can apply where `chance` shows none.
+  `AIM_SHOT_RANDOM`, first rolls the body part (`11`), so head and legs penalties can apply where `chance` shows none.
 - The UI stops raising the aim once `EnoughPoints` fails; the cursor's "can't get through" check uses
   `SoldierToLocationChanceToGetThrough(s, target, gsInterfaceLevel, bTargetCubeLevel, 0)` before the click and the
   body-part version after it.

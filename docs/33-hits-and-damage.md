@@ -72,7 +72,7 @@ chance to hit read the value of the soldier's last decision.
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6); the order of a whole shot is
-`11` §5. Curses, laughs, blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws in
+`11`. Curses, laughs, blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws in
 attacks").
 
 ## 3. Quirks of the original the code keeps

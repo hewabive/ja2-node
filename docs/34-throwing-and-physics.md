@@ -16,7 +16,7 @@ read from one release (Steam 1.12 `Ja2bin.dat`; speeds from `gAnimControl`).
 ## 0. Overview: which items take which path
 
 Grenades and rocks are physics objects rolled at the order (§1); launchers roll at the fire frame (opcode 430) and
-launch a physics object (§8); the LAW and the tank cannon are explosive bullets (`11` §1.9, `11` §3). Throws pay their
+launch a physics object (§8); the LAW and the tank cannon are explosive bullets (`11`, `11`). Throws pay their
 APs at the release frame 460/461, launchers at the fire frame. Every object in flight holds the attack busy count until
 it dies (§11).
 
@@ -26,11 +26,11 @@ it dies (§11).
 | `IC_THROWN` (`THROWN` → `NoWeapon(IC_THROWN, TOSSCURS)`, `externalized/WeaponModels.cc:174`) | ROCK, ROCK2 | `UseThrown` | physics object |
 | `IC_LAUNCHER` (`LAUNCHER`, `WeaponModels.cc:1347`, `TRAJECTORYCURS`) | GLAUNCHER (range 500), UNDER_GLAUNCHER (450, attachment, `WM_ATTACHED`), MORTAR (550) | `UseLauncher` (`Weapons.cc:1336`) | physics object (the attached launchable: GL_*_GRENADE, MORTAR_SHELL) |
 | `IC_GUN`, `NOT_GUN` (`LAW`, `CANNON`, `WeaponModels.cc:1389,1432`) | ROCKET_LAUNCHER (single-use LAW), TANK_CANNON | `UseGun` | **bullet** with `BULLET_FLAG_MISSILE` / `_TANK_CANNON` (`LOS.cc:3262-3269`); explodes C1 / TANK_SHELL on stop or hit (`Weapons.cc:1511-1519, 1622-1646`) |
-| `IC_THROWING_KNIFE` | THROWING_KNIFE | `UseGun` | bullet with `BULLET_FLAG_KNIFE` (`11` §1.9, `11` §3); only its CTH is `CalcThrownChanceToHit` (`Weapons.cc:654-657`) |
+| `IC_THROWING_KNIFE` | THROWING_KNIFE | `UseGun` | bullet with `BULLET_FLAG_KNIFE` (`11`, `11`); only its CTH is `CalcThrownChanceToHit` (`Weapons.cc:654-657`) |
 | any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (`12`; ja2-node `toss.ts`, gaps "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
 
 `EXPLOSIVE_GUN(x)` = ROCKET_LAUNCHER or TANK_CANNON (`Item_Types.h:215`). Vanilla data has no RPG; ROCKET_RIFLE and
-AUTO_ROCKET_RIFLE are ordinary guns with `BULLET_FLAG_SMALL_MISSILE` (`11` §3.1).
+AUTO_ROCKET_RIFLE are ordinary guns with `BULLET_FLAG_SMALL_MISSILE` (`11`).
 
 ## 1. Grenade/rock throw: order flow
 
@@ -361,10 +361,10 @@ the thrower → false (Strac guard against an endless loop).
 5. Busy accounting: the GL's +1 from the fire event is released when the physics object dies; `SHOOT_MORTAR` and
    `SHOOT_ROCKET` also carry their own 757/753 pair.
 
-**LAW (ROCKET_LAUNCHER) and tank cannon** go through `UseGun` and the bullet code (`11` §1.9, `11` §3); their specifics:
+**LAW (ROCKET_LAUNCHER) and tank cannon** go through `UseGun` and the bullet code (`11`, `11`); their specifics:
 - CTH: `CalcChanceToHitGun` with the base marksmanship replaced by the mechanical formula
   `idiv(effDex + effMrk + effWis + 10·effExp, 4) + 15·HEAVY_WEAPS traits` (`Weapons.cc:2003-2009`); all other gun
-  modifiers apply (`11` §2). Tank range penalties `:2391-2414, 2485-2488`.
+  modifiers apply (`11`). Tank range penalties `:2391-2414, 2485-2488`.
 - In `UseGun` (`:787-801`), after the marksmanship XP and before `FireBulletGivenTarget`: `WillExplosiveWeaponFail`
   (same draws as above). On fail: the hand becomes `DISCARDED_LAW`, `IgniteExplosion(C1)` on the shooter's tile,
   `ReduceAttackBusyCount`, **and the rocket is still fired** (no return; quirk).
@@ -578,7 +578,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
 3. If `missBy > 0`: `RandomGridFromRadius` loop: `pre(max)`, `pre(max)` [reject → repeat], `pre(2)`, `pre(2)`
    [same tile → repeat].
 4. Force/angle search: none.
-5. Flight: catching `pre(100)` (catch tosses only); soldier hit → `EVENT_SoldierGotHit` (draws as in `11` §5);
+5. Flight: catching `pre(100)` (catch tosses only); soldier hit → `EVENT_SoldierGotHit` (draws as in `11`);
    mortar smoke trail `pre(100)` per new tile after the 2nd.
 6. Landing: dud test `pre(100)`, `pre(50)` (only on the ground plane, out of water, status ≥ 10); if a dud: again
    `pre(100)`, `pre(50)`, then `pre(4)`, `pre(2)` if re-armed.
@@ -590,7 +590,7 @@ shooters) → `pre(100)` hit roll → `RandomGridFromRadius` → flight/landing 
 
 **LAW:** gun order (`CalcChanceToHitGun`, `pre(100)`, marksmanship `StatChange`), then `WillExplosiveWeaponFail`, then
 `FireBulletGivenTarget` deviation, then wear `pre(15 + 3·reliability)` (`Weapons.cc:870-875`), then `Random(2)` smell
-decay if `bMonsterSmell > 0` (`11` §1.9).
+decay if `bMonsterSmell > 0` (`11`).
 
 Cosmetic `main` draws here are not drawn by ja2-node (§15).
 
@@ -626,7 +626,7 @@ Paths are under `src/sim/tactical/`.
 
 | Module | Implements |
 |---|---|
-| `combat/attack.ts` | `HandleItem`'s throw and launcher branches, `EVENT_FireSoldierWeapon`, `FireWeapon` (shared with guns, `11` §6.1) |
+| `combat/attack.ts` | `HandleItem`'s throw and launcher branches, `EVENT_FireSoldierWeapon`, `FireWeapon` (shared with guns, `11`) |
 | `combat/ap.ts` | `MinAPsToThrow` (§2) |
 | `explosions/throwing.ts` | `UseThrown`, `UseLauncher`, `CalcThrownChanceToHit`, `CalcMaxTossRange`, `WillExplosiveWeaponFail`, `HandleSoldierThrowItem`, the release opcodes 460/461 (§1–§4, §7, §8) |
 | `explosions/trajectory.ts` | `CalculateLaunchItemParamsForThrow`, `RandomGridFromRadius`, the force and angle search, `CalculateLaunchItemChanceToGetThrough` (§5, §6); the last also serves `toss.ts`, the AI's `ai/attack-choice.ts` and the attack hint `src/sim/hints/estimate-attack.ts` |

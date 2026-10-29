@@ -344,7 +344,7 @@ audio.
 
 ## 10. Tactical orders
 
-Rules: `10` (turns, interrupts), `11` §0 (attacks), `07` (movement). Orders of the sandbox and of a campaign's tactical
+Rules: `10` (turns, interrupts), `11` (attacks), `07` (movement). Orders of the sandbox and of a campaign's tactical
 flow.
 
 | Command | Rules |

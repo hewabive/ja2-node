@@ -9,7 +9,7 @@ walks `MercSlots` (sector insertion order); `FOR_EACH_SOLDIER` walks all ids (`T
 §2.4). "Policy" values are Stracciatella defaults from `assets/externalized/game.json`. `NO_INTERRUPT 127`,
 `AUTOMATIC_INTERRUPT 100` (`Tactical/OppList.h:29-30`).
 
-Companions: `11` §0 (coupling overview), `07` (movement AP and the NoAP freeze), `08` §2
+Companions: `11` (coupling overview), `07` (movement AP and the NoAP freeze), `08` §2
 (sight, opplists, best sighting in real time), `09` (AI state, `ActionDone`, the green decision), `33` (the end of
 an attack, suppression), `13` (completion hooks, TB movement and `ExecuteAction` details of the AI turn).
 
@@ -347,7 +347,7 @@ The breath penalty (`:543-552`) also erases an AP debt (quirk). Vanilla floors e
 | Wounded | `damage / AP_GET_WOUNDED_DIVISOR 4` | breath loss | — | `SoldierTakeDamage` (`:5670-5677`) |
 | Fall from hit, standing / crouched | 4 / 2 | 250 / 125 | — | FALLBACK_HIT_STAND, FALLFORWARD_FROMHIT_* start (`:1554-1562`) |
 | Suppression | up to 8 | — | — | `HandleSuppressionFire` (`33`) |
-| Attacks | `CalcTotalAPsToAttack`, `MinAPsToAttack` (`Points.cc:866, 964`) | per weapon | command | fire opcode (`11` §0); `11` |
+| Attacks | `CalcTotalAPsToAttack`, `MinAPsToAttack` (`Points.cc:866, 964`) | per weapon | command | fire opcode (`11`); `11` |
 
 `GetAPsToChangeStance` (`Points.cc:1526-1563`): stand↔crouch 2, stand↔prone 4, crouch↔prone 2.
 

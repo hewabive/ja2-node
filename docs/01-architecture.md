@@ -209,7 +209,7 @@ their values (`deviations.md` §2 lists every change):
 | Process | Original | ja2-node |
 |---|---|---|
 | Animation frame | `UpdateCounter` against `sAniDelay` ms of wall clock, re-armed from "now" | Game-ms deadline (`nextFrameAt`) checked every tick, same reset points |
-| Bullet | One step per frame, at most every `bulletSpeed/10` ms (2–3 ms) (`LOS.cc:3155-3184`) | One tile per tick, the first inside `FireWeapon`; thrown knives every 30 ms (`11` §3.3) |
+| Bullet | One step per frame, at most every `bulletSpeed/10` ms (2–3 ms) (`LOS.cc:3155-3184`) | One tile per tick, the first inside `FireWeapon`; thrown knives every 30 ms (`11`) |
 | Throw physics | Once per frame when the 20 ms counter is due (`Physics.cc:238-330`) | Every 20 game ms |
 | Real-time AI | One soldier after more than 50 ms, more while less than 10 ms of CPU passed (`Overhead.cc:109-110, 1041-1052`); `AI_DELAY` 100 ms per soldier (`AIMain.cc:40`) | Every 55 game ms (strict `>` on 5 ms ticks), every AI slot after the cursor, no CPU slice (`09` §1.1) |
 | Real-time turn (bleeding, breath, smoke, light and opplist decay) | Every 5000 ms × compression (`Strategic/Strategic_Turns.cc:30-84`, `Tactical/Tactical_Turns.cc:80-160`) | Checked every 20 game ms, fires after more than 5000: every 5020 ms (`src/sim/tactical/turns/turns.ts`) |
