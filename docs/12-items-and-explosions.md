@@ -877,7 +877,7 @@ set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(RE
   §5.3). Right after `DamageStructure` reports damage or destruction, `OnStructureDamaged(loaded sector, hit tile,
   structure, wound as UINT8, destroyed)` calls its listeners in key order: `default:brothel` (a destroyed wall beside a
   brothel room turns Kingpin's men hostile, `35` §4.2), then `default:sam` (a hit on a SAM tile wears the SAM down,
-  `18` §4.2). `destroyed` is the raw result, before a negative destruction partner turns it into a swap; the wound is
+  `18`). `destroyed` is the raw result, before a negative destruction partner turns it into a swap; the wound is
   the one before the structure's armour. ja2-node: `structureDamaged` in `src/sim/tactical/explosions/structure-damage.ts`
   calls the brothel listener and then `SectorHooks.structureDamaged`, which the sector flow implements.
 - **Destruction partner** `bDestructionPartner`: negative partner → swap to the damaged graphic `−partner` instead of

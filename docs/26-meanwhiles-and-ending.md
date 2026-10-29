@@ -104,7 +104,7 @@ is small).
   (`:799-809`) schedules a pending one whenever the world is trashed (`TileEngine/WorldDef.cc:2543-2544`): leaving the town
   sector, or any later map load, **including the load of a played meanwhile scene**. Both branches post at now + 5 (the
   "delayed" variant's 60 minutes is commented out, `:755-760`).
-- **Towns** (`18` §2.7): when a town becomes wholly player-controlled for the first time and militia can be trained there
+- **Towns** (`18`): when a town becomes wholly player-controlled for the first time and militia can be trained there
   (`Strategic_Town_Loyalty.cc:1033-1062`); Omerta, San Mona, Estoni, Orta, Tixa and Meduna have no scene (`:656-664`).
   **Loss**: a militia-trainable town that was liberated before is wholly enemy-controlled again (`:1064-1076`); one
   `LOST_TOWN` scene per campaign.
@@ -470,7 +470,7 @@ opens and after an explosion in I13 (`findBestPath` with `THROUGH_PEOPLE`), emit
 The interrogation (§2.3) leaves the captives in N7 tactical on their own squad with N7's garrison present: the escape is
 an ordinary battle or a walk off the map. Their gear lies hidden at 12089 in the same sector. Strategic status of POWs
 while held (contracts frozen, no morale decay, no healing assignments, excluded from compression's usable mercs) is
-`22` §2.1, `18` §5, `15` §1.6.
+`22` §2.1, `18`, `15` §1.6.
 
 ---
 
@@ -504,7 +504,7 @@ hook runs from the sector flow's world unload.
 
 ### 4.3 Liberation, loss, SAM and outskirts: call order
 
-In `SetThisSectorAsPlayerControlled` (`Player_Command.cc:57-218`, `18` §2.6) for an enemy-controlled sector taken in a
+In `SetThisSectorAsPlayerControlled` (`Player_Command.cc:57-218`, `18`) for an enemy-controlled sector taken in a
 contested fight: town morale and loyalty, then the whole-town check (town scene); mine; SAM (SAM scene first, then
 morale, loyalty, Skyrider's line, grace days); refuel site; **outskirts scene**; then
 `StrategicHandleQueenLosingControlOfSector`. Same-second scenes keep this order in the queue (`lastScheduledId` ends as the
@@ -514,7 +514,7 @@ last one). ja2-node: `liberate` (`src/sim/strategic/map/control.ts`) calls `ai.m
 ### 4.4 Progress-related narrative owned elsewhere
 
 Enrico's progress and setback mails and "lack of progress" (`HandleEnricoEmail`, `Strategic/Strategic_Status.cc:246-376`;
-`21` §6, `18` §2.8); the computed facts `FACT_PLAYER_DOING_POORLY/WELL/VERY_WELL` (< 20, > 50, > 80 %,
+`21` §6, `18`); the computed facts `FACT_PLAYER_DOING_POORLY/WELL/VERY_WELL` (< 20, > 50, > 80 %,
 `Strategic/Quests.cc:861-871`; `25`); Skyrider's progress comments on helicopter routes (`MapScreen.cc:7341-7380`,
 `gubPlayerProgressSkyriderLastCommentedOn`; `25`); merc morale `progress/5` (`Morale.cc:255`, `22`); dealer coolness (`23`);
 the creature quest triggers (`17` §12).
@@ -563,7 +563,7 @@ Two beyond `17` §9: her death puts the AI to sleep (`QUEEN_DEAD`, `17` §9.5) *
 scene scheduled after her death (only possible while the ending waits for the creature queen, §6.6) still wakes the AI
 through its implications (quirk; the original would also try to play the scene with a dead Queen, which only ESC ends,
 inferred; ja2-node runs the implications without a scene). And `GLOBAL_LOYALTY_QUEEN_BATTLE_WON` runs
-`CheckConditionsForTriggeringCreatureQuest` (`Strategic_Town_Loyalty.cc:876-879`, `18` §2.4), so a sci-fi game holding
+`CheckConditionsForTriggeringCreatureQuest` (`Strategic_Town_Loyalty.cc:876-879`, `18`), so a sci-fi game holding
 three infestible mines starts the creature quest at the moment she dies.
 
 ---

@@ -19,7 +19,7 @@ arrival, the arrival slots and `MercArrivesCallback`, hire costs, the A.I.M. ref
 status, `SettleMercAccounts`), email, history, personnel and life insurance. `23` owns dealers and repairs. `33` owns
 the morale event table and `UpdateSoldierMorale`, `33` `StatChange`/`ProcessStatChange`. `15` owns the clock, the
 event queue, the order of the 00:00 events and the hourly update. `16` owns squads, groups, `RemoveCharacterFromSquads`,
-`RemoveGroup` and `CheckAndHandleUnloadingOfCurrentWorld`. `18` §5 owns assignments (the training opinion bonus reads §5
+`RemoveGroup` and `CheckAndHandleUnloadingOfCurrentWorld`. `18` owns assignments (the training opinion bonus reads §5
 opinions). `19` owns merc death and capture. `14` owns the savegame container. The agent API (commands, prompts,
 events, view) is `29`.
 
@@ -674,7 +674,7 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). 
 | Renewal | §3.5 | |
 | Death of a teammate | hated → +5 only; else −5 tactical if in sector, −5 strategic, buddy (slots 0..2) −15 | `33`, `Morale.cc:529-563` |
 | Buddy killed quotes | 15/16/17 | §4.9 |
-| Training | instructor opinion bonus | `18` §5.8 |
+| Training | instructor opinion bonus | `18` |
 | Attacking a buddy | an order from the UI to attack a merc in one's buddy slots is refused (quote 36) | `Tactical/Handle_Items.cc:243-250`; not ported (deviation "Attack refusals") |
 | Cosmetic quotes | buddy did well 51/52/53 (`Tactical/SkillCheck.cc:385-420`, `Soldier_Ani.cc:2603-2681`); annoying teammate 39 when opinion < −2 (`Dialogue_Control.cc:785-800`); negative company 41/45 (`Handle_UI.cc:4710-4765`, the own-merc bark of `24`) | presentation; 39 and 51–53 are not emitted |
 
@@ -686,7 +686,7 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). 
 | Attitude OPTIMIST / AGGRESSIVE | +1 on positive morale events; OPTIMIST also +1 on negative | `33` |
 | Attitude PESSIMIST / COWARD | −1 / −2 on negative events (PESSIMIST also −1 on positive); AGGRESSIVE doubles and COWARD skips the ran-away penalty | `33` |
 | Attitude FRIENDLY, LONER, ARROGANT, BIG_SHOT, ASSHOLE | none (quotes, I.M.P. email) | `Soldier_Profile_Type.h:177-190` |
-| Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18` §5.12, `33` |
+| Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18`, `33` |
 | Personality FORGETFUL, NERVOUS, PSYCHO / skill STEALTHY | unhired death chance +2 / −1 | §2.5 |
 | `bSexist` | morale when a merc marries | `Morale.cc:565-602`, `25` §6.9 |
 | `bReputationTolerance` | hiring (reputation) and the morale tolerance | §6.3 |

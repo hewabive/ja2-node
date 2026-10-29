@@ -743,7 +743,7 @@ Rules: `18`. Strategic commands, refused in turn-based combat:
   nothing; a change in the loaded sector re-places its militia on the next tactical entry
   (`gfStrategicMilitiaChangesMade`).
 - `distributeMilitia {town}`: the AUTO button (`HandleEveningOutOfTroopsAmongstSectors`, `CanMilitiaAutoDistribute`),
-  with the original's loss of militia counted in a sector with hostiles (quirk kept, `18` §1.8).
+  which, as in the original, deals out the militia of a sector with hostiles while they also stay there (`18`).
 
 Events (those the original pairs with `StopTimeCompression` or a box stop a strategic `advance`): `assignmentDone
 {soldier, sayQuote}`, `assignmentAborted {soldier, reason: noMedkits|insufficientDoctorSkill|noToolkits|

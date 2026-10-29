@@ -702,8 +702,8 @@ Returns at once while `didGameJustStart` (until the first squad lands, §4.5). T
 ja2-node: `handleHourlyUpdate` (`src/sim/strategic/economy/update.ts`) calls the steps in this order, the non-economy ones
 through `EconomyContext.slots` filled by `CampaignSim`.
 
-`UpdateAssignments`' own order (the sector loop is column-major: `x` outer, then `y`, `z`): `18` §5.3; its draws:
-`18` §5.15.
+`UpdateAssignments`' own order (the sector loop is column-major: `x` outer, then `y`, `z`): `18`; its draws:
+`18`.
 
 ### 3.3 `HandleQuarterHourUpdate` (`Hourly_Update.cc:85-92`)
 
@@ -806,7 +806,7 @@ state machine).
       `7:55 + i` min (`:515`); patrols; the weapon cache sector (draws in §4.6);
    8. `InitStrategicStatus()` (zeroed, army gun "already dropped" flags).
 4. `InitSquads()`, `InitVehicles()`, `InitTownLoyalty()` (`18`).
-5. `InitializeMines()` (`Strategic_Mines.cc:61-159`, `18` §3.2): base rates, rejection-sampled production increments,
+5. `InitializeMines()` (`Strategic_Mines.cc:61-159`, `18`): base rates, rejection-sampled production increments,
    the depleting mine.
 6. `InitMapScreenFlags()`.
 7. `InitNPCs()` (`Game_Init.cc:73-116`, `35` §2.2): per NPC placement in profile-id order (sci-fi-only ones skipped

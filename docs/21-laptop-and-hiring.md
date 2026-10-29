@@ -18,7 +18,7 @@ parts of `InitNewGame`. Elsewhere: `22` what follows the hire (the contract hour
 `StrategicRemoveMerc` and the medical deposit refund, the daily merc update `MercDailyUpdate` with the unhired-profile
 loop, salary growth, `CanMercBeHired` and the tolerances, RPC pay); `23` arms dealers and the stock code Bobby Ray's
 shares; `15` the clock, the event queue, `InitNewGame`/`InitStrategicLayer`; `16` squads, groups, `UpdateMercInSector`,
-airspace; `18` §3.9 the finance ledger and the hourly update; `19` merc death and capture; `25` §1–§2 facts and
+airspace; `18` the finance ledger and the hourly update; `19` merc death and capture; `25` §1–§2 facts and
 quests, `35` §1 NPC actions (Kulba, Pablo), `35` §2.2 `DecideActiveTerrorists`; `26` meanwhiles; `14` the save layout;
 `30` §6 the laptop pages (client); `29` the agent API (laptop commands, queries, view, events).
 
@@ -837,7 +837,7 @@ that second code, 0 if none; `records.ts` `timeQuestWasStarted`), used by `FACT_
 ### 6.3 Finances
 
 The ledger is `src/sim/campaign/finances.ts` (codes 0–27, the cost-to-date code set, records `{code, secondCode, minute,
-amount, balanceAfter}`, `18` §3.9). Codes written by the laptop: `ANONYMOUS_DEPOSIT` (starting cash), `HIRED_MERC`,
+amount, balanceAfter}`, `18`). Codes written by the laptop: `ANONYMOUS_DEPOSIT` (starting cash), `HIRED_MERC`,
 `MEDICAL_DEPOSIT`, `BOBBYR_PURCHASE` (second code 0), `PAY_SPECK_FOR_MERC`, `IMP_PROFILE`, `PURCHASED_INSURANCE`,
 `EXTENDED_INSURANCE`, `INSURANCE_PAYOUT`, `PURCHASED_FLOWERS` (0); by others: `FULL_MEDICAL_REFUND`,
 `PARTIAL_MEDICAL_REFUND`, `EXTENDED_CONTRACT_*` and `PAYMENT_TO_NPC` (`22`), `TRANSFER_FUNDS_TO_MERC`/

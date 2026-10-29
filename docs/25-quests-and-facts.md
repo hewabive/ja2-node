@@ -806,7 +806,7 @@ attendant), ROBOT, the terrorists, the assassins, ELDIN, JOEY, DYNAMO, KINGPIN, 
 Our-team deaths (`OH:2221-2250`): SLAY (Carmen), ROBOT (facts 203/206, 202 false). ja2-node runs these before the experience
 awards (and for our team when the skull is released): the history line through the narrative port's `addHistory` right
 after the profile is marked dead, the civilian cases (`src/sim/tactical/narrative/death-rules.ts`), then
-`HandleMurderOfCivilian` through the sector hook `murderOfCivilian` (`src/sim/campaign/civilian-murder.ts`, `18` §2.5);
+`HandleMurderOfCivilian` through the sector hook `murderOfCivilian` (`src/sim/campaign/civilian-murder.ts`, `18`);
 the death message is the server's `soldierDied` line (`src/server/message-entries.ts`).
 
 ### 6.13 Vehicles

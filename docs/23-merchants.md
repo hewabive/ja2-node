@@ -18,7 +18,7 @@ insertion order (`NOTHING`, `items.json`, `magazines.json`, `weapons.json`, `exp
 **Scope.** `12` owns `OBJECTTYPE`, `CreateItem(s)`, `AutoPlaceObject`, world item pools and `ItemSlotLimit`. `15` owns the
 event queue, the 09:00 `DAILY_UPDATE_BOBBY_RAY_INVENTORY` event and the new-game order (`15` §4.2 step 3). `16` owns NPC
 placement in loaded sectors (`profileHere`) and sector diffs (items dropped by a dead dealer). `18` owns finances
-(`addTransaction`) and the mercs' own repair assignment (`18` §5.7; unrelated to repairmen here). `14` §4 row 23 is the save
+(`addTransaction`) and the mercs' own repair assignment (`18`; unrelated to repairmen here). `14` §4 row 23 is the save
 section. `21` owns Bobby Ray's online shop, which reuses the supply functions of §4. `22` owns contracts. `33` owns the death
 commit (opcode 440) that calls the dead-dealer hook (§10.7). `24` owns talking (the talk menu, BUYSELL records, giving items),
 `25` the facts, `35` the 04:00 event and schedules. The shop screen is `30` §2.9; the shop commands, queries, events and view are
