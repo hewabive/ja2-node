@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
@@ -12,8 +13,9 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { hasPendingAction } from '../pending-action.ts';
+import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel, markSeenOpponent } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
-import { calcActionPoints } from '../points.ts';
+import { calcActionPoints, ptsToMoveDirection } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
@@ -23,6 +25,9 @@ import {
   checkForPotentialAddToBattleIncrement,
   displayHiddenInterrupt,
   doneAddingToIntList,
+  endTurn,
+  InterruptKind,
+  resolveInterruptsVs,
 } from './turns.ts';
 
 let content: TacticalContent;
@@ -44,9 +49,11 @@ const stats = (experience: number): SoldierStats => ({
   experience,
 });
 
-function newSim(): TacticalSim {
+function newSim(blocked: readonly number[] = []): TacticalSim {
   const world = {
-    ...syntheticWorld(testDoorCosts()),
+    ...syntheticWorld(testDoorCosts(), (structures) => {
+      for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+    }),
     map: { doors: [], placements: [] },
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
@@ -111,6 +118,40 @@ describe('turn-based combat', () => {
       topMessage: { kind: 'playerTurn', team: Team.OUR, bloodcats: false },
       ai: null,
     });
+  });
+
+  it('lets the second sighter start when the third is on his team, and the best interrupt him (HandleBestSightingPositionInRealtime)', () => {
+    function start(sighters: readonly [number, number, number, number][]): { team: number; hiddenInterrupt: boolean } {
+      const sim = newSim();
+      for (const [id, team, x, experience] of sighters) {
+        const facing = team === Team.OUR ? Direction.SOUTH : Direction.NORTH;
+        spawn(sim, id, team, gridNo(x, team === Team.OUR ? 80 : 92), facing, experience);
+      }
+      sim.lookAround();
+      const started = sim.drainEvents().find((e) => e.type === 'combatStarted') as { team: number } | undefined;
+      return { team: started?.team ?? -1, hiddenInterrupt: sim.state.turn.hiddenInterrupt };
+    }
+    const enemy: [number, number, number, number] = [20, Team.ENEMY, 80, 10];
+    const merc: [number, number, number, number] = [0, Team.OUR, 80, 5];
+    expect(start([enemy, merc, [1, Team.OUR, 83, 4]])).toEqual({ team: Team.OUR, hiddenInterrupt: true });
+    expect(start([enemy, merc])).toEqual({ team: Team.ENEMY, hiddenInterrupt: false });
+    expect(start([enemy, merc, [21, Team.ENEMY, 83, 3]])).toEqual({ team: Team.ENEMY, hiddenInterrupt: false });
+  });
+
+  it("keeps a stopped merc's move into the next turn by the first step of his path (EndTurn reads ubPathingData[0])", () => {
+    const sim = newSim([gridNo(81, 80)]);
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    const target = gridNo(80, 70);
+    Object.assign(merc, { path: [Direction.EAST, Direction.NORTH], pathIndex: 1, pathSize: 2, finalDestination: target });
+    merc.noAPToFinishMove = true;
+    const ctx = { env: t.pathEnv, content: t.content, inCombat: true };
+    expect(ptsToMoveDirection(ctx, merc, Direction.EAST, merc.uiMovementMode)).toBeGreaterThan(merc.actionPoints);
+    expect(ptsToMoveDirection(ctx, merc, Direction.NORTH, merc.uiMovementMode)).toBeLessThan(merc.actionPoints);
+    endTurn(t, Team.ENEMY);
+    expect([merc.finalDestination, merc.noAPToFinishMove]).toEqual([target, true]);
   });
 
   it('passes the turn to the enemy team and back, starting a new round', () => {
@@ -367,5 +408,55 @@ describe('the interrupt queue', () => {
       [creature, GAINS],
     ]);
     expect([ours.noAPToFinishMove, ours.turningFromPronePosition]).toEqual([true, TurningFromProne.OFF]);
+  });
+
+  it('lets nobody act when the winners leave three teams in the queue, and still stops the mover (VerifyOutOfTurnOrderArray)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const mover = spawn(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const militia = spawn(sim, 84, Team.MILITIA, gridNo(84, 80), Direction.SOUTH);
+    t.inCombat = true;
+    t.turn.currentTeam = Team.ENEMY;
+    mover.aiTurnControl = true;
+    for (const watcher of [merc, militia]) {
+      watcher.oppList[mover.id] = Opp.SEEN_CURRENTLY;
+      watcher.interruptDuelPts = AUTOMATIC_INTERRUPT;
+    }
+    resolveInterruptsVs(t, mover, InterruptKind.SIGHT);
+    expect(t.events.some((e) => e.type === 'interrupt')).toBe(false);
+    expect([t.turn.currentTeam, t.turn.intList.length, mover.aiTurnControl]).toEqual([Team.ENEMY, 0, true]);
+    expect(t.turn.interruptOccurred).toBe(true);
+    expect([merc.noAPToFinishMove, militia.noAPToFinishMove]).toEqual([true, true]);
+  });
+});
+
+describe('the interrupt duel', () => {
+  it('gives a tie to the mover, and the win to a watcher the mover does not see (InterruptDuel)', () => {
+    const sim = newSim();
+    const watcher = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH);
+    const mover = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    watcher.oppList[mover.id] = Opp.SEEN_CURRENTLY;
+    mover.oppList[watcher.id] = Opp.SEEN_CURRENTLY;
+    watcher.interruptDuelPts = 5;
+    mover.interruptDuelPts = 5;
+    expect(interruptDuel(watcher, mover)).toBe(false);
+    mover.oppList[watcher.id] = Opp.SEEN_LAST_TURN;
+    watcher.interruptDuelPts = 2;
+    expect(interruptDuel(watcher, mover)).toBe(true);
+    expect(watcher.interruptDuelPts).toBe(5);
+  });
+
+  it('adds the point for an opponent seen before only from his second sighting on (gbSeenOpponents == TRUE)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH);
+    const points = () => calcInterruptDuelPts(t, merc, enemy, false);
+    const neverSeen = points();
+    markSeenOpponent(t, merc.id, enemy.id);
+    expect(points()).toBe(neverSeen);
+    markSeenOpponent(t, merc.id, enemy.id);
+    expect(points()).toBe(neverSeen + 1);
   });
 });

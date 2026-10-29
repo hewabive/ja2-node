@@ -16,6 +16,7 @@
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8, u32 } from '../../../core/int.ts';
+import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
@@ -31,7 +32,7 @@ import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { removePendingAction } from '../pending-action.ts';
-import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
+import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
 import {
   decayPublicOpplist,
@@ -73,7 +74,6 @@ import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from 
 import { addTopMessage, endTopMessage, initPlayerUIBar, TopMessageKind } from './top-message.ts';
 import { TEAM_COUNT } from './turn-state.ts';
 
-export const AUTOMATIC_INTERRUPT = 100;
 export const InterruptKind = { SIGHT: 0, NOISE: 1 } as const;
 
 const TEAM_SIDE = [Side.FRIENDLY, Side.ENEMY, Side.NONE, Side.FRIENDLY, Side.ENEMY, Side.FRIENDLY] as const;
@@ -442,6 +442,9 @@ function soldierHasSeenEnemiesLastFewTurns(t: TacticalState, s: Soldier): boolea
   return false;
 }
 
+const QUIET_TURNS_TO_END_COMBAT = 2;
+const TURNS_NOT_SEEN_WHEN_NOBODY_IS_AWARE = 5;
+
 export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): boolean {
   if (!t.inCombat) return false;
   if (boxingFight(t)) return false;
@@ -449,7 +452,7 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
   const turn = t.turn;
   const weSeeNoOne = !mercs(t).some((s) => s.team === Team.OUR && s.ai.oppCount > 0);
   const nobodyAlerted = !mercs(t).some((s) => s.team !== Team.OUR && !s.neutral && s.life >= OKLIFE && s.ai.alertStatus >= AlertStatus.RED);
-  if (weSeeNoOne && nobodyAlerted) turn.consNumTurnsNotSeen = 5;
+  if (weSeeNoOne && nobodyAlerted) turn.consNumTurnsNotSeen = TURNS_NOT_SEEN_WHEN_NOBODY_IS_AWARE;
   else {
     let someone = false;
     let we = false;
@@ -469,7 +472,7 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
     if (increment) turn.consNumTurnsNotSeen++;
   }
   turn.consNumTurnsWeHaventSeenButEnemyDoes = 0;
-  if (turn.consNumTurnsNotSeen > 1) {
+  if (turn.consNumTurnsNotSeen >= QUIET_TURNS_TO_END_COMBAT) {
     turn.consNumTurnsNotSeen = 0;
     exitCombatMode(t);
     t.events.push({ type: 'combatEnded', reason: 'lull' });
@@ -741,7 +744,7 @@ export function endInterrupt(t: TacticalState, markOccurred: boolean): void {
   for (const s of t.soldiers) {
     if (!s) continue;
     if (s.actionPoints === 0) s.moved = true;
-    else if (s.team !== Team.OUR && s.ai.newSituation === 2) s.moved = false;
+    else if (s.team !== Team.OUR && s.ai.newSituation === Situation.IS_NEW) s.moved = false;
     else s.moved = s.movedPriorToInterrupt;
   }
   if (!interrupted) {
@@ -786,8 +789,6 @@ export function endInterrupt(t: TacticalState, markOccurred: boolean): void {
   if (!found) endAITurn(t);
 }
 
-const toUint8 = (v: number): number => v & 0xff;
-
 export function resolveInterruptsVs(t: TacticalState, mover: Soldier, kind: number): void {
   if (!t.inCombat) return;
   const turn = t.turn;
@@ -814,7 +815,7 @@ export function resolveInterruptsVs(t: TacticalState, mover: Soldier, kind: numb
         mover.interruptDuelPts = calcInterruptDuelPts(t, mover, opp, true);
         occurs = interruptDuel(opp, mover);
       }
-      if (occurs) winners.push({ opp, diff: toUint8(opp.interruptDuelPts - mover.interruptDuelPts) });
+      if (occurs) winners.push({ opp, diff: u8(opp.interruptDuelPts - mover.interruptDuelPts) });
       mover.interruptDuelPts = NO_INTERRUPT;
       opp.interruptDuelPts = NO_INTERRUPT;
     }

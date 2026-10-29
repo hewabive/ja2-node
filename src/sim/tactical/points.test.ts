@@ -107,6 +107,17 @@ describe('action points', () => {
     expect(s.actionPoints).toBe(-6);
   });
 
+  it('wipes an AP debt when a breath cost would take breath below zero (DeductPoints)', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.breathMax = 60;
+    s.breathRed = 6000;
+    s.breath = 0;
+    s.actionPoints = -6;
+    deductPoints(true, s, 0, 1000);
+    expect([s.actionPoints, s.breath]).toEqual([0, 0]);
+  });
+
   it('prices stance changes, turning and a running start', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
@@ -132,6 +143,19 @@ describe('action points', () => {
 });
 
 describe('breath', () => {
+  it('gives nothing back in real time after a single step: any tile moved zeroes the whole gain (UnusedAPsToBreath)', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.breathRed = 3000;
+    s.breath = 70;
+    s.lastMovementAnimPerRTBreathUpdate = states(content.animations).WALKING;
+    s.tilesMovedPerRTBreathUpdate = 1;
+    unusedAPsToBreath(ctx(t), s, false);
+    expect([s.breath, s.tilesMovedPerRTBreathUpdate]).toEqual([70, 0]);
+    unusedAPsToBreath(ctx(t), s, false);
+    expect(s.breath).toBeGreaterThan(70);
+  });
+
   it("takes a roof step's breath from the ground costs under the roof", () => {
     const blockedBelow = gridNo(80, 80);
     const openBelow = blockedBelow + 1;

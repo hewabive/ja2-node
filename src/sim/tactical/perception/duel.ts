@@ -5,6 +5,7 @@
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
 
 import { gridSquare, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { i8, u8 } from '../../../core/int.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -159,8 +160,6 @@ export function decayWatchedLocs(t: TacticalState, team: number): void {
   for (let id = first; id <= last; id++) for (let k = 0; k < NUM_WATCHED_LOCS; k++) decayWatchedLoc(t, wk(id, k), team);
 }
 
-const toInt8 = (v: number): number => ((v & 0xff) << 24) >> 24;
-
 export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier, useWatchSpots: boolean): number {
   if (s.neutral) return NO_INTERRUPT;
   let p = interruptBasePoints(t, s);
@@ -168,7 +167,7 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
   if (s.ai.oppCount > 2) p -= Math.trunc((s.ai.oppCount - 1) / 2);
   if (s.oppList[opp.id] === Opp.HEARD_THIS_TURN) p--;
   p -= s.shock;
-  const d = pythSpacesAway(s.gridNo, opp.gridNo) & 0xff;
+  const d = u8(pythSpacesAway(s.gridNo, opp.gridNo));
   const st = states(t.content.animations);
   if (t.inCombat && s.team !== t.turn.currentTeam) p -= Math.trunc(d / 10);
   else if (!seenOpponent(t, opp.id, s.id)) {
@@ -186,7 +185,7 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
     else if ((t.perception.publicOpp[s.team]?.[opp.id] ?? 0) !== Opp.NOT_HEARD_OR_SEEN) p++;
   }
   if (p >= AUTOMATIC_INTERRUPT) p = AUTOMATIC_INTERRUPT - 1;
-  return toInt8(p);
+  return i8(p);
 }
 
 export function standardInterruptConditionsMet(t: TacticalState, s: Soldier, opp: Soldier | null, oldOpp: number): boolean {

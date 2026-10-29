@@ -9,6 +9,7 @@ import { ItemClass } from '../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
+import { i8, u8 } from '../../core/int.ts';
 import { AnimHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
@@ -171,6 +172,7 @@ const WALK_ENERGY_FACTOR = 1;
 const SWAT_ENERGY_FACTOR = 2;
 const CRAWL_ENERGY_FACTOR = 4;
 const RT_BREATH_DEDUCT_MODIFIER = 1.25;
+const UNUSED_APS_PER_REALTIME_TURN = 3;
 const MAX_BREATH_RED = 10000;
 export const MAX_AP_CARRIED = 5;
 const BOXING_POINTS_DIVISOR = 2;
@@ -195,7 +197,6 @@ export const BP_PER_AP = {
   MAX_EFFORT: 100,
 } as const;
 
-const toInt8 = (v: number): number => ((v & 0xff) << 24) >> 24;
 const BLOCKED_AP_COST = 100;
 const GROUND_LEVEL = 0;
 
@@ -454,7 +455,7 @@ export function deductPoints(inCombat: boolean, s: Soldier, apCost: number, bpCo
   if (!bpCost) return;
   const cost = adjustBreathPts(s, bpCost);
   s.breathRed = Math.min(MAX_BREATH_RED, Math.max(0, s.breathRed + cost));
-  let breath = toInt8(Math.trunc(Math.fround(s.breathMax - Math.fround(s.breathRed / 100))));
+  let breath = i8(Math.trunc(Math.fround(s.breathMax - Math.fround(s.breathRed / 100))));
   if (breath > 100) breath = 100;
   if (breath < 0) {
     s.actionPoints = Math.max(0, s.actionPoints + Math.trunc(breath / 5));
@@ -495,7 +496,7 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
 export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
   const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
   if (!ctx.inCombat) {
-    let change = 3 * Math.trunc((breathPerAP(ctx, s, s.state) * 100) / adjustment());
+    let change = UNUSED_APS_PER_REALTIME_TURN * Math.trunc((breathPerAP(ctx, s, s.state) * 100) / adjustment());
     if (change > 0) change = 0;
     else if (s.tilesMovedPerRTBreathUpdate > 0) {
       const moved = breathPerAP(ctx, s, s.lastMovementAnimPerRTBreathUpdate) * s.tilesMovedPerRTBreathUpdate;
@@ -525,10 +526,10 @@ export function maxActionPoints(bodyType: number): number {
 export function calcActionPoints(s: Soldier, boxingRound = false): number {
   if (!s.life) return 0;
   let points = 5 + Math.trunc((10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20) / 40);
-  points &= 0xff;
-  if (s.life < s.lifeMax) points = (points - Math.trunc((2 * points * (s.lifeMax - effectiveLife(s))) / (3 * s.lifeMax))) & 0xff;
-  if (s.breath < 100) points = (points - Math.trunc((points * (100 - s.breath)) / 200)) & 0xff;
-  if (s.weightCarriedAtTurnStart > 100) points = Math.trunc((points * 100) / s.weightCarriedAtTurnStart) & 0xff;
+  points = u8(points);
+  if (s.life < s.lifeMax) points = u8(points - Math.trunc((2 * points * (s.lifeMax - effectiveLife(s))) / (3 * s.lifeMax)));
+  if (s.breath < 100) points = u8(points - Math.trunc((points * (100 - s.breath)) / 200));
+  if (s.weightCarriedAtTurnStart > 100) points = u8(Math.trunc((points * 100) / s.weightCarriedAtTurnStart));
   if (points < AP_LIMITS.MINIMUM) points = AP_LIMITS.MINIMUM;
   points = Math.min(points, maxActionPoints(s.bodyType));
   if (s.bodyType === Body.BLOODCAT) points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
@@ -537,8 +538,8 @@ export function calcActionPoints(s: Soldier, boxingRound = false): number {
       points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
     if (s.ai.frenzied) points = Math.trunc((points * AP_LIMITS.MONST_FRENZY_FACTOR) / 10);
   }
-  if (boxingRound) points = Math.trunc((points & 0xff) / BOXING_POINTS_DIVISOR);
-  return points & 0xff;
+  if (boxingRound) points = Math.trunc(u8(points) / BOXING_POINTS_DIVISOR);
+  return u8(points);
 }
 
 export function calcNewActionPoints(s: Soldier, boxingRound = false): void {
