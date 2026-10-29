@@ -136,6 +136,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | Damage costing less than a point is repaired with no points left | `assignments.test.ts` |
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
+| A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
 
 Not pinned yet:
 - The class-matched pass of militia placement rolls no attitude and keeps detailed placements (`tactical/init-list.ts`

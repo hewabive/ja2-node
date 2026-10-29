@@ -3,6 +3,7 @@ import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../t
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { handleHourlyUpdate } from '../strategic/economy/update.ts';
 import { createSoldier, SkillTrait, type Soldier } from '../tactical/soldier.ts';
 import { hourlyCamouflageUpdate } from './camouflage.ts';
@@ -94,5 +95,19 @@ describe('the hourly update of a campaign', () => {
     handleHourlyUpdate(economy);
     expect([first.soldier.camo, second.soldier.camo, second.soldier.monsterSmell]).toEqual([0, 28, 3]);
     expect(economy.events.filter((e) => e.type === 'camoWornOff')).toEqual([{ type: 'camoWornOff', soldier: first.id }]);
+  });
+
+  it('wears the camouflage off a dead merc too and reports it: the team loop does not skip the dead', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 3, mercs: 1 });
+    landFirstSquad(c);
+    const economy = c.economy;
+    const [dead] = roster.all();
+    if (!economy || !dead) throw new Error('no merc');
+    dead.soldier.life = 0;
+    dead.assignment = Assignment.ASSIGNMENT_DEAD;
+    dead.soldier.camo = 1;
+    handleHourlyUpdate(economy);
+    expect(dead.soldier.camo).toBe(0);
+    expect(economy.events.filter((e) => e.type === 'camoWornOff')).toEqual([{ type: 'camoWornOff', soldier: dead.id }]);
   });
 });
