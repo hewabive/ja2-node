@@ -325,7 +325,7 @@ audio.
   rolls `Random(100)` on its own generator; an injured (`critical` or worse), wet or not standing animal stays silent.
   A struck vehicle (`soldierHit` on a vehicle body) rings `S_METAL_IMPACT3` (`VehicleTakeDamage`) instead of an impact
   or battle sound; boarding a ground vehicle on the map screen (`vehicleBoarded`) plays its enter sound.
-- **Sounds out of sight** (`08` §3.6). A source the squad does not see carries `heard {by, direction, volumeClass}`
+- **Sounds out of sight** (`08`). A source the squad does not see carries `heard {by, direction, volumeClass}`
   instead of its grid: the merc of ours who hears it loudest by `CalcEffVolume`, the side as `TellPlayerAboutNoise`
   names it (`pDirectionStr`, or above or below), the class of `pNoiseVolStr`; the browser plays it from that merc's
   tile, 4, 10, 18 or 30 tiles off for very loud, loud, definite and faint (`heardSoundTile`). A sound nobody of ours

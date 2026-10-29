@@ -9,7 +9,7 @@ fuses, busy count and RNG order. Siblings: `11` guns, bullets and melee; `33` hi
 `:N` is in the file the enclosing heading or list item names. "(inferred)" marks conclusions not traced end to end. C
 integer semantics: `/` truncates toward zero (`idiv`, `src/core/int.ts`), `INT8`/`UINT8` stores wrap (`i8`, `u8`).
 `f32(x)` = `Math.fround(x)`; `trunc` = `Math.trunc`. `pre(n)` = `PreRandom(n)` (stream `pre`), `main(n)` = `Random(n)`;
-`n = 0` draws nothing. World units: 10 per tile horizontally; height units: 256 per storey, 64 per cube (`08` §1.1).
+`n = 0` draws nothing. World units: 10 per tile horizontally; height units: 256 per storey, 64 per cube (`08`).
 Directions N 0 … NW 7. `USABLE 10` (minimum item status). Animation frame counts, speeds and opcode positions (§7) were
 read from one release (Steam 1.12 `Ja2bin.dat`; speeds from `gAnimControl`).
 
@@ -497,7 +497,7 @@ order:
 2. `THROW_ARM_ITEM && !fInWater` → `HandleArmedObjectImpact` (§9.6). Else, unless (in water and the item sinks):
    if `fDropItem` and not armed → `AddItemToPool(grid, obj, VISIBLE, level = lastCollision == ROOF ? 1 : 0)`.
 3. Noise: ROCK/ROCK2 → `MakeNoise(owner, grid, level 0, 9 + pre(9), NOISE_ROCK_IMPACT)`; grenades →
-   `… NOISE_GRENADE_IMPACT` (volume 9–17; level always 0; deferred while busy, `08` §3.3).
+   `… NOISE_GRENADE_IMPACT` (volume 9–17; level always 0; deferred while busy, `08`).
 4. Impact sound if the last collision was ground/roof.
 5. **`ReduceAttackBusyCount(owner, FALSE)`**.
 6. End a running catch animation.

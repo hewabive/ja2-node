@@ -293,7 +293,7 @@ between messages. A frame resends every field of a changed soldier, so an idle A
   in `src/sim/tactical/world-view.ts`) and `CampaignSession.view()` (`src/server/campaign-session.ts` with
   `strategic-view.ts`, `battle-view.ts`, `contract-view.ts`, `laptop-view.ts`, `helicopter-view.ts`,
   `map-screen-view.ts`, `personnel-view.ts`, `quest-view.ts`).
-- It holds the player's soldiers in full, only the soldiers the squad currently sees (`bVisible ≥ 0`, `08` §2.7), heard
+- It holds the player's soldiers in full, only the soldiers the squad currently sees (`bVisible ≥ 0`, `08`), heard
   noises as direction and loudness (never a tile), the doors, items and world state the player knows, and the modal
   blocks of a campaign (`29` §7).
 - Unseen soldiers appear neither in the view nor in the events; events about them are reduced to what the squad hears

@@ -372,7 +372,7 @@ while it equals the own grid or (counter < cnt and invalid); if the counter reac
    `PreRandom(8)`; `RealtimeDelay`.
 5. NONE → `RTHandleAI` draws the WAIT (`Random(1000)` / `Random(3)` / creature).
 6. Execution of a move: `NewDest` → `DetermineMovementMode` again (kids `Random(10)`); each tile step then draws the
-   footstep `PreRandom(2)` for army soldiers (`08` §3.2).
+   footstep `PreRandom(2)` for army soldiers (`08`).
 
 ### 2.6 Orders and attitude sources
 
@@ -437,11 +437,11 @@ within 6 tiles and in line of sight, which wipes it; the team's public misc nois
 
 Consequence (frequency inferred): `ProcessNoise`/`HearNoise` have no neutrality filter (`OppList.cc:3428-3770,
 3895-4080`), only "listener already sees the maker" and a few team exceptions. A civilian who hears an unseen army
-soldier walk (footstep 8–9, heard ≈ 9 tiles outdoors, ≈ 4 through a floor/outdoor boundary, `08` §3.4) stores
+soldier walk (footstep 8–9, heard ≈ 9 tiles outdoors, ≈ 4 through a floor/outdoor boundary, `08`) stores
 `sNoiseGridno` and goes **YELLOW without the player being involved**; troops hearing a walking civilian likewise.
 SEEKENEMY troops roam the whole map, so this happens wherever they share a map with civilians. The noise is forgotten after
-`ubNoiseVolume` real-time turns (one per 5 s, `08` §2.6) or when seen up close. Radio (AI_ACTION_YELLOW_ALERT /
-RED_ALERT, `AIMain.cc:1659-1679`) copies a louder personal noise into the team's public noise (`08` §2.5); it is only
+`ubNoiseVolume` real-time turns (one per 5 s, `08`) or when seen up close. Radio (AI_ACTION_YELLOW_ALERT /
+RED_ALERT, `AIMain.cc:1659-1679`) copies a louder personal noise into the team's public noise (`08`); it is only
 chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nearby) runs **only in turn-based**
 (`AIMain.cc:1243-1263, 1937-1986`, `13`).
 
@@ -453,7 +453,7 @@ chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nea
   `bUnderFire` (non-civilians); unseen gunfire/bullet impact with volume ≥ 3 (`OppList.cc:4029-4036`), explosion or
   silent alarm with volume ≥ 3 (`:4145-4155`), a seen grenade/impact spot (`:4187-4197`); a neutral who *sees* gunfire
   with volume ≥ 3 (`:4008-4021`).
-- A hostile sighting in real time also feeds the best-sighting list, which enters turn-based combat (`08` §2.9,
+- A hostile sighting in real time also feeds the best-sighting list, which enters turn-based combat (`08`,
   `10`).
 
 ### 4.4 `HandleSystemNewAISituation`, halts, `NewDest`
