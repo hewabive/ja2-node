@@ -140,9 +140,9 @@ describe('leaving a sector', () => {
     landFirstSquad(campaign);
     walkSquadToEastEdge(campaign);
     campaign.state.movement.undergroundTacticalTraversal = true;
-    const before = campaign.tactical?.state;
     const result = campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' });
     expect(result).toMatchObject({ ok: true, data: { load: true, target: 'A10' } });
+    const before = campaign.tactical?.state;
     runTicks(campaign, 2000, () => campaign.tactical?.state !== before);
     expect(campaign.state.worldSector).toEqual(A10);
     expect(campaign.state.movement.tacticalTraversal.active).toBe(false);
