@@ -169,6 +169,19 @@ describe('the Kingpin alarm', () => {
     expect(sim.state.actionItems.queue).toEqual([]);
     expect(civGroupHostility(sim.state.civGroups, CivilianGroup.KINGPIN)).toBe(CivGroupHostility.NEUTRAL);
   });
+
+  it('rings again at the next step: the "zap" meant to disable it clears the disabled flag instead of setting it', () => {
+    const sim = newCombatSim(content);
+    narrative(sim);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(85, 80), Direction.EAST);
+    arm(sim, merc.gridNo, actionItem(ItemAction.KINGPIN_ALARM));
+    const alarmsRung = () => sim.drainEvents().filter((e) => e.type === 'alarm').length;
+    for (let step = 0; step < 2; step++) {
+      setOffActionItemsInGridNo(sim.state, merc);
+      handleActionItemQueue(sim.state);
+      expect(alarmsRung()).toBe(1);
+    }
+  });
 });
 
 describe('the museum alarm', () => {

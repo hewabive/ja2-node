@@ -10,6 +10,7 @@
 
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
+import { u8 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
 import { ObjectFlags } from '../../items/object.ts';
 import { setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
@@ -54,6 +55,7 @@ const PERFORMED_ACTIONS: ReadonlySet<number> = new Set([
   ItemAction.MUSEUM_ALARM,
 ]);
 const PLAYER_BOMB_OWNER_THRESHOLD = 1;
+const BOMB_OWNER_SHIFT = 8;
 const NO_ROOM = 0;
 const SEX_TELEPORT_RADIUS = 2;
 const MAX_DISTANCE_VISIBLE = 26;
@@ -75,7 +77,7 @@ export interface BombFields {
 }
 
 export function bombFieldsOf(o: ItemObject): BombFields {
-  return { detonator: o.gunAmmoType, frequency: o.money & 0xff, owner: (o.money >>> 8) & 0xff, action: o.keyId };
+  return { detonator: o.gunAmmoType, frequency: u8(o.money), owner: u8(o.money >>> BOMB_OWNER_SHIFT), action: o.keyId };
 }
 
 function armedItem(t: TacticalState, wi: WorldItem, name: string): boolean {

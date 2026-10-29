@@ -8,7 +8,7 @@ import { Assignment } from './constants.ts';
 import { getGroup, passengersOf } from './groups.ts';
 import { FACT_OK_USE_HUMMER } from './helicopter.ts';
 import { addCharacterToSquad, initSquads, initVehicles } from './squads.ts';
-import { addVehicleToList, numberInVehicle, removeSoldierFromVehicle, takeSoldierOutOfVehicle } from './vehicles.ts';
+import { addVehicleToList, killAllInVehicle, numberInVehicle, removeSoldierFromVehicle, takeSoldierOutOfVehicle } from './vehicles.ts';
 
 let content: EconomyTestContent;
 
@@ -20,9 +20,9 @@ const S = (name: string): Sector => parseSectorString(name);
 const HUMMER_TYPE = 1;
 const VEHICLE_SOLDIER = 15;
 
-function hummerWorld(okToUse = true) {
+function hummerWorld(okToUse = true, killInVehicle: (id: number) => boolean = () => true) {
   const facts = new Set<number>(okToUse ? [FACT_OK_USE_HUMMER] : []);
-  const { ctx, crew } = economyTestContext({ content, helicopter: { fact: (id) => facts.has(id) } });
+  const { ctx, crew } = economyTestContext({ content, helicopter: { fact: (id) => facts.has(id), killInVehicle } });
   initStrategicMovementCosts(ctx);
   initSquads(ctx);
   initVehicles(ctx);
@@ -88,5 +88,25 @@ describe('ground vehicles', () => {
     expect(soldierMustDriveVehicle(ctx, member(ctx, 0), false)).toBe(true);
     addSoldierToVehicle(ctx, member(ctx, 1), v);
     expect(soldierMustDriveVehicle(ctx, member(ctx, 0), false)).toBe(false);
+  });
+});
+
+describe('killing everyone aboard (Vehicles.cc KillAllInVehicle)', () => {
+  function crash(alreadyDead: ReadonlySet<number>): number[] {
+    const hurt: number[] = [];
+    const { ctx, v } = hummerWorld(true, (id) => {
+      if (alreadyDead.has(id)) return false;
+      hurt.push(id);
+      return true;
+    });
+    addSoldierToVehicle(ctx, member(ctx, 0), v);
+    addSoldierToVehicle(ctx, member(ctx, 1), v);
+    expect(killAllInVehicle(ctx, v)).toEqual(hurt);
+    return hurt;
+  }
+
+  it('hurts the passengers in seat order and stops at one already dead, so those seated behind him survive', () => {
+    expect(crash(new Set())).toEqual([0, 1]);
+    expect(crash(new Set([0]))).toEqual([]);
   });
 });

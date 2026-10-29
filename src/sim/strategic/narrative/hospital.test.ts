@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim } from '../../../../tests/support/combat.ts';
+import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { gridNo } from '../../../content/world/grid.ts';
+import { countHospitalSupplies } from '../../campaign/narrative/quest-world.ts';
+import { createItem } from '../../items/object.ts';
+import type { TacticalContent } from '../../tactical/content.ts';
+import { CivilianGroup } from '../../tactical/soldier.ts';
+import { addItemToPool, Visibility } from '../../tactical/world-items.ts';
 import { Fact } from './fact-ids.ts';
 import { createNarrativeState, fact, type NarrativeState, setFact, setFactFalse, setFactTrue } from './facts.ts';
 import {
@@ -64,5 +72,29 @@ describe('missing hospital supplies', () => {
     setFact(n, Fact.PLAYER_STOLE_MEDICAL_SUPPLIES, true);
     checkForMissingHospitalSupplies(supplyFacts(n), 21, 21);
     expect(fact(n, Fact.PLAYER_STOLE_MEDICAL_SUPPLIES)).toBe(true);
+  });
+});
+
+describe('counting the hospital supplies (Strategic_Event_Handler.cc CheckForMissingHospitalSupplies)', () => {
+  let content: TacticalContent;
+
+  beforeAll(async () => {
+    content = await loadTestContent();
+  });
+
+  it('counts the medical items above status 60 on each tile the doctors own, once per ownership marker on it', () => {
+    const t = newCombatSim(content).state;
+    const item = (name: string, status = 100) => createItem(content.items, content.items.byName.get(name)?.index ?? -1, status);
+    const doctorsMarker = () => {
+      const marker = item('OWNERSHIP');
+      marker.gunAmmoType = CivilianGroup.DOCTORS;
+      return marker;
+    };
+    const shelf = gridNo(80, 80);
+    for (const o of [doctorsMarker(), item('FIRSTAIDKIT'), item('MEDICKIT', 60), item('CANTEEN')])
+      addItemToPool(t, shelf, o, Visibility.INVISIBLE, 0);
+    expect(countHospitalSupplies(t)).toBe(1);
+    addItemToPool(t, shelf, doctorsMarker(), Visibility.INVISIBLE, 0);
+    expect(countHospitalSupplies(t)).toBe(2);
   });
 });
