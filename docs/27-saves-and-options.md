@@ -258,7 +258,7 @@ trustworthy; the log replays to the failure).
   `invalidName` or `reservedName`. A won campaign may be saved.
 - **Autosave** (`SaveService`, through `Session.hooks`): before an `endTurn` in turn-based combat the service captures
   the save if `canGameBeSaved` (in Dead is Dead: if writable), and writes it once the command is accepted and its
-  `CheckForEndOfCombatMode(FALSE)` did not end combat (`data.combatEnded`, `10` §2.2; then the original saves neither
+  `CheckForEndOfCombatMode(FALSE)` did not end combat (`data.combatEnded`, `10`; then the original saves neither
   file); the file holds the state at the original's `UIHandleEndTurn`, before that check (deviations "Dead is Dead
   save points"). No other autosaves (sector entry, daily), even for long agent campaigns.
 - **Dead is Dead save points** are read from the input's effects: a `turnStarted` event of our team, a `meanwhile` or

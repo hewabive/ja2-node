@@ -490,7 +490,7 @@ with new or revealed enemies, `OurTeamSeesSomeone` runs (§2.9).
     flag, and on the next decay with the flag still set halves its points and is dropped at 0 (a new sighting there
     clears the flag, `13`). ja2-node: `decayPublicOpplist` (`perception/sight.ts`), `decayWatchedLocs`
     (`perception/duel.ts`).
-  - Callers: `BeginTeamTurn` for each team whose turn starts (`TeamTurns.cc:323`, `10` §2.2) and
+  - Callers: `BeginTeamTurn` for each team whose turn starts (`TeamTurns.cc:323`, `10`) and
     `NonCombatDecayPublicOpplist`.
 - On leaving combat `ExitCombatMode` first runs the real-time turn (`HandleTacticalEndTurn`, whose decay acts only if
   20 world seconds have passed), then sets the stamp to `now − 20` and decays again, so up to two decays fall at once
@@ -548,7 +548,7 @@ triggers in `perception/wiring.ts` (`sightHooks`).
    entry. ja2-node: the `enterCombatMode` perception hook calls `enterCombatMode` (`turns/turns.ts`, `10`).
 3. Radio: `OurTeamSeesSomeone` (`:2408`). In a virgin sector: close any talk menu, play the seen quote, halt the merc,
    clear `fVirginSector`. Otherwise an OUR merc curses (only re-revealed enemies) or says the seen quote, and is halted
-   (`EVENT_StopMerc`). While it is the enemy's turn, that enemy gets a 3 s animation pause (doc `10` §5). Music switches to
+   (`EVENT_StopMerc`). While it is the enemy's turn, that enemy gets a 3 s animation pause (doc `10`). Music switches to
    battle in combat.
 4. First sightings may fire NPC/quest hooks (§2.3) and `AddToShouldBecomeHostileOrSayQuoteList`.
 
@@ -592,7 +592,7 @@ branch (doc 02). `PreRandom` is drawn **before** that step's sight check. ja2-no
 
 ### 3.3 `MakeNoise` → `OurNoise` → `ProcessNoise` (`:3380`, `:3403`, `:3428-3770`)
 
-`MakeNoise` queues the noise as a demand event while `ubAttackBusyCount > 0` (released at the attack barrier, doc `10` §5).
+`MakeNoise` queues the noise as a demand event while `ubAttackBusyCount > 0` (released at the attack barrier, doc `10`).
 `OurNoise` = `ProcessNoise`, then (in combat, maker known, not a door-delay) `ResolveInterruptsVs(NOISE)`.
 ```
 ProcessNoise(maker, grid, level, base, kind):

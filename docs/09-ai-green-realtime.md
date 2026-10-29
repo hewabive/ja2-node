@@ -454,7 +454,7 @@ chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nea
   silent alarm with volume ≥ 3 (`:4145-4155`), a seen grenade/impact spot (`:4187-4197`); a neutral who *sees* gunfire
   with volume ≥ 3 (`:4008-4021`).
 - A hostile sighting in real time also feeds the best-sighting list, which enters turn-based combat (`08` §2.9,
-  `10` §1.2).
+  `10`).
 
 ### 4.4 `HandleSystemNewAISituation`, halts, `NewDest`
 
@@ -494,7 +494,7 @@ turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: 
 - Quirk: Prof.dat gives some placed NPCs (Fatima, Pacos) `sPreCombatGridNo = 0`, not NOWHERE. After a YELLOW→GREEN drop
   `CheckForChangingOrders` queues END_COWER_AND_MOVE to grid 0; it becomes a WAIT and is zapped by the pending new
   situation, then `sPreCombatGridNo = NOWHERE` (inferred; harmless). `sPreCombatGridNo` is set when combat starts
-  (`10` §1.4).
+  (`10`).
 - **Schedules**: `DecideActionSchedule` (`:58-516`) and the away slots: `35`. `SCHEDULE_ACTION_STAYINSECTOR` (8) has
   no runtime handler (only `Editor/EditorMercs.cc`), so a map schedule made only of STAYINSECTOR entries never sets
   `AI_CHECK_SCHEDULE` (`Strategic/Scheduling.cc:237`; inferred from data + code).

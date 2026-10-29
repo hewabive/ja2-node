@@ -297,14 +297,14 @@ The skeleton of tactics; its ordering is behaviour (details in the specs).
 4. **Throw**: rolled at the order (miss tile, force and angle fixed then); AP and launch at 460/461; an NPC who sights
    something first aborts it with no AP spent. Launchers roll at their 430 frame. **Melee**: at the strike frame,
    against whoever stands on the tile then; the hit lands 20 ms later.
-5. **Barrier** (D5; `10` §5, `33`). While the busy count is above 0: no interrupts, noise deferred, no new AI
+5. **Barrier** (D5; `10`, `33`). While the busy count is above 0: no interrupts, noise deferred, no new AI
    situations. At 0 (`Overhead.cc:5510-5787`): suppression → attack consequences (unseen attacker noticed, combat
    entry, NPC hostility) → end-of-attack sight check → deferred noises with their interrupts → end-of-battle check.
 6. **Two-stage death**: life 0 at impact; corpse, items, kill credit and visibility at opcode 440, at the end of the
    death animation; until then the soldier holds his tile.
-7. **Interrupts** (`10` §4): a deterministic duel; only at a tile centre after the step was paid; the largest margin
+7. **Interrupts** (`10`): a deterministic duel; only at a tile centre after the step was paid; the largest margin
    acts first.
-8. **Entering combat from real time** (`10` §1): the best sighting decides and may give the best observer an interrupt;
+8. **Entering combat from real time** (`10`): the best sighting decides and may give the best observer an interrupt;
    everyone stops at a tile centre.
 9. **Time-coupled effects**: an explosion blinds every LOS test (`DISALLOW_SIGHT`) until its animation ends and applies
    its whole radius at the keyframe; a roof climb blinds the map until 408/475.

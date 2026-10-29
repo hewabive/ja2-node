@@ -53,7 +53,7 @@ Wall clocks, frames and sound lengths replaced by game time on 5 ms ticks (D3, `
 | Skipping every line | No such setting | `speech: skip` (`newSession`, `setSpeech`): every line ends on the tick after it is said, as if Backspace were pressed at once; its quote event carries `skipped` and no viewer shows it; a logged session setting, never saved | Agents playing with nobody listening (`29` §14) |
 | Watchdogs | 15 s AI deadlock breaker, 25 s UI busy breaker | Not ported | A hang is a bug and must fail tests |
 | Frame timers | `TIMECOUNTERDONE` against the wall clock, polled every 5 ms | Absolute game-ms deadlines checked on 5 ms ticks, same reset points | Same cadence without wall-clock jitter (`01` §3.5) |
-| Enemy sighted on their turn | 3 s wall-clock pause (`GameScreen.cc`) | 3000 game ms; the simulation is not idle meanwhile, so time runs through our interrupt until it ends (`10` §6.9) | Game time |
+| Enemy sighted on their turn | 3 s wall-clock pause (`GameScreen.cc`) | 3000 game ms; the simulation is not idle meanwhile, so time runs through our interrupt until it ends (`10`) | Game time |
 | Bullet flight | `MoveBullet` runs once per frame, gated by a 2–3 ms wall clock, so flight time and burst overlap follow the frame rate | One tile per 5 ms tick at the start of the tick, the first inside `FireWeapon`; knives every 30 ms | Outcomes independent of FPS (`11`) |
 | Game events | Fire events run in the frame's event pump | Same queue order, drained after each tick's soldier pass | No frame loop (`11`) |
 | Our merc's death | The barrier is released after the portrait and skull animation (12 × 160 ms wall clock) | A fixed 1920 game ms after opcode 440 | UI timing has no game clock |
