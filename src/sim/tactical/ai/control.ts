@@ -11,6 +11,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -76,6 +77,7 @@ const MAX_DISTANCE_VISIBLE = 26;
 const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
 const DONE_TRAVERSAL_WAIT_MS = 100;
+const QUOTE_TRIGGER_SPEAKERS: readonly number[] = [Npc.SERGEANT, Npc.MIKE, Npc.JOE];
 
 export interface AiControl {
   readonly hooks: AiHooks;
@@ -653,6 +655,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     endAIGuysTurn(t, s, control);
     return;
   }
+  if (waitsForQuoteTrigger(t, s)) return;
   const traversingOffMap = s.aiTurnControl && isTraversalQuoteAction(s.quoteActionId) && s.offMap;
   if (ai.newSituation === Situation.IS_NEW) {
     if (newSituationCanBeProcessed(t, s) && !traversingOffMap) {
@@ -702,6 +705,10 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
       if (!pendingMove) triesToContinueAlongPath(t, s);
     }
   }
+}
+
+function waitsForQuoteTrigger(t: TacticalState, s: Soldier): boolean {
+  return QUOTE_TRIGGER_SPEAKERS.includes(s.profile) && t.inCombat && t.narrative.dialogueBusy();
 }
 
 function newSituationCanBeProcessed(t: TacticalState, s: Soldier): boolean {

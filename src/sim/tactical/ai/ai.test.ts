@@ -5,15 +5,17 @@ import { DIRECTION_INCREMENT, Direction, gridNo, newGridNo, spacesAway } from '.
 import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { AlertStatus, Body, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { AI_DELAY, AiAction } from './actions.ts';
+import { AI_DELAY, AiAction, Situation } from './actions.ts';
 import {
   aiForSlot,
   beginAiPass,
@@ -207,6 +209,39 @@ describe('a sleeper in turn-based combat (AIMain.cc HandleSoldierAI)', () => {
   it('wakes up when the player does not see him: the original tests bVisible as a boolean and -1 is true', () => {
     expect(sleeperOnHisTurn(UNSEEN).ai.asleep).toBe(false);
     expect(sleeperOnHisTurn(NEVER_SEEN).ai.asleep).toBe(true);
+  });
+});
+
+describe('the pause for a quote trigger (AIMain.cc HandleSoldierAI)', () => {
+  function speakerOnHisTurn(profile: number, inCombat: boolean, dialogueBusy: boolean) {
+    const { t } = world(3);
+    const speaker = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
+    speaker.profile = profile;
+    t.inCombat = inCombat;
+    t.turn.currentTeam = Team.ENEMY;
+    t.narrative = { ...NO_NARRATIVE_PORT, dialogueBusy: () => dialogueBusy };
+    speaker.aiTurnControl = true;
+    speaker.ai.newSituation = Situation.IS_NEW;
+    const pre = new ScriptedStream([], 0);
+    Object.assign(t, { pre });
+    handleSoldierAI(t, speaker, createAiControl());
+    return { speaker, draws: pre.requested };
+  }
+
+  it.each([Npc.SERGEANT, Npc.MIKE, Npc.JOE])('holds the AI of profile %i in combat while dialogue is pending', (profile) => {
+    const { speaker, draws } = speakerOnHisTurn(profile, true, true);
+    expect(speaker.ai.newSituation).toBe(Situation.IS_NEW);
+    expect(speaker.aiTurnControl).toBe(true);
+    expect(draws).toEqual([]);
+  });
+
+  it('lets Krott decide once the dialogue is over, and lets anyone else decide during it', () => {
+    expect(speakerOnHisTurn(Npc.SERGEANT, true, false).speaker.ai.newSituation).not.toBe(Situation.IS_NEW);
+    expect(speakerOnHisTurn(Npc.CONRAD, true, true).speaker.ai.newSituation).not.toBe(Situation.IS_NEW);
+  });
+
+  it('never holds Krott out of combat', () => {
+    expect(speakerOnHisTurn(Npc.SERGEANT, false, true).speaker.ai.newSituation).not.toBe(Situation.IS_NEW);
   });
 });
 
