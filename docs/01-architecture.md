@@ -1,13 +1,12 @@
 # 01 — Architecture
 
 ja2-node reimplements Jagged Alliance 2 in TypeScript: the original's behaviour, not its code. This document holds the
-decisions D1–D16, the layers, the simulation core's cross-cutting rules (state, time, animation timelines, randomness,
-options), the content model, verification, the repository structure and the licensing rules; §10 maps the other
-documents.
+licensing and data rules, the decisions D1–D16, the layers, the simulation core's cross-cutting rules (API, state,
+time, animation timelines, protocols kept exactly, randomness, prompts, options), the content model, verification and
+the repository; §10 maps the other documents.
 
 **Conventions.** Paths into the original are relative to `reference/stracciatella/src/game/` (`sgp/…` and
-`externalized/…` to `reference/stracciatella/src/`); `V:` is vanilla (`reference/vanilla/ja2/Build/`). `R(n)` =
-`Random(n)`, `PR(n)` = `PreRandom(n)`.
+`externalized/…` to `reference/stracciatella/src/`); `V:` is vanilla (`reference/vanilla/ja2/Build/`).
 
 ---
 
@@ -23,14 +22,9 @@ ja2-node derives from it through Stracciatella:
 - The repository as a whole is SFI-SCLA (`LICENSE`, verbatim): a derivative may be distributed only with a verbatim copy
   and no broader rights (clause 3), so MIT, GPL or Apache cannot apply. Non-commercial use only: no sales, paid access,
   donations for access or advertising.
-- Files derived from the original's logic carry a prominent change notice with the date (clause 4):
-  ```ts
-  // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
-  // Modified for ja2-node: reimplemented in TypeScript, <YYYY-MM-DD>. See LICENSE (SFI-SCLA).
-  // @src <path in Stracciatella>
-  ```
-  Copyright and other notices stay (clause 1); Strategy First receives a royalty-free right to the modifications
-  (clause 5); the warranty disclaimer and the liability limit pass on (clauses 7, 8).
+- Files derived from the original's logic carry a prominent change notice with the date (clause 4); the header is in
+  `CLAUDE.md`. Copyright and other notices stay (clause 1); Strategy First receives a royalty-free right to the
+  modifications (clause 5); the warranty disclaimer and the liability limit pass on (clauses 7, 8).
 - Stracciatella's changes after commit `8287b98` are public domain, the founder's earlier ones of unknown status; all of
   it grows out of SFI-SCLA, so the result has that one licence.
 - `reference/ja2-web` (Stracciatella compiled to WASM) claims GPLv3 on top of SFI-SCLA, contrary to clause 3. Its status
@@ -76,8 +70,8 @@ gitignored.
 | D10 | **The game UI is ja2-node's own canvas widget set with layouts as data**: the DOM-free `ui` layer and one game page, `/play` (§5.2); the DOM serves only the launcher and the developer pages | The original's 640×480 screens pixel for pixel with the original art or the stub skin; another skin binds to the same controllers |
 | D11 | **Verification rests on the native oracle and native save import**: a patched Stracciatella runs probes headless on the original data; native saves load into sessions to compare derived values (§8) | The only way to show the mechanics match |
 | D12 | **One package (pnpm); layers separated by TypeScript project references and ja2-node's import check** (`tools/check-imports.ts`; dependency-cruiser 18 does not read TypeScript 7), §2 | Simplicity with strict boundaries |
-| D13 | **The server is the source of truth**: sessions live in the Node process; the browser, MCP agents and scripts are equal clients of one protocol, through a `SessionHost` (`src/server/session-host.ts`): in process with 10 ms time slices, or one worker thread per session (§6.1) | State on the server, play through the API, replays and saves in one place |
-| D14 | **A driver moves time; playback is separate**: `advance(until)` with stop conditions; real-time ×k, instant and manual drivers; the client plays the view frames back at any speed or skips them (§3.3) | Instant enemy turns and any speed-up without changing outcomes |
+| D13 | **The server is the source of truth**: sessions live in the Node process; the browser, MCP agents and scripts are equal clients of one protocol, through a `SessionHost` (`src/server/session-host.ts`): in process with 10 ms time slices, or one worker thread per session (`04` §5) | State on the server, play through the API, replays and saves in one place |
+| D14 | **A driver moves time; playback is separate**: `advance(until)` with stop conditions; real-time ×k, instant and manual drivers; the client plays the view frames back at any speed or skips them (`04` §4) | Instant enemy turns and any speed-up without changing outcomes |
 | D15 | **Every player action is a semantic command, every modal moment a decision prompt** (§3.8); no rule lives in a UI screen | Agents and the UI control the game the same way; the simulation never waits for a client |
 | D16 | **One player-view projection** (`PlayerView`) for the UI, agents and queries; cursor hints run the simulation's own functions over a player-knowledge projection (`src/sim/knowledge`, `src/sim/hints`) on the client and on the server's query channel | Honest information for agents, no hidden-state leaks |
 
@@ -120,8 +114,9 @@ compile); `lib: ["ES2024"]` without DOM and `types: []` without `@types/node` in
 | `tools` | core, content, sim, protocol, node, server, stubs; `node:*`, the MCP SDK | Node | |
 
 - `sim` gets its content as input and never opens the VFS (§4.2).
-- `app` imports `sim` only to run the hint functions over the player-knowledge projection in the browser (`28` §2.4);
-  the client never reimplements a rule and never feeds the simulation.
+- `app` imports `sim` to run the simulation's own functions in the browser: the cursor hints over the player-knowledge
+  projection (`28`) and the light levels the world is shaded with (`20`), besides ids and types. The client never
+  reimplements a rule and never feeds a session.
 - The MCP adapter is part of `server` (`src/server/mcp.ts`); there is no agent layer.
 
 ---
@@ -130,257 +125,162 @@ compile); `lib: ["ES2024"]` without DOM and `types: []` without `@types/node` in
 
 ### 3.1 API
 
-```ts
-interface Steppable {                              // src/sim/advance.ts
-  readonly tick: number;
-  readonly worldClock?: WorldTimeControl | null;   // campaigns: world time and compression
-  isIdle(): boolean;                               // the turn is back with the player, every effect settled
-  hasPendingDecision(): boolean;                   // a decision prompt is open
-  step(): void;                                    // one 5 ms tick
-  drainEvents(): SimEvent[];                       // tick-stamped facts since the last drain (src/sim/events.ts)
-  ended?(): boolean;
-}
-interface SessionSim extends Steppable {           // src/server/session.ts
-  dispatch(cmd: CommandEnvelope): CommandResult;   // rule check, then the state change or {ok: false, reason}
-  view(): PlayerView;                              // the player-view projection (D16)
-}
-function advance(sim: Steppable, until: StopCondition, budget?: number): StopReport;
-```
+Every simulation is a `Steppable` (`src/sim/advance.ts`): it steps one 5 ms tick, says whether it is idle (the turn is
+back with the player and every effect settled) or holds a decision prompt, and hands out the events since the last
+drain; a campaign adds its world clock. A session's simulation (`SessionSim`, `src/server/session.ts`) adds `dispatch`
+(the rule check, then the state change or a refusal) and `view` (the player view, D16). The implementations are
+`TacticalSim` (`src/sim/tactical/tactical-sim.ts`: a sandbox or the loaded sector) and `CampaignSim`
+(`src/sim/campaign/campaign-sim.ts`: the strategic state plus the loaded sector).
 
-- **Implementations**: `TacticalSim` (`src/sim/tactical/tactical-sim.ts`: a sandbox or the loaded sector) and
-  `CampaignSim` (`src/sim/campaign/campaign-sim.ts`: the strategic state plus the loaded sector).
-- **`advance`** runs ticks until a stop condition (`idle`, `events`, `ticks`; for campaigns `worldTime`,
-  `worldSeconds`, `compressionStopped`, `mode`); a decision prompt always stops it. Reasons: `idle`, `decision`,
-  `event`, `ticks`, `budget`, `worldTime`, `refused`, `ended`, `timeout`. `AdvanceRun` is its resumable form, which the
-  server slices without changing what a tick does (`04` §4.2, §5.9).
-- **Commands** are intents (`move`, `attack`, `door`, `endTurn`, `route`, `aimHire`, `trade`, `talk`, `answer`, …;
-  catalog in `29` and the tool descriptions of `src/server/mcp.ts`).
-- **Events** are facts for presentation and agents; the simulation does not need them. The session records view frames
-  every 10 ticks (changed soldiers plus the events and message entries of their ticks), from which a client rebuilds the
-  picture at any speed or skips it (`29` §9).
-- **Queries** (`estimateAttack`, the cursor hints, `quoteTrade`, `inventory`, …) run the rule functions the simulation
-  uses, over the projection, and change nothing: the hit chance on screen is computed by the code that rolls it.
+- **`advance`** runs ticks until a stop condition; a decision prompt always stops it. Its resumable form `AdvanceRun`
+  is what the server slices without changing what a tick does (`04` §4.2, §5.9).
+- **Commands** are intents (`move`, `attack`, `endTurn`, `route`, `aimHire`, `trade`, `answer`, …). The tool
+  descriptions of `src/server/mcp.ts` list every one with its fields; `29` gives the rules behind them.
+- **Events** are facts for presentation and agents; the simulation never acts on them. Clients get them inside view
+  frames (`04` §4.4).
+- **Queries** (`estimateAttack`, the cursor hints, `quoteTrade`, …) run the rule functions the simulation uses, over the
+  projection, and change nothing: the hit chance on screen is computed by the code that rolls it.
 
 ### 3.2 State
 
-- **Two roots.** `StrategicState` (`src/sim/strategic/state.ts`): world clock and event queue, `rng` and `pre`, the game
-  options, profiles, map, forces, the Queen, economy, merchants, contracts, laptop, narrative, roster, sector diffs, the
-  flow (`strategic`, `tactical`, `autoresolve`, `laptop`) with the session, sector, shop and talk flow state, and the
-  cosmetic streams. `TacticalState` (`src/sim/tactical/state.ts`): the loaded sector's world (map data, movement costs,
-  structures), soldiers and merc slots, occupancy grids, doors, turn state, perception, lighting, items, bullets and
-  effects. Options, profiles and random streams are the same objects in both; a sandbox has only a `TacticalState`.
+- **Two roots.** `StrategicState` (`src/sim/strategic/state.ts`): the world clock and event queue, `rng` and `pre`, the
+  game options, profiles, map, forces, the Queen, economy, merchants, contracts, laptop, narrative, roster, sector
+  diffs, the flow (`strategic`, `tactical`, `autoresolve`, `laptop`) with its flow state, and the cosmetic streams.
+  `TacticalState` (`src/sim/tactical/state.ts`): the loaded sector's world (map data, movement costs, structures),
+  soldiers and merc slots, occupancy grids, doors, turn state, perception, lighting, items, bullets and effects.
+  Options, profiles and random streams are the same objects in both; a sandbox has only a `TacticalState`.
 - **Ids and references.** Soldier ids are the original's team-blocked ids (the `Menptr[]` indices); groups, items and
   sectors are numbered as in the original. Tactical objects refer to each other directly; the snapshot codec writes
-  those references as paths to the object's home (`soldiers/<id>`, `items/<i>`, the structure lists) and content as
-  content keys (`27` §1.2).
+  those references as paths to the object's home and content as content keys (`27` §1.8).
 - **Grids** are typed arrays over the 25,600 tiles. The order of level nodes, structures and groups affects rendering
   and logic and is preserved.
 - **Static and dynamic.** Map geometry is immutable content; what changed in a sector the squad left (doors,
   destruction, items, corpses, blood) is its `SectorDiff` (`src/sim/campaign/sector-diff.ts`), like the original's temp
   files.
-- **Integer semantics.** Fixed-width fields go through `src/core/int.ts` (`u8`, `i8`, `u16`, `i16`, `u32`, `i32`; `idiv`
-  truncates toward zero; `imod`), large products through `Math.imul`, `float` math through `Math.fround`. Overflows the
-  original relies on are reproduced where the specs mark them (e.g. a `UINT8` overflowing before its clamp,
-  `Tactical/Overhead.cc:5182`; a `UINT32` underflowing inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need
-  `>>> 0`).
+- **Integer semantics.** Fixed-width fields go through `src/core/int.ts` (`idiv` truncates toward zero), large products
+  through `Math.imul`, `float` math through `Math.fround`. Overflows the original relies on are reproduced where the
+  code meets them (e.g. a `UINT8` overflowing before its clamp, `Tactical/Overhead.cc:5182`; a `UINT32` underflowing
+  inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need `>>> 0`).
 - **Determinism.** No `Math.random`, wall clock, timer (checked, §2) or mutable module state in `core`, `content`, `sim`
   and `ui`. Tables the original precomputes with C math are evaluated as it does (`gdRadiansForAngle` with glibc
   `sin`/`cos`, `src/sim/tactical/constants.ts`). Sight, bullets, throws and directions call `Math.sin`, `Math.cos` and
   `Math.atan2` where the original uses float trigonometry and round to float32; a last-ulp difference from C's `sinf`
-  can rarely move a landing tile (`deviations.md` "Physics cadence and floats"). The reload and replay harnesses (§8)
-  check that an outcome depends only on the seed and the inputs.
+  can rarely move a landing tile (deviations "Physics cadence and floats"). The reload and replay harnesses (§8) check
+  that an outcome depends only on the seed and the inputs.
 
 ### 3.3 Time
 
-**The original's clock.** Each rendered frame runs physics, the strategic turn, `UpdateBullets`, `ExecuteOverhead`, the
-UI, the event queue and rendering (`GameScreen.cc:342-345, 424-427`). `ExecuteOverhead` runs at most every 5 ms
-(`Utils/Timer_Control.cc:15`); for each soldier whose counter expired after `sAniDelay` ms (`Overhead.cc:669`) it runs
-every opcode up to the next drawn frame (`:687`), the tile-step logic (`:717-1000`), `MoveMerc`, `TurnSoldier` and
-`HandleSoldierAI` (`:1017-1053`). Counters re-arm from "now" and never catch up (`Timer_Control.cc:155-181`; vanilla
-alike): a soldier advances at most one frame per pass, and a slow machine slows the game. `sAniDelay`
-(`Soldier_Control.cc:4763-4918`, `06`) is halved in combat and doubled for stealth in real time; unseen soldiers in
-combat get 0 and advance every pass (`:4928-4936`), so turn-based logic never depended on playback speed. Real time has
-no action points, only breath (`Points.cc:462-465, 497-500`): actions take as long as their animations. Tactical game
-time is in effect "animation frames played"; the wall clock only sets the pace.
-
-**ja2-node**: a tick is one 5 ms overhead pass of game time on an ideal machine that never drops a frame; timers keep
-their values (`deviations.md` §2 lists every change):
-
-| Process | Original | ja2-node |
-|---|---|---|
-| Animation frame | `UpdateCounter` against `sAniDelay` ms of wall clock, re-armed from "now" | Game-ms deadline (`nextFrameAt`) checked every tick, same reset points |
-| Bullet | One step per frame, at most every `bulletSpeed/10` ms (2–3 ms) (`LOS.cc:3155-3184`) | One tile per tick, the first inside `FireWeapon`; thrown knives every 30 ms (`11`) |
-| Throw physics | Once per frame when the 20 ms counter is due (`Physics.cc:238-330`) | Every 20 game ms |
-| Real-time AI | One soldier after more than 50 ms, more while less than 10 ms of CPU passed (`Overhead.cc:109-110, 1041-1052`); `AI_DELAY` 100 ms per soldier (`AIMain.cc:40`) | Every 55 game ms (strict `>` on 5 ms ticks), every AI slot after the cursor, no CPU slice (`09`) |
-| Real-time turn (bleeding, breath, smoke, light and opplist decay) | Every 5000 ms × compression (`Strategic/Strategic_Turns.cc:30-84`, `Tactical/Tactical_Turns.cc:80-160`) | Checked every 20 game ms, fires after more than 5000: every 5020 ms (`src/sim/tactical/turns/turns.ts`) |
-| Explosion damage | At a keyframe, 3–18 frames × 20–80 ms (`Explosion_Control.cc:205-209`) | Frame `k` at `k·(delay + 5)` game ms (`12`) |
-| Melee hit, enemy sighted on their turn | 20 ms (`Weapons.cc:987`), 3000 ms (`OppList.cc:2588-2602`) of wall clock | The same in game ms |
-| `DOOR_BUSY`, bomb queue (`1000 + R(500)` ms, `Explosion_Control.cc:2054-2095`) | Tile-animation and wall-clock windows | Not ported (`gaps.md` "Doors", "Duds and timed bombs") |
-| Watchdogs: 15 s AI (`AIMain.cc:366-380`), 25 s UI busy (`Handle_UI.cc:405-419`) | Break hangs | Not ported: a hang is a bug and fails the tests |
+**Game time on 5 ms ticks (D3).** The original's frame loop runs `ExecuteOverhead` at most every 5 ms
+(`GameScreen.cc:424-427`, `Utils/Timer_Control.cc:15`). A soldier's animation counter re-arms from "now" and never
+catches up (`Utils/Timer_Control.cc:155-181`), so a soldier advances at most one frame per pass and a slow machine slows
+the game. Real time has no action points (`Tactical/Points.cc:462-465`): an action lasts as long as its animation, so
+tactical game time is in effect "animation frames played" and the wall clock only sets the pace. In combat, soldiers
+the player cannot see get frame delay 0 and animate on every pass (`Tactical/Soldier_Control.cc:4928-4936`): turn-based
+outcomes never depended on playback speed. A ja2-node tick is one overhead pass on an ideal machine that never drops a
+frame; every timer keeps its value in game milliseconds and its reset points, and a cadence that follows the frame rate
+or the CPU in the original runs on the tick grid. What the original couples to clocks, frames and sound is listed in
+`04` §3; each resulting difference is a row of `deviations.md` §2.
 
 **Time modes.** On the strategic map tactical ticks stop and world time runs at compression 0, 1×, 5, 30 or 60 minutes
 per second. In tactical real time both run (5 ms of world time per tick, compressed where the original allows it). In
 turn-based combat ticks run (animations, bullets, explosions) and world time is frozen, as in the original. A decision
 prompt stops both until its `answer`.
 
-**Drivers** (`04` §4.3): real time ×k (the server runs ticks by the wall clock and pauses at decision prompts; a human
-in the browser), instant (advance to idle or a decision after every accepted command; enemy turns, tests), manual (only
-explicit `advance` calls; agents, debugging). Turn-based combat gives the same outcome under every driver, real time
-when commands arrive at the same ticks; ordering while paused is a small advantage the original's pause screen does not
-allow. The client never runs the simulation: it plays the frames at 1×, faster, skipped, or "unseen at once".
+**Drivers** (D14, `04` §4.3) decide when ticks run: real time ×k, instant or manual. Turn-based combat gives the same
+outcome under every driver, real time when commands arrive at the same ticks. The client never runs the simulation: it
+plays the frames at 1×, faster, skipped, or "unseen at once".
 
 ### 3.4 Action timelines: animations as data
 
-**The data.** `ja2bin.dat` holds `u16[320][100]` script codes per animation state (`src/content/formats/ja2bin.ts`):
-below 399 frames (frame `code − 1`), 399–499 opcodes, 500–598 jumps in the script, 600–699 and 800–999 jumps to another
-state, 700–799 sounds and a few opcodes (`Tactical/Soldier_Ani.cc:93-2547`, `:1939-1963`). The user's file has 308
-non-empty scripts of 311 states with 144 distinct opcodes, 54 of them gameplay (`04` §1). `gAnimControl` (flags, speed,
-non-interruptibility) is transcribed into `data/tables/anim-control.json`.
-
-**Gameplay opcodes of the original** (lines of `Soldier_Ani.cc`; vanilla has the same set,
-`V:Tactical/SoldierAni.c:176-2625`):
-
-| Opcode | Effect |
-|---|---|
-| **430** (`:313`) | Fire: queues `EV_S_FIREWEAPON` for `FireWeapon` later in the frame (`Utils/Event_Pump.cc:238-260`); every gun, melee and launcher attack resolves here |
-| 448, 449 (`:638`, `:748`) | Burst controller (stop at `ShotsPerBurst` or no ammo, jam roll on the first round, busy count −1 and back to aim on stop, turn to the next spread point); end of burst |
-| 470, 473 (`:1048`, `:1134`) | Jam check; a jam skips frames, refunds the reserved bullets (Stracciatella, `:1061-1073`) and frees the attacker; improper fire end |
-| **460/461** (`:849`) | Throw release: `DeductPoints` (the throw's AP), then `CreatePhysicalObject` |
-| 458, 459; 468, 469, 485; 492 (`:1515`) | Switch hands (two pistols); end of punch, martial-arts follow-up, steal; dodge (the target stops, an AI target cancels its action) |
-| 433 (`:342`); 447 (`:587`) | Collapse or fall below OKLIFE; search a free fall direction |
-| **440** (`:422`), 465; 497 (`:1631`) | Death commit: corpse, kill and assist credit, target removal, visibility (`:2855-2996`); life 0; death-or-unconscious check, else `ReleaseSoldiersAttacker` |
-| 721, 722 (`:2122`, `:2131`) | Fall sounds that also damage jars in the inventory (`CheckEquipmentForFragileItemDamage`, 20 / 15) |
-| 403, 404, 411–413, 443, 445, 453, 455, 463; 406, 409, 410, 454, 456, 462, 466 | Sub-tile moves that can change `sGridNo`; `SetSoldierHeight`, which sets `bLevel` too |
-| **408 / 475** (`:223` / `:1150`); 444, 450, 464 | Roof-climb commit (new tile and level, global sight back on, sight with interrupts); fence-hop commit with `SetOffBombsInGridNo`, landing forecast, end of a cliff climb |
-| 402, 446, 471 | Pause one frame; pause-move on / off (they set how long a step takes) |
-| 493 (`:1553`); **494, 495** (`:1571`, `:1589`) | Pick up (AP paid inside); open a structure or door; 495 also makes the door noise, re-inits the opplist and runs `AllTeamsLookForAll(TRUE)` (interrupts possible) and a new AI situation |
-| 486, 487, 763; 481–484, 752, 754, 756, 760, 762, 769 | Give, drop, drop at a tile; cut a fence, wheelchair, plant a bomb, remote detonation, decapitation, pit fall, robot reload, blood from a corpse, set off a trigger, refuel |
-| 755, 761 | Queen swipe and creature damage |
-| 442, 772; 753, 757; 480 | End of non-interruptible (turn-based / real-time; 442 also busy count −1 for `STEAL_ITEM`); busy count −1 / +1; `ReleaseSoldiersAttacker` |
-| **499** (`:1732`) | End of animation: frees an NPC's pending action, reaches the desired stance, releases a suppression stance change's busy count, sight with interrupts after a stance change, continues the path after a door, starts the pending animation |
-| 434–437, 457, 472, 474, 476, 496, 498; 765, 768, 467, 758, 759 | State transitions (blood jumps, get-up, wake-up, previous or pending animation, stand, back to aim); flyback blood, stand up after first aid, helidrop path, slap triggers |
-| 491 (`:1384`) | Random idle animation: draws from the shared generator and changes the state |
-
-Purely visual or audio: 431, 438, 439, 441 (flash, shade, muzzle-flash light sprite; the visibility flag is separate),
-451, 452, 477 (z-override, camera), 432, 479, 489, 490, 750, 751 (nothing), the sound codes 702–798 (785 draws `R(5)`).
+**The data.** The user's `ja2bin.dat` holds one script per animation state (`src/content/formats/ja2bin.ts`): sprite
+frames, opcodes, jumps inside the script and to other states, and sound codes (the code ranges:
+`Tactical/Soldier_Ani.cc:93-2547`). `gAnimControl` (flags, speed, non-interruptibility) is transcribed into
+`data/tables/anim-control.json`. The gameplay opcodes are where the original resolves an action on an animation frame:
+the fire opcode 430 (every gun, melee and launcher attack), the throw release 460/461, the death commit 440, the
+roof-climb commits 408/475, opening a door 494/495, the busy count's increments and decrements, and the end of an
+animation 499, among others.
 
 **ja2-node.** `splitAnimationScripts` (`src/content/anim/timelines.ts`) splits the scripts at load into a **logic
-timeline** (slot kinds and arguments: frame, opcode, no-op, jump, state) that the simulation steps and a **presentation
-timeline** (sprite frames, sound codes) for the views and clients. The logic timeline keeps every opcode below 500 and,
-of the 700s, 753, 755, 757, 761, 765, 768 and 772 (`isSimulationOpcode`). A soldier keeps `state`, `pc`, `frameSlot`
-and `nextFrameAt`; views find the sprite by body, state, frame and direction. Movement opcodes run in
-`src/sim/tactical/animation.ts`, the rest through the tactical hooks. Not run from the script: 491 (idle animations are
-not ported, gaps "Random idle animations"), the jar damage of 721/722, and the 700s codes whose systems are gaps (`gaps.md`). The
-stub pack has invented scripts for every state; clients with other scripts: `28`.
+timeline** (frame, opcode, jump or state per slot) that the simulation steps and a **presentation timeline** (sprite
+frames, sound codes) for the views and clients. The logic timeline keeps every opcode except the sound-range codes no
+handler acts on (`isSimulationOpcode`), at the same positions, so jumps and opcode skips are unchanged. A soldier keeps
+`state`, `pc`, `frameSlot` and `nextFrameAt`; views find the sprite by body, state, frame and direction.
+`adjustToNextAnimationFrame` (`src/sim/tactical/animation.ts`) walks the logic timeline and runs the opcodes of fence
+hops, pauses, doors and the end of an animation itself; every other opcode goes down the chain of subsystem `*Opcode`
+handlers (attack, death, items, roofs, throws, first aid) that `installTacticalHooks`
+(`src/sim/tactical/tactical-sim.ts`) wires. Not run: the random idle animations of 491 (gaps "Random idle animations")
+and the jar damage of 721/722 (gaps "Fragile items on falls"). The stub pack has invented scripts for every state with
+the same gameplay opcodes and shorter frames (`stubs/anim-scripts.ts`); a client whose scripts differ from the
+server's: `28`.
 
 **Why markers stay in the simulation.** Paying AP and applying effects at command confirmation, with the animation as
 mere visualization, would lose what happens between an order and its marker: an interrupt, an NPC's throw cancelled
-before release without AP, map blindness during a roof climb, a burst at a falling target.
+before release without AP, map blindness during a roof climb, a burst at a falling target (`04` §2).
 
 ### 3.5 Protocols carried over exactly
 
-The skeleton of tactics; its ordering is behaviour (details in the specs).
+The skeleton of tactics; the order inside each is behaviour, kept with its quirks.
 
-1. **Tile step** (`07`). At the centre, before leaving: breath check, fence or door branch, the step's AP and
-   breath, next-tile check and real-time reservation, mine sense ahead, random hazards (gas 1 in 5, marbles, blind and
-   drunk falls), then `DeductPoints`: paid before leaving (`Overhead.cc:1247-1630`). At the boundary the soldier moves
-   to the new tile, so bullets now hit him there; the door behind closes; smell, water and gas apply
-   (`Soldier_Control.cc:1881-2106`). At the new centre, strictly in order: breath collapse → mines → noise and noise
-   interrupt → sight and sight interrupt → mine detection → new AI situation → arrival triggers
-   (`Overhead.cc:1709-1960`).
-2. **Turning**: one octant per frame, each with a sight check without interrupts; the AP is paid when the direction is
-   set. A new sighting cancels an AI turn-to-shoot or throw.
-3. **Gun attack** (`11`): ready or turn → fire opcode: AP and the `PR(100)` roll, per round of a burst (AP on the first
-   only) → the bullet steps tile by tile against the *current* occupants and stance shapes → damage at impact → hit
-   reaction (knockback, fall) → release. The roll yields `sHitBy` (straight trace or angular deviation), not hit or
-   miss; in a burst, a target starting to fall moves the aim of later rounds.
-4. **Throw**: rolled at the order (miss tile, force and angle fixed then); AP and launch at 460/461; an NPC who sights
-   something first aborts it with no AP spent. Launchers roll at their 430 frame. **Melee**: at the strike frame,
-   against whoever stands on the tile then; the hit lands 20 ms later.
-5. **Barrier** (D5; `10`, `33`). While the busy count is above 0: no interrupts, noise deferred, no new AI
-   situations. At 0 (`Overhead.cc:5510-5787`): suppression → attack consequences (unseen attacker noticed, combat
-   entry, NPC hostility) → end-of-attack sight check → deferred noises with their interrupts → end-of-battle check.
-6. **Two-stage death**: life 0 at impact; corpse, items, kill credit and visibility at opcode 440, at the end of the
-   death animation; until then the soldier holds his tile.
-7. **Interrupts** (`10`): a deterministic duel; only at a tile centre after the step was paid; the largest margin
-   acts first.
+1. **Tile step** (`07`; `HandleGotoNewGridNo`, `Tactical/Overhead.cc:1247`; `HandleAtNewGridNo`, `:1709`). The step's
+   AP and breath are paid at the tile centre before leaving; the soldier changes tile at the boundary, so bullets hit
+   him on the new tile from then on; at the new centre the checks run in a fixed order (breath collapse, mines, noise
+   and its interrupt, sight and its interrupt, mine detection, a new AI situation, arrival triggers).
+2. **Turning** (`06`, `07`): one octant per frame, each with a sight check without interrupts; a new sighting cancels an
+   AI turn-to-shoot or throw.
+3. **Gun attack** (`11`, `33`): AP and the hit roll at the fire opcode, per round of a burst; the bullet then steps tile
+   by tile against whoever stands there at that moment; damage at impact. The roll decides how the bullet flies, not
+   whether it hits, so a target starting to fall moves the aim of the later rounds of a burst.
+4. **Throw** (`34`): rolled at the order, launched at the release opcode; an NPC who sights something first aborts with
+   no AP spent. **Melee** (`11`): resolved at the strike frame against whoever stands on the tile; the hit lands 20 ms
+   later.
+5. **Barrier** (D5; `10`, `33`; `InternalReduceAttackBusyCount`, `Tactical/Overhead.cc:5510`). While the busy count is
+   above 0: no interrupts, noise deferred, no new AI situations. At 0, in this order: suppression, the consequences of
+   the attack (an unseen attacker noticed, combat entry, NPC hostility), the end-of-attack sight check, the deferred
+   noises with their interrupts, the end-of-battle check.
+6. **Two-stage death** (`33`): life 0 at impact; corpse, items, kill credit and visibility at opcode 440, at the end of
+   the death animation; until then the soldier holds his tile.
+7. **Interrupts** (`10`): a deterministic duel, only at a tile centre after the step was paid; the largest margin acts
+   first.
 8. **Entering combat from real time** (`10`): the best sighting decides and may give the best observer an interrupt;
    everyone stops at a tile centre.
-9. **Time-coupled effects**: an explosion blinds every LOS test (`DISALLOW_SIGHT`) until its animation ends and applies
-   its whole radius at the keyframe; a roof climb blinds the map until 408/475.
+9. **Time-coupled effects** (`12`, `07`): an explosion blinds every LOS test until its animation ends and applies its
+   whole radius at the keyframe; a roof climb blinds the map until its commit.
 
 ### 3.6 Randomness
 
-**The original.** `Random` and `PreRandom` share one engine with presentation code (`sgp/Random.cc:7-90`): `mt19937`
-with `std::uniform_int_distribution` in Stracciatella, MSVC `rand()` in vanilla. `PreRandom` (`sgp/Random.cc:78`) reads
-a table of 256 pregenerated numbers at an index; both are saved (`SaveLoadGame.cc:2110, 2120`), so after a reload the
-next ≤256 `PreRandom` draws repeat: a player-visible guard against save-scumming. Stracciatella refills each slot after
-use; vanilla never does (the line is commented out, `V:SGP/Random.c:61-65`), so its 256 numbers recycle forever, and it
-maps with `n*range/RAND_MAX%range`. Cosmetic code (face blinks, idle animations, ambient sounds) draws from the same
-engine on wall-clock time. `R(0)` returns 0 without a draw (`sgp/Random.cc:65-71`); `Chance(p)` is `R(100) < p` and
-always draws; `PreChance(p)` is `PR(100) < p`. Where an expression holds two draws in unsequenced operands, ja2-node
-evaluates them left to right (e.g. the dud test, `deviations.md`).
-
-**Which mechanics use which** (the specs give every draw in order; which draws are `PR` is player-visible and kept):
-- `PR`: gun, melee and throw hit rolls; jams; weapon wear; the AI's hit-location roll; miss deviation; structure hits;
-  the damage fluke; armour; critical hits; every skill check (lock picking, disarming, trap detection); stat gains
-  (`Tactical/Campaign.cc:261, 336`); stealth noise; about 40 AI decisions (`TacticalAI/DecideAction.cc`); autoresolve;
-  ambushes and bloodcat ambushes; creature town attacks; SAM shots at Skyrider; unhired mercs' deaths; explosion and gas
-  damage; grenade duds; item damage; whether a map item exists (`Tactical/World_Items.cc:244`).
-- `R`: enemy stats and gear, the Queen's evaluation timers and detection rolls, enemy sleep delays while travelling,
-  militia promotions, dealer and Bobby Ray restocks, Pablo's theft, contracts and hiring, I.M.P. tie-breaks,
-  civilian-murder blame, the weapon drop on a hit, real-time AI delays, NPC schedules.
+**The original.** `Random` and `PreRandom` share one engine with presentation code (`sgp/Random.cc:7-90`; `mt19937` in
+Stracciatella, MSVC `rand()` in vanilla). `PreRandom` reads a table of 256 pregenerated numbers at an index; both are
+saved (`SaveLoadGame.cc:2110-2115`), so after a reload the next `PreRandom` draws repeat: a guard against save-scumming
+the player can see. Stracciatella refills each slot after use; vanilla never does (`V:SGP/Random.c:61-65`), so its 256
+numbers recycle forever. Cosmetic code (face blinks, idle animations, ambient sounds) draws from the same engine on
+wall-clock time. Which mechanics draw `PreRandom` and which `Random` is player-visible and kept: the code makes each
+draw where the original does, and each spec names the order of its draws.
 
 **ja2-node** (`src/core/rng.ts`):
-- `Rng`: xoshiro128** seeded through splitmix32 (32-bit operations, no BigInt); `int(n)` maps one 32-bit draw by
-  multiply-shift (`scaleU32ToRange`), `int(0)` is 0 without a draw, `chance(p)` is `int(100) < p`. Bit-exact equality
-  with `mt19937` is not a goal: formulas and draw order are compared, not number streams.
+- `Rng`: xoshiro128** seeded through splitmix32 (32-bit operations, no BigInt), one draw per call mapped by
+  multiply-shift; `int(0)` is 0 without a draw, as `Random(0)`. Bit-exact equality with `mt19937` is not a goal:
+  formulas and draw order are compared, not number streams (deviations "Random numbers").
 - `PreRandom`: a ring of 256 `u32` and an index; a used slot is refilled from its `Rng`, as in Stracciatella.
 - **Streams**: `main` (an `Rng`) and `pre` (a `PreRandom` refilled from `main`), shared by the strategic and tactical
-  state; cosmetic streams seeded from the session seed (`cosmetic.helicopter` and `cosmetic.autoresolve` in
-  `src/sim/campaign/flow-state.ts`, the talk `fx` stream in `src/sim/narrative/talk-state.ts`), saved because a few
-  cosmetic picks are stored in state. Draws that only pick a sound, a quote or a graphic are not made by the simulation;
-  the browser makes them on its own generator (`src/audio/client-random.ts`; `deviations.md` §1).
-- **Saves** write `main`, `pre` (ring, index, refill link) and every cosmetic stream; `Rng.restore` restores a stream in
-  place. A player load reseeds `main` from a logged seed, as the original's load does in effect; an exact load keeps it
-  (`27` §1.5).
-- Gameplay draws keep the original's order on `main` and `pre`. Rules take their roll as a parameter where that keeps
-  them pure (e.g. the throw resolution, `src/sim/tactical/explosions/throwing.ts`).
+  state; cosmetic streams seeded from the session seed (`CosmeticStreams` in `src/sim/campaign/flow-state.ts`, the talk
+  stream in `src/sim/narrative/talk-state.ts`), saved because a few cosmetic picks are stored in state. Draws that only
+  pick a sound, a quote or a graphic are not made by the simulation; the browser makes them on its own generator
+  (`src/audio/client-random.ts`; `deviations.md` §1).
+- **Saves** write every stream; a player load reseeds `main` from a logged seed, as the original's load does in effect,
+  and an exact load keeps it (`27` §1.5).
+- Where an expression holds two draws in unsequenced operands, ja2-node evaluates them left to right (deviations "Dud
+  test operand order"). Rules take their roll as a parameter where that keeps them pure (e.g. the throw resolution,
+  `src/sim/tactical/explosions/throwing.ts`).
 
-### 3.7 Module map
+### 3.7 Dependency direction
 
 The original's subsystems include each other cyclically (Tactical ↔ Strategic ↔ TileEngine) and call across layers
 directly. In ja2-node dependencies point one way: the tactical layer calls interfaces the campaign installs
-(`TacticalHooks`, `PerceptionHooks`, `TurnHooks`, the narrative port `src/sim/tactical/narrative/port.ts`, the ports
-of `strategic/forces` and `strategic/economy`), so a kill reaches morale, loyalty, militia, progress and quest facts
-without tactics calling strategy. Autoresolve shares the tactical combat context (`src/sim/tactical/combat/context.ts`),
-as the original reuses `BulletImpact`.
-
-```
-sim/                    advance.ts · clock.ts · events.ts · options.ts · command.ts
-sim/campaign            CampaignSim; flows (sector, battle, shop, talk, laptop, helicopter, meanwhile, endgame), roster,
-                        hiring, finances, morale, sector diffs; contracts/ relations/ laptop/ narrative/
-sim/strategic/time      world clock, event queue, environment (day light, temperature)
-sim/strategic/map       sectors, control, strategic A*, travel, SAM sites, plotting
-sim/strategic/forces    groups, squads, movement, encounters, pre-battle, autoresolve/, helicopter, vehicles
-sim/strategic/ai        the Queen
-sim/strategic/creatures creature spreading, town attacks
-sim/strategic/economy   loyalty, mines, militia, assignments, merchants/
-sim/strategic/narrative facts and CheckFact, quests, NPC presence, hourly and 04:00 handlers, civilian groups
-sim/narrative           NPC records and their selection, ConverseFull, the dialogue queue, civilian quotes, giving
-sim/tactical            TacticalSim; soldiers and creation, the animation executor, movement, pathfinding, points,
-                        inventory and items, roofs, smell, edgepoints, insertion, native save import
-sim/tactical/turns      team turns, the AI list, turn state (the busy count)
-sim/tactical/perception LOS, sight and opplists, noise and hearing, the interrupt duel, fog of war
-sim/tactical/combat     hit chance, bullets, impact, armour, melee, bursts, death, bleeding, morale, experience, barrier
-sim/tactical/explosions throws and physics, explosions, blast, structure and item damage, smoke and gas, flares
-sim/tactical/lighting   light sprites, true light level
-sim/tactical/doors      locks, keys, traps, the door table
-sim/tactical/ai         alert ladder, green to black decisions, attack choice, cover, creatures, named NPCs, schedules
-sim/tactical/narrative  NPC action catalog, schedules, boxing, team changes, escorts, robot, quest items
-sim/knowledge, hints    player-knowledge projection; hint functions over it (D16)
-sim/items, snapshot     the object model; the snapshot codec and its migrations
-```
+(`TacticalHooks`, `PerceptionHooks`, `TurnHooks` in `src/sim/tactical/state.ts`, the narrative port
+`src/sim/tactical/narrative/port.ts`, the ports of `strategic/forces` and `strategic/economy`), so a kill reaches
+morale, loyalty, militia, progress and quest facts without tactics calling strategy; the strategic event queue runs
+handlers that the owning subsystems register by event kind (`15`). Autoresolve shares the tactical combat context
+(`src/sim/tactical/combat/context.ts`), as the original reuses `BulletImpact`.
 
 ### 3.8 Decision prompts and speech (D15)
 
@@ -390,47 +290,29 @@ Every `advance` stops on it (`decision`) and time stands still until the `answer
 events. Commands, prompts and refusals: `29`.
 
 **Where the original waits for speech**, the simulation does not depend on audio: a line lasts the longer of its
-sample's length (speech on) and 60 ms per character (speech off: `FindDelayForString`, `TEXT_DELAY_MODIFIER`), plus the
-final 300 ms with the mouth closed (`SetupFinalTalkingDelay`; `src/sim/narrative/dialogue-queue.ts`). Sample lengths come
-from the rule pack's voice lengths, not from audio; the viewer that finished the line first ends it with `skipLine`
-(`29` §14). The dialogue queue covers the places where the original waits for an empty quote queue (NPC hostility,
-some named NPCs' AI, notifications; `OppList.cc:559`, `AIMain.cc:281`, `Overhead.cc:840, 6205`).
+sample's length and its text time, plus the closing pause with the mouth shut (`src/sim/narrative/dialogue-queue.ts`;
+`24`, deviations "Speech"). Sample lengths come from the rule pack's voice lengths, not from audio; the viewer that
+finished the line first ends it with `skipLine` (`29` §14). Logic the original holds until its quote queue is empty
+(NPC hostility, some named NPCs' AI, notifications) waits on the same dialogue queue (`04` §3).
 
 The simulation contains no `await` and no timer and never waits for a client. Logic the original keeps in screens
 (laptop hiring, trading, drag-and-drop inventory, map assignments, repair, healing) is commands; the UI only collects
 their parameters and shows the result, so an agent can do everything the UI can.
 
-### 3.9 Game options, difficulty and policy
+### 3.9 Game options and policy
 
-The options model (`GameOptions`, `src/sim/options.ts`: `difficulty`, `sciFi`, `gunNut`, `saveMode`, `bloodAndGore`), its
-defaults, the client settings and the save modes are in `27` §1.6 and §2. What the options change in the original:
+The options model (`GameOptions`, `src/sim/options.ts`), its defaults, what each option changes in the original and the
+client settings are `27` §2.
 
-| Option | Effect (main sites) |
-|---|---|
-| Difficulty (easy 1, medium 2, hard 3; vanilla's enum has unused 0 and 4) | `CalcDifficultyModifier` (`Tactical/Soldier_Create.cc:1035-1110`, 0..100 with progress and palace distance) feeding enemy equipment, to-hit, radio and cover range; enemy radio sightings (`OppList.cc:713`); enemy level cap 6/7/8 (`Soldier_Create.cc:2155`); enemy to-hit −5 on easy (`Weapons.cc:2170`); easy throw targeting (`TacticalAI/Attacks.cc:754`); mine bonus steps 25/20 (`Strategic_Mines.cc:86`); every `strategic-ai-policy.json` triple, garrison drops, extra reinforcements `/(6−diff)`, elite share `+5·diff`%, counterattack sizes, the Queen waking after `5−diff` victories (`Strategic_AI.cc:162-2861`) or on hard after the first battle (`Meanwhile.cc:446`); ambush and bloodcat formulas, creature rates (`Creature_Spreading.cc:196-403`); terrorist toughness ×1, 1.3, 1.6 (`Soldier_Profile.cc:253-425`); starting cash, kills per progress point, unhired-death caps, inactivity tolerance |
-| Sci-fi | Creatures (`Creature_Spreading.cc:901`), extra NPCs (`Game_Init.cc:78`), item sets (`World_Items.cc:249`), enemy regeneration boosters (`Inventory_Choosing.cc:1361`), quest counts (`Quests.cc:1165`) |
-| Gun nut | `ItemIsLegal` (`Items.cc:221`), standard replacements (`Soldier_Profile.cc:161`, `World_Items.cc:272`, `Soldier_Create.cc:1535`), the extended army gun table |
-| Save mode | Iron Man: no saving in combat or with enemies present (`GameSettings.cc:233`). Dead is Dead (Stracciatella): one autosave slot at turn boundaries (`TeamTurns.cc:154`), loading refused (`SaveLoadGame.cc:647`) |
-| Timed turns | Removed from the game init screen in Gold (`27` §2.1); not ported |
-
-**Policy.** `gamepolicy()` reads `game.json` (`externalized/policy/GamePolicy.h`), `saipolicy_by_diff()` reads
-`strategic-ai-policy.json`, whose values equal vanilla's `#define`s. Lua hooks exist
-(`externalized/scripting/ScriptingExtensionsLua.cc:429-444`) but only `enums.lua` ships: no mods, nothing ported. The
-`game.json` keys that change rules (the rest are UI switches): combat `chance_to_hit_minimum`/`_maximum`, `aim_bonus_*`,
-`range_penalty_silencer`, `range_bonus_barrel_extender`, `tactical_head_damage_multiplier`,
-`tactical_legs_damage_multiplier`, `fixed_cost_to_shoot`, `suppression_fire_modifier`,
-`suppression_fire_reaction_threshold`, `multiple_interrupts`, `interrupt_after_being_under_fire`, `can_enter_turnbased`;
-enemies and items `enemy_weapon_minimal_status`, `enemy_elite_minimum_level`/`_maximum_level`, `drop_everything`,
-`all_drops_visible`, `extra_attachments`; squad and doors `squad_size`, `diagonally_interactable_doors`; AI `ai.*`;
-strategic and laptop `starting_cash_*`, `merc_online_*`, `unhired_merc_deaths_*`, `progress.*`, `enable_stat_healing`,
-`campaign.start_sector`, `pablo_wont_steal`, `imp.*`. The shipped values reproduce vanilla except the elite level range
-(§3.10).
-
-ja2-node reads the strategic, laptop and progress keys from `data/externalized/game.json` (`src/content/strategic/`:
-`policy.ts`, `economy-content.ts`, `laptop-content.ts`, `army.ts`) and the whole `strategic-ai-policy.json`. The tactical
-keys are constants at their shipped values in the rule modules (e.g. `ENEMY_ELITE_MINIMUM_LEVEL` in
+**Policy.** Stracciatella's policy files (`game.json`, `imp.json`, `strategic-ai-policy.json`, read by
+`externalized/policy/`) ship in `data/externalized/` with their shipped values, which reproduce vanilla except the
+enemy elite level range (§3.10). ja2-node reads the strategic, laptop and progress keys of `game.json`, `imp.json` and
+the whole `strategic-ai-policy.json` (`src/content/strategic/`). The tactical keys (hit-chance limits, aim bonuses,
+damage multipliers, interrupt rules, suppression, enemy weapon status and elite levels, drops, AI switches) are
+constants at their shipped values in the rule modules (e.g. `ENEMY_ELITE_MINIMUM_LEVEL` in
 `src/sim/tactical/creation.ts`, the suppression constants in `src/sim/tactical/combat/barrier.ts`): editing them in
-`game.json` changes nothing.
+`game.json` changes nothing. Stracciatella's Lua hooks (`externalized/scripting/ScriptingExtensionsLua.cc:429-444`)
+serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 
 ### 3.10 Where Stracciatella differs from vanilla
 
@@ -439,16 +321,16 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | Area | Vanilla | Stracciatella |
 |---|---|---|
 | `PreRandom` | Never refilled; `n*range/RAND_MAX%range` | Refilled after each use; uniform mapping (§3.6) |
-| AP debt | AP floored at 0 (`V:Tactical/Points.c:465, 483-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
+| AP debt | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
 | Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:881`) |
 | Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3230`) |
 | Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3848`) |
 | Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps; wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1979`) |
 | Next bleed | Integer division | Float division (`Soldier_Control.cc:8056`) |
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:843`) |
-| Hidden bullets | 1 tile per step | 4 tiles per step (`LOS.cc:3155-3184`; ja2-node: 1 tile per tick) |
+| Hidden bullets | 1 tile per step | 4 tiles per step (`LOS.cc:3155-3166`; ja2-node: 1 tile per tick) |
 | Jam | Reserved bullets lost | Refunded (`Soldier_Ani.cc:1061-1073`) |
-| Hits during a non-interruptible animation | Swallowed by `fInNonintAnim` | Patched (`Soldier_Control.cc:3254-3262`) |
+| Blast during a hit animation | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`Soldier_Control.cc:3254-3262`) |
 | AI burst choice | Affordability without re-raise AP | Re-raise AP included (`DecideAction.cc:3245-3300`) |
 | Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1131, 2152`) |
 | Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (`Auto_Resolve.cc:2918`); the index is saved but never restored |
@@ -456,7 +338,7 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:2073, 5677, 6903`) |
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2451, 2603`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
-| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; §3.9; `enable_stat_healing`, off) |
+| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5188-6202`; `27` §1.6; `enable_stat_healing`, off) |
 
 ---
 
@@ -469,10 +351,8 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | What | Items, weapons, profiles, animation scripts, structures, tilesets, maps, NPC records, locks, policies, the strategic map, text the rules measure | Sprites, fonts, sounds, music, video |
 | Read by the simulation | Yes, through the rule pack (§4.2), in full before a session starts | Never; the client loads it lazily per screen or sector |
 
-- **Shipped JSON** (§0): Stracciatella's tables in `data/externalized/` (items, weapons, army, strategic map, dealers,
-  strings in eight languages, …); the tables transcribed from the source code in `data/tables/` (`anim-control`,
-  `anim-surfaces`, `tiles`, `door-costs`, `item-tables` with attachments and merges, `town-loyalty`, `merchant-tables`,
-  `sound-effects`, `l10n`, `ui-constants`, …); the UI layouts in `data/layouts/` (§5.2).
+- **Shipped JSON** (§0): Stracciatella's tables in `data/externalized/`, the tables transcribed from the source code in
+  `data/tables/`, the UI layouts in `data/layouts/` (§5.2); `32` §4 says what each holds.
 - **Imported only on the user's machine** (§4.3): `prof.dat`, `ja2bin.dat`, `ja2set.dat`, `ja2pal.dat`, maps, JSD,
   `.npc`, EDT, `Locks.bin`, and all media.
 
@@ -480,56 +360,34 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 
 **Layers**, highest priority first (`src/node/data-vfs.ts`): `data/` (the shipped JSON); the user's loose `Data` files;
 the user's SLF archives in alphabetical order; the stub pack under the `stubs/` prefix, whose `aliases.json` maps the
-original's paths onto stub files. Paths are normalized as in Stracciatella (case-insensitive, `\` → `/`). The SLF index
-maps each path to its offset and length; reads are lazy ranges. In the browser, `HttpVfsLayer` (`src/app/assets/`)
-builds the same `Vfs` from the server's asset manifest and fetches content-hash URLs `/vfs/@<hash>/<path>` that the HTTP
-cache keeps (`04` §5.10).
+original's paths onto stub files. Paths are normalized as in Stracciatella (case-insensitive, `\` → `/`); SLF reads are
+lazy ranges. In the browser, `HttpVfsLayer` (`src/app/assets/`) builds the same `Vfs` from the server's asset manifest
+(`04` §5.10).
 
-**The rule pack** (`src/content/rules/pack.ts`, `src/server/rule-pack.ts`). The simulation never reads the VFS: at start
-the server builds a rule pack from it, holding every file the simulation reads (project tables, animation scripts,
-`ja2set.dat`, `prof.dat`, locks, maps, structure files, NPC records, text files, stub profiles), the few numbers it takes
-from graphics as *graphic facts* (tileset frame geometry and app data, explosion frame counts) and every speech sample's
-length as *voice lengths*. Sessions load their content from the pack, which refuses any other path, so no graphic is
-read by the rules. It is cached in `.ja2/cache/rules-<hash>/` and never committed. Its hash over the game data (the
-user's data, or the stub pack on the stubs; never the tables that ship with the engine) is the logic hash saves are
-bound to; `welcome` names it, so a client building the rules from its own assets can check it has the server's.
+**The rule pack.** The simulation never reads the VFS: at start the server builds a rule pack holding every file the
+rules read, the few numbers they take from graphics (*graphic facts*: tileset frame geometry, explosion frame counts)
+and every speech sample's length (*voice lengths*). Sessions load their content from the pack, which refuses any other
+path, so no graphic and no sound is read by the rules. Its hash over the game data is the identity saves are bound to.
+Contents, identity, cache and asset serving: `04` §5.10.
 
 ### 4.3 Importing the original
 
-Decoders (`src/content/formats/`) work on byte arrays without DOM or Node and run alike in Node and the browser;
-`pnpm cli inspect verify` decodes every STI, PCX, TGA, JSD and map of the user's data.
-
-| Format | Module | Becomes |
-|---|---|---|
-| SLF | `slf.ts` | VFS layer (`src/node/slf-layer.ts`) |
-| STI (8-bit ETRLE, 16-bit RGB565); PCX, TGA, PNG, COL | `sti.ts`, `etrle.ts`, `rgb565.ts`; `pcx.ts`, `tga.ts`, `png.ts`, `col.ts` | Pictures (frames, offsets, indices, palette, aux data), palettes |
-| Map `.dat` (versions 5.00–6.00/26; read and write) | `map.ts` | `MapDef` |
-| `ja2set.dat` + the tile table | `ja2set.ts`, `data/tables/tiles.json` | Tilesets |
-| JSD | `jsd.ts` | Structures: 5×5 profiles, armour, density, destruction partners |
-| `prof.dat` (XOR); `ja2pal.dat` | `prof.ts`; `ja2pal.ts` | Merc profiles; body palettes |
-| `ja2bin.dat` + `gAnimControl` | `ja2bin.ts`, `src/content/anim/` | Timelines (§3.4) |
-| `.npc`, EDT, `Locks.bin`, LHT | `npc.ts`, `edt.ts`, `locks.ts`, `lht.ts` | NPC records; text with the record layout of the data version; locks; light templates |
-| WAV (PCM, IMA ADPCM), `.gap`, ambient; SMK (Smacker 2); credits | `wav.ts`, `gap.ts`, `ambient.ts`; `smk.ts`; `credits.ts` | Audio, lip-sync gaps, ambient sounds; video; credits rows |
-| Native `.sav` | `savegame*.ts` | Session import (`14`) |
-
-The server imports the logic content and serves media through `/vfs`; STI decodes in the browser, because WebGL needs
-the colour indices. The data version (English or a localized release) is detected like Stracciatella's guesser
-(`src/content/text/data-version.ts`; `JA2_DATA_VERSION` overrides) and is separate from the display language (`31`).
+Decoders (`src/content/formats/`, one module per format, from SLF archives and STI pictures to maps, JSD structures,
+`.npc` records, EDT text, WAV, Smacker and native saves) work on byte arrays without DOM or Node and run alike in Node
+and the browser; the map module also writes `.dat` files, which the stub maps compile to. `pnpm cli inspect verify`
+decodes every STI, PCX, TGA, JSD and map of the user's data. The server reads the logic content into the rule pack and
+serves media through `/vfs`; STI decodes in the browser, because WebGL needs the colour indices. The data version
+(English or a localized release) is detected like Stracciatella's guesser (`src/content/text/data-version.ts`) and is
+separate from the display language (`31`). Native saves import into sessions (`14`).
 
 ### 4.4 Stubs
 
-The stub pack is ja2-node's own content that runs the whole game without the original data; CI runs only on it, and
-every feature must also work on it; its licence is in §0. `pnpm stubs` (`stubs/build.ts`) builds it deterministically
-into `dist/stubs` (contents and gaps: `32` §1):
-- **Logic**, written by hand without numbers or data from the original's binaries: profiles (`stubs/profiles.json`),
-  invented animation scripts for every state, a stub tileset with its structures, locks, NPC records and text
-  (`stubs/npc/`, `stubs/text/`).
-- **Maps** as an ASCII grid with a legend (`stubs/maps/*.map.txt`), compiled into real `.dat` files so stubs take the
-  original's loading path; a handful of generic maps stand in for every sector by kind (town, mine, cave, army camp,
-  airfield; `stubs/maps/sector-kinds.json`).
-- **Media** generated into the formats the engine reads: PNG plus JSON for tiles and soldier sheets; STI for the UI art,
-  cursors, faces and the two bitmap fonts ("Stub Pixel"); WAV sounds, music and speech blips synthesized from noise and
-  tone envelopes with a seeded generator; EDT text; a Smacker splash.
+The stub pack is ja2-node's own content that runs the whole game without the original data. CI runs only on it, and
+every feature must also work on it; its licence is in §0. Its logic (profiles, animation scripts, a tileset with its
+structures, locks, NPC records, text) is written by hand without numbers or data from the original's binaries; its maps
+are ASCII grids compiled into real `.dat` files, so stubs take the original's loading path; its media are generated
+into the formats the engine reads. `pnpm stubs` (`stubs/build.ts`) builds it deterministically into `dist/stubs`;
+contents, rules and gaps: `32` §1.
 
 ---
 
@@ -537,31 +395,25 @@ into `dist/stubs` (contents and gaps: `32` §1):
 
 ### 5.1 Rendering
 
-ja2-node's own layer on WebGL2 (`src/render`): Canvas2D cannot do palette lookup and shading cheaply, Pixi or Phaser
-would have to be fought for the depth and palette model, and WebGPU is not needed. Colour indices live in R8 atlases and
-texture arrays, palettes in an RGBA texture with one row per combination of sprite palette, soldier palette (skin, hair,
-vest, pants), shade level and light colour; the shader looks the colour up and discards index 0. Each quad's depth comes
-from the original's z-level formula; multi-tile structures are cut into vertical strips with their own depth, which
-yields "soldier behind a wall" without a software z-buffer. Draw order, layers, shadows, translucency and shading are
-the original's (`05`), light levels the simulation's (`20`). The tactical view works at any resolution; the 640×480
-screens scale by an integer UI scale. Target: 60 FPS at 1920×1080.
+ja2-node's own layer on WebGL2 (`src/render`, D9): Canvas2D cannot do palette lookup and shading cheaply, Pixi or
+Phaser would have to be fought for the depth and palette model, and WebGPU is not needed. Colour indices stay indices
+on the GPU and the shader looks them up in palette rows (sprite and soldier palettes, shade levels, light colours);
+multi-tile structures are cut into strips with their own depth, which yields "soldier behind a wall" without a software
+z-buffer. Draw order, layers and shading are the original's (`05`), light levels the simulation's (`20`); frame
+targets: `28` §6.
 
 ### 5.2 UI
 
-The DOM-free `ui` layer (`src/ui`, `28`): mouse regions with the original's `MouseSystem` semantics, buttons, bitmap text
-with the original's wrap and colour rules, cursors, popups, message boxes, sliders, text fields; screens as controllers
-with view models over `PlayerView` and the hints, bound by JSON layouts (`data/layouts/original`, one skin) whose
-coordinates come from the source's constants. Screens (`src/ui/screens`): front end (main menu, game init, options,
-save/load, credits, loading), tactical (panels, inventory, input), map screen, battle entry, laptop, shop, talk, story,
-help. They emit a draw list that `src/render/ui-draw` draws into a logical framebuffer on `/play`.
+The DOM-free `ui` layer (`src/ui`, D10): mouse regions, buttons, bitmap text and cursors with the original's semantics;
+screens as controllers with view models over `PlayerView` and the hints, bound by JSON layouts (`data/layouts/original`,
+one skin) whose coordinates come from the source's constants. Screens emit a draw list that `src/render/ui-draw` draws
+on `/play`. Architecture: `28`; the screens: `30`.
 
 ### 5.3 Sound and video
 
-Web Audio directly (`src/audio`, `31`): the original's 16 voices, linear panning by screen X, the sample rate of the
-device context, unlocked by the first user gesture. The client derives every sound from events, view frames and the
-animation sound codes; the server computes the music mode, the browser picks and fades the tracks. Video (`31`): the
-Smacker intro and ending videos through a decoder written from the format description, a WebGL player paced by the
-audio clock; cutscenes can be skipped.
+Web Audio directly (`src/audio`): the client derives every sound from events, view frames and the animation sound
+codes; the server computes the music mode, the browser picks and fades the tracks. Videos play through the Smacker
+decoder of §0, paced by the audio clock. `31`.
 
 ---
 
@@ -569,50 +421,42 @@ audio clock; cutscenes can be skipped.
 
 ### 6.1 Server
 
-One Node process (`src/server`, `04` §5): Hono for HTTP (`/api/*`, `/vfs/*`, `/login`, the built client), `ws` for the
-WebSocket (`/ws`), MCP over streamable HTTP (`/mcp`). Sessions (at most 16, `JA2_MAX_SESSIONS`) each sit behind a
-`SessionHost`: `inprocess` (default) runs a session's inputs in arrival order and slices long advances into 10 ms pieces,
-one slice per event-loop turn across sessions; `worker` (`JA2_SESSION_HOST=worker`) runs each session in its own
-`worker_threads` worker at the cost of a content load per session (`04` §5.9). The real-time driver runs ticks in
-batches by wall time × k, broadcasts view frames and pauses at decision prompts. Saves (`27` §1) are `.j2s` files on the
-server (a gzipped session snapshot with a header the save list reads) with the session's input log; saving draws
-nothing and changes nothing. The server listens on `127.0.0.1` and requires the token of `.ja2/token`; clients send game
-commands and names, never paths.
+One Node process (`src/server`): Hono for HTTP, `ws` for the WebSocket, MCP over streamable HTTP. Each session sits
+behind a `SessionHost`, in the server's thread or in a worker thread of its own; saves are files on the server with the
+session's input log. The server listens on `127.0.0.1`, requires the token of `.ja2/token`, and takes game commands and
+names from clients, never paths. All of it: `04` §5.
 
 ### 6.2 Agents
 
-The MCP adapter (`src/server/mcp.ts`) speaks the same protocol through nine tools: `status`, `observe`, `act`,
-`advance`, `newSession`, `save`, `load`, `listSaves`, `deleteSave`. Queries and prompt answers are `act` commands;
-`observe` returns the JSON player view with labels in the session's language; events arrive with `advance`. Claude Code
-connects with `claude mcp add` to the local server. The agent API: `29`.
+The MCP adapter (`src/server/mcp.ts`) speaks the same protocol through nine coarse tools; Claude Code connects with
+`claude mcp add` to the local server. The tool descriptions carry every command, view field, event and refusal; `29`
+gives the rules behind them.
 
 ### 6.3 Client
 
-`/play` (`src/app/game`) runs one `requestAnimationFrame` loop: input to the modal stack and the current screen →
-playback advances → events (sound, speech, message log, screen reactions) → view models → draw list → WebGL. Playback
-follows the server's frames at the chosen speed; input that would act is locked while playback catches up, as the
-original locks the UI during actions. Pointer and key events hit-test widgets, then the world (tile picking with the
-original's inverse projection, levels and roofs), and become commands; hotkeys come from tables. Saves stay on the
-server; the launcher downloads and uploads them. Browsers: current desktop Chrome and Firefox (the `e2e:browsers` suite
-runs both); touch input is not a goal.
+`/play` (`src/app/game`) plays the server's view frames back, turns input into commands and draws the `ui` layer and
+the world; it never runs the simulation (`28` §2). Saves stay on the server; the launcher downloads and uploads them
+(`32` §3). Browsers: current desktop Chrome and Firefox (the `e2e:browsers` suite runs both); touch input is not a goal.
 
 ---
 
 ## 7. Technologies
 
+Versions are in `package.json`.
+
 | Area | Choice | Why | Rejected |
 |---|---|---|---|
-| Language | TypeScript 7 (native compiler), `strict`, `noUncheckedIndexedAccess` | Thousands of narrow integers and 400 fields on a soldier need types | Plain JS |
+| Language | TypeScript 7 (the native compiler), `strict`, `noUncheckedIndexedAccess` | Thousands of narrow integers and 400 fields on a soldier need types | Plain JS |
 | Running TS in Node | Type stripping, so `erasableSyntaxOnly`: `as const` objects and unions instead of `enum`, no `namespace` | Server and tools run without a build step | ts-node, tsx |
-| Client build | Vite 8 (proxies `/api`, `/vfs`, `/ws`, `/mcp` to the server) | Fast reloads, workers | webpack |
-| Server | Node ≥ 24.11, Hono 4 with `@hono/node-server`, ws 8 | Small and typed; Hono runs the same in Node and tests | Fastify, Socket.IO |
-| Agent API | MCP (`@modelcontextprotocol/sdk` 1.32), input schemas in zod 4 | Agents connect with no code of their own | REST alone |
-| Tests | Vitest 5, Playwright 1.64 | One language and config shared with Vite | Jest |
-| Lint and format | Biome 2.5; any warning fails | One fast tool | ESLint + Prettier |
+| Client build | Vite (proxies `/api`, `/vfs`, `/ws`, `/mcp` to the server) | Fast reloads, workers | webpack |
+| Server | Node, Hono with `@hono/node-server`, ws | Small and typed; Hono runs the same in Node and tests | Fastify, Socket.IO |
+| Agent API | MCP (`@modelcontextprotocol/sdk`), input schemas in zod | Agents connect with no code of their own | REST alone |
+| Tests | Vitest, Playwright | One language and config shared with Vite | Jest |
+| Lint and format | Biome; any warning fails | One fast tool | ESLint + Prettier |
 | Rendering, sound | WebGL2 and Web Audio, both direct | §5 | Pixi, Phaser, Canvas2D, WebGPU, Howler |
 | Storage | Files on the server (saves, logs, caches); `localStorage` for client settings | State lives on the server | IndexedDB |
 | Compression | `node:zlib` on the server; `fflate` for PNG in `content` | | |
-| Packages | pnpm 11, one package | Strict dependencies | Workspaces |
+| Packages | pnpm, one package | Strict dependencies | Workspaces |
 | Not used | Game engines, ECS, UI frameworks in the game | 148 soldiers on a 160×160 grid need no ECS; rules read better on plain objects | bitECS, React |
 
 ---
@@ -634,12 +478,10 @@ runs both); touch input is not a goal.
 scripts run the same inputs through ja2-node, and `compare-all.sh` is the full regression gate. **Native save import**
 (`14`): save in the native game at an interesting moment, load the `.sav` as a session and compare derived values
 (hit chance, path cost, visibility, AI decisions) with the native build's dumps. `pnpm gates` picks the gates a change
-can affect (`check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`).
+can affect (`32` §2.6).
 
-**Deliberate deviations** are listed in `deviations.md`: wall clocks, frame rates and CPU slices become game time
-(§3.3), sound lengths rule-pack numbers (§3.8), screens and message boxes commands and prompts (D15); cosmetic draws
-leave the gameplay generators (§3.6); saving has no side effects; watchdogs are not ported; in real time orders can be
-given while paused; bugs are fixed as Stracciatella fixes them. What is not ported yet is listed in `gaps.md`.
+Every deliberate difference from the original is a row of `deviations.md`, everything not ported yet a row of
+`gaps.md`.
 
 ---
 
@@ -647,76 +489,67 @@ given while paused; bugs are fixed as Stracciatella fixes them. What is not port
 
 ```
 ja2-node/
-  package.json pnpm-workspace.yaml tsconfig.json tsconfig.base.json biome.json vite.config.ts vitest.config.ts
-  playwright.config.ts playwright.data.config.ts playwright.browsers.config.ts .github/workflows/ci.yml
   index.html     the launcher                          LICENSE   SFI-SCLA, verbatim
-  src/
-    env/         universal.d.ts: globals shared by the browser and Node (TextEncoder, TextDecoder)
-    core/        rng.ts int.ts sha256.ts
-    content/     anim/ audio/ binary/ formats/ items/ narrative/ picture/ rules/ strategic/ text/ vfs/ world/
-    node/        VFS over the disk (directories, SLF), the data stack, token, repository paths, client pages
-    sim/         advance.ts clock.ts events.ts options.ts campaign/ strategic/ tactical/ narrative/ knowledge/ hints/
-                 items/ snapshot/
-    protocol/    messages, view frames, music mode, refusals, asset manifest types
-    server/      main.ts app.ts ws.ts mcp.ts session*.ts worker-host.ts rule-pack.ts save-*.ts input-log.ts replay.ts …
-    ui/          draw list, widgets/ layout/ text/ input/ cursors/ screens/ saves/ client/
-    render/      atlases, palettes, sprite renderer, world/ ui-draw/
-    audio/       engine, sound director, music, positional sound
-    app/         game/ (/play) launcher/ net/ assets/ rules/ hints/ tactical/ map/ laptop/ battle/ world/ sound/
-                 video/ credits/ media/
-    devtools/    asset-browser/ map-viewer/ tactical/ strategic/ laptop/ ui-gallery/ video/
-  data/          externalized/ (Stracciatella's JSON, unchanged) tables/ (transcribed) layouts/ (UI layouts)
+  src/           one directory per layer (§2); env/ declares the globals the browser and Node share
+  data/          externalized/ (Stracciatella's JSON, unchanged) · tables/ (transcribed) · layouts/ (UI layouts)
   stubs/         stub pack sources and generators → dist/stubs
-  tools/         cli.ts dev.ts gates.ts check-imports.ts replay.ts bench/ campaign-bot/ transcribe/ oracle/ spikes/
-  tests/         e2e/ e2e-data/ e2e-browsers/ support/
-  docs/
+  tools/         CLI, dev runner, gates, import check, transcribers, bench, campaign bot, oracle, spikes
+  tests/         e2e suites (stubs, original data, browsers) and the shared test support
+  docs/          this documentation
   reference/     third-party sources (gitignored)
 ```
 
-Code conventions (no comments but the licence header, Node-runnable TypeScript, integer helpers, tests next to the
-code): `CLAUDE.md`.
+The configuration (`package.json`, the tsconfigs, Biome, Vite, Vitest, the three Playwright configs, the CI workflow)
+sits at the root and in `.github/`. Code conventions (no comments but the licence header, Node-runnable TypeScript,
+integer helpers, tests next to the code): `CLAUDE.md`.
 
 ---
 
 ## 10. Documentation map
 
-Files are `docs/NN-<name>.md`.
+Files are `docs/NN-<name>.md`. Two kinds:
+- **Product docs** (`01`, `04`, `27`–`29`, `32`) describe ja2-node's own design: the decisions, the contracts between
+  layers, the server, saves, the UI layer, the agent API, the tooling.
+- **Port specs** (`05`–`26`, `30`, `31`, `33`–`35`) are overviews of one subsystem of the original as ported: where it
+  lives in the code, the design decisions the code cannot state, the original's quirks the code keeps (with the tests
+  that pin them) and what is not checked against the native build. The formulas are in the code; each module's `@src`
+  header names the Stracciatella functions it ports. Each spec names its siblings at the top.
 
 | Doc | Scope |
 |---|---|
-| `01` architecture | This document: decisions, layers, the simulation core's cross-cutting rules, content model, verification, repository, licensing |
-| `04` time-and-server | Time model and drivers, playback, the server, sessions and hosts, the protocol, the player-view projection, the rule pack and asset serving |
-| `05` render-pipeline | How the original draws the tactical map: order, z, shading |
-| `06` soldiers-animation | Animation surfaces, frames, palettes, frame timing, profiles, soldier creation |
-| `07` structures-pathing-movement | Structures, movement costs, pathfinding, the walking protocol |
-| `08` sight-and-noise | Line of sight, vision range and opplists, noise and hearing, light for vision, fog of war |
-| `09` ai-green-realtime | Green-alert AI and the real-time AI cadence |
-| `10` turn-based | Entering combat, team turns, AP, interrupts, the busy count, the AI turn, leaving combat |
-| `11` attacks | Gun and melee attacks: the order, AP costs, chance to hit, bullets and what they pass through, the RNG order of a shot |
-| `12` items-and-explosions | Items and inventory, reloading, world items, enemy equipment, explosions, smoke and gas |
-| `13` combat-ai | Yellow, red and black decisions, attack choice, cover, creatures and bloodcats |
-| `14` savegames | The native savegame format and its import |
-| `15` strategic-time | Strategic clock, event queue, periodic updates, new game initialisation |
-| `16` strategic-map-movement | Strategic map, groups and squads, travel, encounters, sector transitions and persistence |
-| `17` strategic-ai | The Queen, the difficulty modifier and progress, strategic creatures and bloodcats |
-| `18` militia-loyalty-mines-assignments | Militia, town loyalty, mines, SAM sites, assignments |
-| `19` autoresolve-pbi | The pre-battle interface and autoresolve |
-| `20` lighting | Tactical lighting: light sprites, true light level |
-| `21` laptop-and-hiring | A.I.M., M.E.R.C., I.M.P., Bobby Ray's, email, finances, insurance; a new game |
-| `22` contracts-and-relationships | Contracts, renewals, departures, relationships, reputation |
-| `23` merchants | Dealers' stock, prices, trading, repairs |
-| `24` npcs-and-dialogue | NPC records, conversations, the dialogue queue, civilian quotes, recruiting |
-| `25` quests-and-facts | Facts, quests, boxing, escorts and the robot, Skyrider, quest-specific campaign rules |
-| `26` meanwhiles-and-ending | Meanwhile scenes, prisoners, Meduna, the end of the campaign |
-| `27` saves-and-options | Saves (snapshots, files, the input log), game options and client settings |
-| `28` player-ui | The player UI's architecture: the `ui` layer, the client's copy of the game, widgets, layouts, fonts, cursors, cursor hints, the stub skin, UI performance |
-| `29` agent-api | The agent API by topic: commands, refusals, decisions, the player view, events, queries |
+| `01` architecture | This document: licensing and data, decisions D1–D16, layers, the simulation core's cross-cutting rules, the content model, verification, the repository |
+| `04` time-and-server | Why the simulation runs on ticks, time drivers and `advance`, view frames and playback, the server: sessions, protocol, player-view projection, session hosts, the rule pack and asset serving |
+| `05` render-pipeline | Tactical world rendering: the original's layers, sweep order and z, shading, the camera and picking, ja2-node's WebGL2 renderer |
+| `06` soldiers-animation | Animation states and scripts, the frame clock, sheets, turning, palettes and glow, profiles, creating soldiers |
+| `07` structures-pathing-movement | Structures, movement costs, the path search, the AP and breath of a step, walking |
+| `08` sight-and-noise | Line of sight, vision range, opplists, radio, noise and hearing, what the player knows |
+| `09` ai-green-realtime | When the real-time AI runs, the alert status, the GREEN decision |
+| `10` turn-based | Entering combat, team turns, AP, interrupts, the AI's turn, leaving combat |
+| `11` attacks | Gun and melee attacks up to the impact: checks, AP, chance to hit, bullets through structures |
+| `12` items-and-explosions | Items, inventories, reloading, first aid, world items, equipment, explosions, smoke, gas, flares |
+| `13` combat-ai | The YELLOW, RED and BLACK decisions, attack, cover and flight searches, creatures |
+| `14` savegames | Importing the original's savegames into sessions |
+| `15` strategic-time | The world clock, compression, the event queue, a new game |
+| `16` strategic-map-movement | Sectors, groups and squads, travel, encounters, sector transitions, what a sector keeps |
+| `17` strategic-ai | The Queen, garrisons and patrols, difficulty and progress, the creature quest |
+| `18` militia-loyalty-mines-assignments | Militia, loyalty, mines, SAM sites, finances, assignments and the hourly update |
+| `19` autoresolve-pbi | The pre-battle interface, autoresolve, retreat, the strategic end of a battle |
+| `20` lighting | Light templates and sprites, the true light level |
+| `21` laptop-and-hiring | The laptop's sites, hiring and arrival, the laptop's part of a new game |
+| `22` contracts-and-relationships | Contracts and renewals, departures, the daily merc update, relationships, reputation |
+| `23` merchants | Dealers' stock, cash, prices, trading, repairs |
+| `24` npcs-and-dialogue | NPC records, conversations, the dialogue queue, civilian quotes, recruiting and escorting |
+| `25` quests-and-facts | Facts, quests, boxing, escorts and the robot, Skyrider, quest rules |
+| `26` meanwhiles-and-ending | Meanwhile scenes, captures, the palace, the queens' deaths, the end of the campaign |
+| `27` saves-and-options | ja2-node's saves (snapshot, file, content identity, input log, replay), game options, client settings |
+| `28` player-ui | The player UI's architecture: the `ui` layer, the game page, the client's copy of the game, widgets, layouts, fonts, cursors, cursor hints, the stub skin, UI performance |
+| `29` agent-api | The agent API by topic: transport, tools, commands, refusals, decisions, the player view, events, queries |
 | `30` ui-screens | The original screens in the client: front end, tactical panels and input, map screen, battle entry, laptop, story |
-| `31` sound-video-and-localization | Sound and music, speech, video, data versions and display languages |
-| `32` stubs-and-performance | The stub pack, benchmarks and profiling, test runs and gates, the launcher, data tables |
-| `33` hits-and-damage | A bullet hitting a soldier, armour, damage, hit reactions, death, the end of an attack, suppression, morale, experience |
-| `34` throwing-and-physics | Throwing, launchers, item physics, fuses |
-| `35` npc-actions-and-schedules | The NPC action catalog, strategic NPC presence, schedules, civilian groups, keys, locks and doors |
+| `31` sound-video-and-localization | Sound, music, speech, video, data versions and display languages |
+| `32` stubs-and-performance | The stub pack, benchmarks and profiling, CI, test runs and gates, the launcher, data tables |
+| `33` hits-and-damage | From a hit to the end of the attack: hit location, armour, damage, death, the busy count, suppression, morale, experience |
+| `34` throwing-and-physics | Throws, launchers, item physics, duds |
+| `35` npc-actions-and-schedules | NPC actions, NPC presence between sector loads, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
 | `gaps.md` | Behaviour not ported yet, code that does not follow `CLAUDE.md` yet |
 | `test-stability.md` | Tests that fail without a code change: rules and open cases |
