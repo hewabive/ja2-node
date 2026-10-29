@@ -59,7 +59,7 @@ Everything else must be own work, so that the dedication can cover it.
   imports (relative imports, matched like `tools/check-imports.ts` does), every non-test file of `stubs/` and `data/`
   (the only folders the build reads at run time), `pnpm-lock.yaml` and the Node version. The check takes about 0.1 s.
   `pnpm stubs` always rebuilds and records the digest too.
-- **Data version** without original data: `stubs` (`31` §3.2), i.e. English text and EDT mode, the stub glyph table.
+- **Data version** without original data: `stubs` (`31`), i.e. English text and EDT mode, the stub glyph table.
 - **Mounting.** `openDataVfs` (`src/node/data-vfs.ts`) mounts the pack (`JA2_STUBS_DIR`, default `dist/stubs`) as the
   stubs layer under the `stubs/` prefix, after the repository's `data/` and the original data (`DirLayer`,
   `src/node/dir-layer.ts`). Content loaders probe the original name first and `stubs/<name>` second (`readLayered` in
@@ -82,12 +82,12 @@ Everything else must be own work, so that the dedication can cover it.
 | Profiles | 44: A.I.M. 0–11, M.E.R.C. 42, R.P.C. 59 and 65, 25 NPCs, vehicles 160–163 (§1.6.3) | 159 slots: 40, 11, 18, 85, 4 |
 | NPC scripts | 21 NPCs plus `000.npc` and two meanwhile sets; 23 NPC and 6 civilian EDTs | about 103 scripts, civilian and sector quote files, `miners.npc`, `d_NNN.edt` |
 | Merc text | `mercedt/NNN.edt` for A.I.M. 0–11, M.E.R.C. 42, R.P.C. 59 and 65: 117 invented quotes each | 1 EDT per merc |
-| Other text | `binarydata/itemdesc.edt` (the 31 items the stub campaign and tests use), `credits.edt` (the credit control codes, `31` §2.5), `email.edt` (the new-game mails, the I.M.P. and M.E.R.C. intros), the help and laptop EDTs of the stub skin (`28` §4) | `binarydata/*.edt` |
+| Other text | `binarydata/itemdesc.edt` (the 31 items the stub campaign and tests use), `credits.edt` (the credit control codes, `31`), `email.edt` (the new-game mails, the I.M.P. and M.E.R.C. intros), the help and laptop EDTs of the stub skin (`28` §4) | `binarydata/*.edt` |
 | Locks | 2 (`stubs/locks.json`) | `locks.bin` |
 | Sounds | 90 synthesized cue classes (`synth/sfx`) behind every sound path of the tables; 42 battle voices for three body classes (`synth/battle`) behind the generic voice paths (`m_`, `f_`, `bad0-2`, `bad7-8`, `kid0-1`); `ambient/0.bad` for the stub tileset (§1.7) | 370 + 1,581 WAV, `ambient/*.bad` |
 | Music | one chiptune loop (about 4 s) per track of `music.json` (`stubs/music.ts`): 14 files named as there | 14 tracks, up to two minutes |
 | Speech | one IMA ADPCM blip and `.gap` per stub speaker and quote family (`synth/speech`, `stubs/speech.ts`), behind every merc and NPC quote that has stub text, so the speech and lip paths run; blip lengths are unrelated to the text | 8,568 WAV, 8,353 `.gap` |
-| Video | `intro/splashscreen.smk` (a title card and a tone, 2 s; `stubs/video.ts`, `stubs/smk-encode.ts`, `31` §2.6); the other ten names are missing | 11 Smacker files, 70 MB |
+| Video | `intro/splashscreen.smk` (a title card and a tone, 2 s; `stubs/video.ts`, `stubs/smk-encode.ts`, `31`); the other ten names are missing | 11 Smacker files, 70 MB |
 | Fonts | two STI fonts (Stub Pixel 12 and 16 Bold) behind the 17 font names, the stub glyph table (§1.6.5) | `fonts.slf`, the glyph tables |
 | UI art | the stub skin (`stubs/ui/`, `28` §4): labelled screens and buttons, cursors, faces, item pictures, the map board, radar maps, load screens | the other SLFs |
 
@@ -201,7 +201,7 @@ Music, speech and video generators: §1.5.
   set per body class, not per profile; an ambient table for the stub tileset (`stubs/ambient.ts`). The original paths
   (`sounds/…`, `battlesnds/…`) are aliases, so the same cue table resolves on both data sets.
 - **Text** (`stubs/text.ts`, files in §1.5): the merc EDTs give merc quotes text on stubs, so `mercQuote` events are
-  emitted and quotes take their text's time (`31` §3.3).
+  emitted and quotes take their text's time (`31`).
 - **Formats** (`stubs/wav-encode.ts`): PCM 8-bit 11.025 kHz mono (most effects, bursts, music), PCM 16-bit 22.05 kHz
   mono (single shots) and stereo (the big explosion), IMA ADPCM 11.025 kHz mono with 256-byte blocks (battle voices,
   speech), so every decoder path runs on stubs. Synthesis (`stubs/synth.ts`) uses its own xorshift generator seeded from
@@ -289,8 +289,8 @@ O3, but not through a full campaign. Repro: `pnpm cli campaign --seed 2 --no-rel
   campaigns with sci-fi off).
 - Wire cutting is not ported; the cut fence pieces exist in the tileset.
 - `FIRSTWALL` structures fill their whole tile (§1.6.4), so a merc on such a wall tile cannot see along the room.
-- Only the splash video exists; sequences skip the missing names (`31` §2.4).
-- The stub fonts are not used as a Cyrillic fallback with original data (`31` §3.6).
+- Only the splash video exists; sequences skip the missing names (`31`).
+- The stub fonts are not used as a Cyrillic fallback with original data (`31`).
 
 ---
 
@@ -608,8 +608,8 @@ calls, since `app` may not import `server`). Debug hook `window.__ja2Launcher`; 
 
 ### 4.1 Externalized files used directly
 
-From `data/externalized/` (Stracciatella's tables, in the repository): `music.json` (modes → tracks, `31` §1);
-`strings/translation-*.json` and the per-language files, eight languages plus `rusgold` (`31` §3);
+From `data/externalized/` (Stracciatella's tables, in the repository): `music.json` (modes → tracks, `31`);
+`strings/translation-*.json` and the per-language files, eight languages plus `rusgold` (`31`);
 `translation_tables/*.json` (the glyph tables `eng`, `fr`, `rus`, `rus-gold`, `chs`); `calibres.json` and
 `weapons.json` (gun sound paths); `explosion-animations.json` (explosion sounds); `vehicles.json` (vehicle sounds);
 `game.json`, `imp.json`, `strategic-ai-policy.json` (logic content under the save's content identity, `27` §2.3).
@@ -622,7 +622,7 @@ Generated by `tools/transcribe/*.ts` into `data/tables/`:
 |---|---|---|
 | `sound-effects.json` (`sound-effects.ts`) | `Utils/Sound_Control.h:28-352`, `Utils/Sound_Control.cc:17-328` (`szSoundEffects`, `szAmbientEffects`), `Directories.h`, the literal sound paths in `src/game/**/*.cc` | 291 sound ids in `SoundID` order (id, name, VFS path or `null` where the original has none), 14 ambient sounds, the pan (0 left to 127 right) and volume (0–127) constants, `SOUND_FAR_VOLUME_MOD` 25, and the 25 sound files the code names literally (such as `sounds/weapons/bursttype1.wav` and `laptop/static*.wav`) with the files naming them |
 | `battle-sounds.json` (`sound-effects.ts`) | `Tactical/Soldier_Control.h:178-198`, `Tactical/Soldier_Control.cc:97`, `:138-157`, `:5868` | the 17 kinds in `BattleSound` order with their file part, `randomVariants` (the kind and the next n−1 kinds are drawn from), `badGuy` (playable without a profile), `dontAllowTwoInRow`, `stopDialogue` (0 never, 1 cuts speech, 2 skipped while talking); the repeat filter `MIN_SUBSEQUENT_SNDS_DELAY` 2,000 ms; the low-morale threshold 35 |
-| `edt-layouts.json`, `l10n.json`, `mlg.json` | `31` §3.5 | |
+| `edt-layouts.json`, `l10n.json`, `mlg.json` | `31` | |
 | `ui-constants/Button_Sound_Control.json` (`ui-constants.ts`) | `src/sgp/Button_Sound_Control.cc:11-50` | click schemes per screen (`30` §8) |
 
 `src/content/audio/sound-table.ts` loads the two sound tables and lists the generic voice sets (`m`, `f` as profile

@@ -514,7 +514,7 @@ Decoders (`src/content/formats/`) work on byte arrays without DOM or Node and ru
 
 The server imports the logic content and serves media through `/vfs`; STI decodes in the browser, because WebGL needs
 the colour indices. The data version (English or a localized release) is detected like Stracciatella's guesser
-(`src/content/text/data-version.ts`; `JA2_DATA_VERSION` overrides) and is separate from the display language (`31` §3).
+(`src/content/text/data-version.ts`; `JA2_DATA_VERSION` overrides) and is separate from the display language (`31`).
 
 ### 4.4 Stubs
 
@@ -557,9 +557,9 @@ help. They emit a draw list that `src/render/ui-draw` draws into a logical frame
 
 ### 5.3 Sound and video
 
-Web Audio directly (`src/audio`, `31` §1): the original's 16 voices, linear panning by screen X, the sample rate of the
+Web Audio directly (`src/audio`, `31`): the original's 16 voices, linear panning by screen X, the sample rate of the
 device context, unlocked by the first user gesture. The client derives every sound from events, view frames and the
-animation sound codes; the server computes the music mode, the browser picks and fades the tracks. Video (`31` §2): the
+animation sound codes; the server computes the music mode, the browser picks and fades the tracks. Video (`31`): the
 Smacker intro and ending videos through a decoder written from the format description, a WebGL player paced by the
 audio clock; cutscenes can be skipped.
 

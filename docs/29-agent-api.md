@@ -285,7 +285,7 @@ report (`messages`). The simulation never reads them; the ring holds entries, no
 ## 9. Presentation events: shots, effects and sounds
 
 Optional fields and events that never enter the state or an outcome. The client derives all sound and cosmetic
-animation from them, the frames and the animation codes it replays (`31` §1.4); agents get the same events, never
+animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never
 audio.
 
 - **Shots and explosions:** `shotFired {item, silenced, burst, rounds}` (`rounds`: the burst size on its first bullet,
@@ -997,7 +997,7 @@ UI as the original does (§5).
 
 ## 25. Text and languages
 
-Two independent settings decide text (what each selects and how it reaches the simulation: `31` §3.2, `31` §3.3):
+Two independent settings decide text (what each selects and how it reaches the simulation: `31`, `31`):
 
 - **Data version**, a property of the content: detected once at server start like Stracciatella's guesser, overridden
   with `JA2_DATA_VERSION=english|russian|russianGold|german|dutch|french|italian|polish|simplifiedChinese` (Russian Gold
@@ -1077,7 +1077,7 @@ cost milliseconds anyway; it matters when the session runs in real time with nob
 playback speed, language, meanwhile scenes seen, help, cover and LOS sizes; `27` §2.4) are per browser
 (`src/ui/settings.ts`, `src/app/settings.ts`) and never reach the simulation; agents have none.
 
-**Music** (`31` §1.3, `31` §1.5): the server computes the original's music mode (`none`, `mainMenu`, `laptop`,
+**Music** (`31`, `31`): the server computes the original's music mode (`none`, `mainMenu`, `laptop`,
 `tacticalNothing`, `tacticalEnemyPresent`, `tacticalBattle`, `tacticalVictory`, `tacticalDefeat`) from the events and
 the creature flag, so every client hears the same; `music {mode, creature, fastFade?}` goes out in `welcome` and in
 frames when it changes (`fastFade` after a sector entry or exit) and is saved (`presentation.music`; a native import

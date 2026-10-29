@@ -157,7 +157,7 @@ interface SaveFile {
   decompressed text; it identifies the save as a log origin (§1.7).
 - **`preparedMaps`**: the world cache's prepared paths in order. A step may load a sector and the `WorldCache` is
   history-dependent, so a restore prepares the same maps before building the session.
-- **`presentation`** is never read by `sim`: the music mode and the previous mode (`31` §1.5); the session's message
+- **`presentation`** is never read by `sim`: the music mode and the previous mode (`31`); the session's message
   log (`src/protocol/message-log.ts`), so a load shows the same lines; the campaign identity, a random id a new campaign
   gets and keeps through saves (an older save gets one from its digest, a native import from the file's digest, a
   sandbox none; `src/server/campaign-id.ts`), by which the client keys per-campaign UI state (the help screens seen,
@@ -478,7 +478,7 @@ once (`:640-659`). Speech and subtitles cannot both be off (`GameSettings.cc:77-
 
 **Engine options and policy.** Stracciatella's `ja2.json`/command line
 (`rust/stracciatella/src/config/engine_options.rs:53-111`, `rust/stracciatella/src/config/cli.rs:61-111`): data and save
-folders, mods, resolution, `resversion` (`31` §3), fullscreen, `nosound` (forces text-length quote timing,
+folders, mods, resolution, `resversion` (`31`), fullscreen, `nosound` (forces text-length quote timing,
 `src/sgp/SGP.cc:339-341`), debug (cheat levels). The **game policy** files `game.json`, `imp.json` and
 `strategic-ai-policy.json` (`src/externalized/policy/DefaultGamePolicy.cc:7-170`) hold gameplay values (starting cash,
 interrupt rules, AI switches, hit-chance limits, damage multipliers, progress weights, squad size, I.M.P. points,
@@ -570,10 +570,10 @@ access is in `try`, so the pages work without storage. Agents have no client set
 | `bloodAndGore` | true | the preference the new game form preselects; in a game the options screen sends `setOption` |
 | `display.*` | the other toggles of §2.1's last row plus `animateSmoke` and `hideBullets`, the original's defaults | `TOPTION_*` |
 | `playbackSpeed` | 0.25, 0.5, 1, 2, 4, 8, 16; 1 | ja2-node (`29` §9) |
-| `language` | a UI language or null | `31` §3 |
+| `language` | a UI language or null | `31` |
 | `meanwhileScenesSeen`, `helpHidden`, `helpScreensSeen` | a 32-bit scene mask; false; a 16-bit mask per campaign identity (at most 32 campaigns) | `Ja2.set`; the help mask is saved per campaign instead of in the save (deviations "Help screens seen") |
 | `coverSize`, `losSize` | 4–11, 4 | `DisplayCover.cc` `DC__MIN_SIZE`, `DC__MAX_SIZE` |
-| `playSplash`, `playIntro` | true, true | ja2-node (`31` §2.4) |
+| `playSplash`, `playIntro` | true, true | ja2-node (`31`) |
 | `uiScale`, `fixed640`, `websiteLoadingTimeScale` | auto; false; 0–10, 1 | ja2-node (`28` §2.6, `30` §6.1) |
 
 The launcher exports and imports the settings as a JSON file `{format: 'ja2-node-settings', settings}`, normalized on

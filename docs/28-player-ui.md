@@ -10,7 +10,7 @@ canvas").
 sound), `01` (D8–D10, D15, D16, the layers), `04` §4 (drivers and playback), `04` §5 (the server; `04` §5.10 the rule
 pack and asset serving), `29` (agent API: every command, query, view field and event a screen uses), `05` (tactical
 rendering), `20` (lighting), `21`–`23` (laptop, contracts, merchants), `24` (dialogue and speech timing), `26`
-(meanwhiles and the ending), `27` §1–§2 (saves, options), `31` §1–3 (sound, video, text and glyph tables), `32` §1–3
+(meanwhiles and the ending), `27` §1–§2 (saves, options), `31` (sound, video, text and glyph tables), `32` §1–3
 (stubs, performance, the launcher), `deviations.md`, `gaps.md`.
 
 ## 0. Scope
@@ -476,12 +476,12 @@ exact. `CleanOutControlCodesFromString` strips the codes.
 **Numbers, money and text sources.** `printf.ts` formats the string tables' printf templates; `SPrintMoney`
 (`money.ts`) puts the minus after the dollar (`$-1,234`, `Laptop/Finances.cc:954-979`); weights follow the metric
 option (`weight.ts`); EDT fields come from `edt-text.ts` (`{edt: [file, field]}`, the field index flattened over the
-record's columns); strings from `text-service.ts` (the L10n tables of `data/externalized/strings`, `31` §3).
+record's columns); strings from `text-service.ts` (the L10n tables of `data/externalized/strings`, `31`).
 
 **Language-dependent art (MLG).** 33 pictures with baked-in text (main menu buttons, the options and save/load
 headers, the PBI panel, the map screen's sort buttons, 27 laptop pictures) are chosen by the **data version**, not the
 display language (`GameRes.cc:70-308`; `data/tables/mlg.json` from `tools/transcribe/mlg.ts`). Layouts name the MLG id,
-never a path; with a display language other than the data's, these pictures keep the data's language (`31` §3.2).
+never a path; with a display language other than the data's, these pictures keep the data's language (`31`).
 
 ### 3.5 Cursors (`src/sgp/Cursor_Control.cc`, `Utils/Cursors.cc`)
 

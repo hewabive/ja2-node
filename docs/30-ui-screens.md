@@ -42,7 +42,7 @@ The original starts with the splash video (`intro/splashscreen.smk`; an MLG stil
 the launcher plays the splash (deviation "Game page start"). `FrontEndFlow` switches screens like the original's exit
 screens: save/load returns to its opener, a save from the options returns to the game, fades surround a load and the
 new game. Music: `MAIN_MENU` without a session (`FrontEndMusicPlayer`; the session computes the mode only in game,
-`31` §1.5), none for the new game, the session's in a game. Video sequences: `31` §2.1, played by
+`31`), none for the new game, the session's in a game. Video sequences: `31`, played by
 `src/app/video/sequences.ts` (`beginningPlan`, `endingPlan`).
 
 ### 1.2 Main menu (`MainMenuScreen.cc`)
@@ -1301,6 +1301,6 @@ The San Mona screen after `sexScene` is §1.11; the laptop zoom §6.1; the map-t
 - **Screen sounds**: `glowclick.wav` on map-screen hovers, `newbeep.wav` for map messages and the update box, laptop
   power up/down, the PBI and autoresolve openings and battle sounds (§5.2), the San Mona screen, the options slider test
   samples. Lip sync is §2.5; music without a session §1.1 and, in a session, the server's `presentation.music`
-  (`31` §1.5), which `SessionClient` applies from frames; nothing plays during the ending videos and the credits after
+  (`31`), which `SessionClient` applies from frames; nothing plays during the ending videos and the credits after
   them.
 - The ambient restart on an effects-volume change and the options screen stopping ambients follow the original.
