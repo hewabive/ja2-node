@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { recordArray, testSoldier } from '../../../../../tests/support/narrative.ts';
 import { type FakeActionEnv, fakeActionEnv } from '../../../../../tests/support/npc-actions.ts';
+import { testProfile } from '../../../../../tests/support/profiles.ts';
 import { NUM_NPC_QUOTE_RECORDS } from '../../../../content/formats/npc.ts';
 import { Approach } from '../../../../content/narrative/npc-constants.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';
@@ -107,5 +108,23 @@ describe('requestors', () => {
       t.soldiers[1] = b;
     }
     expect((chooseLiar(e) as Soldier).id).toBe(0);
+  });
+
+  it('believes the lie on 50 × the liar’s wisdom and leadership over the Queen’s', () => {
+    function lieWithRoll(queen: { readonly wisdom: number; readonly leadership: number }, roll: number): [number, number][] {
+      const e = env(Npc.QUEEN, { profiles: { [Npc.QUEEN]: { stats: { ...testProfile(Npc.QUEEN).stats, ...queen } } } });
+      const t = e.host.tactical();
+      if (!t) throw new Error('no tactical state');
+      t.soldiers[0] = testSoldier(0, Team.OUR, 1, 100);
+      Object.assign(t, { pre: { int: () => roll } });
+      answerNpcRequest(e, open(e, Npc.QUEEN, A.PROMPT_PLAYER_TO_LIE, 4), 'lie');
+      return triggered(e);
+    }
+    const even = { wisdom: 60, leadership: 60 };
+    const shrewd = { wisdom: 90, leadership: 90 };
+    expect(lieWithRoll(even, 50)).toEqual([[Npc.QUEEN, 8]]);
+    expect(lieWithRoll(even, 51)).toEqual([[Npc.QUEEN, 7]]);
+    expect(lieWithRoll(shrewd, 33)).toEqual([[Npc.QUEEN, 8]]);
+    expect(lieWithRoll(shrewd, 34)).toEqual([[Npc.QUEEN, 7]]);
   });
 });

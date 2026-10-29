@@ -7,6 +7,7 @@ import {
   effectiveDexterity,
   effectiveExpLevel,
   effectiveExplosive,
+  effectiveLeadership,
   effectiveMechanical,
   effectiveStrength,
   effectiveWisdom,
@@ -47,6 +48,7 @@ const UNREASONABLE_CHANCE = 30;
 const CROWBAR_STRENGTH_BONUS = 20;
 const BLEEDING_SHOCK_BLEEDING = 20;
 const BLEEDING_SHOCK_SHOCK = 1;
+const LIE_TO_QUEEN_SKILL_FACTOR = 50;
 
 const ZEROED_BELOW_REASONABLE: ReadonlySet<number> = new Set([
   R.LOCKPICKING,
@@ -137,9 +139,25 @@ function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
   }
 }
 
+export interface QueenWits {
+  readonly wisdom: number;
+  readonly leadership: number;
+}
+
+function lieToQueenSkill(liar: Soldier, queen: QueenWits): number {
+  return Math.trunc((LIE_TO_QUEEN_SKILL_FACTOR * (effectiveWisdom(liar) + effectiveLeadership(liar))) / (queen.wisdom + queen.leadership));
+}
+
 export function skillCheck(t: SkillCheckContext, s: Soldier, reason: number, mod: number): number {
-  let skill = baseSkill(t, s, reason);
-  skill -= skillCheckFatiguePenalty(s, skill);
+  return rollSkillCheck(t, s, reason, baseSkill(t, s, reason), mod);
+}
+
+export function lieToQueenCheck(t: SkillCheckContext, liar: Soldier, queen: QueenWits): number {
+  return rollSkillCheck(t, liar, R.LIE_TO_QUEEN, lieToQueenSkill(liar, queen), 0);
+}
+
+function rollSkillCheck(t: SkillCheckContext, s: Soldier, reason: number, base: number, mod: number): number {
+  const skill = base - skillCheckFatiguePenalty(s, base);
   let chance = skill + mod;
   if (ZEROED_BELOW_REASONABLE.has(reason) && chance < UNREASONABLE_CHANCE) chance = 0;
   else chance += moraleModifier(s);

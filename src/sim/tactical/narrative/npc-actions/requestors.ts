@@ -8,7 +8,7 @@ import { i8, u8 } from '../../../../core/int.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';
 import { medicalRequestShownCost } from '../../../strategic/narrative/hospital.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
-import { SkillCheckReason, skillCheck } from '../../combat/skill-check.ts';
+import { lieToQueenCheck } from '../../combat/skill-check.ts';
 import { createKeyObject } from '../../doors/keys.ts';
 import { autoPlaceObject } from '../../inventory.ts';
 import { MercStatus } from '../../profiles.ts';
@@ -211,7 +211,8 @@ function answerLie(env: NpcActionEnv, profile: number, record: number, choice: N
   }
   const t = tactical(env);
   const liar = chooseLiar(env);
-  const believed = t !== null && liar !== null && skillCheck(t, liar, SkillCheckReason.LIE_TO_QUEEN, 0) >= 0;
+  const queen = profileOf(env, Npc.QUEEN);
+  const believed = t !== null && liar !== null && queen !== null && lieToQueenCheck(t, liar, queen.stats) >= 0;
   trigger(env, profile, u8(record + (believed ? LIE_RECORD.BELIEVED : LIE_RECORD.CAUGHT)));
 }
 
