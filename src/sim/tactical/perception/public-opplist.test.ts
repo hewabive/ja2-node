@@ -3,12 +3,13 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
+import { setSoldierPosition } from '../movement.ts';
 import { NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
-import { Opp } from './opp.ts';
-import { decayPublicOpplist, verifyAndDecayOpplist } from './sight.ts';
+import { Opp, SightFlags } from './opp.ts';
+import { decayPublicOpplist, handleSight, verifyAndDecayOpplist } from './sight.ts';
 
 let content: TacticalContent;
 
@@ -128,5 +129,14 @@ describe('the check of known opponents (OppList.cc VerifyAndDecayOpplist)', () =
       0,
     ]);
     expect(merc.oppList[dying.id]).toBe(Opp.SEEN_THIS_TURN);
+  });
+
+  it('counts an opponent lost there as seen last turn at once and keeps showing him until the next look', () => {
+    const { t, merc, enemy } = inView();
+    handleSight(t, merc, SightFlags.LOOK | SightFlags.RADIO);
+    expect([merc.oppList[enemy.id], enemy.visible]).toEqual([Opp.SEEN_CURRENTLY, 1]);
+    setSoldierPosition(t, enemy, gridNo(80, 120));
+    verifyAndDecayOpplist(t, merc);
+    expect([merc.oppList[enemy.id], enemy.visible]).toEqual([Opp.SEEN_LAST_TURN, 0]);
   });
 });

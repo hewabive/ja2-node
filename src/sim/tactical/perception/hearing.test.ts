@@ -62,6 +62,20 @@ describe('telling the player about a noise (OppList.cc ProcessNoise, TellPlayerA
     expect(ofType(t.events, 'noiseHeard')).toEqual([]);
   });
 
+  it('marks a footstep as reported on the loudest listener under the bearing of the last listener', () => {
+    const sim = newCombatSim(content);
+    const near = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 75), Direction.NORTH);
+    const farEast = spawnSoldier(sim, 1, Team.OUR, gridNo(90, 70), Direction.WEST);
+    const stranger = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 70), Direction.SOUTH);
+    const t = sim.state;
+    t.events.length = 0;
+    t.inCombat = true;
+    t.turn.currentTeam = Team.ENEMY;
+    makeNoise(t, stranger, stranger.gridNo, 0, 15, NoiseKind.MOVEMENT);
+    expect(ofType(t.events, 'noiseHeard')).toMatchObject([{ listener: near.id, direction: Direction.NORTH }]);
+    expect([near.movementNoiseHeard, farEast.movementNoiseHeard]).toEqual([1 << Direction.WEST, 0]);
+  });
+
   it('keeps quiet about an explosion within sight of the squad', () => {
     const { sim } = squadAndStranger();
     const t = sim.state;

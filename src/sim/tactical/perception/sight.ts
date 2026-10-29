@@ -10,7 +10,9 @@
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { u8 } from '../../../core/int.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { AiAction } from '../ai/actions.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { withinOneOctant } from '../directions.ts';
@@ -326,7 +328,14 @@ export function turnOffEveryonesMuzzleFlashes(t: TacticalState): void {
   for (const s of mercs(t)) if (s.muzzleFlash) endMuzzleFlash(t, s);
 }
 
-const SEEK_ACTIONS = new Set([1, 3, 2, 6, 7, 8]);
+const NON_COMBAT_MOVES: ReadonlySet<number> = new Set([
+  AiAction.RANDOM_PATROL,
+  AiAction.SEEK_OPPONENT,
+  AiAction.SEEK_FRIEND,
+  AiAction.POINT_PATROL,
+  AiAction.LEAVE_WATER_GAS,
+  AiAction.SEEK_NOISE,
+]);
 
 function initSightArrays(t: TacticalState): void {
   t.perception.best.fill(null);
@@ -383,7 +392,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
         t.narrative.setFactTrue(Fact.FIRST_BATTLE_BEING_FOUGHT);
     } else setWatchedLocAsUsed(t, s.id, opp.gridNo, opp.level);
     if (old !== Opp.SEEN_THIS_TURN || s.lastKnownOpp[opp.id] !== opp.gridNo) t.perceptionHooks.setNewSituation(s);
-    else if (SEEK_ACTIONS.has(s.ai.action)) t.perceptionHooks.setNewSituation(s);
+    else if (NON_COMBAT_MOVES.has(s.ai.action)) t.perceptionHooks.setNewSituation(s);
   }
   updatePersonal(s, opp, Opp.SEEN_CURRENTLY, opp.gridNo);
   const sightingCaller = caller === Caller.MANLOOKSFOROTHERTEAMS || caller === Caller.OTHERTEAMSLOOKFORMAN || caller === Caller.UNKNOWN;
@@ -424,7 +433,7 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
       losWorld,
       losSubject(t, me),
       losSubject(t, opp),
-      d & 0xff,
+      u8(d),
       aware,
       t.perception.disallowSight,
       isMonster(me),

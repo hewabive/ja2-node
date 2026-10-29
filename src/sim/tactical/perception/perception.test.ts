@@ -100,6 +100,18 @@ describe('line of sight', () => {
     expect(aware).toBeGreaterThan(0);
     expect(unaware).toBe(0);
   });
+
+  it('reads the land height at either end from the tile with column and row swapped', () => {
+    const viewer = { gridNo: gridNo(70, 80), level: 0, heightClass: HeightClass.CROUCH };
+    const swappedTile = gridNo(80, 70);
+    const t = tactical((w) => w.add(gridNo(70, 81), 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 })));
+    const heights = new Uint8Array(t.world.level.heights);
+    const overTheCrate = () =>
+      soldierToSoldierLineOfSight({ structures: t.world.structures, heights }, viewer, stand(gridNo(70, 86)), 26, true);
+    expect(overTheCrate()).toBeGreaterThan(0);
+    heights[swappedTile] = 15;
+    expect(overTheCrate()).toBe(0);
+  });
 });
 
 describe('sighting', () => {

@@ -4,16 +4,18 @@
 // @src SoldierTo3DLocationLineOfSightTest; Tactical/Structure_Wrap.cc wall and door edge queries.
 
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import {
   has,
   ORIENT_LEFT,
   ORIENT_RIGHT,
+  STRUCTURE_ON_ROOF,
   StructureFlags,
   type StructureInstance,
   structureHeight,
   type WorldStructures,
 } from '../../../content/world/structures.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 
 const FIX = 1 << 20;
 const TEN = 10 * FIX;
@@ -24,6 +26,7 @@ const CLOSE_TO_FIRER = 25;
 const ROOF_LIP_NEAR = 20;
 const ROOF_LIP_VERY_NEAR = 11;
 const ROOF_LIP_FAR = 120;
+const ROOF_LIP_PRONE_TILES = 3;
 const SIGHT_SCALE = 260;
 const PI = 3.1415926;
 const ORIENT_OUTSIDE = Orientation.OUTSIDE_LEFT | Orientation.OUTSIDE_RIGHT;
@@ -54,14 +57,6 @@ export interface LosOptions {
   readonly smell?: boolean;
 }
 
-function u8(v: number): number {
-  return v & 0xff;
-}
-
-function idiv(a: number, b: number): number {
-  return Math.trunc(a / b);
-}
-
 function toFix(f: number): number {
   return Math.trunc(f * FIX);
 }
@@ -88,6 +83,26 @@ export function landHeightUnits(world: LosWorld, g: number): number {
 
 function landFix(world: LosWorld, g: number): number {
   return landHeightUnits(world, g) * FIX;
+}
+
+function gridNoWithColumnAndRowSwapped(worldX: number, worldY: number): number {
+  return Math.trunc(worldX / CELL_X_SIZE) * WORLD_COLS + Math.trunc(worldY / CELL_Y_SIZE);
+}
+
+interface RayEnd {
+  readonly cubes: number;
+  readonly cubesAboveLevel: number;
+  readonly wall: number;
+}
+
+function rayEnd(world: LosWorld, worldX: number, worldY: number, qZ: number): RayEnd {
+  const land = landFix(world, gridNoWithColumnAndRowSwapped(worldX, worldY));
+  const cubes = cubeOf(fixInt(qZ - land));
+  return { cubes, cubesAboveLevel: cubes >= STRUCTURE_ON_ROOF ? cubes - STRUCTURE_ON_ROOF : cubes, wall: WALL + land };
+}
+
+function crossesWallPlane(fromZ: number, toZ: number, wall: number): boolean {
+  return fromZ < wall ? toZ > wall : toZ < wall;
 }
 
 function wallOrClosedDoor(world: LosWorld, g: number, orient: number): boolean {
@@ -154,17 +169,12 @@ export function resolveHitOnWall(world: LosWorld, s: StructureInstance, g: numbe
   return true;
 }
 
-function roofLipSeeThrough(
-  loop: number,
-  iDist: number,
-  startCubes: number,
-  endCubes: number,
-  startAbove: number,
-  endAbove: number,
-): boolean {
+function roofLipSeeThrough(loop: number, iDist: number, start: RayEnd, end: RayEnd): boolean {
   if (!(loop < ROOF_LIP_NEAR || iDist - loop < ROOF_LIP_NEAR)) return false;
-  if (loop <= ROOF_LIP_VERY_NEAR || iDist - loop <= ROOF_LIP_VERY_NEAR)
-    return startCubes < endCubes ? iDist >= (3 - endAbove) * 10 : iDist >= (3 - startAbove) * 10;
+  if (loop <= ROOF_LIP_VERY_NEAR || iDist - loop <= ROOF_LIP_VERY_NEAR) {
+    const higher = start.cubes < end.cubes ? end : start;
+    return iDist >= (ROOF_LIP_PRONE_TILES - higher.cubesAboveLevel) * CELL_X_SIZE;
+  }
   return iDist >= ROOF_LIP_FAR;
 }
 
@@ -204,20 +214,9 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
   const qIncZ = toFix(Math.fround(dz / iDist));
   const qStartZ = toFix(startZ);
   const qEndZ = toFix(endZ);
-
-  let checkRoof = false;
-  const gS = Math.trunc(sx / 10) * WORLD_COLS + Math.trunc(sy / 10);
-  const landS = landFix(world, gS);
-  const wallS = WALL + landS;
-  const startCubes = cubeOf(fixInt(qStartZ - landS));
-  const startAbove = startCubes >= 4 ? startCubes - 4 : startCubes;
-  if (qStartZ < wallS ? qEndZ > wallS : qEndZ < wallS) checkRoof = true;
-  const gE = Math.trunc(ex / 10) * WORLD_COLS + Math.trunc(ey / 10);
-  const landE = landFix(world, gE);
-  const wallE = WALL + landE;
-  const endCubes = cubeOf(fixInt(qEndZ - landE));
-  const endAbove = endCubes >= 4 ? endCubes - 4 : endCubes;
-  if (qEndZ < wallE ? qStartZ > wallE : qStartZ < wallE) checkRoof = true;
+  const start = rayEnd(world, sx, sy, qStartZ);
+  const end = rayEnd(world, ex, ey, qEndZ);
+  const checkRoof = crossesWallPlane(qStartZ, qEndZ, start.wall) || crossesWallPlane(qEndZ, qStartZ, end.wall);
 
   let qX = toFix(sx) + qIncX + idiv(toFix(dx) - qIncX * iDist, 2);
   let qY = toFix(sy) + qIncY + idiv(toFix(dy) - qIncY * iDist, 2);
@@ -265,8 +264,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
           if (desired === 4) cubeAbove -= 4;
           for (const s of list) {
             let opaque = !has(s.flags, StructureFlags.TRANSPARENT);
-            if (opaque && has(s.flags, StructureFlags.ROOF))
-              opaque = !roofLipSeeThrough(loop, iDist, startCubes, endCubes, startAbove, endAbove);
+            if (opaque && has(s.flags, StructureFlags.ROOF)) opaque = !roofLipSeeThrough(loop, iDist, start, end);
             if (!opaque || s.cubeOffset !== desired) continue;
             if (!((s.tile.shape[cX * 5 + cY] ?? 0) & (1 << cubeAbove))) continue;
             if (o.smell) {
@@ -294,8 +292,8 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
               let hit: boolean;
               if (has(s.flags, StructureFlags.WALLSTUFF)) hit = resolveHitOnWall(world, s, g, cX, cY, horizAngle);
               else if (cubeAbove < 2) {
-                if (loop <= CLOSE_TO_FIRER && cubeAbove <= startAbove) hit = cubeAbove !== structureHeight(s) - 1;
-                else if (loop >= iDist - CLOSE_TO_FIRER && cubeAbove <= endCubes && o.aware) hit = cubeAbove !== structureHeight(s) - 1;
+                if (loop <= CLOSE_TO_FIRER && cubeAbove <= start.cubesAboveLevel) hit = cubeAbove !== structureHeight(s) - 1;
+                else if (loop >= iDist - CLOSE_TO_FIRER && cubeAbove <= end.cubes && o.aware) hit = cubeAbove !== structureHeight(s) - 1;
                 else hit = true;
               } else hit = true;
               if (hit) return 0;

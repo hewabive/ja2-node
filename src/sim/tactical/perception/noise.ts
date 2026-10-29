@@ -6,6 +6,7 @@
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { u8 } from '../../../core/int.ts';
 import { endHeight, states } from '../animation.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
@@ -15,6 +16,7 @@ import type { TacticalState } from '../state.ts';
 import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, standardInterruptConditionsMet } from './duel.ts';
 import { type HeightClass, soldierToLocationLineOfSight, soldierToSoldierLineOfSight } from './los.ts';
+import { Caller, SightFlags } from './opp.ts';
 import {
   addDoorNoiseSighting,
   atan8,
@@ -70,14 +72,20 @@ const WAKING_NOISE_KINDS: ReadonlySet<number> = new Set([
 ]);
 const MAX_NOISE_VOLUME = 12;
 const DOOR_NOISE_VOLUME = 2;
-const ARMY_FOOTSTEP = 9;
+const MAX_MOVEMENT_NOISE = 9;
+const STEALTH_PER_MOVEMENT_NOISE = 16;
 const BLOODCAT_STEALTH_BONUS = 50;
 const STEALTHY_TRAIT_BONUS = 25;
 const RED_ALERT_VOLUME = 3;
 const IRRELEVANT = -1;
 
+function stealthRollWithSecondChance(t: TacticalState, stealth: number): number {
+  const first = t.pre.int(100);
+  return first < stealth ? first : t.pre.int(100);
+}
+
 export function movementNoise(t: TacticalState, s: Soldier): number {
-  if (s.team === Team.ENEMY) return ARMY_FOOTSTEP - t.pre.int(2);
+  if (s.team === Team.ENEMY) return MAX_MOVEMENT_NOISE - t.pre.int(2);
   let stealth = 20 + 4 * effectiveExpLevel(s) + Math.trunc((effectiveDexterity(s) * 4) / 10);
   stealth += s.bodyType === Body.BLOODCAT ? BLOODCAT_STEALTH_BONUS : STEALTHY_TRAIT_BONUS * numSkillTraits(s, SkillTrait.STEALTHY);
   const life = effectiveLife(s);
@@ -87,17 +95,16 @@ export function movementNoise(t: TacticalState, s: Soldier): number {
   stealth = Math.max(stealth, 0);
   const st = states(t.content.animations);
   if (!s.stealthMode) {
-    let max = (9 - Math.trunc(stealth / 16)) & 0xff;
+    let max = u8(MAX_MOVEMENT_NOISE - Math.trunc(stealth / STEALTH_PER_MOVEMENT_NOISE));
     if (isWater(t.pathWorld, s.gridNo)) max++;
     if (s.state === st.CRAWLING) max = max <= 2 ? 0 : max - 2;
     else if (s.state === st.SWATTING) max = max <= 1 ? 0 : max - 1;
     else if (s.state === st.RUNNING) max += 3;
     return max < 2 ? max : 1 + t.pre.int(max);
   }
-  let roll = t.pre.int(100);
-  if (roll >= stealth) roll = t.pre.int(100);
+  const roll = stealthRollWithSecondChance(t, stealth);
   if (roll < stealth) return 0;
-  let volume = 1 + Math.trunc((roll - stealth + 1) / 16);
+  let volume = 1 + Math.trunc((roll - stealth + 1) / STEALTH_PER_MOVEMENT_NOISE);
   if (s.state === st.CRAWLING) volume = volume <= 2 ? 0 : volume - 2;
   else if (s.state === st.SWATTING) volume -= 1;
   else if (s.state === st.RUNNING) volume += 3;
@@ -130,7 +137,7 @@ function calcEffVolume(t: TacticalState, l: Soldier, g: number, level: number, b
   return Math.max(eff, 0);
 }
 
-const SIGHT_INTERRUPT_KIND = 1;
+const SIGHTINTERRUPT_READ_AS_LOOK_FLAG = SightFlags.LOOK;
 
 function raiseToRed(t: TacticalState, l: Soldier): void {
   if (l.ai.alertStatus < AlertStatus.RED) {
@@ -171,12 +178,12 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
             level: target.level,
             heightClass: endHeight(t.content, target.state) as (typeof HeightClass)[keyof typeof HeightClass],
           },
-          d & 0xff,
+          u8(d),
           true,
           t.perception.disallowSight,
           isMonster(l),
         )
-      : soldierToLocationLineOfSight(losWorld, eye, g, level, d & 0xff, t.perception.disallowSight);
+      : soldierToLocationLineOfSight(losWorld, eye, g, level, u8(d), t.perception.disallowSight);
     sourceSeen = los !== 0;
   }
   const hooks = t.perceptionHooks;
@@ -185,7 +192,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
     const oldOpp = l.oppList[source.id] ?? 0;
     const gunshot = (kind === NoiseKind.GUNFIRE || kind === NoiseKind.BULLET_IMPACT) && volume >= RED_ALERT_VOLUME;
     if (sourceSeen) {
-      manSeesMan(t, l, source, 5);
+      manSeesMan(t, l, source, Caller.UNKNOWN);
       if (l.team !== Team.OUR) l.newOppCnt = 0;
       seen = true;
       if (l.neutral && gunshot) raiseToRed(t, l);
@@ -200,11 +207,11 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
       if (t.turn.delayResolvingBestSightingDueToDoor) {
         if (
           sourceSeen &&
-          (!t.inCombat || (t.turn.sightFlags & SIGHT_INTERRUPT_KIND && standardInterruptConditionsMet(t, l, source, oldOpp)))
+          (!t.inCombat || (t.turn.sightFlags & SIGHTINTERRUPT_READ_AS_LOOK_FLAG && standardInterruptConditionsMet(t, l, source, oldOpp)))
         ) {
           const points = calcInterruptDuelPts(t, l, source, true);
           if (points !== NO_INTERRUPT && (l.team !== Team.OUR || source.life >= OKLIFE))
-            addDoorNoiseSighting(t, l, (points + Math.trunc(volume / 2)) & 0xff);
+            addDoorNoiseSighting(t, l, u8(points + Math.trunc(volume / 2)));
         }
       } else if (t.inCombat) {
         l.interruptDuelPts = standardInterruptConditionsMet(t, l, source, oldOpp) ? calcInterruptDuelPts(t, l, source, true) : NO_INTERRUPT;
@@ -351,7 +358,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     let loudest = 0;
     let by: Soldier | null = null;
     let loudestDir = 0;
-    let lastDir = 0;
+    let lastListenerDirection = 0;
     for (const l of members.sort((a, b) => a.id - b.id)) {
       if (!listens(l)) continue;
       if (maker) {
@@ -365,7 +372,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
       if (hearNoise(t, l, source, g, level, eff, kind)) seen = true;
       heard = true;
       const dir = directionToward(l.gridNo, g);
-      lastDir = dir;
+      lastListenerDirection = dir;
       if (kind !== NoiseKind.MOVEMENT || team !== Team.OUR || l.interruptDuelPts !== NO_INTERRUPT || !(l.movementNoiseHeard & (1 << dir))) {
         if (eff > loudest) {
           loudest = eff;
@@ -376,7 +383,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     }
     if (heard && team === Team.OUR && tell && by) {
       tellPlayerAboutNoise(t, by, level, loudest, kind, loudestDir);
-      if (kind === NoiseKind.MOVEMENT) by.movementNoiseHeard |= 1 << lastDir;
+      if (kind === NoiseKind.MOVEMENT) by.movementNoiseHeard |= 1 << lastListenerDirection;
     }
     if (source && team === Team.OUR) {
       if (seen) ourTeamRadiosRandomlyAbout(t, source);
