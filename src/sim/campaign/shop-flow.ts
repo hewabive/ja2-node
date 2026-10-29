@@ -6,7 +6,7 @@
 // @src ShopkeeperAutoPlaceObject, ShopkeeperAddItemToPool, HandleShopKeeperDialog (opening quote);
 // @src RepairIsDone (collected repairs shown as "REPAIRED"), GetShopKeeperInterfaceUserInput (SPACE: the next merc prices);
 // @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
-// @src change gpSMCurrentMerc inside the shop).
+// @src change gpSMCurrentMerc inside the shop); Overhead.cc FindNextActiveAndAliveMerc (regular mercs only).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -48,7 +48,7 @@ import { NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { directionToward, stopMerc } from '../tactical/movement.ts';
 import { distanceVisible } from '../tactical/perception/sight.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
-import { OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { addItemToPool, Visibility } from '../tactical/world-items.ts';
@@ -388,7 +388,12 @@ export class ShopFlow {
     const id = cmd.soldier === undefined ? session.pricing : cmd.soldier;
     const s = isInt(id) ? (t?.soldiers[id] ?? null) : null;
     if (!s?.placed || s.team !== Team.OUR || s.life <= 0 || !this.#onCurrentSquad(s)) return refuse('noSuchPricingMerc');
+    if (s.id !== session.pricing && !this.#regularMerc(s)) return refuse('noSuchPricingMerc');
     return s;
+  }
+
+  #regularMerc(s: Soldier): boolean {
+    return s.bodyType <= Body.REGFEMALE && !this.#campaign.battle?.roster.get(s.id)?.isEpc;
   }
 
   #receiver(cmd: CampaignCommand, pricing: Soldier): Soldier {

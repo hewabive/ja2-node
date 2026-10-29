@@ -17,10 +17,11 @@ import { worldDay, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
-import { createSoldier, Orders, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { Body, createSoldier, Orders, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { registerSoldier, whoIsThere } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { FinanceCode } from './finances.ts';
+import { MercKind } from './roster.ts';
 
 let kit: CampaignKit;
 let merchants: MerchantTestContent;
@@ -224,6 +225,21 @@ describe('shop scenario on the stub village', () => {
 
   it('repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit, the same across reloads', async () => {
     await expectReloadsInvisible(perkoRepair);
+  });
+
+  it('lets only a regular merc of the squad price the trade, as the panel buttons do: no escort, no robot', () => {
+    const c = startCampaign(7);
+    const [merc, escort, robot, other] = ourSoldiers(c);
+    if (!merc || !escort || !robot || !other) throw new Error('four mercs expected');
+    spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, merc);
+    const record = c.battle?.roster.get(escort.id)?.record;
+    if (record) Object.assign(record, { kind: MercKind.EPC });
+    Object.assign(robot, { bodyType: Body.ROBOTNOWEAPON });
+    expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: merc.id }).ok).toBe(true);
+    for (const soldier of [escort.id, robot.id])
+      expect(c.dispatch({ type: 'setShopPricing', soldier })).toMatchObject({ ok: false, reason: 'noSuchPricingMerc' });
+    expect(c.dispatch({ type: 'setShopPricing', soldier: other.id })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'setShopPricing', soldier: merc.id })).toMatchObject({ ok: true });
   });
 
   it('greets with the usual quote at Arnie while his repairs are unfinished: the original overwrites quote 33', () => {
