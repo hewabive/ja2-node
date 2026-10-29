@@ -8,6 +8,7 @@ import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { type Level, levelTilesAt } from '../../content/world/level.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
+import { u16 } from '../../core/int.ts';
 import {
   HALF_TILE_X,
   heightAdjusted,
@@ -24,7 +25,6 @@ import {
   WALL_HEIGHT,
   worldOrigin,
   worldY,
-  wrap16,
   Z_STRIP_DELTA,
 } from './geometry.ts';
 import { DrawState, FLOATS_PER_INSTANCE, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource } from './instances.ts';
@@ -287,10 +287,10 @@ export class StaticScene {
       return;
     }
     if (showThrough) {
-      this.#emitObscured(p, d.sprite, wrap16(z), at.g);
+      this.#emitObscured(p, d.sprite, u16(z), at.g);
       return;
     }
-    this.#out(StaticSegment.STRUCTS).push(p.x, p.y, d.sprite, 0, d.sprite.width, d.sprite.paletteBase, wrap16(z), at.g, 0, 0);
+    this.#out(StaticSegment.STRUCTS).push(p.x, p.y, d.sprite, 0, d.sprite.width, d.sprite.paletteBase, u16(z), at.g, 0, 0);
   }
 
   #emitObscured(p: { x: number; y: number }, sprite: TileSprite, z: number, shadeKey: number): void {
@@ -325,7 +325,7 @@ export class StaticScene {
     let width = Math.min(strip.firstStripWidth, sprite.width);
     let k = 0;
     while (srcX < sprite.width) {
-      const z16 = wrap16(z);
+      const z16 = u16(z);
       if (showThrough) {
         this.#out(StaticSegment.OBSCURED_STRIP_DITHER).push(
           p.x,

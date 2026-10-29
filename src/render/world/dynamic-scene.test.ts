@@ -12,12 +12,14 @@ import {
   corpseZ,
   itemZ,
   mercZ,
+  ONROOF_Z_LEVEL,
   onRoofZ,
   roofCorpseZ,
   roofMercZ,
   STRUCT_Z_LEVEL,
   structZ,
   TOPMOST_Z_LEVEL,
+  WALL_HEIGHT,
   worldOrigin,
   worldY,
   Z_SUBLAYERS,
@@ -313,6 +315,12 @@ describe('dynamic scene', () => {
     expect(parts.find((p) => p.tile === 7002)?.z).toBe((worldY(83, 80, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL) & 0xffff);
     expect(parts.find((p) => p.tile === 7003)?.z).toBe(roofCorpseZ(worldY(84, 80, 860)));
     expect(scene.runs.slice(0, 2).map((r) => r.state)).toEqual([DrawState.NEARER_SHADOW, DrawState.NEARER_WRITE]);
+  });
+
+  it('sorts a corpse on a roof twice its on-roof offset up, as the original adds that offset twice', () => {
+    const onRoofCorpseOffset = WALL_HEIGHT + 40;
+    const wy = worldY(84, 80, 860);
+    expect(roofCorpseZ(wy)).toBe((wy + 2 * onRoofCorpseOffset) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
   });
 
   it('draws corpses before every merc, even one in the same row, as the original draws them with the static world', () => {

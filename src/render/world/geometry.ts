@@ -5,6 +5,7 @@
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { renderBounds } from '../../content/world/render-bounds.ts';
+import { u16 } from '../../core/int.ts';
 
 export const Z_SUBLAYERS = 8;
 export const LAND_Z_LEVEL = 0;
@@ -82,10 +83,6 @@ export function worldY(x: number, y: number, topY: number): number {
   return 10 * (x - 80) + 10 * (y - 80) + SCREEN_CENTER_Y - topY;
 }
 
-export function wrap16(z: number): number {
-  return z & 0xffff;
-}
-
 export function rowOf(g: number): number {
   return (g % WORLD_COLS) + Math.floor(g / WORLD_COLS);
 }
@@ -114,7 +111,7 @@ export function heightAdjusted(height: number, ignoresWorldHeight: boolean): num
 }
 
 export function objectZ(wy: number): number {
-  return wrap16(wy * Z_SUBLAYERS + LAND_Z_LEVEL);
+  return u16(wy * Z_SUBLAYERS + LAND_Z_LEVEL);
 }
 
 export function shadowZ(wy: number): number {
@@ -126,36 +123,36 @@ export function structZ(wy: number): number {
 }
 
 export function itemZ(wy: number): number {
-  return wrap16(wy * Z_SUBLAYERS + OBJECT_Z_LEVEL);
+  return u16(wy * Z_SUBLAYERS + OBJECT_Z_LEVEL);
 }
 
 export function roofZ(wy: number): number {
-  return wrap16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ROOF_Z_LEVEL);
+  return u16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ROOF_Z_LEVEL);
 }
 
 export function animationTileZ(wy: number, relativeZ: number): number {
-  return wrap16((wy + relativeZ) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+  return u16((wy + relativeZ) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }
 
 export function onRoofZ(wy: number): number {
-  return wrap16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+  return u16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }
 
 export function mercZ(wy: number): number {
-  return wrap16(wy * Z_SUBLAYERS + MERC_Z_LEVEL);
+  return u16(wy * Z_SUBLAYERS + MERC_Z_LEVEL);
 }
 
 export const CORPSE_WORLD_Y_OFFSET = 20;
 export const ROOF_CORPSE_WORLD_Y_OFFSET = 2 * (WALL_HEIGHT + 40);
 
 export function corpseZ(wyOfNorthWest: number): number {
-  return wrap16((wyOfNorthWest + CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + LAND_Z_LEVEL);
+  return u16((wyOfNorthWest + CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + LAND_Z_LEVEL);
 }
 
 export function roofCorpseZ(wy: number): number {
-  return wrap16((wy + ROOF_CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+  return u16((wy + ROOF_CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }
 
 export function roofMercZ(wy: number): number {
-  return wrap16((wy + ROOF_MERC_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+  return u16((wy + ROOF_MERC_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }

@@ -11,6 +11,7 @@ import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/w
 import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import type { ZStripInfo } from '../../content/world/zstrip.ts';
+import { u16 } from '../../core/int.ts';
 import {
   animationTileZ,
   type Camera,
@@ -36,7 +37,6 @@ import {
   WALL_HEIGHT,
   worldOrigin,
   worldY,
-  wrap16,
   Z_STRIP_DELTA,
   Z_SUBLAYERS,
 } from './geometry.ts';
@@ -428,7 +428,7 @@ export class DynamicScene {
     const topY = this.#world.topY;
     if (a.kind === 'smoke' || a.kind === 'staticSmoke') return a.level > 0 ? onRoofZ(worldY(x, y, topY)) : itemZ(worldY(x, y, topY));
     if (a.level > 0) return roofCorpseZ(worldY(x, y, topY));
-    if (a.kind === 'vehicleCorpse') return wrap16(worldY(x + a.zTileOffsetX, y + a.zTileOffsetY, topY) * Z_SUBLAYERS + STRUCT_Z_LEVEL);
+    if (a.kind === 'vehicleCorpse') return u16(worldY(x + a.zTileOffsetX, y + a.zTileOffsetY, topY) * Z_SUBLAYERS + STRUCT_Z_LEVEL);
     return corpseZ(worldY(x - 1, y - 1, topY));
   }
 
@@ -543,7 +543,7 @@ export class DynamicScene {
           this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, strip, s, z, shadeKey, row, 0));
           return;
         }
-        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, wrap16(z), shadeKey, 0, 0));
+        this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, u16(z), shadeKey, 0, 0));
         return;
       }
       case 'roofs':
@@ -564,10 +564,10 @@ export class DynamicScene {
     const mt = m.multiTile;
     const wy = worldY(x + (mt?.zTileOffsetX ?? 0), y + (mt?.zTileOffsetY ?? 0), this.#world.topY);
     let z: number;
-    if (mt?.vehicle) z = wrap16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL);
+    if (mt?.vehicle) z = u16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL);
     else if (m.topmost) z = TOPMOST_Z_LEVEL;
     else z = m.level > 0 ? roofMercZ(wy) : mercZ(wy);
-    return noBurn ? wrap16(z + NOBURN_Z_BONUS) : z;
+    return noBurn ? u16(z + NOBURN_Z_BONUS) : z;
   }
 
   #emitSoldierParts(m: SceneSoldier, p: { x: number; y: number }, z: number, noBurn: boolean): void {
@@ -627,7 +627,7 @@ export class DynamicScene {
         const d = this.#sprite(item.tile);
         if (!d) continue;
         const raised = item.height ?? 0;
-        const z = raised > 0 ? wrap16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL + raised) : roof ? onRoofZ(wy) : itemZ(wy);
+        const z = raised > 0 ? u16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL + raised) : roof ? onRoofZ(wy) : itemZ(wy);
         const at = this.#position(g, x, y, d.te, d.sprite, roof ? 'onRoof' : 'structs');
         const p = { x: at.x, y: at.y - raised };
         const out = this.itemInstances;
@@ -655,7 +655,7 @@ function emitStrips(
   let width = Math.min(strip.firstStripWidth, sprite.width);
   let k = 0;
   while (srcX < sprite.width) {
-    out.push(p.x, p.y, sprite, srcX, width, row, wrap16(z), shadeKey, flags, 0);
+    out.push(p.x, p.y, sprite, srcX, width, row, u16(z), shadeKey, flags, 0);
     srcX += width;
     width = Math.min(HALF_TILE_X, sprite.width - srcX);
     z += Z_STRIP_DELTA * (strip.zChanges[k++] ?? 0);

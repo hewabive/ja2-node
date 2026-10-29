@@ -3,16 +3,23 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { emptyTileLayer, LAYER_NAMES, type MapDef, tileLayerFromLists } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
-import { buildLevel } from '../../content/world/level.ts';
+import { buildLevel, levelTilesAt } from '../../content/world/level.ts';
 import { placeWorldStructures } from '../../content/world/placement.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
-import { parseTileTables, typeIndex } from '../../content/world/tile-tables.ts';
+import { parseTileTables, tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { type Camera, screenToGridNo, tileOrigin, type Viewport, worldOrigin } from './geometry.ts';
-import { FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
+import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import { computeReveal, NO_REVEAL } from './reveal.ts';
-import { openableTileInState, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
+import {
+  openableTileInState,
+  STATIC_SEGMENT_STATES,
+  StaticScene,
+  StaticSegment,
+  type StaticState,
+  type StaticWorld,
+} from './static-scene.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -90,6 +97,16 @@ function segment(scene: StaticScene, seg: StaticSegment): Decoded[] {
 
 const names = (list: readonly Decoded[]) => list.map((i) => tables.tileNames[i.tile]);
 
+function withRoomRevealed(world: StaticWorld, at: number): StaticWorld & { readonly reveal: StaticState['reveal'] } {
+  const room = 3;
+  const rooms = new Uint8Array(WORLD_MAX);
+  rooms[at] = room;
+  const level = { ...world.level, rooms };
+  const placed = placeWorldStructures(level, world.tiles);
+  const reveal = computeReveal({ level, tiles: world.tiles, tables, structures: placed.structures, basement: false }, new Set([room]));
+  return { ...world, level, reveal };
+}
+
 describe('projection and picking', () => {
   it('picks the tile whose diamond is under the cursor', () => {
     for (const [x, y] of [
@@ -116,6 +133,11 @@ describe('static scene order and depth', () => {
     expect(segment(scene, StaticSegment.LAND)[0]?.shadeKey).toBe(g(80, 80));
   });
 
+  it('draws no land on a tile none of whose land pieces is full', () => {
+    const scene = new StaticScene(worldWith({ land: [[g(80, 80), [T('FIRSTTEXTURE', 20)]]] }), DEFAULT_STATE);
+    expect(segment(scene, StaticSegment.LAND)).toEqual([]);
+  });
+
   it('keeps rows in X+Y order and uses the original z per layer, in world coordinates', () => {
     const scene = new StaticScene(
       worldWith({
@@ -136,6 +158,16 @@ describe('static scene order and depth', () => {
     expect(roof?.y).toBe(worldOrigin(80, 80).y - 50);
     expect(roof?.shadeKey).toBe(ShadeKey.ROOF_BASE + g(80, 80));
     expect(segment(scene, StaticSegment.OBJECTS)[0]).toMatchObject({ z: 1 });
+  });
+
+  it('wraps a negative z at the top edge to the nearest depth and clamps shadows there to 0, which their strict test never passes', () => {
+    const topEdgeRow = 80;
+    const scene = new StaticScene(worldWith({ structs: [[g(40, topEdgeRow - 40), [T('FIRSTOSTRUCT', 1)]]] }), DEFAULT_STATE);
+    const wy = 10 * topEdgeRow - 835;
+    expect(wy).toBeLessThan(0);
+    expect(segment(scene, StaticSegment.STRUCTS)[0]?.z).toBe(65536 + 8 * wy + 4);
+    expect(segment(scene, StaticSegment.SHADOWS)[0]?.z).toBe(0);
+    expect(STATIC_SEGMENT_STATES[StaticSegment.SHADOWS]).toBe(DrawState.SHADOW_WRITE);
   });
 
   it('splits multi-tile structures into strips: walls compare with <=, others with <', () => {
@@ -193,6 +225,56 @@ describe('static scene order and depth', () => {
     expect(segment(new StaticScene({ ...world, level }, { ...DEFAULT_STATE, reveal, roofLevel: true }), StaticSegment.ROOFS)).toHaveLength(
       1,
     );
+  });
+
+  it('drops every shadow of a tree hemmed in by structures, counting the map edge as one', () => {
+    const footprint = (flags: number) => ({ flags, tiles: [{ posRelToBase: 0 }] }) as unknown as TileElement['structure'];
+    const footprints = new Map([
+      [tileIndex(tables, 'FIRSTFULLSTRUCT1'), footprint(StructureFlags.TREE)],
+      [tileIndex(tables, 'FIRSTOSTRUCT1'), footprint(StructureFlags.GENERIC)],
+    ]);
+    const tiles = baseTiles.map((t, i) => ({ ...t, structure: footprints.get(i) ?? t.structure }));
+    const treeHemmedInSouthAndEast = (x: number, y: number): [number, { type: number; subIndex: number }[]][] => [
+      [g(x, y), [T('FIRSTFULLSTRUCT', 1)]],
+      [g(x, y + 1), [T('FIRSTOSTRUCT', 1)]],
+      [g(x + 1, y + 1), [T('FIRSTOSTRUCT', 1)]],
+      [g(x + 1, y), [T('FIRSTOSTRUCT', 1)]],
+    ];
+    const atWestEdge = g(0, 80);
+    const inland = g(40, 80);
+    const world = worldWith(
+      {
+        structs: [...treeHemmedInSouthAndEast(0, 80), ...treeHemmedInSouthAndEast(40, 80)],
+        shadows: [
+          [atWestEdge, [T('FIRSTSHADOW', 2)]],
+          [inland, [T('FIRSTSHADOW', 2)]],
+        ],
+      },
+      tiles,
+    );
+    const shadowNames = (at: number) => [...levelTilesAt(world.prepared.shadows, at)].map((t) => tables.tileNames[t]);
+    expect(shadowNames(inland)).toEqual(['FIRSTFULLSHADOW1', 'FIRSTSHADOW2']);
+    expect(shadowNames(atWestEdge)).toEqual([]);
+  });
+
+  it('shows the hidden roofs of a revealed room again at the roof level, but not its hidden A-frame walls', () => {
+    const aframe = T('FIRSTWALL', 32);
+    expect((baseTiles[tileIndex(tables, 'FIRSTWALL32')]?.flags ?? 0) & TileFlags.AFRAME).toBe(TileFlags.AFRAME);
+    const world = withRoomRevealed(worldWith({ roofs: [[g(80, 80), [T('FIRSTROOF', 1), aframe]]] }), g(80, 80));
+    const groundLevel = new StaticScene(world, { ...DEFAULT_STATE, reveal: world.reveal });
+    expect(segment(groundLevel, StaticSegment.ROOFS)).toEqual([]);
+    const roofLevel = new StaticScene(world, { ...DEFAULT_STATE, reveal: world.reveal, roofLevel: true });
+    expect(names(segment(roofLevel, StaticSegment.ROOFS))).toEqual(['FIRSTROOF1']);
+  });
+
+  it('keeps the on-roof objects of a revealed room in view, as nothing in the original hides them', () => {
+    const world = withRoomRevealed(
+      worldWith({ roofs: [[g(80, 80), [T('FIRSTROOF', 1)]]], onRoof: [[g(80, 80), [T('FIRSTONROOF', 1)]]] }),
+      g(80, 80),
+    );
+    const scene = new StaticScene(world, { ...DEFAULT_STATE, reveal: world.reveal });
+    expect(segment(scene, StaticSegment.ROOFS)).toEqual([]);
+    expect(names(segment(scene, StaticSegment.ON_ROOF))).toEqual(['FIRSTONROOF1']);
   });
 
   it('rebuilds only the rows of changed doors', () => {

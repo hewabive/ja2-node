@@ -4,19 +4,19 @@
 // @src GridNoIndoors; Tactical/Handle_UI.cc SetInterfaceHeightLevel
 
 import type { MapInformation } from '../../content/formats/map.ts';
-import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
+import { Direction, directionIncrement, newGridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
+import { has, StructureFlags } from '../../content/world/structures.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import { type TileTables, typeIndex } from '../../content/world/tile-tables.ts';
 
-const STRUCTURE_TREE = 0x00000200;
 const NO_LAND_START = -1;
-const SHADOW_SEARCH_DIRECTIONS: readonly [number, number][] = [
-  [-1, 0],
-  [-1, 1],
-  [0, 1],
-  [1, 1],
-  [1, 0],
+const SHADOW_SEARCH_DIRECTIONS: readonly number[] = [
+  Direction.WEST,
+  Direction.SOUTHWEST,
+  Direction.SOUTH,
+  Direction.SOUTHEAST,
+  Direction.EAST,
 ];
 
 export interface LevelRenderData {
@@ -28,15 +28,13 @@ export interface LevelRenderData {
   readonly hasTree: Uint8Array;
 }
 
-const WALLSTUFF = 0x00cf0008;
-
 function noBurnStruct(structs: Uint16Array, tiles: readonly TileElement[]): number {
   let wall = false;
   let flag = 0;
   for (const t of structs) {
     const def = tiles[t]?.structure;
     if (!def) continue;
-    if (def.flags & WALLSTUFF) wall = true;
+    if (has(def.flags, StructureFlags.WALLSTUFF)) wall = true;
     flag = !wall && def.tiles.length === 1 ? 1 : 0;
   }
   return flag;
@@ -45,12 +43,6 @@ function noBurnStruct(structs: Uint16Array, tiles: readonly TileElement[]): numb
 function firstFullLandFromHead(land: Uint16Array, tiles: readonly TileElement[]): number {
   for (let i = 0; i < land.length; i++) if (tiles[land[i] ?? 0]?.fullTile) return i;
   return NO_LAND_START;
-}
-
-function neighbourOrSelf(g: number, dx: number, dy: number): number {
-  const x = (g % WORLD_COLS) + dx;
-  const y = Math.floor(g / WORLD_COLS) + dy;
-  return x < 0 || y < 0 || x >= WORLD_COLS || y >= WORLD_ROWS ? g : y * WORLD_COLS + x;
 }
 
 function structureFootprints(level: Level, tiles: readonly TileElement[]): { hasStructure: Uint8Array; hasTree: Uint8Array } {
@@ -65,7 +57,7 @@ function structureFootprints(level: Level, tiles: readonly TileElement[]): { has
           const at = g + piece.posRelToBase;
           if (at < 0 || at >= WORLD_MAX) continue;
           hasStructure[at] = 1;
-          if (s.flags & STRUCTURE_TREE) hasTree[at] = 1;
+          if (has(s.flags, StructureFlags.TREE)) hasTree[at] = 1;
         }
       }
     }
@@ -102,7 +94,7 @@ function shadowList(inputs: ShadowInputs, g: number): number[] {
       if (te && te.flags & TileFlags.HAS_SHADOW_BUDDY && te.buddy !== -1) buddies.unshift(te.buddy);
     }
   }
-  const surrounded = hasTree[g] === 1 && SHADOW_SEARCH_DIRECTIONS.every(([dx, dy]) => hasStructure[neighbourOrSelf(g, dx, dy)] === 1);
+  const surrounded = hasTree[g] === 1 && SHADOW_SEARCH_DIRECTIONS.every((d) => hasStructure[newGridNo(g, directionIncrement(d))] === 1);
   return surrounded ? [] : [...buddies, ...levelTilesAt(level.layers.shadows, g)];
 }
 

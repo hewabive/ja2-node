@@ -116,11 +116,11 @@ class RevealBuilder {
     return this.#w.basement || this.#w.structures.find(g, StructureFlags.ROOF) !== null;
   }
 
-  #addWire(g: number, wireframe: number, forced: boolean): void {
+  #addWire(g: number, wireframe: number, optional: boolean): void {
     const tile = this.#wireframeBase + wireframe;
     const list = this.wires.get(g) ?? [];
     if (list.some((n) => n.tile === tile)) return;
-    list.push({ tile, optional: forced });
+    list.push({ tile, optional });
     this.wires.set(g, list);
   }
 
