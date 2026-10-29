@@ -5,7 +5,8 @@
 // @src AffectAllTownsLoyaltyByDistanceFrom, CheckIfEntireTownHasBeenLiberated, CheckIfEntireTownHasBeenLost,
 // @src IncrementTownLoyaltyEverywhere, DecrementTownLoyaltyEverywhere, ReduceLoyaltyForRebelsBetrayed,
 // @src HandleTownLoyaltyForNPCRecruitment, MaximizeLoyaltyForDeidrannaKilled; Strategic/Player_Command.cc
-// @src SetThisSectorAsPlayerControlled, SetThisSectorAsEnemyControlled (loyalty, morale, mine and theft effects).
+// @src SetThisSectorAsPlayerControlled, SetThisSectorAsEnemyControlled (loyalty, morale, mine and theft effects, the
+// @src notice for an important sector).
 
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { i16, idiv, imod, u8, u32 } from '../../../core/int.ts';
@@ -36,6 +37,7 @@ import {
 import { militiaTrainingAllowedInSector } from './militia-rules.ts';
 import { mineIndexForSector, queenHasRegainedMineSector, totalLeftInMine } from './mine-status.ts';
 import type { EconomyContext } from './ports.ts';
+import { notifyPlayerWhenEnemyTakesControlOfImportantSector } from './sector-loss.ts';
 import { createTownLoyalty } from './state.ts';
 import { isTownUnderCompleteControl, isTownUnderCompleteEnemyControl, townOf } from './towns.ts';
 
@@ -285,6 +287,7 @@ export function onSectorTakenByEnemy(ctx: EconomyContext, sector: Sector, wasPla
       ctx.hooks.moraleEvent(MoraleEvent.SAM_SITE_LOST, sector);
       handleGlobalLoyaltyEvent(ctx, LoyaltyEvent.LOSE_SAM, sector);
     }
+    notifyPlayerWhenEnemyTakesControlOfImportantSector(ctx, sector);
   }
   if (getSectorFlagStatus(ctx.state.map, sector, SectorFlag.ALREADY_VISITED))
     ctx.hooks.removeRandomItemsInSector(sector, theftChance(ctx, sector));

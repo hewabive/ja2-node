@@ -29,7 +29,7 @@ HOURLY_UPDATE → handleHourlyUpdate                              economy/update
 BANDAGE_BLEEDING_MERCS, a minute after a doctor, patient or     doctor.ts
 hospital stay is set and again while someone bleeds
 assign, sleep, wake, moveMilitia, distributeMilitia             campaign/commands.ts → set-assignment.ts, militia-moves.ts
-control change → world port → loyalty, morale, theft            strategic/map/control.ts → economy/context.ts → loyalty.ts
+control change → world port → loyalty, morale, notice, theft    strategic/map/control.ts → economy/context.ts → loyalty.ts
 tactical militia from the counts; promotions on unload          campaign/sector-flow.ts, tactical/init-list.ts
 ```
 
@@ -166,4 +166,4 @@ estimates are not compared. Inferred from reading the source:
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
 
 Not ported: gaps "Implications of an attack" (the head miner attack), "Strategic economy stand-ins" (vehicle repair),
-"Regeneration counters", "Absent mercs between hourly updates", "Lost sector notices without a battle".
+"Regeneration counters", "Absent mercs between hourly updates".

@@ -25,7 +25,6 @@ import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
-import { importantSectorLoss } from '../strategic/economy/sector-loss.ts';
 import { answerPendingMilitiaPrompt } from '../strategic/economy/set-assignment.ts';
 import type { EconomyPrompt } from '../strategic/economy/state.ts';
 import { autoBandageMercs, type BandageRefusal, bandageRefusal, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
@@ -644,8 +643,7 @@ export class BattleFlow implements FateContext {
   #emitControlChange(sector: Sector, before: 'player' | 'enemy'): 'player' | 'enemy' | null {
     const after = this.#controller(sector);
     if (after === before) return null;
-    const loss = after === 'enemy' ? importantSectorLoss(this.economy, sector) : null;
-    this.emit({ type: 'sectorControlChanged', sector: sectorShortString(sector), controller: after, ...(loss ?? {}) });
+    this.emit({ type: 'sectorControlChanged', sector: sectorShortString(sector), controller: after });
     return after;
   }
 

@@ -170,6 +170,6 @@ reading the source:
   placement decisions are covered by `defence`.
 - The order of the two `Random` calls of `TacticalCreateEnemySoldier`'s noise target, which the compiler decides.
 
-Not ported: gaps "Creature quest scripting", "Lost sector notices without a battle". Other deviations of this domain:
-"Strategic AI undefined behaviour", "Strategic AI PD placement pass", "Strategic AI debug toggles", "Meanwhile scenes",
-"Sandbox population", "Fourth captive".
+Not ported: gaps "Creature quest scripting". Other deviations of this domain: "Strategic AI undefined behaviour",
+"Strategic AI PD placement pass", "Strategic AI debug toggles", "Meanwhile scenes", "Sandbox population", "Fourth
+captive".

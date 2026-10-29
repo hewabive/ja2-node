@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc NotifyPlayerWhenEnemyTakesControlOfImportantSector (which notice the
 // @src original shows; the reduced income of GetProjectedTotalDailyIncome).
 
-import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sectorId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { Town } from './constants.ts';
 import { maxDailyRemovalFromMine, mineIndexForSector } from './mine-status.ts';
@@ -27,4 +27,9 @@ export function importantSectorLoss(ctx: EconomyContext, s: Sector): ImportantSe
     return { kind: 'mine', dailyIncome: predictIncomeFromPlayerMines(ctx) };
   const town = townIdOfSector(ctx, s);
   return town === Town.BLANK || town === Town.SAN_MONA ? null : { kind: 'town' };
+}
+
+export function notifyPlayerWhenEnemyTakesControlOfImportantSector(ctx: EconomyContext, s: Sector): void {
+  const loss = importantSectorLoss(ctx, s);
+  if (loss) ctx.events.push({ type: 'sectorLost', sector: sectorShortString(s), ...loss });
 }

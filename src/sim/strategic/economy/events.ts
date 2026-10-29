@@ -1,4 +1,5 @@
 import type { TextKey } from '../../../content/narrative/dialogue-text.ts';
+import type { ImportantSectorKind } from './sector-loss.ts';
 import type { EconomyPrompt } from './state.ts';
 
 export type EconomyEvent =
@@ -19,6 +20,7 @@ export type EconomyEvent =
   | { readonly type: 'mineEmpty'; readonly mine: number }
   | { readonly type: 'mineShutDown'; readonly mine: number }
   | { readonly type: 'mineReopened'; readonly mine: number }
+  | { readonly type: 'sectorLost'; readonly sector: string; readonly kind: ImportantSectorKind; readonly dailyIncome?: number }
   | {
       readonly type: 'headMinerQuote';
       readonly mine: number;

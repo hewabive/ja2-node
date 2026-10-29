@@ -210,6 +210,7 @@ describe('autoresolve from the strategic state', () => {
     const events = c.drainEvents();
     expect(events.find((e) => e.type === 'battleResult')).toMatchObject({ sector: 'A9', result: 'defeat', via: 'tactical' });
     expect(c.state.map.elements[A9.x + A9.y * 18]?.enemyControlled).toBe(true);
+    expect(events.filter((e) => e.type === 'sectorLost')).toMatchObject([{ sector: 'A9', kind: 'town' }]);
     advance(c, { ticks: 2400 });
     expect(c.tactical).toBeNull();
     expect(roster.all().every((m) => m.assignment === 30)).toBe(true);
