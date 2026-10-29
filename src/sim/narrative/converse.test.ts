@@ -336,6 +336,24 @@ describe('triggers and scripted sequences', () => {
     expect(npc.engagedInAction).toBe(false);
   });
 
+  it('leaves our merc only the handle-every-frame AI flag at the end of a scripted walk: the original keeps the flag it means to clear', () => {
+    const ours = testSoldier(MERC_ID + 1, Team.OUR, NPC, NPC_TILE);
+    Object.assign(ours.ai, { handleEveryFrame: true, asleep: true, cautious: true, checkSchedule: true, lockDoorIncludesClose: true });
+    ours.underAiControl = true;
+    ours.quoteRecord = 1;
+    const host = fakeHost({ scripts: { [NPC]: recordArray({}) }, types: { [NPC]: NPC_TYPE }, soldiers: [ours] });
+    npcReachedDestination(host, ours, false);
+    const { handleEveryFrame, asleep, cautious, checkSchedule, lockDoorIncludesClose } = ours.ai;
+    expect({ handleEveryFrame, asleep, cautious, checkSchedule, lockDoorIncludesClose, underAiControl: ours.underAiControl }).toEqual({
+      handleEveryFrame: true,
+      asleep: false,
+      cautious: false,
+      checkSchedule: false,
+      lockDoorIncludesClose: false,
+      underAiControl: false,
+    });
+  });
+
   it('keeps the UI locked after a script closes the panel while the reference count holds', () => {
     const host = setup(recordArray({}));
     open(host);

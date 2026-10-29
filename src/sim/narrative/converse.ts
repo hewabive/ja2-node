@@ -720,10 +720,20 @@ export function handleNpcGotoGridNo(host: NarrativeHost, npc: number, gridNo: nu
   s.ai.handleEveryFrame = true;
 }
 
+function keepOnlyHandleEveryFrameAiFlag(s: Soldier): void {
+  s.ai.cautious = false;
+  s.ai.asleep = false;
+  s.ai.lockDoorIncludesClose = false;
+  s.ai.checkSchedule = false;
+}
+
 export function npcReachedDestination(host: NarrativeHost, s: Soldier, already: boolean): void {
   const record = s.quoteRecord === 0 ? 0 : s.quoteRecord - 1;
   s.quoteRecord = 0;
-  if (s.team === Team.OUR) s.underAiControl = false;
+  if (s.team === Team.OUR) {
+    s.underAiControl = false;
+    keepOnlyHandleEveryFrameAiFlag(s);
+  }
   const npc = s.profile;
   const records = ensureQuoteFileLoaded(host, npc);
   if (!records) return;
