@@ -10,7 +10,14 @@ import { addCorpseStructure, deathOpcode } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { igniteExplosion } from './explosions/explosion.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
-import { BloodKind, bloodFloorStrength, DROPPED_IN_SIGHT, decayBloodAndSmells, internalDropBlood } from './smell.ts';
+import {
+  BloodKind,
+  bloodFloorStrength,
+  DROPPED_IN_SIGHT,
+  decayBloodAndSmells,
+  internalDropBlood,
+  restoreBloodAndSmellAt,
+} from './smell.ts';
 import { Body, NO_PROFILE, type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { bloodViews } from './world-view.ts';
@@ -75,6 +82,18 @@ describe('blood pools on the ground (Smell.cc InternalDropBlood, UpdateBloodGrap
     decayUntil(sim, () => t.smell.blood[AHEAD] === 0);
     revealRoofsAndItems(t, merc, false);
     expect(bloodViews(t)).toEqual([]);
+  });
+
+  it('redraws a loaded creature pool as human blood: the blood type lives in the smell byte, set after the redraw (SaveLoadMap.cc AddBloodOrSmellFromMapTempFileToMap)', () => {
+    const dropped = squad();
+    internalDropBlood(dropped.sim.state, AHEAD, 0, BloodKind.CREATURE_ON_FLOOR, 4, DROPPED_IN_SIGHT);
+    const blood = dropped.sim.state.smell.blood[AHEAD] ?? 0;
+    const smell = dropped.sim.state.smell.smell[AHEAD] ?? 0;
+    expect(bloodViews(dropped.sim.state)).toEqual([{ gridNo: AHEAD, strength: 4, creature: true }]);
+    const loaded = squad().sim.state;
+    restoreBloodAndSmellAt(loaded, AHEAD, blood, smell);
+    expect(bloodViews(loaded)).toEqual([{ gridNo: AHEAD, strength: 4 }]);
+    expect(loaded.smell.smell[AHEAD]).toBe(smell);
   });
 
   it('draws no pool with blood and gore off, though the blood is there', () => {

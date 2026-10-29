@@ -9,6 +9,7 @@ import type { SaveGame, StrategicGroup } from '../../../content/formats/savegame
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
 import { isValidSector, type Sector } from '../../../content/strategic/sector-ids.ts';
+import { u8 } from '../../../core/int.ts';
 import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
 import { emptyPassengerSlots, type Group, type VehicleRecord } from '../forces/groups.ts';
 import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
@@ -130,7 +131,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
     return importGroup(g, members);
   });
   f.squads = Array.from({ length: NUMBER_OF_SQUADS }, (_, q) => [...(save.squads[q] ?? [])]);
-  f.squadGroupIds = save.squadMovementGroups.map((id) => id & 0xff);
+  f.squadGroupIds = save.squadMovementGroups.map((id) => u8(id));
   f.deadSquadMembers = info.deadSquadMembers.map((row) => [...row]);
   f.vehicleGroupIds = [...save.vehicleMovementGroups];
   f.vehicles = importVehicles(save, byProfile);

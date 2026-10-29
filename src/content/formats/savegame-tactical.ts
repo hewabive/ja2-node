@@ -4,6 +4,7 @@
 // @src SaveLoadGame.cc LoadGeneralInfo, LoadOppListInfoFromSavedGame, LoadWatchedLocsFromSavedGame;
 // @src Tactical/TeamTurns.cc LoadTeamTurnsFromTheSavedGameFile
 
+import { i8 } from '../../core/int.ts';
 import type { SaveCursor } from './savegame-cursor.ts';
 import type { SavedGameOptions, SectorPosition } from './savegame-header.ts';
 import { field, type Layout, type LayoutRecord, layoutBytes, linuxPadding, linuxSkip, readLayout, skip } from './savegame-layout.ts';
@@ -595,7 +596,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
     deadSquadMembers: Array.from({ length: NUMBER_OF_SQUADS }, (_, q) =>
       r.nums('sDeadMercs').slice(q * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD, (q + 1) * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD),
     ),
-    selectedSector: { x: n('sSelMapX'), y: n('sSelMapY'), z: (n('sSelMapZ') << 24) >> 24 },
+    selectedSector: { x: n('sSelMapX'), y: n('sSelMapY'), z: i8(n('sSelMapZ')) },
     narrative: {
       boxingMatchesWon: n('gubBoxingMatchesWon'),
       boxersRests: n('gubBoxersRests'),

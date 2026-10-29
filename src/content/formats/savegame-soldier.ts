@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LoadSaveSoldierType.cc ExtractSoldierType, MercChecksum (Windows and Strac Linux layouts)
 
+import { u8 } from '../../core/int.ts';
 import type { ObjectRecord } from './object.ts';
 import { SaveCursor } from './savegame-cursor.ts';
 import { ascii, field, type Layout, layoutBytes, linuxSkip, objects, pointer, readLayout, skip, wide } from './savegame-layout.ts';
@@ -746,7 +747,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
   const r = readLayout(new SaveCursor(plain), SOLDIER_LAYOUT, stracLinuxFormat, 'SOLDIERTYPE');
   const n = (name: string) => r.num(name);
   const statDamage = (name: string) => (version >= FIRST_VERSION_WITH_STAT_DAMAGE ? n(name) : 0);
-  const pathSize = Math.min(n('usPathDataSize') & 0xff, PATH_ENTRIES);
+  const pathSize = Math.min(u8(n('usPathDataSize')), PATH_ENTRIES);
   return {
     id: n('ubID'),
     name: r.str('name'),
@@ -790,8 +791,8 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     path: r
       .nums('usPathingData')
       .slice(0, pathSize)
-      .map((d) => d & 0xff),
-    pathIndex: n('usPathIndex') & 0xff,
+      .map((d) => u8(d)),
+    pathIndex: u8(n('usPathIndex')),
     oldGridNo: n('sOldGridNo'),
     lastTwoLocations: r.nums('sLastTwoLocations'),
     offWorldGridNo: n('sOffWorldGridNo'),

@@ -12,7 +12,7 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { importSave } from './save-import.ts';
-import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
+import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
 
@@ -47,6 +47,7 @@ function soldierRecord(fields: SoldierFields): Uint8Array {
     if (entry.type === 'u8' || entry.type === 'bool' || entry.type === 'i8') view.setUint8(at, value);
     else if (entry.type === 'u16' || entry.type === 'i16') view.setUint16(at, value, true);
     else if (entry.type === 'u32' || entry.type === 'i32') view.setUint32(at, value, true);
+    else if (entry.type === 'f32') view.setFloat32(at, value, true);
     else throw new Error(`cannot fill ${name}`);
   }
   return bytes;
@@ -236,5 +237,13 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const [moved, kept] = sim.state.worldItems;
     expect(around).toContain(moved?.gridNo);
     expect(kept?.gridNo).toBe(blocked);
+  });
+
+  it('puts a soldier saved mid-step at the centre of his saved tile, as setting his position on load does (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
+    const at = gridNo(80, 82);
+    const centre = cellCentre(at);
+    const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, at, { dXPos: centre.x + 3, dYPos: centre.y - 2 })] });
+    const merc = soldierOf(importedSim(save), MERC_ID);
+    expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
   });
 });

@@ -3,6 +3,7 @@
 // @src src/game/SaveLoadGame.cc ParseSavedGameHeader, isValidSavedGameHeader, ExtractSavedGameHeaderFromFile,
 // @src CalcJA2EncryptionSet, ExtractGameOptions; src/game/Tactical/Tactical_Save.cc NewJA2EncryptedFileRead
 
+import { u8, u32 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { SaveCursor } from './savegame-cursor.ts';
 
@@ -126,21 +127,21 @@ export function parseSaveHeader(bytes: Uint8Array): { readonly header: SaveGameH
 }
 
 export function encryptionSetIndex(h: SaveGameHeader, baseSets: number, germanVersion: boolean): number {
-  let set = h.currentBalance >>> 0;
-  set = Math.imul(set, h.mercsOnPlayerTeam + 1) >>> 0;
-  set = (set + h.sector.z * 3) >>> 0;
-  set = (set + h.loadScreenId) >>> 0;
-  if (h.alternateSector) set = (set + 7) >>> 0;
+  let set = u32(h.currentBalance);
+  set = u32(Math.imul(set, h.mercsOnPlayerTeam + 1));
+  set = u32(set + h.sector.z * 3);
+  set = u32(set + h.loadScreenId);
+  if (h.alternateSector) set = u32(set + 7);
   const r = h.random;
   if (r % 2 === 0) {
-    set = (set + 1) >>> 0;
+    set = u32(set + 1);
     if (r % 7 === 0) {
-      set = (set + 1) >>> 0;
-      if (r % 23 === 0) set = (set + 1) >>> 0;
-      if (r % 79 === 0) set = (set + 2) >>> 0;
+      set = u32(set + 1);
+      if (r % 23 === 0) set = u32(set + 1);
+      if (r % 79 === 0) set = u32(set + 2);
     }
   }
-  if (germanVersion) set = Math.imul(set, GERMAN_SET_FACTOR) >>> 0;
+  if (germanVersion) set = u32(Math.imul(set, GERMAN_SET_FACTOR));
   set %= 10;
   set += Math.trunc(h.day / 10);
   set %= baseSets;
@@ -169,7 +170,7 @@ export function decryptSaveRecord(encrypted: Uint8Array, key: Uint8Array): Uint8
   let previous = 0;
   for (let i = 0; i < encrypted.length; i++) {
     const byte = encrypted[i] ?? 0;
-    plain[i] = (byte - previous - (key[i % key.length] ?? 0)) & 0xff;
+    plain[i] = u8(byte - previous - (key[i % key.length] ?? 0));
     previous = byte;
   }
   return plain;
@@ -179,7 +180,7 @@ export function encryptSaveRecord(plain: Uint8Array, key: Uint8Array): Uint8Arra
   const encrypted = new Uint8Array(plain.length);
   let previous = 0;
   for (let i = 0; i < plain.length; i++) {
-    previous = ((plain[i] ?? 0) + previous + (key[i % key.length] ?? 0)) & 0xff;
+    previous = u8((plain[i] ?? 0) + previous + (key[i % key.length] ?? 0));
     encrypted[i] = previous;
   }
   return encrypted;
