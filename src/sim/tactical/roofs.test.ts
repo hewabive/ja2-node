@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { AnimHeight, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
 import { checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
 import { Attitude, Orders, Team } from './soldier.ts';
@@ -53,6 +54,21 @@ describe('climbing roofs', () => {
     expect(merc.level).toBe(0);
     expect(merc.gridNo).toBe(gridNo(84, 80));
     expect(endHeight(t.content, merc.state)).toBe(AnimHeight.STAND);
+  });
+
+  it('looks around once he is up, and spots the enemy on the roof (Soldier_Ani.cc 408)', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.EAST);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(89, 80), Direction.EAST);
+    setSoldierHeight(t, enemy, 50);
+    sim.lookAround();
+    expect(merc.oppList[enemy.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(merc.level).toBe(1);
+    expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_CURRENTLY);
+    expect(t.inCombat).toBe(true);
   });
 });
 

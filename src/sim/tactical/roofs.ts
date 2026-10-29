@@ -130,6 +130,7 @@ function climbUpCommit(t: TacticalState, s: Soldier): void {
   s.desiredHeight = AnimHeight.CROUCH;
   setSoldierHeight(t, s, ROOF_HEIGHT);
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
+  t.hooks.climbedRoof(t, s);
 }
 
 function climbDownCommit(t: TacticalState, s: Soldier): void {
@@ -138,7 +139,7 @@ function climbDownCommit(t: TacticalState, s: Soldier): void {
   t.perception.disallowSight = false;
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
   s.uiMovementMode = anim(t.content, 'WALKING');
-  t.hooks.look(t, s);
+  t.hooks.climbedRoof(t, s);
 }
 
 export function roofOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {

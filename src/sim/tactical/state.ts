@@ -83,6 +83,7 @@ export interface TacticalHooks {
   atNewGridNo(t: TacticalState, s: Soldier): boolean;
   newAiSituation(t: TacticalState, s: Soldier): void;
   look(t: TacticalState, s: Soldier): void;
+  climbedRoof(t: TacticalState, s: Soldier): void;
   turnFinished(t: TacticalState, s: Soldier): void;
   stanceChanged(t: TacticalState, s: Soldier): void;
   stanceFreeUp(t: TacticalState, s: Soldier): void;
@@ -100,6 +101,7 @@ export const NO_HOOKS: TacticalHooks = {
   atNewGridNo: () => false,
   newAiSituation: () => {},
   look: () => {},
+  climbedRoof: () => {},
   turnFinished: () => {},
   stanceChanged: () => {},
   stanceFreeUp: () => {},

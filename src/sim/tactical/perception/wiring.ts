@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (pressure action items, noise and the stealthy footstep of a PC,
 // @src then sight, then interrupts);
-// @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise);
+// @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise), opcodes 408
+// @src and 475 (the sight after a roof climb);
 // @src OppList.cc OurTeamSeesSomeone.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -94,6 +95,7 @@ export function sightHooks(previous: TacticalHooks): TacticalHooks {
       return t.turn.interruptOccurred;
     },
     look: (t, s) => handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO),
+    climbedRoof: (t, s) => handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO | SightFlags.INTERRUPT),
     stanceChanged: (t, s) => {
       const settled =
         s.pendingAnimation === NO_PENDING_ANIMATION &&
