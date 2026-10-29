@@ -718,6 +718,7 @@ Files are `docs/NN-<name>.md`.
 | `34` throwing-and-physics | Throwing, launchers, item physics, fuses |
 | `35` npc-actions-and-schedules | The NPC action catalog, strategic NPC presence, schedules, civilian groups, keys, locks and doors |
 | `deviations.md` | Every deliberate difference from the original |
-| `gaps.md` | Behaviour not ported yet |
+| `gaps.md` | Behaviour not ported yet, code that does not follow `CLAUDE.md` yet |
+| `test-stability.md` | Tests that fail without a code change: rules and open cases |
 | `releases.md` | Release notes |
 | `tools/oracle/README.md` | The native oracle: build, probes, comparers |

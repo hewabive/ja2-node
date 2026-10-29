@@ -54,6 +54,12 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 Docs describe the current product; history stays in git. Code does not cite doc sections (numbers move); docs cite
 code paths and `file:line` in `reference/stracciatella`.
 
+The code is the main document. Docs hold only what it cannot say: where a subsystem lives, design decisions and their
+reasons, cross-cutting rules, the original's quirks the code keeps (each with the test that pins it), and what is not
+verified. No pseudocode, formulas, constants or step lists retold from Stracciatella or from our code: link
+`file:line`. A spec written before implementing is a scratchpad file; only its decisions, deviations and gaps go
+into `docs/`.
+
 - `docs/01-architecture.md`: licensing, decisions D1–D16, layers, sim-core rules (time, RNG streams, state),
   Stracciatella vs vanilla, documentation map.
 - `docs/04-time-and-server.md`: tick model, time drivers, server and sessions, protocol, rule pack.
@@ -68,6 +74,8 @@ code paths and `file:line` in `reference/stracciatella`.
 - `docs/30`–`32`: the original screens in the client; sound, music, video, localization; stub pack, performance, launcher.
 - `docs/33`–`35`: hits and damage; throwing and item physics; NPC actions, presence and schedules.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
-- `docs/gaps.md`: behaviour not ported yet; add to it when leaving something out, drop the entry when it is done.
+- `docs/gaps.md`: behaviour not ported yet and code that does not follow this file yet; add to it when leaving
+  something out, drop the entry when it is done.
+- `docs/test-stability.md`: tests that fail without a code change; record every such failure there.
 - `docs/releases.md`: release notes.
 - `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).

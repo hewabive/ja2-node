@@ -4,7 +4,7 @@ Every place where ja2-node does not yet do what JA2 Stracciatella with default s
 `01` D1), or does only part of it. Add an entry to its section: the original's behaviour (with `file:line` where it
 helps), what ja2-node does for now, and what closing the gap depends on or changes. A closed gap leaves this file; a
 difference kept on purpose moves to `deviations.md` with its reason. Other docs cite entries by their *Area* name
-(`gaps "Area"`); names are unique across both files.
+(`gaps "Area"`); names are unique across both files. Section 7 lists code that does not follow `CLAUDE.md` yet.
 
 ## 1. Tactical rules and AI
 
@@ -143,3 +143,11 @@ What the client does not show or play yet; none of it changes an outcome.
 | I.M.P. voice samples | Next and Previous stop the playing sample before the next; a click on the silhouette plays only when nothing plays (`SoundIsPlaying`) | Every click plays its sample; samples may overlap | The UI sound sink cannot stop or query a sample |
 | I.M.P. skill page and saved profiles | Stracciatella's `imp_pick_skills_directly` replaces the quiz by the skill trait page; `imp_load_saved_merc_by_nickname` lets the begin page take on a saved I.M.P. by nickname | With direct picking the personality button leads to a page with only the cancel button; no saved profile loads | Both are off in the default rule pack (`30` §6.6) |
 | Meanwhile scene playback | OK plays the scene in P3 with the Queen and Elliot, Skip skips it; a played scene is marked seen, so the next campaign offers Skip | The box only (`30` §7.1): OK and Skip both continue; nothing is marked seen, so the box offers OK alone unless the setting says the scene was seen | No scene sandbox (`26` §2.4) |
+
+## 7. Code conventions
+
+Code that does not follow `CLAUDE.md` yet.
+
+| Area | Rule | Code | Notes |
+|---|---|---|---|
+| Fixed-width integers | Fixed-width fields of the original go through `src/core/int.ts` | `sim/tactical/combat/types.ts` defines its own `i8`, `u8`, `i16`; local copies in `combat/attack.ts`, `doors/lock-attempts.ts` and `ai/combat-decide.ts`; some casts are written as raw masks (`& 0xff`, `& 0xffff`) | Import from `core/int.ts`; a mask that is a bit operation stays |
