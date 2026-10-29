@@ -38,8 +38,6 @@ class FakeSprites implements EffectSprites {
   }
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
-
 describe('corpses and smoke on the stub pack', () => {
   let data: DataVfs;
   let effects: WorldEffects;
@@ -72,9 +70,9 @@ describe('corpses and smoke on the stub pack', () => {
     ];
     const input = { corpses: [corpse], smoke, clockMs: 0, bloodAndGore: true, animateSmoke: true };
     expect(effects.build(input)).toEqual([]);
-    await settle();
+    await effects.loaded();
     effects.build(input);
-    await settle();
+    await effects.loaded();
     const tiles = effects.build(input);
     expect(tiles.map((t) => [t.kind, t.gridNo, t.level])).toEqual([
       ['corpse', 12880, 0],
@@ -103,7 +101,7 @@ describe('corpses and smoke on the stub pack', () => {
     effects.setSprites(new FakeSprites());
     const input = { corpses: [], smoke: [{ gridNo: 100, level: 0, effect: 'SMOKE' }], clockMs: 0, bloodAndGore: true, animateSmoke: false };
     effects.build(input);
-    await settle();
+    await effects.loaded();
     expect(effects.build(input).map((t) => t.kind)).toEqual(['staticSmoke']);
   });
 });
