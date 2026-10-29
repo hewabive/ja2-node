@@ -93,6 +93,13 @@ async function talkOpenAndQuiet(page: Page): Promise<void> {
   await nextFrames(page, 2);
 }
 
+async function closeTalkIfStillOpen(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    if (window.__ja2Ui.tactical?.talk.open) void window.__ja2Ui.tactical.command({ type: 'closeTalk' });
+  });
+  await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
+}
+
 async function freeSession(page: Page, request: APIRequestContext, session: string): Promise<void> {
   await expectShadowClean(page);
   await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
@@ -160,11 +167,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     const hired = (await recruited())?.id ?? -1;
     await agent.close();
     await shownInSquad(page, hired);
-    if (await page.evaluate(() => window.__ja2Ui.tactical?.talk.open)) {
-      await talkOpenAndQuiet(page);
-      await clickWidget(page, 'talkDone');
-      await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
-    }
+    await closeTalkIfStillOpen(page);
 
     const face = await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'teamFaceRegion0')?.rect ?? null);
     if (!face) throw new Error('no team face');
