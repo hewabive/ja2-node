@@ -104,7 +104,7 @@ Inferred from reading the source:
 - The ready APs are charged again on returning to aim after a hit; a special move may overshoot its final tile.
 - Whether the turn start `EnterCombatMode` runs clears the suppression points of the attack that began combat.
 - The agility gain for a bullet that passed through someone and then stopped in a wall.
-- Which draws `HandleKilledQuote` and the item-locator quote make.
+- Which draws the item-locator quote makes. `HandleKilledQuote` is not ported (gaps "Kill quotes").
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
 Not ported: gaps "Fragile items on falls", "Implications of an attack", "Morale without drugs", "Corpses", "Unseen

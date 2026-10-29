@@ -53,7 +53,8 @@ output, which Stracciatella ships converted in its `light-templates.json`. ja2-n
 conversion (`asShippedTemplate`), so nothing derived from the data is in the repository; the generator's double
 arithmetic is plain IEEE and runs unchanged. A data test checks the result against the user's `.LHT` files. `Light0` …
 `Light6` (flares, break lights, merc lights) cannot be generated and come from Stracciatella's file in
-`data/externalized/`. `TRANSLUC.LHT` there drives only wall translucency (gaps "Wall translucency").
+`data/externalized/`. `TRANSLUC.LHT` there would drive only wall translucency, which has no effect in Stracciatella: `CalcTranslucentWalls`
+is commented out (`Tactical/Overhead.cc:2036`).
 
 **Lights change only when drawn.** A sprite adds its light when placed and subtracts it when moved or destroyed;
 `lightSetBaseLevel` and `lightSpriteRenderAll` draw every powered sprite again. Switching power shows at the next

@@ -154,6 +154,6 @@ Inferred from reading the source:
   a killer.
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
 
-Not ported: gaps "Corpses" (heads from decapitation), "Strategic move refusals" (the museum chalice), "Map items",
+Not ported: gaps "Melee specials" (heads from decapitation), "Strategic move refusals" (the museum chalice), "Map items",
 "Ground vehicles", "Helicopter on the map", "Profile sectors of Skyrider and the helicopter", "Helicopter entrance",
 "Guard room run", "Implications of an attack", "Creature quest scripting", "Vehicles as characters".

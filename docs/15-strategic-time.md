@@ -160,7 +160,8 @@ Not pinned yet:
 - `MercArrivesCallback` posts the equipment complaint `540 + Random(660)` minutes after midnight, though its comment
   says 9–10 am (`contracts/hire-contract.ts`).
 - `HandleTacticalEndTurn` rots corpses at every real-time turn: its unsigned comparison of the last update is true
-  whenever the time changed (`Tactical/Tactical_Turns.cc:86-90`); rotting is not ported (gap "Corpses").
+  whenever the time changed (`Tactical/Tactical_Turns.cc:86-90`); ja2-node ages corpses only at sector load
+  (`agedCorpse`, `campaign/sector-diff.ts`), and the crows are gap "Corpses".
 
 ## 4. Not checked against the native build
 
