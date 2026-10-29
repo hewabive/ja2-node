@@ -14,7 +14,7 @@ import { setSoldierPosition } from '../movement.ts';
 import { hasPendingAction } from '../pending-action.ts';
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints } from '../points.ts';
-import { AlertStatus, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { checkForEndOfCombatMode, checkForPotentialAddToBattleIncrement } from './turns.ts';
@@ -247,6 +247,32 @@ describe('the end-of-combat check', () => {
     const t = enemyListedFirst(Opp.SEEN_LAST_TURN);
     expect(checkForEndOfCombatMode(t, false)).toBe(false);
     expect(t.turn.consNumTurnsWeHaventSeenButEnemyDoes).toBe(3);
+  });
+
+  function secondQuietTurn(lookerTeam: number, lookerId: number, seen: (sim: TacticalSim) => Soldier): boolean {
+    const sim = newSim();
+    const t = sim.state;
+    spawn(sim, 0, Team.OUR, gridNo(20, 20), Direction.SOUTH);
+    const looker = spawn(sim, lookerId, lookerTeam, gridNo(80, 80), Direction.SOUTH);
+    const target = seen(sim);
+    t.inCombat = true;
+    looker.ai.alertStatus = AlertStatus.RED;
+    looker.oppList[target.id] = Opp.SEEN_CURRENTLY;
+    t.turn.consNumTurnsNotSeen = 1;
+    return checkForEndOfCombatMode(t, true);
+  }
+
+  it('keeps combat going while a creature sees a neutral civilian, not a neutral vehicle (CONSIDERED_NEUTRAL)', () => {
+    const civilian = (sim: TacticalSim) => spawn(sim, 116, Team.CIV, gridNo(80, 84), Direction.NORTH);
+    const vehicle = (sim: TacticalSim) => Object.assign(civilian(sim), { bodyType: Body.HUMVEE });
+    expect(secondQuietTurn(Team.CREATURE, 52, civilian)).toBe(false);
+    expect(secondQuietTurn(Team.CREATURE, 52, vehicle)).toBe(true);
+  });
+
+  it("ignores whom a soldier sees on a team of his own side, whatever that soldier's side", () => {
+    const friendlyCivilian = (sim: TacticalSim) =>
+      Object.assign(spawn(sim, 116, Team.CIV, gridNo(80, 84), Direction.NORTH), { neutral: false, side: Side.FRIENDLY });
+    expect(secondQuietTurn(Team.ENEMY, 20, friendlyCivilian)).toBe(true);
   });
 });
 

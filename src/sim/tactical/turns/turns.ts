@@ -54,6 +54,7 @@ import {
   AlertStatus,
   Body,
   CivilianGroup,
+  consideredNeutral,
   isMonster,
   NO_INTERRUPT,
   NO_PENDING_ANIMATION,
@@ -432,9 +433,9 @@ export function exitCombatMode(t: TacticalState): void {
 
 function soldierHasSeenEnemiesLastFewTurns(t: TacticalState, s: Soldier): boolean {
   for (const other of t.soldiers) {
-    if (!other?.placed || other.side === s.side) continue;
+    if (!other?.placed || TEAM_SIDE[other.team] === s.side) continue;
     if (other.team !== Team.OUR && other.life < OKLIFE) continue;
-    if (other.neutral && (s.team !== Team.CREATURE || other.bodyType < Body.HUMVEE)) continue;
+    if (consideredNeutral(s, other) || other.side === s.side) continue;
     const v = s.oppList[other.id];
     if (v === Opp.SEEN_CURRENTLY || v === Opp.SEEN_THIS_TURN) return true;
   }
