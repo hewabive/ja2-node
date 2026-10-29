@@ -4,7 +4,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { anim, animName } from '../anim-states.ts';
 import type { TacticalContent } from '../content.ts';
-import { TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { Body, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { deathOpcode, handleSoldierDeath } from './death.ts';
 
 let content: TacticalContent;
@@ -24,6 +24,23 @@ describe('kill records (Overhead.cc HandleNPCTeamMemberDeath, Soldier_Ani.cc Han
     enemy.life = 0;
     handleSoldierDeath(sim.state, enemy);
     expect(militia.militiaKills).toBe(3);
+  });
+
+  it('begins the creature queen’s death only when somebody killed her', () => {
+    function queenDies(killedByMerc: boolean): (number | null)[] {
+      const sim = newCombatSim(content);
+      const begun: (number | null)[] = [];
+      sim.state.narrative = { ...sim.state.narrative, creatureQueenDied: (killer) => begun.push(killer?.id ?? null) };
+      const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+      const queen = spawnSoldier(sim, TEAM_FIRST_ID[Team.CREATURE], Team.CREATURE, gridNo(80, 85), Direction.NORTH);
+      queen.bodyType = Body.QUEENMONSTER;
+      queen.attacker = killedByMerc ? merc : null;
+      queen.life = 0;
+      handleSoldierDeath(sim.state, queen);
+      return begun;
+    }
+    expect(queenDies(true)).toEqual([0]);
+    expect(queenDies(false)).toEqual([]);
   });
 });
 

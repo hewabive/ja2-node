@@ -274,7 +274,7 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
     if (old.bodyType !== Body.CROW && old.bodyType !== Body.COW) t.sectorHooks.murderOfCivilian(t, old);
   }
   if (old.team !== Team.CIV && old.team !== Team.MILITIA) {
-    if (old.bodyType === Body.QUEENMONSTER) t.narrative.creatureQueenDied(killer, old.gridNo, old.level);
+    if (old.bodyType === Body.QUEENMONSTER && killer) t.narrative.creatureQueenDied(killer, old.gridNo, old.level);
     if (killer?.team === Team.OUR) handleMoraleEvent(t, killer, MoraleEvent.KILLED_ENEMY);
     checkForAlertWhenEnemyDies(t, old);
   }
