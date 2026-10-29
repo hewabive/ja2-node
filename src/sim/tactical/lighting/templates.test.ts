@@ -59,6 +59,17 @@ describe('light templates', () => {
     expect(lightTemplate('L-R01I2.LHT')?.lights[LIGHT_CENTRE_NODE]?.light).toBe(4);
   });
 
+  it('drops the last ray of a template, as Stracciatella shipped every template without it', () => {
+    const lights = [
+      { dx: 0, dy: 0, light: 0 },
+      { dx: 0, dy: 0, light: 2 },
+      { dx: 1, dy: 0, light: 1 },
+      { dx: 0, dy: 1, light: 1 },
+    ];
+    const generated = { name: 'T', lights, rays: [LIGHT_NEW_RAY, 1, 2, LIGHT_NEW_RAY, 1, 3] };
+    expect(asShippedTemplate('T', generated).rays).toEqual([LIGHT_NEW_RAY, 1, 2]);
+  });
+
   it('knows no templates that only exist as data', () => {
     expect(lightTemplate('TRANSLUC.LHT')).toBeNull();
     expect(lightTemplate('Light2')).toBeNull();

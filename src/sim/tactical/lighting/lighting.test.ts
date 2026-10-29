@@ -5,9 +5,9 @@ import { loadTestContent, readDataJson, testDoorCosts } from '../../../../tests/
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { LightTime, parseMap, writeMap } from '../../../content/formats/map.ts';
 import { parseStubMapSource, stubMapToMapDef } from '../../../content/formats/stub-map.ts';
-import { gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
+import { gridNo, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../../content/world/movement-costs.ts';
-import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
+import { StructureFlags, structureHeight, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { parseTileTables, TILE_TABLES_PATH } from '../../../content/world/tile-tables.ts';
 import { Rng } from '../../../core/rng.ts';
@@ -113,12 +113,40 @@ describe('light sprites', () => {
     expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
   });
 
-  it('does not climb onto higher ground', () => {
+  it('erases a light with the filters it was drawn with, not the walls standing now', () => {
+    const t = tactical();
+    const l = lamp(t, 'L-R05.LHT');
+    t.world.structures.add(gridNo(X + 2, Y), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT));
+    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    lightSpriteDestroy(t, l);
+    expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
+  });
+
+  it('lets a tall obstacle stop light only once something has asked its height', () => {
+    const obstacleAt = gridNo(X + 2, Y);
+    const t = tactical((s) => {
+      s.add(obstacleAt, 0, syntheticStructure(StructureFlags.GENERIC));
+    });
+    lamp(t, 'L-R05.LHT');
+    expect(level(t, X + 3, Y)).toBeLessThan(NIGHT);
+    for (const s of t.world.structures.at(obstacleAt)) structureHeight(s);
+    lightSpriteRenderAll(t);
+    expect(level(t, X + 2, Y)).toBeLessThan(NIGHT);
+    expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
+  });
+
+  it('skips a tile higher than the last one but lights the ground beyond it', () => {
     const t = tactical();
     t.world.level.heights[gridNo(X + 1, Y)] = 10;
     lamp(t, 'L-R03.LHT');
     expect(level(t, X + 1, Y)).toBe(NIGHT);
     expect(level(t, X + 2, Y)).toBe(NIGHT - 2);
+  });
+
+  it('wraps a light past the east edge of the map into the next row', () => {
+    const t = tactical();
+    lamp(t, 'L-R03.LHT', WORLD_COLS - 2, Y);
+    expect([level(t, 0, Y + 1), level(t, 1, Y + 1)]).toEqual([NIGHT - 2, NIGHT - 1]);
   });
 
   it('reads the roof level from roof tiles only', () => {

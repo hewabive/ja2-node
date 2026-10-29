@@ -13,11 +13,11 @@ import { Direction, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/w
 import type { Level } from '../../../content/world/level.ts';
 import { isDoorTravelCost, isOpenDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
-import { clamp, i16, u8 } from '../../../core/int.ts';
+import { clamp, i16, u8, u16, u32 } from '../../../core/int.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { atan8 } from '../perception/opp.ts';
 import type { TacticalState } from '../state.ts';
-import { LIGHT_CENTRE_NODE, LIGHT_NEW_RAY, type LightTemplate, lightTemplate, lightTemplateKey } from './templates.ts';
+import { LIGHT_CENTRE_NODE, LIGHT_NEW_RAY, type LightNode, type LightTemplate, lightTemplate, lightTemplateKey } from './templates.ts';
 
 export const LightSpriteFlags = {
   ACTIVE: 0x0001,
@@ -170,15 +170,15 @@ function blocksLightAsObstacle(t: TacticalState, g: number): boolean {
 }
 
 function illuminationFilter(t: TacticalState, srcX: number, srcY: number, x: number, y: number, onRoof: boolean): number {
-  const dst = tileOf(x, y) & 0xffff;
-  const src = tileOf(srcX, srcY) & 0xffff;
+  const dst = u16(tileOf(x, y));
+  const src = u16(tileOf(srcX, srcY));
   if (dst >= WORLD_MAX || src >= WORLD_MAX) return DIRECTION_IRRELEVANT | FILTER_BLOCKED | FILTER_NOTHING;
   const heights = t.world.level.heights;
   if ((heights[dst] ?? 0) > (heights[src] ?? 0) || dst === src) return DIRECTION_IRRELEVANT;
   const dir = atan8(srcX, srcY, x, y);
   if (onRoof) return dir;
   let cost = t.world.costs.get(dst, dir, 0);
-  const windowTile = dir === Direction.NORTH || dir === Direction.WEST ? dst : src;
+  const windowTile = facesNorthOrWest(dir) ? dst : src;
   if (cost === TravelCost.WALL && t.world.structures.find(windowTile, StructureFlags.WALLNWINDOW))
     return isDiagonal(dir) ? dir | FILTER_BLOCKED | FILTER_NOTHING : dir;
   if (cost === TravelCost.WALL) return wallFilter(dir);
@@ -211,20 +211,34 @@ const subtractLight: TileLighter = (layer, g, amount) => {
 };
 
 function lightTile(t: TacticalState, x: number, y: number, amount: number, roofOnly: boolean, filter: number, apply: TileLighter): void {
-  const g = tileOf(x, y);
-  if (g < 0 || g >= WORLD_MAX) return;
+  const g = u32(tileOf(x, y));
+  if (g >= WORLD_MAX) return;
   if (roofOnly) apply(t.lighting.roofLight, g, amount);
   else if (!(filter & FILTER_ORIENTED_ONLY)) apply(t.lighting.landLight, g, amount);
 }
 
-function nodeFlagsAfterLighting(dx: number, dy: number, dir: number, filter: number): number {
-  let flags = 1 << dir;
-  if (dx === 0 || dy === 0 || (dx > 0 && dy > 0)) flags |= NODE_DRAWN_FULLY;
-  else if (filter & FILTER_ORIENTED_ONLY) return flags;
-  else if ((dx < 0 && dy > 0) || (dx > 0 && dy < 0))
-    flags |= dir === Direction.WEST || dir === Direction.NORTH ? NODE_DRAWN_FULLY : NODE_DRAWN_NONWALL;
-  else if (dx < 0 && dy < 0) flags |= NODE_DRAWN_NONWALL;
-  return flags;
+function onAxis(n: LightNode): boolean {
+  return n.dx === 0 || n.dy === 0;
+}
+
+function inSouthEastQuadrant(n: LightNode): boolean {
+  return n.dx > 0 && n.dy > 0;
+}
+
+function inNorthWestQuadrant(n: LightNode): boolean {
+  return n.dx < 0 && n.dy < 0;
+}
+
+function stepCanLight(dir: number, index: number): boolean {
+  return dir === DIRECTION_IRRELEVANT ? index === LIGHT_CENTRE_NODE : !isDiagonal(dir);
+}
+
+function nodeFlagsAfterLighting(n: LightNode, dir: number, filter: number): number {
+  const litFromDir = 1 << dir;
+  if (onAxis(n) || inSouthEastQuadrant(n)) return litFromDir | NODE_DRAWN_FULLY;
+  if (filter & FILTER_ORIENTED_ONLY) return litFromDir;
+  if (inNorthWestQuadrant(n)) return litFromDir | NODE_DRAWN_NONWALL;
+  return litFromDir | (facesNorthOrWest(dir) ? NODE_DRAWN_FULLY : NODE_DRAWN_NONWALL);
 }
 
 function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, apply: TileLighter): void {
@@ -256,18 +270,15 @@ function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, a
       srcY += node.dy;
     }
     const dir = filterDirection(filter);
-    const sameTile = dir === DIRECTION_IRRELEVANT;
     const drawn = nodeFlags[index] ?? 0;
-    if ((!sameTile && isDiagonal(dir)) || (sameTile && index !== LIGHT_CENTRE_NODE) || drawn & (1 << dir) || drawn & NODE_DRAWN_FULLY)
-      continue;
-    const southEast = node.dx > 0 && node.dy > 0;
-    if (drawn & NODE_DRAWN_NONWALL && !southEast && !(filter & FILTER_ORIENTED_ONLY)) {
+    if (!stepCanLight(dir, index) || drawn & (1 << dir) || drawn & NODE_DRAWN_FULLY) continue;
+    if (drawn & NODE_DRAWN_NONWALL && !inSouthEastQuadrant(node) && !(filter & FILTER_ORIENTED_ONLY)) {
       nodeFlags[index] = drawn | NODE_DRAWN_FULLY;
       continue;
     }
     if (filter & FILTER_NOTHING || node.light === 0) continue;
     lightTile(t, dstX, dstY, node.light, roofOnly, filter, apply);
-    nodeFlags[index] = drawn | nodeFlagsAfterLighting(node.dx, node.dy, dir, filter);
+    nodeFlags[index] = drawn | nodeFlagsAfterLighting(node, dir, filter);
   }
 }
 

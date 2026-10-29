@@ -185,7 +185,7 @@ export function lightCreateOmni(intensity: number, radius: number): LightTemplat
   return { name: `LTO${radius}.LHT`, lights: t.lights, rays: t.rays };
 }
 
-function splitRays(rays: readonly number[]): number[][] {
+function raysExceptTheLast(rays: readonly number[]): number[][] {
   const split: number[][] = [];
   let current: number[] | null = null;
   for (const entry of rays) {
@@ -200,7 +200,7 @@ function splitRays(rays: readonly number[]): number[][] {
 export function asShippedTemplate(name: string, template: LightTemplate): LightTemplate {
   const seen = new Set<string>();
   const rays: number[] = [];
-  for (const ray of splitRays(template.rays)) {
+  for (const ray of raysExceptTheLast(template.rays)) {
     const key = ray.join(',');
     if (seen.has(key)) continue;
     seen.add(key);
