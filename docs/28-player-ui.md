@@ -375,7 +375,10 @@ small tiles, so on stubs the overhead map is black under the persons.
 
 `tests/e2e/performance.spec.ts` (stubs) and `tests/e2e-data/performance.spec.ts` (A9 at 1920×1080) record the page's
 JavaScript time per frame. Headless Chromium without a GPU (SwiftShader, CI) reads every WebGL frame back in software,
-so its frame intervals say little about a real machine; JavaScript time per frame is the comparable number.
+so its frame intervals say little about a real machine; JavaScript time per frame is the comparable number. The stubs
+probe pins the UI clock, so its still screens have none of the original's own motion and may be drawn only for the
+half-second refresh (§6); the draws are counted against the sample's wall time, not its frames, since a slow page shows
+fewer frames a second but as many refreshes.
 
 ## 12. Limitations and decisions
 
