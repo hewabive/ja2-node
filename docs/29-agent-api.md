@@ -924,12 +924,12 @@ shop items", "Pricing merc", "Refused gift"): the clock stands and saving is ref
   `shopClosedByScript`. Also `notInTactical`, a prompt or another shop open. Then 6 AP, facing, the repair delay, the
   last-visit time and finished repairs delivered at once. With NPC records it goes through a conversation (§13).
 - `trade {soldier?, receiver?, buy?, sell?, cash?, repair?, useBalance?}`: one `PerformTransaction`. `soldier` switches
-  the pricing merc (any living merc of the current squad); `buy [{item, element?, count?}]` (`element` −1 or absent =
+  the pricing merc (a living regular merc of the current squad, not an escort or the robot unless he opened the shop); `buy [{item, element?, count?}]` (`element` −1 or absent =
   perfect; `count` units of a stackable box or perfect gun boxes); `sell` and `repair [{soldier, slot, index?}]`; `cash
   [{soldier, slot, amount?}]`; `receiver` (default the pricing merc, `receiverCantTrade`) gets purchases and change;
   `useBalance` pre-answers the deduction box. Validation before any change: `shopNotOpen`, `noSuchBox`,
   `notEnoughInBox`, `itemNotFound`, `duplicateSource`, `notMoney`, `dealerOfferAreaFull` / `playerOfferAreaFull` (> 12
-  objects), `wontBuy`, `worthless`, `wontRepair`, `notDamaged`, `tooManyToRepair`, then in `23` §9.4's order the gift
+  objects), `wontBuy`, `worthless`, `wontRepair`, `notDamaged`, `tooManyToRepair`, then in `23`'s order the gift
   path, `noRoomForPurchases`, `cannotAfford {shortfall}`, `needBalance {amount}`, the repairman's cash check,
   `dealerCannotAfford`. Deliveries go in offer-area order (purchases, then change) with drops VISIBLE at the receiver's
   tile.
@@ -946,7 +946,7 @@ shop items", "Pricing merc", "Refused gift"): the clock stands and saving is ref
 
 View (`shop`, only while open): kind and `kindLabel`, the pricing merc and his weapon sale modifier, balance,
 `canTrade`, merchant boxes `{key {item, element}, item, count, status, unitPrice, attachments, imprinted, ammo?}`
-(dealer guns are sold empty but keep their magazine type, `MakeObjectOutOfDealerItems`) sorted as `23` §2.3,
+(dealer guns are sold empty but keep their magazine type, `MakeObjectOutOfDealerItems`) sorted as `23`,
 repairman boxes `{key, item, status, owner, eta}` (ETA rounded up to 15 minutes), `repaired [{item, status, owner,
 soldier}]` (the repairs collected this visit, the original's "REPAIRED" tiles; already delivered to `soldier`, the
 owner else the pricing merc, null when dropped). Never the dealer's cash, list maxima, orders, strays or eligibility.

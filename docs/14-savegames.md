@@ -65,13 +65,13 @@ wraps, i.e. for large balances.
 | 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | parser, `keyTable` (`35`) |
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | parser, all |
-| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | `savegame-merchants.ts`, all: status, headers and special elements (`docs/23` §14.2) |
+| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | `savegame-merchants.ts`, all: status, headers and special elements (`docs/23`) |
 | 24 | General info (`LoadGeneralInfo`) | 1024 | parser: selected soldier, render centre, panel, music mode, options, clock base, helicopter, Tixa and SAM secrets, dead squad members, selected map sector, meanwhile scene, narrative globals; `savegame-strategic-ai.ts`: meanwhile flags, first-battle sector, creature meanwhile; `savegame-laptop.ts`: `g_merc_arrive_sector` (8 bytes after `sSelMap.z`) |
 | 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty by `savegame-economy.ts` (`readSavedEconomy`); vehicles by the parser; bullets, physics objects and air raid skipped |
 | 31 | Team turns | 174 | parser: interrupt queue, hidden interrupt, last interrupted, rock thrower |
 | 32 | Explosions | 4 + 40 × 12 queue, `u32 n` × 36 | skipped |
 | 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | creature directives by the parser (habitat distance, population modifier, lair, creature music, destroyed lair); strategic status by `savegame-strategic-ai.ts` (flags, captures, highest progress, deaths, reputation, kills, activity, weapons already dropped) |
-| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | `savegame-strategic-ai.ts`, all (`docs/17` §1.4) |
+| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | `savegame-strategic-ai.ts`, all (`docs/17`) |
 | 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | parser, all |
 | 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36: 4 skipped, times, data1, data2 as `u16[4]` each, actions `u8[4]`, id, soldier id, flags `u16`), vehicle movement groups (10) | | item cursor and civ quotes skipped; backup NPC info by `savegame-npc.ts`; meanwhile definitions, schedules and vehicle movement groups by the parser |
 | 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | renewals and leave list by `savegame-contracts.ts`; shipments by `savegame-laptop.ts` |
@@ -243,7 +243,7 @@ from the imported save (`tools/oracle/README.md` "Savegames"); most other compar
 
 `src/content/formats/savegame-laptop.ts` (`readSavedLaptop`) decodes the laptop part of a save from the section offsets
 the parser records, and `src/sim/campaign/laptop/save-import.ts` (`importLaptop`, after the contract import) fills
-`StrategicState.laptop` and the narrative facts and quests (`docs/21` §0):
+`StrategicState.laptop` and the narrative facts and quests (`docs/21`):
 
 | Source | Layout | Imported as |
 |---|---|---|
