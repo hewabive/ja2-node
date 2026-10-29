@@ -4,14 +4,17 @@ import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
+import type { SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
-import { syntheticWorld } from '../../content/world/synthetic.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { importSave } from './save-import.ts';
 import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
+import { WorldItemFlags } from './world-items.ts';
 
 let content: TacticalContent;
 let presentation: PresentationTimeline;
@@ -74,11 +77,16 @@ function savedSoldier(id: number, team: number, at: number, extra: SoldierFields
 }
 
 interface SyntheticSave {
-  readonly soldiers: readonly SavedSoldierEntry[];
+  readonly soldiers?: readonly SavedSoldierEntry[];
   readonly lastKnownOppLocBytes?: Uint8Array;
+  readonly worldItems?: readonly SavedWorldItem[];
 }
 
-function syntheticSave({ soldiers, lastKnownOppLocBytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS) }: SyntheticSave): SaveGame {
+function syntheticSave({
+  soldiers = [],
+  lastKnownOppLocBytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS),
+  worldItems,
+}: SyntheticSave): SaveGame {
   return {
     generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY },
     tactical: {
@@ -105,7 +113,7 @@ function syntheticSave({ soldiers, lastKnownOppLocBytes = new Uint8Array(TOTAL_S
     profiles: [],
     worldTime: { hour: 12 },
     clock: { envLightValue: 3 },
-    currentSector: { worldItems: null, corpses: null, mapModifications: null, doorStatus: null, doors: null },
+    currentSector: { worldItems: worldItems ?? null, corpses: null, mapModifications: null, doorStatus: null, doors: null },
     soldiers,
     schedules: [],
     oppList: {
@@ -122,8 +130,10 @@ function syntheticSave({ soldiers, lastKnownOppLocBytes = new Uint8Array(TOTAL_S
   } as unknown as SaveGame;
 }
 
-function importedSim(save: SaveGame): TacticalSim {
-  const base = syntheticWorld(testDoorCosts());
+function importedSim(save: SaveGame, blocked: readonly number[] = []): TacticalSim {
+  const base = syntheticWorld(testDoorCosts(), (structures) => {
+    for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+  });
   const world = {
     ...base,
     map: { doors: [], placements: [], info: { centerGridNo: CENTRE } },
@@ -145,6 +155,35 @@ function lastKnownOppLocBytes(entries: readonly (readonly [viewer: number, oppon
   const view = new DataView(bytes.buffer);
   for (const [viewer, opponent, g] of entries) view.setInt16((viewer * TOTAL_SOLDIERS + opponent) * INT16_BYTES, g, true);
   return bytes;
+}
+
+function savedWorldItem(item: number, at: number, flags: number): SavedWorldItem {
+  return {
+    index: 0,
+    exists: true,
+    gridNo: at,
+    level: 0,
+    object: {
+      item,
+      count: 1,
+      status: [100, 0, 0, 0, 0, 0, 0, 0],
+      gunStatus: 100,
+      gunAmmoType: 0,
+      gunShotsLeft: 0,
+      gunAmmoItem: 0,
+      gunAmmoStatus: 0,
+      money: 0,
+      attachments: [],
+      flags: 0,
+      trap: 0,
+      imprintId: 0,
+      keyId: 0,
+    },
+    flags,
+    renderZHeightAboveLevel: 0,
+    visible: 1,
+    nonExistChance: 0,
+  };
 }
 
 describe('importSave, the tactical part of LoadSavedGame', () => {
@@ -185,5 +224,17 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(soldierOf(sim, MERC_ID).lastKnownOpp[MERC_ID + 1]).toBe(NOWHERE);
     expect(soldierOf(sim, CIVILIAN_ID).lastKnownOpp[MERC_ID]).toBe(0);
     expect(sim.state.perception.publicLastKnown[Team.MILITIA]?.[MERC_ID]).toBe(NOWHERE);
+  });
+
+  it('moves an item dropped while its sector was unloaded to the nearest free tile, as every load of the temp file does (Tactical_Save.cc LoadAndAddWorldItemsFromTempFile)', () => {
+    const blocked = gridNo(80, 84);
+    const around = [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => gridNo(80 + dx, 84 + dy))).filter((g) => g !== blocked);
+    const knife = content.items.byName.get('COMBAT_KNIFE')?.index ?? -1;
+    const dropped = savedWorldItem(knife, blocked, WorldItemFlags.FIND_SWEETSPOT_FROM_GRIDNO | WorldItemFlags.REACHABLE);
+    const placed = savedWorldItem(knife, blocked, WorldItemFlags.REACHABLE);
+    const sim = importedSim(syntheticSave({ worldItems: [dropped, placed] }), [blocked]);
+    const [moved, kept] = sim.state.worldItems;
+    expect(around).toContain(moved?.gridNo);
+    expect(kept?.gridNo).toBe(blocked);
   });
 });

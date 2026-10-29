@@ -25,6 +25,7 @@ import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
+import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
@@ -33,7 +34,7 @@ import { restoreBloodAndSmellAt } from './smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { addItemToPool, WorldItemFlags } from './world-items.ts';
+import { addItemToPool } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
 const DOOR_OPEN = 0x01;
@@ -139,7 +140,7 @@ function importWorldItems(t: TacticalState, save: SaveGame, centre: number): num
   t.worldItems.length = 0;
   for (const wi of items) {
     if (!wi.exists) continue;
-    const gridNo = wi.flags & WorldItemFlags.GRIDNO_NOT_SET_USE_ENTRY_POINT ? centre : wi.gridNo;
+    const gridNo = loadedWorldItemGridNo(t, wi.gridNo, wi.flags, centre);
     addItemToPool(t, gridNo, objectFromRecord(wi.object), wi.visible, wi.level, wi.flags, wi.renderZHeightAboveLevel);
   }
   return t.worldItems.length;

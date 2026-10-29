@@ -1,13 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc FindNearestAvailableGridNoForItem; Tactical/Tactical_Save.cc
-// @src LoadAndAddWorldItemsFromTempFile (the sweet-spot search radii).
+// @src LoadAndAddWorldItemsFromTempFile (where a loaded item goes).
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { rangeInCellCoords } from './insertion.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy, type PathSoldier } from './pathfinding.ts';
 import { Body, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { WorldItemFlags } from './world-items.ts';
 
 export const SWEET_SPOT_RADIUS = 5;
 export const WIDE_SWEET_SPOT_RADIUS = 15;
@@ -54,4 +55,10 @@ export function sweetSpotForUnloadedDrop(t: TacticalState, gridNo: number): numb
   if (near !== NOWHERE) return near;
   const wide = findNearestAvailableGridNoForItem(t, gridNo, WIDE_SWEET_SPOT_RADIUS);
   return wide !== NOWHERE ? wide : gridNo;
+}
+
+export function loadedWorldItemGridNo(t: TacticalState, gridNo: number, flags: number, centerGridNo: number): number {
+  if (flags & WorldItemFlags.GRIDNO_NOT_SET_USE_ENTRY_POINT) return centerGridNo;
+  if (flags & WorldItemFlags.FIND_SWEETSPOT_FROM_GRIDNO) return sweetSpotForUnloadedDrop(t, gridNo);
+  return gridNo;
 }

@@ -18,12 +18,12 @@ import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructu
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
-import { sweetSpotForUnloadedDrop } from '../tactical/item-placement.ts';
+import { loadedWorldItemGridNo, sweetSpotForUnloadedDrop } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { addItemToPool, Visibility } from '../tactical/world-items.ts';
 
 export interface DiffWorldItem {
   readonly exists: boolean;
@@ -261,17 +261,11 @@ export function preserveSoldiers(t: TacticalState, enemies: boolean, nowMinute: 
   return { savedMinute: nowMinute, links, records };
 }
 
-function restoredItemGridNo(t: TacticalState, wi: DiffWorldItem, centerGridNo: number): number {
-  if (wi.flags & WorldItemFlags.GRIDNO_NOT_SET_USE_ENTRY_POINT) return centerGridNo;
-  if (wi.flags & WorldItemFlags.FIND_SWEETSPOT_FROM_GRIDNO) return sweetSpotForUnloadedDrop(t, wi.gridNo);
-  return wi.gridNo;
-}
-
 export function restoreWorldItems(t: TacticalState, items: readonly DiffWorldItem[], centerGridNo: number): void {
   t.worldItems.length = 0;
   for (const wi of items) {
     if (!wi.exists) continue;
-    addItemToPool(t, restoredItemGridNo(t, wi, centerGridNo), wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);
+    addItemToPool(t, loadedWorldItemGridNo(t, wi.gridNo, wi.flags, centerGridNo), wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);
   }
 }
 
