@@ -36,6 +36,14 @@ export const STRATEGIC_HINT_KINDS = [
 
 export const HINT_KINDS = [...TACTICAL_HINT_KINDS, ...STRATEGIC_HINT_KINDS] as const;
 
+export const HINT_KINDS_WITHOUT_SECTOR_WORLD = [
+  'canEnterSector',
+  'assignmentOptions',
+  'previewRoute',
+  'previewHeliRoute',
+  'moveBoxOptions',
+] as const;
+
 export type HintKind = (typeof HINT_KINDS)[number];
 
 export const SERVER_QUERY_KINDS = [
@@ -55,9 +63,14 @@ export type ServerQueryKind = (typeof SERVER_QUERY_KINDS)[number];
 
 const HINT_KIND_SET: ReadonlySet<string> = new Set(HINT_KINDS);
 const SERVER_QUERY_SET: ReadonlySet<string> = new Set(SERVER_QUERY_KINDS);
+const WITHOUT_SECTOR_WORLD_SET: ReadonlySet<string> = new Set(HINT_KINDS_WITHOUT_SECTOR_WORLD);
 
 export function isHintKind(type: string): type is HintKind {
   return HINT_KIND_SET.has(type);
+}
+
+export function hintReadsSectorWorld(type: string): boolean {
+  return !WITHOUT_SECTOR_WORLD_SET.has(type);
 }
 
 export function isServerQueryKind(type: string): type is ServerQueryKind {

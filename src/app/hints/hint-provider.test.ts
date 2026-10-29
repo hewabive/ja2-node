@@ -5,6 +5,7 @@ import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import { createSandboxSession } from '../../server/sandbox.ts';
 import { Session } from '../../server/session.ts';
+import { knowledgeRules } from '../../sim/knowledge/knowledge-world.ts';
 import { type HintChannel, HintProvider, type LocalKnowledge, PATHFIND_REST_MS, type QueryReply } from './hint-provider.ts';
 
 let kit: StubSectorKit;
@@ -99,6 +100,37 @@ describe('local hint provider', () => {
     expect(provider.hint(q).state).toBe('pending');
     await vi.waitFor(() => expect(provider.hint(q)).toMatchObject({ state: 'ready', source: 'server', answer: { ok: true } }));
     expect(ch.asked).toBe(1);
+  });
+
+  it('answers a hint that needs no sector world while that world loads, and projects the sector once it is there', async () => {
+    let loaded = false;
+    const ensured: string[] = [];
+    const rules = knowledgeRules(client.content, { world: (path) => (loaded ? sources.world(path) : null) }, client.rules.strategic);
+    const provider = new HintProvider({
+      channel: channel(),
+      knowledge: () => ({
+        usable: true,
+        rules,
+        worlds: {
+          has: () => loaded,
+          ensure: async (path) => {
+            ensured.push(path);
+          },
+        },
+      }),
+      now: () => 0,
+    });
+    const enter: CommandEnvelope = { type: 'canEnterSector', sector: 'A9' };
+    const { tick: _, ...served } = await session.query(enter);
+    expect(await provider.hintNow(enter)).toEqual(served);
+    expect(provider.stats).toMatchObject({ local: 1, server: 0 });
+    expect(ensured).toContain(view.mapPath);
+    expect(await provider.hintNow(moveRequest())).toMatchObject({ ok: true });
+    expect(provider.stats).toMatchObject({ local: 1, server: 1 });
+    loaded = true;
+    expect(await provider.hintNow(moveRequest())).toMatchObject({ ok: true });
+    expect(provider.stats).toMatchObject({ local: 2, server: 1 });
+    expect(provider.stats.projection.count).toBe(2);
   });
 
   it('in shadow mode sends each local hint to the server and reports no difference', async () => {

@@ -10,6 +10,7 @@ import { snapshotSession } from '../../src/server/session-snapshot.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
 import { answerHint } from '../../src/sim/hints/answer.ts';
+import { hintReadsSectorWorld } from '../../src/sim/hints/types.ts';
 import { type KnowledgeRules, knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
 import { loadStrategicRules } from '../../src/sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
@@ -68,6 +69,7 @@ export async function expectHintsAgree(
 ): Promise<AgreementReport> {
   const view = serialisedView(session);
   const before = JSON.stringify(snapshotSession(session.sim));
+  const sectorless = knowledgeRules(client.content, { world: () => null }, client.rules.strategic);
   const kinds = new Map<string, number>();
   let answered = 0;
   for (const q of requests) {
@@ -75,6 +77,10 @@ export async function expectHintsAgree(
     const local = clientAnswer(client, view, q);
     expect(server.tick, 'the server answered over the same view').toBe(view.tick);
     expect(canonical(local), `${q.type} ${JSON.stringify(q)}`).toEqual(canonical(server));
+    if (!hintReadsSectorWorld(q.type)) {
+      const withoutSector = answerHint(knowledgeWorld(view, sectorless, { strict: true }), q);
+      expect(canonical(withoutSector), `${q.type} ${JSON.stringify(q)} without the sector world`).toEqual(canonical(server));
+    }
     if (local.ok) answered++;
     kinds.set(q.type, (kinds.get(q.type) ?? 0) + 1);
   }

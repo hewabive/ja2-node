@@ -1,7 +1,7 @@
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import { answerHint } from '../../sim/hints/answer.ts';
-import { isHintKind } from '../../sim/hints/types.ts';
+import { hintReadsSectorWorld, isHintKind } from '../../sim/hints/types.ts';
 import { type KnowledgeRules, type KnowledgeWorld, knowledgeWorld } from '../../sim/knowledge/knowledge-world.ts';
 import { type GameClient, type HintAnswer, type HintAnswerSource, type HintReply, PENDING_HINT } from '../../ui/game-client.ts';
 
@@ -64,6 +64,13 @@ interface Ready {
   readonly source: HintAnswerSource;
 }
 
+interface ProjectedWorld {
+  readonly view: PlayerView;
+  readonly rules: KnowledgeRules;
+  readonly withSector: boolean;
+  readonly world: KnowledgeWorld;
+}
+
 function restKindOf(request: CommandEnvelope): string {
   return typeof request.kind === 'string' ? `${request.type}:${request.kind}` : request.type;
 }
@@ -87,6 +94,10 @@ function sameButTick(a: PlayerView, b: PlayerView): boolean {
   return keys.length === Object.keys(b).length && keys.every((key) => key === 'tick' || a[key] === b[key]);
 }
 
+function sectorWorldLoaded(view: PlayerView, knowledge: LocalKnowledge): boolean {
+  return !view.mapPath || knowledge.worlds.has(view.mapPath);
+}
+
 function keepSample(samples: number[], value: number): void {
   samples.push(value);
   if (samples.length > MAX_KEPT_LATENCIES) samples.shift();
@@ -106,7 +117,7 @@ export class HintProvider implements GameClient {
   readonly #projections: number[] = [];
   readonly #mismatches: HintMismatch[] = [];
   #cachedFor: PlayerView | null = null;
-  #world: { readonly view: PlayerView; readonly rules: KnowledgeRules; readonly world: KnowledgeWorld } | null = null;
+  #world: ProjectedWorld | null = null;
   readonly #resting = new Map<string, { key: string; since: number }>();
   #local = 0;
   #server = 0;
@@ -171,11 +182,14 @@ export class HintProvider implements GameClient {
   #knowledgeFor(view: PlayerView): LocalKnowledge | null {
     const knowledge = this.#options.knowledge();
     if (!knowledge?.usable) return null;
-    if (view.mapPath && !knowledge.worlds.has(view.mapPath)) {
-      void knowledge.worlds.ensure(view.mapPath);
-      return null;
-    }
+    if (view.mapPath && !knowledge.worlds.has(view.mapPath)) void knowledge.worlds.ensure(view.mapPath);
     return knowledge;
+  }
+
+  #answeringKnowledge(request: CommandEnvelope, view: PlayerView): LocalKnowledge | null {
+    const knowledge = isHintKind(request.type) ? this.#knowledgeFor(view) : null;
+    if (!knowledge) return null;
+    return !hintReadsSectorWorld(request.type) || sectorWorldLoaded(view, knowledge) ? knowledge : null;
   }
 
   hint(request: CommandEnvelope): HintReply {
@@ -208,13 +222,13 @@ export class HintProvider implements GameClient {
   warm(): void {
     const view = this.#view();
     const knowledge = view ? this.#knowledgeFor(view) : null;
-    if (view && knowledge) this.#worldOf(view, knowledge.rules);
+    if (view && knowledge) this.#worldOf(view, knowledge);
   }
 
   async hintNow(request: CommandEnvelope): Promise<HintAnswer> {
     const view = this.#view();
     if (!view) return this.query(request);
-    const knowledge = isHintKind(request.type) ? this.#knowledgeFor(view) : null;
+    const knowledge = this.#answeringKnowledge(request, view);
     if (!knowledge) return this.query(request);
     return this.#computeLocal(request, view, knowledge);
   }
@@ -225,7 +239,7 @@ export class HintProvider implements GameClient {
   }
 
   #resolve(request: CommandEnvelope, key: string, view: PlayerView): HintReply {
-    const knowledge = isHintKind(request.type) ? this.#knowledgeFor(view) : null;
+    const knowledge = this.#answeringKnowledge(request, view);
     if (knowledge) {
       const answer = this.#computeLocal(request, view, knowledge);
       this.#cache.set(key, { answer, source: 'local' });
@@ -249,7 +263,7 @@ export class HintProvider implements GameClient {
   }
 
   #computeLocal(request: CommandEnvelope, view: PlayerView, knowledge: LocalKnowledge): HintAnswer {
-    const world = this.#worldOf(view, knowledge.rules);
+    const world = this.#worldOf(view, knowledge);
     const started = performance.now();
     const answer = plain(answerHint(world, request));
     keepSample(this.#latencies, performance.now() - started);
@@ -259,17 +273,20 @@ export class HintProvider implements GameClient {
   }
 
   #localAnswerAt(request: CommandEnvelope, view: PlayerView): HintAnswer | null {
-    const knowledge = this.#knowledgeFor(view);
-    return knowledge ? plain(answerHint(this.#worldOf(view, knowledge.rules), request)) : null;
+    const knowledge = this.#answeringKnowledge(request, view);
+    return knowledge ? plain(answerHint(this.#worldOf(view, knowledge), request)) : null;
   }
 
-  #worldOf(view: PlayerView, rules: KnowledgeRules): KnowledgeWorld {
+  #worldOf(view: PlayerView, knowledge: LocalKnowledge): KnowledgeWorld {
+    const rules = knowledge.rules;
+    const withSector = sectorWorldLoaded(view, knowledge);
     const cached = this.#world;
-    if (cached && cached.rules === rules && (cached.view === view || sameButTick(cached.view, view))) return cached.world;
+    if (cached && cached.rules === rules && cached.withSector === withSector && (cached.view === view || sameButTick(cached.view, view)))
+      return cached.world;
     const started = performance.now();
     const world = knowledgeWorld(view, rules);
     keepSample(this.#projections, performance.now() - started);
-    this.#world = { view, rules, world };
+    this.#world = { view, rules, withSector, world };
     return world;
   }
 

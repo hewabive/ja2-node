@@ -249,7 +249,10 @@ then a strict rule reader with live graphic facts) and the server's loaders (`lo
 rested 80 ms per kind (`PATHFIND_REST_MS`, the original's `PATHFINDCOUNTER`, `Utils/Timer_Control.cc:19`), on the
 latest received view (in combat the input lock waits for playback anyway, `30` §3.1), with one projection per view and
 answers cached per view (a frame that moved only the tick keeps them); it falls back to the query channel while the
-knowledge is unusable or the map is not loaded. The tactical and map hosts open the knowledge after their screen has
+knowledge is unusable, and for a hint that reads the loaded sector while its map is still loading
+(`hintReadsSectorWorld` in `src/sim/hints/types.ts`: all but `canEnterSector`, `assignmentOptions`, `previewRoute`,
+`previewHeliRoute` and `moveBoxOptions`, which the map screen answers from the strategic knowledge alone, so its
+Tactical button does not wait for the server after every new view). The tactical and map hosts open the knowledge after their screen has
 loaded. **Shadow mode** (`?shadowHints=1`, on in e2e) also asks the server and compares over the view the client holds
 when the reply arrives (`29` §28); `window.__ja2Ui.hints` counts compared, stale, failed and differing answers.
 
