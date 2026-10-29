@@ -297,7 +297,7 @@ The skeleton of tactics; its ordering is behaviour (details in the specs).
 4. **Throw**: rolled at the order (miss tile, force and angle fixed then); AP and launch at 460/461; an NPC who sights
    something first aborts it with no AP spent. Launchers roll at their 430 frame. **Melee**: at the strike frame,
    against whoever stands on the tile then; the hit lands 20 ms later.
-5. **Barrier** (D5; `10` §5, `33` §3). While the busy count is above 0: no interrupts, noise deferred, no new AI
+5. **Barrier** (D5; `10` §5, `33`). While the busy count is above 0: no interrupts, noise deferred, no new AI
    situations. At 0 (`Overhead.cc:5510-5787`): suppression → attack consequences (unseen attacker noticed, combat
    entry, NPC hostility) → end-of-attack sight check → deferred noises with their interrupts → end-of-battle check.
 6. **Two-stage death**: life 0 at impact; corpse, items, kill credit and visibility at opcode 440, at the end of the

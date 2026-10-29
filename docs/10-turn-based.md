@@ -10,7 +10,7 @@ walks `MercSlots` (sector insertion order); `FOR_EACH_SOLDIER` walks all ids (`T
 `AUTOMATIC_INTERRUPT 100` (`Tactical/OppList.h:29-30`).
 
 Companions: `11` §0 (coupling overview), `07` §3.5–§3.6, §4.6, §4.10 (movement AP and the NoAP freeze), `08` §2
-(sight, opplists, best sighting in real time), `09` (AI state, `ActionDone`, the green decision), `33` §3 (the end of
+(sight, opplists, best sighting in real time), `09` (AI state, `ActionDone`, the green decision), `33` (the end of
 an attack, suppression), `13` §1 (completion hooks, TB movement and `ExecuteAction` details of the AI turn).
 
 ---
@@ -146,7 +146,7 @@ pass. Everything below runs synchronously in that call; the rest of the pass con
 | B. AI team T starts | `EndTurn(T)`: intList empty → `AddPossiblePendingEnemiesToBattle` (strategic reinforcements, `17` §10.4) → for team `currentTeam` (still OUR from real time) in sector: `moved = true` and the keep-or-cancel rule of §2.2 → `currentTeam = T` → `BeginTeamTurn(T)` (§2.1: decay T's public opplist, `EVENT_BeginMercTurn` for T, AI list, `StartNPCAI(first)`) → `BetweenTurnsVisibilityAdjustments`. |
 | C. 2nd best starts, best interrupts | As A or B for the 2nd best's team, then `AddToIntList(2nd, lose)`, `AddToIntList(best, gain)`, `DoneAddingToIntList` → `StartInterrupt` (§4.6). If the best is an enemy, the interrupt is **hidden** until he acts. If the 2nd best's team was an AI team, the soldier `StartNPCAI` picked keeps `aiTurnControl` but `HandleSoldierAI` ignores him while `currentTeam == OUR` (§6.2). |
 | D. AI attack in real time | `DisplayHiddenTurnbased(s)` (`TeamTurns.cc:428-464`): skipped in meanwhiles or if already in combat; `currentTeam = s.team`; `CommonEnterCombatModeCode` (no capable-enemy check, no `BeginTeamTurn`, no `EVENT_BeginMercTurn`); `SetSoldierAsUnderAiControl(s)`; `s.turnInProgress = true`; freeze UI. The attack then executes as his TB action. No AI list is built, so after him `EndAIGuysTurn` → `EndAITurn` → the next team (inferred: his teammates do not act this round). Not implemented in ja2-node (§10.4). |
-| E. Attack noticed | at the end of `InternalReduceAttackBusyCount` (`33` §3.4): `EnterCombatMode(attacker.team)` unless in a meanwhile. |
+| E. Attack noticed | at the end of `InternalReduceAttackBusyCount` (`33`): `EnterCombatMode(attacker.team)` unless in a meanwhile. |
 
 In all cases `CancelAIAction` + `EVENT_StopMerc` leave walkers at tile centres with empty paths; the player's pending
 moves are lost (re-issue).
@@ -224,7 +224,7 @@ Runs for each living member of the team whose turn starts (and every 5 s in real
 
 1. `if underFire != 0: underFire--` (2 = shot at this turn, 1 = last turn).
 2. `HandleEndTurnDrugAdjustments` (drugs: gaps "Drugs and alcohol"; ja2-node runs only the regeneration points).
-3. Unless auto-bandaging, for non-vehicles/robots with `bleeding != 0 || life < OKLIFE`: `CheckBleeding` (`33` §2.11;
+3. Unless auto-bandaging, for non-vehicles/robots with `bleeding != 0 || life < OKLIFE`: `CheckBleeding` (`33`;
    `Soldier_Control.cc:7804-7918`, `CalcSoldierNextBleed :8056-8063`), drop blood if in sector.
 4. `if life == 0: return` (bled to death; death handling follows the usual path).
 5. `shock /= 2`.
@@ -239,7 +239,7 @@ Runs for each living member of the team whose turn starts (and every 5 s in real
 13. `CalcNewActionPoints(s)` (§2.5).
 14. `tilesMoved = 0`.
 15. In sector: `BeginSoldierGetup(s)` (`:5266`: collapsed with life ≥ OKLIFE, breath ≥ OKBREATH, no sleep drug →
-    stand up animation, `33` §2.11); **in combat** `VerifyAndDecayOpplist(s)` (`08` §2.6) and X-ray off; OUR profiled
+    stand up animation, `33`); **in combat** `VerifyAndDecayOpplist(s)` (`08` §2.6) and X-ray off; OUR profiled
     mercs: phobia/nervous morale events (CLAUSTROPHOBIC draws `Random(6 − z)` underground).
 16. Reset: quote flags BEING_PUMMELED, CLOSE_CALL; `numHitsThisTurn = 0; suppressionPoints = 0;
     apsLostToSuppression = 0; closeCall = false; movementNoiseHeard = 0`.
@@ -346,7 +346,7 @@ The breath penalty (`:543-552`) also erases an AP debt (quirk). Vanilla floors e
 | Pick up / give / drop bomb / remote / reload / first aid / wire cutters / steal / talk / radio | 3 / 1 / 3 / 2 / 5 / 5 / 10 / 10 / 6 / 5 | — | UI / `IsActionAffordable` | pick-up at opcode 493; others at their animation or command (`Points.h`) |
 | Wounded | `damage / AP_GET_WOUNDED_DIVISOR 4` | breath loss | — | `SoldierTakeDamage` (`:5670-5677`) |
 | Fall from hit, standing / crouched | 4 / 2 | 250 / 125 | — | FALLBACK_HIT_STAND, FALLFORWARD_FROMHIT_* start (`:1554-1562`) |
-| Suppression | up to 8 | — | — | `HandleSuppressionFire` (`33` §3.3) |
+| Suppression | up to 8 | — | — | `HandleSuppressionFire` (`33`) |
 | Attacks | `CalcTotalAPsToAttack`, `MinAPsToAttack` (`Points.cc:866, 964`) | per weapon | command | fire opcode (`11` §0); `11` |
 
 `GetAPsToChangeStance` (`Points.cc:1526-1563`): stand↔crouch 2, stand↔prone 4, crouch↔prone 2.
@@ -398,7 +398,7 @@ Continuing:
 | Hearing a noise in combat (not a door) | listener (mutual hostiles): standard conditions ? calc : NO_INTERRUPT | `:4116-4128` |
 | Rock impact noise in combat | every eligible listener (`StandardInterruptConditionsMet(l, NULL, FALSE)`, needs `whoThrewRock`): AUTOMATIC_INTERRUPT | `:4202-4212` |
 | Door opening (list size 6) | lookers and listeners via `ReevaluateBestSightingPosition` (§4.8) | `:1847-1864, 4096-4114` |
-| Unseen attacker noticed | `NoticeUnseenAttacker` (`OppList.cc:4608-4750`, `33` §3.5): after the defender notices, a one-on-one duel `Calc(defender, attacker, FALSE)` vs `Calc(attacker, defender, FALSE)`; if `InterruptDuel(defender, attacker)`: `AddToIntList(attacker, lose); AddToIntList(defender, gain); DoneAddingToIntList()` | `:4718-4748` |
+| Unseen attacker noticed | `NoticeUnseenAttacker` (`OppList.cc:4608-4750`, `33`): after the defender notices, a one-on-one duel `Calc(defender, attacker, FALSE)` vs `Calc(attacker, defender, FALSE)`; if `InterruptDuel(defender, attacker)`: `AddToIntList(attacker, lose); AddToIntList(defender, gain); DoneAddingToIntList()` | `:4718-4748` |
 | Real-time best sighting | sighters (§1.2) | — |
 
 ### 4.2 `StandardInterruptConditionsMet(s, opp, oldOpp)` (`TeamTurns.cc:917-1136`)
@@ -584,7 +584,7 @@ animation), at roof-climb commits and at doors; turning looks never interrupt (`
 
 ## 5. The attack busy count (barrier)
 
-**Up** (`10` §5, `33` §3.2): attack start (`Soldier_Control.cc:2125`), toss (`Handle_Items.cc:846, 906`),
+**Up** (`10` §5, `33`): attack start (`Soldier_Control.cc:2125`), toss (`Handle_Items.cc:846, 906`),
 blade/punch/knife throw (`:6583, 6735, 6845`), steal (`:8525`), each hit animation (`:2663`), explosion
 (`Explosion_Control.cc:113`), blast hit (`:726`), opcode 757 (`Soldier_Ani.cc:2272`), suppression stance change in
 combat (`Overhead.cc:5309`), door traps going off (`Keys.cc:567, 580`). **Down**: `ReduceAttackBusyCount` /
@@ -598,8 +598,8 @@ no bullets in flight or a TOSS with no objects is processed anyway, the latter z
 (`Overhead.cc:4415`), `UnSetUIBusy` and the interrupt-enabled look at the end of a stance change
 (`Soldier_Ani.cc:1803-1817`), AI switch pulls.
 
-When the count reaches 0, `InternalReduceAttackBusyCount` (`Overhead.cc:5510-5787`, `33` §3.4) runs the end of the
-attack: in combat `HandleSuppressionFire` first (`:5103-5341`, `33` §3.3: APs lost to suppression, possibly a stance
+When the count reaches 0, `InternalReduceAttackBusyCount` (`Overhead.cc:5510-5787`, `33`) runs the end of the
+attack: in combat `HandleSuppressionFire` first (`:5103-5341`, `33`: APs lost to suppression, possibly a stance
 change that raises the count again and defers the rest), then for a noticed attack `ProcessImplicationsOfPCAttack`,
 `NoticeUnseenAttacker` (§4.1) and `underFire = 2`, `FreeUpNPCFromAttacking` / `UnSetUIBusy`, combat entry (§1.1), the
 end-of-attack sight check, `DequeueAllDemandGameEvents()` (the deferred noises and their interrupts) and
@@ -907,7 +907,7 @@ prompt", "Continue a move").
 | `perception/noise.ts`, `perception/wiring.ts` | `makeNoise` deferring while the busy count is > 0, `dequeueDeferredNoises`, `resolveInterruptsVs(NOISE)` from `ourNoise`; the tile-centre noise-then-sight order of §4.10 (`sightHooks.atNewGridNo`) |
 | `points.ts` | `calcActionPoints`, `calcNewActionPoints`, `enoughPoints`, `deductPoints`, `unusedAPsToBreath`, `minPtsToMove`, `ptsToMoveDirection`, `estimateActionPointCost`, `apsToChangeStance`, `apsToLook`, the `AP` and `BP` constants (§2.5–§3.2) |
 | `movement.ts`, `animation.ts` | TB steps and `haltMoveForSoldierOutOfPoints`, the interrupt freeze in `handleAtNewGridNo` (§3.3, §4.10); AP charges at animation start, `setSoldierAniSpeed` (§7) |
-| `combat/barrier.ts`, `combat/bleeding.ts` | `internalReduceAttackBusyCount` and its entry points, `handleSuppressionFire`, `noticeUnseenAttacker` (§5, `33` §3); `checkBleeding` |
+| `combat/barrier.ts`, `combat/bleeding.ts` | `internalReduceAttackBusyCount` and its entry points, `handleSuppressionFire`, `noticeUnseenAttacker` (§5, `33`); `checkBleeding` |
 | `ai/turn-based.ts`, `ai/control.ts`, `ai/pause.ts` | `startNPCAI`, `turnBasedHandleNPCAI`, `isActionAffordable`, `endAIGuysTurn`, the TB gates of `handleSoldierAI` (§6); the 1500 ms AI pause |
 | `tactical-sim.ts` | the turn-based checks of the player's commands, `isIdle` and the interrupt decision (`29`) |
 

@@ -352,7 +352,7 @@ themselves give no experience, money, loyalty or progress; rewards come from the
 - **Experience** (`NPC_ACTION_GRANT_EXPERIENCE_1..5`, `ID:3607-3621`) → `AwardExperienceBonusToActiveSquad(type)`
   (`Tactical/Campaign.cc:1327-1362`): 25, 50, 100, 200, 400 points to every OUR soldier with `bInSector`, on the **current
   squad** (`IsMercOnCurrentSquad`; ja2-node `state.forces.currentSquad`), `life ≥ CONSCIOUSNESS (10)`, not a vehicle or
-  robot: `StatChange(EXPERAMT, points, FROM_SUCCESS)` (`33` §5, draws). Code callers: Kingpin's death while his money quest
+  robot: `StatChange(EXPERAMT, points, FROM_SUCCESS)` (`33`, draws). Code callers: Kingpin's death while his money quest
   runs (3, `OH:2394-2397`), the creature queen's death (5, `OH:2482-2488`), the Alma release (3, `SM:1005`), Angel's deed (3,
   queued, `ID:2536`).
 - **Loyalty** (`NPC_ACTION_BOOST_TOWN_LOYALTY`, `ID:1789-1791`) → `HandleLoyaltyChangeForNPCAction(npc)`

@@ -22,7 +22,7 @@ routes, encounters, when `SetThisSectorAsPlayerControlled`/`SetThisSectorAsEnemy
 persistence, `FindStratPath`; `17` the Queen (garrisons, progress, `CalcDifficultyModifier`,
 `StrategicHandleQueenLosingControlOfSector`, `StrategicHandleMineThatRanOut`); `19` PBI and autoresolve (militia there,
 `VirtualSoldierDressWound`); `22` contracts, `MercDailyUpdate`, team morale, the buddy/hated counters; NPC actions for
-the head miners (`35` §1.7) and the hospital (`25` §6.3); `10` turns and the end of battle; `33` §4–5 morale and
+the head miners (`35` §1.7) and the hospital (`25` §6.3); `10` turns and the end of battle; `33` morale and
 `StatChange`; `12` items; `14` savegame sections; `29` the agent API (assignment, sleep and militia commands, the
 militia prompts, economy events, the view).
 
@@ -212,7 +212,7 @@ ja2-node: the `militiaContinue` prompt (§1.3).
 
 Kill points (`ubMilitiaKills`, per militia soldier, tactical): +1 in `HandleNPCTeamMemberDeath` when the killer is
 militia (`Tactical/Overhead.cc:2516-2519`), +2 for the killer and +1 for the assister at the death commit
-(`Tactical/Soldier_Ani.cc:2929-2960`): a militia kill gives **3** points, an assist 1 (`33` §5; ja2-node
+(`Tactical/Soldier_Ani.cc:2929-2960`): a militia kill gives **3** points, an assist 1 (`33`; ja2-node
 `src/sim/tactical/combat/death.ts`).
 
 Promotions apply when the tactical world is unloaded (`HandleDefiniteUnloadingOfWorld`, both "load new map" and "trash
@@ -1103,7 +1103,7 @@ GetBonusTrainingPtsDueToInstructor(t, student|null, stat, gunRange, &max):   // 
    hour **and not flagged nothing-to-do** (Strac, `:2208-2213`; V trains a partnerless student at his own rate,
    V: `Assignments.c:3117`): `pts = GetSoldierTrainingPts`; TRAIN_BY_OTHER with an instructor for his stat adds
    `GetBonusTrainingPtsDueToInstructor(instructor, student, …)`; `TrainSoldierWithPts` (`:2591-2617`):
-   `StatChange(s, statAmt, pts, FROM_TRAINING)` if pts > 0 (`33` §5: chance 0 at ≥ 85, wisdom applies to physical
+   `StatChange(s, statAmt, pts, FROM_TRAINING)` if pts > 0 (`33`: chance 0 at ≥ 85, wisdom applies to physical
    stats when training);
 3. militia (§1.4). Instructors themselves gain nothing.
 
@@ -1155,7 +1155,7 @@ assignment. `AssignmentAborted` (`:2736-2744`): message + stop compression.
 | Bleeding, breath regeneration, shock decay | every real-time tactical turn for **all** OUR mercs, wherever they are (blood drops only in sector) | `EVENT_BeginMercTurn` (`10` §2.4); on the strategic map the turn cadence follows time compression (`15` §1.7) | `Tactical/Tactical_Turns.cc:80-139`, `Soldier_Control.cc:4000-4030` |
 | Natural healing | hourly | §5.5 | |
 | Rest/fatigue/sleep | hourly | §5.4 | |
-| Tactical morale decay | every 15 min | `DecayTacticalMoraleModifiers` (`33` §4; nervous/claustrophobic cases) | `Morale.cc:138-217` |
+| Tactical morale decay | every 15 min | `DecayTacticalMoraleModifiers` (`33`; nervous/claustrophobic cases) | `Morale.cc:138-217` |
 | Buddy/hated counters, team morale | hourly, in that order | `UpdateBuddyAndHatedCounters`, `HourlyMoraleUpdate` (`22` §5.2–§5.3); every 3rd call decays the strategic modifier (function-static counter, not saved) | `Strategic_Merc_Handler.cc:526-730`, `Morale.cc:664-815` |
 | Camouflage | hourly | −2 % (not CAMOUFLAGED trait); monster smell −1 | `Strategic_Merc_Handler.cc:733-759` |
 | Daily merc update | 00:00 (not day 1) | `MercDailyUpdate` (`22` §2.1): low death rate morale, quote flags, equipment complaint, days served, RPC salary (`PAYMENT_TO_NPC`), `DailyMoraleUpdate`, contract offers, unhired mercs | `Strategic_Merc_Handler.cc:135-370`, `Morale.cc:818-856` |
@@ -1182,7 +1182,7 @@ assignments (a 1.13 feature).
 
 In order: step 8 sectors column-major, per sector doctors → repairmen → training, mercs in id order:
 - doctor: `StatChange` MEDICAL (used/100 chances), DEX (used/200), WIS (used/200): one `pre` draw per chance, plus
-  `main` `Random(100) < 25` per stat point gained (`33` §5);
+  `main` `Random(100) < 25` per stat point gained (`33`);
 - repair: unjam MECH 5 + DEX 5 per gun (`pre`), then MECH and DEX used/2 each (`pre`), then `main` `Random(100)` toolkit
   wear;
 - training: students' `StatChange` chances (`pre`), trainers of militia LDR `1 + pts/200` (`pre`);

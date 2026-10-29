@@ -572,7 +572,7 @@ three infestible mines starts the creature quest at the moment she dies.
 
 ### 6.1 Trigger
 
-At the death commit (`33` §2.10) `HandleNPCTeamMemberDeath` (`Tactical/Overhead.cc:2273-2529`) marks the profile dead
+At the death commit (`33`) `HandleNPCTeamMemberDeath` (`Tactical/Overhead.cc:2273-2529`) marks the profile dead
 (`bMercStatus = MERC_IS_DEAD`, life 0, history, `:2282-2293`), and in the civilian-team branch, after the per-profile
 switch, calls `BeginHandleDeidrannaDeath(killer, gridNo, level)` for profile QUEEN (`:2423-2426`); `killer` is the
 soldier's `attacker` and may be null. For a creature with body `QUEENMONSTER` killed by someone (killer not null) it calls

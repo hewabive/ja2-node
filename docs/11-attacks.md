@@ -61,10 +61,10 @@ Invariants:
    What the bullet then meets decides the outcome: cover can stop a "hit", a "miss" can still strike the target or a
    bystander (§3).
 3. **Damage at impact, death at the end of the death animation.** Life drops when the bullet arrives; corpse, item
-   drop, kill credit and target removal happen at opcode 440, seconds later (`33` §2.5, §2.10).
+   drop, kill credit and target removal happen at opcode 440, seconds later (`33`).
 4. **One barrier.** `ubAttackBusyCount` counts everything still resolving (attacks, bullets, hit animations, objects,
    explosions). While it is above 0, interrupts, noise and AI re-planning wait; reaching 0 runs the end-of-attack
-   sequence once, with the soldier whose release emptied it (`33` §3.2, §3.4).
+   sequence once, with the soldier whose release emptied it (`33`).
 5. **`pre` for outcomes.** Hit rolls, deviation, cover, armour, criticals and stat gains use `pre`; a few gameplay
    draws use `main` (instant-kill bonus, head-gear damage, weapon drop, turn-from-hit, fall side, explosive barrels).
 
@@ -636,7 +636,7 @@ do {                                                                // one tile 
   if (b.firer.target && !(b.firer.flags & ATTACK_NOTICED) && pythSpacesAway(b.gridNo, b.targetGrid) <= 3) b.firer.flags |= ATTACK_NOTICED;
 } while (tiles < b.tilesPerUpdate);
 ```
-`addSuppression(b, p)` is the suppression-point award of `33` §3.1 (buckshot `main(2)`, stance `pre(4)` rolls). The
+`addSuppression(b, p)` is the suppression-point award of `33` (buckshot `main(2)`, stance `pre(4)` rolls). The
 person loop and the neighbour loop can both count the same soldier.
 
 `stepThroughTile` (`:3841-4203`), the inner loop until the tile changes:
@@ -650,7 +650,7 @@ person loop and the neighbour loop can both count the same soldier.
   draws in attacks"); it emits `missileTrail` (`29` §9).
 - **Otherwise**, at each LOS cell / cube: cube ≥ 8 skips tests; cube 4–7 tests roof-level (`sCubeOffset` 4) structures
   with `cube − 4`. For each `local` structure of that level whose shape has the bit:
-  - **person** → `BulletHitMerc(b, s, intended)` (`33` §1.1). Stopped → return; passed through → removed from `local`.
+  - **person** → `BulletHitMerc(b, s, intended)` (`33`). Stopped → return; passed through → removed from `local`.
   - **window** (`WALLNWINDOW` with `winLo ≤ z ≤ winHi`) and `ResolveHitOnWall` says hit: a knife runs
     `HandleBulletStructureInteraction` and on ≤ 0 drops a (bloody) throwing knife on the near side and stops
     (`StructureHit(id, 1, true)`); a bullet breaks the window (`WindowHit`: swap to the cracked, then shattered partner
@@ -698,7 +698,7 @@ reinforced 70, rock 85, rubber 9, sand 40, cloth 1, sandbag 40, light metal 37, 
 indestructible 127.
 
 `StructureHit(b, id, impact, stopped)` (`Weapons.cc:1565-1821`): if stopped and the firer has an `opponent`, that
-opponent gets the dodge agility gain (`33` §5); for wall-oriented structures the noise/explosion tile moves to the
+opponent gets the dodge agility gain (`33`); for wall-oriented structures the noise/explosion tile moves to the
 shooter's side; unless the same structure was hit last,
 `MakeNoise(firer, tile, level, hitVolume, NOISE_BULLET_IMPACT)`; LAW → remove, `FreeUpAttacker`, `IgniteExplosion(C1)`; tank cannon → `TANK_SHELL`; a real
 structure → `DamageStructure(GUNFIRE)`: indestructible materials ignore it, an `EXPLOSIVE` structure explodes on
@@ -870,7 +870,7 @@ if (steal) {
 smell: if (s.monsterSmell > 0 && main(5) === 0) s.monsterSmell--;
 ```
 For punches `EVENT_SoldierGotHit` turns the damage into breath loss with ¼ as real damage (`PUNCH_REAL_DAMAGE_PORTION
-4`, `Soldier_Control.cc:2744`, `33` §2.1).
+4`, `Soldier_Control.cc:2744`, `33`).
 
 ### 4.5 `HTHImpact(att, tgt, hitBy, blade)` (`Weapons.cc:3119-3167`)
 
@@ -898,7 +898,7 @@ RNG per melee strike, in order:
 - Punch: `pre(100)` → [spin kick `pre(cth)`] → STR+DEX `StatChange` (player attacker) or agility `StatChange` (player
   defender, miss) → hit: `pre(51)` fluke → `main(5)`.
 - Steal: `pre(100)` → [STR `StatChange`] → [partial success `pre(100)` drop place] → `main(5)`.
-- Then, 20 ms later, `EVENT_SoldierGotHit` (`33` §2.1).
+- Then, 20 ms later, `EVENT_SoldierGotHit` (`33`).
 
 Quirk: `EVENT_SoldierBeginPunchAttack` raises the busy count and returns if nobody is on the target tile, and
 `UseHandToHand` with an empty tile frees nothing (`Soldier_Control.cc:6731-6739`, `Weapons.cc:1058-1258`), so a punch at
@@ -917,16 +917,16 @@ give the conditions.
 | order (`HandleItem`) | AI shooters: [`main(50)` civ quote (c)]; `HandItemWorks`: `main(80)` [+ `main(9)` on breaking] per damageable item tested (the main gun, then a second gun); [PSYCHO, burst-capable, not bursting: `main(3 + aim)`] (§1.3) |
 | fire state entered (`SelectFireAnimation`, standing single shot) | [`pre(100)` body part if `AIM_SHOT_RANDOM` and a soldier on the tile] (§1.8) |
 | opcode 470 | `CheckForGunJam`: `pre(100)`, `pre(100)`; jammed gun: `SkillCheck` `pre(100)` [+ `main(100)` (c)] (§1.7) |
-| opcode 430 → `UseGun` | [`pre(100)` body part if still random]; [barrel extender `main(2)`, `main(35)`, `main(35)`]; **`pre(100)` hit roll**; MARK `StatChange`: one `pre(100)` per chance (`33` §5); [LAW `pre(40)`, `pre(40)`, [`pre(2)`]]; `FireBulletGivenTarget`: [miss: `pre(50)`, `pre(2)`, `pre(100)`] (§3.2); first `MoveBullet` (below); wear `pre(15 + 3·reliability)`; [`main(2)` monster smell] |
-| each tile entered | structures in list order: fences/obstacles [`pre(100)` vs `ChanceOfBulletHittingStructure`]; persons [`pre(100) < 3` accidental test, short-circuited]; suppression award per person and then per neighbour in direction order 0–7 [buckshot `main(2)`] [`pre(4)` ×0–2 by stance] (§3.4, `33` §3.1) |
-| inside the tile | per structure hit: [lock `pre(2)`, `pre(dmg)`]; density `pre(100)`; [explosive structure `main(2)`]; [stopped: curse `main(40)` (c) (player, single shot)]; [stopped, or left the map in `ShotMiss`: agility `StatChange` `pre`×n for the shooter's `opponent`] (§3.5, `33` §5) |
-| `BulletHitMerc` | [adult monster gland `pre(100)`]; [spit: goggles `pre(100)` ×≤2]; `BulletImpact`: `pre(51)` fluke, armour `pre(100)` per piece (plates, vest), [`main(10)` instant kill], [head `pre(22)` / legs `pre(10)`], [knife stealth `pre(100)` + `main(10)`], [critical `pre(crit/2 + 5·aim)`, `pre(crit/2)`, torso `preChance(50)`] (`33` §1.2); [spit in the face: goggles `main(impact/2)`; head: slot `main(2)`, then `main(impact/2)` if it holds an item]; [touchy neutral `main(100)`]; [pass-through `pre(100)` + armour `pre(100)` per piece; blood behind the target: decay `main(3)`, graphic `main(4)` (c)] (`33` §1.1, §2.11) |
-| `EVENT_SoldierGotHit` | [sleep dart `pre(100)`]; `SoldierTakeDamage`: [blast equipment `pre` per item], [unprofiled bleed `main(2)`], **`main(100)` weapon drop** (every non-bleed hit on a non-robot), [blood: decay `main(3)`, graphic `main(4)` (c)], [EXPLODE `StatChange` `pre`×n for our attacker of a blast], [EXPER `StatChange` `pre`×n for our victim] (`33` §2.2); cosmetic impact and grunt sounds; animation choice: [civilian `CIV_DIE2` `main(2)`]; entering the hit state: [`main(10)` start index of `CHARIOTS_OF_FIRE`/`BODYEXPLODING`], [`main(50)` fall side of a leg fall-down through `SoldierCollapse` or a blast fall forward], **opcode 478 `main(100)` [+ `main(50)`]** (`33` §2.4, §2.6) |
-| hit animation frames | **433 `main(100)` [+ `main(50)` fall side]**; release curse [`main(10)` (c)]; 447 none (`33` §2.7) |
-| opcode 440 (`HandleSoldierDeath`) | [visible victim: `main(3)` laugh (c)]; kill/assist EXPER `StatChange` `pre`×n; [Pablo: `Random(60)` for his event]; corpse: ammo `1 + main(n)` per non-player ammo stack, in slot order (`33` §2.10) |
-| barrier reaches 0 | `HandleSuppressionFire` none; [dart: `NoticeUnseenAttacker` `pre(100)` [+ `main(100)` (c)]]; `HandleAnyStatChangesAfterAttack`: `main(100) < 25` message per changed stat (c); quotes (`HandleKilledQuote`, battle sounds) may draw `main` (not traced) (`33` §3.4, §5) |
-| team turn start | [getting up: sleep-drug `pre(100)`] (`33` §2.11) |
-| turn end | `SayCloseCallQuotes`: `main(3)` per eligible merc (`33` §3.5) |
+| opcode 430 → `UseGun` | [`pre(100)` body part if still random]; [barrel extender `main(2)`, `main(35)`, `main(35)`]; **`pre(100)` hit roll**; MARK `StatChange`: one `pre(100)` per chance (`33`); [LAW `pre(40)`, `pre(40)`, [`pre(2)`]]; `FireBulletGivenTarget`: [miss: `pre(50)`, `pre(2)`, `pre(100)`] (§3.2); first `MoveBullet` (below); wear `pre(15 + 3·reliability)`; [`main(2)` monster smell] |
+| each tile entered | structures in list order: fences/obstacles [`pre(100)` vs `ChanceOfBulletHittingStructure`]; persons [`pre(100) < 3` accidental test, short-circuited]; suppression award per person and then per neighbour in direction order 0–7 [buckshot `main(2)`] [`pre(4)` ×0–2 by stance] (§3.4, `33`) |
+| inside the tile | per structure hit: [lock `pre(2)`, `pre(dmg)`]; density `pre(100)`; [explosive structure `main(2)`]; [stopped: curse `main(40)` (c) (player, single shot)]; [stopped, or left the map in `ShotMiss`: agility `StatChange` `pre`×n for the shooter's `opponent`] (§3.5, `33`) |
+| `BulletHitMerc` | [adult monster gland `pre(100)`]; [spit: goggles `pre(100)` ×≤2]; `BulletImpact`: `pre(51)` fluke, armour `pre(100)` per piece (plates, vest), [`main(10)` instant kill], [head `pre(22)` / legs `pre(10)`], [knife stealth `pre(100)` + `main(10)`], [critical `pre(crit/2 + 5·aim)`, `pre(crit/2)`, torso `preChance(50)`] (`33`); [spit in the face: goggles `main(impact/2)`; head: slot `main(2)`, then `main(impact/2)` if it holds an item]; [touchy neutral `main(100)`]; [pass-through `pre(100)` + armour `pre(100)` per piece; blood behind the target: decay `main(3)`, graphic `main(4)` (c)] (`33`) |
+| `EVENT_SoldierGotHit` | [sleep dart `pre(100)`]; `SoldierTakeDamage`: [blast equipment `pre` per item], [unprofiled bleed `main(2)`], **`main(100)` weapon drop** (every non-bleed hit on a non-robot), [blood: decay `main(3)`, graphic `main(4)` (c)], [EXPLODE `StatChange` `pre`×n for our attacker of a blast], [EXPER `StatChange` `pre`×n for our victim] (`33`); cosmetic impact and grunt sounds; animation choice: [civilian `CIV_DIE2` `main(2)`]; entering the hit state: [`main(10)` start index of `CHARIOTS_OF_FIRE`/`BODYEXPLODING`], [`main(50)` fall side of a leg fall-down through `SoldierCollapse` or a blast fall forward], **opcode 478 `main(100)` [+ `main(50)`]** (`33`) |
+| hit animation frames | **433 `main(100)` [+ `main(50)` fall side]**; release curse [`main(10)` (c)]; 447 none (`33`) |
+| opcode 440 (`HandleSoldierDeath`) | [visible victim: `main(3)` laugh (c)]; kill/assist EXPER `StatChange` `pre`×n; [Pablo: `Random(60)` for his event]; corpse: ammo `1 + main(n)` per non-player ammo stack, in slot order (`33`) |
+| barrier reaches 0 | `HandleSuppressionFire` none; [dart: `NoticeUnseenAttacker` `pre(100)` [+ `main(100)` (c)]]; `HandleAnyStatChangesAfterAttack`: `main(100) < 25` message per changed stat (c); quotes (`HandleKilledQuote`, battle sounds) may draw `main` (not traced) (`33`) |
+| team turn start | [getting up: sleep-drug `pre(100)`] (`33`) |
+| turn end | `SayCloseCallQuotes`: `main(3)` per eligible merc (`33`) |
 
 Bursts repeat the 430 row per round (jam only on round 1, XP only on round 2). `UseBlade`, `UseHandToHand` and
 `UseThrown` likewise draw their `StatChange` rolls right after their own hit roll. Melee: §4.5. Throws and launchers:
@@ -956,10 +956,10 @@ opcodes and shorter frame counts (`stubs/anim-scripts.ts`, `32` §1.6).
 | `combat/chance.ts` | `CalcChanceToHitGun`, `AICalcChanceToHitGun`, `GunRange`, `SoldierDifficultyLevel` (§2) |
 | `combat/positions.ts` | soldier and target Z, body-part LOS over `perception/los.ts` (§1.8, `08`) |
 | `combat/bullets.ts` | `FireBulletGivenTarget`, `MoveBullet`, structure hits, `ShotMiss`, the miss-animation release, the chance to get through (§3) |
-| `combat/impact.ts`, `combat/armour.ts` | `BulletImpact`, `AdjustImpactByHitLocation`; armour, body impact reduction, `ArmourPercent` (`33` §1.2, §1.3) |
+| `combat/impact.ts`, `combat/armour.ts` | `BulletImpact`, `AdjustImpactByHitLocation`; armour, body impact reduction, `ArmourPercent` (`33`) |
 | `combat/melee.ts`, `combat/melee-reach.ts` | melee orders and begin events, `CalcChanceHTH`, `UseBlade`, `UseHandToHand`, `HTHImpact`, opcodes 468, 492, 755, 761; the adjacent-tile searches (§4) |
-| `combat/barrier.ts` | the busy-count entry points, `HandleSuppressionFire`, `NoticeUnseenAttacker`, the end of an attack (`33` §3.2–3.5) |
-| `combat/experience.ts`, `combat/skill-check.ts` | `StatChange`, `ProcessUpdateStats`, `ModifyExpGainByTarget`, `AgilityForEnemyMissingPlayer`; `SkillCheck` (§1.7, `33` §5) |
+| `combat/barrier.ts` | the busy-count entry points, `HandleSuppressionFire`, `NoticeUnseenAttacker`, the end of an attack (`33`) |
+| `combat/experience.ts`, `combat/skill-check.ts` | `StatChange`, `ProcessUpdateStats`, `ModifyExpGainByTarget`, `AgilityForEnemyMissingPlayer`; `SkillCheck` (§1.7, `33`) |
 | `combat/spread-burst.ts` | the AI's spread-burst locations (`sSpreadLocations`) |
 | `combat/context.ts` | `CombatContext`, the narrow state `bulletImpact`, `hthImpact` and `statChange` need, so autoresolve reuses them (`AUTORESOLVE_IMPACT`, `19`) |
 | `skills.ts`, `points.ts` | effective stats, `moraleModifier`, fatigue penalties; `DeductPoints`, `CalcNewActionPoints` |
@@ -983,7 +983,7 @@ the original frame order (`GameScreen.cc:343, 424, 427, 456`) on a fixed tick (d
 
 Every timer runs on game ms: bullets one tile per tick, knives every 30 ms (§3.3); the miss-animation release 425 ms
 (§3.5); the delayed melee hit on the first tick more than 20 ms later, i.e. at 25 ms (§4.1); the damage window
-8 × 250 ms (`33` §1.2); our dead merc's release 1920 ms after 440 (`33` §2.9); physics every 20 ms (`34` §9.2).
+8 × 250 ms (`33`); our dead merc's release 1920 ms after 440 (`33`); physics every 20 ms (`34` §9.2).
 There are no watchdogs: holds the original leaves to its 15 s or 25 s breaker are released where they arise
 (deviations "Watchdogs", "Melee hold leaks", "Hit during a non-interruptible animation", "Knock-back and the sighting
 pause", "Melee from a prone turn", "Suppression stance change from the end of the previous one").

@@ -201,7 +201,7 @@ the delivery sector (`SEH:435-442`).
 | 165 | `VINCE_UNRECRUITABLE` | `VINCE_RECRUITABLE` false | `ID:3409-3411` |
 | 139 | `ENABLE_CAMBRIA_DOCTOR_BONUS` | event at `(day + 1)·1440 + minute + (24 + Random(24))·60`, i.e. 48–71 h later (enum comment: obsolete) | `ID:2128-2134` |
 | 257, 258 | `24_HOURS_SINCE_JOEY_RESCUED`, `…_DOCTORS_TALKED_TO` | event in 24 h setting fact 305 / 306 | `ID:3822-3828` |
-| 140 | `MARTHA_DIES` | menu; `EVENT_SoldierGotHit(Martha, 1, 100 damage, 10 breath, her direction, range 320, torso)` (the damage path draws, `33` §2) | `ID:2225-2234` |
+| 140 | `MARTHA_DIES` | menu; `EVENT_SoldierGotHit(Martha, 1, 100 damage, 10 breath, her direction, range 320, torso)` (the damage path draws, `33`) | `ID:2225-2234` |
 | 172 | `START_MINE` | `PlayerSpokeToHeadMiner(npc)`; shut-down mine → `RestartMineProduction` (`18`) | `ID:2788-2800` |
 | 173 | `STOP_MINE` | running → `ShutOffMineProduction` | `ID:2802-2811` |
 | 174 | `RESET_MINE_CAPTURED` | `ResetQueenRetookMine(npc)` (`mines.ts`) | `ID:2813-2815` |
@@ -841,7 +841,7 @@ the tile, whatever its height).
 Draws are stated where they happen, in statement order: new game §2.2; 04:00 §2.3 (bracketed); hourly §2.4; sector entry
 §2.5 (after the head miners' draws; `DecideOnAssassin`: `25` §6.4); placement §2.6 (before the soldier's own creation
 draws); schedules §3.2 and, after a native load, §3.6; the actions of §1 (107, 108, 118, 125, 126, 139, 140 (the hit's
-draws, `33` §2), 160, 230, 43, the lie of 221 (`SkillCheck`, `33` §5)); civilian groups §4.2; NPC system events §1.13;
+draws, `33`), 160, 230, 43, the lie of 221 (`SkillCheck`, `33`)); civilian groups §4.2; NPC system events §1.13;
 Pablo's death §1.5; doors §5.3. The Kingpin goon gridno adds two engine draws whose evaluation order C++ leaves
 unspecified (§2.6, deviation "Kingpin's men placement"); every other path draws in statement order.
 

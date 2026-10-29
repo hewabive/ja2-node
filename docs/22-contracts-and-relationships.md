@@ -16,8 +16,8 @@ zero (`idiv`), unsigned subtraction wraps (`u32`), `INT8`/`UINT8` stores wrap (`
 dismissal and departures with the medical deposit refund, RPC pay, relationships, reputation and the death rate, including
 the tests the A.I.M. site calls (§5.4). `21` owns the laptop sites, `HireMerc` with the contract fields it sets at hire and
 arrival, the arrival slots and `MercArrivesCallback`, hire costs, the A.I.M. refusal flow, the M.E.R.C. account (accrual,
-status, `SettleMercAccounts`), email, history, personnel and life insurance. `23` owns dealers and repairs. `33` §4 owns
-the morale event table and `UpdateSoldierMorale`, `33` §5 `StatChange`/`ProcessStatChange`. `15` owns the clock, the
+status, `SettleMercAccounts`), email, history, personnel and life insurance. `23` owns dealers and repairs. `33` owns
+the morale event table and `UpdateSoldierMorale`, `33` `StatChange`/`ProcessStatChange`. `15` owns the clock, the
 event queue, the order of the 00:00 events and the hourly update. `16` owns squads, groups, `RemoveCharacterFromSquads`,
 `RemoveGroup` and `CheckAndHandleUnloadingOfCurrentWorld`. `18` §5 owns assignments (the training opinion bonus reads §5
 opinions). `19` §3.7 owns merc death and capture. `14` owns the savegame container. The agent API (commands, prompts,
@@ -46,7 +46,7 @@ from the soldier record (`Tactical/LoadSaveSoldierType.cc:382-386, 400-405, 464-
 | `medicalDeposit` | `usMedicalDeposit` | deposit paid at hire (AIM) |
 | `contractPriceIncreased` | `fContractPriceHasIncreased` | set by a level-up (§3.7) |
 | `lifeInsurance`, `startOfInsuranceContract`, `totalLengthOfInsuranceContract`, `startTimeOfInsuranceContract` | `usLifeInsurance`, `iStartOfInsuranceContract` (day), `iTotalLengthOfInsuranceContract` (days), `uiStartTimeOfInsuranceContract` (minute) | §7 |
-| morale | `bMorale`, `bTeamMoraleMod`, `bTacticalMoraleMod`, `bStrategicMoraleMod`, `bDelayedStrategicMoraleMod` | on `Soldier` (`33` §4) |
+| morale | `bMorale`, `bTeamMoraleMod`, `bTacticalMoraleMod`, `bStrategicMoraleMod`, `bDelayedStrategicMoraleMod` | on `Soldier` (`33`) |
 | `quoteSaidFlags`, `corpseQuoteTolerance` | `usQuoteSaidFlags` bits `LOW_MORAL 0x10`, `ANNOYING_MERC 0x40`, `LIKESGUN 0x80`, `PERSONALITY 0x4000`, `FOUND_SOMETHING_NICE 0x8000`; `bCorpseQuoteTolerance` | on `MercRecord`; daily resets (§2.1) |
 
 **Campaign profile**: the mutable `gMercProfiles[]` is `ProfileProgress` (`src/sim/tactical/profiles.ts`) in
@@ -672,7 +672,7 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). 
 | Effect | Rule | Source |
 |---|---|---|
 | Renewal | §3.5 | |
-| Death of a teammate | hated → +5 only; else −5 tactical if in sector, −5 strategic, buddy (slots 0..2) −15 | `33` §4, `Morale.cc:529-563` |
+| Death of a teammate | hated → +5 only; else −5 tactical if in sector, −5 strategic, buddy (slots 0..2) −15 | `33`, `Morale.cc:529-563` |
 | Buddy killed quotes | 15/16/17 | §4.9 |
 | Training | instructor opinion bonus | `18` §5.8 |
 | Attacking a buddy | an order from the UI to attack a merc in one's buddy slots is refused (quote 36) | `Tactical/Handle_Items.cc:243-250`; not ported (deviation "Attack refusals") |
@@ -683,10 +683,10 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). 
 | Trait | Mechanical effect | Where |
 |---|---|---|
 | Leadership (effective) | best in the group shifts team opinion by `(lead − 50)/10` | §5.3 |
-| Attitude OPTIMIST / AGGRESSIVE | +1 on positive morale events; OPTIMIST also +1 on negative | `33` §4 |
-| Attitude PESSIMIST / COWARD | −1 / −2 on negative events (PESSIMIST also −1 on positive); AGGRESSIVE doubles and COWARD skips the ran-away penalty | `33` §4 |
+| Attitude OPTIMIST / AGGRESSIVE | +1 on positive morale events; OPTIMIST also +1 on negative | `33` |
+| Attitude PESSIMIST / COWARD | −1 / −2 on negative events (PESSIMIST also −1 on positive); AGGRESSIVE doubles and COWARD skips the ran-away penalty | `33` |
 | Attitude FRIENDLY, LONER, ARROGANT, BIG_SHOT, ASSHOLE | none (quotes, I.M.P. email) | `Soldier_Profile_Type.h:177-190` |
-| Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18` §5.12, `33` §4 |
+| Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18` §5.12, `33` |
 | Personality FORGETFUL, NERVOUS, PSYCHO / skill STEALTHY | unhired death chance +2 / −1 | §2.5 |
 | `bSexist` | morale when a merc marries | `Morale.cc:565-602`, `25` §6.9 |
 | `bReputationTolerance` | hiring (reputation) and the morale tolerance | §6.3 |
@@ -757,7 +757,7 @@ end, after quote 90 (§3.6); the premium reads the death rate (§6.1); a death s
 | Where | Draw | Stream |
 |---|---|---|
 | Daily update, per team member in team order | `Random(1080)` if he complains about equipment; `Chance((3 − d)·exp)` for another contract (A.I.M., gated, `d < 3`) | main |
-| Daily update, per profile 0..199 | improvement: `Random(100)` (working) or `Random(10)` then, only if not below, `Random(100)`; `Random(11)` until not experience; the `ProcessStatChange` draws (`pre` per chance, `main` on gains, `33` §5); then `PreRandom(1000)` death roll if working elsewhere and eligible; then `Random(100)` and possibly `Random(6 + exp/2)` for a new job | main/pre |
+| Daily update, per profile 0..199 | improvement: `Random(100)` (working) or `Random(10)` then, only if not below, `Random(100)`; `Random(11)` until not experience; the `ProcessStatChange` draws (`pre` per chance, `main` on gains, `33`); then `PreRandom(1000)` death roll if working elsewhere and eligible; then `Random(100)` and possibly `Random(6 + exp/2)` for a new job | main/pre |
 | Two-hour warning | `Random(n)` over the willing mercs, if any | main |
 | Dismissal within 3 h of arrival | `Random(4)` hangover | main |
 | Leaving, equipment here | `RandomGridNo` pairs `Random(160)` (loaded sector without a gridno; unloaded sector without a GRIDNO insertion) | main |

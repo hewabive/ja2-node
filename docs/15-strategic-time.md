@@ -333,7 +333,7 @@ Consequences on an ideal 5 ms loop:
   20 ms counter polled every 6.94 ms fires every ~20.8 ms).
 - `HandleTacticalEndTurn` (`Tactical/Tactical_Turns.cc:80-157`) runs `EVENT_BeginMercTurn` for **every** living,
   non-mechanical merc of the player's team, in any sector, and for the loaded sector's other soldiers: bleeding
-  (`33` §2.11, `nextBleed −= 0.5`), breath, shock, drug decay, first aid (`HandlePlayerServices`, which acts only on a
+  (`33`, `nextBleed −= 0.5`), breath, shock, drug decay, first aid (`HandlePlayerServices`, which acts only on a
   merc playing the `GIVING_AID` animation, `Overhead.cc:3830-3833`); plus the loaded sector's smoke/light/blood decays by
   world seconds, pending enemies, and the public opplist decay. So **a wounded merc's bleeding per world minute on the
   map depends on the compression level** (12× slower at 60MINS than at 5MINS).

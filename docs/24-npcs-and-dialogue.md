@@ -18,7 +18,7 @@ of `HandleNPCDoAction` does and `HandleNPCSystemEvent` (`35` §1), `InitNPCs`, t
 presence (profile insertion data, traversal, `ChangeNpcToDifferentSector`; `35` §2), schedules (`35` §3), civilian
 groups (`35` §4), boxing (`25` §3), the escort campaign rules and the robot (`25` §4) and the hospital (`25` §6.3).
 `26` owns the meanwhile scenes (which swap the Queen's and Elliot's record arrays, §1.4), the Queen, the ending and game
-over. Also: `09` §5 (green AI of named NPCs, the `decideActionNamedNPC` hook), `33` §3.4
+over. Also: `09` §5 (green AI of named NPCs, the `decideActionNamedNPC` hook), `33`
 (`ProcessImplicationsOfPCAttack`), `12` §6 (give: AP, opcode 486), `14` §4 (save sections 19, 21, 38, 39), `15` §1.5
 (pausing and locks), `16` (NPC of note), `22` (RPC pay, dismissal), `23` §9, `29` §23 (the shop the talk menu opens),
 `30` §2.8 (talk panel, speech and civilian boxes on screen). The agent API of conversations (commands, prompts, events,
@@ -44,7 +44,7 @@ view fields) is `29`.
 | Say-something-later | `gubNiceNPCProfile`, `gubNastyNPCProfile` (`Interface_Dialogue.cc:156-157`) + `FACT_NEED_TO_SAY_SOMETHING` | `TalkState.niceNpc`, `nastyNpc` (§6.5) |
 | NPC request box | `gusDialogueMessageBoxType`, `ubRecordThatTriggeredLiePrompt` (`:166, 4157`) | the `npcRequest` prompt (§6.7) |
 | Hospital money | `giHospitalTempBalance`, `giHospitalRefund`, `gbHospitalPriceModifier` (`:174-176`) | saved in section 24 (`SaveLoadGame.cc:1939-1942`); read by §4.3, owned by `25` §6.3 |
-| Civilian group hostility | `gTacticalStatus.fCivGroupHostile[]` | shared with `33` §3.4 and `35` §4 |
+| Civilian group hostility | `gTacticalStatus.fCivGroupHostile[]` | shared with `33` and `35` §4 |
 
 The original cannot save while a talk session is open, `ENGAGED_IN_CONV` is set or an `npcRequest` prompt waits
 (inferred: the Dead-Is-Dead autosave guard `SaveLoadScreen.cc:1368-1374` skips these states, and the panel's full-screen
@@ -395,7 +395,7 @@ and a record accepted it (§4.4).
   `CivilianGroupMembersChangeSidesWithinProximity` and triggers the first profile it returns) and
   `NPC_ACTION_GET_OUT_OF_WHEELCHAIR_AND_BECOME_HOSTILE` (`Interface_Dialogue.cc:3670-3680`).
 - **`MakeCivHostile`** (`Overhead.cc:2591-2671`) and the civilian-group functions (`:2674-2809`) are shared with
-  `ProcessImplicationsOfPCAttack` (`33` §3.4) and owned by `35` §4. `CivilianGroupMemberChangesSides` moves group
+  `ProcessImplicationsOfPCAttack` (`33`) and owned by `35` §4. `CivilianGroupMemberChangesSides` moves group
   members off our team with `ChangeSoldierTeam`, makes in-proximity members hostile, posts
   `MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE` (+300 min) and draws `Random(2)` for a "first profile" that only
   commented-out code reads; the draws still happen.
@@ -1064,7 +1064,7 @@ come back.
 | §3.6 draws first | two `Random` in `NPCFirstDraw` | not ported (§12.5) |
 | §5.1 closest merc who sees the NPC | `Random(n)` | cosmetic stream (`TalkState.fx`; deviation "Cosmetic draws in dialogue") |
 | §6.5 say-later speaker | `Random(n)` | not drawn (no line is said) |
-| §6.7 lie | `SkillCheck`: `PreRandom(100)`, then the silent-curse `Random(100)` on failure (`33` §3.5) | pre; curse not drawn (deviation "Cosmetic draws in attacks") |
+| §6.7 lie | `SkillCheck`: `PreRandom(100)`, then the silent-curse `Random(100)` on failure (`33`) | pre; curse not drawn (deviation "Cosmetic draws in attacks") |
 | §8.2 hint drop | `Random(100) < 25`, only when a hint exists, loyalty is low and he is no miner | main (decides whether the hint is used up) |
 | §8.4 civilian entry | `Random(entries − 2)` | cosmetic stream (stored in the soldier, text only) |
 | §8.6 RPC description countdown | `4 + Random(5)` | main |

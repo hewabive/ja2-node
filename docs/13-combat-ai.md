@@ -1404,7 +1404,7 @@ Stated only here:
   `Random(3)` decay delay; `DecaySmells` at each TB end of round, `DecayBloodAndSmells` after more than 100 game
   seconds in RT (compression periods: deviation "Blood and smell decay period"). Savegames restore both maps, and a
   sector keeps both when it is left (`16` §5.11). The other drops (a pass-through, the flyback, corpses wiping blood):
-  `33` §2.11.
+  `33`.
 - Movement noise: bloodcats +50, `STEALTHY` +25 per trait.
 
 ### 12.5 Data quirks

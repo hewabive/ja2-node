@@ -9,7 +9,7 @@ Item ids are the `ITEMDEFINE` enum (`Tactical/Item_Types.h:221-615`); JSON `inte
 
 **Scope.** Item content, `OBJECTTYPE`, soldier inventory, reload, item AP costs, first aid, world items, profile and
 enemy equipment, drops, explosions, smoke, gas and flares. Elsewhere: gun attacks (`11` §1–§3), melee (`11` §4), hits
-and armour against bullets (`33` §1–2), throwing (AP cost, range, chance, physics, duds) and launchers (`34` §0);
+and armour against bullets (`33`), throwing (AP cost, range, chance, physics, duds) and launchers (`34` §0);
 locks, door traps, action items and switches (`35` §5, `25` §6.5); merchants (`23`); the agent API's inventory commands
 (`29` §12); the inventory screens (`30` §2.3–2.4, §4.2).
 
@@ -126,7 +126,7 @@ and unused; `rateOfFire` is Bobby Ray text only. Sounds default to the calibre's
   `ArmourPercent = 65·vest/maxVest + 15·helmet/maxHelmet + 25·legs/maxLegs` (`:123-149`, AI and UI);
   `ExplosiveEffectiveArmour` / `ArmourVersusExplosivesPercent` (same with `explosivesProtection`, each term capped at
   65/15/25, `:152-200`, blasts §10.5). `ArmourProtection`/`TotalArmourProtection` against bullets (PreRandom weak-spot
-  roll, plates first, armour destroyed below `USABLE`, `:2588-2741`): `33` §1.3.
+  roll, plates first, armour destroyed below `USABLE`, `:2588-2741`): `33`.
 
 ### 1.6 Explosives (`X:ExplosiveModel.cc`, `explosives.json` 30 entries)
 
@@ -701,7 +701,7 @@ items fall INVISIBLE and the creature queen leaves no jars.
 
 ### 9.2 Weapon knocked out of the hand (`SoldierTakeDamage`, `Tactical/Soldier_Control.cc:5715-5756`)
 
-`33` §2.2: every hit except blood loss (not robots) draws `Random(100) < (UINT16)chance`; a droppable hand item falls
+`33`: every hit except blood loss (not robots) draws `Random(100) < (UINT16)chance`; a droppable hand item falls
 VISIBLE for our team, else INVISIBLE (zHeight −1). A negative chance (undroppable item, −30) wraps to a huge value, but
 the undroppable check then blocks the drop.
 
@@ -856,8 +856,8 @@ EVENT_SoldierGotHit(s, item, wound', breath, dirFromBomb, dist, owner, 0, hitLoc
 set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(REASON_EXPLOSION)
 ```
 
-`EVENT_SoldierGotHit` / `SoldierTakeDamage` with an explosion reason (`33` §2.1, §2.2; the `CHARIOTS_OF_FIRE`,
-`BODYEXPLODING` and fall-back animations `33` §2.4): creatures take a quarter, vehicles double above 50;
+`EVENT_SoldierGotHit` / `SoldierTakeDamage` with an explosion reason (`33`; the `CHARIOTS_OF_FIRE`,
+`BODYEXPLODING` and fall-back animations `33`): creatures take a quarter, vehicles double above 50;
 `CheckEquipmentForDamage(s, lifeLoss)` damages carried items and may chain-explode them (§10.7).
 
 ### 10.6 Structures (`:257-705`; `TileEngine/Structure.cc:119-149, 1150-1215`)
