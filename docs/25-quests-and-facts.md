@@ -478,8 +478,8 @@ boxing (`Tactical/Soldier_Control.cc:5462-5470`); `MakeCivHostile`'s Maria rule 
 
 ### 4.1 Recruiting and releasing
 
-Becoming an escort (action 110, `RecruitEPC` `SP:770-813`, `HandleStuffForNPCEscorted`) is `24` §9.3; releasing one
-(actions 149/168, `UnRecruitEPC` `SP:816-841`, the player's un-escort) is `24` §9.4; the team change is `24` §9.6. Campaign
+Becoming an escort (action 110, `RecruitEPC` `SP:770-813`, `HandleStuffForNPCEscorted`) is `24`; releasing one
+(actions 149/168, `UnRecruitEPC` `SP:816-841`, the player's un-escort) is `24`; the team change is `24`. Campaign
 additions:
 - John and Mary need two free slots (`ID:4255-4265`); `HandleStuffForNPCEscorted` (`ID:1493-1545`) does nothing for MARIA
   and JOEY.
@@ -543,9 +543,9 @@ update, `Strategic/Player_Command.cc:180, 287`, `SM:2326`; after loading through
 
 ### 5.2 Getting the helicopter
 
-`InitNPCs` puts Skyrider in B15, E14, D12 or C16 (alternate map, `35` §2.2). Records make him an EPC (`24` §9.3, quest 17).
+`InitNPCs` puts Skyrider in B15, E14, D12 or C16 (alternate map, `35` §2.2). Records make him an EPC (`24`, quest 17).
 The escorted Skyrider stepping closer than 11 tiles to gridno 8842 in B13 (`OH:1871-1887`) stops, sets
-`SKYRIDER_CLOSE_TO_CHOPPER`, triggers SKYRIDER 15 (which un-recruits him, `24` §9.4) and runs
+`SKYRIDER_CLOSE_TO_CHOPPER`, triggers SKYRIDER 15 (which un-recruits him, `24`) and runs
 `SetUpHelicopterForPlayer(B13)` (`HELI:647-657`): once, add the `HELICOPTER` vehicle in B13 (`AddVehicleToList`), give it a
 movement group, update the refuel sites. While the helicopter stands at a refuel site in the loaded sector, the map shows it
 (six structure pieces, mercs within 5 tiles bumped, `HELI:1146-1189`) and Skyrider's profile is put in that sector
@@ -818,12 +818,12 @@ boards only vehicles already on our team (gap "Ground vehicles").
 
 ### 6.14 John and Mary (the tourists)
 
-Escorted together (`24` §9.3, quest 19). In B13 (the Drassen airport) each step of an escorted John or Mary, or of any OUR
+Escorted together (`24`, quest 19). In B13 (the Drassen airport) each step of an escorted John or Mary, or of any OUR
 merc while quest 19 runs (`OH:1867-1927`), checks the arrival: Mary only if John is dead (`OH:1631-1657`): within 40 of
 gridno 8228 and no closest PC farther than 8 (no PC at all passes) → `MARY_OR_JOHN_ARRIVED`, she stops, → MARY 13; John
 (`OH:1660-1697`): within 40 of 8228, the same PC test and, if Mary is alive, her soldier within 8 of him → the fact, both
 stop, → JOHN 13 with Mary present, else JOHN 12. Their record 13 un-recruits them with both profiles leaving the map
-(`24` §9.4). John's gift shipment (188) arrives through Bobby Ray's delivery with Kulba's email (`21`).
+(`24`). John's gift shipment (188) arrives through Bobby Ray's delivery with Kulba's email (`21`).
 
 ### 6.15 Smaller rules
 

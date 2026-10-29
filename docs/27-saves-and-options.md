@@ -187,7 +187,7 @@ interface SaveFile {
   exists (`welcome` carries it).
 - **`text`** (`quoteLengthIdentity`, `src/server/content-identity.ts`) hashes the character count of every row of every
   dialogue file in use, at the dialogue width or the civilian-quote width; `none` for the sandbox. Quote lengths are the
-  only way text reaches the simulation (`24` §10.2).
+  only way text reaches the simulation (`24`).
 - **`engine`** (`engineIdentity`): the package version and the commit (`JA2_COMMIT`, else `git rev-parse HEAD`, else
   `unknown`).
 - **Load check, in order** (`SaveService.#verify`, then after the restore): another `source` → refused
@@ -546,7 +546,7 @@ policy into every save would duplicate content for a case the identity already r
 edits, that is a migration, not a deviation.
 
 **Pacing options become stop conditions, not state.** `SPEECH`, `KEY_ADVANCE_SPEECH` and `HIDE_BULLETS` are client
-presentation: the simulation's timing is fixed (a line lasts the longer of its voice and its text, `24` §10.2,
+presentation: the simulation's timing is fixed (a line lasts the longer of its voice and its text, `24`,
 deviations "Speech"; one bullet tile per tick). `SLEEPWAKE_NOTIFICATION` maps onto the client's or agent's choice to
 stop a strategic `advance` on `fellAsleep`/`wokeUp` events (`advance {until: {events}}`, `04` §4.2): the pages'
 real-time driver and advance apply the client setting (`src/app/sleep-wake.ts`, `src/app/net/sleep-wake-stop.ts`); an

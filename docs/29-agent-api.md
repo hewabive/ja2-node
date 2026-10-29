@@ -473,7 +473,7 @@ open (deviation "Shop as commands"). Money to another soldier is `give {money}` 
 
 ## 13. Conversations
 
-Rules: `24` §6 (talk sessions, records, approaches). A conversation with a named NPC is a modal **talk session**
+Rules: `24` (talk sessions, records, approaches). A conversation with a named NPC is a modal **talk session**
 (`src/sim/campaign/talk-flow.ts`) over the NPC records (`state.npcRecords`, imported from native saves) and the
 dialogue queue (`src/sim/narrative/`); deviations "Talk session time", "Conversation prompt".
 
@@ -519,9 +519,9 @@ for `DIALOGUE_SHOPKEEPER_UI`).
 ## 14. Conversations in game time
 
 As in the original (`HandleDialogue`: `PauseGame` and `LockPauseState(LOCK_PAUSE_ENGAGED_IN_CONV)` while
-`ENGAGED_IN_CONV` is set; `24` §6.6), a conversation stops the world clock and AI decisions while the tactical frame
+`ENGAGED_IN_CONV` is set; `24`), a conversation stops the world clock and AI decisions while the tactical frame
 goes on: ordered walks, animations and the dialogue queue, which says the next line when the face stops talking (end
-of voice or text) or at once on a click or Backspace. The lines take ticks like any other time (`24` §10.2).
+of voice or text) or at once on a click or Backspace. The lines take ticks like any other time (`24`).
 
 - **Commands return at once.** `talk`, `approach`, `answer` on an NPC request, `unescort` in tactical, `give` and
   `openShop` do their step and return; the following ticks say the lines (tactical ticks, world clock paused, AI
@@ -550,7 +550,7 @@ of voice or text) or at once on a click or Backspace. The lines take ticks like 
 
 ## 15. Giving, recruiting, escorts and the robot
 
-Rules: `24` §4 (giving), `24` §9 (recruiting, escorts), `25` §4 (escorts, the robot).
+Rules: `24` (giving), `24` (recruiting, escorts), `25` §4 (escorts, the robot).
 `src/sim/campaign/give-flow.ts`, `talk-flow.ts`, `robot-control.ts`.
 
 **`give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}`** (campaign, tactical) is the drag of an
@@ -609,19 +609,19 @@ still while it is open (§5). Events: `npcRequest`; `npcMessage` kinds `teamFull
 `townDiscovered {town}`, `sexScene {npc}`, `boxingBell`. Hidden: facts, the hospital modifier and refund, Kingpin's
 balance, the NPC system events.
 
-**Civilian quotes** (`24` §8, `src/sim/narrative/civ-quotes.ts`). `talk` to an unnamed civilian, a militiaman or a
+**Civilian quotes** (`24`, `src/sim/narrative/civ-quotes.ts`). `talk` to an unnamed civilian, a militiaman or a
 visible enemy with a merc body (`talkable: civilian`) runs the conversation's checks, walk-up and AP but opens no
 panel: `data.civQuote {soldier, quote, entry, hint, textKey, text?} | null` within 4 tiles (null when the line has no
 text), after a walk-up a `civQuote {soldier, quote, entry, hint, textKey, chars}` event; `quote` is the civilian quote
 type (`99` a hint, which may start a quest), `entry` the row; a second `talk` barks again (deviation "Civilian quote
 boxes").
 
-**The enemy surrender offer** (`24` §8.5): the enemy barks quote 37 and a `surrender` prompt opens (`context:
+**The enemy surrender offer** (`24`): the enemy barks quote 37 and a `surrender` prompt opens (`context:
 tactical`, `soldier`; `surrenderOffered {soldier, prompt}`); `accept` captures every living merc in the sector
 (`mercCaptured`) and loses the battle (`battleResult` defeat; deviation "Surrender in tactical combat"), `data
 {surrendered}`. Sandbox sessions decline it at once.
 
-**NPCs on their own** (`24` §5.4: approaching NPCs, assassins, first sightings, hostile declarations, guides describing
+**NPCs on their own** (`24`: approaching NPCs, assassins, first sightings, hostile declarations, guides describing
 sectors) and **schedules** (`35` §3) have no command, prompt or view field: their lines arrive as the events of §13, a
 civilian off the map is missing from `soldiers`, door use arrives as `doorChanged`. Profile NPCs' whereabouts,
 `npcData`, balances and the 04:00 moves are never shown (`npcMoved` is not an event).

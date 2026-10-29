@@ -494,7 +494,7 @@ path into `StrategicRemoveMerc` (also the removal of a dead or captured RPC, whi
 in the sector (`bInSector`) when the world is loaded and he holds a merc slot there or rides a vehicle in it
 (`offGridInSector`); a dead merc keeps his slot as the original keeps `bInSector`. Otherwise the profile takes his
 strategic insertion code (`insertionCode`) with data 0. ja2-node: `ContractFlow.setupProfileInsertionData`, through
-`NarrativeFlow.setupProfileInsertionDataForMerc` (shared with the escort release, `24` §9.4).
+`NarrativeFlow.setupProfileInsertionDataForMerc` (shared with the escort release, `24`).
 
 What the countdowns mean for the sites: `21` §2.1–§2.2. `CheckAndHandleUnloadingOfCurrentWorld` is `16`. No morale
 event fires for anyone when a merc leaves or is fired; teammates feel it only through the hourly team opinion (§5.3) and

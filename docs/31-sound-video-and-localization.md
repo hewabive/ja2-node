@@ -103,7 +103,7 @@ ja2-node decodes WAV itself; every WAV of `sounds.slf`, `battlesnds.slf` and `mu
 what it already receives: view frames, the event log (`29` §9), the animation timelines it plays (`01` §3.4).
 Headless sessions and agents produce no audio; the outcome is the same with sound on, off or absent. The one audio fact
 the simulation reads is data: each voice sample's length, measured from the WAV headers into the rule pack
-(`@rules/speech/lengths.json`, `src/content/audio/speech-lengths.ts`), which times conversation lines (`24` §10.2).
+(`@rules/speech/lengths.json`, `src/content/audio/speech-lengths.ts`), which times conversation lines (`24`).
 
 **Cosmetic choices** (variants, ambient gaps, footstep alternation, music tracks, the miss curse's `Random(40)`) draw on
 a client PRNG (`ClientRandom`, `src/audio/client-random.ts`, seeded from the session id by `seedFromText`), never on a
@@ -113,7 +113,7 @@ simulation stream; per-soldier presentation memory is the client's (§1.4, `dire
 
 | Original coupling | ja2-node |
 |---|---|
-| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | the longer of the voice length and the text timer, then 300 ms; the viewer that finished first ends it through `skipLine` (deviations "Speech", `24` §10.2) |
+| A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | the longer of the voice length and the text timer, then 300 ms; the viewer that finished first ends it through `skipLine` (deviations "Speech", `24`) |
 | A quote waits for the speaker's battle sound (`Tactical/Dialogue_Control.cc:632-637`); critical battle sounds cut speech (`Tactical/Soldier_Control.cc:5973-5980`) | the simulation never waits and is never cut ("Speech"); the client still stops the playing voice on a critical battle sound ("Speech playback") |
 | The defeat track's end unloads the sector (`Utils/Music_Control.cc:188-193`), in parallel with a 10 s timer (`Tactical/Overhead.cc:4378-4381`) | the 10 s timer only (`src/sim/campaign/battle-flow.ts`) |
 | Skyrider's destruction runs in a sound's end callback (`Strategic/Map_Screen_Helicopter.cc:1041-1044`) | at once (deviations "Helicopter destruction") |
@@ -503,7 +503,7 @@ The display language never reaches the simulation. The data version does, only h
 version:
 
 1. **Quote durations**: the longer of the voice's length and 12 ticks per character of the decoded EDT line
-   (deviations "Speech", `24` §10.2); a Russian line and its voice have other lengths than the English ones, so the
+   (deviations "Speech", `24`); a Russian line and its voice have other lengths than the English ones, so the
    speech channel frees at another tick.
 2. **NPC record layout** (Russian Buka): the same records from another byte layout (`src/content/formats/npc.ts`
    `'russian'`), also in native saves.
