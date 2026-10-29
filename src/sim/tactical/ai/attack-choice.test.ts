@@ -8,13 +8,14 @@ import { initNewSoldierAnim, states } from '../animation.ts';
 import { minAPsToAttack } from '../combat/ap.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
+import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
 import { AP, calcActionPoints } from '../points.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { CAN_ATTACK, calcBestShot, canNPCAttack, NoShoot } from './attack-choice.ts';
+import { CAN_ATTACK, calcBestShot, canNPCAttack, checkIfTossPossible, NoShoot } from './attack-choice.ts';
 
 let content: TacticalContent;
 
@@ -96,6 +97,25 @@ describe('calcBestShot', () => {
     const shot = calcBestShot(t, enemy);
     expect(shot.possible).toBe(false);
     expect(shot.opponent).toBeNull();
+  });
+});
+
+describe('checkIfTossPossible (Items.cc FindThrowableGrenade)', () => {
+  function grenadier(t: TacticalState): Soldier {
+    const enemy = spawn(t, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    enemy.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('HAND_GRENADE'), 100);
+    enemy.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('BREAK_LIGHT'), 100);
+    return enemy;
+  }
+
+  it('takes a flare before the first grenade at night while the thrower has more than half his life', () => {
+    const t = newState();
+    const enemy = grenadier(t);
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
+    lightSetBaseLevel(t, NORMAL_LIGHTLEVEL_NIGHT);
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK2);
+    enemy.life = enemy.lifeMax / 2;
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
   });
 });
 
