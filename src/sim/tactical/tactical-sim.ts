@@ -45,13 +45,13 @@ import {
   states,
 } from './animation.ts';
 import { generateBuildings } from './buildings.ts';
-import { calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './combat/ap.ts';
+import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
 import { updateBullets, updateMissAnimations } from './combat/bullets.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { handlePendingMeleeOnArrival } from './combat/melee.ts';
-import { meleeSpot } from './combat/melee-reach.ts';
+import { type MeleeOrderRefusal, meleeOrderRefusal } from './combat/melee-order.ts';
 import { parseSpread, pickBurstLocations } from './combat/spread-burst.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
@@ -228,8 +228,10 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
   noPath: 'cannot get next to the door',
 };
 
-const NOT_ADJACENT =
-  'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
+const MELEE_ORDER_REFUSALS: Readonly<Record<MeleeOrderRefusal, string>> = {
+  noPath: 'no path to the target',
+  notEnoughAP: ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs',
+};
 
 const _MELEE_CHANCE_TO_GET_THROUGH = 100;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
@@ -877,11 +879,8 @@ export class TacticalSim {
     if (target === s.gridNo) return refuse('ownTile', 'cannot attack own tile');
     if (launcherWithoutRound(t, s))
       return refuse(ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo', ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo');
-    if (melee) {
-      if (!meleeSpot(t, s, target, level)) return refuse('notAdjacent', NOT_ADJACENT);
-      if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, s.aimTime)))
-        return refuse('notEnoughAP', ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs');
-    }
+    const meleeRefusal = melee ? meleeOrderRefusal(t, s, target) : null;
+    if (meleeRefusal) return refuse(meleeRefusal, MELEE_ORDER_REFUSALS[meleeRefusal]);
     const result = handleItem(t, s, target, level, s.attackingWeapon);
     if (result !== ItemHandle.OK) {
       s.doSpread = 0;

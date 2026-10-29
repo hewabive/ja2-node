@@ -126,17 +126,22 @@ describe('knife attacks', () => {
     expect(animName(t.content, merc.state)).toBe('KNIFE_BREATH');
   });
 
-  it('refuses through the API a diagonal knife target, which needs a walk to a side neighbour', () => {
-    const { sim, merc } = duel(KNIFE, gridNo(81, 81), Direction.SOUTHEAST);
+  it('prices a diagonal knife target without the walk to the side neighbour it steps to before the stab, as the original does', () => {
+    const { sim, merc, enemy } = duel(KNIFE, gridNo(81, 81), Direction.SOUTHEAST);
+    const t = sim.state;
     const before = merc.actionPoints;
-    const estimate = estimateAttack(sim, { soldier: 0, target: gridNo(81, 81) });
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
     expect(estimate.data).toMatchObject({ inReach: false });
-    expect((estimate.data as { apCost: number }).apCost).toBeGreaterThan(0);
+    expect(estimate.data).not.toHaveProperty('walkTo');
+    const { apCost } = estimate.data as { apCost: number };
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     expect(merc.walkToAttackCost).toBe(0);
-    const refused = sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(81, 81) });
-    expect(refused.ok).toBe(false);
-    expect(merc.actionPoints).toBe(before);
-    expect(sim.state.turn.attackBusyCount).toBe(0);
+    const events = runUntilIdle(sim);
+    expect([gridNo(81, 80), gridNo(80, 81)]).toContain(merc.gridNo);
+    expect(first(events, 'meleeStrike')).toMatchObject({ soldier: 0, target: enemy.gridNo, weapon: 'blade' });
+    expect(before - merc.actionPoints).toBeGreaterThan(apCost);
+    expect(merc.pendingMelee).toBeNull();
+    expect(t.turn.attackBusyCount).toBe(0);
   });
 
   it('frees the attacker at once when the stab misses', () => {
@@ -237,9 +242,48 @@ describe('punches', () => {
     expect(seen.has('DODGE_ONE')).toBe(true);
   });
 
-  it('refuses a punch at someone two tiles away', () => {
-    const { sim } = duel(null, gridNo(80, 82), Direction.SOUTH);
-    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 82) }).ok).toBe(false);
+  it('walks up to punch someone three tiles away, charging the walk and the punch the estimate showed', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 83), Direction.SOUTH);
+    const t = sim.state;
+    const before = merc.actionPoints;
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
+    const { apCost, walkTo, steps } = estimate.data as { apCost: number; walkTo: number; steps: readonly { gridNo: number }[] };
+    expect(estimate.data).toMatchObject({ cursor: 'punch', inReach: false, walkTo: gridNo(80, 82) });
+    expect(steps.map((step) => step.gridNo)).toEqual([gridNo(80, 81)]);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(merc.gridNo).toBe(walkTo);
+    expect(first(events, 'meleeStrike')).toMatchObject({ soldier: 0, target: enemy.gridNo, weapon: 'punch' });
+    expect(before - merc.actionPoints).toBe(apCost);
+    expect(merc.pendingMelee).toBeNull();
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('refuses with the NO_PATH message a punch at someone whose every side tile is taken', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 84), Direction.SOUTH);
+    const guards = [gridNo(80, 83), gridNo(81, 84), gridNo(80, 85), gridNo(79, 84)];
+    for (const [k, at] of guards.entries()) spawnSoldier(sim, 21 + k, Team.ENEMY, at, Direction.NORTH);
+    sim.lookAround();
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({
+      ok: false,
+      reason: 'no path to the target',
+      data: { refusal: 'noPath' },
+    });
+    expect(merc.actionPoints).toBe(before);
+    expect(merc.gridNo).toBe(gridNo(80, 80));
+  });
+
+  it('refuses a punch whose walk the soldier cannot afford', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 86), Direction.SOUTH);
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
+    merc.actionPoints = (estimate.data as { apCost: number }).apCost - 1;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({
+      ok: false,
+      reason: 'not enough APs for this attack',
+      data: { refusal: 'notEnoughAP' },
+    });
+    expect(merc.gridNo).toBe(gridNo(80, 80));
   });
 
   it('estimates the fists of a merc who lost his gun in burst mode, and an empty tile as out of reach', () => {

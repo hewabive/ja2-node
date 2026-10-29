@@ -409,6 +409,25 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.lockState()).toBe('ourTurn');
   });
 
+  it('draws the walk up to a punch target out of reach, footsteps and the move grid at the tile he strikes from', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const shooter = tacticalOf(f.session).state.soldiers.find((v) => v?.id === 0);
+    if (!shooter) throw new Error('no merc 0 in the simulation');
+    shooter.inv[InvSlot.HAND] = emptyObject();
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toMatch(/PUNCH/);
+    expect(f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'))).toBe(true);
+    const grid = f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'));
+    expect(grid?.gridNo).not.toBe(enemy.gridNo);
+    expect(grid?.gridNo).not.toBe(merc(f, 0).gridNo);
+  });
+
   it('locates the seen enemies with e and Enter and skips the ones whose life is gone while they fall', async () => {
     const f = await inCombat();
     const selected = merc(f, f.screen.selected ?? 0);

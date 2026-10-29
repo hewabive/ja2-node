@@ -13,7 +13,7 @@ const GUN: EstimateAttack = {
   inRange: true,
   ammo: { empty: false, canReload: false, reloadAp: 0 },
 };
-const CONFIRMED = { activated: true, inCombat: true, burst: false, throwingKnife: false, onTarget: true };
+const CONFIRMED = { activated: true, inCombat: true, burst: false, throwingKnife: false, onTarget: true, onSelected: false };
 const HOVERING = { ...CONFIRMED, activated: false };
 const AIM = { shownAimTime: REFINE_AIM_1, fullCountRing: false };
 
@@ -30,6 +30,15 @@ describe('the aim cursor', () => {
     expect(attackCursor(broke, AIM, CONFIRMED)).toMatchObject({ cursor: 'ACTION_TARGETRED_UICURSOR', freeCursor: 'untouched' });
     const far = attackCursor({ ...GUN, inRange: false }, AIM, { ...CONFIRMED, activated: false });
     expect(far).toMatchObject({ cursor: 'ACTION_FLASH_SHOOT_UICURSOR', freeCursor: 'untouched' });
+  });
+
+  it('shows the punch and knife cursors red over any soldier but the selected merc, adjacent or a walk away', () => {
+    const fists: EstimateAttack = { ...GUN, cursor: 'punch', chanceToHit: null, inReach: false };
+    const knife: EstimateAttack = { ...fists, cursor: 'knife' };
+    expect(attackCursor(fists, AIM, HOVERING).cursor).toBe('ACTION_PUNCH_RED');
+    expect(attackCursor(knife, AIM, HOVERING).cursor).toBe('KNIFE_HIT_UICURSOR');
+    expect(attackCursor(fists, AIM, { ...HOVERING, onSelected: true }).cursor).toBe('ACTION_PUNCH_GRAY');
+    expect(attackCursor(knife, AIM, { ...HOVERING, onTarget: false }).cursor).toBe('KNIFE_REG_UICURSOR');
   });
 
   it('draws the item cursors of HandleAidCursor and HandleRemoteCursor, and the unbuilt item actions greyed out', () => {

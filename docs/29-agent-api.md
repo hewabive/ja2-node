@@ -48,10 +48,10 @@ an LLM agent without pausing is a non-goal.
 
 **Not built as commands** (the client shows them disabled): stealing (gap "Melee specials"); planting bombs and using
 wire cutters, toolkits, gas cans, jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers
-`notSupported`); walk-up melee (gap "Melee without walking"); auto-bandage (gap "Auto-bandage"); moving keys in and out
-of the key ring (gap "Inventory panel clicks"); the placement GUI (deviation "Tactical placement"); drugs and alcohol
-(`notPorted`, gap "Drugs and alcohol"); reloading the robot (`robotReload`, gap "Reloading the robot"); vehicles'
-condition and fuel (gap "Vehicles as characters").
+`notSupported`); auto-bandage (gap "Auto-bandage"); moving keys in and out of the key ring (gap "Inventory panel
+clicks"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and alcohol");
+reloading the robot (`robotReload`, gap "Reloading the robot"); vehicles' condition and fuel (gap "Vehicles as
+characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -257,10 +257,12 @@ what the description does not say.
 
 Rules: `10` (turns, §4.3), `11` (attacks), `34` (throws), `07` (movement). One `stance` command carries the movement
 mode the original keeps beside the stance (deviation "Stance"); a new `move` re-plans a halted move for any merc
-("Continue a move"); `attack` has no UI-level target checks ("Attack refusals") and no walk-up (gap "Melee without
-walking"); `pickUp` picks entries instead of the menu ("Picking up items"). A launcher without a round refuses `attack`
-with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command of its own: move it to
-the hand, check with `estimateAttack`, `attack` the tile.
+("Continue a move"); `attack` takes the click's checks of a melee attack, which the original never confirms without them
+(no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
+("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
+reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A launcher without a round
+refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command of its
+own: move it to the hand, check with `estimateAttack`, `attack` the tile.
 
 ### 8.2 Doors, containers and remote triggers
 

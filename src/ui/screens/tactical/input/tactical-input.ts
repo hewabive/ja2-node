@@ -2204,6 +2204,7 @@ export class TacticalInput {
       burst: this.#selBurst(sel),
       throwingKnife: knife,
       onTarget: this.#hover.target !== null,
+      onSelected: this.#hover.target?.id === sel.id,
     });
     this.#newCursor = result.cursor;
     if (result.apCost !== null) {
@@ -2214,7 +2215,7 @@ export class TacticalInput {
     }
     this.#markFreeCursor(result);
     if (estimate.cursor === 'target' || estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#bodyLocation(sel);
-    if ((estimate.cursor === 'punch' || estimate.cursor === 'knife' || estimate.cursor === 'aid') && this.#combat()) {
+    if (estimate.cursor === 'aid' && this.#combat()) {
       const answer = this.#hint<PreviewAction>({
         type: 'previewAction',
         soldier: sel.id,
@@ -2223,17 +2224,26 @@ export class TacticalInput {
         level: this.#host.interfaceLevel(),
       });
       const data = dataOf(answer);
-      if (estimate.cursor === 'aid' && data) {
+      if (data) {
         this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
         if (data.actionGridNo !== sel.gridNo) this.#showMoveGridAt = data.actionGridNo;
       }
     }
+    if (estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#meleeWalkPath(sel, estimate, activated);
     if (
       (estimate.cursor === 'toss' || estimate.cursor === 'trajectory') &&
       estimate.landsAt !== undefined &&
       this.#moveState === MouseMove.STATIONARY
     )
       this.#impact = { gridNo: estimate.landsAt, level: estimate.landsOnLevel ?? 0, good: estimate.pathClear !== false };
+  }
+
+  #meleeWalkPath(sel: SoldierView, estimate: EstimateAttack, activated: boolean): void {
+    this.#erasePath();
+    if (estimate.walkTo === undefined) return;
+    this.#steps = this.#plots() ? footstepMarkers(estimate.steps ?? [], sel.level) : [];
+    this.#showMoveGridAt = estimate.walkTo;
+    this.#showMoveGrid = activated ? 2 : 1;
   }
 
   #markFreeCursor(result: AttackCursor): void {

@@ -84,10 +84,11 @@ real shot wears a barrel extender, the one draw of the chance to hit.
 the aim and scope bonuses, `better_aiming_choice` off, no fixed shot cost; bullets are not hidden, so they step one tile
 per update.
 
-**Melee.** The strike frame hits whoever stands on the tile then; the hit follows as a game event. The agent's `attack`
-refuses a target that needs a walk, where the AI walks up as the original (gap "Melee without walking"). A punch at a
-tile its target has left releases the hold at once, where the original leaks it until its 25 s watchdog (deviation
-"Melee hold leaks"); a prone attacker who turns is not laid down mid-attack (deviation "Melee from a prone turn").
+**Melee.** The strike frame hits whoever stands on the tile then; the hit follows as a game event. A soldier out of
+reach walks up first (`walkUpForMelee`, `combat/melee.ts`), the AI's and ours alike; the agent's `attack` takes the
+click's checks before it (`combat/melee-order.ts`). A punch at a tile its target has left releases the hold at once,
+where the original leaks it until its 25 s watchdog (deviation "Melee hold leaks"); a prone attacker who turns is not
+laid down mid-attack (deviation "Melee from a prone turn").
 
 **Refusals.** `HandleItem`'s player refusals are not ported (deviation "Attack refusals"), nor is the rocket rifle's
 imprint (gaps "Rocket rifle imprint").
@@ -111,6 +112,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
+| A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
 
 Not pinned yet:
 - A prone shooter's close-range penalty against a standing target turns into a bonus at four and five tiles
@@ -140,8 +142,8 @@ draw nothing. Inferred from reading the source:
 - The chance to punch, blade dulling, surprise attacks, the queen's swipe; the barrel extender and the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Not ported: gaps "Melee specials", "Melee without walking", "Unseen soldiers in combat", "Knife stopped by a window",
-"Rocket rifle imprint".
+Not ported: gaps "Melee specials", "Unseen soldiers in combat", "Knife stopped by a window", "Rocket rifle
+imprint".
 Other deviations of this domain: "Game events", "Bullet flight", "Miss animation in water", "Melee hold leaks", "Melee
 from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order", "Watchdogs", "Difficulty
 and progress in tactical".

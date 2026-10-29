@@ -41,6 +41,7 @@ export interface AttackContext {
   readonly burst: boolean;
   readonly throwingKnife: boolean;
   readonly onTarget: boolean;
+  readonly onSelected: boolean;
 }
 
 const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], string>>> = {
@@ -161,7 +162,7 @@ function activatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext): At
 function melee(e: EstimateAttack, aim: AimState, c: AttackContext, punch: boolean): AttackCursor {
   const body = punch ? 'ACTION_PUNCH' : 'KNIFE';
   if (!c.activated) {
-    const onTarget = e.inReach === true;
+    const onTarget = c.onTarget && !c.onSelected;
     return plain(punch ? (onTarget ? 'ACTION_PUNCH_RED' : 'ACTION_PUNCH_GRAY') : onTarget ? 'KNIFE_HIT_UICURSOR' : 'KNIFE_REG_UICURSOR');
   }
   const first = punch ? REFINE_PUNCH_1 : REFINE_KNIFE_1;

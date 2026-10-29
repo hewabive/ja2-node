@@ -121,7 +121,6 @@ Commands the API does not have yet. Paths are under `src/sim/`.
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| Melee without walking | A melee attack walks up to its target first (`Tactical/Handle_Items.cc:485`) | The AI does; the API `attack` refuses with `notAdjacent` (`tactical/tactical-sim.ts`) | `handleItem` already walks up and prices the walk (`11`) |
 | Unbuilt item actions | Planting bombs and using wire cutters, toolkit, gas can, jar and tin can on a tile (`Tactical/Handle_Items.cc:549`, `:760`) | Not simulated, no command (`hints/preview-action.ts`) | Needs the actions and their commands (`12`, `29`) |
 | Auto-bandage | After a battle mercs with kits bandage everybody at a high time rate (`Tactical/Auto_Bandage.cc:184`) | The `bandage` command, one medic and patient at a time (`tactical/first-aid.ts`) | A large UI-driven mode |
 | Reloading the robot | Ammo dropped on the robot from the item cursor walks the merc next to it and reloads its gun at animation code 756 (`IsValidAmmoToReloadRobot`, `MERC_RELOADROBOT`, `Tactical/Interface_Items.cc:3255-3290`, `Tactical/Soldier_Ani.cc:2248-2266`) | `give` and `previewAction` refuse the robot as a target with `robotReload` (`campaign/talk-flow.ts`, `hints/preview-action.ts`) | Needs the pending reload action and its animation code |
