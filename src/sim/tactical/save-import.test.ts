@@ -24,9 +24,11 @@ beforeAll(async () => {
 const SAVE_VERSION = 99;
 const SECTOR = { x: 13, y: 4, z: 0 };
 const CENTRE = gridNo(80, 80);
+const MERC_ID = 3;
 const CIVILIAN_ID = 120;
 const MAX_TEAMS = 6;
 const SAVED_NOWHERE = WORLD_MAX + 1;
+const INT16_BYTES = 2;
 const NOBODY = TOTAL_SOLDIERS;
 
 type SoldierFields = Readonly<Record<string, number>>;
@@ -138,6 +140,13 @@ function soldierOf(sim: TacticalSim, id: number): Soldier {
   return s;
 }
 
+function lastKnownOppLocBytes(entries: readonly (readonly [viewer: number, opponent: number, gridNo: number])[]): Uint8Array {
+  const bytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS);
+  const view = new DataView(bytes.buffer);
+  for (const [viewer, opponent, g] of entries) view.setInt16((viewer * TOTAL_SOLDIERS + opponent) * INT16_BYTES, g, true);
+  return bytes;
+}
+
 describe('importSave, the tactical part of LoadSavedGame', () => {
   it('drops a saved movement reservation and pending animation: adding a soldier to the sector clears them (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
     const walker = gridNo(80, 82);
@@ -158,5 +167,23 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(sim.state.reserved[reserved]).toBe(-1);
     expect(civilian.pendingAnimation).toBe(NO_PENDING_ANIMATION);
     expect(civilian.pendingDirection).toBe(NO_PENDING_DIRECTION);
+  });
+
+  it('restores the personal last-known locations of soldiers 0-77 only, the rest keep the zeroed memory of a fresh process: the original saves the INT16 array with its element count as byte count (SaveLoadGame.cc LoadOppListInfoFromSavedGame, TODO000F)', () => {
+    const merc = gridNo(80, 82);
+    const civilian = gridNo(90, 82);
+    const seenAt = gridNo(91, 83);
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, merc), savedSoldier(CIVILIAN_ID, Team.CIV, civilian)],
+      lastKnownOppLocBytes: lastKnownOppLocBytes([
+        [MERC_ID, CIVILIAN_ID, seenAt],
+        [MERC_ID, MERC_ID + 1, SAVED_NOWHERE],
+      ]),
+    });
+    const sim = importedSim(save);
+    expect(soldierOf(sim, MERC_ID).lastKnownOpp[CIVILIAN_ID]).toBe(seenAt);
+    expect(soldierOf(sim, MERC_ID).lastKnownOpp[MERC_ID + 1]).toBe(NOWHERE);
+    expect(soldierOf(sim, CIVILIAN_ID).lastKnownOpp[MERC_ID]).toBe(0);
+    expect(sim.state.perception.publicLastKnown[Team.MILITIA]?.[MERC_ID]).toBe(NOWHERE);
   });
 });

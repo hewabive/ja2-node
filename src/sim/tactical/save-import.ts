@@ -18,7 +18,7 @@ import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { u8 } from '../../core/int.ts';
+import { i16, u8 } from '../../core/int.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
@@ -487,10 +487,13 @@ function linkSoldier(t: TacticalState, s: Soldier, r: SavedSoldier): void {
   s.nextToPreviousAttacker = soldierById(t, r.nextToPreviousAttacker);
 }
 
-function int16At(bytes: Uint8Array, index: number): number | null {
+const PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD = NOWHERE;
+const PERSONAL_LAST_KNOWN_IN_A_FRESH_PROCESS = 0;
+
+function halfSavedGridNo(bytes: Uint8Array, index: number, unsaved: number): number {
   const at = index * INT16_BYTES;
-  if (at + INT16_BYTES > bytes.length) return null;
-  return (((bytes[at] ?? 0) | ((bytes[at + 1] ?? 0) << 8)) << 16) >> 16;
+  if (at + INT16_BYTES > bytes.length) return unsaved;
+  return grid(i16((bytes[at] ?? 0) | ((bytes[at + 1] ?? 0) << 8)));
 }
 
 function importOpplists(t: TacticalState, save: SaveGame): void {
@@ -504,14 +507,14 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
       publicOpp[k] = v;
     });
     for (let k = 0; k < TOTAL_SOLDIERS; k++)
-      publicLastKnown[k] = grid(int16At(o.publicLastKnownOppLocBytes, team * TOTAL_SOLDIERS + k) ?? NOWHERE);
+      publicLastKnown[k] = halfSavedGridNo(o.publicLastKnownOppLocBytes, team * TOTAL_SOLDIERS + k, PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD);
     p.publicNoiseVolume[team] = o.publicNoiseVolume[team] ?? 0;
-    p.publicNoiseGridNo[team] = grid(int16At(o.publicNoiseGridNoBytes, team) ?? NOWHERE);
+    p.publicNoiseGridNo[team] = halfSavedGridNo(o.publicNoiseGridNoBytes, team, PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD);
   }
   for (const s of t.soldiers) {
     if (!s) continue;
     for (let k = 0; k < TOTAL_SOLDIERS; k++)
-      s.lastKnownOpp[k] = grid(int16At(o.lastKnownOppLocBytes, s.id * TOTAL_SOLDIERS + k) ?? NOWHERE);
+      s.lastKnownOpp[k] = halfSavedGridNo(o.lastKnownOppLocBytes, s.id * TOTAL_SOLDIERS + k, PERSONAL_LAST_KNOWN_IN_A_FRESH_PROCESS);
   }
   o.seenOpponents.forEach((row, viewer) => {
     row.forEach((v, k) => {
