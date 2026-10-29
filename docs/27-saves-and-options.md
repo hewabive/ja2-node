@@ -10,7 +10,7 @@ traced end to end.
 `src/ui/settings.ts`). Siblings: `31` (sound, music, video, localization), `32` (stub pack, performance, launcher, data
 tables). Elsewhere: `01` D6 and `01` §3.6 (random streams), `04` §5.5, `04` §5.10, `29` §26 and `29` §27 (the
 server's saves, the rule pack identity, the agent API), `14` (native saves), `15` and `35` (clock and schedules
-in saves), `30` §1.4 and `30` §1.5 (the canvas options and save/load screens), `deviations.md`.
+in saves), `30` and `30` (the canvas options and save/load screens), `deviations.md`.
 
 | § | Topic | Core decision |
 |---|---|---|
@@ -420,7 +420,7 @@ other than the streams and on any function. `pnpm cli replay` checks a saved log
 
 ### 1.11 Browser surfaces
 
-- The canvas save/load screen on `/play` (`src/ui/screens/front-end/save-load.ts`, `src/ui/saves/`, `30` §1.5) follows
+- The canvas save/load screen on `/play` (`src/ui/screens/front-end/save-load.ts`, `src/ui/saves/`, `30`) follows
   the original's list (newest first; in save mode quick and auto saves hidden and a new row first); the main menu's
   Alt+Load loads the newest save.
 - The launcher's save panel (`src/app/launcher/save-panel.ts`, `32` §3): the list with the original's row fields, Load
@@ -574,7 +574,7 @@ access is in `try`, so the pages work without storage. Agents have no client set
 | `meanwhileScenesSeen`, `helpHidden`, `helpScreensSeen` | a 32-bit scene mask; false; a 16-bit mask per campaign identity (at most 32 campaigns) | `Ja2.set`; the help mask is saved per campaign instead of in the save (deviations "Help screens seen") |
 | `coverSize`, `losSize` | 4–11, 4 | `DisplayCover.cc` `DC__MIN_SIZE`, `DC__MAX_SIZE` |
 | `playSplash`, `playIntro` | true, true | ja2-node (`31`) |
-| `uiScale`, `fixed640`, `websiteLoadingTimeScale` | auto; false; 0–10, 1 | ja2-node (`28` §2.6, `30` §6.1) |
+| `uiScale`, `fixed640`, `websiteLoadingTimeScale` | auto; false; 0–10, 1 | ja2-node (`28` §2.6, `30`) |
 
 The launcher exports and imports the settings as a JSON file `{format: 'ja2-node-settings', settings}`, normalized on
 import. **Not read yet:** `display.oldSelectionMethod`, `display.showMisses` and `display.smartCursor` (toggles on the

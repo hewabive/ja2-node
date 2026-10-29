@@ -113,7 +113,7 @@ In ja2-node the server owns time:
 - **Boxes opened by an event** (the map screen's update box): the real-time driver's `pauseOn: EventType[]` stops it on
   the tick of the first listed event (`04` §4.3); the client sets the list the original pauses at.
 - Decision prompts freeze the server anyway (D15).
-- The tactical player pause = the driver at `manual` + the original's mask (`30` §3.8).
+- The tactical player pause = the driver at `manual` + the original's mask (`30`).
 
 ---
 
@@ -159,13 +159,13 @@ region re-evaluation, sliders, `ScreenHost.update`, cursor timers, the screens' 
 diagnostics overlay of `29` §30, the software cursor last) → the world when the top screen `drawsWorld` → the draw
 into the logical framebuffer. An unchanged frame is not drawn again (§6.2).
 
-**Screen flow** (`FrontEndFlow`, `src/ui/screens/front-end/flow.ts`): the front-end screens (`30` §1) and the game
+**Screen flow** (`FrontEndFlow`, `src/ui/screens/front-end/flow.ts`): the front-end screens (`30`) and the game
 screens behind ports (`TacticalPort`, `MapPort`, `LaptopPort`; hosts in `src/app/tactical/`, `src/app/map/`,
 `src/app/laptop/`). `gameScreenOf(view)` follows the server's flow: `laptop` → laptop; an open pre-battle prompt → map;
 no strategic view, or the flows `tactical`, `meanwhile`, `endgame`, `ended` → tactical; otherwise the map. A frame that
 shows another flow while a game screen is up re-enters the game, so every screen change the server makes (the map's
 Tactical and Laptop buttons, the team panel's Map button, a pre-battle `enterSector`, the laptop's power button) takes
-one path. A game screen that cannot open shows `screen-unavailable` (`30` §1.11).
+one path. A game screen that cannot open shows `screen-unavailable` (`30`).
 
 **Connection** (`src/app/net/session-link.ts` under `SessionClient`). `connect` resolves on the welcome and fails on a
 refused hello, a `closed` reply or a socket closed before the welcome. During play a closed socket, or a server silent
@@ -193,7 +193,7 @@ received** one (`latestView`, which hints read), both updated by the generic `ap
 the tick), so every field the server adds reaches the screens without client work. `ReloadingSession`
 (`tests/support/session-reload.ts`, used by the stub scenario suites) checks it as the inverse of `diffPlayerView`
 through a `ViewMirror` (`tests/support/view-mirror.ts`) after every dispatch and advance. The client also keeps the
-message log, the frames not yet played back (`queuedFrames`, read by the input lock, `30` §3.1) and the `welcome`
+message log, the frames not yet played back (`queuedFrames`, read by the input lock, `30`) and the `welcome`
 identity (`engine {version, commit}`, `rules {pack, scripts}`, `04` §5.10).
 
 **The animation schedule.** The server splits `ja2bin.dat` into a logic timeline the simulation steps and a
@@ -247,7 +247,7 @@ then a strict rule reader with live graphic facts) and the server's loaders (`lo
 (`__JA2_ENGINE__`) and both hashes equal `welcome`'s. `HintProvider` implements `GameClient` (`src/ui/game-client.ts`:
 `hint(request)` polled every frame, `pending` until ready; `hintNow`; `query`): a request is answered once it has
 rested 80 ms per kind (`PATHFIND_REST_MS`, the original's `PATHFINDCOUNTER`, `Utils/Timer_Control.cc:19`), on the
-latest received view (in combat the input lock waits for playback anyway, `30` §3.1), with one projection per view and
+latest received view (in combat the input lock waits for playback anyway, `30`), with one projection per view and
 answers cached per view (a frame that moved only the tick keeps them); it falls back to the query channel while the
 knowledge is unusable, and for a hint that reads the loaded sector while its map is still loading
 (`hintReadsSectorWorld` in `src/sim/hints/types.ts`: all but `canEnterSector`, `assignmentOptions`, `previewRoute`,
@@ -258,11 +258,11 @@ when the reply arrives (`29` §28); `window.__ja2Ui.hints` counts compared, stal
 
 | Hint | Screen use |
 |---|---|
-| `previewMove` | move cursor, footstep path with AP bands, confirm marker (`30` §3.1, `30` §3.4) |
+| `previewMove` | move cursor, footstep path with AP bands, confirm marker (`30`, `30`) |
 | `previewAction` | action cursors (door, pick up, talk, give, jump, swap, look, aid) and the walk-up path |
 | `estimateAttack` | attack cursors (aim rings, chance to hit, range, reload, throw and launch), the `f` key |
-| `exitSector` (`dryRun`), `exitSectorOptions` | exit arrow colour, sector exit dialog (`30` §3.6) |
-| `placements`, `itemInfo` | inventory hatches, attach and merge targets, compatible outlines (`30` §2.3); the description box (`30` §2.4) |
+| `exitSector` (`dryRun`), `exitSectorOptions` | exit arrow colour, sector exit dialog (`30`) |
+| `placements`, `itemInfo` | inventory hatches, attach and merge targets, compatible outlines (`30`); the description box (`30`) |
 | `canEnterSector`, `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions` | the map screen |
 
 **Keeping them equal.** The `src/server/hints-*-stub.test.ts` suites and their `-original` twins
@@ -288,7 +288,7 @@ ETag, gzip of compressible files, the persisted hash cache) is `04` §5.10. The 
 | `asset-source.ts` | `AssetSource`, the replaceable seam (§1.3), and `HttpAssetSource`: the `Vfs` over the layer, the stub text fallback the server's `/vfs` has, `hashOf`, `read`, `readOptional` |
 | `page-assets.ts` | `pageAssetSource()`: one source and one manifest request per page; the `src/app/net/vfs.ts` helpers (`fetchVfsFile`, `fetchOptionalVfsFile`, `readVfsFileOrNull`, `fetchVfsList`) read through it, so the world, sounds, music and video come from immutable URLs, a file missing from the manifest answers without a request, a stale hash falls back to the plain URL, and the file list is the manifest's |
 | `asset-cache.ts` | `AssetCache`: values by (content hash, decoder name), LRU by bytes (256 MB), loads shared while in flight, raw bytes reused by decoders; `loadDecodedAsset`. Decoding is cheap (a tileset's ETRLE frames in 17–53 ms), so the persistent layer is the HTTP cache |
-| `preload.ts` | `preloadAssets(source, paths, {cache, signal, onProgress})` → loaded and missing paths, progress per file; the loading screens' bar follows it (`30` §1.10) |
+| `preload.ts` | `preloadAssets(source, paths, {cache, signal, onProgress})` → loaded and missing paths, progress per file; the loading screens' bar follows it (`30`) |
 
 `UiAssets` (`src/app/game/ui-assets.ts`, the `ImageCatalog` of `src/ui/assets.ts`) loads STIs, fonts and PCX (as opaque
 RGB565) through the cache and registers RGB pictures the client composes (`addRgb`: the overhead map, the map board).
@@ -334,7 +334,7 @@ shading as `05` specifies; the client's lighting is `20`.
 | Static scene | `static-scene.ts` builds the map once into eleven segments kept per row: land, objects, shadows, structs (with the wall strips), strict strips (non-wall multi-Z, `<`), roofs, on-roof, topmost (wireframes), and the obscured pass (dithered, dithered multi-Z, depth-writing). Every segment writes depth and z modulo 8 is the sublayer (structs 4, items 1, roofs 5, on-roof 6, topmost 7), so sprites of different segments never tie and the original's per-row interleaving comes out in any order; ties inside a segment keep the sweep order; strict strips go last because a strict sprite loses every tie (deviations "Show-through order", "Sweep window"). Positions are camera-free; camera, render height and viewport are uniforms; each frame draws the instance ranges of the visible rows. Doors and revealed rooms rebuild only their rows (`changedRevealTiles`); the tree-top, wireframe and roof-level options rebuild all |
 | Draw path | `world-program.ts`: sprites pulled by `gl_VertexID` from an RGBA32F data texture (three texels per sprite) with plain `drawArrays`; the shade from a 160×160 RG8UI texture (land and roof shade per tile) or fixed per sprite. No instancing: SwiftShader (headless Chromium without a GPU, CI) pays per instance. `world-framebuffer.ts`: colour and 24-bit depth at the logical size; `picture-memo.ts` skips, shifts or partially redraws a frame (§6.2) |
 | Dynamic pass | `dynamic-scene.ts`, over the visible rows' tiles with dynamic content: the item pass (at most two items per pool, dithered `<=` then depth-writing `>`, outline on index 254), then per row: dynamic objects, dynamic shadows, roof soldiers (`STRUCT_MERCS`), ground soldiers, dynamic structs; dynamic roofs, roof soldiers again (`HIGHMERCS`, as the original draws them twice), dynamic on-roof; topmost. A soldier is three sprites (shadow index 254 multiplied where `zbuf < z`, body where `zbuf <= z`, dithered body where `zbuf > z`) at the merc z, the on-roof z for `level > 0`, or 32767 at the glow peak; on a tile whose last structure is a single-tile non-wall one (`MAPELEMENT_EXT_NOBURN_STRUCT`), 2 nearer and without the dithered part. Multi-tile soldiers (prone mercs, vehicles, the tank, large creatures) go to the struct-merc pass at their animation structure's z with its z strips |
-| UI nodes | `WorldUiNode {gridNo, layer: object \| roof \| onRoof \| topmost, tile, head?, offsetX?, offsetY?, shade?}` merged into the dynamic pass of its layer and tile (the markers of `30` §3.4), at the layer's z (`OBJECTLAYER_USEZHEIGHT` objects at `8·wy`, topmost 32767), shade 4 by default. Animated tiles show `animationFrames[⌊clock / 200 ms⌋ mod n]` |
+| UI nodes | `WorldUiNode {gridNo, layer: object \| roof \| onRoof \| topmost, tile, head?, offsetX?, offsetY?, shade?}` merged into the dynamic pass of its layer and tile (the markers of `30`), at the layer's z (`OBJECTLAYER_USEZHEIGHT` objects at `8·wy`, topmost 32767), shade 4 by default. Animated tiles show `animationFrames[⌊clock / 200 ms⌋ mod n]` |
 | Camera, picking | `camera.ts`: `ApplyScrolling` with the tile-centre snap, the scroll rectangle of restriction 0 and 1 and `setRenderCenter` (`05`). `picking.ts`: the soldier whose drawn frame has an opaque, non-shadow pixel under the pointer, topmost sprites first; tiles by `screenToGridNo` (`05`) |
 | Lighting | `src/app/world/world-lighting.ts` runs the simulation's lighting over the client's own `TacticalWorld`: the view's ambient and dynamic light sprites, the map's lights for the hour, doors as perceived. A tile's shade = `natural − strongest light` (`LightAddTileNode`'s `ubMaxLights`, not the gameplay sum); map lights cached per (hour, ambient, doors), merc lights added per frame (`light-templates.ts`); the map's light colour tints tiles and soldiers. The client keeps the map's original structures, so a wall destroyed by a grenade does not let a lamp's light through on the client |
 | Soldiers | `src/app/world/soldier-scene.ts`: sheet and frame (§2.3); palette rows per soldier palette (16 shades, 20 red glow, 20 orange roof glow); own mercs personally lit at shade 3 unless "merc casts light" at night, others the land or roof shade of their tile, then `max(shade − 2, 4)`; the glow (`src/render/world/glow.ts`: 30 frames of 100 ms, hostiles on our turn or under AI control, topmost at frame ≥ 7, grey offset 10 when the selected merc does not see the soldier; `glow-context.ts` takes `hostile`, `sees` and the AI baton holder from `aiTurn` events); the fades (`soldier-fade.ts`: a newcomer of another team from shade 12 down, a soldier who left the view up to 12 at his last tile, 60 ms a step) |
@@ -351,7 +351,7 @@ original data (§4).
 
 | Path | Layer | Content |
 |---|---|---|
-| `src/ui/` (`screen.ts`, `runtime.ts`, `clock.ts`, `services.ts`, `resolution.ts`, `draw-list.ts`, `assets.ts`, `settings.ts`, `message-boxes.ts`, `game-client.ts`, `speech.ts`, `diagnostics-overlay.ts`) | ui | screen and modal stacks; `UiRuntime` (regions, buttons, sliders, fonts, images, sounds, cursor, clocks; held keys polled from it); UI scale; draw list; client settings; `MessageBoxes`; `GameClient`; `SpeechPresenter` (`30` §2.8); the Ctrl+F overlay |
+| `src/ui/` (`screen.ts`, `runtime.ts`, `clock.ts`, `services.ts`, `resolution.ts`, `draw-list.ts`, `assets.ts`, `settings.ts`, `message-boxes.ts`, `game-client.ts`, `speech.ts`, `diagnostics-overlay.ts`) | ui | screen and modal stacks; `UiRuntime` (regions, buttons, sliders, fonts, images, sounds, cursor, clocks; held keys polled from it); UI scale; draw list; client settings; `MessageBoxes`; `GameClient`; `SpeechPresenter` (`30`); the Ctrl+F overlay |
 | `src/ui/input/`, `text/`, `widgets/`, `cursors/`, `layout/` | ui | §3.1–§3.10 |
 | `src/ui/screens/` | ui | controllers: `front-end/`, `tactical/` (`input/`), `talk/`, `shop/`, `map/`, `battle/`, `laptop/`, `help/`, `story/`; `contracts.ts`, `gallery.ts`, `credit-roll.ts`, `test-pattern.ts` |
 | `src/ui/saves/`, `src/ui/client/` | ui | save controller and rows, campaign form, REST types, `FrontEndClient`, failure texts (shared with the launcher) |
@@ -509,10 +509,10 @@ never a path; with a display language other than the data's, these pictures keep
 |---|---|---|
 | Popup box and menu | `Utils/PopUpBox.cc` | `PopupBox` (`src/ui/widgets/popup-box.ts`): the background cropped, 2×2 corners, 16×2 and 2×8 edge pieces with the overlapping last piece, the line states (normal, highlight, shade, secondary shade), the second column, auto-resize; `PopupMenu`: line regions at `HIGHEST − 4` over a screen mask that closes it on an outside click. Used by the map screen's assignment menus, the tactical movement and door menus |
 | Merc popup box (text box) | `Utils/MercTextBox.cc` | `MercTextBox`: `PrepareMercPopupBox` sizes with the 349×199 cap (the height clamped at 199 instead of throwing), 10-pixel border tiles over a tiled background, Ian wrap, the styles BASIC (`interface/tactpopup.sti`), red-on-white, blue-on-grey, laptop, I.M.P., icons, colours by background. Subtitles, message boxes, civilian quotes, laptop popups |
-| Message box | `MessageBoxScreen.cc` | `MessageBox` (`message-box.ts`, a modal, `30` §1.6): 300 wide with margins 40/10/30, centred on the screen or a rectangle, a full-screen `HIGHEST` back region with the style's cursor, every button set at the original positions, its keys as a hotkey table on release, the UI clock paused, `pauseGame` called (§1.4), the screen frozen under it (its draw list, not pixels), its buttons sounding with the underlying screen's scheme. No pointer warp onto a button (deviation "Pointer warp") |
+| Message box | `MessageBoxScreen.cc` | `MessageBox` (`message-box.ts`, a modal, `30`): 300 wide with margins 40/10/30, centred on the screen or a rectangle, a full-screen `HIGHEST` back region with the style's cursor, every button set at the original positions, its keys as a hotkey table on release, the UI clock paused, `pauseGame` called (§1.4), the screen frozen under it (its draw list, not pixels), its buttons sounding with the underlying screen's scheme. No pointer warp onto a button (deviation "Pointer warp") |
 | Slider | `Utils/Slider.cc` | `Slider`: both styles, thumb `interface/sliderbox.sti`, range 0–127, the off-region drag from the pointer's y, wheel steps, the inverted value, `SetSliderValue` ignoring the maximum |
 | Text field | `Utils/Text_Input.cc` | `TextFieldGroup`: the default bevel scheme, full text and numeric filters, selection, caret keys, Tab order, Ctrl+Delete, unmodified keys swallowed while editing, the caret on the UI clock, `ENTERING_TEXT`/`REMOVING_TEXT`; no editor input types (deviation "Text input") and no IME (gap "IME composition") |
-| Progress bar | `Utils/Animated_ProgressBar.cc` | `ProgressBar` (the load bar and the panel style), driven by the client's preload (`30` §1.10) |
+| Progress bar | `Utils/Animated_ProgressBar.cc` | `ProgressBar` (the load bar and the panel style), driven by the client's preload (`30`) |
 | Fade | `Fade_Screen.cc` | `Fade`: 11 steps out then black, 9 in, 16 ms each on the UI clock; a step multiplies the frozen frame by 0.8^k once instead of k shade-table passes (deviation "Fades"); no cursor during a fade |
 | Snapshot zoom | laptop open/close (`Laptop/Laptop.cc:1048`, `:1430`), A.I.M. video window, autoresolve opening, sector change (`Strategic/StrategicMap.cc:227-237`) | `SnapshotZoom`: render-to-texture (the `capture` and `snapshot` draw items) with `BltStretchVideoSurface`'s stepping in the shader; the 2 s sector-change zoom is not built |
 | Drop-down, frame animator, portrait, item picture | laptop pages | `drop-down.ts`, `frame-animator.ts`, `portrait.ts` (a face by index and size, dead faces shaded, unavailable ones under `ShadowRect`), `item-picture.ts` (the inventory graphic centred in a cell, optional shadow) |
@@ -540,7 +540,7 @@ save/restore rectangles and a save buffer. ja2-node keeps the observable rules a
 - **Hotkeys as data** (`src/ui/input/hotkeys.ts`), per layout and per modal: key, phase (down, up, repeat), exact
   modifier mask or `any`, action, optional condition. The original hard-codes whether each hotkey fires on key-down or
   key-up and which exact modifiers it needs; the tables keep both, which also makes remapping and other layouts
-  possible (there is no remap UI). The tactical keys are code that follows `GetKeyboardInput` (`30` §3.3).
+  possible (there is no remap UI). The tactical keys are code that follows `GetKeyboardInput` (`30`).
 - Text fields get keys first and swallow them while editing; held keys and modifiers are polled from `UiRuntime` for
   tactical cursors and actions.
 - Browser collisions: Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be overridden; every other key is `preventDefault`-ed
@@ -706,7 +706,7 @@ the persons.
   quads and glyph runs, `__snapshots__/` beside the tests) are exact, GPU-free regressions; the layout contract test
   (§3.10) on the stub pack and, with `JA2_DATA_DIR`, the original data.
 - **The hook** `window.__ja2Ui` (§2.2; `lastCommand` names the session's last command and `lastResult` is its
-  `{ok, reason, refusal}`; `frameStats`, `lagTicks`; the per-screen blocks of `30` §4.12 and `30` §5.4, `help`
+  `{ok, reason, refusal}`; `frameStats`, `lagTicks`; the per-screen blocks of `30` and `30`, `help`
   `{open, forced, page, top, totalLines}`, `story` `{step, played, meanwhileBoxes, endings}`). E2e tests click widget
   centres through `page.mouse` and press keys by `KeyboardEvent.code`; every wait is on hook state, and screen loads
   wait while the page keeps loading (`waitWhileLoading`) instead of a fixed timeout. `?shadowHints=1` sends every local
@@ -830,6 +830,6 @@ Limitations of single screens are in `30`.
    see them, saves keep them, one audit pass (`29` §8).
 
 Decided where they are described: the UI scale (§2.6), the data scenarios (§1.3), cursor hints on the client (§2.4),
-the animation scripts as data from the user's files (§2.3); in the screens: the `gui_extras` stat bars off (`30` §2.1),
-the brothel time warp (`30` §1.11) and the loading-screen entry draw (`30` §1.10) simulated, the map path quirks kept
-(`30` §4.6).
+the animation scripts as data from the user's files (§2.3); in the screens: the `gui_extras` stat bars off (`30`),
+the brothel time warp (`30`) and the loading-screen entry draw (`30`) simulated, the map path quirks kept
+(`30`).
