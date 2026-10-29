@@ -876,7 +876,7 @@ All initialisation draws are `main`; none is a `PreRandom`. Order:
 
 1. `DecideActiveTerrorists` (`35`): 2 × `Chance(70|50|30)`; then sweeps over the terrorist list: per unplaced
    candidate `Random(100)` (< 40 places), then `Random(#sectors)` repeated until an unused sector.
-2. `StartSomeMercsOnAssignment` (`21` §2.2): per AIM/MERC profile in content order `Random(100)`, and `Random(6 + exp/2)`
+2. `StartSomeMercsOnAssignment` (`21`): per AIM/MERC profile in content order `Random(100)`, and `Random(6 + exp/2)`
    when busy.
 3. Arms dealers, then Bobby Ray new and used inventories (their draw counts depend on the item tables).
 4. `BuildUndergroundSectorInfoList`: per entry up to three `Random(variance)`.

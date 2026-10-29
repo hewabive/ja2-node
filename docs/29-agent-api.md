@@ -863,7 +863,7 @@ changes (a merc back home, away, dead elsewhere, the M.E.R.C. outage) raise no e
 - History rows carry `text` (`ProcessHistoryTransactionString` in the session's language; quest rows are rows 2q and
   2q + 1 of `binarydata/quests.edt`; codes without text give ""), `location` (`pHistoryLocations` without a sector, else
   the full `GetSectorIDString` of `src/server/sector-id-label.ts`, shared with the finance rows) and
-  `questInProgress`; finance rows carry `text` and the view `financeSummary` (`21` §6.3).
+  `questInProgress`; finance rows carry `text` and the view `financeSummary` (`21`).
 - `personnel` (`src/server/personnel-view.ts`) holds `current` (team members without vehicles in team order, dead ones
   included, `CFOR_EACH_PERSONNEL`) and `departed` (dead, fired, other).
 - A.I.M. mercs come in the order of `mercs-AIM-listings.json` with `contact` (`WillMercAcceptCall`) and

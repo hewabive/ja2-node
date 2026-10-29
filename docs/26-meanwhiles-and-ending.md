@@ -117,7 +117,7 @@ is small).
   callers are `CheckConditionsForTriggeringCreatureQuest` (sci-fi only, `:898-920`) and entering the Tixa cave J9 b2
   **without a sci-fi check** (`StrategicMap.cc:491-497`); the scene's records have a `NO_SCI_FI_END_MEANWHILE` branch for
   that case (§1.7). The creature quest is `17` §12.
-- **Flowers** (`21` §7.3): only when the delivery sector's town is Meduna; the "next day" box → code 0. The draw happens
+- **Flowers** (`21`): only when the delivery sector's town is Meduna; the "next day" box → code 0. The draw happens
   only when the flag is clear (`:697-701`), before the florist's order-number draw.
 - **Chopper**: every landing after which the helicopter can fly again (`Map_Screen_Helicopter.cc:398-421`); the draw only
   while the flag is clear.
@@ -514,7 +514,7 @@ last one). ja2-node: `liberate` (`src/sim/strategic/map/control.ts`) calls `ai.m
 ### 4.4 Progress-related narrative owned elsewhere
 
 Enrico's progress and setback mails and "lack of progress" (`HandleEnricoEmail`, `Strategic/Strategic_Status.cc:246-376`;
-`21` §6, `18`); the computed facts `FACT_PLAYER_DOING_POORLY/WELL/VERY_WELL` (< 20, > 50, > 80 %,
+`21`, `18`); the computed facts `FACT_PLAYER_DOING_POORLY/WELL/VERY_WELL` (< 20, > 50, > 80 %,
 `Strategic/Quests.cc:861-871`; `25`); Skyrider's progress comments on helicopter routes (`MapScreen.cc:7341-7380`,
 `gubPlayerProgressSkyriderLastCommentedOn`; `25`); merc morale `progress/5` (`Morale.cc:255`, `22`); dealer coolness (`23`);
 the creature quest triggers (`17` §12).
@@ -776,7 +776,7 @@ handling on sector load (`16`) and after doors and explosions (`12`).
 
 | Where | Draws | Stream |
 |---|---|---|
-| Florist order to Meduna, `FLOWERS` flag clear (§1.3) | `R(5)` (next day) or `R(48)`, before the florist's own order-number draw (not drawn in ja2-node, `21` §7.3) | main |
+| Florist order to Meduna, `FLOWERS` flag clear (§1.3) | `R(5)` (next day) or `R(48)`, before the florist's own order-number draw (`21`) | main |
 | Helicopter landing able to fly, `KILL_CHOPPER` flag clear | `R(10)` | main |
 | `EVENT_MEANWHILE` with enemies in the loaded sector | `R(121)` per repost (repeats for the past-stamped interrogation) | main |
 | Scheduling, implications, progress events, first battle | none (the SAM squad's moves draw as `17` §9.5; `WakeUpQueen`'s fortification draws as `17` §9.2) | — |

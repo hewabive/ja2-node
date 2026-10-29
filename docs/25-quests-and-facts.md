@@ -111,7 +111,7 @@ read only by records (265/266 also by fact 264), so not in the table: `MIGUEL_FO
 |---|---|---|---|
 | 23 | `MIGUEL_READ_LETTER` | records | town loyalty start (`Strategic/Strategic_Town_Loyalty.cc:160`, `loyalty.ts`) |
 | 29 | `PACOS_KILLED` | T when the player **wounds** Pacos (`Tactical/Soldier_Control.cc:5844-5848`) | records |
-| 34, 35, 53–62, 125 | Bobby Ray shipment facts | `BobbyRayPurchaseEventCallback` (`SEH:70-319`, `21` §5.5); `REALLY_NEW…`/`LARGE_SIZED_OLD…` also by the NPC system event (`SEH:560-568`) | records (Pablo), `21` |
+| 34, 35, 53–62, 125 | Bobby Ray shipment facts | `BobbyRayPurchaseEventCallback` (`SEH:70-319`, `21`); `REALLY_NEW…`/`LARGE_SIZED_OLD…` also by the NPC system event (`SEH:560-568`) | records (Pablo), `21` |
 | 36 | `PLAYER_FOUND_ITEMS_MISSING` | T when a merc says the "stuff missing" quote opening the airport crate (`Tactical/Dialogue_Control.cc:1416-1420`, trigger `TileEngine/Interactive_Tiles.cc:121-131`) | Pablo rules (`OH:5354`), crate trigger |
 | 37 | `PABLO_PUNISHED_BY_PLAYER` | T when the player attacks Pablo after 36 (`OH:5354-5357`); F when the goods return (`SEH:364`) | `CheckFact(32/33)` (`Q:500`), `OH:5410` |
 | 38 | `FACT_38` | records | Pablo: attack triggers record 3 only while false (`OH:5410`) |
@@ -226,7 +226,7 @@ team, the loaded sector only); "dead(x)" = `bMercStatus == MERC_IS_DEAD`. Distan
 | 157 | `ELGIN_ALIVE` | !dead(DRUGGIST) | `:832-834` |
 | 164 | `SHANK_IN_SQUAD_BUT_NOT_SPEAKING` | Shank on our team && `RECRUITED` && src is not Shank | `:703-708` |
 | 167 | `SHANK_NOT_IN_SECTOR` | no soldier(SHANK) | `:710-712` |
-| 168 | `BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO` | quest 13 started && `now − GetTimeQuestWasStarted(13) > 2880` (history lookup, `21` §6.2) | `:876-878` |
+| 168 | `BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO` | quest 13 started && `now − GetTimeQuestWasStarted(13) > 2880` (history lookup, `21`) | `:876-878` |
 | 170 | `QUEEN_DEAD` | dead(QUEEN) | `:713-715` |
 | 171 | `SPEAKER_AIM_OR_AIM_NEARBY` | dest exists && an OUR A.I.M. merc ≥ OKLIFE within 10 of dest | `:409-421, 836-838` |
 | 172–177 | `MINE_EMPTY`, `MINE_RUNNING_OUT`, `MINE_PRODUCING_BUT_LOYALTY_LOW`, `CREATURES_IN_MINE`, `PLAYER_LOST_MINE`, `MINE_AT_FULL_PRODUCTION` | the head miner p's mine: `IsHisMineEmpty`, `…RunningOut`, `HasHisMineBeenProducingForPlayerForSomeTime && IsHisMineDisloyal`, `…Infested`, `…LostAndRegained`, `…AtMaxProduction` (`18`; `mines.ts`, `mine-status.ts`) | `:716-733` |
@@ -335,7 +335,7 @@ InternalEndQuest(q, sector, history):            // EndQuest = history TRUE
   OnQuestEnded(q, sector.x, sector.y, history)    // Lua observer: no listeners in the shipped scripts
 ```
 
-The history entry carries the quest id in its data field and the sector (`−1/−1` prints "n/a", `21` §6.2). Quests
+The history entry carries the quest id in its data field and the sector (`−1/−1` prints "n/a", `21`). Quests
 themselves give no experience, money, loyalty or progress; rewards come from the actions that end them (§2.4).
 
 ### 2.3 `InitQuestEngine` and `CheckForQuests`
