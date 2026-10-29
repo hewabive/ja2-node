@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { states } from '../animation.ts';
@@ -10,8 +11,9 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { AlertStatus, Attitude, NOBODY, type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { enterCombatMode } from '../turns/turns.ts';
 import { AiAction } from './actions.ts';
-import { type CombatDeciderHooks, decideActionRed, decideActionYellow } from './combat-decide.ts';
+import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
 import { determineMovementMode } from './decide.ts';
 
 let content: TacticalContent;
@@ -73,5 +75,51 @@ describe('the spotter call (DecideAction.cc DecideActionRed, DecideActionBlack)'
     expect(caller).not.toBe(NOBODY);
     expect(t.turn.spottersCalledForBy).toBe(caller);
     expect(grenadier.actionPoints).toBe(actionPoints);
+  });
+});
+
+describe('the mortar room in black (DecideAction.cc DecideActionBlack)', () => {
+  const GUNNER_AT = gridNo(80, 80);
+  const TOWARD_TARGET = gridNo(80, 81);
+  const BEHIND = gridNo(80, 79);
+
+  function blackMortarGunner(blocked: readonly number[]) {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 100), Direction.NORTH);
+    const gunner = spawnSoldier(sim, 20, Team.ENEMY, GUNNER_AT, Direction.SOUTH);
+    spawnSoldier(sim, 21, Team.ENEMY, gridNo(60, 60), Direction.SOUTH);
+    gunner.inv[InvSlot.HAND] = createItem(content.items, 0, 0);
+    gunner.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('MORTAR'), 100);
+    gunner.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('MORTAR_SHELL'), 100);
+    gunner.life = gunner.lifeMax / 2;
+    sim.lookAround();
+    enterCombatMode(t, Team.ENEMY);
+    gunner.ai.alertStatus = AlertStatus.BLACK;
+    for (const g of blocked) t.world.terrain[g] = Terrain.LOW_WATER;
+    let acts = 0;
+    const hooks: CombatDeciderHooks = { ...NO_GREEN_DECISION, npcDoesAct: () => acts++ };
+    const action = decideActionBlack(t, gunner, hooks);
+    return { action, actionData: gunner.ai.actionData, acts };
+  }
+
+  it('fires the mortar when the tile toward the target leaves room to fall', () => {
+    const { action, acts } = blackMortarGunner([]);
+    expect(action).toBe(AiAction.TOSS_PROJECTILE);
+    expect(acts).toBe(1);
+  });
+
+  it('backs off a tile instead of firing when the tile toward the target is blocked', () => {
+    const { action, actionData, acts } = blackMortarGunner([TOWARD_TARGET]);
+    expect(action).toBe(AiAction.GET_CLOSER);
+    expect(actionData).toBe(BEHIND);
+    expect(acts).toBe(0);
+  });
+
+  it('drops the mortar throw without acting when there is no room on either side', () => {
+    const { action, acts } = blackMortarGunner([TOWARD_TARGET, BEHIND]);
+    expect(action).not.toBe(AiAction.TOSS_PROJECTILE);
+    expect(action).not.toBe(AiAction.GET_CLOSER);
+    expect(acts).toBe(0);
   });
 });

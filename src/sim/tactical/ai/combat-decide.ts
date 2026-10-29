@@ -328,27 +328,24 @@ function locationToLocationLosFrom(t: TacticalState, s: Soldier, g: number): boo
   return locationToLocationLos(t, s.gridNo, s.level, g, s.level, 6, true) !== 0;
 }
 
-function mortarRoomOrBackOff(t: TacticalState, s: Soldier, target: number): number | null {
-  const dir = directionToward(s.gridNo, target);
+function backOffWithoutMortarRoom(t: TacticalState, s: Soldier, toss: AttackChoice): number | null {
+  if (s.inv[toss.weaponIn]?.item !== itemIndexOf(t, 'MORTAR')) return null;
+  const dir = directionToward(s.gridNo, toss.target);
   const ahead = newGridNo(s.gridNo, DIRECTION_INCREMENT[dir] ?? 0);
   if (okFallDirection(t, s, ahead, s.level, dir, s.state)) return null;
+  toss.possible = false;
   const back = (dir + 4) % 8;
   const behind = newGridNo(s.gridNo, DIRECTION_INCREMENT[back] ?? 0);
-  if (okFallDirection(t, s, behind, s.level, back, s.state)) {
-    s.ai.actionData = behind;
-    return AiAction.GET_CLOSER;
-  }
-  return AiAction.NONE;
+  if (!okFallDirection(t, s, behind, s.level, back, s.state)) return null;
+  s.ai.actionData = behind;
+  return AiAction.GET_CLOSER;
 }
 
 function longRangeToss(t: TacticalState, s: Soldier): number | null {
   const toss = checkIfTossPossible(t, s);
   if (toss.possible) {
-    if (s.inv[toss.weaponIn]?.item === itemIndexOf(t, 'MORTAR')) {
-      const blocked = mortarRoomOrBackOff(t, s, toss.target);
-      if (blocked === AiAction.GET_CLOSER) return blocked;
-      if (blocked === AiAction.NONE) toss.possible = false;
-    }
+    const backOff = backOffWithoutMortarRoom(t, s, toss);
+    if (backOff !== null) return backOff;
   }
   if (toss.possible) {
     if (toss.weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, toss.weaponIn);
@@ -871,7 +868,11 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
     }
     bestThrow = checkIfTossPossible(t, s);
-    if (bestThrow.possible) hooks.npcDoesAct(t, s);
+    if (bestThrow.possible) {
+      const backOff = backOffWithoutMortarRoom(t, s, bestThrow);
+      if (backOff !== null) return backOff;
+      if (bestThrow.possible) hooks.npcDoesAct(t, s);
+    }
     weaponIn = findAIUsableObjClass(t, s, ItemClass.BLADE | ItemClass.THROWING_KNIFE);
     if (weaponIn !== NO_SLOT) {
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
