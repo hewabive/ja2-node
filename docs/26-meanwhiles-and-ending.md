@@ -419,7 +419,7 @@ them and what else happens.
 | Path | Where | Captured |
 |---|---|---|
 | Tactical loss with 2–3 incapacitated real mercs, an active enemy team, and Alma not started or (Alma done and interrogation not started) | `Overhead.cc:5010-5072` (`19`) | each in-sector merc with life ≠ 0 |
-| Tactical surrender: an enemy offers (`DecideAction.cc:2641-2654`, `13` §6.1) through a civilian quote (`24`) and the player accepts the yes/no box | `Tactical/Civ_Quotes.cc:150-178, 196-205` | every in-sector merc with life ≠ 0 |
+| Tactical surrender: an enemy offers (`DecideAction.cc:2641-2654`, `13`) through a civilian quote (`24`) and the player accepts the yes/no box | `Tactical/Civ_Quotes.cc:150-178, 196-205` | every in-sector merc with life ≠ 0 |
 | Autoresolve surrender or capture (from day 4; refused once the rescue flag is set, so normally only the first capture) | `Auto_Resolve.cc:3359-3433` (`19`) | the involved cells |
 
 Each path runs `BeginCaptureSquence`, `EnemyCapturesPlayerSoldier` per merc, then `EndCaptureSequence`. The tactical

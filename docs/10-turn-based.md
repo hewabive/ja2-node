@@ -11,7 +11,7 @@ walks `MercSlots` (sector insertion order); `FOR_EACH_SOLDIER` walks all ids (`T
 
 Companions: `11` §0 (coupling overview), `07` §3.5–§3.6, §4.6, §4.10 (movement AP and the NoAP freeze), `08` §2
 (sight, opplists, best sighting in real time), `09` (AI state, `ActionDone`, the green decision), `33` (the end of
-an attack, suppression), `13` §1 (completion hooks, TB movement and `ExecuteAction` details of the AI turn).
+an attack, suppression), `13` (completion hooks, TB movement and `ExecuteAction` details of the AI turn).
 
 ---
 
@@ -565,7 +565,7 @@ HandleBestSightingPositionInTurnbased():                       // OppList.cc:439
 - `seenOpponents[s][opp]` (`OppList.cc:1868-1879`): on each `ManSeesMan`, 0 → −1, else → 1. Cleared for everyone by
   `InitOpponentKnowledgeSystem`, for one soldier's row by `InitSoldierOppList`, and per pair when an opponent's
   knowledge of a dead target is wiped (`OppList.cc:2100, 2211-2262`); saved with the game.
-- Watched locations (`OppList.cc:4805-5066`; full rules `13` §2.6): up to `NUM_WATCHED_LOCS 3` per soldier with at
+- Watched locations (`OppList.cc:4805-5066`; full rules `13`): up to `NUM_WATCHED_LOCS 3` per soldier with at
   most `MAX_WATCHED_LOC_POINTS 4`, raised when a looker gains a new opponent not seen earlier this turn (`:1790`) and
   shared with living teammates, decayed in `DecayPublicOpplist`. `GetWatchedLocPoints` returns the raw points of the
   slot within radius 1 (`SpacesAway`, same level).
@@ -628,7 +628,7 @@ gates the call.
    `EndAIGuysTurn`. Asleep: visible in TB → wake; else without schedule → `EndAIGuysTurn`. Not in sector without
    schedule → `EndAIGuysTurn`. Vehicle/robot (not tank) → `EndAIGuysTurn`. Collapsed → `CancelAIAction`,
    `EndAIGuysTurn`. Krott/Mike/Joe during dialogue → return.
-6. New situation block as in RT (`09` §1.2 step 6), including the busy-count hack (`13` §1.1).
+6. New situation block as in RT (`09` §1.2 step 6), including the busy-count hack (`13`).
 7. Deadlock: `now − timeSinceMercAIStart > 15000` → `EndAIDeadlock` (not ported, deviations "Watchdogs").
 8. `action == NONE` → end muzzle flash, `TurnBasedHandleNPCAI(s)` (§6.5).
 9. Else the continue branch as in RT (`09` §1.2 step 8): path done → `ActionDone` (MOVE_TO_CLIMB at the final tile →
@@ -744,7 +744,7 @@ ordered during that interrupt would halt at the next tile centre (deviations "En
 ### 6.10 RNG consumers in the TB loop
 
 `pre`: `BuildAIListForTeam` civilian checks (`PreRandom(10)`, `PreRandom(3)`), gas on a step (`PreRandom(5)`), `NewDest`
-swat roll, AI decisions (`09` §2.5 and the RED/BLACK trees, `13` §3.1, `13` §5.1, `13` §6.9). `main`: `SayCloseCallQuotes`
+swat roll, AI decisions (`09` §2.5 and the RED/BLACK trees, `13`, `13`, `13`). `main`: `SayCloseCallQuotes`
 (`Random(3)` per eligible OUR merc), forgetful trait, claustrophobia, `OurTeamRadiosRandomlyAbout`. Call order:
 `MercSlots` order for AI-list building, team-then-id order in `ResolveInterruptsVs`.
 
@@ -928,7 +928,7 @@ Differences from the original found in the code (each also an entry of `gaps.md`
   has no on-assignment `−10` (and no tank halving; tanks are not in tactical) (§1.3, §4.2).
 - `commonEnterCombatModeCode` does not record `preCombatGridNo` (`09` §2.2).
 - The AI list conditions (`satisfiesAIListConditions`) apply the neutral-civilian draws to every neutral civilian (no
-  civ-group neutrality test) and without the `ubQuoteRecord` exemption (`13` §10.3).
+  civ-group neutrality test) and without the `ubQuoteRecord` exemption (`13`).
 - `calcActionPoints` has no phobia factors (claustrophobic ×9/10 underground, fear of insects ×8/10),
   `effectiveExpLevel` no claustrophobic −1, and `beginMercTurn` no phobia/nervous morale events with their
   `Random(6 − z)` draw (§2.4 step 15, §2.5).

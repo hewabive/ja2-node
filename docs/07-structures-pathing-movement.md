@@ -426,7 +426,7 @@ Consequences:
 Only for `SOLDIER_MULTITILE` with an animation JSD (prone humans, as the oracle's prone probe soldiers show; vehicles;
 monsters): `fContinuousTurnNeeded` (monster/animal/vehicle) explores clockwise/counter-clockwise from the last step
 direction and finally reverse (+50 per backward step) (`PathAI.cc:893-976, 1433-1437`). As ja2-node implements it
-(`pathfinding.ts`, `multi-tile.ts`; checked by the creature AI oracle, `13` §12):
+(`pathfinding.ts`, `multi-tile.ts`; checked by the creature AI oracle, `13`):
 - `SOLDIER_MULTITILE` is the soldier's last added structure having more than one tile (`Soldier.multiTile`); the
   structure file is the one of the movement mode's surface (`DetermineSoldierAnimationSurface` with
   `SubstituteBodyTypeAnimation`), indexed by `OneCDirection(dir)`; no file → no multi-tile checks.

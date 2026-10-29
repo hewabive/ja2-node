@@ -79,7 +79,7 @@ Consequences:
 
 `SoldierTriesToContinueAlongPath` (`Movement.cc:546-613`): new situation → `CancelAIAction`; `usActionData >= GRIDSIZE`
 → `CancelAIAction` (this is what happens right after `ActionDone`, which set it to NOWHERE: an extra cancel, which also
-clears `SkipCoverCheck` and `bBypassToGreen`, `13` §1.4); `!NewOKDestination(usActionData, people)` → cancel;
+clears `SkipCoverCheck` and `bBypassToGreen`, `13`); `!NewOKDestination(usActionData, people)` → cancel;
 affordable (RT APs are never spent, so always, inferred) → if not in progress `ExecuteAction`; then `NewDest(s, next
 tile of the path)` if the estimated AP cost fits. Rare in green RT.
 
@@ -102,7 +102,7 @@ elif bAction == ABSOLUTELY_NONE: bAction = NONE                        // re-thi
 NPCDoesAct(s)              // RT: if bDesiredDirection != bDirection: bDesiredDirection = bDirection (AIMain.cc:876-901)
 bActionInProgress = ExecuteAction(s)
 ```
-`RTDecideAction` (`:34-63`): creatures → `CreatureDecideAction`, crows → `CrowDecideAction` (`13` §12), OUR team →
+`RTDecideAction` (`:34-63`): creatures → `CreatureDecideAction`, crows → `CrowDecideAction` (`13`), OUR team →
 autobandage or `DecideAction`; others: NPC "done traversal" (→ WAIT 100), else `DecideAction`.
 
 ### 1.4 Delays (`TacticalAI/AIInternals.h:59-61`, `Realtime.cc:65-90`)
@@ -209,7 +209,7 @@ SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autoba
 
 Clear `AI_CAUTIOUS`. If `bBypassToGreen && bAlertStatus < BLACK` → `DecideActionGreen`, then (RT) `bBypassToGreen = 0`.
 Else by `bAlertStatus`: GREEN → `DecideActionGreen`, YELLOW → `DecideActionYellow`, RED → `DecideActionRed(TRUE)`,
-BLACK → `DecideActionBlack` (`13` §3, `13` §5, `13` §6).
+BLACK → `DecideActionBlack` (`13`, `13`, `13`).
 
 ### 2.2 `DecideAlertStatus` (`:3721-3866`)
 
@@ -251,7 +251,7 @@ new-situation path of §1.2 step 6 on the following visit.
 4. **POINTPATROL** and `bBreath >= 75` (`:800-817`): `PointPatrolAI` true → `bNextAction = WAIT, usNextActionData =
    RealtimeDelay` (RT) → POINT_PATROL; false → `gubNPCPathCount = 0`.
 5. **RNDPTPATROL** and `bBreath >= 75` (`:819-837`): same with `RandomPointPatrolAI`.
-6. **Water / gas** (`:844-851`): `FindNearestUngassedLand` (`13` §8.4) != NOWHERE → LEAVE_WATER_GAS (no wait queued).
+6. **Water / gas** (`:844-851`): `FindNearestUngassedLand` (`13`) != NOWHERE → LEAVE_WATER_GAS (no wait queued).
 7. **Rest**: `bBreath < 75 && !bInWater` → NONE, `usActionData = NOWHERE` (`:859-865`).
 8. **Random patrol** (`:872-945`), only if `gubNPCPathCount == 0`:
    `iChance = 25 + bBypassToGreen`; orders: STATIONARY −20, ONGUARD −15, ONCALL 0, CLOSEPATROL +15, POINT/RNDPT
@@ -304,7 +304,7 @@ map). Room filter: reject if `GetRoom(dest)` is a **different room** (outdoor `N
 `LegalNPCDestination(dest, ENSURE_PATH, NOWATER, 0)`; success sets `bPathStored`. Larvae: ±1 tile variant.
 
 **`InternalGoAsFarAsPossibleTowards(s, des, reserve=-1, action, flags=0)`** (`TacticalAI/Movement.cc:281-539`; TB AP
-reserve and flags: `13` §1.7):
+reserve and flags: `13`):
 ```
 range = RoamingRange(s, &origin)
 roomRequired = orders <= CLOSEPATROL && (CIV || profiled) && sAbsoluteFinalDestination != NOWHERE ? GetRoom(usPatrolGrid[0]) : NO_ROOM
@@ -395,7 +395,7 @@ cannot use with range 0, so after the 1-in-5 civilian gate he only turns (look c
   is WALKING for every green action (RUNNING only for TAKE_COVER, ESCORTED_MOVE, KNIFE_MOVE, TRACK, EAT, RUN). **Green
   AI always walks** (kids skip 10% of the time; NPC scripts may set `fUIMovementFast`).
 - **`NewDest(s, grid)`** (`:356-435`): the TAKE_COVER swat logic and the ENEMY-at-RED `PreRandom(5 − difficulty)`
-  swat roll (`13` §1.7) do not apply in green; `usUIMovementMode = DetermineMovementMode(s, bAction)`; SWATTING on a
+  swat roll (`13`) do not apply in green; `usUIMovementMode = DetermineMovementMode(s, bAction)`; SWATTING on a
   non-merc body → WALKING; `EVENT_InternalGetNewSoldierPath(s, grid, mode, fromUI = 0, force = fNoAPToFinishMove)` —
   with `bPathStored` it reuses the stored route, then starts the walk (`07` §4.1; the AI never takes the re-path branch).
 - **Path searches in green**: `FindBestPath(s, dest, bLevel, WALKING, COPYROUTE, 0)` via `LegalNPCDestination`.
@@ -429,7 +429,7 @@ unseen (`:4025-4064`); `DecideAlertStatus` on a status change or low breath; ass
 
 ### 4.2 GREEN → YELLOW
 
-Only through `DecideAlertStatus` when `MostImportantNoiseHeard` (`Knowledge.cc:125-299`, full description `13` §2.1)
+Only through `DecideAlertStatus` when `MostImportantNoiseHeard` (`Knowledge.cc:125-299`, full description `13`)
 is not NOWHERE. It returns the best (closest to zero) of: personal HEARD entries `bOppList[x] < 0` of **hostile**
 soldiers (value × `SpacesAway` to the last known grid); public HEARD entries likewise; the personal misc noise
 `sNoiseGridno` (`(ubNoiseVolume/2 − 6) × distance`) — **not filtered by hostility** — unless it is on the same level
@@ -443,7 +443,7 @@ SEEKENEMY troops roam the whole map, so this happens wherever they share a map w
 `ubNoiseVolume` real-time turns (one per 5 s, `08` §2.6) or when seen up close. Radio (AI_ACTION_YELLOW_ALERT /
 RED_ALERT, `AIMain.cc:1659-1679`) copies a louder personal noise into the team's public noise (`08` §2.5); it is only
 chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nearby) runs **only in turn-based**
-(`AIMain.cc:1243-1263, 1937-1986`, `13` §1.5).
+(`AIMain.cc:1243-1263, 1937-1986`, `13`).
 
 ### 4.3 → RED and → BLACK
 
@@ -472,7 +472,7 @@ chosen at YELLOW or above. `ManChecksOnFriends` (a friend at YELLOW/RED seen nea
 
 ### 4.5 The YELLOW decision (`DecideAction.cc:1075-1446`)
 
-Owned by `13` §3. In short: civilians stop cowering, profiled ones try `DecideActionNamedNPC`; no noise → NONE; then
+Owned by `13`. In short: civilians stop cowering, profiled ones try `DecideActionNamedNPC`; no noise → NONE; then
 turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: `bBypassToGreen = 15` and
 `DecideActionGreen`**. For profiled civilians other than Eldin (Fatima, Pacos) this reduces to: turn toward the noise
 (75%), else 50% green behaviour, else NONE.
@@ -483,7 +483,7 @@ turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: 
 
 - **Green civilians** take the civilian prelude of §2.3 step 3 (80% NONE), then the same branches as soldiers, with civ
   waits (§1.4). Cowering is chosen only at RED/BLACK (`DecideAction.cc:1602-1613, 1704-1715, 2710-2712`: cower in battle,
-  or cower + WAIT `REALTIME_CIV_AI_DELAY` when no enemy is in the sector; `13` §9.1); a green civilian who is still
+  or cower + WAIT `REALTIME_CIV_AI_DELAY` when no enemy is in the sector; `13`); a green civilian who is still
   cowering stops.
 - **Profiled NPCs**: `DecideActionNamedNPC` (`:553-638`): a pending quote record with
   `QUOTE_ACTION_ID_TURNTOWARDSPLAYER` → face the closest PC / trigger when within `2 × NPC_TALK_RADIUS` (8), returning
@@ -578,6 +578,6 @@ Differences from the original found in the code (most of them also in `gaps.md`,
 ## 8. Unverified
 
 - The 55 ms tick and "all slots per tick" assume ideal 5 ms passes and a fast CPU; ja2-node's model is built on them.
-- The CHANGE_FACING / CHANGE_STANCE truncation in practice (§1.7, `13` §1.4).
+- The CHANGE_FACING / CHANGE_STANCE truncation in practice (§1.7, `13`).
 - RT AP checks always passing; `HandleSystemNewAISituation` being a no-op in RT; 30-tile green legs.
 - `InternalIsValidStance` being true for every standing soldier in the look-around branch.

@@ -232,7 +232,7 @@ What the rules mean in play:
 Smell ignores foliage and open windows, and each other obstacle takes 80 units off the range (fails if `loop > 100` or
 `iDist > adj`). Walls still go through `ResolveHitOnWall` (`LOS.cc:1052-1101`). Range: `DistanceSmellable`
 (`OppList.cc:847`). ja2-node: the `smell` option of `lineOfSightTest`, `distanceSmellable` in `perception/sight.ts`
-(creature smell, `13` §12).
+(creature smell, `13`).
 
 ### 1.6 `ResolveHitOnWall` (`LOS.cc:232-425`)
 
@@ -488,7 +488,7 @@ with new or revealed enemies, `OurTeamSeesSomeone` runs (§2.9).
     then `DecayWatchedLocs` (`:5028`) for every id of the team's range, present or not: a watched location with
     nobody of another team on the 3×3 square around it (`GridSquare`, clipped at the map edge) first sets its reset
     flag, and on the next decay with the flag still set halves its points and is dropped at 0 (a new sighting there
-    clears the flag, `13` §2.6). ja2-node: `decayPublicOpplist` (`perception/sight.ts`), `decayWatchedLocs`
+    clears the flag, `13`). ja2-node: `decayPublicOpplist` (`perception/sight.ts`), `decayWatchedLocs`
     (`perception/duel.ts`).
   - Callers: `BeginTeamTurn` for each team whose turn starts (`TeamTurns.cc:323`, `10` §2.2) and
     `NonCombatDecayPublicOpplist`.
