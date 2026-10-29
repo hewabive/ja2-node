@@ -723,7 +723,7 @@ arrays freed; his cash as one MONEY object; cash 0. A dead dealer is skipped by 
 ## 12. Other paid services
 
 Bartenders are ordinary `SELLS_ONLY` dealers (§1.1); drinking is item use (`docs/12`). The hospital (Vince, Steve Willis:
-`CalcPatientMedicalCost`, `CalcMedicalCost`, `Interface_Dialogue.cc:4065-4152`) is `25` §6.3; Dave's gas, Waldo, Darren's
+`CalcPatientMedicalCost`, `CalcMedicalCost`, `Interface_Dialogue.cc:4065-4152`) is `25`; Dave's gas, Waldo, Darren's
 fights, Kingpin and Carmen's bounties are NPC dialogue (`24`, `35`); Skyrider's fares are `docs/16`; Bobby Ray is `docs/21`.
 
 ---

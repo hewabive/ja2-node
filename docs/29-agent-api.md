@@ -550,7 +550,7 @@ of voice or text) or at once on a click or Backspace. The lines take ticks like 
 
 ## 15. Giving, recruiting, escorts and the robot
 
-Rules: `24` (giving), `24` (recruiting, escorts), `25` §4 (escorts, the robot).
+Rules: `24` (giving), `24` (recruiting, escorts), `25` (escorts, the robot).
 `src/sim/campaign/give-flow.ts`, `talk-flow.ts`, `robot-control.ts`.
 
 **`give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}`** (campaign, tactical) is the drag of an
@@ -626,7 +626,7 @@ sectors) and **schedules** (`35`) have no command, prompt or view field: their l
 civilian off the map is missing from `soldiers`, door use arrives as `doorChanged`. Profile NPCs' whereabouts,
 `npcData`, balances and the 04:00 moves are never shown (`npcMoved` is not an event).
 
-**Boxing** (`25` §3, the San Mona club) is played with `talk`, `answer` (`boxingBet`, `fightAgain`), `give`, `move`
+**Boxing** (`25`, the San Mona club) is played with `talk`, `answer` (`boxingBet`, `fightAgain`), `give`, `move`
 into the ring and `attack` with empty hands or brass knuckles. While our boxer walks out after the round every command
 but `estimateAttack`, `answer` and `skipLine` is refused with `boxingUiLock` and the session is not idle, so `advance
 {idle}` runs the walk (deviation "Boxing UI lock"); `mapScreen` is refused with `boxingInProgress` while a boxing state
@@ -692,7 +692,7 @@ scenes and Skyrider's sightings.
 
 ## 18. Vehicles and the helicopter
 
-Rules: `25` §5 (Skyrider, billing, SAM hits, hovering), `16` (vehicle movement). The helicopter exists once the
+Rules: `25` (Skyrider, billing, SAM hits, hovering), `16` (vehicle movement). The helicopter exists once the
 escorted Skyrider reaches his chopper in B13 or a native save owns it (`src/sim/campaign/helicopter-flow.ts`; deviation
 "Helicopter interface"). Map screen only (`mapScreenOnly` elsewhere):
 
@@ -957,7 +957,7 @@ amount, accepted}`, `repairQueued {dealer, item, owner, doneAt}`, `repairCollect
 
 ## 24. Quests, meanwhiles and the ending
 
-Rules: `25` §2 (quests), `26` §2 (meanwhiles), `26` §3 (prisoners), `26` §6, `26` §7 (the end). Scenes and the
+Rules: `25` (quests), `26` §2 (meanwhiles), `26` §3 (prisoners), `26` §6, `26` §7 (the end). Scenes and the
 ending are not player actions: no command or prompt of their own; the flows `meanwhile`, `endgame` and `ended` lock the
 UI as the original does (§5).
 

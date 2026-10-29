@@ -688,7 +688,7 @@ opinion of the speaking merc into the approach (`TacticalAI/NPC.cc:479`, `24`). 
 | Attitude FRIENDLY, LONER, ARROGANT, BIG_SHOT, ASSHOLE | none (quotes, I.M.P. email) | `Soldier_Profile_Type.h:177-190` |
 | Personality NERVOUS, CLAUSTROPHOBIC | quarter-hour morale events | `18`, `33` |
 | Personality FORGETFUL, NERVOUS, PSYCHO / skill STEALTHY | unhired death chance +2 / −1 | §2.5 |
-| `bSexist` | morale when a merc marries | `Morale.cc:565-602`, `25` §6.9 |
+| `bSexist` | morale when a merc marries | `Morale.cc:565-602`, `25` |
 | `bReputationTolerance` | hiring (reputation) and the morale tolerance | §6.3 |
 | `bDeathRate` | hiring, renewal, daily morale | §6.3 |
 

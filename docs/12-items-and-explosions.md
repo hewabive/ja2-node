@@ -10,7 +10,7 @@ Item ids are the `ITEMDEFINE` enum (`Tactical/Item_Types.h:221-615`); JSON `inte
 **Scope.** Item content, `OBJECTTYPE`, soldier inventory, reload, item AP costs, first aid, world items, profile and
 enemy equipment, drops, explosions, smoke, gas and flares. Elsewhere: gun attacks (`11` §1–§3), melee (`11` §4), hits
 and armour against bullets (`33`), throwing (AP cost, range, chance, physics, duds) and launchers (`34` §0);
-locks, door traps, action items and switches (`35`, `25` §6.5); merchants (`23`); the agent API's inventory commands
+locks, door traps, action items and switches (`35`, `25`); merchants (`23`); the agent API's inventory commands
 (`29` §12); the inventory screens (`30` §2.3–2.4, §4.2).
 
 ---
@@ -932,7 +932,7 @@ clear the mine flags, `owner = ubBombOwner > 1 ? soldier(ubBombOwner − 2) : NU
 `IgniteExplosion(owner, 0, grid, usBombItem, level)`. When the queue empties (and the busy count is 0): clear
 `DISALLOW_SIGHT`, re-run sight if it may have changed, unlock the UI.
 
-ja2-node ports only the action-item branch (`handleActionItemQueue`, `25` §6.5); see §12.
+ja2-node ports only the action-item branch (`handleActionItemQueue`, `25`); see §12.
 
 ### 10.10 RNG per event (order)
 
@@ -1031,7 +1031,7 @@ queue. The light itself is the lighting model of `20`.
 The original's rules; ja2-node does not simulate them. Map mines load armed (BURIED, armed-bomb flag, §6.2) but never go
 off; there is no planting or disarming command, no timed or remote bomb, no `DecayBombTimers` and no explosive bomb
 queue entry, no booby trap on pickup (gaps.md "Map items", "Duds and timed bombs", "Unbuilt item actions",
-"Turn-based hooks"). The pressure action items and switches that `25` §6.5 needs do work, and `useRemote` only opens
+"Turn-based hooks"). The pressure action items and switches that `25` needs do work, and `useRemote` only opens
 the O3 statue (`src/sim/tactical/narrative/statue.ts`).
 
 - **Arming** (`ArmBomb`, `Tactical/Items.cc:2672-2763`): ACTION_ITEM → remote (pits: pressure); DETONATOR → timed
