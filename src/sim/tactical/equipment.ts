@@ -31,6 +31,8 @@ const MIN_EQUIPMENT_CLASS = 1;
 const MAX_EQUIPMENT_CLASS = 11;
 const ARMY_GUN_LEVELS = 11;
 const MAX_MORTARS_PER_TEAM = 1;
+const STANDARD_AMMO_CHANCE_LOST_PER_CLASS = 9;
+const STANDARD_AMMO_CHANCE_FOR_ARMOUR_PIERCING = 80;
 
 const Rating = {
   BAD_ADMINISTRATOR: 1,
@@ -137,6 +139,10 @@ export function randomMagazine(items: ItemTable, rng: RandomStream, gun: number,
   return possible[chosen]?.index ?? NOTHING;
 }
 
+function standardAmmoChance(weaponClass: number): number {
+  return 100 - weaponClass * STANDARD_AMMO_CHANCE_LOST_PER_CLASS;
+}
+
 function placeObjectInCreateStruct(items: ItemTable, inv: Inventory, o: ItemObject): boolean {
   const free = (slot: number) => {
     const here = inv[slot] as ItemObject;
@@ -184,11 +190,12 @@ function chooseWeapon(
   attachment: boolean,
 ): void {
   const inv = target.inv;
-  if (weaponClass < 0 && ammoClips) {
+  const preselectedGun = weaponClass < 0;
+  if (preselectedGun && ammoClips) {
     let ammo = NOTHING;
     for (const o of inv) {
       if (classOf(items, o.item) !== ItemClass.GUN) continue;
-      ammo = randomMagazine(items, rng, o.item, 100 - weaponClass * -9);
+      ammo = randomMagazine(items, rng, o.item, standardAmmoChance(-weaponClass));
       if (o.item === id(items, 'ROCKET_RIFLE')) o.imprintId = NO_PROFILE + 1;
       break;
     }
@@ -201,7 +208,8 @@ function chooseWeapon(
   let ammo = NOTHING;
   if (ammoClips) {
     const standard = def(items, defaultMagazine(items, gun))?.magazine?.ammoType;
-    const percent = standard === AmmoType.AP || standard === AmmoType.SUPER_AP ? 80 : 100 - level * 9;
+    const armourPiercing = standard === AmmoType.AP || standard === AmmoType.SUPER_AP;
+    const percent = armourPiercing ? STANDARD_AMMO_CHANCE_FOR_ARMOUR_PIERCING : standardAmmoChance(level);
     ammo = randomMagazine(items, rng, gun, percent);
   }
   let attach = NOTHING;

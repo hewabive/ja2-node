@@ -10,6 +10,7 @@ import type { MercProfile } from '../../content/formats/prof.ts';
 import { ArmourClass, ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem, validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import { slotLimitOf } from '../../content/items/slot-limit.ts';
+import { u8 } from '../../core/int.ts';
 import {
   attachObject,
   cloneObject,
@@ -54,6 +55,8 @@ export const NUM_INV_SLOTS = 19;
 export const NO_SLOT = -1;
 export const AP_RELOAD_GUN = 5;
 const AP_PICKUP_ITEM = 3;
+const STRONG_CARRIER_STRENGTH = 80;
+const GRAMS_PER_STRENGTH_POINT = 500;
 
 const DROPPABLE_FLAG = [0x01, 0x02, 0x04, 0, 0, 0x08, 0, 0x10, 0x20, 0x40, 0x80, 0, 0, 0, 0, 0, 0, 0, 0];
 const IMPRINTED_ON_CREATION: ReadonlySet<string> = new Set(['ROCKET_RIFLE', 'AUTO_ROCKET_RIFLE']);
@@ -308,6 +311,10 @@ export function apsToReloadGunWithAmmo(items: ItemTable, gun: ItemObject, ammo: 
 
 const Reload = { PLACE: 0, SWAP: 1, TOPOFF: 2, AUTOPLACE_OLD: 3 } as const;
 
+function neighbouringMagazineOfGunSize(ammoItem: number, capacity: number, magSize: number): number {
+  return capacity > magSize ? ammoItem - 1 : ammoItem + 1;
+}
+
 export function reloadGun(ctx: InventoryContext, c: Carrier, gun: ItemObject, ammo: ItemObject): boolean {
   const items = ctx.items;
   const gunDef = items.byIndex.get(gun.item);
@@ -338,7 +345,7 @@ export function reloadGun(ctx: InventoryContext, c: Carrier, gun: ItemObject, am
       else type = sameType ? Reload.TOPOFF : Reload.AUTOPLACE_OLD;
     }
     const rounds = ammo.status[0] ?? 0;
-    const newAmmoItem = sameSize ? ammo.item : mag.capacity > magSize ? ammo.item - 1 : ammo.item + 1;
+    const newAmmoItem = sameSize ? ammo.item : neighbouringMagazineOfGunSize(ammo.item, mag.capacity, magSize);
     const toMove = type === Reload.TOPOFF ? Math.min(rounds, magSize - gun.gunShotsLeft) : sameSize ? rounds : Math.min(rounds, magSize);
     const load = () => {
       gun.gunShotsLeft = toMove;
@@ -395,8 +402,9 @@ export function objectWeight(items: ItemTable, o: ItemObject): number {
 export function carriedWeightPercent(items: ItemTable, inv: Inventory, effectiveStrength: number): number {
   let grams = 0;
   for (const o of inv) grams += objectWeight(items, o);
-  const strength = effectiveStrength > 80 ? (effectiveStrength + effectiveStrength - 80) & 0xff : effectiveStrength;
-  return Math.trunc((100 * grams) / (strength * 500));
+  const strength =
+    effectiveStrength > STRONG_CARRIER_STRENGTH ? u8(effectiveStrength + effectiveStrength - STRONG_CARRIER_STRENGTH) : effectiveStrength;
+  return Math.trunc((100 * grams) / (strength * GRAMS_PER_STRENGTH_POINT));
 }
 
 export function reducedGunListInventory(items: ItemTable, inventory: readonly number[]): number[] {

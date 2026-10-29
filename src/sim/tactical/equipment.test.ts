@@ -53,6 +53,32 @@ describe('enemy equipment', async () => {
     expect(clips.every((o) => items.byIndex.get(o.item)?.magazine?.calibre === items.byIndex.get(id('FNFAL'))?.weapon?.calibre)).toBe(true);
   });
 
+  function lock(slot: number, name: string, t: ReturnType<typeof target>) {
+    const locked = createItem(items, id(name), 90);
+    locked.flags |= ObjectFlags.NO_OVERWRITE;
+    t.inv[slot] = locked;
+  }
+
+  const alwaysZero = { int: () => 0 };
+
+  it('turns the weapon class positive again for two locked guns, so clips for a gun of its own choice come along', () => {
+    const t = target(SoldierClass.ARMY);
+    lock(InvSlot.HAND, 'FNFAL', t);
+    lock(InvSlot.BIGPOCK1, 'FNFAL', t);
+    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 0, 0);
+    expect(t.inv[InvSlot.HAND]?.item).toBe(id('FNFAL'));
+    expect(t.inv[InvSlot.SMALLPOCK1]).toMatchObject({ item: id('CLIP38_6'), count: 2 });
+  });
+
+  it('stops looking for an item to drop at a locked one of the class: a locked helmet keeps the vest undroppable', () => {
+    const t = target(SoldierClass.ARMY);
+    lock(InvSlot.HELMET, 'STEEL_HELMET', t);
+    generateRandomEquipment(items, alwaysZero, createEquipmentState(items, gameOptions()), t, 4, 0);
+    expect(t.inv[InvSlot.VEST]?.item).toBe(id('FLAK_JACKET'));
+    expect(t.inv[InvSlot.VEST]?.flags).toBe(ObjectFlags.UNDROPPABLE);
+    expect(t.inv[InvSlot.SMALLPOCK1]?.flags).toBe(0);
+  });
+
   it('marks the first gun of each type as droppable once per campaign', () => {
     const state = createEquipmentState(items, gameOptions());
     const first = target(SoldierClass.ARMY);

@@ -114,6 +114,25 @@ describe('smoke clouds', () => {
     expect(cloud.radius).toBe(4);
   });
 
+  it('age every later cloud once one is due in real time, by the same count, as the due flag is never reset', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const old = cloudAt(t, 'SMOKE_GRENADE');
+    t.explosives.worldMs = 35_000;
+    newSmokeEffect(t, gridNo(110, 80), itemId(t, 'SMOKE_GRENADE'), 0, null);
+    const fresh = t.explosives.smokeClouds.at(-1);
+    decaySmokeEffects(t);
+    expect(old.age).toBe(3);
+    expect(fresh?.age).toBe(3);
+  });
+
+  it('leave a tile to the first cloud: tear gas over smoke keeps the tile smoky', () => {
+    const t = newCombatSim(content).state;
+    cloudAt(t, 'SMOKE_GRENADE');
+    cloudAt(t, 'TEARGAS_GRENADE');
+    expect(smokeFlagsAt(t, CENTRE, 0)).toBe(SmokeTile.SMOKE);
+  });
+
   it('mark plain smoke for sight without hurting anybody', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
@@ -176,6 +195,19 @@ describe('gas damage', () => {
     expect(isGassed(t, s)).toBe(true);
     clearGassedAtTurnStart(t, s);
     expect(isGassed(t, s)).toBe(false);
+  });
+
+  it('gasses a soldier whose mask is worn below 70, yet any mask clears it at his next turn though he stays in the cloud', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const masked = soldierAt(sim, 0, CENTRE);
+    const bare = soldierAt(sim, 1, CENTRE + 1);
+    masked.inv[InvSlot.HEAD1] = objectOf(t, 'GASMASK', 50);
+    cloudAt(t, 'SMOKE_GRENADE');
+    for (const s of [masked, bare]) updateGassedOnNewGridNo(t, s, s.gridNo);
+    expect([isGassed(t, masked), isGassed(t, bare)]).toEqual([true, true]);
+    for (const s of [masked, bare]) clearGassedAtTurnStart(t, s);
+    expect([isGassed(t, masked), isGassed(t, bare)]).toEqual([false, true]);
   });
 
   it('never stops a walker with a good mask, nor one on his first step', () => {

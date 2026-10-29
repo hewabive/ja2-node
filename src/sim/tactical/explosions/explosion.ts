@@ -20,7 +20,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i16, idiv } from '../../../core/int.ts';
+import { i16, idiv, u8 } from '../../../core/int.ts';
 import { TICK_MS } from '../../clock.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
 import {
@@ -79,7 +79,10 @@ const BLOWN_SOUTH: ReadonlySet<number> = new Set([Direction.SOUTH, Direction.SOU
 
 const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
 const inc = (dir: number) => DIRECTION_INCREMENT[dir] ?? 0;
-const step = (dir: number) => (dir & 1 ? 3 : 2);
+const HALF_TILES_PER_DIAGONAL_STEP = 3;
+const HALF_TILES_PER_STRAIGHT_STEP = 2;
+const isDiagonal = (dir: number) => (dir & 1) === 1;
+const halfTilesPerStep = (dir: number) => (isDiagonal(dir) ? HALF_TILES_PER_DIAGONAL_STEP : HALF_TILES_PER_STRAIGHT_STEP);
 
 function isWaterTile(t: TacticalState, g: number): boolean {
   const terrain = t.world.terrain[g] ?? 0;
@@ -438,12 +441,20 @@ function expAffect(t: TacticalState, ctx: SpreadContext, g: number, distance: nu
   ctx.anyMercHit = true;
 }
 
-function spreadBranch(t: TacticalState, ctx: SpreadContext, from: number, cnt: number, range: number, dir: number, smoke: boolean): void {
+function spreadBranch(
+  t: TacticalState,
+  ctx: SpreadContext,
+  from: number,
+  cnt: number,
+  blastRange: number,
+  dir: number,
+  smoke: boolean,
+): void {
   let spot = from;
-  let branchRange = (range - cnt) & 0xff;
+  let branchRange = u8(blastRange - cnt);
   if (!branchRange) return;
   const branchDir = (dir + 1) % 8;
-  for (let branchCnt = step(branchDir); branchCnt <= branchRange; branchCnt += step(branchDir)) {
+  for (let branchCnt = halfTilesPerStep(branchDir); branchCnt <= branchRange; branchCnt += halfTilesPerStep(branchDir)) {
     const next = newGridNo(spot, inc(branchDir));
     if (next === spot) continue;
     const stop = getRayStopInfo(t, next, branchDir, ctx.level, smoke, branchCnt, branchRange);
@@ -454,10 +465,10 @@ function spreadBranch(t: TacticalState, ctx: SpreadContext, from: number, cnt: n
   }
 }
 
-function spreadRay(t: TacticalState, ctx: SpreadContext, g: number, range: number, dir: number, smoke: boolean): void {
+function spreadRay(t: TacticalState, ctx: SpreadContext, g: number, blastRange: number, dir: number, smoke: boolean): void {
   let spot = g;
-  let rayRange = range;
-  for (let cnt = step(dir); cnt <= rayRange; cnt += step(dir)) {
+  let rayRange = blastRange;
+  for (let cnt = halfTilesPerStep(dir); cnt <= rayRange; cnt += halfTilesPerStep(dir)) {
     const next = newGridNo(spot, inc(dir));
     if (next === spot) return;
     const stop = getRayStopInfo(t, next, dir, ctx.level, smoke, cnt, rayRange);
@@ -465,7 +476,7 @@ function spreadRay(t: TacticalState, ctx: SpreadContext, g: number, range: numbe
     if (!stop.keepGoing) return;
     spot = next;
     expAffect(t, ctx, next, Math.trunc(cnt / 2));
-    spreadBranch(t, ctx, next, cnt, range, dir, smoke);
+    spreadBranch(t, ctx, next, cnt, blastRange, dir, smoke);
   }
 }
 
@@ -482,9 +493,9 @@ export function spreadEffect(
   const explosive = item !== NOTHING ? itemDef(t, item)?.explosive : null;
   const isSmoke = (explosive?.smoke ?? null) !== null && smoke !== null;
   const ctx: SpreadContext = { bombGridNo: g, item, owner, sub, level, smoke, changes: { gridNos: new Set() }, anyMercHit: false };
-  const range = radius * 2;
+  const blastRange = radius * HALF_TILES_PER_STRAIGHT_STEP;
   expAffect(t, ctx, g, 0);
-  for (let dir = Direction.NORTH; dir <= Direction.NORTHWEST; dir++) spreadRay(t, ctx, g, range, dir, isSmoke);
+  for (let dir = Direction.NORTH; dir <= Direction.NORTHWEST; dir++) spreadRay(t, ctx, g, blastRange, dir, isSmoke);
   if (ctx.changes.gridNos.size > 0) {
     recompileChangedTiles(t, ctx.changes);
     recompileLocalMovementCosts(t.world.costs, t.world, g, MAX_RECOMPILE_RADIUS);

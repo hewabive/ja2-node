@@ -9,6 +9,7 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { u8 } from '../../../core/int.ts';
+import { TICK_MS } from '../../clock.ts';
 import { deleteObject } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
@@ -29,11 +30,18 @@ beforeAll(async () => {
 const BOMB = gridNo(80, 80);
 const north = (tiles: number) => BOMB - 160 * tiles;
 const south = (tiles: number) => BOMB + 160 * tiles;
+const northEast = (tiles: number) => tiles * (1 - 160);
+const MATERIAL_WOOD_WALL = 1;
+const MATERIAL_CONCRETE1 = 12;
 
-function simWith(place: (g: (x: number, y: number) => number) => readonly number[] = () => [], hitPoints = 100): TacticalSim {
+function simWith(
+  place: (g: (x: number, y: number) => number) => readonly number[] = () => [],
+  hitPoints = 100,
+  material = MATERIAL_CONCRETE1,
+): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), (structures) => {
     for (const g of place(gridNo)) {
-      structures.add(g, 0, { ...syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, { armour: 12 }), hitPoints });
+      structures.add(g, 0, { ...syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, { armour: material }), hitPoints });
     }
   });
   const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
@@ -127,6 +135,33 @@ describe('blast falloff', () => {
     expect(t.turn.attackBusyCount).toBe(1);
     expect(t.explosives.aniTiles).toEqual([]);
   });
+
+  it('ends the pass at a damage key frame: of two grenades going off together, the first one ignited hurts a tick later', () => {
+    const sim = simWith();
+    const t = sim.state;
+    const other = gridNo(110, 80);
+    const nearFirst = bystander(sim, 0, BOMB);
+    const nearSecond = bystander(sim, 1, other);
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
+    igniteExplosion(t, null, 0, other, itemId(t, 'HAND_GRENADE'), 0);
+    const hitAt = new Map<Soldier, number>();
+    while (t.explosives.aniTiles.length > 0) {
+      const now = t.clockMs;
+      stepWithExplosives(sim);
+      for (const s of [nearFirst, nearSecond]) if (!hitAt.has(s) && s.life < 100) hitAt.set(s, now);
+    }
+    expect((hitAt.get(nearFirst) ?? 0) - (hitAt.get(nearSecond) ?? 0)).toBe(TICK_MS);
+  });
+
+  it('runs a branch to the full blast range even where a crate shortened its ray', () => {
+    const sim = simWith();
+    const t = sim.state;
+    t.world.structures.add(north(1), 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 }));
+    const offTheRay = bystander(sim, 0, north(1) + northEast(2));
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
+    runExplosivesUntilIdle(sim);
+    expect(offTheRay.life).toBeLessThan(100);
+  });
 });
 
 describe('blasts and structures', () => {
@@ -138,13 +173,26 @@ describe('blasts and structures', () => {
     const rolls = recordRolls(t);
     igniteExplosion(t, null, 0, BOMB, itemId(t, 'TNT'), 0);
     const events = runExplosivesUntilIdle(sim);
-    const armour = Math.trunc((t.content.materialArmour[12] ?? 0) / 2);
+    const armour = Math.trunc((t.content.materialArmour[MATERIAL_CONCRETE1] ?? 0) / 2);
     const damage = Math.max(0, u8(blastWound(50, 5, rolls[0] ?? 0, 0)) - armour);
     const structure = t.world.structures.find(wall, StructureFlags.WALL);
     expect(damage).toBeGreaterThan(0);
     expect(damage).toBeLessThan(100);
     expect(structure?.hitPoints).toBe(100 - damage);
     expect(events.some((e) => e.type === 'structureDamaged')).toBe(false);
+  });
+
+  it('hits walls with the full blast of a hand grenade: the structural damage divisor of its data is never read', () => {
+    const wall = north(1);
+    const sim = simWith(() => [wall], 100, MATERIAL_WOOD_WALL);
+    const t = sim.state;
+    expect(t.content.items.byName.get('HAND_GRENADE')?.explosive?.blast?.structuralDamageDivisor).toBe(3);
+    const rolls = recordRolls(t);
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
+    runExplosivesUntilIdle(sim);
+    const armour = Math.trunc((t.content.materialArmour[MATERIAL_WOOD_WALL] ?? 0) / 2);
+    const damage = blastWound(25, 4, rolls[0] ?? 0, 0) - armour;
+    expect(t.world.structures.find(wall, StructureFlags.WALL)?.hitPoints).toBe(100 - damage);
   });
 
   it('keeps a weak hut wall standing until its hit points run out', () => {
