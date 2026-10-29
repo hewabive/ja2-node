@@ -6,11 +6,13 @@ import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/su
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../events.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
+import { meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
-import { Quest } from '../strategic/narrative/fact-ids.ts';
-import { QuestStatus } from '../strategic/narrative/facts.ts';
+import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
+import { fact, QuestStatus } from '../strategic/narrative/facts.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
@@ -33,6 +35,7 @@ afterAll(async () => {
 
 const A9 = { x: 9, y: 1, z: 0 };
 const A10 = { x: 10, y: 1, z: 0 };
+const ALMA_PRISON = { x: 13, y: 9, z: 0 };
 const ENEMY_TROOPS = 6;
 const MILITIA = [3, 1, 0] as const;
 const ARRIVAL_MINUTES = 1;
@@ -142,6 +145,14 @@ describe('autoresolve from the strategic state', () => {
     expect(first.events.some((e) => e.type === 'arRetreated' || e.type === 'retreated')).toBe(true);
   });
 
+  it('leaves the first battle being fought after autoresolve: only the tactical ends clear the fact', () => {
+    const r = runBattle(5);
+    const n = r.c.state.narrative;
+    expect(fact(n, Fact.FIRST_BATTLE_FOUGHT)).toBe(true);
+    expect(fact(n, Fact.FIRST_BATTLE_BEING_FOUGHT)).toBe(true);
+    expect(meanwhileScheduledIn(r.c.state.meanwhile, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE)).toBe(true);
+  });
+
   it('continues exactly when the campaign is saved and restored after every input', async () => {
     await expectReloadsInvisible((mode) => runBattle(9, { retreatAtSlice: 3 }, mode).c);
   });
@@ -220,6 +231,29 @@ describe('autoresolve from the strategic state', () => {
     expect(events.filter((e) => e.type === 'mercCaptured')).toHaveLength(2);
     expect(c.state.narrative.quests[Quest.HELD_IN_ALMA]).toBe(QuestStatus.IN_PROGRESS);
     expect(events.some((e) => e.type === 'questStarted' && e.quest === 'HELD_IN_ALMA')).toBe(true);
+  });
+
+  it('sends the first captives straight to the interrogation when Alma holds no enemies', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 13, mercs: 2, garrison: { admins: 0, troops: 2, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('A9 is not loaded');
+    const alma = sectorInfo(c.state.map, ALMA_PRISON);
+    alma.numAdmins = 0;
+    alma.numTroops = 0;
+    alma.numElites = 0;
+    for (const g of c.state.forces.groups) if (!g.player && g.sector.x === ALMA_PRISON.x && g.sector.y === ALMA_PRISON.y) g.size = 0;
+    for (const m of roster.all()) m.soldier.life = 5;
+    t.turn.enemyInSector = true;
+    expect(checkForEndOfBattle(t)).toBe(true);
+    expect(roster.all().map((m) => [m.assignment, m.sector.x, m.sector.y])).toEqual([
+      [32, 7, 14],
+      [32, 7, 14],
+    ]);
+    expect(c.state.narrative.quests[Quest.HELD_IN_ALMA]).toBe(QuestStatus.DONE);
+    expect(c.state.narrative.quests[Quest.INTERROGATION]).toBe(QuestStatus.IN_PROGRESS);
+    expect(meanwhileScheduledIn(c.state.meanwhile, Meanwhile.INTERROGATION)).toBe(true);
   });
 
   it('retreats the squad and lets the militia fight on in autoresolve', () => {

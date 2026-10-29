@@ -5,14 +5,14 @@ import { loadStrategicTestContent } from '../../../../tests/support/strategic.ts
 import type { ArmyContent } from '../../../content/strategic/army.ts';
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
-import type { ProfileProgress } from '../../tactical/profiles.ts';
+import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import { resetSectorFlag, setSectorFlag } from '../map/sectors.ts';
 import { Quest } from '../narrative/fact-ids.ts';
 import { Npc } from '../narrative/npc-ids.ts';
 import type { SectorPosition } from '../state.ts';
 import { EventKind } from '../time/constants.ts';
-import { Meanwhile } from './constants.ts';
+import { Meanwhile, StrategicAiAction } from './constants.ts';
 import {
   areInMeanwhile,
   handleFirstBattleEndingWhileInTown,
@@ -29,6 +29,7 @@ import {
   scheduleInterrogation,
   scheduleMeanwhileEvent,
 } from './meanwhile.ts';
+import { executeStrategicAIAction } from './reactions.ts';
 
 let content: StrategicContent;
 let army: ArmyContent;
@@ -154,6 +155,15 @@ describe('implications', () => {
     hard.q.state.queen.awake = false;
     processImplicationsOfMeanwhile(hard.q, Meanwhile.END_OF_PLAYERS_FIRST_BATTLE);
     expect(hard.q.state.queen.awake).toBe(true);
+  });
+
+  it('wakes the Queen’s AI again after her death: nothing checks that she is dead', () => {
+    const { q, profiles } = fixture();
+    profiles.set(Npc.QUEEN, testProfile(Npc.QUEEN, { mercStatus: MercStatus.IS_DEAD }));
+    executeStrategicAIAction(q, StrategicAiAction.QUEEN_DEAD, null);
+    expect(q.state.queen.awake).toBe(false);
+    processImplicationsOfMeanwhile(q, Meanwhile.GRUMM_LIBERATED);
+    expect(q.state.queen.awake).toBe(true);
   });
 
   it('places Rat in G9 for the creature scene', () => {

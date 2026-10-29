@@ -7,6 +7,7 @@
 
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { Direction } from '../../content/world/grid.ts';
 import { u8 } from '../../core/int.ts';
 import type { SimEvent } from '../events.ts';
 import { deleteTalkingMenu, triggerNpcRecordImmediately } from '../narrative/converse.ts';
@@ -16,14 +17,14 @@ import { StrategicAiAction } from '../strategic/ai/constants.ts';
 import { processQueenCmdImplicationsOfDeath } from '../strategic/ai/queen-command.ts';
 import { executeStrategicAIAction } from '../strategic/ai/reactions.ts';
 import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
-import { LoyaltyEvent } from '../strategic/economy/constants.ts';
+import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { getGroup, setGroupSectorValue } from '../strategic/forces/groups.ts';
 import { setThisSectorAsPlayerControlled } from '../strategic/map/control.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
-import { Fact } from '../strategic/narrative/fact-ids.ts';
-import { QuestStatus } from '../strategic/narrative/facts.ts';
+import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { changeNpcToDifferentSector } from '../strategic/narrative/presence.ts';
 import { worldDay } from '../strategic/time/world-clock.ts';
@@ -48,17 +49,14 @@ const QUOTE_KILLING_QUEEN = 38;
 const QUOTE_END_GAME_COMMENT = 69;
 const UPSTAIRS: Sector = { x: 3, y: 16, z: 0 };
 const UPSTAIRS_INSERTION_GRIDNO = 5687;
-const NORTHWEST = 7;
 const INSERTION_DIRECTION_FORCED = 100;
 const DEREK_AFTER_QUEEN_RECORD = 6;
 const DEREK_CREATURES_RECORD = 8;
-const CREATURE_QUEST_INDEX = 15;
 const ELLIOT_REMOVED_SECTOR_X = 1;
 const CREATURE_KILL_DAMAGE = 10_000;
 const CREATURE_KILL_RANGE = 320;
 const DIRECTION_IRRELEVANT = -1;
 const LOS_CUBE_LEVEL = 3;
-const ON_DUTY = 20;
 const CALLBACK_DEIDRANNA_QUOTES = 'endgame:deidrannaQuotesDone';
 const CALLBACK_END_COMMENTS = 'endgame:endCommentsDone';
 
@@ -180,7 +178,7 @@ export class EndgameFlow {
 
   #okControllable(s: Soldier): boolean {
     const assignment = this.#campaign.battle?.roster.get(s.id)?.assignment ?? 0;
-    return s.life >= OKLIFE && s.placed && s.team === Team.OUR && assignment < ON_DUTY;
+    return s.life >= OKLIFE && s.placed && s.team === Team.OUR && assignment < Assignment.ON_DUTY;
   }
 
   #sayKillQuotes(quote: number, witnesses: ReadonlySet<number>): void {
@@ -241,7 +239,7 @@ export class EndgameFlow {
       m.sector = { ...UPSTAIRS };
       m.insertionCode = InsertionCode.GRIDNO;
       m.soldier.insertionData = UPSTAIRS_INSERTION_GRIDNO;
-      m.insertionDirection = INSERTION_DIRECTION_FORCED + NORTHWEST;
+      m.insertionDirection = INSERTION_DIRECTION_FORCED + Direction.NORTHWEST;
       moved.push(s.id);
     }
     return moved;
@@ -313,7 +311,7 @@ export class EndgameFlow {
       this.#state.phase = EndgamePhase.NONE;
       return;
     }
-    if ((this.#campaign.state.narrative.quests[CREATURE_QUEST_INDEX] ?? 0) === QuestStatus.IN_PROGRESS) {
+    if (questStatus(this.#campaign.state.narrative, Quest.CREATURES) === QuestStatus.IN_PROGRESS) {
       if (host) triggerNpcRecordImmediately(host, Npc.DEREK, DEREK_CREATURES_RECORD);
       this.#endQueenDeathEndgame();
       this.#state.phase = EndgamePhase.NONE;
