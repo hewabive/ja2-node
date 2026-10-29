@@ -240,6 +240,7 @@ describe('shop scenario on the stub village', () => {
       expect(c.dispatch({ type: 'setShopPricing', soldier })).toMatchObject({ ok: false, reason: 'noSuchPricingMerc' });
     expect(c.dispatch({ type: 'setShopPricing', soldier: other.id })).toMatchObject({ ok: true });
     expect(c.dispatch({ type: 'setShopPricing', soldier: merc.id })).toMatchObject({ ok: true });
+    expect(c.dispatch({ type: 'stance', soldier: merc.id, stance: 'crouch' })).toMatchObject({ ok: false, data: { refusal: 'shopOpen' } });
   });
 
   it('greets with the usual quote at Arnie while his repairs are unfinished: the original overwrites quote 33', () => {

@@ -64,6 +64,7 @@ const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
 const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
+const SHOP_OPEN_REFUSAL: CommandResult = { ok: false, reason: 'a shop is open: trade or closeShop first', data: { refusal: 'shopOpen' } };
 
 export interface ShopSession {
   readonly dealer: number;
@@ -137,7 +138,7 @@ export class ShopFlow {
 
   dispatch(cmd: CampaignCommand): CommandResult | null {
     const open = this.#session !== null;
-    if (!SHOP_COMMANDS.has(cmd.type)) return open ? { ok: false, reason: 'a shop is open: trade or closeShop first' } : null;
+    if (!SHOP_COMMANDS.has(cmd.type)) return open ? SHOP_OPEN_REFUSAL : null;
     try {
       switch (cmd.type) {
         case 'openShop':

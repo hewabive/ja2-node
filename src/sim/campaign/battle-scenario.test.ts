@@ -109,7 +109,8 @@ describe('autoresolve from the strategic state', () => {
     const ticks = c.tick;
     c.step();
     expect(c.tick).toBe(ticks);
-    expect(c.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({ ok: false });
+    expect(c.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
+    expect(c.dispatch({ type: 'showBattle' })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
   });
 
   it('runs to the end under the instant driver and applies the strategic consequences', () => {

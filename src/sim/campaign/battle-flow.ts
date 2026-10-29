@@ -158,6 +158,10 @@ function showBattleRefusal(refusal: ShowBattleRefusal, sector?: string): Command
   return { ok: false, reason: SHOW_BATTLE_REASONS[refusal], data: { refusal, ...(sector ? { sector } : {}) } };
 }
 
+function promptOpenRefusal(prompt: BattlePrompt): CommandResult {
+  return { ok: false, reason: `answer the ${prompt.kind} prompt first`, data: { refusal: 'promptOpen' } };
+}
+
 function anyNonNeutralOfTeamInSector(t: TacticalState, team: number): boolean {
   return teamMembers(t, team).some((s) => s.placed && s.life !== 0 && !s.neutral);
 }
@@ -964,7 +968,7 @@ export class BattleFlow implements FateContext {
   #autoresolveRetreat(cmd: { readonly [key: string]: unknown }): CommandResult {
     const session = this.session;
     if (!session || this.state.flow !== 'autoresolve') return { ok: false, reason: 'no autoresolve battle is running' };
-    if (this.state.battle.prompt) return { ok: false, reason: `answer the ${this.state.battle.prompt.kind} prompt first` };
+    if (this.state.battle.prompt) return promptOpenRefusal(this.state.battle.prompt);
     const ar = session.ar;
     if (ar.status !== BattleStatus.IN_PROGRESS) return { ok: false, reason: 'the battle is over' };
     let index: number | null = null;
@@ -1000,7 +1004,7 @@ export class BattleFlow implements FateContext {
     const s = this.state;
     const world = s.worldSector;
     const t = this.campaign.tactical?.state;
-    if (s.battle.prompt) return { ok: false, reason: `answer the ${s.battle.prompt.kind} prompt first` };
+    if (s.battle.prompt) return promptOpenRefusal(s.battle.prompt);
     if (s.flow !== 'strategic' || !t || !world) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
     const inBattle = t.inCombat || t.turn.enemyInSector;
     if (!s.battle.locator && !inBattle) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
@@ -1025,7 +1029,7 @@ export class BattleFlow implements FateContext {
       case 'showBattle':
         return this.#showBattle();
       default:
-        if (this.state.battle.prompt) return { ok: false, reason: `answer the ${this.state.battle.prompt.kind} prompt first` };
+        if (this.state.battle.prompt) return promptOpenRefusal(this.state.battle.prompt);
         if (this.state.flow === 'autoresolve') return { ok: false, reason: 'an autoresolve battle is running' };
         return null;
     }
