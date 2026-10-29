@@ -723,7 +723,7 @@ other 0. Affordable iff `min <= actionPoints`.
 ### 6.8 `EndAIGuysTurn(s)` (`AIMain.cc:514-575`)
 
 No-op unless `gfTurnBasedAI`. `someoneHit ? someoneHit = false : SayCloseCallQuotes()`; hostile civ-group member →
-`CivilianGroupMembersChangeSidesWithinProximity` (`35` §4); roof render flag; `aiTurnControl = false; turnInProgress =
+`CivilianGroupMembersChangeSidesWithinProximity` (`35`); roof render flag; `aiTurnControl = false; turnInProgress =
 false; moved = true; bypassToGreen = false`; next = `RemoveFirstAIListEntry()` → `StartNPCAI(next)` or `EndAITurn()`.
 
 ### 6.9 Enemy sighted on their turn (3 s pause)

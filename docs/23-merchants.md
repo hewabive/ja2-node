@@ -396,7 +396,7 @@ whether his sector is loaded.
 - Set to `initialCash` at the new game and every 09:00 (§5.3, before restock; not for dead dealers).
 - Increases: money items the player hands over (any transaction, including gifts to `ACCEPTS_GIFTS` dealers), the part
   of a price paid from the player's balance (`ShopKeeper_Interface.cc:3364-3368`), money given to Frank outside the SKI
-  (`TacticalAI/NPC.cc:1013-1016`, `35` §1.11).
+  (`TacticalAI/NPC.cc:1013-1016`, `35`).
 - Decreases: change handed to the player (`GivePlayerSomeChange`, `:5903-5927`). Jake: if his cash is below the change it
   is first raised to exactly the change (he never refuses, "quote 27 was never recorded", `:3311-3319, 5916-5921`).
 - Limits buying: a `BUYS_ONLY`/`BUYS_SELLS` dealer refuses a transaction when `change > cash` **before** the offered money
@@ -502,7 +502,7 @@ taken with the gun (§2.2). Money (`IC_MONEY`: MONEY, MONEY_FOR_PLAYERS_ACCOUNT,
 Ways in: the talk menu's 5th entry (labelled with the dealer type, `Tactical/Interface_Dialogue.cc:738-741`) when the
 NPC has no unused `APPROACH_BUYSELL` record (else that record plays, `24`) (`:800-830`); the NPC script action
 `NPC_ACTION_INITIATE_SHOPKEEPER_INTERFACE` after `HandleShopKeepHasBeenShutDown` (Keith out of business or low loyalty
-plays a record instead, `TacticalAI/NPC.cc:2640-2665`, `35` §1.2 action 41) (`Interface_Dialogue.cc:3578-3585`); giving an
+plays a record instead, `TacticalAI/NPC.cc:2640-2665`, `35` action 41) (`Interface_Dialogue.cc:3578-3585`); giving an
 item to a dealer who would not accept it as a quest item opens the SKI with that item already offered
 (`Tactical/Handle_Items.cc:2347-2390`, `24`). Starting to talk costs `AP_TALK` 6 (`Tactical/Soldier_Control.cc:8564-8567`);
 the talk preconditions are `24` (`Tactical/Handle_UI.cc:4560-4840`: talkable NPC, visible, not moving outside combat, LOS,
@@ -651,7 +651,7 @@ CalculateOvernightRepairDelay(d, start, fix):                           // :2376
 ```
 `GetArmsDealerShopHours` (`:2356-2372`) takes the `SCHEDULE_ACTION_UNLOCKDOOR`/`LOCKDOOR` times of the dealer's map
 schedule (`Strategic/Scheduling.cc:1036-1076`). ja2-node: the `shopHours` merchant hook, which `campaign-sim.ts` answers from
-the loaded tactical sector's schedules (`extractScheduleDoorLockAndUnlockInfo`, `35` §3.5) for the dealer's soldier there,
+the loaded tactical sector's schedules (`extractScheduleDoorLockAndUnlockInfo`, `35`) for the dealer's soldier there,
 else `null`. A job started after closing pays a full night although part of it has passed; a job started at night before
 opening may finish at night; with no hours there is no delay.
 
@@ -709,12 +709,12 @@ arrays freed; his cash as one MONEY object; cash 0. A dead dealer is skipped by 
 
 | Condition | Where |
 |---|---|
-| Dealer soldier present: profile sector = loaded sector, not hired, not dead, map placement with his profile | `profileHere` (`sector-flow.ts`; `35` §2.6) |
+| Dealer soldier present: profile sector = loaded sector, not hired, not dead, map placement with his profile | `profileHere` (`sector-flow.ts`; `35`) |
 | Not out of business | §10.7 |
 | Manny is a dealer only with `FACT_MANNY_IS_BARTENDER` | §1.2 |
-| Unused `APPROACH_BUYSELL` NPC record plays first; Keith's shutdown records | §9.1 (`24`, `35` §1.2) |
-| Tony available 3 days in 4 once spoken to: at 04:00, if C5 is not loaded, `Random(4)` ≠ 0 → C5, else `FACT_TONY_NOT_AVAILABLE` and no sector | `Strategic/Strategic_Event_Handler.cc:733-747`; `35` §2.3 (`early-morning.ts`) |
-| Devin moves daily while never spoken to (counter starts at 3, `Game_Init.cc:115`) to a random sector of his placement list | `:752-766`, `J:strategic-map-npc-placements.json`; `35` §2.3 |
+| Unused `APPROACH_BUYSELL` NPC record plays first; Keith's shutdown records | §9.1 (`24`, `35`) |
+| Tony available 3 days in 4 once spoken to: at 04:00, if C5 is not loaded, `Random(4)` ≠ 0 → C5, else `FACT_TONY_NOT_AVAILABLE` and no sector | `Strategic/Strategic_Event_Handler.cc:733-747`; `35` (`early-morning.ts`) |
+| Devin moves daily while never spoken to (counter starts at 3, `Game_Init.cc:115`) to a random sector of his placement list | `:752-766`, `J:strategic-map-npc-placements.json`; `35` |
 | Micky (and Gabby, sci-fi) placed at a random listed sector at game start | `InitNPCs`, `Game_Init.cc:73-116` (`docs/15` §4.3 step 7; `src/sim/strategic/map/init.ts`) |
 | Repairmen's shop hours | map schedules (§10.3) |
 

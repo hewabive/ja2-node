@@ -378,7 +378,7 @@ until `DisplayHiddenInterrupt`, then an `interrupt` event; a fully hidden one le
 
 ## 11. Doors, containers and remote triggers
 
-Rules: `35` §5 (doors, locks, traps; deviation "Door menu"). `door {soldier, gridNo, action}`, `action` one of
+Rules: `35` (doors, locks, traps; deviation "Door menu"). `door {soldier, gridNo, action}`, `action` one of
 `open`, `close`, `openManually`, `closeManually`, `unlock`, `lock`, `pickLock`, `force`, `crowbar`, `explode`,
 `untrap`, `examine` (`src/sim/tactical/doors/door-command.ts`):
 
@@ -596,8 +596,8 @@ records.
 
 ## 16. NPC actions and requests, civilians, surrender and boxing
 
-**NPC actions** (`35` §1, `src/sim/tactical/narrative/npc-actions/`) have no command; their effects show where they
-always do (lines, `questStarted`, `historyAdded`, mails, the shop, soldiers in sight). A requestor action (`35` §1.3)
+**NPC actions** (`35`, `src/sim/tactical/narrative/npc-actions/`) have no command; their effects show where they
+always do (lines, `questStarted`, `historyAdded`, mails, the shop, soldiers in sight). A requestor action (`35`)
 closes the panel and opens an **NPC request** (deviation "NPC requestors"): `npcRequest {id, kind: npcRequest, request,
 npc, name, merc?, amount?, pair?, choices}`, also in the reply that opened it, `request` one of `escort` (`pair` for
 John and Mary), `hire` (`amount` the salary), `boxingBet`, `fightAgain`, `buyVest` (`amount` the price), `payDoctor`
@@ -622,7 +622,7 @@ tactical`, `soldier`; `surrenderOffered {soldier, prompt}`); `accept` captures e
 {surrendered}`. Sandbox sessions decline it at once.
 
 **NPCs on their own** (`24`: approaching NPCs, assassins, first sightings, hostile declarations, guides describing
-sectors) and **schedules** (`35` §3) have no command, prompt or view field: their lines arrive as the events of §13, a
+sectors) and **schedules** (`35`) have no command, prompt or view field: their lines arrive as the events of §13, a
 civilian off the map is missing from `soldiers`, door use arrives as `doorChanged`. Profile NPCs' whereabouts,
 `npcData`, balances and the 04:00 moves are never shown (`npcMoved` is not an event).
 

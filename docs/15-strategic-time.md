@@ -717,7 +717,7 @@ ja2-node: `handleQuarterHourUpdate` (`economy/update.ts`).
   `Tactical/Merc_Hiring.h:14-16`); draws on `main` (equipment complaint time, `CheckIfMercGetsAnotherContract`, unhired
   improvement, availability) and `pre` (unhired deaths, `PreRandom(1000)`, `Campaign.cc:1157`). ja2-node: `ContractFlow`.
 - **00:00 `SETUP_MINE_INCOME`**: four `HANDLE_MINE_INCOME` one-shots at 09:00 + k·3 h (`Strategic_Mines.cc:34-36`).
-- **04:00 `DAILY_EARLY_MORNING_EVENTS`** (`Strategic_Event_Handler.cc:693-865`, steps in `35` §2.3), also in the very
+- **04:00 `DAILY_EARLY_MORNING_EVENTS`** (`Strategic_Event_Handler.cc:693-865`, steps in `35`), also in the very
   first warp (§4.5): NPC resets and moves with `Random` draws (Walker, Tony, Devin, Hamous, Carmen) and
   **`PreRandom(3)` → Dave has gas**. ja2-node: `src/sim/strategic/narrative/early-morning.ts`.
 - **Other daily kinds** (09:00 Bobby Ray, 00:00 MERC site and insurance, 07:00 Enrico, 08:00 quests): handlers in §2.7.
@@ -809,7 +809,7 @@ state machine).
 5. `InitializeMines()` (`Strategic_Mines.cc:61-159`, `18`): base rates, rejection-sampled production increments,
    the depleting mine.
 6. `InitMapScreenFlags()`.
-7. `InitNPCs()` (`Game_Init.cc:73-116`, `35` §2.2): per NPC placement in profile-id order (sci-fi-only ones skipped
+7. `InitNPCs()` (`Game_Init.cc:73-116`, `35`): per NPC placement in profile-id order (sci-fi-only ones skipped
    without sci-fi) `pickPlacementSector()` = `Random(#sectors)` (`externalized/strategic/NpcPlacementModel.cc:32-40`), the
    alternate-map flag, the placement if `placedAtStart`; Tixa's alternate map without sci-fi; Devin `bNPCData = 3`.
 8. `InitializeHelicopter()`, `ClearOutVehicleList()`.
@@ -874,7 +874,7 @@ flow is tactical.
 
 All initialisation draws are `main`; none is a `PreRandom`. Order:
 
-1. `DecideActiveTerrorists` (`35` §2.2): 2 × `Chance(70|50|30)`; then sweeps over the terrorist list: per unplaced
+1. `DecideActiveTerrorists` (`35`): 2 × `Chance(70|50|30)`; then sweeps over the terrorist list: per unplaced
    candidate `Random(100)` (< 40 places), then `Random(#sectors)` repeated until an unused sector.
 2. `StartSomeMercsOnAssignment` (`21` §2.2): per AIM/MERC profile in content order `Random(100)`, and `Random(6 + exp/2)`
    when busy.

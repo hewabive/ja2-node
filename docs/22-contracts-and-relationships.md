@@ -93,7 +93,7 @@ still processes them (§2.1).
 |---|---|---|---|
 | A.I.M. | 1, 7 or 14 days, extendable | renewal sequence at the arrival slot (§3) | up front: hire (`21` §2.5), extensions (§3.6) |
 | M.E.R.C. | open-ended | player dismisses, or quits when the account turns invalid (§4.7) | daily accrual settled on the M.E.R.C. site (`21` §3.4) |
-| RPC (kind `NPC`) | open-ended | dismissed; quits after 3 unpaid days (§4.8); hated-merc rules (§5.2); Slay leaves after a week (`35` §2.4) | `sSalary` per day at 00:00 (§4.8) |
+| RPC (kind `NPC`) | open-ended | dismissed; quits after 3 unpaid days (§4.8); hated-merc rules (§5.2); Slay leaves after a week (`35`) | `sSalary` per day at 00:00 (§4.8) |
 | I.M.P. | none | dismissal only | none |
 | EPC | none | unescorted (`24`) | none |
 
@@ -173,7 +173,7 @@ for pid in 0 .. NUM_PROFILES−1 (200 in Strac, 170 in V; the extra slots are em
                                          : exp (set the flag only when day > 3, DAYS_TIL_M_E_R_C_AVAIL)
     if Random(100) < chance: p.status = WORKING_ELSEWHERE; p.dayBecomesAvailable = 1 + Random(6 + exp/2)
   if p.hangover > 0: p.hangover--                                                    // off-team profiles only
-HandleSlayDailyEvent()                                                               // Slay leaves when contractEnd/1440 <= day (`35` §2.4)
+HandleSlayDailyEvent()                                                               // Slay leaves when contractEnd/1440 <= day (`35`)
 ```
 
 V matches in order and content (V: `StrategicMercHandler.c:160-330`, RPC test by profile range). A dead merc not yet
@@ -407,7 +407,7 @@ The soldier's paid `medicalDeposit` does not change. The next renewal shows the 
 | M.E.R.C. or RPC quits over a hated merc | hourly counters (§5.2) | 49/50 or 32 | prompt, no rehire | `MERC_QUIT 14` |
 | M.E.R.C. unpaid | account invalid at 00:00 (§4.7) | 54 | **none: he keeps everything** | 14 |
 | RPC unpaid 3 days | 00:00 (§4.8) | 55 | **none** | 14 |
-| Slay | his week ends (`35` §2.4) | — | none | `SLAY_MYSTERIOUSLY_LEFT 76` |
+| Slay | his week ends (`35`) | — | none | `SLAY_MYSTERIOUSLY_LEFT 76` |
 | Dead or captured merc removed | map screen "remove merc" (`Assignments.cc:4330-4390`) | — | none (dropped earlier) | none for the dead; 22 for a POW |
 
 ### 4.2 `BeginRemoveMercFromContract(s)` (`Strategic/Assignments.cc:4397-4431`)
@@ -443,7 +443,7 @@ answer rehire:    the merc stays; quote 116 if the price rose; the contract menu
 
 The box is the `mercDeparture` prompt (`departureOptions`, `departure.ts`). The Iggy rule is the `mercLeavingTeam`
 contract hook, which the campaign wires to `NarrativeFlow.mercLeavingTeam` (`handleUniqueEventWhenPlayerLeavesTeam`,
-`strategic/narrative/profiled-enemies.ts`; the fact turns the next enemy elite into Iggy, `35` §2.6). It runs only in
+`strategic/narrative/profiled-enemies.ts`; the fact turns the next enemy elite into Iggy, `35`). It runs only in
 this event, after the pause and before the prompt: an RPC who quits unpaid (§4.7) skips it, so Iggy reaches the army
 only when he is dismissed or quits over a hated merc while still owed money.
 
@@ -489,7 +489,7 @@ CheckAndHandleUnloadingOfCurrentWorld()        // 16
 StopTimeCompression()                          // reason mercLeft
 ```
 
-The profile insertion data of a departing kind-`NPC` merc (`35` §2.6) is written before he leaves his group, on every
+The profile insertion data of a departing kind-`NPC` merc (`35`) is written before he leaves his group, on every
 path into `StrategicRemoveMerc` (also the removal of a dead or captured RPC, which the original does not exclude). He is
 in the sector (`bInSector`) when the world is loaded and he holds a merc slot there or rides a vehicle in it
 (`offGridInSector`); a dead merc keeps his slot as the original keeps `bInSector`. Otherwise the profile takes his

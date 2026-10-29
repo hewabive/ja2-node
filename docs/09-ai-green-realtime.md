@@ -245,7 +245,7 @@ new-situation path of §1.2 step 6 on the following visit.
 1. Boxing (`:657-723`, `25` §3). Tank → NONE (`:725`).
 2. `bInWater = Water(grid)`, `bInGas = InGasOrSmoke(s, grid)` (`:731-734`).
 3. **Civilians** (`:739-792`): cowering → `usActionData = ANIM_STAND`, STOP_COWERING. RT only: `AI_CHECK_SCHEDULE` →
-   `DecideActionSchedule` (`35` §3); profile → `DecideActionNamedNPC` (§5), non-NONE result returned;
+   `DecideActionSchedule` (`35`); profile → `DecideActionNamedNPC` (§5), non-NONE result returned;
    `uiTimeSinceLastSpoke && now < uiTimeSinceLastSpoke + 60000` → NONE, else clear it. Then
    `!bInWater && PreRandom(5) != 0` → **NONE (80%)** (`PreRandom` only drawn when not in water).
 4. **POINTPATROL** and `bBreath >= 75` (`:800-817`): `PointPatrolAI` true → `bNextAction = WAIT, usNextActionData =
@@ -495,7 +495,7 @@ turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: 
   `CheckForChangingOrders` queues END_COWER_AND_MOVE to grid 0; it becomes a WAIT and is zapped by the pending new
   situation, then `sPreCombatGridNo = NOWHERE` (inferred; harmless). `sPreCombatGridNo` is set when combat starts
   (`10` §1.4).
-- **Schedules**: `DecideActionSchedule` (`:58-516`) and the away slots: `35` §3. `SCHEDULE_ACTION_STAYINSECTOR` (8) has
+- **Schedules**: `DecideActionSchedule` (`:58-516`) and the away slots: `35`. `SCHEDULE_ACTION_STAYINSECTOR` (8) has
   no runtime handler (only `Editor/EditorMercs.cc`), so a map schedule made only of STAYINSECTOR entries never sets
   `AI_CHECK_SCHEDULE` (`Strategic/Scheduling.cc:237`; inferred from data + code).
 
@@ -546,7 +546,7 @@ turn to the noise, radio, seek the noise, seek a friend who radioed, and **50%: 
 | `decide.ts` | `decideAction`, `decideAlertStatus`, `checkForChangingOrders`, `setNewSituation`, `decideActionGreen` (§2.3), `realtimeDelay` and the delays, `determineMovementMode` |
 | `destinations.ts` | `roamingRange`, `randDestWithinRange`, `internalGoAsFarAsPossibleTowards` (with the Fisher–Yates fallback), `randomFriendWithin`, `legalNPCDestination`, `nextPatrolPoint`, `pointPatrolAI`, `randomPointPatrolAI` |
 | `pause.ts`, `system-situation.ts` | `gfPauseAllAI` (§1.1); `handleSystemNewAISituation` (§4.4) |
-| `decide-named-npc.ts`, `decide-schedule.ts`, `decide-boxing.ts` | §5 and `24`, `35` §3, `25` §3 |
+| `decide-named-npc.ts`, `decide-schedule.ts`, `decide-boxing.ts` | §5 and `24`, `35`, `25` §3 |
 | `combat-decide.ts`, `creature-decide.ts`, `turn-based.ts` | YELLOW/RED/BLACK, creatures and crows, the turn-based driver (`13`) |
 
 `MostImportantNoiseHeard` is `perception/knowledge.ts`. Doors opened by walking AI soldiers are `doors/` (`07`).

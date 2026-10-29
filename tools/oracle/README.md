@@ -22,15 +22,15 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Contracts | daily merc update, renewal sequence, extensions, departures, leave list | `contracts.txt` | `contract-compare.ts` | 0007 | `22` |
 | Creature AI | creature and bloodcat decisions, melee, calls, smell | `creature-ai.txt` | `creature-ai-compare.ts` | 0009 | `13` |
 | Laptop | `InitNewGame`, A.I.M., M.E.R.C. and I.M.P. hires, Bobby Ray's, insurance, the florist | `laptop.txt`, `florist.txt` | `laptop-compare.ts` | 0010, 0025 | `21` |
-| Doors and civilian groups | locks, traps, door actions, civilian hostility | `doors.txt` | `doors-compare.ts` | 0011 | `35` §4, §5 |
+| Doors and civilian groups | locks, traps, door actions, civilian hostility | `doors.txt` | `doors-compare.ts` | 0011 | `35` |
 | Attachment AP | the item description box | `attach.txt` | `attach-compare.ts` | | `12` |
-| Facts and NPC presence | facts, quests, `CheckFact`, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement | `facts.txt` | `facts-compare.ts` | 0012 | `25` §1, §2, `35` §2 |
+| Facts and NPC presence | facts, quests, `CheckFact`, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement | `facts.txt` | `facts-compare.ts` | 0012 | `25` §1, §2, `35` |
 | Talk | NPC records, desire to talk, record choice, conversation steps | `talk.txt` | `talk-compare.ts` | 0013 | `24` |
 | Give | items and money to NPCs, NPC gifts, quest action items | `give.txt` | `give-compare.ts` | 0017 | `24` |
 | Civilians | civilian quotes, named-NPC AI, the hostile-quote list and its AI pause, the surrender offer | `civ.txt` | `civ-compare.ts` | 0020, 0022 | `24` |
 | Helicopter | flights, SAM fire, billing, hovering, landing, boarding, monologues | `heli.txt` | `heli-compare.ts` | 0014 | `25` §5 |
-| NPC actions | action catalog, requestor answers, NPC system events, Kingpin's money, the hospital | `actions.txt` | `actions-compare.ts` | 0015 | `35` §1 |
-| Schedules | posting, the 24-hour replay, processing, the AI's schedule steps | `schedules.txt` | `schedules-compare.ts` | 0016 | `35` §3 |
+| NPC actions | action catalog, requestor answers, NPC system events, Kingpin's money, the hospital | `actions.txt` | `actions-compare.ts` | 0015 | `35` |
+| Schedules | posting, the 24-hour replay, processing, the AI's schedule steps | `schedules.txt` | `schedules-compare.ts` | 0016 | `35` |
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` §3 |

@@ -10,7 +10,7 @@ Item ids are the `ITEMDEFINE` enum (`Tactical/Item_Types.h:221-615`); JSON `inte
 **Scope.** Item content, `OBJECTTYPE`, soldier inventory, reload, item AP costs, first aid, world items, profile and
 enemy equipment, drops, explosions, smoke, gas and flares. Elsewhere: gun attacks (`11` §1–§3), melee (`11` §4), hits
 and armour against bullets (`33`), throwing (AP cost, range, chance, physics, duds) and launchers (`34` §0);
-locks, door traps, action items and switches (`35` §5, `25` §6.5); merchants (`23`); the agent API's inventory commands
+locks, door traps, action items and switches (`35`, `25` §6.5); merchants (`23`); the agent API's inventory commands
 (`29` §12); the inventory screens (`30` §2.3–2.4, §4.2).
 
 ---
@@ -275,7 +275,7 @@ key objects store `ubKeyID` (§2). Enemies "with keys" and profiled NPCs hold ke
 `ItemObject.keyId`; `Soldier.keyRing` (our team only, `NUM_KEYS` 64 slots, imported from native saves); `KeyTable`
 (where and when each key was first placed into a PC's inventory, `collectKey` from `PlaceObject`); key items found
 through `classIndex == LockTable[keyId].usKeyItem` (`createKeyObject`); the key ring drops with the corpse and with
-left equipment (`dropKeysInKeyRing`). Locks, door actions and traps: `35` §5 (`src/sim/tactical/doors/`).
+left equipment (`dropKeysInKeyRing`). Locks, door actions and traps: `35` (`src/sim/tactical/doors/`).
 
 ### 3.6 Weight and encumbrance (`Tactical/Items.cc:819-867`)
 
@@ -876,7 +876,7 @@ set the hurt flag; OUR_TEAM owner vs others → ProcessImplicationsOfPCAttack(RE
 - **Listeners** (`Explosion_Control.cc:341-373`): first `BeforeStructureDamaged` may take the hit (the O3 statue, `26`
   §5.3). Right after `DamageStructure` reports damage or destruction, `OnStructureDamaged(loaded sector, hit tile,
   structure, wound as UINT8, destroyed)` calls its listeners in key order: `default:brothel` (a destroyed wall beside a
-  brothel room turns Kingpin's men hostile, `35` §4.2), then `default:sam` (a hit on a SAM tile wears the SAM down,
+  brothel room turns Kingpin's men hostile, `35`), then `default:sam` (a hit on a SAM tile wears the SAM down,
   `18`). `destroyed` is the raw result, before a negative destruction partner turns it into a swap; the wound is
   the one before the structure's armour. ja2-node: `structureDamaged` in `src/sim/tactical/explosions/structure-damage.ts`
   calls the brothel listener and then `SectorHooks.structureDamaged`, which the sector flow implements.
@@ -1048,7 +1048,7 @@ the O3 statue (`src/sim/tactical/narrative/statue.ts`).
   triggers: `SetOffBombsByFrequency` (`:2097-2162`; AI panic frequencies 125–127).
 - **Booby traps on pickup**: `ContinuePastBoobyTrap` → `DISARM_TRAP_CHECK`; failure sets the bombs off or the MINI_GRENADE
   trap (`Handle_Items.cc:2735-2930`); detection `NearbyGroundSeemsWrong` (`:3051`; called per step, `07` §4.5, §4.7).
-  Door traps: `35` §5.
+  Door traps: `35`.
 
 ---
 

@@ -18,11 +18,11 @@ sector comparisons include z (`C5` means z 0) unless marked. Record numbers ("re
 
 **Scope.** Facts, quests and their rewards, boxing, EPCs and the robot, Skyrider and the helicopter, and the
 quest-specific campaign rules. `35` holds what each NPC action does once dispatched, strategic NPC presence, schedules,
-civilian groups, keys, locks and door actions (`35` §1–4, `35` §5). `24` owns NPC records and their selection, the talk
+civilian groups, keys, locks and door actions (`35`, `35`). `24` owns NPC records and their selection, the talk
 interface, the dialogue queue, the dispatch of NPC actions, recruiting (`RecruitRPC`, `RecruitEPC`, releases) and the
 "declare hostility" list; `26` meanwhiles, the Queen, Elliot and Joe, the endgame and game over; `21` the laptop (Bobby
-Ray's delivery, the Pablo theft rules); `22` contracts (Slay's, Iggy's and EPC departures: §4, §6; Larry: `35` §2.4); `23`
-merchants (dealer facts here; Tony's and Devin's presence and shop hours: `35` §2.3, `35` §3.5); `15` the event queue and
+Ray's delivery, the Pablo theft rules); `22` contracts (Slay's, Iggy's and EPC departures: §4, §6; Larry: `35`); `23`
+merchants (dealer facts here; Tony's and Devin's presence and shop hours: `35`, `35`); `15` the event queue and
 handler order; `16` squads, groups, travel, sector transitions; `17` the Queen (`ExecuteStrategicAIAction`); `18` loyalty,
 mines, assignments, the hospital assignment; `19` battles, capture, first-battle bookkeeping; `09`/`13` the AI; `07` doors
 and pathing; `11` attacks; `33` `StatChange`; `12` items. Agent API (`unescort`, `heliRoute`/`heliCancel`,
@@ -45,18 +45,18 @@ NPC actions, presence and schedules use are in `35`):
 
 | Field | Original | Used by |
 |---|---|---|
-| `sectorX/Y/Z` | `sSector` (x, y u16 and z i8, `Tactical/LoadSaveMercProfile.cc:83-84, 181`; `bSectorZ` is unused) | presence (`35` §2), facts, escorts, Skyrider; x = y = 0 is nowhere |
+| `sectorX/Y/Z` | `sSector` (x, y u16 and z i8, `Tactical/LoadSaveMercProfile.cc:83-84, 181`; `bSectorZ` is unused) | presence (`35`), facts, escorts, Skyrider; x = y = 0 is nowhere |
 | `town`, `townAttachment` | `bTown`, `bTownAttachment` | loyalty facts (§1.3), head miners (`18`) |
-| `npcData`, `npcData2` | `bNPCData`, `bNPCData2` (INT8) | per-NPC counters (`35` §2.8) |
+| `npcData`, `npcData2` | `bNPCData`, `bNPCData2` (INT8) | per-NPC counters (`35`) |
 | `miscFlags`, `miscFlags2`, `miscFlags3` | `ubMiscFlags` (`RECRUITED 0x01`, `WOUNDEDBYPLAYER 0x08`, `SAID_HOSTILE_QUOTE 0x20`, `EPCACTIVE 0x40`), `ubMiscFlags2` (`DONT_ADD_TO_SECTOR 0x01`, `LEFT_COUNTRY 0x02`, `BANDAGED_TODAY 0x04`, `SAID_FIRSTSEEN_QUOTE 0x08`, `NEEDS_TO_SAY_HOSTILE_QUOTE 0x10`, `MARRIED_TO_HICKS 0x20`, `ASKED_BY_HICKS 0x40`), `ubMiscFlags3` (`PERMANENT_INSERTION_CODE 0x02`, `HANDLE_DONE_TRAVERSAL 0x08`, `NPC_PISSED_OFF 0x10`, `TOWN_DOESNT_CARE_ABOUT_DEATH 0x40`, `GOODGUY 0x80`) | `Tactical/Soldier_Profile_Type.h:25-51`; ja2-node `ProfileMiscFlag`, `ProfileMiscFlag2`, `ProfileMiscFlag3` (`src/sim/campaign/profiles.ts`) |
 | `money` | `uiMoney` | NPC cash (Carmen, Darren, Vince, …) |
-| `balance` | `iBalance` | owed money, bets, bribes (`35` §1.11), Skyrider's debt (§5.6) |
-| `useProfileInsertion`, `insertionCode`, `insertionData` | `fUseProfileInsertionInfo`, `ubStrategicInsertionCode`, `usStrategicInsertionData` | `35` §2.6; escort release (§4.1) |
-| `quoteRecord`, `quoteActionId` | `ubQuoteRecord`, `ubQuoteActionID` | pending NPC movement across sector loads (`35` §2.6) |
-| `life`, `stats` | `bLife`, `bLifeMax`, … | written back from NPC soldiers when a sector is left (`35` §2.6) |
-| `nickname` | `zNickname` | terrorist reveal (`35` §1.6) |
-| `lastDateSpokenTo` | `ubLastDateSpokenTo` | shared with `24`; Tony, Devin, Kingpin (`35` §2.3, §1.6) |
-| `salary` | `sSalary` | `RECRUIT` zeroes it, Conrad's reduction (`35` §1.3) |
+| `balance` | `iBalance` | owed money, bets, bribes (`35`), Skyrider's debt (§5.6) |
+| `useProfileInsertion`, `insertionCode`, `insertionData` | `fUseProfileInsertionInfo`, `ubStrategicInsertionCode`, `usStrategicInsertionData` | `35`; escort release (§4.1) |
+| `quoteRecord`, `quoteActionId` | `ubQuoteRecord`, `ubQuoteActionID` | pending NPC movement across sector loads (`35`) |
+| `life`, `stats` | `bLife`, `bLifeMax`, … | written back from NPC soldiers when a sector is left (`35`) |
+| `nickname` | `zNickname` | terrorist reveal (`35`) |
+| `lastDateSpokenTo` | `ubLastDateSpokenTo` | shared with `24`; Tony, Devin, Kingpin (`35`) |
+| `salary` | `sSalary` | `RECRUIT` zeroes it, Conrad's reduction (`35`) |
 | `inventory` | `inv[]`, `bInvStatus[]`, `bInvNumber[]` | gifts, heads, deed, money |
 
 **Saved globals** (general info, `SaveLoadGame.cc:1895-1946`, and the tactical status):
@@ -154,7 +154,7 @@ read only by records (265/266 also by fact 264), so not in the table: `MIGUEL_FO
 | 228, 253, 254 | `FIRST_BATTLE_WON/FOUGHT/BEING_FOUGHT` | `19` (`OH:4481-4491, 4683-4692`, `Strategic/Auto_Resolve.cc:1278-1285`, `Strategic/PreBattle_Interface.cc:189-191`, `OL:1792-1797`) | `19`, Queen (`17`) |
 | 229 | `ROBOT_RECRUITED_AND_MOVED` | T `SM:751` | `SM:743` |
 | 249 | `HICKS_MARRIED_PLAYER_MERC` | records | hicks sight rule (`OL:1707-1708`), ownership (`Tactical/Handle_Items.cc:3290`) |
-| 250–252 | `MUSEUM_OPEN`, `BROTHEL_OPEN`, `CLUB_OPEN` | hourly (`HU:95-152`, `35` §2.4) | museum sight rule (`OL:1584`), records |
+| 250–252 | `MUSEUM_OPEN`, `BROTHEL_OPEN`, `CLUB_OPEN` | hourly (`HU:95-152`, `35`) | museum sight rule (`OL:1584`), records |
 | 258 | `PC_MARRYING_DARYL_IS_FLO` | T `ID:2458-2461` | M.E.R.C. site (`21`) |
 | 267 | `NEED_TO_SAY_SOMETHING` | T `ID:3468-3476` | records, merc dialogue (`24`) |
 | 268 | `ATTACHED_ITEM_BEFORE` | T on the first attachment (`Tactical/Interface_Items.cc:1842`) | help text (UI) |
@@ -279,7 +279,7 @@ value. All rules read the loaded sector only; outside tactical (no loaded world)
 
 `src`, `dest` and `srcProfile` are set when a conversation starts (`ID:286-297`) and **never cleared** (`ID:153-155`):
 records triggered later by proximity, timers or deaths see the last conversation's soldiers. Facts 51, 82, 83, 87, 164,
-171, 178, 280, 284, 292, 341, 362 read them, and so do the requestor answers (`35` §1.3). ja2-node keeps them in
+171, 178, 280, 284, 292, 341, 362 read them, and so do the requestor answers (`35`). ja2-node keeps them in
 `StrategicState.talk.soldiers = {src, dest, srcProfile}` (soldier ids; `srcProfile` starts at 0 like the original's
 zero-initialised global), written by `24` when a conversation starts and resolved per call by `NarrativeFlow.talkContext()`;
 an id that no longer resolves reads as null. Saved with ja2-node's sessions, empty after a native import (deviations "Talk
@@ -372,11 +372,11 @@ themselves give no experience, money, loyalty or progress; rewards come from the
   Quest loyalty effects run in code: Krott alive (Alma +20, `ID:3437-3443`), terrorists dealt with (+5 everywhere,
   `ID:2718-2720`), the creature queen (+10 everywhere, `OH:2485`), Eldin killed (Balime −20, `OH:2361-2364`), Joey killed
   (Cambria −10, or −20 for Martha's heart attack, `OH:2366-2382`), Doreen killed (Drassen −20 if she had relented, then +10,
-  `OH:2403-2418`), rebels betrayed (`ReduceLoyaltyForRebelsBetrayed`, `loyalty.ts`, `35` §4.2).
+  `OH:2403-2418`), rebels betrayed (`ReduceLoyaltyForRebelsBetrayed`, `loyalty.ts`, `35`).
   `NPC_ACTION_PENALIZE_TOWN_LOYALTY` (11) is commented out (`ID:1793-1794`): a no-op.
 - **Progress** (`CurrentPlayerProgressPercentage`, `Tactical/Campaign.cc:1189-1276`) counts income, kills and control only;
-  quests do not enter it. The progress milestones go the other way (`35` §2.4).
-- **History**: quest start/finish (§2.2), the `NPC_ACTION_HISTORY_*` actions (`35` §1.2) and the entries listed per action.
+  quests do not enter it. The progress milestones go the other way (`35`).
+- **History**: quest start/finish (§2.2), the `NPC_ACTION_HISTORY_*` actions (`35`) and the entries listed per action.
 
 ### 2.5 The quest log in the player view
 
@@ -403,7 +403,7 @@ with `state`, `boxers` and the unsaved `uiLocked`); native saves import `bBoxing
 
 1. Entering D5 clears `gBoxer` (`SM:782-787`); `CheckOnBoxers` (`BOX:252-268`) fills empty slots with the weaponless
    soldiers on the boxer gridnos (re-picked only while slot 0 is empty).
-2. Darren's records (bets, `35` §1.11; the `DARREN_REQUESTOR`/`FIGHT_AGAIN_REQUESTOR` prompts) lead to `START_BOXING_MATCH`
+2. Darren's records (bets, `35`; the `DARREN_REQUESTOR`/`FIGHT_AGAIN_REQUESTOR` prompts) lead to `START_BOXING_MATCH`
    (138): a boxer exists → state 1 (`SetBoxingState`: leaving 0 pauses the game, returning to 0 unpauses, `BOX:398-424`).
 3. Every step of a soldier in states 1–3 runs `BoxingMovementCheck` (`OH:736-742, 974-980`, `Tactical/Soldier_Ani.cc:526-529`,
    `BOX:381-396`; it runs twice per tile, after `HandleAtNewGridNo` and after `HandleGotoNewGridNo`, harmless). A soldier in
@@ -452,7 +452,7 @@ with `state`, `boxers` and the unsaved `uiLocked`); native saves import `bBoxing
    without a soldier. On returning to 0 with all three boxers unfought, slot 0 is marked fought (so another fight can be
    offered). Going to the map screen in any boxing state asks to abandon the fight (yes → state 0,
    `Tactical/Interface_Panels.cc:3748-3768`; deviation "Abandoning a fight").
-6. Daily (15:00, `35` §2.4) the fought flags reset and the boxers rest after every third win.
+6. Daily (15:00, `35`) the fought flags reset and the boxers rest after every third win.
 
 ### 3.3 Cheating (`OH:5359-5382`)
 
@@ -495,7 +495,7 @@ additions:
 | strategic move refused for an EPC whose squad (or vehicle) has no non-EPC (`move-permission.ts` `EPC_ALONE`) | `Strategic/Map_Screen_Interface.cc:3838-3849` |
 | strategic move refused for Maria while in C5 | `:3851-3866` |
 | tactical exit: lone EPC / abandoning EPCs (`exitSector`) | `16` |
-| EPCs cannot use keys, lock picks, charges, examine or force (door menu, `35` §5.2) | `Tactical/Interface.cc:1397-1426` |
+| EPCs cannot use keys, lock picks, charges, examine or force (door menu, `35`) | `Tactical/Interface.cc:1397-1426` |
 | an EPC cannot control the robot | `Tactical/Soldier_Control.cc:8662-8663` |
 | a captured EPC dies instead (`19`) | `Strategic/Queen_Command.cc:1185-1191` |
 | EPC deaths do not count for the death rate (`22`) | `Strategic/Strategic_Merc_Handler.cc:78-82` |
@@ -503,12 +503,12 @@ additions:
 
 ### 4.3 The robot
 
-Quest flow (records of MADLAB, `24`; actions `35` §1.9): the AWOL scientist meanwhile (35 % progress) starts quest 11 and
+Quest flow (records of MADLAB, `24`; actions `35`): the AWOL scientist meanwhile (35 % progress) starts quest 11 and
 puts MADLAB and ROBOT into Madlab's alternate-map sector (`26`); he asks for a firearm and a video camera (facts 197, 198);
 `MADLAB_GIVEN_GUN`/`…_CAMERA` (191, 192); `READY_ROBOT` (194) → tomorrow 07:00 `ROBOT_READY` (or, after a first destroyed
 robot, `ROBOT_READY_SECOND_TIME` with the robot's profile restored) and `ROBOT.sector = MADLAB.sector`;
 `MADLAB_ATTACHES_GOOD_CAMERA` (193) → the robot gets Madlab's first gun and becomes an EPC. Its death sets 203, then 206
-(`OH:2236-2247, 2320-2330`). `ROBOT_RECRUITED_AND_MOVED` at the next sector entry (`35` §2.5).
+(`OH:2236-2247, 2320-2330`). `ROBOT_RECRUITED_AND_MOVED` at the next sector entry (`35`).
 
 The robot joins through `RecruitEPC`, so it is an escort (`MERC_TYPE__EPC`) and every `AM_AN_EPC` rule applies to it except
 where `AM_A_ROBOT` is tested first (the strategic move: `ME_ROBOT_ALONE` replaces the escort check); the tactical exit check
@@ -543,7 +543,7 @@ update, `Strategic/Player_Command.cc:180, 287`, `SM:2326`; after loading through
 
 ### 5.2 Getting the helicopter
 
-`InitNPCs` puts Skyrider in B15, E14, D12 or C16 (alternate map, `35` §2.2). Records make him an EPC (`24`, quest 17).
+`InitNPCs` puts Skyrider in B15, E14, D12 or C16 (alternate map, `35`). Records make him an EPC (`24`, quest 17).
 The escorted Skyrider stepping closer than 11 tiles to gridno 8842 in B13 (`OH:1871-1887`) stops, sets
 `SKYRIDER_CLOSE_TO_CHOPPER`, triggers SKYRIDER 15 (which un-recruits him, `24`) and runs
 `SetUpHelicopterForPlayer(B13)` (`HELI:647-657`): once, add the `HELICOPTER` vehicle in B13 (`AddVehicleToList`), give it a
@@ -612,7 +612,7 @@ is scheduled once (`HandleKillChopperMeanwhileScene`, `26`). The helicopter has 
 
 `PaySkyriderBill` (`HELI:1344-1385`) at the end of a flight with a cost: enough money → ledger `PAYMENT_TO_NPC −cost`; else pay
 what is there (if any) and `SKYRIDER.balance = money − cost` (or `−cost`), owed quote, everyone out, return to base; cost = 0.
-The debt grounds him (§5.3) until paid: hourly (`35` §2.4) or by giving him money (`35` §1.11).
+The debt grounds him (§5.3) until paid: hourly (`35`) or by giving him money (`35`).
 
 ### 5.7 Destruction
 
@@ -667,7 +667,7 @@ from `manSeesMan` before the bloodcat rule.
 
 Opening the delivery crate with Pablo's theft undiscovered → the "stuff missing" quote from a nearby merc
 (`SayQuoteFromNearbyMercInSector` with a wisdom roll per candidate, `Random(100) > wisdom` excludes him, then `Random(n)`,
-`Tactical/Dialogue_Control.cc:1386-1422`) and `PLAYER_FOUND_ITEMS_MISSING`. Attacking Pablo then punishes him (`35` §4.3);
+`Tactical/Dialogue_Control.cc:1386-1422`) and `PLAYER_FOUND_ITEMS_MISSING`. Attacking Pablo then punishes him (`35`);
 his records return the goods (action 108). `HandleDelayedItemsArrival` (`SEH:346-432`) for the stolen goods (Pablo dead →
 nothing): `PABLO_RETURNED_GOODS`, not punished; two random items, each `Random(10)`: 0 → `GASMASK` at `20 + Random(10)` %,
 1–2 → `DESERTEAGLE` 40+, 3–5 → `STUN_GRENADE` 70+, 6–9 → two `SW38` 90+, added invisible at the delivery gridno (loaded
@@ -688,7 +688,7 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
   world item of the doctors' group, count the items with status > 60 of kind first aid kit, medical kit, regeneration or
   adrenaline booster in the pool on its tile (level 0; two markers on one tile count it twice, kept); stolen-again and the
   count back at `gubCambriaMedicalObjects` (18, or 21 with sci-fi) → both stolen facts false; else below that → stolen; at
-  most a fifth left → stolen again. In the original, picking the supplies up angers the doctors (`35` §4.4).
+  most a fifth left → stolen again. In the original, picking the supplies up angers the doctors (`35`).
 
 ### 6.4 Kingpin: his money, his hitmen, his men
 
@@ -698,22 +698,22 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
   `Random(120)` (fact 103), `KINGPIN.balance = −(30000 − total)`, every money item of the world deleted (the rest of his cash
   vanishes as the player leaves); later call (from that event) → `KINGPIN_KNOWS_MONEY_GONE`, event in 2 days at
   `Random(120)`. The later call also counts the **currently loaded** world's money (kept: with 30000 or more lying in
-  whatever sector is loaded, he never finds out; with no sector loaded the total is 0). Then `35` §1.13: the letter and
+  whatever sector is loaded, he never finds out; with no sector loaded the total is 0). Then `35`: the letter and
   quest 4, and two days later the threat (assassins allowed, Spike to C5, Kingpin group 2).
-- **Hitmen**: at a town sector entry (`35` §2.5) → `DecideOnAssassin` (`SP:385-412`): candidates from `g_assassin_info`
+- **Hitmen**: at a town sector entry (`35`) → `DecideOnAssassin` (`SP:385-412`): candidates from `g_assassin_info`
   (`SP:106-114`: JIM, JACK, OLAF, RAY, OLGA, TYRONE with five towns each) alive, not placed, whose towns include this town;
   `Random(n)` picks one, his sector = the entered sector, `REMOVE_ASSASSIN` at now + `60·(3 + Random(3))`. Each assassin death
   makes the rest tougher (`MakeRemainingAssassinsTougher`, `SP:414-482`: `difficulty = 60/6 · killed`, ×1.3 medium, ×1.6 hard;
   < 14 nothing, < 28 a mini grenade, < 42 hand grenade replacing it, < 56 mustard replacing it, < 70 a LAW replacing it, else
   an extra hand grenade; added to every living assassin's profile). History `ASSASSIN` comes from a record.
-- **His men**: the C5 placement override (`35` §2.6), no schedules (`35` §3.2), the brothel door rules (`35` §5.3), the alarm
-  (`35` §4.2), the guard-room sight rules (§6.1), Maria (§6.5). Kingpin's death: `KINGPIN_DEAD`, quest 4 ends with
+- **His men**: the C5 placement override (`35`), no schedules (`35`), the brothel door rules (`35`), the alarm
+  (`35`), the guard-room sight rules (§6.1), Maria (§6.5). Kingpin's death: `KINGPIN_DEAD`, quest 4 ends with
   experience, `ExecuteStrategicAIAction(KINGPIN_DEAD)` (`17`).
-- **Boxing and bets**: §3; `35` §1.11.
+- **Boxing and bets**: §3; `35`.
 
 ### 6.5 San Mona: the brothel, Maria, Angel and Kyle
 
-- Madame's money rules (`35` §1.11) count girls paid for in `npcData`; actions 124–134, 217–220 run her lines; actions
+- Madame's money rules (`35`) count girls paid for in `npcData`; actions 124–134, 217–220 run her lines; actions
   129–132 unlock the girls' doors. The entry/exit tracking (`ACTION_ITEM_ENTER/EXIT_BROTHEL`) is commented out in Gold
   (`TileEngine/Explosion_Control.cc:1693-1786`): no code sets facts 88, 95, 237.
 - **The sex action item** (`TileEngine/Explosion_Control.cc:1818-1890`), out of combat, an OUR merc stepping from another room
@@ -739,43 +739,43 @@ an unloaded sector only items at gridno **1** are moved (`SEH:420-430`): the dam
 
 ### 6.6 Terrorists, Carmen and Slay
 
-- Placement (`35` §2.2), files (154), heads: a head item comes from decapitating a corpse with a knife
+- Placement (`35`), files (154), heads: a head item comes from decapitating a corpse with a knife
   (`Tactical/Rotting_Corpses.cc:1183-1229`): CHRIS → `HEAD_2`, T_REX `HEAD_3`, SLAY `HEAD_4`, DRUGGIST `HEAD_5`, ANNIE `HEAD_6`,
   TIFFANY `HEAD_7`, anyone else `HEAD_1`. ja2-node has no decapitation (gap "Corpses").
 - Carmen counts terrorists left and heads held (156), leaves (157/158 with a 10 000 ms timer), returns at 04:00 to C13 paying
-  $10000 per head (`35` §2.3), and ends the quest when none are left (159 → `35` §2.5). Carmen roams C5/C13/G9 daily.
+  $10000 per head (`35`), and ends the quest when none are left (159 → `35`). Carmen roams C5/C13/G9 daily.
 - Every terrorist death makes the rest tougher (`MakeRemainingTerroristsTougher`, `SP:303-383`: remaining = living placed
   terrorists, Slay excluded while on our team; `difficulty = 60/total · killed`, ×1.3/×1.6; same item ladder as the
   assassins, added to their profiles); Elgin's death → MANNY 10 if Manny is in sector and conscious (`OH:2341-2350`).
 - Slay: attacked while neutral → record 1 unless `FACT_155`; seen by Carmen → Carmen hunts him; his death while Carmen hunts
   → CARMEN 29 (`OH:2225-2235`); recruited (`RecruitRPC`, `24`) → a 7-day contract and his wheelchair kicked out
-  (`SP:700-706`); leaves when alone (`Chance(15)` hourly) or when his week ends (`35` §2.4).
+  (`SP:700-706`); leaves when alone (`Chance(15)` hourly) or when his week ends (`35`).
 
 ### 6.7 Chitzena's chalice and Balime's museum
 
-`MUSEUM_OPEN` 09:00–18:00 (`35` §2.4); Eldin's sight rule (§6.1); the museum alarm item → klaxon and `CallEldinTo(gridno)`
+`MUSEUM_OPEN` 09:00–18:00 (`35`); Eldin's sight rule (§6.1); the museum alarm item → klaxon and `CallEldinTo(gridno)`
 (`TacticalAI/Knowledge.cc:86-123`: Eldin, in sector, ≥ OKLIFE, green or with a fading noise: sees the spot → "I hate you"
 trigger, new situation; else a loud noise there, red alert, walk to it unless already doing so with the alarm known;
 `MUSEUM_ALARM_WENT_OFF`); leaving the sector clears the alarm fact; a merc in L12 rooms 22–41 cannot leave strategically while
 Eldin lives and anyone of ours carries the chalice (`ME_MUSEUM`, `Strategic/Map_Screen_Interface.cc:3805-3817`; not in
 ja2-node, gap "Strategic move refusals"); any sector entry with the chalice in a merc's inventory sets `CHALICE_STOLEN`
-(`35` §2.5); Yanni's records (185) and loyalty (§2.4); killing Eldin costs Balime loyalty.
+(`35`); Yanni's records (185) and loyalty (§2.4); killing Eldin costs Balime loyalty.
 
 ### 6.8 Tixa, Alma and the army's profiled soldiers
 
 - Tixa (J9): liberated → only kids remain among unprofiled civilians; the Warden is never neutral; messing with a door near
-  the Warden alerts her (`35` §5.3); `DYNAMO_IN_J9` and Matt's records; Dynamo freed by recruiting or killed (quest 18).
+  the Warden alerts her (`35`); `DYNAMO_IN_J9` and Matt's records; Dynamo freed by recruiting or killed (quest 18).
 - Alma prison: capture (`19`); POW release on entering the prison sector ends quest 8 with experience 3 (`SM:1001-1006`);
   Krott's requestor and loyalty boost.
 - Mike and Iggy: 50 % progress makes Mike available; Iggy appears in C5 at 70 % and becomes available to the army when he
-  leaves our team unpaid (`22`); the first eligible elite placement becomes the profiled soldier (`35` §2.6; also in
+  leaves our team unpaid (`22`); the first eligible elite placement becomes the profiled soldier (`35`; also in
   `TacticalCreateEnemySoldier` and the autoresolve creation); their deaths reduce the garrison (`queen-command.ts`).
 
 ### 6.9 The hicks and Daryl's marriage (F10)
 
-Night hostility (§6.1), the cow rule (`35` §4.3), owned items (`35` §4.4), victory in F10 with no living hick →
+Night hostility (§6.1), the cow rule (`35`), owned items (`35`), victory in F10 with no living hick →
 `HILLBILLIES_KILLED` and Keith back in business (`NPC:2607-2637`, called on a tactical victory, `OH:4682`). The marriage
-prompt (226, `35` §1.3) and `HAVE_MARRIED_NPC_LEAVE_TEAM` (227, `ID:2438-2468`): the merc is `DARYL.npcData`'s profile
+prompt (226, `35`) and `HAVE_MARRIED_NPC_LEAVE_TEAM` (227, `ID:2438-2468`): the merc is `DARYL.npcData`'s profile
 (soldier must exist, and dest): `MARRIED_TO_HICKS`, history `MERC_MARRIED_OFF`, FLO → `PC_MARRYING_DARYL_IS_FLO`, morale
 `MORALE_MERC_MARRIED`, `UpdateDarrelScriptToGoTo` (`NPC:2667-2695`: a free gridno near the merc excluding his tile, radius 5
 then 10, written into DARREL's record 10 destination and record 11's required gridno and trigger NPC — a record-data
@@ -792,7 +792,7 @@ Cambria −20, else −10 (`OH:2366-2382`). The Willis discount follows by event
 
 ### 6.11 Doreen and the children (Drassen)
 
-Records free the kids (117 → tomorrow 07:00 `KIDS_ARE_FREE`; the kids' bodies are then skipped in C13, `35` §2.6) and boost
+Records free the kids (117 → tomorrow 07:00 `KIDS_ARE_FREE`; the kids' bodies are then skipped in C13, `35`) and boost
 loyalty (10). Killing Doreen: loyalty (§2.4), `DOREEN_HAD_CHANGE_OF_HEART`, quest 20 ends, and if the kids are not free yet,
 action 117 runs at once (`OH:2403-2418`).
 
@@ -812,8 +812,8 @@ the death message is the server's `soldierDied` line (`src/server/message-entrie
 ### 6.13 Vehicles
 
 The hummer: Dave (GERARD) sells it (requestor 169, his money rule with $10000, records, 211 → `OK_USE_HUMMER` in 24 h),
-`DAVE_HAS_GAS` daily, `FILL_UP_CAR` (202). The ice-cream truck moves with Hamous daily (`35` §2.3), `OK_USE_ICECREAM` from
-records, the placement quirk (`35` §2.6). Boarding is gated by `OKUseVehicle` (`Tactical/Vehicles.cc:847-866`); ja2-node
+`DAVE_HAS_GAS` daily, `FILL_UP_CAR` (202). The ice-cream truck moves with Hamous daily (`35`), `OK_USE_ICECREAM` from
+records, the placement quirk (`35`). Boarding is gated by `OKUseVehicle` (`Tactical/Vehicles.cc:847-866`); ja2-node
 boards only vehicles already on our team (gap "Ground vehicles").
 
 ### 6.14 John and Mary (the tourists)
@@ -829,8 +829,8 @@ stop, → JOHN 13 with Mary present, else JOHN 12. Their record 13 un-recruits t
 
 `RecruitRPC`'s quest parts (`24` runs it, `SP:685-768`): Slay's week and wheelchair (§6.6), the end of quest 18 for Dynamo
 (§6.8), IRA's record 0 (queued, `SP:746-750`), history `RPC_JOINED_TEAM`. Father Walker's daily move and drunkenness
-(`35` §2.3); Rat leaves after 236 at 04:00; Devin, Micky, Bob, Gabby, Tony, Carmen, Hamous placement (`35` §2.2–2.3);
-Larry's relapses (`35` §2.4); Conrad leaves H13 on exit with his fact; Elliot healed on entering P3 (`35` §2.5); Manny's
+(`35`); Rat leaves after 236 at 04:00; Devin, Micky, Bob, Gabby, Tony, Carmen, Hamous placement (`35`);
+Larry's relapses (`35`); Conrad leaves H13 on exit with his fact; Elliot healed on entering P3 (`35`); Manny's
 bartender position (210); Brenda stationary (248) and patient timer (121); bloodcats: quest 13, fact 168 (two days), 259
 (I16 cleared), the lair fact from records; `REBELS_HATE_PLAYER` and `MIGUEL_READ_LETTER` feed the town loyalty start (`18`).
 
@@ -843,13 +843,13 @@ bartender position (210); Brenda stationary (248) and patient timer (121); blood
 | Where | Draws | Stream |
 |---|---|---|
 | `SetFactTrue(ESTONI_REFUELLING_POSSIBLE)` the first time | `Random(3)` and the dealer stock draws (`23`) | main |
-| Sector entry (`35` §2.5; §6.4) | head miners, then assassin `Random(10 + militia)` (if eligible) and `DecideOnAssassin` `Random(n)`, `Random(3)` | main |
-| NPC system events (`35` §1.13; §6.2; §6.4) | Kingpin `Random(120)`; Pablo's goods 2 × (`Random(10)`, `Random(10)`); damaged package `Random(100)`; Pablo's death `Random(60)` | main |
+| Sector entry (`35`; §6.4) | head miners, then assassin `Random(10 + militia)` (if eligible) and `DecideOnAssassin` `Random(n)`, `Random(3)` | main |
+| NPC system events (`35`; §6.2; §6.4) | Kingpin `Random(120)`; Pablo's goods 2 × (`Random(10)`, `Random(10)`); damaged package `Random(100)`; Pablo's death `Random(60)` | main |
 | Boxing (§3.2) | `Random(2)` for the first team | main |
 | Helicopter (§5.3) | per sector entered: SAM `PreRandom(100)` (if covered and working), notice `PreRandom(100)` (if enemies are unknown), quote `Random(2)` (cosmetic stream in ja2-node, deviation "Cosmetic draws of the helicopter") | pre, fx |
 | "Stuff missing" quote (§6.2) | `Random(100)` per candidate, `Random(n)` | main |
 
-Every path draws in statement order (the exception, the Kingpin goon gridno, is `35` §2.6).
+Every path draws in statement order (the exception, the Kingpin goon gridno, is `35`).
 
 ### 7.2 Wall-clock dependencies and their replacements
 
@@ -912,8 +912,8 @@ All files carry the SFI-SCLA header. `sim` modules are deterministic and read th
 | `fact-ids.ts`, `npc-ids.ts`, `history-codes.ts` | ids, checked against `data/tables/narrative.json` and `merc-contracts.json` |
 | `check-fact.ts`, `economy-facts.ts` | `CheckFact` (§1.3) over `FactContext` ports; the strategic inputs (loyalty, towns, mines, bloodcats, enemies) |
 | `quests.ts`, `rewards.ts` | §2.2–§2.4: start/end with history, `InitQuestEngine`, `CheckForQuests`; experience and NPC loyalty rewards |
-| `npc-events.ts`, `kingpin.ts`, `hospital.ts` | `35` §1.13 handlers (event 27); §6.2 goods; §6.4 money; §6.3 prices, refund and supplies |
-| `presence.ts`, `profiled-enemies.ts`, `save-import.ts` | `ChangeNpcToDifferentSector`, profile items, toughening, assassins (`35` §2.1; §6.4; §6.6); the Mike/Iggy upgrade (`35` §2.6; §6.8); native import of the narrative globals |
+| `npc-events.ts`, `kingpin.ts`, `hospital.ts` | `35` handlers (event 27); §6.2 goods; §6.4 money; §6.3 prices, refund and supplies |
+| `presence.ts`, `profiled-enemies.ts`, `save-import.ts` | `ChangeNpcToDifferentSector`, profile items, toughening, assassins (`35`; §6.4; §6.6); the Mike/Iggy upgrade (`35`; §6.8); native import of the narrative globals |
 | `src/sim/tactical/narrative/` `sight-rules.ts`, `assassin-approach.ts`, `death-rules.ts`, `escort-arrival.ts`, `team-change.ts` | §6.1, the 8-tile assassin rule, §6.12, the arrivals of §4.2, `ChangeSoldierTeam` |
 | `boxing.ts`, `boxing-state.ts`, `boxing-events.ts`; `src/sim/tactical/ai/decide-boxing.ts` | §3; the boxing hooks sit in the overhead, animation, points, turns, death, barrier, hit, sight and AI modules |
 | `quest-items.ts`, `wheelchair.ts`, `robot.ts`, `port.ts` | §6.5 action items; the kick-out (animation code 482); the robot's tactical rules; `NarrativePort` (`TacticalState.narrative`, deviation "Narrative port") |
@@ -923,7 +923,7 @@ All files carry the SFI-SCLA header. `sim` modules are deterministic and read th
 ### 9.2 Wiring
 
 - `src/sim/campaign/narrative/narrative-flow.ts` (`NarrativeFlow`): the campaign's facts and quests, `checkFact` with the
-  talk context, events 4, 27, 28, 34, 63, 67, sector entry and exit quest code (`35` §2.5), death hooks (Dynamo, Kingpin,
+  talk context, events 4, 27, 28, 34, 63, 67, sector entry and exit quest code (`35`), death hooks (Dynamo, Kingpin,
   Doreen), the placement narrative; `NarrativeSlots` connect it to the dialogue code (desire to talk, once-per-convo reset,
   records with an approach, `NPCReachedDestination`, NPC actions), the Kingpin money and hospital supply checks and the D5
   boxer reset.
@@ -961,8 +961,8 @@ evaluation; the talk context is never cleared (§1.3, §1.4); silent quest resta
 §2.1); `PABLO_BRIBED` inverts `PABLOS_BRIBED`, Slay's `HEAD_4` accepted by the head check (§1.3);
 `LARGE/SMALL_AMOUNT_OF_MONEY` never cleared, `PACOS_KILLED` set by wounding (§1.2); brass knuckles legal in the ring (§3.3);
 Kingpin's later money check on the loaded world (§6.4); damaged goods left at gridno 2 in an unloaded Drassen (§6.2);
-strict vs inclusive 9 tiles, double-counted supply markers (§6.3); unsigned hospital refunds (`35` §1.11); the hourly
-Skyrider payment taking all the money (`35` §2.4).
+strict vs inclusive 9 tiles, double-counted supply markers (§6.3); unsigned hospital refunds (`35`); the hourly
+Skyrider payment taking all the money (`35`).
 
 **Limitations in ja2-node** (not yet ported; each has an entry in `gaps.md`): decapitation ("Corpses"); the museum and
 fuel move refusals ("Strategic move refusals"); other action items and hand-operated switches ("Map items"); civilian

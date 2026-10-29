@@ -9,7 +9,7 @@ traced end to end.
 `content-identity.ts`, `session-snapshot.ts`), game options and client settings (`src/sim/options.ts`,
 `src/ui/settings.ts`). Siblings: `31` (sound, music, video, localization), `32` (stub pack, performance, launcher, data
 tables). Elsewhere: `01` D6 and `01` §3.6 (random streams), `04` §5.5, `04` §5.10, `29` §26 and `29` §27 (the
-server's saves, the rule pack identity, the agent API), `14` (native saves), `15` §5 and `35` §3.6 (clock and schedules
+server's saves, the rule pack identity, the agent API), `14` (native saves), `15` §5 and `35` (clock and schedules
 in saves), `30` §1.4 and `30` §1.5 (the canvas options and save/load screens), `deviations.md`.
 
 | § | Topic | Core decision |
@@ -98,7 +98,7 @@ last slot, the meanwhile scenes seen, help flags, two display sizes; written aft
 
 ### 1.2 Snapshot contract
 
-1. **Saving has no effect**: no draw, recomputation or flag change (also the rule of `15` §5 and `35` §3.6). The
+1. **Saving has no effect**: no draw, recomputation or flag change (also the rule of `15` §5 and `35`). The
    original's save-time `Random(RAND_MAX)` and its temp-file write of the loaded sector are not reproduced (deviations
    "Save side effects"). Before a campaign snapshot the campaign's undrained output events move into a buffer of the
    server `Session`, which the next advance reports first; the tactical event buffer (`TacticalState.events`) is plain

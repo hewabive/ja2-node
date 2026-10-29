@@ -19,7 +19,7 @@ parts of `InitNewGame`. Elsewhere: `22` what follows the hire (the contract hour
 loop, salary growth, `CanMercBeHired` and the tolerances, RPC pay); `23` arms dealers and the stock code Bobby Ray's
 shares; `15` the clock, the event queue, `InitNewGame`/`InitStrategicLayer`; `16` squads, groups, `UpdateMercInSector`,
 airspace; `18` the finance ledger and the hourly update; `19` merc death and capture; `25` §1–§2 facts and
-quests, `35` §1 NPC actions (Kulba, Pablo), `35` §2.2 `DecideActiveTerrorists`; `26` meanwhiles; `14` the save layout;
+quests, `35` NPC actions (Kulba, Pablo), `35` `DecideActiveTerrorists`; `26` meanwhiles; `14` the save layout;
 `30` §6 the laptop pages (client); `29` the agent API (laptop commands, queries, view, events).
 
 ---
@@ -405,7 +405,7 @@ gubLastMercIndex` (`Mercs_Files.cc:235, 476`); `IsMercMercAvailable` adds `IsMer
   (`NewMercsAvailableAtMercSiteCallBack`, `:1686-1689`) and later events usually reveal nothing.
 - Unlocks therefore depend on **money paid to Speck** and the day, not on hires.
 - Larry: the listing resolves to `LARRY_DRUNK` when `FACT_LARRY_CHANGED` (`Mercs.cc:600-608`); the swap
-  (`Soldier_Profile.cc:955-978, 1026-1033`, `35` §2.4) copies status, inventory and stats but not
+  (`Soldier_Profile.cc:955-978, 1026-1033`, `35`) copies status, inventory and stats but not
   `iMercMercContractLength` or `uiTotalCostToDate` (unpaid days stay on the other profile; same in V). Biff:
   `uiDayBecomesAvailable = Random(2) + 2` when Speck tells of Flo's death or marriage (`Mercs.cc:1554-1557`, §3.6). Flo
   shows as married after `FACT_PC_MARRYING_DARYL_IS_FLO` (the files page's overlay).
@@ -723,7 +723,7 @@ used: if `bought > 0`, quantity 1 and quality `20 + Random(60)`. The progress us
   `AddFutureDayStrategicEvent(BOBBYRAY_PURCHASE (7), (8 + Random(4))·60, index, days)`: delivery at **08:00, 09:00, 10:00
   or 11:00** of the target day. Draws: `[Random(5)]`, then `Random(4)`. The shipments page prices its rows from the stored
   package weight and the speed (`DisplayShippingCosts`); its line prices are deviation "Bobby Ray's shipment prices".
-- John Kulba's gift (NPC action 188, `35` §1.5; `:1612-1666`): two Automag III and two magazines, primary destination, 5
+- John Kulba's gift (NPC action 188, `35`; `:1612-1666`): two Automag III and two magazines, primary destination, 5
   days (standard 3 + 2, plus the Sal penalty), not on the shipments page.
 
 ### 5.5 Delivery (`BobbyRayPurchaseEventCallback`, `Strategic/Strategic_Event_Handler.cc:54-343`)
@@ -811,7 +811,7 @@ bytes, `LoadSaveEMail.cc`).
 | `BOBBYR_NOW_OPEN` | §5.1 | — |
 | `BOBBYR_SHIPMENT_ARRIVED`, `JOHN_KULBA_GIFT`, `BOBBY_R_MEDUNA_SHIPMENT` | §5.5 (offsets also in `shipping-destinations.json`) | — |
 | `ENRICO_PROG_20/55/80`, `ENRICO_SETBACK`, `_SETBACK_2`, `ENRICO_CREATURES`, `LACK_PLAYER_PROGRESS_1/2/3` | `HandleEnricoEmail` (`Strategic_Status.cc:246-376`; the decision tree is `economy/inactivity.ts`; lack of progress also writes `HISTORY_ENRICO_COMPLAINED`) | — |
-| `ENRICO_MIGUEL` | NPC action → `SET_BY_NPC_SYSTEM` next day `390 + Random(60)` (`Interface_Dialogue.cc:3464-3465`, `35` §1.13) | — |
+| `ENRICO_MIGUEL` | NPC action → `SET_BY_NPC_SYSTEM` next day `390 + Random(60)` (`Interface_Dialogue.cc:3464-3465`, `35`) | — |
 | `KING_PIN_LETTER` | Kingpin money chain (`Strategic_Event_Handler.cc:476-592`, `Random(120)` reposts, `25` §6.4) | — |
 
 ### 6.2 History
@@ -827,7 +827,7 @@ started 15 and finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`
 64–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`, by encounter code and outcome); RPC joined 23; Walker 20,
 married off 21, Tixa/Orta 30/31, rocket rifles 32, Deidranna's dead bodies 33, boxing matches 34, something in the mines
 35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed 74 (77 when our team killed him,
-`Overhead.cc:2288-2292`, not for vehicles and tanks; `25` §6.12), Carmen's head 75 (`25` §2.4, `35` §1). ja2-node
+`Overhead.cc:2288-2292`, not for vehicles and tanks; `25` §6.12), Carmen's head 75 (`25` §2.4, `35`). ja2-node
 writes all of them but the cheat (deviations "Cheats"). The server renders the row texts (`src/server/history-labels.ts`).
 
 **Logic reader**: only `GetTimeQuestWasStarted(quest)` (`History.cc:737-753`: the date of the first `QUEST_STARTED` with
@@ -845,7 +845,7 @@ amount, balanceAfter}`, `18`). Codes written by the laptop: `ANONYMOUS_DEPOSIT` 
 `ACCRUED_INTEREST` (there is no interest), `TRANSACTION_FEE`, `REDUCED_INSURANCE`, `CANCELLED_INSURANCE`,
 `NO_MEDICAL_REFUND`, `TRANSFER_FUNDS_FROM_MERC`, `DEPOSIT_FROM_GOLD_MINE` (all mine income is `DEPOSIT_FROM_SILVER_MINE`,
 `Strategic_Mines.cc:538`). `uiTotalCostToDate` also changes outside the ledger: +charge on M.E.R.C. payment (§3.4) and
-money handed to NPCs (`TacticalAI/NPC.cc:878, 928`, `35` §1.11).
+money handed to NPCs (`TacticalAI/NPC.cc:878, 928`, `35`).
 
 Game logic reads only the balance. The "yesterday/today" summaries (`Finances.cc:989-1294`) are display, computed by
 `src/sim/campaign/finance-summary.ts` so their quirks stay out of the client: the functions walk the ledger from the newest
@@ -864,7 +864,7 @@ label for militia training.
 
 Records `{ubCode, fRead}`, added idempotently by code (`Files.cc:310-326`); save section 9. `ENRICO_BACKGROUND` (0) at
 laptop init (`GameInitFiles`, `:184-192`); the six terrorist files (1–6) when Carmen's NPC action runs
-(`AddFilesAboutTerrorists`, `:1009-1015`, all six regardless of which are active; `35` §1.6). Showing a file sets `fRead`
+(`AddFilesAboutTerrorists`, `:1009-1015`, all six regardless of which are active; `35`). Showing a file sets `fRead`
 (`DisplayFormattedText`; ja2-node `readFile {code}`). No other logic.
 
 ---
@@ -977,7 +977,7 @@ civilians in it is won (not a boxing match). The server builds the page's blocks
 
 1. **`InitNewGame`** (`Game_Init.cc:200-277`, `15` §4.2), laptop parts in order: `LoadMercProfiles` (per profile
    `InitProfileFromContent`: status from the text check, medical deposit, gun replacement without gun nut, kit cost; then
-   `DecideActiveTerrorists` (draws, `35` §2.2) and `StartSomeMercsOnAssignment` (§2.2, draws)); `InitAllArmsDealers`
+   `DecideActiveTerrorists` (draws, `35`) and `StartSomeMercsOnAssignment` (§2.2, draws)); `InitAllArmsDealers`
    (`23`, draws); `InitBobbyRayInventory` (§5.2, draws); `InitLaptopAndLaptopScreens` (finances and history cleared,
    `fIMPCompletedFlag`, `fBobbyRSiteCanBeAccessed` false); `InitStrategicLayer`; `SetLaptopNewGameFlag`; the four pre-read
    mails and the I.M.P. intro; starting cash (45000/35000/30000); the M.E.R.C. online day draw; pending screen `LAPTOP`.
@@ -1064,7 +1064,7 @@ flags, standard replacements). Loaded by `src/content/strategic/laptop-content.t
 **Transcribed** (regenerate, never edit): `data/tables/laptop.json` by `tools/transcribe/laptop.ts`: `mail` (every
 `email.edt` record define of `Laptop/EMail.h:15-166`, offsets and lengths by name), `senders`, `impQuiz`
 (`IMP_Personality_Quiz.cc:424-562`, §4.2), `profiles` (the profile ids the laptop code names: `NAILS`, `BIFF`, `FLO`,
-`BUBBA`, the two Larrys, `NUMB`, `COUGAR`, `SAL`, `CARMEN`, …) and `terrorists` (`g_terrorist_infos`, `35` §2.2). The
+`BUBBA`, the two Larrys, `NUMB`, `COUGAR`, `SAL`, `CARMEN`, …) and `terrorists` (`g_terrorist_infos`, `35`). The
 dealer sort and staple tables are `data/tables/merchant-tables.json` (`23`). Enums (merc and account status, insertion
 codes, contract types, history codes in `records.ts` `History`) and the scalar constants of §2–§7 are named constants in
 the modules.

@@ -62,7 +62,7 @@ wraps, i.e. for large balances.
 | 17 | Opplists | 936 + 3 × 24336 + 2 × 936 + 12 | parser, see §7 |
 | 18 | Map screen messages | 3 + 256 × (`u32 size`; if > 0: text + 28) | skipped |
 | 19 | NPC quote info | (profiles + 20 civ sectors) × (`u8 present` + 50 × 32) | `savegame-npc.ts` |
-| 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | parser, `keyTable` (`35` §5.1) |
+| 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | parser, `keyTable` (`35`) |
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | parser, all |
 | 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | `savegame-merchants.ts`, all: status, headers and special elements (`docs/23` §14.2) |
@@ -215,7 +215,7 @@ save's SHA-256, and a replay refuses a changed save.
    Target, opponent and attacker ids are linked after all soldiers exist. Our mercs keep their key rings (the 128 bytes
    after the merc path), `ubDoorHandleCode` and the skill-check memory (`bLastSkillCheck`, `ubSkillCheckAttempts`,
    `sSkillCheckGridNo`). Off-map soldiers of the sector go into the away slots; then the schedules
-   (`loadSavedSchedules`, `35` §3.6).
+   (`loadSavedSchedules`, `35`).
 6. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
    arrive only half (§7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
 7. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted

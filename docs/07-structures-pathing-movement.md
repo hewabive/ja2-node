@@ -913,7 +913,7 @@ sector): `formats/jsd.ts` (§1.1); `world/tile-database.ts` (tile elements, terr
 
 **State**: `TacticalState.world` (`costs`, `structures`, `terrain`, `level`, `mapDoors`), `occupant` (`WhoIsThere2`),
 `reserved` (RT reservations), `mercSlots` (pass order) and the movement fields of `Soldier` (§5). Door swaps
-(`doors.ts`, `doors/`, `35` §5), explosions and map changes recompile costs locally.
+(`doors.ts`, `doors/`, `35`), explosions and map changes recompile costs locally.
 
 **Simulation** (`src/sim/tactical/`):
 

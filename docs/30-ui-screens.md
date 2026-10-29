@@ -230,7 +230,7 @@ steps, no cursor during a fade.
   `interface/luckysmile.sti` centred, a step every `SMILY_DELAY` (100 ms): frame 0 for the first 24 steps, then step
   modulo 8; after 32 steps `SMILY_END_DELAY` (1 s); `sounds/sex.wav` at `HIGHVOLUME`; then a fade into tactical. The
   `sexScene` event opens it. The original then warps game time by `5 + Random(20)` minutes without processing events
-  (`:478-483`); **decision:** the simulation makes that warp and its draw at the action (`35` §1.6). The screen holds
+  (`:478-483`); **decision:** the simulation makes that warp and its draw at the action (`35`). The screen holds
   the real-time driver like a modal (deviation "San Mona screen and time"). It has no golden (no stub brothel scenario);
   `san-mona.test.ts` covers it.
 - The original has no defeat screen (`26` §6.8).
