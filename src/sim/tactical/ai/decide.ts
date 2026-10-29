@@ -17,6 +17,7 @@ import {
   CivilianGroup,
   isCreatureOrBloodcat,
   isMonster,
+  isTank,
   NO_PROFILE,
   Orders,
   type Soldier,
@@ -256,6 +257,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   if (stats) stats.searches = 0;
   const boxing = decideActionGreenWhileBoxing(t, s);
   if (boxing !== null) return boxing;
+  if (isTank(s)) return AiAction.NONE;
   const mode = (soldier: Soldier, action: number) => determineMovementMode(t, soldier, action);
   const inWater = isWater(t.pathWorld, s.gridNo);
   const inGas = inGasOrSmoke(t, s, s.gridNo);

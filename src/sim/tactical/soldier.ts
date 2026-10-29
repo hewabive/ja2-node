@@ -141,6 +141,10 @@ export function isCreatureOrBloodcat(s: { readonly bodyType: number }): boolean 
   return isMonster(s) || s.bodyType === Body.BLOODCAT;
 }
 
+export function isTank(s: { readonly bodyType: number }): boolean {
+  return s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
+}
+
 export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {
   return them.neutral && (me.team !== Team.CREATURE || them.bodyType >= Body.HUMVEE);
 }

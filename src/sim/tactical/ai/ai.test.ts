@@ -3,13 +3,14 @@ import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactic
 import { Direction, gridNo, spacesAway } from '../../../content/world/grid.ts';
 import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
+import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
-import { AlertStatus, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
 import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning, handleSoldierAI } from './control.ts';
@@ -166,5 +167,15 @@ describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
       for (let dx = -1; dx <= 1; dx++) t.explosives.smokeTiles[0][gridNo(80 + dx, 80 + dy)] = SmokeTile.TEARGAS;
     expect(decideActionGreen(t, guard, createAiControl().green)).toBe(AiAction.LEAVE_WATER_GAS);
     expect(inGas(t, guard, guard.ai.actionData)).toBe(false);
+  });
+
+  it('leaves a tank standing without a single draw', () => {
+    const { t } = world(3);
+    const tank = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.FARPATROL);
+    tank.bodyType = Body.TANK_NW;
+    const pre = new ScriptedStream([], 0);
+    Object.assign(t, { pre });
+    expect(decideActionGreen(t, tank, createAiControl().green)).toBe(AiAction.NONE);
+    expect(pre.requested).toEqual([]);
   });
 });
