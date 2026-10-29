@@ -72,6 +72,7 @@ const HOP_FENCE_FORWARD_FULL_NW: readonly number[] = [0.8, 0.2, 2.7, 0.8];
 const OP_RT_NONINT_DONE = 772;
 const ROOF_FALLS = ['FALLFORWARD_ROOF', 'FALLOFF'];
 const WADING_TERRAINS: readonly number[] = [Terrain.LOW_WATER, Terrain.MED_WATER];
+const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 const KEEPS_LAST_TARGET = ['READY_RIFLE_STAND', 'READY_RIFLE_PRONE', 'READY_RIFLE_CROUCH', 'ROBOT_SHOOT'];
 
 export interface NamedStates {
@@ -364,7 +365,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   }
   if (s.state !== st.START_SWAT && next === st.SWATTING) next = st.START_SWAT;
   if (s.state === st.SWATTING && next === st.CROUCHING) next = st.END_SWAT;
-  if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= Body.REGFEMALE)
+  if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= Body.REGFEMALE && !inWater(s))
     next = st.END_HURT_WALKING;
   next = substituteBodyTypeAnimation(content, s, next);
   if (!isAnimationValidForBodyType(content, s, next)) return;

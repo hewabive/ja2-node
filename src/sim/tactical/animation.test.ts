@@ -2,8 +2,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { AiAction } from './ai/actions.ts';
-import { anim } from './anim-states.ts';
+import { anim, animName } from './anim-states.ts';
 import {
   adjustToNextAnimationFrame,
   computedAnimationDelay,
@@ -77,6 +78,22 @@ describe('fast turns', () => {
     merc.turningFromHit = true;
     turnOneOctant(t, merc);
     expect(merc.aniDelay).toBe(computedAnimationDelay(t, merc));
+  });
+});
+
+describe('the end of a hurt walk', () => {
+  it('plays the hurt stop on land but stands at once in water', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const HURT_LIFE = 20;
+    const stopOn = (id: number, terrain: number) => {
+      const merc = spawnSoldier(sim, id, Team.OUR, gridNo(80 + 2 * id, 80), Direction.EAST, { life: HURT_LIFE });
+      merc.overTerrain = terrain;
+      merc.state = anim(content, 'WALKING');
+      initNewSoldierAnim(t, merc, anim(content, 'STANDING'), 0, false);
+      return animName(content, merc.state);
+    };
+    expect([stopOn(0, Terrain.FLAT_GROUND), stopOn(1, Terrain.LOW_WATER)]).toEqual(['END_HURT_WALKING', 'STANDING']);
   });
 });
 
