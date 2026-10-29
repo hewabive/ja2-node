@@ -6,7 +6,7 @@
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
 import { clamp, i8, idiv } from '../../../core/int.ts';
 import { createItem, findAttachmentByClass, type ItemObject, removeObjects } from '../../items/object.ts';
 import { anim } from '../anim-states.ts';
@@ -154,12 +154,6 @@ function grantThrowExperience(t: TacticalState, s: Soldier, roll: number, chance
   }
 }
 
-function rangeInTiles(a: number, b: number): number {
-  const dx = (a % WORLD_COLS) - (b % WORLD_COLS);
-  const dy = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
-  return Math.trunc(Math.sqrt(dx * dx + dy * dy));
-}
-
 export function handleSoldierThrowItem(t: TacticalState, s: Soldier, g: number): void {
   s.target = null;
   if (g === s.gridNo) {
@@ -172,7 +166,7 @@ export function handleSoldierThrowItem(t: TacticalState, s: Soldier, g: number):
     soldierGotoStationaryStance(t, s);
     setDesiredDirection(t, s, direction);
     s.turningUntilDone = true;
-    s.pendingAnimation = anim(t.content, rangeInTiles(g, s.gridNo) < MIN_LOB_RANGE ? 'LOB_ITEM' : 'THROW_ITEM');
+    s.pendingAnimation = anim(t.content, pythSpacesAway(g, s.gridNo) < MIN_LOB_RANGE ? 'LOB_ITEM' : 'THROW_ITEM');
     return;
   }
   s.reverse = false;

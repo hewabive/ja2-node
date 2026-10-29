@@ -75,6 +75,7 @@ const NOBODY = -1;
 const CUBE_UNITS = HEIGHT_UNITS / PROFILE_Z_SIZE;
 const PIXELS_PER_STOREY = 50;
 const OBJECT_LEVEL_LIFT = 10;
+const PASSING_TARGET_MIN_Z = 32;
 const IMPACT_NOISE_BASE = 9;
 const IMPACT_NOISE_SPREAD = 9;
 const DUD_TRAP_RANGE = 4;
@@ -392,7 +393,7 @@ function testCollision(o: RealObject, z: number, dz: number): number {
   if (!(z < o.testZTarget && dz < 0)) return Collision.NONE;
   if (!o.testPositionNotSet) return Collision.GROUND;
   if (o.testZTarget === HEIGHT_UNITS) return Collision.ROOF;
-  if (o.testZTarget > 32) {
+  if (o.testZTarget > PASSING_TARGET_MIN_Z) {
     o.testPositionNotSet = false;
     o.testZTarget = 0;
     return Collision.NONE;

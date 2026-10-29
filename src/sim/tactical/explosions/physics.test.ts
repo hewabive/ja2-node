@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
-import { countDraws, explosivesBusy, objectOf, stepWithExplosives } from '../../../../tests/support/explosives.ts';
+import { countDraws, explosivesBusy, itemId, objectOf, stepWithExplosives } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -10,7 +10,9 @@ import { syntheticStructure, syntheticWorld } from '../../../content/world/synth
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
+import { attachObject, createItem } from '../../items/object.ts';
 import { minAPsToThrow } from '../combat/ap.ts';
+import { WeaponMode } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { SkillTrait, type Soldier, Team } from '../soldier.ts';
@@ -106,6 +108,47 @@ describe('throw parameters', () => {
     expect(calcThrownChanceToHit(sim.state, s, gridNo(80, 88), 2)).toBe(99);
     expect(calcThrownChanceToHit(sim.state, s, gridNo(80, 98), 0)).toBe(39);
     expect(calcThrownChanceToHit(sim.state, s, gridNo(80, 110), 0)).toBe(1);
+  });
+});
+
+describe("the original's quirks in the thrown chance to hit", () => {
+  it("rates an underslung launcher by the rifle's status, not its own", () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = spawnSoldier(sim, 0, Team.OUR, THROWER, Direction.SOUTH, { gun: 'C7' });
+    const rifle = s.inv[InvSlot.HAND];
+    if (!rifle) throw new Error('no rifle');
+    const launcher = createItem(t.content.items, itemId(t, 'UNDER_GLAUNCHER'), 100);
+    expect(attachObject(t.content.items, rifle, launcher)).toBe(true);
+    expect(attachObject(t.content.items, rifle, objectOf(t, 'GL_HE_GRENADE'))).toBe(true);
+    s.weaponMode = WeaponMode.ATTACHED;
+    const target = gridNo(80, 100);
+    const chanceWith = (rifleStatus: number, launcherStatus: number) => {
+      rifle.status[0] = rifleStatus;
+      const slot = rifle.attachments.find((a) => a.item === itemId(t, 'UNDER_GLAUNCHER'));
+      if (slot) slot.status = launcherStatus;
+      return calcThrownChanceToHit(t, s, target, 0);
+    };
+    const sound = chanceWith(100, 100);
+    expect(chanceWith(100, 20)).toBe(sound);
+    expect(chanceWith(40, 100)).toBeLessThan(sound);
+  });
+
+  it('wraps a big wound penalty around as a signed byte, so a dying expert throws better', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = grenadier(sim);
+    Object.assign(s.stats, { dexterity: 100, marksmanship: 100, experience: 1 });
+    s.skillTrait1 = SkillTrait.THROWING;
+    s.skillTrait2 = SkillTrait.THROWING;
+    const target = gridNo(80, 81);
+    s.lastTarget = target;
+    const chanceAtLife = (life: number) => {
+      s.life = life;
+      s.bleeding = s.lifeMax - life;
+      return calcThrownChanceToHit(t, s, target, 4);
+    };
+    expect(chanceAtLife(5)).toBeGreaterThan(chanceAtLife(10));
   });
 });
 

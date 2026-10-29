@@ -4,8 +4,10 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
+import { minAPsToThrow } from '../combat/ap.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
+import { calcActionPoints } from '../points.ts';
 import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
@@ -65,6 +67,32 @@ describe('grenade attacks through the attack command', () => {
     expect(seen.slice(0, thrown)).not.toContain('PRONE_DOWN');
     expect(merc.tempObject).toBeNull();
     expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('charges a second throw at the same tile for a new target: the throw animation forgets the last target', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const grenades = createItem(t.content.items, t.content.items.byName.get('HAND_GRENADE')?.index ?? -1, 100);
+    grenades.count = 2;
+    grenades.status = [100, 100];
+    merc.inv[InvSlot.HAND] = grenades;
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(70, 100), Direction.NORTH);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    const target = gridNo(80, 88);
+    const throwAt = () => {
+      merc.actionPoints = calcActionPoints(merc);
+      const before = merc.actionPoints;
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toEqual({ ok: true });
+      runUntilIdle(sim);
+      return before - merc.actionPoints;
+    };
+    const first = throwAt();
+    expect(merc.lastTarget).toBe(target);
+    const sameTargetCost = minAPsToThrow(t, merc, target);
+    expect(sameTargetCost).toBeLessThan(first);
+    expect(throwAt()).toBe(first);
   });
 
   it('refuses to aim a throw', () => {
@@ -131,6 +159,15 @@ describe('launchers through the attack command', () => {
 
   it('kneels a standing merc down for the mortar without charging the stance change', () => {
     expect(fireMortar(false).spent).toBe(fireMortar(true).spent);
+  });
+
+  it("lets a merc who fired the mortar from a crouch stand up for free: the order's free stance change waits for the next one", () => {
+    const { sim, merc } = fireMortar(true);
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'stance', soldier: 0, stance: 'stand' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(animName(sim.state.content, merc.state)).toBe('STANDING');
+    expect(merc.actionPoints).toBe(before);
   });
 
   it('refuses a launcher without a round, which the original cursor turns into a reload', () => {
