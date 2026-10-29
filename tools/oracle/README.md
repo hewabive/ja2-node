@@ -457,7 +457,7 @@ tools/oracle/compare-all.sh
 ```
 
 `compare.ts` walks each output file in order with fresh comparers per file. A `sector` line loads that map (A9 when a
-file has none); a `save` line imports the save into fresh ja2-node sessions (`14` §10; saves from `$JA2_SAVES_DIR` or
+file has none); a `save` line imports the save into fresh ja2-node sessions (`14`; saves from `$JA2_SAVES_DIR` or
 `SavedGames` next to the data folder); the comparer owning each following probe's command rebuilds it in that context.
 Output: one line per probe plus a summary; exit status 1 on any mismatch or oracle error. Comparing needs the original
 data and the saves, not the native build.

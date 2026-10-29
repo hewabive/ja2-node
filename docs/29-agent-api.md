@@ -133,7 +133,7 @@ done, fell asleep, militia promoted, the boxes before a pre-battle panel) are ev
 campaign?}` (`NEW_SESSION_SHAPE`, `src/server/session-registry.ts`):
 
 - none of `save`, `load`, `campaign`: the sandbox (the A9 map and squad, independent state);
-- `save`: imports a native savegame of the `SavedGames` folder (`14` §10; refused for saves taken during a meanwhile
+- `save`: imports a native savegame of the `SavedGames` folder (`14`; refused for saves taken during a meanwhile
   scene or the endgame sequence); `load`: a ja2-node save (§26); `language`: the display language (§25); `speech`: the
   speech mode (§27);
 - `campaign {options?, hire?, mercs?, imp?, land?, deadIsDeadName?, deadIsDeadDescription?}`: `createCampaignSession`
@@ -1053,7 +1053,7 @@ A load is a player load by default: the exact state, then the main stream reseed
 (experiments, bug reports). The content is checked before anything is built (`04` §5.10); `warnings`:
 `stubPackDiffers`, `dataVersionDiffers` (another data version or other quote lengths), `engineDiffers`. A load in place
 first takes the session's Dead is Dead save point. Native saves (`$JA2_SAVES_DIR`) are imported with `newSession
-{save}` (`14` §10); the answer carries the import report as `import`.
+{save}` (`14`); the answer carries the import report as `import`.
 
 ## 27. Game options, speech and music
 

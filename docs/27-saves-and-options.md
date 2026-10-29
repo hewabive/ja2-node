@@ -34,7 +34,7 @@ in saves), `30` §1.4 and `30` §1.5 (the canvas options and save/load screens),
 
 A row shows day and time, the sector ("N/A" before the start time), the merc count, the balance and the description,
 plus a skull for Dead is Dead saves; in load mode a tooltip lists difficulty, save mode, weapons, style and mods
-(`SaveLoadScreen.cc:874-957`). The header (`SaveLoadGame.h:24-60`, 432 bytes, `14` §2) fills the rows without reading
+(`SaveLoadScreen.cc:874-957`). The header (`SaveLoadGame.h:24-60`, 432 bytes, `14`) fills the rows without reading
 the body. A description holds at most 46 characters (`SaveLoadScreen.cc:1054-1057`). Overwriting asks for
 confirmation (`:699-704`); Delete deletes after confirmation (`:653-662`, `:1277-1293`); loading a save of another
 version, build or mod set asks once with all reasons (`:707-731`, `:1132-1158`); a load failure shows an error and
@@ -78,13 +78,13 @@ entry.
 
 **`SaveGame`** (`SaveLoadGame.cc:269-539`): pauses; sets `LOADING_SAVED_GAME`; first writes the current sector into its
 temp files (`SaveCurrentSectorsInformationToTempItemFile`, `:325`); fills the header, including `header.uiRandom =
-Random(RAND_MAX)` (`:380`, a gameplay draw caused by saving); writes the body sections (`14` §4) and the game-states JSON
+Random(RAND_MAX)` (`:380`, a gameplay draw caused by saving); writes the body sections (`14`) and the game-states JSON
 block (`SaveLoadGameStates.cc`: mods list, `StrategicStatus::alreadyDroppedWeapons`, script keys); moves the file from
 the temp folder into place; on failure shows an error and deletes the temp file (`:494-512`). Version 105
 (`GameVersion.h:20`; vanilla 99).
 
 **`LoadSavedGame`** (`SaveLoadGame.cc:644-1198`): trashes the world and every runtime list, reads the sections, runs the
-load hooks (`InitAI`, `UpdateMercsInSector`, `PostSchedules`, lighting, `14` §10), resets the attack-busy count
+load hooks (`InitAI`, `UpdateMercsInSector`, `PostSchedules`, lighting, `14`), resets the attack-busy count
 (`:1097-1101`), checks for ambushes (`:1195`) and returns to the saved screen (`LoadGeneralInfo`, `:1961-1962`). **The
 random generator is not reseeded on load**: Stracciatella seeds mt19937 once at start-up (`src/sgp/SGP.cc:433`,
 `src/sgp/Random.cc:39-59`) and does not save its state; only the `PreRandom` table and index are saved
@@ -228,8 +228,8 @@ The snapshot stores `main`, `pre` and every cosmetic stream exactly. Two load mo
 
 **Folders.** `$JA2_SAVE_DIR`, default `.ja2/saves/` in the repository (gitignored): a developer server keeps its saves
 beside the code. Native saves stay in `$JA2_SAVES_DIR` (default `<data dir>/../SavedGames`,
-`src/server/save-environment.ts`), are listed read only and imported with `newSession {save}` (`14` §10); the import can
-then be saved in ja2-node format. No export to `.sav`. Imports run the original's load hooks (`14` §10); ja2-node loads
+`src/server/save-environment.ts`), are listed read only and imported with `newSession {save}` (`14`); the import can
+then be saved in ja2-node format. No export to `.sav`. Imports run the original's load hooks (`14`); ja2-node loads
 never do.
 
 **Names** (`src/server/save-store.ts`): `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; clients never pass paths (`04` §5.8).
@@ -522,7 +522,7 @@ interface GameOptions {
   stay accepted as aliases (old input logs replay); an alias that contradicts `options` is refused. `deadIsDeadName`
   and `deadIsDeadDescription` stay campaign fields: they name a server file, not a game option (§1.6).
 - **Native saves.** `importNativeGameOptions` maps the header record (`SavedGameOptions`,
-  `src/content/formats/savegame-header.ts`; `14` §2): `saveMode` from `ubGameSaveMode`; blood and gore on (it lives in
+  `src/content/formats/savegame-header.ts`; `14`): `saveMode` from `ubGameSaveMode`; blood and gore on (it lives in
   the user's `Ja2.set`, not in the save); `turnTimeLimit` reported in `dropped` (the import report's and `listSaves`'
   `droppedOptions`).
 - `status`, `observe`, `GET /api/sessions`, the save header and `listSaves` show `options` (`29` §27).

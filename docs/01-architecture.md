@@ -632,7 +632,7 @@ runs both); touch input is not a goal.
 **The oracle** (`tools/oracle/README.md`): `build.sh` builds a patched Stracciatella outside the repository; with
 `JA2_ORACLE=<script>` it starts headless, loads a map or a save, runs scripted probes and prints JSONL; the compare
 scripts run the same inputs through ja2-node, and `compare-all.sh` is the full regression gate. **Native save import**
-(`14` §10): save in the native game at an interesting moment, load the `.sav` as a session and compare derived values
+(`14`): save in the native game at an interesting moment, load the `.sav` as a session and compare derived values
 (hit chance, path cost, visibility, AI decisions) with the native build's dumps. `pnpm gates` picks the gates a change
 can affect (`check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`).
 

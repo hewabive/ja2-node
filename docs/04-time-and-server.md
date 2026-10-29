@@ -314,7 +314,7 @@ back to the server. Kinds, channel and fairness: `29` §28.
 `27` §1 owns saves, the snapshot codec, content identity and the input log; the server side:
 
 - **Files.** Saves live on the server (`$JA2_SAVE_DIR`, default `.ja2/saves/`), addressed by name, never by path
-  (`29` §26). Native `.sav` files are read from `$JA2_SAVES_DIR` (`14` §10, `27` §1.6).
+  (`29` §26). Native `.sav` files are read from `$JA2_SAVES_DIR` (`14`, `27` §1.6).
 - **Input log.** Every session logs every input before running it (`src/server/input-log.ts`, kinds in `27` §1.7);
   queries are never logged. A save of a session with a known origin also writes `<name>.log.jsonl.gz`, which
   `pnpm cli replay <name>` re-runs with the manual driver and compares with the save byte for byte: bug reports,
