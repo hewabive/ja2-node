@@ -78,6 +78,19 @@ describe('who may be attacked', () => {
     expect(enemyPermittedToAttackSector(facts.q, null, parseSectorId('C5')).permitted).toBe(true);
     expect(enemyPermittedToAttackSector(facts.q, null, parseSectorId('F10')).permitted).toBe(false);
   });
+
+  it('closes H2 when H2 itself and G1 or G2 are defended, where G1 looks at its neighbours G2 and H1 or H2', () => {
+    const grumm = (defended: readonly string[]) => {
+      const { q } = fixture([]);
+      for (const s of defended) sectorInfo(q.state.map, parseSectorString(s)).militia[0] = 2;
+      return {
+        g1: enemyPermittedToAttackSector(q, null, parseSectorId('G1')).permitted,
+        h2: enemyPermittedToAttackSector(q, null, parseSectorId('H2')).permitted,
+      };
+    };
+    expect(grumm(['H2', 'G1'])).toEqual({ g1: true, h2: false });
+    expect(grumm(['H1', 'G2'])).toEqual({ g1: false, h2: true });
+  });
 });
 
 describe('arrival look-around', () => {
@@ -129,6 +142,18 @@ describe('arrival look-around', () => {
     const g = getGroup(q, gg?.pendingGroup ?? 0);
     expect(g?.size).toBe(5);
     expect(g?.next).toEqual(parseSectorString('C13'));
+    expect(sectorInfo(q.state.map, parseSectorString('B13')).numAdmins).toBe(5);
+  });
+
+  it('splits even the garrison of the loaded sector, which the reinforcement senders leave alone', () => {
+    const { q, rolls } = fixture([
+      { sector: 'B13', composition: Composition.DRASSEN_AIRPORT, admins: 10 },
+      { sector: 'C13', composition: Composition.DRASSEN_DEFENCE },
+    ]);
+    q.state.worldSector = parseSectorString('B13');
+    rolls.push(0);
+    checkEnemyControlledSector(q, parseSectorId('B13'));
+    expect(getGroup(q, q.state.queen.garrisons[1]?.pendingGroup ?? 0)?.size).toBe(5);
     expect(sectorInfo(q.state.map, parseSectorString('B13')).numAdmins).toBe(5);
   });
 });

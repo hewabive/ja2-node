@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { awakeFixture, type GarrisonFixture, loadArmyTestContent, usePatrols } from '../../../../tests/support/queen.ts';
 import { loadStrategicTestContent } from '../../../../tests/support/strategic.ts';
 import type { ArmyContent } from '../../../content/strategic/army.ts';
-import { parseSectorId, parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { parseSectorId, parseSectorString, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { EnemyIntention, MoveType } from '../forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getFinalWaypoint } from '../forces/groups.ts';
@@ -11,8 +11,9 @@ import { EventKind } from '../time/constants.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { Composition } from './constants.ts';
 import { checkEnemyControlledSector } from './detection.ts';
-import { evaluateQueenSituation } from './evaluate.ts';
-import { reinforcementsApproved, sendReinforcementsForPatrol } from './reinforce.ts';
+import { evaluateQueenSituation, evolveQueenPriorityPhase } from './evaluate.ts';
+import { strategicHandleMineThatRanOut, wakeUpQueen } from './reactions.ts';
+import { reinforcementsApproved, sendReinforcementsForGarrison, sendReinforcementsForPatrol } from './reinforce.ts';
 
 let content: StrategicContent;
 let army: ArmyContent;
@@ -60,6 +61,21 @@ describe('EvaluateQueenSituation', () => {
     expect(rolls.ranges).toEqual([376, 180]);
     expect(q.state.queen.reinforcementPool).toBe(30);
     expect(evaluationEvents(q).map((e) => e.stamp)).toEqual([(worldTotalMinutes(q.state.clock) + (94 + 5 + 360 + 7) * 10) * 60]);
+  });
+
+  it('lets mass fortification overdraw the pool and recruits only once the pool is exactly 0', () => {
+    const { q, rolls } = fixture([{ sector: 'C13', composition: Composition.DRASSEN_DEFENCE, admins: 2 }]);
+    q.state.queen.massFortificationOrdered = false;
+    q.state.queen.reinforcementPool = 3;
+    wakeUpQueen(q);
+    const g = enemyGroups(q)[0];
+    expect(g?.sector).toEqual(parseSectorString('P3'));
+    expect(g?.size).toBe(8);
+    expect(q.state.queen.reinforcementPool).toBe(-5);
+    rolls.reset();
+    evaluateQueenSituation(q);
+    expect(rolls.ranges).toHaveLength(2);
+    expect(q.state.queen.reinforcementPool).toBe(-5);
   });
 
   it('sends a palace group to the weighted garrison when R(points + pool) falls in the pool', () => {
@@ -155,5 +171,38 @@ describe('EvaluateQueenSituation', () => {
     expect(sent?.enemy?.intention).toBe(EnemyIntention.REINFORCEMENTS);
     expect(sectorInfo(q.state.map, parseSectorString('O3')).numTroops).toBe(20);
     expect(sectorId(sent?.sector ?? parseSectorString('A1'))).toBe(parseSectorId('O3'));
+  });
+
+  it('sends a palace group to a patrol even after the palace fell, where garrisons get none', () => {
+    const { q, rolls } = fixture();
+    usePatrols(q, [{ size: 6, priority: 30, points: ['B10', 'B12'] }]);
+    const palace = q.state.map.elements[strategicIndex(parseSectorString('P3'))];
+    if (!palace) throw new Error('P3');
+    palace.enemyControlled = false;
+    rolls.push(0);
+    sendReinforcementsForPatrol(q, 0, null);
+    const sent = enemyGroups(q)[0];
+    expect(sent?.sector).toEqual(parseSectorString('P3'));
+    expect(sent?.size).toBe(6);
+    expect(q.state.queen.patrols[0]?.pendingGroup).toBe(sent?.id);
+    rolls.push(0);
+    sendReinforcementsForGarrison(q, 2, 0, null);
+    expect(enemyGroups(q)).toHaveLength(1);
+  });
+});
+
+describe('EvolveQueenPriorityPhase', () => {
+  it('rebuilds the town compositions from the unscaled data, undoing the difficulty scaling and a dry mine, and gives San Mona a desired 6', () => {
+    const { q } = fixture();
+    const compositions = q.state.queen.compositions;
+    const drassen = compositions[Composition.DRASSEN_DEFENCE];
+    const sanMona = compositions[Composition.SANMONA_SMALL];
+    if (!drassen || !sanMona) throw new Error('composition');
+    drassen.desired = 7;
+    strategicHandleMineThatRanOut(q, parseSectorId('D13'));
+    expect(drassen.priority).toBe(5);
+    evolveQueenPriorityPhase(q, true);
+    expect(drassen).toMatchObject({ desired: 10, priority: 20 });
+    expect(sanMona).toMatchObject({ desired: 6, priority: 0 });
   });
 });

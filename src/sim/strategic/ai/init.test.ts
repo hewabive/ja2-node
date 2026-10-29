@@ -16,6 +16,7 @@ import { EventKind } from '../time/constants.ts';
 import { Composition, MAX_STRATEGIC_TEAM_SIZE } from './constants.ts';
 import type { QueenContext } from './context.ts';
 import { initStrategicAI } from './init.ts';
+import { garrisonWeight } from './weights.ts';
 
 let content: StrategicContent;
 let army: ArmyContent;
@@ -200,6 +201,16 @@ describe('state after initStrategicAI', () => {
       expect(queen.reinforcementPoints).toBe(negative);
       expect(queen.patrols.every((p) => p.weight === 0)).toBe(true);
     }
+  });
+
+  it('weighs a new garrison by its rolled start size, not by the soldiers it got: Cambria counts its troops only, Drassen ignores its admin floor', () => {
+    const { q } = initialized(2, 'zeros');
+    const at = (s: string) => sectorInfo(q.state.map, sectorFromId(parseSectorId(s)));
+    const weightOf = (s: string) => q.state.queen.garrisons.find((g) => g.sector === parseSectorId(s))?.weight;
+    expect(at('C13')).toMatchObject({ numAdmins: 5, numTroops: 0, numElites: 0 });
+    expect(weightOf('C13')).toBe(garrisonWeight(10, 6, 20));
+    expect(at('F8')).toMatchObject({ numAdmins: 4, numTroops: 3, numElites: 0 });
+    expect(weightOf('F8')).toBe(garrisonWeight(10, 3, 50));
   });
 
   it('scales patrol sizes by difficulty with the minimum group size', () => {

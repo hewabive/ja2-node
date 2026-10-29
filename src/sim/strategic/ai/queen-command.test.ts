@@ -69,6 +69,14 @@ describe('PrepareEnemyForSectorBattle', () => {
     expect(soldiers[21]?.groupId).toBe(0);
   });
 
+  it('caps the elites of an oversized garrison at 32 − admins + troops, an addition where the original meant to subtract', () => {
+    const { q } = battleAt('D13', 20, 10, 10);
+    const battle = prepareEnemyForSectorBattle(q);
+    expect(battle.stationary).toBe(40);
+    expect(battle.defence).toEqual({ admins: 10, troops: 20, elites: 10 });
+    expect(sectorInfo(q.state.map, parseSectorString('D13')).elitesInBattle).toBe(10);
+  });
+
   it('feeds pending enemies from the arrival side as slots free up', () => {
     const { q, rolls } = battleAt('D13');
     const g = createNewEnemyGroupDepartingFromSector(q, parseSectorId('D13'), 0, 30, 10);
