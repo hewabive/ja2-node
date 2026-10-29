@@ -79,6 +79,7 @@ export function realtimeDelay(t: TacticalState, s: Soldier): number {
 export function determineMovementMode(t: TacticalState, s: Soldier, action: number): number {
   const st = states(t.content.animations);
   const byName = { WALKING: st.WALKING, RUNNING: st.RUNNING, SWATTING: st.SWATTING };
+  if (s.uiMovementFast) return st.RUNNING;
   if (isCreatureOrBloodcat(s)) return s.ai.alertStatus === AlertStatus.GREEN ? st.WALKING : st.RUNNING;
   if (s.bodyType === Body.COW || s.bodyType === Body.CROW) return st.WALKING;
   const table = MOVEMENT_MODE[action]?.[URGENCY[s.ai.alertStatus]?.[s.ai.morale] ?? 0] ?? 'WALKING';

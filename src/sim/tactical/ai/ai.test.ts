@@ -23,7 +23,7 @@ import {
   freeUpFromTurning,
   handleSoldierAI,
 } from './control.ts';
-import { decideActionGreen, decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
+import { decideActionGreen, decideAlertStatus, determineMovementMode, NO_AI_HOOKS } from './decide.ts';
 import { randomFriendWithin } from './destinations.ts';
 
 let content: TacticalContent;
@@ -229,6 +229,16 @@ describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
       for (let dx = -1; dx <= 1; dx++) t.explosives.smokeTiles[0][gridNo(80 + dx, 80 + dy)] = SmokeTile.TEARGAS;
     expect(decideActionGreen(t, guard, createAiControl().green)).toBe(AiAction.LEAVE_WATER_GAS);
     expect(inGas(t, guard, guard.ai.actionData)).toBe(false);
+  });
+
+  it('runs a merc under AI control whom the player had switched to running', () => {
+    const { t } = world(3);
+    const merc = spawn(t, Team.OUR, gridNo(80, 80), Orders.STATIONARY);
+    merc.underAiControl = true;
+    const moves = states(content.animations);
+    expect(determineMovementMode(t, merc, AiAction.WALK)).toBe(moves.WALKING);
+    merc.uiMovementFast = true;
+    expect(determineMovementMode(t, merc, AiAction.WALK)).toBe(moves.RUNNING);
   });
 
   it('leaves a tank standing without a single draw', () => {
