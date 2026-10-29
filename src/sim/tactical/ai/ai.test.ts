@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { Direction, gridNo, spacesAway } from '../../../content/world/grid.ts';
 import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
@@ -35,10 +36,9 @@ const STATS = {
   experience: 3,
 };
 
-function world(seed: number): { t: TacticalState; hooks: OverheadHooks } {
+function world(seed: number, control = createAiControl()): { t: TacticalState; hooks: OverheadHooks } {
   const w = syntheticWorld(testDoorCosts());
   const t = createTacticalState({ ...w, mapDoors: new Map() }, content, Rng.fromSeed(seed));
-  const control = createAiControl();
   t.hooks = { ...t.hooks, turnFinished: freeUpFromTurning, stanceFreeUp: freeUpFromStanceChange };
   return {
     t,
@@ -109,6 +109,24 @@ describe('green real-time AI', () => {
     });
     expect(moved).toBe(true);
     expect(maxAway).toBeLessThanOrEqual(10);
+  });
+
+  it('handles an NPC who turns toward the player on every pass, not only at the AI ticks', () => {
+    let decisions = 0;
+    const control = createAiControl({
+      decideActionNamedNPC: () => {
+        decisions++;
+        return AiAction.ABSOLUTELY_NONE;
+      },
+    });
+    const { t, hooks } = world(3, control);
+    const npc = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    npc.profile = 94;
+    npc.quoteRecord = 3;
+    npc.quoteActionId = QuoteActionId.TURNTOWARDSPLAYER;
+    npc.ai.handleEveryFrame = true;
+    run(t, hooks, 500);
+    expect(decisions).toBe(500 / 5);
   });
 
   it('runs the first AI tick after 55 ms starting at slot 1, so slot 0 is first visited at 110 ms', () => {

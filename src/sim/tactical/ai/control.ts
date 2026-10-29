@@ -8,7 +8,7 @@
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { Approach } from '../../../content/narrative/npc-constants.ts';
+import { Approach, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { anim } from '../anim-states.ts';
@@ -602,7 +602,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     if (t.clockMs < ai.counter) return;
     ai.counter = t.clockMs + AI_DELAY;
   }
-  ai.handleEveryFrame = false;
+  if (s.quoteActionId !== QuoteActionId.TURNTOWARDSPLAYER) ai.handleEveryFrame = false;
   if (s.gettingHit) return;
   if (boxingIdlesNonBoxers(t) && !s.boxer) {
     endAIGuysTurn(t, s, control);
