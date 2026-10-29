@@ -15,8 +15,8 @@ credits, restart), the 35/50/70 % progress events, the narrative effects of the 
 else owns (§3) and the NPC actions that only meanwhile scenes and the ending use (§1.7, §6.5; `35`'s catalog points
 here). Elsewhere: `15` event queue, `InterruptTime`, pause locks, compression and its stop reasons; `16` sector load and
 unload, temp files (`SectorDiff`), exit grids, map file names (`_m` for the Meduna meanwhile map), the helicopter; `17`
-the Queen's AI, with `17` §9.4 (meanwhile implications on the AI), `17` §9.5 (`ExecuteStrategicAIAction`), `17` §10.11
-(capture), `17` §11.3 (progress); `18` town liberation and loss, SAM sites, loyalty and morale; `19` first-battle facts
+the Queen's AI, with `17` (meanwhile implications on the AI), `17` (`ExecuteStrategicAIAction`), `17`
+(capture), `17` (progress); `18` town liberation and loss, SAM sites, loyalty and morale; `19` first-battle facts
 from autoresolve, autoresolve capture and surrender (`19`), the end of a tactical battle (`19`); `21` the
 florist, Enrico's mails, history; `22` POW contract rules, death bookkeeping; `33` death commit, `11` melee; `13` the AI
 hooks `HeadForTheStairCase` and `OFFER_SURRENDER`; `14` save sections; `24` NPC records and their selection, approaches,
@@ -116,7 +116,7 @@ is small).
   infestible mine (`Creature_Spreading.cc:182-225`), so the scene (and RAT) happens even when the quest does not start. Its
   callers are `CheckConditionsForTriggeringCreatureQuest` (sci-fi only, `:898-920`) and entering the Tixa cave J9 b2
   **without a sci-fi check** (`StrategicMap.cc:491-497`); the scene's records have a `NO_SCI_FI_END_MEANWHILE` branch for
-  that case (§1.7). The creature quest is `17` §12.
+  that case (§1.7). The creature quest is `17`.
 - **Flowers** (`21`): only when the delivery sector's town is Meduna; the "next day" box → code 0. The draw happens
   only when the flag is clear (`:697-701`), before the florist's order-number draw.
 - **Chopper**: every landing after which the helicopter can fly again (`Map_Screen_Helicopter.cc:398-421`); the draw only
@@ -214,7 +214,7 @@ The scene is the record machinery of `24` running on these NPC actions (`Tactica
 | `TRIGGER_ELLIOT_BY_SAM_DISABLED` | 3261-3270 | by a functional SAM in `ubLastBattleSector` |
 | `ELLIOT_` / `QUEEN_DECIDE_WHICH_QUOTE_FOR_PLAYER_ATTACK` | 3412-3435 | record by `DidFirstBattleTakePlaceInThisTown(DRASSEN / CAMBRIA)` |
 | `SEND_TROOPS_TO_SAM` | 3963-3964 | **no-op** here (the troops come from §1.9) |
-| `SEND_SOLDIERS_TO_DRASSEN`, `…_BATTLE_LOCATION`, `…_TO_OMERTA`, `ADD_MORE_ELITES`, `GIVE_KNOWLEDGE_OF_ALL_MERCS` | 3226-3231 | no-op (`17` §9.5) |
+| `SEND_SOLDIERS_TO_DRASSEN`, `…_BATTLE_LOCATION`, `…_TO_OMERTA`, `ADD_MORE_ELITES`, `GIVE_KNOWLEDGE_OF_ALL_MERCS` | 3226-3231 | no-op (`17`) |
 | `SHOOT_ELLIOT` | 3082-3117 | the NPC gets a Desert Eagle in hand (scene soldier only) and fires at Elliot's head; **`ELLIOT.npcData = 17`** |
 | `PUNCH_PC_SLOT_0/1/2` | 3030-3079 | the NPC knife-moves to the captive on `gsInterrogationGridNo[n]` (`Queen_Command.cc:50`: 7756–7758) and punches, then `APPROACH_DONE_PUNCH_n`; nobody there → the approach at once |
 | `PUNCH_FIRST_LIVING_PC` | 3124-3179 | the same on the first occupied slot whose soldier lives (ELLIOT: conscious only), approach `DONE_PUNCH_1` |
@@ -270,15 +270,15 @@ and the remembered mode is lost**. A skipped scene only unpauses.
 
 | Scene | Effect |
 |---|---|
-| `END_OF_PLAYERS_FIRST_BATTLE` | hard difficulty: `ExecuteStrategicAIAction(WAKE_QUEEN)`; then `HandleNPCDoAction(QUEEN, SEND_SOLDIERS_TO_BATTLE_LOCATION)`, a no-op (`17` §9.4–9.5) |
+| `END_OF_PLAYERS_FIRST_BATTLE` | hard difficulty: `ExecuteStrategicAIAction(WAKE_QUEEN)`; then `HandleNPCDoAction(QUEEN, SEND_SOLDIERS_TO_BATTLE_LOCATION)`, a no-op (`17`) |
 | `CAMBRIA_`, `ALMA_`, `GRUMM_`, `CHITZENA_`, `BALIME_LIBERATED` | `WAKE_QUEEN` |
 | `DRASSEN_LIBERATED` | `WAKE_QUEEN`, then the no-op `SEND_SOLDIERS_TO_DRASSEN` |
-| `NW_SAM`, `NE_SAM`, `CENTRAL_SAM` | `ExecuteStrategicAIAction(NPC_ACTION_SEND_TROOPS_TO_SAM, SAM 0/1/2 sector)` (`17` §9.5: elite squad `3 + d + highestProgress/15`) |
+| `NW_SAM`, `NE_SAM`, `CENTRAL_SAM` | `ExecuteStrategicAIAction(NPC_ACTION_SEND_TROOPS_TO_SAM, SAM 0/1/2 sector)` (`17`: elite squad `3 + d + highestProgress/15`) |
 | `CREATURES` | `HandleNPCDoAction(QUEEN, NPC_ACTION_ADD_RAT)`: `profiles[RAT].sector = G9` (`Interface_Dialogue.cc:3787-3790`) |
 | `AWOL_SCIENTIST` | `StartQuest(QUEST_FIND_SCIENTIST, (−1, −1))` (`25`); find the MADLAB placement sector flagged `SF_USE_ALTERNATE_MAP` by `InitNPCs` (`J:strategic-map-npc-placements.json`: H7, H16, I11, E4); none → an error log and sector (0, 0, 0); `profiles[MADLAB].sector = profiles[ROBOT].sector = it` |
 | `FLOWERS`, `LOST_TOWN`, `INTERROGATION`, `KILL_CHOPPER`, `OUTSKIRTS_MEDUNA` | nothing |
 
-`ExecuteStrategicAIAction(WAKE_QUEEN)` runs `WakeUpQueen` (mass fortification on the first wake, `17` §9.1–9.2). The
+`ExecuteStrategicAIAction(WAKE_QUEEN)` runs `WakeUpQueen` (mass fortification on the first wake, `17`). The
 implications run while the scene map is loaded; nothing in them reads the loaded world (inferred). ja2-node:
 `processImplicationsOfMeanwhile` (`src/sim/strategic/ai/meanwhile.ts`) has every row; the no-op NPC actions are not called.
 
@@ -409,7 +409,7 @@ playback").
 
 ### 3.1 Ownership
 
-Capture mechanics are `17` §10.11 and `19` and `19` (`src/sim/campaign/merc-fate.ts`: `beginCaptureSequence`,
+Capture mechanics are `17` and `19` and `19` (`src/sim/campaign/merc-fate.ts`: `beginCaptureSequence`,
 `endCaptureSequence`, `enemyCapturesPlayerSoldier`; `battle-flow.ts` for the tactical loss). The quests `HELD_IN_ALMA` and
 `INTERROGATION` (state, `StartQuest`/`EndQuest`, history) are `25`'s; this section gives *when* the narrative path calls
 them and what else happens.
@@ -478,10 +478,10 @@ while held (contracts frozen, no morale decay, no healing assignments, excluded 
 
 ### 4.1 `HourlyProgressUpdate` events (`Tactical/Campaign.cc:1289-1325`)
 
-When the current progress (`17` §11.3) exceeds the highest so far, in this order, each on the first crossing
+When the current progress (`17`) exceeds the highest so far, in this order, each on the first crossing
 (`current ≥ t && highest < t`, policy `J:game.json` `progress.event_*_min`): **35** → `HandleScientistAWOLMeanwhileScene`
 (§1.1, scene 14); **50** → `SetFactTrue(FACT_MIKE_AVAILABLE_TO_ARMY)` (consumed by soldier creation:
-`Tactical/Soldier_Create.cc:2068-2085` sets the fact to 2 when it turns one elite into MIKE, `17` §10.4, `25`); **70** →
+`Tactical/Soldier_Create.cc:2068-2085` sets the fact to 2 when it turns one elite into MIKE, `17`, `25`); **70** →
 `profiles[IGGY].sector = C5`. Then `highest = current`. One jump can fire all three. ja2-node: `hourlyProgressUpdate`
 (`src/sim/strategic/ai/difficulty.ts`) returns the milestones, `applyProgressMilestones`
 (`src/sim/strategic/narrative/hourly.ts`) applies them from the narrative flow's hourly slot.
@@ -517,7 +517,7 @@ Enrico's progress and setback mails and "lack of progress" (`HandleEnricoEmail`,
 `21`, `18`); the computed facts `FACT_PLAYER_DOING_POORLY/WELL/VERY_WELL` (< 20, > 50, > 80 %,
 `Strategic/Quests.cc:861-871`; `25`); Skyrider's progress comments on helicopter routes (`MapScreen.cc:7341-7380`,
 `gubPlayerProgressSkyriderLastCommentedOn`; `25`); merc morale `progress/5` (`Morale.cc:255`, `22`); dealer coolness (`23`);
-the creature quest triggers (`17` §12).
+the creature quest triggers (`17`).
 
 ---
 
@@ -559,7 +559,7 @@ destroyed}`.
 
 ### 5.4 The Queen's story reactions beyond `17`
 
-Two beyond `17` §9: her death puts the AI to sleep (`QUEEN_DEAD`, `17` §9.5) **but every wake trigger still works**, so a
+Two beyond `17`: her death puts the AI to sleep (`QUEEN_DEAD`, `17`) **but every wake trigger still works**, so a
 scene scheduled after her death (only possible while the ending waits for the creature queen, §6.6) still wakes the AI
 through its implications (quirk; the original would also try to play the scene with a dead Queen, which only ESC ends,
 inferred; ja2-node runs the implications without a scene). And `GLOBAL_LOYALTY_QUEEN_BATTLE_WON` runs
@@ -595,7 +595,7 @@ EPC, marked in `QuoteExp_WitnessDeidrannaDeath[profile]` (`Tactical/QArray.cc:33
 never witnesses, only the killer speaks) and has line of sight to the death tile (`DistanceVisible` +
 `SoldierTo3DLocationLineOfSightTest(…, 3, …)`) says it too, all through the dialogue queue; `SetFactTrue(FACT_QUEEN_DEAD)`
 (a computed fact: it re-reads the profile status, `Quests.cc:713-715`); `ExecuteStrategicAIAction(QUEEN_DEAD)` (AI asleep,
-`17` §9.5); a dialogue-queue event that, after the quotes, fades the screen out into `DoneFadeOutKilledQueen`.
+`17`); a dialogue-queue event that, after the quotes, fades the screen out into `DoneFadeOutKilledQueen`.
 
 ### 6.4 `DoneFadeOutKilledQueen` (`:225-302`)
 
@@ -779,13 +779,13 @@ handling on sector load (`16`) and after doors and explosions (`12`).
 | Florist order to Meduna, `FLOWERS` flag clear (§1.3) | `R(5)` (next day) or `R(48)`, before the florist's own order-number draw (`21`) | main |
 | Helicopter landing able to fly, `KILL_CHOPPER` flag clear | `R(10)` | main |
 | `EVENT_MEANWHILE` with enemies in the loaded sector | `R(121)` per repost (repeats for the past-stamped interrogation) | main |
-| Scheduling, implications, progress events, first battle | none (the SAM squad's moves draw as `17` §9.5; `WakeUpQueen`'s fortification draws as `17` §9.2) | — |
+| Scheduling, implications, progress events, first battle | none (the SAM squad's moves draw as `17`; `WakeUpQueen`'s fortification draws as `17`) | — |
 | `GRANT_EXPERIENCE_3` on the Alma rescue, `GRANT_EXPERIENCE_4` in the interrogation | `StatChange(EXPERAMT, 100 \| 200)` per receiving merc in team order: one `PR(100)` per point (`Tactical/Campaign.cc:208-262`) | pre |
 | Capture | captive life `R(21)` | main |
-| Interrogation: sector load | `16` entry draws, placements (`16`, `17` §10), enemy creation | main |
+| Interrogation: sector load | `16` entry draws, placements (`16`, `17`), enemy creation | main |
 | Interrogation: punches | the melee pipeline of `11` (the hit roll is still drawn although the scene forces the hit; damage) | pre / main per `11` |
 | Interrogation: `lie` | `PR(100)` in `SkillCheck`; on failure `R(100)` | pre, main |
-| Endgame: creature check in the loyalty event | `InitCreatureQuest` draws when it starts (`17` §12) | main |
+| Endgame: creature check in the loyalty event | `InitCreatureQuest` draws when it starts (`17`) | main |
 | Endgame: reload of P3 | `16` entry draws, placements | main |
 | Creature queen death | one 10 000-damage hit per creature through `33` | per `33` |
 

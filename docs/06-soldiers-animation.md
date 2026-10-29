@@ -696,7 +696,7 @@ below).
 - Enemies: `AddSoldierInitListEnemyDefenceSoldiers(admins, troops, elites)` with the counts of the strategic
   `SECTORINFO` (`Queen_Command.cc:477`): placements by class, priority + detailed first, then priority, then detailed,
   then basic, each slot taken if `slots ≤ remaining || Random(slots) < remaining` (`Soldier_Init_List.cc:616-1025`;
-  full pass in `17` §10.2).
+  full pass in `17`).
 
 **`AddPlacementToWorld`** (`:412-568`):
 - **Detailed placement:** `CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo`
