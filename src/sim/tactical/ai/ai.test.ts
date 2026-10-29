@@ -5,6 +5,7 @@ import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
+import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
@@ -12,7 +13,7 @@ import { AlertStatus, createSoldier, Orders, type Soldier, Team } from '../soldi
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
 import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning, handleSoldierAI } from './control.ts';
-import { decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
+import { decideActionGreen, decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
 
 let content: TacticalContent;
 
@@ -154,5 +155,16 @@ describe('alert status (DecideAction.cc DecideAlertStatus, AIMain.cc CheckForCha
     decideAlertStatus(t, guard, NO_AI_HOOKS);
     expect(guard.ai.alertStatus).toBe(AlertStatus.BLACK);
     expect(guard.ai.orders).toBe(Orders.FARPATROL);
+  });
+});
+
+describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
+  it('leaves a tear gas cloud for the nearest land outside it', () => {
+    const { t } = world(3);
+    const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) t.explosives.smokeTiles[0][gridNo(80 + dx, 80 + dy)] = SmokeTile.TEARGAS;
+    expect(decideActionGreen(t, guard, createAiControl().green)).toBe(AiAction.LEAVE_WATER_GAS);
+    expect(inGas(t, guard, guard.ai.actionData)).toBe(false);
   });
 });

@@ -7,6 +7,7 @@
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
+import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
 import {
@@ -257,6 +258,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   if (boxing !== null) return boxing;
   const mode = (soldier: Soldier, action: number) => determineMovementMode(t, soldier, action);
   const inWater = isWater(t.pathWorld, s.gridNo);
+  const inGas = inGasOrSmoke(t, s, s.gridNo);
   if (isCivilianForGreen(s)) {
     if (s.cowering) {
       ai.actionData = AnimHeight.STAND;
@@ -295,7 +297,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
     }
     if (stats) stats.searches = 0;
   }
-  if (inWater) {
+  if (inWater || inGas) {
     ai.actionData = hooks.findNearestUngassedLand(t, s);
     if (ai.actionData !== NOWHERE) return AiAction.LEAVE_WATER_GAS;
   }
