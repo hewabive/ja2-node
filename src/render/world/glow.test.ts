@@ -67,6 +67,16 @@ describe('soldier palettes', () => {
     const grey = rows[SOLDIER_EFFECT_ROW] as Uint8Array;
     expect(grey[6]).toBe(grey[8]);
   });
+
+  it('give an unseen enemy at the glow peak the step before it, 200 instead of 225', () => {
+    const PEAK = 9;
+    const rows = soldierPaletteRows(new Uint8Array(768));
+    for (const start of [SOLDIER_GLOW_ROWS, SOLDIER_ROOF_GLOW_ROWS]) {
+      const greyPeak = rows[start + GREY_GLOW_OFFSET + PEAK] as Uint8Array;
+      expect(greyPeak).toEqual(rows[start + GREY_GLOW_OFFSET + PEAK - 1]);
+      expect(greyPeak[0]).toBeLessThan(rows[start + PEAK]?.[0] ?? 0);
+    }
+  });
 });
 
 describe('item outline', () => {

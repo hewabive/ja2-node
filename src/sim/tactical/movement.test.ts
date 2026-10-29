@@ -21,7 +21,7 @@ import {
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { MAX_PATH_LIST_SIZE } from './pathfinding.ts';
-import { createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
+import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
 const doorCosts = testDoorCosts();
@@ -193,6 +193,24 @@ describe('walking', () => {
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));
+  });
+
+  it('steps a civilian at his body walking speed, but at the running state speed when he runs', () => {
+    const t = tactical();
+    const st = states(content.animations);
+    const firstStep = (mode: number, at: number) => {
+      const s = spawn(t, at);
+      s.bodyType = Body.MANCIV;
+      expect(getNewSoldierPath(t, s, at + 4, mode)).toBe(true);
+      const from = s.x;
+      for (let tick = 0; tick < 1000 && s.x === from; tick++) executeOverhead(t);
+      return s.x - from;
+    };
+    const runningSpeed = content.animations.controls[st.RUNNING]?.movement ?? 0;
+    const civilianRunSpeed = content.animations.bodySpeeds.run[Body.MANCIV]?.movement ?? 0;
+    expect(civilianRunSpeed).not.toBeCloseTo(runningSpeed);
+    expect(firstStep(st.WALKING, START)).toBeCloseTo(content.animations.bodySpeeds.walk[Body.MANCIV]?.movement ?? 0, 4);
+    expect(firstStep(st.RUNNING, gridNo(80, 84))).toBeCloseTo(runningSpeed, 4);
   });
 });
 

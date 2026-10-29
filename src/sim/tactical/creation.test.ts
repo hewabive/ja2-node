@@ -172,6 +172,27 @@ describe('TacticalCreateSoldier', () => {
     expect(rolls.requested).toEqual([100, 4, 100, 3, 3]);
   });
 
+  it('rolls the hair of an army woman by the women rules before turning her into a man, so he is never white-haired', () => {
+    const PINK_SKIN = 0;
+    const WHITE_FOR_MEN = 95;
+    const SECOND_HAIR_DRAW_BLACK = 0;
+    const { c, rolls } = creation([99, PINK_SKIN, WHITE_FOR_MEN, SECOND_HAIR_DRAW_BLACK, 0, 0]);
+    const s = tacticalCreateSoldier(c, create({ bodyType: Body.REGFEMALE }), 31, ENV(40));
+    expect(s?.bodyType).toBe(Body.REGMALE);
+    expect(s?.palettes.hair).toBe('BLACKHEAD');
+    expect(rolls.requested).toEqual([100, 4, 100, 4, 3, 3]);
+  });
+
+  it('rolls skin and hair again for a placement that sets its colours, keeping only its clothes', () => {
+    const BLACK_SKIN = 3;
+    const BLACK_HAIR = 50;
+    const { c, rolls } = creation([BLACK_SKIN, BLACK_HAIR, 0]);
+    const palettes = { hair: 'REDHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' };
+    const s = tacticalCreateSoldier(c, create({ team: Team.CIV, soldierClass: SoldierClass.NONE, visible: true, palettes }), 120, ENV(40));
+    expect(s?.palettes).toEqual({ hair: 'BLACKHEAD', skin: 'BLACKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' });
+    expect(rolls.requested).toEqual([4, 100, 3]);
+  });
+
   it('weakens civilians by body type after the palettes', () => {
     const { c } = creation([0, 0, 50, 1, 0, 10, 2]);
     const s = tacticalCreateSoldier(c, create({ team: Team.CIV, soldierClass: SoldierClass.NONE, bodyType: Body.MANCIV }), 120, ENV(40));

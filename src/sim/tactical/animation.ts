@@ -12,6 +12,7 @@ import { NO_FRAME_SLOT, SlotKind, slotArgument, slotKind, timelineSlot } from '.
 import { MAX_FRAMES_PER_ANIM } from '../../content/formats/ja2bin.ts';
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { TICK_MS } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
@@ -20,7 +21,7 @@ import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
-import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
+import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, quickestTurnIncrement } from './directions.ts';
 import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
 import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
@@ -39,7 +40,7 @@ import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { effectiveAgility } from './skills.ts';
-import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -52,7 +53,6 @@ const FAST_TURN_DELAY = 30;
 const MAX_BREATH_DEFICIT = 30;
 const INJURED_CHANGE_THRESHOLD = 30;
 const PAUSE_ALL_UPDATES_DELAY = 10000;
-const REGFEMALE = 3;
 
 const OP_PAUSE_ONE_FRAME = 402;
 const OP_NONINT_DONE = 442;
@@ -71,6 +71,7 @@ const HOP_FENCE_FORWARD_FULL_SE: readonly number[] = [1.1, 1.0, 2.1, 1.1];
 const HOP_FENCE_FORWARD_FULL_NW: readonly number[] = [0.8, 0.2, 2.7, 0.8];
 const OP_RT_NONINT_DONE = 772;
 const ROOF_FALLS = ['FALLFORWARD_ROOF', 'FALLOFF'];
+const WADING_TERRAINS: readonly number[] = [Terrain.LOW_WATER, Terrain.MED_WATER];
 const KEEPS_LAST_TARGET = ['READY_RIFLE_STAND', 'READY_RIFLE_PRONE', 'READY_RIFLE_CROUCH', 'ROBOT_SHOOT'];
 
 export interface NamedStates {
@@ -158,7 +159,7 @@ export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
   if (id === 'STANDING' || id === 'PRONE' || id === 'CROUCHING') return Math.max(s.breath * 2 + (100 - s.life), MIN_BREATH_DELAY);
   const bodyLimited = id === 'SWATTING' || id === 'CRAWLING';
   const table = speedTableFor(content.animations, id);
-  const additional = table && (!bodyLimited || s.bodyType <= REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
+  const additional = table && (!bodyLimited || s.bodyType <= Body.REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
   const terrain = control.flags & AnimFlags.MOVING ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
   const breathDeficit = Math.min(50 - Math.trunc(s.breath / 2), MAX_BREATH_DEFICIT);
   const agilityDeficit = 50 - Math.trunc(effectiveAgility(s) / 4);
@@ -336,7 +337,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
     return;
   }
 
-  if (s.team === Team.OUR && !s.monsterOrAnimal && s.bodyType !== ROBOTNOWEAPON) {
+  if (s.team === Team.OUR && !s.monsterOrAnimal && s.bodyType !== Body.ROBOTNOWEAPON) {
     const rifle = isRifle(t, s.inv[InvSlot.HAND]?.item ?? 0);
     if (
       hasAnimFlag(content, next, AnimFlags.RAISE_WEAPON) &&
@@ -363,11 +364,11 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   }
   if (s.state !== st.START_SWAT && next === st.SWATTING) next = st.START_SWAT;
   if (s.state === st.SWATTING && next === st.CROUCHING) next = st.END_SWAT;
-  if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= REGFEMALE)
+  if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= Body.REGFEMALE)
     next = st.END_HURT_WALKING;
   next = substituteBodyTypeAnimation(content, s, next);
   if (!isAnimationValidForBodyType(content, s, next)) return;
-  if (next === st.RUNNING && (s.overTerrain === 8 || s.overTerrain === 9)) next = st.WALKING;
+  if (next === st.RUNNING && WADING_TERRAINS.includes(s.overTerrain)) next = st.WALKING;
 
   s.pauseAnimMove = false;
   adjustNoAPToFinishMove(s, false);
@@ -427,7 +428,6 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   checkForFreeupFromHit(t, s, oldFlags, newFlags, s.oldState, next);
 }
 
-const ROBOTNOWEAPON = 21;
 const TURN_FIRST_STATES = ['ADJACENT_GET_ITEM', 'CLIMBUPROOF', 'CLIMBDOWNROOF'];
 
 const GETTING_HIT_STATES = [
@@ -520,8 +520,8 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
 }
 
 function hopFenceStep(t: TacticalState, s: Soldier, southEast: readonly number[], northWest: readonly number[]): void {
-  if (s.direction === 4 || s.direction === 2) moveMercFacingDirection(t, s, southEast[s.bodyType] ?? 0);
-  else if (s.direction === 0 || s.direction === 6) moveMercFacingDirection(t, s, northWest[s.bodyType] ?? 0);
+  if (s.direction === Direction.SOUTH || s.direction === Direction.EAST) moveMercFacingDirection(t, s, southEast[s.bodyType] ?? 0);
+  else if (s.direction === Direction.NORTH || s.direction === Direction.WEST) moveMercFacingDirection(t, s, northWest[s.bodyType] ?? 0);
 }
 
 const END_OPEN_DOOR_STATES = ['END_OPEN_DOOR', 'END_OPEN_DOOR_CROUCHED'];
@@ -736,8 +736,8 @@ function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
 }
 
 export const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
-const isVehicleBody = (s: Soldier) => s.bodyType >= 22 && s.bodyType <= 27;
-const isTankBody = (s: Soldier) => s.bodyType === 23 || s.bodyType === 24;
+const isVehicleBody = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+const isTankBody = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 
 const READY_STATES = [
   'READY_RIFLE_STAND',
