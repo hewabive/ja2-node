@@ -5,7 +5,8 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WEAPON_CLASSES, WeaponClass } from '../../../content/items/items.ts';
 import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';
-import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { i8, u32 } from '../../../core/int.ts';
+import { createItem, findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { isGassed } from '../explosions/smoke.ts';
 import { isValidSecondHandShot, wearsHeadGear } from '../inventory.ts';
@@ -24,6 +25,7 @@ import {
 } from '../skills.ts';
 import { Body, numSkillTraits, Personality, SKILL_TRAIT_BONUS, SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
+import { addItemToPool, Visibility } from '../world-items.ts';
 import { soldierTo3DLocationLos, soldierToBodyPartLos } from './positions.ts';
 import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, MIN_PRONE_RANGE, weaponStatusMod } from './types.ts';
 
@@ -76,6 +78,24 @@ export function soldierDifficultyLevel(t: Pick<TacticalState, 'campaign'>, s: So
 }
 
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
+
+const EXTENDER_WEAR_RANGE = 2;
+const EXTENDER_HOLD_RANGE = 35;
+const EXTENDER_FALL_OFF_PENALTY = 30;
+
+function barrelExtenderFallsOff(t: TacticalState, s: Soldier, gun: ItemObject): boolean {
+  const extender = t.content.items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -2;
+  const slot = findAttachment(gun, extender);
+  const attached = gun.attachments[slot];
+  if (!attached) return false;
+  attached.status = i8(attached.status - t.rng.int(EXTENDER_WEAR_RANGE));
+  const hold = u32(attached.status - t.rng.int(EXTENDER_HOLD_RANGE) - t.rng.int(EXTENDER_HOLD_RANGE));
+  if (hold >= USABLE_STATUS) return false;
+  addItemToPool(t, s.gridNo, createItem(t.content.items, extender, attached.status), Visibility.VISIBLE, s.level);
+  attached.item = NOTHING;
+  attached.status = 0;
+  return true;
+}
 
 export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim: number, aimPos: number, modify: boolean): number {
   const items = t.content.items;
@@ -134,16 +154,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   if (s.shock) c -= Aim.PENALTY_PER_SHOCK * s.shock;
   let maxRange = 10;
   if (def?.itemClass === ItemClass.GUN) {
-    const extender = findAttachment(gun, items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -2);
-    if (extender !== -1 && modify) {
-      const ext = gun.attachments[extender] as { item: number; status: number };
-      ext.status -= t.rng.int(2);
-      if (ext.status - t.rng.int(35) - t.rng.int(35) < USABLE_STATUS) {
-        ext.item = NOTHING;
-        ext.status = 0;
-        c -= 30;
-      }
-    }
+    if (modify && barrelExtenderFallsOff(t, s, gun)) c -= EXTENDER_FALL_OFF_PENALTY;
     maxRange = gunRange(items, gun);
   }
   if (sight > 0) {

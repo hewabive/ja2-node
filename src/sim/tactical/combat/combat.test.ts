@@ -6,8 +6,9 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
-import { createItem } from '../../items/object.ts';
+import { createItem, type ItemObject } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
+import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
@@ -17,7 +18,7 @@ import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure, soldierToSoldierChanceToGetThrough } from './bullets.ts';
-import { gunRange } from './chance.ts';
+import { calcChanceToHitGun, gunRange } from './chance.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { AimShot, DamageReason } from './types.ts';
@@ -96,6 +97,43 @@ describe('gun range', () => {
     const far = spawn(sim, 21, Team.ENEMY, gridNo(82, 86), Direction.NORTH);
     expect(soldierToSoldierChanceToGetThrough(t, merc, near)).toBe(100);
     expect(soldierToSoldierChanceToGetThrough(t, merc, far)).toBe(0);
+  });
+});
+
+describe('the barrel extender (Weapons.cc CalcChanceToHitGun)', () => {
+  const EXTENDER_STATUS = 30;
+  const NO_WEAR = 0;
+
+  function shootWithExtender(fallRolls: readonly [number, number]) {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    const extender = content.items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -1;
+    const gun = merc.inv[InvSlot.HAND] as ItemObject;
+    gun.attachments[0] = { item: extender, status: EXTENDER_STATUS };
+    merc.attackingWeapon = gun.item;
+    const rng = new ScriptedStream([NO_WEAR, ...fallRolls]);
+    Object.assign(t, { rng });
+    const chance = calcChanceToHitGun(t, merc, enemy.gridNo, 0, AimShot.TORSO, true);
+    const dropped = t.worldItems.filter((i) => i.object.item === extender);
+    return { gun, extender, chance, dropped, merc, rng };
+  }
+
+  it('falls off only when its status less two Random(35) is 0 to 9: the original subtracts unsigned, so larger rolls wrap and it holds', () => {
+    const holds = shootWithExtender([34, 34]);
+    expect(holds.rng.requested).toEqual([2, 35, 35]);
+    expect(holds.gun.attachments[0]).toEqual({ item: holds.extender, status: EXTENDER_STATUS });
+    expect(holds.dropped).toEqual([]);
+    const fallsOff = shootWithExtender([12, 10]);
+    expect(fallsOff.gun.attachments[0]?.item).toBe(0);
+    expect(fallsOff.chance).toBeLessThan(holds.chance);
+  });
+
+  it('drops a fallen extender at the feet of the shooter with its status', () => {
+    const { dropped, merc } = shootWithExtender([12, 10]);
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toMatchObject({ gridNo: merc.gridNo, level: merc.level, object: { status: [EXTENDER_STATUS] } });
   });
 });
 
