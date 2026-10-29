@@ -160,7 +160,7 @@ SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autoba
   overhead pass (`GameScreen.cc:427, 456`; `Utils/Event_Pump.cc:195-214`) by `EVENT_SetSoldierDesiredDirection`
   (`Soldier_Control.cc:3833-3941`: `bTurningIncrement = QuickestDirection`, no AP in RT). One octant per frame of the
   STANDING animation (`2·bBreath + 100 − bLife` ms, ≥ 40; troops with breath 99 and life 40–55 ≈ 243–258 ms; enemies
-  never fast-turn, `06` §5.4). Each stationary octant does `HandleSight(LOOK|RADIO)` + `HandleSystemNewAISituation` on the
+  never fast-turn, `06`). Each stationary octant does `HandleSight(LOOK|RADIO)` + `HandleSystemNewAISituation` on the
   next frame (`:4229-4240, 4466-4470`). When `bDirection == bDesiredDirection`, `FreeUpNPCFromTurning` → `ActionDone`
   (`:4332`; `AIMain.cc:742-751`).
   **Strac truncation (inferred from the code path):** CHANGE_FACING is inside the Strac movement range and its path is

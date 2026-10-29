@@ -5,7 +5,7 @@ brighter**, 1 (`SHADE_MAX`) is the brightest, 15 (`SHADE_MIN`) the darkest; day 
 (`NORMAL_LIGHTLEVEL_NIGHT`, `TileEngine/Environment.h:21-22`). The code is `src/sim/tactical/lighting/`.
 
 **Scope.** Light templates, light sprites and their ray casting, `LightTrueLevel` and its gameplay consumers. How the
-renderer shades tiles and soldiers is `05` and `06` §3.4.
+renderer shades tiles and soldiers is `05` and `06`.
 
 ## 1. What gameplay reads
 

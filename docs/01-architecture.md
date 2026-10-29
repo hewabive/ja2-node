@@ -198,7 +198,7 @@ UI, the event queue and rendering (`GameScreen.cc:342-345, 424-427`). `ExecuteOv
 every opcode up to the next drawn frame (`:687`), the tile-step logic (`:717-1000`), `MoveMerc`, `TurnSoldier` and
 `HandleSoldierAI` (`:1017-1053`). Counters re-arm from "now" and never catch up (`Timer_Control.cc:155-181`; vanilla
 alike): a soldier advances at most one frame per pass, and a slow machine slows the game. `sAniDelay`
-(`Soldier_Control.cc:4763-4918`, `06` §5.2) is halved in combat and doubled for stealth in real time; unseen soldiers in
+(`Soldier_Control.cc:4763-4918`, `06`) is halved in combat and doubled for stealth in real time; unseen soldiers in
 combat get 0 and advance every pass (`:4928-4936`), so turn-based logic never depended on playback speed. Real time has
 no action points, only breath (`Points.cc:462-465, 497-500`): actions take as long as their animations. Tactical game
 time is in effect "animation frames played"; the wall clock only sets the pace.
@@ -270,7 +270,7 @@ timeline** (sprite frames, sound codes) for the views and clients. The logic tim
 of the 700s, 753, 755, 757, 761, 765, 768 and 772 (`isSimulationOpcode`). A soldier keeps `state`, `pc`, `frameSlot`
 and `nextFrameAt`; views find the sprite by body, state, frame and direction. Movement opcodes run in
 `src/sim/tactical/animation.ts`, the rest through the tactical hooks. Not run from the script: 491 (idle animations are
-client-only, `06` §1.6), the jar damage of 721/722, and the 700s codes whose systems are gaps (`gaps.md`). The
+not ported, gaps "Random idle animations"), the jar damage of 721/722, and the 700s codes whose systems are gaps (`gaps.md`). The
 stub pack has invented scripts for every state; clients with other scripts: `28`.
 
 **Why markers stay in the simulation.** Paying AP and applying effects at command confirmation, with the animation as
