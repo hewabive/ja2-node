@@ -9,6 +9,7 @@ import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
 import { makeNoise, NoiseKind, squadHears } from './noise.ts';
+import { Opp } from './opp.ts';
 
 let content: TacticalContent;
 
@@ -68,6 +69,19 @@ describe('telling the player about a noise (OppList.cc ProcessNoise, TellPlayerA
     expect(ofType(t.events, 'noiseHeard')).toEqual([]);
     makeNoise(t, null, gridNo(80, 60), 0, 40, NoiseKind.EXPLOSION);
     expect(ofType(t.events, 'noiseHeard')).toHaveLength(1);
+  });
+
+  it('lets the squad hear the scream of a soldier dying out of sight until his death animation ends', () => {
+    const wall = Array.from({ length: 21 }, (_, k) => gridNo(70 + k, 75));
+    const { sim, merc, stranger } = squadAndStranger(gridNo(80, 70), wall);
+    const t = sim.state;
+    stranger.life = 0;
+    makeNoise(t, stranger, stranger.gridNo, 0, 20, NoiseKind.SCREAM);
+    expect(merc.oppList[stranger.id]).toBe(Opp.HEARD_THIS_TURN);
+    merc.oppList[stranger.id] = Opp.NOT_HEARD_OR_SEEN;
+    stranger.dead = true;
+    makeNoise(t, stranger, stranger.gridNo, 0, 20, NoiseKind.SCREAM);
+    expect(merc.oppList[stranger.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
   });
 
   it('lets the merc say he heard something faint, then not again for a few turns', () => {

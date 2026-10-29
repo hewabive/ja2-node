@@ -322,9 +322,15 @@ function ourNoise(t: TacticalState, maker: Soldier | null, g: number, level: num
   if (maker && t.inCombat && !t.turn.delayResolvingBestSightingDueToDoor) resolveInterruptsVs(t, maker, InterruptKind.NOISE);
 }
 
+function makesNoNoise(maker: Soldier, kind: number): boolean {
+  if (kind === NoiseKind.EXPLOSION) return false;
+  if (!maker.placed || maker.dead) return true;
+  return maker.life === 0 && kind !== NoiseKind.SCREAM;
+}
+
 function processNoise(t: TacticalState, maker: Soldier | null, g: number, level: number, base: number, kind: number): void {
   if (base === 0) return;
-  if (maker && kind !== NoiseKind.EXPLOSION && (!validForSightings(maker) || (maker.life === 0 && kind !== NoiseKind.SCREAM))) return;
+  if (maker && makesNoNoise(maker, kind)) return;
   const sourceTerrain = t.world.terrain[g] ?? 0;
   const source = HIDDEN_SOURCE_KINDS.has(kind) ? null : maker;
   const placed = t.soldiers.filter((s) => s?.placed);
