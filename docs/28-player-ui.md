@@ -197,7 +197,7 @@ message log, the frames not yet played back (`queuedFrames`, read by the input l
 identity (`engine {version, commit}`, `rules {pack, scripts}`, `04` §5.10).
 
 **The animation schedule.** The server splits `ja2bin.dat` into a logic timeline the simulation steps and a
-presentation timeline (sprite frames, sound codes; `src/content/anim/timelines.ts`, `04` §5.10). A soldier's view entry
+presentation timeline (sprite frames, sound codes; `src/content/anim/timelines.ts`, `01` §3.4). A soldier's view entry
 carries the animation state, `frameSlot` (the logic position from the state's start), `stateTick`, `frameDelay`
 (`sAniDelay`; it depends on breath, life, agility, terrain, combat and stealth, so the client cannot compute it) and
 `nextFrameTick`; gameplay markers arrive as events with ticks (`shotFired`, `meleeStrike`). `SoldierFrames`
