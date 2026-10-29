@@ -5,6 +5,7 @@
 
 import { newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';
+import { inGas } from '../explosions/smoke.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
 import { estimateActionPointCost } from '../points.ts';
 import { AlertStatus, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
@@ -28,7 +29,8 @@ export function legalNPCDestination(t: TacticalState, s: Soldier, g: number, mod
   const heights = t.world.level.heights;
   if (onVisibleWorldTile(t, s.gridNo) && heights[s.gridNo] !== heights[g]) return false;
   const skipTilesWithMercs = t.inCombat && mode !== PathMode.IGNORE_PATH && spacesAway(s.gridNo, g) === 1;
-  if (!newOKDestination(t.pathEnv, s, g, skipTilesWithMercs, s.level) || g === s.gridNo || g === s.ai.blackList) return false;
+  if (!newOKDestination(t.pathEnv, s, g, skipTilesWithMercs, s.level) || inGas(t, s, g) || g === s.gridNo || g === s.ai.blackList)
+    return false;
   if (!waterOK && isWater(t.pathWorld, g)) return false;
   if (mode !== PathMode.ENSURE_PATH) return true;
   const route = findBestPath(t.pathEnv, s, g, s.level, { copy: PathCopy.ROUTE, flags });

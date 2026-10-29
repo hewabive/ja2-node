@@ -11,6 +11,7 @@ import { initNewSoldierAnim, states } from '../animation.ts';
 import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
+import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower, lightTrueLevel } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
@@ -19,7 +20,14 @@ import { calcActionPoints } from '../points.ts';
 import { AlertStatus, Attitude, createSoldier, NOWHERE, Orders, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
-import { calcPercentBetter, findBestNearbyCover, findNearbyDarkerSpot, findSpotMaxDistFromOpponents, inLightAtNight } from './cover.ts';
+import {
+  calcPercentBetter,
+  findBestNearbyCover,
+  findNearbyDarkerSpot,
+  findNearestUngassedLand,
+  findSpotMaxDistFromOpponents,
+  inLightAtNight,
+} from './cover.ts';
 import { calcManThreatValue, calcMorale, rangeChangeDesire } from './morale.ts';
 
 let content: TacticalContent;
@@ -193,6 +201,20 @@ describe('findSpotMaxDistFromOpponents', () => {
     expect(spot).not.toBe(NOWHERE);
     expect(pythSpacesAway(spot, merc.gridNo)).toBeGreaterThan(pythSpacesAway(guard.gridNo, merc.gridNo));
     expect(gridX(spot)).toBeGreaterThanOrEqual(70);
+  });
+});
+
+describe('findNearestUngassedLand', () => {
+  it('leads a soldier out of a tear gas cloud instead of to a gassed neighbour', () => {
+    const t = newSim().state;
+    const guard = spawn(t, { id: 20, team: Team.ENEMY, at: gridNo(80, 80) });
+    const CLOUD_RADIUS = 2;
+    for (let dy = -CLOUD_RADIUS; dy <= CLOUD_RADIUS; dy++)
+      for (let dx = -CLOUD_RADIUS; dx <= CLOUD_RADIUS; dx++) t.explosives.smokeTiles[0][gridNo(80 + dx, 80 + dy)] = SmokeTile.TEARGAS;
+    const land = findNearestUngassedLand(t, guard);
+    expect(land).not.toBe(NOWHERE);
+    expect(inGas(t, guard, land)).toBe(false);
+    expect(spacesAway(land, guard.gridNo)).toBe(CLOUD_RADIUS + 1);
   });
 });
 
