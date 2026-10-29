@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Game_Clock.cc LoadGameClock; Game_Events.cc LoadStrategicEventsFromSavedGame;
+// @src src/game/Strategic/Game_Clock.cc LoadGameClock, DidGameJustStart; Game_Events.cc LoadStrategicEventsFromSavedGame;
 // @src SaveLoadGame.cc LoadSavedGame (clock and event queue).
 
 import type { SaveGame } from '../../../content/formats/savegame.ts';
@@ -24,6 +24,8 @@ export function importStrategicTime(state: StrategicState, save: SaveGame): void
   c.timeInterrupt = saved.timeInterrupt;
   c.playerPause = saved.pauseDueToPlayerGamePause;
   c.lastEventQuerySeconds = saved.timeOfLastEventQuery;
+  state.battle.resetAllPlayerKnowsEnemiesFlags = saved.resetAllPlayerKnowsEnemiesFlags;
+  state.didGameJustStart = save.tactical.didGameJustStart;
   state.env.lightValue = saved.envLightValue;
   state.realMs = save.generalInfo.baseJA2Clock;
   state.atLeastOneMercHired = save.generalInfo.atLeastOneMercWasHired;

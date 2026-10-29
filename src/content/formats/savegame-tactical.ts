@@ -320,6 +320,7 @@ export interface TacticalStatus {
   readonly unlockUiAfterHiddenInterrupt: boolean;
   readonly numFoughtInBattle: readonly number[];
   readonly timeSinceLastInTactical: number;
+  readonly didGameJustStart: boolean;
   readonly hasAGameBeenStarted: boolean;
   readonly consecutiveTurnsWeHaventSeenButEnemyDoes: number;
   readonly someoneHit: boolean;
@@ -507,6 +508,7 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     unlockUiAfterHiddenInterrupt: b('fUnLockUIAfterHiddenInterrupt'),
     numFoughtInBattle: r.nums('bNumFoughtInBattle'),
     timeSinceLastInTactical: n('uiTimeSinceLastInTactical'),
+    didGameJustStart: b('fDidGameJustStart'),
     hasAGameBeenStarted: b('fHasAGameBeenStarted'),
     consecutiveTurnsWeHaventSeenButEnemyDoes: n('bConsNumTurnsWeHaventSeenButEnemyDoes'),
     someoneHit: b('fSomeoneHit'),
