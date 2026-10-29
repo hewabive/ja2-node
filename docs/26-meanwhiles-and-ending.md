@@ -137,9 +137,9 @@ BeginMeanwhile(id); InterruptTime()
   the loaded sector holds enemies (also with the map screen open). It never fires in turn-based combat (world time is
   frozen, `01` §3.3). For `INTERROGATION` (stamp 600, far in the past) every repost is still in the past, so it re-fires
   and redraws at each event pass for as long as enemies remain (quirk, inferred from `docs/15` §2.5).
-- `InterruptTime` ends the event pass after this event; same-stamp successors run at the next pass (`15` §2.5).
+- `InterruptTime` ends the event pass after this event; same-stamp successors run at the next pass (`15`).
 - `BeginMeanwhile` (`:201-221`): Dead-is-Dead autosave, `current = defs[id]`, `trying = true`, `PauseGame()` +
-  `LockPauseState(LOCK_PAUSE_MEANWHILE)` (`15` §1.5), clear the NPC save slots. ja2-node takes the Dead-is-Dead save at the
+  `LockPauseState(LOCK_PAUSE_MEANWHILE)` (`15`), clear the NPC save slots. ja2-node takes the Dead-is-Dead save at the
   next input boundary (deviations.md "Dead is Dead save points").
 - **Precedence** (`AreInMeanwhile`, `:417-437`): false during a tactical traversal; true while in a scene; otherwise true
   if the event queue's **head** events at exactly the current second include a `MEANWHILE` (the walk stops at the first
@@ -157,7 +157,7 @@ open, while the tactical panel is switching (`InterfaceOKForMeanwhilePopup`, `Ta
 screen, leave tactical if in it, drop the item on the cursor, and show the box: OK only for `INTERROGATION` or a scene
 never seen on this installation, OK + Skip otherwise. The world clock is paused throughout; tactical animation keeps
 running until the box appears (`GameScreen.cc:420-427` runs the overhead regardless of the game pause; the box then sets
-`PauseTime`, `15` §1.5). While `trying`, compression and map-screen exits are refused
+`PauseTime`, `15`). While `trying`, compression and map-screen exits are refused
 (`Strategic/Map_Screen_Interface_Bottom.cc:749-753, 1010-1014`).
 
 `BeginMeanwhileCallBack` (`:396-414`): OK → `ENGAGED_IN_CONV`, NPC reference count 1, `StartMeanwhile`. Skip →
@@ -470,7 +470,7 @@ opens and after an explosion in I13 (`findBestPath` with `THROUGH_PEOPLE`), emit
 The interrogation (§2.3) leaves the captives in N7 tactical on their own squad with N7's garrison present: the escape is
 an ordinary battle or a walk off the map. Their gear lies hidden at 12089 in the same sector. Strategic status of POWs
 while held (contracts frozen, no morale decay, no healing assignments, excluded from compression's usable mercs) is
-`22` §2.1, `18`, `15` §1.6.
+`22` §2.1, `18`, `15`.
 
 ---
 
@@ -672,7 +672,7 @@ No losing screen or rule exists (the only exits are the victory path above, the 
 `EndGameMessageBoxCallBack`, `GameLoop.cc:314-327`, and the demo-only `NPC_ACTION_END_DEMO`,
 `Interface_Dialogue.cc:3458-3462`). When every merc is dead or captured, battles end through the lost-battle path
 (`19`) and the world unloads; on the map, time compression is refused with "no usable mercs" (`MapScreen.cc:6259-6268`,
-`AllowedToTimeCompress`, `15` §1.6, where mercs in transit count as usable), so the clock only moves again after a new
+`AllowedToTimeCompress`, `15`, where mercs in transit count as usable), so the clock only moves again after a new
 hire. A player without money and mercs is stuck but never told the game is over. ja2-node does the same:
 `compressionRefusal` answers `noUsableMercs` ("no usable mercs are left on the team",
 `src/sim/campaign/compression-refusals.ts`), and the strategic view carries `noUsableMercs: true`; there is no derived

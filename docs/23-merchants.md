@@ -16,7 +16,7 @@ insertion order (`NOTHING`, `items.json`, `magazines.json`, `weapons.json`, `exp
 `GetWorldDay()`. "SKI" = the shopkeeper interface screen. "POA" = the player's offer area, "DOA" = the dealer's offer area.
 
 **Scope.** `12` owns `OBJECTTYPE`, `CreateItem(s)`, `AutoPlaceObject`, world item pools and `ItemSlotLimit`. `15` owns the
-event queue, the 09:00 `DAILY_UPDATE_BOBBY_RAY_INVENTORY` event and the new-game order (`15` §4.2 step 3). `16` owns NPC
+event queue, the 09:00 `DAILY_UPDATE_BOBBY_RAY_INVENTORY` event and the new-game order (`15` step 3). `16` owns NPC
 placement in loaded sectors (`profileHere`) and sector diffs (items dropped by a dead dealer). `18` owns finances
 (`addTransaction`) and the mercs' own repair assignment (`18`; unrelated to repairmen here). `14` §4 row 23 is the save
 section. `21` owns Bobby Ray's online shop, which reuses the supply functions of §4. `22` owns contracts. `33` owns the death

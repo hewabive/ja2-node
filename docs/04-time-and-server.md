@@ -136,11 +136,11 @@ a modal flow is open or compression was refused), `ended` (the campaign is won, 
 200,000). Any of `worldTime`, `worldSeconds`, `compressionStopped` or `mode` makes the advance strategic: at least
 2,000,000 ticks, at most 7 world days.
 
-**On the strategic map** (the clock: `15` §2): with time not compressed the advance first starts compression (with
+**On the strategic map** (the clock: `15`): with time not compressed the advance first starts compression (with
 `mode` if given; a refusal ends it with `refused`), then steps until
 
 1. a decision prompt opens (pre-battle, simultaneous arrival, NPC of note, contract, militia, NPC request) → `decision`;
-2. compression stops (any `StopTimeCompression`, `15` §2.9) → `event` with `compressionStopped {reason}`. An automatic
+2. compression stops (any `StopTimeCompression`, `15`) → `event` with `compressionStopped {reason}`. An automatic
    pause (a quote, an update box) leaves compression on but not running (`isTimeBeingCompressed` is false while
    paused) → `idle`. With `compressionStopped: false` the advance instead restarts compression after every stop and
    returns only at a decision, the target, a watched event, a refusal or the budget;

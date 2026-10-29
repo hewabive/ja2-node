@@ -140,7 +140,7 @@ campaign?}` (`NEW_SESSION_SHAPE`, `src/server/session-registry.ts`):
   (`src/server/campaign-factory.ts`) builds the `CampaignSim` (strategic map, Queen, towns, sector flow), runs
   `initNewGame` (which leaves the game in the laptop on day 1, 01:00), hires the squad through the laptop with real
   prices, deposits and refusals, closes it and, unless `land: false`, dispatches the first `compressTime` so the
-  helicopter drop loads the start sector at 07:00 on day 1 (`15` §4.5). `hire: [{profile, contract?, gear?}]` names the
+  helicopter drop loads the start sector at 07:00 on day 1 (`15`). `hire: [{profile, contract?, gear?}]` names the
   A.I.M. hires (a refusal fails the request); `mercs` sizes the default squad (original data: profiles 0, 3, 4, 7, 14,
   16, default six; stubs: the twelve stub A.I.M. profiles 0–11, default four; hired in order while available and
   affordable); `imp` runs an `impCreate`; `hire: []` without `imp` returns the session in the open laptop; `options`:

@@ -5,7 +5,7 @@
 zero (`idiv`), unsigned subtraction wraps (`u32`), `INT8`/`UINT8` stores wrap (`i8`/`u8`). `Random` and `Chance` are the
 `main` stream, `PreRandom` the `pre` stream (`01` §3.6); `Chance(x)` = `Random(100) < x` and draws even for `x = 0`;
 `Random(0)` returns 0 without drawing, `Random(1)` draws. Times are world minutes (`GetWorldTotalMin`) unless marked;
-`day`/`hour` are `GetWorldDay()`/`GetWorldHour()` (`15` §1.1). "Team order" = soldier id order over the OUR team,
+`day`/`hour` are `GetWorldDay()`/`GetWorldHour()` (`15`). "Team order" = soldier id order over the OUR team,
 `FOR_EACH_IN_TEAM`. Quote numbers are the `Tactical/Dialogue_Control.h:11-160` enum values
 (`data/tables/merc-quotes.json`). Merc kinds (`ubWhatKindOfMercAmI`): `PLAYER_CHARACTER 0` (I.M.P.), `AIM_MERC 1`, `MERC 2`
 (M.E.R.C.), `NPC 3` (recruited RPCs), `EPC 4`, `NPC_UNEXTENDABLE 5`, `VEHICLE 6` (`roster.ts` `MercKind`). Profile *types*
@@ -137,7 +137,7 @@ and the reputation are never displayed. The formulas are `contract-times.ts` (`r
 ### 2.1 `MercDailyUpdate` (`Strategic/Strategic_Merc_Handler.cc:135-370`)
 
 Runs on the everyday `MERC_DAILY_UPDATE` event at 00:00, after `DAILY_UPDATE_OF_MERC_SITE` (`21`) and
-`HANDLE_INSURED_MERCS` (`21`) and before `SETUP_MINE_INCOME` and the 00:00 hourly update (`15` §3.1).
+`HANDLE_INSURED_MERCS` (`21`) and before `SETUP_MINE_INCOME` and the 00:00 hourly update (`15`).
 
 ```
 if day == 1: return
@@ -262,7 +262,7 @@ A.I.M. contract hours are 7, 13, 19.
 
 On each `BEGIN_CONTRACT_RENEWAL_SEQUENCE` (07:30, 13:30, 19:30): if some list entry is a soldier (`FindSoldierByProfileID`,
 any team) with `life != 0`, not `IN_TRANSIT`, not POW and `ContractIsExpiring` → `sequenceOn = true`, `current = 0`,
-`inProgress = false`, `PauseGame` + `LockPauseState(CONTRACT_RENEWAL)`, `InterruptTime` (`15` §2.9: the clock stays at
+`inProgress = false`, `PauseGame` + `LockPauseState(CONTRACT_RENEWAL)`, `InterruptTime` (`15`: the clock stays at
 07:30), enter the map screen. Otherwise nothing happens **and the list is kept** for the next slot. Time compression is
 refused while the sequence is on (`MapScreen.cc:6274-6277`).
 
@@ -569,7 +569,7 @@ enemies are permanent for the campaign (counts are only initialised at new-game 
 
 ### 5.2 Hourly counters (`UpdateBuddyAndHatedCounters`, `Strategic_Merc_Handler.cc:526-730`)
 
-Step 2 of the hourly update (`15` §3.2), skipped while `didGameJustStart`. **Only squad members count, on both sides.**
+Step 2 of the hourly update (`15`), skipped while `didGameJustStart`. **Only squad members count, on both sides.**
 
 ```
 for s in OUR team, team order, with s.assignment < ON_DUTY:
@@ -820,7 +820,7 @@ All under `src/sim/campaign/` with the SFI-SCLA header.
 
 `ContractFlow.register` handles `MERC_DAILY_UPDATE`, `MERC_ABOUT_TO_LEAVE`, `BEGIN_CONTRACT_RENEWAL_SEQUENCE`,
 `RPC_WHINE_ABOUT_PAY`, `MERC_COMPLAIN_EQUIPMENT`, `MERC_LEAVE_EQUIP_IN_DRASSEN/OMERTA` and `DAILY_UPDATE_OF_MERC_SITE`; the
-hourly slots `updateBuddyAndHatedCounters` and `hourlyMoraleUpdate` run in the hourly update (`15` §3.2) through
+hourly slots `updateBuddyAndHatedCounters` and `hourlyMoraleUpdate` run in the hourly update (`15`) through
 `battle-flow.ts`. Endings are queued in `contracts.pendingEndings` (`departure`, `withoutEquipment`, `enterMapScreen`);
 `ContractFlow.settle` runs them, then the renewal sequence, while no prompt is open and the flow is not autoresolve, as the
 original's dialogue events run after the quotes. The prompts `contractRenewal`, `mercDeparture` and `insuranceExtension`

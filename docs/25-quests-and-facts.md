@@ -340,9 +340,9 @@ themselves give no experience, money, loyalty or progress; rewards come from the
 
 ### 2.3 `InitQuestEngine` and `CheckForQuests`
 
-- `InitQuestEngine` (`Q:1157-1178`), step 2 of `InitStrategicLayer` (`15` §4.3): zero both arrays; `CheckForQuests(1)`;
+- `InitQuestEngine` (`Q:1157-1178`), step 2 of `InitStrategicLayer` (`15`): zero both arrays; `CheckForQuests(1)`;
   `gubCambriaMedicalObjects = sciFi ? 21 : 18`; `gubBoxingMatchesWon = gubBoxersRests = 0`; `gfBoxersResting = FALSE`.
-- `CheckForQuests(day)` (`Q:1182-1206`), also the daily 08:00 event `CHECKFORQUESTS` (`15` §2.7): the Lua `OnCheckQuests`
+- `CheckForQuests(day)` (`Q:1182-1206`), also the daily 08:00 event `CHECKFORQUESTS` (`15`): the Lua `OnCheckQuests`
   observer may claim it (no listener ships); if quest 0 is not started: `AddHistory(HISTORY_ACCEPTED_ASSIGNMENT_FROM_ENRICO, 0,
   now, −1/−1)`, then `StartQuest(0, −1/−1)`. At game init `now` is minute 1500 (day 1 01:00), so these two history entries
   open the log; the daily event never does anything afterwards.
