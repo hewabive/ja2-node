@@ -4,7 +4,7 @@
 // @src DIALOGUE_COLOR, the 256-line ring); the ScreenMsg sites of Tactical/OppList.cc (noises), Overhead.cc (enemy in
 // @src sector, first aid), TeamTurns.cc (interrupt), Campaign.cc (stat gains), Items.cc (reload), Handle_Doors.cc and
 // @src Keys.cc (locks and traps), Interface_Dialogue.cc and TacticalAI/NPC.cc (recruits, escorts, balances),
-// @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, unpaid RPCs),
+// @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, unpaid RPCs, worn-off camouflage),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
 // @src (repairs, aborted assignments), Handle_Items.cc HandleItem (the quoted GUN_GOT_FINGERPRINT),
 // @src Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc (refused first aid),
@@ -79,6 +79,7 @@ const MUTE_OFF = 64;
 const MUTE_ON = 65;
 const NO_PATH_FOR_MERC = 130;
 const GUN_GOT_FINGERPRINT = 111;
+const STR_CAMO_WORN_OFF = 30;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
   teamFull: { kind: 'uiFeedback', table: 'TacticalStr', index: 35 },
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
@@ -227,6 +228,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   npcMessage,
   mercArrived: (e, facts) => [line('TacticalStr', 80, [text(facts.soldierName(e.soldier) ?? facts.profileName(e.profile))])],
   historyAdded: () => [line('pMessageStrings', 67)],
+  camoWornOff: (e, facts) => [line('Message', STR_CAMO_WORN_OFF, [text(facts.soldierName(e.soldier))])],
   rpcUnpaid: (e, facts) => [line('pMessageStrings', 60, [text(facts.soldierName(e.soldier)), { money: e.amount }])],
   heliPaid: (e) => [line('pSkyriderText', 0, [{ number: e.amount }])],
   heliOwed: (e) => [line('pSkyriderText', 1, [{ number: e.amount }])],

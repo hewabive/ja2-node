@@ -7,6 +7,7 @@ export type EconomyEvent =
   | { readonly type: 'fellAsleep'; readonly soldier: number; readonly collapsed: boolean }
   | { readonly type: 'wokeUp'; readonly soldier: number }
   | { readonly type: 'tiredComplaint'; readonly soldier: number }
+  | { readonly type: 'camoWornOff'; readonly soldier: number }
   | { readonly type: 'itemRepaired'; readonly repairer: number; readonly owner: number; readonly item: number }
   | { readonly type: 'gunUnjammed'; readonly repairer: number; readonly owner: number; readonly item: number }
   | { readonly type: 'militiaTrained'; readonly sector: number; readonly trained: number }

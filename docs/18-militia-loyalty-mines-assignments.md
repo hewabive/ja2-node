@@ -58,7 +58,8 @@ with the Queen (`17`).
 **One context, ports for the rest.** An `EconomyContext` is a `StrategicContext` whose `mercs` is the crew port, plus
 the content, hooks, decisions, periodic slots and an event list. Everything the economy does not own goes through a
 hook, so the module runs alone in tests (`tests/support/economy.ts`, `FakeCrew`). The campaign fills the
-`PeriodicSlots` in the original's hourly order (`15`); camouflage and regeneration stay empty (gaps).
+`PeriodicSlots` in the original's hourly order (`15`); camouflage wears off in `campaign/camouflage.ts`, regeneration
+stays empty (gaps).
 
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
@@ -165,5 +166,4 @@ estimates are not compared. Inferred from reading the source:
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
 
 Not ported: gaps "Implications of an attack" (the head miner attack), "Strategic economy stand-ins" (vehicle repair),
-"Camouflage decay", "Regeneration counters", "Absent mercs between hourly updates", "Lost sector notices without a
-battle".
+"Regeneration counters", "Absent mercs between hourly updates", "Lost sector notices without a battle".

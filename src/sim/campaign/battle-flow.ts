@@ -102,6 +102,7 @@ import {
   eliminateAllEnemies,
   strategicClosePort,
 } from './autoresolve-strategic.ts';
+import { hourlyCamouflageUpdate } from './camouflage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import {
   beginCaptureSequence,
@@ -281,6 +282,14 @@ export class BattleFlow implements FateContext {
 
   decayTacticalMoraleModifiers(): void {
     decayTacticalMoraleModifiers(this.#teamMoraleContext());
+  }
+
+  hourlyCamouflageUpdate(): void {
+    const events = this.economy.events;
+    hourlyCamouflageUpdate(
+      this.roster.all().map((m) => m.soldier),
+      (s) => events.push({ type: 'camoWornOff', soldier: s.id }),
+    );
   }
 
   moraleEvent(subject: RosterMerc | null, event: number, sector: Sector): void {

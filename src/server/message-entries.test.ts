@@ -174,6 +174,12 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, { type: 'attack', soldier: 0 }, refused, facts)).toBeNull();
   });
 
+  it('names the merc whose camouflage wore off in the interface colour', () => {
+    expect(messageEntriesOf([at({ type: 'camoWornOff', soldier: 1 })], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 30, args: [{ text: 'Fox' }] },
+    ]);
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(
