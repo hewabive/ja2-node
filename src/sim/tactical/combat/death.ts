@@ -73,6 +73,7 @@ export interface Corpse {
   readonly type: number;
   readonly timeOfDeath: number;
   readonly findSweetSpot?: boolean;
+  readonly entryPoint?: number;
   readonly palettes?: readonly [hair: string, skin: string, vest: string, pants: string];
   readonly camo?: boolean;
 }

@@ -69,7 +69,7 @@ export interface InsertionContext {
 
 const sameSector = (a: SectorRef, b: SectorRef) => a.x === b.x && a.y === b.y && a.z === b.z;
 
-function entryPoint(t: TacticalState, code: number): number {
+export function entryPoint(t: TacticalState, code: number): number {
   const info = sectorMapOf(t).info;
   switch (code) {
     case Insertion.NORTH:

@@ -22,8 +22,10 @@ import { i16, u8 } from '../../core/int.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
-import { addCorpseStructure } from './combat/death.ts';
+import { addCorpseStructure, type Corpse } from './combat/death.ts';
+import { placeLoadedCorpse } from './corpse-placement.ts';
 import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
+import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
@@ -146,24 +148,50 @@ function importWorldItems(t: TacticalState, save: SaveGame, centre: number): num
   return t.worldItems.length;
 }
 
-const ROTTING_CORPSE_USE_CAMO_PALETTE = 0x20;
+const RottingCorpseFlags = {
+  FIND_SWEETSPOT_FROM_GRIDNO: 0x01,
+  USE_NORTH_ENTRY_POINT: 0x02,
+  USE_SOUTH_ENTRY_POINT: 0x04,
+  USE_EAST_ENTRY_POINT: 0x08,
+  USE_WEST_ENTRY_POINT: 0x10,
+  USE_CAMO_PALETTE: 0x20,
+} as const;
+
+const ENTRY_POINT_FLAGS: readonly (readonly [flag: number, entryPoint: number])[] = [
+  [RottingCorpseFlags.USE_NORTH_ENTRY_POINT, Insertion.NORTH],
+  [RottingCorpseFlags.USE_SOUTH_ENTRY_POINT, Insertion.SOUTH],
+  [RottingCorpseFlags.USE_EAST_ENTRY_POINT, Insertion.EAST],
+  [RottingCorpseFlags.USE_WEST_ENTRY_POINT, Insertion.WEST],
+];
+
+function corpsePlacement(flags: number): Pick<Corpse, 'findSweetSpot' | 'entryPoint'> {
+  if (flags & RottingCorpseFlags.FIND_SWEETSPOT_FROM_GRIDNO) return { findSweetSpot: true };
+  const entry = ENTRY_POINT_FLAGS.find(([flag]) => flags & flag);
+  return entry ? { entryPoint: entry[1] } : {};
+}
+
+function savedCorpse(c: SavedCorpse): Corpse {
+  return {
+    gridNo: c.gridNo,
+    level: c.level,
+    bodyType: c.bodyType,
+    direction: c.direction,
+    state: 0,
+    profile: c.profile,
+    type: c.type,
+    timeOfDeath: c.timeOfDeath,
+    ...corpsePlacement(c.flags),
+    palettes: [c.palettes.head, c.palettes.skin, c.palettes.vest, c.palettes.pants],
+    ...(c.flags & RottingCorpseFlags.USE_CAMO_PALETTE ? { camo: true } : {}),
+  };
+}
 
 function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): number {
   t.corpses.length = 0;
-  for (const c of corpses) {
+  for (const saved of corpses) {
+    const c = placeLoadedCorpse(t, savedCorpse(saved));
     if (c.gridNo < 0 || c.gridNo >= WORLD_MAX) continue;
-    t.corpses.push({
-      gridNo: c.gridNo,
-      level: c.level,
-      bodyType: c.bodyType,
-      direction: c.direction,
-      state: 0,
-      profile: c.profile,
-      type: c.type,
-      timeOfDeath: c.timeOfDeath,
-      palettes: [c.palettes.head, c.palettes.skin, c.palettes.vest, c.palettes.pants],
-      ...(c.flags & ROTTING_CORPSE_USE_CAMO_PALETTE ? { camo: true } : {}),
-    });
+    t.corpses.push(c);
     addCorpseStructure(t, c.gridNo, c.level, c.type, c.direction);
   }
   return t.corpses.length;

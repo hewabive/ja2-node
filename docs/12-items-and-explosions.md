@@ -29,7 +29,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts` | World items: map load, pools, visibility; picking up, dropping, giving, tossing |
-| `item-placement.ts`, `item-reachability.ts` | Where a dropped item lands; which items the sector inventory can reach |
+| `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
 | `explosions/explosion.ts`, `blast-damage.ts`, `structure-damage.ts`, `item-damage.ts` | Ignition, the tile animation, the spread, damage to soldiers, structures and items, chain reactions |

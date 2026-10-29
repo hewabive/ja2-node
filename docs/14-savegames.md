@@ -76,12 +76,15 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A soldier saved mid-step comes back at the centre of his tile | `sim/tactical/save-import.test.ts` |
 | Loading drops every soldier's movement reservation and pending animation | `sim/tactical/save-import.test.ts` |
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
+| So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
+| A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 
 Not pinned yet:
 - A vanilla save's `uiFlags` holds `LOADING_SAVED_GAME`, set while writing, and two bits Stracciatella no longer defines
   (`TURNBASED`, `TRANSLUCENCY_TYPE`); the import reads only the combat and endgame bits.
+- The corpse search fits the gory corpse's structure whatever the blood option (`Tactical/Rotting_Corpses.cc:1070`).
 
 ## 4. Verification and what is not checked against the native build
 
@@ -98,6 +101,6 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Unread savegame sections", "Corpse placement on import", "Import without a loaded
-world". Other deviations of the import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on
-the ground", "Difficulty and progress in tactical".
+Not ported: gaps "Savegame import", "Unread savegame sections", "Import without a loaded world". Other deviations of the
+import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground", "Difficulty and
+progress in tactical", "Corpse structure past its file".

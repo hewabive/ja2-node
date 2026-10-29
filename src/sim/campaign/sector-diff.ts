@@ -14,11 +14,12 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import { addCorpseStructure, type Corpse } from '../tactical/combat/death.ts';
+import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
 import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructureForPartner } from '../tactical/doors.ts';
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
-import { loadedWorldItemGridNo, sweetSpotForUnloadedDrop } from '../tactical/item-placement.ts';
+import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
@@ -288,7 +289,7 @@ export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], agi
   t.corpses.length = 0;
   const maybeDrop = !aging.loadingSave && aging.inTown;
   for (const stored of corpses) {
-    const c = stored.findSweetSpot ? { ...stored, gridNo: sweetSpotForUnloadedDrop(t, stored.gridNo), findSweetSpot: false } : stored;
+    const c = placeLoadedCorpse(t, stored);
     if (c.gridNo < 0 || c.gridNo >= WORLD_MAX) continue;
     const indoors = t.world.terrain[c.gridNo] === Terrain.FLAT_FLOOR;
     if (maybeDrop && indoors && aging.nowMinute - c.timeOfDeath >= INDOOR_CORPSE_MAX_AGE_MINUTES) continue;

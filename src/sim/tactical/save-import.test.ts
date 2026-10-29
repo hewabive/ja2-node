@@ -4,13 +4,14 @@ import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
-import type { SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
+import type { SavedCorpse, SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { Direction } from './directions.ts';
 import { importSave } from './save-import.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
@@ -33,6 +34,8 @@ const MAX_TEAMS = 6;
 const SAVED_NOWHERE = WORLD_MAX + 1;
 const INT16_BYTES = 2;
 const NOBODY = TOTAL_SOLDIERS;
+const SMERC_FWD = 3;
+const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -81,12 +84,14 @@ interface SyntheticSave {
   readonly soldiers?: readonly SavedSoldierEntry[];
   readonly lastKnownOppLocBytes?: Uint8Array;
   readonly worldItems?: readonly SavedWorldItem[];
+  readonly corpses?: readonly SavedCorpse[];
 }
 
 function syntheticSave({
   soldiers = [],
   lastKnownOppLocBytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS),
   worldItems,
+  corpses,
 }: SyntheticSave): SaveGame {
   return {
     generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY },
@@ -114,7 +119,7 @@ function syntheticSave({
     profiles: [],
     worldTime: { hour: 12 },
     clock: { envLightValue: 3 },
-    currentSector: { worldItems: worldItems ?? null, corpses: null, mapModifications: null, doorStatus: null, doors: null },
+    currentSector: { worldItems: worldItems ?? null, corpses: corpses ?? null, mapModifications: null, doorStatus: null, doors: null },
     soldiers,
     schedules: [],
     oppList: {
@@ -187,6 +192,25 @@ function savedWorldItem(item: number, at: number, flags: number): SavedWorldItem
   };
 }
 
+function savedCorpse(at: number, flags: number): SavedCorpse {
+  return {
+    type: SMERC_FWD,
+    bodyType: 0,
+    gridNo: at,
+    heightAdjustment: 0,
+    palettes: { head: 'BROWNHEAD', pants: 'GREENPANTS', vest: 'YELLOWVEST', skin: 'PINKSKIN' },
+    direction: Direction.SOUTH,
+    timeOfDeath: 0,
+    flags,
+    level: 0,
+    visible: 1,
+    servicingCrows: 0,
+    profile: 200,
+    headTaken: false,
+    aiWarningValue: 0,
+  };
+}
+
 describe('importSave, the tactical part of LoadSavedGame', () => {
   it('drops a saved movement reservation and pending animation: adding a soldier to the sector clears them (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
     const walker = gridNo(80, 82);
@@ -237,6 +261,18 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const [moved, kept] = sim.state.worldItems;
     expect(around).toContain(moved?.gridNo);
     expect(kept?.gridNo).toBe(blocked);
+  });
+
+  it('moves a corpse dropped while its sector was unloaded to the nearest free tile, facing the first direction its structure fits, and keeps it searching at every load (Tactical_Save.cc LoadRottingCorpsesFromTempCorpseFile)', () => {
+    const blocked = gridNo(80, 84);
+    const north = gridNo(80, 83);
+    const sim = importedSim(syntheticSave({ corpses: [savedCorpse(blocked, ROTTING_CORPSE_FIND_SWEETSPOT), savedCorpse(blocked, 0)] }), [
+      blocked,
+    ]);
+    const [moved, kept] = sim.state.corpses;
+    expect(moved).toMatchObject({ gridNo: north, direction: Direction.NORTH, findSweetSpot: true });
+    expect(kept).toMatchObject({ gridNo: blocked, direction: Direction.SOUTH });
+    expect(kept?.findSweetSpot).toBeUndefined();
   });
 
   it('puts a soldier saved mid-step at the centre of his saved tile, as setting his position on load does (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
