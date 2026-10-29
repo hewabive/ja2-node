@@ -215,7 +215,7 @@ export class BattleFlow implements FateContext {
   }
 
   eliminateAllEnemiesIn(sector: Sector): void {
-    eliminateAllEnemies(this.#arContext(), sector, null);
+    eliminateAllEnemies(this.economy, sector, null);
   }
 
   #logBattleResults(victory: boolean, sector: Sector): void {

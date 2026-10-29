@@ -252,10 +252,25 @@ export function associateWithStrategicGroups(ctx: ArStrategicContext, ar: Autore
   );
 }
 
-export function eliminateAllEnemies(ctx: ArStrategicContext, sector: Sector, ar: AutoresolveState | null): void {
-  const economy = ctx.economy;
+function creditEliminatedEnemies(economy: EconomyContext, sector: Sector): void {
+  const counts = getNumberOfEnemiesInSector(economy, sector);
+  const byRank = [
+    [SoldierClass.ADMINISTRATOR, counts.admins],
+    [SoldierClass.ARMY, counts.troops],
+    [SoldierClass.ELITE, counts.elites],
+  ] as const;
+  for (const [soldierClass, count] of byRank)
+    for (let i = 0; i < count; i++) {
+      handleGlobalLoyaltyEvent(economy, LoyaltyEvent.ENEMY_KILLED, sector);
+      trackEnemiesKilled(economy.state.status, EnemyKilled.IN_AUTO_RESOLVE, soldierClass);
+    }
+  handleGlobalLoyaltyEvent(economy, LoyaltyEvent.BATTLE_WON, sector);
+}
+
+export function eliminateAllEnemies(economy: EconomyContext, sector: Sector, ar: AutoresolveState | null): void {
   const battle = economy.state.battle;
   battle.locator = false;
+  if (!ar) creditEliminatedEnemies(economy, sector);
   if (!ar || ar.status !== BattleStatus.IN_PROGRESS) {
     const info = sectorInfo(economy.state.map, sector);
     info.numTroops = 0;
@@ -320,7 +335,7 @@ export function strategicClosePort(ctx: ArStrategicContext, ar: AutoresolveState
       };
       processQueenCmdImplicationsOfDeath(queen, dead, sectorId(sector));
     },
-    eliminateAllEnemies: () => eliminateAllEnemies(ctx, sector, ar),
+    eliminateAllEnemies: () => eliminateAllEnemies(economy, sector, ar),
     resetEnemyMovement: () => resetMovementForEnemyGroupsInLocation(economy, sector),
   };
 }
