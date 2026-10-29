@@ -264,13 +264,14 @@ the hand, check with `estimateAttack`, `attack` the tile.
 
 ### 8.2 Doors, containers and remote triggers
 
-Rules: `35` (doors, locks, traps; `src/sim/tactical/doors/`). `door` walks next to the door, then acts. `open` on a
-locked door answers the door menu as data after the start-of-menu trap check; `openManually` is the menu's
-open button (deviation "Door menu"). `close` by our merc answers vanilla's closing menu (`{closed: false, options}` and
-a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other soldiers close at once (deviation
-"Closing an open door"). Containers and switches take `open` and `close` with the original's walk-up and
-`HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. `useRemote` presses the remote
-trigger in hand (the O3 statue, `26`).
+Rules: `35` (doors, locks, traps; `src/sim/tactical/doors/`). `door` walks next to the door, then acts, unless he gets
+there while dialogue plays or another merc still walks up to give an item: then the original drops the action and he
+only stands there. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
+`openManually` is the menu's open button (deviation "Door menu"). `close` by our merc answers vanilla's closing menu
+(`{closed: false, options}` and a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other
+soldiers close at once (deviation "Closing an open door"). Containers and switches take `open` and `close` with the
+original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. `useRemote`
+presses the remote trigger in hand (the O3 statue, `26`).
 
 ### 8.3 Inventory, money and first aid
 

@@ -5,10 +5,12 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/supp
 import { StructureFlags } from '../../../../content/world/structures.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../../ai/actions.ts';
+import { animName } from '../../anim-states.ts';
 import { findDoorInfo } from '../../doors/door-table.ts';
 import { ITEM_IGNORE_Z_LEVEL } from '../../item-actions.ts';
 import { NOWHERE, Team } from '../../soldier.ts';
 import { TacticalSim } from '../../tactical-sim.ts';
+import { NO_NARRATIVE_PORT } from '../port.ts';
 import { findClosestDoor, findNearestOpenableNonDoor, getItemsFromClosestCabinet, npcOpenThing } from './open-thing.ts';
 
 const VILLAGE = 'stubs/world/maps/village.dat';
@@ -63,6 +65,19 @@ describe('NPCs opening the closest door or cabinet', () => {
     expect(npc.gridNo).toBe(OUTSIDE);
     expect(doorIsOpen(sim)).toBe(true);
     expect(npcOpenThing(fakeActionEnv(), sim.state, npc, true)).toBe(false);
+  });
+
+  it('drops the opening when it arrives while somebody is talking: the door stays shut and the NPC stands next to it', () => {
+    const sim = village();
+    sim.state.narrative = { ...NO_NARRATIVE_PORT, dialogueQueueIsEmptyAndNobodyIsTalking: () => false };
+    const npc = spawnSoldier(sim, 40, Team.CIV, FIVE_ROWS_SOUTH, NORTH);
+    Object.assign(npc, { profile: Npc.ARMAND });
+    expect(npcOpenThing(fakeActionEnv(), sim.state, npc, true)).toBe(true);
+    stepFor(sim, NPC_WALK_AND_OPEN_TICKS);
+    expect(npc.gridNo).toBe(OUTSIDE);
+    expect(npc.pendingDoorAction).toBeNull();
+    expect(animName(sim.state.content, npc.state)).toBe('STANDING');
+    expect(doorIsOpen(sim)).toBe(false);
   });
 
   it('sends Armand to his cabinet tile to pick up everything there, whatever its height', () => {

@@ -587,6 +587,7 @@ export class TalkFlow {
         triggerNpcWithIHateYouQuote(host, s.profile);
       },
       dialogueBusy: () => this.talk.queue.length > 0 || this.talk.inPanel || this.talk.waitingForTrigger,
+      dialogueQueueIsEmptyAndNobodyIsTalking: () => dialogueQueueIsEmptyAndNobodyIsTalking(this.talk),
       startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
       npcReachedDestination: (s) => npcReachedDestination(host, s, false),
       replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),

@@ -12,7 +12,8 @@
 // @src (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath), DoPOWPathChecks.
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
-// @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote).
+// @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
+// @src DialogueQueueIsEmptyAndNobodyIsTalking.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -58,6 +59,7 @@ export interface NarrativePort {
   profileDied(profile: number, killer: Soldier | null): void;
   setUpHelicopterForPlayer(sector: SectorRef): void;
   dialogueBusy(): boolean;
+  dialogueQueueIsEmptyAndNobodyIsTalking(): boolean;
   startTalking(s: Soldier, target: number): void;
   npcReachedDestination(s: Soldier): void;
   replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
@@ -120,6 +122,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   profileDied: () => {},
   setUpHelicopterForPlayer: () => {},
   dialogueBusy: () => false,
+  dialogueQueueIsEmptyAndNobodyIsTalking: () => true,
   startTalking: () => {},
   npcReachedDestination: () => {},
   replaceLocationInNpcData: () => {},

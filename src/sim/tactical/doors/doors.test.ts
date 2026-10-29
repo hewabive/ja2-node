@@ -251,6 +251,50 @@ describe('the stub village door', () => {
   });
 });
 
+describe('a door order that arrives while something else is under way (Overhead.cc ExecuteOverhead)', () => {
+  const GIVER_AT = FAR + 4;
+
+  function walkToOpen(prepare: (sim: TacticalSim) => void) {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    sim.lookAround();
+    prepare(sim);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    runSimUntilIdle(sim);
+    expect(s.gridNo).toBe(OUTSIDE);
+    expect(s.pendingDoorAction).toBeNull();
+    return (doorStructure(sim).flags & StructureFlags.OPEN) !== 0;
+  }
+
+  function mercGiving(begun: boolean) {
+    return (sim: TacticalSim) => {
+      const giver = spawnSoldier(sim, 1, Team.OUR, GIVER_AT, NORTH);
+      giver.pendingGive = { slot: InvSlot.HAND, targetGridNo: FAR, direction: NORTH, target: 0, begun };
+    };
+  }
+
+  it('opens the door when nothing else is under way', () => {
+    expect(walkToOpen(() => {})).toBe(true);
+  });
+
+  it('drops the order while dialogue is queued or somebody talks', () => {
+    expect(
+      walkToOpen((sim) => {
+        sim.state.narrative = { ...NO_NARRATIVE_PORT, dialogueQueueIsEmptyAndNobodyIsTalking: () => false };
+      }),
+    ).toBe(false);
+  });
+
+  it('drops the order while another merc still walks up to give an item, not once he hands it over', () => {
+    expect(walkToOpen(mercGiving(false))).toBe(false);
+    expect(walkToOpen(mercGiving(true))).toBe(true);
+  });
+});
+
 describe('bashing locks', () => {
   it('accumulates lock damage on close calls and opens the lock past the smash difficulty', () => {
     const sim = village();

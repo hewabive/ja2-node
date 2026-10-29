@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc SoldierGiveItem, VerifyGiveItem, SoldierGiveItemFromAnimation;
 // @src Soldier_Control.cc EVENT_SoldierBeginGiveItem, SoldierCollapse (issue #2265);
-// @src externalized/Soldier.cc handlePendingAction (MERC_GIVEITEM); Soldier_Ani.cc code 486; Points.cc
-// @src GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
+// @src externalized/Soldier.cc handlePendingAction, anyoneHasPendingAction (MERC_GIVEITEM); Soldier_Ani.cc code 486;
+// @src Points.cc GetMovePlusActionAPCosts, GetAPsToGiveItem; Dialogue_Control.cc SetEngagedInConvFromPCAction,
 // @src UnSetEngagedInConvFromPCAction.
 
 import { ItemClass } from '../../content/items/items.ts';
@@ -19,7 +19,7 @@ import { AP, deductPoints } from './points.ts';
 import { profileProgress } from './profiles.ts';
 import { NO_PROFILE, NOBODY, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
-import { type TacticalState, whoIsThere } from './state.ts';
+import { type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
 
 const NO_FLAGS = 0;
@@ -61,6 +61,10 @@ export function soldierGiveItem(t: TacticalState, giver: Soldier, target: Soldie
   }
   target.engagedInAction = true;
   return true;
+}
+
+export function anyMercWalksToGiveItem(t: TacticalState): boolean {
+  return teamMembers(t, Team.OUR).some((s) => s.pendingGive !== null && !s.pendingGive.begun);
 }
 
 export function handlePendingGiveOnArrival(t: TacticalState, s: Soldier): boolean {

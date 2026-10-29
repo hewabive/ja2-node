@@ -8,6 +8,7 @@ import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
+import { anyMercWalksToGiveItem } from '../give.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
 import type { Soldier } from '../soldier.ts';
@@ -199,10 +200,14 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
 
+function otherActivityUnderWay(t: TacticalState): boolean {
+  return !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() || anyMercWalksToGiveItem(t) || t.pathEnv.autoBandage;
+}
+
 function interactWithPendingStruct(t: TacticalState, s: Soldier, gridNo: number, direction: number): void {
   const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
-  if (structure) interactWithOpenableStruct(t, s, structure, direction);
-  else soldierGotoStationaryStance(t, s);
+  if (!structure) soldierGotoStationaryStance(t, s);
+  else if (!otherActivityUnderWay(t)) interactWithOpenableStruct(t, s, structure, direction);
 }
 
 export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolean {
@@ -214,7 +219,9 @@ export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolea
     interactWithPendingStruct(t, s, pending.gridNo, pending.direction);
     return true;
   }
-  const result = performDoorAction(t, s, pending.gridNo, pending.direction, pending.action as DoorActionName);
+  const action = pending.action as DoorActionName;
+  if (enoughPoints(t.inCombat, s, actionCost(s, action).ap) && otherActivityUnderWay(t)) return true;
+  const result = performDoorAction(t, s, pending.gridNo, pending.direction, action);
   if (result.started === false) soldierGotoStationaryStance(t, s);
   return true;
 }
