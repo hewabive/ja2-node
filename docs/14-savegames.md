@@ -58,7 +58,7 @@ counter"). The clock starts unpaused (deviation "Pause state after an import"); 
 turn is not restored.
 
 **The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's
-differs from the shipped JSON on the I2/I3 border, `tools/oracle/README.md` "`stratcosts`"), and Stracciatella does not
+differs from the shipped JSON on the I2/I3 border, `tools/oracle/README.md` "Strategic movement"), and Stracciatella does not
 reinitialise it on load; neither does the import.
 
 **Options and origin.** `importNativeGameOptions` keeps difficulty, sci-fi, gun nut and save mode and reports a turn

@@ -352,7 +352,7 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | Read by the simulation | Yes, through the rule pack (§4.2), in full before a session starts | Never; the client loads it lazily per screen or sector |
 
 - **Shipped JSON** (§0): Stracciatella's tables in `data/externalized/`, the tables transcribed from the source code in
-  `data/tables/`, the UI layouts in `data/layouts/` (§5.2); `32` §4 says what each holds.
+  `data/tables/`, the UI layouts in `data/layouts/` (§5.2); `32` §4 gives the rules, and each transcribed table names its source.
 - **Imported only on the user's machine** (§4.3): `prof.dat`, `ja2bin.dat`, `ja2set.dat`, `ja2pal.dat`, maps, JSD,
   `.npc`, EDT, `Locks.bin`, and all media.
 
