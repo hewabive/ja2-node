@@ -147,7 +147,7 @@ CancelAIAction(s) (:920-938): SkipCoverCheck = false; if bNewSituation == IS: bN
 SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autobandage && !(bNeutral && ENGAGED_IN_CONV):
    bNewSituation = IS; if !INCOMBAT: AICounter = now + Random(1000)      // cuts any wait short
 ```
-`EVENT_StopMerc` (`Soldier_Control.cc:7372-7421`, `07` §4.6) snaps to the tile centre, clears the path and re-sets
+`EVENT_StopMerc` (`Soldier_Control.cc:7372-7421`, `07`) snaps to the tile centre, clears the path and re-sets
 `bDirection` to itself; it does **not** touch `bDesiredDirection`.
 
 ### 1.7 `ExecuteAction` for the green actions (`AIMain.cc:1305-1828`)
@@ -195,7 +195,7 @@ SetNewSituation(s) (:1989-2010): if team != OUR && ubQuoteRecord == 0 && !autoba
 | Decision | Timeline (t0 = deciding visit; visits on 55 ms ticks) |
 |---|---|
 | NONE | WAIT d (§1.4) armed at t0 → next decision at the first tick ≥ t0 + d |
-| RANDOM_PATROL / POINT_PATROL / LEAVE_WATER_GAS | walk (`07` §4); visits during the walk do nothing; arrival stops him (`Overhead.cc:745-908`, path index = size = 0) → next visit: `ActionDone` → next visit (+110): queued WAIT d → decide after d |
+| RANDOM_PATROL / POINT_PATROL / LEAVE_WATER_GAS | walk (`07`); visits during the walk do nothing; arrival stops him (`Overhead.cc:745-908`, path index = size = 0) → next visit: `ActionDone` → next visit (+110): queued WAIT d → decide after d |
 | SEEK_FRIEND, enemy | same, but **no WAIT is queued** → decides again one visit after `ActionDone` |
 | SEEK_FRIEND, civ/militia | queued WAIT `REALTIME_CIV_AI_DELAY` |
 | CHANGE_FACING | `ActionDone` at t0+110, WAIT d starts at t0+220 |
@@ -397,19 +397,19 @@ cannot use with range 0, so after the 1-in-5 civilian gate he only turns (look c
 - **`NewDest(s, grid)`** (`:356-435`): the TAKE_COVER swat logic and the ENEMY-at-RED `PreRandom(5 − difficulty)`
   swat roll (`13`) do not apply in green; `usUIMovementMode = DetermineMovementMode(s, bAction)`; SWATTING on a
   non-merc body → WALKING; `EVENT_InternalGetNewSoldierPath(s, grid, mode, fromUI = 0, force = fNoAPToFinishMove)` —
-  with `bPathStored` it reuses the stored route, then starts the walk (`07` §4.1; the AI never takes the re-path branch).
+  with `bPathStored` it reuses the stored route, then starts the walk (`07`; the AI never takes the re-path branch).
 - **Path searches in green**: `FindBestPath(s, dest, bLevel, WALKING, COPYROUTE, 0)` via `LegalNPCDestination`.
   `gubNPCDistLimit` and `gubNPCAPBudget` stay 0 (they are only set by `FindLocations.cc`, `Map_Edgepoints.cc` and
   `PathAI.cc:1857`; `Movement.cc:343` is commented out). `PATH_THROUGH_PEOPLE` only for scripted NPC moves,
   `PATH_CLOSE_GOOD_ENOUGH` only for creatures. The person at the destination is no obstacle for AI paths
   (`fConsiderPersonAtDestAsObstacle` is player-only, `Tactical/PathAI.cc:638`), but `NewOKDestination` already rejects
   occupied destinations.
-- **Doors:** AI soldiers path through closed, unlocked doors (or locked ones with `bHasKeys`) (`07` §3.4). At the door
+- **Doors:** AI soldiers path through closed, unlocked doors (or locked ones with `bHasKeys`) (`07`). At the door
   `HandleGotoNewGridNo` opens it and sets `bEndDoorOpenCode = 1` (`Overhead.cc:1331-1384`); at the end of the open-door
   animation opcode 499 sets it to 2 and re-paths to `sFinalDestination` (`Soldier_Ani.cc:1837-1860`); entering the next
   tile closes the door behind him (`Soldier_Control.cc:1933-1937`). Opening runs opcode 495 (door noise, look for all,
   `HandleSystemNewAISituation`, `01` §3.5). Wandering troops do this.
-- **Blocked**: `HandleNextTile` / `TileIsClear` / `HandleNextTileWaiting` (`07` §4.5), including the AI-only
+- **Blocked**: `HandleNextTile` / `TileIsClear` / `HandleNextTileWaiting` (`07`), including the AI-only
   repath-or-swap with a mutually blocked soldier and the forced swap at waiting value 3. While `fDelayedMovement` is set
   the continue branch of §1.2 is skipped, so the action stays in progress until the waiting logic re-paths or gives up
   (`SetFinalTile` → stop); the next visit then calls `ActionDone`. `NewDest` failure blacklists the target

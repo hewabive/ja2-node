@@ -536,14 +536,14 @@ BIGMERC transitions take 90 ms, PRONE_DOWN/UP 100 ms. **PRONE, PRONE_DOWN, PRONE
     (`SkillCheck.cc:35-40`).
 - **Unseen soldiers.** In combat, unseen soldiers get delay 0 (`:4928-4936`); ja2-node does so as soon as `visible`
   is −1, without the fade (`gaps`, "Unseen soldiers in combat").
-- **When it is recomputed.** On each new state; on each tile change, for terrain (`07` §4); and by fast turns (§5.4).
+- **When it is recomputed.** On each new state; on each tile change, for terrain (`07`); and by fast turns (§5.4).
 - **Example.** Agility 80, life 100, breath 100, realtime: walk = 5 + 0 + 0 + 30 = 35 ms/frame; stand = 200 ms/frame.
 
 ### 5.3 Position update per animation frame
 
 The per-frame order (`ExecuteOverhead`: frame, centre check, `MoveMerc`, `TurnSoldier`), `MoveMerc` in float32 with
 `PI = 3.1415926` and the sticky `fPastX/YDest`, the half-step occupancy switch of `SetSoldierGridNo`, how a move starts
-and how it ends are `07` §4.1–§4.8. What belongs to the animation:
+and how it ends are `07`. What belongs to the animation:
 
 - **Speed per frame.** **`WALKING` uses `gubAnimWalkSpeeds[body].dMovementChange`**: 1.6 for bodies 0–3, 1.3 for adult
   civilians, 1.6 for kids, 0.9 for cows. Every other state, running included, uses
@@ -572,7 +572,7 @@ and how it ends are `07` §4.1–§4.8. What belongs to the animation:
   `dir = (dir + inc) mod 8`, if `OKToAddMercToWorld(dir)` (`:4438-4474`).
   - It plays a footstep, except in water or on roads (`:4476-4479`).
   - Stationary states look on the next turn frame: `SOLDIER_LOOK_NEXT_TURNSOLDIER` → `HandleSight` (`:4229-4241`;
-    `07` §4).
+    `07`).
 - **Fast turn.** `AdjustForFastTurnAnimation` sets `sAniDelay = 30` ms (`FAST_TURN_ANIM_SPEED`) while turning in an
   `ANIM_FASTTURN` state, for `OUR_TEAM` only (`:6379-6396`; `Animation_Control.h:30`). Enemies turn at their state's
   delay, e.g. ~200 ms per octant when standing **(inferred)**.

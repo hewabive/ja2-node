@@ -648,7 +648,7 @@ gridno = (wy/10)*160 + wx/10                                           // MAPROW
   - It is raised by the tile's `sHeight` like any node, so on raised tiles it shows above the mouse point
     **(inferred)**.
 - **Visible-tile test** (also used by the radar): `GridNoOnVisibleWorldTile` (`Isometric_Utils.cc:544-557`), on the
-  render bounds of the map's restriction (`07` §2.5).
+  render bounds of the map's restriction (`07`).
 
 ja2-node: `screenToGridNo` (`src/render/world/geometry.ts`, `WorldRenderer.gridNoAt`); soldiers under the pointer:
 `pickSoldierAt` (`picking.ts`).

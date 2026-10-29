@@ -281,7 +281,7 @@ before release without AP, map blindness during a roof climb, a burst at a falli
 
 The skeleton of tactics; its ordering is behaviour (details in the specs).
 
-1. **Tile step** (`07` §4). At the centre, before leaving: breath check, fence or door branch, the step's AP and
+1. **Tile step** (`07`). At the centre, before leaving: breath check, fence or door branch, the step's AP and
    breath, next-tile check and real-time reservation, mine sense ahead, random hazards (gas 1 in 5, marbles, blind and
    drunk falls), then `DeductPoints`: paid before leaving (`Overhead.cc:1247-1630`). At the boundary the soldier moves
    to the new tile, so bullets now hit him there; the door behind closes; smell, water and gas apply

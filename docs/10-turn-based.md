@@ -9,7 +9,7 @@ walks `MercSlots` (sector insertion order); `FOR_EACH_SOLDIER` walks all ids (`T
 §2.4). "Policy" values are Stracciatella defaults from `assets/externalized/game.json`. `NO_INTERRUPT 127`,
 `AUTOMATIC_INTERRUPT 100` (`Tactical/OppList.h:29-30`).
 
-Companions: `11` §0 (coupling overview), `07` §3.5–§3.6, §4.6, §4.10 (movement AP and the NoAP freeze), `08` §2
+Companions: `11` §0 (coupling overview), `07` (movement AP and the NoAP freeze), `08` §2
 (sight, opplists, best sighting in real time), `09` (AI state, `ActionDone`, the green decision), `33` (the end of
 an attack, suppression), `13` (completion hooks, TB movement and `ExecuteAction` details of the AI turn).
 
@@ -300,7 +300,7 @@ GetBreathPerAP(s, anim):                                                  // :76
 ```
 Flags: `ANIM_NO_EFFORT 0x400000, MIN 0x800000, LIGHT 0x1000000, MODERATE 0x2000000, VARIABLE 0x8000000`
 (`Animation_Control.h:57-62`; `AnimFlags` in `content/anim/tables.ts`). Negative `change` is a gain, scaled by
-`AdjustBreathPts` as `cost*100/factor` (`07` §3.6).
+`AdjustBreathPts` as `cost*100/factor` (`07`).
 
 ---
 
@@ -332,7 +332,7 @@ The breath penalty (`:543-552`) also erases an AP debt (quirk). Vanilla floors e
 
 | Action | AP | BP | Checked | Deducted |
 |---|---|---|---|---|
-| Step | `ActionPointCost` (`07` §3.6) | `TerrainBreathPoints` | first step by the UI/AI (§3.4) | each step at the tile centre, `HandleGotoNewGridNo` (`Overhead.cc:1387-1388, 1566`) |
+| Step | `ActionPointCost` (`07`) | `TerrainBreathPoints` | first step by the UI/AI (§3.4) | each step at the tile centre, `HandleGotoNewGridNo` (`Overhead.cc:1387-1388, 1566`) |
 | Start running | `AP_START_RUN_COST 1` | 0 | in `MinAPsToStartMovement`/`PtsToMoveDirection` | entering RUNNING from another state (`Soldier_Control.cc:1446-1455`) |
 | Turn (stand/crouch/prone) | `AP_LOOK_STANDING 1 / CROUCHED 2 / PRONE 2` | 0 | `GetAPsToLook` = 1 / 2 / **6** (prone: up 2 + look 2 + down 2) | at `EVENT_InternalSetSoldierDesiredDirection` if the anim has `BREATH \| OK_CHARGE_AP_FOR_TURN \| FIREREADY`, not an initial move, not `dontChargeTurningAPs` (`:3859-3880`); prone also pays `PRONE_UP`/`PRONE_DOWN` |
 | Stand↔crouch | `AP_CROUCH 2` | `BP_CROUCH 10` | `SoldierCanAffordNewStance` (`Handle_UI.cc:3583-3615`, checks AP only) | KNEEL_UP/DOWN start unless `dontChargeAPsForStanceChange` (`:1467-1478`) |
@@ -351,7 +351,7 @@ The breath penalty (`:543-552`) also erases an AP debt (quirk). Vanilla floors e
 
 `GetAPsToChangeStance` (`Points.cc:1526-1563`): stand↔crouch 2, stand↔prone 4, crouch↔prone 2.
 
-### 3.3 Movement in turn-based (`07` §4.10 for the full RT/TB table)
+### 3.3 Movement in turn-based (`07` for the full RT/TB table)
 
 - **Order check.** The player's move is accepted if `PtsToMoveDirection(s, path[0]) + GetAPsToChangeStance(s,
   height(uiMovementMode))` is affordable (`SelectedMercCanAffordMove`, `Handle_UI.cc:2478-2503`); otherwise the
@@ -372,7 +372,7 @@ The breath penalty (`:543-552`) also erases an AP debt (quirk). Vanilla floors e
 (`Overhead.cc:683-685`). Setters: out of APs (above), an interrupt at a tile centre (§4.10),
 `HaultSoldierFromSighting` in combat (`reason = STOPPED_SIGHT`, `:7313-7324`), `fEnemySightingOnTheirTurn` at a tile
 centre (§6.9), `StartInterrupt`/`DisplayHiddenInterrupt`/`VerifyOutOfTurnOrderArray` on the interrupted soldier.
-Clearers: `07` §4.6, plus `EndTurn` (§2.2) and `ExitCombatMode` (§8.3).
+Clearers: `07`, plus `EndTurn` (§2.2) and `ExitCombatMode` (§8.3).
 
 Continuing:
 - **Player:** `ContinueMercMovement(s)` (`Soldier_Control.cc:7519-7562`) after `CheckForMercContMove(s)`
@@ -572,7 +572,7 @@ HandleBestSightingPositionInTurnbased():                       // OppList.cc:439
 
 ### 4.10 Effect on the soldier who was interrupted
 
-At a tile centre (`HandleAtNewGridNo`, `Overhead.cc:1795-1855`, `07` §4.7): `interruptOccurred = false` → movement
+At a tile centre (`HandleAtNewGridNo`, `Overhead.cc:1795-1855`, `07`): `interruptOccurred = false` → movement
 noise (`OurNoise` → `ResolveInterruptsVs(NOISE)`) → **sight only if no interrupt yet** (a noise interrupt skips this
 tile's look) → if `interruptOccurred`: NoAP on, keepMoving = false, clear pending animation/direction, drop the
 pending action if at the final tile, reset the flag, end the enemy-sighting pause if it was this soldier.

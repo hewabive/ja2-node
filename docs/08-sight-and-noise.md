@@ -39,7 +39,7 @@ head (an LOS test to the noise tile) and may thereby see its maker. The player's
 | Wall / window | wall top 256; windows see-through only between 87 and 220 height units (absolute, ground storey only) | `LOS.h:102-104`, `LOS.cc:52-54` |
 | Structure levels | `sCubeOffset` 0 (ground) or 4 (roof storey). Ground structures are tested at cube 0–3 above land, roof-storey ones at cube 4–7 | `Structure_Internals.h:43-46` |
 
-How `sCubeOffset` is set and the per-tile list order: `07` §1.1 and `07` §1.2. Soldiers and corpses add their own
+How `sCubeOffset` is set and the per-tile list order: `07` and `07`. Soldiers and corpses add their own
 structures; their JSD flags are `0x80000090` (PERSON|TRANSPARENT|MOBILE) and `0x40000180` (CORPSE|GENERIC|TRANSPARENT) in
 `Anims.slf`, so **LOS ignores people**. A corpse of ≥10 tiles loses `TRANSPARENT` (`Structure.cc:752-760`). In tileset
 0, trees, bushes and weeds are `STRUCTURE_TREE` (0x200); `OLDFENCE` is TRANSPARENT; windows are WALLNWINDOW (0x20000,
@@ -781,7 +781,7 @@ item reveal and quote of `RemoveRoomRoof` (so no `Random(2)`), and the vehicle a
 
 ### 6.1 State
 
-- Structures: `TacticalState.world.structures` (`WorldStructures`, `07` §7), per-tile lists in insertion order with
+- Structures: `TacticalState.world.structures` (`WorldStructures`, `07`), per-tile lists in insertion order with
   shape, flags, `cubeOffset`, wall orientation and cached height; soldiers and corpses append their own (transparent)
   structures. Land heights `world.level.heights`, terrain `world.terrain`, rooms `world.level.rooms`.
 - `TacticalState.perception` (`Perception`, `perception/sight.ts`): `publicOpp[team][id]`, `publicLastKnown`, the
