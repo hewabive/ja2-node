@@ -1087,7 +1087,7 @@ starts at the saved mode). The browser chooses tracks, fades and loops. MCP `obs
 
 Queries are commands that change nothing. Cursor feedback (path and AP under the pointer, chance to hit, drop targets,
 plotting ETAs, enabled menu lines) is computed as the original computes it, with the rules' own functions, in the
-browser (`28` §2.4) and on the server, over the **player-knowledge projection** (deviation "Cursor hints on the
+browser (`28` §4) and on the server, over the **player-knowledge projection** (deviation "Cursor hints on the
 projection").
 
 **The projection** (`src/sim/knowledge/`). `knowledgeWorld(view, rules, {strict?})` builds from a player view (a
@@ -1174,7 +1174,7 @@ tile, which explores the whole map as the original does).
   `calibres.json`, `GetHelpTextForItem`), the catalogue's rate of fire. `ItemDef` parses the graphics with
   `ItemModel`'s defaults (`interface/mdguns.sti` 0, `bigitems/gun00.sti` 0, `GUNS` 1).
 - **Test switches of the game page** (URL parameters): `holdTime=1` keeps the map screen from starting game time by
-  itself (explicit `advance` still works), `pinClock`, `shadowHints=1` (the client's shadow mode, `28` §2.4). The
+  itself (explicit `advance` still works), `pinClock`, `shadowHints=1` (the client's shadow mode, `28` §4). The
   `window.__ja2Ui` hook exposes `frameStats` (`count`, `p50`, `p95`, `max` of the page's JavaScript time per frame,
   `resetFrameStats()`), `lagTicks` (latest received tick minus shown tick) with `skipPlayback()`, `lastCommand` and
   `lastResult` (`{ok, reason, refusal}`), and the hint statistics.

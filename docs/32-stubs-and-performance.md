@@ -17,7 +17,7 @@ from a new game to the Queen's death through MCP and in the browser (sound, musi
 screens, English or Russian labels) and gives every platform feature content that exercises it. It is no replica of
 every sector or quest: narrative content stays the minimum the tests and the stub campaign need. Items, weapons,
 dealers, the army and the strategic tables come from `data/externalized` on every data version and need no stubs. The
-stub skin (the canvas screens' art): `28` §4.
+stub skin (the canvas screens' art): `28` §9.
 
 ### 1.2 Licence and the SFI-SCLA list
 
@@ -76,7 +76,7 @@ Everything else must be own work, so that the dedication can cover it.
 | Locks | `stubs/locks.json` | |
 | Sounds, music, speech, video | `stubs/media.ts` and the generators it calls (§1.7) | |
 | Fonts | `stubs/fonts.ts` (§1.6) | |
-| UI art | `stubs/ui/` (the stub skin, `28` §4) | labelled screens and buttons, cursors, faces, item pictures, the map board, radar maps, load screens |
+| UI art | `stubs/ui/` (the stub skin, `28` §9) | labelled screens and buttons, cursors, faces, item pictures, the map board, radar maps, load screens |
 
 ### 1.6 Maps, characters, tiles and fonts
 
@@ -202,7 +202,7 @@ P3_b1, the Queen, the ending) reach the victory with mercs placed in O3, not yet
 ## 2. Performance
 
 The simulation layers read no clocks (`01` §3.2), so all timing is taken outside `sim`. Baselines measured on the
-original data stay local, since the data may not be committed. Client frame time and UI targets: `28` §6.
+original data stay local, since the data may not be committed. Client frame time and UI targets: `28` §11.
 
 ### 2.1 The benchmark suite
 
@@ -361,7 +361,7 @@ base is unknown). A push or pull request that touches only `docs/`, Markdown fil
 ## 3. The launcher
 
 The launcher (`src/app/launcher/`, served at `/` from the repository's root `index.html`) is a DOM page for what the
-canvas game at `/play` (`28` §2.2) does not show: the data source and version, the display language, the running
+canvas game at `/play` (`28` §3) does not show: the data source and version, the display language, the running
 sessions with links to `/play` and to the developer pages, a new campaign, the save files, the client settings, the
 splash and the credits. Its logic is DOM-free in `ui` and shared with the canvas screens (`30`): the campaign form
 (`src/ui/client/campaign-form.ts`), the save controller and rows (`src/ui/saves/`), the settings model
@@ -395,7 +395,7 @@ import `server`. Debug hook `window.__ja2Launcher`; e2e `tests/e2e/launcher.spec
 - **`data/externalized/`** holds Stracciatella's JSON tables unchanged; **`data/tables/`** holds tables transcribed
   from Stracciatella's C++ sources by `tools/transcribe/<name>.ts` (`node tools/transcribe/<name>.ts` regenerates one;
   never edit the JSON by hand). Each transcribed table records its source files and the Stracciatella commit in its
-  `source` field, and carries the SFI-SCLA licence line. **`data/layouts/`** holds the UI layouts (`28` §3.10).
+  `source` field, and carries the SFI-SCLA licence line. **`data/layouts/`** holds the UI layouts (`28` §8).
 - Where a handful of values is all there is, the port keeps constants in a module with the SFI header instead of a
   table (the music modes in `src/protocol/music-modes.ts`, the intro sequences in `src/app/video/sequences.ts`, …).
 - **Original data read at run time** (media, EDT files, fonts, the binary tables) is never committed. Tests that need it

@@ -134,7 +134,7 @@ In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 
 - **Decisions.** On a decision (an interrupt in our favour with nobody acting, a prompt, an open conversation or shop)
   the real-time driver stays in real time, but its batches run no ticks, log nothing and drop the elapsed time; time
   runs on by itself once the decision is resolved. The game page itself switches a running real-time driver to manual
-  while it shows something modal (`28` §1.4).
+  while it shows something modal (`28` §3).
 - **Equal outcomes.** Turn-based combat gives the same outcome under every driver; real time does too when commands
   arrive at the same ticks. An agent that orders while paused is a player with zero reaction time. The original can
   pause tactical play, but masks the screen and accepts no orders while paused (`Strategic/Game_Clock.cc:795-835`,
@@ -148,7 +148,7 @@ Instead of gameplay events for the client to rebuild a picture from, the session
 and sends the changed and removed soldiers, every other changed view block whole, the events of that interval, the new
 message entries (`29` §8), bullet positions and the presentation events stamped with the session tick (`29` §9). Fine
 animation between frames comes from the animation schedule each soldier entry carries and the client's copy of the
-scripts (`28` §2.3):
+scripts (`28` §3):
 
 - a soldier whose silent animation the client can predict from its last sent slot is not resent for its frame alone
   (`keepPredictableFrames`, `src/server/frame-anchors.ts`); a capture without changes then sends an empty frame so the
@@ -248,7 +248,7 @@ and compressed with `permessage-deflate`, the context kept between messages.
 
 Queries run the simulation's own rule functions and change nothing. Cursor hints run over the **player-knowledge
 projection** of the view the player gets, so hidden information does not leak; answers that depend on hidden state or
-price a decision stay on the server. The browser computes the hints locally with the same code (`28` §2.4) and falls
+price a decision stay on the server. The browser computes the hints locally with the same code (`28` §4) and falls
 back to the server. Kinds, channel and fairness: `29` §28.
 
 ### 5.5. Saves and the input log
@@ -321,7 +321,7 @@ save files and (apart from the times) health. Stalls and costs of both hosts: `3
 ### 5.10. The rule pack and the assets
 
 The game data splits into the **rule pack** (everything the simulation reads) and media, which only clients read
-(`28` §2.5).
+(`28` §5).
 
 **The pack** (`src/content/rules/`; built by `src/server/rule-pack.ts`) holds:
 - the rule files: the project tables, the animation scripts, `ja2set.dat`, `prof.dat`, `Locks.bin`, maps, structure
@@ -358,7 +358,7 @@ animation scripts); a client compares them with its own code and data (`src/app/
   The hashes persist in `.ja2/cache/vfs-hashes.json` by file stamp, so a restart reads no file again. `GET /api/vfs`
   lists the files for tools.
 - **`GET /vfs/@<hash>/<path>`** is immutable when `<hash>` is the file's current hash and 404 when it is not (the client
-  refetches the manifest), so the HTTP cache keeps media across sessions and restarts. Plain **`/vfs/<path>`** stays
+  falls back to the plain URL, `src/app/net/vfs.ts`), so the HTTP cache keeps media across sessions and restarts. Plain **`/vfs/<path>`** stays
   for tools and agents, revalidated with the content hash as a strong ETag. Both take the token and serve ranges. A
   whole-file read is gzipped when that pays (`src/server/vfs-gzip.ts`: not already compressed, at least 1 KB, at least
   10% smaller; kept in memory by hash). On the stubs `/vfs/<path>` falls back to `stubs/<path>`, so stub media and

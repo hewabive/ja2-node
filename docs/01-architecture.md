@@ -400,7 +400,7 @@ Phaser would have to be fought for the depth and palette model, and WebGPU is no
 on the GPU and the shader looks them up in palette rows (sprite and soldier palettes, shade levels, light colours);
 multi-tile structures are cut into strips with their own depth, which yields "soldier behind a wall" without a software
 z-buffer. Draw order, layers and shading are the original's (`05`), light levels the simulation's (`20`); frame
-targets: `28` §6.
+targets: `28` §11.
 
 ### 5.2 UI
 
@@ -435,7 +435,7 @@ gives the rules behind them.
 ### 6.3 Client
 
 `/play` (`src/app/game`) plays the server's view frames back, turns input into commands and draws the `ui` layer and
-the world; it never runs the simulation (`28` §2). Saves stay on the server; the launcher downloads and uploads them
+the world; it never runs the simulation (`28` §3). Saves stay on the server; the launcher downloads and uploads them
 (`32` §3). Browsers: current desktop Chrome and Firefox (the `e2e:browsers` suite runs both); touch input is not a goal.
 
 ---
