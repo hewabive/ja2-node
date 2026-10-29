@@ -4,6 +4,7 @@ import { countDraws, explosivesBusy, objectOf, stepWithExplosives } from '../../
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { RestrictedScroll } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
@@ -246,7 +247,7 @@ describe('thrown object physics', () => {
 });
 
 describe('the force search behind throws', () => {
-  it('ignores the map and draws nothing, so its results can be remembered per item table', () => {
+  it('ignores structures and draws nothing, so its results can be remembered per item table', () => {
     const open = newCombatSim(content);
     const walled = simWithWallRow(84);
     const flights = [open, walled].map((sim) => {
@@ -260,6 +261,19 @@ describe('the force search behind throws', () => {
     });
     expect(flights[0]).toBeGreaterThan(40);
     expect(flights[1]).toBe(flights[0]);
+  });
+
+  it("caps every throw in a basement at the thrower's feet: the probe for the force cap starts off its smaller visible map", () => {
+    const target = gridNo(80, 88);
+    const surface = newCombatSim(content);
+    expect(throwAndLand(surface, grenadier(surface), target).gridNo).toBe(target);
+    const basement = newCombatSim(content);
+    const basementMap = basement.state.world.map;
+    if (!basementMap) throw new Error('no map');
+    Object.assign(basementMap, { info: { restrictedScrollId: RestrictedScroll.BASEMENT } });
+    expect(throwAndLand(basement, grenadier(basement), target).gridNo).toBe(THROWER);
+    const surfaceAgain = newCombatSim(content);
+    expect(throwAndLand(surfaceAgain, grenadier(surfaceAgain), target).gridNo).toBe(target);
   });
 });
 

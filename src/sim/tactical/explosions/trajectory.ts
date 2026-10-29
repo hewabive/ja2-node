@@ -6,6 +6,7 @@
 // @src Tactical/LOS.cc SoldierToLocationWindowTest; Structure_Wrap.cc IsRoofPresentAtGridno.
 
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { clamp, i8 } from '../../../core/int.ts';
 import { cloneObject, createItem, type ItemObject } from '../../items/object.ts';
@@ -110,7 +111,8 @@ function findBestForce(t: TacticalState, src: number, dst: number, startZ: numbe
   const known = knownForces.get(items) ?? new Map<string, number>();
   if (known.size >= MAX_KNOWN_FORCES) known.clear();
   knownForces.set(items, known);
-  const key = `${src}:${dst}:${startZ}:${endZ}:${degrees}:${obj.item === itemIndex(t, 'MORTAR_SHELL')}`;
+  const visibleArea = restrictedScrollIdOf(t.world);
+  const key = `${visibleArea}:${src}:${dst}:${startZ}:${endZ}:${degrees}:${obj.item === itemIndex(t, 'MORTAR_SHELL')}`;
   const cached = known.get(key);
   if (cached !== undefined) return cached;
   const force = searchBestForce(t, src, dst, startZ, endZ, degrees, obj);
