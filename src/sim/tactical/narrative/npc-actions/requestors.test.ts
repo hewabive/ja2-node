@@ -70,6 +70,12 @@ describe('requestors', () => {
     expect(e.hospital.tempBalance).toBe(0);
   });
 
+  it('answers free treatment of one wounded merc with the several-mercs record: that fact holds for one too, so record 25 never plays', () => {
+    const e = env(Npc.VINCE, { facts: { [Fact.WOUNDED_MERCS_NEARBY]: true, [Fact.ONE_WOUNDED_MERC_NEARBY]: true } });
+    answerNpcRequest(e, open(e, Npc.VINCE, A.MEDICAL_REQUESTOR_2), 'yes');
+    expect(triggered(e)).toEqual([[Npc.VINCE, 26]]);
+  });
+
   it('flags the asker, gives Daryl the key and the asker’s profile on yes', () => {
     const e = env(Npc.DARYL, { profiles: { 7: {}, [Npc.DARYL]: {} } });
     const request = open(e, Npc.DARYL, A.TRIGGER_MARRY_DARYL_PROMPT);

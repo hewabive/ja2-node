@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { runUntilIdle as runSimUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { ItemClass } from '../../../content/items/items.ts';
@@ -11,8 +12,8 @@ import { InvSlot } from '../inventory.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
-import { doorMenu, handleOpenableStruct } from './door-actions.ts';
-import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, updateDoor } from './door-table.ts';
+import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
+import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
 import { keyRingView } from './door-view.ts';
 import { newKeyRing } from './key-ring.ts';
 import { attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
@@ -22,6 +23,7 @@ const DOOR = 11429;
 const OUTSIDE = DOOR + 160;
 const FAR = OUTSIDE + 160 * 4;
 const NORTH = 0;
+const MERC_PROFILE = 5;
 
 let kit: StubSectorKit;
 
@@ -186,6 +188,21 @@ describe('the stub village door', () => {
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'openManually' }).data).toEqual({ refusal: 'notLocked' });
   });
 
+  it('lets our merc open a door with a lock entry for free: only a door without one costs the opening APs', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    sim.state.inCombat = true;
+    const full = s.actionPoints;
+    s.doorHandleCode = HandleDoor.OPEN;
+    expect(handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim))).toBe(true);
+    expect(s.actionPoints).toBe(full);
+    toggleDoorAt(sim.state, DOOR);
+    removeDoorInfo(sim.state, DOOR);
+    expect(handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim))).toBe(true);
+    expect(s.actionPoints).toBe(full - doorApCost(HandleDoor.OPEN));
+  });
+
   it('names the key item of each lock on the key ring (LockTable[keyID].usKeyItem)', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
@@ -246,6 +263,20 @@ describe('bashing locks', () => {
     expect(attemptToSmashDoor(sim.state, s, DOOR)).toBe(true);
     expect(findDoorInfo(sim.state, DOOR)).toBeNull();
     expect(pre.requested).toEqual([100, 100]);
+  });
+
+  it('never gives the token strength point for a bash that misses by 10 to 39: the failed check has just stored the merc’s own tile', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH, { profile: MERC_PROFILE });
+    sim.state.profiles.set(MERC_PROFILE, progressFor(MERC_PROFILE));
+    updateDoor(sim.state, DOOR, { trapId: DoorTrap.NONE });
+    s.stats.strength = 80;
+    const missByTwenty = 70;
+    const { pre } = scripted(sim, [missByTwenty], [], 0);
+    expect(attemptToSmashDoor(sim.state, s, DOOR)).toBe(false);
+    expect(s.skillCheckGridNo).toBe(OUTSIDE);
+    expect(pre.requested).toEqual([100]);
+    expect(findDoorInfo(sim.state, DOOR)?.lockDamage).toBe(0);
   });
 
   it('wears the crowbar with PreRandom(min(strength, smash + 30) / 20) before the check', () => {

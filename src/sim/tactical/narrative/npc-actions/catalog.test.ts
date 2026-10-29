@@ -1,13 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim, spawnSoldier } from '../../../../../tests/support/combat.ts';
 import { recordArray, testSoldier } from '../../../../../tests/support/narrative.ts';
 import { type FakeActionEnv, type FakeActionEnvOptions, fakeActionEnv } from '../../../../../tests/support/npc-actions.ts';
+import { loadTestContent } from '../../../../../tests/support/tactical.ts';
 import { NUM_NPC_QUOTE_RECORDS } from '../../../../content/formats/npc.ts';
+import { NOTHING } from '../../../../content/items/items.ts';
 import { Approach, QuoteActionId } from '../../../../content/narrative/npc-constants.ts';
+import { Direction, gridNo } from '../../../../content/world/grid.ts';
+import { createMoney } from '../../../items/object.ts';
 import { Fact, Quest } from '../../../strategic/narrative/fact-ids.ts';
 import { NarrativeHistory } from '../../../strategic/narrative/history-codes.ts';
 import { HospitalPrice } from '../../../strategic/narrative/hospital.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
 import { ExperienceBonus } from '../../../strategic/narrative/rewards.ts';
+import type { TacticalContent } from '../../content.ts';
+import { InvSlot } from '../../inventory.ts';
 import { type Soldier, TEAM_FIRST_ID, Team } from '../../soldier.ts';
 import { handleNpcDoAction } from './catalog.ts';
 import { NpcActionCode as A, NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS as BONUS } from './codes.ts';
@@ -205,6 +212,12 @@ describe('rebels, Drassen and the airport', () => {
     expect(bribed.fake.drawsTaken).toEqual([100, 100]);
   });
 
+  it('puts Pacos "in the basement" on A10’s ground level, not on the level below it', () => {
+    const e = env({ profiles: { [Npc.PACOS]: {} } });
+    run(e, Npc.FATHER, A.PUT_PACOS_IN_BASEMENT);
+    expect(e.host.profile(Npc.PACOS)).toMatchObject({ sectorX: 10, sectorY: 1, sectorZ: 0 });
+  });
+
   it('posts the package timers as fact and action events', () => {
     const e = env({ minute: 100 });
     run(e, Npc.PABLO, A.SET_DELAYED_PACKAGE_TIMER);
@@ -303,6 +316,31 @@ describe('San Mona', () => {
     run(e, Npc.KINGPIN, A.KINGPIN_TRIGGER_25_OR_14);
     expect(e.host.profile(Npc.KINGPIN)?.lastDateSpokenTo).toBe(9);
     expect(triggered(e)).toEqual([[Npc.KINGPIN, 25]]);
+  });
+});
+
+describe('Darren paying out a won bet', () => {
+  const BET = 5000;
+  const STASH = 5000;
+  const UINT32_RANGE = 2 ** 32;
+  let content: TacticalContent;
+
+  beforeAll(async () => {
+    content = await loadTestContent();
+  });
+
+  it('takes twice the bet out of his stash without checking it, so a stash too small wraps as UINT32', () => {
+    const sim = newCombatSim(content);
+    const darren = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, gridNo(80, 80), Direction.SOUTH, { profile: Npc.DARREN });
+    const winner = spawnSoldier(sim, 0, Team.OUR, gridNo(82, 80), Direction.SOUTH);
+    darren.inv[InvSlot.BIGPOCK1] = createMoney(content.items, STASH);
+    const pile = darren.inv.findIndex((o) => o.item === NOTHING);
+    const fake = env({ profiles: { [Npc.DARREN]: { balance: BET } } });
+    const e = { ...fake, host: { ...fake.host, tactical: () => sim.state } };
+    run(e, Npc.DARREN, A.DARREN_PAYS_PLAYER);
+    expect(darren.inv[InvSlot.BIGPOCK1]?.money).toBe(UINT32_RANGE + STASH - 2 * BET);
+    expect(darren.inv[pile]?.money).toBe(2 * BET);
+    expect(e.calls).toEqual([`give ${darren.id} ${winner.id} ${pile}`]);
   });
 });
 

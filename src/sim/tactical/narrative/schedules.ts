@@ -21,7 +21,7 @@ import {
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { absoluteScreenXY, renderedScreenSize, restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { i16, u32 } from '../../../core/int.ts';
+import { i16, u16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { states } from '../animation.ts';
 import { awaySoldierAt, moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
@@ -454,7 +454,7 @@ function findSleepSpot(node: ScheduleNode): number {
 
 function replaceSleepSpot(node: ScheduleNode, spot: number): void {
   const at = node.actions.indexOf(ScheduleAction.SLEEP);
-  if (at >= 0) node.data1[at] = spot & 0xffff;
+  if (at >= 0) node.data1[at] = u16(spot);
 }
 
 const LAST_CIV_ID = (TEAM_FIRST_ID[Team.CIV] ?? 0) + (TEAM_SIZES[Team.CIV] ?? 0) - 1;
@@ -529,7 +529,7 @@ function postDefaultSchedule(t: TacticalState, s: Soldier, options: PostOptions)
   s.scheduleId = node.id;
   node.actions[0] = ScheduleAction.ENTERSECTOR;
   node.times[0] = DEFAULT_ENTER_BASE + t.rng.int(DEFAULT_ENTER_RANGE);
-  node.data1[0] = s.initialGridNo & 0xffff;
+  node.data1[0] = u16(s.initialGridNo);
   node.actions[1] = ScheduleAction.LEAVESECTOR;
   node.times[1] = DEFAULT_LEAVE_BASE + t.rng.int(DEFAULT_LEAVE_RANGE);
   if (list.lastId === MAX_SCHEDULE_ID) optimizeSchedules(t);

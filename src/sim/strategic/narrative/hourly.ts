@@ -4,6 +4,7 @@
 // @src HourlyProgressUpdate (the milestone effects);
 // @src Strategic/StrategicMap.cc HandleSlayDailyEvent.
 
+import { u8 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { ProgressMilestones } from '../ai/difficulty.ts';
 import type { SectorPosition } from '../state.ts';
@@ -32,7 +33,7 @@ export function hourlyQuestUpdate(n: NarrativeState, hour: number): void {
     for (let i = 0; i < NUM_BOXERS; i++) n.boxing.fought[i] = false;
     if (n.boxing.resting) {
       n.boxing.resting = false;
-      n.boxing.rests = (n.boxing.rests + 1) & 0xff;
+      n.boxing.rests = u8(n.boxing.rests + 1);
     } else if (Math.trunc(n.boxing.matchesWon / MATCHES_PER_REST) > n.boxing.rests) n.boxing.resting = true;
   } else if (hour === CLUB_CLOSES) setFactFalse(n, Fact.CLUB_OPEN);
   if (hour === MUSEUM_OPENS) setFactTrue(n, Fact.MUSEUM_OPEN);

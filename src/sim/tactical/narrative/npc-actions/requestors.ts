@@ -4,7 +4,7 @@
 // @src TRIGGER_MARRY_DARYL_PROMPT, REDUCE_CONRAD_SALARY_CONDITIONS), StartDialogueMessageBox, DialogueMessageBoxCallBack,
 // @src ubRecordThatTriggeredLiePrompt; Tactical/Overhead.cc PlayerTeamFull.
 
-import { i8 } from '../../../../core/int.ts';
+import { i8, u8 } from '../../../../core/int.ts';
 import { Fact } from '../../../strategic/narrative/fact-ids.ts';
 import { medicalRequestShownCost } from '../../../strategic/narrative/hospital.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
@@ -202,17 +202,17 @@ export function chooseLiar(env: NpcActionEnv): Soldier | null {
 
 function answerLie(env: NpcActionEnv, profile: number, record: number, choice: NpcRequestChoice): void {
   if (choice === 'yes') {
-    trigger(env, profile, (record + LIE_RECORD.YES) & 0xff);
+    trigger(env, profile, u8(record + LIE_RECORD.YES));
     return;
   }
   if (choice === 'no') {
-    trigger(env, profile, (record + LIE_RECORD.NO) & 0xff);
+    trigger(env, profile, u8(record + LIE_RECORD.NO));
     return;
   }
   const t = tactical(env);
   const liar = chooseLiar(env);
   const believed = t !== null && liar !== null && skillCheck(t, liar, SkillCheckReason.LIE_TO_QUEEN, 0) >= 0;
-  trigger(env, profile, (record + (believed ? LIE_RECORD.BELIEVED : LIE_RECORD.CAUGHT)) & 0xff);
+  trigger(env, profile, u8(record + (believed ? LIE_RECORD.BELIEVED : LIE_RECORD.CAUGHT)));
 }
 
 function answerMarryDaryl(env: NpcActionEnv, srcProfile: number, yes: boolean): void {

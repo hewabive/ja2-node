@@ -6,7 +6,7 @@
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { Approach, QuoteActionId } from '../../../../content/narrative/npc-constants.ts';
-import { DIRECTION_INCREMENT, Direction } from '../../../../content/world/grid.ts';
+import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction } from '../../../../content/world/grid.ts';
 import { i8 } from '../../../../core/int.ts';
 import { swapObjects } from '../../../items/object.ts';
 import { closestPC, initiateConversationFull, npcDoAction, triggerNpcWithIHateYouQuote } from '../../../narrative/converse.ts';
@@ -87,6 +87,8 @@ const TRAVERSALS: Readonly<Record<number, number>> = {
   [A.TRAVERSE_MAP_NORTH]: QuoteActionId.TRAVERSE_NORTH,
 };
 
+const SCREEN_NORTH_AS_MAP_DIRECTION = Direction.NORTHWEST;
+
 const DRINKS: Readonly<Record<number, number>> = { [A.DRINK_DRINK_DRINK]: 1, [A.DRINK_WINE]: 2, [A.DRINK_BOOZE]: 4 };
 
 const BARTENDERS: Readonly<Record<number, number>> = {
@@ -157,6 +159,10 @@ function readyGun(env: NpcActionEnv, npc: number): void {
   const t = tactical(env);
   const s = npcSoldier(env, npc);
   if (t && s && (s.inv[InvSlot.HAND]?.item ?? 0) !== 0) soldierReadyWeapon(t, s, gridAhead(s), false);
+}
+
+function mapDirectionOfScreenFacing(code: number): number {
+  return (SCREEN_NORTH_AS_MAP_DIRECTION + code - A.FACE_NORTH) % DIRECTION_COUNT;
 }
 
 function faceDirection(env: NpcActionEnv, npc: number, direction: number): void {
@@ -352,8 +358,8 @@ export function handleGenericAction(env: NpcActionEnv, npc: number, code: number
     adjustNpcData(env, npc, () => bartender);
     return true;
   }
-  if (code >= A.FACE_NORTH_EAST && code <= A.FACE_NORTH_WEST) {
-    faceDirection(env, npc, Direction.NORTH + (code - A.FACE_NORTH_EAST));
+  if (code >= A.FACE_NORTH && code <= A.FACE_NORTH_WEST) {
+    faceDirection(env, npc, mapDirectionOfScreenFacing(code));
     return true;
   }
   switch (code) {
@@ -403,9 +409,6 @@ export function handleGenericAction(env: NpcActionEnv, npc: number, code: number
       if (t && s) receivingSoldierCancelServices(t, s);
       return true;
     }
-    case A.FACE_NORTH:
-      faceDirection(env, npc, Direction.NORTHWEST);
-      return true;
     case A.RECRUIT: {
       const p = profileOf(env, npc);
       if (p) p.salary = 0;
