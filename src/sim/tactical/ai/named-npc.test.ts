@@ -68,6 +68,17 @@ describe('decideActionNamedNPC', () => {
     expect([calls, s.quoteRecord, s.ai.handleEveryFrame]).toEqual([[`pcsNear ${NAMED}`], 0, false]);
   });
 
+  it('reads a face-the-player record of 0 as none, so the action from record 0 never turns the NPC', () => {
+    const { sim, calls } = setup();
+    const s = npc(sim);
+    const merc = spawnSoldier(sim, 0, Team.OUR, NEAR, NORTH);
+    s.quoteRecord = 0;
+    s.quoteActionId = QUOTE_ACTION_TURN_TOWARDS_PLAYER;
+    s.oppList[merc.id] = Opp.SEEN_CURRENTLY;
+    expect(decideActionNamedNPC(sim.state, s)).toBe(AiAction.NONE);
+    expect(calls).toEqual([]);
+  });
+
   it('adds 10 to the distance of a PC the NPC does not see', () => {
     const { sim, calls } = setup();
     const s = npc(sim);

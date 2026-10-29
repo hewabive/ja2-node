@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { recordArray, testSoldier } from '../../../../../tests/support/narrative.ts';
 import { type FakeActionEnv, type FakeActionEnvOptions, fakeActionEnv } from '../../../../../tests/support/npc-actions.ts';
 import { NUM_NPC_QUOTE_RECORDS } from '../../../../content/formats/npc.ts';
-import { Approach } from '../../../../content/narrative/npc-constants.ts';
+import { Approach, QuoteActionId } from '../../../../content/narrative/npc-constants.ts';
 import { Fact, Quest } from '../../../strategic/narrative/fact-ids.ts';
 import { NarrativeHistory } from '../../../strategic/narrative/history-codes.ts';
 import { HospitalPrice } from '../../../strategic/narrative/hospital.ts';
@@ -97,6 +97,16 @@ describe('generic actions', () => {
       expect(run(e, Npc.MADAME, code)).toBe(true);
     for (const code of [A.PENALIZE_TOWN_LOYALTY, A.SET_PABLO_BRIBE_DELAY, A.DARREN_GIVEN_CASH, A.TELEPORT_NPC, A.KINGPIN_GIVEN_MONEY])
       expect(run(e, Npc.MADAME, code)).toBe(false);
+  });
+
+  it('stores the record itself for face-the-player, not record + 1, so the action from record 0 leaves no record to turn by', () => {
+    const e = env();
+    const npc = testSoldier(TEAM_FIRST_ID[Team.CIV], Team.CIV, Npc.MADAME, 100);
+    place(e, npc);
+    run(e, Npc.MADAME, A.FACE_CLOSEST_PLAYER, 0);
+    expect([npc.quoteRecord, npc.quoteActionId, npc.ai.handleEveryFrame]).toEqual([0, QuoteActionId.TURNTOWARDSPLAYER, true]);
+    run(e, Npc.MADAME, A.FACE_CLOSEST_PLAYER, 3);
+    expect(npc.quoteRecord).toBe(3);
   });
 
   it('grants experience, writes history lines and boosts loyalty', () => {

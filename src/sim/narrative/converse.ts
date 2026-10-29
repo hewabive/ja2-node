@@ -27,6 +27,7 @@ import {
 } from '../../content/formats/npc.ts';
 import { Approach, NO_PROFILE, NpcAction, StandardQuote } from '../../content/narrative/npc-constants.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
+import { u8 } from '../../core/int.ts';
 import { AiAction } from '../tactical/ai/actions.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { initNewSoldierAnim, states } from '../tactical/animation.ts';
@@ -226,7 +227,7 @@ function repeatQuote(host: NarrativeHost, npc: number, records: NpcRecord[]): vo
     return;
   }
   const q = records[p.lastQuoteSaid];
-  for (let k = 0; k < (q?.numQuotes ?? 0); k++) talkingMenuDialogue(host, ((q?.quoteNum ?? 0) + k) & 0xff, p.lastQuoteSaid);
+  for (let k = 0; k < (q?.numQuotes ?? 0); k++) talkingMenuDialogue(host, u8((q?.quoteNum ?? 0) + k), p.lastQuoteSaid);
 }
 
 function givingItemIntroduction(host: NarrativeHost, npc: number, merc: number, records: NpcRecord[]): boolean {
@@ -380,7 +381,7 @@ function applyRecord(host: NarrativeHost, npc: number, merc: number, approach: n
     npcDoAction(host, npc, -q.actionData, index);
   }
   if (q.quoteNum !== NO_QUOTE) {
-    for (let k = 0; k < q.numQuotes; k++) talkingMenuDialogue(host, (q.quoteNum + k) & 0xff, index);
+    for (let k = 0; k < q.numQuotes; k++) talkingMenuDialogue(host, u8(q.quoteNum + k), index);
     if (p) {
       p.lastQuoteSaid = index;
       p.lastQuoteSaidWasSpecial = true;
@@ -483,7 +484,7 @@ export function converseFull(
     }
   }
   const p = host.profile(npc);
-  if (p && LAST_DATE_APPROACHES.has(approach)) p.lastDateSpokenTo = host.day() & 0xff;
+  if (p && LAST_DATE_APPROACHES.has(approach)) p.lastDateSpokenTo = u8(host.day());
   if (approach !== Approach.GIVINGITEM || !accepted || accepted.record?.actionData === NpcAction.DONT_ACCEPT_ITEM)
     returnItemToPlayer(host, merc, object);
 }

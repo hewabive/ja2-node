@@ -58,6 +58,7 @@ const MADAME_PRICES = {
   MARIA: { unit: 400, amounts: [400, 800] },
 } as const;
 const JUST_ACCEPT_CASH_RECORD = { VINCE: 8, STEVE: 7 } as const;
+const INDEX_NOT_UPDATED = 0;
 const HospitalRecord = { WOUNDED_MERCS: 26, ONE_WOUNDED_MERC: 25, NEEDS_MORE: 27 } as const;
 const KingpinRecord = { STILL_OWED: 9, PAID: 10 } as const;
 const WalterRecord = { FIRST: 12, AGAIN: 13 } as const;
@@ -172,17 +173,21 @@ export interface TalkingResult {
 
 export const NO_SOLDIER_RESULT: TalkingResult = { opinion: 0, record: null, index: -1 };
 
+function approachedBefore(p: ProfileProgress, approach: number): boolean {
+  return (p.approached & (FIRST_APPROACH_FLAGS[approach - 1] ?? 0)) !== 0;
+}
+
 function desireBeforeScan(env: SelectEnv, npc: number, merc: number, approach: number): number {
   const p = env.profile(npc);
   if (approach >= Approach.FRIENDLY && approach <= NUM_REAL_APPROACHES) {
     const desire = calcDesireToTalk(env, npc, merc, approach);
-    if (p && approach < NUM_REAL_APPROACHES && !(p.approached & (FIRST_APPROACH_FLAGS[approach - 1] ?? 0)))
-      approachedForFirstTime(p, approach);
+    const scalesOnFirstUse = approach !== Approach.RECRUIT;
+    if (p && scalesOnFirstUse && !approachedBefore(p, approach)) approachedForFirstTime(p, approach);
     return desire;
   }
   if (npc === NarrativeProfile.PABLO && approach === Approach.SECTOR_NOT_SAFE) {
     const desire = calcDesireToTalk(env, npc, merc, Approach.THREATEN);
-    if (p && p.approached & (FIRST_APPROACH_FLAGS[Approach.THREATEN - 1] ?? 0)) approachedForFirstTime(p, Approach.THREATEN);
+    if (p && approachedBefore(p, Approach.THREATEN)) approachedForFirstTime(p, Approach.THREATEN);
     return desire;
   }
   return 0;
@@ -332,7 +337,7 @@ function madameGivenCash(env: ReceiveEnv, merc: number, o: GivenObject, records:
   ];
   const offer = offers.find((x) => (x.price.amounts as readonly number[]).includes(o.money));
   if (!offer?.ok()) return useQuote(records, MadameRecord.DEFAULT);
-  if (madame) madame.npcData = i8(madame.npcData + i8(Math.trunc(o.money / offer.price.unit)));
+  if (madame) madame.npcData = i8(madame.npcData + i8(idiv(o.money, offer.price.unit)));
   env.triggerNpcRecord(NarrativeProfile.MADAME, offer.record);
   return null;
 }
@@ -345,9 +350,9 @@ function vinceOrSteveGivenCash(env: ReceiveEnv, npc: number, o: GivenObject, q: 
     return null;
   }
   if (notExpecting() && q.actionData !== NpcAction.DONT_ACCEPT_ITEM) {
-    const index = npc === NarrativeProfile.VINCE ? JUST_ACCEPT_CASH_RECORD.VINCE : JUST_ACCEPT_CASH_RECORD.STEVE;
-    const record = records[index] ?? null;
-    return { opinion: record?.opinionRequired ?? 0, record, index: 0 };
+    const justAccept = npc === NarrativeProfile.VINCE ? JUST_ACCEPT_CASH_RECORD.VINCE : JUST_ACCEPT_CASH_RECORD.STEVE;
+    const record = records[justAccept] ?? null;
+    return { opinion: record?.opinionRequired ?? 0, record, index: INDEX_NOT_UPDATED };
   }
   return useQuote(records, handleNpcBeingGivenMoneyByPlayer(env, npc, o.money));
 }

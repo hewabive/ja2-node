@@ -172,6 +172,21 @@ describe('ConverseFull', () => {
     expect(host.profile(NPC)?.lastDateSpokenTo).toBe(0);
   });
 
+  it('resets once-per-conversation records when the player closes the panel, not when a script does', () => {
+    const host = setup(
+      recordArray({ 0: { approachRequired: Approach.FRIENDLY, flags: QuoteFlag.SAY_ONCE_PER_CONVO, quoteNum: 10, numQuotes: 1 } }),
+    );
+    const said = () => (host.records.arrays[NPC]?.[0]?.flags ?? 0) & QuoteFlag.SAID;
+    open(host);
+    converse(host, NPC, MERC, Approach.FRIENDLY);
+    host.talk.queue.length = 0;
+    deleteTalkingMenu(host, 'script');
+    expect(said()).toBe(QuoteFlag.SAID);
+    open(host);
+    expect(handleTalkingMenuEscape(host)).toBe(true);
+    expect(said()).toBe(0);
+  });
+
   it('repeats the last record’s lines or the last default line', () => {
     const host = setup(recordArray({ 0: { approachRequired: Approach.FRIENDLY, quoteNum: 10, numQuotes: 2 } }));
     open(host);
@@ -272,6 +287,39 @@ describe('triggers and scripted sequences', () => {
     expect(host.talk.initiatedBy).toBe('npc');
     expect(host.context.src).toBe(MERC_ID);
     expect(kinds(host)).toEqual(['quote 40']);
+  });
+
+  it('lets the open panel’s NPC say another NPC’s quote-0 trigger: quote 0 is a line for the wait but not for closing the panel', () => {
+    const OTHER = 95;
+    const host = fakeHost({
+      scripts: {
+        [NPC]: recordArray({}),
+        [OTHER]: recordArray({ 3: { approachRequired: Approach.TRIGGER_NPC, quoteNum: 0, numQuotes: 2 } }),
+      },
+      types: { [NPC]: NPC_TYPE, [OTHER]: NPC_TYPE },
+      profiles: { [NPC]: {}, [MERC]: {}, [OTHER]: {} },
+      soldiers: [
+        testSoldier(NPC_ID, Team.CIV, NPC, NPC_TILE),
+        testSoldier(MERC_ID, Team.OUR, MERC, MERC_TILE),
+        testSoldier(NPC_ID + 1, Team.CIV, OTHER, NPC_TILE + 10),
+      ],
+      facts: { [NarrativeFact.CURRENT_SECTOR_IS_SAFE]: true },
+      chars: () => CHARS,
+    });
+    open(host);
+    triggerNpcRecord(host, OTHER, 3);
+    stepDialogue(host);
+    expect([host.talk.waitingForTrigger, host.talk.inPanel]).toEqual([true, true]);
+    for (let i = 0; i <= 100; i++) {
+      host.advance();
+      handleWaitTimerForNpcTrigger(host);
+    }
+    const lines = host.talk.queue.flatMap((e) => (e.kind === 'quote' ? [[e.speaker, e.quote]] : []));
+    expect(lines).toEqual([
+      [NPC, 0],
+      [NPC, 1],
+    ]);
+    expect(host.talk.inPanel).toBe(true);
   });
 
   it('does not trigger a record that fails its conditions', () => {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { type FakeHost, type FakeHostOptions, fakeHost, recordArray, testSoldier } from '../../../tests/support/narrative.ts';
 import { QuoteFlag } from '../../content/formats/npc.ts';
-import { CivQuote } from '../../content/narrative/npc-constants.ts';
+import { CivQuote, MINERS_CIV_QUOTE_INDEX } from '../../content/narrative/npc-constants.ts';
+import { civQuoteRecordPath } from '../../content/narrative/npc-records.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { AiAction } from '../tactical/ai/actions.ts';
 import { Body, CivilianGroup, NO_CIV_QUOTE, NO_PROFILE, type Soldier, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
@@ -13,6 +14,7 @@ const DRASSEN = 2;
 const C13 = { x: 13, y: 3, z: 0 };
 const C13_HINT_FILE = 3;
 const F10 = { x: 10, y: 6, z: 0 };
+const L12 = { x: 12, y: 12, z: 0 };
 const HINT_QUEST = 7;
 const HINT_QUOTE = 4;
 
@@ -148,6 +150,14 @@ describe('civilian hints', () => {
     const none = host(adult, { townRating: 10 });
     expect(quoteOf(none, adult)).toBe(CivQuote.ADULTS_EXTREMLY_LOW_LOYALTY);
     expect(none.drawsTaken).toEqual([]);
+  });
+
+  it('gives L12’s civilians the miners’ hint records, as the sector table’s L12 entry is the miners’ index, with L12’s own text', () => {
+    const adult = civilian();
+    const minersHints = recordArray({ 0: { approachRequired: 0, opinionRequired: 0, quoteNum: HINT_QUOTE } });
+    const h = host(adult, { sector: L12, civilian: { [MINERS_CIV_QUOTE_INDEX]: minersHints } });
+    expect(civQuoteRecordPath(MINERS_CIV_QUOTE_INDEX)).toBe('npcdata/miners.npc');
+    expect(startCivQuote(h, adult)?.textKey).toEqual({ file: 'npcdata/L12.edt', row: HINT_QUOTE, width: 160 });
   });
 
   it('reads the miners file underground', () => {
