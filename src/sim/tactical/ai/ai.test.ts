@@ -12,7 +12,7 @@ import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { AlertStatus, Body, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { AiAction } from './actions.ts';
+import { AI_DELAY, AiAction } from './actions.ts';
 import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning, handleSoldierAI } from './control.ts';
 import { decideActionGreen, decideAlertStatus, NO_AI_HOOKS } from './decide.ts';
 
@@ -123,6 +123,22 @@ describe('green real-time AI', () => {
       }
     });
     expect(visits[0]).toBe(110);
+  });
+});
+
+describe('the soldiers the AI leaves alone (AIMain.cc HandleSoldierAI)', () => {
+  it('never decides for a vehicle, while a tank still takes his turn at the AI', () => {
+    const { t } = world(3);
+    const truck = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    truck.bodyType = Body.ICECREAMTRUCK;
+    const pre = new ScriptedStream([], 0);
+    Object.assign(t, { pre });
+    handleSoldierAI(t, truck, createAiControl());
+    expect([truck.ai.counter, pre.requested]).toEqual([AI_DELAY, []]);
+    const tank = spawn(t, Team.ENEMY, gridNo(90, 90), Orders.STATIONARY);
+    tank.bodyType = Body.TANK_NE;
+    handleSoldierAI(t, tank, createAiControl());
+    expect(tank.ai.counter).toBeGreaterThan(AI_DELAY);
   });
 });
 

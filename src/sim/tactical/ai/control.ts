@@ -35,7 +35,7 @@ import { AP, deductPoints, enoughPoints, estimateActionPointCost } from '../poin
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { AlertStatus, Attitude, Body, CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, isMechanical, isTank, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
@@ -622,6 +622,10 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     }
   }
   if (!(s.placed || s.offMap) && !ai.checkSchedule) {
+    endAIGuysTurn(t, s, control);
+    return;
+  }
+  if (isMechanical(s) && !isTank(s)) {
     endAIGuysTurn(t, s, control);
     return;
   }

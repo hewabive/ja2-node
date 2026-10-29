@@ -141,6 +141,10 @@ export function isCreatureOrBloodcat(s: { readonly bodyType: number }): boolean 
   return isMonster(s) || s.bodyType === Body.BLOODCAT;
 }
 
+export function isMechanical(s: { readonly bodyType: number }): boolean {
+  return s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);
+}
+
 export function isTank(s: { readonly bodyType: number }): boolean {
   return s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 }
