@@ -3,7 +3,7 @@ import { type FakeHost, fakeHost, NPC_TYPE, recordArray, testSoldier } from '../
 import { type NpcRecord, QuoteFlag, UiCode } from '../../content/formats/npc.ts';
 import { Approach, NpcAction, StandardQuote } from '../../content/narrative/npc-constants.ts';
 import { TICK_MS } from '../clock.ts';
-import { TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { AlertStatus, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import {
   converse,
   deleteTalkingMenu,
@@ -308,6 +308,32 @@ describe('triggers and scripted sequences', () => {
     expect(host.engagedFlag).toBe(true);
     expect(handleTalkingMenuEscape(host)).toBe(true);
     expect(host.engagedFlag).toBe(false);
+  });
+
+  it('frees a soldier of ours from his engaged action when a record triggers him, as it puts him on green', () => {
+    const ours = testSoldier(MERC_ID + 1, Team.OUR, NPC, NPC_TILE);
+    ours.engagedInAction = true;
+    ours.ai.alertStatus = AlertStatus.YELLOW;
+    const host = fakeHost({
+      scripts: { [NPC]: recordArray({ 3: { approachRequired: Approach.TRIGGER_NPC } }) },
+      types: { [NPC]: NPC_TYPE },
+      profiles: { [NPC]: {} },
+      soldiers: [ours],
+      facts: { [NarrativeFact.CURRENT_SECTOR_IS_SAFE]: true },
+    });
+    triggerNpcRecord(host, NPC, 3);
+    stepDialogue(host);
+    expect([ours.engagedInAction, ours.ai.alertStatus]).toEqual([false, AlertStatus.GREEN]);
+  });
+
+  it('frees the panel NPC from his engaged action when the panel closes', () => {
+    const host = setup(recordArray({}));
+    open(host);
+    const npc = host.tactical()?.soldiers[NPC_ID];
+    if (!npc) throw new Error('no npc');
+    npc.engagedInAction = true;
+    deleteTalkingMenu(host, 'script');
+    expect(npc.engagedInAction).toBe(false);
   });
 
   it('keeps the UI locked after a script closes the panel while the reference count holds', () => {

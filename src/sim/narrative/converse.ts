@@ -652,7 +652,10 @@ export function handleNpcTriggerNpc(host: NarrativeHost, npc: number, record: nu
   if (!s) return;
   const talk = host.talk;
   talk.trigger = { npc, record, approach, show };
-  if (s.team === Team.OUR) s.ai.alertStatus = AlertStatus.GREEN;
+  if (s.team === Team.OUR) {
+    s.ai.alertStatus = AlertStatus.GREEN;
+    s.engagedInAction = false;
+  }
   if (talk.inPanel && host.context.dest === s.id && show) {
     handleNpcTrigger(host);
     return;
@@ -844,9 +847,10 @@ export function deleteTalkingMenu(host: NarrativeHost, by: 'player' | 'script'):
   const talk = host.talk;
   if (!talk.inPanel) return;
   talk.inPanel = false;
+  const dest = panelSoldier(host);
+  if (dest) dest.engagedInAction = false;
   if (talk.referenceCount === 0) host.setEngaged(false);
   sayLaterAtPanelClose(host);
-  const dest = panelSoldier(host);
   host.emit({ type: 'conversationClosed', npc: dest?.id ?? null, profile: talk.charNum, by });
 }
 
