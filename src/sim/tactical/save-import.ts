@@ -30,15 +30,7 @@ import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { progressFromProfile } from './profiles.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
-import {
-  createSoldier,
-  NO_PENDING_ANIMATION,
-  NO_PENDING_DIRECTION,
-  NOWHERE,
-  type Soldier,
-  SoldierStatusFlags,
-  TOTAL_SOLDIERS,
-} from './soldier.ts';
+import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool, WorldItemFlags } from './world-items.ts';
@@ -52,8 +44,6 @@ const SOLDIER_QUOTE_SAID_BEING_PUMMELED = 0x0004;
 const SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL = 0x0008;
 const INT16_BYTES = 2;
 const MAX_TEAMS = 6;
-const SAVED_NO_PENDING_ANIMATION = 32001;
-const SAVED_NO_PENDING_DIRECTION = 253;
 const SAVED_NO_PENDING_STANCE = 254;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
@@ -276,8 +266,6 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
   s.pc = r.aniCode;
   s.frameSlot = frameSlotOfSpriteFrame(presentation, r.animState, r.aniCode, r.aniFrame);
   s.nextFrameAt = t.clockMs;
-  s.reservedGridNo = grid(r.motion.reservedGridNo);
-  if (s.reservedGridNo !== NOWHERE && s.reservedGridNo >= 0 && s.reservedGridNo < WORLD_MAX) t.reserved[s.reservedGridNo] = s.id;
   return s;
 }
 
@@ -370,8 +358,6 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.movementDirection = m.movementDirection;
   s.reverse = m.reverse !== 0;
   s.noAPToFinishMove = m.noAPToFinishMove;
-  s.pendingAnimation = unlessSentinel(r.pendingAnimation, SAVED_NO_PENDING_ANIMATION, NO_PENDING_ANIMATION);
-  s.pendingDirection = unlessSentinel(m.pendingDirection, SAVED_NO_PENDING_DIRECTION, NO_PENDING_DIRECTION);
   s.pendingStanceChange = unlessSentinel(m.pendingStanceChange, SAVED_NO_PENDING_STANCE, NO_DESIRED_HEIGHT);
   s.desiredHeight = m.desiredHeight;
   s.forecastGridNo = grid(m.forecastGridNo);
