@@ -870,7 +870,7 @@ death decrements (§10.7).
 ### 10.2 `AddSoldierInitListEnemyDefenceSoldiers(A, T, E)` (`Tactical/Soldier_Init_List.cc:616-1025`)
 
 The placement of the class mix (`SortSoldierInitList`'s reverse-map-order blocks, the PD, P, D passes with Strac's
-every-other-node PD walk, forced priority slots, block B, leftovers, class by `R(remaining)`) is `16` §5.13. Every
+every-other-node PD walk, forced priority slots, block B, leftovers, class by `R(remaining)`) is `16`. Every
 accepted placement goes through `AddPlacementToWorld` (stats, palettes, `GenerateRandomEquipment` with
 `CalcDifficultyModifier`, §11); a failure (no free slot) stops the whole function.
 

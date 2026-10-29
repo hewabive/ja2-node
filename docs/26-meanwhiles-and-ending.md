@@ -51,7 +51,7 @@ ja2-node fields are on the campaign's `StrategicState` (`src/sim/strategic/state
 | capture | `gStrategicStatus.uiFlags` `STRATEGIC_PLAYER_CAPTURED_FOR_RESCUE` / `_FOR_ESCAPE`, `ubNumCapturedForRescue` | 34 | `status.flags` (`CaptureFlag`), `status.numCapturedForRescue` (`src/sim/campaign/merc-fate.ts`) |
 | quests | `gubQuest[]` `HELD_IN_ALMA`, `INTERROGATION`, `FIND_SCIENTIST`, `CREATURES` | yes | `narrative.quests` (`25`) |
 | scenes seen | `gGameSettings.uiMeanwhileScenesSeenFlags`, bit `1 << id` (`GameSettings.cc:218-230`) | **settings file, not the save** | client setting `meanwhileScenesSeen` (`src/ui/settings.ts`), not simulation state |
-| O3 statue opened | map modification of O3 (struct swap + exit grid, `End_Game.cc:72-116`) | map temp file | O3's `SectorDiff` map changes (`16` §5.11) |
+| O3 statue opened | map modification of O3 (struct swap + exit grid, `End_Game.cc:72-116`) | map temp file | O3's `SectorDiff` map changes (`16`) |
 
 ---
 
@@ -75,7 +75,7 @@ ja2-node fields are on the campaign's `StrategicState` (`src/sim/strategic/state
 
 Every posting call passes trigger record 0 and NPC QUEEN (`:647, 666, 673, 689, 715, 722, 735, 742, 749, 761`;
 `Queen_Command.cc:1132`). In P3 the scene loads `P3_m.dat` instead of `P3.dat`
-(`Strategic/StrategicMap.cc:335-339`, `16` §1); N7 loads its normal map. The record files are per scene:
+(`Strategic/StrategicMap.cc:335-339`, `16`); N7 loads its normal map. The record files are per scene:
 `J:script-records-control.json` maps (meanwhile id, QUEEN or ELLIOT) to a record file
 (`X:DefaultContentManager.cc:1379-1398`), and while a scene runs QUEEN and ELLIOT read those instead of their own
 (`TacticalAI/NPC.cc:229-251`); JOE always uses his own records.
@@ -144,7 +144,7 @@ BeginMeanwhile(id); InterruptTime()
 - **Precedence** (`AreInMeanwhile`, `:417-437`): false during a tactical traversal; true while in a scene; otherwise true
   if the event queue's **head** events at exactly the current second include a `MEANWHILE` (the walk stops at the first
   event with another stamp). Readers: group arrivals are delayed by 1 minute instead of 3–5
-  (`Strategic/Strategic_Movement.cc:1120-1136`, `16` §3.9), and `SetThisSectorAsPlayerControlled` refuses to change control
+  (`Strategic/Strategic_Movement.cc:1120-1136`, `16`), and `SetThisSectorAsPlayerControlled` refuses to change control
   (`Player_Command.cc:64-67`). ja2-node: `areInMeanwhile` (`meanwhile.ts`, with `meanwhilePendingThisSecond` for the
   queue test) answers the strategic world port's `inMeanwhile()`.
 
@@ -172,7 +172,7 @@ QUEEN, ELLIOT and JOE to N7, each through `SetNPCMeanwhile` (`:277-289`): save {
 `inScene` must already be set, `NPC.cc:318-323`), `ChangeNpcToDifferentSector` (`Tactical/Tactical_Save.cc:733-745`:
 sector := scene sector, or none if the profile has left the country; `fUseProfileInsertionInfo = FALSE`). Fade; then
 `SetCurrentWorldSector(def.sector)` (the player's world is unloaded through `HandleDefiniteUnloadingOfWorld`, which saves
-its temp files and runs the sector-exit quest code, and `TrashWorld`, `16` §5.10); camera on
+its temp files and runs the sector-exit quest code, and `TrashWorld`, `16`); camera on
 `gusMeanWhileGridNo[lastScheduledId]` (`:47-66`: 12248 for all, 8075 for `INTERROGATION`; indexed by the last *scheduled*
 id, not the playing one, quirk); fade in; then (if still in the scene) NPC reference count 1, `SHOW_ALL_MERCS` unless
 `INTERROGATION`, `TriggerNPCRecordImmediately(QUEEN, 0)` (`:375-390`).
@@ -248,7 +248,7 @@ ja2-node: `campaignMeanwhileActions` (`src/sim/campaign/narrative/meanwhile-acti
 
 - **Not `INTERROGATION`**: clear `SHOW_ALL_MERCS`; fade; `DoneFadeOutMeanwhileOnceDone` (`:572-615`): if a world was loaded,
   `SetCurrentWorldSector(old)` (the player's sector is **reloaded from its temp files**, with every side effect of a sector
-  entry, `16` §5.3) and `ExamineCurrentSquadLights`, else `TrashWorld` and no world; restore the selected map sector;
+  entry, `16`) and `ExamineCurrentSquadLights`, else `TrashWorld` and no world; restore the selected map sector;
   `RestoreNPCMeanwhile` (`:509-525`: sector := saved, **`gridNo := (INT8)saved gridNo`** (vanilla too,
   `V:Strategic/Meanwhile.c:696, 736`), `ReloadQuoteFile` again); back to the map screen if the box was opened there, else
   the team panel.
@@ -291,7 +291,7 @@ implications run while the scene map is loaded; nothing in them reads the loaded
 | Scene marked seen (settings) | yes | no | yes |
 | Profile side effects on QUEEN/ELLIOT/JOE (§1.8) | yes | no | yes |
 | `ELLIOT.npcData = 17` in `OUTSKIRTS_MEDUNA` | yes | no | if reached before ESC |
-| Player's world unloaded and reloaded (temp files, sector-exit and entry quest code (`35`), first-battle trash hook, `InitializeTacticalStatusAtBattleStart`, militia reset, the entry draws of `16` §5.3) | yes | no | yes |
+| Player's world unloaded and reloaded (temp files, sector-exit and entry quest code (`35`), first-battle trash hook, `InitializeTacticalStatusAtBattleStart`, militia reset, the entry draws of `16`) | yes | no | yes |
 | Map screen: compression stopped, mode X0 | yes | no (compression resumes) | yes |
 
 ### 1.11 Interplay summary
@@ -365,7 +365,7 @@ in N7. It is simulated on `24`'s record engine and `11`'s melee:
    returns to the map screen, §1.8); `handleFirstMeanwhileSetUpWithTrashWorld` when no tactical world is loaded (else
    the unload in step 2 runs it); `inScene = true`; QUEEN, ELLIOT and JOE saved and moved to N7 as in `resolveMeduna`;
    event `meanwhileStarted`.
-2. N7 loads through the sector flow (`16` §5, `setCurrentWorldSector`) with the meanwhile rules of §1.6: the current
+2. N7 loads through the sector flow (`16`, `setCurrentWorldSector`) with the meanwhile rules of §1.6: the current
    sector is unloaded and its diff saved; N7's normal map with only its item diff (the captives' dropped gear, hidden at
    12089); enemies placed (`PrepareEnemyForSectorBattle`); `SF_ALREADY_VISITED` not set; the captives placed on
    7756–7758 and, being POWs in a sector other than I13, put on one new squad and made non-neutral (§3.4); QUEEN, ELLIOT,
@@ -782,11 +782,11 @@ handling on sector load (`16`) and after doors and explosions (`12`).
 | Scheduling, implications, progress events, first battle | none (the SAM squad's moves draw as `17` §9.5; `WakeUpQueen`'s fortification draws as `17` §9.2) | — |
 | `GRANT_EXPERIENCE_3` on the Alma rescue, `GRANT_EXPERIENCE_4` in the interrogation | `StatChange(EXPERAMT, 100 \| 200)` per receiving merc in team order: one `PR(100)` per point (`Tactical/Campaign.cc:208-262`) | pre |
 | Capture | captive life `R(21)` | main |
-| Interrogation: sector load | `16` §5.3 entry draws, placements (`16`, `17` §10), enemy creation | main |
+| Interrogation: sector load | `16` entry draws, placements (`16`, `17` §10), enemy creation | main |
 | Interrogation: punches | the melee pipeline of `11` (the hit roll is still drawn although the scene forces the hit; damage) | pre / main per `11` |
 | Interrogation: `lie` | `PR(100)` in `SkillCheck`; on failure `R(100)` | pre, main |
 | Endgame: creature check in the loyalty event | `InitCreatureQuest` draws when it starts (`17` §12) | main |
-| Endgame: reload of P3 | `16` §5.3 entry draws, placements | main |
+| Endgame: reload of P3 | `16` entry draws, placements | main |
 | Creature queen death | one 10 000-damage hit per creature through `33` | per `33` |
 
 Meduna scenes resolved by ja2-node make **no** draws of their own; the played path's two sector loads (scene map and

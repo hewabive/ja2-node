@@ -496,7 +496,7 @@ in the sector (`bInSector`) when the world is loaded and he holds a merc slot th
 strategic insertion code (`insertionCode`) with data 0. ja2-node: `ContractFlow.setupProfileInsertionData`, through
 `NarrativeFlow.setupProfileInsertionDataForMerc` (shared with the escort release, `24` §9.4).
 
-What the countdowns mean for the sites: `21` §2.1–§2.2. `CheckAndHandleUnloadingOfCurrentWorld` is `16` §5.10. No morale
+What the countdowns mean for the sites: `21` §2.1–§2.2. `CheckAndHandleUnloadingOfCurrentWorld` is `16`. No morale
 event fires for anyone when a merc leaves or is fired; teammates feel it only through the hourly team opinion (§5.3) and
 through buddies and hated mercs at later renewals and hires.
 

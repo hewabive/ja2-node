@@ -102,7 +102,7 @@ choice is refused):
 | `preBattle` (`prompt`) | an encounter, `showBattle` (§20) | `autoresolve`, `enterSector`, `retreat`, `close` (non-persistent only) |
 | `surrender` (`prompt`, `context: autoresolve \| tactical`) | the enemy's offer (§16, §20) | `accept`, `reject` |
 | `autoresolveDone` (`prompt`) | the end of an autoresolve battle | `bandage`, `done` |
-| `simultaneousArrival` (`prompt`) | groups arriving together (`16` §3) | `coordinate`, `separately` |
+| `simultaneousArrival` (`prompt`) | groups arriving together (`16`) | `coordinate`, `separately` |
 | `npcOfNote` (`prompt`) | a group meeting an NPC of note | `continue`, `stop` |
 | `militiaPayment`, `militiaContinue` (`prompt`) | militia training (§19) | `yes`, `no` |
 | `contractRenewal`, `mercDeparture`, `insuranceExtension` (`contractPrompt`) | contracts (§22) | `day`, `week`, `twoWeeks`, `dismiss`, `letGo`; `here`, `elsewhere`, `rehire`; `yes`, `no` |
@@ -645,7 +645,7 @@ unless noted.
 | Command | Original | Rules |
 |---|---|---|
 | `route {soldier, to, via?, shortest?, extend?}` | `PlotPathForCharacter` per leg, copied to the squad or vehicle, `RebuildWayPointsForGroupPath` | `CanEntireMovementGroupMercIsInMove` first (so the squad cannot leave the start sector before it is cleared); each leg from the last sector of the path so far; `shortest` is the Shift mode of `FindStratPath` (every edge 60 minutes); `extend` appends like the map screen's plotting, otherwise the path is replaced (cancel, then plot); `data {path, etaMinutes}` (sector names); `badSector` for a leg the cursor cannot plot to, `cannotLeaveSector` for Maria in C5 |
-| `cancelRoute {soldier}` | `CancelPathForCharacter` | Reverses a moving group (`16` §3.4) |
+| `cancelRoute {soldier}` | `CancelPathForCharacter` | Reverses a moving group (`16`) |
 | `shortenRoute {soldier, at}` | `ClearPathAfterThisSectorForCharacter` | Keeps the path to the last time it passes `at`; `at` the merc's sector cancels it; `noRoute` when nothing shortens; `data.edit` `shortened` or `cleared` |
 | `routeGroup {soldiers, squads?, vehicles?, to, via?, shortest?}` | the move box: `SetUpMovingListsForSector`, `HandleMoveoutOfSectorMovementTroops`, `CopyPathToAllSelectedCharacters` | The listed mercs of one sector move; `squads` and `vehicles` are the box's unit lines (default: units whose movable members are all listed). Mercs parting from their unit join a squad of the sector doing the same (`FindSquadThatSoldierCanJoin`) or a new one (a failed join toggles the merc as the original does), on this command rather than at Done; the first mover plots, those who cannot travel with him are left out (`DeselectSelectedListMercsWhoCantMoveWithThisGuy`); `data {groups, regrouped}`; `reassignOnTheMove` (`pMapErrorString[41]`) |
 | `assignSquad {soldier, squad: 0..19 \| 'new' \| 'any'}` | `AddCharacterToSquad`, `…UniqueSquad`, `…AnySquad` | |
@@ -665,7 +665,7 @@ does not show):
   (`AllowedToTimeCompress` as the map screen asks it, the token `TellPlayerWhyHeCantCompressTime` picks); the client's
   own reasons (an open menu, plotting, a held item) stay in the client.
 - **Sectors**: `enemies` by the player's knowledge (`WhatPlayerKnowsAboutEnemiesInSector`,
-  `Strategic/Map_Screen_Interface_Map.cc:3511-3562`; the rule is `16` §6.3): a count, presence only, or nothing;
+  `Strategic/Map_Screen_Interface_Map.cc:3511-3562`; the rule is `16`): a count, presence only, or nothing;
   nothing underground and nothing while the game has just started. `enemiesKnown` gives the town box's "0" against
   "Unknown"; `playerControlled` shows for town and found SAM sectors (`AddCommonInfoToBox`); `items` is
   `uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer` (also underground), `militiaTraining`

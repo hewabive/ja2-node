@@ -747,7 +747,7 @@ pools. Not ported: in ja2-node an owned item angers nobody (limitation, §9).
   `UNLOCKED 2`, `BROKEN 3`), `bPerceivedTrapped` (`UNKNOWN 0`, `PROVED_TRAPPED 1`, `PERCEIVED_UNTRAPPED 2`,
   `PROVED_UNTRAPPED 3`), `bLockDamage`. Perceived values are reset on map load (`KEYS:686-707`). Trap flags
   (`DoorTrapTable`, `KEYS:73-82`): explosion stops the action; electric and super electric stop and recur; sirens recur; the
-  silent alarm recurs silently. Door tables persist per sector in the temp files (`d_`, `16` §5.11). Shooting a lock damages
+  silent alarm recurs silently. Door tables persist per sector in the temp files (`d_`, `16`). Shooting a lock damages
   it (`LOS.cc:2292-2324`).
 - **Keys**: key items (class `IC_KEY`) carry `ubKeyID` = the lock id they open; the soldier's key ring holds up to 64
   `{key id, count}`; `KeyTable[64]` remembers where and when each key was found (`usSectorFound`, `usDateFound`, saved).

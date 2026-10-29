@@ -348,7 +348,7 @@ AddHistoryToPlayersLog(HISTORY_HIRED_MERC_FROM_AIM, profile, now, (−1, −1))
   5. `if useLandingZone: s.sector = mercArriveSector`;
   6. if the sector is loaded: a non-chopper arrival into the loaded *start* sector becomes a helicopter run
      (`gfTacticalDoHeliRun`, insertion `CHOPPER`, and the map screen requests tactical); then `UpdateMercInSector`
-     (`16` §5.6: `ARRIVING_GAME` walks in from the north, or from gridno 4379 in the start sector); else insertion
+     (`16`: `ARRIVING_GAME` walks in from the north, or from gridno 4379 in the start sector); else insertion
      `NORTH`;
   7. non-chopper arrivals: "has arrived" message and arrival quote (presentation);
   8. `p.status = u8(s.totalContractLength)`; `s.timeOfLastContractUpdate = now` (the only writer: early firing and the

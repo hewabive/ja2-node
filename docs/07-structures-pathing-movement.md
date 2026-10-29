@@ -301,7 +301,7 @@ the original write out of bounds or into the wrapped row (**(inferred)**: no shi
 - Non-visible tiles get `OFF_MAP` on both levels; `FindBestPath` rejects a non-visible origin and never enters an
   `OFF_MAP` tile; its raw `curLoc + DirIncrementer` step can therefore not wrap rows from a reachable tile.
 - `HandleNextTile` treats a non-visible next tile as clear (paths out of the map, `Soldier_Tile.cc:280-283`); leaving
-  the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is in `16` §5.7 and `16` §5.9.
+  the sector (edgepoints, `GridNoOnEdgeOfMap` `Isometric_Utils.cc:560-576`) is in `16` and `16`.
 - The same test, on the loaded map's bounds, gates `CompileWorldTerrainIDs`, `NewOKDestination`, `WhoIsThere2`
   (`WorldMan.cc:1481`), `SetSoldierGridNo` (a soldier set outside is not added to the world, `Soldier_Control.cc:1920`),
   `LegalNPCDestination`'s height check (`TacticalAI/Movement.cc:34`), bullets (`LOS.cc:3514`, `:4205`), the wall damage

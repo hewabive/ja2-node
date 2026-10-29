@@ -1111,7 +1111,7 @@ ja2-node: the tactical layer reports these moments through `SectorHooks` (`src/s
 
 ### 3.3 Leaving the battle sector, and AR of a battle already loaded in tactical
 
-`CheckAndHandleUnloadingOfCurrentWorld` (`StrategicMap.cc:3003-3134`; the full unload is `16` §5.10) runs when the loaded
+`CheckAndHandleUnloadingOfCurrentWorld` (`StrategicMap.cc:3003-3134`; the full unload is `16`) runs when the loaded
 world may be trashed:
 ```
 if no world, or the game just started in the start sector: return FALSE
@@ -1152,7 +1152,7 @@ battle sector's map (`mapsNeededSoon`).
 ### 3.4 Retreating from tactical combat to an adjacent sector
 
 The squad walks off a map edge or into an exit grid and the player confirms the move (`JumpIntoAdjacentSector`,
-`StrategicMap.cc:1379-1573`; edge rule `SoldierOKForSectorExit` `:1945-2032`, allowed in combat); the flow is `16` §5.9.
+`StrategicMap.cc:1379-1573`; edge rule `SoldierOKForSectorExit` `:1945-2032`, allowed in combat); the flow is `16`.
 Battle consequences when the last mercs leave (`AllMercsHaveWalkedOffSector`, `:1751-1847`):
 ```
 if NumEnemiesInAnySector(world) > 0:

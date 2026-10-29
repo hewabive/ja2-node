@@ -578,7 +578,7 @@ of Skyrider and the helicopter").
      `SkyriderDestroyed` (after the crash sound in the original) and stop;
   2. enemies there, not never-left, the player knows nothing about the sector, and the helicopter can fly →
      `PreRandom(100) < 60 + n` → if not at the end of the path: stop compression, one of two quotes (`Random(2)`, cosmetic,
-     `16` §8); flag `SF_SKYRIDER_NOTICED_ENEMIES_HERE` (enemies shown while he stays, `knowledge.ts`);
+     `16`); flag `SF_SKYRIDER_NOTICED_ENEMIES_HERE` (enemies shown while he stays, `knowledge.ts`);
   3. not returning and not never-left: cost += 100 (friendly airspace) or 1000 (enemy airspace)
      (`Map_Screen_Helicopter.h:12-13`);
   4. end of the path: start hovering (§5.4); no enemies or returning → if passengers or not returning: arrival quote, stop
