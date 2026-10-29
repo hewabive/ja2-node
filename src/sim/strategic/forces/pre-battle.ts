@@ -159,9 +159,9 @@ function explicitEncounterCode(ctx: EconomyContext, pbSector: Sector | null): nu
   if (ctx.world.hostileBloodcatsPresent()) return Code.HOSTILE_BLOODCATS;
   const ws = ctx.state.worldSector;
   if (ws && ws.z !== 0) {
-    const info = sectorInfo(ctx.state.map, pbSector ?? ws);
-    if (info.creaturesInBattle) return Code.FIGHTING_CREATURES;
-    if (info.adminsInBattle || info.troopsInBattle || info.elitesInBattle) return Code.ENTERING_ENEMY_SECTOR;
+    const surfaceRecord = sectorInfo(ctx.state.map, pbSector ?? ws);
+    if (surfaceRecord.creaturesInBattle) return Code.FIGHTING_CREATURES;
+    if (surfaceRecord.adminsInBattle || surfaceRecord.troopsInBattle || surfaceRecord.elitesInBattle) return Code.ENTERING_ENEMY_SECTOR;
     return ctx.state.encounter.explicitCode;
   }
   const code = ctx.state.encounter.code;

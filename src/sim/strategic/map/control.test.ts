@@ -14,7 +14,7 @@ beforeAll(async () => {
 const C9 = parseSectorString('C9');
 
 describe('losing a sector (Player_Command.cc SetThisSectorAsEnemyControlled)', () => {
-  it('hands the sector to the enemy while our mercs are still there, so the loss itself never counts once they leave', () => {
+  it('hands the sector to the enemy while our mercs are still there, so the loss itself never counts once they leave (quirk Q29)', () => {
     const mercs = new FakeMercs();
     const taken: { sector: Sector; wasPlayerControlled: boolean }[] = [];
     let airspaceUpdates = 0;

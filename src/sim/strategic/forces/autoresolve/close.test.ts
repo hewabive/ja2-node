@@ -17,8 +17,9 @@ import { InvSlot } from '../../../tactical/inventory.ts';
 import { SoldierClass } from '../../../tactical/soldier.ts';
 import { autoBandageMercs, canBandage, dressWound } from './bandage.ts';
 import { type AutoresolveClosePort, checkOneMilitiaForPromotion, closeAutoresolve, MilitiaRank, randomGridNo } from './close.ts';
+import { answerSurrender, attemptPlayerCapture } from './end.ts';
 import { endOfBattle } from './outcome.ts';
-import { BattleStatus, combatContext } from './state.ts';
+import { BattleStatus, CellFlag, combatContext } from './state.ts';
 
 let content: TacticalContent;
 
@@ -43,7 +44,7 @@ function port(militia: TestMilitia, enemiesLeft = 0): AutoresolveClosePort & { c
 }
 
 describe('elapsed battle time', () => {
-  it('triples the battle time, then adds 5 minutes for a retreat and 200 ms per kit point', () => {
+  it('triples the battle time, then adds 5 minutes for a retreat and 200 ms per kit point (quirk Q27)', () => {
     const ar = arState({ mercs: [{ soldier: arSoldier(content) }] });
     ar.elapsedMs = 7000;
     ar.status = BattleStatus.RETREAT;
@@ -97,10 +98,42 @@ describe('bandaging after a victory', () => {
     expect(ar.elapsedMs).toBe(30000 + 25 * 200);
     expect(canBandage(env, ar)).toBe(false);
   });
+
+  it('gives the medic the medical kit bonus only for a kit in the helmet slot (quirk Q17)', () => {
+    const kit = (slot: number) => {
+      const { ar, medic, patient } = wounded();
+      patient.life = 60;
+      patient.bleeding = 40;
+      medic.inv[slot] = createItem(content.items, itemIndex(content, 'MEDICKIT'), 100);
+      const env = arEnv(content);
+      const firstAid = medic.inv[InvSlot.SMALLPOCK1];
+      if (!firstAid) throw new Error('no kit');
+      return dressWound(env, combatContext(env, ar), medic, patient, firstAid, 100, 100);
+    };
+    const inHand = kit(InvSlot.HAND);
+    expect(kit(InvSlot.HELMET)).toBe(inHand + Math.trunc(inHand / 2));
+  });
+
+  it('stops looking for the best medic at the first kit owner who is not bleeding (quirk Q17)', () => {
+    const [FIRST_KIT_OWNER, BETTER_MEDIC, PATIENT] = [3, 4, 5];
+    const profiles = new Map([FIRST_KIT_OWNER, BETTER_MEDIC, PATIENT].map((id) => [id, progressFor(id)]));
+    const owner = arSoldier(content, { profile: FIRST_KIT_OWNER, medical: 30 });
+    owner.inv[InvSlot.SMALLPOCK1] = createItem(content.items, itemIndex(content, 'FIRSTAIDKIT'), 100);
+    const better = arSoldier(content, { profile: BETTER_MEDIC, medical: 90 });
+    const patient = arSoldier(content, { profile: PATIENT, life: 30, lifeMax: 60 });
+    patient.bleeding = 20;
+    const ar = arState({ mercs: [{ soldier: owner }, { soldier: better }, { soldier: patient }] });
+    ar.status = BattleStatus.VICTORY;
+    expect(autoBandageMercs(arEnv(content, { profiles }), ar).complete).toBe(true);
+    expect(patient.bleeding).toBe(0);
+    const medicalGains = (id: number) => profiles.get(id)?.gains.medical;
+    expect(medicalGains(FIRST_KIT_OWNER)).toBeGreaterThan(0);
+    expect(medicalGains(BETTER_MEDIC)).toBe(0);
+  });
 });
 
 describe('closeAutoresolve', () => {
-  it('kills militia below 7 life, promotes survivors and counts enemies below 15 life as killed even after a defeat', () => {
+  it('kills militia below 7 life, promotes survivors and counts enemies below 15 life as killed even after a defeat (quirk Q20)', () => {
     const militia = new TestMilitia(2, 0, 0);
     const ar = arState({
       mercs: [{ soldier: arSoldier(content, { life: 0 }) }],
@@ -169,6 +202,38 @@ describe('closeAutoresolve', () => {
 
   it('picks random grid numbers on the visible world diamond', () => {
     expect(randomGridNo(scripted([0, 0, 80, 80]))).toBe(80 * 160 + 80);
+  });
+
+  it('keeps a merc who retreated alone in the battle sector after a victory (quirk Q15)', () => {
+    const GROUP = 2;
+    const ar = arState({
+      mercs: [{ soldier: arSoldier(content, { life: 40 }), groupId: GROUP }],
+      enemies: [{ soldier: enemySoldier(content, { life: 0 }) }],
+    });
+    const merc = ar.mercs[0];
+    if (merc) merc.flags |= CellFlag.RETREATED;
+    ar.status = BattleStatus.VICTORY;
+    const p = port(new TestMilitia(0, 0, 0));
+    const result = closeAutoresolve(arEnv(content), ar, p);
+    expect(result.mercsAtCenter).toEqual([merc?.soldier]);
+    expect(p.calls).toContain(`arrived:${GROUP}:true`);
+  });
+
+  it('captures the mercs who retreated as well (quirk Q19)', () => {
+    const retreated = arSoldier(content, { life: 30, lifeMax: 60 });
+    const unconscious = arSoldier(content, { life: 10, lifeMax: 60 });
+    const ar = arState({
+      mercs: [{ soldier: retreated }, { soldier: unconscious }],
+      enemies: Array.from({ length: 4 }, () => ({ soldier: enemySoldier(content) })),
+    });
+    const cell = ar.mercs[0];
+    if (cell) cell.flags |= CellFlag.RETREATED;
+    const env = arEnv(content, { pre: scripted([1]), world: { day: 4 } });
+    expect(attemptPlayerCapture(env, ar)).toBe(true);
+    expect(ar.pendingSurrender).toBe(true);
+    answerSurrender(env, ar, true);
+    expect(ar.status).toBe(BattleStatus.SURRENDERED);
+    expect(closeAutoresolve(env, ar, port(new TestMilitia(0, 0, 0))).mercsCaptured).toEqual([retreated, unconscious]);
   });
 
   it('reports captured mercs and ends the capture sequence', () => {

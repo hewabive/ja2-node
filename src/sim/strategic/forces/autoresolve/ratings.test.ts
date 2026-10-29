@@ -64,7 +64,7 @@ describe('calculateAttackValues', () => {
     expect(ar.playerDefence).toBe(438 + (ar.militia[0]?.defence ?? 0));
   });
 
-  it('gives EPCs attack 0 and defence 1000', () => {
+  it('gives EPCs attack 0 and defence 1000, so they draw fire (quirk Q18)', () => {
     const ar = arState({
       encounter: EncounterCode.ENEMY_ENCOUNTER,
       mercs: [
@@ -79,7 +79,7 @@ describe('calculateAttackValues', () => {
     expect(ar.mercs[1]?.defence).toBe(1000);
   });
 
-  it('delays late entries, gives a 60 % head start and wraps the timer of an unrated dead merc', () => {
+  it('delays late entries, militia by (i − 4)·2000 from the eighth on (quirk Q6), gives a 60 % head start and wraps an unrated dead merc', () => {
     const mercs = Array.from({ length: 10 }, (_, i) => ({ soldier: arSoldier(content, { life: i === 3 ? 0 : 60 }) }));
     const militia = Array.from({ length: 8 }, () => militiaSoldier(content));
     const enemies = Array.from({ length: 6 }, () => ({ soldier: enemySoldier(content) }));

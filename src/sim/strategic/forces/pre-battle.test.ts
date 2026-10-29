@@ -5,7 +5,7 @@ import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts'
 import { gameOptions } from '../../options.ts';
 import { createEconomyContext } from '../economy/context.ts';
 import type { EconomyContext } from '../economy/ports.ts';
-import { sectorInfo } from '../map/sectors.ts';
+import { createUndergroundSector, sectorInfo } from '../map/sectors.ts';
 import { Fact } from '../narrative/fact-ids.ts';
 import { fact } from '../narrative/facts.ts';
 import { createStrategicState } from '../state.ts';
@@ -126,7 +126,7 @@ describe('the pre-battle interface', () => {
     expect(missed.ctx.state.encounter.code).toBe(EncounterCode.ENEMY_ENCOUNTER);
   });
 
-  it('never rolls the random ambush while a conscious merc scouts the sector (Q2)', () => {
+  it('never rolls the random ambush while a conscious merc scouts the sector (quirk Q2)', () => {
     const h = harness({ progress: 90 });
     const squad = squadIn(h, WILDERNESS, 1);
     enemiesIn(h, WILDERNESS, 6);
@@ -135,7 +135,7 @@ describe('the pre-battle interface', () => {
     expect(h.pre.ranges).toEqual([]);
   });
 
-  it('rolls pre(100) against 4 + 2·difficulty + progress/10 when nobody can scout', () => {
+  it('rolls pre(100) against 4 + 2·difficulty + progress/10 when nobody can scout, whatever the mercs’ level (quirk Q1)', () => {
     const chance = 4 + 2 * 2 + 4;
     const hit = harness({ progress: 40, pre: [chance - 1] });
     const squad = squadIn(hit, WILDERNESS, 1, 10);
@@ -168,6 +168,20 @@ describe('the pre-battle interface', () => {
       ['enterSector', false, 'autoStart'],
       ['retreat', false, 'autoStart'],
     ]);
+  });
+
+  it('reads the surface record for an underground battle in the summary panel (quirk Q28)', () => {
+    const h = harness();
+    const basement: Sector = { ...DRASSEN, z: 1 };
+    const underground = createUndergroundSector(basement);
+    underground.troopsInBattle = 3;
+    h.ctx.state.map.underground.push(underground);
+    sectorInfo(h.ctx.state.map, DRASSEN).creaturesInBattle = 2;
+    h.ctx.state.worldSector = basement;
+    h.ctx.state.battle.sector = basement;
+    const opening = initPreBattleInterface(h.ctx, null, false);
+    expect(h.ctx.state.encounter.explicitCode).toBe(EncounterCode.FIGHTING_CREATURES);
+    expect(choices(opening)?.[0]).toEqual(['autoresolve', false, 'fightingCreatures']);
   });
 
   it('allows the non-persistent autoresolve only for invasions, encounters and creature attacks', () => {

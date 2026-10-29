@@ -6,7 +6,7 @@ import type { TacticalContent } from '../../../tactical/content.ts';
 import { InvSlot } from '../../../tactical/inventory.ts';
 import { Body } from '../../../tactical/soldier.ts';
 import { answerSurrender, attemptPlayerCapture, isBattleOver, orderRetreat, retreatAll, retreatOne } from './end.ts';
-import { runAutoresolve, runSlice } from './loop.ts';
+import { processCell, runAutoresolve, runSlice } from './loop.ts';
 import { type ArCell, BattleStatus, CellFlag, updateRobotController } from './state.ts';
 
 let content: TacticalContent;
@@ -71,6 +71,21 @@ describe('retreat orders', () => {
     expect(cell(alone.mercs, 1).nextAttack).toBe(0xffff);
   });
 
+  it('orders the dead and the unconscious to retreat too, a retreat they never complete (quirk Q11)', () => {
+    const ar = arState({
+      mercs: [{ soldier: arSoldier(content) }, { soldier: arSoldier(content, { life: 0 }) }, { soldier: arSoldier(content, { life: 5 }) }],
+      enemies: [{ soldier: enemySoldier(content) }],
+    });
+    const pre = scripted([], 0);
+    retreatAll(pre, ar);
+    expect(pre.requested).toHaveLength(ar.mercs.length);
+    expect(ar.mercs.every((c) => (c.flags & CellFlag.RETREATING) !== 0)).toBe(true);
+    const unconscious = cell(ar.mercs, 2);
+    unconscious.nextAttack = 0;
+    processCell(arEnv(content), ar, unconscious, 1000);
+    expect(unconscious.flags & (CellFlag.RETREATING | CellFlag.RETREATED)).toBe(CellFlag.RETREATING);
+  });
+
   it('queues orders and refuses them while a surrender offer is pending', () => {
     const ar = arState({ mercs: [{ soldier: arSoldier(content) }] });
     expect(orderRetreat(ar, 0)).toBe(true);
@@ -123,6 +138,22 @@ describe('isBattleOver', () => {
   it('counts unconscious mercs as still fighting', () => {
     const ar = arState({ mercs: [{ soldier: arSoldier(content, { life: 4 }) }], enemies: [{ soldier: enemySoldier(content) }] });
     expect(isBattleOver(arEnv(content), ar)).toBe(false);
+  });
+
+  it('kills a dead robot again and loses the battle while its unconscious controller lives (quirk Q21)', () => {
+    const controller = arSoldier(content, { life: 10 });
+    controller.inv[InvSlot.HEAD1] = createItem(content.items, itemIndex(content, 'ROBOT_REMOTE_CONTROL'), 100);
+    const ar = arState({
+      mercs: [{ soldier: controller }, { soldier: arSoldier(content, { life: 0, body: Body.ROBOTNOWEAPON }), robot: true }],
+      enemies: [{ soldier: enemySoldier(content) }],
+    });
+    const env = arEnv(content);
+    updateRobotController(env, ar);
+    expect(ar.aliveMercs).toBe(1);
+    expect(isBattleOver(env, ar)).toBe(true);
+    expect(ar.status).toBe(BattleStatus.DEFEAT);
+    expect(ar.aliveMercs).toBe(0);
+    expect(controller.life).toBe(10);
   });
 });
 

@@ -1,5 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { arEnv, arSoldier, arState, enemySoldier, itemIndex, militiaSoldier, scripted } from '../../../../../tests/support/autoresolve.ts';
+import {
+  arEnv,
+  arSoldier,
+  arState,
+  enemySoldier,
+  itemIndex,
+  militiaSoldier,
+  progressFor,
+  scripted,
+} from '../../../../../tests/support/autoresolve.ts';
 import { loadTestContent } from '../../../../../tests/support/tactical.ts';
 import { createItem, emptyObject } from '../../../items/object.ts';
 import { AUTORESOLVE_IMPACT, type CombatContext, TACTICAL_IMPACT } from '../../../tactical/combat/context.ts';
@@ -132,7 +141,7 @@ describe('attackTarget', () => {
     expect(preFists.requested).toEqual([500, 500]);
   });
 
-  it('reserves bullet slots and adds a fourth bullet to slot 2', () => {
+  it('reserves bullet slots and adds a fourth bullet to slot 2 (quirk Q8)', () => {
     const { ar, attacker, target } = duel();
     target.nextHit[0] = 100;
     target.nextHit[1] = 100;
@@ -160,6 +169,40 @@ describe('attackTarget', () => {
     const preSpared = scripted([0, 499, 0, 0], 0);
     attackTarget(arEnv(content, { pre: preSpared }), spared.ar, spared.attacker, spared.target);
     expect(preSpared.requested).toEqual([500, 500, 400, 5]);
+  });
+
+  it('credits a melee kill without experience, morale or an assist, and takes life rather than breath (quirk Q4)', () => {
+    const [KILLER, HELPER] = [3, 4];
+    const TOP_RATING = 100;
+    const killerProgress = progressFor(KILLER);
+    killerProgress.stats.marksmanship = TOP_RATING;
+    const profiles = new Map([
+      [KILLER, killerProgress],
+      [HELPER, progressFor(HELPER)],
+    ]);
+    const ar = arState({
+      mercs: [{ soldier: arSoldier(content, { profile: KILLER, gun: null }) }, { soldier: arSoldier(content, { profile: HELPER }) }],
+      enemies: [{ soldier: enemySoldier(content, { life: 1, gun: null }) }],
+    });
+    const killer = cell(ar.mercs, 0);
+    const target = cell(ar.enemies, 0);
+    const ROOF = 1;
+    target.soldier.level = ROOF;
+    target.attackers[0] = { side: 'merc', index: 1 };
+    killer.attack = 500;
+    target.defence = 500;
+    ar.enemyDefence = 500;
+    const breath = target.soldier.breath;
+    const killed: unknown[] = [];
+    const env = arEnv(content, { pre: scripted([400, 0], 0), profiles, hooks: { killedEnemy: (s) => killed.push(s) } });
+    attackTarget(env, ar, killer, target);
+    expect(target.soldier.life).toBe(0);
+    expect(target.soldier.breath).toBe(breath);
+    expect(killerProgress.kills).toBe(1);
+    expect(ar.playerKills).toBe(1);
+    expect(killerProgress.gains.experience).toBe(0);
+    expect(killed).toEqual([]);
+    expect(profiles.get(HELPER)?.assists).toBe(0);
   });
 
   it('fires the first gun in slot order and counts shots for mercs', () => {
