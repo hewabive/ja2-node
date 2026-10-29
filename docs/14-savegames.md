@@ -90,7 +90,7 @@ Sectors y = 1..16, x = 1..16 (flags from section 11, index `(y−1)·16 + x−1`
 bytes (`tempFiles`); for the current sector (`gWorldSector` from section 1) these are decoded (`currentSector`):
 
 - items: `u32 n` × 52-byte `WORLDITEM` (`fExists` 0, `sGridNo` 2, `ubLevel` 4, `OBJECTTYPE` 8 via `decodeObject`,
-  `usFlags` 44, `bRenderZHeightAboveLevel` 46, `bVisible` 47, `ubNonExistChance` 48; `12` §6.1);
+  `usFlags` 44, `bRenderZHeightAboveLevel` 46, `bVisible` 47, `ubNonExistChance` 48; `12`);
 - door table: `u8 n` × 14 (`sGridNo`, `fLocked`, trap level, trap id, lock id, perceived locked, perceived trapped,
   lock damage, 5 padding);
 - door status: `u8 n` × 4 (`sGridNo`, `ubFlags`, 1 padding);
@@ -129,7 +129,7 @@ The Linux layout inserts 2 bytes before `name`, stores `name` as UTF-32 and inse
 etc., offset 820) is read only from version 103; before that the bytes are ignored. `ubPathingData` is stored as
 30 × u16 and truncated to bytes.
 
-Profiles are the 716-byte `prof.dat` record (`12` §7, `prof.ts`), parsed with the same code; the reader adds the
+Profiles are the 716-byte `prof.dat` record (`12`, `prof.ts`), parsed with the same code; the reader adds the
 campaign fields kills 310, assists 312, shots fired/hit 314/316, battles 318, wounds 320, days served 322, salary 332,
 `bMercStatus` 652, sector z 669, and verifies the checksum at 696 (`SoldierProfileChecksum`: the soldier formula
 without the profile term, over `inv` and `bInvNumber`). The Linux profile (796) stores name and nickname as UTF-32:

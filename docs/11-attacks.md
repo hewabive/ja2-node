@@ -27,7 +27,7 @@ share `main` in the original; ja2-node does not make them (§6.3).
 
 **Sources.** `Tactical/Weapons.cc`, the bullet half of `Tactical/LOS.cc`, `Tactical/Bullets.cc`, the attack parts of
 `Tactical/Handle_Items.cc`, `Soldier_Control.cc` and `Soldier_Ani.cc`. Elsewhere: `08` LOS, sight and noise; `10` turns
-and interrupts; `12` items, inventory and explosions (from `IgniteExplosion` on, `12` §10); `13` the combat AI; `29`
+and interrupts; `12` items, inventory and explosions (from `IgniteExplosion` on, `12`); `13` the combat AI; `29`
 the agent API (the `attack` command, `estimateAttack`, the attack events).
 
 ## 0. Overview
@@ -944,7 +944,7 @@ count `turn.attackBusyCount` (`turns/turn-state.ts`), the live `bullets`, the pe
 and the queued `gameEvents`.
 
 Content: weapons, ammo types, armours and explosives from `data/externalized/*.json` through `content/items/items.ts`
-(`12` §1); structure armour and density from the JSD (`content/formats/jsd.ts`) and `data/tables/material-armour.json`;
+(`12`); structure armour and density from the JSD (`content/formats/jsd.ts`) and `data/tables/material-armour.json`;
 animation scripts from the user's `binarydata/ja2bin.dat` (`content/formats/ja2bin.ts`, `content/anim/timelines.ts`),
 speeds and flags from `data/tables/anim-control.json`. The stub pack builds its own scripts with the same gameplay
 opcodes and shorter frame counts (`stubs/anim-scripts.ts`, `32` §1.6).
@@ -976,7 +976,7 @@ calls `calcChanceToHitGun` with `fModify = FALSE` on the player's view (`28` §2
 ### 6.2 Tick order and timers
 
 Each 5 ms tick (`tactical-sim.ts`, `overheadHooks`) runs, before the soldier pass: physics (`stepThrownObjects`, every
-20 ms), bullets (`updateBullets`), explosions (`stepExplosions`, `12` §10), action items and AI pauses, miss-animation
+20 ms), bullets (`updateBullets`), explosions (`stepExplosions`, `12`), action items and AI pauses, miss-animation
 releases (`updateMissAnimations`), skull releases (`updateSkullReleases`), the real-time turn (`handleRealtimeTurns`);
 then the soldier pass (`overhead.ts`: animation opcodes, `updateDamageDisplay`); then `dequeueAllGameEvents`. This is
 the original frame order (`GameScreen.cc:343, 424, 427, 456`) on a fixed tick (deviations "Game events").

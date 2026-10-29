@@ -418,7 +418,7 @@ result}`.
 ## 12. Inventory, items, money and first aid
 
 D15: everything the inventory panel, the item description box, the reload and medkit cursors and the money box do is a
-command, on the original UI code paths (rules and costs: `12` §3, `12` §4, `12` §5, `12` §3.3). The API replaces only
+command, on the original UI code paths (rules and costs: `12`, `12`, `12`, `12`). The API replaces only
 the item cursor: a command picks an item up, puts it down and returns what is left in the cursor (a swap) the way the
 original's cancel does (`CancelItemPointer`: the slot it came from, else a free pocket, else the feet; on the map
 screen the sector inventory; deviation "Item cursor"). A placement runs on copies first, so a refused move changes

@@ -3,7 +3,7 @@
 Grenades, rocks, inventory tosses and launchers (GL, under-barrel GL, mortar) from the order until the object rests or
 explodes: AP cost, range, chance to hit, miss deviation, launch parameters, the throw animation, physics objects, duds,
 fuses, busy count and RNG order. Siblings: `11` guns, bullets and melee; `33` hits and damage; explosions from
-`IgniteExplosion` on are `12` §10.
+`IgniteExplosion` on are `12`.
 
 **Conventions.** Paths are relative to `reference/stracciatella/src/game/` unless marked V (vanilla `Build/`); a bare
 `:N` is in the file the enclosing heading or list item names. "(inferred)" marks conclusions not traced end to end. C
@@ -27,7 +27,7 @@ it dies (§11).
 | `IC_LAUNCHER` (`LAUNCHER`, `WeaponModels.cc:1347`, `TRAJECTORYCURS`) | GLAUNCHER (range 500), UNDER_GLAUNCHER (450, attachment, `WM_ATTACHED`), MORTAR (550) | `UseLauncher` (`Weapons.cc:1336`) | physics object (the attached launchable: GL_*_GRENADE, MORTAR_SHELL) |
 | `IC_GUN`, `NOT_GUN` (`LAW`, `CANNON`, `WeaponModels.cc:1389,1432`) | ROCKET_LAUNCHER (single-use LAW), TANK_CANNON | `UseGun` | **bullet** with `BULLET_FLAG_MISSILE` / `_TANK_CANNON` (`LOS.cc:3262-3269`); explodes C1 / TANK_SHELL on stop or hit (`Weapons.cc:1511-1519, 1622-1646`) |
 | `IC_THROWING_KNIFE` | THROWING_KNIFE | `UseGun` | bullet with `BULLET_FLAG_KNIFE` (`11` §1.9, `11` §3); only its CTH is `CalcThrownChanceToHit` (`Weapons.cc:654-657`) |
-| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (`12` §6.6; ja2-node `toss.ts`, gaps "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
+| any item tossed from the inventory cursor | medkit, ammo, unarmed grenade | `Interface_Items.cc:3505-3553` (`12`; ja2-node `toss.ts`, gaps "Tossing from the item cursor") | physics object, `NO_THROW_ACTION` or `THROW_TARGET_MERC_CATCH`, no CTH, `bMissBy = 0` |
 
 `EXPLOSIVE_GUN(x)` = ROCKET_LAUNCHER or TANK_CANNON (`Item_Types.h:215`). Vanilla data has no RPG; ROCKET_RIFLE and
 AUTO_ROCKET_RIFLE are ordinary guns with `BULLET_FLAG_SMALL_MISSILE` (`11` §3.1).
@@ -538,7 +538,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
 - Dud chance on the ground: `P(pre(100) ≥ status + pre(50))`; a dud re-arms as a timed bomb with the same test again
   (`trapped` is then always ≥ 2), `bDelay` 1–2.
 - `IgniteExplosion*` raises the busy count (`Explosion_Control.cc:113`) before step 5 of §9.5 releases the throw's
-  count; explosion effects and damage: `12` §10, flares `12` §11.5.
+  count; explosion effects and damage: `12`, flares `12`.
 
 ## 10. Fuses and timing
 
@@ -552,7 +552,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
   keeps the ripple's own owner and item (deviations "Water ripple").
 - Dud → timed bomb: `bDelay` decremented by `DecayBombTimers` (`Explosion_Control.cc:2054-2095`) in `EndTurnEvents`
   (`TeamTurns.cc:288`, once per round, inferred) and on every 5 s real-time turn (`Tactical_Turns.cc:92`); at 0 it
-  joins the bomb queue (`12` §10.9). ja2-node lays the dud down invisible and armed after the same draws, with no timer
+  joins the bomb queue (`12`). ja2-node lays the dud down invisible and armed after the same draws, with no timer
   (gaps "Duds and timed bombs").
 - Flight time is a fixed number of 20 ms physics ticks for given launch parameters; turn-based and real time use the
   same integrator. The turn waits on the busy count until the object dies.
@@ -583,7 +583,7 @@ const objectLevel = (z) => Math.trunc((z + 10) / 256);            // GET_OBJECT_
 6. Landing: dud test `pre(100)`, `pre(50)` (only on the ground plane, out of water, status ≥ 10); if a dud: again
    `pre(100)`, `pre(50)`, then `pre(4)`, `pre(2)` if re-armed.
 7. Noise volume `pre(9)` (grenades and rocks).
-8. Explosion (`12` §10.10).
+8. Explosion (`12`).
 
 **Launcher:** `WillExplosiveWeaponFail` (`pre(40)`, `pre(40)`, maybe `pre(2)`; only for our team or visible
 shooters) → `pre(100)` hit roll → `RandomGridFromRadius` → flight/landing as above.

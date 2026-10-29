@@ -213,7 +213,7 @@ their values (`deviations.md` §2 lists every change):
 | Throw physics | Once per frame when the 20 ms counter is due (`Physics.cc:238-330`) | Every 20 game ms |
 | Real-time AI | One soldier after more than 50 ms, more while less than 10 ms of CPU passed (`Overhead.cc:109-110, 1041-1052`); `AI_DELAY` 100 ms per soldier (`AIMain.cc:40`) | Every 55 game ms (strict `>` on 5 ms ticks), every AI slot after the cursor, no CPU slice (`09` §1.1) |
 | Real-time turn (bleeding, breath, smoke, light and opplist decay) | Every 5000 ms × compression (`Strategic/Strategic_Turns.cc:30-84`, `Tactical/Tactical_Turns.cc:80-160`) | Checked every 20 game ms, fires after more than 5000: every 5020 ms (`src/sim/tactical/turns/turns.ts`) |
-| Explosion damage | At a keyframe, 3–18 frames × 20–80 ms (`Explosion_Control.cc:205-209`) | Frame `k` at `k·(delay + 5)` game ms (`12` §10.2) |
+| Explosion damage | At a keyframe, 3–18 frames × 20–80 ms (`Explosion_Control.cc:205-209`) | Frame `k` at `k·(delay + 5)` game ms (`12`) |
 | Melee hit, enemy sighted on their turn | 20 ms (`Weapons.cc:987`), 3000 ms (`OppList.cc:2588-2602`) of wall clock | The same in game ms |
 | `DOOR_BUSY`, bomb queue (`1000 + R(500)` ms, `Explosion_Control.cc:2054-2095`) | Tile-animation and wall-clock windows | Not ported (`gaps.md` "Doors", "Duds and timed bombs") |
 | Watchdogs: 15 s AI (`AIMain.cc:366-380`), 25 s UI busy (`Handle_UI.cc:405-419`) | Break hangs | Not ported: a hang is a bug and fails the tests |
