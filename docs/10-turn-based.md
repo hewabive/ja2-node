@@ -822,7 +822,7 @@ if won:
 false
 ```
 Called after every death (`Overhead.cc:2254, 2528`), at the end of each attack (§5), and from §8.1. The strategic
-side of a battle's end: `19` §3.2.
+side of a battle's end: `19`.
 
 ### 8.3 `ExitCombatMode` (`Overhead.cc:4040-4105`): what is reset
 

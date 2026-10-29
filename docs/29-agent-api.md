@@ -768,14 +768,14 @@ Rules: `19`. Nothing is shown that the original panels do not show (D16).
 **The `preBattle` prompt** (`src/sim/campaign/pre-battle-panel.ts`; deviation "Pre-battle interface"): `{id, kind,
 sector, persistent, encounter, enemies: number | 'unknown', militia, involved, uninvolved, options [{choice, enabled,
 reason?}], involvedGroups}`; involved mercs carry the assignment number, the non-persistent prompt's `encounter` is the
-explicit code, `enemies` follows `19` §1.4. Time stays frozen until `answer`: `autoresolve`, `enterSector` (the sector
+explicit code, `enemies` follows `19`. Time stays frozen until `answer`: `autoresolve`, `enterSector` (the sector
 loads with automatic placement), `retreat`, `close` (non-persistent only). `involvedGroups` > 1 selects the plural
 retreat help; per uninvolved merc `betweenSectors`, `departure` (minutes to the contract end for A.I.M. mercs and Slay,
 capped at the contract length in transit; null prints "N/A") and `destination` (`GetMapscreenMercDestinationString`:
 the arrival sector in transit, the last sector of the path whenever there is one, else the group's next sector).
 Saving is refused while it is open (`promptOpen`), as the original disables the options button.
 
-- **Automatic starts** (`19` §1.2) open no prompt: `preBattle {autoStart: true, panel {sector, enemies, militia,
+- **Automatic starts** (`19`) open no prompt: `preBattle {autoStart: true, panel {sector, enemies, militia,
   involved, uninvolved, involvedGroups}}` (computed before the battle starts, for the panel shown with Autoresolve
   pressed, `ActivateAutomaticAutoResolveStart`) and autoresolve begins at once.
 - **`showBattle {}`** opens the non-persistent panel (deviation "Non-persistent pre-battle interface") where the

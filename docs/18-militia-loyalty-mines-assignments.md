@@ -1159,7 +1159,7 @@ assignment. `AssignmentAborted` (`:2736-2744`): message + stop compression.
 | Buddy/hated counters, team morale | hourly, in that order | `UpdateBuddyAndHatedCounters`, `HourlyMoraleUpdate` (`22` §5.2–§5.3); every 3rd call decays the strategic modifier (function-static counter, not saved) | `Strategic_Merc_Handler.cc:526-730`, `Morale.cc:664-815` |
 | Camouflage | hourly | −2 % (not CAMOUFLAGED trait); monster smell −1 | `Strategic_Merc_Handler.cc:733-759` |
 | Daily merc update | 00:00 (not day 1) | `MercDailyUpdate` (`22` §2.1): low death rate morale, quote flags, equipment complaint, days served, RPC salary (`PAYMENT_TO_NPC`), `DailyMoraleUpdate`, contract offers, unhired mercs | `Strategic_Merc_Handler.cc:135-370`, `Morale.cc:818-856` |
-| Merc death bookkeeping | on death | history, death count, `SOLDIER_DEAD`, breath 0, profile dead, insurance, teammate morale (`19` §3.7) | `:52-130` |
+| Merc death bookkeeping | on death | history, death count, `SOLDIER_DEAD`, breath 0, profile dead, insurance, teammate morale (`19`) | `:52-130` |
 
 ja2-node: `src/sim/campaign/team-morale.ts` (`hourlyMoraleUpdate`, `updateBuddyAndHatedCounters`,
 `decayTacticalMoraleModifiers`), run with the roster from `BattleFlow`; the decay counter is saved

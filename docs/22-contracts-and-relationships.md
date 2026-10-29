@@ -20,7 +20,7 @@ status, `SettleMercAccounts`), email, history, personnel and life insurance. `23
 the morale event table and `UpdateSoldierMorale`, `33` `StatChange`/`ProcessStatChange`. `15` owns the clock, the
 event queue, the order of the 00:00 events and the hourly update. `16` owns squads, groups, `RemoveCharacterFromSquads`,
 `RemoveGroup` and `CheckAndHandleUnloadingOfCurrentWorld`. `18` §5 owns assignments (the training opinion bonus reads §5
-opinions). `19` §3.7 owns merc death and capture. `14` owns the savegame container. The agent API (commands, prompts,
+opinions). `19` owns merc death and capture. `14` owns the savegame container. The agent API (commands, prompts,
 events, view) is `29`.
 
 ---
@@ -541,7 +541,7 @@ The third consecutive unpaid midnight makes him quit; a later payment settles th
 
 ### 4.9 Death bookkeeping (the contract parts of `StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:52-130`)
 
-In order around what `19` §3.7 does: history `MERC_KILLED (3)`, or `MERC_KILLED_CHARACTER (77)` when the attacker is on
+In order around what `19` does: history `MERC_KILLED (3)`, or `MERC_KILLED_CHARACTER (77)` when the attacker is on
 the OUR team, with the soldier's sector (the world sector if invalid); a screen message off the game screen; deaths +1 (not
 EPC/robot); dead flags; `p.status = MERC_IS_DEAD`; **life insurance** (suspicion and `AddLifeInsurancePayout`, `21` §7.2;
 never suspicious in autoresolve); morale fan-out (not EPC/robot); M.E.R.C. kind: `contractEnd = now` and Speck's "lost a
@@ -814,7 +814,7 @@ All under `src/sim/campaign/` with the SFI-SCLA header.
 | `relations/hiring-check.ts` | `canMercBeHired` (§5.4, called by the A.I.M. site) |
 | `team-morale.ts` | `updateBuddyAndHatedCounters` (§5.2), `hourlyMoraleUpdate` and the decays (§5.3) |
 | `morale.ts` | `handleMoraleEvent` (reputation once per call), the low-morale quote flag |
-| `merc-fate.ts` | death and capture (`19` §3.7), calling the §4.9 hooks |
+| `merc-fate.ts` | death and capture (`19`), calling the §4.9 hooks |
 
 ### 9.3 Wiring
 

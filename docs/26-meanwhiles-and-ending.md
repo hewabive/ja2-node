@@ -17,7 +17,7 @@ here). Elsewhere: `15` event queue, `InterruptTime`, pause locks, compression an
 unload, temp files (`SectorDiff`), exit grids, map file names (`_m` for the Meduna meanwhile map), the helicopter; `17`
 the Queen's AI, with `17` §9.4 (meanwhile implications on the AI), `17` §9.5 (`ExecuteStrategicAIAction`), `17` §10.11
 (capture), `17` §11.3 (progress); `18` town liberation and loss, SAM sites, loyalty and morale; `19` first-battle facts
-from autoresolve, autoresolve capture and surrender (`19` §2.13), the end of a tactical battle (`19` §3.2); `21` the
+from autoresolve, autoresolve capture and surrender (`19`), the end of a tactical battle (`19`); `21` the
 florist, Enrico's mails, history; `22` POW contract rules, death bookkeeping; `33` death commit, `11` melee; `13` the AI
 hooks `HeadForTheStairCase` and `OFFER_SURRENDER`; `14` save sections; `24` NPC records and their selection, approaches,
 `TriggerNPCRecord*`, the talk interface, the dialogue queue and the "nobody is talking" test, NPC action dispatch,
@@ -409,7 +409,7 @@ playback").
 
 ### 3.1 Ownership
 
-Capture mechanics are `17` §10.11 and `19` §2.13 and `19` §3.7 (`src/sim/campaign/merc-fate.ts`: `beginCaptureSequence`,
+Capture mechanics are `17` §10.11 and `19` and `19` (`src/sim/campaign/merc-fate.ts`: `beginCaptureSequence`,
 `endCaptureSequence`, `enemyCapturesPlayerSoldier`; `battle-flow.ts` for the tactical loss). The quests `HELD_IN_ALMA` and
 `INTERROGATION` (state, `StartQuest`/`EndQuest`, history) are `25`'s; this section gives *when* the narrative path calls
 them and what else happens.
@@ -418,9 +418,9 @@ them and what else happens.
 
 | Path | Where | Captured |
 |---|---|---|
-| Tactical loss with 2–3 incapacitated real mercs, an active enemy team, and Alma not started or (Alma done and interrogation not started) | `Overhead.cc:5010-5072` (`19` §3.2) | each in-sector merc with life ≠ 0 |
+| Tactical loss with 2–3 incapacitated real mercs, an active enemy team, and Alma not started or (Alma done and interrogation not started) | `Overhead.cc:5010-5072` (`19`) | each in-sector merc with life ≠ 0 |
 | Tactical surrender: an enemy offers (`DecideAction.cc:2641-2654`, `13` §6.1) through a civilian quote (`24`) and the player accepts the yes/no box | `Tactical/Civ_Quotes.cc:150-178, 196-205` | every in-sector merc with life ≠ 0 |
-| Autoresolve surrender or capture (from day 4; refused once the rescue flag is set, so normally only the first capture) | `Auto_Resolve.cc:3359-3433` (`19` §2.13) | the involved cells |
+| Autoresolve surrender or capture (from day 4; refused once the rescue flag is set, so normally only the first capture) | `Auto_Resolve.cc:3359-3433` (`19`) | the involved cells |
 
 Each path runs `BeginCaptureSquence`, `EnemyCapturesPlayerSoldier` per merc, then `EndCaptureSequence`. The tactical
 surrender then shows the "you surrendered" box after 3 s (`gfSurrendered`, `Overhead.cc:6011-6024`), the loss the
@@ -671,7 +671,7 @@ Nothing of the campaign survives the victory except the player's saves; there is
 No losing screen or rule exists (the only exits are the victory path above, the player's quit
 `EndGameMessageBoxCallBack`, `GameLoop.cc:314-327`, and the demo-only `NPC_ACTION_END_DEMO`,
 `Interface_Dialogue.cc:3458-3462`). When every merc is dead or captured, battles end through the lost-battle path
-(`19` §3.2) and the world unloads; on the map, time compression is refused with "no usable mercs" (`MapScreen.cc:6259-6268`,
+(`19`) and the world unloads; on the map, time compression is refused with "no usable mercs" (`MapScreen.cc:6259-6268`,
 `AllowedToTimeCompress`, `15` §1.6, where mercs in transit count as usable), so the clock only moves again after a new
 hire. A player without money and mercs is stuck but never told the game is over. ja2-node does the same:
 `compressionRefusal` answers `noUsableMercs` ("no usable mercs are left on the team",

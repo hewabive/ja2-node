@@ -1054,7 +1054,7 @@ it and popped when the battle closes. Server side: `29` §20.
   (deviation "Autoresolve pace"). The robot's optimistic retreat display follows the server one slice later.
 - Sounds (`autoresolve-sounds.ts`, `BattleSound`; volume 50 or `HIGHVOLUME`, centred): shot sounds by weapon with the
   lock'n'load, misses, impacts with the target's hit sound, falls, deaths and splats (decided in the simulation,
-  `19` §4.3), creature sounds, the defeat laugh or eating; Finish mutes them and plays the composite sound. Militia and
+  `19`), creature sounds, the defeat laugh or eating; Finish mutes them and plays the composite sound. Militia and
   enemy voices are the client's pick (deviation "Autoresolve battle voices"). Music stays the server's (`arBattleOver`
   sets victory or defeat).
 - Commands: Retreat → `autoresolveRetreat {}`, a merc cell → `autoresolveRetreat {soldier}`, Yes/No → `answer

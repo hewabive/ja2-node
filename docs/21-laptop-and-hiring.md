@@ -18,7 +18,7 @@ parts of `InitNewGame`. Elsewhere: `22` what follows the hire (the contract hour
 `StrategicRemoveMerc` and the medical deposit refund, the daily merc update `MercDailyUpdate` with the unhired-profile
 loop, salary growth, `CanMercBeHired` and the tolerances, RPC pay); `23` arms dealers and the stock code Bobby Ray's
 shares; `15` the clock, the event queue, `InitNewGame`/`InitStrategicLayer`; `16` squads, groups, `UpdateMercInSector`,
-airspace; `18` §3.9 the finance ledger and the hourly update; `19` §3.7 merc death and capture; `25` §1–§2 facts and
+airspace; `18` §3.9 the finance ledger and the hourly update; `19` merc death and capture; `25` §1–§2 facts and
 quests, `35` §1 NPC actions (Kulba, Pablo), `35` §2.2 `DecideActiveTerrorists`; `26` meanwhiles; `14` the save layout;
 `30` §6 the laptop pages (client); `29` the agent API (laptop commands, queries, view, events).
 
@@ -337,7 +337,7 @@ AddHistoryToPlayersLog(HISTORY_HIRED_MERC_FROM_AIM, profile, now, (−1, −1))
 - **`MercArrivesCallback(s)`** (`Merc_Hiring.cc:224-348`; ja2-node `LaptopFlow.mercArrives` for steps 1–6, then
   `contracts/hire-contract.ts` `mercArrived` for 8–10):
   1. if `!didGameJustStart`, the landing zone is the start sector and the loaded sector is not:
-     `EliminateAllEnemies(start sector)` (`19` §2.19); the start sector is "always safe";
+     `EliminateAllEnemies(start sector)` (`19`); the start sector is "always safe";
   2. `CheckForValidArrivalSector()` (`:487-553`): if the landing zone is enemy controlled, scan `dy = −4..4` (outer), `dx =
      −4..4` (inner) over strategic indices `idx = zone + 18·dy + dx` with `1 ≤ idx < 289` and on the same row; candidates
      not enemy controlled and not enemy air controlled; distance `(INT16)hypot(dx, dy)` (truncated); keep the first
@@ -919,7 +919,7 @@ renewal charge.
 
 ### 7.2 Death, payout, investigation
 
-At death (`StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:94-112`; `19` §3.7 and `22` §4.9 own the rest
+At death (`StrategicHandlePlayerTeamMercDeath`, `Strategic_Merc_Handler.cc:94-112`; `19` and `22` §4.9 own the rest
 of it), if insured and **not on the autoresolve screen**: `now ≥ startTime && now − startTime < 60` → `VERY_SUSPICIOUS`;
 else killed by our team or `!fEnemyInSector` → `SUSPICIOUS`; then `AddLifeInsurancePayout` (`:835-912`):
 ```
