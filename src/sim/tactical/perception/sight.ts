@@ -653,23 +653,26 @@ export function decayOppListValue(value: number): number {
   return value;
 }
 
+function radioNewOpponents(t: TacticalState, s: Soldier): void {
+  if (!s.newOppCnt) return;
+  if (s.team === Team.OUR) radioSightings(t, s, null, s.team);
+  s.newOppCnt = 0;
+}
+
 export function verifyAndDecayOpplist(t: TacticalState, s: Soldier): void {
-  if (!validForSightings(s)) return;
   if (s.life < OKLIFE) {
-    s.oppList.fill(0);
+    s.oppList.fill(Opp.NOT_HEARD_OR_SEEN);
+    s.ai.oppCount = 0;
     return;
   }
-  if (s.newOppCnt && s.team === Team.OUR) {
-    radioSightings(t, s, null, s.team);
-    s.newOppCnt = 0;
-  }
-  for (const opp of t.soldiers) {
-    if (!opp || opp === s) continue;
-    const value = s.oppList[opp.id] ?? 0;
-    if (value === 0) continue;
-    if (validForSightings(opp)) manLooksForMan(t, s, opp, Caller.VERIFYANDDECAYOPPLIST);
+  radioNewOpponents(t, s);
+  for (const opp of mercs(t)) {
+    if (!validForSightings(opp) || opp.team === s.team) continue;
+    if ((s.oppList[opp.id] ?? 0) === Opp.NOT_HEARD_OR_SEEN) continue;
+    manLooksForMan(t, s, opp, Caller.VERIFYANDDECAYOPPLIST);
     s.oppList[opp.id] = decayOppListValue(s.oppList[opp.id] ?? 0);
   }
+  radioNewOpponents(t, s);
 }
 
 function decayPublicNoise(t: TacticalState, team: number): void {

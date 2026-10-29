@@ -5,9 +5,10 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
 import { NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import type { TacticalSim } from '../tactical-sim.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 import { Opp } from './opp.ts';
-import { decayPublicOpplist } from './sight.ts';
+import { decayPublicOpplist, verifyAndDecayOpplist } from './sight.ts';
 
 let content: TacticalContent;
 
@@ -104,5 +105,28 @@ describe('the public opplist decay', () => {
     t.occupant[0][WATCHED_SPOT + 1] = -1;
     expect(watchedLoc(t, occupied)).toEqual([WATCHED_SPOT, 2, 0]);
     expect(watchedLoc(t, absent)).toEqual([QUIET_SPOT, 1, 0]);
+  });
+});
+
+describe('the check of known opponents (OppList.cc VerifyAndDecayOpplist)', () => {
+  function inView(): Scene & { readonly sim: TacticalSim } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.SOUTH);
+    return { sim, t: sim.state, merc, enemy };
+  }
+
+  it('radios an opponent he finds again, and leaves what he knows of a dying one alone', () => {
+    const { sim, t, merc, enemy } = inView();
+    const dying = spawnSoldier(sim, 21, Team.ENEMY, gridNo(70, 120), Direction.SOUTH, { life: 0 });
+    merc.oppList[enemy.id] = Opp.SEEN_LAST_TURN;
+    merc.oppList[dying.id] = Opp.SEEN_THIS_TURN;
+    verifyAndDecayOpplist(t, merc);
+    expect([merc.oppList[enemy.id], t.perception.publicOpp[Team.OUR]?.[enemy.id], merc.newOppCnt]).toEqual([
+      Opp.SEEN_CURRENTLY,
+      Opp.SEEN_CURRENTLY,
+      0,
+    ]);
+    expect(merc.oppList[dying.id]).toBe(Opp.SEEN_THIS_TURN);
   });
 });
