@@ -156,6 +156,15 @@ describe('HandleMurderOfCivilian', () => {
     expect(monster.ctx.state.economy.towns).toEqual(expectedTowns(distanceAdjusted(-2 * MAN_COST), false));
   });
 
+  it('charges a creature that is no monster the full price as a loss, even in an enemy-controlled sector', () => {
+    const { sim, ctx } = scene([99]);
+    setEnemyControlled(ctx, true);
+    const bloodcat = spawnSoldier(sim, 53, Team.CREATURE, KILLER_AT, NORTH);
+    bloodcat.bodyType = Body.BLOODCAT;
+    handleMurderOfCivilian(ctx, sim.state, killed(sim, bloodcat), D13);
+    expect(ctx.state.economy.towns).toEqual(expectedTowns(distanceAdjusted(-MAN_COST)));
+  });
+
   it('changes nothing for a civilian killer the town does not blame on the player', () => {
     const { sim, ctx, rolls } = scene([99]);
     handleMurderOfCivilian(ctx, sim.state, killed(sim, spawnSoldier(sim, 116, Team.CIV, KILLER_AT, NORTH)), D13);

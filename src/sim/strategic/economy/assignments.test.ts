@@ -10,7 +10,7 @@ import {
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
-import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment } from './conditions.ts';
+import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment, numberThatCanBeDoctored } from './conditions.ts';
 import { Assignment, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
 import { healCharacters, healPatient } from './doctor.ts';
 import { kitItems, Slot, useKitPoints } from './kits.ts';
@@ -21,7 +21,7 @@ import {
   getSoldierTrainingPts,
   getTownTrainPtsForCharacter,
 } from './points.ts';
-import { doActualRepair, handleRepairBySoldier } from './repair.ts';
+import { doActualRepair, handleRepairBySoldier, repairItemsOnOthers } from './repair.ts';
 import {
   calcSoldierNeedForSleep,
   fatigueCharacter,
@@ -68,7 +68,7 @@ describe('conditions and points', () => {
     expect(canCharacterTrainStat(made.ctx, merc(made, { id: 2, stats: { medical: 24 } }), TrainStat.MEDICAL, false, true)).toBe(false);
   });
 
-  it('computes doctor, repair and training points like the documented examples', () => {
+  it('computes doctor, repair and town training points from the effective stats, the kits and the TEACHING trait', () => {
     const made = context();
     const kits = kitItems(content.items);
     const d = merc(made, { id: 0, stats: { medical: 80, dexterity: 80, wisdom: 70, expLevel: 4 } });
@@ -122,7 +122,7 @@ describe('rest, fatigue and natural healing', () => {
     expect(calcSoldierNeedForSleep(wrapped)).toBe(12);
   });
 
-  it('rests and fatigues by the documented amounts', () => {
+  it('rests and fatigues by the need for sleep, half again below 50 and with the load on the road', () => {
     const made = context();
     const s = merc(made, { id: 0, needForSleep: 7, breathMax: 60 });
     restCharacter(s);
@@ -152,6 +152,15 @@ describe('rest, fatigue and natural healing', () => {
     expect(doctor).toMatchObject({ breathMax: 49, asleep: true });
     handleRestFatigueAndSleepStatus(made.ctx);
     expect(squad.breathMax).toBe(100);
+  });
+
+  it('wears out a dying merc on a squad: below OKLIFE he cannot sleep, so he is not taking it easy', () => {
+    const made = context();
+    const dying = merc(made, { id: 0, assignment: Assignment.SQUAD_1, life: 10, breathMax: 80 });
+    const healthy = merc(made, { id: 1, assignment: Assignment.SQUAD_1, breathMax: 80 });
+    handleRestFatigueAndSleepStatus(made.ctx);
+    expect(dying).toMatchObject({ breathMax: 77, asleep: false });
+    expect(healthy.breathMax).toBe(87);
   });
 
   it('collapses at 10 and only wakes after recovering', () => {
@@ -201,6 +210,16 @@ describe('doctoring', () => {
     expect(odd.life).toBe(14);
   });
 
+  it('treats doctors as patients: a doctor heals another doctor and himself', () => {
+    const made = context();
+    const d = merc(made, { id: 0, assignment: Assignment.DOCTOR, life: 70 });
+    d.inv[Slot.HAND] = kit(content.items, 'MEDICKIT', [100]);
+    const other = merc(made, { id: 1, assignment: Assignment.DOCTOR, life: 60 });
+    expect(numberThatCanBeDoctored(made.ctx, d, true, false, false)).toBe(2);
+    healCharacters(made.ctx, d);
+    expect([d.life, other.life]).toEqual([71, 61]);
+  });
+
   it('refunds unused hundredths when the patient is fully healed', () => {
     const made = context();
     const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
@@ -229,18 +248,29 @@ describe('doctoring', () => {
 });
 
 describe('repair', () => {
-  it('adjusts the cost by repair ease and electronics, and fixes tiny damage for free', () => {
+  it('adjusts the cost by repair ease and electronics, and fixes damage costing under a point for free with no points left', () => {
     const made = context();
     const r = merc(made, { id: 0 });
     const vest = content.items.byName.get('KEVLAR_VEST');
-    if (!vest) throw new Error('no vest');
+    const pistol = content.items.byName.get('GLOCK_17');
+    if (!vest || !pistol) throw new Error('no vest or pistol');
+    expect(vest.repairEase).toBe(0);
+    expect(pistol.repairEase).toBeGreaterThan(0);
     const budget = { left: 10 };
     expect(doActualRepair(made.ctx, r, vest.index, 90, budget)).toBe(100);
-    expect(budget.left).toBe(10 - Math.trunc((10 * Math.max(10, 100 - 10 * vest.repairEase)) / 100));
-    const empty = { left: 0 };
-    expect(doActualRepair(made.ctx, r, vest.index, 99, empty)).toBe(
-      Math.trunc(Math.max(10, 100 - 10 * vest.repairEase) / 100) === 0 ? 100 : 99,
-    );
+    expect(budget.left).toBe(0);
+    expect(doActualRepair(made.ctx, r, vest.index, 99, { left: 0 })).toBe(99);
+    expect(doActualRepair(made.ctx, r, pistol.index, 99, { left: 0 })).toBe(100);
+  });
+
+  it('repairs the robot’s gear for a teammate: the original asks whether the repairer, not the owner, is a machine or an EPC', () => {
+    const made = context();
+    const r = merc(made, { id: 0, assignment: Assignment.REPAIR });
+    const robot = merc(made, { id: 1, isRobot: true });
+    const gun = item(content.items, 'GLOCK_17', 50);
+    robot.inv[Slot.HAND] = gun;
+    repairItemsOnOthers(made.ctx, r, { left: 20 });
+    expect(gun.status[0]).toBe(75);
   });
 
   it('unjams guns first, repairs own items, wears the toolkit and finishes', () => {

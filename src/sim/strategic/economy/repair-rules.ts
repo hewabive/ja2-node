@@ -16,10 +16,12 @@ export const RepairPass = { HANDS_AND_ARMOR: 0, HEADGEAR: 1, POCKETS: 2 } as con
 export const FINAL_REPAIR_PASS = RepairPass.POCKETS;
 export const NO_PASS = -1;
 
+const POCKETS = Array.from({ length: Slot.SMALLPOCK8 - Slot.BIGPOCK1 + 1 }, (_, k) => Slot.BIGPOCK1 + k);
+
 export const REPAIR_PASS_SLOTS: readonly (readonly number[])[] = [
   [Slot.HAND, Slot.SECOND_HAND, Slot.VEST, Slot.HELMET, Slot.LEGS],
   [Slot.HEAD1, Slot.HEAD2],
-  [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+  POCKETS,
 ];
 
 function objectNeedsRepair(ctx: EconomyContext, o: ItemObject): boolean {

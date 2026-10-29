@@ -53,6 +53,15 @@ describe('HandleEnricoEmail', () => {
     expect(handleEnricoEmail(ctx).mail).toBe('majorSetback');
   });
 
+  it('keeps every new sector of a day with a creature or progress mail, as those mails return before the reset', () => {
+    const ctx = context(20);
+    ctx.state.map.activity.newSectorsVisitedToday = 7;
+    expect(handleEnricoEmail(ctx).mail).toBe('progress20');
+    expect(ctx.state.map.activity.newSectorsVisitedToday).toBe(7);
+    expect(handleEnricoEmail(ctx).mail).toBeNull();
+    expect(ctx.state.map.activity.newSectorsVisitedToday).toBe(1);
+  });
+
   it('keeps a third of up to four new sectors for the next day', () => {
     const ctx = context();
     ctx.state.map.activity.newSectorsVisitedToday = 7;

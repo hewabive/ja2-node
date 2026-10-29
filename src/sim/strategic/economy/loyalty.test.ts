@@ -21,6 +21,7 @@ import {
   incrementTownLoyalty,
   onSectorLiberated,
   onSectorTakenByEnemy,
+  reduceLoyaltyForRebelsBetrayed,
   setTownLoyalty,
   shortestTownDistances,
   startTownLoyaltyIfFirstTime,
@@ -101,6 +102,17 @@ describe('town loyalty accumulator', () => {
     incrementTownLoyalty(ctx, Town.DRASSEN, 5000);
     expect(ctx.state.economy.towns[Town.DRASSEN]).toMatchObject({ rating: 0, change: 0, started: false });
   });
+
+  it('starts every loyalty town when the rebels are betrayed, so a town not taken yet starts at 0 instead of its sentiment', () => {
+    const ctx = context({ [Fact.MIGUEL_READ_LETTER]: 1 });
+    setTownLoyalty(ctx, Town.DRASSEN, 60);
+    reduceLoyaltyForRebelsBetrayed(ctx);
+    expect(ctx.state.economy.towns[Town.DRASSEN]).toMatchObject({ rating: 20, started: true });
+    expect(ctx.state.economy.towns[Town.ALMA]).toMatchObject({ rating: 0, started: true });
+    expect(ctx.state.economy.towns[Town.TIXA]?.started).toBe(false);
+    startTownLoyaltyIfFirstTime(ctx, Town.ALMA);
+    expect(ctx.state.economy.towns[Town.ALMA]?.rating).toBe(0);
+  });
 });
 
 describe('distance-adjusted global events', () => {
@@ -116,7 +128,7 @@ describe('distance-adjusted global events', () => {
     expect(ctx.state.forces.groups).toHaveLength(0);
   });
 
-  it('gives Drassen the documented +2 for a battle won in D13', () => {
+  it('gives Drassen +2 and a remainder for a battle won in D13, at distance 0 and sentiment 30', () => {
     const ctx = context();
     setTownLoyalty(ctx, Town.DRASSEN, 50);
     handleGlobalLoyaltyEvent(ctx, LoyaltyEvent.BATTLE_WON, parseSectorString('D13'));
@@ -154,7 +166,7 @@ describe('sector control effects', () => {
     expect(ctx.state.economy.towns[Town.DRASSEN]?.rating).toBe(rating);
   });
 
-  it('caps theft at 90 and always asks for theft in visited sectors', () => {
+  it('caps theft at 90 and steals in a visited sector at every takeover, also one the enemy already held (reinforcements)', () => {
     const thefts: number[] = [];
     const { ctx } = economyTestContext({ content, setup: { hooks: { removeRandomItemsInSector: (_, c) => thefts.push(c) } } });
     initializeMapStructure(ctx);

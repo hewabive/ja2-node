@@ -120,7 +120,7 @@ describe('head miners and bandaging', () => {
     expect(random.ranges).toEqual([4, 4, 4, 4, 4]);
   });
 
-  it('bandages a bleeding patient with the first medical kit and re-posts while someone still bleeds', () => {
+  it('bandages with the first kit of either kind, though only a medical kit makes a doctor, and re-posts while someone bleeds', () => {
     const made = context();
     const doctor = made.crew.add({ id: 0, sector: C13, assignment: Assignment.DOCTOR });
     doctor.inv[Slot.BIGPOCK1] = kit(content.items, 'FIRSTAIDKIT', [30]);

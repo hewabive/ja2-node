@@ -24,11 +24,13 @@ import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
-import { Body, NO_PROFILE, SoldierClass, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, Side, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { bloodViews } from '../tactical/world-view.ts';
 import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
+import { UnloadCode } from './sector-flow.ts';
 
 let kit: CampaignKit;
 
@@ -368,6 +370,22 @@ describe('militia and reinforcements', () => {
       wanted.splice(k, 1);
     }
     expect(militia.every((s) => s.visible === 1)).toBe(true);
+  });
+
+  it('keeps militia the player attacked on our side and in the sector: Stracciatella turns no militia and the unload asks the militia team, so nobody defects', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 16, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const a10 = sectorInfo(campaign.state.map, A10);
+    Object.assign(a10, NO_GARRISON_COUNTS);
+    a10.militia = [6, 0, 0];
+    const flow = flowOf(campaign);
+    expect(flow.setCurrentWorldSector(A10)).toBe(true);
+    const t = campaign.tactical?.state ?? never();
+    militiaChangesSides(t);
+    expect(teamMembers(t, Team.MILITIA).every((s) => s.side === Side.FRIENDLY)).toBe(true);
+    flow.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
+    expect(sectorInfo(campaign.state.map, A10).militia).toEqual([6, 0, 0]);
+    expect(campaign.economy?.events.some((e) => e.type === 'militiaDefected')).toBe(false);
   });
 
   it('puts ambushed mercs in the centre and calls every computer team to it', () => {

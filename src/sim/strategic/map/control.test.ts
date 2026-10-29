@@ -3,7 +3,7 @@ import { FakeMercs, loadStrategicTestContent, testContext } from '../../../../te
 import { parseSectorString, type Sector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { addPlayerToGroup, createNewPlayerGroupDepartingFromSector, removePlayerFromGroup } from '../forces/groups.ts';
-import { setThisSectorAsEnemyControlled } from './control.ts';
+import { setThisSectorAsEnemyControlled, setThisSectorAsPlayerControlled } from './control.ts';
 
 let content: StrategicContent;
 
@@ -42,5 +42,21 @@ describe('losing a sector (Player_Command.cc SetThisSectorAsEnemyControlled)', (
     expect(setThisSectorAsEnemyControlled(ctx, C9)).toBe(false);
     expect(taken).toEqual([{ sector: C9, wasPlayerControlled: false }]);
     expect(airspaceUpdates).toBe(1);
+  });
+});
+
+describe('taking a sector (Player_Command.cc SetThisSectorAsPlayerControlled)', () => {
+  it('raises no liberation effects for an enemy sector taken without a fight, only for one won in battle', () => {
+    const liberated: Sector[] = [];
+    const ctx = testContext({ content, world: { sectorLiberated: (event) => liberated.push(event.sector) } });
+    const element = ctx.state.map.elements[strategicIndex(C9)];
+    if (!element) throw new Error('no map element');
+    element.enemyControlled = true;
+    expect(setThisSectorAsPlayerControlled(ctx, C9, false)).toBe(true);
+    expect(element.enemyControlled).toBe(false);
+    expect(liberated).toEqual([]);
+    element.enemyControlled = true;
+    expect(setThisSectorAsPlayerControlled(ctx, C9, true)).toBe(true);
+    expect(liberated).toEqual([C9]);
   });
 });

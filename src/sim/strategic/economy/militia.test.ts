@@ -18,6 +18,7 @@ import {
   trainTownInSector,
   unpaidTrainableSectors,
 } from './militia.ts';
+import { distributeMilitia } from './militia-moves.ts';
 import { isAreaFullOfMilitia } from './militia-rules.ts';
 import type { DecisionAnswer } from './ports.ts';
 import { answerPendingMilitiaPrompt, assignSoldiers } from './set-assignment.ts';
@@ -142,7 +143,31 @@ describe('training progress and completion', () => {
     expect(made.ctx.state.economy.towns[Town.DRASSEN]?.rating).toBe(43);
   });
 
-  it('fills the sector, then town sectors column-major, then promotes here and there, then wastes', () => {
+  it('advances the session of an unpaid sector too: the original never checks the paid flag while training', () => {
+    const made = context();
+    const t = made.crew.add({ id: 0, sector: C13, assignment: Assignment.TRAIN_TOWN });
+    const info = sectorInfo(made.ctx.state.map, C13);
+    expect(info.militiaTrainingPaid).toBe(false);
+    expect(trainTownInSector(made.ctx, t, C13, 760)).toBe(false);
+    expect(info).toMatchObject({ militiaTrainingPercentDone: 7, militiaTrainingHundredths: 60, militiaTrainingPaid: false });
+  });
+
+  it('overflows into the town sectors column by column, as the original builds its town sector list x outer', () => {
+    const made = context();
+    const F8 = parseSectorString('F8');
+    const G8 = parseSectorString('G8');
+    const F9 = parseSectorString('F9');
+    const t = made.crew.add({ id: 0, sector: F8, assignment: Assignment.TRAIN_TOWN });
+    militia(made, F8, 0, 20, 0);
+    militia(made, G8, 0, 10, 0);
+    militia(made, F9, 0, 10, 0);
+    for (const full of ['G9', 'H8']) militia(made, parseSectorString(full), 0, 20, 0);
+    expect(townMilitiaTrainingCompleted(made.ctx, t, F8)).toBe(10);
+    expect(sectorInfo(made.ctx.state.map, G8).militia).toEqual([10, 10, 0]);
+    expect(sectorInfo(made.ctx.state.map, F9).militia).toEqual([0, 10, 0]);
+  });
+
+  it('fills the sector, then the other town sectors, then promotes here and there, then wastes', () => {
     const made = context();
     const t = made.crew.add({ id: 0, sector: C13, assignment: Assignment.TRAIN_TOWN });
     militia(made, C13, 15, 0, 0);
@@ -199,7 +224,7 @@ describe('training progress and completion', () => {
 });
 
 describe('promotions and defections', () => {
-  it('promotes by kill points with the documented chances and rank fallback', () => {
+  it('promotes at 25 and 10 % per kill point, green to elite at once, and tries a higher rank when the soldier’s own is gone', () => {
     const rolls = new ScriptedRolls([49, 99, 74, 49, 0]);
     const made = context('yes', rolls);
     militia(made, D13, 5, 2, 0);
@@ -232,5 +257,21 @@ describe('promotions and defections', () => {
     militia(made, D13, 2, 2, 1);
     handleMilitiaDefections(made.ctx, D13);
     expect(sectorInfo(made.ctx.state.map, D13).militia).toEqual([1, 1, 0]);
+  });
+});
+
+describe('evening out a town (Map_Screen_Interface_Map.cc HandleEveningOutOfTroopsAmongstSectors)', () => {
+  it('deals out the militia of a town sector with enemies in it while they also stay there', () => {
+    const made = context();
+    militia(made, B13, 4, 0, 0);
+    militia(made, C13, 0, 0, 0);
+    militia(made, D13, 6, 0, 0);
+    sectorInfo(made.ctx.state.map, D13).numTroops = 3;
+    expect(distributeMilitia(made.ctx, Town.DRASSEN)).toEqual({ ok: true });
+    expect([B13, C13, D13].map((s) => sectorInfo(made.ctx.state.map, s).militia)).toEqual([
+      [5, 0, 0],
+      [5, 0, 0],
+      [6, 0, 0],
+    ]);
   });
 });

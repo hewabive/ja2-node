@@ -5,7 +5,7 @@
 // @src BandageBleedingDyingPatientsBeingTreated.
 
 import { ItemClass } from '../../../content/items/items.ts';
-import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { MAP_WORLD_X, sameSector } from '../../../content/strategic/sector-ids.ts';
 import { i8, i16, idiv, u16 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
 import { EventKind } from '../time/constants.ts';
@@ -20,7 +20,7 @@ import {
   enoughTimeOnAssignment,
   numberThatCanBeDoctored,
 } from './conditions.ts';
-import { Assignment, HOSPITAL_SECTOR, OKLIFE, StatAmt, StatCause } from './constants.ts';
+import { Assignment, HOSPITAL_SECTOR, OKLIFE, SECTORS_WITH_SOLDIERS_Z_LEVELS, StatAmt, StatCause } from './constants.ts';
 import { findObjClass, kitItems, makeSureMedKitIsInHand, NO_SLOT, Slot, totalPoints, useKitPoints } from './kits.ts';
 import { calculateHealingPointsForDoctor } from './points.ts';
 import type { CrewMember, EconomyContext, StatDamage } from './ports.ts';
@@ -198,7 +198,7 @@ export function checkForAndHandleHospitalPatients(ctx: EconomyContext, sectorsWi
 }
 
 export function sectorsWithSoldiersKey(s: { readonly x: number; readonly y: number; readonly z: number }): number {
-  return (s.x + s.y * 18) * 4 + s.z;
+  return (s.x + s.y * MAP_WORLD_X) * SECTORS_WITH_SOLDIERS_Z_LEVELS + s.z;
 }
 
 export function bandageBleedingDyingPatientsBeingTreated(ctx: EconomyContext): void {
