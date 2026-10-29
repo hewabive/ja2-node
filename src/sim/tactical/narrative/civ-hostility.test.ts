@@ -10,7 +10,7 @@ import { createCivGroupState, makeCivGroupHostileOnNextSectorEntrance } from '..
 import { EventKind } from '../../strategic/time/constants.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
-import { AlertStatus, Body, CivilianGroup, Orders, Side, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, Orders, Side, Team } from '../soldier.ts';
 import { sectorMapOf } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import {
@@ -23,7 +23,7 @@ import {
   processImplicationsOfPCMessingWithDoor,
 } from './civ-hostility.ts';
 import { CivGroupHostility, Loyalty, Profile, Town } from './constants.ts';
-import { civilianDeathRules } from './death-rules.ts';
+import { civilianDeathRules, playerTeamDeathRules } from './death-rules.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './port.ts';
 import { newSightingRules } from './sight-rules.ts';
 
@@ -273,6 +273,20 @@ describe('death rules', () => {
       `loyalty ${Town.BALIME} ${-Loyalty.PENALTY_ELDIN_KILLED}`,
       `loyalty ${Town.CAMBRIA} ${-Loyalty.PENALTY_JOEY_KILLED}`,
     ]);
+  });
+
+  it('makes Carmen hunting Slay make peace when Slay dies, only while a conscious merc who is no escort is in sector', () => {
+    function slayDies(survivorIsEscort: boolean): string[] {
+      const { sim, port } = setup();
+      sim.state.narrative = { ...port, isEpc: () => survivorIsEscort };
+      const slay = spawnSoldier(sim, 1, Team.OUR, NEAR, NORTH, { profile: Profile.SLAY });
+      slay.life = 0;
+      civilian(sim, 116, FAR, CivilianGroup.NONE, Profile.CARMEN).ai.attitude = Attitude.ATTACKSLAYONLY;
+      playerTeamDeathRules(sim.state, slay);
+      return port.calls;
+    }
+    expect(slayDies(false)).toEqual([`record ${Profile.CARMEN} 29`]);
+    expect(slayDies(true)).toEqual([]);
   });
 });
 
