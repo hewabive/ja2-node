@@ -13,7 +13,7 @@
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
-// @src DialogueQueueIsEmptyAndNobodyIsTalking.
+// @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -60,6 +60,7 @@ export interface NarrativePort {
   setUpHelicopterForPlayer(sector: SectorRef): void;
   dialogueBusy(): boolean;
   dialogueQueueIsEmptyAndNobodyIsTalking(): boolean;
+  scriptedSequence(): boolean;
   startTalking(s: Soldier, target: number): void;
   npcReachedDestination(s: Soldier): void;
   replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
@@ -124,6 +125,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   setUpHelicopterForPlayer: () => {},
   dialogueBusy: () => false,
   dialogueQueueIsEmptyAndNobodyIsTalking: () => true,
+  scriptedSequence: () => false,
   startTalking: () => {},
   npcReachedDestination: () => {},
   replaceLocationInNpcData: () => {},

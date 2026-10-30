@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
-// @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival;
+// @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
+// @src LOCKUI_MODE test, 2026-10-30);
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback.
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
@@ -9,6 +10,7 @@ import { has, StructureFlags, type StructureInstance } from '../../../content/wo
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
 import { anyMercWalksToGiveItem } from '../give.ts';
+import { playerInterfaceLocked } from '../interface-lock.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
 import type { Soldier } from '../soldier.ts';
@@ -201,7 +203,9 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
 }
 
 function otherActivityUnderWay(t: TacticalState): boolean {
-  return !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() || anyMercWalksToGiveItem(t) || t.pathEnv.autoBandage;
+  return (
+    !t.narrative.dialogueQueueIsEmptyAndNobodyIsTalking() || playerInterfaceLocked(t) || anyMercWalksToGiveItem(t) || t.pathEnv.autoBandage
+  );
 }
 
 function interactWithPendingStruct(t: TacticalState, s: Soldier, gridNo: number, direction: number): void {

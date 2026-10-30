@@ -583,6 +583,7 @@ export class TalkFlow {
       },
       dialogueBusy: () => this.talk.queue.length > 0 || this.talk.inPanel || this.talk.waitingForTrigger,
       dialogueQueueIsEmptyAndNobodyIsTalking: () => dialogueQueueIsEmptyAndNobodyIsTalking(this.talk),
+      scriptedSequence: () => this.scriptedSequence(),
       startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
       npcReachedDestination: (s) => npcReachedDestination(host, s, false),
       replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),

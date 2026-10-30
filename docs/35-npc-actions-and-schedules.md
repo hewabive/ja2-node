@@ -118,6 +118,7 @@ otherwise:
 | Escorts may use a crowbar and untrap: the untrap button's disable flag replaces the escort flag | `doors/doors.test.ts` |
 | Our merc opens a door that has a lock entry for free; only a door without one costs the opening APs | `doors/doors.test.ts` |
 | A bash that misses by 10 to 39 never earns the token strength point: the failed check has just stored the merc's tile | `doors/doors.test.ts` |
+| An NPC told to open a door drops it on arrival during his own team's turn in combat: the interface is locked then | `narrative/npc-actions/open-thing.test.ts` |
 | Every NPC placement draws a sector at a new game, also those whose profile does not move | `src/sim/strategic/map/init.test.ts` |
 
 Not pinned yet:
@@ -149,4 +150,4 @@ every profile's sector. Inferred from reading the source:
 
 Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "Implications of an attack", "NPC draws first
 and minor offenses", "NPC traversal off the map", "NPC opens a door on arrival", "Team changes". Other deviations of
-this domain: "Terrorist names", "NPC gives an item".
+this domain: "Terrorist names", "NPC gives an item", "Interface lock on arrival".

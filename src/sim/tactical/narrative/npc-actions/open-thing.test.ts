@@ -80,6 +80,20 @@ describe('NPCs opening the closest door or cabinet', () => {
     expect(doorIsOpen(sim)).toBe(false);
   });
 
+  it('drops the opening when it arrives on his own team’s turn in combat, as the interface is locked then', () => {
+    const sim = village();
+    const npc = spawnSoldier(sim, 40, Team.CIV, FIVE_ROWS_SOUTH, NORTH);
+    Object.assign(npc, { profile: Npc.ARMAND });
+    sim.state.inCombat = true;
+    sim.state.turn.currentTeam = Team.CIV;
+    expect(npcOpenThing(fakeActionEnv(), sim.state, npc, true)).toBe(true);
+    stepFor(sim, NPC_WALK_AND_OPEN_TICKS);
+    expect(npc.gridNo).toBe(OUTSIDE);
+    expect(npc.pendingDoorAction).toBeNull();
+    expect(animName(sim.state.content, npc.state)).toBe('STANDING');
+    expect(doorIsOpen(sim)).toBe(false);
+  });
+
   it('sends Armand to his cabinet tile to pick up everything there, whatever its height', () => {
     const sim = village();
     const npc = spawnSoldier(sim, 40, Team.CIV, FIVE_ROWS_SOUTH, NORTH);

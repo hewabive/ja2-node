@@ -599,7 +599,7 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
   return false;
 }
 
-function latestInterruptGuy(t: TacticalState): Soldier | undefined {
+export function latestInterruptGuy(t: TacticalState): Soldier | undefined {
   const list = t.turn.intList;
   return list[list.length - 1];
 }

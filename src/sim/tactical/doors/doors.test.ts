@@ -3,14 +3,20 @@ import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { runUntilIdle as runSimUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { ItemClass } from '../../../content/items/items.ts';
+import { Direction } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { states } from '../animation.ts';
 import { swapStructureForPartner, toggleDoorAt } from '../doors.ts';
+import { playerInterfaceLocked } from '../interface-lock.ts';
 import { InvSlot } from '../inventory.ts';
+import { getNewSoldierPath } from '../movement.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
-import { Team } from '../soldier.ts';
+import { pickGridNoNearestEdge, setActionToDoOnceMercsGetToLocation } from '../sector-exit.ts';
+import { type Soldier, Team } from '../soldier.ts';
+import { WaitForMercs } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
@@ -253,8 +259,17 @@ describe('the stub village door', () => {
 
 describe('a door order that arrives while something else is under way (Overhead.cc ExecuteOverhead)', () => {
   const GIVER_AT = FAR + 4;
+  const LEAVER_AT = FAR + 8;
 
-  function walkToOpen(prepare: (sim: TacticalSim) => void) {
+  function sendOffTheEastEdge(sim: TacticalSim, s: Soldier): void {
+    const t = sim.state;
+    setActionToDoOnceMercsGetToLocation(t, WaitForMercs.WALKOFF_SCREEN, 1);
+    s.waitActionToDo = 2;
+    s.pendingActionData1 = Direction.EAST;
+    getNewSoldierPath(t, s, pickGridNoNearestEdge(t, s, Direction.EAST), states(t.content.animations).WALKING);
+  }
+
+  function walkToOpen(prepare: (sim: TacticalSim) => void, whileWalking: (sim: TacticalSim) => void = () => {}) {
     const sim = village();
     updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
     const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
@@ -264,6 +279,7 @@ describe('a door order that arrives while something else is under way (Overhead.
       ok: true,
       data: { walking: true },
     });
+    whileWalking(sim);
     runSimUntilIdle(sim);
     expect(s.gridNo).toBe(OUTSIDE);
     expect(s.pendingDoorAction).toBeNull();
@@ -292,6 +308,20 @@ describe('a door order that arrives while something else is under way (Overhead.
   it('drops the order while another merc still walks up to give an item, not once he hands it over', () => {
     expect(walkToOpen(mercGiving(false))).toBe(false);
     expect(walkToOpen(mercGiving(true))).toBe(true);
+  });
+
+  it('drops the order while another squad walks off the map edge, which locks the interface', () => {
+    let leaver: Soldier | null = null;
+    const opened = walkToOpen(
+      (sim) => {
+        leaver = spawnSoldier(sim, 1, Team.OUR, LEAVER_AT, NORTH);
+      },
+      (sim) => {
+        if (leaver) sendOffTheEastEdge(sim, leaver);
+        expect(playerInterfaceLocked(sim.state)).toBe(true);
+      },
+    );
+    expect(opened).toBe(false);
   });
 });
 
