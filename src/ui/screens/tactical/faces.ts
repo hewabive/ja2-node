@@ -10,6 +10,7 @@
 import { type AudioGap, inAudioGap } from '../../../content/formats/gap.ts';
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { u32 } from '../../../core/int.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
 import { type DrawList, type PaletteShade, rgb } from '../../draw-list.ts';
@@ -135,7 +136,7 @@ export class FaceAnimator {
     this.#random = random;
     this.#eyeDelay = EYE_DELAY_MS + random(EYE_DELAY_SPREAD_MS);
     const spread = random(2) ? random(BLINK_SPREAD_MS) : -random(BLINK_SPREAD_MS);
-    this.#blinkFrequency = (record.blinkFrequency + spread) >>> 0;
+    this.#blinkFrequency = u32(record.blinkFrequency + spread);
     this.#lastBlink = now;
     this.#lastExpression = now;
     this.#eyeLast = now;

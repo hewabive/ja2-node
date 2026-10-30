@@ -3,7 +3,7 @@
 // @src src/game/Credits.cc CRDT_* codes and flags, EnterCreditsScreen defaults, GetNextCreditFromTextFile, GetNumber,
 // @src HandleCreditFlags, AddCreditNode; src/game/Utils/Font_Control.h FONT_MCOLOR_*.
 
-import { u8 } from '../../core/int.ts';
+import { u8, u32 } from '../../core/int.ts';
 
 export const CREDITS_FILE = 'binarydata/credits.edt';
 export const FIRST_CREDIT_ROW = 1;
@@ -74,7 +74,6 @@ export interface CreditRow {
 }
 
 const UINT32_MAX = 0xffffffff;
-const UINT32_RANGE = 0x100000000;
 const DECIMAL = 10;
 const WHITESPACE = /\s/;
 const DIGIT = /[0-9]/;
@@ -89,7 +88,7 @@ export function scanUnsigned(text: string, at: number): number {
     value = Math.min(UINT32_MAX, value * DECIMAL + Number(text[i]));
     i++;
   }
-  return negative && value > 0 ? UINT32_RANGE - value : value;
+  return negative ? u32(-value) : value;
 }
 
 interface Flags {

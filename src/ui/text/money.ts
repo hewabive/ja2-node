@@ -3,10 +3,12 @@
 // @src src/game/Laptop/Finances.cc InternalSPrintMoney, SPrintMoney, SPrintMoneyNoDollarOnZero (a comma every three
 // @src digits, the minus sign after the dollar).
 
+import { i32 } from '../../core/int.ts';
+
 const DIGIT_GROUP = 3;
 
 function internalSprintMoney(dollar: boolean, amount: number): string {
-  const digits = String(Math.trunc(amount) | 0);
+  const digits = String(i32(amount));
   const start = amount < 0 ? 1 : 0;
   let money = dollar ? '$' : '';
   for (let i = 0; i < digits.length; i++) {

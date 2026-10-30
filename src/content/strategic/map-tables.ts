@@ -4,6 +4,7 @@
 // @src SamSiteModel,SamSiteAirControlModel,StrategicMapSecretModel,CacheSectorsModel,BloodCatPlacementsModel,BloodCatSpawnsModel}.cc;
 // @src src/game/Strategic/Strategic_Movement_Costs.cc InitStrategicMovementCosts.
 
+import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import {
   asArray,
@@ -124,7 +125,7 @@ export function parseMovementCosts(json: unknown, map: TraversabilityMap): Movem
     for (let x = 1; x <= MAP_SIDE; x++) {
       const at = (grid: number[][], row: number, col: number) => grid[row]?.[col] ?? 0;
       traversability.push([at(ns, y - 1, x - 1), at(we, y - 1, x), at(ns, y, x - 1), at(we, y - 1, x - 1), at(through, y - 1, x - 1)]);
-      travelRatings.push((ratings[y - 1]?.[x - 1] ?? 0) & 0xff);
+      travelRatings.push(u8(ratings[y - 1]?.[x - 1] ?? 0));
     }
   }
   return { traversability, travelRatings };
@@ -205,7 +206,7 @@ export function parseSamSites(json: unknown): SamSite[] {
 export function parseSamAirControl(json: unknown): number[] {
   const rows = asArray(json, 'SAM air control');
   if (rows.length !== MAP_SIDE) throw new FormatError('The SAM control table must have exactly 16 rows');
-  const table = rows.flatMap((row, r) => intArray(row, `SAM air control[${r}]`, MAP_SIDE).map((v) => ((v << 24) >> 24) - 1));
+  const table = rows.flatMap((row, r) => intArray(row, `SAM air control[${r}]`, MAP_SIDE).map((v) => i8(v) - 1));
   if (table.length !== SECTOR_COUNT) throw new FormatError('SAM air control: expected 256 values');
   return table;
 }

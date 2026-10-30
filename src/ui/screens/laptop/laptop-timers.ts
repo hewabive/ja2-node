@@ -7,7 +7,7 @@
 // @src 10000 / (100 - p), the centre from (472, 424) to (320, 240)), FlickerHDLight (Random(2) every 50 ms, 3000 ms more
 // @src after the load), ExitLaptopDone (100 ms with the power light off), HandleWebBookMarkNotifyTimer (2000 ms).
 
-import { idiv } from '../../../core/int.ts';
+import { idiv, u16 } from '../../../core/int.ts';
 import type { Area } from '../../draw-list.ts';
 
 const trunc = Math.trunc;
@@ -131,9 +131,9 @@ export function zoomRect(realPercentage: number): Area {
   if (p < HALF) p += trunc(p * factor * 0.01 + 0.5);
   else p += trunc((PERCENT - p) * factor * 0.01 + 0.5);
   const scale = p < 99 ? trunc(10000 / (PERCENT - p)) : ZOOM_SCALE_MAX;
-  const width = trunc((ZOOM_BASE.width * scale) / PERCENT) & 0xffff;
-  const height = trunc((ZOOM_BASE.height * scale) / PERCENT) & 0xffff;
-  const x = (ZOOM_FROM.x - trunc(((ZOOM_FROM.x - ZOOM_TO.x) * scale) / ZOOM_SCALE_MAX)) & 0xffff;
-  const y = (ZOOM_FROM.y - trunc(((ZOOM_FROM.y - ZOOM_TO.y) * scale) / ZOOM_SCALE_MAX)) & 0xffff;
+  const width = u16(trunc((ZOOM_BASE.width * scale) / PERCENT));
+  const height = u16(trunc((ZOOM_BASE.height * scale) / PERCENT));
+  const x = u16(ZOOM_FROM.x - trunc(((ZOOM_FROM.x - ZOOM_TO.x) * scale) / ZOOM_SCALE_MAX));
+  const y = u16(ZOOM_FROM.y - trunc(((ZOOM_FROM.y - ZOOM_TO.y) * scale) / ZOOM_SCALE_MAX));
   return { x: x - idiv(width, 2), y: y - idiv(height, 2), width, height };
 }

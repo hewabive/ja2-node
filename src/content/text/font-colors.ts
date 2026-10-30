@@ -4,6 +4,7 @@
 // @src SetFontForeground, SetFontShadow, SetFontBackground; src/sgp/VObject_Blitters.cc
 // @src Blt8BPPDataTo16BPPBufferMonoShadowClip (0 background, 1 shadow, else foreground; a 16-bit 0 is not drawn).
 
+import { u8 } from '../../core/int.ts';
 import { rgbToRgb565 } from '../formats/rgb565.ts';
 
 export const FontColor = {
@@ -65,7 +66,7 @@ const PALETTE_BYTES = 768;
 
 function paletteRgb(palette: Uint8Array, index: number): [number, number, number] {
   if (palette.length !== PALETTE_BYTES) throw new RangeError('a font palette has 256 RGB colours');
-  const at = (index & 0xff) * 3;
+  const at = u8(index) * 3;
   return [palette[at] as number, palette[at + 1] as number, palette[at + 2] as number];
 }
 

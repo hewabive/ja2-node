@@ -191,23 +191,10 @@ export function writeStructureFile(input: StructureFileInput): Uint8Array {
   const body = new BinaryWriter();
   for (const s of input.structures ?? []) {
     body.u8(s.armour).u8(0).u8(s.density).u8(s.tiles.length).u32(s.flags).u16(s.number);
-    body
-      .u8(s.wallOrientation)
-      .u8(s.destructionPartner & 0xff)
-      .u8(s.partnerDelta & 0xff);
-    body
-      .u8(s.zTileOffsetX & 0xff)
-      .u8(s.zTileOffsetY & 0xff)
-      .zeros(1);
+    body.u8(s.wallOrientation).u8(u8(s.destructionPartner)).u8(u8(s.partnerDelta));
+    body.u8(u8(s.zTileOffsetX)).u8(u8(s.zTileOffsetY)).zeros(1);
     for (const t of s.tiles) {
-      body
-        .i16(0)
-        .u8(t.xRelToBase & 0xff)
-        .u8(t.yRelToBase & 0xff)
-        .bytes(t.shape)
-        .u8(t.flags)
-        .u8(t.vehicleHitLocation)
-        .zeros(1);
+      body.i16(0).u8(u8(t.xRelToBase)).u8(u8(t.yRelToBase)).bytes(t.shape).u8(t.flags).u8(t.vehicleHitLocation).zeros(1);
     }
   }
   const structureData = body.toBytes();
@@ -232,7 +219,7 @@ export function writeStructureFile(input: StructureFileInput): Uint8Array {
         .u8(a.flags)
         .zeros(6);
     }
-    for (const l of input.tileLocations ?? []) w.u8(l.x & 0xff).u8(l.y & 0xff);
+    for (const l of input.tileLocations ?? []) w.u8(u8(l.x)).u8(u8(l.y));
   }
   if (hasStructures) w.bytes(structureData);
   return w.toBytes();

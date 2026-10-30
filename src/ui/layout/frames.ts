@@ -4,7 +4,7 @@
 // @src getTeamPanelNumSlots, get_INV_INTERFACE_START_Y; src/game/UILayout.h TEAMPANEL_SLOT_WIDTH,
 // @src TEAMPANEL_BUTTONSBOX_WIDTH, TEAMPANEL_HEIGHT, INV_INTERFACE_HEIGHT.
 
-import { idiv } from '../../core/int.ts';
+import { idiv, u16 } from '../../core/int.ts';
 import { STD_SCREEN_HEIGHT, STD_SCREEN_WIDTH } from '../resolution.ts';
 import type { ScreenGeometry } from '../services.ts';
 import type { AnchorName, FrameName } from './types.ts';
@@ -40,7 +40,7 @@ export function frameRect(frame: FrameName, geometry: ScreenGeometry, squadSize 
     case 'tacticalPanel':
     case 'tacticalInventory': {
       const panelWidth = teamPanelSlots(width, squadSize) * TEAMPANEL_SLOT_WIDTH + TEAMPANEL_BUTTONSBOX_WIDTH;
-      const x = idiv(width - panelWidth, 2) & 0xffff;
+      const x = u16(idiv(width - panelWidth, 2));
       const panelHeight = frame === 'tacticalPanel' ? TEAMPANEL_HEIGHT : INV_INTERFACE_HEIGHT;
       return { x, y: height - panelHeight, width: panelWidth, height: panelHeight };
     }

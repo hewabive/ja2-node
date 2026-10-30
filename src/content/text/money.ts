@@ -3,10 +3,12 @@
 // @src src/game/Laptop/Finances.cc InternalSPrintMoney, SPrintMoney (a comma every three digits, the minus sign after
 // @src the dollar), for the texts the server renders (mail subjects and bodies).
 
+import { i32 } from '../../core/int.ts';
+
 const DIGIT_GROUP = 3;
 
 export function sprintMoney(amount: number): string {
-  const digits = String(Math.trunc(amount) | 0);
+  const digits = String(i32(amount));
   const start = amount < 0 ? 1 : 0;
   let money = '$';
   for (let i = 0; i < digits.length; i++) {

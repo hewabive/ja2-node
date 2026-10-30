@@ -3,6 +3,7 @@
 // @src src/sgp/Types.cc SGPSector (AsByte, AsStrategicIndex, FromStrategicIndex, AsShortString, AsLongString, IsValid);
 // @src src/game/Strategic/StrategicMap.cc GetMapFileName; src/externalized/JsonUtility.cc parseSectorID.
 
+import { u8, u16, u32 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 
 export const MAP_SIDE = 16;
@@ -34,20 +35,20 @@ export function sameSector(a: Sector, b: Sector): boolean {
 }
 
 export function sectorId(s: { readonly x: number; readonly y: number }): number {
-  return ((s.y - 1) * MAP_SIDE + s.x - 1) & 0xff;
+  return u8((s.y - 1) * MAP_SIDE + s.x - 1);
 }
 
 export function sectorFromId(id: number, z = 0): Sector {
-  const byte = id >>> 0;
+  const byte = u32(id);
   return { x: (byte % MAP_SIDE) + 1, y: Math.trunc(byte / MAP_SIDE) + 1, z };
 }
 
 export function strategicIndex(s: { readonly x: number; readonly y: number }): number {
-  return (s.x + s.y * MAP_WORLD_X) & 0xffff;
+  return u16(s.x + s.y * MAP_WORLD_X);
 }
 
 export function sectorFromStrategicIndex(index: number): Sector {
-  const i = index & 0xffff;
+  const i = u16(index);
   return { x: i % MAP_WORLD_X, y: Math.trunc(i / MAP_WORLD_X), z: 0 };
 }
 

@@ -8,6 +8,7 @@
 // @src UnHideMessagesDuringNPCDialogue (the age frozen while hidden), ClearDisplayedListOfTacticalStrings.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { u32 } from '../../../core/int.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { fontColors, mprint } from '../../text/print.ts';
@@ -84,7 +85,7 @@ export class TacticalMessageLog {
       const line = this.#shown[slot];
       if (!line) continue;
       if (ditchLast && slot === MAX_LINE_COUNT - 1) line.shownAt = MAX_AGE;
-      if ((now - line.shownAt) >>> 0 > maxAge >>> 0) this.#shown[slot] = null;
+      if (u32(now - line.shownAt) > u32(maxAge)) this.#shown[slot] = null;
     }
     const head = this.#queue[0];
     if (!head || this.#shown[MAX_LINE_COUNT - 1] !== null) return false;

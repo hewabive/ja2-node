@@ -4,6 +4,7 @@
 // @src Tactical/Map_Information.cc; Tactical/Soldier_Init_List.cc; TileEngine/Exit_Grids.cc; Tactical/Keys.cc;
 // @src TileEngine/Map_Edgepoints.cc; Strategic/Scheduling.cc; TileEngine/LoadSaveLightSprite.cc
 
+import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';
 import { BinaryWriter } from '../binary/writer.ts';
@@ -240,17 +241,17 @@ function readBasicPlacement(r: BinaryReader): BasicPlacement {
   const detailed = b.u8() !== 0;
   b.skip(1);
   const startingGridNo = b.u16();
-  const team = (b.u8() << 24) >> 24;
-  const relativeAttributeLevel = (b.u8() << 24) >> 24;
-  const relativeEquipmentLevel = (b.u8() << 24) >> 24;
-  const direction = (b.u8() << 24) >> 24;
-  const orders = (b.u8() << 24) >> 24;
-  const attitude = (b.u8() << 24) >> 24;
-  const bodyType = (b.u8() << 24) >> 24;
+  const team = i8(b.u8());
+  const relativeAttributeLevel = i8(b.u8());
+  const relativeEquipmentLevel = i8(b.u8());
+  const direction = i8(b.u8());
+  const orders = i8(b.u8());
+  const attitude = i8(b.u8());
+  const bodyType = i8(b.u8());
   b.skip(1);
   const patrolGrid: number[] = [];
   for (let i = 0; i < 10; i++) patrolGrid.push(b.i16());
-  const patrolCount = (b.u8() << 24) >> 24;
+  const patrolCount = i8(b.u8());
   const onRoof = b.u8() !== 0;
   const soldierClass = b.u8();
   const civilianGroup = b.u8();
@@ -380,7 +381,7 @@ export function parseMap(bytes: Uint8Array): MapDef {
       const trapId = b.u8();
       const lockId = b.u8();
       b.skip(2);
-      doors.push({ gridNo, locked, trapLevel, trapId, lockId, perceivedLocked: 0, perceivedTrapped: 0, lockDamage: (b.u8() << 24) >> 24 });
+      doors.push({ gridNo, locked, trapLevel, trapId, lockId, perceivedLocked: 0, perceivedTrapped: 0, lockDamage: i8(b.u8()) });
     }
   }
   let edgepoints: MapEdgepoints | null = null;
@@ -486,10 +487,10 @@ export function writeMap(map: Omit<MapDef, 'trailingBytes'>): Uint8Array {
         .zeros(1)
         .u16(b.startingGridNo);
       for (const v of [b.team, b.relativeAttributeLevel, b.relativeEquipmentLevel, b.direction, b.orders, b.attitude, b.bodyType])
-        w.u8(v & 0xff);
+        w.u8(u8(v));
       w.zeros(1);
       for (let i = 0; i < 10; i++) w.i16(b.patrolGrid[i] ?? 0);
-      w.u8(b.patrolCount & 0xff)
+      w.u8(u8(b.patrolCount))
         .u8(b.onRoof ? 1 : 0)
         .u8(b.soldierClass)
         .u8(b.civilianGroup)
@@ -511,9 +512,9 @@ export function writeMap(map: Omit<MapDef, 'trailingBytes'>): Uint8Array {
         .u8(d.trapLevel)
         .u8(d.trapId)
         .u8(d.lockId)
-        .u8(d.perceivedLocked & 0xff)
-        .u8(d.perceivedTrapped & 0xff)
-        .u8(d.lockDamage & 0xff)
+        .u8(u8(d.perceivedLocked))
+        .u8(u8(d.perceivedTrapped))
+        .u8(u8(d.lockDamage))
         .zeros(DOOR_BYTES - 9);
     }
   }
