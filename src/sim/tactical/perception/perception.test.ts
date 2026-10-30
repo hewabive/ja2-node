@@ -5,6 +5,7 @@ import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
 import { Rng } from '../../../core/rng.ts';
 import { createItem } from '../../items/object.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
@@ -69,7 +70,8 @@ function spawn(t: TacticalState, team: number, at: number, direction: number): S
   return s;
 }
 
-const stand = (g: number) => ({ gridNo: g, level: 0, heightClass: HeightClass.STAND });
+const NO_CAMO = { bodyType: Body.REGMALE, camo: 0, tilesMoved: 0, overTerrain: Terrain.FLAT_GROUND };
+const stand = (g: number) => ({ gridNo: g, level: 0, heightClass: HeightClass.STAND, ...NO_CAMO });
 
 describe('line of sight', () => {
   it('sees across open ground within range and not beyond it', () => {
@@ -104,7 +106,7 @@ describe('line of sight', () => {
   });
 
   it('reads the land height at either end from the tile with column and row swapped', () => {
-    const viewer = { gridNo: gridNo(70, 80), level: 0, heightClass: HeightClass.CROUCH };
+    const viewer = { gridNo: gridNo(70, 80), level: 0, heightClass: HeightClass.CROUCH, ...NO_CAMO };
     const swappedTile = gridNo(80, 70);
     const t = tactical((w) => w.add(gridNo(70, 81), 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 })));
     const heights = new Uint8Array(t.world.level.heights);

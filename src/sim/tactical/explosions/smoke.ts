@@ -60,6 +60,10 @@ function smokeTypeById(t: TacticalState, id: number): SmokeEffectType | null {
   return null;
 }
 
+export function smokeTileFlag(type: SmokeEffectType): number {
+  return TILE_FLAG_BY_ID[type.id] ?? 0;
+}
+
 export function smokeFlagsAt(t: TacticalState, g: number, level: number): number {
   return t.explosives.smokeTiles[level > 0 ? 1 : 0][g] ?? 0;
 }
@@ -77,7 +81,12 @@ export function smokeEffectOnTile(t: TacticalState, g: number, level: number): n
   return flags & ANY_SMOKE ? smokeEffectIdFromFlags(flags) : SmokeEffectId.NOTHING;
 }
 
-function wearingGasMask(t: TacticalState, s: Soldier): boolean {
+export function smokeTypeOnTile(t: TacticalState, g: number, level: number): SmokeEffectType | null {
+  const id = smokeEffectOnTile(t, g, level);
+  return id === SmokeEffectId.NOTHING ? null : smokeTypeById(t, id);
+}
+
+export function wearingGasMask(t: TacticalState, s: Soldier): boolean {
   const mask = itemIndex(t, 'GASMASK');
   return s.inv[InvSlot.HEAD1]?.item === mask || s.inv[InvSlot.HEAD2]?.item === mask;
 }

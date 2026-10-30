@@ -4,7 +4,15 @@
 // @src SoldierTo3DLocationLineOfSightTest; Tactical/Structure_Wrap.cc wall and door edge queries.
 
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { CELL_X_SIZE, CELL_Y_SIZE, DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import {
+  CELL_X_SIZE,
+  CELL_Y_SIZE,
+  DIRECTION_INCREMENT,
+  Direction,
+  pythSpacesAway,
+  WORLD_COLS,
+  WORLD_MAX,
+} from '../../../content/world/grid.ts';
 import {
   has,
   ORIENT_LEFT,
@@ -15,7 +23,9 @@ import {
   structureHeight,
   type WorldStructures,
 } from '../../../content/world/structures.ts';
-import { i32, idiv, u8 } from '../../../core/int.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
+import { i8, i32, idiv, u8 } from '../../../core/int.ts';
+import { Body, isTank } from '../soldier.ts';
 
 const FIX = 1 << 20;
 const TEN = 10 * FIX;
@@ -35,16 +45,32 @@ const FAST_FORWARD_NONE = 1e6;
 const NO_WINDOW = -1;
 const SMELL_REDUCTION_FOR_NEARBY_OBSTACLE = 80;
 const SMELL_OBSTACLE_RANGE = 100;
+const HIGHEST_GROUND_CUBE = 3;
+const TANK_BLIND_SPOT_TILES = 8;
+const TANK_CROUCHED_BLIND_SPOT_TILES = 4;
+const CAMO_LOST_PER_TILE_MOVED = 5;
+const FULL_CAMO = 100;
+const CAMO_SIGHT_SHARE_DIVISOR = 3;
+const CAMOUFLAGING_TERRAIN: ReadonlySet<number> = new Set([Terrain.FLAT_GROUND, Terrain.LOW_GRASS, Terrain.HIGH_GRASS]);
 
 export const HeightClass = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
 
-const LOS_POS: Readonly<Record<number, number>> = { 6: 175, 3: 111, 1: 31 };
+const STANDING_LOS_POS = 175;
+const CROUCHED_LOS_POS = 111;
+const PRONE_LOS_POS = 31;
+const LOS_POS: Readonly<Record<number, number>> = { 6: STANDING_LOS_POS, 3: CROUCHED_LOS_POS, 1: PRONE_LOS_POS };
 export const TREE_SIGHT_REDUCTION: Readonly<Record<number, number>> = { 6: 6, 3: 7, 1: 8 };
 export const STANDING_TREE_REDUCTION = 6;
+
+export interface SmokeSight {
+  readonly maxVisibility: number;
+  readonly lostVisibilityPerTile: number;
+}
 
 export interface LosWorld {
   readonly structures: WorldStructures;
   readonly heights: Uint8Array;
+  readonly smokeAt?: (g: number, level: number) => SmokeSight | null;
 }
 
 export interface LosOptions {
@@ -228,6 +254,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
   let cubes = cubeOf(fixInt(qZ));
   let loop = 1;
   let roof: StructureInstance | null = null;
+  let smokeTiles = 0;
 
   do {
     const g = tX + tY * WORLD_COLS;
@@ -318,6 +345,15 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
         tY = tileOf(qY);
       }
     } while (tX === oldTX && tY === oldTY && loop < iDist);
+    const smoke = world.smokeAt?.(g, cubeOf(fixInt(qZ)) > HIGHEST_GROUND_CUBE ? 1 : 0);
+    if (smoke) {
+      if (smoke.maxVisibility && !o.smell) {
+        smokeTiles++;
+        if (smokeTiles >= smoke.maxVisibility) adj = 0;
+      }
+      adj -= smoke.lostVisibilityPerTile * CELL_X_SIZE;
+      if (adj <= 0) return 0;
+    }
   } while (loop < iDist);
   return idiv((iDist + (sightLimit - adj)) * SIGHT_SCALE, sightLimit);
 }
@@ -328,27 +364,57 @@ export interface LosSubject {
   readonly heightClass: number;
 }
 
+export interface SightViewer extends LosSubject {
+  readonly bodyType: number;
+}
+
+export interface SightTarget extends SightViewer {
+  readonly camo: number;
+  readonly tilesMoved: number;
+  readonly overTerrain: number;
+}
+
 export function soldierEyeZ(world: LosWorld, s: LosSubject): number {
-  let z = LOS_POS[s.heightClass] ?? LOS_POS[HeightClass.STAND] ?? 175;
+  let z = LOS_POS[s.heightClass] ?? STANDING_LOS_POS;
   if (s.level > 0) z += 256;
   return z + landHeightUnits(world, s.gridNo);
 }
 
+function inTankBlindSpot(tank: SightViewer, target: SightViewer, targetZ: number): boolean {
+  const tiles = pythSpacesAway(tank.gridNo, target.gridNo);
+  if (tiles > TANK_BLIND_SPOT_TILES) return false;
+  if (targetZ <= PRONE_LOS_POS) return true;
+  return tiles <= TANK_CROUCHED_BLIND_SPOT_TILES && targetZ <= CROUCHED_LOS_POS;
+}
+
+function effectiveCamo(target: SightTarget): number {
+  const worn = target.bodyType === Body.BLOODCAT ? FULL_CAMO : target.camo;
+  return Math.max(idiv(worn * (100 - target.tilesMoved * CAMO_LOST_PER_TILE_MOVED), 100), 0);
+}
+
+function camouflagedTileLimit(target: SightTarget, camo: number, tileLimit: number): number {
+  if (target.heightClass >= HeightClass.STAND || !CAMOUFLAGING_TERRAIN.has(target.overTerrain)) return tileLimit;
+  return u8(tileLimit - idiv(tileLimit * idiv(camo, CAMO_SIGHT_SHARE_DIVISOR), 100));
+}
+
 export function soldierToSoldierLineOfSight(
   world: LosWorld,
-  viewer: LosSubject,
-  target: LosSubject,
+  viewer: SightViewer,
+  target: SightTarget,
   tileLimit: number,
   aware: boolean,
   disallow = false,
   smell = false,
 ): number {
   const endZ = soldierEyeZ(world, smell ? { ...target, heightClass: HeightClass.STAND } : target);
+  if (isTank(viewer) && inTankBlindSpot(viewer, target, endZ)) return 0;
+  const camouflaged = !aware && target.camo !== 0;
+  const camo = camouflaged ? effectiveCamo(target) : 0;
   return lineOfSightTest(world, viewer.gridNo, soldierEyeZ(world, viewer), target.gridNo, endZ, {
-    tileLimit,
-    treeReduction: TREE_SIGHT_REDUCTION[target.heightClass] ?? STANDING_TREE_REDUCTION,
+    tileLimit: camouflaged ? camouflagedTileLimit(target, camo, tileLimit) : tileLimit,
+    treeReduction: isTank(target) ? 0 : (TREE_SIGHT_REDUCTION[target.heightClass] ?? STANDING_TREE_REDUCTION),
     aware,
-    camo: 0,
+    camo: i8(camo),
     disallowSight: disallow,
     smell,
   });
@@ -362,7 +428,7 @@ export function soldierToLocationLineOfSight(
   tileLimit: number,
   disallow = false,
 ): number {
-  const endZ = 175 + level * 256 + landHeightUnits(world, g);
+  const endZ = STANDING_LOS_POS + level * 256 + landHeightUnits(world, g);
   return lineOfSightTest(world, viewer.gridNo, soldierEyeZ(world, viewer), g, endZ, {
     tileLimit,
     treeReduction: STANDING_TREE_REDUCTION,

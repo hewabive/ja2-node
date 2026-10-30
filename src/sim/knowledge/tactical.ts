@@ -7,6 +7,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
 import { containerGridNos, doorGridNos, isDoorOpenAt, isOpenableOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
+import { smokeTileFlag, smokeTypeOf } from '../tactical/explosions/smoke.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -52,7 +53,7 @@ const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
 
 const BOXING_FIELDS: ReadonlySet<PropertyKey> = new Set(['state']);
 
-const EXPLOSIVES_FIELDS: ReadonlySet<PropertyKey> = new Set(['gassed']);
+const EXPLOSIVES_FIELDS: ReadonlySet<PropertyKey> = new Set(['gassed', 'smokeTiles']);
 
 const PERCEPTION_FIELDS: ReadonlySet<PropertyKey> = new Set(['publicOpp', 'disallowSight']);
 const OUR_PUBLIC_OPP: ReadonlySet<PropertyKey> = new Set([String(Team.OUR), 'length']);
@@ -133,6 +134,7 @@ export class TacticalProjection {
     this.#syncSoldiers(view.soldiers, guard);
     this.#syncItems(view, guard);
     this.#syncLight(view);
+    this.#syncSmoke(view);
     t.narrative = projectionNarrative(viewNarrative(view.soldiers), guard);
     t.boxing.state = BOXING_STATE_NAMES.indexOf((view.boxing?.state ?? 'notBoxing') as BoxingStateName);
     return this.#guardedState(guard);
@@ -199,6 +201,17 @@ export class TacticalProjection {
     (view.items ?? []).forEach((v, k) => {
       t.worldItems.push(worldItemFromView(t.content.items, v, `item ${k}`, guard));
     });
+  }
+
+  #syncSmoke(view: KnowledgeView): void {
+    const t = this.state;
+    const tiles = t.explosives.smokeTiles;
+    for (const level of tiles) level.fill(0);
+    for (const tile of view.smoke ?? []) {
+      const type = smokeTypeOf(t, tile.effect);
+      const level = tiles[tile.level > 0 ? 1 : 0];
+      if (type) level[tile.gridNo] = smokeTileFlag(type);
+    }
   }
 
   #syncLight(view: KnowledgeView): void {

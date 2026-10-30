@@ -12,7 +12,7 @@ import { idiv } from '../../../core/int.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
 import { rangeInUnits } from '../combat/chance.ts';
-import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { losWorldOf, soldierTo3DLocationLos } from '../combat/positions.ts';
 import { findBestPath, PathCopy } from '../pathfinding.ts';
 import {
   freshestLastKnown,
@@ -242,7 +242,7 @@ export function locationToLocationLos(
 ): number {
   const soldier = whoIsThere(t, start, startLevel);
   if (soldier) return soldierTo3DLocationLos(t, soldier, end, endLevel, 0, limit, aware);
-  const world = { structures: t.world.structures, heights: t.world.level.heights };
+  const world = losWorldOf(t);
   const startZ = STANDING_LOS_POS + startLevel * HEIGHT_UNITS + landHeightUnits(world, start);
   const endZ = STANDING_LOS_POS + endLevel * HEIGHT_UNITS + landHeightUnits(world, end);
   return lineOfSightTest(world, start, startZ, end, endZ, {

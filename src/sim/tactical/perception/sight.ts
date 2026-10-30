@@ -17,6 +17,7 @@ import { setSoldierAniSpeed, states } from '../animation.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { withinOneOctant } from '../directions.ts';
+import { smokeTypeOnTile, wearingGasMask } from '../explosions/smoke.ts';
 import { cancelFadeOnSighting } from '../fade.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
@@ -28,6 +29,7 @@ import {
   Body,
   consideredNeutral,
   isMonster,
+  isTank,
   NO_INTERRUPT,
   NO_PROFILE,
   NOBODY,
@@ -73,6 +75,8 @@ const LOOK_BY_OCTANT_DIFFERENCE = [STRAIGHT, ANGLE, 7, 0, 0];
 const SUNGOGGLES_BONUS_PER_LEVEL = 1;
 const NIGHTSIGHTGOGGLES_BONUS = 2;
 const UVGOGGLES_BONUS = 4;
+const TANK_SIGHT_BONUS = 5;
+const GASSED_SIGHT_TILES = 2;
 const GOGGLES_FADE_LEVELS = 3;
 const DARK_LEVELS_ABOVE_DAY = 5;
 const NO_ITEM = -2;
@@ -166,7 +170,20 @@ export function distanceVisible(
   }
   if (viewer.level !== level) d += 2;
   const light = flash ? Math.min(lightTrueLevel(t, g, level), NORMAL_LIGHTLEVEL_DAY) : lightTrueLevel(t, g, level);
-  return adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
+  const lit = adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
+  return sightInGas(t, viewer, level, sightAroundTanks(viewer, subject, lit));
+}
+
+function sightAroundTanks(viewer: Soldier, subject: Soldier | null, d: number): number {
+  if ((isTank(viewer) && d > 0) || (subject && isTank(subject))) return Math.max(d + TANK_SIGHT_BONUS, MAX_DISTANCE_VISIBLE);
+  return d;
+}
+
+function sightInGas(t: TacticalState, viewer: Soldier, subjectLevel: number, d: number): number {
+  const gas = smokeTypeOnTile(t, viewer.gridNo, subjectLevel);
+  if (!gas || gas.maxVisibilityWhenAffected === 0) return d;
+  if (wearingGasMask(t, viewer) && !gas.ignoresGasMask) return d;
+  return Math.min(GASSED_SIGHT_TILES, d);
 }
 
 export function seesMuzzleFlashWithoutTurning(viewer: Soldier, towards: number): boolean {

@@ -6,8 +6,17 @@
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { endHeight } from '../animation.ts';
+import { smokeTypeOnTile } from '../explosions/smoke.ts';
 import { keptApartInBloodcatArena } from '../perception/bloodcat-arena.ts';
-import { type LosWorld, landHeightUnits, lineOfSightTest, soldierToSoldierLineOfSight, TREE_SIGHT_REDUCTION } from '../perception/los.ts';
+import {
+  type LosWorld,
+  landHeightUnits,
+  lineOfSightTest,
+  type SightTarget,
+  type SightViewer,
+  soldierToSoldierLineOfSight,
+  TREE_SIGHT_REDUCTION,
+} from '../perception/los.ts';
 import { Body, isMonster, type Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { AimShot } from './types.ts';
@@ -36,7 +45,7 @@ const isCreatureOrBloodcat = (s: Soldier) =>
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 
 export function losWorldOf(t: TacticalState): LosWorld {
-  return { structures: t.world.structures, heights: t.world.level.heights };
+  return { structures: t.world.structures, heights: t.world.level.heights, smokeAt: (g, level) => smokeTypeOnTile(t, g, level) };
 }
 
 export function calculateSoldierZPos(t: TacticalState, s: Soldier, posTypeIn: number): number {
@@ -92,13 +101,20 @@ export function targetZFromStructureHeight(t: TacticalState, g: number, level: n
   return Math.fround(z + landHeightUnits(losWorldOf(t), g));
 }
 
+function sightViewer(t: TacticalState, s: Soldier): SightViewer {
+  return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state), bodyType: s.bodyType };
+}
+
+function sightTarget(t: TacticalState, s: Soldier, aware: boolean): SightTarget {
+  return { ...sightViewer(t, s), camo: aware ? 0 : s.camo, tilesMoved: s.tilesMoved, overTerrain: s.overTerrain };
+}
+
 export function soldierToSoldierLos(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: number, aware: boolean): number {
   if (keptApartInBloodcatArena(t, viewer, target)) return 0;
-  const subject = (s: Soldier) => ({ gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) });
   return soldierToSoldierLineOfSight(
     losWorldOf(t),
-    subject(viewer),
-    subject(target),
+    sightViewer(t, viewer),
+    sightTarget(t, target, aware),
     tileLimit,
     aware,
     t.perception.disallowSight,

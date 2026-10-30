@@ -18,7 +18,7 @@ a trigger: a tile centre, a turn while standing, the end of a      perception/wi
   or light changing, a sector load
   └ handleSight(LOOK | RADIO | INTERRUPT)                         perception/sight.ts
      the soldier looks at every other team, every other team looks at him
-        manLooksForMan: distanceVisible (facing, light, gear)      perception/sight.ts, lighting/lighting.ts
+        manLooksForMan: distanceVisible (facing, light, gear, gas) perception/sight.ts, lighting/lighting.ts
            lineOfSightTest over the structure lists               perception/los.ts
         manSeesMan / handleManNoLongerSeen: opplist, visible,      perception/sight.ts, perception/duel.ts
            duel points, NPC rules, the AI's stance                narrative/sight-rules.ts, perception/enemy-stance.ts
@@ -32,7 +32,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 
 | Module | Holds |
 |---|---|
-| `perception/los.ts` | `lineOfSightTest`, the wall-corner rule, the eye height sight uses, the soldier-to-soldier and soldier-to-location tests |
+| `perception/los.ts` | `lineOfSightTest` with smoke and gas on the ray, the wall-corner rule, the eye height sight uses, the soldier-to-soldier test with camouflage and the tank's blind spot, the soldier-to-location test |
 | `perception/sight.ts` | `Perception` (public opplist, public noise, best-sighting list); vision range, looks, opplists, radio, `handleSight`, decay, muzzle flashes |
 | `perception/opp.ts` | Opplist values, sight flags, callers, `atan8` |
 | `perception/noise.ts` | Movement and door noise, `makeNoise` → `processNoise` → `hearNoise`, `tellPlayerAboutNoise`, `squadHears` |
@@ -91,6 +91,12 @@ and replays them when it reaches 0 (`33`), so their interrupts come after the at
 Hearing reads the sector's ambient level. The light model is `20`; the sandbox keeps ambient day light (deviation
 "Ambient light and light schedule").
 
+**Smoke, gas, camouflage and tanks.** The ray reads the smoke and gas layer of `ExplosivesState` (`12`) tile by tile:
+smoke hides what lies behind a few of its tiles, tear and mustard gas cost range like cover, and a viewer standing in
+gas without a mask sees only his surroundings. Camouflage fools only an unaware viewer, and less after every tile its
+wearer moved since his turn began; tanks see and are seen farther, foliage never hides one, and a tank misses low soldiers close
+to its hull. The hint projection fills the layer from the view's `smoke`, so an estimate reads what the server reads.
+
 **The fog of war is a third, cruder system.** Revealed tiles come from fixed view paths over the movement cost table,
 not from the ray. One revealed tile of a room reveals the whole room and hides its roof for good; both are saved in the
 sector diff (`sim/campaign/sector-diff.ts`). The client derives hidden roofs, show-through and wireframes from the
@@ -121,6 +127,11 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A team forgets its last radio caller one decay after its last opponent | `public-opplist.test.ts` |
 | Watched locations decay for every id of the team's range, present or not | `public-opplist.test.ts` |
 | A soldier created in the loaded sector, or leaving it, wipes where his team last placed everyone there, levels kept: reinforcements forget what the radio told the army | `public-opplist.test.ts` |
+| A viewer reads the gas of his own tile on the level he looks at, not the one he stands on | `sight-modifiers.test.ts` |
+| Anyone sees a tank behind his back, while a tank sees nobody behind its own | `sight-modifiers.test.ts` |
+| A ray picks the smoke layer by its height counted from the map's zero, not from the land, so over high ground it reads the roof's smoke | `sight-modifiers.test.ts` |
+| Smoke never stops a creature's smell, yet tear and mustard gas shorten it | `sight-modifiers.test.ts` |
+| Any camouflage on a bloodcat counts as full camouflage | `sight-modifiers.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
@@ -140,8 +151,8 @@ The oracle's `los` probe compares `LineOfSightTest` and `SoldierToSoldierLineOfS
 pairs, buildings, a fence, roof to ground and back, trees against each target stance) and for every opposed pair of the
 six saves; `light` compares the full-circle `DistanceVisible`; the soldier dumps compare `visible` and the opplist; the
 `civ` probes trace the first-sight quotes of Mike and Joey (`tools/oracle/README.md`). A9 is flat; of the probed
-sectors only D13 has land heights. Noise, hearing, radio, the decay and the fog of war are not probed. Inferred from
-reading the source:
+sectors only D13 has land heights. Noise, hearing, radio, the decay, the fog of war, smoke and gas in sight and tanks
+are not probed. Inferred from reading the source:
 - Whether a ray's length is integral: libstdc++'s float `hypot` agrees with `f32(Math.sqrt)` for every horizontal
   offset up to 39 tiles that was checked, and MSVC's is exact; other builds are assumed to agree.
 - A neighbour outside the map has no wall in the wall-corner rule; the original reads past its array.
@@ -152,6 +163,6 @@ reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard
-room run", "Doors". Other deviations of this domain: "Enemy sighted on their turn",
-"Real-time turn after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".
+Not ported: gaps "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard room run", "Doors". Other
+deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light
+schedule", "Sounds out of sight", "Bullets of unseen shooters".
