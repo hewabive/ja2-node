@@ -7,7 +7,7 @@
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure.
 
-import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
+import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -90,6 +90,7 @@ const oneC = (d: number) => (d + 1) % 8;
 const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
 const VEHICLE_CORPSE_DIRECTION = 7;
+const FIXED_CORPSE_DIRECTION = 7;
 const COLLAPSED_TURNS_BEFORE_KNOCKOUT = 1;
 const FALL_TO_GROUND_CODE = 721;
 const HEAVY_FALL_CODE = 722;
@@ -349,7 +350,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     if (isQueenMonsterCorpse(t, type)) dropQueenBlood(t, s, visible);
     else dropInventory(t, s, visible);
   }
-  const direction = corpseDirection(s);
+  const direction = corpseDirection(t, s, type);
   removeOccupant(t, s);
   removeMercStructure(t, s);
   if (s.team !== Team.OUR) unregisterSoldier(t, s);
@@ -370,7 +371,8 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
-function corpseDirection(s: Soldier): number {
+function corpseDirection(t: TacticalState, s: Soldier, type: number): number {
+  if (hasFixedCorpseDirection(t.content.corpses.table, type)) return FIXED_CORPSE_DIRECTION;
   if (s.bodyType < Body.HUMVEE) return s.direction;
   if (s.bodyType !== Body.ICECREAMTRUCK && s.bodyType !== Body.HUMVEE) return VEHICLE_CORPSE_DIRECTION;
   return s.direction === 0 || s.direction === 4 ? 0 : VEHICLE_CORPSE_DIRECTION;

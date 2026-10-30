@@ -146,6 +146,7 @@ function shootDead(targetContent: TacticalContent, spawnTarget: (sim: TacticalSi
   const jar = t.content.items.byName.get('JAR_QUEEN_CREATURE_BLOOD')?.index;
   return {
     corpses: t.corpses.map((c) => ({ at: c.gridNo, type: t.content.corpses.table.types[c.type] })),
+    directions: t.corpses.map((c) => c.direction),
     jars: t.worldItems.filter((i) => i.object.item === jar).map((i) => i.gridNo - CREATURE_AT),
   };
 }
@@ -176,6 +177,31 @@ describe('creatures shot dead (Soldier_Ani.cc codes 465 and 440, Animation_Contr
 
   it('drops the queen’s blood jars two rows south of her corpse', () => {
     expect(shootCreatureDead(content, Body.QUEENMONSTER).jars).toEqual(Array(5).fill(2 * WORLD_COLS));
+  });
+});
+
+const MAX_DEATH_TICKS = 2_000;
+const FIXED_CORPSE_DIRECTION = 7;
+
+function corpseAfterDying(dying: string, facing: number) {
+  const sim = newCombatSim(content);
+  const t = sim.state;
+  const s = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, CREATURE_AT, facing, { life: 1 });
+  initNewSoldierAnim(t, s, anim(t.content, dying), 0, true);
+  for (let tick = 0; tick < MAX_DEATH_TICKS && s.placed; tick++) sim.step();
+  return t.corpses.map((c) => ({ type: t.content.corpses.table.types[c.type], direction: c.direction }));
+}
+
+describe('the direction of a corpse (Rotting_Corpses.cc TurnSoldierIntoCorpse)', () => {
+  it('lays the queen’s, a burnt and an exploded corpse in direction 7, whichever way the soldier faced', () => {
+    expect(shootCreatureDead(content, Body.QUEENMONSTER).directions).toEqual([FIXED_CORPSE_DIRECTION]);
+    expect(corpseAfterDying('CHARIOTS_OF_FIRE', Direction.EAST)).toEqual([{ type: 'BURNT_DEAD', direction: FIXED_CORPSE_DIRECTION }]);
+    expect(corpseAfterDying('BODYEXPLODING', Direction.SOUTH)).toEqual([{ type: 'EXPLODE_DEAD', direction: FIXED_CORPSE_DIRECTION }]);
+  });
+
+  it('keeps the facing of any other corpse', () => {
+    expect(shootCreatureDead(content, Body.LARVAE_MONSTER).directions).toEqual([Direction.NORTH]);
+    expect(corpseAfterDying('GENERIC_HIT_DEATH', Direction.EAST)).toEqual([{ type: 'SMERC_FWD', direction: Direction.EAST }]);
   });
 });
 

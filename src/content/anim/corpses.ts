@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Rotting_Corpses.cc zCorpseFilenames, GetCorpseStructIndex, AddRottingCorpse (structure part);
-// @src Animation_Control.cc gubAnimSurfaceCorpseID.
+// @src src/game/Tactical/Rotting_Corpses.cc zCorpseFilenames, GetCorpseStructIndex, AddRottingCorpse (structure part),
+// @src TurnSoldierIntoCorpse (the corpses with a fixed direction); Animation_Control.cc gubAnimSurfaceCorpseID.
 
 import { FormatError } from '../binary/errors.ts';
 import { parseStructureFile, type StructureDef, type StructureFile } from '../formats/jsd.ts';
@@ -43,10 +43,14 @@ export function corpseTypeFor(table: CorpseTable, bodyType: number, state: numbe
   return table.animationCorpse[String(bodyType)]?.[String(state)] ?? NO_CORPSE;
 }
 
+export function hasFixedCorpseDirection(table: CorpseTable, type: number): boolean {
+  return FIXED_DIRECTION.includes(table.types[type] ?? '');
+}
+
 export function corpseStructIndex(table: CorpseTable, type: number, direction: number): number {
   const name = table.types[type] ?? '';
   const oneC = (d: number) => (d + 1) % DIRECTIONS;
-  if (FIXED_DIRECTION.includes(name)) return 0;
+  if (hasFixedCorpseDirection(table, type)) return 0;
   if (TWO_DIRECTIONS.includes(name)) return oneC(table.twoDirectionsFrom8[direction] ?? 0);
   if (FOUR_DIRECTIONS.includes(name)) return oneC(table.fourDirectionsFrom8[direction] ?? 0);
   return oneC(direction);
