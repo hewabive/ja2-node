@@ -2,10 +2,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { hintAnswer, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { layProne, raiseTiles, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { DIRECTION_COUNT, Direction, gridNo } from '../../content/world/grid.ts';
+import { TravelCost } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { animName } from './anim-states.ts';
-import { AnimHeight, changeSoldierStance, endHeight } from './animation.ts';
+import { AnimHeight, changeSoldierStance, endHeight, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { isValidStance } from './person-structure.ts';
 import { AP, ptsToMoveDirection } from './points.ts';
@@ -23,6 +24,7 @@ const FAR = gridNo(90, 80);
 const NEAR = gridNo(84, 80);
 const FEW_RUNNING_STEPS_AP = 8;
 const RAISED_HEIGHT = 1;
+const WALLED_IN = gridNo(90, 90);
 
 function battle() {
   const sim = newCombatSim(content);
@@ -117,6 +119,23 @@ describe('the stance of the API joins the height and the run', () => {
     changeSoldierStance(sim.state, merc, AnimHeight.STAND);
     runUntilIdle(sim);
     expect(shown(sim, merc).stance).toBe('stand');
+  });
+
+  it('keeps a crouched merc crouched on R once a group run with no path left him in the running mode: the original tests the mode, not the height', () => {
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+      for (let direction = 0; direction < DIRECTION_COUNT; direction++) world.costs.force(WALLED_IN, direction, 0, TravelCost.OBSTACLE);
+    });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    order(sim, { type: 'stance', stance: 'crouch' });
+    runUntilIdle(sim);
+    expect(sim.dispatch({ type: 'moveGroup', soldiers: [0], to: WALLED_IN, mode: 'run' })).toEqual({
+      ok: true,
+      data: { moved: [], noPath: [0] },
+    });
+    expect(order(sim, { type: 'stance', stance: 'run' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(endHeight(content, merc.state)).toBe(AnimHeight.CROUCH);
+    expect([merc.uiMovementMode, merc.uiMovementFast]).toEqual([states(content.animations).RUNNING, true]);
   });
 
   it('walks after C and S that follow a run', () => {

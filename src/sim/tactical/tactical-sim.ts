@@ -250,6 +250,11 @@ const RANGED_ITEM_CLASSES: ReadonlySet<number> = new Set([ItemClass.GUN, ItemCla
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 
+function walksOrRuns(t: TacticalState, s: Soldier): boolean {
+  const st = states(t.content.animations);
+  return s.uiMovementMode === st.WALKING || s.uiMovementMode === st.RUNNING;
+}
+
 export interface TacticalCommand {
   readonly type: string;
   readonly [key: string]: unknown;
@@ -789,7 +794,7 @@ export class TacticalSim {
   #run(s: Soldier): CommandResult {
     const t = this.state;
     if (isRobot(s) || isVehicle(s) || inWater(s)) return refuse('cannotRun', 'the soldier cannot run here');
-    if (endHeight(t.content, s.state) === AnimHeight.STAND) s.uiMovementMode = states(t.content.animations).RUNNING;
+    if (walksOrRuns(t, s)) s.uiMovementMode = states(t.content.animations).RUNNING;
     else {
       const stood = this.#changeStance(s, AnimHeight.STAND);
       if (!stood.ok) return stood;
