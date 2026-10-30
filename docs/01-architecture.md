@@ -157,10 +157,12 @@ drain; a campaign adds its world clock. A session's simulation (`SessionSim`, `s
 - **Static and dynamic.** Map geometry is immutable content; what changed in a sector the squad left (doors,
   destruction, items, corpses, blood) is its `SectorDiff` (`src/sim/campaign/sector-diff.ts`), like the original's temp
   files.
-- **Integer semantics.** Fixed-width fields go through `src/core/int.ts` (`idiv` truncates toward zero), large products
-  through `Math.imul`, `float` math through `Math.fround`. Overflows the original relies on are reproduced where the
-  code meets them (e.g. a `UINT8` overflowing before its clamp, `Tactical/Overhead.cc:5182`; a `UINT32` underflowing
-  inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need `>>> 0`).
+- **Integer semantics.** Fixed-width fields go through `src/core/int.ts` (`idiv` truncates toward zero, `udiv` divides
+  `UINT32` values past 2^31), large products through `Math.imul`, `float` math through `Math.fround`; `Math.trunc` of a
+  quotient stays only as the cast of a float division of the original or in arithmetic of ja2-node alone. Overflows the
+  original relies on are reproduced where the code meets them (e.g. a `UINT8` overflowing before its clamp,
+  `Tactical/Overhead.cc:5182`; a `UINT32` underflowing inside `max`, `Strategic/Game_Clock.cc:634`; bit-31 flags need
+  `>>> 0`).
 - **Determinism.** No `Math.random`, wall clock, timer (checked, §2) or mutable module state in `core`, `content`, `sim`
   and `ui`. Tables the original precomputes with C math are evaluated as it does (`gdRadiansForAngle` with glibc
   `sin`/`cos`, `src/sim/tactical/constants.ts`). Sight, bullets, throws and directions call `Math.sin`, `Math.cos` and
