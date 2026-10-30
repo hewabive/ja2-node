@@ -10,7 +10,7 @@ import type { MercProfile } from '../../content/formats/prof.ts';
 import { ArmourClass, ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem, validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import { slotLimitOf } from '../../content/items/slot-limit.ts';
-import { u8 } from '../../core/int.ts';
+import { idiv, u8 } from '../../core/int.ts';
 import {
   attachObject,
   cloneObject,
@@ -404,7 +404,7 @@ export function carriedWeightPercent(items: ItemTable, inv: Inventory, effective
   for (const o of inv) grams += objectWeight(items, o);
   const strength =
     effectiveStrength > STRONG_CARRIER_STRENGTH ? u8(effectiveStrength + effectiveStrength - STRONG_CARRIER_STRENGTH) : effectiveStrength;
-  return Math.trunc((100 * grams) / (strength * GRAMS_PER_STRENGTH_POINT));
+  return idiv(100 * grams, strength * GRAMS_PER_STRENGTH_POINT);
 }
 
 export function reducedGunListInventory(items: ItemTable, inventory: readonly number[]): number[] {

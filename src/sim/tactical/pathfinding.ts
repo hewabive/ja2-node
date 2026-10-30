@@ -17,7 +17,7 @@ import {
   type WorldStructures,
 } from '../../content/world/structures.ts';
 import { TERRAIN_MOVEMENT_COST, Terrain } from '../../content/world/terrain.ts';
-import { u8, u16 } from '../../core/int.ts';
+import { idiv, u8, u16 } from '../../core/int.ts';
 import { Team } from './soldier.ts';
 
 export const PathFlags = { THROUGH_PEOPLE: 0x01, IGNORE_PERSON_AT_DEST: 0x02, CLOSE_GOOD_ENOUGH: 0x04 } as const;
@@ -260,7 +260,7 @@ export function doorState(env: PathEnv, g: number, perceived: boolean): number {
 }
 
 function heuristic(dx: number, dy: number): number {
-  return dx < dy ? Math.trunc((LOWEST_STEP_COST * (dx * 14 + dy * 10)) / 14) : Math.trunc((LOWEST_STEP_COST * (dy * 14 + dx * 10)) / 14);
+  return dx < dy ? idiv(LOWEST_STEP_COST * (dx * 14 + dy * 10), 14) : idiv(LOWEST_STEP_COST * (dy * 14 + dx * 10), 14);
 }
 
 interface OpenHead {
@@ -378,10 +378,10 @@ function budgetStepCost(nextCost: number, dir: number, mode: MoveMode, throughDo
     default:
       return null;
   }
-  if (dir & 1) ap = Math.trunc((ap * 14) / 10);
+  if (dir & 1) ap = idiv(ap * 14, 10);
   const water = nextCost === TravelCost.SHORE || nextCost === TravelCost.KNEEDEEP || nextCost === TravelCost.DEEPWATER;
   const apMode = water ? MoveMode.WALKING : mode;
-  if (apMode === MoveMode.RUNNING) ap = Math.trunc((ap * 10) / RUN_DIVISOR_X10);
+  if (apMode === MoveMode.RUNNING) ap = idiv(ap * 10, RUN_DIVISOR_X10);
   else if (apMode === MoveMode.WALKING) ap = u8(ap + WALK_COST);
   else if (apMode === MoveMode.CRAWLING) ap = u8(ap + CRAWL_COST);
   if (nextCost === TravelCost.FENCE) {
@@ -438,9 +438,9 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   const reachable = copyReachable ? new Uint8Array(WORLD_MAX) : null;
   const apCosts = copyCosts ? new Int8Array(AI_PATHCOST_SIZE * AI_PATHCOST_SIZE) : null;
   const apCostIndex = (loc: number) =>
-    aiPathCostIndex((loc % WORLD_COLS) - (org % WORLD_COLS), Math.trunc(loc / WORLD_COLS) - Math.trunc(org / WORLD_COLS));
+    aiPathCostIndex((loc % WORLD_COLS) - (org % WORLD_COLS), idiv(loc, WORLD_COLS) - idiv(org, WORLD_COLS));
   const destX = dest % WORLD_COLS;
-  const destY = Math.trunc(dest / WORLD_COLS);
+  const destY = idiv(dest, WORLD_COLS);
   const waterCost = (c: number) => c === TravelCost.KNEEDEEP || c === TravelCost.DEEPWATER;
   const waterToWater = dest !== NOWHERE && waterCost(world.costs.get(org, 0, level)) && waterCost(world.costs.get(dest, 0, level));
   const trailCost = new Uint16Array(WORLD_MAX);
@@ -461,8 +461,8 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     return trailBack[trail] ? oppositeDirection(dir) : dir;
   };
   const open = new OpenList();
-  const remaining = (loc: number) => heuristic(Math.abs(destX - (loc % WORLD_COLS)), Math.abs(destY - Math.trunc(loc / WORLD_COLS)));
-  const legDistance = (loc: number) => u8(Math.abs(destX - (loc % WORLD_COLS)) + Math.abs(destY - Math.trunc(loc / WORLD_COLS)));
+  const remaining = (loc: number) => heuristic(Math.abs(destX - (loc % WORLD_COLS)), Math.abs(destY - idiv(loc, WORLD_COLS)));
+  const legDistance = (loc: number) => u8(Math.abs(destX - (loc % WORLD_COLS)) + Math.abs(destY - idiv(loc, WORLD_COLS)));
   const costToGo = (loc: number) => (copyReachable ? REACHABLE_COST_TO_GO : remaining(loc));
   open.push(org, 0, u16(costToGo(org)), legDistance(org), 0, 0);
   trailCost[org] = 0;
@@ -539,7 +539,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     }
     if (newLoc === dest) nextCost = 0;
     if (waterToWater && waterCost(nextCost)) nextCost = EASYWATERCOST;
-    if (dir & 1) nextCost = Math.trunc((nextCost * 14) / 10);
+    if (dir & 1) nextCost = idiv(nextCost * 14, 10);
     if (backwards) nextCost += BACKWARDS_STEP_PENALTY;
     const newTotal = cur.g + nextCost;
     if (used[newLoc] === 1 && newTotal >= (trailCost[newLoc] as number)) return EXPANDED;

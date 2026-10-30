@@ -6,6 +6,7 @@
 // @src externalized/WeaponModels.cc the weapon type index of WeaponType[]; Utils/Text.h Message ids STR_RELIABLE..STR_NONE.
 
 import { ItemClass, type ItemDef, type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
+import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import { baseAPsToShootOrStabWith, calcAPsToBurstWith } from './combat/ap.ts';
 import { gunRange } from './combat/chance.ts';
@@ -154,7 +155,7 @@ export function weaponStats(items: ItemTable, o: ItemObject, metric: boolean): W
   return {
     status: o.status[0] ?? 0,
     weight: { value: convertedWeight(grams, metric), exceptional: grams <= EXCEPTIONAL_WEIGHT_GRAMS },
-    ...(ranged ? { range: { value: Math.trunc(range / RANGE_UNITS_PER_TILE), exceptional: range >= EXCEPTIONAL_RANGE } } : {}),
+    ...(ranged ? { range: { value: idiv(range, RANGE_UNITS_PER_TILE), exceptional: range >= EXCEPTIONAL_RANGE } } : {}),
     ...(damaging ? { damage: { value: w.impact, exceptional: w.impact >= EXCEPTIONAL_DAMAGE } } : {}),
     ap: { value: ap, exceptional: ap <= EXCEPTIONAL_AP_COST },
     ...(w.shotsPerBurst > 0

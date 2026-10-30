@@ -5,6 +5,7 @@
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
+import { idiv } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
@@ -67,9 +68,9 @@ function totalPoints(o: ItemObject): number {
 
 function searchRange(t: TacticalState, s: Soldier): number {
   let range = (DIFF_MAX_COVER_RANGE[soldierDifficultyLevel(t, s)] ?? 0) + (ATTITUDE_RANGE[s.ai.attitude] ?? 0);
-  range = Math.min(range, Math.trunc(s.stats.wisdom / WISDOM_PER_TILE));
-  if (!t.inCombat) range = Math.trunc(range / 2);
-  return Math.trunc(range / 2);
+  range = Math.min(range, idiv(s.stats.wisdom, WISDOM_PER_TILE));
+  if (!t.inCombat) range = idiv(range, 2);
+  return idiv(range, 2);
 }
 
 function ammoValue(t: TacticalState, o: ItemObject, wantedGun: number, s: Soldier): number | null {
@@ -77,7 +78,7 @@ function ammoValue(t: TacticalState, o: ItemObject, wantedGun: number, s: Soldie
   if (def?.itemClass === ItemClass.GUN && (o.status[0] ?? 0) >= MINIMUM_REQUIRED_STATUS) {
     if (!isGunUsable(t, o, s)) return null;
     const mine = t.content.items.byIndex.get(wantedGun)?.weapon?.deadliness || 1;
-    return Math.trunc((o.gunShotsLeft * (def.weapon?.deadliness ?? 0)) / mine);
+    return idiv(o.gunShotsLeft * (def.weapon?.deadliness ?? 0), mine);
   }
   return validAmmoType(t, wantedGun, o.item) ? totalPoints(o) : null;
 }
@@ -90,7 +91,7 @@ function weaponValue(t: TacticalState, o: ItemObject, s: Soldier): number | null
   const inHand = items.byIndex.get((s.inv[InvSlot.HAND] as ItemObject).item);
   if (inHand?.weapon) {
     if (def.weapon.deadliness <= inHand.weapon.deadliness) return null;
-    return Math.trunc((100 * def.weapon.deadliness) / (inHand.weapon.deadliness || 1));
+    return idiv(100 * def.weapon.deadliness, inHand.weapon.deadliness || 1);
   }
   return 200 + def.weapon.deadliness;
 }
@@ -116,7 +117,7 @@ export function searchForItems(t: TacticalState, s: Soldier, reason: number, wan
   if (s.actionPoints < AP.PICKUP_ITEM || !isMercBody(s)) return NO_CHOICE;
   const range = searchRange(t, s);
   const x = s.gridNo % WORLD_COLS;
-  const row = Math.trunc(s.gridNo / WORLD_ROWS);
+  const row = idiv(s.gridNo, WORLD_ROWS);
   const maxLeft = Math.min(range, x);
   const maxRight = Math.min(range, WORLD_COLS - (x + 1));
   const maxUp = Math.min(range, row);
@@ -141,7 +142,7 @@ export function searchForItems(t: TacticalState, s: Soldier, reason: number, wan
           item = wi;
         }
       }
-      value = Math.trunc((DISTANCE_DISCOUNT * value) / (DISTANCE_DISCOUNT + pythSpacesAway(g, s.gridNo)));
+      value = idiv(DISTANCE_DISCOUNT * value, DISTANCE_DISCOUNT + pythSpacesAway(g, s.gridNo));
       if (bestValue < value) {
         bestValue = value;
         bestSpot = g;

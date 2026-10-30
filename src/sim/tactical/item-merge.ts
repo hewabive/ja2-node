@@ -4,6 +4,7 @@
 // @src EvaluateValidMerge, ValidMerge, GetAttachmentInfo.
 
 import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { idiv } from '../../core/int.ts';
 import {
   attachmentPosition,
   attachObject,
@@ -107,7 +108,7 @@ function removeObjectFrom(o: ItemObject, index: number): void {
 
 function defaultMerge(target: ItemObject, attachment: ItemObject, merge: MergeOutcome): void {
   target.item = merge.result;
-  if (merge.action !== MergeAction.TREAT_ARMOUR) target.status[0] = Math.trunc(((target.status[0] ?? 0) + (attachment.status[0] ?? 0)) / 2);
+  if (merge.action !== MergeAction.TREAT_ARMOUR) target.status[0] = idiv((target.status[0] ?? 0) + (attachment.status[0] ?? 0), 2);
   deleteObject(attachment);
 }
 

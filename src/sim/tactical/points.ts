@@ -9,7 +9,7 @@ import { ItemClass } from '../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
-import { i8, u8 } from '../../core/int.ts';
+import { i8, idiv, u8 } from '../../core/int.ts';
 import { AnimHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
@@ -301,7 +301,7 @@ export function terrainActionPoints(ctx: PointsContext, s: Soldier, g: number, d
     case TravelCost.NONE:
       return 0;
   }
-  if (dir & 1) ap = Math.trunc((ap * 14) / 10);
+  if (dir & 1) ap = idiv(ap * 14, 10);
   return ap;
 }
 
@@ -406,7 +406,7 @@ export function terrainBreathPoints(ctx: PointsContext, s: Soldier, g: number, d
       if (!isDoorTravelCost(cost)) return 0;
       points = BP.MOVEMENT_FLAT;
   }
-  points = Math.trunc((points * breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s))) / 100);
+  points = idiv(points * breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s)), 100);
   const name = stateName(ctx.content, isWater(ctx.env.world, g) ? walkingState(ctx.content) : mode);
   if (RUN_STATES.has(name)) points *= RUN_ENERGY_FACTOR;
   else if (['SIDE_STEP', 'WALK_BACKWARDS', 'BLOODCAT_WALK_BACKWARDS', 'MONSTER_WALK_BACKWARDS', 'WALKING'].includes(name))
@@ -437,10 +437,10 @@ export function minAPsToStartMovement(content: TacticalContent, s: Soldier, mode
 
 function adjustBreathPts(s: Soldier, cost: number): number {
   let factor = 100 + (100 - s.breath);
-  factor += Math.trunc((100 * (s.lifeMax - effectiveLife(s))) / s.lifeMax);
-  if (s.stats.strength > 80) factor -= Math.trunc((s.stats.strength - 80) / 2);
+  factor += idiv(100 * (s.lifeMax - effectiveLife(s)), s.lifeMax);
+  if (s.stats.strength > 80) factor -= idiv(s.stats.strength - 80, 2);
   if (factor === 0) return 0;
-  return cost > 0 ? Math.trunc((cost * factor) / 100) : Math.trunc((cost * 100) / factor);
+  return cost > 0 ? idiv(cost * factor, 100) : idiv(cost * 100, factor);
 }
 
 export function enoughPoints(inCombat: boolean, s: Soldier, apCost: number): boolean {
@@ -458,7 +458,7 @@ export function deductPoints(inCombat: boolean, s: Soldier, apCost: number, bpCo
   let breath = i8(Math.trunc(Math.fround(s.breathMax - Math.fround(s.breathRed / 100))));
   if (breath > 100) breath = 100;
   if (breath < 0) {
-    s.actionPoints = Math.max(0, s.actionPoints + Math.trunc(breath / 5));
+    s.actionPoints = Math.max(0, s.actionPoints + idiv(breath, 5));
     breath = 0;
   }
   if (breath > s.breathMax) breath = s.breathMax;
@@ -496,7 +496,7 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
 export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
   const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
   if (!ctx.inCombat) {
-    let change = UNUSED_APS_PER_REALTIME_TURN * Math.trunc((breathPerAP(ctx, s, s.state) * 100) / adjustment());
+    let change = UNUSED_APS_PER_REALTIME_TURN * idiv(breathPerAP(ctx, s, s.state) * 100, adjustment());
     if (change > 0) change = 0;
     else if (s.tilesMovedPerRTBreathUpdate > 0) {
       const moved = breathPerAP(ctx, s, s.lastMovementAnimPerRTBreathUpdate) * s.tilesMovedPerRTBreathUpdate;
@@ -511,7 +511,7 @@ export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolea
   if (s.actionPoints > MAX_AP_CARRIED) {
     let perAP = breathPerAP(ctx, s, s.state);
     if (perAP < 0 && gassed) return;
-    perAP = Math.trunc((perAP * 100) / adjustment());
+    perAP = idiv(perAP * 100, adjustment());
     change = (s.actionPoints - MAX_AP_CARRIED) * perAP;
   }
   deductPoints(ctx.inCombat, s, 0, change);
@@ -525,25 +525,25 @@ export function maxActionPoints(bodyType: number): number {
 
 export function calcActionPoints(s: Soldier, boxingRound = false): number {
   if (!s.life) return 0;
-  let points = 5 + Math.trunc((10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20) / 40);
+  let points = 5 + idiv(10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
   points = u8(points);
-  if (s.life < s.lifeMax) points = u8(points - Math.trunc((2 * points * (s.lifeMax - effectiveLife(s))) / (3 * s.lifeMax)));
-  if (s.breath < 100) points = u8(points - Math.trunc((points * (100 - s.breath)) / 200));
-  if (s.weightCarriedAtTurnStart > 100) points = u8(Math.trunc((points * 100) / s.weightCarriedAtTurnStart));
+  if (s.life < s.lifeMax) points = u8(points - idiv(2 * points * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
+  if (s.breath < 100) points = u8(points - idiv(points * (100 - s.breath), 200));
+  if (s.weightCarriedAtTurnStart > 100) points = u8(idiv(points * 100, s.weightCarriedAtTurnStart));
   if (points < AP_LIMITS.MINIMUM) points = AP_LIMITS.MINIMUM;
   points = Math.min(points, maxActionPoints(s.bodyType));
-  if (s.bodyType === Body.BLOODCAT) points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
+  if (s.bodyType === Body.BLOODCAT) points = idiv(points * AP_LIMITS.YOUNG_MONST_FACTOR, 10);
   else if (s.monsterOrAnimal && s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER) {
     if (s.bodyType === Body.YAF_MONSTER || s.bodyType === Body.YAM_MONSTER || s.bodyType === Body.INFANT_MONSTER)
-      points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
-    if (s.ai.frenzied) points = Math.trunc((points * AP_LIMITS.MONST_FRENZY_FACTOR) / 10);
+      points = idiv(points * AP_LIMITS.YOUNG_MONST_FACTOR, 10);
+    if (s.ai.frenzied) points = idiv(points * AP_LIMITS.MONST_FRENZY_FACTOR, 10);
   }
-  if (boxingRound) points = Math.trunc(u8(points) / BOXING_POINTS_DIVISOR);
+  if (boxingRound) points = idiv(u8(points), BOXING_POINTS_DIVISOR);
   return u8(points);
 }
 
 export function calcNewActionPoints(s: Soldier, boxingRound = false): void {
-  const carried = boxingRound ? Math.trunc(MAX_AP_CARRIED / BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
+  const carried = boxingRound ? idiv(MAX_AP_CARRIED, BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
   if (s.actionPoints > carried) s.actionPoints = carried;
   s.actionPoints += calcActionPoints(s, boxingRound);
   s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));

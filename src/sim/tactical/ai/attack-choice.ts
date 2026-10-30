@@ -21,7 +21,7 @@ import {
 } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i32, idiv, u8, u32 } from '../../../core/int.ts';
+import { i8, i32, idiv, u8, u32, udiv } from '../../../core/int.ts';
 import { deleteObject, findAttachment, type ItemObject, removeObjects, swapObjects, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { calcAPsToBurst, calcTotalAPsToAttack, minAPsToAttack, minAPsToShootOrStab, minAPsToThrow } from '../combat/ap.ts';
@@ -79,7 +79,7 @@ const MIN_ESTIMATED_DAMAGE = 1;
 const NO_AIM_POSSIBLE = -1;
 const ProfileId = { SLAY: 64, JIM: 140, TYRONE: 145 } as const;
 const AIM_BONUS_CROUCHING = 10;
-const CROUCH_FULL_BONUS_RANGE = POINT_BLANK_RANGE + CELL_X_SIZE * Math.trunc(Aim.PENALTY_TARGET_CROUCHED / 3);
+const CROUCH_FULL_BONUS_RANGE = POINT_BLANK_RANGE + CELL_X_SIZE * idiv(Aim.PENALTY_TARGET_CROUCHED, 3);
 const STANCE_PENALTY_PER_TILE = 3;
 const MIN_STANCE_BONUS_BASE = 20;
 const MIN_STANCE_BONUS_PER_AIM_AP = 3;
@@ -852,7 +852,7 @@ export function calcSpreadBurst(t: TacticalState, s: Soldier, first: number, lev
   if (count > 1) {
     closeSpreadGaps(targets);
     if (t.rng.int(2)) {
-      for (let k = 0; k < Math.trunc(count / 2); k++) {
+      for (let k = 0; k < idiv(count, 2); k++) {
         const swap = targets[k] ?? null;
         targets[k] = targets[count - 1 - k] ?? null;
         targets[count - 1 - k] = swap;
@@ -865,8 +865,8 @@ export function calcSpreadBurst(t: TacticalState, s: Soldier, first: number, lev
 }
 
 function rangeInTiles(a: number, b: number): number {
-  const ay = Math.trunc(a / WORLD_COLS);
-  const by = Math.trunc(b / WORLD_COLS);
+  const ay = idiv(a, WORLD_COLS);
+  const by = idiv(b, WORLD_COLS);
   return Math.trunc(Math.hypot(b - by * WORLD_COLS - (a - ay * WORLD_COLS), by - ay));
 }
 
@@ -935,6 +935,6 @@ export function shootingStanceChange(t: TacticalState, s: Soldier, attack: Attac
     }
   }
   s.state = realState;
-  if (bestDiff === 0 || Math.trunc(u32(bestChance - currentChance) / u32(bestDiff)) < minBonusPerChange) return NO_STANCE_CHANGE;
+  if (bestDiff === 0 || udiv(u32(bestChance - currentChance), u32(bestDiff)) < minBonusPerChange) return NO_STANCE_CHANGE;
   return endHeight(t.content, bestState);
 }

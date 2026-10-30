@@ -7,7 +7,7 @@
 
 import { NPC_TALK_RADIUS } from '../../../content/narrative/npc-constants.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { findAdjacentGridEx } from '../combat/melee-reach.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { pathMoveMode } from '../movement-mode.ts';
@@ -25,7 +25,7 @@ export const TALK_SWEET_SPOT_RADIUS = NPC_TALK_RADIUS - 1;
 
 export function talkRange(a: number, b: number): number {
   const dx = (a % WORLD_COLS) - (b % WORLD_COLS);
-  const dy = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
+  const dy = idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS);
   return Math.trunc(Math.sqrt(dx * dx + dy * dy));
 }
 

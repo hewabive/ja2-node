@@ -4,6 +4,7 @@
 // @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey);
 // @src HandleManNoLongerSeen (the run to block the brothel guard room).
 
+import { idiv } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { AiAction } from '../ai/actions.ts';
@@ -100,7 +101,7 @@ function goHostileAndFight(t: TacticalState, s: Soldier): boolean {
 }
 
 function minuteOfDay(t: TacticalState): number {
-  return Math.trunc(worldSeconds(t) / SECONDS_PER_MINUTE) % MINUTES_PER_DAY;
+  return idiv(worldSeconds(t), SECONDS_PER_MINUTE) % MINUTES_PER_DAY;
 }
 
 function unprofiledCivilianSees(t: TacticalState, s: Soldier, opp: Soldier): void {

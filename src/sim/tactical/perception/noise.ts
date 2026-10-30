@@ -6,7 +6,7 @@
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { endHeight, states } from '../animation.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { directionToward } from '../movement.ts';
@@ -88,16 +88,16 @@ function stealthRollWithSecondChance(t: TacticalState, stealth: number): number 
 
 export function movementNoise(t: TacticalState, s: Soldier): number {
   if (s.team === Team.ENEMY) return MAX_MOVEMENT_NOISE - t.pre.int(2);
-  let stealth = 20 + 4 * effectiveExpLevel(s) + Math.trunc((effectiveDexterity(s) * 4) / 10);
+  let stealth = 20 + 4 * effectiveExpLevel(s) + idiv(effectiveDexterity(s) * 4, 10);
   stealth += s.bodyType === Body.BLOODCAT ? BLOODCAT_STEALTH_BONUS : STEALTHY_TRAIT_BONUS * numSkillTraits(s, SkillTrait.STEALTHY);
   const life = effectiveLife(s);
-  if (life < 50) stealth -= Math.trunc((stealth * (50 - life)) / 100);
-  if (s.breath < 50) stealth -= Math.trunc((stealth * (50 - s.breath)) / 100);
+  if (life < 50) stealth -= idiv(stealth * (50 - life), 100);
+  if (s.breath < 50) stealth -= idiv(stealth * (50 - s.breath), 100);
   if (isWater(t.pathWorld, s.gridNo)) stealth -= s.overTerrain === Terrain.DEEP_WATER ? 20 : 10;
   stealth = Math.max(stealth, 0);
   const st = states(t.content.animations);
   if (!s.stealthMode) {
-    let max = u8(MAX_MOVEMENT_NOISE - Math.trunc(stealth / STEALTH_PER_MOVEMENT_NOISE));
+    let max = u8(MAX_MOVEMENT_NOISE - idiv(stealth, STEALTH_PER_MOVEMENT_NOISE));
     if (isWater(t.pathWorld, s.gridNo)) max++;
     if (s.state === st.CRAWLING) max = max <= 2 ? 0 : max - 2;
     else if (s.state === st.SWATTING) max = max <= 1 ? 0 : max - 1;
@@ -106,7 +106,7 @@ export function movementNoise(t: TacticalState, s: Soldier): number {
   }
   const roll = stealthRollWithSecondChance(t, stealth);
   if (roll < stealth) return 0;
-  let volume = 1 + Math.trunc((roll - stealth + 1) / STEALTH_PER_MOVEMENT_NOISE);
+  let volume = 1 + idiv(roll - stealth + 1, STEALTH_PER_MOVEMENT_NOISE);
   if (s.state === st.CRAWLING) volume = volume <= 2 ? 0 : volume - 2;
   else if (s.state === st.SWATTING) volume -= 1;
   else if (s.state === st.RUNNING) volume += 3;
@@ -157,7 +157,7 @@ function rememberNoise(t: TacticalState, l: Soldier, g: number, level: number, v
 }
 
 function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
-  const noiseDirection = atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, Math.trunc(g / WORLD_COLS) * 10 + 5);
+  const noiseDirection = atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, idiv(g, WORLD_COLS) * 10 + 5);
   const flashInView = kind !== NoiseKind.GUNFIRE || !source?.muzzleFlash || seesMuzzleFlashWithoutTurning(l, noiseDirection);
   const d = distanceVisible(t, l, IRRELEVANT, IRRELEVANT, g, level, flashInView);
   const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
@@ -201,7 +201,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
         ) {
           const points = calcInterruptDuelPts(t, l, source, true);
           if (points !== NO_INTERRUPT && (l.team !== Team.OUR || source.life >= OKLIFE))
-            addDoorNoiseSighting(t, l, u8(points + Math.trunc(volume / 2)));
+            addDoorNoiseSighting(t, l, u8(points + idiv(volume, 2)));
         }
       } else if (t.inCombat) {
         l.interruptDuelPts = standardInterruptConditionsMet(t, l, source, oldOpp) ? calcInterruptDuelPts(t, l, source, true) : NO_INTERRUPT;

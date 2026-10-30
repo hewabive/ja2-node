@@ -6,7 +6,7 @@
 // @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, idiv } from '../../../core/int.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -230,7 +230,7 @@ function seekFriendChance(s: Soldier): number {
   switch (s.ai.attitude) {
     case Attitude.BRAVESOLO:
     case Attitude.CUNNINGSOLO:
-      chance = Math.trunc(chance / 2);
+      chance = idiv(chance, 2);
       break;
     case Attitude.BRAVEAID:
     case Attitude.CUNNINGAID:

@@ -10,7 +10,7 @@ import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { levelTilesAt } from '../../../content/world/level.ts';
 import { has, INVALID_STRUCTURE_ID, ORIENT_RIGHT, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i16 } from '../../../core/int.ts';
+import { i8, i16, idiv } from '../../../core/int.ts';
 import { cloneObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
@@ -124,14 +124,14 @@ const hitsStructureOrPerson = (code: number) => !SURFACE_HITS.has(code);
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 
 export function toGridNo(v: Vec3): number {
-  const row = Math.trunc(i16(Math.trunc(v.y)) / 10);
-  const column = Math.trunc(i16(Math.trunc(v.x)) / 10);
+  const row = idiv(i16(Math.trunc(v.y)), 10);
+  const column = idiv(i16(Math.trunc(v.x)), 10);
   if (row >= 0 && row < WORLD_ROWS && column >= 0 && column < WORLD_COLS) return row * WORLD_COLS + column;
   return NOWHERE;
 }
 
 export function heightUnitsToPixels(z: number): number {
-  return Math.trunc((i16(Math.trunc(z)) * PIXELS_PER_STOREY) / HEIGHT_UNITS);
+  return idiv(i16(Math.trunc(z)) * PIXELS_PER_STOREY, HEIGHT_UNITS);
 }
 
 export function objectLevel(z: number): number {
@@ -618,7 +618,7 @@ export function checkForCollision(t: TacticalState, x: number, y: number, z: num
   if (above < 0) return groundOrWater(t, g);
   const list = t.world.structures.at(g);
   if (list.length === 0) return z < 0 ? groundOrWater(t, g) : NO_HIT;
-  let cube = Math.trunc(above / CUBE_UNITS);
+  let cube = idiv(above, CUBE_UNITS);
   if (cube >= 2 * PROFILE_Z_SIZE) return NO_HIT;
   const cellX = (Math.trunc(x) % 10) >> 1;
   const cellY = (Math.trunc(y) % 10) >> 1;

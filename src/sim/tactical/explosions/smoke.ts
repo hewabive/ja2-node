@@ -8,7 +8,7 @@
 
 import { SmokeEffectId, type SmokeEffectType } from '../../../content/items/explosions.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i16, u16, u32 } from '../../../core/int.ts';
+import { i8, i16, idiv, u16, u32, udiv } from '../../../core/int.ts';
 import { USABLE_STATUS } from '../../items/object.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
@@ -192,7 +192,7 @@ export function decaySmokeEffects(t: TacticalState): void {
     if (t.inCombat) update = true;
     else if (u32(now - cloud.lastUpdate) > REALTIME_UPDATE_SECONDS) {
       update = true;
-      updates = u16(Math.trunc(u32(now - cloud.lastUpdate) / REALTIME_UPDATE_SECONDS));
+      updates = u16(udiv(u32(now - cloud.lastUpdate), REALTIME_UPDATE_SECONDS));
     }
     if (update) {
       cloud.lastUpdate = now;
@@ -220,12 +220,12 @@ interface GasDose {
 function filterThroughMask(t: TacticalState, s: Soldier, slot: number, dose: GasDose): void {
   const status = s.inv[slot]?.status[0] ?? 0;
   if (status < GASMASK_MIN_STATUS) {
-    dose.breath = i16(Math.trunc((dose.breath * (100 - status)) / 100));
+    dose.breath = i16(idiv(dose.breath * (100 - status), 100));
     if (dose.breath > GASSED_BREATH) t.explosives.gassed[s.id] = 1;
     if (s.team !== Team.OUR) return;
     if (dose.wound > 1) {
       wearMask(t, s, slot, 4);
-      dose.wound = i16(Math.trunc((dose.wound * (100 - (s.inv[slot]?.status[0] ?? 0))) / 100));
+      dose.wound = i16(idiv(dose.wound * (100 - (s.inv[slot]?.status[0] ?? 0)), 100));
     } else if (dose.wound === 1) wearMask(t, s, slot, 2);
     return;
   }
@@ -237,7 +237,7 @@ function filterThroughMask(t: TacticalState, s: Soldier, slot: number, dose: Gas
 export function dishOutGasDamage(t: TacticalState, s: Soldier, type: SmokeEffectType, sub: number, owner: Soldier | null): void {
   const dose: GasDose = {
     wound: i16(type.damage + t.pre.int(type.damage)),
-    breath: i16(100 * (type.breathDamage + t.pre.int(Math.trunc(type.breathDamage / 2)))),
+    breath: i16(100 * (type.breathDamage + t.pre.int(idiv(type.breathDamage, 2)))),
   };
   if (!s.placed || s.life === 0 || isRobot(s)) return;
   if (!dealsAnyDamage(type)) return;

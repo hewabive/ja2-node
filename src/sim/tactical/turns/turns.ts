@@ -17,7 +17,7 @@
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { u8, u32 } from '../../../core/int.ts';
+import { idiv, u8, u32 } from '../../../core/int.ts';
 import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
@@ -155,7 +155,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
     if (blood !== NO_BLOOD && s.placed) dropBlood(t, s, u8(blood));
   }
   if (s.life === 0) return;
-  s.shock = Math.trunc(s.shock / 2);
+  s.shock = idiv(s.shock, 2);
   if (s.ai.noiseGridNo !== NOWHERE && s.ai.noiseVolume !== 0) {
     s.ai.noiseVolume--;
     if (s.ai.noiseVolume === 0) s.ai.noiseGridNo = NOWHERE;

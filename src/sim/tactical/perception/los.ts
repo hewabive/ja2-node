@@ -62,11 +62,11 @@ function toFix(f: number): number {
 }
 
 function fixInt(q: number): number {
-  return Math.trunc(q / FIX);
+  return idiv(q, FIX);
 }
 
 function tileOf(q: number): number {
-  return Math.trunc(fixInt(q) / 10);
+  return idiv(fixInt(q), 10);
 }
 
 function cellOf(q: number): number {
@@ -74,11 +74,11 @@ function cellOf(q: number): number {
 }
 
 function cubeOf(heightUnits: number): number {
-  return Math.trunc(heightUnits / 64);
+  return idiv(heightUnits, 64);
 }
 
 export function landHeightUnits(world: LosWorld, g: number): number {
-  return Math.trunc(((world.heights[g] ?? 0) * 256) / 50);
+  return idiv((world.heights[g] ?? 0) * 256, 50);
 }
 
 function landFix(world: LosWorld, g: number): number {
@@ -86,7 +86,7 @@ function landFix(world: LosWorld, g: number): number {
 }
 
 function gridNoWithColumnAndRowSwapped(worldX: number, worldY: number): number {
-  return Math.trunc(worldX / CELL_X_SIZE) * WORLD_COLS + Math.trunc(worldY / CELL_Y_SIZE);
+  return idiv(worldX, CELL_X_SIZE) * WORLD_COLS + idiv(worldY, CELL_Y_SIZE);
 }
 
 interface RayEnd {
@@ -194,7 +194,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
   let adj = sightLimit;
   if (sightLimit === 0) return 0;
   let treeRed = o.treeReduction;
-  if (!o.aware && !o.smell) treeRed = u8(Math.trunc((treeRed * 3 * (100 + o.camo)) / 100));
+  if (!o.aware && !o.smell) treeRed = u8(idiv(treeRed * 3 * (100 + o.camo), 100));
   const sx = (startG % WORLD_COLS) * 10 + 5;
   const sy = idiv(startG, WORLD_COLS) * 10 + 5;
   const ex = (endG % WORLD_COLS) * 10 + 5;
@@ -244,8 +244,8 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
       const above = fixInt(qZ - land);
       if (above < 0) return 0;
       if (list.length === 0) {
-        const stepsX = qIncX > 0 ? Math.trunc((TEN - (qX % TEN)) / qIncX) : qIncX < 0 ? Math.trunc((qX % TEN) / -qIncX) : FAST_FORWARD_NONE;
-        const stepsY = qIncY > 0 ? Math.trunc((TEN - (qY % TEN)) / qIncY) : qIncY < 0 ? Math.trunc((qY % TEN) / -qIncY) : FAST_FORWARD_NONE;
+        const stepsX = qIncX > 0 ? idiv(TEN - (qX % TEN), qIncX) : qIncX < 0 ? idiv(qX % TEN, -qIncX) : FAST_FORWARD_NONE;
+        const stepsY = qIncY > 0 ? idiv(TEN - (qY % TEN), qIncY) : qIncY < 0 ? idiv(qY % TEN, -qIncY) : FAST_FORWARD_NONE;
         const n = Math.min(stepsX, stepsY) + 1;
         qX = i32(qX + Math.imul(qIncX, n));
         qY = i32(qY + Math.imul(qIncY, n));
@@ -275,7 +275,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
             }
             if (has(s.flags, StructureFlags.TREE)) {
               if (loop > CLOSE_TO_FIRER) {
-                adj -= loop > 100 ? Math.trunc((treeRed * loop) / 100) : treeRed;
+                adj -= loop > 100 ? idiv(treeRed * loop, 100) : treeRed;
                 if (iDist > adj) return 0;
               }
             } else if (
@@ -319,7 +319,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
       }
     } while (tX === oldTX && tY === oldTY && loop < iDist);
   } while (loop < iDist);
-  return Math.trunc(((iDist + (sightLimit - adj)) * SIGHT_SCALE) / sightLimit);
+  return idiv((iDist + (sightLimit - adj)) * SIGHT_SCALE, sightLimit);
 }
 
 export interface LosSubject {

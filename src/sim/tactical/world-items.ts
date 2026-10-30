@@ -15,6 +15,7 @@ import {
   type StructureInstance,
   structureHeight,
 } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectFromRecord } from '../items/object.ts';
 import { isWater } from './pathfinding.ts';
 import type { TacticalState } from './state.ts';
@@ -100,7 +101,7 @@ const HEIGHT_UNITS = 256;
 const HEIGHT_UNITS_PER_INDEX = HEIGHT_UNITS / PROFILE_Z_SIZE;
 const DENSITY_PERCENT_PER_CELL = 4;
 
-const indexToPixels = (n: number) => Math.trunc((n * MAX_STRUCTURE_HEIGHT * HEIGHT_UNITS_PER_INDEX) / HEIGHT_UNITS);
+const indexToPixels = (n: number) => idiv(n * MAX_STRUCTURE_HEIGHT * HEIGHT_UNITS_PER_INDEX, HEIGHT_UNITS);
 const atHeight = (z: number) => 1 << z;
 
 function bottomLevel(s: StructureInstance): number {
@@ -196,7 +197,7 @@ function replaceBigGun(t: TacticalState, o: ItemObject): void {
     const replacement = items.byName.get(def.weapon.standardReplacement);
     if (!replacement?.weapon) return;
     const ammo = o.gunShotsLeft;
-    let newAmmo = Math.trunc((replacement.weapon.magSize * ammo) / (def.weapon.magSize || 1));
+    let newAmmo = idiv(replacement.weapon.magSize * ammo, def.weapon.magSize || 1);
     if (newAmmo === 0 && ammo > 0) newAmmo = 1;
     o.item = replacement.index;
     o.gunShotsLeft = newAmmo;
@@ -204,7 +205,7 @@ function replaceBigGun(t: TacticalState, o: ItemObject): void {
     const replacement = items.byName.get(def.magazine.standardReplacement);
     if (!replacement?.magazine) return;
     const oldSize = def.magazine.capacity || 1;
-    for (let i = 0; i < o.count; i++) o.status[i] = Math.trunc(((o.status[i] ?? 0) * replacement.magazine.capacity) / oldSize);
+    for (let i = 0; i < o.count; i++) o.status[i] = idiv((o.status[i] ?? 0) * replacement.magazine.capacity, oldSize);
     o.item = replacement.index;
   }
 }

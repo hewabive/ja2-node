@@ -4,7 +4,7 @@
 // @src CheckEquipmentForFragileItemDamage, DamageItemOnGround.
 
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, idiv } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, removeObjectAt, USABLE_STATUS } from '../../items/object.ts';
 import { Body, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -29,8 +29,8 @@ function isJar(t: TacticalState, item: number): boolean {
 export function checkItemForDamage(t: TacticalState, item: number, maxDamageIn: number): number {
   let max = maxDamageIn === OBLITERATE_DAMAGE ? OBLITERATE_REPLACEMENT : maxDamageIn;
   const def = itemDef(t, item);
-  if (def?.armour) max -= Math.trunc((max * def.armour.protection) / 100);
-  if ((def?.flags ?? 0) & ItemFlags.METAL) max = Math.trunc(max / 2);
+  if (def?.armour) max -= idiv(max * def.armour.protection, 100);
+  if ((def?.flags ?? 0) & ItemFlags.METAL) max = idiv(max, 2);
   else if (def?.name === 'BLOODCAT_PELT') max *= 2;
   if (max <= 0) return 0;
   return i8(Math.min(t.pre.int(max), MAX_ITEM_DAMAGE));
@@ -40,7 +40,7 @@ function checkForChainReaction(t: TacticalState, item: number, status: number, d
   let chance = itemDef(t, item)?.explosive?.volatility ?? 0;
   if (chance <= 0) return false;
   if (onGround) chance = ON_GROUND_VOLATILITY_BASE + (chance - 1) * ON_GROUND_VOLATILITY_STEP;
-  chance = Math.trunc((chance * (100 + Math.trunc((100 - status + damage) / 2))) / 100);
+  chance = idiv(chance * (100 + idiv(100 - status + damage, 2)), 100);
   return t.pre.int(100) < chance;
 }
 

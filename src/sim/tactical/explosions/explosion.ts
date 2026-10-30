@@ -154,7 +154,7 @@ export function internalIgniteExplosion(
 }
 
 export function igniteExplosion(t: TacticalState, owner: Soldier | null, z: number, g: number, item: number, level: number): void {
-  internalIgniteExplosion(t, owner, (g % WORLD_COLS) * 10 + 5, Math.trunc(g / WORLD_COLS) * 10 + 5, z, g, item, level);
+  internalIgniteExplosion(t, owner, (g % WORLD_COLS) * 10 + 5, idiv(g, WORLD_COLS) * 10 + 5, z, g, item, level);
 }
 
 export function igniteExplosionXY(
@@ -393,10 +393,10 @@ function hurtSoldiers(t: TacticalState, ctx: SpreadContext, g: number, distance:
   if (target) damageSoldierFromBlast(t, target, ctx.owner, ctx.bombGridNo, wound, breath, distance, ctx.item);
   if (ctx.level !== 1) return;
   const below = whoIsThere(t, g, 0);
-  if (!below || Math.trunc(wound / 2) <= DEBRIS_THRESHOLD) return;
-  const halfBreath = Math.trunc(breath / 2) - DEBRIS_THRESHOLD;
+  if (!below || idiv(wound, 2) <= DEBRIS_THRESHOLD) return;
+  const halfBreath = idiv(breath, 2) - DEBRIS_THRESHOLD;
   const debrisBreath = halfBreath > 0 ? t.rng.int(halfBreath) : 1;
-  const debrisWound = t.rng.int(Math.trunc(wound / 2) - DEBRIS_THRESHOLD);
+  const debrisWound = t.rng.int(idiv(wound, 2) - DEBRIS_THRESHOLD);
   damageSoldierFromBlast(t, below, ctx.owner, ctx.bombGridNo, debrisWound, debrisBreath, distance, ctx.item);
 }
 
@@ -415,15 +415,15 @@ function expAffect(t: TacticalState, ctx: SpreadContext, g: number, distance: nu
   let wound = 0;
   let breath = 0;
   if (blast) {
-    wound = reduceDamageAmount(i16(blast.damage + Math.trunc((blast.damage * roll) / 100)), blast.radius, distance);
+    wound = reduceDamageAmount(i16(blast.damage + idiv(blast.damage * roll, 100)), blast.radius, distance);
     if (wound > 0) {
-      if (distance <= Math.max(1, Math.trunc(blast.damage / STRUCTURE_DAMAGE_PER_TILE))) damageStructuresAround(t, ctx, g, wound, distance);
+      if (distance <= Math.max(1, idiv(blast.damage, STRUCTURE_DAMAGE_PER_TILE))) damageStructuresAround(t, ctx, g, wound, distance);
       if (blast.damage > MIN_ITEM_BLAST_DAMAGE && distance * 2 <= blast.radius) damageItemsOnGround(t, ctx, g, wound * 2);
     }
   }
   if (stun) {
     const bd = stun.breathDamage;
-    breath = reduceDamageAmount(i16(bd * 100 + Math.trunc((Math.trunc(bd / 2) * 100 * roll) / 100)), stun.radius, distance);
+    breath = reduceDamageAmount(i16(bd * 100 + idiv(idiv(bd, 2) * 100 * roll, 100)), stun.radius, distance);
   }
   const gasType = gas ? smokeTypeOf(t, gas.type) : null;
   if (gasType) {
@@ -460,7 +460,7 @@ function spreadBranch(
     const stop = getRayStopInfo(t, next, branchDir, ctx.level, smoke, branchCnt, branchRange);
     branchRange = stop.range;
     if (!stop.keepGoing) continue;
-    expAffect(t, ctx, next, Math.trunc((cnt + branchCnt) / 2));
+    expAffect(t, ctx, next, idiv(cnt + branchCnt, 2));
     spot = next;
   }
 }
@@ -475,7 +475,7 @@ function spreadRay(t: TacticalState, ctx: SpreadContext, g: number, blastRange: 
     rayRange = stop.range;
     if (!stop.keepGoing) return;
     spot = next;
-    expAffect(t, ctx, next, Math.trunc(cnt / 2));
+    expAffect(t, ctx, next, idiv(cnt, 2));
     spreadBranch(t, ctx, next, cnt, blastRange, dir, smoke);
   }
 }

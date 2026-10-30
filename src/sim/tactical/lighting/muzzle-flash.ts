@@ -4,6 +4,7 @@
 // @src HandleSoldierDeath (muzzle flash light).
 
 import { DIRECTION_INCREMENT, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
+import { idiv } from '../../../core/int.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { lightSpriteCreate, lightSpriteDestroy, lightSpritePosition, lightSpritePower, MIN_AMB_LEVEL_FOR_MERC_LIGHTS } from './lighting.ts';
@@ -26,7 +27,7 @@ export function showMuzzleFlash(t: TacticalState, s: Soldier): boolean {
   if (!light) return false;
   lightSpritePower(light, true);
   const front = newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0);
-  lightSpritePosition(t, light, front % WORLD_COLS, Math.trunc(front / WORLD_COLS));
+  lightSpritePosition(t, light, front % WORLD_COLS, idiv(front, WORLD_COLS));
   s.muzzleFlashCount = 1;
   return true;
 }

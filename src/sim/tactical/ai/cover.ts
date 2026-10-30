@@ -380,7 +380,7 @@ function numberOfTeamMatesAdjacent(t: TacticalState, s: Soldier, g: number): num
 
 function searchSquare(origin: number, range: number): SearchSquare {
   const x = origin % WORLD_COLS;
-  const y = Math.trunc(origin / WORLD_ROWS);
+  const y = idiv(origin, WORLD_ROWS);
   return {
     origin,
     maxLeft: Math.min(range, x),

@@ -6,7 +6,7 @@
 // @src animation ended at the end of an object's life (PhysicsUpdateLife).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, height, initNewSoldierAnim } from '../animation.ts';
 import { autoPlaceObject } from '../inventory.ts';
@@ -35,7 +35,7 @@ function raiseHands(t: TacticalState, catcher: Soldier, o: RealObject): void {
 }
 
 function attemptToCatchObject(t: TacticalState, catcher: Soldier, o: RealObject): boolean {
-  const chance = u8(BASE_CHANCE_TO_CATCH + Math.trunc(effectiveDexterity(catcher) / 2));
+  const chance = u8(BASE_CHANCE_TO_CATCH + idiv(effectiveDexterity(catcher), 2));
   o.catchCheckDone = true;
   if (t.pre.int(100) > chance) return false;
   o.catchGood = true;

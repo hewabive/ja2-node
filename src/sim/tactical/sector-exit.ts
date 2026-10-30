@@ -22,7 +22,7 @@ import {
   renderedScreenSize,
   restrictedScrollIdOf,
 } from '../../content/world/render-bounds.ts';
-import { i16, u8 } from '../../core/int.ts';
+import { i16, idiv, u8 } from '../../core/int.ts';
 import { plotPathCost } from './ai/utils.ts';
 import { soldierGotoStationaryStance } from './animation.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
@@ -90,7 +90,7 @@ export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Sold
   let lowest = NOWHERE;
   let lowestRange = 999999;
   for (let dy = -radius; dy <= radius; dy++) {
-    const leftmost = Math.trunc((s.gridNo + WORLD_COLS * dy) / WORLD_COLS) * WORLD_COLS;
+    const leftmost = idiv(s.gridNo + WORLD_COLS * dy, WORLD_COLS) * WORLD_COLS;
     for (let dx = -radius; dx <= radius; dx++) {
       const g = s.gridNo + WORLD_COLS * dy + dx;
       if (g < 0 || g >= WORLD_MAX || g < leftmost || g >= leftmost + WORLD_COLS || !reachable[g]) continue;
@@ -280,7 +280,7 @@ export function pickGridNoToWalkIn(
 
 export function mirrorGridNo(t: TacticalState, s: Soldier, tacticalDirection: number): number {
   const restriction = restrictedScrollIdOf(t.world);
-  const g = Math.trunc(Math.trunc(s.y) / CELL_Y_SIZE) * WORLD_COLS + Math.trunc(Math.trunc(s.x) / CELL_X_SIZE);
+  const g = idiv(Math.trunc(s.y), CELL_Y_SIZE) * WORLD_COLS + idiv(Math.trunc(s.x), CELL_X_SIZE);
   let { x, y } = absoluteScreenXY(restriction, g);
   if (tacticalDirection === Direction.NORTH) y = MIRROR_NORTH_Y;
   else if (tacticalDirection === Direction.SOUTH) y = MIRROR_SOUTH_Y;

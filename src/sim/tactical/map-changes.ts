@@ -7,6 +7,7 @@ import type { StructureFile } from '../../content/formats/jsd.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { PROFILE_Z_SIZE, type StructureInstance } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
+import { idiv } from '../../core/int.ts';
 import type { TacticalState } from './state.ts';
 
 export const MapChangeKind = {
@@ -58,7 +59,7 @@ function fileForKey(t: TacticalState, key: number): StructureFile | null {
 }
 
 function levelOf(s: StructureInstance): number {
-  return Math.trunc(s.cubeOffset / PROFILE_Z_SIZE);
+  return idiv(s.cubeOffset, PROFILE_Z_SIZE);
 }
 
 function record(t: TacticalState, kind: MapChangeKind, s: StructureInstance): void {

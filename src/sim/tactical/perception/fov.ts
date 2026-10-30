@@ -13,6 +13,7 @@ import {
   StructureFlags,
   structureHeight,
 } from '../../../content/world/structures.ts';
+import { idiv } from '../../../core/int.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
 import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
@@ -184,7 +185,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
   const level = s.level;
   const range = t.explosives.gassed[s.id]
     ? GASSED_VIEW_RANGE
-    : Math.trunc((adjustMaxSightRangeForEnvEffects(lightTrueLevel(t, s.gridNo, level), NORMAL_VIEW_RANGE) + NORMAL_VIEW_RANGE) / 2);
+    : idiv(adjustMaxSightRangeForEnvEffects(lightTrueLevel(t, s.gridNo, level), NORMAL_VIEW_RANGE) + NORMAL_VIEW_RANGE, 2);
   const dirs = [...(SIGHT_DIRS[s.direction] ?? SIGHT_DIRS[0] ?? []), s.direction];
   const incs = [...dirs.slice(0, 5).map((d) => DIRECTION_INCREMENT[d] ?? 0), 0];
   const table = s.direction % 2 === 1 ? VIEW_PATH_2 : VIEW_PATH;

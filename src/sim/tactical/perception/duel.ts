@@ -5,7 +5,7 @@
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
 
 import { gridSquare, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
-import { i8, u8 } from '../../../core/int.ts';
+import { i8, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -150,7 +150,7 @@ function decayWatchedLoc(t: TacticalState, at: number, team: number): void {
     return;
   }
   w.reset[at] = 0;
-  w.points[at] = Math.trunc((w.points[at] ?? 0) / 2);
+  w.points[at] = idiv(w.points[at] ?? 0, 2);
   if (w.points[at] === 0) w.gridNo[at] = NOWHERE;
 }
 
@@ -164,15 +164,15 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
   if (s.neutral) return NO_INTERRUPT;
   let p = interruptBasePoints(t, s);
   if (useWatchSpots) p += watchedLocPoints(t, s.id, opp.gridNo, opp.level);
-  if (s.ai.oppCount > 2) p -= Math.trunc((s.ai.oppCount - 1) / 2);
+  if (s.ai.oppCount > 2) p -= idiv(s.ai.oppCount - 1, 2);
   if (s.oppList[opp.id] === Opp.HEARD_THIS_TURN) p--;
   p -= s.shock;
   const d = u8(pythSpacesAway(s.gridNo, opp.gridNo));
   const st = states(t.content.animations);
-  if (t.inCombat && s.team !== t.turn.currentTeam) p -= Math.trunc(d / 10);
+  if (t.inCombat && s.team !== t.turn.currentTeam) p -= idiv(d, 10);
   else if (!seenOpponent(t, opp.id, s.id)) {
     if (s.state === st.SWATTING && d > MAX_DISTANCE_VISIBLE / 2) p++;
-    else if (s.state === st.CRAWLING && d > MAX_DISTANCE_VISIBLE / 4) p += Math.trunc(d / STRAIGHT);
+    else if (s.state === st.CRAWLING && d > MAX_DISTANCE_VISIBLE / 4) p += idiv(d, STRAIGHT);
   }
   if (s.state === st.RUNNING && !seenOpponent(t, s.id, opp.id)) p -= 2;
   if (s.servicePartner !== NOBODY) p -= 2;

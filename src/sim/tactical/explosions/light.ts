@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/LightEffects.cc UpdateLightingSprite, NewLightEffect, DecayLightEffects.
 
 import { WORLD_COLS } from '../../../content/world/grid.ts';
-import { u16, u32 } from '../../../core/int.ts';
+import { idiv, u16, u32, udiv } from '../../../core/int.ts';
 import { lightSpriteCreate, lightSpriteDestroy, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
 import type { TacticalState } from '../state.ts';
@@ -21,7 +21,7 @@ function updateLightingSprite(t: TacticalState, light: LightEffect): void {
   light.sprite = sprite;
   if (!sprite) return;
   lightSpritePower(sprite, true);
-  lightSpritePosition(t, sprite, light.gridNo % WORLD_COLS, Math.trunc(light.gridNo / WORLD_COLS));
+  lightSpritePosition(t, sprite, light.gridNo % WORLD_COLS, idiv(light.gridNo, WORLD_COLS));
 }
 
 export function restoreLightEffect(t: TacticalState, record: Omit<LightEffect, 'sprite'>): void {
@@ -65,7 +65,7 @@ export function decayLightEffects(t: TacticalState): void {
     const elapsed = u32(now - light.lastUpdate);
     if (elapsed <= LIGHT_DECAY_SECONDS) continue;
     light.lastUpdate = now;
-    if (!ageLight(t, light, u16(Math.trunc(elapsed / LIGHT_DECAY_SECONDS)))) {
+    if (!ageLight(t, light, u16(udiv(elapsed, LIGHT_DECAY_SECONDS)))) {
       lights[k] = null;
       if (light.sprite) lightSpriteDestroy(t, light.sprite);
     }

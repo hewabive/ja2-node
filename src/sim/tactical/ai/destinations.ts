@@ -4,7 +4,7 @@
 // @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin.
 
 import { newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, idiv } from '../../../core/int.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { inGas } from '../explosions/smoke.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
@@ -81,7 +81,7 @@ export function randDestWithinRange(t: TacticalState, s: Soldier): number {
   const room = roomLimited(s) ? roomAt(t, s.ai.patrolGrid[0] ?? s.gridNo) : NO_ROOM;
   const limited = range < WORLD_COLS - 1;
   const originX = origin % WORLD_COLS;
-  const originY = Math.trunc(origin / WORLD_COLS);
+  const originY = idiv(origin, WORLD_COLS);
   const maxLeft = Math.min(range, originX);
   const maxRight = Math.min(range, WORLD_COLS - (originX + 1));
   const maxUp = Math.min(range, originY);
@@ -121,7 +121,7 @@ interface RoamBounds {
 
 function insideRoamBounds(s: Soldier, dx: number, dy: number, b: RoamBounds): boolean {
   const x = (s.gridNo % WORLD_COLS) + dx;
-  const y = Math.trunc(s.gridNo / WORLD_COLS) + dy;
+  const y = idiv(s.gridNo, WORLD_COLS) + dy;
   return x >= b.originX - b.maxLeft && x <= b.originX + b.maxRight && y >= b.originY - b.maxUp && y <= b.originY + b.maxDown;
 }
 

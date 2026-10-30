@@ -12,6 +12,7 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
+import { idiv } from '../../core/int.ts';
 import {
   attachmentPosition,
   canAttachAsAttachment,
@@ -522,7 +523,7 @@ const CAMO: MercApplication = {
     return totalPoints(o) === 0 || target.camo === FULL_CAMO ? 'notThis' : 'applies';
   },
   apply: (env, target, o) => {
-    const points = Math.min(Math.trunc((FULL_CAMO - target.camo + 1) / 2), totalPoints(o));
+    const points = Math.min(idiv(FULL_CAMO - target.camo + 1, 2), totalPoints(o));
     target.camo = Math.min(target.camo + points * 2, FULL_CAMO);
     useKitPoints(o, points);
     deductPoints(env.inCombat, target, AP.CAMOFLAGE, 0);
@@ -553,7 +554,7 @@ const ELIXIR: MercApplication = {
     deductPoints(env.inCombat, target, AP.CAMOFLAGE, 0);
     const points = Math.min((MAX_HUMAN_CREATURE_SMELL - target.monsterSmell) * 2, totalPoints(o));
     useKitPoints(o, points);
-    target.monsterSmell += Math.trunc(points / 2);
+    target.monsterSmell += idiv(points, 2);
   },
 };
 

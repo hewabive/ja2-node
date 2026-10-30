@@ -9,7 +9,7 @@
 
 import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
-import { clamp, i8, u8 } from '../../core/int.ts';
+import { clamp, i8, idiv, u8 } from '../../core/int.ts';
 import { addSoldierInitListEnemyDefenceSoldiers as fillDefencePlacements, sortSoldierInitList } from '../strategic/ai/defence-placement.ts';
 import type { RandomStream } from './combat/context.ts';
 import { createFromPlacementParts, type PlacementAdjust, type SoldierCreate } from './creation.ts';
@@ -178,7 +178,7 @@ function isMilitiaClass(soldierClass: number): boolean {
 }
 
 export function randomizeRelativeLevel(t: { readonly rng: RandomStream }, soldierClass: number, env: PopulationEnv): number {
-  const rollModifier = Math.trunc(env.locationModifier / LOCATION_ROLL_DIVISOR) - LOCATION_ROLL_OFFSET;
+  const rollModifier = idiv(env.locationModifier, LOCATION_ROLL_DIVISOR) - LOCATION_ROLL_OFFSET;
   let adjusted = t.rng.int(10) + rollModifier;
   if (isMilitiaClass(soldierClass)) {
     adjusted = clamp(adjusted, 1, 8);

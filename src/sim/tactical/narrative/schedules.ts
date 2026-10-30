@@ -12,7 +12,7 @@ import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX 
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { absoluteScreenXY, renderedScreenSize, restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { i16, u16, u32 } from '../../../core/int.ts';
+import { i16, idiv, u16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { awaySoldierAt, moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
@@ -71,7 +71,7 @@ export interface PostOptions {
 }
 
 const minuteOfDay = (t: TacticalState) => t.scheduleClock.worldMinutes() % MINUTES_PER_DAY;
-const dayStartMinute = (t: TacticalState) => Math.trunc(t.scheduleClock.worldMinutes() / MINUTES_PER_DAY) * MINUTES_PER_DAY;
+const dayStartMinute = (t: TacticalState) => idiv(t.scheduleClock.worldMinutes(), MINUTES_PER_DAY) * MINUTES_PER_DAY;
 const asGridNo = (value: number) => i16(value);
 const soldierOf = (t: TacticalState, node: ScheduleNode): Soldier | null =>
   node.soldier === NO_SCHEDULE_SOLDIER ? null : (t.soldiers[node.soldier] ?? null);
@@ -140,7 +140,7 @@ function parkAway(s: Soldier, g: number, x: number, y: number): void {
 
 export function setSoldierPositionNoCenter(t: TacticalState, s: Soldier, g: number): void {
   const x = (g % WORLD_COLS) * CELL_SIZE;
-  const y = Math.trunc(g / WORLD_COLS) * CELL_SIZE;
+  const y = idiv(g, WORLD_COLS) * CELL_SIZE;
   if (s.away) parkAway(s, g, x, y);
   else setSoldierPositionXY(t, s, x, y);
 }

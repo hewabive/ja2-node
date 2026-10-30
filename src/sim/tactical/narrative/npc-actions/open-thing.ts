@@ -7,6 +7,7 @@
 import { Approach } from '../../../../content/narrative/npc-constants.ts';
 import { cardinalSpacesAway, pythSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../../content/world/structures.ts';
+import { idiv } from '../../../../core/int.ts';
 import { triggerNpcWithGivenApproach } from '../../../narrative/converse.ts';
 import { Npc } from '../../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../../ai/actions.ts';
@@ -40,8 +41,8 @@ function searchSquare(origin: number, range: number): SearchSquare {
   return {
     left: Math.min(range, origin % WORLD_COLS),
     right: Math.min(range, WORLD_COLS - ((origin % WORLD_COLS) + 1)),
-    up: Math.min(range, Math.trunc(origin / WORLD_ROWS)),
-    down: Math.min(range, WORLD_ROWS - (Math.trunc(origin / WORLD_ROWS) + 1)),
+    up: Math.min(range, idiv(origin, WORLD_ROWS)),
+    down: Math.min(range, WORLD_ROWS - (idiv(origin, WORLD_ROWS) + 1)),
   };
 }
 

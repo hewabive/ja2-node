@@ -6,7 +6,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i16, u8 } from '../../../core/int.ts';
+import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Quest } from '../../strategic/narrative/fact-ids.ts';
@@ -252,7 +252,7 @@ export function decideActionYellow(t: TacticalState, s: Soldier, hooks: CombatDe
   if (!civilian && s.actionPoints >= AP_RADIO && menInSector(t, s.team) > 1) {
     let chance = 5 * whatIKnowThatPublicDont(t, s, false);
     if (chance && !deepWater(t, s.gridNo)) {
-      chance += Math.trunc((RADIO_RED_ALERT_BY_DIFFICULTY[soldierDifficultyLevel(t, s)] ?? 0) / 2);
+      chance += idiv(RADIO_RED_ALERT_BY_DIFFICULTY[soldierDifficultyLevel(t, s)] ?? 0, 2);
       chance += ordersAdjust(ai.orders, YELLOW_RADIO_ORDERS);
       if (ai.attitude === Attitude.ATTACKSLAYONLY) chance = 0;
       else chance += RADIO_ATTITUDES[ai.attitude] ?? 0;
@@ -279,7 +279,7 @@ export function decideActionYellow(t: TacticalState, s: Soldier, hooks: CombatDe
       }
     }
     if (reachable) {
-      let chance = 95 + Math.trunc(noise.value / 3);
+      let chance = 95 + idiv(noise.value, 3);
       chance += ordersAdjust(ai.orders, SEEK_NOISE_ORDERS);
       chance += SEEK_NOISE_ATTITUDES[ai.attitude] ?? 0;
       chance -= 100 - s.breath;
@@ -411,9 +411,9 @@ function moraleRadioChance(chance: number, morale: number): number {
     case AiMorale.WORRIED:
       return i16(chance * 2);
     case AiMorale.CONFIDENT:
-      return Math.trunc(chance / 2);
+      return idiv(chance, 2);
     case AiMorale.FEARLESS:
-      return Math.trunc(chance / 3);
+      return idiv(chance, 3);
     default:
       return chance;
   }
@@ -540,7 +540,7 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
   }
   if (!civilian && !water && height(t.content, s.state) === AnimHeight.STAND && isValidStance(t, s, AnimHeight.CROUCH)) {
     const opponent = closestKnownOpponent(t, s);
-    if ((opponent !== NOWHERE && pythSpacesAway(s.gridNo, opponent) < Math.trunc((MAX_DISTANCE_VISIBLE * 3) / 2)) || t.pre.int(4) === 0) {
+    if ((opponent !== NOWHERE && pythSpacesAway(s.gridNo, opponent) < idiv(MAX_DISTANCE_VISIBLE * 3, 2)) || t.pre.int(4) === 0) {
       if (!t.inCombat || apsToChangeStance(t.content, s, AnimHeight.CROUCH) <= s.actionPoints) {
         ai.actionData = AnimHeight.CROUCH;
         return AiAction.CHANGE_STANCE;
@@ -741,7 +741,7 @@ function captureQuestsAllowSurrender(t: TacticalState): boolean {
 
 export function offersSurrender(t: TacticalState, s: Soldier): boolean {
   if (s.team !== Team.ENEMY || s.visible !== VISIBLE || t.turn.enemyOfferedSurrender) return false;
-  if (s.life < Math.trunc(s.lifeMax / 2)) return false;
+  if (s.life < idiv(s.lifeMax, 2)) return false;
   const pcs = numPcsInSector(t);
   if (menInSector(t, Team.MILITIA) > 0 || pcs >= SURRENDER_MAX_PCS || menInSector(t, Team.ENEMY) < pcs * SURRENDER_ODDS) return false;
   return captureQuestsAllowSurrender(t);
@@ -923,10 +923,10 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     s.actionPoints === s.initialActionPoints &&
     bestAction === AiAction.FIRE_GUN &&
     s.shock === 0 &&
-    s.life >= Math.trunc(s.lifeMax / 2) &&
+    s.life >= idiv(s.lifeMax, 2) &&
     bestAttack.chanceToReallyHit < 30 &&
     pythSpacesAway(s.gridNo, bestAttack.target) >
-      Math.trunc((t.content.items.byIndex.get(s.inv[bestAttack.weaponIn]?.item ?? NOTHING)?.weapon?.range ?? 0) / 10) &&
+      idiv(t.content.items.byIndex.get(s.inv[bestAttack.weaponIn]?.item ?? NOTHING)?.weapon?.range ?? 0, 10) &&
     rangeChangeDesire(t, s) >= 4
   ) {
     if (canMove && ai.orders !== Orders.STATIONARY && !t.turn.hiddenInterrupt && !s.boxer) {
@@ -957,16 +957,16 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     let defense = coverBetter;
     switch (ai.morale) {
       case AiMorale.FEARLESS:
-        offense += Math.trunc(offense / 2);
+        offense += idiv(offense, 2);
         break;
       case AiMorale.CONFIDENT:
-        offense += Math.trunc(offense / 4);
+        offense += idiv(offense, 4);
         break;
       case AiMorale.WORRIED:
-        defense += Math.trunc(defense / 4);
+        defense += idiv(defense, 4);
         break;
       case AiMorale.HOPELESS:
-        defense += Math.trunc(defense / 2);
+        defense += idiv(defense, 2);
         break;
     }
     if (s.stats.wisdom >= 80) defense += 10;
@@ -1070,7 +1070,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       if (ai.attitude === Attitude.ATTACKSLAYONLY) chance = 0;
       else chance = i16(chance + (RADIO_ATTITUDES[ai.attitude] ?? 0));
       if (!t.perception.awareOfOpposition[s.team]) chance = moraleRadioChance(chance, ai.morale);
-      chance = Math.trunc(chance / 2);
+      chance = idiv(chance, 2);
       if (pre100(t) < chance) return AiAction.RED_ALERT;
     }
   }
@@ -1142,7 +1142,7 @@ function executeAttackChoice(
         let chance: number;
         if (isTank(s)) chance = 100;
         else {
-          chance = Math.trunc(25 / (best.aimTime + 1));
+          chance = idiv(25, best.aimTime + 1);
           switch (ai.attitude) {
             case Attitude.DEFENSIVE:
               chance -= 5;

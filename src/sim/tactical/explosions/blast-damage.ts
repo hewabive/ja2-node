@@ -60,8 +60,8 @@ export function armourVersusExplosivesPercent(t: TacticalState, s: Soldier): num
 export function reduceDamageAmount(damage: number, radius: number, distance: number): number {
   let reduced = damage;
   if (radius === 0) return Math.max(reduced, 0);
-  if (distance < radius) reduced -= Math.trunc((reduced * distance) / radius);
-  else reduced = Math.trunc(Math.trunc(reduced / radius) / 2);
+  if (distance < radius) reduced -= idiv(reduced * distance, radius);
+  else reduced = idiv(idiv(reduced, radius), 2);
   return Math.max(reduced, 0);
 }
 

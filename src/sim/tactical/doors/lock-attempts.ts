@@ -4,7 +4,7 @@
 // @src AttemptToPickLock, AttemptToBlowUpLock, DOOR::damageLock; Items.cc FindObj, FindUsableObj, DamageObj.
 
 import { LOCK_UNOPENABLE, LockType, lockAt, OPENING_NOT_POSSIBLE } from '../../../content/formats/locks.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, idiv } from '../../../core/int.ts';
 import { damageObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { SkillCheckReason, skillCheck } from '../combat/skill-check.ts';
@@ -125,7 +125,7 @@ export function attemptToCrowbarLock(t: TacticalState, s: Soldier, gridNo: numbe
   if (door.lockId === LOCK_UNOPENABLE) return false;
   const stress = Math.min(effectiveStrength(s), lockAt(t.content.locks, door.lockId).smashDifficulty + CROWBAR_STRESS_MARGIN);
   const crowbar = s.inv[slot];
-  const wear = t.pre.int(Math.trunc(stress / CROWBAR_STRESS_DIVISOR));
+  const wear = t.pre.int(idiv(stress, CROWBAR_STRESS_DIVISOR));
   if (crowbar) damageObject(crowbar, wear);
   return bashLock(t, s, gridNo, SkillCheckReason.OPEN_WITH_CROWBAR);
 }
@@ -154,8 +154,8 @@ export function attemptToPickLock(t: TacticalState, s: Soldier, gridNo: number):
     result = IMPOSSIBLE_CHECK_MODIFIER;
   } else result = skillCheck(t, s, reason, i8(-i8(lock.pickDifficulty)));
   if (result <= 0) return false;
-  statChange(t, s, StatKind.MECHANICAL, Math.trunc(lock.pickDifficulty / PICK_MECHANICAL_DIVISOR), StatCause.SUCCESS);
-  statChange(t, s, StatKind.DEXTERITY, Math.trunc(lock.pickDifficulty / PICK_DEXTERITY_DIVISOR), StatCause.SUCCESS);
+  statChange(t, s, StatKind.MECHANICAL, idiv(lock.pickDifficulty, PICK_MECHANICAL_DIVISOR), StatCause.SUCCESS);
+  statChange(t, s, StatKind.DEXTERITY, idiv(lock.pickDifficulty, PICK_DEXTERITY_DIVISOR), StatCause.SUCCESS);
   updateDoor(t, gridNo, { locked: false });
   return true;
 }

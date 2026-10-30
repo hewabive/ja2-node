@@ -13,7 +13,7 @@ import { Direction, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/w
 import type { Level } from '../../../content/world/level.ts';
 import { isDoorTravelCost, isOpenDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
-import { clamp, i16, u8, u16, u32 } from '../../../core/int.ts';
+import { clamp, i16, idiv, u8, u16, u32 } from '../../../core/int.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { atan8 } from '../perception/opp.ts';
 import type { TacticalState } from '../state.ts';
@@ -101,7 +101,7 @@ export function createLightingState(level: Level): LightingState {
 }
 
 export function adjustMaxSightRangeForEnvEffects(lightLevel: number, distance: number): number {
-  return Math.trunc((distance * (LIGHT_SIGHTING[lightLevel] ?? 0)) / 100);
+  return idiv(distance * (LIGHT_SIGHTING[lightLevel] ?? 0), 100);
 }
 
 export function lightTrueLevel(t: TacticalState, g: number, level: number): number {

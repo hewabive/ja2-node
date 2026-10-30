@@ -10,7 +10,7 @@
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { setSoldierAniSpeed, states } from '../animation.ts';
@@ -139,7 +139,7 @@ export function hostile(a: Soldier, b: Soldier): boolean {
 function distanceSmellable(subject: Soldier): number {
   const d = MAX_DISTANCE_VISIBLE;
   if (isMonster(subject)) return d;
-  return Math.max(Math.trunc((d * (subject.normalSmell - subject.monsterSmell)) / NORMAL_HUMAN_SMELL_STRENGTH), 0);
+  return Math.max(idiv(d * (subject.normalSmell - subject.monsterSmell), NORMAL_HUMAN_SMELL_STRENGTH), 0);
 }
 
 export function distanceVisible(
@@ -162,7 +162,7 @@ export function distanceVisible(
     const look = LOOK_BY_OCTANT_DIFFERENCE[diff > 4 ? 8 - diff : diff] ?? 0;
     d = look === ANGLE && (viewer.team === Team.OUR || viewer.ai.alertStatus >= AlertStatus.RED) ? STRAIGHT : look;
     d *= 2;
-    if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = Math.trunc((d * 8) / 10);
+    if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = idiv(d * 8, 10);
   }
   if (viewer.level !== level) d += 2;
   const light = flash ? Math.min(lightTrueLevel(t, g, level), NORMAL_LIGHTLEVEL_DAY) : lightTrueLevel(t, g, level);
@@ -681,7 +681,7 @@ function decayPublicNoise(t: TacticalState, team: number): void {
   const p = t.perception;
   const volume = p.publicNoiseVolume[team] ?? 0;
   if (!volume) return;
-  const next = t.inCombat ? Math.trunc((volume * 7) / 10) : Math.trunc(volume / 2);
+  const next = t.inCombat ? idiv(volume * 7, 10) : idiv(volume, 2);
   p.publicNoiseVolume[team] = next;
   if (next <= 0) p.publicNoiseGridNo[team] = NOWHERE;
 }

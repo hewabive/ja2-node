@@ -5,6 +5,7 @@
 
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import { AiMorale } from './combat/types.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
@@ -564,7 +565,7 @@ export interface SoldierInit {
 }
 
 export function cellCentre(g: number): { x: number; y: number } {
-  return { x: (g % 160) * 10 + 5, y: Math.trunc(g / 160) * 10 + 5 };
+  return { x: (g % 160) * 10 + 5, y: idiv(g, 160) * 10 + 5 };
 }
 
 export function createSoldier(init: SoldierInit): Soldier {

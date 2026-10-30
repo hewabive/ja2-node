@@ -10,7 +10,7 @@ import { NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
 import { has, ORIENT_LEFT, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import type { WindowShatterTile } from '../../events.ts';
 import { corpseOfStructure, isVehicleCorpse, removeCorpse } from '../combat/death.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
@@ -43,7 +43,7 @@ export interface StructureChanges {
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const centreX = (g: number) => (g % WORLD_COLS) * 10 + 5;
-const centreY = (g: number) => Math.trunc(g / WORLD_COLS) * 10 + 5;
+const centreY = (g: number) => idiv(g, WORLD_COLS) * 10 + 5;
 
 export function damageStructureByExplosion(t: TacticalState, s: StructureInstance, damageIn: number): number {
   if (has(s.flags, StructureFlags.PERSON | StructureFlags.CORPSE)) return StructureDamage.NOT_DAMAGED;
@@ -51,7 +51,7 @@ export function damageStructureByExplosion(t: TacticalState, s: StructureInstanc
   if (kind === MATERIAL_INDESTRUCTABLE_METAL || kind === MATERIAL_INDESTRUCTABLE_STONE) return StructureDamage.NOT_DAMAGED;
   let damage = u8(damageIn);
   const base = t.content.materialArmour[kind] ?? 0;
-  const armour = Math.trunc(base / (has(s.flags, StructureFlags.EXPLOSIVE) ? EXPLOSIVE_ARMOUR_DIVISOR : ARMOUR_DIVISOR));
+  const armour = idiv(base, has(s.flags, StructureFlags.EXPLOSIVE) ? EXPLOSIVE_ARMOUR_DIVISOR : ARMOUR_DIVISOR);
   if (damage < armour) return StructureDamage.NOT_DAMAGED;
   damage -= armour;
   const root = t.world.structures.findBase(s);

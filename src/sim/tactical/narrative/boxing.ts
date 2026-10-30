@@ -7,7 +7,7 @@
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { type BoxingRecord, NUM_BOXERS } from '../../strategic/narrative/facts.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -281,7 +281,7 @@ export function clearBoxers(b: BoxingRecord): void {
 
 export function findClosestBoxingRingSpot(t: TacticalState, s: Soldier, inRing: boolean): number {
   const column = s.gridNo % WORLD_COLS;
-  const row = Math.trunc(s.gridNo / WORLD_ROWS);
+  const row = idiv(s.gridNo, WORLD_ROWS);
   const maxLeft = s.team === Team.OUR && !inRing ? 0 : Math.min(RING_SPOT_SEARCH_RANGE, column);
   const maxRight = Math.min(RING_SPOT_SEARCH_RANGE, WORLD_COLS - (column + 1));
   const maxUp = Math.min(RING_SPOT_SEARCH_RANGE, row);

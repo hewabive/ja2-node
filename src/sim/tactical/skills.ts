@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/SkillCheck.cc Effective*; Soldier_Control.h effectiveLife
 
+import { idiv } from '../../core/int.ts';
 import type { Soldier } from './soldier.ts';
 
 export interface LifeState {
@@ -11,17 +12,17 @@ export interface LifeState {
 }
 
 export function effectiveLife(s: LifeState): number {
-  return s.life + Math.trunc((s.lifeMax - s.life - s.bleeding) / 2);
+  return s.life + idiv(s.lifeMax - s.life - s.bleeding, 2);
 }
 
 export function effectiveStrength(s: Soldier): number {
-  const half = Math.trunc(s.stats.strength / 2);
-  return Math.max(half + Math.trunc((half * effectiveLife(s)) / s.lifeMax), 2);
+  const half = idiv(s.stats.strength, 2);
+  return Math.max(half + idiv(half * effectiveLife(s), s.lifeMax), 2);
 }
 
 export function effectiveAgility(s: Soldier): number {
   const agility = s.stats.agility;
-  return s.weightCarriedAtTurnStart > 100 ? Math.trunc((agility * 100) / s.weightCarriedAtTurnStart) : agility;
+  return s.weightCarriedAtTurnStart > 100 ? idiv(agility * 100, s.weightCarriedAtTurnStart) : agility;
 }
 
 export function effectiveDexterity(s: Soldier): number {
@@ -60,8 +61,8 @@ const MORALE_PC_TEAM = 0;
 
 export function moraleModifier(s: Soldier): number {
   if (s.team === MORALE_PC_TEAM) {
-    if (s.morale > 50) return Math.trunc((s.morale - 45) / 10);
-    return Math.trunc(((s.morale - 50) * 2) / 5);
+    if (s.morale > 50) return idiv(s.morale - 45, 10);
+    return idiv((s.morale - 50) * 2, 5);
   }
   switch (s.ai.morale) {
     case 0:
@@ -88,5 +89,5 @@ export function fatiguePenaltyPercent(s: Soldier): number {
 }
 
 export function skillCheckFatiguePenalty(s: Soldier, skill: number): number {
-  return Math.trunc(Math.trunc((skill * fatiguePenaltyPercent(s)) / 100) / 2);
+  return idiv(idiv(skill * fatiguePenaltyPercent(s), 100), 2);
 }

@@ -9,6 +9,7 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import {
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
@@ -628,7 +629,7 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
 
 export function directionToward(from: number, to: number): number {
   const dx = (to % WORLD_COLS) - (from % WORLD_COLS);
-  const dy = Math.trunc(to / WORLD_COLS) - Math.trunc(from / WORLD_COLS);
+  const dy = idiv(to, WORLD_COLS) - idiv(from, WORLD_COLS);
   if (dx === 0 && dy === 0) return 2;
   let theta = Math.atan2(-dy, dx);
   if (theta < 0) theta += 2 * Math.PI;

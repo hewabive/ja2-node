@@ -13,6 +13,7 @@ import { MAX_FRAMES_PER_ANIM } from '../../content/formats/ja2bin.ts';
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { idiv } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
@@ -165,11 +166,11 @@ export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
   const table = speedTableFor(content.animations, id);
   const additional = table && (!bodyLimited || s.bodyType <= Body.REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
   const terrain = control.flags & AnimFlags.MOVING ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
-  const breathDeficit = Math.min(50 - Math.trunc(s.breath / 2), MAX_BREATH_DEFICIT);
-  const agilityDeficit = 50 - Math.trunc(effectiveAgility(s) / 4);
-  const lifeDeficit = 50 - Math.trunc(s.life / 2);
+  const breathDeficit = Math.min(50 - idiv(s.breath, 2), MAX_BREATH_DEFICIT);
+  const agilityDeficit = 50 - idiv(effectiveAgility(s), 4);
+  const lifeDeficit = 50 - idiv(s.life, 2);
   let delay = terrain + lifeDeficit + breathDeficit + agilityDeficit + additional;
-  if (t.inCombat) delay = Math.trunc(delay / 2);
+  if (t.inCombat) delay = idiv(delay, 2);
   else if (s.stealthMode) delay *= 2;
   return delay;
 }
@@ -829,7 +830,7 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       charge(AP.FALL_DOWN, BP.FALL_DOWN);
       break;
     case 'FALLFORWARD_FROMHIT_CROUCH':
-      charge(Math.trunc(AP.FALL_DOWN / 2), Math.trunc(BP.FALL_DOWN / 2));
+      charge(idiv(AP.FALL_DOWN, 2), idiv(BP.FALL_DOWN, 2));
       break;
     case 'CLIMBDOWNROOF':
       t.perception.disallowSight = true;

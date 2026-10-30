@@ -7,6 +7,7 @@
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import { anim } from './anim-states.ts';
 import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
@@ -136,7 +137,7 @@ export function findClosestExitGrid(t: TacticalState, source: number, radius: nu
   let lowestRange = 999999;
   const exits = t.world.exitGrids;
   for (let dy = -radius; dy <= radius; dy++) {
-    const leftmost = Math.trunc((source + WORLD_COLS * dy) / WORLD_COLS) * WORLD_COLS;
+    const leftmost = idiv(source + WORLD_COLS * dy, WORLD_COLS) * WORLD_COLS;
     for (let dx = -radius; dx <= radius; dx++) {
       const g = source + WORLD_COLS * dy + dx;
       if (g < 0 || g >= WORLD_MAX || g < leftmost || g >= leftmost + WORLD_COLS || !exits.has(g)) continue;
@@ -152,7 +153,7 @@ export function findClosestExitGrid(t: TacticalState, source: number, radius: nu
 
 export function directionFromTo(from: number, to: number): number {
   const dx = (to % WORLD_COLS) - (from % WORLD_COLS);
-  const dy = Math.trunc(to / WORLD_COLS) - Math.trunc(from / WORLD_COLS);
+  const dy = idiv(to, WORLD_COLS) - idiv(from, WORLD_COLS);
   if (dx === 0 && dy === 0) return 2;
   let theta = Math.atan2(-dy, dx);
   if (theta < 0) theta += 2 * Math.PI;

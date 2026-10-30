@@ -4,7 +4,7 @@
 // @src noise), WhatIKnowThatPublicDont; AIUtils.cc ClosestKnownOpponent, GuySawEnemyThisTurnOrBefore.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { getInterveningClimbingLocation, sameBuilding } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { Profile } from '../narrative/constants.ts';
@@ -103,7 +103,7 @@ function loudestNoise(t: TacticalState, s: Soldier): LoudestNoise {
 }
 
 function noiseValue(volume: number, distance: number): number {
-  return (Math.trunc(volume / 2) - 6) * distance;
+  return (idiv(volume, 2) - 6) * distance;
 }
 
 export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
@@ -145,7 +145,7 @@ export function guySawEnemyThisTurnOrBefore(t: TacticalState, s: Soldier): boole
 
 const rangeInCells = (a: number, b: number) => {
   const dx = (a % 160) - (b % 160);
-  const dy = Math.trunc(a / 160) - Math.trunc(b / 160);
+  const dy = idiv(a, 160) - idiv(b, 160);
   return Math.trunc(Math.sqrt(dx * dx + dy * dy) * 10);
 };
 

@@ -7,7 +7,7 @@
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { i8, i16, u8 } from '../../../core/int.ts';
+import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import type { CreatureCallName } from '../../events.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { anim } from '../anim-states.ts';
@@ -171,7 +171,7 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
   playCallAnimation(t, caller);
   for (const r of teamMembers(t, caller.team)) {
     if (!hearsCall(caller, r)) continue;
-    const priority = i8(full - Math.trunc(pythSpacesAway(r.gridNo, caller.gridNo) / PRIORITY_DECR_DISTANCE));
+    const priority = i8(full - idiv(pythSpacesAway(r.gridNo, caller.gridNo), PRIORITY_DECR_DISTANCE));
     if (priority <= r.ai.callPriority) continue;
     r.ai.callPriority = u8(priority);
     r.ai.alertStatus = AlertStatus.RED;
@@ -220,7 +220,7 @@ function sniffTile(t: TacticalState, s: Soldier, g: number, dx: number, dy: numb
   if (!info || smellType(info) !== SmellKind.HUMAN) return;
   const strength = smellStrength(info);
   const x = s.gridNo % WORLD_COLS;
-  const y = Math.trunc(s.gridNo / WORLD_COLS);
+  const y = idiv(s.gridNo, WORLD_COLS);
   if (strength > trail.strength) {
     trail.gridNo = g;
     trail.strength = strength;
@@ -238,7 +238,7 @@ function sniffTile(t: TacticalState, s: Soldier, g: number, dx: number, dy: numb
 
 export function trackScent(t: TacticalState, s: Soldier): number {
   const x = s.gridNo % WORLD_COLS;
-  const y = Math.trunc(s.gridNo / WORLD_COLS);
+  const y = idiv(s.gridNo, WORLD_COLS);
   const trail: ScentTrail = { gridNo: NOWHERE, strength: 0, directionDiff: 5 };
   for (let dy = -SCENT_RADIUS; dy <= SCENT_RADIUS; dy++) {
     if (y + dy < 0) continue;
@@ -471,7 +471,7 @@ function canRadio(t: TacticalState, s: Soldier): boolean {
 function callForHelpWhenHurt(t: TacticalState, s: Soldier, crippledCall: boolean): number | null {
   if (!canCall(s) || !canRadio(t, s) || s.life >= s.oldLife) return null;
   if (crippledCall && s.oldLife === s.lifeMax && s.oldLife - s.life > 10) return creatureCallAction(s, CreatureCallKind.CRIPPLED);
-  if (Math.trunc(s.lifeMax / s.life) > 2) return creatureCallAction(s, CreatureCallKind.ATTACKED);
+  if (idiv(s.lifeMax, s.life) > 2) return creatureCallAction(s, CreatureCallKind.ATTACKED);
   return null;
 }
 
@@ -565,7 +565,7 @@ function creatureDecideActionRed(t: TacticalState, s: Soldier): number {
 
 function blackCall(t: TacticalState, s: Soldier): number | null {
   if (!canCall(s) || !canRadio(t, s)) return null;
-  if (s.life < s.oldLife) return Math.trunc(s.lifeMax / s.life) > 2 ? creatureCallAction(s, CreatureCallKind.ATTACKED) : null;
+  if (s.life < s.oldLife) return idiv(s.lifeMax, s.life) > 2 ? creatureCallAction(s, CreatureCallKind.ATTACKED) : null;
   if (t.perception.awareOfOpposition[s.team]) return null;
   const chance = s.bodyType === Body.QUEENMONSTER ? 100 : 20 * s.ai.oppCount;
   if (t.rng.int(100) >= chance) return null;
@@ -699,7 +699,7 @@ function creatureDecideActionBlack(t: TacticalState, s: Soldier, hooks: Creature
     const stab = planStab(t, s, hooks, spitIn);
     let action: number = spit.shot.possible ? AiAction.FIRE_GUN : AiAction.NONE;
     const shotValue = spit.shot.possible ? spit.shot.attackValue : 0;
-    if (stab.possible && stab.attackValue > Math.trunc((shotValue * STAB_PREFERENCE_NUMERATOR) / STAB_PREFERENCE_DENOMINATOR))
+    if (stab.possible && stab.attackValue > idiv(shotValue * STAB_PREFERENCE_NUMERATOR, STAB_PREFERENCE_DENOMINATOR))
       action = AiAction.KNIFE_MOVE;
     if (action !== AiAction.NONE) return launchCreatureAttack(s, action, action === AiAction.FIRE_GUN ? spit.shot : stab);
   }

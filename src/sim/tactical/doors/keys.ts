@@ -5,6 +5,7 @@
 
 import { ANYKEY, INVALID_KEY_NUMBER, lockAt } from '../../../content/formats/locks.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
+import { idiv } from '../../../core/int.ts';
 import { createItems, type ItemObject } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { worldSeconds } from '../explosions/state.ts';
@@ -50,7 +51,7 @@ export function collectKey(t: TacticalState, s: Soldier, o: ItemObject): void {
   if (s.team !== Team.OUR) return;
   const k = t.keyTable[o.keyId];
   if (k?.dateFound !== 0) return;
-  k.dateFound = Math.trunc(worldSeconds(t) / SECONDS_PER_DAY);
+  k.dateFound = idiv(worldSeconds(t), SECONDS_PER_DAY);
   k.sectorFound = t.sector ? sectorByte(t.sector) : 0;
 }
 

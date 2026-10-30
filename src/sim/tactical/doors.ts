@@ -8,6 +8,7 @@
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type WorldStructures } from '../../content/world/structures.ts';
+import { idiv } from '../../core/int.ts';
 import type { DoorSoundKind } from '../events.ts';
 import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import type { TacticalState } from './state.ts';
@@ -22,7 +23,7 @@ export function swapStructureForPartner(t: TacticalState, s: StructureInstance):
   const partner = base.file.structures[base.def.number + base.def.partnerDelta];
   if (!partner) return null;
   const hitPoints = base.hitPoints;
-  const level = Math.trunc(base.cubeOffset / PROFILE_Z_SIZE);
+  const level = idiv(base.cubeOffset, PROFILE_Z_SIZE);
   const gridNo = base.gridNo;
   structures.remove(base);
   const added = structures.add(gridNo, level, partner, undefined, base.file);

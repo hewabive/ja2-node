@@ -11,6 +11,7 @@ import { type DetailedPlacement, parseDetailedPlacement } from '../../content/fo
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem } from '../../content/items/rules.ts';
+import { idiv } from '../../core/int.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
 import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
@@ -369,7 +370,7 @@ function creatureLevel(c: CreationContext, body: number, modifier: number, env: 
 
 function experience(c: CreationContext, bp: BasicPlacement, soldierClass: number, env: CreationEnv): ExperienceRoll {
   const diffFactor = env.difficultyModifier(soldierClass);
-  let expModifier = Math.trunc(diffFactor / DIFF_STEP) - 2;
+  let expModifier = idiv(diffFactor, DIFF_STEP) - 2;
   let statsModifier = diffFactor % DIFF_STEP >= DIFF_UPPER_HALF ? 1 : 0;
   const relative = RELATIVE_LEVEL_MODIFIERS[bp.relativeAttributeLevel];
   if (relative) {
@@ -512,7 +513,7 @@ function assignNightOps(c: CreationContext, s: Soldier): void {
   const rule = NIGHTOPS[s.soldierClass];
   if (!rule) return;
   const progress = c.equipment.progress;
-  const chance = rule.base + (progress < NIGHTOPS_RAMP_PROGRESS ? Math.trunc((progress * 2) / 3) : NIGHTOPS_RAMP_CAP);
+  const chance = rule.base + (progress < NIGHTOPS_RAMP_PROGRESS ? idiv(progress * 2, 3) : NIGHTOPS_RAMP_CAP);
   if (c.rng.int(100) >= chance) return;
   s.skillTrait1 = SkillTrait.NIGHTOPS;
   if (progress >= rule.expertProgress && c.rng.int(100) < rule.expertChance) s.skillTrait2 = SkillTrait.NIGHTOPS;
@@ -543,7 +544,7 @@ export function assignCreatureInventory(c: BodyContext, s: Soldier): void {
     putItem(c, s, InvSlot.BIGPOCK1, kit.bloodcat ? 'BLOODCAT_CLAWS' : 'CREATURE_PART_CLAWS', creaturePartStatus(c));
   if (c.rng.int(100) < chance)
     putItem(c, s, InvSlot.BIGPOCK2, kit.bloodcat ? 'BLOODCAT_TEETH' : 'CREATURE_PART_FLESH', creaturePartStatus(c));
-  if (kit.male) chance += Math.trunc(chance / 2);
+  if (kit.male) chance += idiv(chance, 2);
   if (c.rng.int(100) < chance)
     putItem(c, s, InvSlot.BIGPOCK3, kit.bloodcat ? 'BLOODCAT_PELT' : 'CREATURE_PART_ORGAN', creaturePartStatus(c));
 }

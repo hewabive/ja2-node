@@ -4,7 +4,7 @@
 // @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { u8, u32 } from '../../core/int.ts';
+import { idiv, u8, u32 } from '../../core/int.ts';
 import { isWater } from './pathfinding.ts';
 import { Body, NOWHERE, type Soldier } from './soldier.ts';
 
@@ -202,7 +202,7 @@ export function decayBloodAndSmells(w: SmellWorld, worldSeconds: number): void {
 }
 
 function combinedSmell(strength: number, old: number): number {
-  return Math.min(Math.max(strength, old) + Math.trunc(Math.min(strength, old) / SMELL_COMBINE_DIVISOR), SMELL_STRENGTH_MAX);
+  return Math.min(Math.max(strength, old) + idiv(Math.min(strength, old), SMELL_COMBINE_DIVISOR), SMELL_STRENGTH_MAX);
 }
 
 export function dropSmell(m: SmellMap, s: Pick<Soldier, 'level' | 'gridNo' | 'normalSmell' | 'monsterSmell'>): void {
@@ -231,11 +231,11 @@ export function dropSmell(m: SmellMap, s: Pick<Soldier, 'level' | 'gridNo' | 'no
     return;
   }
   if (oldStrength > strength) {
-    oldStrength = u8(oldStrength - Math.trunc(strength / SMELL_MUDDY_DIVISOR));
+    oldStrength = u8(oldStrength - idiv(strength, SMELL_MUDDY_DIVISOR));
     m.smell[g] = withSmell(info, oldStrength, oldKind);
     return;
   }
-  strength = u8(strength - Math.trunc(oldStrength / SMELL_MUDDY_DIVISOR));
+  strength = u8(strength - idiv(oldStrength, SMELL_MUDDY_DIVISOR));
   m.smell[g] = strength > 0 ? withSmell(info, strength, kind) : 0;
 }
 

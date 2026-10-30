@@ -9,6 +9,7 @@ import type { MapDef, MapEdgepoints as SavedEdgepoints } from '../../content/for
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { idiv } from '../../core/int.ts';
 import type { RandomStream } from './combat/context.ts';
 import { ABSMAX_TRAIL_TREE, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { Team } from './soldier.ts';
@@ -109,7 +110,7 @@ export function gridNoOnEdgeOfMap(t: TacticalState, g: number): boolean {
 
 function squareTiles(center: number, apothem: number): number[] {
   const cx = center % WORLD_COLS;
-  const cy = Math.trunc(center / WORLD_COLS);
+  const cy = idiv(center, WORLD_COLS);
   const out: number[] = [];
   for (let y = Math.max(0, cy - apothem); y <= Math.min(WORLD_COLS - 1, cy + apothem); y++)
     for (let x = Math.max(0, cx - apothem); x <= Math.min(WORLD_COLS - 1, cx + apothem); x++) out.push(y * WORLD_COLS + x);

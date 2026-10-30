@@ -8,7 +8,7 @@
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { clamp, i8 } from '../../../core/int.ts';
+import { clamp, i8, idiv } from '../../../core/int.ts';
 import { cloneObject, createItem, type ItemObject } from '../../items/object.ts';
 import { rangeInUnits } from '../combat/chance.ts';
 import { losWorldOf } from '../combat/positions.ts';
@@ -66,7 +66,7 @@ export function throwHeight(level: number): number {
 }
 
 function centre(g: number): { x: number; y: number } {
-  return { x: (g % WORLD_COLS) * 10 + 5, y: Math.trunc(g / WORLD_COLS) * 10 + 5 };
+  return { x: (g % WORLD_COLS) * 10 + 5, y: idiv(g, WORLD_COLS) * 10 + 5 };
 }
 
 export function isRoofPresentAt(t: TacticalState, g: number): boolean {
@@ -222,7 +222,7 @@ export function launchItemBasicParams(
   if (indoors) maxForce = f32(maxForce * 2);
   if (force > maxForce) force = maxForce;
   if (mortarShot || grenadeLauncherShot) {
-    const minForce = calculateForceFromRange(t, Math.trunc(minRange / 10), MAX_RANGE_ANGLE);
+    const minForce = calculateForceFromRange(t, idiv(minRange, 10), MAX_RANGE_ANGLE);
     if (force < minForce) force = minForce;
   }
   if (window !== NOWHERE) degrees = findBestAngle(t, s.gridNo, window, throwHeight(s.level), WINDOW_TARGET_Z, force, obj);
@@ -242,7 +242,7 @@ export function randomGridFromRadius(t: TacticalState, sweet: number, minRadius:
     if ((x < minRadius || y < minRadius) && maxRadius !== minRadius) continue;
     if (t.pre.int(2) === 0) x = -x;
     if (t.pre.int(2) === 0) y = -y;
-    const leftmost = Math.trunc((sweet + WORLD_COLS * y) / WORLD_COLS) * WORLD_COLS;
+    const leftmost = idiv(sweet + WORLD_COLS * y, WORLD_COLS) * WORLD_COLS;
     const g = sweet + WORLD_COLS * y + x;
     if (g === sweet) continue;
     if (++tries > RANDOM_GRID_TRIES) return NOWHERE;
@@ -253,7 +253,7 @@ export function randomGridFromRadius(t: TacticalState, sweet: number, minRadius:
 function missRadii(pyth: number, missByIn: number): { min: number; max: number } {
   const missBy = clamp(missByIn, MIN_MISS_BY, MAX_MISS_BY);
   let maxRadius = DEFAULT_MISS_RADIUS;
-  if (pyth < f32(DEFAULT_MISS_RADIUS / f32(1.5))) maxRadius = Math.trunc(pyth / 2);
+  if (pyth < f32(DEFAULT_MISS_RADIUS / f32(1.5))) maxRadius = idiv(pyth, 2);
   const fraction = f32(f32(missBy) / f32(MAX_MISS_BY));
   let max = i8(Math.trunc(f32(maxRadius * fraction)));
   if (max > MAX_MISS_RADIUS) max = MAX_MISS_RADIUS;

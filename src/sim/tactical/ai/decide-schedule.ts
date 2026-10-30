@@ -5,7 +5,7 @@
 
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, idiv } from '../../../core/int.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
 import { getSchedule, ScheduleAction, type ScheduleNode, UNSET_SCHEDULE_VALUE } from '../narrative/schedule-state.ts';
 import {
@@ -116,7 +116,7 @@ function decideDoorSchedule(t: TacticalState, s: Soldier, action: number, data1:
 
 export function findNearbyPointOnEdgeOfMap(t: TacticalState, s: Soldier): { readonly gridNo: number; readonly direction: number } {
   const col = s.gridNo % WORLD_COLS;
-  const row = Math.trunc(s.gridNo / WORLD_COLS);
+  const row = idiv(s.gridNo, WORLD_COLS);
   const maxLeft = Math.min(EDGE_OF_MAP_SEARCH, col);
   const maxRight = Math.min(EDGE_OF_MAP_SEARCH, WORLD_COLS - (col + 1));
   const maxUp = Math.min(EDGE_OF_MAP_SEARCH, row);

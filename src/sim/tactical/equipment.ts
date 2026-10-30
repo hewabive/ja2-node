@@ -9,6 +9,7 @@
 
 import { AmmoType, ArmourClass, ItemClass, type ItemDef, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';
+import { idiv } from '../../core/int.ts';
 import {
   attachObject,
   copyObjectInto,
@@ -232,11 +233,11 @@ function chooseWeapon(
       case SoldierClass.ARMY:
       case SoldierClass.GREEN_MILITIA:
       case SoldierClass.REG_MILITIA:
-        status = Math.min(100, 60 + rng.int(16) + Math.trunc(state.progress / 4));
+        status = Math.min(100, 60 + rng.int(16) + idiv(state.progress, 4));
         break;
       case SoldierClass.ELITE:
       case SoldierClass.ELITE_MILITIA:
-        status = Math.min(100, 85 + rng.int(6) + Math.trunc(state.progress / 10));
+        status = Math.min(100, 85 + rng.int(6) + idiv(state.progress, 10));
         break;
       default:
         status = 50 + rng.int(51);
@@ -431,8 +432,8 @@ function chooseFaceGear(items: ItemTable, rng: RandomStream, state: EquipmentSta
       break;
     case SoldierClass.ARMY:
     case SoldierClass.REG_MILITIA:
-      if (chance(rng, Math.trunc(difficulty / 2))) put(InvSlot.HEAD1, chance(rng, 50) ? 'GASMASK' : 'NIGHTGOGGLES');
-      if (chance(rng, Math.trunc(difficulty / 3))) put(InvSlot.HEAD2, 'EXTENDEDEAR');
+      if (chance(rng, idiv(difficulty, 2))) put(InvSlot.HEAD1, chance(rng, 50) ? 'GASMASK' : 'NIGHTGOGGLES');
+      if (chance(rng, idiv(difficulty, 3))) put(InvSlot.HEAD2, 'EXTENDEDEAR');
       break;
   }
 }
@@ -530,7 +531,7 @@ function chooseDroppable(items: ItemTable, rng: RandomStream, state: EquipmentSt
   const knife = rng.int(100) < otherRate;
   const grenades = rng.int(100) < grenadeRate;
   const kit = rng.int(100) < otherRate;
-  const face = rng.int(100) < Math.trunc(otherRate / 3);
+  const face = rng.int(100) < idiv(otherRate, 3);
   const misc = rng.int(100) < otherRate;
   if (ammo)
     for (const o of inv)
@@ -574,7 +575,7 @@ export function generateRandomEquipment(
     equipTank(items, rng, inv);
     return;
   }
-  const modifier = equipmentRating + (Math.trunc(difficulty / 10) - 5);
+  const modifier = equipmentRating + (idiv(difficulty, 10) - 5);
   let ammoClips = 0;
   let grenades = 0;
   let attachment = false;

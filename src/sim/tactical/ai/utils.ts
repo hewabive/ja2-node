@@ -8,6 +8,7 @@
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
+import { idiv } from '../../../core/int.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
 import { rangeInUnits } from '../combat/chance.ts';
@@ -107,7 +108,7 @@ export function estimatePathCostToLocation(
   if (cost === 0) return NO_CLIMB_COST;
   const walkAfter = WALK_ESTIMATE_PER_TILE * pythSpacesAway(climbGridNo, dest);
   if (sameLevel) {
-    cost += addAfterClimbUp ? AP.CLIMBOFFROOF + AP.CLIMBROOF + walkAfter : AP.CLIMBOFFROOF + Math.trunc(walkAfter / 2);
+    cost += addAfterClimbUp ? AP.CLIMBOFFROOF + AP.CLIMBROOF + walkAfter : AP.CLIMBOFFROOF + idiv(walkAfter, 2);
   } else if (climbUp) cost += AP.CLIMBROOF + (addAfterClimbUp ? walkAfter : 0);
   else cost += AP.CLIMBOFFROOF + walkAfter;
   return { cost, climb: true, climbGridNo };
