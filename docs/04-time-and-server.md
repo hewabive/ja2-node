@@ -79,11 +79,11 @@ profiling demands it, which it has not (§4.5).
 | Message boxes and dialogues with choices | UI screens | Decision prompts (D15); time stands still until an answer (deviations "Prompt time") |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
 | Idle animations draw on the shared generator and change soldier state | opcode 491 | Not simulated (gaps "Random idle animations") |
-| "Render visibility" `bLastRenderVisibleValue` | `Tactical/Overhead.cc:600-604` | Updated in the logic loop, not by rendering: a state field |
+| "Render visibility" `bLastRenderVisibleValue` and the soldier fade | `Tactical/Overhead.cc:544-634` | A soldier field (`lastRenderVisible`) nothing updates yet: the fade is not ported (gaps "Unseen soldiers in combat") |
 
-Logic depends on rendering nowhere (the one field named after rendering is a logic field), on the wall clock in a
-finite list of places, all converted to game time, and on sound only through quote durations, replaced by data.
-`deviations.md` §2 has every timing difference that follows.
+Logic depends on rendering only through the soldier fade, whose length reads the land node's display shade, on the
+wall clock in a finite list of places, all converted to game time, and on sound only through quote durations, replaced
+by data. `deviations.md` §2 has every timing difference that follows.
 
 ---
 

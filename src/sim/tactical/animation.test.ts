@@ -71,6 +71,22 @@ describe('the frame delay', () => {
     };
     expect([delayAiming(0, false), delayAiming(2, false), delayAiming(0, true), delayAiming(2, true)]).toEqual([70, 150, 70, 150]);
   });
+
+  it('runs an unseen soldier in combat at the loop rate, except a creature rising to call', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    t.inCombat = true;
+    const creature = spawnSoldier(sim, 52, Team.CREATURE, gridNo(84, 80), Direction.WEST);
+    creature.bodyType = Body.ADULTFEMALEMONSTER;
+    creature.visible = -1;
+    const delayIn = (state: string) => {
+      creature.state = anim(content, state);
+      setSoldierAniSpeed(t, creature);
+      return creature.aniDelay;
+    };
+    const risingDelay = content.animations.controls[anim(content, 'MONSTER_UP')]?.speed;
+    expect([delayIn('ADULTMONSTER_BREATHING'), delayIn('MONSTER_UP')]).toEqual([0, risingDelay]);
+  });
 });
 
 describe('fast turns', () => {

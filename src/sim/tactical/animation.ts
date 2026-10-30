@@ -178,8 +178,12 @@ export function resetFrameTimer(t: TacticalState, s: Soldier): void {
   s.nextFrameAt = t.clockMs + s.aniDelay;
 }
 
+function animatesAtLoopRate(t: TacticalState, s: Soldier): boolean {
+  return t.inCombat && s.visible === -1 && s.state !== anim(t.content, 'MONSTER_UP');
+}
+
 export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {
-  if (t.inCombat && s.visible === -1) {
+  if (animatesAtLoopRate(t, s)) {
     s.aniDelay = 0;
     resetFrameTimer(t, s);
     return;

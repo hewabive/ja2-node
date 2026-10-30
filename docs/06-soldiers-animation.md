@@ -100,6 +100,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Only our mercs fast-turn; enemies turn at their state's delay | `animation.test.ts` |
 | A body's negative frame delay bonus never applies: women and big men walk with a man's delay | `animation.test.ts` |
 | Raising a rifle standing takes 70 ms a frame, 150 aimed, whatever the stats, and combat does not halve it | `animation.test.ts` |
+| In combat an unseen creature rising to call keeps its state's delay; every other unseen soldier runs at the loop rate | `animation.test.ts` |
 | A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
