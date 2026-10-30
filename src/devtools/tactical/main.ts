@@ -4,7 +4,6 @@ import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
 import { fetchVfsFile, fetchVfsList, type VfsFile } from '../../app/net/vfs.ts';
 import { loadSettings } from '../../app/settings.ts';
 import { TacticalSound } from '../../app/sound/tactical-sound.ts';
-import { AiTurnHolder } from '../../app/world/ai-turn.ts';
 import { tacticalOptionsOf } from '../../app/world/display-options.ts';
 import { LightTemplates, MERC_LIGHT } from '../../app/world/light-templates.ts';
 import { SoldierAssets } from '../../app/world/soldier-assets.ts';
@@ -154,7 +153,6 @@ let soldierScene: SoldierScene | null = null;
 let soldierFrames: SoldierFrames | null = null;
 let effects: WorldEffects | null = null;
 let lightTemplates = new LightTemplates();
-const aiTurns = new AiTurnHolder();
 let client: SessionClient | null = null;
 let hintPanel: HintPanel | null = null;
 let hintLine = '';
@@ -265,7 +263,6 @@ function render(): void {
     hovered: hoveredSoldier,
     selected,
     uiNodes: uiNodes(),
-    underAiControl: (id) => aiTurns.holds(id),
   });
   renderer.present(null, canvas.height, 0, 0, zoom);
   debug.renderMs = performance.now() - renderStart;
@@ -283,7 +280,7 @@ function render(): void {
   debug.bloodPools = client?.view?.blood?.length ?? 0;
   debug.ambient = client?.view?.light?.ambient ?? null;
   debug.dynamicLights = client?.view?.light?.sprites.length ?? 0;
-  debug.aiTurn = aiTurns.soldier;
+  debug.aiTurn = client?.combat?.aiTurn ?? null;
   debug.drawnEffects = view.drawnEffects;
   debug.soldierGridNos = soldiers().map((s) => ({ id: s.id, team: s.team, gridNo: s.gridNo }));
   debug.soldierBoxes = renderer.placedSoldiers.map((p) => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height }));
@@ -555,7 +552,6 @@ async function start(): Promise<void> {
     client.onFrames = (frames) => {
       sound.frames(frames);
       sleepWake.frames(frames);
-      for (const frame of frames) aiTurns.observe(frame.events ?? []);
     };
     client.onReceive = (frames) => {
       for (const frame of frames) soldierFrames?.observe(frame.events ?? []);
@@ -564,7 +560,6 @@ async function start(): Promise<void> {
       sound.director?.reset(client?.soldiers ?? []);
       sound.music.reset(client?.view?.music);
       soldierFrames?.reset();
-      aiTurns.reset();
     };
     await loadSector(mapPath);
     started = true;

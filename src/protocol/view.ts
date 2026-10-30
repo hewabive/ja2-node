@@ -115,6 +115,7 @@ export interface CombatView {
   readonly uiLocked: boolean;
   readonly topMessage: TopMessageView | null;
   readonly ai: { readonly current: number; readonly total: number } | null;
+  readonly aiTurn?: number | null;
 }
 
 export interface ClockView {
@@ -1021,7 +1022,8 @@ function sameCombat(a: CombatView | null | undefined, b: CombatView | null | und
     a.interrupt === b.interrupt &&
     a.uiLocked === b.uiLocked &&
     sameJson(a.topMessage, b.topMessage) &&
-    sameJson(a.ai, b.ai)
+    sameJson(a.ai, b.ai) &&
+    a.aiTurn === b.aiTurn
   );
 }
 

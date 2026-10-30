@@ -165,6 +165,7 @@ describe('an AI attack decided in real time (AIMain.cc NPCDoesAct, TeamTurns.cc 
       interrupt: false,
       uiLocked: true,
       topMessage: { kind: 'computerTurn', team: Team.ENEMY, bloodcats: false },
+      aiTurn: attacker.id,
     });
     const turn = turnEvents(runUntilIdle(sim));
     expect(turn.filter((e) => e.type === 'shotFired' && e.soldier === attacker.id).length).toBeGreaterThan(0);

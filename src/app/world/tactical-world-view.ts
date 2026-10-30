@@ -94,7 +94,6 @@ export interface TacticalFrame {
   readonly shownTick?: number;
   readonly time?: LightingTime;
   readonly hostile?: (s: SoldierView) => boolean;
-  readonly underAiControl?: (id: number) => boolean;
 }
 
 export interface TacticalPresentation {
@@ -278,7 +277,6 @@ export class TacticalWorldView {
         selected: f.selected ?? null,
         hostile,
         ungreyed: (s) => this.#soldiers.ungreyed(s),
-        underAiControl: f.underAiControl ?? (() => false),
       }),
       hostile,
       lights: f.options,

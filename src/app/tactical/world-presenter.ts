@@ -48,7 +48,6 @@ import type {
   WorldPresenter,
 } from '../../ui/screens/tactical/environment.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
-import { AiTurnHolder } from '../world/ai-turn.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
@@ -94,7 +93,6 @@ function stanceOffsetOf(height: number): number {
 export class TacticalWorldPresenter implements WorldPresenter {
   readonly ready = true;
   readonly radarImage: string | null;
-  readonly aiTurns = new AiTurnHolder();
   readonly #world: TacticalWorldView;
   readonly #renderer: WorldRenderer;
   readonly #assets: UiAssets;
@@ -462,7 +460,6 @@ export class TacticalWorldPresenter implements WorldPresenter {
       uiNodes: this.#uiNodes(),
       bullets: this.#sources.bullets(),
       shownTick: this.#sources.shownTick(),
-      underAiControl: (id) => this.aiTurns.holds(id),
     });
     return this.#renderer.picture;
   }

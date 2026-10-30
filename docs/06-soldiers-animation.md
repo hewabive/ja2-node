@@ -79,7 +79,9 @@ of the quad (`05`, deviation "Shadow darkening").
 
 **Enemies glow instead of being lit.** A soldier takes his tile's shade two levels brighter, never brighter than the
 default. A hostile soldier takes a glow row during our turn (always in real time) or under AI control, grey while the
-selected merc does not see him, and draws topmost at the pulse's peak or under the cursor.
+selected merc does not see him, and draws topmost at the pulse's peak or under the cursor. The soldier under AI control
+comes from the combat view's `aiTurn` (`TacticalSim.combatView`), so the attacker of a hidden turn and an AI
+interrupter glow too; it stays empty while an AI interrupt is hidden.
 
 **The fade is simulation state.** A soldier who drops out of sight is held at `visible` −2 while his shade steps every
 60 ms from his tile's shade to 12 (`fade.ts`, run in the overhead pass before the frame timer); the end of a fade, out

@@ -7,9 +7,7 @@ import { PROJECT_DATA_LAYER } from '../../content/vfs/layers.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { InventoryItemView } from '../../protocol/view.ts';
-import type { SimEvent } from '../../sim/events.ts';
 import { lightTemplate } from '../../sim/tactical/lighting/templates.ts';
-import { AiTurnHolder } from './ai-turn.ts';
 import { LightTemplates, MERC_LIGHT, mercLightTemplateName, NIGHT_GOGGLES_LIGHT, UV_GOGGLES_LIGHT } from './light-templates.ts';
 
 const REPOSITORY_JSON = readFileSync(join(PROJECT_DATA_DIR, SHIPPED_LIGHT_TEMPLATES_PATH));
@@ -74,18 +72,6 @@ describe('merc light templates', () => {
     const fromUser = await LightTemplates.load([{ path: SHIPPED_LIGHT_TEMPLATES_PATH, size: 1, layer: 'data-dir' }], read);
     expect(fromUser.resolve(MERC_LIGHT)).toMatchObject({ origin: 'data' });
     expect(fromUser.resolve(MERC_LIGHT)?.template.lights).toHaveLength(117);
-  });
-});
-
-describe('the AI turn holder', () => {
-  it('follows aiTurn events and lets go when a turn or an interrupt changes hands', () => {
-    const holder = new AiTurnHolder();
-    holder.observe([{ type: 'aiTurn', tick: 1, soldier: 21 } as SimEvent]);
-    expect(holder.holds(21)).toBe(true);
-    holder.observe([{ type: 'aiTurn', tick: 2, soldier: 22 } as SimEvent]);
-    expect([holder.holds(21), holder.holds(22)]).toEqual([false, true]);
-    holder.observe([{ type: 'turnStarted', tick: 3, team: 0, round: 2 } as SimEvent]);
-    expect(holder.soldier).toBeNull();
   });
 });
 

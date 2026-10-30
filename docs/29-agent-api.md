@@ -107,7 +107,8 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   `endTurn` gives the turn back (deviation "Interrupt prompt").
 - An AI interrupt shows nothing until `DisplayHiddenInterrupt`, then an `interrupt` event; while a hidden one runs the
   view shows our turn, as the original does, and orders are refused with `uiLocked`. A fully hidden one leaves no
-  trace.
+  trace. `combat.aiTurn` names the AI soldier whose turn it is (the one the original highlights) while he is in the
+  view, also in an AI interrupt once it shows and in the turn an AI attack starts.
 - `endTurn` first runs `CheckForEndOfCombatMode(FALSE)`: when that ends combat the turn does not pass and the answer
   carries `data.combatEnded`.
 - The selected merc (`turn.selected`: the merc of the last accepted order, at first `EnterCombatMode`'s choice) matters

@@ -121,7 +121,7 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
-import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
+import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
@@ -174,6 +174,7 @@ export interface CombatSnapshot {
   readonly uiLocked: boolean;
   readonly topMessage: TopMessageView | null;
   readonly ai: { readonly current: number; readonly total: number } | null;
+  readonly aiTurn: number | null;
 }
 
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
@@ -1008,6 +1009,14 @@ export class TacticalSim {
       uiLocked: this.uiLocked(),
       topMessage: message ? { kind: topMessageName(message.kind), team: message.team, bloodcats: message.bloodcats } : null,
       ai: showsAiProgress(message) ? { current: progress.current, total: progress.total } : null,
+      aiTurn: this.#shownAiTurnSoldier(),
     };
+  }
+
+  #shownAiTurnSoldier(): number | null {
+    const t = this.state;
+    if (t.turn.hiddenInterrupt) return null;
+    const holder = t.soldiers.find((s) => s?.aiTurnControl);
+    return holder && shownToPlayer(holder) ? holder.id : null;
   }
 }

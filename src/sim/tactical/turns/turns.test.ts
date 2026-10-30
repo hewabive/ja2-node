@@ -16,7 +16,7 @@ import { hasPendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel, markSeenOpponent } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints, ptsToMoveDirection } from '../points.ts';
-import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team, Visible } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import {
@@ -117,6 +117,7 @@ describe('turn-based combat', () => {
       uiLocked: false,
       topMessage: { kind: 'playerTurn', team: Team.OUR, bloodcats: false },
       ai: null,
+      aiTurn: null,
     });
   });
 
@@ -408,6 +409,23 @@ describe('the interrupt queue', () => {
       [creature, GAINS],
     ]);
     expect([ours.noAPToFinishMove, ours.turningFromPronePosition]).toEqual([true, TurningFromProne.OFF]);
+  });
+
+  it('names the AI interrupter as the baton holder in the combat view once the interrupt shows, while the player sees him', () => {
+    const sim = newSim();
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    enemy.visible = Visible.SEEN;
+    interrupt(sim.state, Team.OUR, [
+      [merc, LOSES],
+      [enemy, GAINS],
+    ]);
+    expect(enemy.aiTurnControl).toBe(true);
+    expect(sim.combatView()).toMatchObject({ team: Team.OUR, aiTurn: null });
+    displayHiddenInterrupt(sim.state, enemy);
+    expect(sim.combatView()).toMatchObject({ team: Team.ENEMY, aiTurn: enemy.id });
+    enemy.visible = Visible.HIDDEN;
+    expect(sim.combatView()?.aiTurn).toBeNull();
   });
 
   it('lets nobody act when the winners leave three teams in the queue, and still stops the mover (VerifyOutOfTurnOrderArray)', () => {

@@ -417,7 +417,6 @@ export class TacticalHost {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#sound.frames(frames);
-    for (const frame of frames) this.#loaded?.presenter.aiTurns.observe(frame.events ?? []);
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) if (event.type === 'sectorLoaded' && event.loadScreen) this.#loadScreen = event.loadScreen.id;
@@ -439,7 +438,6 @@ export class TacticalHost {
   welcome(): void {
     this.#sound.director?.reset(this.#o.session.soldiers, this.#o.session.openContainers);
     this.#frames?.reset();
-    this.#loaded?.presenter.aiTurns.reset();
     this.#loaded?.presenter.resetEffects();
   }
 

@@ -32,10 +32,10 @@ const merc = soldier(0, 0, { sees: [21] });
 const seen = soldier(21, 1, { hostile: true });
 const unseen = soldier(22, 1, { hostile: true });
 const burning = soldier(23, 1, { hostile: true, animation: BURNING });
-const enemyTurn: CombatView = { team: 1, round: 1, interrupt: false, uiLocked: true, topMessage: null, ai: null };
+const enemyTurn: CombatView = { team: 1, round: 1, interrupt: false, uiLocked: true, topMessage: null, ai: null, aiTurn: null };
 const PEAK_MS = 2400;
 
-function context(selected: number | null, combat: CombatView | null, holder: number | null = null) {
+function context(selected: number | null, combat: CombatView | null) {
   return glowContext({
     soldiers: [merc, seen, unseen, burning],
     combat,
@@ -44,7 +44,6 @@ function context(selected: number | null, combat: CombatView | null, holder: num
     selected,
     hostile: (s) => s.hostile === true,
     ungreyed: (s) => s.animation === BURNING,
-    underAiControl: (id) => id === holder,
   });
 }
 
@@ -61,12 +60,17 @@ describe('the glow context from the view', () => {
     expect(look(unseen, ctx).row).toBe(SOLDIER_GLOW_ROWS + ctx.frame + GREY_GLOW_OFFSET);
   });
 
-  it('knows nothing without a selected merc and glows only the baton holder in the enemy turn', () => {
+  it('knows nothing without a selected merc and glows only the baton holder the combat view names in the enemy turn', () => {
     expect(context(null, null).selectedSees(22)).toBeNull();
-    const ctx = context(merc.id, enemyTurn, 22);
+    const ctx = context(merc.id, { ...enemyTurn, aiTurn: 22 });
     expect(ctx.ourTurn).toBe(false);
     expect(look(unseen, ctx).row).toBe(SOLDIER_GLOW_ROWS + ctx.frame);
     expect(look(seen, ctx).topmost).toBe(false);
     expect(look(seen, ctx).row).not.toBe(SOLDIER_GLOW_ROWS + ctx.frame);
+  });
+
+  it('glows no hostile in the enemy turn while the view names no baton holder', () => {
+    const ctx = context(merc.id, enemyTurn);
+    for (const s of [seen, unseen, burning]) expect(look(s, ctx).row).not.toBe(SOLDIER_GLOW_ROWS + ctx.frame);
   });
 });
