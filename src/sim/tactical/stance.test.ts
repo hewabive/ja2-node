@@ -105,6 +105,20 @@ describe('the stance of the API joins the height and the run', () => {
     expect(shown(sim, merc).stance).toBe('run');
   });
 
+  it('changes nothing when R cannot stand a crouched merc up, so his next stand-up walks (deviation "Refused run")', () => {
+    const { sim, merc } = battle();
+    order(sim, { type: 'stance', stance: 'crouch' });
+    runUntilIdle(sim);
+    merc.actionPoints = AP.CROUCH - 1;
+    const mode = merc.uiMovementMode;
+    expect(order(sim, { type: 'stance', stance: 'run' })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
+    expect([merc.uiMovementFast, merc.uiMovementMode]).toEqual([false, mode]);
+    expect(shown(sim, merc).stance).toBe('crouch');
+    changeSoldierStance(sim.state, merc, AnimHeight.STAND);
+    runUntilIdle(sim);
+    expect(shown(sim, merc).stance).toBe('stand');
+  });
+
   it('walks after C and S that follow a run', () => {
     const { sim, merc } = battle();
     order(sim, { type: 'stance', stance: 'run' });
