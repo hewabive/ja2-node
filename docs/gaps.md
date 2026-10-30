@@ -160,3 +160,4 @@ Code that does not follow `CLAUDE.md` yet.
 
 | Area | Rule | Code | Notes |
 |---|---|---|---|
+| Integer division | Integer divisions of the original go through `idiv` (`src/core/int.ts`) | `Math.trunc(a / b)` in modules of `src/sim`, `src/content`, `src/ui`, `src/app`, `src/render` and `tools/oracle`; `Math.floor` and `Math.round` of a quotient in `src/content`, `src/ui`, `src/app` and `src/render` | `idiv` throws on a zero divisor and wraps to int32: a float division of the original keeps `Math.trunc` as its cast, layout and rendering math of ja2-node alone stays, a divisor the original lets reach zero keeps its current result |
