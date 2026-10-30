@@ -13,6 +13,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
+import { i16 } from '../../../core/int.ts';
 import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -61,7 +62,7 @@ import {
 } from './hit.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { soldierTo3DLocationLos } from './positions.ts';
-import { AimShot, DamageReason, i16 } from './types.ts';
+import { AimShot, DamageReason } from './types.ts';
 
 export interface Corpse {
   readonly gridNo: number;

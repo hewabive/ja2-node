@@ -7,7 +7,7 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../../../content/items/items.ts';
 import type { MerchantContent, MerchantTables } from '../../../../content/strategic/merchant-content.ts';
-import { u8 } from '../../../../core/int.ts';
+import { clamp, u8 } from '../../../../core/int.ts';
 import type { RollSource } from '../../forces/ports.ts';
 
 export const BOBBY_RAY = -1;
@@ -41,8 +41,6 @@ export interface SupplyContext {
   readonly gunNut: boolean;
   readonly highestProgress: number;
 }
-
-const clamp = (x: number, lo: number, hi: number) => (x < lo ? lo : x > hi ? hi : x);
 
 export function itemIsLegal(items: ItemTable, item: number, gunNut: boolean): boolean {
   if (gunNut) return true;

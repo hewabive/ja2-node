@@ -8,6 +8,7 @@
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
 import { Direction, pythSpacesAway } from '../../../content/world/grid.ts';
+import { i8, i16, u8 } from '../../../core/int.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AiAction } from '../ai/actions.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -61,7 +62,7 @@ import { agilityForEnemyMissingPlayer, modifyExpGainByTarget, StatCause, statCha
 import { eventSoldierGotHit } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { bladeApproach, directPunchApproach, findAdjacentGridEx, findSoldierAtGridNo, type MeleeApproach } from './melee-reach.ts';
-import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, i8, i16, Special, u8, weaponStatusMod } from './types.ts';
+import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, Special, weaponStatusMod } from './types.ts';
 
 const MeleeMode = { STAB: 0, PUNCH: 1 } as const;
 export const MeleeKind = { BLADE: 0, PUNCH: 1 } as const;

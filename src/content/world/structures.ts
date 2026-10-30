@@ -3,6 +3,7 @@
 // @src src/game/TileEngine/Structure.cc CreateStructureFromDB, OkayToAddStructureToTile, InternalOkayToAddStructureToWorld,
 // @src AddStructureToWorld, AddStructureToTile, FindStructure, FindStructureByID, StructureHeight; Structure_Internals.h
 
+import { u32 } from '../../core/int.ts';
 import { Orientation, type StructureDef, type StructureFile, type StructureTile } from '../formats/jsd.ts';
 import { Direction, directionIncrement, newGridNo, WORLD_MAX } from './grid.ts';
 
@@ -77,10 +78,6 @@ export interface StructureInstance {
 export type StructureOwner = { readonly kind: 'world' } | { readonly kind: 'soldier'; readonly id: number };
 
 const WORLD_OWNER: StructureOwner = { kind: 'world' };
-
-function u32(v: number): number {
-  return v >>> 0;
-}
 
 export function has(flags: number, mask: number): boolean {
   return u32(flags & mask) !== 0;

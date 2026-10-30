@@ -4,6 +4,7 @@ import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AmmoType } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { u8 } from '../../../core/int.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
@@ -13,7 +14,6 @@ import { StatKind } from '../profiles.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
-import { u8 } from './types.ts';
 
 let content: TacticalContent;
 

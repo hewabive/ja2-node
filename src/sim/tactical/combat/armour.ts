@@ -4,11 +4,12 @@
 // @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass.
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
+import { i8 } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { InvSlot } from '../inventory.ts';
 import type { Soldier } from '../soldier.ts';
 import type { RandomStream } from './context.ts';
-import { AimShot, i8 } from './types.ts';
+import { AimShot } from './types.ts';
 
 const BODY_IMPACT_REDUCTION = [0, 15, 30, 23];
 

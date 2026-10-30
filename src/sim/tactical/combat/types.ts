@@ -86,7 +86,3 @@ export const NORMAL_RANGE = 90;
 export function weaponStatusMod(status: number): number {
   return status >= 85 ? 100 : Math.trunc((status * 100) / 85);
 }
-
-export const i8 = (v: number): number => ((v & 0xff) << 24) >> 24;
-export const u8 = (v: number): number => v & 0xff;
-export const i16 = (v: number): number => ((v & 0xffff) << 16) >> 16;

@@ -14,7 +14,7 @@ import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../.
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { u16 } from '../../../core/int.ts';
+import { i8, i16, u8, u16 } from '../../../core/int.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
@@ -58,12 +58,9 @@ import {
   BP_GET_WOUNDED,
   CONSCIOUSNESS,
   DamageReason,
-  i8,
-  i16,
   MAX_DISTANCE_FOR_MESSY_DEATH,
   PUNCH_REAL_DAMAGE_PORTION,
   Special,
-  u8,
 } from './types.ts';
 
 const STANDING_HEAD_BOTTOM_POS = 159;

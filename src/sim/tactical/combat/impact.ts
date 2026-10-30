@@ -5,6 +5,7 @@
 import { AmmoType, ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { i8 } from '../../../core/int.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
@@ -15,7 +16,6 @@ import {
   AimShot,
   CRITICAL_HIT_THRESHOLD,
   HEAD_DAMAGE_MULTIPLIER,
-  i8,
   LEGS_DAMAGE_MULTIPLIER,
   MAX_DISTANCE_FOR_MESSY_DEATH,
   MIN_DAMAGE_FOR_AUTO_FALL_OVER,

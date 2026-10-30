@@ -4,6 +4,7 @@
 // @src AttemptToPickLock, AttemptToBlowUpLock, DOOR::damageLock; Items.cc FindObj, FindUsableObj, DamageObj.
 
 import { LOCK_UNOPENABLE, LockType, lockAt, OPENING_NOT_POSSIBLE } from '../../../content/formats/locks.ts';
+import { i8 } from '../../../core/int.ts';
 import { damageObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { SkillCheckReason, skillCheck } from '../combat/skill-check.ts';
@@ -33,8 +34,6 @@ const PLANTING_SUCCESS = -20;
 const SHAPED_CHARGE_LOCK_DAMAGE_FACTOR = 2;
 const PICK_MECHANICAL_DIVISOR = 5;
 const PICK_DEXTERITY_DIVISOR = 10;
-
-const i8 = (v: number) => (v << 24) >> 24;
 
 function itemIndex(t: TacticalState, name: string): number {
   return t.content.items.byName.get(name)?.index ?? -1;

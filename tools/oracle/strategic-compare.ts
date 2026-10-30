@@ -12,6 +12,7 @@ import {
 } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { i32 } from '../../src/core/int.ts';
 import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { createStrategicContext, emptyMercPort } from '../../src/sim/strategic/forces/context.ts';
 import {
@@ -52,7 +53,6 @@ function report(label: string, same: boolean, detail: string): number {
   return same ? 0 : 1;
 }
 
-const signed = (minutes: number) => minutes | 0;
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function moveBetween(from: number, to: number): number {
@@ -157,7 +157,7 @@ function compareStratCosts(ctx: StrategicContext, p: Json): number {
     if (!sameJson(ours, traversability[id]))
       differing.push(`${id} traversability ${JSON.stringify(ours)}/${JSON.stringify(traversability[id])}`);
     for (let d = 0; d < MOVE_DIRECTIONS; d++) {
-      const time = signed(getSectorMvtTimeForGroup(ctx, id, d, group));
+      const time = i32(getSectorMvtTimeForGroup(ctx, id, d, group));
       if (time !== minutes[id]?.[d]) differing.push(`${id}/${d} ${time}/${minutes[id]?.[d]}`);
     }
   }
@@ -191,7 +191,7 @@ function compareStratPath(ctx: StrategicContext, p: Json): number {
     const path = buildAStrategicPath(ctx, strategicIndex(from), strategicIndex(to), g, { tacticalTraversal: p.tactical === true }) ?? [];
     const minutes = path.slice(0, -1).map((node, k) => {
       const next = path[k + 1] ?? node;
-      return signed(getSectorMvtTimeForGroup(ctx, sectorId(sectorFromStrategicIndex(node)), moveBetween(node, next), g));
+      return i32(getSectorMvtTimeForGroup(ctx, sectorId(sectorFromStrategicIndex(node)), moveBetween(node, next), g));
     });
     const now = nowMinutes(ctx);
     rebuildWayPointsForGroupPath(ctx, path.length > 0 ? path : null, g);
