@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.cc CreateSoldierPalettes, SetPaletteReplacement, ConvertAniCodeToAniFrame;
 // @src TileEngine/RenderWorld.cc (merc screen position, shade and z).
 
+import { idiv } from '../../core/int.ts';
 import type { SoldierPalettes as PaletteData } from '../formats/ja2pal.ts';
 
 export interface SoldierPaletteIds {
@@ -51,7 +52,7 @@ export interface SheetLayout {
 export function soldierSheetFrame(layout: SheetLayout, scriptFrame: number, direction: number): number {
   let block = (direction + 1) % 8;
   if (layout.directions === 1) block = 0;
-  else if (layout.directions === 4) block = Math.trunc(block / 2);
+  else if (layout.directions === 4) block = idiv(block, 2);
   else if (layout.directions === 2) block = TWO_DIRECTION_BLOCKS[direction] ?? 0;
   else if (layout.directions === 3) block = direction === 7 ? 1 : direction === 6 ? 0 : direction === 2 ? 2 : block;
   const frame = layout.noFrames ? 0 : scriptFrame;

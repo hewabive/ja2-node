@@ -6,6 +6,7 @@
 // @src LoadSaveEMail.cc LoadEMailFromFile; SaveLoadGame.cc LoadSavedMercProfiles (voice ids, I.M.P. slot states),
 // @src LoadGeneralInfo (g_merc_arrive_sector), LoadFileFromSavedGame.
 
+import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import type { SaveGame, SaveSection } from './savegame.ts';
 import { SaveCursor } from './savegame-cursor.ts';
@@ -293,7 +294,7 @@ function sizedBlob(section: Uint8Array): Uint8Array {
 export function decodeHistoryFile(blob: Uint8Array): SavedHistoryRecord[] {
   const c = new SaveCursor(blob);
   const records: SavedHistoryRecord[] = [];
-  for (let n = Math.trunc(blob.length / HISTORY_RECORD_BYTES); n > 0; n--) {
+  for (let n = idiv(blob.length, HISTORY_RECORD_BYTES); n > 0; n--) {
     const code = c.u8();
     const secondCode = c.u8();
     const date = c.u32();
@@ -309,7 +310,7 @@ export function decodeHistoryFile(blob: Uint8Array): SavedHistoryRecord[] {
 export function decodeFilesFile(blob: Uint8Array): SavedFileRecord[] {
   const c = new SaveCursor(blob);
   const records: SavedFileRecord[] = [];
-  for (let n = Math.trunc(blob.length / FILE_RECORD_BYTES); n > 0; n--) {
+  for (let n = idiv(blob.length, FILE_RECORD_BYTES); n > 0; n--) {
     const code = c.u8();
     c.skip(FILE_RECORD_SKIP);
     records.push({ code, read: c.u8() !== 0 });

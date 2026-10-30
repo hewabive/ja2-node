@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Structure.cc STRUCTURE_FILE_REF, CreateFileStructureArrays, NormalizeStructureTiles
 
-import { i8, u8 } from '../../core/int.ts';
+import { i8, idiv, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';
 import { BinaryWriter } from '../binary/writer.ts';
@@ -89,7 +89,7 @@ function normalizedTiles(tiles: StructureTile[]): StructureTile[] {
   for (const t of tiles) if (Math.abs(t.posRelToBase) < Math.abs(closest)) closest = t.posRelToBase;
   if (closest === 0 || tiles.length === 0) return tiles;
   const dx = closest % WORLD_COLS;
-  const dy = Math.trunc(closest / WORLD_COLS);
+  const dy = idiv(closest, WORLD_COLS);
   return tiles.map((t) => ({ ...t, posRelToBase: t.posRelToBase - closest, xRelToBase: t.xRelToBase - dx, yRelToBase: t.yRelToBase - dy }));
 }
 
@@ -165,7 +165,7 @@ export function parseStructureFile(bytes: Uint8Array): StructureFile {
       structures[number] = {
         number,
         armour,
-        hitPoints: u8(Math.trunc((filled * 100) / MAX_HIT_POINT_SCALE)),
+        hitPoints: u8(idiv(filled * 100, MAX_HIT_POINT_SCALE)),
         density,
         flags,
         wallOrientation,

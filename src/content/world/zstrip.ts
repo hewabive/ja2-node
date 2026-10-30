@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Structure.cc AddZStripInfoToVObject
 
+import { idiv } from '../../core/int.ts';
 import type { StructureDef, StructureFile } from '../formats/jsd.ts';
 import { WORLD_TILE_X } from './grid.ts';
 
@@ -57,9 +58,9 @@ export function zStripInfo(frame: FrameGeometry, s: StructureDef): ZStripInfo {
     rightHalfWidth = frame.width;
   }
 
-  let increasing = leftHalfWidth > 0 ? Math.trunc(leftHalfWidth / HALF_TILE_X) : 0;
+  let increasing = leftHalfWidth > 0 ? idiv(leftHalfWidth, HALF_TILE_X) : 0;
   const stable = rightHalfWidth > 0 ? 1 : 0;
-  let decreasing = rightHalfWidth > HALF_TILE_X ? Math.trunc(rightHalfWidth / HALF_TILE_X) : 0;
+  let decreasing = rightHalfWidth > HALF_TILE_X ? idiv(rightHalfWidth, HALF_TILE_X) : 0;
   let firstStripWidth: number;
   if (leftHalfWidth > 0) {
     firstStripWidth = leftHalfWidth % HALF_TILE_X;

@@ -4,6 +4,8 @@
 // @src CalculateSoundEffectsVolume, CalculateSpeechVolume; TileEngine/Isometric_Utils.cc GetAbsoluteScreenXYFromMapPos,
 // @src ConvertGridNoToCellXY; src/sgp/SoundMan.cc SoundServiceStreams (the mixer's balance).
 
+import { idiv } from '../../core/int.ts';
+
 export const MAX_VOLUME = 127;
 export const NOWHERE = -1;
 const ROUNDING = 63;
@@ -30,23 +32,23 @@ export interface ScreenOffset {
 }
 
 export function scaleVolume(volume: number, setting: number): number {
-  return Math.trunc((volume * setting + ROUNDING) / MAX_VOLUME);
+  return idiv(volume * setting + ROUNDING, MAX_VOLUME);
 }
 
 export function offsetFromCentre(gridNo: number, view: ScreenView): ScreenOffset {
   const cellX = (gridNo % WORLD_COLS) * CELL_SIZE;
-  const cellY = Math.trunc(gridNo / WORLD_COLS) * CELL_SIZE;
+  const cellY = idiv(gridNo, WORLD_COLS) * CELL_SIZE;
   const distX = cellX - view.centerX;
   const distY = cellY - view.centerY;
   return { dx: -(2 * distX - 2 * distY), dy: -(distX + distY) };
 }
 
 function halfWidth(view: ScreenView): number {
-  return Math.trunc(view.width / 2);
+  return idiv(view.width, 2);
 }
 
 function halfHeight(view: ScreenView): number {
-  return Math.trunc(view.height / 2);
+  return idiv(view.height, 2);
 }
 
 export function soundDir(gridNo: number, view: ScreenView): number {
@@ -87,7 +89,7 @@ export interface BalanceGains {
 }
 
 export function balanceGains(volume: number, pan: number): BalanceGains {
-  const left = Math.trunc((volume * (MAX_VOLUME - pan)) / MAX_VOLUME);
-  const right = Math.trunc((volume * pan) / MAX_VOLUME);
+  const left = idiv(volume * (MAX_VOLUME - pan), MAX_VOLUME);
+  const right = idiv(volume * pan, MAX_VOLUME);
   return { left: left / MIX_SHIFT, right: right / MIX_SHIFT };
 }

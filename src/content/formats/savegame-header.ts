@@ -3,7 +3,7 @@
 // @src src/game/SaveLoadGame.cc ParseSavedGameHeader, isValidSavedGameHeader, ExtractSavedGameHeaderFromFile,
 // @src CalcJA2EncryptionSet, ExtractGameOptions; src/game/Tactical/Tactical_Save.cc NewJA2EncryptedFileRead
 
-import { u8, u32 } from '../../core/int.ts';
+import { idiv, u8, u32 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { SaveCursor } from './savegame-cursor.ts';
 
@@ -143,7 +143,7 @@ export function encryptionSetIndex(h: SaveGameHeader, baseSets: number, germanVe
   }
   if (germanVersion) set = u32(Math.imul(set, GERMAN_SET_FACTOR));
   set %= 10;
-  set += Math.trunc(h.day / 10);
+  set += idiv(h.day, 10);
   set %= baseSets;
   const o = h.initialGameOptions;
   if (o.gunNut) set += baseSets * GUN_NUT_SET_OFFSET;

@@ -3,6 +3,8 @@
 // @src src/game/TileEngine/Lighting.cc gusShadeLevels, CreateShadedPalettes, AddSaturatePalette;
 // @src src/sgp/HImage.cc Create16BPPPaletteShaded, Get16BPPColor; src/sgp/Shading.cc
 
+import { idiv } from '../../core/int.ts';
+
 export const SHADE_LEVEL_COUNT = 16;
 export const BRIGHTEST_SHADE = 1;
 export const DARKEST_NATURAL_SHADE = 15;
@@ -58,14 +60,14 @@ export function shadedPalette565(
     let gm: number;
     let bm: number;
     if (shade === 0) {
-      const lumin = Math.trunc((r * 299 + g * 587 + b * 114) / 1000);
-      rm = Math.trunc((sr * lumin) / 256);
-      gm = Math.trunc((sg * lumin) / 256);
-      bm = Math.trunc((sb * lumin) / 256);
+      const lumin = idiv(r * 299 + g * 587 + b * 114, 1000);
+      rm = idiv(sr * lumin, 256);
+      gm = idiv(sg * lumin, 256);
+      bm = idiv(sb * lumin, 256);
     } else {
-      rm = Math.trunc((sr * r) / 256);
-      gm = Math.trunc((sg * g) / 256);
-      bm = Math.trunc((sb * b) / 256);
+      rm = idiv(sr * r, 256);
+      gm = idiv(sg * g, 256);
+      bm = idiv(sb * b, 256);
     }
     out[i] = rgbTo565(Math.min(rm, 255), Math.min(gm, 255), Math.min(bm, 255));
   }

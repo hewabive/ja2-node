@@ -2,6 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Gap.cc AudioGapListInit, PollAudioGap; src/game/Tactical/Gap.h AUDIO_GAP.
 
+import { idiv } from '../../core/int.ts';
+
 export const GAP_EXTENSION = 'gap';
 export const AUDIO_GAP_BYTES = 8;
 const U32_BYTES = 4;
@@ -19,7 +21,7 @@ export function gapPathFor(soundPath: string): string {
 
 export function parseGap(bytes: Uint8Array): AudioGap[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const count = Math.floor(bytes.length / AUDIO_GAP_BYTES);
+  const count = idiv(bytes.length, AUDIO_GAP_BYTES);
   return Array.from({ length: count }, (_, i) => ({
     start: view.getUint32(i * AUDIO_GAP_BYTES, true),
     end: view.getUint32(i * AUDIO_GAP_BYTES + U32_BYTES, true),

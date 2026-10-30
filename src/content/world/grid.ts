@@ -3,6 +3,8 @@
 // @src src/game/TileEngine/WorldDef.h; TileEngine/GridSquare.cc GridSquare (the row-major walk over the clipped square);
 // @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff.
 
+import { idiv } from '../../core/int.ts';
+
 export const WORLD_COLS = 160;
 export const WORLD_ROWS = 160;
 export const WORLD_MAX = WORLD_COLS * WORLD_ROWS;
@@ -23,7 +25,7 @@ export function gridX(g: GridNo): number {
 }
 
 export function gridY(g: GridNo): number {
-  return Math.floor(g / WORLD_COLS);
+  return idiv(g, WORLD_COLS);
 }
 
 export function isOnMap(x: number, y: number): boolean {
@@ -38,7 +40,7 @@ const LAST_ROW_START = WORLD_MAX - WORLD_COLS;
 export function isVisibleTile(g: GridNo): boolean {
   if (g < 0 || g >= WORLD_MAX) return false;
   const x = g % WORLD_COLS;
-  const y = Math.floor(g / WORLD_COLS);
+  const y = idiv(g, WORLD_COLS);
   return x + y >= VISIBLE_MIN_SUM && x + y <= VISIBLE_MAX_SUM && Math.abs(x - y) <= VISIBLE_MAX_SKEW;
 }
 
@@ -58,32 +60,32 @@ export function newGridNo(g: GridNo, increment: number): GridNo {
 }
 
 export function pythSpacesAway(a: GridNo, b: GridNo): number {
-  const rows = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
+  const rows = idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS);
   const cols = (a % WORLD_ROWS) - (b % WORLD_ROWS);
   return Math.trunc(Math.sqrt(rows * rows + cols * cols));
 }
 
 export function spacesAway(a: GridNo, b: GridNo): number {
-  const rows = Math.abs(Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS));
+  const rows = Math.abs(idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS));
   const cols = Math.abs((a % WORLD_ROWS) - (b % WORLD_ROWS));
   return Math.max(rows, cols);
 }
 
 export function cardinalSpacesAway(a: GridNo, b: GridNo): number {
-  const rows = Math.abs(Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS));
+  const rows = Math.abs(idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS));
   const cols = Math.abs((a % WORLD_ROWS) - (b % WORLD_ROWS));
   return rows + cols;
 }
 
 export function rangeInCellCoords(a: GridNo, b: GridNo): number {
   const dx = (b % WORLD_COLS) - (a % WORLD_COLS);
-  const dy = Math.trunc(b / WORLD_COLS) - Math.trunc(a / WORLD_COLS);
+  const dy = idiv(b, WORLD_COLS) - idiv(a, WORLD_COLS);
   return Math.trunc(Math.hypot(dx, dy) * CELL_X_SIZE);
 }
 
 export function gridSquare(center: GridNo, apothem: number): GridNo[] {
   if (center < 0 || center >= WORLD_MAX || apothem < 0) return [];
-  const row = Math.trunc(center / WORLD_COLS);
+  const row = idiv(center, WORLD_COLS);
   const column = center % WORLD_COLS;
   const out: GridNo[] = [];
   for (let r = Math.max(0, row - apothem); r <= Math.min(WORLD_ROWS - 1, row + apothem); r++)

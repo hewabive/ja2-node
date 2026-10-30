@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls
 
+import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { decryptRecord as decryptWithOldKey } from './prof.ts';
 import { SaveCursor } from './savegame-cursor.ts';
@@ -367,10 +368,10 @@ export function profilesInSave(version: number): number {
 function worldTimeOf(seconds: number): WorldTime {
   return {
     totalSeconds: seconds,
-    totalMinutes: Math.trunc(seconds / SECONDS_PER_MINUTE),
-    day: Math.trunc(seconds / SECONDS_PER_DAY),
-    hour: Math.trunc((seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR),
-    minute: Math.trunc((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
+    totalMinutes: idiv(seconds, SECONDS_PER_MINUTE),
+    day: idiv(seconds, SECONDS_PER_DAY),
+    hour: idiv(seconds % SECONDS_PER_DAY, SECONDS_PER_HOUR),
+    minute: idiv(seconds % SECONDS_PER_HOUR, SECONDS_PER_MINUTE),
   };
 }
 
@@ -490,7 +491,7 @@ function readSquads(c: SaveCursor, version: number): { squads: number[][]; movem
     c.skip(SQUAD_RECORD_PADDING);
     if (id < 0) continue;
     const ownSquadField = version >= FIRST_VERSION_WITH_SQUAD_FIELD && formatVersion === SQUAD_INFO_FORMAT_VERSION;
-    squads[ownSquadField ? recordedSquad : Math.trunc(i / SQUAD_SLOTS)]?.push(id);
+    squads[ownSquadField ? recordedSquad : idiv(i, SQUAD_SLOTS)]?.push(id);
   }
   return { squads, movementGroups: c.i8s(NUMBER_OF_SQUADS) };
 }

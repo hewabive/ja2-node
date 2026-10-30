@@ -3,6 +3,7 @@
 // @src src/game/TileEngine/WorldDef.cc CompileWorldTerrainIDs, CompileTileMovementCosts, CompileWorldMovementCosts,
 // @src RecompileLocalMovementCostsFromRadius; src/game/Tactical/PathAI.h TRAVELCOST_*.
 
+import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { Orientation } from '../formats/jsd.ts';
 import type { MapDef } from '../formats/map.ts';
@@ -356,7 +357,7 @@ export function recompileLocalMovementCosts(costs: MovementCosts, w: MovementWor
     return;
   }
   const cx = centre % WORLD_COLS;
-  const cy = Math.trunc(centre / WORLD_COLS);
+  const cy = idiv(centre, WORLD_COLS);
   for (let y = cy - radius; y < cy + radius; y++) {
     for (let x = cx - radius; x < cx + radius; x++) {
       const g = rowColToPos(y, x);

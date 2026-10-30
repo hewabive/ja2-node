@@ -3,6 +3,8 @@
 // @src src/sgp/HImage.cc Create16BPPPaletteShaded; src/game/Tactical/Faces.cc InitFace (the all-white palette of the portrait
 // @src flash and the grey ramp i % 128 + 128).
 
+import { idiv } from '../../core/int.ts';
+
 const PALETTE_COLOURS = 256;
 const CHANNEL_MAX = 255;
 const SCALE_UNIT = 256;
@@ -34,7 +36,7 @@ export function basePalette(palette: Uint8Array, base: PaletteBase): Uint8Array 
 }
 
 function scaled(scale: number, value: number): number {
-  return Math.min(Math.floor((scale * value) / SCALE_UNIT), CHANNEL_MAX);
+  return Math.min(idiv(scale * value, SCALE_UNIT), CHANNEL_MAX);
 }
 
 export function shadedPalette(source: Uint8Array, scale: PaletteScale): Uint8Array {
@@ -44,7 +46,7 @@ export function shadedPalette(source: Uint8Array, scale: PaletteScale): Uint8Arr
     const r = palette[i * 3] ?? 0;
     const g = palette[i * 3 + 1] ?? 0;
     const b = palette[i * 3 + 2] ?? 0;
-    const lumin = Math.floor((r * LUMINANCE_RED + g * LUMINANCE_GREEN + b * LUMINANCE_BLUE) / LUMINANCE_DIVISOR);
+    const lumin = idiv(r * LUMINANCE_RED + g * LUMINANCE_GREEN + b * LUMINANCE_BLUE, LUMINANCE_DIVISOR);
     out[i * 3] = scaled(scale.red, scale.mono ? lumin : r);
     out[i * 3 + 1] = scaled(scale.green, scale.mono ? lumin : g);
     out[i * 3 + 2] = scaled(scale.blue, scale.mono ? lumin : b);

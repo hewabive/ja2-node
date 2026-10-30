@@ -4,6 +4,8 @@
 // @src src/externalized/DefaultContentManager.cc DIALOGUESIZE, loadDialogQuoteFromFile; Tactical/Civ_Quotes.cc
 // @src CIV_QUOTE_TEXT_SIZE; Tactical/Dialogue_Control.cc FindDelayForString.
 
+import { idiv } from '../../core/int.ts';
+
 export const DIALOGUE_SIZE = 240;
 export const CIV_QUOTE_TEXT_SIZE = 160;
 const UTF16_BYTES = 2;
@@ -55,7 +57,7 @@ function fixUnit(raw: number, encoding: EdtEncoding): number {
 }
 
 export function edtRowCount(bytes: Uint8Array, width = DIALOGUE_SIZE): number {
-  return Math.floor(bytes.length / (width * UTF16_BYTES));
+  return idiv(bytes.length, width * UTF16_BYTES);
 }
 
 function decodeEdtText(bytes: Uint8Array, startUnit: number, width: number, encoding: EdtEncoding): string {

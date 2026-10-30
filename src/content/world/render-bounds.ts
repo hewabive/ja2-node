@@ -4,6 +4,7 @@
 // @src src/game/TileEngine/Isometric_Utils.cc GetAbsoluteScreenXYFromMapPos, GetMapPosFromAbsoluteScreenXY,
 // @src GridNoOnVisibleWorldTile.
 
+import { idiv } from '../../core/int.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from './grid.ts';
 
 export const RestrictedScroll = { NONE: 0, BASEMENT: 1 } as const;
@@ -69,13 +70,13 @@ export function renderedScreenSize(restrictedScrollId: number): { readonly width
 
 function screenXOf(b: RenderBounds, g: number): number {
   const dx = (g % WORLD_COLS) * CELL_X_SIZE - CENTER_WORLD_X;
-  const dy = Math.trunc(g / WORLD_COLS) * CELL_Y_SIZE - CENTER_WORLD_Y;
+  const dy = idiv(g, WORLD_COLS) * CELL_Y_SIZE - CENTER_WORLD_Y;
   return 2 * dx - 2 * dy + MAP_CENTER_SCREEN_X - b.leftX;
 }
 
 function screenYOf(b: RenderBounds, g: number): number {
   const dx = (g % WORLD_COLS) * CELL_X_SIZE - CENTER_WORLD_X;
-  const dy = Math.trunc(g / WORLD_COLS) * CELL_Y_SIZE - CENTER_WORLD_Y;
+  const dy = idiv(g, WORLD_COLS) * CELL_Y_SIZE - CENTER_WORLD_Y;
   return dx + dy + MAP_CENTER_SCREEN_Y - b.topY;
 }
 
@@ -88,12 +89,12 @@ export function worldXYFromAbsoluteScreenXY(restrictedScrollId: number, x: numbe
   const b = renderBounds(restrictedScrollId);
   const dx = x - MAP_CENTER_SCREEN_X + b.leftX;
   const dy = y - MAP_CENTER_SCREEN_Y + b.topY;
-  return { x: Math.trunc((dx + 2 * dy) / 4) + CENTER_WORLD_X, y: Math.trunc((2 * dy - dx) / 4) + CENTER_WORLD_Y };
+  return { x: idiv(dx + 2 * dy, 4) + CENTER_WORLD_X, y: idiv(2 * dy - dx, 4) + CENTER_WORLD_Y };
 }
 
 export function mapPosFromAbsoluteScreenXY(restrictedScrollId: number, x: number, y: number): number {
   const world = worldXYFromAbsoluteScreenXY(restrictedScrollId, x, y);
-  return Math.trunc(world.y / CELL_X_SIZE) * WORLD_COLS + Math.trunc(world.x / CELL_Y_SIZE);
+  return idiv(world.y, CELL_X_SIZE) * WORLD_COLS + idiv(world.x, CELL_Y_SIZE);
 }
 
 export function gridNoOnVisibleWorldTile(restrictedScrollId: number, g: number): boolean {

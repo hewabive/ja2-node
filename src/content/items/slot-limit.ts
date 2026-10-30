@@ -2,10 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Items.cc ItemSlotLimit
 
+import { idiv } from '../../core/int.ts';
+
 const FIRST_BIG_POCKET = 7;
 const FIRST_SMALL_POCKET = 11;
 
 export function slotLimitOf(perPocket: number, pos: number): number {
   if (pos < FIRST_BIG_POCKET) return 1;
-  return pos >= FIRST_SMALL_POCKET && perPocket > 1 ? Math.trunc(perPocket / 2) : perPocket;
+  return pos >= FIRST_SMALL_POCKET && perPocket > 1 ? idiv(perPocket, 2) : perPocket;
 }
