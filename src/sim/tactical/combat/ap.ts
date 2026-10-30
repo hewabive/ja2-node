@@ -29,10 +29,10 @@ const tableIndex = (items: ItemTable, name: string) => items.byName.get(name)?.i
 
 export function calcAPsToBurstWith(items: ItemTable, baseAPs: number, o: ItemObject): number {
   if (o.item === tableIndex(items, 'G11')) return 1;
-  const base = Math.max(3, Math.trunc((AP.BURST * baseAPs + (AP_LIMITS.MAXIMUM - 1)) / AP_LIMITS.MAXIMUM));
+  const base = Math.max(3, idiv(AP.BURST * baseAPs + (AP_LIMITS.MAXIMUM - 1), AP_LIMITS.MAXIMUM));
   const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
   if (spring === -1) return base;
-  return u8(Math.trunc((base * 100) / (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))));
+  return u8(idiv(base * 100, 100 + idiv(o.attachments[spring]?.status ?? 0, 5)));
 }
 
 export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject): number {
@@ -42,16 +42,16 @@ export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject)
 function aimSkill(t: TacticalState, s: Soldier, item: number): number {
   const cls = t.content.items.byIndex.get(item)?.itemClass ?? 0;
   if (cls === ItemClass.GUN || cls === ItemClass.LAUNCHER) return effectiveMarksmanship(s);
-  return Math.trunc((effectiveDexterity(s) + effectiveAgility(s)) / 2);
+  return idiv(effectiveDexterity(s) + effectiveAgility(s), 2);
 }
 
 export function baseAPsToShootOrStabWith(items: ItemTable, aps: number, skill: number, o: ItemObject): number {
   const top = 2 * aps;
   const rate = items.byIndex.get(o.item)?.weapon?.shotsPer4Turns ?? 0;
-  let bottom = Math.trunc(((50 + Math.trunc(skill / 2)) * rate) / 4);
+  let bottom = idiv((50 + idiv(skill, 2)) * rate, 4);
   const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
-  if (spring !== -1) bottom = Math.trunc((bottom * (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))) / 100);
-  return u8(Math.trunc((Math.trunc((100 * top) / bottom) + 1) / 2));
+  if (spring !== -1) bottom = idiv(bottom * (100 + idiv(o.attachments[spring]?.status ?? 0, 5)), 100);
+  return u8(idiv(idiv(100 * top, bottom) + 1, 2));
 }
 
 export function baseAPsToShootOrStab(t: TacticalState, aps: number, skill: number, o: ItemObject): number {

@@ -21,7 +21,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i16, i32, u8, u32 } from '../../../core/int.ts';
+import { i16, i32, idiv, u8, u32 } from '../../../core/int.ts';
 import type { MissileTrail } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
@@ -176,7 +176,7 @@ export interface MissAnimation {
 
 const f32 = Math.fround;
 const toFix = (f: number) => Math.trunc(f32(f) * FIX);
-const fixInt = (q: number) => Math.trunc(q / FIX);
+const fixInt = (q: number) => idiv(q, FIX);
 
 export function bulletWorldXY(b: Bullet): { readonly x: number; readonly y: number } {
   return { x: fixInt(b.x), y: fixInt(b.y) };
@@ -198,12 +198,12 @@ export function knifeDirection(b: Bullet): number {
 }
 
 export function bulletHeightPixels(b: Bullet): number {
-  return Math.trunc((fixInt(b.z) * WALL_HEIGHT_PIXELS) / WALL_HEIGHT_UNITS);
+  return idiv(fixInt(b.z) * WALL_HEIGHT_PIXELS, WALL_HEIGHT_UNITS);
 }
-const tileOf = (q: number) => Math.trunc(fixInt(q) / 10);
+const tileOf = (q: number) => idiv(fixInt(q), 10);
 const cellOf = (q: number) => (fixInt(q) % 10) >> 1;
-const cubeOf = (heightUnits: number) => Math.trunc(heightUnits / 64);
-const centre = (g: number) => ({ x: (g % WORLD_COLS) * 10 + 5, y: Math.trunc(g / WORLD_COLS) * 10 + 5 });
+const cubeOf = (heightUnits: number) => idiv(heightUnits, 64);
+const centre = (g: number) => ({ x: (g % WORLD_COLS) * 10 + 5, y: idiv(g, WORLD_COLS) * 10 + 5 });
 const landHU = (t: TacticalState, g: number) => landHeightUnits(losWorldOf(t), g);
 const tileHeightPixels = (t: TacticalState, g: number) => t.world.level.heights[g] ?? 0;
 const rowColToPos = (row: number, col: number) => (row < 0 || row >= 160 || col < 0 || col >= WORLD_COLS ? 0xffff : row * WORLD_COLS + col);
@@ -292,8 +292,8 @@ function calculateFiringIncrements(t: TacticalState, hIn: number, vIn: number, d
 }
 
 function fireBullet(t: TacticalState, b: Bullet, fake: boolean): number {
-  b.tileX = Math.trunc(fixInt(b.x) / 10);
-  b.tileY = Math.trunc(fixInt(b.y) / 10);
+  b.tileX = idiv(fixInt(b.x), 10);
+  b.tileY = idiv(fixInt(b.y), 10);
   b.losX = (fixInt(b.x) % 10) >> 1;
   b.losY = (fixInt(b.y) % 10) >> 1;
   b.cubesZ = cubeOf(fixInt(b.z));
@@ -310,7 +310,7 @@ function fireBullet(t: TacticalState, b: Bullet, fake: boolean): number {
   b.tilesPerUpdate = 1;
   if (firer.profile !== NO_PROFILE && firer.team === Team.OUR && firer.target && firer.target.life > 0) firer.shotsFired++;
   const knife = t.content.items.byIndex.get(firer.attackingWeapon)?.itemClass === ItemClass.THROWING_KNIFE;
-  b.msPerUpdate = knife ? 30 : Math.trunc((t.content.items.byIndex.get(firer.attackingWeapon)?.weapon?.bulletSpeed ?? 0) / 10);
+  b.msPerUpdate = knife ? 30 : idiv(t.content.items.byIndex.get(firer.attackingWeapon)?.weapon?.bulletSpeed ?? 0, 10);
   if (b.flags & BulletFlag.KNIFE) b.itemStatus = firer.inv[InvSlot.HAND]?.status[0] ?? 0;
   t.bullets.push(b);
   moveBullet(t, b);
@@ -365,13 +365,13 @@ export function fireBulletGivenTarget(
   if (buckshot) {
     if (!fake) {
       shots = NUM_BUCKSHOT_PELLETS;
-      if (hitBy > 0) hitBy = Math.trunc(hitBy / 2);
+      if (hitBy > 0) hitBy = idiv(hitBy, 2);
       const gun = firer.inv[firer.attackingHand];
       if (gun?.attachments.some((a) => a.item === itemIndex(t, 'DUCKBILL'))) spreadIndex = 1;
       if (firer.target) firer.target.numPelletsHitBy = 0;
       flags |= BulletFlag.BUCKSHOT;
     }
-    impact = Math.trunc(impact / 4);
+    impact = idiv(impact, 4);
   }
   let adjH = h0;
   let adjV = v0;
@@ -379,7 +379,7 @@ export function fireBulletGivenTarget(
     const b = createBullet(t, firer, fake, flags);
     if (!b) return 0;
     b.hitBy = hitBy;
-    const wallZ = WALL_HEIGHT_UNITS + ROOF_HIT_ADJUSTMENT + Math.trunc((tileHeightPixels(t, firer.gridNo) * 256) / 50);
+    const wallZ = WALL_HEIGHT_UNITS + ROOF_HIT_ADJUSTMENT + idiv(tileHeightPixels(t, firer.gridNo) * 256, 50);
     b.checkForRoof = startZ < wallZ ? endZ > startZ : endZ < startZ;
     let h: number;
     if (k === 0) {
@@ -405,13 +405,13 @@ export function fireBulletGivenTarget(
     b.y = toFix(sy) + b.incY;
     b.z = toFix(startZ) + b.incZ;
     if (b.hitBy > 0) {
-      b.x += Math.trunc((toFix(dx) - b.incX * dist) / 2);
-      b.y += Math.trunc((toFix(dy) - b.incY * dist) / 2);
-      b.z += Math.trunc((toFix(dz) - b.incZ * dist) / 2);
+      b.x += idiv(toFix(dx) - b.incX * dist, 2);
+      b.y += idiv(toFix(dy) - b.incY * dist, 2);
+      b.z += idiv(toFix(dz) - b.incZ * dist, 2);
     }
     b.impact = impact;
     b.range = gunRange(items, firer.inv[firer.attackingHand] as ItemObject);
-    b.targetGrid = Math.trunc(Math.trunc(endX) / 10) + Math.trunc(Math.trunc(endY) / 10) * WORLD_COLS;
+    b.targetGrid = idiv(Math.trunc(endX), 10) + idiv(Math.trunc(endY), 10) * WORLD_COLS;
     b.startCubesAbove = cubeOf(Math.trunc(startZ) - landHU(t, firer.gridNo));
     b.endCubesAbove = cubeOf(Math.trunc(endZ) - landHU(t, b.targetGrid));
     b.distanceLimit = dist;
@@ -423,23 +423,23 @@ export function fireBulletGivenTarget(
 
 export function chanceOfBulletHittingStructure(distanceIn: number, toTarget: number, hitBy: number): number {
   let distance = distanceIn;
-  if (Math.trunc(distance / 10) > MAX_DIST_FOR_LESS_THAN_MAX_CHANCE) return MAX_CHANCE_OF_HITTING_STRUCTURE;
-  let penalty = Math.trunc(distance / 5) - (toTarget - distance);
+  if (idiv(distance, 10) > MAX_DIST_FOR_LESS_THAN_MAX_CHANCE) return MAX_CHANCE_OF_HITTING_STRUCTURE;
+  let penalty = idiv(distance, 5) - (toTarget - distance);
   if (penalty < 0) penalty = 0;
-  if (hitBy < 0) distance += Math.trunc(distance / 5);
-  const index = Math.trunc((distance + penalty) / 10);
+  if (hitBy < 0) distance += idiv(distance, 5);
+  const index = idiv(distance + penalty, 10);
   if (index > MAX_DIST_FOR_LESS_THAN_MAX_CHANCE) return MAX_CHANCE_OF_HITTING_STRUCTURE;
   return STRUCTURE_HIT_CHANCE[index] ?? MAX_CHANCE_OF_HITTING_STRUCTURE;
 }
 
 function structureResistanceIncreasedByRange(reduction: number, range: number, distance: number): number {
-  return Math.trunc((reduction * (100 + Math.trunc((PERCENT_BULLET_SLOWED_BY_RANGE * (distance - range)) / range))) / 100);
+  return idiv(reduction * (100 + idiv(PERCENT_BULLET_SLOWED_BY_RANGE * (distance - range), range)), 100);
 }
 
 function ammoAdjustedReduction(reduction: number, ammo: number, heatCountsAsAP: boolean): number {
   if (ammo === AmmoType.HP) return reduction * 2;
-  if (ammo === AmmoType.AP || (heatCountsAsAP && ammo === AmmoType.HEAT)) return Math.trunc((reduction * 3) / 4);
-  if (ammo === AmmoType.SUPER_AP) return Math.trunc(reduction / 2);
+  if (ammo === AmmoType.AP || (heatCountsAsAP && ammo === AmmoType.HEAT)) return idiv(reduction * 3, 4);
+  if (ammo === AmmoType.SUPER_AP) return idiv(reduction, 2);
   return reduction;
 }
 
@@ -494,7 +494,7 @@ function structureHit(
     t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason, ...hitMaterial(structure) });
   }
   const sameAsBefore = structureId === b.lastStructureHit;
-  const zPixels = Math.trunc((fixInt(b.z) * 50) / 256);
+  const zPixels = idiv(fixInt(b.z) * 50, 256);
   const level = zPixels > 50 - ROOF_HIT_ADJUSTMENT + tileHeightPixels(t, attacker.gridNo) ? 1 : 0;
   const g = b.gridNo;
   let adjusted = g;
@@ -778,8 +778,8 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
         return;
       }
       if (local.length === 0 && !roof) {
-        const stepsX = b.incX > 0 ? Math.trunc((TEN - (b.x % TEN)) / b.incX) : b.incX < 0 ? Math.trunc((b.x % TEN) / -b.incX) : 1000000;
-        const stepsY = b.incY > 0 ? Math.trunc((TEN - (b.y % TEN)) / b.incY) : b.incY < 0 ? Math.trunc((b.y % TEN) / -b.incY) : 1000000;
+        const stepsX = b.incX > 0 ? idiv(TEN - (b.x % TEN), b.incX) : b.incX < 0 ? idiv(b.x % TEN, -b.incX) : 1000000;
+        const stepsY = b.incY > 0 ? idiv(TEN - (b.y % TEN), b.incY) : b.incY < 0 ? idiv(b.y % TEN, -b.incY) : 1000000;
         let steps = Math.min(stepsX, stepsY) + 1;
         if (b.z + Math.imul(b.incZ, steps) < land) {
           steps = Math.min(steps, Math.abs(Math.trunc((b.z - land) / b.incZ)));
@@ -880,8 +880,8 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
           b.loop++;
           if (b.flags & SPECIAL_BULLETS && b.loop % trailSteps(b) === 0) addMissileTrail(t, b, b.x, b.y, b.z);
         } while (b.losX === oldX && b.losY === oldY && b.cubesZ === oldCubes);
-        b.tileX = Math.trunc(fixInt(b.x) / 10);
-        b.tileY = Math.trunc(fixInt(b.y) / 10);
+        b.tileX = idiv(fixInt(b.x), 10);
+        b.tileY = idiv(fixInt(b.y), 10);
       }
     } while (b.tileX === oldTileX && b.tileY === oldTileY);
     if (outOfWorld(t, b, elevation)) {
@@ -891,8 +891,8 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
     }
     b.gridNo = rowColToPos(b.tileY, b.tileX);
     tiles++;
-    if (b.loop > b.range * 2) b.incZ -= Math.trunc((100 * FIX) / (b.range * 2));
-    else if (b.flags & BulletFlag.FLAME && b.loop > b.range) b.incZ -= Math.trunc((100 * FIX) / (b.range * 2));
+    if (b.loop > b.range * 2) b.incZ -= idiv(100 * FIX, b.range * 2);
+    else if (b.flags & BulletFlag.FLAME && b.loop > b.range) b.incZ -= idiv(100 * FIX, b.range * 2);
     if (b.firer.target && !b.firer.attackNoticed && pythSpacesAway(b.gridNo, b.targetGrid) <= 3) b.firer.attackNoticed = true;
   } while (tiles < b.tilesPerUpdate);
 }
@@ -927,7 +927,7 @@ function trailKind(b: Bullet): MissileTrail {
 function addMissileTrail(t: TacticalState, b: Bullet, x: number, y: number, z: number): void {
   if (b.flags & SHORT_TRAILS_HIDDEN_AT_FIRST && b.loop < TRAIL_LOOPS_HIDDEN) return;
   if (b.flags & BulletFlag.TANK_CANNON) return;
-  const height = Math.trunc((fixInt(z) * WALL_HEIGHT_PIXELS) / WALL_HEIGHT_UNITS) - tileHeightPixels(t, b.firer.gridNo);
+  const height = idiv(fixInt(z) * WALL_HEIGHT_PIXELS, WALL_HEIGHT_UNITS) - tileHeightPixels(t, b.firer.gridNo);
   const delay = b.flags & BulletFlag.FLAME ? { delay: FLAME_TRAIL_DELAY_MS } : {};
   t.events.push({ type: 'missileTrail', gridNo: b.gridNo, x: fixInt(x), y: fixInt(y), z: height, trail: trailKind(b), ...delay });
 }
@@ -956,7 +956,7 @@ export function updateMissAnimations(t: TacticalState): void {
 function ctgtReduction(t: TacticalState, b: Bullet, s: StructureInstance): number {
   if (b.flags & (BulletFlag.KNIFE | BulletFlag.MISSILE | BulletFlag.FLAME | BulletFlag.TANK_CANNON)) return b.impact;
   if (b.flags & BulletFlag.SMALL_MISSILE && ammoTypeOf(b) === AmmoType.HE) return b.impact;
-  let reduction = Math.trunc(((t.content.materialArmour[s.def.armour] ?? 0) * s.def.density) / 100);
+  let reduction = idiv((t.content.materialArmour[s.def.armour] ?? 0) * s.def.density, 100);
   reduction = structureResistanceIncreasedByRange(reduction, b.range, b.loop);
   return ammoAdjustedReduction(reduction, ammoTypeOf(b), false);
 }
@@ -1022,8 +1022,8 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
       if (above < 0) return 0;
       if (roof && ((lastZ > wall && b.z < wall) || (lastZ < wall && b.z > wall))) return 0;
       if (tileStructures.length === 0) {
-        const stepsX = b.incX > 0 ? Math.trunc((TEN - (b.x % TEN)) / b.incX) : b.incX < 0 ? Math.trunc((b.x % TEN) / -b.incX) : 1000000;
-        const stepsY = b.incY > 0 ? Math.trunc((TEN - (b.y % TEN)) / b.incY) : b.incY < 0 ? Math.trunc((b.y % TEN) / -b.incY) : 1000000;
+        const stepsX = b.incX > 0 ? idiv(TEN - (b.x % TEN), b.incX) : b.incX < 0 ? idiv(b.x % TEN, -b.incX) : 1000000;
+        const stepsY = b.incY > 0 ? idiv(TEN - (b.y % TEN), b.incY) : b.incY < 0 ? idiv(b.y % TEN, -b.incY) : 1000000;
         const steps = Math.min(stepsX, stepsY) + 1;
         b.x = i32(b.x + Math.imul(b.incX, steps));
         b.y = i32(b.y + Math.imul(b.incY, steps));
@@ -1069,18 +1069,18 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
           b.losY = cellOf(b.y);
           b.cubesZ = cubeOf(fixInt(b.z));
         } while (b.losX === oldX && b.losY === oldY && b.cubesZ === oldCubes);
-        b.tileX = Math.trunc(fixInt(b.x) / 10);
-        b.tileY = Math.trunc(fixInt(b.y) / 10);
+        b.tileX = idiv(fixInt(b.x), 10);
+        b.tileY = idiv(fixInt(b.y), 10);
       }
     } while (b.loop < b.distanceLimit && b.tileX === oldTileX && b.tileY === oldTileY);
     if (b.tileX < 0 || b.tileX >= WORLD_COLS || b.tileY < 0 || b.tileY >= 160) return 0;
     b.gridNo = rowColToPos(b.tileY, b.tileX);
-    if (b.loop > b.range * 2) b.incZ -= Math.trunc((100 * FIX) / (b.range * 2));
+    if (b.loop > b.range * 2) b.incZ -= idiv(100 * FIX, b.range * 2);
     if (local.length > 0) {
       for (const entry of local) {
         if (entry.timesHit === 0) continue;
         const total = Math.min(ctgtReduction(t, b, entry.s) * entry.timesHit, b.impact);
-        b.impactReduction += Math.trunc((total * entry.chance) / 100);
+        b.impactReduction += idiv(total * entry.chance, 100);
       }
       if (b.impactReduction >= b.impact) return 0;
     }

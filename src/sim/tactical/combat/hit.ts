@@ -14,7 +14,7 @@ import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../.
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i16, u8, u16 } from '../../../core/int.ts';
+import { i8, i16, idiv, u8, u16 } from '../../../core/int.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
@@ -92,7 +92,7 @@ function hitLocationFromZ(t: TacticalState, b: Bullet, tgt: Soldier): number {
   if (tgt.overTerrain === Terrain.DEEP_WATER) return AimShot.HEAD;
   const end = endHeight(t.content, tgt.state);
   if (end === AnimHeight.PRONE) return AimShot.TORSO;
-  let z = Math.fround(Math.fround(Math.fround(b.z) / (1 << 20)) - Math.trunc(((t.world.level.heights[b.gridNo] ?? 0) * 256) / 50));
+  let z = Math.fround(Math.fround(Math.fround(b.z) / (1 << 20)) - idiv((t.world.level.heights[b.gridNo] ?? 0) * 256, 50));
   if (z > HEIGHT_UNITS) z = Math.fround(z - HEIGHT_UNITS);
   if (end === AnimHeight.STAND)
     return z > STANDING_HEAD_BOTTOM_POS ? AimShot.HEAD : z < STANDING_TORSO_BOTTOM_POS ? AimShot.LEGS : AimShot.TORSO;
@@ -139,12 +139,12 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     }
   }
   const range = Math.trunc(
-    Math.sqrt(((firer.gridNo % 160) - (tgt.gridNo % 160)) ** 2 + (Math.trunc(firer.gridNo / 160) - Math.trunc(tgt.gridNo / 160)) ** 2) * 10,
+    Math.sqrt(((firer.gridNo % 160) - (tgt.gridNo % 160)) ** 2 + (idiv(firer.gridNo, 160) - idiv(tgt.gridNo, 160)) ** 2) * 10,
   );
   let impact = Math.max(0, b.impact - b.impactReduction);
   let damage: number;
   if (intended) {
-    const hitBy = firer.oppList[tgt.id] === 1 ? b.hitBy : Math.trunc(b.hitBy / 2);
+    const hitBy = firer.oppList[tgt.id] === 1 ? b.hitBy : idiv(b.hitBy, 2);
     const r = bulletImpact(t, firer, tgt, location, impact, hitBy, special);
     damage = r.damage;
     special = r.special;
@@ -164,7 +164,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     if (headSlot !== -1) {
       const o = tgt.inv[headSlot];
       if (o) {
-        o.status[0] = i8((o.status[0] ?? 0) - i8(Math.trunc(impact / 2) + t.rng.int(Math.trunc(impact / 2))));
+        o.status[0] = i8((o.status[0] ?? 0) - i8(idiv(impact, 2) + t.rng.int(idiv(impact, 2))));
         if ((o.status[0] ?? 0) <= 0) deleteObject(o);
       }
     }
@@ -172,7 +172,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     const slot = InvSlot.HEAD1 + t.rng.int(2);
     const o = tgt.inv[slot];
     if (o && o.item !== NOTHING) {
-      o.status[0] = i8((o.status[0] ?? 0) - i8(t.rng.int(Math.trunc(impact / 2))));
+      o.status[0] = i8((o.status[0] ?? 0) - i8(t.rng.int(idiv(impact, 2))));
       if ((o.status[0] ?? 0) < 0) o.status[0] = 1;
     }
   }
@@ -185,7 +185,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     else if (t.rng.int(100) < 60) firer.target = tgt;
   }
   if (firer.doBurst && special === Special.NONE) special = Special.BURST;
-  const breathLoss = i16(Math.trunc((impact * BP_GET_WOUNDED * (tgt.breathMax * 100 - tgt.breathRed)) / 10000));
+  const breathLoss = i16(idiv(impact * BP_GET_WOUNDED * (tgt.breathMax * 100 - tgt.breathRed), 10000));
   const hitDirection = directionToward(tgt.gridNo, firer.gridNo);
   let stopped = true;
   if (
@@ -323,7 +323,7 @@ export function eventSoldierGotHit(
       if (t.pre.int(100) < sleepDartSuccumbChance(s)) breath = i16(s.breathMax * 100);
     } else if (special === Special.BLINDED_BY_SPIT) {
       if (s.blindedCounter === 0) decayIndividualOpplist(t, s);
-      s.blindedCounter += Math.trunc(damage / 8) + 1;
+      s.blindedCounter += idiv(damage, 8) + 1;
     }
     breath = i16(breath + BP_GET_HIT);
     reason = DamageReason.GUNFIRE;
@@ -332,10 +332,10 @@ export function eventSoldierGotHit(
     reason = DamageReason.BLADE;
   } else if (cls === ItemClass.PUNCH || weapon === NOTHING) {
     breath = i16(damage * 100);
-    damage = Math.trunc(damage / PUNCH_REAL_DAMAGE_PORTION);
+    damage = idiv(damage, PUNCH_REAL_DAMAGE_PORTION);
     if (inInterrogation(t)) {
       breath = 0;
-      damage = Math.trunc(damage / 2);
+      damage = idiv(damage, 2);
     }
     reason = DamageReason.HANDTOHAND;
   } else if (cls & (ItemClass.GRENADE | ItemClass.BOMB)) {
@@ -688,12 +688,12 @@ export function soldierTakeDamage(
     else if (s.bodyType === Body.LARVAE_MONSTER || s.bodyType === Body.INFANT_MONSTER) factor = 1;
     else if (s.bodyType === Body.YAF_MONSTER || s.bodyType === Body.YAM_MONSTER) factor = 4;
     else if (s.bodyType === Body.ADULTFEMALEMONSTER || s.bodyType === Body.AM_MONSTER) factor = 6;
-    else if (s.bodyType === Body.QUEENMONSTER) factor = attacker ? 4 + Math.trunc(pythSpacesAway(attacker.gridNo, s.gridNo) / 2) : 8;
-    if (reason === DamageReason.EXPLOSION) factor = Math.trunc(factor / 4);
-    if (factor > 1) life = Math.trunc((life + Math.trunc(factor / 2)) / factor);
-    else if (reason === DamageReason.EXPLOSION) life = Math.trunc((life * 2) / 3);
-    factor = s.bodyType === Body.QUEENMONSTER ? Math.min(factor, 8) * 2 : Math.trunc(factor / 2);
-    if (factor > 1) breath = Math.trunc((breath + Math.trunc(factor / 2)) / factor);
+    else if (s.bodyType === Body.QUEENMONSTER) factor = attacker ? 4 + idiv(pythSpacesAway(attacker.gridNo, s.gridNo), 2) : 8;
+    if (reason === DamageReason.EXPLOSION) factor = idiv(factor, 4);
+    if (factor > 1) life = idiv(life + idiv(factor, 2), factor);
+    else if (reason === DamageReason.EXPLOSION) life = idiv(life * 2, 3);
+    factor = s.bodyType === Body.QUEENMONSTER ? Math.min(factor, 8) * 2 : idiv(factor, 2);
+    if (factor > 1) breath = idiv(breath + idiv(factor, 2), factor);
   }
   s.life = life > s.life ? 0 : i8(s.life - life);
   if (s.side !== Side.FRIENDLY && !s.neutral && s.profile === NO_PROFILE && s.life > 0 && s.life < OKLIFE - 1) {
@@ -710,9 +710,9 @@ export function soldierTakeDamage(
       if (life > 0) s.bleeding = i8(s.bleeding + 1);
     } else s.bleeding = i8(s.lifeMax - (s.life + bandage));
   }
-  const apCost = Math.trunc(life / AP_GET_WOUNDED_DIVISOR);
+  const apCost = idiv(life, AP_GET_WOUNDED_DIVISOR);
   if (!isRobot(s)) deductPoints(t.inCombat, s, apCost, breath);
-  const combined = u8(Math.trunc(u8(life) / 10) + Math.trunc(breath / 2000));
+  const combined = u8(idiv(u8(life), 10) + idiv(breath, 2000));
   if (!isRobot(s)) s.shock = i8(s.shock + combined);
   s.nextBleed = calcNextBleed(s);
   if (s.placed && s.visible !== -1 && oldLife !== 0 && life !== 0 && life < 1000) {
@@ -722,7 +722,7 @@ export function soldierTakeDamage(
   if (reason !== DamageReason.BLOODLOSS && !isRobot(s)) {
     let drop = Math.max(
       0,
-      2 * Math.max(life, Math.trunc(breath / 100)) + (s.attacker?.bodyType === Body.BLOODCAT ? 20 : 0) - effectiveStrength(s),
+      2 * Math.max(life, idiv(breath, 100)) + (s.attacker?.bodyType === Body.BLOODCAT ? 20 : 0) - effectiveStrength(s),
     );
     const hand = s.inv[InvSlot.HAND];
     const undroppable = hand !== undefined && (hand.flags & ObjectFlags.UNDROPPABLE) !== 0;
@@ -732,7 +732,7 @@ export function soldierTakeDamage(
       deleteObject(hand);
     }
   }
-  const blood = Math.min(u8(Math.trunc(life / BLOOD_DIVISOR)), MAX_BLOOD_QUANTITY);
+  const blood = Math.min(u8(idiv(life, BLOOD_DIVISOR)), MAX_BLOOD_QUANTITY);
   if (!isRobot(s) && blood !== 0 && s.placed) dropBlood(t, s, blood);
   if (s.placed) checkForBreathCollapse(s);
   if (attacker && attacker.team === Team.OUR && s.team !== Team.OUR && reason === DamageReason.EXPLOSION)

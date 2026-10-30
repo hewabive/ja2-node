@@ -13,7 +13,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, idiv } from '../../../core/int.ts';
 import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -363,7 +363,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     state: s.state,
     profile: s.profile,
     type,
-    timeOfDeath: Math.trunc(worldSeconds(t) / SECONDS_PER_MINUTE),
+    timeOfDeath: idiv(worldSeconds(t), SECONDS_PER_MINUTE),
     ...corpseLook(s),
   });
   addCorpseStructure(t, s.gridNo, s.level, type, direction);

@@ -5,7 +5,7 @@
 import { AmmoType, ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, u32 } from '../../../core/int.ts';
+import { i8, idiv, u32 } from '../../../core/int.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
@@ -71,11 +71,11 @@ export function bulletImpact(
   let special = mode.specials ? specialIn : Special.NONE;
   if (isTankBody(target) && ammo !== AmmoType.HEAT) return { damage: 0, special };
   const fluke = t.pre.int(51) - 25;
-  let origImpact = Math.trunc((origImpactIn * (100 + fluke + Math.trunc(hitBy / 2))) / 100);
+  let origImpact = idiv(origImpactIn * (100 + fluke + idiv(hitBy, 2)), 100);
   if (origImpact < 1) origImpact = 1;
   if (ammo === AmmoType.HE || ammo === AmmoType.HEAT) {
-    origImpact = Math.trunc((origImpact * 4) / 3);
-    if (isTankBody(target)) origImpact = Math.trunc(origImpact / 2);
+    origImpact = idiv(origImpact * 4, 3);
+    if (isTankBody(target)) origImpact = idiv(origImpact, 2);
   }
   let impact =
     special === Special.BLINDED_BY_SPIT
@@ -83,13 +83,13 @@ export function bulletImpact(
       : origImpact - totalArmourProtection(t.content.items, t.pre, target, location, origImpact, ammo);
   if (ammo === AmmoType.HP || ammo === AmmoType.SLEEP_DART) impact = Math.max(impact, 0);
   else {
-    impact = Math.max(impact, Math.trunc((origImpact + 5) / 10));
-    if (ammo === AmmoType.BUCKSHOT && target.numPelletsHitBy > 0) impact += Math.trunc((target.numPelletsHitBy - 1) / 2);
+    impact = Math.max(impact, idiv(origImpact + 5, 10));
+    if (ammo === AmmoType.BUCKSHOT && target.numPelletsHitBy > 0) impact += idiv(target.numPelletsHitBy - 1, 2);
   }
   let crits = 0;
   if (impact > 0 && !isTankBody(target)) {
     if (ammo === AmmoType.SLEEP_DART && hitBy > 20) return { damage: impact, special: mode.specials ? Special.SLEEP_DART : special };
-    if (ammo === AmmoType.HP) impact = Math.trunc((impact * 17) / 10);
+    if (ammo === AmmoType.HP) impact = idiv(impact * 17, 10);
     const adjusted = adjustImpactByHitLocation(impact, location);
     impact = adjusted.impact;
     crits = adjusted.crits;
@@ -105,7 +105,7 @@ export function bulletImpact(
             if (crits > MIN_DAMAGE_FOR_HEAD_EXPLOSION) special = Special.HEAD_EXPLODE;
             else if (
               crits > MIN_DAMAGE_FOR_HEAD_EXPLOSION / 2 &&
-              t.pre.int(Math.trunc(MIN_DAMAGE_FOR_HEAD_EXPLOSION / 2)) < crits - Math.trunc(MIN_DAMAGE_FOR_HEAD_EXPLOSION / 2)
+              t.pre.int(idiv(MIN_DAMAGE_FOR_HEAD_EXPLOSION, 2)) < crits - idiv(MIN_DAMAGE_FOR_HEAD_EXPLOSION, 2)
             )
               special = Special.HEAD_EXPLODE;
           }
@@ -153,8 +153,8 @@ export function bulletImpact(
     }
   }
   if (crits > 0 && crits < target.life) {
-    if (t.pre.int(Math.trunc(crits / 2) + firer.aimTime * 5) + 1 > CRITICAL_HIT_THRESHOLD) {
-      let loss = i8(t.pre.int(Math.trunc(crits / 2)) + 1);
+    if (t.pre.int(idiv(crits, 2) + firer.aimTime * 5) + 1 > CRITICAL_HIT_THRESHOLD) {
+      let loss = i8(t.pre.int(idiv(crits, 2)) + 1);
       const reduce = (stat: 'wisdom' | 'dexterity' | 'strength' | 'agility') => {
         if (loss >= target.stats[stat]) loss = target.stats[stat] - 1;
         if (loss > 0) {

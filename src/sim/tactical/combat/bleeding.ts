@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount), SoldierBleed, CalcSoldierNextBleed.
 
+import { idiv } from '../../../core/int.ts';
 import { profileProgress } from '../profiles.ts';
 import { effectiveLife } from '../skills.ts';
 import { BLOOD_DIVISOR, MAX_BLOOD_QUANTITY } from '../smell.ts';
@@ -40,7 +41,7 @@ export const NO_BLOOD = 40;
 
 function bleedingBlood(s: Soldier): number {
   if (s.tilesMoved >= 1) return NO_BLOOD;
-  return Math.min(Math.trunc((s.bleeding - MIN_BLEEDING_THRESHOLD) / BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
+  return Math.min(idiv(s.bleeding - MIN_BLEEDING_THRESHOLD, BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
 }
 
 export function checkBleeding(t: TacticalState, s: Soldier): number {

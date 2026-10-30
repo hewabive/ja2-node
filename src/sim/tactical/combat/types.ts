@@ -3,6 +3,8 @@
 // @src src/game/Tactical/Weapons.h AIM_SHOT_*, special hit effects, damage thresholds, aim modifiers;
 // @src Soldier_Control.h TAKE_DAMAGE_* reasons; Morale.h MORALE_*; Weapons.cc WEAPON_STATUS_MOD; Handle_Items.h ITEM_HANDLE_*.
 
+import { idiv } from '../../../core/int.ts';
+
 export const AimShot = { RANDOM: 0, HEAD: 1, TORSO: 2, LEGS: 3, GLAND: 4 } as const;
 
 export const ItemHandle = {
@@ -84,5 +86,5 @@ export const MIN_PRONE_RANGE = 50;
 export const NORMAL_RANGE = 90;
 
 export function weaponStatusMod(status: number): number {
-  return status >= 85 ? 100 : Math.trunc((status * 100) / 85);
+  return status >= 85 ? 100 : idiv(status * 100, 85);
 }

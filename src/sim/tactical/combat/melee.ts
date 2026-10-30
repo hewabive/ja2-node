@@ -8,7 +8,7 @@
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
 import { Direction, pythSpacesAway } from '../../../content/world/grid.ts';
-import { i8, i16, u8 } from '../../../core/int.ts';
+import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AiAction } from '../ai/actions.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -94,17 +94,17 @@ const traitBonus = (s: Soldier, trait: number) => (SKILL_TRAIT_BONUS[trait] ?? 0
 const turnsFromAttacks = (s: Soldier) => !s.monsterOrAnimal && !isVehicle(s);
 
 function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number): number {
-  let a = Math.trunc((3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att)) / 6);
+  let a = idiv(3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att), 6);
   if (att.profile !== NO_PROFILE && att.personalityTrait === Personality.PSYCHO) a += Aim.BONUS_PSYCHO;
   a += moraleModifier(att);
   a -= skillCheckFatiguePenalty(att, a);
-  if (aim) a += Math.trunc((Aim.BONUS_PER_AP * aim) / 2);
+  if (aim) a += idiv(Aim.BONUS_PER_AP * aim, 2);
   if (att.team !== Team.OUR) a += ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, att)] ?? 0;
   if (isGassed(t, att)) a -= Aim.PENALTY_GASSED;
   if (att.serviceCount > 0) a -= Aim.PENALTY_GETTINGAID;
   if (att.shock) a -= att.shock * Aim.PENALTY_PER_SHOCK;
-  if (a > 0 && att.life < att.lifeMax) a -= Math.trunc((2 * a * (att.lifeMax - effectiveLife(att))) / (3 * att.lifeMax));
-  if (a > 0 && att.breath < 100) a -= Math.trunc((a * (100 - att.breath)) / 200);
+  if (a > 0 && att.life < att.lifeMax) a -= idiv(2 * a * (att.lifeMax - effectiveLife(att)), 3 * att.lifeMax);
+  if (a > 0 && att.breath < 100) a -= idiv(a * (100 - att.breath), 200);
   if (att.profile !== NO_PROFILE) {
     if (mode === MeleeMode.STAB) a += traitBonus(att, SkillTrait.KNIFING);
     else a += traitBonus(att, SkillTrait.MARTIALARTS) + traitBonus(att, SkillTrait.HANDTOHAND);
@@ -119,14 +119,14 @@ function tentacleDefence(def: Soldier, stance: number): number {
 }
 
 function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: number): number {
-  let d = Math.trunc((3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def)) / 6);
+  let d = idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def), 6);
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
   if (isGassed(t, def)) d -= Aim.PENALTY_GASSED;
   if (def.serviceCount > 0) d -= Aim.PENALTY_GETTINGAID;
   if (def.shock) d -= def.shock * Aim.PENALTY_PER_SHOCK;
-  if (d > 0 && def.life < def.lifeMax) d -= Math.trunc((2 * d * (def.lifeMax - effectiveLife(def))) / (3 * def.lifeMax));
-  if (d > 0 && def.breath < 100) d -= Math.trunc((d * (100 - def.breath)) / 200);
+  if (d > 0 && def.life < def.lifeMax) d -= idiv(2 * d * (def.lifeMax - effectiveLife(def)), 3 * def.lifeMax);
+  if (d > 0 && def.breath < 100) d -= idiv(d * (100 - def.breath), 200);
   const stance = endHeight(t.content, def.state);
   if (weapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES')) d += tentacleDefence(def, stance);
   else if (stance < AnimHeight.STAND) {
@@ -137,8 +137,8 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
     const holdsBlade = itemDef(t, def.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass === ItemClass.BLADE;
     const knifing = traitBonus(def, SkillTrait.KNIFING);
     const martial = traitBonus(def, SkillTrait.MARTIALARTS);
-    if (mode === MeleeMode.STAB) d += holdsBlade ? knifing + Math.trunc(martial / 3) : Math.trunc(knifing / 3) + Math.trunc(martial / 2);
-    else d += holdsBlade ? Math.trunc(knifing / 2) : martial + traitBonus(def, SkillTrait.HANDTOHAND);
+    if (mode === MeleeMode.STAB) d += holdsBlade ? knifing + idiv(martial, 3) : idiv(knifing, 3) + idiv(martial, 2);
+    else d += holdsBlade ? idiv(knifing, 2) : martial + traitBonus(def, SkillTrait.HANDTOHAND);
   }
   return Math.max(d, 1);
 }
@@ -155,7 +155,7 @@ function calcChanceHTH(t: TacticalState, att: Soldier, def: Soldier, aim: number
   if (!weaponFitsMode(t, att.attackingWeapon, mode)) return 0;
   const a = attackRating(t, att, aim, mode);
   const d = defenceRating(t, def, mode, att.attackingWeapon);
-  let chance = HTH_BASE_CHANCE + Math.trunc((a - d) / 3);
+  let chance = HTH_BASE_CHANCE + idiv(a - d, 3);
   if (att.aimShotLocation === AimShot.HEAD) chance -= HEAD_SHOT_MELEE_PENALTY;
   return Math.min(Math.max(chance, CTH_MINIMUM), CTH_MAXIMUM);
 }
@@ -178,32 +178,32 @@ export function meleeChanceToHit(t: TacticalState, att: Soldier, def: Soldier, a
 }
 
 export function hthImpact(t: CombatContext, att: Soldier, tgt: Soldier, hitBy: number, blade: boolean): number {
-  let impact = Math.trunc(effectiveExpLevel(att) / 2);
+  let impact = idiv(effectiveExpLevel(att), 2);
   const strength = effectiveStrength(att);
   const weapon = att.attackingWeapon;
   const weaponImpact = t.content.items.byIndex.get(weapon)?.weapon?.impact ?? 0;
   const martialArtist = numSkillTraits(att, SkillTrait.MARTIALARTS) > 0;
   if (blade) {
-    impact += Math.trunc(strength / 20) + weaponImpact;
-    if (isRobot(tgt)) impact = Math.trunc(impact / 4);
+    impact += idiv(strength, 20) + weaponImpact;
+    if (isRobot(tgt)) impact = idiv(impact, 4);
   } else {
-    impact += Math.trunc(strength / 5);
+    impact += idiv(strength, 5);
     if (weapon !== NOTHING && !martialArtist) {
       impact += weaponImpact;
-      if (isRobot(tgt)) impact = Math.trunc(impact / 2);
+      if (isRobot(tgt)) impact = idiv(impact, 2);
     } else {
       impact += BASE_HTH_IMPACT;
       if (isRobot(tgt)) impact = 0;
     }
   }
   const fluke = t.pre.int(51) - 25;
-  impact = Math.trunc((impact * (100 + fluke + Math.trunc(hitBy / 2))) / 100);
+  impact = idiv(impact * (100 + fluke + idiv(hitBy, 2)), 100);
   if (!blade) {
     if (martialArtist) {
-      impact = Math.trunc((impact * (100 + traitBonus(att, SkillTrait.MARTIALARTS))) / 100);
+      impact = idiv(impact * (100 + traitBonus(att, SkillTrait.MARTIALARTS)), 100);
       if (animName(t.content, att.state) === 'NINJA_SPINKICK') impact *= 2;
     }
-    impact = Math.trunc((impact * (100 + 3 * traitBonus(att, SkillTrait.HANDTOHAND))) / 100);
+    impact = idiv(impact * (100 + 3 * traitBonus(att, SkillTrait.HANDTOHAND)), 100);
   }
   return impact;
 }
@@ -404,11 +404,9 @@ function queueWeaponHit(t: TacticalState, att: Soldier, tgt: Soldier, damage: nu
 function dullBlade(t: TacticalState, blade: ItemObject, impact: number): void {
   const status = blade.status[0] ?? 0;
   if (status <= USABLE_STATUS) return;
-  const statusTenths = Math.trunc(status / 10);
+  const statusTenths = idiv(status, 10);
   const maxDrop =
-    statusTenths > 2
-      ? Math.min(Math.max(Math.trunc(impact / KNIFE_DULLING_IMPACT_DIVISOR), MIN_KNIFE_DULLING), statusTenths)
-      : MIN_KNIFE_DULLING;
+    statusTenths > 2 ? Math.min(Math.max(idiv(impact, KNIFE_DULLING_IMPACT_DIVISOR), MIN_KNIFE_DULLING), statusTenths) : MIN_KNIFE_DULLING;
   blade.status[0] = i8(status - i8(t.rng.int(maxDrop)));
 }
 
@@ -419,7 +417,7 @@ function reduceMonsterSmell(t: TacticalState, s: Soldier): void {
 function knifeExperience(chance: number, hit: boolean, aimTime: number): number {
   let xp = 0;
   if (hit) {
-    xp += Math.trunc(u8(100 - chance) / KNIFE_DIFFICULTY_XP_DIVISOR);
+    xp += idiv(u8(100 - chance), KNIFE_DIFFICULTY_XP_DIVISOR);
     if (aimTime) xp += 2 * Math.min(aimTime, xp);
     xp += KNIFE_HIT_XP;
   }
@@ -445,9 +443,9 @@ export function useBlade(t: TacticalState, s: Soldier, g: number): void {
     if (hit) {
       const blade = s.inv[s.attackingHand] as ItemObject;
       let impact = hthImpact(t, s, tgt, chance - roll, true);
-      impact = Math.trunc((impact * weaponStatusMod(blade.status[0] ?? 0)) / 100);
+      impact = idiv(impact * weaponStatusMod(blade.status[0] ?? 0), 100);
       impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
-      if (surprise) impact = Math.trunc((impact * 3) / 2);
+      if (surprise) impact = idiv(impact * 3, 2);
       impact = Math.max(impact, 1);
       dullBlade(t, blade, impact);
       queueWeaponHit(t, s, tgt, impact);

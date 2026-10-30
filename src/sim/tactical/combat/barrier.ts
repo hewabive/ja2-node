@@ -9,7 +9,7 @@
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, u8 } from '../../../core/int.ts';
+import { i8, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
 import { InvSlot } from '../inventory.ts';
@@ -63,7 +63,7 @@ function isGunInHand(t: TacticalState, s: Soldier): boolean {
 
 function calcSuppressionTolerance(t: TacticalState, s: Soldier): number {
   let tol = s.stats.experience * 2;
-  if (s.team === Team.OUR) tol += Math.trunc((s.morale - 50) / 10);
+  if (s.team === Team.OUR) tol += idiv(s.morale - 50, 10);
   else tol += (s.ai.morale - AiMorale.NORMAL) * 2;
   if (s.profile !== NO_PROFILE) {
     const attitude = profileProgress(t, s.profile)?.attitude;
@@ -95,15 +95,15 @@ export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null
   for (const s of t.mercSlots) {
     if (!s?.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
     const tol = calcSuppressionTolerance(t, s);
-    let lost = u8(Math.trunc((Math.trunc((s.suppressionPoints * SUPPRESSION_FIRE_MODIFIER) / (tol + 6)) * 2 + 1) / 2));
+    let lost = u8(idiv(idiv(s.suppressionPoints * SUPPRESSION_FIRE_MODIFIER, tol + 6) * 2 + 1, 2));
     if (lost > MAX_APS_SUPPRESSED) lost = MAX_APS_SUPPRESSED;
     const total = lost;
     if (s.apsLostToSuppression >= lost) continue;
-    const moraleHits = Math.trunc(total / 2) - Math.trunc(s.apsLostToSuppression / 2);
+    const moraleHits = idiv(total, 2) - idiv(s.apsLostToSuppression, 2);
     for (let i = 0; i < moraleHits; i++) handleMoraleEvent(t, s, MoraleEvent.SUPPRESSED);
     lost -= s.apsLostToSuppression;
     let stance = 0;
-    if (s.suppressionPoints >= Math.trunc(SUPPRESSION_FIRE_REACTION_THRESHOLD / (6 + tol))) {
+    if (s.suppressionPoints >= idiv(SUPPRESSION_FIRE_REACTION_THRESHOLD, 6 + tol)) {
       const end = endHeight(t.content, s.state);
       if (end === AnimHeight.CROUCH) {
         if (total >= AP.PRONE && isValidStance(t, s, AnimHeight.PRONE) && closestKnownOpponentFar(t, s)) stance = AnimHeight.PRONE;

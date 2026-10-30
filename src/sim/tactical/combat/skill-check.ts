@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/SkillCheck.cc SkillCheck, CalcTrapDetectLevel; SkillCheck.h SkillChecks.
 
+import { idiv } from '../../../core/int.ts';
 import { findObj } from '../../strategic/economy/kits.ts';
 import {
   effectiveDexterity,
@@ -66,47 +67,47 @@ const hasElectronics = (s: Soldier) => numSkillTraits(s, SkillTrait.ELECTRONICS)
 function lockpickingSkill(t: SkillCheckContext, s: Soldier, electronic: boolean): number {
   let skill = effectiveMechanical(s);
   if (skill === 0) return 0;
-  skill = Math.trunc((skill * (effectiveWisdom(s) + 100)) / 200);
-  skill = Math.trunc((skill * (effectiveDexterity(s) + 100)) / 200);
+  skill = idiv(skill * (effectiveWisdom(s) + 100), 200);
+  skill = idiv(skill * (effectiveDexterity(s) + 100), 200);
   skill += effectiveExpLevel(s) * 3;
   skill += (SKILL_TRAIT_BONUS[SkillTrait.LOCKPICKING] ?? 0) * numSkillTraits(s, SkillTrait.LOCKPICKING);
-  if (electronic && !hasElectronics(s)) skill = Math.trunc(skill / 2);
+  if (electronic && !hasElectronics(s)) skill = idiv(skill, 2);
   const kit = findObj(s.inv, t.content.items.byName.get('LOCKSMITHKIT')?.index ?? -1);
   if (kit === NO_SLOT) return 0;
-  return Math.trunc((skill * (s.inv[kit]?.status[0] ?? 0)) / 100);
+  return idiv(skill * (s.inv[kit]?.status[0] ?? 0), 100);
 }
 
 function plantingSkill(s: Soldier, remote: boolean): number {
-  let skill = Math.trunc((effectiveExplosive(s) * 7 + effectiveWisdom(s) * 2 + effectiveExpLevel(s) * 10) / 10);
-  if (remote && !hasElectronics(s)) skill = Math.trunc((skill * 3) / 4);
-  const quarters = Math.trunc(skill / 25);
-  return Math.trunc((skill + 100 * quarters) / (quarters + 1));
+  let skill = idiv(effectiveExplosive(s) * 7 + effectiveWisdom(s) * 2 + effectiveExpLevel(s) * 10, 10);
+  if (remote && !hasElectronics(s)) skill = idiv(skill * 3, 4);
+  const quarters = idiv(skill, 25);
+  return idiv(skill + 100 * quarters, quarters + 1);
 }
 
 function disarmSkill(s: Soldier, electronic: boolean): number {
   const base = electronic ? Math.max(effectiveMechanical(s), effectiveExplosive(s)) : effectiveExplosive(s);
   let skill = base * 7;
   if (skill === 0) return 0;
-  skill = Math.trunc((skill + effectiveDexterity(s) * 2 + effectiveExpLevel(s) * 10) / 10);
-  skill -= Math.trunc((100 - effectiveWisdom(s)) / 5);
-  if (electronic && !hasElectronics(s)) skill = Math.trunc((skill * 3) / 4);
+  skill = idiv(skill + effectiveDexterity(s) * 2 + effectiveExpLevel(s) * 10, 10);
+  skill -= idiv(100 - effectiveWisdom(s), 5);
+  if (electronic && !hasElectronics(s)) skill = idiv(skill * 3, 4);
   return skill;
 }
 
 function attachingDetonatorSkill(s: Soldier, remote: boolean): number {
   const explosive = effectiveExplosive(s);
   if (explosive === 0) return 0;
-  const skill = Math.trunc((explosive * 3 + effectiveDexterity(s)) / 4);
-  return remote && !hasElectronics(s) ? Math.trunc(skill / 2) : skill;
+  const skill = idiv(explosive * 3 + effectiveDexterity(s), 4);
+  return remote && !hasElectronics(s) ? idiv(skill, 2) : skill;
 }
 
 function attachingSpecialItemSkill(s: Soldier, electronic: boolean): number {
   let skill = effectiveMechanical(s);
   if (skill === 0) return 0;
-  skill = Math.trunc((skill * (effectiveWisdom(s) + 100)) / 200);
-  skill = Math.trunc((skill * (effectiveDexterity(s) + 100)) / 200);
+  skill = idiv(skill * (effectiveWisdom(s) + 100), 200);
+  skill = idiv(skill * (effectiveDexterity(s) + 100), 200);
   skill += effectiveExpLevel(s) * 3;
-  return electronic && !hasElectronics(s) ? Math.trunc(skill / 2) : skill;
+  return electronic && !hasElectronics(s) ? idiv(skill, 2) : skill;
 }
 
 function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
@@ -131,9 +132,9 @@ function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
     case R.SMASH_DOOR:
       return effectiveStrength(s);
     case R.UNJAM_GUN:
-      return 30 + Math.trunc(effectiveMechanical(s) / 2);
+      return 30 + idiv(effectiveMechanical(s), 2);
     case R.NOTICE_DART:
-      return Math.trunc(effectiveWisdom(s) / 10) + effectiveExpLevel(s);
+      return idiv(effectiveWisdom(s), 10) + effectiveExpLevel(s);
     default:
       return 0;
   }
@@ -145,7 +146,7 @@ export interface QueenWits {
 }
 
 function lieToQueenSkill(liar: Soldier, queen: QueenWits): number {
-  return Math.trunc((LIE_TO_QUEEN_SKILL_FACTOR * (effectiveWisdom(liar) + effectiveLeadership(liar))) / (queen.wisdom + queen.leadership));
+  return idiv(LIE_TO_QUEEN_SKILL_FACTOR * (effectiveWisdom(liar) + effectiveLeadership(liar)), queen.wisdom + queen.leadership);
 }
 
 export function skillCheck(t: SkillCheckContext, s: Soldier, reason: number, mod: number): number {
@@ -178,9 +179,9 @@ function rollSkillCheck(t: SkillCheckContext, s: Soldier, reason: number, base: 
 
 export function calcTrapDetectLevel(t: TacticalState, s: Soldier, examining: boolean): number {
   let level = effectiveExpLevel(s);
-  level += Math.trunc(effectiveExplosive(s) / 40);
-  level -= Math.trunc((100 - effectiveWisdom(s)) / 20);
-  if (examining) level += t.pre.int(Math.trunc(level / 3) + 2);
+  level += idiv(effectiveExplosive(s), 40);
+  level -= idiv(100 - effectiveWisdom(s), 20);
+  if (examining) level += t.pre.int(idiv(level, 3) + 2);
   if (s.bleeding > BLEEDING_SHOCK_BLEEDING || s.shock > BLEEDING_SHOCK_SHOCK) level -= t.pre.int(3);
   return Math.max(level, 1);
 }

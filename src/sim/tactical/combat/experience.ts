@@ -4,7 +4,7 @@
 // @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
 // @src AgilityForEnemyMissingPlayer.
 
-import { u16 } from '../../../core/int.ts';
+import { idiv, u16 } from '../../../core/int.ts';
 import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
@@ -58,10 +58,10 @@ function processStatChange(t: CombatContext, p: ProfileProgress, stat: number, c
   const rating = p.stats[key];
   const wisdomAffects = cause === StatCause.TRAINING || !PHYSICAL.has(stat);
   if (rating <= 0) return;
-  const wisdomTerm = () => p.stats.wisdom + Math.trunc(p.gains.wisdom / subpointsPerPoint(StatKind.WISDOM, p.stats.experience)) - 50;
+  const wisdomTerm = () => p.stats.wisdom + idiv(p.gains.wisdom, subpointsPerPoint(StatKind.WISDOM, p.stats.experience)) - 50;
   let change = 0;
   for (let i = 0; i < chances; i++) {
-    const effective = rating + Math.trunc(p.gains[key] / spp);
+    const effective = rating + idiv(p.gains[key], spp);
     if (p.evolution === Evolution.NORMAL) {
       if (cause === StatCause.FAILURE && p.gains[key] + 1 >= spp) break;
       let chance: number;
@@ -69,13 +69,13 @@ function processStatChange(t: CombatContext, p: ProfileProgress, stat: number, c
         chance = u16(100 - effective);
         if (cause === StatCause.TRAINING && effective >= TRAINING_RATING_CAP) chance = 0;
       } else chance = u16(100 - 10 * effective);
-      if (chance > 0 && wisdomAffects) chance = u16(chance + Math.trunc((chance * wisdomTerm()) / 100));
+      if (chance > 0 && wisdomAffects) chance = u16(chance + idiv(chance * wisdomTerm(), 100));
       if (chance > 99) chance = 99;
       if (t.pre.int(100) < chance) {
         p.gains[key]++;
         change++;
         if (stat !== StatKind.EXPERIENCE && cause !== StatCause.TRAINING) {
-          const level = p.stats.experience + Math.trunc(p.gains.experience / sppLevel);
+          const level = p.stats.experience + idiv(p.gains.experience, sppLevel);
           if (level < MAX_EXP_LEVEL && (cause !== StatCause.FAILURE || p.gains.experience + 1 < sppLevel)) p.gains.experience++;
         }
       }
@@ -84,14 +84,14 @@ function processStatChange(t: CombatContext, p: ProfileProgress, stat: number, c
       if (stat !== StatKind.EXPERIENCE) chance = u16(CAN_DROP_TO_ZERO.has(stat) ? effective : effective - 1);
       else {
         chance = u16(10 * (effective - 1));
-        if (chance > 0 && wisdomAffects) chance = u16(chance - Math.trunc((chance * wisdomTerm()) / 100));
+        if (chance > 0 && wisdomAffects) chance = u16(chance - idiv(chance * wisdomTerm(), 100));
         if (chance < 1) chance = 1;
       }
       if (t.pre.int(100) < chance) {
         p.gains[key]--;
         change--;
         if (stat !== StatKind.EXPERIENCE && cause !== StatCause.TRAINING) {
-          const level = p.stats.experience + Math.trunc(p.gains.experience / sppLevel);
+          const level = p.stats.experience + idiv(p.gains.experience, sppLevel);
           if (level > 1) p.gains.experience--;
         }
       }
@@ -136,7 +136,7 @@ function updateStats(p: ProfileProgress, change: (stat: number, points: number) 
     if (!key) continue;
     const min = stat === StatKind.HEALTH ? OKLIFE : ZERO_MINIMUM.has(stat) ? 0 : 1;
     const max = stat === StatKind.EXPERIENCE ? MAX_EXP_LEVEL : MAX_STAT_VALUE;
-    let points = Math.trunc(p.gains[key] / subpointsPerPoint(stat, p.stats.experience));
+    let points = idiv(p.gains[key], subpointsPerPoint(stat, p.stats.experience));
     if (p.stats[key] + points > max) {
       points = max - p.stats[key];
       p.gains[key] = 0;
@@ -184,7 +184,7 @@ export function handleAnyStatChangesAfterAttack(t: TacticalState): void {
 }
 
 export function modifyExpGainByTarget(gain: number, tgt: Soldier): number {
-  if (tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW) return Math.trunc(u16(gain) / 2);
+  if (tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW) return idiv(u16(gain), 2);
   if (tgt.bodyType === Body.ROBOTNOWEAPON || (tgt.bodyType >= Body.HUMVEE && tgt.bodyType <= Body.JEEP)) return 0;
   return u16(gain);
 }

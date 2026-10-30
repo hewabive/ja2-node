@@ -13,7 +13,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemCursor, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, i16, u8 } from '../../../core/int.ts';
+import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { createItem, findAttachment, type ItemObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
@@ -402,7 +402,7 @@ export function getTargetWorldPositions(t: TacticalState, s: Soldier, g: number)
   if (!target) {
     return {
       x: Math.fround((g % WORLD_COLS) * 10 + 5),
-      y: Math.fround(Math.trunc(g / WORLD_COLS) * 10 + 5),
+      y: Math.fround(idiv(g, WORLD_COLS) * 10 + 5),
       z: targetZFromStructureHeight(t, g, s.targetLevel, s.targetCubeLevel),
     };
   }
@@ -425,7 +425,7 @@ export function getTargetWorldPositions(t: TacticalState, s: Soldier, g: number)
           : ZPos.TARGET;
   return {
     x: Math.fround((target.gridNo % WORLD_COLS) * 10 + 5),
-    y: Math.fround(Math.trunc(target.gridNo / WORLD_COLS) * 10 + 5),
+    y: Math.fround(idiv(target.gridNo, WORLD_COLS) * 10 + 5),
     z: calculateSoldierZPos(t, target, pos),
   };
 }
@@ -444,8 +444,8 @@ function gunfireVolume(t: TacticalState, s: Soldier, attackVolume: number, unsil
   const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
   if (unsilenceable || silencer === -1) return attackVolume;
   const status = gun.attachments[silencer]?.status ?? 0;
-  const wsm = status >= SILENCER_FULL_STATUS ? 100 : Math.trunc((status * 100) / SILENCER_FULL_STATUS);
-  return 1 + Math.trunc((100 - wsm) / Math.trunc(100 / (attackVolume - 1)));
+  const wsm = status >= SILENCER_FULL_STATUS ? 100 : idiv(status * 100, SILENCER_FULL_STATUS);
+  return 1 + idiv(100 - wsm, idiv(100, attackVolume - 1));
 }
 
 function useGun(t: TacticalState, s: Soldier, target: number): void {
@@ -478,13 +478,12 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
       if (soldierToSoldierBodyPartChanceToGetThrough(t, s, tgt, s.aimShotLocation) > 0) {
         let xp = 0;
         if (hit) {
-          xp += Math.trunc(u8(100 - chance) / GUN_HIT_DIFFICULTY_DIVISOR);
+          xp += idiv(u8(100 - chance), GUN_HIT_DIFFICULTY_DIVISOR);
           if (s.aimTime && !s.doBurst) xp += Math.min(s.aimTime, xp);
           xp += GUN_HIT_EXPERIENCE;
         }
         xp += GUN_SHOT_EXPERIENCE;
-        if (isValidSecondHandShot(items, s) && (hand.status[0] ?? 0) >= USABLE_STATUS && hand.gunAmmoStatus > 0)
-          xp = Math.trunc((xp * 2) / 3);
+        if (isValidSecondHandShot(items, s) && (hand.status[0] ?? 0) >= USABLE_STATUS && hand.gunAmmoStatus > 0) xp = idiv(xp * 2, 3);
         xp = modifyExpGainByTarget(xp, tgt);
         statChange(t, s, StatKind.MARKSMANSHIP, xp, hit ? StatCause.SUCCESS : StatCause.FAILURE);
       }
@@ -530,15 +529,15 @@ function knifeThrowExperience(t: TacticalState, s: Soldier, chance: number, hit:
   if (s.team !== Team.OUR || !s.target) return;
   let xp = 0;
   if (hit) {
-    xp += Math.trunc(u8(100 - chance) / KNIFE_HIT_DIFFICULTY_DIVISOR);
+    xp += idiv(u8(100 - chance), KNIFE_HIT_DIFFICULTY_DIVISOR);
     if (s.aimTime) xp += KNIFE_AIM_EXPERIENCE_FACTOR * Math.min(s.aimTime, xp);
     xp += KNIFE_HIT_EXPERIENCE;
   }
   xp += KNIFE_THROW_EXPERIENCE;
   xp = modifyExpGainByTarget(xp, s.target);
   const cause = hit ? StatCause.SUCCESS : StatCause.FAILURE;
-  statChange(t, s, StatKind.MARKSMANSHIP, Math.trunc(xp / 2), cause);
-  statChange(t, s, StatKind.DEXTERITY, Math.trunc(xp / 2), cause);
+  statChange(t, s, StatKind.MARKSMANSHIP, idiv(xp, 2), cause);
+  statChange(t, s, StatKind.DEXTERITY, idiv(xp, 2), cause);
 }
 
 function takeThrownKnife(t: TacticalState, s: Soldier): void {

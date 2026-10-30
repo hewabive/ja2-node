@@ -4,7 +4,7 @@
 // @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass.
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, idiv } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { InvSlot } from '../inventory.ts';
 import type { Soldier } from '../soldier.ts';
@@ -16,12 +16,12 @@ const BODY_IMPACT_REDUCTION = [0, 15, 30, 23];
 function ammoArmourAdjust(value: number, ammo: number): number {
   switch (ammo) {
     case AmmoType.HP:
-      return Math.trunc((value * 3) / 2);
+      return idiv(value * 3, 2);
     case AmmoType.AP:
     case AmmoType.HEAT:
-      return Math.trunc((value * 3) / 4);
+      return idiv(value * 3, 4);
     case AmmoType.SUPER_AP:
-      return Math.trunc(value / 2);
+      return idiv(value, 2);
     default:
       return value;
   }
@@ -50,10 +50,10 @@ function armourProtection(items: ItemTable, pre: RandomStream, item: number, sta
   if (ammo === AmmoType.KNIFE || ammo === AmmoType.SLEEP_DART) {
     if (armour.armourClass === ArmourClass.VEST || armour.armourClass === ArmourClass.LEGGINGS) protection = 0;
   } else if (ammo === AmmoType.MONSTER) {
-    status.set(i8(status.get() - Math.trunc((3 * applied * armour.degradePercentage) / 100)));
-    protection = Math.trunc(protection / 2);
+    status.set(i8(status.get() - idiv(3 * applied * armour.degradePercentage, 100)));
+    protection = idiv(protection, 2);
   }
-  status.set(i8(status.get() - Math.trunc((applied * armour.degradePercentage) / 100)));
+  status.set(i8(status.get() - idiv(applied * armour.degradePercentage, 100)));
   return protection;
 }
 
@@ -132,17 +132,17 @@ export function maxArmourPerClass(items: ItemTable): MaxArmour {
 export function effectiveArmour(items: ItemTable, o: ItemObject): number {
   const armour = items.byIndex.get(o.item)?.armour;
   if (!armour) return 0;
-  let value = Math.trunc((armour.protection * (o.status[0] ?? 0)) / 100);
+  let value = idiv(armour.protection * (o.status[0] ?? 0), 100);
   const plate = findPlatesAttachment(items, o);
   if (plate !== -1) {
     const a = o.attachments[plate] as { item: number; status: number };
-    value += Math.trunc(((items.byIndex.get(a.item)?.armour?.protection ?? 0) * a.status) / 100);
+    value += idiv((items.byIndex.get(a.item)?.armour?.protection ?? 0) * a.status, 100);
   }
   return value;
 }
 
 export function armourPercent(items: ItemTable, max: MaxArmour, s: Soldier): number {
   const part = (slot: number, weight: number, maximum: number) =>
-    maximum > 0 ? Math.trunc((weight * effectiveArmour(items, s.inv[slot] as ItemObject)) / maximum) : 0;
+    maximum > 0 ? idiv(weight * effectiveArmour(items, s.inv[slot] as ItemObject), maximum) : 0;
   return i8(part(InvSlot.HELMET, 15, max.helmet) + part(InvSlot.VEST, 65, max.vest) + part(InvSlot.LEGS, 25, max.leggings));
 }

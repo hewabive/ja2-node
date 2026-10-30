@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
 // @src (soldier-only tactical events).
 
+import { idiv } from '../../../core/int.ts';
 import { profileProgress } from '../profiles.ts';
 import { Body, NO_PROFILE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -24,7 +25,7 @@ const DEFAULT_MORALE = 50;
 const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);
 
 export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
-  const m = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + Math.trunc(t.campaign.progress / 5);
+  const m = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + idiv(t.campaign.progress, 5);
   s.morale = Math.min(100, Math.max(0, m));
 }
 
