@@ -155,7 +155,8 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       messageBoxStyle: env.messageBoxStyle,
       messageBoxLabels: env.messageBoxLabels,
       language: () => settings.current().language,
-      gunNut: async () => (await client.status()).options?.gunNut ?? false,
+      version: versionLabel(health?.engine),
+      gameOptions: async () => (await client.status()).options,
     });
     return map;
   };

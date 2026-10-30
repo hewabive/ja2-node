@@ -1,14 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadScreen.cc SaveLoadSelectedSave (overwrite asks SLG_CONFIRM_SAVE; one warning box before a load),
-// @src ConfirmSavedGameMessageBoxCallBack, ConfirmDeleteSavedGameCallBack (SLG_CONFIRM_DELETE), DoSaveGame
+// @src ConfirmSavedGameMessageBoxCallBack, ConfirmDeleteSavedGameCallBack (SLG_CONFIRM_DELETE), DoSaveGame, DoQuickSave
 // @src (SLG_SAVE_GAME_ERROR), DoneFadeOutForSaveLoadScreen (SLG_LOAD_GAME_ERROR).
 
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { Health, LoadSuccess, LoadWarning, Refusal, SaveListing, SaveSuccess } from '../client/api-types.ts';
 import type { MessageBoxes } from '../message-boxes.ts';
 import type { Labels } from '../text/labels.ts';
-import { clampDescription, loadWarningText, overwriteTarget, predictLoadWarnings, type SaveRow } from './save-rows.ts';
+import { clampDescription, loadWarningText, overwriteTarget, predictLoadWarnings, QUICK_SAVE_ALIAS, type SaveRow } from './save-rows.ts';
 
 export interface SaveRequest {
   readonly name?: string;
@@ -82,6 +82,10 @@ export class SaveController {
 
   saveNew(session: string, description: string): Promise<SaveOutcome> {
     return this.#store(session, { description: clampDescription(description).trim() });
+  }
+
+  quickSave(session: string): Promise<SaveOutcome> {
+    return this.#store(session, { name: QUICK_SAVE_ALIAS });
   }
 
   async saveOver(session: string, row: SaveRow, description = ''): Promise<SaveOutcome> {

@@ -400,6 +400,34 @@ function request(
   };
 }
 
+export interface SaidLine {
+  readonly profile: number;
+  readonly saidAt: number;
+}
+
+function quoteSpeaker(event: QuoteEvent): number | null {
+  switch (event.type) {
+    case 'npcQuote':
+    case 'mercQuote':
+      return event.profile;
+    case 'skyriderQuote':
+      return event.profile ?? null;
+    case 'headMinerQuote':
+      return event.quote < 0 ? null : event.profile;
+    case 'shopkeeperQuote':
+      return event.dealer;
+    default:
+      return null;
+  }
+}
+
+export function saidLineOf(event: { readonly type: string }): SaidLine | null {
+  if (!isQueuedQuoteEvent(event)) return null;
+  const quote = event as QuoteEvent;
+  const profile = quoteSpeaker(quote);
+  return profile === null ? null : { profile, saidAt: quote.tick };
+}
+
 export function speechLineOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineRequest | null {
   if (skippedQuote(event)) return null;
   const line = speechRequestOf(event, routing);

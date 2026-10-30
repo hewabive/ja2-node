@@ -1,6 +1,7 @@
 import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
+import type { GameOptions } from '../../client/api-types.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
@@ -41,6 +42,8 @@ export interface MapFlow {
   options(): void;
   saveGame(): void;
   loadGame(): void;
+  quickSave(): Promise<string | null>;
+  quickLoad(): void;
   exitGame(): void;
   preBattle(): void;
   help?(): void;
@@ -77,6 +80,8 @@ export interface MapEnvironment {
   readonly metric: () => boolean;
   readonly notifySleepWake: () => boolean;
   readonly battle: BattleEnvironment;
+  readonly version: string;
+  gameOptions(): Promise<GameOptions | null>;
 }
 
 export interface MapFrames {

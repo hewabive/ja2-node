@@ -7,11 +7,12 @@
 // @src MoveToEndOfMapScreenMessageList, GetRangeOfMapScreenMessages; src/game/Strategic/Map_Screen_Interface_Bottom.cc
 // @src MapScreenMsgScrollUp, MapScreenMsgScrollDown, ChangeCurrentMapscreenMessageIndex, DisplayScrollBarSlider,
 // @src MapScreenMessageScrollBarCallBack, EnableDisableMessageScrollButtonsAndRegions; src/game/Tactical/Dialogue_Control.cc
-// @src (a dialogue line printed as `Name: "line"`).
+// @src (a dialogue line printed as `Name: "line"`); src/game/Utils/Message.cc ScreenMsg (a message the screen itself
+// @src prints joins the list in time order).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { MessageEntry } from '../../../protocol/message-log.ts';
+import { MESSAGE_LOG_SIZE, type MessageEntry } from '../../../protocol/message-log.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { fontColors, mprint, withClip } from '../../text/print.ts';
@@ -38,11 +39,21 @@ export function entryColour(entry: MessageEntry): number {
   return entry.colour;
 }
 
+export function localMessage(tick: number, text: string): MessageEntry {
+  return { tick, kind: 'interface', colour: FontColor.MCOLOR_LTYELLOW, args: [{ text }] };
+}
+
+function withLocal(entries: readonly MessageEntry[], local: readonly MessageEntry[]): readonly MessageEntry[] {
+  if (local.length === 0) return entries;
+  return [...entries, ...local].sort((a, b) => a.tick - b.tick);
+}
+
 export class MapMessageList {
   #lines: MessageLine[] = [];
   #first = 0;
   #entries = 0;
   #key = '';
+  readonly #local: MessageEntry[] = [];
 
   get lines(): readonly MessageLine[] {
     return this.#lines;
@@ -56,7 +67,13 @@ export class MapMessageList {
     return this.#lines.length;
   }
 
-  rebuild(entries: readonly MessageEntry[], format: EntryText, font: BitmapFont): boolean {
+  addLocal(entry: MessageEntry): void {
+    this.#local.push(entry);
+    if (this.#local.length > MESSAGE_LOG_SIZE) this.#local.shift();
+  }
+
+  rebuild(server: readonly MessageEntry[], format: EntryText, font: BitmapFont): boolean {
+    const entries = withLocal(server, this.#local);
     const texts = entries.map((e) => format(e));
     const key = `${entries.length}:${texts.map((t) => (t === null ? '' : t.length)).join(',')}:${entries[entries.length - 1]?.tick ?? 0}`;
     if (key === this.#key) return false;

@@ -14,7 +14,7 @@ import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, PlayerView, StrategicMercView } from '../../../protocol/view.ts';
 import type { HintAnswer, HintReply } from '../../game-client.ts';
-import { KeyModifier } from '../../input/events.ts';
+import { KeyModifier, MouseButton } from '../../input/events.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import { messageBoxStyles, textBoxArt } from '../../layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../layout/types.ts';
@@ -210,6 +210,8 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       options: () => undefined,
       saveGame: () => undefined,
       loadGame: () => undefined,
+      quickSave: async () => null,
+      quickLoad: () => undefined,
       exitGame: () => undefined,
       preBattle: () => undefined,
     },
@@ -218,6 +220,8 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
     metric: () => true,
     notifySleepWake: () => true,
     battle: {} as BattleEnvironment,
+    version: '',
+    gameOptions: async () => null,
   };
   const boxes: string[] = [];
   const h: Harness = {
@@ -311,6 +315,28 @@ describe('the map screen inventory over a scripted session', () => {
     h.info = h.client.view.strategic?.mercs[1] ?? null;
     await h.click('mercSlot7');
     expect(h.client.commands.at(-1)).toMatchObject({ type: 'moveItem', soldier: MERC, from: HAND, to: BIG_POCKET, toSoldier: OTHER });
+  });
+
+  it('splits money from the description box into the cursor and puts the split into another pocket', async () => {
+    const money: InventoryItemView = { ...view(SMALL_POCKET, 'MONEY'), money: 500 };
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [money])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${SMALL_POCKET}`, MouseButton.RIGHT);
+    expect(h.inventory.merc.description.open).toBe(true);
+    const clickButton = async (id: string) => {
+      const rect = h.t.runtime.buttons.buttons.find((b) => b.id === id)?.describe().rect;
+      if (!rect) throw new Error(`no button ${id}`);
+      h.t.click(rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2));
+      await h.settle();
+    };
+    await clickButton('itemDescriptionMoney1');
+    await clickButton('itemDescriptionMoneyDone');
+    expect(h.inventory.merc.panel.cursor?.source).toEqual({ kind: 'money', soldier: MERC, slot: SMALL_POCKET, amount: 100 });
+    expect(h.inventory.cursorItem).toBe('MONEY');
+    await h.click('mercSlot7');
+    expect(h.client.commands.at(-1)).toEqual({ type: 'splitMoney', soldier: MERC, slot: SMALL_POCKET, amount: 100, to: BIG_POCKET });
+    expect(h.inventory.holding).toBe(false);
   });
 
   it('throws the cursor item away after the trash can question', async () => {

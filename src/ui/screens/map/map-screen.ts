@@ -16,7 +16,9 @@
 // @src SelectUnselectedMercsWhoMustMoveWithThisGuy, CanChangeSleepStatusForSoldier; src/game/Strategic/
 // @src Map_Screen_Interface_Bottom.cc EnableDisableBottomButtonsAndRegions, EnableDisableTimeCompressButtons,
 // @src CommonTimeCompressionChecks, AllowedToTimeCompress (the client half: plotting, menus, boxes, the sector inventory),
-// @src RequestTriggerExitFromMapscreen.
+// @src RequestTriggerExitFromMapscreen; MapScreen.cc HandleModNone (Backspace: StopAnyCurrentlyTalkingSpeech, the line
+// @src the player last saw said; v: DisplayGameSettings), HandleModAlt (Alt+S and Alt+L only where the screen may be left;
+// @src a refused quick save in a map box).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -34,6 +36,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { popupBoxStyle } from '../../layout/styles.ts';
 import { type CustomRenderer, LayoutView } from '../../layout/view.ts';
 import type { Screen } from '../../screen.ts';
+import { type SaidLine, saidLineOf } from '../../speech.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { printf } from '../../text/printf.ts';
@@ -43,6 +46,7 @@ import type { PopupBoxStyle } from '../../widgets/popup-box.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { BattleEntry } from '../battle/battle-entry.ts';
+import { gameSettingsLines } from '../game-settings.ts';
 import { drawSoldierBars } from '../tactical/bars.ts';
 import { drawFace, FaceAnimator, type FaceArt, faceRecordOf } from '../tactical/faces.ts';
 import { drawInventoryItem } from '../tactical/item-tile.ts';
@@ -86,7 +90,7 @@ import {
   renderMapView,
 } from './map-view.ts';
 import { isMechanical, isPow, mercBars, mercSoldier } from './merc-soldier.ts';
-import { dialogueLine, MapMessageList } from './message-list.ts';
+import { dialogueLine, localMessage, MapMessageList } from './message-list.ts';
 import { MilitiaPopup, militiaArt, militiaGeometry } from './militia-popup.ts';
 import { MoveBox } from './move-box.ts';
 import { type MoveFeedback, type MovePlan, MoveSelection, moveMembers } from './move-selection.ts';
@@ -210,6 +214,7 @@ export class MapScreen implements Screen {
   readonly #answeredElsewhere = new Set<string>();
   readonly #battle: BattleEntry;
   #lastItems: readonly DrawItem[] = [];
+  #saidLine: SaidLine | null = null;
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
@@ -633,6 +638,10 @@ export class MapScreen implements Screen {
     for (const frame of frames) this.#updates.observe(frame.events ?? [], mercs, this.#env.notifySleepWake());
     for (const frame of frames)
       for (const event of frame.events ?? []) {
+        const said = saidLineOf(event);
+        if (said) this.#saidLine = said;
+        else if (event.type === 'lineCut' && this.#saidLine?.profile === event.profile && this.#saidLine.saidAt === event.saidAt)
+          this.#saidLine = null;
         if (event.type === 'statChanged') {
           const key = event.stat === 'experience' ? 'level' : event.stat;
           const flashes = this.#flashes.get(event.soldier) ?? new Map<string, StatFlash>();
@@ -1672,6 +1681,10 @@ export class MapScreen implements Screen {
       keyA: () => this.#airspaceKey(),
       saveGame: whenExitAllowed(() => this.#env.flow.saveGame()),
       loadGame: whenExitAllowed(() => this.#env.flow.loadGame()),
+      quickSave: whenExitAllowed(() => void this.#quickSave()),
+      quickLoad: whenExitAllowed(() => this.#env.flow.quickLoad()),
+      stopSpeech: () => this.#stopSpeech(),
+      version: () => void this.#displayGameSettings(),
       exitGame: () => this.#env.flow.exitGame(),
       assignmentMenu: () => this.#keyAssignmentMenu(),
       help: () => this.#help(),
@@ -1681,6 +1694,24 @@ export class MapScreen implements Screen {
   #help(): void {
     if (this.#plot) this.#abortPlotting(true);
     this.#env.flow.help?.();
+  }
+
+  async #quickSave(): Promise<void> {
+    const failure = await this.#env.flow.quickSave();
+    if (failure) void this.#mapBox(failure);
+  }
+
+  #stopSpeech(): void {
+    const line = this.#saidLine;
+    this.#saidLine = null;
+    if (line) void this.#env.client.command({ type: 'skipLine', profile: line.profile, tick: line.saidAt });
+  }
+
+  async #displayGameSettings(): Promise<void> {
+    const options = await this.#env.gameOptions();
+    if (!options) return;
+    const tick = this.#playerView()?.tick ?? 0;
+    for (const line of gameSettingsLines(this.#env.text, this.#env.version, options)) this.#messages.addLocal(localMessage(tick, line));
   }
 
   #sort(mode: number): void {

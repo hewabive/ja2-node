@@ -292,7 +292,8 @@ cursor"). A placement runs on copies first, so a refused move changes nothing. T
 permanent attachments become refusals to repeat with `merge` or `permanent`; the description box charges its AP per
 command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
 only. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
-the drop at once; money for another soldier is `give`, for a dealer `trade`.
+the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
+is `give`, for a dealer `trade`.
 
 ### 8.4 Conversations
 

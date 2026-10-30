@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
+import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { MouseButton } from '../../input/events.ts';
+import { KeyModifier, MouseButton } from '../../input/events.ts';
 
 const PLOT_REST_MS = 250;
 const MESSAGE_BOX = 'messageBox';
+const SPEAKER = 60;
+const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -170,6 +172,56 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.settle();
       expect(f.t.runtime.host.modal).toBeNull();
       expect(f.client.commands.length).toBe(sent);
+    }));
+
+  it('cuts the line the player last saw said with Backspace, and nothing once that line was cut', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const said = { type: 'npcQuote', tick, profile: SPEAKER, soldier: null, quote: 0, textKey: QUOTE_KEY, chars: 12 } as const;
+      f.frames([{ tick, changed: [], removed: [], events: [said] }]);
+      f.key('Backspace');
+      await f.settle();
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'skipLine', profile: SPEAKER, tick });
+      const sent = f.client.commands.length;
+      f.frames([
+        { tick, changed: [], removed: [], events: [said, { type: 'lineCut', tick, profile: SPEAKER, saidAt: tick, tail: false }] },
+      ]);
+      f.key('Backspace');
+      await f.settle();
+      expect(f.client.commands).toHaveLength(sent);
+    }));
+
+  it('lists the version and the game options in the message list with v', () =>
+    withMap(async (f) => {
+      f.key('v');
+      await f.settle();
+      expect(f.screen.hook().messages.slice(-5)).toEqual([
+        `Version: ${TEST_VERSION}`,
+        'Difficulty Level: Expert',
+        'Extra Difficulty: Iron Man',
+        'Gun Options: Tons of Guns',
+        'Game Style: Realistic',
+      ]);
+      expect(f.sounds).toContain('newMessageBeep');
+    }));
+
+  it('quick saves with Alt+S and quick loads with Alt+L where the screen may be left, a refusal in a box', () =>
+    withMap(async (f) => {
+      f.key('s', KeyModifier.ALT);
+      f.key('l', KeyModifier.ALT);
+      await f.settle();
+      expect(f.flow).toEqual(['quickSave', 'quickLoad']);
+      f.replies.quickSaveFailure = 'You cannot save now.';
+      f.key('s', KeyModifier.ALT);
+      await f.settle();
+      expect(f.widget(MESSAGE_BOX).text).toBe('You cannot save now.');
+      f.key('Enter');
+      await f.settle();
+      await f.click('teamRow0.destination');
+      f.key('s', KeyModifier.ALT);
+      f.key('l', KeyModifier.ALT);
+      await f.settle();
+      expect(f.flow).toEqual(['quickSave', 'quickLoad', 'quickSave']);
     }));
 
   it('selects the squad with its number key and the next merc with the arrow', () =>

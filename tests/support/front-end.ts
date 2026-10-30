@@ -59,6 +59,7 @@ export class FakeClient implements FrontEndClient {
   session: string | null = null;
   view: PlayerView | null = null;
   canSave = true;
+  saveRefusal: Refusal | null = null;
   options: GameOptions | null = OPTIONS;
   readonly calls: string[] = [];
   readonly campaigns: NewCampaign[] = [];
@@ -128,6 +129,7 @@ export class FakeClient implements FrontEndClient {
 
   async save(session: string, request: SaveRequest): Promise<SaveSuccess | Refusal> {
     this.saved.push({ session, request });
+    if (this.saveRefusal) return this.saveRefusal;
     const name = request.name ?? `saved-${this.saved.length}`;
     return { ok: true, name, kind: 'player', header: header({ description: request.description ?? '' }) };
   }

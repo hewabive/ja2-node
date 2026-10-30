@@ -4,7 +4,8 @@
 // @src DoneFadeOutForExitGameInitOptionScreen (fade out, music off, the beginning intro or the save screen in Dead is Dead);
 // @src src/game/Options_Screen.cc SetOptionsExitScreen; src/game/SaveLoadScreen.cc LeaveSaveLoadScreen (back to the
 // @src screen that opened it; from the options back to the options), DoSaveGame (after a save back to the game),
-// @src EnterSaveLoadScreen (gfLoadGameUponEntry loads the newest save without the warning box),
+// @src EnterSaveLoadScreen (gfLoadGameUponEntry loads the newest save without the warning box), DoQuickSave and
+// @src DoQuickLoad (the quick save loads without the warning box; nothing happens without one),
 // @src StartFadeOutForSaveLoadScreen and DoneFadeOutForSaveLoadScreen (fade out, load, fade in on the saved screen);
 // @src src/game/GameLoop.cc EndGameMessageBoxCallBack; src/game/Credits.cc (back to the main menu); src/game/JAScreens.cc
 // @src SexScreenHandle (a fade into the game).
@@ -15,6 +16,7 @@ import { failureText } from '../../client/failure-text.ts';
 import type { DeadIsDeadSlot, FrontEndClient, SessionConnection, SessionEndReason } from '../../client/front-end-client.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { SaveController } from '../../saves/save-controller.ts';
+import { isQuickSaveName } from '../../saves/save-rows.ts';
 import type { Screen } from '../../screen.ts';
 import type { LabelId } from '../../text/labels.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
@@ -353,6 +355,18 @@ export class FrontEndFlow {
     else await this.saveLoad('load', 'mainMenu');
   }
 
+  async quickSave(): Promise<string | null> {
+    const session = this.#client.session;
+    if (!session) return null;
+    const outcome = await this.saves.quickSave(session);
+    return outcome.ok || outcome.cancelled ? null : outcome.text;
+  }
+
+  async quickLoad(): Promise<void> {
+    const quick = (await this.#refreshListings()).find((l) => !l.native && isQuickSaveName(l.name));
+    if (quick) await this.loadSave(quick, 'game');
+  }
+
   async loadSave(listing: SaveListing, origin: SaveLoadOrigin): Promise<void> {
     await this.#fade('out');
     const loading = new LoadingController('save');
@@ -444,6 +458,8 @@ export class FrontEndFlow {
         options: actions.options,
         saveGame: actions.saveGame,
         loadGame: actions.loadGame,
+        quickSave: () => this.quickSave(),
+        quickLoad: () => void this.quickLoad(),
         exitGame: actions.exitGame,
         preBattle: () => undefined,
       }),

@@ -93,7 +93,7 @@ until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, â€
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
 subtitle and skip and reports a cut or finished line with `skipLine`. The simulation finishes lines in ticks and never
 waits for a viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap
-"Map screen speech").
+"Map screen speech"); its Backspace cuts the line its frames said last.
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
@@ -189,8 +189,8 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Map screen keys not yet ported", "Interactive
-tiles", "Tossing from the item cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle
-exit", "Map inventory details", "Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat
-preview", "Shop screen details", "Save location on the canvas", "Inert options", "IME composition", "Laptop video
-faces", "Florist order focus", "I.M.P. voice samples", "I.M.P. skill page and saved profiles".
+Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
+cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
+"Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat preview", "Shop screen details",
+"Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "Florist order focus", "I.M.P.
+voice samples", "I.M.P. skill page and saved profiles".

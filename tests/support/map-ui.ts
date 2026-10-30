@@ -11,6 +11,7 @@ import type { PlayerView, ViewFrame } from '../../src/protocol/view.ts';
 import { buildItemCatalogue } from '../../src/server/item-catalogue.ts';
 import type { Session } from '../../src/server/session.ts';
 import { TextService } from '../../src/server/text-service.ts';
+import type { GameOptions } from '../../src/ui/client/api-types.ts';
 import type { DrawList } from '../../src/ui/draw-list.ts';
 import type { HintAnswer, HintReply } from '../../src/ui/game-client.ts';
 import { MouseButton } from '../../src/ui/input/events.ts';
@@ -219,6 +220,14 @@ async function stubImages(t: TestRuntime): Promise<void> {
     t.images.set(key, { kind: 'rgb', animatedFrames: 0, frames: [{ width: BOARD_WIDTH, height: BOARD_HEIGHT, offsetX: 0, offsetY: 0 }] });
 }
 
+export const TEST_VERSION = '9.9.9 (test)';
+export const TEST_GAME_OPTIONS: GameOptions = { difficulty: 3, sciFi: false, gunNut: true, saveMode: 'ironMan', bloodAndGore: true };
+
+export interface MapFlowReplies {
+  quickSaveFailure: string | null;
+  gameOptions: GameOptions | null;
+}
+
 export interface MapUiTest {
   readonly t: TestRuntime;
   readonly session: Session;
@@ -230,6 +239,7 @@ export interface MapUiTest {
   readonly mercs: readonly number[];
   readonly trainer: number;
   readonly flow: string[];
+  readonly replies: MapFlowReplies;
   readonly sounds: string[];
   widget(id: string): WidgetInfo;
   find(id: string): WidgetInfo | undefined;
@@ -266,6 +276,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
   const battleClient = new BattleSessionClient(session, client);
   const battleSounds = new FakeBattleSounds();
   const boxes = new CanvasMessageBoxes({ services: t.runtime, style, labels: () => boxLabels });
+  const replies: MapFlowReplies = { quickSaveFailure: null, gameOptions: TEST_GAME_OPTIONS };
   let die = 0;
   const env: MapEnvironment = {
     runtime: t.runtime,
@@ -282,9 +293,16 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
       options: () => flow.push('options'),
       saveGame: () => flow.push('saveGame'),
       loadGame: () => flow.push('loadGame'),
+      quickSave: async () => {
+        flow.push('quickSave');
+        return replies.quickSaveFailure;
+      },
+      quickLoad: () => flow.push('quickLoad'),
       exitGame: () => flow.push('exitGame'),
       preBattle: () => flow.push('preBattle'),
     },
+    version: TEST_VERSION,
+    gameOptions: async () => replies.gameOptions,
     sounds: {
       glowClick: () => sounds.push('glowClick'),
       newMessageBeep: () => sounds.push('newMessageBeep'),
@@ -351,6 +369,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     mercs: campaign.mercs,
     trainer: campaign.trainer,
     flow,
+    replies,
     sounds,
     widget,
     find,

@@ -6,7 +6,8 @@
 // @src CreateDestroyMapInventoryPoolButtons (the reachability of the loaded sector's items); MapScreen.cc
 // @src MAPInvClickCallbackPrimary, MAPBeginItemPointer, MapCharacterHasAccessibleInventory, MAPInvClickCamoCallback (no
 // @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
-// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar.
+// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar; Tactical/Interface_Items.cc RemoveMoney (on the
+// @src map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a pocket).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -23,6 +24,7 @@ import {
   attachmentPosition,
   type InventoryCommand,
   InventoryRefusal,
+  moneyAmount,
   optionalSlot,
   outcomeResult,
   parseCount,
@@ -38,6 +40,7 @@ import {
   type PanelEnv,
   type PanelEvent,
   reloadWeapon,
+  splitMoney,
   swapHands,
   takeObjects,
   unloadGun,
@@ -63,6 +66,7 @@ export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'discardItem',
   'applyItem',
   'bandage',
+  'splitMoney',
 ]);
 
 export const MapInventoryRefusal = {
@@ -409,6 +413,8 @@ export class MapInventory {
         return outcomeResult(swapHands(env, this.#campaign.tactical?.state ?? null, s));
       case 'discardItem':
         return this.#discard(merc, cmd);
+      case 'splitMoney':
+        return this.#splitMoney(merc, cmd);
       default:
         return mapRefusal(MapInventoryRefusal.TACTICAL_ONLY);
     }
@@ -436,6 +442,17 @@ export class MapInventory {
     return outcomeResult(
       attachItem(env, { attacher: merc.soldier, from, owner: owner.soldier, slot, index, count, permanent: cmd.permanent === true }),
     );
+  }
+
+  #splitMoney(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const from = parseSlot(cmd.slot);
+    const to = parseSlot(cmd.to);
+    if (from === null || to === null) return refusal(InventoryRefusal.BAD_SLOT);
+    const amount = moneyAmount(cmd.amount);
+    if (amount === null) return refusal(InventoryRefusal.BAD_AMOUNT);
+    const target = this.#target(merc, cmd.toSoldier);
+    if (!('soldier' in target)) return target;
+    return outcomeResult(splitMoney(this.#env(merc), { mover: merc.soldier, from, amount, target: target.soldier, to }));
   }
 
   #move(merc: RosterMerc, cmd: InventoryCommand): CommandResult {

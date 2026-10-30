@@ -1,6 +1,7 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
+import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
@@ -42,7 +43,8 @@ export interface MapHostOptions {
   readonly messageBoxStyle: (style: number) => MessageBoxStyle;
   readonly messageBoxLabels: MessageBoxLabels;
   readonly language: () => UiLanguage | null;
-  readonly gunNut: () => Promise<boolean>;
+  readonly version: string;
+  readonly gameOptions: () => Promise<GameOptions | null>;
 }
 
 interface Loaded {
@@ -160,7 +162,10 @@ export class MapHost implements MapPort {
     const [catalogue, profiles, gunNut] = await Promise.all([
       fetchItemCatalogue(this.#o.language()),
       fetchProfiles(session.session ?? ''),
-      this.#o.gunNut().catch(() => false),
+      this.#o.gameOptions().then(
+        (options) => options?.gunNut ?? false,
+        () => false,
+      ),
     ]);
     return new MapMediaStore({
       assets: ui.assets,
@@ -208,6 +213,8 @@ export class MapHost implements MapPort {
       metric: () => loadSettings().display.useMetricSystem,
       notifySleepWake: () => loadSettings().sleepWakeNotification,
       battle: this.#battleEnvironment(loaded, flow),
+      version: this.#o.version,
+      gameOptions: () => this.#o.gameOptions().catch(() => null),
     };
     this.#screen = new MapScreen(env);
     if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);

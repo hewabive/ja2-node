@@ -10,7 +10,8 @@
 // @src DoneInventoryMapBtnCallback (not with an item in the cursor or a stack popup up); src/game/Tactical/Interface_Panels.cc
 // @src KeyRingItemPanelButtonCallback (on the map screen the key ring opens at STD_SCREEN_X, MAP_START_KEYRING_Y in
 // @src 261 × (359 − 107)); src/game/Tactical/Interface_Items.cc InitKeyRingPopup and RenderKeyRingPopup in map mode
-// @src (cells 40, 15 off the panel, MAP_KEY_RING_ROW_WIDTH per row).
+// @src (cells 40, 15 off the panel, MAP_KEY_RING_ROW_WIDTH per row), RemoveMoney (Done in the money box puts the split
+// @src into the map cursor).
 
 import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -20,7 +21,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect } from '../tactical/inventory.ts';
-import { slotItem } from '../tactical/item-cursor.ts';
+import { cursorFromMoney, slotItem } from '../tactical/item-cursor.ts';
 import { type DescribedObject, type DescriptionGeometry, ItemDescriptionBox } from '../tactical/item-description.ts';
 import { type KeyRingGrid, KeyRingPopup, StackPopup } from '../tactical/item-popups.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
@@ -99,7 +100,15 @@ export class MercInventory {
       metric: () => env.metric(),
       keyItem: (key) => env.media.keyItem(key),
       closed: () => undefined,
+      moneyDone: (object, amount) => this.#splitIntoCursor(object, amount),
     });
+  }
+
+  #splitIntoCursor(object: DescribedObject, amount: number): void {
+    if (object.kind !== 'slot') return;
+    const s = this.#host.soldier(object.soldier);
+    const cursor = s ? cursorFromMoney(s, object.slot, amount) : null;
+    if (cursor) this.panel.setCursor(cursor);
   }
 
   get open(): boolean {

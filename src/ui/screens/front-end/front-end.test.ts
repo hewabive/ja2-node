@@ -388,6 +388,26 @@ describe('in the game', () => {
     expect(f.widget(SESSION_ENDED_BOX).text).toBe('The game session was closed on the server.');
   });
 
+  it('quick saves under the quick save name and answers a refusal with the Iron Man message', async () => {
+    expect(await f.flow.quickSave()).toBeNull();
+    expect(f.client.saved).toEqual([{ session: 'session-1', request: { name: 'quick' } }]);
+    f.client.saveRefusal = { ok: false, refused: 'ironMan', reason: 'enemies in the sector' };
+    expect(await f.flow.quickSave()).toBe(f.env.labels().text('ironManCannotSave'));
+    expect(f.screen()).toBe('laptopUnavailable');
+  });
+
+  it('quick loads the quick save in place without the warning box, and does nothing without one', async () => {
+    f.client.listings = [listing('newer', '2026-10-05T00:00:00Z')];
+    await f.flow.quickLoad();
+    expect(f.client.loads).toEqual([]);
+    f.client.listings = [listing('QuickSave', '2026-10-01T00:00:00Z', { kind: 'quick' }), listing('newer', '2026-10-05T00:00:00Z')];
+    f.client.nextFlow = 'tactical';
+    void f.flow.quickLoad();
+    await until(() => f.screen() === 'tacticalUnavailable');
+    expect(f.client.loads).toEqual([{ session: 'session-1', name: 'QuickSave' }]);
+    await until(() => f.modal() === null);
+  });
+
   it('loads a save in place from the in-game load screen', async () => {
     f.client.listings = [listing('newer', '2026-10-05T00:00:00Z')];
     f.client.nextFlow = 'tactical';

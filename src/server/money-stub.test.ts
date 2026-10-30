@@ -115,9 +115,20 @@ async function moveMoney(mode?: RunMode): Promise<CampaignSession> {
 
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   expect(refusalOf(session, { type: 'withdrawCash', soldier: merc, amount: SPLIT })).toBe('notInTactical');
-  expect(refusalOf(session, { type: 'splitMoney', soldier: merc, slot: 'smallPocket3', amount: SPLIT, to: 'smallPocket5' })).toBe(
-    'notInTactical',
-  );
+  expect(session.dispatch({ type: 'splitMoney', soldier: merc, slot: 'smallPocket3', amount: SPLIT, to: 'smallPocket5' })).toEqual({
+    ok: true,
+    data: { amount: SPLIT },
+  });
+  expect(moneySlots(session, merc)).toEqual([
+    [InvSlot.SMALLPOCK3, WITHDRAWN - DEPOSITED - SPLIT],
+    [InvSlot.SMALLPOCK5, SPLIT],
+  ]);
+  const other = session.view().strategic?.mercs[1]?.id ?? 0;
+  expect(
+    session.dispatch({ type: 'splitMoney', soldier: merc, slot: 'smallPocket5', amount: SPLIT, to: 'smallPocket8', toSoldier: other }),
+  ).toMatchObject({ ok: true });
+  expect(moneySlots(session, merc)).toEqual([[InvSlot.SMALLPOCK3, WITHDRAWN - DEPOSITED - SPLIT]]);
+  expect(moneySlots(session, other)).toContainEqual([InvSlot.SMALLPOCK8, SPLIT]);
   return session;
 }
 

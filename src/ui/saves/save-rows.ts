@@ -160,9 +160,13 @@ export function loadWarningText(labels: Labels, warnings: readonly LoadWarning[]
   );
 }
 
+export function isQuickSaveName(name: string): boolean {
+  return name.toLowerCase() === QUICK_SAVE_NAME.toLowerCase();
+}
+
 export function overwriteTarget(row: Pick<SaveRow, 'name' | 'native' | 'kind'>): string | null {
   if (row.native || row.kind === 'auto') return null;
-  if (row.name.toLowerCase() === QUICK_SAVE_NAME.toLowerCase()) return QUICK_SAVE_ALIAS;
+  if (isQuickSaveName(row.name)) return QUICK_SAVE_ALIAS;
   return row.name;
 }
 

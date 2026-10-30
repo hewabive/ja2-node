@@ -37,7 +37,7 @@ export const MoneyRefusal = {
 export type MoneyRefusal = (typeof MoneyRefusal)[keyof typeof MoneyRefusal];
 
 export const MONEY_REFUSAL_TEXT: Readonly<Record<MoneyRefusal, string>> = {
-  notInTactical: 'money is moved on the tactical screen only',
+  notInTactical: 'money is moved on the tactical screen only (a split also on the map screen)',
   noSuchSoldier: 'no such soldier of yours in the sector',
   noInventory: 'that soldier has no single merc panel (escort, vehicle or robot)',
   badSlot: 'slot must be 0..18 or a slot name such as hand, bigPocket1, smallPocket1',
@@ -70,6 +70,7 @@ export class MoneyFlow {
 
   dispatch(cmd: CampaignCommand): CommandResult | null {
     if (!MONEY_COMMANDS.has(cmd.type)) return null;
+    if (cmd.type === 'splitMoney' && this.#campaign.state.flow === 'strategic') return null;
     const tactical = this.#campaign.tactical;
     if (this.#campaign.state.flow !== 'tactical' || !tactical) return refusal(MoneyRefusal.NOT_IN_TACTICAL);
     if (cmd.type === 'splitMoney') return null;
