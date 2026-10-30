@@ -3,8 +3,10 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
+import { NEUTRAL_POPULATION, tacticalCreateEnemySoldier } from '../init-list.ts';
 import { setSoldierPosition } from '../movement.ts';
-import { NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
+import { NOWHERE, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
@@ -138,5 +140,40 @@ describe('the check of known opponents (OppList.cc VerifyAndDecayOpplist)', () =
     setSoldierPosition(t, enemy, gridNo(80, 120));
     verifyAndDecayOpplist(t, merc);
     expect([merc.oppList[enemy.id], enemy.visible]).toEqual([Opp.SEEN_LAST_TURN, 0]);
+  });
+});
+
+describe('the last-known reset of InitSoldierOppList (OppList.cc ResetLastKnownLocs)', () => {
+  const RADIOED_SPOT = gridNo(70, 70);
+  const ROOF = 1;
+
+  function radioedPosition(t: TacticalState, team: number, opp: Soldier): void {
+    const gridNos = t.perception.publicLastKnown[team];
+    const levels = t.perception.publicLastKnownLevel[team];
+    if (gridNos) gridNos[opp.id] = RADIOED_SPOT;
+    if (levels) levels[opp.id] = ROOF;
+  }
+
+  function publicPosition(t: TacticalState, team: number, opp: Soldier): [number, number] {
+    return [t.perception.publicLastKnown[team]?.[opp.id] ?? NOWHERE, t.perception.publicLastKnownLevel[team]?.[opp.id] ?? 0];
+  }
+
+  it('wipes where his team last placed everyone in the sector when a soldier is created there, keeping the levels: a reinforcement makes the army forget', () => {
+    const { t, merc, enemy } = scene();
+    radioedPosition(t, Team.ENEMY, merc);
+    radioedPosition(t, Team.MILITIA, merc);
+    enemy.lastKnownOpp[merc.id] = RADIOED_SPOT;
+    const reinforcement = tacticalCreateEnemySoldier(t, SoldierClass.ARMY, NEUTRAL_POPULATION);
+    expect(reinforcement?.team).toBe(Team.ENEMY);
+    expect(publicPosition(t, Team.ENEMY, merc)).toEqual([NOWHERE, ROOF]);
+    expect(publicPosition(t, Team.MILITIA, merc)).toEqual([RADIOED_SPOT, ROOF]);
+    expect(enemy.lastKnownOpp[merc.id]).toBe(RADIOED_SPOT);
+  });
+
+  it('wipes them again when a soldier of the team leaves the sector', () => {
+    const { t, merc, enemy } = scene();
+    radioedPosition(t, Team.ENEMY, merc);
+    removeSoldierFromTacticalSector(t, enemy);
+    expect(publicPosition(t, Team.ENEMY, merc)).toEqual([NOWHERE, ROOF]);
   });
 });

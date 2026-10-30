@@ -60,6 +60,7 @@ import {
 import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
 import { atan8, Caller, Opp, SightFlags } from './opp.ts';
+import { resetLastKnownLocs } from './opplist-reset.ts';
 
 export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
 
@@ -747,9 +748,5 @@ export function removeManAsTarget(t: TacticalState, s: Soldier): void {
     updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
     t.turn.seenOpponents[opp.id * TOTAL_SOLDIERS + s.id] = 0;
   }
-  for (const other of mercs(t)) {
-    s.lastKnownOpp[other.id] = -1;
-    const lastKnown = t.perception.publicLastKnown[s.team];
-    if (lastKnown) lastKnown[other.id] = -1;
-  }
+  resetLastKnownLocs(t, s);
 }

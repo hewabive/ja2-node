@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Soldier_Create.cc CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
+// @src Soldier_Control.cc CreateSoldierCommon (the opplist reset);
 // @src Inventory_Choosing.cc AssignCreatureInventory.
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
@@ -23,6 +24,7 @@ import { emptyInventory, hiredMercInventory, type Inventory, type InventoryConte
 import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { CivGroupHostility } from './narrative/constants.ts';
 import { NOWHERE } from './pathfinding.ts';
+import { initSoldierOppList, type OppListTables } from './perception/opplist-reset.ts';
 import { calcActionPoints } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import {
@@ -214,7 +216,7 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
   [Body.CRIPPLECIV]: { life: [20, 26], agility: [30, 16] },
 };
 
-export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'> {
+export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'>, Partial<OppListTables> {
   readonly rng: RandomStream;
   readonly boxing?: BoxingRecord;
   readonly civGroups?: CivGroupState;
@@ -745,7 +747,13 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
       s.camo = FULL_CAMOUFLAGE;
   }
   bodyTypeSetup(c, s);
+  if (!env.autoresolve) createSoldierCommon(c, s);
   return s;
+}
+
+function createSoldierCommon(c: CreationContext, s: Soldier): void {
+  const { mercSlots, perception, turn } = c;
+  if (mercSlots && perception && turn) initSoldierOppList({ mercSlots, perception, turn }, s);
 }
 
 function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {

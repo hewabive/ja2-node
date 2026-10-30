@@ -117,6 +117,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An opponent lost at the check of known opponents counts as seen last turn at once, and the player keeps seeing him until the next look | `public-opplist.test.ts` |
 | A team forgets its last radio caller one decay after its last opponent | `public-opplist.test.ts` |
 | Watched locations decay for every id of the team's range, present or not | `public-opplist.test.ts` |
+| A soldier created in the loaded sector, or leaving it, wipes where his team last placed everyone there, levels kept: reinforcements forget what the radio told the army | `public-opplist.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
@@ -144,8 +145,10 @@ reading the source:
 - Structure list order matters only for the fog of war and the window test. A bush tile with a soldier in it does not
   stop the view: the original reads the person structure appended last, ja2-node the occupancy map.
 - The order of `mercSlots` after soldiers leave and re-enter the sector (ja2-node reuses the first free slot).
+- Hiring a merc while a sector is loaded wipes our team's public last-known locations there (`TacticalCreateSoldier`
+  runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
+  locations, and it never decides for our team.
 
 Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard
-room run", "Last-known resets", "Doors", "Unseen soldiers in combat". Other deviations of this domain: "Enemy sighted on
-their turn", "Real-time turn after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of
-unseen shooters".
+room run", "Doors", "Unseen soldiers in combat". Other deviations of this domain: "Enemy sighted on their turn",
+"Real-time turn after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".
