@@ -10,7 +10,7 @@
 
 import { ItemFlags, NOTHING } from '../../../../content/items/items.ts';
 import { type DealerDef, DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';
-import { i8, idiv, u32 } from '../../../../core/int.ts';
+import { i8, idiv, u32, udiv } from '../../../../core/int.ts';
 import { type ItemObject, MAX_ATTACHMENTS } from '../../../items/object.ts';
 import { dealerDef, type MerchantContext, role, type ShopHours } from './context.ts';
 import { addItemToArmsDealerInventory, specialItemInfoFromObject } from './inventory.ts';
@@ -218,7 +218,7 @@ function hoursSinceOldestItemRepaired(ctx: MerchantContext, dealer: number): num
     const done = special(ctx, dealer, r).repairDoneTime;
     if (done > now) continue;
     found = true;
-    const working = idiv(u32(now - done - calculateMinutesClosedBetween(ctx, dealer, done, now)), MINUTES_IN_HOUR);
+    const working = udiv(u32(now - done - calculateMinutesClosedBetween(ctx, dealer, done, now)), MINUTES_IN_HOUR);
     if (working > hours) hours = working;
   }
   return found ? hours : null;

@@ -5,7 +5,7 @@
 
 import { byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
-import { clamp, i8, i32, idiv, u8, u32 } from '../../../core/int.ts';
+import { clamp, i8, i32, idiv, u8, u32, udiv } from '../../../core/int.ts';
 import { Difficulty, EnemyIntention, MoveType, SectorFlag } from '../forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../forces/groups.ts';
 import { addWaypointIdToPGroup, randomizePatrolGroupLocation } from '../forces/movement.ts';
@@ -115,7 +115,7 @@ function populateGarrison(q: QueenContext, gi: number): void {
   if (start !== 0) {
     if (gg.sector !== SEC.P3) {
       if (start !== MAX_STRATEGIC_TEAM_SIZE)
-        start = idiv(u32(start * u32(PERCENT + q.random.int(START_VARIANCE) - START_VARIANCE_OFFSET)), PERCENT);
+        start = udiv(u32(start * u32(PERCENT + q.random.int(START_VARIANCE) - START_VARIANCE_OFFSET)), PERCENT);
       start = clamp(start, queen.minGroupSize, MAX_STRATEGIC_TEAM_SIZE);
     }
     if (adminChance !== 0) si.numAdmins = u8(idiv(adminChance * start, PERCENT));

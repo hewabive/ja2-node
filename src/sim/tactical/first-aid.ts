@@ -8,7 +8,7 @@
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { ItemClass } from '../../content/items/items.ts';
-import { i8, i16, idiv, u8, u32 } from '../../core/int.ts';
+import { i8, i16, idiv, u8, u32, udiv } from '../../core/int.ts';
 import { swapObjects } from '../items/object.ts';
 import { findObj, totalPoints, useKitPoints } from '../strategic/economy/kits.ts';
 import { plotPathCost } from './ai/utils.ts';
@@ -173,7 +173,7 @@ export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Sold
   if (victim.life === 0) return 0;
   const skill = dressSkill(medic, Math.min(kitStatus, MAX_KIT_STATUS));
   const available = u32(t.inCombat ? medic.actionPoints : RT_FIRST_AID_GAIN_MODIFIER);
-  let possible = u32(idiv(u32(Math.imul(available, skill)), POSSIBLE_DIVISOR));
+  let possible = u32(udiv(u32(Math.imul(available, skill)), POSSIBLE_DIVISOR));
   if (!possible) return 0;
   const medicKit = usesMedicKit(t, medic);
   if (medicKit) possible = u32(possible + idiv(possible, 2));
@@ -185,7 +185,7 @@ export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Sold
   if (left && victim.life < OKLIFE) left = healBelowOkLife(victim, left, belowOkLife);
   if (left && victim.bleeding) left = stopBleeding(victim, left);
   const actual = u32(dressing.actual - left);
-  let usedAPs = u32(idiv(u32(Math.imul(actual, available)), possible));
+  let usedAPs = u32(udiv(u32(Math.imul(actual, available)), possible));
   if (medicKit) usedAPs = idiv(usedAPs * 2, 3);
   deductPoints(t.inCombat, medic, i16(usedAPs), i16(usedAPs * BP_PER_AP.LT_EFFORT));
   if (medic.team === Team.OUR) {

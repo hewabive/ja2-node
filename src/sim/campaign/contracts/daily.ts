@@ -7,7 +7,7 @@
 import { ItemClass } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
-import { i8, i16, i32, idiv, u8, u16, u32 } from '../../../core/int.ts';
+import { i8, i16, i32, idiv, u8, u16, u32, udiv } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
 import { addSameDayStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -94,7 +94,7 @@ export function checkIfMercGetsAnotherContract(ctx: ContractContext, m: RosterMe
   const c = m.contract;
   const now = worldTotalMinutes(ctx.state.clock);
   if (now <= u32(c.timeCanSignElsewhere) || c.signedAnotherContract) return;
-  const fullDays = idiv(u32(c.contractEnd - now), NUM_MIN_IN_DAY);
+  const fullDays = udiv(u32(c.contractEnd - now), NUM_MIN_IN_DAY);
   if (fullDays >= ANOTHER_CONTRACT_WINDOW_DAYS) return;
   const chance = (ANOTHER_CONTRACT_WINDOW_DAYS - fullDays) * m.soldier.stats.experience;
   if (ctx.rng.main.int(DAILY_DIE) < chance) c.signedAnotherContract = true;

@@ -9,7 +9,7 @@
 // @src notice for an important sector).
 
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { i16, idiv, imod, u8, u32 } from '../../../core/int.ts';
+import { i16, idiv, imod, u8, u32, udiv } from '../../../core/int.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import { createNewPlayerGroupDepartingFromSector, numEnemiesInAnySector, removeGroup } from '../forces/groups.ts';
 import { stratPathRulesForGroup } from '../forces/movement.ts';
@@ -135,7 +135,7 @@ export function incrementTownLoyalty(ctx: EconomyContext, town: number, amount: 
   const t = loyaltyOf(ctx, town);
   if (!t.started) return;
   const before = t.rating;
-  let remaining = u32(idiv(u32(u32(amount) * SENTIMENT_SCALE * sentiment(ctx, town)), 100));
+  let remaining = u32(udiv(u32(u32(amount) * SENTIMENT_SCALE * sentiment(ctx, town)), 100));
   while (remaining) {
     const chunk = Math.min(remaining, LOYALTY_CHUNK);
     t.change = i16(t.change + chunk);
@@ -149,7 +149,7 @@ export function decrementTownLoyalty(ctx: EconomyContext, town: number, amount: 
   const t = loyaltyOf(ctx, town);
   if (!t.started) return;
   const before = t.rating;
-  let remaining = u32(idiv(u32(u32(amount) * 100), SENTIMENT_SCALE * sentiment(ctx, town)));
+  let remaining = u32(udiv(u32(u32(amount) * 100), SENTIMENT_SCALE * sentiment(ctx, town)));
   while (remaining) {
     const chunk = Math.min(remaining, LOYALTY_CHUNK);
     t.change = i16(t.change - chunk);

@@ -6,7 +6,7 @@
 // @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces.
 
 import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { i8, idiv, u32 } from '../../../core/int.ts';
+import { i8, idiv, u32, udiv } from '../../../core/int.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -332,7 +332,7 @@ export function testForBloodcatAmbush(ctx: StrategicContext, g: Group): boolean 
   const spawn = ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(s));
   const lair = spawn?.isLair === true;
   const arena = spawn?.isArena === true;
-  const hours = idiv(u32(nowMinutes(ctx) - info.timeLastLoaded), MINUTES_PER_HOUR);
+  const hours = udiv(u32(nowMinutes(ctx) - info.timeLastLoaded), MINUTES_PER_HOUR);
   const enc = ctx.state.encounter;
   let alreadyAmbushed = false;
   if (lair || arena) {

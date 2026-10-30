@@ -11,7 +11,7 @@
 
 import { MineType } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
-import { i32, idiv, u32 } from '../../../core/int.ts';
+import { i32, idiv, u32, udiv } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { Fact } from '../narrative/fact-ids.ts';
 import { fact, setFactTrue } from '../narrative/facts.ts';
@@ -114,7 +114,7 @@ export function workforceForEnemy(ctx: EconomyContext, mine: number): number {
 }
 
 export function workRate(ctx: EconomyContext, mine: number, workforce: number): number {
-  return i32(idiv(u32(mineStatus(ctx, mine).maxRemovalRate * workforce), FULL_WORKFORCE));
+  return i32(udiv(u32(mineStatus(ctx, mine).maxRemovalRate * workforce), FULL_WORKFORCE));
 }
 
 export function runningOutRemovalRate(supply: number): number {

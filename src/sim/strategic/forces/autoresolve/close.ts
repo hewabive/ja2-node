@@ -7,7 +7,7 @@
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
-import { idiv, u32 } from '../../../../core/int.ts';
+import { idiv, u32, udiv } from '../../../../core/int.ts';
 import { cloneObject, type ItemObject, ObjectFlags } from '../../../items/object.ts';
 import type { RandomStream } from '../../../tactical/combat/context.ts';
 import { Body, OKLIFE, type Soldier, SoldierClass, Team } from '../../../tactical/soldier.ts';
@@ -254,7 +254,7 @@ export function closeAutoresolve(env: AutoresolveEnv, ar: AutoresolveState, port
   }
   return {
     status: ar.status,
-    warpSeconds: idiv(u32(ar.elapsedMs), MS_PER_SECOND),
+    warpSeconds: udiv(u32(ar.elapsedMs), MS_PER_SECOND),
     bandageEvent,
     mercsDied: mercs.died,
     mercsCaptured: mercs.captured,

@@ -4,7 +4,7 @@
 // @src Interface_Dialogue.h HOSPITAL_PATIENT_DISTANCE; Strategic/Assignments.cc SetTimeOfAssignmentChangeForMerc (the refund);
 // @src Strategic/Strategic_Event_Handler.cc CheckForMissingHospitalSupplies.
 
-import { i32, idiv, u32 } from '../../../core/int.ts';
+import { i32, u32, udiv } from '../../../core/int.ts';
 import { Fact } from './fact-ids.ts';
 import type { HospitalAccount } from './facts.ts';
 
@@ -37,8 +37,8 @@ function isFree(modifier: number): boolean {
 }
 
 function discounted(cost: number, modifier: number): number {
-  if (modifier === HospitalPrice.BREAK) return idiv(u32(cost * BREAK_PERCENT), PERCENT);
-  if (modifier === HospitalPrice.COST) return idiv(u32(cost * COST_PERCENT), PERCENT);
+  if (modifier === HospitalPrice.BREAK) return udiv(u32(cost * BREAK_PERCENT), PERCENT);
+  if (modifier === HospitalPrice.COST) return udiv(u32(cost * COST_PERCENT), PERCENT);
   return cost;
 }
 
@@ -52,7 +52,7 @@ export function calcPatientMedicalCost(p: HospitalPatient | null, globalModifier
 }
 
 export function roundMedicalCost(sum: number): number {
-  return Math.max(MINIMUM_CHARGE, u32(idiv(u32(sum + ROUNDING - 1), ROUNDING) * ROUNDING));
+  return Math.max(MINIMUM_CHARGE, u32(udiv(u32(sum + ROUNDING - 1), ROUNDING) * ROUNDING));
 }
 
 export function calcMedicalCost(patients: readonly HospitalPatient[], globalModifier: number): number {
