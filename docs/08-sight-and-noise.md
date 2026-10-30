@@ -74,9 +74,10 @@ original for "not −1" (the damage display, `lifeLost`, `aiTurn`) and stays in 
 state: an unseen soldier animates at full speed in combat once he has faded out (`10`).
 
 **Hearing has no walls.** The effective volume depends on distance, levels, the boundary between floor and outdoors,
-the listener's hearing (experience, ambient light) and how many opponents he sees; no ray. A listener turns his head:
-a full-circle look at the noise tile, which may reveal the maker. An impact or explosion hides its maker and is only
-remembered as a noise grid and volume for the AI (`09`).
+the listener's hearing (experience, night ops, an extended ear worn on the head, ambient light; a tank hears worse and a
+walkman deafens) and how many opponents he sees; no ray. A listener turns his head: a full-circle look at the noise
+tile, which may reveal the maker. An impact or explosion hides its maker and is only remembered as a noise grid and
+volume for the AI (`09`).
 
 **The player hears a direction, never a grid.** The original prints the loudest listener's message and has no marker.
 ja2-node emits `noiseHeard` with the listener, a loudness class and an eight-way direction (or above and below); a

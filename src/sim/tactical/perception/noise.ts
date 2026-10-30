@@ -8,11 +8,12 @@ import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import { endHeight, states } from '../animation.ts';
-import { soldierToSoldierLos } from '../combat/positions.ts';
+import { losWorldOf, soldierToSoldierLos } from '../combat/positions.ts';
+import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
-import { AlertStatus, Body, isMonster, NO_INTERRUPT, numSkillTraits, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, isMonster, isTank, NO_INTERRUPT, numSkillTraits, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import { keptApartInBloodcatArena } from './bloodcat-arena.ts';
@@ -80,6 +81,7 @@ const BLOODCAT_STEALTH_BONUS = 50;
 const STEALTHY_TRAIT_BONUS = 25;
 const RED_ALERT_VOLUME = 3;
 const IRRELEVANT = -1;
+const NO_ITEM = -2;
 
 function stealthRollWithSecondChance(t: TacticalState, stealth: number): number {
   const first = t.pre.int(100);
@@ -117,19 +119,35 @@ export function doorOpeningNoise(t: TacticalState, s: Soldier): number {
   return movementNoise(t, s) === 0 ? 0 : DOOR_NOISE_VOLUME;
 }
 
+const TANK_HEARING = -5;
 const MONSTER_HEARING = -10;
+const EAR_STATUS_PER_HEARING = 20;
+
+const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? NO_ITEM;
+
+function extendedEarHearing(t: TacticalState, s: Soldier): number {
+  const slot = findObjWithin(s.inv, itemIndex(t, 'EXTENDEDEAR'), 0, NUM_INV_SLOTS - 1);
+  if (slot !== InvSlot.HEAD1 && slot !== InvSlot.HEAD2) return 0;
+  return idiv(s.inv[slot]?.status[0] ?? 0, EAR_STATUS_PER_HEARING) + 1;
+}
+
+function darknessHearing(t: TacticalState, s: Soldier): number {
+  const ambient = t.lighting.ambient;
+  if (ambient === 8 || ambient === 9) return 1;
+  if (ambient === 10) return 2;
+  if (ambient >= 11 && ambient <= 15) return 3 + numSkillTraits(s, SkillTrait.NIGHTOPS);
+  return 0;
+}
 
 function decideHearing(t: TacticalState, s: Soldier): number {
+  if (isTank(s)) return TANK_HEARING;
   if (isMonster(s)) return MONSTER_HEARING;
-  let hearing = s.stats.experience > 3 ? 1 : 0;
-  const ambient = t.lighting.ambient;
-  if (ambient >= 8 && ambient <= 9) hearing += 1;
-  else if (ambient === 10) hearing += 2;
-  else if (ambient >= 11) hearing += 3;
-  return hearing;
+  const experienced = s.stats.experience > 3 ? 1 : 0;
+  return experienced + numSkillTraits(s, SkillTrait.NIGHTOPS) + extendedEarHearing(t, s) + darknessHearing(t, s);
 }
 
 function calcEffVolume(t: TacticalState, l: Soldier, g: number, level: number, base: number, sourceTerrain: number): number {
+  if (wearsHeadGear(l.inv, itemIndex(t, 'WALKMAN'))) return 0;
   if (t.inCombat && t.turn.currentTeam === l.team) return 0;
   let eff = base + decideHearing(t, l) - l.ai.oppCount - (pythSpacesAway(l.gridNo, g) - 1);
   if (l.state === states(t.content.animations).RUNNING) eff -= 5;
@@ -160,7 +178,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
   const noiseDirection = atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, idiv(g, WORLD_COLS) * 10 + 5);
   const flashInView = kind !== NoiseKind.GUNFIRE || !source?.muzzleFlash || seesMuzzleFlashWithoutTurning(l, noiseDirection);
   const d = distanceVisible(t, l, IRRELEVANT, IRRELEVANT, g, level, flashInView);
-  const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
+  const losWorld = losWorldOf(t);
   const eye = {
     gridNo: l.gridNo,
     level: l.level,

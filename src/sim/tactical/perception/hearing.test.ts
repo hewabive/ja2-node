@@ -2,10 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { createItem, emptyObject } from '../../items/object.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
-import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { InvSlot } from '../inventory.ts';
+import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import { Body, SkillTrait, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
@@ -48,6 +51,76 @@ describe('what the squad hears (OppList.cc ProcessNoise, CalcEffVolume)', () => 
     expect(squadHears(sim.state, gridNo(80, 20), 0, 5, NoiseKind.GUNFIRE)).toBeNull();
     expect(squadHears(sim.state, gridNo(80, 72), 1, 20, NoiseKind.MOVEMENT)).toMatchObject({ direction: 'above' });
     expect(squadHears(sim.state, gridNo(80, 72), 1, 20, NoiseKind.ROCK_IMPACT)).toMatchObject({ direction: Direction.NORTH });
+  });
+});
+
+describe("the listener's hearing (OppList.cc DecideHearing, CalcEffVolume)", () => {
+  const NOISE_AT = gridNo(80, 70);
+  const LOUDEST_PROBE = 40;
+  const NEVER = Number.POSITIVE_INFINITY;
+
+  function quietestHeard(heard: (volume: number) => boolean): number {
+    for (let volume = 1; volume <= LOUDEST_PROBE; volume++) if (heard(volume)) return volume;
+    return NEVER;
+  }
+
+  function mercListening(): { sim: TacticalSim; merc: Soldier; quietest: () => number } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    const quietest = () => quietestHeard((volume) => squadHears(sim.state, NOISE_AT, 0, volume, NoiseKind.GUNFIRE) !== null);
+    return { sim, merc, quietest };
+  }
+
+  function wear(s: Soldier, slot: number, item: string, status = 100): void {
+    s.inv[slot] = createItem(content.items, content.items.byName.get(item)?.index ?? 0, status);
+  }
+
+  it('hears farther with an extended ear in a head slot, by one plus a fifth of its status in tens, and not with one in a pocket', () => {
+    const { merc, quietest } = mercListening();
+    const bare = quietest();
+    wear(merc, InvSlot.HEAD2, 'EXTENDEDEAR');
+    expect(quietest()).toBe(bare - 6);
+    wear(merc, InvSlot.HEAD2, 'EXTENDEDEAR', 59);
+    expect(quietest()).toBe(bare - 3);
+    merc.inv[InvSlot.HEAD2] = emptyObject();
+    wear(merc, InvSlot.SMALLPOCK1, 'EXTENDEDEAR');
+    expect(quietest()).toBe(bare);
+  });
+
+  it('hears nothing at all with a walkman on', () => {
+    const { merc, quietest } = mercListening();
+    expect(quietest()).toBeLessThan(NEVER);
+    wear(merc, InvSlot.HEAD1, 'WALKMAN');
+    expect(quietest()).toBe(NEVER);
+  });
+
+  it('gives night ops one step of hearing by day and two in the dark', () => {
+    const { sim, merc, quietest } = mercListening();
+    const byDay = quietest();
+    merc.skillTrait1 = SkillTrait.NIGHTOPS;
+    expect(quietest()).toBe(byDay - 1);
+    lightSetBaseLevel(sim.state, NORMAL_LIGHTLEVEL_NIGHT);
+    merc.skillTrait1 = SkillTrait.NONE;
+    const atNight = quietest();
+    expect(atNight).toBe(byDay - 3);
+    merc.skillTrait1 = SkillTrait.NIGHTOPS;
+    expect(quietest()).toBe(atNight - 2);
+  });
+
+  it('makes a tank hard of hearing', () => {
+    const wall = Array.from({ length: 21 }, (_, k) => gridNo(70 + k, 75));
+    const sim = newCombatSim(content, wall);
+    const merc = spawnSoldier(sim, 0, Team.OUR, NOISE_AT, Direction.SOUTH);
+    const listener = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, gridNo(80, 80), Direction.NORTH);
+    const quietest = () =>
+      quietestHeard((volume) => {
+        listener.oppList[merc.id] = Opp.NOT_HEARD_OR_SEEN;
+        makeNoise(sim.state, merc, merc.gridNo, 0, volume, NoiseKind.MOVEMENT);
+        return listener.oppList[merc.id] !== Opp.NOT_HEARD_OR_SEEN;
+      });
+    const soldier = quietest();
+    listener.bodyType = Body.TANK_NW;
+    expect(quietest()).toBe(soldier + 5);
   });
 });
 
