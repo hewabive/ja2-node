@@ -8,8 +8,8 @@
 // @src BtnPreviousButtonCallback, BtnNextButtonCallback (wrapping over MAX_NUMBER_MERCS), BtnContactButtonCallback,
 // @src SelectFaceRegionCallBackPrimary/Secondary, SelectFaceMovementRegionCallBack, DisplayVideoConferencingDisplay,
 // @src DisplayMercsVideoFace (the terminal's 3-pixel shadow), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face
-// @src stretched into 96 x 86, the answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights
-// @src (an 8 x 8 fill, green when selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
+// @src stretched into 96 x 86 under the distortion, the answering machine shaded with its caption), DrawButtonSelection and
+// @src DisplaySelectLights (an 8 x 8 fill, green when selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector, day = arrival / 1440, "HH:00"; the German
 // @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode).
 
@@ -32,6 +32,7 @@ import { portraitPath } from '../../../widgets/portrait.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
 import { Conference, ContractLength, TITLE_ITERATIONS, talkingTime, titleBarRect, VideoMode } from './aim-conference.ts';
+import { DistortionAsset, type DistortionOverlay, STATIC_NOISE_VOLUME } from './aim-distortion.ts';
 import { aimBar, aimChrome, mugShotState } from './aim-pages.ts';
 
 export const AIM_MEMBER_LAYOUT = 'aim-member';
@@ -94,7 +95,6 @@ const NO_FACE = -1;
 const GREEN = 0x00ff00;
 const BLACK = 0x000000;
 const VIDEO_TITLE_ASSET = 'laptop/videotitlebar.sti';
-const SNOW_ASSET = 'laptop/bwsnow.sti';
 
 export const AIM_MEMBER_CONTRACT: ControllerContract = {
   id: 'aimMember',
@@ -249,8 +249,11 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
         arrivalAfterRender = true;
       },
       teamFullBox: () => context.messageBox(context.string(AIM_POPUP_TEXT, AIM_MEMBER_ALREADY_HAVE_20_MERCS), MessageBoxFlag.OK),
+      random: (range) => context.media.random(range),
+      noise: (file) => context.playSound(file, STATIC_NOISE_VOLUME),
     },
     context.settings.slideStepMs ?? 16,
+    memory.distortion,
   );
 
   const sectorLabel = (sector: string): string => {
@@ -483,12 +486,18 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     list.capture(FACE_SOURCE);
   };
 
+  const drawDistortion = (list: DrawList, rect: Area, overlay: DistortionOverlay): void => {
+    if (overlay === 'shade') list.shadow(rect.x, rect.y, rect.x + rect.width - 1, rect.y + rect.height - 1);
+    else if (overlay) list.image(overlay.asset, overlay.frame, rect.x, rect.y);
+  };
+
   const drawFace = (list: DrawList, rect: Area): void => {
     if (!conference.terminalShown) return;
     if (conference.face === 'black') list.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, BLACK);
-    else if (conference.face === 'snow') list.image(SNOW_ASSET, conference.snowFrame, rect.x, rect.y);
+    else if (conference.face === 'snow') list.image(DistortionAsset.BW_SNOW, conference.snowFrame, rect.x, rect.y);
     else if (conference.face === 'face') {
       list.snapshot(FACE_SOURCE, { x: rect.x, y: rect.y, width: SMALL_FACE_WIDTH, height: SMALL_FACE_HEIGHT }, rect);
+      drawDistortion(list, rect, conference.distortion.overlay);
       if (conference.mode === VideoMode.ANSWERING_MACHINE) {
         list.shadow(rect.x, rect.y, rect.x + rect.width - 1, rect.y + rect.height - 1);
         const caption = context.string(AIM_POPUP_TEXT, AIM_MEMBER_PRERECORDED_MESSAGE);
@@ -542,7 +551,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
 
   loadMerc();
   void context.media.loadTexts([AIM_BIOS_FILE]);
-  void context.media.loadImages([SNOW_ASSET, VIDEO_TITLE_ASSET]);
+  void context.media.loadImages([VIDEO_TITLE_ASSET, ...Object.values(DistortionAsset)]);
   if (memory.conferenceSubPage !== VideoMode.NOT_DISPLAYED) memory.conferenceSubPage = VideoMode.NOT_DISPLAYED;
   refresh(context.services.clock.ja2Now);
 

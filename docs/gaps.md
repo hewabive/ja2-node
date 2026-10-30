@@ -135,7 +135,6 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| A.I.M. conference distortion | The conference rolls a distortion with `Random(200)` (`Laptop/AIMMembers.cc:1973`) | None (`ui/screens/laptop/aim/aim-conference.ts`) | On the client's generator (deviations "Cosmetic laptop draws") |
 | Soldier palettes and surfaces | Camouflage and creature palettes (`Tactical/Animation_Control.cc:2493`); surfaces for water, a second pistol, wounds and big-guy shots (`:2598`); special z strips (`Tactical/Animation_Data.cc:693`) | Base palette, surfaces and z strips only (`app/world/soldier-assets.ts`, `app/world/soldier-scene.ts`) | The view lacks others' camouflage, water depth, the second hand and sub-flags |
 | Data version detection | The data version is guessed from the SLFs' language folders, then from resource hashes (`rust/stracciatella/src/guess.rs:128`) | The folder half only (`content/text/data-version.ts`); French and Simplified Chinese data need `JA2_DATA_VERSION` | `31` |
 | Sound coverage | Vehicle movement and battle sounds, tank turrets, the statue remote's sound, the glass crack of a jar stack broken in a fall (`Tactical/Vehicles.cc:1017`, `Tactical/Handle_Items.cc:2541`, `Tactical/Items.cc:3243`) | Not played; boarding sounds at full volume on the map screen (`app/map/map-sound.ts`) | Each with its system; the crack needs an event from `checkEquipmentForFragileItemDamage` (`src/sim/tactical/explosions/item-damage.ts`) |

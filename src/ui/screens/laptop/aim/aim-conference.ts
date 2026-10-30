@@ -12,8 +12,10 @@
 // @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback, BtnAnsweringMachineButtonCallback,
 // @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech,
 // @src InitVideoFaceTalking, DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms),
-// @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage. The random distortion and the impatience
-// @src quotes are not reproduced.
+// @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion
+// @src while the face is up and no answering machine shows (aim-distortion.ts). The impatience quotes are not reproduced.
+
+import { type DistortionClocks, distortionClocks, VideoDistortion } from './aim-distortion.ts';
 
 export const VideoMode = {
   NOT_DISPLAYED: 0,
@@ -62,6 +64,8 @@ export interface ConferencePorts {
   stopTalking(): void;
   popdownDone(): void;
   teamFullBox(): void;
+  random(range: number): number;
+  noise(file: string): void;
 }
 
 export interface TalkState {
@@ -93,6 +97,7 @@ export class Conference {
   hireDisabled = false;
   answeringButtonsDisabled = false;
   hireButtonsDisabled = false;
+  readonly distortion: VideoDistortion;
   readonly #ports: ConferencePorts;
   readonly #stepMs: number;
   #justSwitched = false;
@@ -106,9 +111,10 @@ export class Conference {
   #waitingForMercToStop = false;
   #now = 0;
 
-  constructor(ports: ConferencePorts, stepMs: number) {
+  constructor(ports: ConferencePorts, stepMs: number, clocks: DistortionClocks = distortionClocks()) {
     this.#ports = ports;
     this.#stepMs = stepMs;
+    this.distortion = new VideoDistortion(clocks, ports);
   }
 
   get displayed(): boolean {
@@ -137,6 +143,7 @@ export class Conference {
     this.mode = VideoMode.NOT_DISPLAYED;
     this.previousMode = VideoMode.NOT_DISPLAYED;
     this.face = 'none';
+    this.distortion.clear();
     this.#waitingForMercToStop = false;
   }
 
@@ -181,6 +188,7 @@ export class Conference {
         this.face = 'black';
         break;
       case VideoMode.FIRST_CONTACT:
+        if (this.previousMode === VideoMode.INIT || this.previousMode === VideoMode.NOT_DISPLAYED) this.distortion.restart();
         this.face = 'face';
         this.hireDisabled = this.#waitingForMercToStop;
         this.#waitingForMercToStop = false;
@@ -190,11 +198,13 @@ export class Conference {
         this.#delaySpeech(ConferenceQuote.LENGTH_OF_CONTRACT);
         break;
       case VideoMode.ANSWERING_MACHINE:
+        this.distortion.restart();
         this.face = 'face';
         this.answeringButtonsDisabled = false;
         this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
         break;
       case VideoMode.UNAVAILABLE:
+        this.distortion.restart();
         this.face = 'face';
         break;
       default:
@@ -350,7 +360,13 @@ export class Conference {
     }
     if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
     else if (this.mode === VideoMode.INIT) this.#updateInit(now);
+    if (this.distorted) this.distortion.update(now);
+    else this.distortion.clear();
     this.#justSwitched = false;
+  }
+
+  get distorted(): boolean {
+    return this.face === 'face' && this.mode !== VideoMode.ANSWERING_MACHINE;
   }
 
   get justSwitched(): boolean {

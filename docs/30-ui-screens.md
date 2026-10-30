@@ -169,6 +169,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | With exactly twenty departed mercs, going back from the first face shows an empty page | `laptop/personnel/personnel-model.test.ts` "… the empty last page included" |
 | The drop-down's top snaps back one row short of the end | `src/ui/widgets/drop-down.test.ts` "snaps a top past the end back …" |
 | No greeting after the A.I.M. connection snow: the snow clears the first-contact flag the greeting waits for | `laptop/aim/aim-conference.test.ts` "greets with nothing after the connection snow …" |
+| An A.I.M. distortion line shows its first frame only on its first run: the counter starts at 255 and later runs step past frame 0 | `laptop/aim/aim-distortion.test.ts` "shows the first line frame only on the first run …" |
 
 Not pinned yet:
 - `GlowTrashCan` never shows a glow: its colour index stays 0 (`map/merc-inventory.ts`).
@@ -191,5 +192,5 @@ Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Map sc
 tiles", "Movement menu stances", "Tossing from the item cursor", "Auto-bandage", "Overhead map", "Inventory panel
 clicks", "Team panel vehicle exit", "Map inventory details", "Trash can warning for mission items", "Vehicles as
 characters", "Pre-battle retreat preview", "Shop screen details", "Save location on the canvas", "Inert options", "IME
-composition", "Laptop video faces", "A.I.M. conference distortion", "I.M.P. begin page focus", "I.M.P. voice samples",
-"I.M.P. skill page and saved profiles".
+composition", "Laptop video faces", "I.M.P. begin page focus", "I.M.P. voice samples", "I.M.P. skill page and saved
+profiles".

@@ -68,6 +68,29 @@
         "hollow": true
       }
     },
+    "fuzzLines": {
+      "sti": "laptop/fuzzline.sti",
+      "stub": {
+        "style": "checker",
+        "frames": "VC_NUM_FUZZ_LINES",
+        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", 12]
+      }
+    },
+    "straightLines": {
+      "sti": "laptop/lineinterference.sti",
+      "stub": {
+        "frames": "VC_NUM_STRAIGHT_LINES",
+        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", 1]
+      }
+    },
+    "transSnow": {
+      "sti": "laptop/transsnow.sti",
+      "stub": {
+        "style": "checker",
+        "frames": 7,
+        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", "AIM_MEMBER_VIDEO_FACE_HEIGHT"]
+      }
+    },
     "contractCharge": {
       "sti": "laptop/videocontractcharge.sti",
       "stub": {

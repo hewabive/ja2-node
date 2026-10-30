@@ -3,9 +3,10 @@
 // @src src/game/Laptop/AIMSort.cc GameInitAimSort (price, descending), EnterAimSort (the list reset to the A.I.M. listing
 // @src order), ExitAimSort and MercArrayCompare (weekly salary, level, marksmanship, medical, explosives, mechanical; the
 // @src original's std::sort is unstable, the listing order breaks ties here); src/game/Laptop/AIMMembers.cc gbCurrentIndex,
-// @src giCurrentSubPage (the conference mode restored on re-entry), LaptopSaveInfo.sLastHiredMerc.
+// @src giCurrentSubPage (the conference mode restored on re-entry), the distortion statics, LaptopSaveInfo.sLastHiredMerc.
 
 import type { AimMercView } from '../../../../protocol/view.ts';
+import { type DistortionClocks, distortionClocks } from './aim-distortion.ts';
 
 export const AimSortCriterion = { PRICE: 0, EXPERIENCE: 1, MARKSMANSHIP: 2, MEDICAL: 3, EXPLOSIVES: 4, MECHANICAL: 5 } as const;
 export const AIM_ASCEND = 6;
@@ -25,10 +26,19 @@ export interface AimMemory {
   index: number;
   conferenceSubPage: number;
   lastHired: LastHiredMerc | null;
+  readonly distortion: DistortionClocks;
 }
 
 export function aimMemory(): AimMemory {
-  return { sortCriterion: AimSortCriterion.PRICE, listMode: AIM_DESCEND, order: [], index: 0, conferenceSubPage: 0, lastHired: null };
+  return {
+    sortCriterion: AimSortCriterion.PRICE,
+    listMode: AIM_DESCEND,
+    order: [],
+    index: 0,
+    conferenceSubPage: 0,
+    lastHired: null,
+    distortion: distortionClocks(),
+  };
 }
 
 function sortValue(merc: AimMercView, criterion: number): number {
