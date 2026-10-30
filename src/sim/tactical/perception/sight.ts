@@ -20,7 +20,7 @@ import { withinOneOctant } from '../directions.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
-import { newSightingRules } from '../narrative/sight-rules.ts';
+import { lostSightRules, newSightingRules } from '../narrative/sight-rules.ts';
 import { StatKind } from '../profiles.ts';
 import {
   AlertStatus,
@@ -289,6 +289,7 @@ export function teamNoLongerSeesMan(t: TacticalState, team: number, opp: Soldier
 function handleManNoLongerSeen(t: TacticalState, me: Soldier, opp: Soldier): void {
   if (hostile(me, opp)) removeOneOpponent(me);
   me.oppList[opp.id] = Opp.SEEN_THIS_TURN;
+  lostSightRules(t, me, opp);
   const table = t.perception.publicOpp[me.team];
   if (table && table[opp.id] === Opp.SEEN_CURRENTLY && teamNoLongerSeesMan(t, me.team, opp, me, 0)) {
     table[opp.id] = Opp.SEEN_THIS_TURN;

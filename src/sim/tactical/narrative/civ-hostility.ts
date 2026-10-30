@@ -290,6 +290,10 @@ function inBrothel(t: TacticalState, room: number): boolean {
   return inSector(t, BROTHEL_SECTOR) && room >= BrothelRooms.FIRST && room <= BrothelRooms.LAST;
 }
 
+export function inBrothelGuardRoom(t: TacticalState, gridNo: number): boolean {
+  return inSector(t, BROTHEL_SECTOR) && sectorMapOf(t).rooms[gridNo] === BrothelRooms.GUARD_ROOM;
+}
+
 function roomBesideWall(t: TacticalState, gridNo: number): number {
   const rooms = sectorMapOf(t).rooms;
   for (const g of [gridNo, gridNo + directionIncrement(Direction.SOUTH), gridNo + directionIncrement(Direction.EAST)]) {

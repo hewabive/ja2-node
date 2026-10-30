@@ -1,23 +1,26 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc ManSeesMan (new sighting of an OUR merc: civilian groups, Carmen, Eldin, the
-// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey).
+// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey);
+// @src HandleManNoLongerSeen (the run to block the brothel guard room).
 
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { AiAction } from '../ai/actions.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { stopMerc } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { Attitude, CivilianGroup, NO_PROFILE, NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState } from '../state.ts';
 import { enterCombatMode } from '../turns/turns.ts';
-import { addToShouldBecomeHostileOrSayQuoteList, makeCivHostile } from './civ-hostility.ts';
+import { addToShouldBecomeHostileOrSayQuoteList, inBrothelGuardRoom, makeCivHostile } from './civ-hostility.ts';
 import { ASSASSINS, BrothelRooms, CivGroupHostility, HicksCurfew, MuseumRooms, NpcRecord, Profile } from './constants.ts';
 
 const SECONDS_PER_MINUTE = 60;
 const DECLARATION_OF_HOSTILITY = 14;
 const HICKS_SEE_US_AT_NIGHT = 38;
 const MINUTES_PER_DAY = 1440;
+const GUARD_ROOM_BLOCKING_GRIDNO = 13250;
 
 const roomOf = (t: TacticalState, g: number) => sectorMapOf(t).rooms[g] ?? 0;
 
@@ -126,4 +129,16 @@ export function newSightingRules(t: TacticalState, s: Soldier, opp: Soldier): vo
       if (publicOpp) publicOpp[s.id] = Opp.HEARD_THIS_TURN;
     }
   } else if (s.team === Team.CIV) unprofiledCivilianSees(t, s, opp);
+}
+
+function sendGoonToBlockGuardRoom(t: TacticalState, goon: Soldier): void {
+  t.turnHooks.cancelAIAction(t, goon);
+  goon.ai.counter = t.clockMs;
+  goon.ai.nextAction = AiAction.RUN;
+  goon.ai.nextActionData = GUARD_ROOM_BLOCKING_GRIDNO;
+}
+
+export function lostSightRules(t: TacticalState, s: Soldier, opp: Soldier): void {
+  if (s.civilianGroup === CivilianGroup.KINGPIN && opp.team === Team.OUR && inBrothelGuardRoom(t, opp.gridNo))
+    sendGoonToBlockGuardRoom(t, s);
 }

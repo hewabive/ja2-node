@@ -8,8 +8,10 @@ import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { createCivGroupState, makeCivGroupHostileOnNextSectorEntrance } from '../../strategic/narrative/civ-groups.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
+import { AiAction } from '../ai/actions.ts';
 import type { TacticalContent } from '../content.ts';
-import { Opp } from '../perception/opp.ts';
+import { Caller, Opp } from '../perception/opp.ts';
+import { manLooksForMan } from '../perception/sight.ts';
 import { AlertStatus, Attitude, Body, CivilianGroup, Orders, Side, Team } from '../soldier.ts';
 import { sectorMapOf } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -251,6 +253,63 @@ describe('sight rules', () => {
     newSightingRules(sim.state, carmen, slay);
     expect([jim.ai.orders, carmen.ai.attitude]).toEqual([Orders.SEEKENEMY, 6]);
     expect(port.calls).toEqual([`record ${Profile.CARMEN} 28`]);
+  });
+});
+
+describe('a Kingpin goon losing sight of a merc in the brothel guard room (OppList.cc HandleManNoLongerSeen)', () => {
+  const C5 = { x: 5, y: 3, z: 0 };
+  const GUARD_ROOM = 110;
+  const OTHER_BROTHEL_ROOM = 109;
+  const GUARD_ROOM_BLOCKING_GRIDNO = 13250;
+  const PATROL_DESTINATION = FAR + 3;
+  const LATER_MS = 10_000;
+
+  interface Loss {
+    readonly sector?: { x: number; y: number; z: number };
+    readonly room?: number;
+    readonly group?: number;
+    readonly team?: number;
+  }
+
+  function loseSight(loss: Loss) {
+    const { sim } = setup();
+    const t = sim.state;
+    t.sector = { ...(loss.sector ?? C5) };
+    const merc = t.soldiers[0];
+    if (!merc) throw new Error('no merc');
+    Object.assign(merc, { team: loss.team ?? Team.OUR });
+    sectorMapOf(t).rooms[merc.gridNo] = loss.room ?? GUARD_ROOM;
+    const goon = civilian(sim, 116, FAR, loss.group ?? CivilianGroup.KINGPIN);
+    goon.ai.action = AiAction.RANDOM_PATROL;
+    goon.ai.actionData = PATROL_DESTINATION;
+    goon.ai.counter = t.clockMs + LATER_MS;
+    goon.oppList[merc.id] = Opp.SEEN_CURRENTLY;
+    expect(manLooksForMan(t, goon, merc, Caller.MANLOOKSFOROTHERTEAMS)).toBe(false);
+    expect(goon.oppList[merc.id]).toBe(Opp.SEEN_THIS_TURN);
+    return { goon, clockMs: t.clockMs };
+  }
+
+  it('cancels what he was doing and runs at once to block the room', () => {
+    const { goon, clockMs } = loseSight({});
+    expect([goon.ai.action, goon.ai.nextAction, goon.ai.nextActionData, goon.ai.counter]).toEqual([
+      AiAction.NONE,
+      AiAction.RUN,
+      GUARD_ROOM_BLOCKING_GRIDNO,
+      clockMs,
+    ]);
+  });
+
+  it('needs C5, the guard room, a goon of the Kingpin and a merc of ours', () => {
+    const cases: Loss[] = [
+      { sector: { x: 5, y: 4, z: 0 } },
+      { room: OTHER_BROTHEL_ROOM },
+      { group: CivilianGroup.NONE },
+      { team: Team.MILITIA },
+    ];
+    for (const loss of cases) {
+      const { goon } = loseSight(loss);
+      expect([goon.ai.action, goon.ai.nextAction, goon.ai.actionData]).toEqual([AiAction.RANDOM_PATROL, AiAction.NONE, PATROL_DESTINATION]);
+    }
   });
 });
 

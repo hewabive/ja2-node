@@ -24,7 +24,7 @@ facts and quests: the store, start, end, history  strategic/narrative/facts.ts, 
   callers: records (24), actions (35), tactical   NarrativeFlow.checkFact, TacticalState.narrative.fact
   rewards: squad experience, loyalty per NPC      strategic/narrative/rewards.ts
 tactical quest rules, through the port            tactical/narrative/port.ts, campaign/narrative-port.ts
-  a new sighting of our merc                      tactical/narrative/sight-rules.ts
+  seeing and losing sight of our merc             tactical/narrative/sight-rules.ts
   a step: escorts, assassins, boxing              tactical/narrative/escort-arrival.ts, assassin-approach.ts, boxing.ts
   a pressure item or switch underfoot             tactical/narrative/quest-items.ts
   a hit and a death                               tactical/combat/hit.ts, death.ts → tactical/narrative/death-rules.ts
@@ -44,7 +44,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `strategic/narrative/npc-events.ts`, `kingpin.ts`, `hospital.ts` | Pablo's returned goods and the damaged package, Kingpin's money, hospital prices, refunds and supplies (the NPC system events as a whole are `35`'s) |
 | `strategic/narrative/presence.ts`, `profiled-enemies.ts` | The terrorists' and assassins' toughening and the assassin pick; Mike and Iggy as the army's elites |
 | `campaign/narrative/narrative-flow.ts`, `quest-world.ts` | `NarrativeFlow`: the campaign's facts and quests, its `FactContext`, the profile deaths with campaign effects (Dynamo, Kingpin, Doreen); the world side of the strategic checks |
-| `tactical/narrative/sight-rules.ts`, `escort-arrival.ts`, `assassin-approach.ts`, `death-rules.ts`, `quest-items.ts` | The quest rules of a sighting, a step, a death and the quest action items |
+| `tactical/narrative/sight-rules.ts`, `escort-arrival.ts`, `assassin-approach.ts`, `death-rules.ts`, `quest-items.ts` | The quest rules of a sighting and its loss, a step, a death and the quest action items |
 | `tactical/narrative/boxing.ts`, `boxing-state.ts`, `boxing-events.ts`; `tactical/ai/decide-boxing.ts` | The match, the state tests the original spreads over tactical code, the boxers' AI |
 | `strategic/forces/helicopter.ts`, `helicopter-state.ts`, `helicopter-events.ts`, `vehicles.ts`; `campaign/helicopter-flow.ts` | Skyrider's helicopter; `HelicopterFlow`: the hover events, the hourly debt, the monologues, the KILL_CHOPPER meanwhile, the commands |
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
@@ -156,4 +156,4 @@ Inferred from reading the source:
 
 Not ported: gaps "Melee specials" (heads from decapitation), "Strategic move refusals" (the museum chalice), "Map items",
 "Ground vehicles", "Helicopter on the map", "Profile sectors of Skyrider and the helicopter", "Helicopter entrance",
-"Guard room run", "Implications of an attack", "Creature quest scripting", "Vehicles as characters".
+"Implications of an attack", "Creature quest scripting", "Vehicles as characters".
