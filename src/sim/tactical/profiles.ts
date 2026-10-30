@@ -157,6 +157,7 @@ export interface ProfileProgress extends NpcProfileFields {
   gridNo: number;
   lastDateSpokenTo: number;
   nickname?: string;
+  bodyType?: number;
   readonly inventory: number[];
   readonly inventoryStatus: number[];
   readonly inventoryCount: number[];
@@ -301,6 +302,7 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
     quoteActionId: p.quoteActionId,
     gridNo: saved ? p.gridNo : 0,
     lastDateSpokenTo: p.lastDateSpokenTo,
+    ...(saved ? { bodyType: p.bodyType } : {}),
     inventory: [...p.inventory],
     inventoryStatus: [...p.inventoryStatus],
     inventoryCount: [...p.inventoryCount],

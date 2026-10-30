@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
 import { progressFromProfile } from './profiles.ts';
+import { Body } from './soldier.ts';
 
 const LEFTOVER_GRIDNO = 25700;
 const ANY_ITEM = 1;
+const KICKED_OUT_BODY = Body.REGMALE;
 
 function profileWithLeftovers(): MercProfile {
   const json = JSON.parse(readFileSync(join(import.meta.dirname, '../../..', STUB_PROFILES_PATH), 'utf8'));
@@ -26,5 +28,11 @@ describe('profile progress', () => {
     const progress = progressFromProfile(profileWithLeftovers(), undefined, true);
     expect(progress.useProfileInsertion).toBe(true);
     expect(progress.gridNo).toBe(LEFTOVER_GRIDNO);
+  });
+
+  it("takes a savegame profile's body type over the content's, as a kick-out out of the wheelchair saves it", () => {
+    const saved = { ...profileWithLeftovers(), bodyType: KICKED_OUT_BODY };
+    expect(progressFromProfile(saved, undefined, true).bodyType).toBe(KICKED_OUT_BODY);
+    expect(progressFromProfile(saved).bodyType).toBeUndefined();
   });
 });

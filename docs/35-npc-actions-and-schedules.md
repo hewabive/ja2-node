@@ -149,4 +149,4 @@ every profile's sector. Inferred from reading the source:
 
 Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "Implications of an attack", "NPC draws first
 and minor offenses", "NPC traversal off the map", "NPC opens a door on arrival", "Team changes". Other deviations of
-this domain: "Terrorist names", "NPC gives an item"; the wheelchair kick-out is gaps "Wheelchair kick-out".
+this domain: "Terrorist names", "NPC gives an item".

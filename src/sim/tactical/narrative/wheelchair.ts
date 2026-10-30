@@ -7,7 +7,8 @@ import { anim } from '../anim-states.ts';
 import { initNewSoldierAnim } from '../animation.ts';
 import { setSoldierPosition, stopMerc } from '../movement.ts';
 import { newOKDestination } from '../pathfinding.ts';
-import { Body, type Soldier, Team } from '../soldier.ts';
+import { profileProgress } from '../profiles.ts';
+import { Body, NO_PROFILE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { Profile } from './constants.ts';
 
@@ -22,6 +23,8 @@ export function kickOutWheelchair(t: TacticalState, s: Soldier): void {
   s.bodyType = Body.REGMALE;
   if (s.profile === Profile.SLAY && s.team === Team.CIV && !s.neutral) t.narrative.npcAction(s.profile, THREATENINGLY_RAISE_GUN, 0);
   else initNewSoldierAnim(t, s, anim(t.content, 'STANDING'), 0, true);
+  const profile = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
+  if (profile) profile.bodyType = Body.REGMALE;
 }
 
 export function wheelchairOpcode(t: TacticalState, s: Soldier, code: number): 'continue' | null {

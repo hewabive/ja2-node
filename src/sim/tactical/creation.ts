@@ -620,6 +620,7 @@ function withCampaignProgress(p: MercProfile, live: ProfileProgress | undefined)
   return {
     ...p,
     nickname: live.nickname ?? p.nickname,
+    bodyType: live.bodyType ?? p.bodyType,
     life: live.life,
     lifeMax: st.lifeMax,
     agility: st.agility,
@@ -819,7 +820,7 @@ export function createHiredMerc(
     team: Team.OUR,
     name: profile.nickname || profile.name,
     profile: profile.id,
-    bodyType: profile.bodyType,
+    bodyType: progress.bodyType ?? profile.bodyType,
     palettes: {
       hair: profile.palettes.hair,
       skin: profile.palettes.skin,
