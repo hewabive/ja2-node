@@ -7,6 +7,7 @@ import { readStrategicAiSections } from '../../src/content/formats/savegame-stra
 import { ItemClass, type ItemTable, loadItemTable, NOTHING } from '../../src/content/items/items.ts';
 import { DealerType, loadMerchantContent, type MerchantContent } from '../../src/content/strategic/merchant-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import { createItems, type ItemObject, MAX_ATTACHMENTS, MAX_OBJECTS_PER_SLOT, NO_PROFILE } from '../../src/sim/items/object.ts';
 import {
   type DealerBox,
@@ -270,8 +271,8 @@ export class MerchantComparer {
     importMerchants(this.#state, readSavedMerchants(bytes, save.sections));
     this.#world.gunNut = save.header.initialGameOptions.gunNut;
     this.#world.progress = readStrategicAiSections(bytes, save).status.highestProgress;
-    this.#world.minutes = Math.trunc(save.clock.gameClock / SECONDS_PER_MINUTE);
-    this.#world.day = Math.trunc(this.#world.minutes / MINUTES_PER_DAY);
+    this.#world.minutes = idiv(save.clock.gameClock, SECONDS_PER_MINUTE);
+    this.#world.day = idiv(this.#world.minutes, MINUTES_PER_DAY);
     importNarrative(this.#narrative, save.facts, save.quests);
     this.#hours = null;
   }
@@ -333,8 +334,8 @@ export class MerchantComparer {
         this.#hours = p.active ? { open: Number(p.open), close: Number(p.close) } : null;
         return 0;
       case 'skiptime':
-        this.#world.minutes = Math.trunc(Number(p.worldSeconds) / SECONDS_PER_MINUTE);
-        this.#world.day = Math.trunc(this.#world.minutes / MINUTES_PER_DAY);
+        this.#world.minutes = idiv(Number(p.worldSeconds), SECONDS_PER_MINUTE);
+        this.#world.day = idiv(this.#world.minutes, MINUTES_PER_DAY);
         return 0;
       case 'dealerprice':
         return this.#comparePrice(ctx, label, p);

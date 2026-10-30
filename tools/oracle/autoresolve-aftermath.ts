@@ -1,4 +1,5 @@
 import { parseSectorString, type Sector, sectorId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
+import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { enemyGroupCounts } from '../../src/sim/campaign/autoresolve-strategic.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
@@ -39,7 +40,7 @@ export function applyArSetup(r: Report, c: CampaignSim, setup: Json): Sector {
   info.numElites = elites;
   const clock = c.state.clock;
   const day = num(setup.day);
-  if (Math.trunc(clock.seconds / SECONDS_PER_DAY) !== day) {
+  if (idiv(clock.seconds, SECONDS_PER_DAY) !== day) {
     clock.seconds = day * SECONDS_PER_DAY + (clock.seconds % SECONDS_PER_DAY);
     clock.previousSeconds = clock.seconds;
   }

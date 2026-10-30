@@ -10,6 +10,7 @@ import { type EconomyContent, loadEconomyContent } from '../../src/content/strat
 import { parseSectorString, sectorFromId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import { objectFromRecord } from '../../src/sim/items/object.ts';
 import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../../src/sim/strategic/economy/assignment-done.ts';
@@ -88,13 +89,13 @@ function naturalStats(s: SavedSoldier): MercStats {
 
 function effectiveStats(s: SavedSoldier): MercStats {
   const n = naturalStats(s);
-  const half = Math.trunc(n.strength / 2);
-  const effectiveLife = s.stats.life + Math.trunc((s.stats.lifeMax - s.stats.life - s.bleeding) / 2);
+  const half = idiv(n.strength, 2);
+  const effectiveLife = s.stats.life + idiv(s.stats.lifeMax - s.stats.life - s.bleeding, 2);
   const weight = s.motion.weightCarriedAtTurnStart;
   return {
     ...n,
-    strength: Math.max(half + Math.trunc((half * effectiveLife) / s.stats.lifeMax), MIN_EFFECTIVE_STRENGTH),
-    agility: weight > NORMAL_WEIGHT ? Math.trunc((n.agility * 100) / weight) : n.agility,
+    strength: Math.max(half + idiv(half * effectiveLife, s.stats.lifeMax), MIN_EFFECTIVE_STRENGTH),
+    agility: weight > NORMAL_WEIGHT ? idiv(n.agility * 100, weight) : n.agility,
     expLevel: Math.max(n.expLevel, 1),
   };
 }

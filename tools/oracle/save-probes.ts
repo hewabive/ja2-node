@@ -7,6 +7,7 @@ import { ItemClass } from '../../src/content/items/items.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import { isVisibleTile, WORLD_COLS } from '../../src/content/world/grid.ts';
+import { idiv } from '../../src/core/int.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
@@ -74,7 +75,7 @@ for (const name of names) {
     for (const target of fighters.filter((t) => opposed(mover, t)))
       lines.push(`path who=${mover.id} to=${target.gridNo} mode=run flags=${PATH_IGNORE_PERSON_AT_DEST}`);
     const x = mover.gridNo % WORLD_COLS;
-    const y = Math.trunc(mover.gridNo / WORLD_COLS);
+    const y = idiv(mover.gridNo, WORLD_COLS);
     for (const [dx, dy] of SPOKES) {
       const g = (y + dy * PATH_SPOKE_TILES) * WORLD_COLS + x + dx * PATH_SPOKE_TILES;
       if (isVisibleTile(g)) lines.push(`path who=${mover.id} to=${g} mode=${mover.team === Team.OUR ? 'walk' : 'swat'}`);
@@ -84,7 +85,7 @@ for (const name of names) {
     for (const target of soldiers.filter((t) => opposed(viewer, t)))
       lines.push(`light g=${target.gridNo} level=${target.level} viewer=${viewer.id}`);
     const x = viewer.gridNo % WORLD_COLS;
-    const y = Math.trunc(viewer.gridNo / WORLD_COLS);
+    const y = idiv(viewer.gridNo, WORLD_COLS);
     for (const distance of LIGHT_SPOKE_TILES) {
       for (const [dx, dy] of SPOKES) {
         const g = (y + dy * distance) * WORLD_COLS + x + dx * distance;

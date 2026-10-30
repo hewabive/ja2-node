@@ -1,5 +1,6 @@
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
@@ -430,7 +431,7 @@ export class ActionComparer {
     const world = c.state.worldSector;
     if (!t || !primary || primary.deliverySector === null || !world) return [];
     const x = (primary.deliverySector % 16) + 1;
-    const y = Math.trunc(primary.deliverySector / 16) + 1;
+    const y = idiv(primary.deliverySector, 16) + 1;
     if (world.x !== x || world.y !== y || world.z !== primary.deliverySectorZ) return [];
     return sortedRows(
       t.worldItems

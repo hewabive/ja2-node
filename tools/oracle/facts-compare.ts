@@ -1,5 +1,6 @@
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
@@ -331,7 +332,7 @@ export class FactComparer {
 
   #hourly(c: CampaignSim, hour: number): void {
     const clock = c.state.clock;
-    clock.seconds = Math.trunc(clock.seconds / SECONDS_PER_DAY) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
+    clock.seconds = idiv(clock.seconds, SECONDS_PER_DAY) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
     hourlyQuestUpdate(c.state.narrative, hour);
     const slots = c.narrative.periodicSlots(null);
     slots.hourlyCheckIfSlayAloneSoHeCanLeave?.();

@@ -1,4 +1,5 @@
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { idiv } from '../../src/core/int.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
@@ -374,7 +375,7 @@ export class ContractComparer {
   #setTime(flow: ContractFlow, a: Record<string, string>): void {
     const now = worldTotalMinutes(flow.state.clock);
     const target = num(a.hour, 0) * 60 + num(a.minute, 0);
-    const today = Math.trunc(now / NUM_MIN_IN_DAY) * NUM_MIN_IN_DAY;
+    const today = idiv(now, NUM_MIN_IN_DAY) * NUM_MIN_IN_DAY;
     const at =
       a.day !== undefined
         ? Number(a.day) * NUM_MIN_IN_DAY + target
@@ -470,7 +471,7 @@ export class ContractComparer {
         case 'equipleft': {
           const drassen = a.where === 'drassen';
           const sector = drassen ? primaryAirportSector(flow) : flow.campaign.strategic?.content.policy.startSector;
-          const target = typeof sector === 'number' ? { x: (sector % 16) + 1, y: Math.trunc(sector / 16) + 1, z: 0 } : sector;
+          const target = typeof sector === 'number' ? { x: (sector % 16) + 1, y: idiv(sector, 16) + 1, z: 0 } : sector;
           if (target)
             handleEquipmentLeft(
               flow,
