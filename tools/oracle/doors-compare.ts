@@ -1,6 +1,7 @@
 import { NOTHING } from '../../src/content/items/items.ts';
 import { StructureFlags } from '../../src/content/world/structures.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { u8 } from '../../src/core/int.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
@@ -254,7 +255,7 @@ function soldierFacts(t: TacticalState, s: Soldier): Json {
     lastSkillCheck: s.lastSkillCheck,
     skillCheckAttempts: s.skillCheckAttempts,
     skillCheckGridNo: s.skillCheckGridNo,
-    inventory: s.inv.flatMap((o, slot) => (o.item === NOTHING ? [] : [[slot, o.item, o.status[0] ?? 0, o.count, o.keyId & 0xff]])),
+    inventory: s.inv.flatMap((o, slot) => (o.item === NOTHING ? [] : [[slot, o.item, o.status[0] ?? 0, o.count, u8(o.keyId)]])),
     keyRing: (s.keyRing ?? []).flatMap((k, slot) => (k.count === 0 ? [] : [[slot, k.keyId, k.count]])),
   };
   if (progress) facts.gains = GAIN_ORDER.map((stat) => progress.gains[STAT_KEYS[stat] ?? 'experience']);
