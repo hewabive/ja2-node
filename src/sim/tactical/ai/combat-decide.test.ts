@@ -8,8 +8,10 @@ import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts
 import { states } from '../animation.ts';
 import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
+import { SmokeTile } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { AlertStatus, Attitude, NOBODY, type Soldier, Team } from '../soldier.ts';
+import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { AiAction } from './actions.ts';
@@ -121,5 +123,49 @@ describe('the mortar room in black (DecideAction.cc DecideActionBlack)', () => {
     expect(action).not.toBe(AiAction.TOSS_PROJECTILE);
     expect(action).not.toBe(AiAction.GET_CLOSER);
     expect(acts).toBe(0);
+  });
+});
+
+describe('the Tixa gas mask (DecideAction.cc DecideActionRed, DecideActionBlack)', () => {
+  const TIXA_BASEMENT = { x: 9, y: 10, z: 1 };
+  const BESIDE_TIXA = { x: 10, y: 10, z: 0 };
+  const PUT_ON = 0;
+  const LEAVE_OFF = 1;
+
+  function decision(decide: typeof decideActionRed, alert: number, sector: SectorRef, script: readonly number[], gassed = false) {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    t.sector = sector;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 100), Direction.NORTH);
+    const guard = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+    guard.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('GASMASK'), 100);
+    guard.ai.alertStatus = alert;
+    if (gassed) t.explosives.smokeTiles[0][guard.gridNo] = SmokeTile.TEARGAS;
+    const pre = new ScriptedStream(script, 0);
+    Object.assign(t, { pre });
+    decide(t, guard, NO_GREEN_DECISION);
+    return { requested: pre.requested, masked: guard.inv[InvSlot.HEAD1]?.item === item('GASMASK') };
+  }
+
+  it('gives a soldier out of gas anywhere in Tixa, in red or black, one chance in ten to put on the gas mask he carries', () => {
+    for (const [decide, alert] of [
+      [decideActionRed, AlertStatus.RED],
+      [decideActionBlack, AlertStatus.BLACK],
+    ] as const) {
+      const elsewhere = decision(decide, alert, BESIDE_TIXA, []);
+      expect(elsewhere.masked).toBe(false);
+      expect(decision(decide, alert, TIXA_BASEMENT, [LEAVE_OFF])).toEqual({ requested: [10, ...elsewhere.requested], masked: false });
+      expect(decision(decide, alert, TIXA_BASEMENT, [PUT_ON]).masked).toBe(true);
+    }
+  });
+
+  it('draws nothing for a soldier standing in gas', () => {
+    for (const [decide, alert] of [
+      [decideActionRed, AlertStatus.RED],
+      [decideActionBlack, AlertStatus.BLACK],
+    ] as const) {
+      const elsewhere = decision(decide, alert, BESIDE_TIXA, [], true);
+      expect(decision(decide, alert, TIXA_BASEMENT, [], true)).toEqual(elsewhere);
+    }
   });
 });

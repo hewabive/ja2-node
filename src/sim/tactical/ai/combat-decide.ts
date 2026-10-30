@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches).
+// @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches and
+// @src the Tixa gas mask draw).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
@@ -16,12 +17,12 @@ import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { okFallDirection } from '../combat/hit.ts';
 import { AiMorale, AimShot } from '../combat/types.ts';
-import { inGasOrSmoke } from '../explosions/smoke.ts';
+import { inGasOrSmoke, wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { BoxingState, boxingHalvesPoints } from '../narrative/boxing-state.ts';
-import { CivGroupHostility } from '../narrative/constants.ts';
+import { CivGroupHostility, TIXA_SECTOR } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -90,6 +91,7 @@ const AP_CROUCH = 2;
 const RADIO_RED_ALERT_BY_DIFFICULTY = [50, 65, 80, 90, 95];
 const IRRELEVANT = -1;
 const OPPONENT_LEVEL_UNTRACKED = 0;
+const TIXA_GAS_MASK_CHANCE = 10;
 
 const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
@@ -101,6 +103,15 @@ const groupStillNeutral = (t: TacticalState, s: Soldier) => civGroupHostility(t.
 
 function civilianForYellow(s: Soldier): boolean {
   return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+}
+
+function inTixa(t: TacticalState): boolean {
+  return t.sector !== null && t.sector.x === TIXA_SECTOR.x && t.sector.y === TIXA_SECTOR.y;
+}
+
+function maybePutOnGasMaskInTixa(t: TacticalState, s: Soldier, gas: boolean): void {
+  if (gas || !inTixa(t)) return;
+  if (t.pre.int(TIXA_GAS_MASK_CHANCE) === 0) wearGasMaskIfAvailable(t, s);
 }
 
 function civilianForRed(t: TacticalState, s: Soldier): boolean {
@@ -432,6 +443,7 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
   const water = isWater(t.pathWorld, s.gridNo);
   const deep = deepWater(t, s.gridNo);
   const gas = inGasOrSmoke(t, s, s.gridNo);
+  maybePutOnGasMaskInTixa(t, s, gas);
   if (gas && canMove) {
     ai.actionData = findNearestUngassedLand(t, s);
     if (ai.actionData !== NOWHERE) return AiAction.LEAVE_WATER_GAS;
@@ -767,6 +779,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     deep = deepWater(t, s.gridNo);
     gas = inGasOrSmoke(t, s, s.gridNo);
     ai.morale = calcMorale(t, s);
+    maybePutOnGasMaskInTixa(t, s, gas);
     if (gas || s.breath < 5) {
       if (canMove) {
         ai.actionData = findSpotMaxDistFromOpponents(t, s);

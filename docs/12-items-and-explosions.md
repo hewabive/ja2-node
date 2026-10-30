@@ -91,7 +91,9 @@ hits adds his own hold (`33`).
 **Gas is state beside the soldier.** The gassed state, the per-round gas flags and the one-hit-per-blast flag live per
 soldier id in `ExplosivesState` (deviation "Gassed soldiers"). Clouds and flares age by world seconds, which stand still
 in turn-based combat; the sandbox counts its own (deviation "World clock for smoke and light"). Sight reads the gas and
-smoke layer of the tiles (`08`).
+smoke layer of the tiles (`08`). A soldier of the computer teams puts on a gas mask he carries when his team is called
+to an alarm or an ambush, when he hears an alarm (civilians too) and, in Tixa only, on a `pre` draw of a RED or BLACK
+decision (`wearGasMaskIfAvailable`, `explosions/smoke.ts`).
 
 **Structures report damage.** Before a structure takes a hit, the O3 statue may take it (`26`); after a damaging hit
 the brothel listener runs, then `SectorHooks.structureDamaged` (the SAM sites, `18`), both with the wound before the
@@ -151,8 +153,8 @@ source:
   flare never fades during turn-based combat.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Wrecked
-structures", "Building owners", "Drugs and alcohol", "Auto-bandage", "Ambush" (gas masks), "Walking side effects"
-(water damage to items), "Tossing from the item cursor", "Inventory panel clicks". Other deviations of this domain:
-"Object union", "Item cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion
-timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and
-light", "Cosmetic draws in explosions".
+structures", "Building owners", "Drugs and alcohol", "Auto-bandage", "Walking side effects" (water damage to items),
+"Tossing from the item cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
+cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
+pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and light", "Cosmetic draws in
+explosions".

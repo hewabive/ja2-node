@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { runUntilIdle as runSimUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { ItemClass } from '../../../content/items/items.ts';
+import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { Direction } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
@@ -15,11 +15,12 @@ import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { pickGridNoNearestEdge, setActionToDoOnceMercsGetToLocation } from '../sector-exit.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { WaitForMercs } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
+import { handleDoorTrap } from './door-traps.ts';
 import { keyRingView } from './door-view.ts';
 import { newKeyRing } from './key-ring.ts';
 import { attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
@@ -254,6 +255,22 @@ describe('the stub village door', () => {
     expect(pre.requested).toEqual([3, 10]);
     expect(s.life).toBe(life - 14);
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.ELECTRIC, perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
+  });
+
+  it('calls the computer teams to a silent alarm, each soldier putting on a gas mask he carries (Knowledge.cc CallAvailableTeamEnemiesTo)', () => {
+    const sim = village();
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    const soldier = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, FAR, NORTH);
+    const civilian = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, FAR + 2, NORTH);
+    const mask = kit.content.items.byName.get('GASMASK')?.index ?? -1;
+    for (const s of [merc, soldier, civilian]) s.inv[InvSlot.BIGPOCK1] = createItem(kit.content.items, mask, 100);
+    updateDoor(t, DOOR, { trapId: DoorTrap.SILENT_ALARM });
+    const door = findDoorInfo(t, DOOR);
+    if (!door) throw new Error('no stub door info');
+    handleDoorTrap(t, merc, door);
+    expect(t.perception.publicNoiseGridNo[Team.ENEMY]).toBe(DOOR);
+    expect([merc, soldier, civilian].map((s) => s.inv[InvSlot.HEAD1]?.item)).toEqual([NOTHING, mask, NOTHING]);
   });
 });
 

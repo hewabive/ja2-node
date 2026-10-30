@@ -86,6 +86,7 @@ import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
@@ -209,8 +210,6 @@ const NEIGHBOURS = [
   [-1, 0],
 ] as const;
 const SKIMMING_AMBUSH_FLAG = 0x10;
-const MAX_MISC_NOISE_DURATION = 12;
-const COMPUTER_TEAMS = [Team.ENEMY, Team.CREATURE, Team.MILITIA] as const;
 
 const TIXA_CAVE: Sector = { x: 9, y: 10, z: 2 };
 const MILITIA_LEVEL_GREEN = 0;
@@ -801,13 +800,7 @@ export class SectorFlow {
     if (code !== EncounterCode.ENEMY_AMBUSH && code !== EncounterCode.BLOODCAT_AMBUSH) return;
     const center = t.world.map?.info.centerGridNo ?? -1;
     if (center === -1) return;
-    for (const team of COMPUTER_TEAMS) {
-      const members = teamMembers(t, team);
-      if (members.length === 0) continue;
-      t.perception.publicNoiseGridNo[team] = center;
-      t.perception.publicNoiseVolume[team] = MAX_MISC_NOISE_DURATION;
-      for (const s of members) if (s.life >= OKLIFE) t.perceptionHooks.setNewSituation(s);
-    }
+    callAvailableEnemiesTo(t, center);
   }
 
   #insertionContext(m: RosterMerc | null): InsertionContext {

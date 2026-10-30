@@ -9,6 +9,7 @@ import { soldierTakeDamage } from '../combat/hit.ts';
 import { calcTrapDetectLevel, SkillCheckReason, skillCheck } from '../combat/skill-check.ts';
 import { DamageReason } from '../combat/types.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
+import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { Profile } from '../narrative/constants.ts';
 import { CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
@@ -47,7 +48,11 @@ function callAvailableTeamEnemiesTo(t: TacticalState, gridNo: number, team: numb
   if (members.length === 0) return;
   t.perception.publicNoiseGridNo[team] = gridNo;
   t.perception.publicNoiseVolume[team] = MAX_MISC_NOISE_DURATION;
-  for (const s of members) if (s.life >= OKLIFE) t.perceptionHooks.setNewSituation(s);
+  for (const s of members) {
+    if (s.life < OKLIFE) continue;
+    t.perceptionHooks.setNewSituation(s);
+    wearGasMaskIfAvailable(t, s);
+  }
 }
 
 export function callAvailableEnemiesTo(t: TacticalState, gridNo: number): void {
