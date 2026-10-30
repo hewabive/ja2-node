@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/SaveLoadGame.cc LoadSavedGame (the loaded world test, the tactical part), LoadOppListInfoFromSavedGame;
+// @src src/game/SaveLoadGame.cc LoadSavedGame (the tactical part), LoadOppListInfoFromSavedGame;
 // @src Tactical/Tactical_Save.cc LoadCurrentSectorsInformationFromTempItemsFile, LoadAndAddWorldItemsFromTempFile,
 // @src LoadRottingCorpsesFromTempCorpseFile;
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile,
@@ -13,7 +13,6 @@
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
-import { isValidSectorPosition, type SectorPosition } from '../../content/formats/savegame-header.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import { MapModificationType, type SavedCorpse, type SavedDoorStatus } from '../../content/formats/savegame-temp-files.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
@@ -21,11 +20,13 @@ import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { i16, u8 } from '../../core/int.ts';
+import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
-import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
+import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { addCorpseStructure, type Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
+import type { KeyTable } from './doors/keys.ts';
 import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
 import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
@@ -33,10 +34,10 @@ import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
-import { progressFromProfile } from './profiles.ts';
+import { type ProfileProgress, progressFromProfile } from './profiles.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
-import { registerSoldier, type TacticalState } from './state.ts';
+import { type RealtimeClock, registerSoldier, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool } from './world-items.ts';
 
@@ -58,7 +59,7 @@ const AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE = 0x40;
 const AI_FLAG_CHECK_SCHEDULE = 0x80;
 
 export interface SaveImportReport {
-  readonly mapPath: string;
+  readonly mapPath: string | null;
   readonly soldiers: number;
   readonly worldItems: number;
   readonly corpses: number;
@@ -66,14 +67,12 @@ export interface SaveImportReport {
   readonly droppedOptions?: readonly DroppedNativeOption[];
 }
 
-export interface SavedWorld {
-  readonly header: { readonly worldLoaded: boolean };
-  readonly tactical: { readonly worldSector: SectorPosition };
-}
-
-export function worldImportRefusal(save: SavedWorld): string | null {
-  if (save.header.worldLoaded && isValidSectorPosition(save.tactical.worldSector)) return null;
-  return 'the save was made with no sector loaded';
+export interface CampaignWideState {
+  readonly civGroups: CivGroupState;
+  readonly keyTable: KeyTable;
+  readonly profiles: Map<number, ProfileProgress>;
+  readonly realtimeClock: RealtimeClock;
+  readonly pre: PreRandom;
 }
 
 export function saveMapPath(save: SaveGame): string {
@@ -104,12 +103,6 @@ export function importSave(sim: TacticalSim, save: SaveGame, presentation: Prese
   const t = sim.state;
   applyClock(t, save);
   t.sector = { ...save.tactical.worldSector };
-  importCivGroupHostility(t.civGroups, save.tactical.civGroupHostile);
-  save.keyTable.forEach((k, id) => {
-    const entry = t.keyTable[id];
-    if (entry) Object.assign(entry, k);
-  });
-  importProfileProgress(t, save);
   loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
@@ -121,15 +114,22 @@ export function importSave(sim: TacticalSim, save: SaveGame, presentation: Prese
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
   importTurnState(t, save);
-  t.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
+  importCampaignWideState(t, save);
   lightSetBaseLevel(t, savedAmbientLight(sim, save));
   return { mapPath: sim.mapPath, soldiers, worldItems, corpses, skippedMapModifications };
 }
 
-function importProfileProgress(t: TacticalState, save: SaveGame): void {
-  save.profiles.forEach((p, id) => {
-    if (p) t.profiles.set(id, progressFromProfile(p, p, true));
+export function importCampaignWideState(state: CampaignWideState, save: SaveGame): void {
+  importCivGroupHostility(state.civGroups, save.tactical.civGroupHostile);
+  save.keyTable.forEach((k, id) => {
+    const entry = state.keyTable[id];
+    if (entry) Object.assign(entry, k);
   });
+  save.profiles.forEach((p, id) => {
+    if (p) state.profiles.set(id, progressFromProfile(p, p, true));
+  });
+  state.realtimeClock.lastOpplistDecaySeconds = save.tactical.timeSinceLastOpplistDecay;
+  state.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
 }
 
 function applyClock(t: TacticalState, save: SaveGame): void {
@@ -598,7 +598,6 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.consNumTurnsWeHaventSeenButEnemyDoes = ts.consecutiveTurnsWeHaventSeenButEnemyDoes;
   turn.unlockUIAfterHiddenInterrupt = ts.unlockUiAfterHiddenInterrupt;
   t.smell.lastDecaySeconds = ts.decayBloodLastUpdate;
-  t.realtimeClock.lastOpplistDecaySeconds = ts.timeSinceLastOpplistDecay;
   ts.numFoughtInBattle.forEach((n, team) => {
     turn.numFoughtInBattle[team] = n;
   });

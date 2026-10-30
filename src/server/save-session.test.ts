@@ -3,7 +3,9 @@ import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
-import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
+import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH, SAVE_HEADER_BYTES } from '../content/formats/savegame-header.ts';
+import { layoutOffsets } from '../content/formats/savegame-layout.ts';
+import { TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { StructureFlags } from '../content/world/structures.ts';
@@ -30,7 +32,7 @@ const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) :
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into the tactical simulation', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
@@ -41,21 +43,82 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into the tactical
     await data.close();
   });
 
-  it.skipIf(saveFiles.length === 0)('refuses a save made with no sector loaded before reading any map or importing anything', async () => {
-    const bytes = new Uint8Array(readFileSync(join(savesDir, saveFiles[0] ?? '')));
+  function withoutWorld(file: string, justStarted = false): Uint8Array {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
     expect(parseSaveHeader(bytes).stracLinuxFormat).toBe(false);
     bytes[WINDOWS_WORLD_LOADED_OFFSET] = 0;
+    if (justStarted) bytes[SAVE_HEADER_BYTES + (layoutOffsets(TACTICAL_STATUS_LAYOUT, false).get('fDidGameJustStart') ?? 0)] = 1;
     expect(parseSaveHeader(bytes).header.worldLoaded).toBe(false);
-    const asked: string[] = [];
-    const watched = (path: string) => {
-      asked.push(path);
-      return read(path);
-    };
-    await expect(createSaveSession(watched, bytes, undefined, (p) => data.vfs.stat(p) !== undefined)).rejects.toThrow(
-      'cannot continue this save: the save was made with no sector loaded',
-    );
-    expect(asked).toEqual([SAVE_ENCRYPTION_PATH]);
-  });
+    return bytes;
+  }
+
+  function sectorName(sector: { readonly x: number; readonly y: number }): string {
+    return `${String.fromCharCode(64 + sector.y)}${sector.x}`;
+  }
+
+  it.skipIf(saveFiles.length === 0)(
+    'continues a save made with no sector loaded on the map screen without reading a map, and a squad sent on loads its sector',
+    async () => {
+      const file = [...saveFiles].sort()[0] ?? '';
+      const bytes = withoutWorld(file);
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const asked: string[] = [];
+      const watched = (path: string) => {
+        asked.push(path);
+        return read(path);
+      };
+      const { session, report } = await createSaveSession(watched, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      expect(asked.filter((p) => p.startsWith('maps/'))).toEqual([]);
+      expect(report).toMatchObject({ mapPath: null, soldiers: 0, worldItems: 0, corpses: 0 });
+      const c = session.campaign;
+      expect([c.tactical, c.state.flow, c.state.worldSector]).toEqual([null, 'strategic', null]);
+      expect(c.state.pre.state()).toEqual({ ring: save.preRandom.numbers, index: save.preRandom.index });
+      expect(c.state.keyTable).toEqual(save.keyTable.map((k) => ({ ...k })));
+      expect(c.state.civGroups.hostility).toEqual([...save.tactical.civGroupHostile]);
+      const mercs = session.roster?.all() ?? [];
+      const saved = save.soldiers.filter((e) => e.soldier.team === Team.OUR && e.soldier.active !== 0);
+      expect(mercs.map((m) => m.id)).toEqual(saved.map((e) => e.soldier.id).sort((a, b) => a - b));
+      expect(mercs.some((m) => m.soldier.placed)).toBe(false);
+      const clock = c.state.clock;
+      const before = clock.seconds;
+      expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({ ok: true });
+      for (let i = 0; i < 2000 && clock.seconds < before + 3600; i++) session.step();
+      expect(clock.seconds).toBeGreaterThanOrEqual(before + 3600);
+      const walker = mercs.find((m) => m.life >= 15 && m.assignment < 20 && !m.betweenSectors);
+      if (!walker) throw new Error(`${file} has no merc on a squad`);
+      const neighbours = [-1, 1].flatMap((dx) => [
+        { x: walker.sector.x + dx, y: walker.sector.y },
+        { x: walker.sector.x, y: walker.sector.y + dx },
+      ]);
+      const target = neighbours.map(sectorName).find((to) => session.dispatch({ type: 'route', soldier: walker.id, to }).ok);
+      if (!target) throw new Error(`${file}: no neighbouring sector to send the squad to`);
+      expect(session.dispatch({ type: 'compressTime', mode: 3 })).toEqual({ ok: true });
+      for (let i = 0; i < 20_000 && (walker.betweenSectors || sectorName(walker.sector) !== target); i++) session.step();
+      expect(sectorName(walker.sector)).toBe(target);
+      const enter = { type: 'enterSector', sector: target };
+      await session.prepare(enter);
+      expect(session.dispatch(enter)).toMatchObject({ ok: true, data: { sector: target } });
+      expect(c.state.flow).toBe('tactical');
+      expect(walker.soldier.placed).toBe(true);
+      expect(advance(session, { ticks: 200 * 10 }, 200 * 10).reason).not.toBe('budget');
+    },
+  );
+
+  it.skipIf(saveFiles.length === 0)(
+    'starts the first arrival from a save made before it, as a new game does, when time first runs',
+    async () => {
+      const bytes = withoutWorld([...saveFiles].sort()[0] ?? '', true);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const c = session.campaign;
+      expect([c.state.didGameJustStart, c.state.flow, c.tactical]).toEqual([true, 'strategic', null]);
+      const compress = { type: 'compressTime', mode: 4 };
+      await session.prepare(compress);
+      expect(session.dispatch(compress)).toEqual({ ok: true });
+      expect([c.state.didGameJustStart, c.state.flow, c.state.worldSector]).toEqual([false, 'tactical', { x: 9, y: 1, z: 0 }]);
+      expect(session.drainEvents().find((e) => e.type === 'sectorLoaded')).toMatchObject({ sector: 'A9', firstArrival: true });
+    },
+  );
 
   for (const file of saveFiles) {
     it(`imports the game options and the music mode of ${file}`, async () => {

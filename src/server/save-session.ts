@@ -1,5 +1,5 @@
 import { requireAnimationTimelines } from '../content/anim/timelines.ts';
-import { parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
+import { loadedWorldSector, parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readSavedMerchants } from '../content/formats/savegame-merchants.ts';
@@ -13,7 +13,7 @@ import { dialogueProfiles, loadLaptopContent } from '../content/strategic/laptop
 import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
-import { loadTacticalWorld } from '../content/world/tactical-world.ts';
+import { loadTacticalWorld, type TacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { initialMusic } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
@@ -25,7 +25,7 @@ import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
 import { importStory, type SavedStory, storyImportRefusal } from '../sim/campaign/story-import.ts';
 import { importNpcRecords } from '../sim/narrative/save-import.ts';
-import { importNativeGameOptions } from '../sim/options.ts';
+import { type GameOptions, importNativeGameOptions } from '../sim/options.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
@@ -34,7 +34,13 @@ import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
 import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
-import { importSave, type SaveImportReport, saveMapPath, worldImportRefusal, worldWithSavedDoors } from '../sim/tactical/save-import.ts';
+import {
+  importCampaignWideState,
+  importSave,
+  type SaveImportReport,
+  saveMapPath,
+  worldWithSavedDoors,
+} from '../sim/tactical/save-import.ts';
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
 import { TEAM_FIRST_ID, TEAM_SIZES, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
@@ -105,31 +111,26 @@ export async function createSaveSession(
   const save = parseSaveGame(saveBytes, encryption);
   const saiSections = readStrategicAiSections(saveBytes, save);
   const story = savedStory(save, saiSections.firstBattleSector);
-  const refusal = storyImportRefusal(story) ?? worldImportRefusal(save);
+  const refusal = storyImportRefusal(story);
   if (refusal) throw new Error(`cannot continue this save: ${refusal}`);
-  const [world, parts] = await Promise.all([loadTacticalWorld(read, saveMapPath(save)), loadImportParts(read, exists, layers, decoding)]);
-  const { content, strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
+  const worldSector = loadedWorldSector(save);
+  const [world, parts] = await Promise.all([
+    worldSector ? loadTacticalWorld(read, saveMapPath(save)) : null,
+    loadImportParts(read, exists, layers, decoding),
+  ]);
+  const { strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const imported = importNativeGameOptions(save.generalInfo.gameOptions);
-  const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed, { options: imported.options });
-  const report: SaveImportReport = { ...importSave(sim, save, parts.presentation), droppedOptions: imported.dropped };
-  const strategic = createStrategicState({
-    seed,
-    options: sim.state.options,
-    streams: { rng: sim.state.rng, pre: sim.state.pre },
-    profiles: sim.state.profiles,
-    civGroups: sim.state.civGroups,
-    keyTable: sim.state.keyTable,
-    boxing: sim.state.boxing,
-    realtimeClock: sim.state.realtimeClock,
-  });
+  const start = world ? startInSavedWorld(world, save, parts, seed, imported.options) : startWithoutWorld(save, seed, imported.options);
+  const { strategic, sim } = start;
+  const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
   importStrategicTime(strategic, save);
-  strategic.worldSector = save.tactical.worldSector;
-  strategic.realMs = sim.state.clockMs;
-  strategic.clock.driver.lastSecondMs = strategic.realMs;
+  strategic.worldSector = worldSector ? { ...worldSector } : null;
   strategic.clock.paused = false;
   strategic.clock.pauseLocked = false;
   const worlds = exists ? new WorldCache(read, exists) : null;
-  const { campaign, roster } = assembleImportedCampaign(parts, strategic, sim, worlds, (r) => addSavedMercsToRoster(r, save, sim.state));
+  const { campaign, roster } = assembleImportedCampaign(parts, strategic, sim, worlds, (r) =>
+    addSavedMercsToRoster(r, save, sim?.state ?? null),
+  );
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
@@ -156,7 +157,7 @@ export async function createSaveSession(
       return profile ? { x: profile.sectorX, y: profile.sectorY, z: profile.sectorZ } : null;
     });
   }
-  campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
+  if (sim) campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
   const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
     kind: 'imported',
     parts,
@@ -164,6 +165,37 @@ export async function createSaveSession(
   });
   session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
   return { session, report };
+}
+
+interface ImportStart {
+  readonly strategic: StrategicState;
+  readonly sim: TacticalSim | null;
+  readonly report: SaveImportReport;
+}
+
+const NO_WORLD_REPORT: SaveImportReport = { mapPath: null, soldiers: 0, worldItems: 0, corpses: 0, skippedMapModifications: 0 };
+
+function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
+  const sim = new TacticalSim(worldWithSavedDoors(world, save), parts.content, seed, { options });
+  const report = importSave(sim, save, parts.presentation);
+  const strategic = createStrategicState({
+    seed,
+    options: sim.state.options,
+    streams: { rng: sim.state.rng, pre: sim.state.pre },
+    profiles: sim.state.profiles,
+    civGroups: sim.state.civGroups,
+    keyTable: sim.state.keyTable,
+    boxing: sim.state.boxing,
+    realtimeClock: sim.state.realtimeClock,
+  });
+  return { strategic, sim, report };
+}
+
+function startWithoutWorld(save: SaveGame, seed: number, options: GameOptions): ImportStart {
+  const strategic = createStrategicState({ seed, options });
+  const { civGroups, keyTable, profiles, pre } = strategic;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock: strategic.sectorFlow.realtimeClock }, save);
+  return { strategic, sim: null, report: NO_WORLD_REPORT };
 }
 
 export async function loadImportParts(

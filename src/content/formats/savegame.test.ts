@@ -6,7 +6,7 @@ import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryWriter } from '../binary/writer.ts';
 import { PROFILE_RECORD_BYTES } from './prof.ts';
-import { LAPTOP_INFO_LAYOUT, parseSaveGame } from './savegame.ts';
+import { LAPTOP_INFO_LAYOUT, loadedWorldSector, parseSaveGame } from './savegame.ts';
 import {
   encryptionSetIndex,
   encryptSaveRecord,
@@ -277,6 +277,16 @@ describe('savegame record layouts', () => {
     expect(layoutBytes(LAPTOP_INFO_LAYOUT, false)).toBe(7440);
     expect(layoutBytes(GENERAL_INFO_LAYOUT, false)).toBe(1024);
     expect(layoutBytes(TEAM_TURNS_LAYOUT, false)).toBe(174);
+  });
+});
+
+describe('the loaded world of a native save (SaveLoadGame.cc LoadSavedGame)', () => {
+  it('is the saved world sector only when the header says a world was loaded and the sector is one', () => {
+    const noSector = { x: 0, y: 0, z: -1 };
+    expect(loadedWorldSector({ header: { worldLoaded: false }, tactical: { worldSector: noSector } })).toBeNull();
+    expect(loadedWorldSector({ header: { worldLoaded: false }, tactical: { worldSector: SECTOR } })).toBeNull();
+    expect(loadedWorldSector({ header: { worldLoaded: true }, tactical: { worldSector: noSector } })).toBeNull();
+    expect(loadedWorldSector({ header: { worldLoaded: true }, tactical: { worldSector: SECTOR } })).toEqual(SECTOR);
   });
 });
 

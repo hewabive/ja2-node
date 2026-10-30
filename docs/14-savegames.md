@@ -14,9 +14,12 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     parseSaveGame: header, layout, encryption, every section    content/formats/savegame.ts
     section readers, from the offsets the parser recorded       content/formats/savegame-*.ts
     refuse a meanwhile or endgame save                          sim/campaign/story-import.ts
-    refuse a save made with no sector loaded                    sim/tactical/save-import.ts
-    TacticalSim on the saved map and door table, importSave     sim/tactical/save-import.ts
-    strategic state on the tactical random streams, then one import per subsystem:
+    the loaded world: loadedWorldSector                         content/formats/savegame.ts
+    with one: TacticalSim on the saved map and door table,      sim/tactical/save-import.ts
+      importSave, strategic state on the tactical random streams
+    without one: strategic state on its own streams,            sim/tactical/save-import.ts
+      importCampaignWideState
+    then one import per subsystem:
       time, roster, merchants, map, strategic AI, story,        sim/**/save-import.ts, sim/campaign/save-roster.ts
       creatures, economy, contracts, laptop, narrative,
       assignments, NPC records, the loaded sector's links and schedules
@@ -44,6 +47,14 @@ balances.
 those files are the sector's live state, and the import applies them. Every other sector's temp files stay raw bytes
 (`tempFiles`): those sectors load from their maps.
 
+**A save without a world.** A save made before the first arrival, or after the last merc left the loaded sector,
+has no world (`SaveLoadGame.cc:731`, `:747`): the original leaves the world sector invalid and opens the map screen. The
+import reads no map and starts as a campaign does after `trashWorld` or before its landing: the strategic flow, no
+tactical sim, `worldSector` null. What a loaded world would carry and outlives it goes into the strategic state
+(`importCampaignWideState`: the PreRandom ring, profiles, key table, civilian groups, the opplist decay time); the
+roster's soldiers are built from their records; the last sector's temp files are left, like every other sector's. An
+imported `didGameJustStart` lands the squad at the first compression, as in a new game.
+
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation), recompiles the movement costs, posts the schedules, powers the map lights for the saved hour, sets the
@@ -65,8 +76,7 @@ reinitialise it on load; neither does the import.
 **Options and origin.** `importNativeGameOptions` keeps difficulty, sci-fi, gun nut and save mode and reports a turn
 time limit as dropped (deviation "Timed turns"). Native saves come from `$JA2_SAVES_DIR` (default `SavedGames` next to
 the data folder) and need the original data; the input log records the file's digest, and a replay refuses a changed
-file. A save made in a meanwhile scene or the endgame sequence is refused (`26`), and so is one made with no sector
-loaded (gaps "Import without a loaded world"), before any map is read.
+file. A save made in a meanwhile scene or the endgame sequence is refused (`26`), before any map is read.
 
 ## 3. Quirks of the original the code keeps
 
@@ -94,15 +104,18 @@ The oracle loads the same files: `tools/oracle/save-probes.ts` writes probes for
 the AI's best shot, sight, paths and lights for every opposed pair), the native build runs them after its `save`
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
 "`save`"); most other comparers start from imported saves too. With the original data, the subsystems' `save-import`
-tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one.
+tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one, and the first
+again with its world flag cleared.
 
 Inferred from reading the source:
 - The Linux layout has a synthetic test only, and no real file covers versions 100–105: the six saves the tests and the
   oracle use (`SaveGame01`, `02`, `07`–`10`) are vanilla version 99.
+- A save without a world: none of the six is one; the tests clear the world flag, and for the first arrival the start
+  flag, of a save made with one.
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Unread savegame sections", "Import without a loaded world". Other deviations of the
+Not ported: gaps "Savegame import", "Unread savegame sections", "Screen after an import". Other deviations of the
 import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground", "Difficulty and
 progress in tactical", "Corpse structure past its file".

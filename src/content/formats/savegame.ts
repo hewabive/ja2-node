@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls
+// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (the loaded world test, 2026-10-30)
 
 import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
@@ -614,6 +614,16 @@ function chooseEncryption(firstProfile: Uint8Array, header: SaveGameHeader, linu
     if (profile.checksum === profileChecksum(profile)) return { key, set, german };
   }
   throw new FormatError('no encryption set yields a valid merc profile checksum');
+}
+
+export interface SavedWorld {
+  readonly header: { readonly worldLoaded: boolean };
+  readonly tactical: { readonly worldSector: SectorPosition };
+}
+
+export function loadedWorldSector(save: SavedWorld): SectorPosition | null {
+  const sector = save.tactical.worldSector;
+  return save.header.worldLoaded && isValidSectorPosition(sector) ? sector : null;
 }
 
 export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable): SaveGame {

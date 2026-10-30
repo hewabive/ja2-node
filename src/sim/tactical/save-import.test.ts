@@ -9,10 +9,11 @@ import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { createStrategicState } from '../strategic/state.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
-import { importSave, worldImportRefusal } from './save-import.ts';
+import { importCampaignWideState, importSave } from './save-import.ts';
 import {
   cellCentre,
   NO_PENDING_ANIMATION,
@@ -46,7 +47,6 @@ const INT16_BYTES = 2;
 const NOBODY = TOTAL_SOLDIERS;
 const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
-const NO_WORLD_SECTOR = { x: 0, y: 0, z: -1 };
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -346,12 +346,23 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
   });
 });
 
-describe('the loaded world of a native save (SaveLoadGame.cc LoadSavedGame)', () => {
-  it('refuses a save made with no sector loaded, and one whose loaded sector is not a sector, which the original loads without a world', () => {
-    const refusal = 'the save was made with no sector loaded';
-    expect(worldImportRefusal({ header: { worldLoaded: false }, tactical: { worldSector: NO_WORLD_SECTOR } })).toBe(refusal);
-    expect(worldImportRefusal({ header: { worldLoaded: false }, tactical: { worldSector: SECTOR } })).toBe(refusal);
-    expect(worldImportRefusal({ header: { worldLoaded: true }, tactical: { worldSector: NO_WORLD_SECTOR } })).toBe(refusal);
-    expect(worldImportRefusal({ header: { worldLoaded: true }, tactical: { worldSector: SECTOR } })).toBeNull();
+describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', () => {
+  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups and the opplist decay', () => {
+    const base = syntheticSave({});
+    const ring = Array.from({ length: 256 }, (_, k) => (k * 37) % 1000);
+    const key = { sectorFound: 12, dateFound: 345 };
+    const save = {
+      ...base,
+      preRandom: { index: 65, numbers: ring },
+      keyTable: [key],
+      tactical: { ...base.tactical, civGroupHostile: [0, 2, 1], timeSinceLastOpplistDecay: 4321 },
+    } as SaveGame;
+    const strategic = createStrategicState({ seed: 1 });
+    const { civGroups, keyTable, profiles, pre } = strategic;
+    importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock: strategic.sectorFlow.realtimeClock }, save);
+    expect(strategic.pre.state()).toEqual({ ring, index: 65 });
+    expect(strategic.keyTable[0]).toEqual(key);
+    expect(strategic.civGroups.hostility.slice(0, 3)).toEqual([0, 2, 1]);
+    expect(strategic.sectorFlow.realtimeClock.lastOpplistDecaySeconds).toBe(4321);
   });
 });

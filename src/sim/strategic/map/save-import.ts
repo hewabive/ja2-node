@@ -5,10 +5,10 @@
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
 // @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals).
 
-import type { SaveGame, StrategicGroup } from '../../../content/formats/savegame.ts';
+import { loadedWorldSector, type SaveGame, type StrategicGroup } from '../../../content/formats/savegame.ts';
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
-import { isValidSector, type Sector } from '../../../content/strategic/sector-ids.ts';
+import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
 import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
 import { emptyPassengerSlots, type Group, type VehicleRecord } from '../forces/groups.ts';
@@ -139,9 +139,9 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   f.helicopterAirborne = info.helicopterAirborne;
   f.helicopter = importHelicopter(info.helicopter);
   state.movement.disableMapInterfaceDueToBattle = info.disableMapInterfaceDueToBattle;
-  const world: Sector = save.tactical.worldSector;
-  state.worldSector = isValidSector(world) ? { ...world } : null;
-  if (save.header.worldLoaded && state.worldSector) applyLoadedSectorMapChanges(ctx, save, state.worldSector);
+  const world = loadedWorldSector(save);
+  state.worldSector = world ? { ...world } : null;
+  if (state.worldSector) applyLoadedSectorMapChanges(ctx, save, state.worldSector);
 }
 
 function applyLoadedSectorMapChanges(ctx: StrategicContext, save: SaveGame, world: Sector): void {
