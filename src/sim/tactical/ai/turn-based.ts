@@ -2,8 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (the close call quotes unless somebody was hit, the civilian-group
 // @src proximity rule and its boxer exception),
-// @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable;
-// @src Soldier_Control.cc SetSoldierAsUnderAiControl.
+// @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
@@ -18,7 +17,7 @@ import { AlertStatus, CivilianGroup, NO_PROFILE, NOWHERE, OKLIFE, Side, type Sol
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { updateEnemyUIBar } from '../turns/top-message.ts';
-import { endAITurn, sayCloseCallQuotes } from '../turns/turns.ts';
+import { endAITurn, sayCloseCallQuotes, setSoldierAsUnderAiControl } from '../turns/turns.ts';
 import { AiAction, Situation } from './actions.ts';
 import type { AiControl } from './control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './decide.ts';
@@ -88,11 +87,6 @@ export function isActionAffordable(t: TacticalState, s: Soldier): boolean {
       break;
   }
   return need <= s.actionPoints;
-}
-
-function setSoldierAsUnderAiControl(t: TacticalState, s: Soldier): void {
-  for (const x of t.soldiers) if (x) x.aiTurnControl = false;
-  s.aiTurnControl = true;
 }
 
 function manChecksOnFriends(t: TacticalState, s: Soldier): void {

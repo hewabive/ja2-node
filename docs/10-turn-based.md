@@ -19,6 +19,8 @@ real time: a look finds a new hostile, the looker is ranked    perception/sight.
   └ enterCombatMode: everyone stops and gets his APs           turns/turns.ts
      our team starts: startPlayerTeamTurn
      an AI team starts: endTurn → beginTeamTurn
+  or an AI soldier is about to attack: npcDoesAct               ai/control.ts
+  └ displayHiddenTurnbased: everyone stops, his team's turn     turns/turns.ts
 team turn: beginMercTurn for each member                        turns/turns.ts, points.ts, combat/bleeding.ts
   ours: orders until End Turn                                   tactical-sim.ts
   AI: buildAIListForTeam → startNPCAI                           turns/ai-list.ts, ai/turn-based.ts
@@ -51,10 +53,15 @@ Native saves restore the turn state and the interrupt queue and drop the enemy-s
 **Who starts.** Out of combat, a look that gives a soldier a new hostile opponent ranks him on the best-sighting list
 by his duel points, computed before the sighting is recorded. The list holds three entries, six when all teams look at
 once or a door opens. The best's team starts, unless the second and the third are both of another team: then the
-second's team starts and the best interrupts it at once. An AI attack decided in real time does not start combat (gap
-"Hidden attacks start combat"). Entering combat stops everyone at his tile centre, cancels the AI's actions and the
-player's pending moves, and adds a turn's APs to what everyone has: real time never spends APs, so everyone starts with
-a full turn plus the maximum carry-over of 5.
+second's team starts and the best interrupts it at once. Entering combat stops everyone at his tile centre, cancels the
+AI's actions and the player's pending moves, and adds a turn's APs to what everyone has: real time never spends APs, so
+everyone starts with a full turn plus the maximum carry-over of 5.
+
+**An AI attack out of combat.** An AI soldier about to shoot, throw or use a knife out of combat starts it himself,
+except in a meanwhile: his team's turn begins with him holding it and the computer's turn bar up (gap "Hidden attacks
+start combat"), without a team turn start, the enemy check of `enterCombatMode` or an AI list. The combat entry cancels
+his attack too, so he decides again with his new APs; when his turn ends no one else of his team acts, and the next team
+follows.
 
 **Team turns.** A round runs our team, the enemy, creatures, militia, civilians, then the end-of-round events (first
 aid, smell, smoke and light decay). A team with nobody in the sector is skipped, an AI team with an empty AI list after
@@ -139,6 +146,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A tie in the interrupt duel goes to the mover | `turns/turns.test.ts` |
 | The point for an opponent seen before needs a second sighting: the first records −1, the test asks for `TRUE` | `turns/turns.test.ts` |
 | An AI interrupt nobody uses stays hidden, and our merc walks on to his destination | `turns/turns.test.ts` |
+| An AI attack out of combat is cancelled by the combat it starts and decided again; the rest of the attacker's team sits that turn out | `ai/combat-ai.test.ts` |
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |

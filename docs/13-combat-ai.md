@@ -133,7 +133,7 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
 
-Not ported: gaps "Combat AI specials", "Red alert in Meduna", "AI threat value", "AI decision details", "Hidden attacks
-start combat", "Underground throws", "Ambush", "AI flares underground". Kept differences: deviations "Armed civilian
-without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and
-bloodcat stub bodies", "Multi-tile turning", "Blood and smell decay period".
+Not ported: gaps "Combat AI specials", "Red alert in Meduna", "AI threat value", "AI decision details", "Underground
+throws", "Ambush", "AI flares underground". Kept differences: deviations "Armed civilian without ammo", "AI climb that
+cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies",
+"Multi-tile turning", "Blood and smell decay period".

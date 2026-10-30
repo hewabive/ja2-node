@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/TeamTurns.cc SayCloseCallQuotes (Random(3) from the gameplay stream), ClearIntList,
 // @src StartPlayerTeamTurn, EndTurn, EndAITurn, EndAllAITurns, EndTurnEvents, BeginTeamTurn, DisplayHiddenInterrupt,
+// @src DisplayHiddenTurnbased (2026-10-30),
 // @src EveryoneInInterruptListOnSameTeam, StartInterrupt, EndInterrupt, DeleteFromIntList, AddToIntList,
 // @src VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs; Overhead.cc CommonEnterCombatModeCode,
 // @src EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode, SoldierHasSeenEnemiesLastFewTurns,
@@ -11,7 +12,8 @@
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
 // @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24); Overhead.cc
-// @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28).
+// @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
+// @src SetSoldierAsUnderAiControl.
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -31,6 +33,7 @@ import { handlePlayerServices, handleTeamServices } from '../first-aid.ts';
 import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
+import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
@@ -377,7 +380,7 @@ export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldi
   t.turn.numFoughtInBattle[s.team] = (t.turn.numFoughtInBattle[s.team] ?? 0) + 1;
 }
 
-function commonEnterCombatModeCode(t: TacticalState): void {
+function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.inCombat = true;
   t.turn.numFoughtInBattle.fill(0);
   t.sectorHooks.combatEntered(t);
@@ -390,14 +393,14 @@ function commonEnterCombatModeCode(t: TacticalState): void {
     calcNewActionPoints(s, boxingHalvesPoints(t));
   }
   t.turn.round = 1;
+  t.events.push({ type: 'combatStarted', team: startTeam });
 }
 
 export function enterCombatMode(t: TacticalState, startTeam: number): void {
   if (t.inCombat) return;
   if (numCapableEnemyInSector(t) === 0) return;
   t.turn.enemyInSector = true;
-  commonEnterCombatModeCode(t);
-  t.events.push({ type: 'combatStarted', team: startTeam });
+  commonEnterCombatModeCode(t, startTeam);
   if (startTeam === Team.OUR) {
     const selected = selectedSoldier(t);
     if (!selected || selected.ai.oppCount === 0) {
@@ -405,6 +408,20 @@ export function enterCombatMode(t: TacticalState, startTeam: number): void {
     }
     startPlayerTeamTurn(t, true);
   } else endTurn(t, startTeam);
+}
+
+export function setSoldierAsUnderAiControl(t: TacticalState, s: Soldier): void {
+  for (const x of t.soldiers) if (x) x.aiTurnControl = false;
+  s.aiTurnControl = true;
+}
+
+export function displayHiddenTurnbased(t: TacticalState, actor: Soldier): void {
+  if (inMeanwhile(t) || t.inCombat) return;
+  t.turn.currentTeam = actor.team;
+  commonEnterCombatModeCode(t, actor.team);
+  setSoldierAsUnderAiControl(t, actor);
+  actor.turnInProgress = true;
+  if (t.turn.topMessage?.kind !== TopMessageKind.COMPUTER_TURN) addTopMessage(t, TopMessageKind.COMPUTER_TURN);
 }
 
 export function exitCombatMode(t: TacticalState): void {

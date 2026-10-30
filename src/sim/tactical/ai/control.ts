@@ -40,7 +40,7 @@ import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
 import { AlertStatus, Attitude, Body, CivilianGroup, isMechanical, isTank, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
-import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
+import { checkForEndOfBattle, displayHiddenInterrupt, displayHiddenTurnbased } from '../turns/turns.ts';
 import {
   AI_DELAY,
   AiAction,
@@ -208,7 +208,16 @@ function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
   }
 }
 
+const VISIBLE_ATTACKS: ReadonlySet<number> = new Set([
+  AiAction.FIRE_GUN,
+  AiAction.TOSS_PROJECTILE,
+  AiAction.KNIFE_MOVE,
+  AiAction.KNIFE_STAB,
+  AiAction.THROW_KNIFE,
+]);
+
 export function npcDoesAct(t: TacticalState, s: Soldier): void {
+  if (!t.inCombat && VISIBLE_ATTACKS.has(s.ai.action)) displayHiddenTurnbased(t, s);
   if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t, s);
   if (s.desiredDirection !== s.direction) s.desiredDirection = s.direction;
 }
