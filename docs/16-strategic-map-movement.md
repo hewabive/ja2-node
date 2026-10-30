@@ -160,7 +160,8 @@ the source:
   ETAs with encumbrance unless every member is in the loaded sector.
 
 Not ported: gaps "Bloodcat lair corpses", "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
-"Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses", "Savegame import". Other
+"Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses", "Savegame import",
+"Creature insertion spot". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
 enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
 import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".

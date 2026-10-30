@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpot, FindGridNoFromSweetSpotThroughPeople,
-// @src FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
+// @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
 // @src FindGridNoFromSweetSpotExcludingSweetSpot; Tactical/PathAI.h SaveNPCBudgetAndDistLimit (the dummy soldier's
 // @src flood); TileEngine/GridSquare.cc GridSquare.
 
 import { cardinalSpacesAway, DIRECTION_COUNT, gridSquare, pythSpacesAway, rangeInCellCoords } from '../../content/world/grid.ts';
 import { states } from './animation.ts';
+import { pathMoveMode } from './movement-mode.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { animStructureDef } from './person-structure.ts';
 import { Body, type Soldier, Team } from './soldier.ts';
@@ -15,6 +16,8 @@ import type { TacticalState } from './state.ts';
 const NO_RANGE = 999999;
 const DUMMY_SOLDIER_ID = 0;
 const SWEET_SPOT_FLOOD_FLAGS = PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE;
+
+const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 
 export function dummySoldier(sweet: number, team: number, level: number): PathSoldier {
   return {
@@ -78,6 +81,34 @@ function structureFitsSomeDirection(t: TacticalState, s: Soldier, animState: num
     if (!def || t.world.structures.okayToAdd(g, s.level, def, s.id)) return true;
   }
   return false;
+}
+
+function pathLength(t: TacticalState, s: Soldier, g: number): number {
+  return findBestPath(t.pathEnv, s, g, s.level, { mode: pathMoveMode(t.content, s.uiMovementMode) }).length;
+}
+
+export interface StructDataSearch {
+  readonly animState: number;
+  readonly closestToMerc: boolean;
+  readonly circular?: boolean;
+}
+
+export function findGridNoFromSweetSpotWithStructData(
+  t: TacticalState,
+  s: Soldier,
+  sweet: number,
+  radius: number,
+  search: StructDataSearch,
+): number {
+  if (s.gridNo === sweet && !isVehicle(s)) return sweet;
+  const flood = { flags: SWEET_SPOT_FLOOD_FLAGS, circular: search.circular ?? false };
+  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, flood);
+  return lowestRanked(reachable, (g) => {
+    if (!freeFor(t, s, g) || !structureFitsSomeDirection(t, s, search.animState, g)) return null;
+    if (!search.closestToMerc) return rangeInCellCoords(sweet, g);
+    const steps = pathLength(t, s, g);
+    return steps === 0 ? null : steps;
+  });
 }
 
 export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier, radius: number): number {

@@ -4,8 +4,8 @@
 // @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape and
 // @src DeleteTalkingMenu (Esc closes once the queue is empty and cuts the NPC's line short; the talk
 // @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
-// @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead); Soldier_Tile.cc
-// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc; Interface_Items.cc HandleItemPointerClick (the give branch,
+// @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead);
+// @src Interface_Items.cc HandleItemPointerClick (the give branch,
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
 // @src line short).
@@ -94,20 +94,17 @@ import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
+import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { sexSceneWarpSeconds } from '../tactical/narrative/npc-actions/san-mona.ts';
 import type { NarrativePort } from '../tactical/narrative/port.ts';
-import { talkLineOfSight, talkRange, talkWalkUp } from '../tactical/narrative/talk-reach.ts';
-import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
-import { handleSight } from '../tactical/perception/sight.ts';
+import { talkLineOfSight, talkRange, talkWalkUp, teleportNpc } from '../tactical/narrative/talk-reach.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
-import { findGridNoFromSweetSpot } from '../tactical/sweet-spots.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
@@ -125,8 +122,6 @@ const DIRECTIONS = 8;
 const VALIDATED_TALK_RANGE = NPC_TALK_RADIUS * 2;
 const QUEST_ARRAY_LENGTH = 30;
 const OVERRUN_QUEST_VALUE = 0;
-const BUMP_RADIUS = 5;
-const SIGHT_LOOK_AND_RADIO = 3;
 const ON_DUTY = 20;
 const KINGPIN_HOUSE_ROOMS = { first: 30, last: 39 } as const;
 const KINGPIN_SECTOR = { x: 5, y: 4, z: 0 } as const;
@@ -360,16 +355,7 @@ export class TalkFlow {
 
   #teleport(s: Soldier, gridNo: number): void {
     const t = this.#t;
-    if (!t) return;
-    const occupant = t.soldiers.find((x) => x?.placed && x !== s && x.gridNo === gridNo && x.level === 0) ?? null;
-    if (occupant) {
-      const spot = findGridNoFromSweetSpot(t, occupant, gridNo, BUMP_RADIUS);
-      if (spot !== NOWHERE) setSoldierPosition(t, occupant, spot);
-    }
-    setSoldierPosition(t, s, gridNo);
-    s.finalDestination = gridNo;
-    revealRoofsAndItems(t, s, true);
-    handleSight(t, s, SIGHT_LOOK_AND_RADIO);
+    if (t) teleportNpc(t, s, gridNo);
   }
 
   #frankCash(amount: number): void {
@@ -792,16 +778,15 @@ export class TalkFlow {
   }
 
   #walkUp(t: TacticalState, merc: Soldier, target: Soldier): CommandResult {
-    const walkUp = talkWalkUp(t, merc, target);
-    if (!walkUp) {
+    const to = talkWalkUp(t, merc, target);
+    if (to === null) {
       this.#emit({ type: 'npcMessage', kind: 'noPath' });
-      refuse('noPath');
+      return refuse('noPath');
     }
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
-    const to = walkUp?.to ?? NOWHERE;
     selectSoldier(t, merc);
     merc.pendingTalk = target.id;
-    if (!getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
+    if (to === NOWHERE || !getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
       merc.pendingTalk = null;
       refuse('noPath');
     }

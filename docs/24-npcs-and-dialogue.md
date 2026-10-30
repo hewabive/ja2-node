@@ -25,6 +25,7 @@ talk: range, line of sight, walk-up, AP_TALK          tactical/narrative/talk-re
 handleDialogue: one queue event per tick              narrative/dialogue-queue.ts
   action → handleNpcDoAction                          campaign/narrative/npc-action-flow.ts, tactical/narrative/npc-actions/ (35)
   walk → the AI walks → npcReachedDestination → the record on that tile
+  teleport → bump whoever stands there, then teleport tactical/narrative/talk-reach.ts
   trigger → 500 ms wait → a panel with the talker or the closest merc
 give: walk, opcode 486                                tactical/give.ts → campaign/give-flow.ts → narrative/give.ts
 recruit, escort, release                              campaign/narrative/recruit-flow.ts, tactical/narrative/team-change.ts
@@ -183,6 +184,6 @@ Inferred from reading the source:
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
 
 Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Relationship quotes", "NPC draws first and minor
-offenses", "Talk walk-up and teleport spots", "Team changes", "Close enough after a failed scripted path". Other
+offenses", "Team changes", "Close enough after a failed scripted path". Other
 deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an
 escort", "Key-advance speech".

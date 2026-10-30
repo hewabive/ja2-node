@@ -4,11 +4,10 @@
 // @src SetOffBombsByFrequency (remote action items), ActivateSwitchInGridNo, AddBombToQueue,
 // @src HandleExplosionQueue (the action item branch and the queue end), PerformItemAction (ACTION_ITEM_CLOSE_DOOR,
 // @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
-// @src CallEldinTo; Tactical/Soldier_Tile.cc TeleportSoldier; Soldier_Add.cc FindGridNoFromSweetSpotWithStructData;
+// @src CallEldinTo; Tactical/Soldier_Tile.cc TeleportSoldier;
 // @src Action_Items.h ItemActionType; Item_Types.h DetonatorType and the bomb fields of OBJECTTYPE
 // @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld.
 
-import { rangeInCellCoords, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
@@ -23,12 +22,13 @@ import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
 import { toggleDoorAt } from '../doors.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
 import { setSoldierPosition, stopMerc } from '../movement.ts';
-import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from '../pathfinding.ts';
+import { NOWHERE, newOKDestination } from '../pathfinding.ts';
 import { revealRoofsAndItems } from '../perception/fov.ts';
 import { Opp } from '../perception/opp.ts';
 import { allTeamsLookForAll, handleSight, SightFlags } from '../perception/sight.ts';
 import { AlertStatus, Body, CivilianGroup, OKLIFE, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../state.ts';
+import { findGridNoFromSweetSpotWithStructData } from '../sweet-spots.ts';
 import { enterCombatMode, isTeamActive } from '../turns/turns.ts';
 import { type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { makeCivHostile } from './civ-hostility.ts';
@@ -198,32 +198,6 @@ function hookerInRoom(t: TacticalState, room: number): boolean {
   return teamMembers(t, Team.CIV).some((s) => s.life >= OKLIFE && s.neutral && s.bodyType === Body.MINICIV && rooms[s.gridNo] === room);
 }
 
-function sweetSpotWithStructData(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
-  if (s.gridNo === sweet) return sweet;
-  const probe = { ...s, team: Team.ENEMY, gridNo: sweet, level: 0 };
-  const flood = findBestPath(t.pathEnv, probe, NOWHERE, 0, {
-    copy: PathCopy.REACHABLE,
-    flags: PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE,
-    distLimit: radius,
-  });
-  const cx = sweet % WORLD_COLS;
-  const cy = Math.trunc(sweet / WORLD_COLS);
-  let best = NOWHERE;
-  let lowest = Number.POSITIVE_INFINITY;
-  for (let y = Math.max(0, cy - radius); y <= Math.min(WORLD_ROWS - 1, cy + radius); y++) {
-    for (let x = Math.max(0, cx - radius); x <= Math.min(WORLD_COLS - 1, cx + radius); x++) {
-      const g = y * WORLD_COLS + x;
-      if (!flood.reachable?.[g] || !newOKDestination(t.pathEnv, s, g, true, s.level)) continue;
-      const range = rangeInCellCoords(sweet, g);
-      if (range < lowest) {
-        best = g;
-        lowest = range;
-      }
-    }
-  }
-  return best;
-}
-
 export function teleportSoldier(t: TacticalState, s: Soldier, gridNo: number, force: boolean): boolean {
   if (gridNo === NOWHERE || (!newOKDestination(t.pathEnv, s, gridNo, true, 0) && !force)) return false;
   setSoldierPosition(t, s, gridNo);
@@ -247,8 +221,12 @@ function sexActionItem(t: TacticalState, gridNo: number): boolean {
   if (!spot) return false;
   const sightChanged = closeDoorAt(t, spot.door);
   t.events.push({ type: 'sexScene', soldier: merc.id });
-  const teleport = sweetSpotWithStructData(t, merc, spot.teleport, SEX_TELEPORT_RADIUS);
-  changeSoldierState(t, merc, states(t.content.animations).STANDING, 0, true);
+  const standing = states(t.content.animations).STANDING;
+  const teleport = findGridNoFromSweetSpotWithStructData(t, merc, spot.teleport, SEX_TELEPORT_RADIUS, {
+    animState: standing,
+    closestToMerc: false,
+  });
+  changeSoldierState(t, merc, standing, 0, true);
   teleportSoldier(t, merc, teleport, false);
   t.narrative.sexEffects(merc);
   return sightChanged;

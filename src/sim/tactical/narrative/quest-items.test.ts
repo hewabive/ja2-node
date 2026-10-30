@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
-import { Direction, gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { createItem, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
@@ -28,6 +30,7 @@ const BEDROOM = 5;
 const CORRIDOR = 4;
 const PLAYER_OWNED = 2;
 const ALARM_FREQUENCY = 52;
+const VEHICLE_ID = 120;
 
 function actionItem(action: number, owner = 0): ItemObject {
   const o = createItem(content.items, content.items.byName.get('ACTION_ITEM')?.index ?? 0, 100);
@@ -99,6 +102,25 @@ describe('the sex action item', () => {
     expect(log.sex).toEqual([0]);
     expect(sim.state.perception.disallowSight).toBe(false);
     expect(sim.state.actionItems.active).toBe(false);
+  });
+
+  it('puts the merc back outside on the closest tile his structure fits on', () => {
+    const sim = newCombatSim(content);
+    const rooms = withRooms(sim);
+    const hallway = SEX_TILE - WORLD_COLS;
+    rooms[SEX_TILE] = BEDROOM;
+    rooms[SEX_TILE + 1] = BEDROOM;
+    rooms[hallway] = CORRIDOR;
+    narrative(sim);
+    const merc = spawnSoldier(sim, 0, Team.OUR, hallway, Direction.SOUTH);
+    const girl = spawnSoldier(sim, 60, Team.CIV, SEX_TILE + 2, Direction.WEST);
+    rooms[girl.gridNo] = BEDROOM;
+    girl.bodyType = Body.MINICIV;
+    girl.neutral = true;
+    sim.state.world.structures.add(SEX_DOOR, 0, syntheticStructure(StructureFlags.MOBILE), { kind: 'soldier', id: VEHICLE_ID });
+    arm(sim, SEX_TILE, actionItem(ItemAction.SEX));
+    walk(sim, merc, SEX_TILE);
+    expect(merc.gridNo).toBe(SEX_DOOR - WORLD_COLS);
   });
 
   it('does nothing without a girl in the room, for a merc already inside, or for an item placed by the player', () => {

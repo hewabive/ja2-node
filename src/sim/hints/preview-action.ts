@@ -28,7 +28,7 @@ import { talkLineOfSight, talkRange, talkWalkUp } from '../tactical/narrative/ta
 import type { Footstep } from '../tactical/plot-path.ts';
 import { AP, apsToChangeStance, apsToLook, enoughPoints } from '../tactical/points.ts';
 import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quick-exchange.ts';
-import { type Soldier, Team } from '../tactical/soldier.ts';
+import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
@@ -150,9 +150,9 @@ function talkAction(c: ActionContext): ActionPart {
   if (own && !epc) return { ok: true, apCost: 0, actionGridNo: s.gridNo, steps: NO_STEPS, inRange: true, lineOfSight, affordable: true };
   const inRange = talkRange(s.gridNo, target.gridNo) <= NPC_TALK_RADIUS;
   if (inRange) return { ok: true, apCost: AP.TALK, actionGridNo: s.gridNo, steps: NO_STEPS, inRange, lineOfSight };
-  const walkUp = talkWalkUp(t, s, target);
-  if (!walkUp) return { ...refused(c, 'noPath', s.gridNo), inRange, lineOfSight };
-  return { ok: true, apCost: AP.TALK, actionGridNo: walkUp.to, steps: walkTo(c, walkUp.to).steps, inRange, lineOfSight };
+  const to = talkWalkUp(t, s, target);
+  if (to === null || to === NOWHERE) return { ...refused(c, 'noPath', s.gridNo), inRange, lineOfSight };
+  return { ok: true, apCost: AP.TALK, actionGridNo: to, steps: walkTo(c, to).steps, inRange, lineOfSight };
 }
 
 function giveAction(c: ActionContext): ActionPart {
