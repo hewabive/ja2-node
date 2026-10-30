@@ -1,7 +1,7 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/SaveLoadScreen.cc EnterSaveLoadScreen (interface/loadscreen.sti; the Cancel button from interface/loadscreenaddons.sti 6/9, the action button 5/8 to save or 4/7 to load, hatched when disabled; the NUM_SAVE_GAMES row regions at MSYS_PRIORITY_HIGH, SLG_SAVELOCATION_WIDTH × SLG_SAVELOCATION_HEIGHT from (SLG_FIRST_SAVED_SPOT_X, SLG_FIRST_SAVED_SPOT_Y), SLG_GAP_BETWEEN_LOCATIONS apart; the scroll buttons at SLG_SCROLLBAR_POS_X; the full-screen region at MSYS_PRIORITY_HIGH − 10 for the right click and the wheel), RenderSaveLoadScreen (MLG_LOADSAVEHEADER frame 0 to load, 1 to save, at (SLG_TITLE_POS_X, SLG_TITLE_POS_Y)), RenderScrollBar, DisplaySaveGameEntry (MSG_NEW_SAVE centred in 609 pixels; the fields at the SLG_*_OFFSET_X offsets and SLG_DATE_OFFSET_Y, a selected row one pixel right and up; the colours and shadows per state; the sector shortened to SLG_SECTOR_WIDTH), InitSaveLoadScreenTextInputBoxes (FONT12ARIALFIXEDWIDTH, a black field, the bevel (136,138,135)/(24,61,81), white text and caret, at + SLG_SAVE_GAME_DESC_X, + SLG_SAVE_GAME_DESC_Y − 5, SLG_SAVELOCATION_WIDTH − SLG_SAVE_GAME_DESC_X − 7 by 17, MSYS_PRIORITY_HIGH + 2, 46 characters), GetSaveLoadScreenUserInput (Up and Down on KEY_DOWN and KEY_REPEAT; Escape, Enter and Delete on KEY_UP)",
+    "src/game/SaveLoadScreen.cc EnterSaveLoadScreen (interface/loadscreen.sti; the Cancel button from interface/loadscreenaddons.sti 6/9, the action button 5/8 to save or 4/7 to load, hatched when disabled; the NUM_SAVE_GAMES row regions at MSYS_PRIORITY_HIGH, SLG_SAVELOCATION_WIDTH × SLG_SAVELOCATION_HEIGHT from (SLG_FIRST_SAVED_SPOT_X, SLG_FIRST_SAVED_SPOT_Y), SLG_GAP_BETWEEN_LOCATIONS apart; the scroll buttons at SLG_SCROLLBAR_POS_X; the full-screen region at MSYS_PRIORITY_HIGH − 10 for the right click and the wheel), RenderSaveLoadScreen (MLG_LOADSAVEHEADER frame 0 to load, 1 to save, at (SLG_TITLE_POS_X, SLG_TITLE_POS_Y)), RenderScrollBar, DisplaySaveGameEntry (MSG_NEW_SAVE centred in 609 pixels; the fields at the SLG_*_OFFSET_X offsets and SLG_DATE_OFFSET_Y, a selected row one pixel right and up; the colours and shadows per state; the sector shortened to SLG_SECTOR_WIDTH), InitSaveLoadScreenTextInputBoxes (a user field and the description field, so Tab takes the focus off the description and back; FONT12ARIALFIXEDWIDTH, a black field, the bevel (136,138,135)/(24,61,81), white text and caret, at + SLG_SAVE_GAME_DESC_X, + SLG_SAVE_GAME_DESC_Y − 5, SLG_SAVELOCATION_WIDTH − SLG_SAVE_GAME_DESC_X − 7 by 17, MSYS_PRIORITY_HIGH + 2, 46 characters), GetSaveLoadScreenUserInput (Up and Down on KEY_DOWN and KEY_REPEAT; Escape, Enter and Delete on KEY_UP)",
     "V:SaveLoadScreen.c:117-118 SLG_SELECTED_SLOT_GRAPHICS_NUMBER 3, SLG_UNSELECTED_SLOT_GRAPHICS_NUMBER 2 (the rows of interface/loadscreenaddons.sti, drawn clipped to Stracciatella’s SLG_SAVELOCATION_WIDTH); src/game/Utils/Text.h gs_dead_is_dead_mode_tab_name (the Dead is Dead mark at SLG_SAVE_GAME_SKULL_X in place of Stracciatella’s skull art)"
   ],
   "screen": "saveLoad",
@@ -401,29 +401,35 @@
           "count": {
             "bind": "rows[$i].editing"
           },
-          "template": {
-            "type": "textField",
-            "id": "description",
-            "x": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_DESC_X",
-            "y": "SLG_FIRST_SAVED_SPOT_Y + SLG_SAVE_GAME_DESC_Y - 5",
-            "width": "SLG_SAVELOCATION_WIDTH - SLG_SAVE_GAME_DESC_X - 7",
-            "height": 17,
-            "maxLength": 46,
-            "font": "FONT12ARIALFIXEDWIDTH",
-            "priority": "HIGH+2",
-            "value": "description",
-            "change": "describe",
-            "scheme": {
-              "fieldColor": [0, 0, 0],
-              "foreground": "FONT_WHITE",
-              "shadow": 2,
-              "hiForeground": 2,
-              "hiShadow": "FONT_WHITE",
-              "hiBackground": "FONT_WHITE",
-              "bevel": [[136, 138, 135], [24, 61, 81]],
-              "cursorColor": [255, 255, 255]
+          "template": [
+            {
+              "type": "textField",
+              "id": "description",
+              "x": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_DESC_X",
+              "y": "SLG_FIRST_SAVED_SPOT_Y + SLG_SAVE_GAME_DESC_Y - 5",
+              "width": "SLG_SAVELOCATION_WIDTH - SLG_SAVE_GAME_DESC_X - 7",
+              "height": 17,
+              "maxLength": 46,
+              "font": "FONT12ARIALFIXEDWIDTH",
+              "priority": "HIGH+2",
+              "value": "description",
+              "change": "describe",
+              "scheme": {
+                "fieldColor": [0, 0, 0],
+                "foreground": "FONT_WHITE",
+                "shadow": 2,
+                "hiForeground": 2,
+                "hiShadow": "FONT_WHITE",
+                "hiBackground": "FONT_WHITE",
+                "bevel": [[136, 138, 135], [24, 61, 81]],
+                "cursorColor": [255, 255, 255]
+              }
+            },
+            {
+              "type": "userField",
+              "id": "descriptionTabStop"
             }
-          }
+          ]
         }
       ]
     },

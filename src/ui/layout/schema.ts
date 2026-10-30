@@ -119,6 +119,7 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
     font: 'font',
     scheme: 'object',
   },
+  userField: { focus: 'action' },
   popupMenu: {
     width: 'number',
     border: 'asset',

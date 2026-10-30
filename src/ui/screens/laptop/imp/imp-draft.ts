@@ -167,7 +167,11 @@ export class ImpDraft {
   }
 
   selectGender(male: boolean, canCreate: boolean): void {
-    if (canCreate) this.genderFlag = male ? MALE : FEMALE;
+    if (canCreate) this.tickGender(male);
+  }
+
+  tickGender(male: boolean): void {
+    this.genderFlag = male ? MALE : FEMALE;
   }
 
   beginDone(fullName: string, nickName: string): BeginOutcome {

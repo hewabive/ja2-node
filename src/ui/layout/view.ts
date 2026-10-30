@@ -71,6 +71,8 @@ interface Live {
 type JsonObject = Readonly<Record<string, unknown>>;
 
 const NOOP_DISPOSE = () => undefined;
+const NOOP_RENDER = () => undefined;
+const DEFAULT_TEXT_FIELD_FONT = 'FONT12POINT1';
 const DEFAULT_TEXT_FOREGROUND = FontColor.MCOLOR_WHITE;
 const PRIMARY_UP = MouseReason.LBUTTON_UP;
 const SECONDARY_UP = MouseReason.RBUTTON_UP;
@@ -167,6 +169,7 @@ export class LayoutView {
     if (!hotkey) return false;
     const action = parseAction(hotkey.action);
     this.controller.invoke(action.name, hotkey.args ?? action.args);
+    if (hotkey.focus !== undefined) this.#fields?.setActive(hotkey.focus);
     return true;
   }
 
@@ -293,6 +296,8 @@ export class LayoutView {
         return this.#slider(json, vars, dx, dy);
       case 'textField':
         return this.#textField(json, vars, dx, dy);
+      case 'userField':
+        return this.#userField(json, vars);
       case 'popupMenu':
         return this.#popupMenu(json, vars, dx, dy);
       case 'list':
@@ -801,9 +806,11 @@ export class LayoutView {
   #textField(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
     const id = this.#id(json, vars);
     const { x, y } = this.#position(json, vars, dx, dy);
-    const font = this.#font(json.font ?? 'FONT12POINT1');
-    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, this.#textFieldScheme(json, font, vars), this.owner);
-    const field: TextField = this.#fields.add({
+    const font = this.#font(json.font ?? DEFAULT_TEXT_FIELD_FONT);
+    const scheme = this.#textFieldScheme(json, font, vars);
+    const group = this.#textFieldGroup(scheme);
+    group.useSchemeOfFirstField(scheme);
+    const field: TextField = group.add({
       x,
       y,
       width: this.number(json.width as NumberExpr | undefined, vars),
@@ -822,6 +829,28 @@ export class LayoutView {
       render: (list) => {
         if (this.#fields && this.#fields.fields[0] === field) this.#fields.render(list, this.services.clock.ja2Now);
       },
+      dispose: () => this.#fields?.remove(field),
+      describe: () => [],
+    };
+  }
+
+  #textFieldGroup(scheme: TextFieldScheme): TextFieldGroup {
+    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, scheme, this.owner);
+    return this.#fields;
+  }
+
+  #userField(json: WidgetJson, vars: Variables): Live {
+    const id = this.#id(json, vars);
+    const scheme = defaultTextFieldScheme(this.#font(DEFAULT_TEXT_FIELD_FONT));
+    const field = this.#textFieldGroup(scheme).addUser({
+      id,
+      focus: (entering) => this.invoke(json.focus, vars, [entering ? 1 : 0]),
+    });
+    return {
+      id,
+      kind: 'userField',
+      sync: () => undefined,
+      render: NOOP_RENDER,
       dispose: () => this.#fields?.remove(field),
       describe: () => [],
     };

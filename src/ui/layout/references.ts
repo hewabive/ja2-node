@@ -46,6 +46,7 @@ const ACTION_KEYS = [
   'close',
   'change',
   'result',
+  'focus',
 ] as const;
 const CONDITION_KEYS = ['visible', 'enabled', 'checked', 'open'] as const;
 const BINDING_KEYS = ['value'] as const;

@@ -7,7 +7,9 @@
 // @src the team size), UpDateIMPMainPageButtons, IMPMainPageNotSelectableBtnCallback, LoadCharacterPortraitForMainPage
 // @src (the face from the voice step on); IMP_Text_System.cc PrintImpText (the main page's status line: IMP_MAIN_2 or
 // @src pExtraIMPStrings); IMP_Begin_Screen.cc EnterIMPBeginScreen, BtnIMPBeginScreenDoneCallback, Select*RegionCallBack,
-// @src RenderGender; IMP_Personality_Entrance.cc and IMP_Attribute_Entrance.cc the begin buttons; IMP_Finish.cc
+// @src RenderGender, MaleCheckboxCallback and FemaleCheckboxCallback (ubFocus), HandleIMPBeginScreen and
+// @src DisplayCheckboxFocus (the focus frame blinks with the caret), GetPlayerKeyBoardInputForIMPBeginScreen (Enter or
+// @src Space ticks the focused box without the team size check of the click); IMP_Personality_Entrance.cc and IMP_Attribute_Entrance.cc the begin buttons; IMP_Finish.cc
 // @src RenderCharFullName, BtnIMPFinishStartOverCallback, BtnIMPFinishDoneCallback, BtnIMPFinishPersonalityCallback (the
 // @src analysing label and the icon flipping every ANIMATE_MIN_TIME while pressed), BtnIMPFinishAttributesCallback;
 // @src IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo.
@@ -17,6 +19,7 @@ import { ViewModelController } from '../../../layout/controller.ts';
 import { printf } from '../../../text/printf.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../../widgets/message-box.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
+import { caretBlinkOn } from '../../../widgets/text-field.ts';
 import type { LaptopPage } from '../laptop-page.ts';
 import { FEMALE, ImpPage, MALE, ProfileMode } from './imp-draft.ts';
 import { currentPortraitFace, IMP_BUTTON_TEXT, type ImpContext, ImpPopUp } from './imp-site.ts';
@@ -36,6 +39,10 @@ const IMP_MAIN_2 = 'IMP_MAIN_2';
 const ANIMATE_MIN_TIME = 'ANIMATE_MIN_TIME';
 const MAIN_BLOCKERS = 4;
 const GENDER_MARK = 'X';
+const FOCUS_ENTERING = 1;
+
+const GenderFocus = { OTHER_INPUT: 0, MALE: 1, FEMALE: 2 } as const;
+type GenderFocus = (typeof GenderFocus)[keyof typeof GenderFocus];
 
 const ButtonText = {
   BEGIN: 1,
@@ -75,8 +82,27 @@ export const IMP_MAIN_CONTRACT: ControllerContract = {
 
 export const IMP_BEGIN_CONTRACT: ControllerContract = {
   id: 'impBegin',
-  actions: { done: {}, setFullName: { payload: 'string' }, setNickName: { payload: 'string' }, male: {}, female: {} },
-  bindings: { fullName: 'string', nickName: 'string', maleChecked: 'boolean', femaleChecked: 'boolean', genderMark: 'string' },
+  actions: {
+    done: {},
+    setFullName: { payload: 'string' },
+    setNickName: { payload: 'string' },
+    male: {},
+    female: {},
+    maleFocus: { args: 1 },
+    femaleFocus: { args: 1 },
+    tickFocusedGender: {},
+  },
+  bindings: {
+    fullName: 'string',
+    nickName: 'string',
+    maleChecked: 'boolean',
+    femaleChecked: 'boolean',
+    genderMark: 'string',
+    maleFocusLit: 'boolean',
+    maleFocusDark: 'boolean',
+    femaleFocusLit: 'boolean',
+    femaleFocusDark: 'boolean',
+  },
 };
 
 export const IMP_PERSONALITY_CONTRACT: ControllerContract = { id: 'impPersonality', actions: { begin: {} }, bindings: {} };
@@ -228,10 +254,19 @@ export function mainPage(imp: ImpContext): LaptopPage {
 export function beginPage(imp: ImpContext): LaptopPage {
   const { draft } = imp;
   draft.enterBegin();
+  let focus: GenderFocus = GenderFocus.OTHER_INPUT;
   const model: Record<string, unknown> = { fullName: draft.fullName, nickName: draft.nickName, genderMark: GENDER_MARK };
-  const refresh = () => {
+  const refresh = (ja2Now = 0) => {
     model.maleChecked = draft.genderFlag === MALE;
     model.femaleChecked = draft.genderFlag === FEMALE;
+    const lit = caretBlinkOn(ja2Now);
+    model.maleFocusLit = focus === GenderFocus.MALE && lit;
+    model.maleFocusDark = focus === GenderFocus.MALE && !lit;
+    model.femaleFocusLit = focus === GenderFocus.FEMALE && lit;
+    model.femaleFocusDark = focus === GenderFocus.FEMALE && !lit;
+  };
+  const focusOn = (box: GenderFocus) => (args: readonly number[]) => {
+    focus = args[0] === FOCUS_ENTERING ? box : GenderFocus.OTHER_INPUT;
   };
   const canCreate = () => imp.site()?.canCreate ?? false;
   const controller = new ViewModelController(IMP_BEGIN_CONTRACT, model, {
@@ -247,6 +282,11 @@ export function beginPage(imp: ImpContext): LaptopPage {
     },
     male: () => draft.selectGender(true, canCreate()),
     female: () => draft.selectGender(false, canCreate()),
+    maleFocus: focusOn(GenderFocus.MALE),
+    femaleFocus: focusOn(GenderFocus.FEMALE),
+    tickFocusedGender: () => {
+      if (focus !== GenderFocus.OTHER_INPUT) draft.tickGender(focus === GenderFocus.MALE);
+    },
   });
   refresh();
   return { layouts: [{ name: IMP_BEGIN_LAYOUT, controller }], update: refresh, dispose: () => draft.exitBegin() };

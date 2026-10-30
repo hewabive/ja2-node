@@ -1,7 +1,7 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/Laptop/IMP_Begin_Screen.cc RenderIMPBeginScreen (three button_4.sti pictures, beginscreenindent.sti, nameindent.sti, nickname.sti), Print8CharacterOnlyString, RenderGender (genderindent.sti, the X in FONT14ARIAL colour 184), InitImpBeginScreeenTextInputBoxes (the full name up to NAME_LENGTH - 1, the nickname up to MAX_NICKNAME_LENGTH), CreateIMPBeginScreenMouseRegions, CreateIMPBeginScreenButtons (button_2.sti, pImpButtonText[6])",
+    "src/game/Laptop/IMP_Begin_Screen.cc RenderIMPBeginScreen (three button_4.sti pictures, beginscreenindent.sti, nameindent.sti, nickname.sti), Print8CharacterOnlyString, RenderGender (genderindent.sti, the X in FONT14ARIAL colour 184), InitImpBeginScreeenTextInputBoxes (the full name up to NAME_LENGTH - 1, the nickname up to MAX_NICKNAME_LENGTH, then the male and female boxes as user fields), CreateIMPBeginScreenMouseRegions, CreateIMPBeginScreenButtons (button_2.sti, pImpButtonText[6]), DisplayCheckboxFocus (the focused box framed in green or black by the caret blink), GetPlayerKeyBoardInputForIMPBeginScreen (Enter and Space, down or repeated, tick the focused box and give the focus to the full name)",
     "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_BEGIN"
   ],
   "screen": "impBegin",
@@ -152,6 +152,42 @@
       "visible": "femaleChecked"
     },
     {
+      "type": "rect",
+      "x": "MALE_BOX_X",
+      "y": "MALE_BOX_Y",
+      "x2": "MALE_BOX_X + MALE_BOX_WIDTH",
+      "y2": "MALE_BOX_Y + MALE_BOX_HEIGHT",
+      "color": [0, 255, 0],
+      "visible": "maleFocusLit"
+    },
+    {
+      "type": "rect",
+      "x": "MALE_BOX_X",
+      "y": "MALE_BOX_Y",
+      "x2": "MALE_BOX_X + MALE_BOX_WIDTH",
+      "y2": "MALE_BOX_Y + MALE_BOX_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "maleFocusDark"
+    },
+    {
+      "type": "rect",
+      "x": "FEMALE_BOX_X",
+      "y": "MALE_BOX_Y",
+      "x2": "FEMALE_BOX_X + MALE_BOX_WIDTH",
+      "y2": "MALE_BOX_Y + MALE_BOX_HEIGHT",
+      "color": [0, 255, 0],
+      "visible": "femaleFocusLit"
+    },
+    {
+      "type": "rect",
+      "x": "FEMALE_BOX_X",
+      "y": "MALE_BOX_Y",
+      "x2": "FEMALE_BOX_X + MALE_BOX_WIDTH",
+      "y2": "MALE_BOX_Y + MALE_BOX_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "femaleFocusDark"
+    },
+    {
       "type": "textField",
       "id": "impFullName",
       "x": "FULL_NAME_INPUT_X",
@@ -196,6 +232,16 @@
         "bevel": null,
         "cursorColor": [0, 255, 0]
       }
+    },
+    {
+      "type": "userField",
+      "id": "impMaleFocus",
+      "focus": "maleFocus"
+    },
+    {
+      "type": "userField",
+      "id": "impFemaleFocus",
+      "focus": "femaleFocus"
     },
     {
       "type": "text",
@@ -350,6 +396,20 @@
         "downColor": "FONT_WHITE",
         "downShadow": "DEFAULT_SHADOW"
       }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "Enter",
+      "on": ["down", "repeat"],
+      "action": "tickFocusedGender",
+      "focus": "impFullName"
+    },
+    {
+      "key": " ",
+      "on": ["down", "repeat"],
+      "action": "tickFocusedGender",
+      "focus": "impFullName"
     }
   ]
 }

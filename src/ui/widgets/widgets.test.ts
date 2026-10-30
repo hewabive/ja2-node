@@ -297,6 +297,45 @@ describe('the shared widgets', () => {
       expect(t.sounds.names()).toContain('ENTERING_TEXT');
     });
 
+    it('cycles Tab through user fields, telling them when they gain and lose the focus, and takes keys only while editing text', () => {
+      const group = new TextFieldGroup(t.runtime.regions, t.sounds, defaultTextFieldScheme(t.fonts.get(FontName.FONT12POINT1)));
+      const focus: string[] = [];
+      const name = group.add({ id: 'name', x: 10, y: 10, width: 100, height: 20, text: 'Ivan', maxLength: 6 });
+      const box = group.addUser({ id: 'box', focus: (entering) => focus.push(`box ${entering}`) });
+      const key = (k: string, modifiers = 0) => group.input({ kind: 'keyDown', key: k, code: '', modifiers });
+      key('Tab');
+      expect(group.active).toBe(box);
+      expect(group.editing).toBe(false);
+      expect(focus).toEqual(['box true']);
+      expect(key(' ')).toBe(false);
+      expect(group.input({ kind: 'text', text: 'x' })).toBe(false);
+      expect(group.describe().find((w) => w.id === 'box')?.state).toBe('active');
+      key('Tab', 1);
+      expect(group.active).toBe(name);
+      expect(group.editing).toBe(true);
+      expect(group.selection).toEqual([0, 4]);
+      expect(focus).toEqual(['box true', 'box false']);
+      group.setActive('box');
+      group.setActive('name');
+      expect(focus).toEqual(['box true', 'box false', 'box true', 'box false']);
+      expect(group.editing).toBe(true);
+      group.setActive('box');
+      t.move(11, 15);
+      t.down(11, 15, MouseButton.LEFT);
+      expect(group.active).toBe(name);
+      expect(focus.at(-1)).toBe('box false');
+    });
+
+    it('stops editing when Tab finds no other field: SelectNextField ends on the field it started from', () => {
+      const group = new TextFieldGroup(t.runtime.regions, t.sounds, defaultTextFieldScheme(t.fonts.get(FontName.FONT12POINT1)));
+      const code = group.add({ x: 10, y: 10, width: 100, height: 20, maxLength: 6 });
+      group.input({ kind: 'keyDown', key: 'Tab', code: '', modifiers: 0 });
+      expect(group.active).toBe(code);
+      expect(group.editing).toBe(false);
+      expect(group.input({ kind: 'text', text: 'abc' })).toBe(false);
+      expect(code.text).toBe('');
+    });
+
     it('places the caret where the field is clicked', () => {
       const group = new TextFieldGroup(t.runtime.regions, t.sounds, defaultTextFieldScheme(t.fonts.get(FontName.FONT12POINT1)));
       group.add({ x: 10, y: 10, width: 100, height: 20, text: 'abcdef', maxLength: 10 });

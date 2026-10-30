@@ -256,6 +256,23 @@ describe('the save/load screen', () => {
     expect(f.client.saved[0]?.request).toEqual({ description: 'Before the bridge' });
   });
 
+  it('takes the focus off the description with Tab and gives it back with the next Tab', async () => {
+    await f.client.newCampaign({ options: { difficulty: 1, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true } });
+    await f.flow.saveLoad('save', 'game');
+    await f.settle();
+    f.key('Enter', 'up');
+    f.type('Bridge');
+    f.key('Tab');
+    expect(f.widget('description.0').state).toBe('inactive');
+    f.type(' ignored');
+    f.key('Tab');
+    expect(f.widget('description.0').state).toBe('editing');
+    expect(f.widget('description.0').text).toBe('Bridge');
+    f.key('End');
+    f.type(' at dawn');
+    expect(f.widget('description.0').text).toBe('Bridge at dawn');
+  });
+
   it('clears the selection with Escape first, then leaves; Delete asks first', async () => {
     await f.flow.saveLoad('load', 'mainMenu');
     await f.settle();

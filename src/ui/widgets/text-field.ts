@@ -4,8 +4,10 @@
 // @src (the keys, the swallowing of unmodified keys while editing, Ctrl+Delete, Esc and Enter left to the screen),
 // @src HandleRegularInput (full text and numeric filters), AddChar, DeleteHilitedText, RemoveChars, CalculateCursorPos,
 // @src MouseMovedInTextRegionCallback, MouseClickedInTextRegionCallback, RenderBackgroundField, RenderActiveTextField
-// @src (the caret blinks with GetJA2Clock() % 1000 < 500), RenderInactiveTextFieldNode, SelectNextField, SelectPrevField;
-// @src src/game/Utils/Text_Input.h TEXT_CURSOR_BLINK_INTERVAL.
+// @src (the caret blinks with GetJA2Clock() % 1000 < 500), RenderInactiveTextFieldNode, SelectNextField, SelectPrevField
+// @src (back on the field it started from, editing stops), AddUserInputField (a field without text whose callback hears
+// @src it gain and lose the focus), SetActiveField, SetActiveFieldMouse; src/game/Utils/Text_Input.h
+// @src TEXT_CURSOR_BLINK_INTERVAL.
 
 import { FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';
@@ -25,8 +27,13 @@ const BLINK_PERIOD = 1000;
 const TEXT_INSET = 3;
 const CARET_INSET = 2;
 const BTN_VOLUME = 40;
+const NO_RECT = widgetRect(0, 0, 0, 0);
 
 export type TextFilter = 'full' | 'numeric';
+
+export function caretBlinkOn(ja2Now: number): boolean {
+  return ja2Now % BLINK_PERIOD < TEXT_CURSOR_BLINK_INTERVAL;
+}
 
 export interface TextFieldScheme {
   readonly font: BitmapFont;
@@ -107,13 +114,31 @@ export class TextField {
   }
 }
 
+export interface UserFieldOptions {
+  readonly id: string;
+  readonly focus?: (entering: boolean) => void;
+}
+
+export class UserField {
+  readonly id: string;
+  readonly focus: ((entering: boolean) => void) | null;
+  enabled = true;
+
+  constructor(options: UserFieldOptions) {
+    this.id = options.id;
+    this.focus = options.focus ?? null;
+  }
+}
+
+export type InputField = TextField | UserField;
+
 export class TextFieldGroup {
   readonly owner: unknown;
   readonly #regions: RegionDispatcher;
   readonly #sounds: UiSoundSink;
-  readonly #scheme: TextFieldScheme;
-  readonly #fields: TextField[] = [];
-  #active: TextField | null = null;
+  #scheme: TextFieldScheme;
+  readonly #nodes: InputField[] = [];
+  #active: InputField | null = null;
   #editing = false;
   #cursor = 0;
   #startHilite = 0;
@@ -126,11 +151,15 @@ export class TextFieldGroup {
   }
 
   get fields(): readonly TextField[] {
-    return this.#fields;
+    return this.#nodes.filter((n): n is TextField => n instanceof TextField);
   }
 
-  get active(): TextField | null {
+  get active(): InputField | null {
     return this.#active;
+  }
+
+  useSchemeOfFirstField(scheme: TextFieldScheme): void {
+    if (this.fields.length === 0) this.#scheme = scheme;
   }
 
   get editing(): boolean {
@@ -164,33 +193,66 @@ export class TextFieldGroup {
       },
     });
     field = new TextField(options, region);
-    this.#fields.push(field);
-    if (this.#fields.length === 1) {
-      this.#active = field;
-      this.#editing = true;
-      this.#startHilite = 0;
-      this.#cursor = field.length;
-    }
+    this.#append(field);
     return field;
   }
 
-  remove(field: TextField): void {
-    const at = this.#fields.indexOf(field);
+  addUser(options: UserFieldOptions): UserField {
+    const field = new UserField(options);
+    this.#append(field);
+    return field;
+  }
+
+  #append(node: InputField): void {
+    this.#nodes.push(node);
+    if (this.#nodes.length > 1) return;
+    this.#active = node;
+    this.#editing = node instanceof TextField;
+    this.#startHilite = 0;
+    this.#cursor = textLength(node);
+  }
+
+  remove(node: InputField): void {
+    const at = this.#nodes.indexOf(node);
     if (at < 0) return;
-    field.region.remove();
-    this.#fields.splice(at, 1);
-    if (this.#active !== field) return;
-    this.#active = this.#fields[0] ?? null;
-    this.#editing = this.#active !== null;
-    this.#cursor = this.#active?.length ?? 0;
+    if (node instanceof TextField) node.region.remove();
+    this.#nodes.splice(at, 1);
+    if (this.#active !== node) return;
+    const first = this.#nodes[0] ?? null;
+    this.#active = first;
+    this.#editing = first instanceof TextField;
+    this.#cursor = first ? textLength(first) : 0;
     this.#startHilite = this.#cursor;
   }
 
   dispose(): void {
-    for (const field of this.#fields) field.region.remove();
-    this.#fields.length = 0;
+    for (const field of this.fields) field.region.remove();
+    this.#nodes.length = 0;
     this.#active = null;
     this.#editing = false;
+  }
+
+  setActive(id: string): void {
+    const node = this.#nodes.find((n) => n.id === id);
+    if (!node || node === this.#active || !node.enabled) return;
+    this.#leave();
+    this.#active = node;
+    this.#enter(node);
+  }
+
+  #leave(): void {
+    if (this.#active instanceof UserField) this.#active.focus?.(false);
+  }
+
+  #enter(node: InputField): void {
+    if (node instanceof UserField) {
+      this.#editing = false;
+      node.focus?.(true);
+      return;
+    }
+    this.#startHilite = 0;
+    this.#cursor = node.length;
+    this.#editing = true;
   }
 
   #play(sample: string): void {
@@ -207,14 +269,16 @@ export class TextFieldGroup {
     return i;
   }
 
-  #setActive(field: TextField): void {
-    if (field !== this.#active) this.#active = field;
+  #setActiveByMouse(field: TextField): void {
+    if (field === this.#active) return;
+    this.#leave();
+    this.#active = field;
   }
 
   #mouseMoved(field: TextField, region: MouseRegion, reason: number): void {
     if (!this.#regions.isButtonDown(MouseButtonMask.LEFT)) return;
     if (!(reason & (MouseReason.MOVE | MouseReason.LOST_MOUSE | MouseReason.GAIN_MOUSE))) return;
-    this.#setActive(field);
+    this.#setActiveByMouse(field);
     if (reason & MouseReason.LOST_MOUSE) {
       if (this.#regions.mouseY < region.y1) this.#cursor = 0;
       else if (this.#regions.mouseY > region.y2) this.#cursor = field.length;
@@ -223,7 +287,7 @@ export class TextFieldGroup {
 
   #mouseClicked(field: TextField, region: MouseRegion, reason: number): void {
     if (!(reason & MouseReason.LBUTTON_DWN)) return;
-    this.#setActive(field);
+    this.#setActiveByMouse(field);
     this.#editing = true;
     const position = this.#cursorAt(field, this.#regions.mouseX - region.x1);
     this.#cursor = position;
@@ -231,16 +295,20 @@ export class TextFieldGroup {
   }
 
   #selectNext(step: 1 | -1): void {
-    if (this.#fields.length === 0) return;
-    const at = this.#active ? this.#fields.indexOf(this.#active) : -1;
-    for (let k = 1; k <= this.#fields.length; k++) {
-      const next = this.#fields[(at + step * k + this.#fields.length * 2) % this.#fields.length] as TextField;
-      if (!next.enabled) continue;
+    const start = this.#active;
+    if (!start) return;
+    this.#leave();
+    const count = this.#nodes.length;
+    const at = this.#nodes.indexOf(start);
+    for (let k = 1; k <= count; k++) {
+      const next = this.#nodes[(at + step * k + count * 2) % count] as InputField;
       this.#active = next;
-      this.#editing = true;
-      this.#startHilite = 0;
-      this.#cursor = next.length;
-      return;
+      if (next.enabled) this.#enter(next);
+      if (next === start) {
+        this.#editing = false;
+        return;
+      }
+      if (next.enabled) return;
     }
   }
 
@@ -254,7 +322,7 @@ export class TextFieldGroup {
 
   #removeChars(position: number, count: number): void {
     const field = this.#active;
-    if (!field) return;
+    if (!(field instanceof TextField)) return;
     const codes = [...field.codes];
     codes.splice(position, count);
     field.replace(codes);
@@ -263,7 +331,7 @@ export class TextFieldGroup {
   #addChar(c: number): void {
     this.#play('ENTERING_TEXT');
     const field = this.#active;
-    if (!field || field.length >= field.maxLength) return;
+    if (!(field instanceof TextField) || field.length >= field.maxLength) return;
     const codes = [...field.codes];
     codes.splice(this.#cursor, 0, c);
     field.replace(codes);
@@ -273,7 +341,7 @@ export class TextFieldGroup {
 
   #regularInput(c: number): void {
     const field = this.#active;
-    if (!field) return;
+    if (!(field instanceof TextField)) return;
     if (field.filter === 'numeric') {
       if (c >= 0x30 && c <= 0x39) this.#addChar(c);
       return;
@@ -291,7 +359,7 @@ export class TextFieldGroup {
     }
     if (event.kind !== 'keyDown' && event.kind !== 'keyRepeat') return false;
     if (!this.#editing && event.key !== 'Tab') return false;
-    const field = this.#active;
+    const length = textLength(this.#active);
     switch (event.modifiers) {
       case 0:
         switch (event.key) {
@@ -308,11 +376,11 @@ export class TextFieldGroup {
             this.#startHilite = this.#cursor;
             return true;
           case 'ArrowRight':
-            if (this.#cursor < field.length) this.#cursor++;
+            if (this.#cursor < length) this.#cursor++;
             this.#startHilite = this.#cursor;
             return true;
           case 'End':
-            this.#cursor = field.length;
+            this.#cursor = length;
             this.#startHilite = this.#cursor;
             return true;
           case 'Home':
@@ -321,7 +389,7 @@ export class TextFieldGroup {
             return true;
           case 'Delete':
             if (this.#startHilite !== this.#cursor) this.#deleteHilited();
-            else if (this.#cursor < field.length) this.#removeChars(this.#cursor, 1);
+            else if (this.#cursor < length) this.#removeChars(this.#cursor, 1);
             else return true;
             break;
           case 'Backspace':
@@ -345,10 +413,10 @@ export class TextFieldGroup {
             if (this.#cursor !== 0) this.#cursor--;
             return true;
           case 'ArrowRight':
-            if (this.#cursor < field.length) this.#cursor++;
+            if (this.#cursor < length) this.#cursor++;
             return true;
           case 'End':
-            this.#cursor = field.length;
+            this.#cursor = length;
             return true;
           case 'Home':
             this.#cursor = 0;
@@ -359,7 +427,7 @@ export class TextFieldGroup {
       case KeyModifier.CTRL:
         if (event.key !== 'Delete') return false;
         this.#startHilite = 0;
-        this.#cursor = field.length;
+        this.#cursor = length;
         this.#deleteHilited();
         break;
       default:
@@ -385,7 +453,7 @@ export class TextFieldGroup {
   }
 
   render(list: DrawList, ja2Now: number): void {
-    for (const field of this.#fields) {
+    for (const field of this.fields) {
       if (field === this.#active) this.#renderActive(list, field, ja2Now);
       else this.#renderInactive(list, field);
     }
@@ -421,7 +489,7 @@ export class TextFieldGroup {
         shadow: scheme.shadow,
         background: FontColor.MCOLOR_BLACK,
       });
-    if (this.#editing && ja2Now % BLINK_PERIOD < TEXT_CURSOR_BLINK_INTERVAL) {
+    if (this.#editing && caretBlinkOn(ja2Now)) {
       let cx = field.region.x1 + CARET_INSET;
       for (let i = 0; i < this.#cursor; i++) cx += charWidth(scheme.font, field.codes[i] ?? 0);
       list.fill(cx, y, cx + 1, y + fontHeight(scheme.font), scheme.cursorColor);
@@ -429,18 +497,25 @@ export class TextFieldGroup {
   }
 
   describe(): WidgetInfo[] {
-    return this.#fields.map((field) => {
-      const r = field.region;
+    return this.#nodes.map((node) => {
+      const state = node === this.#active ? (this.#editing ? 'editing' : 'active') : 'inactive';
+      if (node instanceof UserField)
+        return { id: node.id, kind: 'userField', rect: NO_RECT, visible: true, enabled: node.enabled, state, text: null, frame: null };
+      const r = node.region;
       return {
-        id: field.id,
+        id: node.id,
         kind: 'textField',
         rect: widgetRect(r.x1, r.y1, r.width, r.height),
         visible: true,
-        enabled: field.enabled,
-        state: field === this.#active ? (this.#editing ? 'editing' : 'active') : 'inactive',
-        text: field.text,
+        enabled: node.enabled,
+        state,
+        text: node.text,
         frame: null,
       };
     });
   }
+}
+
+function textLength(node: InputField | null): number {
+  return node instanceof TextField ? node.length : 0;
 }

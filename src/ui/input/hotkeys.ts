@@ -10,6 +10,7 @@ export interface Hotkey {
   readonly action: string;
   readonly args?: readonly number[];
   readonly when?: string;
+  readonly focus?: string;
 }
 
 export type HotkeyTable = readonly Hotkey[];
@@ -54,6 +55,7 @@ export function validateHotkey(value: unknown, where: string): Hotkey {
   )
     throw new Error(`${where}: mods is a mask 0-7 or "any"`);
   if (h.when !== undefined && typeof h.when !== 'string') throw new Error(`${where}: when names a binding`);
+  if (h.focus !== undefined && typeof h.focus !== 'string') throw new Error(`${where}: focus names a text field`);
   if (h.args !== undefined && (!Array.isArray(h.args) || h.args.some((a) => typeof a !== 'number')))
     throw new Error(`${where}: args are numbers`);
   return h as unknown as Hotkey;

@@ -279,6 +279,7 @@ slices.
 | Ian code 180 colours with 184 whatever its argument | `text/text.test.ts` |
 | Money puts the minus after the dollar (`$-1,234`) | `text/text.test.ts` |
 | `SetSliderValue` ignores the slider's maximum | `widgets/widgets.test.ts` |
+| Tab that finds no other enabled field comes back to the field it left and stops editing there | `widgets/widgets.test.ts` |
 
 ## 8. Layouts as data
 
@@ -299,8 +300,9 @@ the stub art (§9).
   variables. **Conditions** are a binding, its negation or an equality, never an expression language.
 - **Art, text and input**: assets as STI, PCX or MLG id with a stub size, button frame sets, choices by a bound state;
   fonts by macro, text colours as palette indices with the shadow always explicit; text from string keys, bindings,
-  EDT fields, formats and money; regions with priority, cursor, tooltip and actions per mouse event; hotkeys with key,
-  phase, modifiers and condition.
+  EDT fields, formats and money; regions with priority, cursor, tooltip and actions per mouse event; text fields and
+  the original's user fields (`AddUserInputField`: Tab stops on them, an action hears the focus come and go) in one Tab
+  order by document order; hotkeys with key, phase, modifiers, condition and the text field they give the focus to.
 - **Order**: draw order is document order; input goes by priority, then the later widget (newest first, as the
   original's regions).
 
