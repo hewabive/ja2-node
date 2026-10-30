@@ -9,7 +9,7 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
-import { idiv } from '../../core/int.ts';
+import { i8, idiv } from '../../core/int.ts';
 import {
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
@@ -476,8 +476,8 @@ export function moveMerc(t: TacticalState, s: Soldier, speed: number, direction:
 export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   cancelFadeOutAwayFromStart(t, s);
   let keepMoving = true;
-  s.tilesMoved++;
-  if (s.state === states(t.content.animations).RUNNING) s.tilesMoved++;
+  s.tilesMoved = i8(s.tilesMoved + 1);
+  if (s.state === states(t.content.animations).RUNNING) s.tilesMoved = i8(s.tilesMoved + 1);
   if (!t.inCombat) {
     s.tilesMovedPerRTBreathUpdate++;
     s.lastMovementAnimPerRTBreathUpdate = s.state;

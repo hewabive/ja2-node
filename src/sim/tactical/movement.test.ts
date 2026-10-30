@@ -98,6 +98,14 @@ describe('walking', () => {
     expect(t.events).toContainEqual({ type: 'arrived', soldier: s.id, gridNo: gridNo(85, 80) });
   });
 
+  it('counts the tiles moved in a signed byte, so the tile after the 127th wraps the count to -128', () => {
+    const t = tactical();
+    const s = spawn(t, START);
+    s.tilesMoved = 127;
+    handleAtNewGridNo(t, s);
+    expect(s.tilesMoved).toBe(-128);
+  });
+
   it('moves in float32 steps and switches tiles at the half step', () => {
     const t = tactical();
     const s = spawn(t, START);
