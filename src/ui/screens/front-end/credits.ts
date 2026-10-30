@@ -7,6 +7,7 @@
 // @src (the node height is the wrapped height + 1), DisplayCreditNode.
 
 import type { CreditNode } from '../../../content/formats/credits.ts';
+import { u32 } from '../../../core/int.ts';
 import type { Area, DrawList, FontColors } from '../../draw-list.ts';
 import { type ControllerContract, ViewModelController } from '../../layout/controller.ts';
 import type { LayoutModel } from '../../layout/model.ts';
@@ -34,7 +35,6 @@ export const CREDIT_BLINK_FREQUENCIES: readonly number[] = [
 const EYES_CLOSED_TIME = 150;
 const NO_FACE = -1;
 const HOVER_ON = 1;
-const U32 = 0x1_0000_0000;
 const NAMES = 'gzCreditNames';
 const TITLES = 'gzCreditNameTitle';
 const JOKES = 'gzCreditNameFunny';
@@ -57,10 +57,6 @@ export interface CreditsModel {
 interface Blink {
   last: number;
   closedUntil: number;
-}
-
-function u32(value: number): number {
-  return ((value % U32) + U32) % U32;
 }
 
 export class CreditsController extends ViewModelController {
