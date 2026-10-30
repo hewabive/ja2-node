@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct,
+// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct, HandleInitialRedAlert,
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
 // @src HandleAITacticalTraversal (the away slot), the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
@@ -69,7 +69,7 @@ import {
 } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
-import { traverseDown } from './queen-escape.ts';
+import { alertQueenAndJoe, traverseDown } from './queen-escape.ts';
 import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
 import { recalculatePathCost } from './utils.ts';
 
@@ -190,6 +190,7 @@ function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
 }
 
 function handleInitialRedAlert(t: TacticalState, team: number): void {
+  if (team === Team.ENEMY) alertQueenAndJoe(t);
   t.perception.awareOfOpposition[team] = true;
 }
 

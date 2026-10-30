@@ -96,10 +96,10 @@ world minute 10, which the next event pass finds long overdue. A fourth captive 
 (`powsFound`) until a door opens or an explosion gives them a path out (`powFreed`). Either way the load ends the Alma
 quest with the rescue experience for the current squad.
 
-**The palace.** The Queen and Joe flee to the basement stairs from the red and black AI decisions (`13`); once the
-player has taken P3 b1 she stands at an alternate spot upstairs and no longer flees. The O3 statue opens from the
-remote trigger in its room or from an explosion next to it; the structure swap and the exit grid go into the sector's
-map changes, so the sector diff keeps them.
+**The palace.** The Queen and Joe flee to the basement stairs from the red and black AI decisions (`13`); the army's
+first red alert radio in P3 puts both on red. Once the player has taken P3 b1 she stands at an alternate spot upstairs
+and no longer flees. The O3 statue opens from the remote trigger in its room or from an explosion next to it; the
+structure swap and the exit grid go into the sector's map changes, so the sector diff keeps them.
 
 **The endgame is a phase machine on ticks.** `EndingState.phase` follows the original's timers and fades from a
 queen's death to the victory. The 2 s and 3 s wall-clock timers become 400 and 600 ticks, which also pass in
