@@ -161,4 +161,3 @@ Code that does not follow `CLAUDE.md` yet.
 
 | Area | Rule | Code | Notes |
 |---|---|---|---|
-| Fixed-width integers | Fixed-width fields of the original go through `src/core/int.ts` | Own helpers in `src/sim/tactical/combat/types.ts`, `src/sim/tactical/doors/lock-attempts.ts`, `src/content/world/structures.ts`, `src/ui/screens/front-end/credits.ts`, `src/ui/screens/tactical/bars.ts` and `tools/oracle/strategic-compare.ts`; raw masks as casts (`& 0xff`, `<< 24 >> 24`, `>>> 0`) in modules of `src/sim`, `src/content`, `src/ui` and `tools/oracle` | Import from `core/int.ts`; a mask that is a bit operation stays (hashes, RNG, CRC, colour channels, byte packing, flag tests) |
