@@ -40,6 +40,11 @@ describe('item table', async () => {
     expect(get('BERETTA_93R').weapon?.attachments).toContain('SILENCER');
   });
 
+  it('gives launchers, the LAW and the tank cannon the impact and magazine their weapon models set, which weapons.json leaves out', () => {
+    for (const name of ['GLAUNCHER', 'UNDER_GLAUNCHER', 'MORTAR']) expect(get(name).weapon).toMatchObject({ impact: 1, magSize: 0 });
+    for (const name of ['ROCKET_LAUNCHER', 'TANK_CANNON']) expect(get(name).weapon).toMatchObject({ impact: 80, magSize: 1 });
+  });
+
   it('links magazines, armour and explosives to their parameters', () => {
     const clip = get('CLIP9_30_HP');
     expect(clip.itemClass).toBe(ItemClass.AMMO);

@@ -40,6 +40,15 @@ describe('the item description box (RenderItemDescriptionBox, GenerateProsString
     expect(itemCons(items, glock)).toEqual([ProConMessage.SHORT_RANGE, ProConMessage.LOW_DAMAGE, ProConMessage.NO_BURST]);
   });
 
+  it('rates the LAW and the tank cannon by the impact and magazine their weapon models set', () => {
+    const law = make('ROCKET_LAUNCHER');
+    expect(itemPros(items, law)).toContain(ProConMessage.HIGH_DAMAGE);
+    expect(itemCons(items, law)).not.toContain(ProConMessage.LOW_DAMAGE);
+    expect(itemCons(items, law)).toContain(ProConMessage.SMALL_AMMO_CAPACITY);
+    expect(weaponStats(items, law, true)?.damage).toBeUndefined();
+    expect(weaponStats(items, make('TANK_CANNON'), true)?.damage).toEqual({ value: 80, exceptional: true });
+  });
+
   it('names an empty list None and prints the weapon stats with the exceptional thresholds', () => {
     expect(itemPros(items, make('FIRSTAIDKIT'))).toEqual([ProConMessage.NONE]);
     const stats = weaponStats(items, make('GLOCK_17'), true);

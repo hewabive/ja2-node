@@ -5,6 +5,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
@@ -102,6 +103,28 @@ describe('gun range', () => {
     const far = spawn(sim, 21, Team.ENEMY, gridNo(82, 86), Direction.NORTH);
     expect(soldierToSoldierChanceToGetThrough(t, merc, near)).toBe(100);
     expect(soldierToSoldierChanceToGetThrough(t, merc, far)).toBe(0);
+  });
+});
+
+describe('the chance to get through of the LAW and the tank cannon (LOS.cc CalcChanceToGetThrough)', () => {
+  function chanceThrough(gun: string, cover: readonly number[]) {
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+      for (const g of cover) world.structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+    });
+    const shooter = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { gun });
+    shooter.attackingWeapon = content.items.byName.get(gun)?.index ?? -1;
+    const target = spawn(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    return soldierToSoldierChanceToGetThrough(sim.state, shooter, target);
+  }
+
+  it('divides by the impact of 80 their weapon models set: all of it reaches a target in the open', () => {
+    for (const gun of ['ROCKET_LAUNCHER', 'TANK_CANNON']) expect(chanceThrough(gun, [])).toBe(100);
+  });
+
+  it('lets cover take its chance to be hit as a share of that impact, truncating the rest', () => {
+    const coverBeforeTarget = [gridNo(80, 86)];
+    for (const gun of ['ROCKET_LAUNCHER', 'TANK_CANNON']) expect(chanceThrough(gun, coverBeforeTarget)).toBe(93);
+    expect(chanceThrough('GLOCK_17', coverBeforeTarget)).toBe(100);
   });
 });
 

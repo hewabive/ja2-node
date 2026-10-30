@@ -7,6 +7,7 @@ import { Rng } from '../../../core/rng.ts';
 import { createItem, createItems } from '../../items/object.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import { minAPsToAttack } from '../combat/ap.ts';
+import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
@@ -165,6 +166,19 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     expect(toss.possible).toBe(true);
     expect(toss.targetLevel).toBe(GROUND);
     expect(toss.target).toBe(lastSeenAt);
+  });
+
+  it('fires a second LAW after the first: the chance to get through takes the LAW last fired, with the impact of 80 its weapon model sets', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH, { gun: 'ROCKET_LAUNCHER' });
+    enemy.attackingWeapon = item('ROCKET_LAUNCHER');
+    enemy.ai.morale = AiMorale.WORRIED;
+    enemy.life = enemy.lifeMax / 2;
+    sim.lookAround();
+    const toss = checkIfTossPossible(sim.state, enemy);
+    expect(toss.possible).toBe(true);
+    expect(toss.target).toBe(merc.gridNo);
   });
 });
 

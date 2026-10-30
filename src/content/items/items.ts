@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Weapon,Magazine,Armour,Explosive}Model.cc;
+// @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Magazine,Armour,Explosive}Model.cc, WeaponModels.cc;
 // @src ItemModel.cc (the default inventory and tile graphics), InventoryGraphicsModel.cc, TilesetTileIndexModel.cc
 
 import { ITEM_RULES_PATH, type ItemRules, parseItemRules } from './rules.ts';
@@ -321,6 +321,12 @@ const LAUNCHER_CALIBRES: Readonly<Record<string, string>> = {
   TANK_CANNON: 'TANK_SHELL',
 };
 
+const MODEL_SET_FIELDS: Readonly<Record<string, Partial<Pick<WeaponDef, 'impact' | 'magSize'>>>> = {
+  LAUNCHER: { impact: 1 },
+  LAW: { impact: 80, magSize: 1 },
+  CANNON: { impact: 80, magSize: 1 },
+};
+
 const ATTACHMENT_KEYS: readonly [string, string][] = [
   ['attachment_Silencer', 'SILENCER'],
   ['attachment_SniperScope', 'SNIPERSCOPE'],
@@ -366,6 +372,7 @@ function weaponItem(o: Json, calibres: ReadonlyMap<string, number>, monsterCalib
     smokeEffect: num(o, 'usSmokeEffect'),
     attachments: ATTACHMENT_KEYS.filter(([key]) => bool(o, key)).map(([, item]) => item),
     standardReplacement: str(o, 'standardReplacement'),
+    ...MODEL_SET_FIELDS[type],
   };
   return { ...baseItem(o, kind.itemClass, kind.cursor), ...EMPTY_KINDS, weapon };
 }

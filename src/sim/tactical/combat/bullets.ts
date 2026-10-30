@@ -1044,7 +1044,7 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
             const s = entry.s;
             if (s.cubeOffset !== level || !((s.tile.shape[b.losX * 5 + b.losY] ?? 0) & (1 << cubesAboveLevel))) continue;
             if (has(s.flags, StructureFlags.PERSON)) {
-              if (intended) return u8(Math.trunc((chanceThrough * (b.impact - b.impactReduction)) / b.impact));
+              if (intended) return u8(shareOfImpactLeft(chanceThrough, b));
               entry.timesHit++;
             } else if (has(s.flags, StructureFlags.WALLNWINDOW) && b.z >= winLo && b.z <= winHi) {
               if (resolveHitOnWall(losWorldOf(t), s, g, b.losX, b.losY, b.horizAngle) && b.flags & BulletFlag.KNIFE) entry.timesHit++;
@@ -1085,8 +1085,12 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
       if (b.impactReduction >= b.impact) return 0;
     }
   } while (b.loop < b.distanceLimit);
-  chanceThrough = Math.trunc((chanceThrough * (b.impact - b.impactReduction)) / b.impact);
+  chanceThrough = shareOfImpactLeft(chanceThrough, b);
   return u8(Math.max(0, chanceThrough));
+}
+
+function shareOfImpactLeft(chance: number, b: Bullet): number {
+  return idiv(chance * (b.impact - b.impactReduction), b.impact);
 }
 
 function chanceToGetThrough(t: TacticalState, firer: Soldier, g: number, endZ: number): number {
