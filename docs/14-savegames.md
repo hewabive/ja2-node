@@ -48,7 +48,7 @@ those files are the sector's live state, and the import applies them. Every othe
 (`tempFiles`): those sectors load from their maps.
 
 **A save without a world.** A save made before the first arrival, or after the last merc left the loaded sector,
-has no world (`SaveLoadGame.cc:731`, `:747`): the original leaves the world sector invalid and opens the map screen. The
+has no world (`SaveLoadGame.cc:731`, `:748`): the original leaves the world sector invalid and opens the map screen. The
 import reads no map and starts as a campaign does after `trashWorld` or before its landing: the strategic flow, no
 tactical sim, `worldSector` null. What a loaded world would carry and outlives it goes into the strategic state
 (`importCampaignWideState`: the PreRandom ring, profiles, key table, civilian groups, the opplist decay time); the
