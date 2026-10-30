@@ -32,6 +32,7 @@ import {
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
   npcConsiderInitiatingConv,
+  npcGotoGridNo,
   npcHasUnusedHostileRecord,
   npcHasUnusedRecordWithGivenApproach,
   npcReachedDestination,
@@ -584,6 +585,7 @@ export class TalkFlow {
       startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
       npcReachedDestination: (s) => npcReachedDestination(host, s, false),
       replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),
+      npcGotoGridNo: (profile, gridNo, record) => npcGotoGridNo(host, profile, gridNo, record),
       firstSightingRecord: (profile, record) => this.#firstSightingRecord(profile, record),
       mercSeesProfile: (merc, profile) => this.#mercSeesProfile(merc, profile),
       beginCivQuote: (s, quote, entry) => {

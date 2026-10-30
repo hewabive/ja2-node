@@ -11,6 +11,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
+import { u8 } from '../../../core/int.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim } from '../anim-states.ts';
 import {
@@ -296,9 +297,17 @@ function npcSystemMove(t: TacticalState, s: Soldier): boolean {
   return s.absoluteFinalDestination !== NOWHERE && !t.inCombat;
 }
 
+function settleForOwnTile(t: TacticalState, s: Soldier): void {
+  t.narrative.replaceLocationInNpcData(s.profile, s.absoluteFinalDestination, s.gridNo);
+  t.narrative.npcGotoGridNo(s.profile, s.gridNo, u8(s.quoteRecord - 1));
+}
+
 function retryBlockedNpcSystemMove(t: TacticalState, s: Soldier): void {
   const ai = s.ai;
-  if (!ai.checkSchedule && spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) return;
+  if (!ai.checkSchedule && spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) {
+    settleForOwnTile(t, s);
+    return;
+  }
   if (legalNPCDestination(t, s, ai.actionData, PathMode.ENSURE_PATH, true, PathFlags.THROUGH_PEOPLE)) {
     s.pathStored = true;
     return;

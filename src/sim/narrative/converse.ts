@@ -715,7 +715,7 @@ export function handleNpcGotoGridNo(host: NarrativeHost, npc: number, gridNo: nu
   s.ai.nextAction = AiAction.WALK;
   s.ai.nextActionData = gridNo;
   if (s.ai.action !== AiAction.PENDING_ACTION) cancelAIAction(t, s);
-  s.quoteRecord = record + 1;
+  s.quoteRecord = u8(record + 1);
   s.quoteActionId = actionIdForMovementRecord(host, npc, record);
   s.absoluteFinalDestination = gridNo;
   s.ai.handleEveryFrame = true;

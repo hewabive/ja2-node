@@ -125,7 +125,7 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Not ported: gaps "Walking side effects", "Walking protocol details", "Mines in the pathfinder", "Doors", "Unseen soldiers
-in combat", "Map items". Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile
-turning", "Creature and bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded
-sector".
+Not ported: gaps "Walking side effects", "Walking protocol details", "Mines in the pathfinder", "Doors", "Unseen
+soldiers in combat", "Map items". Other deviations of this domain: "Recalculated path cost", "AI path-cost cache",
+"Multi-tile turning", "Creature and bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the
+loaded sector".

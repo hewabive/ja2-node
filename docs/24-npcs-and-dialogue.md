@@ -64,10 +64,10 @@ Other profiles read the user's files. The stub pack authors its own records and 
 NPC-type and not one of the ten override profiles, whose JSON in `data/` sits above the stubs.
 
 **Record arrays are state.** A profile's records are copied from content at their first touch and then rewritten by
-play: said flags, tiles rewritten when a scripted walk stops close enough, Darrel's destination. So the campaign saves
-whole arrays, not flags; a missing array means "not touched yet", which is what the native save's per-profile present
-byte records. A recruited R.P.C. talks from a private copy of the PC template and parks his own array as a backup until
-he leaves the team.
+play: said flags, tiles rewritten when a scripted walk ends or fails close by, Darrel's destination. So the campaign
+saves whole arrays, not flags; a missing array means "not touched yet", which is what the native save's per-profile
+present byte records. A recruited R.P.C. talks from a private copy of the PC template and parks his own array as a
+backup until he leaves the team.
 
 **Choosing a record changes state; playing it is queued.** Choosing sets the record's fact, ends and starts its quests,
 takes the given item and handles money, all before any line is heard; a dealer's dry run (`npcWillingToAcceptItem`) has
@@ -142,6 +142,7 @@ otherwise:
 | Our merc keeps `AI_HANDLE_EVERY_FRAME` at the end of a scripted walk: `&=` keeps the flag it means to clear and clears the others | `converse.test.ts` |
 | Face-the-player stores its record, not record + 1, so from record 0 the NPC never turns | `tactical/narrative/npc-actions/catalog.test.ts`, `tactical/ai/named-npc.test.ts` |
 | A walk cut by unloading the sector stores the action id as the record, so the next load runs record 0's arrival | `tactical/narrative/placement.test.ts` |
+| An NPC who cannot path to a scripted tile under four tiles away settles for his own tile for good: his records take that tile and he queues a walk to it that can never start, even once the way clears; without a quote record the walk goes to record 255 | `tactical/ai/ai.test.ts`, `src/server/talk-stub.test.ts` |
 | An item taken into an NPC's profile never goes to the last small pocket and becomes a fresh object: attachments, ammo and stack members are lost | `give.test.ts` |
 | A give checks 1 AP and charges 3; a merc given one item loses the whole source pocket; money given to a team member pays no debt; a target gone from its tile leaves a copy at the giver | `tactical/give.test.ts` |
 | A dealer stays engaged in action after a give, out of the AI until his next panel closes | `tactical/give.test.ts`, `converse.test.ts` |
@@ -178,12 +179,11 @@ Inferred from reading the source:
 - That the original cannot save during a conversation (the Dead-Is-Dead autosave guard skips those states and the
   panel's screen region blocks the buttons), and that the hostile-quote list and the say-later profiles are not saved.
 - The special UI-off reference count is a function static: a load inside such a sequence restarts it at 0.
-- The two `SOLDIER_ENGAGEDINACTION` releases and the AI flags cleared at the end of a scripted walk (ported from the
-  source, not probed).
+- The two `SOLDIER_ENGAGEDINACTION` releases, the AI flags cleared at the end of a scripted walk and the walk that
+  settles for the NPC's own tile (ported from the source, not probed).
 - A native save's soldiers outside the loaded sector hold their ids; the import does not create them, so only
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
 
 Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Relationship quotes", "NPC draws first and minor
-offenses", "Team changes", "Close enough after a failed scripted path". Other
-deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an
-escort", "Key-advance speech".
+offenses", "Team changes". Other deviations of this domain: "Lines and debug text in the talk panel", "Opinions of
+high profile ids", "Releasing an escort", "Key-advance speech".

@@ -3,6 +3,8 @@ import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
+import { StructureFlags } from '../content/world/structures.ts';
+import { syntheticStructure } from '../content/world/synthetic.ts';
 import type { ConversationView, ViewFrame } from '../protocol/view.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -34,6 +36,10 @@ const ROUTE_SLICE_SECONDS = 6 * 3600;
 const QUEST_IN_PROGRESS = 1;
 const QUEST_DONE = 2;
 const CIV_LOW_LOYALTY_LINES: ReadonlySet<number> = new Set([6, 7]);
+const THREE_TILES_SOUTH = 3 * 160;
+const SCRIPTED_RECORD = 2;
+const SETTLE_TICKS = 400;
+const WAY_CLEAR_TICKS = 4_000;
 
 async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -331,6 +337,30 @@ describe('the stub NPC in A10', () => {
     const shop = session.dispatch({ type: 'approach', kind: 'buySell' });
     expect(shop).toMatchObject({ ok: true, data: { conversation: null, shop: { kind: 'buySell' } } });
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
+  });
+
+  it('keeps Vasko walking to his own tile for good once a scripted tile under four tiles away cannot be reached, even after the way clears (kept quirk)', async () => {
+    const { session, live } = await inA10(13);
+    const sector = () => {
+      const t = session.campaign.tactical?.state;
+      if (!t) throw new Error('no sector');
+      return t;
+    };
+    const vasko = () => {
+      const s = sector().soldiers.find((x) => x?.placed && x.profile === VASKO);
+      if (!s) throw new Error('no Vasko');
+      return s;
+    };
+    const home = vasko().gridNo;
+    const blocked = home + THREE_TILES_SOUTH;
+    const block = sector().world.structures.add(blocked, 0, syntheticStructure(StructureFlags.GENERIC));
+    if (!block) throw new Error('the tile cannot be blocked');
+    sector().narrative.npcGotoGridNo(VASKO, blocked, SCRIPTED_RECORD);
+    live.advance({ ticks: SETTLE_TICKS });
+    expect(vasko().absoluteFinalDestination).toBe(home);
+    sector().world.structures.remove(block);
+    live.advance({ ticks: WAY_CLEAR_TICKS });
+    expect([vasko().gridNo, vasko().absoluteFinalDestination, vasko().quoteRecord]).toEqual([home, home, SCRIPTED_RECORD + 1]);
   });
 });
 

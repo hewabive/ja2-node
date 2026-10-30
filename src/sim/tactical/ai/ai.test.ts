@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, newGridNo, spacesAway } from '../../../content/world/grid.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -242,6 +243,58 @@ describe('the pause for a quote trigger (AIMain.cc HandleSoldierAI)', () => {
 
   it('never holds Krott out of combat', () => {
     expect(speakerOnHisTurn(Npc.SERGEANT, false, true).speaker.ai.newSituation).not.toBe(Situation.IS_NEW);
+  });
+});
+
+describe('a scripted walk to a destination he cannot reach (AIMain.cc ExecuteAction)', () => {
+  const HERE = gridNo(80, 80);
+  const SCRIPTED_NPC = 94;
+  const QUOTE_RECORD = 4;
+  const CLOSE = HERE + 3;
+  const NOT_CLOSE = HERE + 4;
+  const NO_QUOTE_RECORD = 0;
+
+  interface Walk {
+    readonly destination: number;
+    readonly onSchedule?: boolean;
+    readonly quoteRecord?: number;
+  }
+
+  function blockedWalk(walk: Walk) {
+    const { t } = world(7);
+    const calls: string[] = [];
+    t.narrative = {
+      ...NO_NARRATIVE_PORT,
+      replaceLocationInNpcData: (profile, from, to) => calls.push(`replace ${profile} ${from} ${to}`),
+      npcGotoGridNo: (profile, g, record) => calls.push(`goto ${profile} ${g} ${record}`),
+    };
+    t.world.structures.add(walk.destination, 0, syntheticStructure(StructureFlags.GENERIC));
+    const npc = spawn(t, Team.CIV, HERE, Orders.STATIONARY);
+    npc.profile = SCRIPTED_NPC;
+    npc.quoteRecord = walk.quoteRecord ?? QUOTE_RECORD;
+    npc.ai.checkSchedule = walk.onSchedule ?? false;
+    npc.absoluteFinalDestination = walk.destination;
+    npc.ai.action = AiAction.WALK;
+    npc.ai.actionData = walk.destination;
+    expect(executeAction(t, npc)).toBe(false);
+    return { npc, calls };
+  }
+
+  it('settles for his own tile under four tiles away: his records take the tile and a walk there is queued', () => {
+    const { npc, calls } = blockedWalk({ destination: CLOSE });
+    expect(calls).toEqual([`replace ${SCRIPTED_NPC} ${CLOSE} ${HERE}`, `goto ${SCRIPTED_NPC} ${HERE} ${QUOTE_RECORD - 1}`]);
+    expect([npc.ai.action, npc.ai.nextAction]).toEqual([AiAction.NONE, AiAction.NONE]);
+  });
+
+  it('queues the walk for record 255 when he has no quote record: the record number wraps as a UINT8', () => {
+    expect(blockedWalk({ destination: CLOSE, quoteRecord: NO_QUOTE_RECORD }).calls[1]).toBe(`goto ${SCRIPTED_NPC} ${HERE} 255`);
+  });
+
+  it('waits to try again four tiles away or more, and on a schedule', () => {
+    for (const walk of [blockedWalk({ destination: NOT_CLOSE }), blockedWalk({ destination: CLOSE, onSchedule: true })]) {
+      expect(walk.calls).toEqual([]);
+      expect(walk.npc.ai.nextAction).toBe(AiAction.WAIT);
+    }
   });
 });
 

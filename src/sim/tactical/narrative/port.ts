@@ -63,6 +63,7 @@ export interface NarrativePort {
   startTalking(s: Soldier, target: number): void;
   npcReachedDestination(s: Soldier): void;
   replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
+  npcGotoGridNo(profile: number, gridNo: number, record: number): void;
   isDealer(profile: number): boolean;
   dealerTakesGive(giver: Soldier, dealer: Soldier, object: ItemObject, slot: number): boolean;
   receivesAsTeamMember(target: Soldier): boolean;
@@ -126,6 +127,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   startTalking: () => {},
   npcReachedDestination: () => {},
   replaceLocationInNpcData: () => {},
+  npcGotoGridNo: () => {},
   isDealer: () => false,
   dealerTakesGive: () => false,
   receivesAsTeamMember: (target) => target.team === Team.OUR,
