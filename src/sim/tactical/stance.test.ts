@@ -3,9 +3,11 @@ import { hintAnswer, newCombatSim, runUntilIdle, spawnSoldier } from '../../../t
 import { layProne, raiseTiles, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { animName } from './anim-states.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { isValidStance } from './person-structure.ts';
 import { AP, ptsToMoveDirection } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import { ownSoldierFields } from './soldier-view.ts';
@@ -20,6 +22,7 @@ beforeAll(async () => {
 const FAR = gridNo(90, 80);
 const NEAR = gridNo(84, 80);
 const FEW_RUNNING_STEPS_AP = 8;
+const RAISED_HEIGHT = 1;
 
 function battle() {
   const sim = newCombatSim(content);
@@ -192,5 +195,37 @@ describe('the first step a move in combat must afford (Handle_UI.cc SelectedMerc
     merc.actionPoints = ptsToMoveDirection(ctx, merc, Direction.EAST, merc.uiMovementMode);
     expect(order(sim, { type: 'move', to: start + 2, mode: 'crawl' })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
     expect(shown(sim, merc).continueTo).toBe(start + 2);
+  });
+});
+
+describe('stances a merc cannot take (Handle_UI.cc UIHandleSoldierStanceChange, Interface.cc PopupMovementMenu)', () => {
+  it('refuses lying down where the body has no room, and the movement menu offers no crawl there', () => {
+    const behind = gridNo(80, 79);
+    const sim = newCombatSim(withTwoTileProneBody(content), [], 3, new Set(), (world) => {
+      world.level.heights[behind] = RAISED_HEIGHT;
+    });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    expect(hintAnswer(sim, 'movementOptions', { soldier: 0 })).toEqual({ ok: true, data: { run: true, sneak: true, crawl: false } });
+    expect(order(sim, { type: 'stance', stance: 'prone' })).toMatchObject({ ok: false, data: { refusal: 'invalidStance' } });
+    expect(endHeight(content, merc.state)).toBe(AnimHeight.STAND);
+  });
+
+  it('takes run, sneak and crawl away in water and refuses crouching there', () => {
+    const at = gridNo(80, 80);
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+      world.terrain[at] = Terrain.MED_WATER;
+    });
+    const merc = spawnSoldier(sim, 0, Team.OUR, at, Direction.SOUTH);
+    expect(hintAnswer(sim, 'movementOptions', { soldier: 0 })).toEqual({ ok: true, data: { run: false, sneak: false, crawl: false } });
+    expect(order(sim, { type: 'stance', stance: 'crouch' })).toMatchObject({ ok: false, data: { refusal: 'invalidStance' } });
+    expect(endHeight(content, merc.state)).toBe(AnimHeight.STAND);
+  });
+
+  it('never lets an escort lie down', () => {
+    const { sim, merc } = realTime();
+    sim.state.narrative = { ...sim.state.narrative, isEpc: (s) => s === merc };
+    expect(isValidStance(sim.state, merc, AnimHeight.CROUCH)).toBe(true);
+    expect(isValidStance(sim.state, merc, AnimHeight.PRONE)).toBe(false);
+    expect(order(sim, { type: 'stance', stance: 'prone' })).toMatchObject({ ok: false, data: { refusal: 'invalidStance' } });
   });
 });

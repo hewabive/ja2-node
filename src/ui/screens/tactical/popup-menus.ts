@@ -3,12 +3,12 @@
 // @src src/game/Tactical/Interface.cc InitializeTacticalInterface (newicons3.sti and door_op2.sti button pictures,
 // @src button_frame.sti), PopupMovementMenu (the anchor 18 pixels up and left of the pointer, clamped to the screen and
 // @src the viewport, the 3 × 3 buttons at +9, +8 on a 20-pixel grid, MSYS_PRIORITY_HIGHEST - 1, the look, run, walk,
-// @src action, cancel, sneak, talk, hand and crawl buttons with their help and disabled rules, the action picture by the
-// @src hand item), MovementMenuBackregionCallback, BtnMovementCallback, InitDoorOpenMenu (centred on the merc's bounding
+// @src action, cancel, sneak, talk, hand and crawl buttons with their help and disabled rules, run, sneak and crawl by
+// @src the movementOptions hint, the action picture by the hand item), MovementMenuBackregionCallback, BtnMovementCallback, InitDoorOpenMenu (centred on the merc's bounding
 // @src box, clamped), PopupDoorOpenMenu, MakeButtonDoor (the "( AP )" help in combat, disabled without the tool or the
 // @src points), BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
 
-import type { DoorMenuAction, DoorMenuOption } from '../../../protocol/hints.ts';
+import type { DoorMenuAction, DoorMenuOption, MovementOptions } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
@@ -17,6 +17,8 @@ import type { UiServices } from '../../services.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { type Button, buttonImage } from '../../widgets/button.ts';
 import type { MovementChoice } from './input/tactical-input.ts';
+
+const MOVEMENT_OPTION_KEYS: readonly (keyof MovementOptions)[] = ['run', 'sneak', 'crawl'];
 
 export const BUTTON_PANEL_WIDTH = 78;
 export const BUTTON_PANEL_HEIGHT = 76;
@@ -93,9 +95,9 @@ export interface MovementMenuSubject {
   readonly soldier: SoldierView;
   readonly epc: boolean;
   readonly vehicle: boolean;
-  readonly robot: boolean;
   readonly uncontrolledRobot: boolean;
   readonly handItem: MenuItemInfo | null;
+  readonly options: MovementOptions;
 }
 
 interface PlacedButton {
@@ -160,7 +162,7 @@ abstract class PopupMenu {
     help: string,
     disabled: boolean,
     click: () => void,
-  ): void {
+  ): Button {
     const button = this.services.buttons.create({
       x: this.#x + BUTTONS_X + column * GRID,
       y: this.#y + BUTTONS_Y + row * GRID,
@@ -176,6 +178,7 @@ abstract class PopupMenu {
     button.setTooltip(help);
     if (disabled) button.disable();
     this.#buttons.push({ button });
+    return button;
   }
 
   protected popdown(): void {
@@ -224,13 +227,15 @@ function actionPicture(subject: MovementMenuSubject): { readonly icon: number; r
 
 export class MovementMenu extends PopupMenu {
   #done: ((choice: MovementChoice | null) => void) | null = null;
+  #shown = 0;
+  #optionButtons: Readonly<Record<keyof MovementOptions, Button>> | null = null;
 
   show(
     subject: MovementMenuSubject,
     pointer: { x: number; y: number },
     viewportBottom: number,
     done: (choice: MovementChoice | null) => void,
-  ): void {
+  ): number {
     this.close(null);
     const { width } = this.services.geometry();
     let x = Math.max(0, pointer.x - MENU_POINTER_OFFSET);
@@ -251,7 +256,7 @@ export class MovementMenu extends PopupMenu {
       subject.vehicle || subject.uncontrolledRobot,
       pick('look'),
     );
-    this.add('menuRun', 1, 0, iconImage(icons, NEW_ICONS.run), this.popupText(Icon.RUN), subject.vehicle || subject.robot, pick('run'));
+    const run = this.add('menuRun', 1, 0, iconImage(icons, NEW_ICONS.run), this.popupText(Icon.RUN), !subject.options.run, pick('run'));
     const walkHelp = subject.vehicle ? this.tacticalText(DRIVE_POPUPTEXT) : this.popupText(Icon.WALK);
     this.add('menuWalk', 2, 0, iconImage(icons, NEW_ICONS.walk), walkHelp, subject.uncontrolledRobot, pick('walk'));
     this.add(
@@ -264,15 +269,39 @@ export class MovementMenu extends PopupMenu {
       pick('action'),
     );
     this.add('menuCancel', 1, 1, iconImage(icons, NEW_ICONS.cancel), this.popupText(Icon.CANCEL), false, () => this.close(null));
-    this.add('menuSneak', 2, 1, iconImage(icons, NEW_ICONS.sneak), this.popupText(Icon.SNEAK), subject.vehicle, pick('swat'));
+    const sneak = this.add(
+      'menuSneak',
+      2,
+      1,
+      iconImage(icons, NEW_ICONS.sneak),
+      this.popupText(Icon.SNEAK),
+      !subject.options.sneak,
+      pick('swat'),
+    );
     this.add('menuTalk', 0, 2, iconImage(icons, NEW_ICONS.talk), this.popupText(Icon.TALK), subject.epc || subject.vehicle, pick('talk'));
     this.add('menuHand', 1, 2, iconImage(icons, NEW_ICONS.hand), this.popupText(Icon.HAND), subject.epc || subject.vehicle, pick('hand'));
-    this.add('menuCrawl', 2, 2, iconImage(icons, NEW_ICONS.crawl), this.popupText(Icon.CRAWL), subject.vehicle, pick('prone'));
+    const crawl = this.add(
+      'menuCrawl',
+      2,
+      2,
+      iconImage(icons, NEW_ICONS.crawl),
+      this.popupText(Icon.CRAWL),
+      !subject.options.crawl,
+      pick('prone'),
+    );
+    this.#optionButtons = { run, sneak, crawl };
+    return ++this.#shown;
+  }
+
+  useOptions(shown: number, options: MovementOptions): void {
+    if (shown !== this.#shown || !this.#optionButtons) return;
+    for (const key of MOVEMENT_OPTION_KEYS) this.#optionButtons[key].setEnabled(options[key]);
   }
 
   close(choice: MovementChoice | null): void {
     if (!this.open) return;
     this.popdown();
+    this.#optionButtons = null;
     const done = this.#done;
     this.#done = null;
     done?.(choice);

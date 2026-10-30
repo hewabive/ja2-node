@@ -21,7 +21,7 @@
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
-import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions } from '../../../protocol/hints.ts';
+import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions, MovementOptions } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
@@ -388,17 +388,24 @@ export class TacticalControls {
       done(null);
       return;
     }
+    const vehicle = isVehicleBody(sel);
     const hand = slotItem(sel, HANDPOS);
     const item = hand ? this.#env().media.item(hand.item) : null;
     const subject: MovementMenuSubject = {
       soldier: sel,
       epc: isEpc(sel),
-      vehicle: isVehicleBody(sel),
-      robot: isRobot(sel),
+      vehicle,
       uncontrolledRobot: sel.controlled === false,
       handItem: item ? { name: item.name, class: item.class } : null,
+      options: { run: !vehicle && !isRobot(sel), sneak: !vehicle, crawl: !vehicle },
     };
-    this.movementMenu.show(subject, { x, y }, this.#screen.viewportBottom(), done);
+    const shown = this.movementMenu.show(subject, { x, y }, this.#screen.viewportBottom(), done);
+    void this.#useMovementOptions(sel.id, shown);
+  }
+
+  async #useMovementOptions(soldier: number, shown: number): Promise<void> {
+    const answer = await hintNow<MovementOptions>(this.#env().client, { type: 'movementOptions', soldier });
+    if (answer.state === 'ok') this.movementMenu.useOptions(shown, answer.data);
   }
 
   #openDoorMenu({ soldier, gridNo, options, closing }: DoorMenuEvent): void {

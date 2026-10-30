@@ -53,7 +53,7 @@ string. Enable states the hints cannot decide are left to the command (deviation
 
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|
-| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `exitSector {dryRun}`, `exitSectorOptions` | the orders and inventory commands, `door`, `pickUp`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, the message log |
+| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `door`, `pickUp`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, the message log |
 | Talk and shop | `quoteTrade` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, `observe.shop` |
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
@@ -190,7 +190,7 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Map screen keys not yet ported", "Interactive
-tiles", "Movement menu stances", "Tossing from the item cursor", "Auto-bandage", "Overhead map", "Inventory panel
-clicks", "Team panel vehicle exit", "Map inventory details", "Trash can warning for mission items", "Vehicles as
-characters", "Pre-battle retreat preview", "Shop screen details", "Save location on the canvas", "Inert options", "IME
-composition", "Laptop video faces", "I.M.P. voice samples", "I.M.P. skill page and saved profiles".
+tiles", "Tossing from the item cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle
+exit", "Map inventory details", "Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat
+preview", "Shop screen details", "Save location on the canvas", "Inert options", "IME composition", "Laptop video
+faces", "Florist order focus", "I.M.P. voice samples", "I.M.P. skill page and saved profiles".

@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldMan.cc AddMercStructureInfoFromAnimSurface; Tactical/Animation_Control.cc
-// @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance
+// @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance (an
+// @src escort may crouch anywhere and never lie down), MercInWater; Tactical/Handle_UI.cc UIHandleSoldierStanceChange
+// @src (the message for a stance that is not valid; the tired collapse is refused before as outOfBreath)
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
@@ -9,6 +11,8 @@ import { Terrain } from '../../content/world/terrain.ts';
 import { AnimHeight, states } from './animation.ts';
 import { DIRECTION_COUNT } from './directions.ts';
 import { animStructureFile } from './multi-tile.ts';
+import { isRobot } from './narrative/robot.ts';
+import type { Refusal } from './refusal.ts';
 import { Body, OKBREATH, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -24,13 +28,19 @@ export function animStructureDef(t: TacticalState, s: Soldier, state: number, di
   return file.structures[s.bodyType === Body.QUEENMONSTER ? 0 : (direction + 1) % DIRECTION_COUNT] ?? null;
 }
 
-const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
-const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+export function mercInWater(s: Soldier): boolean {
+  return s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
+}
+
+export function isVehicleBody(s: Soldier): boolean {
+  return s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+}
 
 export function internalIsValidStance(t: TacticalState, s: Soldier, direction: number, stance: number): boolean {
-  if (isVehicle(s) && stance !== AnimHeight.STAND) return false;
-  if (inWater(s) && (stance === AnimHeight.PRONE || stance === AnimHeight.CROUCH)) return false;
+  if (isVehicleBody(s) && stance !== AnimHeight.STAND) return false;
+  if (mercInWater(s) && (stance === AnimHeight.PRONE || stance === AnimHeight.CROUCH)) return false;
   if (s.bodyType === Body.ROBOTNOWEAPON && stance !== AnimHeight.STAND) return false;
+  if (t.narrative.isEpc(s)) return stance !== AnimHeight.PRONE;
   if (s.collapsed && (stance === AnimHeight.STAND || stance === AnimHeight.CROUCH) && s.breath < OKBREATH) return false;
   const st = states(t.content.animations);
   const state =
@@ -48,6 +58,14 @@ export function internalIsValidStance(t: TacticalState, s: Soldier, direction: n
 
 export function isValidStance(t: TacticalState, s: Soldier, stance: number): boolean {
   return internalIsValidStance(t, s, s.direction, stance);
+}
+
+export function invalidStanceRefusal(t: TacticalState, s: Soldier, stance: number): Refusal | null {
+  if (isValidStance(t, s, stance)) return null;
+  if (isVehicleBody(s)) return { token: 'vehicleNoStance', reason: 'vehicles cannot change stance' };
+  if (isRobot(s)) return { token: 'robotNoStance', reason: 'the robot cannot change its stance' };
+  if (s.collapsed) return { token: 'collapsedNoStance', reason: 'the soldier cannot change stance while collapsed' };
+  return { token: 'invalidStance', reason: 'the soldier cannot take that stance here' };
 }
 
 export function addMercStructure(t: TacticalState, s: Soldier, state = s.state): StructureInstance | null {

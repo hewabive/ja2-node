@@ -106,6 +106,7 @@ import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
+import { invalidStanceRefusal } from './person-structure.ts';
 import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-orders.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
@@ -795,6 +796,8 @@ export class TacticalSim {
 
   #changeStance(s: Soldier, wanted: number): CommandResult {
     const t = this.state;
+    const invalid = invalidStanceRefusal(t, s, wanted);
+    if (invalid) return refused(invalid);
     if (t.inCombat) {
       const ap = apsToChangeStance(t.content, s, wanted);
       if (!enoughPoints(t.inCombat, s, ap)) return refuse('notEnoughAP', `not enough APs: ${ap} needed`);

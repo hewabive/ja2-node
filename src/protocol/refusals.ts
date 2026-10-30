@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc CanCharacterMoveInStrategic, Map_Screen_Interface.h MoveError;
 // @src Refusal messages: Points.cc EnoughPoints (NOT_ENOUGH_APS_STR), Turn_Based_Input.cc / Handle_UI.cc (NO_PATH,
 // @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
-// @src (MSG_CANT_FIRE_HERE), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
+// @src (MSG_CANT_FIRE_HERE; UIHandleSoldierStanceChange: VEHICLES_NO_STANCE_CHANGE_STR, ROBOT_NO_STANCE_CHANGE_STR,
+// @src MSG_CANT_CHANGE_STANCE, CANNOT_STANCE_CHANGE_STR), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
 // @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime, HandleMilitiaRedistributionClick (pMapErrorString 30
 // @src and 31, pMilitiaString 2).
 
@@ -47,6 +48,10 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   outOfBreath: log('gzLateLocalizedString', 3),
   noBurst: log('Message', 34),
   noRoomToFire: log('pMessageStrings', 34),
+  collapsedNoStance: log('pMessageStrings', 35),
+  vehicleNoStance: log('TacticalStr', 29),
+  robotNoStance: log('TacticalStr', 30),
+  invalidStance: log('TacticalStr', 31),
   ...Object.fromEntries(Object.entries(MOVE_REFUSAL_INDEX).map(([token, index]) => [token, box('pMapErrorString', index)])),
   notEligible: box('pMapErrorString', 18),
   squadFull: box('pMapErrorString', 19),

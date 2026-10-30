@@ -287,7 +287,7 @@ export function gameSavedEntry(tick: number): MessageEntry {
   return { tick, ...line(GAME_SAVED_MESSAGE.table, GAME_SAVED_MESSAGE.index) };
 }
 
-const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst']);
+const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst', 'invalidStance']);
 
 function refusalArgs(token: string, cmd: CommandEnvelope, facts: MessageFacts): MessageArg[] {
   const soldier = typeof cmd.soldier === 'number' ? cmd.soldier : null;

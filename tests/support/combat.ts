@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Orientation } from '../../src/content/formats/jsd.ts';
 import { StructureFlags } from '../../src/content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
+import { type SyntheticWorld, syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { advance } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
@@ -42,6 +42,7 @@ export function newCombatSim(
   walls: readonly number[] = [],
   seed = 3,
   roofs: ReadonlySet<number> = new Set(),
+  shapeWorld: (world: SyntheticWorld) => void = () => undefined,
 ): TacticalSim {
   const build = () => {
     const base = syntheticWorld(
@@ -52,6 +53,7 @@ export function newCombatSim(
       },
       roofs,
     );
+    shapeWorld(base);
     return { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
   };
   const sim = new TacticalSim(build(), content, seed);

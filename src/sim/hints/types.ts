@@ -23,7 +23,15 @@ export interface HintRequestBase {
   readonly [key: string]: unknown;
 }
 
-export const TACTICAL_HINT_KINDS = ['previewMove', 'previewAction', 'estimateAttack', 'placements', 'itemInfo', 'exitSector'] as const;
+export const TACTICAL_HINT_KINDS = [
+  'previewMove',
+  'previewAction',
+  'estimateAttack',
+  'placements',
+  'itemInfo',
+  'exitSector',
+  'movementOptions',
+] as const;
 
 export const STRATEGIC_HINT_KINDS = [
   'exitSectorOptions',

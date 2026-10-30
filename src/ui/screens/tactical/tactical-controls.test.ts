@@ -169,6 +169,29 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'stance').at(-1)).toMatchObject({ soldier: 0, stance: 'crouch' });
   });
 
+  it('takes the run, sneak and crawl buttons of the movement menu from the movementOptions hint', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const asked: unknown[] = [];
+    const hintNow = f.client.hintNow.bind(f.client);
+    f.client.hintNow = async (request) => {
+      if (request.type !== 'movementOptions') return hintNow(request);
+      asked.push(request);
+      return { ok: true, data: { run: false, sneak: true, crawl: false } };
+    };
+    const s = merc(f, 0);
+    const at = f.world.pickPoint(s.gridNo + 2);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    pointer(f, 'pointerDown', at.x, at.y, MouseButton.RIGHT);
+    f.t.frame();
+    f.t.frame(HOLD_MS);
+    f.t.frame();
+    await f.settle();
+    expect(asked).toEqual([{ type: 'movementOptions', soldier: 0 }]);
+    const enabled = (id: string) => f.t.runtime.buttons.buttons.find((b) => b.id === id)?.enabled;
+    expect([enabled('menuRun'), enabled('menuSneak'), enabled('menuCrawl'), enabled('menuWalk')]).toEqual([false, true, false, true]);
+  });
+
   it('opens the door menu from the doorMenu event and sends the chosen action', async () => {
     const f = await tacticalUiTest(kit, ui);
     const s = merc(f, 0);

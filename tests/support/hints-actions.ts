@@ -38,6 +38,7 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
   const requests: CommandEnvelope[] = [];
   const others = view.soldiers;
   for (const s of own(view)) {
+    requests.push({ type: 'movementOptions', soldier: s.id });
     const base = { type: 'previewAction', soldier: s.id };
     for (const off of LOOK_OFFSETS) requests.push({ ...base, kind: 'look', gridNo: s.gridNo + off });
     for (const dir of SIDES) requests.push({ ...base, kind: 'jump', gridNo: s.gridNo + 2 * (DIRECTION_INCREMENT[dir] ?? 0) });

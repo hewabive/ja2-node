@@ -5,6 +5,7 @@ export type { AmmoState, AttackCursor, EstimateAttack } from '../sim/hints/estim
 export type { ExitSectorDryRun, ExitSectorOptions } from '../sim/hints/exit-sector.ts';
 export type { ItemInfo, ItemInfoKind } from '../sim/hints/item-info.ts';
 export type { MoveBoxOptions, MoveBoxSoldier } from '../sim/hints/move-box-options.ts';
+export type { MovementOptions } from '../sim/hints/movement-options.ts';
 export type { Placements, SlotPlacement } from '../sim/hints/placements.ts';
 export type { ActionKind, PreviewAction } from '../sim/hints/preview-action.ts';
 export type { PreviewHeliRoute } from '../sim/hints/preview-heli-route.ts';

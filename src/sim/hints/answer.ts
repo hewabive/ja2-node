@@ -6,6 +6,7 @@ import { estimateAttack } from './estimate-attack.ts';
 import { exitSectorDryRun, exitSectorOptions } from './exit-sector.ts';
 import { itemInfo } from './item-info.ts';
 import { moveBoxOptions } from './move-box-options.ts';
+import { movementOptions } from './movement-options.ts';
 import { placements } from './placements.ts';
 import { previewAction } from './preview-action.ts';
 import { previewHeliRoute } from './preview-heli-route.ts';
@@ -28,6 +29,7 @@ const ANSWERERS: Readonly<Partial<Record<HintKind, HintAnswerer>>> = {
   moveBoxOptions,
   exitSector: exitSectorDryRun,
   exitSectorOptions,
+  movementOptions,
 };
 
 export function answerHint(world: KnowledgeWorld, req: HintRequestBase): CommandResult {
