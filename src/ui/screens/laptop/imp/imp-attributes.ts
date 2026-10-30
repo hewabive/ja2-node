@@ -7,6 +7,7 @@
 // @src jumps; the static last attribute and last x survive between drags), MouseXPosToSkillValue, DrawBonusPointsRemaining,
 // @src StatAtZeroBoxCallBack; IMP_Attribute_Finish.cc the yes and no buttons.
 
+import { idiv } from '../../../../core/int.ts';
 import type { ImpAttributeName } from '../../../../protocol/view.ts';
 import { MouseButtonMask } from '../../../input/mouse.ts';
 import type { ControllerContract } from '../../../layout/controller.ts';
@@ -78,7 +79,7 @@ export class AttributeSliders {
     const value = this.#draft.current[name];
     const thumbX = Math.max(
       0,
-      Math.trunc(((value - this.#draft.rules.min) * this.#geometry.pixelUnit) / (this.#draft.rules.max - this.#draft.rules.min)) +
+      idiv((value - this.#draft.rules.min) * this.#geometry.pixelUnit, this.#draft.rules.max - this.#draft.rules.min) +
         this.#geometry.startX,
     );
     this.slideActive = x > thumbX && x < thumbX + this.#geometry.thumbWidth;

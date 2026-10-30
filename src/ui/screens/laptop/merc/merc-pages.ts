@@ -16,6 +16,7 @@
 // @src RenderBrokenLink.
 
 import { type DataVersion, displayLanguageOf } from '../../../../content/text/data-version.ts';
+import { idiv } from '../../../../core/int.ts';
 import type { MercListingView, MercSiteView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';
 import { MouseReason, Priority } from '../../../input/mouse.ts';
@@ -186,7 +187,7 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
     );
     const left = view.frame.x + view.number('LAPTOP_SCREEN_UL_X', {});
     const right = view.frame.x + view.number('LAPTOP_SCREEN_LR_X', {});
-    const x = Math.trunc((right - box.width - left) / 2) + left;
+    const x = idiv(right - box.width - left, 2) + left;
     box.render(list, x, rect.y);
     if (!subtitleRegion || subtitleRegion.x1 !== x || subtitleRegion.y2 !== rect.y + box.height) {
       subtitleRegion?.remove();

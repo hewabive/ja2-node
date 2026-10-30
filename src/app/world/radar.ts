@@ -7,6 +7,7 @@ import { rgb565ToRgba } from '../../content/formats/rgb565.ts';
 import { decodeSti, type Sti } from '../../content/formats/sti.ts';
 import { WORLD_TILE_X, WORLD_TILE_Y } from '../../content/world/grid.ts';
 import { absoluteScreenXY, gridNoOnVisibleWorldTile, renderBounds, renderedScreenSize } from '../../content/world/render-bounds.ts';
+import { idiv } from '../../core/int.ts';
 import { cellToScreen, screenToCell } from '../../render/world/camera.ts';
 import { type Camera, mapCenter, type Viewport } from '../../render/world/geometry.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
@@ -83,7 +84,7 @@ export function radarScale(restrictedScrollId: number): RadarScale {
 
 const roundHalfAwayFromZero = (v: number) => Math.sign(v) * Math.round(Math.abs(v));
 
-const snapToStep = (v: number, centre: number, step: number) => Math.trunc((v - centre) / step) * step + centre;
+const snapToStep = (v: number, centre: number, step: number) => idiv(v - centre, step) * step + centre;
 
 export function radarRenderCenter(restrictedScrollId: number, radarX: number, radarY: number, v: Viewport): Camera {
   const scale = radarScale(restrictedScrollId);

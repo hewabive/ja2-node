@@ -14,6 +14,7 @@
 // @src src/game/Laptop/Florist_Cards.cc EnterFloristCards, RenderFloristCards,
 // @src SelectFloristCardsRegionCallBack, BtnFlowerCardsBackButtonCallback.
 
+import { idiv } from '../../../../core/int.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { fontHeight } from '../../../text/bitmap-font.ts';
 import { FontName } from '../../../text/fonts.ts';
@@ -337,7 +338,7 @@ export function floristCardsPage(context: LaptopContext): LaptopPage {
   const model: Record<string, unknown> = {};
   const refresh = () => {
     model.cardTextY = Array.from({ length: CARDS }, (_, i) => {
-      const cardY = constant('FLORIST_CARD_FIRST_POS_Y') + constant('FLORIST_CARD_FIRST_OFFSET_Y') * Math.trunc(i / CARD_COLUMNS);
+      const cardY = constant('FLORIST_CARD_FIRST_POS_Y') + constant('FLORIST_CARD_FIRST_OFFSET_Y') * idiv(i, CARD_COLUMNS);
       const text = context.text.edt(CARD_TEXT_FILE, i) ?? '';
       const height = ianWrappedStringHeight(constant('FLORIST_CARD_TEXT_WIDTH'), CARD_TEXT_GAP, font, text, bold);
       return cardTextY(cardY, height, constant('FLORIST_CARD_TEXT_HEIGHT')) - cardY;

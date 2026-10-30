@@ -9,6 +9,7 @@
 // @src HandleTinCanCursor, HandleRightClickAdjustCursor, HandleWheelAdjustCursor; Overhead_Types.h REFINE_AIM_*,
 // @src REFINE_PUNCH_*, REFINE_KNIFE_*.
 
+import { idiv } from '../../../../core/int.ts';
 import type { EstimateAttack } from '../../../../protocol/hints.ts';
 
 export const REFINE_AIM_1 = 0;
@@ -56,7 +57,7 @@ const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], 
 const RING_CURSOR = ['1', '3', '5', '7', '9'] as const;
 
 function costAt(e: EstimateAttack, shownAim: number): number {
-  return e.apCostByAim[Math.trunc(shownAim / AIM_STEP)] ?? e.apCost;
+  return e.apCostByAim[idiv(shownAim, AIM_STEP)] ?? e.apCost;
 }
 
 function affordable(e: EstimateAttack, cost: number): boolean {
@@ -131,7 +132,7 @@ function nonActivatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext):
 }
 
 function ringCursor(aim: AimState, enough: boolean, knife: boolean): string {
-  const level = Math.min(AIM_LEVELS, Math.trunc(aim.shownAimTime / AIM_STEP) + 1);
+  const level = Math.min(AIM_LEVELS, idiv(aim.shownAimTime, AIM_STEP) + 1);
   const kind = knife ? 'THROW' : 'TARGET';
   if (aim.fullCountRing) return level === AIM_LEVELS ? `ACTION_${kind}AIMFULL_UICURSOR` : `ACTION_${kind}AIMYELLOW${level}_UICURSOR`;
   return enough ? `ACTION_${kind}AIM${RING_CURSOR[level - 1] ?? '1'}_UICURSOR` : `ACTION_${kind}AIMCANT${level}_UICURSOR`;
@@ -241,5 +242,5 @@ export function confirmsBeforeAttack(e: EstimateAttack): boolean {
 }
 
 export function aimTimeOf(aim: AimState): number {
-  return Math.trunc(aim.shownAimTime / AIM_STEP);
+  return idiv(aim.shownAimTime, AIM_STEP);
 }

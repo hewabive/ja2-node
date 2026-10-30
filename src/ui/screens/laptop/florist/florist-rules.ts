@@ -45,7 +45,7 @@ export function galleryNextEnabled(index: number): boolean {
 }
 
 export function gallerySubPage(index: number): number {
-  return Math.min(Math.trunc(index / FLOWERS_PER_PAGE), GALLERY_PAGES - 1);
+  return Math.min(idiv(index, FLOWERS_PER_PAGE), GALLERY_PAGES - 1);
 }
 
 export class SubPageVisits {

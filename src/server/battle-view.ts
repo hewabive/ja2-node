@@ -1,4 +1,5 @@
 import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
+import { idiv } from '../core/int.ts';
 import type { AutoresolveCellView, AutoresolveView, NpcRequestPromptView, PromptView } from '../protocol/view.ts';
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
@@ -171,7 +172,7 @@ export function autoresolveView(campaign: CampaignSim): AutoresolveView | null {
     sector: sectorName(session.sector),
     encounter: encounterName(ar.encounter),
     status: battleStatusName(ar.status),
-    battleSeconds: Math.trunc(ar.elapsedMs / MS_PER_SECOND),
+    battleSeconds: idiv(ar.elapsedMs, MS_PER_SECOND),
     alive: { mercs: ar.aliveMercs, militia: ar.aliveCivs, enemies: ar.aliveEnemies },
     cells: [
       ...ar.mercs.map(mercCell),

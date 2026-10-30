@@ -7,6 +7,7 @@
 // @src SelectScrollAreaDropDownMovementCallBack, SelectUpDownArrowOnScrollAreaRegionCallBack, DrawGoldRectangle,
 // @src SelectActivateCityDroDownRegionCallBack, SelectCloseDroDownRegionCallBack.
 
+import { idiv } from '../../core/int.ts';
 import type { AssetKey, DrawList, RgbColor } from '../draw-list.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../input/mouse.ts';
 import type { MouseRegion, RegionDispatcher } from '../input/regions.ts';
@@ -300,7 +301,7 @@ export class DropDownView {
       );
     });
     const top = scroll.upY + scroll.arrowHeight;
-    const each = Math.trunc((g.height - 2 * scroll.arrowHeight - SCROLL_PAD) / this.model.entries);
+    const each = idiv(g.height - 2 * scroll.arrowHeight - SCROLL_PAD, this.model.entries);
     for (let index = 0; index < this.model.entries; index++) {
       const y1 = top + index * each;
       const y2 = index === this.model.entries - 1 ? scroll.downY : y1 + each;
@@ -386,7 +387,7 @@ export class DropDownView {
     const index = this.model.selected === NO_SELECTION ? 0 : this.model.selected;
     const width = scroll.width - THUMB_INSET;
     const span = g.height - 2 * scroll.arrowHeight;
-    const height = Math.trunc((span - SCROLL_PAD) / (this.model.entries + 1));
+    const height = idiv(span - SCROLL_PAD, this.model.entries + 1);
     let y = scroll.upY + scroll.arrowHeight + Math.trunc(Math.fround(Math.fround(span / (this.model.entries + 1)) * index));
     const floor = g.y + g.height - scroll.arrowHeight - height - THUMB_FLOOR;
     if (y >= floor) y = g.y + g.height - scroll.arrowHeight - height - THUMB_EDGE;

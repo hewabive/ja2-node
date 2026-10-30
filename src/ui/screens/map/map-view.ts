@@ -315,7 +315,7 @@ function drawSurface(ctx: MapViewContext, input: MapViewInput, s: Scan): void {
 }
 
 function sectorOfByte(id: number): Sector {
-  return { x: (id % MAP_SIDE) + 1, y: Math.trunc(id / MAP_SIDE) + 1, z: 0 };
+  return { x: (id % MAP_SIDE) + 1, y: idiv(id, MAP_SIDE) + 1, z: 0 };
 }
 
 function drawSite(ctx: MapViewContext, s: Sector, icon: string): void {

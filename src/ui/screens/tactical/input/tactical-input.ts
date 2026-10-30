@@ -23,6 +23,7 @@
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY.
 
+import { idiv } from '../../../../core/int.ts';
 import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
 import type { PlayerView, SoldierView, Stance } from '../../../../protocol/view.ts';
@@ -2797,7 +2798,7 @@ function adjustedStance(height: string, change: number): 'stand' | 'crouch' | 'p
 function rangeInTiles(a: number, b: number): number {
   const COLS = 160;
   const dx = (a % COLS) - (b % COLS);
-  const dy = Math.trunc(a / COLS) - Math.trunc(b / COLS);
+  const dy = idiv(a, COLS) - idiv(b, COLS);
   return Math.trunc(Math.sqrt(dx * dx + dy * dy));
 }
 

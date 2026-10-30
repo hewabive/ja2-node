@@ -9,6 +9,7 @@
 // @src ActivateAutomaticAutoResolveStart (the Autoresolve button shown pressed), KillPreBattleInterface; src/game/Strategic/
 // @src MapScreen.cc HandleKeyESC (Esc closes the non-persistent panel).
 
+import { idiv } from '../../../core/int.ts';
 import type { InvolvedMercView, PromptOptionView, StrategicView, UninvolvedMercView } from '../../../protocol/view.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';
 import type { UiInputEvent } from '../../input/events.ts';
@@ -242,7 +243,7 @@ export class PreBattlePanel {
     const blinks = headerBlinks(this.data.persistent, this.data.encounter, this.#renderedBefore);
     const colour = this.#colour(p, headerColour(blinks, this.#host.env.runtime.clock.ja2Now));
     const width = stringPixLength(text, font);
-    const x = p.number('headerCenter') - Math.trunc(width / 2);
+    const x = p.number('headerCenter') - idiv(width, 2);
     mprint(list, font, o.x + x, o.y + p.number('headerY'), text, fontColors(colour, this.#colour(p, 'shadow')));
     return { x, width };
   }
@@ -304,7 +305,7 @@ export class PreBattlePanel {
 
   #centered(list: DrawList, font: BitmapFont, x: number, y: number, width: number, text: string, colour: number, shadow: number): void {
     const o = this.#host.origin();
-    mprint(list, font, o.x + x + Math.trunc((width - stringPixLength(text, font)) / 2), o.y + y, text, fontColors(colour, shadow));
+    mprint(list, font, o.x + x + idiv(width - stringPixLength(text, font), 2), o.y + y, text, fontColors(colour, shadow));
   }
 
   #renderCounts(list: DrawList, p: LayoutParams): void {

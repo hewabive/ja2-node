@@ -9,6 +9,7 @@
 // @src code), CheckLoadMapCallback, SingleMoveAction, AllMoveAction, the region move callbacks.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { idiv } from '../../../core/int.ts';
 import type { ExitMenu, ExitSectorOptions } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -170,8 +171,8 @@ export class ExitDialog {
     );
     this.#box = box;
     const { width } = this.#services.geometry();
-    this.#x = Math.trunc((width - box.width) / 2);
-    this.#y = Math.trunc((request.viewportBottom - box.height) / 2);
+    this.#x = idiv(width - box.width, 2);
+    this.#y = idiv(request.viewportBottom - box.height, 2);
     this.#createRegions();
     this.#createButtons(fonts.text);
     this.#update();

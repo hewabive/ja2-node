@@ -163,7 +163,7 @@ export function pageEntries(stock: readonly BobbyRayStockView[], skin: BobbyRayC
 }
 
 export function pageCount(matching: number): number {
-  return Math.trunc(matching / ITEMS_ON_PAGE) + (matching % ITEMS_ON_PAGE !== 0 ? 1 : 0);
+  return idiv(matching, ITEMS_ON_PAGE) + (matching % ITEMS_ON_PAGE !== 0 ? 1 : 0);
 }
 
 export function cartSubtotal(cart: BobbyRayCart, priceOf: (slot: number, used: boolean, item: number) => number): number {

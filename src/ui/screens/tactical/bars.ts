@@ -4,7 +4,7 @@
 // @src (the colours, 3 × 42 bars at x, x + 6, x + 12, the bars.sti background), DrawItemUIBarEx (the 2-pixel status bar);
 // @src src/game/Tactical/Interface.cc DrawBarsInUIBox (the overhead box lines).
 
-import { idiv, u32 } from '../../../core/int.ts';
+import { idiv, u32, udiv } from '../../../core/int.ts';
 import { type DrawList, type RgbColor, rgb } from '../../draw-list.ts';
 
 const LIFE_BAR_SHADOW = rgb(108, 12, 12);
@@ -61,7 +61,7 @@ function drawLifeBar(list: DrawList, v: BarValues, x: number, bottom: number): v
   const bandage = u32(v.lifeMax - v.life - v.bleeding);
   if (bandage !== 0) {
     y -= height;
-    height = Math.floor(u32(Math.imul(BAR_HEIGHT, bandage)) / FULL);
+    height = udiv(u32(Math.imul(BAR_HEIGHT, bandage)), FULL);
     drawBar(list, x, y, height, BANDAGE_BAR, BANDAGE_BAR_SHADOW);
   }
   if (v.bleeding !== 0) {

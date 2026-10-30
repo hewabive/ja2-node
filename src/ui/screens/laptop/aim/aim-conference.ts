@@ -15,6 +15,7 @@
 // @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion
 // @src while the face is up and no answering machine shows (aim-distortion.ts). The impatience quotes are not reproduced.
 
+import { idiv } from '../../../../core/int.ts';
 import { type DistortionClocks, distortionClocks, VideoDistortion } from './aim-distortion.ts';
 
 export const VideoMode = {
@@ -78,7 +79,7 @@ export function talkingTime(text: string): number {
 }
 
 export function titleBarRect(step: number, fromY: number, toY: number): { x: number; y: number; width: number } {
-  const lerp = (start: number, end: number) => start + Math.trunc(((end - start) * step) / TITLE_ITERATIONS);
+  const lerp = (start: number, end: number) => start + idiv((end - start) * step, TITLE_ITERATIONS);
   const x = lerp(331, 125);
   const right = lerp(405, 490);
   return { x, y: lerp(fromY, toY), width: right - x };

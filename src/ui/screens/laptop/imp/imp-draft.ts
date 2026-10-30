@@ -13,6 +13,7 @@
 // @src BtnIMPPortraitDoneCallback; IMP_Voices.cc IncrementVoice, DecrementVoice, BtnIMPVoicesDoneCallback; IMP_Finish.cc
 // @src EnterIMPFinish, BtnIMPFinishDoneCallback, FinishMessageBoxCallBack; IMP_Confirm.cc BtnIMPConfirmYes, BtnIMPConfirmNo.
 
+import { idiv } from '../../../../core/int.ts';
 import type { ImpAttributeName, ImpAttributeRulesView } from '../../../../protocol/view.ts';
 
 export const ImpPage = {
@@ -463,9 +464,9 @@ export class ImpDraft {
 }
 
 export function skillValueAt(relativeX: number, rules: ImpAttributeRulesView, pixelUnit: number): number {
-  return Math.trunc((relativeX * (rules.max - rules.min)) / pixelUnit) + rules.min;
+  return idiv(relativeX * (rules.max - rules.min), pixelUnit) + rules.min;
 }
 
 export function sliderOffset(value: number, rules: ImpAttributeRulesView, pixelUnit: number): number {
-  return Math.trunc((Math.max(0, value - rules.min) * pixelUnit) / (rules.max - rules.min));
+  return idiv(Math.max(0, value - rules.min) * pixelUnit, rules.max - rules.min);
 }

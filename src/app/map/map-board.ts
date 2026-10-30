@@ -7,6 +7,7 @@
 import { decodePcx, type Pcx } from '../../content/formats/pcx.ts';
 import { rgbToRgb565 } from '../../content/formats/rgb565.ts';
 import type { StiRgb } from '../../content/formats/sti.ts';
+import { idiv } from '../../core/int.ts';
 import type { MapBoardArt } from '../../ui/screens/map/map-view.ts';
 
 export const BOARD_PCX = 'interface/b_map.pcx';
@@ -48,16 +49,16 @@ export function monoShadedPalette(palette: Uint8Array, [rs, gs, bs]: Shade): Uin
     const r = palette[i * 3] ?? 0;
     const g = palette[i * 3 + 1] ?? 0;
     const b = palette[i * 3 + 2] ?? 0;
-    const lumin = Math.floor((r * LUMIN_R + g * LUMIN_G + b * LUMIN_B) / LUMIN_DIVISOR);
-    const channel = (scale: number) => Math.min(Math.floor((scale * lumin) / SCALE_DIVISOR), CHANNEL_MAX);
+    const lumin = idiv(r * LUMIN_R + g * LUMIN_G + b * LUMIN_B, LUMIN_DIVISOR);
+    const channel = (scale: number) => Math.min(idiv(scale * lumin, SCALE_DIVISOR), CHANNEL_MAX);
     out[i] = rgbToRgb565(channel(rs), channel(gs), channel(bs));
   }
   return out;
 }
 
 export function halfImage(pcx: Pcx, palette: Uint16Array): StiRgb {
-  const width = Math.floor(pcx.width / 2);
-  const height = Math.floor(pcx.height / 2);
+  const width = idiv(pcx.width, 2);
+  const height = idiv(pcx.height, 2);
   const pixels = new Uint16Array(width * height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) pixels[y * width + x] = palette[pcx.pixels[2 * y * pcx.width + 2 * x] ?? 0] ?? 0;

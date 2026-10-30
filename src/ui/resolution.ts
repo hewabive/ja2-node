@@ -3,6 +3,8 @@
 // @src src/game/UILayout.cc UILayout::recalculatePositions (m_stdScreenOffsetX/Y); src/game/UILayout.h STD_SCREEN_X,
 // @src STD_SCREEN_Y, MIN_INTERFACE_WIDTH, MIN_INTERFACE_HEIGHT.
 
+import { idiv } from '../core/int.ts';
+
 export const STD_SCREEN_WIDTH = 640;
 export const STD_SCREEN_HEIGHT = 480;
 export const AUTO_UI_SCALE = 0;
@@ -82,8 +84,8 @@ export function resolveResolution(
     viewY: alignedOffset(Math.floor((height - viewHeight) / 2), pixelRatio),
     viewWidth,
     viewHeight,
-    stdScreenX: Math.floor((logicalWidth - STD_SCREEN_WIDTH) / 2),
-    stdScreenY: Math.floor((logicalHeight - STD_SCREEN_HEIGHT) / 2),
+    stdScreenX: idiv(logicalWidth - STD_SCREEN_WIDTH, 2),
+    stdScreenY: idiv(logicalHeight - STD_SCREEN_HEIGHT, 2),
   };
 }
 

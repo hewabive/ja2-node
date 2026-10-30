@@ -7,7 +7,7 @@
 import type { MapDef } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { clamp } from '../../core/int.ts';
+import { clamp, idiv } from '../../core/int.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import { EventKind } from '../../sim/strategic/time/constants.ts';
 import { buildDayLightLevels, NORMAL_LIGHTLEVEL_NIGHT } from '../../sim/strategic/time/environment.ts';
@@ -204,8 +204,8 @@ export class WorldLighting {
 
 function placedLights(input: LightingInput): PlacedLight[] {
   const mercs = input.mercLights.map((m) => ({
-    x: Math.trunc(m.x / CELLS_PER_TILE),
-    y: Math.trunc(m.y / CELLS_PER_TILE),
+    x: idiv(m.x, CELLS_PER_TILE),
+    y: idiv(m.y, CELLS_PER_TILE),
     flags: LightSpriteFlags.MERC_LIGHT | (m.level > 0 ? LightSpriteFlags.ONROOF : 0),
     template: m.template,
   }));

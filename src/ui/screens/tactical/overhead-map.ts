@@ -9,6 +9,7 @@
 // @src ClickOverheadRegionCallbackPrimary (centre the view there and close), ClickOverheadRegionCallbackSecondary.
 
 import { FontColor } from '../../../content/text/font-colors.ts';
+import { idiv } from '../../../core/int.ts';
 import type { ItemView, SoldierView } from '../../../protocol/view.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
@@ -56,7 +57,7 @@ export interface OverheadHooks {
 
 function tileRange(a: number, b: number): number {
   const dx = (a % WORLD_COLS) - (b % WORLD_COLS);
-  const dy = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
+  const dy = idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS);
   return dx * dx + dy * dy;
 }
 
@@ -142,7 +143,7 @@ export class OverheadMap {
     let lowest = Number.POSITIVE_INFINITY;
     for (const s of this.#hooks.soldiers()) {
       const dx = Math.abs((s.gridNo % WORLD_COLS) - (gridNo % WORLD_COLS));
-      const dy = Math.abs(Math.trunc(s.gridNo / WORLD_COLS) - Math.trunc(gridNo / WORLD_COLS));
+      const dy = Math.abs(idiv(s.gridNo, WORLD_COLS) - idiv(gridNo, WORLD_COLS));
       if (dx > CLOSEST_RADIUS || dy > CLOSEST_RADIUS) continue;
       const range = tileRange(s.gridNo, gridNo);
       if (range >= lowest) continue;
@@ -164,7 +165,7 @@ export class OverheadMap {
     const selected = this.#hooks.selected();
     for (const s of this.#hooks.soldiers()) {
       const p = map.pointOf(s.gridNo);
-      const lift = s.level > 0 ? Math.trunc(ROOF_HEIGHT_ADJUSTMENT / SCALE) : 0;
+      const lift = s.level > 0 ? idiv(ROOF_HEIGHT_ADJUSTMENT, SCALE) : 0;
       const shade = blink && s.id === selected ? SELECTED_SHADE : s.level > 0 ? ROOF_SHADE : NORMAL_SHADE;
       list.image(this.#hooks.art.persons, s.team, o.x + p.x + PERSON_X, o.y + p.y + PERSON_Y - lift, { shade });
     }
@@ -176,7 +177,7 @@ export class OverheadMap {
     }
     const name = (s: SoldierView) => {
       const p = map.pointOf(s.gridNo);
-      const lift = (s.level > 0 ? Math.trunc(ROOF_HEIGHT_ADJUSTMENT / SCALE) : 0) + NAME_LIFT;
+      const lift = (s.level > 0 ? idiv(ROOF_HEIGHT_ADJUSTMENT, SCALE) : 0) + NAME_LIFT;
       const at = hCenterVCenterAlign(o.x + p.x, o.y + p.y - lift, 1, 1, s.name, tiny);
       mprint(list, tiny, at.x, at.y, s.name, fontColors(FontColor.MCOLOR_WHITE));
     };

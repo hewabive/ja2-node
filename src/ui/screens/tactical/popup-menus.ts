@@ -8,6 +8,7 @@
 // @src box, clamped), PopupDoorOpenMenu, MakeButtonDoor (the "( AP )" help in combat, disabled without the tool or the
 // @src points), BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
 
+import { idiv } from '../../../core/int.ts';
 import type { DoorMenuAction, DoorMenuOption, MovementOptions } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -366,8 +367,8 @@ export class DoorMenu extends PopupMenu {
     this.close(null);
     const { width } = this.services.geometry();
     const box = request.box ?? { x: 0, y: 0, width: BUTTON_PANEL_WIDTH, height: BUTTON_PANEL_HEIGHT };
-    let x = box.x - Math.trunc((BUTTON_PANEL_WIDTH - box.width) / 2);
-    let y = box.y - Math.trunc((BUTTON_PANEL_HEIGHT - box.height) / 2);
+    let x = box.x - idiv(BUTTON_PANEL_WIDTH - box.width, 2);
+    let y = box.y - idiv(BUTTON_PANEL_HEIGHT - box.height, 2);
     if (x + BUTTON_PANEL_WIDTH > width) x = width - BUTTON_PANEL_WIDTH;
     if (y + BUTTON_PANEL_HEIGHT > request.viewportBottom) y = request.viewportBottom - BUTTON_PANEL_HEIGHT;
     x = Math.max(0, x);

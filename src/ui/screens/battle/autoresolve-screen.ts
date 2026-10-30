@@ -12,6 +12,7 @@
 // @src AcceptSurrenderCallback, RejectSurrenderCallback, HandleAutoResolveInput (Space keeps the speed, Alt+X).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { idiv } from '../../../core/int.ts';
 import type { DriverMode } from '../../../protocol/messages.ts';
 import type { AutoresolveView, PromptView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { type DrawItem, type DrawList, rgb } from '../../draw-list.ts';
@@ -635,25 +636,18 @@ export class AutoresolveScreen implements Screen {
       mprint(
         list,
         font,
-        at.x + STATUS_DX - Math.trunc(stringPixLength(text, font) / 2),
+        at.x + STATUS_DX - idiv(stringPixLength(text, font), 2),
         at.y + RETREAT_TEXT_DY,
         text,
         fontColors(FontColor.YELLOW),
       );
     }
     const s = cellStatus(this.#env.text, cell, status, now);
-    mprint(list, font, at.x + STATUS_DX - Math.trunc(stringPixLength(s.text, font) / 2), at.y + STATUS_DY, s.text, fontColors(s.colour));
+    mprint(list, font, at.x + STATUS_DX - idiv(stringPixLength(s.text, font), 2), at.y + STATUS_DY, s.text, fontColors(s.colour));
   }
 
   #centred(list: DrawList, font: BitmapFont, y: number, text: string, colour: number): void {
-    mprint(
-      list,
-      font,
-      this.#anchors.titleCenterX - Math.trunc(stringPixLength(text, font) / 2),
-      y,
-      text,
-      fontColors(colour, DEFAULT_SHADOW),
-    );
+    mprint(list, font, this.#anchors.titleCenterX - idiv(stringPixLength(text, font), 2), y, text, fontColors(colour, DEFAULT_SHADOW));
   }
 
   #encounter(): string {
@@ -703,7 +697,7 @@ export class AutoresolveScreen implements Screen {
 
   #elapsedText(seconds: number): string {
     const text = this.#env.text;
-    const minutes = Math.trunc(seconds / SECONDS_PER_MINUTE);
+    const minutes = idiv(seconds, SECONDS_PER_MINUTE);
     const rest = String(seconds % SECONDS_PER_MINUTE).padStart(2, '0');
     return `${text.string(STRATEGIC, StrategicString.AR_TIME_ELAPSED) ?? ''}:  ${minutes}${text.string(TIME_STRINGS, TIME_MINUTES) ?? ''} ${rest}${text.string(TIME_STRINGS, TIME_SECONDS) ?? ''}`;
   }

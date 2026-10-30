@@ -5,7 +5,7 @@
 
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { renderBounds } from '../../content/world/render-bounds.ts';
-import { u16 } from '../../core/int.ts';
+import { idiv, u16 } from '../../core/int.ts';
 
 export const Z_SUBLAYERS = 8;
 export const LAND_Z_LEVEL = 0;
@@ -48,7 +48,7 @@ export function topYOf(restrictedScrollId: number): number {
 }
 
 export function mapCenter(v: Viewport): { readonly x: number; readonly y: number } {
-  return { x: Math.floor(v.width / 2), y: Math.floor(v.height / 2) };
+  return { x: idiv(v.width, 2), y: idiv(v.height, 2) };
 }
 
 export function worldOrigin(x: number, y: number): { readonly x: number; readonly y: number } {
@@ -76,7 +76,7 @@ export function screenToGridNo(sx: number, sy: number, v: Viewport, camera: Came
   const cellX = camera.centerX + Math.floor((offX / 2 + offY) / 2);
   const cellY = camera.centerY + Math.floor((offY - offX / 2) / 2);
   if (cellX < 0 || cellY < 0 || cellX >= WORLD_COLS * 10 || cellY >= WORLD_ROWS * 10) return null;
-  return Math.floor(cellY / 10) * WORLD_COLS + Math.floor(cellX / 10);
+  return idiv(cellY, 10) * WORLD_COLS + idiv(cellX, 10);
 }
 
 export function worldY(x: number, y: number, topY: number): number {
@@ -84,7 +84,7 @@ export function worldY(x: number, y: number, topY: number): number {
 }
 
 export function rowOf(g: number): number {
-  return (g % WORLD_COLS) + Math.floor(g / WORLD_COLS);
+  return (g % WORLD_COLS) + idiv(g, WORLD_COLS);
 }
 
 export interface RowReach {
@@ -107,7 +107,7 @@ export function visibleRows(
 }
 
 export function heightAdjusted(height: number, ignoresWorldHeight: boolean): number {
-  return ignoresWorldHeight ? Math.max(0, (Math.floor(height / CLIFF_HEIGHT_STEP) - 1) * CLIFF_HEIGHT_STEP) : height;
+  return ignoresWorldHeight ? Math.max(0, (idiv(height, CLIFF_HEIGHT_STEP) - 1) * CLIFF_HEIGHT_STEP) : height;
 }
 
 export function objectZ(wy: number): number {

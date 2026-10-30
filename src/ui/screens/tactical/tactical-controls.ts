@@ -21,6 +21,7 @@
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { idiv } from '../../../core/int.ts';
 import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions, MovementOptions } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
@@ -155,7 +156,7 @@ function isVehicleBody(s: SoldierView): boolean {
 
 function cellRange(a: number, b: number): number {
   const dx = ((a % WORLD_COLS) - (b % WORLD_COLS)) * CELL;
-  const dy = (Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS)) * CELL;
+  const dy = (idiv(a, WORLD_COLS) - idiv(b, WORLD_COLS)) * CELL;
   return Math.trunc(Math.sqrt(dx * dx + dy * dy));
 }
 
@@ -591,7 +592,7 @@ export class TacticalControls {
     const sel = this.#screen.selected();
     const target = this.input.hover.target?.gridNo ?? this.input.hover.gridNo;
     if (!sel || target === null || target === 0) return;
-    const range = Math.trunc(cellRange(sel.gridNo, target) / CELL);
+    const range = idiv(cellRange(sel.gridNo, target), CELL);
     const hand = slotItem(sel, HANDPOS);
     const item = hand ? this.#env().media.item(hand.item) : null;
     const isGun = item?.class === 'GUN';
@@ -605,7 +606,7 @@ export class TacticalControls {
       : null;
     const data = estimate?.state === 'ok' ? estimate.data : null;
     if (isGun && data?.maxRange !== undefined)
-      this.#screen.log(printf(this.#text(NEW_TACTICAL, TCTL_MSG_RANGE_TO_TARGET_AND_GUN_RANGE), [Math.trunc(data.maxRange / CELL), range]));
+      this.#screen.log(printf(this.#text(NEW_TACTICAL, TCTL_MSG_RANGE_TO_TARGET_AND_GUN_RANGE), [idiv(data.maxRange, CELL), range]));
     else this.#screen.log(printf(this.#text(NEW_TACTICAL, TCTL_MSG_RANGE_TO_TARGET), [range]));
     if (item && GUN_CLASSES.has(item.class) && data && !data.inRange) this.#screen.log(this.#text(TACTICAL, OUT_OF_RANGE_STRING));
   }
@@ -818,12 +819,7 @@ export class TacticalControls {
     const x = regions.mouseX + ITEM_LIST_X + maxWidth <= width ? regions.mouseX + ITEM_LIST_X : regions.mouseX - maxWidth;
     const dy = fontHeight(font) - 2;
     const h = dy * Math.min(shown.length, NUM_ITEMS_LISTED + 1);
-    let y =
-      regions.mouseY < Math.trunc(h / 2)
-        ? 0
-        : regions.mouseY + Math.trunc(h / 2) >= bottom
-          ? bottom - h
-          : regions.mouseY - Math.trunc(h / 2);
+    let y = regions.mouseY < idiv(h, 2) ? 0 : regions.mouseY + idiv(h, 2) >= bottom ? bottom - h : regions.mouseY - idiv(h, 2);
     for (const line of lines) {
       mprint(list, font, x, y, line, fontColors(FontColor.MCOLOR_DKGRAY, DEFAULT_SHADOW));
       y += dy;

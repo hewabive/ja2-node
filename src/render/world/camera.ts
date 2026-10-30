@@ -6,6 +6,7 @@
 
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { renderBounds } from '../../content/world/render-bounds.ts';
+import { idiv } from '../../core/int.ts';
 import { type Camera, mapCenter, type Viewport } from './geometry.ts';
 
 const CELL_SIZE = 10;
@@ -40,7 +41,7 @@ export function screenToCell(sx: number, sy: number): { readonly x: number; read
 }
 
 export function snapToTileCentre(v: number): number {
-  return Math.trunc(v / CELL_SIZE) * CELL_SIZE + HALF_CELL;
+  return idiv(v, CELL_SIZE) * CELL_SIZE + HALF_CELL;
 }
 
 export function snapCamera(c: Camera): Camera {
@@ -48,7 +49,7 @@ export function snapCamera(c: Camera): Camera {
 }
 
 export function cameraOnGridNo(g: number): Camera {
-  return { centerX: (g % WORLD_COLS) * CELL_SIZE + HALF_CELL, centerY: Math.floor(g / WORLD_COLS) * CELL_SIZE + HALF_CELL };
+  return { centerX: (g % WORLD_COLS) * CELL_SIZE + HALF_CELL, centerY: idiv(g, WORLD_COLS) * CELL_SIZE + HALF_CELL };
 }
 
 interface Outside {
@@ -72,10 +73,10 @@ function forcedCenter(screenCenter: { x: number; y: number }, half: { x: number;
   const mapWidth = l.rightX + SCROLL_RIGHT_PADDING - (l.leftX + SCROLL_LEFT_PADDING);
   let x = screenCenter.x;
   let y = screenCenter.y;
-  if (v.height > mapHeight) y = MAP_CENTER_SCREEN_Y + Math.trunc((SCROLL_TOP_PADDING + SCROLL_BOTTOM_PADDING) / 2);
+  if (v.height > mapHeight) y = MAP_CENTER_SCREEN_Y + idiv(SCROLL_TOP_PADDING + SCROLL_BOTTOM_PADDING, 2);
   else if (o.top) y = l.topY + SCROLL_TOP_PADDING + half.y;
   else if (o.bottom) y = l.bottomY + SCROLL_BOTTOM_PADDING - half.y;
-  if (v.width > mapWidth) x = MAP_CENTER_SCREEN_X + Math.trunc((SCROLL_LEFT_PADDING + SCROLL_RIGHT_PADDING) / 2);
+  if (v.width > mapWidth) x = MAP_CENTER_SCREEN_X + idiv(SCROLL_LEFT_PADDING + SCROLL_RIGHT_PADDING, 2);
   else if (o.left) x = l.leftX + SCROLL_LEFT_PADDING + half.x;
   else if (o.right) x = l.rightX + SCROLL_RIGHT_PADDING - half.x;
   return screenToCell(x, y);

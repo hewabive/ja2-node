@@ -7,6 +7,7 @@
 
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS } from '../../content/world/grid.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
+import { idiv } from '../../core/int.ts';
 import type { BulletView } from '../../protocol/view.ts';
 import type { StructNode } from '../../render/world/dynamic-scene.ts';
 
@@ -22,7 +23,7 @@ export function bulletTiles(tables: TileTables): BulletTiles | null {
 }
 
 export function bulletGridNo(b: BulletView): number {
-  return Math.trunc(b.y / CELL_Y_SIZE) * WORLD_COLS + Math.trunc(b.x / CELL_X_SIZE);
+  return idiv(b.y, CELL_Y_SIZE) * WORLD_COLS + idiv(b.x, CELL_X_SIZE);
 }
 
 export function thrownNodes(b: BulletView, tile: number, landHeights: Uint8Array): StructNode[] {

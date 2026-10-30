@@ -14,6 +14,7 @@ import { levelTilesAt } from '../../content/world/level.ts';
 import { absoluteScreenXY, RestrictedScroll, worldXYFromAbsoluteScreenXY } from '../../content/world/render-bounds.ts';
 import { NORMAL_SHADE, SHADOW_FACTOR, shadedPalette565 } from '../../content/world/shading.ts';
 import { TileFlags } from '../../content/world/tile-database.ts';
+import { idiv } from '../../core/int.ts';
 import type { DrawList } from '../../ui/draw-list.ts';
 import type { OverheadMapView, ScreenPoint } from '../../ui/screens/tactical/environment.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
@@ -55,7 +56,7 @@ function darken(c: number): number {
 }
 
 function modifiedHeight(height: number): number {
-  return Math.max(0, (Math.trunc(height / CLIFF_STEP) - 1) * CLIFF_STEP);
+  return Math.max(0, (idiv(height, CLIFF_STEP) - 1) * CLIFF_STEP);
 }
 
 export async function loadSmallTiles(world: LoadedWorld, available: ReadonlySet<string>, read: ReadVfsFile): Promise<(SmallTile | null)[]> {
@@ -104,8 +105,8 @@ export class OverheadPicture implements OverheadMapView {
     const at = absoluteScreenXY(RestrictedScroll.NONE, gridNo);
     const height = this.#world.level.heights[gridNo] ?? 0;
     return {
-      x: Math.trunc(at.x / SCALE) + EDGE,
-      y: Math.trunc(at.y / SCALE) + EDGE - Math.trunc(height / SCALE) + Math.trunc(this.#world.prepared.renderHeight / SCALE),
+      x: idiv(at.x, SCALE) + EDGE,
+      y: idiv(at.y, SCALE) + EDGE - idiv(height, SCALE) + idiv(this.#world.prepared.renderHeight, SCALE),
     };
   }
 
@@ -121,8 +122,8 @@ export class OverheadPicture implements OverheadMapView {
 
 function gridNoFromAbsolute(x: number, y: number): number | null {
   const world = worldXYFromAbsoluteScreenXY(RestrictedScroll.NONE, x, y);
-  const col = Math.trunc(world.x / CELL_Y_SIZE);
-  const row = Math.trunc(world.y / CELL_X_SIZE);
+  const col = idiv(world.x, CELL_Y_SIZE);
+  const row = idiv(world.y, CELL_X_SIZE);
   return col >= 0 && col < WORLD_COLS && row >= 0 && row < WORLD_ROWS ? row * WORLD_COLS + col : null;
 }
 
@@ -136,7 +137,7 @@ class Painter {
     this.#world = world;
     this.#small = small;
     this.#pixels = pixels;
-    this.#renderLift = Math.trunc(world.prepared.renderHeight / SCALE);
+    this.#renderLift = idiv(world.prepared.renderHeight, SCALE);
   }
 
   pass(paint: (g: number, x: number, y: number) => void): void {
@@ -168,13 +169,13 @@ class Painter {
 
   land(g: number, x: number, y: number): void {
     const tiles = levelTilesAt(this.#world.level.layers.land, g);
-    const top = y - Math.trunc(this.#height(g) / SCALE) + this.#renderLift;
+    const top = y - idiv(this.#height(g), SCALE) + this.#renderLift;
     for (let i = this.#world.prepared.landStart[g] ?? -1; i >= 0; i--) this.#blit(tiles[i] ?? 0, x, top, false);
   }
 
   middle(g: number, x: number, y: number): void {
-    const height = Math.trunc(this.#height(g) / SCALE);
-    const modified = Math.trunc(modifiedHeight(this.#height(g)) / SCALE);
+    const height = idiv(this.#height(g), SCALE);
+    const modified = idiv(modifiedHeight(this.#height(g)), SCALE);
     const layers = this.#world.level.layers;
     for (const tile of levelTilesAt(layers.objects, g))
       this.#blit(tile, x, y - this.#lift(tile, height, modified) + this.#renderLift, false);
@@ -184,7 +185,7 @@ class Painter {
   }
 
   roofs(g: number, x: number, y: number): void {
-    const top = y - Math.trunc(this.#height(g) / SCALE) - Math.trunc(WALL_HEIGHT / SCALE) + this.#renderLift;
+    const top = y - idiv(this.#height(g), SCALE) - idiv(WALL_HEIGHT, SCALE) + this.#renderLift;
     for (const tile of levelTilesAt(this.#world.level.layers.roofs, g)) this.#blit(tile, x, top, false);
   }
 

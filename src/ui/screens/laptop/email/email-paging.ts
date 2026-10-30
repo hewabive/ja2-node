@@ -75,7 +75,7 @@ export function emailPages(heights: readonly number[], skipsSubject: boolean, m:
   if (heights.length > 0) {
     for (let next: number | null = 0; next !== null; pageCount++) next = firstRecordOnPage(heights, 0, pageCount, max);
   }
-  const strips = 1 + Math.max(0, Math.floor(totalHeight / m.lineHeight) - 1);
+  const strips = 1 + Math.max(0, idiv(totalHeight, m.lineHeight) - 1);
   return { viewerOffset, totalHeight, firstRecords, pageCount, strips };
 }
 

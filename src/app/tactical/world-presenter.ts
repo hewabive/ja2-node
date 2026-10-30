@@ -16,6 +16,7 @@ import { WORLD_COLS } from '../../content/world/grid.ts';
 import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
+import { idiv } from '../../core/int.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
 import type { BulletView, PlayerView, SoldierView } from '../../protocol/view.ts';
 import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
@@ -205,14 +206,14 @@ export class TacticalWorldPresenter implements WorldPresenter {
   gridNoPickPoint(gridNo: number): ScreenPoint {
     const c = mapCenter(this.#viewport);
     const dx = (gridNo % WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerX;
-    const dy = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
+    const dy = idiv(gridNo, WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - PICK_LIFT };
   }
 
   cellScreenPosition(gridNo: number): ScreenPoint {
     const c = mapCenter(this.#viewport);
     const dx = (gridNo % WORLD_COLS) * CELL_SIZE - this.#camera.centerX;
-    const dy = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE - this.#camera.centerY;
+    const dy = idiv(gridNo, WORLD_COLS) * CELL_SIZE - this.#camera.centerY;
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy };
   }
 
@@ -350,7 +351,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const frame = element ? world.surfaces[element.type]?.frames[element.regionIndex] : undefined;
     if (!element || !frame) return null;
     const x = marker.gridNo % WORLD_COLS;
-    const y = Math.floor(marker.gridNo / WORLD_COLS);
+    const y = idiv(marker.gridNo, WORLD_COLS);
     const origin = worldOrigin(x, y);
     const offset = cameraOffset(this.#viewport, this.#camera, this.#renderHeight());
     const lift = (world.level.heights[marker.gridNo] ?? 0) + (ROOF_LAYERS.has(marker.layer) ? WALL_HEIGHT : 0);
@@ -427,7 +428,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
   tileCentre(gridNo: number): ScreenPoint {
     const c = mapCenter(this.#viewport);
     const dx = (gridNo % WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerX;
-    const dy = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
+    const dy = idiv(gridNo, WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
     const land = this.#world.world.level.heights[gridNo] ?? 0;
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - land + this.#renderHeight() };
   }

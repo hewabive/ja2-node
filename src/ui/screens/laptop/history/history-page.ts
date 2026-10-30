@@ -7,6 +7,7 @@
 // @src the first and the last day of the page), GetNumberOfHistoryPages, LoadInHistoryRecords, LoadNextHistoryPage,
 // @src LoadPreviousHistoryPage, SetHistoryButtonStates, ScrollRegionCallback; Laptop/History.h HISTORY_CHEAT_ENABLED.
 
+import { idiv } from '../../../../core/int.ts';
 import type { LaptopHistoryView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { FontName } from '../../../text/fonts.ts';
@@ -56,7 +57,7 @@ export interface LocationColumn {
 const EMPTY_ROW: HistoryRow = { present: false, date: '', location: '', locationX: 0, text: '', colour: 'black' };
 
 export function historyPageCount(records: number): number {
-  return records === 0 ? FIRST_PAGE : Math.floor((records + NUM_RECORDS_PER_PAGE - 1) / NUM_RECORDS_PER_PAGE);
+  return records === 0 ? FIRST_PAGE : idiv(records + NUM_RECORDS_PER_PAGE - 1, NUM_RECORDS_PER_PAGE);
 }
 
 export function recordsOfPage<T>(records: readonly T[], page: number): readonly T[] {

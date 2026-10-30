@@ -2,6 +2,7 @@ import { ItemClass } from '../content/items/items.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
 import type { UiStrings } from '../content/text/strings.ts';
+import { idiv } from '../core/int.ts';
 import type {
   AimMercView,
   BobbyRayCatalogue,
@@ -78,9 +79,9 @@ const BOBBY_MISC =
   ItemClass.FACE;
 
 function time(minutes: number): LaptopTimeView {
-  const day = Math.trunc(minutes / NUM_MIN_IN_DAY);
+  const day = idiv(minutes, NUM_MIN_IN_DAY);
   const inDay = minutes - day * NUM_MIN_IN_DAY;
-  return { day, hour: Math.trunc(inDay / NUM_MIN_IN_HOUR), minute: inDay % NUM_MIN_IN_HOUR };
+  return { day, hour: idiv(inDay, NUM_MIN_IN_HOUR), minute: inDay % NUM_MIN_IN_HOUR };
 }
 
 function stats(p: ProfileProgress): LaptopStatsView {

@@ -5,6 +5,7 @@
 // @src ('|' bold gold 146, '^' light green, '~' light red, else beige).
 
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
+import { idiv } from '../../core/int.ts';
 import { type DrawList, rgb } from '../draw-list.ts';
 import { type BitmapFont, fontHeight } from '../text/bitmap-font.ts';
 import { FontName, type FontSet } from '../text/fonts.ts';
@@ -76,7 +77,7 @@ export function tooltipBox(region: MouseRegion, text: string, fonts: FontSet, sc
   if (x >= screenWidth - width) x = screenWidth - width - RIGHT_MARGIN;
   let y = region.y1;
   if (region.y2 - region.y1 < height) y += -height - 1;
-  else y += Math.trunc((-height * 3) / 4);
+  else y += idiv(-height * 3, 4);
   if (y < 0) y = 0;
   if (y >= screenHeight - height) y = screenHeight - height - BOTTOM_MARGIN;
   return { x, y, width, height };

@@ -11,7 +11,7 @@ import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/w
 import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import type { ZStripInfo } from '../../content/world/zstrip.ts';
-import { u16 } from '../../core/int.ts';
+import { idiv, u16 } from '../../core/int.ts';
 import {
   animationTileZ,
   type Camera,
@@ -314,7 +314,7 @@ export class DynamicScene {
   }
 
   #forRow(tiles: readonly number[], f: (g: number, x: number, y: number) => void): void {
-    for (const g of tiles) f(g, g % WORLD_COLS, Math.floor(g / WORLD_COLS));
+    for (const g of tiles) f(g, g % WORLD_COLS, idiv(g, WORLD_COLS));
   }
 
   #push(target: InstanceBuffer, runs: DrawRun[], state: DrawState, emit: () => void): void {
@@ -416,7 +416,7 @@ export class DynamicScene {
     const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
     const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
     const dx = (g % WORLD_COLS) * CELL_X_SIZE + CENTRE_OFFSET - frame.camera.centerX;
-    const dy = Math.floor(g / WORLD_COLS) * CELL_Y_SIZE + CENTRE_OFFSET - frame.camera.centerY;
+    const dy = idiv(g, WORLD_COLS) * CELL_Y_SIZE + CENTRE_OFFSET - frame.camera.centerY;
     const height = this.#world.level.heights[g] ?? 0;
     return {
       x: c.x + Math.trunc(2 * dx - 2 * dy) - offX,
@@ -668,7 +668,7 @@ function rowsOf(tiles: readonly number[]): Map<number, number[]> {
   const rows = new Map<number, number[]>();
   for (const g of new Set(tiles)) {
     if (g < 0 || g >= WORLD_MAX) continue;
-    const s = (g % WORLD_COLS) + Math.floor(g / WORLD_COLS);
+    const s = (g % WORLD_COLS) + idiv(g, WORLD_COLS);
     const list = rows.get(s);
     if (list) list.push(g);
     else rows.set(s, [g]);

@@ -173,7 +173,7 @@ export function inventoryDown(s: PersonnelState, items: number): void {
 }
 
 export function sliderIndexAt(relativeY: number, items: number): number {
-  return Math.trunc(((items - NUMBER_OF_INVENTORY_PERSONNEL) * relativeY) / SLIDER_TRAVEL);
+  return idiv((items - NUMBER_OF_INVENTORY_PERSONNEL) * relativeY, SLIDER_TRAVEL);
 }
 
 export function sliderTo(s: PersonnelState, items: number, relativeY: number): void {
@@ -255,7 +255,7 @@ export function teamStatRow(members: readonly TeamStatMember[], stat: number): T
     sum += value;
   }
   if (members.length === 0) return null;
-  return { minName, minValue, average: Math.trunc(sum / members.length), maxName, maxValue };
+  return { minName, minValue, average: idiv(sum, members.length), maxName, maxValue };
 }
 
 export interface ContractAbbreviations {
@@ -265,8 +265,8 @@ export interface ContractAbbreviations {
 
 export function remainingContractText(minutesLeft: number, totalDays: number, a: ContractAbbreviations): string {
   const left = Math.max(0, minutesLeft);
-  const days = Math.trunc(left / MINUTES_PER_DAY);
-  const hours = Math.trunc((left % MINUTES_PER_DAY) / MINUTES_PER_HOUR);
+  const days = idiv(left, MINUTES_PER_DAY);
+  const hours = idiv(left % MINUTES_PER_DAY, MINUTES_PER_HOUR);
   const total = `${totalDays}${a.days}`;
   return days > 0 ? `${days}${a.days} ${hours}${a.hours} / ${total}` : `${hours}${a.hours} / ${total}`;
 }
@@ -276,7 +276,7 @@ export function signedDelta(delta: number): string {
 }
 
 export function hitPercentage(shotsFired: number, shotsHit: number): number {
-  return shotsFired > 0 ? Math.trunc((100 * shotsHit) / shotsFired) : 0;
+  return shotsFired > 0 ? idiv(100 * shotsHit, shotsFired) : 0;
 }
 
 export interface SkillGeometry {
@@ -320,5 +320,5 @@ export function skillLines(
 }
 
 export function portraitSlot(index: number): { readonly row: number; readonly column: number } {
-  return { row: Math.trunc(index / PERSONNEL_PORTRAIT_NUMBER_WIDTH), column: index % PERSONNEL_PORTRAIT_NUMBER_WIDTH };
+  return { row: idiv(index, PERSONNEL_PORTRAIT_NUMBER_WIDTH), column: index % PERSONNEL_PORTRAIT_NUMBER_WIDTH };
 }

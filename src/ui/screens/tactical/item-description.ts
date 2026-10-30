@@ -698,7 +698,7 @@ export class ItemDescriptionBox {
     this.#value(list, font, ids[1], `${twoDigits(stats.status)}%`, STATS_TEXT);
     this.#value(list, font, ids[0], stats.weight.value.toFixed(1), highlight(stats.weight.exceptional));
     if (gunOrLauncher && stats.range)
-      this.#value(list, font, ids[2], twoDigits(Math.trunc(stats.range.value / 10)), highlight(stats.range.exceptional));
+      this.#value(list, font, ids[2], twoDigits(idiv(stats.range.value, 10)), highlight(stats.range.exceptional));
     if (damaging && stats.damage) this.#value(list, font, ids[3], twoDigits(stats.damage.value), highlight(stats.damage.exceptional));
     this.#value(list, font, ids[4], twoDigits(stats.ap.value), highlight(stats.ap.exceptional));
     if (stats.burstAp) this.#value(list, font, ids[5], twoDigits(stats.burstAp.value), highlight(stats.burstAp.exceptional));
@@ -787,7 +787,7 @@ const SECTORS_PER_ROW = 16;
 const ROW_LETTERS = 'ABCDEFGHIJKLMNOP';
 
 export function sectorShortString(sectorId: number): string {
-  const row = Math.floor(sectorId / SECTORS_PER_ROW);
+  const row = idiv(sectorId, SECTORS_PER_ROW);
   const column = (sectorId % SECTORS_PER_ROW) + 1;
   return `${ROW_LETTERS[row] ?? '?'}${column}`;
 }

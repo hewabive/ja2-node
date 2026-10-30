@@ -4,6 +4,7 @@
 // @src days served, total cost); Strategic/MapScreen.cc (contract time left).
 
 import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
+import { idiv } from '../core/int.ts';
 import type { ContractPromptView, MercContractView, StrategicMercView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { ContractLength } from '../sim/campaign/contracts/contract-state.ts';
@@ -55,8 +56,8 @@ function moraleText(m: RosterMerc): MoraleText {
 
 export function dailyRate(m: RosterMerc, p: ProfileProgress): number {
   if (m.kind !== MercKind.AIM_MERC) return p.salary;
-  if (m.contract.typeOfLastContract === ContractLength.EXTEND_2_WEEK) return Math.trunc(p.biWeeklySalary / TWO_WEEK_DAYS);
-  if (m.contract.typeOfLastContract === ContractLength.EXTEND_1_WEEK) return Math.trunc(p.weeklySalary / WEEK_DAYS);
+  if (m.contract.typeOfLastContract === ContractLength.EXTEND_2_WEEK) return idiv(p.biWeeklySalary, TWO_WEEK_DAYS);
+  if (m.contract.typeOfLastContract === ContractLength.EXTEND_1_WEEK) return idiv(p.weeklySalary, WEEK_DAYS);
   return p.salary;
 }
 
@@ -93,7 +94,7 @@ function contractView(campaign: CampaignSim, m: RosterMerc, p: ProfileProgress):
     return {
       type: 'merc',
       unpaidDays: p.mercMercContractLength,
-      daysHired: Math.trunc(now / NUM_MIN_IN_DAY) - m.contract.contractStartDay,
+      daysHired: idiv(now, NUM_MIN_IN_DAY) - m.contract.contractStartDay,
       owed: p.salary * p.mercMercContractLength,
       contractLength: p.mercMercContractLength,
     };

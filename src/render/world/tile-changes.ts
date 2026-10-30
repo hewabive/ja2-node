@@ -9,6 +9,7 @@ import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
 import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } from '../../content/world/tile-tables.ts';
+import { idiv } from '../../core/int.ts';
 
 export interface TileChange {
   readonly kind: 'remove' | 'add';
@@ -130,7 +131,7 @@ function poolVariant(pool: BloodPool): number {
 
 function poolTile(tables: TileTables, pool: BloodPool): number {
   const type = typeIndex(tables, pool.creature ? 'CREATUREBLOOD' : 'HUMANBLOOD');
-  const frame = poolVariant(pool) * POOL_SIZES + SMALLEST_POOL_FRAME - Math.trunc(pool.strength / STRENGTH_PER_POOL_SIZE);
+  const frame = poolVariant(pool) * POOL_SIZES + SMALLEST_POOL_FRAME - idiv(pool.strength, STRENGTH_PER_POOL_SIZE);
   return tileIndexFromTypeSubIndex(tables, type, frame + 1);
 }
 

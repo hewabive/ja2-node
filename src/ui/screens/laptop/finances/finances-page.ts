@@ -7,6 +7,7 @@
 // @src SetLastPageInRecords, LoadPreviousPage, LoadNextPage, the first and last page buttons, SetFinanceButtonStates,
 // @src DisplayFinancePageNumberAndDateRange ("<header> n / last + 2").
 
+import { idiv } from '../../../../core/int.ts';
 import type { LaptopFinanceSummaryView, LaptopFinanceView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { fontHeight } from '../../../text/bitmap-font.ts';
@@ -75,7 +76,7 @@ export function summaryAmounts(s: LaptopFinanceSummaryView, balance: number): Am
 }
 
 export function lastLedgerPage(records: number): number {
-  return records < 1 ? 0 : Math.floor((records - 1) / NUM_RECORDS_PER_PAGE);
+  return records < 1 ? 0 : idiv(records - 1, NUM_RECORDS_PER_PAGE);
 }
 
 export function ledgerRows(records: readonly LaptopFinanceView[], page: number): LedgerRow[] {

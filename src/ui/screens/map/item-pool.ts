@@ -6,6 +6,7 @@
 // @src item, no merc selected, the merc not in the sector or on the road, a battle there), BeginInventoryPoolPtr (one object,
 // @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback.
 
+import { idiv } from '../../../core/int.ts';
 import type { StashEntryView } from '../../../protocol/map-inventory.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView } from '../../../protocol/view.ts';
@@ -35,7 +36,7 @@ export function poolSize(entries: number): number {
 }
 
 export function poolPages(entries: number): number {
-  return Math.floor((poolSize(entries) - 1) / POOL_SLOTS_PER_PAGE) + 1;
+  return idiv(poolSize(entries) - 1, POOL_SLOTS_PER_PAGE) + 1;
 }
 
 export function poolEntry(stash: readonly StashEntryView[], page: number, slot: number): StashEntryView | null {
@@ -47,7 +48,7 @@ export function poolObjects(stash: readonly StashEntryView[]): number {
 }
 
 export function poolSlotOrigin(slot: number): { readonly column: number; readonly row: number } {
-  return { column: Math.floor(slot / POOL_SLOT_ROWS), row: slot % POOL_SLOT_ROWS };
+  return { column: idiv(slot, POOL_SLOT_ROWS), row: slot % POOL_SLOT_ROWS };
 }
 
 export function stashCursor(entry: StashEntryView, wholeSlot: boolean, location: PoolLocation): StashCursor {

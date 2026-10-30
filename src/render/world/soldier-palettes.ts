@@ -6,6 +6,7 @@
 
 import { shadedPalette } from '../../content/picture/shaded-palette.ts';
 import { displayRgbFrom565, rgbTo565, SHADE_LEVEL_COUNT, shadedDisplayPalette } from '../../content/world/shading.ts';
+import { idiv } from '../../core/int.ts';
 
 export const GLOW_ROW_COUNT = 20;
 export const GREY_GLOW_OFFSET = 10;
@@ -48,8 +49,8 @@ function enemyGlow(palette: Uint8Array, red: number, green: number): Uint8Array 
 function greyGlow(palette: Uint8Array, red: number, green: number): Uint8Array {
   const out = new Uint8Array(COLOURS * 3);
   for (let i = 0; i < COLOURS; i++) {
-    const lumin = Math.floor(((palette[i * 3] ?? 0) * 299 + (palette[i * 3 + 1] ?? 0) * 587 + (palette[i * 3 + 2] ?? 0) * 114) / 1000);
-    const mod = Math.floor((GREY_SCALE * lumin) / 256);
+    const lumin = idiv((palette[i * 3] ?? 0) * 299 + (palette[i * 3 + 1] ?? 0) * 587 + (palette[i * 3 + 2] ?? 0) * 114, 1000);
+    const mod = idiv(GREY_SCALE * lumin, 256);
     out[i * 3] = Math.min(Math.max(red, mod), 255);
     out[i * 3 + 1] = Math.min(Math.max(green, mod), 255);
     out[i * 3 + 2] = Math.min(mod, 255);
