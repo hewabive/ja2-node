@@ -321,10 +321,11 @@ const LAUNCHER_CALIBRES: Readonly<Record<string, string>> = {
   TANK_CANNON: 'TANK_SHELL',
 };
 
-const MODEL_SET_FIELDS: Readonly<Record<string, Partial<Pick<WeaponDef, 'impact' | 'magSize'>>>> = {
+const MODEL_SET_FIELDS: Readonly<Record<string, Partial<Pick<WeaponDef, 'impact' | 'magSize' | 'bulletSpeed'>>>> = {
   LAUNCHER: { impact: 1 },
   LAW: { impact: 80, magSize: 1 },
   CANNON: { impact: 80, magSize: 1 },
+  MONSTSPIT: { bulletSpeed: 250 },
 };
 
 const ATTACHMENT_KEYS: readonly [string, string][] = [

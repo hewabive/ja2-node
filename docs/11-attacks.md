@@ -146,7 +146,7 @@ draw nothing. Inferred from reading the source:
 - The chance to punch, blade dulling, surprise attacks, the queen's swipe; the barrel extender and the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Not ported: gaps "Melee specials", "Looking for new items", "Creature spit speed".
+Not ported: gaps "Melee specials", "Looking for new items".
 Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Miss animation in
 water", "Melee hold leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand
 order", "Watchdogs", "Difficulty and progress in tactical".

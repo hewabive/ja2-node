@@ -121,6 +121,33 @@ describe('bullet flight (LOS.cc MoveBullet)', () => {
   });
 });
 
+describe('bullet speed (LOS.cc FireBulletGivenTarget)', () => {
+  function stepTimes(weapon: string): number[] {
+    const sim = newSim();
+    const t = sim.state;
+    const firer = spawn(sim, 0, Team.CREATURE, gridNo(80, 80), Direction.SOUTH);
+    firer.inv[InvSlot.HAND] = createItem(content.items, content.items.byName.get(weapon)?.index ?? 0, 100);
+    firer.attackingWeapon = itemIn(firer.inv, InvSlot.HAND);
+    const aim = calculateSoldierZPos(t, firer, ZPos.FIRING);
+    fireBulletGivenTarget(t, firer, 80 * CELL_X_SIZE + 5, 95 * CELL_Y_SIZE + 5, aim, firer.attackingWeapon, 10, false, false);
+    const [bullet] = t.bullets;
+    if (!bullet) throw new Error('no bullet in flight');
+    const times: number[] = [];
+    for (let tick = 0; tick < 40 && t.bullets.includes(bullet); tick++) {
+      const before = bullet.y;
+      sim.step();
+      if (bullet.y !== before) times.push(t.clockMs);
+    }
+    return times.slice(1).map((ms, k) => ms - (times[k] ?? 0));
+  }
+
+  it('steps a creature spit every 25 ms: its weapon model sets the bullet speed of 250 that weapons.json leaves out', () => {
+    const gaps = stepTimes('CREATURE_QUEEN_SPIT');
+    expect(gaps.length).toBeGreaterThan(2);
+    expect(new Set(gaps)).toEqual(new Set([25]));
+  });
+});
+
 describe('gun range', () => {
   const item = (name: string) => createItem(content.items, content.items.byName.get(name)?.index ?? -1, 100);
 

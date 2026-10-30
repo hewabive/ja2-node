@@ -45,6 +45,11 @@ describe('item table', async () => {
     for (const name of ['ROCKET_LAUNCHER', 'TANK_CANNON']) expect(get(name).weapon).toMatchObject({ impact: 80, magSize: 1 });
   });
 
+  it('gives every creature spit the bullet speed of 250 its weapon model sets, which weapons.json leaves out', () => {
+    for (const name of ['CREATURE_QUEEN_SPIT', 'CREATURE_INFANT_SPIT', 'CREATURE_YOUNG_MALE_SPIT', 'CREATURE_OLD_MALE_SPIT'])
+      expect(get(name).weapon?.bulletSpeed, name).toBe(250);
+  });
+
   it('links magazines, armour and explosives to their parameters', () => {
     const clip = get('CLIP9_30_HP');
     expect(clip.itemClass).toBe(ItemClass.AMMO);
