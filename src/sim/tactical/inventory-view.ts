@@ -1,3 +1,8 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Items.cc HasObjectImprint; Tactical/Interface_Items.cc INVRenderItem (a jammed gun has a
+// @src negative bGunAmmoStatus).
+
 import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { type ItemObject, NO_PROFILE } from '../items/object.ts';
 import type { Inventory } from './inventory.ts';

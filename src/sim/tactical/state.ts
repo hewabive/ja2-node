@@ -1,3 +1,7 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
+// @src src/game/TileEngine/WorldMan.cc WhoIsThere2.
+
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
