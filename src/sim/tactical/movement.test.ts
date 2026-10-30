@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { layProne, raiseTiles, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
@@ -16,13 +17,14 @@ import {
   handleNextTile,
   handleNextTileWaiting,
   moveMerc,
+  pathExhausted,
   setDelayedTileWaiting,
   setSoldierDestination,
   setSoldierPosition,
   stopMerc,
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
-import { MAX_PATH_LIST_SIZE } from './pathfinding.ts';
+import { MAX_PATH_LIST_SIZE, NOWHERE } from './pathfinding.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
@@ -33,9 +35,9 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
-function tactical(place: (s: WorldStructures) => void = () => {}): TacticalState {
+function tactical(place: (s: WorldStructures) => void = () => {}, withContent: TacticalContent = content): TacticalState {
   const w = syntheticWorld(doorCosts, place);
-  return createTacticalState({ ...w, mapDoors: new Map() }, content, Rng.fromSeed(7));
+  return createTacticalState({ ...w, mapDoors: new Map() }, withContent, Rng.fromSeed(7));
 }
 
 const STATS = {
@@ -277,6 +279,49 @@ describe('a blocked next tile', () => {
       expect(other.finalDestination).toBe(other.gridNo);
       expect(other.blockedByAnotherMerc).toBe(multiTile);
     }
+  });
+});
+
+describe('the paths of a prone soldier, whose crawling body covers his tile and the one behind him', () => {
+  const TAIL_OF_AN_EAST_STEP = START - 1;
+  const BOXED_IN = DIRECTION_INCREMENT.map((step) => START + step).filter((g) => g !== START + 1);
+
+  function crawler(raised: readonly number[]): { t: TacticalState; s: Soldier } {
+    const t = tactical(() => {}, withTwoTileProneBody(content));
+    raiseTiles(t, raised);
+    const s = spawn(t, START);
+    s.direction = Direction.NORTH;
+    layProne(t, s);
+    expect(s.multiTile).toBe(true);
+    return { t, s };
+  }
+
+  it('tests the crawling body at every step: a tail on a raised tile turns the route aside where a walker goes straight', () => {
+    for (const fromUI of [0, 2]) {
+      const { t, s } = crawler([TAIL_OF_AN_EAST_STEP]);
+      expect(getNewSoldierPath(t, s, START + 2, states(content.animations).CRAWLING, fromUI)).toBe(true);
+      expect([Direction.NORTHEAST, Direction.SOUTHEAST]).toContain(s.path[0]);
+      expect(s.finalDestination).toBe(START + 2);
+    }
+  });
+
+  it('finds no route, sets no tile wait and keeps waiting when the crawling body fits nowhere a walker could step', () => {
+    const crawling = states(content.animations).CRAWLING;
+    for (const fromUI of [0, 2]) {
+      const { t, s } = crawler(BOXED_IN);
+      expect(getNewSoldierPath(t, s, START + 2, crawling, fromUI)).toBe(false);
+    }
+    const exhausted = crawler(BOXED_IN);
+    exhausted.s.finalDestination = START + 2;
+    expect(pathExhausted(exhausted.t, exhausted.s)).toBe(false);
+    expect(exhausted.s.delayedMovementCause).toBe(NOWHERE);
+    const waiting = crawler(BOXED_IN);
+    waiting.s.finalDestination = START + 2;
+    setDelayedTileWaiting(waiting.t, waiting.s, START + 1, 1);
+    waiting.t.clockMs = waiting.s.nextTileCheckAt;
+    handleNextTileWaiting(waiting.t, waiting.s);
+    expect(waiting.s.delayedMovement).toBe(2);
+    expect(waiting.s.ai.actionData).not.toBe(START + 2);
   });
 });
 

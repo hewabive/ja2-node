@@ -26,9 +26,19 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { toggleDoorAt } from './doors.ts';
+import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
-import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
+import {
+  findBestPath,
+  isWater,
+  MAX_PATH_LIST_SIZE,
+  newOKDestination,
+  PathCopy,
+  PathFlags,
+  type PathOptions,
+  type PathResult,
+} from './pathfinding.ts';
 import { removePendingAction } from './pending-action.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
@@ -203,7 +213,7 @@ function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number,
       if (other.blockedByAnotherMerc && other.blockedByAnotherMercDirection === (direction + 4) % 8) {
         const savedFinal = other.finalDestination;
         other.finalDestination = other.gridNo;
-        const around = findBestPath(t.pathEnv, s, s.finalDestination, s.level, { flags: 0 });
+        const around = pathInMovementMode(t, s, s.finalDestination, s.uiMovementMode, { flags: 0 });
         if (around.length > 0) {
           s.pathStored = false;
           getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
@@ -367,6 +377,10 @@ function haltForDoor(t: TacticalState, s: Soldier): void {
   s.finalDestination = savedFinal;
 }
 
+function pathInMovementMode(t: TacticalState, s: Soldier, dest: number, mode: number, options: PathOptions): PathResult {
+  return findBestPath(t.pathEnv, s, dest, s.level, { ...options, mode: pathMoveMode(t.content, mode) });
+}
+
 function plottingToExitGrid(t: TacticalState, s: Soldier): boolean {
   return s.waitActionToDo === 1 && t.mercsWaiting?.code === WaitForMercs.WALK_TO_GRIDNO;
 }
@@ -392,8 +406,8 @@ export function getNewSoldierPath(
   if ((!t.inCombat && hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && ui === 1) || ui === 2) {
     if (s.collapsed) return false;
     const planner = { ...s, gridNo: s.destination };
-    if (findBestPath(t.pathEnv, planner, dest, s.level, { flags, plotToExitGrid }).length === 0) return false;
-    const route = findBestPath(t.pathEnv, planner, dest, s.level, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
+    if (pathInMovementMode(t, planner, dest, s.uiMovementMode, { flags, plotToExitGrid }).length === 0) return false;
+    const route = pathInMovementMode(t, planner, dest, s.uiMovementMode, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
     s.finalDestination = dest;
     if (route.length === 0) return false;
     s.path = [route.steps[0] ?? 0, ...route.steps.slice(0, MAX_PATH_LIST_SIZE - 1)];
@@ -406,7 +420,7 @@ export function getNewSoldierPath(
     return true;
   }
   if (!s.pathStored) {
-    const route = findBestPath(t.pathEnv, s, dest, s.level, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
+    const route = pathInMovementMode(t, s, dest, mode, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
     if (route.length === 0) return false;
     s.path = [...route.steps];
     s.pathIndex = 0;
@@ -519,7 +533,7 @@ export function pathExhausted(t: TacticalState, s: Soldier): boolean {
     s.ai.handleEveryFrame = true;
     return true;
   }
-  const probe = findBestPath(t.pathEnv, s, s.finalDestination, s.level, { flags: PathFlags.THROUGH_PEOPLE });
+  const probe = pathInMovementMode(t, s, s.finalDestination, s.uiMovementMode, { flags: PathFlags.THROUGH_PEOPLE });
   if (probe.length > 0) setDelayedTileWaiting(t, s, newGridNo(s.gridNo, step(probe.steps[0] ?? 0)), 1);
   if (!getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode, 2, false)) {
     soldierGotoStationaryStance(t, s);
@@ -555,12 +569,12 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
     else if (!newOKDestination(t.pathEnv, s, s.finalDestination, true, s.level)) target = waitingSweetSpot(t, s);
     else target = s.finalDestination;
     const plotToExitGrid = plottingToExitGrid(t, s);
-    let path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
+    let path = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
     if (path.length > 0) {
       let first = path.steps[0] ?? 0;
       let pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
       if (pathBlocked === MoveTile.STATIONARY_BLOCKED) {
-        path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.IGNORE_PERSON_AT_DEST, plotToExitGrid });
+        path = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.IGNORE_PERSON_AT_DEST, plotToExitGrid });
         first = path.steps[0] ?? 0;
         pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
         s.delayedMovementFlags &= ~DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE;
@@ -586,7 +600,7 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
       ) {
         swapMercPositions(t, s, other);
         s.delayedMovement = 0;
-        const route = findBestPath(t.pathEnv, s, s.absoluteFinalDestination, s.level, {
+        const route = pathInMovementMode(t, s, s.absoluteFinalDestination, s.uiMovementMode, {
           flags: PathFlags.THROUGH_PEOPLE,
           copy: PathCopy.ROUTE,
         });

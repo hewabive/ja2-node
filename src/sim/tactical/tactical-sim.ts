@@ -93,7 +93,7 @@ import {
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
-import { movementForStanceChange, movementModeState, moveStateBasedOnStance, stanceHeight } from './movement-mode.ts';
+import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
@@ -722,7 +722,7 @@ export class TacticalSim {
     s.pendingTalk = null;
     clearPendingGive(t, s);
     if (t.inCombat) {
-      const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE });
+      const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE, mode: pathMoveMode(t.content, mode) });
       if (route.length === 0) return refuse('noPath', 'no path');
       const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
       const first = ptsToMoveDirection(ctx, s, route.steps[0] ?? 0, mode) + apsToChangeStance(t.content, s, height(t.content, mode));

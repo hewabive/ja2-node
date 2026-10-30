@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hintAnswer, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { layProne, raiseTiles, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { animName } from './anim-states.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
-import { AP } from './points.ts';
+import { AP, ptsToMoveDirection } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import { ownSoldierFields } from './soldier-view.ts';
 import type { TacticalCommand, TacticalSim } from './tactical-sim.ts';
@@ -174,5 +175,22 @@ describe('the stance of the API joins the height and the run', () => {
     runUntilIdle(sim);
     expect(merc.gridNo).toBe(FAR);
     expect(shown(sim, merc).stance).toBe('crouch');
+  });
+});
+
+describe('the first step a move in combat must afford (Handle_UI.cc SelectedMercCanAffordMove)', () => {
+  it("comes from the path in the order's mode: a crawler whose tail would lie on a raised tile pays for a diagonal first step", () => {
+    const sim = newCombatSim(withTwoTileProneBody(content));
+    const start = gridNo(80, 80);
+    const merc = spawnSoldier(sim, 0, Team.OUR, start, Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    sim.lookAround();
+    expect(sim.state.inCombat).toBeTruthy();
+    layProne(sim.state, merc);
+    raiseTiles(sim.state, [start - 1]);
+    const ctx = { env: sim.state.pathEnv, content: sim.state.content, inCombat: true };
+    merc.actionPoints = ptsToMoveDirection(ctx, merc, Direction.EAST, merc.uiMovementMode);
+    expect(order(sim, { type: 'move', to: start + 2, mode: 'crawl' })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
+    expect(shown(sim, merc).continueTo).toBe(start + 2);
   });
 });

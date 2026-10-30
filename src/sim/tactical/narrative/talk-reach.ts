@@ -10,6 +10,7 @@ import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
 import { findAdjacentGridEx } from '../combat/melee-reach.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { pathMoveMode } from '../movement-mode.ts';
 import { findBestPath } from '../pathfinding.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import type { Soldier } from '../soldier.ts';
@@ -36,7 +37,8 @@ export function talkLineOfSight(t: TacticalState, merc: Soldier, target: Soldier
 export function talkWalkUp(t: TacticalState, merc: Soldier, target: Soldier): number | null {
   const adjacent = findAdjacentGridEx(t, merc, target.gridNo, false);
   if (!adjacent) return null;
-  if (findBestPath(t.pathEnv, merc, adjacent.actionGridNo, merc.level).length === 0) return null;
+  if (findBestPath(t.pathEnv, merc, adjacent.actionGridNo, merc.level, { mode: pathMoveMode(t.content, merc.uiMovementMode) }).length === 0)
+    return null;
   return findGridNoFromSweetSpotWithStructData(t, merc, target.gridNo, TALK_SWEET_SPOT_RADIUS, {
     animState: merc.uiMovementMode,
     closestToMerc: true,
