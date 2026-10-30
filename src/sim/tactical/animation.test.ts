@@ -10,6 +10,7 @@ import {
   computedAnimationDelay,
   initNewSoldierAnim,
   setDesiredDirection,
+  setSoldierAniSpeed,
   setSoldierDirection,
 } from './animation.ts';
 import type { TacticalContent } from './content.ts';
@@ -55,6 +56,20 @@ describe('the frame delay', () => {
     const regular = delayOf(Body.REGMALE);
     expect([delayOf(Body.BIGMALE), delayOf(Body.REGFEMALE)]).toEqual([regular, regular]);
     expect(delayOf(Body.FATCIV) - regular).toBe(walkBonus(Body.FATCIV));
+  });
+
+  it('raises a rifle standing at 70 ms a frame, 150 ms aimed, and no faster in combat', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    merc.state = anim(content, 'READY_RIFLE_STAND');
+    const delayAiming = (aimTime: number, inCombat: boolean) => {
+      merc.aimTime = aimTime;
+      t.inCombat = inCombat;
+      setSoldierAniSpeed(t, merc);
+      return merc.aniDelay;
+    };
+    expect([delayAiming(0, false), delayAiming(2, false), delayAiming(0, true), delayAiming(2, true)]).toEqual([70, 150, 70, 150]);
   });
 });
 

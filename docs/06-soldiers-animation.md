@@ -99,6 +99,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 |---|---|
 | Only our mercs fast-turn; enemies turn at their state's delay | `animation.test.ts` |
 | A body's negative frame delay bonus never applies: women and big men walk with a man's delay | `animation.test.ts` |
+| Raising a rifle standing takes 70 ms a frame, 150 aimed, whatever the stats, and combat does not halve it | `animation.test.ts` |
 | A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
@@ -123,8 +124,7 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Unseen soldiers in combat", "Ready
-animation speed", "Big merc kneel", "Reverse move animations", "Soldier draw height", "Drugs and alcohol" (adrenaline
-and drunkenness in the frame delay), "No-burn tiles". Other deviations of this domain: "Frame timers", "Soldier frame
-on turning", "Soldier frames with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle
-sounds of unseen animals".
+Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Unseen soldiers in combat", "Big merc
+kneel", "Reverse move animations", "Soldier draw height", "Drugs and alcohol" (adrenaline and drunkenness in the frame
+delay), "No-burn tiles". Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames
+with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals".

@@ -49,6 +49,8 @@ export const LOCKED_NO_NEWGRIDNO = 2;
 
 const STATIONARY_COMPUTED_DELAY = 40;
 const MIN_BREATH_DELAY = 40;
+const QUICK_READY_DELAY = 70;
+const AIMED_READY_DELAY = 150;
 const FAST_TURN_DELAY = 30;
 const MAX_BREATH_DEFICIT = 30;
 const INJURED_CHANGE_THRESHOLD = 30;
@@ -158,6 +160,7 @@ export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
   if (!control) return 0;
   const id = control.id;
   if (id === 'STANDING' || id === 'PRONE' || id === 'CROUCHING') return Math.max(s.breath * 2 + (100 - s.life), MIN_BREATH_DELAY);
+  if (id === 'READY_RIFLE_STAND') return s.aimTime === 0 ? QUICK_READY_DELAY : AIMED_READY_DELAY;
   const bodyLimited = id === 'SWATTING' || id === 'CRAWLING';
   const table = speedTableFor(content.animations, id);
   const additional = table && (!bodyLimited || s.bodyType <= Body.REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
