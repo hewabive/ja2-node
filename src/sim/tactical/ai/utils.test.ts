@@ -3,10 +3,12 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
+import { Profile } from '../narrative/constants.ts';
 import { Opp } from '../perception/opp.ts';
-import { NOWHERE, Orders, Team } from '../soldier.ts';
+import { setSoldierHeight } from '../roofs.ts';
+import { Attitude, NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { closestReachableDisturbance } from './utils.ts';
+import { closestReachableDisturbance, closestSeenOpponent } from './utils.ts';
 
 let content: TacticalContent;
 
@@ -15,6 +17,7 @@ beforeAll(async () => {
 });
 
 const ROOF = 1;
+const ON_THE_ROOF = 50;
 const BUILDING = 1;
 const CLIMB_UP_AT = gridNo(84, 80);
 
@@ -26,6 +29,12 @@ function simWithBuilding(): TacticalSim {
   for (const g of roofs) t.buildings.info[g] = BUILDING;
   t.buildings.list.push({ upClimbSpots: [CLIMB_UP_AT], downClimbSpots: [gridNo(85, 80)] });
   return sim;
+}
+
+function sees(s: Soldier, opp: Soldier): void {
+  s.oppList[opp.id] = Opp.SEEN_CURRENTLY;
+  s.lastKnownOpp[opp.id] = opp.gridNo;
+  s.lastKnownOppLevel[opp.id] = opp.level;
 }
 
 describe('the closest reachable disturbance (AIUtils.cc ClosestReachableDisturbance)', () => {
@@ -53,5 +62,34 @@ describe('the closest reachable disturbance (AIUtils.cc ClosestReachableDisturba
     guard.lastKnownOppLevel[merc.id] = ROOF;
     expect(merc.level).toBe(0);
     expect(closestReachableDisturbance(t, guard)).toEqual({ gridNo: CLIMB_UP_AT, climb: true });
+  });
+});
+
+describe('the closest seen opponent (AIUtils.cc ClosestSeenOpponent)', () => {
+  it('lets a bounty hunter see Slay only', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const carmen = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+    const near = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 84), Direction.NORTH);
+    const far = spawnSoldier(sim, 1, Team.OUR, gridNo(80, 90), Direction.NORTH, { profile: Profile.SLAY });
+    sees(carmen, near);
+    sees(carmen, far);
+    expect(closestSeenOpponent(t, carmen)).toBe(near.gridNo);
+    carmen.ai.attitude = Attitude.ATTACKSLAYONLY;
+    expect(closestSeenOpponent(t, carmen)).toBe(far.gridNo);
+  });
+
+  it('skips an opponent on another level of the building the soldier stands in', () => {
+    const sim = simWithBuilding();
+    const t = sim.state;
+    const guard = spawnSoldier(sim, 20, Team.ENEMY, gridNo(87, 80), Direction.WEST);
+    const onTheRoof = spawnSoldier(sim, 0, Team.OUR, gridNo(88, 81), Direction.NORTH);
+    const outside = spawnSoldier(sim, 1, Team.OUR, gridNo(80, 80), Direction.EAST);
+    setSoldierHeight(t, onTheRoof, ON_THE_ROOF);
+    sees(guard, onTheRoof);
+    sees(guard, outside);
+    expect(closestSeenOpponent(t, guard)).toBe(outside.gridNo);
+    setSoldierHeight(t, onTheRoof, 0);
+    expect(closestSeenOpponent(t, guard)).toBe(onTheRoof.gridNo);
   });
 });

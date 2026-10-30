@@ -14,7 +14,7 @@ import { InvSlot, itemIn, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { boxingFight, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { seenOpponent } from '../perception/duel.ts';
-import { freshestLastKnown } from '../perception/knowledge.ts';
+import { freshestLastKnown, ignoredByBountyHunter } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { knowledge, publicOpp } from '../perception/sight.ts';
 import { calcActionPoints } from '../points.ts';
@@ -23,7 +23,6 @@ import { mercs, type TacticalState } from '../state.ts';
 import { findAIUsableObjClass } from './utils.ts';
 
 export const NO_THREAT = -999;
-export const SLAY = 64;
 
 const THREAT_PERCENT = [20, 40, 60, 80, 25, 100, 90, 75, 60, 45];
 const OLDEST_HEARD_VALUE = -4;
@@ -44,10 +43,6 @@ export function isKnowableOpponent(s: Soldier, opp: Soldier): boolean {
   if (opp.life < OKLIFE) return false;
   if (consideredNeutral(s, opp) || s.side === opp.side) return false;
   return true;
-}
-
-export function ignoredByBountyHunter(s: Soldier, opp: Soldier): boolean {
-  return s.ai.attitude === Attitude.ATTACKSLAYONLY && opp.profile !== SLAY;
 }
 
 export interface OpponentKnowledge {

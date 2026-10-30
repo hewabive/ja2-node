@@ -29,6 +29,7 @@ import { inGas, inSmoke } from '../explosions/smoke.ts';
 import { LIGHT_SIGHTING, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, surfaceAmbientLevel } from '../lighting/lighting.ts';
 import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { aiPathCostIndex, findBestPath, MoveMode, NOWHERE, newOKDestination, PathCopy, type PathEnv } from '../pathfinding.ts';
+import { ignoredByBountyHunter } from '../perception/knowledge.ts';
 import { AP, apsToChangeStance, calcActionPoints, minAPsToStartMovement, stateName } from '../points.ts';
 import { AlertStatus, cellCentre, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState, whoIsThere } from '../state.ts';
@@ -38,7 +39,6 @@ import { legalNPCDestination, PathMode, roamingRange, roomAt } from './destinati
 import {
   bestGuessLocation,
   calcManThreatValue,
-  ignoredByBountyHunter,
   isKnowableOpponent,
   isUnknown,
   mostRecentOpplistValue,

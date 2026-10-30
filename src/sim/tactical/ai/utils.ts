@@ -13,7 +13,13 @@ import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildi
 import { rangeInUnits } from '../combat/chance.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { findBestPath, PathCopy } from '../pathfinding.ts';
-import { freshestLastKnown, guySawEnemyThisTurnOrBefore, noiseStillUseful } from '../perception/knowledge.ts';
+import {
+  freshestLastKnown,
+  guySawEnemyThisTurnOrBefore,
+  ignoredByBountyHunter,
+  noiseStillUseful,
+  onAnotherLevelOfMyBuilding,
+} from '../perception/knowledge.ts';
 import { landHeightUnits, lineOfSightTest, STANDING_TREE_REDUCTION } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -257,8 +263,9 @@ export function closestSeenOpponent(t: TacticalState, s: Soldier): number {
   let closest = NOWHERE;
   let closestRange = 1500;
   for (const opp of t.mercSlots) {
-    if (!opp?.placed || considered(s, opp)) continue;
+    if (!opp?.placed || considered(s, opp) || ignoredByBountyHunter(s, opp)) continue;
     if ((s.oppList[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY || opp.gridNo === s.gridNo) continue;
+    if (onAnotherLevelOfMyBuilding(t, s, opp)) continue;
     const range = rangeInUnits(s.gridNo, opp.gridNo);
     if (range < closestRange) {
       closestRange = range;

@@ -5,9 +5,10 @@
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
-import { getInterveningClimbingLocation } from '../buildings.ts';
+import { getInterveningClimbingLocation, sameBuilding } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { CivilianGroup, isCreatureOrBloodcat, NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { Profile } from '../narrative/constants.ts';
+import { Attitude, CivilianGroup, isCreatureOrBloodcat, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { knowledge, Opp } from './sight.ts';
 
@@ -31,6 +32,10 @@ function considered(s: Soldier, opp: Soldier): boolean {
   return (opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side;
 }
 
+export function ignoredByBountyHunter(s: Soldier, opp: Soldier): boolean {
+  return s.ai.attitude === Attitude.ATTACKSLAYONLY && opp.profile !== Profile.SLAY;
+}
+
 export function personalLastKnown(s: Soldier, opp: Soldier): KnownPosition {
   return { gridNo: s.lastKnownOpp[opp.id] ?? NOWHERE, level: s.lastKnownOppLevel[opp.id] ?? 0 };
 }
@@ -42,6 +47,10 @@ function publicLastKnown(t: TacticalState, team: number, opp: Soldier): KnownPos
 
 export function freshestLastKnown(t: TacticalState, s: Soldier, opp: Soldier, personal: number, publicValue: number): KnownPosition {
   return knowledge(publicValue, personal) > 0 || personal === publicValue ? personalLastKnown(s, opp) : publicLastKnown(t, s.team, opp);
+}
+
+export function onAnotherLevelOfMyBuilding(t: TacticalState, s: Soldier, at: KnownPosition): boolean {
+  return at.level !== s.level && sameBuilding(t, s.gridNo, at.gridNo);
 }
 
 export function noiseStillUseful(t: TacticalState, s: Soldier, g: number, level: number): boolean {
@@ -145,12 +154,12 @@ export function closestKnownOpponent(t: TacticalState, s: Soldier): number {
   let closestRange = 1500;
   for (const opp of t.mercSlots) {
     if (!opp?.placed) continue;
-    if (considered(s, opp)) continue;
+    if (considered(s, opp) || ignoredByBountyHunter(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (personal === Opp.NOT_HEARD_OR_SEEN && publicValue === Opp.NOT_HEARD_OR_SEEN) continue;
     const known = freshestLastKnown(t, s, opp, personal, publicValue);
-    if (known.gridNo === NOWHERE || known.gridNo === s.gridNo) continue;
+    if (known.gridNo === NOWHERE || known.gridNo === s.gridNo || onAnotherLevelOfMyBuilding(t, s, known)) continue;
     const range = rangeInCells(s.gridNo, known.gridNo);
     if (range < closestRange) {
       closestRange = range;

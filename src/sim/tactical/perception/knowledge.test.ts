@@ -3,10 +3,12 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
+import { Profile } from '../narrative/constants.ts';
 import { setSoldierHeight } from '../roofs.ts';
-import { Orders, type Soldier, Team } from '../soldier.ts';
+import { Attitude, NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
+import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { noiseHeard } from './knowledge.ts';
+import { closestKnownOpponent, noiseHeard } from './knowledge.ts';
 import { makeNoise, NoiseKind } from './noise.ts';
 import { Opp } from './opp.ts';
 
@@ -16,6 +18,7 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
+const GROUND = 0;
 const ROOF = 1;
 const ON_THE_ROOF = 50;
 const BUILDING = 1;
@@ -67,6 +70,38 @@ describe('the last-known levels (OppList.cc UpdatePersonal, UpdatePublic)', () =
     expect(merc.oppList[enemy.id]).toBe(Opp.HEARD_THIS_TURN);
     expect(merc.lastKnownOppLevel[enemy.id]).toBe(ROOF);
     expect(t.perception.publicLastKnownLevel[Team.OUR]?.[enemy.id]).toBe(ROOF);
+  });
+});
+
+describe('the closest known opponent (AIUtils.cc ClosestKnownOpponent)', () => {
+  function guardAndTwoMercs(): { t: TacticalState; guard: Soldier; near: Soldier; far: Soldier } {
+    const sim = simWithBuilding();
+    const guard = spawnSoldier(sim, 20, Team.ENEMY, gridNo(87, 80), Direction.WEST);
+    const near = spawnSoldier(sim, 0, Team.OUR, gridNo(88, 82), Direction.NORTH);
+    const far = spawnSoldier(sim, 1, Team.OUR, gridNo(70, 80), Direction.EAST);
+    lastKnownAt(guard, near, Opp.SEEN_LAST_TURN, near.gridNo, GROUND);
+    lastKnownAt(guard, far, Opp.SEEN_LAST_TURN, far.gridNo, GROUND);
+    return { t: sim.state, guard, near, far };
+  }
+
+  it('lets a bounty hunter know of Slay only', () => {
+    const { t, guard, far } = guardAndTwoMercs();
+    expect(closestKnownOpponent(t, guard)).not.toBe(far.gridNo);
+    guard.ai.attitude = Attitude.ATTACKSLAYONLY;
+    expect(closestKnownOpponent(t, guard)).toBe(NOWHERE);
+    far.profile = Profile.SLAY;
+    expect(closestKnownOpponent(t, guard)).toBe(far.gridNo);
+  });
+
+  it('skips an opponent last known on another level of the building the soldier stands in, wherever he is now', () => {
+    const { t, guard, near, far } = guardAndTwoMercs();
+    expect(closestKnownOpponent(t, guard)).toBe(near.gridNo);
+    guard.lastKnownOppLevel[near.id] = ROOF;
+    expect(near.level).toBe(GROUND);
+    expect(closestKnownOpponent(t, guard)).toBe(far.gridNo);
+    guard.lastKnownOpp[far.id] = gridNo(89, 79);
+    guard.lastKnownOppLevel[far.id] = ROOF;
+    expect(closestKnownOpponent(t, guard)).toBe(NOWHERE);
   });
 });
 
