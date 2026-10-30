@@ -309,6 +309,12 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
   };
 }
 
+export function progressFromSavedProfile(saved: SavedMercProfile, content: MercProfile | undefined): ProfileProgress {
+  const progress = progressFromProfile(saved, saved, true);
+  if (saved.nickname !== content?.nickname) progress.nickname = saved.nickname;
+  return progress;
+}
+
 export interface ProfileSource {
   readonly profiles: Map<number, ProfileProgress>;
   readonly content: { readonly profiles: readonly MercProfile[] };

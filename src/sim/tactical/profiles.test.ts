@@ -2,13 +2,19 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { MercProfile } from '../../content/formats/prof.ts';
+import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
-import { progressFromProfile } from './profiles.ts';
+import { progressFromProfile, progressFromSavedProfile } from './profiles.ts';
 import { Body } from './soldier.ts';
 
 const LEFTOVER_GRIDNO = 25700;
 const ANY_ITEM = 1;
 const KICKED_OUT_BODY = Body.REGMALE;
+const REVEALED_NAME = 'True Name';
+
+function savedProfile(p: MercProfile): SavedMercProfile {
+  return { ...p, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
+}
 
 function profileWithLeftovers(): MercProfile {
   const json = JSON.parse(readFileSync(join(import.meta.dirname, '../../..', STUB_PROFILES_PATH), 'utf8'));
@@ -34,5 +40,12 @@ describe('profile progress', () => {
     const saved = { ...profileWithLeftovers(), bodyType: KICKED_OUT_BODY };
     expect(progressFromProfile(saved, undefined, true).bodyType).toBe(KICKED_OUT_BODY);
     expect(progressFromProfile(saved).bodyType).toBeUndefined();
+  });
+
+  it("takes a savegame profile's nickname where it differs from the content's, as a terrorist's reveal saves his full name", () => {
+    const content = profileWithLeftovers();
+    const revealed = { ...savedProfile(content), nickname: REVEALED_NAME };
+    expect(progressFromSavedProfile(revealed, content).nickname).toBe(REVEALED_NAME);
+    expect(progressFromSavedProfile(savedProfile(content), content).nickname).toBeUndefined();
   });
 });

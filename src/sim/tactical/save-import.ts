@@ -12,6 +12,7 @@
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
+import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import { MapModificationType, type SavedCorpse, type SavedDoorStatus } from '../../content/formats/savegame-temp-files.ts';
@@ -34,7 +35,7 @@ import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
-import { type ProfileProgress, progressFromProfile } from './profiles.ts';
+import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
 import { type RealtimeClock, registerSoldier, type TacticalState } from './state.ts';
@@ -73,6 +74,7 @@ export interface CampaignWideState {
   readonly profiles: Map<number, ProfileProgress>;
   readonly realtimeClock: RealtimeClock;
   readonly pre: PreRandom;
+  readonly content: { readonly profiles: readonly MercProfile[] };
 }
 
 export function saveMapPath(save: SaveGame): string {
@@ -126,7 +128,7 @@ export function importCampaignWideState(state: CampaignWideState, save: SaveGame
     if (entry) Object.assign(entry, k);
   });
   save.profiles.forEach((p, id) => {
-    if (p) state.profiles.set(id, progressFromProfile(p, p, true));
+    if (p) state.profiles.set(id, progressFromSavedProfile(p, state.content.profiles[id]));
   });
   state.realtimeClock.lastOpplistDecaySeconds = save.tactical.timeSinceLastOpplistDecay;
   state.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });

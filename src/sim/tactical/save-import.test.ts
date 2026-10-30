@@ -1,8 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { stubProfiles } from '../../../tests/support/contracts.ts';
 import { loadTestContent, loadTestTimelines, testDoorCosts } from '../../../tests/support/tactical.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
+import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import { layoutOffsets } from '../../content/formats/savegame-layout.ts';
+import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../../content/formats/savegame-soldier.ts';
 import type { SavedCorpse, SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
@@ -346,7 +349,31 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
   });
 });
 
+function importedCampaignWideState(save: SaveGame) {
+  const strategic = createStrategicState({ seed: 1 });
+  const { civGroups, keyTable, profiles, pre } = strategic;
+  const contentProfiles = { profiles: stubProfiles(content.items) };
+  const realtimeClock = strategic.sectorFlow.realtimeClock;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, content: contentProfiles }, save);
+  return strategic;
+}
+
+function savedProfile(p: MercProfile, nickname: string): SavedMercProfile {
+  return { ...p, nickname, kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, battlesFought: 0, timesWounded: 0, checksum: 0 };
+}
+
 describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', () => {
+  it("keeps a saved nickname that differs from the content profile's, as the terrorists' reveal leaves it", () => {
+    const [renamed, kept] = stubProfiles(content.items).filter((p) => p.nickname !== '');
+    if (!renamed || !kept) throw new Error('the stub pack needs two named profiles');
+    const profiles: SavedMercProfile[] = [];
+    profiles[renamed.id] = savedProfile(renamed, `${renamed.nickname}!`);
+    profiles[kept.id] = savedProfile(kept, kept.nickname);
+    const strategic = importedCampaignWideState({ ...syntheticSave({}), profiles } as SaveGame);
+    expect(strategic.profiles.get(renamed.id)?.nickname).toBe(`${renamed.nickname}!`);
+    expect(strategic.profiles.get(kept.id)?.nickname).toBeUndefined();
+  });
+
   it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups and the opplist decay', () => {
     const base = syntheticSave({});
     const ring = Array.from({ length: 256 }, (_, k) => (k * 37) % 1000);
@@ -357,9 +384,7 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
       keyTable: [key],
       tactical: { ...base.tactical, civGroupHostile: [0, 2, 1], timeSinceLastOpplistDecay: 4321 },
     } as SaveGame;
-    const strategic = createStrategicState({ seed: 1 });
-    const { civGroups, keyTable, profiles, pre } = strategic;
-    importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock: strategic.sectorFlow.realtimeClock }, save);
+    const strategic = importedCampaignWideState(save);
     expect(strategic.pre.state()).toEqual({ ring, index: 65 });
     expect(strategic.keyTable[0]).toEqual(key);
     expect(strategic.civGroups.hostility.slice(0, 3)).toEqual([0, 2, 1]);

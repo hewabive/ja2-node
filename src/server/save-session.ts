@@ -120,7 +120,9 @@ export async function createSaveSession(
   ]);
   const { strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const imported = importNativeGameOptions(save.generalInfo.gameOptions);
-  const start = world ? startInSavedWorld(world, save, parts, seed, imported.options) : startWithoutWorld(save, seed, imported.options);
+  const start = world
+    ? startInSavedWorld(world, save, parts, seed, imported.options)
+    : startWithoutWorld(save, parts, seed, imported.options);
   const { strategic, sim } = start;
   const report: SaveImportReport = { ...start.report, droppedOptions: imported.dropped };
   importStrategicTime(strategic, save);
@@ -191,10 +193,11 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
   return { strategic, sim, report };
 }
 
-function startWithoutWorld(save: SaveGame, seed: number, options: GameOptions): ImportStart {
+function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
   const strategic = createStrategicState({ seed, options });
   const { civGroups, keyTable, profiles, pre } = strategic;
-  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock: strategic.sectorFlow.realtimeClock }, save);
+  const realtimeClock = strategic.sectorFlow.realtimeClock;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, content: parts.content }, save);
   return { strategic, sim: null, report: NO_WORLD_REPORT };
 }
 
