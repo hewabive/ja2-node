@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { spawnCreature } from '../../../../tests/support/creatures.ts';
 import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
@@ -15,6 +16,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { loadTacticalContent } from '../load-content.ts';
 import { Profile } from '../narrative/constants.ts';
+import { calcActionPoints } from '../points.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -122,6 +124,64 @@ describe('the drops at death (Rotting_Corpses.cc TurnSoldierIntoCorpse)', () => 
     expect(queenDrops(1)).toEqual(jars(6));
     expect(queenDrops(2)).toEqual(jars(5));
     expect(queenDrops(3)).toEqual(jars(4));
+  });
+});
+
+const SHOOTER_AT = gridNo(80, 80);
+const CREATURE_AT = gridNo(80, 86);
+const MAX_SHOTS = 6;
+
+function shootCreatureDead(creatureContent: TacticalContent, body: number) {
+  const sim = newCombatSim(creatureContent);
+  const t = sim.state;
+  const merc = spawnSoldier(sim, 0, Team.OUR, SHOOTER_AT, Direction.SOUTH, { marksmanship: 100 });
+  const creature = spawnCreature(sim, TEAM_FIRST_ID[Team.CREATURE], body, CREATURE_AT, Direction.NORTH, { life: 1 });
+  sim.lookAround();
+  for (let shot = 0; shot < MAX_SHOTS && creature.placed; shot++) {
+    merc.actionPoints = calcActionPoints(merc);
+    expect(sim.dispatch({ type: 'attack', soldier: merc.id, target: CREATURE_AT, aimTime: 4 }).ok).toBe(true);
+    runUntilIdle(sim);
+  }
+  expect(creature.placed).toBe(false);
+  const jar = t.content.items.byName.get('JAR_QUEEN_CREATURE_BLOOD')?.index;
+  return {
+    corpses: t.corpses.map((c) => ({ at: c.gridNo, type: t.content.corpses.table.types[c.type] })),
+    jars: t.worldItems.filter((i) => i.object.item === jar).map((i) => i.gridNo - CREATURE_AT),
+  };
+}
+
+describe('creatures shot dead (Soldier_Ani.cc codes 465 and 440, Animation_Control.cc gubAnimSurfaceCorpseID)', () => {
+  it('leaves the corpse its dying animation names: the larva’s, the infant’s and the queen’s die where they fall', () => {
+    expect(shootCreatureDead(content, Body.LARVAE_MONSTER).corpses).toEqual([{ at: CREATURE_AT, type: 'LARVAEMONSTER_DEAD' }]);
+    expect(shootCreatureDead(content, Body.INFANT_MONSTER).corpses).toEqual([{ at: CREATURE_AT, type: 'INFANTMONSTER_DEAD' }]);
+    expect(shootCreatureDead(content, Body.QUEENMONSTER).corpses).toEqual([{ at: CREATURE_AT, type: 'QUEEN_MONSTER_DEAD' }]);
+  });
+
+  it('melts an adult creature into its corpse', () => {
+    expect(shootCreatureDead(content, Body.AM_MONSTER).corpses).toEqual([{ at: CREATURE_AT, type: 'ADULTMONSTER_DEAD' }]);
+    expect(shootCreatureDead(content, Body.YAF_MONSTER).corpses).toEqual([{ at: CREATURE_AT, type: 'ADULTMONSTER_DEAD' }]);
+  });
+
+  it('drops the queen’s blood jars two rows south of her corpse', () => {
+    expect(shootCreatureDead(content, Body.QUEENMONSTER).jars).toEqual(Array(5).fill(2 * WORLD_COLS));
+  });
+});
+
+describe.skipIf(!ORIGINAL_DATA_DIR)('creatures shot dead with the original animation scripts', () => {
+  let data: DataVfs;
+  let original: TacticalContent;
+
+  beforeAll(async () => {
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
+    original = await loadTacticalContent(withGraphicFacts((path) => vfsFileReader(data.vfs)(path)));
+  });
+  afterAll(async () => {
+    await data.close();
+  });
+
+  it('leave the same corpses and jars as on the stub pack', () => {
+    for (const body of [Body.LARVAE_MONSTER, Body.INFANT_MONSTER, Body.QUEENMONSTER, Body.AM_MONSTER])
+      expect(shootCreatureDead(original, body), String(body)).toEqual(shootCreatureDead(content, body));
   });
 });
 

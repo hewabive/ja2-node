@@ -40,7 +40,10 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'END_OPENSTRUCT_LOCKED_CROUCHED',
   'OPEN_STRUCT',
   'OPEN_STRUCT_CROUCHED',
+  'MONSTER_MELT',
 ];
+const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
+const CREATURE_DEATH_STOPS_AT_070 = ['ADULTMONSTER_DYING_STOP', 'LARVAE_DIE_STOP', 'QUEEN_DIE_STOP', 'INFANT_DIE_STOP'];
 const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
   'FALLFORWARD_FROMHIT_STAND',
   'ENDFALLFORWARD_FROMHIT_CROUCH',
@@ -50,9 +53,13 @@ const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
 ];
 const FALL_SOUNDS_ADDED_AFTER_070: ReadonlySet<number> = new Set([721, 722]);
 const RECORDED_ONE_SHOT_FRAMES = 8;
+const RECORDED_LOOP_FRAMES = 12;
 const NONINTERRUPTIBLE_DONE = 442;
 const RT_NONINTERRUPTIBLE_DONE = 772;
 const END_OF_ANIMATION = 499;
+const DEATH_OR_RELEASE = 497;
+const DEAD = 440;
+const JUMP_TO_START = 501;
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {
@@ -113,9 +120,13 @@ async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
   return writeTilesetDatabase({ ...current, tilesets });
 }
 
+function frames(count: number, first = 1): number[] {
+  return Array.from({ length: count }, (_, k) => first + k);
+}
+
 function recordedOneShotScript(flags: number): number[] {
   return [
-    ...Array.from({ length: RECORDED_ONE_SHOT_FRAMES }, (_, k) => k + 1),
+    ...frames(RECORDED_ONE_SHOT_FRAMES),
     ...(flags & AnimFlags.NONINTERRUPT ? [NONINTERRUPTIBLE_DONE] : []),
     ...(flags & AnimFlags.RT_NONINTERRUPT ? [RT_NONINTERRUPTIBLE_DONE] : []),
     END_OF_ANIMATION,
@@ -147,6 +158,10 @@ async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<U
       scriptOf(codes, state).filter((code) => !FALL_SOUNDS_ADDED_AFTER_070.has(code)),
     );
   }
+  for (const name of CREATURE_FALLS_AT_070)
+    replaceScript(codes, stateId(tables, name), [...frames(RECORDED_ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE]);
+  for (const name of CREATURE_DEATH_STOPS_AT_070)
+    replaceScript(codes, stateId(tables, name), [1, DEAD, ...frames(RECORDED_LOOP_FRAMES - 1, 2), JUMP_TO_START]);
   return writeAnimationScripts({ codes });
 }
 
