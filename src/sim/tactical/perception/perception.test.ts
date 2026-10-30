@@ -14,7 +14,7 @@ import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpriteP
 import { setSoldierPosition } from '../movement.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
+import { createTacticalState, registerSoldier, type SectorRef, type TacticalState } from '../state.ts';
 import { revealedRooms } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
 import { allTeamsLookForAll, distanceVisible, handleSight, Opp, SightFlags } from './sight.ts';
@@ -22,6 +22,8 @@ import { perceptionHooks } from './wiring.ts';
 
 const doorCosts = testDoorCosts();
 const MERC_PROFILE = 5;
+const BLOODCAT_ARENA = { x: 5, y: 14, z: 0 };
+const BESIDE_THE_ARENA = { x: 4, y: 14, z: 0 };
 let content: TacticalContent;
 
 beforeAll(async () => {
@@ -179,6 +181,21 @@ describe('sighting', () => {
     civ.neutral = true;
     allTeamsLookForAll(other);
     expect([creature.ai.oppCount, civ.ai.oppCount]).toEqual([1, 1]);
+  });
+
+  it('keeps the army and the creatures blind to each other in the bloodcat arena of N5, never the squad', () => {
+    const sightings = (sector: SectorRef) => {
+      const t = tactical();
+      t.sector = sector;
+      const soldier = spawn(t, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+      const cat = spawn(t, Team.CREATURE, gridNo(80, 86), Direction.NORTH);
+      cat.bodyType = Body.BLOODCAT;
+      const merc = spawn(t, Team.OUR, gridNo(86, 83), Direction.WEST);
+      allTeamsLookForAll(t);
+      return [soldier.oppList[cat.id], cat.oppList[soldier.id], merc.oppList[cat.id]];
+    };
+    expect(sightings(BLOODCAT_ARENA)).toEqual([Opp.NOT_HEARD_OR_SEEN, Opp.NOT_HEARD_OR_SEEN, Opp.SEEN_CURRENTLY]);
+    expect(sightings(BESIDE_THE_ARENA)).toEqual([Opp.SEEN_CURRENTLY, Opp.SEEN_CURRENTLY, Opp.SEEN_CURRENTLY]);
   });
 });
 

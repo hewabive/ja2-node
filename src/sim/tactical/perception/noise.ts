@@ -8,14 +8,16 @@ import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { u8 } from '../../../core/int.ts';
 import { endHeight, states } from '../animation.ts';
+import { soldierToSoldierLos } from '../combat/positions.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
 import { AlertStatus, Body, isMonster, NO_INTERRUPT, numSkillTraits, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
+import { keptApartInBloodcatArena } from './bloodcat-arena.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, standardInterruptConditionsMet } from './duel.ts';
-import { type HeightClass, soldierToLocationLineOfSight, soldierToSoldierLineOfSight } from './los.ts';
+import { type HeightClass, soldierToLocationLineOfSight } from './los.ts';
 import { Caller, SightFlags } from './opp.ts';
 import {
   addDoorNoiseSighting,
@@ -170,19 +172,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
   let sourceSeen = false;
   if (pythSpacesAway(l.gridNo, g) <= d) {
     const los = target
-      ? soldierToSoldierLineOfSight(
-          losWorld,
-          eye,
-          {
-            gridNo: target.gridNo,
-            level: target.level,
-            heightClass: endHeight(t.content, target.state) as (typeof HeightClass)[keyof typeof HeightClass],
-          },
-          u8(d),
-          true,
-          t.perception.disallowSight,
-          isMonster(l),
-        )
+      ? soldierToSoldierLos(t, l, target, u8(d), true)
       : soldierToLocationLineOfSight(losWorld, eye, g, level, u8(d), t.perception.disallowSight);
     sourceSeen = los !== 0;
   }
@@ -365,6 +355,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
         if (l.oppList[maker.id] === Opp.SEEN_CURRENTLY && !(l.neutral && kind === NoiseKind.GUNFIRE)) continue;
         if (l.team === Team.MILITIA && maker.team === Team.OUR) continue;
         if (l.team === Team.OUR && maker.team === Team.MILITIA) continue;
+        if (keptApartInBloodcatArena(t, l, maker)) continue;
       }
       if (l.team === Team.CIV && (kind === NoiseKind.GUNFIRE || kind === NoiseKind.EXPLOSION)) l.heardGunshot = true;
       const eff = calcEffVolume(t, l, g, level, base, sourceTerrain);

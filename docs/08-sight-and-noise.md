@@ -36,6 +36,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/sight.ts` | `Perception` (public opplist, public noise, best-sighting list); vision range, looks, opplists, radio, `handleSight`, decay, muzzle flashes |
 | `perception/opp.ts` | Opplist values, sight flags, callers, `atan8` |
 | `perception/noise.ts` | Movement and door noise, `makeNoise` → `processNoise` → `hearNoise`, `tellPlayerAboutNoise`, `squadHears` |
+| `perception/bloodcat-arena.ts` | The N5 rule: the army and the creatures neither see (`soldierToSoldierLos`, `combat/positions.ts`) nor hear each other |
 | `perception/duel.ts` | Duel points, interrupt conditions, watched locations (`10`) |
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
 | `perception/fov.ts` | `revealRoofsAndItems`, revealed tiles and rooms (`TacticalState.fog`) |
@@ -144,7 +145,7 @@ reading the source:
   stop the view: the original reads the person structure appended last, ja2-node the occupancy map.
 - The order of `mercSlots` after soldiers leave and re-enter the sector (ja2-node reuses the first free slot).
 
-Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Bloodcat arena
-sight", "Cave lights", "Guard room run", "Closest known opponent", "AI throw targets", "Doors", "Unseen soldiers in
-combat". Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light
-and light schedule", "Sounds out of sight", "Bullets of unseen shooters".
+Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard
+room run", "Closest known opponent", "AI throw targets", "Doors", "Unseen soldiers in combat". Other deviations of this
+domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light schedule", "Sounds out of
+sight", "Bullets of unseen shooters".

@@ -5,7 +5,8 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
 import { makeNoise, NoiseKind, squadHears } from './noise.ts';
@@ -19,6 +20,8 @@ beforeAll(async () => {
 
 const UNSEEN = -1;
 const HEARD_SOMETHING = 6;
+const BLOODCAT_ARENA = { x: 5, y: 14, z: 0 };
+const BESIDE_THE_ARENA = { x: 4, y: 14, z: 0 };
 
 function squadAndStranger(
   strangerAt = gridNo(80, 70),
@@ -45,6 +48,25 @@ describe('what the squad hears (OppList.cc ProcessNoise, CalcEffVolume)', () => 
     expect(squadHears(sim.state, gridNo(80, 20), 0, 5, NoiseKind.GUNFIRE)).toBeNull();
     expect(squadHears(sim.state, gridNo(80, 72), 1, 20, NoiseKind.MOVEMENT)).toMatchObject({ direction: 'above' });
     expect(squadHears(sim.state, gridNo(80, 72), 1, 20, NoiseKind.ROCK_IMPACT)).toMatchObject({ direction: Direction.NORTH });
+  });
+});
+
+describe('who listens to a noise (OppList.cc ProcessNoise)', () => {
+  it('keeps the army and the creatures deaf to each other in the bloodcat arena of N5', () => {
+    const heard = (sector: SectorRef) => {
+      const wall = Array.from({ length: 21 }, (_, k) => gridNo(70 + k, 75));
+      const sim = newCombatSim(content, wall);
+      const t = sim.state;
+      t.sector = sector;
+      const soldier = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, gridNo(80, 80), Direction.NORTH);
+      const cat = spawnSoldier(sim, TEAM_FIRST_ID[Team.CREATURE], Team.CREATURE, gridNo(80, 70), Direction.SOUTH);
+      cat.bodyType = Body.BLOODCAT;
+      makeNoise(t, cat, cat.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      makeNoise(t, soldier, soldier.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      return [soldier.oppList[cat.id], cat.oppList[soldier.id]];
+    };
+    expect(heard(BLOODCAT_ARENA)).toEqual([Opp.NOT_HEARD_OR_SEEN, Opp.NOT_HEARD_OR_SEEN]);
+    expect(heard(BESIDE_THE_ARENA)).toEqual([Opp.HEARD_THIS_TURN, Opp.HEARD_THIS_TURN]);
   });
 });
 

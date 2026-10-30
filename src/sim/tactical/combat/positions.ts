@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LOS.cc CalculateSoldierZPos, GetTargetZPosFromStructureHeight, SoldierTo3DLocationLineOfSightTest,
-// @src SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight.
+// @src src/game/Tactical/LOS.cc CalculateSoldierZPos, GetTargetZPosFromStructureHeight, SoldierToSoldierLineOfSightTest,
+// @src SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight.
 
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { endHeight } from '../animation.ts';
+import { keptApartInBloodcatArena } from '../perception/bloodcat-arena.ts';
 import { type LosWorld, landHeightUnits, lineOfSightTest, soldierToSoldierLineOfSight, TREE_SIGHT_REDUCTION } from '../perception/los.ts';
 import { Body, isMonster, type Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
@@ -92,6 +93,7 @@ export function targetZFromStructureHeight(t: TacticalState, g: number, level: n
 }
 
 export function soldierToSoldierLos(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: number, aware: boolean): number {
+  if (keptApartInBloodcatArena(t, viewer, target)) return 0;
   const subject = (s: Soldier) => ({ gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) });
   return soldierToSoldierLineOfSight(
     losWorldOf(t),

@@ -8,13 +8,13 @@
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
+import { soldierToSoldierLos } from '../combat/positions.ts';
 import { haltMoveForSoldierOutOfPoints } from '../movement.ts';
 import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { civilianGroupMembersChangeSidesWithinProximity } from '../narrative/civ-hostility.ts';
-import { type HeightClass, soldierToSoldierLineOfSight } from '../perception/los.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { AP, apsToLook, minPtsToMove, type PointsContext } from '../points.ts';
-import { AlertStatus, CivilianGroup, isMonster, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, CivilianGroup, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { updateEnemyUIBar } from '../turns/top-message.ts';
@@ -96,22 +96,11 @@ function setSoldierAsUnderAiControl(t: TacticalState, s: Soldier): void {
 }
 
 function manChecksOnFriends(t: TacticalState, s: Soldier): void {
-  const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
   for (const friend of mercs(t)) {
     if (friend.neutral || s.side !== friend.side || friend === s) continue;
     const d = distanceVisible(t, s, IRRELEVANT, IRRELEVANT, friend.gridNo, friend.level);
     if (pythSpacesAway(s.gridNo, friend.gridNo) > d) continue;
-    const eye = {
-      gridNo: s.gridNo,
-      level: s.level,
-      heightClass: endHeight(t.content, s.state) as (typeof HeightClass)[keyof typeof HeightClass],
-    };
-    const target = {
-      gridNo: friend.gridNo,
-      level: friend.level,
-      heightClass: endHeight(t.content, friend.state) as (typeof HeightClass)[keyof typeof HeightClass],
-    };
-    if (soldierToSoldierLineOfSight(losWorld, eye, target, u8(d), true, t.perception.disallowSight, isMonster(s)) === 0) continue;
+    if (soldierToSoldierLos(t, s, friend, u8(d), true) === 0) continue;
     if (friend.ai.alertStatus >= AlertStatus.RED || friend.ai.underFire || friend.life < OKLIFE) {
       s.ai.alertStatus = AlertStatus.RED;
       checkForChangingOrders(s);

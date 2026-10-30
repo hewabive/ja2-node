@@ -13,8 +13,9 @@ import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { AiAction } from '../ai/actions.ts';
-import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
+import { setSoldierAniSpeed, states } from '../animation.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
+import { soldierToSoldierLos } from '../combat/positions.ts';
 import { withinOneOctant } from '../directions.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
@@ -58,7 +59,6 @@ import {
 } from './duel.ts';
 import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
-import { type HeightClass, type LosSubject, soldierToSoldierLineOfSight } from './los.ts';
 import { atan8, Caller, Opp, SightFlags } from './opp.ts';
 
 export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
@@ -130,10 +130,6 @@ export function validForSightings(s: Soldier | undefined): s is Soldier {
 
 export function hostile(a: Soldier, b: Soldier): boolean {
   return !consideredNeutral(a, b) && !consideredNeutral(b, a) && a.side !== b.side;
-}
-
-function losSubject(t: TacticalState, s: Soldier): LosSubject {
-  return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) as (typeof HeightClass)[keyof typeof HeightClass] };
 }
 
 function distanceSmellable(subject: Soldier): number {
@@ -426,19 +422,7 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
         opp.level,
       );
   let seen = false;
-  const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
-  if (
-    pythSpacesAway(me.gridNo, opp.gridNo) <= d &&
-    soldierToSoldierLineOfSight(
-      losWorld,
-      losSubject(t, me),
-      losSubject(t, opp),
-      u8(d),
-      aware,
-      t.perception.disallowSight,
-      isMonster(me),
-    ) !== 0
-  ) {
+  if (pythSpacesAway(me.gridNo, opp.gridNo) <= d && soldierToSoldierLos(t, me, opp, u8(d), aware) !== 0) {
     manSeesMan(t, me, opp, caller);
     seen = true;
   }
