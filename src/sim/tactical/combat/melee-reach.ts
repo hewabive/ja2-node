@@ -141,9 +141,12 @@ function refusedByDoor(door: StructureInstance | null, dir: number): boolean {
   return (door.wallOrientation & ORIENT_LEFT) !== 0 && (dir === Direction.NORTH || dir === Direction.WEST || dir === Direction.EAST);
 }
 
+function standsOnTileWithoutSwitch(t: TacticalState, s: Soldier, g: number): boolean {
+  return s.gridNo === g && !t.world.structures.find(g, StructureFlags.SWITCH);
+}
+
 export function findAdjacentGridExForDoor(t: TacticalState, s: Soldier, g: number): MeleeApproach | null {
-  if (s.gridNo === g && !t.world.structures.find(g, StructureFlags.SWITCH))
-    return { actionGridNo: g, targetGridNo: g, direction: sameTileDoorDirection(t, s, g) };
+  if (standsOnTileWithoutSwitch(t, s, g)) return { actionGridNo: g, targetGridNo: g, direction: sameTileDoorDirection(t, s, g) };
   const door = t.world.structures.find(g, StructureFlags.ANYDOOR | StructureFlags.SWITCH);
   const isSwitch = door !== null && has(door.flags, StructureFlags.SWITCH);
   const best: Candidate = { distance: NO_PATH_DISTANCE, gridNo: NOWHERE };
@@ -164,7 +167,7 @@ export function findAdjacentGridExForDoor(t: TacticalState, s: Soldier, g: numbe
 
 export function findAdjacentGridEx(t: TacticalState, s: Soldier, gIn: number, forceToPerson: boolean): MeleeApproach | null {
   let g = gIn;
-  if (s.gridNo === g) return { actionGridNo: g, targetGridNo: g, direction: s.direction };
+  if (standsOnTileWithoutSwitch(t, s, g)) return { actionGridNo: g, targetGridNo: g, direction: s.direction };
   let direction = s.direction;
   if (forceToPerson) {
     const person = forcedToPerson(t, g);

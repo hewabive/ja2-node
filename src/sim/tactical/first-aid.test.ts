@@ -1,7 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Direction, gridNo, pythSpacesAway } from '../../content/world/grid.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { createItem } from '../items/object.ts';
 import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
@@ -106,5 +108,25 @@ describe('first aid in tactical', () => {
     stepTicks(sim, 50);
     expect(patient.serviceCount).toBe(0);
     expect(medic.servicePartner).toBe(NOBODY);
+  });
+});
+
+describe('first aid on a switch tile (Overhead.cc FindAdjacentGridEx)', () => {
+  function bandageSelf(onSwitch: boolean) {
+    const sim = newCombatSim(content);
+    const { patient } = bleedingSquad(sim);
+    if (onSwitch) sim.state.world.structures.add(patient.gridNo, 0, syntheticStructure(StructureFlags.SWITCH));
+    patient.inv[InvSlot.HAND] = createItem(content.items, item('FIRSTAIDKIT'), 100);
+    return { result: sim.dispatch({ type: 'bandage', soldier: patient.id }), patient };
+  }
+
+  it('bandages himself where he stands', () => {
+    expect(bandageSelf(false).result).toEqual({ ok: true, data: { started: true } });
+  });
+
+  it('first walks a merc who bandages himself on a switch tile to a tile beside it, as one on a switch never acts on his own tile', () => {
+    const { result, patient } = bandageSelf(true);
+    expect(result).toEqual({ ok: true, data: { walking: true } });
+    expect(pythSpacesAway(patient.gridNo, patient.finalDestination)).toBe(1);
   });
 });

@@ -116,6 +116,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
 | A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
+| The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3293`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
 
 Not pinned yet:
 - A prone shooter's close-range penalty against a standing target turns into a bonus at four and five tiles
