@@ -1,13 +1,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
-import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { Orientation, type StructureDef } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { StructureFlags, StructureTileFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { createItem } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { calcThrownChanceToHit } from '../explosions/throwing.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { Team } from '../soldier.ts';
+import { TacticalSim } from '../tactical-sim.ts';
+import { Visibility } from '../world-items.ts';
 
 let content: TacticalContent;
 
@@ -16,6 +22,23 @@ beforeAll(async () => {
 });
 
 const KNIFE_STATUS_IN_POCKET = 77;
+const TABLE_AT_SECOND_CUBE = { cubes: 0b0010, height: 25 };
+const SHELF_AT_TOP_CUBE = { cubes: 0b1000, height: 50 };
+
+function simWith(place: Parameters<typeof syntheticWorld>[1]): TacticalSim {
+  const base = syntheticWorld(testDoorCosts(), place);
+  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  return new TacticalSim(world, content, 3);
+}
+
+function raisedSurface(cubes: number, tileFlags = 0): StructureDef {
+  const surface = syntheticStructure(StructureFlags.GENERIC);
+  const tiles = surface.tiles.map((tile) => ({ ...tile, flags: tileFlags, shape: new Uint8Array(tile.shape.length).fill(cubes) }));
+  return { ...surface, tiles };
+}
+
+const thrownKnives = (sim: TacticalSim, name: string) =>
+  sim.state.worldItems.filter((i) => content.items.byIndex.get(i.object.item)?.name === name);
 
 function knifeDuel() {
   const sim = newCombatSim(content);
@@ -55,5 +78,43 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     expect(target.life).toBe(80);
     expect(sim.state.worldItems.filter((i) => content.items.byIndex.get(i.object.item)?.name === 'THROWING_KNIFE')).toEqual([]);
     expect(sim.state.turn.attackBusyCount).toBe(0);
+  });
+
+  it('lays a knife stopped by a window on the raised table at the window, where a dropped item would lie under it', () => {
+    const window = gridNo(80, 84);
+    const sim = simWith((structures) => {
+      structures.add(window, 0, syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_LEFT));
+      structures.add(window, 0, raisedSurface(TABLE_AT_SECOND_CUBE.cubes));
+    });
+    const thrower = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { gun: 'THROWING_KNIFE', marksmanship: 90 });
+    const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    sim.state.inCombat = true;
+    thrower.oppList[target.id] = Opp.SEEN_CURRENTLY;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });
+    expect(target.life).toBe(80);
+    expect(thrownKnives(sim, 'THROWING_KNIFE')).toMatchObject([
+      { gridNo: window, level: 0, zHeight: TABLE_AT_SECOND_CUBE.height, flags: 0, visible: Visibility.INVISIBLE },
+    ]);
+  });
+
+  it('lays the bloody knife of a target with full pockets on the raised shelf over his tile, not under it', () => {
+    const at = gridNo(80, 84);
+    const sim = simWith((structures) => {
+      structures.add(at, 0, raisedSurface(SHELF_AT_TOP_CUBE.cubes, StructureTileFlags.PASSABLE));
+    });
+    const thrower = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 82), Direction.SOUTH, { gun: 'THROWING_KNIFE', marksmanship: 100 });
+    const target = spawnSoldier(sim, 20, Team.ENEMY, at, Direction.NORTH);
+    const rock = content.items.byName.get('ROCK')?.index ?? -1;
+    for (let k = InvSlot.BIGPOCK1; k <= InvSlot.SMALLPOCK8; k++) target.inv[k] = createItem(content.items, rock, 100);
+    sim.state.inCombat = true;
+    thrower.oppList[target.id] = Opp.SEEN_CURRENTLY;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(target.life).toBeLessThan(80);
+    expect(thrownKnives(sim, 'BLOODY_THROWING_KNIFE')).toMatchObject([
+      { gridNo: at, level: 0, zHeight: SHELF_AT_TOP_CUBE.height, flags: 0, visible: Visibility.INVISIBLE },
+    ]);
   });
 });

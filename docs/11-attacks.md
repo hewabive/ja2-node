@@ -114,6 +114,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
+| A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
 
 Not pinned yet:
@@ -144,7 +145,7 @@ draw nothing. Inferred from reading the source:
 - The chance to punch, blade dulling, surprise attacks, the queen's swipe; the barrel extender and the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Not ported: gaps "Melee specials", "Unseen soldiers in combat", "Knife stopped by a window".
+Not ported: gaps "Melee specials", "Unseen soldiers in combat", "Looking for new items".
 Other deviations of this domain: "Game events", "Bullet flight", "Miss animation in water", "Melee hold leaks", "Melee
 from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order", "Watchdogs", "Difficulty
 and progress in tactical".

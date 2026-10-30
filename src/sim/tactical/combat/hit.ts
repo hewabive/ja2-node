@@ -74,6 +74,8 @@ const HEIGHT_UNITS = 256;
 const AP_GET_WOUNDED_DIVISOR = 4;
 const DAMAGE_DISPLAY_DELAY = 250;
 const DAMAGE_DISPLAY_STEPS = 8;
+const NO_FLAGS = 0;
+const LEVEL_HEIGHT = 0;
 const MIN_GORE_BLAST_RADIUS = 3;
 
 const LOCATION_NAMES = ['random', 'head', 'torso', 'legs', 'gland'] as const;
@@ -111,7 +113,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
   if (b.flags & 0x0002) {
     const slot = tgt.inv.findIndex((o, k) => k >= InvSlot.BIGPOCK1 && k <= InvSlot.SMALLPOCK8 && o.item === NOTHING);
     const knife = createItem(t.content.items, itemIndex(t, 'BLOODY_THROWING_KNIFE'), b.itemStatus);
-    if (slot === -1) addItemToPool(t, tgt.gridNo, knife, Visibility.INVISIBLE, tgt.level);
+    if (slot === -1) addItemToPool(t, tgt.gridNo, knife, Visibility.INVISIBLE, tgt.level, NO_FLAGS, LEVEL_HEIGHT);
     else copyObjectInto(knife, tgt.inv[slot] as ItemObject);
     ammo = AmmoType.KNIFE;
   } else ammo = firer.inv[firer.attackingHand]?.gunAmmoType ?? AmmoType.REGULAR;

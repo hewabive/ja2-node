@@ -83,6 +83,9 @@ const MATERIAL_LIGHT_VEGETATION = 4;
 const MATERIAL_INDESTRUCTABLE_STONE = 24;
 const MATERIAL_INDESTRUCTABLE_METAL = 25;
 const MISS_ANIM_MS = 425;
+const GROUND_LEVEL = 0;
+const NO_FLAGS = 0;
+const LEVEL_HEIGHT = 0;
 const PI = 3.1415926;
 const RADIANS_IN_CIRCLE = 6.283;
 const DEGREES_22_5 = (RADIANS_IN_CIRCLE * 22.5) / 360;
@@ -819,13 +822,8 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
                     if (s.wallOrientation & ORIENT_RIGHT) {
                       if (!(b.incX > 0)) knifeGrid += 1;
                     } else if (!(b.incY > 0)) knifeGrid += WORLD_ROWS;
-                    addItemToPool(
-                      t,
-                      knifeGrid,
-                      createItem(t.content.items, knife, b.itemStatus),
-                      Visibility.INVISIBLE,
-                      level === 0 ? 0 : 1,
-                    );
+                    const item = createItem(t.content.items, knife, b.itemStatus);
+                    addItemToPool(t, knifeGrid, item, Visibility.INVISIBLE, GROUND_LEVEL, NO_FLAGS, LEVEL_HEIGHT);
                     stopBullet(b);
                     structureHit(t, b, s.id, 1, true, 'structure');
                     return;
