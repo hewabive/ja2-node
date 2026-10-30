@@ -122,6 +122,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A tile keeps the first cloud's gas: tear gas over smoke leaves it smoky | `explosions/smoke.test.ts` |
 | Plain smoke gasses whoever steps into it without a good mask (aim −50, no interrupts), though it does no damage | `explosions/smoke.test.ts` |
 | A mask worn below 70 lets a soldier get gassed, yet any mask clears the state at his next turn start | `explosions/smoke.test.ts` |
+| A pile under a soldier or a blocking structure is picked up from a side tile only, though the reach animation turns to any neighbour: a merc on its diagonal walks first | `item-actions.test.ts` |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts

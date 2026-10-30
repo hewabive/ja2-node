@@ -2,22 +2,22 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc SoldierPickupItem, HandleSoldierPickupItem, SoldierGetItemFromWorld,
 // @src HandleAutoPlaceFail, ItemPoolOKForPickup, SoldierDropItem, SoldierHandleDropItem, AdjustGridNoForItemPlacement;
+// @src Points.cc GetAPsToPickupItem; Handle_UI.cc UIOkForItemPickup;
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
 // @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
-import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
 import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import { AnimHeight, height, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
 import { StatCause, statChange } from './combat/experience.ts';
-import { DIRECTION_COUNT } from './directions.ts';
-import { giveItemOpcode } from './give.ts';
+import { findAdjacentGridEx } from './combat/melee-reach.ts';
+import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
-import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding.ts';
+import { isWater, newOKDestination } from './pathfinding.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
 import { type PendingPickup, type Soldier, Team } from './soldier.ts';
@@ -52,19 +52,12 @@ function itemPoolOKForPickup(s: Soldier, wi: WorldItem, zLevel: number): boolean
 
 export function adjustGridNoForItemPlacement(t: TacticalState, s: Soldier, g: number): number {
   if (!itemPlacementBlocked(t, s, g)) return g;
-  let best = g;
-  let bestCost = Number.POSITIVE_INFINITY;
-  for (let d = 0; d < DIRECTION_COUNT; d++) {
-    const spot = newGridNo(g, DIRECTION_INCREMENT[d] ?? 0);
-    if (spot === s.gridNo) return spot;
-    if (!newOKDestination(t.pathEnv, s, spot, true, s.level)) continue;
-    const route = findBestPath(t.pathEnv, s, spot, s.level, { copy: PathCopy.NONE });
-    if (route.length > 0 && route.length < bestCost) {
-      bestCost = route.length;
-      best = spot;
-    }
-  }
-  return best;
+  return findAdjacentGridEx(t, s, g, false)?.actionGridNo ?? g;
+}
+
+export function apsToPickupItem(t: TacticalState, s: Soldier, g: number): number {
+  if (itemsAt(t, g, s.level).length === 0) return 0;
+  return apsToMovePlusAction(t, s, adjustGridNoForItemPlacement(t, s, g), AP.PICKUP_ITEM);
 }
 
 export function soldierPickupItem(

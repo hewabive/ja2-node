@@ -6,6 +6,7 @@ import { createItem } from '../items/object.ts';
 import { changeSoldierStance } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, itemIn } from './inventory.ts';
+import { adjustGridNoForItemPlacement, apsToPickupItem } from './item-actions.ts';
 import { AP } from './points.ts';
 import { Team } from './soldier.ts';
 import { addItemToPool, Visibility } from './world-items.ts';
@@ -65,6 +66,37 @@ describe('picking up and dropping items', () => {
     expect(events.some((e) => e.type === 'itemsPickedUp')).toBe(true);
     expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
     expect(t.worldItems).toHaveLength(0);
+  });
+
+  it('approaches a pile under another soldier from a side tile, never from a diagonal one', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const pile = gridNo(80, 80);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(81, 79), Direction.SOUTH);
+    spawnSoldier(sim, 1, Team.OUR, pile, Direction.SOUTH);
+    addItemToPool(t, pile, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    expect(adjustGridNoForItemPlacement(t, merc, pile)).toBe(gridNo(80, 79));
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(merc.gridNo).toBe(gridNo(80, 79));
+    expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
+  });
+
+  it('refuses a pickup in combat whose walk and pickup together cost more APs than he has', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    const pile = gridNo(83, 80);
+    addItemToPool(t, pile, createItem(t.content.items, item('CROWBAR'), 90), Visibility.VISIBLE, 0);
+    const cost = apsToPickupItem(t, merc, pile);
+    expect(cost).toBeGreaterThan(AP.PICKUP_ITEM);
+    merc.actionPoints = cost - 1;
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
+    merc.actionPoints = cost;
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toEqual({ ok: true });
   });
 
   it('drops the hand item at the drop animation code and shows it to the squad', () => {

@@ -24,10 +24,14 @@ import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
 
 const NO_FLAGS = 0;
 
-export function apsToGiveItem(t: TacticalState, s: Soldier, gridNo: number): number {
-  if (s.gridNo === gridNo) return AP.GIVE_ITEM;
+export function apsToMovePlusAction(t: TacticalState, s: Soldier, gridNo: number, actionAp: number): number {
+  if (s.gridNo === gridNo) return actionAp;
   const move = plotPathCost(t, s, gridNo, s.uiMovementMode);
-  return move === 0 ? 0 : move + AP.GIVE_ITEM;
+  return move === 0 ? 0 : move + actionAp;
+}
+
+export function apsToGiveItem(t: TacticalState, s: Soldier, gridNo: number): number {
+  return apsToMovePlusAction(t, s, gridNo, AP.GIVE_ITEM);
 }
 
 export function setEngagedInConvFromPcAction(t: TacticalState, s: Soldier): void {

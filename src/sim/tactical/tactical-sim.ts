@@ -75,6 +75,7 @@ import { dispatchInventoryCommand, INVENTORY_COMMANDS, parseCount, parseSlot } f
 import { takeObjects } from './inventory-panel.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
+  apsToPickupItem,
   handlePendingPickupOnArrival,
   itemOpcode,
   pickupCandidates,
@@ -584,7 +585,9 @@ export class TacticalSim {
       if (picked.some((wi) => wi === undefined)) return refuse('badItems', `item indices must be 0..${candidates.length - 1}`);
       selection = picked as typeof candidates;
     }
-    if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
+    const apCost = apsToPickupItem(t, s, g);
+    if (apCost === 0) return refuse('noPath', 'no path');
+    if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
     selectSoldier(t, s);
     if (!soldierPickupItem(t, s, g, zLevel, selection)) return refuse('noPath', 'no path');
     return { ok: true };
