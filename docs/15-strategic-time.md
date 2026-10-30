@@ -124,7 +124,7 @@ dawn ramp and the arrivals all run in it, while the hourly and quarter-hour upda
 **Native saves.** `importStrategicTime` takes the clock, the light value, the hire flag, `didGameJustStart`, the
 enemy-knowledge reset and the queue, without ambient events and nodes pending deletion. The session import clears the
 pause and its lock, which the save records as they were before saving paused the game, and re-phases the second at the
-imported `realMs`. Not imported: the temperatures (cool until the next temperature event). ja2-node's own snapshot keeps
+imported `realMs`; entering the saved screen then sets the compression mode as entering it does (`14` §2). Not imported: the temperatures (cool until the next temperature event). ja2-node's own snapshot keeps
 everything, `seq` and the clock driver included, so a reload continues exactly (D7).
 
 **The player view never shows the queue** (D16), only times the original shows: the own groups' arrivals, merc

@@ -431,7 +431,8 @@ command or prompt of their own; the flows `meanwhile`, `endgame` and `ended` loc
   `creatureQueenKilled`; `campaignWon` ends it. There is no game over: with no usable merc left compression is refused
   and `status.noUsableMercs` is true.
 - **Native saves** taken during a played scene or the endgame sequence are refused on import; one taken with no sector
-  loaded continues on the strategic map with none loaded (`14`).
+  loaded continues on the strategic map with none loaded, one taken on the map screen with a sector loaded continues on
+  the map with it loaded (`tacticalScreen` enters it), one taken in tactical in tactical (`14`).
 
 ## 9. Queries and cursor hints
 

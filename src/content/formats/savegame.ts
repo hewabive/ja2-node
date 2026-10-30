@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (the loaded world test, 2026-10-30)
+// @src src/game/SaveLoadGame.cc LoadSavedGame and the section loaders it calls (the loaded world test, 2026-10-30);
+// @src SaveLoadScreen.cc DoneFadeOutForSaveLoadScreen (the screen a save resumes on)
 
 import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
@@ -65,6 +66,7 @@ import {
 export type { SavedVehicle, StrategicGroup, StrategicInfo, UndergroundSector } from './savegame-strategic.ts';
 
 export const MIN_SAVE_VERSION = 85;
+const MAP_SCREEN = 9;
 export const MAX_SAVE_VERSION = 105;
 const FIRST_VERSION_WITH_NEW_ENCRYPTION = 87;
 const FIRST_VERSION_WITH_VOICE_IDS = 104;
@@ -624,6 +626,14 @@ export interface SavedWorld {
 export function loadedWorldSector(save: SavedWorld): SectorPosition | null {
   const sector = save.tactical.worldSector;
   return save.header.worldLoaded && isValidSectorPosition(sector) ? sector : null;
+}
+
+export interface SavedScreen extends SavedWorld {
+  readonly generalInfo: { readonly screenAfterLoading: number };
+}
+
+export function resumesOnMapScreen(save: SavedScreen): boolean {
+  return loadedWorldSector(save) === null || save.generalInfo.screenAfterLoading === MAP_SCREEN;
 }
 
 export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable): SaveGame {

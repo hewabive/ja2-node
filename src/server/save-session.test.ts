@@ -15,6 +15,7 @@ import { musicMode } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
 import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
+import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
 import { inLoadedSector } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -27,6 +28,8 @@ const AIM_MERC_KIND = 1;
 const MINUTES_PER_DAY = 1440;
 const MINUTES_PER_HOUR = 60;
 const WINDOWS_WORLD_LOADED_OFFSET = 301;
+const NATIVE_MAP_SCREEN = 9;
+const MAP_SCREEN_TICKS = 200 * 60;
 const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
@@ -157,6 +160,31 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
   }
 
   for (const file of saveFiles) {
+    it(`resumes ${file} with its sector loaded on the screen it was saved on: the map screen with time stopped, or tactical`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const c = session.campaign;
+      const sector = save.tactical.worldSector;
+      expect(c.state.worldSector).toEqual({ x: sector.x, y: sector.y, z: sector.z });
+      const mercsHere = save.soldiers.filter((e) => inLoadedSector(save, e.soldier) && e.soldier.team === Team.OUR);
+      expect(mercsHere.every((e) => c.tactical?.state.soldiers[e.soldier.id]?.placed)).toBe(true);
+      if (save.generalInfo.screenAfterLoading !== NATIVE_MAP_SCREEN) {
+        expect(session.view().strategic?.flow).toBe('tactical');
+        return;
+      }
+      expect(session.view().strategic?.flow).toBe('strategic');
+      expect([c.state.clock.mode, c.state.clock.compressionOn]).toEqual([CompressMode.X0, false]);
+      const before = c.state.clock.seconds;
+      advance(session, { ticks: MAP_SCREEN_TICKS }, MAP_SCREEN_TICKS);
+      expect(c.state.clock.seconds).toBe(before);
+      expect(session.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+      expect(session.view().strategic?.flow).toBe('tactical');
+      advance(session, { ticks: MAP_SCREEN_TICKS }, MAP_SCREEN_TICKS);
+      expect(c.state.clock.seconds - before).toBe(60);
+    });
+
     it(`imports the doors, key rings, key table and civilian groups of ${file}`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
@@ -225,6 +253,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(strategic?.mercs.length).toBe(mercs.length);
       expect(strategic?.worldSector).toBe(`${String.fromCharCode(64 + save.tactical.worldSector.y)}${save.tactical.worldSector.x}`);
       expect(strategic?.sectors.some((v) => v.sector === strategic.worldSector && v.visited)).toBe(true);
+      if (session.campaign.state.flow === 'strategic') expect(session.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
       const clock = session.campaign.state.clock;
       const before = clock.seconds;
       if (!t.inCombat) {

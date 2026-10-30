@@ -144,7 +144,10 @@ Output: one line per probe plus a summary; exit status 1 on any mismatch or orac
 data and the saves, not the native build. `compare-all.sh` runs `compare.ts` over the outputs it lists ("Shipped
 probes"); it is the `oracle` gate of `pnpm gates` (skipped without the work dir or `JA2_DATA_DIR`).
 
-By default a comparer imports the save into a ja2-node campaign session, applies the same commands and settings, replays
+By default a comparer imports the save into a ja2-node campaign session in the tactical flow (`tactical-import.ts`: a
+save made on the map screen, like `SaveGame01`, resumes there, so the comparer enters its loaded sector as a player
+would; the native `save` command loads without entering a screen, and the natural healing of a squad's mercs, for one,
+depends on the screen), applies the same commands and settings, replays
 the native draws (both streams) and the traced `CheckFact` results strictly ("Draw replay") and compares the printed
 state field by field after every command. The sections below give each comparer's commands and where it departs from
 that.

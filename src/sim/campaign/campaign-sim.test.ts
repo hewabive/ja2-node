@@ -58,4 +58,17 @@ describe('campaign clock', () => {
     expect(worldHour(campaign.state.clock)).toBe(1);
     expect(campaign.dispatch({ type: 'compressTime' }).ok).toBe(false);
   });
+
+  it('opens on the map screen with the sector loaded when created there: a map compression mode stays, stopped (MapScreenHandle)', () => {
+    const tactical = newCombatSim(content);
+    const state = createStrategicState();
+    Object.assign(state.clock, { mode: CompressMode.MIN30, compressionOn: true });
+    const campaign = new CampaignSim(state, tactical, {}, 'createOnMapScreen');
+    expect([campaign.state.flow, campaign.tactical]).toEqual(['strategic', tactical]);
+    expect([state.clock.mode, state.clock.compressionOn]).toEqual([CompressMode.MIN30, false]);
+    const start = state.clock.seconds;
+    for (let i = 0; i < 2000; i++) campaign.step();
+    expect(state.clock.seconds).toBe(start);
+    expect(tactical.tick).toBe(0);
+  });
 });

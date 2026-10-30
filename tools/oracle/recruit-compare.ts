@@ -2,7 +2,6 @@ import { parseSaveGame } from '../../src/content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../src/content/formats/savegame-header.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { NO_PERSONNEL_ENTRY } from '../../src/sim/campaign/laptop/laptop-state.ts';
@@ -38,6 +37,7 @@ import {
   StrictReplay,
   withoutFaceDraws,
 } from './actions-compare.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -198,7 +198,7 @@ export class RecruitComparer {
   async #campaign(): Promise<CampaignSim> {
     if (!this.#session) {
       if (!this.#bytes) throw new Error('recruiting probes need a save');
-      this.#session = (await createSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
+      this.#session = (await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
       this.#reserved = await this.#awaySoldiers(this.#bytes);
       const flow = this.#session.campaign.talk?.npcActions.recruitFlow;
       if (flow) flow.reservedSoldierSlot = (id) => this.#reserved.has(id);

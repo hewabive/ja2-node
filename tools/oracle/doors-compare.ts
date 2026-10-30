@@ -2,7 +2,6 @@ import { NOTHING } from '../../src/content/items/items.ts';
 import { StructureFlags } from '../../src/content/world/structures.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { u8 } from '../../src/core/int.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { createItems, deleteObject } from '../../src/sim/items/object.ts';
@@ -20,6 +19,7 @@ import {
 import { STAT_KEYS, StatKind } from '../../src/sim/tactical/profiles.ts';
 import { NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -330,7 +330,7 @@ export class DoorComparer {
   async #session(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('door probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     this.#campaign = session.campaign;
     return this.#campaign;
   }

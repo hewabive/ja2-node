@@ -1,5 +1,4 @@
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { refreshMercMorale } from '../../src/sim/campaign/morale.ts';
@@ -8,6 +7,7 @@ import { getGroup } from '../../src/sim/strategic/forces/groups.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import { effectiveLeadership } from '../../src/sim/tactical/skills.ts';
 import { NO_PROFILE } from '../../src/sim/tactical/soldier.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -51,7 +51,7 @@ export class MoraleComparer {
   async #session(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('morale probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, 1, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, 1, this.#exists);
     this.#campaign = session.campaign;
     return this.#campaign;
   }

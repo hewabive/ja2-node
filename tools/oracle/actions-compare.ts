@@ -2,7 +2,6 @@ import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import {
@@ -22,6 +21,7 @@ import type { NpcActionEnv } from '../../src/sim/tactical/narrative/npc-actions/
 import { answerNpcRequest, type NpcRequestChoice, npcRequestDetails } from '../../src/sim/tactical/narrative/npc-actions/requestors.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 export type Draw = readonly [string, number, number, number];
@@ -217,7 +217,7 @@ export class ActionComparer {
   async #campaign(): Promise<CampaignSim> {
     if (!this.#session) {
       if (!this.#bytes) throw new Error('NPC action probes need a save');
-      this.#session = (await createSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
+      this.#session = (await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
     }
     return this.#session.campaign;
   }

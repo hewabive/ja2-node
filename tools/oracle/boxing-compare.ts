@@ -2,7 +2,6 @@ import { WEAPON_CLASSES } from '../../src/content/items/items.ts';
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { createItem, emptyObject } from '../../src/sim/items/object.ts';
@@ -42,6 +41,7 @@ import {
   report,
   StrictReplay,
 } from './actions-compare.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -150,7 +150,7 @@ export class BoxingComparer {
   async #campaignSession(): Promise<CampaignSession> {
     if (!this.#session) {
       if (!this.#bytes) throw new Error('boxing probes need a save');
-      this.#session = (await createSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
+      this.#session = (await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists)).session;
     }
     return this.#session;
   }

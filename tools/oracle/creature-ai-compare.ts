@@ -1,5 +1,4 @@
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import { createItems } from '../../src/sim/items/object.ts';
 import { calcBestStab, calcTentacleAttack } from '../../src/sim/tactical/ai/attack-choice.ts';
@@ -15,6 +14,7 @@ import { dropSmell } from '../../src/sim/tactical/smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, type TacticalState, unregisterSoldier } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -325,7 +325,7 @@ export class CreatureAiComparer {
   async #session(): Promise<TacticalSim> {
     if (this.#sim) return this.#sim;
     if (!this.#bytes) throw new Error('creature AI probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     this.#sim = session.sim;
     return this.#sim;
   }

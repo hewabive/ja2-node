@@ -1,6 +1,5 @@
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { buildNewCampaign } from '../../src/server/campaign-factory.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { mercArrivalTimeOfDay } from '../../src/sim/campaign/contracts/contract-times.ts';
@@ -34,6 +33,7 @@ import { createStrategicState, type StrategicState } from '../../src/sim/strateg
 import { EventKind, NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../../src/sim/strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -378,7 +378,7 @@ export class LaptopComparer {
   async #session(): Promise<LaptopFlow> {
     if (!this.#campaign) {
       if (!this.#bytes) throw new Error('laptop probes need a save or a new game');
-      const { session } = await createSaveSession(this.#read, this.#bytes, 1, this.#exists);
+      const { session } = await createTacticalSaveSession(this.#read, this.#bytes, 1, this.#exists);
       this.#campaign = session.campaign;
       const flow = this.#campaign.laptop;
       if (flow) flow.laptop.bobbyRay.shipmentsSinceNoBribes = this.#shipmentsSinceNoBribes;

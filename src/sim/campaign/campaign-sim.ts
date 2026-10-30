@@ -69,7 +69,7 @@ import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { PowFlow } from './pow.ts';
-import { openMapScreen, openTacticalScreen } from './screens.ts';
+import { enterMapScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
 import { storyRefusal } from './story-refusals.ts';
@@ -82,7 +82,7 @@ export interface CampaignCommand {
 
 export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 
-export type SimConstruction = 'create' | 'restore';
+export type SimConstruction = 'create' | 'createOnMapScreen' | 'restore';
 
 const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
 const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
@@ -134,11 +134,11 @@ export class CampaignSim {
     hooks: CampaignHooks = {},
     construction: SimConstruction = 'create',
   ) {
-    const creating = construction === 'create';
+    const creating = construction !== 'restore';
     this.state = state;
     this.tactical = tactical;
     this.#hooks = hooks;
-    if (creating && tactical) state.flow = 'tactical';
+    if (construction === 'create' && tactical) state.flow = 'tactical';
     this.narrative = new NarrativeFlow(this);
     this.meanwhile = new MeanwhileFlow(this);
     this.endgame = new EndgameFlow(this);
@@ -205,6 +205,7 @@ export class CampaignSim {
     if (this.strategic) this.helicopter.register();
     this.narrative.register(this.dispatchTable);
     if (creating && state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
+    if (construction === 'createOnMapScreen') enterMapScreen(this);
     tactical?.attachWorldClock(state.clock);
     if (creating) this.#startSession();
   }

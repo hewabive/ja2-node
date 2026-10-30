@@ -1,6 +1,5 @@
 import { parseSectorString, sectorFromId, sectorId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { assignGameOptions } from '../../src/sim/options.ts';
@@ -23,6 +22,7 @@ import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
 import { findUndergroundSector, sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { EventKind } from '../../src/sim/strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -106,7 +106,7 @@ export class CreatureComparer {
   async #session(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('creature probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, 1, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, 1, this.#exists);
     const c = session.campaign;
     const a = c.state.creatures.attack;
     [a.insertionCode, a.insertionGridNo, a.numAttacking, a.battleCode, a.sectorId] = this.#attack.map(Number) as [

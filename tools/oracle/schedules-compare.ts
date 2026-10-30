@@ -5,7 +5,6 @@ import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../src/conten
 import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
@@ -17,6 +16,7 @@ import { loadSavedSchedules, type ScheduleNode } from '../../src/sim/tactical/na
 import { postSchedules, processTacticalSchedule, setSoldierPositionNoCenter } from '../../src/sim/tactical/narrative/schedules.ts';
 import { NOWHERE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -231,7 +231,7 @@ export class ScheduleComparer {
     const table = await this.#read(SAVE_ENCRYPTION_PATH);
     if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
     const save = parseSaveGame(bytes, parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode(table))));
-    const { session } = await createSaveSession(this.#read, bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, bytes, SEED, this.#exists);
     this.#session = session;
     const t = session.campaign.tactical?.state;
     if (!t) return 'no tactical world after the load';

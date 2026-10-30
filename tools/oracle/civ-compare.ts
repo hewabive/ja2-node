@@ -1,7 +1,6 @@
 import type { LayerCount } from '../../src/content/narrative/npc-records.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { Rng } from '../../src/core/rng.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { startCivQuote } from '../../src/sim/narrative/civ-quotes.ts';
@@ -19,6 +18,7 @@ import { triggerFriendWithHostileQuote } from '../../src/sim/tactical/narrative/
 import { Opp } from '../../src/sim/tactical/perception/opp.ts';
 import { NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 import { DrawReplay, FactReplay, queueEntry, report } from './talk-compare.ts';
 
 type Json = Record<string, unknown>;
@@ -149,7 +149,7 @@ export class CivComparer {
   async #ensure(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('civilian probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
     this.#campaign = session.campaign;
     return session.campaign;
   }

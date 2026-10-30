@@ -6,7 +6,7 @@ import { parseSectorString, type Sector } from '../../src/content/strategic/sect
 import { STRATEGIC_CONTENT_PATHS } from '../../src/content/strategic/strategic-content.ts';
 import { absoluteScreenXY, restrictedScrollIdOf } from '../../src/content/world/render-bounds.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession, type SaveSession } from '../../src/server/save-session.ts';
+import type { SaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import { flowExitWorld, okForSectorExit } from '../../src/sim/campaign/sector-exits.ts';
 import { addSoldierInitListEnemyDefenceSoldiers, sortSoldierInitList } from '../../src/sim/strategic/ai/defence-placement.ts';
@@ -31,6 +31,7 @@ import { mirrorGridNo, pickGridNoNearestEdge, pickGridNoToWalkIn, soldierOKForSe
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, unregisterSoldier } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -375,7 +376,7 @@ export class SectorComparer {
   async #session(): Promise<SaveSession | null> {
     if (this.#save) return this.#save;
     if (!this.#saveBytes) return null;
-    this.#save = await createSaveSession(this.#read, this.#saveBytes, SEED, this.#exists);
+    this.#save = await createTacticalSaveSession(this.#read, this.#saveBytes, SEED, this.#exists);
     return this.#save;
   }
 

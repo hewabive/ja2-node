@@ -1,6 +1,5 @@
 import { parseSectorString, type Sector, sectorFromId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { addTransaction, FinanceCode } from '../../src/sim/campaign/finances.ts';
@@ -38,6 +37,7 @@ import { factValue, setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
 import { warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
 import { SoldierStatusFlags } from '../../src/sim/tactical/soldier.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -296,7 +296,7 @@ export class HeliComparer {
   async #session(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('helicopter probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     this.#campaign = session.campaign;
     this.#quotes = [];
     return this.#campaign;

@@ -7,7 +7,6 @@ import { structureHeight } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import { calcBestShot } from '../../src/sim/tactical/ai/attack-choice.ts';
 import { plotPathCost } from '../../src/sim/tactical/ai/utils.ts';
@@ -62,6 +61,7 @@ import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
 import { SCHEDULE_PROBES, ScheduleComparer } from './schedules-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 import { TALK_PROBES, TalkComparer } from './talk-compare.ts';
 
 type Json = Record<string, unknown>;
@@ -522,19 +522,19 @@ async function sectorContext(
 
 async function saveContext(read: ReadFile, dataDir: string, p: Json): Promise<Context> {
   const bytes = new Uint8Array(readFileSync(join(savesDir(dataDir), `${String(p.name)}.sav`)));
-  const { session } = await createSaveSession(read, bytes);
+  const { session } = await createTacticalSaveSession(read, bytes);
   return { sim: session.sim, save: true, bytes };
 }
 
 async function comparePreBattleProbe(read: ReadFile, exists: FileExists, ctx: Context | null, p: Json): Promise<number> {
   if (!ctx?.bytes) return report(`pbi line ${p.line}`, false, 'no save loaded');
-  const { session } = await createSaveSession(read, ctx.bytes, 1, exists);
+  const { session } = await createTacticalSaveSession(read, ctx.bytes, 1, exists);
   return comparePreBattle(session, p);
 }
 
 async function compareEnemyCountsProbe(read: ReadFile, ctx: Context | null, p: Json): Promise<number> {
   if (!ctx?.bytes) return report(`enemycounts line ${p.line}`, false, 'no save loaded');
-  const { session } = await createSaveSession(read, ctx.bytes);
+  const { session } = await createTacticalSaveSession(read, ctx.bytes);
   return compareEnemyCounts(session, p);
 }
 
@@ -546,8 +546,8 @@ async function compareAutoresolveProbe(
   p: Json,
 ): Promise<number> {
   if (!ctx?.bytes || !setup) return compareAutoresolve(content, p);
-  const { session } = await createSaveSession(read, ctx.bytes, 1, exists);
-  const creation = (await createSaveSession(read, ctx.bytes, 1, exists)).session;
+  const { session } = await createTacticalSaveSession(read, ctx.bytes, 1, exists);
+  const creation = (await createTacticalSaveSession(read, ctx.bytes, 1, exists)).session;
   return compareAutoresolve(content, p, (r) => {
     compareAutoresolveCreation(r, content, creation, setup, p);
     compareAutoresolveAftermath(r, content, session, setup, p);

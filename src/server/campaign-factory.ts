@@ -194,7 +194,10 @@ export function assembleCampaign(
     laptop: { content: parts.laptop, merchants: parts.merchants, dialogueProfiles: parts.dialogueProfiles },
     narrative: parts.narrative,
   };
-  campaign = assembly.construction === 'restore' ? CampaignSim.restore(state, tactical, hooks) : new CampaignSim(state, tactical, hooks);
+  campaign =
+    assembly.construction === 'restore'
+      ? CampaignSim.restore(state, tactical, hooks)
+      : new CampaignSim(state, tactical, hooks, assembly.construction);
   return { campaign, roster, worlds };
 }
 

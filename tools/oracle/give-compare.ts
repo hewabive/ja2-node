@@ -1,7 +1,6 @@
 import { ItemClass } from '../../src/content/items/items.ts';
 import type { LayerCount } from '../../src/content/narrative/npc-records.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { cloneObject, createItem, createMoney, deleteObject, type ItemObject, removeObjectAt } from '../../src/sim/items/object.ts';
@@ -21,6 +20,7 @@ import { handleActionItemQueue, setOffActionItemsInGridNo } from '../../src/sim/
 import type { Soldier } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { addItemToPool, removeWorldItem, Visibility, type WorldItem, WorldItemFlags } from '../../src/sim/tactical/world-items.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 import { DrawReplay, diffJson, FactReplay, profileFields, queueEntry, report } from './talk-compare.ts';
 
 type Json = Record<string, unknown>;
@@ -126,7 +126,7 @@ export class GiveComparer {
   async #ensure(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('give probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
     this.#campaign = session.campaign;
     return session.campaign;
   }

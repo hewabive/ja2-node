@@ -114,7 +114,6 @@ What a native savegame import leaves out. Paths are under `src/`.
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Savegame import | A load keeps every sector's temp files: revealed tiles, effects, map modifications (`Tactical/Tactical_Save.cc:469`) | Of the temp files only the loaded sector's items, corpses, doors, openables, blood and smell (`sim/tactical/save-import.ts`); other sectors load from their maps, without their items or changes | Other sectors' files need writing into the sector diffs |
-| Screen after an import | A save made on the map screen with a sector loaded loads into the map screen (`SaveLoadGame.cc:1960`, `SaveLoadScreen.cc:1188`) | An import with a loaded sector always resumes in the tactical flow (`createSaveSession`, `server/save-session.ts`) | The map screen runs time only compressed; `SaveGame01`, which the oracle's comparers import, is such a save |
 | Unread savegame sections | A load restores bullets, thrown objects and explosions in flight, the cursor item and the map messages (`SaveLoadGame.cc:855`) | Skipped (`content/formats/savegame.ts`) |  |
 
 ## 6. Presentation: screens, graphics, text, sound and video

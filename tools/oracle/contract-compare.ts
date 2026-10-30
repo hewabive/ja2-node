@@ -1,6 +1,5 @@
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { idiv } from '../../src/core/int.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import type { ContractFlow } from '../../src/sim/campaign/contracts/contract-flow.ts';
@@ -49,6 +48,7 @@ import { warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/wo
 import { processUpdateStats } from '../../src/sim/tactical/combat/experience.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { NO_PROFILE } from '../../src/sim/tactical/soldier.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -138,7 +138,7 @@ export class ContractComparer {
   async #session(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('contract probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, 1, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, 1, this.#exists);
     this.#campaign = session.campaign;
     return this.#campaign;
   }

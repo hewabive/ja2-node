@@ -1,7 +1,6 @@
 import type { NpcRecord } from '../../src/content/formats/npc.ts';
 import type { LayerCount } from '../../src/content/narrative/npc-records.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { converseFull, selectEnv } from '../../src/sim/narrative/converse.ts';
@@ -10,6 +9,7 @@ import { ensureQuoteFileLoaded } from '../../src/sim/narrative/records.ts';
 import { calcDesireToTalk, npcConsiderQuote, npcConsiderTalking } from '../../src/sim/narrative/select.ts';
 import type { DialogueEvent } from '../../src/sim/narrative/talk-state.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -195,7 +195,7 @@ export class TalkComparer {
   async #ensure(): Promise<CampaignSim> {
     if (this.#campaign) return this.#campaign;
     if (!this.#bytes) throw new Error('talk probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists, this.#layers);
     this.#campaign = session.campaign;
     return session.campaign;
   }

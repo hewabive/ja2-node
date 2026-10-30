@@ -1,5 +1,5 @@
 import { requireAnimationTimelines } from '../content/anim/timelines.ts';
-import { loadedWorldSector, parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
+import { loadedWorldSector, parseSaveGame, resumesOnMapScreen, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readSavedMerchants } from '../content/formats/savegame-merchants.ts';
@@ -130,8 +130,13 @@ export async function createSaveSession(
   strategic.clock.paused = false;
   strategic.clock.pauseLocked = false;
   const worlds = exists ? new WorldCache(read, exists) : null;
-  const { campaign, roster } = assembleImportedCampaign(parts, strategic, sim, worlds, (r) =>
-    addSavedMercsToRoster(r, save, sim?.state ?? null),
+  const { campaign, roster } = assembleImportedCampaign(
+    parts,
+    strategic,
+    sim,
+    worlds,
+    (r) => addSavedMercsToRoster(r, save, sim?.state ?? null),
+    resumesOnMapScreen(save) ? 'createOnMapScreen' : 'create',
   );
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
@@ -269,6 +274,6 @@ export function assembleImportedCampaign(
     laptop: { content: parts.laptop, merchants: parts.merchants, dialogueProfiles: parts.dialogueProfiles },
     narrative: parts.narrative,
   };
-  current = construction === 'restore' ? CampaignSim.restore(state, first, hooks) : new CampaignSim(state, first, hooks);
+  current = construction === 'restore' ? CampaignSim.restore(state, first, hooks) : new CampaignSim(state, first, hooks, construction);
   return { campaign: current, roster };
 }

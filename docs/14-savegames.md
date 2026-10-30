@@ -15,6 +15,7 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     section readers, from the offsets the parser recorded       content/formats/savegame-*.ts
     refuse a meanwhile or endgame save                          sim/campaign/story-import.ts
     the loaded world: loadedWorldSector                         content/formats/savegame.ts
+    the screen it resumes on: resumesOnMapScreen                content/formats/savegame.ts
     with one: TacticalSim on the saved map and door table,      sim/tactical/save-import.ts
       importSave, strategic state on the tactical random streams
     without one: strategic state on its own streams,            sim/tactical/save-import.ts
@@ -54,6 +55,11 @@ tactical sim, `worldSector` null. What a loaded world would carry and outlives i
 (`importCampaignWideState`: the PreRandom ring, profiles, key table, civilian groups, the opplist decay time); the
 roster's soldiers are built from their records; the last sector's temp files are left, like every other sector's. An
 imported `didGameJustStart` lands the squad at the first compression, as in a new game.
+
+**The saved screen.** A save resumes on the screen it was made on (`SaveLoadScreen.cc:1188`): one made in tactical in
+the tactical flow, one made on the map screen, or without a world, on the map screen, entered as `MapScreenHandle`
+enters it (a 5–60 minute compression mode stays but stops, any other becomes X0; `createOnMapScreen`,
+`sim/campaign/campaign-sim.ts`), its sector, if any, loaded behind it until `tacticalScreen`.
 
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
@@ -103,7 +109,8 @@ Not pinned yet:
 The oracle loads the same files: `tools/oracle/save-probes.ts` writes probes for any saves (soldier dumps, hit chance,
 the AI's best shot, sight, paths and lights for every opposed pair), the native build runs them after its `save`
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
-"`save`"); most other comparers start from imported saves too. With the original data, the subsystems' `save-import`
+"`save`"); most other comparers start from imported saves too, entering the loaded sector of a save made on the map
+screen first (`tools/oracle/tactical-import.ts`). With the original data, the subsystems' `save-import`
 tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one, and the first
 again with its world flag cleared.
 
@@ -116,6 +123,6 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Unread savegame sections", "Screen after an import". Other deviations of the
+Not ported: gaps "Savegame import", "Unread savegame sections". Other deviations of the
 import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground", "Difficulty and
 progress in tactical", "Corpse structure past its file".

@@ -1,11 +1,11 @@
 import { NOTHING } from '../../src/content/items/items.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import { createItem, type ItemObject } from '../../src/sim/items/object.ts';
 import { AP_RELOAD_GUN, InvSlot } from '../../src/sim/tactical/inventory.ts';
 import type { Soldier } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 
@@ -94,7 +94,7 @@ export class AttachComparer {
 
   async #sim(): Promise<TacticalSim> {
     if (!this.#bytes) throw new Error('attach probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     const sim = session.campaign.tactical;
     if (!sim) throw new Error('the save has no tactical sector');
     return sim;

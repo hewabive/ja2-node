@@ -2,7 +2,6 @@ import { parseSectorString } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { idiv } from '../../src/core/int.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { checkFact } from '../../src/sim/strategic/narrative/check-fact.ts';
@@ -13,6 +12,7 @@ import { endQuest, internalEndQuest, internalStartQuest, startQuest } from '../.
 import type { SectorPosition } from '../../src/sim/strategic/state.ts';
 import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { NO_PROFILE, Team } from '../../src/sim/tactical/soldier.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -192,7 +192,7 @@ export class FactComparer {
   async #campaignSession(): Promise<CampaignSession> {
     if (this.#session) return this.#session;
     if (!this.#bytes) throw new Error('fact probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     this.#session = session;
     return session;
   }

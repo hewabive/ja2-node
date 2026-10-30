@@ -3,7 +3,6 @@ import { StructureFlags } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
-import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { beginCaptureSequence, endCaptureSequence, enemyCapturesPlayerSoldier } from '../../src/sim/campaign/merc-fate.ts';
@@ -39,6 +38,7 @@ import { RevealedFlags } from '../../src/sim/tactical/perception/fov.ts';
 import { exitGridAt } from '../../src/sim/tactical/sector-exit.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { describeGroup } from './sai-compare.ts';
+import { createTacticalSaveSession } from './tactical-import.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -239,7 +239,7 @@ export class MeanwhileComparer {
   async #campaignSession(): Promise<CampaignSession> {
     if (this.#session) return this.#session;
     if (!this.#bytes) throw new Error('meanwhile probes need a save');
-    const { session } = await createSaveSession(this.#read, this.#bytes, SEED, this.#exists);
+    const { session } = await createTacticalSaveSession(this.#read, this.#bytes, SEED, this.#exists);
     this.#session = session;
     return session;
   }
