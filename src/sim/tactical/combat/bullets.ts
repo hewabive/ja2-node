@@ -30,7 +30,7 @@ import { damageLock } from '../doors/lock-attempts.ts';
 import { igniteExplosion, igniteExplosionXY } from '../explosions/explosion.ts';
 import { windowHit } from '../explosions/structure-damage.ts';
 import { InvSlot } from '../inventory.ts';
-import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
+import { landHeightUnits, resolveHitOnWall, ZPos } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
@@ -41,7 +41,7 @@ import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
 import { agilityForEnemyMissingPlayer, StatCause, statChange } from './experience.ts';
 import { bulletHitMerc, doSpecialEffectAmmoMiss, type ImpactPoint } from './hit.ts';
-import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight, ZPos } from './positions.ts';
+import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
 
 export const BulletFlag = {

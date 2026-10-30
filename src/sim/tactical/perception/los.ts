@@ -25,7 +25,7 @@ import {
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i32, idiv, u8 } from '../../../core/int.ts';
-import { Body, isTank } from '../soldier.ts';
+import { Body, isCreatureOrBloodcat, isTank } from '../soldier.ts';
 
 const FIX = 1 << 20;
 const TEN = 10 * FIX;
@@ -55,10 +55,24 @@ const CAMOUFLAGING_TERRAIN: ReadonlySet<number> = new Set([Terrain.FLAT_GROUND, 
 
 export const HeightClass = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
 
+export const ZPos = { LOS: 0, FIRING: 1, TARGET: 2, HEAD_TARGET: 3, TORSO_TARGET: 4, LEGS_TARGET: 5, HEIGHT: 6 } as const;
+
+const WALL_HEIGHT_UNITS = 256;
 const STANDING_LOS_POS = 175;
 const CROUCHED_LOS_POS = 111;
 const PRONE_LOS_POS = 31;
-const LOS_POS: Readonly<Record<number, number>> = { 6: STANDING_LOS_POS, 3: CROUCHED_LOS_POS, 1: PRONE_LOS_POS };
+const LOS_Z_POSITIONS = [STANDING_LOS_POS, CROUCHED_LOS_POS, PRONE_LOS_POS] as const;
+const Z_POSITIONS: Readonly<Record<number, readonly [number, number, number]>> = {
+  [ZPos.LOS]: LOS_Z_POSITIONS,
+  [ZPos.FIRING]: [175, 111, 31],
+  [ZPos.TARGET]: [175, 111, 31],
+  [ZPos.HEAD_TARGET]: [175, 111, 31],
+  [ZPos.TORSO_TARGET]: [127, 71, 31],
+  [ZPos.LEGS_TARGET]: [47, 31, 31],
+  [ZPos.HEIGHT]: [191, 130, 63],
+};
+const KID_BODIES: ReadonlySet<number> = new Set([Body.HATKIDCIV, Body.KIDCIV]);
+const THIRD_HEIGHT_BODIES: ReadonlySet<number> = new Set([Body.ROBOTNOWEAPON, Body.LARVAE_MONSTER, Body.INFANT_MONSTER, Body.BLOODCAT]);
 export const TREE_SIGHT_REDUCTION: Readonly<Record<number, number>> = { 6: 6, 3: 7, 1: 8 };
 export const STANDING_TREE_REDUCTION = 6;
 
@@ -362,25 +376,60 @@ export interface LosSubject {
   readonly gridNo: number;
   readonly level: number;
   readonly heightClass: number;
-}
-
-export interface SightViewer extends LosSubject {
   readonly bodyType: number;
-}
-
-export interface SightTarget extends SightViewer {
-  readonly camo: number;
-  readonly tilesMoved: number;
   readonly overTerrain: number;
 }
 
-export function soldierEyeZ(world: LosWorld, s: LosSubject): number {
-  let z = LOS_POS[s.heightClass] ?? STANDING_LOS_POS;
-  if (s.level > 0) z += 256;
-  return z + landHeightUnits(world, s.gridNo);
+export interface SightTarget extends LosSubject {
+  readonly camo: number;
+  readonly tilesMoved: number;
 }
 
-function inTankBlindSpot(tank: SightViewer, target: SightViewer, targetZ: number): boolean {
+function inDeepWaterOrCrow(s: LosSubject): boolean {
+  return s.bodyType === Body.CROW || s.overTerrain === Terrain.DEEP_WATER;
+}
+
+function inShallowWater(s: LosSubject): boolean {
+  return s.overTerrain === Terrain.LOW_WATER || s.overTerrain === Terrain.MED_WATER;
+}
+
+function bodyPosType(s: LosSubject, posType: number): number {
+  if (isCreatureOrBloodcat(s) || s.bodyType === Body.COW)
+    return posType === ZPos.HEAD_TARGET || posType === ZPos.LEGS_TARGET ? ZPos.TORSO_TARGET : posType;
+  return isTank(s) ? ZPos.HEAD_TARGET : posType;
+}
+
+function zForHeight(posType: number, height: number): number {
+  const [stand, crouch, prone] = Z_POSITIONS[posType] ?? LOS_Z_POSITIONS;
+  if (height === HeightClass.STAND) return stand;
+  return height === HeightClass.CROUCH ? crouch : prone;
+}
+
+function scaledForBody(s: LosSubject, z: number): number {
+  if (KID_BODIES.has(s.bodyType)) return Math.fround((z * 2) / 3);
+  if (THIRD_HEIGHT_BODIES.has(s.bodyType)) return Math.fround(z / 3);
+  return isTank(s) ? Math.fround((z * 4) / 3) : z;
+}
+
+export function soldierZPos(world: LosWorld, s: LosSubject, posType: number): number {
+  let z: number;
+  if (inDeepWaterOrCrow(s)) z = zForHeight(posType, HeightClass.PRONE);
+  else if (inShallowWater(s)) z = zForHeight(posType, HeightClass.CROUCH);
+  else z = zForHeight(bodyPosType(s, posType), s.heightClass);
+  z = scaledForBody(s, Math.fround(z));
+  if (s.level > 0) z = Math.fround(z + WALL_HEIGHT_UNITS);
+  return Math.fround(z + landHeightUnits(world, s.gridNo));
+}
+
+function soldierEyeZ(world: LosWorld, s: LosSubject): number {
+  return soldierZPos(world, s, ZPos.LOS);
+}
+
+function standingEyeZ(world: LosWorld, g: number, level: number): number {
+  return STANDING_LOS_POS + (level > 0 ? WALL_HEIGHT_UNITS : 0) + landHeightUnits(world, g);
+}
+
+function inTankBlindSpot(tank: LosSubject, target: LosSubject, targetZ: number): boolean {
   const tiles = pythSpacesAway(tank.gridNo, target.gridNo);
   if (tiles > TANK_BLIND_SPOT_TILES) return false;
   if (targetZ <= PRONE_LOS_POS) return true;
@@ -399,14 +448,14 @@ function camouflagedTileLimit(target: SightTarget, camo: number, tileLimit: numb
 
 export function soldierToSoldierLineOfSight(
   world: LosWorld,
-  viewer: SightViewer,
+  viewer: LosSubject,
   target: SightTarget,
   tileLimit: number,
   aware: boolean,
   disallow = false,
   smell = false,
 ): number {
-  const endZ = soldierEyeZ(world, smell ? { ...target, heightClass: HeightClass.STAND } : target);
+  const endZ = smell ? standingEyeZ(world, target.gridNo, target.level) : soldierEyeZ(world, target);
   if (isTank(viewer) && inTankBlindSpot(viewer, target, endZ)) return 0;
   const camouflaged = !aware && target.camo !== 0;
   const camo = camouflaged ? effectiveCamo(target) : 0;
@@ -417,23 +466,5 @@ export function soldierToSoldierLineOfSight(
     camo: i8(camo),
     disallowSight: disallow,
     smell,
-  });
-}
-
-export function soldierToLocationLineOfSight(
-  world: LosWorld,
-  viewer: LosSubject,
-  g: number,
-  level: number,
-  tileLimit: number,
-  disallow = false,
-): number {
-  const endZ = STANDING_LOS_POS + level * 256 + landHeightUnits(world, g);
-  return lineOfSightTest(world, viewer.gridNo, soldierEyeZ(world, viewer), g, endZ, {
-    tileLimit,
-    treeReduction: STANDING_TREE_REDUCTION,
-    aware: true,
-    camo: 0,
-    disallowSight: disallow,
   });
 }

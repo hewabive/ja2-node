@@ -15,7 +15,7 @@ import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
-import { landHeightUnits } from '../perception/los.ts';
+import { landHeightUnits, ZPos } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
@@ -24,7 +24,7 @@ import { chanceOfBulletHittingStructure, fireBulletGivenTarget, soldierToSoldier
 import { calcChanceToHitGun, ENEMY_TO_HIT_MOD, gunRange, soldierDifficultyLevel } from './chance.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
-import { calculateSoldierZPos, losWorldOf, ZPos } from './positions.ts';
+import { calculateSoldierZPos, losWorldOf } from './positions.ts';
 import { AimShot, DamageReason } from './types.ts';
 
 let content: TacticalContent;

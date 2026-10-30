@@ -32,7 +32,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 
 | Module | Holds |
 |---|---|
-| `perception/los.ts` | `lineOfSightTest` with smoke and gas on the ray, the wall-corner rule, the eye height sight uses, the soldier-to-soldier test with camouflage and the tank's blind spot, the soldier-to-location test |
+| `perception/los.ts` | `lineOfSightTest` with smoke and gas on the ray, the wall-corner rule, the eye and body heights by stance, body and water (`soldierZPos`, also for aiming), the soldier-to-soldier test with camouflage and the tank's blind spot |
 | `perception/sight.ts` | `Perception` (public opplist, public noise, best-sighting list); vision range, looks, opplists, radio, `handleSight`, decay, muzzle flashes |
 | `perception/opp.ts` | Opplist values, sight flags, callers, `atan8` |
 | `perception/noise.ts` | Movement and door noise, `makeNoise` → `processNoise` → `hearNoise`, `tellPlayerAboutNoise`, `squadHears` |
@@ -76,8 +76,11 @@ state: an unseen soldier animates at full speed in combat once he has faded out 
 **Hearing has no walls.** The effective volume depends on distance, levels, the boundary between floor and outdoors,
 the listener's hearing (experience, night ops, an extended ear worn on the head, ambient light; a tank hears worse and a
 walkman deafens) and how many opponents he sees; no ray. A listener turns his head: a full-circle look at the noise
-tile, which may reveal the maker. An impact or explosion hides its maker and is only remembered as a noise grid and
-volume for the AI (`09`).
+tile, which may reveal the maker; a tank looks only the way it is turning and never at a noise it would have to turn
+to, and a crow ignores what it hears. An impact or explosion hides its maker and is only remembered as a noise grid and
+volume for the AI (`09`). Some never listen: our mercs held prisoner (`NarrativePort.isPow`, from the roster), militia
+on our side to us or to a noise nobody made, we to them, and the Warden, the General, the Sergeant and Conrad to the
+army.
 
 **The player hears a direction, never a grid.** The original prints the loudest listener's message and has no marker.
 ja2-node emits `noiseHeard` with the listener, a loudness class and an eight-way direction (or above and below); a
@@ -91,16 +94,20 @@ and replays them when it reaches 0 (`33`), so their interrupts come after the at
 Hearing reads the sector's ambient level. The light model is `20`; the sandbox keeps ambient day light (deviation
 "Ambient light and light schedule").
 
-**Smoke, gas, camouflage and tanks.** The ray reads the smoke and gas layer of `ExplosivesState` (`12`) tile by tile:
-smoke hides what lies behind a few of its tiles, tear and mustard gas cost range like cover, and a viewer standing in
-gas without a mask sees only his surroundings. Camouflage fools only an unaware viewer, and less after every tile its
-wearer moved since his turn began; tanks see and are seen farther, foliage never hides one, and a tank misses low soldiers close
-to its hull. The hint projection fills the layer from the view's `smoke`, so an estimate reads what the server reads.
+**Bodies, water, smoke, gas, camouflage and tanks.** Eyes sit lower in water and on kids and small bodies, higher
+on a tank, for the viewer and the target alike; the robot sees all around. The ray reads the smoke and gas layer of
+`ExplosivesState` (`12`) tile by tile: smoke hides what lies behind a few of its tiles, tear and mustard gas cost range
+like cover, and a viewer standing in gas without a mask sees only his surroundings. Camouflage fools only an unaware
+viewer, and less after every tile its wearer moved since his turn began; tanks see and are seen farther, foliage never
+hides one, and a tank misses low soldiers close to its hull. The hint projection fills the layer from the view's
+`smoke`, so an estimate reads what the server reads.
 
 **The fog of war is a third, cruder system.** Revealed tiles come from fixed view paths over the movement cost table,
-not from the ray. One revealed tile of a room reveals the whole room and hides its roof for good; both are saved in the
-sector diff (`sim/campaign/sector-diff.ts`). The client derives hidden roofs, show-through and wireframes from the
-revealed rooms (`render/world/reveal.ts`). Above ground there is no terrain fog.
+not from the ray. One revealed tile of a room reveals the whole room and hides its roof for good, shows the items lying
+in it with a "spotted something" quote, and in the boxing sector takes the ring along with the room around it; both are
+saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded mercs reveal nothing. The client derives
+hidden roofs, show-through and wireframes from the revealed rooms (`render/world/reveal.ts`). Above ground there is no
+terrain fog.
 
 **Decay.** A team's turn start decays its public opplist and watched locations, each soldier's his own. In real time
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
@@ -112,8 +119,8 @@ included, before the next event.
 
 **Randomness.** `pre`: each footstep (one draw for the army, zero to two for others, also for a door's noise), the
 experience chances of spotting an enemy who has not seen the merc (`33`), thrown objects landing (`34`). `main`: the
-order of `ourTeamRadiosRandomlyAbout`, the bloodcat roar, the hostile-quote speaker. The sighting quotes and the
-room-roof item quote are not drawn (gaps "Sighting quotes", "Sight and hearing details").
+order of `ourTeamRadiosRandomlyAbout`, the bloodcat roar, the hostile-quote speaker, which of the two room-roof item
+quotes. The sighting quotes are not drawn (gap "Sighting quotes").
 
 ## 3. Quirks of the original the code keeps
 
@@ -132,6 +139,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A ray picks the smoke layer by its height counted from the map's zero, not from the land, so over high ground it reads the roof's smoke | `sight-modifiers.test.ts` |
 | Smoke never stops a creature's smell, yet tear and mustard gas shorten it | `sight-modifiers.test.ts` |
 | Any camouflage on a bloodcat counts as full camouflage | `sight-modifiers.test.ts` |
+| A muzzle flash shows a shooter as in daylight to anyone but a tank, which keeps looking only the way it is turning, also where a look ignores the facing | `sight-modifiers.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
@@ -163,6 +171,6 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard room run", "Doors". Other
+Not ported: gaps "Sighting quotes", "Cave lights", "Guard room run", "Doors", "Corpses" (crows). Other
 deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light
 schedule", "Sounds out of sight", "Bullets of unseen shooters".

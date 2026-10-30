@@ -4,15 +4,16 @@
 // @src AddSmokeEffectToTile, RemoveSmokeEffectFromTile, DecaySmokeEffects, IsSoldierAlreadyAffectedBySmokeEffect;
 // @src Explosion_Control.cc DishOutGasDamage; Tactical/Overhead.cc running into gas (HandleGotoNewGridNo);
 // @src Soldier_Control.cc SOLDIER_GASSED in SetSoldierGridNo and EVENT_BeginMercTurn; TacticalAI/AIUtils.cc InGas,
-// @src InSmoke.
+// @src InSmoke, WearGasMaskIfAvailable.
 
 import { SmokeEffectId, type SmokeEffectType } from '../../../content/items/explosions.ts';
+import { NOTHING } from '../../../content/items/items.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv, u16, u32, udiv } from '../../../core/int.ts';
-import { USABLE_STATUS } from '../../items/object.ts';
+import { type ItemObject, swapObjects, USABLE_STATUS } from '../../items/object.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
-import { InvSlot } from '../inventory.ts';
+import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
 import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
@@ -89,6 +90,18 @@ export function smokeTypeOnTile(t: TacticalState, g: number, level: number): Smo
 export function wearingGasMask(t: TacticalState, s: Soldier): boolean {
   const mask = itemIndex(t, 'GASMASK');
   return s.inv[InvSlot.HEAD1]?.item === mask || s.inv[InvSlot.HEAD2]?.item === mask;
+}
+
+function headSlotForGasMask(s: Soldier): number {
+  if (s.inv[InvSlot.HEAD1]?.item === NOTHING) return InvSlot.HEAD1;
+  return s.inv[InvSlot.HEAD2]?.item === NOTHING ? InvSlot.HEAD2 : InvSlot.HEAD1;
+}
+
+export function wearGasMaskIfAvailable(t: TacticalState, s: Soldier): boolean {
+  const slot = findObjWithin(s.inv, itemIndex(t, 'GASMASK'), 0, NUM_INV_SLOTS - 1);
+  if (slot === NO_SLOT || slot === InvSlot.HEAD1 || slot === InvSlot.HEAD2) return false;
+  swapObjects(s.inv[slot] as ItemObject, s.inv[headSlotForGasMask(s)] as ItemObject);
+  return true;
 }
 
 function gasMaskSlot(t: TacticalState, s: Soldier, minStatus: number): number {

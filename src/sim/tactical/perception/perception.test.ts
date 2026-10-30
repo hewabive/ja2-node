@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { progressFor } from '../../../../tests/support/autoresolve.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
@@ -13,10 +13,12 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type SectorRef, type TacticalState } from '../state.ts';
-import { revealedRooms } from './fov.ts';
+import { addItemToPool, Visibility } from '../world-items.ts';
+import { revealedRooms, revealRoofsAndItems } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
 import { allTeamsLookForAll, distanceVisible, handleSight, Opp, SightFlags } from './sight.ts';
 import { perceptionHooks } from './wiring.ts';
@@ -25,6 +27,8 @@ const doorCosts = testDoorCosts();
 const MERC_PROFILE = 5;
 const BLOODCAT_ARENA = { x: 5, y: 14, z: 0 };
 const BESIDE_THE_ARENA = { x: 4, y: 14, z: 0 };
+const ROOM_SURROUNDING_BOXING_RING = 3;
+const SPOTTED_SOMETHING_TWO = 12;
 let content: TacticalContent;
 
 beforeAll(async () => {
@@ -227,6 +231,60 @@ describe('fog of war', () => {
     spawn(t, Team.ENEMY, gridNo(60, 80), Direction.SOUTH);
     allTeamsLookForAll(t);
     expect(revealedRooms(t)).toEqual([]);
+  });
+
+  it('shows the items lying anywhere in a room it reveals, with one spotted-something quote for the room (Render_Fun.cc RemoveRoomRoof)', () => {
+    const t = tactical();
+    markRoom(t, 5, 78, 82, 84, 87);
+    markRoom(t, 5, 78, 82, 100, 103);
+    const glock = content.items.byName.get('GLOCK_17')?.index ?? 0;
+    const outOfView = [gridNo(78, 101), gridNo(82, 103)];
+    const lying = outOfView.map((g) => addItemToPool(t, g, createItem(content.items, glock, 100), Visibility.INVISIBLE, 0));
+    const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const said: [number, number][] = [];
+    t.narrative = { ...t.narrative, sayQuote: (s, quote) => said.push([s.id, quote]) };
+    const draws = vi.spyOn(t.rng, 'int').mockReturnValue(1);
+    revealRoofsAndItems(t, merc, true);
+    expect(lying.map((wi) => wi?.visible)).toEqual([Visibility.VISIBLE, Visibility.VISIBLE]);
+    expect(t.events.filter((e) => e.type === 'itemsRevealed').map((e) => e.gridNo)).toEqual(outOfView);
+    expect(said).toEqual([[merc.id, SPOTTED_SOMETHING_TWO]]);
+    expect(draws.mock.calls).toEqual([[2]]);
+  });
+
+  it('reveals the boxing ring with the room around it, in the boxing sector only', () => {
+    const revealed = (sector: SectorRef) => {
+      const t = tactical();
+      t.sector = sector;
+      markRoom(t, ROOM_SURROUNDING_BOXING_RING, 78, 82, 84, 87);
+      markRoom(t, BOXING_RING, 78, 82, 110, 112);
+      revealRoofsAndItems(t, spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH), true);
+      return revealedRooms(t);
+    };
+    expect(revealed({ x: 5, y: 4, z: 0 })).toEqual([ROOM_SURROUNDING_BOXING_RING, BOXING_RING]);
+    expect(revealed({ x: 5, y: 4, z: 1 })).toEqual([ROOM_SURROUNDING_BOXING_RING]);
+    expect(revealed({ x: 6, y: 4, z: 0 })).toEqual([ROOM_SURROUNDING_BOXING_RING]);
+  });
+
+  it('reveals nothing to a vehicle or a blinded merc', () => {
+    const revealed = (prepare: (s: Soldier) => void) => {
+      const t = tactical();
+      markRoom(t, 5, 78, 82, 84, 87);
+      const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+      prepare(merc);
+      revealRoofsAndItems(t, merc, true);
+      return [revealedRooms(t), t.fog.revealed.some((flags) => flags !== 0)];
+    };
+    expect(revealed(() => {})).toEqual([[5], true]);
+    expect(
+      revealed((s) => {
+        s.bodyType = Body.HUMVEE;
+      }),
+    ).toEqual([[], false]);
+    expect(
+      revealed((s) => {
+        s.blindedCounter = 2;
+      }),
+    ).toEqual([[], false]);
   });
 });
 

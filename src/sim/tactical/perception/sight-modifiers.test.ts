@@ -108,6 +108,88 @@ describe('gas and tanks in the vision range (OppList.cc DistanceVisible)', () =>
     expect(behind(viewer, target.gridNo)).toBe(FULL_RANGE);
     expect(behind(target, viewer.gridNo)).toBe(0);
   });
+
+  it('lets a tank look only the way it is turning, also when a look ignores the facing or the soldier it looks at fires', () => {
+    const { t, viewer, target } = viewerAndTarget();
+    target.bodyType = Body.TANK_NW;
+    const tankRange = () => range(t, target, viewer.gridNo);
+    target.desiredDirection = Direction.NORTH;
+    expect(tankRange()).toBeGreaterThan(FULL_RANGE);
+    target.desiredDirection = Direction.SOUTH;
+    expect(tankRange()).toBe(0);
+    viewer.muzzleFlash = true;
+    expect(tankRange()).toBe(0);
+    expect(distanceVisible(t, target, Direction.SOUTH, Direction.NORTH, viewer.gridNo, 0)).toBe(0);
+    target.bodyType = Body.REGMALE;
+    expect(distanceVisible(t, target, Direction.SOUTH, Direction.NORTH, viewer.gridNo, 0)).toBe(FULL_RANGE);
+  });
+
+  it('lets the robot see all around', () => {
+    const { t, viewer, target } = viewerAndTarget();
+    const behind = () => distanceVisible(t, viewer, Direction.NORTH, Direction.SOUTH, target.gridNo, 0);
+    expect(behind()).toBe(0);
+    viewer.bodyType = Body.ROBOTNOWEAPON;
+    expect(behind()).toBe(FULL_RANGE);
+  });
+});
+
+describe('eye heights of bodies and water (LOS.cc CalculateSoldierZPos)', () => {
+  const TARGET_AT = gridNo(80, 90);
+  const MIDWAY = gridNo(80, 85);
+  const BESIDE_THE_VIEWER = gridNo(80, 81);
+  const BESIDE_THE_TARGET = gridNo(80, 89);
+  const KNEE_HIGH = 1;
+  const WAIST_HIGH = 2;
+  const CHEST_HIGH = 3;
+
+  function crate(at: number, height: number): LosWorld {
+    const w = syntheticWorld(testDoorCosts(), (s) =>
+      s.add(at, 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height })),
+    );
+    return { structures: w.structures, heights: w.level.heights };
+  }
+
+  const sees = (world: LosWorld, viewer: Partial<SightTarget>, target: Partial<SightTarget> = viewer) =>
+    soldierToSoldierLineOfSight(world, { ...standing(VIEWER_AT), ...viewer }, { ...standing(TARGET_AT), ...target }, FULL_RANGE, true) > 0;
+
+  it('looks from and at a crouched eye in shallow water and a prone one in deep water or for a crow, whatever the stance', () => {
+    const waistHigh = crate(MIDWAY, WAIST_HIGH);
+    const kneeHigh = crate(MIDWAY, KNEE_HIGH);
+    expect(sees(waistHigh, {})).toBe(true);
+    expect(sees(waistHigh, { overTerrain: Terrain.LOW_WATER })).toBe(false);
+    expect(sees(waistHigh, { overTerrain: Terrain.MED_WATER })).toBe(false);
+    expect(sees(kneeHigh, { overTerrain: Terrain.MED_WATER })).toBe(true);
+    expect(sees(kneeHigh, { overTerrain: Terrain.DEEP_WATER })).toBe(false);
+    expect(sees(kneeHigh, { bodyType: Body.CROW })).toBe(false);
+  });
+
+  it("puts a kid's eye at two thirds of a man's, a bloodcat's, the robot's and a young creature's at a third and a tank's at four thirds", () => {
+    expect(sees(crate(MIDWAY, WAIST_HIGH), { bodyType: Body.KIDCIV })).toBe(false);
+    expect(sees(crate(MIDWAY, WAIST_HIGH), { bodyType: Body.HATKIDCIV })).toBe(false);
+    for (const bodyType of [Body.BLOODCAT, Body.ROBOTNOWEAPON, Body.LARVAE_MONSTER, Body.INFANT_MONSTER])
+      expect(sees(crate(MIDWAY, KNEE_HIGH), { bodyType })).toBe(false);
+    expect(sees(crate(BESIDE_THE_VIEWER, CHEST_HIGH), {})).toBe(false);
+    expect(sees(crate(BESIDE_THE_VIEWER, CHEST_HIGH), { bodyType: Body.TANK_NW }, {})).toBe(true);
+    expect(sees(crate(BESIDE_THE_TARGET, CHEST_HIGH), {}, { bodyType: Body.TANK_NE })).toBe(true);
+  });
+
+  it('reads the body and the water of both soldiers of a look in the sector', () => {
+    const sim = newCombatSim(content, [], 3, new Set(), (w) =>
+      w.structures.add(MIDWAY, 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: KNEE_HIGH })),
+    );
+    const viewer = spawnSoldier(sim, 0, Team.OUR, VIEWER_AT, Direction.SOUTH);
+    const target = spawnSoldier(sim, ENEMY, Team.ENEMY, TARGET_AT, Direction.NORTH);
+    const seen = () => soldierToSoldierLos(sim.state, viewer, target, FULL_RANGE, true) > 0;
+    expect(seen()).toBe(true);
+    viewer.overTerrain = Terrain.DEEP_WATER;
+    target.overTerrain = Terrain.DEEP_WATER;
+    expect(seen()).toBe(false);
+    viewer.overTerrain = Terrain.FLAT_GROUND;
+    target.overTerrain = Terrain.FLAT_GROUND;
+    viewer.bodyType = Body.BLOODCAT;
+    target.bodyType = Body.BLOODCAT;
+    expect(seen()).toBe(false);
+  });
 });
 
 describe('smoke and gas on the ray (LOS.cc LineOfSightTest)', () => {

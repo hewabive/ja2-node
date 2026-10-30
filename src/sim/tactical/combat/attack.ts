@@ -34,6 +34,7 @@ import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts'
 import { directionToward } from '../movement.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { removePendingAction } from '../pending-action.ts';
+import { ZPos } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
@@ -48,7 +49,7 @@ import { calcChanceToHitGun } from './chance.ts';
 import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
 import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
-import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
+import { calculateSoldierZPos, targetZFromStructureHeight } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
 

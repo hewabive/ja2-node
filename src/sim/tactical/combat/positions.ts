@@ -4,74 +4,39 @@
 // @src SoldierTo3DLocationLineOfSightTest, SoldierToBodyPartLineOfSightTest; TileEngine/Structure.cc GetTallestStructureHeight.
 
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureHeight } from '../../../content/world/structures.ts';
-import { Terrain } from '../../../content/world/terrain.ts';
 import { endHeight } from '../animation.ts';
 import { smokeTypeOnTile } from '../explosions/smoke.ts';
 import { keptApartInBloodcatArena } from '../perception/bloodcat-arena.ts';
 import {
+  type LosSubject,
   type LosWorld,
   landHeightUnits,
   lineOfSightTest,
   type SightTarget,
-  type SightViewer,
   soldierToSoldierLineOfSight,
+  soldierZPos,
   TREE_SIGHT_REDUCTION,
+  ZPos,
 } from '../perception/los.ts';
-import { Body, isMonster, type Soldier } from '../soldier.ts';
+import { isMonster, type Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { AimShot } from './types.ts';
-
-export const ZPos = { LOS: 0, FIRING: 1, TARGET: 2, HEAD_TARGET: 3, TORSO_TARGET: 4, LEGS_TARGET: 5, HEIGHT: 6 } as const;
 
 const HEIGHT_UNITS = 256;
 const HEIGHT_UNITS_PER_INDEX = 64;
 const PROFILE_Z_SIZE = 4;
 const STAND = 6;
-const CROUCH = 3;
-const PRONE = 1;
-
-const POSITIONS: Readonly<Record<number, readonly [number, number, number]>> = {
-  [ZPos.LOS]: [175, 111, 31],
-  [ZPos.FIRING]: [175, 111, 31],
-  [ZPos.TARGET]: [175, 111, 31],
-  [ZPos.HEAD_TARGET]: [175, 111, 31],
-  [ZPos.TORSO_TARGET]: [127, 71, 31],
-  [ZPos.LEGS_TARGET]: [47, 31, 31],
-  [ZPos.HEIGHT]: [191, 130, 63],
-};
-
-const isCreatureOrBloodcat = (s: Soldier) =>
-  (s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER) || s.bodyType === Body.BLOODCAT;
-const isTank = (s: Soldier) => s.bodyType === Body.TANK_NW || s.bodyType === Body.TANK_NE;
 
 export function losWorldOf(t: TacticalState): LosWorld {
   return { structures: t.world.structures, heights: t.world.level.heights, smokeAt: (g, level) => smokeTypeOnTile(t, g, level) };
 }
 
-export function calculateSoldierZPos(t: TacticalState, s: Soldier, posTypeIn: number): number {
-  let posType = posTypeIn;
-  let height: number;
-  if (s.bodyType === Body.CROW || s.overTerrain === Terrain.DEEP_WATER) height = PRONE;
-  else if (s.overTerrain === Terrain.LOW_WATER || s.overTerrain === Terrain.MED_WATER) height = CROUCH;
-  else {
-    if (isCreatureOrBloodcat(s) || s.bodyType === Body.COW) {
-      if (posType === ZPos.HEAD_TARGET || posType === ZPos.LEGS_TARGET) posType = ZPos.TORSO_TARGET;
-    } else if (isTank(s)) posType = ZPos.HEAD_TARGET;
-    height = endHeight(t.content, s.state);
-  }
-  const row = POSITIONS[posType] ?? POSITIONS[ZPos.LOS] ?? [175, 111, 31];
-  let z = Math.fround(height === STAND ? row[0] : height === CROUCH ? row[1] : row[2]);
-  if (s.bodyType === Body.HATKIDCIV || s.bodyType === Body.KIDCIV) z = Math.fround((z * 2) / 3);
-  else if (
-    s.bodyType === Body.ROBOTNOWEAPON ||
-    s.bodyType === Body.LARVAE_MONSTER ||
-    s.bodyType === Body.INFANT_MONSTER ||
-    s.bodyType === Body.BLOODCAT
-  )
-    z = Math.fround(z / 3);
-  else if (isTank(s)) z = Math.fround((z * 4) / 3);
-  if (s.level > 0) z += HEIGHT_UNITS;
-  return Math.fround(z + landHeightUnits(losWorldOf(t), s.gridNo));
+function losSubject(t: TacticalState, s: Soldier): LosSubject {
+  return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state), bodyType: s.bodyType, overTerrain: s.overTerrain };
+}
+
+export function calculateSoldierZPos(t: TacticalState, s: Soldier, posType: number): number {
+  return soldierZPos(losWorldOf(t), losSubject(t, s), posType);
 }
 
 export function tallestStructureHeight(t: TacticalState, g: number, onRoof: boolean, preferOpenables: boolean): number {
@@ -101,19 +66,15 @@ export function targetZFromStructureHeight(t: TacticalState, g: number, level: n
   return Math.fround(z + landHeightUnits(losWorldOf(t), g));
 }
 
-function sightViewer(t: TacticalState, s: Soldier): SightViewer {
-  return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state), bodyType: s.bodyType };
-}
-
 function sightTarget(t: TacticalState, s: Soldier, aware: boolean): SightTarget {
-  return { ...sightViewer(t, s), camo: aware ? 0 : s.camo, tilesMoved: s.tilesMoved, overTerrain: s.overTerrain };
+  return { ...losSubject(t, s), camo: aware ? 0 : s.camo, tilesMoved: s.tilesMoved };
 }
 
 export function soldierToSoldierLos(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: number, aware: boolean): number {
   if (keptApartInBloodcatArena(t, viewer, target)) return 0;
   return soldierToSoldierLineOfSight(
     losWorldOf(t),
-    sightViewer(t, viewer),
+    losSubject(t, viewer),
     sightTarget(t, target, aware),
     tileLimit,
     aware,

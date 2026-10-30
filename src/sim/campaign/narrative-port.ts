@@ -11,6 +11,7 @@
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
 import { findUndergroundSector } from '../strategic/map/sectors.ts';
@@ -52,6 +53,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     profileDied: (profile) => campaign.narrative.profileDied(profile),
     assassinKilled: () => campaign.narrative.assassinKilled(),
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,
+    isPow: (soldier) => campaign.battle?.roster.get(soldier.id)?.assignment === Assignment.ASSIGNMENT_POW,
     civGroupWillBecomeHostile: (group) => {
       addStrategicEvent(
         s.queue,

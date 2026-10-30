@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/OppList.cc DistanceVisible, ManLooksForMan, ManSeesMan, MakeBloodcatsHostile, RecalculateOppCntsDueToNoLongerNeutral,
+// @src src/game/Tactical/OppList.cc DistanceVisible (with Soldier_Control.cc GetDirectionToGridNoFromGridNo),
+// @src ManLooksForMan, ManSeesMan, MakeBloodcatsHostile, RecalculateOppCntsDueToNoLongerNeutral,
 // @src RecalculateOppCntsDueToBecomingNeutral,
 // @src HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
@@ -21,6 +22,7 @@ import { smokeTypeOnTile, wearingGasMask } from '../explosions/smoke.ts';
 import { cancelFadeOnSighting } from '../fade.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import { directionToward } from '../movement.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { lostSightRules, newSightingRules } from '../narrative/sight-rules.ts';
 import { StatKind } from '../profiles.ts';
@@ -159,19 +161,30 @@ export function distanceVisible(
   if (isMonster(viewer)) return subject ? distanceSmellable(subject) : 0;
   if (viewer.blindedCounter > 0) return 0;
   const flash = muzzleFlashInView && subject?.muzzleFlash === true;
-  let d: number;
-  if (facing === IRRELEVANT || flash || viewer.gridNo === g) d = MAX_DISTANCE_VISIBLE;
-  else {
-    const diff = Math.abs(facing - subjectDir);
-    const look = LOOK_BY_OCTANT_DIFFERENCE[diff > 4 ? 8 - diff : diff] ?? 0;
-    d = look === ANGLE && (viewer.team === Team.OUR || viewer.ai.alertStatus >= AlertStatus.RED) ? STRAIGHT : look;
-    d *= 2;
-    if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = idiv(d * 8, 10);
-  }
+  let d = isTank(viewer)
+    ? tankFacingRange(t, viewer, facing, subjectDir, g)
+    : facing === IRRELEVANT || viewer.bodyType === Body.ROBOTNOWEAPON || flash
+      ? MAX_DISTANCE_VISIBLE
+      : facingRange(t, viewer, facing, subjectDir, g);
   if (viewer.level !== level) d += 2;
   const light = flash ? Math.min(lightTrueLevel(t, g, level), NORMAL_LIGHTLEVEL_DAY) : lightTrueLevel(t, g, level);
   const lit = adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
   return sightInGas(t, viewer, level, sightAroundTanks(viewer, subject, lit));
+}
+
+function facingRange(t: TacticalState, viewer: Soldier, facing: number, subjectDir: number, g: number): number {
+  if (viewer.gridNo === g) return MAX_DISTANCE_VISIBLE;
+  const diff = Math.abs(facing - subjectDir);
+  const look = LOOK_BY_OCTANT_DIFFERENCE[diff > 4 ? 8 - diff : diff] ?? 0;
+  let d = look === ANGLE && (viewer.team === Team.OUR || viewer.ai.alertStatus >= AlertStatus.RED) ? STRAIGHT : look;
+  d *= 2;
+  if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = idiv(d * 8, 10);
+  return d;
+}
+
+function tankFacingRange(t: TacticalState, tank: Soldier, facing: number, subjectDir: number, g: number): number {
+  if (facing !== IRRELEVANT) return facingRange(t, tank, facing, subjectDir, g);
+  return facingRange(t, tank, tank.desiredDirection, directionToward(tank.gridNo, g), g);
 }
 
 function sightAroundTanks(viewer: Soldier, subject: Soldier | null, d: number): number {

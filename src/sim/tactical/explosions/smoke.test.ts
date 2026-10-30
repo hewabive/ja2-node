@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { countDraws, itemId, objectOf, runExplosivesUntilIdle } from '../../../../tests/support/explosives.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { NOTHING } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { emptyObject } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { type Soldier, Team } from '../soldier.ts';
@@ -23,6 +25,7 @@ import {
   SmokeTile,
   smokeFlagsAt,
   updateGassedOnNewGridNo,
+  wearGasMaskIfAvailable,
 } from './smoke.ts';
 import type { SmokeCloud } from './state.ts';
 
@@ -220,5 +223,44 @@ describe('gas damage', () => {
     s.inv[InvSlot.HEAD1] = objectOf(t, 'GASMASK');
     s.pathIndex = 1;
     for (let k = 0; k < 20; k++) expect(checkForRunningIntoGas(t, s)).toBe(false);
+  });
+});
+
+describe('putting on a gas mask (AIUtils.cc WearGasMaskIfAvailable)', () => {
+  const HEAD_AND_POCKET = [InvSlot.HEAD1, InvSlot.HEAD2, InvSlot.BIGPOCK1];
+
+  function carrying(t: TacticalState, s: Soldier, inSlots: readonly (string | null)[]): () => number[] {
+    HEAD_AND_POCKET.forEach((slot, k) => {
+      const name = inSlots[k] ?? null;
+      s.inv[slot] = name ? objectOf(t, name) : emptyObject();
+    });
+    return () => HEAD_AND_POCKET.map((slot) => s.inv[slot]?.item ?? NOTHING);
+  }
+
+  it('moves a gas mask from a pocket to the first free head slot, or swaps it with what the first one holds', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const [mask, goggles, walkman] = ['GASMASK', 'NIGHTGOGGLES', 'WALKMAN'].map((name) => itemId(t, name));
+    const wearing = (head1: string | null, head2: string | null) => {
+      const s = soldierAt(sim, t.soldiers.length, CENTRE);
+      const items = carrying(t, s, [head1, head2, 'GASMASK']);
+      return [wearGasMaskIfAvailable(t, s), items()];
+    };
+    expect(wearing(null, null)).toEqual([true, [mask, NOTHING, NOTHING]]);
+    expect(wearing('NIGHTGOGGLES', null)).toEqual([true, [goggles, mask, NOTHING]]);
+    expect(wearing('NIGHTGOGGLES', 'WALKMAN')).toEqual([true, [mask, walkman, goggles]]);
+  });
+
+  it('leaves a soldier who wears one already or carries none as he is', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = soldierAt(sim, 0, CENTRE);
+    const masked = carrying(t, s, [null, 'GASMASK', 'GASMASK']);
+    const before = masked();
+    expect(wearGasMaskIfAvailable(t, s)).toBe(false);
+    expect(masked()).toEqual(before);
+    const bare = carrying(t, s, ['NIGHTGOGGLES', null, null]);
+    expect(wearGasMaskIfAvailable(t, s)).toBe(false);
+    expect(bare()).toEqual([itemId(t, 'NIGHTGOGGLES'), NOTHING, NOTHING]);
   });
 });

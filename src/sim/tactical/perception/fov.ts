@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
-// @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof.
+// @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
+// @src SetGridNoRevealedFlag and the spotted-something quote).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -15,9 +16,11 @@ import {
 } from '../../../content/world/structures.ts';
 import { idiv } from '../../../core/int.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
+import { BOXING_RING } from '../narrative/boxing-state.ts';
+import { BOXING_SECTOR } from '../narrative/constants.ts';
 import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
-import { OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
 
@@ -32,6 +35,9 @@ const NO_NEXT = 99;
 const NORMAL_VIEW_RANGE = 13;
 const NO_ROOM = 0;
 const MAX_ROOMS = 256;
+const ROOM_SURROUNDING_BOXING_RING = 3;
+const SPOTTED_SOMETHING_QUOTE = 11;
+const SPOTTED_SOMETHING_QUOTES = 2;
 
 const Blocking = {
   NOTHING: 0,
@@ -129,6 +135,10 @@ export function createFogOfWar(): FogOfWar {
   };
 }
 
+function inBoxingSector(t: TacticalState): boolean {
+  return t.sector !== null && t.sector.x === BOXING_SECTOR.x && t.sector.y === BOXING_SECTOR.y && t.sector.z === 0;
+}
+
 function tallestGroundStructure(t: TacticalState, g: number): number {
   let tallest = 0;
   for (const s of t.world.structures.at(g)) {
@@ -166,16 +176,34 @@ function blockingStructureInfo(t: TacticalState, g: number, level: number): numb
   return minimum ? Blocking.REDUCE_RANGE : Blocking.NEXT_TILE;
 }
 
-function removeRoomRoof(t: TacticalState, room: number): void {
+function removeRoomRoof(t: TacticalState, room: number, s: Soldier): void {
   const fog = t.fog;
   const rooms = t.world.level.rooms;
-  for (let g = 0; g < WORLD_MAX; g++) if (rooms[g] === room) fog.revealed[g] = (fog.revealed[g] ?? 0) | RevealedFlags.GROUND;
+  let saidItemSeenQuote = false;
+  for (let g = 0; g < WORLD_MAX; g++) {
+    if (rooms[g] !== room) continue;
+    fog.revealed[g] = (fog.revealed[g] ?? 0) | RevealedFlags.GROUND;
+    if (!setItemsVisibilityOn(t, g, 0, Visibility.INVISIBLE, true) || saidItemSeenQuote) continue;
+    saidItemSeenQuote = true;
+    t.narrative.sayQuote(s, SPOTTED_SOMETHING_QUOTE + t.rng.int(SPOTTED_SOMETHING_QUOTES));
+  }
   fog.roomHidden[room] = 0;
   t.events.push({ type: 'roomRevealed', room });
 }
 
+function revealHiddenRoom(t: TacticalState, room: number, s: Soldier): void {
+  removeRoomRoof(t, room, s);
+  if (room === ROOM_SURROUNDING_BOXING_RING && inBoxingSector(t)) removeRoomRoof(t, BOXING_RING, s);
+}
+
+const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+
+function revealsNothing(s: Soldier): boolean {
+  return s.team !== Team.OUR || isVehicle(s) || !s.placed || s.life < OKLIFE || s.blindedCounter > 0;
+}
+
 export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: boolean): void {
-  if (s.team !== Team.OUR || !s.placed || s.life < OKLIFE) return;
+  if (revealsNothing(s)) return;
   const fog = t.fog;
   fog.markerValue++;
   if (fog.markerValue === 255) {
@@ -265,7 +293,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
         if (level === 0) {
           fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.GROUND;
           const room = t.world.level.rooms[marker] ?? NO_ROOM;
-          if (room !== NO_ROOM && fog.roomHidden[room]) removeRoomRoof(t, room);
+          if (room !== NO_ROOM && fog.roomHidden[room]) revealHiddenRoom(t, room, s);
         } else fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.ROOF;
         updateBloodGraphics(t, marker, level);
         if (!PASS_THROUGH_BLOCKING.has(blocking)) break;

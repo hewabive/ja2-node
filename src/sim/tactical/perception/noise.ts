@@ -7,18 +7,31 @@
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { idiv, u8 } from '../../../core/int.ts';
-import { endHeight, states } from '../animation.ts';
-import { losWorldOf, soldierToSoldierLos } from '../combat/positions.ts';
+import { states } from '../animation.ts';
+import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { Profile } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
-import { AlertStatus, Body, isMonster, isTank, NO_INTERRUPT, numSkillTraits, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
+import {
+  AlertStatus,
+  Body,
+  isMonster,
+  isTank,
+  NO_INTERRUPT,
+  numSkillTraits,
+  OKLIFE,
+  Side,
+  SkillTrait,
+  type Soldier,
+  Team,
+} from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import { keptApartInBloodcatArena } from './bloodcat-arena.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, standardInterruptConditionsMet } from './duel.ts';
-import { type HeightClass, soldierToLocationLineOfSight } from './los.ts';
 import { Caller, SightFlags } from './opp.ts';
 import {
   addDoorNoiseSighting,
@@ -174,26 +187,23 @@ function rememberNoise(t: TacticalState, l: Soldier, g: number, level: number, v
   t.perceptionHooks.setNewSituation(l);
 }
 
-function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
-  const noiseDirection = atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, idiv(g, WORLD_COLS) * 10 + 5);
+function noiseDirectionFor(l: Soldier, g: number): number {
+  return atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, idiv(g, WORLD_COLS) * 10 + 5);
+}
+
+function sourceTileSeen(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, kind: number): boolean {
+  const noiseDirection = noiseDirectionFor(l, g);
   const flashInView = kind !== NoiseKind.GUNFIRE || !source?.muzzleFlash || seesMuzzleFlashWithoutTurning(l, noiseDirection);
   const d = distanceVisible(t, l, IRRELEVANT, IRRELEVANT, g, level, flashInView);
-  const losWorld = losWorldOf(t);
-  const eye = {
-    gridNo: l.gridNo,
-    level: l.level,
-    heightClass: endHeight(t.content, l.state) as (typeof HeightClass)[keyof typeof HeightClass],
-  };
-  const occupant = t.occupant[level > 0 ? 1 : 0][g] ?? -1;
-  const target = occupant >= 0 ? t.soldiers[occupant] : undefined;
-  const hadToTurn = l.direction !== noiseDirection;
-  let sourceSeen = false;
-  if (pythSpacesAway(l.gridNo, g) <= d) {
-    const los = target
-      ? soldierToSoldierLos(t, l, target, u8(d), true)
-      : soldierToLocationLineOfSight(losWorld, eye, g, level, u8(d), t.perception.disallowSight);
-    sourceSeen = los !== 0;
-  }
+  if (pythSpacesAway(l.gridNo, g) > d) return false;
+  if (isTank(l) && l.direction !== noiseDirection) return false;
+  return soldierTo3DLocationLos(t, l, g, level, 0, u8(d), true) !== 0;
+}
+
+function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
+  if (l.bodyType === Body.CROW) return false;
+  const sourceSeen = sourceTileSeen(t, l, source, g, level, kind);
+  const hadToTurn = l.direction !== noiseDirectionFor(l, g);
   const hooks = t.perceptionHooks;
   let seen = false;
   if (source) {
@@ -226,8 +236,10 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
       } else if (sourceSeen) resolveBestSightingAfterNoise(t);
     }
   } else {
-    if (l.team !== Team.OUR && (kind === NoiseKind.EXPLOSION || kind === NoiseKind.SILENT_ALARM) && volume >= RED_ALERT_VOLUME)
+    if (l.team !== Team.OUR && (kind === NoiseKind.EXPLOSION || kind === NoiseKind.SILENT_ALARM) && volume >= RED_ALERT_VOLUME) {
+      if (kind === NoiseKind.SILENT_ALARM) wearGasMaskIfAvailable(t, l);
       raiseToRed(t, l);
+    }
     if (!sourceSeen || (kind === NoiseKind.ROCK_IMPACT && hadToTurn) || kind === NoiseKind.SILENT_ALARM)
       rememberNoise(t, l, g, level, volume);
     else {
@@ -256,8 +268,26 @@ const DIRECTION_AT_ANY_LEVEL: ReadonlySet<number> = new Set([
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const gassed = (t: TacticalState, s: Soldier) => (t.explosives.gassed[s.id] ?? 0) !== 0;
 
-function listens(l: Soldier): boolean {
-  return validForSightings(l) && l.life >= OKLIFE && l.bodyType !== Body.LARVAE_MONSTER && !(l.team === Team.OUR && isVehicle(l));
+const DEAF_TO_THE_ARMY: ReadonlySet<number> = new Set([Profile.WARDEN, Profile.GENERAL, Profile.SERGEANT, Profile.CONRAD]);
+
+function listens(t: TacticalState, l: Soldier): boolean {
+  if (!validForSightings(l) || l.life < OKLIFE || l.bodyType === Body.LARVAE_MONSTER) return false;
+  return l.team !== Team.OUR || (!isVehicle(l) && !t.narrative.isPow(l));
+}
+
+const friendlyMilitia = (s: Soldier) => s.team === Team.MILITIA && s.side === Side.FRIENDLY;
+
+function ignoresMaker(l: Soldier, maker: Soldier): boolean {
+  switch (maker.team) {
+    case Team.OUR:
+      return friendlyMilitia(l);
+    case Team.ENEMY:
+      return DEAF_TO_THE_ARMY.has(l.profile);
+    case Team.MILITIA:
+      return l.team === Team.OUR && maker.side === Side.FRIENDLY;
+    default:
+      return false;
+  }
 }
 
 function teamMemberNear(t: TacticalState, team: number, g: number, range: number): boolean {
@@ -297,7 +327,7 @@ export function squadHears(t: TacticalState, g: number, level: number, base: num
   let loudest = 0;
   let by: Soldier | null = null;
   for (const l of teamMembersById(t, Team.OUR)) {
-    if (!l.placed || !listens(l)) continue;
+    if (!l.placed || !listens(t, l)) continue;
     const eff = calcEffVolume(t, l, g, level, base, sourceTerrain);
     if (eff > loudest) {
       loudest = eff;
@@ -368,13 +398,11 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     let loudestDir = 0;
     let lastListenerDirection = 0;
     for (const l of members.sort((a, b) => a.id - b.id)) {
-      if (!listens(l)) continue;
+      if (!listens(t, l)) continue;
       if (maker) {
         if (l.oppList[maker.id] === Opp.SEEN_CURRENTLY && !(l.neutral && kind === NoiseKind.GUNFIRE)) continue;
-        if (l.team === Team.MILITIA && maker.team === Team.OUR) continue;
-        if (l.team === Team.OUR && maker.team === Team.MILITIA) continue;
-        if (keptApartInBloodcatArena(t, l, maker)) continue;
-      }
+        if (ignoresMaker(l, maker) || keptApartInBloodcatArena(t, l, maker)) continue;
+      } else if (friendlyMilitia(l)) continue;
       if (l.team === Team.CIV && (kind === NoiseKind.GUNFIRE || kind === NoiseKind.EXPLOSION)) l.heardGunshot = true;
       const eff = calcEffVolume(t, l, g, level, base, sourceTerrain);
       if (eff <= 0) continue;

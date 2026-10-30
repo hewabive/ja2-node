@@ -42,6 +42,7 @@ export interface NarrativePort {
   queenCanFlee(): boolean;
   palaceBasementSecured(): boolean;
   isEpc(s: Soldier): boolean;
+  isPow(s: Soldier): boolean;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
   townLoyaltyChange(town: number, amount: number): void;
@@ -107,6 +108,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   queenCanFlee: () => true,
   palaceBasementSecured: () => false,
   isEpc: () => false,
+  isPow: () => false,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},
   townLoyaltyChange: () => {},

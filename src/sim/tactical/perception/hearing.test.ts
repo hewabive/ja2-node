@@ -1,14 +1,20 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { Orientation } from '../../../content/formats/jsd.ts';
+import { NOTHING } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure } from '../../../content/world/synthetic.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
-import { Body, SkillTrait, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { Profile } from '../narrative/constants.ts';
+import { AlertStatus, Body, Side, SkillTrait, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
@@ -22,6 +28,10 @@ beforeAll(async () => {
 });
 
 const UNSEEN = -1;
+const LISTENER_AT = gridNo(80, 80);
+const BEHIND_THE_WALL = gridNo(80, 70);
+const WALL = Array.from({ length: 21 }, (_, k) => gridNo(70 + k, 75));
+const WAIST_HIGH = 2;
 const HEARD_SOMETHING = 6;
 const BLOODCAT_ARENA = { x: 5, y: 14, z: 0 };
 const BESIDE_THE_ARENA = { x: 4, y: 14, z: 0 };
@@ -140,6 +150,128 @@ describe('who listens to a noise (OppList.cc ProcessNoise)', () => {
     };
     expect(heard(BLOODCAT_ARENA)).toEqual([Opp.NOT_HEARD_OR_SEEN, Opp.NOT_HEARD_OR_SEEN]);
     expect(heard(BESIDE_THE_ARENA)).toEqual([Opp.HEARD_THIS_TURN, Opp.HEARD_THIS_TURN]);
+  });
+
+  it('leaves a merc held prisoner out of every noise', () => {
+    const heard = (prisoner: boolean) => {
+      const { sim, merc, stranger } = squadAndStranger(BEHIND_THE_WALL, WALL);
+      const t = sim.state;
+      t.narrative = { ...t.narrative, isPow: (s) => prisoner && s === merc };
+      makeNoise(t, stranger, stranger.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      return [merc.oppList[stranger.id], squadHears(t, stranger.gridNo, 0, 20, NoiseKind.MOVEMENT)?.by ?? null];
+    };
+    expect(heard(false)).toEqual([Opp.HEARD_THIS_TURN, 0]);
+    expect(heard(true)).toEqual([Opp.NOT_HEARD_OR_SEEN, null]);
+  });
+
+  it('keeps the Warden, the General, the Sergeant and Conrad deaf to the army, not to the squad', () => {
+    const heard = (profile: number | null, makerTeam: typeof Team.OUR | typeof Team.ENEMY) => {
+      const sim = newCombatSim(content, WALL);
+      const listener = spawnSoldier(
+        sim,
+        TEAM_FIRST_ID[Team.CIV],
+        Team.CIV,
+        LISTENER_AT,
+        Direction.NORTH,
+        profile === null ? {} : { profile },
+      );
+      const maker = spawnSoldier(sim, TEAM_FIRST_ID[makerTeam], makerTeam, BEHIND_THE_WALL, Direction.SOUTH);
+      makeNoise(sim.state, maker, maker.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      return listener.oppList[maker.id];
+    };
+    expect(heard(null, Team.ENEMY)).toBe(Opp.HEARD_THIS_TURN);
+    for (const profile of [Profile.WARDEN, Profile.GENERAL, Profile.SERGEANT, Profile.CONRAD]) {
+      expect(heard(profile, Team.ENEMY)).toBe(Opp.NOT_HEARD_OR_SEEN);
+      expect(heard(profile, Team.OUR)).toBe(Opp.HEARD_THIS_TURN);
+    }
+  });
+
+  it('lets militia on our side and the squad ignore each other, and hear each other once the militia turned on us', () => {
+    const heard = (side: number) => {
+      const sim = newCombatSim(content, WALL);
+      const t = sim.state;
+      const merc = spawnSoldier(sim, 0, Team.OUR, LISTENER_AT, Direction.NORTH);
+      const militia = spawnSoldier(sim, TEAM_FIRST_ID[Team.MILITIA], Team.MILITIA, BEHIND_THE_WALL, Direction.SOUTH);
+      militia.side = side;
+      makeNoise(t, merc, merc.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      makeNoise(t, militia, militia.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      return [militia.oppList[merc.id], merc.oppList[militia.id]];
+    };
+    expect(heard(Side.FRIENDLY)).toEqual([Opp.NOT_HEARD_OR_SEEN, Opp.NOT_HEARD_OR_SEEN]);
+    expect(heard(Side.ENEMY)).toEqual([Opp.HEARD_THIS_TURN, Opp.HEARD_THIS_TURN]);
+  });
+
+  it('lets militia on our side ignore a noise nobody made', () => {
+    const remembered = (side: number) => {
+      const sim = newCombatSim(content, WALL);
+      const militia = spawnSoldier(sim, TEAM_FIRST_ID[Team.MILITIA], Team.MILITIA, LISTENER_AT, Direction.NORTH);
+      militia.side = side;
+      makeNoise(sim.state, null, BEHIND_THE_WALL, 0, 20, NoiseKind.EXPLOSION);
+      return militia.ai.noiseGridNo === BEHIND_THE_WALL;
+    };
+    expect(remembered(Side.FRIENDLY)).toBe(false);
+    expect(remembered(Side.ENEMY)).toBe(true);
+  });
+});
+
+describe('turning the head to a noise (OppList.cc HearNoise)', () => {
+  const GASMASK = () => content.items.byName.get('GASMASK')?.index ?? -1;
+
+  it('lets a crow neither look at nor remember a noise', () => {
+    const listen = (bodyType: number) => {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      const listener = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, LISTENER_AT, Direction.NORTH);
+      listener.bodyType = bodyType;
+      const soldier = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, BEHIND_THE_WALL, Direction.SOUTH);
+      makeNoise(t, soldier, soldier.gridNo, 0, 20, NoiseKind.MOVEMENT);
+      makeNoise(t, null, gridNo(84, 70), 0, 20, NoiseKind.EXPLOSION);
+      return [listener.oppList[soldier.id], listener.ai.alertStatus];
+    };
+    expect(listen(Body.REGMALE)).toEqual([Opp.SEEN_CURRENTLY, AlertStatus.RED]);
+    expect(listen(Body.CROW)).toEqual([Opp.NOT_HEARD_OR_SEEN, AlertStatus.GREEN]);
+  });
+
+  it('keeps a tank from looking at a noise it has to turn to, even within its sight', () => {
+    const seenBy = (bodyType: number, facing: number) => {
+      const sim = newCombatSim(content);
+      const listener = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, LISTENER_AT, facing);
+      listener.bodyType = bodyType;
+      const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 76), Direction.SOUTHWEST);
+      makeNoise(sim.state, merc, merc.gridNo, 0, 30, NoiseKind.MOVEMENT);
+      return listener.oppList[merc.id];
+    };
+    expect(seenBy(Body.TANK_NW, Direction.NORTHEAST)).toBe(Opp.SEEN_CURRENTLY);
+    expect(seenBy(Body.TANK_NW, Direction.NORTH)).toBe(Opp.HEARD_THIS_TURN);
+    expect(seenBy(Body.REGMALE, Direction.NORTH)).toBe(Opp.SEEN_CURRENTLY);
+  });
+
+  it('looks at the tile of a noise nobody made from his own eye height, a prone one in deep water', () => {
+    const NOISE_AT = gridNo(80, 70);
+    const remembered = (overTerrain: number) => {
+      const sim = newCombatSim(content, [], 3, new Set(), (w) =>
+        w.structures.add(gridNo(80, 75), 0, syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: WAIST_HIGH })),
+      );
+      const soldier = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, LISTENER_AT, Direction.NORTH);
+      soldier.overTerrain = overTerrain;
+      makeNoise(sim.state, null, NOISE_AT, 0, 20, NoiseKind.EXPLOSION);
+      return soldier.ai.noiseGridNo === NOISE_AT;
+    };
+    expect(remembered(Terrain.FLAT_GROUND)).toBe(false);
+    expect(remembered(Terrain.DEEP_WATER)).toBe(true);
+  });
+
+  it('has the army put on a gas mask it carries at an alarm, never at an explosion, and never the squad', () => {
+    const sim = newCombatSim(content, WALL);
+    const t = sim.state;
+    const soldier = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, LISTENER_AT, Direction.NORTH);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(82, 80), Direction.NORTH);
+    for (const s of [soldier, merc]) s.inv[InvSlot.BIGPOCK1] = createItem(content.items, GASMASK(), 100);
+    makeNoise(t, null, BEHIND_THE_WALL, 0, 20, NoiseKind.EXPLOSION);
+    expect(soldier.inv[InvSlot.HEAD1]?.item).toBe(NOTHING);
+    makeNoise(t, null, BEHIND_THE_WALL, 0, 20, NoiseKind.SILENT_ALARM);
+    expect([soldier.inv[InvSlot.HEAD1]?.item, soldier.inv[InvSlot.BIGPOCK1]?.item]).toEqual([GASMASK(), NOTHING]);
+    expect(merc.inv[InvSlot.HEAD1]?.item).toBe(NOTHING);
   });
 });
 

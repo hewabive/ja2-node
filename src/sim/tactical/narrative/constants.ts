@@ -40,6 +40,7 @@ export const Profile = {
   JOHN: 118,
   MARY: 119,
   GENERAL: 120,
+  SERGEANT: 121,
   ELDIN: 127,
   BILLY: 133,
   ELLIOT: 135,
