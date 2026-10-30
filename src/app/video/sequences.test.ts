@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { STUB_DATA_VERSION, VANILLA_VERSIONS } from '../../content/text/data-version.ts';
 import { DEFAULT_SETTINGS, updateSettings } from '../../ui/settings.ts';
-import { beginningPlan, endingPlan, IntroVideo, introVideoPath, sequenceEnabled, splashPlan } from './sequences.ts';
+import { beginningPlan, dataPlaysSplash, endingPlan, IntroVideo, introVideoPath, sequenceEnabled, splashPlan } from './sequences.ts';
 
 describe('intro sequences', () => {
   it('names the eleven videos of the intro archive', () => {
@@ -21,6 +22,11 @@ describe('intro sequences', () => {
 
   it('plays the splash alone (never the TalonSoft logo), then the main menu', () => {
     expect(splashPlan()).toEqual({ sequence: 'splash', videos: ['splashscreen'], followedBy: 'mainMenu' });
+  });
+
+  it('plays the splash only with English and Chinese data, and on the stubs, which stand for English', () => {
+    expect(VANILLA_VERSIONS.filter(dataPlaysSplash)).toEqual(['english', 'simplifiedChinese']);
+    expect(dataPlaysSplash(STUB_DATA_VERSION)).toBe(true);
   });
 
   it('plays the four beginning videos in order, then starts the new game', () => {

@@ -107,9 +107,11 @@ full volume under the master gain, like the original's `MAXVOLUME`. A missing fi
 sequence's files download one after another, so the next video arrives while one plays.
 
 **Where videos play.** The splash in the launcher after a first click ("Splash start"), never on `/play` ("Game page
-start"); the beginning after a new game, the ending after the victory; the client settings can turn off the splash and
-the beginning, never the ending ("Intro and splash switches"). Steam's data keeps the videos in `Intro-old.slf`;
-ja2-node mounts every SLF by its library path as Stracciatella does, so they resolve as `intro/<name>.smk` either way.
+start"), and only with English or Chinese data or the stubs, as the original plays it only for those versions
+(`src/sgp/SGP.cc:441`, `JAScreens.cc:124`); the beginning after a new game, the ending after the victory; the client
+settings can turn off the splash and the beginning, never the ending ("Intro and splash switches"). Steam's data keeps
+the videos in `Intro-old.slf`; ja2-node mounts every SLF by its library path as Stracciatella does, so they resolve as
+`intro/<name>.smk` either way.
 
 **Credits.** `CreditRoll` runs the original's roll for the canvas screen of `/play` (`30`) and the launcher's DOM
 scroller ("Credits screen").
@@ -187,5 +189,5 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
 Not ported: gaps "Sound coverage", "Sighting quotes" (the English and Chinese `Random(100)` battle-sound branch of a
-sighting), "Data version detection", "Splash and the data version", "Helicopter entrance", "Map screen speech",
-"Laptop video faces", "I.M.P. voice samples".
+sighting), "Data version detection", "Helicopter entrance", "Map screen speech", "Laptop video faces", "I.M.P. voice
+samples".

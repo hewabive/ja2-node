@@ -1,5 +1,5 @@
 import { AudioEngine } from '../../audio/engine.ts';
-import { UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
+import { type DataVersion, STUB_DATA_VERSION, UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
 import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
 import { type CampaignProblem, campaignRequest, pageUrl, playUrl, type StartPage } from '../../ui/client/campaign-form.ts';
 import { type ClientSettings, effectiveMaster, type SettingsChange, updateSettings } from '../../ui/settings.ts';
@@ -8,7 +8,7 @@ import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../credi
 import { readVfsFileOrNull } from '../net/vfs.ts';
 import { loadSettings, saveSettings } from '../settings.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
-import { beginningPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
+import { beginningPlan, dataPlaysSplash, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
 import { engineSound } from '../video/sound.ts';
 import { createSession, fetchHealth } from './api.ts';
 import { CampaignPanel } from './campaign-panel.ts';
@@ -284,7 +284,8 @@ async function playSplash(): Promise<void> {
 }
 
 function offerSplash(): void {
-  if (!sequenceEnabled('splash', settings) || splashShownThisTab()) {
+  const dataVersion = (health?.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
+  if (!sequenceEnabled('splash', settings) || !dataPlaysSplash(dataVersion) || splashShownThisTab()) {
     hook.splash = 'off';
     return;
   }

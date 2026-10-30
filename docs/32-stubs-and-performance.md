@@ -377,9 +377,10 @@ import `server`. Debug hook `window.__ja2Launcher`; e2e `tests/e2e/launcher.spec
 - **Saved games**: `27` §1.11 (the panel), deviations "Save list in the launcher and on the canvas". Download and upload
   of save files and loading into another session stay in the launcher only.
 - **Settings**: `27` §2.4. Settings apply at once; the volumes drive the launcher's own audio engine.
-- **Splash**: unless `playSplash` is off, the launcher starts behind a "Click to start" button and plays the splash
-  after the click, which unlocks the audio context; once per browser tab, not each time a game page links back
-  (deviation "Splash start"). The credits play in a DOM scroller (deviation "Credits screen").
+- **Splash**: unless `playSplash` is off or the data is neither English nor Chinese (`dataPlaysSplash`,
+  `src/app/video/sequences.ts`), the launcher starts behind a "Click to start" button and plays the splash after the
+  click, which unlocks the audio context; once per browser tab, not each time a game page links back (deviation
+  "Splash start"). The credits play in a DOM scroller (deviation "Credits screen").
 - **Labels** (`src/ui/text/labels.ts`, `src/ui/text/string-ids.ts`): every label is either an original string
   `{table, index}` of the string tables or a ja2-node label with an English and a Russian text, loaded from
   `GET /api/strings?lang=`. A ja2-node label falls back to English in the other six languages; a missing original

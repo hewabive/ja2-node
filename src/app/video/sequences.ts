@@ -1,8 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Intro.cc gpzSmackerFileNames, GetNextIntroVideo, PrepareToExitIntroScreen; src/game/Intro.h
-// @src INTRO_BEGINING, INTRO_ENDING, INTRO_SPLASH; src/game/Directories.h INTRODIR.
+// @src INTRO_BEGINING, INTRO_ENDING, INTRO_SPLASH; src/game/Directories.h INTRODIR; src/sgp/SGP.cc main and
+// @src src/game/JAScreens.cc InitScreenHandle (the splash only for the English and Chinese versions).
 
+import { type DataVersion, textVersion, type VanillaVersion } from '../../content/text/data-version.ts';
 import type { CampaignEndingView } from '../../protocol/view.ts';
 import type { ClientSettings } from '../../ui/settings.ts';
 
@@ -34,6 +36,7 @@ export interface SequencePlan {
 }
 
 export const SPLASH_VIDEOS: readonly IntroVideo[] = [IntroVideo.SPLASH];
+const SPLASH_VERSIONS: ReadonlySet<VanillaVersion> = new Set(['english', 'simplifiedChinese']);
 export const BEGINNING_VIDEOS: readonly IntroVideo[] = [
   IntroVideo.REBEL_CREDITS,
   IntroVideo.OMERTA,
@@ -63,6 +66,10 @@ export function beginningPlan(): SequencePlan {
 
 export function endingPlan(ending: CampaignEndingView): SequencePlan {
   return { sequence: 'ending', videos: endingVideos(ending), followedBy: 'credits' };
+}
+
+export function dataPlaysSplash(version: DataVersion): boolean {
+  return SPLASH_VERSIONS.has(textVersion(version));
 }
 
 export function sequenceEnabled(sequence: IntroSequence, settings: Pick<ClientSettings, 'playSplash' | 'playIntro'>): boolean {
