@@ -58,10 +58,10 @@ AI's actions and the player's pending moves, and adds a turn's APs to what every
 everyone starts with a full turn plus the maximum carry-over of 5.
 
 **An AI attack out of combat.** An AI soldier about to shoot, throw or use a knife out of combat starts it himself,
-except in a meanwhile: his team's turn begins with him holding it and the computer's turn bar up (gap "Hidden attacks
-start combat"), without a team turn start, the enemy check of `enterCombatMode` or an AI list. The combat entry cancels
-his attack too, so he decides again with his new APs; when his turn ends no one else of his team acts, and the next team
-follows.
+except in a meanwhile: his team's turn begins with him holding it and the computer's turn bar up (deviation "Hidden
+attacks start combat"), without a team turn start, the enemy check of `enterCombatMode` or an AI list. The combat entry
+cancels his attack too, so he decides again with his new APs; when his turn ends no one else of his team acts, and the
+next team follows.
 
 **Team turns.** A round runs our team, the enemy, creatures, militia, civilians, then the end-of-round events (first
 aid, smell, smoke and light decay). A team with nobody in the sector is skipped, an AI team with an empty AI list after
@@ -177,8 +177,8 @@ reading the source:
 - That the order lock of deviation "Turn-based UI lock" admits the same orders as `SetUIBusy`.
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
-Not ported: gaps "Hidden attacks start combat", "Interrupt exclusions", "Action points and phobias", "Turn-based
-hooks", "Drugs and alcohol", "AI decision details" (the pre-combat grid, the AI list's civilian skip), "Sleeping mercs
-in combat", "Battle-end quotes". Other deviations of this domain: "Watchdogs", "Enemy sighted on their turn",
-"Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame timers", "Soldier
-fade without merc lights".
+Not ported: gaps "Interrupt exclusions", "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI
+decision details" (the pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat", "Battle-end quotes".
+Other deviations of this domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based
+UI lock", "Interrupt prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks
+start combat", "Interface lock on arrival".
