@@ -54,8 +54,8 @@ export function calcValueOfItemToDealer(ctx: MerchantContext, dealer: number, it
   const priceClass = itemPriceClass(base);
   if (!dealerSelling && Math.abs(dealerClass - priceClass) === 2) return 0;
   let value = base;
-  if (dealerClass !== priceClass && item !== ctx.content.itemIds.GAS_CAN) value = Math.trunc(value / OUT_OF_CLASS_DIVISOR);
-  if (listedBy(ctx, 'TONY', item)) value = Math.trunc(value / TONY_SPECIALITY_DIVISOR);
+  if (dealerClass !== priceClass && item !== ctx.content.itemIds.GAS_CAN) value = idiv(value, OUT_OF_CLASS_DIVISOR);
+  if (listedBy(ctx, 'TONY', item)) value = idiv(value, TONY_SPECIALITY_DIVISOR);
   return u16(value === 0 ? MIN_DEALER_VALUE : value);
 }
 

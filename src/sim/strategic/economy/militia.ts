@@ -12,7 +12,7 @@
 // @src ResetAssignmentsForMercsTrainingUnpaidSectorsInSelectedList, ResetAssignmentOfMercsThatWereTrainingMilitiaInThisSector.
 
 import { type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { addCharacterToAnySquad } from '../forces/squads.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -122,8 +122,8 @@ export function townMilitiaTrainingCompleted(ctx: EconomyContext, trainer: CrewM
 
 export function trainTownInSector(ctx: EconomyContext, trainer: CrewMember, sector: Sector, points: number): boolean {
   const info = sectorInfo(ctx.state.map, sector);
-  ctx.crew.statChange(trainer.id, StatAmt.LEADERSHIP, 1 + Math.trunc(points / LEADERSHIP_CHANCE_DIVISOR), StatCause.SUCCESS);
-  info.militiaTrainingPercentDone = u8(info.militiaTrainingPercentDone + Math.trunc(points / HUNDREDTHS));
+  ctx.crew.statChange(trainer.id, StatAmt.LEADERSHIP, 1 + idiv(points, LEADERSHIP_CHANCE_DIVISOR), StatCause.SUCCESS);
+  info.militiaTrainingPercentDone = u8(info.militiaTrainingPercentDone + idiv(points, HUNDREDTHS));
   info.militiaTrainingHundredths = u8(info.militiaTrainingHundredths + (points % HUNDREDTHS));
   if (info.militiaTrainingHundredths >= HUNDREDTHS) {
     info.militiaTrainingPercentDone = u8(info.militiaTrainingPercentDone + 1);

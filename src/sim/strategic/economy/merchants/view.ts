@@ -6,6 +6,7 @@
 
 import { NOTHING } from '../../../../content/items/items.ts';
 import { DealerType } from '../../../../content/strategic/merchant-content.ts';
+import { idiv } from '../../../../core/int.ts';
 import { NO_PROFILE } from '../../../items/object.ts';
 import type { DealerBox } from './boxes.ts';
 import { dealerDef, type MerchantContext } from './context.ts';
@@ -66,8 +67,8 @@ export function shopKind(type: number): ShopKind {
 export function repairEta(doneAt: number, now: number): ShopEta | null {
   if (doneAt <= now) return null;
   const rounded = roundUpToRepairInterval(doneAt);
-  const day = Math.trunc(rounded / MINUTES_IN_DAY);
-  const hour = Math.trunc((rounded - day * MINUTES_IN_DAY) / MINUTES_IN_HOUR);
+  const day = idiv(rounded, MINUTES_IN_DAY);
+  const hour = idiv(rounded - day * MINUTES_IN_DAY, MINUTES_IN_HOUR);
   return { day, hour, minute: rounded - day * MINUTES_IN_DAY - hour * MINUTES_IN_HOUR };
 }
 

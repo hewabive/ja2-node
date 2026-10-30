@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Merc_Contract.cc MercContractHandling.
 
-import { i8, i32 } from '../../../core/int.ts';
+import { i8, i32, idiv } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../strategic/time/world-clock.ts';
@@ -59,7 +59,7 @@ export type ExtensionResult =
   | { readonly extended: false; readonly reason: 'notAimMerc' | 'notEnoughMoney' | RefusalReason; readonly departs: boolean };
 
 export function contractEndTime(m: RosterMerc): ContractTime {
-  return { day: Math.trunc(m.contract.contractEnd / NUM_MIN_IN_DAY), hour: hourWhenContractDone(m.contract.timeWillArrive) };
+  return { day: idiv(m.contract.contractEnd, NUM_MIN_IN_DAY), hour: hourWhenContractDone(m.contract.timeWillArrive) };
 }
 
 function insuranceFollowUp(ctx: ContractContext, m: RosterMerc, days: number, charge: number): InsuranceFollowUp {

@@ -5,6 +5,7 @@
 // @src StrategicMap_Secrets.cc InitMapSecrets, SetSectorSecretAsFound, GetMapSecretBySectorID, IsSecretFoundAt.
 
 import { MAP_SIDE, type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { idiv } from '../../../core/int.ts';
 import { MIN_CONDITION_FOR_SAM_SITE_TO_WORK, SAM_CONDITION_AT_START } from '../forces/constants.ts';
 import { numHostilesInSector, playerMercsInSector } from '../forces/groups.ts';
 import { updateRefuelSiteAvailability } from '../forces/helicopter.ts';
@@ -49,7 +50,7 @@ export function updateAirspaceControl(ctx: StrategicContext): void {
       const sam = controlling >= 0 ? sams[controlling] : undefined;
       let enemy = false;
       if (sam) {
-        const e = elements[strategicIndex({ x: (sam.sector % MAP_SIDE) + 1, y: Math.trunc(sam.sector / MAP_SIDE) + 1 })];
+        const e = elements[strategicIndex({ x: (sam.sector % MAP_SIDE) + 1, y: idiv(sam.sector, MAP_SIDE) + 1 })];
         enemy = e?.enemyControlled === true && e.samCondition >= MIN_CONDITION_FOR_SAM_SITE_TO_WORK;
       }
       const element = elements[strategicIndex({ x, y })];
@@ -62,7 +63,7 @@ export function updateAirspaceControl(ctx: StrategicContext): void {
 
 export function initializeSamSites(ctx: StrategicContext): void {
   for (const sam of ctx.content.samSites) {
-    const e = ctx.state.map.elements[strategicIndex({ x: (sam.sector % MAP_SIDE) + 1, y: Math.trunc(sam.sector / MAP_SIDE) + 1 })];
+    const e = ctx.state.map.elements[strategicIndex({ x: (sam.sector % MAP_SIDE) + 1, y: idiv(sam.sector, MAP_SIDE) + 1 })];
     if (e) e.samCondition = SAM_CONDITION_AT_START;
   }
   updateAirspaceControl(ctx);

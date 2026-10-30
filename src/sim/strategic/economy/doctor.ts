@@ -102,7 +102,7 @@ function healDamagedStats(ctx: EconomyContext, patient: CrewMember, doctor: Crew
 export function healPatient(ctx: EconomyContext, patient: CrewMember, doctor: CrewMember, hundredths: number): number {
   patient.fractLife = i16(patient.fractLife + hundredths);
   let used = u16(hundredths);
-  let left = u16(Math.trunc(patient.fractLife / HUNDREDTHS));
+  let left = u16(idiv(patient.fractLife, HUNDREDTHS));
   patient.fractLife = i16(patient.fractLife % HUNDREDTHS);
   if (left === 0) return used;
   if (patient.life < OKLIFE) left = healCriticalLife(ctx, patient, doctor, left);

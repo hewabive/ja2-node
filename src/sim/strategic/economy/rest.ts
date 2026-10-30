@@ -162,7 +162,7 @@ export function naturalHealingDivisor(ctx: EconomyContext, s: CrewMember): numbe
 }
 
 export function updateSoldierLife(s: CrewMember): void {
-  s.life = i8(s.life + Math.trunc(s.fractLife / HUNDREDTHS));
+  s.life = i8(s.life + idiv(s.fractLife, HUNDREDTHS));
   s.fractLife = i16(s.fractLife % HUNDREDTHS);
   if (s.life >= s.lifeMax) {
     s.life = s.lifeMax;

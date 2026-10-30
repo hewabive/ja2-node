@@ -8,6 +8,7 @@
 // @src LOYALTY_*_THRESHOLD; Interface_Dialogue.h HOSPITAL_PATIENT_DISTANCE; strategic-fact-params.json defaults.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { idiv } from '../../../core/int.ts';
 import { NUM_PROFILES, ProfileMiscFlag, ProfileMiscFlag2, ProfileMiscFlag3 } from '../../campaign/profiles.ts';
 import { MercKind } from '../../campaign/roster.ts';
 import { CivGroupHostility } from '../../tactical/narrative/constants.ts';
@@ -254,7 +255,7 @@ function npcWounded(ctx: FactContext, profile: number, byPlayerOnly: boolean): b
 
 function npcInOkayHealth(ctx: FactContext, profile: number): boolean {
   const s = soldier(ctx, profile);
-  return s !== null && s.life > Math.trunc(s.lifeMax / 2) && s.life > OKAY_HEALTH_LIFE;
+  return s !== null && s.life > idiv(s.lifeMax, 2) && s.life > OKAY_HEALTH_LIFE;
 }
 
 function npcBleeding(ctx: FactContext, profile: number): boolean {

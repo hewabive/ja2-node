@@ -7,6 +7,7 @@
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
+import { idiv } from '../../core/int.ts';
 
 export const MAX_OBJECTS_PER_SLOT = 8;
 export const MAX_ATTACHMENTS = 4;
@@ -332,7 +333,7 @@ function applyComboMerge(table: ItemTable, target: ItemObject): void {
     at.status = 0;
   }
   target.item = m.result;
-  target.status[0] = Math.trunc(total / contributors);
+  target.status[0] = idiv(total, contributors);
 }
 
 export function objectToRecord(o: ItemObject): ObjectRecord {

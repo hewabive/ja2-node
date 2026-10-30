@@ -7,7 +7,7 @@
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, idiv } from '../../../core/int.ts';
 import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
@@ -236,7 +236,7 @@ export function startSomeMercsOnAssignment(ctx: LaptopContext): void {
     const level = p.stats.experience;
     if (main.int(DAILY_DIE) < ASSIGNMENT_CHANCE_PER_LEVEL * level) {
       p.mercStatus = MercStatus.WORKING_ELSEWHERE;
-      p.dayBecomesAvailable = 1 + main.int(AWAY_DAYS_BASE + Math.trunc(level / 2));
+      p.dayBecomesAvailable = 1 + main.int(AWAY_DAYS_BASE + idiv(level, 2));
     } else {
       p.mercStatus = MercStatus.OK;
       p.dayBecomesAvailable = 0;

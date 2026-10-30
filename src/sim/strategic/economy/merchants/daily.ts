@@ -13,7 +13,7 @@ import {
   hasDealerFlag,
   maxItemAmount,
 } from '../../../../content/strategic/merchant-content.ts';
-import { u8 } from '../../../../core/int.ts';
+import { idiv, u8 } from '../../../../core/int.ts';
 import { Fact } from '../../narrative/fact-ids.ts';
 import { fact } from '../../narrative/facts.ts';
 import { dealerDef, type MerchantContext, role } from './context.ts';
@@ -165,7 +165,7 @@ export function dailyCheckOnItemQuantities(ctx: MerchantContext): void {
       const h = header(ctx.state, d.id, item);
       if (h.qtyOnOrder === 0) {
         const maxSupply = u8(maxItemAmount(d, item));
-        if (h.total > Math.trunc(maxSupply / 2)) continue;
+        if (h.total > idiv(maxSupply, 2)) continue;
         const wasEligible = h.previouslyEligible;
         if (!itemTransactionOccurs(supply, d.id, item, DEALER_BUYING, false, markDealerEligible(ctx, d.id, item))) continue;
         const n = howManyItemsToReorder(ctx.random, maxSupply, h.total);
@@ -254,7 +254,7 @@ export function guaranteeAtLeastOneItemOfType(ctx: MerchantContext, dealer: numb
 function guaranteeMinimumAlcohol(ctx: MerchantContext, d: DealerDef): void {
   const { BEER, WINE, ALCOHOL } = ctx.content.itemIds;
   for (const item of [BEER, WINE, ALCOHOL])
-    guaranteeAtLeastXItemsOfIndex(ctx, d.id, item, u8(Math.trunc(maxItemAmount(d, item) / ALCOHOL_MINIMUM_DIVISOR)));
+    guaranteeAtLeastXItemsOfIndex(ctx, d.id, item, u8(idiv(maxItemAmount(d, item), ALCOHOL_MINIMUM_DIVISOR)));
 }
 
 export function guaranteeFuel(ctx: MerchantContext): void {

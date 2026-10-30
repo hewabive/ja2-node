@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Game_Events.cc AddAdvancedStrategicEvent and the Add*StrategicEvent variants,
 // @src ProcessPendingGameEvents, AdjustClockToEventStamp, DeleteStrategicEvent, DeleteAllStrategicEventsOfType.
 
-import { u32 } from '../../../core/int.ts';
+import { idiv, u32 } from '../../../core/int.ts';
 import { Frequency, NUM_MIN_IN_DAY, NUM_SEC_IN_DAY, NUM_SEC_IN_MIN, Warp, type WarpCode } from './constants.ts';
 import type { ClockContext, WorldClock } from './world-clock.ts';
 
@@ -44,8 +44,8 @@ export function addAdvancedStrategicEvent(
   return event;
 }
 
-const dayInSeconds = (c: WorldClock) => Math.trunc(c.seconds / NUM_SEC_IN_DAY) * NUM_SEC_IN_DAY;
-const dayInMinutes = (c: WorldClock) => Math.trunc(c.seconds / NUM_SEC_IN_DAY) * NUM_MIN_IN_DAY;
+const dayInSeconds = (c: WorldClock) => idiv(c.seconds, NUM_SEC_IN_DAY) * NUM_SEC_IN_DAY;
+const dayInMinutes = (c: WorldClock) => idiv(c.seconds, NUM_SEC_IN_DAY) * NUM_MIN_IN_DAY;
 
 export function addStrategicEvent(q: EventQueue, kind: number, minute: number, param: number): boolean {
   return addAdvancedStrategicEvent(q, Frequency.ONETIME, kind, minute * NUM_SEC_IN_MIN, param) !== null;
@@ -67,7 +67,7 @@ export function addFutureDayStrategicEvent(
   param: number,
   days: number,
 ): boolean {
-  return addStrategicEvent(q, kind, minuteOfDay + (Math.trunc(c.seconds / NUM_SEC_IN_DAY) + days) * NUM_MIN_IN_DAY, param);
+  return addStrategicEvent(q, kind, minuteOfDay + (idiv(c.seconds, NUM_SEC_IN_DAY) + days) * NUM_MIN_IN_DAY, param);
 }
 
 export function addSameDayRangedStrategicEvent(

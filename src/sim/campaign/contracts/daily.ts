@@ -7,7 +7,7 @@
 import { ItemClass } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
-import { i8, i16, i32, u8, u16, u32 } from '../../../core/int.ts';
+import { i8, i16, i32, idiv, u8, u16, u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
 import { addSameDayStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -71,11 +71,11 @@ export function soldierHasWorseEquipmentThanUsedTo(ctx: ContractContext, m: Rost
     if (def.itemClass === ItemClass.ARMOUR && def.armour && def.armour.protection > armour) armour = i8(def.armour.protection);
   }
   const scale = MORALE_RATING_BASE + m.soldier.morale;
-  if (gun !== NO_EQUIPMENT_RATING) gun = i8(Math.trunc((gun * scale) / PERCENT));
-  if (armour !== NO_EQUIPMENT_RATING) armour = i8(Math.trunc((armour * scale) / PERCENT));
+  if (gun !== NO_EQUIPMENT_RATING) gun = i8(idiv(gun * scale, PERCENT));
+  if (armour !== NO_EQUIPMENT_RATING) armour = i8(idiv(armour * scale, PERCENT));
   return (
-    (gun !== NO_EQUIPMENT_RATING && gun < Math.trunc(p.mainGunAttractiveness / 2)) ||
-    (armour !== NO_EQUIPMENT_RATING && armour < Math.trunc(p.armourAttractiveness / 2))
+    (gun !== NO_EQUIPMENT_RATING && gun < idiv(p.mainGunAttractiveness, 2)) ||
+    (armour !== NO_EQUIPMENT_RATING && armour < idiv(p.armourAttractiveness, 2))
   );
 }
 
@@ -94,7 +94,7 @@ export function checkIfMercGetsAnotherContract(ctx: ContractContext, m: RosterMe
   const c = m.contract;
   const now = worldTotalMinutes(ctx.state.clock);
   if (now <= u32(c.timeCanSignElsewhere) || c.signedAnotherContract) return;
-  const fullDays = Math.trunc(u32(c.contractEnd - now) / NUM_MIN_IN_DAY);
+  const fullDays = idiv(u32(c.contractEnd - now), NUM_MIN_IN_DAY);
   if (fullDays >= ANOTHER_CONTRACT_WINDOW_DAYS) return;
   const chance = (ANOTHER_CONTRACT_WINDOW_DAYS - fullDays) * m.soldier.stats.experience;
   if (ctx.rng.main.int(DAILY_DIE) < chance) c.signedAnotherContract = true;
@@ -162,12 +162,12 @@ export function handleUnhiredMercImprovement(ctx: ContractContext, p: ProfilePro
   const t = profileStatContext(ctx);
   if (p.mercStatus === MercStatus.WORKING_ELSEWHERE) {
     if (main.int(DAILY_DIE) < IDLE_IMPROVEMENT_CHANCE) return;
-    const chances = u16(Math.trunc(p.stats.wisdom / WORKING_CHANCES_DIVISOR));
+    const chances = u16(idiv(p.stats.wisdom, WORKING_CHANCES_DIVISOR));
     for (let stat: number = StatKind.HEALTH; stat <= StatKind.LEADERSHIP; stat++) profileStatChange(t, p, stat, chances, StatCause.SUCCESS);
   } else {
     if (i8(main.int(LAZY_LEVEL_DIE)) < p.stats.experience || i8(main.int(DAILY_DIE)) > p.stats.wisdom) return;
     const stat = trainingStat(main);
-    profileStatChange(t, p, stat, u16(Math.trunc(p.stats.wisdom / TRAINING_CHANCES_DIVISOR)), StatCause.TRAINING);
+    profileStatChange(t, p, stat, u16(idiv(p.stats.wisdom, TRAINING_CHANCES_DIVISOR)), StatCause.TRAINING);
   }
   profileUpdateStats(t, p);
 }
@@ -219,7 +219,7 @@ export function profileDailyUpdate(ctx: ContractContext, id: number): void {
   if (p.dayBecomesAvailable > 0) countDownAvailability(ctx, id, p);
   else if (aimOrMerc && ctx.rng.main.int(DAILY_DIE) < awayChance(ctx, id, p)) {
     p.mercStatus = MercStatus.WORKING_ELSEWHERE;
-    p.dayBecomesAvailable = 1 + ctx.rng.main.int(AWAY_DAYS_BASE + Math.trunc(p.stats.experience / 2));
+    p.dayBecomesAvailable = 1 + ctx.rng.main.int(AWAY_DAYS_BASE + idiv(p.stats.experience, 2));
   }
   if (p.daysOfMoraleHangover > 0) p.daysOfMoraleHangover--;
 }

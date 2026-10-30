@@ -6,6 +6,7 @@
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import { MAP_SIDE, type Sector, sectorFromId, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { idiv } from '../../../core/int.ts';
 import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
@@ -149,7 +150,7 @@ export function checkForValidArrivalSector(ctx: LaptopContext): void {
   let best: { readonly dx: number; readonly dy: number } | null = null;
   let lowest = NO_RANGE;
   for (let dy = -ARRIVAL_SEARCH_RADIUS; dy <= ARRIVAL_SEARCH_RADIUS; dy++) {
-    const leftmost = Math.trunc((origin + STRATEGIC_ROW * dy) / STRATEGIC_ROW) * STRATEGIC_ROW;
+    const leftmost = idiv(origin + STRATEGIC_ROW * dy, STRATEGIC_ROW) * STRATEGIC_ROW;
     for (let dx = -ARRIVAL_SEARCH_RADIUS; dx <= ARRIVAL_SEARCH_RADIUS; dx++) {
       const index = origin + STRATEGIC_ROW * dy + dx;
       if (index < 1 || index >= STRATEGIC_INDEX_LIMIT || index < leftmost || index >= leftmost + STRATEGIC_ROW) continue;

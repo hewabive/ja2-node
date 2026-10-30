@@ -14,7 +14,7 @@ import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import type { ShippingDestination } from '../../../content/strategic/laptop-content.ts';
 import type { MerchantContent } from '../../../content/strategic/merchant-content.ts';
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { u8, u16, u32 } from '../../../core/int.ts';
+import { idiv, u8, u16, u32 } from '../../../core/int.ts';
 import { createItem, createItems, type ItemObject } from '../../items/object.ts';
 import {
   BOBBY_RAY,
@@ -217,7 +217,7 @@ function dailyUpdateNew(ctx: LaptopContext, merchants: MerchantContent): void {
   simulateBobbyRayCustomer(ctx, merchants, false);
   for (const slot of ctx.laptop.bobbyRay.inventory) {
     const max = maxAmount(ctx, slot.item, false);
-    if (max === 0 || slot.onOrder !== 0 || slot.onHand > Math.trunc(max / 2)) continue;
+    if (max === 0 || slot.onOrder !== 0 || slot.onHand > idiv(max, 2)) continue;
     const previouslyEligible = slot.previouslyEligible;
     slot.onOrder = howManyToOrder(ctx, merchants, slot, false);
     if (slot.onOrder === 0) continue;
@@ -479,7 +479,7 @@ function theftChance(ctx: LaptopContext): number {
   const facts = ctx.state.narrative;
   if (fact(facts, Fact.PABLO_WONT_STEAL) || ctx.content.pabloWontSteal) return 0;
   if (fact(facts, Fact.PABLOS_BRIBED)) {
-    br.shipmentsSinceNoBribes = Math.trunc(br.shipmentsSinceNoBribes / 2);
+    br.shipmentsSinceNoBribes = idiv(br.shipmentsSinceNoBribes, 2);
     return 0;
   }
   br.shipmentsSinceNoBribes = u8(br.shipmentsSinceNoBribes + 1);
@@ -487,7 +487,7 @@ function theftChance(ctx: LaptopContext): number {
 }
 
 function damaged(ctx: LaptopContext, o: ItemObject): void {
-  const status = Math.trunc(((DAMAGE_BASE + ctx.rng.main.int(DAMAGE_SPREAD)) * (o.status[0] ?? 0)) / PERCENT);
+  const status = idiv((DAMAGE_BASE + ctx.rng.main.int(DAMAGE_SPREAD)) * (o.status[0] ?? 0), PERCENT);
   o.status[0] = Math.max(1, status);
 }
 

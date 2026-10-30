@@ -9,7 +9,7 @@
 // @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
 // @src (TriggerFriendWithHostileQuote).
 
-import { i8 } from '../../core/int.ts';
+import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
@@ -117,7 +117,7 @@ export function campaignScheduleClock(campaign: CampaignSim): ScheduleClock {
   const s = campaign.state;
   return {
     worldMinutes: () => worldTotalMinutes(s.clock),
-    lastEventQueryMinutes: () => Math.trunc(s.clock.lastEventQuerySeconds / SECONDS_PER_MINUTE),
+    lastEventQueryMinutes: () => idiv(s.clock.lastEventQuerySeconds, SECONDS_PER_MINUTE),
     addEvent: (minute, id) => {
       addStrategicEvent(s.queue, EventKind.PROCESS_TACTICAL_SCHEDULE, minute, id);
     },

@@ -8,6 +8,7 @@
 
 import type { Town as TownContent } from '../../../content/strategic/map-tables.ts';
 import { MAP_SIDE, type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { idiv } from '../../../core/int.ts';
 import { numHostilesInSector } from '../forces/groups.ts';
 import { isSecretFoundAt, isThisSectorASamSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -55,7 +56,7 @@ export function isTownFound(ctx: EconomyContext, town: number): boolean {
 
 function boxSectors(ctx: EconomyContext, town: number): Sector[] {
   const base = townContent(ctx, town)?.militiaMapBaseSector ?? 0;
-  return Array.from({ length: BOX_CELLS }, (_, i) => sectorFromId(base + (i % BOX_ROWS) + Math.trunc(i / BOX_ROWS) * MAP_SIDE));
+  return Array.from({ length: BOX_CELLS }, (_, i) => sectorFromId(base + (i % BOX_ROWS) + idiv(i, BOX_ROWS) * MAP_SIDE));
 }
 
 export function canRedistributeMilitiaInTown(ctx: EconomyContext, town: number): boolean {
@@ -137,7 +138,7 @@ export function distributeMilitia(ctx: EconomyContext, town: number): MilitiaMov
   if (controlled === 0) return OK;
   const totals = sumOverBox(ctx, town);
   if (totals.every((n) => n === 0)) return OK;
-  const perSector = totals.map((n) => Math.trunc(n / controlled));
+  const perSector = totals.map((n) => idiv(n, controlled));
   const leftOver = totals.map((n) => n % controlled);
   const changed: Sector[] = [];
   for (const t of sectorsOfTown(ctx, town)) {

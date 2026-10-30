@@ -9,7 +9,7 @@
 import { CreatureHabitat, type CreatureLair, lairContainsSector } from '../../../content/strategic/creature-lairs.ts';
 import type { MineDef } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sameSector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { Difficulty, SectorFlag } from '../forces/constants.ts';
 import type { RollSource } from '../forces/ports.ts';
 import { findUndergroundSector, type UndergroundSector } from '../map/sectors.ts';
@@ -208,8 +208,8 @@ function addCreatureToNode(level: UndergroundSector): void {
 }
 
 function difficultyScaledMaximum(absolute: number, difficulty: number): number {
-  if (difficulty === Difficulty.EASY) return Math.trunc(absolute / 2);
-  if (difficulty === Difficulty.MEDIUM) return Math.trunc((absolute * 4) / 5);
+  if (difficulty === Difficulty.EASY) return idiv(absolute, 2);
+  if (difficulty === Difficulty.MEDIUM) return idiv(absolute * 4, 5);
   return absolute;
 }
 
@@ -220,11 +220,11 @@ function populateInterior(ctx: CreatureContext, level: UndergroundSector, distan
     return false;
   const absolute = ABSOLUTE_MAX_POPULATION[level.creatureHabitat];
   if (absolute === undefined) return null;
-  let maxPopulation = 100 - Math.trunc((distance * 100) / creatures.habitatedDistance);
+  let maxPopulation = 100 - idiv(distance * 100, creatures.habitatedDistance);
   maxPopulation = Math.max(maxPopulation, MIN_MAX_POPULATION_PERCENT);
-  maxPopulation = Math.trunc((difficultyScaledMaximum(absolute, ctx.state.options.difficulty) * maxPopulation) / 100);
+  maxPopulation = idiv(difficultyScaledMaximum(absolute, ctx.state.options.difficulty) * maxPopulation, 100);
   maxPopulation = Math.max(maxPopulation, MIN_MAX_POPULATION);
-  const chance = 100 - Math.trunc((n * 100) / maxPopulation);
+  const chance = 100 - idiv(n * 100, maxPopulation);
   if (!n || (chance > ctx.random.int(100) && maxPopulation > n)) {
     addCreatureToNode(level);
     return true;

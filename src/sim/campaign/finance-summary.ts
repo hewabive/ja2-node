@@ -5,7 +5,7 @@
 // @src GetYesterdaysDebits, GetProjectedTotalDailyIncome. The ledger is walked from the newest record backwards and the
 // @src day arithmetic is UINT32, as in the original.
 
-import { i32, u32 } from '../../core/int.ts';
+import { i32, idiv, u32 } from '../../core/int.ts';
 import { FinanceCode, type FinanceRecord } from './finances.ts';
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -24,11 +24,11 @@ export interface FinanceSummary {
 }
 
 function dayOf(record: FinanceRecord): number {
-  return Math.trunc(u32(record.minute) / MINUTES_PER_DAY);
+  return idiv(u32(record.minute), MINUTES_PER_DAY);
 }
 
 function dayNumber(minutes: number): number {
-  return Math.trunc(u32(minutes) / MINUTES_PER_DAY);
+  return idiv(u32(minutes), MINUTES_PER_DAY);
 }
 
 function isMineDeposit(record: FinanceRecord): boolean {

@@ -7,7 +7,7 @@
 // @src HandleShadingOfLinesForContractMenu.
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
-import { u32 } from '../../../core/int.ts';
+import { idiv, u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { OKLIFE, SoldierStatusFlags } from '../../tactical/soldier.ts';
@@ -72,7 +72,7 @@ export function findRefusalReason(ctx: ContractContext, m: RosterMerc): Refusal 
   const learned = p.learnToHate;
   if (learned >= 0 && isMercOnTeamAndArrivedAndAlive(team, learned)) {
     if (p.learnToHateCount === 0) return { quote: 'LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW', subject: learned };
-    if (p.learnToHateCount <= Math.trunc(p.learnToHateTime / 2) && hatedInReach(ctx, m, learned))
+    if (p.learnToHateCount <= idiv(p.learnToHateTime, 2) && hatedInReach(ctx, m, learned))
       return { quote: 'LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW', subject: learned };
   }
   if (mercThinksDeathRateTooHigh(ctx.state.status, p)) return { quote: 'DEATH_RATE_RENEWAL' };

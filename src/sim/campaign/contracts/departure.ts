@@ -250,9 +250,7 @@ function updateProfileForDeparture(ctx: ContractContext, m: RosterMerc): void {
   if (mercThinksHisMoraleIsTooLow(p, m.soldier.morale)) p.daysOfMoraleHangover = HANGOVER_DAYS_BASE + main.int(HANGOVER_DAYS_SPREAD);
   if (!m.contract.signedAnotherContract) return;
   p.mercStatus = MercStatus.WORKING_ELSEWHERE;
-  p.dayBecomesAvailable = u32(
-    p.dayBecomesAvailable + 1 + main.int(ANOTHER_CONTRACT_DAYS_BASE + Math.trunc(m.soldier.stats.experience / 2)),
-  );
+  p.dayBecomesAvailable = u32(p.dayBecomesAvailable + 1 + main.int(ANOTHER_CONTRACT_DAYS_BASE + idiv(m.soldier.stats.experience, 2)));
 }
 
 export function strategicRemoveMerc(ctx: ContractContext, m: RosterMerc, equipment: DepartureEquipment): void {

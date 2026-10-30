@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Status.cc CalcDeathRate, ModifyPlayerReputation, MercThinksDeathRateTooHigh,
 // @src MercThinksBadReputationTooHigh, MercThinksHisMoraleIsTooLow; Strategic_Status.h REPUTATION_*.
 
-import { clamp, i8, u8, u32 } from '../../../core/int.ts';
+import { clamp, i8, idiv, u8, u32 } from '../../../core/int.ts';
 import type { StrategicStatus } from '../../strategic/ai/queen-state.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 
@@ -52,6 +52,6 @@ export function mercThinksBadReputationTooHigh(status: Pick<StrategicStatus, 'ba
 
 export function mercThinksHisMoraleIsTooLow(p: ProfileProgress, morale: number): boolean {
   if (p.reputationTolerance === DOESNT_CARE) return false;
-  const tolerance = i8(Math.trunc((MORALE_TOLERANCE_BASE - p.reputationTolerance) / MORALE_TOLERANCE_DIVISOR));
+  const tolerance = i8(idiv(MORALE_TOLERANCE_BASE - p.reputationTolerance, MORALE_TOLERANCE_DIVISOR));
   return morale < tolerance;
 }

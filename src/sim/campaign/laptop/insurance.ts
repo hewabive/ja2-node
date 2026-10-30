@@ -7,7 +7,7 @@
 // @src CalculateSoldiersInsuranceContractLength, CalcStartDayOfInsurance, HandleAcceptButton; INSURANCE_PREMIUM_RATE,
 // @src INS_CTRCT_*_BASE.
 
-import { i32, u8, u32 } from '../../../core/int.ts';
+import { i32, idiv, u8, u32 } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -49,7 +49,7 @@ function diffFromNormRatio(value: number, normal: number): number {
 
 export function contractDaysLeft(ctx: LaptopContext, m: RosterMerc): number {
   const end = m.contract.contractEnd;
-  let day = Math.trunc(end / NUM_MIN_IN_DAY) - 1;
+  let day = idiv(end, NUM_MIN_IN_DAY) - 1;
   if (end % NUM_MIN_IN_DAY) day++;
   day -= ctx.day();
   return u32(Math.min(day, m.contract.totalContractLength));
@@ -82,7 +82,7 @@ export function insurancePremium(ctx: LaptopContext, length: number, m: RosterMe
   if (left < 2 && !(m.contract.lifeInsurance !== 0 && left >= 1)) return 0;
   if (m.assignment === Assignment.ASSIGNMENT_POW) return 0;
   const s = p.stats;
-  const skill = Math.trunc((s.marksmanship + s.medical + s.mechanical + s.explosives + s.leadership) / SKILL_COUNT);
+  const skill = idiv(s.marksmanship + s.medical + s.mechanical + s.explosives + s.leadership, SKILL_COUNT);
   const survival = 100 - calcDeathRate(ctx.state.status);
   let risk = Math.fround(diffFromNormRatio(skill, SKILL_BASE) * diffFromNormRatio(p.life, FITNESS_BASE));
   risk = Math.fround(risk * diffFromNormRatio(s.experience, EXP_LEVEL_BASE));
@@ -98,7 +98,7 @@ export function isInsurable(ctx: LaptopContext, m: RosterMerc): boolean {
 
 function startDayOfInsurance(ctx: LaptopContext, m: RosterMerc): number {
   if (m.assignment === Assignment.IN_TRANSIT && !ctx.state.didGameJustStart) return ctx.day();
-  return Math.trunc(midnightOfFutureDay(ctx.now(), 1) / NUM_MIN_IN_DAY);
+  return idiv(midnightOfFutureDay(ctx.now(), 1), NUM_MIN_IN_DAY);
 }
 
 export type InsurancePurchase = { readonly bought: boolean; readonly cost: number; readonly extended: boolean };
@@ -147,8 +147,8 @@ export function dailyUpdateOfInsuredMercs(ctx: LaptopContext): void {
 
 function costPerDay(p: ProfileProgress): number {
   let cost = p.salary;
-  if (Math.trunc(p.weeklySalary / WEEK_DAYS) < cost) cost = Math.trunc(p.weeklySalary / WEEK_DAYS);
-  if (Math.trunc(p.biWeeklySalary / TWO_WEEK_DAYS) < cost) cost = Math.trunc(p.biWeeklySalary / TWO_WEEK_DAYS);
+  if (idiv(p.weeklySalary, WEEK_DAYS) < cost) cost = idiv(p.weeklySalary, WEEK_DAYS);
+  if (idiv(p.biWeeklySalary, TWO_WEEK_DAYS) < cost) cost = idiv(p.biWeeklySalary, TWO_WEEK_DAYS);
   return cost;
 }
 

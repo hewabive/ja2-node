@@ -9,7 +9,7 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';
-import { i8, u8 } from '../../../../core/int.ts';
+import { i8, idiv, u8 } from '../../../../core/int.ts';
 import { createItems, type ItemObject, MAX_ATTACHMENTS, NO_PROFILE } from '../../../items/object.ts';
 import { dealerDef, type MerchantContext } from './context.ts';
 import {
@@ -181,14 +181,14 @@ export function addAmmoToArmsDealerInventory(ctx: MerchantContext, dealer: numbe
   const capacity = def.magazine?.capacity ?? 0;
   if (capacity === 0) return;
   if (shots >= capacity) {
-    addItemToArmsDealerInventory(ctx, dealer, item, defaultItemInfo(), Math.trunc(shots / capacity));
+    addItemToArmsDealerInventory(ctx, dealer, item, defaultItemInfo(), idiv(shots, capacity));
     shots %= capacity;
   }
   if (shots === 0) return;
   const h = header(ctx.state, dealer, item);
   h.strayAmmo = u8(h.strayAmmo + shots);
   if (h.strayAmmo >= capacity) {
-    addItemToArmsDealerInventory(ctx, dealer, item, defaultItemInfo(), Math.trunc(h.strayAmmo / capacity));
+    addItemToArmsDealerInventory(ctx, dealer, item, defaultItemInfo(), idiv(h.strayAmmo, capacity));
     h.strayAmmo %= capacity;
   }
 }

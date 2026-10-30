@@ -7,6 +7,7 @@
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { Direction } from '../../content/world/grid.ts';
+import { idiv } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import { Assignment, InsertionCode } from '../strategic/forces/constants.ts';
 import {
@@ -495,7 +496,7 @@ export function allMercsHaveWalkedOffSector(flow: SectorFlow): void {
   if (quick) {
     const seconds = flow.campaign.state.clock.seconds;
     const minutes = jump.target.z ? UNDERGROUND_WARP_MINUTES : QUICK_TRAVERSAL_MINUTES;
-    const warp = (Math.trunc(seconds / SECONDS_PER_MINUTE) + minutes) * SECONDS_PER_MINUTE - seconds;
+    const warp = (idiv(seconds, SECONDS_PER_MINUTE) + minutes) * SECONDS_PER_MINUTE - seconds;
     warpGameTime(clock, warp, Warp.TARGET_TIME_FIRST);
     doneFadeOutAdjacentSector(flow, jump);
   } else if (flow.campaign.tactical) flow.checkAndHandleUnloadingOfCurrentWorld();

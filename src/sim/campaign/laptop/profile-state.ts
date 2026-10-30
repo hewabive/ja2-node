@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Profile.cc CalcCompetence, CalcMedicalDeposit; Tactical/Merc_Hiring.cc IsMercHireable,
 // @src IsMercDead.
 
-import { u16, u32 } from '../../../core/int.ts';
+import { idiv, u16, u32 } from '../../../core/int.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 
 const FIFTH_ROOTS: readonly number[] = [
@@ -44,9 +44,7 @@ function fifthRoot(level: number): number {
 
 export function calcCompetence(p: ProfileProgress): number {
   const s = p.stats;
-  const stats = Math.trunc(
-    (2 * s.lifeMax + s.strength + s.agility + s.dexterity + Math.trunc((s.leadership + s.wisdom) / 2)) / STATS_DIVISOR,
-  );
+  const stats = idiv(2 * s.lifeMax + s.strength + s.agility + s.dexterity + idiv(s.leadership + s.wisdom, 2), STATS_DIVISOR);
   const skills = u32(
     Math.trunc(
       MARKSMANSHIP_WEIGHT * cubeTerm(s.marksmanship) +
@@ -55,8 +53,7 @@ export function calcCompetence(p: ProfileProgress): number {
         cubeTerm(s.explosives),
     ),
   );
-  const actionPoints =
-    AP_BASE + Math.trunc((10 * s.experience + 3 * s.agility + 2 * s.lifeMax + 2 * s.dexterity + AP_ROUNDING) / AP_DIVISOR);
+  const actionPoints = AP_BASE + idiv(10 * s.experience + 3 * s.agility + 2 * s.lifeMax + 2 * s.dexterity + AP_ROUNDING, AP_DIVISOR);
   const traits = (p.skillTrait !== 0 ? 1 : 0) + (p.skillTrait2 !== 0 ? 1 : 0);
   const competence =
     (fifthRoot(s.experience) * stats * skills * u32(actionPoints - AP_OFFSET) * (1 + TRAIT_BONUS * traits)) / COMPETENCE_DIVISOR;
@@ -64,7 +61,7 @@ export function calcCompetence(p: ProfileProgress): number {
 }
 
 export function calcMedicalDeposit(p: ProfileProgress): number {
-  return u16(Math.trunc((DEPOSIT_PER_COMPETENCE * calcCompetence(p) + DEPOSIT_ROUNDING) / DEPOSIT_STEP) * DEPOSIT_STEP);
+  return u16(idiv(DEPOSIT_PER_COMPETENCE * calcCompetence(p) + DEPOSIT_ROUNDING, DEPOSIT_STEP) * DEPOSIT_STEP);
 }
 
 export function isMercHireable(p: Pick<ProfileProgress, 'mercStatus' | 'dayBecomesAvailable'>): boolean {

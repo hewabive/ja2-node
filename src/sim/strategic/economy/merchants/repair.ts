@@ -10,7 +10,7 @@
 
 import { ItemFlags, NOTHING } from '../../../../content/items/items.ts';
 import { type DealerDef, DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';
-import { i8, u32 } from '../../../../core/int.ts';
+import { i8, idiv, u32 } from '../../../../core/int.ts';
 import { type ItemObject, MAX_ATTACHMENTS } from '../../../items/object.ts';
 import { dealerDef, type MerchantContext, role, type ShopHours } from './context.ts';
 import { addItemToArmsDealerInventory, specialItemInfoFromObject } from './inventory.ts';
@@ -127,7 +127,7 @@ export function calculateMinutesClosedBetween(ctx: MerchantContext, dealer: numb
   const hours = shopHours(ctx, dealer);
   if (!hours) return 0;
   const closedPerNight = MINUTES_IN_DAY - (hours.close - hours.open);
-  const daysDifference = Math.trunc(endTime / MINUTES_IN_DAY) - Math.trunc(startTime / MINUTES_IN_DAY);
+  const daysDifference = idiv(endTime, MINUTES_IN_DAY) - idiv(startTime, MINUTES_IN_DAY);
   let closed = daysDifference >= 2 ? (daysDifference - 1) * closedPerNight : 0;
   const s = startTime % MINUTES_IN_DAY;
   let e = endTime % MINUTES_IN_DAY;
@@ -218,7 +218,7 @@ function hoursSinceOldestItemRepaired(ctx: MerchantContext, dealer: number): num
     const done = special(ctx, dealer, r).repairDoneTime;
     if (done > now) continue;
     found = true;
-    const working = Math.trunc(u32(now - done - calculateMinutesClosedBetween(ctx, dealer, done, now)) / MINUTES_IN_HOUR);
+    const working = idiv(u32(now - done - calculateMinutesClosedBetween(ctx, dealer, done, now)), MINUTES_IN_HOUR);
     if (working > hours) hours = working;
   }
   return found ? hours : null;

@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Game_Clock.cc UpdateClock, AdvanceClock, WarpGameTime, SetClockResolutionToCompressMode,
 // @src StartTimeCompression, StopTimeCompression, PauseGame, LockPauseState, InterruptTime, UpdateGameClockGlobals.
 
-import { u32 } from '../../../core/int.ts';
+import { idiv, u32 } from '../../../core/int.ts';
 import {
   COMPRESS_SPEEDS,
   CompressMode,
@@ -109,19 +109,19 @@ export function createWorldClock(seconds = STARTING_TIME): WorldClock {
 }
 
 export function worldDay(c: WorldClock): number {
-  return Math.trunc(c.seconds / NUM_SEC_IN_DAY);
+  return idiv(c.seconds, NUM_SEC_IN_DAY);
 }
 
 export function worldHour(c: WorldClock): number {
-  return Math.trunc((c.seconds - worldDay(c) * NUM_SEC_IN_DAY) / NUM_SEC_IN_HOUR);
+  return idiv(c.seconds - worldDay(c) * NUM_SEC_IN_DAY, NUM_SEC_IN_HOUR);
 }
 
 export function worldMinute(c: WorldClock): number {
-  return Math.trunc((c.seconds - worldDay(c) * NUM_SEC_IN_DAY - worldHour(c) * NUM_SEC_IN_HOUR) / NUM_SEC_IN_MIN);
+  return idiv(c.seconds - worldDay(c) * NUM_SEC_IN_DAY - worldHour(c) * NUM_SEC_IN_HOUR, NUM_SEC_IN_MIN);
 }
 
 export function worldTotalMinutes(c: WorldClock): number {
-  return Math.trunc(c.seconds / NUM_SEC_IN_MIN);
+  return idiv(c.seconds, NUM_SEC_IN_MIN);
 }
 
 export function worldMinutesInDay(c: WorldClock): number {
@@ -145,7 +145,7 @@ export function setClockResolutionToCompressMode(ctx: ClockContext, mode: number
   const c = ctx.clock;
   c.secondsPerRealSecond = COMPRESS_SPEEDS[mode] ?? 0;
   c.resolution =
-    c.secondsPerRealSecond === 0 ? 0 : Math.min(MAX_CLOCK_RESOLUTION, Math.max(1, Math.trunc(c.secondsPerRealSecond / SECONDS_PER_SLICE)));
+    c.secondsPerRealSecond === 0 ? 0 : Math.min(MAX_CLOCK_RESOLUTION, Math.max(1, idiv(c.secondsPerRealSecond, SECONDS_PER_SLICE)));
   c.compressionOn = mode > CompressMode.X1;
   if (c.compressionOn) c.stopReason = null;
   if (mode > CompressMode.X1) ctx.compressionModeSet(mode);
@@ -295,8 +295,8 @@ function advanceOneSecond(ctx: ClockContext, realMs: number): void {
 }
 
 function rescaleToResolution(d: ClockDriver, resolution: number): void {
-  d.timesThisSecond = Math.trunc((d.timesThisSecond * resolution) / d.lastResolution);
-  d.lastProcessed = Math.trunc((d.lastProcessed * resolution) / d.lastResolution);
+  d.timesThisSecond = idiv(d.timesThisSecond * resolution, d.lastResolution);
+  d.lastProcessed = idiv(d.lastProcessed * resolution, d.lastResolution);
   d.lastResolution = resolution;
 }
 
@@ -304,11 +304,11 @@ function advanceDueSlices(ctx: ClockContext, realMs: number, elapsedMs: number):
   const c = ctx.clock;
   const d = c.driver;
   if (c.resolution !== d.lastResolution) rescaleToResolution(d, c.resolution);
-  const microsPerSlice = Math.trunc(MICROS_PER_SECOND / c.resolution);
-  const nextSliceDueMs = Math.trunc((microsPerSlice * (d.timesThisSecond + 1)) / REAL_MS_PER_SECOND);
+  const microsPerSlice = idiv(MICROS_PER_SECOND, c.resolution);
+  const nextSliceDueMs = idiv(microsPerSlice * (d.timesThisSecond + 1), REAL_MS_PER_SECOND);
   if (elapsedMs < nextSliceDueMs) return;
-  d.timesThisSecond = Math.trunc((elapsedMs * REAL_MS_PER_SECOND) / microsPerSlice);
-  const secondsDue = Math.max(Math.trunc((c.secondsPerRealSecond * d.timesThisSecond) / c.resolution), d.lastProcessed);
+  d.timesThisSecond = idiv(elapsedMs * REAL_MS_PER_SECOND, microsPerSlice);
+  const secondsDue = Math.max(idiv(c.secondsPerRealSecond * d.timesThisSecond, c.resolution), d.lastProcessed);
   warpGameTime(ctx, secondsDue - d.lastProcessed, Warp.NORMAL);
   if (secondsDue < c.secondsPerRealSecond) {
     d.lastProcessed = secondsDue;

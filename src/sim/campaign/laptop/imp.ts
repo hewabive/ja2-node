@@ -15,7 +15,7 @@
 import { type MercProfile, zeroProfileNpcFields } from '../../../content/formats/prof.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import type { ImpCondition, ImpItemSet, QuizEffect } from '../../../content/strategic/laptop-content.ts';
-import { i8, u8 } from '../../../core/int.ts';
+import { i8, idiv, u8 } from '../../../core/int.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { addFutureDayStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -264,7 +264,7 @@ function removeSkill(list: number[], skill: number): void {
 function validateSkillsList(list: number[], p: ProfileProgress): void {
   const s = p.stats;
   if (s.mechanical === 0) removeSkill(list, SkillTrait.ELECTRONICS);
-  const lockpicking = Math.trunc((Math.trunc((s.mechanical * s.wisdom) / PERCENT) * s.dexterity) / PERCENT);
+  const lockpicking = idiv(idiv(s.mechanical * s.wisdom, PERCENT) * s.dexterity, PERCENT);
   if (lockpicking + (SKILL_TRAIT_BONUS[SkillTrait.LOCKPICKING] ?? 0) < LOCKPICKING_THRESHOLD) removeSkill(list, SkillTrait.LOCKPICKING);
   if (s.marksmanship === 0) {
     removeSkill(list, SkillTrait.AUTO_WEAPS);

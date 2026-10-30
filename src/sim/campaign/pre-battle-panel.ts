@@ -8,6 +8,7 @@
 // @src (A.I.M. mercs and Slay; the contract remainder capped at its length in transit).
 
 import { type Sector, sectorFromId, sectorFromStrategicIndex, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { idiv } from '../../core/int.ts';
 import type { PreBattlePanel, PreBattlePanelInvolved, PreBattlePanelUninvolved } from '../events.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { getGroup, numEnemiesInSector } from '../strategic/forces/groups.ts';
@@ -31,7 +32,7 @@ function involvedRow(m: RosterMerc): PreBattlePanelInvolved {
     name: s.name,
     assignment: m.assignment,
     condition: soldierCondition(s),
-    hp: s.lifeMax > 0 ? Math.trunc((s.life * PERCENT) / s.lifeMax) : 0,
+    hp: s.lifeMax > 0 ? idiv(s.life * PERCENT, s.lifeMax) : 0,
     bp: s.breath,
   };
 }

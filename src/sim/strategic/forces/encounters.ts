@@ -344,7 +344,7 @@ export function testForBloodcatAmbush(ctx: StrategicContext, g: Group): boolean 
   } else if (info.bloodCats === -1) {
     if (enc.autoAmbush || ctx.preRandom.chance(chance)) {
       const byDifficulty = ctx.random.int(BLOODCAT_VARIANCE) + difficulty * 2 + BLOODCAT_BASE;
-      const byProgress = Math.max(Math.trunc(ctx.ai.progressPercentage() / (BLOODCAT_PROGRESS_BASE - difficulty)), BLOODCAT_MIN);
+      const byProgress = Math.max(idiv(ctx.ai.progressPercentage(), BLOODCAT_PROGRESS_BASE - difficulty), BLOODCAT_MIN);
       const byMercs = i8(playerMercsInSector(ctx, s) * BLOODCATS_PER_MERC);
       let cats = i8(Math.min(byDifficulty, byProgress));
       if (difficulty !== Difficulty.HARD) {

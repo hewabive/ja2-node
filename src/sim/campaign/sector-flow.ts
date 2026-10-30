@@ -28,7 +28,7 @@ import {
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { u16 } from '../../core/int.ts';
+import { idiv, u16 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { LoadScreenView, SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
@@ -311,7 +311,7 @@ export class SectorFlow {
   }
 
   nowMinutes(): number {
-    return Math.trunc(this.campaign.state.clock.seconds / SECONDS_PER_MINUTE);
+    return idiv(this.campaign.state.clock.seconds, SECONDS_PER_MINUTE);
   }
 
   mapsNeededSoon(target?: unknown): string[] {
@@ -816,7 +816,7 @@ export class SectorFlow {
     return {
       worldSector: world,
       mercSector: m?.sector ?? world,
-      startSector: { x: (start % 16) + 1, y: Math.trunc(start / 16) + 1, z: 0 },
+      startSector: { x: (start % 16) + 1, y: idiv(start, 16) + 1, z: 0 },
       usingEdgepoints: this.usingEdgepointsForEntry,
       assignment: m?.assignment ?? 0,
       asleep: m?.asleep ?? false,
@@ -1195,7 +1195,7 @@ export class SectorFlow {
     const s = this.campaign.state;
     if (!sim || !world) return false;
     const start = this.ctx.content.policy.startSector;
-    if (s.didGameJustStart && world.z === 0 && world.x === (start % 16) + 1 && world.y === Math.trunc(start / 16) + 1) return false;
+    if (s.didGameJustStart && world.z === 0 && world.x === (start % 16) + 1 && world.y === idiv(start, 16) + 1) return false;
     if (this.#mercsStillHere()) return false;
     if (this.#bringUpAutoresolveToFinishBattle()) return false;
     this.#endTacticalBattleForEnemy();
@@ -1267,9 +1267,9 @@ export class SectorFlow {
         m.betweenSectors &&
         world &&
         (m.prevSectorId % 16) + 1 === world.x &&
-        Math.trunc(m.prevSectorId / 16) + 1 === world.y &&
+        idiv(m.prevSectorId, 16) + 1 === world.y &&
         m.sector.z === world.z;
-      if (s.placed || leftThisSector) total += Math.trunc((s.life * (s.breathMax + 100)) / 200);
+      if (s.placed || leftThisSector) total += idiv(s.life * (s.breathMax + 100), 200);
     }
     return total;
   }
@@ -1279,7 +1279,7 @@ export class SectorFlow {
     let total = 0;
     for (const s of t?.soldiers ?? []) {
       if (!s?.placed || s.team === Team.OUR || s.neutral) continue;
-      total += Math.trunc((s.life * (s.breathMax + 100)) / 200);
+      total += idiv(s.life * (s.breathMax + 100), 200);
     }
     return total;
   }

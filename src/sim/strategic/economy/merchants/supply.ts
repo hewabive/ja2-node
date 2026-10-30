@@ -7,7 +7,7 @@
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../../../content/items/items.ts';
 import type { MerchantContent, MerchantTables } from '../../../../content/strategic/merchant-content.ts';
-import { clamp, u8 } from '../../../../core/int.ts';
+import { clamp, idiv, u8 } from '../../../../core/int.ts';
 import type { RollSource } from '../../forces/ports.ts';
 
 export const BOBBY_RAY = -1;
@@ -160,7 +160,7 @@ export function compareItemsForSorting(
 
 function coolnessWindow(ctx: SupplyContext, dealer: number): { lo: number; hi: number } {
   const ids = ctx.content.tables.dealerIds;
-  let lo = u8(Math.trunc(ctx.highestProgress / PROGRESS_PER_COOLNESS));
+  let lo = u8(idiv(ctx.highestProgress, PROGRESS_PER_COOLNESS));
   let hi = u8(lo + 1);
   if (dealer === ids.TONY) {
     lo += TONY_COOLNESS_LEAD;
@@ -209,8 +209,8 @@ export function chanceOfItemTransaction(ctx: SupplyContext, dealer: number, item
   const coolness = ctx.items.byIndex.get(item)?.coolness ?? 0;
   let chance = baseChance(currentSuitabilityForItem(ctx, dealer, item), dealerSelling, dealer === BOBBY_RAY);
   if (chance > 0 && chance < CERTAIN) {
-    if (dealerSelling) chance = Math.trunc(u8(chance + COOLNESS_SELLING_BONUS * coolness) / 2);
-    if (used) chance = Math.trunc(chance / 2);
+    if (dealerSelling) chance = idiv(u8(chance + COOLNESS_SELLING_BONUS * coolness), 2);
+    if (used) chance = idiv(chance, 2);
   }
   return chance;
 }
@@ -252,7 +252,7 @@ export function howManyItemsAreSold(ctx: SupplyContext, dealer: number, item: nu
 export function howManyItemsToReorder(random: RollSource, wanted: number, stillHave: number): number {
   let n = u8(wanted - stillHave);
   const choice = random.int(REORDER_CHOICES);
-  if (choice === REORDER_MORE) n = u8(n + Math.trunc(n / 2));
-  else if (choice === REORDER_LESS) n = u8(n - Math.trunc(n / 2));
+  if (choice === REORDER_MORE) n = u8(n + idiv(n, 2));
+  else if (choice === REORDER_LESS) n = u8(n - idiv(n, 2));
   return n;
 }

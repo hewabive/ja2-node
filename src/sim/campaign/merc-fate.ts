@@ -5,7 +5,7 @@
 // @src EnemyCapturesPlayerSoldier (the quests through Strategic/Quests.cc StartQuest, InternalStartQuest, InternalEndQuest).
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
-import { u8 } from '../../core/int.ts';
+import { idiv, u8 } from '../../core/int.ts';
 import { emptyObject } from '../items/object.ts';
 import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../strategic/economy/assignment-done.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
@@ -141,7 +141,7 @@ export interface CaptureRandom {
 }
 
 function captiveLife(rng: CaptureRandom, lifeMax: number): number {
-  const half = Math.trunc(lifeMax / 2);
+  const half = idiv(lifeMax, 2);
   if (half <= CAPTIVE_LIFE_FLOOR) return CAPTIVE_LIFE_FLOOR;
   if (half >= CAPTIVE_LIFE_VARIANCE_FROM) return half + CAPTIVE_LIFE_SPREAD - rng.int(2 * CAPTIVE_LIFE_SPREAD + 1);
   return half;

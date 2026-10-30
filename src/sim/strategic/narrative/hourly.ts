@@ -4,7 +4,7 @@
 // @src HourlyProgressUpdate (the milestone effects);
 // @src Strategic/StrategicMap.cc HandleSlayDailyEvent.
 
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { ProgressMilestones } from '../ai/difficulty.ts';
 import type { SectorPosition } from '../state.ts';
@@ -34,7 +34,7 @@ export function hourlyQuestUpdate(n: NarrativeState, hour: number): void {
     if (n.boxing.resting) {
       n.boxing.resting = false;
       n.boxing.rests = u8(n.boxing.rests + 1);
-    } else if (Math.trunc(n.boxing.matchesWon / MATCHES_PER_REST) > n.boxing.rests) n.boxing.resting = true;
+    } else if (idiv(n.boxing.matchesWon, MATCHES_PER_REST) > n.boxing.rests) n.boxing.resting = true;
   } else if (hour === CLUB_CLOSES) setFactFalse(n, Fact.CLUB_OPEN);
   if (hour === MUSEUM_OPENS) setFactTrue(n, Fact.MUSEUM_OPEN);
   else if (hour === MUSEUM_CLOSES) setFactFalse(n, Fact.MUSEUM_OPEN);
@@ -79,5 +79,5 @@ export function hourlyCheckIfSlayAloneSoHeCanLeave(ctx: SlayContext): void {
 export function handleSlayDailyEvent(ctx: SlayContext, day: number, inTransit: number, pow: number): void {
   const slay = ctx.slay();
   if (!slay || slay.life === 0 || slay.assignment === inTransit || slay.assignment === pow) return;
-  if (Math.trunc(slay.contractEnd / MINUTES_PER_DAY) <= day) ctx.leaves();
+  if (idiv(slay.contractEnd, MINUTES_PER_DAY) <= day) ctx.leaves();
 }

@@ -12,6 +12,7 @@ import type { DetailedPlacement } from '../../content/formats/placement.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { idiv } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import { addCorpseStructure, type Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
@@ -377,7 +378,7 @@ export function loadPreservedCivilians(t: TacticalState, preserved: PreservedSol
       if (node.detail && node.detail.profile !== NO_PROFILE) continue;
       const healed =
         record.stats.life < record.stats.lifeMax
-          ? Math.min(record.stats.life + Math.trunc(minutesAway / CIVILIAN_HEAL_MINUTES_PER_POINT), record.stats.lifeMax)
+          ? Math.min(record.stats.life + idiv(minutesAway, CIVILIAN_HEAL_MINUTES_PER_POINT), record.stats.lifeMax)
           : record.stats.life;
       applyPreservedRecord(node, { ...record, stats: { ...record.stats, life: healed } });
       if (node.team === Team.CIV) break;

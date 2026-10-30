@@ -129,7 +129,7 @@ export function currentPlayerProgressPercentage(ctx: StrategicContext, policy: P
   const portions = progressPortions(policy);
   const income = u32(mines.predictIncomeFromPlayerMines());
   const possible = u32(mines.maxPlayerIncomeFromMines());
-  let progress = possible > 0 ? u8(Math.trunc((income * portions.income) / possible)) : 0;
+  let progress = possible > 0 ? u8(idiv(income * portions.income, possible)) : 0;
   const killsPerPoint = policy.killsPerPoint[ctx.state.options.difficulty - 1] ?? DEFAULT_KILLS_PER_POINT;
   const kills = killsPerPoint > 0 ? Math.min(u16(idiv(ctx.state.status.playerKills, killsPerPoint)), portions.kills) : portions.kills;
   progress = u8(progress + kills);

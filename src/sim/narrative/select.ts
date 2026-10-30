@@ -117,7 +117,7 @@ export function approachedForFirstTime(p: ProfileProgress, approach: number): vo
   const mods = p.approachMod[approach - 1] ?? [];
   for (let k = 0; k < NUM_REAL_APPROACHES; k++) {
     const scaled = u32((p.approachVal[k] ?? 0) * (mods[k] ?? 0));
-    p.approachVal[k] = Math.min(MAX_APPROACH_VALUE, Math.trunc(scaled / PERCENT));
+    p.approachVal[k] = Math.min(MAX_APPROACH_VALUE, idiv(scaled, PERCENT));
   }
 }
 

@@ -5,7 +5,7 @@
 // @src ContractIsExpiring, ContractIsGoingToExpireSoon; Strategic/MapScreen.cc (contract column and info panel);
 // @src Laptop/Personnel.cc (contract time left).
 
-import { i32, u32 } from '../../../core/int.ts';
+import { i32, idiv, u32 } from '../../../core/int.ts';
 import { NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';
 
 export const MERC_ARRIVE_TIME_SLOTS = [7 * 60 + 30, 13 * 60 + 30, 19 * 60 + 30] as const;
@@ -25,8 +25,8 @@ export interface ClockReading {
 }
 
 export function clockReading(totalMinutes: number): ClockReading {
-  const day = Math.trunc(totalMinutes / NUM_MIN_IN_DAY);
-  return { totalMinutes, day, hour: Math.trunc((totalMinutes - day * NUM_MIN_IN_DAY) / NUM_MIN_IN_HOUR) };
+  const day = idiv(totalMinutes, NUM_MIN_IN_DAY);
+  return { totalMinutes, day, hour: idiv(totalMinutes - day * NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR) };
 }
 
 export function midnightOfFutureDay(now: number, days: number): number {
@@ -45,7 +45,7 @@ export function mercArrivalTimeOfDay(now: number): number {
 
 export function hourWhenContractDone(timeWillArrive: number): number {
   const t = u32(timeWillArrive);
-  return Math.trunc((t - Math.trunc(t / NUM_MIN_IN_DAY) * NUM_MIN_IN_DAY) / NUM_MIN_IN_HOUR);
+  return idiv(t - idiv(t, NUM_MIN_IN_DAY) * NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR);
 }
 
 export function contractEndAtHire(now: number, length: number, timeWillArrive: number, gameJustStarted: boolean): number {
@@ -63,7 +63,7 @@ export interface ContractTimes {
 }
 
 function endsOnOrBefore(c: ContractTimes, now: ClockReading): boolean {
-  return Math.trunc(c.contractEnd / NUM_MIN_IN_DAY) <= now.day;
+  return idiv(c.contractEnd, NUM_MIN_IN_DAY) <= now.day;
 }
 
 export function contractIsExpiring(c: ContractTimes, now: ClockReading): boolean {
@@ -82,12 +82,12 @@ export function remainingContractMinutes(contractEnd: number, totalContractLengt
 export type TeamListContract = { readonly days: number } | { readonly hours: number; readonly flashing: boolean };
 
 export function teamListContract(remaining: number): TeamListContract {
-  if (remaining >= LONG_CONTRACT_DAYS * NUM_MIN_IN_DAY) return { days: Math.trunc(remaining / NUM_MIN_IN_DAY) };
-  const hours = remaining > SHORT_REMAINDER_MINUTES ? Math.trunc((remaining + NUM_MIN_IN_HOUR - 1) / NUM_MIN_IN_HOUR) : 0;
+  if (remaining >= LONG_CONTRACT_DAYS * NUM_MIN_IN_DAY) return { days: idiv(remaining, NUM_MIN_IN_DAY) };
+  const hours = remaining > SHORT_REMAINDER_MINUTES ? idiv(remaining + NUM_MIN_IN_HOUR - 1, NUM_MIN_IN_HOUR) : 0;
   return { hours, flashing: remaining <= FLASH_REMAINDER_MINUTES };
 }
 
 export function personnelTimeLeft(remaining: number): { readonly days: number; readonly hours: number } {
   const left = Math.max(0, remaining);
-  return { days: Math.trunc(left / NUM_MIN_IN_DAY), hours: Math.trunc((left % NUM_MIN_IN_DAY) / NUM_MIN_IN_HOUR) };
+  return { days: idiv(left, NUM_MIN_IN_DAY), hours: idiv(left % NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR) };
 }

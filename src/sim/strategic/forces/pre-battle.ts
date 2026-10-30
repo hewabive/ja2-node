@@ -7,7 +7,7 @@
 // @src Tactical/Soldier_Control.cc ControllingRobot.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
-import { u8 } from '../../../core/int.ts';
+import { idiv, u8 } from '../../../core/int.ts';
 import { wearsHeadGear } from '../../tactical/inventory.ts';
 import { numMobileEnemiesInSector } from '../ai/counts.ts';
 import type { CrewMember, EconomyContext } from '../economy/ports.ts';
@@ -124,7 +124,7 @@ function noteFirstInvolvedGroup(ctx: EconomyContext, battle: Sector): void {
 function randomAmbushChance(ctx: EconomyContext, s: Sector, progress: number): number {
   const difficulty = ctx.state.options.difficulty;
   let chance = u8(
-    AMBUSH_BASE_CHANCE - BEST_EXP_LEVEL + AMBUSH_CHANCE_PER_DIFFICULTY * difficulty + Math.trunc(progress / AMBUSH_PROGRESS_DIVISOR),
+    AMBUSH_BASE_CHANCE - BEST_EXP_LEVEL + AMBUSH_CHANCE_PER_DIFFICULTY * difficulty + idiv(progress, AMBUSH_PROGRESS_DIVISOR),
   );
   if (sectorInfo(ctx.state.map, s).flags & SectorFlag.ENEMY_AMBUSH_LOCATION) chance += AMBUSH_LOCATION_BONUS;
   if (ctx.state.encounter.cantRetreatInPBI) chance += CANT_RETREAT_AMBUSH_BONUS;

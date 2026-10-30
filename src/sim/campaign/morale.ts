@@ -4,7 +4,7 @@
 // @src HandleMoraleEvent (the strategic events and the reputation change); Strategic/Strategic_Status.h REPUTATION_*.
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
-import { clamp, i8, u8 } from '../../core/int.ts';
+import { clamp, i8, idiv, u8 } from '../../core/int.ts';
 import type { StrategicStatus } from '../strategic/ai/queen-state.ts';
 import { Assignment, CONSCIOUSNESS, MoraleEvent as EconomyMoraleEvent } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
@@ -200,8 +200,7 @@ function moraleCounts(m: RosterMerc): boolean {
 export function refreshMercMorale(ctx: MoraleContext, m: RosterMerc): void {
   if (m.asleep) return;
   const s = m.soldier;
-  const total =
-    DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + Math.trunc(ctx.progress / PROGRESS_MORALE_DIVISOR);
+  const total = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + idiv(ctx.progress, PROGRESS_MORALE_DIVISOR);
   s.morale = clamp(total, 0, MAX_MORALE);
 }
 

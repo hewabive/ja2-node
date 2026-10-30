@@ -13,7 +13,7 @@
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
-import { u8 } from '../../core/int.ts';
+import { idiv, u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
@@ -765,7 +765,7 @@ export class BattleFlow implements FateContext {
       type: 'arSummary',
       sector: sectorShortString(sector),
       status: battleStatusName(result.status),
-      battleSeconds: Math.trunc(ar.elapsedMs / 1000),
+      battleSeconds: idiv(ar.elapsedMs, 1000),
       worldSecondsWarped: result.warpSeconds,
       mercs: { died: result.mercsDied.map((x) => x.id), captured, wounded },
       militia: { died: result.militiaDied.length, promoted: result.promotions.total },
