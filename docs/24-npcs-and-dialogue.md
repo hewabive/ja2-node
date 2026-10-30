@@ -182,7 +182,7 @@ Inferred from reading the source:
 - A native save's soldiers outside the loaded sector hold their ids; the import does not create them, so only
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
 
-Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Own-merc bark", "Relationship quotes", "NPC
-draws first and minor offenses", "Talk walk-up and teleport spots", "Team changes", "Close enough after a failed
-scripted path". Other deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile
-ids", "Releasing an escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Relationship quotes", "NPC draws first and minor
+offenses", "Talk walk-up and teleport spots", "Team changes", "Close enough after a failed scripted path". Other
+deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an
+escort", "Key-advance speech".

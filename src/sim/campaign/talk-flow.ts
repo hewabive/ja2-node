@@ -16,6 +16,7 @@ import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../co
 import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
 import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
+import { NO_QUOTE_SPEAKERS, type QuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';
@@ -133,6 +134,7 @@ const ATTITUDE_NORMAL = 0;
 const PLAYER_CHARACTER_MIN_PROFILE = 51;
 const PLAYER_CHARACTER_MAX_PROFILE = 56;
 const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
+const BarkRoll = { PASSING_DISLIKE: 1, SOCIAL_TRAIT: 2 } as const;
 const MercQuote = { AIM_SEEN_MIKE: 55, SPOTTED_JOEY: 63 } as const;
 const QUOTE_SAID_EXT_MIKE = 0x0010;
 const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'give', 'unescort', 'skipLine']);
@@ -193,6 +195,7 @@ export interface NarrativeSetup {
   readonly items: ItemTable;
   readonly profiles: readonly MercProfile[];
   readonly scenes?: NarrativeScenes;
+  readonly quoteSpeakers?: QuoteSpeakers;
   readonly facts?: (campaign: CampaignSim) => FactSource;
   readonly quests?: (campaign: CampaignSim) => QuestPort;
   readonly actions?: (campaign: CampaignSim, catalog: NpcActionPort) => NpcActionPort;
@@ -288,6 +291,10 @@ export class TalkFlow {
 
   get scenes(): NarrativeScenes {
     return this.#setup.scenes ?? NO_NARRATIVE_SCENES;
+  }
+
+  get #quoteSpeakers(): QuoteSpeakers {
+    return this.#setup.quoteSpeakers ?? NO_QUOTE_SPEAKERS;
   }
 
   #profile(id: number): ProfileProgress | null {
@@ -805,11 +812,17 @@ export class TalkFlow {
     if (target.profile === NarrativeProfile.DIMITRI) return refuse('refusesToTalk');
     const p = this.#profile(target.profile);
     const roll = this.talk.fx.int((p?.attitude ?? ATTITUDE_NORMAL) !== ATTITUDE_NORMAL ? 3 : 2);
-    const playerCharacter = target.profile >= PLAYER_CHARACTER_MIN_PROFILE && target.profile <= PLAYER_CHARACTER_MAX_PROFILE;
-    let quote: number = roll === 2 && !playerCharacter ? OwnMercBark.SOCIAL_TRAIT : OwnMercBark.NEGATIVE_COMPANY;
-    if (target.profile === NarrativeProfile.IRA) quote = OwnMercBark.PASSING_DISLIKE;
+    const quote = this.#barkQuote(target.profile, roll);
     this.#emit({ type: 'mercQuote', soldier: target.id, profile: target.profile, quote: `quote${quote}`, id: quote });
     return { ok: true, data: { bark: quote } };
+  }
+
+  #barkQuote(profile: number, roll: number): number {
+    if (profile === NarrativeProfile.IRA) return OwnMercBark.PASSING_DISLIKE;
+    if (profile >= PLAYER_CHARACTER_MIN_PROFILE && profile <= PLAYER_CHARACTER_MAX_PROFILE) return OwnMercBark.NEGATIVE_COMPANY;
+    if (roll === BarkRoll.SOCIAL_TRAIT) return OwnMercBark.SOCIAL_TRAIT;
+    if (roll === BarkRoll.PASSING_DISLIKE && this.#quoteSpeakers.passingDislike.has(profile)) return OwnMercBark.PASSING_DISLIKE;
+    return OwnMercBark.NEGATIVE_COMPANY;
   }
 
   #startTalkingOnArrival(merc: Soldier, targetId: number): void {

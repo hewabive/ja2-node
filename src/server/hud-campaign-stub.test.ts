@@ -21,6 +21,12 @@ afterAll(async () => {
 });
 
 const ROUTE_BUDGET = 20;
+const NEGATIVE_COMPANY = 41;
+const SOCIAL_TRAIT = 44;
+const PASSING_DISLIKE = 45;
+const BARK_TRIES = 12;
+const WITHOUT_PASSING_DISLIKE = 9;
+const WITH_PASSING_DISLIKE = 4;
 const ROUTE_SLICE_SECONDS = 2 * 3600;
 const TOWN_PICTURES = new Set<number>([LoadingScreen.DAYTOWN1, LoadingScreen.DAYTOWN2, LoadingScreen.NIGHTTOWN1, LoadingScreen.NIGHTTOWN2]);
 
@@ -29,8 +35,9 @@ interface Campaign {
   readonly live: Session;
 }
 
-async function landedCampaign(seed: number, quiet: readonly string[]): Promise<Campaign> {
-  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 3, land: false });
+async function landedCampaign(seed: number, quiet: readonly string[], profiles?: readonly number[]): Promise<Campaign> {
+  const squad = profiles ? { profiles } : { mercs: 3 };
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { ...squad, land: false });
   const session = drivenSession(created, stubSessionSources(kit));
   for (const name of ['A9', ...quiet])
     Object.assign(sectorInfo(session.campaign.state.map, parseSectorString(name)), { numAdmins: 0, numTroops: 0, numElites: 0 });
@@ -106,5 +113,26 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
     expect(bark).toMatchObject({ ok: true });
     const quote = c.live.advance({ ticks: 1 }).events.find((e) => e.type === 'mercQuote');
     expect(quote).toMatchObject({ soldier: target.id, sector: 'A9', textKey: { file: expect.any(String) }, chars: expect.any(Number) });
+  });
+
+  it('barks the passing dislike on the second roll only for mercs whose quote table has it', async () => {
+    const c = await landedCampaign(73, [], [WITHOUT_PASSING_DISLIKE, WITH_PASSING_DISLIKE]);
+    const enter = { type: 'enterSector', sector: 'A9' };
+    await c.session.prepare(enter);
+    expect(c.session.dispatch(enter)).toMatchObject({ ok: true });
+    c.live.advance({ idle: true });
+    const own = c.session.view().soldiers.filter((s) => s.team === 0);
+    const byProfile = (profile: number) => own.find((s) => s.profile === profile)?.id ?? -1;
+    const barks = (talker: number, target: number): Set<number> => {
+      const said = new Set<number>();
+      for (let k = 0; k < BARK_TRIES; k++) {
+        const reply = c.session.dispatch({ type: 'talk', soldier: byProfile(talker), target: byProfile(target) });
+        said.add((reply.data as { bark: number }).bark);
+        c.live.advance({ idle: true });
+      }
+      return said;
+    };
+    expect(barks(WITHOUT_PASSING_DISLIKE, WITH_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, PASSING_DISLIKE]));
+    expect(barks(WITH_PASSING_DISLIKE, WITHOUT_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, SOCIAL_TRAIT]));
   });
 });
