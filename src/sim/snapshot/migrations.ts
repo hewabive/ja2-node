@@ -366,6 +366,42 @@ function addLastKnownLevels(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const FADE_STEP_KEY = 'fadeStep';
+const NO_FADE = 0;
+const NOWHERE = -1;
+
+function withSoldierFade(o: JsonObject): JsonObject {
+  if (o[FADE_STEP_KEY] === undefined) return o;
+  const fade = replaceKey(o, FADE_STEP_KEY, 'fade', NO_FADE, []);
+  const shade = insertAfter(fade, 'fade', 'fadeShade', o[FADE_STEP_KEY] as Json);
+  const started = insertAfter(shade, 'fadeShade', 'fadeStartGridNo', NOWHERE);
+  return { ...started, lastRenderVisible: o.visible as Json };
+}
+
+function isLightingRecord(o: JsonObject): boolean {
+  return o.landLight !== undefined && o.roofLight !== undefined && o.landMaxLight === undefined;
+}
+
+function withStrongestLights(o: JsonObject): JsonObject {
+  const land = insertAfter(o, 'roofLight', 'landMaxLight', o.landLight as Json);
+  return insertAfter(land, 'landMaxLight', 'roofMaxLight', o.roofLight as Json);
+}
+
+function withFadeState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withFadeState(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withFadeState(v);
+  if (isLightingRecord(mapped)) return withStrongestLights(mapped);
+  return isSoldierRecord(mapped) ? withSoldierFade(mapped) : mapped;
+}
+
+function addFadeState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withFadeState(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -379,5 +415,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     9: addBloodGraphics,
     10: opplistDecayOnWorldSeconds,
     11: addLastKnownLevels,
+    12: addFadeState,
   };
 }

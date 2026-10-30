@@ -1,11 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls).
+// @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls,
+// @src the fade before the animation update).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
 import { adjustToNextAnimationFrame, frameTimerDone, hasAnimFlag, states, turnSoldier } from './animation.ts';
 import { updateDamageDisplay } from './combat/hit.ts';
+import { updateSoldierFade } from './fade.ts';
 import {
   arriveAtFinalDestination,
   handleAtNewGridNo,
@@ -79,6 +81,7 @@ export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): vo
   t.mercSlots.forEach((s, slot) => {
     if (!s || !(s.placed || s.offMap)) return;
     updateDamageDisplay(t, s);
+    updateSoldierFade(t, s);
     if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;
     hooks.ai?.(t, s, slot);
   });

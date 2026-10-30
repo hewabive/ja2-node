@@ -13,7 +13,17 @@ import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
 import { importSave, worldImportRefusal } from './save-import.ts';
-import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
+import {
+  cellCentre,
+  NO_PENDING_ANIMATION,
+  NO_PENDING_DIRECTION,
+  NOWHERE,
+  type Soldier,
+  SoldierFade,
+  Team,
+  TOTAL_SOLDIERS,
+  Visible,
+} from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
 
@@ -311,6 +321,28 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, at, { dXPos: centre.x + 3, dYPos: centre.y - 2 })] });
     const merc = soldierOf(importedSim(save), MERC_ID);
     expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
+  });
+
+  it('restores the fades in progress, a fade-in included: fBeginFade is a byte that keeps its 2 (LoadSaveSoldierType.cc ExtractSoldierType)', () => {
+    const fadingIn = gridNo(80, 82);
+    const fadingOut = gridNo(90, 82);
+    const fadeOut = { bVisible: Visible.FADING_OUT, bLastRenderVisibleValue: Visible.FADING_OUT, fBeginFade: SoldierFade.OUT };
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(CIVILIAN_ID, Team.CIV, fadingIn, {
+          bVisible: 1,
+          bLastRenderVisibleValue: 1,
+          fBeginFade: SoldierFade.IN,
+          ubFadeLevel: 9,
+          sLocationOfFadeStart: fadingIn,
+        }),
+        savedSoldier(CIVILIAN_ID + 1, Team.CIV, fadingOut, { ...fadeOut, ubFadeLevel: 7, sLocationOfFadeStart: SAVED_NOWHERE }),
+      ],
+    });
+    const sim = importedSim(save);
+    const fadeOf = (s: Soldier) => [s.visible, s.lastRenderVisible, s.fade, s.fadeShade, s.fadeStartGridNo];
+    expect(fadeOf(soldierOf(sim, CIVILIAN_ID))).toEqual([1, 1, SoldierFade.IN, 9, fadingIn]);
+    expect(fadeOf(soldierOf(sim, CIVILIAN_ID + 1))).toEqual([Visible.FADING_OUT, Visible.FADING_OUT, SoldierFade.OUT, 7, NOWHERE]);
   });
 });
 

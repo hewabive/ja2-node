@@ -17,6 +17,7 @@ import { setSoldierAniSpeed, states } from '../animation.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { withinOneOctant } from '../directions.ts';
+import { cancelFadeOnSighting } from '../fade.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -408,6 +409,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
   if ((s.team === Team.OUR || s.team === Team.MILITIA) && opp.visible <= 0) {
     const locate = opp.visible === -1;
     opp.visible = 1;
+    cancelFadeOnSighting(t, opp);
     if (locate) setSoldierAniSpeed(t, opp);
   } else if (s.team !== Team.OUR) reevaluateEnemyStance(t, s, s.state);
 }

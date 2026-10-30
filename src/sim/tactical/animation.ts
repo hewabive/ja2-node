@@ -40,7 +40,7 @@ import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { effectiveAgility } from './skills.ts';
-import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -178,8 +178,12 @@ export function resetFrameTimer(t: TacticalState, s: Soldier): void {
   s.nextFrameAt = t.clockMs + s.aniDelay;
 }
 
+function fadedOutOfSight(s: Soldier): boolean {
+  return s.visible === Visible.HIDDEN && s.lastRenderVisible === Visible.HIDDEN;
+}
+
 function animatesAtLoopRate(t: TacticalState, s: Soldier): boolean {
-  return t.inCombat && s.visible === -1 && s.state !== anim(t.content, 'MONSTER_UP');
+  return t.inCombat && fadedOutOfSight(s) && s.state !== anim(t.content, 'MONSTER_UP');
 }
 
 export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {

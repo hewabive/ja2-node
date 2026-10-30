@@ -14,7 +14,7 @@ import type {
 import type { SceneAniTile, SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
-import type { EffectEvent, SimEvent } from '../../sim/events.ts';
+import type { EffectEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
 import {
@@ -216,10 +216,6 @@ export class TacticalWorldView {
   #frameOf(tick: number): (s: SoldierView) => number {
     const frames = this.#frames;
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
-  }
-
-  observe(events: readonly SimEvent[]): void {
-    this.#soldiers.observe(events);
   }
 
   observeEffects(effects: readonly EffectEvent[]): void {

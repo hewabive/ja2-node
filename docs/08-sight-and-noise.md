@@ -69,7 +69,9 @@ full circle.
 **Three kinds of knowledge.** The personal opplist (seen now, this turn or up to three turns ago; heard this turn or up
 to three turns ago), the team's public opplist filled by radio, and `visible`, what the player may see. Only lookers of
 our team and the militia set `visible` to 1; 0 is the limbo of a look pass, and the player view still shows such a
-soldier (`04`); −1 is hidden. `visible` is simulation state: an unseen soldier animates at full speed in combat (`10`).
+soldier (`04`); −1 is hidden; −2 holds a soldier fading out after the squad lost him, who passes every test of the
+original for "not −1" (the damage display, `lifeLost`, `aiTurn`) and stays in the view (`06`). `visible` is simulation
+state: an unseen soldier animates at full speed in combat once he has faded out (`10`).
 
 **Hearing has no walls.** The effective volume depends on distance, levels, the boundary between floor and outdoors,
 the listener's hearing (experience, ambient light) and how many opponents he sees; no ray. A listener turns his head:
@@ -150,5 +152,5 @@ reading the source:
   locations, and it never decides for our team.
 
 Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard
-room run", "Doors", "Unseen soldiers in combat". Other deviations of this domain: "Enemy sighted on their turn",
+room run", "Doors". Other deviations of this domain: "Enemy sighted on their turn",
 "Real-time turn after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

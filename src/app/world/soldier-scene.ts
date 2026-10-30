@@ -14,7 +14,6 @@ import { type GlowContext, PERSONAL_LIGHT_SHADE, soldierLook } from '../../rende
 import { SoldierFades } from '../../render/world/soldier-fade.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { WorldSprites } from '../../render/world/world-sprites.ts';
-import type { SimEvent } from '../../sim/events.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { SoldierAssets, SoldierSheet } from './soldier-assets.ts';
@@ -90,10 +89,6 @@ export class SoldierScene {
     this.#fades.reset();
   }
 
-  observe(events: readonly SimEvent[]): void {
-    for (const e of events) if (e.type === 'soldierDied') this.#fades.removeWithoutFade(e.soldier);
-  }
-
   ungreyed(s: SoldierView): boolean {
     return this.#ungreyedStates.has(s.animation);
   }
@@ -161,20 +156,20 @@ export class SoldierScene {
     const hostile = input.hostile ?? defaultHostile;
     const out: SceneSoldier[] = [];
     let drawn = 0;
-    const all = [...input.soldiers, ...this.#fades.fadingOut()];
-    for (const s of all) {
+    for (const s of input.soldiers) {
+      if (this.#fades.fadedOut(s, input.clockMs)) continue;
       const current = this.#currentSprite(s, input.frameOf(s));
       const sprite = current ?? this.#lastDrawn.get(s.id) ?? null;
       if (!sprite) continue;
       this.#lastDrawn.set(s.id, sprite);
-      if (input.soldiers.includes(s)) drawn++;
+      drawn++;
       const look = soldierLook(
         {
           id: s.id,
           level: s.level,
           hostile: hostile(s),
           nodeShade: this.#nodeShade(s, input, night),
-          fadeShade: this.#fades.shade(s.id, input.clockMs, landShade),
+          fadeShade: this.#fades.shade(s, input.clockMs, landShade),
         },
         input.glow,
       );

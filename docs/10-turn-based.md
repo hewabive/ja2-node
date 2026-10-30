@@ -123,7 +123,9 @@ turn runs on the next tick (deviation "Real-time turn after combat"). APs, oppli
 those of militia and civilians after a victory.
 
 **Time.** World time stops in combat, so the real-time turn and the assignments wait (`15`); tactical ticks go on. An
-enemy none of ours sees animates at full speed (gap "Unseen soldiers in combat").
+enemy none of ours sees animates at full speed, but only from the first speed change after the pass that ends his
+fade-out (`06`): while he fades and walks on to the next tile his turn takes his own frame delays (deviation "Soldier
+fade without merc lights").
 
 **No modal turn UI.** The original hands control to the player and waits for End Turn. ja2-node turns those points into
 `advance` stops and the interrupt decision; End Turn also closes an interrupt in our favour (`29`; deviations
@@ -176,7 +178,7 @@ reading the source:
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
 Not ported: gaps "Hidden attacks start combat", "Interrupt exclusions", "Action points and phobias", "Turn-based
-hooks", "Drugs and alcohol", "AI decision details" (the pre-combat grid, the AI list's civilian skip), "Unseen soldiers
-in combat", "Sleeping mercs in combat", "Battle-end quotes". Other deviations of this domain: "Watchdogs", "Enemy
-sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move",
-"Frame timers".
+hooks", "Drugs and alcohol", "AI decision details" (the pre-combat grid, the AI list's civilian skip), "Sleeping mercs
+in combat", "Battle-end quotes". Other deviations of this domain: "Watchdogs", "Enemy sighted on their turn",
+"Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame timers", "Soldier
+fade without merc lights".

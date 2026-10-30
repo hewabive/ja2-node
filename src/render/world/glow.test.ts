@@ -114,54 +114,45 @@ describe('soldier picking', () => {
 });
 
 describe('soldier fades', () => {
+  type Shown = { id: number; team: number; gridNo: number; fadingOut?: boolean };
   const shade = () => 3;
-  it('fades newcomers in from 12 and leavers out to 12 in 60 ms steps, never our own mercs', () => {
-    const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
-    fades.update([{ id: 1, team: 1, gridNo: 5 }], 0, shade);
-    expect(fades.shade(1, 0, shade)).toBeNull();
-    fades.update(
-      [
-        { id: 1, team: 1, gridNo: 5 },
-        { id: 2, team: 1, gridNo: 6 },
-        { id: 3, team: 0, gridNo: 7 },
-      ],
-      1000,
-      shade,
-    );
-    expect(fades.shade(2, 1000, shade)).toBe(12);
-    expect(fades.shade(2, 1130, shade)).toBe(10);
-    expect(fades.shade(3, 1000, shade)).toBeNull();
-    fades.update([{ id: 2, team: 1, gridNo: 6 }], 2000, shade);
-    expect(fades.fadingOut().map((s) => s.id)).toEqual([1]);
-    expect(fades.shade(1, 2060, shade)).toBe(4);
-    fades.update([{ id: 2, team: 1, gridNo: 6 }], 2600, shade);
-    expect(fades.fadingOut()).toEqual([]);
+
+  it('fades newcomers in from 12 to their tile in 60 ms steps, never our own mercs', () => {
+    const fades = new SoldierFades<Shown>();
+    const enemy = { id: 1, team: 1, gridNo: 5 };
+    fades.update([enemy], 0, shade);
+    expect(fades.shade(enemy, 0, shade)).toBeNull();
+    const newcomer = { id: 2, team: 1, gridNo: 6 };
+    const merc = { id: 3, team: 0, gridNo: 7 };
+    fades.update([enemy, newcomer, merc], 1000, shade);
+    expect([fades.shade(newcomer, 1000, shade), fades.shade(newcomer, 1130, shade)]).toEqual([12, 10]);
+    expect(fades.shade(merc, 1000, shade)).toBeNull();
+    fades.update([enemy, newcomer, merc], 1540, shade);
+    expect(fades.shade(newcomer, 1540, shade)).toBeNull();
   });
 
-  it('takes a dead soldier off at once, whether his death is told before or after he leaves the view', () => {
-    const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
-    const enemies = [
-      { id: 1, team: 1, gridNo: 5 },
-      { id: 2, team: 1, gridNo: 6 },
-    ];
-    fades.update(enemies, 0, shade);
-    fades.removeWithoutFade(1);
-    fades.update([enemies[1] as (typeof enemies)[number]], 100, shade);
-    expect(fades.fadingOut()).toEqual([]);
-    fades.update([], 200, shade);
-    expect(fades.fadingOut().map((s) => s.id)).toEqual([2]);
-    fades.removeWithoutFade(2);
-    expect(fades.fadingOut()).toEqual([]);
+  it('darkens a soldier the view keeps while he fades out, where he is, and hides him at 12', () => {
+    const fades = new SoldierFades<Shown>();
+    const enemy = { id: 1, team: 1, gridNo: 5 };
+    fades.update([enemy], 0, shade);
+    const walkingAway = { ...enemy, gridNo: 6, fadingOut: true };
+    fades.update([walkingAway], 2000, shade);
+    expect(fades.shade(walkingAway, 2060, shade)).toBe(4);
+    expect(fades.fadedOut(walkingAway, 2480)).toBe(false);
+    expect(fades.fadedOut(walkingAway, 2540)).toBe(true);
   });
 
-  it('forgets a death told for a soldier out of view, so a later soldier in his slot still fades out', () => {
-    const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
-    fades.update([], 0, shade);
-    fades.removeWithoutFade(4);
-    fades.update([], 100, shade);
-    fades.update([{ id: 4, team: 1, gridNo: 9 }], 200, shade);
-    fades.update([{ id: 4, team: 1, gridNo: 9 }], 900, shade);
-    fades.update([], 1000, shade);
-    expect(fades.fadingOut().map((s) => s.id)).toEqual([4]);
+  it('stops a fade-out when he is seen again, without a fade-in, and forgets a soldier who left the view', () => {
+    const fades = new SoldierFades<Shown>();
+    const enemy = { id: 1, team: 1, gridNo: 5 };
+    fades.update([enemy], 0, shade);
+    fades.update([{ ...enemy, fadingOut: true }], 100, shade);
+    fades.update([enemy], 220, shade);
+    expect(fades.shade(enemy, 220, shade)).toBeNull();
+    fades.update([{ ...enemy, fadingOut: true }], 300, shade);
+    fades.update([], 360, shade);
+    expect(fades.shade(enemy, 360, shade)).toBeNull();
+    fades.update([enemy], 400, shade);
+    expect(fades.shade(enemy, 400, shade)).toBe(12);
   });
 });

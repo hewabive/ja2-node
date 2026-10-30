@@ -26,6 +26,7 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { toggleDoorAt } from './doors.ts';
+import { cancelFadeOutAwayFromStart } from './fade.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
@@ -472,6 +473,7 @@ export function moveMerc(t: TacticalState, s: Soldier, speed: number, direction:
 }
 
 export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
+  cancelFadeOutAwayFromStart(t, s);
   let keepMoving = true;
   s.tilesMoved++;
   if (s.state === states(t.content.animations).RUNNING) s.tilesMoved++;

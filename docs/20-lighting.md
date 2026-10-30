@@ -27,7 +27,7 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 | Module | Holds |
 |---|---|
 | `lighting/templates.ts` | The omni template generator, the conversion to Stracciatella's shipped form, the name lookup |
-| `lighting/lighting.ts` | `LightingState` (ambient and natural level, land and roof sums per tile, 256 sprite slots), the filter and the ray walk, the sprite API, map lights and their schedule, `lightTrueLevel`, the light scaling of vision |
+| `lighting/lighting.ts` | `LightingState` (ambient and natural level, land and roof sums and strongest lights per tile, 256 sprite slots), the filter and the ray walk, the sprite API, map lights and their schedule, `lightTrueLevel`, `lightShadeLevel`, the light scaling of vision |
 | `lighting/muzzle-flash.ts` | The light of a muzzle flash: opcode 441, its frame count, the early put-outs |
 | `explosions/explosion.ts`, `explosions/light.ts` | The light of an explosion; flares and break lights (`12`) |
 | `src/content/formats/lht.ts`, `load-content.ts` | `.LHT` files and Stracciatella's `light-templates.json` (`TacticalContent.lightTemplates`) |
@@ -40,12 +40,15 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 **Gameplay reads one number per tile and level.** The original lights every level node of a tile and keeps a sum, a
 maximum and a fake share per node, but gameplay reads only `LightTrueLevel`: the natural level minus the non-fake sum
 of the head land node (the head roof node at the roof level), clamped to 1…15, or the raw ambient level on a tile
-without that node. ja2-node keeps one land and one roof sum per tile and, per filter step, only the direction and the
-blocked, nothing and oriented-only bits. Lighting structures by orientation, wall decals, cliff hangs and the detour to
+without that node. The one exception is the fade of a soldier who drops out of sight, which starts from the node's
+display shade, the natural level minus its strongest light (`06`). ja2-node keeps one land and one roof sum per tile,
+the strongest light of each with the original's rules for adding and erasing (`lightShadeLevel`), and, per filter
+step, only the direction and the blocked, nothing and oriented-only bits. Lighting structures by orientation, wall decals, cliff hangs and the detour to
 an open door's base tile change only the picture (deviation "Light on structures").
 
 **No fake lights.** A merc's own light at night is added to both the sum and the fake share and cancels out of the
-true level, so the simulation does not create it; the client draws it. Only merc lights ever light roofs: map lights
+true level, so the simulation does not create it; the client draws it. The display shade it would brighten reaches
+gameplay only through the soldier fade (deviation "Soldier fade without merc lights"). Only merc lights ever light roofs: map lights
 lose `LIGHT_SPR_ONROOF` on load, explosions and flares never set it.
 
 **Templates are generated, not shipped.** The map templates (`L-R01` … `L-R08`, `L-R01I2`) are `LightCreateOmni`
@@ -90,6 +93,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `light
 | A wall that appears changes no light until the next render, and the erase still removes the light that passed it | `lighting.test.ts` |
 | Switching scheduled lights shows only at the next render | `lighting.test.ts` |
 | At the roof level map lights never count, and a tile without a roof returns the raw ambient level, unclamped | `lighting.test.ts` |
+| A light going out cuts a tile's strongest light to the light left, even when no light left is that strong, until the next render | `lighting.test.ts` |
 | A muzzle flash lights the tile in front of the shooter, only when the player sees him | `effects.test.ts` |
 
 Not pinned yet:
@@ -111,6 +115,6 @@ the source:
 - The window rule skips the original's test for a struct node on the window tile: all 1,853 window structures of the
   260 original maps are single-tile and carry their own node.
 
-Not ported: gaps "Cave lights", "Mines in the pathfinder", "AI flares underground", "Savegame import" (light effect records). Other deviations
-of this domain: "Light on structures", "Ambient light and light schedule", "Doors and
-light in the projection", "World clock for smoke and light".
+Not ported: gaps "Cave lights", "Mines in the pathfinder", "AI flares underground", "Savegame import" (light effect
+records). Other deviations of this domain: "Light on structures", "Ambient light and light schedule", "Doors and light
+in the projection", "World clock for smoke and light", "Soldier fade without merc lights".

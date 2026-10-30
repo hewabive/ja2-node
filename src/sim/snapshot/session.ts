@@ -22,7 +22,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 12;
+export const SNAPSHOT_VERSION = 13;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 

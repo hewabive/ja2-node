@@ -63,7 +63,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, `hostile` and the health category; doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints); lock tables, trap levels, lock damage |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -218,9 +218,11 @@ with labels in the session's language beside the machine tokens (`labelledView`,
 the original has no string); the browser gets the same blocks in view frames when they change. Campaign blocks (a
 prompt, the shop, the laptop, a conversation, boxing, autoresolve, a meanwhile, the end) are present only while the
 original shows them. Our soldiers carry what the original's panels and face read (the single merc panel's numbers, the
-hatched face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). The tactical
-world (corpses, smoke, light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every
-change. Animation schedules, palettes and light sprites serve the renderer and the devtools.
+hatched face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). A soldier the
+squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits are told,
+as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke, light,
+structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Animation schedules,
+palettes and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured

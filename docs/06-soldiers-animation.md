@@ -23,6 +23,7 @@ new state: initNewSoldierAnim                         animation.ts
   person structure for state and facing               person-structure.ts
   frame delay                                         animation.ts computedAnimationDelay
 every 5 ms tick: executeOverhead                      overhead.ts
+  fade step, then the new-visibility check            fade.ts
   frame due → adjustToNextAnimationFrame              animation.ts; other opcodes through the tactical hooks
   moving state → moveMerc (07); turning state → turnSoldier
 view: state, frame slot, state tick, frame delay      tactical-sim.ts
@@ -78,8 +79,13 @@ of the quad (`05`, deviation "Shadow darkening").
 
 **Enemies glow instead of being lit.** A soldier takes his tile's shade two levels brighter, never brighter than the
 default. A hostile soldier takes a glow row during our turn (always in real time) or under AI control, grey while the
-selected merc does not see him, and draws topmost at the pulse's peak or under the cursor. Soldiers coming into or
-leaving the view fade.
+selected merc does not see him, and draws topmost at the pulse's peak or under the cursor.
+
+**The fade is simulation state.** A soldier who drops out of sight is held at `visible` −2 while his shade steps every
+60 ms from his tile's shade to 12 (`fade.ts`, run in the overhead pass before the frame timer); the end of a fade, out
+or in, sets his frame delay again, and in combat delay 0 waits for the pass after a fade-out (`10`). The view keeps a
+fading soldier, marked `fadingOut`, where he really is; the client darkens him from its own light field and fades
+newcomers in from 12 (deviation "Soldier fade without merc lights").
 
 **Creation draws in the original's order.** Body, stats, equipment, night ops, palettes and battle sounds come from
 the gameplay stream in the order of `CreateDetailedPlacementGivenBasicPlacementInfo` and `TacticalCreateSoldier`, so a
@@ -101,6 +107,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A body's negative frame delay bonus never applies: women and big men walk with a man's delay | `animation.test.ts` |
 | Raising a rifle standing takes 70 ms a frame, 150 aimed, whatever the stats, and combat does not halve it | `animation.test.ts` |
 | In combat an unseen creature rising to call keeps its state's delay; every other unseen soldier runs at the loop rate | `animation.test.ts` |
+| An unseen soldier keeps his frame delay through his fade-out and the pass that ends it; only the next speed change runs him at the loop rate | `fade.test.ts` |
+| A walking soldier's fade-out ends when he reaches the next tile, without setting his speed: he walks on at his delay to the tile after | `fade.test.ts` |
 | A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
@@ -125,7 +133,8 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Unseen soldiers in combat", "Big merc
-kneel", "Reverse move animations", "Soldier draw height", "Drugs and alcohol" (adrenaline and drunkenness in the frame
-delay), "No-burn tiles". Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames
-with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals".
+Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Big merc kneel", "Reverse move
+animations", "Soldier draw height", "Drugs and alcohol" (adrenaline and drunkenness in the frame delay), "No-burn
+tiles". Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other
+scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Soldier fade
+without merc lights".

@@ -121,7 +121,7 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
-import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
@@ -149,6 +149,7 @@ export interface SoldierSnapshot {
   readonly frameDelay: number;
   readonly nextFrameTick: number;
   readonly muzzleFlash?: boolean;
+  readonly fadingOut?: boolean;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -950,6 +951,7 @@ export class TacticalSim {
       frameDelay: s.aniDelay,
       nextFrameTick: nextFrameTick(this.state, s),
       ...(s.muzzleFlash ? { muzzleFlash: true } : {}),
+      ...(s.visible === Visible.FADING_OUT ? { fadingOut: true } : {}),
       ...(s.team === Team.OUR
         ? {
             ap: s.actionPoints,

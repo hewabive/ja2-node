@@ -73,6 +73,8 @@ export interface LightingState {
   readonly hasRoof: Uint8Array;
   readonly landLight: Uint8Array;
   readonly roofLight: Uint8Array;
+  readonly landMaxLight: Uint8Array;
+  readonly roofMaxLight: Uint8Array;
   readonly sprites: (LightSprite | null)[];
 }
 
@@ -92,6 +94,8 @@ export function createLightingState(level: Level): LightingState {
     hasRoof: occupiedTiles(level.layers.roofs.offsets),
     landLight: new Uint8Array(WORLD_MAX),
     roofLight: new Uint8Array(WORLD_MAX),
+    landMaxLight: new Uint8Array(WORLD_MAX),
+    roofMaxLight: new Uint8Array(WORLD_MAX),
     sprites: new Array<LightSprite | null>(MAX_LIGHT_SPRITES).fill(null),
   };
 }
@@ -106,6 +110,12 @@ export function lightTrueLevel(t: TacticalState, g: number, level: number): numb
   if (!(roof ? l.hasRoof : l.hasLand)[g]) return l.ambient;
   const sum = (roof ? l.roofLight : l.landLight)[g] ?? 0;
   return clamp(l.natural - sum, SHADE_MAX, SHADE_MIN);
+}
+
+export function lightShadeLevel(t: TacticalState, g: number, level: number): number {
+  const l = t.lighting;
+  const strongest = (level !== 0 ? l.roofMaxLight : l.landMaxLight)[g] ?? 0;
+  return clamp(l.natural - strongest, SHADE_MAX, SHADE_MIN);
 }
 
 export function surfaceAmbientLevel(t: TacticalState): number | null {
@@ -199,22 +209,33 @@ function findNextRay(rays: readonly number[], from: number): number {
   return i;
 }
 
-type TileLighter = (layer: Uint8Array, g: number, amount: number) => void;
+type TileLighter = (sums: Uint8Array, strongest: Uint8Array, g: number, amount: number) => void;
 
-const addLight: TileLighter = (layer, g, amount) => {
-  layer[g] = u8((layer[g] ?? 0) + amount);
+const addLight: TileLighter = (sums, strongest, g, amount) => {
+  sums[g] = u8((sums[g] ?? 0) + amount);
+  strongest[g] = Math.max(strongest[g] ?? 0, amount);
 };
 
-const subtractLight: TileLighter = (layer, g, amount) => {
-  const sum = layer[g] ?? 0;
-  layer[g] = amount > sum ? 0 : sum - amount;
+const subtractLight: TileLighter = (sums, strongest, g, amount) => {
+  const sum = sums[g] ?? 0;
+  const left = amount > sum ? 0 : sum - amount;
+  sums[g] = left;
+  strongest[g] = Math.min(strongest[g] ?? 0, left);
 };
 
 function lightTile(t: TacticalState, x: number, y: number, amount: number, roofOnly: boolean, filter: number, apply: TileLighter): void {
   const g = u32(tileOf(x, y));
   if (g >= WORLD_MAX) return;
-  if (roofOnly) apply(t.lighting.roofLight, g, amount);
-  else if (!(filter & FILTER_ORIENTED_ONLY)) apply(t.lighting.landLight, g, amount);
+  const l = t.lighting;
+  if (roofOnly) apply(l.roofLight, l.roofMaxLight, g, amount);
+  else if (!(filter & FILTER_ORIENTED_ONLY)) apply(l.landLight, l.landMaxLight, g, amount);
+}
+
+function resetTileLights(l: LightingState): void {
+  l.landLight.fill(0);
+  l.roofLight.fill(0);
+  l.landMaxLight.fill(0);
+  l.roofMaxLight.fill(0);
 }
 
 function onAxis(n: LightNode): boolean {
@@ -339,8 +360,7 @@ export function lightSpritePosition(t: TacticalState, l: LightSprite, x: number,
 }
 
 export function lightSpriteRenderAll(t: TacticalState): void {
-  t.lighting.landLight.fill(0);
-  t.lighting.roofLight.fill(0);
+  resetTileLights(t.lighting);
   for (const l of t.lighting.sprites) {
     if (!l) continue;
     l.flags &= ~LightSpriteFlags.ERASE;
@@ -399,8 +419,7 @@ function poweredAtLoad(t: TacticalState, flags: number, lightTime: number): bool
 
 export function loadMapLights(t: TacticalState, lights: MapLights | null, hour: number): void {
   t.lighting.sprites.fill(null);
-  t.lighting.landLight.fill(0);
-  t.lighting.roofLight.fill(0);
+  resetTileLights(t.lighting);
   const lightTime = lightTimeAt(hour);
   for (const def of lights?.sprites ?? []) {
     const l = lightSpriteCreate(t, def.template);

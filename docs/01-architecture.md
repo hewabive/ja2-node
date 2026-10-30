@@ -175,10 +175,10 @@ drain; a campaign adds its world clock. A session's simulation (`SessionSim`, `s
 catches up (`Utils/Timer_Control.cc:155-181`), so a soldier advances at most one frame per pass and a slow machine slows
 the game. Real time has no action points (`Tactical/Points.cc:462-465`): an action lasts as long as its animation, so
 tactical game time is in effect "animation frames played" and the wall clock only sets the pace. In combat, soldiers
-the player cannot see get frame delay 0 and animate on every pass (`Tactical/Soldier_Control.cc:4928-4936`): turn-based
-outcomes never depended on playback speed. A ja2-node tick is one overhead pass on an ideal machine that never drops a
-frame; every timer keeps its value in game milliseconds and its reset points, and a cadence that follows the frame rate
-or the CPU in the original runs on the tick grid. What the original couples to clocks, frames and sound is listed in
+the player cannot see get frame delay 0 once they have faded out and animate on every pass
+(`Tactical/Soldier_Control.cc:4928-4936`): turn-based outcomes never depended on playback speed. A ja2-node tick is one
+overhead pass on an ideal machine that never drops a frame; every timer keeps its value in game milliseconds and its
+reset points, and a cadence that follows the frame rate or the CPU in the original runs on the tick grid. What the original couples to clocks, frames and sound is listed in
 `04` §3; each resulting difference is a row of `deviations.md` §2.
 
 **Time modes.** On the strategic map tactical ticks stop and world time runs at compression 0, 1×, 5, 30 or 60 minutes

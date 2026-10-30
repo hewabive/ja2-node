@@ -66,7 +66,7 @@ profiling demands it, which it has not (§4.5).
 | Dependency | Where | ja2-node |
 |---|---|---|
 | Animation frames counted by the wall clock, re-armed from "now", no catch-up | `Utils/Timer_Control.cc:155-181` | Game-ms deadlines checked every tick, same reset points (deviations "Frame timers") |
-| Unseen soldiers in combat: frame delay 0, speed = the loop rate | `Tactical/Soldier_Control.cc:4928-4936` | One frame per tick; only the pace of turn-based playback changes |
+| Unseen soldiers in combat: frame delay 0, speed = the loop rate, once the pass after their fade-out has run | `Tactical/Soldier_Control.cc:4928-4936` | One frame per tick; only the pace of turn-based playback changes |
 | Bullets: one step per frame, at most every `bulletSpeed/10` ms | `Tactical/LOS.cc:3155-3184` | One tile per tick (deviations "Bullet flight") |
 | Throw physics: once per frame when the 20 ms counter is due | `TileEngine/Physics.cc:238` | Every 20 game ms (deviations "Physics cadence and floats") |
 | Real-time AI: one soldier after more than 50 ms, more while less than 10 ms of CPU passed | `Tactical/Overhead.cc:109-110, 1039-1053` | Every AI slot after the cursor, every 55 game ms (deviations "Timing", `09`) |
@@ -79,11 +79,12 @@ profiling demands it, which it has not (§4.5).
 | Message boxes and dialogues with choices | UI screens | Decision prompts (D15); time stands still until an answer (deviations "Prompt time") |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
 | Idle animations draw on the shared generator and change soldier state | opcode 491 | Not simulated (gaps "Random idle animations") |
-| "Render visibility" `bLastRenderVisibleValue` and the soldier fade | `Tactical/Overhead.cc:544-634` | A soldier field (`lastRenderVisible`) nothing updates yet: the fade is not ported (gaps "Unseen soldiers in combat") |
+| "Render visibility" `bLastRenderVisibleValue` and the soldier fade, 60 ms a shade step | `Tactical/Overhead.cc:544-634` | The same state on ticks (`src/sim/tactical/fade.ts`), from the simulation's own land shade (deviation "Soldier fade without merc lights") |
 
-Logic depends on rendering only through the soldier fade, whose length reads the land node's display shade, on the
-wall clock in a finite list of places, all converted to game time, and on sound only through quote durations, replaced
-by data. `deviations.md` §2 has every timing difference that follows.
+Logic depends on rendering only through the soldier fade, whose length reads the land node's display shade (computed
+by the simulation without our mercs' lights), on the wall clock in a finite list of places, all converted to game
+time, and on sound only through quote durations, replaced by data. `deviations.md` §2 has every timing difference that
+follows.
 
 ---
 
@@ -239,7 +240,8 @@ and compressed with `permessage-deflate`, the context kept between messages.
   and loudness (never a tile), the doors, items and world state the player knows, and the modal blocks of a campaign
   (`29` §7).
 - Unseen soldiers appear neither in the view nor in the events; events about them are reduced to what the squad hears
-  (`29` §7). There is no omniscient view.
+  (`29` §7). A soldier the squad has just lost stays, marked `fadingOut`, while the simulation fades him out, as the
+  original keeps drawing him. There is no omniscient view.
 - Rule: a field exists only when an original screen shows it at that moment; hidden state (the Queen, facts, opinions,
   tolerances, dealer cash, profile whereabouts, the event queue) never appears (each domain's section of `29` names
   what stays hidden).

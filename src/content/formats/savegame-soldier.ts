@@ -165,7 +165,7 @@ export const SOLDIER_LAYOUT: Layout = [
   ascii('SkinPal', PALETTE_BYTES),
   skip(328),
   field('bMedical', 'i8'),
-  field('fBeginFade', 'bool'),
+  field('fBeginFade', 'u8'),
   field('ubFadeLevel', 'u8'),
   field('ubServiceCount', 'u8'),
   field('service_partner', 'u8'),
@@ -607,6 +607,9 @@ export interface SoldierMotion {
   readonly serviceCount: number;
   readonly servicePartner: number;
   readonly lastRenderVisible: number;
+  readonly beginFade: number;
+  readonly fadeLevel: number;
+  readonly fadeStartGridNo: number;
 }
 
 export interface SavedContract {
@@ -962,6 +965,9 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       serviceCount: n('ubServiceCount'),
       servicePartner: n('service_partner'),
       lastRenderVisible: n('bLastRenderVisibleValue'),
+      beginFade: n('fBeginFade'),
+      fadeLevel: n('ubFadeLevel'),
+      fadeStartGridNo: n('sLocationOfFadeStart'),
     },
     palettes: { head: r.str('HeadPal'), pants: r.str('PantsPal'), vest: r.str('VestPal'), skin: r.str('SkinPal') },
     contract: {

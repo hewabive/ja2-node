@@ -18,6 +18,7 @@ import {
   type Soldier,
   type SoldierStats,
   Team,
+  Visible,
 } from '../tactical/soldier.ts';
 import type { WeaponModeView } from '../tactical/soldier-view.ts';
 import { type GuardOptions, guardFields } from './guard.ts';
@@ -120,7 +121,6 @@ const NO_HINT_INPUTS: OwnHintInputs = {
 };
 
 const UNKNOWN_PALETTES = { hair: '', skin: '', vest: '', pants: '' };
-const SEEN_BY_OUR_TEAM = 1;
 
 export interface ProjectedSoldier {
   readonly soldier: Soldier;
@@ -250,7 +250,7 @@ export function soldierFromView(
   s.x = v.x;
   s.y = v.y;
   s.placed = true;
-  s.visible = SEEN_BY_OUR_TEAM;
+  s.visible = v.fadingOut ? Visible.FADING_OUT : Visible.SEEN;
   s.muzzleFlash = v.muzzleFlash === true;
   s.servicePartner = NOBODY;
   s.monsterOrAnimal = isCreatureOrBloodcat(s) || s.bodyType === Body.COW || s.bodyType === Body.CROW;

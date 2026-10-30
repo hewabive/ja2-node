@@ -434,6 +434,9 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.pendingActionData1 = m.pendingActionData1;
   s.pendingActionData2 = m.pendingActionData2;
   s.lastRenderVisible = m.lastRenderVisible;
+  s.fade = m.beginFade;
+  s.fadeShade = m.fadeLevel;
+  s.fadeStartGridNo = grid(m.fadeStartGridNo);
   s.tilesMoved = r.tilesMoved;
   s.lastTwoLocations = [grid(r.lastTwoLocations[0] ?? NOWHERE), grid(r.lastTwoLocations[1] ?? NOWHERE)];
   s.shock = r.ai.shock;

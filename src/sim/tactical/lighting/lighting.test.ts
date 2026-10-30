@@ -17,6 +17,7 @@ import {
   initLighting,
   type LightSprite,
   lightSetBaseLevel,
+  lightShadeLevel,
   lightSpriteCreate,
   lightSpriteDestroy,
   lightSpritePosition,
@@ -82,6 +83,19 @@ describe('light sprites', () => {
     lightSpriteDestroy(t, a);
     expect(level(t, X + 1, Y)).toBe(NIGHT - 3);
     expect(level(t, X - 2, Y)).toBe(NIGHT);
+  });
+
+  it('draws a tile in the shade of its strongest light, cut to the light left when a light goes out even if no light left is that strong', () => {
+    const t = tactical();
+    const strong = lamp(t, 'L-R03.LHT');
+    lamp(t, 'L-R03.LHT', X - 3, Y);
+    lamp(t, 'L-R03.LHT', X + 3, Y);
+    const shade = () => lightShadeLevel(t, gridNo(X, Y), 0);
+    expect([level(t, X, Y), shade()]).toEqual([NIGHT - 5, NIGHT - 3]);
+    lightSpriteDestroy(t, strong);
+    expect([level(t, X, Y), shade()]).toEqual([NIGHT - 2, NIGHT - 2]);
+    lightSpriteRenderAll(t);
+    expect([level(t, X, Y), shade()]).toEqual([NIGHT - 2, NIGHT - 1]);
   });
 
   it('moves a light by erasing it and drawing it again', () => {

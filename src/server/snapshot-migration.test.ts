@@ -330,3 +330,66 @@ describe('snapshot version 11 (no last-known levels) migrates with every last-kn
     await expectGroundLevels(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+const FADE_STATE_KEYS: ReadonlySet<string> = new Set(['fadeShade', 'fadeStartGridNo', 'landMaxLight', 'roofMaxLight']);
+const NEVER_RENDERED = -1;
+
+function mapRecords(value: Json, map: (o: Record<string, Json>) => Record<string, Json>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => mapRecords(v, map));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = mapRecords(v, map);
+  return map(out);
+}
+
+function withoutFadeState(o: Record<string, Json>): Record<string, Json> {
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(o)) {
+    if (key === 'fade' && o.fadeStartGridNo !== undefined) out.fadeStep = o.fadeShade as Json;
+    else if (key === 'lastRenderVisible') out[key] = NEVER_RENDERED;
+    else if (!FADE_STATE_KEYS.has(key)) out[key] = v;
+  }
+  return out;
+}
+
+function withFadeDefaults(o: Record<string, Json>): Record<string, Json> {
+  if (o.fadeStartGridNo !== undefined) return { ...o, lastRenderVisible: o.visible as Json, fade: 0, fadeStartGridNo: -1 };
+  if (o.landMaxLight !== undefined) return { ...o, landMaxLight: o.landLight as Json, roofMaxLight: o.roofLight as Json };
+  return o;
+}
+
+function mapSections(snapshot: SimSnapshot, version: number, map: (o: Record<string, Json>) => Record<string, Json>): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, mapRecords(value, map)]);
+  return { ...snapshot, version, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 12 (no fade state) migrates with every soldier settled at his visibility and the strongest light at the sum', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectSettledFades(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = mapSections(current.sim, 12, withoutFadeState);
+    for (const key of FADE_STATE_KEYS) expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    const expected = mapSections(current.sim, current.sim.version, withFadeDefaults);
+    expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(expected)));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify({ ...current, sim: expected }));
+  }
+
+  it('a sandbox', async () => {
+    await expectSettledFades(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectSettledFades(await createCampaignSession(kit.read, exists, 9));
+  });
+});

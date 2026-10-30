@@ -99,6 +99,8 @@ export const SoldierStatusFlags = {
 } as const;
 
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
+export const Visible = { FADING_OUT: -2, HIDDEN: -1, LIMBO: 0, SEEN: 1 } as const;
+export const SoldierFade = { NONE: 0, OUT: 1, IN: 2 } as const;
 export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
 export const CivilianGroup = {
   NONE: 0,
@@ -130,7 +132,7 @@ export const TEAM_SIZES = [20, 32, 32, 32, 32, 8] as const;
 export const TEAM_FIRST_ID = [0, 20, 52, 84, 116, 148] as const;
 
 export function shownToPlayer(s: { readonly team: number; readonly visible: number }): boolean {
-  return s.team === Team.OUR || s.visible >= 0;
+  return s.team === Team.OUR || s.visible !== Visible.HIDDEN;
 }
 
 export function isMonster(s: { readonly bodyType: number }): boolean {
@@ -400,7 +402,9 @@ export interface Soldier {
   reasonCantFinishMove: number;
   oldLife: number;
   lastRenderVisible: number;
-  fadeStep: number;
+  fade: number;
+  fadeShade: number;
+  fadeStartGridNo: number;
   nextFadeAt: number;
   pauseAllAnimation: boolean;
   numHitsThisTurn: number;
@@ -738,7 +742,9 @@ export function createSoldier(init: SoldierInit): Soldier {
     reasonCantFinishMove: ReasonCantFinishMove.NO_APS,
     oldLife: init.life,
     lastRenderVisible: -1,
-    fadeStep: 0,
+    fade: SoldierFade.NONE,
+    fadeShade: 0,
+    fadeStartGridNo: NOWHERE,
     nextFadeAt: 0,
     pauseAllAnimation: false,
     numHitsThisTurn: 0,
