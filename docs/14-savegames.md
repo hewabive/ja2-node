@@ -14,6 +14,7 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     parseSaveGame: header, layout, encryption, every section    content/formats/savegame.ts
     section readers, from the offsets the parser recorded       content/formats/savegame-*.ts
     refuse a meanwhile or endgame save                          sim/campaign/story-import.ts
+    refuse a save made with no sector loaded                    sim/tactical/save-import.ts
     TacticalSim on the saved map and door table, importSave     sim/tactical/save-import.ts
     strategic state on the tactical random streams, then one import per subsystem:
       time, roster, merchants, map, strategic AI, story,        sim/**/save-import.ts, sim/campaign/save-roster.ts
@@ -64,7 +65,8 @@ reinitialise it on load; neither does the import.
 **Options and origin.** `importNativeGameOptions` keeps difficulty, sci-fi, gun nut and save mode and reports a turn
 time limit as dropped (deviation "Timed turns"). Native saves come from `$JA2_SAVES_DIR` (default `SavedGames` next to
 the data folder) and need the original data; the input log records the file's digest, and a replay refuses a changed
-file. A save made in a meanwhile scene or the endgame sequence is refused (`26`).
+file. A save made in a meanwhile scene or the endgame sequence is refused (`26`), and so is one made with no sector
+loaded (gaps "Import without a loaded world"), before any map is read.
 
 ## 3. Quirks of the original the code keeps
 

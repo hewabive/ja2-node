@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
-import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
+import { parseSaveEncryptionTable, parseSaveHeader, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { StructureFlags } from '../content/world/structures.ts';
@@ -24,6 +24,7 @@ const ENEMY_TURN_BUDGET = 40_000;
 const AIM_MERC_KIND = 1;
 const MINUTES_PER_DAY = 1440;
 const MINUTES_PER_HOUR = 60;
+const WINDOWS_WORLD_LOADED_OFFSET = 301;
 const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
@@ -38,6 +39,22 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into the tactical
   });
   afterAll(async () => {
     await data.close();
+  });
+
+  it.skipIf(saveFiles.length === 0)('refuses a save made with no sector loaded before reading any map or importing anything', async () => {
+    const bytes = new Uint8Array(readFileSync(join(savesDir, saveFiles[0] ?? '')));
+    expect(parseSaveHeader(bytes).stracLinuxFormat).toBe(false);
+    bytes[WINDOWS_WORLD_LOADED_OFFSET] = 0;
+    expect(parseSaveHeader(bytes).header.worldLoaded).toBe(false);
+    const asked: string[] = [];
+    const watched = (path: string) => {
+      asked.push(path);
+      return read(path);
+    };
+    await expect(createSaveSession(watched, bytes, undefined, (p) => data.vfs.stat(p) !== undefined)).rejects.toThrow(
+      'cannot continue this save: the save was made with no sector loaded',
+    );
+    expect(asked).toEqual([SAVE_ENCRYPTION_PATH]);
   });
 
   for (const file of saveFiles) {

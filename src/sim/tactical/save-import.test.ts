@@ -12,7 +12,7 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
-import { importSave } from './save-import.ts';
+import { importSave, worldImportRefusal } from './save-import.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { WorldItemFlags } from './world-items.ts';
@@ -36,6 +36,7 @@ const INT16_BYTES = 2;
 const NOBODY = TOTAL_SOLDIERS;
 const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
+const NO_WORLD_SECTOR = { x: 0, y: 0, z: -1 };
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -310,5 +311,15 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, at, { dXPos: centre.x + 3, dYPos: centre.y - 2 })] });
     const merc = soldierOf(importedSim(save), MERC_ID);
     expect([merc.gridNo, merc.x, merc.y]).toEqual([at, centre.x, centre.y]);
+  });
+});
+
+describe('the loaded world of a native save (SaveLoadGame.cc LoadSavedGame)', () => {
+  it('refuses a save made with no sector loaded, and one whose loaded sector is not a sector, which the original loads without a world', () => {
+    const refusal = 'the save was made with no sector loaded';
+    expect(worldImportRefusal({ header: { worldLoaded: false }, tactical: { worldSector: NO_WORLD_SECTOR } })).toBe(refusal);
+    expect(worldImportRefusal({ header: { worldLoaded: false }, tactical: { worldSector: SECTOR } })).toBe(refusal);
+    expect(worldImportRefusal({ header: { worldLoaded: true }, tactical: { worldSector: NO_WORLD_SECTOR } })).toBe(refusal);
+    expect(worldImportRefusal({ header: { worldLoaded: true }, tactical: { worldSector: SECTOR } })).toBeNull();
   });
 });

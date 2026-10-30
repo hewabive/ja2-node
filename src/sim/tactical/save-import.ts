@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/SaveLoadGame.cc LoadSavedGame (tactical part), LoadOppListInfoFromSavedGame; Tactical/Tactical_Save.cc
-// @src LoadCurrentSectorsInformationFromTempItemsFile, LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
+// @src src/game/SaveLoadGame.cc LoadSavedGame (the loaded world test, the tactical part), LoadOppListInfoFromSavedGame;
+// @src Tactical/Tactical_Save.cc LoadCurrentSectorsInformationFromTempItemsFile, LoadAndAddWorldItemsFromTempFile,
+// @src LoadRottingCorpsesFromTempCorpseFile;
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile,
 // @src AddBloodOrSmellFromMapTempFileToMap;
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
@@ -12,6 +13,7 @@
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
+import { isValidSectorPosition, type SectorPosition } from '../../content/formats/savegame-header.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
 import { MapModificationType, type SavedCorpse, type SavedDoorStatus } from '../../content/formats/savegame-temp-files.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
@@ -62,6 +64,16 @@ export interface SaveImportReport {
   readonly corpses: number;
   readonly skippedMapModifications: number;
   readonly droppedOptions?: readonly DroppedNativeOption[];
+}
+
+export interface SavedWorld {
+  readonly header: { readonly worldLoaded: boolean };
+  readonly tactical: { readonly worldSector: SectorPosition };
+}
+
+export function worldImportRefusal(save: SavedWorld): string | null {
+  if (save.header.worldLoaded && isValidSectorPosition(save.tactical.worldSector)) return null;
+  return 'the save was made with no sector loaded';
 }
 
 export function saveMapPath(save: SaveGame): string {
