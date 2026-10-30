@@ -156,8 +156,5 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 
 ## 7. Code conventions
 
-Code that does not follow `CLAUDE.md` yet.
-
-| Area | Rule | Code | Notes |
-|---|---|---|---|
-| Integer division | Integer divisions of the original go through `idiv` or, for `UINT32` values, `udiv` (`src/core/int.ts`) | One stays `Math.trunc(a / b)` in `src/sim/tactical/combat/bullets.ts`, as its divisor can be 0: the steps of a level bullet down to the ground, divided by its zero `incZ` (`Tactical/LOS.cc:3904`) | The original divides by zero there too, so the site needs a decision on what ja2-node does instead |
+Code that does not follow `CLAUDE.md` yet: none known. A row gives the rule, the code that breaks it and what following
+it takes.

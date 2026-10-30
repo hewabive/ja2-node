@@ -687,6 +687,13 @@ function outOfWorld(t: TacticalState, b: Bullet, elevation: number): boolean {
   return !onVisibleWorldTile(t, b.tileX + b.tileY * WORLD_COLS) || (b.cubesZ > PROFILE_Z_SIZE * elevation && fixInt(b.incZ) > 0);
 }
 
+const isLevel = (b: Bullet) => b.incZ === 0;
+
+function stepsIntoGround(b: Bullet, land: number, stepsToNextTile: number): number {
+  if (isLevel(b)) return stepsToNextTile;
+  return Math.min(stepsToNextTile, Math.abs(idiv(b.z - land, b.incZ)));
+}
+
 interface LocalStructure {
   s: StructureInstance | null;
   timesHit: number;
@@ -782,7 +789,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
         const stepsY = b.incY > 0 ? idiv(TEN - (b.y % TEN), b.incY) : b.incY < 0 ? idiv(b.y % TEN, -b.incY) : 1000000;
         let steps = Math.min(stepsX, stepsY) + 1;
         if (b.z + Math.imul(b.incZ, steps) < land) {
-          steps = Math.min(steps, Math.abs(Math.trunc((b.z - land) / b.incZ)));
+          steps = stepsIntoGround(b, land, steps);
           b.x = i32(b.x + Math.imul(b.incX, steps));
           b.y = i32(b.y + Math.imul(b.incY, steps));
           b.z = i32(b.z + Math.imul(b.incZ, steps));

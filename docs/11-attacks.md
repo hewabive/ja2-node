@@ -146,6 +146,6 @@ draw nothing. Inferred from reading the source:
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
 Not ported: gaps "Melee specials", "Looking for new items", "Creature spit speed".
-Other deviations of this domain: "Game events", "Bullet flight", "Miss animation in water", "Melee hold leaks", "Melee
-from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand order", "Watchdogs", "Difficulty
-and progress in tactical".
+Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Miss animation in
+water", "Melee hold leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand
+order", "Watchdogs", "Difficulty and progress in tactical".

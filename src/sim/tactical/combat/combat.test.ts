@@ -3,7 +3,7 @@ import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../
 import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import type { SimEvent } from '../../events.ts';
@@ -15,14 +15,16 @@ import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
+import { landHeightUnits } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { checkForGunJam, FireResult, handleItem, ItemHandle } from './attack.ts';
-import { chanceOfBulletHittingStructure, soldierToSoldierChanceToGetThrough } from './bullets.ts';
+import { chanceOfBulletHittingStructure, fireBulletGivenTarget, soldierToSoldierChanceToGetThrough } from './bullets.ts';
 import { calcChanceToHitGun, ENEMY_TO_HIT_MOD, gunRange, soldierDifficultyLevel } from './chance.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
+import { calculateSoldierZPos, losWorldOf, ZPos } from './positions.ts';
 import { AimShot, DamageReason } from './types.ts';
 
 let content: TacticalContent;
@@ -83,6 +85,39 @@ describe('an NPC hurt by a soldier (Soldier_Control.cc SoldierTakeDamage)', () =
     const { facts, flags } = hurtPacos(Team.ENEMY);
     expect(flags & ProfileFlag.WOUNDEDBYPLAYER).toBe(0);
     expect(facts).toEqual([]);
+  });
+});
+
+describe('bullet flight (LOS.cc MoveBullet)', () => {
+  const COLUMN = 80;
+  const RISE_ROW = 85;
+  const RISEN_LAND_PIXELS = 23;
+  const tileCentre = (cell: number, size: number) => cell * size + size / 2;
+
+  it('a level bullet into rising ground stops at the ground and hits it', () => {
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+      for (let row = RISE_ROW; row < RISE_ROW + 10; row++) world.level.heights[gridNo(COLUMN, row)] = RISEN_LAND_PIXELS;
+    });
+    const t = sim.state;
+    const kid = spawn(sim, 0, Team.CIV, gridNo(COLUMN, 80), Direction.SOUTH);
+    kid.bodyType = Body.KIDCIV;
+    kid.attackingWeapon = itemIn(kid.inv, InvSlot.HAND);
+    const aim = calculateSoldierZPos(t, kid, ZPos.FIRING);
+    const risenLand = landHeightUnits(losWorldOf(t), gridNo(COLUMN, RISE_ROW));
+    expect(aim).toBeGreaterThan(risenLand - 1);
+    expect(aim).toBeLessThan(risenLand);
+    const targetX = tileCentre(COLUMN, CELL_X_SIZE);
+    const targetY = tileCentre(RISE_ROW + 5, CELL_Y_SIZE);
+    fireBulletGivenTarget(t, kid, targetX, targetY, aim, kid.attackingWeapon, 10, false, false);
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < 100 && t.bullets.length > 0; tick++) {
+      sim.step();
+      events.push(...sim.drainEvents());
+    }
+    expect(t.bullets).toEqual([]);
+    expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'ground', gridNo: gridNo(COLUMN, RISE_ROW) });
+    const impactRows = events.flatMap((e) => (e.type === 'bulletImpact' ? [Math.trunc(e.y / CELL_Y_SIZE)] : []));
+    expect(impactRows).toEqual([RISE_ROW + 1]);
   });
 });
 
