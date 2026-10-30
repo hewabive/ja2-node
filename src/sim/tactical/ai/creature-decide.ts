@@ -16,7 +16,6 @@ import { minAPsToAttack } from '../combat/ap.ts';
 import { rangeInUnits } from '../combat/chance.ts';
 import { findAdjacentGridEx } from '../combat/melee-reach.ts';
 import { AimShot } from '../combat/types.ts';
-import { findGridNoFromSweetSpot } from '../creation.ts';
 import { quickestTurnIncrement } from '../directions.ts';
 import { inGas } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts';
@@ -31,6 +30,7 @@ import { apsToLook, minPtsToMove } from '../points.ts';
 import { SmellKind, smellStrength, smellType } from '../smell.ts';
 import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier, shownToPlayer } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
+import { findGridNoFromSweetSpot } from '../sweet-spots.ts';
 import { heardOnly, loudestScream } from '../unseen-sources.ts';
 import { AiAction } from './actions.ts';
 import {

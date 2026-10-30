@@ -35,6 +35,7 @@ every 5 ms tick: executeOverhead, soldiers in mercSlots     overhead.ts
 | `world/render-bounds.ts`, `world/grid.ts` | The visible area of a map's scroll restriction; grid and direction helpers |
 | `pathfinding.ts` | `findBestPath` with `PathEnv` and `PathOptions`, destination tests, door resolution |
 | `multi-tile.ts`, `person-structure.ts` | Animation structure files, `Soldier.multiTile`, the person structure of a soldier |
+| `sweet-spots.ts` | The original's searches for a free tile near a sweet spot: a dummy soldier's reachability flood, then the closest candidate (plain, through people, with a structure fit, excluding the spot) |
 | `points.ts`, `plot-path.ts`, `ai/utils.ts` | AP and breath of a step (`actionPointCost`, `terrainBreathPoints`), of a path (`plotPathSteps` = `PlotPath`), the AI's estimates |
 | `movement.ts`, `overhead.ts` | The walking protocol: path orders, the tile step, blocking, reservations, waiting, stopping; the per-tick pass |
 | `animation.ts`, `roofs.ts`, `jump-over.ts` | Turning, the fence hop; climbing roofs and jumping over a prone soldier, separate actions |
@@ -101,6 +102,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A mover arrives twice at the tile where his 30-step route runs out: noise and sight run twice | `movement.test.ts` |
 | Two soldiers swapped head-on both stop: the new positions reset their final destinations before they re-path | `movement.test.ts` |
 | A multi-tile soldier blocked head-on leaves the other blocked, with his final destination on his own tile | `movement.test.ts` |
+| A sweet spot search floods as a merc-bodied dummy whoever searches, so a crow's spot may lie in water | `sweet-spots.test.ts` |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count
@@ -124,6 +126,6 @@ Inferred from reading the source:
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
 Not ported: gaps "Walking side effects", "Walking protocol details", "Multi-tile path structures", "Exposed tiles and
-mines in the pathfinder", "Waiting sweet spot", "Doors", "Unseen soldiers in combat", "Map items". Other deviations of
+mines in the pathfinder", "Doors", "Unseen soldiers in combat", "Map items". Other deviations of
 this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and bloodcat stub bodies",
 "Frame timers", "Continue a move", "Insertion data in the loaded sector".

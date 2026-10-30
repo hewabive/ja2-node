@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/WorldDef.h; TileEngine/GridSquare.cc GridSquare (the row-major walk over the clipped square).
+// @src src/game/TileEngine/WorldDef.h; TileEngine/GridSquare.cc GridSquare (the row-major walk over the clipped square);
+// @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff.
 
 export const WORLD_COLS = 160;
 export const WORLD_ROWS = 160;
@@ -72,6 +73,12 @@ export function cardinalSpacesAway(a: GridNo, b: GridNo): number {
   const rows = Math.abs(Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS));
   const cols = Math.abs((a % WORLD_ROWS) - (b % WORLD_ROWS));
   return rows + cols;
+}
+
+export function rangeInCellCoords(a: GridNo, b: GridNo): number {
+  const dx = (b % WORLD_COLS) - (a % WORLD_COLS);
+  const dy = Math.trunc(b / WORLD_COLS) - Math.trunc(a / WORLD_COLS);
+  return Math.trunc(Math.hypot(dx, dy) * CELL_X_SIZE);
 }
 
 export function gridSquare(center: GridNo, apothem: number): GridNo[] {

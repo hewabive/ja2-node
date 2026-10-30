@@ -5,9 +5,10 @@
 
 import { corpseFileBase } from '../../content/anim/corpses.ts';
 import type { StructureFile } from '../../content/formats/jsd.ts';
+import { rangeInCellCoords } from '../../content/world/grid.ts';
 import type { Corpse } from './combat/death.ts';
 import { DIRECTION_COUNT, oneCDirection } from './directions.ts';
-import { entryPoint, rangeInCellCoords } from './insertion.ts';
+import { entryPoint } from './insertion.ts';
 import { freeTilesAround, SWEET_SPOT_RADIUS, WIDE_SWEET_SPOT_RADIUS } from './item-placement.ts';
 import { NOWHERE } from './pathfinding.ts';
 import type { TacticalState } from './state.ts';

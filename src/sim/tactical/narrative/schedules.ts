@@ -5,36 +5,25 @@
 // @src PostSchedules, PerformActionOnDoorAdjacentToGridNo, PostNextSchedule, ExtractScheduleDoorLockAndUnlockInfo,
 // @src ScheduleHasMorningNonSleepEntries, GetEmptyScheduleEntry, FindSleepSpot, ReplaceSleepSpot, SecureSleepSpot;
 // @src Tactical/Structure_Wrap.cc FindDoorAtGridNoOrAdjacent; Tactical/Keys.cc ModifyDoorStatus (with the structure sync of
-// @src UpdateDoorGraphicsFromStatus); Tactical/Soldier_Add.cc FindGridNoFromSweetSpotWithStructDataFromSoldier,
-// @src FindGridNoFromSweetSpotExcludingSweetSpot; Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter;
+// @src UpdateDoorGraphicsFromStatus); Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter;
 // @src TacticalAI/FindLocations.cc FindNearestEdgePoint; TileEngine/Isometric_Utils.cc GridNoOnEdgeOfMap.
 
-import {
-  DIRECTION_COUNT,
-  DIRECTION_INCREMENT,
-  Direction,
-  pythSpacesAway,
-  WORLD_COLS,
-  WORLD_MAX,
-  WORLD_ROWS,
-} from '../../../content/world/grid.ts';
+import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { absoluteScreenXY, renderedScreenSize, restrictedScrollIdOf } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { i16, u16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
-import { states } from '../animation.ts';
 import { awaySoldierAt, moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
 import { isDoorOpenAt, toggleDoorAt } from '../doors.ts';
 import { EdgeSide, findNearestEdgepointOnSpecifiedEdge } from '../edgepoints.ts';
-import { rangeInCellCoords } from '../insertion.ts';
 import { setSoldierPosition, setSoldierPositionXY } from '../movement.ts';
-import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from '../pathfinding.ts';
-import { animStructureDef } from '../person-structure.ts';
+import { NOWHERE } from '../pathfinding.ts';
 import { profileProgress } from '../profiles.ts';
 import { Body, CivilianGroup, cellCentre, NO_PROFILE, OKLIFE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
+import { findGridNoFromSweetSpotExcludingSweetSpot, findGridNoFromSweetSpotNearSoldier } from '../sweet-spots.ts';
 import {
   getSchedule,
   MAX_SCHEDULE_ACTIONS,
@@ -138,76 +127,6 @@ export function optimizeSchedules(t: TacticalState): void {
   }
   for (const n of t.initList)
     if (n.detail && n.detail.scheduleId > RELINK_OFFSET) n.detail = { ...n.detail, scheduleId: n.detail.scheduleId - RELINK_OFFSET };
-}
-
-function sweetSpotProbe(gridNo: number): PathSoldier {
-  return {
-    id: 0,
-    team: Team.ENEMY,
-    bodyType: 0,
-    gridNo,
-    level: 0,
-    visible: 0,
-    hasKeys: false,
-    underAiControl: false,
-    monsterOrAnimal: false,
-  };
-}
-
-function gridSquare(center: number, apothem: number): number[] {
-  if (center < 0 || center >= WORLD_MAX || apothem < 0) return [];
-  const row = Math.trunc(center / WORLD_COLS);
-  const col = center % WORLD_COLS;
-  const out: number[] = [];
-  for (let y = Math.max(0, row - apothem); y <= Math.min(WORLD_ROWS - 1, row + apothem); y++)
-    for (let x = Math.max(0, col - apothem); x <= Math.min(WORLD_COLS - 1, col + apothem); x++) out.push(y * WORLD_COLS + x);
-  return out;
-}
-
-function standingStructureFits(t: TacticalState, s: Soldier, g: number): boolean {
-  const standing = states(t.content.animations).STANDING;
-  for (let direction = 0; direction < DIRECTION_COUNT; direction++) {
-    const def = animStructureDef(t, s, standing, direction);
-    if (!def || t.world.structures.okayToAdd(g, s.level, def, s.id)) return true;
-  }
-  return false;
-}
-
-export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier, radius: number): number {
-  const sweet = s.gridNo;
-  const flood = findBestPath(t.pathEnv, sweetSpotProbe(sweet), NOWHERE, 0, {
-    copy: PathCopy.REACHABLE,
-    flags: PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE,
-    distLimit: radius,
-  });
-  let lowest = NOWHERE;
-  let lowestRange = 999999;
-  for (const g of gridSquare(sweet, radius)) {
-    if (!flood.reachable?.[g]) continue;
-    if (!newOKDestination(t.pathEnv, s, g, true, s.level)) continue;
-    if (!standingStructureFits(t, s, g)) continue;
-    const range = rangeInCellCoords(s.gridNo, g);
-    if (range < lowestRange || (range === lowestRange && pythSpacesAway(s.gridNo, g) < pythSpacesAway(s.gridNo, lowest))) {
-      lowest = g;
-      lowestRange = range;
-    }
-  }
-  return lowest;
-}
-
-export function findGridNoFromSweetSpotExcludingSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
-  let lowest = NOWHERE;
-  let lowestRange = 999999;
-  for (const g of gridSquare(sweet, radius)) {
-    if (g === sweet) continue;
-    if (!newOKDestination(t.pathEnv, s, g, true, s.level)) continue;
-    const range = rangeInCellCoords(sweet, g);
-    if (range < lowestRange) {
-      lowest = g;
-      lowestRange = range;
-    }
-  }
-  return lowest;
 }
 
 function parkAway(s: Soldier, g: number, x: number, y: number): void {

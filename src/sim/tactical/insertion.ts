@@ -5,11 +5,10 @@
 // @src TileEngine/Exit_Grids.cc FindClosestExitGrid; Overhead.cc SetEnemyPresence.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
-import { isVisibleTile, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
+import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { anim } from './anim-states.ts';
 import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
-import { findGridNoFromSweetSpot } from './creation.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
@@ -19,6 +18,7 @@ import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
 import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
+import { findGridNoFromSweetSpot } from './sweet-spots.ts';
 import { checkForPotentialAddToBattleIncrement } from './turns/turns.ts';
 
 export const Insertion = {
@@ -148,12 +148,6 @@ export function findClosestExitGrid(t: TacticalState, source: number, radius: nu
     }
   }
   return lowest;
-}
-
-export function rangeInCellCoords(a: number, b: number): number {
-  const dx = (b % WORLD_COLS) - (a % WORLD_COLS);
-  const dy = Math.trunc(b / WORLD_COLS) - Math.trunc(a / WORLD_COLS);
-  return Math.trunc(Math.hypot(dx, dy) * 10);
 }
 
 export function directionFromTo(from: number, to: number): number {

@@ -3,46 +3,22 @@
 // @src src/game/Tactical/Handle_Items.cc FindNearestAvailableGridNoForItem; Tactical/Tactical_Save.cc
 // @src LoadAndAddWorldItemsFromTempFile (where a loaded item goes); TileEngine/GridSquare.cc GridSquare.
 
-import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
-import { rangeInCellCoords } from './insertion.ts';
-import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy, type PathSoldier } from './pathfinding.ts';
-import { Body, Team } from './soldier.ts';
+import { rangeInCellCoords } from '../../content/world/grid.ts';
+import { isWater, NOWHERE, newOKDestination } from './pathfinding.ts';
+import { Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
+import { dummySoldier, reachableAround } from './sweet-spots.ts';
 import { WorldItemFlags } from './world-items.ts';
 
 export const SWEET_SPOT_RADIUS = 5;
 export const WIDE_SWEET_SPOT_RADIUS = 15;
-const PROBE_SOLDIER_ID = 0;
-
-function probeSoldier(sweet: number): PathSoldier {
-  return {
-    id: PROBE_SOLDIER_ID,
-    team: Team.ENEMY,
-    bodyType: Body.REGMALE,
-    gridNo: sweet,
-    level: 0,
-    visible: 0,
-    hasKeys: false,
-    underAiControl: false,
-    monsterOrAnimal: false,
-  };
-}
+const PATH_AROUND_PEOPLE = 0;
 
 export function freeTilesAround(t: TacticalState, sweet: number, radius: number): number[] {
-  if (sweet < 0 || sweet >= WORLD_MAX) return [];
-  const probe = probeSoldier(sweet);
-  const flood = findBestPath(t.pathEnv, probe, NOWHERE, 0, { copy: PathCopy.REACHABLE, distLimit: radius });
-  const cx = sweet % WORLD_COLS;
-  const cy = Math.trunc(sweet / WORLD_COLS);
-  const free: number[] = [];
-  for (let y = Math.max(0, cy - radius); y <= Math.min(WORLD_ROWS - 1, cy + radius); y++) {
-    for (let x = Math.max(0, cx - radius); x <= Math.min(WORLD_COLS - 1, cx + radius); x++) {
-      const g = y * WORLD_COLS + x;
-      if (!flood.reachable?.[g] || isWater(t.pathEnv.world, g)) continue;
-      if (newOKDestination(t.pathEnv, probe, g, true, probe.level)) free.push(g);
-    }
-  }
-  return free;
+  const dummy = dummySoldier(sweet, Team.ENEMY, 0);
+  return reachableAround(t, dummy, radius, { flags: PATH_AROUND_PEOPLE }).filter(
+    (g) => !isWater(t.pathEnv.world, g) && newOKDestination(t.pathEnv, dummy, g, true, dummy.level),
+  );
 }
 
 export function findNearestAvailableGridNoForItem(t: TacticalState, sweet: number, radius: number): number {

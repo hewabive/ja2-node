@@ -8,11 +8,11 @@ import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
 import { findAdjacentGridEx } from '../combat/melee-reach.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { findGridNoFromSweetSpot } from '../creation.ts';
 import { findBestPath } from '../pathfinding.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { NOWHERE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { findGridNoFromSweetSpot } from '../sweet-spots.ts';
 
 const DIRECTION_IRRELEVANT = -1;
 const TALK_LOS_CUBE_LEVEL = 3;

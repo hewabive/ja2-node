@@ -12,6 +12,7 @@ import {
   Direction,
   newGridNo,
   outOfBounds,
+  rangeInCellCoords,
   WORLD_COLS,
   WORLD_MAX,
 } from '../../content/world/grid.ts';
@@ -24,7 +25,6 @@ import {
 import { i16, u8 } from '../../core/int.ts';
 import { plotPathCost } from './ai/utils.ts';
 import { soldierGotoStationaryStance } from './animation.ts';
-import { rangeInCellCoords } from './insertion.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
 import { findBestPath, MAX_PATH_LIST_SIZE, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { enoughPoints } from './points.ts';

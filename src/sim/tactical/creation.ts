@@ -3,14 +3,13 @@
 // @src src/game/Tactical/Soldier_Create.cc CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
-// @src Inventory_Choosing.cc AssignCreatureInventory; Soldier_Add.cc FindGridNoFromSweetSpot.
+// @src Inventory_Choosing.cc AssignCreatureInventory.
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem } from '../../content/items/rules.ts';
-import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
 import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
@@ -23,7 +22,7 @@ import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
 import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { CivGroupHostility } from './narrative/constants.ts';
-import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
+import { NOWHERE } from './pathfinding.ts';
 import { calcActionPoints } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import {
@@ -746,32 +745,6 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   }
   bodyTypeSetup(c, s);
   return s;
-}
-
-export function findGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
-  const probe: Soldier = Object.assign(Object.create(s) as Soldier, { team: Team.ENEMY, gridNo: sweet, level: s.level });
-  const flood = findBestPath(t.pathEnv, probe, NOWHERE, s.level, {
-    copy: PathCopy.REACHABLE,
-    flags: PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE,
-    distLimit: radius,
-  });
-  const cx = sweet % WORLD_COLS;
-  const cy = Math.trunc(sweet / WORLD_COLS);
-  let best = NOWHERE;
-  let bestRange = Number.POSITIVE_INFINITY;
-  for (let y = Math.max(0, cy - radius); y <= Math.min(WORLD_ROWS - 1, cy + radius); y++) {
-    for (let x = Math.max(0, cx - radius); x <= Math.min(WORLD_COLS - 1, cx + radius); x++) {
-      const g = y * WORLD_COLS + x;
-      if (!flood.reachable?.[g]) continue;
-      if (!newOKDestination(t.pathEnv, s, g, true, s.level)) continue;
-      const range = cardinalSpacesAway(sweet, g);
-      if (range < bestRange) {
-        best = g;
-        bestRange = range;
-      }
-    }
-  }
-  return best;
 }
 
 function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {

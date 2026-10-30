@@ -8,7 +8,7 @@
 // @src Action_Items.h ItemActionType; Item_Types.h DetonatorType and the bomb fields of OBJECTTYPE
 // @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld.
 
-import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
+import { rangeInCellCoords, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
@@ -22,7 +22,6 @@ import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
 import { toggleDoorAt } from '../doors.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
-import { rangeInCellCoords } from '../insertion.ts';
 import { setSoldierPosition, stopMerc } from '../movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from '../pathfinding.ts';
 import { revealRoofsAndItems } from '../perception/fov.ts';

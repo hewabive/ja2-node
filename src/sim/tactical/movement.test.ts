@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
@@ -14,7 +14,9 @@ import {
   handleAtNewGridNo,
   handleGotoNewGridNo,
   handleNextTile,
+  handleNextTileWaiting,
   moveMerc,
+  setDelayedTileWaiting,
   setSoldierDestination,
   setSoldierPosition,
   stopMerc,
@@ -275,6 +277,47 @@ describe('a blocked next tile', () => {
       expect(other.finalDestination).toBe(other.gridNo);
       expect(other.blockedByAnotherMerc).toBe(multiTile);
     }
+  });
+});
+
+describe('a blocked final destination', () => {
+  const DESTINATION = gridNo(80, 90);
+  const NORTH = -WORLD_COLS;
+  const WEST = -1;
+  const DESPERATE_WAIT = 150;
+
+  function waiting(t: TacticalState, delayedMovement: number): Soldier {
+    const mover = spawn(t, START);
+    mover.finalDestination = DESTINATION;
+    setDelayedTileWaiting(t, mover, START + 1, delayedMovement);
+    t.clockMs = mover.nextTileCheckAt;
+    return mover;
+  }
+
+  it('is replaced by the closest free tile, by cell range while waiting and by cardinal distance once desperate', () => {
+    const cases = [
+      { delayedMovement: 1, spot: DESTINATION + NORTH + WEST },
+      { delayedMovement: DESPERATE_WAIT, spot: DESTINATION + 2 * NORTH },
+    ];
+    for (const { delayedMovement, spot } of cases) {
+      const t = tactical();
+      for (const g of [DESTINATION, DESTINATION + NORTH, DESTINATION + WEST, DESTINATION - WEST, DESTINATION - NORTH]) spawn(t, g);
+      const mover = waiting(t, delayedMovement);
+      handleNextTileWaiting(t, mover);
+      expect(mover.ai.actionData).toBe(spot);
+      expect(mover.finalDestination).toBe(spot);
+    }
+  });
+
+  it('keeps waiting when no free tile is reachable from it', () => {
+    const t = tactical((w) => {
+      for (const step of DIRECTION_INCREMENT) w.add(DESTINATION + step, 0, syntheticStructure(StructureFlags.GENERIC));
+    });
+    spawn(t, DESTINATION);
+    const mover = waiting(t, DESPERATE_WAIT);
+    handleNextTileWaiting(t, mover);
+    expect(mover.finalDestination).toBe(DESTINATION);
+    expect(mover.delayedMovement).toBe(DESPERATE_WAIT + 1);
   });
 });
 

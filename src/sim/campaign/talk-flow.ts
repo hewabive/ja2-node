@@ -92,7 +92,6 @@ import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, warpGameTime,
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
-import { findGridNoFromSweetSpot } from '../tactical/creation.ts';
 import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
@@ -108,6 +107,7 @@ import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
+import { findGridNoFromSweetSpot } from '../tactical/sweet-spots.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';

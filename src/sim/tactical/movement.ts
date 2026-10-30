@@ -36,11 +36,15 @@ import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { dropSmell } from './smell.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
 import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
+import { findGridNoFromSweetSpot, findGridNoFromSweetSpotThroughPeople } from './sweet-spots.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
 type MoveTileResult = (typeof MoveTile)[keyof typeof MoveTile];
 
 const NEXT_TILE_CHECK_DELAY = 700;
+const DESPERATE_WAIT = 150;
+const NEAR_SWEET_SPOT_RADIUS = 6;
+const FAR_SWEET_SPOT_RADIUS = 16;
 const DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE = 0x01;
 const MATERIAL_SANDBAG = 18;
 
@@ -219,7 +223,7 @@ function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number,
       return MoveTile.TEMP_BLOCKED;
     }
     if (other.delayedMovement >= 105) {
-      s.delayedMovement = 150;
+      s.delayedMovement = DESPERATE_WAIT;
       return MoveTile.STATIONARY_BLOCKED;
     }
     return other.gridNo === other.finalDestination ? MoveTile.STATIONARY_BLOCKED : MoveTile.TEMP_BLOCKED;
@@ -524,24 +528,10 @@ export function pathExhausted(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
-function sweetSpotNear(t: TacticalState, s: Soldier, g: number, radius: number, throughPeople: boolean): number {
-  let best = NOWHERE;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  const cx = g % WORLD_COLS;
-  const cy = Math.trunc(g / WORLD_COLS);
-  for (let y = cy - radius; y <= cy + radius; y++) {
-    for (let x = cx - radius; x <= cx + radius; x++) {
-      if (x < 0 || y < 0 || x >= WORLD_COLS || y >= WORLD_COLS) continue;
-      const candidate = y * WORLD_COLS + x;
-      if (!newOKDestination(t.pathEnv, s, candidate, !throughPeople, s.level)) continue;
-      const d = pythSpacesAway(g, candidate);
-      if (d < bestDistance) {
-        bestDistance = d;
-        best = candidate;
-      }
-    }
-  }
-  return best;
+function waitingSweetSpot(t: TacticalState, s: Soldier): number {
+  const search = s.delayedMovement >= DESPERATE_WAIT ? findGridNoFromSweetSpot : findGridNoFromSweetSpotThroughPeople;
+  const near = search(t, s, s.finalDestination, NEAR_SWEET_SPOT_RADIUS);
+  return near !== NOWHERE ? near : search(t, s, s.finalDestination, FAR_SWEET_SPOT_RADIUS);
 }
 
 export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
@@ -559,14 +549,11 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
     return;
   }
   if (blocked !== MoveTile.TEMP_BLOCKED) {
-    if (s.delayedMovement >= 100 && s.delayedMovement !== 150) s.delayedMovement = 1;
+    if (s.delayedMovement >= 100 && s.delayedMovement !== DESPERATE_WAIT) s.delayedMovement = 1;
     let target: number;
     if (s.absoluteFinalDestination === s.finalDestination) target = s.absoluteFinalDestination;
-    else if (!newOKDestination(t.pathEnv, s, s.finalDestination, true, s.level)) {
-      const throughPeople = s.delayedMovement < 150;
-      target = sweetSpotNear(t, s, s.finalDestination, 6, throughPeople);
-      if (target === NOWHERE) target = sweetSpotNear(t, s, s.finalDestination, 16, throughPeople);
-    } else target = s.finalDestination;
+    else if (!newOKDestination(t.pathEnv, s, s.finalDestination, true, s.level)) target = waitingSweetSpot(t, s);
+    else target = s.finalDestination;
     const plotToExitGrid = plottingToExitGrid(t, s);
     let path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
     if (path.length > 0) {
@@ -577,7 +564,7 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
         first = path.steps[0] ?? 0;
         pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
         s.delayedMovementFlags &= ~DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE;
-      } else if (s.delayedMovement < 150) {
+      } else if (s.delayedMovement < DESPERATE_WAIT) {
         s.delayedMovementFlags |= DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE;
       }
       if (pathBlocked === MoveTile.CLEAR) {
@@ -613,7 +600,7 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
       }
     }
     if (
-      ((s.delayedMovement > 20 && s.delayedMovement !== 150) || s.delayedMovement > 170) &&
+      ((s.delayedMovement > 20 && s.delayedMovement !== DESPERATE_WAIT) || s.delayedMovement > 170) &&
       pythSpacesAway(s.gridNo, s.finalDestination) < 5 &&
       s.team === Team.OUR
     ) {
