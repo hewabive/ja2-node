@@ -1,3 +1,13 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Handle_UI.cc UIHandleMovementMenu (the run), UIHandleSoldierStanceChange (the stance change,
+// @src a moving merc's gait in real time), UIHandleCMoveMerc and SelectedMercCanAffordMove (the move: its mode, the
+// @src first step's APs and the continue location), MakeSoldierTurn (the turn), UIHandlePADJAdjustStance (the climb),
+// @src UIOkForItemPickup (the pick-up), UIHandleEndTurn (CheckForEndOfCombatMode before the turn passes);
+// @src Interface.cc PopupMovementMenu (who cannot run); Handle_Items.cc HandleItem (the attack, the remote's APs);
+// @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE), SetSoldierAsUnderAiControl (the AI turn in the
+// @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet).
+
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
 import { MapFlags } from '../../content/formats/map.ts';
