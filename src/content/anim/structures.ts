@@ -134,6 +134,7 @@ const STUB_SHAPES: Readonly<Record<string, Uint8Array>> = {
   cr_stand: personShape(0b0001, 0b0001),
   cr_crouch: personShape(0b0001, 0b0001),
   cr_prone: personShape(0b0001, 0b0001),
+  j_r_bret: personShape(0b0011, 0b0001),
 };
 
 export function stubAnimStructureFiles(): ReadonlyMap<string, StructureDef[]> {

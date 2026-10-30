@@ -131,11 +131,11 @@ const SHOOTER_AT = gridNo(80, 80);
 const CREATURE_AT = gridNo(80, 86);
 const MAX_SHOTS = 6;
 
-function shootCreatureDead(creatureContent: TacticalContent, body: number) {
-  const sim = newCombatSim(creatureContent);
+function shootDead(targetContent: TacticalContent, spawnTarget: (sim: TacticalSim) => Soldier) {
+  const sim = newCombatSim(targetContent);
   const t = sim.state;
   const merc = spawnSoldier(sim, 0, Team.OUR, SHOOTER_AT, Direction.SOUTH, { marksmanship: 100 });
-  const creature = spawnCreature(sim, TEAM_FIRST_ID[Team.CREATURE], body, CREATURE_AT, Direction.NORTH, { life: 1 });
+  const creature = spawnTarget(sim);
   sim.lookAround();
   for (let shot = 0; shot < MAX_SHOTS && creature.placed; shot++) {
     merc.actionPoints = calcActionPoints(merc);
@@ -148,6 +148,18 @@ function shootCreatureDead(creatureContent: TacticalContent, body: number) {
     corpses: t.corpses.map((c) => ({ at: c.gridNo, type: t.content.corpses.table.types[c.type] })),
     jars: t.worldItems.filter((i) => i.object.item === jar).map((i) => i.gridNo - CREATURE_AT),
   };
+}
+
+function shootCreatureDead(creatureContent: TacticalContent, body: number) {
+  return shootDead(creatureContent, (sim) =>
+    spawnCreature(sim, TEAM_FIRST_ID[Team.CREATURE], body, CREATURE_AT, Direction.NORTH, { life: 1 }),
+  );
+}
+
+function shootBodyDead(bodyContent: TacticalContent, body: number) {
+  return shootDead(bodyContent, (sim) =>
+    spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, CREATURE_AT, Direction.NORTH, { life: 1, body }),
+  );
 }
 
 describe('creatures shot dead (Soldier_Ani.cc codes 465 and 440, Animation_Control.cc gubAnimSurfaceCorpseID)', () => {
@@ -167,6 +179,13 @@ describe('creatures shot dead (Soldier_Ani.cc codes 465 and 440, Animation_Contr
   });
 });
 
+describe('the robot and the crippled civilian shot dead (Soldier_Ani.cc codes 433, 465 and 440, Animation_Control.cc gubAnimSurfaceCorpseID)', () => {
+  it('leaves the corpse their dying animation names', () => {
+    expect(shootBodyDead(content, Body.CRIPPLECIV).corpses).toEqual([{ at: CREATURE_AT, type: 'SMERC_BCK' }]);
+    expect(shootBodyDead(content, Body.ROBOTNOWEAPON).corpses).toEqual([{ at: CREATURE_AT, type: 'ROBOT_DEAD' }]);
+  });
+});
+
 describe.skipIf(!ORIGINAL_DATA_DIR)('creatures shot dead with the original animation scripts', () => {
   let data: DataVfs;
   let original: TacticalContent;
@@ -182,6 +201,11 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('creatures shot dead with the original anima
   it('leave the same corpses and jars as on the stub pack', () => {
     for (const body of [Body.LARVAE_MONSTER, Body.INFANT_MONSTER, Body.QUEENMONSTER, Body.AM_MONSTER])
       expect(shootCreatureDead(original, body), String(body)).toEqual(shootCreatureDead(content, body));
+  });
+
+  it('leave the robot and the crippled civilian the same corpses as on the stub pack', () => {
+    for (const body of [Body.CRIPPLECIV, Body.ROBOTNOWEAPON])
+      expect(shootBodyDead(original, body), String(body)).toEqual(shootBodyDead(content, body));
   });
 });
 

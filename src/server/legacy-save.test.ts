@@ -8,7 +8,7 @@ import { STUB_ANIMATION_SCRIPTS_PATH } from '../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts, writeAnimationScripts } from '../content/formats/ja2bin.ts';
 import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
 import { STUBS_LAYER } from '../content/vfs/layers.ts';
-import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
+import { MemoryLayer, Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { Session } from './session.ts';
 
@@ -41,7 +41,16 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'OPEN_STRUCT',
   'OPEN_STRUCT_CROUCHED',
   'MONSTER_MELT',
+  'CRIPPLE_HIT',
+  'CRIPPLE_DIE',
+  'CRIPPLE_DIE_STOP',
+  'CRIPPLE_DIE_FLYBACK',
+  'CRIPPLE_DIE_FLYBACK_STOP',
+  'ROBOTNW_HIT',
+  'ROBOTNW_DIE',
+  'ROBOTNW_DIE_STOP',
 ];
+const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
 const CREATURE_DEATH_STOPS_AT_070 = ['ADULTMONSTER_DYING_STOP', 'LARVAE_DIE_STOP', 'QUEEN_DIE_STOP', 'INFANT_DIE_STOP'];
 const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
@@ -165,13 +174,24 @@ async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<U
   return writeAnimationScripts({ codes });
 }
 
+function withoutFilesAddedAfter070(layer: VfsLayer): VfsLayer {
+  return {
+    name: layer.name,
+    *entries() {
+      for (const e of layer.entries()) if (!STUB_FILES_ADDED_AFTER_070.has(e.path)) yield e;
+    },
+    read: (path, start, end) => layer.read(path, start, end),
+    ...(layer.stamp ? { stamp: (path: string) => layer.stamp?.(path) ?? null } : {}),
+  };
+}
+
 async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<Vfs> {
   const recorded = new MemoryLayer(STUBS_LAYER, [
     [STUB_PROFILES_FILE, await recordedStubProfiles(vfs)],
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
     [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
   ]);
-  return new Vfs([recorded, ...vfs.layers]);
+  return new Vfs([recorded, ...vfs.layers.map(withoutFilesAddedAfter070)]);
 }
 
 async function copyFixtures(k: SaveKit): Promise<void> {

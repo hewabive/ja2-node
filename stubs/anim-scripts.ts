@@ -262,10 +262,15 @@ const LOOPS = [
   'LARVAE_DIE_STOP',
   'QUEEN_DIE_STOP',
   'INFANT_DIE_STOP',
+  'CRIPPLE_DIE_STOP',
+  'CRIPPLE_DIE_FLYBACK_STOP',
+  'ROBOTNW_DIE_STOP',
 ];
 
 const CREATURE_HITS = ['ADULTMONSTER_HIT', 'LARVAE_HIT', 'INFANT_HIT', 'QUEEN_HIT', 'BLOODCAT_HIT', 'COW_HIT'];
 const CREATURE_DEATHS = ['LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE', 'MONSTER_MELT', 'BLOODCAT_DYING', 'COW_DYING'];
+const OTHER_BODY_HITS = ['CRIPPLE_HIT', 'ROBOTNW_HIT'];
+const OTHER_BODY_DEATHS = ['CRIPPLE_DIE', 'CRIPPLE_DIE_FLYBACK', 'ROBOTNW_DIE'];
 
 function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
   const to = (name: string) => stateJump(stateId(t, name));
@@ -373,9 +378,10 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     m.set(name, [...frames(3), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   for (const name of ['GENERIC_HIT_DEATHTWITCHB', 'FALLBACK_HIT_DEATHTWITCHB', 'PRONE_HIT_DEATHTWITCHB', 'JFK_HITDEATH_TWITCHB'])
     m.set(name, [...frames(3), Op.PREVIOUS]);
-  for (const name of CREATURE_HITS) m.set(name, [1, 2, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 3, 4, END_OF_ANIMATION]);
+  for (const name of [...CREATURE_HITS, ...OTHER_BODY_HITS])
+    m.set(name, [1, 2, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 3, 4, END_OF_ANIMATION]);
   m.set('ADULTMONSTER_DYING', [...frames(8), NONINTERRUPTIBLE_DONE, to('MONSTER_MELT')]);
-  for (const name of CREATURE_DEATHS) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
+  for (const name of [...CREATURE_DEATHS, ...OTHER_BODY_DEATHS]) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
   for (const [name, script] of meleeScripts(t)) m.set(name, script);
   for (const [name, script] of creatureAttackScripts(t)) m.set(name, script);
   for (const name of LOOPS) m.set(name, [...frames(LOOP_FRAMES), JUMP_TO_START]);
