@@ -393,7 +393,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames next to the original data'
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const save = parseSaveGame(bytes, encryption);
       expect(save.bytesConsumed).toBe(bytes.length);
-      expect(save.tactical.worldSector).toEqual(save.header.sector);
+      expect(loadedWorldSector(save)).toEqual(save.header.worldLoaded ? save.header.sector : null);
       expect([save.worldTime.day, save.worldTime.hour, save.worldTime.minute]).toEqual([
         save.header.day,
         save.header.hour,
@@ -414,13 +414,13 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames next to the original data'
       for (const s of mercs) {
         expect(s.profile).toBeLessThan(170);
         expect(s.name).toBe(save.profiles[s.profile]?.nickname);
-        expect(s.gridNo).toBeGreaterThanOrEqual(0);
-        expect(s.gridNo).toBeLessThan(25600);
+        if (!s.betweenSectors) expect(s.gridNo).toBeGreaterThanOrEqual(0);
+        if (!s.betweenSectors) expect(s.gridNo).toBeLessThan(25600);
         expect(s.sector).toEqual(save.header.sector);
         expect(s.stats.life).toBeGreaterThan(0);
         expect(s.stats.life).toBeLessThanOrEqual(s.stats.lifeMax);
       }
-      expect(save.currentSector.worldItems).not.toBeNull();
+      if (loadedWorldSector(save)) expect(save.currentSector.worldItems).not.toBeNull();
       for (const item of save.currentSector.worldItems ?? []) if (item.exists) expect(item.gridNo).toBeLessThan(25600);
     });
   }

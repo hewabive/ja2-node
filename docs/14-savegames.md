@@ -111,14 +111,15 @@ the AI's best shot, sight, paths and lights for every opposed pair), the native 
 command, and `tools/oracle/compare.ts` rebuilds each from the imported save (`tools/oracle/README.md` "Savegames",
 "`save`"); most other comparers start from imported saves too, entering the loaded sector of a save made on the map
 screen first (`tools/oracle/tactical-import.ts`). With the original data, the subsystems' `save-import`
-tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one, and the first
-again with its world flag cleared.
+tests import every save in `SavedGames`, and `src/server/save-session.test.ts` keeps playing each one: a save with a
+world in tactical, one without on the map screen while its travelling squad reaches the next sector; the first save with
+a world is also played again with its world flag cleared.
 
 Inferred from reading the source:
-- The Linux layout has a synthetic test only, and no real file covers versions 100–105: the six saves the tests and the
-  oracle use (`SaveGame01`, `02`, `07`–`10`) are vanilla version 99.
-- A save without a world: none of the six is one; the tests clear the world flag, and for the first arrival the start
-  flag, of a save made with one.
+- The Linux layout has a synthetic test only, and no real file covers versions 100–105: the saves the tests use
+  (`SaveGame01`–`03`, `07`–`10`) are vanilla version 99.
+- A save made before the first arrival: `SaveGame03` has no world because its squad is between sectors; for the first
+  arrival the tests set the start flag, and clear the world flag, of a save made with one.
 - The zeroed half of the personal last-known locations: no probe dumps `gsLastKnownOppLoc`, and a load inside a running
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.

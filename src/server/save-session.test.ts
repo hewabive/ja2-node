@@ -34,6 +34,10 @@ const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
+const savedWithWorld = (file: string) => parseSaveHeader(new Uint8Array(readFileSync(join(savesDir, file)))).header.worldLoaded;
+const worldSaves = saveFiles.filter(savedWithWorld);
+const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
+const TRAVEL_STEPS = 20_000;
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign', () => {
   let data: DataVfs;
@@ -59,10 +63,10 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     return `${String.fromCharCode(64 + sector.y)}${sector.x}`;
   }
 
-  it.skipIf(saveFiles.length === 0)(
+  it.skipIf(worldSaves.length === 0)(
     'continues a save made with no sector loaded on the map screen without reading a map, and a squad sent on loads its sector',
     async () => {
-      const file = [...saveFiles].sort()[0] ?? '';
+      const file = [...worldSaves].sort()[0] ?? '';
       const bytes = withoutWorld(file);
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
       const save = parseSaveGame(bytes, table);
@@ -108,10 +112,10 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     },
   );
 
-  it.skipIf(saveFiles.length === 0)(
+  it.skipIf(worldSaves.length === 0)(
     'starts the first arrival from a save made before it, as a new game does, when time first runs',
     async () => {
-      const bytes = withoutWorld([...saveFiles].sort()[0] ?? '', true);
+      const bytes = withoutWorld([...worldSaves].sort()[0] ?? '', true);
       const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
       const c = session.campaign;
       expect([c.state.didGameJustStart, c.state.flow, c.tactical]).toEqual([true, 'strategic', null]);
@@ -133,7 +137,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       const options = session.campaign.state.options;
       expect(options).toEqual({ ...importNativeGameOptions(saved).options });
       expect(options.saveMode).toBe(SAVE_MODES[saved.saveMode]);
-      expect(session.campaign.tactical?.state.options).toBe(options);
+      if (session.campaign.tactical) expect(session.campaign.tactical.state.options).toBe(options);
       expect(report.droppedOptions).toEqual(saved.turnTimeLimit ? ['turnTimeLimit'] : []);
       expect(session.initialMusic).toEqual({ mode: musicModeOfNativeByte(save.generalInfo.musicMode), previous: MusicMode.MAIN_MENU });
       expect(session.initialMusic.mode).not.toBe(MusicMode.RESTORE);
@@ -159,7 +163,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     });
   }
 
-  for (const file of saveFiles) {
+  for (const file of worldSaves) {
     it(`resumes ${file} with its sector loaded on the screen it was saved on: the map screen with time stopped, or tactical`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
@@ -204,7 +208,37 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
     });
   }
 
-  for (const file of saveFiles) {
+  for (const file of noWorldSaves) {
+    it(`continues ${file}, saved with no sector loaded, on the map screen without reading a map, its squads travelling on`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const asked: string[] = [];
+      const watched = (path: string) => {
+        asked.push(path);
+        return read(path);
+      };
+      const { session, report } = await createSaveSession(watched, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      expect(asked.filter((p) => p.startsWith('maps/'))).toEqual([]);
+      expect(report).toMatchObject({ mapPath: null, soldiers: 0, worldItems: 0, corpses: 0 });
+      const c = session.campaign;
+      expect([c.tactical, c.state.flow, c.state.worldSector]).toEqual([null, 'strategic', null]);
+      expect(c.state.pre.state()).toEqual({ ring: save.preRandom.numbers, index: save.preRandom.index });
+      expect(c.state.forces.groups.length).toBe(save.groups.length);
+      const mercs = session.roster?.all() ?? [];
+      const saved = save.soldiers.filter((e) => e.soldier.team === Team.OUR && e.soldier.active !== 0);
+      expect(mercs.map((m) => m.id)).toEqual(saved.map((e) => e.soldier.id).sort((a, b) => a - b));
+      expect(mercs.some((m) => m.soldier.placed)).toBe(false);
+      const travelling = mercs.find((m) => m.life > 0 && m.betweenSectors);
+      if (!travelling) return;
+      const from = sectorName(travelling.sector);
+      expect(session.dispatch({ type: 'compressTime', mode: 3 })).toEqual({ ok: true });
+      for (let i = 0; i < TRAVEL_STEPS && sectorName(travelling.sector) === from; i++) session.step();
+      expect(sectorName(travelling.sector)).not.toBe(from);
+    });
+  }
+
+  for (const file of worldSaves) {
     it(`rebuilds ${file} and keeps playing from it`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
