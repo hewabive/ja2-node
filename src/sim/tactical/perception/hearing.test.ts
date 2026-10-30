@@ -8,6 +8,7 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { AimShot } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
@@ -156,7 +157,7 @@ describe('who listens to a noise (OppList.cc ProcessNoise)', () => {
     const heard = (prisoner: boolean) => {
       const { sim, merc, stranger } = squadAndStranger(BEHIND_THE_WALL, WALL);
       const t = sim.state;
-      t.narrative = { ...t.narrative, isPow: (s) => prisoner && s === merc };
+      t.narrative = { ...t.narrative, assignment: (s) => (prisoner && s === merc ? Assignment.ASSIGNMENT_POW : null) };
       makeNoise(t, stranger, stranger.gridNo, 0, 20, NoiseKind.MOVEMENT);
       return [merc.oppList[stranger.id], squadHears(t, stranger.gridNo, 0, 20, NoiseKind.MOVEMENT)?.by ?? null];
     };

@@ -12,6 +12,7 @@ import { isCreatureOrBloodcat } from '../combat/impact.ts';
 import { AiMorale } from '../combat/types.ts';
 import { InvSlot, itemIn, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { onSquad } from '../narrative/assignment.ts';
 import { boxingFight, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { seenOpponent } from '../perception/duel.ts';
 import { freshestLastKnown, ignoredByBountyHunter } from '../perception/knowledge.ts';
@@ -89,14 +90,19 @@ function creatureThreat(enemy: Soldier, myGrid: number): number {
   return idiv((enemy.life + enemy.bleeding) * 10, 10 + pythSpacesAway(myGrid, enemy.gridNo));
 }
 
+function armedThreat(t: TacticalState, enemy: Soldier): number {
+  let threat = idiv(armourPercent(t.content.items, maxArmour(t.content.items), enemy), 4);
+  threat += idiv(enemy.stats.marksmanship, 5);
+  threat += weaponInHandDeadliness(t, enemy);
+  return threat;
+}
+
 function soldierThreat(t: TacticalState, enemy: Soldier): number {
   let threat = enemy.stats.experience;
   threat += calcActionPoints(enemy, boxingHalvesPoints(t));
   threat += idiv(enemy.actionPoints, 2);
   threat += idiv(enemy.life, 10);
-  threat += idiv(armourPercent(t.content.items, maxArmour(t.content.items), enemy), 4);
-  threat += idiv(enemy.stats.marksmanship, 5);
-  threat += weaponInHandDeadliness(t, enemy);
+  if (onSquad(t, enemy)) threat += armedThreat(t, enemy);
   threat -= idiv(enemy.bleeding, 5);
   threat -= idiv(100 - enemy.breath, 10);
   threat -= enemy.shock;

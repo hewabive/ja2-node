@@ -12,6 +12,7 @@ import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { heldPrisoner } from '../narrative/assignment.ts';
 import { Profile } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
@@ -272,7 +273,7 @@ const DEAF_TO_THE_ARMY: ReadonlySet<number> = new Set([Profile.WARDEN, Profile.G
 
 function listens(t: TacticalState, l: Soldier): boolean {
   if (!validForSightings(l) || l.life < OKLIFE || l.bodyType === Body.LARVAE_MONSTER) return false;
-  return l.team !== Team.OUR || (!isVehicle(l) && !t.narrative.isPow(l));
+  return l.team !== Team.OUR || (!isVehicle(l) && !heldPrisoner(t, l));
 }
 
 const friendlyMilitia = (s: Soldier) => s.team === Team.MILITIA && s.side === Side.FRIENDLY;

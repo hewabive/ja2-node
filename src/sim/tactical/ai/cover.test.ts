@@ -7,6 +7,7 @@ import { syntheticStructure, syntheticWorld } from '../../../content/world/synth
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { i16, idiv } from '../../../core/int.ts';
 import { createItem } from '../../items/object.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { AiMorale } from '../combat/types.ts';
@@ -137,6 +138,22 @@ describe('calcMorale', () => {
     expect(calcManThreatValue(t, merc, guard.gridNo, false, guard)).toBe(base + idiv(base, 20));
     merc.lastTarget = guard.gridNo;
     expect(calcManThreatValue(t, merc, guard.gridNo, false, guard)).toBe(base + idiv(base, 10));
+  });
+
+  it('weighs the armour, marksmanship and gun only of a soldier on a squad, not of our merc on another assignment', () => {
+    const t = newSim().state;
+    const guard = spawn(t, { id: 20, team: Team.ENEMY, at: gridNo(80, 80) });
+    const merc = spawn(t, { id: 0, team: Team.OUR, at: gridNo(80, 86), direction: Direction.NORTH, experience: 8 });
+    const deadliness = content.items.byName.get('GLOCK_17')?.weapon?.deadliness ?? 0;
+    const unarmed = 8 + calcActionPoints(merc) + idiv(merc.actionPoints, 2) + 8;
+    const threats = (assignment: number) => {
+      t.narrative = { ...t.narrative, assignment: (s) => (s === merc ? assignment : null) };
+      return [calcManThreatValue(t, merc, NOWHERE, false, guard), calcManThreatValue(t, guard, NOWHERE, false, merc)];
+    };
+    const guardThreat = 3 + calcActionPoints(guard) + idiv(guard.actionPoints, 2) + 8 + 14 + deadliness;
+    expect(threats(Assignment.SQUAD_20)).toEqual([unarmed + 14 + deadliness, guardThreat]);
+    expect(threats(Assignment.ON_DUTY)).toEqual([unarmed, guardThreat]);
+    expect(threats(Assignment.TRAIN_SELF)).toEqual([unarmed, guardThreat]);
   });
 
   it('turns morale and attitude into a range change desire', () => {

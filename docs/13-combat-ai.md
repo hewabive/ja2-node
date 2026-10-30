@@ -102,6 +102,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | An on-guard soldier who spots an enemy goes on far patrol at once: his orders are raised twice | `ai.test.ts` |
 | An unseen sleeper (`visible` −1) wakes up in turn-based combat | `ai.test.ts` |
 | A public noise the soldier stands near and sees moves two tiles west instead of fading | `utils.test.ts` |
+| The threat value of our merc on another assignment leaves out his armour, marksmanship and gun, however armed he stands in the sector | `cover.test.ts` |
 | A target of equal value replaces the one already chosen | `attack-choice.test.ts` |
 | A creature's blade it cannot afford stays in its hand | `creature-ai.test.ts` |
 | Scent tracking tests the stale action data, not the trail tile | `creature-ai.test.ts` |
@@ -133,7 +134,6 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
 
-Not ported: gaps "Combat AI specials", "AI threat value", "AI decision details", "Underground throws", "AI flares
-underground". Kept differences: deviations "Armed civilian without ammo", "AI climb that cannot start",
-"Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies", "Multi-tile turning",
-"Blood and smell decay period".
+Not ported: gaps "Combat AI specials", "AI decision details", "Underground throws", "AI flares underground". Kept
+differences: deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated path
+cost", "GoAsFar fallback", "Creature and bloodcat stub bodies", "Multi-tile turning", "Blood and smell decay period".

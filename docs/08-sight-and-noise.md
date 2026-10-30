@@ -78,9 +78,9 @@ the listener's hearing (experience, night ops, an extended ear worn on the head,
 walkman deafens) and how many opponents he sees; no ray. A listener turns his head: a full-circle look at the noise
 tile, which may reveal the maker; a tank looks only the way it is turning and never at a noise it would have to turn
 to, and a crow ignores what it hears. An impact or explosion hides its maker and is only remembered as a noise grid and
-volume for the AI (`09`). Some never listen: our mercs held prisoner (`NarrativePort.isPow`, from the roster), militia
-on our side to us or to a noise nobody made, we to them, and the Warden, the General, the Sergeant and Conrad to the
-army.
+volume for the AI (`09`). Some never listen: our mercs held prisoner (`heldPrisoner`, the roster's assignment through
+`NarrativePort.assignment`), militia on our side to us or to a noise nobody made, we to them, and the Warden, the
+General, the Sergeant and Conrad to the army.
 
 **The player hears a direction, never a grid.** The original prints the loudest listener's message and has no marker.
 ja2-node emits `noiseHeard` with the listener, a loudness class and an eight-way direction (or above and below); a
