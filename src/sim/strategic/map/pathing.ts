@@ -6,7 +6,7 @@
 
 import { isValidSector, MAP_WORLD_CELLS, MAP_WORLD_X, sectorFromStrategicIndex, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { Direction } from '../../../content/world/grid.ts';
-import { idiv } from '../../../core/int.ts';
+import { idiv, u16, u32 } from '../../../core/int.ts';
 import { TRAVERSE_TIME_IMPOSSIBLE } from './travel.ts';
 
 export const MAX_PATH_LIST_SIZE = 30;
@@ -132,11 +132,11 @@ export function findStratPath(start: number, destination: number, rules: StratPa
     if ((trailCost[curLoc] ?? 0) < curCost) continue;
     const curId = sectorId(sectorFromStrategicIndex(curLoc));
     for (let iCnt = 0; iCnt < 8; iCnt += DIRECTION_STEP) {
-      const newLoc = (curLoc + (STRAT_DELTA[iCnt] ?? 0)) & 0xffff;
+      const newLoc = u16(curLoc + (STRAT_DELTA[iCnt] ?? 0));
       const target = sectorFromStrategicIndex(newLoc);
       if (!isValidSector(target)) continue;
       if (rules.avoid && newLoc !== destination && rules.avoid(newLoc)) continue;
-      let nextCost = rules.edgeCost(curId, iCnt / DIRECTION_STEP) >>> 0;
+      let nextCost = u32(rules.edgeCost(curId, iCnt / DIRECTION_STEP));
       if (nextCost === TRAVERSE_TIME_IMPOSSIBLE) continue;
       if (rules.helicopterCost) nextCost = rules.helicopterCost(curLoc);
       if (rules.tacticalTraversal) {

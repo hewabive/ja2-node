@@ -4,6 +4,7 @@
 // @src UpdateDoorPerceivedValue; Handle_Doors.cc DoTrapCheckOnStartingMenu; TacticalAI/Knowledge.cc CallAvailableEnemiesTo,
 // @src CallAvailableTeamEnemiesTo, CallAvailableKingpinMenTo.
 
+import { i8 } from '../../../core/int.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { calcTrapDetectLevel, SkillCheckReason, skillCheck } from '../combat/skill-check.ts';
 import { DamageReason } from '../combat/types.ts';
@@ -124,7 +125,7 @@ export function attemptToUntrapDoor(t: TacticalState, s: Soldier, gridNo: number
   const door = findDoorInfo(t, gridNo);
   if (!door) return false;
   const reason = door.trapId === DoorTrap.EXPLOSION ? SkillCheckReason.DISARM_TRAP : SkillCheckReason.DISARM_ELECTRONIC_TRAP;
-  const mod = ((-door.trapLevel * UNTRAP_DIFFICULTY_PER_LEVEL) << 24) >> 24;
+  const mod = i8(-door.trapLevel * UNTRAP_DIFFICULTY_PER_LEVEL);
   if (skillCheck(t, s, reason, mod) <= 0) return false;
   disarmDoorTrap(t, gridNo);
   return true;

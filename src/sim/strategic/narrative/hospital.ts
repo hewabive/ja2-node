@@ -4,7 +4,7 @@
 // @src Interface_Dialogue.h HOSPITAL_PATIENT_DISTANCE; Strategic/Assignments.cc SetTimeOfAssignmentChangeForMerc (the refund);
 // @src Strategic/Strategic_Event_Handler.cc CheckForMissingHospitalSupplies.
 
-import { idiv, u32 } from '../../../core/int.ts';
+import { i32, idiv, u32 } from '../../../core/int.ts';
 import { Fact } from './fact-ids.ts';
 import type { HospitalAccount } from './facts.ts';
 
@@ -73,7 +73,7 @@ export interface HospitalLeaver {
 }
 
 export function refundUnusedHospitalPayment(account: HospitalAccount, patient: HospitalLeaver): void {
-  account.refund = (account.refund + calcPatientMedicalCost(patient, account.priceModifier)) | 0;
+  account.refund = i32(account.refund + calcPatientMedicalCost(patient, account.priceModifier));
   patient.hospitalPriceModifier = HospitalPrice.UNSET;
 }
 

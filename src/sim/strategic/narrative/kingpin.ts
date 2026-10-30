@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Strategic_Event_Handler.cc CheckForKingpinsMoneyMissing and the FACT_KINGPIN_KNOWS_MONEY_GONE
 // @src branch of HandleNPCSystemEvent.
 
-import { u32 } from '../../../core/int.ts';
+import { i32, u32 } from '../../../core/int.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { SectorPosition } from '../state.ts';
 import { Fact } from './fact-ids.ts';
@@ -40,7 +40,7 @@ export function checkForKingpinsMoneyMissing(ctx: KingpinMoneyContext, firstChec
   if (firstCheck) {
     ctx.addFutureDayNpcEvent(ctx.random(KINGPIN_DISCOVERY_SPREAD_MINUTES), Fact.KINGPIN_KNOWS_MONEY_GONE, DAYS_TILL_KINGPIN_LOOKS);
     const kingpin = ctx.kingpin();
-    if (kingpin) kingpin.balance = -(KINGPIN_MONEY_AMOUNT - total) | 0;
+    if (kingpin) kingpin.balance = i32(-(KINGPIN_MONEY_AMOUNT - total));
     ctx.removeAllWorldMoney();
     return;
   }

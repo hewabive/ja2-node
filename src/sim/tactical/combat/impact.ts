@@ -5,7 +5,7 @@
 import { AmmoType, ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8 } from '../../../core/int.ts';
+import { i8, u32 } from '../../../core/int.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
@@ -146,7 +146,7 @@ export function bulletImpact(
       target.oppList[firer.id] === Opp.NOT_HEARD_OR_SEEN &&
       !isCreatureOrBloodcat(target) &&
       (location === AimShot.HEAD || location === AimShot.TORSO) &&
-      t.pre.int(100) < (hitBy + 10 * numSkillTraits(firer, SkillTrait.THROWING)) >>> 0
+      t.pre.int(100) < u32(hitBy + 10 * numSkillTraits(firer, SkillTrait.THROWING))
     ) {
       impact = target.life + t.rng.int(10);
       crits = impact;

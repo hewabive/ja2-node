@@ -9,6 +9,7 @@
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import { i8, u8 } from '../../../core/int.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
 import { InvSlot } from '../inventory.ts';
@@ -94,7 +95,7 @@ export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null
   for (const s of t.mercSlots) {
     if (!s?.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
     const tol = calcSuppressionTolerance(t, s);
-    let lost = Math.trunc((Math.trunc((s.suppressionPoints * SUPPRESSION_FIRE_MODIFIER) / (tol + 6)) * 2 + 1) / 2) & 0xff;
+    let lost = u8(Math.trunc((Math.trunc((s.suppressionPoints * SUPPRESSION_FIRE_MODIFIER) / (tol + 6)) * 2 + 1) / 2));
     if (lost > MAX_APS_SUPPRESSED) lost = MAX_APS_SUPPRESSED;
     const total = lost;
     if (s.apsLostToSuppression >= lost) continue;
@@ -113,7 +114,7 @@ export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null
         } else if (total >= AP.CROUCH && end !== AnimHeight.CROUCH && isValidStance(t, s, AnimHeight.CROUCH)) stance = AnimHeight.CROUCH;
       }
     }
-    s.actionPoints = ((s.actionPoints - lost) << 24) >> 24;
+    s.actionPoints = i8(s.actionPoints - lost);
     s.apsLostToSuppression = total;
     sayUnderHeavyFire(t, s, targeted);
     if (stance) {

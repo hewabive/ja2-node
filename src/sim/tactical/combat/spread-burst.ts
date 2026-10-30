@@ -5,6 +5,7 @@
 // @src (fDoSpread on release).
 
 import { isVisibleTile } from '../../../content/world/grid.ts';
+import { u8 } from '../../../core/int.ts';
 import type { Soldier } from '../soldier.ts';
 
 export const MAX_BURST_LOCATIONS = 50;
@@ -25,7 +26,7 @@ export function pickBurstLocations(s: Soldier, locations: readonly number[], sho
   const step = Math.fround(locations.length / shotsPerBurst);
   let accumulator = 0;
   for (let shot = 0; shot < Math.min(shotsPerBurst, MAX_SPREAD_SHOTS); shot++) {
-    s.spreadLocations[shot] = locations[Math.trunc(accumulator) & 0xff] ?? 0;
+    s.spreadLocations[shot] = locations[u8(accumulator)] ?? 0;
     accumulator = Math.fround(accumulator + step);
   }
   s.doSpread = 1;

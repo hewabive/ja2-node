@@ -9,7 +9,7 @@
 
 import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
-import { clamp, u8 } from '../../core/int.ts';
+import { clamp, i8, u8 } from '../../core/int.ts';
 import { addSoldierInitListEnemyDefenceSoldiers as fillDefencePlacements, sortSoldierInitList } from '../strategic/ai/defence-placement.ts';
 import type { RandomStream } from './combat/context.ts';
 import { createFromPlacementParts, type PlacementAdjust, type SoldierCreate } from './creation.ts';
@@ -568,7 +568,7 @@ export function placeBloodcatsFromInitList(
   place: PlaceNode,
 ): readonly SoldierInitNode[] {
   if (!sector.bloodCatPlacements) return nodes;
-  const counted = (nodes.filter(isBloodcatNode).length << 24) >> 24;
+  const counted = i8(nodes.filter(isBloodcatNode).length);
   if (counted !== sector.bloodCatPlacements && !hasSpawns) {
     sector.bloodCatPlacements = counted;
     sector.bloodCats = -1;

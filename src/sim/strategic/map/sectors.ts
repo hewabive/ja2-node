@@ -17,7 +17,7 @@ import {
   sectorId,
   strategicIndex,
 } from '../../../content/strategic/sector-ids.ts';
-import { u32 } from '../../../core/int.ts';
+import { u8, u32 } from '../../../core/int.ts';
 import { Facility, NEW_SECTORS_EQUAL_TO_ACTIVITY, SectorFlag } from '../forces/constants.ts';
 
 export const Traversability = {
@@ -230,7 +230,7 @@ export function setSectorFlag(map: StrategicMapState, s: Sector, flag: number, w
       }
     }
     if (!getSectorFlagStatus(map, s, SectorFlag.ALREADY_VISITED)) {
-      map.activity.newSectorsVisitedToday = (map.activity.newSectorsVisitedToday + 1) & 0xff;
+      map.activity.newSectorsVisitedToday = u8(map.activity.newSectorsVisitedToday + 1);
       if (map.activity.newSectorsVisitedToday === NEW_SECTORS_EQUAL_TO_ACTIVITY) updateLastDayOfPlayerActivity(map, worldDay);
     }
   }
@@ -280,5 +280,5 @@ export function isSectorDesert(map: StrategicMapState, s: { readonly x: number; 
 }
 
 export function totalMilitia(info: SectorInfo): number {
-  return info.militia.reduce((n, m) => (n + m) & 0xff, 0);
+  return info.militia.reduce((n, m) => u8(n + m), 0);
 }

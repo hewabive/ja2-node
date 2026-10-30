@@ -20,6 +20,7 @@ import { NO_QUOTE_SPEAKERS, type QuoteSpeakers } from '../../content/narrative/q
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';
+import { u32 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { beginCivQuote, type CivQuoteSaid, startCivQuote } from '../narrative/civ-quotes.ts';
@@ -365,7 +366,7 @@ export class TalkFlow {
     const id = dealerIdFromProfile(merchants, Npc.FRANK);
     if (id < 0) return;
     const status = dealerState(merchants.state, id).status;
-    status.cash = (status.cash + amount) >>> 0;
+    status.cash = u32(status.cash + amount);
   }
 
   #receivesAsTeamMember(s: Soldier): boolean {
@@ -423,7 +424,7 @@ export class TalkFlow {
         kingpinInHisHouse: () => this.#kingpinInHisHouse(),
         addProfileCost: (profile, amount) => {
           const costs = state.finances.profileCostToDate;
-          costs.set(profile, ((costs.get(profile) ?? 0) + amount) >>> 0);
+          costs.set(profile, u32((costs.get(profile) ?? 0) + amount));
         },
         message: (m) => this.#emit({ type: 'npcMessage', kind: m.kind, profile: m.profile, amount: m.amount }),
       },

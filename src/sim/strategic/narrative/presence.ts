@@ -6,6 +6,7 @@
 // @src RemoveAssassin; sgp/Types.cc SGPSector::IsValid.
 
 import { ItemClass, type ItemTable } from '../../../content/items/items.ts';
+import { u8 } from '../../../core/int.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { isProfileDead, type ProfileProgress } from '../../tactical/profiles.ts';
 import { Town } from '../economy/constants.ts';
@@ -142,7 +143,7 @@ function toughening(difficulty: number, removed: number, total: number): number 
   let value = Math.trunc(TOUGHENING_SCALE / total) * removed;
   if (difficulty === Difficulty.MEDIUM) value = Math.trunc((value * MEDIUM_TOUGHENING_PERCENT) / 100);
   else if (difficulty === Difficulty.HARD) value = Math.trunc((value * HARD_TOUGHENING_PERCENT) / 100);
-  return value & 0xff;
+  return u8(value);
 }
 
 function tougheningSwap(t: TougheningItems, level: number): { readonly old: number; readonly next: number } | null {

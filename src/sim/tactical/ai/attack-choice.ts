@@ -21,7 +21,7 @@ import {
 } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i8, idiv, u8, u32 } from '../../../core/int.ts';
+import { i8, i32, idiv, u8, u32 } from '../../../core/int.ts';
 import { deleteObject, findAttachment, type ItemObject, removeObjects, swapObjects, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { calcAPsToBurst, calcTotalAPsToAttack, minAPsToAttack, minAPsToShootOrStab, minAPsToThrow } from '../combat/ap.ts';
@@ -588,7 +588,7 @@ function calcBestThrow(t: TacticalState, s: Soldier, best: AttackChoice): void {
           let damage = estimateThrowDamage(t, s, payloadSlot, other.opp, g);
           if (dist) damage = idiv(damage * (100 - DAMAGE_LOSS_PER_TILE * dist), 100);
           else skip = false;
-          totalThreat = (totalThreat + other.threat * damage) | 0;
+          totalThreat = i32(totalThreat + other.threat * damage);
           if (other.opp.life >= OKLIFE) {
             inRange++;
             if (dist < 2) {
@@ -629,7 +629,7 @@ function calcBestThrow(t: TacticalState, s: Soldier, best: AttackChoice): void {
         const hitRate = idiv(s.actionPoints * chanceToHit, rawAPCost + maxAim);
         const chanceToReallyHit = u8(idiv(chanceToHit * chanceToGetThrough, 100));
         if (chanceToReallyHit === 0) continue;
-        const attackValue = idiv((hitRate * chanceToReallyHit * totalThreat) | 0, ATTACK_VALUE_DIVISOR);
+        const attackValue = idiv(i32(hitRate * chanceToReallyHit * totalThreat), ATTACK_VALUE_DIVISOR);
         if (attackValue > best.attackValue) {
           best.possible = true;
           best.opponent = target.opp;
@@ -751,7 +751,7 @@ export function calcTentacleAttack(t: TacticalState, s: Soldier, best: AttackCho
     best.chanceToReallyHit = aim.chanceToHit;
     best.target = opp.gridNo;
     best.targetLevel = opp.level;
-    best.attackValue = (best.attackValue + attackValue) | 0;
+    best.attackValue = i32(best.attackValue + attackValue);
     best.apCost = u8(minAPCost + aim.aimTime);
   }
   return best;

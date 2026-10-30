@@ -15,7 +15,7 @@ import {
   structureHeight,
   type WorldStructures,
 } from '../../../content/world/structures.ts';
-import { idiv, u8 } from '../../../core/int.ts';
+import { i32, idiv, u8 } from '../../../core/int.ts';
 
 const FIX = 1 << 20;
 const TEN = 10 * FIX;
@@ -247,9 +247,9 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
         const stepsX = qIncX > 0 ? Math.trunc((TEN - (qX % TEN)) / qIncX) : qIncX < 0 ? Math.trunc((qX % TEN) / -qIncX) : FAST_FORWARD_NONE;
         const stepsY = qIncY > 0 ? Math.trunc((TEN - (qY % TEN)) / qIncY) : qIncY < 0 ? Math.trunc((qY % TEN) / -qIncY) : FAST_FORWARD_NONE;
         const n = Math.min(stepsX, stepsY) + 1;
-        qX = (qX + Math.imul(qIncX, n)) | 0;
-        qY = (qY + Math.imul(qIncY, n)) | 0;
-        qZ = (qZ + Math.imul(qIncZ, n)) | 0;
+        qX = i32(qX + Math.imul(qIncX, n));
+        qY = i32(qY + Math.imul(qIncY, n));
+        qZ = i32(qZ + Math.imul(qIncZ, n));
         loop += n;
         if (qZ < land && loop < iDist) return 0;
         tX = tileOf(qX);

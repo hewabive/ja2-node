@@ -4,7 +4,7 @@
 // @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { u8 } from '../../core/int.ts';
+import { u8, u32 } from '../../core/int.ts';
 import { isWater } from './pathfinding.ts';
 import { Body, NOWHERE, type Soldier } from './soldier.ts';
 
@@ -195,7 +195,7 @@ function decayBlood(w: SmellWorld): void {
 
 export function decayBloodAndSmells(w: SmellWorld, worldSeconds: number): void {
   const m = w.smell;
-  if ((worldSeconds - m.lastDecaySeconds) >>> 0 <= REALTIME_DECAY_SECONDS) return;
+  if (u32(worldSeconds - m.lastDecaySeconds) <= REALTIME_DECAY_SECONDS) return;
   m.lastDecaySeconds = worldSeconds;
   decayBlood(w);
   decaySmells(m);

@@ -7,7 +7,7 @@
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
-import { i8, u8 } from '../../../core/int.ts';
+import { i8, i16, u8 } from '../../../core/int.ts';
 import type { CreatureCallName } from '../../events.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { anim } from '../anim-states.ts';
@@ -95,7 +95,7 @@ const STAB_PREFERENCE_DENOMINATOR = 10;
 const HEAD_SHOT_CHANCE = 50;
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
 
-const pre100 = (t: TacticalState) => (t.pre.int(100) << 16) >> 16;
+const pre100 = (t: TacticalState) => i16(t.pre.int(100));
 const ctx = (t: TacticalState) => ({ env: t.pathEnv, content: t.content, inCombat: t.inCombat });
 const mode = (t: TacticalState) => (s: Soldier, action: number) => determineMovementMode(t, s, action);
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;

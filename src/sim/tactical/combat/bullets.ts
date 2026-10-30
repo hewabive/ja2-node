@@ -21,7 +21,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i16, u8 } from '../../../core/int.ts';
+import { i16, i32, u8, u32 } from '../../../core/int.ts';
 import type { MissileTrail } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
@@ -450,7 +450,7 @@ function shootLock(t: TacticalState, b: Bullet): void {
   if (lock.pickDifficulty >= SHOOTABLE_PICK_LIMIT || lock.smashDifficulty >= SHOOTABLE_SMASH_LIMIT) return;
   if (t.pre.int(2) !== 0) return;
   let damage = i16(b.impact - b.impactReduction);
-  damage = i16(damage + t.pre.int(damage >>> 0));
+  damage = i16(damage + t.pre.int(u32(damage)));
   if (damageLock(t, b.firer, b.gridNo, damage))
     statChange(t, b.firer, StatKind.MARKSMANSHIP, LOCK_SHOT_MARKSMANSHIP_GAIN, StatCause.SUCCESS);
 }
@@ -783,17 +783,17 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
         let steps = Math.min(stepsX, stepsY) + 1;
         if (b.z + Math.imul(b.incZ, steps) < land) {
           steps = Math.min(steps, Math.abs(Math.trunc((b.z - land) / b.incZ)));
-          b.x = (b.x + Math.imul(b.incX, steps)) | 0;
-          b.y = (b.y + Math.imul(b.incY, steps)) | 0;
-          b.z = (b.z + Math.imul(b.incZ, steps)) | 0;
+          b.x = i32(b.x + Math.imul(b.incX, steps));
+          b.y = i32(b.y + Math.imul(b.incY, steps));
+          b.z = i32(b.z + Math.imul(b.incZ, steps));
           stopBullet(b);
           structureHit(t, b, INVALID_STRUCTURE_ID, 0, true, 'ground');
           return;
         }
         if (b.flags & SPECIAL_BULLETS) goingOver = trailOnTheWay(t, b, steps, goingOver);
-        b.x = (b.x + Math.imul(b.incX, steps)) | 0;
-        b.y = (b.y + Math.imul(b.incY, steps)) | 0;
-        b.z = (b.z + Math.imul(b.incZ, steps)) | 0;
+        b.x = i32(b.x + Math.imul(b.incX, steps));
+        b.y = i32(b.y + Math.imul(b.incY, steps));
+        b.z = i32(b.z + Math.imul(b.incZ, steps));
         b.loop += steps;
         b.tileX = tileOf(b.x);
         b.tileY = tileOf(b.y);
@@ -914,7 +914,7 @@ function trailOnTheWay(t: TacticalState, b: Bullet, steps: number, goingOver: bo
   let i = 0;
   while (i < steps && (b.loop + i) % every !== 0) i++;
   const over = goingOver || i < steps;
-  if (over) addMissileTrail(t, b, (b.x + Math.imul(b.incX, i)) | 0, (b.y + Math.imul(b.incY, i)) | 0, (b.z + Math.imul(b.incZ, i)) | 0);
+  if (over) addMissileTrail(t, b, i32(b.x + Math.imul(b.incX, i)), i32(b.y + Math.imul(b.incY, i)), i32(b.z + Math.imul(b.incZ, i)));
   return over;
 }
 
@@ -1025,9 +1025,9 @@ function calcChanceToGetThrough(t: TacticalState, b: Bullet): number {
         const stepsX = b.incX > 0 ? Math.trunc((TEN - (b.x % TEN)) / b.incX) : b.incX < 0 ? Math.trunc((b.x % TEN) / -b.incX) : 1000000;
         const stepsY = b.incY > 0 ? Math.trunc((TEN - (b.y % TEN)) / b.incY) : b.incY < 0 ? Math.trunc((b.y % TEN) / -b.incY) : 1000000;
         const steps = Math.min(stepsX, stepsY) + 1;
-        b.x = (b.x + Math.imul(b.incX, steps)) | 0;
-        b.y = (b.y + Math.imul(b.incY, steps)) | 0;
-        b.z = (b.z + Math.imul(b.incZ, steps)) | 0;
+        b.x = i32(b.x + Math.imul(b.incX, steps));
+        b.y = i32(b.y + Math.imul(b.incY, steps));
+        b.z = i32(b.z + Math.imul(b.incZ, steps));
         b.loop += steps;
         if (b.z < land && b.loop < b.distanceLimit) return 0;
         b.tileX = tileOf(b.x);
