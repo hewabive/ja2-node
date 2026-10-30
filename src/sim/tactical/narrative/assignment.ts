@@ -4,7 +4,7 @@
 // @src Strategic/Assignments.h Assignments, ON_DUTY.
 
 import { Assignment } from '../../strategic/economy/constants.ts';
-import type { Soldier } from '../soldier.ts';
+import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 
 const ZEROED_ASSIGNMENT = Assignment.SQUAD_1;
@@ -17,6 +17,10 @@ export function soldierAssignment(t: AssignmentSource, s: Soldier): number {
 
 export function onSquad(t: AssignmentSource, s: Soldier): boolean {
   return soldierAssignment(t, s) < Assignment.ON_DUTY;
+}
+
+export function ourMercOnAssignment(t: AssignmentSource, s: Soldier): boolean {
+  return s.team === Team.OUR && !onSquad(t, s);
 }
 
 export function heldPrisoner(t: AssignmentSource, s: Soldier): boolean {

@@ -79,11 +79,13 @@ causes one. The duels are against the soldier who looked or made the noise; civi
 
 **Who may interrupt.** A looker who gained a new opponent with this look, or a listener who sees nobody and whom the
 noise maker sees; never on his own team's turn except at a door, never while an attack resolves. He needs 4 APs and
-those of a first reaction, may not be down, gassed, under fire or neutral, and loses the right for the turn once he let
-an interrupt pass though he could have attacked (`passedLastInterrupt`). Against one of ours the mover must be the
-selected merc, in ja2-node the merc of the last accepted order; against the AI he must hold the AI turn. A thrown
-rock's impact gives every eligible listener an automatic win against the thrower. The duel draws no random number: more
-points win, a tie goes to the mover, a watcher the mover does not see wins outright.
+those of a first reaction, may not be down, gassed, under fire, neutral, an EPC (the robot may) or our merc on another
+assignment, and loses the right for the turn once he let an interrupt pass though he could have attacked
+(`passedLastInterrupt`). The assignment is the roster's (`narrative/assignment.ts` over `NarrativePort.assignment`); a
+soldier the roster does not hold reads as on squad 1, the original's zeroed `bAssignment`. Against one of ours the mover
+must be the selected merc, in ja2-node the merc of the last accepted order; against the AI he must hold the AI turn. A
+thrown rock's impact gives every eligible listener an automatic win against the thrower. The duel draws no random
+number: more points win, a tie goes to the mover, a watcher the mover does not see wins outright.
 
 **The interrupt queue.** The loser goes in first, then the winners of one look by increasing margin; the last entry
 acts, so the biggest margin acts first. All trailing winners of one team act together: ours as a group the player
@@ -147,6 +149,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Three teams in the interrupt queue cancel every interrupt, and the mover stops anyway | `turns/turns.test.ts` |
 | A tie in the interrupt duel goes to the mover | `turns/turns.test.ts` |
 | The point for an opponent seen before needs a second sighting: the first records −1, the test asks for `TRUE` | `turns/turns.test.ts` |
+| Our merc on another assignment gets −10 duel points instead of his own, and the point for an opponent seen before still adds to them | `turns/turns.test.ts` |
 | An AI interrupt nobody uses stays hidden, and our merc walks on to his destination | `turns/turns.test.ts` |
 | An AI attack out of combat is cancelled by the combat it starts and decided again; the rest of the attacker's team sits that turn out | `ai/combat-ai.test.ts` |
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
@@ -177,8 +180,8 @@ reading the source:
 - That the order lock of deviation "Turn-based UI lock" admits the same orders as `SetUIBusy`.
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
-Not ported: gaps "Interrupt exclusions", "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI
-decision details" (the pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat", "Battle-end quotes".
-Other deviations of this domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based
-UI lock", "Interrupt prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks
-start combat", "Interface lock on arrival".
+Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
+pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat", "Battle-end quotes". Other deviations of this
+domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
+prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
+"Interface lock on arrival".

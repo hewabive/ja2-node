@@ -7,13 +7,21 @@ import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
 import { AiAction } from '../ai/actions.ts';
 import { initNewSoldierAnim, states, TurningFromProne } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { type NarrativePort, NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { hasPendingAction } from '../pending-action.ts';
-import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel, markSeenOpponent } from '../perception/duel.ts';
+import {
+  AUTOMATIC_INTERRUPT,
+  calcInterruptDuelPts,
+  interruptDuel,
+  markSeenOpponent,
+  standardInterruptConditionsMet,
+} from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints, ptsToMoveDirection } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team, Visible } from '../soldier.ts';
@@ -463,6 +471,45 @@ describe('the interrupt duel', () => {
     watcher.interruptDuelPts = 2;
     expect(interruptDuel(watcher, mover)).toBe(true);
     expect(watcher.interruptDuelPts).toBe(5);
+  });
+
+  it('lets no EPC but the robot, and none of our mercs on another assignment, interrupt (StandardInterruptConditionsMet)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH);
+    t.turn.currentTeam = Team.ENEMY;
+    enemy.aiTurnControl = true;
+    merc.oppList[enemy.id] = Opp.SEEN_CURRENTLY;
+    const mayInterrupt = (port: Partial<NarrativePort>) => {
+      t.narrative = { ...NO_NARRATIVE_PORT, ...port };
+      return standardInterruptConditionsMet(t, merc, enemy, Opp.NOT_HEARD_OR_SEEN);
+    };
+    expect(mayInterrupt({})).toBe(true);
+    expect(mayInterrupt({ assignment: (s) => (s === merc ? Assignment.SQUAD_20 : null) })).toBe(true);
+    expect(mayInterrupt({ assignment: (s) => (s === merc ? Assignment.ON_DUTY : null) })).toBe(false);
+    expect(mayInterrupt({ assignment: (s) => (s === merc ? Assignment.ASSIGNMENT_POW : null) })).toBe(false);
+    expect(mayInterrupt({ isEpc: (s) => s === merc })).toBe(false);
+    merc.bodyType = Body.ROBOTNOWEAPON;
+    expect(mayInterrupt({ isEpc: (s) => s === merc })).toBe(true);
+  });
+
+  it('sets the duel points of our merc on another assignment to −10 before the seen-before point (CalcInterruptDuelPts)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH);
+    const points = (assignment: number) => {
+      t.narrative = { ...t.narrative, assignment: (s) => (s === merc ? assignment : null) };
+      return calcInterruptDuelPts(t, merc, enemy, false);
+    };
+    const onSquad = points(Assignment.SQUAD_1);
+    expect(onSquad).toBeGreaterThan(0);
+    expect(points(Assignment.DOCTOR)).toBe(-10);
+    markSeenOpponent(t, merc.id, enemy.id);
+    markSeenOpponent(t, merc.id, enemy.id);
+    expect(points(Assignment.DOCTOR)).toBe(-9);
+    expect(points(Assignment.SQUAD_1)).toBe(onSquad + 1);
   });
 
   it('adds the point for an opponent seen before only from his second sighting on (gbSeenOpponents == TRUE)', () => {

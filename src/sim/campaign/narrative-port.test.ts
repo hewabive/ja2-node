@@ -9,6 +9,7 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
 import { heldPrisoner, onSquad } from '../tactical/narrative/assignment.ts';
+import { calcInterruptDuelPts, seenOpponent } from '../tactical/perception/duel.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import type { Roster, RosterMerc } from './roster.ts';
@@ -23,6 +24,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await kit.sectors.dispose();
 });
+
+const ON_ASSIGNMENT_DUEL_POINTS = -10;
 
 interface Battle {
   readonly t: TacticalState;
@@ -66,7 +69,7 @@ describe("a soldier's assignment as tactical asks it of the campaign (NarrativeP
     expect([heldPrisoner(t, doctor.soldier), heldPrisoner(t, squadmate), heldPrisoner(t, enemy)]).toEqual([true, false, false]);
   });
 
-  it('takes the armed threat from our merc the roster has on another assignment', () => {
+  it('takes the armed threat and the interrupt points from our merc the roster has on another assignment', () => {
     const { t, doctor, enemy } = battleInOmerta(32);
     const merc = doctor.soldier;
     const gun = t.content.items.byIndex.get(itemIn(merc.inv, InvSlot.HAND))?.weapon?.deadliness ?? 0;
@@ -74,5 +77,7 @@ describe("a soldier's assignment as tactical asks it of the campaign (NarrativeP
     const onSquadThreat = calcManThreatValue(t, merc, NOWHERE, false, enemy);
     doctor.assignment = Assignment.DOCTOR;
     expect(calcManThreatValue(t, merc, NOWHERE, false, enemy)).toBe(onSquadThreat - idiv(merc.stats.marksmanship, 5) - gun);
+    const seenBefore = seenOpponent(t, merc.id, enemy.id) === 1 ? 1 : 0;
+    expect(calcInterruptDuelPts(t, merc, enemy, false)).toBe(ON_ASSIGNMENT_DUEL_POINTS + seenBefore);
   });
 });

@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/TeamTurns.cc StandardInterruptConditionsMet, CalcInterruptDuelPts, InterruptDuel;
+// @src Soldier_Macros.h AM_AN_EPC, AM_A_ROBOT;
 // @src OppList.cc FindUnusedWatchedLoc, FindWatchedLocWithLessThanXPointsLeft, FindWatchedLoc, GetWatchedLocPoints,
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
 
@@ -8,8 +9,9 @@ import { gridSquare, pythSpacesAway, spacesAway } from '../../../content/world/g
 import { i8, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
+import { onSquad, ourMercOnAssignment } from '../narrative/assignment.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
-import { interruptBasePoints } from '../narrative/robot.ts';
+import { interruptBasePoints, isRobot } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
 import {
@@ -40,6 +42,7 @@ const STRAIGHT = 13;
 const BEST_SIGHTING_ALL = 6;
 const NOWHERE = -1;
 const DARK_LEVELS_ABOVE_DAY = 3;
+const ON_ASSIGNMENT_DUEL_POINTS = -10;
 
 export function seenOpponent(t: TacticalState, viewer: number, opp: number): number {
   return t.turn.seenOpponents[viewer * TOTAL_SOLDIERS + opp] ?? 0;
@@ -160,6 +163,10 @@ export function decayWatchedLocs(t: TacticalState, team: number): void {
   for (let id = first; id <= last; id++) for (let k = 0; k < NUM_WATCHED_LOCS; k++) decayWatchedLoc(t, wk(id, k), team);
 }
 
+function escortedCivilian(t: TacticalState, s: Soldier): boolean {
+  return t.narrative.isEpc(s) && !isRobot(s);
+}
+
 export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier, useWatchSpots: boolean): number {
   if (s.neutral) return NO_INTERRUPT;
   let p = interruptBasePoints(t, s);
@@ -179,6 +186,7 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
   const nightOps = numSkillTraits(s, SkillTrait.NIGHTOPS);
   if (nightOps && lightTrueLevel(t, s.gridNo, s.level) > NORMAL_LIGHTLEVEL_DAY + DARK_LEVELS_ABOVE_DAY) p += nightOps;
   if (s.team === Team.OUR) {
+    if (!onSquad(t, s)) p = ON_ASSIGNMENT_DUEL_POINTS;
     if (seenOpponent(t, s.id, opp.id) === 1) p++;
   } else if (s.team === Team.ENEMY) {
     if (seenOpponent(t, s.id, opp.id) === 1) p++;
@@ -199,6 +207,7 @@ export function standardInterruptConditionsMet(t: TacticalState, s: Soldier, opp
   if (t.explosives.gassed[s.id]) return false;
   if (s.ai.underFire !== 0) return false;
   if (s.neutral) return false;
+  if (escortedCivilian(t, s) || ourMercOnAssignment(t, s)) return false;
   let need = AP_CHANGE_FACING;
   if (opp) {
     if (s.side === opp.side) {
