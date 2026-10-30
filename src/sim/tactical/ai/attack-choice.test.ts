@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { syntheticWorld } from '../../../content/world/synthetic.ts';
@@ -13,6 +14,7 @@ import { setSoldierPosition } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
 import { AP, calcActionPoints } from '../points.ts';
+import { setSoldierHeight } from '../roofs.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { CAN_ATTACK, calcBestShot, canNPCAttack, checkIfTossPossible, NoShoot } from './attack-choice.ts';
@@ -134,6 +136,35 @@ describe('checkIfTossPossible (Items.cc FindThrowableGrenade)', () => {
     expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK2);
     enemy.life = enemy.lifeMax / 2;
     expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
+  });
+});
+
+describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
+  const GROUND = 0;
+  const ROOF = 1;
+  const ON_THE_ROOF = 50;
+
+  it('aims at the level an opponent was last seen on, not the roof he has climbed onto since', () => {
+    const roofs = new Set<number>();
+    for (let x = 78; x <= 82; x++) for (let y = 76; y <= 80; y++) roofs.add(gridNo(x, y));
+    const sim = newCombatSim(content, [], 3, roofs);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    setSoldierHeight(t, merc, ON_THE_ROOF);
+    expect(merc.level).toBe(ROOF);
+    const lastSeenAt = gridNo(80, 82);
+    const bystander = spawnSoldier(sim, 40, Team.CIV, lastSeenAt, Direction.NORTH);
+    bystander.neutral = true;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 94), Direction.NORTH);
+    enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
+    enemy.life = enemy.lifeMax / 2;
+    enemy.oppList[merc.id] = Opp.SEEN_LAST_TURN;
+    enemy.lastKnownOpp[merc.id] = lastSeenAt;
+    enemy.lastKnownOppLevel[merc.id] = GROUND;
+    const toss = checkIfTossPossible(t, enemy);
+    expect(toss.possible).toBe(true);
+    expect(toss.targetLevel).toBe(GROUND);
+    expect(toss.target).toBe(lastSeenAt);
   });
 });
 

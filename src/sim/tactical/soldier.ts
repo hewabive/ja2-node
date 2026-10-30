@@ -378,6 +378,7 @@ export interface Soldier {
   ai: AiState;
   readonly oppList: Int8Array;
   readonly lastKnownOpp: Int16Array;
+  readonly lastKnownOppLevel: Int8Array;
   newOppCnt: number;
   interruptDuelPts: number;
   movementNoiseHeard: number;
@@ -716,6 +717,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     },
     oppList: new Int8Array(TOTAL_SOLDIERS),
     lastKnownOpp: new Int16Array(TOTAL_SOLDIERS).fill(NOWHERE),
+    lastKnownOppLevel: new Int8Array(TOTAL_SOLDIERS),
     newOppCnt: 0,
     interruptDuelPts: NO_INTERRUPT,
     movementNoiseHeard: 0,

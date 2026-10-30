@@ -394,12 +394,18 @@ export class CreatureAiComparer {
     if (p.probe === 'seen') {
       const opp = num(p.opp);
       const g = grid(p.grid);
+      const level = t.soldiers[opp]?.level ?? 0;
       if (p.public === true) {
         const publicOpp = t.perception.publicOpp[s.team];
         const publicLastKnown = t.perception.publicLastKnown[s.team];
+        const publicLastKnownLevel = t.perception.publicLastKnownLevel[s.team];
         if (publicOpp) publicOpp[opp] = num(p.value);
         if (publicLastKnown) publicLastKnown[opp] = g;
-      } else s.lastKnownOpp[opp] = g;
+        if (publicLastKnownLevel) publicLastKnownLevel[opp] = level;
+      } else {
+        s.lastKnownOpp[opp] = g;
+        s.lastKnownOppLevel[opp] = level;
+      }
     }
     return report(label, true, `soldier ${s.id} synced`);
   }

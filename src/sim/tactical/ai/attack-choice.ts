@@ -42,7 +42,7 @@ import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../in
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, surfaceAmbientLevel } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
-import { closestKnownOpponent } from '../perception/knowledge.ts';
+import { closestKnownOpponent, type KnownPosition, personalLastKnown } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { animStructureDef, internalIsValidStance, isValidStance } from '../person-structure.ts';
 import { AP, apsToReadyWeapon, calcActionPoints, doorTravelCost } from '../points.ts';
@@ -482,19 +482,20 @@ function tossTargets(t: TacticalState, s: Soldier, inHand: number, grenade: numb
     if (!opp.life || consideredNeutral(s, opp) || s.side === opp.side) continue;
     if (s.ai.attitude === Attitude.ATTACKSLAYONLY && opp.profile !== ProfileId.SLAY) continue;
     const personal = s.oppList[opp.id] ?? Opp.NOT_HEARD_OR_SEEN;
-    let gridNo = opp.gridNo;
+    const lastKnown = personalLastKnown(s, opp);
+    let aim: KnownPosition = opp;
     if (longRange) {
       if (personal !== Opp.SEEN_CURRENTLY && (t.perception.publicOpp[s.team]?.[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY) continue;
     } else if (personal === Opp.SEEN_LAST_TURN) {
-      gridNo = s.lastKnownOpp[opp.id] ?? NOWHERE;
-      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, gridNo)) continue;
+      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, lastKnown.gridNo)) continue;
+      aim = lastKnown;
     } else if (personal === Opp.HEARD_LAST_TURN) {
       if (t.pre.int(3) === 0) continue;
-      gridNo = s.lastKnownOpp[opp.id] ?? NOWHERE;
-      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, gridNo)) continue;
+      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, lastKnown.gridNo)) continue;
       if (grenade !== itemIndex(t, 'BREAK_LIGHT') && !s.ai.underFire && s.shock === 0) continue;
+      aim = lastKnown;
     } else if (personal !== Opp.SEEN_CURRENTLY) continue;
-    targets.push({ opp, gridNo, level: opp.level, threat: calcManThreatValue(t, opp, s.gridNo, false, s) });
+    targets.push({ opp, gridNo: aim.gridNo, level: aim.level, threat: calcManThreatValue(t, opp, s.gridNo, false, s) });
   }
   return targets;
 }

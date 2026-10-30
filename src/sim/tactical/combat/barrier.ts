@@ -162,8 +162,8 @@ export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldie
       def.ai.alertStatus = AlertStatus.RED;
       t.turnHooks.checkForChangingOrders(t, def);
     }
-    updatePersonal(def, att, Opp.HEARD_THIS_TURN, att.gridNo);
-    if (def.team === Team.OUR) updatePublic(t, def.team, att, Opp.HEARD_THIS_TURN, att.gridNo);
+    updatePersonal(def, att, Opp.HEARD_THIS_TURN, att.gridNo, att.level);
+    if (def.team === Team.OUR) updatePublic(t, def.team, att, Opp.HEARD_THIS_TURN, att.gridNo, att.level);
   }
   def.interruptDuelPts = standardInterruptConditionsMet(t, def, att, oldOpp) ? calcInterruptDuelPts(t, def, att, false) : NO_INTERRUPT;
   if (def.interruptDuelPts !== NO_INTERRUPT) {

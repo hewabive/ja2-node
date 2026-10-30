@@ -122,6 +122,6 @@ from reading the source:
 - In water, the throw's busy count is released before the ripple's explosion.
 - Catches, windows broken by a thrown object and objects hitting soldiers are ported as read.
 
-Not ported: gaps "Duds and timed bombs", "Underground throws", "Tossing from the item cursor", "AI throw targets".
+Not ported: gaps "Duds and timed bombs", "Underground throws", "Tossing from the item cursor".
 Other deviations of this domain: "Physics cadence and floats", "Water ripple", "Dud test operand order", "Cosmetic draws
 in attacks", "Cosmetic draws in explosions", "Bullets of unseen shooters", "Watchdogs".

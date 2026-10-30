@@ -83,13 +83,23 @@ function savedSoldier(id: number, team: number, at: number, extra: SoldierFields
 interface SyntheticSave {
   readonly soldiers?: readonly SavedSoldierEntry[];
   readonly lastKnownOppLocBytes?: Uint8Array;
+  readonly lastKnownOppLevel?: readonly (readonly number[])[];
+  readonly publicLastKnownOppLevel?: readonly (readonly number[])[];
   readonly worldItems?: readonly SavedWorldItem[];
   readonly corpses?: readonly SavedCorpse[];
+}
+
+function levelRows(count: number, entries: readonly (readonly [row: number, opponent: number, level: number])[] = []): number[][] {
+  const rows = Array.from({ length: count }, () => new Array<number>(TOTAL_SOLDIERS).fill(0));
+  for (const [row, opponent, level] of entries) (rows[row] as number[])[opponent] = level;
+  return rows;
 }
 
 function syntheticSave({
   soldiers = [],
   lastKnownOppLocBytes = new Uint8Array(TOTAL_SOLDIERS * TOTAL_SOLDIERS),
+  lastKnownOppLevel = levelRows(TOTAL_SOLDIERS),
+  publicLastKnownOppLevel = levelRows(MAX_TEAMS),
   worldItems,
   corpses,
 }: SyntheticSave): SaveGame {
@@ -126,7 +136,9 @@ function syntheticSave({
       publicOpplist: [],
       seenOpponents: [],
       lastKnownOppLocBytes,
+      lastKnownOppLevel,
       publicLastKnownOppLocBytes: new Uint8Array(MAX_TEAMS * TOTAL_SOLDIERS),
+      publicLastKnownOppLevel,
       publicNoiseVolume: [],
       publicNoiseGridNoBytes: new Uint8Array(MAX_TEAMS),
     },
@@ -249,6 +261,23 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(soldierOf(sim, MERC_ID).lastKnownOpp[MERC_ID + 1]).toBe(NOWHERE);
     expect(soldierOf(sim, CIVILIAN_ID).lastKnownOpp[MERC_ID]).toBe(0);
     expect(sim.state.perception.publicLastKnown[Team.MILITIA]?.[MERC_ID]).toBe(NOWHERE);
+  });
+
+  it('restores every last-known level, personal and public: the original saves the INT8 arrays whole (SaveLoadGame.cc LoadOppListInfoFromSavedGame)', () => {
+    const roof = 1;
+    const save = syntheticSave({
+      soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82)), savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(90, 82))],
+      lastKnownOppLevel: levelRows(TOTAL_SOLDIERS, [
+        [MERC_ID, CIVILIAN_ID, roof],
+        [CIVILIAN_ID, MERC_ID, roof],
+      ]),
+      publicLastKnownOppLevel: levelRows(MAX_TEAMS, [[Team.MILITIA, MERC_ID, roof]]),
+    });
+    const sim = importedSim(save);
+    expect(soldierOf(sim, MERC_ID).lastKnownOppLevel[CIVILIAN_ID]).toBe(roof);
+    expect(soldierOf(sim, CIVILIAN_ID).lastKnownOppLevel[MERC_ID]).toBe(roof);
+    expect(soldierOf(sim, MERC_ID).lastKnownOppLevel[MERC_ID + 1]).toBe(0);
+    expect(sim.state.perception.publicLastKnownLevel[Team.MILITIA]?.[MERC_ID]).toBe(roof);
   });
 
   it('moves an item dropped while its sector was unloaded to the nearest free tile, as every load of the temp file does (Tactical_Save.cc LoadAndAddWorldItemsFromTempFile)', () => {

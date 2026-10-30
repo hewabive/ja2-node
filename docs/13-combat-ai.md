@@ -74,9 +74,9 @@ pocketed weapon during the BLACK decision. `calcBestShot` and `calcBestStab` set
 reads it for a LAW without setting it. `findSpotMaxDistFromOpponents` gives an enemy who flees to the map edge the
 edge-escape quote action: his move is extended off the map and he leaves the sector.
 
-**Knowledge of opponents.** Each helper takes the opponent's personal or public last known grid, whichever is fresher
-(`prefersPersonalKnowledge`, `ai/morale.ts`). Last known levels are not kept: the helpers use the opponent's current
-level (gaps "AI throw targets", "Closest known opponent").
+**Knowledge of opponents.** Each helper takes the opponent's personal or public last known grid and level, whichever
+is fresher (`freshestLastKnown`, `perception/knowledge.ts`); a throw at an opponent no longer in sight aims at his
+personal ones. Only a soldier seen right now is taken where he stands.
 
 **Settings fixed at their default.** Stracciatella's AI policies (avoid lit tiles at night, stay on the rooftop, go
 prone more often, the better aiming choice, the corpse warning) run off and are not configurable. The difficulty
@@ -133,8 +133,7 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
 
-Not ported: gaps "Combat AI specials", "Red alert in Meduna", "AI threat value", "Closest known opponent", "AI
-decision details", "Hidden attacks start combat", "Underground throws", "AI throw targets", "Ambush", "AI flares
-underground". Kept differences: deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs",
-"Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies", "Multi-tile turning", "Blood and
-smell decay period".
+Not ported: gaps "Combat AI specials", "Red alert in Meduna", "AI threat value", "Closest known opponent", "AI decision
+details", "Hidden attacks start combat", "Underground throws", "Ambush", "AI flares underground". Kept differences:
+deviations "Armed civilian without ammo", "AI climb that cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar
+fallback", "Creature and bloodcat stub bodies", "Multi-tile turning", "Blood and smell decay period".

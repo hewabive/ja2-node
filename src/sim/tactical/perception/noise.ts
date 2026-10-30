@@ -189,7 +189,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
     } else {
       hooks.setNewSituation(l);
       if (gunshot) raiseToRed(t, l);
-      updatePersonal(l, source, Opp.HEARD_THIS_TURN, g);
+      updatePersonal(l, source, Opp.HEARD_THIS_TURN, g, level);
       rememberNoise(t, l, g, level, volume);
     }
     if (l.ai.asleep && WAKING_NOISE_KINDS.has(kind)) l.ai.asleep = false;
@@ -378,7 +378,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     }
     if (source && team === Team.OUR) {
       if (seen) ourTeamRadiosRandomlyAbout(t, source);
-      else if (heard) updatePublic(t, team, source, Opp.HEARD_THIS_TURN, g);
+      else if (heard) updatePublic(t, team, source, Opp.HEARD_THIS_TURN, g, level);
     }
   }
 }

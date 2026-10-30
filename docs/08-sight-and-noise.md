@@ -146,6 +146,6 @@ reading the source:
 - The order of `mercSlots` after soldiers leave and re-enter the sector (ja2-node reuses the first free slot).
 
 Not ported: gaps "Vision and hearing modifiers", "Sight and hearing details", "Sighting quotes", "Cave lights", "Guard
-room run", "Closest known opponent", "AI throw targets", "Doors", "Unseen soldiers in combat". Other deviations of this
+room run", "Closest known opponent", "Last-known resets", "Doors", "Unseen soldiers in combat". Other deviations of this
 domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light schedule", "Sounds out of
 sight", "Bullets of unseen shooters".

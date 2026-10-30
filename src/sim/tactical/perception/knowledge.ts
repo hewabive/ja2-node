@@ -22,8 +22,26 @@ export interface NoiseKnowledge {
   readonly reachable: boolean;
 }
 
+export interface KnownPosition {
+  readonly gridNo: number;
+  readonly level: number;
+}
+
 function considered(s: Soldier, opp: Soldier): boolean {
   return (opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side;
+}
+
+export function personalLastKnown(s: Soldier, opp: Soldier): KnownPosition {
+  return { gridNo: s.lastKnownOpp[opp.id] ?? NOWHERE, level: s.lastKnownOppLevel[opp.id] ?? 0 };
+}
+
+function publicLastKnown(t: TacticalState, team: number, opp: Soldier): KnownPosition {
+  const p = t.perception;
+  return { gridNo: p.publicLastKnown[team]?.[opp.id] ?? NOWHERE, level: p.publicLastKnownLevel[team]?.[opp.id] ?? 0 };
+}
+
+export function freshestLastKnown(t: TacticalState, s: Soldier, opp: Soldier, personal: number, publicValue: number): KnownPosition {
+  return knowledge(publicValue, personal) > 0 || personal === publicValue ? personalLastKnown(s, opp) : publicLastKnown(t, s.team, opp);
 }
 
 export function noiseStillUseful(t: TacticalState, s: Soldier, g: number, level: number): boolean {
@@ -49,13 +67,13 @@ function loudestNoise(t: TacticalState, s: Soldier): LoudestNoise {
     if (!opp?.placed || !opp.life || considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     if (personal < Opp.NOT_HEARD_OR_SEEN) {
-      const g = s.lastKnownOpp[opp.id] ?? NOWHERE;
-      consider(g, personal * spacesAway(s.gridNo, g), opp.level);
+      const heard = personalLastKnown(s, opp);
+      consider(heard.gridNo, personal * spacesAway(s.gridNo, heard.gridNo), heard.level);
     }
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (publicValue < Opp.NOT_HEARD_OR_SEEN) {
-      const g = t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE;
-      consider(g, publicValue * spacesAway(s.gridNo, g), opp.level);
+      const heard = publicLastKnown(t, s.team, opp);
+      consider(heard.gridNo, publicValue * spacesAway(s.gridNo, heard.gridNo), heard.level);
     }
   }
   if (s.ai.noiseGridNo !== NOWHERE) {
@@ -127,19 +145,16 @@ export function closestKnownOpponent(t: TacticalState, s: Soldier): number {
   let closestRange = 1500;
   for (const opp of t.mercSlots) {
     if (!opp?.placed) continue;
-    if ((opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side) continue;
+    if (considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (personal === Opp.NOT_HEARD_OR_SEEN && publicValue === Opp.NOT_HEARD_OR_SEEN) continue;
-    const g =
-      knowledge(publicValue, personal) > 0 || personal === publicValue
-        ? (s.lastKnownOpp[opp.id] ?? NOWHERE)
-        : (t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE);
-    if (g === NOWHERE || g === s.gridNo) continue;
-    const range = rangeInCells(s.gridNo, g);
+    const known = freshestLastKnown(t, s, opp, personal, publicValue);
+    if (known.gridNo === NOWHERE || known.gridNo === s.gridNo) continue;
+    const range = rangeInCells(s.gridNo, known.gridNo);
     if (range < closestRange) {
       closestRange = range;
-      closest = g;
+      closest = known.gridNo;
     }
   }
   return closest;

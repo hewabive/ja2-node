@@ -13,10 +13,10 @@ import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildi
 import { rangeInUnits } from '../combat/chance.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { findBestPath, PathCopy } from '../pathfinding.ts';
-import { guySawEnemyThisTurnOrBefore, noiseStillUseful } from '../perception/knowledge.ts';
+import { freshestLastKnown, guySawEnemyThisTurnOrBefore, noiseStillUseful } from '../perception/knowledge.ts';
 import { landHeightUnits, lineOfSightTest, STANDING_TREE_REDUCTION } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
-import { distanceVisible, knowledge } from '../perception/sight.ts';
+import { distanceVisible } from '../perception/sight.ts';
 import { plotPathSteps } from '../plot-path.ts';
 import { AP, stateName } from '../points.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
@@ -126,15 +126,12 @@ export function closestReachableDisturbance(t: TacticalState, s: Soldier): Distu
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (personal === Opp.NOT_HEARD_OR_SEEN && publicValue === Opp.NOT_HEARD_OR_SEEN) continue;
     if (personal === Opp.SEEN_CURRENTLY && opp.life >= OKLIFE) return { gridNo: NOWHERE, climb: false };
-    const g =
-      knowledge(publicValue, personal) > 0 || personal === publicValue
-        ? (s.lastKnownOpp[opp.id] ?? NOWHERE)
-        : (t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE);
-    if (g === s.gridNo || g === NOWHERE) continue;
-    const d = pythSpacesAway(s.gridNo, g);
+    const known = freshestLastKnown(t, s, opp, personal, publicValue);
+    if (known.gridNo === s.gridNo || known.gridNo === NOWHERE) continue;
+    const d = pythSpacesAway(s.gridNo, known.gridNo);
     if (d < closestDist) {
-      closestEnemy = g;
-      closestLevel = opp.level;
+      closestEnemy = known.gridNo;
+      closestLevel = known.level;
       closestDist = d;
     }
   }

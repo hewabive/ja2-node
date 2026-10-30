@@ -531,12 +531,14 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
   for (let team = 0; team < MAX_TEAMS; team++) {
     const publicOpp = p.publicOpp[team];
     const publicLastKnown = p.publicLastKnown[team];
-    if (!publicOpp || !publicLastKnown) continue;
+    const publicLastKnownLevel = p.publicLastKnownLevel[team];
+    if (!publicOpp || !publicLastKnown || !publicLastKnownLevel) continue;
     (o.publicOpplist[team] ?? []).forEach((v, k) => {
       publicOpp[k] = v;
     });
     for (let k = 0; k < TOTAL_SOLDIERS; k++)
       publicLastKnown[k] = halfSavedGridNo(o.publicLastKnownOppLocBytes, team * TOTAL_SOLDIERS + k, PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD);
+    publicLastKnownLevel.set(o.publicLastKnownOppLevel[team] ?? []);
     p.publicNoiseVolume[team] = o.publicNoiseVolume[team] ?? 0;
     p.publicNoiseGridNo[team] = halfSavedGridNo(o.publicNoiseGridNoBytes, team, PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD);
   }
@@ -544,6 +546,7 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
     if (!s) continue;
     for (let k = 0; k < TOTAL_SOLDIERS; k++)
       s.lastKnownOpp[k] = halfSavedGridNo(o.lastKnownOppLocBytes, s.id * TOTAL_SOLDIERS + k, PERSONAL_LAST_KNOWN_IN_A_FRESH_PROCESS);
+    s.lastKnownOppLevel.set(o.lastKnownOppLevel[s.id] ?? []);
   }
   o.seenOpponents.forEach((row, viewer) => {
     row.forEach((v, k) => {

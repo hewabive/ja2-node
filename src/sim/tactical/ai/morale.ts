@@ -14,6 +14,7 @@ import { InvSlot, itemIn, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { boxingFight, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { seenOpponent } from '../perception/duel.ts';
+import { freshestLastKnown } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { knowledge, publicOpp } from '../perception/sight.ts';
 import { calcActionPoints } from '../points.ts';
@@ -71,8 +72,7 @@ export function mostRecentOpplistValue(k: OpponentKnowledge): number {
 }
 
 export function bestGuessLocation(t: TacticalState, s: Soldier, opp: Soldier, k: OpponentKnowledge): number {
-  if (prefersPersonalKnowledge(k)) return s.lastKnownOpp[opp.id] ?? NOWHERE;
-  return t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE;
+  return freshestLastKnown(t, s, opp, k.personal, k.public).gridNo;
 }
 
 function maxArmour(items: ItemTable): MaxArmour {

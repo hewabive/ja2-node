@@ -285,3 +285,48 @@ describe('snapshot version 10 (opplist decay on the tactical clock) migrates to 
     await expectDecayDueAtNextRealtimeTurn(campaign, clock);
   });
 });
+
+const LAST_KNOWN_LEVEL_KEYS: ReadonlySet<string> = new Set(['lastKnownOppLevel', 'publicLastKnownLevel']);
+
+function withoutLastKnownLevels(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutLastKnownLevels(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (!LAST_KNOWN_LEVEL_KEYS.has(key)) out[key] = withoutLastKnownLevels(v);
+  return out;
+}
+
+function versionEleven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutLastKnownLevels(value)]);
+  return { ...snapshot, version: 11, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 11 (no last-known levels) migrates with every last-known level on the ground', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectGroundLevels(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionEleven(current.sim);
+    for (const key of LAST_KNOWN_LEVEL_KEYS) expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectGroundLevels(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectGroundLevels(await createCampaignSession(kit.read, exists, 9));
+  });
+});

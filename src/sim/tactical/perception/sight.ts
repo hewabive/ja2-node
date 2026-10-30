@@ -97,6 +97,7 @@ const UNSEEN_SPOTTING_EXPERIENCE_CHANCES = 10;
 export interface Perception {
   readonly publicOpp: Int8Array[];
   readonly publicLastKnown: Int16Array[];
+  readonly publicLastKnownLevel: Int8Array[];
   readonly publicNoiseGridNo: number[];
   readonly publicNoiseVolume: number[];
   readonly publicNoiseLevel: number[];
@@ -112,6 +113,7 @@ export function createPerception(maxSoldiers: number): Perception {
   return {
     publicOpp: Array.from({ length: TEAM_COUNT }, () => new Int8Array(maxSoldiers)),
     publicLastKnown: Array.from({ length: TEAM_COUNT }, () => new Int16Array(maxSoldiers).fill(-1)),
+    publicLastKnownLevel: Array.from({ length: TEAM_COUNT }, () => new Int8Array(maxSoldiers)),
     publicNoiseGridNo: new Array<number>(TEAM_COUNT).fill(-1),
     publicNoiseVolume: new Array<number>(TEAM_COUNT).fill(0),
     publicNoiseLevel: new Array<number>(TEAM_COUNT).fill(0),
@@ -197,12 +199,13 @@ export function knowledge(oldValue: number, newValue: number): number {
   return KNOWLEDGE_VALUE[oldValue - OLDEST_HEARD_VALUE]?.[newValue - OLDEST_HEARD_VALUE] ?? 0;
 }
 
-export function updatePersonal(s: Soldier, opp: Soldier, value: number, g: number): void {
+export function updatePersonal(s: Soldier, opp: Soldier, value: number, g: number, level: number): void {
   if (knowledge(s.oppList[opp.id] ?? 0, value) > 0 || value === 0) s.oppList[opp.id] = value;
   s.lastKnownOpp[opp.id] = g;
+  s.lastKnownOppLevel[opp.id] = level;
 }
 
-export function updatePublic(t: TacticalState, team: number, opp: Soldier, value: number, g: number): void {
+export function updatePublic(t: TacticalState, team: number, opp: Soldier, value: number, g: number, level: number): void {
   const p = t.perception;
   const table = p.publicOpp[team];
   if (!table) return;
@@ -210,6 +213,8 @@ export function updatePublic(t: TacticalState, team: number, opp: Soldier, value
   if (knowledge(old, value) > 0 || value === 0) table[opp.id] = value;
   const lastKnown = p.publicLastKnown[team];
   if (lastKnown) lastKnown[opp.id] = g;
+  const lastKnownLevel = p.publicLastKnownLevel[team];
+  if (lastKnownLevel) lastKnownLevel[opp.id] = level;
   if (old === 0 && value !== 0) {
     for (const mate of mercs(t)) {
       if (mate.team !== team || mate.life < OKLIFE || t.explosives.gassed[mate.id] || (mate.oppList[opp.id] ?? 0) !== 0) continue;
@@ -391,7 +396,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
     if (old !== Opp.SEEN_THIS_TURN || s.lastKnownOpp[opp.id] !== opp.gridNo) t.perceptionHooks.setNewSituation(s);
     else if (NON_COMBAT_MOVES.has(s.ai.action)) t.perceptionHooks.setNewSituation(s);
   }
-  updatePersonal(s, opp, Opp.SEEN_CURRENTLY, opp.gridNo);
+  updatePersonal(s, opp, Opp.SEEN_CURRENTLY, opp.gridNo, opp.level);
   const sightingCaller = caller === Caller.MANLOOKSFOROTHERTEAMS || caller === Caller.OTHERTEAMSLOOKFORMAN || caller === Caller.UNKNOWN;
   if (sightingCaller && t.perception.bestSize !== 0 && !boxingActive(t) && newOpp) {
     if (t.inCombat) {
@@ -472,7 +477,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
         opp.pauseAllAnimation = true;
       }
     }
-    updatePublic(t, toTeam, opp, pers, s.lastKnownOpp[opp.id] ?? -1);
+    updatePublic(t, toTeam, opp, pers, s.lastKnownOpp[opp.id] ?? -1, s.lastKnownOppLevel[opp.id] ?? 0);
   }
   if (s.ai.noiseVolume > (p.publicNoiseVolume[toTeam] ?? 0)) {
     p.publicNoiseGridNo[toTeam] = s.ai.noiseGridNo;
@@ -689,7 +694,7 @@ function decayPublicOpponents(t: TacticalState, team: number): boolean {
     anyPubliclyKnown = true;
     const decayed = decayOppListValue(value);
     table[opp.id] = decayed;
-    if (decayed === Opp.NOT_HEARD_OR_SEEN) updatePublic(t, team, opp, Opp.NOT_HEARD_OR_SEEN, NOWHERE);
+    if (decayed === Opp.NOT_HEARD_OR_SEEN) updatePublic(t, team, opp, Opp.NOT_HEARD_OR_SEEN, NOWHERE, 0);
   }
   return anyPubliclyKnown;
 }
@@ -736,10 +741,10 @@ export function verifyPublicOpplistDueToDeath(t: TacticalState, s: Soldier): voi
 
 export function removeManAsTarget(t: TacticalState, s: Soldier): void {
   if (t.perception.lastMercToRadio[s.team] === s) t.perception.lastMercToRadio[s.team] = null;
-  for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1);
+  for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
   for (const opp of mercs(t)) {
     if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY && !opp.neutral && hostile(opp, s)) removeOneOpponent(opp);
-    updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1);
+    updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
     t.turn.seenOpponents[opp.id * TOTAL_SOLDIERS + s.id] = 0;
   }
   for (const other of mercs(t)) {

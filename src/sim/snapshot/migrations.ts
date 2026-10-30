@@ -312,6 +312,60 @@ function opplistDecayOnWorldSeconds(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LAST_KNOWN_KEY = 'lastKnownOpp';
+const LAST_KNOWN_LEVEL_KEY = 'lastKnownOppLevel';
+const PERCEPTION_KEY = 'perception';
+const PUBLIC_LAST_KNOWN_KEY = 'publicLastKnown';
+const PUBLIC_LAST_KNOWN_LEVEL_KEY = 'publicLastKnownLevel';
+const INT8_TAG = '$i8';
+const INT16_TAG = '$i16';
+const INT16_BYTES = 2;
+
+function int16Count(value: Json | undefined): number {
+  const body = isObject(value) ? value[INT16_TAG] : undefined;
+  return typeof body === 'string' ? decodeBase64(body).length / INT16_BYTES : 0;
+}
+
+function groundLevels(gridNos: Json | undefined): Json {
+  return { [INT8_TAG]: encodeBase64(new Uint8Array(int16Count(gridNos))) };
+}
+
+function insertAfter(o: JsonObject, key: string, added: string, value: Json): JsonObject {
+  if (o[added] !== undefined) return o;
+  const out: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(o)) {
+    out[k] = v;
+    if (k === key) out[added] = value;
+  }
+  return out;
+}
+
+function withSoldierLastKnownLevels(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierLastKnownLevels(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierLastKnownLevels(v);
+  if (!isSoldierRecord(mapped)) return mapped;
+  return insertAfter(mapped, LAST_KNOWN_KEY, LAST_KNOWN_LEVEL_KEY, groundLevels(mapped[LAST_KNOWN_KEY]));
+}
+
+function withPublicLastKnownLevels(tactical: JsonObject): JsonObject {
+  const perception = tactical[PERCEPTION_KEY];
+  if (!isObject(perception) || perception[REF] !== undefined) return tactical;
+  const gridNos = perception[PUBLIC_LAST_KNOWN_KEY];
+  const levels: Json = Array.isArray(gridNos) ? gridNos.map((team: Json) => groundLevels(team)) : [];
+  return { ...tactical, [PERCEPTION_KEY]: insertAfter(perception, PUBLIC_LAST_KNOWN_KEY, PUBLIC_LAST_KNOWN_LEVEL_KEY, levels) };
+}
+
+function addLastKnownLevels(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const soldiers = withSoldierLastKnownLevels(value);
+    return [name, name === 'tactical' && isObject(soldiers) ? withPublicLastKnownLevels(soldiers) : soldiers];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -324,5 +378,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     8: putOutStaleMuzzleFlashes,
     9: addBloodGraphics,
     10: opplistDecayOnWorldSeconds,
+    11: addLastKnownLevels,
   };
 }
