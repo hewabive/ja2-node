@@ -565,18 +565,23 @@ function signalDodge(t: TacticalState, s: Soldier): void {
   changeSoldierState(t, tgt, anim(t.content, 'DODGE_ONE'));
 }
 
-function endNpcPunch(t: TacticalState, s: Soldier): void {
+function endNpcPunch(t: TacticalState, s: Soldier): boolean {
   const punch = s.npcPunch;
-  if (!punch) return;
+  if (!punch) return false;
   s.npcPunch = null;
   t.narrative.triggerNpcWithGivenApproach(s.profile, punch.approach);
+  return true;
 }
 
 function endPunch(t: TacticalState, s: Soldier): OpOutcome {
-  endNpcPunch(t, s);
+  const npcPunch = endNpcPunch(t, s);
   const martialArtist = s.profile !== NO_PROFILE && numSkillTraits(s, SkillTrait.MARTIALARTS) > 0 && !inMeanwhile(t);
-  const crouched = height(t.content, s.state) === AnimHeight.CROUCH;
-  changeSoldierState(t, s, anim(t.content, crouched ? 'CROUCHING' : martialArtist ? 'NINJA_BREATH' : 'PUNCH_BREATH'));
+  if (height(t.content, s.state) === AnimHeight.CROUCH) {
+    if (npcPunch) changeSoldierStance(t, s, AnimHeight.STAND);
+    else changeSoldierState(t, s, anim(t.content, 'CROUCHING'));
+    return 'stop';
+  }
+  changeSoldierState(t, s, anim(t.content, martialArtist ? 'NINJA_BREATH' : 'PUNCH_BREATH'));
   return 'stop';
 }
 

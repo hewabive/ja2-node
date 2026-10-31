@@ -246,6 +246,35 @@ describe('punches', () => {
     expect(seen.has('DODGE_ONE')).toBe(true);
   });
 
+  it('stands a crouched NPC up when his scripted punch ends, where any other crouched puncher stays down', () => {
+    const END_PUNCH = 468;
+    const APPROACH = 3;
+    const endCrouchedPunch = (scripted: boolean) => {
+      const { sim, merc } = duel(null, gridNo(80, 81), Direction.SOUTH);
+      const t = sim.state;
+      const approaches: number[] = [];
+      t.narrative = { ...t.narrative, triggerNpcWithGivenApproach: (_profile, approach) => approaches.push(approach) };
+      merc.state = anim(t.content, 'PUNCH_LOW');
+      merc.desiredHeight = AnimHeight.CROUCH;
+      if (scripted) merc.npcPunch = { approach: APPROACH };
+      const outcome = meleeOpcode(t, merc, END_PUNCH);
+      return { outcome, state: animName(t.content, merc.state), desiredHeight: merc.desiredHeight, approaches, npcPunch: merc.npcPunch };
+    };
+    expect(endCrouchedPunch(true)).toEqual({
+      outcome: 'stop',
+      state: 'KNEEL_UP',
+      desiredHeight: AnimHeight.STAND,
+      approaches: [APPROACH],
+      npcPunch: null,
+    });
+    expect(endCrouchedPunch(false)).toMatchObject({
+      outcome: 'stop',
+      state: 'CROUCHING',
+      desiredHeight: AnimHeight.CROUCH,
+      approaches: [],
+    });
+  });
+
   it('walks up to punch someone three tiles away, charging the walk and the punch the estimate showed', () => {
     const { sim, merc, enemy } = duel(null, gridNo(80, 83), Direction.SOUTH);
     const t = sim.state;
