@@ -2,6 +2,7 @@ import type { ItemTable } from '../../content/items/items.ts';
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { CrewMember, CrewPort, MercStats } from '../strategic/economy/ports.ts';
 import { emptyInventory, type Inventory } from '../tactical/inventory.ts';
+import { NOWHERE } from '../tactical/soldier.ts';
 import { type GuardOptions, guardFields, unsupplied } from './guard.ts';
 import { objectFromInventoryView } from './objects.ts';
 import type { KnowledgeMerc } from './view.ts';
@@ -107,6 +108,7 @@ export function crewMemberFromView(items: ItemTable, m: KnowledgeMerc, placement
     bleeding: 0,
     breath: m.breath,
     breathMax: m.breathMax,
+    absoluteFinalDestination: NOWHERE,
     collapsed: false,
     forcedToStayAwake: false,
     complainedThatTired: false,

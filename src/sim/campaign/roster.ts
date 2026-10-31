@@ -346,6 +346,14 @@ export class RosterMerc implements CrewMember {
     this.soldier.breathMax = value;
   }
 
+  get absoluteFinalDestination(): number {
+    return this.soldier.absoluteFinalDestination;
+  }
+
+  set absoluteFinalDestination(value: number) {
+    this.soldier.absoluteFinalDestination = value;
+  }
+
   get strength(): number {
     return this.soldier.stats.strength;
   }

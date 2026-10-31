@@ -4,8 +4,10 @@ import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/suppor
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { assignmentDone } from '../strategic/economy/assignment-done.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { animName } from '../tactical/anim-states.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { NOWHERE } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 
@@ -22,6 +24,7 @@ afterAll(async () => {
 
 const TIRED = 40;
 const TICK_BUDGET = 2_000;
+const HOSPITAL_BED = 12_000;
 
 interface Landed {
   readonly c: CampaignSim;
@@ -90,5 +93,16 @@ describe('assignments and sleep animate our merc in the loaded sector (Assignmen
     if (!economy) throw new Error('no economy');
     assignmentDone(economy, merc(l), true, true);
     expect(shown(l)).toBe('END_DOCTOR');
+  });
+
+  it('forgets the absolute destination a hospital patient was left with on the soldier the loaded sector moves', () => {
+    const l = landed(45);
+    const economy = l.c.economy;
+    const onTheMap = l.c.tactical?.state.soldiers[l.id];
+    if (!economy || !onTheMap) throw new Error('no merc in the loaded sector');
+    merc(l).assignment = Assignment.ASSIGNMENT_HOSPITAL;
+    onTheMap.absoluteFinalDestination = HOSPITAL_BED;
+    assignmentDone(economy, merc(l), true, true);
+    expect(onTheMap.absoluteFinalDestination).toBe(NOWHERE);
   });
 });

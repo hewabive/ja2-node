@@ -11,6 +11,7 @@ import type { CrewMember, CrewPort, EconomyContext, MercStats, StatDamage } from
 import { applySquadAssignment } from '../../src/sim/strategic/economy/set-assignment.ts';
 import type { HelicopterPort } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
+import { NOWHERE } from '../../src/sim/tactical/soldier.ts';
 import { loadStrategicTestContent, testContext } from './strategic.ts';
 
 const DATA_DIR = join(import.meta.dirname, '../../data');
@@ -105,6 +106,7 @@ export class FakeCrew implements CrewPort {
       bleeding: 0,
       breath: o.breathMax ?? 100,
       breathMax: o.breathMax ?? 100,
+      absoluteFinalDestination: NOWHERE,
       collapsed: false,
       forcedToStayAwake: false,
       complainedThatTired: false,

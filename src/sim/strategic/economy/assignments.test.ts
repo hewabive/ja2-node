@@ -8,12 +8,13 @@ import {
   loadEconomyTestContent,
 } from '../../../../tests/support/economy.ts';
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
+import { NOWHERE } from '../../tactical/soldier.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { assignmentDone, reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
 import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment, numberThatCanBeDoctored } from './conditions.ts';
-import { Assignment, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
-import { healCharacters, healPatient } from './doctor.ts';
+import { Assignment, HOSPITAL_SECTOR, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
+import { checkForAndHandleHospitalPatients, healCharacters, healPatient, sectorsWithSoldiersKey } from './doctor.ts';
 import { kitItems, Slot, useKitPoints } from './kits.ts';
 import {
   calculateHealingPointsForDoctor,
@@ -38,6 +39,7 @@ import { updateAssignments } from './update.ts';
 
 const OMERTA = parseSectorString('A9');
 const DRASSEN = parseSectorString('C13');
+const HOSPITAL_BED = 12_000;
 
 let content: EconomyTestContent;
 beforeAll(async () => {
@@ -247,6 +249,22 @@ describe('doctoring', () => {
       { id: 0, stat: StatAmt.DEXTERITY, chances: 1, cause: StatCause.SUCCESS },
       { id: 0, stat: StatAmt.WISDOM, chances: 1, cause: StatCause.SUCCESS },
     ]);
+  });
+
+  it("forgets the absolute destination of a hospital patient once he is healed, every hour, and of nobody else's done assignment", () => {
+    const made = context();
+    const hospitalOccupied = new Set([sectorsWithSoldiersKey(HOSPITAL_SECTOR)]);
+    const healed = made.crew.add({ id: 0, sector: HOSPITAL_SECTOR, assignment: Assignment.ASSIGNMENT_HOSPITAL, life: 78, lifeMax: 80 });
+    const hurt = made.crew.add({ id: 1, sector: HOSPITAL_SECTOR, assignment: Assignment.ASSIGNMENT_HOSPITAL, life: 20, lifeMax: 80 });
+    const patient = merc(made, { id: 2, assignment: Assignment.PATIENT });
+    for (const s of [healed, hurt, patient]) s.absoluteFinalDestination = HOSPITAL_BED;
+    checkForAndHandleHospitalPatients(made.ctx, hospitalOccupied);
+    assignmentDone(made.ctx, patient, true, true);
+    expect([healed.life, hurt.life]).toEqual([80, 25]);
+    expect([healed, hurt, patient].map((s) => s.absoluteFinalDestination)).toEqual([NOWHERE, HOSPITAL_BED, HOSPITAL_BED]);
+    healed.absoluteFinalDestination = HOSPITAL_BED;
+    checkForAndHandleHospitalPatients(made.ctx, hospitalOccupied);
+    expect(healed.absoluteFinalDestination).toBe(NOWHERE);
   });
 });
 

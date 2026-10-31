@@ -5,6 +5,7 @@
 // @src MapScreen.cc HandleAssignmentsDoneAndAwaitingFurtherOrders (the gfReEvaluateEveryonesNothingToDo test).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { NOWHERE } from '../../tactical/soldier.ts';
 import { refundUnusedHospitalPayment } from '../narrative/hospital.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
@@ -59,6 +60,7 @@ function addSectorThatCompletedMilitiaTraining(ctx: EconomyContext, s: CrewMembe
 
 export function assignmentDone(ctx: EconomyContext, s: CrewMember, sayQuote: boolean, meToo: boolean): void {
   ctx.hooks.animateAssignmentDone(s.id);
+  if (s.assignment === Assignment.ASSIGNMENT_HOSPITAL) s.absoluteFinalDestination = NOWHERE;
   if (sayQuote && !meToo && s.assignment === Assignment.TRAIN_TOWN) addSectorThatCompletedMilitiaTraining(ctx, s);
   if (s.doneQuoteSaid) return;
   s.doneQuoteSaid = true;

@@ -47,6 +47,7 @@ import { Warp } from '../../src/sim/strategic/time/constants.ts';
 import { EventDispatch } from '../../src/sim/strategic/time/dispatch.ts';
 import { importStrategicTime } from '../../src/sim/strategic/time/save-import.ts';
 import { type ClockContext, warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
+import { NOWHERE } from '../../src/sim/tactical/soldier.ts';
 
 type Json = Record<string, unknown>;
 
@@ -126,6 +127,7 @@ function crewMember(save: SaveGame, s: SavedSoldier, path: readonly number[], sa
     bleeding: s.bleeding,
     breath: s.stats.breath,
     breathMax: s.stats.breathMax,
+    absoluteFinalDestination: NOWHERE,
     collapsed: false,
     forcedToStayAwake: false,
     complainedThatTired: false,

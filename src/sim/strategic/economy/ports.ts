@@ -39,6 +39,7 @@ export interface CrewMember extends StrategicMerc {
   bleeding: number;
   breath: number;
   breathMax: number;
+  absoluteFinalDestination: number;
   asleep: boolean;
   collapsed: boolean;
   forcedToStayAwake: boolean;
