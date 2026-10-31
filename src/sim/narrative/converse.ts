@@ -59,6 +59,7 @@ import {
   ProfileFlag2,
   QUOTE_RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO,
 } from './narrative-ids.ts';
+import { sayLaterComment } from './nearby-quotes.ts';
 import {
   actionIdForMovementRecord,
   ensureQuoteFileLoaded,
@@ -848,7 +849,7 @@ function sayLaterAtPanelClose(host: NarrativeHost): void {
   if (npc === NO_PROFILE) return;
   const s = soldierByProfile(host, npc);
   if (!s) return;
-  host.mercLines.sayLater(s, nice);
+  sayLaterComment(host, s, nice);
   talk.niceNpc = NO_PROFILE;
   talk.nastyNpc = NO_PROFILE;
   host.setFact(NarrativeFact.NEED_TO_SAY_SOMETHING, false);

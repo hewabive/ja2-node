@@ -77,7 +77,6 @@ NPC records, merc lines, the dialogue queue and quest scripting. Paths are under
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Dialogue queue conditions | The gas and POW tests of `CanSayQuote`, the ME_TOO bleeding line, waking a sleeping speaker, stop-time quotes, the auto-bandage drop (`Tactical/Dialogue_Control.cc:517`, `:646`); a soldier's event, the items-seen quote among them, waits while his battle sound plays (`CharacterDialogueEvent::MayExecute`, `:483`) | None (`narrative/dialogue-queue.ts`) |  |
-| Say-later merc lines | A merc nearby comments a conversation that set `FACT_NEED_TO_SAY_SOMETHING` (`Tactical/Interface_Dialogue.cc:575`) | The fact is reset, nobody comments (`narrative/converse.ts`) | Quote 58 needs the gender table: `QuoteExp_GenderCode` (`Tactical/QArray.cc:86`) can join `passingDislike` in `tools/transcribe/merc-quotes.ts` and `content/narrative/quote-speakers.ts`; the pick draws on the gameplay stream |
 | Rebel basement trapdoor | Going down to the hideout opens A10's trapdoor and moves the crate (`Tactical/Interface_Dialogue.cc:1609`) | The hooks do nothing (`campaign/narrative/npc-action-flow.ts`) | The crate needs writes into an unloaded sector's diff |
 
 ## 4. Agent API

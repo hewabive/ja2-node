@@ -103,8 +103,9 @@ Tactical rules reach the dialogue only through `TacticalState.narrative` (deviat
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
 battle, a buddy's comment and the can't-do line of a skill check through `TacticalPort.sayQuote`, the items-seen quote
-through `signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it) go
-through the queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
+through `signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it, the
+comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue; contract, morale and
+other strategic merc lines are plain `mercQuote` events outside it.
 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
@@ -185,7 +186,8 @@ Inferred from reading the source:
   settles for the NPC's own tile (ported from the source, not probed).
 - A native save's soldiers outside the loaded sector hold their ids; the import does not create them, so only
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
+- The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
+  array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "NPC draws first and minor offenses". Other
-deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an
-escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions", "NPC draws first and minor offenses". Other deviations of this domain:
+"Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".

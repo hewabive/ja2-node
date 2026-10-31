@@ -200,7 +200,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
       addProfileCost: () => {},
       message: () => {},
     },
-    mercLines: { sayLater: () => {}, mikeSaysHi: () => {} },
+    mercLines: { mikeSaysHi: () => {} },
     civ: {
       townOfSector: () => options.town ?? 0,
       townUsesLoyalty: () => options.townUsesLoyalty ?? true,

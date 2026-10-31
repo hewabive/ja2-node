@@ -429,7 +429,7 @@ export class TalkFlow {
         },
         message: (m) => this.#emit({ type: 'npcMessage', kind: m.kind, profile: m.profile, amount: m.amount }),
       },
-      mercLines: { sayLater: () => {}, mikeSaysHi: () => this.#mikeSaysHi() },
+      mercLines: { mikeSaysHi: () => this.#mikeSaysHi() },
       civ: {
         townOfSector: (sector) => (campaign.economy ? townIdOfSector(campaign.economy, { x: sector.x, y: sector.y, z: 0 }) : 0),
         townUsesLoyalty: (town) => campaign.economy?.economy.loyalty.usesLoyalty[town] === true,

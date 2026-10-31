@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { gunQuoteOf, parseQuoteSpeakers } from './quote-speakers.ts';
+import { gunQuoteOf, LikablePersonGender, likablePersonGenderOf, parseQuoteSpeakers } from './quote-speakers.ts';
 
 const IRA = 59;
 const IVAN = 7;
+const RED = 11;
 const BARRY = 0;
 const DEVIN = 61;
 const BEYOND_THE_TABLE = 75;
@@ -25,6 +26,15 @@ describe('the transcribed quote speakers', () => {
       FOUND_SOMETHING_SPECIAL,
       0,
       0,
+    ]);
+  });
+
+  it('gives each profile of QArray.cc the sex of the likable person he speaks of, and either to a profile past the table', () => {
+    expect([BARRY, IVAN, RED, BEYOND_THE_TABLE].map((p) => likablePersonGenderOf(speakers, p))).toEqual([
+      LikablePersonGender.MALE,
+      LikablePersonGender.EITHER,
+      LikablePersonGender.FEMALE,
+      LikablePersonGender.EITHER,
     ]);
   });
 });

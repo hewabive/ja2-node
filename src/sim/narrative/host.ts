@@ -44,7 +44,6 @@ export interface CivQuotePort {
 }
 
 export interface MercLinePort {
-  sayLater(npc: Soldier, nice: boolean): void;
   mikeSaysHi(): void;
 }
 
