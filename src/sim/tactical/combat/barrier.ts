@@ -5,7 +5,7 @@
 // @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
 // @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount; Handle_UI.cc
 // @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team); the HandleKilledQuote of
-// @src InternalReduceAttackBusyCount (2026-10-30).
+// @src InternalReduceAttackBusyCount (2026-10-30), its QUOTE_OUT_OF_AMMO of fSayAmmoQuotePending (2026-10-30).
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
@@ -19,6 +19,7 @@ import { boxingFight } from '../narrative/boxing-state.ts';
 import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { handleKilledQuote } from '../narrative/kill-quotes.ts';
 import { inMeanwhile, meanwhileKeepsAttacker } from '../narrative/meanwhile-rules.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
 import { reevaluateEnemyStance } from '../perception/enemy-stance.ts';
 import { handleItemsSeenOnAttack } from '../perception/item-locator.ts';
@@ -210,7 +211,10 @@ export function internalReduceAttackBusyCount(
         target.ai.underFire = 2;
       }
     }
-    soldier.sayAmmoQuotePending = false;
+    if (soldier.sayAmmoQuotePending) {
+      soldier.sayAmmoQuotePending = false;
+      t.narrative.sayQuote(soldier, MercQuote.OUT_OF_AMMO);
+    }
     if (soldier.team !== Team.OUR) t.turnHooks.freeUpFromAttacking(t, soldier);
     else unSetUIBusy(t, soldier);
     if (enterCombat && !t.inCombat && !inMeanwhile(t)) enterCombatMode(t, soldier.team);

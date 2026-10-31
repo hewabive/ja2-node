@@ -4,9 +4,12 @@
 // @src HandleAutoPlaceFail, ItemPoolOKForPickup, SoldierDropItem, SoldierHandleDropItem, AdjustGridNoForItemPlacement;
 // @src Points.cc GetAPsToPickupItem; Handle_UI.cc UIOkForItemPickup;
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
-// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give).
+// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give); Items.cc ItemIsCool
+// @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
+import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
+import { gunQuoteOf } from '../../content/narrative/quote-speakers.ts';
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
 import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
@@ -17,6 +20,7 @@ import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
+import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
 import { isWater, newOKDestination } from './pathfinding.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
@@ -36,6 +40,25 @@ import {
 
 const Code = { GIVE_ITEM: 486, DROP_ITEM: 487, PICKUP_ITEM: 493 } as const;
 const HIDDEN_ITEM_WISDOM_GAIN = 5;
+const COOL_ITEM_MIN_STATUS = 60;
+const COOL_WEAPON_MIN_DEADLINESS = 30;
+const COOL_ARMOUR_MIN_PROTECTION = 20;
+
+function itemIsCool(items: ItemTable, o: ItemObject): boolean {
+  if ((o.status[0] ?? 0) < COOL_ITEM_MIN_STATUS) return false;
+  const def = items.byIndex.get(o.item);
+  if (!def) return false;
+  if (def.itemClass & WEAPON_CLASSES) return (def.weapon?.deadliness ?? 0) >= COOL_WEAPON_MIN_DEADLINESS;
+  return (def.armour?.protection ?? 0) >= COOL_ARMOUR_MIN_PROTECTION;
+}
+
+function saidFoundSomethingSpecial(t: TacticalState, s: Soldier): boolean {
+  if (gunQuoteOf(t.content.quoteSpeakers, s.profile) !== MercQuote.FOUND_SOMETHING_SPECIAL) return false;
+  if (quoteSaid(t, s).quoteSaidFlags & QuoteSaidFlag.FOUND_SOMETHING_NICE) return false;
+  markQuoteSaid(t, s, QuoteSaidFlag.FOUND_SOMETHING_NICE);
+  t.narrative.sayQuote(s, MercQuote.FOUND_SOMETHING_SPECIAL);
+  return true;
+}
 
 export function itemPlacementBlocked(t: TacticalState, s: Soldier, g: number): boolean {
   const desired = s.level !== 0 ? STRUCTURE_ON_ROOF : STRUCTURE_ON_GROUND;
@@ -138,8 +161,10 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
   const ctx = soldierInventoryContext(t, s);
   const selected = pending.selection ?? pickupCandidates(t, s, pending.gridNo, pending.zLevel);
   let dontCharge = false;
+  let cool = false;
   for (const wi of selected) {
     if (!t.worldItems.includes(wi) || !itemPoolOKForPickup(s, wi, pending.zLevel)) continue;
+    if (itemIsCool(t.content.items, wi.object)) cool = true;
     const copy = cloneObject(wi.object);
     if (autoPlaceObject(ctx, s, copy)) {
       removeWorldItem(t, wi);
@@ -148,10 +173,11 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
     Object.assign(wi.object, copy);
     if (s.team === Team.OUR) dontCharge = true;
   }
+  const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s));
   if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level))
     statChange(t, s, StatKind.WISDOM, HIDDEN_ITEM_WISDOM_GAIN, StatCause.SUCCESS);
   if (!dontCharge) deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
-  t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo });
+  t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
 }
 
 export function soldierDropItem(t: TacticalState, s: Soldier, slot: number): void {

@@ -4,13 +4,18 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { createItem } from '../sim/items/object.ts';
 import { deleteTalkingMenu } from '../sim/narrative/converse.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Fact } from '../sim/strategic/narrative/fact-ids.ts';
-import { MercQuote } from '../sim/tactical/narrative/merc-quotes.ts';
+import { InvSlot } from '../sim/tactical/inventory.ts';
+import { MercQuote, QuoteSaidFlag } from '../sim/tactical/narrative/merc-quotes.ts';
+import { SightFlags } from '../sim/tactical/perception/opp.ts';
+import { handleSight } from '../sim/tactical/perception/sight.ts';
 import { type Soldier, TEAM_FIRST_ID, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalState } from '../sim/tactical/state.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
+import { addItemToPool, Visibility } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import type { Session } from './session.ts';
@@ -27,6 +32,9 @@ afterAll(async () => {
 
 const KESTREL = 0;
 const VANT = 1;
+const FOUND_SOMETHING_SPEAKER = 7;
+const COOL_GUN = 'AK74';
+const ENEMY_ID = TEAM_FIRST_ID[Team.ENEMY];
 const NPC = 94;
 const NPC_ID = TEAM_FIRST_ID[Team.CIV];
 const MALE = 0;
@@ -38,8 +46,8 @@ interface Campaign {
   readonly live: Session;
 }
 
-async function squadInA9(seed: number): Promise<Campaign> {
-  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { profiles: [KESTREL, VANT], land: false });
+async function squadInA9(seed: number, profiles: readonly number[] = [KESTREL, VANT]): Promise<Campaign> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { profiles, land: false });
   const session = drivenSession(created, stubSessionSources(kit));
   Object.assign(sectorInfo(session.campaign.state.map, parseSectorString('A9')), { numAdmins: 0, numTroops: 0, numElites: 0 });
   const land = { type: 'compressTime', mode: 2 };
@@ -109,5 +117,46 @@ describe('the comment a conversation left to say, in a campaign (Interface_Dialo
     expect(campaign.narrative.checkFact(Fact.NEED_TO_SAY_SOMETHING, 0)).toBe(false);
     const said = c.live.advance({ ticks: QUOTE_TICKS }).events;
     expect(quotesSaid(said, [MercQuote.LISTEN_LIKABLE_PERSON])).toEqual([[KESTREL, MercQuote.LISTEN_LIKABLE_PERSON]]);
+  });
+});
+
+describe('the found-something-special line in a campaign (Handle_Items.cc SoldierGetItemFromWorld)', () => {
+  it("is said through the dialogue queue and marked in the roster's quote flags", async () => {
+    const c = await squadInA9(83, [FOUND_SOMETHING_SPEAKER]);
+    const t = loadedSector(c).state;
+    const merc = ours(t, FOUND_SOMETHING_SPEAKER);
+    addItemToPool(
+      t,
+      merc.gridNo,
+      createItem(t.content.items, t.content.items.byName.get(COOL_GUN)?.index ?? 0, 100),
+      Visibility.VISIBLE,
+      0,
+    );
+    const pickUp = { type: 'pickUp', soldier: merc.id };
+    await c.session.prepare(pickUp);
+    expect(c.session.dispatch(pickUp)).toMatchObject({ ok: true });
+    const said = c.live.advance({ ticks: QUOTE_TICKS }).events;
+    expect(quotesSaid(said, [MercQuote.FOUND_SOMETHING_SPECIAL])).toEqual([[FOUND_SOMETHING_SPEAKER, MercQuote.FOUND_SOMETHING_SPECIAL]]);
+    const record = c.session.campaign.battle?.roster.get(ours(loadedSector(c).state, FOUND_SOMETHING_SPEAKER).id);
+    expect((record?.quoteSaidFlags ?? 0) & QuoteSaidFlag.FOUND_SOMETHING_NICE).toBe(QuoteSaidFlag.FOUND_SOMETHING_NICE);
+  });
+});
+
+describe('the out-of-ammo line in a campaign (Overhead.cc InternalReduceAttackBusyCount)', () => {
+  it('is said through the dialogue queue after the shot that emptied the gun', async () => {
+    const c = await squadInA9(85);
+    const sim = loadedSector(c);
+    const kestrel = ours(sim.state, KESTREL);
+    const enemy = spawnSoldier(sim, ENEMY_ID, Team.ENEMY, kestrel.gridNo + TILES_AHEAD, kestrel.direction, { life: 100 });
+    handleSight(sim.state, kestrel, SightFlags.LOOK | SightFlags.RADIO);
+    expect(sim.state.inCombat).toBe(true);
+    const gun = kestrel.inv[InvSlot.HAND];
+    if (!gun) throw new Error('Kestrel has no gun');
+    gun.gunShotsLeft = 1;
+    const attack = { type: 'attack', soldier: kestrel.id, target: enemy.gridNo, aimTime: 0 };
+    await c.session.prepare(attack);
+    expect(c.session.dispatch(attack)).toMatchObject({ ok: true });
+    const said = c.live.advance({ ticks: QUOTE_TICKS }).events;
+    expect(quotesSaid(said, [MercQuote.OUT_OF_AMMO])).toEqual([[KESTREL, MercQuote.OUT_OF_AMMO]]);
   });
 });

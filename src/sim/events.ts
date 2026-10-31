@@ -314,6 +314,7 @@ export interface ItemsPickedUpEvent extends SimEventBase {
   readonly type: 'itemsPickedUp';
   readonly soldier: number;
   readonly gridNo: number;
+  readonly battleSound?: 'GOTIT';
 }
 
 export interface ItemsRevealedEvent extends SimEventBase {

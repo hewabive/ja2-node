@@ -102,7 +102,8 @@ the tactical state, tick, day, the main stream), so it is tested without a campa
 Tactical rules reach the dialogue only through `TacticalState.narrative` (deviation "Narrative port").
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
-battle, a buddy's comment and the can't-do line of a skill check through `TacticalPort.sayQuote`, the items-seen quote
+battle, a buddy's comment and the can't-do line of a skill check, the out-of-ammo line at the end of the attack that
+emptied the gun, the found-something-special line of a pickup, all through `TacticalPort.sayQuote`, the items-seen quote
 through `signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it, the
 comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue; contract, morale and
 other strategic merc lines are plain `mercQuote` events outside it.

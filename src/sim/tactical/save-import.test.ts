@@ -368,6 +368,17 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
     expect([sim.state.turn.lockItemLocators, sim.state.turn.itemsSeenOnAttack]).toEqual([true, merc]);
   });
+
+  it('restores an out-of-ammo quote pending until the end of an attack (fSayAmmoQuotePending)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { fSayAmmoQuotePending: 1 }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
+      ],
+    });
+    const sim = importedSim(save);
+    expect([soldierOf(sim, MERC_ID).sayAmmoQuotePending, soldierOf(sim, MERC_ID + 1).sayAmmoQuotePending]).toEqual([true, false]);
+  });
 });
 
 function importedCampaignWideState(save: SaveGame) {
