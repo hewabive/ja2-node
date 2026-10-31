@@ -345,7 +345,9 @@ the whole group's move first, so a squad cannot leave the start sector before it
 like the map screen's plotting, otherwise the path is replaced. `routeGroup` is the move box: mercs parting from their
 unit regroup on this command rather than at Done (deviation "Move box regrouping"). `enterSector` loads with automatic
 placement (deviation "Tactical placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and
-is a query with `dryRun: true`.
+is a query with `dryRun: true`. On a creature lair level after the creature quest, `strategic.surfaceWarp` names the
+surface sector the exit dialog first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid
+exit takes every conscious merc of the sector there and loads it (`campaign/sector-exits.ts`).
 
 ### 8.8 Vehicles and the helicopter
 

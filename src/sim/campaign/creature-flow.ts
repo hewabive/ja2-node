@@ -20,10 +20,13 @@ import {
   endCreatureQuest,
   importCreatureDirectives,
   initCreatureQuest,
+  LAIR_MIN_LEVEL,
+  type MineWarp,
   mineClearOfMonsters,
   playerGroupIsInACreatureInfestedMine,
   type SavedCreatureDirectives,
   spreadCreatures,
+  surfaceWarp,
   warpOutOfMineCodes,
 } from '../strategic/creatures/creatures.ts';
 import { creatureAttackTown, type TownAttackContext } from '../strategic/creatures/town-attack.ts';
@@ -41,8 +44,6 @@ export interface CreatureBattleSetup {
   readonly queen: boolean;
   readonly counts: CreatureCounts;
 }
-
-const LAIR_MIN_LEVEL = 2;
 
 export class CreatureFlow {
   readonly campaign: CampaignSim;
@@ -111,6 +112,10 @@ export class CreatureFlow {
   inCreatureLair(world: Sector): boolean {
     if (world.z < LAIR_MIN_LEVEL || !this.campaign.economy) return false;
     return warpOutOfMineCodes(this.context(), world) !== null;
+  }
+
+  surfaceWarp(world: Sector | null): MineWarp | null {
+    return this.campaign.economy ? surfaceWarp(this.context(), world) : null;
   }
 
   mineClear(mine: number): boolean {

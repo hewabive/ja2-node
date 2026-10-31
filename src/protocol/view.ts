@@ -363,6 +363,7 @@ export interface StrategicView {
   readonly newMail?: boolean;
   readonly quests: readonly QuestLogEntryView[];
   readonly battleLocator?: string | null;
+  readonly surfaceWarp?: string;
 }
 
 export interface PromptOptionView {

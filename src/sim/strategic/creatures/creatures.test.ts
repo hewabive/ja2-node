@@ -8,6 +8,8 @@ import { ScriptedStream } from '../forces/autoresolve/replay-rng.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import type { RollSource } from '../forces/ports.ts';
 import { createUndergroundSector, findUndergroundSector, sectorInfo } from '../map/sectors.ts';
+import { Quest } from '../narrative/fact-ids.ts';
+import { QuestStatus } from '../narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../state.ts';
 import { EventKind } from '../time/constants.ts';
 import {
@@ -19,6 +21,7 @@ import {
   LAIR_DESTROYED,
   mineClearOfMonsters,
   spreadCreatures,
+  surfaceWarp,
   warpOutOfMineCodes,
 } from './creatures.ts';
 import { creatureAttackTown, type TownAttackPorts } from './town-attack.ts';
@@ -131,6 +134,21 @@ describe('creature quest', () => {
     expect(sectorInfo(s.map, { x: 13, y: 4 }).numCreatures).toBe(0);
     expect(mineClearOfMonsters(ctx, DRASSEN_MINE)).toBe(true);
     expect(warpOutOfMineCodes(ctx, DRASSEN_EXIT)).toEqual({ sector: { x: 13, y: 4, z: 0 }, gridNo: 20700 });
+  });
+
+  it('offers the warp to the surface on the destroyed lair from level 2 down, and only once the creature quest is done', () => {
+    const s = state();
+    playerControls(s, 'D13', 'I14', 'H8');
+    initCreatureQuest(context(s, rolls([0], 0)));
+    const ctx = context(s, rolls([]));
+    const queenLair = { x: 13, y: 6, z: 3 };
+    endCreatureQuest(ctx);
+    expect(surfaceWarp(ctx, queenLair)).toBeNull();
+    s.narrative.quests[Quest.CREATURES] = QuestStatus.DONE;
+    expect(surfaceWarp(ctx, queenLair)).toEqual({ sector: { x: 13, y: 4, z: 0 }, gridNo: 20700 });
+    expect(surfaceWarp(ctx, { x: 13, y: 5, z: 2 })).not.toBeNull();
+    expect(surfaceWarp(ctx, DRASSEN_EXIT)).toBeNull();
+    expect(surfaceWarp(ctx, { x: 8, y: 10, z: 3 })).toBeNull();
   });
 
   it('distributes creatures by habitat weights with one 100-roll each', () => {

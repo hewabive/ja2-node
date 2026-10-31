@@ -3,12 +3,14 @@
 // @src src/game/Strategic/StrategicMap.cc OKForSectorExit, UndergroundTacticalTraversalTime, JumpIntoAdjacentSector,
 // @src AllMercsHaveWalkedOffSector, SetupTacticalTraversalInformation, SetInsertionDataFromAdjacentMoveDirection,
 // @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector;
-// @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu.
+// @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
+// @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair).
 
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { Direction } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
+import type { MineWarp } from '../strategic/creatures/creatures.ts';
 import { Assignment, InsertionCode } from '../strategic/forces/constants.ts';
 import {
   countAllMilitiaInSector,
@@ -48,8 +50,8 @@ import {
   setActionToDoOnceMercsGetToLocation,
   soldierOKForSectorExit,
 } from '../tactical/sector-exit.ts';
-import { NOWHERE, OKLIFE, type Soldier } from '../tactical/soldier.ts';
-import { sectorMapOf, type TacticalState, WaitForMercs } from '../tactical/state.ts';
+import { NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { type RosterMerc, registeredInTactical } from './roster.ts';
 import type { SectorFlow } from './sector-flow.ts';
 
@@ -92,6 +94,7 @@ const EXIT_SWEET_SPOT_RADIUS = 10;
 const UNDERGROUND_WARP_MINUTES = 1;
 const UNDERGROUND_FROM_LEVEL = 1;
 const UNDERGROUND_FROM_LEVEL_FOR_A_MERC_AWAY_FROM_THE_EDGE = 2;
+const FORCED_INSERTION_DIRECTION = 100;
 
 const STRATEGIC_MOVE_OF: Readonly<Record<number, number>> = {
   [Direction.NORTH]: ExitDirection.NORTH,
@@ -143,6 +146,7 @@ export interface ExitWorld {
   traverseTime(groupId: number | null, exitDirection: number, undergroundFromLevel: number): number;
   controllableInSquad(squad: number): number;
   militiaInWorld(): number;
+  surfaceWarp(): Sector | null;
 }
 
 function soldierOf(flow: SectorFlow, m: RosterMerc): Soldier | null {
@@ -197,6 +201,7 @@ export function flowExitWorld(flow: SectorFlow): ExitWorld {
       traverseTime(flow, groupId === null ? undefined : getGroup(flow.ctx, groupId), exitDirection, undergroundFromLevel),
     controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(flow.ctx, squad),
     militiaInWorld: () => (flow.world ? countAllMilitiaInSector(flow.ctx, flow.world) : 0),
+    surfaceWarp: () => flow.campaign.creatures?.surfaceWarp(flow.world)?.sector ?? null,
   };
 }
 
@@ -585,8 +590,10 @@ function refusalOf(check: ExitCheck): string {
   return 'tooFar';
 }
 
+type ExitRefusal = { readonly ok: false; readonly refusal: string; readonly reason: string; readonly minutes?: number };
+
 export type ExitDecision =
-  | { readonly ok: false; readonly refusal: string; readonly reason: string; readonly minutes?: number }
+  | ExitRefusal
   | {
       readonly ok: true;
       readonly check: ExitCheck;
@@ -598,11 +605,18 @@ export type ExitDecision =
 
 const DIRECTION_REASON = "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo";
 
-function declined(refusal: string, reason = refusal): ExitDecision {
+function declined(refusal: string, reason = refusal): ExitRefusal {
   return { ok: false, refusal, reason };
 }
 
-export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): ExitDecision {
+interface PlannedExit {
+  readonly plan: ExitPlan;
+  readonly menu: ExitMenu;
+  readonly direction: number;
+  readonly exitGridNo: number;
+}
+
+function plannedExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): PlannedExit | ExitRefusal {
   const t = w.tactical;
   if (!t) return declined('noSector', 'no sector is loaded');
   const direction = cmd.exitGrid !== undefined ? DIRECTION_EXITGRID : parseDirection(cmd.direction);
@@ -614,7 +628,13 @@ export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readon
     const refusal = refusalOf(plan.check);
     return { ok: false, refusal, reason: refusal, minutes: plan.check.minutes };
   }
-  const menu = plan.menu;
+  return { plan, menu: plan.menu, direction, exitGridNo };
+}
+
+export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): ExitDecision {
+  const planned = plannedExit(w, selected, cmd);
+  if ('ok' in planned) return planned;
+  const { plan, menu, direction, exitGridNo } = planned;
   if (cmd.who === 'squad' && !menu.allMove) {
     if (menu.allMoveDisabled) return declined('squadNotAllowed');
     allMoveAction(menu);
@@ -630,6 +650,21 @@ export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readon
   const jumpCode = jumpCodeOf(menu);
   if (jumpCode === null) return declined(menu.allMoveDisabled ? 'mercNotAllowed' : 'squadNotAllowed');
   return { ok: true, check: plan.check, menu, jumpCode, direction, exitGridNo };
+}
+
+export type SurfaceWarpDecision = ExitRefusal | { readonly ok: true; readonly surface: Sector };
+
+const NO_WARP_REASON = 'only an exit of a creature lair level, once the creature quest is done, warps to the surface';
+
+export function decideSurfaceWarp(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): SurfaceWarpDecision {
+  const planned = plannedExit(w, selected, cmd);
+  if ('ok' in planned) return planned;
+  const surface = w.surfaceWarp();
+  return surface ? { ok: true, surface } : declined('noWarp', NO_WARP_REASON);
+}
+
+export function surfaceWarpResultData(surface: Sector) {
+  return { warp: true as const, target: sectorShortString(surface), level: surface.z };
 }
 
 export function exitTarget(w: ExitWorld, direction: number, exitGridNo: number): Sector | null {
@@ -658,6 +693,7 @@ export function exitSectorCommand(flow: SectorFlow, cmd: { readonly [key: string
   if (!selected || !soldierOf(flow, selected)) return { ok: false, reason: 'no such soldier of yours in this sector' };
   const refusal = sim.canAct(selected.soldier);
   if (refusal) return { ok: false, reason: refusal };
+  if (cmd.warp === true) return surfaceWarpCommand(flow, selected, cmd);
   const decision = decideSectorExit(flowExitWorld(flow), selected, cmd);
   if (!decision.ok)
     return { ok: false, reason: decision.reason, ...(decision.minutes !== undefined ? { data: { minutes: decision.minutes } } : {}) };
@@ -665,4 +701,33 @@ export function exitSectorCommand(flow: SectorFlow, cmd: { readonly [key: string
   if (!jumpIntoAdjacentSector(flow, direction, jumpCode, exitGridNo, selected)) return { ok: false, reason: 'cannot leave from here' };
   const target = flow.jump?.target ?? flow.world ?? { x: 1, y: 1, z: 0 };
   return { ok: true, data: exitResultData(check, menu, jumpCode, target) };
+}
+
+function warpToSurface(flow: SectorFlow, warp: MineWarp): void {
+  const t = flow.campaign.tactical?.state;
+  if (!t) return;
+  const traversal = flow.campaign.state.movement.tacticalTraversal;
+  for (const s of teamMembers(t, Team.OUR)) {
+    const m = flow.setup.roster.get(s.id);
+    if (!m || s.life < OKLIFE) continue;
+    traversal.active = true;
+    const group = getGroup(flow.ctx, m.groupId);
+    if (group) setGroupSectorValue(flow.ctx, warp.sector, group);
+    m.sector = { ...warp.sector };
+    m.insertionCode = InsertionCode.GRIDNO;
+    m.soldier.insertionData = warp.gridNo;
+    m.insertionDirection = FORCED_INSERTION_DIRECTION + Direction.NORTHWEST;
+  }
+  flow.setCurrentWorldSector(warp.sector);
+  clearTraversal(flow);
+}
+
+function surfaceWarpCommand(flow: SectorFlow, selected: RosterMerc, cmd: { readonly [key: string]: unknown }): CommandResult {
+  const decision = decideSurfaceWarp(flowExitWorld(flow), selected, cmd);
+  if (!decision.ok)
+    return { ok: false, reason: decision.reason, ...(decision.minutes !== undefined ? { data: { minutes: decision.minutes } } : {}) };
+  const warp = flow.campaign.creatures?.surfaceWarp(flow.world);
+  if (!warp) return { ok: false, reason: NO_WARP_REASON };
+  warpToSurface(flow, warp);
+  return { ok: true, data: surfaceWarpResultData(decision.surface) };
 }

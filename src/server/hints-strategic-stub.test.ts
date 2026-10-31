@@ -6,8 +6,11 @@ import { parseSectorString, strategicIndex } from '../content/strategic/sector-i
 import { Direction } from '../content/world/grid.ts';
 import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
 import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
+import { LAIR_DESTROYED } from '../sim/strategic/creatures/creatures.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { Quest } from '../sim/strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../sim/strategic/narrative/facts.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -100,7 +103,9 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
         const world = flowExitWorld(flow);
         const plan = exitCheck(world, m, direction, 0);
         expect(options.data, `exit ${name} for ${m.id}`).toEqual(
-          JSON.parse(JSON.stringify({ ...plan.check, menu: plan.menu, enemyInSector: world.enemyInSector })),
+          JSON.parse(
+            JSON.stringify({ ...plan.check, menu: plan.menu, enemyInSector: world.enemyInSector, surfaceWarp: world.surfaceWarp() }),
+          ),
         );
       }
       expect(DIRECTION_EXITGRID).toBeGreaterThan(Direction.NORTHWEST);
@@ -148,5 +153,36 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(serialisedView(c.session).strategic).toEqual(viewBefore);
     const after = await Promise.all(requests.map((q) => c.session.query(q)));
     expect(after).toEqual(before);
+  });
+});
+
+describe('the warp out of a destroyed creature lair, client against server', () => {
+  const LAIR_ENTRANCE = { x: 13, y: 7, z: 2 };
+  const CAVE_LADDER = 64 * 160 + 74;
+
+  it('names the surface sector in the view, the exit options and the dry run', async () => {
+    const c = await landedCampaign(34);
+    const campaign = c.sim.campaign;
+    const roster = campaign.battle?.roster;
+    if (!roster) throw new Error('no roster');
+    campaign.state.creatures.lairId = LAIR_DESTROYED;
+    campaign.state.creatures.destroyedLairId = 1;
+    campaign.state.narrative.quests[Quest.CREATURES] = QuestStatus.DONE;
+    for (const m of roster.all()) m.sector = { ...LAIR_ENTRANCE };
+    for (const g of campaign.state.forces.groups) if (g.player) g.sector = { ...LAIR_ENTRANCE };
+    const flow = campaign.sectors;
+    if (!flow) throw new Error('no sector flow');
+    await c.sim.prepareMaps([flow.mapPathOf(LAIR_ENTRANCE)]);
+    expect(flow.setCurrentWorldSector(LAIR_ENTRANCE)).toBe(true);
+    const soldier = roster.all()[0]?.id;
+    const where = { soldier, exitGrid: CAVE_LADDER };
+    expect(serialisedView(c.session).strategic?.surfaceWarp).toBe('D13');
+    expect((await c.session.query({ type: 'exitSectorOptions', ...where })).data).toMatchObject({ surfaceWarp: 'D13' });
+    const dryRun = await c.session.query({ type: 'exitSector', ...where, warp: true, dryRun: true });
+    expect(dryRun.data).toEqual({ warp: true, target: 'D13', level: 0 });
+    await expectHintsAgree(c.session, client, [
+      { type: 'exitSectorOptions', ...where },
+      { type: 'exitSector', ...where, warp: true, dryRun: true },
+    ]);
   });
 });

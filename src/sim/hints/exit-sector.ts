@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc HandleCheckForExitArrowsInput (OKForSectorExit decides the arrow colour);
-// @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog's toggles); Strategic/StrategicMap.cc
-// @src OKForSectorExit.
+// @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog's toggles), InitSectorExitMenu (the warp to
+// @src the surface asked first); Strategic/StrategicMap.cc OKForSectorExit.
 
+import { parseSectorString, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { Direction } from '../../content/world/grid.ts';
 import {
   decideSectorExit,
+  decideSurfaceWarp,
   type ExitCheck,
   type ExitMenu,
   type ExitMerc,
@@ -15,6 +17,7 @@ import {
   exitResultData,
   exitTarget,
   exitTraverseTime,
+  surfaceWarpResultData,
 } from '../campaign/sector-exits.ts';
 import { preservingFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld, TacticalKnowledge } from '../knowledge/knowledge-world.ts';
@@ -53,6 +56,7 @@ export interface ExitSectorRequest extends HintRequestBase {
   readonly exitGrid?: unknown;
   readonly who?: unknown;
   readonly load?: unknown;
+  readonly warp?: unknown;
 }
 
 export interface ExitSectorDryRun {
@@ -63,10 +67,17 @@ export interface ExitSectorDryRun {
   readonly level: number;
 }
 
+export interface SurfaceWarpDryRun {
+  readonly warp: true;
+  readonly target: string;
+  readonly level: number;
+}
+
 export interface ExitSectorOptions extends Omit<ExitCheck, 'result'> {
   readonly result: number;
   readonly menu: ExitMenu | null;
   readonly enemyInSector: boolean;
+  readonly surfaceWarp: string | null;
 }
 
 function unplacedSoldier(id: number, team: number): Soldier {
@@ -116,6 +127,10 @@ function projectedExitWorld(sk: StrategicKnowledge, tactical: TacticalKnowledge)
       ),
     controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(ctx, squad),
     militiaInWorld: () => (world ? countAllMilitiaInSector(ctx, world) : 0),
+    surfaceWarp: () => {
+      const surface = sk.view.strategic?.surfaceWarp;
+      return surface ? parseSectorString(surface) : null;
+    },
   };
 }
 
@@ -150,9 +165,19 @@ function withMovementModesKept<R>(tactical: TacticalKnowledge, world: ExitWorld,
   return keep(0);
 }
 
-export function exitSectorDryRun(world: KnowledgeWorld, req: ExitSectorRequest): HintResult<ExitSectorDryRun> {
+function surfaceWarpDryRun(subject: ExitSubject, req: ExitSectorRequest): HintResult<SurfaceWarpDryRun> {
+  const decision = decideSurfaceWarp(subject.world, subject.selected, req);
+  if (!decision.ok) {
+    const refused = refuseHint(decision.refusal, decision.reason);
+    return decision.minutes === undefined ? refused : { ...refused, data: { ...refused.data, minutes: decision.minutes } };
+  }
+  return hintData(surfaceWarpResultData(decision.surface));
+}
+
+export function exitSectorDryRun(world: KnowledgeWorld, req: ExitSectorRequest): HintResult<ExitSectorDryRun | SurfaceWarpDryRun> {
   const subject = exitSubject(world, req);
   if ('refusal' in subject) return subject.refusal;
+  if (req.warp === true) return surfaceWarpDryRun(subject, req);
   const decision = withMovementModesKept(subject.tactical, subject.world, () => decideSectorExit(subject.world, subject.selected, req));
   if (!decision.ok) {
     const refused = refuseHint(decision.refusal, decision.reason);
@@ -177,5 +202,11 @@ export function exitSectorOptions(world: KnowledgeWorld, req: ExitSectorRequest)
   const plan = withMovementModesKept(subject.tactical, subject.world, () =>
     exitCheck(subject.world, subject.selected, direction, exitGridNo),
   );
-  return hintData({ ...plan.check, menu: plan.menu, enemyInSector: subject.world.enemyInSector });
+  const surface = subject.world.surfaceWarp();
+  return hintData({
+    ...plan.check,
+    menu: plan.menu,
+    enemyInSector: subject.world.enemyInSector,
+    surfaceWarp: surface && plan.menu ? sectorShortString(surface) : null,
+  });
 }

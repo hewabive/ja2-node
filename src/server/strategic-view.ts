@@ -286,7 +286,13 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     ...laptopSummary(campaign),
     quests: questLog(campaign),
     ...battleLocator(campaign),
+    ...surfaceWarp(campaign),
   };
+}
+
+function surfaceWarp(campaign: CampaignSim): Pick<StrategicView, 'surfaceWarp'> {
+  const warp = campaign.tactical ? campaign.creatures?.surfaceWarp(campaign.state.worldSector) : null;
+  return warp ? { surfaceWarp: sectorName(warp.sector) } : {};
 }
 
 function battleLocator(campaign: CampaignSim): Pick<StrategicView, 'battleLocator'> {

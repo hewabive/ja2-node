@@ -81,7 +81,9 @@ tactical screens"); the only gate to entering a sector is `SectorFlow.enterSecto
 entering from the PBI uses the automatic start (deviation "Tactical placement"). `exitSector` evaluates the exit check
 and the exit menu's rules and refuses a choice the menu would not offer (deviation "Exit dialog"); the client's exit
 hint runs the same check over the player's knowledge (`src/sim/hints/exit-sector.ts`, D16). The merc wait counts 2500
-game ms (deviation "Waiting for mercs to exit").
+game ms (deviation "Waiting for mercs to exit"). The lair's "Travel to surface?" question is `exitSector` with `warp`,
+offered through the view because which lair was destroyed is hidden state (`surfaceWarp`,
+`strategic/creatures/creatures.ts`).
 
 **Edgepoints are generated where the map has none.** Original maps load their saved edgepoints; stub maps carry none,
 so they always run the generator, which is ported literally and matched against the oracle.
@@ -162,7 +164,7 @@ the source:
   ETAs with encumbrance unless every member is in the loaded sector.
 
 Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
-"Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses", "Savegame import",
+"Helicopter on the map", "Creature quest scripting", "Corpses", "Savegame import",
 "Creature insertion spot". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
 enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on

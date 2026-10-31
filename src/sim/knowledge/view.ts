@@ -204,4 +204,5 @@ export interface KnowledgeStrategic {
   readonly helicopter?: KnowledgeHelicopter;
   readonly enemyAirspace?: readonly string[];
   readonly towns?: readonly KnowledgeTown[];
+  readonly surfaceWarp?: string;
 }

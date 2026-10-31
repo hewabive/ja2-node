@@ -18,7 +18,9 @@
 // @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
 // @src when the merc's level has none); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
-// @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump).
+// @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump);
+// @src src/game/Tactical/Strategic_Exit_GUI.cc InitSectorExitMenu, WarpToSurfaceCallback (STR_LATE_33 asked before the
+// @src exit menu: yes warps, no opens the menu).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -58,6 +60,8 @@ const HANDPOS = 5;
 const FIRST_VEHICLE_BODY = 22;
 const LAST_VEHICLE_BODY = 27;
 const NUMBER_OF_SQUADS = 20;
+const LATE = 'gzLateLocalizedString';
+const STR_LATE_33 = 32;
 const SHOW_LOCATOR_NORMAL_CYCLES = 10;
 const TACTICAL = 'TacticalStr';
 const MESSAGES = 'pMessageStrings';
@@ -235,7 +239,7 @@ export class TacticalControls {
       itemPointerClick: (gridNo, target) => screen.itemPointerClick(gridNo, target),
       pickUp: (s, gridNo, level) => screen.pickUp(s, gridNo, level),
       openMovementMenu: (x, y, done) => this.#openMovementMenu(x, y, done),
-      openExitDialog: (direction, exitGrid) => void this.#openExitDialog(direction, exitGrid),
+      openExitDialog: (direction, exitGrid) => void this.openExitDialog(direction, exitGrid),
       doorReply: () => undefined,
       confirm: (text) => screen.env.boxes.confirm(text),
       dismissFeedback: () => screen.dismissFeedback(),
@@ -433,12 +437,16 @@ export class TacticalControls {
     if (action) void this.#screen.send({ type: 'door', soldier, gridNo, action });
   }
 
-  async #openExitDialog(direction: ExitDirection, exitGrid: number | null): Promise<void> {
+  async openExitDialog(direction: ExitDirection, exitGrid: number | null): Promise<void> {
     const sel = this.#screen.selected();
     if (!sel || this.exitDialog.open) return;
     const where = direction === 'exitGrid' ? { exitGrid: exitGrid ?? 0 } : { direction };
     const answer = await hintNow<ExitSectorOptions>(this.#env().client, { type: 'exitSectorOptions', soldier: sel.id, ...where });
     if (answer.state !== 'ok' || !answer.data.menu) return;
+    if (answer.data.surfaceWarp !== null && (await this.#screen.env.boxes.confirm(this.#text(LATE, STR_LATE_33)))) {
+      void this.#screen.send({ type: 'exitSector', soldier: sel.id, ...where, warp: true });
+      return;
+    }
     const fonts = this.#env().runtime.fonts;
     const { height } = this.#env().runtime.geometry();
     this.input.override(UiEvent.EX_EXITSECTORMENU);

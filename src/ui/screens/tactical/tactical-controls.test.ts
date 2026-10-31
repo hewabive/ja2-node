@@ -53,6 +53,28 @@ function merc(f: TacticalUiTest, id: number) {
   return s;
 }
 
+const LADDER = 10314;
+const LADDER_OPTIONS = {
+  result: 2,
+  minutes: 0,
+  invalidTraversal: false,
+  loneEpc: false,
+  abandonedEpcs: 0,
+  uncontrolledRobot: false,
+  enemyInSector: false,
+  menu: {
+    loadOffered: true,
+    allMoveDisabled: false,
+    singleMoveDisabled: false,
+    multipleSquads: false,
+    peopleOnSquad: 4,
+    singleMove: false,
+    allMove: true,
+    gotoSector: true,
+    gotoSectorDisabled: true,
+  },
+};
+
 function commandsOf(f: TacticalUiTest, type: string) {
   return f.client.commands.filter((c) => c.cmd.type === type).map((c) => c.cmd);
 }
@@ -209,6 +231,28 @@ describe('the tactical input on the tactical screen', () => {
     await f.click('doorOpen');
     expect(f.screen.controls.doorMenu.open).toBe(false);
     expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: s.gridNo + 1, action: 'openManually' });
+  });
+
+  it('asks to travel to the surface before the exit menu of a creature lair: yes warps, no opens the menu', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const hintNow = f.client.hintNow.bind(f.client);
+    f.client.hintNow = async (request) => {
+      if (request.type !== 'exitSectorOptions') return hintNow(request);
+      return { ok: true, data: { ...LADDER_OPTIONS, surfaceWarp: 'D13' } };
+    };
+    const asked = f.screen.controls.openExitDialog('exitGrid', LADDER);
+    await f.settle();
+    expect(f.screen.controls.exitDialog.open).toBe(false);
+    await f.click('messageBox.yes');
+    await asked;
+    await f.settle();
+    expect(commandsOf(f, 'exitSector').at(-1)).toMatchObject({ soldier: 0, exitGrid: LADDER, warp: true });
+    const declined = f.screen.controls.openExitDialog('exitGrid', LADDER);
+    await f.settle();
+    await f.click('messageBox.no');
+    await declined;
+    expect(f.screen.controls.exitDialog.open).toBe(true);
+    expect(commandsOf(f, 'exitSector')).toHaveLength(1);
   });
 
   it('turns the open button into the close button in the closing menu of an open door', async () => {
@@ -577,6 +621,7 @@ describe('the tactical input on the tactical screen', () => {
       abandonedEpcs: 0,
       uncontrolledRobot: false,
       enemyInSector: false,
+      surfaceWarp: null,
       menu,
     };
     const choices: unknown[] = [];

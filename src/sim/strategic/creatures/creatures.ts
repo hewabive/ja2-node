@@ -4,7 +4,8 @@
 // @src AddCreatureToNode, PlaceNewCreature, SpreadCreatures, CreatureNightPlanning, CheckConditionsForTriggeringCreatureQuest,
 // @src EndCreatureQuest, CreaturesInUndergroundSector, MineClearOfMonsters, PlayerGroupIsInACreatureInfestedMine,
 // @src GetWarpOutOfMineCodes, LoadCreatureDirectives, CreatureWeightsByHabitat, DistributeCreaturesByWeight; Utils/Music_Control.cc
-// @src StartMusicBasedOnMode (the creature music ends with an above-ground victory).
+// @src StartMusicBasedOnMode (the creature music ends with an above-ground victory); Tactical/Strategic_Exit_GUI.cc
+// @src InitSectorExitMenu (when the warp to the surface is offered).
 
 import { CreatureHabitat, type CreatureLair, lairContainsSector } from '../../../content/strategic/creature-lairs.ts';
 import type { MineDef } from '../../../content/strategic/economy-content.ts';
@@ -13,6 +14,8 @@ import { idiv, u8 } from '../../../core/int.ts';
 import { Difficulty, SectorFlag } from '../forces/constants.ts';
 import type { RollSource } from '../forces/ports.ts';
 import { findUndergroundSector, type UndergroundSector } from '../map/sectors.ts';
+import { Quest } from '../narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../narrative/facts.ts';
 import type { StrategicState } from '../state.ts';
 import { EventKind } from '../time/constants.ts';
 import { addEveryDayStrategicEvent, addPeriodStrategicEvent, addStrategicEvent } from '../time/event-queue.ts';
@@ -129,7 +132,11 @@ export const CREATURE_WEIGHTS_BY_HABITAT: readonly (readonly number[])[] = [
 ];
 const WEIGHT_TOTAL = 100;
 
-export function activeLair(ctx: CreatureContext): CreatureLair | null {
+type LairLookup = Pick<CreatureContext, 'state' | 'lairs'>;
+
+export const LAIR_MIN_LEVEL = 2;
+
+export function activeLair(ctx: LairLookup): CreatureLair | null {
   return ctx.lairs.find((l) => l.lairId === ctx.state.creatures.lairId) ?? null;
 }
 
@@ -336,13 +343,18 @@ export interface MineWarp {
   readonly gridNo: number;
 }
 
-export function warpOutOfMineCodes(ctx: CreatureContext, world: Sector | null): MineWarp | null {
+export function warpOutOfMineCodes(ctx: LairLookup, world: Sector | null): MineWarp | null {
   if (!world || world.z === 0) return null;
   const creatures = ctx.state.creatures;
   let lair = activeLair(ctx);
   if (!lair && creatures.lairId === LAIR_DESTROYED) lair = ctx.lairs.find((l) => l.lairId === creatures.destroyedLairId) ?? null;
   if (!lair || !lairContainsSector(lair, sectorId(world), world.z)) return null;
   return { sector: sectorFromId(lair.warpExitSector, 0), gridNo: lair.warpExitGridNo };
+}
+
+export function surfaceWarp(ctx: LairLookup, world: Sector | null): MineWarp | null {
+  if (!world || world.z < LAIR_MIN_LEVEL || questStatus(ctx.state.narrative, Quest.CREATURES) !== QuestStatus.DONE) return null;
+  return warpOutOfMineCodes(ctx, world);
 }
 
 export interface SavedCreatureDirectives {
