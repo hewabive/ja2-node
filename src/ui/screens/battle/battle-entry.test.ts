@@ -1,14 +1,26 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ARRIVAL_WAIT_SECONDS, arrangeBattle, BATTLE_SECTOR, BattleVariant, campaignOf } from '../../../../tests/support/battle-entry.ts';
+import {
+  ARRIVAL_WAIT_SECONDS,
+  arrangeBattle,
+  arrangeEnemyArrival,
+  BATTLE_FORCES,
+  BATTLE_SECTOR,
+  BattleVariant,
+  campaignOf,
+} from '../../../../tests/support/battle-entry.ts';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { parseSectorString, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { sectorInfo } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import type { BattleEntryHook } from './battle-entry.ts';
 
 const OPENING_MS = 1000;
 const FRAME_MS = 16;
 const CREATURES = 3;
+const MILITIA = 2;
+const MILITIA_TOWN = 'C13';
+const MILITIA_TOWN_APPROACH = 'C14';
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -196,6 +208,28 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
       await frames(f, OPENING_MS + FRAME_MS * 3);
       expect(screenId(f)).toBe('autoresolve');
       expect(battle(f).autoresolve?.ratio).toMatch(/4/);
+    } finally {
+      await f.dispose();
+    }
+  });
+
+  it('boxes the invasion of a town held by militia alone before the automatic start of the panel', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      const campaign = campaignOf(f.session).campaign;
+      const town = parseSectorString(MILITIA_TOWN);
+      const element = campaign.state.map.elements[strategicIndex(town)];
+      if (element) element.enemyControlled = false;
+      sectorInfo(campaign.state.map, town).militia.splice(0, 1, MILITIA);
+      arrangeEnemyArrival(f.session, BATTLE_FORCES.victory, undefined, { from: MILITIA_TOWN_APPROACH, to: MILITIA_TOWN });
+      f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
+      f.deliver();
+      await frames(f, OPENING_MS + FRAME_MS);
+      expect(f.widget('messageBox').text).toBe(`Deidranna's forces have just invaded ${MILITIA_TOWN}: Drassen`);
+      expect(battle(f).preBattle).toBeNull();
+      f.key('Enter');
+      await frames(f, FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ autoStart: true, encounter: 'enemyInvasion' });
     } finally {
       await f.dispose();
     }

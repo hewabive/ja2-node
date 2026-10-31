@@ -102,8 +102,8 @@ save screen, help, a popup menu, the pickup menu or the sector inventory is open
 - client modals call `UiRuntime.pauseGame`; `ModalPause` (`src/app/game/modal-pause.ts`) counts nested ones, switches a
   running real-time driver to manual for the outermost and restores it after the last, only on the same session and
   only while the driver is still manual, so a driver set by someone else meanwhile stays;
-- a box opened by an event on the map screen (the update box, the lost sector box) relies on the real-time driver's
-  `pauseOn`, which stops on the event's tick (`04`);
+- a box opened by an event on the map screen (the update box, the lost sector box, the invasion box) relies on the
+  real-time driver's `pauseOn`, which stops on the event's tick (`04`);
 - decision prompts freeze the server anyway (D15).
 
 **Connection.** `SessionClient` keeps its session over `src/app/net/session-link.ts`. A closed socket, or a server

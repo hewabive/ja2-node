@@ -8,6 +8,7 @@ import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../..
 import type { MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
 import { MAP_LAYOUTS, type MapEnvironment, type MapFlow, type MapLayout } from '../../ui/screens/map/environment.ts';
 import { mapFacts } from '../../ui/screens/map/facts.ts';
+import { type InvasionEvent, invasionBoxesOf } from '../../ui/screens/map/invasion.ts';
 import { MapScreen } from '../../ui/screens/map/map-screen.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { MessageBoxLabels, MessageBoxStyle } from '../../ui/widgets/message-box.ts';
@@ -70,6 +71,7 @@ export class MapHost implements MapPort {
   readonly #o: MapHostOptions;
   readonly #battleClient: SessionBattleClient;
   #pendingAutoStart: PreBattleEvent | null = null;
+  readonly #pendingInvasions: InvasionEvent[] = [];
   readonly #hints: HintProvider;
   readonly #hintHook: HintHook;
   readonly #client: SessionMapClient;
@@ -219,6 +221,7 @@ export class MapHost implements MapPort {
     this.#screen = new MapScreen(env);
     if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);
     this.#pendingAutoStart = null;
+    this.#screen.noticeInvasions(this.#pendingInvasions.splice(0));
     return this.#screen;
   }
 
@@ -252,7 +255,10 @@ export class MapHost implements MapPort {
 
   frames(frames: readonly ViewFrame[]): void {
     if (this.#unknownProfile()) void this.#refreshProfiles();
-    if (!this.#screen) this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;
+    if (!this.#screen) {
+      this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;
+      this.#pendingInvasions.push(...invasionBoxesOf(frames));
+    }
     this.#screen?.frames(frames);
   }
 

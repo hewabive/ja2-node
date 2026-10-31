@@ -163,5 +163,5 @@ battle flow on imported saves, and compares the encounter code. Inferred from re
 - That unloading the loaded battle sector before AR draws nothing beyond the preserved soldiers' `PreRandom(2)`.
 - Q30: the oracle's battles run with a surface map loaded last; no probe places the dead after a basement.
 
-Not ported: gaps "Autoresolve stalemate", "Pre-battle retreat preview", "Auto-bandage". Kept difference: deviation
-"Visible area of the map loaded last".
+Not ported: gaps "Autoresolve stalemate", "Pre-battle retreat preview", "Battle notice boxes", "Auto-bandage". Kept
+difference: deviation "Visible area of the map loaded last".

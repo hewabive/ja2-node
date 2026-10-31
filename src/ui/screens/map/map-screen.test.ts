@@ -268,6 +268,29 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal).toBeNull();
     }));
 
+  it('boxes an invaded SAM site by its short name and a town in full, and leaves other sectors to the message log', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const invasions = [
+        { type: 'invasion', tick, sector: 'D15', kind: 'sam' },
+        { type: 'invasion', tick, sector: 'B5', kind: 'other' },
+        { type: 'invasion', tick, sector: 'C13', kind: 'town' },
+      ] as const;
+      f.frames([{ tick, changed: [], removed: [], events: invasions }]);
+      const texts: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        "Deidranna's forces have just invaded the SAM site in D15",
+        "Deidranna's forces have just invaded C13: Drassen",
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
   it('leaves the box of a sector lost in the tactical flow to the tactical screen', () =>
     withMap(async (f) => {
       (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';

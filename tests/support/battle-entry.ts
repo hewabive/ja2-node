@@ -43,18 +43,17 @@ export function campaignOf(session: Session): CampaignSession {
   return session.sim;
 }
 
-export function arrangeEnemyArrival(session: Session, force: EnemyForce, minutes = ARRIVAL_MINUTES): void {
+export function arrangeEnemyArrival(
+  session: Session,
+  force: EnemyForce,
+  minutes = ARRIVAL_MINUTES,
+  route: { readonly from: string; readonly to: string } = { from: ENEMY_APPROACH, to: BATTLE_SECTOR },
+): void {
   const campaign = campaignOf(session).campaign;
   const ctx = campaign.strategic;
   if (!ctx) throw new Error('no strategic layer');
-  const g = createNewEnemyGroupDepartingFromSector(
-    ctx,
-    sectorId(parseSectorString(ENEMY_APPROACH)),
-    force.admins,
-    force.troops,
-    force.elites,
-  );
-  g.next = { ...parseSectorString(BATTLE_SECTOR), z: 0 };
+  const g = createNewEnemyGroupDepartingFromSector(ctx, sectorId(parseSectorString(route.from)), force.admins, force.troops, force.elites);
+  g.next = { ...parseSectorString(route.to), z: 0 };
   g.betweenSectors = true;
   g.arrivalTime = worldTotalMinutes(campaign.state.clock) + minutes;
   addStrategicEvent(campaign.state.queue, EventKind.GROUP_ARRIVAL, g.arrivalTime, g.id);
