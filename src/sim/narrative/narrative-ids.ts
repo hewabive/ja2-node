@@ -70,6 +70,7 @@ export const GET_LOST_ENEMIES: ReadonlySet<number> = new Set([NarrativeProfile.C
 
 export const ProfileFlag = {
   RECRUITED: 0x01,
+  HAVESEENCREATURE: 0x02,
   FORCENPCQUOTE: 0x04,
   WOUNDEDBYPLAYER: 0x08,
   SAID_HOSTILE_QUOTE: 0x20,

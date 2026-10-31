@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/OppList.h opplist values, sight flags, callers; Isometric_Utils.cc atan8
+// @src src/game/Tactical/OppList.h opplist values, sight flags, callers; Isometric_Utils.cc atan8; OppList.cc the values of
+// @src gfPlayerTeamSawCreatures (2026-10-30)
 
 export const Opp = {
   NOT_HEARD_OR_SEEN: 0,
@@ -16,6 +17,7 @@ export const Opp = {
 } as const;
 
 export const SightFlags = { LOOK: 0x01, RADIO: 0x02, INTERRUPT: 0x04 } as const;
+export const SeenCreature = { NONE: 0, CREATURE: 1, BLOODCAT: 2 } as const;
 export const Caller = { MANLOOKSFOROTHERTEAMS: 0, OTHERTEAMSLOOKFORMAN: 1, VERIFYANDDECAYOPPLIST: 2, UPDATEPUBLIC: 4, UNKNOWN: 5 } as const;
 
 export function atan8(x1: number, y1: number, x2: number, y2: number): number {

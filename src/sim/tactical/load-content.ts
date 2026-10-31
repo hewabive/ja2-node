@@ -66,5 +66,6 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     locks,
     lightTemplates,
     quoteSpeakers,
+    sightingBattleSound: decoding.sightingBattleSound,
   };
 }

@@ -4,15 +4,17 @@
 // @src then sight, then interrupts);
 // @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise), opcodes 408
 // @src and 475 (the sight after a roof climb);
-// @src OppList.cc OurTeamSeesSomeone.
+// @src OppList.cc OurTeamSeesSomeone (the quotes, the curse, the end of fVirginSector and UnSetUIBusy, 2026-10-30; the camera's
+// @src locate and slide are not ported: gaps "Tactical HUD details").
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, soldierGotoStationaryStance } from '../animation.ts';
-import { reduceAttackBusyCount } from '../combat/barrier.ts';
+import { reduceAttackBusyCount, unSetUIBusy } from '../combat/barrier.ts';
 import { unsetEngagedInConvFromPcAction } from '../give.ts';
 import { autoPlaceObject } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
 import { setOffActionItemsInGridNo } from '../narrative/quest-items.ts';
+import { type SightingBattleSound, saySeenQuote } from '../narrative/sighting-quotes.ts';
 import { hasPendingAction, removePendingAction } from '../pending-action.ts';
 import { NO_PENDING_ANIMATION, ReasonCantFinishMove, type Soldier, Team } from '../soldier.ts';
 import { soldierInventoryContext } from '../soldier-inventory.ts';
@@ -64,6 +66,34 @@ export function haltFromSighting(t: TacticalState, s: Soldier, fromSightingEnemy
   unsetEngagedInConvFromPcAction(t, s);
 }
 
+function sightingReaction(
+  t: TacticalState,
+  s: Soldier,
+  revealed: number,
+  unknown: number,
+  virginSector: boolean,
+): SightingBattleSound | null {
+  if (!virginSector && revealed > 0 && unknown === 0) return 'CURSE1';
+  return saySeenQuote(t, s, virginSector);
+}
+
+function ourTeamSeesSomeone(t: TacticalState, s: Soldier, revealed: number, unknown: number, enemies: readonly number[]): void {
+  const virginSector = t.turn.virginSector;
+  if (virginSector) t.narrative.deleteTalkingMenu();
+  const battleSound = sightingReaction(t, s, revealed, unknown, virginSector);
+  t.events.push({
+    type: 'enemySighted',
+    soldier: s.id,
+    newEnemies: unknown,
+    revealedEnemies: revealed,
+    enemies: [...enemies],
+    ...(battleSound ? { battleSound } : {}),
+  });
+  haltFromSighting(t, s, true);
+  if (virginSector) t.turn.virginSector = false;
+  else unSetUIBusy(t, s);
+}
+
 export function perceptionHooks(
   t: TacticalState,
   base: Omit<PerceptionHooks, 'haltFromSighting' | 'haltFromItemSighting' | 'ourTeamSeesSomeone' | 'enterCombatMode'>,
@@ -72,10 +102,7 @@ export function perceptionHooks(
     ...base,
     haltFromSighting: (s) => haltFromSighting(t, s, true),
     haltFromItemSighting: (s) => haltFromSighting(t, s, false),
-    ourTeamSeesSomeone: (s, revealed, unknown, enemies) => {
-      t.events.push({ type: 'enemySighted', soldier: s.id, newEnemies: unknown, revealedEnemies: revealed, enemies: [...enemies] });
-      haltFromSighting(t, s, true);
-    },
+    ourTeamSeesSomeone: (s, revealed, unknown, enemies) => ourTeamSeesSomeone(t, s, revealed, unknown, enemies),
     enterCombatMode: (team) => enterCombatMode(t, team),
   };
 }

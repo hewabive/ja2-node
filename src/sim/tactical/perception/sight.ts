@@ -8,7 +8,8 @@
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
 // @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist, EndMuzzleFlash, TurnOffEveryonesMuzzleFlashes,
 // @src TurnOffTeamsMuzzleFlashes, DecideTrueVisibility (ManSeesMan's first-battle fact through the narrative
-// @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT.
+// @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT; RadioSightings
+// @src and HandleSight with gfPlayerTeamSawCreatures and the first creature sighting's quote (2026-10-30).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -25,6 +26,7 @@ import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY
 import { directionToward } from '../movement.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
 import { lostSightRules, newSightingRules } from '../narrative/sight-rules.ts';
+import { hasSeenCreatures, sayFirstCreatureSightingQuote } from '../narrative/sighting-quotes.ts';
 import { StatKind } from '../profiles.ts';
 import {
   AlertStatus,
@@ -64,7 +66,7 @@ import {
 } from './duel.ts';
 import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
-import { atan8, Caller, Opp, SightFlags } from './opp.ts';
+import { atan8, Caller, Opp, SeenCreature, SightFlags } from './opp.ts';
 import { resetLastKnownLocs } from './opplist-reset.ts';
 
 export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
@@ -115,6 +117,7 @@ export interface Perception {
   best: (Soldier | null)[];
   combatTeam: number;
   disallowSight: boolean;
+  playerTeamSawCreatures: number;
 }
 
 export function createPerception(maxSoldiers: number): Perception {
@@ -131,6 +134,7 @@ export function createPerception(maxSoldiers: number): Perception {
     best: new Array<Soldier | null>(BEST_SIGHTING_ALL).fill(null),
     combatTeam: -1,
     disallowSight: false,
+    playerTeamSawCreatures: SeenCreature.NONE,
   };
 }
 
@@ -469,6 +473,11 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
   return seen;
 }
 
+function noteSightedCreature(p: Perception, opp: Soldier): void {
+  if (isMonster(opp)) p.playerTeamSawCreatures = SeenCreature.CREATURE;
+  if (opp.bodyType === Body.BLOODCAT) p.playerTeamSawCreatures = SeenCreature.BLOODCAT;
+}
+
 function putMilitiaOnRedAlert(t: TacticalState): void {
   if (isTeamActive(t, Team.MILITIA)) t.perception.awareOfOpposition[Team.MILITIA] = true;
 }
@@ -480,6 +489,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
   if (!table) return;
   let revealed = 0;
   let unknown = 0;
+  let creatureSeenFirstTime = false;
   const contacts: number[] = [];
   const targets = about ? [about] : t.soldiers.filter((x) => x !== undefined);
   for (const opp of targets) {
@@ -509,6 +519,8 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
         t.turn.enemySightingOnTheirTurn = { enemy: opp, since: t.clockMs };
         opp.pauseAllAnimation = true;
       }
+      if (contact) noteSightedCreature(p, opp);
+      if (isMonster(opp) && !hasSeenCreatures(t, s)) creatureSeenFirstTime = true;
     }
     updatePublic(t, toTeam, opp, pers, s.lastKnownOpp[opp.id] ?? -1, s.lastKnownOppLevel[opp.id] ?? 0);
   }
@@ -517,7 +529,9 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
     p.publicNoiseLevel[toTeam] = s.ai.noiseLevel;
     p.publicNoiseVolume[toTeam] = s.ai.noiseVolume;
   }
-  if (s.team === Team.OUR && (revealed || unknown)) t.perceptionHooks.ourTeamSeesSomeone(s, revealed, unknown, contacts);
+  if (s.team !== Team.OUR) return;
+  if (revealed || unknown) t.perceptionHooks.ourTeamSeesSomeone(s, revealed, unknown, contacts);
+  else if (creatureSeenFirstTime) sayFirstCreatureSightingQuote(t, s);
 }
 
 export function ourTeamRadiosRandomlyAbout(t: TacticalState, about: Soldier): void {
@@ -622,6 +636,7 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
     initSightArrays(t);
   }
   clearWatchedLocIncrements(t, s.id);
+  p.playerTeamSawCreatures = SeenCreature.NONE;
   const saved = s.ai.newSituation;
   s.ai.newSituation = 0;
   if (flags & SightFlags.LOOK) {

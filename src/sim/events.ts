@@ -103,6 +103,7 @@ export interface EnemySightedEvent extends SimEventBase {
   readonly newEnemies: number;
   readonly revealedEnemies: number;
   readonly enemies?: readonly number[];
+  readonly battleSound?: 'ENEMY' | 'CURSE1';
 }
 
 export interface RoomRevealedEvent extends SimEventBase {

@@ -11,6 +11,7 @@ import { parseStubLockTable } from '../../src/content/formats/locks.ts';
 import { EXPLOSION_ANIMATIONS_PATH, parseExplosionContent, SMOKE_EFFECTS_PATH } from '../../src/content/items/explosions.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { MERC_QUOTES_PATH, parseQuoteSpeakers } from '../../src/content/narrative/quote-speakers.ts';
+import { DEFAULT_DATA_DECODING } from '../../src/content/text/data-version.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { shippedLightTemplates } from '../../src/sim/tactical/lighting/templates.ts';
@@ -59,5 +60,6 @@ export async function loadTestContent(): Promise<TacticalContent> {
     locks: stubLockTable(),
     lightTemplates: shippedLightTemplates(parseLightTemplatesJson(readDataJson(SHIPPED_LIGHT_TEMPLATES_PATH))),
     quoteSpeakers: parseQuoteSpeakers(readDataJson(MERC_QUOTES_PATH)),
+    sightingBattleSound: DEFAULT_DATA_DECODING.sightingBattleSound,
   };
 }

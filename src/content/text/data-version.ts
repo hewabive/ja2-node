@@ -4,7 +4,8 @@
 // @src guess_by_language_specific_resources; src/game/GameRes.cc getStringEncType; src/externalized/strings/Localization.cc
 // @src GetSuffix; src/externalized/DefaultContentManager.cc loadTranslationTable; src/externalized/mercs/BinaryProfileData.cc
 // @src (isCorrectlyEncoded); src/game/TacticalAI/NPC.cc (the Russian record layout); src/externalized/content/Dialogs.cc
-// @src GetDialogueVoiceFilename.
+// @src GetDialogueVoiceFilename; src/game/Tactical/OppList.cc SaySeenQuote (the isEnglishVersion() || isChineseVersion() branch,
+// @src 2026-10-30).
 
 import type { EdtEncoding } from '../formats/edt.ts';
 import type { NpcRecordLayout } from '../formats/npc.ts';
@@ -40,6 +41,7 @@ export interface DataDecoding {
   readonly npcRecords: NpcRecordLayout;
   readonly profileNames: ProfileNameEncoding;
   readonly rpcSpeechPrefixed: boolean;
+  readonly sightingBattleSound: boolean;
 }
 
 const COMBINED_SUFFIX: Readonly<Record<VanillaVersion, UiLanguage>> = {
@@ -74,6 +76,8 @@ const GLYPH_TABLE_SUFFIX: Partial<Readonly<Record<VanillaVersion, string>>> = {
 };
 const DEFAULT_GLYPH_TABLE_SUFFIX = 'eng';
 
+const SIGHTING_BATTLE_SOUND_VERSIONS: ReadonlySet<VanillaVersion> = new Set(['english', 'simplifiedChinese']);
+
 const LANGUAGE_FOLDERS: readonly (readonly [string, VanillaVersion])[] = [
   ['dutch/', 'dutch'],
   ['german/', 'german'],
@@ -104,6 +108,7 @@ export function dataDecoding(version: DataVersion): DataDecoding {
     npcRecords: version === 'russian' ? 'russian' : 'standard',
     profileNames: isRussianVersion(version) ? 'russian' : 'correct',
     rpcSpeechPrefixed: rpcSpeechPrefixed(version),
+    sightingBattleSound: SIGHTING_BATTLE_SOUND_VERSIONS.has(textVersion(version)),
   };
 }
 

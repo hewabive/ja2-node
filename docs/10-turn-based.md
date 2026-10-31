@@ -158,6 +158,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
+| Combat started after our first sighting in the sector, which ends the virgin sector, leaves the enemy presence unset: `SetEnemyPresence` asks for a virgin sector | `narrative/sighting-quotes.test.ts` |
 
 Not pinned yet:
 - A duel won by 127 points or more never interrupts: the margin is a `UINT8` and only margins below `NO_INTERRUPT` are

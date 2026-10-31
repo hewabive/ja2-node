@@ -236,7 +236,7 @@ export function internalReduceAttackBusyCount(
   return target;
 }
 
-function unSetUIBusy(t: TacticalState, s: Soldier): void {
+export function unSetUIBusy(t: TacticalState, s: Soldier): void {
   if (!t.inCombat || t.turn.currentTeam !== Team.OUR || t.turn.unlockUIAfterHiddenInterrupt) return;
   if (s === selectedSoldier(t)) turnOffTeamsMuzzleFlashes(t, Team.OUR);
 }

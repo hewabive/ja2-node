@@ -495,6 +495,23 @@ function dropHeldKillFlag(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PLAYER_TEAM_SAW_CREATURES_KEY = 'playerTeamSawCreatures';
+const NO_CREATURE_SEEN = 0;
+
+function withSightedCreatureFlag(tactical: JsonObject): JsonObject {
+  const perception = tactical.perception;
+  if (!isObject(perception) || perception[REF] !== undefined) return tactical;
+  return { ...tactical, perception: { ...perception, ...withDefault(perception, PLAYER_TEAM_SAW_CREATURES_KEY, NO_CREATURE_SEEN) } };
+}
+
+function addSightedCreatureFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withSightedCreatureFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -513,5 +530,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     14: addItemLookingState,
     15: addTrashedMapRestrictedScroll,
     16: dropHeldKillFlag,
+    17: addSightedCreatureFlag,
   };
 }

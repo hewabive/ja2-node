@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc UpdateMercInSector; Tactical/Soldier_Add.cc InternalAddSoldierToSector,
 // @src AddSoldierToSectorGridNo, SoldierInSectorIncompaciated, InternalSoldierInSectorSleep, SoldierInSectorAnim;
-// @src TileEngine/Exit_Grids.cc FindClosestExitGrid; Overhead.cc SetEnemyPresence.
+// @src TileEngine/Exit_Grids.cc FindClosestExitGrid.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, rangeInCellCoords, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
@@ -20,7 +20,7 @@ import { calcActionPoints } from './points.ts';
 import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
 import { findGridNoFromSweetSpot } from './sweet-spots.ts';
-import { checkForPotentialAddToBattleIncrement } from './turns/turns.ts';
+import { checkForPotentialAddToBattleIncrement, setEnemyPresence } from './turns/turns.ts';
 
 export const Insertion = {
   NORTH: 0,
@@ -198,12 +198,6 @@ export function addSoldierToSector(
   addSoldierToSectorGridNo(t, s, gridNo, direction, order.code, ctx, animation);
   checkForPotentialAddToBattleIncrement(t, s);
   return true;
-}
-
-function setEnemyPresence(t: TacticalState): void {
-  if (t.turn.enemyInSector || !t.turn.virginSector) return;
-  t.sectorHooks.enemyPresence(t);
-  t.turn.enemyInSector = true;
 }
 
 function placementAnimation(t: TacticalState, s: Soldier, ctx: Pick<InsertionContext, 'assignment' | 'asleep' | 'isEpc'>): number | null {

@@ -14,7 +14,8 @@
 // @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24); Overhead.cc
 // @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
 // @src SetSoldierAsUnderAiControl; Overhead.cc CheckForEndOfBattle (fAnEnemyRetreated, the buddy-witnessed quote flags,
-// @src 2026-10-30).
+// @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
+// @src CommonEnterCombatModeCode (2026-10-30).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -38,6 +39,7 @@ import { sayBattleEndQuote, sayLullQuote, weSawSomeoneThisTurn } from '../narrat
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { clearBuddyWitnessedQuotes } from '../narrative/merc-quotes.ts';
+import { clearBattleSightingQuotes } from '../narrative/sighting-quotes.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
@@ -384,6 +386,12 @@ export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldi
   t.turn.numFoughtInBattle[s.team] = (t.turn.numFoughtInBattle[s.team] ?? 0) + 1;
 }
 
+export function setEnemyPresence(t: TacticalState): void {
+  if (t.turn.enemyInSector || !t.turn.virginSector) return;
+  t.sectorHooks.enemyPresence(t);
+  t.turn.enemyInSector = true;
+}
+
 function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.inCombat = true;
   t.turn.numFoughtInBattle.fill(0);
@@ -391,6 +399,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.sectorHooks.combatEntered(t);
   for (const s of t.soldiers) {
     if (!s?.placed || s.bodyType === Body.CROW) continue;
+    clearBattleSightingQuotes(t, s);
     stopMerc(t, s);
     t.turnHooks.cancelAIAction(t, s);
     s.aiTurnControl = false;
@@ -404,7 +413,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
 export function enterCombatMode(t: TacticalState, startTeam: number): void {
   if (t.inCombat) return;
   if (numCapableEnemyInSector(t) === 0) return;
-  t.turn.enemyInSector = true;
+  setEnemyPresence(t);
   commonEnterCombatModeCode(t, startTeam);
   if (startTeam === Team.OUR) {
     const selected = selectedSoldier(t);

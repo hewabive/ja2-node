@@ -23,7 +23,8 @@ a trigger: a tile centre, a turn while standing, the end of a      perception/wi
         manSeesMan / handleManNoLongerSeen: opplist, visible,      perception/sight.ts, perception/duel.ts
            duel points, NPC rules, the AI's stance                narrative/sight-rules.ts, perception/enemy-stance.ts
      combat: resolveInterruptsVs; real time: the best-sighting list   turns/turns.ts (10)
-     radio: public opplist, enemySighted and the halt, revealed tiles  perception/fov.ts
+     radio: public opplist, enemySighted, the sighting quote and the halt,  perception/wiring.ts
+       revealed tiles                                              narrative/sighting-quotes.ts, perception/fov.ts
 makeNoise (held while an attack resolves)                          perception/noise.ts
   processNoise: per team and listener the effective volume → hearNoise (a look at the noise tile)
   the loudest of our listeners → noiseHeard; squadHears for sounds of unseen soldiers   unseen-sources.ts
@@ -41,7 +42,8 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
 | `perception/fov.ts` | `revealRoofsAndItems`, `allSoldiersLookForItems`, revealed tiles and rooms (`TacticalState.fog`) |
 | `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`) |
-| `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; halting on a sighting; the AI's stance after one |
+| `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one |
+| `narrative/sighting-quotes.ts` | The sighting quotes: in trouble, creatures, bloodcats, the first enemy of the sector, the battle-sound roll |
 | `lighting/lighting.ts` | `lightTrueLevel` and the light scaling of vision (`20`) |
 
 Other users of the ray: `combat/positions.ts` (aiming and body parts, `11`), `ai/utils.ts` (location to location, `13`),
@@ -128,8 +130,9 @@ included, before the next event.
 **Randomness.** `pre`: each footstep (one draw for the army, zero to two for others, also for a door's noise), the
 experience chances of spotting an enemy who has not seen the merc (`33`), thrown objects landing (`34`). `main`: the
 order of `ourTeamRadiosRandomlyAbout`, the bloodcat roar, the hostile-quote speaker, which of the two room-roof item
-quotes, which of the two items-seen quotes (drawn when the dialogue queue runs it). The sighting quotes are not drawn
-(gap "Sighting quotes").
+quotes, which of the two items-seen quotes (drawn when the dialogue queue runs it), and at a sighting of a soldier
+once the sector's first sighting is over the `Random(100)` that picks the ENEMY battle sound over the line, only with
+English or Chinese data (`content.sightingBattleSound`, from the data version: `31`).
 
 ## 3. Quirks of the original the code keeps
 
@@ -150,6 +153,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Any camouflage on a bloodcat counts as full camouflage | `sight-modifiers.test.ts` |
 | A muzzle flash shows a shooter as in daylight to anyone but a tank, which keeps looking only the way it is turning, also where a look ignores the facing | `sight-modifiers.test.ts` |
 | In combat a locked item locator keeps every merc who sees new items quiet; only a look out of combat, the items-seen quote itself or the creature queen's death unlocks it | `item-locator.test.ts` |
+| Only a look forgets which creature the team saw last: a radio outside a look (a noise, an unseen attacker) that reveals a soldier brings the creature line | `../narrative/sighting-quotes.test.ts` |
+| A merc counts himself among the allies who see half the enemies, so the in-trouble line needs four opponents in his sight when he stands alone | `../narrative/sighting-quotes.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
@@ -181,6 +186,6 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Sighting quotes", "Cave lights", "Guard room run", "Doors", "Corpses" (crows). Other
-deviations of this domain: "Enemy sighted on their turn", "Real-time turn after combat", "Ambient light and light
-schedule", "Sounds out of sight", "Bullets of unseen shooters".
+Not ported: gaps "Cave lights", "Guard room run", "Doors", "Corpses" (crows), the camera's slide to a sighting
+("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn after
+combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

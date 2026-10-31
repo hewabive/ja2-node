@@ -133,8 +133,9 @@ text keys that each client resolves in the tables it loaded; `server/text-keys.t
 array, so every surface labels alike.
 
 **What the data version reaches in the simulation**, as the user's version has it: quote durations (a Russian line and
-its voice have other lengths, `24`) and the Russian NPC record layout, also in native saves; Russian maps' extra bytes
-are skipped by the map's own version. A save records the data version and a hash of the line lengths
+its voice have other lengths, `24`), the Russian NPC record layout, also in native saves, and the `Random(100)` battle
+sound of a sighting, which only English and Chinese builds roll (`DataDecoding.sightingBattleSound`, `08`); Russian
+maps' extra bytes are skipped by the map's own version. A save records the data version and a hash of the line lengths
 (`server/content-identity.ts`); another version or other lengths load with the warning `dataVersionDiffers` (`27`),
 like Stracciatella's version warning.
 
@@ -188,6 +189,5 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
   Russian data (from the glyph tables).
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Sound coverage", "Sighting quotes" (the English and Chinese `Random(100)` battle-sound branch of a
-sighting), "Data version detection", "Helicopter entrance", "Map screen speech", "Laptop video faces", "I.M.P. voice
-samples".
+Not ported: gaps "Sound coverage", "Data version detection", "Helicopter entrance", "Map screen speech", "Laptop video
+faces", "I.M.P. voice samples".

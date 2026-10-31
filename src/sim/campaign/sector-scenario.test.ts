@@ -118,7 +118,7 @@ interface ScenarioResult {
 
 function scenario(drive: Driver, mode: RunMode): ScenarioResult {
   const { campaign: c, roster } = createTestCampaign(kit, {
-    seed: 25,
+    seed: 28,
     garrison: { admins: 0, troops: 0, elites: 0 },
     mode,
   });

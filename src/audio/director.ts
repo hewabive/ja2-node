@@ -15,7 +15,8 @@
 // @src object landing, the mortar whistle, CATCH_OBJECT as a catch ends);
 // @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code
 // @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
-// @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1).
+// @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1); Tactical/OppList.cc OurTeamSeesSomeone
+// @src and SaySeenQuote (the ENEMY and CURSE1 battle sounds of a sighting, 2026-10-30).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -564,6 +565,9 @@ export class SoundDirector {
         return;
       case 'contentsExclaimed':
         this.#o.later(CONTENTS_EXCLAMATION_DELAY_MS, () => this.#battleSound(e.soldier, e.sound, false));
+        return;
+      case 'enemySighted':
+        if (e.battleSound) this.#battleSound(e.soldier, e.battleSound, false);
         return;
       case 'itemDropped':
         if (this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));

@@ -551,3 +551,43 @@ describe('snapshot version 16 (a bare kill flag) migrates with no kill held for 
     await expectNoKillHeld(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+function versionSeventeen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const { playerTeamSawCreatures, ...perception } = object(tactical.perception);
+    expect(playerTeamSawCreatures).toBe(0);
+    return [name, { ...tactical, perception }];
+  });
+  return { ...snapshot, version: 17, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 17 (no sighted-creature flag) migrates with no creature seen by the last look', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoCreatureSeen(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionSeventeen(current.sim);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoCreatureSeen(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoCreatureSeen(await createCampaignSession(kit.read, exists, 9));
+  });
+});

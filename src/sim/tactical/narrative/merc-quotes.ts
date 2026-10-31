@@ -15,6 +15,12 @@ import type { QuoteSaidRecord } from './port.ts';
 import { isRobot } from './robot.ts';
 
 export const MercQuote = {
+  SEE_ENEMY: 0,
+  SEE_ENEMY_VARIATION: 1,
+  IN_TROUBLE_SLASH_IN_BATTLE: 2,
+  SEE_CREATURE: 3,
+  FIRSTTIME_GAME_SEE_CREATURE: 4,
+  ATTACKED_BY_MULTIPLE_CREATURES: 10,
   KILLED_AN_ENEMY: 27,
   KILLED_A_CREATURE: 28,
   AIM_KILLED_MIKE: 32,
@@ -28,11 +34,14 @@ export const MercQuote = {
   SATISFACTION_WITH_GUN_AFTER_KILL: 62,
   SECTOR_SAFE: 65,
   KILLED_FACTORY_MANAGER: 67,
+  SPOTTED_BLOODCAT: 68,
   ENEMY_RETREATED: 70,
 } as const;
 
 export const QuoteSaidFlag = {
+  IN_SHIT: 0x0001,
   LOW_MORAL: 0x0010,
+  MULTIPLE_CREATURES: 0x0020,
   ANNOYING_MERC: 0x0040,
   LIKESGUN: 0x0080,
   PERSONALITY: 0x4000,

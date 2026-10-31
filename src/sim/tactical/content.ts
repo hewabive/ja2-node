@@ -21,4 +21,5 @@ export interface TacticalContent {
   readonly locks: LockTable;
   readonly lightTemplates: ReadonlyMap<string, LightTemplate>;
   readonly quoteSpeakers: QuoteSpeakers;
+  readonly sightingBattleSound: boolean;
 }
