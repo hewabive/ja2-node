@@ -7,7 +7,9 @@
 // @src GotoLowerStance, ToggleHandCursorMode, ToggleTalkCursorMode, ToggleLookCursorMode; Overhead.cc
 // @src CycleVisibleEnemies, CycleThroughKnownEnemies, FindNextActiveSquad, HandleLocateToGuyAsHeWalks (the view follows
 // @src a merc walking in combat with tracking on, and every visible soldier of the others); DisplayCover.cc
-// @src DisplayRangeToTarget; GameSettings.cc DisplayGameSettings (the version and the gun line); Handle_Items.cc
+// @src DisplayRangeToTarget; GameSettings.cc DisplayGameSettings; DisplayCover.cc ChangeSizeOfDisplayCover,
+// @src ChangeSizeOfLOS; Turn_Based_Input.cc SwitchHeadGear (the squad on the map, bHeadGearDirection), the ALT+- key
+// @src (MusicSetVolume 20 lower, not below 0), the ALT+S key (the IRON_MAN_CANT_SAVE_NOW box); Handle_Items.cc
 // @src ToggleItemGlow; Soldier_Control.cc HandlePlayerTogglingLightEffects; Turn_Based_Input.cc ToggleTreeTops,
 // @src ToggleWireFrame (the messages); src/game/TileEngine/RenderWorld.cc ScrollWorld (the arrow keys and the
 // @src 15-pixel screen edges, 20 << (SHIFT ? 2 : 1) pixels across and half down per NEXTSCROLL 20 ms, the pending first
@@ -33,11 +35,13 @@ import { KeyModifier, type UiKeyEvent } from '../../input/events.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { ControllerContract } from '../../layout/controller.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
+import { clampDisplaySize } from '../../settings.ts';
 import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign, stringPixLength } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
+import { gameSettingsLines } from '../game-settings.ts';
 import type { CommandReply, TacticalEnvironment } from './environment.ts';
 import { ExitDialog, type ExitDialogArt, type ExitDirection } from './exit-dialog.ts';
 import { OKLIFE } from './faces.ts';
@@ -67,12 +71,10 @@ const SHOW_LOCATOR_NORMAL_CYCLES = 10;
 const TACTICAL = 'TacticalStr';
 const MESSAGES = 'pMessageStrings';
 const NEW_TACTICAL = 'zNewTacticalMessages';
-const GIO = 'gzGIOScreenText';
 const NO_ENEMIES_IN_SIGHT_STR = 86;
 const OUT_OF_RANGE_STRING = 126;
 const REMOVING_TREETOPS_STR = 103;
 const SHOWING_TREETOPS_STR = 104;
-const MSG_VERSION = 23;
 const MSG_WIREFRAMES_ADDED = 48;
 const MSG_WIREFRAMES_REMOVED = 49;
 const MSG_TACKING_MODE_OFF = 55;
@@ -82,9 +84,7 @@ const MSG_3DCURSOR_ON = 58;
 const MSG_SQUAD_ACTIVE = 59;
 const TCTL_MSG_RANGE_TO_TARGET = 0;
 const TCTL_MSG_RANGE_TO_TARGET_AND_GUN_RANGE = 1;
-const GIO_GUN_OPTIONS_TEXT = 4;
-const GIO_GUN_NUT_TEXT = 5;
-const GIO_REDUCED_GUNS_TEXT = 6;
+const MUSIC_VOLUME_STEP = 20;
 const WORLD_COLS = 160;
 const CELL = 10;
 const RUBBER_BAND_COLOURS: readonly number[] = [
@@ -112,7 +112,6 @@ export const TACTICAL_INPUT_CONTRACT: ControllerContract = { id: 'tacticalInput'
 
 export interface ControlsScreen {
   readonly env: TacticalEnvironment;
-  readonly version: string;
   selected(): SoldierView | null;
   select(s: SoldierView, acknowledge: boolean, fromUi: boolean): void;
   interfaceLevel(): number;
@@ -179,7 +178,7 @@ export class TacticalControls {
   #nextScrollAt = 0;
   #scrollPending = false;
   #scrollInertia = false;
-  #redItemGlow = false;
+  #nightGearNext = true;
   #busyOrders = 0;
 
   constructor(screen: ControlsScreen, art: ControlsArt) {
@@ -201,10 +200,6 @@ export class TacticalControls {
       closed: () => undefined,
     });
     this.input = new TacticalInput(this.#inputHost());
-  }
-
-  get redItemGlow(): boolean {
-    return this.#redItemGlow;
   }
 
   #env(): TacticalEnvironment {
@@ -626,11 +621,39 @@ export class TacticalControls {
     return on;
   }
 
-  #gameSettings(): void {
-    const version = this.#text(MESSAGES, MSG_VERSION);
-    this.#screen.log(`${version}: ${this.#screen.version}`);
-    const gun = this.#text(GIO, this.#env().media.gunNut ? GIO_GUN_NUT_TEXT : GIO_REDUCED_GUNS_TEXT);
-    this.#screen.log(`${this.#text(GIO, GIO_GUN_OPTIONS_TEXT)}: ${gun}`);
+  async #gameSettings(): Promise<void> {
+    const env = this.#env();
+    const options = await env.gameOptions();
+    if (options) for (const line of gameSettingsLines(env.text, env.version, options)) this.#screen.log(line);
+  }
+
+  #resizeCover(step: number): void {
+    const env = this.#env();
+    env.changeSettings({ coverSize: clampDisplaySize(env.settings().coverSize + step) });
+  }
+
+  #resizeSight(step: number): void {
+    const env = this.#env();
+    env.changeSettings({ losSize: clampDisplaySize(env.settings().losSize + step) });
+  }
+
+  #musicDown(): void {
+    const env = this.#env();
+    const music = env.settings().volumes.music;
+    env.changeSettings({ volumes: { music: music > MUSIC_VOLUME_STEP ? music - MUSIC_VOLUME_STEP : 0 } });
+  }
+
+  #switchHeadGear(): void {
+    const gear = this.#nightGearNext ? 'night' : 'day';
+    this.#nightGearNext = !this.#nightGearNext;
+    const soldiers = this.#screen.squadSoldiers().filter((s) => !isDead(s) && !isVehicleBody(s));
+    if (soldiers.length > 0) void this.#screen.send({ type: 'switchHeadGear', soldiers: soldiers.map((s) => s.id), gear });
+  }
+
+  async #quickSave(): Promise<void> {
+    const env = this.#env();
+    const failure = await env.flow.quickSave();
+    if (failure) await env.boxes.alert(failure);
   }
 
   #reload(squad: boolean): void {
@@ -700,6 +723,7 @@ export class TacticalControls {
       get smPanel() {
         return screen.panel() === 'sm';
       },
+      keyHeld: (key) => env.runtime.isKeyDown(key),
       smButtonEnabled: (button) => screen.panelButtonEnabled(button),
       hasSelected: () => screen.selected() !== null,
       closeMenu: () => this.#closeMenu(),
@@ -745,9 +769,7 @@ export class TacticalControls {
       rangeToTarget: () => void this.#rangeToTarget(),
       toggleMercLight: () => void this.#toggleDisplay('mercCastsLight'),
       toggleItemGlow: () => void this.#toggleDisplay('glowItems'),
-      toggleRedItemGlow: () => {
-        this.#redItemGlow = !this.#redItemGlow;
-      },
+      toggleRedItemGlow: () => env.toggleRedItemGlow(),
       toggleTreeTops: () => message(TACTICAL, this.#toggleDisplay('treeTops') ? SHOWING_TREETOPS_STR : REMOVING_TREETOPS_STR),
       toggleWireframes: () => message(MESSAGES, this.#toggleDisplay('wireframe') ? MSG_WIREFRAMES_ADDED : MSG_WIREFRAMES_REMOVED),
       toggle3dCursor: () => message(MESSAGES, this.#toggleDisplay('cursor3d') ? MSG_3DCURSOR_ON : MSG_3DCURSOR_OFF),
@@ -765,7 +787,7 @@ export class TacticalControls {
       continueMove: () => this.#continueMove(),
       mapScreen: () => env.flow.mapScreen(),
       help: () => env.flow.help?.(),
-      gameSettings: () => this.#gameSettings(),
+      gameSettings: () => void this.#gameSettings(),
       cycleStack: () => undefined,
       clearMessages: (queue) => screen.clearMessages(queue),
       swapHands: () => {
@@ -773,7 +795,12 @@ export class TacticalControls {
         if (sel) screen.swapHands(sel.id);
       },
       reload: (squad) => this.#reload(squad),
-      musicDown: () => undefined,
+      musicDown: () => this.#musicDown(),
+      resizeCover: (step) => this.#resizeCover(step),
+      resizeSight: (step) => this.#resizeSight(step),
+      switchHeadGear: () => this.#switchHeadGear(),
+      quickSave: () => void this.#quickSave(),
+      quickLoad: () => env.flow.quickLoad(),
     };
   }
 

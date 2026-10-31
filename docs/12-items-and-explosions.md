@@ -27,6 +27,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `item-merge.ts`, `stack-cleanup.ts` | Attaching with the soldier's skill check, merges; pooling the points of a stack |
 | `inventory-panel.ts`, `inventory-commands.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, slot hatches, the description box values |
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
+| `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts` | World items: map load, pools, visibility; picking up, dropping, giving, tossing |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
@@ -126,6 +127,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Plain smoke gasses whoever steps into it without a good mask (aim −50, no interrupts), though it does no damage | `explosions/smoke.test.ts` |
 | A mask worn below 70 lets a soldier get gassed, yet any mask clears the state at his next turn start | `explosions/smoke.test.ts` |
 | A pile under a soldier or a blocking structure is picked up from a side tile only, though the reach animation turns to any neighbour: a merc on its diagonal walks first | `item-actions.test.ts` |
+| Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts

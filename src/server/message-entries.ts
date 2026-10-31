@@ -10,7 +10,8 @@
 // @src Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Weapons.cc UseHandToHand (stealing, 2026-10-31), Soldier_Control.cc (refused first aid),
 // @src Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
-// @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
+// @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM), src/externalized/Soldier.cc
+// @src showGearEquipMessage, showGearRemoveMessage (NS_SOLDIER_EQUIPS_ITEM, NS_SOLDIER_REMOVES_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -78,6 +79,9 @@ const MERC_OFF_STEALTH = 47;
 const MUTE_OFF = 64;
 const MUTE_ON = 65;
 const NO_PATH_FOR_MERC = 130;
+const NEW_STRINGS = 'new-strings';
+const NS_SOLDIER_EQUIPS_ITEM = 0;
+const NS_SOLDIER_REMOVES_ITEM = 1;
 const GUN_GOT_FINGERPRINT = 111;
 const STR_CAMO_WORN_OFF = 30;
 const STR_STOLE_SOMETHING = 33;
@@ -278,6 +282,12 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   gunImprint: (e) => (e.result === 'imprinted' ? [{ ...line('TacticalStr', GUN_GOT_FINGERPRINT), quoted: true }] : []),
   itemCaught: (e, facts) => [
     line('pMessageStrings', MERC_CAUGHT_ITEM, [text(facts.soldierName(e.soldier)), { item: e.item, name: 'short' }]),
+  ],
+  headGearChanged: (e, facts) => [
+    line(NEW_STRINGS, e.on ? NS_SOLDIER_EQUIPS_ITEM : NS_SOLDIER_REMOVES_ITEM, [
+      text(facts.soldierName(e.soldier)),
+      { item: e.item, name: 'long' },
+    ]),
   ],
 };
 

@@ -31,4 +31,17 @@ export interface NoPathForMercEvent extends SimEventBase {
   readonly to: number;
 }
 
-export type OrderEvent = StealthChangedEvent | SquadStealthChangedEvent | MuteChangedEvent | PlacesSwappedEvent | NoPathForMercEvent;
+export interface HeadGearChangedEvent extends SimEventBase {
+  readonly type: 'headGearChanged';
+  readonly soldier: number;
+  readonly item: number;
+  readonly on: boolean;
+}
+
+export type OrderEvent =
+  | StealthChangedEvent
+  | SquadStealthChangedEvent
+  | MuteChangedEvent
+  | PlacesSwappedEvent
+  | NoPathForMercEvent
+  | HeadGearChangedEvent;

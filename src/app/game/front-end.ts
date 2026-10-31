@@ -139,6 +139,9 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       basicTextBox,
       language: () => settings.current().language,
       gunNut: async () => (await client.status()).options?.gunNut ?? false,
+      gameOptions: async () => (await client.status()).options,
+      version: versionLabel(health?.engine),
+      settingsChanged: (change) => settings.change(change),
     });
     return tactical;
   };

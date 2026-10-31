@@ -258,9 +258,8 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 - The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load with one warning box, Save as
   new or over a player or quick save, Delete, Download, Upload, and the native saves to import. Its row location and
   tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
-- On `/play` the map screen binds quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and Alt+C (`30`);
-  the tactical screen binds neither yet (gaps "Tactical keys not yet ported"). The developer tactical and strategic
-  pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
+- On `/play` the map and tactical screens bind quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and
+  Alt+C (`30`). The developer tactical and strategic pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
 
 ### 1.12 Quirks of the original the code keeps
 

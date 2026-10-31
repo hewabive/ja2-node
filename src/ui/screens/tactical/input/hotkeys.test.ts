@@ -8,7 +8,9 @@ interface Recorder {
   readonly calls: string[];
 }
 
-type HostState = Partial<Pick<HotkeyHost, 'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'itemInCursor' | 'smPanel'>>;
+type HostState = Partial<Pick<HotkeyHost, 'mode' | 'locked' | 'inCombat' | 'ourTurn' | 'inConversation' | 'itemInCursor' | 'smPanel'>> & {
+  readonly held?: readonly string[];
+};
 
 function recorder(state: HostState = {}): Recorder {
   const calls: string[] = [];
@@ -27,6 +29,7 @@ function recorder(state: HostState = {}): Recorder {
     smPanel: false,
     ...state,
     smButtonEnabled: () => true,
+    keyHeld: (key: string) => state.held?.includes(key) === true,
     hasSelected: () => true,
     closeMenu: () => {
       calls.push('closeMenu');
@@ -76,6 +79,28 @@ describe('the gameplay keys of Turn_Based_Input.cc', () => {
     handleTacticalKey(r.host, down('r', KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
     handleTacticalKey(r.host, down('r', KEY_MASK.CTRL | KEY_MASK.SHIFT), UiEvent.M_ON_TERRAIN);
     expect(r.calls).toEqual(['selectSlot(2,false)', 'climbWindow', 'swapHands', 'stealth(true)', 'reload(false)', 'reload(true)']);
+  });
+
+  it('resizes the cover display with Delete held and the sight display with End held, and selects nobody then', () => {
+    const r = recorder({ held: ['Delete'] });
+    handleTacticalKey(r.host, down('='), UiEvent.M_ON_TERRAIN);
+    handleTacticalKey(r.host, down('-'), UiEvent.M_ON_TERRAIN);
+    const both = recorder({ held: ['End', 'Delete'] });
+    handleTacticalKey(both.host, down('='), UiEvent.M_ON_TERRAIN);
+    const none = recorder();
+    handleTacticalKey(none.host, down('-'), UiEvent.M_ON_TERRAIN);
+    expect([r.calls, both.calls, none.calls]).toEqual([['resizeCover(1)', 'resizeCover(-1)'], ['resizeCover(1)', 'resizeSight(1)'], []]);
+  });
+
+  it('switches the head gear with CTRL+N, lowers the music with ALT+- and quick saves and loads with ALT+S and ALT+L', () => {
+    const r = recorder();
+    handleTacticalKey(r.host, down('n', KEY_MASK.CTRL), UiEvent.M_ON_TERRAIN);
+    for (const key of ['-', 's', 'l']) handleTacticalKey(r.host, down(key, KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
+    handleTacticalKey(r.host, down('*'), UiEvent.M_ON_TERRAIN);
+    expect(r.calls).toEqual(['switchHeadGear', 'musicDown', 'quickSave', 'quickLoad', 'toggleRedItemGlow']);
+    const talking = recorder({ inConversation: true });
+    for (const key of ['s', 'l']) handleTacticalKey(talking.host, down(key, KEY_MASK.ALT), UiEvent.M_ON_TERRAIN);
+    expect(talking.calls).toEqual([]);
   });
 
   it('lets only ESC through the UI lock and ends the turn only on our turn in combat', () => {

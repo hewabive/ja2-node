@@ -3,12 +3,13 @@ import type { ProfilePresentation } from '../../../content/narrative/profile-pre
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { KeyView, PlayerView, ViewFrame } from '../../../protocol/view.ts';
+import type { GameOptions } from '../../client/api-types.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiRuntime } from '../../runtime.ts';
-import type { DisplaySettings } from '../../settings.ts';
+import type { ClientSettings, DisplaySettings, SettingsChange } from '../../settings.ts';
 import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
@@ -161,6 +162,8 @@ export interface TacticalFlow {
   options(): void;
   saveGame(): void;
   loadGame(): void;
+  quickSave(): Promise<string | null>;
+  quickLoad(): void;
   exitGame(): void;
   mapScreen(): void;
   help?(): void;
@@ -192,6 +195,11 @@ export interface TacticalEnvironment {
   readonly uiCursors: UiCursorTable;
   readonly display: () => DisplaySettings;
   readonly setDisplay: (change: Partial<DisplaySettings>) => void;
+  readonly settings: () => ClientSettings;
+  readonly changeSettings: (change: SettingsChange) => void;
+  readonly toggleRedItemGlow: () => void;
+  readonly version: string;
+  readonly gameOptions: () => Promise<GameOptions | null>;
   readonly battleSound: (soldier: number, sound: BattleSound) => void;
   readonly facts: () => MapFacts | null;
 }

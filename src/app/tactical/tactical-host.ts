@@ -4,6 +4,7 @@ import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
 import { WorldRenderer } from '../../render/world/world-renderer.ts';
+import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
@@ -16,6 +17,7 @@ import {
 } from '../../ui/screens/tactical/environment.ts';
 import { parseUiCursorTable, UI_CURSORS_TABLE_PATH, type UiCursorTable } from '../../ui/screens/tactical/input/ui-cursors.ts';
 import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
+import { type SettingsChange, updateSettings } from '../../ui/settings.ts';
 import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
@@ -61,6 +63,9 @@ export interface TacticalHostOptions {
   readonly basicTextBox: MercTextBoxArt;
   readonly language: () => UiLanguage | null;
   readonly gunNut: () => Promise<boolean>;
+  readonly gameOptions: () => Promise<GameOptions | null>;
+  readonly version: string;
+  readonly settingsChanged: (change: SettingsChange) => void;
 }
 
 interface Loaded {
@@ -90,6 +95,7 @@ export class TacticalHost {
   #screen: TacticalScreen | null = null;
   #screenFor: Loaded | null = null;
   #loadScreen: number | null = null;
+  #redItemGlow = false;
   #refreshing = false;
   readonly #requestedProfiles = new Set<number>();
   readonly #speechSettings: () => SpeechSettings;
@@ -235,7 +241,7 @@ export class TacticalHost {
         shownTick: () => session.shownTick,
         bullets: () => session.bullets,
         clockMs: () => this.#o.ui.runtime.clock.ja2Now,
-        options: () => tacticalOptionsOf(loadSettings()),
+        options: () => tacticalOptionsOf(loadSettings(), { redItemGlow: this.#redItemGlow }),
       },
       loadedMedia.radarImage,
     );
@@ -365,10 +371,14 @@ export class TacticalHost {
       prepareText: (file) => this.#prepareText(file),
       uiCursors: loaded.uiCursors,
       display: () => loadSettings().display,
-      setDisplay: (change) => {
-        const settings = loadSettings();
-        saveSettings({ ...settings, display: { ...settings.display, ...change } });
+      setDisplay: (change) => this.#changeSettings({ display: change }),
+      settings: () => loadSettings(),
+      changeSettings: (change) => this.#changeSettings(change),
+      toggleRedItemGlow: () => {
+        this.#redItemGlow = !this.#redItemGlow;
       },
+      version: this.#o.version,
+      gameOptions: () => this.#o.gameOptions().catch(() => null),
       battleSound: (soldier, sound) => this.#battleSound(soldier, sound),
       facts: () => this.#mapFacts(),
     };
@@ -376,6 +386,11 @@ export class TacticalHost {
     this.#screenFor = loaded;
     this.#screen.dialogue.frames(this.#dialogueBeforeScreen.splice(0));
     return this.#screen;
+  }
+
+  #changeSettings(change: SettingsChange): void {
+    saveSettings(updateSettings(loadSettings(), change));
+    this.#o.settingsChanged(change);
   }
 
   #battleSound(soldier: number, sound: BattleSound): void {

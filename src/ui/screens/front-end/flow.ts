@@ -537,6 +537,8 @@ export class FrontEndFlow {
         options: actions.options,
         saveGame: actions.saveGame,
         loadGame: actions.loadGame,
+        quickSave: () => this.quickSave(),
+        quickLoad: () => void this.quickLoad(),
         exitGame: actions.exitGame,
         mapScreen: () => void this.#openMap(session),
       }),

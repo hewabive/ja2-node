@@ -304,7 +304,8 @@ permanent attachments become refusals to repeat with `merge` or `permanent`; the
 command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
 only. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
-is `give`, for a dealer `trade`.
+is `give`, for a dealer `trade`. `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key
+alternates the night and the day gear, night first, and the client keeps that turn.
 
 ### 8.4 Conversations
 

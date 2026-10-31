@@ -7,7 +7,8 @@
 // @src (the all-move), HandleMultiSelectionMove; Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
 // @src Soldier_Tile.cc SwapMercPositions, CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
 // @src Isometric_Utils.cc IsFacingClimableWindow; Structure_Wrap.cc IsJumpableWindowPresentAtGridNo;
-// @src Points.cc GetAPsToJumpFence.
+// @src Points.cc GetAPsToJumpFence; Turn_Based_Input.cc SwitchHeadGear (CTRL+N: the squad's living non-vehicles in
+// @src squad order, refused with the interface locked as the key is).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { Direction, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
@@ -28,6 +29,8 @@ import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { WeaponMode } from './combat/types.ts';
 import { DIRECTION_INCREMENT } from './directions.ts';
 import { ensureConsistentWeaponMode, hasLauncher, isGunBurstCapable, nextWeaponMode } from './hand-item.ts';
+import { type HeadGear, switchHeadGear } from './head-gear.ts';
+import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot } from './inventory.ts';
 import { apsToJumpOver, jumpOverAt } from './jump-over.ts';
 import { directionToward, getNewSoldierPath, setSoldierPosition } from './movement.ts';
@@ -62,6 +65,7 @@ export const PLAYER_ORDERS: ReadonlySet<string> = new Set([
   'jump',
   'climbWindow',
   'moveGroup',
+  'switchHeadGear',
 ]);
 
 const NO_SUCH_SOLDIER: Refusal = { token: 'noSuchSoldier', reason: 'no such soldier of yours' };
@@ -75,6 +79,7 @@ const WEAPON_MODE_VIEW: Readonly<Record<number, string>> = {
   [WeaponMode.BURST]: 'burst',
   [WeaponMode.ATTACHED]: 'launcher',
 };
+const HEAD_GEARS: ReadonlySet<string> = new Set<HeadGear>(['day', 'night']);
 const EXCHANGE_TILE_LIMIT = 1;
 const JUMP_OVER_STATE = 'JUMP_OVER_BLOCKING_PERSON';
 
@@ -118,6 +123,26 @@ function stealth(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   }
   if (cmd.squad === true) ctx.t.events.push({ type: 'squadStealthChanged', soldiers: changed, on: cmd.on !== false });
   return { ok: true, data: { soldiers: changed } };
+}
+
+function squadForHeadGear(ctx: OrderContext, ids: unknown): Soldier[] | Refusal {
+  if (!Array.isArray(ids) || ids.length === 0) return { token: 'badSoldiers', reason: 'soldiers must be a non-empty list of ids' };
+  const list: Soldier[] = [];
+  for (const id of ids) {
+    const s = ownSoldier(ctx, id);
+    if (!s) return NO_SUCH_SOLDIER;
+    if (!list.includes(s) && s.life > 0 && !isVehicle(s)) list.push(s);
+  }
+  return list;
+}
+
+function headGear(ctx: OrderContext, cmd: OrderCommand): CommandResult {
+  if (typeof cmd.gear !== 'string' || !HEAD_GEARS.has(cmd.gear)) return refuse('badGear', 'gear must be day or night');
+  if (playerInterfaceLocked(ctx.t)) return refuse('uiLocked', 'the interface is locked');
+  const list = squadForHeadGear(ctx, cmd.soldiers);
+  if (isRefusal(list)) return refused(list);
+  for (const s of list) switchHeadGear(ctx.t, s, cmd.gear as HeadGear);
+  return { ok: true, data: { soldiers: list.map((s) => s.id) } };
 }
 
 function mute(ctx: OrderContext, cmd: OrderCommand): CommandResult {
@@ -352,6 +377,8 @@ export function dispatchPlayerOrder(ctx: OrderContext, cmd: OrderCommand): Comma
       return climbWindow(ctx, cmd);
     case 'moveGroup':
       return moveGroup(ctx, cmd);
+    case 'switchHeadGear':
+      return headGear(ctx, cmd);
     default:
       return refuse('unknownCommand', `unknown command ${cmd.type}`);
   }

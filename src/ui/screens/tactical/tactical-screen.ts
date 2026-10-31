@@ -153,7 +153,6 @@ const TEAM_RADAR_COLOURS: readonly number[] = [
 const CIV_TEAM = 4;
 const HANDPOS = 5;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
-const UI_VERSION = '0.8.0';
 
 type PanelKind = 'team' | 'sm';
 const DESCRIBED_BUTTON_OWNERS: ReadonlySet<string> = new Set(['itemDescription', 'itemPickupMenu', 'tacticalMenus', 'tacticalExitDialog']);
@@ -358,7 +357,6 @@ export class TacticalScreen implements Screen {
     const env = this.#env;
     return {
       env,
-      version: UI_VERSION,
       selected: () => soldierById(this.#view(), this.#selected),
       select: (s, acknowledge, fromUi) => this.#selectSoldier(s, acknowledge, fromUi),
       interfaceLevel: () => this.#interfaceLevel,

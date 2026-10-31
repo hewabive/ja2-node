@@ -146,9 +146,13 @@ function flag(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+export function clampDisplaySize(size: number): number {
+  return Math.min(MAX_DISPLAY_SIZE, Math.max(MIN_DISPLAY_SIZE, size));
+}
+
 function displaySize(value: unknown, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.min(MAX_DISPLAY_SIZE, Math.max(MIN_DISPLAY_SIZE, Math.round(value)));
+  return clampDisplaySize(Math.round(value));
 }
 
 function playbackSpeed(value: unknown): number {

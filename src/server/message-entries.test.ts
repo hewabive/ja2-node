@@ -197,6 +197,15 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints the head gear a merc puts on or takes off with the long item name from the new strings', () => {
+    const gear = (on: boolean) => at({ type: 'headGearChanged', soldier: 1, item: 9, on });
+    const args = [{ text: 'Fox' }, { item: 9, name: 'long' }];
+    expect(messageEntriesOf([gear(true), gear(false)], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'new-strings', index: 0, args },
+      { tick: 40, kind: 'interface', colour: 145, table: 'new-strings', index: 1, args },
+    ]);
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(

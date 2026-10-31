@@ -1,7 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import {
+  type TacticalUiKit,
+  type TacticalUiTest,
+  TEST_GAME_OPTIONS,
+  TEST_VERSION,
+  tacticalUiKit,
+  tacticalUiTest,
+} from '../../../../tests/support/tactical-ui.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
@@ -10,6 +17,8 @@ import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
+import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
+import { gameSettingsLines } from '../game-settings.ts';
 import { UiMode } from './input/ui-events.ts';
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
@@ -170,6 +179,71 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.display.treeTops).toBe(!trees);
     expect(f.screen.messageLines.some((l) => /Treetops/.test(l))).toBe(true);
     expect(f.screen.messageLines.some((l) => /Wireframes/.test(l))).toBe(true);
+  });
+
+  it('lists the version and the game options of DisplayGameSettings with v', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('v');
+    const lines = gameSettingsLines(f.text, TEST_VERSION, TEST_GAME_OPTIONS);
+    await f.settle(lines.length + 1);
+    expect(lines).toHaveLength(5);
+    expect(f.screen.messageLines.toReversed().slice(-lines.length)).toEqual(lines);
+  });
+
+  it('lowers the music by 20 with ALT+-, never below 0', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.settings = { ...f.settings, volumes: { ...f.settings.volumes, music: 45 } };
+    for (let i = 0; i < 3; i++) f.key('-', KeyModifier.ALT);
+    expect(f.settings.volumes.music).toBe(0);
+    f.settings = { ...f.settings, volumes: { ...f.settings.volumes, music: 45 } };
+    f.key('-', KeyModifier.ALT);
+    expect(f.settings.volumes.music).toBe(25);
+  });
+
+  it('sizes the cover display with Delete and the sight display with End held, within 4 to 11', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const hold = (key: string, kind: 'keyDown' | 'keyUp') => f.t.runtime.input({ kind, key, code: '', modifiers: 0 });
+    hold('Delete', 'keyDown');
+    for (let i = 0; i < MAX_DISPLAY_SIZE; i++) f.key('=');
+    hold('Delete', 'keyUp');
+    hold('End', 'keyDown');
+    f.key('-');
+    hold('End', 'keyUp');
+    expect([f.settings.coverSize, f.settings.losSize]).toEqual([MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE]);
+    expect(f.screen.controls.input.multiSelected.size).toBe(0);
+  });
+
+  it('flips the red item glow with * and ,', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('*');
+    expect(f.redItemGlow).toBe(true);
+    f.key(',');
+    expect(f.redItemGlow).toBe(false);
+  });
+
+  it('switches the head gear of the squad with CTRL+N, night first, then day', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('n', KeyModifier.CTRL);
+    f.key('n', KeyModifier.CTRL);
+    await f.settle();
+    const squad = f.client.view.soldiers.filter((s) => s.team === 0 && (s.squad ?? 0) === 0).map((s) => s.id);
+    expect(commandsOf(f, 'switchHeadGear')).toEqual([
+      { type: 'switchHeadGear', soldiers: squad, gear: 'night' },
+      { type: 'switchHeadGear', soldiers: squad, gear: 'day' },
+    ]);
+  });
+
+  it('quick saves with ALT+S, boxing a refusal, and quick loads with ALT+L', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('s', KeyModifier.ALT);
+    f.key('l', KeyModifier.ALT);
+    await f.settle();
+    expect(f.flow).toEqual(['quickSave', 'quickLoad']);
+    expect(f.t.runtime.host.modal).toBeNull();
+    f.quickSaves.failure = 'You cannot save during combat when using the Iron Man option.';
+    f.key('s', KeyModifier.ALT);
+    await f.settle();
+    expect(f.widget('messageBox').text).toBe(f.quickSaves.failure);
   });
 
   it('opens the movement menu on a held right button and crouches with the sneak button', async () => {

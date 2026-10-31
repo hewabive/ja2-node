@@ -11,6 +11,7 @@ import { buildItemCatalogue } from '../../src/server/item-catalogue.ts';
 import { createSandboxSession } from '../../src/server/sandbox.ts';
 import { Session } from '../../src/server/session.ts';
 import { TextService } from '../../src/server/text-service.ts';
+import type { GameOptions } from '../../src/ui/client/api-types.ts';
 import type { DrawList } from '../../src/ui/draw-list.ts';
 import type { HintAnswer, HintReply } from '../../src/ui/game-client.ts';
 import { MouseButton } from '../../src/ui/input/events.ts';
@@ -43,7 +44,13 @@ import {
 import { GENERIC_FACE_BODY_TYPES, genericFacePath } from '../../src/ui/screens/tactical/generic-face.ts';
 import { parseUiCursorTable } from '../../src/ui/screens/tactical/input/ui-cursors.ts';
 import { TacticalScreen } from '../../src/ui/screens/tactical/tactical-screen.ts';
-import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from '../../src/ui/settings.ts';
+import {
+  type ClientSettings,
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_SETTINGS,
+  type DisplaySettings,
+  updateSettings,
+} from '../../src/ui/settings.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
@@ -57,6 +64,14 @@ import { projectLayoutLoader, type TestRuntime, testRuntime } from './ui-runtime
 const CELL = 10;
 const COLS = 160;
 const MESSAGE_BOX_LAYOUT = 'message-box';
+export const TEST_VERSION = 'v0.0.0-test (abcdef0)';
+export const TEST_GAME_OPTIONS: GameOptions = {
+  difficulty: 2,
+  saveMode: 'anywhere',
+  gunNut: true,
+  sciFi: false,
+  bloodAndGore: true,
+};
 const BASIC_TEXT_BOX = 'basic';
 
 export class SessionClient implements TacticalClient {
@@ -358,12 +373,16 @@ export interface TacticalUiTest {
   readonly world: FakeWorld;
   readonly media: FakeMedia;
   readonly screen: TacticalScreen;
+  readonly text: StringsTextService;
   readonly attention: number[];
   readonly beeps: number[];
   readonly fingerprintsDenied: number[];
   readonly flow: string[];
   readonly battleSounds: { readonly soldier: number; readonly sound: BattleSound }[];
+  readonly quickSaves: { failure: string | null; count: number };
   display: DisplaySettings;
+  settings: ClientSettings;
+  readonly redItemGlow: boolean;
   widget(id: string): WidgetInfo;
   find(id: string): WidgetInfo | undefined;
   click(id: string, button?: number, modifiers?: number): Promise<void>;
@@ -448,6 +467,9 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
   const battleSounds: { readonly soldier: number; readonly sound: BattleSound }[] = [];
   const uiCursors = parseUiCursorTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
   let display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS;
+  let settings: ClientSettings = DEFAULT_SETTINGS;
+  let redItemGlow = false;
+  const quickSaves: { failure: string | null; count: number } = { failure: null, count: 0 };
   let die = 0;
   const strategic = ui.client.rules.strategic;
   const env: TacticalEnvironment = {
@@ -463,6 +485,12 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
       options: () => flow.push('options'),
       saveGame: () => flow.push('saveGame'),
       loadGame: () => flow.push('loadGame'),
+      quickSave: async () => {
+        flow.push('quickSave');
+        quickSaves.count++;
+        return quickSaves.failure;
+      },
+      quickLoad: () => flow.push('quickLoad'),
       exitGame: () => flow.push('exitGame'),
       mapScreen: () => flow.push('mapScreen'),
     },
@@ -478,6 +506,15 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     setDisplay: (change) => {
       display = { ...display, ...change };
     },
+    settings: () => settings,
+    changeSettings: (change) => {
+      settings = updateSettings(settings, change);
+    },
+    toggleRedItemGlow: () => {
+      redItemGlow = !redItemGlow;
+    },
+    version: TEST_VERSION,
+    gameOptions: async () => TEST_GAME_OPTIONS,
     battleSound: (soldier, sound) => battleSounds.push({ soldier, sound }),
     facts: () => (strategic ? mapFacts(strategic.content, strategic.economy) : null),
   };
@@ -519,16 +556,27 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     world,
     media,
     screen,
+    text,
     attention,
     beeps,
     fingerprintsDenied,
     flow,
     battleSounds,
+    quickSaves,
     get display() {
       return display;
     },
     set display(next: DisplaySettings) {
       display = next;
+    },
+    get settings() {
+      return settings;
+    },
+    set settings(next: ClientSettings) {
+      settings = next;
+    },
+    get redItemGlow() {
+      return redItemGlow;
     },
     widget,
     find,

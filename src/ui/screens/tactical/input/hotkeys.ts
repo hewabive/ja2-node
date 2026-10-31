@@ -8,7 +8,9 @@
 // @src HandleItemMenuKeys, HandleTalkingMenuKeys, HandleStanceChangeFromUIKeys, HandleStealthChangeFromUIKeys,
 // @src ChangeCurrentSquad, HandleSelectMercSlot, GroupAutoReload; Handle_UI.cc ClimbUpOrDown, GotoHigherStance,
 // @src GotoLowerStance; Overhead.cc CycleThroughKnownEnemies, CycleVisibleEnemies; DisplayCover.cc DisplayRangeToTarget;
-// @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects.
+// @src GameSettings.cc DisplayGameSettings; Soldier_Control.cc HandlePlayerTogglingLightEffects; DisplayCover.cc
+// @src ChangeSizeOfDisplayCover, ChangeSizeOfLOS (- and = with Delete or End held); SwitchHeadGear (CTRL+N, alternating
+// @src from the night gear); DoQuickSave, DoQuickLoad (ALT+S, ALT+L outside a conversation); MusicSetVolume (ALT+-).
 
 import type { UiKeyEvent } from '../../../input/events.ts';
 import { UiEvent, UiMode } from './ui-events.ts';
@@ -23,6 +25,7 @@ export interface HotkeyHost {
   readonly inConversation: boolean;
   readonly itemInCursor: boolean;
   readonly smPanel: boolean;
+  keyHeld(key: string): boolean;
   smButtonEnabled(button: SmButton): boolean;
   hasSelected(): boolean;
   closeMenu(): boolean;
@@ -65,11 +68,18 @@ export interface HotkeyHost {
   swapHands(): void;
   reload(squad: boolean): void;
   musicDown(): void;
+  resizeCover(step: number): void;
+  resizeSight(step: number): void;
+  switchHeadGear(): void;
+  quickSave(): void;
+  quickLoad(): void;
 }
 
 export type SmButton = 'updown' | 'nextMerc' | 'burst' | 'look' | 'done' | 'map' | 'options' | 'stealth';
 
 const SQUAD_KEYS = '1234567890';
+const COVER_KEY = 'Delete';
+const SIGHT_KEY = 'End';
 const F_KEY = /^F([1-9]|10)$/;
 const MENU_MODES: ReadonlySet<UiMode> = new Set([
   UiMode.EXITSECTORMENU_MODE,
@@ -147,11 +157,15 @@ function noModifier(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
     case ',':
       h.toggleRedItemGlow();
       return event;
+    case '-':
+      resizeDisplays(h, -1);
+      return event;
     case '/':
       h.locateSelected();
       return event;
     case '=':
-      if (!h.inCombat) h.selectAllInSector();
+      if (displayKeyHeld(h)) resizeDisplays(h, 1);
+      else if (!h.inCombat) h.selectAllInSector();
       return event;
     case 'b':
       if (!h.itemInCursor && panelOk(h, 'burst')) h.weaponMode();
@@ -236,6 +250,15 @@ function noModifier(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
   }
 }
 
+function displayKeyHeld(h: HotkeyHost): boolean {
+  return h.keyHeld(SIGHT_KEY) || h.keyHeld(COVER_KEY);
+}
+
+function resizeDisplays(h: HotkeyHost, step: number): void {
+  if (h.keyHeld(COVER_KEY)) h.resizeCover(step);
+  if (h.keyHeld(SIGHT_KEY)) h.resizeSight(step);
+}
+
 function shifted(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
   const f = F_KEY.exec(key);
   if (f) {
@@ -251,6 +274,7 @@ function shifted(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
 }
 
 function withCtrl(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
+  if (key === 'n') h.switchHeadGear();
   if (key === 'q') h.swapHands();
   if (key === 'F12') h.clearMessages(true);
   return event;
@@ -259,7 +283,9 @@ function withCtrl(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
 function withAlt(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
   if (key === '-') h.musicDown();
   if (key === 'f') h.toggleTracking();
+  if (key === 'l' && !h.inConversation) h.quickLoad();
   if (key === 'r') h.reload(false);
+  if (key === 's' && !h.inConversation) h.quickSave();
   if (key === 'z') h.stealth(true);
   return event;
 }
