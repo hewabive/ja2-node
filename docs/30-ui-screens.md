@@ -55,7 +55,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 |---|---|---|---|
 | Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, the message log |
 | Talk and shop | `quoteTrade` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, `observe.shop` |
-| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events |
+| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
 | Laptop | `hireCheck`, `aimQuote`, `bobbyRayQuote`, `impCheckCode`, `emailText` | `visitSite`, `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, `orderFlowers`, `closeLaptop`, … | `observe.laptop` |
 | Story | | `answer` (the lie) | `meanwhile`, `meanwhileStarted`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
@@ -100,10 +100,14 @@ original's Transaction and Done rules, the farewell before the screen closes (de
 screen pockets").
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
-on the update box events (`pauseOn`); menus, plotting, boxes and the inventories hold time like
-`InterruptTimeForMenus`; after the server stops on an event the driver restarts once playback has caught up. It never
-starts in the autoresolve flow, where the autoresolve screen owns the clock, as strategic time stands still during the
-original's autoresolve; leaving the map stops it, so the tactical screen asks for real time anew on entry.
+on the events that open a box (`pauseOn`: the update box's and `sectorLost`); menus, plotting, boxes and the inventories
+hold time like `InterruptTimeForMenus`; after the server stops on an event the driver restarts once playback has caught
+up. It never starts in the autoresolve flow, where the autoresolve screen owns the clock, as strategic time stands still
+during the original's autoresolve; leaving the map stops it, so the tactical screen asks for real time anew on entry.
+
+**The lost sector box goes to the screen of the flow.** The original opens it with `DoScreenIndependantMessageBox` on
+whatever screen is up; ja2-node's map and tactical screens both hear every frame, so the tactical screen opens it in the
+tactical flow and the map screen otherwise, once it is on top again after autoresolve (`map/lost-sector.ts`).
 
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group, and the move box sends one

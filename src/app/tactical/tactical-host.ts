@@ -6,6 +6,7 @@ import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
 import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
+import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { BattleSound } from '../../ui/screens/tactical/environment.ts';
 import {
   TACTICAL_LAYOUTS,
@@ -83,6 +84,7 @@ export class TacticalHost {
   #frames: SoldierFrames | null = null;
   #knowledge: ClientKnowledge | null = null;
   #knowledgeOpening: Promise<void> | null = null;
+  #facts: MapFacts | null = null;
   #loaded: Loaded | null = null;
   #loading: Promise<void> | null = null;
   #screen: TacticalScreen | null = null;
@@ -317,6 +319,13 @@ export class TacticalHost {
     return [...paths];
   }
 
+  #mapFacts(): MapFacts | null {
+    const strategic = this.#knowledge?.rules.strategic;
+    if (!strategic) return null;
+    this.#facts ??= mapFacts(strategic.content, strategic.economy);
+    return this.#facts;
+  }
+
   #speech(): SpeechSource | null {
     return this.#sound.director;
   }
@@ -361,6 +370,7 @@ export class TacticalHost {
         saveSettings({ ...settings, display: { ...settings.display, ...change } });
       },
       battleSound: (soldier, sound) => this.#battleSound(soldier, sound),
+      facts: () => this.#mapFacts(),
     };
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;

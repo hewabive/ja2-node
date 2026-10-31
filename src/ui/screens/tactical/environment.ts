@@ -12,6 +12,7 @@ import type { DisplaySettings } from '../../settings.ts';
 import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
+import type { MapFacts } from '../map/facts.ts';
 import type { UiCursorTable } from './input/ui-cursors.ts';
 
 export const TacticalLayout = {
@@ -192,6 +193,7 @@ export interface TacticalEnvironment {
   readonly display: () => DisplaySettings;
   readonly setDisplay: (change: Partial<DisplaySettings>) => void;
   readonly battleSound: (soldier: number, sound: BattleSound) => void;
+  readonly facts: () => MapFacts | null;
 }
 
 export type BattleSound = 'ok' | 'curse' | 'attention' | 'locked';

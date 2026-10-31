@@ -2,7 +2,7 @@ import type { MineDef } from '../../src/content/strategic/economy-content.ts';
 import type { Town } from '../../src/content/strategic/map-tables.ts';
 import { parseSectorString, sectorId } from '../../src/content/strategic/sector-ids.ts';
 import type { StrategicSectorView, StrategicView } from '../../src/protocol/view.ts';
-import type { MapFacts } from '../../src/ui/screens/map/facts.ts';
+import { type MapFacts, mineIndexAt } from '../../src/ui/screens/map/facts.ts';
 import type { UiTextService } from '../../src/ui/text/text-service.ts';
 
 export const DRASSEN = 2;
@@ -45,8 +45,8 @@ const MINES: readonly MineDef[] = [
     delayDepletion: false,
     minimumMineProduction: 0,
     mineSectors: [
-      { sector: sectorNumber('D13'), z: 0 },
-      { sector: sectorNumber('E13'), z: 0 },
+      { sector: sectorNumber('D13'), z: 1 },
+      { sector: sectorNumber('E13'), z: 1 },
     ],
   },
 ];
@@ -65,7 +65,7 @@ export function testFacts(samSectors: readonly string[] = ['D15']): MapFacts {
     townOf: (sector) => townOf.get(sector) ?? 0,
     facilities: () => 0,
     town: (id) => TOWNS.find((t) => t.townId === id) ?? null,
-    mineAt: (sector, z) => MINES.findIndex((m) => m.mineSectors.some((s) => s.sector === sector && s.z === z)),
+    mineAt: (sector, z) => mineIndexAt(MINES, sector, z),
     secretAt: () => null,
   };
 }

@@ -127,7 +127,6 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 | Light through destroyed structures | A light drawn after a structure is destroyed passes where it stood (`TileEngine/Lighting.cc:422`) | The client lights over the map's original structures (`app/world/world-lighting.ts`) | Needs the view's `tileChanges` in the lighting |
 | Main menu quick load | Alt+Load and Alt+C load the list entry `bLastSavedGameSlot`: −1 on a fresh profile, which opens the load screen, and 0 for good once a Dead is Dead game has started (`SaveLoadScreen.cc:378`, `:1481`) | Always the newest compatible save (`ui/screens/front-end/flow.ts`) | A client setting for the slot (`30`) |
 | Message box over a settled frame | The map screen draws its frame before a message box opens over it, so the box covers the screen as the scene left it (`MapScreenHandle`, `Strategic/MapScreen.cc:1380`) | `ScreenHost.openModal` (`src/ui/screen.ts`) freezes the last drawn items: an image still loading stays missing and a button keeps the state of the update before the scene | Update the screen with the scene's state and its loaded art before freezing; changes the meanwhile box golden |
-| Lost sector box | An OK box names a SAM site, a producing mine with the new daily income, or a town the enemy took from the player (`Strategic/Map_Screen_Interface.cc:3672`) | The `sectorLost` event only; the client opens no box (`ui/screens/map/map-screen.ts`) |  |
 
 ## 7. Code conventions
 

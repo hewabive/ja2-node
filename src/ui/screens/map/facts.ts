@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/StrategicMap.cc GetSectorLandTypeString (secrets and SAM sites first, the special facilities, the
 // @src town, the creature lair underground, the traversability), GetSectorIDString (the mine's town, "Mine" when detailed);
+// @src src/externalized/DefaultContentManager.cc getMineForSector (a mine's entrance on the surface, then its own sectors);
 // @src src/game/Strategic/StrategicMap_Secrets.cc IsTownFound (a town whose base sector holds no secret is always known);
 // @src src/externalized/strategic/TownModel.cc getBaseSector (the smallest sector of the town); src/game/Strategic/
 // @src Player_Command.cc GetSectorFacilitiesFlags (sFacilitiesStrings joined by commas, "none" without facilities).
@@ -10,6 +11,7 @@ import type { EconomyContent, MineDef } from '../../../content/strategic/economy
 import type { MapSecret, Town } from '../../../content/strategic/map-tables.ts';
 import { MAP_SIDE, type Sector, sectorFromId, sectorId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import type { StrategicView } from '../../../protocol/view.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 
 export const LandType = { TOWN: 0, SAM_SITE: 32, CREATURE_LAIR: 35 } as const;
@@ -66,9 +68,13 @@ export function mapFacts(content: StrategicContent, economy: EconomyContent): Ma
     townOf: (sector) => townOfSector.get(sector) ?? BLANK_SECTOR,
     facilities: (sector) => facilities.get(sector) ?? 0,
     town: (id) => towns.get(id) ?? null,
-    mineAt: (sector, z) => economy.mines.findIndex((m) => m.mineSectors.some((s) => s.sector === sector && s.z === z)),
+    mineAt: (sector, z) => mineIndexAt(economy.mines, sector, z),
     secretAt: (sector) => secrets.get(sector) ?? null,
   };
+}
+
+export function mineIndexAt(mines: readonly MineDef[], sector: number, z: number): number {
+  return mines.findIndex((m) => (z === 0 && m.entranceSector === sector) || m.mineSectors.some((s) => s.sector === sector && s.z === z));
 }
 
 export function townBaseSector(town: Town): number {
@@ -150,6 +156,20 @@ export function sectorIdString(
   }
   if (place.length === 0) place = sectorLandTypeString(facts, text, found, id, s.z, detailed);
   return `${sectorShortString(s)}: ${place}`;
+}
+
+export function sectorNameIn(
+  facts: MapFacts,
+  text: UiTextService,
+  strategic: StrategicView | undefined,
+  label: string,
+  detailed: boolean,
+): string {
+  const s = parseSectorLabel(label);
+  if (!s) return label;
+  const visited = (strategic?.underground ?? []).map((u) => parseSectorLabel(u.sector));
+  const visitedUnderground = (u: Sector) => visited.some((v) => v !== null && v.x === u.x && v.y === u.y && v.z === u.z);
+  return sectorIdString(facts, text, foundSecrets(strategic?.secretsFound), s, detailed, visitedUnderground);
 }
 
 export function facilitiesString(text: UiTextService, flags: number): string {

@@ -18,7 +18,8 @@
 // @src CommonTimeCompressionChecks, AllowedToTimeCompress (the client half: plotting, menus, boxes, the sector inventory),
 // @src RequestTriggerExitFromMapscreen; MapScreen.cc HandleModNone (Backspace: StopAnyCurrentlyTalkingSpeech, the line
 // @src the player last saw said; v: DisplayGameSettings), HandleModAlt (Alt+S and Alt+L only where the screen may be left;
-// @src a refused quick save in a map box).
+// @src a refused quick save in a map box), MapScreenHandle (the box of the sector the enemy gained in autoresolve, once
+// @src the map screen is back); src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -67,10 +68,11 @@ import {
 import { CompressionBlink, type CompressRequest, compressionCommand, compressionLabelSteady } from './compression.ts';
 import { ContractMenu } from './contract-menu.ts';
 import { type MapEnvironment, MapLayout } from './environment.ts';
-import { foundSecrets, parseSectorLabel, sectorIdString, sectorLabel } from './facts.ts';
+import { foundSecrets, parseSectorLabel, sectorLabel, sectorNameIn } from './facts.ts';
 import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAirspace, turnOnTeams } from './filters.ts';
 import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
+import { inTacticalFlow, lostSectorsOf, lostSectorText } from './lost-sector.ts';
 import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
@@ -203,6 +205,7 @@ export class MapScreen implements Screen {
   readonly #moveBox: MoveBox;
   readonly #updateBox: UpdateBox;
   readonly #updates = new UpdateQueue();
+  readonly #lostSectors: string[] = [];
   readonly #message = new MapUiMessage();
   readonly #messages = new MapMessageList();
   readonly #route = new RouteAnimation();
@@ -495,10 +498,7 @@ export class MapScreen implements Screen {
   }
 
   #sectorName(label: string, detailed: boolean): string {
-    const s = parseSectorLabel(label);
-    if (!s) return label;
-    const found = foundSecrets(this.#strategic()?.secretsFound);
-    return sectorIdString(this.#env.facts, this.#env.text, found, s, detailed, (u) => this.#visitedUnderground(u));
+    return sectorNameIn(this.#env.facts, this.#env.text, this.#strategic(), label, detailed);
   }
 
   #visitedUnderground(s: Sector): boolean {
@@ -650,6 +650,9 @@ export class MapScreen implements Screen {
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
         else if (event.type === 'vehicleBoarded' && !this.#isHelicopter(event.vehicle)) this.#env.sounds.vehicleEntered();
       }
+    if (!inTacticalFlow(this.#playerView()))
+      for (const lost of lostSectorsOf(frames))
+        this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label, true)));
     this.#inventory.frames(frames);
     this.#battle.frames(frames);
   }
@@ -700,6 +703,7 @@ export class MapScreen implements Screen {
     this.#env.client.holdTime('townBox', this.#townBox.open);
     this.#env.client.holdTime('militia', this.#militia.open);
     this.#showNextUpdate();
+    this.#showLostSector();
     this.#env.client.holdTime('updateBox', this.#updateBox.open);
     this.#env.client.holdTime('moveBox', this.#moveBox.open);
     this.#env.client.holdTime('menus', this.#menus.open || this.#contract.open);
@@ -1355,6 +1359,11 @@ export class MapScreen implements Screen {
       this.#moveBox.close(false);
       if (this.#updateBox.show(batch)) return;
     }
+  }
+
+  #showLostSector(): void {
+    const text = this.#lostSectors.shift();
+    if (text !== undefined) void this.#mapBox(text);
   }
 
   async #updateFinished(continueTime: boolean | null): Promise<void> {

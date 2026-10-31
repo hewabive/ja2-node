@@ -244,6 +244,40 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.flow).toEqual(['quickSave', 'quickLoad', 'quickSave']);
     }));
 
+  it('boxes a lost SAM site, a producing mine with the new daily income and a town, each sector named in full', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const lost = [
+        { type: 'sectorLost', tick, sector: 'D15', kind: 'sam' },
+        { type: 'sectorLost', tick, sector: 'D13', kind: 'mine', dailyIncome: 12500 },
+        { type: 'sectorLost', tick, sector: 'C13', kind: 'town' },
+      ] as const;
+      f.frames([{ tick, changed: [], removed: [], events: lost }]);
+      const texts: string[] = [];
+      for (let i = 0; i < lost.length; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        'The SAM site in D15: Woods has been taken over.',
+        'The mine in D13: Drassen Mine has been taken over. Your daily income has been reduced to $12,500 per day.',
+        "Deidranna's forces have just taken over C13: Drassen.",
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it('leaves the box of a sector lost in the tactical flow to the tactical screen', () =>
+    withMap(async (f) => {
+      (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';
+      f.client.refresh();
+      const tick = f.client.view.tick;
+      f.frames([{ tick, changed: [], removed: [], events: [{ type: 'sectorLost', tick, sector: 'C13', kind: 'town' }] }]);
+      await f.settle();
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
   it('selects the squad with its number key and the next merc with the arrow', () =>
     withMap(async (f) => {
       f.key('1', 0, 'Digit1');

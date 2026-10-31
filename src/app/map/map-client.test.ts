@@ -50,4 +50,15 @@ describe('the map client clock', () => {
     client.sync();
     expect(session.drives).toEqual([]);
   });
+
+  it('stops real time on the events that open a box: the update box and the lost sector box', () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    mapClientOn(session).start();
+    expect(session.driver).toEqual({
+      mode: 'realtime',
+      speed: 1,
+      pauseOn: ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon', 'sectorLost'],
+    });
+  });
 });

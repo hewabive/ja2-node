@@ -16,7 +16,9 @@
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
-// @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody).
+// @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
+// @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
+// @src INV_INTERFACE_START_Y).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -44,6 +46,8 @@ import { printf } from '../../text/printf.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { sectorNameIn } from '../map/facts.ts';
+import { inTacticalFlow, lostSectorsOf, lostSectorText } from '../map/lost-sector.ts';
 import { DialogueLayer } from '../talk/dialogue-layer.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
 import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
@@ -216,6 +220,7 @@ export class TacticalScreen implements Screen {
   #radarBlinkAt = 0;
   #entered = false;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
+  readonly #lostSectors: string[] = [];
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -832,6 +837,7 @@ export class TacticalScreen implements Screen {
     this.#syncSquadRegions();
     this.#hudView.update();
     this.#panelView().update();
+    this.#showLostSector();
   }
 
   #pointerSoldier(): number | null {
@@ -1055,6 +1061,9 @@ export class TacticalScreen implements Screen {
   frames(frames: readonly ViewFrame[]): void {
     this.dialogue.frames(frames);
     this.controls.frames(frames);
+    if (inTacticalFlow(this.#view()))
+      for (const lost of lostSectorsOf(frames))
+        this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label)));
     for (const frame of frames) {
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
       for (const event of frame.events ?? []) this.#event(event, frame);
@@ -1067,6 +1076,18 @@ export class TacticalScreen implements Screen {
       }
       for (const s of frame.changed) if (s.team === OUR_TEAM && s.inventory) this.#lastInventories.set(s.id, s.inventory);
     }
+  }
+
+  #sectorName(label: string): string {
+    const facts = this.#env.facts();
+    return facts ? sectorNameIn(facts, this.#env.text, this.#view()?.strategic, label, true) : label;
+  }
+
+  #showLostSector(): void {
+    const text = this.#lostSectors.shift();
+    if (text === undefined) return;
+    const { width, height } = this.#env.runtime.geometry();
+    void this.#env.boxes.ask(text, 'ok', { centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT } });
   }
 
   #beginFeedback(text: string, skull: boolean): void {

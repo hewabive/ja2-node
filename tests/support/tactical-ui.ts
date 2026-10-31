@@ -18,6 +18,7 @@ import type { LayoutModel } from '../../src/ui/layout/model.ts';
 import { messageBoxStyles, textBoxArt } from '../../src/ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../src/ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../src/ui/message-boxes.ts';
+import { mapFacts } from '../../src/ui/screens/map/facts.ts';
 import {
   type BattleSound,
   type CommandReply,
@@ -448,6 +449,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
   const uiCursors = parseUiCursorTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
   let display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS;
   let die = 0;
+  const strategic = ui.client.rules.strategic;
   const env: TacticalEnvironment = {
     runtime: t.runtime,
     text,
@@ -477,6 +479,7 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
       display = { ...display, ...change };
     },
     battleSound: (soldier, sound) => battleSounds.push({ soldier, sound }),
+    facts: () => (strategic ? mapFacts(strategic.content, strategic.economy) : null),
   };
   const screen = new TacticalScreen(env);
   t.runtime.host.push(screen);

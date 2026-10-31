@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
@@ -7,6 +8,7 @@ import type { ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
+import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 
 const HAND = 5;
 const BIG_POCKET = 7;
@@ -348,5 +350,23 @@ describe('the tactical screen over a stub sandbox session', () => {
     await expect(snapshot(f)).toMatchFileSnapshot('__snapshots__/team-panel.txt');
     await smPanelOf(f, 0);
     await expect(snapshot(f)).toMatchFileSnapshot('__snapshots__/sm-panel.txt');
+  });
+});
+
+describe('the tactical screen in a stub campaign', () => {
+  it('boxes a town the enemy took while in tactical, centred above the inventory panel', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const tick = f.client.view.tick;
+    f.frames([frame(tick, [{ type: 'sectorLost', tick, sector: 'C13', kind: 'town' }])]);
+    await f.settle();
+    const box = f.widget('messageBox');
+    expect(box.text).toBe("Deidranna's forces have just taken over C13: Drassen.");
+    const { height } = f.t.runtime.geometry();
+    expect(box.rect.y * 2 + box.rect.height).toBeGreaterThanOrEqual(height - INV_INTERFACE_HEIGHT - 1);
+    expect(box.rect.y * 2 + box.rect.height).toBeLessThanOrEqual(height - INV_INTERFACE_HEIGHT);
+    f.key('Enter');
+    await f.settle();
+    expect(f.t.runtime.host.modal).toBeNull();
   });
 });
