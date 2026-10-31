@@ -292,6 +292,21 @@ describe('punches', () => {
     expect(t.turn.attackBusyCount).toBe(0);
   });
 
+  it('drops the walk-up punch when a move order sends the puncher elsewhere, as UIHandleCMoveMerc removes the pending action', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 83), Direction.SOUTH);
+    const t = sim.state;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    for (let i = 0; i < 400 && merc.gridNo === gridNo(80, 80); i++) sim.step();
+    expect(merc.pendingMelee).not.toBeNull();
+    const elsewhere = gridNo(84, 81);
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: elsewhere })).toEqual({ ok: true });
+    expect(merc.pendingMelee).toBeNull();
+    const events = runUntilIdle(sim);
+    expect(merc.gridNo).toBe(elsewhere);
+    expect(first(events, 'meleeStrike')).toBeUndefined();
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
   it('refuses with the NO_PATH message a punch at someone whose every side tile is taken', () => {
     const { sim, merc, enemy } = duel(null, gridNo(80, 84), Direction.SOUTH);
     const guards = [gridNo(80, 83), gridNo(81, 84), gridNo(80, 85), gridNo(79, 84)];

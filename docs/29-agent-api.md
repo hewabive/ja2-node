@@ -268,7 +268,8 @@ mode the original keeps beside the stance (deviation "Stance") and refuses a hei
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
 A new `move` re-plans a halted move for any merc
-("Continue a move"); `attack` takes the click's checks of a melee attack, which the original never confirms without them
+("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
+give or first aid), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
 reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his

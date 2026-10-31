@@ -115,6 +115,7 @@ import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { clearTacticalStuffDueToTimeCompression, executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
+import { removePendingAction } from './pending-action.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
@@ -757,9 +758,6 @@ export class TacticalSim {
     const mode = movementModeState(t, s, cmd.mode);
     s.reverse = cmd.reverse === true;
     s.pathStored = false;
-    s.pendingDoorAction = null;
-    s.pendingTalk = null;
-    clearPendingGive(t, s);
     if (t.inCombat) {
       const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE, mode: pathMoveMode(t.content, mode) });
       if (route.length === 0) return refuse('noPath', 'no path');
@@ -780,6 +778,7 @@ export class TacticalSim {
       s.uiMovementFast = kept.fast;
       return refuse('noPath', 'no path');
     }
+    removePendingAction(t, s);
     return { ok: true };
   }
 

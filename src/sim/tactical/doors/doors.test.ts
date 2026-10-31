@@ -342,6 +342,48 @@ describe('a door order that arrives while something else is under way (Overhead.
   });
 });
 
+describe('a move order given while walking to a door (Handle_UI.cc UIHandleCMoveMerc)', () => {
+  const ENEMY_AT = FAR + 6;
+  const ELSEWHERE = FAR + 3;
+  const OBSTACLE = OUTSIDE + 5;
+
+  function walkingToOpen(inCombat: boolean): { sim: TacticalSim; s: Soldier } {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    const s = spawnSoldier(sim, 0, Team.OUR, FAR, NORTH);
+    if (inCombat) spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY], Team.ENEMY, ENEMY_AT, NORTH);
+    sim.lookAround();
+    expect(sim.state.inCombat).toBe(inCombat);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'open' })).toMatchObject({
+      ok: true,
+      data: { walking: true },
+    });
+    return { sim, s };
+  }
+
+  it('keeps the door order when the move is refused for its first step, as SelectedMercCanAffordMove stops it first', () => {
+    const { sim, s } = walkingToOpen(true);
+    s.actionPoints = 0;
+    expect(sim.dispatch({ type: 'move', soldier: s.id, to: ELSEWHERE })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
+    expect(s.pendingDoorAction).not.toBeNull();
+  });
+
+  it('keeps the door order when the move finds no path, which the cursor never orders', () => {
+    const { sim, s } = walkingToOpen(false);
+    expect(sim.dispatch({ type: 'move', soldier: s.id, to: OBSTACLE })).toMatchObject({ ok: false, data: { refusal: 'noPath' } });
+    expect(s.pendingDoorAction).not.toBeNull();
+  });
+
+  it('drops the door order with an accepted move', () => {
+    const { sim, s } = walkingToOpen(false);
+    expect(sim.dispatch({ type: 'move', soldier: s.id, to: ELSEWHERE })).toEqual({ ok: true });
+    expect(s.pendingDoorAction).toBeNull();
+    runSimUntilIdle(sim);
+    expect(s.gridNo).toBe(ELSEWHERE);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).toBe(0);
+  });
+});
+
 describe('bashing locks', () => {
   it('accumulates lock damage on close calls and opens the lock past the smash difficulty', () => {
     const sim = village();
