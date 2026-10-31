@@ -14,7 +14,7 @@ import { rangeInUnits } from '../combat/chance.ts';
 import { losWorldOf } from '../combat/positions.ts';
 import { landHeightUnits, lineOfSightTest } from '../perception/los.ts';
 import type { Soldier } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { inCavesOrBasement, type TacticalState, whoIsThere } from '../state.ts';
 import { createRealObject, HEIGHT_UNITS, NOWHERE, objectLevel, simulateObject, toGridNo } from './physics.ts';
 import { type RealObject, TestObject, ThrowAction, type ThrowParams } from './state.ts';
 import { calcMaxTossRange, launcherOf } from './throwing.ts';
@@ -182,6 +182,12 @@ export function soldierToLocationWindowTest(t: TacticalState, s: Soldier, g: num
   return window.gridNo === s.gridNo ? NOWHERE : window.gridNo;
 }
 
+function throwsIndoors(t: TacticalState, s: Soldier, g: number, level: number): boolean {
+  if (inCavesOrBasement(t)) return true;
+  if (isRoofPresentAt(t, s.gridNo) && s.level === 0) return true;
+  return isRoofPresentAt(t, g) && level === 0;
+}
+
 export function launchItemBasicParams(
   t: TacticalState,
   s: Soldier,
@@ -196,7 +202,6 @@ export function launchItemBasicParams(
   const launcher = launcherOf(t, obj.item);
   const mortar = itemIndex(t, 'MORTAR');
   const grenadeLaunchers = [itemIndex(t, 'GLAUNCHER'), itemIndex(t, 'UNDER_GLAUNCHER')];
-  let indoors = false;
   let minRange = 0;
   const mortarShot = armed && (launcher === mortar || obj.item === mortar);
   const grenadeLauncherShot = armed && (grenadeLaunchers.includes(launcher) || grenadeLaunchers.includes(obj.item));
@@ -208,14 +213,8 @@ export function launchItemBasicParams(
     degrees = level === 1 ? GLAUNCHER_HIGHER_LEVEL_START_ANGLE : GLAUNCHER_START_ANGLE;
     minRange = MIN_MORTAR_RANGE;
   }
-  if (isRoofPresentAt(t, s.gridNo) && s.level === 0) {
-    degrees = INDOORS_START_ANGLE;
-    indoors = true;
-  }
-  if (isRoofPresentAt(t, g) && level === 0) {
-    degrees = INDOORS_START_ANGLE;
-    indoors = true;
-  }
+  const indoors = throwsIndoors(t, s, g, level);
+  if (indoors) degrees = INDOORS_START_ANGLE;
   const window = level === 0 ? soldierToLocationWindowTest(t, s, g) : NOWHERE;
   let force = findBestForce(t, s.gridNo, g, startZ, endZ, degrees, obj);
   let maxForce = calculateForceFromRange(t, calcMaxTossRange(t, s, obj.item, armed), MAX_RANGE_ANGLE);

@@ -597,7 +597,7 @@ function calcBestThrow(t: TacticalState, s: Soldier, best: AttackChoice): void {
             }
           }
         }
-        if (t.options.difficulty === DIFFICULTY_EASY ? skip : inRange === 0) continue;
+        if (t.options.difficulty === DIFFICULTY_EASY ? skip : inRange === 0 || (t.lighting.underground && skip)) continue;
         if (adjacent >= 1 && excluded.length < MAX_EXCLUDED_TILES) excluded.push(g);
         let chanceToGetThrough: number;
         if (explosiveGun) {

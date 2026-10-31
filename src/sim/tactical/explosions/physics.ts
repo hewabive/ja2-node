@@ -17,7 +17,7 @@ import { eventSoldierGotHit } from '../combat/hit.ts';
 import { Special } from '../combat/types.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
-import { onVisibleWorldTile, type TacticalState } from '../state.ts';
+import { inCavesOrBasement, onVisibleWorldTile, type TacticalState } from '../state.ts';
 import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility, WorldItemFlags } from '../world-items.ts';
 import { checkForCatcher, checkForCatchObject, endCatchAnimation } from './catching.ts';
 import { igniteExplosionXY } from './explosion.ts';
@@ -603,10 +603,10 @@ function groundOrWater(t: TacticalState, g: number): Hit {
 
 const NO_HIT: Hit = { code: Collision.NONE, structureId: 0, normal: vec3() };
 
-function roofCrossing(oldZ: number, z: number): number {
-  if (oldZ > HEIGHT_UNITS && z < HEIGHT_UNITS) return Collision.ROOF;
-  if (oldZ < HEIGHT_UNITS && z > HEIGHT_UNITS) return Collision.INTERIOR_ROOF;
-  return Collision.NONE;
+function roofCrossing(oldZ: number, z: number): Hit | null {
+  if (oldZ > HEIGHT_UNITS && z < HEIGHT_UNITS) return { code: Collision.ROOF, structureId: 0, normal: vec3() };
+  if (oldZ < HEIGHT_UNITS && z > HEIGHT_UNITS) return { code: Collision.INTERIOR_ROOF, structureId: 0, normal: vec3() };
+  return null;
 }
 
 export function checkForCollision(t: TacticalState, x: number, y: number, z: number, dx: number, dy: number, dz: number): Hit {
@@ -618,7 +618,10 @@ export function checkForCollision(t: TacticalState, x: number, y: number, z: num
   const above = Math.trunc(z);
   if (above < 0) return groundOrWater(t, g);
   const list = t.world.structures.at(g);
-  if (list.length === 0) return z < 0 ? groundOrWater(t, g) : NO_HIT;
+  if (list.length === 0) {
+    if (z < 0) return groundOrWater(t, g);
+    return (inCavesOrBasement(t) ? roofCrossing(oldZ, z) : null) ?? NO_HIT;
+  }
   let cube = idiv(above, CUBE_UNITS);
   if (cube >= 2 * PROFILE_Z_SIZE) return NO_HIT;
   const cellX = (Math.trunc(x) % 10) >> 1;
@@ -626,9 +629,9 @@ export function checkForCollision(t: TacticalState, x: number, y: number, z: num
   const cell = cellX * 5 + cellY;
   const desired = cube < PROFILE_Z_SIZE ? 0 : PROFILE_Z_SIZE;
   if (desired === PROFILE_Z_SIZE) cube -= PROFILE_Z_SIZE;
-  if (levelTilesAt(t.world.level.layers.roofs, g).length > 0) {
+  if (levelTilesAt(t.world.level.layers.roofs, g).length > 0 || inCavesOrBasement(t)) {
     const roof = roofCrossing(oldZ, z);
-    if (roof !== Collision.NONE) return { code: roof, structureId: 0, normal: vec3() };
+    if (roof) return roof;
   }
   for (const s of list) {
     if (s.cubeOffset !== desired) continue;

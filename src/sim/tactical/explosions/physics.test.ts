@@ -18,10 +18,16 @@ import { InvSlot } from '../inventory.ts';
 import { SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
-import { HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
+import { Collision, checkForCollision, HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
 import { ThrowAction } from './state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, releaseThrow } from './throwing.ts';
-import { calculateLaunchItemParamsForThrow, calculateObjectTrajectory, predictLanding, randomGridFromRadius } from './trajectory.ts';
+import {
+  calculateLaunchItemParamsForThrow,
+  calculateObjectTrajectory,
+  launchItemBasicParams,
+  predictLanding,
+  randomGridFromRadius,
+} from './trajectory.ts';
 import { vec3 } from './vec3.ts';
 
 let content: TacticalContent;
@@ -318,6 +324,62 @@ describe('the force search behind throws', () => {
     const surfaceAgain = newCombatSim(content);
     expect(throwAndLand(surfaceAgain, grenadier(surfaceAgain), target).gridNo).toBe(target);
   });
+});
+
+type Underground = 'caves' | 'basement';
+
+function underground(sim: TacticalSim, kind: Underground): TacticalSim {
+  const map = sim.state.world.map;
+  if (!map) throw new Error('no map');
+  Object.assign(map, { ambient: { basement: kind === 'basement', caves: kind === 'caves', lightLevel: 10 } });
+  return sim;
+}
+
+describe('throws underground (caves and basements)', () => {
+  const NEAR = gridNo(80, 88);
+  const BEYOND_REACH = gridNo(80, 130);
+
+  function paramsFrom(sim: TacticalSim, target: number) {
+    const s = grenadier(sim);
+    const grenade = s.inv[InvSlot.HAND];
+    if (!grenade) throw new Error('no grenade');
+    return launchItemBasicParams(sim.state, s, grenade, target, 0, 0, true);
+  }
+
+  it.each<Underground>(['caves', 'basement'])(
+    'throws in %s as from under a roof: the flat indoor angle and twice the force cap',
+    (kind) => {
+      for (const target of [NEAR, BEYOND_REACH]) {
+        const open = paramsFrom(newCombatSim(content), target);
+        const roofed = paramsFrom(newCombatSim(content, [], 3, new Set([THROWER])), target);
+        const below = paramsFrom(underground(newCombatSim(content), kind), target);
+        expect(below).toEqual(roofed);
+        expect(below.degrees).toBeLessThan(open.degrees);
+      }
+      const open = paramsFrom(newCombatSim(content), BEYOND_REACH);
+      expect(paramsFrom(underground(newCombatSim(content), kind), BEYOND_REACH).force).toBe(open.force * 2);
+    },
+  );
+
+  it.each<Underground>(['caves', 'basement'])(
+    'stops an object crossing one storey up under the ceiling of %s, before a wall on the tile, where open ground lets it pass',
+    (kind) => {
+      const wall = gridNo(80, 84);
+      const crossings = (sim: TacticalSim, g: number) => {
+        const x = (g % 160) * 10 + 5;
+        const y = Math.trunc(g / 160) * 10 + 5;
+        const falling = checkForCollision(sim.state, x, y, HEIGHT_UNITS - 2, 0, 0, -4).code;
+        const rising = checkForCollision(sim.state, x, y, HEIGHT_UNITS + 2, 0, 0, 4).code;
+        return [falling, rising];
+      };
+      const open = newCombatSim(content, [wall]);
+      expect(crossings(open, THROWER)).toEqual([Collision.NONE, Collision.NONE]);
+      expect(crossings(open, wall)).toEqual([Collision.WALL_NORTHEAST, Collision.NONE]);
+      const below = underground(newCombatSim(content, [wall]), kind);
+      expect(crossings(below, THROWER)).toEqual([Collision.ROOF, Collision.INTERIOR_ROOF]);
+      expect(crossings(below, wall)).toEqual([Collision.ROOF, Collision.INTERIOR_ROOF]);
+    },
+  );
 });
 
 describe('landing prediction for the AI', () => {

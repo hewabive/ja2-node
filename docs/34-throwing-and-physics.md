@@ -121,7 +121,8 @@ from reading the source:
 - The order of the dud test's two draws.
 - In water, the throw's busy count is released before the ripple's explosion.
 - Catches, windows broken by a thrown object and objects hitting soldiers are ported as read.
+- Caves and basements: throws as from under a roof, and a ceiling one storey up on every tile.
 
-Not ported: gaps "Duds and timed bombs", "Underground throws", "Tossing from the item cursor".
+Not ported: gaps "Duds and timed bombs", "Tossing from the item cursor".
 Other deviations of this domain: "Physics cadence and floats", "Water ripple", "Dud test operand order", "Cosmetic draws
 in attacks", "Cosmetic draws in explosions", "Bullets of unseen shooters", "Watchdogs".

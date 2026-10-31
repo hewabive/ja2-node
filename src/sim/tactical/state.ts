@@ -74,6 +74,11 @@ export function sectorMapOf(t: { readonly world: TacticalWorldData }): SectorMap
   return t.world.map ?? NO_SECTOR_MAP;
 }
 
+export function inCavesOrBasement(t: { readonly world: TacticalWorldData }): boolean {
+  const ambient = sectorMapOf(t).ambient;
+  return ambient?.caves === true || ambient?.basement === true;
+}
+
 export type TacticalEvent = DistributiveOmit<SimEvent, 'tick'>;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;

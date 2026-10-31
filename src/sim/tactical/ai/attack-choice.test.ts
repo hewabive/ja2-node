@@ -168,6 +168,33 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     expect(toss.target).toBe(lastSeenAt);
   });
 
+  it('passes up, underground above easy difficulty, a spot next to a lone opponent that it takes on the surface', () => {
+    const MEDIUM_DIFFICULTY = 2;
+    const opponentAt = gridNo(80, 80);
+    const besideHim = gridNo(81, 80);
+    const toss = (underground: boolean) => {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      Object.assign(t.options, { difficulty: MEDIUM_DIFFICULTY });
+      t.lighting.underground = underground;
+      const margin = content.items.byName.get('HAND_GRENADE')?.explosive?.blast?.radius ?? 0;
+      expect(margin).toBeGreaterThan(1);
+      spawnSoldier(sim, 0, Team.OUR, opponentAt, Direction.SOUTH);
+      spawnSoldier(sim, 21, Team.ENEMY, opponentAt - margin, Direction.EAST);
+      const bystander = spawnSoldier(sim, 40, Team.CIV, besideHim, Direction.NORTH);
+      bystander.neutral = true;
+      const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+      enemy.inv[InvSlot.HAND] = createItem(content.items, item('HAND_GRENADE'), 100);
+      enemy.life = enemy.lifeMax / 2;
+      sim.lookAround();
+      return checkIfTossPossible(t, enemy);
+    };
+    const onSurface = toss(false);
+    expect(onSurface.possible).toBe(true);
+    expect(onSurface.target).toBe(besideHim);
+    expect(toss(true).possible).toBe(false);
+  });
+
   it('fires a second LAW after the first: the chance to get through takes the LAW last fired, with the impact of 80 its weapon model sets', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

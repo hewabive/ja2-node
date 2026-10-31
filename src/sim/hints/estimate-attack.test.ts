@@ -4,6 +4,8 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newSmokeEffect } from '../tactical/explosions/smoke.ts';
+import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
+import { InvSlot } from '../tactical/inventory.ts';
 import { AP } from '../tactical/points.ts';
 import { Team } from '../tactical/soldier.ts';
 
@@ -47,5 +49,26 @@ describe('the chance to hit through smoke and gas', () => {
     expect(throughGas).toBeLessThan(clear);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     expect(runUntilIdle(sim).find((e) => e.type === 'shotFired')).toMatchObject({ chance: throughGas });
+  });
+});
+
+describe('a throw underground', () => {
+  it('lands a toss beyond reach where the loaded sector throws it, shorter in a cave than on the surface', () => {
+    const beyondReach = gridNo(80, 110);
+    const CAVES = { ambient: { basement: false, caves: true, lightLevel: 10 } };
+    const landings = (mapFields: typeof CAVES | Record<string, never>) => {
+      const sim = newCombatSim(content, [], 3, new Set(), () => undefined, mapFields);
+      const s = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH, { gun: 'HAND_GRENADE' });
+      const grenade = s.inv[InvSlot.HAND];
+      if (!grenade) throw new Error('no grenade');
+      const estimate = estimateAttack(sim, { soldier: 0, target: beyondReach }).data as { landsAt: number };
+      const server = calculateLaunchItemChanceToGetThrough(sim.state, s, grenade, beyondReach, 0, 0, false, true);
+      return { estimate: estimate.landsAt, server: server.gridNo };
+    };
+    const surface = landings({});
+    const cave = landings(CAVES);
+    expect(cave.estimate).toBe(cave.server);
+    expect(surface.estimate).toBe(surface.server);
+    expect(Math.trunc(cave.estimate / 160)).toBeLessThan(Math.trunc(surface.estimate / 160));
   });
 });
