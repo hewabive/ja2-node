@@ -68,8 +68,11 @@ into quotes, boxes and animations (deviations "Assignment presentation", "Update
 
 **Commands instead of screens.** `assignSoldiers` runs the original's list assignment soldier by soldier in the order
 given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
-"Nothing-to-do re-evaluation"). The militia panel's cursor lives in the client: the server only takes whole moves and
-AUTO (deviation "Militia redistribution").
+"Nothing-to-do re-evaluation"). The original's other triggers (an assignment time stamp, a plotted route of ours, an
+item that passes through the cursor on a panel) raise `economy.reEvaluateNothingToDo`, and the campaign acts on it at the
+end of the command or tick; `campaign/nothing-to-do.ts` names the item commands that stand for a cursor move, so a hand
+swap or a stack clean-up without a cursor item raises nothing. The militia panel's cursor lives in the client: the
+server only takes whole moves and AUTO (deviation "Militia redistribution").
 
 **Work is paid for the hour that ended.** The hourly update notes who slept through the past hour before the rest step
 puts mercs to bed or wakes them, and every payout reads that note; nothing pays in the first 45 minutes of an

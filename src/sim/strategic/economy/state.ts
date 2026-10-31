@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Town_Loyalty.h TOWN_LOYALTY; Strategic_Mines.h MINE_STATUS_TYPE;
-// @src Town_Militia.cc promotion counters.
+// @src Town_Militia.cc promotion counters; Assignments.cc gfReEvaluateEveryonesNothingToDo.
 
 import { NUM_TOWNS } from './constants.ts';
 
@@ -64,6 +64,7 @@ export interface EconomyState {
   strategicMilitiaChangesMade: boolean;
   militiaTrainingCompletedBy: number[];
   prompts: EconomyPrompt[];
+  reEvaluateNothingToDo: boolean;
 }
 
 export function createTownLoyalty(): TownLoyalty {
@@ -103,5 +104,6 @@ export function createEconomyState(): EconomyState {
     strategicMilitiaChangesMade: false,
     militiaTrainingCompletedBy: [],
     prompts: [],
+    reEvaluateNothingToDo: false,
   };
 }

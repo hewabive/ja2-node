@@ -16,6 +16,7 @@ import { hourlyProgressUpdate } from '../strategic/ai/difficulty.ts';
 import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link.ts';
 import { areInMeanwhile, handleFlowersMeanwhileScene, handleScientistAwolMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
+import { reEvaluateNothingToDoIfFlagged } from '../strategic/economy/assignment-done.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
@@ -75,6 +76,7 @@ import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
+import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
 import { PowFlow } from './pow.ts';
 import { enterMapScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
@@ -574,8 +576,13 @@ export class CampaignSim {
     this.#collectEvents();
     this.battle?.afterStep();
     this.contracts?.settle();
+    this.#reEvaluateNothingToDo();
     this.#collectEvents();
     this.#syncClockEvents();
+  }
+
+  #reEvaluateNothingToDo(): void {
+    if (this.economy) reEvaluateNothingToDoIfFlagged(this.economy);
   }
 
   isIdle(): boolean {
@@ -625,6 +632,8 @@ export class CampaignSim {
 
   dispatch(cmd: CampaignCommand): CommandResult {
     const result = this.#dispatch(cmd);
+    flagNothingToDoAfterItemMove(this.state, cmd, result);
+    this.#reEvaluateNothingToDo();
     if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
     this.#collectEvents();
     this.battle?.settle();

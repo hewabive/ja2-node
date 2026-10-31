@@ -10,6 +10,7 @@ import {
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
+import { reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
 import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment, numberThatCanBeDoctored } from './conditions.ts';
 import { Assignment, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
 import { healCharacters, healPatient } from './doctor.ts';
@@ -300,6 +301,18 @@ describe('assigning and the hourly order', () => {
     expect(d.inv[Slot.HAND]?.item).toBe(kitItems(content.items).medicKit);
     expect(d.nothingToDo).toBe(true);
     expect(made.ctx.state.queue.events.some((e) => e.kind === 68)).toBe(true);
+  });
+
+  it('asks for the nothing-to-do re-evaluation at every time stamp and re-evaluates only when asked', () => {
+    const made = context();
+    const d = merc(made, { id: 0, assignment: Assignment.DOCTOR });
+    reEvaluateNothingToDoIfFlagged(made.ctx);
+    expect(d.nothingToDo).toBe(false);
+    setTimeOfAssignmentChange(made.ctx, d);
+    expect(made.ctx.state.economy.reEvaluateNothingToDo).toBe(true);
+    reEvaluateNothingToDoIfFlagged(made.ctx);
+    expect(d.nothingToDo).toBe(true);
+    expect(made.ctx.state.economy.reEvaluateNothingToDo).toBe(false);
   });
 
   it('pays nobody during the first 45 minutes and trains self-trainers afterwards', () => {

@@ -591,3 +591,37 @@ describe('snapshot version 17 (no sighted-creature flag) migrates with no creatu
     await expectNoCreatureSeen(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+function versionEighteen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { reEvaluateNothingToDo, ...economy } = object(strategic.economy);
+    expect(reEvaluateNothingToDo).toBe(false);
+    return [name, { ...strategic, economy }];
+  });
+  return { ...snapshot, version: 18, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 18 (no nothing-to-do flag) migrates with no re-evaluation pending', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionEighteen(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"reEvaluateNothingToDo"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

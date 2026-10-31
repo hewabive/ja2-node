@@ -5,6 +5,7 @@ import { createCampaignSession } from '../../../server/campaign-factory.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Session } from '../../../server/session.ts';
 import type { SimEvent } from '../../events.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
 import { sectorInfo } from '../../strategic/map/sectors.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../strategic/time/world-clock.ts';
@@ -225,6 +226,19 @@ describe('after the landing', () => {
     expect(events.some((e) => e.type === 'mercArrived' && e.soldier === id)).toBe(true);
     expect(merc?.contract.contractEnd).toBe(2 * 1440 + 13 * 60);
     expect(merc?.sector).toEqual(parseSectorString('A9'));
+  });
+
+  it("re-evaluates everyone's nothing-to-do flag after a hire, as the hire stamps the new merc's assignment", async () => {
+    const session = await landed(31);
+    const idle = session.campaign.laptop?.roster.all()[0];
+    if (!idle) throw new Error('no merc');
+    idle.assignment = Assignment.DOCTOR;
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    expect(idle.nothingToDo).toBe(false);
+    const [profile] = available(session, [0, 1, 2, 3, 4, 5]);
+    if (profile === undefined) throw new Error('nobody is available');
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 1, gear: false })).toMatchObject({ ok: true });
+    expect(idle.nothingToDo).toBe(true);
   });
 
   it('lets the stub roster refuse for its own reasons and join for a friend', async () => {

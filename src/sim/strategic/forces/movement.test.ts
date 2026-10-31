@@ -90,6 +90,16 @@ describe('departure', () => {
     expect(events(ctx)).toEqual([[EventKind.GROUP_ARRIVAL, now + 5, g.id]]);
   });
 
+  it("asks for the nothing-to-do re-evaluation when a player group's route is plotted, cancelled included, but not an enemy's", () => {
+    const { ctx, mercs } = squadContext();
+    const enemies = createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('B9'), 0, 2, 0);
+    rebuildWayPointsForGroupPath(ctx, route('B9', 'C9'), enemies);
+    expect(ctx.state.economy.reEvaluateNothingToDo).toBe(false);
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    rebuildWayPointsForGroupPath(ctx, null, g);
+    expect(ctx.state.economy.reEvaluateNothingToDo).toBe(true);
+  });
+
   it('keeps only the pivots of the path as waypoints', () => {
     const { ctx, mercs } = squadContext();
     const g = squadAt(ctx, mercs, S('A9'), [0]);

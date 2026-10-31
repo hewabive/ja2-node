@@ -120,6 +120,7 @@ export function hireMercCore(ctx: LaptopContext, h: HireStruct, hooks: HireHooks
     }),
   );
   merc.lastAssignmentChangeMin = ctx.now();
+  s.economy.reEvaluateNothingToDo = true;
   ctx.roster.add(merc);
   const arrival = hooks.hireContract(merc, h.length);
   ctx.laptop.lastHiredMerc.profile = h.profile;

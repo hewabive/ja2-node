@@ -512,6 +512,23 @@ function addSightedCreatureFlag(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ECONOMY_KEY = 'economy';
+const RE_EVALUATE_NOTHING_TO_DO_KEY = 'reEvaluateNothingToDo';
+
+function withNothingToDoFlag(strategic: JsonObject): JsonObject {
+  const economy = strategic[ECONOMY_KEY];
+  if (!isObject(economy) || economy[REF] !== undefined) return strategic;
+  return { ...strategic, [ECONOMY_KEY]: { ...economy, ...withDefault(economy, RE_EVALUATE_NOTHING_TO_DO_KEY, false) } };
+}
+
+function addNothingToDoFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withNothingToDoFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -531,5 +548,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     15: addTrashedMapRestrictedScroll,
     16: dropHeldKillFlag,
     17: addSightedCreatureFlag,
+    18: addNothingToDoFlag,
   };
 }

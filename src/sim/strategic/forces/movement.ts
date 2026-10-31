@@ -293,6 +293,7 @@ export function delayEnemyGroupsIfPathsCross(ctx: StrategicContext, pg: Group): 
 export function rebuildWayPointsForGroupPath(ctx: StrategicContext, path: readonly number[] | null, g: Group): void {
   deleteStrategicEvent(ctx.state.queue, EventKind.GROUP_ARRIVAL, g.id);
   removeGroupWaypoints(g);
+  if (g.player) ctx.state.economy.reEvaluateNothingToDo = true;
   if (!path || path.length < 2) {
     if (g.player && g.betweenSectors) groupReversingDirectionsBetweenSectors(ctx, g, g.sector, false);
     return;

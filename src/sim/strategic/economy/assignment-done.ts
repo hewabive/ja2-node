@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc ChangeSoldiersAssignment, SetTimeOfAssignmentChangeForMerc, AssignmentDone,
-// @src AssignmentAborted, ReEvaluateEveryonesNothingToDo; Town_Militia.cc AddSectorForSoldierToListOfSectorsThatCompletedMilitiaTraining.
+// @src AssignmentAborted, ReEvaluateEveryonesNothingToDo; Town_Militia.cc AddSectorForSoldierToListOfSectorsThatCompletedMilitiaTraining;
+// @src MapScreen.cc HandleAssignmentsDoneAndAwaitingFurtherOrders (the gfReEvaluateEveryonesNothingToDo test).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { refundUnusedHospitalPayment } from '../narrative/hospital.ts';
@@ -44,6 +45,7 @@ export function changeSoldiersAssignment(ctx: EconomyContext, s: CrewMember, ass
 export function setTimeOfAssignmentChange(ctx: EconomyContext, s: CrewMember): void {
   if (s.assignment === Assignment.ASSIGNMENT_HOSPITAL) refundUnusedHospitalPayment(ctx.state.narrative.hospital, s);
   s.lastAssignmentChangeMin = worldTotalMinutes(ctx.state.clock);
+  ctx.state.economy.reEvaluateNothingToDo = true;
 }
 
 function addSectorThatCompletedMilitiaTraining(ctx: EconomyContext, s: CrewMember): void {
@@ -102,6 +104,11 @@ export function reEvaluateEveryonesNothingToDo(ctx: EconomyContext): void {
     s.nothingToDo = idle;
     if (!idle) s.doneQuoteSaid = false;
   }
+  ctx.state.economy.reEvaluateNothingToDo = false;
+}
+
+export function reEvaluateNothingToDoIfFlagged(ctx: EconomyContext): void {
+  if (ctx.state.economy.reEvaluateNothingToDo) reEvaluateEveryonesNothingToDo(ctx);
 }
 
 export function trainersInSector(ctx: EconomyContext, s: CrewMember): CrewMember[] {
