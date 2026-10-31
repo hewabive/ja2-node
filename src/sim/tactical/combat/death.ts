@@ -74,6 +74,7 @@ export interface Corpse {
   readonly profile: number;
   readonly type: number;
   readonly timeOfDeath: number;
+  readonly headTaken: boolean;
   readonly findSweetSpot?: boolean;
   readonly entryPoint?: number;
   readonly palettes?: readonly [hair: string, skin: string, vest: string, pants: string];
@@ -368,6 +369,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     profile: s.profile,
     type,
     timeOfDeath: idiv(worldSeconds(t), SECONDS_PER_MINUTE),
+    headTaken: false,
     ...corpseLook(s),
   });
   addCorpseStructure(t, s.gridNo, s.level, type, direction);

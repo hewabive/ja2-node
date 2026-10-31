@@ -42,6 +42,7 @@ describe('restoring the corpses of a sector diff', () => {
       profile: 200,
       type: SMERC_FWD,
       timeOfDeath: NOW_MINUTE,
+      headTaken: false,
       findSweetSpot: true,
     };
     restoreCorpses(t, [dropped], { nowMinute: NOW_MINUTE, inTown: false, loadingSave: false });

@@ -20,6 +20,8 @@ export interface CorpseTable {
   readonly noBloodFiles: readonly string[];
   readonly twoDirectionsFrom8: readonly number[];
   readonly fourDirectionsFrom8: readonly number[];
+  readonly validForDecapitation: readonly number[];
+  readonly decapitated: readonly number[];
   readonly animationCorpse: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
@@ -34,7 +36,8 @@ const FOUR_DIRECTIONS = ['SMERC_FALL', 'SMERC_FALLF', 'MMERC_FALL', 'MMERC_FALLF
 
 export function parseCorpseTable(json: unknown): CorpseTable {
   const t = json as CorpseTable;
-  if (!Array.isArray(t?.types) || !Array.isArray(t.files) || t.files.length !== t.types.length)
+  const perType = (list: unknown) => Array.isArray(list) && list.length === t.types.length;
+  if (!Array.isArray(t?.types) || !perType(t.files) || !perType(t.validForDecapitation) || !perType(t.decapitated))
     throw new FormatError('malformed corpse table');
   return t;
 }

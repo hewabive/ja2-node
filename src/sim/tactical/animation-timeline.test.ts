@@ -10,7 +10,7 @@ import { TacticalSim } from './tactical-sim.ts';
 const VILLAGE = 'stubs/world/maps/village.dat';
 const FIRST_SOUND_RANGE_CODE = 700;
 const LAST_SOUND_RANGE_CODE = 799;
-const SIMULATION_CODES_IN_SOUND_RANGE = 9;
+const SIMULATION_CODES_IN_SOUND_RANGE = 10;
 
 let kit: StubSectorKit;
 

@@ -574,6 +574,28 @@ function addMovementCosmeticStream(snapshot: Readonly<Record<string, unknown>>):
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CORPSE_KEYS = ['gridNo', 'level', 'bodyType', 'direction', 'state', 'profile', 'type', 'timeOfDeath'];
+const TIME_OF_DEATH_KEY = 'timeOfDeath';
+const HEAD_TAKEN_KEY = 'headTaken';
+
+function isCorpseRecord(o: JsonObject): boolean {
+  return CORPSE_KEYS.every((key) => typeof o[key] === 'number');
+}
+
+function withCorpseHeads(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withCorpseHeads(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withCorpseHeads(v);
+  return isCorpseRecord(mapped) ? insertAfter(mapped, TIME_OF_DEATH_KEY, HEAD_TAKEN_KEY, false) : mapped;
+}
+
+function addCorpseHeads(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withCorpseHeads(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -596,5 +618,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     18: addNothingToDoFlag,
     19: dropCompressionSinceMapEntry,
     20: addMovementCosmeticStream,
+    21: addCorpseHeads,
   };
 }

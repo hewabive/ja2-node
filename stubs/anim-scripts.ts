@@ -408,7 +408,9 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   return m;
 }
 
-const MeleeOp = { SWOOSH: 727, DODGE: 492, END_PUNCH: 468, MARTIAL_ARTS_ATTACK: 469 } as const;
+const MeleeOp = { SWOOSH: 727, DODGE: 492, END_PUNCH: 468, MARTIAL_ARTS_ATTACK: 469, DECAPITATE: 752 } as const;
+const SAWING_STROKES = 3;
+const SAWING_FRAMES = 3;
 const NINJA_STANCE_FRAMES = 5;
 const SPIN_KICK_WIND_UP = 6;
 
@@ -447,6 +449,18 @@ function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
     ['STAB', [...swing(7, 2, 6), NONINTERRUPTIBLE_DONE, to('KNIFE_GOTOBREATH')]],
     ['SLICE', [...swing(7, 2, 5), NONINTERRUPTIBLE_DONE, to('KNIFE_GOTOBREATH')]],
     ['CROUCH_STAB', [...swing(6, 3, 6), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    [
+      'DECAPITATE',
+      [
+        ...frames(6),
+        ...Array.from({ length: SAWING_STROKES }, () => frames(SAWING_FRAMES, 4)).flat(),
+        MeleeOp.DECAPITATE,
+        ...frames(6, 7),
+        NONINTERRUPTIBLE_DONE,
+        Op.BUSY_DOWN,
+        END_OF_ANIMATION,
+      ],
+    ],
     ['KNIFE_GOTOBREATH', [...frames(4), NONINTERRUPTIBLE_DONE, Op.BUSY_DOWN, to('KNIFE_BREATH')]],
     ['KNIFE_ENDBREATH', [...frames(5), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
     ['PUNCH', [...swing(6, 3, 7), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, MeleeOp.END_PUNCH]],

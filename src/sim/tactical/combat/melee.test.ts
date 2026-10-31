@@ -11,10 +11,13 @@ import { AnimHeight, initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
+import { AP } from '../points.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
-import { SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { NO_PROFILE, SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { calcTotalAPsToAttack } from './ap.ts';
 import { soldierDifficultyLevel } from './chance.ts';
+import { addCorpseStructure } from './death.ts';
 import { calcChanceToStab, eventSoldierBeginBladeAttack, eventSoldierBeginPunchAttack, hthImpact, meleeOpcode, useBlade } from './melee.ts';
 import { AiMorale, AimShot, WeaponMode } from './types.ts';
 
@@ -411,5 +414,80 @@ describe('martial arts (DoNinjaAttack)', () => {
     crowbar.merc.targetGridNo = crowbar.enemy.gridNo;
     eventSoldierBeginPunchAttack(crowbar.sim.state, crowbar.merc, crowbar.enemy.gridNo, Direction.SOUTH);
     expect(animName(content, crowbar.merc.state)).toBe('CROWBAR_ATTACK');
+  });
+});
+
+describe('decapitation (EVENT_SoldierBeginBladeAttack, DecapitateCorpse)', () => {
+  const DECAPITATE = 752;
+  const CORPSE_AT = gridNo(80, 81);
+  const corpseType = (name: string) => content.corpses.table.types.indexOf(name);
+  const itemIndex = (name: string) => content.items.byName.get(name)?.index ?? -1;
+
+  function besideCorpse(hand: string | null, type = 'SMERC_FWD'): { sim: TacticalSim; merc: Soldier } {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { gun: hand ?? KNIFE });
+    if (hand === null) merc.inv[InvSlot.HAND] = emptyObject();
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    sim.lookAround();
+    sim.drainEvents();
+    const corpse = { gridNo: CORPSE_AT, level: 0, bodyType: 0, direction: Direction.NORTH, state: 0, profile: NO_PROFILE };
+    t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false });
+    addCorpseStructure(t, CORPSE_AT, 0, corpseType(type), Direction.NORTH);
+    return { sim, merc };
+  }
+
+  function statesPlayed(sim: TacticalSim, s: Soldier): string[] {
+    const seen: string[] = [];
+    for (let i = 0; i < 2000 && !sim.isIdle(); i++) {
+      sim.step();
+      const name = animName(sim.state.content, s.state);
+      if (seen.at(-1) !== name) seen.push(name);
+    }
+    return seen;
+  }
+
+  it('cuts the head off a merc corpse beside him: a headless corpse and a hidden head on its tile, paying only to kneel', () => {
+    const { sim, merc } = besideCorpse(KNIFE);
+    const t = sim.state;
+    expect(t.inCombat).toBe(true);
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: CORPSE_AT })).toEqual({ ok: true });
+    expect(statesPlayed(sim, merc)).toContain('DECAPITATE');
+    expect(t.corpses).toMatchObject([{ gridNo: CORPSE_AT, type: corpseType('SMERC_JFK'), headTaken: false }]);
+    expect(t.worldItems.filter((wi) => wi.object.item === itemIndex('HEAD_1'))).toMatchObject([{ gridNo: CORPSE_AT, level: 0 }]);
+    expect(before - merc.actionPoints).toBe(AP.CROUCH);
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('makes every merc look for items and draws nothing', () => {
+    const { sim, merc } = besideCorpse(KNIFE);
+    const t = sim.state;
+    merc.targetGridNo = CORPSE_AT;
+    for (const s of t.mercSlots) if (s) s.lookForItems = false;
+    expect(countDraws(t, () => meleeOpcode(t, merc, DECAPITATE))).toEqual({ pre: 0, main: 0 });
+    expect(t.mercSlots.filter((s) => s !== null && s !== undefined).every((s) => s.lookForItems)).toBe(true);
+  });
+
+  it('stabs the ground at a corpse that cannot lose its head, as at a bare tile', () => {
+    const { sim, merc } = besideCorpse(KNIFE, 'BLOODCAT_DEAD');
+    const t = sim.state;
+    merc.targetLevel = 0;
+    eventSoldierBeginBladeAttack(t, merc, CORPSE_AT, Direction.SOUTH);
+    expect(animName(t.content, merc.pendingAnimation)).toBe('CROUCH_STAB');
+  });
+
+  it('takes a knife at a tile without a soldier, priced as the order checks it, but refuses fists there', () => {
+    const { sim, merc } = besideCorpse(KNIFE);
+    expect(estimateAttack(sim, { soldier: 0, target: CORPSE_AT }).data).toMatchObject({
+      cursor: 'knife',
+      apCost: calcTotalAPsToAttack(sim.state, merc, CORPSE_AT, true, 0),
+      inReach: true,
+    });
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: CORPSE_AT })).toEqual({ ok: true });
+    expect(besideCorpse(null).sim.dispatch({ type: 'attack', soldier: 0, target: CORPSE_AT })).toMatchObject({
+      ok: false,
+      data: { refusal: 'needMeleeTarget' },
+    });
   });
 });

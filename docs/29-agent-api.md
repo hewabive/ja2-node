@@ -267,7 +267,9 @@ A new `move` re-plans a halted move for any merc
 ("Continue a move"); `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
-reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. Our merc's first pull of a
+reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
+level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
+lying there (`11`); fists need a soldier (`needMeleeTarget`). Our merc's first pull of a
 virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
 the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. A launcher without
 a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command

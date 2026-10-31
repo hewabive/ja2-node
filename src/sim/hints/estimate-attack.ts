@@ -235,7 +235,8 @@ function estimateStrike(
   const hand = s.inv[InvSlot.HAND] as ItemObject;
   const def = t.content.items.byIndex.get(hand.item);
   const melee = hand.item === NOTHING || (def !== undefined && isMeleeItemClass(def.itemClass));
-  if (melee && (!victim || level !== s.level)) return nobodyToStrike(t, s, cursor, base);
+  const blade = def?.itemClass === ItemClass.BLADE;
+  if (melee && (level !== s.level || (!victim && !blade))) return nobodyToStrike(t, s, cursor, base);
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
   const thrownKnife = def?.itemClass === ItemClass.THROWING_KNIFE;
@@ -257,7 +258,7 @@ function estimateStrike(
     chanceToGetThrough,
     inRange: melee ? true : inRange(t, s, target),
     ammo: ammoState(t, s, cursor),
-    ...(melee && victim ? { inReach: meleeSpot(t, s, target, level) !== null, ...meleeWalk(t, s, victim, level) } : {}),
+    ...(melee ? { inReach: meleeSpot(t, s, target, level) !== null, ...(victim ? meleeWalk(t, s, victim, level) : {}) } : {}),
   };
 }
 

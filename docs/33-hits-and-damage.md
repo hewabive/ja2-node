@@ -28,6 +28,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 | `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window |
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
+| `rotting-corpses.ts` | A corpse's aging when it is added, decapitation and the heads it leaves |
 | `combat/bleeding.ts` | Bleeding at turn start and the next-bleed time |
 | `combat/barrier.ts` | The attack busy count, suppression, noticing an unseen attacker, the end of an attack |
 | `combat/morale.ts` | Tactical morale events; strategic events and the death fan-out are `sim/campaign/morale.ts` |
@@ -93,6 +94,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
 | A skill check with no chance at all passes on a roll of 0: the margin is 0, not below it | `skill-check.test.ts` |
+| A merc corpse cut more than a day after death rots on the spot and gives a second head: `DecapitateCorpse` copies the corpse before marking its head taken | `src/sim/tactical/rotting-corpses.test.ts` |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).

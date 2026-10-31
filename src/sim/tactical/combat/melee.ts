@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
 // @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31, without Dr. Q's chop sound); externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
 // @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab, CalcChanceToPunch, DishoutQueenSwipeDamage;
-// @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh).
+// @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 752 (decapitate), 755 (queen swipe)
+// @src and 761 (eat flesh).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
@@ -30,6 +31,7 @@ import { isMercBody, newOKDestination } from '../pathfinding.ts';
 import { Opp } from '../perception/opp.ts';
 import { deductPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
+import { corpseAt, decapitateCorpse, isValidDecapitationCorpse } from '../rotting-corpses.ts';
 import {
   effectiveAgility,
   effectiveDexterity,
@@ -244,6 +246,12 @@ function beginBloodcatBladeAttack(t: TacticalState, s: Soldier): void {
   initNewSoldierAnim(t, s, anim(t.content, claws ? 'BLOODCAT_SWIPE' : 'BLOODCAT_BITE_ANIM'), 0, false);
 }
 
+function stabAtEmptyTile(t: TacticalState, s: Soldier, g: number): string {
+  if (!newOKDestination(t.pathEnv, s, g, false, s.level)) return 'STAB';
+  const corpse = corpseAt(t, g);
+  return corpse && isValidDecapitationCorpse(t, corpse) ? 'DECAPITATE' : 'CROUCH_STAB';
+}
+
 export function eventSoldierBeginBladeAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
   t.turn.attackBusyCount++;
   setDesiredDirection(t, s, direction);
@@ -265,10 +273,7 @@ export function eventSoldierBeginBladeAttack(t: TacticalState, s: Soldier, g: nu
         attackProneTarget(t, s, 'CROUCH_STAB');
         break;
     }
-  } else {
-    const obstacle = !newOKDestination(t.pathEnv, s, g, false, s.level);
-    initNewSoldierAnim(t, s, anim(t.content, obstacle ? 'STAB' : 'CROUCH_STAB'), 0, false);
-  }
+  } else initNewSoldierAnim(t, s, anim(t.content, stabAtEmptyTile(t, s, g)), 0, false);
   s.targetGridNo = g;
   s.targetLevel = s.level;
   s.target = whoIsThere(t, g, s.targetLevel);
@@ -558,6 +563,9 @@ export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
     case 469:
       doNinjaAttack(t, s);
       return 'stop';
+    case 752:
+      decapitateCorpse(t, s.targetGridNo);
+      return 'continue';
     case 492:
       signalDodge(t, s);
       return 'continue';

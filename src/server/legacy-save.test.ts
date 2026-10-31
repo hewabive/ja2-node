@@ -3,11 +3,12 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { CORPSES_TABLE_PATH } from '../content/anim/corpses.ts';
 import { type AnimationTables, AnimFlags, stateId } from '../content/anim/tables.ts';
 import { STUB_ANIMATION_SCRIPTS_PATH } from '../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts, writeAnimationScripts } from '../content/formats/ja2bin.ts';
 import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
-import { STUBS_LAYER } from '../content/vfs/layers.ts';
+import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { Session } from './session.ts';
@@ -21,6 +22,7 @@ const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
 const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
 const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
+const DECAPITATION_TABLES_ADDED_AFTER_070 = /\n {2}"validForDecapitation": \[[^\]]*\],\n {2}"decapitated": \[[^\]]*\],/;
 const SURFACES_ADDED_AFTER_070 = new Set([
   'bullet.sprite.json',
   'miss.sprite.json',
@@ -62,6 +64,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'NINJA_LOWKICK',
   'NINJA_PUNCH',
   'NINJA_SPINKICK',
+  'DECAPITATE',
 ];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
@@ -142,6 +145,11 @@ async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
   return writeTilesetDatabase({ ...current, tilesets });
 }
 
+async function recordedCorpseTable(vfs: Vfs): Promise<Uint8Array> {
+  const current = new TextDecoder().decode(await vfs.read(CORPSES_TABLE_PATH));
+  return new TextEncoder().encode(current.replace(DECAPITATION_TABLES_ADDED_AFTER_070, ''));
+}
+
 function frames(count: number, first = 1): number[] {
   return Array.from({ length: count }, (_, k) => first + k);
 }
@@ -204,7 +212,8 @@ async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<V
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
     [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
   ]);
-  return new Vfs([recorded, ...vfs.layers.map(withoutFilesAddedAfter070)]);
+  const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [[CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)]]);
+  return new Vfs([recorded, recordedTables, ...vfs.layers.map(withoutFilesAddedAfter070)]);
 }
 
 async function copyFixtures(k: SaveKit): Promise<void> {

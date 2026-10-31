@@ -700,3 +700,54 @@ describe('snapshot version 20 (no strategic movement cosmetic stream) migrates w
     expect(movementStream(snapshotSession(restored).sim)).toEqual(stream);
   });
 });
+
+const CORPSE_AT = 12_345;
+const SMERC_FWD = 3;
+
+function withoutHeadTaken(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutHeadTaken(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (key !== 'headTaken') out[key] = withoutHeadTaken(v);
+  return out;
+}
+
+function versionTwentyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutHeadTaken(value)]);
+  return { ...snapshot, version: 21, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 21 (corpses without a taken head) migrates with every head still on', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a corpse', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    sandbox.sim.state.corpses.push({
+      gridNo: CORPSE_AT,
+      level: 0,
+      bodyType: 0,
+      direction: 0,
+      state: 0,
+      profile: 200,
+      type: SMERC_FWD,
+      timeOfDeath: 0,
+      headTaken: false,
+    });
+    const current = snapshotSession(sandbox);
+    const legacy = versionTwentyOne(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"headTaken"');
+    expect(JSON.stringify(legacy)).not.toContain('"headTaken"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

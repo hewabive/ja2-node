@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile, LoadCurrentSectorsInformationFromTempItemsFile,
-// @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile; Rotting_Corpses.cc AddRottingCorpse (aging);
+// @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
 // @src TileEngine/SaveLoadMap.cc revealed status, blood and smell, the openable statuses
 // @src (SaveBloodSmellAndRevealedStatesFromMapToTempFile, AddBloodOrSmellFromMapTempFileToMap,
@@ -22,6 +22,7 @@ import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
+import { agedCorpse } from '../tactical/rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -119,10 +120,6 @@ export function sectorKey(s: SectorKeyed): string {
   return `${s.x},${s.y},${s.z}`;
 }
 
-export const ROTTING_STAGE2 = 44;
-const LAST_FRESH_MERC_CORPSE = 24;
-const DELAY_UNTIL_ROTTING_MINUTES = 1440;
-const DELAY_UNTIL_DONE_ROTTING_MINUTES = 3 * 1440;
 const INDOOR_CORPSE_MAX_AGE_MINUTES = 30;
 const CIVILIAN_HEAL_MINUTES_PER_POINT = 15;
 
@@ -275,15 +272,6 @@ export interface CorpseAging {
   readonly nowMinute: number;
   readonly inTown: boolean;
   readonly loadingSave: boolean;
-}
-
-export function agedCorpse(corpse: Corpse, nowMinute: number, loadingSave: boolean): Corpse | null {
-  if (loadingSave) return corpse;
-  const age = u32(nowMinute - corpse.timeOfDeath);
-  if (age > DELAY_UNTIL_DONE_ROTTING_MINUTES) return null;
-  if (age > DELAY_UNTIL_ROTTING_MINUTES && corpse.type < ROTTING_STAGE2 && corpse.type <= LAST_FRESH_MERC_CORPSE)
-    return { ...corpse, type: ROTTING_STAGE2 };
-  return corpse;
 }
 
 export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], aging: CorpseAging): void {

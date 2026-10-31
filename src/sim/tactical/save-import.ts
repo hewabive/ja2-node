@@ -194,6 +194,7 @@ function savedCorpse(c: SavedCorpse): Corpse {
     profile: c.profile,
     type: c.type,
     timeOfDeath: c.timeOfDeath,
+    headTaken: c.headTaken,
     ...corpsePlacement(c.flags),
     palettes: [c.palettes.head, c.palettes.skin, c.palettes.vest, c.palettes.pants],
     ...(c.flags & RottingCorpseFlags.USE_CAMO_PALETTE ? { camo: true } : {}),

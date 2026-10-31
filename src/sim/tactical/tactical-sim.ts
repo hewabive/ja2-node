@@ -874,8 +874,8 @@ export class TacticalSim {
     if (spread && mode !== WeaponMode.BURST) return { error: 'a spread needs the burst mode', token: 'noBurst' };
     if (thrown && def.cursor === ItemCursor.TOSS && aimTime !== 0) return { error: 'throws cannot be aimed', token: 'throwNoAim' };
     const victim = whoIsThere(t, target, level);
-    if (melee && (!victim || level !== s.level))
-      return { error: 'a melee attack needs a soldier on the target tile at the same level', token: 'needMeleeTarget' };
+    if (melee && (level !== s.level || (!victim && def.itemClass !== ItemClass.BLADE)))
+      return { error: 'a punch needs a soldier on the target tile, and a melee attack the same level', token: 'needMeleeTarget' };
     const part = AIM_PARTS[String(cmd.bodyPart ?? 'random')];
     if (part === undefined) return { error: 'bodyPart must be head, torso, legs or random', token: 'badBodyPart' };
     s.aimTime = aimTime;

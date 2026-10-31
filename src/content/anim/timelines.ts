@@ -44,7 +44,7 @@ const EMPTY_CODE = 0;
 const END_OF_ANIMATION = 499;
 const FIRST_SOUND_RANGE_CODE = 700;
 const LAST_SOUND_RANGE_CODE = 799;
-const SIMULATION_OPCODES_IN_SOUND_RANGE: ReadonlySet<number> = new Set([721, 722, 753, 755, 757, 761, 765, 768, 772]);
+const SIMULATION_OPCODES_IN_SOUND_RANGE: ReadonlySet<number> = new Set([721, 722, 752, 753, 755, 757, 761, 765, 768, 772]);
 const SLOTS = MAX_ANIMATIONS * MAX_FRAMES_PER_ANIM;
 
 export function isSoundRangeCode(code: number): boolean {

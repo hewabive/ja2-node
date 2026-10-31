@@ -57,6 +57,7 @@ function droppedCorpse(at: number, extra: Partial<Corpse> = {}): Corpse {
     profile: 200,
     type: SMERC_FWD,
     timeOfDeath: 0,
+    headTaken: false,
     findSweetSpot: true,
     ...extra,
   };

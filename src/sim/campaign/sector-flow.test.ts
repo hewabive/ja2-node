@@ -28,12 +28,13 @@ import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
+import { ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { bloodViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
-import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
+import { sectorKey } from './sector-diff.ts';
 import { UnloadCode } from './sector-flow.ts';
 
 let kit: CampaignKit;
@@ -166,8 +167,8 @@ describe('leaving a sector', () => {
     if (!t) throw new Error('no sector');
     const dropped = t.worldItems.map((wi) => [wi.gridNo, wi.object.item]);
     t.corpses.push(
-      { gridNo: merc.gridNo + 3, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0 },
-      { gridNo: merc.gridNo + 5, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0 },
+      { gridNo: merc.gridNo + 3, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false },
+      { gridNo: merc.gridNo + 5, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false },
     );
     const revealed = Uint8Array.from(t.fog.revealed);
     walkSquadToEastEdge(campaign);

@@ -325,6 +325,12 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(kept?.findSweetSpot).toBeUndefined();
   });
 
+  it('keeps whether a saved corpse lost its head (fHeadTaken)', () => {
+    const at = gridNo(80, 84);
+    const sim = importedSim(syntheticSave({ corpses: [{ ...savedCorpse(at, 0), headTaken: true }, savedCorpse(at + 2, 0)] }));
+    expect(sim.state.corpses.map((c) => c.headTaken)).toEqual([true, false]);
+  });
+
   it('puts a soldier saved mid-step at the centre of his saved tile, as setting his position on load does (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {
     const at = gridNo(80, 82);
     const centre = cellCentre(at);

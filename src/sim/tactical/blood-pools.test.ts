@@ -119,6 +119,7 @@ function corpseAt(sim: TacticalSim, g: number): void {
     profile: NO_PROFILE,
     type,
     timeOfDeath: 0,
+    headTaken: false,
   });
   addCorpseStructure(t, g, 0, type, Direction.NORTH);
 }

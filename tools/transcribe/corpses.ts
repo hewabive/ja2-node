@@ -29,6 +29,15 @@ function fileList(declaration: string): string[] {
   return files;
 }
 
+function perCorpse(declaration: string, value: (item: string) => number): number[] {
+  const values = arrayItems(corpseSource, declaration).map(value);
+  if (values.length !== corpseNames.length)
+    throw new Error(`${values.length} ${declaration} entries for ${corpseNames.length} corpse types`);
+  return values;
+}
+
+const corpseOrZero = (item: string) => (item === '0' ? 0 : lookup(corpseIndex, item, 'corpse'));
+
 const animationCorpse: Record<number, Record<number, number>> = {};
 for (const m of controlSource.matchAll(/gubAnimSurfaceCorpseID\[(\w+)\]\[(\w+)\]\s*=\s*(\w+);/g)) {
   if (m[1] === 'cnt1') continue;
@@ -47,6 +56,8 @@ const out = {
   noBloodFiles: fileList('zNoBloodCorpseFilenames[NUM_CORPSES]'),
   twoDirectionsFrom8: arrayItems(corpseSource, 'gb2DirectionsFrom8[8]').map(Number),
   fourDirectionsFrom8: arrayItems(corpseSource, 'gb4DirectionsFrom8[8]').map(Number),
+  validForDecapitation: perCorpse('gbCorpseValidForDecapitation[NUM_CORPSES]', Number),
+  decapitated: perCorpse('gDecapitatedCorpse[NUM_CORPSES]', corpseOrZero),
   animationCorpse,
 };
 const target = join(REPO_ROOT, 'data/tables/corpses.json');

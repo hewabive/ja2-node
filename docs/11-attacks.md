@@ -42,7 +42,7 @@ order: handleItem — checks, APs checked only, the psycho's burst roll         
 | `combat/chance.ts` | `CalcChanceToHitGun` and its AI variant, `GunRange`, the barrel extender, `SoldierDifficultyLevel` |
 | `combat/positions.ts` | Soldier and target heights, body-part line of sight over `perception/los.ts` (`08`) |
 | `combat/bullets.ts` | Bullets: firing, the miss deviation, flight, structures, windows, locks, misses, missile trails; the chance to get through |
-| `combat/melee.ts`, `combat/melee-reach.ts` | Melee orders and begin events, the martial arts strikes (`DoNinjaAttack`), `CalcChanceHTH`, `UseBlade`, `UseHandToHand`, `HTHImpact`, the queen's swipe; the adjacent-tile searches |
+| `combat/melee.ts`, `combat/melee-reach.ts` | Melee orders and begin events, the martial arts strikes (`DoNinjaAttack`), a knife at a corpse (`DECAPITATE`), `CalcChanceHTH`, `UseBlade`, `UseHandToHand`, `HTHImpact`, the queen's swipe; the adjacent-tile searches |
 | `combat/spread-burst.ts`, `combat/skill-check.ts` | Spread-burst locations; `SkillCheck` (unjamming) |
 | `game-events.ts` | The event pump: fire, direction and the delayed melee hit |
 | `explosions/throwing.ts` | `UseThrown`, `UseLauncher`, the thrown chance to hit, `WillExplosiveWeaponFail` (`34`) |
@@ -114,6 +114,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A barrel extender falls off only when its status less two `Random(35)` lands in 0–9: the original subtracts unsigned, so a larger roll wraps and it holds | `combat.test.ts` |
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A martial arts strike turns an unaware target without stopping him or cancelling his AI action, where a plain punch does both | `melee.test.ts` |
+| Cutting off a head costs only the kneel: `DECAPITATE` has no fire code, and a blade pays its APs only when it strikes (`UseBlade`) | `melee.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
 | A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |

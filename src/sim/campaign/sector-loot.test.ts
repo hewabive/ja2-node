@@ -6,9 +6,10 @@ import { SectorFlag } from '../strategic/forces/constants.ts';
 import { getSectorFlagStatus } from '../strategic/map/sectors.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { agedCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { createSoldier, Team } from '../tactical/soldier.ts';
 import { Visibility, WorldItemFlags } from '../tactical/world-items.ts';
-import { agedCorpse, ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
+import { sectorKey } from './sector-diff.ts';
 import {
   addCorpsesToBloodcatLair,
   addDeadSoldierToUnloadedSector,
