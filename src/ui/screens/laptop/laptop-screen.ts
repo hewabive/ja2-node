@@ -496,7 +496,6 @@ export class LaptopScreen implements Screen {
   }
 
   #escape(): void {
-    if (this.#page?.page.escape?.()) return;
     if (this.#newMailBox) this.#newMailBox = false;
     else if (this.#page?.page.cancelPopup?.()) return;
     else if (this.shell.escape()) return;

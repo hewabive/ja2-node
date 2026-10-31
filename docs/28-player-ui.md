@@ -302,7 +302,8 @@ the stub art (§9).
   fonts by macro, text colours as palette indices with the shadow always explicit; text from string keys, bindings,
   EDT fields, formats and money; regions with priority, cursor, tooltip and actions per mouse event; text fields and
   the original's user fields (`AddUserInputField`: Tab stops on them, an action hears the focus come and go) in one Tab
-  order by document order; hotkeys with key, phase, modifiers, condition and the text field they give the focus to.
+  order by document order; hotkeys with key, phase, modifiers and condition that call an action, give a field the focus,
+  or both.
 - **Order**: draw order is document order; input goes by priority, then the later widget (newest first, as the
   original's regions).
 

@@ -167,8 +167,10 @@ export class LayoutView {
     if (event.kind === 'text') return false;
     const hotkey = findHotkey((this.model.json.hotkeys ?? []) as readonly Hotkey[], event, (when) => this.condition(when, {}));
     if (!hotkey) return false;
-    const action = parseAction(hotkey.action);
-    this.controller.invoke(action.name, hotkey.args ?? action.args);
+    if (hotkey.action !== undefined) {
+      const action = parseAction(hotkey.action);
+      this.controller.invoke(action.name, hotkey.args ?? action.args);
+    }
     if (hotkey.focus !== undefined) this.#fields?.setActive(hotkey.focus);
     return true;
   }

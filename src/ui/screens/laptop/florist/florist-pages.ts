@@ -10,7 +10,8 @@
 // @src CleanOutControlCodesFromString), BtnFlowerOrderSendButtonCallback (orderFlowers, InitFloristOrderForm, the home page),
 // @src BtnFlowerOrderClearButtonCallback, BtnFlowerOrderBackButtonCallback, BtnFlowerOrderGalleryButtonCallback (the gallery
 // @src from its first page), SelectFloristCardGalleryLinkRegionCallBack, SelectFloristGalleryLinkRegionCallBack,
-// @src SelectFloristDropDownRegionCallBack, HandleFloristOrderKeyBoardInput (Esc never reaches the laptop from the form);
+// @src SelectFloristDropDownRegionCallBack, HandleFloristOrderKeyBoardInput (Esc and Enter only give the focus to the
+// @src leading user field, so neither reaches the laptop from the form: the layout's hotkeys);
 // @src src/game/Laptop/Florist_Cards.cc EnterFloristCards, RenderFloristCards,
 // @src SelectFloristCardsRegionCallBack, BtnFlowerCardsBackButtonCallback.
 
@@ -323,7 +324,6 @@ export function floristOrderPage(context: LaptopContext): LaptopPage {
   return {
     layouts: [floristChrome(context, false), { name: FLORIST_ORDER_LAYOUT, controller }],
     update: refresh,
-    escape: () => true,
   };
 }
 

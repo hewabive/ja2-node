@@ -196,5 +196,5 @@ Inferred or observed in ja2-node only:
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
 cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
 "Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat preview", "Shop screen details",
-"Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "Florist order focus", "I.M.P.
-voice samples", "I.M.P. skill page and saved profiles".
+"Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "I.M.P. voice samples", "I.M.P.
+skill page and saved profiles".

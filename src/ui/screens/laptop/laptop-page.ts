@@ -31,7 +31,6 @@ export interface LaptopPage {
   renderOverlay?(list: DrawList, redraw: (list: DrawList) => void): void;
   cancelPopup?(): boolean;
   closeView?(): boolean;
-  escape?(): boolean;
   blocksNewMail?(): boolean;
 }
 

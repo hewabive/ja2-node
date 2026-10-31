@@ -7,7 +7,7 @@ export interface Hotkey {
   readonly key: string;
   readonly on?: HotkeyPhase | readonly HotkeyPhase[];
   readonly mods?: number | typeof ANY_MODIFIERS;
-  readonly action: string;
+  readonly action?: string;
   readonly args?: readonly number[];
   readonly when?: string;
   readonly focus?: string;
@@ -44,7 +44,8 @@ export function validateHotkey(value: unknown, where: string): Hotkey {
   if (typeof value !== 'object' || value === null) throw new Error(`${where}: a hotkey is an object`);
   const h = value as Record<string, unknown>;
   if (typeof h.key !== 'string' || h.key.length === 0) throw new Error(`${where}: a hotkey needs a key`);
-  if (typeof h.action !== 'string' || h.action.length === 0) throw new Error(`${where}: a hotkey needs an action`);
+  if (h.action !== undefined && (typeof h.action !== 'string' || h.action.length === 0)) throw new Error(`${where}: an action is a name`);
+  if (h.action === undefined && h.focus === undefined) throw new Error(`${where}: a hotkey needs an action or a focus`);
   const on = h.on === undefined ? [] : Array.isArray(h.on) ? h.on : [h.on];
   for (const phase of on)
     if (phase !== 'down' && phase !== 'up' && phase !== 'repeat') throw new Error(`${where}: bad phase ${String(phase)}`);

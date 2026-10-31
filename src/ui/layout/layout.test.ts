@@ -43,6 +43,12 @@ describe('constants and the schema', () => {
       validateLayout({ screen: 'x', frame: 'screen', widgets: [{ type: 'fill', x: 'A+1', width: 3, height: 4, color: '#102030' }] }).screen,
     ).toBe('x');
   });
+
+  it('take a hotkey that only gives a field the focus, and reject one that neither acts nor focuses', () => {
+    const focusOnly = { key: 'Escape', on: 'down', focus: 'field' };
+    expect(validateLayout({ screen: 'x', frame: 'std640', hotkeys: [focusOnly] }).hotkeys).toEqual([focusOnly]);
+    expect(() => validateLayout({ screen: 'x', frame: 'std640', hotkeys: [{ key: 'Escape' }] })).toThrow(/an action or a focus/);
+  });
 });
 
 describe('the gallery layout', () => {

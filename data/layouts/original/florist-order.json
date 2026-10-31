@@ -1,7 +1,7 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the pictures, floristbuttons.sti 0/1 for Back, Send, Clear and Gallery, the six check box regions FLOWER_ORDER_CHECK_WIDTH x FLOWER_ORDER_CHECK_HEIGHT, the card gallery link sized by the text widths, the flower box link, the delivery box region and the region over the web area at MSYS_PRIORITY_HIGH + 2 that closes the list), RenderFloristOrderForm (every label in FLOWER_ORDER_STATIC_TEXT_COLOR, the check box texts at +FLOWER_ORDER_CHECK_WIDTH + 3, +2), DisplayFloristCheckBox (ordercheckbox.sti 0 up, 1 down), DisplayFlowerDynamicItems (the order number and the price after their labels + 5), FlowerOrderDisplayShippingLocationCity (the black box and the name at +5, +5), CreateDestroyFlowerOrderDestDropDown (the black list with the tactpopup.sti border every 10 pixels, the rows of names, the row regions at MSYS_PRIORITY_HIGH + 3), FlowerOrderDrawSelectedCity (the hovered row white with the name in colour 2 without shadow), InitFlowerOrderTextInputBoxes (FONT12ARIAL, white fields, regular colours 2 and FONT_WHITE, hilited FONT_WHITE, 2 and 141, the bevel and the black caret; 75 and 35 characters)",
+    "src/game/Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the pictures, floristbuttons.sti 0/1 for Back, Send, Clear and Gallery, the six check box regions FLOWER_ORDER_CHECK_WIDTH x FLOWER_ORDER_CHECK_HEIGHT, the card gallery link sized by the text widths, the flower box link, the delivery box region and the region over the web area at MSYS_PRIORITY_HIGH + 2 that closes the list), RenderFloristOrderForm (every label in FLOWER_ORDER_STATIC_TEXT_COLOR, the check box texts at +FLOWER_ORDER_CHECK_WIDTH + 3, +2), DisplayFloristCheckBox (ordercheckbox.sti 0 up, 1 down), DisplayFlowerDynamicItems (the order number and the price after their labels + 5), FlowerOrderDisplayShippingLocationCity (the black box and the name at +5, +5), CreateDestroyFlowerOrderDestDropDown (the black list with the tactpopup.sti border every 10 pixels, the rows of names, the row regions at MSYS_PRIORITY_HIGH + 3), FlowerOrderDrawSelectedCity (the hovered row white with the name in colour 2 without shadow), InitFlowerOrderTextInputBoxes (a user field first, so no field is edited on entry; FONT12ARIAL, white fields, regular colours 2 and FONT_WHITE, hilited FONT_WHITE, 2 and 141, the bevel and the black caret; 75 and 35 characters), HandleFloristOrderKeyBoardInput and GetInputText (Esc and Enter, down with any modifiers, give the focus to the user field)",
     "floristbuttons.sti, flower_N.sti, ordercheckbox.sti, the boxes: the stub sizes are chosen or follow the box constants (the art defines them)"
   ],
   "screen": "floristOrder",
@@ -628,6 +628,10 @@
       "primary": "openList"
     },
     {
+      "type": "userField",
+      "id": "floristNoField"
+    },
+    {
       "type": "textField",
       "id": "floristSentiment",
       "x": "FLOWER_ORDER_PERSONAL_SENT_BOX_X",
@@ -944,5 +948,9 @@
         }
       ]
     }
+  ],
+  "hotkeys": [
+    { "key": "Escape", "on": "down", "mods": "any", "focus": "floristNoField" },
+    { "key": "Enter", "on": "down", "mods": "any", "focus": "floristNoField" }
   ]
 }

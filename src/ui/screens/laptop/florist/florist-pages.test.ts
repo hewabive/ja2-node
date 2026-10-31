@@ -6,6 +6,8 @@ import {
   laptopUiKit,
   openLaptopHarness,
   openWebPage,
+  pressKey,
+  settleLaptop,
   shownWidget,
 } from '../../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
@@ -111,6 +113,40 @@ describe('the florist pages', () => {
     expect(checkFrames(h.t)).toEqual([0, 1]);
   });
 });
+
+describe('the florist order form focus', () => {
+  it('starts with no field edited, Tab edits the sentiment, and Esc or Enter take the focus off the fields', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    await openWebPage(h, Bookmark.FLORIST);
+    await clickWidget(h.t, 'floristGallery');
+    await clickWidget(h.t, 'floristFlower0');
+    expect(focus(h.t)).toEqual({ floristNoField: 'active', floristSentiment: 'inactive', floristName: 'inactive' });
+    await type(h.t, 'x');
+    expect(shownWidget(h.t, 'floristSentiment').text).toBe('');
+    await pressKey(h.t, 'Tab');
+    await type(h.t, 'Hi');
+    expect(focus(h.t)).toMatchObject({ floristNoField: 'inactive', floristSentiment: 'editing' });
+    await pressKey(h.t, 'Escape');
+    expect(focus(h.t)).toEqual({ floristNoField: 'active', floristSentiment: 'inactive', floristName: 'inactive' });
+    expect(h.screen.shell.mode).toBe(LaptopMode.FLORIST_ORDERFORM);
+    await pressKey(h.t, 'Tab');
+    await pressKey(h.t, 'Tab');
+    expect(focus(h.t)).toMatchObject({ floristName: 'editing' });
+    await pressKey(h.t, 'Enter');
+    expect(focus(h.t)).toEqual({ floristNoField: 'active', floristSentiment: 'inactive', floristName: 'inactive' });
+    expect(shownWidget(h.t, 'floristSentiment').text).toBe('Hi');
+  });
+});
+
+function focus(t: TestRuntime): Record<string, unknown> {
+  const fields = t.runtime.describe().filter((w) => w.kind === 'textField' || w.kind === 'userField');
+  return Object.fromEntries(fields.map((w) => [w.id, w.state]));
+}
+
+async function type(t: TestRuntime, text: string): Promise<void> {
+  t.runtime.input({ kind: 'text', text });
+  await settleLaptop(t);
+}
 
 function drawsText(t: TestRuntime, text: string): boolean {
   const expected = glyphRun(t.fonts.get(FontName.FONT12ARIAL), text, 0, 0)

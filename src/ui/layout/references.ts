@@ -225,7 +225,7 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
   };
   for (const json of model.json.widgets ?? []) widget(json, {});
   for (const hotkey of model.json.hotkeys ?? []) {
-    action(hotkey.action, `hotkey ${hotkey.key}`);
+    if (hotkey.action !== undefined) action(hotkey.action, `hotkey ${hotkey.key}`);
     if (hotkey.when) binding(hotkey.when);
   }
   const visit = (value: unknown) => {
