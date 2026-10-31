@@ -75,12 +75,16 @@ export function findGridNoFromSweetSpotThroughPeople(t: TacticalState, s: Soldie
   return lowestRanked(reachable, (g) => (freeFor(t, s, g) ? rangeInCellCoords(sweet, g) : null));
 }
 
-function structureFitsSomeDirection(t: TacticalState, s: Soldier, animState: number, g: number): boolean {
+function firstFittingDirection(t: TacticalState, s: Soldier, animState: number, g: number): number | null {
   for (let direction = 0; direction < DIRECTION_COUNT; direction++) {
     const def = animStructureDef(t, s, animState, direction);
-    if (!def || t.world.structures.okayToAdd(g, s.level, def, s.id)) return true;
+    if (!def || t.world.structures.okayToAdd(g, s.level, def, s.id)) return direction;
   }
-  return false;
+  return null;
+}
+
+function structureFitsSomeDirection(t: TacticalState, s: Soldier, animState: number, g: number): boolean {
+  return firstFittingDirection(t, s, animState, g) !== null;
 }
 
 function pathLength(t: TacticalState, s: Soldier, g: number): number {
@@ -93,6 +97,31 @@ export interface StructDataSearch {
   readonly circular?: boolean;
 }
 
+export interface SweetSpot {
+  readonly gridNo: number;
+  readonly direction: number;
+}
+
+export function findSweetSpotWithStructData(
+  t: TacticalState,
+  s: Soldier,
+  sweet: number,
+  radius: number,
+  search: StructDataSearch,
+): SweetSpot | null {
+  if (s.gridNo === sweet && !isVehicle(s)) return { gridNo: sweet, direction: s.direction };
+  const flood = { flags: SWEET_SPOT_FLOOD_FLAGS, circular: search.circular ?? false };
+  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, flood);
+  const gridNo = lowestRanked(reachable, (g) => {
+    if (!freeFor(t, s, g) || !structureFitsSomeDirection(t, s, search.animState, g)) return null;
+    if (!search.closestToMerc) return rangeInCellCoords(sweet, g);
+    const steps = pathLength(t, s, g);
+    return steps === 0 ? null : steps;
+  });
+  const direction = gridNo === NOWHERE ? null : firstFittingDirection(t, s, search.animState, gridNo);
+  return direction === null ? null : { gridNo, direction };
+}
+
 export function findGridNoFromSweetSpotWithStructData(
   t: TacticalState,
   s: Soldier,
@@ -100,15 +129,7 @@ export function findGridNoFromSweetSpotWithStructData(
   radius: number,
   search: StructDataSearch,
 ): number {
-  if (s.gridNo === sweet && !isVehicle(s)) return sweet;
-  const flood = { flags: SWEET_SPOT_FLOOD_FLAGS, circular: search.circular ?? false };
-  const reachable = reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, flood);
-  return lowestRanked(reachable, (g) => {
-    if (!freeFor(t, s, g) || !structureFitsSomeDirection(t, s, search.animState, g)) return null;
-    if (!search.closestToMerc) return rangeInCellCoords(sweet, g);
-    const steps = pathLength(t, s, g);
-    return steps === 0 ? null : steps;
-  });
+  return findSweetSpotWithStructData(t, s, sweet, radius, search)?.gridNo ?? NOWHERE;
 }
 
 export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier, radius: number): number {

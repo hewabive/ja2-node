@@ -125,6 +125,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The defence placement's first pass looks at every other node (Stracciatella); the init-list sort reverses each class | `strategic/ai/queen-command.test.ts` |
 | One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
 | A bloodcat lair's corpses carry profile 0 from their zeroed definition, and in the first two days of a campaign their unsigned time of death wraps, still two days back for the rot | `campaign/sector-loot.test.ts` |
+| An arriving creature faces the first direction its body fits on the tile it found (north on open ground), whatever its insertion direction, a forced one too: the facing a creature attack sets per edge is never used | `tactical/insertion.test.ts` |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a
@@ -134,8 +135,8 @@ Not pinned yet:
 - `AllMercsWalkedToExitGrid` passes the target sector to the retreat loyalty check, after the group already stands
   there.
 - A vehicle's riders always take the travel insertion code; walkers keep an edge-index code.
-- People face the map centre on entry: the insertion direction set on arrival is ignored, only a forced one (100 and
-  up) counts (`addSoldierToSector`).
+- Soldiers other than creatures face the map centre on entry: the insertion direction set on arrival is ignored, only a
+  forced one (100 and up) counts (`addSoldierToSector`).
 - A preserved enemy file is checked against the stationary counts only, so any underground file mismatches; each saved
   soldier starts on his current tile or his placement's by `PreRandom(2)`; restored civilians prune the init list by
   the last record's team.
@@ -165,8 +166,7 @@ the source:
   ETAs with encumbrance unless every member is in the loaded sector.
 
 Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
-"Helicopter on the map", "Creature quest scripting", "Corpses", "Savegame import",
-"Creature insertion spot". Other
+"Helicopter on the map", "Creature quest scripting", "Corpses", "Savegame import". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
 enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
 import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".

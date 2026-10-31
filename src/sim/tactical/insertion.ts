@@ -20,7 +20,7 @@ import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
 import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
-import { findGridNoFromSweetSpot } from './sweet-spots.ts';
+import { findGridNoFromSweetSpot, findSweetSpotWithStructData, type SweetSpot } from './sweet-spots.ts';
 import { checkForPotentialAddToBattleIncrement, setEnemyPresence } from './turns/turns.ts';
 
 export const Insertion = {
@@ -166,6 +166,32 @@ export interface PlacementAnimation {
   readonly code: number;
 }
 
+function creatureSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
+  const standing = states(t.content.animations).STANDING;
+  const spot = findSweetSpotWithStructData(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS, { animState: standing, closestToMerc: false });
+  if (!spot) return null;
+  return calculateDirection ? spot : { gridNo: spot.gridNo, direction: order.direction };
+}
+
+function soldierSpot(t: TacticalState, s: Soldier, order: InsertionOrder, calculateDirection: boolean): SweetSpot | null {
+  let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
+  if (gridNo === NOWHERE) gridNo = s.insertionGridNo;
+  if (!isVisibleTile(gridNo)) return null;
+  let calculate = calculateDirection;
+  if (order.direction >= FORCED_DIRECTION) {
+    order.direction -= FORCED_DIRECTION;
+    calculate = false;
+  }
+  if (!calculate) return { gridNo, direction: order.direction };
+  let direction = directionFromTo(gridNo, CENTER_GRIDNO);
+  if (s.useExitGridForReentryDirection) {
+    s.useExitGridForReentryDirection = false;
+    const exit = findClosestExitGrid(t, gridNo, EXIT_GRID_SEARCH_RADIUS);
+    if (exit !== NOWHERE) direction = directionFromTo(exit, gridNo);
+  }
+  return { gridNo, direction };
+}
+
 export function addSoldierToSector(
   t: TacticalState,
   s: Soldier,
@@ -177,25 +203,10 @@ export function addSoldierToSector(
   keepElliotAliveInMeanwhile(t, s);
   s.actionPoints = calcActionPoints(s, boxingHalvesPoints(t));
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
-  let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
-  if (gridNo === NOWHERE) gridNo = s.insertionGridNo;
-  if (!isVisibleTile(gridNo)) return false;
-  let calculate = calculateDirection;
-  if (order.direction >= FORCED_DIRECTION) {
-    order.direction -= FORCED_DIRECTION;
-    calculate = false;
-  }
-  let direction = order.direction;
-  if (calculate) {
-    direction = directionFromTo(gridNo, CENTER_GRIDNO);
-    if (s.useExitGridForReentryDirection) {
-      s.useExitGridForReentryDirection = false;
-      const exit = findClosestExitGrid(t, gridNo, EXIT_GRID_SEARCH_RADIUS);
-      if (exit !== NOWHERE) direction = directionFromTo(exit, gridNo);
-    }
-  }
-  if (direction >= FORCED_DIRECTION) direction -= FORCED_DIRECTION;
-  addSoldierToSectorGridNo(t, s, gridNo, direction, order.code, ctx, animation);
+  const spot = s.team === Team.CREATURE ? creatureSpot(t, s, order, calculateDirection) : soldierSpot(t, s, order, calculateDirection);
+  if (!spot || !isVisibleTile(spot.gridNo)) return false;
+  const direction = spot.direction >= FORCED_DIRECTION ? spot.direction - FORCED_DIRECTION : spot.direction;
+  addSoldierToSectorGridNo(t, s, spot.gridNo, direction, order.code, ctx, animation);
   checkForPotentialAddToBattleIncrement(t, s);
   return true;
 }
