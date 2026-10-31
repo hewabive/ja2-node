@@ -1,3 +1,4 @@
+import { RestrictedScroll } from '../../src/content/world/render-bounds.ts';
 import { PreRandom, Rng } from '../../src/core/rng.ts';
 import { createItem, createItems } from '../../src/sim/items/object.ts';
 import type { MilitiaCounts } from '../../src/sim/strategic/forces/autoresolve/close.ts';
@@ -126,7 +127,7 @@ export function arEnv(content: TacticalContent, o: EnvOptions = {}): Autoresolve
     content,
     profiles: o.profiles ?? new Map(),
     rng: { pre: o.pre ?? base.pre, main: o.main ?? base.main, fx: o.fx ?? base.fx },
-    world: { day: 1, playerCapturedForRescue: false, ...o.world },
+    world: { day: 1, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE, ...o.world },
     hooks: o.hooks ?? {},
   };
 }

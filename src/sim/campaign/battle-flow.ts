@@ -103,6 +103,7 @@ import {
 } from './autoresolve-strategic.ts';
 import { hourlyCamouflageUpdate } from './camouflage.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { lastMapRestrictedScroll } from './flow-state.ts';
 import {
   beginCaptureSequence,
   CaptureFlag,
@@ -486,7 +487,11 @@ export class BattleFlow implements FateContext {
       content: this.content,
       profiles: s.profiles,
       rng: session.rng ?? { pre: s.pre, main: s.rng, fx: s.cosmetic.autoresolve },
-      world: { day: worldDay(s.clock), playerCapturedForRescue: (s.status.flags & CaptureFlag.FOR_RESCUE) !== 0 },
+      world: {
+        day: worldDay(s.clock),
+        playerCapturedForRescue: (s.status.flags & CaptureFlag.FOR_RESCUE) !== 0,
+        lastMapRestrictedScroll: lastMapRestrictedScroll(s, this.campaign.tactical?.state ?? null),
+      },
       hooks: {
         surrender: () => null,
         beginCaptureSequence: () => beginCaptureSequence(this),

@@ -5,10 +5,12 @@ import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { RestrictedScroll } from '../../../content/world/render-bounds.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { factValue } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -23,6 +25,7 @@ import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
 import { ProfileMiscFlag3 } from '../profiles.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
+import { sectorKey } from '../sector-diff.ts';
 import { RenewalQuoteCode } from './contract-state.ts';
 import {
   checkIfMercGetsAnotherContract,
@@ -36,6 +39,7 @@ import {
   calculateMedicalDepositRefund,
   departureOptions,
   handleEquipmentLeft,
+  handleLeavingOfEquipmentInCurrentSector,
   handleMercLeavingEquipment,
   PRIMARY_AIRPORT_LEAVE_EQUIP_GRIDNO,
   primaryAirportSector,
@@ -303,6 +307,21 @@ describe('leaving the team', () => {
     if (airport) airport.enemyControlled = false;
     expect(departureOptions(cc.flow, merc(cc, 0), true)).toEqual({ choices: ['here', 'elsewhere', 'rehire'], elsewhere: 28 });
     expect(departureOptions(cc.flow, merc(cc, 1), true)).toEqual({ choices: ['here'], elsewhere: null });
+  });
+
+  it('leaves the gear in an unloaded sector at a random tile of the visible area of the map loaded last, a basement too', () => {
+    const tilesOutsideTheBasementThenInside = [60, 60, 80, 80];
+    const dropTile = (restrictedScroll: number) => {
+      const cc = landed([{ profile: STUB.kestrel }]);
+      const m = merc(cc, 0);
+      m.insertionCode = InsertionCode.CENTER;
+      cc.campaign.state.sectorFlow.trashedMapRestrictedScroll = restrictedScroll;
+      scripted(cc, tilesOutsideTheBasementThenInside);
+      handleLeavingOfEquipmentInCurrentSector(cc.flow, m, null);
+      return cc.campaign.state.sectorDiffs.get(sectorKey(m.sector))?.items?.find((i) => i.exists)?.gridNo;
+    };
+    expect(dropTile(RestrictedScroll.NONE)).toBe(60 * 160 + 60);
+    expect(dropTile(RestrictedScroll.BASEMENT)).toBe(80 * 160 + 80);
   });
 
   it('sends the gear to a leave slot, zeroes the profile kit and delivers six hours later', () => {

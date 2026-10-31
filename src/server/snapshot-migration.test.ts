@@ -475,3 +475,37 @@ describe('snapshot version 14 (no item looking state) migrates with nobody looki
     await expectNobodyLooking(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+function versionFifteen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { trashedMapRestrictedScroll, ...sectorFlow } = object(strategic.sectorFlow);
+    expect(trashedMapRestrictedScroll).toBe(0);
+    return [name, { ...strategic, sectorFlow }];
+  });
+  return { ...snapshot, version: 15, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 15 (no trashed map) migrates with the full map as the one trashed last', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionFifteen(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"trashedMapRestrictedScroll"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

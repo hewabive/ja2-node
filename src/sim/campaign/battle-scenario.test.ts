@@ -5,6 +5,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
+import { gridNoOnVisibleWorldTile, RestrictedScroll } from '../../content/world/render-bounds.ts';
 import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
@@ -51,6 +52,25 @@ function sendEnemyGroup(c: CampaignSim): number {
   g.arrivalTime = worldTotalMinutes(c.state.clock) + ARRIVAL_MINUTES;
   addStrategicEvent(c.state.queue, EventKind.GROUP_ARRIVAL, g.arrivalTime, g.id);
   return g.id;
+}
+
+const DRASSEN = { x: 13, y: 4, z: 0 };
+
+function sendEnemiesAgainstMilitiaOnly(c: CampaignSim): void {
+  const info = sectorInfo(c.state.map, DRASSEN);
+  info.numAdmins = 0;
+  info.numTroops = 0;
+  info.numElites = 0;
+  info.militia.splice(0, 3, 2, 1, 0);
+  const element = c.state.map.elements[DRASSEN.x + DRASSEN.y * 18];
+  if (element) element.enemyControlled = false;
+  const ctx = c.strategic;
+  if (!ctx) throw new Error('no strategic layer');
+  const g = createNewEnemyGroupDepartingFromSector(ctx, sectorId({ x: 12, y: 4 }), 0, 3, 0);
+  g.next = { ...DRASSEN };
+  g.betweenSectors = true;
+  g.arrivalTime = worldTotalMinutes(c.state.clock) + ARRIVAL_MINUTES;
+  addStrategicEvent(c.state.queue, EventKind.GROUP_ARRIVAL, g.arrivalTime, g.id);
 }
 
 function landedTown(seed: number, militiaRanks: readonly number[] = MILITIA, mode?: RunMode): { c: CampaignSim; events: SimEvent[] } {
@@ -308,21 +328,7 @@ describe('autoresolve from the strategic state', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
     landFirstSquad(c);
     advance(c, { idle: true }, 20_000);
-    const drassen = { x: 13, y: 4, z: 0 };
-    const info = sectorInfo(c.state.map, drassen);
-    info.numAdmins = 0;
-    info.numTroops = 0;
-    info.numElites = 0;
-    info.militia.splice(0, 3, 2, 1, 0);
-    const element = c.state.map.elements[drassen.x + drassen.y * 18];
-    if (element) element.enemyControlled = false;
-    const ctx = c.strategic;
-    if (!ctx) throw new Error('no strategic layer');
-    const g = createNewEnemyGroupDepartingFromSector(ctx, sectorId({ x: 12, y: 4 }), 0, 3, 0);
-    g.next = { ...drassen };
-    g.betweenSectors = true;
-    g.arrivalTime = worldTotalMinutes(c.state.clock) + ARRIVAL_MINUTES;
-    addStrategicEvent(c.state.queue, EventKind.GROUP_ARRIVAL, g.arrivalTime, g.id);
+    sendEnemiesAgainstMilitiaOnly(c);
     const report = advance(c, { ticks: TICKS_TO_ARRIVAL, events: ['arStarted'] });
     expect(report.events.find((e) => e.type === 'preBattle')).toMatchObject({ sector: 'D13', autoStart: true, prompt: null });
     expect(c.state.flow).toBe('autoresolve');
@@ -335,5 +341,24 @@ describe('autoresolve from the strategic state', () => {
     expect(c.state.flow).toBe('strategic');
     expect(c.tactical).not.toBeNull();
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+  });
+
+  it('lays the dead of a battle elsewhere on random tiles of the visible area of the basement loaded meanwhile', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const basement = { ...A10, z: 1 };
+    for (const m of roster.all()) m.sector = { ...basement };
+    expect(c.sectors?.setCurrentWorldSector(basement)).toBe(true);
+    sendEnemiesAgainstMilitiaOnly(c);
+    advance(c, { ticks: TICKS_TO_ARRIVAL, events: ['arStarted'] });
+    expect(c.state.flow).toBe('autoresolve');
+    advance(c, { idle: true });
+    const done = c.state.battle.prompt;
+    expect(c.dispatch({ type: 'answer', prompt: done?.id, choice: 'done' })).toMatchObject({ ok: true });
+    expect(c.tactical?.state.world.map?.info.restrictedScrollId).toBe(RestrictedScroll.BASEMENT);
+    const dead = c.state.sectorDiffs.get(sectorKey(DRASSEN))?.corpses ?? [];
+    expect(dead.length).toBeGreaterThan(1);
+    expect(dead.filter((k) => !gridNoOnVisibleWorldTile(RestrictedScroll.BASEMENT, k.gridNo))).toEqual([]);
   });
 });

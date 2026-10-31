@@ -6,7 +6,8 @@
 // @src the usBattlesFought count of every merc of the battle (2026-10-24).
 
 import { ItemClass } from '../../../../content/items/items.ts';
-import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
+import { WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
+import { gridNoOnVisibleWorldTile } from '../../../../content/world/render-bounds.ts';
 import { idiv, u32, udiv } from '../../../../core/int.ts';
 import { cloneObject, type ItemObject, ObjectFlags } from '../../../items/object.ts';
 import type { RandomStream } from '../../../tactical/combat/context.ts';
@@ -81,12 +82,12 @@ export interface AutoresolveCloseResult {
   readonly playerKills: number;
 }
 
-export function randomGridNo(main: RandomStream): number {
+export function randomGridNo(main: RandomStream, restrictedScroll: number): number {
   for (;;) {
     const x = main.int(WORLD_COLS);
     const y = main.int(WORLD_ROWS);
     const g = y * WORLD_COLS + x;
-    if (isVisibleTile(g)) return g;
+    if (gridNoOnVisibleWorldTile(restrictedScroll, g)) return g;
   }
 }
 
@@ -119,7 +120,7 @@ export function deadSoldierRecord(env: AutoresolveEnv, s: Soldier, gridNo: numbe
 }
 
 function addDeadSoldier(env: AutoresolveEnv, corpses: CorpseRecord[], s: Soldier): void {
-  const gridNo = randomGridNo(env.rng.main);
+  const gridNo = randomGridNo(env.rng.main, env.world.lastMapRestrictedScroll);
   corpses.push(deadSoldierRecord(env, s, gridNo));
 }
 

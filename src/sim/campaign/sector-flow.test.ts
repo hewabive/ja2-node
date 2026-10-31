@@ -14,6 +14,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { assignGameOptions } from '../options.ts';
@@ -31,6 +32,7 @@ import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_
 import { Body, NO_PROFILE, Side, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { bloodViews } from '../tactical/world-view.ts';
+import { lastMapRestrictedScroll } from './flow-state.ts';
 import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
 import { UnloadCode } from './sector-flow.ts';
 
@@ -491,6 +493,30 @@ describe('the time of day in a loaded sector', () => {
       expect(timeOfDayAmbientLevel(t)).toBe(light);
     }
     expect(t.lighting.ambient).toBe(t.world.map?.ambient?.lightLevel);
+  });
+});
+
+describe('the map loaded last', () => {
+  it("keeps a trashed basement's visible area for random tiles in unloaded sectors until the next map loads", () => {
+    const basement = { ...A10, z: 1 };
+    const { campaign, roster } = createTestCampaign(kit, { seed: 15, garrison: NO_GARRISON });
+    const lastMap = () => lastMapRestrictedScroll(campaign.state, campaign.tactical?.state ?? null);
+    const load = (sector: typeof A10) => {
+      for (const m of roster.all()) m.sector = { ...sector };
+      expect(flowOf(campaign).setCurrentWorldSector(sector)).toBe(true);
+    };
+    landFirstSquad(campaign);
+    expect(lastMap()).toBe(RestrictedScroll.NONE);
+    load(basement);
+    expect(lastMap()).toBe(RestrictedScroll.BASEMENT);
+    flowOf(campaign).trashWorld();
+    reloadPoint(campaign);
+    expect(campaign.tactical).toBeNull();
+    expect(lastMap()).toBe(RestrictedScroll.BASEMENT);
+    load(A10);
+    expect(lastMap()).toBe(RestrictedScroll.NONE);
+    flowOf(campaign).trashWorld();
+    expect(lastMap()).toBe(RestrictedScroll.NONE);
   });
 });
 

@@ -460,6 +460,27 @@ function addItemLookingState(snapshot: Readonly<Record<string, unknown>>): Recor
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SECTOR_FLOW_KEY = 'sectorFlow';
+const TRASHED_MAP_RESTRICTED_SCROLL_KEY = 'trashedMapRestrictedScroll';
+const FULL_MAP_RESTRICTED_SCROLL = 0;
+
+function withTrashedMapRestrictedScroll(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return {
+    ...strategic,
+    [SECTOR_FLOW_KEY]: { ...flow, ...withDefault(flow, TRASHED_MAP_RESTRICTED_SCROLL_KEY, FULL_MAP_RESTRICTED_SCROLL) },
+  };
+}
+
+function addTrashedMapRestrictedScroll(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withTrashedMapRestrictedScroll(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -476,5 +497,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     12: addFadeState,
     13: addTeamChangeDuringDeathFlag,
     14: addItemLookingState,
+    15: addTrashedMapRestrictedScroll,
   };
 }

@@ -27,6 +27,7 @@ import {
 } from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
+import { restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { idiv, u16 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
@@ -1242,7 +1243,11 @@ export class SectorFlow {
 
   trashWorld(): void {
     const world = this.world;
-    if (this.campaign.tactical) this.#worldTrashed();
+    const sim = this.campaign.tactical;
+    if (sim) {
+      this.campaign.state.sectorFlow.trashedMapRestrictedScroll = restrictedScrollIdOf(sim.world);
+      this.#worldTrashed();
+    }
     this.campaign.tactical = null;
     for (const m of this.setup.roster.all()) m.soldier.placed = false;
     const s = this.campaign.state;

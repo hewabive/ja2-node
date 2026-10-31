@@ -1,4 +1,5 @@
 import { sectorId } from '../../../src/content/strategic/sector-ids.ts';
+import { RestrictedScroll } from '../../../src/content/world/render-bounds.ts';
 import { PreRandom, Rng } from '../../../src/core/rng.ts';
 import { stubMerc } from '../../../src/server/stub-mercs.ts';
 import { gameOptions } from '../../../src/sim/options.ts';
@@ -121,7 +122,7 @@ function env(content: TacticalContent, b: Battle): AutoresolveEnv {
     content,
     profiles: b.profiles,
     rng: { main, pre: PreRandom.create(main), fx: Rng.fromSeed(b.seed ^ FX_SALT) },
-    world: { day: BATTLE_DAY, playerCapturedForRescue: false },
+    world: { day: BATTLE_DAY, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE },
     hooks: { surrender: () => 'reject' },
   };
 }

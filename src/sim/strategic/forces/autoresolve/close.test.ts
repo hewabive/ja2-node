@@ -11,6 +11,7 @@ import {
   TestMilitia,
 } from '../../../../../tests/support/autoresolve.ts';
 import { loadTestContent } from '../../../../../tests/support/tactical.ts';
+import { RestrictedScroll } from '../../../../content/world/render-bounds.ts';
 import { createItem } from '../../../items/object.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { InvSlot } from '../../../tactical/inventory.ts';
@@ -201,7 +202,14 @@ describe('closeAutoresolve', () => {
   });
 
   it('picks random grid numbers on the visible world diamond', () => {
-    expect(randomGridNo(scripted([0, 0, 80, 80]))).toBe(80 * 160 + 80);
+    expect(randomGridNo(scripted([0, 0, 80, 80]), RestrictedScroll.NONE)).toBe(80 * 160 + 80);
+  });
+
+  it("draws again for a tile outside a basement's smaller visible area while a basement map was loaded last", () => {
+    const outsideTheBasement = [60, 60];
+    const centre = [80, 80];
+    expect(randomGridNo(scripted([...outsideTheBasement, ...centre]), RestrictedScroll.NONE)).toBe(60 * 160 + 60);
+    expect(randomGridNo(scripted([...outsideTheBasement, ...centre]), RestrictedScroll.BASEMENT)).toBe(80 * 160 + 80);
   });
 
   it('keeps a merc who retreated alone in the battle sector after a victory (quirk Q15)', () => {

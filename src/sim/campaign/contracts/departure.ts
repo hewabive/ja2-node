@@ -24,6 +24,7 @@ import { isProfileDead, MercStatus } from '../../tactical/profiles.ts';
 import { NOWHERE, SoldierStatusFlags } from '../../tactical/soldier.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../../tactical/world-items.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
+import { lastMapRestrictedScroll } from '../flow-state.ts';
 import { mercThinksHisMoraleIsTooLow, modifyPlayerReputation, Reputation } from '../relations/reputation.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
@@ -97,17 +98,21 @@ export function handleLeavingOfEquipmentInCurrentSector(ctx: ContractContext, m:
   const world = ctx.state.worldSector;
   const here = tactical !== null && world !== null && world.x === m.sector.x && world.y === m.sector.y && world.z === m.sector.z;
   const main = ctx.rng.main;
+  const restrictedScroll = lastMapRestrictedScroll(ctx.state, tactical?.state ?? null);
   let gridNo: number;
   if (here && tactical) {
     gridNo = m.soldier.gridNo;
     if (gridNo === NOWHERE) {
-      gridNo = randomGridNo(main);
+      gridNo = randomGridNo(main, restrictedScroll);
       let near = findNearestAvailableGridNoForItem(tactical.state, gridNo, ITEM_SEARCH_RADIUS);
       if (near === NOWHERE) near = findNearestAvailableGridNoForItem(tactical.state, gridNo, WIDE_ITEM_SEARCH_RADIUS);
       if (near !== NOWHERE) gridNo = near;
     }
   } else
-    gridNo = m.insertionCode === InsertionCode.GRIDNO && m.soldier.insertionData !== NOWHERE ? m.soldier.insertionData : randomGridNo(main);
+    gridNo =
+      m.insertionCode === InsertionCode.GRIDNO && m.soldier.insertionData !== NOWHERE
+        ? m.soldier.insertionData
+        : randomGridNo(main, restrictedScroll);
   const keys = takeKeyRingObjects(ctx.content, m.soldier);
   for (const o of [...inventoryObjects(m), ...keys]) {
     const flags = keys.includes(o) ? 0 : WorldItemFlags.REACHABLE;

@@ -1,4 +1,5 @@
 import { NOTHING } from '../../src/content/items/items.ts';
+import { RestrictedScroll } from '../../src/content/world/render-bounds.ts';
 import { emptyObject, type ItemObject } from '../../src/sim/items/object.ts';
 import { autoBandageMercs } from '../../src/sim/strategic/forces/autoresolve/bandage.ts';
 import { type AutoresolveClosePort, closeAutoresolve, type MilitiaCounts } from '../../src/sim/strategic/forces/autoresolve/close.ts';
@@ -333,7 +334,11 @@ function replayEnv(
     content,
     profiles: built.profiles,
     rng: cosmeticOnMain({ pre, main, fx: main }),
-    world: { day: num(p.day), playerCapturedForRescue: Boolean(p.playerCapturedForRescue) },
+    world: {
+      day: num(p.day),
+      playerCapturedForRescue: Boolean(p.playerCapturedForRescue),
+      lastMapRestrictedScroll: RestrictedScroll.NONE,
+    },
     hooks: { ...extraHooks, surrender: () => answer, controlsRobot: (s) => s.id === controllerId },
   };
   return { env, pre, main };

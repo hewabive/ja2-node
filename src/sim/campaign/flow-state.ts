@@ -1,3 +1,4 @@
+import { type MapWithRestriction, RestrictedScroll, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CivQuoteSaid } from '../narrative/civ-quotes.ts';
 import { createTalkState, type TalkState } from '../narrative/talk-state.ts';
@@ -25,6 +26,7 @@ export interface SectorFlowState {
   pendingWait: number | null;
   powSquad: number;
   readonly powsSeen: number[];
+  trashedMapRestrictedScroll: number;
 }
 
 export interface ShopFlowState {
@@ -65,7 +67,15 @@ export function createSectorFlowState(realtimeClock: RealtimeClock = createRealt
     pendingWait: null,
     powSquad: NO_CURRENT_SQUAD,
     powsSeen: [],
+    trashedMapRestrictedScroll: RestrictedScroll.NONE,
   };
+}
+
+export function lastMapRestrictedScroll(
+  state: { readonly sectorFlow: SectorFlowState },
+  loaded: { readonly world: MapWithRestriction } | null,
+): number {
+  return loaded ? restrictedScrollIdOf(loaded.world) : state.sectorFlow.trashedMapRestrictedScroll;
 }
 
 export function createTalkFlowState(seed: number): TalkFlowState {

@@ -160,6 +160,7 @@ export interface AutoresolveHooks {
 export interface AutoresolveWorld {
   readonly day: number;
   readonly playerCapturedForRescue: boolean;
+  readonly lastMapRestrictedScroll: number;
 }
 
 export interface AutoresolveEnv {

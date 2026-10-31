@@ -130,6 +130,7 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q27 | Battle time ×3 first, then +5 min for a retreat; bandage time is not multiplied | `autoresolve/close.test.ts` |
 | Q28 | The summary panel of an underground battle reads the surface sector's record (`PreBattle_Interface.cc:242`) | `forces/pre-battle.test.ts` |
 | Q29 | Losing a sector flips control before the "our mercs are still here" early return | `strategic/map/control.test.ts` |
+| Q30 | The dead of a battle lie on random tiles of the visible area of the map loaded last, a basement loaded elsewhere or already unloaded included (`TileEngine/Isometric_Utils.cc:667`) | `src/sim/campaign/battle-scenario.test.ts`, `autoresolve/close.test.ts` |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test
@@ -160,6 +161,7 @@ battle flow on imported saves, and compares the encounter code. Inferred from re
 - That the original's clock can tick at 1× under a PBI opened without the quote path.
 - That retreating from a sector does not flip control by itself.
 - That unloading the loaded battle sector before AR draws nothing beyond the preserved soldiers' `PreRandom(2)`.
+- Q30: the oracle's battles run with a surface map loaded last; no probe places the dead after a basement.
 
-Not ported: gaps "Autoresolve stalemate", "Random gridnos in unloaded sectors", "Pre-battle retreat preview",
-"Auto-bandage".
+Not ported: gaps "Autoresolve stalemate", "Pre-battle retreat preview", "Auto-bandage". Kept difference: deviation
+"Visible area of the map loaded last".
