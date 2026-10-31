@@ -307,7 +307,9 @@ soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` g
 shows, and the `stealAttempt` event what came of it. Our merc's first pull of a
 virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
 the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. A launcher without
-a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command
+a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Out of combat, a neutral NPC with a
+usable weapon who sees the merc may draw first on an `attack` made with a weapon in hand (`NPCFirstDraw`, `35`): nothing
+is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
 
 ### 8.2 Doors, containers and remote triggers

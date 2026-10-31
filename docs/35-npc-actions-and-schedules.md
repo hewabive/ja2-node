@@ -28,7 +28,7 @@ sector load: placement filter, profile insertion     tactical/narrative/placemen
      event 36 in tactical → the AI walks it          tactical/ai/decide-schedule.ts
 sector unload: insertion data and stats to profiles  tactical/narrative/profile-insertion.ts
 attack, sight, door, wall → group hostility          tactical/narrative/civ-hostility.ts
-pickup, explosion → grudge of an owner                tactical/narrative/minor-offenses.ts
+attack order → first draw; pickup, explosion → grudge  tactical/narrative/first-draw.ts, minor-offenses.ts
 door command → menu → animation → handleOpenableStruct  tactical/doors/
 ```
 
@@ -46,7 +46,7 @@ door command → menu → animation → handleOpenableStruct  tactical/doors/
 | `campaign/narrative-port.ts` | The tactical `NarrativePort`: event 36, the schedule clock, event 41 |
 | `campaign/sector-flow.ts` | Calls the entry and exit quest code, profile insertion and `postSchedules` at loads and unloads |
 | `tactical/narrative/civ-hostility.ts`, `team-change.ts`, `wheelchair.ts`; `strategic/narrative/civ-groups.ts` | `MakeCivHostile`, group changes, the attack and door implications, the brothel wall; `ChangeSoldierTeam`; Slay's kick-out; the saved group states |
-| `tactical/narrative/minor-offenses.ts` | `MakeNPCGrumpyForMinorOffense` for a pickup from an owned tile and for our explosion in an owner's rooms |
+| `tactical/narrative/first-draw.ts`, `minor-offenses.ts` | `NPCFirstDraw` before our merc's attack out of combat; `MakeNPCGrumpyForMinorOffense` for a pickup from an owned tile and for our explosion in an owner's rooms |
 | `tactical/doors/` | Door table, keys and key ring, lock attempts, traps, the menu and `handleOpenableStruct`, the `door` command and view; `src/content/formats/locks.ts` reads the lock table |
 
 ## 2. Design
@@ -56,9 +56,12 @@ campaign only through `NpcActionEnv` (events, facts, quests, loyalty, mines, box
 tested with a fake environment; `NpcActionFlow` builds the real one. The money and item rules of giving to an NPC are
 `24`'s (`narrative/select.ts`).
 
-**Minor offenses.** The ownership check of a pickup waits one second of game time (deviation "Ownership check timer").
-Room owners are the profiles' room ranges: `prof.dat`'s, or `ownedRooms` in `stubs/profiles.json`, where Lena Castell
-(the dealer at Arnie's id) owns A10's room 1.
+**Minor offenses.** The original lets an NPC draw first in the click handler of an attack (`UIHandleMercAttack`), so
+the `attack` command checks it after its argument and click checks and before the merc takes his aim, with the soldier
+on the target tile whom the player sees as the click's target; an NPC who wins refuses the order with `npcDrewFirst`
+(`29` §8.1). The ownership check of a pickup waits one second of game time (deviation "Ownership check timer"). Room
+owners are the profiles' room ranges: `prof.dat`'s, or `ownedRooms` in `stubs/profiles.json`, where Lena Castell (the
+dealer at Arnie's id) owns A10's room 1.
 
 **Requestors are prompts.** Where the original opens a yes/no box, ja2-node opens an `npcRequest` prompt in the
 campaign's prompt slot, inside or outside a talk session, answered with `answer`; the amount shown is computed when it
@@ -160,6 +163,6 @@ every profile's sector. Inferred from reading the source:
 - The "robot under construction" graphic: its gridno is never assigned in Stracciatella or vanilla, so its removal is a
   no-op; ja2-node only sets the fact.
 
-Not ported: gaps "Doors", "Rebel basement trapdoor", "NPC draws first and minor offenses", "NPC opens a door on
-arrival". Other deviations of this domain: "Terrorist names", "NPC gives an item", "Interface lock on arrival", "Team
-change during a hit", "Ownership check timer".
+Not ported: gaps "Doors", "Rebel basement trapdoor", "NPC opens a door on arrival". Other deviations of this domain:
+"Terrorist names", "NPC gives an item", "Interface lock on arrival", "Team change during a hit", "Ownership check
+timer".

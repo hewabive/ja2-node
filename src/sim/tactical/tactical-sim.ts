@@ -109,6 +109,7 @@ import {
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
@@ -197,6 +198,7 @@ export interface CombatSnapshot {
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
+const NPC_DREW_FIRST = 'the neutral NPC drew first: no attack was made, and he turns on us';
 const BAD_GROUP: Refusal = { token: 'badGroup', reason: 'group must list controllable mercs of yours in the sector' };
 const AP_USE_REMOTE = 2;
 
@@ -913,7 +915,7 @@ export class TacticalSim {
 
   #attackSetup(
     cmd: TacticalCommand,
-  ): { s: Soldier; target: number; level: number; melee: boolean; thrown: boolean } | { error: string; token: string } {
+  ): { s: Soldier; target: number; level: number; aimTime: number; melee: boolean; thrown: boolean } | { error: string; token: string } {
     const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return { error: 'no such soldier of yours', token: 'noSuchSoldier' };
@@ -944,7 +946,6 @@ export class TacticalSim {
       return { error: 'a punch needs a soldier on the target tile, and a melee attack the same level', token: 'needMeleeTarget' };
     const part = AIM_PARTS[String(cmd.bodyPart ?? 'random')];
     if (part === undefined) return { error: 'bodyPart must be head, torso, legs or random', token: 'badBodyPart' };
-    s.aimTime = aimTime;
     s.aimShotLocation = victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM;
     s.weaponMode = mode;
     s.doBurst = mode === WeaponMode.BURST ? 1 : 0;
@@ -953,7 +954,7 @@ export class TacticalSim {
     s.attackingWeapon = hand;
     s.targetLevel = level;
     s.targetCubeLevel = 0;
-    return { s, target, level, melee, thrown };
+    return { s, target, level, aimTime, melee, thrown };
   }
 
   #attackWeaponMode(s: Soldier, burst: unknown): number {
@@ -973,12 +974,14 @@ export class TacticalSim {
     }
     const setup = this.#attackSetup(cmd);
     if ('error' in setup) return refuse(setup.token, setup.error);
-    const { s, target, level, melee } = setup;
+    const { s, target, level, aimTime, melee } = setup;
     if (target === s.gridNo) return refuse('ownTile', 'cannot attack own tile');
     if (launcherWithoutRound(t, s))
       return refuse(ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo', ATTACK_REFUSALS[ItemHandle.NOAMMO] ?? 'out of ammo');
-    const meleeRefusal = melee ? meleeOrderRefusal(t, s, target) : null;
+    const meleeRefusal = melee ? meleeOrderRefusal(t, s, target, aimTime) : null;
     if (meleeRefusal) return refuse(meleeRefusal, MELEE_ORDER_REFUSALS[meleeRefusal]);
+    if (npcDrawsFirstOnAttack(t, s, target, level)) return refuse('npcDrewFirst', NPC_DREW_FIRST);
+    s.aimTime = aimTime;
     const eventsBefore = t.events.length;
     const result = handleItem(t, s, target, level, s.attackingWeapon);
     if (result !== ItemHandle.OK) {

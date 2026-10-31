@@ -191,5 +191,5 @@ Inferred from reading the source:
 - The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Not ported: gaps "Dialogue queue conditions", "NPC draws first and minor offenses". Other deviations of this domain:
-"Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions". Other deviations of this domain: "Lines and debug text in the talk
+panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".

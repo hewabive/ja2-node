@@ -19,8 +19,8 @@ function punches(t: TacticalState, s: Soldier): boolean {
   return (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
 }
 
-export function meleeOrderRefusal(t: TacticalState, s: Soldier, target: number): MeleeOrderRefusal | null {
+export function meleeOrderRefusal(t: TacticalState, s: Soldier, target: number, aimTime: number): MeleeOrderRefusal | null {
   if (punches(t, s) && calcTotalAPsToAttack(t, s, target, true, NO_AIM) === 0) return 'noPath';
-  if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, s.aimTime))) return 'notEnoughAP';
+  if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, aimTime))) return 'notEnoughAP';
   return null;
 }
