@@ -29,6 +29,8 @@ HOURLY_UPDATE → handleHourlyUpdate                              economy/update
 BANDAGE_BLEEDING_MERCS, a minute after a doctor, patient or     doctor.ts
 hospital stay is set and again while someone bleeds
 assign, sleep, wake, moveMilitia, distributeMilitia             campaign/commands.ts → set-assignment.ts, militia-moves.ts
+sleep, wake, assignment done or set → our merc's animation in   hooks → campaign/assignment-animations.ts →
+the loaded sector                                               tactical/assignment-animations.ts
 control change → world port → loyalty, morale, notice, theft    strategic/map/control.ts → economy/context.ts → loyalty.ts
 tactical militia from the counts; promotions on unload          campaign/sector-flow.ts, tactical/init-list.ts
 ```
@@ -36,7 +38,7 @@ tactical militia from the counts; promotions on unload          campaign/sector-
 | Module (`economy/` unless a path says otherwise) | Holds |
 |---|---|
 | `state.ts`, `constants.ts`, `events.ts` | `EconomyState` (town loyalty, mines, promotion counters, pending prompts), the original's enums and constants, the `EconomyEvent`s of `29` |
-| `ports.ts`, `context.ts` | `CrewPort` (the active team in id order, vehicles and the robot included), `EconomyHooks` (what other systems own: morale, theft, monsters, head miners, vehicles, history), `EconomyDecisions` (the militia prompts), `PeriodicSlots`; `createEconomyContext`, `economyWorldPort` |
+| `ports.ts`, `context.ts` | `CrewPort` (the active team in id order, vehicles and the robot included), `EconomyHooks` (what other systems own: morale, theft, monsters, head miners, vehicles, history, the loaded sector's animations), `EconomyDecisions` (the militia prompts), `PeriodicSlots`; `createEconomyContext`, `economyWorldPort` |
 | `towns.ts` | The town sector list, town size and control, `sectorOursAndPeaceful` |
 | `loyalty.ts`, `inactivity.ts`, `campaign/civilian-murder.ts` | The loyalty accumulator, distance-adjusted events, whole towns, control-change effects; Enrico's inactivity check; the murder of a civilian |
 | `militia-rules.ts`, `militia.ts`, `militia-moves.ts` | Eligibility and capacity; training sessions, payment and continue prompts, promotions; the militia panel's moves and AUTO |
@@ -64,7 +66,15 @@ stays empty (gaps).
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
 Refusals are `militiaTrainingRejected` events; "assignment done", sleep, wake and tiredness are events the client turns
-into quotes, boxes and animations (deviations "Assignment presentation", "Update box timing").
+into quotes and boxes (deviations "Assignment presentation", "Update box timing").
+
+**Animations in the loaded sector.** Falling asleep, waking, a finished assignment and a new one change our merc's
+animation when he stands in the loaded sector, as the original's assignment code does: the economy calls the `animate…`
+hooks, `campaign/assignment-animations.ts` finds the soldier and picks the tactical-screen or map-screen state from
+`state.flow` (the original asks for `GAME_SCREEN`). The original places a merc whose assignment the menu changes near
+his `usStrategicInsertionData`, which `SetSoldierGridNo` keeps on his own tile (`Tactical/Soldier_Control.cc:1941`), so
+ja2-node only changes his state. The assignment menu's leader and the mercs `SetAssignmentForList` gives the same
+assignment take their poses at different moments (`set-assignment.ts`).
 
 **Commands instead of screens.** `assignSoldiers` runs the original's list assignment soldier by soldier in the order
 given and re-evaluates the nothing-to-do flags at once, where the original waits for a map screen frame (deviation
@@ -138,6 +148,9 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A teammate repairs the robot's gear: the check for machines and EPCs looks at the repairer | `assignments.test.ts` |
 | Damage costing less than a point is repaired with no points left | `assignments.test.ts` |
 | A rested squad merc swings around 95 breath; a dying squad merc cannot sleep, so he is worn out | `assignments.test.ts` |
+| The menu's leader made a patient or trainee takes the pose of his old assignment; the mercs listed with him take the new one, and a repairman of the menu takes none | `assignments.test.ts` |
+| A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
+| A merc woken while he lies down goes on lying down awake: `GOTO_SLEEP` cannot be interrupted | `campaign/assignment-animations.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
 | A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
 

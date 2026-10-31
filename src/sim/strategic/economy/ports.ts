@@ -85,6 +85,10 @@ export interface EconomyHooks {
   vehicleNeedsRepair(vehicle: number, mercId: number): boolean;
   repairVehicle(vehicle: number, points: number): number;
   history(code: number, secondCode: number, sector: Sector): void;
+  animateFallingAsleep(id: number): void;
+  animateWakingUp(id: number): void;
+  animateAssignmentDone(id: number): void;
+  animateAssignment(id: number): void;
 }
 
 export type DecisionAnswer = 'yes' | 'no' | 'defer';
@@ -138,6 +142,10 @@ export const defaultEconomyHooks: EconomyHooks = {
   vehicleNeedsRepair: () => false,
   repairVehicle: () => 0,
   history: () => {},
+  animateFallingAsleep: () => {},
+  animateWakingUp: () => {},
+  animateAssignmentDone: () => {},
+  animateAssignment: () => {},
 };
 
 export const deferringDecisions: EconomyDecisions = {

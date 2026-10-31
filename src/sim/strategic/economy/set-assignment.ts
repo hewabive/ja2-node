@@ -4,7 +4,9 @@
 // @src SetSoldierAssignmentPatient, SetSoldierAssignmentDoctor, SetSoldierAssignmentTrainTown, SetSoldierAssignmentTrainSelf,
 // @src SetSoldierAssignmentTrainTeammate, SetSoldierAssignmentTrainByOther, SetSoldierAssignmentRepair, SetAssignmentForList,
 // @src AssignMercToAMovementGroup, the TRAIN_MENU_TOWN branch of TrainingMenuBtnCallback, PutMercInAwakeState;
-// @src Tactical/Squads.cc AddCharacterToSquad (soldier side).
+// @src Tactical/Squads.cc AddCharacterToSquad (soldier side); the MakeSoldiersTacticalAnimationReflectAssignment calls of
+// @src AssignmentMenuBtnCallback, EPCMenuBtnCallback, SquadMenuBtnCallback, AttributesMenuBtnCallback,
+// @src TrainingMenuBtnCallback and SetAssignmentForList (2026-10-31).
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
 import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';
@@ -33,7 +35,7 @@ import {
 import { isAreaFullOfMilitia, militiaTrainingAllowedInSector, sectorHasSufficientLoyaltyToTrainMilitia } from './militia-rules.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
 import { canCharacterRepair, canCharacterRepairRobot, canCharacterRepairVehicle } from './repair-rules.ts';
-import { putMercInAwakeState, setMercAsleep, setMercAwake } from './rest.ts';
+import { setMercAsleep, setMercAwake } from './rest.ts';
 import type { MilitiaPaymentPrompt } from './state.ts';
 import { townOf } from './towns.ts';
 
@@ -66,7 +68,14 @@ function preChangeAssignment(ctx: EconomyContext, s: CrewMember): void {
   removeCharacterFromSquads(ctx, s.id);
 }
 
-function postSetAssignment(ctx: EconomyContext, s: CrewMember, assignment: number): void {
+const REFLECTS_OLD_ASSIGNMENT = true;
+
+function reflectAssignment(ctx: EconomyContext, s: CrewMember): void {
+  ctx.hooks.animateAssignment(s.id);
+}
+
+function postSetAssignment(ctx: EconomyContext, s: CrewMember, assignment: number, reflectsOldAssignment = false): void {
+  if (reflectsOldAssignment) reflectAssignment(ctx, s);
   changeSoldiersAssignment(ctx, s, assignment);
   assignMercToAMovementGroup(ctx, s.id);
 }
@@ -77,7 +86,7 @@ function stampIfChanged(ctx: EconomyContext, s: CrewMember, assignment: number):
 
 export function applySquadAssignment(ctx: EconomyContext, s: CrewMember, squad: number): void {
   if (s.assignment !== squad) {
-    if (s.asleep) setMercAwake(s, false);
+    if (s.asleep) setMercAwake(ctx, s, false);
     setTimeOfAssignmentChange(ctx, s);
   }
   changeSoldiersAssignment(ctx, s, squad);
@@ -101,21 +110,27 @@ export function setSoldierAssignmentHospital(ctx: EconomyContext, s: CrewMember)
   return true;
 }
 
-export function setSoldierAssignmentPatient(ctx: EconomyContext, s: CrewMember): boolean {
+export function setSoldierAssignmentPatient(ctx: EconomyContext, s: CrewMember, reflectsOldAssignment = false): boolean {
   if (!canCharacterPatient(ctx, s)) return false;
   preChangeAssignment(ctx, s);
   stampIfChanged(ctx, s, Assignment.PATIENT);
-  postSetAssignment(ctx, s, Assignment.PATIENT);
+  postSetAssignment(ctx, s, Assignment.PATIENT, reflectsOldAssignment);
   return true;
 }
 
-function setSoldierAssignmentTraining(ctx: EconomyContext, s: CrewMember, assignment: number, stat: number): boolean {
+function setSoldierAssignmentTraining(
+  ctx: EconomyContext,
+  s: CrewMember,
+  assignment: number,
+  stat: number,
+  reflectsOldAssignment = false,
+): boolean {
   const self = assignment !== Assignment.TRAIN_TEAMMATE;
   if (!canCharacterTrainStat(ctx, s, stat, self, !self)) return false;
   preChangeAssignment(ctx, s);
   stampIfChanged(ctx, s, assignment);
   s.trainStat = stat;
-  postSetAssignment(ctx, s, assignment);
+  postSetAssignment(ctx, s, assignment, reflectsOldAssignment);
   return true;
 }
 
@@ -150,6 +165,12 @@ function militiaRefusal(ctx: EconomyContext, s: CrewMember): AssignRefusal | nul
 }
 
 function setForListMember(ctx: EconomyContext, s: CrewMember, leader: CrewMember, to: AssignTarget): boolean {
+  if (!assignListMember(ctx, s, leader, to)) return false;
+  reflectAssignment(ctx, s);
+  return true;
+}
+
+function assignListMember(ctx: EconomyContext, s: CrewMember, leader: CrewMember, to: AssignTarget): boolean {
   switch (to.kind) {
     case 'doctor':
       return setSoldierAssignmentDoctor(ctx, s);
@@ -225,14 +246,32 @@ function setForListPromptingOnce(
   return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { leader: leader.id, setAssignmentForList: setForList }) : null;
 }
 
+type MenuTarget = Extract<AssignTarget, { readonly kind: 'doctor' | 'patient' | 'trainSelf' | 'trainTeammate' | 'trainByOther' }>;
+
+function setLeaderFromMenu(ctx: EconomyContext, s: CrewMember, to: MenuTarget): boolean {
+  switch (to.kind) {
+    case 'doctor':
+      if (!setSoldierAssignmentDoctor(ctx, s)) return false;
+      reflectAssignment(ctx, s);
+      return true;
+    case 'patient':
+      return setSoldierAssignmentPatient(ctx, s, REFLECTS_OLD_ASSIGNMENT);
+    case 'trainSelf':
+      return setSoldierAssignmentTraining(ctx, s, Assignment.TRAIN_SELF, to.stat, REFLECTS_OLD_ASSIGNMENT);
+    case 'trainTeammate':
+      return setSoldierAssignmentTraining(ctx, s, Assignment.TRAIN_TEAMMATE, to.stat, REFLECTS_OLD_ASSIGNMENT);
+    case 'trainByOther':
+      return setSoldierAssignmentTraining(ctx, s, Assignment.TRAIN_BY_OTHER, to.stat, REFLECTS_OLD_ASSIGNMENT);
+  }
+}
+
 function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewMember[], to: AssignTarget): AssignResult {
   if (to.kind === 'trainMilitia') {
     const refusal = militiaRefusal(ctx, s);
     if (refusal) return { ok: false, reason: refusal };
     preChangeAssignment(ctx, s);
     stampIfChanged(ctx, s, Assignment.TRAIN_TOWN);
-    changeSoldiersAssignment(ctx, s, Assignment.TRAIN_TOWN);
-    assignMercToAMovementGroup(ctx, s.id);
+    postSetAssignment(ctx, s, Assignment.TRAIN_TOWN, REFLECTS_OLD_ASSIGNMENT);
     const setForList = () => {
       for (const o of others) setForListMember(ctx, o, s, to);
     };
@@ -247,10 +286,13 @@ function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewM
     return ok ? { ok: true } : { ok: false, reason: 'notEligible' };
   }
   if (to.kind === 'squad') {
+    const alreadyInIt = s.assignment === to.squad;
     const refusal = joinSquad(ctx, s, to.squad);
-    return refusal ? { ok: false, reason: refusal } : { ok: true };
+    if (refusal) return { ok: false, reason: refusal };
+    if (!alreadyInIt) reflectAssignment(ctx, s);
+    return { ok: true };
   }
-  return setForListMember(ctx, s, s, to) ? { ok: true } : { ok: false, reason: 'notEligible' };
+  return setLeaderFromMenu(ctx, s, to) ? { ok: true } : { ok: false, reason: 'notEligible' };
 }
 
 export function assignSoldiers(ctx: EconomyContext, ids: readonly number[], to: AssignTarget): AssignResult[] {
@@ -288,12 +330,8 @@ export function sleepSoldier(ctx: EconomyContext, id: number): SleepResult {
 export function wakeSoldier(ctx: EconomyContext, id: number): SleepResult {
   const s = ctx.crew.get(id);
   if (!s) return { ok: false, reason: 'unknownSoldier' };
-  if (!setMercAwake(s, false)) return { ok: false, reason: 'collapsed' };
+  if (!setMercAwake(ctx, s, false)) return { ok: false, reason: 'collapsed' };
   return { ok: true };
-}
-
-export function forceAwake(s: CrewMember): void {
-  putMercInAwakeState(s);
 }
 
 export function resumeMilitiaPayment(ctx: EconomyContext, prompt: MilitiaPaymentPrompt, yes: boolean): MilitiaPaymentOutcome {

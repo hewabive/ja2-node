@@ -10,7 +10,7 @@ import {
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
-import { reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
+import { assignmentDone, reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
 import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment, numberThatCanBeDoctored } from './conditions.ts';
 import { Assignment, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
 import { healCharacters, healPatient } from './doctor.ts';
@@ -29,9 +29,11 @@ import {
   handleHealingByNaturalCauses,
   handleRestFatigueAndSleepStatus,
   naturalHealingDivisor,
+  putMercInAsleepState,
+  putMercInAwakeState,
   restCharacter,
 } from './rest.ts';
-import { assignSoldiers } from './set-assignment.ts';
+import { assignSoldiers, sleepSoldier, wakeSoldier } from './set-assignment.ts';
 import { updateAssignments } from './update.ts';
 
 const OMERTA = parseSectorString('A9');
@@ -325,5 +327,72 @@ describe('assigning and the hourly order', () => {
     s.lastAssignmentChangeMin = now - 45;
     updateAssignments(made.ctx);
     expect(made.crew.statChanges).toEqual([{ id: 0, stat: StatAmt.MEDICAL, chances: 1, cause: StatCause.TRAINING }]);
+  });
+});
+
+function recordAnimations(made: ReturnType<typeof context>): string[] {
+  const calls: string[] = [];
+  const assignmentOf = (id: number) => made.crew.get(id)?.assignment;
+  Object.assign(made.ctx.hooks, {
+    animateFallingAsleep: (id: number) => calls.push(`${id} falls asleep`),
+    animateWakingUp: (id: number) => calls.push(`${id} wakes up`),
+    animateAssignmentDone: (id: number) => calls.push(`${id} ends ${assignmentOf(id)}`),
+    animateAssignment: (id: number) => calls.push(`${id} shows ${assignmentOf(id)}`),
+  });
+  return calls;
+}
+
+describe("the loaded sector's animations of assignments and sleep", () => {
+  it('shows the old assignment of the leader the menu makes a patient or trainee, and the new one of the mercs listed with him', () => {
+    const made = context();
+    const calls = recordAnimations(made);
+    merc(made, { id: 0, assignment: Assignment.DOCTOR, life: 50 });
+    merc(made, { id: 1, assignment: Assignment.DOCTOR, life: 50 });
+    expect(assignSoldiers(made.ctx, [0, 1], { kind: 'patient' })).toEqual([{ ok: true }, { ok: true }]);
+    merc(made, { id: 2, assignment: Assignment.ON_DUTY });
+    merc(made, { id: 3, assignment: Assignment.ON_DUTY });
+    expect(assignSoldiers(made.ctx, [2, 3], { kind: 'trainSelf', stat: TrainStat.MEDICAL })).toEqual([{ ok: true }, { ok: true }]);
+    expect(calls).toEqual([
+      `0 shows ${Assignment.DOCTOR}`,
+      `1 shows ${Assignment.PATIENT}`,
+      `2 shows ${Assignment.ON_DUTY}`,
+      `3 shows ${Assignment.TRAIN_SELF}`,
+    ]);
+  });
+
+  it('shows a doctor of the menu after the change, a repairman of the menu not at all, and the repairmen listed with him', () => {
+    const made = context();
+    const calls = recordAnimations(made);
+    const doctor = merc(made, { id: 0, assignment: Assignment.ON_DUTY });
+    doctor.inv[Slot.BIGPOCK2] = kit(content.items, 'MEDICKIT', [100]);
+    expect(assignSoldiers(made.ctx, [0], { kind: 'doctor' })).toEqual([{ ok: true }]);
+    for (const id of [1, 2]) {
+      const r = merc(made, { id, assignment: Assignment.ON_DUTY });
+      r.inv[Slot.BIGPOCK2] = kit(content.items, 'TOOLKIT', [100]);
+      r.inv[Slot.BIGPOCK3] = item(content.items, 'GLOCK_17', 50);
+    }
+    expect(assignSoldiers(made.ctx, [1, 2], { kind: 'repair' })).toEqual([{ ok: true }, { ok: true }]);
+    expect(calls).toEqual([`0 shows ${Assignment.DOCTOR}`, `2 shows ${Assignment.REPAIR}`]);
+  });
+
+  it('shows the end of an assignment every time it is done, the done quote only once', () => {
+    const made = context();
+    const calls = recordAnimations(made);
+    const doctor = merc(made, { id: 0, assignment: Assignment.DOCTOR });
+    assignmentDone(made.ctx, doctor, true, true);
+    assignmentDone(made.ctx, doctor, true, true);
+    expect(calls).toEqual([`0 ends ${Assignment.DOCTOR}`, `0 ends ${Assignment.DOCTOR}`]);
+    expect(made.ctx.events.filter((e) => e.type === 'assignmentDone')).toHaveLength(1);
+  });
+
+  it('shows a merc falling asleep and waking up only when his sleep changes', () => {
+    const made = context();
+    const calls = recordAnimations(made);
+    const s = merc(made, { id: 0, assignment: Assignment.DOCTOR, breathMax: 40 });
+    expect(sleepSoldier(made.ctx, 0)).toEqual({ ok: true });
+    putMercInAsleepState(made.ctx, s);
+    expect(wakeSoldier(made.ctx, 0)).toEqual({ ok: true });
+    putMercInAwakeState(made.ctx, s);
+    expect(calls).toEqual(['0 falls asleep', '0 wakes up']);
   });
 });

@@ -172,7 +172,7 @@ export function enemyCapturesPlayerSoldier(ctx: FateContext, m: RosterMerc, rng:
   teleportCaptive(ctx, m);
   m.soldier.bleeding = 0;
   if (m.asleep) {
-    putMercInAwakeState(m);
+    putMercInAwakeState(economy, m);
     m.forcedToStayAwake = false;
   }
   m.soldier.life = captiveLife(rng, m.soldier.lifeMax);

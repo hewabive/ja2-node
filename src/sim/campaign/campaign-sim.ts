@@ -61,6 +61,7 @@ import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/sche
 import { refuse } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { assignmentAnimationHooks } from './assignment-animations.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
 import { COMPRESSION_REFUSALS, type CompressionRefusal, compressionRefusalToken } from './compression-refusals.ts';
@@ -283,6 +284,7 @@ export class CampaignSim {
       headMinerAlive: (profile: number) => this.narrative.headMinerAlive(profile),
       history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
         this.laptop?.economyHistory(code, secondCode, sector),
+      ...assignmentAnimationHooks(this),
     };
     const moraleSlots = {
       updateBuddyAndHatedCounters: () => this.battle?.updateBuddyAndHatedCounters(),

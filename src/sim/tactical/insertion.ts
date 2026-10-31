@@ -10,6 +10,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
 import { anim } from './anim-states.ts';
 import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
+import { assignmentPose } from './assignment-animations.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
@@ -43,7 +44,6 @@ const EXIT_GRID_SEARCH_RADIUS = 10;
 const ARRIVAL_WALK_RADIUS = 4;
 const SECOND_LEVEL = 1;
 const PLACEMENT_ANIM_CODE = 1;
-const Assignment = { DOCTOR: 21, PATIENT: 22, REPAIR: 25 } as const;
 
 export interface InsertionOrder {
   code: number;
@@ -203,17 +203,7 @@ export function addSoldierToSector(
 function placementAnimation(t: TacticalState, s: Soldier, ctx: Pick<InsertionContext, 'assignment' | 'asleep' | 'isEpc'>): number | null {
   if (s.life < OKLIFE) return anim(t.content, 'STAND_FALLFORWARD_STOP');
   if (ctx.asleep) return ctx.isEpc ? states(t.content.animations).STANDING : anim(t.content, 'SLEEPING');
-  const merc = s.bodyType <= Body.REGFEMALE;
-  switch (ctx.assignment) {
-    case Assignment.PATIENT:
-      return merc ? anim(t.content, 'BEING_PATIENT') : states(t.content.animations).STANDING;
-    case Assignment.DOCTOR:
-      return merc ? anim(t.content, 'BEING_DOCTOR') : states(t.content.animations).STANDING;
-    case Assignment.REPAIR:
-      return merc ? anim(t.content, 'BEING_REPAIRMAN') : states(t.content.animations).STANDING;
-    default:
-      return null;
-  }
+  return ctx.assignment === undefined ? null : assignmentPose(t, s, ctx.assignment);
 }
 
 function addSoldierToSectorGridNo(

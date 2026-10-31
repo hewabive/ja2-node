@@ -85,26 +85,28 @@ export function characterIsTakingItEasy(ctx: EconomyContext, s: CrewMember): boo
   return !enoughTimeOnAssignment(ctx, s);
 }
 
-export function putMercInAsleepState(s: CrewMember): void {
+export function putMercInAsleepState(ctx: EconomyContext, s: CrewMember): void {
   if (s.asleep) return;
+  ctx.hooks.animateFallingAsleep(s.id);
   s.asleep = true;
 }
 
 export function setMercAsleep(ctx: EconomyContext, s: CrewMember): boolean {
   if (!canCharacterSleep(ctx, s)) return false;
-  putMercInAsleepState(s);
+  putMercInAsleepState(ctx, s);
   return true;
 }
 
-export function putMercInAwakeState(s: CrewMember): void {
+export function putMercInAwakeState(ctx: EconomyContext, s: CrewMember): void {
   if (!s.asleep) return;
+  ctx.hooks.animateWakingUp(s.id);
   s.asleep = false;
   s.forcedToStayAwake = s.breathMax < BREATHMAX_PRETTY_TIRED;
 }
 
-export function setMercAwake(s: CrewMember, force: boolean): boolean {
+export function setMercAwake(ctx: EconomyContext, s: CrewMember, force: boolean): boolean {
   if (!force && !canCharacterBeAwakened(s)) return false;
-  putMercInAwakeState(s);
+  putMercInAwakeState(ctx, s);
   return true;
 }
 
@@ -137,7 +139,7 @@ function restOrSleep(ctx: EconomyContext, s: CrewMember): void {
 function wakeIfRested(s: CrewMember, ctx: EconomyContext): void {
   if (s.breathMax >= BREATHMAX_CANCEL_COLLAPSE) s.collapsed = false;
   if (!s.asleep || s.breathMax < BREATHMAX_FULLY_RESTED) return;
-  if (setMercAwake(s, false)) ctx.events.push({ type: 'wokeUp', soldier: s.id });
+  if (setMercAwake(ctx, s, false)) ctx.events.push({ type: 'wokeUp', soldier: s.id });
 }
 
 export function handleRestFatigueAndSleepStatus(ctx: EconomyContext): void {
@@ -188,7 +190,7 @@ export function anyMercInGroupCantContinueMoving(ctx: EconomyContext, members: r
     const s = ctx.crew.get(id);
     if (!s || !playerSoldierTooTiredToTravel(ctx, s)) continue;
     mustStop = true;
-    putMercInAsleepState(s);
+    putMercInAsleepState(ctx, s);
     s.collapsed = true;
   }
   return mustStop;

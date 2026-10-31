@@ -107,7 +107,7 @@ export function wakeUpAllMercsInSectorUnderAttack(ctx: EconomyContext, battle: S
   for (const m of ctx.crew.all()) {
     if (m.life === 0 || m.isVehicle || !m.asleep) continue;
     if (!playerMercInvolvedInThisCombat(ctx, m, battle)) continue;
-    setMercAwake(m, true);
+    setMercAwake(ctx, m, true);
   }
 }
 
@@ -305,6 +305,7 @@ function putNonSquadMercsInPlayerGroupOnSquads(ctx: EconomyContext, g: Group, ex
       takeSoldierOutOfVehicle(ctx, m.id);
       addCharacterToSquad(ctx, m.id, vehicleSquad);
     }
+    ctx.hooks.animateAssignment(m.id);
   }
 }
 

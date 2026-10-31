@@ -58,6 +58,7 @@ function addSectorThatCompletedMilitiaTraining(ctx: EconomyContext, s: CrewMembe
 }
 
 export function assignmentDone(ctx: EconomyContext, s: CrewMember, sayQuote: boolean, meToo: boolean): void {
+  ctx.hooks.animateAssignmentDone(s.id);
   if (sayQuote && !meToo && s.assignment === Assignment.TRAIN_TOWN) addSectorThatCompletedMilitiaTraining(ctx, s);
   if (s.doneQuoteSaid) return;
   s.doneQuoteSaid = true;

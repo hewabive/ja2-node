@@ -70,8 +70,15 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
 };
 
 const GETUP_FROM_SLEEP = 474;
+const STANCE_TO_STANDING = 457;
+const ASSIGNMENT_END_FRAMES = 4;
 const descendingFrames = (count: number) => frames(count).reverse();
-const REST_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+const ASSIGNMENT_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+  BEING_PATIENT: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
+  BEING_DOCTOR: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
+  END_DOCTOR: () => [...descendingFrames(ASSIGNMENT_END_FRAMES), STANCE_TO_STANDING],
+  BEING_REPAIRMAN: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
+  END_REPAIRMAN: () => [...descendingFrames(ASSIGNMENT_END_FRAMES), STANCE_TO_STANDING],
   GOTO_SLEEP: (t) => [...frames(ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'SLEEPING'))],
   SLEEPING: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
   WKAEUP_FROM_SLEEP: (t) => [
@@ -496,7 +503,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
       ...(control.flags & RT_NONINTERRUPT_FLAG ? [RT_NONINTERRUPTIBLE_DONE] : []),
     ];
     let script: number[];
-    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id] ?? REST_SCRIPTS[control.id];
+    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id] ?? ASSIGNMENT_SCRIPTS[control.id];
     const fight = combat.get(control.id);
     if (fight) script = fight;
     else if (door) script = door(tables);

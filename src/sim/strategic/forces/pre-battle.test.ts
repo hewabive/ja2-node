@@ -3,6 +3,7 @@ import { type EconomyTestContent, FakeCrew, loadEconomyTestContent, setTownNames
 import { ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
 import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { gameOptions } from '../../options.ts';
+import { Assignment } from '../economy/constants.ts';
 import { createEconomyContext } from '../economy/context.ts';
 import type { EconomyContext } from '../economy/ports.ts';
 import { createUndergroundSector, sectorInfo } from '../map/sectors.ts';
@@ -11,7 +12,8 @@ import { fact } from '../narrative/facts.ts';
 import { createStrategicState } from '../state.ts';
 import { EncounterCode, SectorFlag } from './constants.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
-import { initPreBattleInterface, nonPersistentAutoresolveRefusal } from './pre-battle.ts';
+import { initPreBattleInterface, nonPersistentAutoresolveRefusal, putNonSquadMercsInBattleSectorOnSquads } from './pre-battle.ts';
+import { assignMercToAMovementGroup, initSquads } from './squads.ts';
 
 let content: EconomyTestContent;
 
@@ -192,5 +194,20 @@ describe('the pre-battle interface', () => {
     expect(nonPersistentAutoresolveRefusal(EncounterCode.ENEMY_AMBUSH)).toBe('ambush');
     expect(nonPersistentAutoresolveRefusal(EncounterCode.HOSTILE_CIVILIANS)).toBe('hostileCivilians');
     expect(nonPersistentAutoresolveRefusal(EncounterCode.HOSTILE_BLOODCATS)).toBe('bloodcats');
+  });
+});
+
+describe('mercs on another assignment going into the battle (PutNonSquadMercsInPlayerGroupOnSquads)', () => {
+  it('puts each on a squad and then shows him in its pose', () => {
+    const h = harness();
+    initSquads(h.ctx);
+    const shown: string[] = [];
+    Object.assign(h.ctx.hooks, { animateAssignment: (id: number) => shown.push(`${id} on ${h.crew.get(id)?.assignment}`) });
+    for (const id of [0, 1]) {
+      h.crew.add({ id, sector: DRASSEN, assignment: Assignment.DOCTOR });
+      assignMercToAMovementGroup(h.ctx, id);
+    }
+    putNonSquadMercsInBattleSectorOnSquads(h.ctx, true, DRASSEN);
+    expect(shown).toEqual(['0 on 0', '1 on 0']);
   });
 });
