@@ -138,7 +138,7 @@ function changeNpcSector(p: ProfileProgress, x: number, y: number): void {
   p.useProfileInsertion = false;
 }
 
-function handleNpcChangesForTacticalTraversal(s: Soldier, p: ProfileProgress): void {
+export function handleNpcChangesForTacticalTraversal(s: Soldier, p: ProfileProgress): void {
   if (s.ai.checkSchedule) return;
   switch (s.quoteActionId) {
     case QuoteAction.TRAVERSE_EAST:

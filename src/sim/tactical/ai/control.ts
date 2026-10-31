@@ -3,7 +3,7 @@
 // @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct, HandleInitialRedAlert,
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
-// @src HandleAITacticalTraversal (the away slot), the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
+// @src HandleAITacticalTraversal, the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
 // @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle (with PCs under AI control); creature/crow
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
 
@@ -30,7 +30,7 @@ import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { interactWithDoorAt } from '../doors/door-actions.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingIdlesNonBoxers } from '../narrative/boxing-state.ts';
-import { HANDLE_DONE_TRAVERSAL } from '../narrative/profile-insertion.ts';
+import { HANDLE_DONE_TRAVERSAL, handleNpcChangesForTacticalTraversal } from '../narrative/profile-insertion.ts';
 import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { endMuzzleFlash, radioSightings, removeManAsTarget } from '../perception/sight.ts';
@@ -606,8 +606,15 @@ function markAttackNoticedByMisplacedEveryFrameFlag(s: Soldier): void {
   s.attackNoticed = true;
 }
 
+function moveProfileWithTraversal(t: TacticalState, s: Soldier): void {
+  const profile = s.profile === NO_PROFILE ? undefined : t.profiles.get(s.profile);
+  if (profile) handleNpcChangesForTacticalTraversal(s, profile);
+  if (profile && t.narrative.hasUnusedRecordWithApproach(s.profile, Approach.DONE_TRAVERSAL)) profile.miscFlags3 |= HANDLE_DONE_TRAVERSAL;
+  else s.quoteActionId = QuoteActionId.NONE;
+}
+
 function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiControl): void {
-  s.quoteActionId = 0;
+  moveProfileWithTraversal(t, s);
   endAIGuysTurn(t, s, control);
   removeManAsTarget(t, s);
   if (s.team === Team.CIV && s.ai.checkSchedule) moveSoldierFromMercToAwaySlot(t, s);

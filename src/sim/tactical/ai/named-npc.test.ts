@@ -12,11 +12,13 @@ import { Profile } from '../narrative/constants.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { HANDLE_DONE_TRAVERSAL } from '../narrative/profile-insertion.ts';
 import { Opp } from '../perception/opp.ts';
+import type { ProfileProgress } from '../profiles.ts';
 import { CivilianGroup, NOWHERE, Orders, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { AiAction } from './actions.ts';
+import { AiAction, Situation } from './actions.ts';
 import { offersSurrender } from './combat-decide.ts';
 import { actionDone, executeAction, handleSoldierAI } from './control.ts';
+import { QuoteAction } from './cover.ts';
 import { decideActionGreen, NO_GREEN_HOOKS } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { endTimedAiPause, PAUSE_ALL_AI_DELAY_MS, pauseAiTemporarily, pauseAiUntilManuallyUnpaused, unPauseAi } from './pause.ts';
@@ -150,6 +152,82 @@ describe('an NPC who walked in from another sector (Realtime.cc RTDecideAction)'
     handleSoldierAI(t, s, sim.ai);
     expect(calls).toEqual([`approach ${NAMED} ${DONE_TRAVERSAL}`]);
     expect([profile.miscFlags3, s.quoteActionId, s.ai.counter]).toEqual([0, 0, t.clockMs + 100]);
+  });
+});
+
+describe('an NPC walking off the map (AIMain.cc HandleAITacticalTraversal)', () => {
+  const DONE_TRAVERSAL = 27;
+  const LEFT_COUNTRY = 0x02;
+  const SECTOR = { sectorX: 9, sectorY: 1, sectorZ: 0 };
+
+  function atTheEdge(sim: TacticalSim, quoteAction: number): { s: Soldier; profile: ProfileProgress } {
+    const s = npc(sim);
+    const profile = progressFor(NAMED, { ...SECTOR, useProfileInsertion: true });
+    sim.state.profiles.set(NAMED, profile);
+    s.quoteActionId = quoteAction;
+    s.ai.action = AiAction.WALK;
+    s.ai.newSituation = Situation.NOT_NEW;
+    s.pathIndex = s.pathSize;
+    s.absoluteFinalDestination = NOWHERE;
+    return { s, profile };
+  }
+
+  function sectorOf(p: ProfileProgress): number[] {
+    return [p.sectorX, p.sectorY, p.sectorZ];
+  }
+
+  it('moves his profile one sector the way he left, without insertion data, and takes him off the map', () => {
+    for (const [quoteAction, sector] of [
+      [QuoteAction.TRAVERSE_EAST, [10, 1, 0]],
+      [QuoteAction.TRAVERSE_SOUTH, [9, 2, 0]],
+      [QuoteAction.TRAVERSE_WEST, [8, 1, 0]],
+      [QuoteAction.TRAVERSE_NORTH, [9, 0, 0]],
+    ] as const) {
+      const { sim } = setup();
+      const { s, profile } = atTheEdge(sim, quoteAction);
+      handleSoldierAI(sim.state, s, sim.ai);
+      expect([sectorOf(profile), profile.useProfileInsertion, s.placed, s.quoteActionId]).toEqual([sector, false, false, 0]);
+    }
+  });
+
+  it('sends an NPC who left the country nowhere', () => {
+    const { sim } = setup();
+    const { s, profile } = atTheEdge(sim, QuoteAction.TRAVERSE_EAST);
+    profile.miscFlags2 = LEFT_COUNTRY;
+    handleSoldierAI(sim.state, s, sim.ai);
+    expect(sectorOf(profile)).toEqual([0, 0, 0]);
+  });
+
+  it('keeps the traversal and marks the profile when he has an unused done-traversal record', () => {
+    const asked: number[][] = [];
+    const { sim } = setup({
+      hasUnusedRecordWithApproach: (p, approach) => {
+        asked.push([p, approach]);
+        return approach === DONE_TRAVERSAL;
+      },
+    });
+    const { s, profile } = atTheEdge(sim, QuoteAction.TRAVERSE_EAST);
+    handleSoldierAI(sim.state, s, sim.ai);
+    expect(asked).toEqual([[NAMED, DONE_TRAVERSAL]]);
+    expect([sectorOf(profile), profile.miscFlags3 & HANDLE_DONE_TRAVERSAL, s.quoteActionId, s.placed]).toEqual([
+      [10, 1, 0],
+      HANDLE_DONE_TRAVERSAL,
+      QuoteAction.TRAVERSE_EAST,
+      false,
+    ]);
+  });
+
+  it('leaves the profile of a civilian walking his schedule where it is and puts him in an away slot', () => {
+    const { sim } = setup();
+    const { s, profile } = atTheEdge(sim, QuoteAction.TRAVERSE_EAST);
+    s.ai.checkSchedule = true;
+    handleSoldierAI(sim.state, s, sim.ai);
+    expect([sectorOf(profile), profile.useProfileInsertion, s.away, sim.state.awaySlots.includes(s)]).toEqual([
+      [9, 1, 0],
+      true,
+      true,
+      true,
+    ]);
   });
 });
 

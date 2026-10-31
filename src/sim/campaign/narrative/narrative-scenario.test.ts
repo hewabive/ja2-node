@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, eastEdgeTile, landFirstSquad, runTicks } from '../../../../tests/support/campaign.ts';
+import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
@@ -10,6 +11,9 @@ import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { QuestHistory } from '../../strategic/narrative/quests.ts';
 import { CompressMode } from '../../strategic/time/constants.ts';
 import { worldHour } from '../../strategic/time/world-clock.ts';
+import { QuoteAction } from '../../tactical/ai/cover.ts';
+import { Direction } from '../../tactical/directions.ts';
+import { type Soldier, TEAM_FIRST_ID, Team } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 
 let kit: CampaignKit;
@@ -26,6 +30,15 @@ afterAll(async () => {
 const STARTING_MINUTE = 1500;
 const MUSEUM_OPEN_HOUR = 9;
 const STEP_BUDGET = 200_000;
+const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
+const A10 = { x: 10, y: 1, z: 0 };
+const EAST_EDGE = eastEdgeTile(0);
+const NEAR_EAST_EDGE = EAST_EDGE - 6;
+const TRAVERSAL_BUDGET = 60_000;
+
+function arnieSoldier(c: CampaignSim): Soldier | undefined {
+  return c.tactical?.state.soldiers.find((s) => (s?.placed || s?.offMap) && s.profile === Npc.ARNIE);
+}
 
 function compressTo(c: CampaignSim, hour: number): void {
   if (!c.dispatch({ type: 'mapScreen' }).ok) throw new Error('no map screen');
@@ -73,6 +86,28 @@ describe('quests, facts and NPC presence in a stub campaign', () => {
     c.economy?.hooks.startCreatureQuest({ x: 13, y: 4, z: 0 });
     expect(c.state.narrative.quests[Quest.CREATURES]).toBe(QuestStatus.IN_PROGRESS);
     expect(c.drainEvents()).toContainEqual(expect.objectContaining({ type: 'questStarted', quest: 'CREATURES', sector: 'D13' }));
+  });
+
+  it('moves a profile NPC who walks off the east edge of A9 into A10, where the placement finds him', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 15, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    c.state.profiles.set(Npc.ARNIE, testProfile(Npc.ARNIE, { sectorX: 9, sectorY: 1 }));
+    const sim = c.tactical;
+    if (!sim) throw new Error('no sector');
+    const walker = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, NEAR_EAST_EDGE, Direction.EAST, { profile: Npc.ARNIE });
+    walker.neutral = true;
+    walker.quoteActionId = QuoteAction.TRAVERSE_EAST;
+    walker.absoluteFinalDestination = EAST_EDGE;
+    runTicks(c, TRAVERSAL_BUDGET, () => !arnieSoldier(c));
+    const moved = c.state.profiles.get(Npc.ARNIE);
+    expect(arnieSoldier(c)).toBeUndefined();
+    expect([moved?.sectorX, moved?.sectorY, moved?.sectorZ, moved?.useProfileInsertion]).toEqual([10, 1, 0, false]);
+    const flow = c.sectors;
+    if (!flow) throw new Error('no sector flow');
+    expect(flow.populationEnv().profileHere(Npc.ARNIE)).toBe(false);
+    for (const m of flow.setup.roster.all()) m.sector = { ...A10 };
+    expect(flow.setCurrentWorldSector(A10)).toBe(true);
+    expect(flow.populationEnv().profileHere(Npc.ARNIE)).toBe(true);
   });
 
   it('places profile NPCs by their campaign profile sector, with z', () => {

@@ -143,5 +143,5 @@ boxers and the creature AI from GREEN up (`tools/oracle/README.md`). Inferred fr
 - `InternalIsValidStance` holding for every standing single-tile soldier in the look-around.
 - The GoAsFar fallback and its shuffle never running for a random destination, which is legal already.
 
-Not ported: gaps "AI decision details", "Auto-bandage", "NPC traversal off the map", "Combat AI specials". Kept
-differences: deviations "Timing", "Frame timers", "Game events", "GoAsFar fallback", "Away civilians".
+Not ported: gaps "AI decision details", "Auto-bandage", "Combat AI specials". Kept differences: deviations "Timing",
+"Frame timers", "Game events", "GoAsFar fallback", "Away civilians".

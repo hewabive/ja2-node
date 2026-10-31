@@ -66,7 +66,9 @@ departure timer", "Rebel basement", "Brothel time warp").
 sector entry code move profiles, not soldiers; most moves skip an NPC whose sector is loaded, so a visible NPC never
 vanishes. A load creates soldiers through the placement filter (profile sector with z, not recruited, alive) and through
 profile insertion data; an unload writes a pending walk or traversal back into the profile and the non-player soldiers'
-life and stats. The 04:00 event also runs during the new-game warp, so its draws come before the first landing.
+life and stats. An NPC who walks off the map moves his profile one sector that way at once, unless he walks a schedule
+(`handleAITacticalTraversal`, `tactical/ai/control.ts`). The 04:00 event also runs during the new-game warp, so its
+draws come before the first landing.
 
 **Schedules exist only for the loaded sector.** Every fresh load posts them and replays the past 24 hours at once
 (teleporting, never walking), so a civilian ends in the state of his latest entry; on the map screen a schedule event
@@ -149,5 +151,5 @@ every profile's sector. Inferred from reading the source:
   no-op; ja2-node only sets the fact.
 
 Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "Implications of an attack", "NPC draws first
-and minor offenses", "NPC traversal off the map", "NPC opens a door on arrival", "Team changes". Other deviations of
-this domain: "Terrorist names", "NPC gives an item", "Interface lock on arrival".
+and minor offenses", "NPC opens a door on arrival", "Team changes". Other deviations of this domain: "Terrorist names",
+"NPC gives an item", "Interface lock on arrival".
