@@ -453,6 +453,21 @@ describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, B
     expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'hand', to: { ring: 1 } })).toMatchObject({ data: { refusal: 'notAKey' } });
   });
 
+  it('turns a key taken alone off a stack into lock 0, on the ring or in a pocket, as GetObjFrom copies no ubKeyID into the zeroed cursor', () => {
+    const { sim, merc } = keyHolder();
+    const ring = merc.keyRing ?? [];
+    merc.inv[InvSlot.BIGPOCK1] = keys(2, 2);
+    merc.inv[InvSlot.BIGPOCK2] = keys(2, 1);
+    merc.inv[InvSlot.BIGPOCK3] = keys(2, 2);
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', to: { ring: 0 }, count: 1 })).toMatchObject({ ok: true });
+    expect(ring[0]).toEqual({ keyId: 0, count: 1 });
+    expect(merc.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 1, keyId: 2 });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket2', to: { ring: 1 }, count: 1 })).toMatchObject({ ok: true });
+    expect(ring[1]).toEqual({ keyId: 2, count: 1 });
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket3', to: 'smallPocket1', count: 1 })).toMatchObject({ ok: true });
+    expect(merc.inv[InvSlot.SMALLPOCK1]).toMatchObject({ count: 1, keyId: 0 });
+  });
+
   it("swaps a pocket key with another lock's keys on the ring, which go back to the pocket", () => {
     const { sim, merc } = keyHolder();
     const ring = merc.keyRing ?? [];
@@ -488,7 +503,8 @@ describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, B
     const sim = newCombatSim(content);
     const a = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     const b = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 81), Direction.NORTH);
-    a.inv[InvSlot.BIGPOCK1] = keys(1, 2);
+    a.inv[InvSlot.BIGPOCK1] = keys(1, 1);
+    a.inv[InvSlot.BIGPOCK2] = keys(1, 1);
     inCombat(sim);
     const apA = a.actionPoints;
     const apB = b.actionPoints;
@@ -498,7 +514,7 @@ describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, B
     expect(b.keyRing?.[0]).toEqual({ keyId: 1, count: 1 });
     expect([apA - a.actionPoints, apB - b.actionPoints]).toEqual([2, 2]);
     b.actionPoints = 1;
-    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', toSoldier: 1, to: { ring: 0 } })).toMatchObject({
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket2', toSoldier: 1, to: { ring: 0 } })).toMatchObject({
       ok: false,
       data: { refusal: 'notEnoughAP' },
     });

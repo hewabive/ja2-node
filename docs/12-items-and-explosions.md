@@ -128,6 +128,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A mask worn below 70 lets a soldier get gassed, yet any mask clears the state at his next turn start | `explosions/smoke.test.ts` |
 | A pile under a soldier or a blocking structure is picked up from a side tile only, though the reach animation turns to any neighbour: a merc on its diagonal walks first | `item-actions.test.ts` |
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
+| A key taken alone off a stack opens lock 0, in a pocket or on the key ring: `GetObjFrom` copies the item and one status into the zeroed cursor object, not `ubKeyID` (`Tactical/Items.cc:948`, `Tactical/Interface_Items.cc:2697`) | `inventory-commands.test.ts` |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts
