@@ -128,3 +128,43 @@ describe("a merc's sleep, kind and quote flags as tactical asks them of the camp
     expect([lying(), rosterMerc(roster, sleeperId).asleep]).toEqual(['WKAEUP_FROM_SLEEP', true]);
   });
 });
+
+describe('the selection of a sleeping merc through the roster (Overhead.cc SelectSoldier, PutMercInAwakeState)', () => {
+  function sleeperInOmerta(seed: number) {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed, mercs: 2 });
+    landFirstSquad(c);
+    const id = roster.all()[1]?.id;
+    const economy = c.economy;
+    if (id === undefined || !economy) throw new Error('two mercs and the economy');
+    putMercInAsleepState(economy, rosterMerc(roster, id));
+    const lying = () => animName(kit.sectors.content, rosterMerc(roster, id).soldier.state);
+    runTicks(c, SETTLE_TICKS, () => lying() !== 'GOTO_SLEEP');
+    expect(lying()).toBe('SLEEPING');
+    return { c, roster, id, lying };
+  }
+
+  it('wakes the merc select picks, also a collapsed one the wake command refuses, with the wake-up animation', () => {
+    const { c, roster, id, lying } = sleeperInOmerta(34);
+    rosterMerc(roster, id).collapsed = true;
+    expect(c.dispatch({ type: 'wake', soldier: id })).toMatchObject({ ok: false, data: { refusal: 'collapsed' } });
+    expect(c.dispatch({ type: 'select', soldier: id })).toEqual({ ok: true, data: { woke: [id] } });
+    expect([rosterMerc(roster, id).asleep, lying(), c.state.forces.currentSquad]).toEqual([
+      false,
+      'WKAEUP_FROM_SLEEP',
+      rosterMerc(roster, id).assignment,
+    ]);
+  });
+
+  it('wakes a sleeper an order addresses before the order is checked, and he stays awake when it is refused', () => {
+    const { c, roster, id, lying } = sleeperInOmerta(35);
+    expect(c.dispatch({ type: 'turn', soldier: id, direction: 9 })).toMatchObject({ ok: false, data: { refusal: 'badDirection' } });
+    expect([rosterMerc(roster, id).asleep, lying()]).toEqual([false, 'WKAEUP_FROM_SLEEP']);
+  });
+
+  it('refuses select on the map screen, where SelectSoldier returns at once', () => {
+    const { c, roster, id } = sleeperInOmerta(36);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'select', soldier: id })).toMatchObject({ ok: false, data: { refusal: 'notInTactical' } });
+    expect(rosterMerc(roster, id).asleep).toBe(true);
+  });
+});

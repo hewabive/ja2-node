@@ -138,6 +138,10 @@ function playSkullAnimation(f: TacticalUiTest): void {
   for (let i = 0; i < SKULL_ANIMATION_FRAMES; i++) f.t.frame(PANEL_FRAME_MS);
 }
 
+function selects(f: TacticalUiTest) {
+  return f.client.commands.filter((c) => c.cmd.type === 'select').map((c) => c.cmd);
+}
+
 function inventory(f: TacticalUiTest, soldier: number) {
   return f.client.view.soldiers.find((s) => s.id === soldier)?.inventory ?? [];
 }
@@ -392,6 +396,50 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.teamSlots.filter((s) => s !== null)).toEqual([0, 1, 2, 3]);
     await f.settle();
     expect(f.screen.selected).toBeNull();
+  });
+
+  it('sends select for its first choice, a face click and the next merc after a skull, not for the merc an interrupt selects', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    expect(selects(f)).toEqual([{ type: 'select', soldier: 0 }]);
+    await f.click('teamFaceRegion1');
+    await f.click('teamFaceRegion1');
+    expect(selects(f)).toEqual([
+      { type: 'select', soldier: 0 },
+      { type: 'select', soldier: 1 },
+    ]);
+    expect(f.client.commands.filter((c) => c.cmd.type === 'select').every((c) => c.reply.ok)).toBe(true);
+    expect(tacticalOf(f.session).state.turn.selected).toBe(1);
+    kill(f, 1);
+    playSkullAnimation(f);
+    expect(selects(f).at(-1)).toEqual({ type: 'select', soldier: 2 });
+    f.frames([frame(f.client.view.tick, [{ tick: f.client.view.tick, type: 'interrupt', team: 0, soldiers: [3], selected: 3 }])]);
+    await f.settle();
+    expect([f.screen.selected, selects(f)]).toEqual([3, [0, 1, 2].map((soldier) => ({ type: 'select', soldier }))]);
+  });
+
+  it('sends the end of a multi-selection as one select with the group, even when the chosen merc is selected already', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('=');
+    await f.settle();
+    expect(selects(f).at(-1)).toEqual({ type: 'select', soldier: 0, group: [1, 2, 3] });
+    expect(f.client.commands.at(-1)?.reply).toEqual({ ok: true, data: { woke: [] } });
+  });
+
+  it('shows its own unavailable line for a merc without a move in our interrupt and sends no select, so the line shows once', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const [first, second] = [t.soldiers[0], t.soldiers[1]];
+    if (!first || !second) throw new Error('two mercs');
+    t.inCombat = true;
+    t.turn.currentTeam = 0;
+    t.turn.intList.push(first);
+    second.moved = true;
+    f.client.refresh();
+    const sent = selects(f).length;
+    await f.click('teamFaceRegion1');
+    await f.settle(4);
+    expect([f.screen.selected, selects(f).length]).toEqual([0, sent]);
+    expect(f.screen.messageLines.filter((l) => l.includes('Merc 2'))).toHaveLength(1);
   });
 
   it('names every multi-selected merc above his head, not only the selected one', async () => {

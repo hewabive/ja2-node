@@ -368,6 +368,7 @@ export class TacticalScreen implements Screen {
       env,
       selected: () => soldierById(this.#view(), this.#selected),
       select: (s, acknowledge, fromUi) => this.#selectSoldier(s, acknowledge, fromUi),
+      selectMultiSelection: (chosen, others) => this.#selectMultiSelection(chosen, others),
       interfaceLevel: () => this.#interfaceLevel,
       setInterfaceLevel: (level) => this.#setInterfaceLevel(level),
       itemInCursor: () => this.inventory.cursor !== null,
@@ -621,6 +622,7 @@ export class TacticalScreen implements Screen {
     if (first) {
       this.#squad = squadOf(first);
       this.#selectedChanged();
+      this.#sendSelection(first.id, null);
     }
   }
 
@@ -663,17 +665,35 @@ export class TacticalScreen implements Screen {
     if (s) this.#selectSoldier(s, acknowledge, false);
   }
 
+  #followServerSelection(id: number): void {
+    const s = soldierById(this.#view(), id);
+    if (s) this.#selectLocally(s, false, false);
+  }
+
   #selectSoldier(s: SoldierView, acknowledge: boolean, fromUi: boolean): void {
-    if (s.team !== OUR_TEAM || isDead(s)) return;
+    if (this.#selectLocally(s, acknowledge, fromUi)) this.#sendSelection(s.id, null);
+  }
+
+  #selectMultiSelection(chosen: SoldierView, others: readonly number[]): void {
+    if (chosen.id !== this.#selected && !this.#selectLocally(chosen, true, true)) return;
+    this.#sendSelection(chosen.id, others);
+  }
+
+  #sendSelection(soldier: number, group: readonly number[] | null): void {
+    void this.#env.client.command({ type: 'select', soldier, ...(group ? { group: [...group] } : {}) });
+  }
+
+  #selectLocally(s: SoldierView, acknowledge: boolean, fromUi: boolean): boolean {
+    if (s.team !== OUR_TEAM || isDead(s)) return false;
     if (inCombat(this.#view()) && !okInterrupt(s)) {
       if (fromUi)
         this.#localFeedback(
           printf(this.#env.text.string('TacticalStr', MERC_IS_UNAVAILABLE_STR) ?? '', [s.name]),
           FontColor.MCOLOR_LTYELLOW,
         );
-      return;
+      return false;
     }
-    if (s.id === this.#selected) return;
+    if (s.id === this.#selected) return false;
     if (this.#selected !== null) this.#locators.delete(this.#selected);
     this.#selected = s.id;
     this.#nobodySelected = false;
@@ -682,6 +702,7 @@ export class TacticalScreen implements Screen {
     if (acknowledge) this.#env.sounds.attention(s.id);
     this.#selectedChanged();
     this.#setInterfaceLevel(s.level);
+    return true;
   }
 
   #selectedChanged(): void {
@@ -1164,7 +1185,7 @@ export class TacticalScreen implements Screen {
         this.#soldierDied(event.soldier);
         return;
       case 'interrupt':
-        if (event.selected !== undefined) this.select(event.selected, false);
+        if (event.selected !== undefined) this.#followServerSelection(event.selected);
         return;
       default:
         return;

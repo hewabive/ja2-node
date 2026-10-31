@@ -6,7 +6,9 @@
 // @src UIOkForItemPickup (the pick-up), UIHandleEndTurn (CheckForEndOfCombatMode before the turn passes);
 // @src Interface.cc PopupMovementMenu (who cannot run); Handle_Items.cc HandleItem (the attack, the remote's APs);
 // @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE), SetSoldierAsUnderAiControl (the AI turn in the
-// @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet).
+// @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet); Handle_UI.cc
+// @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
+// @src (2026-10-31).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -107,6 +109,7 @@ import {
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
@@ -133,12 +136,13 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
+import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier } from './selection.ts';
 import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
-import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
+import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
 import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
 import { dynamicLightSprites } from './world-view.ts';
 
@@ -192,6 +196,7 @@ export interface CombatSnapshot {
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
+const BAD_GROUP: Refusal = { token: 'badGroup', reason: 'group must list controllable mercs of yours in the sector' };
 const AP_USE_REMOTE = 2;
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
@@ -472,14 +477,58 @@ export class TacticalSim {
     if (s.breath < OKBREATH && (s.collapsed || s.breathCollapsed)) return { token: 'outOfBreath', reason: 'soldier is out of breath' };
     if (uncontrolledRobot(t, s)) return { token: 'uncontrolledRobot', reason: UNCONTROLLED_ROBOT };
     if (!t.inCombat) return null;
+    const locked = this.#combatLock();
+    if (locked) return locked;
+    if (s.moved) return { token: 'mercUnavailable', reason: 'soldier has no move this turn' };
+    return this.#otherMercActing(s);
+  }
+
+  #combatLock(): Refusal | null {
+    const t = this.state;
     if (t.turn.hiddenInterrupt) return { token: 'uiLocked', reason: 'the interface is locked' };
     if (t.turn.currentTeam !== Team.OUR) return { token: 'notYourTurn', reason: 'it is not your turn' };
     if (t.turn.attackBusyCount > 0) return { token: 'attackResolving', reason: 'an attack is still resolving' };
     if (t.gameEvents.length > 0) return { token: 'orderQueued', reason: QUEUED_ORDER };
-    if (s.moved) return { token: 'mercUnavailable', reason: 'soldier has no move this turn' };
-    const other = teamMembers(t, Team.OUR).find((x) => x !== s && this.isBusy(x));
-    if (other) return { token: 'mercActing', reason: `soldier ${other.id} is still acting` };
     return null;
+  }
+
+  #otherMercActing(s: Soldier): Refusal | null {
+    const other = teamMembers(this.state, Team.OUR).find((x) => x !== s && this.isBusy(x));
+    return other ? { token: 'mercActing', reason: `soldier ${other.id} is still acting` } : null;
+  }
+
+  #selectionLock(s: Soldier): Refusal | null {
+    if (!this.state.inCombat) return null;
+    return this.#combatLock() ?? this.#otherMercActing(s);
+  }
+
+  #multiSelection(ids: unknown, chosen: Soldier): Soldier[] | Refusal | null {
+    const t = this.state;
+    if (ids === undefined) return null;
+    if (!Array.isArray(ids)) return BAD_GROUP;
+    if (t.inCombat) return { token: 'inCombat', reason: 'there is no multi-selection in turn-based combat' };
+    const members: Soldier[] = [];
+    for (const id of ids) {
+      const m = this.soldier(id);
+      if (!m?.placed || m.team !== Team.OUR || !okControllableMerc(t, m)) return BAD_GROUP;
+      if (m !== chosen && !members.includes(m)) members.push(m);
+    }
+    return members;
+  }
+
+  #select(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s?.placed || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const members = this.#multiSelection(cmd.group, s);
+    if (members && !Array.isArray(members)) return refused(members);
+    const refusal = this.#selectionLock(s) ?? selectionRefusal(t, s);
+    if (refusal) return refused(refusal);
+    if (!members && s.id === t.turn.selected) return refuse('alreadySelected', 'that soldier is already selected');
+    const sleepers = teamMembers(t, Team.OUR).filter((x) => (x === s || members?.includes(x)) && t.narrative.mercAsleep(x));
+    if (members) endMultiSoldierSelection(t, s, members);
+    else selectSoldier(t, s);
+    return { ok: true, data: { woke: sleepers.filter((x) => !t.narrative.mercAsleep(x)).map((x) => x.id) } };
   }
 
   canAct(s: Soldier): string | null {
@@ -551,6 +600,8 @@ export class TacticalSim {
         return this.#useRemote(cmd);
       case 'door':
         return this.#door(cmd);
+      case 'select':
+        return this.#select(cmd);
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
@@ -597,6 +648,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
@@ -613,7 +665,6 @@ export class TacticalSim {
     const apCost = apsToPickupItem(t, s, g);
     if (apCost === 0) return refuse('noPath', 'no path');
     if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
-    selectSoldier(t, s);
     if (!soldierPickupItem(t, s, g, zLevel, selection)) return refuse('noPath', 'no path');
     return { ok: true };
   }
@@ -624,12 +675,12 @@ export class TacticalSim {
     if (!s?.placed || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const target = this.soldier(cmd.target);
     if (!target?.placed || !shownToPlayer(target)) return refuse('noSuchTarget', 'target must be a soldier the squad sees');
     if (!canBeStolenFrom(target)) return refuse('notStealable', 'only a conscious hostile soldier can be robbed');
     const apCost = apsToStealItem(t, s, stealActionGridNo(t, s, target));
     if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
-    selectSoldier(t, s);
     if (!mercStealFromMerc(t, s, target)) return refuse('noPath', 'no path');
     return { ok: true };
   }
@@ -640,6 +691,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const g = cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const action = cmd.action ?? 'open';
@@ -647,7 +699,6 @@ export class TacticalSim {
       return refuse('badAction', `action must be one of ${DOOR_ACTIONS.join(', ')}`);
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
-    selectSoldier(t, s);
     const outcome = doorCommand(t, s, g, action as DoorActionName);
     if (!outcome.ok) return refuse(outcome.refusal, `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`);
     return { ok: true, data: outcome.data };
@@ -659,7 +710,7 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     if (cmd.type === 'moveItem' && cmd.to === 'ground') return this.#drop({ ...cmd, type: 'drop', slot: cmd.from });
-    selectSoldier(this.state, s);
+    selectOrderedMerc(this.state, s);
     return dispatchInventoryCommand(this.state, s, cmd);
   }
 
@@ -669,6 +720,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
     if (slot === null) return refuse('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
     if (itemIn(s.inv, slot) === NOTHING) return refuse('emptySlot', 'that slot is empty');
@@ -679,7 +731,6 @@ export class TacticalSim {
       return refuse('badIndex', 'index must point to an object in the stack');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
-    selectSoldier(t, s);
     const item = itemIn(s.inv, slot);
     const dropped = takeObjects(t.content.items, s.inv[slot] as ItemObject, count, index) as ItemObject;
     handleTacticalEffectsOfEquipmentChange(t, s, slot, item, NOTHING);
@@ -694,6 +745,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
     if (slot === null) return refuse('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
     if (itemIn(s.inv, slot) === NOTHING) return refuse('emptySlot', 'that slot is empty');
@@ -707,7 +759,6 @@ export class TacticalSim {
     const level = cmd.level ?? 0;
     if (level !== 0 && level !== 1) return refuse('badLevel', 'level must be 0 or 1');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
-    selectSoldier(t, s);
     const tossRefusal = tossItem(t, s, { slot, count, index, gridNo: g, level });
     if (tossRefusal) return refuse(tossRefusal, TOSS_REFUSALS[tossRefusal]);
     return { ok: true };
@@ -719,13 +770,13 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     const down = s.level > 0;
     if ((down ? findLowerLevel(t, s) : findHigherLevel(t, s)) < 0)
       return refuse('noRoofEdge', down ? 'no free ground next to the roof edge' : 'no roof edge next to the soldier');
     const ap = apsToClimbRoof(t, s, down);
     if (!enoughPoints(t.inCombat, s, ap)) return refuse('notEnoughAP', `not enough APs: ${ap} needed`);
-    selectSoldier(t, s);
     if (!(down ? beginSoldierClimbDownRoof(t, s) : beginSoldierClimbUpRoof(t, s))) return refuse('cannotClimb', 'cannot climb here');
     return { ok: true };
   }
@@ -736,6 +787,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const remote = t.content.items.byName.get(REMOTE_TRIGGER)?.index;
     if (remote === undefined || s.inv[InvSlot.HAND]?.item !== remote) return refuse('noRemote', 'the soldier holds no remote trigger');
     if (!enoughPoints(t.inCombat, s, AP_USE_REMOTE)) return refuse('notEnoughAP', `not enough APs: ${AP_USE_REMOTE} needed`);
@@ -752,6 +804,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
     const to = cmd.to;
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return refuse('badDestination', 'destination must be a visible gridNo');
@@ -769,7 +822,6 @@ export class TacticalSim {
         return refuse('notEnoughAP', `not enough APs: the first step costs ${first}, ${s.actionPoints} left`);
       }
     }
-    selectSoldier(t, s);
     if (s.noAPToFinishMove) s.noAPToFinishMove = false;
     const kept = { mode: s.uiMovementMode, fast: s.uiMovementFast };
     this.#takeMoveMode(s, mode);
@@ -795,6 +847,7 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s, cmd.multiSelected === true);
     const direction =
       typeof cmd.toward === 'number' && isVisibleTile(cmd.toward) ? directionToward(s.gridNo, cmd.toward) : (cmd.direction as number);
     if (typeof direction !== 'number' || !Number.isInteger(direction) || direction < 0 || direction > 7)
@@ -802,7 +855,6 @@ export class TacticalSim {
     if (direction === s.direction) return refuse('alreadyFacing', 'already facing that way');
     if (!enoughPoints(t.inCombat, s, apsToLook(t.content, s))) return refuse('notEnoughAP', 'not enough APs to turn');
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
-    selectSoldier(t, s);
     setDesiredDirection(t, s, direction);
     return { ok: true };
   }
@@ -812,11 +864,10 @@ export class TacticalSim {
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
+    selectOrderedMerc(this.state, s, cmd.multiSelected === true);
     const wanted = stanceHeight(cmd.stance);
     if (wanted === null) return refuse('badStance', 'stance must be run, stand, crouch or prone');
-    const result = cmd.stance === 'run' ? this.#run(s) : this.#changeStance(s, wanted);
-    if (result.ok) selectSoldier(this.state, s);
-    return result;
+    return cmd.stance === 'run' ? this.#run(s) : this.#changeStance(s, wanted);
   }
 
   #run(s: Soldier): CommandResult {
@@ -916,6 +967,7 @@ export class TacticalSim {
     if (s0) {
       const refusal = this.actRefusal(s0);
       if (refusal) return refused(refusal);
+      selectOrderedMerc(t, s0);
     }
     const setup = this.#attackSetup(cmd);
     if ('error' in setup) return refuse(setup.token, setup.error);
@@ -933,7 +985,6 @@ export class TacticalSim {
       if (imprint) return refuse(...IMPRINT_REFUSALS[imprint.result]);
       return refuse(ATTACK_REFUSAL_TOKENS[result] ?? 'attackRefused', ATTACK_REFUSALS[result] ?? `attack refused (${result})`);
     }
-    selectSoldier(t, s);
     return { ok: true };
   }
 

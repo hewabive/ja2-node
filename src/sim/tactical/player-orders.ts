@@ -42,9 +42,9 @@ import { removeMercStructure } from './person-structure.ts';
 import { AP, apsToChangeStance, BP, deductPoints, enoughPoints } from './points.ts';
 import { canExchangePlaces, validQuickExchangePosition } from './quick-exchange.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
+import { selectOrderedMerc } from './selection.ts';
 import { Body, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { removeOccupant, type TacticalState } from './state.ts';
-import { selectSoldier } from './turns/turns.ts';
 
 export interface OrderCommand {
   readonly type: string;
@@ -98,6 +98,12 @@ function actingSoldier(ctx: OrderContext, id: unknown): Soldier | Refusal {
 }
 
 const isRefusal = <T extends object>(v: T | Refusal): v is Refusal => 'token' in v && 'reason' in v;
+
+function orderedSoldier(ctx: OrderContext, id: unknown): Soldier | Refusal {
+  const s = actingSoldier(ctx, id);
+  if (!isRefusal(s)) selectOrderedMerc(ctx.t, s);
+  return s;
+}
 
 function soldierList(ctx: OrderContext, ids: unknown): Soldier[] | Refusal {
   if (!Array.isArray(ids) || ids.length === 0) return { token: 'badSoldiers', reason: 'soldiers must be a non-empty list of ids' };
@@ -210,7 +216,7 @@ export function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): voi
 
 function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const t = ctx.t;
-  const s = actingSoldier(ctx, cmd.soldier);
+  const s = orderedSoldier(ctx, cmd.soldier);
   if (isRefusal(s)) return refused(s);
   const other = ctx.soldier(cmd.with);
   if (!other?.placed || other === s) return refuse('noSuchTarget', 'with must be another soldier in the sector');
@@ -218,7 +224,6 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   if (cmd.cursor === true) {
     if (!validQuickExchangePosition(t, s, other)) return refuse('invalidExchange', 'not an adjacent neutral or friendly soldier in sight');
     if (!canExchangePlaces(t, s, other)) return refuse('cannotExchange', 'the soldiers cannot exchange places');
-    selectSoldier(t, s);
     swapMercPositions(t, s, other);
     t.events.push({ type: 'placesSwapped', soldier: s.id, with: other.id, gridNo: s.gridNo });
     return { ok: true };
@@ -227,7 +232,6 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   if (!canReachInOneTile(t, s, other.gridNo, level)) return refuse('notAdjacent', 'the soldier must stand next to the other');
   if (hostileToOurTeam(other)) return refuse('hostileTarget', 'cannot exchange places with an enemy');
   if (!canExchangePlaces(t, s, other)) return refuse('cannotExchange', 'the soldiers cannot exchange places');
-  selectSoldier(t, s);
   swapMercPositions(t, s, other);
   deductPoints(t.inCombat, s, AP.EXCHANGE_PLACES, 0);
   deductPoints(t.inCombat, other, AP.EXCHANGE_PLACES, 0);
@@ -244,7 +248,6 @@ function jumpOverPerson(ctx: OrderContext, s: Soldier, to: unknown, level: numbe
   if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to)) return refuse('badDestination', 'to must be a visible gridNo');
   if (!jumpOverAt(t, s, to, level)) return refuse('invalidJump', 'no prone soldier to jump over between the soldier and that tile');
   if (!enoughPoints(t.inCombat, s, apsToJumpOver(t, s))) return refuse('notEnoughAP', `not enough APs: ${apsToJumpOver(t, s)} needed`);
-  selectSoldier(t, s);
   removePendingAction(t, s);
   s.dontChargeTurningAPs = true;
   setDesiredDirection(t, s, directionToward(s.gridNo, to));
@@ -262,7 +265,6 @@ function jumpFence(ctx: OrderContext, s: Soldier): CommandResult {
   const direction = findFenceJumpDirection(t, s);
   if (direction < 0) return refuse('noFence', 'no fence to jump next to the soldier');
   if (!enoughPoints(t.inCombat, s, apsToJumpFence(t, s))) return refuse('notEnoughAP', `not enough APs: ${apsToJumpFence(t, s)} needed`);
-  selectSoldier(t, s);
   s.dontChargeTurningAPs = true;
   s.turningFromPronePosition = TurningFromProne.OFF;
   beginSoldierClimbFence(t, s);
@@ -270,7 +272,7 @@ function jumpFence(ctx: OrderContext, s: Soldier): CommandResult {
 }
 
 function jump(ctx: OrderContext, cmd: OrderCommand): CommandResult {
-  const s = actingSoldier(ctx, cmd.soldier);
+  const s = orderedSoldier(ctx, cmd.soldier);
   if (isRefusal(s)) return refused(s);
   const stopped = mustBeStationary(ctx.t, s);
   if (stopped) return stopped;
@@ -304,12 +306,11 @@ export function facingClimbableWindow(t: TacticalState, s: Soldier): boolean {
 
 function climbWindow(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const t = ctx.t;
-  const s = actingSoldier(ctx, cmd.soldier);
+  const s = orderedSoldier(ctx, cmd.soldier);
   if (isRefusal(s)) return refused(s);
   if (isRobot(s)) return refuse('cannotAct', 'the robot cannot climb');
   if (!facingClimbableWindow(t, s)) return refuse('noWindow', 'the soldier does not face an open window');
   if (!enoughPoints(t.inCombat, s, apsToJumpFence(t, s))) return refuse('notEnoughAP', `not enough APs: ${apsToJumpFence(t, s)} needed`);
-  selectSoldier(t, s);
   const to = newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0);
   s.tempNewGridNo = to;
   s.dontChargeTurningAPs = true;

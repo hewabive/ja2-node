@@ -110,8 +110,17 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   view, also in an AI interrupt once it shows and in the turn an AI attack starts.
 - `endTurn` first runs `CheckForEndOfCombatMode(FALSE)`: when that ends combat the turn does not pass and the answer
   carries `data.combatEnded`.
-- The selected merc (`turn.selected`: the merc of the last accepted order, at first `EnterCombatMode`'s choice) matters
-  for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
+- The selected merc (`turn.selected`, `src/sim/tactical/selection.ts`) is the original's: `select` sets it (the client
+  sends one for every change of its selection), and so do `EnterCombatMode`, the interrupts, `SelectNextAvailSoldier`
+  and a conversation's talker, each with the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`.
+  It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
+- An order to one merc selects him first, once the turn locks and his own state let him act (`actRefusal`) and before
+  the order reads its fields or draws, because the original's player selects a merc before ordering him. The selection,
+  his wake-up and its draw stay when the order is then refused. An order given while he plays the wake-up takes over at
+  once, as `EVENT_InitNewSoldierAnim` lets it (the wake-up is no `ANIM_NONINTERRUPT`); the orders to the other mercs
+  wait for its end (deviation "Turn-based UI lock"). The original gives `turn` and `stance` also to the mercs of a
+  real-time multi-selection without selecting them: with `multiSelected: true` these orders only wake their merc, as
+  the multi-selection already did.
 
 ### 4.4 Time on the map
 
@@ -274,7 +283,12 @@ Rules: `10` (turns, §4.3), `11` (attacks), `34` (throws), `07` (movement). One 
 mode the original keeps beside the stance (deviation "Stance") and refuses a height the merc cannot take where he stands
 (`IsValidStance`: vehicles, the robot, water, an escort lying down, no room for the body), with the message of
 `UIHandleSoldierStanceChange`; the `movementOptions` hint says which of run, sneak and crawl the movement menu offers.
-A new `move` re-plans a halted move for any merc
+`select` is the player's selection (§4.3): it refuses where `InternalSelectSoldier` returns early (another screen with
+`notInTactical`, a merc out of control with `cannotAct` or `onAssignment`, one without a move in our interrupt with
+`mercUnavailable` and its message, the selected merc with `alreadySelected`) and under the order locks; `group` (the
+other members, possibly none) ends a real-time multi-selection: every member wakes before the selection, which is
+skipped when the chosen merc is selected already, as in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A
+selection wakes a sleeper even when he collapsed, which `wake` refuses. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give or first aid), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot

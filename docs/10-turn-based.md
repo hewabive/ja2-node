@@ -37,6 +37,7 @@ exitCombatMode → real time; a real-time turn on the next tick
 | Module | Holds |
 |---|---|
 | `turns/turns.ts` | Entering and leaving combat, team turns, `beginMercTurn`, the interrupt queue, the end of combat and of the battle, the real-time turn, the enemy-sighting pause |
+| `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection |
 | `turns/turn-state.ts` | `TurnState`: the original's tactical-status, interrupt and AI-list globals; `intList` is `gOutOfTurnOrder` without its unused slot 0 |
 | `turns/ai-list.ts`, `turns/top-message.ts` | The AI list of a team's turn; the top message bar and the AI progress |
 | `perception/duel.ts` | Duel points, who may interrupt, the duel, seen opponents, watched locations |
@@ -83,7 +84,7 @@ those of a first reaction, may not be down, gassed, under fire, neutral, an EPC 
 assignment, and loses the right for the turn once he let an interrupt pass though he could have attacked
 (`passedLastInterrupt`). The assignment is the roster's (`narrative/assignment.ts` over `NarrativePort.assignment`); a
 soldier the roster does not hold reads as on squad 1, the original's zeroed `bAssignment`. Against one of ours the mover
-must be the selected merc, in ja2-node the merc of the last accepted order; against the AI he must hold the AI turn. A
+must be the selected merc (`selection.ts`, `29` §4.3); against the AI he must hold the AI turn. A
 thrown rock's impact gives every eligible listener an automatic win against the thrower. The duel draws no random
 number: more points win, a tie goes to the mover, a watcher the mover does not see wins outright.
 
@@ -160,6 +161,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
 | Combat started after our first sighting in the sector, which ends the virgin sector, leaves the enemy presence unset: `SetEnemyPresence` asks for a virgin sector | `narrative/sighting-quotes.test.ts` |
 | Entering combat plays a sleeping merc's wake-up but leaves him asleep, so his morale still waits for him to wake | `turns/turns.test.ts`, `combat/morale.test.ts`, `src/sim/campaign/narrative-port.test.ts` |
+| Entering combat on our turn selects every merc of ours with an opponent in turn, each with the selection's wake-up and draw, and the last one stays selected | `selection.test.ts` |
+| `SelectNextAvailSoldier` takes the team's first controllable merc, not the one after the fallen merc | `selection.test.ts` |
+| A selection wakes a merc who collapsed from exhaustion, whom the `wake` command (`CanCharacterBeAwakened`) refuses | `src/sim/campaign/narrative-port.test.ts` |
 
 Not pinned yet:
 - A duel won by 127 points or more never interrupts: the margin is a `UINT8` and only margins below `NO_INTERRUPT` are
@@ -185,8 +189,7 @@ reading the source:
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
 Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat" (the wake-up by selection, a sleeper's
-blindness). Other deviations of this
+pre-combat grid, the AI list's civilian skip), "Automatic selections". Other deviations of this
 domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
 prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
 "Interface lock on arrival".

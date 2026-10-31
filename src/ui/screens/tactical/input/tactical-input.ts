@@ -109,6 +109,7 @@ export interface TacticalInputHost {
   selected(): SoldierView | null;
   select(s: SoldierView): void;
   selectFromUi(s: SoldierView): void;
+  selectMultiSelection(chosen: SoldierView, others: readonly number[]): void;
   interfaceLevel(): number;
   setInterfaceLevel(level: number): void;
   viewportBottom(): number;
@@ -1627,14 +1628,19 @@ export class TacticalInput {
 
   #endMultiSelection(acknowledge: boolean): void {
     const sel = this.#sel();
-    let first: SoldierView | null = null;
+    const members: SoldierView[] = [];
     for (const id of this.multiSelected) {
       const s = soldierById(this.#view(), id);
       if (!s) continue;
-      if (s.id === sel?.id || first === null) first = s;
+      members.push(s);
       if (acknowledge) this.#env().battleSound(s.id, 'attention');
     }
-    if (first && first.id !== sel?.id) this.#host.selectFromUi(first);
+    const chosen = members.find((s) => s.id === sel?.id) ?? members[0];
+    if (chosen)
+      this.#host.selectMultiSelection(
+        chosen,
+        members.filter((s) => s !== chosen).map((s) => s.id),
+      );
   }
 
   #hint<T>(request: CommandEnvelope): HintState<T> {
@@ -2449,7 +2455,7 @@ export class TacticalInput {
     const mapPos = this.#mapPos();
     if (mapPos === null) return;
     if (this.multiSelected.size > 0) {
-      for (const id of this.multiSelected) void this.#host.send({ type: 'turn', soldier: id, toward: mapPos });
+      for (const id of this.multiSelected) void this.#host.send({ type: 'turn', soldier: id, toward: mapPos, multiSelected: true });
       return;
     }
     const sel = this.#sel();

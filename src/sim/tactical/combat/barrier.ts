@@ -41,9 +41,10 @@ import {
 import { isValidStance } from '../person-structure.ts';
 import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
+import { selectedSoldier } from '../selection.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode, selectedSoldier } from '../turns/turns.ts';
+import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { soldierToSoldierLos } from './positions.ts';

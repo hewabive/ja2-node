@@ -135,6 +135,19 @@ describe('sighting', () => {
     expect(t.events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 
+  it('lets a sleeping merc look at nobody (ManLooksForMan, fMercAsleep)', () => {
+    const t = tactical();
+    const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(t, Team.ENEMY, gridNo(80, 90), Direction.SOUTH);
+    const asleep = new Set([merc.id]);
+    t.narrative = { ...t.narrative, mercAsleep: (s) => asleep.has(s.id) };
+    allTeamsLookForAll(t);
+    expect([merc.oppList[enemy.id], enemy.visible, t.inCombat]).toEqual([Opp.NOT_HEARD_OR_SEEN, -1, false]);
+    asleep.clear();
+    allTeamsLookForAll(t);
+    expect([merc.oppList[enemy.id], enemy.visible]).toEqual([Opp.SEEN_CURRENTLY, 1]);
+  });
+
   it('does not see behind and keeps neutral civilians out of combat', () => {
     const t = tactical();
     spawn(t, Team.OUR, gridNo(80, 80), Direction.NORTH);

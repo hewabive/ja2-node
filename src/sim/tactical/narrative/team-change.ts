@@ -14,11 +14,10 @@ import { addSoldierToSector, Insertion } from '../insertion.ts';
 import { SightFlags } from '../perception/opp.ts';
 import { handleSight } from '../perception/sight.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
+import { NO_SELECTION } from '../selection.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { profileSoldierCreate } from './profile-insertion.ts';
-
-const NO_SELECTION = -1;
 
 export interface TeamChangeSlots {
   freeSoldierId(team: number): number;

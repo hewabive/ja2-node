@@ -15,7 +15,9 @@
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
 // @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
-// @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30).
+// @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
+// @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc SetCurrentSquad and MERC_TYPE__PLAYER_CHARACTER
+// @src for InternalSelectSoldier (2026-10-31).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -51,8 +53,11 @@ export interface NarrativePort {
   isEpc(s: Soldier): boolean;
   assignment(s: Soldier): number | null;
   mercAsleep(s: Soldier): boolean;
+  putMercInAwakeState(s: Soldier): void;
+  setCurrentSquad(s: Soldier): void;
   putOnSquadWhenHit(s: Soldier): void;
   isAimMerc(s: Soldier): boolean;
+  isPlayerCharacter(s: Soldier): boolean;
   quoteSaidFlags(s: Soldier): QuoteSaidRecord | null;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
@@ -122,8 +127,11 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   isEpc: () => false,
   assignment: () => null,
   mercAsleep: () => false,
+  putMercInAwakeState: () => {},
+  setCurrentSquad: () => {},
   putOnSquadWhenHit: () => {},
   isAimMerc: () => false,
+  isPlayerCharacter: () => false,
   quoteSaidFlags: () => null,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},

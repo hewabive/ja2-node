@@ -106,10 +106,10 @@ import { talkLineOfSight, talkRange, talkWalkUp, teleportNpc } from '../tactical
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { refuse as refuseCommand } from '../tactical/refusal.ts';
+import { selectOrderedMerc, selectSoldier } from '../tactical/selection.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
-import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
 import { MoraleEvent } from './morale.ts';
@@ -764,6 +764,7 @@ export class TalkFlow {
     if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
     const turn = tactical?.canAct(merc) ?? null;
     if (turn) return refuseCommand('canAct', turn);
+    selectOrderedMerc(t, merc);
     const target = this.#resolveTarget(cmd.target);
     if (!target) return refuse('noSuchTarget');
     const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: false, mercs: true, collapsed: false });
@@ -797,7 +798,6 @@ export class TalkFlow {
       return refuse('noPath');
     }
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
-    selectSoldier(t, merc);
     merc.pendingTalk = target.id;
     if (to === NOWHERE || !getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
       merc.pendingTalk = null;
@@ -926,6 +926,7 @@ export class TalkFlow {
     if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
     const turn = tactical?.canAct(merc) ?? null;
     if (turn) return refuseCommand('canAct', turn);
+    selectOrderedMerc(t, merc);
     const target = this.#resolveTarget(cmd.target);
     if (!target || target === merc) return refuse('noSuchTarget');
     const giver = giverRefusal(t, merc, this.#isEpc(merc));
@@ -943,7 +944,6 @@ export class TalkFlow {
     if (this.talk.inPanel) talkMenuGive(this.host);
     const object = request.take();
     this.talk.lines.length = 0;
-    selectSoldier(t, merc);
     soldierGiveItem(t, merc, target, object, request.slot);
     if (target.profile !== NO_PROFILE && !this.#receivesAsTeamMember(target)) setEngagedInConvFromPcAction(t, merc);
     this.#syncScripted();

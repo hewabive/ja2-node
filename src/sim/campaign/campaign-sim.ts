@@ -705,6 +705,10 @@ export class CampaignSim {
         return openMapScreen(this, cmd.abandonFight === true);
       case 'tacticalScreen':
         return openTacticalScreen(this);
+      case 'select':
+        if (this.state.flow !== 'tactical' || !this.tactical)
+          return refuse('notInTactical', 'mercs are selected on the tactical screen only');
+        return this.tactical.dispatch(cmd);
       default:
         return (
           this.money.dispatch(cmd) ??

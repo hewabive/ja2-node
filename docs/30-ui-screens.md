@@ -53,7 +53,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|
-| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, the message log |
+| Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection, a multi-selection with its `group`; the interrupt's own selection is not sent back), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, the message log |
 | Talk and shop | `quoteTrade` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, `observe.shop` |
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |

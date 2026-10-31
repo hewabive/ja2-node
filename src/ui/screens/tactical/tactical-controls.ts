@@ -114,6 +114,7 @@ export interface ControlsScreen {
   readonly env: TacticalEnvironment;
   selected(): SoldierView | null;
   select(s: SoldierView, acknowledge: boolean, fromUi: boolean): void;
+  selectMultiSelection(chosen: SoldierView, others: readonly number[]): void;
   interfaceLevel(): number;
   setInterfaceLevel(level: number): void;
   itemInCursor(): boolean;
@@ -221,6 +222,7 @@ export class TacticalControls {
       selected: () => screen.selected(),
       select: (s) => screen.select(s, false, false),
       selectFromUi: (s) => screen.select(s, true, true),
+      selectMultiSelection: (chosen, others) => screen.selectMultiSelection(chosen, others),
       interfaceLevel: () => screen.interfaceLevel(),
       setInterfaceLevel: (level) => screen.setInterfaceLevel(level),
       viewportBottom: () => screen.viewportBottom(),
@@ -472,9 +474,10 @@ export class TacticalControls {
   }
 
   #stance(stance: 'stand' | 'crouch' | 'prone'): void {
+    const multiSelected = this.input.multiSelected.size > 0;
     for (const s of this.#targets()) {
       this.input.forgetCycledMode(s.id);
-      void this.#screen.send({ type: 'stance', soldier: s.id, stance });
+      void this.#screen.send({ type: 'stance', soldier: s.id, stance, ...(multiSelected ? { multiSelected } : {}) });
     }
   }
 

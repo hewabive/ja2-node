@@ -39,7 +39,7 @@ import { onSquad } from '../narrative/assignment.ts';
 import { sayBattleEndQuote, sayLullQuote, weSawSomeoneThisTurn } from '../narrative/battle-quotes.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
-import { clearBuddyWitnessedQuotes } from '../narrative/merc-quotes.ts';
+import { clearBuddyWitnessedQuotes, okControllableMerc } from '../narrative/merc-quotes.ts';
 import { clearBattleSightingQuotes } from '../narrative/sighting-quotes.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
@@ -60,6 +60,7 @@ import {
   unusedAPsToBreath,
 } from '../points.ts';
 import { profileProgress } from '../profiles.ts';
+import { SelectFlags, selectedSoldier, selectNextAvailSoldier, selectSoldier } from '../selection.ts';
 import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
 import {
   AlertStatus,
@@ -99,26 +100,6 @@ function pointsContext(t: TacticalState): PointsContext {
 
 export function isTeamActive(t: TacticalState, team: number): boolean {
   return teamMembers(t, team).length > 0;
-}
-
-export function selectedSoldier(t: TacticalState): Soldier | null {
-  return t.soldiers[t.turn.selected] ?? null;
-}
-
-export function selectSoldier(t: TacticalState, s: Soldier): void {
-  t.turn.selected = s.id;
-}
-
-function selectNextAvailSoldier(t: TacticalState, from: Soldier): void {
-  const ours = teamMembers(t, Team.OUR);
-  const start = ours.indexOf(from);
-  for (let k = 1; k <= ours.length; k++) {
-    const s = ours[(start + k) % ours.length];
-    if (s && s.life >= OKLIFE) {
-      selectSoldier(t, s);
-      return;
-    }
-  }
 }
 
 function checkForBreathCollapse(s: Soldier): void {
@@ -420,7 +401,9 @@ export function enterCombatMode(t: TacticalState, startTeam: number): void {
   if (startTeam === Team.OUR) {
     const selected = selectedSoldier(t);
     if (!selected || selected.ai.oppCount === 0) {
-      for (const s of teamMembers(t, Team.OUR)) if (s.life >= OKLIFE && s.ai.oppCount > 0) selectSoldier(t, s);
+      for (const s of teamMembers(t, Team.OUR)) {
+        if (okControllableMerc(t, s) && s.ai.oppCount > 0) selectSoldier(t, s, SelectFlags.FORCE_RESELECT);
+      }
     }
     startPlayerTeamTurn(t, true);
   } else endTurn(t, startTeam);
@@ -727,7 +710,7 @@ function startInterrupt(t: TacticalState): void {
     if (!interrupter || interrupter.team !== team) break;
   }
   if (team === Team.OUR) {
-    selectSoldier(t, first);
+    selectSoldier(t, first, SelectFlags.FORCE_RESELECT);
     turn.currentTeam = Team.OUR;
     const soldiers = teamMembers(t, Team.OUR).filter((s) => !s.moved);
     t.events.push({ type: 'interrupt', team, soldiers: soldiers.map((s) => s.id), selected: first.id });

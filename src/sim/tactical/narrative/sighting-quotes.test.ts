@@ -8,10 +8,11 @@ import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp, SeenCreature } from '../perception/opp.ts';
 import { handleSight, ourTeamRadiosRandomlyAbout, radioSightings } from '../perception/sight.ts';
+import { selectSoldier } from '../selection.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { enterCombatMode, selectSoldier } from '../turns/turns.ts';
+import { enterCombatMode } from '../turns/turns.ts';
 import { MercQuote, QuoteSaidFlag } from './merc-quotes.ts';
 import type { QuoteSaidRecord } from './port.ts';
 

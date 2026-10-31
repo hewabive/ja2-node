@@ -170,6 +170,18 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'weaponMode').at(-1)).toMatchObject({ soldier: 0 });
   });
 
+  it('sends the stance key of a multi-selection as multiSelected orders, which leave the selected merc selected', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('=');
+    await f.settle();
+    f.key('c');
+    await f.settle();
+    expect(commandsOf(f, 'stance')).toEqual(
+      [0, 1, 2, 3].map((soldier) => ({ type: 'stance', soldier, stance: 'crouch', multiSelected: true })),
+    );
+    expect([f.screen.selected, tacticalOf(f.session).state.turn.selected]).toEqual([0, 0]);
+  });
+
   it('toggles the tree tops and the wireframes with their messages', async () => {
     const f = await tacticalUiTest(kit, ui);
     const trees = f.display.treeTops;
