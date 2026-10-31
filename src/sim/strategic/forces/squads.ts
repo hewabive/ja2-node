@@ -195,7 +195,7 @@ export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number
     joinSquadGroup(ctx, g, id);
   }
   members.push(id);
-  ctx.mercs.changeAssignment(id, q);
+  ctx.mercs.assignToSquad(id, q);
   const f = ctx.state.forces;
   if (ctx.state.flow === 'tactical' && (f.currentSquad === NO_CURRENT_SQUAD || squadIsEmpty(ctx, f.currentSquad))) f.currentSquad = q;
   return true;

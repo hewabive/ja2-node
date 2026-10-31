@@ -43,6 +43,7 @@ export interface MercPort {
   all(): readonly StrategicMerc[];
   carriedWeightPercent(id: number): number;
   changeAssignment(id: number, assignment: number): void;
+  assignToSquad(id: number, squad: number): void;
   awardTravelExperience(id: number, stat: TravelStat, points: number): void;
   removeFromTacticalSector(id: number): void;
   updateMercInSector(id: number, sector: Sector): void;

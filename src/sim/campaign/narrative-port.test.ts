@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, runTicks } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { advance } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { idiv } from '../../core/int.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
+import { putMercInAsleepState } from '../strategic/economy/rest.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { animName } from '../tactical/anim-states.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
@@ -29,6 +30,7 @@ afterAll(async () => {
 });
 
 const ON_ASSIGNMENT_DUEL_POINTS = -10;
+const SETTLE_TICKS = 2_000;
 
 interface Battle {
   readonly t: TacticalState;
@@ -48,6 +50,12 @@ function battleInOmerta(seed: number): Battle {
   const doctor = first && rosterRecord(roster, first);
   if (!doctor || !squadmate || !enemy) throw new Error('the battle lacks a side');
   return { t, doctor, squadmate, enemy };
+}
+
+function rosterMerc(roster: Roster, id: number): RosterMerc {
+  const merc = roster.get(id);
+  if (!merc) throw new Error(`merc ${id} is not on the roster`);
+  return merc;
 }
 
 function rosterRecord(roster: Roster, s: Soldier): RosterMerc {
@@ -105,17 +113,18 @@ describe("a merc's sleep, kind and quote flags as tactical asks them of the camp
 
   it('stands a merc asleep in the sector up when combat starts and leaves him asleep (CommonEnterCombatModeCode)', () => {
     const { campaign: c, roster } = createTestCampaign(kit, { seed: 31, mercs: 2, garrison: { admins: 0, troops: 2, elites: 0 } });
-    const sleeper = roster.all()[1];
-    if (!sleeper) throw new Error('two mercs');
-    sleeper.asleep = true;
     landFirstSquad(c);
+    const sleeperId = roster.all()[1]?.id;
+    const economy = c.economy;
+    if (sleeperId === undefined || !economy) throw new Error('two mercs and the economy');
+    putMercInAsleepState(economy, rosterMerc(roster, sleeperId));
+    const lying = () => animName(kit.sectors.content, rosterMerc(roster, sleeperId).soldier.state);
+    runTicks(c, SETTLE_TICKS, () => lying() !== 'GOTO_SLEEP');
+    expect(lying()).toBe('SLEEPING');
     const t = c.tactical?.state;
     if (!t) throw new Error('A9 is not loaded');
-    const merc = rosterRecord(roster, sleeper.soldier);
-    expect(animName(t.content, merc.soldier.state)).toBe('SLEEPING');
     enterCombatMode(t, Team.OUR);
     expect(t.inCombat).toBe(true);
-    expect(animName(t.content, merc.soldier.state)).toBe('WKAEUP_FROM_SLEEP');
-    expect(merc.asleep).toBe(true);
+    expect([lying(), rosterMerc(roster, sleeperId).asleep]).toEqual(['WKAEUP_FROM_SLEEP', true]);
   });
 });

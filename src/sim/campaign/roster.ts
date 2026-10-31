@@ -435,6 +435,7 @@ export interface RosterHooks {
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
   spendVehicleFuel(vehicle: RosterMerc, fuel: number): number;
   dressWound(doctor: RosterMerc, patient: RosterMerc, kit: ItemObject, kitPoints: number, kitStatus: number): number;
+  assignToSquad(merc: RosterMerc, squad: number): void;
 }
 
 export const NO_ROSTER_HOOKS: RosterHooks = {
@@ -444,6 +445,9 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
   collapseFromFatigue: () => {},
   spendVehicleFuel: () => 0,
   dressWound: () => 0,
+  assignToSquad: (merc, squad) => {
+    merc.assignment = squad;
+  },
 };
 
 export interface RosterSetup {
@@ -542,6 +546,11 @@ export class Roster implements CrewPort {
   changeAssignment(id: number, assignment: number): void {
     const merc = this.get(id);
     if (merc) merc.assignment = assignment;
+  }
+
+  assignToSquad(id: number, squad: number): void {
+    const merc = this.get(id);
+    if (merc) this.hooks.assignToSquad(merc, squad);
   }
 
   awardTravelExperience(id: number, stat: TravelStat, points: number): void {

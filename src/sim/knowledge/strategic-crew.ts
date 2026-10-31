@@ -140,6 +140,7 @@ export function projectedCrewPort(members: readonly CrewMember[], weight: Readon
     carriedWeightPercent: (id) => weight.get(id) ?? 0,
     tooTiredToTravel: () => false,
     changeAssignment: change('changeAssignment'),
+    assignToSquad: change('assignToSquad'),
     awardTravelExperience: change('awardTravelExperience'),
     removeFromTacticalSector: change('removeFromTacticalSector'),
     updateMercInSector: change('updateMercInSector'),

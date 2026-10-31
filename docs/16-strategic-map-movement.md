@@ -71,8 +71,9 @@ The hand-off lists the speaker candidates instead of drawing one (deviation "Cos
 
 **One loaded sector, the rest as diffs.** The campaign keeps one `SectorDiff` per sector instead of the temp files
 (deviation "Sector temp files"); a null member is a missing file and the `SF_*_TEMP_FILE_EXISTS` flags mirror them. Our
-mercs live in the campaign roster across loads and strategic code sees them as `StrategicMerc` through `MercPort`;
-non-player soldiers are created when a sector loads and dropped when it unloads, as `TrashWorld` does. The loaded
+mercs live in the campaign roster across loads and strategic code sees them as `StrategicMerc` through `MercPort`,
+which hands a squad join's soldier side (waking him, stamping the assignment change) to the economy; non-player
+soldiers are created when a sector loads and dropped when it unloads, as `TrashWorld` does. The loaded
 sector's `TacticalSim` shares the campaign's random streams, profiles, key table and clocks, and reports deaths,
 map-edge escapes, pending enemies, the end of the merc wait and of the battle back through `TacticalState.sectorHooks`.
 

@@ -135,6 +135,10 @@ export class FakeMercs implements MercPort {
     if (m) m.assignment = assignment;
   }
 
+  assignToSquad(id: number, squad: number): void {
+    this.changeAssignment(id, squad);
+  }
+
   awardTravelExperience(id: number, stat: TravelStat, points: number): void {
     this.experience.push({ id, stat, points });
   }

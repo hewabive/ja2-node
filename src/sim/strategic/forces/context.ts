@@ -47,6 +47,7 @@ export const emptyMercPort: MercPort = {
   all: () => [],
   carriedWeightPercent: () => 0,
   changeAssignment: () => {},
+  assignToSquad: () => {},
   awardTravelExperience: () => {},
   removeFromTacticalSector: () => {},
   updateMercInSector: () => {},

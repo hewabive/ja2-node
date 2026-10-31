@@ -22,6 +22,7 @@ import { createEconomyContext, type EconomySetup, economyWorldPort } from '../st
 import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
 import { dailyUpdateOfArmsDealersInventory } from '../strategic/economy/merchants/daily.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { applySquadAssignment } from '../strategic/economy/set-assignment.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
 import { EncounterCode, SectorFlag } from '../strategic/forces/constants.ts';
 import {
@@ -184,6 +185,7 @@ export class CampaignSim {
     this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
     const battleSetup = hooks.battle ?? hooks.sectors;
     this.battle = this.economy && battleSetup ? new BattleFlow(this, battleSetup) : null;
+    this.#joinSquadsThroughTheEconomy();
     this.creatures = this.economy ? new CreatureFlow(this) : null;
     this.merchants = hooks.merchants ? this.#merchantContext(hooks.merchants) : null;
     this.shop = this.merchants ? new ShopFlow(this) : null;
@@ -218,6 +220,13 @@ export class CampaignSim {
     if (construction === 'createOnMapScreen') enterMapScreen(this);
     tactical?.attachWorldClock(state.clock);
     if (creating) this.#startSession();
+  }
+
+  #joinSquadsThroughTheEconomy(): void {
+    const economy = this.economy;
+    const roster = this.battle?.roster;
+    if (!economy || !roster) return;
+    roster.hooks = { ...roster.hooks, assignToSquad: (merc, squad) => applySquadAssignment(economy, merc, squad) };
   }
 
   static restore(state: StrategicState, tactical: TacticalSim | null, hooks: CampaignHooks): CampaignSim {

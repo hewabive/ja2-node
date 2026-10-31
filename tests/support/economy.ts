@@ -146,9 +146,14 @@ export class FakeCrew implements CrewPort {
 
   changeAssignment(id: number, assignment: number): void {
     const m = this.mercs.get(id);
+    if (m) m.assignment = assignment;
+  }
+
+  assignToSquad(id: number, squad: number): void {
+    const m = this.mercs.get(id);
     if (!m) return;
-    if (this.economy) applySquadAssignment(this.economy, m, assignment);
-    else m.assignment = assignment;
+    if (this.economy) applySquadAssignment(this.economy, m, squad);
+    else m.assignment = squad;
   }
 
   awardTravelExperience(): void {}
