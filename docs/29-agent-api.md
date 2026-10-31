@@ -307,9 +307,9 @@ only. Money moves through the cursor in the original: `withdrawCash`, `depositCa
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
 is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a
-stack in a slot, by `moveKey` or `moveItem`, opens lock 0 as in the original (`12` §3). `switchHeadGear`
-is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day gear, night first,
-and the client keeps that turn.
+stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (deviation "Single key off a stack").
+`switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
+gear, night first, and the client keeps that turn.
 
 ### 8.4 Conversations
 

@@ -306,7 +306,11 @@ export function emptyWeaponMagazine(gun: ItemObject): ItemObject | null {
   return magazine;
 }
 
-export function getObjFrom(o: ItemObject, index: number): ItemObject | null {
+function isKey(table: ItemTable, item: number): boolean {
+  return table.byIndex.get(item)?.itemClass === ItemClass.KEY;
+}
+
+export function getObjFrom(table: ItemTable, o: ItemObject, index: number): ItemObject | null {
   if (index < 0 || index >= o.count) return null;
   if (o.count === 1) {
     const whole = cloneObject(o);
@@ -315,6 +319,7 @@ export function getObjFrom(o: ItemObject, index: number): ItemObject | null {
   }
   const one = blankObject(o.item);
   one.status[0] = o.status[index] ?? 0;
+  if (isKey(table, o.item)) one.keyId = o.keyId;
   removeObjectAt(o, index);
   return one;
 }

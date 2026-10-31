@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readDataJson } from '../../../tests/support/tactical.ts';
 import { AmmoType, itemIndex, loadItemTable } from '../../content/items/items.ts';
-import { createItem, createItems, createMoney, defaultMagazine, findReplacementMagazine, NO_PROFILE } from './object.ts';
+import { createItem, createItems, createMoney, defaultMagazine, findReplacementMagazine, getObjFrom, NO_PROFILE } from './object.ts';
 
 describe('item objects', async () => {
   const table = await loadItemTable(async (path) => readDataJson(path));
@@ -30,6 +30,19 @@ describe('item objects', async () => {
     expect(clips.status).toEqual([15, 15, 15]);
     expect(createItem(table, id('FIRSTAIDKIT'), 0).status[0]).toBe(70);
     expect(createMoney(table, 1234).money).toBe(1234);
+  });
+
+  it('takes one object off a stack with only its item and status, but a key with its lock (deviation: single key off a stack)', () => {
+    const clips = createItems(table, id('CLIP9_15'), 100, 3);
+    clips.status = [15, 12, 9];
+    clips.keyId = 7;
+    clips.flags = 1;
+    expect(getObjFrom(table, clips, 1)).toMatchObject({ item: id('CLIP9_15'), count: 1, status: [12], keyId: 0, flags: 0 });
+    expect(clips).toMatchObject({ count: 2, keyId: 7 });
+    const keys = createItems(table, id('KEY_1'), 100, 2);
+    keys.keyId = 5;
+    keys.flags = 1;
+    expect(getObjFrom(table, keys, 0)).toMatchObject({ item: id('KEY_1'), count: 1, keyId: 5, flags: 0 });
   });
 
   it('finds a replacement magazine with the same ammo type when it exists', () => {

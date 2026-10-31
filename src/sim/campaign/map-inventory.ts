@@ -187,7 +187,7 @@ function loadedStash(campaign: CampaignSim): Stash {
     slots: () => visible().map((wi) => ({ object: wi.object, gridNo: wi.gridNo, level: wi.level, flags: wi.flags })),
     take: (index, count) => {
       const wi = visible()[index] as WorldItem;
-      if (count === 1 && wi.object.count > 1) return getObjFrom(wi.object, 0);
+      if (count === 1 && wi.object.count > 1) return getObjFrom(contentOf(campaign).items, wi.object, 0);
       removeWorldItem(t, wi);
       return cloneObject(wi.object);
     },
@@ -230,7 +230,7 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
       const items = records();
       const record = items[k] as DiffWorldItem;
       const rest = cloneObject(record.object);
-      const taken = count === 1 && rest.count > 1 ? getObjFrom(rest, 0) : cloneObject(rest);
+      const taken = count === 1 && rest.count > 1 ? getObjFrom(contentOf(campaign).items, rest, 0) : cloneObject(rest);
       items[k] = count === 1 && record.object.count > 1 ? { ...record, object: rest } : { ...record, exists: false };
       recount();
       return taken;
@@ -482,7 +482,7 @@ export class MapInventory {
     if (index < 0 || index >= Math.max(1, source.count)) return refusal(InventoryRefusal.BAD_INDEX);
     if (nailsRefuses(contentOf(this.#campaign).items, s, slot, NOTHING)) return refusal(InventoryRefusal.NAILS_VEST);
     const item = source.item;
-    const discarded = takeObjects(source, count, index) as ItemObject;
+    const discarded = takeObjects(contentOf(this.#campaign).items, source, count, index) as ItemObject;
     if (source.item === NOTHING) this.#env(merc).equipmentChanged(s, slot, item, NOTHING);
     const name = this.#name(item);
     this.#events.push({ type: 'itemDiscarded', soldier: merc.id, item: name, count: discarded.count, tick: this.#campaign.tick });
@@ -517,7 +517,7 @@ export class MapInventory {
     const into = cmd.stashIndex === undefined ? null : this.#stashIndex(stash, cmd.stashIndex);
     if (cmd.stashIndex !== undefined && into === null) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
     const item = source.item;
-    const cursor = takeObjects(source, count, 0) as ItemObject;
+    const cursor = takeObjects(contentOf(this.#campaign).items, source, count, 0) as ItemObject;
     const moved = cursor.count;
     this.#env(merc).equipmentChanged(s, from, item, NOTHING);
     if (into === null) stash.add(cursor, s.gridNo, s.level);
@@ -541,7 +541,7 @@ export class MapInventory {
     if (!(slot.flags & WorldItemFlags.REACHABLE)) return mapRefusal(MapInventoryRefusal.UNREACHABLE);
     const s = merc.soldier;
     if (nailsRefuses(contentOf(this.#campaign).items, s, to, slot.object.item)) return refusal(InventoryRefusal.NAILS_VEST);
-    const preview = takeObjects(cloneObject(slot.object), count, 0) as ItemObject;
+    const preview = takeObjects(contentOf(this.#campaign).items, cloneObject(slot.object), count, 0) as ItemObject;
     if (!placeObject(this.#dryContext(s), { inv: s.inv.map(cloneObject) }, to, preview)) return refusal(InventoryRefusal.DOES_NOT_FIT);
     const sourceGridNo = slot.gridNo;
     const sourceLevel = slot.level;

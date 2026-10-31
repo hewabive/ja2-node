@@ -149,8 +149,8 @@ export function nailsRefuses(items: ItemTable, s: Soldier, slot: number, newItem
   return !NAILS_VEST_REFUSAL_EXEMPT.includes(name(items, newItem));
 }
 
-export function takeObjects(o: ItemObject, count: Count, index: number): ItemObject | null {
-  if (count === 1) return getObjFrom(o, index);
+export function takeObjects(items: ItemTable, o: ItemObject, count: Count, index: number): ItemObject | null {
+  if (count === 1) return getObjFrom(items, o, index);
   if (o.count === 0) return null;
   const whole = cloneObject(o);
   deleteObject(o);
@@ -199,7 +199,7 @@ export function chargeTransfer(env: PanelEnv, mover: Soldier, target: Soldier): 
 function placementFits(env: PanelEnv, mover: Soldier, from: number, target: Soldier, to: number, count: Count, index: number): boolean {
   const source = clonedCarrier(mover);
   const destination = target === mover ? source : clonedCarrier(target);
-  const cursor = takeObjects(source.inv[from] as ItemObject, count, index);
+  const cursor = takeObjects(env.items, source.inv[from] as ItemObject, count, index);
   if (!cursor) return false;
   return placeObject(dryContext(env, target), destination, to, cursor);
 }
@@ -249,10 +249,15 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
     !env.mapScreen && req.merge === true && ATTACH_SLOTS.includes(to) && validMerge(env.items, cursorItem, itemIn(target.inv, to));
   if (!merging && !placementFits(env, mover, from, target, to, req.count, req.index)) return refuse(PanelRefusal.DOES_NOT_FIT);
   const mergeRefusal = merging
-    ? attachPrecheck(env, mover, target.inv[to] as ItemObject, takeObjects(cloneObject(source), req.count, req.index) as ItemObject)
+    ? attachPrecheck(
+        env,
+        mover,
+        target.inv[to] as ItemObject,
+        takeObjects(env.items, cloneObject(source), req.count, req.index) as ItemObject,
+      )
     : null;
   if (mergeRefusal) return refuse(mergeRefusal);
-  const cursor = takeObjects(source, req.count, req.index) as ItemObject;
+  const cursor = takeObjects(env.items, source, req.count, req.index) as ItemObject;
   const moved = cursor.count;
   env.equipmentChanged(mover, from, cursorItem, NOTHING);
   if (merging) return mergeIntoSlot(env, req, cursor, cursorItem);
@@ -372,11 +377,11 @@ export function attachItem(env: PanelEnv, req: AttachRequest): PanelOutcome {
   const inseparable = ((env.items.byIndex.get(source.item)?.flags ?? 0) & ItemFlags.INSEPARABLE) !== 0;
   if (inseparable && validAttachment(env.items, source.item, target.item) && !req.permanent) return refuse(PanelRefusal.PERMANENT);
   if (req.index < 0 || req.index >= Math.max(1, target.count)) return refuse(PanelRefusal.CANNOT_ATTACH);
-  const precheck = attachPrecheck(env, attacher, target, takeObjects(cloneObject(source), req.count, 0) as ItemObject);
+  const precheck = attachPrecheck(env, attacher, target, takeObjects(env.items, cloneObject(source), req.count, 0) as ItemObject);
   if (precheck) return refuse(precheck);
   const cursorItem = source.item;
   const into = name(env.items, target.item);
-  const cursor = takeObjects(source, req.count, 0) as ItemObject;
+  const cursor = takeObjects(env.items, source, req.count, 0) as ItemObject;
   env.equipmentChanged(attacher, from, cursorItem, NOTHING);
   const before = attachmentSnapshot(target);
   const result = soldierAttachObject(env.combat, attacher, target, cursor, req.index);
@@ -478,7 +483,7 @@ function reloadWithAmmo(env: PanelEnv, s: Soldier, slot: number, ammoSlot: numbe
   if (name(env.items, gun.item) === 'ROCKET_LAUNCHER') return refuse(PanelRefusal.CANNOT_RELOAD);
   if (!enoughPoints(env.inCombat, s, apsToReloadGunWithAmmo(env.items, gun, ammo))) return refuse(PanelRefusal.NOT_ENOUGH_AP);
   const ammoItem = ammo.item;
-  const cursor = takeObjects(ammo, 1, 0) as ItemObject;
+  const cursor = takeObjects(env.items, ammo, 1, 0) as ItemObject;
   env.equipmentChanged(s, ammoSlot, ammoItem, NOTHING);
   const reloaded = placeObject(env.context(s), s, slot, cursor);
   cancelCursor(env, s, ammoSlot, cursor);
@@ -578,11 +583,11 @@ export function applyItem(env: PanelEnv, user: Soldier, slot: number, target: So
   const itemName = name(env.items, item);
   const application = MERC_APPLICATIONS.find((a) => a.item === itemName);
   if (!application) return refuse(DRUG_ITEMS.includes(itemName) ? PanelRefusal.NOT_PORTED : PanelRefusal.CANNOT_APPLY);
-  const preview = takeObjects(cloneObject(source), 1, 0) as ItemObject;
+  const preview = takeObjects(env.items, cloneObject(source), 1, 0) as ItemObject;
   const check = application.check(env, target, preview);
   if (check === 'noAPs') return refuse(PanelRefusal.NOT_ENOUGH_AP);
   if (check === 'notThis') return refuse(PanelRefusal.CANNOT_APPLY);
-  const cursor = takeObjects(source, 1, 0) as ItemObject;
+  const cursor = takeObjects(env.items, source, 1, 0) as ItemObject;
   env.equipmentChanged(user, slot, item, NOTHING);
   application.apply(env, target, cursor);
   cancelCursor(env, user, slot, cursor);

@@ -453,19 +453,17 @@ describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, B
     expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'hand', to: { ring: 1 } })).toMatchObject({ data: { refusal: 'notAKey' } });
   });
 
-  it('turns a key taken alone off a stack into lock 0, on the ring or in a pocket, as GetObjFrom copies no ubKeyID into the zeroed cursor', () => {
+  it('keeps the lock of a key taken alone off a stack, onto the ring or into a pocket (deviation: single key off a stack)', () => {
     const { sim, merc } = keyHolder();
     const ring = merc.keyRing ?? [];
     merc.inv[InvSlot.BIGPOCK1] = keys(2, 2);
-    merc.inv[InvSlot.BIGPOCK2] = keys(2, 1);
-    merc.inv[InvSlot.BIGPOCK3] = keys(2, 2);
+    merc.inv[InvSlot.BIGPOCK2] = keys(3, 2);
     expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', to: { ring: 0 }, count: 1 })).toMatchObject({ ok: true });
-    expect(ring[0]).toEqual({ keyId: 0, count: 1 });
+    expect(ring[0]).toEqual({ keyId: 2, count: 1 });
     expect(merc.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 1, keyId: 2 });
-    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket2', to: { ring: 1 }, count: 1 })).toMatchObject({ ok: true });
-    expect(ring[1]).toEqual({ keyId: 2, count: 1 });
-    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket3', to: 'smallPocket1', count: 1 })).toMatchObject({ ok: true });
-    expect(merc.inv[InvSlot.SMALLPOCK1]).toMatchObject({ count: 1, keyId: 0 });
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket2', to: 'smallPocket1', count: 1 })).toMatchObject({ ok: true });
+    expect(merc.inv[InvSlot.SMALLPOCK1]).toMatchObject({ count: 1, keyId: 3 });
+    expect(merc.inv[InvSlot.BIGPOCK2]).toMatchObject({ count: 1, keyId: 3 });
   });
 
   it("swaps a pocket key with another lock's keys on the ring, which go back to the pocket", () => {

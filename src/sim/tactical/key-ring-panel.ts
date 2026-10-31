@@ -4,7 +4,7 @@
 // @src position or the same key: AddKeysToSlot, else SwapKeysToSlot; 2 AP checked and charged for each conscious merc when
 // @src the key comes from another merc), SMInvClickCallbackPrimary and UIHandleItemPlacement (a key off the ring into a
 // @src pocket: Nails' vest, the AP of a passed item, HandleTacticalEffectsOfEquipmentChange); Interface_Items.cc
-// @src BeginItemPointer (one pocket key through GetObjFrom, which leaves a key taken off a stack lock 0),
+// @src BeginItemPointer (one pocket key through GetObjFrom),
 // @src BeginKeyRingItemPointer (one key, SHIFT the whole position), CancelItemPointer; Items.cc RemoveKeysFromSlot,
 // @src AddKeysToSlot (CollectKey, at most the key's ubPerPocket per position), SwapKeysToSlot, CreateKeyObject.
 
@@ -140,13 +140,13 @@ function slotToRing(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, slot: 
   if (t.content.items.byIndex.get(source.item)?.itemClass !== ItemClass.KEY) return refuse(KeyRingRefusal.NOT_A_KEY);
   const transfer = transferCheckRefusal(env, mover, target, KEY_RING_TRANSFER_APS);
   if (transfer) return refuse(transfer);
-  const cursor = takeObjects(cloneObject(source), req.count, req.index) as ItemObject;
+  const cursor = takeObjects(env.items, cloneObject(source), req.count, req.index) as ItemObject;
   const keyId = cursor.keyId;
   const keyItem = source.item;
   const wanted = cursor.count;
   if (holdsOtherKey(ring, keyId)) {
     const swapped = createKeyObject(t.content, ring.count, ring.keyId);
-    takeObjects(source, req.count, req.index);
+    takeObjects(env.items, source, req.count, req.index);
     env.equipmentChanged(mover, slot, keyItem, NOTHING);
     ring.count = wanted;
     ring.keyId = keyId;

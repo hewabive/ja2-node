@@ -72,9 +72,9 @@ function tosserRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | 
   return null;
 }
 
-function tossedPreview(s: Soldier, toss: Toss): ItemObject {
+function tossedPreview(t: TacticalState, s: Soldier, toss: Toss): ItemObject {
   const preview = cloneObject(s.inv[toss.slot] as ItemObject);
-  return takeObjects(preview, toss.count, toss.index) ?? preview;
+  return takeObjects(t.content.items, preview, toss.count, toss.index) ?? preview;
 }
 
 function faceThrower(t: TacticalState, catcher: Soldier, thrower: Soldier): void {
@@ -87,10 +87,10 @@ export function tossItem(t: TacticalState, s: Soldier, toss: Toss): TossRefusal 
   if (refusal) return refusal;
   const catcher = catcherAt(t, s, toss);
   const endZ = toss.level * HEIGHT_UNITS + throwEndZ(t, catcher);
-  if (!calculateLaunchItemChanceToGetThrough(t, s, tossedPreview(s, toss), toss.gridNo, toss.level, endZ, false, true).ok)
+  if (!calculateLaunchItemChanceToGetThrough(t, s, tossedPreview(t, s, toss), toss.gridNo, toss.level, endZ, false, true).ok)
     return 'badThrow';
   const item = itemIn(s.inv, toss.slot);
-  const tossed = takeObjects(s.inv[toss.slot] as ItemObject, toss.count, toss.index) as ItemObject;
+  const tossed = takeObjects(t.content.items, s.inv[toss.slot] as ItemObject, toss.count, toss.index) as ItemObject;
   handleTacticalEffectsOfEquipmentChange(t, s, toss.slot, item, itemIn(s.inv, toss.slot) === NOTHING ? NOTHING : item);
   if (catcher) faceThrower(t, catcher, s);
   s.dontChargeTurningAPs = true;

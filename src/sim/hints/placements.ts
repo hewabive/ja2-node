@@ -62,7 +62,7 @@ export function placements(world: KnowledgeWorld, req: PlacementsRequest): HintR
   const source = inv[slot] as ItemObject;
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, source.count))
     return refuseHint('badIndex', 'index must point to an object in the stack');
-  const cursor = source.item === NOTHING ? null : takeObjects(source, count, index);
+  const cursor = source.item === NOTHING ? null : takeObjects(items, source, count, index);
   if (!cursor) return refuseHint('emptySlot', 'that slot is empty');
   const invalid = invalidPlacementSlots(items, inv, cursor);
   const highlight = compatibleSlots(items, inv, cursor.item);

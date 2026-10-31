@@ -681,7 +681,7 @@ export class TacticalSim {
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
     selectSoldier(t, s);
     const item = itemIn(s.inv, slot);
-    const dropped = takeObjects(s.inv[slot] as ItemObject, count, index) as ItemObject;
+    const dropped = takeObjects(t.content.items, s.inv[slot] as ItemObject, count, index) as ItemObject;
     handleTacticalEffectsOfEquipmentChange(t, s, slot, item, NOTHING);
     deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
     soldierDropObject(t, s, dropped);
