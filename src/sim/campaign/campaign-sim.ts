@@ -379,7 +379,7 @@ export class CampaignSim {
       execute: (e) => this.dispatchTable.execute(this, e),
       afterAdvance: () => this.#clearFlashingEnemyCounts(),
       compressionModeSet: () => teamJackedInAndGearedToGo(this, () => (this.#hooks.loadStartSector ?? loadStartSector)(this)),
-      firstCompressionSinceMapEntry: () => {},
+      timeCompressionStarted: () => this.#clearTacticalStuffDueToTimeCompression(),
       compressionRefusal: () => this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
     };
   }
@@ -579,6 +579,10 @@ export class CampaignSim {
     this.#reEvaluateNothingToDo();
     this.#collectEvents();
     this.#syncClockEvents();
+  }
+
+  #clearTacticalStuffDueToTimeCompression(): void {
+    if (this.state.flow === 'strategic') this.tactical?.clearTacticalStuffDueToTimeCompression();
   }
 
   #reEvaluateNothingToDo(): void {

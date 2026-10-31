@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Utils/Event_Pump.cc AddGameEvent, DequeAllGameEvents, ExecuteGameEvent (primary and secondary queue).
+// @src src/game/Utils/Event_Pump.cc AddGameEvent, DequeAllGameEvents, ExecuteGameEvent (primary and secondary queue),
+// @src ClearEventQueue.
 
 import { setDesiredDirection } from './animation.ts';
 import { eventFireSoldierWeapon, fireWeapon } from './combat/attack.ts';
@@ -79,4 +80,14 @@ export function dequeueAllGameEvents(t: TacticalState): void {
     }
   }
   executeDueEvents(t, waiting);
+}
+
+function inSecondaryQueue(e: GameEvent): boolean {
+  return e.kind === 'weaponHit' && e.stamp !== undefined;
+}
+
+export function clearEventQueue(t: TacticalState): void {
+  const secondary = t.gameEvents.filter(inSecondaryQueue);
+  t.gameEvents.length = 0;
+  t.gameEvents.push(...secondary);
 }

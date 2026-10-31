@@ -529,6 +529,23 @@ function addNothingToDoFlag(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CLOCK_KEY = 'clock';
+const COMPRESSED_SINCE_MAP_ENTRY_KEY = 'compressedSinceMapEntry';
+
+function withoutCompressionSinceMapEntry(strategic: JsonObject): JsonObject {
+  const clock = strategic[CLOCK_KEY];
+  if (!isObject(clock) || clock[REF] !== undefined) return strategic;
+  return { ...strategic, [CLOCK_KEY]: withoutKeys(clock, [COMPRESSED_SINCE_MAP_ENTRY_KEY]) };
+}
+
+function dropCompressionSinceMapEntry(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withoutCompressionSinceMapEntry(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -549,5 +566,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     16: dropHeldKillFlag,
     17: addSightedCreatureFlag,
     18: addNothingToDoFlag,
+    19: dropCompressionSinceMapEntry,
   };
 }

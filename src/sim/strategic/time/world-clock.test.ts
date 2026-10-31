@@ -49,7 +49,7 @@ function harness(onEvent: (h: Harness, e: StrategicEvent) => void = () => {}): H
     },
     afterAdvance: () => {},
     compressionModeSet: () => {},
-    firstCompressionSinceMapEntry: () => {},
+    timeCompressionStarted: () => {},
     compressionRefusal: () => null,
     tick: () => {
       h.realMs += TICK_MS;

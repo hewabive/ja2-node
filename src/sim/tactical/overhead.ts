@@ -1,13 +1,15 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls,
-// @src the fade before the animation update, the SOLDIER_LOOKFOR_ITEMS look at the frame).
+// @src the fade before the animation update, the SOLDIER_LOOKFOR_ITEMS look at the frame), CencelAllActionsForTimeCompression;
+// @src Strategic/Game_Clock.cc ClearTacticalStuffDueToTimeCompression (the tactical message queue is the browser's).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
 import { adjustToNextAnimationFrame, frameTimerDone, hasAnimFlag, states, turnSoldier } from './animation.ts';
 import { updateDamageDisplay } from './combat/hit.ts';
 import { updateSoldierFade } from './fade.ts';
+import { clearEventQueue } from './game-events.ts';
 import {
   arriveAtFinalDestination,
   handleAtNewGridNo,
@@ -16,6 +18,7 @@ import {
   moveMerc,
   pathExhausted,
   setSoldierDestination,
+  stopMerc,
 } from './movement.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
@@ -95,4 +98,17 @@ export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): vo
   });
   hooks.afterPass?.(t);
   t.clockMs += TICK_MS;
+}
+
+function cancelAllActionsForTimeCompression(t: TacticalState): void {
+  for (const s of t.soldiers) {
+    if (!s?.placed) continue;
+    stopMerc(t, s);
+    t.turnHooks.cancelAIAction(t, s);
+  }
+}
+
+export function clearTacticalStuffDueToTimeCompression(t: TacticalState): void {
+  clearEventQueue(t);
+  cancelAllActionsForTimeCompression(t);
 }

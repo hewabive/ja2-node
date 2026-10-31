@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
+import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
@@ -78,5 +78,57 @@ describe('map and tactical screens', () => {
     const start = c.state.clock.seconds;
     for (let k = 0; k < ONE_REAL_SECOND_OF_TICKS; k++) c.step();
     expect(c.state.clock.seconds - start).toBe(1);
+  });
+});
+
+describe('the compression cleanup', () => {
+  const FAR_TILE = 75 * 160 + 100;
+  const PRIMARY = { kind: 'desiredDirection', soldier: 0, direction: 0 } as const;
+  const SECONDARY = {
+    kind: 'weaponHit',
+    soldier: 0,
+    attacker: 0,
+    weapon: 0,
+    damage: 0,
+    breathLoss: 0,
+    direction: 0,
+    range: 0,
+    special: 0,
+    delay: 20,
+    stamp: 0,
+  } as const;
+
+  function walkingOnTheMap(): CampaignSim {
+    const c = landed(0);
+    const [walker] = ourSoldiers(c);
+    if (!walker) throw new Error('no merc');
+    expect(c.dispatch({ type: 'move', soldier: walker.id, to: FAR_TILE })).toMatchObject({ ok: true });
+    for (let k = 0; k < ONE_REAL_SECOND_OF_TICKS; k++) c.step();
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(ourSoldiers(c)[0]?.pathSize).toBeGreaterThan(0);
+    return c;
+  }
+
+  it('stops every soldier in the loaded sector and drops the primary game events when compression is started', () => {
+    const c = walkingOnTheMap();
+    c.tactical?.state.gameEvents.push(PRIMARY, SECONDARY);
+    expect(c.dispatch({ type: 'compressTime' })).toEqual({ ok: true });
+    expect(ourSoldiers(c)[0]?.pathSize).toBe(0);
+    expect(c.tactical?.state.gameEvents).toEqual([SECONDARY]);
+  });
+
+  it('clears nothing when a speed is picked, as the increase button sets the level without StartTimeCompression', () => {
+    const c = walkingOnTheMap();
+    expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({ ok: true });
+    expect(ourSoldiers(c)[0]?.pathSize).toBeGreaterThan(0);
+  });
+
+  it('clears again at every later start, as the map screen forgets each frame that compression occurred', () => {
+    const c = walkingOnTheMap();
+    expect(c.dispatch({ type: 'compressTime' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'stopTime' })).toEqual({ ok: true });
+    c.tactical?.state.gameEvents.push(PRIMARY);
+    expect(c.dispatch({ type: 'compressTime' })).toEqual({ ok: true });
+    expect(c.tactical?.state.gameEvents).toEqual([]);
   });
 });

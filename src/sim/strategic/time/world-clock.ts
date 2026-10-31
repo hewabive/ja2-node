@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Clock.cc UpdateClock, AdvanceClock, WarpGameTime, SetClockResolutionToCompressMode,
-// @src StartTimeCompression, StopTimeCompression, PauseGame, LockPauseState, InterruptTime, UpdateGameClockGlobals.
+// @src StartTimeCompression, StopTimeCompression, PauseGame, LockPauseState, InterruptTime, UpdateGameClockGlobals;
+// @src MapScreen.cc MapScreenHandle (ResetTimeCompressHasOccured every frame, so every start clears the tactical queues).
 
 import { idiv, u32 } from '../../../core/int.ts';
 import {
@@ -46,7 +47,6 @@ export interface WorldClock {
   timeInterruptPause: boolean;
   playerPause: boolean;
   lastEventQuerySeconds: number;
-  compressedSinceMapEntry: boolean;
   stopReason: CompressionStopReason | null;
   driver: ClockDriver;
 }
@@ -83,7 +83,7 @@ export interface ClockContext {
   execute(event: StrategicEvent): boolean;
   afterAdvance(): void;
   compressionModeSet(mode: number): void;
-  firstCompressionSinceMapEntry(): void;
+  timeCompressionStarted(): void;
   compressionRefusal(): string | null;
 }
 
@@ -102,7 +102,6 @@ export function createWorldClock(seconds = STARTING_TIME): WorldClock {
     timeInterruptPause: false,
     playerPause: false,
     lastEventQuerySeconds: 0,
-    compressedSinceMapEntry: false,
     stopReason: null,
     driver: { lastSecondMs: 0, lastProcessed: 0, lastResolution: 1, timesThisSecond: 0 },
   };
@@ -176,10 +175,7 @@ export function startTimeCompression(ctx: ClockContext): string | null {
     if (raised) return raised;
   }
   setClockResolutionToCompressMode(ctx, c.mode);
-  if (!c.compressedSinceMapEntry) {
-    c.compressedSinceMapEntry = true;
-    ctx.firstCompressionSinceMapEntry();
-  }
+  ctx.timeCompressionStarted();
   return null;
 }
 

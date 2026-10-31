@@ -28,7 +28,7 @@ function context(onEvent: (ctx: ClockContext, e: StrategicEvent) => void = () =>
     },
     afterAdvance: () => {},
     compressionModeSet: () => {},
-    firstCompressionSinceMapEntry: () => {},
+    timeCompressionStarted: () => {},
     compressionRefusal: () => null,
   };
   return { ctx, log };

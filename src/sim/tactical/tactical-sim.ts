@@ -112,7 +112,7 @@ import { createScheduleList, loadMapSchedules } from './narrative/schedule-state
 import { useStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
-import { executeOverhead, type OverheadHooks } from './overhead.ts';
+import { clearTacticalStuffDueToTimeCompression, executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
@@ -485,6 +485,10 @@ export class TacticalSim {
 
   lookAround(): void {
     allTeamsLookForAll(this.state);
+  }
+
+  clearTacticalStuffDueToTimeCompression(): void {
+    clearTacticalStuffDueToTimeCompression(this.state);
   }
 
   step(): void {

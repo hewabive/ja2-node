@@ -110,7 +110,10 @@ out.
 **Compression in other rules.** Natural healing asks whether time is compressed; ja2-node asks whether the flow is
 strategic (deviation "Time compression for healing"). The original's map runs a real-time turn every 20 ms while
 compressing, so bleeding per world minute depends on the compression level; ja2-node runs real-time turns only in the
-loaded sector (gap "Absent mercs between hourly updates").
+loaded sector (gap "Absent mercs between hourly updates"). Starting compression stops every soldier of the loaded
+sector, cancels their AI actions and drops the game events not yet dequeued (`clearTacticalStuffDueToTimeCompression`,
+`tactical/overhead.ts`); a speed picked while time stands sets the level without that start, as the original's increase
+button does.
 
 **A new game.** `initNewGame` follows `InitNewGame` and `InitStrategicLayer` in order, without the screen state machine,
 the scripting engine and the message queues. Every draw is on `main` and the call order is the draw order: the same seed
@@ -153,6 +156,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
 | `InitBloodCatSectors` stops at sector 254 | `strategic/map/init.test.ts` |
+| Every start of compression clears the loaded sector, not only the first since the map opened: the map screen forgets each frame that compression occurred | `campaign/screens.test.ts` |
+| A speed button starts compression without the clean-up; only the start toggle runs it | `campaign/screens.test.ts` |
 
 Not pinned yet:
 - `WarpGameTime` restores the old `secondsPerRealSecond` after a callback stopped compression: a stopped clock keeps its

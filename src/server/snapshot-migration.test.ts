@@ -625,3 +625,37 @@ describe('snapshot version 18 (no nothing-to-do flag) migrates with no re-evalua
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionNineteen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const clock = object(strategic.clock);
+    expect(clock.compressedSinceMapEntry).toBeUndefined();
+    return [name, { ...strategic, clock: { ...clock, compressedSinceMapEntry: true } }];
+  });
+  return { ...snapshot, version: 19, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 19 (a compressed-since-map-entry flag) migrates without it, as every compression start clears', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionNineteen(current.sim);
+    expect(JSON.stringify(legacy)).toContain('"compressedSinceMapEntry"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

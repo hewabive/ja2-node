@@ -64,7 +64,7 @@ export function standaloneClockContext(state: StrategicState): ClockContext {
     execute: () => true,
     afterAdvance: () => {},
     compressionModeSet: () => {},
-    firstCompressionSinceMapEntry: () => {},
+    timeCompressionStarted: () => {},
     compressionRefusal: () => null,
   };
 }
