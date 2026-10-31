@@ -365,8 +365,10 @@ Rules: `18`. `assign` runs `SetAssignmentForList` per soldier in the given order
 shows one failure box for the batch, so `reason` names the first failure. Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
 continue prompts"). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
-with hostiles are dealt out while they also stay there (`18`). The events the original pairs with
-`StopTimeCompression` or a box stop a strategic advance. The hint `assignmentOptions` shades the menu (§9).
+with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
+to a squad, a vehicle left, a hit while on another assignment) wakes unless he collapsed, as `AddCharacterToSquad` does.
+The events the original pairs with `StopTimeCompression` or a box stop a strategic advance. The hint
+`assignmentOptions` shades the menu (§9).
 
 ### 8.10 Battles: pre-battle, autoresolve and retreat
 
