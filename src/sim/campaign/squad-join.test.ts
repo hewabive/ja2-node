@@ -3,9 +3,12 @@ import { type CampaignKit, createTestCampaign, landFirstSquad, runTicks } from '
 import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { Direction } from '../../content/world/grid.ts';
 import { Assignment, BREATHMAX_ABSOLUTE_MINIMUM } from '../strategic/economy/constants.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { animName } from '../tactical/anim-states.ts';
+import { eventSoldierGotHit } from '../tactical/combat/hit.ts';
+import { AimShot, Special } from '../tactical/combat/types.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { Roster, RosterMerc } from './roster.ts';
@@ -26,6 +29,7 @@ const TICK_BUDGET = 2_000;
 const MINUTES_ON_THE_JOB = 90;
 const SQUAD_1 = 0;
 const SQUAD_2 = 1;
+const GRAZE = 3;
 
 interface Sleeper {
   readonly c: CampaignSim;
@@ -76,5 +80,29 @@ describe('joining a squad, soldier side (AddCharacterToSquad, Squads.cc:188)', (
     expect(l.c.dispatch({ type: 'assignSquad', soldier: l.id, squad: SQUAD_1 })).toMatchObject({ ok: true });
     expect([merc(l).assignment, merc(l).asleep, merc(l).collapsed]).toEqual([SQUAD_1, true, true]);
     expect(merc(l).lastAssignmentChangeMin).toBe(worldTotalMinutes(l.c.state.clock));
+  });
+});
+
+describe('a hit on our merc on another assignment (EVENT_SoldierGotHit, Soldier_Control.cc:2806)', () => {
+  it('wakes him without the wake-up animation and puts him on a squad', () => {
+    const l = doctorAsleep(53);
+    merc(l).forcedToStayAwake = true;
+    const t = l.c.tactical?.state;
+    const gun = kit.sectors.content.items.byName.get('GLOCK_17')?.index;
+    if (!t || gun === undefined) throw new Error('no loaded sector or gun');
+    eventSoldierGotHit(t, merc(l).soldier, gun, GRAZE, 0, Direction.SOUTH, 1, null, Special.NONE, AimShot.LEGS);
+    expect([merc(l).assignment, merc(l).asleep, merc(l).forcedToStayAwake]).toEqual([SQUAD_1, false, false]);
+    expect(shown(l)).not.toBe('WKAEUP_FROM_SLEEP');
+    expect(merc(l).lastAssignmentChangeMin).toBe(worldTotalMinutes(l.c.state.clock));
+  });
+
+  it('leaves a merc on a squad where he is', () => {
+    const l = doctorAsleep(54);
+    expect(l.c.dispatch({ type: 'assignSquad', soldier: l.id, squad: SQUAD_2 })).toMatchObject({ ok: true });
+    const t = l.c.tactical?.state;
+    const gun = kit.sectors.content.items.byName.get('GLOCK_17')?.index;
+    if (!t || gun === undefined) throw new Error('no loaded sector or gun');
+    eventSoldierGotHit(t, merc(l).soldier, gun, GRAZE, 0, Direction.SOUTH, 1, null, Special.NONE, AimShot.LEGS);
+    expect(merc(l).assignment).toBe(SQUAD_2);
   });
 });

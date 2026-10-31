@@ -51,6 +51,7 @@ export interface NarrativePort {
   isEpc(s: Soldier): boolean;
   assignment(s: Soldier): number | null;
   mercAsleep(s: Soldier): boolean;
+  putOnSquadWhenHit(s: Soldier): void;
   isAimMerc(s: Soldier): boolean;
   quoteSaidFlags(s: Soldier): QuoteSaidRecord | null;
   civGroupWillBecomeHostile(group: number): void;
@@ -121,6 +122,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   isEpc: () => false,
   assignment: () => null,
   mercAsleep: () => false,
+  putOnSquadWhenHit: () => {},
   isAimMerc: () => false,
   quoteSaidFlags: () => null,
   civGroupWillBecomeHostile: () => {},

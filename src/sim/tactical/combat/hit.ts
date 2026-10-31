@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
+// @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit
+// @src (its squad for our merc on another assignment, 2026-10-31),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
 // @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
@@ -348,6 +349,7 @@ export function eventSoldierGotHit(
     if (changed) s = changed;
   }
   const combined = soldierTakeDamage(t, s, damage, breath, reason, att);
+  if (s.team === Team.OUR && !isVehicle(s)) t.narrative.putOnSquadWhenHit(s);
   const volume = screamVolume(s, combined);
   const attackerShown = att !== null && shownToPlayer(att);
   t.events.push({

@@ -7,12 +7,15 @@
 // @src (the strategic event calls of the schedules); Tactical/Soldier_Control.cc CanRobotBeControlled, GetRobotController;
 // @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController); Tactical/Boxing.cc (PauseGame, UnPauseGame,
 // @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
-// @src (TriggerFriendWithHostileQuote).
+// @src (TriggerFriendWithHostileQuote); Tactical/Soldier_Control.cc EVENT_SoldierGotHit (our merc on another assignment
+// @src wakes and joins a squad, 2026-10-31).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
+import { addCharacterToAnySquad } from '../strategic/forces/squads.ts';
 import { findUndergroundSector } from '../strategic/map/sectors.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
 import { questStatus } from '../strategic/narrative/facts.ts';
@@ -31,6 +34,18 @@ import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';
 import type { Soldier } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { MercKind } from './roster.ts';
+
+function putOnSquadWhenHit(campaign: CampaignSim, soldier: Soldier): void {
+  const strategic = campaign.strategic;
+  const merc = campaign.battle?.roster.get(soldier.id);
+  if (!strategic || !merc || merc.soldier !== soldier) return;
+  if (merc.assignment < Assignment.ON_DUTY || merc.assignment === Assignment.ASSIGNMENT_POW) return;
+  if (merc.asleep) {
+    merc.asleep = false;
+    merc.forcedToStayAwake = false;
+  }
+  addCharacterToAnySquad(strategic, merc.id);
+}
 
 function rebelsBetrayed(campaign: CampaignSim): void {
   if (campaign.economy) reduceLoyaltyForRebelsBetrayed(campaign.economy);
@@ -55,6 +70,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,
     assignment: (soldier) => campaign.battle?.roster.get(soldier.id)?.assignment ?? null,
     mercAsleep: (soldier) => campaign.battle?.roster.get(soldier.id)?.asleep ?? false,
+    putOnSquadWhenHit: (soldier) => putOnSquadWhenHit(campaign, soldier),
     isAimMerc: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.AIM_MERC,
     quoteSaidFlags: (soldier) => campaign.battle?.roster.get(soldier.id) ?? null,
     civGroupWillBecomeHostile: (group) => {

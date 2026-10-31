@@ -185,8 +185,8 @@ reading the source:
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
 Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat" (the wake-ups by selection and by a hit, and a
-sleeper's blindness). Other deviations of this
+pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat" (the wake-up by selection, a sleeper's
+blindness). Other deviations of this
 domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
 prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
 "Interface lock on arrival".
