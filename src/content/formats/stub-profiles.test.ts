@@ -75,6 +75,29 @@ describe('authored stub profiles', () => {
     expect(parseOne({})).toMatchObject({ sectorX: 0, sectorY: 0, civilianGroup: 0 });
   });
 
+  it('reads the rooms an NPC owns as up to two ranges, none by default', () => {
+    expect(
+      parseOne({
+        ownedRooms: [
+          [3, 5],
+          [9, 9],
+        ],
+      }),
+    ).toMatchObject({ roomRangeStart: [3, 9], roomRangeEnd: [5, 9] });
+    expect(parseOne({ ownedRooms: [[2, 4]] })).toMatchObject({ roomRangeStart: [2, 0], roomRangeEnd: [4, 0] });
+    expect(parseOne({})).toMatchObject({ roomRangeStart: [0, 0], roomRangeEnd: [0, 0] });
+    expect(() =>
+      parseOne({
+        ownedRooms: [
+          [1, 1],
+          [2, 2],
+          [3, 3],
+        ],
+      }),
+    ).toThrow(FormatError);
+    expect(() => parseOne({ ownedRooms: [[1]] })).toThrow(FormatError);
+  });
+
   it('rejects unknown items, bad slots, too many relations and duplicate ids', () => {
     expect(() => parseOne({ inventory: [{ slot: 1, item: 'LASER' }] })).toThrow(FormatError);
     expect(() => parseOne({ inventory: [{ slot: 19, item: 'PISTOL' }] })).toThrow(FormatError);

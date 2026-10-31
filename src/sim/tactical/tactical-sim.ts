@@ -110,6 +110,7 @@ import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
+import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
@@ -365,6 +366,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
 function overheadHooks(ai: AiControl): OverheadHooks {
   return {
     beforePass: (state) => {
+      handlePickedOwnershipCheck(state);
       stepThrownObjects(state);
       updateBullets(state);
       stepExplosions(state);

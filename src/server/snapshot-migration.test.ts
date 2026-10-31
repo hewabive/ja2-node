@@ -787,3 +787,36 @@ describe('snapshot version 22 (no preferred selection) migrates with nobody pref
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionTwentyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const { pickedOwnershipCheck, ...tactical } = object(value);
+    expect(pickedOwnershipCheck).toBeNull();
+    return [name, tactical];
+  });
+  return { ...snapshot, version: 23, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 23 (no ownership check after a pickup) migrates with none pending', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionTwentyThree(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"pickedOwnershipCheck"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

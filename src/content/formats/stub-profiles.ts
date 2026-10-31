@@ -21,6 +21,7 @@ const DEFAULT_DESIRE_TO_TALK = 50;
 const DEFAULT_APPROACH_MOD = 100;
 const NO_QUOTE = 255;
 const NO_ROOM = 0;
+const ROOM_RANGES = 2;
 const APPROACH_NAMES = ['FRIENDLY', 'DIRECT', 'THREATEN', 'RECRUIT'] as const;
 const MOD_KEYS = ['friendlyMod', 'directMod', 'threatenMod'] as const;
 const STAT_KEYS = [
@@ -177,6 +178,25 @@ function dialogue(o: JsonObject, what: string): StubDialogue {
   return { approachFactor, approachVal, approachMod };
 }
 
+interface OwnedRooms {
+  readonly roomRangeStart: number[];
+  readonly roomRangeEnd: number[];
+}
+
+function ownedRooms(o: JsonObject, what: string): OwnedRooms {
+  const ranges = o.ownedRooms === undefined ? [] : asArray(o.ownedRooms, `${what}.ownedRooms`);
+  if (ranges.length > ROOM_RANGES) throw new FormatError(`${what}.ownedRooms: at most ${ROOM_RANGES} ranges`);
+  const pairs = ranges.map((range, k) => {
+    const pair = asArray(range, `${what}.ownedRooms[${k}]`);
+    if (pair.length !== 2) throw new FormatError(`${what}.ownedRooms[${k}]: a range is [first, last]`);
+    return pair.map((room, i) => asInt(room, `${what}.ownedRooms[${k}][${i}]`));
+  });
+  return {
+    roomRangeStart: Array.from({ length: ROOM_RANGES }, (_, k) => pairs[k]?.[0] ?? NO_ROOM),
+    roomRangeEnd: Array.from({ length: ROOM_RANGES }, (_, k) => pairs[k]?.[1] ?? NO_ROOM),
+  };
+}
+
 function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): MercProfile {
   const what = `stub profile ${index}`;
   const o = asObject(json, what);
@@ -274,8 +294,7 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     friendlyOrDirectDefaultResponseUsedRecently: 0,
     recruitDefaultResponseUsedRecently: 0,
     threatenDefaultResponseUsedRecently: 0,
-    roomRangeStart: [NO_ROOM, NO_ROOM],
-    roomRangeEnd: [NO_ROOM, NO_ROOM],
+    ...ownedRooms(o, what),
   };
 }
 

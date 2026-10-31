@@ -43,6 +43,7 @@ igniteExplosion: busy count +1, sight off                           explosions/e
   stepExplosions, every tick
     damage key frame → spreadEffect over the radius, or newSmokeEffect    explosion.ts, smoke.ts
       expAffect per tile (one PreRandom(100) for a blast or stun)
+        neutral owners of the tile's room take offence (ours only)  narrative/minor-offenses.ts (35)
         structures and their listeners                              structure-damage.ts
         items on the ground, chain reactions → igniteExplosion      item-damage.ts
         damageSoldierFromBlast → eventSoldierGotHit                 blast-damage.ts, combat/hit.ts (33)
@@ -155,8 +156,8 @@ source:
   flare never fades during turn-based combat.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Wrecked
-structures", "Building owners", "Drugs and alcohol", "Auto-bandage", "Walking side effects" (water damage to items),
-"Tossing from the item cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
+structures", "Drugs and alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item
+cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
 cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and light", "Cosmetic draws in
 explosions".

@@ -5,7 +5,8 @@
 // @src Points.cc GetAPsToPickupItem; Handle_UI.cc UIOkForItemPickup;
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
 // @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give); Items.cc ItemIsCool
-// @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30).
+// @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30), its ownership check
+// @src timer (2026-10-31).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -21,6 +22,7 @@ import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
+import { schedulePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { isWater, newOKDestination } from './pathfinding.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
@@ -178,6 +180,7 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
     statChange(t, s, StatKind.WISDOM, HIDDEN_ITEM_WISDOM_GAIN, StatCause.SUCCESS);
   if (!dontCharge) deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
   t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
+  schedulePickedOwnershipCheck(t, s, pending.gridNo);
 }
 
 export function soldierDropItem(t: TacticalState, s: Soldier, slot: number): void {

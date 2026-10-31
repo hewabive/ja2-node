@@ -613,6 +613,20 @@ function addPreferredSelection(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PICKED_OWNERSHIP_CHECK_KEY = 'pickedOwnershipCheck';
+const PATH_ENV_KEY = 'pathEnv';
+
+function addPickedOwnershipCheck(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [
+      name,
+      name === 'tactical' && isObject(value) ? insertBefore(value, PATH_ENV_KEY, PICKED_OWNERSHIP_CHECK_KEY, null) : value,
+    ],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -637,5 +651,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     20: addMovementCosmeticStream,
     21: addCorpseHeads,
     22: addPreferredSelection,
+    23: addPickedOwnershipCheck,
   };
 }

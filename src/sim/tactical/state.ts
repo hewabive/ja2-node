@@ -178,6 +178,12 @@ export const NO_TURN_HOOKS: TurnHooks = {
 
 export const WaitForMercs = { NONE: 0, WALKOFF_SCREEN: 1, WALKON_SCREEN: 2, WALK_TO_GRIDNO: 3 } as const;
 
+export interface PickedOwnershipCheck {
+  readonly picker: Soldier;
+  readonly gridNo: number;
+  readonly dueMs: number;
+}
+
 export interface MercsWaiting {
   readonly code: number;
   remaining: number;
@@ -285,6 +291,7 @@ export interface TacticalState {
   scheduleClock: ScheduleClock;
   engagedInConvFromActionMerc: number;
   readonly actionItems: ActionItemQueue;
+  pickedOwnershipCheck: PickedOwnershipCheck | null;
 }
 
 export interface RealtimeClock {
@@ -453,6 +460,7 @@ export function createTacticalState(
     scheduleClock: NO_SCHEDULE_CLOCK,
     engagedInConvFromActionMerc: NOBODY,
     actionItems: { queue: [], active: false, person: null, sightChanged: false },
+    pickedOwnershipCheck: null,
   };
 }
 

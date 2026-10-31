@@ -27,6 +27,7 @@ import { registeredInTactical } from '../campaign/roster.ts';
 import { createItem } from '../items/object.ts';
 import { newLightEffect } from '../tactical/explosions/light.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { schedulePickedOwnershipCheck } from '../tactical/narrative/minor-offenses.ts';
 import { Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../tactical/world-items.ts';
@@ -219,6 +220,20 @@ describe('a campaign snapshot', () => {
       level: victim.level,
     });
     expect(after.turn.killedEnemyOnAttack?.victim).toBe(after.soldiers[victim.id]);
+  });
+
+  it('keeps a pending ownership check of a pickup with the picker as a reference', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    const t = tacticalOf(c);
+    const [picker] = ourSoldiers(c);
+    if (!picker) throw new Error('no merc');
+    schedulePickedOwnershipCheck(t, picker, picker.gridNo);
+    const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
+    const after = tacticalOf(testCampaignAdapter(kit, options).restore(JSON.parse(json), c));
+    expect(after.pickedOwnershipCheck).toEqual({ picker: after.soldiers[picker.id], gridNo: picker.gridNo, dueMs: t.clockMs + 1000 });
+    expect(after.pickedOwnershipCheck?.picker).toBe(after.soldiers[picker.id]);
   });
 
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {

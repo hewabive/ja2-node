@@ -21,6 +21,7 @@ const TICKS_AFTER_MOVE = 200;
 const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
 const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
+const OWNED_ROOMS_ADDED_AFTER_070 = /\n {6}"ownedRooms": \[[^\n]*\],/g;
 const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
 const DECAPITATION_TABLES_ADDED_AFTER_070 = /\n {2}"validForDecapitation": \[[^\]]*\],\n {2}"decapitated": \[[^\]]*\],/;
 const SURFACES_ADDED_AFTER_070 = new Set([
@@ -134,7 +135,7 @@ async function withChangedStubFile(vfs: Vfs): Promise<Vfs> {
 
 async function recordedStubProfiles(vfs: Vfs): Promise<Uint8Array> {
   const current = new TextDecoder().decode(await vfs.read(STUB_PROFILES_FILE));
-  return new TextEncoder().encode(current.replace(FACE_OFFSETS_ADDED_AFTER_070, ''));
+  return new TextEncoder().encode(current.replace(FACE_OFFSETS_ADDED_AFTER_070, '').replace(OWNED_ROOMS_ADDED_AFTER_070, ''));
 }
 
 async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {

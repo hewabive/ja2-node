@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc InternalIgniteExplosion, IgniteExplosion, IgniteExplosionXY,
-// @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT),
+// @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT; the
+// @src HandleBuldingDestruction call 2026-10-31),
 // @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
@@ -31,6 +32,7 @@ import {
   lightSpritePower,
   MIN_AMB_LEVEL_FOR_MERC_LIGHTS,
 } from '../lighting/lighting.ts';
+import { handleBuildingDestruction } from '../narrative/minor-offenses.ts';
 import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -412,6 +414,7 @@ function expAffect(t: TacticalState, ctx: SpreadContext, g: number, distance: nu
   const stun = ctx.smoke ? null : (explosive?.stun ?? null);
   const gas = explosive?.smoke ?? null;
   const roll = blast || stun ? t.pre.int(100) : 0;
+  handleBuildingDestruction(t, g, ctx.owner);
   let wound = 0;
   let breath = 0;
   if (blast) {
