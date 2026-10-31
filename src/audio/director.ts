@@ -18,7 +18,8 @@
 // @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1); Tactical/OppList.cc OurTeamSeesSomeone
 // @src and SaySeenQuote (the ENEMY and CURSE1 battle sounds of a sighting, 2026-10-30); Tactical/Handle_Items.cc
 // @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30); Tactical/Weapons.cc UseHandToHand (the curse
-// @src of a failed or fumbled steal, 2026-10-31).
+// @src of a failed or fumbled steal, 2026-10-31); Tactical/Dialogue_Control.cc DialogueEventQuote::Execute (the battle sound
+// @src of the merc on our team with a line's profile, which holds the line, 2026-10-31).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -246,6 +247,11 @@ export class SoundDirector {
 
   locked(soldier: number): void {
     this.#battleSound(soldier, 'LOCKED', false);
+  }
+
+  mercBattleSoundPlaying(profile: number): boolean {
+    const merc = [...this.#soldiers.values()].find((s) => s.team === OUR_TEAM && s.profile === profile);
+    return merc !== undefined && (this.#battleVoices.get(merc.id)?.active ?? false);
   }
 
   fingerprintDenied(): void {

@@ -75,6 +75,7 @@ profiling demands it, which it has not (§4.5).
 | Wall-clock pauses and timers: the 3 s "enemy sighted on their turn", the 10 s before a lost battle unloads | `Tactical/OppList.cc:2588-2602`; `Tactical/Overhead.cc:4479` | The same durations in game ms (deviations "Enemy sighted on their turn", "Lost battle unload delay") |
 | `DOOR_BUSY` and the bomb queue (`1000 + Random(500)` ms) | tile animations; `TileEngine/Explosion_Control.cc:2054-2095` | Not ported (gaps "Doors", "Duds and timed bombs") |
 | Quote duration: the sample's length with speech on, 60 ms per character without, then 300 ms with the mouth closed | `Tactical/Faces.cc:629-636, 1233, 1304`; `Tactical/Dialogue_Control.cc:67, 1521` | The longer of the two for every viewer, from the rule pack's voice lengths (deviations "Speech") |
+| A merc's quote waits in the queue while his battle sound plays | `Tactical/Dialogue_Control.cc:485, 633` | Never in the simulation; the client holds the line (deviations "Speech", "Speech playback") |
 | Logic that waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | The same queue, on ticks (`24`) |
 | Message boxes and dialogues with choices | UI screens | Decision prompts (D15); time stands still until an answer (deviations "Prompt time") |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
@@ -83,8 +84,8 @@ profiling demands it, which it has not (§4.5).
 
 Logic depends on rendering only through the soldier fade, whose length reads the land node's display shade (computed
 by the simulation without our mercs' lights), on the wall clock in a finite list of places, all converted to game
-time, and on sound only through quote durations, replaced by data. `deviations.md` §2 has every timing difference that
-follows.
+time, and on sound only through quote durations, replaced by data, and the battle sound wait, left to the client.
+`deviations.md` §2 has every timing difference that follows.
 
 ---
 

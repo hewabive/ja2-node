@@ -49,13 +49,14 @@ replays; headless sessions and agents get the same outcome. The one audio fact t
 lengths measured from the WAV headers into the rule pack (`@rules/speech/lengths.json`, outside its hash), which time
 conversation lines (`24`).
 
-**Where the original's gameplay waits for sound,** ja2-node uses game time: a quote lasts its sample, waits for the
-speaker's battle sound and is cut by a critical one (deviation "Speech"; the client still stops the voice, "Speech
-playback"); the defeat track's end unloads the sector ("Defeat track"); Skyrider's destruction waits for a sound
-("Helicopter destruction"); ambient sounds are strategic events ("Ambient sound events", "Ambient timing"); the first
-helicopter drop waits for the engine sound to fade (gaps "Helicopter entrance": once ported, its end follows the
-script's ticks). Sound picks on the gameplay generator are not drawn, or drawn on the client's `ClientRandom`, seeded
-from the session id ("Cosmetic draws …", "Footstep variants", "Music track choice").
+**Where the original's gameplay waits for sound,** ja2-node uses game time: a quote lasts its sample (deviation
+"Speech"); the client, not the simulation, holds a merc's line while his battle sound plays and stops the voice at a
+critical one, so the simulation's line timing includes neither ("Speech playback"); the defeat track's end unloads the
+sector ("Defeat track"); Skyrider's destruction waits for a sound ("Helicopter destruction"); ambient sounds are
+strategic events ("Ambient sound events", "Ambient timing"); the first helicopter drop waits for the engine sound to
+fade (gaps "Helicopter entrance": once ported, its end follows the script's ticks). Sound picks on the gameplay
+generator are not drawn, or drawn on the client's `ClientRandom`, seeded from the session id ("Cosmetic draws …",
+"Footstep variants", "Music track choice").
 
 **The client hears what the squad hears.** The view has no position for an unseen soldier (D16), so an unseen source
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds
@@ -70,8 +71,9 @@ sample cache. ja2-node decodes WAV itself, since almost every battle sound and a
 `decodeAudioData` does not decode reliably. Speech and music (about 500 MB) load per file through `/vfs`, never
 bundled; a missing file is skipped, as the original skips a failed play.
 
-**Speech** plays for every quote with a text key; the next line waits for the sample, and a line end on the
-simulation's side never cuts it. On `/play` the speech presenter owns voice, subtitle and skip (`30`).
+**Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
+waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`), and a line end on
+the simulation's side never cuts it. On `/play` the speech presenter owns voice, subtitle and skip (`30`).
 
 ### Music
 
@@ -160,6 +162,8 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | Soldier samples (footsteps, the robot's beep) go through the effects volume twice | `content/audio/sound-position.test.ts`, `cues.test.ts` |
 | Our mercs' battle sounds keep their volume off screen; only other teams' drop | `content/audio/sound-position.test.ts` |
 | A muted confirmation still counts for the 2 s repeat filter | `content/audio/cues.test.ts` |
+| A merc's line waits for his battle sound with speech off too, only its subtitle shown | `ui/speech.test.ts` |
+| Only a merc on our team holds his line for his battle sound; an NPC's line plays over his | `audio/director.test.ts` |
 | Music starts without a fade-in | `audio/music.test.ts` |
 | Setting the playing mode again makes it its own previous mode: the prebattle screen sets enemy present twice, so a later restore forgets what played before | `protocol/music.test.ts` |
 | A restore never returns to the victory or defeat track, but to the nothing music | `protocol/music.test.ts` |

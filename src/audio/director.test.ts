@@ -172,6 +172,25 @@ describe('the sound director', () => {
     expect(files(r)[0]).toMatch(/^battlesnds\/007_lmok\d\.wav$/);
   });
 
+  it("reports the battle sound of our merc with a line's profile while it plays, never an enemy's with that profile", async () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0, { profile: 7 }), soldier(30, 'STANDING', 0, { team: 1, profile: 8, voice: '008' })]);
+    expect(r.director.mercBattleSoundPlaying(7)).toBe(false);
+    r.director.curse(1);
+    r.director.curse(30);
+    expect(files(r)).toEqual([
+      expect.stringMatching(/^battlesnds\/007_curse\d?\.wav$/),
+      expect.stringMatching(/^battlesnds\/008_curse\d?\.wav$/),
+    ]);
+    expect(r.director.mercBattleSoundPlaying(7)).toBe(true);
+    expect(r.director.mercBattleSoundPlaying(8)).toBe(false);
+    expect(r.director.mercBattleSoundPlaying(9)).toBe(false);
+    await settle();
+    expect(r.director.mercBattleSoundPlaying(7)).toBe(true);
+    for (const source of r.graph.playing()) source.finish();
+    expect(r.director.mercBattleSoundPlaying(7)).toBe(false);
+  });
+
   it('cries the call kind of a creature at code 717 of its call animation', () => {
     const MONSTER_UP = [707, 1, 2, 3, 4, 717, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 442, 499];
     const cries = (bodyType: number, call: 'onePrey' | 'attacked' | 'crippled') => {

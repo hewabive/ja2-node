@@ -41,6 +41,7 @@ class FakeVoice implements SpeechVoice {
 
 function presenter(settings: Partial<SpeechSettings> = {}, voiced = true) {
   const voices: FakeVoice[] = [];
+  const battleSounds = new Set<number>();
   const all: SpeechSettings = { speech: true, subtitles: true, keyAdvance: false, ...settings };
   const p = new SpeechPresenter({
     voices: voiced
@@ -53,8 +54,9 @@ function presenter(settings: Partial<SpeechSettings> = {}, voiced = true) {
         }
       : null,
     settings: () => all,
+    battleSounds: { playing: (profile) => battleSounds.has(profile) },
   });
-  return { p, voices };
+  return { p, voices, battleSounds };
 }
 
 function line(overrides: Partial<SpeechLineRequest> = {}): SpeechLineRequest {
@@ -138,6 +140,70 @@ describe('SpeechPresenter', () => {
     expect(ended).toEqual([1]);
     expect(started).toEqual([1, 2]);
     expect(p.current?.line.profile).toBe(2);
+  });
+
+  it("holds a merc's line, face and subtitle while his battle sound plays and starts it when the sound ends", () => {
+    const { p, voices, battleSounds } = presenter();
+    const started: number[] = [];
+    p.onLineStarted((l) => started.push(l.profile));
+    battleSounds.add(4);
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 4, soldier: 2, keyWait: false }));
+    p.update(800);
+    expect(voices).toHaveLength(0);
+    expect(p.current).toBeNull();
+    expect(p.speaking).toBeNull();
+    expect(p.busy).toBe(true);
+    expect(started).toEqual([]);
+    battleSounds.delete(4);
+    p.update(900);
+    expect(voices).toHaveLength(1);
+    expect(started).toEqual([4]);
+    expect(p.current).toMatchObject({ startedAt: 900, phase: 'talking' });
+    expect(p.skip(1399, false)).toBe(false);
+  });
+
+  it("does not hold a line for another merc's battle sound", () => {
+    const { p, voices, battleSounds } = presenter();
+    battleSounds.add(5);
+    p.update(0);
+    p.enqueue(line({ surface: SpeechSurface.TACTICAL, profile: 4, soldier: 2, keyWait: false }));
+    expect(voices).toHaveLength(1);
+    expect(p.current?.line.profile).toBe(4);
+  });
+
+  it('keeps later lines queued behind a held line', () => {
+    const { p, voices, battleSounds } = presenter();
+    battleSounds.add(4);
+    p.update(0);
+    p.enqueue(line({ profile: 4 }));
+    p.enqueue(line({ profile: 5 }));
+    p.update(100);
+    expect(voices).toHaveLength(0);
+    expect(p.queued.map((l) => l.profile)).toEqual([4, 5]);
+    battleSounds.delete(4);
+    p.update(200);
+    expect(p.current?.line.profile).toBe(4);
+    expect(p.queued.map((l) => l.profile)).toEqual([5]);
+  });
+
+  it('holds a subtitled line with speech off too and times its text and talk end from its start', () => {
+    const { p, battleSounds } = presenter({ speech: false });
+    const stopped: string[] = [];
+    p.onLineStopped((l, how) => stopped.push(`${l.profile} ${how}`));
+    battleSounds.add(4);
+    p.update(0);
+    p.enqueue(line({ profile: 4, chars: 2, saidAt: 10 }));
+    p.update(textDelay(2));
+    expect(p.current).toBeNull();
+    expect(stopped).toEqual([]);
+    battleSounds.delete(4);
+    p.update(1000);
+    expect(p.current?.subtitles).toBe(true);
+    p.update(1000 + textDelay(2) - 1);
+    expect(stopped).toEqual([]);
+    p.update(1000 + textDelay(2));
+    expect(stopped).toEqual(['4 talkEnded']);
   });
 
   it('ignores a click during the first 500 ms, skips after it and lets Backspace force', () => {

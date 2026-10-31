@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-20. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Dialogue_Control.cc (one line at a time from the dialogue queue, CreateTalkingUI: the subtitles
+// @src src/game/Tactical/Dialogue_Control.cc (one line at a time from the dialogue queue, DialogueEventQuote::Execute: a
+// @src line of a merc on the player's team stays at the head while his battle sound plays, CreateTalkingUI: the subtitles
 // @src when SUBTITLES is on or the line has no voice, the speech surfaces when SPEECH is on, HandleDialogueEnd,
 // @src DialogueAdvanceSpeech, StopAnyCurrentlyTalkingSpeech, FindDelayForString with TEXT_DELAY_MODIFIER 60);
 // @src src/game/Tactical/Faces.cc SetFaceTalking (the voice only with TOPTION_SPEECH, the text duration otherwise),
@@ -102,9 +103,14 @@ export interface SpeakingFace {
   readonly playing: boolean;
 }
 
+export interface SpeakerBattleSounds {
+  playing(profile: number): boolean;
+}
+
 export interface SpeechPresenterOptions {
   readonly voices: SpeechVoices | null;
   readonly settings: () => SpeechSettings;
+  readonly battleSounds?: SpeakerBattleSounds;
 }
 
 interface Running {
@@ -271,8 +277,9 @@ export class SpeechPresenter {
   }
 
   #startNext(now: number): boolean {
-    const line = this.#queue.shift();
-    if (!line) return false;
+    const line = this.#queue[0];
+    if (!line || this.#speakerBattleSoundPlaying(line)) return false;
+    this.#queue.shift();
     const settings = this.#o.settings();
     const voice = settings.speech && line.voice ? (this.#o.voices?.play(line.voice) ?? null) : null;
     const running: Running = { line, startedAt: now, phase: 'talking', voice, talkingUntil: null, tailFrom: 0 };
@@ -280,6 +287,10 @@ export class SpeechPresenter {
     this.#running = running;
     for (const listener of this.#started) listener(line);
     return true;
+  }
+
+  #speakerBattleSoundPlaying(line: SpeechLine): boolean {
+    return this.#o.battleSounds?.playing(line.profile) ?? false;
   }
 
   #advance(r: Running, now: number): boolean {

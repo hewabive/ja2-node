@@ -110,7 +110,11 @@ export class TacticalHost {
     this.#renderer = new WorldRenderer(options.page.gl, { checkPartialRedraws: params.get(WORLD_CHECK_PARAM) === '1' });
     this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false, dataVersion: options.ui.dataVersion });
     this.#speechSettings = storedSpeechSettings(() => performance.now());
-    this.#presenter = new SpeechPresenter({ voices: engineSpeechVoices(this.#sound.engine), settings: this.#speechSettings });
+    this.#presenter = new SpeechPresenter({
+      voices: engineSpeechVoices(this.#sound.engine),
+      settings: this.#speechSettings,
+      battleSounds: { playing: (profile) => this.#sound.director?.mercBattleSoundPlaying(profile) ?? false },
+    });
     this.#presenter.onLineStarted(() => {
       this.#spoken++;
     });

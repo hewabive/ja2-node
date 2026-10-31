@@ -79,7 +79,8 @@ lock 14) and keeps running tactical frames: the queue starts one event per frame
 ja2-node runs `handleDialogue` once per tick after the tactical step and, on the map screen, after each strategic step
 and command (deviations "Dialogue queue cadence", "Map screen dialogue"). A line holds the queue for the longer of its
 voice and its text (12 ticks per character + 1), then 60 ticks with the mouth closed: speech is a viewer's option and
-one simulation serves every viewer (deviation "Speech"). Voice lengths come from the rule pack's
+one simulation serves every viewer (deviation "Speech"). For the same reason the queue never waits for a merc's battle
+sound; only the client holds his line until it ends (`31`). Voice lengths come from the rule pack's
 `@rules/speech/lengths.json` and stay out of its hash, so saves and logs match across installs. The 500 ms trigger wait,
 the 1500 ms AI pause and the minute a named NPC idles after talking run on the tactical clock. A viewer cuts a line with
 the `skipLine` input (logged and replayed): a click or Backspace ends it at once, the end of a viewer's voice or text

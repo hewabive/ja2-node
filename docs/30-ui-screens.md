@@ -91,9 +91,10 @@ until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, â€
 
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
-subtitle and skip and reports a cut or finished line with `skipLine`. The simulation finishes lines in ticks and never
-waits for a viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap
-"Map screen speech"); its Backspace cuts the line its frames said last.
+subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`)
+and reports a cut or finished line with `skipLine`. The simulation finishes lines in ticks and never waits for a
+viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap "Map screen
+speech"); its Backspace cuts the line its frames said last.
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
