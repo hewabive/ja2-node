@@ -2,19 +2,23 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc AddItemsToUnLoadedSector, AddDeadSoldierToUnLoadedSector (the corpse and the
 // @src item records; the drop rules are in autoresolve/close.ts), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
-// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector.
+// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector; Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair
+// @src (the facing drawn on a cosmetic stream; the zeroed definition leaves profile 0 and level 0).
 
-import { corpseTypeFor } from '../../content/anim/corpses.ts';
+import { type CorpseTable, corpseTypeFor } from '../../content/anim/corpses.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
+import { u32 } from '../../core/int.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { CorpseRecord } from '../strategic/forces/autoresolve/close.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { setSectorFlag } from '../strategic/map/sectors.ts';
 import type { StrategicState } from '../strategic/state.ts';
+import { NUM_SEC_IN_DAY, NUM_SEC_IN_MIN } from '../strategic/time/constants.ts';
 import { worldDay, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
-import { corpseLook } from '../tactical/combat/death.ts';
+import { type Corpse, corpseLook } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { Body } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { removeWorldItem, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { type DiffWorldItem, emptySectorDiff, type SectorDiff, sectorKey } from './sector-diff.ts';
@@ -22,6 +26,12 @@ import { type DiffWorldItem, emptySectorDiff, type SectorDiff, sectorKey } from 
 const DROPPED_ITEM_FLAGS = WorldItemFlags.FIND_SWEETSPOT_FROM_GRIDNO | WorldItemFlags.REACHABLE;
 const NOT_RENDERED_ABOVE_LEVEL = 0;
 const PERCENT = 100;
+const LAIR_CORPSE_GRID_NOS = [14319, 9835, 11262];
+const LAIR_CORPSE_TYPE = 'SMERC_JFK';
+const LAIR_CORPSE_PALETTES = ['BROWNHEAD', 'PINKSKIN', 'YELLOWVEST', 'GREENPANTS'] as const;
+const LAIR_CORPSE_AGE_MINUTES = (2 * NUM_SEC_IN_DAY) / NUM_SEC_IN_MIN;
+const ZEROED_PROFILE = 0;
+const NO_ANIMATION = 0;
 
 export interface LootRandom {
   int(n: number): number;
@@ -60,6 +70,13 @@ export function addItemsToUnloadedSector(
   setSectorFlag(state.map, sector, SectorFlag.ITEM_TEMP_FILE_EXISTS, worldDay(state.clock));
 }
 
+export function addRottingCorpseToUnloadedSector(state: StrategicState, sector: Sector, corpse: Corpse): void {
+  const diff = diffOf(state, sector);
+  diff.corpses ??= [];
+  diff.corpses.push(corpse);
+  setSectorFlag(state.map, sector, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, worldDay(state.clock));
+}
+
 export function addDeadSoldierToUnloadedSector(
   state: StrategicState,
   content: TacticalContent,
@@ -68,9 +85,7 @@ export function addDeadSoldierToUnloadedSector(
 ): void {
   addItemsToUnloadedSector(state, sector, record.gridNo, record.items, record.level, DROPPED_ITEM_FLAGS, Visibility.VISIBLE);
   const s = record.soldier;
-  const diff = diffOf(state, sector);
-  diff.corpses ??= [];
-  diff.corpses.push({
+  addRottingCorpseToUnloadedSector(state, sector, {
     gridNo: record.gridNo,
     level: record.level,
     bodyType: s.bodyType,
@@ -82,7 +97,21 @@ export function addDeadSoldierToUnloadedSector(
     findSweetSpot: true,
     ...corpseLook(s),
   });
-  setSectorFlag(state.map, sector, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, worldDay(state.clock));
+}
+
+export function addCorpsesToBloodcatLair(state: StrategicState, table: CorpseTable, sector: Sector, direction: number): void {
+  const definition = {
+    level: 0,
+    bodyType: Body.REGMALE,
+    direction,
+    state: NO_ANIMATION,
+    profile: ZEROED_PROFILE,
+    type: table.types.indexOf(LAIR_CORPSE_TYPE),
+    timeOfDeath: u32(worldTotalMinutes(state.clock) - LAIR_CORPSE_AGE_MINUTES),
+    findSweetSpot: true,
+    palettes: LAIR_CORPSE_PALETTES,
+  };
+  for (const gridNo of LAIR_CORPSE_GRID_NOS) addRottingCorpseToUnloadedSector(state, sector, { ...definition, gridNo });
 }
 
 export function stealFromUnloadedSector(state: StrategicState, sector: Sector, chance: number, rng: LootRandom): number {

@@ -8,8 +8,13 @@ import { createStrategicState } from '../strategic/state.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { createSoldier, Team } from '../tactical/soldier.ts';
 import { Visibility, WorldItemFlags } from '../tactical/world-items.ts';
-import { sectorKey } from './sector-diff.ts';
-import { addDeadSoldierToUnloadedSector, addItemsToUnloadedSector, stealFromUnloadedSector } from './sector-loot.ts';
+import { agedCorpse, ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
+import {
+  addCorpsesToBloodcatLair,
+  addDeadSoldierToUnloadedSector,
+  addItemsToUnloadedSector,
+  stealFromUnloadedSector,
+} from './sector-loot.ts';
 
 let content: TacticalContent;
 
@@ -44,6 +49,41 @@ function enemy() {
     state: 0,
   });
 }
+
+const LAIR = { x: 16, y: 9, z: 0 };
+const TWO_DAYS_MINUTES = 2880;
+const DAY_THREE_NOON = 3 * 86400 + 12 * 3600;
+
+describe('the corpses of a bloodcat lair', () => {
+  it('lays three rotting JFK corpses two days dead on sweet spots, facing the one drawn way, with the zeroed profile 0', () => {
+    const state = createStrategicState({ worldSeconds: DAY_THREE_NOON });
+    addCorpsesToBloodcatLair(state, content.corpses.table, LAIR, 5);
+    const corpses = state.sectorDiffs.get(sectorKey(LAIR))?.corpses ?? [];
+    expect(corpses.map((c) => c.gridNo)).toEqual([14319, 9835, 11262]);
+    for (const c of corpses)
+      expect(c).toMatchObject({
+        level: 0,
+        bodyType: 0,
+        direction: 5,
+        profile: 0,
+        type: content.corpses.table.types.indexOf('SMERC_JFK'),
+        timeOfDeath: DAY_THREE_NOON / 60 - TWO_DAYS_MINUTES,
+        findSweetSpot: true,
+        palettes: ['BROWNHEAD', 'PINKSKIN', 'YELLOWVEST', 'GREENPANTS'],
+      });
+    expect(getSectorFlagStatus(state.map, LAIR, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS)).toBe(true);
+  });
+
+  it('wraps the unsigned time of death in the first two days, and the corpses still rot as two days dead', () => {
+    const state = createStrategicState();
+    addCorpsesToBloodcatLair(state, content.corpses.table, LAIR, 0);
+    const [first] = state.sectorDiffs.get(sectorKey(LAIR))?.corpses ?? [];
+    if (!first) throw new Error('no corpse');
+    const now = state.clock.seconds / 60;
+    expect(first.timeOfDeath).toBe(2 ** 32 + now - TWO_DAYS_MINUTES);
+    expect(agedCorpse(first, now, false)?.type).toBe(ROTTING_STAGE2);
+  });
+});
 
 describe('drops and corpses in unloaded sectors', () => {
   it('records a dead soldier as a sweet-spot corpse with reachable visible items', () => {

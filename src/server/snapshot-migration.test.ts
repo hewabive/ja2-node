@@ -659,3 +659,44 @@ describe('snapshot version 19 (a compressed-since-map-entry flag) migrates witho
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionTwenty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { movement, ...cosmetic } = object(strategic.cosmetic);
+    expect(movement).toBeDefined();
+    return [name, { ...strategic, cosmetic }];
+  });
+  return { ...snapshot, version: 20, graph: { ...snapshot.graph, sections } };
+}
+
+function movementStream(snapshot: SimSnapshot): Json | undefined {
+  const strategic = snapshot.graph.sections.find(([name]) => name === 'strategic')?.[1];
+  return object(object(strategic).cosmetic).movement;
+}
+
+describe('snapshot version 20 (no strategic movement cosmetic stream) migrates with one seeded from the helicopter stream', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionTwenty(current.sim);
+    const migrated = migrateSnapshot(JSON.parse(JSON.stringify(legacy)));
+    const stream = movementStream(migrated);
+    expect(object(stream).$rng).toHaveLength(4);
+    expect(movementStream(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toEqual(stream);
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(movementStream(snapshotSession(restored).sim)).toEqual(stream);
+  });
+});

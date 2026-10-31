@@ -12,7 +12,7 @@ import type { DetailedPlacement } from '../../content/formats/placement.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
-import { idiv } from '../../core/int.ts';
+import { idiv, u32 } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import { addCorpseStructure, type Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
@@ -279,7 +279,7 @@ export interface CorpseAging {
 
 export function agedCorpse(corpse: Corpse, nowMinute: number, loadingSave: boolean): Corpse | null {
   if (loadingSave) return corpse;
-  const age = nowMinute - corpse.timeOfDeath;
+  const age = u32(nowMinute - corpse.timeOfDeath);
   if (age > DELAY_UNTIL_DONE_ROTTING_MINUTES) return null;
   if (age > DELAY_UNTIL_ROTTING_MINUTES && corpse.type < ROTTING_STAGE2 && corpse.type <= LAST_FRESH_MERC_CORPSE)
     return { ...corpse, type: ROTTING_STAGE2 };
@@ -293,7 +293,7 @@ export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], agi
     const c = placeLoadedCorpse(t, stored);
     if (c.gridNo < 0 || c.gridNo >= WORLD_MAX) continue;
     const indoors = t.world.terrain[c.gridNo] === Terrain.FLAT_FLOOR;
-    if (maybeDrop && indoors && aging.nowMinute - c.timeOfDeath >= INDOOR_CORPSE_MAX_AGE_MINUTES) continue;
+    if (maybeDrop && indoors && u32(aging.nowMinute - c.timeOfDeath) >= INDOOR_CORPSE_MAX_AGE_MINUTES) continue;
     const corpse = agedCorpse(c, aging.nowMinute, aging.loadingSave);
     if (!corpse) continue;
     t.corpses.push(corpse);

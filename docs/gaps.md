@@ -52,7 +52,6 @@ The map, travel, vehicles, time compression, the economy, sector state and autor
 
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
-| Bloodcat lair corpses | A group reaching an unvisited bloodcat lair adds three corpses to it (`Strategic/Strategic_Movement.cc:1029`) | The hook is a no-op (`strategic/forces/ports.ts`) | The direction draw stays off the gameplay stream (deviations "Cosmetic draws in strategic movement") |
 | Ground vehicles | Vehicle soldiers register their vehicle (`Tactical/Soldier_Create.cc:424`); boarding a civilian vehicle takes it over and places the passengers at it (`Tactical/Vehicles.cc:157`) | Only the helicopter is registered outside imported saves; passengers leave the map on boarding (`campaign/helicopter-flow.ts`) | `changeSoldierTeam` already serves recruits |
 | Helicopter on the map | The helicopter landed in the loaded sector adds its structure and bumps mercs (`Strategic/Map_Screen_Helicopter.cc:1161`) | Neither (`strategic/forces/helicopter.ts`) | The structure would reach the client as `tileChanges` (`29` §7) |
 | Profile sectors of Skyrider and the helicopter | Skyrider's and the helicopter's profiles follow the landing site and the vehicle (`Strategic/Map_Screen_Helicopter.cc:996`, `Tactical/Vehicles.cc:790`) | Neither profile moves (`campaign/helicopter-flow.ts`) | NPC presence reads profile sectors (`35`) |

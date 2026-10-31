@@ -98,8 +98,9 @@ runs in CI. `sectorMapPath` takes the original map, else the stub pack's map of 
 `scroll` and `optional` on `soldier:` lines (`src/content/formats/stub-map.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), including draws whose result
-ja2-node does not use: the creature tense-quote delay and the crow count at every sector load. Speaker picks and the
-lair corpses' facing are not drawn (deviation "Cosmetic draws in strategic movement").
+ja2-node does not use: the creature tense-quote delay and the crow count at every sector load. Speaker picks are not
+drawn, and the bloodcat lair corpses face a draw of the `movement` cosmetic stream (deviation "Cosmetic draws in
+strategic movement").
 
 ## 3. Quirks of the original the code keeps
 
@@ -120,6 +121,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The underground traversal flag is never lowered: after the first underground edge, every tactical traversal arrives after 1 minute while the clock still warps 5 | `campaign/sector-flow.test.ts` |
 | The defence placement's first pass looks at every other node (Stracciatella); the init-list sort reverses each class | `strategic/ai/queen-command.test.ts` |
 | One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
+| A bloodcat lair's corpses carry profile 0 from their zeroed definition, and in the first two days of a campaign their unsigned time of death wraps, still two days back for the rot | `campaign/sector-loot.test.ts` |
 
 Not pinned yet:
 - The exit check of a merc away from the edge applies the underground rule from the second level only (`z > 1`): on a
@@ -159,7 +161,7 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Bloodcat lair corpses", "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
+Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
 "Helicopter on the map", "Warp out of a creature lair", "Creature quest scripting", "Corpses", "Savegame import",
 "Creature insertion spot". Other
 deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and

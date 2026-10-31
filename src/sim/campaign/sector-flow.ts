@@ -26,6 +26,7 @@ import {
   sectorShortString,
 } from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
+import { DIRECTION_COUNT } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -167,6 +168,7 @@ import {
   visibleItemCount,
 } from './sector-diff.ts';
 import { type AdjacentJump, allMercsHaveWalkedOffSector, allMercsWalkedToExitGrid, exitSectorCommand } from './sector-exits.ts';
+import { addCorpsesToBloodcatLair } from './sector-loot.ts';
 
 export interface SectorWorlds {
   exists(path: string): boolean;
@@ -1006,6 +1008,11 @@ export class SectorFlow {
     }
   }
 
+  addCorpsesToBloodcatLair(sector: Sector): void {
+    const state = this.campaign.state;
+    addCorpsesToBloodcatLair(state, this.setup.content.corpses.table, sector, state.cosmetic.movement.int(DIRECTION_COUNT));
+  }
+
   addPossiblePendingEnemiesToBattle(): void {
     const t = this.campaign.tactical?.state;
     const q = this.queen;
@@ -1326,6 +1333,11 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
     checkAndHandleUnloadingOfCurrentWorld: () => {
       flowOf()?.checkAndHandleUnloadingOfCurrentWorld();
       base.checkAndHandleUnloadingOfCurrentWorld();
+    },
+    addCorpsesToBloodcatLair: (sector) => {
+      const flow = flowOf();
+      if (flow) flow.addCorpsesToBloodcatLair(sector);
+      else base.addCorpsesToBloodcatLair(sector);
     },
     enemyReinforcementsArrived: (group) => {
       const flow = flowOf();

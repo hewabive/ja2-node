@@ -10,6 +10,7 @@ import type { ShopSession } from './shop-flow.ts';
 
 const HELICOPTER_COSMETIC_SALT = 0x48454c49;
 const AUTORESOLVE_COSMETIC_SALT = 0x41520001;
+export const MOVEMENT_COSMETIC_SALT = 0x4d4f5645;
 
 export interface SessionState {
   tick: number;
@@ -51,6 +52,7 @@ export interface TalkFlowState {
 export interface CosmeticStreams {
   readonly helicopter: Rng;
   readonly autoresolve: Rng;
+  readonly movement: Rng;
 }
 
 export function createSessionState(): SessionState {
@@ -93,5 +95,6 @@ export function createCosmeticStreams(seed: number): CosmeticStreams {
   return {
     helicopter: Rng.fromSeed(seed ^ HELICOPTER_COSMETIC_SALT),
     autoresolve: Rng.fromSeed(seed ^ AUTORESOLVE_COSMETIC_SALT),
+    movement: Rng.fromSeed(seed ^ MOVEMENT_COSMETIC_SALT),
   };
 }

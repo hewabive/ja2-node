@@ -1,3 +1,5 @@
+import { Rng } from '../../core/rng.ts';
+import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
 import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
@@ -546,6 +548,32 @@ function dropCompressionSinceMapEntry(snapshot: Readonly<Record<string, unknown>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const COSMETIC_KEY = 'cosmetic';
+const HELICOPTER_STREAM_KEY = 'helicopter';
+const MOVEMENT_STREAM_KEY = 'movement';
+const RNG_TAG = '$rng';
+
+function seedFromStream(stream: Json | undefined): number {
+  const words = isObject(stream) ? stream[RNG_TAG] : undefined;
+  return Array.isArray(words) && typeof words[0] === 'number' ? words[0] : 0;
+}
+
+function withMovementCosmeticStream(strategic: JsonObject): JsonObject {
+  const cosmetic = strategic[COSMETIC_KEY];
+  if (!isObject(cosmetic) || cosmetic[REF] !== undefined || cosmetic[MOVEMENT_STREAM_KEY] !== undefined) return strategic;
+  const seed = seedFromStream(cosmetic[HELICOPTER_STREAM_KEY]) ^ MOVEMENT_COSMETIC_SALT;
+  const movement = { [RNG_TAG]: [...Rng.fromSeed(seed).state().s] };
+  return { ...strategic, [COSMETIC_KEY]: { ...cosmetic, [MOVEMENT_STREAM_KEY]: movement } };
+}
+
+function addMovementCosmeticStream(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withMovementCosmeticStream(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -567,5 +595,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     17: addSightedCreatureFlag,
     18: addNothingToDoFlag,
     19: dropCompressionSinceMapEntry,
+    20: addMovementCosmeticStream,
   };
 }
