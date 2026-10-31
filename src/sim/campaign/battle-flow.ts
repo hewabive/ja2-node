@@ -91,7 +91,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { healthCategory } from '../tactical/health.ts';
 import { profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
-import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
+import { leaveTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import { battleFought, endBattleAfterSurrender, lastMercKillWasMonster } from '../tactical/turns/turns.ts';
@@ -944,7 +944,7 @@ export class BattleFlow implements FateContext {
     for (const m of ours) {
       if (enemyCapturesPlayerSoldier(this, m, this.state.rng))
         this.emit({ type: 'mercCaptured', soldier: m.id, sector: sectorShortString(m.sector) });
-      removeSoldierFromTacticalSector(t, m.soldier);
+      leaveTacticalSector(t, m.soldier);
     }
     endCaptureSequence(this);
     endBattleAfterSurrender(t);
@@ -1120,7 +1120,7 @@ export class BattleFlow implements FateContext {
         handleSoldierDeath(t, s);
       }
       if (s.life !== 0 && capture && enemyCapturesPlayerSoldier(this, m, this.state.rng)) {
-        removeSoldierFromTacticalSector(t, s);
+        leaveTacticalSector(t, s);
         this.emit({ type: 'mercCaptured', soldier: m.id, sector: sectorShortString(m.sector) });
       }
     }

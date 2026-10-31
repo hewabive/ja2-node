@@ -596,6 +596,23 @@ function addCorpseHeads(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PREFERRED_SELECTION_KEY = 'preferredSelection';
+const NOBODY_PREFERRED = -1;
+
+function withPreferredSelection(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: { ...flow, ...withDefault(flow, PREFERRED_SELECTION_KEY, NOBODY_PREFERRED) } };
+}
+
+function addPreferredSelection(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withPreferredSelection(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -619,5 +636,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     19: dropCompressionSinceMapEntry,
     20: addMovementCosmeticStream,
     21: addCorpseHeads,
+    22: addPreferredSelection,
   };
 }

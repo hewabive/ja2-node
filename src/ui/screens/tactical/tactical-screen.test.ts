@@ -19,6 +19,7 @@ const STAT_FLASH_MS = 60_000;
 const FRAME_MS = 16;
 const PANEL_FRAME_MS = 160;
 const SKULL_ANIMATION_FRAMES = 13;
+const SKULL_TICKS = 400;
 const DEAD_FACE_FRAME = 5;
 const FONT_RED = 162;
 const FONT_MCOLOR_LTYELLOW = 144;
@@ -283,6 +284,7 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.advance(400);
     expect(f.client.view.items?.filter((i) => i.gridNo === tile)).toHaveLength(2);
     const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
     f.screen.controls.toggleHandCursor();
     f.t.frame();
     await f.clickAt(at.x, at.y);
@@ -382,39 +384,46 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(skullAt().map((i) => (i.kind === 'image' ? i.frame : -1))).toEqual([DEAD_FACE_FRAME]);
   });
 
-  it('selects the next able merc of the squad after the skull of the selected merc, and nobody once the squad is gone', async () => {
+  it('keeps the dead merc selected through his skull and follows the server once it is done: the first able merc, then nobody', async () => {
     const f = await tacticalUiTest(kit, ui);
     expect(f.screen.selected).toBe(0);
     kill(f, 0);
-    expect(f.screen.selected).toBe(0);
     playSkullAnimation(f);
+    expect(f.screen.selected).toBe(0);
+    f.advance(SKULL_TICKS);
     expect(f.screen.selected).toBe(1);
     expect(f.screen.teamSlots).toContain(0);
     kill(f, 1, 2, 3);
+    f.advance(SKULL_TICKS);
     playSkullAnimation(f);
     expect(f.screen.selected).toBeNull();
     expect(f.screen.teamSlots.filter((s) => s !== null)).toEqual([0, 1, 2, 3]);
     await f.settle();
-    expect(f.screen.selected).toBeNull();
+    expect([f.screen.selected, selects(f)]).toEqual([null, []]);
   });
 
-  it('sends select for its first choice, a face click and the next merc after a skull, not for the merc an interrupt selects', async () => {
+  it('sends select for a face click, not for the selections the server makes: the first one, the next after a skull, an interrupt', async () => {
     const f = await tacticalUiTest(kit, ui);
-    expect(selects(f)).toEqual([{ type: 'select', soldier: 0 }]);
+    expect([f.screen.selected, selects(f)]).toEqual([0, []]);
     await f.click('teamFaceRegion1');
     await f.click('teamFaceRegion1');
-    expect(selects(f)).toEqual([
-      { type: 'select', soldier: 0 },
-      { type: 'select', soldier: 1 },
-    ]);
+    expect(selects(f)).toEqual([{ type: 'select', soldier: 1 }]);
     expect(f.client.commands.filter((c) => c.cmd.type === 'select').every((c) => c.reply.ok)).toBe(true);
     expect(tacticalOf(f.session).state.turn.selected).toBe(1);
     kill(f, 1);
+    f.advance(SKULL_TICKS);
     playSkullAnimation(f);
-    expect(selects(f).at(-1)).toEqual({ type: 'select', soldier: 2 });
+    expect([f.screen.selected, tacticalOf(f.session).state.turn.selected]).toEqual([0, 0]);
     f.frames([frame(f.client.view.tick, [{ tick: f.client.view.tick, type: 'interrupt', team: 0, soldiers: [3], selected: 3 }])]);
     await f.settle();
-    expect([f.screen.selected, selects(f)]).toEqual([3, [0, 1, 2].map((soldier) => ({ type: 'select', soldier }))]);
+    expect([f.screen.selected, selects(f)]).toEqual([3, [{ type: 'select', soldier: 1 }]]);
+  });
+
+  it('follows the merc an order of the agent selects on the server and sends no select for him', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    expect((await f.client.command({ type: 'turn', soldier: 2, direction: 0 })).ok).toBe(true);
+    f.advance(1);
+    expect([f.screen.selected, f.screen.currentSquad, selects(f)]).toEqual([2, 0, []]);
   });
 
   it('sends the end of a multi-selection as one select with the group, even when the chosen merc is selected already', async () => {

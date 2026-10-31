@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc, MercArrivesCallback (contract fields: contracts/contract-flow.ts);
 // @src Strategic/Map_Screen_Interface.cc
-// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs.
+// @src HandleTimeCompressWithTeamJackedInAndGearedToGo; GameScreen.cc InitHelicopterEntranceByMercs; Tactical/Merc_Entering.cc
+// @src HandleHeliDrop (the end of the drop selects its first seat, 2026-10-31).
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { type Sector, sectorFromId } from '../../content/strategic/sector-ids.ts';
@@ -124,4 +125,5 @@ export function teamJackedInAndGearedToGo(campaign: CampaignSim, loadStartSector
   campaign.laptop?.firstLanding();
   s.didGameJustStart = false;
   if (s.flow === 'tactical') setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
+  campaign.sectors?.endHelicopterDrop();
 }

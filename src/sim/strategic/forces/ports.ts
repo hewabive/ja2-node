@@ -105,6 +105,7 @@ export interface TacticalWorldPort {
   sectorTakenByEnemy(sector: Sector, wasPlayerControlled: boolean): void;
   playerControlsSurfaceSector?(sector: Sector): void;
   airspaceControlUpdated?(): void;
+  removedFromSquad?(id: number, squad: number): void;
 }
 
 export interface StrategicPorts {

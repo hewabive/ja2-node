@@ -100,7 +100,6 @@ import {
   isInVehicle,
   isMercBodyType,
   isUnconscious,
-  nextActiveAndAliveMerc,
   nextMerc,
   OUR_TEAM,
   okInterrupt,
@@ -205,7 +204,7 @@ export class TacticalScreen implements Screen {
   #pendingPanel: { kind: PanelKind; soldier: number | null } | null = null;
   #smMerc: number | null = null;
   #selected: number | null = null;
-  #nobodySelected = false;
+  #serverSelection: number | null | undefined;
   #squad = 0;
   #slotsSquad: number | null = null;
   #slots: (number | null)[] = [];
@@ -585,9 +584,9 @@ export class TacticalScreen implements Screen {
 
   enter(): void {
     this.#entered = true;
-    this.#nobodySelected = false;
+    this.#serverSelection = undefined;
     this.#rebuildSlots();
-    this.#chooseInitialSelection();
+    this.#followServerSelection();
     this.#hudView.build();
     this.#panelView().build();
     this.#defineViewportRegion();
@@ -614,21 +613,29 @@ export class TacticalScreen implements Screen {
     this.#smView.dispose();
   }
 
-  #chooseInitialSelection(): void {
-    const own = ownSoldiers(this.#view());
-    if (this.#selectionStands(own)) return;
-    const first = own.find((s) => !isDead(s)) ?? own[0] ?? null;
-    this.#selected = first?.id ?? null;
-    if (first) {
-      this.#squad = squadOf(first);
-      this.#selectedChanged();
-      this.#sendSelection(first.id, null);
-    }
+  #followServerSelection(): void {
+    const id = this.#view()?.selected;
+    if (id === undefined || id === this.#serverSelection) return;
+    this.#serverSelection = id;
+    this.#adoptSelection(id);
   }
 
-  #selectionStands(own: readonly SoldierView[]): boolean {
-    if (this.#selected === null) return this.#nobodySelected;
-    return this.#fallen.has(this.#selected) || own.some((s) => s.id === this.#selected);
+  #adoptSelection(id: number | null): void {
+    const s = id === null ? null : (soldierById(this.#view(), id) ?? this.#fallen.get(id) ?? null);
+    if (s) {
+      this.#takeSelection(s);
+      return;
+    }
+    if (this.#selected !== null) this.#locators.delete(this.#selected);
+    this.#selected = null;
+    this.#requestPanel('team', null);
+    this.#showSquadOnMap();
+  }
+
+  #showSquadOnMap(): void {
+    if (this.#teamMembers().some((s) => !isDead(s))) return;
+    const first = ownSoldiers(this.#view()).find((s) => !isDead(s));
+    if (first) this.#squad = squadOf(first);
   }
 
   #defineViewportRegion(): void {
@@ -665,11 +672,6 @@ export class TacticalScreen implements Screen {
     if (s) this.#selectSoldier(s, acknowledge, false);
   }
 
-  #followServerSelection(id: number): void {
-    const s = soldierById(this.#view(), id);
-    if (s) this.#selectLocally(s, false, false);
-  }
-
   #selectSoldier(s: SoldierView, acknowledge: boolean, fromUi: boolean): void {
     if (this.#selectLocally(s, acknowledge, fromUi)) this.#sendSelection(s.id, null);
   }
@@ -694,15 +696,19 @@ export class TacticalScreen implements Screen {
       return false;
     }
     if (s.id === this.#selected) return false;
+    this.#takeSelection(s);
+    if (acknowledge) this.#env.sounds.attention(s.id);
+    return true;
+  }
+
+  #takeSelection(s: SoldierView): void {
+    if (s.id === this.#selected) return;
     if (this.#selected !== null) this.#locators.delete(this.#selected);
     this.#selected = s.id;
-    this.#nobodySelected = false;
     this.#squad = squadOf(s);
     if (this.#panel === 'sm') this.#requestPanel('sm', s.id);
-    if (acknowledge) this.#env.sounds.attention(s.id);
     this.#selectedChanged();
     this.#setInterfaceLevel(s.level);
-    return true;
   }
 
   #selectedChanged(): void {
@@ -809,22 +815,8 @@ export class TacticalScreen implements Screen {
     if (before && !isDead(before) && isDead(s)) this.#soldierDied(s.id);
   }
 
-  #afterSkullAnimation(id: number): void {
-    const dead = this.#fallen.get(id);
-    if (!dead || this.#selected !== id) return;
-    const next = nextActiveAndAliveMerc(ownSoldiers(this.#view()), dead);
-    if (next) {
-      this.#selectSoldier(next, false, false);
-      return;
-    }
-    this.#selected = null;
-    this.#nobodySelected = true;
-    this.#requestPanel('team', null);
-  }
-
   #updatePanelAnimations(): void {
     for (const [id, a] of this.#panelAnimations) {
-      const wasFinished = a.finished;
       while (!a.finished && this.#now - a.since >= PANEL_FACE_FRAME_MS) {
         a.since += PANEL_FACE_FRAME_MS;
         if (!a.dead) {
@@ -837,7 +829,6 @@ export class TacticalScreen implements Screen {
           a.finished = true;
         }
       }
-      if (a.finished && !wasFinished) this.#afterSkullAnimation(id);
       if (a.finished && !this.#slots.includes(id)) this.#panelAnimations.delete(id);
     }
   }
@@ -845,7 +836,7 @@ export class TacticalScreen implements Screen {
   update(now: number): void {
     this.#now = this.#env.runtime.clock.ja2Now;
     const view = this.#view();
-    this.#chooseInitialSelection();
+    this.#followServerSelection();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
     for (const s of ownSoldiers(view)) this.#lastSeen.set(s.id, s);
@@ -1185,7 +1176,7 @@ export class TacticalScreen implements Screen {
         this.#soldierDied(event.soldier);
         return;
       case 'interrupt':
-        if (event.selected !== undefined) this.#followServerSelection(event.selected);
+        if (event.selected !== undefined) this.#adoptSelection(event.selected);
         return;
       default:
         return;

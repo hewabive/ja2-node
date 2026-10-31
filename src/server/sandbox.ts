@@ -28,6 +28,7 @@ import { addSoldierToSector, Insertion } from '../sim/tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { PlacementVerdict } from '../sim/tactical/narrative/placement.ts';
+import { enterTacticalScreen, locateToSoldier } from '../sim/tactical/selection.ts';
 import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
@@ -229,5 +230,7 @@ export async function createSandboxSession(
   const sim = new TacticalSim(world, content, seed);
   populateSandbox(sim);
   sim.lookAround();
+  locateToSoldier(sim.state, null);
+  enterTacticalScreen(sim.state);
   return new TacticalSession(sim, timelines.presentation);
 }

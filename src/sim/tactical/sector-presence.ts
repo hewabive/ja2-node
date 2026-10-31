@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector, HostileBloodcatsPresent;
-// @src Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule).
+// @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector (with its next selection, 2026-10-31),
+// @src HostileBloodcatsPresent; Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule).
 
 import { removeFromAwaySlots } from './away-slots.ts';
 import { deleteScheduleNode } from './narrative/schedule-state.ts';
 import { initSoldierOppList } from './perception/opplist-reset.ts';
 import { removeMercStructure } from './person-structure.ts';
+import { selectAfterRemovalFromSector } from './selection.ts';
 import { Body, type Soldier, Team } from './soldier.ts';
 import { removeOccupant, type TacticalState, teamMembers, unregisterSoldier } from './state.ts';
 
@@ -22,6 +23,11 @@ export function removeSoldierFromTacticalSector(t: TacticalState, s: Soldier): v
   unregisterSoldier(t, s);
   s.placed = false;
   s.offMap = false;
+}
+
+export function leaveTacticalSector(t: TacticalState, s: Soldier): void {
+  removeSoldierFromTacticalSector(t, s);
+  selectAfterRemovalFromSector(t, s);
 }
 
 export function hostileBloodcatsPresent(t: Pick<TacticalState, 'soldiers'>): boolean {

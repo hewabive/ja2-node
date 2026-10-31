@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/StrategicMap.cc OKForSectorExit, UndergroundTacticalTraversalTime, JumpIntoAdjacentSector,
+// @src src/game/Strategic/StrategicMap.cc OKForSectorExit, UndergroundTacticalTraversalTime, JumpIntoAdjacentSector (with
+// @src gPreferredInitialSelectedGuy, 2026-10-31),
 // @src AllMercsHaveWalkedOffSector, SetupTacticalTraversalInformation, SetInsertionDataFromAdjacentMoveDirection,
 // @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector;
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
@@ -383,6 +384,7 @@ export function jumpIntoAdjacentSector(
   const t = flow.campaign.tactical?.state;
   const world = flow.world;
   if (!t || !world) return false;
+  flow.preferredSelection = t.turn.selected;
   let valid: RosterMerc | null = null;
   if (jumpCode === JumpCode.ALL_LOAD_NEW || jumpCode === JumpCode.ALL_NO_LOAD) {
     valid = flow.setup.roster.all().find((m) => okControllable(flow, m) && m.assignment === selected.assignment) ?? null;
@@ -491,7 +493,7 @@ export function allMercsHaveWalkedOffSector(flow: SectorFlow): void {
     tick: flow.campaign.tick,
   });
   if (isNoLoadJump(jump.jumpCode)) {
-    for (const m of groupMercs(flow, group)) flow.removeMercFromTacticalSector(m);
+    for (const m of groupMercs(flow, group)) flow.setup.roster.removeFromTacticalSector(m.id);
     return;
   }
   const clock = flow.campaign.clockContext;
@@ -543,7 +545,7 @@ export function allMercsWalkedToExitGrid(flow: SectorFlow): void {
   if (isNoLoadJump(jump.jumpCode)) {
     for (const m of groupMercs(flow, group)) {
       setInsertionDataFromAdjacentMoveDirection(flow, m, jump.direction, jump.additional);
-      flow.removeMercFromTacticalSector(m);
+      flow.setup.roster.removeFromTacticalSector(m.id);
     }
     setGroupSectorValue(flow.ctx, jump.target, group);
   } else {

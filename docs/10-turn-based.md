@@ -37,7 +37,7 @@ exitCombatMode → real time; a real-time turn on the next tick
 | Module | Holds |
 |---|---|
 | `turns/turns.ts` | Entering and leaving combat, team turns, `beginMercTurn`, the interrupt queue, the end of combat and of the battle, the real-time turn, the enemy-sighting pause |
-| `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection |
+| `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection, the selections of a screen entry, a sector load, a death and a removal (called from `src/sim/campaign/screens.ts`, `sector-flow.ts`, `combat/death.ts`, `sector-presence.ts`) |
 | `turns/turn-state.ts` | `TurnState`: the original's tactical-status, interrupt and AI-list globals; `intList` is `gOutOfTurnOrder` without its unused slot 0 |
 | `turns/ai-list.ts`, `turns/top-message.ts` | The AI list of a team's turn; the top message bar and the AI progress |
 | `perception/duel.ts` | Duel points, who may interrupt, the duel, seen opponents, watched locations |
@@ -164,6 +164,10 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Entering combat on our turn selects every merc of ours with an opponent in turn, each with the selection's wake-up and draw, and the last one stays selected | `selection.test.ts` |
 | `SelectNextAvailSoldier` takes the team's first controllable merc, not the one after the fallen merc | `selection.test.ts` |
 | A selection wakes a merc who collapsed from exhaustion, whom the `wake` command (`CanCharacterBeAwakened`) refuses | `src/sim/campaign/narrative-port.test.ts` |
+| Every return to the tactical screen selects the selected merc again with `SELSOLDIER_FORCE_RESELECT`, and a sector load selects twice, so a psycho draws on every screen change | `selection.test.ts`, `src/sim/campaign/automatic-selection.test.ts` |
+| A sleeping selected merc gives way on entry to the team's first controllable merc, who is selected twice, and stays asleep unless he is that merc | `selection.test.ts` |
+| The selected merc's death hands the selection to the next merc of his squad, since his squad removal comes before `HandlePlayerTeamMemberDeath`'s own pick of the team's first able merc; that pick keeps the dead merc selected when the first living merc in the sector is on an assignment | `src/sim/campaign/automatic-selection.test.ts`, `selection.test.ts` |
+| Any soldier leaving the loaded sector while the map screen is up clears the selection, so the return to tactical selects nobody | `selection.test.ts`, `src/sim/campaign/automatic-selection.test.ts` |
 
 Not pinned yet:
 - A duel won by 127 points or more never interrupts: the margin is a `UINT8` and only margins below `NO_INTERRUPT` are
@@ -187,9 +191,13 @@ reading the source:
 - `CalcInterruptDuelPts` stores every step in an `INT8`; ja2-node wraps only the result, which differs only below −128.
 - That the order lock of deviation "Turn-based UI lock" admits the same orders as `SetUIBusy`.
 - Boxing, vehicle and robot branches are ported as read, without probes.
+- The selections of a screen entry, a sector load, a death and a removal, and that the original reaches them at the
+  moments `29` §4.3 names (the map, a load, the skull, a squad or sector removal); the options and save screens are
+  client-side and their return finds the selection unchanged, and the shop's return changes nothing (`SelectSoldier`
+  refuses on the shopkeeper screen).
 
 Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Automatic selections". Other deviations of this
-domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
-prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
-"Interface lock on arrival".
+pre-combat grid, the AI list's civilian skip), "Automatic selections" (`SetCurrentSquad`'s and a save load's). Other
+deviations of this domain: "Preferred selection after a jump", "Watchdogs", "Enemy sighted on their turn", "Real-time
+turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame timers", "Soldier fade without
+merc lights", "Hidden attacks start combat", "Interface lock on arrival".

@@ -110,9 +110,16 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   view, also in an AI interrupt once it shows and in the turn an AI attack starts.
 - `endTurn` first runs `CheckForEndOfCombatMode(FALSE)`: when that ends combat the turn does not pass and the answer
   carries `data.combatEnded`.
-- The selected merc (`turn.selected`, `src/sim/tactical/selection.ts`) is the original's: `select` sets it (the client
-  sends one for every change of its selection), and so do `EnterCombatMode`, the interrupts, `SelectNextAvailSoldier`
-  and a conversation's talker, each with the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`.
+- The selected merc (`turn.selected`, `src/sim/tactical/selection.ts`; in the view as `selected`, his id or null) is
+  the original's: `select` sets it (the client sends one for every change the player makes and follows `selected` for
+  the rest), and so do `EnterCombatMode`, the interrupts, `SelectNextAvailSoldier`, a conversation's talker and the
+  original's own selections: the return from the map to the loaded sector (a selected merc out of control or asleep
+  gives way to the team's first controllable merc, then the selected merc is selected again, forced), a sector load
+  (the merc selected when the squad left, else the first who may act, forced, then the return's), the end of the first
+  landing (the first merc dropped), the end of the selected merc's skull, his removal from his squad or from the
+  sector (the next merc of his squad, after a removal from the sector also the first of the next squad on the map).
+  Each has the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`. Any merc leaving the loaded
+  sector while the map is up, and the departure of the selected merc, leave nobody selected, as in the original.
   It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
 - An order to one merc selects him first, once the turn locks and his own state let him act (`actRefusal`) and before
   the order reads its fields or draws, because the original's player selects a merc before ordering him. The selection,

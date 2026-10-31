@@ -13,7 +13,10 @@
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
-// @src SoldierTakeDamage (the player activity of a hit).
+// @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
+// @src and the screen entry after a load), Merc_Entering.cc HandleHeliDrop (the first seat's selection), Squads.cc
+// @src RemoveCharacterFromSquads (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
+// @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -126,6 +129,16 @@ import {
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
+import {
+  enterTacticalScreen,
+  locateToSoldier,
+  NO_SELECTION,
+  SelectFlags,
+  selectAfterRemovalFromSector,
+  selectSoldier,
+  unselectRemovedSoldier,
+  updateCurrentlySelectedMerc,
+} from '../tactical/selection.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -226,6 +239,7 @@ export class SectorFlow {
   #loadingSector = false;
   #presenceWhileLoading = false;
   #loadScreen: number = LoadingScreen.NOTHING;
+  #heliSeats: Soldier[] = [];
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -234,12 +248,23 @@ export class SectorFlow {
     roster.hooks = {
       ...roster.hooks,
       removeFromTacticalSector: (merc) => this.removeMercFromTacticalSector(merc),
+      selectAfterRemoval: (merc) => this.#withTactical((t) => selectAfterRemovalFromSector(t, merc.soldier)),
+      unselect: (merc) => this.#withTactical((t) => unselectRemovedSoldier(t, merc.soldier)),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
     };
   }
 
   get #flow(): SectorFlowState {
     return this.campaign.state.sectorFlow;
+  }
+
+  #withTactical(act: (t: TacticalState) => void): void {
+    const t = this.campaign.tactical?.state;
+    if (t) act(t);
+  }
+
+  set preferredSelection(id: number) {
+    this.#flow.preferredSelection = id;
   }
 
   get realtimeClock(): RealtimeClock {
@@ -428,6 +453,7 @@ export class SectorFlow {
     s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
+    this.#withTactical((t) => this.#selectOnArrival(t));
     this.#event({
       type: 'sectorLoaded',
       sector: sectorShortString(sector),
@@ -437,6 +463,13 @@ export class SectorFlow {
       ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
     });
     return true;
+  }
+
+  #selectOnArrival(t: TacticalState): void {
+    const preferred = this.#flow.preferredSelection;
+    this.#flow.preferredSelection = NO_SELECTION;
+    locateToSoldier(t, t.soldiers[preferred] ?? null);
+    enterTacticalScreen(t);
   }
 
   #loadScreenView(): LoadScreenView {
@@ -844,6 +877,20 @@ export class SectorFlow {
     order.code = Insertion.NORTH;
     const merc = this.setup.roster.get(s.id);
     updateMercInSector(t, s, order, this.#insertionContext(merc ?? null));
+    this.#heliSeats.push(s);
+  }
+
+  endHelicopterDrop(): void {
+    const first = this.#heliSeats[0];
+    this.#heliSeats = [];
+    if (first) this.#withTactical((t) => selectSoldier(t, first, SelectFlags.FORCE_RESELECT));
+  }
+
+  removedFromSquad(id: number, squad: number): void {
+    const c = this.campaign;
+    const merc = this.setup.roster.get(id);
+    if (!merc || c.state.flow !== 'tactical' || squad !== c.state.forces.currentSquad) return;
+    this.#withTactical((t) => updateCurrentlySelectedMerc(t, merc.soldier));
   }
 
   #mercInLoadedSector(m: RosterMerc): boolean {
@@ -1345,6 +1392,10 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
       if (t) t.equipment.mortarsRolledByTeam = 0;
       flow?.addPossiblePendingEnemiesToBattle();
       base.enemyReinforcementsArrived(group);
+    },
+    removedFromSquad: (id, squad) => {
+      flowOf()?.removedFromSquad(id, squad);
+      base.removedFromSquad?.(id, squad);
     },
   };
 }

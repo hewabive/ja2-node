@@ -4,6 +4,7 @@ import type { CivQuoteSaid } from '../narrative/civ-quotes.ts';
 import { createTalkState, type TalkState } from '../narrative/talk-state.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import { SRC_PROFILE_AT_START } from '../strategic/narrative/check-fact.ts';
+import { NO_SELECTION } from '../tactical/selection.ts';
 import { createRealtimeClock, type RealtimeClock } from '../tactical/state.ts';
 import type { AdjacentJump } from './sector-exits.ts';
 import type { ShopSession } from './shop-flow.ts';
@@ -28,6 +29,7 @@ export interface SectorFlowState {
   powSquad: number;
   readonly powsSeen: number[];
   trashedMapRestrictedScroll: number;
+  preferredSelection: number;
 }
 
 export interface ShopFlowState {
@@ -70,6 +72,7 @@ export function createSectorFlowState(realtimeClock: RealtimeClock = createRealt
     powSquad: NO_CURRENT_SQUAD,
     powsSeen: [],
     trashedMapRestrictedScroll: RestrictedScroll.NONE,
+    preferredSelection: NO_SELECTION,
   };
 }
 

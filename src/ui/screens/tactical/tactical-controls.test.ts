@@ -126,6 +126,8 @@ async function inCombat(): Promise<TacticalUiTest> {
   untilOurTurn(f.session);
   f.client.refresh();
   await f.settle();
+  f.screen.select(0, false);
+  await f.settle();
   return f;
 }
 

@@ -438,6 +438,8 @@ export function registeredInTactical(t: Pick<TacticalState, 'soldiers'>, merc: R
 
 export interface RosterHooks {
   removeFromTacticalSector(merc: RosterMerc): void;
+  selectAfterRemoval(merc: RosterMerc): void;
+  unselect(merc: RosterMerc): void;
   updateMercInSector(merc: RosterMerc, sector: Sector): void;
   tooTiredToTravel(merc: RosterMerc): boolean;
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
@@ -448,6 +450,8 @@ export interface RosterHooks {
 
 export const NO_ROSTER_HOOKS: RosterHooks = {
   removeFromTacticalSector: () => {},
+  selectAfterRemoval: () => {},
+  unselect: () => {},
   updateMercInSector: () => {},
   tooTiredToTravel: () => false,
   collapseFromFatigue: () => {},
@@ -570,6 +574,15 @@ export class Roster implements CrewPort {
     if (!merc) return;
     merc.offGridInSector = false;
     this.hooks.removeFromTacticalSector(merc);
+    this.hooks.selectAfterRemoval(merc);
+  }
+
+  tacticalRemoveSoldier(id: number): void {
+    const merc = this.get(id);
+    if (!merc) return;
+    merc.offGridInSector = false;
+    this.hooks.removeFromTacticalSector(merc);
+    this.hooks.unselect(merc);
   }
 
   removeFromGridNo(id: number): void {

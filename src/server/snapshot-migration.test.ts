@@ -12,6 +12,8 @@ import { restoreSession, type SessionSnapshot, snapshotSession } from './session
 
 type JsonObject = { readonly [key: string]: Json };
 
+const NOBODY_PREFERRED = -1;
+
 function object(value: Json | undefined): JsonObject {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('not an object');
   return value as JsonObject;
@@ -480,8 +482,8 @@ function versionFifteen(snapshot: SimSnapshot): SimSnapshot {
   const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
     if (name !== 'strategic') return [name, value];
     const strategic = object(value);
-    const { trashedMapRestrictedScroll, ...sectorFlow } = object(strategic.sectorFlow);
-    expect(trashedMapRestrictedScroll).toBe(0);
+    const { trashedMapRestrictedScroll, preferredSelection, ...sectorFlow } = object(strategic.sectorFlow);
+    expect([trashedMapRestrictedScroll, preferredSelection]).toEqual([0, NOBODY_PREFERRED]);
     return [name, { ...strategic, sectorFlow }];
   });
   return { ...snapshot, version: 15, graph: { ...snapshot.graph, sections } };
@@ -746,6 +748,40 @@ describe('snapshot version 21 (corpses without a taken head) migrates with every
     const legacy = versionTwentyOne(current.sim);
     expect(JSON.stringify(current.sim)).toContain('"headTaken"');
     expect(JSON.stringify(legacy)).not.toContain('"headTaken"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+function versionTwentyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { preferredSelection, ...sectorFlow } = object(strategic.sectorFlow);
+    expect(preferredSelection).toBe(NOBODY_PREFERRED);
+    return [name, { ...strategic, sectorFlow }];
+  });
+  return { ...snapshot, version: 22, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 22 (no preferred selection) migrates with nobody preferred for the next sector load', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionTwentyTwo(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"preferredSelection"');
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));

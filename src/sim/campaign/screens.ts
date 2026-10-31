@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0),
 // @src EndMapScreen (to tactical: X1); StrategicMap.cc CanGoToTacticalInSector; Tactical/Interface_Panels.cc
-// @src GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a flag).
+// @src GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a flag); GameScreen.cc
+// @src EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the loaded sector (2026-10-31).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -13,6 +14,7 @@ import { CompressionStop, setGameTimeCompressionLevel, stopTimeCompression } fro
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
 import { refuse } from '../tactical/refusal.ts';
+import { enterTacticalScreen } from '../tactical/selection.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
@@ -55,11 +57,13 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
 
 export function returnToLoadedSector(campaign: CampaignSim): void {
   const s = campaign.state;
-  const sectorClockMs = campaign.tactical?.state.clockMs;
-  if (sectorClockMs !== undefined) {
-    s.realMs = sectorClockMs;
-    s.clock.driver.lastSecondMs = sectorClockMs;
+  const t = campaign.tactical?.state;
+  const entering = s.flow !== 'tactical';
+  if (t) {
+    s.realMs = t.clockMs;
+    s.clock.driver.lastSecondMs = t.clockMs;
   }
   s.flow = 'tactical';
   setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
+  if (t && entering) enterTacticalScreen(t);
 }

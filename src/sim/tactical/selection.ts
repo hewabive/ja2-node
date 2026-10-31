@@ -2,11 +2,18 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-31. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc SelectSoldier (InternalSelectSoldier: its checks, the squad, PutMercInAwakeState and
 // @src the psycho's personality quote), SelectNextAvailSoldier; Tactical/Soldier_Macros.h OK_CONTROLLABLE_MERC,
-// @src OK_INTERRUPT_MERC; Tactical/Handle_UI.cc EndMultiSoldierSelection (the wake of the multi-selected mercs).
+// @src OK_INTERRUPT_MERC; Tactical/Handle_UI.cc EndMultiSoldierSelection (the wake of the multi-selected mercs);
+// @src GameScreen.cc EnterTacticalScreen (a selected merc out of control or asleep), MainGameScreenHandle (the forced
+// @src reselect on entry), TacticalScreenLocateToSoldier; Tactical/Overhead.cc HandlePlayerTeamMemberDeath and
+// @src RemoveSoldierFromTacticalSector (the next selection), FindActiveAndAliveMerc, FindNextActiveSquad;
+// @src Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier.
 
+import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { soldierAssignment } from './narrative/assignment.ts';
 import { MercQuote, markQuoteSaid, okControllableMerc, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
+import { isVehicleBody } from './person-structure.ts';
 import type { Refusal } from './refusal.ts';
-import { NO_PROFILE, OKLIFE, Personality, type Soldier, Team } from './soldier.ts';
+import { NO_PROFILE, OKLIFE, Personality, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from './soldier.ts';
 import { okInterruptMerc } from './soldier-view.ts';
 import { type TacticalState, teamMembers } from './state.ts';
 
@@ -66,4 +73,83 @@ export function selectNextAvailSoldier(t: TacticalState, last: Soldier): void {
 export function endMultiSoldierSelection(t: TacticalState, chosen: Soldier, members: readonly Soldier[]): void {
   for (const s of teamMembers(t, Team.OUR)) if (s === chosen || members.includes(s)) wakeIfAsleep(t, s);
   if (chosen.id !== t.turn.selected) selectSoldier(t, chosen, SelectFlags.FORCE_RESELECT);
+}
+
+export function enterTacticalScreen(t: TacticalState): void {
+  replaceSelectionUnfitForTactical(t);
+  const selected = selectedSoldier(t);
+  if (selected && okInterruptMerc(t, selected)) selectSoldier(t, selected, SelectFlags.FORCE_RESELECT);
+}
+
+function replaceSelectionUnfitForTactical(t: TacticalState): void {
+  const selected = selectedSoldier(t);
+  if (!selected) return;
+  if (!okControllableMerc(t, selected)) selectNextAvailSoldier(t, selected);
+  const kept = selectedSoldier(t);
+  if (kept && t.narrative.mercAsleep(kept)) selectNextAvailSoldier(t, kept);
+}
+
+export function locateToSoldier(t: TacticalState, preferred: Soldier | null): void {
+  const mayAct = (s: Soldier) => okControllableMerc(t, s) && okInterruptMerc(t, s);
+  const chosen = preferred && mayAct(preferred) ? preferred : teamMembers(t, Team.OUR).find(mayAct);
+  if (chosen) selectSoldier(t, chosen, SelectFlags.FORCE_RESELECT);
+}
+
+export function deathSuccessor(t: TacticalState, dead: Soldier): Soldier | null {
+  return teamMembers(t, dead.team).find((s) => s.life >= OKLIFE) ?? null;
+}
+
+export function selectAfterPlayerTeamMemberDeath(t: TacticalState, dead: Soldier, successor: Soldier | null): void {
+  if (t.turn.selected !== dead.id) return;
+  if (successor) selectSoldier(t, successor);
+  else t.turn.selected = NO_SELECTION;
+}
+
+export function selectAfterRemovalFromSector(t: TacticalState, removed: Soldier): void {
+  if (!t.narrative.inTacticalScreen()) {
+    t.turn.selected = NO_SELECTION;
+    return;
+  }
+  if (t.turn.selected !== removed.id) return;
+  const next = findNextActiveAndAliveMerc(t, removed) ?? findNextActiveSquadMember(t, removed);
+  if (next) selectSoldier(t, next);
+  else t.turn.selected = NO_SELECTION;
+}
+
+export function updateCurrentlySelectedMerc(t: TacticalState, leaving: Soldier): void {
+  if (t.turn.selected !== leaving.id) return;
+  const next = findNextActiveAndAliveMerc(t, leaving);
+  if (next) selectSoldier(t, next);
+  else t.turn.selected = NO_SELECTION;
+}
+
+export function unselectRemovedSoldier(t: TacticalState, removed: Soldier): void {
+  if (t.turn.selected === removed.id) t.turn.selected = NO_SELECTION;
+}
+
+function findNextActiveAndAliveMerc(t: TacticalState, current: Soldier): Soldier | null {
+  const first = TEAM_FIRST_ID[current.team] ?? 0;
+  const size = TEAM_SIZES[current.team] ?? 0;
+  const assignment = soldierAssignment(t, current);
+  for (let step = 1; step < size; step++) {
+    const s = t.soldiers[first + ((current.id - first + step) % size)];
+    if (!s || soldierAssignment(t, s) !== assignment || !okInterruptMerc(t, s)) continue;
+    if (s.placed && s.life >= OKLIFE) return s;
+  }
+  return null;
+}
+
+function findNextActiveSquadMember(t: TacticalState, current: Soldier): Soldier | null {
+  const squad = soldierAssignment(t, current);
+  return firstActiveSquadMember(t, squad + 1, NUMBER_OF_SQUADS) ?? firstActiveSquadMember(t, 0, Math.min(squad, NUMBER_OF_SQUADS));
+}
+
+function firstActiveSquadMember(t: TacticalState, begin: number, end: number): Soldier | null {
+  for (let squad = begin; squad < end; squad++) {
+    const found = t.narrative
+      .squadMembers(squad)
+      .find((s) => s.placed && okInterruptMerc(t, s) && okControllableMerc(t, s) && !isVehicleBody(s));
+    if (found) return found;
+  }
+  return null;
 }

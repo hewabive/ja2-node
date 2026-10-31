@@ -5,7 +5,8 @@
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
 // @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
-// @src corpse), RemoveCorpse, FindCorpseBasedOnStructure.
+// @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
+// @src 2026-10-31).
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -45,6 +46,7 @@ import { removeMercStructure } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
+import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
@@ -462,9 +464,11 @@ export function updateSkullReleases(t: TacticalState): void {
   t.pendingSkullReleases.splice(0, t.pendingSkullReleases.length, ...t.pendingSkullReleases.filter((r) => t.clockMs < r.at));
   for (const r of due) {
     if (!r.soldier.doingExternalDeath) releaseSoldiersAttacker(t, r.soldier);
+    const successor = deathSuccessor(t, r.soldier);
     playerTeamDeathRules(t, r.soldier);
     t.sectorHooks.mercDied(t, r.soldier);
     checkForEndOfBattle(t);
+    selectAfterPlayerTeamMemberDeath(t, r.soldier, successor);
   }
 }
 

@@ -9,7 +9,8 @@
 // @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
 // @src (TriggerFriendWithHostileQuote); Tactical/Soldier_Control.cc EVENT_SoldierGotHit (our merc on another assignment
 // @src wakes and joins a squad, 2026-10-31); Tactical/Overhead.cc SelectSoldier (SetCurrentSquad, PutMercInAwakeState and
-// @src MERC_TYPE__PLAYER_CHARACTER through the roster, 2026-10-31).
+// @src MERC_TYPE__PLAYER_CHARACTER through the roster, 2026-10-31); Tactical/Squads.cc Squad[] and GameScreen.cc
+// @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
@@ -61,6 +62,12 @@ function setCurrentSquad(campaign: CampaignSim, soldier: Soldier): void {
   if (squad >= 0 && squad < NUMBER_OF_SQUADS) campaign.state.forces.currentSquad = squad;
 }
 
+function squadSoldiers(campaign: CampaignSim, squad: number): Soldier[] {
+  const roster = campaign.battle?.roster;
+  const ids = campaign.state.forces.squads[squad] ?? [];
+  return ids.flatMap((id) => roster?.get(id)?.soldier ?? []);
+}
+
 function rebelsBetrayed(campaign: CampaignSim): void {
   if (campaign.economy) reduceLoyaltyForRebelsBetrayed(campaign.economy);
 }
@@ -86,6 +93,8 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     mercAsleep: (soldier) => campaign.battle?.roster.get(soldier.id)?.asleep ?? false,
     putMercInAwakeState: (soldier) => wakeSelectedMerc(campaign, soldier),
     setCurrentSquad: (soldier) => setCurrentSquad(campaign, soldier),
+    squadMembers: (squad) => squadSoldiers(campaign, squad),
+    inTacticalScreen: () => s.flow === 'tactical',
     putOnSquadWhenHit: (soldier) => putOnSquadWhenHit(campaign, soldier),
     isAimMerc: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.AIM_MERC,
     isPlayerCharacter: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.PLAYER_CHARACTER,

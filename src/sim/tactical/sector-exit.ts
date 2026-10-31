@@ -28,7 +28,7 @@ import { soldierGotoStationaryStance } from './animation.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
 import { findBestPath, MAX_PATH_LIST_SIZE, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { enoughPoints } from './points.ts';
-import { removeSoldierFromTacticalSector } from './sector-presence.ts';
+import { leaveTacticalSector } from './sector-presence.ts';
 import { type Soldier, Team } from './soldier.ts';
 import { mercs, onVisibleWorldTile, sectorMapOf, type TacticalState, WaitForMercs } from './state.ts';
 
@@ -308,7 +308,7 @@ export function handleWaitActionOnArrival(t: TacticalState, s: Soldier): boolean
   s.waitActionToDo = 0;
   if (t.mercsWaiting) t.mercsWaiting.remaining--;
   soldierGotoStationaryStance(t, s);
-  if (code === WaitForMercs.WALK_TO_GRIDNO) removeSoldierFromTacticalSector(t, s);
+  if (code === WaitForMercs.WALK_TO_GRIDNO) leaveTacticalSector(t, s);
   return true;
 }
 

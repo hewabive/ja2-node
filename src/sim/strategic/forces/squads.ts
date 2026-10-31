@@ -4,7 +4,8 @@
 // @src RemoveCharacterFromSquads, RebuildSquad, AddDeadCharacterToSquadDeadGuys, ResetDeadSquadMemberList, SectorSquadIsIn,
 // @src IsThisSquadOnTheMove, CopyPathOfSquadToCharacter, CopyPathOfCharacterToSquad, NumberOfPlayerControllableMercsInSquad,
 // @src DoesVehicleExistInSquad, CheckSquadMovementGroups; Strategic/Assignments.cc AssignMercToAMovementGroup;
-// @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles.
+// @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles; Squads.cc RemoveCharacterFromSquads
+// @src (UpdateCurrentlySelectedMerc on the tactical screen, 2026-10-31).
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import {
@@ -149,6 +150,7 @@ export function removeCharacterFromSquads(ctx: StrategicContext, id: number): bo
     removePlayerFromGroup(ctx, id);
     if (m.betweenSectors && m.isVehicle) addPlayerToGroup(ctx, createNewPlayerGroupDepartingFromSector(ctx, m.sector), id);
     if (m.life === 0) addDeadCharacterToSquadDeadGuys(ctx, id, q);
+    ctx.world.removedFromSquad?.(id, q);
     return true;
   }
   return false;

@@ -17,7 +17,8 @@
 // @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
 // @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
 // @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc SetCurrentSquad and MERC_TYPE__PLAYER_CHARACTER
-// @src for InternalSelectSoldier (2026-10-31).
+// @src for InternalSelectSoldier, Squad[] (FOR_EACH_IN_SQUAD) and guiCurrentScreen == GAME_SCREEN for the selections of
+// @src RemoveSoldierFromTacticalSector (2026-10-31).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -55,6 +56,8 @@ export interface NarrativePort {
   mercAsleep(s: Soldier): boolean;
   putMercInAwakeState(s: Soldier): void;
   setCurrentSquad(s: Soldier): void;
+  squadMembers(squad: number): readonly Soldier[];
+  inTacticalScreen(): boolean;
   putOnSquadWhenHit(s: Soldier): void;
   isAimMerc(s: Soldier): boolean;
   isPlayerCharacter(s: Soldier): boolean;
@@ -129,6 +132,8 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   mercAsleep: () => false,
   putMercInAwakeState: () => {},
   setCurrentSquad: () => {},
+  squadMembers: () => [],
+  inTacticalScreen: () => true,
   putOnSquadWhenHit: () => {},
   isAimMerc: () => false,
   isPlayerCharacter: () => false,

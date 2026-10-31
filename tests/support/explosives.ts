@@ -47,7 +47,7 @@ export interface DrawCount {
 
 const MAX_COUNTED_DRAWS = 100_000;
 
-function mainAdvance(before: RngState, after: RngState): number {
+export function mainAdvance(before: RngState, after: RngState): number {
   const probe = Rng.fromState(before);
   const target = JSON.stringify(after);
   for (let n = 0; n < MAX_COUNTED_DRAWS; n++) {

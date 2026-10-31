@@ -248,7 +248,7 @@ export class ContractFlow implements ContractContext {
 
   removeFromWorld(m: RosterMerc): void {
     removeCharacterFromSquads(this.economy, m.id);
-    this.roster.removeFromTacticalSector(m.id);
+    this.roster.tacticalRemoveSoldier(m.id);
     this.roster.remove(m.id);
     this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   }

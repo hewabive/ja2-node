@@ -65,6 +65,15 @@ describe('view frames', () => {
     expect(diffPlayerView(open, { ...open, tick: 30, shop: { ...shop, boxes: [] } })).toMatchObject({ shop: { boxes: [] } });
     expect(diffPlayerView(open, { ...open, tick: 40, shop: null })).toMatchObject({ shop: null });
   });
+
+  it('carry the selected merc when the server selects another one or nobody', () => {
+    const selected: PlayerView = { ...base, selected: 2 };
+    expect(diffPlayerView(selected, { ...selected, tick: 20 })).toBeNull();
+    expect(diffPlayerView(selected, { ...selected, tick: 20, selected: 3 })).toEqual({ tick: 20, changed: [], removed: [], selected: 3 });
+    const nobody = diffPlayerView(selected, { ...selected, tick: 30, selected: null });
+    expect(nobody).toMatchObject({ selected: null });
+    expect(nobody && applyViewFrame(selected, nobody).selected).toBeNull();
+  });
 });
 
 function soldier(id: number, gridNo: number): SoldierView {
