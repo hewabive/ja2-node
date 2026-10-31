@@ -15,7 +15,7 @@
 // @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
 // @src SetSoldierAsUnderAiControl; Overhead.cc CheckForEndOfBattle (fAnEnemyRetreated, the buddy-witnessed quote flags,
 // @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
-// @src CommonEnterCombatModeCode (2026-10-30).
+// @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -23,6 +23,7 @@ import { idiv, u8, u32 } from '../../../core/int.ts';
 import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
+import { startWakingUp } from '../assignment-animations.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
@@ -404,6 +405,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
     t.turnHooks.cancelAIAction(t, s);
     s.aiTurnControl = false;
     checkForPotentialAddToBattleIncrement(t, s);
+    if (t.narrative.mercAsleep(s)) startWakingUp(t, s);
     calcNewActionPoints(s, boxingHalvesPoints(t));
   }
   t.turn.round = 1;

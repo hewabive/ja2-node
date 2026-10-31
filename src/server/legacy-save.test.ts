@@ -49,6 +49,9 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'ROBOTNW_HIT',
   'ROBOTNW_DIE',
   'ROBOTNW_DIE_STOP',
+  'GOTO_SLEEP',
+  'SLEEPING',
+  'WKAEUP_FROM_SLEEP',
 ];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];

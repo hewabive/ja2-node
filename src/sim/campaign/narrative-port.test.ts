@@ -7,12 +7,14 @@ import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { idiv } from '../../core/int.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
+import { animName } from '../tactical/anim-states.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
 import { heldPrisoner, onSquad } from '../tactical/narrative/assignment.ts';
 import { QuoteSaidExtFlag } from '../tactical/narrative/merc-quotes.ts';
 import { calcInterruptDuelPts, seenOpponent } from '../tactical/perception/duel.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
+import { enterCombatMode } from '../tactical/turns/turns.ts';
 import { MercKind, type Roster, type RosterMerc } from './roster.ts';
 
 let kit: CampaignKit;
@@ -99,5 +101,21 @@ describe("a merc's sleep, kind and quote flags as tactical asks them of the camp
     flags.quoteSaidExtFlags |= QuoteSaidExtFlag.BUDDY_2_WITNESSED;
     expect(doctor.quoteSaidExtFlags & QuoteSaidExtFlag.BUDDY_2_WITNESSED).toBe(QuoteSaidExtFlag.BUDDY_2_WITNESSED);
     expect(t.narrative.quoteSaidFlags(enemy)).toBeNull();
+  });
+
+  it('stands a merc asleep in the sector up when combat starts and leaves him asleep (CommonEnterCombatModeCode)', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 31, mercs: 2, garrison: { admins: 0, troops: 2, elites: 0 } });
+    const sleeper = roster.all()[1];
+    if (!sleeper) throw new Error('two mercs');
+    sleeper.asleep = true;
+    landFirstSquad(c);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('A9 is not loaded');
+    const merc = rosterRecord(roster, sleeper.soldier);
+    expect(animName(t.content, merc.soldier.state)).toBe('SLEEPING');
+    enterCombatMode(t, Team.OUR);
+    expect(t.inCombat).toBe(true);
+    expect(animName(t.content, merc.soldier.state)).toBe('WKAEUP_FROM_SLEEP');
+    expect(merc.asleep).toBe(true);
   });
 });

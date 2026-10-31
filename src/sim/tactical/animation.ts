@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim, SetSoldierAniSpeed, CalculateSoldierAniSpeed,
 // @src SoldierGotoStationaryStance, ChangeSoldierStance, EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection,
 // @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with
-// @src its BoxingMovementCheck).
+// @src its BoxingMovementCheck, the getting up from sleep of code 474, 2026-10-31).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -65,6 +65,7 @@ const OP_HOP_FENCE_FULL_STEP = 445;
 const OP_PAUSE_ANIMOVE_ON = 446;
 const OP_BEGIN_HOP_FENCE = 450;
 const OP_PAUSE_ANIMOVE_OFF = 471;
+const OP_GETUP_FROM_SLEEP = 474;
 const OP_OPEN_STRUCT = 494;
 const OP_OPEN_DOOR = 495;
 const OP_END_OF_ANIMATION = 499;
@@ -643,6 +644,9 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
     case OP_RT_NONINT_DONE:
       s.rtNonInterruptible = false;
       return 'continue';
+    case OP_GETUP_FROM_SLEEP:
+      changeSoldierStance(t, s, AnimHeight.STAND);
+      return 'stop';
     case OP_END_OF_ANIMATION:
       handleEndOfAnimation(t, s);
       return 'stop';

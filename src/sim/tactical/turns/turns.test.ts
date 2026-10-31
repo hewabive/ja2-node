@@ -9,7 +9,8 @@ import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { AiAction } from '../ai/actions.ts';
-import { initNewSoldierAnim, states, TurningFromProne } from '../animation.ts';
+import { anim, animName } from '../anim-states.ts';
+import { AnimHeight, initNewSoldierAnim, states, TurningFromProne } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
@@ -276,6 +277,25 @@ describe('turn-based combat', () => {
     expect(t.inCombat).toBe(true);
     expect(t.turn.currentTeam).toBe(Team.ENEMY);
     expect(t.turn.consNumTurnsNotSeen).toBe(1);
+  });
+
+  it('starts the wake-up of a sleeping merc, who gets up to his feet at its end (CommonEnterCombatModeCode, code 474)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const sleeper = spawn(sim, 1, Team.OUR, gridNo(70, 80), Direction.SOUTH);
+    const awake = spawn(sim, 2, Team.OUR, gridNo(90, 80), Direction.SOUTH);
+    for (const s of [sleeper, awake]) initNewSoldierAnim(t, s, anim(content, 'SLEEPING'), 1, true);
+    sleeper.desiredHeight = AnimHeight.PRONE;
+    t.narrative = { ...t.narrative, mercAsleep: (s) => s === sleeper };
+    spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    expect([animName(content, sleeper.state), animName(content, awake.state)]).toEqual(['WKAEUP_FROM_SLEEP', 'SLEEPING']);
+    for (let tick = 0; tick < 1_000 && animName(content, sleeper.state) === 'WKAEUP_FROM_SLEEP'; tick++) sim.step();
+    expect([animName(content, sleeper.state), sleeper.desiredHeight]).toEqual(['KNEEL_UP', AnimHeight.STAND]);
+    run(sim);
+    expect(animName(content, sleeper.state)).toBe('STANDING');
   });
 });
 

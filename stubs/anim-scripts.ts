@@ -69,6 +69,19 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   OPEN_STRUCT_CROUCHED: () => SWING_SHUT(OPEN_STRUCT),
 };
 
+const GETUP_FROM_SLEEP = 474;
+const descendingFrames = (count: number) => frames(count).reverse();
+const REST_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+  GOTO_SLEEP: (t) => [...frames(ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'SLEEPING'))],
+  SLEEPING: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
+  WKAEUP_FROM_SLEEP: (t) => [
+    ...descendingFrames(ONE_SHOT_FRAMES),
+    NONINTERRUPTIBLE_DONE,
+    GETUP_FROM_SLEEP,
+    stateJump(stateId(t, 'KNEEL_UP')),
+  ],
+};
+
 const THROW_RELEASE = 460;
 const LOB_RELEASE = 461;
 const LIFE_ZERO = 465;
@@ -483,7 +496,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
       ...(control.flags & RT_NONINTERRUPT_FLAG ? [RT_NONINTERRUPTIBLE_DONE] : []),
     ];
     let script: number[];
-    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id];
+    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id] ?? REST_SCRIPTS[control.id];
     const fight = combat.get(control.id);
     if (fight) script = fight;
     else if (door) script = door(tables);

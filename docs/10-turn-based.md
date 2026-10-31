@@ -159,6 +159,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
 | Combat started after our first sighting in the sector, which ends the virgin sector, leaves the enemy presence unset: `SetEnemyPresence` asks for a virgin sector | `narrative/sighting-quotes.test.ts` |
+| Entering combat plays a sleeping merc's wake-up but leaves him asleep, so his morale still waits for him to wake | `turns/turns.test.ts`, `combat/morale.test.ts`, `src/sim/campaign/narrative-port.test.ts` |
 
 Not pinned yet:
 - A duel won by 127 points or more never interrupts: the margin is a `UINT8` and only margins below `NO_INTERRUPT` are
@@ -184,7 +185,8 @@ reading the source:
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
 Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat". Other deviations of this
+pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat" (the wake-ups by selection and by a hit, and a
+sleeper's blindness). Other deviations of this
 domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
 prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
 "Interface lock on arrival".

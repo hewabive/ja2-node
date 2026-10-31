@@ -25,6 +25,7 @@ const DEFAULT_MORALE = 50;
 const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);
 
 export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
+  if (t.narrative.mercAsleep(s)) return;
   const m = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + idiv(t.campaign.progress, 5);
   s.morale = Math.min(100, Math.max(0, m));
 }

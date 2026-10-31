@@ -42,3 +42,20 @@ describe('bad news (Morale.cc UpdateSoldierMorale)', () => {
     ).toBe(onTheGround);
   });
 });
+
+describe('a sleeping merc (Morale.cc RefreshSoldierMorale)', () => {
+  it('banks the modifier of a tactical event but keeps his morale until he is awake', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    sim.state.profiles.set(MERC_PROFILE, progressFor(MERC_PROFILE));
+    let asleep = true;
+    sim.state.narrative = { ...sim.state.narrative, mercAsleep: (m) => m === s && asleep };
+    const before = s.morale;
+    handleMoraleEvent(sim.state, s, MoraleEvent.KILLED_ENEMY);
+    expect(s.tacticalMoraleMod).toBeGreaterThan(0);
+    expect(s.morale).toBe(before);
+    asleep = false;
+    handleMoraleEvent(sim.state, s, MoraleEvent.KILLED_ENEMY);
+    expect(s.morale).toBeGreaterThan(before);
+  });
+});
