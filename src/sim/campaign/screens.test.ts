@@ -123,6 +123,22 @@ describe('the compression cleanup', () => {
     expect(ourSoldiers(c)[0]?.pathSize).toBeGreaterThan(0);
   });
 
+  it('marks the start of compression with tacticalClearedForCompression, which a picked speed does not emit', () => {
+    const c = walkingOnTheMap();
+    c.drainEvents();
+    const typesAfter = (cmd: Parameters<CampaignSim['dispatch']>[0]) => {
+      expect(c.dispatch(cmd)).toEqual({ ok: true });
+      return c.drainEvents().map((e) => e.type);
+    };
+    const picked = typesAfter({ type: 'compressTime', mode: CompressMode.MIN30 });
+    expect(picked).toContain('compressionStarted');
+    expect(picked).not.toContain('tacticalClearedForCompression');
+    typesAfter({ type: 'stopTime' });
+    const started = typesAfter({ type: 'compressTime' });
+    expect(started).toContain('compressionStarted');
+    expect(started.filter((type) => type === 'tacticalClearedForCompression')).toHaveLength(1);
+  });
+
   it('clears again at every later start, as the map screen forgets each frame that compression occurred', () => {
     const c = walkingOnTheMap();
     expect(c.dispatch({ type: 'compressTime' })).toEqual({ ok: true });

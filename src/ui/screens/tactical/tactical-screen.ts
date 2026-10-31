@@ -11,8 +11,9 @@
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
 // @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides, the selected merc blinking
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
-// @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame; Interface_Items.cc HandleItemPointerClick (give
-// @src to a talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
+// @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
+// @src message log); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
+// @src range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
@@ -160,6 +161,10 @@ const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
 type PanelKind = 'team' | 'sm';
 const DESCRIBED_BUTTON_OWNERS: ReadonlySet<string> = new Set(['itemDescription', 'itemPickupMenu', 'tacticalMenus', 'tacticalExitDialog']);
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
+
+function clearsMessageLog(frame: ViewFrame): boolean {
+  return frame.events?.some((e) => e.type === 'tacticalClearedForCompression') ?? false;
+}
 
 interface PanelFaceAnimation {
   closeFrame: number;
@@ -382,7 +387,7 @@ export class TacticalScreen implements Screen {
       closePopups: () => this.#closePopups(),
       locate: (s, cycles) => this.#locateSoldier(s, cycles),
       locateSelect: (s, force) => this.#locateSelect(s, force),
-      clearMessages: (queue) => (queue ? this.#log.clearQueue() : this.#log.clearShown()),
+      clearMessages: (queue) => (queue ? this.#log.clear() : this.#log.clearShown()),
       swapHands: (id) => this.#swapHands(id),
       viewportTop: () => (this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0),
       viewportBottom: () => this.#viewportBottom(),
@@ -1076,6 +1081,7 @@ export class TacticalScreen implements Screen {
         this.#log.push(text, entry.colour, tiny);
         if (entry.kind === 'uiFeedback' || entry.kind === 'skullFeedback') this.#beginFeedback(text, entry.kind === 'skullFeedback');
       }
+      if (clearsMessageLog(frame)) this.#log.clear();
       for (const s of frame.changed) if (s.team === OUR_TEAM && s.inventory) this.#lastInventories.set(s.id, s.inventory);
     }
   }

@@ -2,8 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order),
 // @src AnyUsableRealMercenariesOnTeam; Strategic/MapScreen.cc UpdatePausedStatesDueToTimeCompression;
-// @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags); TileEngine/Environment.cc
-// @src EnvironmentController (the ambient light).
+// @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
+// @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
+// @src TileEngine/Environment.cc EnvironmentController (the ambient light).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -593,7 +594,9 @@ export class CampaignSim {
   }
 
   #clearTacticalStuffDueToTimeCompression(): void {
-    if (this.state.flow === 'strategic') this.tactical?.clearTacticalStuffDueToTimeCompression();
+    if (this.state.flow !== 'strategic') return;
+    this.tactical?.clearTacticalStuffDueToTimeCompression();
+    this.#events.push({ type: 'tacticalClearedForCompression', tick: this.tick });
   }
 
   #reEvaluateNothingToDo(): void {

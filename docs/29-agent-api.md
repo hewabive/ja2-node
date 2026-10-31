@@ -124,6 +124,13 @@ screen toggle, and the loaded sector stays frozen on the map (deviation "Map and
 notification is a client setting: an agent that wants the original's stop passes `events: ['fellAsleep', 'wokeUp']`
 beside its time target.
 
+`compressionStarted {mode}` and `compressionStopped {reason}` follow whether time runs compressed
+(`IsTimeBeingCompressed`), so a speed picked while time stands and an unpause start it too.
+`tacticalClearedForCompression` marks only a start by the start toggle (`StartTimeCompression`: `compressTime` without
+`mode`, or an `advance` without `mode` that starts compression): the loaded sector's soldiers have stopped, their AI
+actions and the game events not yet dequeued are gone, and the client empties its tactical message log, shown and queued
+lines (`15` §2). The message list of §7 keeps every entry.
+
 ### 4.5 Conversations in game time
 
 As in the original (`HandleDialogue` pauses and locks the game while `ENGAGED_IN_CONV` is set; `24`), a conversation

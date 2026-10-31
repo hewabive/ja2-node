@@ -112,8 +112,9 @@ strategic (deviation "Time compression for healing"). The original's map runs a 
 compressing, so bleeding per world minute depends on the compression level; ja2-node runs real-time turns only in the
 loaded sector (gap "Absent mercs between hourly updates"). Starting compression stops every soldier of the loaded
 sector, cancels their AI actions and drops the game events not yet dequeued (`clearTacticalStuffDueToTimeCompression`,
-`tactical/overhead.ts`); a speed picked while time stands sets the level without that start, as the original's increase
-button does.
+`tactical/overhead.ts`); the `tacticalClearedForCompression` event it emits makes the client empty its tactical message
+log, shown and queued lines, as `ClearTacticalMessageQueue` does (`src/ui/screens/tactical/tactical-screen.ts`). A speed
+picked while time stands sets the level without that start, as the original's increase button does.
 
 **A new game.** `initNewGame` follows `InitNewGame` and `InitStrategicLayer` in order, without the screen state machine,
 the scripting engine and the message queues. Every draw is on `main` and the call order is the draw order: the same seed
@@ -176,7 +177,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Compression cleanup", "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage",
-"Corpses". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time
-pause", "Time compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn
-after combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time".
+Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage", "Corpses". Other
+deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause", "Time
+compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after combat",
+"Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time".

@@ -9,6 +9,7 @@ import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
+import type { Screen } from '../../screen.ts';
 
 const HAND = 5;
 const BIG_POCKET = 7;
@@ -27,6 +28,7 @@ const TINY_FONT = 'tinyfont1';
 const ABOVE_GUY_HEIGHT = 62;
 const ABOVE_GUY_HALF_WIDTH = 40;
 const ABOVE_GUY_LINE = 10;
+const LOG_LINES = 8;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -106,6 +108,10 @@ function statColour(f: TacticalUiTest, id: string): number | null {
 
 function frame(tick: number, events: NonNullable<ViewFrame['events']>, messages: NonNullable<ViewFrame['messages']> = []): ViewFrame {
   return { tick, changed: [], removed: [], events, messages };
+}
+
+function logLines(tick: number, count: number): NonNullable<ViewFrame['messages']> {
+  return Array.from({ length: count }, (_, k) => ({ tick, kind: 'interface', colour: FONT_RED, args: [{ text: `Line ${k}` }] }));
 }
 
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
@@ -286,6 +292,19 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
   });
 
+  it('empties the shown message lines with F12, and the queued ones too with CTRL+F12 (ClearTacticalMessageQueue)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.frames([frame(f.client.view.tick, [], logLines(f.client.view.tick, LOG_LINES))]);
+    await f.settle(2);
+    f.key('F12');
+    await f.settle(2);
+    expect(f.screen.messageLines).not.toEqual([]);
+    f.key('F12', KeyModifier.CTRL);
+    expect(f.screen.messageLines).toEqual([]);
+    await f.settle(LOG_LINES);
+    expect(f.screen.messageLines).toEqual([]);
+  });
+
   it('shows the message log, the feedback box, stat flashes and the death animation of a face', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.frames([
@@ -403,6 +422,24 @@ describe('the tactical screen over a stub sandbox session', () => {
 });
 
 describe('the tactical screen in a stub campaign', () => {
+  it('drops its shown and queued message lines when compression starts on the map screen, as ClearTacticalMessageQueue does', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const tick = f.client.view.tick;
+    const lines = logLines(tick, LOG_LINES);
+    f.frames([frame(tick, [], lines)]);
+    await f.settle(2);
+    expect(f.screen.messageLines).not.toEqual([]);
+    const map: Screen = { id: 'map', enter: () => {}, exit: () => {}, update: () => {}, input: () => false, render: () => {} };
+    f.t.runtime.host.push(map);
+    expect(await f.session.prepareAndDispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(await f.session.prepareAndDispatch({ type: 'compressTime' })).toEqual({ ok: true });
+    f.deliver();
+    f.t.runtime.host.pop();
+    await f.settle(lines.length);
+    expect(f.screen.messageLines).toEqual([]);
+  });
+
   it('boxes a town the enemy took while in tactical, centred above the inventory panel', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

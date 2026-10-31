@@ -584,6 +584,10 @@ export interface CompressionStoppedEvent extends SimEventBase {
   readonly reason: string;
 }
 
+export interface TacticalClearedForCompressionEvent extends SimEventBase {
+  readonly type: 'tacticalClearedForCompression';
+}
+
 export interface WorldTimeReachedEvent extends SimEventBase {
   readonly type: 'worldTimeReached';
   readonly seconds: number;
@@ -670,6 +674,7 @@ export type SimEvent =
   | CiviliansEatenEvent
   | CompressionStartedEvent
   | CompressionStoppedEvent
+  | TacticalClearedForCompressionEvent
   | WorldTimeReachedEvent
   | DayStartedEvent
   | OptionChangedEvent
