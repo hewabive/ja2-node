@@ -67,6 +67,7 @@ import { clearStrategicPathAfterSector } from '../strategic/map/pathing.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
+import { refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -110,7 +111,7 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
 };
 
 function refusal(code: string): CommandResult {
-  return { ok: false, reason: `${code}: ${REFUSAL_TEXT[code] ?? code}`, data: { refusal: code } };
+  return refuse(code, `${code}: ${REFUSAL_TEXT[code] ?? code}`);
 }
 
 function soldierArg(cmd: Command): number | null {
@@ -261,7 +262,7 @@ export class HelicopterFlow {
     const m = this.#helicopterPassenger(cmd);
     if (!m) return null;
     const moving = canEntireMovementGroupMove(this.ctx, m.id, { inCombat: this.campaign.tactical?.state.inCombat === true });
-    if (moving) return { ok: false, reason: `the squad cannot move: ${moving}` };
+    if (moving) return refuse(moving, `the squad cannot move: ${moving}`);
     return this.#heliRoute(cmd);
   }
 
@@ -316,9 +317,9 @@ export class HelicopterFlow {
     const notMap = this.#mapScreenRefusal();
     if (notMap) return notMap;
     const to = parseSector(cmd.to);
-    if (!to) return { ok: false, reason: 'to must be a sector such as B13' };
+    if (!to) return refuse('badSector', 'to must be a sector such as B13');
     const via = sectorList(cmd.via);
-    if (!via) return { ok: false, reason: 'via must be a list of sectors such as ["B12"]' };
+    if (!via) return refuse('badSector', 'via must be a list of sectors such as ["B12"]');
     if (!helicopterVehicle(ctx)) return refusal('noHelicopter');
     const request = cmd.plotted === true ? this.#plottedRequest() : requestGiveSkyriderNewDestination(ctx);
     if (!request.ok) return refusal(request.refusal);
@@ -341,7 +342,7 @@ export class HelicopterFlow {
     const notMap = this.#mapScreenRefusal();
     if (notMap) return notMap;
     const at = parseSector(cmd.at);
-    if (!at) return { ok: false, reason: 'at must be a sector such as B13' };
+    if (!at) return refuse('badSector', 'at must be a sector such as B13');
     const v = helicopterVehicle(ctx);
     if (!v) return refusal('noHelicopter');
     if (!canHelicopterFly(ctx)) return refusal(explainWhySkyriderCantFly(ctx) ?? 'noHelicopter');

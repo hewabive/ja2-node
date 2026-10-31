@@ -97,6 +97,7 @@ import {
   enterMercSite,
   getMercSiteBackOnline,
   larryRelapsed,
+  type MercCommandRefusal,
   makeNewMercsAvailable,
   mercCommandRefusal,
   mercHire,
@@ -110,6 +111,7 @@ import {
   speckOpening,
 } from './merc-site.ts';
 import { addFile, addHistory, addToPersonnelList, ENRICO_BACKGROUND_FILE, History, type HistorySector } from './records.ts';
+import { type LaptopRefusal, laptopRefusal } from './refusals.ts';
 
 const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'closeLaptop',
@@ -142,7 +144,6 @@ const SITE_BOOKMARKS: Readonly<Record<string, number>> = {
   insurance: Bookmark.INSURANCE,
 };
 const FLORIST_ORDER_FORM_SITE = 'floristOrderForm';
-export const LAPTOP_REFUSAL = 'laptop: the laptop is open, closeLaptop first';
 const IMP_REMINDER_FIRST_HOUR = 8;
 const IMP_REMINDER_HOURS = 4;
 const MINUTES_PER_HOUR = 60;
@@ -293,6 +294,10 @@ export class LaptopFlow implements LaptopContext {
 
   isOpen(): boolean {
     return this.state.flow === 'laptop';
+  }
+
+  modalRefusal(): string | null {
+    return this.isOpen() ? laptopRefusal('laptopOpen').reason : null;
   }
 
   hireHooks(): HireHooks {
@@ -502,7 +507,7 @@ export class LaptopFlow implements LaptopContext {
     this.emit({ type: 'mercArrived', soldier: id, profile: m.profile, sector: sectorShortString(m.sector) });
   }
 
-  openRefusal(): string | null {
+  openRefusal(): LaptopRefusal | null {
     const s = this.state;
     if (s.flow === 'laptop') return 'laptopOpen';
     if (s.flow !== 'strategic') return 'mapScreenOnly';
@@ -516,8 +521,8 @@ export class LaptopFlow implements LaptopContext {
     if (cmd.type === 'openLaptop') return this.#open();
     if (cmd.type === 'setLandingZone') return this.#setLandingZone(cmd);
     if (QUERIES.has(cmd.type)) return this.#query(cmd);
-    if (!LAPTOP_COMMANDS.has(cmd.type)) return this.isOpen() ? { ok: false, reason: LAPTOP_REFUSAL } : null;
-    if (!this.isOpen()) return { ok: false, reason: 'laptopClosed' };
+    if (!LAPTOP_COMMANDS.has(cmd.type)) return this.isOpen() ? laptopRefusal('laptopOpen') : null;
+    if (!this.isOpen()) return laptopRefusal('laptopClosed');
     switch (cmd.type) {
       case 'closeLaptop':
         return this.#close();
@@ -552,7 +557,7 @@ export class LaptopFlow implements LaptopContext {
 
   #open(): CommandResult {
     const refusal = this.openRefusal();
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return laptopRefusal(refusal);
     stopTimeCompression(this.clockContext, CompressionStop.REQUESTED);
     this.state.flow = 'laptop';
     setBookmark(this.laptop, Bookmark.AIM);
@@ -576,15 +581,15 @@ export class LaptopFlow implements LaptopContext {
   }
 
   #setLandingZone(cmd: Command): CommandResult {
-    if (this.state.flow !== 'strategic') return { ok: false, reason: 'mapScreenOnly' };
+    if (this.state.flow !== 'strategic') return laptopRefusal('mapScreenOnly');
     let sector: Sector;
     try {
       sector = parseSectorString(String(cmd.sector ?? ''));
     } catch {
-      return { ok: false, reason: 'badSector' };
+      return laptopRefusal('badSector');
     }
     const refusal = setLandingZone(this, sector);
-    return refusal ? { ok: false, reason: refusal } : { ok: true, data: { sector: sectorShortString(sector) } };
+    return refusal ? laptopRefusal(refusal) : { ok: true, data: { sector: sectorShortString(sector) } };
   }
 
   #visitSite(cmd: Command): CommandResult {
@@ -597,7 +602,7 @@ export class LaptopFlow implements LaptopContext {
     if (site === 'bobbyRay') visitBobbyRay(this);
     else {
       const bookmark = SITE_BOOKMARKS[site];
-      if (bookmark === undefined) return { ok: false, reason: 'badSite' };
+      if (bookmark === undefined) return laptopRefusal('badSite');
       setBookmark(this.laptop, bookmark);
     }
     return { ok: true, data: { site, bookmarks: bookmarkNames(this.laptop) } };
@@ -605,7 +610,7 @@ export class LaptopFlow implements LaptopContext {
 
   #visitMercSite(): CommandResult {
     const refusal = mercCommandRefusal(this);
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return laptopRefusal(refusal);
     enterMercSite(this);
     const speck = this.#mercOpening();
     return { ok: true, data: { site: 'merc', bookmarks: bookmarkNames(this.laptop), ...(speck ? { speck } : {}) } };
@@ -619,25 +624,26 @@ export class LaptopFlow implements LaptopContext {
 
   #readEmail(cmd: Command): CommandResult {
     const mail = isInt(cmd.id) ? findEmail(this.laptop, cmd.id) : undefined;
-    if (!mail) return { ok: false, reason: 'noSuchMail' };
+    if (!mail) return laptopRefusal('noSuchMail');
     readEmail(this.content, this.laptop, mail);
     return { ok: true, data: { id: mail.id, ...mailType(this.content, mail.offset), bookmarks: [...this.laptop.bookmarks] } };
   }
 
   #readFile(cmd: Command): CommandResult {
     const file = isInt(cmd.code) ? this.laptop.files.find((f) => f.code === cmd.code) : undefined;
-    if (!file) return { ok: false, reason: 'noSuchFile' };
+    if (!file) return laptopRefusal('noSuchFile');
     file.read = true;
     return { ok: true, data: { code: file.code } };
   }
 
   #deleteEmail(cmd: Command): CommandResult {
-    return isInt(cmd.id) && deleteEmail(this.laptop, cmd.id) ? { ok: true } : { ok: false, reason: 'noSuchMail' };
+    return isInt(cmd.id) && deleteEmail(this.laptop, cmd.id) ? { ok: true } : laptopRefusal('noSuchMail');
   }
 
   #aimHire(cmd: Command): CommandResult {
-    if (!isInt(cmd.profile) || !isInt(cmd.contract)) return { ok: false, reason: 'profile and contract (1, 7 or 14) are required' };
-    if (cmd.gear !== undefined && typeof cmd.gear !== 'boolean') return { ok: false, reason: 'gear must be true or false' };
+    if (!isInt(cmd.profile)) return laptopRefusal('notAimMerc');
+    if (!isInt(cmd.contract)) return laptopRefusal('badContract');
+    if (cmd.gear !== undefined && typeof cmd.gear !== 'boolean') return laptopRefusal('badGear');
     const result = aimHire(this, { profile: cmd.profile, contract: cmd.contract, gear: cmd.gear }, this.hireHooks());
     if (!result.ok) {
       const data = {
@@ -645,7 +651,7 @@ export class LaptopFlow implements LaptopContext {
         ...(result.charge ? { charge: result.charge } : {}),
         ...(result.quote ? { quote: result.quote } : {}),
       };
-      return { ok: false, reason: result.reason, ...(Object.keys(data).length > 0 ? { data } : {}) };
+      return laptopRefusal(result.reason, data);
     }
     this.#hired('aim', result.merc, result.arrival);
     return {
@@ -669,15 +675,15 @@ export class LaptopFlow implements LaptopContext {
   }
 
   #aimLeaveMessage(cmd: Command): CommandResult {
-    if (!isInt(cmd.profile) || !isAimMerc(this, cmd.profile)) return { ok: false, reason: 'notAimMerc' };
+    if (!isInt(cmd.profile) || !isAimMerc(this, cmd.profile)) return laptopRefusal('notAimMerc');
     const p = this.profile(cmd.profile) as ProfileProgress;
     const refusal = aimLeaveMessageRefusal(p);
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return laptopRefusal(refusal);
     p.miscFlags3 |= ProfileMiscFlag3.PLAYER_LEFT_MSG_FOR_MERC_AT_AIM;
     return { ok: true };
   }
 
-  #mercSession(): string | null {
+  #mercSession(): MercCommandRefusal | null {
     const refusal = mercCommandRefusal(this);
     if (refusal) return refusal;
     if (!this.laptop.mercSiteOpenedThisSession) enterMercSite(this);
@@ -687,20 +693,20 @@ export class LaptopFlow implements LaptopContext {
 
   #mercOpenAccount(): CommandResult {
     const refusal = this.#mercSession();
-    if (refusal) return { ok: false, reason: refusal };
-    if (this.laptop.merc.accountStatus !== MercAccountStatus.NO_ACCOUNT) return { ok: false, reason: 'hasAccount' };
+    if (refusal) return laptopRefusal(refusal);
+    if (this.laptop.merc.accountStatus !== MercAccountStatus.NO_ACCOUNT) return laptopRefusal('hasAccount');
     openMercAccount(this);
     return { ok: true, data: { accountNumber: this.laptop.merc.accountNumber, quotes: [SpeckQuote.THANK_PLAYER_FOR_OPENING_ACCOUNT] } };
   }
 
   #mercHire(cmd: Command): CommandResult {
-    if (!isInt(cmd.profile)) return { ok: false, reason: 'profile is required' };
+    if (!isInt(cmd.profile)) return laptopRefusal('notListed');
     const refusal = this.#mercSession();
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return laptopRefusal(refusal);
     const result = mercHire(this, cmd.profile, this.hireHooks());
     if (!result.ok) {
       const quotes = mercHireRefusalQuotes(this, cmd.profile, result.reason);
-      return { ok: false, reason: result.reason, ...(quotes.length > 0 ? { data: { quotes } } : {}) };
+      return laptopRefusal(result.reason, quotes.length > 0 ? { quotes } : {});
     }
     this.#hired('merc', result.merc, result.arrival);
     return {
@@ -716,15 +722,15 @@ export class LaptopFlow implements LaptopContext {
 
   #mercPay(): CommandResult {
     const refusal = this.#mercSession();
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return laptopRefusal(refusal);
     const result = settleMercAccounts(this);
-    if (!result.ok) return { ok: false, reason: result.reason };
+    if (!result.ok) return laptopRefusal(result.reason);
     return { ok: true, data: { paid: result.paid, full: result.full, quotes: mercPaymentQuotes(result.full) } };
   }
 
   #impCreate(cmd: Command): CommandResult {
     const result = impCreate(this, cmd as unknown as ImpRequest, this.hireHooks());
-    if (!result.ok) return { ok: false, reason: result.reason };
+    if (!result.ok) return laptopRefusal(result.reason);
     this.#hired('imp', result.merc, result.arrival);
     return {
       ok: true,
@@ -753,19 +759,19 @@ export class LaptopFlow implements LaptopContext {
 
   #bobbyRayOrder(cmd: Command): CommandResult {
     const request = this.#orderRequest(cmd);
-    if (!request) return { ok: false, reason: 'lines, destination and speed are required' };
+    if (!request) return laptopRefusal('badOrder');
     const result = placeOrder(this, request);
-    if (!result.ok) return { ok: false, reason: result.reason, ...(result.quote ? { data: result.quote } : {}) };
+    if (!result.ok) return laptopRefusal(result.reason, result.quote ?? {});
     return { ok: true, data: { ...result.quote, shipment: result.shipment } };
   }
 
   #insure(cmd: Command): CommandResult {
     const m = isInt(cmd.soldier) ? this.roster.get(cmd.soldier) : undefined;
-    if (!m || !isInsurable(this, m)) return { ok: false, reason: 'notInsurable' };
+    if (!m || !isInsurable(this, m)) return laptopRefusal('notInsurable');
     const length = insuranceLength(this, m);
-    if (length === 0) return { ok: false, reason: 'notInsurable' };
+    if (length === 0) return laptopRefusal('notInsurable');
     const result = purchaseOrExtendInsurance(this, m, length);
-    if (!result.bought && !result.extended) return { ok: false, reason: 'funds', data: { cost: result.cost, length } };
+    if (!result.bought && !result.extended) return laptopRefusal('funds', { cost: result.cost, length });
     return { ok: true, data: { length, cost: result.cost, insuredDays: m.contract.totalLengthOfInsuranceContract } };
   }
 
@@ -779,7 +785,7 @@ export class LaptopFlow implements LaptopContext {
     const result = orderFlowers(this, order, {
       flowersMeanwhile: (code) => this.campaign.scheduleFlowersMeanwhile(code),
     });
-    return typeof result === 'string' ? { ok: false, reason: result } : { ok: true, data: result };
+    return typeof result === 'string' ? laptopRefusal(result) : { ok: true, data: result };
   }
 
   #query(cmd: Command): CommandResult {
@@ -788,20 +794,20 @@ export class LaptopFlow implements LaptopContext {
         return this.#aimQuote(cmd);
       case 'hireCheck': {
         const check = isInt(cmd.profile) ? aimHireCheck(this, cmd.profile) : null;
-        return check ? { ok: true, data: check } : { ok: false, reason: 'notAimMerc' };
+        return check ? { ok: true, data: check } : laptopRefusal('notAimMerc');
       }
       case 'bobbyRayQuote': {
         const request = this.#orderRequest(cmd, true);
-        if (!request) return { ok: false, reason: 'lines and speed are required' };
+        if (!request) return laptopRefusal('badOrder');
         const quote = quoteOrderForm(this, request);
-        return typeof quote === 'string' ? { ok: false, reason: quote } : { ok: true, data: quote };
+        return typeof quote === 'string' ? laptopRefusal(quote) : { ok: true, data: quote };
       }
       case 'impCheckCode':
         return { ok: true, data: { result: impCheckCode(this, typeof cmd.code === 'string' ? cmd.code : '') } };
       case 'insuranceQuote': {
         const m = isInt(cmd.soldier) ? this.roster.get(cmd.soldier) : undefined;
         const p = m ? this.profile(m.profile) : null;
-        if (!m || !p || !isInsurable(this, m)) return { ok: false, reason: 'notInsurable' };
+        if (!m || !p || !isInsurable(this, m)) return laptopRefusal('notInsurable');
         const length = insuranceLength(this, m);
         return { ok: true, data: { length, cost: insurancePremium(this, length, m, p), insured: m.contract.lifeInsurance !== 0 } };
       }
@@ -817,10 +823,10 @@ export class LaptopFlow implements LaptopContext {
   }
 
   #aimQuote(cmd: Command): CommandResult {
-    if (!isInt(cmd.profile) || !isAimMerc(this, cmd.profile)) return { ok: false, reason: 'notAimMerc' };
+    if (!isInt(cmd.profile) || !isAimMerc(this, cmd.profile)) return laptopRefusal('notAimMerc');
     const p = this.profile(cmd.profile) as ProfileProgress;
     const contract = isInt(cmd.contract) ? cmd.contract : 7;
-    if (!(AIM_CONTRACT_LENGTHS as readonly number[]).includes(contract)) return { ok: false, reason: 'badContract' };
+    if (!(AIM_CONTRACT_LENGTHS as readonly number[]).includes(contract)) return laptopRefusal('badContract');
     const gear = typeof cmd.gear === 'boolean' ? cmd.gear : defaultGear(p);
     const charge = aimCharge(p, contract, gear);
     return {

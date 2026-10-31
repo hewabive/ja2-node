@@ -21,6 +21,7 @@ import {
   canCharacterTrainStat,
   countMilitiaTrainersInSoldiersSector,
   JoinSquad,
+  type SleepRefusal,
   sleepRefusal,
 } from './conditions.ts';
 import { Assignment, MAX_MILITIA_TRAINERS_PER_SECTOR, Town } from './constants.ts';
@@ -316,7 +317,7 @@ export function assignSoldiers(ctx: EconomyContext, ids: readonly number[], to: 
   return results;
 }
 
-export type SleepResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
+export type SleepResult = { readonly ok: true } | { readonly ok: false; readonly reason: SleepRefusal | 'unknownSoldier' | 'collapsed' };
 
 export function sleepSoldier(ctx: EconomyContext, id: number): SleepResult {
   const s = ctx.crew.get(id);

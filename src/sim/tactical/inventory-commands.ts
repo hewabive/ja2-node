@@ -30,6 +30,7 @@ import {
 } from './inventory-panel.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
+import { refuse } from './refusal.ts';
 import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { cleanUpStack } from './stack-cleanup.ts';
@@ -149,7 +150,7 @@ export function parseCount(value: unknown, fallback: Count): Count | null {
 }
 
 export function refusal(code: InventoryRefusal): CommandResult {
-  return { ok: false, reason: `${code}: ${INVENTORY_REFUSAL_TEXT[code]}`, data: { refusal: code } };
+  return refuse(code, `${code}: ${INVENTORY_REFUSAL_TEXT[code]}`);
 }
 
 export function outcomeResult(outcome: PanelOutcome): CommandResult {

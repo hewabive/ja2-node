@@ -112,8 +112,25 @@ export interface SellQuote {
   readonly value: number;
 }
 
+export type TradeRefusalToken =
+  | 'noSuchBox'
+  | 'notEnoughInBox'
+  | 'dealerOfferAreaFull'
+  | 'wontBuy'
+  | 'worthless'
+  | 'playerOfferAreaFull'
+  | 'wontRepair'
+  | 'tooManyToRepair'
+  | 'notDamaged'
+  | 'noRoomForPurchases'
+  | 'cannotAfford'
+  | 'needBalance'
+  | 'repairmanShort'
+  | 'dealerCannotAfford'
+  | 'nothingToTrade';
+
 export interface TradeRefusal {
-  readonly reason: string;
+  readonly refusal: TradeRefusalToken;
   readonly entry?: number;
   readonly shortfall?: number;
   readonly amount?: number;
@@ -186,13 +203,13 @@ function planPurchases(p: Planner): void {
   for (const [entry, b] of p.input.buy.entries()) {
     const first = b.boxes[0];
     if (!first) {
-      refuse(p, { reason: 'noSuchBox', entry });
+      refuse(p, { refusal: 'noSuchBox', entry });
       continue;
     }
     const stackable = b.boxes.length === 1;
     const units = stackable ? first.object.count : b.boxes.length;
     if (b.count < 1 || b.count > units) {
-      refuse(p, { reason: 'notEnoughInBox', entry });
+      refuse(p, { refusal: 'notEnoughInBox', entry });
       continue;
     }
     const picked = stackable ? [first] : b.boxes.slice(0, b.count);
@@ -202,7 +219,7 @@ function planPurchases(p: Planner): void {
       p.doa.push({ object, owner: NO_PROFILE, source: null, box, price: 0, repairMinutes: 0, doneAt: 0 });
     }
   }
-  if (p.doa.length > OFFER_AREA_SLOTS) refuse(p, { reason: 'dealerOfferAreaFull' });
+  if (p.doa.length > OFFER_AREA_SLOTS) refuse(p, { refusal: 'dealerOfferAreaFull' });
 }
 
 function evaluateSold(p: Planner, o: PlayerObject, entry: number): void {
@@ -213,14 +230,14 @@ function evaluateSold(p: Planner, o: PlayerObject, entry: number): void {
   if (!canDealerTransactItem(ctx, d, o.object.item, true, value)) {
     p.sells.push({ item: o.object.item, evaluation: 'rejected', value: 0 });
     p.quotes.push(d.type === DealerType.SELLS_ONLY ? ShopQuote.NOT_INTERESTED : ShopQuote.STUFF_REJECTED);
-    refuse(p, { reason: 'wontBuy', entry });
+    refuse(p, { refusal: 'wontBuy', entry });
     return;
   }
   const price = calcShopKeeperItemPrice(ctx, priceInput(p, false), o.object);
   if (price === 0) {
     p.sells.push({ item: o.object.item, evaluation: 'worthless', value: 0 });
     p.quotes.push(ShopQuote.VALUE_OF_ZERO);
-    refuse(p, { reason: 'worthless', entry });
+    refuse(p, { refusal: 'worthless', entry });
     return;
   }
   const damaged =
@@ -270,7 +287,7 @@ function planRepair(p: Planner, o: PlayerObject, entry: number, inRepair: number
   const taken = Math.min(repairable, canTake);
   const poaNeeded = parts.length - repairable + (repairable - taken) + (taken > 0 ? 1 : 0);
   if (poaNeeded + poaCount(p) > OFFER_AREA_SLOTS) {
-    refuse(p, { reason: 'playerOfferAreaFull', entry });
+    refuse(p, { refusal: 'playerOfferAreaFull', entry });
     return;
   }
   const single = parts.length === 1;
@@ -283,21 +300,21 @@ function planRepair(p: Planner, o: PlayerObject, entry: number, inRepair: number
       asPart();
       if (main) {
         p.quotes.push(ShopQuote.NOT_INTERESTED);
-        refuse(p, { reason: 'wontRepair', entry });
+        refuse(p, { refusal: 'wontRepair', entry });
       }
       continue;
     }
     if (p.doa.length + part.count + inRepair > MAX_ITEMS_IN_REPAIR) {
       asPart();
       p.quotes.push(ShopQuote.CANT_AFFORD_OR_TOO_MUCH_TO_REPAIR);
-      refuse(p, { reason: 'tooManyToRepair', entry });
+      refuse(p, { refusal: 'tooManyToRepair', entry });
       continue;
     }
     const rocketRifle = itemIsARocketRifle(ctx.content, part.item);
     if ((part.status[0] ?? 0) >= PERFECT_CONDITION && !rocketRifle) {
       asPart();
       p.quotes.push(ShopQuote.VALUE_OF_ZERO);
-      if (main) refuse(p, { reason: 'notDamaged', entry });
+      if (main) refuse(p, { refusal: 'notDamaged', entry });
       continue;
     }
     if (ctx.items.byIndex.get(part.item)?.itemClass !== ItemClass.AMMO && (part.status[0] ?? 0) < REALLY_BADLY_DAMAGED_THRESHOLD)
@@ -356,22 +373,22 @@ function placeOffers(p: Planner): void {
   for (const [entry, o] of p.input.repair.entries()) {
     if (!repairs) {
       p.quotes.push(ShopQuote.NOT_INTERESTED);
-      refuse(p, { reason: 'wontRepair', entry });
+      refuse(p, { refusal: 'wontRepair', entry });
       continue;
     }
     planRepair(p, o, entry, inRepair, queueEnd);
   }
-  if (p.input.sell.length + poaCount(p) > OFFER_AREA_SLOTS) refuse(p, { reason: 'playerOfferAreaFull' });
+  if (p.input.sell.length + poaCount(p) > OFFER_AREA_SLOTS) refuse(p, { refusal: 'playerOfferAreaFull' });
   for (const [entry, o] of p.input.sell.entries()) {
     if (repairs) {
-      refuse(p, { reason: 'wontBuy', entry });
+      refuse(p, { refusal: 'wontBuy', entry });
       continue;
     }
     evaluateSold(p, o, entry);
   }
   for (const o of p.input.cash) {
     if (!addToPoa(p, { kind: 'money', object: o.object, owner: o.owner, source: o.source, value: o.object.money }))
-      refuse(p, { reason: 'playerOfferAreaFull' });
+      refuse(p, { refusal: 'playerOfferAreaFull' });
   }
 }
 
@@ -386,7 +403,7 @@ function transactionRefusal(p: Planner, cost: number, value: number, cash: numbe
   const none = { fromBalance: 0, balanceNeeded: 0 };
   if (d.type !== DealerType.REPAIRS) {
     if (p.doa.length > roomForPurchases(p)) {
-      refuse(p, { reason: 'noRoomForPurchases' });
+      refuse(p, { refusal: 'noRoomForPurchases' });
       return none;
     }
   }
@@ -394,25 +411,25 @@ function transactionRefusal(p: Planner, cost: number, value: number, cash: numbe
   let balanceNeeded = 0;
   if (cost > value) {
     if (cost > value + p.input.balance) {
-      refuse(p, { reason: 'cannotAfford', shortfall: cost - (p.input.balance + value) });
+      refuse(p, { refusal: 'cannotAfford', shortfall: cost - (p.input.balance + value) });
       return none;
     }
     balanceNeeded = cost - value;
     if (!p.input.useBalance) {
-      refuse(p, { reason: 'needBalance', amount: balanceNeeded });
+      refuse(p, { refusal: 'needBalance', amount: balanceNeeded });
       return { fromBalance: 0, balanceNeeded };
     }
     fromBalance = balanceNeeded;
   }
   if (d.type === DealerType.REPAIRS) {
-    if (fromBalance + cash < cost) refuse(p, { reason: 'repairmanShort' });
+    if (fromBalance + cash < cost) refuse(p, { refusal: 'repairmanShort' });
     return { fromBalance, balanceNeeded };
   }
   const change = value - cost;
   const buys = d.type === DealerType.BUYS_ONLY || d.type === DealerType.BUYS_SELLS;
   if (buys && change > dealerState(ctx.state, d.id).status.cash && d.id !== role(ctx, 'JAKE')) {
     p.quotes.push(ShopQuote.CANT_AFFORD_OR_TOO_MUCH_TO_REPAIR);
-    refuse(p, { reason: 'dealerCannotAfford' });
+    refuse(p, { refusal: 'dealerCannotAfford' });
   }
   return { fromBalance, balanceNeeded };
 }
@@ -453,7 +470,7 @@ export function planTrade(ctx: MerchantContext, input: TradeInput): TradePlan {
     p.quotes.push(ShopQuote.GIFT);
     return { ...base, gift: true, fromBalance: 0, change: 0, balanceNeeded: 0, refusal: null };
   }
-  if (p.doa.length === 0 && poaCount(p) === 0) refuse(p, { reason: 'nothingToTrade' });
+  if (p.doa.length === 0 && poaCount(p) === 0) refuse(p, { refusal: 'nothingToTrade' });
   const { fromBalance, balanceNeeded } = transactionRefusal(p, cost, value, cash);
   if (p.refusal) return { ...base, gift: false, fromBalance: 0, change: 0, balanceNeeded, refusal: p.refusal };
   const raw = rawChange(p, cost, value, cash, fromBalance);
@@ -497,7 +514,7 @@ function executeGift(ctx: MerchantContext, plan: TradePlan): TradeOutcome {
 }
 
 export function executeTrade(ctx: MerchantContext, plan: TradePlan): TradeOutcome {
-  if (plan.refusal) throw new Error(`cannot execute a refused trade: ${plan.refusal.reason}`);
+  if (plan.refusal) throw new Error(`cannot execute a refused trade: ${plan.refusal.refusal}`);
   if (plan.gift) return executeGift(ctx, plan);
   const d = dealerDef(ctx, plan.dealer);
   const status = dealerState(ctx.state, d.id).status;

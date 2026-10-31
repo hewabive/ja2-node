@@ -17,6 +17,7 @@
 
 import { type DataVersion, displayLanguageOf } from '../../../../content/text/data-version.ts';
 import { idiv } from '../../../../core/int.ts';
+import { refusalOf } from '../../../../protocol/refusals.ts';
 import type { MercListingView, MercSiteView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';
 import { MouseReason, Priority } from '../../../input/mouse.ts';
@@ -288,7 +289,7 @@ export function mercAccountPage(context: LaptopContext): LaptopPage {
         context.shell.setPage(LaptopMode.MERC);
         return;
       }
-      if (reply.reason === 'funds') {
+      if (refusalOf(reply.data) === 'funds') {
         const labels = new Labels(displayLanguageOf(context.dataVersion as DataVersion), null);
         context.messageBox(labels.text('mercTransferFailed'), MessageBoxFlag.OK, undefined, MessageBoxStyleId.BLUE_ON_GREY);
       }
@@ -400,7 +401,7 @@ export function mercFilesPage(context: LaptopContext): LaptopPage {
         context.shell.setPage(LaptopMode.MERC);
         return;
       }
-      if (reply.reason === 'teamFull') {
+      if (refusalOf(reply.data) === 'teamFull') {
         context.messageBox(info('MERC_FILES_HIRE_TO_MANY_PEOPLE_WARNING'), MessageBoxFlag.OK);
         return;
       }

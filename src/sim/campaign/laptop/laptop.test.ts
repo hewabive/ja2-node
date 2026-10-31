@@ -15,6 +15,7 @@ import { FinanceCode } from '../finances.ts';
 import { sectorKey } from '../sector-diff.ts';
 import { Bookmark, MercAccountStatus } from './laptop-state.ts';
 import { History } from './records.ts';
+import { laptopRefusal } from './refusals.ts';
 
 const VANT = 1;
 const HOLLIS = 3;
@@ -84,8 +85,8 @@ describe('the laptop at the start of a new game', () => {
     const session = await inLaptop(12);
     const live = new Session('t', session);
     const report = live.advance({ worldSeconds: 3600 });
-    expect(report).toMatchObject({ reason: 'refused', refusal: expect.stringMatching(/^laptop:/) });
-    expect(session.dispatch({ type: 'compressTime', mode: 2 })).toMatchObject({ ok: false, reason: expect.stringMatching(/^laptop:/) });
+    expect(report).toMatchObject({ reason: 'refused', refusal: laptopRefusal('laptopOpen').reason });
+    expect(session.dispatch({ type: 'compressTime', mode: 2 })).toEqual(laptopRefusal('laptopOpen'));
     expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     expect(session.dispatch({ type: 'compressTime', mode: 2 })).toMatchObject({ ok: false, reason: 'no merc has been hired yet' });
     expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
@@ -104,7 +105,7 @@ describe('the laptop at the start of a new game', () => {
 
   it('unlocks the I.M.P. site when its mail is read', async () => {
     const session = await inLaptop(14);
-    expect(session.dispatch({ type: 'readEmail', id: 999 })).toEqual({ ok: false, reason: 'noSuchMail' });
+    expect(session.dispatch({ type: 'readEmail', id: 999 })).toEqual(laptopRefusal('noSuchMail'));
     const read = session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
     expect(read).toMatchObject({ ok: true, data: { type: 'IMP_EMAIL_INTRO', bookmarks: [Bookmark.AIM, Bookmark.IMP] } });
     expect(session.view().laptop?.imp).toMatchObject({ bookmarked: true, canCreate: true, charactersLeft: 1, cost: 3000 });
@@ -131,7 +132,7 @@ describe('hiring from A.I.M.', () => {
       mercStatus: MercStatus.HIRED_BUT_NOT_ARRIVED_YET,
       optionalGearCost: 0,
     });
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 7 })).toMatchObject({ ok: false, reason: 'away' });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 7 })).toMatchObject({ ok: false, data: { refusal: 'away' } });
     expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
     expect(session.campaign.state.laptop.newGameLaptop).toBe(false);
     await session.prepare({ type: 'compressTime', mode: 2 });
@@ -153,19 +154,19 @@ describe('hiring from A.I.M.', () => {
     if (!p) throw new Error('no profile');
     p.daysOfMoraleHangover = 2;
     status.badReputation = 100;
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, reason: 'hangover' });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, data: { refusal: 'hangover' } });
     p.daysOfMoraleHangover = 0;
     Object.assign(p, { deathRate: 4, reputationTolerance: 50 });
     status.mercDeaths = 1;
     status.manDaysPlayed = 10;
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, reason: 'deathRate' });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, data: { refusal: 'deathRate' } });
     Object.assign(p, { deathRate: 101 });
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, reason: 'reputation' });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, data: { refusal: 'reputation' } });
     status.badReputation = 0;
     session.campaign.state.finances.balance = 10;
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, reason: 'funds' });
-    expect(session.dispatch({ type: 'aimHire', profile, contract: 3 })).toMatchObject({ ok: false, reason: 'badContract' });
-    expect(session.dispatch({ type: 'aimHire', profile: 42, contract: 7 })).toMatchObject({ ok: false, reason: 'notAimMerc' });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 1 })).toMatchObject({ ok: false, data: { refusal: 'funds' } });
+    expect(session.dispatch({ type: 'aimHire', profile, contract: 3 })).toMatchObject({ ok: false, data: { refusal: 'badContract' } });
+    expect(session.dispatch({ type: 'aimHire', profile: 42, contract: 7 })).toMatchObject({ ok: false, data: { refusal: 'notAimMerc' } });
     expect(session.campaign.state.finances.balance).toBe(10);
   });
 
@@ -176,7 +177,7 @@ describe('hiring from A.I.M.', () => {
     p.mercStatus = MercStatus.WORKING_ELSEWHERE;
     p.dayBecomesAvailable = 1;
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual({ ok: true });
-    expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual({ ok: false, reason: 'alreadyLeft' });
+    expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual(laptopRefusal('alreadyLeft'));
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 0 })).toMatchObject({ ok: false });
     expect(p.miscFlags3 & 0x01).toBe(1);
   });
@@ -250,8 +251,11 @@ describe('after the landing', () => {
     }
     expect(session.dispatch({ type: 'aimHire', profile: LASKO, contract: 1, gear: false })).toMatchObject({
       ok: false,
-      reason: 'hatesTeammate',
-      data: { hated: VANT, quote: { id: expect.any(Number), name: expect.stringMatching(/^HATE_MERC_[12]_ON_TEAM$/) } },
+      data: {
+        refusal: 'hatesTeammate',
+        hated: VANT,
+        quote: { id: expect.any(Number), name: expect.stringMatching(/^HATE_MERC_[12]_ON_TEAM$/) },
+      },
     });
     expect(session.dispatch({ type: 'hireCheck', profile: LASKO })).toMatchObject({
       ok: true,
@@ -261,15 +265,13 @@ describe('after the landing', () => {
     status.badReputation = 1;
     expect(session.dispatch({ type: 'aimHire', profile: MARLOW, contract: 1, gear: false })).toMatchObject({
       ok: false,
-      reason: 'reputation',
-      data: { quote: { id: 80, name: 'REPUTATION_REFUSAL' } },
+      data: { refusal: 'reputation', quote: { id: 80, name: 'REPUTATION_REFUSAL' } },
     });
     status.badReputation = 0;
     Object.assign(status, { mercDeaths: 1, manDaysPlayed: 10 });
     expect(session.dispatch({ type: 'aimHire', profile: PUIG, contract: 1, gear: false })).toMatchObject({
       ok: false,
-      reason: 'deathRate',
-      data: { quote: { id: 81, name: 'DEATH_RATE_REFUSAL' } },
+      data: { refusal: 'deathRate', quote: { id: 81, name: 'DEATH_RATE_REFUSAL' } },
     });
     Object.assign(status, { mercDeaths: 0, manDaysPlayed: 0 });
     expect(session.dispatch({ type: 'aimHire', profile: HOLLIS, contract: 1, gear: false })).toMatchObject({ ok: true });
@@ -289,7 +291,7 @@ describe('after the landing', () => {
 
   it('moves the landing zone only to a surface sector with safe airspace', async () => {
     const session = await landed(32);
-    expect(session.dispatch({ type: 'setLandingZone', sector: 'C5' })).toEqual({ ok: false, reason: 'enemyAirspace' });
+    expect(session.dispatch({ type: 'setLandingZone', sector: 'C5' })).toEqual(laptopRefusal('enemyAirspace'));
     expect(session.dispatch({ type: 'setLandingZone', sector: 'A10' })).toMatchObject({ ok: true, data: { sector: 'A10' } });
     expect(session.view().strategic?.landingZone).toBe('A10');
     expect(session.dispatch({ type: 'setLandingZone', sector: 'Q5' })).toMatchObject({ ok: false });
@@ -299,9 +301,9 @@ describe('after the landing', () => {
     const session = await landed(33);
     advanceTo(session, 3, 8);
     expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
-    expect(session.dispatch({ type: 'mercOpenAccount' })).toEqual({ ok: false, reason: 'noBookmark' });
+    expect(session.dispatch({ type: 'mercOpenAccount' })).toEqual(laptopRefusal('noBookmark'));
     session.dispatch({ type: 'readEmail', id: mailId(session, 'MERC_INTRO') });
-    expect(session.dispatch({ type: 'mercHire', profile: 42 })).toEqual({ ok: false, reason: 'noAccount' });
+    expect(session.dispatch({ type: 'mercHire', profile: 42 })).toEqual(laptopRefusal('noAccount'));
     expect(session.dispatch({ type: 'mercOpenAccount' })).toMatchObject({ ok: true, data: { accountNumber: expect.any(Number) } });
     expect(session.campaign.state.laptop.merc.accountStatus).toBe(MercAccountStatus.VALID);
     const hired = session.dispatch({ type: 'mercHire', profile: 42 });
@@ -310,7 +312,7 @@ describe('after the landing', () => {
     const balance = session.campaign.state.finances.balance;
     expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: true, data: { paid: 150, full: true, quotes: [45] } });
     expect(session.campaign.state.finances.balance).toBe(balance - 150);
-    expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: false, reason: 'nothingOwed' });
+    expect(session.dispatch({ type: 'mercPay' })).toEqual(laptopRefusal('nothingOwed'));
   });
 
   it('forgets the unpaid days of a re-hired M.E.R.C. merc', async () => {
@@ -411,13 +413,10 @@ describe('I.M.P.', () => {
 
   it('creates a character from one command and charges 3000', async () => {
     const session = await inLaptop(41);
-    expect(session.dispatch(command)).toEqual({ ok: false, reason: 'noBookmark' });
+    expect(session.dispatch(command)).toEqual(laptopRefusal('noBookmark'));
     session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
-    expect(session.dispatch({ ...command, code: 'nope' })).toEqual({ ok: false, reason: 'badCode' });
-    expect(session.dispatch({ ...command, attributes: { ...command.attributes, health: 90 } })).toEqual({
-      ok: false,
-      reason: 'badAttributes',
-    });
+    expect(session.dispatch({ ...command, code: 'nope' })).toEqual(laptopRefusal('badCode'));
+    expect(session.dispatch({ ...command, attributes: { ...command.attributes, health: 90 } })).toEqual(laptopRefusal('badAttributes'));
     const created = session.dispatch(command);
     expect(created).toMatchObject({ ok: true, data: { profile: 51, soldier: 0, arrival: { minute: 1860 } } });
     expect(session.campaign.state.finances.ledger.at(-1)).toMatchObject({ code: FinanceCode.IMP_PROFILE, amount: -3000 });

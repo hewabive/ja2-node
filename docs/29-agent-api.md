@@ -167,13 +167,18 @@ browser's own `advance` requests (a compression to a world time, autoresolve sli
 replayed; queries are not (§9). The conventions (gridNo, directions, sectors, inventory slots) are in the `act`
 description.
 
-**Refusals.** `reason` is readable text; the machine token is `data.refusal`, often also the head of `reason`
-(`<token>: <text>`). `assign` answers per soldier and names the first failure in `reason`. Not every flow follows this
-yet: the laptop, the shop's trade checks and the contract commands answer the token as `reason` itself, and argument
-errors and some battle-flow answers carry text only (gap "Refusal tokens"). The text key `refusal.<token>`
+**Refusals.** Every refusal of every command, queries and argument errors included, carries its machine token in
+`data.refusal` and readable text in `reason`, often headed by the token (`<token>: <text>`). The sim builds them with
+`refuse` (`src/sim/tactical/refusal.ts`); `CommandResult` (`src/sim/command.ts`) makes a refusal without a token a type
+error. Argument errors name the argument (`badSector`, `badSlot`, `badChoice`, `badOrder`, …); a wrong prompt answer
+is `noPrompt`, `wrongPrompt`, `badChoice` or the token of the disabled option. Details sit beside the token in `data`
+(a hire's `charge`, a trade's `shortfall`, an exit's `minutes`). `assign` answers per soldier in `data.results`
+(`{ok, refusal, reason}` for a failure) and names the first failure in `data.refusal` and `reason`, as the original
+shows one box for the batch. Clients compare tokens, never `reason`. The text key `refusal.<token>`
 (`/api/strings`, `/api/text?key=`) names the original's message where it has one; `REFUSAL_MESSAGES`
 (`src/protocol/refusals.ts`, so the client prints it without the server) also says whether the original logs it or
-shows a box, and the session adds the logged ones to the message list (§7).
+shows a box, and the session adds the logged ones to the message list (§7), except for `exitSector`, whose lines the
+exit cursor prints (`refusalEntry`, `src/server/message-entries.ts`).
 
 **Modal states.** What the game accepts while something modal is open, besides `observe` and the cursor hints:
 
@@ -181,7 +186,7 @@ shows a box, and the session adds the logged ones to the message list (§7).
 |---|---|---|---|
 | Prompt open (§4.2) | `answer`, `skipLine` | `promptOpen` | stops at once with `decision` |
 | Shop open (§8.13) | `quoteTrade`, `trade`, `setShopPricing`, `closeShop`, `skipLine` | `shopOpen` | `refused` (`shopOpen: …`) |
-| Laptop open (§8.11) | laptop commands and queries, `skipLine` | the text `laptop: the laptop is open, closeLaptop first` | `refused` with that text |
+| Laptop open (§8.11) | laptop commands and queries, `skipLine` | `laptopOpen` | `refused` (`laptopOpen: …`) |
 | Conversation waiting for a choice (§8.4) | `approach`, `give`, `closeTalk`, `skipLine` | `conversationOpen` | `refused` (`conversationOpen`) |
 | Scripted sequence | `skipLine` | `scriptedSequence` | runs it until it ends or a panel or prompt opens |
 | The interrogation (flow `meanwhile`, §8.14) | `answer`, `skipLine` | `inMeanwhile` | runs; stops at its prompt and at `meanwhileEnded` |
@@ -365,7 +370,7 @@ flight"). Ground vehicles move through a passenger's `route`.
 ### 8.9 Towns, militia, mines and assignments
 
 Rules: `18`. `assign` runs `SetAssignmentForList` per soldier in the given order, each checked on its own; the original
-shows one failure box for the batch, so `reason` names the first failure. Militia training asks before it charges:
+shows one failure box for the batch, so `data.refusal` names the first failure (§5). Militia training asks before it charges:
 `assign trainMilitia` opens `militiaPayment`, a finished session `militiaContinue` (deviation "Militia payment and
 continue prompts"). `distributeMilitia` is the AUTO button and keeps the original's rule that the militia of a sector
 with hostiles are dealt out while they also stay there (`18`). A merc who joins another squad (`assignSquad`, `assign`
@@ -418,8 +423,8 @@ clock stands and saving is refused (deviations "Shop as commands", "Shop deducti
 records it goes through a conversation (deviation "Talking to dealers"). `trade` is one `PerformTransaction`,
 validated before anything changes; deliveries go in offer-area order, with drops VISIBLE at the receiver's tile.
 `quoteTrade` answers what pressing the button would show, `dealerCannotAfford` included, which the player learns only
-by pressing it, and the shopkeeper quotes the trade would emit, which the client plays as items are offered
-(`EvaluateItemAddedToPlayersOfferArea`).
+by pressing it (its `refusal` is the `data` a refused `trade` carries), and the shopkeeper quotes the trade would emit,
+which the client plays as items are offered (`EvaluateItemAddedToPlayersOfferArea`).
 
 ### 8.14 Quests, meanwhiles and the ending
 

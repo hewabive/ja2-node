@@ -5,6 +5,7 @@ import { loadUiStrings } from '../content/text/strings.ts';
 import type { LaptopView } from '../protocol/view.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
 import { addHistory, addToPersonnelList, ENRICO_BACKGROUND_FILE } from '../sim/campaign/laptop/records.ts';
+import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { QuestStatus, setQuestStatus } from '../sim/strategic/narrative/facts.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
@@ -74,7 +75,7 @@ describe('the laptop view for Personnel, History, Files, insurance and the flori
   it('marks a file read on readFile and refuses an unknown code', async () => {
     const game = await newGame(202);
     expect(laptopOf(game.session).files).toEqual([{ code: ENRICO_BACKGROUND_FILE, read: false }]);
-    expect(game.live.dispatch({ type: 'readFile', code: 9 })).toEqual({ ok: false, reason: 'noSuchFile' });
+    expect(game.live.dispatch({ type: 'readFile', code: 9 })).toEqual(laptopRefusal('noSuchFile'));
     expect(game.live.dispatch({ type: 'readFile', code: ENRICO_BACKGROUND_FILE })).toEqual({
       ok: true,
       data: { code: ENRICO_BACKGROUND_FILE },

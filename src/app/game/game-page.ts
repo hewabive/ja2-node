@@ -1,3 +1,4 @@
+import { refusalOf } from '../../protocol/refusals.ts';
 import { createContext } from '../../render/gl.ts';
 import { LogicalFramebuffer } from '../../render/ui-draw/logical-framebuffer.ts';
 import { type UiDrawStats, UiRenderer } from '../../render/ui-draw/ui-renderer.ts';
@@ -6,7 +7,6 @@ import type { UiInputEvent } from '../../ui/input/events.ts';
 import { type Resolution, resolveResolution, type ScaleSetting } from '../../ui/resolution.ts';
 import type { UiRuntime } from '../../ui/runtime.ts';
 import { ScreenHost } from '../../ui/screen.ts';
-import { refusalOf } from '../../ui/screens/tactical/item-cursor.ts';
 import type { ScreenGeometry } from '../../ui/services.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { DiagnosticsSampler } from './diagnostics.ts';

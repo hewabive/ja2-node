@@ -52,7 +52,7 @@ const ENTRY_REFUSALS: ReadonlySet<string> = new Set(['wontBuy', 'worthless', 'no
 export type Evaluation = 'value' | 'reallyDamaged' | 'worthless' | 'rejected';
 
 export interface QuoteRefusal {
-  readonly reason: string;
+  readonly refusal: string;
   readonly entry?: number;
   readonly shortfall?: number;
   readonly amount?: number;
@@ -494,7 +494,7 @@ export class ShopModel {
     });
     if (changed) return true;
     const refusal = quote.refusal;
-    if (refusal && refusal.entry !== undefined && ENTRY_REFUSALS.has(refusal.reason)) {
+    if (refusal && refusal.entry !== undefined && ENTRY_REFUSALS.has(refusal.refusal)) {
       const offer = items[refusal.entry];
       if (offer) {
         this.#excluded.add(offer.id);
@@ -626,23 +626,23 @@ export class ShopModel {
       return true;
     }
     const refusal = refusalOf(reply.data);
-    const reason = refusal?.reason ?? reply.reason?.split(':')[0] ?? '';
+    const token = refusal?.refusal ?? '';
     const text = this.#hooks.text;
-    if (reason === 'needBalance') {
+    if (token === 'needBalance') {
       const amount = refusal?.amount ?? this.#quote?.balanceNeeded ?? 0;
       const index = (this.#quote?.totals.value ?? 0) > 0 ? SKI_QUESTION_TO_DEDUCT_DIFFERENCE : SKI_QUESTION_TO_DEDUCT_COST;
       const yes = await this.#hooks.confirm(printf(text.string('SkiMessageBoxText', index) ?? '', [sprintMoney(amount)]));
       return yes ? this.#trade(true) : false;
     }
-    if (reason === 'cannotAfford') {
+    if (token === 'cannotAfford') {
       await this.#hooks.alert(printf(text.string('SkiMessageBoxText', SKI_SHORT_FUNDS_TEXT) ?? '', [sprintMoney(refusal?.shortfall ?? 0)]));
       return false;
     }
-    if (NO_ROOM_REFUSALS.has(reason)) {
+    if (NO_ROOM_REFUSALS.has(token)) {
       await this.#hooks.alert(text.string('SKI_Text', SKI_TEXT_NO_MORE_ROOM_IN_PLAYER_OFFER_AREA) ?? '');
       return false;
     }
-    if (reason === 'dealerCannotAfford') this.#hooks.speak(ShopQuoteId.CANT_AFFORD);
+    if (token === 'dealerCannotAfford') this.#hooks.speak(ShopQuoteId.CANT_AFFORD);
     return false;
   }
 

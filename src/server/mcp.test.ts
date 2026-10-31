@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { MCP_CALL_OPTIONS } from '../../tests/support/patience.ts';
 import { Vfs } from '../content/vfs/vfs.ts';
 import type { SoldierView } from '../protocol/view.ts';
+import { refuse } from '../sim/tactical/refusal.ts';
 import { createApp } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, type SessionHost } from './session-host.ts';
@@ -30,7 +31,7 @@ function counter(tickCostMs = 0): SessionSim {
     },
     drainEvents: () => [],
     dispatch: (cmd) => {
-      if (cmd.type !== 'wait') return { ok: false, reason: `unknown command ${cmd.type}` };
+      if (cmd.type !== 'wait') return refuse('unknownCommand', `unknown command ${cmd.type}`);
       target = Number(cmd.ticks);
       return { ok: true };
     },

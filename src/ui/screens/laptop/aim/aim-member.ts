@@ -14,6 +14,7 @@
 // @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode).
 
 import { idiv } from '../../../../core/int.ts';
+import { refusalOf } from '../../../../protocol/refusals.ts';
 import type { AimMercView } from '../../../../protocol/view.ts';
 import type { Area, DrawList } from '../../../draw-list.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
@@ -224,9 +225,8 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
           memory.lastHired = { profile: merc.profile, arrivalMinute: arrival?.minute ?? 0, sector: arrival?.sector ?? '' };
           return 'hired';
         }
-        if (reply.reason === 'funds') return 'funds';
-        if (reply.reason === 'teamFull') return 'teamFull';
-        return 'refused';
+        const refusal = refusalOf(reply.data);
+        return refusal === 'funds' || refusal === 'teamFull' ? refusal : 'refused';
       },
       leaveMessage: () => {
         const merc = current();

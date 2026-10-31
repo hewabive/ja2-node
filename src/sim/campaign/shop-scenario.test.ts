@@ -22,6 +22,7 @@ import { registerSoldier, whoIsThere } from '../tactical/state.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { FinanceCode } from './finances.ts';
 import { MercKind } from './roster.ts';
+import { shopRefusal } from './shop-refusals.ts';
 
 let kit: CampaignKit;
 let merchants: MerchantTestContent;
@@ -160,9 +161,9 @@ function franzScenario(drive: Driver, seed: number, mode?: RunMode): { readonly 
   expect(quote.data).toMatchObject({
     totals: { cost: 450, value: 200, cash: 200 },
     balanceNeeded: 250,
-    refusal: { reason: 'needBalance' },
+    refusal: { refusal: 'needBalance', amount: 250 },
   });
-  expect(c.dispatch({ type: 'trade', buy: [camera], cash })).toMatchObject({ ok: false, reason: 'needBalance' });
+  expect(c.dispatch({ type: 'trade', buy: [camera], cash })).toEqual(shopRefusal('needBalance', { amount: 250 }));
   const balance = c.state.finances.balance;
   const bought = c.dispatch({ type: 'trade', buy: [camera], cash, useBalance: true });
   expect(bought.ok, bought.reason).toBe(true);
@@ -237,7 +238,7 @@ describe('shop scenario on the stub village', () => {
     Object.assign(robot, { bodyType: Body.ROBOTNOWEAPON });
     expect(c.dispatch({ type: 'openShop', dealer: 'FRANZ', soldier: merc.id }).ok).toBe(true);
     for (const soldier of [escort.id, robot.id])
-      expect(c.dispatch({ type: 'setShopPricing', soldier })).toMatchObject({ ok: false, reason: 'noSuchPricingMerc' });
+      expect(c.dispatch({ type: 'setShopPricing', soldier })).toEqual(shopRefusal('noSuchPricingMerc'));
     expect(c.dispatch({ type: 'setShopPricing', soldier: other.id })).toMatchObject({ ok: true });
     expect(c.dispatch({ type: 'setShopPricing', soldier: merc.id })).toMatchObject({ ok: true });
     expect(c.dispatch({ type: 'stance', soldier: merc.id, stance: 'crouch' })).toMatchObject({ ok: false, data: { refusal: 'shopOpen' } });

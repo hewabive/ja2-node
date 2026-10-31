@@ -17,6 +17,7 @@ import type {
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
+import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -220,9 +221,9 @@ export class CampaignSession implements SessionSim {
   #emailText(cmd: CommandEnvelope): CommandResult {
     const id = cmd.id;
     const mail = typeof id === 'number' && Number.isInteger(id) ? findEmail(this.campaign.state.laptop, id) : undefined;
-    if (!mail) return { ok: false, reason: 'noSuchMail' };
+    if (!mail) return laptopRefusal('noSuchMail');
     const text = this.texts ? emailText(this.campaign, mail, this.texts) : null;
-    return text ? { ok: true, data: text } : { ok: false, reason: 'noText' };
+    return text ? { ok: true, data: text } : laptopRefusal('noText');
   }
 
   useLabels(labels: UiStrings | null): void {

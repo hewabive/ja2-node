@@ -5,6 +5,7 @@ import { fetchVfsFile } from '../../app/net/vfs.ts';
 import { StrategicSound } from '../../app/sound/strategic-sound.ts';
 import { parseJsoncBytes } from '../../content/strategic/jsonc.ts';
 import { MAP_SIDE, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { refusalOf } from '../../protocol/refusals.ts';
 import type {
   AutoresolveView,
   ContractPromptView,
@@ -107,6 +108,10 @@ const cells = new Map<string, HTMLButtonElement>();
 function setStatus(text: string, error = false): void {
   statusEl.textContent = text;
   statusEl.classList.toggle('error', error);
+}
+
+function refusalLabel(r: CommandReply): string {
+  return refusalOf(r.data) ?? r.reason ?? 'refused';
 }
 
 function showResult(text: string, error = false): void {
@@ -284,8 +289,7 @@ function releaseButton(m: StrategicMercView): HTMLButtonElement {
   b.dataset.unescort = String(m.id);
   b.addEventListener('click', () => {
     void send({ type: 'unescort', soldier: m.id }).then((r) => {
-      const refusal = (r.data as { refusal?: string } | undefined)?.refusal;
-      showResult(r.ok ? `${m.name} released` : (refusal ?? r.reason ?? 'refused'), !r.ok);
+      showResult(r.ok ? `${m.name} released` : refusalLabel(r), !r.ok);
     });
   });
   return b;
@@ -501,7 +505,7 @@ for (const b of contractButtons) {
     void Promise.all([...selectedMercs].map((soldier) => send(command(soldier)))).then((results) => {
       const lines = results.map((r) => {
         const data = r.data as { extended?: boolean; reason?: string; cost?: number } | undefined;
-        if (!r.ok) return r.reason ?? 'refused';
+        if (!r.ok) return refusalLabel(r);
         if (data?.extended === false) return `refused: ${data.reason ?? 'unwilling'}`;
         return data?.cost !== undefined ? `extended for $${data.cost}` : `${action} ok`;
       });
@@ -538,13 +542,11 @@ for (const [id, label] of [
 landingZoneButton.addEventListener('click', () => {
   const sector = picked;
   if (!sector) return;
-  void send({ type: 'setLandingZone', sector }).then((r) =>
-    showResult(r.ok ? `landing zone set to ${sector}` : (r.reason ?? 'refused'), !r.ok),
-  );
+  void send({ type: 'setLandingZone', sector }).then((r) => showResult(r.ok ? `landing zone set to ${sector}` : refusalLabel(r), !r.ok));
 });
 
 el<HTMLButtonElement>('openLaptop').addEventListener('click', () => {
-  void send({ type: 'openLaptop' }).then((r) => showResult(r.ok ? 'laptop open' : (r.reason ?? 'refused'), !r.ok));
+  void send({ type: 'openLaptop' }).then((r) => showResult(r.ok ? 'laptop open' : refusalLabel(r), !r.ok));
 });
 
 el<HTMLButtonElement>('stopTime').addEventListener('click', () => {

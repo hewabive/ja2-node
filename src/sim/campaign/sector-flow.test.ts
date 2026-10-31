@@ -234,7 +234,8 @@ describe('the exit menu', () => {
     landFirstSquad(campaign);
     expect(campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' })).toMatchObject({
       ok: false,
-      reason: 'tooFar',
+      reason: 'no merc of the squad stands at that exit',
+      data: { refusal: 'tooFar' },
     });
   });
 

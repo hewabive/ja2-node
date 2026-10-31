@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
 import { TICK_MS } from '../sim/clock.ts';
+import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { refuse } from '../sim/tactical/refusal.ts';
 import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
 
@@ -21,8 +23,8 @@ function walker(): SessionSim & { target: number } {
       if (x < sim.target) x++;
     },
     drainEvents: (): SimEvent[] => [],
-    dispatch: (cmd: { type: string; [k: string]: unknown }) => {
-      if (cmd.type !== 'walk' || typeof cmd.to !== 'number') return { ok: false, reason: 'unknown command' };
+    dispatch: (cmd: { type: string; [k: string]: unknown }): CommandResult => {
+      if (cmd.type !== 'walk' || typeof cmd.to !== 'number') return refuse('unknownCommand', 'unknown command');
       sim.target = cmd.to;
       return { ok: true };
     },

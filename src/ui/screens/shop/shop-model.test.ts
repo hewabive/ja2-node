@@ -226,7 +226,7 @@ describe('ShopModel', () => {
           }),
         };
       if (cmd.useBalance) return { ok: true, data: {} };
-      return { ok: false, reason: 'needBalance', data: { amount: 100 } };
+      return { ok: false, reason: 'the offer does not cover the cost', data: { refusal: 'needBalance', amount: 100 } };
     };
     await f.model.requote(false);
     expect(await f.model.transaction()).toBe(true);
@@ -248,7 +248,7 @@ describe('ShopModel', () => {
               totals: { cost: 100, value: 0, cash: 0 },
             }),
           }
-        : { ok: false, reason: 'cannotAfford', data: { shortfall: 25 } };
+        : { ok: false, reason: 'the balance and the offer do not cover the cost', data: { refusal: 'cannotAfford', shortfall: 25 } };
     await f.model.requote(false);
     expect(await f.model.transaction()).toBe(false);
     expect(f.boxes.at(-1)).toBe('You are short $25');
@@ -261,7 +261,7 @@ describe('ShopModel', () => {
               totals: { cost: 100, value: 0, cash: 0 },
             }),
           }
-        : { ok: false, reason: 'dealerCannotAfford', data: {} };
+        : { ok: false, reason: 'the dealer has not the cash', data: { refusal: 'dealerCannotAfford' } };
     expect(await f.model.transaction()).toBe(false);
     expect(f.said.at(-1)).toBe(ShopQuoteId.CANT_AFFORD);
     f.answers = (cmd) =>
@@ -273,7 +273,7 @@ describe('ShopModel', () => {
               totals: { cost: 100, value: 0, cash: 0 },
             }),
           }
-        : { ok: false, reason: 'noRoomForPurchases', data: {} };
+        : { ok: false, reason: 'no room for the purchases', data: { refusal: 'noRoomForPurchases' } };
     expect(await f.model.transaction()).toBe(false);
     expect(f.boxes.at(-1)).toBe('There is not enough room in your offer area.');
   });
@@ -302,7 +302,10 @@ describe('ShopModel', () => {
     f.model.playerOfferSecondary(0);
     f.model.syncRepaired(f.shop.repaired);
     expect(f.model.playerOffer.every((s) => s === null)).toBe(true);
-    f.answers = (cmd) => (cmd.type === 'setShopPricing' ? { ok: false, reason: 'noSuchPricingMerc' } : { ok: true, data: quote() });
+    f.answers = (cmd) =>
+      cmd.type === 'setShopPricing'
+        ? { ok: false, reason: 'not a pricing merc', data: { refusal: 'noSuchPricingMerc' } }
+        : { ok: true, data: quote() };
     expect(await f.model.setPricing(1)).toBe(false);
     f.answers = () => ({ ok: true, data: { shop: f.shop } });
     expect(await f.model.setPricing(1)).toBe(true);

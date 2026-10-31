@@ -48,8 +48,8 @@ picture, drop-down, frame animator). The test hooks on `window.__ja2Ui` are the 
 Controllers keep only UI state: the selection, open popups, the item cursor, pending route legs, the militia cursor,
 the shop's offer, the laptop's drafts and pages. Every number the simulation computes comes from the view, a cursor
 hint (the simulation's own function over the player-knowledge projection, run in the browser, `28`) or a server query;
-every decision is one command; a refusal comes back as a token that `src/protocol/refusals.ts` maps to the original's
-string. Enable states the hints cannot decide are left to the command (deviation "Gates outside the hints").
+every decision is one command; a refusal comes back as a token in `data.refusal` (`refusalOf`) that
+`src/protocol/refusals.ts` maps to the original's string; screens compare tokens, never the readable `reason`. Enable states the hints cannot decide are left to the command (deviation "Gates outside the hints").
 
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|

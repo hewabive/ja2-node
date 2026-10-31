@@ -26,6 +26,7 @@ import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts'
 import { idiv } from '../../../core/int.ts';
 import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions, MovementOptions } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import { refusalOf } from '../../../protocol/refusals.ts';
 import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
 import { KeyModifier, type UiKeyEvent } from '../../input/events.ts';
@@ -513,8 +514,7 @@ export class TacticalControls {
 
   climbButton(soldier: SoldierView): void {
     void this.#screen.send({ type: 'climb', soldier: soldier.id }).then((reply) => {
-      const refusal = (reply.data as { readonly refusal?: string } | undefined)?.refusal ?? reply.reason;
-      if (!reply.ok && refusal === 'noRoofEdge') void this.#screen.send({ type: 'jump', soldier: soldier.id });
+      if (!reply.ok && refusalOf(reply.data) === 'noRoofEdge') void this.#screen.send({ type: 'jump', soldier: soldier.id });
     });
   }
 

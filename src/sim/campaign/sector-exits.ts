@@ -39,6 +39,7 @@ import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { states } from '../tactical/animation.ts';
 import { calcMapEdgepointClassInsertionCode } from '../tactical/edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition } from '../tactical/movement.ts';
+import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import {
   DIRECTION_EXITGRID,
   ExitDirection,
@@ -582,7 +583,7 @@ export function exitCheck(w: ExitWorld, selected: ExitMerc, direction: number, e
   return { check, menu: check.result === 0 ? null : exitMenu(w, check, selected) };
 }
 
-function refusalOf(check: ExitCheck): string {
+function refusalOf(check: ExitCheck): ExitRefusalToken {
   if (check.invalidTraversal) return 'invalidTraversal';
   if (check.uncontrolledRobot) return 'uncontrolledRobot';
   if (check.loneEpc) return 'loneEPC';
@@ -590,7 +591,21 @@ function refusalOf(check: ExitCheck): string {
   return 'tooFar';
 }
 
-type ExitRefusal = { readonly ok: false; readonly refusal: string; readonly reason: string; readonly minutes?: number };
+type ExitRefusalToken =
+  | 'noSector'
+  | 'badDirection'
+  | 'noExitGrid'
+  | 'invalidTraversal'
+  | 'uncontrolledRobot'
+  | 'loneEPC'
+  | 'abandonEPC'
+  | 'tooFar'
+  | 'squadNotAllowed'
+  | 'mercNotAllowed'
+  | 'loadDisabled'
+  | 'noWarp';
+
+type ExitRefusal = { readonly ok: false; readonly refusal: ExitRefusalToken; readonly reason: string; readonly minutes?: number };
 
 export type ExitDecision =
   | ExitRefusal
@@ -603,10 +618,27 @@ export type ExitDecision =
       readonly exitGridNo: number;
     };
 
-const DIRECTION_REASON = "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo";
+const EXIT_REFUSAL_TEXT: RefusalTexts<ExitRefusalToken> = {
+  noSector: 'no sector is loaded',
+  badDirection: "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo",
+  noExitGrid: 'no exit grid at that gridNo',
+  invalidTraversal: 'the sector cannot be left on that side',
+  uncontrolledRobot: 'the robot cannot leave without a merc using its controller',
+  loneEPC: 'an escort cannot leave the sector alone',
+  abandonEPC: 'the merc cannot leave the escorts behind alone',
+  tooFar: 'no merc of the squad stands at that exit',
+  squadNotAllowed: 'the whole squad cannot leave from here',
+  mercNotAllowed: 'the merc cannot leave alone',
+  loadDisabled: 'the choice to load the next sector is not offered',
+  noWarp: 'only an exit of a creature lair level, once the creature quest is done, warps to the surface',
+};
 
-function declined(refusal: string, reason = refusal): ExitRefusal {
-  return { ok: false, refusal, reason };
+function declined(refusal: ExitRefusalToken, minutes?: number): ExitRefusal {
+  return { ok: false, refusal, reason: EXIT_REFUSAL_TEXT[refusal], ...(minutes !== undefined ? { minutes } : {}) };
+}
+
+function exitRefused(decision: ExitRefusal): CommandResult {
+  return refuse(decision.refusal, decision.reason, decision.minutes !== undefined ? { minutes: decision.minutes } : {});
 }
 
 interface PlannedExit {
@@ -618,16 +650,13 @@ interface PlannedExit {
 
 function plannedExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): PlannedExit | ExitRefusal {
   const t = w.tactical;
-  if (!t) return declined('noSector', 'no sector is loaded');
+  if (!t) return declined('noSector');
   const direction = cmd.exitGrid !== undefined ? DIRECTION_EXITGRID : parseDirection(cmd.direction);
-  if (direction === null) return declined('badDirection', DIRECTION_REASON);
+  if (direction === null) return declined('badDirection');
   const exitGridNo = typeof cmd.exitGrid === 'number' ? cmd.exitGrid : 0;
-  if (direction === DIRECTION_EXITGRID && !exitGridAt(t, exitGridNo)) return declined('noExitGrid', 'no exit grid at that gridNo');
+  if (direction === DIRECTION_EXITGRID && !exitGridAt(t, exitGridNo)) return declined('noExitGrid');
   const plan = exitCheck(w, selected, direction, exitGridNo);
-  if (!plan.menu) {
-    const refusal = refusalOf(plan.check);
-    return { ok: false, refusal, reason: refusal, minutes: plan.check.minutes };
-  }
+  if (!plan.menu) return declined(refusalOf(plan.check), plan.check.minutes);
   return { plan, menu: plan.menu, direction, exitGridNo };
 }
 
@@ -654,13 +683,11 @@ export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readon
 
 export type SurfaceWarpDecision = ExitRefusal | { readonly ok: true; readonly surface: Sector };
 
-const NO_WARP_REASON = 'only an exit of a creature lair level, once the creature quest is done, warps to the surface';
-
 export function decideSurfaceWarp(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): SurfaceWarpDecision {
   const planned = plannedExit(w, selected, cmd);
   if ('ok' in planned) return planned;
   const surface = w.surfaceWarp();
-  return surface ? { ok: true, surface } : declined('noWarp', NO_WARP_REASON);
+  return surface ? { ok: true, surface } : declined('noWarp');
 }
 
 export function surfaceWarpResultData(surface: Sector) {
@@ -687,18 +714,17 @@ export function exitResultData(check: ExitCheck, menu: ExitMenu, jumpCode: numbe
 
 export function exitSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {
   const sim = flow.campaign.tactical;
-  if (!sim) return { ok: false, reason: 'no sector is loaded' };
-  if (sim.state.mercsWaiting) return { ok: false, reason: 'mercs are already leaving the sector' };
+  if (!sim) return exitRefused(declined('noSector'));
+  if (sim.state.mercsWaiting) return refuse('uiLocked', 'mercs are already leaving the sector');
   const selected = typeof cmd.soldier === 'number' ? flow.setup.roster.get(cmd.soldier) : undefined;
-  if (!selected || !soldierOf(flow, selected)) return { ok: false, reason: 'no such soldier of yours in this sector' };
+  if (!selected || !soldierOf(flow, selected)) return refuse('noSuchSoldier', 'no such soldier of yours in this sector');
   const refusal = sim.canAct(selected.soldier);
-  if (refusal) return { ok: false, reason: refusal };
+  if (refusal) return refuse('canAct', refusal);
   if (cmd.warp === true) return surfaceWarpCommand(flow, selected, cmd);
   const decision = decideSectorExit(flowExitWorld(flow), selected, cmd);
-  if (!decision.ok)
-    return { ok: false, reason: decision.reason, ...(decision.minutes !== undefined ? { data: { minutes: decision.minutes } } : {}) };
+  if (!decision.ok) return exitRefused(decision);
   const { check, menu, jumpCode, direction, exitGridNo } = decision;
-  if (!jumpIntoAdjacentSector(flow, direction, jumpCode, exitGridNo, selected)) return { ok: false, reason: 'cannot leave from here' };
+  if (!jumpIntoAdjacentSector(flow, direction, jumpCode, exitGridNo, selected)) return refuse('cannotLeave', 'cannot leave from here');
   const target = flow.jump?.target ?? flow.world ?? { x: 1, y: 1, z: 0 };
   return { ok: true, data: exitResultData(check, menu, jumpCode, target) };
 }
@@ -724,10 +750,9 @@ function warpToSurface(flow: SectorFlow, warp: MineWarp): void {
 
 function surfaceWarpCommand(flow: SectorFlow, selected: RosterMerc, cmd: { readonly [key: string]: unknown }): CommandResult {
   const decision = decideSurfaceWarp(flowExitWorld(flow), selected, cmd);
-  if (!decision.ok)
-    return { ok: false, reason: decision.reason, ...(decision.minutes !== undefined ? { data: { minutes: decision.minutes } } : {}) };
+  if (!decision.ok) return exitRefused(decision);
   const warp = flow.campaign.creatures?.surfaceWarp(flow.world);
-  if (!warp) return { ok: false, reason: NO_WARP_REASON };
+  if (!warp) return exitRefused(declined('noWarp'));
   warpToSurface(flow, warp);
   return { ok: true, data: surfaceWarpResultData(decision.surface) };
 }

@@ -72,7 +72,7 @@ import { CreatureFlow } from './creature-flow.ts';
 import { EndgameFlow } from './endgame-flow.ts';
 import { HelicopterFlow } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
-import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
+import { LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { MoneyFlow } from './money-flow.ts';
@@ -508,7 +508,7 @@ export class CampaignSim {
         const talk = this.talk?.modalRefusal();
         if (talk) return talk;
         if (this.shop?.isOpen()) return 'shopOpen: a shop is open, closeShop first';
-        return this.laptop?.isOpen() ? LAPTOP_REFUSAL : null;
+        return this.laptop?.modalRefusal() ?? null;
       },
       compressing: () => isTimeBeingCompressed(this.state.clock),
       startCompression: (mode?: number) => {
@@ -661,7 +661,7 @@ export class CampaignSim {
   #boxingUiLockRefusal(cmd: CampaignCommand): CommandResult | null {
     if (this.state.flow !== 'tactical' || !this.tactical?.state.boxing.uiLocked) return null;
     if (cmd.type === 'estimateAttack' || cmd.type === 'answer' || cmd.type === 'skipLine') return null;
-    return { ok: false, reason: BOXING_UI_LOCK_TEXT, data: { refusal: 'boxingUiLock' } };
+    return refuse('boxingUiLock', BOXING_UI_LOCK_TEXT);
   }
 
   #promptOpen(): boolean {
@@ -669,9 +669,9 @@ export class CampaignSim {
   }
 
   #setOption(cmd: CampaignCommand): CommandResult {
-    if (this.#promptOpen()) return { ok: false, reason: PROMPT_OPEN_REFUSAL, data: { refusal: 'promptOpen' } };
+    if (this.#promptOpen()) return refuse('promptOpen', PROMPT_OPEN_REFUSAL);
     const change = parseOptionChange(cmd);
-    if (typeof change === 'string') return { ok: false, reason: change, data: { refusal: 'badOption' } };
+    if (typeof change === 'string') return refuse('badOption', change);
     const options = this.state.options;
     applyOptionChange(options, change);
     this.#events.push({ type: 'optionChanged', bloodAndGore: options.bloodAndGore, tick: this.tick });
@@ -710,7 +710,7 @@ export class CampaignSim {
           dispatchSectorCommand(this, cmd) ??
           dispatchStrategicCommand(this, cmd) ??
           (this.battle ? this.mapInventory.dispatch(cmd) : null) ??
-          (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })
+          (this.tactical ? this.tactical.dispatch(cmd) : refuse('unknownCommand', `unknown command ${cmd.type}`))
         );
     }
   }

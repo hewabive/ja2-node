@@ -17,9 +17,7 @@ import type { FileExists } from './world-cache.ts';
 
 const MAX_CACHED_INPUTS = 2;
 
-export interface QueryAnswer extends CommandResult {
-  readonly tick: number;
-}
+export type QueryAnswer = CommandResult & { readonly tick: number };
 
 export interface QuerySubject {
   view(): PlayerView;

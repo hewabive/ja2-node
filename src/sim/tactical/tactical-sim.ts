@@ -513,7 +513,7 @@ export class TacticalSim {
 
   #setOption(cmd: TacticalCommand): CommandResult {
     const change = parseOptionChange(cmd);
-    if (typeof change === 'string') return { ok: false, reason: change, data: { refusal: 'badOption' } };
+    if (typeof change === 'string') return refuse('badOption', change);
     applyOptionChange(this.state.options, change);
     this.state.events.push({ type: 'optionChanged', bloodAndGore: this.state.options.bloodAndGore });
     return { ok: true, data: { options: { ...this.state.options } } };
@@ -522,8 +522,7 @@ export class TacticalSim {
   dispatch(cmd: TacticalCommand): CommandResult {
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     if (this.state.mercsWaiting) return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
-    if (this.state.boxing.uiLocked)
-      return { ok: false, reason: 'the interface is locked while the boxers leave the ring', data: { refusal: 'boxingUiLock' } };
+    if (this.state.boxing.uiLocked) return refuse('boxingUiLock', 'the interface is locked while the boxers leave the ring');
     if (INVENTORY_COMMANDS.has(cmd.type)) return this.#inventory(cmd);
     if (PLAYER_ORDERS.has(cmd.type)) return dispatchPlayerOrder(this.#orderContext(), cmd);
     switch (cmd.type) {
@@ -649,12 +648,7 @@ export class TacticalSim {
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
     selectSoldier(t, s);
     const outcome = doorCommand(t, s, g, action as DoorActionName);
-    if (!outcome.ok)
-      return {
-        ok: false,
-        reason: `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`,
-        data: { refusal: outcome.refusal },
-      };
+    if (!outcome.ok) return refuse(outcome.refusal, `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`);
     return { ok: true, data: outcome.data };
   }
 

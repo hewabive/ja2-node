@@ -92,11 +92,11 @@ describe('shop transactions', () => {
     const boxes = determineArmsDealersSellingInventory(f.ctx, TONY, () => true);
     const buy = [{ boxes, count: 1 }];
     expect(planTrade(f.ctx, input(TONY, { buy, cash: [cash(100)], balance: 100 })).refusal).toEqual({
-      reason: 'cannotAfford',
+      refusal: 'cannotAfford',
       shortfall: 237,
     });
     expect(planTrade(f.ctx, input(TONY, { buy, cash: [cash(100)], balance: 1000 })).refusal).toEqual({
-      reason: 'needBalance',
+      refusal: 'needBalance',
       amount: 337,
     });
     const plan = planTrade(f.ctx, input(TONY, { buy, cash: [cash(100)], balance: 1000, useBalance: true }));
@@ -110,7 +110,7 @@ describe('shop transactions', () => {
     const keith = f.ctx.state.dealers[KEITH]?.status;
     if (keith) keith.cash = 100;
     const sale = { sell: [offer(item('FLAK_JACKET', 80))], cash: [cash(5000)] };
-    expect(planTrade(f.ctx, input(KEITH, sale)).refusal).toEqual({ reason: 'dealerCannotAfford' });
+    expect(planTrade(f.ctx, input(KEITH, sale)).refusal).toEqual({ refusal: 'dealerCannotAfford' });
     const jake = f.ctx.state.dealers[JAKE]?.status;
     if (jake) jake.cash = 0;
     const plan = planTrade(f.ctx, input(JAKE, { sell: [offer(item('GLOCK_17', 60))] }));
@@ -122,16 +122,16 @@ describe('shop transactions', () => {
 
   it('refuses unwanted and worthless items and full offer areas', () => {
     const f = merchantFixture(t);
-    expect(planTrade(f.ctx, input(TONY, { sell: [offer(item('CANTEEN'))] })).refusal).toEqual({ reason: 'wontBuy', entry: 0 });
-    expect(planTrade(f.ctx, input(JAKE, { sell: [offer(item('TSHIRT', 1))] })).refusal).toEqual({ reason: 'worthless', entry: 0 });
+    expect(planTrade(f.ctx, input(TONY, { sell: [offer(item('CANTEEN'))] })).refusal).toEqual({ refusal: 'wontBuy', entry: 0 });
+    expect(planTrade(f.ctx, input(JAKE, { sell: [offer(item('TSHIRT', 1))] })).refusal).toEqual({ refusal: 'worthless', entry: 0 });
     addItemToArmsDealerInventory(f.ctx, TONY, itemId(t, 'GLOCK_17'), defaultItemInfo(), 12);
     const boxes = determineArmsDealersSellingInventory(f.ctx, TONY, () => true);
     const status = f.ctx.state.dealers[TONY]?.status;
     if (status) status.cash = 1;
     expect(planTrade(f.ctx, input(TONY, { buy: [{ boxes, count: 12 }], balance: 99999, useBalance: true })).refusal).toEqual({
-      reason: 'noRoomForPurchases',
+      refusal: 'noRoomForPurchases',
     });
-    expect(planTrade(f.ctx, input(TONY, { buy: [{ boxes, count: 13 }] })).refusal).toEqual({ reason: 'notEnoughInBox', entry: 0 });
+    expect(planTrade(f.ctx, input(TONY, { buy: [{ boxes, count: 13 }] })).refusal).toEqual({ refusal: 'notEnoughInBox', entry: 0 });
   });
 
   it('keeps overpayment at dealers without change and lets items sold to buy-only dealers vanish', () => {
@@ -209,7 +209,7 @@ describe('shop transactions', () => {
     for (let k = 0; k < 3; k++) giveObjectToArmsDealerForRepair(f.ctx, PERKO, item('GLOCK_17', 40), IVAN);
     f.world.minutes = DAY * 9;
     expect(planTrade(f.ctx, input(PERKO, { repair: [offer(item('FLAK_JACKET', 100))] })).refusal).toEqual({
-      reason: 'notDamaged',
+      refusal: 'notDamaged',
       entry: 0,
     });
     expect(
@@ -219,9 +219,9 @@ describe('shop transactions', () => {
       f.ctx,
       input(PERKO, { repair: [offer(item('BERETTA_92F', 50)), offer(item('M14', 50))], balance: 9999, useBalance: true }),
     );
-    expect(two.refusal).toEqual({ reason: 'tooManyToRepair', entry: 1 });
+    expect(two.refusal).toEqual({ refusal: 'tooManyToRepair', entry: 1 });
     expect(planTrade(f.ctx, input(PERKO, { repair: [offer(item('VIDEO_CAMERA', 50))] })).refusal).toEqual({
-      reason: 'wontRepair',
+      refusal: 'wontRepair',
       entry: 0,
     });
   });

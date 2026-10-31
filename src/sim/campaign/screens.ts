@@ -12,6 +12,7 @@ import { CompressMode } from '../strategic/time/constants.ts';
 import { CompressionStop, setGameTimeCompressionLevel, stopTimeCompression } from '../strategic/time/world-clock.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
+import { refuse } from '../tactical/refusal.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
@@ -24,10 +25,10 @@ function canGoToTactical(m: StrategicMerc, world: Sector): boolean {
 export function openMapScreen(campaign: CampaignSim, abandonFight = false): CommandResult {
   const s = campaign.state;
   if (s.flow === 'strategic') return { ok: true };
-  if (s.flow !== 'tactical') return { ok: false, reason: `the map cannot be opened during ${s.flow}` };
+  if (s.flow !== 'tactical') return refuse('notInTactical', `the map cannot be opened during ${s.flow}`);
   const t = campaign.tactical?.state;
   if (t && boxingActive(t)) {
-    if (!abandonFight) return { ok: false, reason: ABANDON_FIGHT_TEXT, data: { refusal: 'boxingInProgress' } };
+    if (!abandonFight) return refuse('boxingInProgress', ABANDON_FIGHT_TEXT);
     setBoxingState(t, BoxingState.NOT_BOXING);
   }
   enterMapScreen(campaign);
@@ -45,9 +46,9 @@ export function openTacticalScreen(campaign: CampaignSim): CommandResult {
   const s = campaign.state;
   if (s.flow === 'tactical') return { ok: true };
   const world = s.worldSector;
-  if (s.flow !== 'strategic' || !world || !campaign.tactical) return { ok: false, reason: 'no sector is loaded' };
+  if (s.flow !== 'strategic' || !world || !campaign.tactical) return refuse('noSector', 'no sector is loaded');
   if (!campaign.strategic?.mercs.all().some((m) => canGoToTactical(m, world)))
-    return { ok: false, reason: 'no merc of yours is in the loaded sector' };
+    return refuse('noMercThere', 'no merc of yours is in the loaded sector');
   returnToLoadedSector(campaign);
   return { ok: true };
 }

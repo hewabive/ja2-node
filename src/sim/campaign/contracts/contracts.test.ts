@@ -26,6 +26,7 @@ import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
 import { ProfileMiscFlag3 } from '../profiles.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import { sectorKey } from '../sector-diff.ts';
+import { contractRefusal } from './contract-flow.ts';
 import { RenewalQuoteCode } from './contract-state.ts';
 import {
   checkIfMercGetsAnotherContract,
@@ -383,7 +384,7 @@ describe('leaving the team', () => {
     scripted(cc, [0]);
     expect(cc.campaign.dispatch({ type: 'removeMerc', soldier: 0 }).ok).toBe(true);
     expect(profile(cc, STUB.kestrel).mercStatus).toBe(MercStatus.FIRED_AS_A_POW);
-    expect(cc.campaign.dispatch({ type: 'removeMerc', soldier: 1 })).toMatchObject({ ok: false, reason: 'notDeadOrCaptured' });
+    expect(cc.campaign.dispatch({ type: 'removeMerc', soldier: 1 })).toEqual(contractRefusal('notDeadOrCaptured'));
   });
 
   it('hands an unpaid Iggy to the army when his contract-ending event runs, before the equipment prompt', () => {
@@ -628,9 +629,9 @@ describe('contract commands', () => {
   it('are map screen only, check the merc and refuse while a prompt is open', () => {
     const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.brack, kind: MercKind.MERC }]);
     const c = cc.campaign;
-    expect(c.dispatch({ type: 'extendContract', soldier: 1, length: 'day' })).toMatchObject({ ok: false, reason: 'notAimMerc' });
+    expect(c.dispatch({ type: 'extendContract', soldier: 1, length: 'day' })).toEqual(contractRefusal('notAimMerc'));
     merc(cc, 0).soldier.bleeding = 20;
-    expect(c.dispatch({ type: 'dismiss', soldier: 0 })).toMatchObject({ ok: false, reason: 'bleeding' });
+    expect(c.dispatch({ type: 'dismiss', soldier: 0 })).toEqual(contractRefusal('bleeding'));
     merc(cc, 0).soldier.bleeding = 0;
     expect(c.dispatch({ type: 'contractOptions', soldier: 0 })).toMatchObject({ ok: true, data: { options: expect.any(Array) } });
     expect(c.dispatch({ type: 'dismiss', soldier: 0 }).ok).toBe(true);
@@ -640,7 +641,7 @@ describe('contract commands', () => {
     const left = c.drainEvents().find((e) => e.type === 'mercLeft');
     expect(left).toMatchObject({ soldier: 0, cause: 'fired', history: HistoryCode.MERC_FIRED, personnel: 'fired', equipment: 'here' });
     expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
-    expect(c.dispatch({ type: 'dismiss', soldier: 1 })).toMatchObject({ ok: false, reason: 'mapScreenOnly' });
+    expect(c.dispatch({ type: 'dismiss', soldier: 1 })).toEqual(contractRefusal('mapScreenOnly'));
   });
 });
 

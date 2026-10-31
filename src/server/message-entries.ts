@@ -296,6 +296,7 @@ export function gameSavedEntry(tick: number): MessageEntry {
 }
 
 const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst', 'invalidStance']);
+const COMMANDS_THE_CURSOR_EXPLAINS: ReadonlySet<string> = new Set(['exitSector']);
 
 function refusalArgs(token: string, cmd: CommandEnvelope, facts: MessageFacts): MessageArg[] {
   const soldier = typeof cmd.soldier === 'number' ? cmd.soldier : null;
@@ -303,9 +304,8 @@ function refusalArgs(token: string, cmd: CommandEnvelope, facts: MessageFacts): 
 }
 
 export function refusalEntry(tick: number, cmd: CommandEnvelope, result: CommandResult, facts: MessageFacts): MessageEntry | null {
-  if (result.ok) return null;
-  const token = (result.data as { readonly refusal?: unknown } | undefined)?.refusal;
-  if (typeof token !== 'string') return null;
+  if (result.ok || COMMANDS_THE_CURSOR_EXPLAINS.has(cmd.type)) return null;
+  const token = result.data.refusal;
   const message = refusalMessage(token);
   if (message?.shown !== 'log') return null;
   return { tick, ...line(message.table, message.index, refusalArgs(token, cmd, facts), 'uiFeedback') };

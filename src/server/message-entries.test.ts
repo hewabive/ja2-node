@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { refuse } from '../sim/tactical/refusal.ts';
 import { type MessageFacts, messageEntriesOf, refusalEntry } from './message-entries.ts';
 
 const NAMES: Readonly<Record<number, string>> = { 0: 'Ivan', 1: 'Fox', 20: 'Soldier', 116: 'Fatima' };
@@ -147,7 +148,7 @@ describe('message entries from the ScreenMsg sites of the original', () => {
   });
 
   it('prints the refusals the original prints in the log, with the merc where the string names him', () => {
-    const refused = (refusal: string) => ({ ok: false, reason: refusal, data: { refusal } });
+    const refused = (refusal: string) => refuse(refusal, refusal);
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, refused('notEnoughAP'), facts)).toEqual({
       tick: 9,
       kind: 'uiFeedback',
@@ -164,13 +165,19 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, { ok: true }, facts)).toBeNull();
   });
 
+  it('leaves the refusals of a sector exit to the exit cursor, which prints its own lines', () => {
+    const refused = refuse('uncontrolledRobot', 'the robot cannot leave without a merc using its controller');
+    expect(refusalEntry(9, { type: 'exitSector', soldier: 0, direction: 'north' }, refused, facts)).toBeNull();
+    expect(refusalEntry(9, { type: 'move', soldier: 0 }, refused, facts)).toMatchObject({ table: 'TacticalStr', index: 88 });
+  });
+
   it('quotes the line of a rocket rifle taking the fingerprints, and prints nothing for one that refuses them', () => {
     const entries = messageEntriesOf(
       [at({ type: 'gunImprint', soldier: 0, result: 'imprinted' }), at({ type: 'gunImprint', soldier: 0, result: 'denied' })],
       facts,
     );
     expect(entries).toEqual([{ tick: 40, kind: 'interface', colour: 145, table: 'TacticalStr', index: 111, quoted: true }]);
-    const refused = { ok: false, reason: 'wrongFingerprint', data: { refusal: 'wrongFingerprint' } };
+    const refused = refuse('wrongFingerprint', 'the rocket rifle answers to someone else');
     expect(refusalEntry(9, { type: 'attack', soldier: 0 }, refused, facts)).toBeNull();
   });
 

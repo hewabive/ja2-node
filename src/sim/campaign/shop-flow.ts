@@ -13,7 +13,7 @@ import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import type { DealerDef } from '../../content/strategic/merchant-content.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import { u8 } from '../../core/int.ts';
-import type { CommandResult } from '../command.ts';
+import type { CommandRefused, CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import {
   cloneObject,
@@ -55,6 +55,7 @@ import { addItemToPool, Visibility } from '../tactical/world-items.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { addTransaction, FinanceCode } from './finances.ts';
 import { addToMercInventory } from './merc-placement.ts';
+import { type ShopRefusal, shopRefusal } from './shop-refusals.ts';
 
 export const AP_TALK = 6;
 export const NPC_TALK_RADIUS = 4;
@@ -64,7 +65,6 @@ const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
 const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
-const SHOP_OPEN_REFUSAL: CommandResult = { ok: false, reason: 'a shop is open: trade or closeShop first', data: { refusal: 'shopOpen' } };
 
 export interface ShopSession {
   readonly dealer: number;
@@ -79,16 +79,16 @@ export interface ShopSession {
 type Json = Readonly<Record<string, unknown>>;
 
 class Refusal extends Error {
-  readonly data: Json | undefined;
+  readonly result: CommandRefused;
 
-  constructor(reason: string, data?: Json) {
-    super(reason);
-    this.data = data;
+  constructor(result: CommandRefused) {
+    super(result.reason);
+    this.result = result;
   }
 }
 
-const refuse = (reason: string, data?: Json): never => {
-  throw new Refusal(reason, data);
+const refuse = (token: ShopRefusal, text?: string): never => {
+  throw new Refusal(shopRefusal(token, {}, text));
 };
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
@@ -138,7 +138,7 @@ export class ShopFlow {
 
   dispatch(cmd: CampaignCommand): CommandResult | null {
     const open = this.#session !== null;
-    if (!SHOP_COMMANDS.has(cmd.type)) return open ? SHOP_OPEN_REFUSAL : null;
+    if (!SHOP_COMMANDS.has(cmd.type)) return open ? shopRefusal('shopOpen') : null;
     try {
       switch (cmd.type) {
         case 'openShop':
@@ -153,7 +153,7 @@ export class ShopFlow {
           return this.#close();
       }
     } catch (e) {
-      if (e instanceof Refusal) return { ok: false, reason: e.message, ...(e.data ? { data: e.data } : {}) };
+      if (e instanceof Refusal) return e.result;
       throw e;
     }
   }
@@ -180,7 +180,7 @@ export class ShopFlow {
     return merc ? merc.isVehicle || merc.isRobot : false;
   }
 
-  #interactionRefusal(s: Soldier, dealer: Soldier): string | null {
+  #interactionRefusal(s: Soldier, dealer: Soldier): ShopRefusal | null {
     const t = this.#t;
     if (!t || dealer.life < OKLIFE) return 'dealerDown';
     if (!s.placed || s.team !== Team.OUR) return 'mercCantTrade';
@@ -219,18 +219,18 @@ export class ShopFlow {
   }
 
   #validateOpen(cmd: CampaignCommand, withScriptHooks: boolean): { merc: Soldier; def: DealerDef; dealer: Soldier } {
-    if (this.#session) refuse('a shop is already open');
+    if (this.#session) refuse('shopOpen');
     const campaign = this.#campaign;
     const tactical = campaign.tactical;
     const ctx = this.#ctx;
     if (campaign.state.flow !== 'tactical' || !tactical) refuse('notInTactical');
-    if (campaign.battle?.hasPendingDecision()) refuse('a prompt is open');
+    if (campaign.battle?.hasPendingDecision()) refuse('promptOpen');
     const t = tactical?.state as TacticalState;
     const s = tactical?.soldier(cmd.soldier) ?? null;
-    if (!s || s.team !== Team.OUR) refuse('no such soldier of yours');
+    if (!s || s.team !== Team.OUR) refuse('noSuchSoldier');
     const merc = s as Soldier;
     const turn = tactical?.canAct(merc) ?? null;
-    if (turn) refuse(turn);
+    if (turn) refuse('canAct', turn);
     const d = this.#resolveDealer(cmd.dealer);
     if (!d || !isMercADealer(ctx, d.profile)) refuse('notADealer');
     const def = d as DealerDef;
@@ -255,7 +255,7 @@ export class ShopFlow {
       const { merc, dealer } = this.#validateOpen(cmd, false);
       return { merc, dealer };
     } catch (e) {
-      if (e instanceof Refusal) return { ok: false, reason: e.message, ...(e.data ? { data: e.data } : {}) };
+      if (e instanceof Refusal) return e.result;
       throw e;
     }
   }
@@ -264,7 +264,7 @@ export class ShopFlow {
     const def = this.#ctx.content.dealers.find((d) => d.profile === dealerProfile);
     const dealer = this.dealerSoldier(dealerProfile);
     const merc = this.#t?.soldiers[soldier] ?? null;
-    if (this.#session || !def || !dealer || !merc) return { ok: false, reason: 'shopUnavailable' };
+    if (this.#session || !def || !dealer || !merc) return shopRefusal('shopUnavailable');
     this.#selectSquadOf(merc);
     return this.#begin(def, dealer, merc);
   }
@@ -407,7 +407,7 @@ export class ShopFlow {
   #list(cmd: CampaignCommand, key: string): Json[] {
     const v = cmd[key];
     if (v === undefined) return [];
-    if (!Array.isArray(v) || v.some((e) => typeof e !== 'object' || e === null)) return refuse(`${key} must be a list of objects`);
+    if (!Array.isArray(v) || v.some((e) => typeof e !== 'object' || e === null)) return refuse('badTradeList');
     return v as Json[];
   }
 
@@ -547,10 +547,7 @@ export class ShopFlow {
     const plan = planTrade(ctx, input);
     const quote = this.#quote(plan, input);
     if (quoteOnly) return { ok: true, data: quote };
-    if (plan.refusal) {
-      const { reason, ...detail } = plan.refusal;
-      return { ok: false, reason, data: detail };
-    }
+    if (plan.refusal) return shopRefusal(plan.refusal.refusal, plan.refusal);
     session.pricing = pricing.id;
     const outcome = executeTrade(ctx, plan);
     const profile = dealerDef(ctx, session.dealer).profile;

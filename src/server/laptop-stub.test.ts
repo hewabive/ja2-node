@@ -14,6 +14,7 @@ import { impReportRows } from '../sim/campaign/laptop/imp-report.ts';
 import { BobbyRaySiteVisit, Bookmark, MercSiteVisit } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailSpec, sender } from '../sim/campaign/laptop/mail.ts';
 import { SpeckQuote } from '../sim/campaign/laptop/merc-site.ts';
+import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { PLAYER_GENERATED_CHARACTER_ID } from '../sim/campaign/laptop/save-import.ts';
 import { MercStatus } from '../sim/tactical/profiles.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -83,9 +84,9 @@ describe('the laptop view for the canvas pages', () => {
     const mail = laptopOf(session).emails.find((m) => m.id === id);
     expect(mail).toMatchObject({ subject, length: body.length + 1 });
     expect(live.dispatch({ type: 'emailText', id })).toEqual({ ok: true, data: { id, subject, paragraphs: body } });
-    expect(live.dispatch({ type: 'emailText', id: 999 })).toEqual({ ok: false, reason: 'noSuchMail' });
+    expect(live.dispatch({ type: 'emailText', id: 999 })).toEqual(laptopRefusal('noSuchMail'));
     const textless = new CampaignSession(session.campaign, session.presentation);
-    expect(textless.dispatch({ type: 'emailText', id })).toEqual({ ok: false, reason: 'noText' });
+    expect(textless.dispatch({ type: 'emailText', id })).toEqual(laptopRefusal('noText'));
     expect(session.campaign.state.laptop.emails.find((m) => m.id === id)?.read).toBe(false);
   });
 
@@ -147,15 +148,14 @@ describe('the laptop view for the canvas pages', () => {
     });
     expect(live.dispatch({ type: 'aimHire', profile: available.profile, contract: 7 })).toMatchObject({
       ok: false,
-      reason: 'hangover',
-      data: { quote: { id: 82, name: 'LAME_REFUSAL' } },
+      data: { refusal: 'hangover', quote: { id: 82, name: 'LAME_REFUSAL' } },
     });
     profileOf(available.profile).daysOfMoraleHangover = 0;
     expect(live.dispatch({ type: 'hireCheck', profile: available.profile })).toMatchObject({
       ok: true,
       data: { accepted: true, quote: null },
     });
-    expect(live.dispatch({ type: 'hireCheck', profile: 99 })).toEqual({ ok: false, reason: 'notAimMerc' });
+    expect(live.dispatch({ type: 'hireCheck', profile: 99 })).toEqual(laptopRefusal('notAimMerc'));
     expect(session.campaign.state.finances.balance).toBe(balance);
   });
 });
@@ -171,7 +171,7 @@ describe('the A.I.M. listing order', () => {
 describe('visiting a site', () => {
   it('bookmarks the funeral home, the florist and the insurer and refuses unknown sites', async () => {
     const { session, live } = await newGame(111);
-    expect(live.dispatch({ type: 'visitSite', site: 'moon' })).toEqual({ ok: false, reason: 'badSite' });
+    expect(live.dispatch({ type: 'visitSite', site: 'moon' })).toEqual(laptopRefusal('badSite'));
     expect(live.dispatch({ type: 'visitSite', site: 'florist' })).toEqual({
       ok: true,
       data: { site: 'florist', bookmarks: ['aim', 'florist'] },
@@ -181,7 +181,7 @@ describe('visiting a site', () => {
     live.dispatch({ type: 'visitSite', site: 'florist' });
     expect(laptopOf(session).bookmarks).toEqual(['aim', 'florist', 'insurance', 'funeral']);
     live.dispatch({ type: 'closeLaptop' });
-    expect(live.dispatch({ type: 'visitSite', site: 'florist' })).toEqual({ ok: false, reason: 'laptopClosed' });
+    expect(live.dispatch({ type: 'visitSite', site: 'florist' })).toEqual(laptopRefusal('laptopClosed'));
   });
 
   it("gates the Bobby Ray's mail on a visit while the site is under construction", async () => {
@@ -203,7 +203,7 @@ describe('visiting a site', () => {
   it("counts every visit to M.E.R.C. and plays Speck's opening once per laptop session", async () => {
     const { session, live } = await newGame(114);
     const merc = () => session.campaign.state.laptop.merc;
-    expect(live.dispatch({ type: 'visitSite', site: 'merc' })).toEqual({ ok: false, reason: 'noBookmark' });
+    expect(live.dispatch({ type: 'visitSite', site: 'merc' })).toEqual(laptopRefusal('noBookmark'));
     session.campaign.state.laptop.bookmarks.push(Bookmark.MERC);
     const first = live.dispatch({ type: 'visitSite', site: 'merc' });
     const firstSpeck = (first.data as { speck: number[] }).speck;
@@ -223,7 +223,7 @@ describe('visiting a site', () => {
     expect((third.data as { speck: number[] }).speck[0]).toBe(SpeckQuote.BUSINESS_BAD);
     expect(merc().playerBeenToSiteStatus).toBe(MercSiteVisit.THIRD_OR_MORE_VISITS);
     Object.assign(merc(), { siteHasGoneDownYet: true, firstVisitSinceServerWentDown: 0 });
-    expect(live.dispatch({ type: 'visitSite', site: 'merc' })).toEqual({ ok: false, reason: 'siteDown' });
+    expect(live.dispatch({ type: 'visitSite', site: 'merc' })).toEqual(laptopRefusal('siteDown'));
   });
 
   it('keeps the opening for agents that never visit: the first M.E.R.C. command of a session runs it', async () => {

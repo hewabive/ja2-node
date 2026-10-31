@@ -31,6 +31,7 @@ import type { CommandResult } from '../sim/command.ts';
 import { type EffectEvent, isEffectEvent, type SimEvent, type SimEventType } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
+import { refuse } from '../sim/tactical/refusal.ts';
 import { type AnchoredView, keepPredictableFrames } from './frame-anchors.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
 import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
@@ -445,8 +446,7 @@ export class Session {
   }
 
   #setSpeech(mode: unknown): CommandResult {
-    if (!isSpeechMode(mode))
-      return { ok: false, reason: `speech is one of ${SPEECH_MODES.join(', ')}`, data: { refusal: 'unknownSpeech' } };
+    if (!isSpeechMode(mode)) return refuse('unknownSpeech', `speech is one of ${SPEECH_MODES.join(', ')}`);
     this.setSpeech(mode);
     return { ok: true, data: { speech: mode } };
   }
@@ -529,7 +529,7 @@ export class Session {
 
   async query(q: CommandEnvelope): Promise<QueryAnswer> {
     const queries = this.queries;
-    if (!queries) return { ok: false, reason: 'queries are not available', data: { refusal: 'noQueries' }, tick: this.#sim.tick };
+    if (!queries) return { ...refuse('noQueries', 'queries are not available'), tick: this.#sim.tick };
     await queries.prepare(this.#querySubject());
     return queries.answer(this.#querySubject(), q);
   }

@@ -11,6 +11,7 @@
 // @src BtnInsContractNextButtonCallBack, SelectInsuranceContractRegionCallBack; src/game/Laptop/Insurance_Comments.cc
 // @src SelectInsuranceCommentLinkRegionCallBack.
 
+import { refusalOf } from '../../../../protocol/refusals.ts';
 import type { InsuranceOfferView } from '../../../../protocol/view.ts';
 import type { DrawList } from '../../../draw-list.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
@@ -246,7 +247,7 @@ export function insuranceContractPage(context: LaptopContext): LaptopPage {
   };
   const accept = (soldier: number) => {
     void context.command({ type: 'insure', soldier }).then((reply) => {
-      if (!reply.ok && reply.reason === 'funds')
+      if (!reply.ok && refusalOf(reply.data) === 'funds')
         context.messageBox(text(InsuranceText.NOT_ENOUGH_FUNDS), MessageBoxFlag.OK, undefined, MessageBoxStyleId.RED_ON_WHITE);
     });
   };

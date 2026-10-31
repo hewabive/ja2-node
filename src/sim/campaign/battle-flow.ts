@@ -49,6 +49,7 @@ import {
   encounterName,
   nextPromptId,
   type PbiChoice,
+  type PbiReason,
   PromptKind,
 } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode } from '../strategic/forces/constants.ts';
@@ -89,6 +90,7 @@ import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { healthCategory } from '../tactical/health.ts';
 import { profileProgress } from '../tactical/profiles.ts';
+import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
@@ -158,12 +160,32 @@ const SHOW_BATTLE_REASONS: Readonly<Record<ShowBattleRefusal, string>> = {
   onlyHostileCivilians: 'only hostile civilians are left in the sector',
 };
 
+const PBI_REASON_TEXT: RefusalTexts<PbiReason> = {
+  playerInitiatedAttack: 'the player attacks: the battle is fought in the sector',
+  ambush: 'an ambush is fought in the sector',
+  cannotRetreat: 'the mercs cannot retreat from this battle',
+  battleInProgress: 'the battle is already under way',
+  hostileCivilians: 'a fight with hostile civilians cannot be autoresolved',
+  fightingCreatures: 'a fight with creatures cannot be autoresolved',
+  bloodcats: 'a fight with bloodcats cannot be autoresolved',
+  enteringEnemySector: 'a battle the player started in the sector cannot be autoresolved',
+  autoStart: 'the battle starts on its own',
+};
+
 function showBattleRefusal(refusal: ShowBattleRefusal, sector?: string): CommandResult {
-  return { ok: false, reason: SHOW_BATTLE_REASONS[refusal], data: { refusal, ...(sector ? { sector } : {}) } };
+  return refuse(refusal, SHOW_BATTLE_REASONS[refusal], sector ? { sector } : {});
 }
 
 function promptOpenRefusal(prompt: BattlePrompt): CommandResult {
-  return { ok: false, reason: `answer the ${prompt.kind} prompt first`, data: { refusal: 'promptOpen' } };
+  return refuse('promptOpen', `answer the ${prompt.kind} prompt first`);
+}
+
+function pbiRefusal(reason: PbiReason): CommandResult {
+  return refuse(reason, PBI_REASON_TEXT[reason]);
+}
+
+function badChoice(text: string): CommandResult {
+  return refuse('badChoice', text);
 }
 
 function anyNonNeutralOfTeamInSector(t: TacticalState, team: number): boolean {
@@ -331,7 +353,7 @@ export class BattleFlow implements FateContext {
   }
 
   #answerMilitia(choice: string): CommandResult {
-    if (choice !== 'yes' && choice !== 'no') return { ok: false, reason: 'choose one of yes, no' };
+    if (choice !== 'yes' && choice !== 'no') return badChoice('choose one of yes, no');
     this.state.battle.prompt = null;
     const outcome = answerPendingMilitiaPrompt(this.economy, choice === 'yes');
     if (outcome === null) return { ok: true };
@@ -813,13 +835,13 @@ export class BattleFlow implements FateContext {
       case Choice.CLOSE:
         return this.#closeSummary();
       default:
-        return { ok: false, reason: 'that choice is not offered' };
+        return badChoice('that choice is not offered');
     }
   }
 
   #closeSummary(): CommandResult {
     const battle = this.state.battle;
-    if (battle.persistent) return { ok: false, reason: 'only the battle summary closes without a choice' };
+    if (battle.persistent) return badChoice('only the battle summary closes without a choice');
     battle.prompt = null;
     this.state.encounter.battleGroup = null;
     return { ok: true };
@@ -830,9 +852,9 @@ export class BattleFlow implements FateContext {
     const battle = s.battle;
     const flow = this.campaign.sectors;
     const sector = battle.sector;
-    if (!flow || !sector) return { ok: false, reason: 'no sector flow' };
+    if (!flow || !sector) return refuse('mapNotLoaded', 'no sector flow');
     const target = { x: sector.x, y: sector.y, z: 0 };
-    if (!flow.setup.worlds.world(flow.mapPathOf(target))) return { ok: false, reason: 'sector map is not loaded' };
+    if (!flow.setup.worlds.world(flow.mapPathOf(target))) return refuse('mapNotLoaded', 'sector map is not loaded');
     const enc = s.encounter;
     const group = getGroup(this.economy, enc.battleGroup ?? -1);
     const placement =
@@ -847,7 +869,7 @@ export class BattleFlow implements FateContext {
     } else enc.battleGroup = null;
     battle.prompt = null;
     if (!flow.setCurrentWorldSector(target, { autoPlacement: placement, battleLocatorShown: battle.locator }))
-      return { ok: false, reason: 'sector map is not loaded' };
+      return refuse('mapNotLoaded', 'sector map is not loaded');
     return { ok: true, data: { sector: sectorShortString(target) } };
   }
 
@@ -876,14 +898,14 @@ export class BattleFlow implements FateContext {
 
   #answer(cmd: { readonly [key: string]: unknown }): CommandResult {
     const prompt = this.state.battle.prompt;
-    if (!prompt) return { ok: false, reason: 'no prompt is open' };
-    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return { ok: false, reason: `the open prompt is ${prompt.id}` };
+    if (!prompt) return refuse('noPrompt', 'no prompt is open');
+    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return refuse('wrongPrompt', `the open prompt is ${prompt.id}`);
     const choice = String(cmd.choice ?? '');
     switch (prompt.kind) {
       case PromptKind.PRE_BATTLE: {
         const option = prompt.options.find((o) => o.choice === choice);
-        if (!option) return { ok: false, reason: `choose one of ${prompt.options.map((o) => o.choice).join(', ')}` };
-        if (!option.enabled) return { ok: false, reason: option.reason ?? 'that choice is disabled' };
+        if (!option) return badChoice(`choose one of ${prompt.options.map((o) => o.choice).join(', ')}`);
+        if (!option.enabled) return option.reason ? pbiRefusal(option.reason) : refuse('choiceDisabled', 'that choice is disabled');
         return this.#answerPreBattle(option.choice);
       }
       case PromptKind.SURRENDER:
@@ -897,9 +919,9 @@ export class BattleFlow implements FateContext {
       case PromptKind.CONTRACT_RENEWAL:
       case PromptKind.MERC_DEPARTURE:
       case PromptKind.INSURANCE_EXTENSION:
-        return this.campaign.contracts?.answer(prompt, choice) ?? { ok: false, reason: 'contracts are not available' };
+        return this.campaign.contracts?.answer(prompt, choice) ?? refuse('notAvailable', 'contracts are not available');
       case PromptKind.NPC_REQUEST:
-        return this.campaign.talk?.npcActions.answer(prompt, choice) ?? { ok: false, reason: 'conversations are not available' };
+        return this.campaign.talk?.npcActions.answer(prompt, choice) ?? refuse('notAvailable', 'conversations are not available');
       case PromptKind.MILITIA_PAYMENT:
       case PromptKind.MILITIA_CONTINUE:
         return this.#answerMilitia(choice);
@@ -929,7 +951,7 @@ export class BattleFlow implements FateContext {
   }
 
   #answerTacticalSurrender(soldier: number | undefined, choice: string): CommandResult {
-    if (choice !== 'accept' && choice !== 'reject') return { ok: false, reason: "choose 'accept' or 'reject'" };
+    if (choice !== 'accept' && choice !== 'reject') return badChoice("choose 'accept' or 'reject'");
     this.state.battle.prompt = null;
     const t = this.campaign.tactical?.state;
     if (!t) return { ok: true };
@@ -944,7 +966,7 @@ export class BattleFlow implements FateContext {
     if (prompt?.kind === PromptKind.SURRENDER && prompt.context === 'tactical')
       return this.#answerTacticalSurrender(prompt.soldier, choice);
     const session = this.session;
-    if (!session || (choice !== 'accept' && choice !== 'reject')) return { ok: false, reason: "choose 'accept' or 'reject'" };
+    if (!session || (choice !== 'accept' && choice !== 'reject')) return badChoice("choose 'accept' or 'reject'");
     this.state.battle.prompt = null;
     answerSurrender(this.#arEnv(session), session.ar, choice === 'accept');
     this.#afterSlice(session);
@@ -953,19 +975,19 @@ export class BattleFlow implements FateContext {
 
   #answerDone(choice: string): CommandResult {
     const session = this.session;
-    if (!session) return { ok: false, reason: 'no autoresolve is open' };
+    if (!session) return refuse('noAutoresolve', 'no autoresolve is open');
     if (choice === 'bandage') {
-      if (!this.canBandage()) return { ok: false, reason: 'nobody can bandage', data: { refusal: this.bandageRefusal() ?? 'noDoctor' } };
+      if (!this.canBandage()) return refuse(this.bandageRefusal() ?? 'noDoctor', 'nobody can bandage');
       return { ok: true, data: { bandaged: this.#bandage(session) ? 'complete' : 'incomplete' } };
     }
-    if (choice !== 'done') return { ok: false, reason: "choose 'done' or 'bandage'" };
+    if (choice !== 'done') return badChoice("choose 'done' or 'bandage'");
     this.#closeAutoresolve(session);
     this.settle();
     return { ok: true };
   }
 
   #answerSimultaneous(choice: string): CommandResult {
-    if (choice !== 'coordinate' && choice !== 'separately') return { ok: false, reason: "choose 'coordinate' or 'separately'" };
+    if (choice !== 'coordinate' && choice !== 'separately') return badChoice("choose 'coordinate' or 'separately'");
     this.state.battle.prompt = null;
     answerSimultaneousArrival(this.economy, choice === 'coordinate');
     this.settle();
@@ -979,7 +1001,7 @@ export class BattleFlow implements FateContext {
 
   #answerNpcOfNote(choice: string): CommandResult {
     const choices = this.npcOfNoteChoices();
-    if (!choices.includes(choice)) return { ok: false, reason: `choose ${choices.map((c) => `'${c}'`).join(' or ')}` };
+    if (!choices.includes(choice)) return badChoice(`choose ${choices.map((c) => `'${c}'`).join(' or ')}`);
     this.state.battle.prompt = null;
     answerNpcOfNotePrompt(this.economy, choice !== NPC_OF_NOTE_STOP);
     this.settle();
@@ -988,17 +1010,17 @@ export class BattleFlow implements FateContext {
 
   #autoresolveRetreat(cmd: { readonly [key: string]: unknown }): CommandResult {
     const session = this.session;
-    if (!session || this.state.flow !== 'autoresolve') return { ok: false, reason: 'no autoresolve battle is running' };
+    if (!session || this.state.flow !== 'autoresolve') return refuse('noAutoresolve', 'no autoresolve battle is running');
     if (this.state.battle.prompt) return promptOpenRefusal(this.state.battle.prompt);
     const ar = session.ar;
-    if (ar.status !== BattleStatus.IN_PROGRESS) return { ok: false, reason: 'the battle is over' };
+    if (ar.status !== BattleStatus.IN_PROGRESS) return refuse('battleOver', 'the battle is over');
     let index: number | null = null;
     if (cmd.soldier !== undefined) {
       index = ar.mercs.findIndex((c) => c.soldier.id === cmd.soldier);
-      if (index < 0) return { ok: false, reason: 'that soldier is not in this battle' };
-      if (index === ar.robot) return { ok: false, reason: 'the robot retreats with its controller' };
-    } else if (ar.mercs.length === 0) return { ok: false, reason: 'no merc of yours is in this battle' };
-    if (!orderRetreat(ar, index)) return { ok: false, reason: 'already retreating' };
+      if (index < 0) return refuse('notInBattle', 'that soldier is not in this battle');
+      if (index === ar.robot) return refuse('robotFollowsController', 'the robot retreats with its controller');
+    } else if (ar.mercs.length === 0) return refuse('noMercsInBattle', 'no merc of yours is in this battle');
+    if (!orderRetreat(ar, index)) return refuse('alreadyRetreating', 'already retreating');
     return { ok: true };
   }
 
@@ -1006,15 +1028,15 @@ export class BattleFlow implements FateContext {
     const s = this.state;
     const world = s.worldSector;
     const t = this.campaign.tactical?.state;
-    if (s.flow !== 'tactical' || !t || !world) return { ok: false, reason: 'no tactical battle is loaded' };
-    if (!t.turn.enemyInSector && !t.inCombat) return { ok: false, reason: 'no battle is in progress' };
+    if (s.flow !== 'tactical' || !t || !world) return refuse('noBattle', 'no tactical battle is loaded');
+    if (!t.turn.enemyInSector && !t.inCombat) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
     calculateNonPersistentPbiInfo(this.economy);
     const battle = s.battle;
-    if (!battle.locator || !battle.sector || !sameSector(battle.sector, world)) return { ok: false, reason: 'no battle is in progress' };
+    if (!battle.locator || !battle.sector || !sameSector(battle.sector, world)) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
     const opening = initPreBattleInterface(this.economy, null, false);
-    if (!opening) return { ok: false, reason: 'no battle is in progress' };
+    if (!opening) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
     const refusal = nonPersistentAutoresolveRefusal(s.encounter.explicitCode);
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return pbiRefusal(refusal);
     s.encounter.battleGroup = null;
     this.#emitPreBattle(opening, false, null);
     this.#startAutoresolve();
@@ -1051,7 +1073,7 @@ export class BattleFlow implements FateContext {
         return this.#showBattle();
       default:
         if (this.state.battle.prompt) return promptOpenRefusal(this.state.battle.prompt);
-        if (this.state.flow === 'autoresolve') return { ok: false, reason: 'an autoresolve battle is running' };
+        if (this.state.flow === 'autoresolve') return refuse('autoresolveRunning', 'an autoresolve battle is running');
         return null;
     }
   }

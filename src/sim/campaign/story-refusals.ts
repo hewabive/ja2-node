@@ -1,4 +1,5 @@
 import type { CommandResult } from '../command.ts';
+import { refuse } from '../tactical/refusal.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { campaignStatus } from './ending-state.ts';
 
@@ -26,15 +27,15 @@ const QUERY_COMMANDS: ReadonlySet<string> = new Set([
   'inventory',
 ]);
 
-function refuse(code: string): CommandResult {
-  return { ok: false, reason: `${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`, data: { refusal: code } };
+function storyRefused(code: string): CommandResult {
+  return refuse(code, `${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`);
 }
 
 export function storyRefusal(campaign: CampaignSim, cmd: CampaignCommand): CommandResult | null {
-  if (campaign.ended()) return refuse(StoryRefusal.CAMPAIGN_OVER);
+  if (campaign.ended()) return storyRefused(StoryRefusal.CAMPAIGN_OVER);
   if (QUERY_COMMANDS.has(cmd.type) || cmd.type === 'answer' || cmd.type === 'skipLine') return null;
-  if (campaign.state.meanwhile.inScene) return refuse(StoryRefusal.IN_MEANWHILE);
-  if (campaignStatus(campaign.state.ending) === 'endgame') return refuse(StoryRefusal.ENDGAME);
+  if (campaign.state.meanwhile.inScene) return storyRefused(StoryRefusal.IN_MEANWHILE);
+  if (campaignStatus(campaign.state.ending) === 'endgame') return storyRefused(StoryRefusal.ENDGAME);
   return null;
 }
 

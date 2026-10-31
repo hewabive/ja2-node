@@ -86,7 +86,11 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
   it('reports the arrival, draws the town loading screen on entry and refuses with tokens', async () => {
     const c = await landedCampaign(71, ['B13', 'C13', 'D13']);
     const merc = firstMerc(c.session);
-    expect(c.session.dispatch({ type: 'sleep', soldier: merc })).toEqual({ ok: false, reason: 'notTired', data: { refusal: 'notTired' } });
+    expect(c.session.dispatch({ type: 'sleep', soldier: merc })).toEqual({
+      ok: false,
+      reason: 'notTired: the merc is not tired',
+      data: { refusal: 'notTired' },
+    });
     expect(c.session.dispatch({ type: 'enterSector', sector: 'Z99' })).toMatchObject({ data: { refusal: 'badSector' } });
     expect(c.session.dispatch({ type: 'enterSector', sector: 'P16' })).toMatchObject({ data: { refusal: 'noMercThere' } });
     expect(c.session.dispatch({ type: 'assignSquad', soldier: merc, squad: 'x' })).toMatchObject({ data: { refusal: 'badSquad' } });

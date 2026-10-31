@@ -13,6 +13,7 @@
 // @src HandleShadingOfLinesForAssignmentMenus and its siblings (the shading comes from the assignmentOptions hint).
 
 import type { AssignmentLine, AssignmentOptions } from '../../../protocol/hints.ts';
+import { refusalOf } from '../../../protocol/refusals.ts';
 import type { StrategicView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { RegionDispatcher } from '../../input/regions.ts';
@@ -84,6 +85,16 @@ export interface AssignmentCommandReply {
   readonly ok: boolean;
   readonly reason?: string;
   readonly data?: unknown;
+}
+
+interface SoldierAssignResult {
+  readonly ok: boolean;
+  readonly refusal?: string;
+}
+
+function assignResults(reply: AssignmentCommandReply): readonly SoldierAssignResult[] {
+  const results = (reply.data as { readonly results?: unknown } | undefined)?.results;
+  return Array.isArray(results) ? (results as SoldierAssignResult[]) : [];
 }
 
 export interface AssignmentMenuHost {
@@ -286,7 +297,7 @@ export class AssignmentMenus {
     const squad = options.squads[line]?.target ?? line;
     const name = this.#name();
     const reply = await this.#host.send({ type: 'assignSquad', soldier: this.#soldier, squad });
-    const refusal = (reply.data as { refusal?: string } | undefined)?.refusal ?? null;
+    const refusal = refusalOf(reply.data);
     if (!reply.ok && refusal !== 'alreadyInSquad') {
       const index = SQUAD_ERROR[refusal ?? ''] ?? SQUAD_ERROR.cannotJoinSquad ?? 38;
       const where = this.#host.text.string(STRINGS.longAssignment, squad) ?? '';
@@ -436,16 +447,16 @@ export class AssignmentMenus {
       this.close(true);
       return;
     }
-    const first = Array.isArray(reply.data) ? (reply.data[0] as { ok: boolean; reason?: string } | undefined) : undefined;
-    const reason = first && !first.ok ? first.reason : reply.reason;
+    const first = assignResults(reply)[0];
+    const refusal = first && !first.ok ? first.refusal : refusalOf(reply.data);
     const text = this.#host.text;
     const merc = mercById(this.#host.strategic(), this.#soldier);
     const town = merc ? this.#host.townOf(merc.sector) : 0;
     const where = town !== 0 ? (text.string(STRINGS.towns, town) ?? '') : (merc?.sector.split('-')[0] ?? '');
-    if (reason === 'noMilitiaHere') this.#host.box(printf(text.string(STRINGS.errors, MILITIA_NOT_ALLOWED) ?? '', [where]));
-    else if (reason === 'loyaltyTooLow') this.#host.box(text.string(STRINGS.marks, LOYALTY_TOO_LOW) ?? '');
-    else if (reason === 'militiaFull') this.#host.box(printf(text.string(STRINGS.marks, MILITIA_FULL) ?? '', [where]));
-    else if (reason === 'tooManyTrainers')
+    if (refusal === 'noMilitiaHere') this.#host.box(printf(text.string(STRINGS.errors, MILITIA_NOT_ALLOWED) ?? '', [where]));
+    else if (refusal === 'loyaltyTooLow') this.#host.box(text.string(STRINGS.marks, LOYALTY_TOO_LOW) ?? '');
+    else if (refusal === 'militiaFull') this.#host.box(printf(text.string(STRINGS.marks, MILITIA_FULL) ?? '', [where]));
+    else if (refusal === 'tooManyTrainers')
       this.#host.box(printf(text.string(STRINGS.late, STR_LATE_47) ?? '', [MAX_MILITIA_TRAINERS_PER_SECTOR]));
     else this.#reportList(reply, true);
     if (first?.ok) this.close(true);
@@ -493,8 +504,7 @@ export class AssignmentMenus {
   }
 
   #reportList(reply: AssignmentCommandReply, militia: boolean): void {
-    if (!Array.isArray(reply.data)) return;
-    const failed = (reply.data as { ok: boolean }[]).some((r) => !r.ok);
+    const failed = assignResults(reply).some((r) => !r.ok);
     if (failed) this.#host.box(this.#host.text.string(STRINGS.errors, militia ? SOME_FAILED_MILITIA : SOME_FAILED) ?? '');
   }
 

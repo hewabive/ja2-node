@@ -13,7 +13,8 @@ import {
   sectorShortString,
   strategicIndex,
 } from '../../content/strategic/sector-ids.ts';
-import type { CommandResult } from '../command.ts';
+import type { CommandAccepted, CommandResult } from '../command.ts';
+import type { SleepRefusal } from '../strategic/economy/conditions.ts';
 import {
   distributeMilitia,
   MILITIA_RANKS,
@@ -21,7 +22,14 @@ import {
   type MilitiaMoveResult,
   moveMilitia,
 } from '../strategic/economy/militia-moves.ts';
-import { type AssignTarget, assignSoldiers, sleepSoldier, wakeSoldier } from '../strategic/economy/set-assignment.ts';
+import {
+  type AssignRefusal,
+  type AssignResult,
+  type AssignTarget,
+  assignSoldiers,
+  sleepSoldier,
+  wakeSoldier,
+} from '../strategic/economy/set-assignment.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
 import { moveOutOfSector, movingListForSector, regroupsMovingMerc, travellersWith } from '../strategic/forces/move-box.ts';
@@ -42,7 +50,7 @@ import {
 } from '../strategic/forces/routes.ts';
 import { addCharacterToAnySquad, addCharacterToSquad, addCharacterToUniqueSquad, squadJoinRefusal } from '../strategic/forces/squads.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
-import { refuse } from '../tactical/refusal.ts';
+import { type RefusalTexts, refuse, refuseWithText } from '../tactical/refusal.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 export interface StrategicCommand {
@@ -51,6 +59,27 @@ export interface StrategicCommand {
 }
 
 const ASSIGN_KINDS = new Set(['squad', 'doctor', 'patient', 'repair', 'trainSelf', 'trainTeammate', 'trainByOther', 'trainMilitia']);
+
+type AssignmentRefusal = AssignRefusal | SleepRefusal | 'collapsed';
+
+const ASSIGNMENT_REFUSAL_TEXT: RefusalTexts<AssignmentRefusal> = {
+  unknownSoldier: 'no such merc',
+  notEligible: 'the merc cannot take that assignment',
+  noMilitiaHere: 'militia cannot be trained here',
+  loyaltyTooLow: 'the town is not loyal enough to train militia',
+  militiaFull: 'the sector already holds all the militia it can',
+  tooManyTrainers: 'the sector already has the most militia trainers',
+  squadFull: 'that squad is full',
+  squadElsewhere: 'that squad is in another sector',
+  squadMoving: 'that squad is on the move',
+  squadHasVehicle: 'that squad is a vehicle squad',
+  conditions: 'the merc cannot rest now',
+  walking: 'the merc is on the road',
+  driving: 'the merc drives the vehicle',
+  sectorNotCleared: 'enemies are in the sector',
+  notTired: 'the merc is not tired',
+  collapsed: 'the merc collapsed and cannot be woken',
+};
 
 function sectorNames(path: readonly number[]): string[] {
   return path.map((i) => {
@@ -121,7 +150,7 @@ function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSecto
   return plotted ?? routeResult(ctx, id);
 }
 
-export function routeResult(ctx: StrategicContext, id: number): CommandResult {
+export function routeResult(ctx: StrategicContext, id: number): CommandAccepted & { readonly data: object } {
   const merc = ctx.mercs.get(id);
   const group = merc ? soldierGroup(ctx, merc) : undefined;
   const path = merc ? soldierMercPath(ctx, merc) : [];
@@ -137,7 +166,7 @@ function shortenRoute(ctx: StrategicContext, cmd: StrategicCommand): CommandResu
   if (edit === PathEdit.ABORT_PLOTTING) return refuse('noRoute', 'the merc has no path through that sector to shorten');
   if (edit === PathEdit.PATH_SHORTENED) confirmPathForCharacter(ctx, id);
   const result = routeResult(ctx, id);
-  return { ...result, data: { ...(result.data as object), edit } };
+  return { ...result, data: { ...result.data, edit } };
 }
 
 function idList(value: unknown): number[] | null {
@@ -230,7 +259,7 @@ function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: Loaded
 
 function cancelRoute(ctx: StrategicContext, cmd: StrategicCommand): CommandResult {
   const id = soldierId(cmd);
-  if (id === null || !ctx.mercs.get(id)) return { ok: false, reason: 'no such merc' };
+  if (id === null || !ctx.mercs.get(id)) return refuse('noSuchMerc', 'no such merc');
   cancelPathForCharacter(ctx, id);
   return { ok: true };
 }
@@ -254,9 +283,22 @@ function assign(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const ids = Array.isArray(cmd.soldiers) ? cmd.soldiers.filter((x): x is number => typeof x === 'number') : [];
   const to = cmd.to as AssignTarget | undefined;
   if (ids.length === 0 || !to || !ASSIGN_KINDS.has(String(to.kind))) return refuse('badAssignment', 'need soldiers and an assignment');
-  const results = assignSoldiers(economy, ids, to);
+  const results = assignSoldiers(economy, ids, to).map(soldierAssignResult);
   const failed = results.find((r) => !r.ok);
-  return { ok: failed === undefined, ...(failed && !failed.ok ? { reason: failed.reason } : {}), data: results };
+  if (failed && !failed.ok) return refuse(failed.refusal, failed.reason, { results });
+  return { ok: true, data: { results } };
+}
+
+type SoldierAssignResult =
+  | Exclude<AssignResult, { readonly ok: false }>
+  | { readonly ok: false; readonly refusal: AssignRefusal; readonly reason: string };
+
+function assignmentRefusalText(token: AssignmentRefusal): string {
+  return `${token}: ${ASSIGNMENT_REFUSAL_TEXT[token]}`;
+}
+
+function soldierAssignResult(r: AssignResult): SoldierAssignResult {
+  return r.ok ? r : { ok: false, refusal: r.reason, reason: assignmentRefusalText(r.reason) };
 }
 
 function sleepOrWake(campaign: CampaignSim, cmd: StrategicCommand, sleep: boolean): CommandResult {
@@ -264,7 +306,7 @@ function sleepOrWake(campaign: CampaignSim, cmd: StrategicCommand, sleep: boolea
   const id = soldierId(cmd);
   if (!economy || id === null) return refuse('noSuchMerc', 'no such merc');
   const result = sleep ? sleepSoldier(economy, id) : wakeSoldier(economy, id);
-  return result.ok ? { ok: true } : refuse(result.reason, result.reason);
+  return result.ok ? { ok: true } : refuseWithText(ASSIGNMENT_REFUSAL_TEXT, result.reason);
 }
 
 const MILITIA_REFUSAL_TEXT: Readonly<Record<MilitiaMoveRefusal, string>> = {

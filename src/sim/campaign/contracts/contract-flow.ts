@@ -10,7 +10,7 @@
 
 import { sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
-import type { CommandResult } from '../../command.ts';
+import type { CommandRefused, CommandResult } from '../../command.ts';
 import type { SimEvent } from '../../events.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import type { EconomyContext } from '../../strategic/economy/ports.ts';
@@ -32,6 +32,7 @@ import {
 import type { ExperienceHooks } from '../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../tactical/content.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
+import { type RefusalTexts, refuse, refuseWithText } from '../../tactical/refusal.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import type { MoraleContext } from '../morale.ts';
@@ -68,6 +69,8 @@ import { hireContract, mercArrived } from './hire-contract.ts';
 import { dailyUpdateOfMercSite } from './merc-account.ts';
 import { HistoryCode, Quote, type QuoteName, quoteKey, SpecialProfile } from './quotes.ts';
 import {
+  type ContractOption,
+  type ContractOptionReason,
   canExtendContractForSoldier,
   checkIfSalaryIncreasedAndSayQuote,
   contractOptions,
@@ -107,6 +110,32 @@ export interface ContractSetup {
 type Command = { readonly type: string; readonly [key: string]: unknown };
 export type RenewalStep = { readonly kind: 'off' | 'finished' | 'next' } | { readonly kind: 'waiting' | 'menu'; readonly merc: RosterMerc };
 type PromptWithoutId = BattlePrompt extends infer P ? (P extends BattlePrompt ? Omit<P, 'id'> : never) : never;
+
+export type ContractRefusal = 'mapScreenOnly' | 'cannotExtend' | 'dead' | 'notDeadOrCaptured' | ContractOptionReason;
+
+const CONTRACT_REFUSAL_TEXT: RefusalTexts<ContractRefusal> = {
+  mapScreenOnly: 'contracts are handled on the map screen only',
+  cannotExtend: 'vehicles, escorts and mercs in transit or captured have no contract to change',
+  dead: 'the merc is dead',
+  notDeadOrCaptured: 'only dead or captured mercs are removed',
+  notAimMerc: 'only A.I.M. contracts are extended',
+  tooBadlyHurt: 'the merc is too badly hurt to talk about his contract',
+  notEnoughMoney: 'not enough money',
+  inCombat: 'the merc is in combat',
+  bleeding: 'the merc is bleeding',
+};
+
+export function contractRefusal(token: ContractRefusal): CommandRefused {
+  return refuseWithText(CONTRACT_REFUSAL_TEXT, token);
+}
+
+function disabledOption(option: ContractOption): CommandRefused {
+  return option.reason ? contractRefusal(option.reason) : refuse('choiceDisabled', 'that choice is disabled');
+}
+
+function noSuchMerc(): CommandRefused {
+  return refuse('noSuchMerc', 'no such merc');
+}
 
 function soldierArg(cmd: Command): number | null {
   return typeof cmd.soldier === 'number' && Number.isInteger(cmd.soldier) ? cmd.soldier : null;
@@ -411,16 +440,16 @@ export class ContractFlow implements ContractContext {
       case PromptKind.INSURANCE_EXTENSION:
         return this.#answerInsurance(prompt.soldier, prompt.days, choice);
       default:
-        return { ok: false, reason: 'not a contract prompt' };
+        return refuse('wrongPrompt', 'not a contract prompt');
     }
   }
 
   #answerRenewal(soldier: number, choice: string): CommandResult {
     const m = this.roster.get(soldier);
-    if (!m) return { ok: false, reason: 'no such merc' };
+    if (!m) return noSuchMerc();
     const option = contractOptions(this, m, this.#inCombat()).find((o) => o.choice === choice);
-    if (!option) return { ok: false, reason: "choose 'day', 'week', 'twoWeeks', 'dismiss' or 'letGo'" };
-    if (!option.enabled) return { ok: false, reason: option.reason ?? 'that choice is disabled' };
+    if (!option) return refuse('badChoice', "choose 'day', 'week', 'twoWeeks', 'dismiss' or 'letGo'");
+    if (!option.enabled) return disabledOption(option);
     this.state.battle.prompt = null;
     const seq = this.contracts.renewal;
     if ((choice === 'dismiss' || choice === 'letGo') && seq.fromSequence && !canBeRemovedFromContract(m)) {
@@ -444,8 +473,8 @@ export class ContractFlow implements ContractContext {
 
   #answerDeparture(soldier: number, choices: readonly string[], choice: string): CommandResult {
     const m = this.roster.get(soldier);
-    if (!m) return { ok: false, reason: 'no such merc' };
-    if (!choices.includes(choice)) return { ok: false, reason: `choose one of ${choices.join(', ')}` };
+    if (!m) return noSuchMerc();
+    if (!choices.includes(choice)) return refuse('badChoice', `choose one of ${choices.join(', ')}`);
     this.state.battle.prompt = null;
     this.#closeMessageBox();
     const carries = m.soldier.inv.some((o) => o && o.item !== 0 && o.count > 0);
@@ -469,7 +498,7 @@ export class ContractFlow implements ContractContext {
   }
 
   #answerInsurance(soldier: number, days: number, choice: string): CommandResult {
-    if (choice !== 'yes' && choice !== 'no') return { ok: false, reason: "choose 'yes' or 'no'" };
+    if (choice !== 'yes' && choice !== 'no') return refuse('badChoice', "choose 'yes' or 'no'");
     this.state.battle.prompt = null;
     this.#closeMessageBox();
     const m = this.roster.get(soldier);
@@ -494,21 +523,21 @@ export class ContractFlow implements ContractContext {
     }
   }
 
-  #mercFor(cmd: Command, mapScreenOnly: boolean): RosterMerc | string {
-    if (mapScreenOnly && this.state.flow !== 'strategic') return 'mapScreenOnly';
+  #mercFor(cmd: Command, mapScreenOnly: boolean): RosterMerc | CommandRefused {
+    if (mapScreenOnly && this.state.flow !== 'strategic') return contractRefusal('mapScreenOnly');
     const id = soldierArg(cmd);
     const m = id === null ? undefined : this.roster.get(id);
-    return m ?? 'no such merc';
+    return m ?? noSuchMerc();
   }
 
   #extendCommand(cmd: Command): CommandResult {
     const m = this.#mercFor(cmd, true);
-    if (typeof m === 'string') return { ok: false, reason: m };
+    if ('ok' in m) return m;
     const choice = cmd.length as ExtensionChoice;
-    if (!EXTENSION_CHOICES.includes(choice)) return { ok: false, reason: "length must be 'day', 'week' or 'twoWeeks'" };
-    if (!canExtendContractForSoldier(m)) return { ok: false, reason: 'cannotExtend' };
+    if (!EXTENSION_CHOICES.includes(choice)) return refuse('badLength', "length must be 'day', 'week' or 'twoWeeks'");
+    if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
     const option = contractOptions(this, m, this.#inCombat()).find((o) => o.choice === choice);
-    if (option && !option.enabled) return { ok: false, reason: option.reason ?? 'cannotExtend' };
+    if (option && !option.enabled) return disabledOption(option);
     const result = mercContractHandling(this, m, choice);
     this.#afterExtension(m, result);
     return { ok: true, data: result };
@@ -516,11 +545,11 @@ export class ContractFlow implements ContractContext {
 
   #dismissCommand(cmd: Command): CommandResult {
     const m = this.#mercFor(cmd, true);
-    if (typeof m === 'string') return { ok: false, reason: m };
-    if (!canExtendContractForSoldier(m)) return { ok: false, reason: 'cannotExtend' };
-    if (m.life <= 0) return { ok: false, reason: 'dead' };
+    if ('ok' in m) return m;
+    if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
+    if (m.life <= 0) return contractRefusal('dead');
     const refusal = dismissRefusal(m, this.#inCombat());
-    if (refusal) return { ok: false, reason: refusal };
+    if (refusal) return contractRefusal(refusal);
     this.#closeMessageBox();
     m.contract.leaveHistoryCode = HistoryCode.MERC_FIRED;
     beginRemoveMercFromContract(this, m);
@@ -529,16 +558,16 @@ export class ContractFlow implements ContractContext {
 
   #removeMercCommand(cmd: Command): CommandResult {
     const m = this.#mercFor(cmd, true);
-    if (typeof m === 'string') return { ok: false, reason: m };
-    if (m.life > 0 && m.assignment !== Assignment.ASSIGNMENT_POW) return { ok: false, reason: 'notDeadOrCaptured' };
+    if ('ok' in m) return m;
+    if (m.life > 0 && m.assignment !== Assignment.ASSIGNMENT_POW) return contractRefusal('notDeadOrCaptured');
     strategicRemoveMerc(this, m, 'none');
     return { ok: true };
   }
 
   #optionsQuery(cmd: Command): CommandResult {
     const m = this.#mercFor(cmd, false);
-    if (typeof m === 'string') return { ok: false, reason: m };
-    if (!canExtendContractForSoldier(m)) return { ok: false, reason: 'cannotExtend' };
+    if ('ok' in m) return m;
+    if (!canExtendContractForSoldier(m)) return contractRefusal('cannotExtend');
     return { ok: true, data: { balance: this.state.finances.balance, options: contractOptions(this, m, this.#inCombat()) } };
   }
 

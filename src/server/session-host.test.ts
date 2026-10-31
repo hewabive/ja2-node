@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, type SoldierView, type ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { refuse } from '../sim/tactical/refusal.ts';
 import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, SESSION_HOST_ENV, sessionHostKind } from './session-host.ts';
 import { SliceScheduler, TimeSlicer } from './slicing.ts';
@@ -44,7 +45,7 @@ function walker(tickCostMs = 0): Walker {
       return out;
     },
     dispatch: (cmd: CommandEnvelope) => {
-      if (cmd.type !== 'walk' || typeof cmd.to !== 'number') return { ok: false, reason: 'unknown command' };
+      if (cmd.type !== 'walk' || typeof cmd.to !== 'number') return refuse('unknownCommand', 'unknown command');
       target = cmd.to;
       return { ok: true, data: { from: x } };
     },

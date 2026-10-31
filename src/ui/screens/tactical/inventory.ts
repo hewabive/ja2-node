@@ -13,6 +13,7 @@
 import { idiv } from '../../../core/int.ts';
 import type { Placements } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import { refusalOf } from '../../../protocol/refusals.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
 import type { DrawList, RgbColor } from '../../draw-list.ts';
 import { rgb } from '../../draw-list.ts';
@@ -32,7 +33,6 @@ import {
   placeCommand,
   REFUSAL_MERGE_PROMPT,
   REFUSAL_USE_ATTACH,
-  refusalOf,
   shownCount,
   slotItem,
 } from './item-cursor.ts';

@@ -13,6 +13,7 @@ import { createMoney, deleteObject, MAX_MONEY_PER_SLOT } from '../items/object.t
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
 import { moneyAmount, parseSlot } from '../tactical/inventory-commands.ts';
+import { refused, refuseWithText } from '../tactical/refusal.ts';
 import { Body, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -49,7 +50,7 @@ export const MONEY_REFUSAL_TEXT: Readonly<Record<MoneyRefusal, string>> = {
 };
 
 function refusal(code: MoneyRefusal): CommandResult {
-  return { ok: false, reason: `${code}: ${MONEY_REFUSAL_TEXT[code]}`, data: { refusal: code } };
+  return refuseWithText(MONEY_REFUSAL_TEXT, code);
 }
 
 export class MoneyFlow {
@@ -77,7 +78,7 @@ export class MoneyFlow {
     const s = tactical.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return refusal(MoneyRefusal.NO_SUCH_SOLDIER);
     const turn = tactical.actRefusal(s);
-    if (turn) return { ok: false, reason: turn.reason, data: { refusal: turn.token } };
+    if (turn) return refused(turn);
     if (!this.#hasPanel(tactical, s)) return refusal(MoneyRefusal.NO_INVENTORY);
     return cmd.type === 'withdrawCash' ? this.#withdraw(tactical, s, cmd) : this.#deposit(tactical, s, cmd);
   }

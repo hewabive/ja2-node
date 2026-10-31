@@ -4,6 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { ReloadingSession } from '../../tests/support/session-reload.ts';
 import { STUB_DEALER, STUB_REPAIRMAN, stubCampaignInA10, walkNextToProfile } from '../../tests/support/stub-shops.ts';
 import type { ShopView } from '../protocol/view.ts';
+import { shopRefusal } from '../sim/campaign/shop-refusals.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { CampaignSession } from './campaign-session.ts';
 
@@ -76,9 +77,9 @@ describe('the shop screen fields of the stub dealer', () => {
     });
     expect(session.view().shop?.pricing.soldier).toBe(second.id);
     for (const cmd of [{ type: 'setShopPricing' }, { type: 'setShopPricing', soldier: 999 }])
-      expect(session.dispatch(cmd)).toMatchObject({ ok: false, reason: 'noSuchPricingMerc' });
+      expect(session.dispatch(cmd)).toEqual(shopRefusal('noSuchPricingMerc'));
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
-    expect(session.dispatch({ type: 'setShopPricing', soldier: first.id })).toMatchObject({ ok: false, reason: 'shopNotOpen' });
+    expect(session.dispatch({ type: 'setShopPricing', soldier: first.id })).toEqual(shopRefusal('shopNotOpen'));
   });
 });
 

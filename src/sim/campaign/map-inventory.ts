@@ -47,6 +47,7 @@ import {
 } from '../tactical/inventory-panel.ts';
 import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
+import { refuse } from '../tactical/refusal.ts';
 import { isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
 import { teamMembers } from '../tactical/state.ts';
@@ -108,11 +109,7 @@ function contentOf(campaign: CampaignSim): TacticalContent {
   return content;
 }
 
-const mapRefusal = (code: MapInventoryRefusal): CommandResult => ({
-  ok: false,
-  reason: `${code}: ${MAP_REFUSAL_TEXT[code]}`,
-  data: { refusal: code },
-});
+const mapRefusal = (code: MapInventoryRefusal): CommandResult => refuse(code, `${code}: ${MAP_REFUSAL_TEXT[code]}`);
 
 export interface StashEntryView {
   readonly index: number;
@@ -377,7 +374,7 @@ export class MapInventory {
   dispatch(cmd: InventoryCommand): CommandResult | null {
     if (cmd.type === 'inventory') return this.#query(cmd);
     if (cmd.type === DISCARD_ITEM && this.#campaign.state.flow !== 'strategic')
-      return { ok: false, reason: 'the trash can is on the map screen only', data: { refusal: 'mapScreenOnly' } };
+      return refuse('mapScreenOnly', 'the trash can is on the map screen only');
     if (this.#campaign.state.flow !== 'strategic' || !MAP_INVENTORY_COMMANDS.has(cmd.type)) return null;
     const merc = this.#merc(cmd.soldier);
     if (!merc) return mapRefusal(MapInventoryRefusal.NO_SUCH_MERC);

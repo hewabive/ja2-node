@@ -78,6 +78,12 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   onlyHostileCivilians: box('gzLateLocalizedString', 26),
 };
 
+export function refusalOf(data: unknown): string | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const refusal = (data as { refusal?: unknown }).refusal;
+  return typeof refusal === 'string' ? refusal : null;
+}
+
 export function refusalMessage(token: string): RefusalMessage | null {
   return REFUSAL_MESSAGES[token] ?? null;
 }

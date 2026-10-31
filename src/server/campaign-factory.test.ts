@@ -4,6 +4,12 @@ import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 
+const CONTRACTS_ON_THE_MAP_ONLY = {
+  ok: false,
+  reason: 'mapScreenOnly: contracts are handled on the map screen only',
+  data: { refusal: 'mapScreenOnly' },
+};
+
 let kit: StubSectorKit;
 
 beforeAll(async () => {
@@ -61,7 +67,7 @@ describe('a new campaign session', () => {
     const options = session.dispatch({ type: 'contractOptions', soldier: first.id });
     expect(options).toMatchObject({ ok: true, data: { balance: expect.any(Number) } });
     const extend = { type: 'extendContract', soldier: first.id, length: 'day' };
-    expect(session.dispatch(extend)).toEqual({ ok: false, reason: 'mapScreenOnly' });
+    expect(session.dispatch(extend)).toEqual(CONTRACTS_ON_THE_MAP_ONLY);
     expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect(session.dispatch(extend)).toMatchObject({ ok: true, data: { extended: true, days: 1, endsAt: { day: 9, hour: 7 } } });
     expect(session.view().strategic?.mercs[0]?.contract).toMatchObject({ totalDays: 8, endsAt: { day: 9, hour: 7 } });
@@ -72,7 +78,7 @@ describe('a new campaign session', () => {
     const session = await create(6, { mercs: 2 });
     const [kept, dismissed] = session.view().strategic?.mercs ?? [];
     if (!kept || !dismissed) throw new Error('no mercs');
-    expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual({ ok: false, reason: 'mapScreenOnly' });
+    expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual(CONTRACTS_ON_THE_MAP_ONLY);
     expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual({ ok: true });
     const prompt = session.view().contractPrompt;

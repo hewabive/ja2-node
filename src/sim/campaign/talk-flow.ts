@@ -21,7 +21,7 @@ import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrati
 import { MercType } from '../../content/strategic/economy-content.ts';
 import { sameSector } from '../../content/strategic/sector-ids.ts';
 import { u32 } from '../../core/int.ts';
-import type { CommandResult } from '../command.ts';
+import type { CommandRefused, CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { beginCivQuote, type CivQuoteSaid, startCivQuote } from '../narrative/civ-quotes.ts';
 import {
@@ -105,6 +105,7 @@ import type { NarrativePort } from '../tactical/narrative/port.ts';
 import { talkLineOfSight, talkRange, talkWalkUp, teleportNpc } from '../tactical/narrative/talk-reach.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
+import { refuse as refuseCommand } from '../tactical/refusal.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
@@ -184,6 +185,8 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   notAnEpc: 'that soldier is not an escort',
   notInSector: 'the escort is not in the loaded sector, release him from the map screen',
   notAvailable: 'escorts are released on the map screen or in the loaded sector',
+  noPrompt: 'no prompt is open',
+  wrongPrompt: 'another prompt is open',
 };
 
 export interface NarrativeSetup {
@@ -234,6 +237,10 @@ class Refusal extends Error {
 const refuse = (code: string, text?: string): never => {
   throw new Refusal(code, text);
 };
+
+function refusalResult(e: Refusal): CommandRefused {
+  return refuseCommand(e.code, e.message);
+}
 
 const GIVE_AP_TEXT = 'not enough APs: the walk plus 1 to give';
 const SEX_FATIGUE_STEPS = 4;
@@ -705,7 +712,7 @@ export class TalkFlow {
           return this.#openShop(cmd);
       }
     } catch (e) {
-      if (e instanceof Refusal) return { ok: false, reason: e.message, data: { refusal: e.code } };
+      if (e instanceof Refusal) return refusalResult(e);
       throw e;
     }
   }
@@ -756,7 +763,7 @@ export class TalkFlow {
     const merc = tactical?.soldier(cmd.soldier) ?? null;
     if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
     const turn = tactical?.canAct(merc) ?? null;
-    if (turn) return { ok: false, reason: turn, data: { refusal: 'canAct' } };
+    if (turn) return refuseCommand('canAct', turn);
     const target = this.#resolveTarget(cmd.target);
     if (!target) return refuse('noSuchTarget');
     const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: false, mercs: true, collapsed: false });
@@ -853,7 +860,7 @@ export class TalkFlow {
     return initiateConversationFull(this.host, target, merc, Approach.NPC_INITIAL_QUOTE, 0, null, 'player');
   }
 
-  #runAndReply(action: () => unknown): CommandResult {
+  #runAndReply(action: () => unknown): { readonly ok: true; readonly data: Json } {
     action();
     this.#syncScripted();
     return { ok: true, data: this.#reply() };
@@ -889,8 +896,9 @@ export class TalkFlow {
 
   #answerRequest(cmd: CampaignCommand): CommandResult {
     const prompt = this.#campaign.state.battle.prompt;
-    if (!prompt) return { ok: false, reason: 'no prompt is open' };
-    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return { ok: false, reason: `the open prompt is ${prompt.id}` };
+    if (!prompt) return refusalResult(new Refusal('noPrompt'));
+    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id)
+      return refusalResult(new Refusal('wrongPrompt', `the open prompt is ${prompt.id}`));
     const choice = String(cmd.choice ?? '');
     let answered: CommandResult = { ok: true };
     const result = this.#runAndReply(() => {
@@ -917,7 +925,7 @@ export class TalkFlow {
     const merc = tactical?.soldier(cmd.soldier) ?? null;
     if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
     const turn = tactical?.canAct(merc) ?? null;
-    if (turn) return { ok: false, reason: turn, data: { refusal: 'canAct' } };
+    if (turn) return refuseCommand('canAct', turn);
     const target = this.#resolveTarget(cmd.target);
     if (!target || target === merc) return refuse('noSuchTarget');
     const giver = giverRefusal(t, merc, this.#isEpc(merc));
@@ -977,7 +985,7 @@ export class TalkFlow {
   #openShop(cmd: CampaignCommand): CommandResult {
     const shop = this.#campaign.shop;
     if (!shop) return refuse('notADealer');
-    if (shop.isOpen()) return { ok: false, reason: 'a shop is already open' };
+    if (shop.isOpen()) return refuse('shopOpen');
     this.#commonRefusals();
     const checked = shop.checkOpen(cmd);
     if ('ok' in checked) return checked;
@@ -1014,7 +1022,7 @@ export class TalkFlow {
     const result = this.#runAndReply(() => {
       triggered = this.npcActions.recruitFlow.triggerWrongSectorRecord(merc);
     });
-    return { ...result, data: { ...(result.data as Json), triggered } };
+    return { ...result, data: { ...result.data, triggered } };
   }
 
   #unescortOnMap(merc: RosterMerc): CommandResult {

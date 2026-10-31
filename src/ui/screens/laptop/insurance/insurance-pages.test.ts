@@ -101,6 +101,19 @@ describe('the insurance site', () => {
     await go(h, 'insuranceCommentsHomeLink', LaptopMode.INSURANCE);
   });
 
+  it('reads the funds refusal of insure from its token and shows the short of funds box', async () => {
+    const h = await hiredLaptop();
+    await openWebPage(h, Bookmark.INSURANCE);
+    await go(h, 'insuranceContractLink', LaptopMode.INSURANCE_CONTRACT);
+    h.session.campaign.state.finances.balance = 0;
+    await clickWidget(h.t, 'insuranceAccept0');
+    expect(h.replies.at(-1)).toMatchObject({ ok: false, data: { refusal: 'funds' } });
+    expect(h.replies.at(-1)?.reason).not.toBe('funds');
+    await settleLaptop(h.t, 4);
+    expect(h.t.runtime.host.modal).not.toBeNull();
+    expect(h.laptop().insurance[0]?.insured).toBe(false);
+  });
+
   it('tells the player nobody can be insured and returns to the home page', async () => {
     const h = await openLaptopHarness(kit, ui);
     await openWebPage(h, Bookmark.INSURANCE);

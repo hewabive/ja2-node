@@ -11,6 +11,7 @@
 // @src list is open), PurchaseBobbyOrder, ConfirmBobbyRPurchaseMessageBoxCallBack, CalcPackageTotalWeight,
 // @src DisplayPackageWeight, BtnBobbyRGotoShipmentPageCallback, CreateBobbyRayOrderTitle.
 
+import { refusalOf } from '../../../../protocol/refusals.ts';
 import type { ShippingDestinationView } from '../../../../protocol/view.ts';
 import { type ControllerContract, ViewModelController } from '../../../layout/controller.ts';
 import { fontHeight } from '../../../text/bitmap-font.ts';
@@ -213,7 +214,7 @@ export function bobbyRayOrderPage(context: LaptopContext): LaptopPage {
       busy = false;
       if (disposed) return;
       if (!reply.ok) {
-        if (reply.reason === 'funds') context.messageBox(formText('BOBBYR_CANT_AFFORD_PURCHASE'), MessageBoxFlag.OK);
+        if (refusalOf(reply.data) === 'funds') context.messageBox(formText('BOBBYR_CANT_AFFORD_PURCHASE'), MessageBoxFlag.OK);
         return;
       }
       confirmShown = true;

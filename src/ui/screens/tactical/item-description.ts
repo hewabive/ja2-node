@@ -20,6 +20,7 @@ import { idiv } from '../../../core/int.ts';
 import type { ItemInfo, Placements } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
+import { refusalOf } from '../../../protocol/refusals.ts';
 import type { InventoryItemView, KeyView, SoldierView } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -43,7 +44,6 @@ import {
   cursorFromMagazine,
   type ItemCursor,
   REFUSAL_PERMANENT_ATTACHMENT,
-  refusalOf,
   slotItem,
 } from './item-cursor.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';

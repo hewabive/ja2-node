@@ -1,10 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import type { CampaignSession } from '../../../server/campaign-session.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 
 const PLOT_REST_MS = 250;
+const ASSIGN_MENU_TRAIN = 5;
+const TRAIN_MENU_TOWN = 1;
 const MESSAGE_BOX = 'messageBox';
 const SPEAKER = 60;
 const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
@@ -159,6 +162,23 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.client.commands.at(-1)?.cmd).toMatchObject({ type: 'answer', choice: 'yes' });
       expect(f.client.view.prompt ?? null).toBeNull();
       expect(f.client.view.strategic?.mercs.find((m) => m.id === f.trainer)?.assignment).toBe(27);
+    }));
+
+  it('boxes the refusal the trainMilitia assign names in data.refusal, as the original boxes a disloyal town', () =>
+    withMap(async (f) => {
+      const sim = f.session.sim as CampaignSession;
+      for (const town of sim.campaign.state.economy.towns) if (town) town.rating = 0;
+      await f.click(`teamRow${f.screen.list.rowOf(f.trainer)}.assignment`);
+      await f.click(`assignmentMenu.line${ASSIGN_MENU_TRAIN}`);
+      await f.click(`trainingMenu.line${TRAIN_MENU_TOWN}`);
+      await f.settle();
+      const sent = lastCommand(f);
+      expect(sent?.cmd).toMatchObject({ type: 'assign', to: { kind: 'trainMilitia' } });
+      expect(sent?.reply).toMatchObject({
+        ok: false,
+        data: { refusal: 'loyaltyTooLow', results: [{ ok: false, refusal: 'loyaltyTooLow' }] },
+      });
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
     }));
 
   it('closes the prompt box when an agent answers the prompt first, without answering again', () =>

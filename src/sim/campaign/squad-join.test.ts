@@ -68,7 +68,7 @@ describe('joining a squad, soldier side (AddCharacterToSquad, Squads.cc:188)', (
     expect([merc(l).assignment, merc(l).asleep, shown(l)]).toEqual([Assignment.DOCTOR, true, 'SLEEPING']);
     expect(l.c.dispatch({ type: 'assign', soldiers: [l.id], to: { kind: 'squad', squad: SQUAD_2 } })).toEqual({
       ok: true,
-      data: [{ ok: true }],
+      data: { results: [{ ok: true }] },
     });
     expect([merc(l).assignment, merc(l).asleep, shown(l)]).toEqual([SQUAD_2, false, 'WKAEUP_FROM_SLEEP']);
     expect(merc(l).lastAssignmentChangeMin).toBe(worldTotalMinutes(l.c.state.clock));

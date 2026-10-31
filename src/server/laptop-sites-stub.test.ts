@@ -10,6 +10,7 @@ import { MAX_MERCS_ON_TEAM } from '../sim/campaign/laptop/hire.ts';
 import { impBeginRefusal } from '../sim/campaign/laptop/imp.ts';
 import { Bookmark, MercAccountStatus } from '../sim/campaign/laptop/laptop-state.ts';
 import { SpeckQuote } from '../sim/campaign/laptop/merc-site.ts';
+import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import type { Session } from './session.ts';
@@ -88,10 +89,7 @@ describe("Bobby Ray's for the canvas order form (X11)", () => {
     expect(live.dispatch({ type: 'bobbyRayQuote', lines, destination: DRASSEN, speed: OVERNIGHT })).toMatchObject({
       data: { affordable: false },
     });
-    expect(live.dispatch({ type: 'bobbyRayOrder', lines, destination: -1, speed: OVERNIGHT })).toEqual({
-      ok: false,
-      reason: 'noDestination',
-    });
+    expect(live.dispatch({ type: 'bobbyRayOrder', lines, destination: -1, speed: OVERNIGHT })).toEqual(laptopRefusal('noDestination'));
   });
 
   it('lists stock entries with their store slot and catalogue', async () => {
@@ -155,11 +153,9 @@ describe("Speck's lines and the M.E.R.C. pages (X6)", () => {
     expect(laptopOf(session).merc.account).toEqual([
       { profile: GASKET, name: expect.any(String), days: 1, rate: 150, charge: 150, dead: false },
     ]);
-    expect(live.dispatch({ type: 'mercHire', profile: GASKET })).toEqual({
-      ok: false,
-      reason: 'unavailable',
-      data: { quotes: [SpeckQuote.PLAYER_TRIES_TO_HIRE_ALREADY_HIRED_MERC] },
-    });
+    expect(live.dispatch({ type: 'mercHire', profile: GASKET })).toEqual(
+      laptopRefusal('unavailable', { quotes: [SpeckQuote.PLAYER_TRIES_TO_HIRE_ALREADY_HIRED_MERC] }),
+    );
     expect(live.dispatch({ type: 'mercPay' })).toEqual({
       ok: true,
       data: { paid: 150, full: true, quotes: [SpeckQuote.PLAYER_MAKES_FULL_PAYMENT] },

@@ -205,7 +205,7 @@ const NON_PERSISTENT_AUTORESOLVE_REASON: Readonly<Record<number, (typeof Reason)
   [Code.ENTERING_BLOODCAT_LAIR]: Reason.BLOODCATS,
 };
 
-export function nonPersistentAutoresolveRefusal(explicitCode: number): string | null {
+export function nonPersistentAutoresolveRefusal(explicitCode: number): Reason | null {
   return NON_PERSISTENT_AUTORESOLVE_REASON[explicitCode] ?? null;
 }
 

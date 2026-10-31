@@ -174,9 +174,3 @@ export function shownCount(cursor: ItemCursor | null, view: InventoryItemView, s
 export const REFUSAL_USE_ATTACH = 'useAttach';
 export const REFUSAL_MERGE_PROMPT = 'mergePrompt';
 export const REFUSAL_PERMANENT_ATTACHMENT = 'permanentAttachment';
-
-export function refusalOf(data: unknown): string | null {
-  if (typeof data !== 'object' || data === null) return null;
-  const refusal = (data as { refusal?: unknown }).refusal;
-  return typeof refusal === 'string' ? refusal : null;
-}

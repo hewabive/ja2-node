@@ -50,6 +50,7 @@ import {
 } from '../../tactical/narrative/npc-actions/requestors.ts';
 import { carmenLeavesSector } from '../../tactical/narrative/npc-actions/san-mona.ts';
 import { kickOutWheelchair } from '../../tactical/narrative/wheelchair.ts';
+import { refuse } from '../../tactical/refusal.ts';
 import { OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
 import { soldierInventoryContext } from '../../tactical/soldier-inventory.ts';
 import { WaitForMercs } from '../../tactical/state.ts';
@@ -155,8 +156,8 @@ export class NpcActionFlow {
   }
 
   answer(prompt: BattlePrompt, choice: string): CommandResult {
-    if (prompt.kind !== PromptKind.NPC_REQUEST) return { ok: false, reason: 'not an NPC request' };
-    if (!prompt.choices.includes(choice)) return { ok: false, reason: `choose one of ${prompt.choices.join(', ')}` };
+    if (prompt.kind !== PromptKind.NPC_REQUEST) return refuse('wrongPrompt', 'not an NPC request');
+    if (!prompt.choices.includes(choice)) return refuse('badChoice', `choose one of ${prompt.choices.join(', ')}`);
     this.#state.battle.prompt = null;
     const details: NpcRequestDetails = {
       request: prompt.request as NpcRequestDetails['request'],
