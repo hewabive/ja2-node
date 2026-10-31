@@ -20,6 +20,7 @@ import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
 import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
+import { campaignNarrativePort } from '../sim/campaign/narrative-port.ts';
 import { offMapCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
@@ -254,7 +255,9 @@ export function assembleImportedCampaign(
   const roster = new Roster({
     state: state.roster,
     content,
-    combat: () => tacticalState() ?? offMapCombatContext(state, content, current?.experienceHooks),
+    combat: () =>
+      tacticalState() ??
+      offMapCombatContext(state, content, current?.experienceHooks, current ? campaignNarrativePort(current) : undefined),
     profiles: state.profiles,
     hooks: {
       ...NO_ROSTER_HOOKS,

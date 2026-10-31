@@ -102,9 +102,9 @@ the tactical state, tick, day, the main stream), so it is tested without a campa
 Tactical rules reach the dialogue only through `TacticalState.narrative` (deviation "Narrative port").
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
-battle, a buddy's comment on a kill through `TacticalPort.sayQuote`, the items-seen quote through
-`signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it) go through the
-queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
+battle, a buddy's comment and the can't-do line of a skill check through `TacticalPort.sayQuote`, the items-seen quote
+through `signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it) go
+through the queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
@@ -186,6 +186,6 @@ Inferred from reading the source:
 - A native save's soldiers outside the loaded sector hold their ids; the import does not create them, so only
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
 
-Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Relationship quotes", "NPC draws first and minor
-offenses". Other deviations of this domain: "Lines and debug text in the talk panel", "Opinions of
-high profile ids", "Releasing an escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "NPC draws first and minor offenses". Other
+deviations of this domain: "Lines and debug text in the talk panel", "Opinions of high profile ids", "Releasing an
+escort", "Key-advance speech".

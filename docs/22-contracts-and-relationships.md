@@ -77,8 +77,9 @@ sequence", "Contract prompts", "Renewal of a merc who cannot leave", "Renewal li
 **Quotes are events.** Contract, relationship and morale lines are `mercQuote` events outside the dialogue queue, with
 the merc they are about as `subject`; they need a profile, `OKLIFE`, no robot and no captivity (the gas test is gaps
 "Dialogue queue conditions"). Boxes, mails and records: deviation "Contract presentation". A buddy's comment on a kill
-he witnesses is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in
-the roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
+he witnesses or on a skill check passed with a low roll is a tactical line through the dialogue queue (`24`); the
+witnessed flags and the gun quote's flag live in the roster's quote flags, which tactical reaches through
+`NarrativePort.quoteSaidFlags`.
 
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative
@@ -141,5 +142,5 @@ expiry and refusal predicates, the first buddy, the tolerance checks and the pro
 - That a moving merc's sector is the one he left (`16`) for the equipment drop and the same-sector tests.
 - That the death rate's float quotient never rounds across an integer for realistic counts.
 
-Not ported: gaps "Relationship quotes", "Dialogue queue conditions"; refusing to attack a buddy is deviation "Attack
-refusals". Kept difference: deviation "Visible area of the map loaded last".
+Not ported: gaps "Dialogue queue conditions"; refusing to attack a buddy is deviation "Attack refusals". Kept
+difference: deviation "Visible area of the map loaded last".

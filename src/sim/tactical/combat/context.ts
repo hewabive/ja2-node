@@ -1,4 +1,5 @@
 import type { TacticalContent } from '../content.ts';
+import type { NarrativePort } from '../narrative/port.ts';
 import type { ProfileProgress, StatKey } from '../profiles.ts';
 import type { Soldier } from '../soldier.ts';
 
@@ -29,6 +30,7 @@ export interface CombatContext {
   readonly turn: { readonly attackBusyCount: number };
   readonly events: { push(event: StatChangedEvent): unknown };
   readonly experienceHooks?: ExperienceHooks;
+  readonly narrative?: NarrativePort;
 }
 
 export interface ImpactMode {

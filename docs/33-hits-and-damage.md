@@ -92,6 +92,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A soldier knocked out on his own team's turn counts two turns down, also in a pose with no unconscious stop: the original runs its getting-up check twice | `death.test.ts` |
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
+| A skill check with no chance at all passes on a roll of 0: the margin is 0, not below it | `skill-check.test.ts` |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).
