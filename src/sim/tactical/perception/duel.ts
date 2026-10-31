@@ -15,6 +15,7 @@ import { interruptBasePoints, isRobot } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
 import {
+  isTank,
   NO_INTERRUPT,
   NOBODY,
   numSkillTraits,
@@ -43,6 +44,7 @@ const BEST_SIGHTING_ALL = 6;
 const NOWHERE = -1;
 const DARK_LEVELS_ABOVE_DAY = 3;
 const ON_ASSIGNMENT_DUEL_POINTS = -10;
+const TANK_DUEL_POINTS_DIVISOR = 2;
 
 export function seenOpponent(t: TacticalState, viewer: number, opp: number): number {
   return t.turn.seenOpponents[viewer * TOTAL_SOLDIERS + opp] ?? 0;
@@ -192,6 +194,7 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
     if (seenOpponent(t, s.id, opp.id) === 1) p++;
     else if ((t.perception.publicOpp[s.team]?.[opp.id] ?? 0) !== Opp.NOT_HEARD_OR_SEEN) p++;
   }
+  if (isTank(s)) p = idiv(p, TANK_DUEL_POINTS_DIVISOR);
   if (p >= AUTOMATIC_INTERRUPT) p = AUTOMATIC_INTERRUPT - 1;
   return i8(p);
 }

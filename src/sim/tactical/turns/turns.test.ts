@@ -512,6 +512,26 @@ describe('the interrupt duel', () => {
     expect(points(Assignment.SQUAD_1)).toBe(onSquad + 1);
   });
 
+  it('halves the duel points of a tank after every other term, truncating toward zero (CalcInterruptDuelPts)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH, 6);
+    const points = (bodyType: number, shock: number) => {
+      enemy.bodyType = bodyType;
+      enemy.shock = shock;
+      return calcInterruptDuelPts(t, enemy, merc, false);
+    };
+    const seenBefore = () => {
+      markSeenOpponent(t, enemy.id, merc.id);
+      markSeenOpponent(t, enemy.id, merc.id);
+    };
+    expect([points(Body.REGMALE, 0), points(Body.TANK_NW, 0), points(Body.TANK_NE, 0)]).toEqual([6, 3, 3]);
+    expect([points(Body.REGMALE, 9), points(Body.TANK_NW, 9)]).toEqual([-3, -1]);
+    seenBefore();
+    expect([points(Body.REGMALE, 0), points(Body.TANK_NW, 0)]).toEqual([7, 3]);
+  });
+
   it('adds the point for an opponent seen before only from his second sighting on (gbSeenOpponents == TRUE)', () => {
     const sim = newSim();
     const t = sim.state;
