@@ -91,10 +91,30 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(apsToChangeStance(content, merc, AnimHeight.STAND)).toBe(0);
   });
 
+  it('steals from a hostile soldier for AP_STEAL_ITEM, the stand-up and the walk to his side, and refuses a neutral', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, ORIGIN + 3 * EAST, Direction.WEST);
+    const civ = spawnSoldier(sim, 116, Team.CIV, ORIGIN + SOUTH, Direction.NORTH);
+    enemy.visible = 1;
+    civ.visible = 1;
+    const far = action(sim, 'steal', enemy.gridNo, { target: enemy.id });
+    expect(far).toMatchObject({ ok: true, actionGridNo: ORIGIN + 2 * EAST });
+    expect(far.steps.map((step) => step.gridNo)).toEqual([ORIGIN + EAST]);
+    expect(far.apCost).toBeGreaterThan(AP.STEAL_ITEM);
+    expect(action(sim, 'steal', civ.gridNo, { target: civ.id })).toMatchObject({ ok: false, refusal: 'notStealable' });
+    const near = newCombatSim(content);
+    const crouched = spawnSoldier(near, 0, Team.OUR, ORIGIN, Direction.EAST);
+    spawnSoldier(near, 20, Team.ENEMY, ORIGIN + EAST, Direction.WEST).visible = 1;
+    expect(action(near, 'steal', ORIGIN + EAST, { target: 20 })).toMatchObject({ ok: true, apCost: AP.STEAL_ITEM, steps: [] });
+    crouched.state = states(content.animations).CROUCHING;
+    expect(action(near, 'steal', ORIGIN + EAST, { target: 20 }).apCost).toBe(AP.STEAL_ITEM + AP.CROUCH);
+  });
+
   it('answers notSupported for the item cursors without a command', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
-    for (const kind of ['steal', 'cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'])
+    for (const kind of ['cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'])
       expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: ORIGIN + 1 })).toMatchObject({
         ok: false,
         data: { refusal: 'notSupported' },

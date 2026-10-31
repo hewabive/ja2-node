@@ -7,6 +7,7 @@ import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
+import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { UiMode } from './input/ui-events.ts';
@@ -543,6 +544,25 @@ describe('the tactical input on the tactical screen', () => {
     const grid = f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'));
     expect(grid?.gridNo).not.toBe(enemy.gridNo);
     expect(grid?.gridNo).not.toBe(merc(f, 0).gridNo);
+  });
+
+  it('shows the walk of a steal with the hand cursor over an enemy and steals on the click', async () => {
+    const f = await inCombat();
+    const seen = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    const t = tacticalOf(f.session).state;
+    const enemy = t.soldiers.find((v) => v?.id === seen?.id);
+    if (!enemy) throw new Error('no enemy in sight');
+    setSoldierPosition(t, enemy, merc(f, 0).gridNo + 3);
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    f.screen.controls.toggleHandCursor();
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toMatch(/HANDCURSOR/);
+    expect(f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'))).toBe(true);
+    await f.clickAt(at.x, at.y - 5);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'steal', soldier: 0, target: enemy.id }, reply: { ok: true } });
   });
 
   it('locates the seen enemies with e and Enter and skips the ones whose life is gone while they fall', async () => {

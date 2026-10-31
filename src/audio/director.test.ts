@@ -407,6 +407,18 @@ describe('the sound director', () => {
     expect(curses(30, false)).toBe(0);
   });
 
+  it('curses when our merc fails a steal or fumbles the item, not when he grabs it', () => {
+    const cursesAfter = (result: 'grabbed' | 'dropped' | 'failed') => {
+      const r = rig();
+      r.director.reset([soldier(1, 'STANDING', 0)]);
+      r.director.applyFrames([frame(10, [], [{ type: 'stealAttempt', tick: 1, soldier: 1, target: 30, item: 1, result }])]);
+      return r.cues.filter((c) => /curse/.test(c.file)).length;
+    };
+    expect(cursesAfter('grabbed')).toBe(0);
+    expect(cursesAfter('dropped')).toBe(1);
+    expect(cursesAfter('failed')).toBe(1);
+  });
+
   it('plays a death cry once and the gunfire of unseen shooters as an off-screen sound', () => {
     const r = rig();
     const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;

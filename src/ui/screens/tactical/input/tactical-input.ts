@@ -16,7 +16,7 @@
 // @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition,
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
-// @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick,
+// @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31),
 // @src HandleMoveModeInteractiveClick, HandleCheckForExitArrowsInput, TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
@@ -222,6 +222,7 @@ export class TacticalInput {
   #rubberEnd = { x: 0, y: 0 };
   #itemsOver: { gridNo: number; level: number; since: number } | null = null;
   #overItemsGridNo: number | null = null;
+  #overEnemy = false;
   #outOfRange: { gridNo: number; soldier: number } | null = null;
   #moveTarget: number | null = null;
   #actionChangeByMouseOver = false;
@@ -1520,7 +1521,7 @@ export class TacticalInput {
     const sel = this.#sel();
     if (!sel) return event;
     const target = this.#hover.target;
-    if (target && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) return event;
+    if (target && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) return this.#stealClick(sel, target.id, event);
     const tile = this.#interactiveTile();
     let actionGridNo = mapPos;
     let ignoreItems = false;
@@ -1548,6 +1549,12 @@ export class TacticalInput {
     else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) this.#env().battleSound(sel.id, 'curse');
     else if (this.#currentAp === 0) this.#feedback(NO_PATH_STR);
     else void this.#host.sendBusyOrder({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: sel.level });
+    return UiEvent.A_CHANGE_TO_MOVE;
+  }
+
+  #stealClick(sel: SoldierView, target: number, event: UiEvent): UiEvent {
+    if (!this.#enoughPoints(sel, this.#currentAp, true)) return event;
+    void this.#host.sendBusyOrder({ type: 'steal', soldier: sel.id, target });
     return UiEvent.A_CHANGE_TO_MOVE;
   }
 
@@ -1889,9 +1896,20 @@ export class TacticalInput {
     const actionGridNo = tile?.gridNo ?? mapPos;
     const target = this.#hover.target;
     if (target && !itemsOnlyIfOnIntTiles && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) {
+      if (!this.#overEnemy) {
+        this.#overEnemy = true;
+        this.#plotNew = true;
+      }
       this.#newCursor = useOkCursor || this.#combat() ? 'OKHANDCURSOR_UICURSOR' : 'NORMALHANDCURSOR_UICURSOR';
+      this.#movementCursor(sel, mapPos, MoveUiTarget.STEAL);
       this.#displayAp = true;
+      if (!this.#enoughPoints(sel, this.#currentAp, false)) this.#apInvalid = true;
       return false;
+    }
+    if (this.#overEnemy) {
+      this.#erasePath();
+      this.#overEnemy = false;
+      this.#plotNew = true;
     }
     const itemsAllowed =
       !(itemsOnlyIfOnIntTiles && !tile) && !tile?.switch && !(tile?.door && (actionGridNo !== mapPos || itemsOnlyIfOnIntTiles));
@@ -1995,6 +2013,7 @@ export class TacticalInput {
 
   #drawMovementPath(sel: SoldierView, mapPos: number, target: MoveUiTarget): boolean {
     const level = this.#host.interfaceLevel();
+    if (target === MoveUiTarget.STEAL) return this.#drawStealPath(sel, mapPos, level);
     if (target === MoveUiTarget.INTTILES || target === MoveUiTarget.ITEMS) {
       const tile = this.#interactiveTile();
       const kind = tile?.door ? 'door' : 'pickUp';
@@ -2022,6 +2041,26 @@ export class TacticalInput {
     const data = dataOf(answer);
     this.#currentAp = data?.apCost ?? 0;
     this.#steps = data && this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
+    return true;
+  }
+
+  #drawStealPath(sel: SoldierView, mapPos: number, level: number): boolean {
+    const victim = this.#hover.target;
+    if (!victim) return true;
+    const answer = this.#hint<PreviewAction>({
+      type: 'previewAction',
+      soldier: sel.id,
+      gridNo: mapPos,
+      kind: 'steal',
+      target: victim.id,
+      level,
+      mode: this.moveModeOf(sel),
+    });
+    if (answer.state === 'pending') return false;
+    const data = dataOf(answer);
+    this.#currentAp = data?.apCost ?? 0;
+    this.#steps = data && this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
+    if (data && data.actionGridNo !== sel.gridNo) this.#showMoveGridAt = data.actionGridNo;
     return true;
   }
 

@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim, SetSoldierAniSpeed, CalculateSoldierAniSpeed,
 // @src SoldierGotoStationaryStance, ChangeSoldierStance, EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection,
 // @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with
-// @src its BoxingMovementCheck, the stance changes to standing of codes 457 and 474, 2026-10-31).
+// @src its BoxingMovementCheck, the stance changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -609,6 +609,7 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
       return 'continue';
     case OP_NONINT_DONE:
       s.inNonInterruptibleAnimation = false;
+      if (t.content.animations.controls[s.state]?.id === 'STEAL_ITEM') reduceAttackBusyCount(t, s, false);
       return 'continue';
     case OP_HOP_FENCE_STEP:
       hopFenceStep(t, s, HOP_FENCE_FORWARD_SE, HOP_FENCE_FORWARD_NW);

@@ -46,12 +46,11 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows them disabled): stealing (gap "Melee specials"); planting bombs and using
-wire cutters, toolkits, gas cans, jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers
-`notSupported`); auto-bandage (gap "Auto-bandage"); moving keys in and out of the key ring (gap "Inventory panel
-clicks"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and alcohol");
-reloading the robot (`robotReload`, gap "Reloading the robot"); vehicles' condition and fuel (gap "Vehicles as
-characters").
+**Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
+jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers `notSupported`); auto-bandage (gap
+"Auto-bandage"); moving keys in and out of the key ring (gap "Inventory panel clicks"); the placement GUI (deviation
+"Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and alcohol"); reloading the robot (`robotReload`, gap
+"Reloading the robot"); vehicles' condition and fuel (gap "Vehicles as characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -269,7 +268,9 @@ A new `move` re-plans a halted move for any merc
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
 reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
-lying there (`11`); fists need a soldier (`needMeleeTarget`). Our merc's first pull of a
+lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
+soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor
+shows, and the `stealAttempt` event what came of it. Our merc's first pull of a
 virgin rocket rifle takes his fingerprints and fires nothing, as the original's: `attack` answers `gunImprinted`, and
 the next one fires; one imprinted on someone else is refused by `HandleItem` with `wrongFingerprint`. A launcher without
 a round refuses `attack` with `noAmmo`, where the original shows the reload cursor. Throwing a grenade needs no command

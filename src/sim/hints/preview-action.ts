@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID; the
+// @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID, STEAL; the
 // @src AP sums), UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid; UI_Cursors.cc (the item cursors this port does not support yet).
@@ -14,6 +14,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { isRobotSoldier } from '../narrative/talkable.ts';
 import { AnimHeight } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
+import { canBeStolenFrom, stealActionGridNo } from '../tactical/combat/steal.ts';
 import { closingDoorMenu, doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
 import { findAdjacentGridExAdvanced } from '../tactical/doors/door-approach.ts';
 import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
@@ -34,8 +35,8 @@ import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
 
-export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid'] as const;
-export const UNSUPPORTED_ACTIONS = ['steal', 'cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'] as const;
+export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal'] as const;
+export const UNSUPPORTED_ACTIONS = ['cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
 
@@ -217,6 +218,20 @@ function aidAction(c: ActionContext): ActionPart {
   };
 }
 
+function stealAction(c: ActionContext): ActionPart {
+  const { t, s, target } = c;
+  if (!target || target === s) return refused(c, 'noSuchTarget');
+  if (!canBeStolenFrom(target)) return refused(c, 'notStealable');
+  const actionGridNo = stealActionGridNo(t, s, target);
+  const walk = walkTo(c, actionGridNo);
+  return {
+    ok: true,
+    apCost: AP.STEAL_ITEM + apsToChangeStance(t.content, s, AnimHeight.STAND) + walk.cost,
+    actionGridNo,
+    steps: walk.steps,
+  };
+}
+
 function preview(c: ActionContext, kind: ActionKind, zLevel: number): ActionPart {
   switch (kind) {
     case 'door':
@@ -235,6 +250,8 @@ function preview(c: ActionContext, kind: ActionKind, zLevel: number): ActionPart
       return lookAction(c);
     case 'aid':
       return aidAction(c);
+    case 'steal':
+      return stealAction(c);
   }
 }
 

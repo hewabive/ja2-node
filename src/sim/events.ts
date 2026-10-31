@@ -139,6 +139,14 @@ export interface MeleeStrikeEvent extends SimEventBase {
   readonly hit: boolean;
 }
 
+export interface StealAttemptEvent extends SimEventBase {
+  readonly type: 'stealAttempt';
+  readonly soldier: number;
+  readonly target: number;
+  readonly item: number;
+  readonly result: 'grabbed' | 'dropped' | 'failed';
+}
+
 export interface BulletStoppedEvent extends SimEventBase {
   readonly type: 'bulletStopped';
   readonly soldier: number;
@@ -614,6 +622,7 @@ export type SimEvent =
   | RoomRevealedEvent
   | ShotFiredEvent
   | MeleeStrikeEvent
+  | StealAttemptEvent
   | BulletStoppedEvent
   | BulletImpactEvent
   | WindowShatteredEvent

@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Utils/Event_Pump.cc AddGameEvent, DequeAllGameEvents, ExecuteGameEvent (primary and secondary queue),
-// @src ClearEventQueue.
+// @src src/game/Utils/Event_Pump.cc AddGameEvent, DequeAllGameEvents, ExecuteGameEvent (primary and secondary queue; EV_S_GETNEWPATH
+// @src 2026-10-31), ClearEventQueue.
 
 import { setDesiredDirection } from './animation.ts';
 import { eventFireSoldierWeapon, fireWeapon } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { weaponHit } from './combat/hit.ts';
+import { getNewSoldierPath } from './movement.ts';
 import type { TacticalState } from './state.ts';
 
 export interface WeaponHitEvent {
@@ -24,6 +25,7 @@ export interface WeaponHitEvent {
 }
 
 export type GameEvent =
+  | { readonly kind: 'getNewPath'; readonly soldier: number; readonly destination: number; readonly mode: number }
   | { readonly kind: 'desiredDirection'; readonly soldier: number; readonly direction: number }
   | {
       readonly kind: 'beginFireWeapon';
@@ -62,6 +64,9 @@ export function dequeueAllGameEvents(t: TacticalState): void {
     const s = t.soldiers[e.soldier];
     if (!s?.placed) continue;
     switch (e.kind) {
+      case 'getNewPath':
+        getNewSoldierPath(t, s, e.destination, e.mode, 0, s.noAPToFinishMove);
+        break;
       case 'desiredDirection':
         setDesiredDirection(t, s, e.direction);
         break;

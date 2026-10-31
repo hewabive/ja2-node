@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
-// @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31, without Dr. Q's chop sound); externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
-// @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab, CalcChanceToPunch, DishoutQueenSwipeDamage;
+// @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31, without Dr. Q's chop sound); externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK, MERC_STEAL);
+// @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH (the steal mode 2026-10-31), CalcChanceToStab, CalcChanceToPunch,
+// @src CalcChanceToSteal, DishoutQueenSwipeDamage;
 // @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 752 (decapitate), 755 (queen swipe)
 // @src and 761 (eat flesh).
 
@@ -66,8 +67,8 @@ import { adjustImpactByHitLocation } from './impact.ts';
 import { bladeApproach, directPunchApproach, findAdjacentGridEx, findSoldierAtGridNo, type MeleeApproach } from './melee-reach.ts';
 import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, Special, weaponStatusMod } from './types.ts';
 
-const MeleeMode = { STAB: 0, PUNCH: 1 } as const;
-export const MeleeKind = { BLADE: 0, PUNCH: 1 } as const;
+const MeleeMode = { STAB: 0, PUNCH: 1, STEAL: 2 } as const;
+export const MeleeKind = { BLADE: 0, PUNCH: 1, STEAL: 2 } as const;
 const SURPRISE_CHANCE_TO_HIT = 100;
 const HTH_BASE_CHANCE = 67;
 const HEAD_SHOT_MELEE_PENALTY = 20;
@@ -88,6 +89,7 @@ const KNIFE_DULLING_IMPACT_DIVISOR = 20;
 const KIDS_SPARED_DEFENCE = 10000;
 const PRONE_TENTACLE_DEFENCE = 1000;
 const NINJA_FINISH_THRESHOLD = 30;
+const STEAL_CHANCE_SCALE = 50;
 
 const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -97,7 +99,10 @@ const traitBonus = (s: Soldier, trait: number) => (SKILL_TRAIT_BONUS[trait] ?? 0
 const turnsFromAttacks = (s: Soldier) => !s.monsterOrAnimal && !isVehicle(s);
 
 function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number): number {
-  let a = idiv(3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att), 6);
+  let a =
+    mode === MeleeMode.STEAL
+      ? idiv(effectiveDexterity(att) + effectiveAgility(att) + 3 * att.stats.strength + 10 * effectiveExpLevel(att), 6)
+      : idiv(3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att), 6);
   if (att.profile !== NO_PROFILE && att.personalityTrait === Personality.PSYCHO) a += Aim.BONUS_PSYCHO;
   a += moraleModifier(att);
   a -= skillCheckFatiguePenalty(att, a);
@@ -122,7 +127,10 @@ function tentacleDefence(def: Soldier, stance: number): number {
 }
 
 function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: number): number {
-  let d = idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def), 6);
+  let d =
+    mode === MeleeMode.STEAL
+      ? idiv(effectiveAgility(def) + effectiveDexterity(def) + 3 * def.stats.strength + 10 * effectiveExpLevel(def), 6)
+      : idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def), 6);
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
   if (isGassed(t, def)) d -= Aim.PENALTY_GASSED;
@@ -141,7 +149,7 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
     const knifing = traitBonus(def, SkillTrait.KNIFING);
     const martial = traitBonus(def, SkillTrait.MARTIALARTS);
     if (mode === MeleeMode.STAB) d += holdsBlade ? knifing + idiv(martial, 3) : idiv(knifing, 3) + idiv(martial, 2);
-    else d += holdsBlade ? idiv(knifing, 2) : martial + traitBonus(def, SkillTrait.HANDTOHAND);
+    else d += holdsBlade && mode !== MeleeMode.STEAL ? idiv(knifing, 2) : martial + traitBonus(def, SkillTrait.HANDTOHAND);
   }
   return Math.max(d, 1);
 }
@@ -158,8 +166,12 @@ function calcChanceHTH(t: TacticalState, att: Soldier, def: Soldier, aim: number
   if (!weaponFitsMode(t, att.attackingWeapon, mode)) return 0;
   const a = attackRating(t, att, aim, mode);
   const d = defenceRating(t, def, mode, att.attackingWeapon);
-  let chance = HTH_BASE_CHANCE + idiv(a - d, 3);
-  if (att.aimShotLocation === AimShot.HEAD) chance -= HEAD_SHOT_MELEE_PENALTY;
+  let chance: number;
+  if (mode === MeleeMode.STEAL) chance = idiv(STEAL_CHANCE_SCALE * a, d);
+  else {
+    chance = HTH_BASE_CHANCE + idiv(a - d, 3);
+    if (att.aimShotLocation === AimShot.HEAD) chance -= HEAD_SHOT_MELEE_PENALTY;
+  }
   return Math.min(Math.max(chance, CTH_MINIMUM), CTH_MAXIMUM);
 }
 
@@ -169,6 +181,10 @@ export function calcChanceToStab(t: TacticalState, att: Soldier, def: Soldier, a
 
 export function calcChanceToPunch(t: TacticalState, att: Soldier, def: Soldier, aim: number): number {
   return calcChanceHTH(t, att, def, aim, MeleeMode.PUNCH);
+}
+
+export function calcChanceToSteal(t: TacticalState, att: Soldier, def: Soldier, aim: number): number {
+  return calcChanceHTH(t, att, def, aim, MeleeMode.STEAL);
 }
 
 function isSurpriseAttack(att: Soldier, def: Soldier): boolean {
@@ -385,12 +401,20 @@ export function handleTentacleAttack(t: TacticalState, s: Soldier, g: number): n
   return ItemHandle.OK;
 }
 
+export function beginStealing(t: TacticalState, s: Soldier, direction: number): void {
+  setDesiredDirection(t, s, direction);
+  initNewSoldierAnim(t, s, anim(t.content, 'STEAL_ITEM'), 0, false);
+}
+
 export function handlePendingMeleeOnArrival(t: TacticalState, s: Soldier): boolean {
   const pending = s.pendingMelee;
   if (!pending) return false;
-  s.ai.action = AiAction.KNIFE_STAB;
-  if (pending.kind === MeleeKind.PUNCH) eventSoldierBeginPunchAttack(t, s, pending.targetGridNo, pending.direction);
-  else eventSoldierBeginBladeAttack(t, s, pending.targetGridNo, pending.direction);
+  if (pending.kind === MeleeKind.STEAL) beginStealing(t, s, pending.direction);
+  else {
+    s.ai.action = AiAction.KNIFE_STAB;
+    if (pending.kind === MeleeKind.PUNCH) eventSoldierBeginPunchAttack(t, s, pending.targetGridNo, pending.direction);
+    else eventSoldierBeginBladeAttack(t, s, pending.targetGridNo, pending.direction);
+  }
   s.pendingMelee = null;
   return true;
 }
@@ -453,7 +477,7 @@ function dullBlade(t: TacticalState, blade: ItemObject, impact: number): void {
   blade.status[0] = i8(status - i8(t.rng.int(maxDrop)));
 }
 
-function reduceMonsterSmell(t: TacticalState, s: Soldier): void {
+export function reduceMonsterSmell(t: TacticalState, s: Soldier): void {
   if (s.monsterSmell > 0 && t.rng.int(MONSTER_SMELL_FADE_CHANCE) === 0) s.monsterSmell--;
 }
 
@@ -467,7 +491,7 @@ function knifeExperience(chance: number, hit: boolean, aimTime: number): number 
   return xp + KNIFE_ATTEMPT_XP;
 }
 
-function noticeStrike(s: Soldier, tgt: Soldier): void {
+export function noticeStrike(s: Soldier, tgt: Soldier): void {
   s.attackNoticed = true;
   tgt.intendedTarget = true;
   s.opponent = tgt;

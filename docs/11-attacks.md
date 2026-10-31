@@ -42,6 +42,7 @@ order: handleItem — checks, APs checked only, the psycho's burst roll         
 | `combat/chance.ts` | `CalcChanceToHitGun` and its AI variant, `GunRange`, the barrel extender, `SoldierDifficultyLevel` |
 | `combat/positions.ts` | Soldier and target heights, body-part line of sight over `perception/los.ts` (`08`) |
 | `combat/bullets.ts` | Bullets: firing, the miss deviation, flight, structures, windows, locks, misses, missile trails; the chance to get through |
+| `combat/steal.ts` | The steal order, `MercStealFromMerc`, the steal branch of `UseHandToHand` |
 | `combat/melee.ts`, `combat/melee-reach.ts` | Melee orders and begin events, the martial arts strikes (`DoNinjaAttack`), a knife at a corpse (`DECAPITATE`), `CalcChanceHTH`, `UseBlade`, `UseHandToHand`, `HTHImpact`, the queen's swipe; the adjacent-tile searches |
 | `combat/spread-burst.ts`, `combat/skill-check.ts` | Spread-burst locations; `SkillCheck` (unjamming) |
 | `game-events.ts` | The event pump: fire, direction and the delayed melee hit |
@@ -115,6 +116,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A punch turns a target who did not see it coming toward the attacker; a blade turns one who did | `melee.test.ts` |
 | A martial arts strike turns an unaware target without stopping him or cancelling his AI action, where a plain punch does both | `melee.test.ts` |
 | Cutting off a head costs only the kneel: `DECAPITATE` has no fire code, and a blade pays its APs only when it strikes (`UseBlade`) | `melee.test.ts` |
+| A creature, the robot or a tank, which the steal chance of 0 should protect, is robbed on a roll of 0: the roll only has to reach the chance | `steal.test.ts` |
+| A steal ends the attack twice, at codes 442 and 753 of `STEAL_ITEM`, so the end-of-attack checks run twice | `steal.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
 | A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
@@ -132,6 +135,8 @@ Not pinned yet:
 - The chance to get through counts HEAT as plain ammunition, where the bullet treats it as armour-piercing.
 - A structure resists less below the gun's range as well as more beyond it: the original commented out the range test.
 - The burst's `PreRandom(80)` jam roll for later rounds is dead code: opcode 448 checks round 1 only.
+- A steal ends the attack with the thief's previous target: `MercStealFromMerc` sets no target, so the target of his last
+  attack is the one who notices him and may turn hostile.
 
 ## 4. Not checked against the native build
 
@@ -149,7 +154,6 @@ draw nothing. Inferred from reading the source:
   the robot's aim.
 - Vehicles, tanks, boxing, the Meanwhile punch and the creatures' attacks are ported as read, without probes.
 
-Not ported: gaps "Melee specials".
 Other deviations of this domain: "Game events", "Bullet flight", "Level bullet into rising ground", "Miss animation in
 water", "Melee hold leaks", "Melee from a prone turn", "Attack refusals", "Cosmetic draws in attacks", "Dud test operand
 order", "Watchdogs", "Difficulty and progress in tactical".

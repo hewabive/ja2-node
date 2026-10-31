@@ -95,6 +95,7 @@ const LIFE_ZERO = 465;
 const DEATH_COMMIT = 440;
 const DEATH_OR_RELEASE = 497;
 const PICKUP_ITEM_CODE = 493;
+const TRY_STEAL_CODE = 485;
 const Sound = {
   FOOTSTEP_LEFT: 703,
   FOOTSTEP_RIGHT: 704,
@@ -164,6 +165,15 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     END_OF_ANIMATION,
   ],
   DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  STEAL_ITEM: () => [
+    Op.BUSY_UP,
+    ...frames(6),
+    ...descendingFrames(5),
+    TRY_STEAL_CODE,
+    NONINTERRUPTIBLE_DONE,
+    Op.BUSY_DOWN,
+    END_OF_ANIMATION,
+  ],
   GIVE_ITEM: () => [...frames(5), GIVE_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   START_AID: (t) => [...frames(4), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'GIVING_AID'))],
   GIVING_AID: () => [...frames(LOOP_FRAMES), JUMP_TO_START],

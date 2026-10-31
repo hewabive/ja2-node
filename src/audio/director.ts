@@ -17,7 +17,8 @@
 // @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
 // @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1); Tactical/OppList.cc OurTeamSeesSomeone
 // @src and SaySeenQuote (the ENEMY and CURSE1 battle sounds of a sighting, 2026-10-30); Tactical/Handle_Items.cc
-// @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30).
+// @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30); Tactical/Weapons.cc UseHandToHand (the curse
+// @src of a failed or fumbled steal, 2026-10-31).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -539,6 +540,9 @@ export class SoundDirector {
         return;
       case 'stealthyFootstep':
         this.#stealthyFootstep(e.soldier);
+        return;
+      case 'stealAttempt':
+        if (e.result !== 'grabbed' && this.#soldiers.get(e.soldier)?.team === OUR_TEAM) this.#battleSound(e.soldier, 'CURSE1', false);
         return;
       case 'soldierHit':
         this.#soldierHit(e);

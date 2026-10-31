@@ -63,6 +63,7 @@ import { soldierCollapse } from './combat/hit.ts';
 import { handlePendingMeleeOnArrival } from './combat/melee.ts';
 import { type MeleeOrderRefusal, meleeOrderRefusal } from './combat/melee-order.ts';
 import { parseSpread, pickBurstLocations } from './combat/spread-burst.ts';
+import { apsToStealItem, canBeStolenFrom, mercStealFromMerc, stealActionGridNo, stealOpcode } from './combat/steal.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
@@ -316,7 +317,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       roofOpcode(state, s, code) ??
       throwOpcode(state, s, code) ??
       firstAidOpcode(state, s, code) ??
-      wheelchairOpcode(state, s, code),
+      wheelchairOpcode(state, s, code) ??
+      stealOpcode(state, s, code),
     turnFinished: freeUpFromTurning,
     stanceFreeUp: freeUpFromStanceChange,
     pendingAction: (state, s) =>
@@ -537,6 +539,8 @@ export class TacticalSim {
         return this.#attack(cmd);
       case 'pickUp':
         return this.#pickUp(cmd);
+      case 'steal':
+        return this.#steal(cmd);
       case 'drop':
         return this.#drop(cmd);
       case 'toss':
@@ -611,6 +615,22 @@ export class TacticalSim {
     if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
     selectSoldier(t, s);
     if (!soldierPickupItem(t, s, g, zLevel, selection)) return refuse('noPath', 'no path');
+    return { ok: true };
+  }
+
+  #steal(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s?.placed || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    const target = this.soldier(cmd.target);
+    if (!target?.placed || !shownToPlayer(target)) return refuse('noSuchTarget', 'target must be a soldier the squad sees');
+    if (!canBeStolenFrom(target)) return refuse('notStealable', 'only a conscious hostile soldier can be robbed');
+    const apCost = apsToStealItem(t, s, stealActionGridNo(t, s, target));
+    if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
+    selectSoldier(t, s);
+    if (!mercStealFromMerc(t, s, target)) return refuse('noPath', 'no path');
     return { ok: true };
   }
 

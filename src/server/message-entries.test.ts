@@ -180,6 +180,16 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints a steal with the thief and the short name of the item, a knocked-away item as stolen too', () => {
+    const steal = (result: 'grabbed' | 'dropped' | 'failed') => at({ type: 'stealAttempt', soldier: 1, target: 20, item: 7, result });
+    const args = [{ text: 'Fox' }, { item: 7, name: 'short' }];
+    expect(messageEntriesOf([steal('grabbed'), steal('dropped'), steal('failed')], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 33, args },
+      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 33, args },
+      { tick: 40, kind: 'interface', colour: 145, table: 'Message', index: 51, args },
+    ]);
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(
