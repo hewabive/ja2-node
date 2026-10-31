@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim, SetSoldierAniSpeed, CalculateSoldierAniSpeed,
-// @src SoldierGotoStationaryStance, ChangeSoldierStance, EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection,
-// @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with
-// @src its BoxingMovementCheck, the stance changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31).
+// @src SoldierGotoStationaryStance, ChangeSoldierStance (its civilian cower branch, 2026-10-31), SetSoldierCowerState,
+// @src EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection, TurnSoldier, AdjustForFastTurnAnimation,
+// @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck, the stance
+// @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -295,9 +296,32 @@ function stanceChangeState(t: TacticalState, s: Soldier, desired: number): numbe
   }
 }
 
+export function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
+  if (s.bodyType === Body.ROBOTNOWEAPON) return;
+  if (on) {
+    if (!s.cowering) {
+      initNewSoldierAnim(t, s, anim(t.content, 'START_COWER'), 0, false);
+      s.cowering = true;
+      s.desiredHeight = AnimHeight.CROUCH;
+    }
+  } else if (s.cowering) {
+    initNewSoldierAnim(t, s, anim(t.content, 'END_COWER'), 0, false);
+    s.cowering = false;
+    s.desiredHeight = AnimHeight.STAND;
+  }
+}
+
+function cowersInsteadOfStanceChange(s: Soldier): boolean {
+  return s.bodyType >= Body.FATCIV && s.bodyType <= Body.KIDCIV;
+}
+
 export function changeSoldierStance(t: TacticalState, s: Soldier, desired: number): void {
   if (desired === endHeight(t.content, s.state)) {
     t.hooks.stanceFreeUp(t, s);
+    return;
+  }
+  if (cowersInsteadOfStanceChange(s)) {
+    setSoldierCowerState(t, s, desired !== AnimHeight.STAND);
     return;
   }
   s.desiredHeight = desired;

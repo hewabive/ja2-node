@@ -6,11 +6,11 @@ import { DIRECTION_COUNT, Direction, gridNo } from '../../content/world/grid.ts'
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { animName } from './anim-states.ts';
-import { AnimHeight, changeSoldierStance, endHeight, states } from './animation.ts';
+import { AnimHeight, changeSoldierStance, endHeight, initNewSoldierAnim, setSoldierCowerState, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { isValidStance } from './person-structure.ts';
 import { AP, ptsToMoveDirection } from './points.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { Body, type Soldier, Team } from './soldier.ts';
 import { ownSoldierFields } from './soldier-view.ts';
 import type { TacticalCommand, TacticalSim } from './tactical-sim.ts';
 
@@ -260,5 +260,74 @@ describe('stances a merc cannot take (Handle_UI.cc UIHandleSoldierStanceChange, 
     expect(isValidStance(sim.state, merc, AnimHeight.CROUCH)).toBe(true);
     expect(isValidStance(sim.state, merc, AnimHeight.PRONE)).toBe(false);
     expect(order(sim, { type: 'stance', stance: 'prone' })).toMatchObject({ ok: false, data: { refusal: 'invalidStance' } });
+  });
+});
+
+describe('a civilian body cowers instead of changing stance (Soldier_Control.cc ChangeSoldierStance)', () => {
+  const CIVILIAN_BODIES = [Body.FATCIV, Body.MANCIV, Body.MINICIV, Body.DRESSCIV, Body.HATKIDCIV, Body.KIDCIV];
+  const ANIMATION_TICKS = 400;
+
+  function civilian(body: number = Body.MANCIV) {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { body });
+    return { sim, s };
+  }
+
+  function stateOf(s: Soldier): string {
+    return animName(content, s.state);
+  }
+
+  function playThrough(sim: TacticalSim, s: Soldier, name: string): string {
+    for (let tick = 0; tick < ANIMATION_TICKS && stateOf(s) === name; tick++) sim.step();
+    return stateOf(s);
+  }
+
+  function cowering(sim: TacticalSim, s: Soldier): void {
+    setSoldierCowerState(sim.state, s, true);
+    expect(playThrough(sim, s, 'START_COWER')).toBe('COWERING');
+  }
+
+  it('cowers on a crouch order and gets up from the cower on a stand order, setting and clearing the cower flag', () => {
+    const { sim, s } = civilian();
+    expect(order(sim, { type: 'stance', stance: 'crouch' }).ok).toBe(true);
+    expect([stateOf(s), s.cowering, s.desiredHeight]).toEqual(['START_COWER', true, AnimHeight.CROUCH]);
+    expect(playThrough(sim, s, 'START_COWER')).toBe('COWERING');
+    expect(shown(sim, s).stance).toBe('crouch');
+    expect(order(sim, { type: 'stance', stance: 'stand' }).ok).toBe(true);
+    expect([stateOf(s), s.cowering, s.desiredHeight]).toEqual(['END_COWER', false, AnimHeight.STAND]);
+    expect(playThrough(sim, s, 'END_COWER')).toBe('STANDING');
+  });
+
+  it('cowers for every civilian body but the cripple', () => {
+    for (const body of CIVILIAN_BODIES) {
+      const { sim, s } = civilian(body);
+      changeSoldierStance(sim.state, s, AnimHeight.CROUCH);
+      expect(s.cowering).toBe(true);
+    }
+    const { sim, s } = civilian(Body.CRIPPLECIV);
+    changeSoldierStance(sim.state, s, AnimHeight.CROUCH);
+    expect(s.cowering).toBe(false);
+  });
+
+  it('cowers when told to lie down, so he ends crouched with the crouch as his desired height', () => {
+    const { sim, s } = civilian();
+    changeSoldierStance(sim.state, s, AnimHeight.PRONE);
+    expect([stateOf(s), s.cowering, s.desiredHeight]).toEqual(['START_COWER', true, AnimHeight.CROUCH]);
+    expect(playThrough(sim, s, 'START_COWER')).toBe('COWERING');
+  });
+
+  it('lets the cower flag, not the height, decide: a crouched civilian who is not flagged stays put on a stand', () => {
+    const { sim, s } = civilian();
+    cowering(sim, s);
+    s.cowering = false;
+    changeSoldierStance(sim.state, s, AnimHeight.STAND);
+    expect(stateOf(s)).toBe('COWERING');
+  });
+
+  it('stops a cowering civilian whom a quote record sends walking: his standing animation takes the cower branch (NPC.cc)', () => {
+    const { sim, s } = civilian();
+    cowering(sim, s);
+    initNewSoldierAnim(sim.state, s, states(content.animations).STANDING, 0, false);
+    expect([stateOf(s), s.cowering, animName(content, s.pendingAnimation)]).toEqual(['END_COWER', false, 'STANDING']);
   });
 });

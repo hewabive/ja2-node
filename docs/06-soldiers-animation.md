@@ -112,6 +112,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An unseen soldier keeps his frame delay through his fade-out and the pass that ends it; only the next speed change runs him at the loop rate | `fade.test.ts` |
 | A walking soldier's fade-out ends when he reaches the next tile, without setting his speed: he walks on at his delay to the tile after | `fade.test.ts` |
 | A walking civilian steps at his body's speed, a running one at the running state's 2.6, not his body's 2.3 | `movement.test.ts` |
+| Any stance change of a civilian body but the cripple's only sets or clears the cower state (`ChangeSoldierStance`, `Tactical/Soldier_Control.cc:3701`): told to lie down he cowers and ends crouched, and a crouched civilian whose cower flag is off ignores a stand | `stance.test.ts` |
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
 | An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |

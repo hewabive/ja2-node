@@ -22,6 +22,7 @@ import {
   hasAnimFlag,
   height,
   initNewSoldierAnim,
+  setSoldierCowerState,
   states,
 } from '../animation.ts';
 import { moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
@@ -192,21 +193,6 @@ function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
 function handleInitialRedAlert(t: TacticalState, team: number): void {
   if (team === Team.ENEMY) alertQueenAndJoe(t);
   t.perception.awareOfOpposition[team] = true;
-}
-
-function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
-  if (s.bodyType === Body.ROBOTNOWEAPON) return;
-  if (on) {
-    if (!s.cowering) {
-      initNewSoldierAnim(t, s, anim(t.content, 'START_COWER'), 0, false);
-      s.cowering = true;
-      s.desiredHeight = AnimHeight.CROUCH;
-    }
-  } else if (s.cowering) {
-    initNewSoldierAnim(t, s, anim(t.content, 'END_COWER'), 0, false);
-    s.cowering = false;
-    s.desiredHeight = AnimHeight.STAND;
-  }
 }
 
 const VISIBLE_ATTACKS: ReadonlySet<number> = new Set([
