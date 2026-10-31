@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields, the NPC
 // @src presence fields), bMercStatus
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
-// @src which prof.dat holds as leftovers, cleared)
+// @src which prof.dat holds as leftovers, cleared); Soldier_Profile.cc WhichBuddy; Soldier_Profile_Type.h BuddySlot
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
@@ -165,6 +165,13 @@ export interface ProfileProgress extends NpcProfileFields {
 
 export function isProfileDead(p: Pick<ProfileProgress, 'mercStatus'>): boolean {
   return p.mercStatus === MercStatus.IS_DEAD;
+}
+
+export const BuddySlot = { NOT_FOUND: -1, SLOT1: 0, SLOT2: 1, LEARNED_TO_LIKE: 2, COUNT: 3 } as const;
+
+export function whichBuddy(p: Pick<ProfileProgress, 'buddies'>, other: number): number {
+  for (let slot = BuddySlot.SLOT1; slot < BuddySlot.COUNT; slot++) if (p.buddies[slot] === other) return slot;
+  return BuddySlot.NOT_FOUND;
 }
 
 function initialHatedCounts(p: MercProfile, saved: boolean): number[] {

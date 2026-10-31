@@ -467,6 +467,11 @@ export class SectorFlow {
     if (world) damageSamIfFound(this.ctx, world, gridNo, damage);
   }
 
+  #inCreatureLair(): boolean {
+    const world = this.world;
+    return world !== null && (this.campaign.creatures?.inCreatureLair(world) ?? false);
+  }
+
   #handleRpcDescriptionOfSector(sector: Sector, day: number): void {
     const s = this.campaign.state;
     s.narrative.guide.counting = false;
@@ -557,6 +562,7 @@ export class SectorFlow {
       combatEntered: () => this.#combatEntered(),
       enemyPresence: () => this.#enemyPresence(),
       structureDamaged: (_t, gridNo, damage) => this.#structureDamaged(gridNo, damage),
+      inCreatureLair: () => this.#inCreatureLair(),
     };
   }
 

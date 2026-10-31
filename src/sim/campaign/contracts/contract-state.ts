@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE contract fields, SOLDIER_CONTRACT_RENEW_QUOTE_*, SOLDIER_QUOTE_SAID_*;
+// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE contract fields, SOLDIER_CONTRACT_RENEW_QUOTE_*;
 // @src Strategic/Merc_Contract.h CONTRACT_EXTEND_*; Merc_Contract.cc ContractRenewalList, ubNumContractRenewals and the
 // @src sequence flags; Strategic/Map_Screen_Interface.cc gpLeaveListHead, guiLeaveListOwnerProfileId.
 
@@ -9,13 +9,6 @@ import { NO_PROFILE } from '../../tactical/soldier.ts';
 
 export const ContractLength = { EXTEND_1_DAY: 0, EXTEND_1_WEEK: 1, EXTEND_2_WEEK: 2 } as const;
 export const RenewalQuoteCode = { NOT_USED: 0, CONTRACTS_OVER_USED: 1, LEAVING_SOON_USED: 2 } as const;
-export const QuoteSaidFlag = {
-  LOW_MORAL: 0x0010,
-  ANNOYING_MERC: 0x0040,
-  LIKESGUN: 0x0080,
-  PERSONALITY: 0x4000,
-  FOUND_SOMETHING_NICE: 0x8000,
-} as const;
 
 export const MAX_CONTRACT_RENEWALS = 20;
 export const NUM_LEAVE_LIST_SLOTS = 20;

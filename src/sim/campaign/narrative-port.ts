@@ -30,6 +30,7 @@ import type { ScheduleClock } from '../tactical/narrative/schedule-state.ts';
 import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';
 import type { Soldier } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { MercKind } from './roster.ts';
 
 function rebelsBetrayed(campaign: CampaignSim): void {
   if (campaign.economy) reduceLoyaltyForRebelsBetrayed(campaign.economy);
@@ -53,6 +54,9 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     assassinKilled: () => campaign.narrative.assassinKilled(),
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,
     assignment: (soldier) => campaign.battle?.roster.get(soldier.id)?.assignment ?? null,
+    mercAsleep: (soldier) => campaign.battle?.roster.get(soldier.id)?.asleep ?? false,
+    isAimMerc: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.AIM_MERC,
+    quoteSaidFlags: (soldier) => campaign.battle?.roster.get(soldier.id) ?? null,
     civGroupWillBecomeHostile: (group) => {
       addStrategicEvent(
         s.queue,

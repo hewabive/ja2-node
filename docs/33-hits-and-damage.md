@@ -20,7 +20,7 @@ bullet enters the target's tile                       combat/bullets.ts (suppres
              or fall → 497 → death animation → 440    combat/death.ts (opcodes, corpse, getting up)
 melee: the hit arrives as a queued game event          combat/melee.ts → game-events.ts → weaponHit
 … busy count reaches 0 → end of the attack            combat/barrier.ts
-  suppression, noticing the attacker, combat entry, stat points, deferred noise, end of battle
+  suppression, noticing the attacker, combat entry, kill quotes, stat points, deferred noise, end of battle
 ```
 
 | Module | Holds |
@@ -41,7 +41,9 @@ Agent API events of a hit (`bulletImpact`, `soldierHit`, `soldierDied`, `attackR
 **Damage at impact, death at the end of the death animation.** Life drops when the bullet arrives; corpse, item drops,
 kill credit and removal from the map happen at opcode 440, seconds later. Until then the dying soldier keeps his tile
 with life 0 and can be hit again. Right after the drop every merc looks for items (`08`), so a merc who sees the drops
-halts in combat, and the items-seen quote of a kill waits for the end of the attack.
+halts in combat. The kill's quotes (`tactical/narrative/kill-quotes.ts`: the killer's, a witness's of a headshot, a
+buddy's) and the items-seen quote wait for the end of the attack; only then does the victim become the last kill talked
+about (deviation "Last kill talked about").
 
 **One barrier.** `turn.attackBusyCount` counts everything still resolving: attacks, bullets in flight, hit animations,
 suppression stance changes. Every increment is paid by exactly one decrement; a soldier releases all hits of a sequence
@@ -73,8 +75,9 @@ chance to hit read the value of the soldier's last decision.
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6); the order of a whole shot is
-`11`. Curses, laughs, blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws in
-attacks").
+`11`. The kill quotes draw on `main` in `HandleKilledQuote`'s order, also when nobody speaks. Curses, laughs (the laugh
+or cool after a kill among them), blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws
+in attacks").
 
 ## 3. Quirks of the original the code keeps
 
@@ -106,8 +109,8 @@ Inferred from reading the source:
 - The ready APs are charged again on returning to aim after a hit; a special move may overshoot its final tile.
 - Whether the turn start `EnterCombatMode` runs clears the suppression points of the attack that began combat.
 - The agility gain for a bullet that passed through someone and then stopped in a wall.
-- The items-seen quote after a kill: its hold until the end of the attack and its `Random(2)` when the dialogue queue
-  runs it. `HandleKilledQuote` is not ported (gaps "Kill quotes").
+- The quotes of a kill: their hold until the end of the attack, the draws of `HandleKilledQuote` and the items-seen
+  quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
 Not ported: gaps "Implications of an attack", "Morale without drugs", "Corpses", "Unseen soldiers in combat".

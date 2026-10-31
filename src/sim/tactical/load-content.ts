@@ -8,6 +8,7 @@ import { decodeLockTable, emptyLockTable, LOCKS_PATH, type LockTable, STUB_LOCKS
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
 import { loadItemTable } from '../../content/items/items.ts';
+import { loadQuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../../content/text/data-version.ts';
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
 import type { TacticalContent } from './content.ts';
@@ -39,18 +40,20 @@ async function loadLockTable(read: ReadFile): Promise<LockTable> {
 
 export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding = DEFAULT_DATA_DECODING): Promise<TacticalContent> {
   const timelines = await requireAnimationTimelines(read);
-  const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses, locks, lightTemplates] = await Promise.all([
-    json(read, ANIM_CONTROL_PATH),
-    json(read, ANIM_SURFACES_PATH),
-    loadItemTable((path) => json(read, path)),
-    read(PROFILES_PATH),
-    loadAnimStructures(read),
-    json(read, MATERIAL_ARMOUR_PATH),
-    loadExplosionContent(read),
-    json(read, CORPSES_TABLE_PATH).then((table) => loadCorpseContent(read, table)),
-    loadLockTable(read),
-    loadShippedLightTemplates(read),
-  ]);
+  const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses, locks, lightTemplates, quoteSpeakers] =
+    await Promise.all([
+      json(read, ANIM_CONTROL_PATH),
+      json(read, ANIM_SURFACES_PATH),
+      loadItemTable((path) => json(read, path)),
+      read(PROFILES_PATH),
+      loadAnimStructures(read),
+      json(read, MATERIAL_ARMOUR_PATH),
+      loadExplosionContent(read),
+      json(read, CORPSES_TABLE_PATH).then((table) => loadCorpseContent(read, table)),
+      loadLockTable(read),
+      loadShippedLightTemplates(read),
+      loadQuoteSpeakers(read),
+    ]);
   return {
     timeline: timelines.logic,
     animations: parseAnimationTables(control, surfaces),
@@ -62,5 +65,6 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     corpses,
     locks,
     lightTemplates,
+    quoteSpeakers,
   };
 }

@@ -268,7 +268,7 @@ function removeNpc(env: NpcActionEnv, npc: number): void {
     p.sectorY = 0;
     p.sectorZ = 0;
   }
-  checkForEndOfBattle(t);
+  checkForEndOfBattle(t, true);
 }
 
 function removeMercForMarriage(env: NpcActionEnv, npc: number): void {

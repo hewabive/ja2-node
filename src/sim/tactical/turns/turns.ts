@@ -13,7 +13,8 @@
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
 // @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24); Overhead.cc
 // @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
-// @src SetSoldierAsUnderAiControl.
+// @src SetSoldierAsUnderAiControl; Overhead.cc CheckForEndOfBattle (fAnEnemyRetreated, the buddy-witnessed quote flags,
+// @src 2026-10-30).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -32,8 +33,11 @@ import { worldSeconds } from '../explosions/state.ts';
 import { handlePlayerServices, handleTeamServices } from '../first-aid.ts';
 import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
+import { onSquad } from '../narrative/assignment.ts';
+import { sayBattleEndQuote, sayLullQuote, weSawSomeoneThisTurn } from '../narrative/battle-quotes.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
+import { clearBuddyWitnessedQuotes } from '../narrative/merc-quotes.ts';
 import { removePendingAction } from '../pending-action.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
@@ -265,7 +269,7 @@ export function startPlayerTeamTurn(t: TacticalState, entering: boolean): void {
     if (selected && selected.life < OKLIFE) selectNextAvailSoldier(t, selected);
   }
   if (!entering) checkForEndOfCombatMode(t, true);
-  t.turn.killedEnemyOnAttack = false;
+  t.turn.killedEnemyOnAttack = null;
   if (t.inCombat) t.events.push({ type: 'turnStarted', team: Team.OUR, round: t.turn.round });
 }
 
@@ -493,6 +497,7 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
   if (turn.consNumTurnsNotSeen >= QUIET_TURNS_TO_END_COMBAT) {
     turn.consNumTurnsNotSeen = 0;
     exitCombatMode(t);
+    sayLullQuote(t, !nobodyAlerted || !(weSeeNoOne && weSawSomeoneThisTurn(t)));
     t.events.push({ type: 'combatEnded', reason: 'lull' });
     return true;
   }
@@ -540,14 +545,15 @@ export function endBattleAfterSurrender(t: TacticalState): void {
   endBattleAsLost(t);
 }
 
-function countBattleFought(t: TacticalState): void {
+function ourMercsFinishFoughtBattle(t: TacticalState): void {
   for (const s of teamMembers(t, Team.OUR)) {
     const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
     if (p) p.battlesFought++;
+    if (s.life >= OKLIFE && !s.collapsed && onSquad(t, s)) clearBuddyWitnessedQuotes(t, s);
   }
 }
 
-export function checkForEndOfBattle(t: TacticalState): boolean {
+export function checkForEndOfBattle(t: TacticalState, anEnemyRetreated = false): boolean {
   const turn = t.turn;
   if (boxingFight(t)) return false;
   if (!t.inCombat && !turn.enemyInSector) return false;
@@ -569,7 +575,10 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
       t.events.push({ type: 'combatEnded', reason: 'boxing' });
       return true;
     }
-    if (battleFought(t)) countBattleFought(t);
+    if (battleFought(t)) {
+      ourMercsFinishFoughtBattle(t);
+      sayBattleEndQuote(t, anEnemyRetreated);
+    }
     for (const s of teamMembers(t, Team.MILITIA)) {
       s.ai.alertStatus = AlertStatus.GREEN;
       t.turnHooks.checkForChangingOrders(t, s);

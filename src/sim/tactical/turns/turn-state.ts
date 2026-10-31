@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h TacticalStatusType; TeamTurns.cc gOutOfTurnOrder; TacticalAI/AIList.cc;
 // @src OppList.cc gbSeenOpponents, watched locations; Overhead.cc gfPauseAllAI, guiPauseAllAITimer; Overhead.h
-// @src ENEMY_OFFERED_SURRENDER; Soldier_Profile.cc gfPotentialTeamChangeDuringDeath.
+// @src ENEMY_OFFERED_SURRENDER; Soldier_Profile.cc gfPotentialTeamChangeDuringDeath; Overhead_Types.h fKilledEnemyOnAttack,
+// @src enemy_killed_on_attack, enemy_killed_on_attack_killer, ubEnemyKilledOnAttackLocation, bEnemyKilledOnAttackLevel
+// @src (2026-10-30).
 
 import type { Soldier } from '../soldier.ts';
 import type { AiProgress, TopMessage } from './top-message.ts';
@@ -17,6 +19,13 @@ export interface DeferredNoise {
   readonly level: number;
   readonly volume: number;
   readonly kind: number;
+}
+
+export interface EnemyKilledOnAttack {
+  readonly victim: Soldier;
+  readonly killer: Soldier;
+  readonly gridNo: number;
+  readonly level: number;
 }
 
 export interface AiListEntry {
@@ -42,7 +51,7 @@ export interface TurnState {
   virginSector: boolean;
   interruptOccurred: boolean;
   enemySightingOnTheirTurn: { enemy: Soldier; since: number } | null;
-  killedEnemyOnAttack: boolean;
+  killedEnemyOnAttack: EnemyKilledOnAttack | null;
   itemsSeenOnAttack: Soldier | null;
   lockItemLocators: boolean;
   killingGuysForLosingBattle: boolean;
@@ -85,7 +94,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     virginSector: true,
     interruptOccurred: false,
     enemySightingOnTheirTurn: null,
-    killedEnemyOnAttack: false,
+    killedEnemyOnAttack: null,
     itemsSeenOnAttack: null,
     lockItemLocators: false,
     killingGuysForLosingBattle: false,

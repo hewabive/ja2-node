@@ -133,9 +133,11 @@ fade without merc lights").
 `advance` stops and the interrupt decision; End Turn also closes an interrupt in our favour (`29`; deviations
 "Turn-based UI lock", "Interrupt prompt", "Continue a move").
 
-**Randomness.** Duels and the interrupt queue draw nothing. The AI list draws its skips of neutral civilians on `pre`
-in `mercSlots` order; the close-call quote draws `Random(3)` per eligible merc on `main` at every AI soldier's turn end
-and at our interrupt; a turn start's bleeding and getting up draw as in `33`; the AI's decisions as in `13`.
+**Randomness.** Duels and the interrupt queue draw nothing. The AI list draws its skips of neutral civilians on `pre` in
+`mercSlots` order; the close-call quote draws `Random(3)` per eligible merc on `main` at every AI soldier's turn end and
+at our interrupt; the quotes at the end of a lull or a won battle pick their speaker with `Random(n)` on `main`
+(`narrative/battle-quotes.ts`, the bloodcat battle sound excepted: deviation "Battle sound after bloodcats"); a turn
+start's bleeding and getting up draw as in `33`; the AI's decisions as in `13`.
 
 ## 3. Quirks of the original the code keeps
 
@@ -181,7 +183,7 @@ reading the source:
 - Boxing, vehicle and robot branches are ported as read, without probes.
 
 Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat", "Battle-end quotes". Other deviations of this
+pre-combat grid, the AI list's civilian skip), "Sleeping mercs in combat". Other deviations of this
 domain: "Watchdogs", "Enemy sighted on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt
 prompt", "Continue a move", "Frame timers", "Soldier fade without merc lights", "Hidden attacks start combat",
 "Interface lock on arrival".

@@ -202,6 +202,7 @@ export interface SectorHooks {
   combatEntered(t: TacticalState): void;
   enemyPresence(t: TacticalState): void;
   structureDamaged(t: TacticalState, gridNo: number, damage: number): void;
+  inCreatureLair(t: TacticalState): boolean;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -220,6 +221,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   combatEntered: () => {},
   enemyPresence: () => {},
   structureDamaged: () => {},
+  inCreatureLair: () => false,
 };
 
 export interface TacticalState {

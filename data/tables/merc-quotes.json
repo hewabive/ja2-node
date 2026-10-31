@@ -1,7 +1,7 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.h DialogQuoteIDs, src/game/Tactical/QArray.cc QuoteExp_PassingDislike",
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.h DialogQuoteIDs, src/game/Tactical/QArray.cc QuoteExp_PassingDislike, QuoteExp_GotGunOrUsedGun",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
-  "format": "merc quote numbers in enum order: name without the QUOTE_ prefix and the camelCase key used in events; an alias names the first entry with its number; passingDislike: the profile ids whose QuoteExp_PassingDislike entry is not 0, who say the passing dislike when its roll comes up as another merc talks to them",
+  "format": "merc quote numbers in enum order: name without the QUOTE_ prefix and the camelCase key used in events; an alias names the first entry with its number; passingDislike: the profile ids whose QuoteExp_PassingDislike entry is not 0, who say the passing dislike when its roll comes up as another merc talks to them; gotGunOrUsedGun: QuoteExp_GotGunOrUsedGun by profile id, the gun quote each profile has (61 found something special, 62 satisfaction with the gun after a kill, 0 none)",
   "quotes": [
     {
       "id": 65535,
@@ -627,5 +627,10 @@
   "passingDislike": [
     0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 23, 26, 27, 28, 29, 30, 31, 32, 34, 36, 39, 41, 42, 43, 49, 50, 57, 58,
     59, 66
+  ],
+  "gotGunOrUsedGun": [
+    62, 62, 62, 62, 61, 61, 61, 61, 61, 62, 62, 61, 61, 62, 61, 62, 62, 62, 62, 61, 62, 62, 61, 62, 62, 62, 62, 62, 61, 62, 62, 62, 62, 62,
+    62, 61, 61, 62, 61, 62, 61, 62, 61, 61, 62, 62, 61, 61, 62, 61, 62, 62, 62, 61, 61, 61, 62, 62, 61, 62, 61, 0, 0, 0, 0, 0, 62, 61, 0, 0,
+    0, 0, 0, 0, 0
   ]
 }

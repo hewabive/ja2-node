@@ -9,10 +9,11 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
 import { heldPrisoner, onSquad } from '../tactical/narrative/assignment.ts';
+import { QuoteSaidExtFlag } from '../tactical/narrative/merc-quotes.ts';
 import { calcInterruptDuelPts, seenOpponent } from '../tactical/perception/duel.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
-import type { Roster, RosterMerc } from './roster.ts';
+import { MercKind, type Roster, type RosterMerc } from './roster.ts';
 
 let kit: CampaignKit;
 
@@ -79,5 +80,24 @@ describe("a soldier's assignment as tactical asks it of the campaign (NarrativeP
     expect(calcManThreatValue(t, merc, NOWHERE, false, enemy)).toBe(onSquadThreat - idiv(merc.stats.marksmanship, 5) - gun);
     const seenBefore = seenOpponent(t, merc.id, enemy.id) === 1 ? 1 : 0;
     expect(calcInterruptDuelPts(t, merc, enemy, false)).toBe(ON_ASSIGNMENT_DUEL_POINTS + seenBefore);
+  });
+});
+
+describe("a merc's sleep, kind and quote flags as tactical asks them of the campaign (NarrativePort)", () => {
+  it('answers from the roster record, and the quote flags it hands out are that record', () => {
+    const { t, doctor, squadmate, enemy } = battleInOmerta(33);
+    doctor.asleep = true;
+    expect([t.narrative.mercAsleep(doctor.soldier), t.narrative.mercAsleep(squadmate), t.narrative.mercAsleep(enemy)]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(doctor.kind).toBe(MercKind.AIM_MERC);
+    expect([t.narrative.isAimMerc(doctor.soldier), t.narrative.isAimMerc(enemy)]).toEqual([true, false]);
+    const flags = t.narrative.quoteSaidFlags(doctor.soldier);
+    if (!flags) throw new Error('no quote flags for our merc');
+    flags.quoteSaidExtFlags |= QuoteSaidExtFlag.BUDDY_2_WITNESSED;
+    expect(doctor.quoteSaidExtFlags & QuoteSaidExtFlag.BUDDY_2_WITNESSED).toBe(QuoteSaidExtFlag.BUDDY_2_WITNESSED);
+    expect(t.narrative.quoteSaidFlags(enemy)).toBeNull();
   });
 });

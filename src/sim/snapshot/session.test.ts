@@ -200,6 +200,27 @@ describe('a campaign snapshot', () => {
     expect(after.worldItems.find((i) => i.gridNo === ahead)?.visible).toBe(Visibility.VISIBLE);
   });
 
+  it('keeps a kill held for its quote until the end of the attack, with the victim and the killer as references', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    advance(c, { idle: true }, IDLE_BUDGET);
+    const t = tacticalOf(c);
+    const [killer] = ourSoldiers(c);
+    const victim = livingEnemies(c)[0];
+    if (!killer || !victim) throw new Error('the battle lacks a side');
+    t.turn.killedEnemyOnAttack = { victim, killer, gridNo: victim.gridNo, level: victim.level };
+    const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
+    const after = tacticalOf(testCampaignAdapter(kit, options).restore(JSON.parse(json), c));
+    expect(after.turn.killedEnemyOnAttack).toEqual({
+      victim: after.soldiers[victim.id],
+      killer: after.soldiers[killer.id],
+      gridNo: victim.gridNo,
+      level: victim.level,
+    });
+    expect(after.turn.killedEnemyOnAttack?.victim).toBe(after.soldiers[victim.id]);
+  });
+
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON });
     landFirstSquad(c);

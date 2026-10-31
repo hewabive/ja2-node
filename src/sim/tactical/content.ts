@@ -6,6 +6,7 @@ import type { LockTable } from '../../content/formats/locks.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { ExplosionContent } from '../../content/items/explosions.ts';
 import type { ItemTable } from '../../content/items/items.ts';
+import type { QuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
 import type { LightTemplate } from './lighting/templates.ts';
 
 export interface TacticalContent {
@@ -19,4 +20,5 @@ export interface TacticalContent {
   readonly corpses: CorpseContent;
   readonly locks: LockTable;
   readonly lightTemplates: ReadonlyMap<string, LightTemplate>;
+  readonly quoteSpeakers: QuoteSpeakers;
 }

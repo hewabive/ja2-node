@@ -101,10 +101,10 @@ A team change replaces the soldier by one with another id, so every reference fo
 the tactical state, tick, day, the main stream), so it is tested without a campaign; `TalkFlow` builds the real host.
 Tactical rules reach the dialogue only through `TacticalState.narrative` (deviation "Narrative port").
 
-**Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings through
-`TacticalPort.sayQuote`, the items-seen quote through `signalItemLocatorStart`, which picks its line and unlocks the
-item locators only when the queue runs it) go through the queue; contract, morale and other strategic merc lines are
-plain `mercQuote` events outside it.
+**Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
+battle, a buddy's comment on a kill through `TacticalPort.sayQuote`, the items-seen quote through
+`signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it) go through the
+queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
@@ -151,6 +151,7 @@ otherwise:
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
+| Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
 Not pinned yet:
 - The day spoken to is a `UINT8`: from day 256 every new-day record passes, and an NPC spoken to on day 256 counts as

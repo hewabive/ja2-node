@@ -4,7 +4,8 @@
 // @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire (with
 // @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
 // @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount; Handle_UI.cc
-// @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team).
+// @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team); the HandleKilledQuote of
+// @src InternalReduceAttackBusyCount (2026-10-30).
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
@@ -16,6 +17,7 @@ import { InvSlot } from '../inventory.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
 import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
+import { handleKilledQuote } from '../narrative/kill-quotes.ts';
 import { inMeanwhile, meanwhileKeepsAttacker } from '../narrative/meanwhile-rules.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
 import { reevaluateEnemyStance } from '../perception/enemy-stance.ts';
@@ -214,7 +216,11 @@ export function internalReduceAttackBusyCount(
     if (enterCombat && !t.inCombat && !inMeanwhile(t)) enterCombatMode(t, soldier.team);
     soldier.attackNoticed = false;
   }
-  t.turn.killedEnemyOnAttack = false;
+  const killed = t.turn.killedEnemyOnAttack;
+  if (killed) {
+    handleKilledQuote(t, killed);
+    t.turn.killedEnemyOnAttack = null;
+  }
   handleAnyStatChangesAfterAttack(t);
   handleItemsSeenOnAttack(t);
   if (t.turn.checkSightAtEndOfAttack) {

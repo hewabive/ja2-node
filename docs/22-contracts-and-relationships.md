@@ -76,7 +76,9 @@ sequence", "Contract prompts", "Renewal of a merc who cannot leave", "Renewal li
 
 **Quotes are events.** Contract, relationship and morale lines are `mercQuote` events outside the dialogue queue, with
 the merc they are about as `subject`; they need a profile, `OKLIFE`, no robot and no captivity (the gas test is gaps
-"Dialogue queue conditions"). Boxes, mails and records: deviation "Contract presentation".
+"Dialogue queue conditions"). Boxes, mails and records: deviation "Contract presentation". A buddy's comment on a kill
+he witnesses is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in
+the roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
 
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative

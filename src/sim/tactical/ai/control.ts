@@ -622,7 +622,7 @@ function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiCont
     t.sectorHooks.soldierLeftMap(t, s);
     removeSoldierFromTacticalSector(t, s);
   }
-  checkForEndOfBattle(t);
+  checkForEndOfBattle(t, true);
 }
 
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {

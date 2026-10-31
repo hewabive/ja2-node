@@ -481,6 +481,20 @@ function addTrashedMapRestrictedScroll(snapshot: Readonly<Record<string, unknown
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+function withoutHeldKillFlag(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined || typeof turn[KILLED_ENEMY_ON_ATTACK_KEY] !== 'boolean') return tactical;
+  return { ...tactical, turn: { ...turn, [KILLED_ENEMY_ON_ATTACK_KEY]: null } };
+}
+
+function dropHeldKillFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withoutHeldKillFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -498,5 +512,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     13: addTeamChangeDuringDeathFlag,
     14: addItemLookingState,
     15: addTrashedMapRestrictedScroll,
+    16: dropHeldKillFlag,
   };
 }

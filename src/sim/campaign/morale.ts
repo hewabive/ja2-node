@@ -7,8 +7,8 @@ import { type Sector, sameSector, sectorFromId } from '../../content/strategic/s
 import { clamp, i8, idiv, u8 } from '../../core/int.ts';
 import type { StrategicStatus } from '../strategic/ai/queen-state.ts';
 import { Assignment, CONSCIOUSNESS, MoraleEvent as EconomyMoraleEvent } from '../strategic/economy/constants.ts';
+import { QuoteSaidFlag } from '../tactical/narrative/merc-quotes.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import { QuoteSaidFlag } from './contracts/contract-state.ts';
 import type { QuoteName } from './contracts/quotes.ts';
 import { modifyPlayerReputation, Reputation } from './relations/reputation.ts';
 import type { RosterMerc } from './roster.ts';

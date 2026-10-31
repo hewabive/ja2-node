@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Event_Hook.cc (EVENT_CREATURE_SPREAD, EVENT_CREATURE_NIGHT_PLANNING, EVENT_CREATURE_ATTACK);
 // @src Creature_Spreading.cc CreatureAttackTown (the battle start), PrepareCreaturesForBattle;
-// @src Strategic/Meanwhile.cc HandleCreatureRelease; Strategic_Town_Loyalty.cc AdjustLoyaltyForCivsEatenByMonsters.
+// @src Strategic/Meanwhile.cc HandleCreatureRelease; Strategic_Town_Loyalty.cc AdjustLoyaltyForCivsEatenByMonsters;
+// @src StrategicMap.cc PrepareLoadedSector (IN_CREATURE_LAIR, 2026-10-30).
 
 import { CreatureHabitat } from '../../content/strategic/creature-lairs.ts';
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -23,6 +24,7 @@ import {
   playerGroupIsInACreatureInfestedMine,
   type SavedCreatureDirectives,
   spreadCreatures,
+  warpOutOfMineCodes,
 } from '../strategic/creatures/creatures.ts';
 import { creatureAttackTown, type TownAttackContext } from '../strategic/creatures/town-attack.ts';
 import { adjustLoyaltyForCivsEatenByMonsters } from '../strategic/economy/loyalty.ts';
@@ -39,6 +41,8 @@ export interface CreatureBattleSetup {
   readonly queen: boolean;
   readonly counts: CreatureCounts;
 }
+
+const LAIR_MIN_LEVEL = 2;
 
 export class CreatureFlow {
   readonly campaign: CampaignSim;
@@ -102,6 +106,11 @@ export class CreatureFlow {
 
   endQuest(): void {
     endCreatureQuest(this.context());
+  }
+
+  inCreatureLair(world: Sector): boolean {
+    if (world.z < LAIR_MIN_LEVEL || !this.campaign.economy) return false;
+    return warpOutOfMineCodes(this.context(), world) !== null;
   }
 
   mineClear(mine: number): boolean {

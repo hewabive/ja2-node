@@ -14,7 +14,8 @@
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
-// @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart).
+// @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
+// @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -22,6 +23,11 @@ import { type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 
 const NO_INITIATING_TARGET = -1;
+
+export interface QuoteSaidRecord {
+  quoteSaidFlags: number;
+  quoteSaidExtFlags: number;
+}
 
 export interface NarrativePort {
   fact(id: number, profile?: number): boolean;
@@ -44,6 +50,9 @@ export interface NarrativePort {
   palaceBasementSecured(): boolean;
   isEpc(s: Soldier): boolean;
   assignment(s: Soldier): number | null;
+  mercAsleep(s: Soldier): boolean;
+  isAimMerc(s: Soldier): boolean;
+  quoteSaidFlags(s: Soldier): QuoteSaidRecord | null;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
   townLoyaltyChange(town: number, amount: number): void;
@@ -111,6 +120,9 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   palaceBasementSecured: () => false,
   isEpc: () => false,
   assignment: () => null,
+  mercAsleep: () => false,
+  isAimMerc: () => false,
+  quoteSaidFlags: () => null,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},
   townLoyaltyChange: () => {},

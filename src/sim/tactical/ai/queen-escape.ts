@@ -63,5 +63,5 @@ export function traverseDown(t: TacticalState, s: Soldier): void {
     }
   }
   removeSoldierFromTacticalSector(t, s);
-  checkForEndOfBattle(t);
+  checkForEndOfBattle(t, true);
 }
