@@ -40,7 +40,8 @@ Agent API events of a hit (`bulletImpact`, `soldierHit`, `soldierDied`, `attackR
 
 **Damage at impact, death at the end of the death animation.** Life drops when the bullet arrives; corpse, item drops,
 kill credit and removal from the map happen at opcode 440, seconds later. Until then the dying soldier keeps his tile
-with life 0 and can be hit again.
+with life 0 and can be hit again. Right after the drop every merc looks for items (`08`), so a merc who sees the drops
+halts in combat, and the items-seen quote of a kill waits for the end of the attack.
 
 **One barrier.** `turn.attackBusyCount` counts everything still resolving: attacks, bullets in flight, hit animations,
 suppression stance changes. Every increment is paid by exactly one decrement; a soldier releases all hits of a sequence
@@ -105,8 +106,8 @@ Inferred from reading the source:
 - The ready APs are charged again on returning to aim after a hit; a special move may overshoot its final tile.
 - Whether the turn start `EnterCombatMode` runs clears the suppression points of the attack that began combat.
 - The agility gain for a bullet that passed through someone and then stopped in a wall.
-- Which draws the item-locator quote makes. `HandleKilledQuote` is not ported (gaps "Kill quotes").
+- The items-seen quote after a kill: its hold until the end of the attack and its `Random(2)` when the dialogue queue
+  runs it. `HandleKilledQuote` is not ported (gaps "Kill quotes").
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Items seen at a death", "Implications of an attack", "Morale without drugs", "Corpses", "Unseen
-soldiers in combat".
+Not ported: gaps "Implications of an attack", "Morale without drugs", "Corpses", "Unseen soldiers in combat".

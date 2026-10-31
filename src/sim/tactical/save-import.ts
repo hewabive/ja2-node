@@ -369,6 +369,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.underAiControl = (r.statusFlags & SoldierStatusFlags.PCUNDERAICONTROL) !== 0;
   s.boxer = (r.statusFlags & SoldierStatusFlags.BOXER) !== 0;
   s.cowering = (r.statusFlags & SoldierStatusFlags.COWERING) !== 0;
+  s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
   s.breathMax = r.stats.breathMax;
   s.breathRed = r.breathRed;
@@ -595,6 +596,8 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.enemyInSector = ts.enemyInSector;
   turn.someoneHit = ts.someoneHit;
   turn.enemyOfferedSurrender = (ts.enemyFlags & ENEMY_OFFERED_SURRENDER) !== 0;
+  turn.itemsSeenOnAttack = ts.itemsSeenOnAttack ? soldierById(t, ts.itemsSeenOnAttackSoldier) : null;
+  turn.lockItemLocators = ts.lockItemLocators;
   turn.spottersCalledForBy = ts.spottersCalledForBy;
   turn.consNumTurnsNotSeen = ts.consecutiveTurnsNotSeen;
   turn.consNumTurnsWeHaventSeenButEnemyDoes = ts.consecutiveTurnsWeHaventSeenButEnemyDoes;

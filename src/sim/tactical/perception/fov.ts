@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
-// @src SetGridNoRevealedFlag and the spotted-something quote).
+// @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems.
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
@@ -21,8 +21,9 @@ import { BOXING_SECTOR } from '../narrative/constants.ts';
 import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { mercs, type TacticalState } from '../state.ts';
 import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
+import { noticeRevealedItems } from './item-locator.ts';
 
 const GASSED_VIEW_RANGE = 1;
 const DLEFT = 0;
@@ -220,6 +221,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
   let goneThroughDoor = 0;
   let throughWindow = 0;
   let throughWindowDirection = -1;
+  let itemsQuoteSaid = false;
   const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
   for (const path of table) {
     let marker = s.gridNo;
@@ -285,8 +287,8 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           throughWindowDirection = dir;
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
-        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators && t.inCombat)
-          t.perceptionHooks.haltFromItemSighting(s);
+        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators)
+          itemsQuoteSaid = noticeRevealedItems(t, s, itemsQuoteSaid);
         tilesLeftToSee--;
         if (tilesLeftToSee <= 0) break;
         if (blocking === Blocking.FULL || (travelCostObstacle && !throughWindow)) break;
@@ -300,6 +302,10 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
       } else if (travelCostObstacle) break;
     }
   }
+}
+
+export function allSoldiersLookForItems(t: TacticalState): void {
+  for (const s of mercs(t)) revealRoofsAndItems(t, s, true);
 }
 
 export function revealedRooms(t: TacticalState): number[] {

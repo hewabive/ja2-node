@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls,
-// @src the fade before the animation update).
+// @src the fade before the animation update, the SOLDIER_LOOKFOR_ITEMS look at the frame).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
@@ -18,6 +18,7 @@ import {
   setSoldierDestination,
 } from './movement.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
+import { revealRoofsAndItems } from './perception/fov.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -58,7 +59,14 @@ function handleMovementFrame(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
+function lookForItemsIfNotified(t: TacticalState, s: Soldier): void {
+  if (!s.lookForItems) return;
+  revealRoofsAndItems(t, s, false);
+  s.lookForItems = false;
+}
+
 function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
+  lookForItemsIfNotified(t, s);
   const moving = hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
   if ((moving && s.noAPToFinishMove) || s.pauseAllAnimation) return true;
   adjustToNextAnimationFrame(t, s);

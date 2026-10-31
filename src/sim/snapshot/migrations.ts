@@ -430,6 +430,36 @@ function addTeamChangeDuringDeathFlag(snapshot: Readonly<Record<string, unknown>
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LOOK_ON_NEXT_TURN_KEY = 'lookOnNextTurn';
+const LOOK_FOR_ITEMS_KEY = 'lookForItems';
+const KILLED_ENEMY_ON_ATTACK_KEY = 'killedEnemyOnAttack';
+const ITEMS_SEEN_ON_ATTACK_KEY = 'itemsSeenOnAttack';
+const LOCK_ITEM_LOCATORS_KEY = 'lockItemLocators';
+
+function withSoldierLookForItems(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierLookForItems(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierLookForItems(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, LOOK_ON_NEXT_TURN_KEY, LOOK_FOR_ITEMS_KEY, false) : mapped;
+}
+
+function withItemLocatorState(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined) return tactical;
+  const seen = insertAfter(turn, KILLED_ENEMY_ON_ATTACK_KEY, ITEMS_SEEN_ON_ATTACK_KEY, null);
+  return { ...tactical, turn: insertAfter(seen, ITEMS_SEEN_ON_ATTACK_KEY, LOCK_ITEM_LOCATORS_KEY, false) };
+}
+
+function addItemLookingState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const soldiers = withSoldierLookForItems(value);
+    return [name, name === 'tactical' && isObject(soldiers) ? withItemLocatorState(soldiers) : soldiers];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -445,5 +475,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     11: addLastKnownLevels,
     12: addFadeState,
     13: addTeamChangeDuringDeathFlag,
+    14: addItemLookingState,
   };
 }

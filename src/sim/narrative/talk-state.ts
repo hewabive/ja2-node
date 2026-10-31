@@ -42,6 +42,7 @@ export type DialogueEvent =
   | { readonly kind: 'doAction'; readonly npc: number; readonly code: number; readonly record: number }
   | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number }
   | { readonly kind: 'removeEpc'; readonly npc: number }
+  | { readonly kind: 'itemLocator'; readonly speaker: number }
   | { readonly kind: 'callback'; readonly name: string };
 
 export interface TalkingFace {

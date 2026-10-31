@@ -13,7 +13,8 @@
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
-// @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel).
+// @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
+// @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -86,6 +87,7 @@ export interface NarrativePort {
   setSoldierNeutral(s: Soldier): void;
   stuffMissingFromShipment(gridNo: number): boolean;
   sayQuote(s: Soldier, quote: number, delayed?: boolean): void;
+  signalItemLocatorStart(s: Soldier): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -154,4 +156,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   },
   stuffMissingFromShipment: () => false,
   sayQuote: () => {},
+  signalItemLocatorStart: () => {},
 };

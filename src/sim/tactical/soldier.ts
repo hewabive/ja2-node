@@ -87,6 +87,7 @@ export const SoldierStatusFlags = {
   PCUNDERAICONTROL: 0x00000020,
   UNDERAICONTROL: 0x00000040,
   DEAD: 0x00000080,
+  LOOKFOR_ITEMS: 0x00000200,
   ROBOT: 0x00001000,
   MONSTER: 0x00002000,
   ANIMAL: 0x00004000,
@@ -317,6 +318,7 @@ export interface Soldier {
   turnIncrement: number;
   turningUntilDone: boolean;
   lookOnNextTurn: boolean;
+  lookForItems: boolean;
   pausedMove: boolean;
   pauseAnimMove: boolean;
   noAPToFinishMove: boolean;
@@ -621,6 +623,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     turnIncrement: 0,
     turningUntilDone: false,
     lookOnNextTurn: false,
+    lookForItems: false,
     pausedMove: false,
     pauseAnimMove: false,
     noAPToFinishMove: false,

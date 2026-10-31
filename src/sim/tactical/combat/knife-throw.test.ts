@@ -24,6 +24,8 @@ beforeAll(async () => {
 const KNIFE_STATUS_IN_POCKET = 77;
 const TABLE_AT_SECOND_CUBE = { cubes: 0b0010, height: 25 };
 const SHELF_AT_TOP_CUBE = { cubes: 0b1000, height: 50 };
+const MISSED_KNIFE_SEED = 1;
+const MAX_FLIGHT_TICKS = 1000;
 
 function simWith(place: Parameters<typeof syntheticWorld>[1]): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), place);
@@ -80,6 +82,19 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     expect(sim.state.turn.attackBusyCount).toBe(0);
   });
 
+  it('makes the thrower look for items at his next frame when his missed knife falls to the ground (Weapons.cc StructureHit)', () => {
+    const sim = newCombatSim(content, [], MISSED_KNIFE_SEED);
+    const thrower = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { gun: 'THROWING_KNIFE', marksmanship: 1 });
+    const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.state.inCombat = true;
+    thrower.oppList[target.id] = Opp.SEEN_CURRENTLY;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    for (let k = 0; k < MAX_FLIGHT_TICKS && thrownKnives(sim, 'THROWING_KNIFE').length === 0; k++) sim.step();
+    expect(thrownKnives(sim, 'THROWING_KNIFE')).toMatchObject([{ level: 0, visible: Visibility.INVISIBLE }]);
+    expect(target.life).toBe(80);
+    expect(thrower.lookForItems).toBe(true);
+  });
+
   it('lays a knife stopped by a window on the raised table at the window, where a dropped item would lie under it', () => {
     const window = gridNo(80, 84);
     const sim = simWith((structures) => {
@@ -95,7 +110,7 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     expect(events.find((e) => e.type === 'bulletStopped')).toMatchObject({ reason: 'structure' });
     expect(target.life).toBe(80);
     expect(thrownKnives(sim, 'THROWING_KNIFE')).toMatchObject([
-      { gridNo: window, level: 0, zHeight: TABLE_AT_SECOND_CUBE.height, flags: 0, visible: Visibility.INVISIBLE },
+      { gridNo: window, level: 0, zHeight: TABLE_AT_SECOND_CUBE.height, flags: 0, visible: Visibility.VISIBLE },
     ]);
   });
 
@@ -114,7 +129,7 @@ describe('throwing a knife (Handle_Items.cc HandleItem, Weapons.cc UseGun)', () 
     runUntilIdle(sim);
     expect(target.life).toBeLessThan(80);
     expect(thrownKnives(sim, 'BLOODY_THROWING_KNIFE')).toMatchObject([
-      { gridNo: at, level: 0, zHeight: SHELF_AT_TOP_CUBE.height, flags: 0, visible: Visibility.INVISIBLE },
+      { gridNo: at, level: 0, zHeight: SHELF_AT_TOP_CUBE.height, flags: 0, visible: Visibility.VISIBLE },
     ]);
   });
 });

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { spawnSoldier } from '../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { LoadingScreen } from '../content/strategic/loading-screens.ts';
@@ -6,6 +7,10 @@ import { parseSectorString, type Sector } from '../content/strategic/sector-ids.
 import type { SimEvent } from '../sim/events.ts';
 import { getGroup, setGroupSectorValue } from '../sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { handleSoldierDeath } from '../sim/tactical/combat/death.ts';
+import { directionToward } from '../sim/tactical/movement.ts';
+import { TEAM_FIRST_ID, Team } from '../sim/tactical/soldier.ts';
+import { Visibility } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import type { Session } from './session.ts';
@@ -28,6 +33,9 @@ const BARK_TRIES = 12;
 const WITHOUT_PASSING_DISLIKE = 9;
 const WITH_PASSING_DISLIKE = 4;
 const ROUTE_SLICE_SECONDS = 2 * 3600;
+const SPOTTED_SOMETHING_QUOTES = [11, 12];
+const TILES_AHEAD = 2;
+const QUOTE_TICKS = 60;
 const TOWN_PICTURES = new Set<number>([LoadingScreen.DAYTOWN1, LoadingScreen.DAYTOWN2, LoadingScreen.NIGHTTOWN1, LoadingScreen.NIGHTTOWN2]);
 
 interface Campaign {
@@ -134,5 +142,27 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
     };
     expect(barks(WITHOUT_PASSING_DISLIKE, WITH_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, PASSING_DISLIKE]));
     expect(barks(WITH_PASSING_DISLIKE, WITHOUT_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, SOCIAL_TRAIT]));
+  });
+
+  it('has the merc who sees a dead civilian’s drops say the items-seen quote once the dialogue queue runs it', async () => {
+    const c = await landedCampaign(74, []);
+    const enter = { type: 'enterSector', sector: 'A9' };
+    await c.session.prepare(enter);
+    expect(c.session.dispatch(enter)).toMatchObject({ ok: true });
+    c.live.advance({ idle: true });
+    const sim = c.session.campaign.tactical;
+    if (!sim) throw new Error('no sector is loaded');
+    const t = sim.state;
+    const merc = t.soldiers.find((s) => s?.placed && s.team === Team.OUR);
+    if (!merc) throw new Error('no merc');
+    const victim = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV] ?? 0, Team.CIV, merc.gridNo + TILES_AHEAD, merc.direction);
+    merc.direction = directionToward(merc.gridNo, victim.gridNo);
+    victim.life = 0;
+    handleSoldierDeath(t, victim);
+    expect(t.worldItems.filter((i) => i.gridNo === victim.gridNo).map((i) => i.visible)).toEqual([Visibility.VISIBLE]);
+    const events = c.live.advance({ ticks: QUOTE_TICKS }).events;
+    const quotes = events.filter((e) => e.type === 'mercQuote' && SPOTTED_SOMETHING_QUOTES.includes(e.id));
+    expect(quotes).toEqual([expect.objectContaining({ soldier: merc.id })]);
+    expect(c.session.campaign.tactical?.state.turn.lockItemLocators).toBe(false);
   });
 });

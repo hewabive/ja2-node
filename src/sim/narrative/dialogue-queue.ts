@@ -9,7 +9,7 @@
 // @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech), HandleTalkingAutoFace and
 // @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration), SetFaceTalking (a line
 // @src lasts as long as its sample with speech on, its text without); Strategic/Assignments.cc
-// @src DialogueEventRemoveEPC.
+// @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart.
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -40,6 +40,8 @@ function talkingTicks(host: NarrativeHost, speaker: number, textKey: TextKey, ch
 }
 const CONSCIOUSNESS = 10;
 const QUOTE_SERIOUSLY_WOUNDED = 10;
+const QUOTE_SPOTTED_SOMETHING_ONE = 11;
+const SPOTTED_SOMETHING_QUOTES = 2;
 
 export interface DialogueHandlers {
   handlePendingInitConv(): void;
@@ -107,6 +109,10 @@ export function characterDialogue(
 
 export function characterDialogueUsingAlternateFile(host: Pick<NarrativeHost, 'talk'>, speaker: number, quote: number): void {
   addDialogueEvent(host, { kind: 'quote', speaker, quote, npcUi: false, fromSoldier: true, delayed: false, record: null, alternate: true });
+}
+
+export function signalItemLocatorStart(host: Pick<NarrativeHost, 'talk'>, s: Soldier): void {
+  addDialogueEvent(host, { kind: 'itemLocator', speaker: s.profile });
 }
 
 export function talkingMenuDialogue(host: Pick<NarrativeHost, 'talk'>, quote: number, record: number | null = null): void {
@@ -202,6 +208,14 @@ function executePcTrigger(host: NarrativeHost, e: Extract<DialogueEvent, { kind:
   return false;
 }
 
+function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'itemLocator' }>): boolean {
+  const t = host.tactical();
+  if (t) t.turn.lockItemLocators = false;
+  const quote = QUOTE_SPOTTED_SOMETHING_ONE + host.random(SPOTTED_SOMETHING_QUOTES);
+  executeCharacterDialogue(host, e.speaker, quote, false, true, null);
+  return false;
+}
+
 function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): boolean {
   switch (e.kind) {
     case 'quote':
@@ -226,6 +240,8 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
     case 'removeEpc':
       h.removeEpc(e.npc);
       return false;
+    case 'itemLocator':
+      return executeItemLocatorStart(host, e);
     case 'callback':
       h.callback(e.name);
       return false;

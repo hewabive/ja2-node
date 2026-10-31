@@ -54,6 +54,7 @@ import {
   cutTalkingFace,
   delayedTacticalCharacterDialogue,
   dialogueTextKey,
+  signalItemLocatorStart,
   soldierByProfile,
   tacticalCharacterDialogue,
 } from '../narrative/dialogue-queue.ts';
@@ -603,6 +604,7 @@ export class TalkFlow {
         if (delayed) delayedTacticalCharacterDialogue(host, s, quote);
         else tacticalCharacterDialogue(host, s, quote);
       },
+      signalItemLocatorStart: (s) => signalItemLocatorStart(host, s),
     };
   }
 

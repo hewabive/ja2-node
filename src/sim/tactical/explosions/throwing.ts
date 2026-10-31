@@ -33,7 +33,7 @@ import {
 } from '../skills.ts';
 import { numSkillTraits, SKILL_TRAIT_BONUS, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
-import { addItemToPool, FORCE_ON_GROUND, Visibility } from '../world-items.ts';
+import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { igniteExplosion } from './explosion.ts';
 import { createPhysicalObject, HEIGHT_UNITS } from './physics.ts';
 import { isGassed } from './smoke.ts';
@@ -157,7 +157,10 @@ function grantThrowExperience(t: TacticalState, s: Soldier, roll: number, chance
 export function handleSoldierThrowItem(t: TacticalState, s: Soldier, g: number): void {
   s.target = null;
   if (g === s.gridNo) {
-    if (s.tempObject) addItemToPool(t, g, s.tempObject, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+    if (s.tempObject) {
+      addItemToPool(t, g, s.tempObject, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+      notifySoldiersToLookForItems(t);
+    }
     s.tempObject = null;
     return;
   }

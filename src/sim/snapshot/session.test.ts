@@ -19,6 +19,7 @@ import {
   reloadPoint,
 } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { PreRandom, Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
@@ -28,6 +29,7 @@ import { newLightEffect } from '../tactical/explosions/light.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
+import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../tactical/world-items.ts';
 import { reseedMain, snapshotCampaign, snapshotJson } from './session.ts';
 
 let kit: CampaignKit;
@@ -49,6 +51,7 @@ const STEP_BUDGET = 3000;
 const IDLE_BUDGET = 20_000;
 const FLARE_RADIUS = 4;
 const FLARE_TURNS = 6;
+const TILES_AHEAD = 2;
 
 function stepUntil(c: CampaignSim, done: () => boolean): void {
   for (let i = 0; i < STEP_BUDGET && !done(); i++) c.step();
@@ -170,6 +173,31 @@ describe('a campaign snapshot', () => {
     const flare = restored.tactical?.state.explosives.lights.find((l) => l?.radius === FLARE_RADIUS);
     expect(flare?.sprite?.template).toBe(t.content.lightTemplates.get(`LIGHT${FLARE_RADIUS}`));
     expect(snapshotJson(snapshotCampaign(restored, testCampaignContent(kit, options)))).toBe(json);
+  });
+
+  it('keeps the orders to look for items and the item locator state: the merc looks at his next frame after the reload', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    advance(c, { idle: true }, IDLE_BUDGET);
+    const t = tacticalOf(c);
+    const merc = ourSoldiers(c)[0];
+    if (!merc) throw new Error('no merc');
+    const ahead = newGridNo(merc.gridNo, TILES_AHEAD * (DIRECTION_INCREMENT[merc.direction] ?? 0));
+    const items = t.content.items;
+    addItemToPool(t, ahead, createItem(items, items.byName.get('GLOCK_17')?.index ?? 0, 100), Visibility.INVISIBLE, 0);
+    notifySoldiersToLookForItems(t);
+    Object.assign(t.turn, { lockItemLocators: true, itemsSeenOnAttack: merc });
+    const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
+    const restored = testCampaignAdapter(kit, options).restore(JSON.parse(json), c);
+    const after = tacticalOf(restored);
+    const looker = after.soldiers[merc.id];
+    if (!looker) throw new Error('the merc was not restored');
+    expect(after.mercSlots.filter((s) => s !== null).every((s) => s.lookForItems)).toBe(true);
+    expect([after.turn.lockItemLocators, after.turn.itemsSeenOnAttack]).toEqual([true, looker]);
+    expect(after.worldItems.find((i) => i.gridNo === ahead)?.visible).toBe(Visibility.INVISIBLE);
+    stepUntil(restored, () => !looker.lookForItems);
+    expect(after.worldItems.find((i) => i.gridNo === ahead)?.visible).toBe(Visibility.VISIBLE);
   });
 
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {

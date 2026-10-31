@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/World_Items.cc AddItemToWorld, LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
-// @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems; Overhead.cc FlatRoofAboveGridNo.
+// @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems, NotifySoldiersToLookforItems; Overhead.cc
+// @src FlatRoofAboveGridNo.
 
 import type { MapItem } from '../../content/formats/map.ts';
 import { decodeObject } from '../../content/formats/object.ts';
@@ -177,6 +178,10 @@ export function setItemsVisibilityOn(t: TacticalState, g: number, level: number,
   }
   if (modified && setLocator) t.events.push({ type: 'itemsRevealed', gridNo: g, level });
   return modified;
+}
+
+export function notifySoldiersToLookForItems(t: TacticalState): void {
+  for (const s of t.mercSlots) if (s) s.lookForItems = true;
 }
 
 export function setItemsVisibilityHidden(t: TacticalState, g: number, level: number): void {

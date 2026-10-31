@@ -50,6 +50,7 @@ const INT16_BYTES = 2;
 const NOBODY = TOTAL_SOLDIERS;
 const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
+const SOLDIER_LOOKFOR_ITEMS = 0x200;
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -101,6 +102,7 @@ interface SyntheticSave {
   readonly publicLastKnownOppLevel?: readonly (readonly number[])[];
   readonly worldItems?: readonly SavedWorldItem[];
   readonly corpses?: readonly SavedCorpse[];
+  readonly tactical?: Readonly<Record<string, unknown>>;
 }
 
 function levelRows(count: number, entries: readonly (readonly [row: number, opponent: number, level: number])[] = []): number[][] {
@@ -116,6 +118,7 @@ function syntheticSave({
   publicLastKnownOppLevel = levelRows(MAX_TEAMS),
   worldItems,
   corpses,
+  tactical,
 }: SyntheticSave): SaveGame {
   return {
     generalInfo: { baseJA2Clock: 0, selectedSoldier: NOBODY },
@@ -138,6 +141,10 @@ function syntheticSave({
       timeSinceLastOpplistDecay: 0,
       numFoughtInBattle: [],
       teams: [],
+      itemsSeenOnAttack: false,
+      itemsSeenOnAttackSoldier: NOBODY,
+      lockItemLocators: false,
+      ...tactical,
     },
     keyTable: [],
     profiles: [],
@@ -346,6 +353,20 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const fadeOf = (s: Soldier) => [s.visible, s.lastRenderVisible, s.fade, s.fadeShade, s.fadeStartGridNo];
     expect(fadeOf(soldierOf(sim, CIVILIAN_ID))).toEqual([1, 1, SoldierFade.IN, 9, fadingIn]);
     expect(fadeOf(soldierOf(sim, CIVILIAN_ID + 1))).toEqual([Visible.FADING_OUT, Visible.FADING_OUT, SoldierFade.OUT, 7, NOWHERE]);
+  });
+
+  it('restores an order to look for items, the item locator lock and a quote held for the end of an attack (SOLDIER_LOOKFOR_ITEMS, fLockItemLocators, fItemsSeenOnAttack)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { uiStatusFlags: SOLDIER_LOOKFOR_ITEMS }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
+      ],
+      tactical: { itemsSeenOnAttack: true, itemsSeenOnAttackSoldier: MERC_ID, lockItemLocators: true },
+    });
+    const sim = importedSim(save);
+    const merc = soldierOf(sim, MERC_ID);
+    expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
+    expect([sim.state.turn.lockItemLocators, sim.state.turn.itemsSeenOnAttack]).toEqual([true, merc]);
   });
 });
 

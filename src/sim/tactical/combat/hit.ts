@@ -44,7 +44,7 @@ import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBloo
 import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
-import { addItemToPool, Visibility } from '../world-items.ts';
+import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
 import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGivenTarget } from './barrier.ts';
 import { type Bullet, bulletWorldXY, removeBullet } from './bullets.ts';
@@ -110,8 +110,10 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
   if (b.flags & 0x0002) {
     const slot = tgt.inv.findIndex((o, k) => k >= InvSlot.BIGPOCK1 && k <= InvSlot.SMALLPOCK8 && o.item === NOTHING);
     const knife = createItem(t.content.items, itemIndex(t, 'BLOODY_THROWING_KNIFE'), b.itemStatus);
-    if (slot === -1) addItemToPool(t, tgt.gridNo, knife, Visibility.INVISIBLE, tgt.level, NO_FLAGS, LEVEL_HEIGHT);
-    else copyObjectInto(knife, tgt.inv[slot] as ItemObject);
+    if (slot === -1) {
+      addItemToPool(t, tgt.gridNo, knife, Visibility.INVISIBLE, tgt.level, NO_FLAGS, LEVEL_HEIGHT);
+      notifySoldiersToLookForItems(t);
+    } else copyObjectInto(knife, tgt.inv[slot] as ItemObject);
     ammo = AmmoType.KNIFE;
   } else ammo = firer.inv[firer.attackingHand]?.gunAmmoType ?? AmmoType.REGULAR;
   if (isVehicle(tgt) || tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW || tgt.bodyType === Body.BLOODCAT) location = AimShot.TORSO;

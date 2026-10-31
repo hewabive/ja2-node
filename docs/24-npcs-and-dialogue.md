@@ -102,8 +102,9 @@ the tactical state, tick, day, the main stream), so it is tested without a campa
 Tactical rules reach the dialogue only through `TacticalState.narrative` (deviation "Narrative port").
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings through
-`TacticalPort.sayQuote`) go through the queue; contract, morale and other strategic merc lines are plain `mercQuote`
-events outside it.
+`TacticalPort.sayQuote`, the items-seen quote through `signalItemLocatorStart`, which picks its line and unlocks the
+item locators only when the queue runs it) go through the queue; contract, morale and other strategic merc lines are
+plain `mercQuote` events outside it.
 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote

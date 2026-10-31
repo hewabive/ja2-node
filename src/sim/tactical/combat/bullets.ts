@@ -36,7 +36,7 @@ import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, type Soldier, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
-import { addItemToPool, Visibility } from '../world-items.ts';
+import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
 import { agilityForEnemyMissingPlayer, StatCause, statChange } from './experience.ts';
@@ -529,8 +529,10 @@ function structureHit(
       break;
     case WeaponClass.KNIFE:
       if (weapon?.itemClass === ItemClass.THROWING_KNIFE) {
-        if (structureId === INVALID_STRUCTURE_ID)
+        if (structureId === INVALID_STRUCTURE_ID) {
           addItemToPool(t, g, createItem(t.content.items, itemIndex(t, 'THROWING_KNIFE'), b.itemStatus), Visibility.INVISIBLE, 0);
+          notifySoldiersToLookForItems(t);
+        }
         removeBullet(t, b);
         freeUpAttacker(t, attacker);
       }
@@ -831,6 +833,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
                     } else if (!(b.incY > 0)) knifeGrid += WORLD_ROWS;
                     const item = createItem(t.content.items, knife, b.itemStatus);
                     addItemToPool(t, knifeGrid, item, Visibility.INVISIBLE, GROUND_LEVEL, NO_FLAGS, LEVEL_HEIGHT);
+                    notifySoldiersToLookForItems(t);
                     stopBullet(b);
                     structureHit(t, b, s.id, 1, true, 'structure');
                     return;

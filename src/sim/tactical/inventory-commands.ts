@@ -34,7 +34,7 @@ import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { cleanUpStack } from './stack-cleanup.ts';
 import { type TacticalState, teamMembers } from './state.ts';
-import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
+import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility } from './world-items.ts';
 
 export interface InventoryCommand {
   readonly type: string;
@@ -170,6 +170,7 @@ export function tacticalPanelEnv(t: TacticalState): PanelEnv {
     equipmentChanged: (s, slot, oldItem, newItem) => handleTacticalEffectsOfEquipmentChange(t, s, slot, oldItem, newItem),
     leftover: (s: Soldier, o: ItemObject) => {
       addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+      notifySoldiersToLookForItems(t);
     },
     emit: (event) => {
       t.events.push(event);

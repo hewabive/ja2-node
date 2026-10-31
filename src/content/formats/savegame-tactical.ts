@@ -327,6 +327,9 @@ export interface TacticalStatus {
   readonly timeSinceLastOpplistDecay: number;
   readonly decayBloodLastUpdate: number;
   readonly enemyFlags: number;
+  readonly itemsSeenOnAttack: boolean;
+  readonly itemsSeenOnAttackSoldier: number;
+  readonly lockItemLocators: boolean;
   readonly guideDescription: {
     readonly counting: boolean;
     readonly countdown: number;
@@ -514,6 +517,9 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     someoneHit: b('fSomeoneHit'),
     timeSinceLastOpplistDecay: n('uiTimeSinceLastOpplistDecay'),
     enemyFlags: n('fEnemyFlags'),
+    itemsSeenOnAttack: b('fItemsSeenOnAttack'),
+    itemsSeenOnAttackSoldier: n('items_seen_on_attack_soldier'),
+    lockItemLocators: b('fLockItemLocators'),
     guideDescription: {
       counting: b('fCountingDownForGuideDescription'),
       countdown: n('bGuideDescriptionCountDown'),

@@ -23,7 +23,16 @@ import { StatKind } from './profiles.ts';
 import { type PendingPickup, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
-import { addItemToPool, FORCE_ON_GROUND, itemsAt, lookForHiddenItems, removeWorldItem, Visibility, type WorldItem } from './world-items.ts';
+import {
+  addItemToPool,
+  FORCE_ON_GROUND,
+  itemsAt,
+  lookForHiddenItems,
+  notifySoldiersToLookForItems,
+  removeWorldItem,
+  Visibility,
+  type WorldItem,
+} from './world-items.ts';
 
 const Code = { GIVE_ITEM: 486, DROP_ITEM: 487, PICKUP_ITEM: 493 } as const;
 const HIDDEN_ITEM_WISDOM_GAIN = 5;
@@ -167,6 +176,7 @@ function soldierHandleDropItem(t: TacticalState, s: Soldier): void {
   if (!o) return;
   s.tempObject = null;
   addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+  notifySoldiersToLookForItems(t);
   t.events.push({ type: 'itemDropped', soldier: s.id, gridNo: s.gridNo });
 }
 

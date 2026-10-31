@@ -37,6 +37,7 @@ import { boxingFight } from '../narrative/boxing-state.ts';
 import { Profile, TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
+import { allSoldiersLookForItems } from '../perception/fov.ts';
 import { NoiseKind } from '../perception/noise.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
@@ -332,6 +333,7 @@ function queenBloodJars(t: TacticalState): number {
 }
 
 function dropQueenBlood(t: TacticalState, s: Soldier, visible: number): void {
+  t.turn.lockItemLocators = false;
   const jar = t.content.items.byName.get(QUEEN_BLOOD_JAR)?.index ?? NOTHING;
   const below = s.gridNo + WORLD_COLS * QUEEN_BLOOD_ROWS_SOUTH;
   const count = queenBloodJars(t);
@@ -350,6 +352,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     if (isQueenMonsterCorpse(t, type)) dropQueenBlood(t, s, visible);
     else dropInventory(t, s, visible);
   }
+  allSoldiersLookForItems(t);
   const direction = corpseDirection(t, s, type);
   removeOccupant(t, s);
   removeMercStructure(t, s);

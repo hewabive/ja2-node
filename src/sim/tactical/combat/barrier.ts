@@ -19,6 +19,7 @@ import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { inMeanwhile, meanwhileKeepsAttacker } from '../narrative/meanwhile-rules.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
 import { reevaluateEnemyStance } from '../perception/enemy-stance.ts';
+import { handleItemsSeenOnAttack } from '../perception/item-locator.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { dequeueDeferredNoises } from '../perception/noise.ts';
 import { Caller, Opp } from '../perception/opp.ts';
@@ -215,6 +216,7 @@ export function internalReduceAttackBusyCount(
   }
   t.turn.killedEnemyOnAttack = false;
   handleAnyStatChangesAfterAttack(t);
+  handleItemsSeenOnAttack(t);
   if (t.turn.checkSightAtEndOfAttack) {
     allTeamsLookForAll(t);
     t.turn.checkSightAtEndOfAttack = false;

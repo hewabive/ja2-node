@@ -434,3 +434,44 @@ describe('snapshot version 13 (no team-change flag) migrates with the flag down'
     await expectFlagDown(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+const ITEM_LOOKING_DEFAULTS: Readonly<Record<string, Json>> = { lookForItems: false, itemsSeenOnAttack: null, lockItemLocators: false };
+
+function withoutItemLooking(o: Record<string, Json>): Record<string, Json> {
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(o)) {
+    if (!(key in ITEM_LOOKING_DEFAULTS)) out[key] = v;
+    else expect(v).toEqual(ITEM_LOOKING_DEFAULTS[key]);
+  }
+  return out;
+}
+
+describe('snapshot version 14 (no item looking state) migrates with nobody looking for items and the item locators unlocked', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNobodyLooking(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = mapSections(current.sim, 14, withoutItemLooking);
+    for (const key of Object.keys(ITEM_LOOKING_DEFAULTS)) expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNobodyLooking(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNobodyLooking(await createCampaignSession(kit.read, exists, 9));
+  });
+});

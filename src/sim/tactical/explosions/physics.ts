@@ -18,7 +18,7 @@ import { Special } from '../combat/types.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState } from '../state.ts';
-import { addItemToPool, FORCE_ON_GROUND, Visibility, WorldItemFlags } from '../world-items.ts';
+import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility, WorldItemFlags } from '../world-items.ts';
 import { checkForCatcher, checkForCatchObject, endCatchAnimation } from './catching.ts';
 import { igniteExplosionXY } from './explosion.ts';
 import { newLightEffect } from './light.ts';
@@ -324,6 +324,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
       if (rearmed) drawTimedBombSettings(t);
       const level = o.oldCollisionCode === Collision.ROOF ? 1 : 0;
       addItemToPool(t, o.gridNo, obj, Visibility.INVISIBLE, level, rearmed ? WorldItemFlags.ARMED_BOMB : 0, 0);
+      notifySoldiersToLookForItems(t);
     }
   }
   const explosive = def?.explosive;

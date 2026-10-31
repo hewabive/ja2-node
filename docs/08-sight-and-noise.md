@@ -39,7 +39,8 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/bloodcat-arena.ts` | The N5 rule: the army and the creatures neither see (`soldierToSoldierLos`, `combat/positions.ts`) nor hear each other |
 | `perception/duel.ts` | Duel points, interrupt conditions, watched locations (`10`) |
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
-| `perception/fov.ts` | `revealRoofsAndItems`, revealed tiles and rooms (`TacticalState.fog`) |
+| `perception/fov.ts` | `revealRoofsAndItems`, `allSoldiersLookForItems`, revealed tiles and rooms (`TacticalState.fog`) |
+| `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`) |
 | `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; halting on a sighting; the AI's stance after one |
 | `lighting/lighting.ts` | `lightTrueLevel` and the light scaling of vision (`20`) |
 
@@ -109,6 +110,13 @@ saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded m
 hidden roofs, show-through and wireframes from the revealed rooms (`render/world/reveal.ts`). Above ground there is no
 terrain fog.
 
+**Items are found by the same view paths.** A radio look shows a merc the items on them with their locator; new items
+there halt him in combat, and his look takes the item locator lock and queues one items-seen quote, which a locked
+lock in combat silences and an attack in progress holds until it ends on our turn. The drop at a death makes every merc
+look so at once. Other new items (a dropped item, a knife laid by a throw, a dud) only set every soldier's
+`lookForItems`; he then looks at his next animation frame (`overhead.ts`) without locators: the items show, but he
+does not halt and queues no items-seen quote.
+
 **Decay.** A team's turn start decays its public opplist and watched locations, each soldier's his own. In real time
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
 forces up to two decays at once (deviation "Real-time turn after combat").
@@ -120,7 +128,8 @@ included, before the next event.
 **Randomness.** `pre`: each footstep (one draw for the army, zero to two for others, also for a door's noise), the
 experience chances of spotting an enemy who has not seen the merc (`33`), thrown objects landing (`34`). `main`: the
 order of `ourTeamRadiosRandomlyAbout`, the bloodcat roar, the hostile-quote speaker, which of the two room-roof item
-quotes. The sighting quotes are not drawn (gap "Sighting quotes").
+quotes, which of the two items-seen quotes (drawn when the dialogue queue runs it). The sighting quotes are not drawn
+(gap "Sighting quotes").
 
 ## 3. Quirks of the original the code keeps
 
@@ -140,6 +149,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Smoke never stops a creature's smell, yet tear and mustard gas shorten it | `sight-modifiers.test.ts` |
 | Any camouflage on a bloodcat counts as full camouflage | `sight-modifiers.test.ts` |
 | A muzzle flash shows a shooter as in daylight to anyone but a tank, which keeps looking only the way it is turning, also where a look ignores the facing | `sight-modifiers.test.ts` |
+| In combat a locked item locator keeps every merc who sees new items quiet; only a look out of combat, the items-seen quote itself or the creature queen's death unlocks it | `item-locator.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.
