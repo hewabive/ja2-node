@@ -10,7 +10,7 @@ import { minAPsToAttack } from '../combat/ap.ts';
 import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import { lightSetBaseLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
@@ -136,6 +136,19 @@ describe('checkIfTossPossible (Items.cc FindThrowableGrenade)', () => {
     lightSetBaseLevel(t, NORMAL_LIGHTLEVEL_NIGHT);
     expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK2);
     enemy.life = enemy.lifeMax / 2;
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
+  });
+
+  it("takes a flare first at night underground too, by the world's time of day, not the dark of the map", () => {
+    const t = newState();
+    const enemy = grenadier(t);
+    t.lighting.underground = true;
+    lightSetBaseLevel(t, NORMAL_LIGHTLEVEL_NIGHT);
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
+    let worldLight = NORMAL_LIGHTLEVEL_NIGHT;
+    t.timeOfDayLight = { ambientLevel: () => worldLight };
+    expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK2);
+    worldLight = NORMAL_LIGHTLEVEL_DAY;
     expect(checkIfTossPossible(t, enemy).weaponIn).toBe(InvSlot.BIGPOCK1);
   });
 });

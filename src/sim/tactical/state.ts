@@ -25,7 +25,7 @@ import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
 import type { SoldierInitNode } from './init-list.ts';
-import { createLightingState, type LightingState } from './lighting/lighting.ts';
+import { createLightingState, type LightingState, NO_TIME_OF_DAY_LIGHT, type TimeOfDayLight } from './lighting/lighting.ts';
 import type { AddedExitGrid, MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
@@ -247,6 +247,7 @@ export interface TacticalState {
   hooks: TacticalHooks;
   readonly perception: Perception;
   readonly lighting: LightingState;
+  timeOfDayLight: TimeOfDayLight;
   readonly fog: FogOfWar;
   perceptionHooks: PerceptionHooks;
   readonly turn: TurnState;
@@ -414,6 +415,7 @@ export function createTacticalState(
     hooks: NO_HOOKS,
     perception: createPerception(TOTAL_SOLDIERS),
     lighting: createLightingState(world.level),
+    timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     fog: createFogOfWar(),
     perceptionHooks: NO_PERCEPTION_HOOKS,
     turn: createTurnState(TOTAL_SOLDIERS),

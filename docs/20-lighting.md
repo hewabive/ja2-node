@@ -70,6 +70,11 @@ switch them, and the dawn and dusk steps and the temperature events change the a
 clock before the world, so the saved hour powers the map lights. The sandbox stays at 12:00 (deviation "Ambient light
 and light schedule").
 
+**Underground, the time of day comes through a port.** A cave or basement keeps the ambient level its map sets, so
+`lighting.ambient` says nothing about the hour there; the AI's night check reads the world's level through
+`TacticalState.timeOfDayLight`, which the sector flow installs over the campaign environment (`timeOfDayAmbientLevel`).
+The sandbox has no world light and never counts as night underground.
+
 **Obstacles block light through the structure height cache.** A tall obstacle stops a ray only if its height is
 cached, and the original fills the cache lazily (sandbag movement costs, items put into containers, sight, bullets,
 explosions, target heights); at a fresh load only sandbags and containers holding items have it. ja2-node mirrors the
@@ -115,6 +120,6 @@ the source:
 - The window rule skips the original's test for a struct node on the window tile: all 1,853 window structures of the
   260 original maps are single-tile and carry their own node.
 
-Not ported: gaps "Cave lights", "Mines in the pathfinder", "AI flares underground", "Savegame import" (light effect
-records). Other deviations of this domain: "Light on structures", "Ambient light and light schedule", "Doors and light
-in the projection", "World clock for smoke and light", "Soldier fade without merc lights".
+Not ported: gaps "Cave lights", "Mines in the pathfinder", "Savegame import" (light effect records). Other deviations
+of this domain: "Light on structures", "Ambient light and light schedule", "Doors and light in the projection", "World
+clock for smoke and light", "Soldier fade without merc lights".

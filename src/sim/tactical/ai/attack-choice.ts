@@ -39,7 +39,7 @@ import { SmokeTile, smokeFlagsAt, smokeTypeOf } from '../explosions/smoke.ts';
 import { calcMaxTossRange, calcThrownChanceToHit } from '../explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../explosions/trajectory.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
-import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, surfaceAmbientLevel } from '../lighting/lighting.ts';
+import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { closestKnownOpponent, type KnownPosition, personalLastKnown } from '../perception/knowledge.ts';
@@ -172,7 +172,7 @@ function findAmmo(t: TacticalState, s: Soldier, calibre: number, magSize: number
 }
 
 function prefersFlares(t: TacticalState, s: Soldier): boolean {
-  return surfaceAmbientLevel(t) === NORMAL_LIGHTLEVEL_NIGHT && s.life > idiv(s.lifeMax, 2);
+  return timeOfDayAmbientLevel(t) === NORMAL_LIGHTLEVEL_NIGHT && s.life > idiv(s.lifeMax, 2);
 }
 
 function findThrowableGrenade(t: TacticalState, s: Soldier): number {

@@ -184,8 +184,8 @@ change breaks old saves).
 - **Content is referenced, not copied**: an object reachable from the content roots (the campaign parts, the loaded
   world's immutable parts) is written as its key and resolved against freshly loaded content. `Rng`, `PreRandom` and
   the mutable world classes (`WorldStructures`, `MovementCosts`) have class codecs.
-- **Hooks are not written**: the tactical hooks, the narrative port and the schedule clock are re-installed on
-  restore; `pathEnv` is written as its settings.
+- **Hooks are not written**: the tactical hooks, the narrative port, the schedule clock and the time-of-day light are
+  re-installed on restore; `pathEnv` is written as its settings.
 - **Loud failures**: a function, a class instance without a codec, a bigint, a null-prototype object or a key starting
   with `$` fails with its path, so state the codec cannot write is found when it is added.
 - **Equal histories give equal bytes**: object keys keep their order, maps and sets their insertion order. Sorting was

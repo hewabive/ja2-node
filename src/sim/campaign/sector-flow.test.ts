@@ -11,6 +11,7 @@ import {
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosives.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
+import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
@@ -24,6 +25,7 @@ import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, Team } from '../tactical/soldier.ts';
@@ -471,6 +473,24 @@ describe('structure damage in a SAM sector', () => {
     runExplosivesUntilIdle(campaign.tactical ?? never());
     expect(site.samCondition).toBeLessThan(80);
     expect(covered.enemyAirControlled).toBe(false);
+  });
+});
+
+describe('the time of day in a loaded sector', () => {
+  it("reaches an underground sector from the world's light value, while the map keeps its own ambient light", () => {
+    const basement = { ...A10, z: 1 };
+    const { campaign, roster } = createTestCampaign(kit, { seed: 15, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    for (const m of roster.all()) m.sector = { ...basement };
+    expect(flowOf(campaign).setCurrentWorldSector(basement)).toBe(true);
+    reloadPoint(campaign);
+    const t = campaign.tactical?.state ?? never();
+    expect(t.lighting.underground).toBe(true);
+    for (const light of [NORMAL_LIGHTLEVEL_NIGHT, NORMAL_LIGHTLEVEL_DAY]) {
+      campaign.state.env.lightValue = light;
+      expect(timeOfDayAmbientLevel(t)).toBe(light);
+    }
+    expect(t.lighting.ambient).toBe(t.world.map?.ambient?.lightLevel);
   });
 });
 

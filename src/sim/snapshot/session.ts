@@ -3,6 +3,7 @@ import { Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
+import { NO_TIME_OF_DAY_LIGHT } from '../tactical/lighting/lighting.ts';
 import { NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { NO_SCHEDULE_CLOCK } from '../tactical/narrative/schedule-state.ts';
 import {
@@ -51,6 +52,7 @@ const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'experienceHooks',
   'narrative',
   'scheduleClock',
+  'timeOfDayLight',
   'pathEnv',
 ]);
 
@@ -72,6 +74,7 @@ function reviveTactical(data: unknown): TacticalState {
     experienceHooks: NO_EXPERIENCE_HOOKS,
     narrative: NO_NARRATIVE_PORT,
     scheduleClock: NO_SCHEDULE_CLOCK,
+    timeOfDayLight: NO_TIME_OF_DAY_LIGHT,
     pathEnv: createPathEnv(fields, fields.pathEnv),
   };
 }

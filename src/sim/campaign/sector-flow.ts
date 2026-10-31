@@ -494,9 +494,14 @@ export class SectorFlow {
     return { ...world, map: { ...world.map, doors: [...doors] } };
   }
 
+  #timeOfDayAmbientLightLevel(sector: SectorPosition): number {
+    const s = this.campaign.state;
+    return timeOfDayAmbientLightLevel(s.env, sector.z, sector.z === 0 && isSectorDesert(s.map, sector));
+  }
+
   #createTactical(sector: Sector, world: TacticalWorld): TacticalSim {
     const s = this.campaign.state;
-    const dayAmbient = timeOfDayAmbientLightLevel(s.env, sector.z, sector.z === 0 && isSectorDesert(s.map, sector));
+    const dayAmbient = this.#timeOfDayAmbientLightLevel(sector);
     const sim = new TacticalSim(world, this.setup.content, 0, {
       options: s.options,
       streams: { rng: s.rng, pre: s.pre },
@@ -527,6 +532,12 @@ export class SectorFlow {
     sim.state.experienceHooks = this.campaign.experienceHooks;
     sim.state.narrative = campaignNarrativePort(this.campaign);
     sim.state.scheduleClock = campaignScheduleClock(this.campaign);
+    sim.state.timeOfDayLight = {
+      ambientLevel: () => {
+        const world = this.world;
+        return world ? this.#timeOfDayAmbientLightLevel(world) : null;
+      },
+    };
     sim.state.sectorHooks = {
       soldierDied: (_t, dead) => this.#soldierDied(dead),
       murderOfCivilian: (t, dead) => this.#murderOfCivilian(t, dead),

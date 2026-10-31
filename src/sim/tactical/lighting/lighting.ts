@@ -4,7 +4,8 @@
 // @src LightAddTile, LightSubtractTile, LightResetAllTiles, LightFindNextRay, LightSetBaseLevel, LightDraw, LightErase,
 // @src LightSpriteGetFree, LightSpriteCreate, LightSpriteDestroy, LightSpriteRenderAll, LightSpritePosition, LightSpritePower;
 // @src TileEngine/LoadSaveLightSprite.cc ExtractLightSprite; TileEngine/WorldDef.cc LoadMapLights, LoadWorldFromSGPFile
-// @src (ambient light); TileEngine/Environment.cc TurnOnNightLights, TurnOffNightLights, TurnOnPrimeLights, TurnOffPrimeLights;
+// @src (ambient light); TileEngine/Environment.cc TurnOnNightLights, TurnOffNightLights, TurnOnPrimeLights, TurnOffPrimeLights,
+// @src GetTimeOfDayAmbientLightLevel (read underground through a port);
 // @src TileEngine/Environment.h light hours; Tactical/PathAI.cc InternalDoorTravelCost (perceived, no
 // @src soldier); Tactical/OppList.cc gbLightSighting, AdjustMaxSightRangeForEnvEffects.
 
@@ -120,6 +121,16 @@ export function lightShadeLevel(t: TacticalState, g: number, level: number): num
 
 export function surfaceAmbientLevel(t: TacticalState): number | null {
   return t.lighting.underground ? null : t.lighting.ambient;
+}
+
+export interface TimeOfDayLight {
+  ambientLevel(): number | null;
+}
+
+export const NO_TIME_OF_DAY_LIGHT: TimeOfDayLight = { ambientLevel: () => null };
+
+export function timeOfDayAmbientLevel(t: TacticalState): number | null {
+  return t.lighting.underground ? t.timeOfDayLight.ambientLevel() : t.lighting.ambient;
 }
 
 function filterDirection(f: number): number {
