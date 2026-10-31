@@ -175,6 +175,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | No greeting after the A.I.M. connection snow: the snow clears the first-contact flag the greeting waits for | `laptop/aim/aim-conference.test.ts` "greets with nothing after the connection snow …" |
 | An A.I.M. distortion line shows its first frame only on its first run: the counter starts at 255 and later runs step past frame 0 | `laptop/aim/aim-distortion.test.ts` "shows the first line frame only on the first run …" |
 | Enter or Space ticks the I.M.P. gender box that has the focus even when no further I.M.P. can be created; only the click checks | `laptop/imp/imp-begin.test.ts` "tick a gender box when no further I.M.P. can be created …" |
+| Alt+Load and Alt+C open the load screen until a Dead is Dead game names its save, then load the newest save of any kind for good: Stracciatella sets `bLastSavedGameSlot` (the client setting `lastSavedGameSlot`) only there, to the first list entry | `front-end/front-end.test.ts` "sets the last saved slot to 0 for good …" |
 
 Not pinned yet:
 - `GlowTrashCan` never shows a glow: its colour index stays 0 (`map/merc-inventory.ts`).

@@ -131,4 +131,13 @@ describe('client settings', () => {
     expect(normalizeSettings({ websiteLoadingTimeScale: -1 })).toMatchObject({ websiteLoadingTimeScale: 1 });
     expect(normalizeSettings({ websiteLoadingTimeScale: 'slow' })).toMatchObject({ websiteLoadingTimeScale: 1 });
   });
+
+  it('start without a last saved game slot, keep a slot of the INT8 range and read anything below 0 as -1', () => {
+    expect(DEFAULT_SETTINGS.lastSavedGameSlot).toBe(-1);
+    expect(normalizeSettings({ lastSavedGameSlot: 0 })).toMatchObject({ lastSavedGameSlot: 0 });
+    expect(normalizeSettings({ lastSavedGameSlot: 127 })).toMatchObject({ lastSavedGameSlot: 127 });
+    expect(normalizeSettings({ lastSavedGameSlot: -5 })).toMatchObject({ lastSavedGameSlot: -1 });
+    expect(normalizeSettings({ lastSavedGameSlot: 128 })).toMatchObject({ lastSavedGameSlot: -1 });
+    expect(normalizeSettings({ lastSavedGameSlot: 0.5 })).toMatchObject({ lastSavedGameSlot: -1 });
+  });
 });

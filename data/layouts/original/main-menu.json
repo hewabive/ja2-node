@@ -94,7 +94,7 @@
     }
   ],
   "hotkeys": [
-    { "key": "c", "on": "up", "mods": 4, "action": "loadNewest" },
+    { "key": "c", "on": "up", "mods": 4, "action": "loadLastSaved" },
     { "key": "c", "on": "up", "mods": "any", "action": "loadGame" },
     { "key": "o", "on": "up", "mods": "any", "action": "preferences" },
     { "key": "s", "on": "up", "mods": "any", "action": "credits" },

@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/GameSettings.cc InitGameSettings (the TOPTION defaults, volumes 63, sizes of the cover and LOS displays),
-// @src LoadGameSettings (speech or subtitles always on); src/game/Options_Screen.cc HandleOptionToggle (speech and subtitles
-// @src cannot both be off); src/game/HelpScreen.h HelpScreenID (the help mask bits); GameSettings.h GAME_SETTINGS; Tactical/DisplayCover.cc DC__MIN_SIZE,
+// @src src/game/GameSettings.cc InitGameSettings (the TOPTION defaults, volumes 63, sizes of the cover and LOS displays,
+// @src bLastSavedGameSlot -1), LoadGameSettings (speech or subtitles always on, a bLastSavedGameSlot below 0 read as -1);
+// @src src/game/Options_Screen.cc HandleOptionToggle (speech and subtitles cannot both be off); src/game/HelpScreen.h
+// @src HelpScreenID (the help mask bits); GameSettings.h GAME_SETTINGS; Tactical/DisplayCover.cc DC__MIN_SIZE,
 // @src DC__MAX_SIZE.
 
 import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
@@ -21,6 +22,8 @@ const MEANWHILE_SCENE_BITS = 32;
 export const DEFAULT_WEBSITE_LOADING_TIME_SCALE = 1;
 export const MAX_WEBSITE_LOADING_TIME_SCALE = 10;
 const HELP_SCREEN_BITS = 16;
+export const NO_SAVED_GAME_SLOT = -1;
+const INT8_MAX = 127;
 const MAX_HELP_CAMPAIGNS = 32;
 
 export interface VolumeSettings {
@@ -74,6 +77,7 @@ export interface ClientSettings {
   readonly uiScale: number;
   readonly fixed640: boolean;
   readonly websiteLoadingTimeScale: number;
+  readonly lastSavedGameSlot: number;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -125,6 +129,7 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   uiScale: AUTO_UI_SCALE,
   fixed640: false,
   websiteLoadingTimeScale: DEFAULT_WEBSITE_LOADING_TIME_SCALE,
+  lastSavedGameSlot: NO_SAVED_GAME_SLOT,
 };
 
 export interface SettingsStorage {
@@ -158,6 +163,10 @@ function loadingTimeScale(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_WEBSITE_LOADING_TIME_SCALE
     ? value
     : DEFAULT_WEBSITE_LOADING_TIME_SCALE;
+}
+
+function savedGameSlot(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= INT8_MAX ? value : NO_SAVED_GAME_SLOT;
 }
 
 function language(value: unknown): UiLanguage | null {
@@ -232,6 +241,7 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     uiScale: uiScale(o.uiScale),
     fixed640: flag(o.fixed640, d.fixed640),
     websiteLoadingTimeScale: loadingTimeScale(o.websiteLoadingTimeScale),
+    lastSavedGameSlot: savedGameSlot(o.lastSavedGameSlot),
   };
 }
 

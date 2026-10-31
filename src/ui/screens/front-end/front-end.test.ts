@@ -35,15 +35,40 @@ describe('the main menu', () => {
     expect(f.widget('newGame').rect).toMatchObject({ x: 240, y: 277 });
   });
 
-  it('enables Load with a save, and Alt+click or Alt+C loads the newest save at once', async () => {
+  it('enables Load with a save, and Alt+click or Alt+C open the load screen while the last saved slot is -1', async () => {
     f.client.listings = [listing('old', '2026-10-01T00:00:00Z'), listing('newest', '2026-10-05T00:00:00Z')];
     f.flow.mainMenu();
     await f.settle();
     expect(f.widget('loadGame').enabled).toBe(true);
     f.click('loadGame', KeyModifier.ALT);
+    await until(() => f.screen() === 'saveLoad');
+    f.key('Escape');
+    f.key('Escape');
+    await until(() => f.screen() === 'mainMenu');
+    f.key('c', 'up', KeyModifier.ALT);
+    await until(() => f.screen() === 'saveLoad');
+    expect(f.client.loads).toEqual([]);
+  });
+
+  it('loads the list entry of the last saved slot at once, the newest save of any kind at slot 0', async () => {
+    f.settings.change({ lastSavedGameSlot: 0 });
+    f.client.listings = [
+      listing('old', '2026-10-01T00:00:00Z'),
+      listing('QuickSave', '2026-10-05T00:00:00Z', { kind: 'quick' }),
+      listing('middle', '2026-10-03T00:00:00Z'),
+    ];
+    f.flow.mainMenu();
+    await f.settle();
+    f.key('c', 'up', KeyModifier.ALT);
     await until(() => f.screen() === 'mapUnavailable');
-    expect(f.client.loads).toEqual([{ session: null, name: 'newest' }]);
+    expect(f.client.loads).toEqual([{ session: null, name: 'QuickSave' }]);
     expect(f.client.calls).toContain('connect loaded-1');
+    f.settings.change({ lastSavedGameSlot: 3 });
+    f.flow.mainMenu();
+    await f.settle();
+    f.click('loadGame', KeyModifier.ALT);
+    await until(() => f.screen() === 'saveLoad');
+    expect(f.client.loads).toHaveLength(1);
   });
 
   it('opens the screens by their keys on release and ignores a bare Escape', async () => {
@@ -142,6 +167,22 @@ describe('the game init screen', () => {
       options: { saveMode: 'deadIsDead' },
       deadIsDead: { name: null, description: 'Last stand' },
     });
+  });
+
+  it('sets the last saved slot to 0 for good once a Dead is Dead save is named, so Alt+Load loads the newest save', async () => {
+    expect(f.settings.current().lastSavedGameSlot).toBe(-1);
+    f.click('saveMode2');
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await answer('messageBox', 'yes');
+    await answer('messageBox', 'ok');
+    await until(() => f.screen() === 'saveLoad');
+    f.click('row0');
+    await f.settle();
+    f.type('Last stand');
+    f.key('Enter', 'up');
+    await until(() => f.screen() === 'laptopUnavailable');
+    expect(f.settings.persisted?.lastSavedGameSlot).toBe(0);
   });
 });
 

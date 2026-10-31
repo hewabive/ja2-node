@@ -109,7 +109,7 @@ interface Entry {
   readonly row: SaveRow | null;
 }
 
-function listed(listings: readonly SaveListing[], mode: SaveLoadMode): SaveListing[] {
+export function listedSaves(listings: readonly SaveListing[], mode: SaveLoadMode): SaveListing[] {
   const shown = listings.filter((l) => mode === 'load' || (!l.native && !HIDDEN_WHILE_SAVING.has(l.header?.kind ?? '')));
   return [...shown].sort((a, b) => (a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0));
 }
@@ -179,7 +179,7 @@ export class SaveLoadController extends ViewModelController {
 
   setListings(listings: readonly SaveListing[]): void {
     const labels = this.#deps.labels();
-    const entries: Entry[] = listed(listings, this.#deps.mode).map((listing) => ({ listing, row: saveRow(listing, labels) }));
+    const entries: Entry[] = listedSaves(listings, this.#deps.mode).map((listing) => ({ listing, row: saveRow(listing, labels) }));
     this.#entries = this.#deps.mode === 'save' ? [{ listing: null, row: null }, ...entries] : entries;
     this.#selected = this.#entries.length > 0 ? 0 : NO_SELECTION;
     this.view.scrollTop = Math.min(this.view.scrollTop, this.#scrollMax());

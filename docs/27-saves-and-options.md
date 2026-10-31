@@ -258,8 +258,9 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 - The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load with one warning box, Save as
   new or over a player or quick save, Delete, Download, Upload, and the native saves to import. Its row location and
   tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
-- `/play` binds no quick save or quick load key yet (gaps "Tactical keys not yet ported", "Map screen keys not yet
-  ported"); the developer tactical and strategic pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
+- On `/play` the map screen binds quick save and quick load (Alt+S, Alt+L) and the main menu Alt+Load and Alt+C (`30`);
+  the tactical screen binds neither yet (gaps "Tactical keys not yet ported"). The developer tactical and strategic
+  pages bind Alt+S and Alt+L (`src/app/net/save-controls.ts`).
 
 ### 1.12 Quirks of the original the code keeps
 
@@ -273,8 +274,7 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 
 Deviations: "Save side effects", "Schedules on load", "Save compatibility", "Player loads", "Saving in the laptop",
 "Dead is Dead save points", "Error saves", "Cosmetic streams in saves", "Talk context in saves", "Carmen's departure
-timer", "Laptop page state", "Save list in the launcher and on the canvas". Gaps: "Main menu quick load", "Save
-location on the canvas".
+timer", "Laptop page state", "Save list in the launcher and on the canvas". Gaps: "Save location on the canvas".
 
 ---
 
@@ -347,8 +347,8 @@ simulation, not worth it for an option nobody can choose (deviation "Timed turns
 
 One versioned JSON object in the browser's `localStorage` (`src/ui/settings.ts`: the model, its defaults and
 normalization; `src/app/settings.ts`: the storage). Every storage access may fail, and the pages work without storage;
-agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes and seen flags with their
-defaults, and add ja2-node's own: ambient and master volume, mute, playback speed, language, UI scale, the splash and
+agents have no client settings. The settings take the original's `Ja2.set` toggles, volumes, seen flags and the main
+menu's last saved game slot (`30`) with their defaults, and add ja2-node's own: ambient and master volume, mute, playback speed, language, UI scale, the splash and
 intro switches, the website loading time scale. `bloodAndGore` there is only what the new game form preselects; in a
 game the options screen sends `setOption`. The help screens seen are kept per campaign identity instead of in the save
 (deviation "Help screens seen"). The launcher exports and imports them as a file
