@@ -1,20 +1,21 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { countDraws } from '../../../../tests/support/explosives.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { PreRandom, Rng } from '../../../core/rng.ts';
 import type { SimEvent } from '../../events.ts';
-import { emptyObject } from '../../items/object.ts';
-import { animName } from '../anim-states.ts';
+import { createItem, emptyObject } from '../../items/object.ts';
+import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
-import { type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { SkillTrait, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { soldierDifficultyLevel } from './chance.ts';
-import { calcChanceToStab, eventSoldierBeginBladeAttack, eventSoldierBeginPunchAttack, hthImpact, useBlade } from './melee.ts';
+import { calcChanceToStab, eventSoldierBeginBladeAttack, eventSoldierBeginPunchAttack, hthImpact, meleeOpcode, useBlade } from './melee.ts';
 import { AiMorale, AimShot, WeaponMode } from './types.ts';
 
 let content: TacticalContent;
@@ -299,5 +300,116 @@ describe('punches', () => {
       data: { cursor: 'punch', inReach: false },
     });
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(81, 80) })).toMatchObject({ ok: false });
+  });
+});
+
+describe('martial arts (DoNinjaAttack)', () => {
+  const MARTIAL_ARTS_ATTACK = 469;
+  const MERC_PROFILE = 4;
+
+  function martialArtsDuel(targetAt = gridNo(80, 81)): { sim: TacticalSim; merc: Soldier; enemy: Soldier } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    merc.inv[InvSlot.HAND] = emptyObject();
+    merc.skillTrait1 = SkillTrait.MARTIALARTS;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, targetAt, Direction.NORTH);
+    sim.lookAround();
+    sim.drainEvents();
+    return { sim, merc, enemy };
+  }
+
+  function statesPlayed(sim: TacticalSim, s: Soldier): string[] {
+    const seen: string[] = [];
+    for (let i = 0; i < 2000 && !sim.isIdle(); i++) {
+      sim.step();
+      const name = animName(sim.state.content, s.state);
+      if (seen.at(-1) !== name) seen.push(name);
+    }
+    return seen;
+  }
+
+  function strikeFromStance(sim: TacticalSim, merc: Soldier, enemy: Soldier): void {
+    merc.targetGridNo = enemy.gridNo;
+    initNewSoldierAnim(sim.state, merc, anim(sim.state.content, 'NINJA_GOTOBREATH'), 0, true);
+    merc.inNonInterruptibleAnimation = false;
+  }
+
+  it('takes the ninja stance, strikes, frees the attack and stays in the stance after the blow', () => {
+    const { sim, merc, enemy } = martialArtsDuel();
+    const t = sim.state;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const played = statesPlayed(sim, merc);
+    expect(played[0]).toBe('NINJA_GOTOBREATH');
+    expect(['NINJA_LOWKICK', 'NINJA_PUNCH']).toContain(played[1]);
+    expect(played.at(-1)).toBe('NINJA_BREATH');
+    expect(played).not.toContain('PUNCH');
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('picks the low kick or the punch with one Random(2) on the gameplay stream', () => {
+    const picked = (roll: number) => {
+      const { sim, merc, enemy } = martialArtsDuel();
+      const t = sim.state;
+      strikeFromStance(sim, merc, enemy);
+      const real = t.rng.int.bind(t.rng);
+      t.rng.int = (n: number) => (n === 2 ? roll : real(n));
+      meleeOpcode(t, merc, MARTIAL_ARTS_ATTACK);
+      return animName(t.content, merc.state);
+    };
+    expect(picked(0)).toBe('NINJA_LOWKICK');
+    expect(picked(1)).toBe('NINJA_PUNCH');
+    const { sim, merc, enemy } = martialArtsDuel();
+    strikeFromStance(sim, merc, enemy);
+    expect(countDraws(sim.state, () => meleeOpcode(sim.state, merc, MARTIAL_ARTS_ATTACK))).toEqual({ pre: 0, main: 1 });
+  });
+
+  it('finishes a target at 30 life or breath with the spin kick, which draws nothing to pick and always lands', () => {
+    for (const weaken of [(s: Soldier) => Object.assign(s, { life: 30 }), (s: Soldier) => Object.assign(s, { breath: 30 })]) {
+      const { sim, merc, enemy } = martialArtsDuel();
+      const t = sim.state;
+      weaken(enemy);
+      strikeFromStance(sim, merc, enemy);
+      expect(countDraws(t, () => meleeOpcode(t, merc, MARTIAL_ARTS_ATTACK))).toEqual({ pre: 0, main: 0 });
+      expect(animName(t.content, merc.state)).toBe('NINJA_SPINKICK');
+    }
+    const { sim, merc, enemy } = martialArtsDuel();
+    novice(merc);
+    master(enemy);
+    enemy.life = 30;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(first(events, 'meleeStrike')).toMatchObject({ weapon: 'punch', hit: true });
+  });
+
+  it('strikes at once from the ninja stance, and crouches for a low punch at a prone target', () => {
+    const { sim, merc, enemy } = martialArtsDuel();
+    const t = sim.state;
+    initNewSoldierAnim(t, merc, anim(t.content, 'NINJA_BREATH'), 0, true);
+    merc.targetGridNo = enemy.gridNo;
+    eventSoldierBeginPunchAttack(t, merc, enemy.gridNo, Direction.SOUTH);
+    expect(['NINJA_LOWKICK', 'NINJA_PUNCH']).toContain(animName(t.content, merc.state));
+    const prone = martialArtsDuel();
+    prone.enemy.state = states(content.animations).PRONE;
+    initNewSoldierAnim(prone.sim.state, prone.enemy, prone.enemy.state, 0, true);
+    prone.merc.targetGridNo = prone.enemy.gridNo;
+    eventSoldierBeginPunchAttack(prone.sim.state, prone.merc, prone.enemy.gridNo, Direction.SOUTH);
+    expect(animName(content, prone.merc.pendingAnimation)).toBe('PUNCH_LOW');
+  });
+
+  it('turns a target who did not see the kick coming without stopping him, and punches plainly with a crowbar', () => {
+    const { sim, merc, enemy } = martialArtsDuel();
+    const t = sim.state;
+    enemy.oppList[merc.id] = Opp.NOT_HEARD_OR_SEEN;
+    let cancelled = 0;
+    t.turnHooks = { ...t.turnHooks, cancelAIAction: () => cancelled++ };
+    strikeFromStance(sim, merc, enemy);
+    meleeOpcode(t, merc, MARTIAL_ARTS_ATTACK);
+    expect(t.gameEvents).toContainEqual({ kind: 'desiredDirection', soldier: enemy.id, direction: Direction.NORTH });
+    expect(cancelled).toBe(0);
+    const crowbar = martialArtsDuel();
+    crowbar.merc.inv[InvSlot.HAND] = createItem(content.items, content.items.byName.get('CROWBAR')?.index ?? 0, 100);
+    crowbar.merc.targetGridNo = crowbar.enemy.gridNo;
+    eventSoldierBeginPunchAttack(crowbar.sim.state, crowbar.merc, crowbar.enemy.gridNo, Direction.SOUTH);
+    expect(animName(content, crowbar.merc.state)).toBe('CROWBAR_ATTACK');
   });
 });

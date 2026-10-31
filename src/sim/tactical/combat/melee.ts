@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
-// @src EVENT_SoldierBeginPunchAttack; externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
+// @src EVENT_SoldierBeginPunchAttack, DoNinjaAttack (2026-10-31, without Dr. Q's chop sound); externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
 // @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab, CalcChanceToPunch, DishoutQueenSwipeDamage;
-// @src Soldier_Ani.cc opcodes 468 (end punch), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh).
+// @src Soldier_Ani.cc opcodes 468 (end punch), 469 (martial arts attack), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh).
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
@@ -85,6 +85,7 @@ const MIN_KNIFE_DULLING = 2;
 const KNIFE_DULLING_IMPACT_DIVISOR = 20;
 const KIDS_SPARED_DEFENCE = 10000;
 const PRONE_TENTACLE_DEFENCE = 1000;
+const NINJA_FINISH_THRESHOLD = 30;
 
 const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -273,6 +274,38 @@ export function eventSoldierBeginBladeAttack(t: TacticalState, s: Soldier, g: nu
   s.target = whoIsThere(t, g, s.targetLevel);
 }
 
+function finishesWithSpinKick(tgt: Soldier): boolean {
+  return tgt.life <= NINJA_FINISH_THRESHOLD || tgt.breath <= NINJA_FINISH_THRESHOLD;
+}
+
+function turnUnawareTargetToward(t: TacticalState, s: Soldier, tgt: Soldier): void {
+  if (tgt.oppList[s.id] !== Opp.NOT_HEARD_OR_SEEN || tgt.team === s.team || !turnsFromAttacks(tgt)) return;
+  t.gameEvents.push({ kind: 'desiredDirection', soldier: tgt.id, direction: directionToward(tgt.gridNo, s.gridNo) });
+}
+
+function doNinjaAttack(t: TacticalState, s: Soldier): void {
+  const tgt = whoIsThere(t, s.targetGridNo, s.level);
+  if (!tgt) return;
+  const stance = endHeight(t.content, tgt.state);
+  if (stance === AnimHeight.PRONE) attackProneTarget(t, s, 'PUNCH_LOW');
+  else if (finishesWithSpinKick(tgt)) changeSoldierState(t, s, anim(t.content, 'NINJA_SPINKICK'));
+  else {
+    changeSoldierState(t, s, anim(t.content, t.rng.int(2) === 0 ? 'NINJA_LOWKICK' : 'NINJA_PUNCH'));
+    turnUnawareTargetToward(t, s, tgt);
+  }
+}
+
+function fightsWithMartialArts(t: TacticalState, s: Soldier, crowbar: boolean): boolean {
+  return numSkillTraits(s, SkillTrait.MARTIALARTS) > 0 && !inMeanwhile(t) && !crowbar;
+}
+
+function beginMartialArtsAttack(t: TacticalState, s: Soldier, tgt: Soldier): void {
+  const notInStance = animName(t.content, s.state) !== 'NINJA_BREATH' && height(t.content, s.state) === AnimHeight.STAND;
+  if (notInStance && height(t.content, tgt.state) !== AnimHeight.PRONE)
+    initNewSoldierAnim(t, s, anim(t.content, 'NINJA_GOTOBREATH'), 0, false);
+  else doNinjaAttack(t, s);
+}
+
 export function eventSoldierBeginPunchAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
   const hand = s.inv[InvSlot.HAND]?.item ?? NOTHING;
   const crowbar = hand === itemIndex(t, 'CROWBAR');
@@ -284,6 +317,15 @@ export function eventSoldierBeginPunchAttack(t: TacticalState, s: Soldier, g: nu
   }
   setDesiredDirection(t, s, direction);
   setSoldierDirection(t, s, direction);
+  if (fightsWithMartialArts(t, s, crowbar)) beginMartialArtsAttack(t, s, tgt);
+  else beginPlainPunch(t, s, tgt, crowbar);
+  s.targetGridNo = g;
+  s.targetLevel = s.level;
+  s.lastTarget = g;
+  s.target = whoIsThere(t, g, s.targetLevel);
+}
+
+function beginPlainPunch(t: TacticalState, s: Soldier, tgt: Soldier, crowbar: boolean): void {
   switch (endHeight(t.content, tgt.state)) {
     case AnimHeight.STAND:
     case AnimHeight.CROUCH:
@@ -295,10 +337,6 @@ export function eventSoldierBeginPunchAttack(t: TacticalState, s: Soldier, g: nu
       else attackProneTarget(t, s, 'PUNCH_LOW');
       break;
   }
-  s.targetGridNo = g;
-  s.targetLevel = s.level;
-  s.lastTarget = g;
-  s.target = whoIsThere(t, g, s.targetLevel);
 }
 
 function walkUpForMelee(t: TacticalState, s: Soldier, kind: number, approach: MeleeApproach): void {
@@ -517,6 +555,9 @@ export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
   switch (code) {
     case 468:
       return endPunch(t, s);
+    case 469:
+      doNinjaAttack(t, s);
+      return 'stop';
     case 492:
       signalDodge(t, s);
       return 'continue';

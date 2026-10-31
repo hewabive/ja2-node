@@ -57,6 +57,11 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'END_DOCTOR',
   'BEING_REPAIRMAN',
   'END_REPAIRMAN',
+  'NINJA_GOTOBREATH',
+  'NINJA_BREATH',
+  'NINJA_LOWKICK',
+  'NINJA_PUNCH',
+  'NINJA_SPINKICK',
 ];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];

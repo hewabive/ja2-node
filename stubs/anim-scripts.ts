@@ -408,7 +408,29 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   return m;
 }
 
-const MeleeOp = { SWOOSH: 727, DODGE: 492, END_PUNCH: 468 } as const;
+const MeleeOp = { SWOOSH: 727, DODGE: 492, END_PUNCH: 468, MARTIAL_ARTS_ATTACK: 469 } as const;
+const NINJA_STANCE_FRAMES = 5;
+const SPIN_KICK_WIND_UP = 6;
+
+function martialArtsScripts(): [string, number[]][] {
+  const strike = (lead: number[], followThrough: number) => [
+    Op.BUSY_UP,
+    ...lead,
+    Op.FIRE,
+    ...frames(followThrough, LOOP_FRAMES + 1 - followThrough),
+    Op.BUSY_DOWN,
+    NONINTERRUPTIBLE_DONE,
+    MeleeOp.END_PUNCH,
+  ];
+  const dodgeable = (windUp: number, toStrike: number) => [...frames(windUp), MeleeOp.DODGE, ...frames(toStrike, windUp + 1)];
+  return [
+    ['NINJA_GOTOBREATH', [...frames(NINJA_STANCE_FRAMES), NONINTERRUPTIBLE_DONE, MeleeOp.MARTIAL_ARTS_ATTACK]],
+    ['NINJA_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
+    ['NINJA_LOWKICK', strike(dodgeable(8, 2), 5)],
+    ['NINJA_PUNCH', strike(dodgeable(6, 3), 6)],
+    ['NINJA_SPINKICK', strike([...frames(LOOP_FRAMES), ...frames(SPIN_KICK_WIND_UP)], 6)],
+  ];
+}
 
 function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
   const to = (name: string) => stateJump(stateId(t, name));
@@ -433,6 +455,7 @@ function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
     ['DODGE_ONE', [...frames(LOOP_FRAMES), END_OF_ANIMATION]],
     ['KNIFE_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
     ['PUNCH_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
+    ...martialArtsScripts(),
   ]);
 }
 
