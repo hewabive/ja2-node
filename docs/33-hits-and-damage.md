@@ -85,7 +85,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A stat change rolls `PreRandom` once per chance, even at chance 0 | `experience.test.ts` |
 | Bad news hurts one point more on a roof: the original reads the map level where it meant the experience level | `morale.test.ts` |
 | A militia kill counts three | `death.test.ts` |
-| A soldier knocked out on his own team's turn counts two turns down: the original runs its getting-up check twice | `death.test.ts` |
+| A soldier knocked out on his own team's turn counts two turns down, also in a pose with no unconscious stop: the original runs its getting-up check twice | `death.test.ts` |
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
 

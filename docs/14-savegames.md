@@ -70,9 +70,9 @@ from `iVoiceId` before version 104, the start sector for an invalid landing zone
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
-underground traversal flag, the talk context, the strategic morale decay counter, Pablo's theft counter (deviations
-"Underground traversal flag", "Talk context after a load", "Strategic morale decay counter", "Bobby Ray theft
-counter"). The clock starts unpaused (deviation "Pause state after an import"); the enemy-sighting pause of an enemy
+underground traversal flag, the talk context, the strategic morale decay counter, Pablo's theft counter, the team
+change flag of a hit (deviations "Underground traversal flag", "Talk context after a load", "Strategic morale decay
+counter", "Bobby Ray theft counter", "Team change during a hit"). The clock starts unpaused (deviation "Pause state after an import"); the enemy-sighting pause of an enemy
 turn is not restored.
 
 **The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's

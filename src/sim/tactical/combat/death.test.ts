@@ -83,6 +83,15 @@ describe('going down unconscious (Soldier_Ani.cc HandleCheckForDeathCommonCode)'
     expect(other.s.collapsedTurns).toBe(0);
     expect(other.pose).toBe('STAND_FALLFORWARD_STOP');
   });
+
+  it('counts two turns down also in a pose without an unconscious stop: the first switch falls through to the second check', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 10 });
+    t.turn.currentTeam = Team.OUR;
+    deathOpcode(t, s, DEATH_OR_RELEASE);
+    expect([s.collapsed, s.collapsedTurns, animName(t.content, s.state)]).toEqual([true, 2, 'STANDING']);
+  });
 });
 
 describe('the drops at death (Rotting_Corpses.cc TurnSoldierIntoCorpse)', () => {

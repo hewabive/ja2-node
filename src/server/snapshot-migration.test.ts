@@ -393,3 +393,44 @@ describe('snapshot version 12 (no fade state) migrates with every soldier settle
     await expectSettledFades(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+function versionThirteen(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const { potentialTeamChangeDuringDeath, ...turn } = object(tactical.turn);
+    expect(potentialTeamChangeDuringDeath).toBe(false);
+    return [name, { ...tactical, turn }];
+  });
+  return { ...snapshot, version: 13, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 13 (no team-change flag) migrates with the flag down', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectFlagDown(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirteen(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"potentialTeamChangeDuringDeath"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectFlagDown(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectFlagDown(await createCampaignSession(kit.read, exists, 9));
+  });
+});

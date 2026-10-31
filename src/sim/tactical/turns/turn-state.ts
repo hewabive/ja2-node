@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h TacticalStatusType; TeamTurns.cc gOutOfTurnOrder; TacticalAI/AIList.cc;
 // @src OppList.cc gbSeenOpponents, watched locations; Overhead.cc gfPauseAllAI, guiPauseAllAITimer; Overhead.h
-// @src ENEMY_OFFERED_SURRENDER.
+// @src ENEMY_OFFERED_SURRENDER; Soldier_Profile.cc gfPotentialTeamChangeDuringDeath.
 
 import type { Soldier } from '../soldier.ts';
 import type { AiProgress, TopMessage } from './top-message.ts';
@@ -69,6 +69,7 @@ export interface TurnState {
   lastMercKill: Soldier | null;
   topMessage: TopMessage | null;
   aiProgress: AiProgress;
+  potentialTeamChangeDuringDeath: boolean;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -114,6 +115,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     spottersCalledForBy: ZERO_FILLED_SPOTTERS_CALLER,
     topMessage: null,
     aiProgress: { current: 0, next: 0, total: 0 },
+    potentialTeamChangeDuringDeath: false,
     lastMercKill: null,
   };
 }

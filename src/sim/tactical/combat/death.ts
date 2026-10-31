@@ -499,24 +499,31 @@ export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
   if (s.sleepDrugCounter > 0) s.sleepDrugCounter--;
 }
 
-function handleCheckForDeathCommonCode(t: TacticalState, s: Soldier): void {
+function getsUpOnHisTeamsTurn(t: TacticalState, s: Soldier): boolean {
+  if (t.turn.currentTeam !== s.team) return false;
+  beginSoldierGetup(t, s);
+  return !s.collapsed;
+}
+
+function goToUnconsciousStop(t: TacticalState, s: Soldier): void {
+  const stop = UNCONSCIOUS_STOP[animName(t.content, s.state)];
+  if (stop) changeSoldierState(t, s, state(t, stop));
+}
+
+export function handleCheckForDeathCommonCode(t: TacticalState, s: Soldier): void {
   if (s.pendingAnimation !== -1) {
     const pending = s.pendingAnimation;
     changeSoldierState(t, s, pending);
     s.pendingAnimation = -1;
     return;
   }
-  for (let pass = 0; pass < 2; pass++) {
-    s.collapsed = true;
-    if (pass === 0) handleSight(t, s, SightFlags.LOOK);
-    if (t.turn.currentTeam === s.team) {
-      beginSoldierGetup(t, s);
-      if (!s.collapsed) return;
-    }
-    const stop = UNCONSCIOUS_STOP[animName(t.content, s.state)];
-    if (!stop) return;
-    changeSoldierState(t, s, state(t, stop));
-  }
+  s.collapsed = true;
+  handleSight(t, s, SightFlags.LOOK);
+  if (getsUpOnHisTeamsTurn(t, s)) return;
+  goToUnconsciousStop(t, s);
+  s.collapsed = true;
+  if (getsUpOnHisTeamsTurn(t, s)) return;
+  goToUnconsciousStop(t, s);
 }
 
 function tryToFall(t: TacticalState, s: Soldier): OpOutcome {
@@ -571,8 +578,10 @@ function deathOrRelease(t: TacticalState, s: Soldier): OpOutcome {
     return 'stop';
   }
   if (hasAnimFlag(t.content, s.state, AnimFlags.HITFINISH)) {
+    t.turn.potentialTeamChangeDuringDeath = true;
     releaseSoldiersAttacker(t, s);
     if (!s.placed) return 'stop';
+    t.turn.potentialTeamChangeDuringDeath = false;
     s.gettingHit = 0;
   }
   handleCheckForDeathCommonCode(t, s);

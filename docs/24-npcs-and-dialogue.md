@@ -185,5 +185,5 @@ Inferred from reading the source:
   `recruit-compare.ts` reserves those ids for a team change (`RecruitFlow.reservedSoldierSlot`).
 
 Not ported: gaps "Dialogue queue conditions", "Say-later merc lines", "Relationship quotes", "NPC draws first and minor
-offenses", "Team changes". Other deviations of this domain: "Lines and debug text in the talk panel", "Opinions of
+offenses". Other deviations of this domain: "Lines and debug text in the talk panel", "Opinions of
 high profile ids", "Releasing an escort", "Key-advance speech".

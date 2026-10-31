@@ -2,10 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Profile.cc ChangeSoldierTeam; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier (the
 // @src tactical part), TacticalCreateSoldier (through tacticalCreateSoldier); Tactical/Soldier_Control.cc CreateSoldierCommon
-// @src (the standing frame draw); Tactical/Soldier_Add.cc AddSoldierToSectorNoCalculateDirectionUseAnimation.
+// @src (the standing frame draw); Tactical/Soldier_Add.cc AddSoldierToSectorNoCalculateDirectionUseAnimation;
+// @src Tactical/Soldier_Ani.cc HandleCheckForDeathCommonCode (gfPotentialTeamChangeDuringDeath).
 
 import { emptyObject } from '../../items/object.ts';
 import { ProfileFlag } from '../../narrative/narrative-ids.ts';
+import { handleCheckForDeathCommonCode } from '../combat/death.ts';
 import { tacticalCreateSoldier } from '../creation.ts';
 import { drawStandingFrame, NEUTRAL_POPULATION } from '../init-list.ts';
 import { addSoldierToSector, Insertion } from '../insertion.ts';
@@ -63,7 +65,6 @@ function markRecruited(t: TacticalState, s: Soldier, team: number): void {
 export function changeSoldierTeam(t: TacticalState, old: Soldier, team: number, slots: TeamChangeSlots): Soldier | null {
   const oldGridNo = old.gridNo;
   const wasInSector = old.placed;
-  const animation = { state: old.state, code: old.pc };
   if (t.turn.selected === old.id) t.turn.selected = NO_SELECTION;
   slots.soldierRemoved?.(old);
   if (wasInSector) removeSoldierFromTacticalSector(t, old);
@@ -74,10 +75,12 @@ export function changeSoldierTeam(t: TacticalState, old: Soldier, team: number, 
   drawStandingFrame(t);
   copyVitalStats(old, fresh);
   if (team === Team.OUR) fresh.visible = 1;
-  moveInventory(old, fresh);
   retargetAttackers(t, old, fresh);
   fresh.insertionGridNo = oldGridNo;
+  if (t.turn.potentialTeamChangeDuringDeath) handleCheckForDeathCommonCode(t, old);
+  moveInventory(old, fresh);
   if (wasInSector) {
+    const animation = { state: old.state, code: old.pc };
     addSoldierToSector(t, fresh, { code: Insertion.NORTH, data: oldGridNo, direction: fresh.direction }, {}, false, animation);
     handleSight(t, fresh, SightFlags.LOOK | SightFlags.RADIO);
   }

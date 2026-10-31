@@ -402,6 +402,34 @@ function addFadeState(snapshot: Readonly<Record<string, unknown>>): Record<strin
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const TEAM_CHANGE_DURING_DEATH_KEY = 'potentialTeamChangeDuringDeath';
+const LAST_MERC_KILL_KEY = 'lastMercKill';
+
+function insertBefore(o: JsonObject, key: string, added: string, value: Json): JsonObject {
+  if (o[added] !== undefined) return o;
+  if (o[key] === undefined) return { ...o, [added]: value };
+  const out: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (k === key) out[added] = value;
+    out[k] = v;
+  }
+  return out;
+}
+
+function withTeamChangeDuringDeathFlag(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined) return tactical;
+  return { ...tactical, turn: insertBefore(turn, LAST_MERC_KILL_KEY, TEAM_CHANGE_DURING_DEATH_KEY, false) };
+}
+
+function addTeamChangeDuringDeathFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withTeamChangeDuringDeathFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -416,5 +444,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     10: opplistDecayOnWorldSeconds,
     11: addLastKnownLevels,
     12: addFadeState,
+    13: addTeamChangeDuringDeathFlag,
   };
 }

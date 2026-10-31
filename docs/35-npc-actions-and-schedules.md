@@ -116,6 +116,7 @@ otherwise:
 | The next schedule entry is posted at today's start plus its time, so one past midnight lands in the past and the schedule stops until the next load | `narrative/schedules.test.ts` |
 | A civilian leaving the map by schedule stops two tiles past the edge and stays there, in the sector, until the next load | `src/sim/campaign/narrative/schedules-scenario.test.ts` |
 | Hostile rebels stay allied with the army: only Conrad and the General change side | `narrative/civ-hostility.test.ts` |
+| The death checks of a team change during a hit stay armed once the hit soldier has changed team: every later team change runs them for the old soldier until the next fall from a hit, so a standing recruit turned hostile kneels | `narrative/team-change.test.ts` |
 | An electric trap's breath loss is `3 + 1000 × PreRandom(3)`, drawn before the life roll | `doors/doors.test.ts` |
 | Escorts may use a crowbar and untrap: the untrap button's disable flag replaces the escort flag | `doors/doors.test.ts` |
 | Our merc opens a door that has a lock entry for free; only a door without one costs the opening APs | `doors/doors.test.ts` |
@@ -151,5 +152,5 @@ every profile's sector. Inferred from reading the source:
   no-op; ja2-node only sets the fact.
 
 Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "Implications of an attack", "NPC draws first
-and minor offenses", "NPC opens a door on arrival", "Team changes". Other deviations of this domain: "Terrorist names",
-"NPC gives an item", "Interface lock on arrival".
+and minor offenses", "NPC opens a door on arrival". Other deviations of this domain: "Terrorist names", "NPC gives an
+item", "Interface lock on arrival", "Team change during a hit".
