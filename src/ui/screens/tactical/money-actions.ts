@@ -50,6 +50,7 @@ export class MoneyActions {
     const deposit = depositCommand(cursor);
     if (!deposit || env.media.item(cursor.item)?.class !== MONEY_CLASS) return;
     const source = cursor.source;
+    if (source.kind === 'keyRing') return;
     const amount =
       source.kind === 'money' ? source.amount : (slotItem(soldierById(this.#hooks.view(), source.soldier), source.slot)?.money ?? 0);
     const question = printf(env.text.string(MONEY_MESSAGES, CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT) ?? '', [sprintMoney(amount)]);

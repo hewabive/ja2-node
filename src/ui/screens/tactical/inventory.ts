@@ -6,7 +6,8 @@
 // @src is on the ring), HandleNewlyAddedItems and DegradeNewlyAddedItems (the 20-step colour cycle every 100 ms,
 // @src NEW_ITEM_CYCLES cycles of NEW_ITEM_CYCLE_COUNT steps, a click stops it), us16BPPItemCyclePlacedItemColors,
 // @src HandleCompatibleAmmoUI (white outlines after 100 ms over a slot), GetHelpTextForItem, RenderInvBodyPanel;
-// @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary, SMInvClickCallbackSecondary (the stack popup for a
+// @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (CTRL cleans up the stack clicked, UIHandleItemPlacement
+// @src with the cursor's objects of the same item), SMInvClickCallbackSecondary (the stack popup for a
 // @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback,
 // @src MergeMessageBoxCallBack, ReevaluateItemHatches.
 
@@ -26,6 +27,7 @@ import {
   applyCommand,
   type CursorSource,
   cancelCommand,
+  combineCommand,
   cursorFromSlot,
   hidesSlot,
   type ItemCursor,
@@ -266,20 +268,32 @@ export class InventoryPanel {
     });
   }
 
-  slotPrimary(slot: number, shift: boolean): void {
+  slotPrimary(slot: number, shift: boolean, ctrl = false): void {
     if (this.#pending) return;
     const sm = this.#hooks.smSoldier();
     if (!sm) return;
     if (!this.#cursor) {
       if (!slotItem(sm, slot)) return;
       this.#hooks.select(sm.id);
+      if (ctrl) {
+        void this.send({ type: 'combineStack', soldier: sm.id, slot });
+        return;
+      }
       this.stopGlow(sm.id, slot);
       this.#cursor = cursorFromSlot(sm, slot, shift);
       this.#hovered = null;
       this.#highlight = null;
       return;
     }
-    void this.place(sm, slot);
+    if (ctrl) void this.#combineWithCursor(sm, slot);
+    else void this.place(sm, slot);
+  }
+
+  async #combineWithCursor(target: SoldierView, slot: number): Promise<void> {
+    const cmd = combineCommand(this.#cursor, target.id, slot);
+    if (!cmd) return;
+    const reply = await this.send(cmd);
+    if (reply.ok) this.#cursor = null;
   }
 
   async place(target: SoldierView, slot: number, merge?: boolean): Promise<void> {

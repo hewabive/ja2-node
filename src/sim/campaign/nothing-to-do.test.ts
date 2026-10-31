@@ -3,8 +3,10 @@ import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../t
 import { loadEconomyTestContent, kit as medicalKit } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import type { StrategicState } from '../strategic/state.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 
 let kit: CampaignKit;
@@ -54,6 +56,12 @@ describe('nothing-to-do triggers', () => {
     merc(roster, patient).life += WOUND;
     expect(c.dispatch({ type: 'swapHands', soldier: doctor })).toMatchObject({ ok: true });
     expect(merc(roster, doctor).nothingToDo).toBe(false);
+  });
+
+  it('raises the flag after a key moved in or out of the key ring, whose cursor ends', () => {
+    const state = { economy: { reEvaluateNothingToDo: false } } as StrategicState;
+    flagNothingToDoAfterItemMove(state, { type: 'moveKey', soldier: 0, from: { ring: 0 }, to: InvSlot.BIGPOCK1 }, { ok: true });
+    expect(state.economy.reEvaluateNothingToDo).toBe(true);
   });
 
   it('acts on a raised flag at the end of the next tick', () => {

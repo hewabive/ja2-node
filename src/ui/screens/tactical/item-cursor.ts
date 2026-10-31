@@ -5,7 +5,9 @@
 // @src the cursor, else the attachment into the cursor), ItemPopupRegionCallbackPrimary (one object of a stack);
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (place, swap, give to the merc of the panel, the
 // @src attach and merge branches), SMInvClickCamoCallback (apply on the merc), SMInvMoneyButtonCallback (money in the
-// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher), RemoveMoney (the split amount goes into the cursor).
+// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher), RemoveMoney (the split amount goes into the cursor),
+// @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
+// @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -16,7 +18,8 @@ export type CursorSource =
   | { readonly kind: 'slot'; readonly soldier: number; readonly slot: number; readonly count: CursorCount; readonly index: number }
   | { readonly kind: 'attachment'; readonly soldier: number; readonly slot: number; readonly attachment: number }
   | { readonly kind: 'magazine'; readonly soldier: number; readonly slot: number }
-  | { readonly kind: 'money'; readonly soldier: number; readonly slot: number; readonly amount: number };
+  | { readonly kind: 'money'; readonly soldier: number; readonly slot: number; readonly amount: number }
+  | { readonly kind: 'keyRing'; readonly soldier: number; readonly position: number; readonly count: CursorCount };
 
 export interface ItemCursor {
   readonly source: CursorSource;
@@ -55,8 +58,49 @@ export function cursorFromMoney(soldier: SoldierView, slot: number, amount: numb
   return { source: { kind: 'money', soldier: soldier.id, slot, amount }, item: item.item };
 }
 
+export function cursorFromKeyRing(soldier: SoldierView, position: number, wholeStack: boolean, item: string): ItemCursor | null {
+  const key = soldier.keys?.find((k) => k.position === position);
+  if (!key || key.count <= 0) return null;
+  return { source: { kind: 'keyRing', soldier: soldier.id, position, count: wholeStack ? 'all' : 1 }, item };
+}
+
+function otherSoldier(source: CursorSource, target: number): { toSoldier?: number } {
+  return target !== source.soldier ? { toSoldier: target } : {};
+}
+
+export function keyRingCommand(cursor: ItemCursor, owner: number, position: number): CommandEnvelope | null {
+  const s = cursor.source;
+  const to = { ring: position };
+  if (s.kind === 'keyRing')
+    return { type: 'moveKey', soldier: s.soldier, from: { ring: s.position }, to, ...countField(s.count), ...otherSoldier(s, owner) };
+  if (s.kind !== 'slot') return null;
+  return {
+    type: 'moveKey',
+    soldier: s.soldier,
+    from: s.slot,
+    to,
+    ...countField(s.count),
+    ...(s.index !== 0 ? { index: s.index } : {}),
+    ...otherSoldier(s, owner),
+  };
+}
+
+export function keysTaken(cursor: ItemCursor | null, soldier: number, position: number): CursorCount | null {
+  const s = cursor?.source;
+  return s?.kind === 'keyRing' && s.soldier === soldier && s.position === position ? s.count : null;
+}
+
 export function placeCommand(cursor: ItemCursor, target: number, slot: number, merge?: boolean): CommandEnvelope {
   const s = cursor.source;
+  if (s.kind === 'keyRing')
+    return {
+      type: 'moveKey',
+      soldier: s.soldier,
+      from: { ring: s.position },
+      to: slot,
+      ...countField(s.count),
+      ...otherSoldier(s, target),
+    };
   if (s.kind === 'money')
     return {
       type: 'splitMoney',
@@ -99,6 +143,12 @@ export function attachCommand(
     count: s.count,
     ...(permanent ? { permanent: true } : {}),
   };
+}
+
+export function combineCommand(cursor: ItemCursor | null, target: number, slot: number): CommandEnvelope | null {
+  const s = cursor?.source;
+  if (s?.kind !== 'slot' || s.soldier !== target || s.slot === slot) return null;
+  return { type: 'combineStack', soldier: target, slot, from: s.slot, ...(s.count === 1 ? { index: s.index } : {}) };
 }
 
 export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {

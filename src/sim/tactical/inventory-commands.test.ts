@@ -5,6 +5,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem, createItems, createMoney } from '../items/object.ts';
 import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
+import { createKeyObject } from './doors/keys.ts';
 import { AP_RELOAD_GUN, InvSlot, itemIn } from './inventory.ts';
 import { attachmentsChanged } from './inventory-panel.ts';
 import { AP } from './points.ts';
@@ -388,5 +389,118 @@ describe('items applied to a merc and dropped', () => {
     runUntilIdle(sim);
     expect(merc.inv[InvSlot.BIGPOCK1]?.count).toBe(2);
     expect(sim.visibleItems()).toMatchObject([{ gridNo: merc.gridNo, item: 'CLIP9_15', count: 1 }]);
+  });
+});
+
+describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, BeginKeyRingItemPointer)', () => {
+  const NO_KEY = 255;
+  const keys = (keyId: number, count: number) => {
+    const o = createKeyObject(content, count, keyId);
+    if (!o) throw new Error(`no key item for lock ${keyId}`);
+    return o;
+  };
+
+  function keyHolder(): { sim: TacticalSim; merc: Soldier } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    return { sim, merc };
+  }
+
+  it('takes one key off the ring into a pocket, all of the position with count all, and only where they all fit', () => {
+    const { sim, merc } = keyHolder();
+    const ring = merc.keyRing ?? [];
+    ring[0] = { keyId: 1, count: 3 };
+    const one = sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: 'smallPocket1', count: 1 });
+    expect(one).toMatchObject({ ok: true, data: { count: 1 } });
+    expect(merc.inv[InvSlot.SMALLPOCK1]).toMatchObject({ count: 1, keyId: 1 });
+    expect(ring[0]).toEqual({ keyId: 1, count: 2 });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: 'helmet' })).toMatchObject({
+      data: { refusal: 'doesNotFit' },
+    });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: 'hand' })).toMatchObject({ data: { refusal: 'doesNotFit' } });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: 'bigPocket1' })).toMatchObject({
+      ok: true,
+      data: { count: 2 },
+    });
+    expect(merc.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 2, keyId: 1 });
+    expect(ring[0]).toEqual({ keyId: NO_KEY, count: 0 });
+    expect(sim.drainEvents().filter((e) => e.type === 'keyMoved')).toMatchObject([
+      { soldier: 0, count: 1, from: { ring: 0 }, to: { slot: InvSlot.SMALLPOCK1 } },
+      { soldier: 0, count: 2, from: { ring: 0 }, to: { slot: InvSlot.BIGPOCK1 } },
+    ]);
+  });
+
+  it('adds a pocket key to an empty position or to the same key up to its ubPerPocket, leaving the rest in the pocket', () => {
+    const { sim, merc } = keyHolder();
+    const ring = merc.keyRing ?? [];
+    merc.inv[InvSlot.BIGPOCK1] = keys(2, 1);
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', to: { ring: 5 } })).toMatchObject({ ok: true });
+    expect(ring[5]).toEqual({ keyId: 2, count: 1 });
+    expect(itemAt(merc, InvSlot.BIGPOCK1)).toBe('NOTHING');
+    const perPocket = content.items.byIndex.get(keys(1, 1).item)?.perPocket ?? 0;
+    ring[0] = { keyId: 1, count: perPocket - 2 };
+    merc.inv[InvSlot.BIGPOCK2] = keys(1, 3);
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket2', to: { ring: 0 } })).toMatchObject({
+      ok: true,
+      data: { count: 2 },
+    });
+    expect(ring[0]).toEqual({ keyId: 1, count: perPocket });
+    expect(merc.inv[InvSlot.BIGPOCK2]).toMatchObject({ count: 1, keyId: 1 });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket2', to: { ring: 0 } })).toMatchObject({
+      ok: false,
+      data: { refusal: 'keyRingFull' },
+    });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'hand', to: { ring: 1 } })).toMatchObject({ data: { refusal: 'notAKey' } });
+  });
+
+  it("swaps a pocket key with another lock's keys on the ring, which go back to the pocket", () => {
+    const { sim, merc } = keyHolder();
+    const ring = merc.keyRing ?? [];
+    ring[0] = { keyId: 1, count: 2 };
+    merc.inv[InvSlot.BIGPOCK1] = keys(2, 1);
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', to: { ring: 0 } })).toMatchObject({ ok: true });
+    expect(ring[0]).toEqual({ keyId: 2, count: 1 });
+    expect(merc.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 2, keyId: 1 });
+  });
+
+  it('moves keys between ring positions only onto an empty position or the same keys', () => {
+    const { sim, merc } = keyHolder();
+    const ring = merc.keyRing ?? [];
+    ring[0] = { keyId: 1, count: 2 };
+    ring[1] = { keyId: 2, count: 1 };
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: { ring: 3 }, count: 1 })).toMatchObject({ ok: true });
+    expect([ring[0], ring[3]]).toEqual([
+      { keyId: 1, count: 1 },
+      { keyId: 1, count: 1 },
+    ]);
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 0 }, to: { ring: 1 } })).toMatchObject({
+      data: { refusal: 'doesNotFit' },
+    });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'hand', to: 'bigPocket1' })).toMatchObject({
+      data: { refusal: 'useMoveItem' },
+    });
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: { ring: 70 }, to: 'bigPocket1' })).toMatchObject({
+      data: { refusal: 'badKeySpot' },
+    });
+  });
+
+  it("charges 2 AP to each merc in combat for a key going onto another merc's ring, and needs 2 each", () => {
+    const sim = newCombatSim(content);
+    const a = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const b = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 81), Direction.NORTH);
+    a.inv[InvSlot.BIGPOCK1] = keys(1, 2);
+    inCombat(sim);
+    const apA = a.actionPoints;
+    const apB = b.actionPoints;
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', count: 1, toSoldier: 1, to: { ring: 0 } })).toMatchObject({
+      ok: true,
+    });
+    expect(b.keyRing?.[0]).toEqual({ keyId: 1, count: 1 });
+    expect([apA - a.actionPoints, apB - b.actionPoints]).toEqual([2, 2]);
+    b.actionPoints = 1;
+    expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', toSoldier: 1, to: { ring: 0 } })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
   });
 });

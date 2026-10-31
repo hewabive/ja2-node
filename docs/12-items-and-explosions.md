@@ -25,7 +25,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `src/content/formats/object.ts`, `src/sim/items/object.ts` | The 36-byte `OBJECTTYPE` record; `ItemObject` without a soldier: creation, stacks, magazines, attachments, unloading |
 | `inventory.ts`, `soldier-inventory.ts`, `hand-item.ts` | Slots, placing and auto-placing, reloading, carried weight, the items of hired mercs and NPC profiles; what a hand change does |
 | `item-merge.ts`, `stack-cleanup.ts` | Attaching with the soldier's skill check, merges; pooling the points of a stack |
-| `inventory-panel.ts`, `inventory-commands.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, slot hatches, the description box values |
+| `inventory-panel.ts`, `inventory-commands.ts`, `key-ring-panel.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, keys in and out of the key ring, slot hatches, the description box values |
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |

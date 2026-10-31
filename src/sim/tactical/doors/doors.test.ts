@@ -210,12 +210,12 @@ describe('the stub village door', () => {
     expect(s.actionPoints).toBe(full - doorApCost(HandleDoor.OPEN));
   });
 
-  it('names the key item of each lock on the key ring (LockTable[keyID].usKeyItem)', () => {
+  it('names the key item of each lock on the key ring (LockTable[keyID].usKeyItem) and its ring position', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     s.keyRing = newKeyRing();
     s.keyRing[0] = { keyId: 1, count: 2 };
-    s.keyRing[1] = { keyId: 2, count: 1 };
+    s.keyRing[2] = { keyId: 2, count: 1 };
     const items = sim.state.content.items;
     const keyOfClass = (classIndex: number) => items.ordered.find((d) => d.itemClass === ItemClass.KEY && d.classIndex === classIndex);
     const first = keyOfClass(0);
@@ -223,8 +223,8 @@ describe('the stub village door', () => {
     expect(first?.name).toBe('KEY_1');
     expect(second?.name).toBeDefined();
     expect(keyRingView(sim.state, s)).toEqual([
-      { keyId: 1, count: 2, item: first?.name, index: first?.index },
-      { keyId: 2, count: 1, item: second?.name, index: second?.index },
+      { position: 0, keyId: 1, count: 2, item: first?.name, index: first?.index },
+      { position: 2, keyId: 2, count: 1, item: second?.name, index: second?.index },
     ]);
   });
 

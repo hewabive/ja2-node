@@ -427,7 +427,7 @@ describe('the map screen inventory over a scripted session', () => {
     const h = await harness([merc(MERC, 'Hollis', 'D13', [])]);
     h.client.view = {
       ...h.client.view,
-      soldiers: [{ id: MERC, team: 0, bodyType: 0, keys: [{ keyId: 1, count: 1, item: key.name }] }],
+      soldiers: [{ id: MERC, team: 0, bodyType: 0, keys: [{ position: 0, keyId: 1, count: 1, item: key.name }] }],
     } as unknown as PlayerView;
     h.inventory.openMerc();
     await h.settle();

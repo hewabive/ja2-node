@@ -18,6 +18,7 @@ export interface DoorView {
 }
 
 export interface KeyView {
+  readonly position: number;
   readonly keyId: number;
   readonly count: number;
   readonly item?: string;
@@ -61,11 +62,11 @@ function keyItemView(t: TacticalState, keyId: number): { item?: string; index?: 
 
 export function keyRingView(t: TacticalState, s: Soldier): KeyView[] {
   const keys: KeyView[] = [];
-  for (const k of s.keyRing ?? []) {
+  for (const [position, k] of (s.keyRing ?? []).entries()) {
     if (k.count === 0) continue;
     const found = t.keyTable[k.keyId];
     const known = found && found.dateFound !== 0 ? { sectorFound: found.sectorFound, dayFound: found.dateFound } : {};
-    keys.push({ keyId: k.keyId, count: k.count, ...keyItemView(t, k.keyId), ...known });
+    keys.push({ position, keyId: k.keyId, count: k.count, ...keyItemView(t, k.keyId), ...known });
   }
   return keys;
 }

@@ -113,6 +113,20 @@ describe('soldier inventory', async () => {
     expect(rifle.item).toBe(id('GLOCK_17'));
   });
 
+  it('stacks keys only of the same lock, swapping a key of another lock (PlaceObject)', () => {
+    const c: Carrier = { inv: emptyInventory() };
+    const ctx = context(false);
+    const key = (keyId: number, count: number) => Object.assign(createItems(items, id('KEY_1'), 100, count), { keyId });
+    expect(placeObject(ctx, c, InvSlot.BIGPOCK1, key(1, 2))).toBe(true);
+    const sameLock = key(1, 1);
+    expect(placeObject(ctx, c, InvSlot.BIGPOCK1, sameLock)).toBe(true);
+    expect(c.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 3, keyId: 1 });
+    const otherLock = key(2, 1);
+    expect(placeObject(ctx, c, InvSlot.BIGPOCK1, otherLock)).toBe(true);
+    expect(c.inv[InvSlot.BIGPOCK1]).toMatchObject({ count: 1, keyId: 2 });
+    expect(otherLock).toMatchObject({ count: 3, keyId: 1 });
+  });
+
   it('tops off in real time and swaps magazines in combat for 5 AP', () => {
     const c: Carrier = { inv: emptyInventory() };
     const gun = createItem(items, id('GLOCK_17'), 100);

@@ -193,7 +193,7 @@ export function placeObject(ctx: InventoryContext, c: Carrier, pos: number, o: I
     removeObjects(o, toDrop);
     if (o.count === 0 && pos === InvSlot.HAND && twoHanded(items, inSlot.item) && itemIn(inv, InvSlot.SECOND_HAND) !== NOTHING)
       swapObjects(o, slot(inv, InvSlot.SECOND_HAND));
-  } else if (o.item === inSlot.item) {
+  } else if (o.item === inSlot.item && (def?.itemClass !== ItemClass.KEY || o.keyId === inSlot.keyId)) {
     if (isMoney) fillMoneySlot(inSlot, o, pos);
     else if (limit === 1 || (limit === 0 && pos >= InvSlot.HAND && pos <= InvSlot.BIGPOCK4)) {
       if (o.count <= 1) swapObjects(o, inSlot);

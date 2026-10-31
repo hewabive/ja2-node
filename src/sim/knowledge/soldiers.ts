@@ -175,12 +175,12 @@ function statsOf(v: KnowledgeSoldier): SoldierStats {
 
 function keyRingOf(v: KnowledgeSoldier) {
   const ring = newKeyRing();
-  (v.keys ?? []).forEach((k, i) => {
-    const slot = ring[i];
-    if (!slot) return;
+  for (const k of v.keys ?? []) {
+    const slot = ring[k.position];
+    if (!slot) continue;
     slot.keyId = k.keyId;
     slot.count = k.count;
-  });
+  }
   return ring;
 }
 

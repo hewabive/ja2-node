@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Interface_Panels.cc CheckForDisabledForGiveItem, SetNewPanel (no panel for escorts and
 // @src vehicles); Interface_Items.cc HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
-// @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket).
+// @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket); Interface_Panels.cc
+// @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts).
 
 import type { ItemTable } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -11,6 +12,7 @@ import type { CommandResult } from '../command.ts';
 import { cloneObject, type ItemObject, removeObjectAt } from '../items/object.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload } from './combat/reload.ts';
+import { NUM_KEYS } from './doors/key-ring.ts';
 import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-aid.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { InvSlot, NUM_INV_SLOTS } from './inventory.ts';
@@ -28,6 +30,7 @@ import {
   swapHands,
   unloadGun,
 } from './inventory-panel.ts';
+import { KeyRingRefusal, type KeySpot, moveKey } from './key-ring-panel.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { refuse } from './refusal.ts';
@@ -53,6 +56,7 @@ export const INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'bandage',
   'splitMoney',
   'combineStack',
+  'moveKey',
 ]);
 
 export const SLOT_NAMES: Readonly<Record<string, number>> = {
@@ -87,7 +91,9 @@ export const InventoryRefusal = {
   TOO_FAR: 'tooFar',
   NO_LINE_OF_SIGHT: 'noLineOfSight',
   BAD_AMOUNT: 'badAmount',
+  BAD_SPOT: 'badKeySpot',
   ...FirstAidRefusal,
+  ...KeyRingRefusal,
 } as const;
 
 export type InventoryRefusal = (typeof InventoryRefusal)[keyof typeof InventoryRefusal];
@@ -117,6 +123,11 @@ export const INVENTORY_REFUSAL_TEXT: Readonly<Record<InventoryRefusal, string>> 
   notMoney: 'that slot holds no money',
   notEnoughMoney: 'there is not that much money',
   badAmount: 'amount must be a positive whole number of dollars',
+  badKeySpot: 'from and to must each be a slot or {"ring": 0..63}',
+  notAKey: 'only a key goes on the key ring',
+  keyRingFull: 'that key ring position has no room for the keys',
+  noKeyRing: 'that soldier has no key ring',
+  useMoveItem: 'neither side is the key ring: use moveItem',
   badSlot: 'slot must be 0..18 or a slot name such as hand, secondHand, head1, bigPocket1, smallPocket1',
   badCount: 'count must be 1 or "all"',
   badIndex: 'index must point to an object in the stack',
@@ -349,6 +360,28 @@ function combineStackCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand
   return { ok: true, data: { combined: applies } };
 }
 
+function keySpot(value: unknown): KeySpot | null {
+  const ring = (value as { readonly ring?: unknown } | null)?.ring;
+  if (typeof value === 'object' && value !== null)
+    return typeof ring === 'number' && Number.isInteger(ring) && ring >= 0 && ring < NUM_KEYS ? { ring } : null;
+  const slot = parseSlot(value);
+  return slot === null ? null : { slot };
+}
+
+function moveKeyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
+  const from = keySpot(cmd.from);
+  const to = keySpot(cmd.to);
+  if (!from || !to) return refusal(InventoryRefusal.BAD_SPOT);
+  const count = parseCount(cmd.count, 'all');
+  if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
+  const index = 'slot' in from ? stackIndex(cmd.index, s.inv[from.slot]) : 0;
+  if (typeof index === 'string') return refusal(index);
+  const target = panelTarget(t, s, cmd.toSoldier);
+  if (typeof target === 'string') return refusal(target);
+  const outcome = moveKey(t, tacticalPanelEnv(t), { mover: s, from, count, index, target, to });
+  return outcome.ok ? { ok: true, data: outcome.data } : refusal(outcome.refusal);
+}
+
 function bandageCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const patient = typeof cmd.target === 'number' ? (t.soldiers[cmd.target] ?? null) : s;
   const target = patient?.placed && patient.level === s.level ? patient : null;
@@ -380,6 +413,8 @@ export function dispatchInventoryCommand(t: TacticalState, s: Soldier, cmd: Inve
       return splitMoneyCommand(t, s, cmd);
     case 'combineStack':
       return combineStackCommand(t, s, cmd);
+    case 'moveKey':
+      return moveKeyCommand(t, s, cmd);
     default:
       return bandageCommand(t, s, cmd);
   }

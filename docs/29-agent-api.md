@@ -48,9 +48,9 @@ an LLM agent without pausing is a non-goal.
 
 **Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
 jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers `notSupported`); auto-bandage (gap
-"Auto-bandage"); moving keys in and out of the key ring (gap "Inventory panel clicks"); the placement GUI (deviation
-"Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and alcohol"); reloading the robot (`robotReload`, gap
-"Reloading the robot"); vehicles' condition and fuel (gap "Vehicles as characters").
+"Auto-bandage"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and
+alcohol"); reloading the robot (`robotReload`, gap "Reloading the robot"); vehicles' condition and fuel (gap "Vehicles
+as characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -304,8 +304,10 @@ permanent attachments become refusals to repeat with `merge` or `permanent`; the
 command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
 only. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
-is `give`, for a dealer `trade`. `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key
-alternates the night and the day gear, night first, and the client keeps that turn.
+is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
+`{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"). `switchHeadGear`
+is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day gear, night first,
+and the client keeps that turn.
 
 ### 8.4 Conversations
 

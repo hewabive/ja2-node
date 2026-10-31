@@ -7,7 +7,7 @@ import { FontColor } from '../../../content/text/font-colors.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { MouseButton } from '../../input/events.ts';
+import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 
 const HAND = 5;
@@ -187,6 +187,55 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
     await f.click(`slot${BIG_POCKET}`);
     expect(inventory(f, 0).find((i) => i.slot === BIG_POCKET)).toMatchObject({ item: 'CLIP9_15', count: 2 });
+  });
+
+  it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`, MouseButton.LEFT, KeyModifier.CTRL);
+    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'combineStack', soldier: 0, slot: BIG_POCKET });
+    expect(f.screen.inventory.cursor).toBeNull();
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${NEXT_BIG_POCKET}`, MouseButton.LEFT, KeyModifier.CTRL);
+    expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'combineStack', soldier: 0, slot: NEXT_BIG_POCKET, from: BIG_POCKET, index: 0 });
+    expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
+    expect(f.screen.inventory.cursor).toBeNull();
+  });
+
+  it('takes a key off the key ring into a pocket and puts a pocket key back on another ring position', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const ring = tacticalOf(f.session).state.soldiers[0]?.keyRing ?? [];
+    ring[0] = { keyId: 1, count: 2 };
+    f.client.refresh();
+    await smPanelOf(f, 0);
+    await f.click('smKeyRing');
+    expect(f.screen.keyRing.open).toBe(true);
+    await f.click('keyRingCell0');
+    expect(f.screen.inventory.cursor?.source).toEqual({ kind: 'keyRing', soldier: 0, position: 0, count: 1 });
+    const area = f.widget('keyRingArea').rect;
+    await f.clickAt(area.x + 2, area.y + 2);
+    expect(f.screen.keyRing.open).toBe(false);
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'moveKey', soldier: 0, from: { ring: 0 }, to: NEXT_BIG_POCKET, count: 1 },
+      reply: { ok: true },
+    });
+    expect(f.screen.inventory.cursor).toBeNull();
+    expect(inventory(f, 0).find((i) => i.slot === NEXT_BIG_POCKET)).toMatchObject({ count: 1 });
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    await f.click('smKeyRing');
+    await f.click('keyRingCell3');
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'moveKey', soldier: 0, from: NEXT_BIG_POCKET, to: { ring: 3 }, count: 1 },
+      reply: { ok: true },
+    });
+    expect(f.client.view.soldiers.find((s) => s.id === 0)?.keys).toMatchObject([
+      { position: 0, count: 1 },
+      { position: 3, count: 1 },
+    ]);
+    expect(f.screen.inventory.cursor).toBeNull();
   });
 
   it('attaches the silencer through the description box and shows it there', async () => {

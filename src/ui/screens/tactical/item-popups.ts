@@ -6,8 +6,9 @@
 // @src area shaded, the item at + 11, + 3 in 29 × 23 without a count, the bar at + 7, + INV_BAR_DY + 3),
 // @src ItemPopupRegionCallback* (take one object, put the cursor item in, right click describes), ItemPopupFullRegionCallback*,
 // @src InitKeyRingPopup (NUMBER_KEYS_ON_KEYRING cells, KEY_RING_ROW_WIDTH per row at + TACTICAL_INVENTORY_KEYRING_GRAPHIC_OFFSET_X,
-// @src 8 down), RenderKeyRingPopup (the shade from x 0, the key item's graphic and count, a full bar);
-// @src src/game/Tactical/Interface_Panels.cc KeyRingItemPanelButtonCallback, KeyRingSlotInvClickCallback.
+// @src 8 down), RenderKeyRingPopup (the shade from x 0, the key of each ring position: its item's graphic and count, a full
+// @src bar); src/game/Tactical/Interface_Panels.cc KeyRingItemPanelButtonCallback, KeyRingSlotInvClickCallback (the left
+// @src button on the button down).
 
 import { slotLimitOf } from '../../../content/items/slot-limit.ts';
 import { idiv } from '../../../core/int.ts';
@@ -21,7 +22,7 @@ import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
 import { drawItemStatusBar } from './bars.ts';
 import type { SlotRect } from './inventory.ts';
-import { cursorFromSlot, type ItemCursor, placeCommand, slotItem } from './item-cursor.ts';
+import { cursorFromSlot, type ItemCursor, keysTaken, placeCommand, slotItem } from './item-cursor.ts';
 import { drawInventoryItem, itemStatusValue, RENDER_ITEM_NOSTATUS, type TileDrawContext } from './item-tile.ts';
 
 const OWNER = 'itemPopups';
@@ -76,6 +77,17 @@ export interface PopupHooks {
   readonly describeKey: (soldier: number, key: number) => void;
   readonly cellArt: string;
   readonly keyItem: (key: KeyView) => string | null;
+  readonly keyRingPrimary?: (soldier: SoldierView, position: number) => void;
+}
+
+function keyAt(soldier: SoldierView | null, position: number): KeyView | null {
+  return soldier?.keys?.find((k) => k.position === position && k.count > 0) ?? null;
+}
+
+function shownKeys(cursor: ItemCursor | null, soldier: SoldierView, key: KeyView): number {
+  const taken = keysTaken(cursor, soldier.id, key.position);
+  if (taken === 'all') return 0;
+  return taken === 1 ? key.count - 1 : key.count;
 }
 
 function cellSize(images: ImageCatalog, art: string): { width: number; height: number } {
@@ -271,6 +283,7 @@ export class KeyRingPopup {
           owner: OWNER,
           id: `keyRingCell${i}`,
           onButton: (_r, reason) => {
+            if (reason & MouseReason.LBUTTON_DWN) this.#primary(i);
             if (reason & MouseReason.RBUTTON_DWN) right = true;
             if (reason & MouseReason.RBUTTON_UP && right) {
               right = false;
@@ -305,11 +318,17 @@ export class KeyRingPopup {
     );
   }
 
-  #describe(index: number): void {
+  #primary(position: number): void {
     const soldier = this.#soldier === null ? null : this.#hooks.soldier(this.#soldier);
-    if (!soldier?.keys?.[index]) return;
+    if (soldier) this.#hooks.keyRingPrimary?.(soldier, position);
+  }
+
+  #describe(position: number): void {
+    const soldier = this.#soldier === null ? null : this.#hooks.soldier(this.#soldier);
+    const key = keyAt(soldier, position);
+    if (!soldier || !key) return;
     this.close();
-    this.#hooks.describeKey(soldier.id, index);
+    this.#hooks.describeKey(soldier.id, (soldier.keys ?? []).indexOf(key));
   }
 
   close(): void {
@@ -326,19 +345,20 @@ export class KeyRingPopup {
     const base = area.x + grid.baseX;
     list.shadow(0, area.y, base + area.width, area.y + area.height);
     const cell = cellSize(this.#hooks.images, this.#hooks.cellArt);
-    const keys = soldier.keys ?? [];
+    const cursor = this.#hooks.cursor();
     for (let i = 0; i < NUMBER_KEYS_ON_KEYRING; i++) {
       const x = base + grid.cellX + (i % grid.rowWidth) * cell.width;
       const y = area.y + grid.cellY + idiv(i, grid.rowWidth) * cell.height;
       list.image(this.#hooks.cellArt, 0, x, y);
-      const key = keys[i];
-      if (!key || key.count <= 0) continue;
+      const key = keyAt(soldier, i);
+      const count = key ? shownKeys(cursor, soldier, key) : 0;
+      if (!key || count <= 0) continue;
       const itemName = this.#hooks.keyItem(key);
       if (!itemName) continue;
       drawItemStatusBar(list, FULL, x + KEY_BAR_X, y + KEY_BAR_Y, ITEM_BAR_HEIGHT);
       drawInventoryItem(
         ctx,
-        { slot: -1, item: itemName, index: 0, count: key.count, status: [FULL] },
+        { slot: -1, item: itemName, index: 0, count, status: [FULL] },
         { x: x + KEY_ITEM_X, y, width: cell.width - KEY_ITEM_X, height: cell.height - KEY_ITEM_BOTTOM_MARGIN },
         { outline: null },
       );

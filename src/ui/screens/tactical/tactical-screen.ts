@@ -18,7 +18,8 @@
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
-// @src INV_INTERFACE_START_Y).
+// @src INV_INTERFACE_START_Y); Interface_Panels.cc KeyRingSlotInvClickCallbackPrimary (a key off the ring into the
+// @src cursor, selecting its owner; only a key in the cursor goes onto the ring).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -67,7 +68,7 @@ import {
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { dropCommand, giveCommand, type ItemCursor, slotItem, tossCommand } from './item-cursor.ts';
+import { cursorFromKeyRing, dropCommand, giveCommand, type ItemCursor, keyRingCommand, slotItem, tossCommand } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
@@ -119,6 +120,8 @@ const DROPPING_DISTANCE = 1;
 const CLOSE_PANEL_LAST_FRAME = 5;
 const ALT_MASK = 4;
 const SHIFT_MASK = 1;
+const CTRL_MASK = 2;
+const KEY_CLASS = 'KEY';
 const MERC_IS_UNAVAILABLE_STR = 82;
 const BASE_TEAM_SLOTS = 6;
 const RADAR_REGION = 'radarRegion';
@@ -272,6 +275,7 @@ export class TacticalScreen implements Screen {
       describeKey: (soldier: number, key: number) => this.#showDescription({ kind: 'key', soldier, key }),
       cellArt: this.#asset(TacticalLayout.SINGLE_MERC, 'extraInventory'),
       keyItem: (key: Parameters<TacticalEnvironment['media']['keyItem']>[0]) => env.media.keyItem(key),
+      keyRingPrimary: (owner: SoldierView, position: number) => this.#keyRingPrimary(owner, position),
     };
     this.stack = new StackPopup(popupHooks);
     this.keyRing = new KeyRingPopup(popupHooks);
@@ -1366,6 +1370,24 @@ export class TacticalScreen implements Screen {
     this.stack.show(s, slot, rect, { x: panel.x + (ax ?? 0), y: panel.y + (ay ?? 0), width: aw ?? 0, height: ah ?? 0 });
   }
 
+  #keyRingPrimary(owner: SoldierView, position: number): void {
+    const inventory = this.inventory;
+    if (inventory.busy) return;
+    const cursor = inventory.cursor;
+    if (!cursor) {
+      const key = owner.keys?.find((k) => k.position === position);
+      const item = key ? this.#env.media.keyItem(key) : null;
+      const taken = item ? cursorFromKeyRing(owner, position, (this.#env.runtime.modifiers & SHIFT_MASK) !== 0, item) : null;
+      if (!taken) return;
+      this.select(owner.id, false);
+      inventory.setCursor(taken);
+      return;
+    }
+    if (this.#env.media.item(cursor.item)?.class !== KEY_CLASS) return;
+    const cmd = keyRingCommand(cursor, owner.id, position);
+    if (cmd) void inventory.send(cmd).then((reply) => reply.ok && inventory.setCursor(null));
+  }
+
   #openKeyRing(fromShortcut: boolean): void {
     const s = this.#smSoldier();
     if (!s || this.keyRing.open) return;
@@ -1439,7 +1461,11 @@ export class TacticalScreen implements Screen {
         return;
       case 'slotPrimary':
         if (s && this.dialogue.shopPocketClick(s.id, first)) return;
-        this.inventory.slotPrimary(first, (this.#env.runtime.modifiers & SHIFT_MASK) !== 0);
+        this.inventory.slotPrimary(
+          first,
+          (this.#env.runtime.modifiers & SHIFT_MASK) !== 0,
+          (this.#env.runtime.modifiers & CTRL_MASK) !== 0,
+        );
         return;
       case 'slotSecondary':
         this.inventory.slotSecondary(first);

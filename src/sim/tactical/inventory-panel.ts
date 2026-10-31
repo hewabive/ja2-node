@@ -40,6 +40,7 @@ import {
   NO_SLOT,
   placeObject,
 } from './inventory.ts';
+import type { KeySpotView } from './inventory-events.ts';
 import { attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
 import { AP, deductPoints, enoughPoints } from './points.ts';
 import { Body, OKLIFE, type Soldier } from './soldier.ts';
@@ -78,7 +79,16 @@ export type PanelEvent =
       readonly toSoldier?: number;
       readonly amount: number;
     }
-  | { readonly type: 'handsSwapped'; readonly soldier: number };
+  | { readonly type: 'handsSwapped'; readonly soldier: number }
+  | {
+      readonly type: 'keyMoved';
+      readonly soldier: number;
+      readonly item: string;
+      readonly count: number;
+      readonly from: KeySpotView;
+      readonly to: KeySpotView;
+      readonly toSoldier?: number;
+    };
 
 export const PanelRefusal = {
   EMPTY_SLOT: 'emptySlot',
@@ -157,11 +167,11 @@ export function dryInventoryContext(items: ItemTable, inCombat: boolean, s: Sold
   };
 }
 
-function dryContext(env: PanelEnv, s: Soldier): InventoryContext {
+export function dryContext(env: PanelEnv, s: Soldier): InventoryContext {
   return dryInventoryContext(env.items, env.inCombat, s);
 }
 
-function clonedCarrier(s: Soldier): { inv: ItemObject[] } {
+export function clonedCarrier(s: Soldier): { inv: ItemObject[] } {
   return { inv: s.inv.map(cloneObject) };
 }
 
@@ -173,14 +183,14 @@ export function cancelCursor(env: PanelEnv, owner: Soldier, sourceSlot: number, 
   if (cursor.count > 0) env.leftover(owner, cursor);
 }
 
-function transferCheckRefusal(env: PanelEnv, mover: Soldier, target: Soldier): PanelRefusal | null {
+export function transferCheckRefusal(env: PanelEnv, mover: Soldier, target: Soldier, aps = TRANSFER_CHECK_APS): PanelRefusal | null {
   if (mover === target || !env.inCombat) return null;
-  if (mover.life >= CONSCIOUSNESS && !enoughPoints(env.inCombat, mover, TRANSFER_CHECK_APS)) return PanelRefusal.NOT_ENOUGH_AP;
-  if (target.life >= CONSCIOUSNESS && !enoughPoints(env.inCombat, target, TRANSFER_CHECK_APS)) return PanelRefusal.NOT_ENOUGH_AP;
+  if (mover.life >= CONSCIOUSNESS && !enoughPoints(env.inCombat, mover, aps)) return PanelRefusal.NOT_ENOUGH_AP;
+  if (target.life >= CONSCIOUSNESS && !enoughPoints(env.inCombat, target, aps)) return PanelRefusal.NOT_ENOUGH_AP;
   return null;
 }
 
-function chargeTransfer(env: PanelEnv, mover: Soldier, target: Soldier): void {
+export function chargeTransfer(env: PanelEnv, mover: Soldier, target: Soldier): void {
   if (mover === target) return;
   if (mover.life >= CONSCIOUSNESS) deductPoints(env.inCombat, mover, TRANSFER_CHARGE_APS, 0);
   if (target.life >= CONSCIOUSNESS) deductPoints(env.inCombat, target, TRANSFER_CHARGE_APS, 0);

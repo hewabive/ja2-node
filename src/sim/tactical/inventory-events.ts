@@ -1,5 +1,7 @@
 import type { SimEventBase } from '../events.ts';
 
+export type KeySpotView = { readonly ring: number } | { readonly slot: number };
+
 export interface FirstAidStartedEvent extends SimEventBase {
   readonly type: 'firstAidStarted';
   readonly soldier: number;
@@ -44,6 +46,16 @@ export interface ItemMovedEvent extends SimEventBase {
   readonly count: number;
   readonly from: number | 'ground';
   readonly to: number | 'ground';
+  readonly toSoldier?: number;
+}
+
+export interface KeyMovedEvent extends SimEventBase {
+  readonly type: 'keyMoved';
+  readonly soldier: number;
+  readonly item: string;
+  readonly count: number;
+  readonly from: KeySpotView;
+  readonly to: KeySpotView;
   readonly toSoldier?: number;
 }
 
@@ -118,6 +130,7 @@ export type InventoryEvent =
   | FirstAidDoneEvent
   | OutOfBandagesEvent
   | ItemMovedEvent
+  | KeyMovedEvent
   | MoneySplitEvent
   | CashWithdrawnEvent
   | CashDepositedEvent

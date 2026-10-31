@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Interface_Items.cc InternalBeginItemPointer, EndItemPointer, DoAttachment,
 // @src ItemDescAttachmentsCallbackPrimary, ItemPopupRegionCallbackPrimary; Tactical/Interface_Panels.cc
 // @src MergeMessageBoxCallBack, SMInvClickCallbackPrimary (a CTRL stack clean-up without a cursor item flags nothing);
-// @src Strategic/MapScreen.cc MAPInvClickCallbackPrimary, InternalMAPBeginItemPointer (gfReEvaluateEveryonesNothingToDo).
+// @src Strategic/MapScreen.cc MAPInvClickCallbackPrimary, InternalMAPBeginItemPointer (gfReEvaluateEveryonesNothingToDo);
+// @src Tactical/Interface_Panels.cc KeyRingSlotInvClickCallbackPrimary (a key move ends its cursor).
 
 import type { CommandResult } from '../command.ts';
 import type { StrategicState } from '../strategic/state.ts';
@@ -24,6 +25,7 @@ const CURSOR_ITEM_COMMANDS: ReadonlySet<string> = new Set([
   'drop',
   'toss',
   'give',
+  'moveKey',
 ]);
 
 function movesItemThroughCursor(cmd: ItemCommand): boolean {
