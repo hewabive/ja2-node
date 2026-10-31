@@ -5,13 +5,17 @@
 // @src Tactical/Soldier_Macros.h AM_A_ROBOT.
 
 import { effectiveExpLevel } from '../skills.ts';
-import { Body, type Soldier } from '../soldier.ts';
+import { Body, NO_PROFILE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 
 const CONTROLLER_DISTRACTION = 2;
 
 export function isRobot(s: Pick<Soldier, 'bodyType'>): boolean {
   return s.bodyType === Body.ROBOTNOWEAPON;
+}
+
+export function amARobot(t: TacticalState, s: Soldier): boolean {
+  return s.profile !== NO_PROFILE && t.content.profiles[s.profile]?.bodyType === Body.ROBOTNOWEAPON;
 }
 
 export function uncontrolledRobot(t: TacticalState, s: Soldier): boolean {

@@ -108,6 +108,7 @@ changes come from:
 | Civilian murdered | `campaign/civilian-murder.ts` from the death hook |
 | Militia session completed | `militia.ts` |
 | Inactivity | `inactivity.ts` |
+| Our attack on a head miner, which also shuts his mine for good | `mines.ts` through `campaign/narrative-port.ts`, from the end of the attack (`tactical/narrative/civ-hostility.ts`) |
 | Creatures eating civilians, NPC recruited in his town, rebels betrayed, quests and NPC actions, the creature queen and Deidranna | `campaign/creature-flow.ts`, `narrative/recruit-flow.ts`, `narrative-port.ts`, `narrative/npc-action-flow.ts`, `sector-flow.ts`, `endgame-flow.ts` (`25`, `35`) |
 
 **Money is the ledger.** `addTransaction` changes the balance and appends a record; it never refuses, callers check the
@@ -142,6 +143,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A creature that is no monster (a bloodcat) costs a murder's full price as a loss, even in an enemy sector; so do militia when the rebels hate the player | `campaign/civilian-murder.test.ts` |
 | A day with a progress or setback mail is not inactive; a day with a creature or progress mail keeps all its new sectors | `inactivity.test.ts` |
 | The Queen depletes a mine only once it produced for the player; an emptied mine shrinks the income share of progress | `mines.test.ts` |
+| An attack on a neutral head miner only lists him to turn hostile and leaves his mine running: `IsProfileAHeadMiner` sits in the branch for targets that are no longer neutral, so the mine shuts at the next attack | `tactical/narrative/civ-hostility.test.ts`, `campaign/narrative-port.test.ts` |
 | Doctors heal other doctors and themselves | `assignments.test.ts` |
 | Below OKLIFE an odd healing point is spent without effect; kits are used from the last object of a stack | `assignments.test.ts` |
 | Bandaging uses the doctor's first kit of either kind, though only a medical kit makes him a doctor | `training.test.ts` |
@@ -182,5 +184,5 @@ estimates are not compared. Inferred from reading the source:
 - That Deidranna's death never maximises loyalty: `MaximizeLoyaltyForDeidrannaKilled` sits in the enemy branch while
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
 
-Not ported: gaps "Implications of an attack" (the head miner attack), "Strategic economy stand-ins" (vehicle repair),
-"Regeneration counters", "Absent mercs between hourly updates".
+Not ported: gaps "Strategic economy stand-ins" (vehicle repair), "Regeneration counters", "Absent mercs between
+hourly updates".

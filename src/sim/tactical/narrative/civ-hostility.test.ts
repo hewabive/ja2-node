@@ -1,21 +1,29 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { newCombatSim, runUntilIdle, type SpawnOptions, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { parseStubProfiles, STUB_PROFILES_PATH } from '../../../content/formats/stub-profiles.ts';
+import { NOTHING } from '../../../content/items/items.ts';
+import { Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { createCivGroupState, makeCivGroupHostileOnNextSectorEntrance } from '../../strategic/narrative/civ-groups.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { AiAction } from '../ai/actions.ts';
+import { WeaponMode } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
+import { damageSoldierFromBlast } from '../explosions/blast-damage.ts';
+import type { GameEvent } from '../game-events.ts';
 import { Caller, Opp } from '../perception/opp.ts';
 import { manLooksForMan } from '../perception/sight.ts';
-import { AlertStatus, Attitude, Body, CivilianGroup, Orders, Side, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
 import { sectorMapOf } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import {
+  AttackReason,
   addToShouldBecomeHostileOrSayQuoteList,
   checkHostileOrSayQuoteList,
   civilianGroupMemberChangesSides,
@@ -39,6 +47,7 @@ const NORTH = 0;
 const MERC_AT = 80 * 160 + 80;
 const NEAR = MERC_AT + 5;
 const FAR = MERC_AT + 160 * 40;
+const DUEL_TICKS = 200_000;
 
 interface PortLog {
   readonly calls: string[];
@@ -54,6 +63,7 @@ function recordingPort(overrides: Partial<NarrativePort> = {}): NarrativePort & 
     addFutureDayEvent: (kind, minute, param, days) => calls.push(`event ${kind} ${minute} ${param} ${days}`),
     sayHostileQuote: (s) => calls.push(`hostileQuote ${s.profile}`),
     triggerNpcRecord: (profile, record) => calls.push(`record ${profile} ${record}`),
+    playerAttackedHeadMiner: (profile) => calls.push(`headMinerAttacked ${profile}`),
     ...overrides,
     calls,
   };
@@ -141,7 +151,7 @@ describe('civilian groups', () => {
     const far = civilian(sim, 118, FAR, CivilianGroup.HICKS);
     const other = civilian(sim, 119, NEAR + 4, CivilianGroup.KINGPIN);
     target.attacker = sim.state.soldiers[0] ?? null;
-    expect(processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, target)).toBe(true);
+    expect(processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, target, AttackReason.NORMAL)).toBe(true);
     expect([target.neutral, near.neutral, far.neutral, other.neutral]).toEqual([false, false, true, true]);
     expect(sim.state.civGroups.hostility[CivilianGroup.HICKS]).toBe(CivGroupHostility.WILL_EVENTUALLY_BECOME_HOSTILE);
     expect(port.calls).toEqual([`willBecomeHostile ${CivilianGroup.HICKS}`]);
@@ -150,9 +160,9 @@ describe('civilian groups', () => {
   it('betrays the rebels only the first time their group turns', () => {
     const { sim, port } = setup();
     const rebel = civilian(sim, 116, NEAR, CivilianGroup.REBEL);
-    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, rebel);
+    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, rebel, AttackReason.NORMAL);
     rebel.neutral = true;
-    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, rebel);
+    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, rebel, AttackReason.NORMAL);
     expect(port.calls).toEqual(['rebelsBetrayed', `willBecomeHostile ${CivilianGroup.REBEL}`]);
   });
 
@@ -160,7 +170,7 @@ describe('civilian groups', () => {
     const { sim } = setup();
     const villager = civilian(sim, 116, NEAR);
     const militia = spawnSoldier(sim, 84, Team.MILITIA, NEAR + 2, NORTH);
-    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, villager);
+    processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, villager, AttackReason.NORMAL);
     expect(sim.state.hostileQuoteList).toEqual([villager]);
     expect([militia.side, militia.neutral]).toEqual([Side.FRIENDLY, false]);
     checkHostileOrSayQuoteList(sim.state);
@@ -218,6 +228,133 @@ describe('civilian groups', () => {
     makeCivGroupHostileOnNextSectorEntrance(state, CivilianGroup.REBEL, () => calls.push('betrayed'));
     makeCivGroupHostileOnNextSectorEntrance(state, CivilianGroup.REBEL, () => calls.push('betrayed'));
     expect([state.hostility[CivilianGroup.REBEL], calls]).toEqual([CivGroupHostility.WILL_BECOME_HOSTILE, ['betrayed']]);
+  });
+});
+
+describe('an attack on a merc of ours (ProcessImplicationsOfPCAttack)', () => {
+  const SOUTH_OF_MERC = MERC_AT + 3 * WORLD_COLS;
+  const NO_GUN_IN_HAND = 'COMBAT_KNIFE';
+
+  interface Victim {
+    readonly sim: TacticalSim;
+    readonly attacker: Soldier;
+    readonly victim: Soldier;
+  }
+
+  function victimOf(options: SpawnOptions = {}, sim: TacticalSim = setup().sim): Victim {
+    const attacker = sim.state.soldiers[0];
+    if (!attacker) throw new Error('no attacker');
+    const victim = spawnSoldier(sim, 1, Team.OUR, SOUTH_OF_MERC, Direction.SOUTH, options);
+    return { sim, attacker, victim };
+  }
+
+  function attack({ sim, attacker, victim }: Victim, reason: number = AttackReason.NORMAL): boolean {
+    return processImplicationsOfPCAttack(sim.state, attacker, victim, reason);
+  }
+
+  function shotsBack({ sim }: Victim): GameEvent[] {
+    return sim.state.gameEvents.filter((e) => e.kind === 'beginFireWeapon');
+  }
+
+  function robotContent(): TacticalContent {
+    const json = JSON.parse(readFileSync(join(import.meta.dirname, '../../../..', STUB_PROFILES_PATH), 'utf8'));
+    const profiles = parseStubProfiles(json, (name) => content.items.byName.get(name)?.index);
+    const record = profiles.find((p) => p !== undefined);
+    if (!record) throw new Error('no stub profile');
+    profiles[Profile.ROBOT] = { ...record, bodyType: Body.ROBOTNOWEAPON };
+    return { ...content, profiles };
+  }
+
+  function robotSim(): TacticalSim {
+    const sim = newCombatSim(robotContent());
+    spawnSoldier(sim, 0, Team.OUR, MERC_AT, NORTH);
+    return sim;
+  }
+
+  it('out of combat he turns to his attacker and fires at his tile, and combat does not start', () => {
+    const v = victimOf();
+    expect(attack(v)).toBe(false);
+    expect(shotsBack(v)).toEqual([{ kind: 'beginFireWeapon', soldier: 1, target: MERC_AT, level: 0, cubeLevel: 0 }]);
+    expect([v.victim.desiredDirection, v.victim.weaponMode, v.victim.doBurst]).toEqual([Direction.NORTH, WeaponMode.NORMAL, 0]);
+  });
+
+  it('switches a gun that can fire bursts to burst before he fires back', () => {
+    const v = victimOf({ gun: 'GLOCK_18' });
+    attack(v);
+    expect([v.victim.weaponMode, v.victim.doBurst, shotsBack(v).length]).toEqual([WeaponMode.BURST, 1, 1]);
+  });
+
+  it('only turns without a gun in hand', () => {
+    const v = victimOf({ gun: NO_GUN_IN_HAND });
+    expect(attack(v)).toBe(false);
+    expect([v.victim.desiredDirection, shotsBack(v)]).toEqual([Direction.NORTH, []]);
+  });
+
+  it('holds his fire below OKLIFE, collapsed, as the robot or hit by an explosion, and combat still does not start', () => {
+    const unconscious = victimOf({ life: OKLIFE - 1 });
+    const collapsed = victimOf();
+    collapsed.victim.collapsed = true;
+    const robot = victimOf({ profile: Profile.ROBOT }, robotSim());
+    const blasted = victimOf();
+    const cases: readonly [Victim, number][] = [
+      [unconscious, AttackReason.NORMAL],
+      [collapsed, AttackReason.NORMAL],
+      [robot, AttackReason.NORMAL],
+      [blasted, AttackReason.EXPLOSION],
+    ];
+    for (const [v, reason] of cases) {
+      expect(attack(v, reason)).toBe(false);
+      expect([v.victim.desiredDirection, shotsBack(v)]).toEqual([Direction.SOUTH, []]);
+    }
+  });
+
+  it('in combat he neither fires back nor holds off combat', () => {
+    const v = victimOf();
+    v.sim.state.inCombat = true;
+    expect(attack(v)).toBe(true);
+    expect([v.victim.desiredDirection, shotsBack(v)]).toEqual([Direction.SOUTH, []]);
+  });
+
+  it('two of our mercs who shoot each other out of combat trade shots until one falls: each end of attack makes its target fire back', () => {
+    const { sim, victim } = victimOf();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: victim.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim, DUEL_TICKS);
+    const shooters = events.flatMap((e) => (e.type === 'shotFired' ? [e.soldier] : []));
+    expect(shooters.length).toBeGreaterThan(2);
+    expect(shooters).toEqual(shooters.map((_, k) => k % 2));
+    expect(events.some((e) => e.type === 'soldierDied')).toBe(true);
+    expect(events.some((e) => e.type === 'combatStarted')).toBe(false);
+    expect(sim.state.inCombat).toBe(false);
+  });
+});
+
+describe('an attack on a head miner (ProcessImplicationsOfPCAttack, PlayerAttackedHeadMiner)', () => {
+  function headMiner(sim: TacticalSim, profile: number, neutral: boolean): Soldier {
+    const miner = civilian(sim, 116, NEAR, CivilianGroup.NONE, profile);
+    miner.neutral = neutral;
+    return miner;
+  }
+
+  it('tells the campaign of an attack on a hostile head miner, by a shot or a blast, and starts combat', () => {
+    for (const profile of [Profile.FRED, Profile.MATT, Profile.OSWALD, Profile.CALVIN, Profile.CARL]) {
+      const { sim, port } = setup();
+      const merc = sim.state.soldiers[0] as Soldier;
+      const miner = headMiner(sim, profile, false);
+      expect(processImplicationsOfPCAttack(sim.state, merc, miner, AttackReason.NORMAL)).toBe(true);
+      damageSoldierFromBlast(sim.state, miner, merc, miner.gridNo, 1, 0, 0, NOTHING);
+      expect(port.calls).toEqual([`headMinerAttacked ${profile}`, `headMinerAttacked ${profile}`]);
+    }
+  });
+
+  it('a neutral head miner is only listed to turn hostile: his mine pays for the attacks after that', () => {
+    const { sim, port } = setup();
+    const merc = sim.state.soldiers[0] as Soldier;
+    const fred = headMiner(sim, Profile.FRED, true);
+    processImplicationsOfPCAttack(sim.state, merc, fred, AttackReason.NORMAL);
+    expect([port.calls, sim.state.hostileQuoteList]).toEqual([[], [fred]]);
+    checkHostileOrSayQuoteList(sim.state);
+    processImplicationsOfPCAttack(sim.state, merc, fred, AttackReason.NORMAL);
+    expect(port.calls).toEqual([`headMinerAttacked ${Profile.FRED}`]);
   });
 });
 

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc MakeCivHostile, SetSoldierNonNeutral, CivilianGroupMembersChangeSidesWithinProximity,
 // @src CivilianGroupMemberChangesSides, CivilianGroupChangesSides, HickCowAttacked, MilitiaChangesSides,
-// @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
+// @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches; our merc firing back and the head miner,
+// @src 2026-10-31); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
 // @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
 // @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor; Overhead.cc HandleBrothelWallDestroyed.
 
@@ -13,7 +14,10 @@ import { civGroupHostility, setCivGroupHostility } from '../../strategic/narrati
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { pauseAiTemporarily, pauseAiUntilManuallyUnpaused, unPauseAi } from '../ai/pause.ts';
+import { handleItem, soldierReadyWeapon } from '../combat/attack.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
+import { changeWeaponMode, isGunBurstCapable } from '../hand-item.ts';
+import { InvSlot, itemIn } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { handleSight, recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
 import { AlertStatus, Body, CivilianGroup, NO_PROFILE, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
@@ -26,6 +30,7 @@ import {
   BROTHEL_SECTOR,
   BrothelRooms,
   CivGroupHostility,
+  HEAD_MINERS,
   HICKS_FARM_SECTOR,
   KINGPIN_DOOR_GRIDNOS,
   Profile,
@@ -33,6 +38,9 @@ import {
   TIXA_SECTOR,
   WARDEN_ALERT_RADIUS,
 } from './constants.ts';
+import { amARobot } from './robot.ts';
+
+export const AttackReason = { NORMAL: 1, EXPLOSION: 2 } as const;
 
 const MAX_DISTANCE_VISIBLE = 26;
 const NO_ROOM = 0;
@@ -256,7 +264,38 @@ function cheatingInTheRing(t: TacticalState, attacker: Soldier, target: Soldier)
   if (target.team === Team.CIV && target.boxer) t.narrative.setSoldierNeutral(target);
 }
 
-export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldier, target: Soldier): boolean {
+function firesBack(t: TacticalState, s: Soldier, reason: number): boolean {
+  return s.life >= OKLIFE && !s.collapsed && !amARobot(t, s) && reason === AttackReason.NORMAL;
+}
+
+function fireBack(t: TacticalState, s: Soldier, attacker: Soldier): void {
+  s.dontChargeReadyAPs = true;
+  soldierReadyWeapon(t, s, attacker.gridNo, false);
+  const hand = itemIn(s.inv, InvSlot.HAND);
+  if (t.content.items.byIndex.get(hand)?.itemClass !== ItemClass.GUN) return;
+  if (!s.doBurst && isGunBurstCapable(t.content.items, s, InvSlot.HAND)) changeWeaponMode(t, s);
+  handleItem(t, s, attacker.gridNo, attacker.level, hand);
+}
+
+function attackOnAnyoneElse(t: TacticalState, attacker: Soldier, target: Soldier, reason: number): boolean {
+  let enterCombat = true;
+  if (target.profile === Profile.CARMEN && attacker.profile !== Profile.SLAY) target.ai.attitude = AGGRESSIVE_ATTITUDE;
+  if (target.civilianGroup !== CivilianGroup.NONE && (target.team === Team.OUR || target.neutral)) {
+    civilianGroupMemberChangesSides(t, target);
+    if (target.profile !== NO_PROFILE && target.life >= OKLIFE && target.visible === VISIBLE) {
+      pauseAiTemporarily(t);
+      addToShouldBecomeHostileOrSayQuoteList(t, target);
+    }
+  } else if (target.civilianGroup !== CivilianGroup.NONE && !target.boxer) civilianGroupMembersChangeSidesWithinProximity(t, target);
+  else if (target.team === Team.OUR && !t.inCombat) {
+    if (firesBack(t, target, reason)) fireBack(t, target, attacker);
+    enterCombat = false;
+  }
+  if (HEAD_MINERS.has(target.profile)) t.narrative.playerAttackedHeadMiner(target.profile);
+  return enterCombat;
+}
+
+export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldier, target: Soldier, reason: number): boolean {
   target.ai.asleep = false;
   if (target.profile === Profile.PABLO && t.narrative.fact(Fact.PLAYER_FOUND_ITEMS_MISSING))
     t.narrative.setFactTrue(Fact.PABLO_PUNISHED_BY_PLAYER);
@@ -272,17 +311,7 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
     t.narrative.triggerNpcRecord(Profile.SLAY, 1);
   else if (target.team === Team.CIV && target.civilianGroup === CivilianGroup.NONE && target.neutral && !isVehicle(target))
     neutralCivilianAttacked(t, attacker, target);
-  else {
-    if (target.profile === Profile.CARMEN && attacker.profile !== Profile.SLAY) target.ai.attitude = AGGRESSIVE_ATTITUDE;
-    if (target.civilianGroup !== CivilianGroup.NONE && (target.team === Team.OUR || target.neutral)) {
-      civilianGroupMemberChangesSides(t, target);
-      if (target.profile !== NO_PROFILE && target.life >= OKLIFE && target.visible === VISIBLE) {
-        pauseAiTemporarily(t);
-        addToShouldBecomeHostileOrSayQuoteList(t, target);
-      }
-    } else if (target.civilianGroup !== CivilianGroup.NONE && !target.boxer) civilianGroupMembersChangeSidesWithinProximity(t, target);
-    else if (target.team === Team.OUR && !t.inCombat) return false;
-  }
+  else return attackOnAnyoneElse(t, attacker, target, reason);
   return true;
 }
 

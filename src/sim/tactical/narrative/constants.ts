@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h CIV_GROUP_* hostility; Strategic/Quests.h IN_BROTHEL, IN_BROTHEL_GUARD_ROOM;
 // @src Boxing.h BOXING_SECTOR_*;
-// @src Map_Screen_Interface_Map.h TIXA_SECTOR_*; Strategic_Town_Loyalty.h; externalized mercs-profile-info.json.
+// @src Map_Screen_Interface_Map.h TIXA_SECTOR_*; Strategic_Town_Loyalty.h; externalized mercs-profile-info.json;
+// @src Soldier_Profile.cc IsProfileAHeadMiner (2026-10-31).
 
 export const NUM_CIV_GROUPS = 20;
 export const CivGroupHostility = { NEUTRAL: 0, WILL_EVENTUALLY_BECOME_HOSTILE: 1, WILL_BECOME_HOSTILE: 2, HOSTILE: 3 } as const;
@@ -31,6 +32,7 @@ export const Profile = {
   SKYRIDER: 97,
   PABLO: 98,
   WARDEN: 102,
+  FRED: 106,
   MADAME: 107,
   MARTHA: 109,
   TIFFANY: 110,
@@ -52,8 +54,12 @@ export const Profile = {
   OLGA: 144,
   TYRONE: 145,
   MADLAB: 146,
+  MATT: 148,
   MIKE: 149,
   MANNY: 155,
+  OSWALD: 156,
+  CALVIN: 157,
+  CARL: 158,
 } as const;
 
 export const ASSASSINS: ReadonlySet<number> = new Set([Profile.JIM, Profile.JACK, Profile.OLAF, Profile.RAY, Profile.OLGA, Profile.TYRONE]);
@@ -65,6 +71,7 @@ export const TERRORISTS: ReadonlySet<number> = new Set([
   Profile.TIFFANY,
   Profile.T_REX,
 ]);
+export const HEAD_MINERS: ReadonlySet<number> = new Set([Profile.FRED, Profile.MATT, Profile.OSWALD, Profile.CALVIN, Profile.CARL]);
 export const REBEL_SYMPATHIZERS: ReadonlySet<number> = new Set([
   Profile.IRA,
   Profile.DIMITRI,

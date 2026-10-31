@@ -16,7 +16,7 @@ import { givingSoldierCancelServices } from '../first-aid.ts';
 import { InvSlot } from '../inventory.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
-import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
+import { AttackReason, processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { handleKilledQuote } from '../narrative/kill-quotes.ts';
 import { inMeanwhile, meanwhileKeepsAttacker } from '../narrative/meanwhile-rules.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
@@ -204,7 +204,8 @@ export function internalReduceAttackBusyCount(
   if (soldier) {
     soldier.attackingHand = InvSlot.HAND;
     if (target && soldier.attackNoticed) {
-      if (target.bodyType !== Body.CROW && soldier.team === Team.OUR) enterCombat = processImplicationsOfPCAttack(t, soldier, target);
+      if (target.bodyType !== Body.CROW && soldier.team === Team.OUR)
+        enterCombat = processImplicationsOfPCAttack(t, soldier, target, AttackReason.NORMAL);
       if (target.bodyType === Body.CROW) enterCombat = false;
       if (boxingFight(t) && target.life <= 0) endBoxingMatch(t, target);
       if (soldier.team !== Team.OUR || target.team !== Team.OUR) {

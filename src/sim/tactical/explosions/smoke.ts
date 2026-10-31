@@ -15,7 +15,7 @@ import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
-import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
+import { AttackReason, processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -270,7 +270,7 @@ export function dishOutGasDamage(t: TacticalState, s: Soldier, type: SmokeEffect
   if (!dose.wound && !dose.breath) return;
   t.explosives.hitByGas[s.id] = (t.explosives.hitByGas[s.id] ?? 0) | (HIT_FLAG_BY_ID[type.id] ?? 0);
   soldierTakeDamage(t, s, dose.wound, dose.breath, DamageReason.GAS, null);
-  if (owner && owner.team === Team.OUR && s.team !== Team.OUR) processImplicationsOfPCAttack(t, owner, s);
+  if (owner && owner.team === Team.OUR && s.team !== Team.OUR) processImplicationsOfPCAttack(t, owner, s, AttackReason.EXPLOSION);
 }
 
 export function checkForRunningIntoGas(t: TacticalState, s: Soldier): boolean {

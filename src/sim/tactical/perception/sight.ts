@@ -26,6 +26,7 @@ import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
+import { amARobot } from '../narrative/robot.ts';
 import { lostSightRules, newSightingRules } from '../narrative/sight-rules.ts';
 import { hasSeenCreatures, sayFirstCreatureSightingQuote } from '../narrative/sighting-quotes.ts';
 import { StatKind } from '../profiles.ts';
@@ -36,7 +37,6 @@ import {
   isMonster,
   isTank,
   NO_INTERRUPT,
-  NO_PROFILE,
   NOBODY,
   NOWHERE,
   numSkillTraits,
@@ -206,10 +206,6 @@ function sightInGas(t: TacticalState, viewer: Soldier, subjectLevel: number, d: 
 
 export function seesMuzzleFlashWithoutTurning(viewer: Soldier, towards: number): boolean {
   return withinOneOctant(viewer.direction, towards);
-}
-
-function amARobot(t: TacticalState, s: Soldier): boolean {
-  return s.profile !== NO_PROFILE && t.content.profiles[s.profile]?.bodyType === Body.ROBOTNOWEAPON;
 }
 
 function nightSightBonus(t: TacticalState, viewer: Soldier, light: number, wears: (name: string) => boolean): number {

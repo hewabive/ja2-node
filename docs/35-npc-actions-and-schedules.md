@@ -151,6 +151,6 @@ every profile's sector. Inferred from reading the source:
 - The "robot under construction" graphic: its gridno is never assigned in Stracciatella or vanilla, so its removal is a
   no-op; ja2-node only sets the fact.
 
-Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "Implications of an attack", "NPC draws first
-and minor offenses", "NPC opens a door on arrival". Other deviations of this domain: "Terrorist names", "NPC gives an
-item", "Interface lock on arrival", "Team change during a hit".
+Not ported: gaps "Doors", "Rebel basement trapdoor", "Building owners", "NPC draws first and minor offenses", "NPC
+opens a door on arrival". Other deviations of this domain: "Terrorist names", "NPC gives an item", "Interface lock on
+arrival", "Team change during a hit".

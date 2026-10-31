@@ -29,7 +29,7 @@ import {
   triggerEndOfBoxingRecord,
 } from './boxing.ts';
 import { BOXER_GRIDNOS, BOXING_RING, BoxingState, boxingHalvesPoints, CENTER_OF_RING } from './boxing-state.ts';
-import { processImplicationsOfPCAttack } from './civ-hostility.ts';
+import { AttackReason, processImplicationsOfPCAttack } from './civ-hostility.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './port.ts';
 
 let content: TacticalContent;
@@ -222,7 +222,7 @@ describe('disqualification', () => {
     for (const [weapon, expected] of cases) {
       const { sim, merc, boxers } = fight();
       merc.attackingWeapon = weapon;
-      processImplicationsOfPCAttack(sim.state, merc, boxers[0] as Soldier);
+      processImplicationsOfPCAttack(sim.state, merc, boxers[0] as Soldier, AttackReason.NORMAL);
       expect(sim.state.boxing.state).toBe(expected);
       if (expected === BoxingState.NOT_BOXING) expect((boxers[0] as Soldier).neutral).toBe(true);
     }

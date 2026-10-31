@@ -10,12 +10,14 @@
 // @src (TriggerFriendWithHostileQuote); Tactical/Soldier_Control.cc EVENT_SoldierGotHit (our merc on another assignment
 // @src wakes and joins a squad, 2026-10-31); Tactical/Overhead.cc SelectSoldier (SetCurrentSquad, PutMercInAwakeState and
 // @src MERC_TYPE__PLAYER_CHARACTER through the roster, 2026-10-31); Tactical/Squads.cc Squad[] and GameScreen.cc
-// @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31).
+// @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner
+// @src from Tactical/Overhead.cc ProcessImplicationsOfPCAttack (2026-10-31).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
+import { playerAttackedHeadMiner } from '../strategic/economy/mines.ts';
 import { putMercInAwakeState } from '../strategic/economy/rest.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
@@ -72,6 +74,10 @@ function rebelsBetrayed(campaign: CampaignSim): void {
   if (campaign.economy) reduceLoyaltyForRebelsBetrayed(campaign.economy);
 }
 
+function headMinerAttacked(campaign: CampaignSim, profile: number): void {
+  if (campaign.economy) playerAttackedHeadMiner(campaign.economy, profile);
+}
+
 export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
   const s = campaign.state;
   return {
@@ -114,6 +120,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
       if (amount < 0) decrementTownLoyalty(economy, town, -amount);
       else incrementTownLoyalty(economy, town, amount);
     },
+    playerAttackedHeadMiner: (profile) => headMinerAttacked(campaign, profile),
     addFutureDayEvent: (kind, minute, param, days) => {
       addFutureDayStrategicEvent(s.queue, s.clock, kind, minute, param, days);
     },

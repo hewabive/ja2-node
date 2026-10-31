@@ -18,7 +18,8 @@
 // @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
 // @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc SetCurrentSquad and MERC_TYPE__PLAYER_CHARACTER
 // @src for InternalSelectSoldier, Squad[] (FOR_EACH_IN_SQUAD) and guiCurrentScreen == GAME_SCREEN for the selections of
-// @src RemoveSoldierFromTacticalSector (2026-10-31).
+// @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
+// @src ProcessImplicationsOfPCAttack (2026-10-31).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -65,6 +66,7 @@ export interface NarrativePort {
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
   townLoyaltyChange(town: number, amount: number): void;
+  playerAttackedHeadMiner(profile: number): void;
   addFutureDayEvent(kind: number, minuteOfDay: number, param: number, days: number): void;
   terroristKilled(): void;
   assassinKilled(): void;
@@ -141,6 +143,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},
   townLoyaltyChange: () => {},
+  playerAttackedHeadMiner: () => {},
   addFutureDayEvent: () => {},
   terroristKilled: () => {},
   assassinKilled: () => {},

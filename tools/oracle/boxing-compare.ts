@@ -23,7 +23,7 @@ import {
   triggerEndOfBoxingRecord,
 } from '../../src/sim/tactical/narrative/boxing.ts';
 import { BOXER_GRIDNOS, boxingHalvesPoints } from '../../src/sim/tactical/narrative/boxing-state.ts';
-import { processImplicationsOfPCAttack } from '../../src/sim/tactical/narrative/civ-hostility.ts';
+import { AttackReason, processImplicationsOfPCAttack } from '../../src/sim/tactical/narrative/civ-hostility.ts';
 import { handleNpcDoAction } from '../../src/sim/tactical/narrative/npc-actions/catalog.ts';
 import { NpcActionCode } from '../../src/sim/tactical/narrative/npc-actions/codes.ts';
 import { calcActionPoints, calcNewActionPoints } from '../../src/sim/tactical/points.ts';
@@ -372,7 +372,7 @@ export class BoxingComparer {
         const target = this.#soldier(c, a.target);
         attacker.attackingWeapon = num(a.item);
         target.attacker = attacker;
-        const combat = processImplicationsOfPCAttack(t, attacker, target);
+        const combat = processImplicationsOfPCAttack(t, attacker, target, AttackReason.NORMAL);
         return [flag(combat), flag(target.neutral)];
       }
       case 'boxingend':

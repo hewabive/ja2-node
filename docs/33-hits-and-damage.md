@@ -20,7 +20,8 @@ bullet enters the target's tile                       combat/bullets.ts (suppres
              or fall → 497 → death animation → 440    combat/death.ts (opcodes, corpse, getting up)
 melee: the hit arrives as a queued game event          combat/melee.ts → game-events.ts → weaponHit
 … busy count reaches 0 → end of the attack            combat/barrier.ts
-  suppression, noticing the attacker, combat entry, kill quotes, stat points, deferred noise, end of battle
+  suppression, our attack's implications (narrative/civ-hostility.ts), noticing the attacker, combat entry,
+  kill quotes, stat points, deferred noise, end of battle
 ```
 
 | Module | Holds |
@@ -93,6 +94,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A soldier knocked out on his own team's turn counts two turns down, also in a pose with no unconscious stop: the original runs its getting-up check twice | `death.test.ts` |
 | A crouched fall forward from a hit never breaks jars: its fall sound 721 plays in the second animation, and 722, the code tested for it, is not in its script | `death.test.ts` |
 | Hits alone never bring the beating quote: it asks for a life gain of more than 20 since the turn began | `close-call.test.ts` |
+| Two of our mercs who shoot each other out of combat trade shots until one falls: every end of attack makes its target, if conscious and holding a gun, fire back at the attacker's tile | `src/sim/tactical/narrative/civ-hostility.test.ts` |
 | A skill check with no chance at all passes on a roll of 0: the margin is 0, not below it | `skill-check.test.ts` |
 | A merc corpse cut more than a day after death rots on the spot and gives a second head: `DecapitateCorpse` copies the corpse before marking its head taken | `src/sim/tactical/rotting-corpses.test.ts` |
 
@@ -116,4 +118,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Implications of an attack", "Morale without drugs", "Corpses", "Unseen soldiers in combat".
+Not ported: gaps "Morale without drugs", "Corpses", "Unseen soldiers in combat".

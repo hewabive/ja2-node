@@ -1,19 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, runTicks } from '../../../tests/support/campaign.ts';
+import { spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
+import { testProfile } from '../../../tests/support/profiles.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { advance } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
-import { Assignment } from '../strategic/economy/constants.ts';
+import { Assignment, Town } from '../strategic/economy/constants.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { animName } from '../tactical/anim-states.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
 import { heldPrisoner, onSquad } from '../tactical/narrative/assignment.ts';
 import { QuoteSaidExtFlag } from '../tactical/narrative/merc-quotes.ts';
 import { calcInterruptDuelPts, seenOpponent } from '../tactical/perception/duel.ts';
-import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
+import { NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import { enterCombatMode } from '../tactical/turns/turns.ts';
 import { MercKind, type Roster, type RosterMerc } from './roster.ts';
@@ -126,6 +130,42 @@ describe("a merc's sleep, kind and quote flags as tactical asks them of the camp
     enterCombatMode(t, Team.OUR);
     expect(t.inCombat).toBe(true);
     expect([lying(), rosterMerc(roster, sleeperId).asleep]).toEqual(['WKAEUP_FROM_SLEEP', true]);
+  });
+});
+
+describe('our attack on a head miner in tactical reaches his mine (NarrativePort.playerAttackedHeadMiner)', () => {
+  const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
+  const MINER_DISTANCE = 4 * WORLD_COLS;
+  const STARTING_RATING = 60;
+  const ATTACK_BUDGET = 40_000;
+
+  it('shuts the mine for good and costs the town loyalty once, also when he is attacked again', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 37, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    advance(c, { idle: true }, ATTACK_BUDGET);
+    c.state.profiles.set(Npc.FRED, testProfile(Npc.FRED, { town: Town.DRASSEN }));
+    const drassen = c.state.economy.towns[Town.DRASSEN];
+    const sim = c.tactical;
+    const [merc] = ourSoldiers(c);
+    if (!drassen || !sim || !merc) throw new Error('Drassen and A9 with our merc');
+    Object.assign(drassen, { started: true, rating: STARTING_RATING });
+    const fred = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, merc.gridNo + MINER_DISTANCE, Direction.NORTH, {
+      profile: Npc.FRED,
+    });
+    fred.neutral = false;
+    const shoot = () => {
+      const target = c.tactical?.state.soldiers[TEAM_FIRST_ID[Team.CIV]]?.gridNo;
+      expect(c.dispatch({ type: 'attack', soldier: merc.id, target })).toEqual({ ok: true });
+      advance(c, { idle: true }, ATTACK_BUDGET);
+    };
+    shoot();
+    const mine = kit.economy.economy.mines.find((m) => m.associatedTownId === Town.DRASSEN)?.mineId ?? -1;
+    const status = () => c.state.economy.mines[mine];
+    const rating = c.state.economy.towns[Town.DRASSEN]?.rating;
+    expect(status()).toMatchObject({ shutDown: true, shutDownIsPermanent: true, attackedHeadMiner: true });
+    expect(rating).toBeLessThan(STARTING_RATING);
+    shoot();
+    expect([status()?.shutDown, c.state.economy.towns[Town.DRASSEN]?.rating]).toEqual([true, rating]);
   });
 });
 

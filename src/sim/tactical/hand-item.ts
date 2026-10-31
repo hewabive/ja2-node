@@ -55,6 +55,13 @@ export function nextWeaponMode(items: ItemTable, s: Soldier): number | null {
   }
 }
 
+export function changeWeaponMode(t: TacticalState, s: Soldier): void {
+  if (hasAnimFlag(t.content, s.state, AnimFlags.FIRE)) return;
+  const items = t.content.items;
+  s.weaponMode = nextWeaponMode(items, s) ?? s.weaponMode;
+  ensureConsistentWeaponMode(items, s);
+}
+
 export function reloadSoldierAnimationDueToHandItemChange(t: TacticalState, s: Soldier, oldItem: number, newItem: number): void {
   const items = t.content.items;
   const weapon = items.byIndex.get(newItem)?.weapon;

@@ -12,6 +12,7 @@ import { findDoorInfo, removeDoorInfo, updateDoor } from '../../src/sim/tactical
 import { doTrapCheckOnStartingMenu } from '../../src/sim/tactical/doors/door-traps.ts';
 import { toggleDoorAt } from '../../src/sim/tactical/doors.ts';
 import {
+  AttackReason,
   checkHostileOrSayQuoteList,
   makeCivHostile,
   processImplicationsOfPCAttack,
@@ -462,7 +463,9 @@ export class DoorComparer {
     const target = t.soldiers[num(p.target)];
     if (!target) return report(label, false, `no target ${String(p.target)}`);
     target.attacker = attacker;
-    const { result, preLeft, mainSkipped } = replayed(t, p.draws as Draw[], () => processImplicationsOfPCAttack(t, attacker, target));
+    const { result, preLeft, mainSkipped } = replayed(t, p.draws as Draw[], () =>
+      processImplicationsOfPCAttack(t, attacker, target, AttackReason.NORMAL),
+    );
     const extra = result !== (p.enterCombat === true) ? [`enterCombat ${String(result)}/${String(p.enterCombat)}`] : [];
     if (preLeft !== 0) extra.push(`${preLeft} native PreRandom draws not used`);
     if (mainSkipped !== 0) extra.push(`${mainSkipped} native Random draws not used`);
