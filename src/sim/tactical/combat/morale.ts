@@ -1,9 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
-// @src (soldier-only tactical events; the phobic ones and PHOBIC_LIMIT 2026-11-01).
+// @src (soldier-only tactical events; the phobic ones and PHOBIC_LIMIT, the EPC and assignment checks and the
+// @src low-morale quote of UpdateSoldierMorale 2026-11-01).
 
 import { idiv } from '../../../core/int.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
+import { soldierAssignment } from '../narrative/assignment.ts';
+import { clearQuoteSaid, MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from '../narrative/merc-quotes.ts';
 import { profileProgress } from '../profiles.ts';
 import { Body, NO_PROFILE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -39,6 +43,13 @@ const PHOBIC_LIMIT = -20;
 const Attitude = { OPTIMIST: 3, PESSIMIST: 4, AGGRESSIVE: 5, COWARD: 9 } as const;
 const MORALE_MOD_MAX = 50;
 const DEFAULT_MORALE = 50;
+const LOW_MORALE_QUOTE_BELOW = 35;
+const LOW_MORALE_FLAG_RESET_ABOVE = 65;
+const MORALE_FROZEN_ASSIGNMENTS: ReadonlySet<number> = new Set([
+  Assignment.ASSIGNMENT_DEAD,
+  Assignment.ASSIGNMENT_POW,
+  Assignment.IN_TRANSIT,
+]);
 
 const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);
 
@@ -48,9 +59,23 @@ export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
   s.morale = Math.min(100, Math.max(0, m));
 }
 
+function moraleCounts(t: TacticalState, s: Soldier): boolean {
+  if (!s.placed || s.life < CONSCIOUSNESS || isMechanical(s) || t.narrative.isEpc(s)) return false;
+  return !MORALE_FROZEN_ASSIGNMENTS.has(soldierAssignment(t, s)) && s.profile !== NO_PROFILE;
+}
+
+function lowMoraleQuote(t: TacticalState, s: Soldier): void {
+  const said = quoteSaid(t, s).quoteSaidFlags & QuoteSaidFlag.LOW_MORAL;
+  if (!t.narrative.mercAsleep(s) && s.morale < LOW_MORALE_QUOTE_BELOW && !said) {
+    t.narrative.sayQuote(s, MercQuote.STARTING_TO_WHINE, true);
+    markQuoteSaid(t, s, QuoteSaidFlag.LOW_MORAL);
+  }
+  if (s.morale > LOW_MORALE_FLAG_RESET_ABOVE) clearQuoteSaid(t, s, QuoteSaidFlag.LOW_MORAL);
+}
+
 export function handleMoraleEvent(t: TacticalState, s: Soldier, event: number): void {
   const base = TACTICAL_CHANGE[event];
-  if (base === undefined || !s.placed || s.life < CONSCIOUSNESS || isMechanical(s) || s.profile === NO_PROFILE) return;
+  if (base === undefined || !moraleCounts(t, s)) return;
   if (PHOBIC_EVENTS.has(event) && s.tacticalMoraleMod <= PHOBIC_LIMIT) return;
   const p = profileProgress(t, s.profile);
   if (!p) return;
@@ -68,4 +93,5 @@ export function handleMoraleEvent(t: TacticalState, s: Soldier, event: number): 
   }
   s.tacticalMoraleMod = Math.min(MORALE_MOD_MAX, Math.max(-MORALE_MOD_MAX, s.tacticalMoraleMod + mod));
   refreshSoldierMorale(t, s);
+  lowMoraleQuote(t, s);
 }
