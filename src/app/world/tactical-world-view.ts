@@ -32,7 +32,7 @@ import type { SoldierAssets } from './soldier-assets.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
 import { defaultHostile, nightTime, type SoldierLightOptions, SoldierScene } from './soldier-scene.ts';
 import type { WorldEffects } from './world-effects.ts';
-import { type DynamicLight, type LightingTime, WorldLighting } from './world-lighting.ts';
+import { type DynamicLight, type LightingTime, type MapLight, WorldLighting } from './world-lighting.ts';
 import { type LoadedWorld, loadWorld, renderWorldOf } from './world-loader.ts';
 
 const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
@@ -192,6 +192,15 @@ export class TacticalWorldView {
     });
   }
 
+  #mapLights(light: WorldLightView | null | undefined): MapLight[] | null {
+    if (!light) return null;
+    return light.sprites.flatMap((sprite) => {
+      if (sprite.dynamic) return [];
+      const resolved = this.#templates.resolve(sprite.template);
+      return resolved ? [{ x: sprite.x, y: sprite.y, roof: sprite.roof === true, template: resolved.template }] : [];
+    });
+  }
+
   #dynamicLights(light: WorldLightView | null | undefined): DynamicLight[] {
     return (light?.sprites ?? []).flatMap((sprite) => {
       if (!sprite.dynamic) return [];
@@ -261,7 +270,14 @@ export class TacticalWorldView {
       nightTime(time.hour),
       (s) => this.#templates.resolve(mercLightTemplateName(s.inventory))?.template ?? null,
     );
-    const shade = this.lighting.field({ time, ambient, openDoors, mercLights, dynamicLights: this.#dynamicLights(view.light) });
+    const shade = this.lighting.field({
+      time,
+      ambient,
+      openDoors,
+      mapLights: this.#mapLights(view.light),
+      mercLights,
+      dynamicLights: this.#dynamicLights(view.light),
+    });
     const hostile = f.hostile ?? defaultHostile;
     const soldiers = this.#soldiers.build({
       soldiers: view.soldiers,

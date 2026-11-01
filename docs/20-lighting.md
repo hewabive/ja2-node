@@ -33,7 +33,7 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 | `src/content/formats/lht.ts`, `load-content.ts` | `.LHT` files and Stracciatella's `light-templates.json` (`TacticalContent.lightTemplates`) |
 | `save-import.ts` | Map lights for the saved hour, then the saved ambient level |
 | `src/sim/knowledge/tactical.ts` | The agent's projection, lit from the view's `light` (`lightView`) |
-| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights, the view's dynamic lights and our mercs' lights (`05`) |
+| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights (`05`) |
 
 ## 2. Design
 
@@ -77,7 +77,8 @@ of a room, and the load of a sector's revealed tiles (`TileEngine/Render_Fun.cc:
 (`restoreRevealed`, `src/sim/campaign/sector-diff.ts`) and in a native import (`save-import.ts`). The original keeps
 no power state in a save or temp file: the revealed tiles switch the lights on again at every load, one per tile
 (`TileEngine/SaveLoadMap.cc:467`). ja2-node's own saves keep the sprites as they are. The light counts for every later
-look and shot; within the look that switched it on only the range, taken at the start, could read light.
+look and shot; within the look that switched it on only the range, taken at the start, could read light. The client
+lights the powered map lights the view reports, so a cave light shows as soon as the simulation switches it on.
 
 **Underground, the time of day comes through a port.** A cave or basement keeps the ambient level its map sets, so
 `lighting.ambient` says nothing about the hour there; the AI's night check reads the world's level through

@@ -49,6 +49,10 @@ export interface DynamicLight {
   readonly template: LightTemplate;
 }
 
+export interface MapLight extends DynamicLight {
+  readonly roof: boolean;
+}
+
 interface PlacedLight {
   readonly x: number;
   readonly y: number;
@@ -65,6 +69,7 @@ export interface LightingInput {
   readonly time: LightingTime;
   readonly ambient?: number | null;
   readonly openDoors: ReadonlySet<number>;
+  readonly mapLights?: readonly MapLight[] | null;
   readonly mercLights: readonly MercLight[];
   readonly dynamicLights?: readonly DynamicLight[];
 }
@@ -139,7 +144,8 @@ export class WorldLighting {
 
   field(input: LightingInput): ShadeField {
     const ambient = this.ambientAt(input.time, input.ambient ?? null);
-    const staticKey = `${input.time.hour}|${ambient}|${[...input.openDoors].sort((a, b) => a - b).join(',')}`;
+    const doors = [...input.openDoors].sort((a, b) => a - b).join(',');
+    const staticKey = `${input.time.hour}|${ambient}|${doors}|${mapLightsKey(input.mapLights ?? null)}`;
     const placed = placedLights(input);
     const mercKey = placed.map((m) => `${m.x},${m.y},${m.flags},${m.template.name}`).join(';');
     if (this.#field && staticKey === this.#staticKey && mercKey === this.#mercKey) return this.#field;
@@ -147,7 +153,7 @@ export class WorldLighting {
     if (!this.#static || staticKey !== this.#staticKey) {
       this.#doorStatus.clear();
       for (const g of this.#doors) this.#doorStatus.set(g, { perceivedOpen: input.openDoors.has(g) });
-      initLighting(t, this.#map, input.time.hour, ambient);
+      this.#lightMap(t, input.mapLights ?? null, input.time.hour, ambient);
       this.#static = this.#mapLightMaxima(t);
       this.#staticKey = staticKey;
     }
@@ -155,6 +161,21 @@ export class WorldLighting {
     const maxima = placed.length > 0 ? this.#withLights(t, this.#static, placed) : this.#static;
     this.#field = this.#shade(t.lighting.ambient, t.lighting.natural, maxima);
     return this.#field;
+  }
+
+  #lightMap(t: TacticalState, shown: readonly MapLight[] | null, hour: number, ambient: number): void {
+    if (!shown) {
+      initLighting(t, this.#map, hour, ambient);
+      return;
+    }
+    initLighting(t, { ambient: this.#map.ambient, lights: null }, hour, ambient);
+    for (const m of shown) {
+      const l = lightSpriteFromTemplate(t, m.template);
+      if (!l) continue;
+      if (m.roof) l.flags |= LightSpriteFlags.ONROOF;
+      lightSpritePower(l, true);
+      lightSpritePosition(t, l, m.x, m.y);
+    }
   }
 
   #mapLightMaxima(t: TacticalState): LightMaxima {
@@ -200,6 +221,11 @@ export class WorldLighting {
     this.#version++;
     return { version: this.#version, ambient, natural, land, roof };
   }
+}
+
+function mapLightsKey(lights: readonly MapLight[] | null): string {
+  if (!lights) return 'map';
+  return lights.map((l) => `${l.x},${l.y},${l.roof ? 1 : 0},${l.template.name}`).join(';');
 }
 
 function placedLights(input: LightingInput): PlacedLight[] {

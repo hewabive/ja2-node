@@ -102,6 +102,23 @@ describe('client lighting on the stub village', () => {
     expect(lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g]).toBe(without);
   });
 
+  it('lights the map lights the view reports powered instead of those the hour would power, as a cave light sight switched on', () => {
+    const lamp = world.map.lights?.sprites[0];
+    if (!lamp) throw new Error('no stub lamp');
+    const template = new LightTemplates().resolve(lamp.template)?.template;
+    if (!template) throw new Error('no lamp template');
+    const g = lamp.y * 160 + lamp.x;
+    const lighting = new WorldLighting(world.tactical);
+    const byTheHour = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g] ?? 0;
+    const switchedOff = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mapLights: [], mercLights: [] }).land[g];
+    const switchedOn = (time: typeof NOON) =>
+      lighting.field({ time, openDoors: NO_DOORS, mapLights: [{ x: lamp.x, y: lamp.y, roof: false, template }], mercLights: [] }).land[g];
+    expect(byTheHour).toBeLessThan(12);
+    expect(switchedOff).toBe(12);
+    expect(switchedOn(NIGHT)).toBe(byTheHour);
+    expect(switchedOn(NOON)).toBeLessThan(3);
+  });
+
   it('updates the level render data of patched tiles as a full preparation would', () => {
     let at = 0;
     while (levelTilesAt(world.level.layers.structs, at).length === 0) at++;
