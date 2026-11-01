@@ -108,9 +108,11 @@ hides one, and a tank misses low soldiers close to its hull. The hint projection
 **The fog of war is a third, cruder system.** Revealed tiles come from fixed view paths over the movement cost table,
 not from the ray. One revealed tile of a room reveals the whole room and hides its roof for good, shows the items lying
 in it with a "spotted something" quote, and in the boxing sector takes the ring along with the room around it; both are
-saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded mercs reveal nothing. The client derives
-hidden roofs, show-through and wireframes from the revealed rooms (`render/world/reveal.ts`). Above ground there is no
-terrain fog.
+saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded mercs reveal nothing. Underground, in a
+basement or a cave by the map's flags, a tile under a flat roof is revealed only inside a room, though the look still
+shows its items; in a cave every tile revealed, by a look, a room or a load of the revealed tiles, switches on its map
+light (`20`). The client derives hidden roofs, show-through and wireframes from the revealed rooms
+(`render/world/reveal.ts`). Above ground there is no terrain fog.
 
 **Items are found by the same view paths.** A radio look shows a merc the items on them with their locator; new items
 there halt him in combat, and his look takes the item locator lock and queues one items-seen quote, which a locked
@@ -187,5 +189,5 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Cave lights", "Guard room run", "Doors", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
+Not ported: gaps "Guard room run", "Doors", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
 after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

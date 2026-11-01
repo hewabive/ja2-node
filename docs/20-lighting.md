@@ -66,9 +66,18 @@ render, and a door that opens or a wall a grenade destroys changes no light unti
 
 **The clock powers map lights once.** At a map load the hour decides which scheduled lights are on: night lights from
 21:00 to 7:00, prime-time lights from 21:00 to midnight, none in caves. Afterwards only the strategic light events
-switch them, and the dawn and dusk steps and the temperature events change the ambient level. A savegame loads its
-clock before the world, so the saved hour powers the map lights. The sandbox stays at 12:00 (deviation "Ambient light
-and light schedule").
+and, in caves, sight switch them, and the dawn and dusk steps and the temperature events change the ambient level. A
+savegame loads its clock before the world, so the saved hour powers the map lights. The sandbox stays at 12:00
+(deviation "Ambient light and light schedule").
+
+**Sight lights the caves.** A cave map's lights load switched off (`TileEngine/LoadSaveLightSprite.cc:40`). Revealing
+a cave tile switches on the first unlit light sprite standing on it and draws it at once (`switchOnCaveLightAt`,
+`TileEngine/Fog_Of_War.cc:10`): the fog of war's look (`perception/fov.ts`, `Tactical/FOV.cc:631`, `08`), the reveal
+of a room, and the load of a sector's revealed tiles (`TileEngine/Render_Fun.cc:97`), at a re-entry
+(`restoreRevealed`, `src/sim/campaign/sector-diff.ts`) and in a native import (`save-import.ts`). The original keeps
+no power state in a save or temp file: the revealed tiles switch the lights on again at every load, one per tile
+(`TileEngine/SaveLoadMap.cc:467`). ja2-node's own saves keep the sprites as they are. The light counts for every later
+look and shot; within the look that switched it on only the range, taken at the start, could read light.
 
 **Underground, the time of day comes through a port.** A cave or basement keeps the ambient level its map sets, so
 `lighting.ambient` says nothing about the hour there; the AI's night check reads the world's level through
@@ -97,6 +106,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `light
 | A tile higher than the step before it stays dark, but the ray goes on and lights the ground beyond | `lighting.test.ts` |
 | A wall that appears changes no light until the next render, and the erase still removes the light that passed it | `lighting.test.ts` |
 | Switching scheduled lights shows only at the next render | `lighting.test.ts` |
+| Sight switches on one unlit light of a cave tile per reveal and draws it at once, without marking it for erase | `lighting.test.ts` |
 | At the roof level map lights never count, and a tile without a roof returns the raw ambient level, unclamped | `lighting.test.ts` |
 | A light going out cuts a tile's strongest light to the light left, even when no light left is that strong, until the next render | `lighting.test.ts` |
 | A muzzle flash lights the tile in front of the shooter, only when the player sees him | `effects.test.ts` |
@@ -117,9 +127,11 @@ because whether container items exist is a `PreRandom` roll the two processes ma
 the source:
 - Explosion, muzzle-flash and flare lights last only while an animation or effect does, and no probe catches them;
   unit tests cover them. The AI's light-dependent decisions are not probed either.
+- No probe drives sight in a cave, so the cave lights it switches on are pinned only by unit tests and a data test on
+  D13's creature lair (`perception/fog-original.test.ts`).
 - The window rule skips the original's test for a struct node on the window tile: all 1,853 window structures of the
   260 original maps are single-tile and carry their own node.
 
-Not ported: gaps "Cave lights", "Mines in the pathfinder", "Savegame import" (light effect records). Other deviations
+Not ported: gaps "Mines in the pathfinder", "Savegame import" (light effect records). Other deviations
 of this domain: "Light on structures", "Ambient light and light schedule", "Doors and light in the projection", "World
 clock for smoke and light", "Soldier fade without merc lights".

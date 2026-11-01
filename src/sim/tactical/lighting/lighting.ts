@@ -3,6 +3,7 @@
 // @src src/game/TileEngine/Lighting.cc IlluminationFilter, LightTrueLevel, LightAddTileNode, LightSubtractTileNode,
 // @src LightAddTile, LightSubtractTile, LightResetAllTiles, LightFindNextRay, LightSetBaseLevel, LightDraw, LightErase,
 // @src LightSpriteGetFree, LightSpriteCreate, LightSpriteDestroy, LightSpriteRenderAll, LightSpritePosition, LightSpritePower;
+// @src TileEngine/Fog_Of_War.cc RemoveFogFromGridNo;
 // @src TileEngine/LoadSaveLightSprite.cc ExtractLightSprite; TileEngine/WorldDef.cc LoadMapLights, LoadWorldFromSGPFile
 // @src (ambient light); TileEngine/Environment.cc TurnOnNightLights, TurnOffNightLights, TurnOnPrimeLights, TurnOffPrimeLights,
 // @src GetTimeOfDayAmbientLightLevel (read underground through a port);
@@ -357,6 +358,22 @@ export function lightSpriteDestroy(t: TacticalState, l: LightSprite): void {
 
 export function lightSpritePower(l: LightSprite, on: boolean): void {
   l.flags = (l.flags & ~LightSpriteFlags.ON) | (on ? LightSpriteFlags.ON : 0);
+}
+
+function unlit(l: LightSprite): boolean {
+  return (l.flags & (LightSpriteFlags.ACTIVE | LightSpriteFlags.ON)) === LightSpriteFlags.ACTIVE;
+}
+
+function unlitLightAt(t: TacticalState, x: number, y: number): LightSprite | null {
+  return t.lighting.sprites.find((l): l is LightSprite => !!l && unlit(l) && l.x === x && l.y === y) ?? null;
+}
+
+export function switchOnCaveLightAt(t: TacticalState, g: number): void {
+  if (!t.lighting.caves) return;
+  const l = unlitLightAt(t, g % WORLD_COLS, idiv(g, WORLD_COLS));
+  if (!l) return;
+  lightSpritePower(l, true);
+  lightDraw(t, l);
 }
 
 export function lightSpritePosition(t: TacticalState, l: LightSprite, x: number, y: number): void {

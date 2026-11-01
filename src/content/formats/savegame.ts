@@ -52,6 +52,7 @@ import {
   decodeDoorStatusFile,
   decodeDoorTableFile,
   decodeMapModificationsFile,
+  decodeRevealedStatusFile,
   decodeRottingCorpsesFile,
   decodeWorldItemsFile,
   readSectorTempFiles,
@@ -289,6 +290,7 @@ export interface CurrentSectorState {
   readonly doorStatus: readonly SavedDoorStatus[] | null;
   readonly corpses: readonly SavedCorpse[] | null;
   readonly mapModifications: readonly SavedMapModification[] | null;
+  readonly revealed: Uint8Array | null;
 }
 
 export interface PreRandomTable {
@@ -595,6 +597,7 @@ function currentSectorState(sector: SectorPosition, files: readonly SectorTempFi
   const status = file('doorStatus');
   const corpses = file('rottingCorpses');
   const modifications = file('mapModifications');
+  const revealed = file('revealedStatus');
   return {
     sector,
     worldItems: items ? decodeWorldItemsFile(items) : null,
@@ -602,6 +605,7 @@ function currentSectorState(sector: SectorPosition, files: readonly SectorTempFi
     doorStatus: status ? decodeDoorStatusFile(status) : null,
     corpses: corpses ? decodeRottingCorpsesFile(corpses) : null,
     mapModifications: modifications ? decodeMapModificationsFile(modifications) : null,
+    revealed: revealed ? decodeRevealedStatusFile(revealed) : null,
   };
 }
 

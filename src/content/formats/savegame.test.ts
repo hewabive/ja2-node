@@ -26,7 +26,7 @@ import {
   soldierChecksum,
 } from './savegame-soldier.ts';
 import { GENERAL_INFO_LAYOUT, INCOMBAT, TACTICAL_STATUS_LAYOUT, TEAM_TURNS_LAYOUT, TOTAL_SOLDIERS } from './savegame-tactical.ts';
-import { decodeWorldItemsFile, WORLD_ITEM_BYTES } from './savegame-temp-files.ts';
+import { decodeRevealedStatusFile, decodeWorldItemsFile, WORLD_ITEM_BYTES } from './savegame-temp-files.ts';
 
 const encryption = parseSaveEncryptionTable(
   JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/save-encryption.json'), 'utf8')),
@@ -371,6 +371,16 @@ describe('parseSaveGame on a synthetic save', () => {
     expect(() => parseSaveGame(buildSave({ trailing: 1 }), encryption)).toThrow(/unparsed/);
     expect(() => parseSaveGame(buildSave().subarray(0, 300000), encryption)).toThrow(FormatError);
     expect(() => parseSaveGame(buildSave({ corruptSoldier: true }), encryption)).toThrow(/checksum/);
+  });
+
+  it('decodes the revealed map one bit per tile, the low bit first, and rejects a short one (SaveLoadMap.cc SetMapRevealedStatus)', () => {
+    const bytes = new Uint8Array(3200);
+    bytes[0] = 0b1000_0001;
+    bytes[3199] = 0b1000_0000;
+    const revealed = decodeRevealedStatusFile(bytes);
+    expect(revealed).toHaveLength(25600);
+    expect([...revealed].flatMap((bit, g) => (bit ? [g] : []))).toEqual([0, 7, 25599]);
+    expect(() => decodeRevealedStatusFile(new Uint8Array(3199))).toThrow(FormatError);
   });
 
   it('decodes an empty item temp file and rejects a short one', () => {

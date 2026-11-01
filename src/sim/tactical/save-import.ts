@@ -9,7 +9,7 @@
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
-// @src before UpdateMercsInSector).
+// @src before UpdateMercsInSector); TileEngine/SaveLoadMap.cc LoadRevealedStatusArrayFromRevealedTempFile.
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -43,6 +43,7 @@ import { lightSetBaseLevel, lightSpriteRenderAll, loadMapLights } from './lighti
 import { type AddedExitGrid, applyMapChanges, exitGridChange, type MapChange, MapChangeKind, structTileChange } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
+import { setMapRevealedStatus } from './perception/fov.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
@@ -83,10 +84,11 @@ export interface SaveImportReport {
 
 export interface SavedSectorChanges {
   readonly mapModifications: readonly SavedMapModification[] | null;
+  readonly revealed: Uint8Array | null;
   readonly doorStatus: readonly SavedDoorStatus[] | null;
 }
 
-export const NO_SAVED_SECTOR_CHANGES: SavedSectorChanges = { mapModifications: null, doorStatus: null };
+export const NO_SAVED_SECTOR_CHANGES: SavedSectorChanges = { mapModifications: null, revealed: null, doorStatus: null };
 
 export interface CampaignWideState {
   readonly civGroups: CivGroupState;
@@ -243,9 +245,14 @@ export function loadSavedSectorChanges(sim: TacticalSim, saved: SavedSectorChang
   withSoldiersOffTheMap(t, () => {
     standHelicopter();
     for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
+    applyRevealedStatus(t, saved.revealed);
     applyDoorStatus(t, saved.doorStatus ?? []);
     initLoadedWorld(t);
   });
+}
+
+function applyRevealedStatus(t: TacticalState, revealed: Uint8Array | null): void {
+  if (revealed) setMapRevealedStatus(t, (g) => revealed[g] === 1);
 }
 
 function initLoadedWorld(t: TacticalState): void {

@@ -16,6 +16,7 @@ import { createTacticalState, type TacticalState } from '../state.ts';
 import {
   initLighting,
   type LightSprite,
+  LightSpriteFlags,
   lightSetBaseLevel,
   lightShadeLevel,
   lightSpriteCreate,
@@ -27,6 +28,7 @@ import {
   lightTrueLevel,
   NORMAL_LIGHTLEVEL_DAY,
   NORMAL_LIGHTLEVEL_NIGHT,
+  switchOnCaveLightAt,
   turnOffNightLights,
   turnOnNightLights,
 } from './lighting.ts';
@@ -229,6 +231,46 @@ describe('map lights and the clock', () => {
     expect(t.lighting.ambient).toBe(9);
     expect(t.lighting.underground).toBe(true);
     for (let g = 0; g < WORLD_MAX; g += 997) expect(lightTrueLevel(t, g, 0)).toBe(9);
+  });
+});
+
+describe('cave lights (Fog_Of_War.cc RemoveFogFromGridNo)', () => {
+  const CAVES = { basement: false, caves: true, lightLevel: 11 };
+  const twoLampsOnOneTile = {
+    colors: [[0, 0, 0] as const],
+    sprites: [
+      { x: X, y: Y, flags: 0, template: 'L-R03.LHT' },
+      { x: X, y: Y, flags: 0, template: 'L-R03.LHT' },
+      { x: X + 20, y: Y, flags: 0, template: 'L-R03.LHT' },
+    ],
+  };
+  const powered = (t: TacticalState) => t.lighting.sprites.flatMap((l) => (l ? [(l.flags & LightSpriteFlags.ON) !== 0] : []));
+
+  it('switches on one unlit light of the tile per reveal and draws it at once, without waiting for a render', () => {
+    const t = tactical();
+    initLighting(t, { ambient: CAVES, lights: twoLampsOnOneTile }, 12, NORMAL_LIGHTLEVEL_DAY);
+    expect(powered(t)).toEqual([false, false, false]);
+    switchOnCaveLightAt(t, gridNo(X, Y));
+    expect(powered(t)).toEqual([true, false, false]);
+    expect(level(t, X, Y)).toBe(CAVES.lightLevel - 3);
+    switchOnCaveLightAt(t, gridNo(X, Y));
+    switchOnCaveLightAt(t, gridNo(X, Y));
+    expect(powered(t)).toEqual([true, true, false]);
+    expect(level(t, X, Y)).toBe(CAVES.lightLevel - 6);
+  });
+
+  it('leaves the lights of a basement and of the surface alone', () => {
+    for (const ambient of [{ ...CAVES, caves: false, basement: true }, null]) {
+      const t = tactical();
+      initLighting(
+        t,
+        { ambient, lights: { ...twoLampsOnOneTile, sprites: [{ x: X, y: Y, flags: LightTime.NIGHT_TIME, template: 'L-R03.LHT' }] } },
+        12,
+        NIGHT,
+      );
+      switchOnCaveLightAt(t, gridNo(X, Y));
+      expect(powered(t)).toEqual([false]);
+    }
   });
 });
 

@@ -152,6 +152,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
 
-Not ported: gaps "Overhead map", "Slanted roof ceilings", "No-burn tiles", "Cave lights". Other deviations of this
+Not ported: gaps "Overhead map", "Slanted roof ceilings", "No-burn tiles". Other deviations of this
 domain: "Sweep window", "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall
 translucency template", "Bullets of unseen shooters", "Soldier frame on turning".

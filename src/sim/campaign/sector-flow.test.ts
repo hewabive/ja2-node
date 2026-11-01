@@ -382,7 +382,7 @@ describe('a native save loaded into its sector', () => {
       subImageIndex: TAIL_BOOM_SUB_INDEX,
       extra: 0,
     };
-    flow.adoptLoadedSector([], { mapModifications: [destroyedTailBoom], doorStatus: null });
+    flow.adoptLoadedSector([], { mapModifications: [destroyedTailBoom], revealed: null, doorStatus: null });
     const t = sim.state;
     const vehicles = (g: number) => t.world.structures.at(g).filter((x) => (x.flags & StructureFlags.VEHICLE) !== 0).length;
     expect([vehicles(DRASSEN_HELIPAD), vehicles(TAIL_BOOM_GRIDNO)]).toEqual([1, 0]);

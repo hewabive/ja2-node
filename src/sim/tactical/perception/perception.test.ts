@@ -1,22 +1,34 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { progressFor } from '../../../../tests/support/autoresolve.ts';
-import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
+import { loadTestContent, readDataJson, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
+import type { MapDef } from '../../../content/formats/map.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
+import type { TileElement } from '../../../content/world/tile-database.ts';
+import { parseTileTables, TILE_TABLES_PATH, typeIndex } from '../../../content/world/tile-tables.ts';
 import { Rng } from '../../../core/rng.ts';
 import { createItem } from '../../items/object.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
+import {
+  initLighting,
+  LightSpriteFlags,
+  lightSetBaseLevel,
+  lightSpriteCreate,
+  lightSpritePosition,
+  lightSpritePower,
+  lightTrueLevel,
+  NORMAL_LIGHTLEVEL_DAY,
+} from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, registerSoldier, type SectorRef, type TacticalState } from '../state.ts';
+import { createTacticalState, registerSoldier, type SectorRef, sectorMapOf, type TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { revealedRooms, revealRoofsAndItems } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
@@ -298,6 +310,68 @@ describe('fog of war', () => {
         s.blindedCounter = 2;
       }),
     ).toEqual([[], false]);
+  });
+});
+
+describe('fog of war underground (FOV.cc RevealRoofsAndItems, Fog_Of_War.cc RemoveFogFromGridNo)', () => {
+  type Ambient = MapDef['ambient'];
+  const CAVES: Ambient = { basement: false, caves: true, lightLevel: 11 };
+  const BASEMENT: Ambient = { basement: true, caves: false, lightLevel: 11 };
+  const tables = parseTileTables(readDataJson(TILE_TABLES_PATH));
+  const VIEWER = gridNo(80, 80);
+  const OPEN = gridNo(80, 83);
+  const ROOFED = gridNo(80, 85);
+  const ROOFED_ROOM = gridNo(80, 87);
+  const BEHIND = gridNo(80, 76);
+  const ROOM = 5;
+
+  function underground(ambient: Ambient, roofType = 'FIRSTROOF', lamps: readonly number[] = []): TacticalState {
+    const roofs = new Set<number>();
+    for (let x = 70; x <= 90; x++) for (let y = 84; y <= 88; y++) roofs.add(gridNo(x, y));
+    const roof = { index: 0, type: typeIndex(tables, roofType) } as unknown as TileElement;
+    const w = syntheticWorld(doorCosts, () => {}, roofs);
+    const t = createTacticalState({ ...w, mapDoors: new Map(), tiles: [roof] }, content, Rng.fromSeed(11));
+    Object.assign(t.world, { map: { ...sectorMapOf(t), ambient } });
+    for (let x = 78; x <= 82; x++) for (let y = 87; y <= 88; y++) t.world.level.rooms[gridNo(x, y)] = ROOM;
+    const sprites = lamps.map((g) => ({ x: g % 160, y: Math.trunc(g / 160), flags: 0, template: 'L-R03.LHT' }));
+    initLighting(t, { ambient, lights: { colors: [[0, 0, 0]], sprites } }, 12, NORMAL_LIGHTLEVEL_DAY);
+    t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders: () => {}, setNewSituation: () => {} });
+    return t;
+  }
+
+  const revealedAt = (t: TacticalState, tiles: readonly number[]) => tiles.map((g) => (t.fog.revealed[g] ?? 0) !== 0);
+
+  it('reveals a tile under a flat roof only in a room, in a basement or a cave, and every tile on the surface', () => {
+    const look = (ambient: Ambient, roofType?: string) => {
+      const t = underground(ambient, roofType);
+      revealRoofsAndItems(t, spawn(t, Team.OUR, VIEWER, Direction.SOUTH), true);
+      return [...revealedAt(t, [OPEN, ROOFED, ROOFED_ROOM]), revealedRooms(t)];
+    };
+    expect(look(BASEMENT)).toEqual([true, false, true, [ROOM]]);
+    expect(look(CAVES)).toEqual([true, false, true, [ROOM]]);
+    expect(look(BASEMENT, 'FOURTHROOF')).toEqual([true, false, true, [ROOM]]);
+    expect(look(BASEMENT, 'FIRSTSLANTROOF')).toEqual([true, true, true, [ROOM]]);
+    expect(look(null)).toEqual([true, true, true, [ROOM]]);
+  });
+
+  it('switches on the light of each cave tile sight reveals, at once, and leaves the lights it does not reveal off', () => {
+    const lamps = [OPEN, ROOFED, ROOFED_ROOM, BEHIND];
+    const t = underground(CAVES, 'FIRSTROOF', lamps);
+    const powered = () => t.lighting.sprites.flatMap((l) => (l ? [(l.flags & LightSpriteFlags.ON) !== 0] : []));
+    expect(powered()).toEqual([false, false, false, false]);
+    expect(lightTrueLevel(t, OPEN, 0)).toBe(11);
+    revealRoofsAndItems(t, spawn(t, Team.OUR, VIEWER, Direction.SOUTH), true);
+    expect(powered()).toEqual([true, false, true, false]);
+    expect(lightTrueLevel(t, OPEN, 0)).toBe(8);
+  });
+
+  it('keeps the map lights of a basement as the clock left them', () => {
+    const t = underground(BASEMENT, 'FIRSTROOF', [OPEN]);
+    const lamp = t.lighting.sprites[0];
+    if (!lamp) throw new Error('no lamp');
+    lightSpritePower(lamp, false);
+    revealRoofsAndItems(t, spawn(t, Team.OUR, VIEWER, Direction.SOUTH), true);
+    expect(lamp.flags & LightSpriteFlags.ON).toBe(0);
   });
 });
 

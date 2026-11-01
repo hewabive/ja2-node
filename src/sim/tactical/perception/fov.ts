@@ -2,9 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
-// @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems.
+// @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems;
+// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus; TileEngine/WorldMan.cc TypeRangeExistsInRoofLayer;
+// @src TileEngine/TileDat.h FIRSTROOF, FOURTHROOF.
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
+import { levelTilesAt } from '../../../content/world/level.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -15,14 +18,14 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { idiv } from '../../../core/int.ts';
-import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
+import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, switchOnCaveLightAt } from '../lighting/lighting.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { BOXING_SECTOR } from '../narrative/constants.ts';
 import { lookForAndMayCommentOnSeeingCorpse } from '../narrative/corpse-comments.ts';
 import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import { mercs, type TacticalState } from '../state.ts';
+import { inCavesOrBasement, mercs, type TacticalState } from '../state.ts';
 import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
 import { noticeRevealedItems } from './item-locator.ts';
 
@@ -40,6 +43,8 @@ const MAX_ROOMS = 256;
 const ROOM_SURROUNDING_BOXING_RING = 3;
 const SPOTTED_SOMETHING_QUOTE = 11;
 const SPOTTED_SOMETHING_QUOTES = 2;
+const FIRSTROOF = 64;
+const FOURTHROOF = 67;
 
 const Blocking = {
   NOTHING: 0,
@@ -178,18 +183,51 @@ function blockingStructureInfo(t: TacticalState, g: number, level: number): numb
   return minimum ? Blocking.REDUCE_RANGE : Blocking.NEXT_TILE;
 }
 
+function revealGround(t: TacticalState, g: number): void {
+  t.fog.revealed[g] = (t.fog.revealed[g] ?? 0) | RevealedFlags.GROUND;
+  switchOnCaveLightAt(t, g);
+}
+
+function setGridNoRevealed(t: TacticalState, g: number): void {
+  revealGround(t, g);
+  t.fog.roomHidden[t.world.level.rooms[g] ?? NO_ROOM] = 0;
+}
+
+export function setMapRevealedStatus(t: TacticalState, revealed: (g: number) => boolean): void {
+  for (let g = 0; g < WORLD_MAX; g++) {
+    if (revealed(g)) setGridNoRevealed(t, g);
+    else t.fog.revealed[g] = (t.fog.revealed[g] ?? 0) & ~RevealedFlags.GROUND;
+  }
+}
+
+export function switchOnRevealedCaveLights(t: TacticalState): void {
+  for (let g = 0; g < WORLD_MAX; g++) if ((t.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) switchOnCaveLightAt(t, g);
+}
+
+function roofOver(t: TacticalState, g: number): boolean {
+  const tiles = t.world.tiles ?? [];
+  for (const tile of levelTilesAt(t.world.level.layers.roofs, g)) {
+    const type = tiles[tile]?.type ?? -1;
+    if (type >= FIRSTROOF && type <= FOURTHROOF) return true;
+  }
+  return false;
+}
+
+function sightRevealsGround(t: TacticalState, g: number): boolean {
+  if (!inCavesOrBasement(t)) return true;
+  return (t.world.level.rooms[g] ?? NO_ROOM) !== NO_ROOM || !roofOver(t, g);
+}
+
 function removeRoomRoof(t: TacticalState, room: number, s: Soldier): void {
-  const fog = t.fog;
   const rooms = t.world.level.rooms;
   let saidItemSeenQuote = false;
   for (let g = 0; g < WORLD_MAX; g++) {
     if (rooms[g] !== room) continue;
-    fog.revealed[g] = (fog.revealed[g] ?? 0) | RevealedFlags.GROUND;
+    setGridNoRevealed(t, g);
     if (!setItemsVisibilityOn(t, g, 0, Visibility.INVISIBLE, true) || saidItemSeenQuote) continue;
     saidItemSeenQuote = true;
     t.narrative.sayQuote(s, SPOTTED_SOMETHING_QUOTE + t.rng.int(SPOTTED_SOMETHING_QUOTES));
   }
-  fog.roomHidden[room] = 0;
   t.events.push({ type: 'roomRevealed', room });
 }
 
@@ -297,7 +335,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
         if (tilesLeftToSee <= 0) break;
         if (blocking === Blocking.FULL || (travelCostObstacle && !throughWindow)) break;
         if (level === 0) {
-          fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.GROUND;
+          if (sightRevealsGround(t, marker)) revealGround(t, marker);
           const room = t.world.level.rooms[marker] ?? NO_ROOM;
           if (room !== NO_ROOM && fog.roomHidden[room]) revealHiddenRoom(t, room, s);
         } else fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.ROOF;

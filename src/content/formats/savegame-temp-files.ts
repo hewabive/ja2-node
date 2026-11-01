@@ -2,8 +2,10 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc LoadMapTempFilesFromSavedGameFile, sectorFlagBits, GetMapTempFileName,
 // @src LoadWorldItemsFromTempItemFile; Tactical/World_Items.h WORLDITEM; Tactical/Keys.cc door table and door status files;
-// @src Tactical/Soldier_Init_List.cc NewWayOfLoadingEnemySoldierInitListLinks (link records)
+// @src Tactical/Soldier_Init_List.cc NewWayOfLoadingEnemySoldierInitListLinks (link records);
+// @src TileEngine/SaveLoadMap.cc NUM_REVEALED_BYTES, LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus (bit order)
 
+import { idiv } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
 import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
 import { SaveCursor } from './savegame-cursor.ts';
@@ -21,6 +23,8 @@ const CORPSE_POSITION_BYTES = 8;
 const PALETTE_NAME_BYTES = 30;
 const CORPSE_TAIL_PADDING = 12;
 export const MAP_MODIFICATION_BYTES = 8;
+const NUM_REVEALED_BYTES = 3200;
+const BITS_PER_BYTE = 8;
 
 export const TEMP_FILE_KINDS = [
   { kind: 'items', flag: 0x10000000, prefix: 'i' },
@@ -243,6 +247,15 @@ export function decodeMapModificationsFile(bytes: Uint8Array): SavedMapModificat
     type: c.u8(),
     extra: c.u8(),
   }));
+}
+
+export function decodeRevealedStatusFile(bytes: Uint8Array): Uint8Array {
+  if (bytes.length < NUM_REVEALED_BYTES)
+    throw new FormatError(`revealed status temp file: ${bytes.length} bytes, need ${NUM_REVEALED_BYTES}`);
+  return Uint8Array.from(
+    { length: NUM_REVEALED_BYTES * BITS_PER_BYTE },
+    (_, g) => ((bytes[idiv(g, BITS_PER_BYTE)] ?? 0) >> (g % BITS_PER_BYTE)) & 1,
+  );
 }
 
 export interface PreservedSoldierLink {

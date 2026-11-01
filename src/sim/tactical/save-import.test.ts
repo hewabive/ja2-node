@@ -16,8 +16,10 @@ import { createStrategicState } from '../strategic/state.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
+import { LightSpriteFlags, lightTrueLevel } from './lighting/lighting.ts';
+import { RevealedFlags, revealedRooms } from './perception/fov.ts';
 import { handleCrowLeave } from './rotting-corpses.ts';
-import { importCampaignWideState, importSave } from './save-import.ts';
+import { importCampaignWideState, importSave, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES } from './save-import.ts';
 import {
   Body,
   cellCentre,
@@ -176,13 +178,13 @@ function syntheticSave({
   } as unknown as SaveGame;
 }
 
-function importedSim(save: SaveGame, blocked: readonly number[] = []): TacticalSim {
+function importedSim(save: SaveGame, blocked: readonly number[] = [], mapFields: Readonly<Record<string, unknown>> = {}): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), (structures) => {
     for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
   });
   const world = {
     ...base,
-    map: { doors: [], placements: [], info: { centerGridNo: CENTRE } },
+    map: { doors: [], placements: [], info: { centerGridNo: CENTRE }, ...mapFields },
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 1);
@@ -448,6 +450,45 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
       [true, false],
       [false, true],
     ]);
+  });
+});
+
+describe('the revealed map of the loaded sector (SaveLoadMap.cc LoadRevealedStatusArrayFromRevealedTempFile, SetMapRevealedStatus)', () => {
+  const ROOM = 4;
+  const SEEN = gridNo(80, 84);
+  const UNSEEN = gridNo(90, 84);
+  const ROOF_SEEN = gridNo(100, 84);
+
+  function caveImport(): TacticalSim {
+    const sprites = [SEEN, UNSEEN].map((g) => ({ x: g % 160, y: Math.trunc(g / 160), flags: 0, template: 'L-R03.LHT' }));
+    const sim = importedSim(syntheticSave({ tactical: { worldSector: { ...SECTOR, z: 1 } } }), [], {
+      ambient: { basement: false, caves: true, lightLevel: 11 },
+      lights: { colors: [[0, 0, 0]], sprites },
+    });
+    sim.state.world.level.rooms[SEEN] = ROOM;
+    return sim;
+  }
+
+  it('reveals the saved tiles and their rooms, unreveals the ground of the others and switches on the cave light of each revealed tile', () => {
+    const sim = caveImport();
+    const t = sim.state;
+    t.fog.revealed[UNSEEN] = RevealedFlags.GROUND;
+    t.fog.revealed[ROOF_SEEN] = RevealedFlags.GROUND | RevealedFlags.ROOF;
+    const revealed = new Uint8Array(WORLD_MAX);
+    revealed[SEEN] = 1;
+    loadSavedSectorChanges(sim, { mapModifications: null, revealed, doorStatus: null });
+    expect([SEEN, UNSEEN, ROOF_SEEN].map((g) => t.fog.revealed[g])).toEqual([RevealedFlags.GROUND, 0, RevealedFlags.ROOF]);
+    expect(revealedRooms(t)).toEqual([ROOM]);
+    expect(t.lighting.sprites.flatMap((l) => (l ? [(l.flags & LightSpriteFlags.ON) !== 0] : []))).toEqual([true, false]);
+    expect(lightTrueLevel(t, SEEN, 0)).toBe(8);
+  });
+
+  it('keeps the fog of a save without a revealed map', () => {
+    const sim = caveImport();
+    sim.state.fog.revealed[UNSEEN] = RevealedFlags.GROUND;
+    loadSavedSectorChanges(sim, NO_SAVED_SECTOR_CHANGES);
+    expect(sim.state.fog.revealed[UNSEEN]).toBe(RevealedFlags.GROUND);
+    expect(revealedRooms(sim.state)).toEqual([]);
   });
 });
 
