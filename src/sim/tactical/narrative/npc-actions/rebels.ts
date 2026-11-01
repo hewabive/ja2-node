@@ -25,6 +25,10 @@ export const BASEMENT_EXIT_GRIDNOS: readonly number[] = [8047, 8207, 8208, 8048,
 export const BASEMENT_EXIT_GRID = { sector: BASEMENT, gridNo: 12722 } as const;
 
 const HIDEOUT_GRIDNO = 7887;
+const TRAPDOOR_GRIDNO = 7887;
+const MOVED_CRATE_GRIDNO = 8207;
+const CRATE_TILE = 'SECONDOSTRUCT1';
+const TRAPDOOR_TILE = 'DEBRIS2MISC1';
 const PACOS_HIDING_GRIDNO = 16028;
 const PACOS_FOLLOW_GRIDNO = 18193;
 const ENRICO_MAIL_FIRST_MINUTE = 390;
@@ -39,8 +43,14 @@ function gotoHideout(env: NpcActionEnv): void {
     if (p) changeNpcToDifferentSector(p, BASEMENT);
   }
   env.hideout.loadSector(BASEMENT);
-  env.hideout.uncoverTrapdoor(UPSTAIRS);
+  uncoverTrapdoor(env);
   if (npcSoldier(env, Npc.CARLOS)) triggerNpcRecordImmediately(env.host, Npc.CARLOS, 1);
+}
+
+function uncoverTrapdoor(env: NpcActionEnv): void {
+  env.hideout.removeStructFromUnloadedMap(TRAPDOOR_GRIDNO, CRATE_TILE, UPSTAIRS);
+  env.hideout.addStructToUnloadedMap(MOVED_CRATE_GRIDNO, CRATE_TILE, UPSTAIRS);
+  env.hideout.addStructToUnloadedMap(TRAPDOOR_GRIDNO, TRAPDOOR_TILE, UPSTAIRS);
 }
 
 function leaveHideout(env: NpcActionEnv): void {

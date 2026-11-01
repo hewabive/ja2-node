@@ -226,6 +226,7 @@ export interface LoadOptions {
 
 const PALACE: Sector = { x: 3, y: 16, z: 0 };
 const STATUE_SECTOR: Sector = { x: 3, y: 15, z: 0 };
+const REBEL_HIDEOUT: Sector = { x: 10, y: 1, z: 0 };
 const PRESERVED_ENEMY_MAX_AGE_MINUTES = 300;
 const CROWS_POSSIBLE_BASE = 5;
 const CROWS_POSSIBLE_RANGE = 5;
@@ -395,6 +396,7 @@ export class SectorFlow {
     const world = this.world;
     if (world && world.x === PALACE.x && world.y === PALACE.y) found.push({ ...PALACE }, { ...PALACE, z: 1 });
     if (world && world.x === STATUE_SECTOR.x && world.y === STATUE_SECTOR.y) found.push({ ...STATUE_SECTOR, z: 1 });
+    if (world && world.x === REBEL_HIDEOUT.x && world.y === REBEL_HIDEOUT.y) found.push({ ...REBEL_HIDEOUT, z: 1 });
     return found;
   }
 

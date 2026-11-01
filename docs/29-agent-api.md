@@ -275,8 +275,9 @@ hatched face as `canAct`, the face's enemy count as `opponents`, the End key's t
 squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits are told,
 as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke, light,
 structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
-(`tileChanges`) are the map changes since the load (`remove`, and `add` at the head of the tile's structure layer),
-then the pieces of a helicopter standing in the sector (`append`, at its tail; `25`). Animation schedules, palettes
+(`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer; `append`
+at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's trapdoor and crate, structures a
+native save added), then the pieces of a helicopter standing in the sector (`append`; `25`). Animation schedules, palettes
 and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in

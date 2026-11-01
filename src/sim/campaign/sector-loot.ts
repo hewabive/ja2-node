@@ -37,7 +37,7 @@ export interface LootRandom {
   int(n: number): number;
 }
 
-function diffOf(state: StrategicState, sector: Sector): SectorDiff {
+export function sectorDiffOf(state: StrategicState, sector: Sector): SectorDiff {
   const key = sectorKey(sector);
   let diff = state.sectorDiffs.get(key);
   if (!diff) {
@@ -62,7 +62,7 @@ export function addItemsToUnloadedSector(
   flags: number,
   visible: number,
 ): void {
-  const diff = diffOf(state, sector);
+  const diff = sectorDiffOf(state, sector);
   diff.items ??= [];
   const usedFlags = gridNo < 0 ? flags | WorldItemFlags.GRIDNO_NOT_SET_USE_ENTRY_POINT : flags;
   for (const object of objects)
@@ -71,7 +71,7 @@ export function addItemsToUnloadedSector(
 }
 
 export function addRottingCorpseToUnloadedSector(state: StrategicState, sector: Sector, corpse: Corpse): void {
-  const diff = diffOf(state, sector);
+  const diff = sectorDiffOf(state, sector);
   diff.corpses ??= [];
   diff.corpses.push(corpse);
   setSectorFlag(state.map, sector, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, worldDay(state.clock));

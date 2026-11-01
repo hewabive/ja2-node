@@ -119,7 +119,8 @@ export interface HideoutActions {
   addExitGrid(gridNo: number, target: ExitGridTarget): void;
   moveMercs(sector: SectorPosition, insertionGridNos: readonly number[], currentSquadOnly: boolean): void;
   loadSector(sector: SectorPosition): void;
-  uncoverTrapdoor(sector: SectorPosition): void;
+  addStructToUnloadedMap(gridNo: number, tile: string, sector: SectorPosition): void;
+  removeStructFromUnloadedMap(gridNo: number, tile: string, sector: SectorPosition): void;
   leavingSector(): boolean;
 }
 
@@ -127,7 +128,8 @@ export const NO_HIDEOUT_ACTIONS: HideoutActions = {
   addExitGrid: () => {},
   moveMercs: () => {},
   loadSector: () => {},
-  uncoverTrapdoor: () => {},
+  addStructToUnloadedMap: () => {},
+  removeStructFromUnloadedMap: () => {},
   leavingSector: () => false,
 };
 

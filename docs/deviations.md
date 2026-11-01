@@ -171,7 +171,7 @@ Contracts, the laptop, NPC records, quests, meanwhiles and the ending.
 | Fredo's rocket rifle quote flag | Set when quote 31 plays while the rifle is evaluated (`ShopKeeper_Interface.cc:4845-4848`) | Set when a rocket rifle is handed to Fredo in a successful trade | Evaluation happens only inside a trade |
 | I.M.P. empty skill list | With no skill in the list `CreatePlayerSkills` reads the stale `SkillsList[0]` after `Random(0)` (`IMP_Compile_Character.cc:400`) | `NO_SKILLTRAIT` | The stale value depends on earlier process state (`21`) |
 | Speck payment record | `PAY_SPECK_FOR_MERC` and the history entry name the merc of the M.E.R.C. page last viewed (`Mercs_Account.cc:300`) | The first listed merc whose debt was paid | No current page (`21`) |
-| Rebel basement | `GOTO_HIDEOUT`/`LEAVE_HIDEOUT` fade the screen and load the sector in the fade callbacks (`Interface_Dialogue.cc:1600`) | The squad moves and the sector loads at once (A10's changes: gaps "Rebel basement trapdoor") | Fades are presentation |
+| Rebel basement | `GOTO_HIDEOUT`/`LEAVE_HIDEOUT` fade the screen and load the sector in the fade callbacks (`Interface_Dialogue.cc:1600`) | The squad moves and the sector loads at once; A10's trapdoor and crate are written after the load, as in the fade-out callback | Fades are presentation |
 | Terrorist names | Action 26 overwrites the profile nickname with the full name, which every later soldier and screen uses (`Interface_Dialogue.cc:2768`) | A `nickname` override in the campaign profile renames the soldier and later ones; views reading the content profile keep the old name | Profiles carry no editable name in the content tables |
 
 ## 6. Agent API: commands and decisions instead of screens

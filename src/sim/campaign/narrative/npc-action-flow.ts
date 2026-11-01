@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the campaign side of the actions),
-// @src StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
+// @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the campaign side of the actions; GOTO_HIDEOUT's exit
+// @src grid), StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
 // @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
 // @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
 // @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
 // @src Tactical/Squads.cc SetCurrentSquad for an escort (2026-11-01).
 
+import { tileIndex } from '../../../content/world/tile-tables.ts';
 import type { CommandResult } from '../../command.ts';
 import { cloneObject, deleteObject } from '../../items/object.ts';
 import type { NarrativeHost } from '../../narrative/host.ts';
@@ -28,6 +29,7 @@ import { warpGameTime, worldDay, worldMinutesInDay, worldTotalMinutes } from '..
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { autoPlaceObject } from '../../tactical/inventory.ts';
+import { addExitGridToWorld, recordExitGridAdded } from '../../tactical/map-changes.ts';
 import { soldierAssignment } from '../../tactical/narrative/assignment.ts';
 import { boxerAvailable, checkOnBoxers, exitBoxing, startBoxingMatch } from '../../tactical/narrative/boxing.ts';
 import { handleNpcDoAction } from '../../tactical/narrative/npc-actions/catalog.ts';
@@ -60,6 +62,7 @@ import { addItemToPool, Visibility } from '../../tactical/world-items.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { numberOfMercsOnPlayerTeam } from '../laptop/hire.ts';
 import { MoraleEvent } from '../morale.ts';
+import { addStructToUnloadedSector, removeStructFromUnloadedSector } from '../unloaded-map.ts';
 import { addNpcEventToday, addNpcEventTomorrow, medicalCostAt } from './quest-world.ts';
 import { RecruitFlow } from './recruit-flow.ts';
 
@@ -85,6 +88,8 @@ export interface NpcRequestView {
 }
 
 const NO_GROUP = 0;
+
+type UnloadedStructChange = typeof addStructToUnloadedSector;
 
 export class NpcActionFlow {
   readonly #campaign: CampaignSim;
@@ -228,6 +233,19 @@ export class NpcActionFlow {
     }
   }
 
+  #addExitGrid(gridNo: number, target: ExitGridTarget): void {
+    const t = this.#host.tactical();
+    if (!t) return;
+    const exit = { mapIndex: gridNo, gridNo: target.gridNo, sector: { ...target.sector } };
+    addExitGridToWorld(t, exit);
+    recordExitGridAdded(t, exit);
+  }
+
+  #changeUnloadedMap(change: UnloadedStructChange, gridNo: number, tileName: string, sector: SectorPosition): void {
+    const tables = this.#campaign.tactical?.world.tables;
+    if (tables) change(this.#state, gridNo, tileIndex(tables, tileName), sector);
+  }
+
   #loadSector(sector: SectorPosition): void {
     const flow = this.#campaign.sectors;
     if (!flow) return;
@@ -301,10 +319,12 @@ export class NpcActionFlow {
       recruit: { ...this.recruitFlow.actions(), ...this.#ports.recruit },
       meanwhile: { ...NO_MEANWHILE_ACTIONS, ...this.#ports.meanwhile },
       hideout: {
-        addExitGrid: (_gridNo: number, _target: ExitGridTarget) => {},
+        addExitGrid: (gridNo, target) => this.#addExitGrid(gridNo, target),
         moveMercs: (sector, gridNos, currentSquadOnly) => this.#moveMercs(sector, gridNos, currentSquadOnly),
         loadSector: (sector) => this.#loadSector(sector),
-        uncoverTrapdoor: () => {},
+        addStructToUnloadedMap: (gridNo, tile, sector) => this.#changeUnloadedMap(addStructToUnloadedSector, gridNo, tile, sector),
+        removeStructFromUnloadedMap: (gridNo, tile, sector) =>
+          this.#changeUnloadedMap(removeStructFromUnloadedSector, gridNo, tile, sector),
         leavingSector: () => (host.tactical()?.mercsWaiting?.code ?? WaitForMercs.NONE) !== WaitForMercs.NONE,
       },
       laptop: {

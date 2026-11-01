@@ -18,6 +18,7 @@ import { InvSlot } from '../../inventory.ts';
 import { type Soldier, TEAM_FIRST_ID, Team } from '../../soldier.ts';
 import { handleNpcDoAction } from './catalog.ts';
 import { NpcActionCode as A, NPC_SYSTEM_EVENT_ACTION_PARAM_BONUS as BONUS } from './codes.ts';
+import { type HideoutActions, NO_HIDEOUT_ACTIONS } from './env.ts';
 
 const TRIGGERED_NPCS = [
   Npc.MADAME,
@@ -210,6 +211,30 @@ describe('rebels, Drassen and the airport', () => {
     run(bribed, Npc.PABLO, A.REPORT_SHIPMENT_SIZE);
     expect(bribed.host.talk.queue.map((q) => (q.kind === 'quote' ? q.quote : -1))).toEqual([13, 16]);
     expect(bribed.fake.drawsTaken).toEqual([100, 100]);
+  });
+
+  it('goes down to the hideout: the way down in A10, the squad, Fatima and Dimitri, the basement, then the crate moved off the trapdoor in the A10 just left', () => {
+    const e = env({ profiles: { [Npc.FATIMA]: {}, [Npc.DIMITRI]: {} } });
+    const calls: string[] = [];
+    const sector = (s: { x: number; y: number; z: number }) => `${s.x},${s.y},${s.z}`;
+    const hideout: HideoutActions = {
+      ...NO_HIDEOUT_ACTIONS,
+      addExitGrid: (g, target) => calls.push(`exitGrid ${g} -> ${sector(target.sector)} ${target.gridNo}`),
+      moveMercs: (to, gridNos, squadOnly) => calls.push(`moveMercs ${sector(to)} ${gridNos[0]} ${squadOnly}`),
+      loadSector: (to) => calls.push(`load ${sector(to)}`),
+      addStructToUnloadedMap: (g, tile, to) => calls.push(`add ${tile} ${g} ${sector(to)}`),
+      removeStructFromUnloadedMap: (g, tile, to) => calls.push(`remove ${tile} ${g} ${sector(to)}`),
+    };
+    run({ ...e, hideout }, Npc.FATIMA, A.GOTO_HIDEOUT);
+    expect(calls).toEqual([
+      'exitGrid 7887 -> 10,1,1 12722',
+      'moveMercs 10,1,1 13362 true',
+      'load 10,1,1',
+      'remove SECONDOSTRUCT1 7887 10,1,0',
+      'add SECONDOSTRUCT1 8207 10,1,0',
+      'add DEBRIS2MISC1 7887 10,1,0',
+    ]);
+    expect([Npc.FATIMA, Npc.DIMITRI].map((npc) => e.host.profile(npc)?.sectorZ)).toEqual([1, 1]);
   });
 
   it('puts Pacos "in the basement" on A10’s ground level, not on the level below it', () => {

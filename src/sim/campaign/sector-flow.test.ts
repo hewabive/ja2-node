@@ -39,7 +39,7 @@ import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { sectorKey } from './sector-diff.ts';
-import { UnloadCode } from './sector-flow.ts';
+import { type SectorWorlds, UnloadCode } from './sector-flow.ts';
 
 let kit: CampaignKit;
 
@@ -68,6 +68,7 @@ const CROW_LANDING_RADIUS = 2;
 const NOON_HOUR = 12;
 const HOURS_PER_DAY = 24;
 const B13 = { x: 13, y: 2, z: 0 };
+const STUB_A10_MAP = 'maps/a10.dat';
 const DRASSEN_HELIPAD = 9001;
 const TAIL_BOOM_GRIDNO = DRASSEN_HELIPAD - 800;
 const TAIL_BOOM_SUB_INDEX = 3;
@@ -763,5 +764,27 @@ describe('exit grids', () => {
     expect(campaign.dispatch({ type: 'exitSector', soldier: 0, exitGrid: up, who: 'squad' }).ok).toBe(true);
     runTicks(campaign, 4000, () => campaign.state.worldSector?.z === 0);
     expect(campaign.state.worldSector).toEqual(A10);
+  });
+
+  it('prepares the rebel basement in A10 before any exit grid leads there: going down to the hideout loads it at once', () => {
+    const withoutStairs: SectorWorlds = {
+      exists: (path) => kit.sectors.worlds.exists(path),
+      world: (path) => {
+        const world = kit.sectors.worlds.world(path);
+        if (!world || !path.endsWith(STUB_A10_MAP)) return world;
+        return { ...world, map: { ...world.map, exitGrids: [] }, exitGrids: new Set() };
+      },
+    };
+    const { campaign } = createTestCampaign(
+      { ...kit, sectors: { ...kit.sectors, worlds: withoutStairs } },
+      { seed: 16, garrison: NO_GARRISON },
+    );
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, A10), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...A10 };
+    expect(flow.setCurrentWorldSector(A10)).toBe(true);
+    expect(campaign.tactical?.state.world.exitGrids.size).toBe(0);
+    expect(flow.mapsNeededSoon()).toContain(flow.mapPathOf({ ...A10, z: 1 }));
   });
 });

@@ -69,7 +69,9 @@ opens and the open request is saved with the campaign (deviation "NPC requestors
 
 **Wall-clock waits become game time.** Carmen's 10 s departure timer counts tactical game time; the fades into and out
 of the rebel basement change sector at once; the sex screen's time warp happens at the action (deviations "Carmen's
-departure timer", "Rebel basement", "Brothel time warp").
+departure timer", "Rebel basement", "Brothel time warp"). Going down to the hideout still writes A10's trapdoor and the
+moved crate into the A10 just left, after the basement has loaded (`campaign/unloaded-map.ts`), and `mapsNeededSoon`
+prepares A10 b1 in A10, where no exit grid leads down before the trapdoor opens.
 
 **An NPC between loads is his profile's sector.** Actions, the 04:00 event, hourly handlers, NPC system events and the
 sector entry code move profiles, not soldiers; most moves skip an NPC whose sector is loaded, so a visible NPC never
@@ -165,6 +167,6 @@ every profile's sector. Inferred from reading the source:
 - The "robot under construction" graphic: its gridno is never assigned in Stracciatella or vanilla, so its removal is a
   no-op; ja2-node only sets the fact.
 
-Not ported: gaps "Doors", "Rebel basement trapdoor", "NPC opens a door on arrival". Other deviations of this domain:
+Not ported: gaps "Doors", "NPC opens a door on arrival". Other deviations of this domain:
 "Terrorist names", "NPC gives an item", "Interface lock on arrival", "Team change during a hit", "Ownership check
 timer".
