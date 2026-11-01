@@ -70,7 +70,16 @@ import {
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { cursorFromKeyRing, dropCommand, giveCommand, type ItemCursor, keyRingCommand, slotItem, tossCommand } from './item-cursor.ts';
+import {
+  cursorFromKeyRing,
+  dropCommand,
+  giveCommand,
+  type ItemCursor,
+  keyRingCommand,
+  receivesGive,
+  slotItem,
+  tossCommand,
+} from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
@@ -116,7 +125,6 @@ import { TeamPanelController } from './team-panel.ts';
 
 export const TACTICAL_SCREEN = 'tactical';
 const PANEL_FACE_FRAME_MS = 160;
-const PASSING_ITEM_DISTANCE_OKLIFE = 3;
 const DROPPING_DISTANCE = 1;
 const CLOSE_PANEL_LAST_FRAME = 5;
 const ALT_MASK = 4;
@@ -477,7 +485,7 @@ export class TacticalScreen implements Screen {
     const distance = holder ? pythSpacesAway(holder.gridNo, at) : 0;
     const other = target !== null && target.id !== cursor.source.soldier;
     const send = (cmd: CommandEnvelope) => void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
-    if (other && (target.team === OUR_TEAM ? distance <= PASSING_ITEM_DISTANCE_OKLIFE : target.talkable !== undefined)) {
+    if (other && receivesGive(target, distance)) {
       const give = giveCommand(cursor, target.id);
       if (give) send(give);
       return;

@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID, STEAL; the
 // @src AP sums), UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
-// @src GetAPsToBeginFirstAid; UI_Cursors.cc (the item cursors this port does not support yet).
+// @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
+// @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -29,6 +30,7 @@ import { talkLineOfSight, talkRange, talkWalkUp } from '../tactical/narrative/ta
 import type { Footstep } from '../tactical/plot-path.ts';
 import { AP, apsToChangeStance, apsToLook, enoughPoints } from '../tactical/points.ts';
 import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quick-exchange.ts';
+import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
@@ -53,6 +55,7 @@ export interface PreviewAction {
   readonly menu?: readonly DoorMenuOption[];
   readonly inRange?: boolean;
   readonly lineOfSight?: boolean;
+  readonly reload?: boolean;
 }
 
 export interface PreviewActionRequest extends HintRequestBase {
@@ -164,7 +167,7 @@ function giveAction(c: ActionContext): ActionPart {
   if (giver) return refused(c, giver, s.gridNo);
   const label = c.world.tactical?.soldierView(target.id)?.talkable;
   if (target.team !== Team.OUR && label !== 'npc' && label !== 'epc') return refused(c, 'notTalkable');
-  if (isRobotSoldier(target)) return refused(c, 'robotReload');
+  if (isRobotSoldier(target)) return reloadRobotAction(c, target);
   const adjacent = findAdjacentGridEx(t, s, target.gridNo, false)?.actionGridNo ?? null;
   const shown = apsToGiveItem(t, s, adjacent ?? target.gridNo);
   const ap = giveApRefusal(t, s, target, adjacent);
@@ -179,6 +182,14 @@ function giveAction(c: ActionContext): ActionPart {
     steps: walkTo(c, actionGridNo).steps,
     affordable: ap === null,
   };
+}
+
+function reloadRobotAction(c: ActionContext, robot: Soldier): ActionPart {
+  const { t, s } = c;
+  const apCost = apsToReloadRobot(t, s, robot);
+  const actionGridNo = findAdjacentGridEx(t, s, robot.gridNo, true)?.actionGridNo ?? robot.gridNo;
+  if (apCost === 0) return { ...refused(c, 'noPath', actionGridNo), reload: true };
+  return { ok: true, apCost, actionGridNo, steps: walkTo(c, actionGridNo).steps, reload: true };
 }
 
 function jumpAction(c: ActionContext): ActionPart {

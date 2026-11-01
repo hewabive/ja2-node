@@ -49,8 +49,7 @@ an LLM agent without pausing is a non-goal.
 **Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
 jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers `notSupported`); auto-bandage (gap
 "Auto-bandage"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and
-alcohol"); reloading the robot (`robotReload`, gap "Reloading the robot"); vehicles' condition and fuel (gap "Vehicles
-as characters").
+alcohol"); vehicles' condition and fuel (gap "Vehicles as characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -318,7 +317,7 @@ selection wakes a sleeper even when he collapsed, which `wake` refuses. `selectS
 a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
 squad's first merc; the current squad itself changes nothing. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
-give or first aid), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
+give, first aid or a robot reload), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
 reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
@@ -386,6 +385,14 @@ the pay or escort requestor opens an `npcRequest`, `answer yes` triggers the rec
 new soldier id on our team (`ChangeSoldierTeam`). `unescort` is the assignment menu's "remove escort" (deviation
 "Releasing an escort"). The robot takes orders only while a conscious non-escort of its squad in its sector wears the
 remote control in a head slot (`src/sim/campaign/robot-control.ts`).
+
+`give` to the robot reloads its gun instead (`src/sim/tactical/robot-reload.ts`): it needs the walk plus 4 AP and ammo
+of the gun's calibre (else `robotNeedsCalibre` with the gun's `calibre` index), takes one object off the pocket at once
+and returns `{reload, walking, to}` or `{reload}`; the merc walks next to the robot and kneels, and at the end of his
+animation the robot reloads from the given object, paying the reload's APs in combat, with the `reloaded` event. What
+is left of the object, or the robot's old magazine, goes into the merc's pockets, and is lost when they are full, as
+in the original. A move, stop, collapse or a robot gone from its tile puts the magazine back (deviation "Robot reload
+without the reload"). `previewAction give` on the robot answers `reload: true` with the walk plus 4 AP.
 
 ### 8.6 NPC actions, civilians, surrender and boxing
 

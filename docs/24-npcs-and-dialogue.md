@@ -28,6 +28,7 @@ handleDialogue: one queue event per tick              narrative/dialogue-queue.t
   teleport → bump whoever stands there, then teleport tactical/narrative/talk-reach.ts
   trigger → 500 ms wait → a panel with the talker or the closest merc
 give: walk, opcode 486                                tactical/give.ts → campaign/give-flow.ts → narrative/give.ts
+  to the robot: walk, opcode 756, the robot's reload  tactical/robot-reload.ts
 recruit, escort, release                              campaign/narrative/recruit-flow.ts, tactical/narrative/team-change.ts
 the session: commands, tick hooks, view               campaign/talk-flow.ts (TalkFlow)
 ```
@@ -42,6 +43,7 @@ the session: commands, tick hooks, view               campaign/talk-flow.ts (Tal
 | `narrative/converse.ts` | A conversation step, default answers, triggers, scripted walks, the panel, NPC-initiated talk |
 | `narrative/dialogue-queue.ts`, `talk-state.ts` | The queue, its events and line lengths; the session state |
 | `narrative/give.ts`, `campaign/give-flow.ts`, `tactical/give.ts` | The NPC's profile inventory and the dealer branch; the object the UI hands over; the give action and opcode 486 |
+| `tactical/robot-reload.ts` | Ammo given to the robot: the calibre check, the walk, `RELOAD_ROBOT` and opcode 756 (deviation "Robot reload without the reload") |
 | `narrative/civ-quotes.ts`, `narrative/talkable.ts` | Civilian quotes and hints; who can be talked to |
 | `narrative/host.ts`, `campaign/talk-flow.ts` | The port the mechanics run on; `TalkFlow`, which builds it, runs the commands and tick hooks and serves the view |
 | `campaign/narrative/recruit-flow.ts`, `tactical/narrative/team-change.ts` | Recruiting, escorting and releasing; `ChangeSoldierTeam` |
@@ -163,6 +165,9 @@ otherwise:
 | An item taken into an NPC's profile never goes to the last small pocket and becomes a fresh object: attachments, ammo and stack members are lost | `give.test.ts` |
 | A give checks 1 AP and charges 3; a merc given one item loses the whole source pocket; money given to a team member pays no debt; a target gone from its tile leaves a copy at the giver | `tactical/give.test.ts` |
 | A dealer stays engaged in action after a give, out of the AI until his next panel closes | `tactical/give.test.ts`, `converse.test.ts` |
+| A reload of the robot checks the walk plus 4 AP and charges the merc only the walk and his kneel; the robot pays the reload | `tactical/robot-reload.test.ts` |
+| A whole stack given to the robot reloads it from a copy: the pocket loses only its first magazine and gets the rest of the copy back too; one magazine of a stack loads the first while the pocket loses the second | `tactical/robot-reload.test.ts`, `src/server/robot-reload-stub.test.ts` |
+| The robot's old magazine that does not fit the merc's pockets is lost: code 756 ignores the failed placement | `tactical/robot-reload.test.ts` |
 | A civilian hint starts its quest on every ask while unsaid, also when a kid is asked | `civ-quotes.test.ts` |
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |

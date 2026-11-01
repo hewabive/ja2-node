@@ -1112,3 +1112,52 @@ describe('snapshot version 28 (no crows) migrates with no crow to come, no empti
     await expectNoCrowState(campaign, t);
   });
 });
+
+const PENDING_ROBOT_RELOAD_KEY = 'pendingRobotReload';
+
+function withoutPendingRobotReload(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPendingRobotReload(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === PENDING_ROBOT_RELOAD_KEY) expect(v).toBeNull();
+    else out[key] = withoutPendingRobotReload(v);
+  }
+  return out;
+}
+
+function versionTwentyNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPendingRobotReload(value)]);
+  return { ...snapshot, version: 29, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 29 (no pending robot reload) migrates with nobody on the way to reload the robot', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoPendingReload(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionTwentyNine(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${PENDING_ROBOT_RELOAD_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${PENDING_ROBOT_RELOAD_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoPendingReload(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoPendingReload(await createCampaignSession(kit.read, exists, 9));
+  });
+});

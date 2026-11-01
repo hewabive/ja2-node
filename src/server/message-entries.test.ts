@@ -165,6 +165,18 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, { ok: true }, facts)).toBeNull();
   });
 
+  it('names the calibre the robot needs when it refuses the ammo given to it', () => {
+    const refused = refuse('robotNeedsCalibre', 'robotNeedsCalibre', { calibre: 2 });
+    expect(refusalEntry(9, { type: 'give', soldier: 0, target: 1 }, refused, facts)).toEqual({
+      tick: 9,
+      kind: 'uiFeedback',
+      colour: 144,
+      table: 'TacticalStr',
+      index: 44,
+      args: [{ string: { table: 'ammo-calibre', index: 2 } }],
+    });
+  });
+
   it('leaves the refusals of a sector exit to the exit cursor, which prints its own lines', () => {
     const refused = refuse('uncontrolledRobot', 'the robot cannot leave without a merc using its controller');
     expect(refusalEntry(9, { type: 'exitSector', soldier: 0, direction: 'north' }, refused, facts)).toBeNull();

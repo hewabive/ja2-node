@@ -6,10 +6,12 @@ import { createItem } from '../items/object.ts';
 import { AnimHeight, states } from '../tactical/animation.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { apsToBeginFirstAid } from '../tactical/first-aid.ts';
+import { apsToGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { apsToJumpOver } from '../tactical/jump-over.ts';
 import { AP, apsToChangeStance } from '../tactical/points.ts';
-import { Team } from '../tactical/soldier.ts';
+import { apsToReloadRobot } from '../tactical/robot-reload.ts';
+import { Body, Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { addItemToPool, Visibility } from '../tactical/world-items.ts';
 import type { PreviewAction } from './preview-action.ts';
@@ -23,6 +25,7 @@ beforeAll(async () => {
 const SOUTH = DIRECTION_INCREMENT[Direction.SOUTH] ?? 0;
 const EAST = DIRECTION_INCREMENT[Direction.EAST] ?? 0;
 const ORIGIN = gridNo(80, 80);
+const ROBOT_RELOAD_AP = 4;
 
 function action(sim: TacticalSim, kind: string, gridNoAt: number, extra: Readonly<Record<string, unknown>> = {}): PreviewAction {
   const answer = hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: gridNoAt, ...extra });
@@ -109,6 +112,17 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(action(near, 'steal', ORIGIN + EAST, { target: 20 })).toMatchObject({ ok: true, apCost: AP.STEAL_ITEM, steps: [] });
     crouched.state = states(content.animations).CROUCHING;
     expect(action(near, 'steal', ORIGIN + EAST, { target: 20 }).apCost).toBe(AP.STEAL_ITEM + AP.CROUCH);
+  });
+
+  it('previews a give to the robot as its reload: the walk to its side plus 4 AP, without the give’s AP', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const robot = spawnSoldier(sim, 1, Team.OUR, ORIGIN + 4 * EAST, Direction.WEST, { body: Body.ROBOTNOWEAPON });
+    const preview = action(sim, 'give', robot.gridNo, { target: robot.id });
+    expect(preview).toMatchObject({ ok: true, reload: true, actionGridNo: ORIGIN + 3 * EAST });
+    expect(preview.apCost).toBe(apsToReloadRobot(sim.state, merc, robot));
+    expect(preview.apCost - ROBOT_RELOAD_AP).toBe(apsToGiveItem(sim.state, merc, ORIGIN + 3 * EAST) - AP.GIVE_ITEM);
+    expect(preview.steps).not.toHaveLength(0);
   });
 
   it('answers notSupported for the item cursors without a command', () => {

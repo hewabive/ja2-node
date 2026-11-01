@@ -5,12 +5,16 @@
 // @src the cursor, else the attachment into the cursor), ItemPopupRegionCallbackPrimary (one object of a stack);
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (place, swap, give to the merc of the panel, the
 // @src attach and merge branches), SMInvClickCamoCallback (apply on the merc), SMInvMoneyButtonCallback (money in the
-// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher), RemoveMoney (the split amount goes into the cursor),
+// @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher, the give to a
+// @src talkable target: an escort or the robot at any distance, 2026-11-01), RemoveMoney (the split amount goes into the cursor),
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
-// @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position).
+// @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC.
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
+import { isEpc, OUR_TEAM } from './soldiers.ts';
+
+const PASSING_ITEM_DISTANCE_OKLIFE = 3;
 
 export type CursorCount = 'all' | 1;
 
@@ -176,6 +180,11 @@ export function tossCommand(cursor: ItemCursor, gridNo: number, level: number): 
     ...countField(s.count),
     ...(s.index !== 0 ? { index: s.index } : {}),
   };
+}
+
+export function receivesGive(target: SoldierView, distance: number): boolean {
+  if (target.team !== OUR_TEAM) return target.talkable !== undefined;
+  return isEpc(target) || distance <= PASSING_ITEM_DISTANCE_OKLIFE;
 }
 
 export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {

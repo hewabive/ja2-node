@@ -790,6 +790,23 @@ function addCrows(snapshot: Readonly<Record<string, unknown>>): Record<string, u
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_AID_KEY = 'pendingAid';
+const PENDING_ROBOT_RELOAD_KEY = 'pendingRobotReload';
+
+function withPendingRobotReload(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPendingRobotReload(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPendingRobotReload(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, PENDING_AID_KEY, PENDING_ROBOT_RELOAD_KEY, null) : mapped;
+}
+
+function addPendingRobotReload(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withPendingRobotReload(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -820,5 +837,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     26: addLinePauseFlag,
     27: moveGassedOntoSoldiers,
     28: addCrows,
+    29: addPendingRobotReload,
   };
 }

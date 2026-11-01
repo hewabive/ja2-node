@@ -132,6 +132,7 @@ import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
+import { cancelPendingRobotReload, handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
 import {
   apsToClimbRoof,
   beginSoldierClimbDownRoof,
@@ -333,6 +334,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       firstAidOpcode(state, s, code) ??
       wheelchairOpcode(state, s, code) ??
       stealOpcode(state, s, code) ??
+      robotReloadOpcode(state, s, code) ??
       crowOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,
@@ -345,7 +347,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       handlePendingDoorOnArrival(state, s) ||
       handlePendingTalkOnArrival(state, s) ||
       handlePendingGiveOnArrival(state, s) ||
-      handlePendingAidOnArrival(state, s),
+      handlePendingAidOnArrival(state, s) ||
+      handlePendingRobotReloadOnArrival(state, s),
     runningIntoGas: checkForRunningIntoGas,
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -638,6 +641,7 @@ export class TacticalSim {
         s.pendingDoorAction = null;
         s.pendingTalk = null;
         clearPendingGive(this.state, s);
+        cancelPendingRobotReload(this.state, s);
         stopMerc(this.state, s);
         s.finalDestination = s.gridNo;
         return { ok: true };

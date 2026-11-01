@@ -69,6 +69,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'STEAL_ITEM',
   'CROW_EAT',
   'CROW_DIE',
+  'RELOAD_ROBOT',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);

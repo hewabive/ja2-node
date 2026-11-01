@@ -7,7 +7,8 @@
 // @src CharacterDialogue (fInMapMode, GamePaused and LOCK_PAUSE_MERC_TALKING of DialogueEventQuote::Execute);
 // @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead);
 // @src Interface_Items.cc HandleItemPointerClick (the give branch,
-// @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
+// @src SetEngagedInConvFromPCAction for a profiled target that is no team member; the robot branch and
+// @src IsValidAmmoToReloadRobot's ROBOT_NEEDS_GIVEN_CALIBER_STR, 2026-11-01); Strategic/Assignments.cc UnEscortEPC
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
 // @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01).
 
@@ -116,12 +117,13 @@ import { talkLineOfSight, talkRange, talkWalkUp, teleportNpc } from '../tactical
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { refuse as refuseCommand } from '../tactical/refusal.ts';
+import { robotGunCalibre, robotReloadRefusal, soldierReloadRobot } from '../tactical/robot-reload.ts';
 import { selectOrderedMerc, selectSoldier, setCurrentSquad } from '../tactical/selection.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
-import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
+import { type GiveRequest, giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
 import { MoraleEvent } from './morale.ts';
 import { campaignMeanwhileActions } from './narrative/meanwhile-actions.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
@@ -190,7 +192,7 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   notEnoughMoney: 'no money pocket of this soldier holds that much',
   giverCannotGive: 'this soldier cannot hand anything over (escort, dying or in deep water)',
   giverBusy: 'the soldier is busy with an item, a door or another give',
-  robotReload: 'reloading the robot is not supported yet',
+  robotNeedsCalibre: "the robot's gun takes ammo of another calibre",
   laptopOpen: 'the laptop is open, closeLaptop first',
   noSuchSoldier: 'no such soldier of yours',
   notAnEpc: 'that soldier is not an escort',
@@ -254,6 +256,7 @@ function refusalResult(e: Refusal): CommandRefused {
 }
 
 const GIVE_AP_TEXT = 'not enough APs: the walk plus 1 to give';
+const ROBOT_RELOAD_AP_TEXT = 'not enough APs: the walk plus 4 to reload the robot';
 const SEX_FATIGUE_STEPS = 4;
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
@@ -961,7 +964,7 @@ export class TalkFlow {
     if (typeof request === 'string') return refuse(request);
     const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: true, mercs: true, collapsed: true });
     if (talkable) refuse(talkable);
-    if (isRobotSoldier(target)) refuse('robotReload');
+    if (isRobotSoldier(target)) return this.#reloadRobot(merc, target, request);
     const ap = giveApRefusal(t, merc, target, findAdjacentGridEx(t, merc, target.gridNo, false)?.actionGridNo ?? null);
     if (ap === 'noPath') this.#emit({ type: 'npcMessage', kind: 'noPath' });
     if (ap) refuse(ap, ap === 'notEnoughAP' ? GIVE_AP_TEXT : undefined);
@@ -975,6 +978,21 @@ export class TalkFlow {
     this.#syncScripted();
     const walking = merc.pendingGive !== null && !merc.pendingGive.begun;
     return { ok: true, data: walking ? { walking: true, to: approach.actionGridNo } : { giving: true } };
+  }
+
+  #reloadRobot(merc: Soldier, robot: Soldier, request: GiveRequest): CommandResult {
+    const t = this.#t as TacticalState;
+    const refusal = robotReloadRefusal(t, merc, robot, request.preview);
+    if (refusal === 'noPath') this.#emit({ type: 'npcMessage', kind: 'noPath' });
+    if (refusal === 'notEnoughAP') refuse(refusal, ROBOT_RELOAD_AP_TEXT);
+    if (refusal === 'robotNeedsCalibre')
+      return refuseCommand(refusal, new Refusal(refusal).message, { calibre: robotGunCalibre(t, robot) });
+    if (refusal) refuse(refusal);
+    if (this.talk.inPanel) talkMenuGive(this.host);
+    const to = soldierReloadRobot(t, merc, robot, request.take(), request.slot);
+    if (to === null) return refuse('noPath');
+    this.#syncScripted();
+    return { ok: true, data: merc.pendingRobotReload ? { reload: true, walking: true, to } : { reload: true } };
   }
 
   #requireOpenAndIdle(): void {

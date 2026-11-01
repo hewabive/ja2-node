@@ -40,6 +40,7 @@ import { decayIndividualOpplist, handleSight } from '../perception/sight.ts';
 import { animStructureDef, isValidStance } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
+import { cancelPendingRobotReload } from '../robot-reload.ts';
 import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
@@ -596,6 +597,7 @@ export function soldierCollapse(t: TacticalState, s: Soldier): void {
   receivingSoldierCancelServices(t, s);
   handleSight(t, s, SightFlags.LOOK);
   cancelGiveOnCollapse(t, s);
+  cancelPendingRobotReload(t, s);
   switch (endHeight(t.content, s.state)) {
     case AnimHeight.STAND:
       if (s.overTerrain === Terrain.DEEP_WATER) initNewSoldierAnim(t, s, anim(t.content, 'DEEP_WATER_DIE'), 0, false);

@@ -522,9 +522,15 @@ export interface Soldier {
   servicePartner: number;
   serviceCount: number;
   pendingAid: PendingAid | null;
+  pendingRobotReload: PendingRobotReload | null;
 }
 
 export interface PendingAid {
+  readonly targetGridNo: number;
+  readonly direction: number;
+}
+
+export interface PendingRobotReload {
   readonly targetGridNo: number;
   readonly direction: number;
 }
@@ -866,5 +872,6 @@ export function createSoldier(init: SoldierInit): Soldier {
     servicePartner: NOBODY,
     serviceCount: 0,
     pendingAid: null,
+    pendingRobotReload: null,
   };
 }
