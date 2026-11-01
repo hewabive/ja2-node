@@ -20,14 +20,16 @@
 // @src the player last saw said; v: DisplayGameSettings), HandleModAlt (Alt+S and Alt+L only where the screen may be left;
 // @src a refused quick save in a map box), MapScreenHandle (the box of the sector the enemy gained in autoresolve, once
 // @src the map screen is back); src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, the
-// @src invasion, bloodcat and unconscious-merc boxes before the pre-battle panel).
+// @src invasion, bloodcat and unconscious-merc boxes before the pre-battle panel); MapScreen.cc CanChangeDestinationForChar
+// @src and Map_Screen_Interface.cc ReportMapScreenMovementError (the custom error names the soldier who cannot move; the
+// @src escort's text by his sex) (2026-11-01).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
 import type { AssignmentOptions, MoveBoxOptions } from '../../../protocol/hints.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
-import { refusalMessage } from '../../../protocol/refusals.ts';
+import { refusalMessage, refusalOf, refusalSoldierOf } from '../../../protocol/refusals.ts';
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { frameOf } from '../../assets.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';
@@ -935,9 +937,14 @@ export class MapScreen implements Screen {
     });
   }
 
-  #refusalText(token: string | null | undefined, args: readonly (string | number)[] = []): string | null {
-    const message = token ? refusalMessage(token) : null;
+  #refusalText(token: string | null | undefined, args: readonly (string | number)[] = [], female = false): string | null {
+    const message = token ? refusalMessage(token, female) : null;
     return message ? printf(this.#text(message.table, message.index), args) : null;
+  }
+
+  #moveRefusalText(reply: { readonly data?: unknown }, fallback: number): string | null {
+    const merc = mercById(this.#strategic(), refusalSoldierOf(reply.data) ?? fallback);
+    return this.#refusalText(refusalOf(reply.data), [merc?.name ?? ''], merc?.female === true);
   }
 
   #refusalOf(reply: { readonly data?: unknown; readonly reason?: string }): string | null {
@@ -1125,7 +1132,7 @@ export class MapScreen implements Screen {
     const origin = m.sector.split('-')[0] ?? m.sector;
     const check = await this.#env.client.hintNow({ type: 'previewRoute', soldier: m.id, to: origin, extend: true });
     if (!check.ok) {
-      const text = this.#refusalText(this.#refusalOf(check), [m.name]);
+      const text = this.#moveRefusalText(check, m.id);
       if (text) void this.#mapBox(text);
       return;
     }
@@ -1332,7 +1339,10 @@ export class MapScreen implements Screen {
   }
 
   #moveFeedback(feedback: NonNullable<MoveFeedback>): void {
-    const text = 'mapError' in feedback ? this.#text(MAP_ERROR, feedback.mapError) : this.#refusalText(feedback.refusal);
+    const text =
+      'mapError' in feedback
+        ? this.#text(MAP_ERROR, feedback.mapError)
+        : this.#refusalText(feedback.refusal, [feedback.name], feedback.female);
     if (text) void this.#mapBox(text);
   }
 
@@ -1437,7 +1447,7 @@ export class MapScreen implements Screen {
     }
     const reply = await this.#env.client.command(command);
     if (!reply.ok) {
-      const text = this.#refusalText(this.#refusalOf(reply), [mercById(this.#strategic(), plot.soldier)?.name ?? '']);
+      const text = this.#moveRefusalText(reply, plot.soldier);
       if (text) void this.#mapBox(text);
       return;
     }

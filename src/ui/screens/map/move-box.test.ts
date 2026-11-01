@@ -18,7 +18,18 @@ const STRINGS: Readonly<Record<string, readonly string[]>> = {
 const TEXT: UiTextService = { string: (table, index) => STRINGS[table]?.[index] ?? null, edt: () => null };
 
 function member(id: number, over: Partial<MoveMember> = {}): MoveMember {
-  return { id, name: `M${id}`, assignment: 0, squad: 0, vehicle: null, betweenSectors: false, listed: true, refusal: null, ...over };
+  return {
+    id,
+    name: `M${id}`,
+    female: false,
+    assignment: 0,
+    squad: 0,
+    vehicle: null,
+    betweenSectors: false,
+    listed: true,
+    refusal: null,
+    ...over,
+  };
 }
 
 async function harness(members: readonly MoveMember[]) {
@@ -109,7 +120,7 @@ describe('the move box', () => {
     const h = await harness([member(1, { refusal: 'tooTired' })]);
     h.click('Move Mercs In Sector D13');
     h.click('   M1');
-    expect(h.feedback).toEqual([{ refusal: 'tooTired' }]);
+    expect(h.feedback).toEqual([{ refusal: 'tooTired', name: 'M1', female: false }]);
     expect(h.box.selection?.anythingSelected()).toBe(false);
   });
 

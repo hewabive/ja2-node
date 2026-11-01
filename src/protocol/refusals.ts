@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Map_Screen_Interface.cc CanCharacterMoveInStrategic, Map_Screen_Interface.h MoveError;
+// @src src/game/Strategic/Map_Screen_Interface.cc CanCharacterMoveInStrategic (the escort's text by his profile's sex),
+// @src Map_Screen_Interface.h MoveError;
 // @src Refusal messages: Points.cc EnoughPoints (NOT_ENOUGH_APS_STR), Turn_Based_Input.cc / Handle_UI.cc (NO_PATH,
 // @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
 // @src (MSG_CANT_FIRE_HERE; UIHandleSoldierStanceChange: VEHICLES_NO_STANCE_CHANGE_STR, ROBOT_NO_STANCE_CHANGE_STR,
@@ -33,8 +34,13 @@ export const MOVE_REFUSAL_INDEX: Readonly<Record<string, number>> = {
   tooTired: 43,
   vehicleDamaged: 47,
   robotAlone: 49,
+  escortAlone: 6,
   cannotLeaveSector: 29,
   museumChalice: 34,
+};
+
+export const FEMALE_MOVE_REFUSAL_INDEX: Readonly<Record<string, number>> = {
+  escortAlone: 7,
 };
 
 const log = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'log' });
@@ -81,12 +87,22 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   onlyHostileCivilians: box('gzLateLocalizedString', 26),
 };
 
+export const FEMALE_REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = Object.fromEntries(
+  Object.entries(FEMALE_MOVE_REFUSAL_INDEX).map(([token, index]) => [token, box('pMapErrorString', index)]),
+);
+
 export function refusalOf(data: unknown): string | null {
   if (typeof data !== 'object' || data === null) return null;
   const refusal = (data as { refusal?: unknown }).refusal;
   return typeof refusal === 'string' ? refusal : null;
 }
 
-export function refusalMessage(token: string): RefusalMessage | null {
-  return REFUSAL_MESSAGES[token] ?? null;
+export function refusalSoldierOf(data: unknown): number | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const soldier = (data as { soldier?: unknown }).soldier;
+  return typeof soldier === 'number' ? soldier : null;
+}
+
+export function refusalMessage(token: string, female = false): RefusalMessage | null {
+  return (female ? FEMALE_REFUSAL_MESSAGES[token] : undefined) ?? REFUSAL_MESSAGES[token] ?? null;
 }

@@ -13,7 +13,7 @@ import {
   sectorShortString,
   strategicIndex,
 } from '../../content/strategic/sector-ids.ts';
-import type { CommandAccepted, CommandResult } from '../command.ts';
+import type { CommandAccepted, CommandRefused, CommandResult } from '../command.ts';
 import type { SleepRefusal } from '../strategic/economy/conditions.ts';
 import {
   distributeMilitia,
@@ -33,7 +33,12 @@ import {
 import { Assignment } from '../strategic/forces/constants.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
 import { moveOutOfSector, movingListForSector, regroupsMovingMerc, travellersWith } from '../strategic/forces/move-box.ts';
-import { canCharacterMoveInStrategic, canEntireMovementGroupMove, type LoadedSectorStatus } from '../strategic/forces/move-permission.ts';
+import {
+  canCharacterMoveInStrategic,
+  canEntireMovementGroupMove,
+  type LoadedSectorStatus,
+  type MoveBlock,
+} from '../strategic/forces/move-permission.ts';
 import type { StrategicContext, StrategicMerc } from '../strategic/forces/ports.ts';
 import {
   cancelPathForCharacter,
@@ -137,6 +142,10 @@ export function plotRouteForCharacter(
   return null;
 }
 
+export function refuseMove(block: MoveBlock, reason = `the squad cannot move: ${block.refusal}`): CommandRefused {
+  return refuse(block.refusal, reason, { soldier: block.soldier });
+}
+
 function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
   const id = soldierId(cmd);
   const to = parseSector(cmd.to);
@@ -144,8 +153,8 @@ function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSecto
   if (!to) return refuse('badSector', 'to must be a sector such as B9');
   const via = sectorList(cmd.via);
   if (!via) return refuse('badSector', 'via must be a list of sectors such as ["A10"]');
-  const refusal = canEntireMovementGroupMove(ctx, id, loaded);
-  if (refusal) return refuse(refusal, `the squad cannot move: ${refusal}`);
+  const block = canEntireMovementGroupMove(ctx, id, loaded);
+  if (block) return refuseMove(block);
   const plotted = plotRouteForCharacter(ctx, id, via, to, { shortest: cmd.shortest === true, extend: cmd.extend === true });
   return plotted ?? routeResult(ctx, id);
 }
@@ -225,7 +234,7 @@ function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: Loaded
   if (mercs.some((m) => m && !sameSector(m.sector, first.sector))) return refuse('notInOneSector', 'the mercs must stand in one sector');
   for (const m of mercs) {
     const refusal = m ? canCharacterMoveInStrategic(ctx, m, loaded) : null;
-    if (refusal) return refuse(refusal, `${m?.id} cannot move: ${refusal}`);
+    if (m && refusal) return refuseMove({ refusal, soldier: m.id }, `${m.id} cannot move: ${refusal}`);
   }
   const list = movingListForSector(ctx, first.sector);
   const listed = new Set(ids);
@@ -238,8 +247,8 @@ function routeGroup(ctx: StrategicContext, cmd: StrategicCommand, loaded: Loaded
   const anchor = ctx.mercs.get(out.selected[0] ?? -1);
   if (!anchor) return refuse('nothingSelected', 'nobody is left to move');
   const travellers = travellersWith(ctx, anchor, out.selected);
-  const refusal = canEntireMovementGroupMove(ctx, anchor.id, loaded);
-  if (refusal) return refuse(refusal, `the squad cannot move: ${refusal}`);
+  const block = canEntireMovementGroupMove(ctx, anchor.id, loaded);
+  if (block) return refuseMove(block);
   const plotted = plotRouteForCharacter(ctx, anchor.id, via, to, { shortest: cmd.shortest === true, extend: false });
   if (plotted) return plotted;
   const path = soldierMercPath(ctx, anchor);

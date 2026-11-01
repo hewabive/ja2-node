@@ -190,6 +190,7 @@ export interface StrategicMercView {
   readonly breath: number;
   readonly breathMax: number;
   readonly asleep: boolean;
+  readonly female?: boolean;
   readonly kind?: string;
   readonly contract?: MercContractView | null;
   readonly morale?: number;

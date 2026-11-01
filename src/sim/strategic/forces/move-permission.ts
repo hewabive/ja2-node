@@ -44,6 +44,15 @@ export interface LoadedSectorStatus {
   readonly inCombat: boolean;
 }
 
+export interface MoveBlock {
+  readonly refusal: MoveRefusal;
+  readonly soldier: number;
+}
+
+function blocked(m: StrategicMerc, refusal: MoveRefusal | null): MoveBlock | null {
+  return refusal ? { refusal, soldier: m.id } : null;
+}
+
 function passengers(ctx: StrategicContext, vehicleId: number): number {
   return ctx.mercs.all().filter((m) => !m.isVehicle && m.assignment === Assignment.VEHICLE && m.vehicleId === vehicleId).length;
 }
@@ -120,15 +129,15 @@ export function canCharacterMoveInStrategic(ctx: StrategicContext, m: StrategicM
   return null;
 }
 
-export function canEntireMovementGroupMove(ctx: StrategicContext, id: number, loaded: LoadedSectorStatus): MoveRefusal | null {
+export function canEntireMovementGroupMove(ctx: StrategicContext, id: number, loaded: LoadedSectorStatus): MoveBlock | null {
   const merc = ctx.mercs.get(id);
   if (!merc) return null;
-  const own = canCharacterMoveInStrategic(ctx, merc, loaded);
+  const own = blocked(merc, canCharacterMoveInStrategic(ctx, merc, loaded));
   if (own) return own;
   for (const other of ctx.mercs.all()) {
     if (other.id === id || merc.groupId === 0 || other.groupId !== merc.groupId) continue;
-    const refusal = canCharacterMoveInStrategic(ctx, other, loaded);
-    if (refusal) return refusal;
+    const block = blocked(other, canCharacterMoveInStrategic(ctx, other, loaded));
+    if (block) return block;
   }
   return null;
 }

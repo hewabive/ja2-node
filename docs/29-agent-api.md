@@ -218,11 +218,14 @@ error. Argument errors name the argument (`badSector`, `badSlot`, `badChoice`, `
 is `noPrompt`, `wrongPrompt`, `badChoice` or the token of the disabled option. Details sit beside the token in `data`
 (a hire's `charge`, a trade's `shortfall`, an exit's `minutes`). `assign` answers per soldier in `data.results`
 (`{ok, refusal, reason}` for a failure) and names the first failure in `data.refusal` and `reason`, as the original
-shows one box for the batch. Clients compare tokens, never `reason`. The text key `refusal.<token>`
-(`/api/strings`, `/api/text?key=`) names the original's message where it has one; `REFUSAL_MESSAGES`
-(`src/protocol/refusals.ts`, so the client prints it without the server) also says whether the original logs it or
-shows a box, and the session adds the logged ones to the message list (§7), except for `exitSector`, whose lines the
-exit cursor prints (`refusalEntry`, `src/server/message-entries.ts`).
+shows one box for the batch. A movement refusal (`route`, `routeGroup`, the `previewRoute` hint) names in `data.soldier`
+the merc who cannot move, who may be another member of the group, as the original's box names him. Clients compare
+tokens, never `reason`. The text key `refusal.<token>` (`/api/strings`, `/api/text?key=`) names the original's message
+where it has one, `refusal.<token>.female` its form for a woman where the original picks the text by the profile's sex
+(`escortAlone`, by the strategic merc's `female`); `REFUSAL_MESSAGES` (`src/protocol/refusals.ts`, so the client prints
+it without the server) also says whether the original logs it or shows a box, and the session adds the logged ones to
+the message list (§7), except for `exitSector`, whose lines the exit cursor prints (`refusalEntry`,
+`src/server/message-entries.ts`).
 
 **Modal states.** What the game accepts while something modal is open, besides `observe` and the cursor hints:
 

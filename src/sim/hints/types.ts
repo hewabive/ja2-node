@@ -10,8 +10,8 @@ export type HintRefusal = {
 
 export type HintResult<T> = { readonly ok: true; readonly data: T } | HintRefusal;
 
-export function refuseHint(refusal: string, reason: string): HintRefusal {
-  return { ok: false, reason, data: { refusal } };
+export function refuseHint(refusal: string, reason: string, detail: object = {}): HintRefusal {
+  return { ok: false, reason, data: { refusal, ...detail } };
 }
 
 export function hintData<T>(data: T): HintResult<T> {

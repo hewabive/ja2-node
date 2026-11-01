@@ -20,6 +20,7 @@ import { Npc } from '../narrative/npc-ids.ts';
 import { Assignment, EncounterCode } from './constants.ts';
 import { canCharacterMoveInStrategic, canEntireMovementGroupMove, MoveRefusal } from './move-permission.ts';
 import type { StrategicContext } from './ports.ts';
+import { addCharacterToUniqueSquad } from './squads.ts';
 
 let kit: CampaignKit;
 let content: StrategicContent;
@@ -48,6 +49,10 @@ const NO_ROOM = 0;
 const MUSEUM = parseSectorString('L12');
 const B9 = parseSectorString('B9');
 const MUSEUM_ROOMS = { BEFORE: 21, FIRST: 22, LAST: 41, AFTER: 42 } as const;
+const VEHICLE = 2;
+const VEHICLE_GROUP = 7;
+const VEHICLE_SOLDIER = 10;
+const ESCORT = 11;
 
 function landed(garrison = EMPTY): { campaign: CampaignSim; roster: Roster } {
   const test = createTestCampaign(kit, { seed: 5, mercs: 2, garrison });
@@ -63,30 +68,34 @@ function strategic(c: CampaignSim) {
 describe('strategic movement permission', () => {
   it('keeps a squad in a sector that still holds enemies, as the start sector does', () => {
     const { campaign } = landed({ admins: 0, troops: 3, elites: 0 });
-    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBe(MoveRefusal.ENEMY);
+    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toEqual({ refusal: MoveRefusal.ENEMY, soldier: 0 });
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toEqual({
       ok: false,
       reason: 'the squad cannot move: enemiesPresent',
-      data: { refusal: 'enemiesPresent' },
+      data: { refusal: 'enemiesPresent', soldier: 0 },
     });
   });
 
   it('refuses during combat in the loaded sector and lets a cleared sector go', () => {
     const { campaign } = landed();
-    expect(canEntireMovementGroupMove(strategic(campaign), 0, { inCombat: true })).toBe(MoveRefusal.COMBAT);
+    expect(canEntireMovementGroupMove(strategic(campaign), 0, { inCombat: true })?.refusal).toBe(MoveRefusal.COMBAT);
     expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBeNull();
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({ ok: true });
   });
 
-  it('checks every merc travelling in the same group', () => {
+  it('checks every merc travelling in the same group and names the one who cannot move, as the custom errors print s.name', () => {
     const { campaign, roster } = landed();
     const other = roster.get(1);
     if (!other) throw new Error('no second merc');
     other.soldier.life = 5;
-    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBe(MoveRefusal.TOO_INJURED);
+    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toEqual({ refusal: MoveRefusal.TOO_INJURED, soldier: 1 });
+    expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toMatchObject({
+      ok: false,
+      data: { refusal: MoveRefusal.TOO_INJURED, soldier: 1 },
+    });
     other.soldier.life = 80;
     other.assignment = Assignment.IN_TRANSIT;
-    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBe(MoveRefusal.TRANSIT);
+    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toEqual({ refusal: MoveRefusal.TRANSIT, soldier: 1 });
   });
 
   it('keeps the robot back without a controller in its squad (ME_ROBOT_ALONE)', () => {
@@ -96,10 +105,34 @@ describe('strategic movement permission', () => {
     if (!robot || !merc) throw new Error('no squad');
     Object.assign(robot.record, { kind: MercKind.EPC });
     Object.assign(robot.soldier, { profile: ROBOT, bodyType: Body.ROBOTNOWEAPON });
-    expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)).toBe(MoveRefusal.ROBOT_ALONE);
+    expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)?.refusal).toBe(MoveRefusal.ROBOT_ALONE);
     const head = merc.soldier.inv[InvSlot.HEAD1];
     if (head) head.item = campaign.battle?.content.items.byName.get('ROBOT_REMOTE_CONTROL')?.index ?? 0;
     expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)).toBeNull();
+  });
+
+  it('keeps an escort back without a merc in his squad and names him, also when another member asked (ME_CUSTOM, pMapErrorString 6 or 7)', () => {
+    const { campaign, roster } = landed();
+    const escort = roster.get(1);
+    if (!escort) throw new Error('no squad');
+    Object.assign(escort.record, { kind: MercKind.EPC });
+    expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)).toBeNull();
+    addCharacterToUniqueSquad(strategic(campaign), 1);
+    expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)).toEqual({ refusal: MoveRefusal.EPC_ALONE, soldier: 1 });
+    expect(campaign.dispatch({ type: 'route', soldier: 1, to: 'B9' })).toEqual({
+      ok: false,
+      reason: 'the squad cannot move: escortAlone',
+      data: { refusal: 'escortAlone', soldier: 1 },
+    });
+  });
+
+  it('names the escort riding alone in a vehicle when the vehicle is asked to move', () => {
+    const mercs = new FakeMercs();
+    const ctx = testContext({ content, mercs });
+    const vehicle = mercs.add({ id: VEHICLE_SOLDIER, sector: B9, isVehicle: true, assignment: Assignment.VEHICLE });
+    const escort = mercs.add({ id: ESCORT, sector: B9, isEpc: true, assignment: Assignment.VEHICLE });
+    for (const m of [vehicle, escort]) Object.assign(m, { vehicleId: VEHICLE, groupId: VEHICLE_GROUP });
+    expect(canEntireMovementGroupMove(ctx, VEHICLE_SOLDIER, PEACE)).toEqual({ refusal: MoveRefusal.EPC_ALONE, soldier: ESCORT });
   });
 
   it('keeps Maria in C5', () => {
@@ -149,11 +182,11 @@ describe('the bloodcat ambush and the museum chalice (CanCharacterMoveInStrategi
     campaign.state.encounter.code = EncounterCode.BLOODCAT_AMBUSH;
     expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBeNull();
     const cat = spawnCreature(tactical, TEAM_FIRST_ID[Team.CREATURE], Body.BLOODCAT, CAT_TILE, Direction.NORTH);
-    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBe(MoveRefusal.COMBAT);
+    expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)?.refusal).toBe(MoveRefusal.COMBAT);
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toEqual({
       ok: false,
       reason: 'the squad cannot move: inCombat',
-      data: { refusal: 'inCombat' },
+      data: { refusal: 'inCombat', soldier: 0 },
     });
     campaign.state.encounter.code = EncounterCode.ENEMY_AMBUSH;
     expect(canEntireMovementGroupMove(strategic(campaign), 0, PEACE)).toBeNull();

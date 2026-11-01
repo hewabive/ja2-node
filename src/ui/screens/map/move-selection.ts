@@ -3,8 +3,8 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc SetUpMovingListsForSector (the listed mercs in character-list order,
 // @src their squads and vehicles in the order they first appear), SelectSoldierForMovement, DeselectSoldierForMovement,
 // @src SelectSquadForMovement (the movable members picked, the squad itself only when all of them could be, the first
-// @src failure reported), DeselectSquadForMovement, AllSoldiersInSquadSelected, SelectVehicleForMovement (AND_ALL_ON_BOARD,
-// @src the vehicle moves when a passenger does), DeselectVehicleForMovement, HowManyMovingSoldiersInVehicle,
+// @src failure reported with that member's name and sex), DeselectSquadForMovement, AllSoldiersInSquadSelected,
+// @src SelectVehicleForMovement (AND_ALL_ON_BOARD, the vehicle moves when a passenger does), DeselectVehicleForMovement, HowManyMovingSoldiersInVehicle,
 // @src HowManyMovingSoldiersInSquad, SelectAllOtherSoldiersInList (pMapErrorString[46] when some cannot move),
 // @src DeselectAllOtherSoldiersInList, AllOtherSoldiersInListAreSelected (its test of bAssignment >= VEHICLE kept),
 // @src IsAnythingSelectedForMoving, MoveMenuBtnCallback (the soldier lines: pMapErrorString[41] between sectors, the last
@@ -18,11 +18,18 @@ import { Assignment } from './character-list.ts';
 
 export const MoveError = { BETWEEN_SECTORS: 41, OTHERS_CANNOT_MOVE: 46 } as const;
 
-export type MoveFeedback = { readonly refusal: string } | { readonly mapError: number } | null;
+export interface MoveRefusalFeedback {
+  readonly refusal: string;
+  readonly name: string;
+  readonly female: boolean;
+}
+
+export type MoveFeedback = MoveRefusalFeedback | { readonly mapError: number } | null;
 
 export interface MoveMember {
   readonly id: number;
   readonly name: string;
+  readonly female: boolean;
   readonly assignment: number;
   readonly squad: number | null;
   readonly vehicle: number | null;
@@ -74,6 +81,7 @@ export function moveMembers(view: StrategicView, order: readonly number[], optio
       return {
         id: m.id,
         name: m.name,
+        female: m.female === true,
         assignment: m.assignment,
         squad: squadOf(m),
         vehicle: vehicleOf(m),
@@ -88,8 +96,8 @@ function isOther(m: MoveMember): boolean {
   return m.assignment >= Assignment.ON_DUTY && m.assignment !== Assignment.VEHICLE;
 }
 
-function firstFailure(current: string | null, m: MoveMember): string | null {
-  return current ?? m.refusal;
+function refusalFeedback(m: MoveMember): MoveRefusalFeedback | null {
+  return m.refusal === null ? null : { refusal: m.refusal, name: m.name, female: m.female };
 }
 
 export class MoveSelection {
@@ -134,13 +142,13 @@ export class MoveSelection {
 
   selectSquad(squad: number): MoveFeedback {
     if (!this.squads.includes(squad)) return null;
-    let failure: string | null = null;
+    let failure: MoveRefusalFeedback | null = null;
     for (const m of this.members.filter((x) => x.squad === squad)) {
       if (m.refusal === null) this.#select(m.id);
-      else failure = firstFailure(failure, m);
+      else failure ??= refusalFeedback(m);
     }
     if (failure === null) this.#squads.add(squad);
-    return failure === null ? null : { refusal: failure };
+    return failure;
   }
 
   deselectSquad(squad: number): void {
@@ -155,14 +163,14 @@ export class MoveSelection {
 
   selectVehicle(vehicle: number): MoveFeedback {
     if (!this.vehicles.includes(vehicle)) return null;
-    let failure: string | null = null;
+    let failure: MoveRefusalFeedback | null = null;
     const passengers = this.members.filter((m) => m.vehicle === vehicle);
     for (const m of passengers) {
       if (m.refusal === null) this.#select(m.id);
-      else failure = firstFailure(failure, m);
+      else failure ??= refusalFeedback(m);
     }
     if (passengers.some((m) => this.#soldiers.has(m.id))) this.#vehicles.add(vehicle);
-    return failure === null ? null : { refusal: failure };
+    return failure;
   }
 
   deselectVehicle(vehicle: number): void {
@@ -218,7 +226,8 @@ export class MoveSelection {
       this.#leave(m);
       return null;
     }
-    if (m.refusal !== null) return { refusal: m.refusal };
+    const refused = refusalFeedback(m);
+    if (refused) return refused;
     this.#soldiers.add(id);
     return m.squad !== null && this.#allInSquadSelected(m.squad) ? this.selectSquad(m.squad) : null;
   }

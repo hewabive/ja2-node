@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { refusalMessage } from './refusals.ts';
+import { refusalMessage, refusalSoldierOf } from './refusals.ts';
 
 describe('refusal messages', () => {
   it("box a move refused in the museum with ME_MUSEUM's map error and one during a bloodcat ambush with ME_COMBAT's", () => {
     expect(refusalMessage('museumChalice')).toEqual({ table: 'pMapErrorString', index: 34, shown: 'box' });
     expect(refusalMessage('inCombat')).toEqual({ table: 'pMapErrorString', index: 11, shown: 'box' });
+  });
+});
+
+describe("the escort's lone move (CanCharacterMoveInStrategic, ME_CUSTOM)", () => {
+  it('boxes pMapErrorString 6 for a male escort and 7 for a female one', () => {
+    expect(refusalMessage('escortAlone')).toEqual({ table: 'pMapErrorString', index: 6, shown: 'box' });
+    expect(refusalMessage('escortAlone', true)).toEqual({ table: 'pMapErrorString', index: 7, shown: 'box' });
+    expect(refusalMessage('tooTired', true)).toEqual({ table: 'pMapErrorString', index: 43, shown: 'box' });
+  });
+
+  it('reads the soldier a refusal names', () => {
+    expect(refusalSoldierOf({ refusal: 'escortAlone', soldier: 11 })).toBe(11);
+    expect(refusalSoldierOf({ refusal: 'noPath' })).toBeNull();
   });
 });

@@ -79,7 +79,7 @@ import { refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
-import { sectorList } from './commands.ts';
+import { refuseMove, sectorList } from './commands.ts';
 
 const BLOODLOSS_DAMAGE = 100;
 
@@ -297,8 +297,8 @@ export class HelicopterFlow {
   #passengerRoute(cmd: Command): CommandResult | null {
     const m = this.#helicopterPassenger(cmd);
     if (!m) return null;
-    const moving = canEntireMovementGroupMove(this.ctx, m.id, { inCombat: this.campaign.tactical?.state.inCombat === true });
-    if (moving) return refuse(moving, `the squad cannot move: ${moving}`);
+    const block = canEntireMovementGroupMove(this.ctx, m.id, { inCombat: this.campaign.tactical?.state.inCombat === true });
+    if (block) return refuseMove(block);
     return this.#heliRoute(cmd);
   }
 

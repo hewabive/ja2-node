@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
+import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 
@@ -10,6 +11,8 @@ const ASSIGN_MENU_TRAIN = 5;
 const TRAIN_MENU_TOWN = 1;
 const MESSAGE_BOX = 'messageBox';
 const SPEAKER = 60;
+const MALE = 0;
+const FEMALE = 1;
 const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
 
 let kit: StubSectorKit;
@@ -325,6 +328,31 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.frames([{ tick, changed: [], removed: [], events: [{ type: 'sectorLost', tick, sector: 'C13', kind: 'town' }] }]);
       await f.settle();
       expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
+  it("boxes an escort's lone move with pMapErrorString 6 or 7 by the sex of his profile, naming the escort", () =>
+    withMap(async (f) => {
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      const record = campaign.battle?.roster.get(f.mercs[1] ?? -1);
+      if (!record) throw new Error('no escort');
+      expect((await f.client.command({ type: 'assignSquad', soldier: record.id, squad: 'new' })).ok).toBe(true);
+      Object.assign(record.record, { kind: MercKind.EPC });
+      const texts: string[] = [];
+      for (const sex of [MALE, FEMALE]) {
+        Object.assign(campaign.state.profiles.get(record.soldier.profile) ?? {}, { sex });
+        f.client.refresh();
+        await f.click(`teamRow${f.screen.list.rowOf(record.id)}.destination`);
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+        await f.settle();
+      }
+      const name = record.soldier.name;
+      expect(texts).toEqual([
+        `${name} needs an escort to move. Place him on a squad with one.`,
+        `${name} needs an escort to move. Place her on a squad with one.`,
+      ]);
+      expect(f.client.commands.at(-1)?.cmd.type).toBe('assignSquad');
     }));
 
   it('selects the squad with its number key and the next merc with the arrow', () =>

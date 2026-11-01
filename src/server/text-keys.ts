@@ -9,7 +9,13 @@
 // @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime.
 
 import { type UiStrings, uiString } from '../content/text/strings.ts';
-import { MOVE_REFUSAL_INDEX, REFUSAL_MESSAGES, type UiTextKey } from '../protocol/refusals.ts';
+import {
+  FEMALE_REFUSAL_MESSAGES,
+  MOVE_REFUSAL_INDEX,
+  REFUSAL_MESSAGES,
+  type RefusalMessage,
+  type UiTextKey,
+} from '../protocol/refusals.ts';
 import type { PlayerView, StrategicMercView } from '../protocol/view.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
 import type { ShopKind } from '../sim/strategic/economy/merchants/view.ts';
@@ -34,10 +40,15 @@ const SHOP_KIND: Readonly<Record<ShopKind, number>> = { buySell: 0, buy: 1, sell
 const MOVE_REFUSAL: Partial<Readonly<Record<MoveRefusal, number>>> = MOVE_REFUSAL_INDEX;
 
 const TRADE_MENU_PREFIX = 'buySell:';
+const FEMALE_SUFFIX = '.female';
 const ASSIGNMENT_COUNT = Assignment.ASSIGNMENT_EMPTY + 1;
 
 function group(prefix: string, table: string, indices: Readonly<Record<string, number | undefined>>): [string, UiTextKey][] {
   return Object.entries(indices).flatMap(([token, index]) => (index === undefined ? [] : [[`${prefix}.${token}`, { table, index }]]));
+}
+
+function refusals(suffix: string, messages: Readonly<Record<string, RefusalMessage>>): [string, UiTextKey][] {
+  return Object.entries(messages).map(([token, m]) => [`refusal.${token}${suffix}`, { table: m.table, index: m.index }]);
 }
 
 function assignments(): [string, UiTextKey][] {
@@ -51,7 +62,8 @@ export const TEXT_KEYS: Readonly<Record<string, UiTextKey>> = Object.fromEntries
   ...group('shopKind', 'zDealerStrings', SHOP_KIND),
   ...group('moveRefusal', 'pMapErrorString', MOVE_REFUSAL),
   ...assignments(),
-  ...Object.entries(REFUSAL_MESSAGES).map(([token, m]): [string, UiTextKey] => [`refusal.${token}`, { table: m.table, index: m.index }]),
+  ...refusals('', REFUSAL_MESSAGES),
+  ...refusals(FEMALE_SUFFIX, FEMALE_REFUSAL_MESSAGES),
 ]);
 
 export function textKeyFor(token: string): UiTextKey | null {

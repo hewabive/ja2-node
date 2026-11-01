@@ -33,6 +33,7 @@ import { mercMapFields, mineViews, projectedDailyIncome, secretsFound, townContr
 import { questLog } from './quest-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
+const MALE = 0;
 
 interface SurfaceScan {
   readonly enemies: Uint8Array;
@@ -192,6 +193,11 @@ function mercView(m: ViewedMerc): StrategicMercView {
   };
 }
 
+function profileSex(campaign: CampaignSim, m: StrategicMerc): { female?: boolean } {
+  const sex = campaign.state.profiles.get(m.profile)?.sex ?? MALE;
+  return sex === MALE ? {} : { female: true };
+}
+
 function robotControl(campaign: CampaignSim, m: StrategicMerc): { controlled?: boolean } {
   const roster = campaign.battle?.roster;
   return m.isRobot && roster ? { controlled: roster.canRobotBeControlled(m.id) } : {};
@@ -269,6 +275,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
       const arrival = arrivalTime(campaign, m.id);
       return {
         ...mercView(m),
+        ...profileSex(campaign, m),
         ...mercContractFields(campaign, m.id),
         ...robotControl(campaign, m),
         ...(arrival ? { arrival } : {}),

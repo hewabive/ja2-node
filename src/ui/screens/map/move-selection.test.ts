@@ -20,6 +20,7 @@ function member(id: number, over: Partial<MoveMember> = {}): MoveMember {
   return {
     id,
     name: `M${id}`,
+    female: false,
     assignment: 0,
     squad: 0,
     vehicle: null,
@@ -81,7 +82,7 @@ describe('the move box selection', () => {
       member(2, { refusal: 'tooTired' }),
       member(3, { refusal: 'tooInjured', listed: false }),
     ]);
-    expect(selection.toggleSquad(0)).toEqual({ refusal: 'tooTired' });
+    expect(selection.toggleSquad(0)).toEqual({ refusal: 'tooTired', name: 'M2', female: false });
     expect(selection.plan()).toEqual({ soldiers: [1], squads: [], vehicles: [] });
   });
 
@@ -100,14 +101,14 @@ describe('the move box selection', () => {
   it('refuses to toggle a merc between sectors and reports why a merc cannot be picked', () => {
     const selection = new MoveSelection([member(1, { betweenSectors: true }), member(2, { refusal: 'tooTired' })]);
     expect(selection.toggleSoldier(1)).toEqual({ mapError: MoveError.BETWEEN_SECTORS });
-    expect(selection.toggleSoldier(2)).toEqual({ refusal: 'tooTired' });
+    expect(selection.toggleSoldier(2)).toEqual({ refusal: 'tooTired', name: 'M2', female: false });
     expect(selection.anythingSelected()).toBe(false);
   });
 
   it('moves a vehicle as soon as one passenger does', () => {
     const passenger = { squad: null, vehicle: 7, assignment: Assignment.VEHICLE };
     const selection = new MoveSelection([member(1, passenger), member(2, { ...passenger, refusal: 'tooTired' })]);
-    expect(selection.toggleVehicle(7)).toEqual({ refusal: 'tooTired' });
+    expect(selection.toggleVehicle(7)).toEqual({ refusal: 'tooTired', name: 'M2', female: false });
     expect(selection.plan()).toEqual({ soldiers: [1], squads: [], vehicles: [7] });
     selection.toggleSoldier(1);
     expect(selection.plan()).toEqual({ soldiers: [], squads: [], vehicles: [] });
@@ -130,10 +131,10 @@ describe('the move box selection', () => {
     expect(texts(selection)).toContain('*Other*');
   });
 
-  it('orders the listed mercs like the character list and keeps unlisted squad mates for the squad test', () => {
+  it('orders the listed mercs like the character list and keeps unlisted squad mates for the squad test, named with their sex', () => {
     const merc = (id: number, squad: number | null, life = 50): StrategicMercView =>
       ({ id, name: `M${id}`, assignment: squad ?? Assignment.DOCTOR, squad, betweenSectors: false, life }) as unknown as StrategicMercView;
-    const view = { mercs: [merc(1, 0), merc(2, 0), merc(3, null), merc(4, 0, 10)] } as unknown as StrategicView;
+    const view = { mercs: [merc(1, 0), merc(2, 0), merc(3, null), { ...merc(4, 0, 10), female: true }] } as unknown as StrategicView;
     const members = moveMembers(
       view,
       [3, 2, 1, 4],
@@ -151,7 +152,7 @@ describe('the move box selection', () => {
       [4, 0, false, 'tooInjured'],
     ]);
     const selection = new MoveSelection(members);
-    expect(selection.toggleSquad(0)).toEqual({ refusal: 'tooInjured' });
+    expect(selection.toggleSquad(0)).toEqual({ refusal: 'tooInjured', name: 'M4', female: true });
     expect(selection.plan()).toEqual({ soldiers: [2, 1], squads: [], vehicles: [] });
   });
 });
