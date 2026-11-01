@@ -165,7 +165,7 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles", "Savegame import", "Helicopter
-on import". Other deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector",
-"Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the
-loaded sector on import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".
+Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles", "Savegame import". Other
+deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
+enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
+import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".
