@@ -11,10 +11,12 @@
 // @src wakes and joins a squad, 2026-10-31); Tactical/Overhead.cc SelectSoldier (SetCurrentSquad, PutMercInAwakeState and
 // @src MERC_TYPE__PLAYER_CHARACTER through the roster, 2026-10-31); Tactical/Squads.cc Squad[] and GameScreen.cc
 // @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner
-// @src from Tactical/Overhead.cc ProcessImplicationsOfPCAttack (2026-10-31).
+// @src from Tactical/Overhead.cc ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc
+// @src AnyDoctorWhoCanHealThisPatient with HEALABLE_EVER from Tactical/Soldier_Control.cc CheckBleeding (2026-11-01).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
+import { anyDoctorWhoCanHealThisPatient } from '../strategic/economy/conditions.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { playerAttackedHeadMiner } from '../strategic/economy/mines.ts';
@@ -70,6 +72,15 @@ function squadSoldiers(campaign: CampaignSim, squad: number): Soldier[] {
   return ids.flatMap((id) => roster?.get(id)?.soldier ?? []);
 }
 
+const HEALABLE_EVER = false;
+
+function anyDoctorWhoCanHeal(campaign: CampaignSim, soldier: Soldier): boolean {
+  const economy = campaign.economy;
+  const patient = campaign.battle?.roster.get(soldier.id);
+  if (!economy || patient?.soldier !== soldier) return false;
+  return anyDoctorWhoCanHealThisPatient(economy, patient, HEALABLE_EVER) !== null;
+}
+
 function rebelsBetrayed(campaign: CampaignSim): void {
   if (campaign.economy) reduceLoyaltyForRebelsBetrayed(campaign.economy);
 }
@@ -102,6 +113,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     squadMembers: (squad) => squadSoldiers(campaign, squad),
     inTacticalScreen: () => s.flow === 'tactical',
     putOnSquadWhenHit: (soldier) => putOnSquadWhenHit(campaign, soldier),
+    anyDoctorWhoCanHeal: (soldier) => anyDoctorWhoCanHeal(campaign, soldier),
     isAimMerc: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.AIM_MERC,
     isPlayerCharacter: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.PLAYER_CHARACTER,
     quoteSaidFlags: (soldier) => campaign.battle?.roster.get(soldier.id) ?? null,

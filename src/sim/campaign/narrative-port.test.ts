@@ -8,6 +8,7 @@ import { advance } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
+import { createItem, emptyObject } from '../items/object.ts';
 import { Assignment, Town } from '../strategic/economy/constants.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
@@ -130,6 +131,83 @@ describe("a merc's sleep, kind and quote flags as tactical asks them of the camp
     enterCombatMode(t, Team.OUR);
     expect(t.inCombat).toBe(true);
     expect([lying(), rosterMerc(roster, sleeperId).asleep]).toEqual(['WKAEUP_FROM_SLEEP', true]);
+  });
+});
+
+describe('a doctor for a bleeding patient as tactical asks it of the campaign (NarrativePort.anyDoctorWhoCanHeal)', () => {
+  const PATIENT_LIFE = 50;
+  const PATIENT_BLEEDING = 25;
+  const DOCTOR_MEDICAL = 40;
+  const KIT_STATUS = 100;
+  const BLEEDS_AT_NEXT_REALTIME_TURN = 0.5;
+  const REALTIME_TURN_TICKS = 2_000;
+
+  function patientAndDoctor(seed: number) {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const [patientId, doctorId] = roster.all().map((m) => m.id);
+    if (patientId === undefined || doctorId === undefined) throw new Error('two mercs');
+    const patient = () => rosterMerc(roster, patientId);
+    const doctor = () => rosterMerc(roster, doctorId);
+    const tactical = () => c.tactical?.state ?? never();
+    const medicKit = () => tactical().content.items.byName.get('MEDICKIT')?.index ?? never();
+    const takeKits = () => {
+      const inv = doctor().soldier.inv;
+      for (let slot = 0; slot < inv.length; slot++) if (inv[slot]?.item === medicKit()) inv[slot] = emptyObject();
+    };
+    const giveKit = () => {
+      takeKits();
+      doctor().soldier.inv[InvSlot.BIGPOCK1] = createItem(tactical().content.items, medicKit(), KIT_STATUS);
+    };
+    const s = patient().soldier;
+    s.life = PATIENT_LIFE;
+    s.bleeding = PATIENT_BLEEDING;
+    doctor().soldier.stats.medical = DOCTOR_MEDICAL;
+    takeKits();
+    return { c, patient, doctor, tactical, giveKit, takeKits };
+  }
+
+  function never(): never {
+    throw new Error('A9 is not loaded');
+  }
+
+  it('finds a doctor of the sector with a medical kit for our merc on the patient assignment only', () => {
+    const { patient, doctor, tactical, giveKit, takeKits } = patientAndDoctor(37);
+    const asks = () => tactical().narrative.anyDoctorWhoCanHeal(patient().soldier);
+    giveKit();
+    doctor().assignment = Assignment.DOCTOR;
+    expect(asks()).toBe(false);
+    patient().assignment = Assignment.PATIENT;
+    expect(asks()).toBe(true);
+    takeKits();
+    expect(asks()).toBe(false);
+    giveKit();
+    doctor().assignment = Assignment.PATIENT;
+    expect(asks()).toBe(false);
+  });
+
+  it('keeps a patient whom a doctor can heal from bleeding at the real-time turns, and he bleeds once the kit is gone', () => {
+    const { c, patient, doctor, giveKit, takeKits } = patientAndDoctor(38);
+    giveKit();
+    patient().assignment = Assignment.PATIENT;
+    doctor().assignment = Assignment.DOCTOR;
+    const lastTurn = () => c.state.sectorFlow.realtimeClock.lastTurnMs;
+    const nextRealtimeTurn = () => {
+      patient().soldier.nextBleed = BLEEDS_AT_NEXT_REALTIME_TURN;
+      const before = lastTurn();
+      runTicks(c, REALTIME_TURN_TICKS, () => lastTurn() !== before);
+      expect(lastTurn()).not.toBe(before);
+    };
+    nextRealtimeTurn();
+    expect([patient().life, patient().soldier.bleeding, patient().soldier.nextBleed]).toEqual([
+      PATIENT_LIFE,
+      PATIENT_BLEEDING,
+      BLEEDS_AT_NEXT_REALTIME_TURN,
+    ]);
+    takeKits();
+    nextRealtimeTurn();
+    expect(patient().life).toBe(PATIENT_LIFE - 1);
   });
 });
 

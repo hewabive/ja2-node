@@ -19,7 +19,8 @@
 // @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc SetCurrentSquad and MERC_TYPE__PLAYER_CHARACTER
 // @src for InternalSelectSoldier, Squad[] (FOR_EACH_IN_SQUAD) and guiCurrentScreen == GAME_SCREEN for the selections of
 // @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
-// @src ProcessImplicationsOfPCAttack (2026-10-31).
+// @src ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc AnyDoctorWhoCanHealThisPatient from
+// @src Tactical/Soldier_Control.cc CheckBleeding (2026-11-01).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -76,6 +77,7 @@ export interface NarrativePort {
   offerSurrender(s: Soldier): boolean;
   pcsNearNpc(profile: number): void;
   pcDoesFirstAidOnNpc(profile: number): boolean;
+  anyDoctorWhoCanHeal(patient: Soldier): boolean;
   npcConsiderInitiatingConv(s: Soldier): number;
   triggerFriendWithHostileQuote(profile: number): void;
   profileDied(profile: number, killer: Soldier | null): void;
@@ -154,6 +156,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   offerSurrender: () => false,
   pcsNearNpc: () => {},
   pcDoesFirstAidOnNpc: () => false,
+  anyDoctorWhoCanHeal: () => false,
   npcConsiderInitiatingConv: () => NO_INITIATING_TARGET,
   triggerFriendWithHostileQuote: () => {},
   profileDied: () => {},

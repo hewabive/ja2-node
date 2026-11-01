@@ -142,6 +142,58 @@ describe('the bleeding lines (Soldier_Control.cc CheckBleeding)', () => {
   });
 });
 
+describe('no bleeding under care (Soldier_Control.cc CheckBleeding)', () => {
+  const LIFE_MAX = 80;
+  const DYING = 12;
+
+  function bleeder(life: number): { sim: TacticalSim; s: Soldier } {
+    const sim = newCombatSim(content);
+    sim.state.inCombat = true;
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life });
+    s.lifeMax = LIFE_MAX;
+    s.bleeding = LIFE_MAX - life;
+    s.nextBleed = 1;
+    return { sim, s };
+  }
+
+  function untouched(sim: TacticalSim, s: Soldier, life: number): void {
+    expect([s.life, s.lifeMax, s.bleeding, s.nextBleed, sim.state.smell.blood[s.gridNo]]).toEqual([life, LIFE_MAX, LIFE_MAX - life, 1, 0]);
+  }
+
+  it('neither bleeds nor drops blood while he is being bandaged (ubServiceCount), dying or not', () => {
+    for (const life of [50, DYING]) {
+      const { sim, s } = bleeder(life);
+      s.serviceCount = 1;
+      beginMercTurn(sim.state, s);
+      untouched(sim, s, life);
+    }
+  });
+
+  it('neither bleeds nor drops blood while a doctor can heal him (AnyDoctorWhoCanHealThisPatient), dying or not', () => {
+    for (const life of [50, DYING]) {
+      const { sim, s } = bleeder(life);
+      const asked: Soldier[] = [];
+      sim.state.narrative = {
+        ...sim.state.narrative,
+        anyDoctorWhoCanHeal: (patient) => {
+          asked.push(patient);
+          return true;
+        },
+      };
+      beginMercTurn(sim.state, s);
+      untouched(sim, s, life);
+      expect(asked).toEqual([s]);
+    }
+  });
+
+  it('bleeds and drops blood with nobody bandaging him and no doctor for him', () => {
+    const { sim, s } = bleeder(50);
+    beginMercTurn(sim.state, s);
+    expect(s.life).toBe(49);
+    expect(sim.state.smell.blood[s.gridNo]).not.toBe(0);
+  });
+});
+
 describe('getting up at turn start', () => {
   it('rolls a soldier lying on his back over, turns him around and gets him up', () => {
     const sim = newCombatSim(content);

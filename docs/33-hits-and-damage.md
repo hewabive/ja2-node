@@ -30,7 +30,7 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
 | `rotting-corpses.ts` | A corpse's aging when it is added, decapitation and the heads it leaves |
-| `combat/bleeding.ts` | Bleeding at turn start, the next-bleed time, the dying line and the bleeding warning |
+| `combat/bleeding.ts` | Bleeding at turn start, the next-bleed time, the dying line and the bleeding warning; no bleeding for a patient being bandaged or whom a doctor in his sector can heal (the campaign answers through `NarrativePort.anyDoctorWhoCanHeal`) |
 | `combat/barrier.ts` | The attack busy count, suppression, noticing an unseen attacker, the end of an attack |
 | `combat/morale.ts` | Tactical morale events; strategic events and the death fan-out are `sim/campaign/morale.ts` |
 | `combat/experience.ts`, `combat/skill-check.ts` | Stat change chances and their conversion to points; skill checks |
@@ -118,4 +118,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Morale without drugs", "Corpses", "Unseen soldiers in combat", "Bleeding under care".
+Not ported: gaps "Morale without drugs", "Corpses", "Unseen soldiers in combat".

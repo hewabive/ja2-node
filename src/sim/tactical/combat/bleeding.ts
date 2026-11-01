@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount, the dying quote and the bleeding
-// @src warning), SoldierBleed, CalcSoldierNextBleed.
+// @src warning; the patient being bandaged or doctored, 2026-11-01), SoldierBleed, CalcSoldierNextBleed.
 
 import { idiv } from '../../../core/int.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
@@ -46,9 +46,14 @@ function bleedingBlood(s: Soldier): number {
   return Math.min(idiv(s.bleeding - MIN_BLEEDING_THRESHOLD, BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
 }
 
+function underCare(t: TacticalState, s: Soldier): boolean {
+  return s.serviceCount !== 0 || t.narrative.anyDoctorWhoCanHeal(s);
+}
+
 export function checkBleeding(t: TacticalState, s: Soldier): number {
   if (s.life === 0) return NO_BLOOD;
   if (s.bleeding <= MIN_BLEEDING_THRESHOLD && s.life >= OKLIFE) return NO_BLOOD;
+  if (underCare(t, s)) return NO_BLOOD;
   const blood = bleedingBlood(s);
   s.nextBleed = t.inCombat ? Math.fround(s.nextBleed - 1) : Math.fround(s.nextBleed - RT_NEXT_BLEED_MODIFIER);
   if (s.nextBleed > 0) return blood;
@@ -74,5 +79,5 @@ function sayDyingQuote(t: TacticalState, s: Soldier): void {
 }
 
 function warnsOfBleeding(t: TacticalState, s: Soldier): boolean {
-  return s.life >= OKLIFE && !s.dyingComment && !s.warnedAboutBleeding && !t.pathEnv.autoBandage && s.serviceCount === 0;
+  return s.life >= OKLIFE && !s.dyingComment && !s.warnedAboutBleeding && !t.pathEnv.autoBandage;
 }
