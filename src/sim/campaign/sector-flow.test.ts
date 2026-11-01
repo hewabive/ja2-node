@@ -31,11 +31,12 @@ import { InvSlot } from '../tactical/inventory.ts';
 import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
 import { MapChangeKind, recordStructureRemoved } from '../tactical/map-changes.ts';
+import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
-import { teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { sectorKey } from './sector-diff.ts';
@@ -72,6 +73,7 @@ const STUB_A10_MAP = 'maps/a10.dat';
 const DRASSEN_HELIPAD = 9001;
 const TAIL_BOOM_GRIDNO = DRASSEN_HELIPAD - 800;
 const TAIL_BOOM_SUB_INDEX = 3;
+const BESIDE_HELIPAD = DRASSEN_HELIPAD + 2;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -386,6 +388,26 @@ describe('a native save loaded into its sector', () => {
     expect([vehicles(DRASSEN_HELIPAD), vehicles(TAIL_BOOM_GRIDNO)]).toEqual([1, 0]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(1);
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE_STRUCT_TILE, TAIL_BOOM_GRIDNO]]);
+  });
+
+  it('bumps nobody when a native import stands the helicopter: the saved soldiers enter the map only after it and the map changes (UpdateMercsInSector, SaveLoadGame.cc:1036)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 11, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    const merc = ourSoldiers(campaign)[0];
+    if (!sim || !merc) throw new Error('no sector');
+    const t = sim.state;
+    setHelicopterOnMap(t, { gridNo: DRASSEN_HELIPAD, heliTileType: typeIndex(sim.world.tables, 'FIRSTOSTRUCT') }, false);
+    setSoldierPosition(t, merc, BESIDE_HELIPAD);
+    flow.adoptLoadedSector([]);
+    expect(t.landedHelicopter?.gridNo).toBe(DRASSEN_HELIPAD);
+    expect(merc.gridNo).toBe(BESIDE_HELIPAD);
+    expect(whoIsThere(t, BESIDE_HELIPAD, 0)).toBe(merc);
+    expect(t.world.structures.at(BESIDE_HELIPAD).some((x) => x === merc.structure)).toBe(true);
   });
 
   it('brings a helicopter piece destroyed in the sector back at the next entry, unlike a load: the entry stands the helicopter again after the map changes took the piece away (StrategicMap.cc:520 after EnterSector, :880)', () => {

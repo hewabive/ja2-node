@@ -65,14 +65,15 @@ enters it (a 5–60 minute compression mode stays but stops, any other becomes X
 
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
-animation), stands a landed helicopter on the map and bumps the soldiers around it (deviation "Helicopter on load"),
-applies the loaded sector's map changes and door states after that, as it reads the temp files last, recompiles the
-movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows
-on load"), posts the schedules, powers the map lights for the saved hour, sets the
-ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks"); resumed in tactical, it
-selects the selected merc again, forced, and enters the tactical screen (deviation "Selection on load"). The import
-does the same; ja2-node's own loads never do (`27`). The load's fix-ups come along: `SyncLastMercFromSaveGame`, the
-I.M.P. slot from `iVoiceId` before version 104, the start sector for an invalid landing zone.
+animation) after it has stood a landed helicopter on the map and applied the loaded sector's map changes and door
+states, so the helicopter's bump moves nobody (deviation "Helicopter on load"; `loadSavedSectorChanges` lifts the
+imported soldiers off the map meanwhile), recompiles the movement costs, sends crows to a rotting corpse by day as
+loading the corpses file does (deviation "Crows on load"), posts the schedules, powers the map lights for the saved
+hour, sets the ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks");
+resumed in tactical, it selects the selected merc again, forced, and enters the tactical screen (deviation "Selection on
+load"). The import does the same; ja2-node's own loads never do (`27`). The load's fix-ups come along:
+`SyncLastMercFromSaveGame`, the I.M.P. slot from `iVoiceId` before version 104, the start sector for an invalid landing
+zone.
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
@@ -103,6 +104,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | An item dropped into a sector while it was unloaded looks for a free tile again at every load | `sim/tactical/save-import.test.ts` |
 | So does a corpse, which then faces the first direction its structure fits, counting from north | `sim/tactical/save-import.test.ts`, `sim/campaign/sector-diff.test.ts`, `sim/tactical/corpse-placement.test.ts` |
 | A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |
+| A load stands a landed helicopter before the saved soldiers enter the map, so its bump moves nobody, and before the saved map changes, so a piece destroyed before the save stays off the map | `sim/campaign/sector-flow.test.ts` "bumps nobody when a native import …", "keeps a helicopter piece destroyed before the save …" |
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
 | No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |

@@ -42,11 +42,12 @@ import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { type AddedExitGrid, applyMapChanges, exitGridChange, type MapChange, MapChangeKind, structTileChange } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
+import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
-import { type CrowStatus, type RealtimeClock, registerSoldier, type TacticalState } from './state.ts';
+import { type CrowStatus, placeOccupant, type RealtimeClock, registerSoldier, removeOccupant, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool } from './world-items.ts';
 
@@ -234,9 +235,30 @@ function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): numbe
   return t.corpses.length;
 }
 
-export function applySavedSectorChanges(sim: TacticalSim, saved: SavedSectorChanges): void {
-  for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
-  applyDoorStatus(sim.state, saved.doorStatus ?? []);
+const NO_HELICOPTER = (): void => {};
+
+export function loadSavedSectorChanges(sim: TacticalSim, saved: SavedSectorChanges, standHelicopter = NO_HELICOPTER): void {
+  const t = sim.state;
+  withSoldiersOffTheMap(t, () => {
+    standHelicopter();
+    for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
+    applyDoorStatus(t, saved.doorStatus ?? []);
+  });
+  t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+}
+
+function withSoldiersOffTheMap(t: TacticalState, load: () => void): void {
+  const placed = t.soldiers.filter((s): s is Soldier => s?.placed === true);
+  for (const s of placed) {
+    removeOccupant(t, s);
+    removeMercStructure(t, s);
+  }
+  load();
+  for (const s of placed) {
+    if (!s.placed) continue;
+    placeOccupant(t, s);
+    addMercStructure(t, s);
+  }
 }
 
 function applyMapModification(sim: TacticalSim, m: SavedMapModification): void {

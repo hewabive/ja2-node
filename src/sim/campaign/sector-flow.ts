@@ -135,7 +135,7 @@ import {
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
-import { applySavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
+import { loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import {
   enterTacticalScreen,
@@ -643,9 +643,7 @@ export class SectorFlow {
       node.hasSoldier = true;
     }
     this.#installHooks(sim);
-    handleHelicopterOnGround(this.ctx, true);
-    applySavedSectorChanges(sim, saved);
-    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    loadSavedSectorChanges(sim, saved, () => handleHelicopterOnGround(this.ctx, true));
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);

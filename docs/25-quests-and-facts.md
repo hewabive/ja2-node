@@ -104,8 +104,8 @@ to append its six pieces to the structure layer, with their structures, and to b
 sector load, a landing and a takeoff. The pieces are no map changes: the sector's temp state never holds them, the next
 load adds them again, and the view sends them as `append` tile changes after the map changes (`29` §7). A native import
 adds them before it applies the sector's saved map changes, as the original's load reads the temp files last, so a piece
-destroyed before the save stays off the map; the map changes replay over the structure layer the pieces are appended
-to.
+destroyed before the save stays off the map (the map changes replay over the structure layer the pieces are appended
+to), and before the saved soldiers enter the map, so its bump moves nobody (`14`).
 
 **Quest action items.** Our soldiers stepping on a tile set off its armed pressure action items and switches, a switch
 the remote action items on its frequency; the queue runs at the next overhead pass with sight disallowed and keeps the
