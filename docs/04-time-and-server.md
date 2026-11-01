@@ -110,7 +110,8 @@ strategic. With time not compressed it first starts compression (a refusal ends 
 
 1. a decision prompt opens (pre-battle, simultaneous arrival, NPC of note, contract, militia, NPC request);
 2. compression stops (any `StopTimeCompression`, `15`): an `event` with `compressionStopped {reason}`. An automatic
-   pause (a quote, an update box) leaves compression on but not running → `idle`. With `compressionStopped: false` the
+   pause (an update box) leaves compression on but not running → `idle`; the pause of a line said on the map does not
+   stop the advance, which runs through the line (`29` §4.4). With `compressionStopped: false` the
    advance restarts compression after every stop and returns only at a decision, the target, a watched event, a
    refusal or the budget;
 3. the world-time target: at the first tick where world seconds reach it the advance stops compression itself, as a

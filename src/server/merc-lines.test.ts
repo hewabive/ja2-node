@@ -6,6 +6,7 @@ import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem } from '../sim/items/object.ts';
 import { deleteTalkingMenu } from '../sim/narrative/converse.ts';
+import { FINAL_TALKING_DELAY_TICKS, tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { Fact } from '../sim/strategic/narrative/fact-ids.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
@@ -195,5 +196,127 @@ describe('the bleeding lines in a campaign (Soldier_Control.cc CheckBleeding, Di
     expect(asleep()).toBe(false);
     c.live.advance({ ticks: QUOTE_TICKS });
     expect(asleep()).toBe(true);
+  });
+});
+
+describe('the map screen pause for a line in a campaign (Dialogue_Control.cc DialogueEventQuote::Execute, HandleDialogue)', () => {
+  const LOCK_PAUSE_MERC_TALKING = 15;
+  const COMPRESSING = 2;
+  const FASTER = 3;
+  const ONE_REAL_SECOND_TICKS = 200;
+  const LINE = MercQuote.OUT_OF_AMMO;
+
+  interface LineSaid {
+    readonly tick: number;
+    readonly ticks: number;
+    readonly events: readonly SimEvent[];
+  }
+
+  async function onTheMap(seed: number, mode: number | null): Promise<Campaign> {
+    const c = await squadInA9(seed);
+    const commands = mode === null ? [{ type: 'mapScreen' }] : [{ type: 'mapScreen' }, { type: 'compressTime', mode }];
+    for (const cmd of commands) expect(c.session.dispatch(cmd)).toMatchObject({ ok: true });
+    return c;
+  }
+
+  function clockOf(c: Campaign) {
+    return c.session.campaign.state.clock;
+  }
+
+  function sayLine(c: Campaign): LineSaid {
+    const talk = c.session.campaign.talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    expect(tacticalCharacterDialogue(talk.host, ours(loadedSector(c).state, KESTREL), LINE)).toBe(true);
+    const events = c.live.advance({ events: ['mercQuote'] }).events;
+    const said = events.find((e) => e.type === 'mercQuote' && e.id === LINE);
+    const face = c.session.campaign.talk?.talk.face;
+    if (!said || !face) throw new Error('the line was not said');
+    return { tick: said.tick, ticks: face.busyUntil - said.tick, events };
+  }
+
+  function eventTypes(events: readonly SimEvent[]): string[] {
+    return events.map((e) => e.type);
+  }
+
+  it('stands the world clock while the line plays and resumes compression at the same speed after it', async () => {
+    const c = await onTheMap(91, COMPRESSING);
+    c.live.advance({ ticks: ONE_REAL_SECOND_TICKS });
+    const before = clockOf(c).seconds;
+    const line = sayLine(c);
+    expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: true, pauseLockReason: LOCK_PAUSE_MERC_TALKING });
+    expect(clockOf(c)).toMatchObject({ seconds: before, mode: COMPRESSING, compressionOn: true });
+    const during = c.live.advance({ ticks: line.ticks - 1 });
+    expect(clockOf(c)).toMatchObject({ seconds: before, paused: true, pauseLocked: true });
+    expect(eventTypes([...line.events, ...during.events])).not.toContain('compressionStopped');
+    const after = c.live.advance({ ticks: ONE_REAL_SECOND_TICKS });
+    expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false, mode: COMPRESSING, compressionOn: true });
+    expect(clockOf(c).seconds).toBeGreaterThan(before);
+    expect(eventTypes(after.events)).not.toContain('compressionStarted');
+  });
+
+  it('lets a strategic advance run through the line instead of stopping at its pause', async () => {
+    const c = await onTheMap(93, COMPRESSING);
+    const before = clockOf(c).seconds;
+    sayLine(c);
+    const report = c.live.advance({ worldSeconds: 600 });
+    expect(report.reason).toBe('worldTime');
+    expect(clockOf(c).seconds).toBeGreaterThanOrEqual(before + 600);
+  });
+
+  it('refuses a new speed and a start of compression with pauseLocked until the line ends, and advance {idle} waits for it', async () => {
+    const compressing = await onTheMap(97, COMPRESSING);
+    sayLine(compressing);
+    expect(compressing.session.dispatch({ type: 'compressTime', mode: FASTER })).toMatchObject({
+      ok: false,
+      data: { refusal: 'pauseLocked' },
+    });
+    expect(clockOf(compressing).mode).toBe(COMPRESSING);
+    const stopped = await onTheMap(98, null);
+    const line = sayLine(stopped);
+    expect(stopped.session.dispatch({ type: 'compressTime' })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
+    expect(stopped.live.advance({ worldSeconds: 600 }).reason).toBe('refused');
+    const idle = stopped.live.advance({ idle: true });
+    expect(idle.tick).toBe(line.tick + line.ticks);
+    expect(clockOf(stopped)).toMatchObject({ paused: false, pauseLocked: false });
+    expect(stopped.session.dispatch({ type: 'compressTime' })).toMatchObject({ ok: true });
+  });
+
+  it('says a line in a pause it did not make without locking it, and leaves the game paused after it', async () => {
+    const c = await onTheMap(100, COMPRESSING);
+    Object.assign(clockOf(c), { paused: true, playerPause: true });
+    const line = sayLine(c);
+    expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: false });
+    c.live.advance({ ticks: line.ticks + ONE_REAL_SECOND_TICKS });
+    expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: false, playerPause: true });
+  });
+
+  it('lifts the pause at once when a viewer cuts the line, and after the closing 300 ms when one finished it', async () => {
+    const cut = await onTheMap(101, COMPRESSING);
+    const cutLine = sayLine(cut);
+    expect(cut.session.dispatch({ type: 'skipLine', profile: KESTREL, tick: cutLine.tick })).toMatchObject({ data: { skipped: true } });
+    expect(clockOf(cut)).toMatchObject({ paused: false, pauseLocked: false });
+    const finished = await onTheMap(103, COMPRESSING);
+    const finishedLine = sayLine(finished);
+    const ended = { type: 'skipLine', profile: KESTREL, tick: finishedLine.tick, talkEnded: true };
+    expect(finished.session.dispatch(ended)).toMatchObject({ data: { skipped: true } });
+    finished.live.advance({ ticks: FINAL_TALKING_DELAY_TICKS - 1 });
+    expect(clockOf(finished)).toMatchObject({ paused: true, pauseLocked: true });
+    finished.live.advance({ ticks: 1 });
+    expect(clockOf(finished)).toMatchObject({ paused: false, pauseLocked: false });
+  });
+
+  it('lifts the pause when the line ends after the player went back to tactical', async () => {
+    const c = await onTheMap(105, COMPRESSING);
+    const line = sayLine(c);
+    expect(c.session.dispatch({ type: 'tacticalScreen' })).toMatchObject({ ok: true });
+    expect(clockOf(c)).toMatchObject({ paused: true, pauseLocked: true });
+    c.live.advance({ ticks: line.ticks });
+    expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false });
+  });
+
+  it('never pauses for a line said in tactical', async () => {
+    const c = await squadInA9(107);
+    sayLine(c);
+    expect(clockOf(c)).toMatchObject({ paused: false, pauseLocked: false });
   });
 });

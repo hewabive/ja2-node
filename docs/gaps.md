@@ -68,7 +68,6 @@ NPC records, merc lines, the dialogue queue and quest scripting. Paths are under
 | Area | Original | ja2-node | Notes |
 |---|---|---|---|
 | Dialogue queue conditions | Stop-time quotes: the booby-trap and suspicious-ground lines make tactical modal until they end, then run their caller's callback (`Tactical/Dialogue_Control.cc:1560`, `GameScreen.cc:617`) | None (`narrative/dialogue-queue.ts`) | Comes with its callers, "Booby-trapped items" and the suspicious ground of "Walking side effects"; the modal freeze stops the tactical step and refuses every input |
-| Map screen pause for a line | On the map screen a line from the queue pauses the game under `LOCK_PAUSE_MERC_TALKING` until it ends (`Tactical/Dialogue_Control.cc:639`, `:425`) | The clock runs on while the queue plays a line (`narrative/dialogue-queue.ts`) | Changes the world time of map screen lines, Skyrider's among them |
 | Rebel basement trapdoor | Going down to the hideout opens A10's trapdoor and moves the crate (`Tactical/Interface_Dialogue.cc:1609`) | The hooks do nothing (`campaign/narrative/npc-action-flow.ts`) | The crate needs writes into an unloaded sector's diff |
 
 ## 4. Agent API

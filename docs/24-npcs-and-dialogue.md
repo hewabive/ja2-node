@@ -86,6 +86,13 @@ the 1500 ms AI pause and the minute a named NPC idles after talking run on the t
 the `skipLine` input (logged and replayed): a click or Backspace ends it at once, the end of a viewer's voice or text
 keeps the closing 300 ms, and every cut emits `lineCut` so all viewers end it. Agents can set `speech: skip`.
 
+**A line on the map screen pauses the game.** A quote the queue says while the map screen is up pauses the world clock
+under pause lock 15 (`LOCK_PAUSE_MERC_TALKING`, `TalkState.pausedForLine`) until its face ends, however it ends: its
+time, a `skipLine`, or in tactical after a screen switch. A line said while the game is already paused takes no lock and
+leaves the pause as it was. Compression stays on and runs again at its speed after the line (`29` §4.4). Only the
+queue's quotes pause, not lines from the alternate file, the items-seen line or a merc's trigger line, nor the strategic
+lines ja2-node says as events (deviation "Map screen pause for strategic lines").
+
 **Commands return at once; a waiting panel freezes the campaign.** `talk`, `approach`, `answer`, `give`, `openShop`
 and `unescort` run their step and the queue runs in the following ticks. A panel waiting for the player (no talking
 face, empty queue, no trigger wait or pending conversation, outside a meanwhile scene) or an open NPC request stops
@@ -161,6 +168,8 @@ otherwise:
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
 | A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |
+| A line on the map screen pauses before the speaker checks, so a line its speaker can no longer say pauses the game until the next pass ends the empty face | `dialogue-queue.test.ts` |
+| The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
 | A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
@@ -199,5 +208,5 @@ Inferred from reading the source:
 - The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Not ported: gaps "Dialogue queue conditions", "Map screen pause for a line". Other deviations of this domain: "Lines and
-debug text in the talk panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions". Other deviations of this domain: "Lines and debug text in the talk panel",
+"Opinions of high profile ids", "Releasing an escort", "Key-advance speech", "Map screen pause for strategic lines".

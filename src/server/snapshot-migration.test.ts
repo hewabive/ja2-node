@@ -924,3 +924,43 @@ describe('snapshot version 25 (no bleeding quote flags, no ME_TOO log) migrates 
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function withoutLinePauseFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutLinePauseFlag(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === 'pausedForLine') expect(v).toBe(false);
+    else out[key] = withoutLinePauseFlag(v);
+  }
+  return out;
+}
+
+function versionTwentySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutLinePauseFlag(value)]);
+  return { ...snapshot, version: 26, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 26 (no map screen line pause flag) migrates with no line holding the pause', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionTwentySix(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"pausedForLine"');
+    expect(JSON.stringify(legacy)).not.toContain('"pausedForLine"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

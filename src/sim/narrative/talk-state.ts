@@ -4,8 +4,8 @@
 // @src gubSrcSoldierProfile, gubNiceNPCProfile, gubNastyNPCProfile, gubTargetNPC, gubTargetRecord, gubTargetApproach,
 // @src gfShowDialogueMenu, gfWaitingForTriggerTimer, guiWaitingForTriggerTime, gfConversationPending and the pending
 // @src soldiers; Dialogue_Control.cc ghDialogueQ, gpCurrentTalkingFace,
-// @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn, gubLogForMeTooBleeds; TacticalAI/NPC.cc
-// @src giNPCSpecialReferenceCount;
+// @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn, gubLogForMeTooBleeds, fWasPausedDuringDialogue;
+// @src TacticalAI/NPC.cc giNPCSpecialReferenceCount;
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm.
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
@@ -85,6 +85,7 @@ export interface TalkState {
   lastQuoteProfile: number;
   meTooBleedLog: number;
   engagedSeen: boolean;
+  pausedForLine: boolean;
   inPanel: boolean;
   charNum: number;
   initiatedBy: 'player' | 'npc';
@@ -110,6 +111,7 @@ export function createTalkState(seed = 0): TalkState {
     lastQuoteProfile: NO_PROFILE,
     meTooBleedLog: 0,
     engagedSeen: false,
+    pausedForLine: false,
     inPanel: false,
     charNum: NO_PROFILE,
     initiatedBy: 'player',

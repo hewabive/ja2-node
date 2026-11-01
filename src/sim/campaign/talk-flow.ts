@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_UI.cc HandleTalkInit, GetRangeFromGridNoDiff; Soldier_Control.cc PlayerSoldierStartTalking;
 // @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape and
 // @src DeleteTalkingMenu (Esc closes once the queue is empty and cuts the NPC's line short; the talk
-// @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
+// @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV),
+// @src CharacterDialogue (fInMapMode, GamePaused and LOCK_PAUSE_MERC_TALKING of DialogueEventQuote::Execute);
 // @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead);
 // @src Interface_Items.cc HandleItemPointerClick (the give branch,
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
@@ -92,7 +93,15 @@ import { townIdOfSector } from '../strategic/map/control.ts';
 import { MikeGreeting } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { Warp } from '../strategic/time/constants.ts';
-import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, warpGameTime, worldDay } from '../strategic/time/world-clock.ts';
+import {
+  lockPauseState,
+  pauseGame,
+  unLockPauseState,
+  unPauseGame,
+  type WorldClock,
+  warpGameTime,
+  worldDay,
+} from '../strategic/time/world-clock.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
@@ -122,6 +131,7 @@ import { MercKind, type RosterMerc } from './roster.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
+const LOCK_PAUSE_MERC_TALKING = 15;
 const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const VALIDATED_TALK_RANGE = NPC_TALK_RADIUS * 2;
@@ -253,6 +263,16 @@ function civQuoteView(said: CivQuoteSaid): Json {
 }
 
 const rangeBetween = talkRange;
+
+function pauseUnderLock(clock: WorldClock, on: boolean, lock: number): void {
+  if (on) {
+    pauseGame(clock);
+    lockPauseState(clock, lock);
+  } else {
+    unLockPauseState(clock);
+    unPauseGame(clock);
+  }
+}
 
 export class TalkFlow {
   readonly host: NarrativeHost;
@@ -476,15 +496,10 @@ export class TalkFlow {
         if (t) t.engagedInConv = on;
       },
       engaged: () => this.#t?.engagedInConv === true,
-      pauseForConversation: (on) => {
-        if (on) {
-          pauseGame(state.clock);
-          lockPauseState(state.clock, LOCK_PAUSE_ENGAGED_IN_CONV);
-        } else {
-          unLockPauseState(state.clock);
-          unPauseGame(state.clock);
-        }
-      },
+      pauseForConversation: (on) => pauseUnderLock(state.clock, on, LOCK_PAUSE_ENGAGED_IN_CONV),
+      inMapMode: () => state.flow === 'strategic',
+      gamePaused: () => state.clock.paused,
+      pauseForLine: (on) => pauseUnderLock(state.clock, on, LOCK_PAUSE_MERC_TALKING),
       selectTalker: (s) => {
         const t = this.#t;
         const merc = campaign.strategic?.mercs.get(s.id);
@@ -519,6 +534,10 @@ export class TalkFlow {
 
   dialogueIdle(): boolean {
     return dialogueIdle(this.talk);
+  }
+
+  linePauseHeld(): boolean {
+    return this.talk.pausedForLine;
   }
 
   scriptedSequence(): boolean {

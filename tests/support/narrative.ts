@@ -106,6 +106,7 @@ export interface FakeHostOptions {
   readonly civilian?: Readonly<Record<number, NpcRecord[]>>;
   readonly assignments?: Readonly<Record<number, number>>;
   readonly asleep?: readonly number[];
+  readonly inMapMode?: boolean;
 }
 
 export interface FakeHost extends NarrativeHost {
@@ -117,11 +118,17 @@ export interface FakeHost extends NarrativeHost {
   readonly quests: NarrativeHost['quests'];
   readonly drawsTaken: number[];
   engagedFlag: boolean;
+  mapMode: boolean;
   paused: boolean;
+  pauseLocked: boolean;
+  pauseLockReason: number;
   now: number;
   today: number;
   advance(ticks?: number): void;
 }
+
+export const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
+export const LOCK_PAUSE_MERC_TALKING = 15;
 
 export function fakeHost(options: FakeHostOptions = {}): FakeHost {
   const content: NpcRecordContent = {
@@ -157,6 +164,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
   const values = new Map<number, boolean>(Object.entries(options.facts ?? {}).map(([k, v]) => [Number(k), v]));
   const quests = new Map<number, number>(Object.entries(options.quests ?? {}).map(([k, v]) => [Number(k), v]));
   const draws = [...(options.draws ?? [])];
+  const pauseUnderLock = (on: boolean, reason: number): void => {
+    if (on) Object.assign(host, { paused: true, pauseLocked: true, pauseLockReason: reason });
+    else Object.assign(host, { pauseLocked: false, paused: false });
+  };
   const host: FakeHost = {
     emitted: [],
     factLog: [],
@@ -164,7 +175,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     questLog: [],
     drawsTaken: [],
     engagedFlag: false,
+    mapMode: options.inMapMode ?? false,
     paused: false,
+    pauseLocked: false,
+    pauseLockReason: 0,
     now: 0,
     today: options.day ?? 1,
     records: createNpcRecordState(),
@@ -243,9 +257,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
       tactical.engagedInConv = on;
     },
     engaged: () => host.engagedFlag,
-    pauseForConversation: (on) => {
-      host.paused = on;
-    },
+    pauseForConversation: (on) => pauseUnderLock(on, LOCK_PAUSE_ENGAGED_IN_CONV),
+    inMapMode: () => host.mapMode,
+    gamePaused: () => host.paused,
+    pauseForLine: (on) => pauseUnderLock(on, LOCK_PAUSE_MERC_TALKING),
     selectTalker: () => {},
     isDealer: () => false,
     openShop: () => {},

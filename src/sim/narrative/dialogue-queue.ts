@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Dialogue_Control.cc HandleDialogue, DialogueEvent::Add, EmptyDialogueQueue, DialogueQueueIsEmpty,
-// @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue (with the ME_TOO bleeding line),
-// @src BeginLoggingForBleedMeToos, CharacterDialogue (DialogueEventQuote,
-// @src with the sleeping speaker's wake), MakeCharacterDialogueEventSleep, CharacterDialogueUsingAlternateFile,
+// @src src/game/Tactical/Dialogue_Control.cc HandleDialogue (with the end of a line's map screen pause),
+// @src DialogueEvent::Add, EmptyDialogueQueue, DialogueQueueIsEmpty, DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote,
+// @src TacticalCharacterDialogue (with the ME_TOO bleeding line), BeginLoggingForBleedMeToos, CharacterDialogue
+// @src (DialogueEventQuote, with the map screen pause under LOCK_PAUSE_MERC_TALKING and the sleeping speaker's wake),
+// @src MakeCharacterDialogueEventSleep, CharacterDialogueUsingAlternateFile,
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
 // @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech), InternalShutupaYoFace
@@ -225,6 +226,18 @@ function wakeSpeakerForHisLine(host: NarrativeHost, speaker: number): void {
   addDialogueEvent(host, { kind: 'backToSleep', speaker });
 }
 
+function pauseMapScreenForLine(host: NarrativeHost): void {
+  if (!host.inMapMode?.() || host.gamePaused?.()) return;
+  host.pauseForLine?.(true);
+  host.talk.pausedForLine = true;
+}
+
+function endLinePause(host: NarrativeHost): void {
+  if (!host.talk.pausedForLine) return;
+  host.talk.pausedForLine = false;
+  host.pauseForLine?.(false);
+}
+
 function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'quote' }>): boolean {
   if (e.alternate) {
     executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record, true);
@@ -232,6 +245,7 @@ function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'qu
   }
   const t = host.tactical();
   if (e.delayed && t && t.turn.currentTeam !== Team.OUR) return true;
+  pauseMapScreenForLine(host);
   wakeSpeakerForHisLine(host, e.speaker);
   host.talk.lastQuoteSaid = e.quote;
   host.talk.lastQuoteProfile = e.speaker;
@@ -317,6 +331,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
   }
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
+  endLinePause(host);
   return true;
 }
 

@@ -690,6 +690,23 @@ function addBleedingQuoteState(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ENGAGED_SEEN_KEY = 'engagedSeen';
+const PAUSED_FOR_LINE_KEY = 'pausedForLine';
+
+function withLinePauseFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withLinePauseFlag(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withLinePauseFlag(v);
+  return isTalkStateRecord(mapped) ? insertAfter(mapped, ENGAGED_SEEN_KEY, PAUSED_FOR_LINE_KEY, false) : mapped;
+}
+
+function addLinePauseFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withLinePauseFlag(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -717,5 +734,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     23: addPickedOwnershipCheck,
     24: addObjectMissions,
     25: addBleedingQuoteState,
+    26: addLinePauseFlag,
   };
 }

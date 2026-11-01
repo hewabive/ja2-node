@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order),
+// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order, the pause lock first),
 // @src AnyUsableRealMercenariesOnTeam; Strategic/MapScreen.cc UpdatePausedStatesDueToTimeCompression;
 // @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
 // @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
@@ -392,7 +392,7 @@ export class CampaignSim {
       afterAdvance: () => this.#clearFlashingEnemyCounts(),
       compressionModeSet: () => teamJackedInAndGearedToGo(this, () => (this.#hooks.loadStartSector ?? loadStartSector)(this)),
       timeCompressionStarted: () => this.#clearTacticalStuffDueToTimeCompression(),
-      compressionRefusal: () => this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
+      compressionRefusal: () => this.#pauseLockRefusal() ?? this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
     };
   }
 
@@ -413,9 +413,12 @@ export class CampaignSim {
   }
 
   compressionRefusalToken(): string | null {
-    if (this.state.clock.pauseLocked) return 'pauseLocked';
     const reason = this.#clock.compressionRefusal();
     return reason === null ? null : compressionRefusalToken(reason);
+  }
+
+  #pauseLockRefusal(): string | null {
+    return this.state.clock.pauseLocked ? COMPRESSION_REFUSALS.pauseLocked : null;
   }
 
   #defaultRefusal(): string | null {
@@ -511,7 +514,7 @@ export class CampaignSim {
         if (this.shop?.isOpen()) return 'shopOpen: a shop is open, closeShop first';
         return this.laptop?.modalRefusal() ?? null;
       },
-      compressing: () => isTimeBeingCompressed(this.state.clock),
+      compressing: () => this.#compressing(),
       startCompression: (mode?: number) => {
         const refused = this.#compress(mode === undefined ? { type: 'compressTime' } : { type: 'compressTime', mode });
         if (!refused.ok) return refused.reason ?? 'time cannot be compressed';
@@ -528,7 +531,7 @@ export class CampaignSim {
   #syncClockEvents(): void {
     const c = this.state.clock;
     const session = this.state.session;
-    const compressing = isTimeBeingCompressed(c);
+    const compressing = this.#compressing();
     if (compressing !== session.compressing) {
       session.compressing = compressing;
       if (compressing) this.#events.push({ type: 'compressionStarted', mode: c.mode, tick: session.tick });
@@ -609,7 +612,16 @@ export class CampaignSim {
     if (this.endgame.active() || s.meanwhile.trying || s.meanwhile.inScene) return false;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle() && (this.talk?.isIdle() ?? true);
-    return !isTimeBeingCompressed(s.clock);
+    return !isTimeBeingCompressed(s.clock) && !this.#linePauseHeld();
+  }
+
+  #linePauseHeld(): boolean {
+    return this.talk?.linePauseHeld() ?? false;
+  }
+
+  #compressing(): boolean {
+    const c = this.state.clock;
+    return isTimeBeingCompressed(c) || (this.#linePauseHeld() && c.compressionOn && c.mode !== CompressMode.X0);
   }
 
   hasPendingDecision(): boolean {

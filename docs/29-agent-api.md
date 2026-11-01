@@ -141,11 +141,19 @@ notification is a client setting: an agent that wants the original's stop passes
 beside its time target.
 
 `compressionStarted {mode}` and `compressionStopped {reason}` follow whether time runs compressed
-(`IsTimeBeingCompressed`), so a speed picked while time stands and an unpause start it too.
+(`IsTimeBeingCompressed`), so a speed picked while time stands and an unpause start it too; a line's pause (below) marks
+neither.
 `tacticalClearedForCompression` marks only a start by the start toggle (`StartTimeCompression`: `compressTime` without
 `mode`, or an `advance` without `mode` that starts compression): the loaded sector's soldiers have stopped, their AI
 actions and the game events not yet dequeued are gone, and the client empties its tactical message log, shown and queued
 lines (`15` §2). The message list of §7 keeps every entry.
+
+A line the dialogue queue says on the map pauses the game until it ends, as the original's `DialogueEventQuote` does
+(`24`): world time stands for the line's ticks, the clock shows `paused` and `pauseLocked`, and `compressTime` is
+refused with `pauseLocked`, a new speed too (`stopTime` still works). Compression that was on runs again at its speed
+after the line, and a strategic `advance` runs through it; `advance {idle}` on the map waits for the line's end. A line
+said while the game is already paused takes no lock and leaves the pause. The strategic lines ja2-node says as events
+(assignment done, contracts, Skyrider) pause nothing (deviation "Map screen pause for strategic lines").
 
 ### 4.5 Conversations in game time
 

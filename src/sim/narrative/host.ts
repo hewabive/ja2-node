@@ -80,6 +80,9 @@ export interface NarrativeHost extends RecordsEnv {
   setEngaged(on: boolean): void;
   engaged(): boolean;
   pauseForConversation(on: boolean): void;
+  inMapMode?(): boolean;
+  gamePaused?(): boolean;
+  pauseForLine?(on: boolean): void;
   selectTalker(s: Soldier): void;
   isDealer(profile: number): boolean;
   openShop(dealer: number): void;

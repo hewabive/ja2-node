@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { type FakeHost, fakeHost, testSoldier } from '../../../tests/support/narrative.ts';
+import { type FakeHost, fakeHost, LOCK_PAUSE_MERC_TALKING, testSoldier } from '../../../tests/support/narrative.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import type { PathEnv } from '../tactical/pathfinding.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
-import { stepDialogue } from './converse.ts';
+import { finishTalkingFace, shutUpTalkingFace, stepDialogue } from './converse.ts';
 import {
+  addDialogueEvent,
   beginLoggingForBleedMeToos,
   characterDialogue,
+  characterDialogueUsingAlternateFile,
   delayedTacticalCharacterDialogue,
+  emptyDialogueQueue,
+  FINAL_TALKING_DELAY_TICKS,
   signalItemLocatorStart,
   tacticalCharacterDialogue,
 } from './dialogue-queue.ts';
@@ -203,5 +207,152 @@ describe('the ME_TOO bleeding line (Dialogue_Control.cc TacticalCharacterDialogu
     beginLoggingForBleedMeToos(host.talk, false);
     tacticalCharacterDialogue(host, third, MercQuote.STARTING_TO_BLEED);
     expect(queuedQuotes(host)).toEqual([MercQuote.HEADSHOT, MercQuote.STARTING_TO_BLEED, MercQuote.STARTING_TO_BLEED]);
+  });
+});
+
+describe('the map screen pause for a line (Dialogue_Control.cc DialogueEventQuote::Execute, HandleDialogue)', () => {
+  const GUIDE_QUOTE = 1;
+  const UNPAUSED = { paused: false, pauseLocked: false };
+
+  function mercOnTheMap(): { host: FakeHost; merc: Soldier } {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    return { host: fakeHost({ soldiers: [merc], inMapMode: true }), merc };
+  }
+
+  function pauseOf(host: FakeHost): { paused: boolean; pauseLocked: boolean } {
+    return { paused: host.paused, pauseLocked: host.pauseLocked };
+  }
+
+  function untilTheFaceEnds(host: FakeHost): void {
+    host.advance((host.talk.face?.busyUntil ?? host.now) - host.now);
+  }
+
+  function pausesWhileTheQueueRuns(host: FakeHost): boolean[] {
+    const paused: boolean[] = [];
+    for (let i = 0; i < LINE_BUDGET && (host.talk.queue.length > 0 || host.talk.face !== null); i++) {
+      stepDialogue(host);
+      paused.push(host.paused);
+      host.advance();
+    }
+    return paused;
+  }
+
+  it('pauses the game under LOCK_PAUSE_MERC_TALKING while the line plays and lifts the pause and the lock when its face ends', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+    expect({ ...pauseOf(host), reason: host.pauseLockReason }).toEqual({
+      paused: true,
+      pauseLocked: true,
+      reason: LOCK_PAUSE_MERC_TALKING,
+    });
+    expect(host.talk.pausedForLine).toBe(true);
+    host.advance((host.talk.face?.busyUntil ?? 0) - host.now - 1);
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });
+    host.advance();
+    stepDialogue(host);
+    expect(host.talk.face).toBeNull();
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+    expect(host.talk.pausedForLine).toBe(false);
+  });
+
+  it('keeps the game paused from one line to the next: one ends and the next starts in the same pass', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    tacticalCharacterDialogue(host, merc, MercQuote.KILLED_AN_ENEMY);
+    const paused = pausesWhileTheQueueRuns(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT, MercQuote.KILLED_AN_ENEMY]);
+    expect(paused.slice(0, -1).every(Boolean)).toBe(true);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+
+  it('says a line in a pause it did not make without locking it, and leaves the game paused after it', () => {
+    const { host, merc } = mercOnTheMap();
+    host.paused = true;
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: false });
+    runQueueToTheEnd(host);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: false });
+    expect(host.talk.pausedForLine).toBe(false);
+  });
+
+  it('never pauses for a line said outside the map screen', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    expect(pausesWhileTheQueueRuns(host).some(Boolean)).toBe(false);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+  });
+
+  it("pauses only for a queued quote: the alternate file's line, the items-seen line and a merc's trigger line play unpaused", () => {
+    const { host, merc } = mercOnTheMap();
+    characterDialogueUsingAlternateFile(host, MERC_PROFILE, GUIDE_QUOTE);
+    signalItemLocatorStart(host, merc);
+    addDialogueEvent(host, { kind: 'pcTriggerNpc', speaker: MERC_PROFILE, quote: MercQuote.HEADSHOT, npc: OTHER_PROFILE, record: 0 });
+    expect(pausesWhileTheQueueRuns(host).some(Boolean)).toBe(false);
+    expect(mercQuotesSaid(host)).toHaveLength(3);
+  });
+
+  it('pauses for a line its speaker can no longer say until the next pass ends the empty face', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    tacticalOf(host).explosives.gassed[merc.id] = 1;
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([]);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+
+  it('lifts the pause at once when the line is cut short', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });
+    host.advance();
+    expect(shutUpTalkingFace(host)).toBe(true);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+
+  it('lifts the pause after the closing 300 ms when a viewer finished the line', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    expect(finishTalkingFace(host)).toBe(true);
+    host.advance(FINAL_TALKING_DELAY_TICKS - 1);
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });
+    host.advance();
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+
+  it('lifts the pause when the face ends even after the queue was emptied under it', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    tacticalCharacterDialogue(host, merc, MercQuote.KILLED_AN_ENEMY);
+    stepDialogue(host);
+    expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });
+    emptyDialogueQueue(host);
+    untilTheFaceEnds(host);
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+
+  it('lifts a pause lock it did not take: one lock flag, so a conversation engaged during the line loses its pause', () => {
+    const { host, merc } = mercOnTheMap();
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    host.mapMode = false;
+    host.setEngaged(true);
+    untilTheFaceEnds(host);
+    stepDialogue(host);
+    expect(host.engaged()).toBe(true);
+    expect(pauseOf(host)).toEqual(UNPAUSED);
   });
 });
