@@ -12,6 +12,7 @@ import {
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { parseSectorString, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import type { StrategicGroupView, StrategicMercView } from '../../../protocol/view.ts';
 import { sectorInfo } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import type { BattleEntryHook } from './battle-entry.ts';
@@ -26,6 +27,21 @@ const UNCONSCIOUS_LIFE = 10;
 const BLOODCAT_SECTOR = 'D14';
 const BLOODCAT_PLACEMENTS = 5;
 const BLOODCAT_TRIP_SECONDS = 6 * 3600;
+const BOXES = 'interface/boxes.sti';
+const ARRIVING_ARROWS = 'interface/merc_mvt_green_arrows.sti';
+const BETWEEN_ARROWS = 'interface/merc_between_sector_icons.sti';
+const SMALL_YELLOW_BOX = 0;
+const SMALL_RED_BOX = 6;
+const RETREAT_SECTOR = 'C13';
+const NORTH_ARROW_FROM_BATTLE_SECTOR = { frame: 0, x: 548, y: 73 };
+const SECTOR_BEFORE_BATTLE = 'C13';
+const SECTOR_BEFORE_MERC = 99;
+const BATTLE_SECTOR_FIRST_ICON = { x: 545, y: 83 };
+const ICON_STEP_X = 3;
+const NORTH = 0;
+const EAST = 1;
+const LEAVING_TO = 'D14';
+const LEAVING_MINUTES = 30;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -100,6 +116,23 @@ async function finishBattle(f: MapUiTest): Promise<void> {
   await f.click('arFinish');
   f.deliver();
   await frames(f, FRAME_MS * 4);
+}
+
+type ImageItem = Extract<DrawItem, { readonly kind: 'image' }>;
+
+function images(f: MapUiTest, asset: string, frame?: number): ImageItem[] {
+  return f
+    .draw()
+    .items.filter((i): i is ImageItem => i.kind === 'image' && i.asset === asset && (frame === undefined || i.frame === frame));
+}
+
+function pointAt(f: MapUiTest, x: number, y: number): void {
+  f.t.runtime.input({ kind: 'pointerMove', x, y, button: 0, buttons: 0, wheel: 0, modifiers: 0 });
+  f.t.frame(FRAME_MS);
+}
+
+function iconSlot(slot: number): { x: number; y: number } {
+  return { x: BATTLE_SECTOR_FIRST_ICON.x + slot * ICON_STEP_X, y: BATTLE_SECTOR_FIRST_ICON.y };
 }
 
 function screenId(f: MapUiTest): string | null {
@@ -285,6 +318,55 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
       await f.dispose();
     }
   });
+
+  it('shows the retreat arrows toward the previous sector and hides the squad while the pointer is on the Retreat button', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      const { rect } = f.widget('preBattleRetreat');
+      expect(f.client.view.strategic?.groups.map((g) => g.prev)).toEqual([RETREAT_SECTOR]);
+      expect(images(f, BOXES, SMALL_YELLOW_BOX)).toHaveLength(f.mercs.length);
+      expect(images(f, ARRIVING_ARROWS)).toEqual([]);
+      pointAt(f, rect.x + 1, rect.y + 1);
+      expect(images(f, ARRIVING_ARROWS).map(({ frame, x, y }) => ({ frame, x, y }))).toEqual([NORTH_ARROW_FROM_BATTLE_SECTOR]);
+      expect(images(f, BETWEEN_ARROWS)).toEqual([]);
+      expect(images(f, BOXES, SMALL_YELLOW_BOX)).toEqual([]);
+      pointAt(f, rect.x + rect.width + 1, rect.y + 1);
+      expect(images(f, ARRIVING_ARROWS)).toEqual([]);
+      expect(images(f, BOXES, SMALL_YELLOW_BOX)).toHaveLength(f.mercs.length);
+    }));
+
+  it('counts the pixel past the bottom right of the Retreat button as on it, as the original bounds include it', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      const { rect } = f.widget('preBattleRetreat');
+      pointAt(f, rect.x + rect.width, rect.y + rect.height);
+      expect(images(f, ARRIVING_ARROWS)).toHaveLength(1);
+      pointAt(f, rect.x + rect.width, rect.y + rect.height + 1);
+      expect(images(f, ARRIVING_ARROWS)).toEqual([]);
+    }));
+
+  it('draws the enemies of the sector the squad retreats from after the icons of the sector drawn before it', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      const mercs = f.client.view.strategic?.mercs as StrategicMercView[];
+      const squadMerc = mercs[0];
+      if (!squadMerc) throw new Error('no merc in the view');
+      mercs.push({ ...squadMerc, id: SECTOR_BEFORE_MERC, sector: SECTOR_BEFORE_BATTLE });
+      f.t.frame(FRAME_MS);
+      const firstEnemy = () => images(f, BOXES, SMALL_RED_BOX)[0];
+      expect(firstEnemy()).toMatchObject(iconSlot(f.mercs.length));
+      const { rect } = f.widget('preBattleRetreat');
+      pointAt(f, rect.x + 1, rect.y + 1);
+      expect(firstEnemy()).toMatchObject(iconSlot(1));
+    }));
+
+  it('shows a group leaving the battle sector as about to arrive back in its previous sector while the panel is up', () =>
+    withBattle(BattleVariant.RETREAT, async (f) => {
+      const groups = f.client.view.strategic?.groups as StrategicGroupView[];
+      const squad = groups[0];
+      if (!squad) throw new Error('no squad in the view');
+      groups[0] = { ...squad, betweenSectors: true, next: LEAVING_TO, nextArrivalMinutes: LEAVING_MINUTES };
+      f.t.frame(FRAME_MS);
+      expect(images(f, ARRIVING_ARROWS).map((i) => i.frame)).toEqual([NORTH]);
+      expect(images(f, BETWEEN_ARROWS).map((i) => i.frame)).toEqual([EAST]);
+    }));
 
   it('opens BATTLE IN PROGRESS from the battle locator during the tactical battle and closes it with Esc', () =>
     withBattle(BattleVariant.RETREAT, async (f) => {

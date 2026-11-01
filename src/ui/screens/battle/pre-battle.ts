@@ -6,8 +6,10 @@
 // @src main panel, the header and its title bars, the uninvolved header, the labels, the columns, the location, the counts
 // @src and the rows of the involved and the uninvolved mercs or None), ActivatePreBattleAutoresolveAction,
 // @src ActivatePreBattleEnterSectorAction, ActivatePreBattleRetreatAction (a, e and r act only on enabled buttons),
-// @src ActivateAutomaticAutoResolveStart (the Autoresolve button shown pressed), KillPreBattleInterface; src/game/Strategic/
-// @src MapScreen.cc HandleKeyESC (Esc closes the non-persistent panel).
+// @src ActivateAutomaticAutoResolveStart (the Autoresolve button shown pressed), KillPreBattleInterface, gpBattleGroup (the
+// @src arriving group, else the group of the first involved merc), gfDisplayPotentialRetreatPaths (set while the pointer
+// @src is within the enabled Retreat button, bounds included); src/game/Strategic/MapScreen.cc HandleKeyESC (Esc closes
+// @src the non-persistent panel).
 
 import { idiv } from '../../../core/int.ts';
 import type { InvolvedMercView, PromptOptionView, StrategicView, UninvolvedMercView } from '../../../protocol/view.ts';
@@ -47,6 +49,8 @@ export const PRE_BATTLE_SCREEN = 'preBattle';
 const OWNER = 'preBattle';
 const SNAPSHOT = 'preBattle.opening';
 const UNKNOWN_ENEMIES = '?';
+const RETREAT_BUTTON = 'preBattleRetreat';
+const CREATURE_ATTACK = 'creatureAttack';
 
 export const PRE_BATTLE_CONTRACT: ControllerContract = {
   id: PRE_BATTLE_SCREEN,
@@ -134,6 +138,19 @@ export class PreBattlePanel {
 
   get opening(): boolean {
     return this.#phase === 'opening';
+  }
+
+  get battleGroupSector(): string | null {
+    const groupLed = this.data.persistent && this.data.encounter !== CREATURE_ATTACK;
+    return groupLed || this.data.involved.length > 0 ? this.data.sector : null;
+  }
+
+  showsRetreatPaths(): boolean {
+    if (this.#phase === 'opening') return false;
+    if (!this.#buttons().find((b) => b.choice === PbiChoice.RETREAT)?.enabled) return false;
+    const rect = this.#view.describe().find((w) => w.id === RETREAT_BUTTON)?.rect;
+    const { mouseX, mouseY } = this.#host.env.runtime.regions;
+    return rect !== undefined && rect.x <= mouseX && mouseX <= rect.x + rect.width && rect.y <= mouseY && mouseY <= rect.y + rect.height;
   }
 
   #buttons(): PbiButtonState[] {

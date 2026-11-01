@@ -292,6 +292,7 @@ export interface StrategicMineView {
 export interface StrategicGroupView {
   readonly id: number;
   readonly sector: string;
+  readonly prev?: string | null;
   readonly next: string | null;
   readonly betweenSectors: boolean;
   readonly members: readonly number[];

@@ -5,7 +5,9 @@
 // @src the sublevel maps with the unvisited sectors filled near black, the mine markers, teams and vehicles or enemies
 // @src with militia, items, the level string), ShadeMapElem (ShadowRect one pixel higher for the black shade, the tinted
 // @src copies of the cell otherwise), InitializePalettesForMap, ShowTownText, ShowOnDutyTeam, ShowAssignedTeam,
-// @src ShowVehicles, ShowEnemiesInSector, ShowUncertainNumberEnemiesInSector, HandleShowingOfEnemyForcesInSector,
+// @src ShowTeamAndVehicles (no team icons in the battle group's sector while the retreat paths show; its enemies keep
+// @src the icon position of the sector drawn before it), ShowVehicles, ShowEnemiesInSector,
+// @src ShowUncertainNumberEnemiesInSector, HandleShowingOfEnemyForcesInSector,
 // @src ShowPeopleInMotion (the arrows of PlayersBetweenTheseSectors with their offsets and SMALLCOMPFONT counts),
 // @src DrawSite, BlitMineText, BlitTownGridMarkers, BlitMineGridMarkers, DisplayLevelString, ShowSAMSitesOnStrategicMap,
 // @src BlitSAMGridMarkers, ShowItemsOnMap, DrawMapBoxIcon, DrawMilitiaForcesForSector, DrawBullseye,
@@ -14,8 +16,10 @@
 // @src src/game/Strategic/MapScreen.cc RenderMapCursorsIndexesAnims (the white hover outline, the yellow selected outline
 // @src flashing white every 300 ms while hovered), RenderMapHighlight; src/game/Strategic/Strategic_Movement.cc
 // @src PlayersBetweenTheseSectors (vehicles count one less, the helicopter group skipped in airspace mode,
-// @src ABOUT_TO_ARRIVE_DELAY); src/game/Strategic/Map_Screen_Interface.cc HandleBlitOfSectorLocatorIcon (hilite.sti, red
-// @src frames from 0 and yellow from 13, ANIMATED_BATTLEICON_FRAME_TIME).
+// @src ABOUT_TO_ARRIVE_DELAY; a group in the battle group's sector counts toward its previous sector as about to arrive;
+// @src the retreat paths show only the arrows out of the battle group's sector, for groups moving or not);
+// @src src/game/Strategic/Map_Screen_Interface.cc HandleBlitOfSectorLocatorIcon (hilite.sti, red frames from 0 and yellow
+// @src from 13, ANIMATED_BATTLEICON_FRAME_TIME).
 
 import { MAP_SIDE, type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -56,6 +60,7 @@ const MAP_HORT_INDEX_Y = 10;
 const MAP_VERT_INDEX_X = 273;
 const MAP_VERT_INDEX_Y = 31;
 const ABOUT_TO_ARRIVE_DELAY = 5;
+const NO_SECTOR = -1;
 const HELI_ICON = 0;
 const HELI_SHADOW_ICON = 1;
 const HELI_OFFSET_X = 1;
@@ -168,6 +173,8 @@ export interface MapViewInput {
   readonly locators: readonly Locator[];
   readonly now: number;
   readonly screenWidth: number;
+  readonly battleGroupSector: Sector | null;
+  readonly retreatPaths: boolean;
 }
 
 export interface MapViewContext {
@@ -572,6 +579,11 @@ interface Traffic {
   aboutToArrive: boolean;
 }
 
+function sectorIndexOf(label: string | null | undefined): number {
+  const s = label ? parseSectorLabel(label) : null;
+  return s ? strategicIndex(s) : NO_SECTOR;
+}
+
 function traffic(input: MapViewInput, from: number, to: number): Traffic {
   const strategic = input.strategic;
   const heli = strategic.helicopter;
@@ -580,6 +592,7 @@ function traffic(input: MapViewInput, from: number, to: number): Traffic {
   const vehicleGroups = new Map((strategic.vehicles ?? []).map((v) => [v.group ?? -1, v]));
   const vehicleMercs = new Set(strategic.mercs.filter((m) => isVehicle(m)).map((m) => m.id));
   const t: Traffic = { leaving: 0, arriving: 0, aboutToArrive: false };
+  const battle = input.battleGroupSector ? strategicIndex(input.battleGroupSector) : NO_SECTOR;
   const groups = [
     ...strategic.groups,
     ...(strategic.vehicles ?? [])
@@ -587,6 +600,7 @@ function traffic(input: MapViewInput, from: number, to: number): Traffic {
       .map((v) => ({
         id: v.group ?? -1,
         sector: v.sector,
+        prev: null,
         next: v.next ?? null,
         betweenSectors: v.betweenSectors,
         members: v.passengers,
@@ -596,19 +610,19 @@ function traffic(input: MapViewInput, from: number, to: number): Traffic {
   for (const g of groups) {
     const isHeli = g.id === heliGroup;
     if (isHeli && input.filters.airspace) continue;
-    if (!g.betweenSectors || !g.next) continue;
-    const cur = parseSectorLabel(g.sector);
-    const next = parseSectorLabel(g.next);
-    if (!cur || !next) continue;
+    if (input.retreatPaths ? battle !== from : !g.betweenSectors) continue;
     const vehicle = vehicleGroups.get(g.id);
     const members = g.members.filter((id) => !vehicleMercs.has(id)).length;
     if (members === 0 && !vehicle) continue;
-    const curId = strategicIndex(cur);
-    const nextId = strategicIndex(next);
-    if (curId === from && nextId === to) {
+    const cur = sectorIndexOf(g.sector);
+    const prev = sectorIndexOf(g.prev);
+    const next = sectorIndexOf(g.next);
+    const mayRetreatFromBattle = battle === from && cur === from && prev === to;
+    const retreatingFromBattle = battle === to && cur === to && prev === from;
+    if (mayRetreatFromBattle || (cur === from && next === to)) {
       t.leaving += members;
-      if ((g.nextArrivalMinutes ?? Number.MAX_SAFE_INTEGER) <= ABOUT_TO_ARRIVE_DELAY) t.aboutToArrive = true;
-    } else if (curId === to && nextId === from) t.arriving += members;
+      if (mayRetreatFromBattle || (g.nextArrivalMinutes ?? Number.MAX_SAFE_INTEGER) <= ABOUT_TO_ARRIVE_DELAY) t.aboutToArrive = true;
+    } else if (retreatingFromBattle || (cur === to && next === from)) t.arriving += members;
   }
   return t;
 }
@@ -644,10 +658,12 @@ function peopleInMotion(ctx: MapViewContext, input: MapViewInput, sector: Sector
 }
 
 function teamsAndVehicles(ctx: MapViewContext, input: MapViewInput, s: Scan, mercs: readonly StrategicMercView[]): void {
+  const retreatingFrom = input.retreatPaths ? input.battleGroupSector : null;
+  let pos = 0;
   for (let x = 1; x <= MAP_SIDE; x++)
     for (let y = 1; y <= MAP_SIDE; y++) {
       const sector = { x, y, z: input.level };
-      const pos = teamIcons(ctx, input.strategic, sector, mercs);
+      if (!sameXyz(retreatingFrom, sector)) pos = teamIcons(ctx, input.strategic, sector, mercs);
       enemyIcons(ctx, input, s, sector, pos);
       peopleInMotion(ctx, input, sector);
     }

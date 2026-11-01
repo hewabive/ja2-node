@@ -1,5 +1,6 @@
 import type { ItemTable } from '../content/items/items.ts';
 import {
+  isValidSector,
   MAP_SIDE,
   type Sector,
   sectorFromStrategicIndex,
@@ -209,6 +210,7 @@ function groupViews(ctx: StrategicContext): StrategicGroupView[] {
       return {
         id: g.id,
         sector: sectorName(g.sector),
+        prev: isValidSector(g.prev) ? sectorName(g.prev) : null,
         next: g.betweenSectors ? sectorName(g.next) : null,
         betweenSectors: g.betweenSectors,
         members: [...g.members],

@@ -67,7 +67,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     session = '';
   });
 
-  test('shows the persistent pre-battle interface of an invasion', async ({ page, request }) => {
+  test('shows the persistent pre-battle interface of an invasion and its retreat arrows', async ({ page, request }) => {
     session = await loadSession(request, saves.names.retreat);
     await openMap(page, session, '&pinClock=1');
     await arrive(page);
@@ -78,6 +78,8 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await imagesLoaded(page);
     expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
     await expectGolden('pre-battle', await capture(page));
+    await pointAtWidget(page, 'preBattleRetreat');
+    await expectGolden('pre-battle-retreat', await capture(page));
   });
 
   test('autoresolves over the shaded map screen', async ({ page, request }) => {

@@ -1887,6 +1887,11 @@ export class MapScreen implements Screen {
     return locators;
   }
 
+  #battleGroupSector(): Sector | null {
+    const label = this.#battle.battleGroupSector;
+    return label ? parseSectorLabel(label) : null;
+  }
+
   #renderMap(list: DrawList, rect: Point, p: LayoutParams): void {
     const strategic = this.#strategic();
     if (!strategic) return;
@@ -1923,6 +1928,8 @@ export class MapScreen implements Screen {
         locators: this.#locators(),
         now: this.#now,
         screenWidth: this.#env.runtime.geometry().width,
+        battleGroupSector: this.#battleGroupSector(),
+        retreatPaths: this.#battle.retreatPaths,
       },
     );
   }

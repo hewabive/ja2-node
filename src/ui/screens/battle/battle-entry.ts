@@ -108,6 +108,14 @@ export class BattleEntry {
     return this.#panel !== null || this.#ar !== null;
   }
 
+  get battleGroupSector(): string | null {
+    return this.#panel?.battleGroupSector ?? null;
+  }
+
+  get retreatPaths(): boolean {
+    return this.#panel?.showsRetreatPaths() ?? false;
+  }
+
   frames(frames: readonly ViewFrame[]): void {
     for (const frame of frames)
       for (const e of frame.events ?? []) if (e.type === 'preBattle' && e.autoStart) this.#autoStart = autoStartData(e) ?? this.#autoStart;

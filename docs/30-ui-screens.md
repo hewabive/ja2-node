@@ -123,9 +123,10 @@ as the original's boxes and close when an agent answers them first (deviation "M
 
 **Battle entry.** The pre-battle panel is part of the map screen, as `gfPreBattleInterfaceActive` is; autoresolve is a
 screen pushed over it. The non-persistent panel is a `preBattle` prompt opened by `showBattle` rather than a summary
-query, so it keeps the original's side effects (the wake-up, the stopped compression) and needs no second code path.
-Autoresolve plays each second's events evenly over the slice, then settles the cells on the view (deviation
-"Autoresolve pace").
+query, so it keeps the original's side effects (the wake-up, the stopped compression) and needs no second code path. The
+map view takes `gpBattleGroup`'s sector from the open panel and, while the pointer is on Retreat, draws the retreat
+arrows from the groups' `prev` (`battle/pre-battle.ts`, `map/map-view.ts`). Autoresolve plays each second's events
+evenly over the slice, then settles the cells on the view (deviation "Autoresolve pace").
 
 **The laptop is a modal flow on the server and pages in the client.** Pages, popups, the Bobby Ray's cart and the I.M.P.
 draft stay in the client until one command carries the decision (deviation "Laptop as commands"); `LaptopMemory` keeps
@@ -182,6 +183,9 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | No greeting after the A.I.M. connection snow: the snow clears the first-contact flag the greeting waits for | `laptop/aim/aim-conference.test.ts` "greets with nothing after the connection snow …" |
 | An A.I.M. distortion line shows its first frame only on its first run: the counter starts at 255 and later runs step past frame 0 | `laptop/aim/aim-distortion.test.ts` "shows the first line frame only on the first run …" |
 | Enter or Space ticks the I.M.P. gender box that has the focus even when no further I.M.P. can be created; only the click checks | `laptop/imp/imp-begin.test.ts` "tick a gender box when no further I.M.P. can be created …" |
+| While the pointer is on the enabled Retreat button the map shows only the arrows out of the battle group's sector, and that sector's enemies keep the icon position of the sector drawn before it, as its team icons are skipped | `battle/battle-entry.test.ts` "draws the enemies of the sector the squad retreats from after the icons …" |
+| The Retreat button's bounds for the retreat arrows include the pixel past its bottom right | `battle/battle-entry.test.ts` "counts the pixel past the bottom right of the Retreat button …" |
+| While the pre-battle panel is up, a group leaving the battle group's sector also shows an about-to-arrive arrow toward its previous sector | `battle/battle-entry.test.ts` "shows a group leaving the battle sector as about to arrive …" |
 | Alt+Load and Alt+C open the load screen until a Dead is Dead game names its save, then load the newest save of any kind for good: Stracciatella sets `bLastSavedGameSlot` (the client setting `lastSavedGameSlot`) only there, to the first list entry | `front-end/front-end.test.ts` "sets the last saved slot to 0 for good …" |
 
 Not pinned yet:
@@ -203,6 +207,6 @@ Inferred or observed in ja2-node only:
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
 cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
-"Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat preview", "Shop screen details",
-"Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "I.M.P. voice samples", "I.M.P.
-skill page and saved profiles".
+"Trash can warning for mission items", "Vehicles as characters", "Shop screen details", "Save location on the canvas",
+"Inert options", "IME composition", "Laptop video faces", "I.M.P. voice samples", "I.M.P. skill page and saved
+profiles".
