@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
+import { loadMapTestFacts } from '../../../../tests/support/strategic.ts';
 import { KeyModifier } from '../../input/events.ts';
 import type { Screen } from '../../screen.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
@@ -328,6 +329,22 @@ describe('the save/load screen', () => {
     f.key('Escape', 'up');
     await f.settle();
     expect(f.screen()).toBe('mainMenu');
+  });
+
+  it('names the town or land type of each save from the map tables: every secret found to load, the running game to save', async () => {
+    f.host.facts = await loadMapTestFacts();
+    f.client.listings = [
+      listing('prison', '2026-10-03T00:00:00Z', { sector: 'J9' }),
+      listing('dungeon', '2026-10-02T00:00:00Z', { sector: 'J9-1' }),
+      listing('start', '2026-10-01T00:00:00Z', { sector: null, world: { day: 1, hour: 1, minute: 0 } }),
+    ];
+    await f.flow.saveLoad('load', 'mainMenu');
+    await f.settle();
+    expect([f.widget('sector0').text, f.widget('sector1').text, f.widget('sector2').text]).toEqual(['J9: Tixa', 'J9: Tixa Dungeon', 'N/A']);
+    await f.client.newCampaign({ options: { difficulty: 1, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true } });
+    await f.flow.saveLoad('save', 'game');
+    await f.settle();
+    expect(f.widget('sector1').text).toBe('J9: Desert');
   });
 
   it('moves the selection with the arrow keys and scrolls a long list with the wheel', async () => {

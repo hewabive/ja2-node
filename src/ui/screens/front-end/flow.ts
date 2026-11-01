@@ -26,6 +26,7 @@ import { Fade, type FadeDirection } from '../../widgets/fade.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import type { RowFeed } from '../credit-roll.ts';
 import type { MapFlow } from '../map/environment.ts';
+import type { MapFacts } from '../map/facts.ts';
 import type { TacticalFlow } from '../tactical/environment.ts';
 import { CreditsController, creditsScreen } from './credits.ts';
 import type { FrontEndEnvironment, SettingsStore } from './environment.ts';
@@ -36,6 +37,7 @@ import { type MainMenuModel, mainMenuScreen } from './main-menu.ts';
 import { OptionsController, type OptionsOrigin, optionsScreen } from './options.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
 import { listedSaves, SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
+import { saveLocationName } from './save-location.ts';
 import { type GameScreenActions, type GameScreenKind, unavailableScreen } from './screen-unavailable.ts';
 
 export type FrontEndMusic = 'mainMenu' | 'none' | 'session';
@@ -76,6 +78,7 @@ export interface FrontEndHost {
   tactical?(): TacticalPort | null;
   map?(): MapPort | null;
   laptop?(): LaptopPort | null;
+  mapFacts?(): Promise<MapFacts | null>;
   playBeginning(): Promise<void>;
   music(mode: FrontEndMusic): void;
   quit(): void;
@@ -307,7 +310,7 @@ export class FrontEndFlow {
   }
 
   async saveLoad(mode: SaveLoadMode, origin: SaveLoadOrigin): Promise<void> {
-    const listings = await this.#refreshListings();
+    const [listings, facts] = await Promise.all([this.#refreshListings(), this.#host.mapFacts?.() ?? null]);
     const leave = () => this.#leaveSaveLoad(origin);
     const controller = new SaveLoadController({
       mode,
@@ -317,6 +320,7 @@ export class FrontEndFlow {
       boxes: this.#env.boxes,
       session: this.#client.session,
       namesSaveOnly: origin === 'gameInit',
+      ...(facts ? { location: saveLocationName(facts, this.#env.text, mode, this.#client.view) } : {}),
       actions: {
         leave,
         saved: () => (this.#client.session ? this.enterGame() : leave()),

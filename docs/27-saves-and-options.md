@@ -254,7 +254,10 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 ### 1.11 Browser surfaces
 
 - The canvas save/load screen on `/play` (`src/ui/screens/front-end/save-load.ts`, `src/ui/saves/`, `30`) follows
-  the original's list: newest first; in save mode quick and auto saves hidden and a new row first.
+  the original's list: newest first; in save mode quick and auto saves hidden and a new row first. A row's location is
+  named from the header's sector with the rule pack's map tables, which the front end loads once
+  (`src/app/game/front-end.ts`, `src/ui/screens/front-end/save-location.ts`): the current tables, not those the save
+  was made with, as in the original.
 - The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load with one warning box, Save as
   new or over a player or quick save, Delete, Download, Upload, and the native saves to import. Its row location and
   tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
@@ -270,10 +273,12 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 | Dead is Dead keeps two backups and never blocks a load | `src/server/save-store.test.ts` "… keeps two backups of a Dead is Dead save", `src/server/save-rules.test.ts` "in Dead is Dead save into the one file …" |
 | Iron Man refuses saves while enemies are in the loaded sector, even outside combat | `src/server/save-rules.test.ts` "in Iron Man refuse saves with enemies in the loaded sector …" |
 | `PreRandom` repeats after a reload until the saved values are used | `src/server/save-service.test.ts` "repeats the saved PreRandom ring after a player load …" |
+| The load screen names a secret's sector as found; the save screen names every row by the running game's secrets (`IsSecretFoundAt`, `Strategic/StrategicMap_Secrets.cc:46`) | `src/ui/screens/front-end/save-location.test.ts` "counts every secret as found on the load screen …" |
+| A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1245`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |
 
 Deviations: "Save side effects", "Schedules on load", "Save compatibility", "Player loads", "Saving in the laptop",
 "Dead is Dead save points", "Error saves", "Cosmetic streams in saves", "Talk context in saves", "Carmen's departure
-timer", "Laptop page state", "Save list in the launcher and on the canvas". Gaps: "Save location on the canvas".
+timer", "Laptop page state", "Save list in the launcher and on the canvas".
 
 ---
 

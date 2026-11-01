@@ -82,7 +82,7 @@ describe('save rows', () => {
     expect(formatDay(labels, null)).toBe('');
     expect(formatMercs(labels, 1)).toBe('1 <merc>');
     expect(formatMercs(labels, 5)).toBe('5 <mercs>');
-    expect(formatLocation(labels, 'B13-1', null)).toBe('B13-1');
+    expect(formatLocation(labels, { x: 13, y: 2, z: 1 }, null)).toBe('B13-1');
     expect(formatLocation(labels, null, { day: 1, hour: 1, minute: 0 })).toBe('<notApplicable>');
     expect(formatLocation(labels, null, { day: 1, hour: 1, minute: 1 })).toBe('<noSector>');
   });

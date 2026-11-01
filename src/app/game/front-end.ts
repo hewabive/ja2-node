@@ -1,4 +1,7 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
+import { liveRuleReader } from '../../content/rules/rule-reader.ts';
+import { loadEconomyContent } from '../../content/strategic/economy-content.ts';
+import { loadStrategicContent } from '../../content/strategic/strategic-content.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import type { AssetKey } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
@@ -17,9 +20,11 @@ import {
 } from '../../ui/screens/front-end/flow.ts';
 import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
+import { type MapFacts, mapFacts } from '../../ui/screens/map/facts.ts';
 import type { StoryLayer } from '../../ui/screens/story/story-layer.ts';
 import type { Labels } from '../../ui/text/labels.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
+import type { AssetSource } from '../assets/asset-source.ts';
 import { CreditRowFeed, fetchCreditRow } from '../credits/rows.ts';
 import { bootLaptopScreen } from '../laptop/laptop-boot.ts';
 import { fetchHealth } from '../launcher/api.ts';
@@ -27,6 +32,7 @@ import { fetchLabels } from '../launcher/labels.ts';
 import { MapHost } from '../map/map-host.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { fetchVfsFile } from '../net/vfs.ts';
+import { manifestRuleListing } from '../rules/client-rules.ts';
 import { TacticalHost } from '../tactical/tactical-host.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
 import { beginningPlan, sequenceEnabled } from '../video/sequences.ts';
@@ -83,6 +89,12 @@ function loadScreenOf(frames: readonly ViewFrame[]): number | null {
 
 function startsAutoresolve(frames: readonly ViewFrame[]): boolean {
   return frames.some((f) => f.events?.some((e) => e.type === 'preBattle' && e.autoStart));
+}
+
+async function loadMapFacts(source: AssetSource): Promise<MapFacts> {
+  const reader = liveRuleReader(manifestRuleListing(source.manifest), (path) => source.read(path));
+  const content = await loadStrategicContent(reader.read);
+  return mapFacts(content, await loadEconomyContent(reader.read, content.towns));
 }
 
 function versionLabel(engine: { readonly version: string; readonly commit: string } | undefined): string {
@@ -201,6 +213,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     return created;
   };
   const video = createSequenceMonitor();
+  let saveMapFacts: Promise<MapFacts | null> | null = null;
   const host: FrontEndHost = {
     version: versionLabel(health?.engine),
     playBeginning: async () => {
@@ -214,6 +227,10 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       return () => feed.take();
     },
     random: (range) => random.int(range),
+    mapFacts: () => {
+      saveMapFacts ??= loadMapFacts(ui.source).catch(() => null);
+      return saveMapFacts;
+    },
     tactical: () => (client.client ? tacticalPort(tacticalFor(client.client)) : null),
     map: () => (client.client ? mapPort(mapFor(client.client)) : null),
     laptop: () => {

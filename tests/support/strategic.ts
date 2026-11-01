@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadEconomyContent } from '../../src/content/strategic/economy-content.ts';
 import type { MovementCosts } from '../../src/content/strategic/map-tables.ts';
 import type { Sector } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
@@ -15,11 +16,19 @@ import type {
   TravelStat,
 } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
+import { type MapFacts, mapFacts } from '../../src/ui/screens/map/facts.ts';
 
 const DATA_DIR = join(import.meta.dirname, '../../data');
 
+const readData = async (path: string) => new Uint8Array(readFileSync(join(DATA_DIR, path)));
+
 export function loadStrategicTestContent(): Promise<StrategicContent> {
-  return loadStrategicContent(async (path) => new Uint8Array(readFileSync(join(DATA_DIR, path))));
+  return loadStrategicContent(readData);
+}
+
+export async function loadMapTestFacts(): Promise<MapFacts> {
+  const content = await loadStrategicTestContent();
+  return mapFacts(content, await loadEconomyContent(readData, content.towns));
 }
 
 export function withMovementCosts(content: StrategicContent, movementCosts: MovementCosts): StrategicContent {

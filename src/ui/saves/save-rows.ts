@@ -4,8 +4,9 @@
 // @src SaveLoadSelectedSave (one warning box before a load); src/game/Laptop/Finances.cc InternalSPrintMoney;
 // @src src/game/Strategic/Game_Clock.h STARTING_TIME; src/sgp/Types.cc SGPSector::IsValid.
 
-import { isValidSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import { isValidSector, type Sector } from '../../content/strategic/sector-ids.ts';
 import type { GameOptions, Health, LoadWarning, SaveHeader, SaveKind, SaveListing, SessionKind, WorldTime } from '../client/api-types.ts';
+import { parseSectorLabel, sectorLabel } from '../screens/map/facts.ts';
 import type { LabelId, Labels } from '../text/labels.ts';
 
 const SECONDS_PER_DAY = 86_400;
@@ -33,6 +34,8 @@ const WARNING_LABELS: Readonly<Record<LoadWarning, LabelId>> = {
   dataVersionDiffers: 'dataVersionDiffers',
   stubPackDiffers: 'stubPackDiffers',
 };
+
+export type SectorName = (sector: Sector) => string;
 
 export interface SaveRow {
   readonly name: string;
@@ -72,13 +75,8 @@ function worldSeconds(world: WorldTime | null): number {
   return world ? world.day * SECONDS_PER_DAY + world.hour * SECONDS_PER_HOUR + world.minute * SECONDS_PER_MINUTE : 0;
 }
 
-function nativeSectorString(s: { readonly x: number; readonly y: number; readonly z: number }): string | null {
-  if (!isValidSector(s)) return null;
-  return s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s);
-}
-
-export function formatLocation(labels: Labels, sector: string | null, world: WorldTime | null): string {
-  if (sector) return sector;
+export function formatLocation(labels: Labels, sector: Sector | null, world: WorldTime | null, name: SectorName = sectorLabel): string {
+  if (sector && isValidSector(sector)) return name(sector);
   return worldSeconds(world) <= STARTING_TIME ? labels.text('notApplicable') : labels.text('noSector');
 }
 
@@ -97,7 +95,11 @@ function optionLines(labels: Labels, options: GameOptions): string[] {
   ];
 }
 
-function ownRow(listing: Extract<SaveListing, { native: false }>, labels: Labels): SaveRow {
+function savedSector(header: SaveHeader): Sector | null {
+  return header.sector === null ? null : parseSectorLabel(header.sector);
+}
+
+function ownRow(listing: Extract<SaveListing, { native: false }>, labels: Labels, name: SectorName): SaveRow {
   const header = listing.header;
   const tooltip = header
     ? [...optionLines(labels, header.options), `${labels.text('dataVersion')}: ${header.content.dataVersion}`, listing.name]
@@ -108,7 +110,7 @@ function ownRow(listing: Extract<SaveListing, { native: false }>, labels: Labels
     kind: header?.kind ?? null,
     session: header?.session ?? null,
     date: formatDay(labels, header?.world ?? null),
-    sector: header ? formatLocation(labels, header.sector, header.world) : '',
+    sector: header ? formatLocation(labels, savedSector(header), header.world, name) : '',
     mercs: header ? formatMercs(labels, header.mercs) : '',
     balance: header ? formatMoney(header.balance) : '',
     description: header?.description ?? listing.name,
@@ -119,7 +121,7 @@ function ownRow(listing: Extract<SaveListing, { native: false }>, labels: Labels
   };
 }
 
-function nativeRow(listing: Extract<SaveListing, { native: true }>, labels: Labels): SaveRow {
+function nativeRow(listing: Extract<SaveListing, { native: true }>, labels: Labels, name: SectorName): SaveRow {
   const header = listing.header;
   return {
     name: listing.name,
@@ -127,7 +129,7 @@ function nativeRow(listing: Extract<SaveListing, { native: true }>, labels: Labe
     kind: null,
     session: null,
     date: formatDay(labels, header.world),
-    sector: formatLocation(labels, nativeSectorString(header.sector), header.world),
+    sector: formatLocation(labels, header.sector, header.world, name),
     mercs: formatMercs(labels, header.mercs),
     balance: formatMoney(header.balance),
     description: header.description,
@@ -138,8 +140,8 @@ function nativeRow(listing: Extract<SaveListing, { native: true }>, labels: Labe
   };
 }
 
-export function saveRow(listing: SaveListing, labels: Labels): SaveRow {
-  return listing.native ? nativeRow(listing, labels) : ownRow(listing, labels);
+export function saveRow(listing: SaveListing, labels: Labels, name: SectorName = sectorLabel): SaveRow {
+  return listing.native ? nativeRow(listing, labels, name) : ownRow(listing, labels, name);
 }
 
 export function predictLoadWarnings(

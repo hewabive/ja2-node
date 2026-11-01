@@ -19,6 +19,7 @@ import {
   type SettingsStore,
 } from '../../src/ui/screens/front-end/environment.ts';
 import { FrontEndFlow, type FrontEndHost, type FrontEndMusic, type LaptopPort } from '../../src/ui/screens/front-end/flow.ts';
+import type { MapFacts } from '../../src/ui/screens/map/facts.ts';
 import { type ClientSettings, DEFAULT_SETTINGS, type SettingsChange, updateSettings } from '../../src/ui/settings.ts';
 import { Labels } from '../../src/ui/text/labels.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
@@ -182,9 +183,14 @@ export class FakeHost implements FrontEndHost {
   quits = 0;
   beginnings = 0;
   laptopPort: LaptopPort | null = null;
+  facts: MapFacts | null = null;
 
   laptop(): LaptopPort | null {
     return this.laptopPort;
+  }
+
+  async mapFacts(): Promise<MapFacts | null> {
+    return this.facts;
   }
 
   async playBeginning(): Promise<void> {
@@ -275,6 +281,7 @@ export async function frontEndTest(): Promise<FrontEndTest> {
     rowFeed: () => host.rowFeed(),
     random: (range) => host.random(range),
     laptop: () => host.laptop(),
+    mapFacts: () => host.mapFacts(),
   });
   const all = () => t.runtime.describe();
   const find = (id: string) => all().find((w) => w.id === id);

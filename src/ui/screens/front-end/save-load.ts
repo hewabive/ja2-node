@@ -17,7 +17,7 @@ import type { NumberExpr } from '../../layout/types.ts';
 import type { LayoutView } from '../../layout/view.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { SaveController } from '../../saves/save-controller.ts';
-import { type SaveRow, saveRow } from '../../saves/save-rows.ts';
+import { type SaveRow, type SectorName, saveRow } from '../../saves/save-rows.ts';
 import type { Labels } from '../../text/labels.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { type FrontEndEnvironment, FrontEndLayout, FrontEndScreen } from './environment.ts';
@@ -101,6 +101,7 @@ export interface SaveLoadDeps {
   readonly boxes: MessageBoxes;
   readonly session: string | null;
   readonly namesSaveOnly: boolean;
+  readonly location?: SectorName;
   readonly actions: SaveLoadActions;
 }
 
@@ -179,7 +180,10 @@ export class SaveLoadController extends ViewModelController {
 
   setListings(listings: readonly SaveListing[]): void {
     const labels = this.#deps.labels();
-    const entries: Entry[] = listedSaves(listings, this.#deps.mode).map((listing) => ({ listing, row: saveRow(listing, labels) }));
+    const entries: Entry[] = listedSaves(listings, this.#deps.mode).map((listing) => ({
+      listing,
+      row: saveRow(listing, labels, this.#deps.location),
+    }));
     this.#entries = this.#deps.mode === 'save' ? [{ listing: null, row: null }, ...entries] : entries;
     this.#selected = this.#entries.length > 0 ? 0 : NO_SELECTION;
     this.view.scrollTop = Math.min(this.view.scrollTop, this.#scrollMax());
