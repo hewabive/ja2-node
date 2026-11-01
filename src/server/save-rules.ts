@@ -25,7 +25,7 @@ export type SaveRefusal = (typeof SAVE_REFUSALS)[number];
 export type SaveRequestKind = 'player' | 'quick';
 
 export const SAVE_REFUSAL_MESSAGES: Readonly<Record<SaveRefusal, string>> = {
-  conversation: 'a conversation is open or the dialogue queue is busy',
+  conversation: 'a conversation is open, or someone has something to say outside tactical',
   meanwhileStarting: 'a meanwhile scene is starting or playing',
   promptOpen: 'a decision prompt is open',
   shopOpen: 'a shop is open',
@@ -60,7 +60,9 @@ export function inTurnBasedCombat(sim: SessionSim): boolean {
 
 function conversationOpen(campaign: CampaignSim): boolean {
   const talk = campaign.talk;
-  return talk !== null && (talk.view() !== null || talk.scriptedSequence() || !talk.isIdle());
+  if (talk === null) return false;
+  if (talk.view() !== null || talk.scriptedSequence()) return true;
+  return campaign.state.flow !== 'tactical' && !talk.isIdle();
 }
 
 function meanwhileStarting(campaign: CampaignSim): boolean {

@@ -28,8 +28,6 @@ interface SessionSummary {
   readonly session: string;
   readonly options?: Record<string, unknown>;
   readonly language?: string;
-  readonly canSave?: boolean;
-  readonly tick?: number;
 }
 
 type Tables = Readonly<Record<string, string | readonly string[]>>;
@@ -53,11 +51,6 @@ async function strings(page: Page, lang: string): Promise<Tables> {
 function entry(tables: Tables, table: string, index: number): string {
   const value = tables[table];
   return typeof value === 'string' ? value : (value?.[index] ?? '');
-}
-
-async function summary(page: Page, session: string): Promise<SessionSummary | undefined> {
-  const sessions = (await page.evaluate(async () => (await fetch('/api/sessions')).json())) as SessionSummary[];
-  return sessions.find((s) => s.session === session);
 }
 
 async function deleteSaves(page: Page): Promise<void> {
@@ -112,10 +105,7 @@ test('the launcher starts a campaign with options, the tactical page quick saves
   expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
   await page.waitForFunction(() => (window as unknown as PageHooks).__ja2SaveKeys?.ready);
   const english = await strings(page, 'eng');
-  await page.click('#idle');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toMatch(/^advanced to \d+: idle$/);
-  expect((await summary(page, session))?.canSave).toBe(true);
-  const savedAt = (await summary(page, session))?.tick ?? -1;
+  const savedAt = await page.evaluate(() => window.__ja2Tactical.tick);
   const saved = await quick(page, 'KeyS', 'saves', 0);
   expect(saved.last).toEqual({ action: 'save', ok: true, text: entry(english, 'pMessageStrings', MSG_SAVE_SUCCESS) });
   await expect.poll(() => page.evaluate(() => window.__ja2Tactical.lastResult)).toBe(saved.last?.text);

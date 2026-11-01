@@ -148,9 +148,9 @@ it again), the civilian hint drop, the hostile-quote speaker, the guide's countd
 presentation (a civilian's line, the merc who answers Miguel, an own merc's bark, the guide who speaks) use the
 session's cosmetic stream `TalkState.fx` (deviation "Cosmetic draws in dialogue").
 
-**Saving.** ja2-node refuses a save while a conversation is open or the queue is busy (`29`) and keeps the whole talk
-state in its saves. A native save is believed never to be made in a conversation, so its import starts the session
-empty.
+**Saving.** ja2-node refuses a save while a conversation is open or, outside tactical, the queue is busy (`27`), and
+keeps the whole talk state in its saves. A native save is believed never to be made in a conversation, so its import
+starts the session empty.
 
 ## 3. Quirks of the original the code keeps
 

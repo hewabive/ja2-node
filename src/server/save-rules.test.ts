@@ -132,6 +132,21 @@ describe('save rules', () => {
     });
   });
 
+  it('refuse saves while someone has something to say on the map screen, not in tactical', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 8, campaign: {} });
+      const campaign = campaignOf(session).campaign;
+      expect(campaign.state.flow).toBe('tactical');
+      expect(campaign.talk?.isIdle()).toBe(false);
+      expect(saveRefusal(session.sim)).toBeNull();
+      expect(session.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: true });
+      expect(campaign.talk?.isIdle()).toBe(false);
+      expect(saveRefusal(session.sim)).toBe('conversation');
+      session.advance({ idle: true });
+      expect(saveRefusal(session.sim)).toBeNull();
+    });
+  });
+
   it('in Iron Man refuse saves with enemies in the loaded sector and in combat, and never autosave', async () => {
     await withKit(async (k) => {
       const writes = recordWrites(k);
@@ -139,8 +154,6 @@ describe('save rules', () => {
       expect(await k.saves.save(laptop, { name: 'laptop' })).toMatchObject({ ok: true });
       const session = await k.open({ seed: 8, campaign: { saveMode: 'ironMan' } });
       expect(campaignOf(session).campaign.state.options.saveMode).toBe('ironMan');
-      expect(await k.saves.save(session, { name: 'ironman' })).toMatchObject({ ok: false, refused: 'conversation' });
-      session.advance({ idle: true });
       expect(await k.saves.save(session, { name: 'ironman' })).toMatchObject({ ok: false, refused: 'ironMan' });
       expect(describeSession(session)).toMatchObject({ saveMode: 'ironMan', canSave: false, saveRefusal: 'ironMan' });
       approachUntilCombat(session, true);
@@ -158,7 +171,6 @@ describe('save rules', () => {
       const writes = recordWrites(k);
       const session = await k.open({ seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME } });
       expect(await k.saves.save(session, { description: 'mine' })).toMatchObject({ ok: false, refused: 'deadIsDead' });
-      session.advance({ idle: true });
       expect(await k.saves.save(session, { name: 'quick' })).toMatchObject({ ok: true, name: DEAD_IS_DEAD_NAME, kind: 'deadIsDead' });
       expect(session.advance({ ticks: 5 }).events.some((e) => (e as { type: string }).type === 'gameSaved')).toBe(false);
       approachUntilCombat(session, true);
@@ -189,7 +201,6 @@ describe('save rules', () => {
       await k.saves.flush();
       expect(writes.slice(beforeLoad).map((w) => w.name)).toEqual([DEAD_IS_DEAD_NAME]);
       const shutdownSession = await k.open({ seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: 'Shutdown' } });
-      shutdownSession.advance({ idle: true });
       await k.saves.shutdown();
       expect(writes.at(-1)).toMatchObject({ name: 'Shutdown', tick: shutdownSession.sim.tick });
       expect(await k.store.read('Shutdown')).not.toBeNull();
