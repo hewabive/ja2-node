@@ -8,7 +8,8 @@
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
-// @src (away slots of off-map soldiers).
+// @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
+// @src before UpdateMercsInSector).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -38,7 +39,7 @@ import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
 import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
-import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
+import { lightSetBaseLevel, lightSpriteRenderAll, loadMapLights } from './lighting/lighting.ts';
 import { type AddedExitGrid, applyMapChanges, exitGridChange, type MapChange, MapChangeKind, structTileChange } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
@@ -243,8 +244,13 @@ export function loadSavedSectorChanges(sim: TacticalSim, saved: SavedSectorChang
     standHelicopter();
     for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
     applyDoorStatus(t, saved.doorStatus ?? []);
+    initLoadedWorld(t);
   });
+}
+
+function initLoadedWorld(t: TacticalState): void {
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+  lightSpriteRenderAll(t);
 }
 
 function withSoldiersOffTheMap(t: TacticalState, load: () => void): void {
