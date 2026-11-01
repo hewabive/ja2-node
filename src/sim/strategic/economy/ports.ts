@@ -90,6 +90,9 @@ export interface EconomyHooks {
   animateWakingUp(id: number): void;
   animateAssignmentDone(id: number): void;
   animateAssignment(id: number): void;
+  tacticalCharacterDialogue(id: number, quote: number): void;
+  makeCharacterDialogueEventSleep(id: number, asleep: boolean): void;
+  headMinerDialogue(mine: number, profile: number, quote: number): void;
 }
 
 export type DecisionAnswer = 'yes' | 'no' | 'defer';
@@ -147,6 +150,9 @@ export const defaultEconomyHooks: EconomyHooks = {
   animateWakingUp: () => {},
   animateAssignmentDone: () => {},
   animateAssignment: () => {},
+  tacticalCharacterDialogue: () => {},
+  makeCharacterDialogueEventSleep: () => {},
+  headMinerDialogue: () => {},
 };
 
 export const deferringDecisions: EconomyDecisions = {

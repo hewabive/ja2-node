@@ -13,10 +13,13 @@ import {
   characterDialogueUsingAlternateFile,
   delayedTacticalCharacterDialogue,
   emptyDialogueQueue,
+  externalNpcDialogue,
   FINAL_TALKING_DELAY_TICKS,
+  handleImportantMercQuote,
   signalItemLocatorStart,
   tacticalCharacterDialogue,
 } from './dialogue-queue.ts';
+import { NarrativeProfile } from './narrative-ids.ts';
 
 const MERC_PROFILE = 5;
 const OTHER_PROFILE = 6;
@@ -354,5 +357,115 @@ describe('the map screen pause for a line (Dialogue_Control.cc DialogueEventQuot
     stepDialogue(host);
     expect(host.engaged()).toBe(true);
     expect(pauseOf(host)).toEqual(UNPAUSED);
+  });
+});
+
+describe('an important merc line (Dialogue_Control.cc HandleImportantMercQuote)', () => {
+  const CONTRACTS_OVER = 89;
+
+  it('wakes a sleeping merc with an event before his line and puts him back to sleep with one after it', () => {
+    const { host, merc } = sleepingMerc();
+    handleImportantMercQuote(host, merc, CONTRACTS_OVER);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['wakeUp', 'quote', 'backToSleep']);
+    stepDialogue(host);
+    expect(host.mercAsleep?.(merc)).toBe(false);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['quote', 'backToSleep']);
+    runQueueToTheEnd(host);
+    expect(mercQuotesSaid(host)).toEqual([CONTRACTS_OVER]);
+    expect(host.mercAsleep?.(merc)).toBe(true);
+  });
+
+  it('queues the wake and the sleep events even when the merc may not say the line', () => {
+    const { host, merc } = sleepingMerc();
+    merc.gassed = true;
+    handleImportantMercQuote(host, merc, CONTRACTS_OVER);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['wakeUp', 'backToSleep']);
+  });
+
+  it("queues an awake merc's line alone", () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    handleImportantMercQuote(host, merc, CONTRACTS_OVER);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['quote']);
+  });
+});
+
+describe('the merc a line is about', () => {
+  it('rides the queue with the line and comes out as the subject of its mercQuote', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT, OTHER_PROFILE);
+    stepDialogue(host);
+    expect(host.emitted).toContainEqual(expect.objectContaining({ type: 'mercQuote', id: MercQuote.HEADSHOT, subject: OTHER_PROFILE }));
+  });
+});
+
+describe('an external face (Dialogue_Control.cc CharacterDialogue with DIALOGUE_EXTERNAL_NPC_UI)', () => {
+  const SKYRIDER_SAYS_HI = 23;
+  const FRED = 106;
+  const FRED_RUNNING_OUT = 17;
+  const FREDS_MINE = 2;
+
+  function onTheMap(): FakeHost {
+    return fakeHost({ inMapMode: true });
+  }
+
+  it("says Skyrider's line without a soldier, as a skyriderQuote, and pauses the map screen while it plays", () => {
+    const host = onTheMap();
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    stepDialogue(host);
+    expect(host.emitted).toEqual([
+      expect.objectContaining({ type: 'skyriderQuote', profile: NarrativeProfile.SKYRIDER, quote: SKYRIDER_SAYS_HI, chars: 10 }),
+    ]);
+    expect({ paused: host.paused, pauseLocked: host.pauseLocked }).toEqual({ paused: true, pauseLocked: true });
+    runQueueToTheEnd(host);
+    expect(host.paused).toBe(false);
+  });
+
+  it("says a head miner's line as a headMinerQuote of his mine", () => {
+    const host = onTheMap();
+    Object.assign(host, { headMinerMine: (profile: number) => (profile === FRED ? FREDS_MINE : -1) });
+    externalNpcDialogue(host, FRED, FRED_RUNNING_OUT);
+    stepDialogue(host);
+    expect(host.emitted).toEqual([
+      expect.objectContaining({ type: 'headMinerQuote', mine: FREDS_MINE, profile: FRED, quote: FRED_RUNNING_OUT }),
+    ]);
+  });
+
+  it('waits its turn behind the lines queued before it', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc], inMapMode: true });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    externalNpcDialogue(host, NarrativeProfile.SKYRIDER, SKYRIDER_SAYS_HI);
+    stepDialogue(host);
+    expect(host.emitted.map((e) => e.type)).toEqual(['mercQuote']);
+    runQueueToTheEnd(host);
+    expect(host.emitted.map((e) => e.type)).toEqual(['mercQuote', 'skyriderQuote']);
+  });
+});
+
+describe('a special event that waits (DialogueEvent::Execute returning true)', () => {
+  it('stays at the head of the queue while its callback asks to wait, and runs with its arguments once it may', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    let open = true;
+    const ran: (readonly number[])[] = [];
+    Object.assign(host, {
+      dialogueCallback: (_name: string, args: readonly number[]) => {
+        if (open) return true;
+        ran.push(args);
+        return false;
+      },
+    });
+    addDialogueEvent(host, { kind: 'callback', name: 'test:menu', args: [3, 1] });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    stepDialogue(host);
+    stepDialogue(host);
+    expect(host.talk.queue.map((e) => e.kind)).toEqual(['callback', 'quote']);
+    expect(mercQuotesSaid(host)).toEqual([]);
+    open = false;
+    runQueueToTheEnd(host);
+    expect(ran).toEqual([[3, 1]]);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
   });
 });

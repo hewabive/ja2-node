@@ -274,11 +274,20 @@ describe('the map screen pause for a line in a campaign (Dialogue_Control.cc Dia
     const stopped = await onTheMap(98, null);
     const line = sayLine(stopped);
     expect(stopped.session.dispatch({ type: 'compressTime' })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
-    expect(stopped.live.advance({ worldSeconds: 600 }).reason).toBe('refused');
     const idle = stopped.live.advance({ idle: true });
     expect(idle.tick).toBe(line.tick + line.ticks);
     expect(clockOf(stopped)).toMatchObject({ paused: false, pauseLocked: false });
     expect(stopped.session.dispatch({ type: 'compressTime' })).toMatchObject({ ok: true });
+  });
+
+  it('starts compression for a strategic advance only once the line has ended', async () => {
+    const c = await onTheMap(109, null);
+    const before = clockOf(c).seconds;
+    const line = sayLine(c);
+    const report = c.live.advance({ worldSeconds: 600 });
+    expect(report.reason).toBe('worldTime');
+    expect(report.events.find((e) => e.type === 'compressionStarted')?.tick).toBe(line.tick + line.ticks);
+    expect(clockOf(c).seconds).toBeGreaterThanOrEqual(before + 600);
   });
 
   it('says a line in a pause it did not make without locking it, and leaves the game paused after it', async () => {

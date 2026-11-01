@@ -160,9 +160,13 @@ lines (`15` §2). The message list of §7 keeps every entry.
 A line the dialogue queue says on the map pauses the game until it ends, as the original's `DialogueEventQuote` does
 (`24`): world time stands for the line's ticks, the clock shows `paused` and `pauseLocked`, and `compressTime` is
 refused with `pauseLocked`, a new speed too (`stopTime` still works). Compression that was on runs again at its speed
-after the line, and a strategic `advance` runs through it; `advance {idle}` on the map waits for the line's end. A line
-said while the game is already paused takes no lock and leaves the pause. The strategic lines ja2-node says as events
-(assignment done, contracts, Skyrider) pause nothing (deviation "Map screen pause for strategic lines").
+after the line, and a strategic `advance` runs through it; one that would start compression waits for the queued lines
+to end first, and `advance {idle}` on the map waits for the queue to empty. A line said while the game is already paused
+takes no lock and leaves the pause; while lines wait in the queue `compressTime` is refused with `dialogueQueued`. The
+strategic lines go through this queue as in the original: assignment done, the tired complaint, contract,
+relationship and morale lines, Skyrider and the head miners. Their `mercQuote`, `skyriderQuote` and `headMinerQuote`
+events come when the queue says them, after the lines queued before, not at the step that caused them; a line whose
+speaker can no longer talk when its turn comes is not said, and a save is refused while lines play (`27`).
 
 ### 4.5 Conversations in game time
 
@@ -482,8 +486,9 @@ away, dead elsewhere, the M.E.R.C. outage) raise no event; they show in the view
 Rules: `22`; `src/sim/campaign/contracts/`. Map screen only: the original has no contract menu in tactical. A merc who
 refuses an extension says so: `extendContract` answers `ok: true` with `extended: false` and the reason. The renewal
 sequence, the departure box and the insurance box are prompts in `observe.contractPrompt` (deviations "Contract renewal
-sequence", "Contract prompts"). `contractOptions` gives the renewal menu's options and shading without opening the
-sequence.
+sequence", "Contract prompts"). The renewal menu and the departure box wait behind the merc's lines in the dialogue
+queue, as in the original: a `dismiss` or a renewal opens its prompt once his lines are said, so `advance` stops with
+`decision` then. `contractOptions` gives the renewal menu's options and shading without opening the sequence.
 
 ### 8.13 Merchants
 

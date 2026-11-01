@@ -6,12 +6,23 @@
 // @src MercDismissConfirmCallBack, RemoveMercMenuBtnCallback; Tactical/Dialogue_Control.cc CanSayQuote; Tactical/Campaign.cc
 // @src ChangeStat (salary and the M.E.R.C. level-up email event); Strategic/Strategic_Merc_Handler.cc
 // @src StrategicHandlePlayerTeamMercDeath (history, insurance, M.E.R.C. contract end); Strategic/Strategic.cc
-// @src HandleSoldierDeadComments; Tactical/Overhead.cc HandlePlayerTeamMemberDeath (buddy quotes).
+// @src HandleSoldierDeadComments; Tactical/Overhead.cc HandlePlayerTeamMemberDeath (buddy quotes); Merc_Contract.cc
+// @src DialogueEventContract, MakeCharacterDialogueEventContractEnding(NoAskEquip), MapScreen.cc
+// @src MakeDialogueEventEnterMapScreen, Map_Screen_Interface.cc MakeDialogueEventShowContractMenu (the endings and the
+// @src renewal menu as dialogue events behind the lines, 2026-11-01).
 
 import { sectorFromId, sectorShortString } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
 import type { CommandRefused, CommandResult } from '../../command.ts';
 import type { SimEvent } from '../../events.ts';
+import {
+  addDialogueEvent,
+  delayedTacticalCharacterDialogue,
+  handleImportantMercQuote,
+  tacticalCharacterDialogue,
+} from '../../narrative/dialogue-queue.ts';
+import type { NarrativeHost } from '../../narrative/host.ts';
+import { dialogueQueueIsEmptyAndNobodyIsTalking } from '../../narrative/talk-state.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import type { EconomyContext } from '../../strategic/economy/ports.ts';
 import { type BattlePrompt, nextPromptId, PromptKind } from '../../strategic/forces/battle-state.ts';
@@ -87,6 +98,19 @@ import {
 import { rpcWhineAboutNoPay } from './rpc-pay.ts';
 import { raiseSalaries } from './salary.ts';
 
+export const CONTRACT_CALLBACKS = 'contract';
+const ContractCallback = {
+  RENEWAL: `${CONTRACT_CALLBACKS}:renewal`,
+  MENU: `${CONTRACT_CALLBACKS}:menu`,
+  DEPARTURE: `${CONTRACT_CALLBACKS}:departure`,
+  WITHOUT_EQUIPMENT: `${CONTRACT_CALLBACKS}:withoutEquipment`,
+  ENTER_MAP_SCREEN: `${CONTRACT_CALLBACKS}:enterMapScreen`,
+} as const;
+const ENDING_CALLBACKS: Readonly<Record<PendingEnding['kind'], string>> = {
+  departure: ContractCallback.DEPARTURE,
+  withoutEquipment: ContractCallback.WITHOUT_EQUIPMENT,
+  enterMapScreen: ContractCallback.ENTER_MAP_SCREEN,
+};
 const LOCK_PAUSE_CONTRACT_RENEWAL = 7;
 const LOCK_PAUSE_CONTRACT_ENDING = 8;
 const LEVEL_EMAIL_DELAY_MINUTES = 60;
@@ -139,6 +163,10 @@ function noSuchMerc(): CommandRefused {
 
 function soldierArg(cmd: Command): number | null {
   return typeof cmd.soldier === 'number' && Number.isInteger(cmd.soldier) ? cmd.soldier : null;
+}
+
+function mercAbout(subject: number | undefined): number | undefined {
+  return subject !== undefined && subject >= 0 ? subject : undefined;
 }
 
 function canSayQuote(m: RosterMerc): boolean {
@@ -209,16 +237,94 @@ export class ContractFlow implements ContractContext {
     return battle.moraleContext();
   }
 
+  get #dialogue(): NarrativeHost | null {
+    return this.campaign.talk?.host ?? null;
+  }
+
   say(m: RosterMerc, quote: QuoteName, subject?: number): void {
+    const host = this.#dialogue;
+    if (host) tacticalCharacterDialogue(host, m.soldier, Quote[quote], mercAbout(subject));
+    else this.#emitQuote(m, quote, subject);
+  }
+
+  sayImportant(m: RosterMerc, quote: QuoteName, subject?: number): void {
+    const host = this.#dialogue;
+    if (host) handleImportantMercQuote(host, m.soldier, Quote[quote], mercAbout(subject));
+    else this.#emitQuote(m, quote, subject);
+  }
+
+  sayDelayed(m: RosterMerc, quote: QuoteName): void {
+    const host = this.#dialogue;
+    if (host) delayedTacticalCharacterDialogue(host, m.soldier, Quote[quote]);
+    else this.#emitQuote(m, quote);
+  }
+
+  #emitQuote(m: RosterMerc, quote: QuoteName, subject?: number): void {
     if (!canSayQuote(m)) return;
+    const about = mercAbout(subject);
     this.emit({
       type: 'mercQuote',
       soldier: m.id,
       profile: m.profile,
       quote: quoteKey(quote),
       id: Quote[quote],
-      ...(subject !== undefined && subject >= 0 ? { subject } : {}),
+      ...(about !== undefined ? { subject: about } : {}),
     });
+  }
+
+  queueEnding(e: PendingEnding): void {
+    const host = this.#dialogue;
+    const args = e.kind === 'departure' ? [e.soldier, e.rehire ? 1 : 0] : [e.soldier];
+    if (host) addDialogueEvent(host, { kind: 'callback', name: ENDING_CALLBACKS[e.kind], args });
+    else this.contracts.pendingEndings.push(e);
+  }
+
+  #queueCallback(name: string, args: readonly number[]): void {
+    const host = this.#dialogue;
+    if (host) addDialogueEvent(host, { kind: 'callback', name, args });
+    else this.dialogueCallback(name, args);
+  }
+
+  #dialogueBusy(): boolean {
+    const host = this.#dialogue;
+    return host !== null && !dialogueQueueIsEmptyAndNobodyIsTalking(host.talk);
+  }
+
+  dialogueCallback(name: string, args: readonly number[]): boolean {
+    const s = this.state;
+    if (s.battle.prompt || s.flow === 'autoresolve') return true;
+    const [soldier = -1, flag = 0] = args;
+    switch (name) {
+      case ContractCallback.RENEWAL:
+        this.#renewalMenuEvent(soldier, flag === 1);
+        break;
+      case ContractCallback.MENU:
+        this.#showRenewalMenu(soldier);
+        break;
+      case ContractCallback.DEPARTURE:
+        this.#processEnding({ kind: 'departure', soldier, rehire: flag === 1 });
+        break;
+      case ContractCallback.WITHOUT_EQUIPMENT:
+        this.#processEnding({ kind: 'withoutEquipment', soldier });
+        break;
+      case ContractCallback.ENTER_MAP_SCREEN:
+        this.#processEnding({ kind: 'enterMapScreen', soldier });
+        break;
+    }
+    return false;
+  }
+
+  #renewalMenuEvent(soldier: number, wantsToRenew: boolean): void {
+    const m = this.roster.get(soldier);
+    if (!m) return;
+    if (wantsToRenew) checkIfSalaryIncreasedAndSayQuote(this, m);
+    this.contracts.renewal.fromSequence = true;
+    this.#queueCallback(ContractCallback.MENU, [m.id]);
+  }
+
+  #showRenewalMenu(soldier: number): void {
+    const m = this.roster.get(soldier);
+    if (m) this.#openRenewal(m);
   }
 
   emit(e: ContractEventWithoutTick): void {
@@ -344,7 +450,9 @@ export class ContractFlow implements ContractContext {
       return { kind: 'next' };
     }
     seq.inProgress = true;
-    startRenewalQuotes(this, m);
+    const wantsToRenew = willMercRenew(this, m, false);
+    startRenewalQuotes(this, m, wantsToRenew);
+    this.#queueCallback(ContractCallback.RENEWAL, [m.id, wantsToRenew ? 1 : 0]);
     return { kind: 'menu', merc: m };
   }
 
@@ -360,22 +468,13 @@ export class ContractFlow implements ContractContext {
           this.campaign.refreshPauseState();
           return false;
         case 'waiting':
-          this.#openRenewal(step.merc);
-          return false;
-        case 'menu':
-          this.#openRenewalMenu(step.merc);
+          if (!this.#dialogueBusy()) this.#openRenewal(step.merc);
           return false;
         default:
           return false;
       }
     }
     return false;
-  }
-
-  #openRenewalMenu(m: RosterMerc): void {
-    if (willMercRenew(this, m, false)) checkIfSalaryIncreasedAndSayQuote(this, m);
-    this.contracts.renewal.fromSequence = true;
-    this.#openRenewal(m);
   }
 
   #openPrompt(prompt: PromptWithoutId): void {
@@ -488,8 +587,8 @@ export class ContractFlow implements ContractContext {
         break;
       case 'rehire':
         this.enterMapScreen();
-        checkIfSalaryIncreasedAndSayQuote(this, m);
-        this.#openRenewal(m);
+        if (checkIfSalaryIncreasedAndSayQuote(this, m)) this.#queueCallback(ContractCallback.MENU, [m.id]);
+        else this.#openRenewal(m);
         break;
     }
     this.campaign.refreshPauseState();
@@ -589,7 +688,7 @@ export class ContractFlow implements ContractContext {
     if (!m) return;
     this.say(m, e.quote, e.about);
     if (e.type !== 'quit') return;
-    this.contracts.pendingEndings.push({ kind: 'departure', soldier: m.id, rehire: false });
+    this.queueEnding({ kind: 'departure', soldier: m.id, rehire: false });
     m.contract.leaveHistoryCode = HistoryCode.MERC_QUIT;
   }
 

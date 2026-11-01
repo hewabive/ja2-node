@@ -414,3 +414,66 @@ describe("the loaded sector's animations of assignments and sleep", () => {
     expect(calls).toEqual(['0 falls asleep', '0 wakes up']);
   });
 });
+
+function recordLines(made: ReturnType<typeof context>): string[] {
+  const lines: string[] = [];
+  Object.assign(made.ctx.hooks, {
+    tacticalCharacterDialogue: (id: number, quote: number) => lines.push(`${id} says ${quote}`),
+    makeCharacterDialogueEventSleep: (id: number, asleep: boolean) => lines.push(`${id} ${asleep ? 'sleeps' : 'wakes'} after`),
+  });
+  return lines;
+}
+
+describe('the lines of done assignments and tired mercs (Assignments.cc AssignmentDone, HandleRestFatigueAndSleepStatus)', () => {
+  const ASSIGNMENT_COMPLETE = 35;
+  const NEED_SLEEP = 25;
+  const ME_TOO = 73;
+  const TIRED_BREATH_MAX = 30;
+  const NEARLY_DEAD_TIRED = 11;
+
+  it('has a doctor, a patient and a repairman say the done line once until they get work again', () => {
+    const made = context();
+    const lines = recordLines(made);
+    const doctor = merc(made, { id: 0, assignment: Assignment.DOCTOR });
+    const patient = merc(made, { id: 1, assignment: Assignment.PATIENT });
+    const repairman = merc(made, { id: 2, assignment: Assignment.REPAIR });
+    const trainee = merc(made, { id: 3, assignment: Assignment.TRAIN_SELF });
+    for (const s of [doctor, patient, repairman, trainee, doctor]) assignmentDone(made.ctx, s, true, true);
+    expect(lines).toEqual([`0 says ${ASSIGNMENT_COMPLETE}`, `1 says ${ASSIGNMENT_COMPLETE}`, `2 says ${ASSIGNMENT_COMPLETE}`]);
+  });
+
+  it('has a militia trainer say the done line at the end of every session, before the once-only check, but not his partners', () => {
+    const made = context();
+    const lines = recordLines(made);
+    const trainer = merc(made, { id: 0, assignment: Assignment.TRAIN_TOWN });
+    const partner = merc(made, { id: 1, assignment: Assignment.TRAIN_TOWN });
+    assignmentDone(made.ctx, trainer, true, false);
+    assignmentDone(made.ctx, partner, false, false);
+    assignmentDone(made.ctx, trainer, true, false);
+    assignmentDone(made.ctx, trainer, true, true);
+    expect(lines).toEqual([`0 says ${ASSIGNMENT_COMPLETE}`, `0 says ${ASSIGNMENT_COMPLETE}`]);
+  });
+
+  it('has the first tired merc on a squad say he needs sleep, the next ones me too, each once until rested', () => {
+    const made = context();
+    const lines = recordLines(made);
+    for (const id of [0, 1]) merc(made, { id, assignment: Assignment.SQUAD_1, breathMax: TIRED_BREATH_MAX });
+    merc(made, { id: 2, assignment: Assignment.DOCTOR, breathMax: TIRED_BREATH_MAX });
+    handleRestFatigueAndSleepStatus(made.ctx);
+    handleRestFatigueAndSleepStatus(made.ctx);
+    expect(lines).toEqual([`0 says ${NEED_SLEEP}`, `1 says ${ME_TOO}`]);
+    expect(made.ctx.events.filter((e) => e.type === 'tiredComplaint').map((e) => e.soldier)).toEqual([0, 1]);
+  });
+
+  it('has a dead-tired squad merc who drops asleep say he needs sleep, never me too, and queue his sleep after the line', () => {
+    const made = context();
+    const lines = recordLines(made);
+    merc(made, { id: 0, assignment: Assignment.SQUAD_1, breathMax: TIRED_BREATH_MAX });
+    const collapsing = merc(made, { id: 1, assignment: Assignment.SQUAD_1, breathMax: NEARLY_DEAD_TIRED, inSector: true });
+    let enemyChecks = 0;
+    Object.assign(made.ctx.world, { enemyInSector: () => enemyChecks++ === 0 });
+    handleRestFatigueAndSleepStatus(made.ctx);
+    expect(lines).toEqual([`0 says ${NEED_SLEEP}`, `1 says ${NEED_SLEEP}`, '1 sleeps after']);
+    expect(collapsing).toMatchObject({ breathMax: 10, asleep: true, collapsed: true });
+  });
+});

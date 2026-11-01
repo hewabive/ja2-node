@@ -1,10 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc CalcSoldierNeedForSleep, RestCharacter, FatigueCharacter, CharacterIsTakingItEasy,
-// @src HandleRestFatigueAndSleepStatus, SetMercAsleep, PutMercInAsleepState, SetMercAwake, PutMercInAwakeState,
+// @src HandleRestFatigueAndSleepStatus (with the tired complaints through the dialogue queue, 2026-11-01), SetMercAsleep,
+// @src PutMercInAsleepState, SetMercAwake, PutMercInAwakeState,
 // @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving.
 
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
 import { getGroup } from '../forces/groups.ts';
 import {
   canCharacterBeAwakened,
@@ -118,18 +120,31 @@ function onSquadOrInVehicle(s: CrewMember): boolean {
   return isOnSquad(s) || s.assignment === Assignment.VEHICLE;
 }
 
-function restOrSleep(ctx: EconomyContext, s: CrewMember): void {
+interface SleepQuote {
+  quote: number;
+}
+
+function complainAndDrop(ctx: EconomyContext, s: CrewMember, sleepQuote: SleepQuote): void {
+  ctx.hooks.tacticalCharacterDialogue(s.id, MercQuote.NEED_SLEEP);
+  ctx.hooks.makeCharacterDialogueEventSleep(s.id, true);
+  sleepQuote.quote = MercQuote.ME_TOO;
+}
+
+function restOrSleep(ctx: EconomyContext, s: CrewMember, sleepQuote: SleepQuote): void {
   if (characterIsTakingItEasy(ctx, s)) restCharacter(s);
   else fatigueCharacter(ctx, s);
   if (s.asleep) return;
   if (s.breathMax <= BREATHMAX_ABSOLUTE_MINIMUM) {
     if (s.betweenSectors || !setMercAsleep(ctx, s)) return;
+    if (onSquadOrInVehicle(s)) complainAndDrop(ctx, s, sleepQuote);
     s.collapsed = true;
     ctx.events.push({ type: 'fellAsleep', soldier: s.id, collapsed: true });
   } else if (s.breathMax < BREATHMAX_PRETTY_TIRED && !s.forcedToStayAwake) {
     if (!onSquadOrInVehicle(s)) {
       if (setMercAsleep(ctx, s)) ctx.events.push({ type: 'fellAsleep', soldier: s.id, collapsed: false });
     } else if (!s.complainedThatTired) {
+      ctx.hooks.tacticalCharacterDialogue(s.id, sleepQuote.quote);
+      sleepQuote.quote = MercQuote.ME_TOO;
       s.complainedThatTired = true;
       ctx.events.push({ type: 'tiredComplaint', soldier: s.id });
     }
@@ -143,7 +158,8 @@ function wakeIfRested(s: CrewMember, ctx: EconomyContext): void {
 }
 
 export function handleRestFatigueAndSleepStatus(ctx: EconomyContext): void {
-  for (const s of ctx.crew.all()) if (!skipsRest(s)) restOrSleep(ctx, s);
+  const sleepQuote: SleepQuote = { quote: MercQuote.NEED_SLEEP };
+  for (const s of ctx.crew.all()) if (!skipsRest(s)) restOrSleep(ctx, s, sleepQuote);
   for (const s of ctx.crew.all()) if (!skipsRest(s)) wakeIfRested(s, ctx);
 }
 

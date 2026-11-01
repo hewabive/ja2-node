@@ -95,7 +95,10 @@ original's globals; the vehicle sits in the vehicle list and flies its group's p
 `heliCancel` replace plotting and confirming on the map (deviation "Helicopter interface"); destruction happens at once
 rather than at the end of the crash sound, and the monologues are checked once per strategic step rather than at each
 map redraw (deviations "Helicopter destruction", "Skyrider monologues"); passengers cannot leave in flight (deviation
-"Leaving the helicopter in flight"). As in the original there is no fuel. On the ground at the loaded refuel site (at
+"Leaving the helicopter in flight"). Skyrider talks through the dialogue queue as an external face (`24`): his lines
+pause the map screen, and a monologue's SAM reveals and the time of the last monologue are queued special events
+(`HelicopterPort.skyriderMonologueEvent`, `handleSkyriderMonologueEvent`), so the Drassen SAM site is found when the
+queue reaches the event after his first line. As in the original there is no fuel. On the ground at the loaded refuel site (at
 Drassen until Skyrider is met) it stands on the map: `handleHelicopterOnGround` asks the campaign (`helicopterOnMap`)
 to append its six pieces to the structure layer, with their structures, and to bump the soldiers around them, at a
 sector load, a landing and a takeoff. The pieces are no map changes: the sector's temp state never holds them, the next

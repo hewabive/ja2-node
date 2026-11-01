@@ -92,8 +92,8 @@ keeps the closing 300 ms, and every cut emits `lineCut` so all viewers end it. A
 under pause lock 15 (`LOCK_PAUSE_MERC_TALKING`, `TalkState.pausedForLine`) until its face ends, however it ends: its
 time, a `skipLine`, or in tactical after a screen switch. A line said while the game is already paused takes no lock and
 leaves the pause as it was. Compression stays on and runs again at its speed after the line (`29` §4.4). Only the
-queue's quotes pause, not lines from the alternate file, the items-seen line or a merc's trigger line, nor the strategic
-lines ja2-node says as events (deviation "Map screen pause for strategic lines").
+queue's quotes pause, not lines from the alternate file, the items-seen line or a merc's trigger line. While anything
+waits in the queue, time compression cannot start (`dialogueQueued`, `AllowedToTimeCompress`).
 
 **Commands return at once; a waiting panel freezes the campaign.** `talk`, `approach`, `answer`, `give`, `openShop`
 and `unescort` run their step and the queue runs in the following ticks. A panel waiting for the player (no talking
@@ -116,7 +116,17 @@ battle, a buddy's comment and the can't-do line of a skill check, the out-of-amm
 emptied the gun, the found-something-special line of a pickup, the dying line and the bleeding warning, all through
 `TacticalPort.sayQuote`, the items-seen quote through `signalItemLocatorStart`, which picks its line and unlocks the item
 locators only when the queue runs it, the comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go
-through the queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
+through the queue, and so do the strategic lines: contract, relationship and morale lines (`ContractFlow.say`,
+`sayImportant`, `sayDelayed`), a finished assignment and tiredness (`EconomyHooks.tacticalCharacterDialogue`,
+`campaign/economy-lines.ts`), an own merc's bark, and the external faces of Skyrider and the head miners
+(`externalNpcDialogue`, said as `skyriderQuote` and `headMinerQuote`). An important line (`handleImportantMercQuote`, the
+contract lines) wraps a sleeping merc's line in a wake event and a sleep event. Special events the original queues with
+these lines are `callback` events with numeric arguments, run when the queue reaches them: the renewal step after the
+merc's lines that says the raise and opens the menu, the contract endings and the map screen switch (`22`), and
+Skyrider's SAM reveals and monologue time (`25`). A callback may wait at the head of the queue (the contract ones while a
+prompt is open). A campaign without a talk flow (test campaigns) keeps shortcuts: contract and Skyrider lines are plain
+events, a head miner's line a `headMinerQuote` event, the economy's lines are not said, Skyrider's special events run at
+once and the contract endings wait in `ContractState.pendingEndings`, which also holds the endings of older saves.
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
 no gas and no captivity, when it is queued and again when it plays; auto-bandage mode drops whatever reaches the head of
@@ -175,6 +185,7 @@ otherwise:
 | A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |
 | A line on the map screen pauses before the speaker checks, so a line its speaker can no longer say pauses the game until the next pass ends the empty face | `dialogue-queue.test.ts` |
 | The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
+| An important line queues its wake and sleep events even when the merc may not say it | `dialogue-queue.test.ts` |
 | A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
@@ -214,4 +225,4 @@ Inferred from reading the source:
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
 Not ported: gaps "Dialogue queue conditions". Other deviations of this domain: "Lines and debug text in the talk panel",
-"Opinions of high profile ids", "Releasing an escort", "Key-advance speech", "Map screen pause for strategic lines".
+"Opinions of high profile ids", "Releasing an escort", "Key-advance speech".

@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order, the pause lock first),
+// @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order, the pause lock first;
+// @src a non-empty dialogue queue, 2026-11-01),
 // @src AnyUsableRealMercenariesOnTeam; Strategic/MapScreen.cc UpdatePausedStatesDueToTimeCompression;
 // @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
 // @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
@@ -37,7 +38,6 @@ import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
-import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -68,10 +68,11 @@ import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
 import { COMPRESSION_REFUSALS, type CompressionRefusal, compressionRefusalToken } from './compression-refusals.ts';
 import type { ContractHooks } from './contracts/context.ts';
-import { ContractFlow } from './contracts/contract-flow.ts';
+import { CONTRACT_CALLBACKS, ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
+import { economyLineHooks } from './economy-lines.ts';
 import { EndgameFlow } from './endgame-flow.ts';
-import { HelicopterFlow } from './helicopter-flow.ts';
+import { HelicopterFlow, SKYRIDER_CALLBACKS } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { MapInventory } from './map-inventory.ts';
@@ -295,6 +296,7 @@ export class CampaignSim {
       history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
         this.laptop?.economyHistory(code, secondCode, sector),
       ...assignmentAnimationHooks(this),
+      ...economyLineHooks(this),
     };
     const moraleSlots = {
       updateBuddyAndHatedCounters: () => this.battle?.updateBuddyAndHatedCounters(),
@@ -430,6 +432,7 @@ export class CampaignSim {
     const t = this.tactical?.state;
     if (this.strategic && !this.state.atLeastOneMercHired) return 'noMercsHired';
     if (this.state.meanwhile.trying) return 'meanwhileStarting';
+    if (this.#dialogueQueued()) return 'dialogueQueued';
     if (this.noUsableMercs()) return 'noUsableMercs';
     if (t?.inCombat) return 'inCombat';
     if (t?.turn.enemyInSector) return 'enemiesPresent';
@@ -515,6 +518,7 @@ export class CampaignSim {
         return this.laptop?.modalRefusal() ?? null;
       },
       compressing: () => this.#compressing(),
+      dialogueHoldsTime: () => this.#dialogueHoldsTime(),
       startCompression: (mode?: number) => {
         const refused = this.#compress(mode === undefined ? { type: 'compressTime' } : { type: 'compressTime', mode });
         if (!refused.ok) return refused.reason ?? 'time cannot be compressed';
@@ -612,16 +616,24 @@ export class CampaignSim {
     if (this.endgame.active() || s.meanwhile.trying || s.meanwhile.inScene) return false;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle() && (this.talk?.isIdle() ?? true);
-    return !isTimeBeingCompressed(s.clock) && !this.#linePauseHeld();
+    return !isTimeBeingCompressed(s.clock) && !this.#linePauseHeld() && (this.talk?.dialogueIdle() ?? true);
   }
 
   #linePauseHeld(): boolean {
     return this.talk?.linePauseHeld() ?? false;
   }
 
+  #dialogueQueued(): boolean {
+    return (this.talk?.talk.queue.length ?? 0) > 0;
+  }
+
+  #dialogueHoldsTime(): boolean {
+    return this.#linePauseHeld() || (this.state.flow === 'strategic' && this.#dialogueQueued());
+  }
+
   #compressing(): boolean {
     const c = this.state.clock;
-    return isTimeBeingCompressed(c) || (this.#linePauseHeld() && c.compressionOn && c.mode !== CompressMode.X0);
+    return isTimeBeingCompressed(c) || (this.#dialogueHoldsTime() && c.compressionOn && c.mode !== CompressMode.X0);
   }
 
   hasPendingDecision(): boolean {
@@ -634,18 +646,27 @@ export class CampaignSim {
     return this.#events.splice(0).map((e) => this.#withQuoteText(e));
   }
 
+  dialogueCallback(name: string, args: readonly number[]): boolean {
+    switch (name.slice(0, name.indexOf(':'))) {
+      case CONTRACT_CALLBACKS:
+        return this.contracts?.dialogueCallback(name, args) ?? false;
+      case SKYRIDER_CALLBACKS:
+        this.helicopter.dialogueCallback(name, args);
+        return false;
+      default:
+        this.endgame.dialogueCallback(name);
+        return false;
+    }
+  }
+
   #withQuoteText(e: SimEvent): SimEvent {
     const talk = this.talk;
     if (!talk) return e;
     switch (e.type) {
       case 'mercQuote': {
         const sector = this.#speakerSector(e.soldier);
-        return { ...(e.textKey ? {} : talk.quoteText(e.profile, e.id)), ...e, ...(sector ? { sector } : {}) };
+        return sector ? { ...e, sector } : e;
       }
-      case 'headMinerQuote':
-        return e.quote < 0 ? e : { ...e, ...talk.quoteText(e.profile, e.quote) };
-      case 'skyriderQuote':
-        return { ...e, profile: Npc.SKYRIDER, ...talk.quoteText(Npc.SKYRIDER, e.quote) };
       case 'shopkeeperQuote':
         return e.quote < 0 || e.textKey ? e : { ...e, ...talk.quoteText(e.dealer, e.quote) };
       default:

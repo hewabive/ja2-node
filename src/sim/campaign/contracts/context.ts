@@ -7,7 +7,7 @@ import type { TacticalContent } from '../../tactical/content.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { MoraleContext } from '../morale.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
-import type { ContractState } from './contract-state.ts';
+import type { ContractState, PendingEnding } from './contract-state.ts';
 import type { ContractEvent } from './events.ts';
 import type { QuoteName } from './quotes.ts';
 
@@ -59,6 +59,8 @@ export interface ContractContext {
   mercType(profile: number): number | undefined;
   moraleContext(): MoraleContext;
   say(m: RosterMerc, quote: QuoteName, subject?: number): void;
+  sayImportant(m: RosterMerc, quote: QuoteName, subject?: number): void;
+  queueEnding(e: PendingEnding): void;
   emit(e: ContractEventWithoutTick): void;
   history(code: number, profile: number, sector: Sector | null): void;
   setupProfileInsertionData(m: RosterMerc): void;

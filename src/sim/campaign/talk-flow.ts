@@ -88,6 +88,7 @@ import { dealerIdFromProfile, isMercADealer } from '../strategic/economy/merchan
 import { dealerState } from '../strategic/economy/merchants/state.ts';
 import { shopKind } from '../strategic/economy/merchants/view.ts';
 import { mineIdForSector, playerControlsMine } from '../strategic/economy/mine-status.ts';
+import { headMinersMineIndex } from '../strategic/economy/mines.ts';
 import { fatigueCharacter } from '../strategic/economy/rest.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { MikeGreeting } from '../strategic/narrative/facts.ts';
@@ -521,7 +522,8 @@ export class TalkFlow {
         const merc = campaign.battle?.roster.byProfile(profile);
         return merc && !merc.soldier.placed ? merc.soldier : null;
       },
-      dialogueCallback: (name) => campaign.endgame.dialogueCallback(name),
+      headMinerMine: (profile) => (campaign.economy ? headMinersMineIndex(campaign.economy, profile) : -1),
+      dialogueCallback: (name, args) => campaign.dialogueCallback(name, args),
       skipsSpeech: () => this.#skipsSpeech,
     };
     return host;
@@ -840,7 +842,7 @@ export class TalkFlow {
     const p = this.#profile(target.profile);
     const roll = this.talk.fx.int((p?.attitude ?? ATTITUDE_NORMAL) !== ATTITUDE_NORMAL ? 3 : 2);
     const quote = this.#barkQuote(target.profile, roll);
-    this.#emit({ type: 'mercQuote', soldier: target.id, profile: target.profile, quote: `quote${quote}`, id: quote });
+    tacticalCharacterDialogue(this.host, target, quote);
     return { ok: true, data: { bark: quote } };
   }
 

@@ -11,7 +11,9 @@
 // @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech), HandleTalkingAutoFace and
 // @src SetupFinalTalkingDelay (300 ms with the mouth closed after the voice or the text duration), SetFaceTalking (a line
 // @src lasts as long as its sample with speech on, its text without); Strategic/Assignments.cc
-// @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart.
+// @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart; Dialogue_Control.cc
+// @src HandleImportantMercQuote, CreateTalkingUI (the DIALOGUE_EXTERNAL_NPC_UI faces of Skyrider and the head miners)
+// @src and DialogueEvent::Execute returning true for a special event that waits (2026-11-01).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -20,8 +22,9 @@ import { TICK_MS } from '../clock.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import type { NarrativeEventWithoutTick } from './events.ts';
 import type { NarrativeHost } from './host.ts';
-import { ProfileFlag } from './narrative-ids.ts';
+import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
 import type { DialogueEvent, TalkState } from './talk-state.ts';
 
@@ -58,8 +61,19 @@ export interface DialogueHandlers {
   mikeCheck(): void;
   autoBandage(): boolean;
   removeEpc(npc: number): void;
-  callback(name: string): void;
+  callback(name: string, args: readonly number[]): boolean;
 }
+
+interface LineUi {
+  readonly npcUi: boolean;
+  readonly fromSoldier: boolean;
+  readonly record: number | null;
+  readonly alternate?: boolean;
+  readonly subject?: number;
+  readonly external?: boolean;
+}
+
+const MERC_LINE: LineUi = { npcUi: false, fromSoldier: true, record: null };
 
 export function addDialogueEvent(host: Pick<NarrativeHost, 'talk'>, e: DialogueEvent): void {
   host.talk.queue.push(e);
@@ -119,6 +133,24 @@ export function characterDialogueUsingAlternateFile(host: Pick<NarrativeHost, 't
   addDialogueEvent(host, { kind: 'quote', speaker, quote, npcUi: false, fromSoldier: true, delayed: false, record: null, alternate: true });
 }
 
+function mercLine(host: Pick<NarrativeHost, 'talk'>, s: Soldier, quote: number, delayed: boolean, subject?: number): void {
+  const about = subject !== undefined ? { subject } : {};
+  addDialogueEvent(host, { kind: 'quote', speaker: s.profile, quote, npcUi: false, fromSoldier: true, delayed, record: null, ...about });
+}
+
+export function externalNpcDialogue(host: Pick<NarrativeHost, 'talk'>, profile: number, quote: number): void {
+  addDialogueEvent(host, {
+    kind: 'quote',
+    speaker: profile,
+    quote,
+    npcUi: false,
+    fromSoldier: false,
+    delayed: false,
+    record: null,
+    external: true,
+  });
+}
+
 export function signalItemLocatorStart(host: Pick<NarrativeHost, 'talk'>, s: Soldier): void {
   addDialogueEvent(host, { kind: 'itemLocator', speaker: s.profile });
 }
@@ -144,7 +176,7 @@ export function canSayQuote(host: NarrativeHost, s: Soldier, quote: number): boo
 
 export function delayedTacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
   if (!canSayQuote(host, s, quote)) return false;
-  characterDialogue(host, s.profile, quote, false, true, true);
+  mercLine(host, s, quote, true);
   return true;
 }
 
@@ -159,12 +191,23 @@ function bleedingLineOrMeToo(talk: TalkState, quote: number): number {
   return said;
 }
 
-export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
+export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number, subject?: number): boolean {
   if (!canSayQuote(host, s, quote) || host.inMeanwhile()) return false;
   if (s.profile === host.talk.lastQuoteProfile && quote === host.talk.lastQuoteSaid) return false;
   if (host.isEpc(s) && !forcedNpcQuote(host, s.profile)) return false;
-  characterDialogue(host, s.profile, bleedingLineOrMeToo(host.talk, quote), false, true);
+  mercLine(host, s, bleedingLineOrMeToo(host.talk, quote), false, subject);
   return true;
+}
+
+export function makeCharacterDialogueEventSleep(host: Pick<NarrativeHost, 'talk'>, s: Soldier, asleep: boolean): void {
+  addDialogueEvent(host, asleep ? { kind: 'backToSleep', speaker: s.profile } : { kind: 'wakeUp', speaker: s.profile });
+}
+
+export function handleImportantMercQuote(host: NarrativeHost, s: Soldier, quote: number, subject?: number): void {
+  const asleep = host.mercAsleep?.(s) ?? false;
+  if (asleep) makeCharacterDialogueEventSleep(host, s, false);
+  tacticalCharacterDialogue(host, s, quote, subject);
+  if (asleep) makeCharacterDialogueEventSleep(host, s, true);
 }
 
 function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolean {
@@ -173,32 +216,42 @@ function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolea
   return heldPrisoner(host, s);
 }
 
-export function executeCharacterDialogue(
-  host: NarrativeHost,
-  speaker: number,
-  quote: number,
-  npcUi: boolean,
-  fromSoldier: boolean,
-  record: number | null,
-  alternate = false,
-): boolean {
+interface SaidLine {
+  readonly record?: number;
+  readonly textKey: TextKey;
+  readonly chars: number;
+  readonly skipped?: boolean;
+}
+
+function externalLineEvent(host: NarrativeHost, speaker: number, quote: number, said: SaidLine): NarrativeEventWithoutTick {
+  if (speaker === NarrativeProfile.SKYRIDER) return { type: 'skyriderQuote', quote, profile: speaker, ...said };
+  return { type: 'headMinerQuote', mine: host.headMinerMine?.(speaker) ?? -1, profile: speaker, quote, ...said };
+}
+
+function lineEvent(host: NarrativeHost, speaker: number, quote: number, soldier: number | null, ui: LineUi, said: SaidLine) {
+  if (ui.external) return externalLineEvent(host, speaker, quote, said);
+  if (ui.npcUi) return { type: 'npcQuote', profile: speaker, soldier, quote, ...said } as const;
+  const about = ui.subject !== undefined ? { subject: ui.subject } : {};
+  return { type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, ...about, ...said } as const;
+}
+
+export function executeCharacterDialogue(host: NarrativeHost, speaker: number, quote: number, ui: LineUi): boolean {
   const tick = host.tick();
   host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null };
   const s = playerTeamSoldier(host, speaker);
-  if (!s && fromSoldier) return false;
+  if (!s && ui.fromSoldier) return false;
   if (s && speakerSilenced(host, s, quote)) return false;
-  const key = dialogueTextKey(host, speaker, quote, alternate);
+  const key = dialogueTextKey(host, speaker, quote, ui.alternate ?? false);
   const chars = host.quoteLengths.chars(key);
   if (chars === 0) return false;
   const skipped = host.skipsSpeech?.() ?? false;
   const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
   host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null };
   const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
-  const withRecord = record !== null ? { record } : {};
+  const withRecord = ui.record !== null ? { record: ui.record } : {};
   const said = { ...withRecord, textKey: key, chars, ...(skipped ? { skipped } : {}) };
   host.talk.lines.push({ profile: speaker, quote, ...withRecord, textKey: key, chars });
-  if (npcUi) host.emit({ type: 'npcQuote', profile: speaker, soldier, quote, ...said });
-  else host.emit({ type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, ...said });
+  host.emit(lineEvent(host, speaker, quote, soldier, ui, said));
   return true;
 }
 
@@ -234,7 +287,7 @@ function endLinePause(host: NarrativeHost): void {
 
 function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'quote' }>): boolean {
   if (e.alternate) {
-    executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record, true);
+    executeCharacterDialogue(host, e.speaker, e.quote, e);
     return false;
   }
   const t = host.tactical();
@@ -243,12 +296,12 @@ function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'qu
   wakeSpeakerForHisLine(host, e.speaker);
   host.talk.lastQuoteSaid = e.quote;
   host.talk.lastQuoteProfile = e.speaker;
-  executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record);
+  executeCharacterDialogue(host, e.speaker, e.quote, e);
   return false;
 }
 
 function executePcTrigger(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'pcTriggerNpc' }>): boolean {
-  executeCharacterDialogue(host, e.speaker, e.quote, false, true, null);
+  executeCharacterDialogue(host, e.speaker, e.quote, MERC_LINE);
   const face = host.talk.face;
   if (face) face.pcTrigger = { npc: e.npc, record: e.record };
   return false;
@@ -258,13 +311,13 @@ function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, 
   const t = host.tactical();
   if (t) t.turn.lockItemLocators = false;
   const quote = QUOTE_SPOTTED_SOMETHING_ONE + host.random(SPOTTED_SOMETHING_QUOTES);
-  executeCharacterDialogue(host, e.speaker, quote, false, true, null);
+  executeCharacterDialogue(host, e.speaker, quote, MERC_LINE);
   return false;
 }
 
-function executeBackToSleep(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'backToSleep' }>): boolean {
-  const s = playerTeamSoldier(host, e.speaker);
-  if (s) host.setMercAsleepFlag?.(s, true);
+function executeSleep(host: NarrativeHost, speaker: number, asleep: boolean): boolean {
+  const s = playerTeamSoldier(host, speaker);
+  if (s) host.setMercAsleepFlag?.(s, asleep);
   return false;
 }
 
@@ -295,10 +348,11 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
     case 'itemLocator':
       return executeItemLocatorStart(host, e);
     case 'backToSleep':
-      return executeBackToSleep(host, e);
+      return executeSleep(host, e.speaker, true);
+    case 'wakeUp':
+      return executeSleep(host, e.speaker, false);
     case 'callback':
-      h.callback(e.name);
-      return false;
+      return h.callback(e.name, e.args ?? []);
   }
 }
 

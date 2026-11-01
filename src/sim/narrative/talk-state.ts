@@ -35,6 +35,8 @@ export type DialogueEvent =
       readonly delayed: boolean;
       readonly record: number | null;
       readonly alternate?: boolean;
+      readonly subject?: number;
+      readonly external?: boolean;
     }
   | { readonly kind: 'closePanel' }
   | { readonly kind: 'giveItem'; readonly npc: number; readonly slot: number }
@@ -45,7 +47,8 @@ export type DialogueEvent =
   | { readonly kind: 'removeEpc'; readonly npc: number }
   | { readonly kind: 'itemLocator'; readonly speaker: number }
   | { readonly kind: 'backToSleep'; readonly speaker: number }
-  | { readonly kind: 'callback'; readonly name: string };
+  | { readonly kind: 'wakeUp'; readonly speaker: number }
+  | { readonly kind: 'callback'; readonly name: string; readonly args?: readonly number[] };
 
 export interface TalkingFace {
   readonly speaker: number;

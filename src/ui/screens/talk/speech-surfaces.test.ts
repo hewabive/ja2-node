@@ -37,6 +37,7 @@ describe('speech surfaces in a stub campaign', () => {
     const [first = 0, second = 0] = a10.mercs;
     const bark = await f.client.command({ type: 'talk', soldier: first, target: second });
     expect(bark.ok, bark.reason).toBe(true);
+    a10.session.advance({ ticks: 1 });
     f.deliver();
     const line = f.screen.dialogue.presenter.current;
     expect(line?.line.surface).toBe('tactical');

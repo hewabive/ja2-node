@@ -46,6 +46,7 @@ export interface WorldTimeControl {
   startCompression(mode?: number): string | null;
   stopCompression(): void;
   modalRefusal?(): string | null;
+  dialogueHoldsTime?(): boolean;
 }
 
 export interface Steppable {
@@ -102,6 +103,7 @@ export class AdvanceRun {
   readonly #watched: Set<SimEventType>;
   #started = false;
   #checked = false;
+  #startAfterDialogue = false;
 
   constructor(sim: Steppable, until: StopCondition, budget = DEFAULT_ADVANCE_BUDGET_TICKS) {
     this.#sim = sim;
@@ -176,10 +178,26 @@ export class AdvanceRun {
     if (!clock.onMap() && this.#target === null && !sim.hasPendingDecision())
       return this.#report('refused', 'time compression works on the strategic map only');
     if (clock.onMap() && !clock.compressing() && !sim.hasPendingDecision()) {
+      if (this.#dialogueHoldsTime()) {
+        this.#startAfterDialogue = true;
+        return null;
+      }
       const refused = this.#startCompression();
       if (refused) return this.#report('refused', refused);
     }
     return null;
+  }
+
+  #dialogueHoldsTime(): boolean {
+    return this.#clock?.dialogueHoldsTime?.() === true;
+  }
+
+  #restartsCompression(): boolean {
+    if (this.#startAfterDialogue) {
+      this.#startAfterDialogue = false;
+      return true;
+    }
+    return this.#until.compressionStopped === false;
   }
 
   #beforeStep(): StopReport | null {
@@ -193,8 +211,8 @@ export class AdvanceRun {
       this.#collected.push(...sim.drainEvents(), { type: 'worldTimeReached', tick: sim.tick, seconds: clock.worldTime().seconds });
       return this.#report('worldTime');
     }
-    if (this.#strategic && clock?.onMap() && !clock.compressing()) {
-      if (until.compressionStopped !== false) return this.#report('idle');
+    if (this.#strategic && clock?.onMap() && !clock.compressing() && !this.#dialogueHoldsTime()) {
+      if (!this.#restartsCompression()) return this.#report('idle');
       const refused = this.#startCompression();
       if (refused) return this.#report('refused', refused);
       if (!clock.compressing()) return this.#report('idle');

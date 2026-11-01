@@ -39,6 +39,7 @@ import { createMineStatus, type MineStatus } from './state.ts';
 import { sectorsUnderControl, townSize } from './towns.ts';
 
 const REMOVAL_RATE_INCREMENT = 250;
+const NO_QUOTE = -1;
 const MINE_PRODUCTION_START_TIME = 9 * 60;
 const MINE_PRODUCTION_PERIOD = 3 * 60;
 const MINE_PRODUCTION_DAYS_AFTER_HEAD_MINER_WARNING = 2.5;
@@ -129,7 +130,8 @@ export function issueHeadMinerQuote(ctx: EconomyContext, mine: number, kind: num
   const miner =
     ctx.economy.headMiners.headMiners.find((h) => ctx.hooks.headMinerTown(h.profile) === town) ?? ctx.economy.headMiners.headMiners[0];
   if (!miner || !ctx.hooks.headMinerAlive(miner.profile)) return;
-  ctx.events.push({ type: 'headMinerQuote', mine, profile: miner.profile, quote: miner.quotes[kind] ?? -1 });
+  const quote = miner.quotes[kind] ?? NO_QUOTE;
+  if (quote !== NO_QUOTE) ctx.hooks.headMinerDialogue(mine, miner.profile, quote);
   stopTimeCompression(ctx.clock, CompressionStop.MINE_EVENT);
 }
 

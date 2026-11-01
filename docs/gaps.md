@@ -64,6 +64,8 @@ NPC records, merc lines, the dialogue queue and quest scripting. Paths are under
 |---|---|---|---|
 | Dialogue queue conditions | Stop-time quotes: the booby-trap and suspicious-ground lines make tactical modal until they end, then run their caller's callback (`Tactical/Dialogue_Control.cc:1560`, `GameScreen.cc:617`) | None (`narrative/dialogue-queue.ts`) | Comes with its callers, "Booby-trapped items" and the suspicious ground of "Walking side effects"; the modal freeze stops the tactical step and refuses every input |
 | Rebel basement trapdoor | Going down to the hideout opens A10's trapdoor and moves the crate (`Tactical/Interface_Dialogue.cc:1609`) | The hooks do nothing (`campaign/narrative/npc-action-flow.ts`) | The crate needs writes into an unloaded sector's diff |
+| Head miner map switch | A head miner's line other than "creatures gone" leaves tactical for the map screen and shows the surface level before it is queued (`Strategic/Map_Screen_Interface.cc:1597`) | The line is queued where the player is (`strategic/economy/mines.ts`, `campaign/economy-lines.ts`) | A screen switch from the hourly mine update, also in combat |
+| I.M.P. arrival line | An I.M.P. character who lands while the letter quest runs says he was dropped in Omerta, one per voice (`Tactical/Merc_Hiring.cc:402`) | Not said (`campaign/contracts/hire-contract.ts`) | Quote 55 through `ContractFlow.say` with the voice test |
 
 ## 4. Agent API
 

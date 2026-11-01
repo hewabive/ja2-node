@@ -110,7 +110,9 @@ talk e2e scenarios use. A stub campaign hires from all twelve (`STUB_SQUAD_PROFI
 since `StartSomeMercsOnAssignment` sends some away at a new game. The scripts carry what the stub campaign path needs:
 Skyrider's escort to the Drassen helipad (`ASK_ABOUT_ESCORTING_EPC`, then `ESCORT_SKYRIDER` and `UN_RECRUIT_EPC`, after
 which the arrival rule sets up the helicopter), a head miner's first line starting his mine (`START_MINE`). Every
-profile that speaks has its merc EDT and a speech blip.
+profile that speaks has its merc EDT and a speech blip. Skyrider's stub EDT has only his escort lines, so the dialogue
+queue says none of his helicopter and monologue lines in a stub campaign: each still holds the map screen's pause for one
+pass and runs the special events queued behind it (`24`).
 
 **Animation scripts** (`stubs/anim-scripts.ts`) are invented, except that the seven unjam scripts end like the
 original's with the non-interruptible release and opcode 476, which returns to the shooting animation the jam

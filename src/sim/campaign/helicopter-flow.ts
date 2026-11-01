@@ -10,7 +10,9 @@
 // @src loaded map); Strategic/Assignments.cc SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback;
 // @src Strategic/Player_Command.cc
 // @src SetThisSectorAsPlayerControlled (the SAM congratulation); Map_Screen_Interface_Map.cc
-// @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path).
+// @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path);
+// @src Map_Screen_Helicopter.cc SkyriderDialogue, SkyriderDialogueWithSpecialEvent (Skyrider's face through the dialogue
+// @src queue, 2026-11-01).
 
 import {
   parseSectorString,
@@ -22,6 +24,7 @@ import {
 } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { addDialogueEvent, externalNpcDialogue } from '../narrative/dialogue-queue.ts';
 import { handleKillChopperMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { AC, areAssignmentConditionsMet, canCharacterSquad, JoinSquad } from '../strategic/economy/conditions.ts';
 import { Assignment, OKLIFE } from '../strategic/economy/constants.ts';
@@ -37,10 +40,12 @@ import {
   HelicopterRefusal,
   handleHeliHoverLong,
   handleHeliHoverTooLong,
+  handleSkyriderMonologueEvent,
   helicopterGroup,
   helicopterVehicle,
   heliState,
   isHelicopterPilotAvailable,
+  isSkyriderMonologue,
   okUseVehicle,
   payOffSkyriderDebtIfAny,
   requestGiveSkyriderNewDestination,
@@ -138,6 +143,9 @@ const SQUAD_REFUSALS: Readonly<Record<number, string>> = {
   [JoinSquad.CANT]: 'notEligible',
 };
 
+export const SKYRIDER_CALLBACKS = 'skyrider';
+const MONOLOGUE_CALLBACK = `${SKYRIDER_CALLBACKS}:monologue`;
+
 export class HelicopterFlow {
   readonly campaign: CampaignSim;
   readonly #events: SimEvent[] = [];
@@ -168,7 +176,27 @@ export class HelicopterFlow {
       helicopterOnMap: (site, landed) => this.#helicopterOnMap(site, landed),
       removeSkyriderSoldier: () => this.#removeSkyriderSoldier(),
       emit: (e) => this.emit(e),
+      skyriderDialogue: (quote) => this.#skyriderDialogue(quote),
+      skyriderMonologueEvent: (event, code) => this.#skyriderMonologueEvent(event, code),
     };
+  }
+
+  #skyriderDialogue(quote: number): void {
+    const host = this.campaign.talk?.host;
+    if (host) externalNpcDialogue(host, SKYRIDER, quote);
+    else this.emit({ type: 'skyriderQuote', quote });
+  }
+
+  #skyriderMonologueEvent(event: number, code: number): void {
+    const host = this.campaign.talk?.host;
+    if (host) addDialogueEvent(host, { kind: 'callback', name: MONOLOGUE_CALLBACK, args: [event, code] });
+    else this.dialogueCallback(MONOLOGUE_CALLBACK, [event, code]);
+  }
+
+  dialogueCallback(name: string, args: readonly number[]): void {
+    const [event = -1, code = 0] = args;
+    const ctx = this.campaign.strategic;
+    if (name === MONOLOGUE_CALLBACK && ctx && isSkyriderMonologue(event)) handleSkyriderMonologueEvent(ctx, event, code);
   }
 
   worldPort(base: TacticalWorldPort): TacticalWorldPort {

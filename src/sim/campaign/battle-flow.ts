@@ -281,7 +281,7 @@ export class BattleFlow implements FateContext {
       progress: queen ? queenProgress(queen) : this.state.status.highestProgress,
       enemyInSector: this.campaign.tactical?.state.turn.enemyInSector === true,
       status: this.state.status,
-      sayQuote: (m, quote) => this.campaign.contracts?.say(m, quote),
+      sayQuote: (m, quote) => this.campaign.contracts?.sayDelayed(m, quote),
     };
   }
 

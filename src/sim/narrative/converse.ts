@@ -915,7 +915,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     mikeCheck: () => host.mercLines.mikeSaysHi(),
     autoBandage: () => host.tactical()?.pathEnv.autoBandage ?? false,
     removeEpc: (npc) => host.releaseEscort?.(npc),
-    callback: (name) => host.dialogueCallback?.(name),
+    callback: (name, args) => host.dialogueCallback?.(name, args) ?? false,
   };
 }
 

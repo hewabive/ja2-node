@@ -75,15 +75,15 @@ export function canBeRemovedFromContract(m: RosterMerc): boolean {
 export function beginRemoveMercFromContract(ctx: ContractContext, m: RosterMerc): void {
   if (!canBeRemovedFromContract(m)) return;
   const sinceArrival = u32(worldTotalMinutes(ctx.state.clock) - m.contract.lastContractUpdate);
-  if (m.kind === MercKind.MERC || m.kind === MercKind.NPC) ctx.say(m, 'RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO');
+  if (m.kind === MercKind.MERC || m.kind === MercKind.NPC) ctx.sayImportant(m, 'RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO');
   else if (m.kind === MercKind.AIM_MERC && willMercRenew(ctx, m, false))
-    ctx.say(
+    ctx.sayImportant(
       m,
       sinceArrival < DEPART_QUOTE_WINDOW_MINUTES
         ? 'DEPART_COMMET_CONTRACT_NOT_RENEWED_OR_TERMINATED_UNDER_48'
         : 'DEPARTING_COMMENT_CONTRACT_NOT_RENEWED_OR_48_OR_MORE',
     );
-  ctx.contracts.pendingEndings.push({ kind: 'departure', soldier: m.id, rehire: true });
+  ctx.queueEnding({ kind: 'departure', soldier: m.id, rehire: true });
   if (sinceArrival >= EARLY_FIRING_WINDOW_MINUTES) return;
   const p = ctx.profile(m.profile);
   if (p) p.daysOfMoraleHangover = HANGOVER_DAYS_BASE + ctx.rng.main.int(HANGOVER_DAYS_SPREAD);

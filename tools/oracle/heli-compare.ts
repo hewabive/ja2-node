@@ -3,7 +3,9 @@ import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { addTransaction, FinanceCode } from '../../src/sim/campaign/finances.ts';
+import { SKYRIDER_CALLBACKS } from '../../src/sim/campaign/helicopter-flow.ts';
 import type { Roster, RosterMerc } from '../../src/sim/campaign/roster.ts';
+import type { DialogueEvent } from '../../src/sim/narrative/talk-state.ts';
 import type { EconomyContext } from '../../src/sim/strategic/economy/ports.ts';
 import { addSoldierToVehicle, isVehicleAccessibleToSoldier } from '../../src/sim/strategic/economy/vehicle-assignment.ts';
 import { Assignment, SectorFlag } from '../../src/sim/strategic/forces/constants.ts';
@@ -255,6 +257,29 @@ function heliEvents(ctx: EconomyContext): number[][] {
     .map((e) => [e.stamp, e.kind, e.param]);
 }
 
+function isSkyriderLine(e: DialogueEvent): e is Extract<DialogueEvent, { kind: 'quote' }> {
+  return e.kind === 'quote' && e.external === true && e.speaker === SKYRIDER;
+}
+
+function isSkyriderEvent(e: DialogueEvent): e is Extract<DialogueEvent, { kind: 'callback' }> {
+  return e.kind === 'callback' && e.name.startsWith(`${SKYRIDER_CALLBACKS}:`);
+}
+
+function takeQueuedSkyriderLines(campaign: CampaignSim): number[] {
+  const queue = campaign.talk?.talk.queue;
+  if (!queue) return [];
+  const isSkyrider = (e: DialogueEvent) => isSkyriderLine(e) || isSkyriderEvent(e);
+  const taken = queue.filter(isSkyrider);
+  const kept = queue.filter((e) => !isSkyrider(e));
+  queue.splice(0, queue.length, ...kept);
+  const quotes: number[] = [];
+  for (const e of taken) {
+    if (isSkyriderLine(e)) quotes.push(e.quote);
+    else if (isSkyriderEvent(e)) campaign.dialogueCallback(e.name, e.args ?? []);
+  }
+  return quotes;
+}
+
 function normalizeQuotes(quotes: readonly number[]): number[] {
   return quotes.map((q) => (SPOTTED_QUOTES.has(q) ? SPOTTED : q));
 }
@@ -310,6 +335,7 @@ export class HeliComparer {
       if (!economy) return report(label, false, 'no economy');
       const trace = (p.draws as Draw[] | undefined) ?? [];
       const { preLeft, mainSkipped } = replayed(campaign, trace, () => this.#act(campaign, economy, p));
+      this.#quotes.push(...takeQueuedSkyriderLines(campaign));
       for (const e of campaign.drainEvents()) if (e.type === 'skyriderQuote') this.#quotes.push(e.quote);
       const quotes = this.#quotes.splice(0);
       const diffs = [

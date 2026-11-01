@@ -28,6 +28,7 @@ export type EconomyEvent =
       readonly quote: number;
       readonly textKey?: TextKey;
       readonly chars?: number;
+      readonly skipped?: boolean;
     }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }

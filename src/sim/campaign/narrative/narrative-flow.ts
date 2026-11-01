@@ -469,7 +469,7 @@ export class NarrativeFlow {
         const m = this.roster()?.byProfile(Npc.SLAY);
         if (!m) return;
         m.contract.leaveHistoryCode = HistoryCode.SLAY_MYSTERIOUSLY_LEFT;
-        this.state.contracts.pendingEndings.push({ kind: 'withoutEquipment', soldier: m.id });
+        this.campaign.contracts?.queueEnding({ kind: 'withoutEquipment', soldier: m.id });
       },
     };
   }

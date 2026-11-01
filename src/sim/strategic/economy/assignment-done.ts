@@ -5,6 +5,7 @@
 // @src MapScreen.cc HandleAssignmentsDoneAndAwaitingFurtherOrders (the gfReEvaluateEveryonesNothingToDo test).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
 import { NOWHERE } from '../../tactical/soldier.ts';
 import { refundUnusedHospitalPayment } from '../narrative/hospital.ts';
 import { EventKind } from '../time/constants.ts';
@@ -61,10 +62,15 @@ function addSectorThatCompletedMilitiaTraining(ctx: EconomyContext, s: CrewMembe
 export function assignmentDone(ctx: EconomyContext, s: CrewMember, sayQuote: boolean, meToo: boolean): void {
   ctx.hooks.animateAssignmentDone(s.id);
   if (s.assignment === Assignment.ASSIGNMENT_HOSPITAL) s.absoluteFinalDestination = NOWHERE;
-  if (sayQuote && !meToo && s.assignment === Assignment.TRAIN_TOWN) addSectorThatCompletedMilitiaTraining(ctx, s);
+  if (sayQuote && !meToo && s.assignment === Assignment.TRAIN_TOWN) {
+    ctx.hooks.tacticalCharacterDialogue(s.id, MercQuote.ASSIGNMENT_COMPLETE);
+    addSectorThatCompletedMilitiaTraining(ctx, s);
+  }
   if (s.doneQuoteSaid) return;
   s.doneQuoteSaid = true;
-  ctx.events.push({ type: 'assignmentDone', soldier: s.id, sayQuote: sayQuote && DONE_QUOTE_ASSIGNMENTS.has(s.assignment) });
+  const saysDone = sayQuote && DONE_QUOTE_ASSIGNMENTS.has(s.assignment);
+  if (saysDone) ctx.hooks.tacticalCharacterDialogue(s.id, MercQuote.ASSIGNMENT_COMPLETE);
+  ctx.events.push({ type: 'assignmentDone', soldier: s.id, sayQuote: saysDone });
 }
 
 export function assignmentAborted(ctx: EconomyContext, s: CrewMember, reason: AbortReason): void {

@@ -77,7 +77,7 @@ export function mercContractHandling(ctx: ContractContext, m: RosterMerc, choice
   const willingness = mercRenewalWillingness(ctx, m, true);
   if (!willingness.willing) {
     const departs = mercContractIsExpiring(ctx, m);
-    if (departs) ctx.contracts.pendingEndings.push({ kind: 'departure', soldier: m.id, rehire: true });
+    if (departs) ctx.queueEnding({ kind: 'departure', soldier: m.id, rehire: true });
     const reason = (willingness.refusal && REFUSAL_REASONS[willingness.refusal.quote]) ?? 'morale';
     ctx.emit({ type: 'contractRefused', soldier: m.id, reason });
     return { extended: false, reason, departs };
@@ -87,7 +87,7 @@ export function mercContractHandling(ctx: ContractContext, m: RosterMerc, choice
   c.typeOfLastContract = i8(terms.type);
   c.contractEnd = i32(c.contractEnd + terms.days * NUM_MIN_IN_DAY);
   const insurance = insuranceFollowUp(ctx, m, terms.days, charge);
-  ctx.say(m, 'ACCEPT_CONTRACT_RENEWAL');
+  ctx.sayImportant(m, 'ACCEPT_CONTRACT_RENEWAL');
   if (choice === 'twoWeeks') c.timeCanSignElsewhere = c.contractEnd;
   const now = worldTotalMinutes(ctx.state.clock);
   addTransaction(ctx.state.finances, terms.finance, m.profile, now, -charge);

@@ -1,6 +1,7 @@
 export const COMPRESSION_REFUSALS = {
   noMercsHired: 'no merc has been hired yet',
   meanwhileStarting: 'a meanwhile scene is about to start',
+  dialogueQueued: 'someone has something to say',
   noUsableMercs: 'no usable mercs are left on the team',
   inCombat: 'combat is in progress',
   enemiesPresent: 'enemies are present in the loaded sector',

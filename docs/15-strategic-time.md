@@ -63,7 +63,9 @@ the first pass after combat adds a second at once.
 
 **What stops the clock.** Turn-based combat (world time stands, ticks run), a pause, X0 or stopped compression, and the
 `autoresolve` and `laptop` flows. A line the dialogue queue says on the map pauses the game under pause lock 15 until
-its face ends, unless the game is paused already, and leaves compression on to run again after it (`24`, `29` §4.4).
+its face ends, unless the game is paused already, and leaves compression on to run again after it (`24`, `29` §4.4);
+the strategic lines (assignments, tiredness, contracts, Skyrider, head miners) go through that queue too, and while
+anything waits in it compression cannot start (`dialogueQueued`).
 A pause lock forbids unpausing and compressing (a new speed too), not pausing, and it is one flag: any unlock lifts it,
 whoever locked. Subsystems lock with the original's reason ids, which a native save carries. The
 original's `PauseTime` under message boxes has no counterpart: an open decision prompt stops the whole simulation (D15,

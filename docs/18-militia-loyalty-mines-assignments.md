@@ -66,7 +66,10 @@ stays empty (gaps).
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
 Refusals are `militiaTrainingRejected` events; "assignment done", sleep, wake and tiredness are events the client turns
-into quotes and boxes (deviations "Assignment presentation", "Update box timing").
+into boxes (deviations "Assignment presentation", "Update box timing"). Their lines, the done line and the tired
+complaint (NEED_SLEEP, ME_TOO after the first), go through the dialogue queue like the original's
+`TacticalCharacterDialogue` (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`, `24`); so does a head
+miner's strategic line (`headMinerDialogue`), which the queue says as a `headMinerQuote`.
 
 **Animations in the loaded sector.** Falling asleep, waking, a finished assignment and a new one change our merc's
 animation when he stands in the loaded sector, as the original's assignment code does: the economy calls the `animate…`
@@ -154,6 +157,8 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A doctor, repairman or patient who stays done shows the end of his work again at every update that finds him done | `assignments.test.ts` |
 | A merc woken while he lies down goes on lying down awake: `GOTO_SLEEP` cannot be interrupted | `campaign/assignment-animations.test.ts` |
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
+| A militia trainer says the done line at the end of every session: his line comes before the once-only check | `assignments.test.ts` |
+| A dead-tired squad merc who drops asleep always says NEED_SLEEP, even after another merc complained, yet turns the next complaint into ME_TOO | `assignments.test.ts` |
 | A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
 
 Not pinned yet:

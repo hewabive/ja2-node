@@ -73,6 +73,8 @@ export interface HelicopterPort {
   helicopterOnMap(site: RefuelSite, landed: boolean): void;
   removeSkyriderSoldier(): void;
   emit(event: HelicopterEventWithoutTick): void;
+  skyriderDialogue?(quote: number): void;
+  skyriderMonologueEvent?(event: number, code: number): void;
 }
 
 export interface StrategicAiPort {

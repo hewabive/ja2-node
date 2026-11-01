@@ -67,18 +67,25 @@ only between squad members, on both sides; team morale counts every awake teamma
 assignment; a merc in a moving group sees only his group. No morale event fires when a merc leaves. Opinions of
 profile ids ≥ 75 read 0 (deviation "Opinions of high profile ids").
 
-**Endings are queued, decisions are prompts.** The original's dialogue events and message boxes become queued endings
-(`pendingEndings`) and battle-flow prompts (`contractRenewal`, `mercDeparture`, `insuranceExtension`).
-`ContractFlow.settle` runs the endings, then the renewal sequence, whenever no prompt is open outside autoresolve, where
-the original's dialogue queue would run them after the quotes. The sequence advances synchronously after each answer,
-opens the menu for unwilling mercs too and skips a listed merc who can no longer leave (deviations "Contract renewal
-sequence", "Contract prompts", "Renewal of a merc who cannot leave", "Renewal list").
+**Endings and the menu wait behind the lines, decisions are prompts.** The original's dialogue events become `callback`
+events of the dialogue queue (`ContractFlow.queueEnding`, `dialogueCallback`): the departure box, the departure without
+equipment and the switch to the map screen, and in the renewal sequence `DialogueEventContract`, which says the raise
+and queues the menu after the merc's lines. They run when the queue reaches them and wait while a prompt is open or
+autoresolve runs; their boxes are battle-flow prompts (`contractRenewal`, `mercDeparture`, `insuranceExtension`).
+`ContractFlow.settle` runs the renewal sequence whenever no prompt is open outside autoresolve, and the endings of
+`pendingEndings` (a campaign without a talk flow, older saves). The sequence advances synchronously after each answer,
+opens the menu for unwilling mercs too, reopens it for a renewal still open once the queue is idle and skips a listed
+merc who can no longer leave (deviations "Contract renewal sequence", "Contract prompts", "Renewal of a merc who cannot
+leave", "Renewal list").
 
-**Quotes are events.** Contract, relationship and morale lines are `mercQuote` events outside the dialogue queue, with
-the merc they are about as `subject`; they need a profile, `OKLIFE`, no robot, no gas and no captivity. Boxes, mails
-and records: deviation "Contract presentation". A buddy's comment on a kill he witnesses or on a skill check passed with
-a low roll is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in
-the roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
+**Quotes go through the dialogue queue.** Contract, relationship and morale lines are said as the original says them:
+`say` is `TacticalCharacterDialogue` (the speaker checks, the meanwhile test, the last-quote test, the E.P.C. test),
+`sayImportant` is `HandleImportantMercQuote` (renewal, extension, the raise, departure comments: a sleeping merc is woken
+for the line and put back to sleep), `sayDelayed` the morale whine. A line plays when the queue reaches it, pauses the
+map screen while it plays and comes out as a `mercQuote` with the merc it is about as `subject` (`24`). Boxes, mails and
+records: deviation "Contract presentation". A buddy's comment on a kill he witnesses or on a skill check passed with a
+low roll is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in the
+roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
 
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative

@@ -106,7 +106,8 @@ a real-time session ends with `timeout` (`29` §4.6). Every campaign report carr
 budgets are in `advance.ts`; the MCP `advance` tool describes its fields.
 
 **On the strategic map** (the clock: `15`), any world-time field, `compressionStopped` or `mode` makes the advance
-strategic. With time not compressed it first starts compression (a refusal ends it with `refused`), then steps until
+strategic. With time not compressed it first starts compression (a refusal ends it with `refused`; while a line holds
+the pause or lines wait in the dialogue queue it steps until they ended and starts it then), then steps until
 
 1. a decision prompt opens (pre-battle, simultaneous arrival, NPC of note, contract, militia, NPC request);
 2. compression stops (any `StopTimeCompression`, `15`): an `event` with `compressionStopped {reason}`. An automatic

@@ -4,7 +4,9 @@
 // @src FindClosestRefuelSite, SkyriderDestroyed, CanHelicopterFly, IsHelicopterPilotAvailable, LandHelicopter,
 // @src TakeOffHelicopter, StartHoverTime, HandleHeliHoverLong, HandleHeliHoverTooLong, DoesSkyriderNoticeEnemiesInSector,
 // @src SetUpHelicopterForMovement, IsRefuelSiteInSector, IsRefuelAvailableInSector, UpdateRefuelSiteAvailability,
-// @src SetUpHelicopterForPlayer, MoveAllInHelicopterToFootMovementGroup, the monologue handlers, CheckAndHandleSkyriderMonologues,
+// @src SetUpHelicopterForPlayer, MoveAllInHelicopterToFootMovementGroup, SkyriderDialogue, SkyriderDialogueWithSpecialEvent,
+// @src HandleSkyRiderMonologueEvent and the monologue handlers (special events through the dialogue queue, 2026-11-01),
+// @src CheckAndHandleSkyriderMonologues,
 // @src HandleHelicopterOnGround, IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
 // @src CanHelicopterTakeOff, IsSkyriderFlyingInSector, PaySkyriderBill, PayOffSkyriderDebtIfAny, MakeHeliReturnToBase,
 // @src SoldierAboardAirborneHeli; Map_Screen_Helicopter.h quote ids and costs; MapScreen.cc RequestGiveSkyriderNewDestination,
@@ -44,6 +46,7 @@ import {
   requireMerc,
   type VehicleRecord,
 } from './groups.ts';
+import type { SkyriderTopic } from './helicopter-events.ts';
 import { createHelicopterState, type HelicopterState, REFUEL_SITES, RefuelSiteId } from './helicopter-state.ts';
 import { buildAStrategicPath, rebuildWayPointsForGroupPath, stratPathRulesForGroup } from './movement.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
@@ -93,6 +96,11 @@ export const SkyriderQuote = {
   HELI_TOOK_MAJOR_DAMAGE: 53,
   HELI_GOING_DOWN: 54,
 } as const;
+
+export const SkyriderMonologue = { DRASSEN_SAM_SITE: 0, CAMBRIA_HOSPITAL: 1, OTHER_SAM_SITES: 2, ESTONI_REFUEL: 3 } as const;
+export type SkyriderMonologue = (typeof SkyriderMonologue)[keyof typeof SkyriderMonologue];
+const MonologueCode = { START: 0, HIGHLIGHT: 1, END: 2 } as const;
+type MonologueCode = (typeof MonologueCode)[keyof typeof MonologueCode];
 
 export const HelicopterRefusal = {
   NO_HELICOPTER: 'noHelicopter',
@@ -165,7 +173,15 @@ function requireHelicopterGroup(ctx: StrategicContext): Group {
 }
 
 function quote(ctx: StrategicContext, id: number): void {
-  ctx.helicopter.emit({ type: 'skyriderQuote', quote: id });
+  const port = ctx.helicopter;
+  if (port.skyriderDialogue) port.skyriderDialogue(id);
+  else port.emit({ type: 'skyriderQuote', quote: id });
+}
+
+function dialogueWithSpecialEvent(ctx: StrategicContext, event: SkyriderMonologue, code: MonologueCode): void {
+  const port = ctx.helicopter;
+  if (port.skyriderMonologueEvent) port.skyriderMonologueEvent(event, code);
+  else handleSkyriderMonologueEvent(ctx, event, code);
 }
 
 function now(ctx: StrategicContext): number {
@@ -580,10 +596,11 @@ function revealSamSites(ctx: StrategicContext, sams: readonly number[]): void {
   ctx.helicopter.emit({ type: 'samSitesRevealed', sites });
 }
 
-function monologueAboutDrassenSamSite(ctx: StrategicContext): void {
-  ctx.helicopter.emit({ type: 'skyriderMonologue', topic: 'drassenSam' });
+function monologueAboutDrassenSamSite(ctx: StrategicContext, code: MonologueCode): void {
+  if (code === MonologueCode.HIGHLIGHT) revealSamSites(ctx, [SAM_SITE_TWO]);
+  if (code !== MonologueCode.START) return;
   quote(ctx, SkyriderQuote.MENTION_DRASSEN_SAM_SITE);
-  revealSamSites(ctx, [SAM_SITE_TWO]);
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.DRASSEN_SAM_SITE, MonologueCode.HIGHLIGHT);
   const sam = samSector(ctx, SAM_SITE_TWO);
   if (sam && ctx.state.map.elements[strategicIndex(sam)]?.enemyControlled)
     quote(ctx, SkyriderQuote.SECOND_HALF_OF_MENTION_DRASSEN_SAM_SITE);
@@ -591,28 +608,57 @@ function monologueAboutDrassenSamSite(ctx: StrategicContext): void {
     quote(ctx, SkyriderQuote.SAM_SITE_TAKEN);
     heliState(ctx).saidCongratsOnTakingSam = true;
   }
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.DRASSEN_SAM_SITE, MonologueCode.END);
 }
 
-function monologueAboutCambriaHospital(ctx: StrategicContext): void {
-  ctx.helicopter.emit({ type: 'skyriderMonologue', topic: 'cambriaHospital' });
+function monologueAboutCambriaHospital(ctx: StrategicContext, code: MonologueCode): void {
+  if (code !== MonologueCode.START) return;
   quote(ctx, SkyriderQuote.MENTION_HOSPITAL_IN_CAMBRIA);
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.CAMBRIA_HOSPITAL, MonologueCode.HIGHLIGHT);
 }
 
-function monologueAboutOtherSamSites(ctx: StrategicContext): void {
-  ctx.helicopter.emit({ type: 'skyriderMonologue', topic: 'otherSams' });
+function monologueAboutOtherSamSites(ctx: StrategicContext, code: MonologueCode): void {
+  if (code === MonologueCode.HIGHLIGHT) revealSamSites(ctx, [SAM_SITE_ONE, SAM_SITE_THREE, SAM_SITE_FOUR]);
+  if (code !== MonologueCode.START) return;
   quote(ctx, SkyriderQuote.SPIEL_ABOUT_OTHER_SAM_SITES);
-  revealSamSites(ctx, [SAM_SITE_ONE, SAM_SITE_THREE, SAM_SITE_FOUR]);
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.OTHER_SAM_SITES, MonologueCode.HIGHLIGHT);
   quote(ctx, SkyriderQuote.SECOND_HALF_OF_SPIEL_ABOUT_OTHER_SAM_SITES);
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.OTHER_SAM_SITES, MonologueCode.END);
 }
 
-function monologueAboutEstoniRefuel(ctx: StrategicContext): void {
-  ctx.helicopter.emit({ type: 'skyriderMonologue', topic: 'estoniRefuel' });
+function monologueAboutEstoniRefuel(ctx: StrategicContext, code: MonologueCode): void {
+  if (code !== MonologueCode.START) return;
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.ESTONI_REFUEL, MonologueCode.HIGHLIGHT);
   quote(ctx, SkyriderQuote.SPIEL_ABOUT_ESTONI_AIRSPACE);
+  dialogueWithSpecialEvent(ctx, SkyriderMonologue.ESTONI_REFUEL, MonologueCode.END);
 }
 
-function monologue(ctx: StrategicContext, say: (ctx: StrategicContext) => void): void {
-  say(ctx);
+const MONOLOGUES: Readonly<Record<SkyriderMonologue, (ctx: StrategicContext, code: MonologueCode) => void>> = {
+  [SkyriderMonologue.DRASSEN_SAM_SITE]: monologueAboutDrassenSamSite,
+  [SkyriderMonologue.CAMBRIA_HOSPITAL]: monologueAboutCambriaHospital,
+  [SkyriderMonologue.OTHER_SAM_SITES]: monologueAboutOtherSamSites,
+  [SkyriderMonologue.ESTONI_REFUEL]: monologueAboutEstoniRefuel,
+};
+
+const MONOLOGUE_TOPICS: Readonly<Record<SkyriderMonologue, SkyriderTopic>> = {
+  [SkyriderMonologue.DRASSEN_SAM_SITE]: 'drassenSam',
+  [SkyriderMonologue.CAMBRIA_HOSPITAL]: 'cambriaHospital',
+  [SkyriderMonologue.OTHER_SAM_SITES]: 'otherSams',
+  [SkyriderMonologue.ESTONI_REFUEL]: 'estoniRefuel',
+};
+
+export function isSkyriderMonologue(event: number): event is SkyriderMonologue {
+  return event in MONOLOGUES;
+}
+
+export function handleSkyriderMonologueEvent(ctx: StrategicContext, event: SkyriderMonologue, code: number): void {
+  if (code === MonologueCode.START) ctx.helicopter.emit({ type: 'skyriderMonologue', topic: MONOLOGUE_TOPICS[event] });
+  MONOLOGUES[event](ctx, code as MonologueCode);
   heliState(ctx).lastMonologueMinute = now(ctx);
+}
+
+function monologue(ctx: StrategicContext, event: SkyriderMonologue): void {
+  handleSkyriderMonologueEvent(ctx, event, MonologueCode.START);
 }
 
 export function checkAndHandleSkyriderMonologues(ctx: StrategicContext): void {
@@ -620,21 +666,21 @@ export function checkAndHandleSkyriderMonologues(ctx: StrategicContext): void {
   if (now(ctx) - heli.lastMonologueMinute < MINUTES_BETWEEN_SKYRIDER_MONOLOGUES) return;
   switch (heli.talkState) {
     case 0:
-      monologue(ctx, monologueAboutDrassenSamSite);
+      monologue(ctx, SkyriderMonologue.DRASSEN_SAM_SITE);
       heli.talkState = 1;
       break;
     case 1:
-      if (ctx.state.map.elements[strategicIndex(HOSPITAL_SECTOR)]?.enemyControlled) monologue(ctx, monologueAboutCambriaHospital);
+      if (ctx.state.map.elements[strategicIndex(HOSPITAL_SECTOR)]?.enemyControlled) monologue(ctx, SkyriderMonologue.CAMBRIA_HOSPITAL);
       heli.talkState = 2;
       break;
     case 2:
       if (!heli.saidCongratsOnTakingSam) break;
-      monologue(ctx, monologueAboutOtherSamSites);
+      monologue(ctx, SkyriderMonologue.OTHER_SAM_SITES);
       heli.talkState = 3;
       break;
     case 3:
       if (!heli.refuelSiteAvailable[RefuelSiteId.ESTONI]) break;
-      monologue(ctx, monologueAboutEstoniRefuel);
+      monologue(ctx, SkyriderMonologue.ESTONI_REFUEL);
       heli.talkState = 4;
       break;
   }

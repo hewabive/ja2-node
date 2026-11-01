@@ -7,13 +7,14 @@ import { gameOptions } from '../../options.ts';
 import { initializeMapStructure } from '../map/init.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../time/constants.ts';
 import { worldDayInMinutes } from '../time/world-clock.ts';
-import { Town } from './constants.ts';
+import { HeadMinerQuote, Town } from './constants.ts';
 import { setTownLoyalty } from './loyalty.ts';
-import { maxDailyRemovalFromMine } from './mine-status.ts';
+import { maxDailyRemovalFromMine, townAssociatedWithMine } from './mine-status.ts';
 import {
   calcMaxPlayerIncomeFromMines,
   handleIncomeFromMines,
   initializeMines,
+  issueHeadMinerQuote,
   mineAMine,
   postEventsForMineProduction,
   predictDailyIncomeFromAMine,
@@ -145,5 +146,30 @@ describe('mine production', () => {
     m.shutDown = true;
     expect(maxDailyRemovalFromMine(ctx, DRASSEN_MINE)).toBe(0);
     expect(maxDailyRemovalFromMine(ctx, GRUMM_MINE)).toBe(4 * (2000 + 25 * 400));
+  });
+});
+
+describe('IssueHeadMinerQuote (Strategic_Mines.cc, Map_Screen_Interface.cc HandleMinerEvent)', () => {
+  const FRED = 106;
+  const MATT = 148;
+  const FRED_RUNNING_OUT = 17;
+
+  it('has the head miner of the mine say his line through the dialogue queue and stops compression, but says no line he lacks', () => {
+    const { ctx } = context();
+    const said: number[][] = [];
+    const minerOf: Readonly<Record<number, number>> = {
+      [FRED]: townAssociatedWithMine(ctx, DRASSEN_MINE),
+      [MATT]: townAssociatedWithMine(ctx, ALMA_MINE),
+    };
+    Object.assign(ctx.hooks, {
+      headMinerTown: (profile: number) => minerOf[profile] ?? -1,
+      headMinerDialogue: (mine: number, profile: number, quote: number) => said.push([mine, profile, quote]),
+    });
+    Object.assign(ctx.state.clock, { compressionOn: true });
+    issueHeadMinerQuote(ctx, DRASSEN_MINE, HeadMinerQuote.RUNNING_OUT);
+    issueHeadMinerQuote(ctx, ALMA_MINE, HeadMinerQuote.RUNNING_OUT);
+    expect(said).toEqual([[DRASSEN_MINE, FRED, FRED_RUNNING_OUT]]);
+    expect(ctx.events.filter((e) => e.type === 'headMinerQuote')).toEqual([]);
+    expect(ctx.state.clock.compressionOn).toBe(false);
   });
 });

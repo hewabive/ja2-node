@@ -295,6 +295,8 @@ describe('map screen view fields and commands in a stub campaign', () => {
       ok: true,
       data: { path: ['A9', 'A10', 'A11'], edit: 'shortened' },
     });
+    expect(c.live.dispatch({ type: 'compressTime', mode: 2 })).toMatchObject({ ok: false, data: { refusal: 'pauseLocked' } });
+    c.live.advance({ idle: true });
     expect(c.live.dispatch({ type: 'compressTime', mode: 2 })).toEqual({ ok: true });
     let progress: number | undefined;
     for (let k = 0; k < STEPS && progress === undefined; k++) {

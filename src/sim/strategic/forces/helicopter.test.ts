@@ -26,6 +26,7 @@ import {
   handleHeliEnteringSector,
   handleHeliHoverLong,
   handleHeliHoverTooLong,
+  handleSkyriderMonologueEvent,
   helicopterGroup,
   helicopterVehicle,
   heliState,
@@ -33,6 +34,7 @@ import {
   plotPathForHelicopter,
   requestGiveSkyriderNewDestination,
   SKYRIDER,
+  SkyriderMonologue,
   SkyriderQuote,
   setUpHelicopterForPlayer,
   skyriderBalance,
@@ -403,6 +405,52 @@ describe('monologues', () => {
     checkAndHandleSkyriderMonologues(ctx);
     expect(heliState(ctx).talkState).toBe(4);
     expect(quotes(w).at(-1)).toBe(SkyriderQuote.SPIEL_ABOUT_ESTONI_AIRSPACE);
+  });
+
+  it("queues each monologue's lines and special events in the original's order (Map_Screen_Helicopter.cc HandleSkyRiderMonologueAbout*)", () => {
+    const w = withHelicopter();
+    const queued: string[] = [];
+    Object.assign(w.ctx.helicopter, {
+      skyriderDialogue: (quote: number) => queued.push(`quote ${quote}`),
+      skyriderMonologueEvent: (event: number, code: number) => queued.push(`event ${event}:${code}`),
+    });
+    const said = (event: SkyriderMonologue): string[] => {
+      queued.length = 0;
+      handleSkyriderMonologueEvent(w.ctx, event, 0);
+      return [...queued];
+    };
+    const { DRASSEN_SAM_SITE, CAMBRIA_HOSPITAL, OTHER_SAM_SITES, ESTONI_REFUEL } = SkyriderMonologue;
+    expect(said(DRASSEN_SAM_SITE)).toEqual([`quote ${SkyriderQuote.MENTION_DRASSEN_SAM_SITE}`, 'event 0:1', 'event 0:2']);
+    expect(said(CAMBRIA_HOSPITAL)).toEqual([`quote ${SkyriderQuote.MENTION_HOSPITAL_IN_CAMBRIA}`, 'event 1:1']);
+    expect(said(OTHER_SAM_SITES)).toEqual([
+      `quote ${SkyriderQuote.SPIEL_ABOUT_OTHER_SAM_SITES}`,
+      'event 2:1',
+      `quote ${SkyriderQuote.SECOND_HALF_OF_SPIEL_ABOUT_OTHER_SAM_SITES}`,
+      'event 2:2',
+    ]);
+    expect(said(ESTONI_REFUEL)).toEqual(['event 3:1', `quote ${SkyriderQuote.SPIEL_ABOUT_ESTONI_AIRSPACE}`, 'event 3:2']);
+  });
+
+  it('reveals the SAM sites and refreshes the monologue time only when the queue runs the special event', () => {
+    const w = withHelicopter();
+    const ctx = w.ctx;
+    ctx.state.map.secretsFound = ctx.content.secrets.map(() => false);
+    Object.assign(ctx.helicopter, { skyriderDialogue: () => {}, skyriderMonologueEvent: () => {} });
+    const sam2 = ctx.content.samSites[1];
+    const sam2Secret = ctx.content.secrets.findIndex((s) => s.sector === sam2?.sector);
+    const start = now(ctx);
+    checkAndHandleSkyriderMonologues(ctx);
+    expect(heliState(ctx)).toMatchObject({ talkState: 1, lastMonologueMinute: start });
+    expect(ctx.state.map.secretsFound[sam2Secret]).toBe(false);
+    ctx.state.clock.seconds += 60;
+    handleSkyriderMonologueEvent(ctx, SkyriderMonologue.DRASSEN_SAM_SITE, 1);
+    expect(ctx.state.map.secretsFound[sam2Secret]).toBe(true);
+    expect(w.events.filter((e) => e.type === 'samSitesRevealed')).toHaveLength(1);
+    expect(heliState(ctx).lastMonologueMinute).toBe(start + 1);
+    ctx.state.clock.seconds += 60;
+    handleSkyriderMonologueEvent(ctx, SkyriderMonologue.DRASSEN_SAM_SITE, 2);
+    expect(heliState(ctx).lastMonologueMinute).toBe(start + 2);
+    expect(w.events.filter((e) => e.type === 'samSitesRevealed')).toHaveLength(1);
   });
 
   it('says the SAM congratulation in the first monologue once the player has used the helicopter', () => {

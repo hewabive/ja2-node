@@ -1,6 +1,8 @@
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import type { MercQuoteEvent } from '../campaign/contracts/events.ts';
 import type { SimEventBase } from '../events.ts';
+import type { EconomyEvent } from '../strategic/economy/events.ts';
+import type { SkyriderQuoteEvent } from '../strategic/forces/helicopter-events.ts';
 
 export interface ConversationOpenedEvent extends SimEventBase {
   readonly type: 'conversationOpened';
@@ -140,6 +142,10 @@ export type NarrativeEvent =
   | SexSceneEvent
   | AlarmEvent;
 
-type Emitted = NarrativeEvent | MercQuoteEvent;
+type Emitted = NarrativeEvent | MercQuoteEvent | SkyriderQuoteEvent;
 
-export type NarrativeEventWithoutTick = Emitted extends infer E ? (E extends Emitted ? Omit<E, 'tick'> : never) : never;
+type HeadMinerQuoteEvent = Extract<EconomyEvent, { readonly type: 'headMinerQuote' }>;
+
+export type NarrativeEventWithoutTick =
+  | (Emitted extends infer E ? (E extends Emitted ? Omit<E, 'tick'> : never) : never)
+  | HeadMinerQuoteEvent;

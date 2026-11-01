@@ -79,13 +79,13 @@ function quitQuote(m: RosterMerc, accountStatus: number): QuoteName | null {
 
 export function mercsContractIsFinished(ctx: ContractContext, m: RosterMerc): void {
   if (ctx.roster.get(m.id) !== m) return;
-  ctx.contracts.pendingEndings.push({ kind: 'enterMapScreen', soldier: m.id });
+  ctx.queueEnding({ kind: 'enterMapScreen', soldier: m.id });
   const quote = quitQuote(m, ctx.state.laptop.merc.accountStatus);
   if (!quote) return;
   interruptTime(ctx.state.clock);
   pauseGame(ctx.state.clock);
   ctx.say(m, quote);
-  ctx.contracts.pendingEndings.push({ kind: 'withoutEquipment', soldier: m.id });
+  ctx.queueEnding({ kind: 'withoutEquipment', soldier: m.id });
   m.contract.leaveHistoryCode = HistoryCode.MERC_QUIT;
 }
 

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { advance } from '../sim/advance.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -81,6 +82,8 @@ describe('a new campaign session', () => {
     expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual(CONTRACTS_ON_THE_MAP_ONLY);
     expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual({ ok: true });
+    expect(session.view().contractPrompt ?? null).toBeNull();
+    expect(advance(session, { idle: true }).reason).toBe('decision');
     const prompt = session.view().contractPrompt;
     expect(prompt).toMatchObject({ kind: 'mercDeparture', soldier: dismissed.id, name: dismissed.name, sector: 'A9' });
     expect(prompt?.kind === 'mercDeparture' && prompt.choices).toContain('here');

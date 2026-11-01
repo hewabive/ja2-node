@@ -15,6 +15,7 @@ export interface SkyriderQuoteEvent extends SimEventBase {
   readonly profile?: number;
   readonly textKey?: TextKey;
   readonly chars?: number;
+  readonly skipped?: boolean;
 }
 
 export interface HeliTakeOffEvent extends SimEventBase {
