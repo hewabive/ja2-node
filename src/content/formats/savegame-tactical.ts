@@ -340,6 +340,8 @@ export interface TacticalStatus {
   readonly hasEnteredCombatModeSinceEntering: boolean;
   readonly numCrowsPossible: number;
   readonly dontAddNewCrows: boolean;
+  readonly creatureTenseQuoteDelay: number;
+  readonly creatureTenseQuoteLastUpdate: number;
   readonly worldSector: SectorPosition;
 }
 
@@ -532,6 +534,8 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     hasEnteredCombatModeSinceEntering: b('fHasEnteredCombatModeSinceEntering'),
     numCrowsPossible: n('ubNumCrowsPossible'),
     dontAddNewCrows: b('fDontAddNewCrows'),
+    creatureTenseQuoteDelay: n('sCreatureTenseQuoteDelay'),
+    creatureTenseQuoteLastUpdate: n('uiCreatureTenseQuoteLastUpdate'),
     worldSector,
   };
 }

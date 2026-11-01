@@ -118,6 +118,7 @@ import {
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
+import { drawFirstCreatureTenseQuoteDelay } from '../tactical/narrative/creature-tension.ts';
 import {
   civilianPlacementOverride,
   iceCreamTruckWithheld,
@@ -225,7 +226,6 @@ export interface LoadOptions {
 const PALACE: Sector = { x: 3, y: 16, z: 0 };
 const STATUE_SECTOR: Sector = { x: 3, y: 15, z: 0 };
 const PRESERVED_ENEMY_MAX_AGE_MINUTES = 300;
-const CREATURE_TENSE_QUOTE_RANGE = 20;
 const CROWS_POSSIBLE_BASE = 5;
 const CROWS_POSSIBLE_RANGE = 5;
 const NO_DIFFICULTY_TOWN = 0;
@@ -468,7 +468,7 @@ export class SectorFlow {
     setSectorFlag(s.map, sector, SectorFlag.HAS_ENTERED_TACTICAL, day);
     this.hasEnteredCombatModeSinceEntering = false;
     this.#flow.crows.dontAddNew = false;
-    s.rng.int(CREATURE_TENSE_QUOTE_RANGE);
+    drawFirstCreatureTenseQuoteDelay(this.#flow.realtimeClock, s.rng);
     this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);

@@ -309,10 +309,19 @@ export interface RealtimeClock {
   lastOpplistDecaySeconds: number;
   lastOverheadMs: number;
   lastRottingCorpsesSeconds: number;
+  creatureTenseQuoteDelaySeconds: number;
+  lastCreatureTenseQuoteMs: number;
 }
 
 export function createRealtimeClock(): RealtimeClock {
-  return { lastTurnMs: 0, lastOpplistDecaySeconds: 0, lastOverheadMs: 0, lastRottingCorpsesSeconds: 0 };
+  return {
+    lastTurnMs: 0,
+    lastOpplistDecaySeconds: 0,
+    lastOverheadMs: 0,
+    lastRottingCorpsesSeconds: 0,
+    creatureTenseQuoteDelaySeconds: 0,
+    lastCreatureTenseQuoteMs: 0,
+  };
 }
 
 export interface CrowStatus {

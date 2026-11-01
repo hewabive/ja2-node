@@ -171,5 +171,4 @@ Inferred from reading the source:
   (`src/server/save-session.test.ts`).
 
 Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Map items", "Ground vehicles",
-"Helicopter entrance", "Creature quest scripting", "Vehicles as characters". Deviation of this domain: "Helicopter on
-load".
+"Helicopter entrance", "Vehicles as characters". Deviation of this domain: "Helicopter on load".

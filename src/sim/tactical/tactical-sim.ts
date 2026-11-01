@@ -112,6 +112,7 @@ import {
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { handleCreatureTenseQuote } from './narrative/creature-tension.ts';
 import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
@@ -387,6 +388,7 @@ function overheadHooks(ai: AiControl): OverheadHooks {
       updateBullets(state);
       stepExplosions(state);
       handleActionItemQueue(state);
+      handleCreatureTenseQuote(state);
       checkHostileOrSayQuoteList(state);
       endTimedAiPause(state);
       updateMissAnimations(state);

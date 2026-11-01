@@ -112,21 +112,22 @@ the tactical state, tick, day, the main stream), so it is tested without a campa
 Tactical rules reach the dialogue only through `TacticalState.narrative` (deviation "Narrative port").
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
-battle, a buddy's comment and the can't-do line of a skill check, the out-of-ammo line at the end of the attack that
-emptied the gun, the found-something-special line of a pickup, the dying line and the bleeding warning, all through
-`TacticalPort.sayQuote`, the items-seen quote through `signalItemLocatorStart`, which picks its line and unlocks the item
-locators only when the queue runs it, the comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go
-through the queue, and so do the strategic lines: contract, relationship and morale lines (`ContractFlow.say`,
-`sayImportant`, `sayDelayed`), a finished assignment and tiredness (`EconomyHooks.tacticalCharacterDialogue`,
-`campaign/economy-lines.ts`), an own merc's bark, and the external faces of Skyrider and the head miners
-(`externalNpcDialogue`, said as `skyriderQuote` and `headMinerQuote`). An important line (`handleImportantMercQuote`, the
-contract lines) wraps a sleeping merc's line in a wake event and a sleep event. Special events the original queues with
-these lines are `callback` events with numeric arguments, run when the queue reaches them: the renewal step after the
-merc's lines that says the raise and opens the menu, the contract endings and the map screen switch (`22`), and
-Skyrider's SAM reveals and monologue time (`25`). A callback may wait at the head of the queue (the contract ones while a
-prompt is open). A campaign without a talk flow (test campaigns) keeps shortcuts: contract and Skyrider lines are plain
-events, a head miner's line a `headMinerQuote` event, the economy's lines are not said, Skyrider's special events run at
-once and the contract endings wait in `ContractState.pendingEndings`, which also holds the endings of older saves.
+battle, a creature lair's tension lines (`narrative/creature-tension.ts`), a buddy's comment and the can't-do line of a
+skill check, the out-of-ammo line at the end of the attack that emptied the gun, the found-something-special line of a
+pickup, the dying line and the bleeding warning, all through `TacticalPort.sayQuote`, the items-seen quote through
+`signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it, the comment a
+closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue, and so do the strategic lines:
+contract, relationship and morale lines (`ContractFlow.say`, `sayImportant`, `sayDelayed`), a finished assignment and
+tiredness (`EconomyHooks.tacticalCharacterDialogue`, `campaign/economy-lines.ts`), an own merc's bark, and the external
+faces of Skyrider and the head miners (`externalNpcDialogue`, said as `skyriderQuote` and `headMinerQuote`). An
+important line (`handleImportantMercQuote`, the contract lines) wraps a sleeping merc's line in a wake event and a sleep
+event. Special events the original queues with these lines are `callback` events with numeric arguments, run when the
+queue reaches them: the renewal step after the merc's lines that says the raise and opens the menu, the contract endings
+and the map screen switch (`22`), and Skyrider's SAM reveals and monologue time (`25`). A callback may wait at the head
+of the queue (the contract ones while a prompt is open). A campaign without a talk flow (test campaigns) keeps
+shortcuts: contract and Skyrider lines are plain events, a head miner's line a `headMinerQuote` event, the economy's
+lines are not said, Skyrider's special events run at once and the contract endings wait in
+`ContractState.pendingEndings`, which also holds the endings of older saves.
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
 no gas and no captivity, when it is queued and again when it plays; auto-bandage mode drops whatever reaches the head of
@@ -183,6 +184,7 @@ otherwise:
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
 | A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |
+| A creature lair's first tension delay, drawn at the sector entry, counts from the last tension quote, not from the entry: a lair entered long after one hears the next at its first pass | `tactical/narrative/creature-tension.test.ts` "counts the first delay of a sector entry …" |
 | A line on the map screen pauses before the speaker checks, so a line its speaker can no longer say pauses the game until the next pass ends the empty face | `dialogue-queue.test.ts` |
 | The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
 | An important line queues its wake and sleep events even when the merc may not say it | `dialogue-queue.test.ts` |

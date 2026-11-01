@@ -244,7 +244,7 @@ function withTacticalMsDecayStamp(value: Json): Json {
   const out: Record<string, Json> = {};
   for (const [key, v] of Object.entries(value)) {
     if (key === 'lastOpplistDecaySeconds') out.lastDecayMs = LEGACY_DECAY_MS;
-    else if (key !== 'lastRottingCorpsesSeconds') out[key] = withTacticalMsDecayStamp(v);
+    else if (key !== 'lastRottingCorpsesSeconds' && !CREATURE_TENSE_QUOTE_KEYS.includes(key)) out[key] = withTacticalMsDecayStamp(v);
   }
   return out;
 }
@@ -269,6 +269,7 @@ describe('snapshot version 10 (opplist decay on the tactical clock) migrates to 
   async function expectDecayDueAtNextRealtimeTurn(session: SessionSim, clock: RealtimeClock): Promise<void> {
     clock.lastOpplistDecaySeconds = 0;
     clock.lastRottingCorpsesSeconds = 0;
+    resetCreatureTenseQuoteTimer(clock);
     const current = snapshotSession(session);
     const legacy = versionTen(current.sim);
     expect(JSON.stringify(legacy)).toContain(`"lastDecayMs":${LEGACY_DECAY_MS}`);
@@ -1072,7 +1073,10 @@ function withoutCrowState(value: Json): Json {
 }
 
 function versionTwentyEight(snapshot: SimSnapshot): SimSnapshot {
-  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutCrowState(value)]);
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    withoutCrowState(withoutCreatureTenseQuoteTimer(value)),
+  ]);
   return { ...snapshot, version: 28, graph: { ...snapshot.graph, sections } };
 }
 
@@ -1092,6 +1096,7 @@ describe('snapshot version 28 (no crows) migrates with no crow to come, no empti
     t.crows.possible = 0;
     t.crows.dontAddNew = false;
     t.realtimeClock.lastRottingCorpsesSeconds = 0;
+    resetCreatureTenseQuoteTimer(t.realtimeClock);
     const current = snapshotSession(session);
     const legacy = versionTwentyEight(current.sim);
     for (const key of Object.keys(CROW_DEFAULTS)) expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
@@ -1306,5 +1311,67 @@ describe('snapshot version 32 (no random idle animation counter) migrates with e
 
   it('a landed campaign', async () => {
     await expectCountsAtZero(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+const CREATURE_TENSE_QUOTE_KEYS = ['creatureTenseQuoteDelaySeconds', 'lastCreatureTenseQuoteMs'];
+
+function resetCreatureTenseQuoteTimer(clock: RealtimeClock): void {
+  clock.creatureTenseQuoteDelaySeconds = 0;
+  clock.lastCreatureTenseQuoteMs = 0;
+}
+
+function withoutCreatureTenseQuoteTimer(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutCreatureTenseQuoteTimer(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (CREATURE_TENSE_QUOTE_KEYS.includes(key)) expect(v).toBe(0);
+    else out[key] = withoutCreatureTenseQuoteTimer(v);
+  }
+  return out;
+}
+
+function versionThirtyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutCreatureTenseQuoteTimer(value)]);
+  return { ...snapshot, version: 33, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 33 (no creature tension timer) migrates with no delay and no tense quote said yet', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectFreshTimer(session: SessionSim, clock: RealtimeClock): Promise<void> {
+    resetCreatureTenseQuoteTimer(clock);
+    const current = snapshotSession(session);
+    const legacy = versionThirtyThree(current.sim);
+    for (const key of CREATURE_TENSE_QUOTE_KEYS) {
+      expect(JSON.stringify(current.sim)).toContain(`"${key}"`);
+      expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    }
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectFreshTimer(sandbox, sandbox.sim.state.realtimeClock);
+  });
+
+  it('a landed campaign keeps one timer for the sector flow and the loaded sector', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    expect(t.realtimeClock).toBe(campaign.campaign.state.sectorFlow.realtimeClock);
+    await expectFreshTimer(campaign, t.realtimeClock);
   });
 });

@@ -133,6 +133,8 @@ export function importCampaignWideState(state: CampaignWideState, save: SaveGame
     if (p) state.profiles.set(id, progressFromSavedProfile(p, state.content.profiles[id]));
   });
   state.realtimeClock.lastOpplistDecaySeconds = save.tactical.timeSinceLastOpplistDecay;
+  state.realtimeClock.creatureTenseQuoteDelaySeconds = save.tactical.creatureTenseQuoteDelay;
+  state.realtimeClock.lastCreatureTenseQuoteMs = save.tactical.creatureTenseQuoteLastUpdate;
   state.crows.possible = save.tactical.numCrowsPossible;
   state.crows.dontAddNew = save.tactical.dontAddNewCrows;
   state.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });

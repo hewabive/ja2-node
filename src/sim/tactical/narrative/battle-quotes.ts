@@ -1,9 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc CheckForEndOfCombatMode and CheckForEndOfBattle (the merc quotes),
-// @src WeSawSomeoneThisTurn, NumEnemyInSectorNotDeadOrDying, NumBloodcatsInSectorNotDeadOrDying; the creature lair's
-// @src QUOTE_WORRIED_ABOUT_CREATURE_PRESENCE is not ported (gaps "Creature quest scripting"), the COOL1 battle sound of
-// @src SayBattleSoundFromAnyBodyInSector after bloodcats is not drawn (deviation "Battle sound after bloodcats").
+// @src WeSawSomeoneThisTurn, NumEnemyInSectorNotDeadOrDying, NumBloodcatsInSectorNotDeadOrDying; the COOL1 battle sound
+// @src of SayBattleSoundFromAnyBodyInSector after bloodcats is not drawn (deviation "Battle sound after bloodcats").
 
 import { Opp } from '../perception/opp.ts';
 import { Body, OKLIFE, Side, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
@@ -30,7 +29,10 @@ function numBloodcatsInSectorNotDeadOrDying(t: TacticalState): number {
 }
 
 export function sayLullQuote(t: TacticalState, quoteDue: boolean): void {
-  if (quoteDue && t.sectorHooks.inCreatureLair(t)) return;
+  if (quoteDue && t.sectorHooks.inCreatureLair(t)) {
+    sayQuoteFromAnyBodyInSector(t, MercQuote.WORRIED_ABOUT_CREATURE_PRESENCE);
+    return;
+  }
   if (numBloodcatsInSectorNotDeadOrDying(t) > 0) return;
   if (quoteDue && numEnemyInSectorNotDeadOrDying(t) > 0) sayQuoteFromAnyBodyInSector(t, MercQuote.WARNING_OUTSTANDING_ENEMY_AFTER_RT);
 }

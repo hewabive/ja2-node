@@ -57,6 +57,8 @@ const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const MIN_CROWS_POSSIBLE = 5;
 const MAX_CROWS_POSSIBLE = 9;
+const FIRST_TENSE_QUOTE_DELAY_MIN = 10;
+const FIRST_TENSE_QUOTE_DELAY_MAX = 29;
 const NIGHT_ENDS_HOUR = 7;
 const CROW_LANDING_RADIUS = 2;
 const NOON_HOUR = 12;
@@ -247,6 +249,15 @@ describe('leaving a sector', () => {
     const { possible, dontAddNew } = campaign.state.sectorFlow.crows;
     expect([possible >= MIN_CROWS_POSSIBLE && possible <= MAX_CROWS_POSSIBLE, dontAddNew]).toEqual([true, false]);
     expect(campaign.tactical?.state.crows).toBe(campaign.state.sectorFlow.crows);
+  });
+
+  it('keeps the first creature tension delay of 10 + Random(20) s drawn at the sector entry (StrategicMap.cc SetCurrentWorldSector)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    expect(campaign.state.sectorFlow.realtimeClock.creatureTenseQuoteDelaySeconds).toBe(0);
+    landFirstSquad(campaign);
+    const delay = campaign.state.sectorFlow.realtimeClock.creatureTenseQuoteDelaySeconds;
+    expect(delay >= FIRST_TENSE_QUOTE_DELAY_MIN && delay <= FIRST_TENSE_QUOTE_DELAY_MAX).toBe(true);
+    expect(campaign.tactical?.state.realtimeClock).toBe(campaign.state.sectorFlow.realtimeClock);
   });
 
   it('lands two crows on a rotting corpse of A9 by day as its corpses load (Tactical_Save.cc LoadRottingCorpsesFromTempCorpseFile)', () => {

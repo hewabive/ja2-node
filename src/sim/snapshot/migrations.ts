@@ -854,6 +854,28 @@ function addRandomActionCounter(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ROTTING_CORPSES_REALTIME_CLOCK_KEYS = [...SECONDS_REALTIME_CLOCK_KEYS, ROTTING_CORPSES_STAMP_KEY];
+const CREATURE_TENSE_QUOTE_DEFAULTS: JsonObject = { creatureTenseQuoteDelaySeconds: 0, lastCreatureTenseQuoteMs: 0 };
+
+function isRottingCorpsesRealtimeClock(o: JsonObject): boolean {
+  const keys = ROTTING_CORPSES_REALTIME_CLOCK_KEYS;
+  return Object.keys(o).length === keys.length && keys.every((key) => typeof o[key] === 'number');
+}
+
+function withCreatureTenseQuoteTimer(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withCreatureTenseQuoteTimer(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withCreatureTenseQuoteTimer(v);
+  return isRottingCorpsesRealtimeClock(mapped) ? { ...mapped, ...CREATURE_TENSE_QUOTE_DEFAULTS } : mapped;
+}
+
+function addCreatureTenseQuoteTimer(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withCreatureTenseQuoteTimer(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -888,5 +910,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     30: addLandedHelicopter,
     31: addServicingCrows,
     32: addRandomActionCounter,
+    33: addCreatureTenseQuoteTimer,
   };
 }

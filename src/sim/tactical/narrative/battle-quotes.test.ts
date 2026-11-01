@@ -188,16 +188,31 @@ describe('the lull quote (Overhead.cc CheckForEndOfCombatMode)', () => {
     expect(s.said).toEqual([[1, MercQuote.WARNING_OUTSTANDING_ENEMY_AFTER_RT]]);
   });
 
-  it('keeps quiet while a bloodcat lives and in a creature lair', () => {
+  it('keeps quiet while a bloodcat lives', () => {
     const cats = scene(2);
     enemy(cats, Body.BLOODCAT, CREATURE_ID, Team.CREATURE);
     enterCombatMode(cats.t, Team.OUR);
     expect(lull(cats, [])).toBe(true);
+    expect([cats.said, cats.draws]).toEqual([[], []]);
+  });
+
+  it('has a merc picked with Random(n) say he worries about the creatures in a creature lair, before the bloodcat test', () => {
     const lair = scene(2);
-    enemy(lair, Body.AM_MONSTER, CREATURE_ID, Team.CREATURE);
+    enemy(lair, Body.BLOODCAT, CREATURE_ID, Team.CREATURE);
     lair.t.sectorHooks = { ...lair.t.sectorHooks, inCreatureLair: () => true };
     enterCombatMode(lair.t, Team.OUR);
+    expect(lull(lair, [1])).toBe(true);
+    expect(lair.draws).toEqual([2]);
+    expect(lair.said).toEqual([[1, MercQuote.WORRIED_ABOUT_CREATURE_PRESENCE]]);
+  });
+
+  it('keeps quiet in a creature lair when the quote is not due', () => {
+    const lair = scene(2);
+    const foe = enemy(lair, Body.AM_MONSTER, CREATURE_ID, Team.CREATURE);
+    lair.t.sectorHooks = { ...lair.t.sectorHooks, inCreatureLair: () => true };
+    enterCombatMode(lair.t, Team.OUR);
+    (lair.squad[1] as Soldier).oppList[foe.id] = Opp.SEEN_THIS_TURN;
     expect(lull(lair, [])).toBe(true);
-    expect([cats.said, lair.said, cats.draws, lair.draws]).toEqual([[], [], [], []]);
+    expect([lair.said, lair.draws]).toEqual([[], []]);
   });
 });

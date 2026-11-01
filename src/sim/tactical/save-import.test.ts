@@ -149,6 +149,8 @@ function syntheticSave({
       lockItemLocators: false,
       numCrowsPossible: 0,
       dontAddNewCrows: false,
+      creatureTenseQuoteDelay: 0,
+      creatureTenseQuoteLastUpdate: 0,
       ...tactical,
     },
     keyTable: [],
@@ -474,7 +476,7 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     expect(strategic.profiles.get(kept.id)?.nickname).toBeUndefined();
   });
 
-  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay and the crows', () => {
+  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay, the crows and the creature tension timer', () => {
     const base = syntheticSave({});
     const ring = Array.from({ length: 256 }, (_, k) => (k * 37) % 1000);
     const key = { sectorFound: 12, dateFound: 345 };
@@ -488,6 +490,8 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
         timeSinceLastOpplistDecay: 4321,
         numCrowsPossible: 7,
         dontAddNewCrows: true,
+        creatureTenseQuoteDelay: 74,
+        creatureTenseQuoteLastUpdate: 912_345,
       },
     } as SaveGame;
     const strategic = importedCampaignWideState(save);
@@ -495,6 +499,10 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     expect(strategic.pre.state()).toEqual({ ring, index: 65 });
     expect(strategic.keyTable[0]).toEqual(key);
     expect(strategic.civGroups.hostility.slice(0, 3)).toEqual([0, 2, 1]);
-    expect(strategic.sectorFlow.realtimeClock.lastOpplistDecaySeconds).toBe(4321);
+    expect(strategic.sectorFlow.realtimeClock).toMatchObject({
+      lastOpplistDecaySeconds: 4321,
+      creatureTenseQuoteDelaySeconds: 74,
+      lastCreatureTenseQuoteMs: 912_345,
+    });
   });
 });
