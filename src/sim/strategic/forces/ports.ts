@@ -106,6 +106,8 @@ export interface TacticalWorldPort {
   playerControlsSurfaceSector?(sector: Sector): void;
   airspaceControlUpdated?(): void;
   removedFromSquad?(id: number, squad: number): void;
+  addedToSquad?(id: number, squad: number): void;
+  rebuildCurrentSquad?(): void;
 }
 
 export interface StrategicPorts {

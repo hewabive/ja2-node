@@ -4,7 +4,8 @@
 // @src StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
 // @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
 // @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
-// @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound.
+// @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
+// @src Tactical/Squads.cc SetCurrentSquad for an escort (2026-11-01).
 
 import type { CommandResult } from '../../command.ts';
 import { cloneObject, deleteObject } from '../../items/object.ts';
@@ -14,7 +15,6 @@ import { mineStatus, restartMineProduction, shutOffMineProduction } from '../../
 import { headMinersMineIndex, playerSpokeToHeadMiner, resetQueenRetookMine } from '../../strategic/economy/mines.ts';
 import { setSoldierAssignmentHospital } from '../../strategic/economy/set-assignment.ts';
 import { type BattlePrompt, nextPromptId, PromptKind } from '../../strategic/forces/battle-state.ts';
-import { NUMBER_OF_SQUADS } from '../../strategic/forces/constants.ts';
 import { getGroup, setGroupSectorValue } from '../../strategic/forces/groups.ts';
 import { updateRefuelSiteAvailability } from '../../strategic/forces/helicopter.ts';
 import { calculateNonPersistentPbiInfo } from '../../strategic/forces/pre-battle.ts';
@@ -28,6 +28,7 @@ import { warpGameTime, worldDay, worldMinutesInDay, worldTotalMinutes } from '..
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { autoPlaceObject } from '../../tactical/inventory.ts';
+import { soldierAssignment } from '../../tactical/narrative/assignment.ts';
 import { boxerAvailable, checkOnBoxers, exitBoxing, startBoxingMatch } from '../../tactical/narrative/boxing.ts';
 import { handleNpcDoAction } from '../../tactical/narrative/npc-actions/catalog.ts';
 import {
@@ -51,6 +52,7 @@ import {
 import { carmenLeavesSector } from '../../tactical/narrative/npc-actions/san-mona.ts';
 import { kickOutWheelchair } from '../../tactical/narrative/wheelchair.ts';
 import { refuse } from '../../tactical/refusal.ts';
+import { setCurrentSquad } from '../../tactical/selection.ts';
 import { OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
 import { soldierInventoryContext } from '../../tactical/soldier-inventory.ts';
 import { WaitForMercs } from '../../tactical/state.ts';
@@ -352,8 +354,8 @@ export class NpcActionFlow {
       playerTeamFull: () => playerTeamFull(this.#mercsOnPlayerTeam()),
       mercsOnPlayerTeam: () => this.#mercsOnPlayerTeam(),
       setCurrentSquad: (soldier) => {
-        const squad = roster()?.get(soldier.id)?.assignment ?? -1;
-        if (squad >= 0 && squad < NUMBER_OF_SQUADS) s.forces.currentSquad = squad;
+        const t = host.tactical();
+        if (t) setCurrentSquad(t, soldierAssignment(t, soldier), false);
       },
       openShop: (npc) => host.openShop(npc),
       shopKeeperShutDown: (npc) => host.shopClosedByScript(npc),

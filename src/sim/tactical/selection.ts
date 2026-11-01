@@ -6,9 +6,12 @@
 // @src GameScreen.cc EnterTacticalScreen (a selected merc out of control or asleep), MainGameScreenHandle (the forced
 // @src reselect on entry), TacticalScreenLocateToSoldier; Tactical/Overhead.cc HandlePlayerTeamMemberDeath and
 // @src RemoveSoldierFromTacticalSector (the next selection), FindActiveAndAliveMerc, FindNextActiveSquad;
-// @src Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier.
+// @src Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier;
+// @src Tactical/Squads.cc SetCurrentSquad (the forced selection of the squad's first merc), SetDefaultSquadOnSectorEntry,
+// @src RebuildCurrentSquad (its squad check; the team panel stays the client's),
+// @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01).
 
-import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
 import { MercQuote, markQuoteSaid, okControllableMerc, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
 import { isVehicleBody } from './person-structure.ts';
@@ -41,7 +44,7 @@ export function selectSoldier(t: TacticalState, s: Soldier, flags: number = Sele
   if (selectionRefusal(t, s)) return false;
   if (s.id === t.turn.selected && !(flags & SelectFlags.FORCE_RESELECT)) return false;
   t.turn.selected = s.id;
-  t.narrative.setCurrentSquad(s);
+  setCurrentSquad(t, soldierAssignment(t, s), false);
   wakeIfAsleep(t, s);
   maySayPersonalityQuote(t, s);
   return true;
@@ -75,8 +78,61 @@ export function endMultiSoldierSelection(t: TacticalState, chosen: Soldier, memb
   if (chosen.id !== t.turn.selected) selectSoldier(t, chosen, SelectFlags.FORCE_RESELECT);
 }
 
+export function currentSquad(t: TacticalState): number {
+  return t.narrative.currentSquad();
+}
+
+export function setCurrentSquad(t: TacticalState, squad: number, force: boolean): void {
+  if (!t.narrative.inTacticalScreen()) return;
+  if (squad === NO_CURRENT_SQUAD) {
+    t.narrative.changeCurrentSquad(NO_CURRENT_SQUAD);
+    return;
+  }
+  if (squad < 0 || squad >= NUMBER_OF_SQUADS) return;
+  if (squad === currentSquad(t) && !force) return;
+  t.narrative.changeCurrentSquad(squad);
+  const selected = selectedSoldier(t);
+  if (!selected || soldierAssignment(t, selected) !== squad) selectFirstOfSquad(t, squad);
+}
+
+function selectFirstOfSquad(t: TacticalState, squad: number): void {
+  const first = t.narrative.squadMembers(squad)[0];
+  if (first) selectSoldier(t, first, SelectFlags.FORCE_RESELECT);
+}
+
+export function setDefaultSquadOnSectorEntry(t: TacticalState, force: boolean): void {
+  if (t.narrative.squadOnCurrentTacticalMap(currentSquad(t))) return;
+  const squad = firstSquadOnCurrentTacticalMap(t);
+  if (squad === null) setCurrentSquad(t, NO_CURRENT_SQUAD, false);
+  else setCurrentSquad(t, squad, force);
+}
+
+function firstSquadOnCurrentTacticalMap(t: TacticalState): number | null {
+  for (let squad = 0; squad < NUMBER_OF_SQUADS; squad++) if (t.narrative.squadOnCurrentTacticalMap(squad)) return squad;
+  return null;
+}
+
+export function rebuildCurrentSquad(t: TacticalState): void {
+  const squad = currentSquad(t);
+  if (squad < 0 || squad >= NUMBER_OF_SQUADS) return;
+  setDefaultSquadOnSectorEntry(t, true);
+}
+
+export function setCurrentSquadAfterJoin(t: TacticalState, joiner: Soldier, squad: number): void {
+  const current = currentSquad(t);
+  if (current === NO_CURRENT_SQUAD || t.narrative.squadMembers(current).length === 0) setCurrentSquad(t, squad, true);
+  if (joiner.id === t.turn.selected) setCurrentSquad(t, squad, true);
+}
+
+export function enterTacticalScreenAfterLoad(t: TacticalState): void {
+  const selected = selectedSoldier(t);
+  if (selected) selectSoldier(t, selected, SelectFlags.FORCE_RESELECT);
+  enterTacticalScreen(t);
+}
+
 export function enterTacticalScreen(t: TacticalState): void {
   replaceSelectionUnfitForTactical(t);
+  setDefaultSquadOnSectorEntry(t, false);
   const selected = selectedSoldier(t);
   if (selected && okInterruptMerc(t, selected)) selectSoldier(t, selected, SelectFlags.FORCE_RESELECT);
 }

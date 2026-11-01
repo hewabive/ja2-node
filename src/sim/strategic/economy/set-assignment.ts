@@ -6,7 +6,8 @@
 // @src AssignMercToAMovementGroup, the TRAIN_MENU_TOWN branch of TrainingMenuBtnCallback, PutMercInAwakeState;
 // @src Tactical/Squads.cc AddCharacterToSquad (soldier side); the MakeSoldiersTacticalAnimationReflectAssignment calls of
 // @src AssignmentMenuBtnCallback, EPCMenuBtnCallback, SquadMenuBtnCallback, AttributesMenuBtnCallback,
-// @src TrainingMenuBtnCallback and SetAssignmentForList (2026-10-31).
+// @src TrainingMenuBtnCallback and SetAssignmentForList (2026-10-31); SetSoldierAssignmentHospital's RebuildCurrentSquad
+// @src through the world port (2026-11-01).
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
 import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';
@@ -107,6 +108,7 @@ export function setSoldierAssignmentHospital(ctx: EconomyContext, s: CrewMember)
   preChangeAssignment(ctx, s);
   s.bleeding = 0;
   stampIfChanged(ctx, s, Assignment.ASSIGNMENT_HOSPITAL);
+  ctx.world.rebuildCurrentSquad?.();
   postSetAssignment(ctx, s, Assignment.ASSIGNMENT_HOSPITAL);
   return true;
 }

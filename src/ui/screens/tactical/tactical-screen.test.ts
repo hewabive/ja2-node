@@ -20,6 +20,7 @@ const FRAME_MS = 16;
 const PANEL_FRAME_MS = 160;
 const SKULL_ANIMATION_FRAMES = 13;
 const SKULL_TICKS = 400;
+const DYING_LIFE = 10;
 const DEAD_FACE_FRAME = 5;
 const FONT_RED = 162;
 const FONT_MCOLOR_LTYELLOW = 144;
@@ -145,6 +146,18 @@ function playSkullAnimation(f: TacticalUiTest): void {
 
 function selects(f: TacticalUiTest) {
   return f.client.commands.filter((c) => c.cmd.type === 'select').map((c) => c.cmd);
+}
+
+function squadCommands(f: TacticalUiTest) {
+  return f.client.commands.filter((c) => c.cmd.type === 'selectSquad').map((c) => c.cmd);
+}
+
+async function twoSquadsInA10(): Promise<{ readonly ui: TacticalUiTest; readonly ids: readonly number[] }> {
+  const a10 = await campaignInA10(kit, 5, 3);
+  const driven = await tacticalUiTest(kit, ui, 5, a10.session);
+  expect(await driven.session.prepareAndDispatch({ type: 'assignSquad', soldier: a10.mercs[2], squad: 'new' })).toMatchObject({ ok: true });
+  driven.deliver();
+  return { ui: driven, ids: a10.mercs };
 }
 
 function inventory(f: TacticalUiTest, soldier: number) {
@@ -434,6 +447,58 @@ describe('the tactical screen over a stub sandbox session', () => {
     f.frames([frame(f.client.view.tick, [{ tick: f.client.view.tick, type: 'interrupt', team: 0, soldiers: [3], selected: 3 }])]);
     await f.settle();
     expect([f.screen.selected, selects(f)]).toEqual([3, [{ type: 'select', soldier: 1 }]]);
+  });
+
+  it('sends selectSquad for a squad key and follows the current squad and the selection the server makes, sending no select', async () => {
+    const f = await twoSquadsInA10();
+    const [first, , third] = f.ids;
+    expect([f.ui.screen.currentSquad, f.ui.screen.selected]).toEqual([0, first]);
+    f.ui.key('2');
+    await f.ui.settle();
+    f.ui.deliver();
+    expect(squadCommands(f.ui)).toEqual([{ type: 'selectSquad', squad: 1 }]);
+    expect([f.ui.screen.currentSquad, f.ui.screen.selected, f.ui.screen.teamSlots.filter((id) => id !== null)]).toEqual([
+      1,
+      third,
+      [third],
+    ]);
+    expect(selects(f.ui)).toEqual([]);
+    f.ui.key('2');
+    await f.ui.settle();
+    expect(squadCommands(f.ui)).toHaveLength(1);
+  });
+
+  it('makes a squad on the map current from the squad list and shows the radar again', async () => {
+    const f = await twoSquadsInA10();
+    await f.ui.click('teamSquad');
+    expect(f.ui.screen.radarShown).toBe(false);
+    const line = f.ui.t.runtime.regions.regions.find((r) => r.id === 'squadLine1');
+    if (!line) throw new Error('no squad line');
+    await f.ui.clickAt(line.x1 + Math.floor(line.width / 2), line.y1 + Math.floor(line.height / 2));
+    f.ui.deliver();
+    expect([squadCommands(f.ui), f.ui.screen.radarShown, f.ui.screen.currentSquad]).toEqual([[{ type: 'selectSquad', squad: 1 }], true, 1]);
+  });
+
+  it('shows the squad the server makes current although its first merc cannot be selected and the selection stays elsewhere', async () => {
+    const f = await twoSquadsInA10();
+    const [first, , third] = f.ids;
+    const dying = tacticalOf(f.ui.session).state.soldiers[third ?? -1];
+    if (!dying) throw new Error('no third merc');
+    dying.life = DYING_LIFE;
+    expect(await f.ui.session.prepareAndDispatch({ type: 'selectSquad', squad: 1 })).toEqual({ ok: true });
+    f.ui.deliver();
+    expect([f.ui.screen.currentSquad, f.ui.screen.selected, f.ui.screen.teamSlots.filter((id) => id !== null)]).toEqual([
+      1,
+      first,
+      [third],
+    ]);
+  });
+
+  it('follows the current squad an agent makes current on the server and sends nothing for it', async () => {
+    const f = await twoSquadsInA10();
+    expect(await f.ui.session.prepareAndDispatch({ type: 'selectSquad', squad: 1 })).toEqual({ ok: true });
+    f.ui.deliver();
+    expect([f.ui.screen.currentSquad, f.ui.screen.selected, squadCommands(f.ui), selects(f.ui)]).toEqual([1, f.ids[2], [], []]);
   });
 
   it('follows the merc an order of the agent selects on the server and sends no select for him', async () => {

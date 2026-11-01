@@ -64,17 +64,18 @@ enters it (a 5–60 minute compression mode stays but stops, any other becomes X
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation), recompiles the movement costs, posts the schedules, powers the map lights for the saved hour, sets the
-ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks"). The import does the
-same; ja2-node's own loads never do (`27`). The load's fix-ups come along: `SyncLastMercFromSaveGame`, the I.M.P. slot
-from `iVoiceId` before version 104, the start sector for an invalid landing zone.
+ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks"); resumed in tactical, it
+selects the selected merc again, forced, and enters the tactical screen (deviation "Selection on load"). The import
+does the same; ja2-node's own loads never do (`27`). The load's fix-ups come along: `SyncLastMercFromSaveGame`, the
+I.M.P. slot from `iVoiceId` before version 104, the start sector for an invalid landing zone.
 
 **Process state as in a fresh process.** What the original keeps in unsaved memory, an import sets as a process that
 has just started and loaded the file would hold it: the half of the last-known locations the file lacks (§3), the
-underground traversal flag, the talk context, the strategic morale decay counter, Pablo's theft counter, the team
-change flag of a hit, the visible area of the map loaded last (deviations "Underground traversal flag", "Talk context
-after a load", "Strategic morale decay counter", "Bobby Ray theft counter", "Team change during a hit", "Visible area of
-the map loaded last"). The clock starts unpaused (deviation "Pause state after an import"); the enemy-sighting pause of an enemy
-turn is not restored.
+underground traversal flag, the current squad (the first, before the load's selections), the talk context, the
+strategic morale decay counter, Pablo's theft counter, the team change flag of a hit, the visible area of the map loaded
+last (deviations "Underground traversal flag", "Selection on load", "Talk context after a load", "Strategic morale decay
+counter", "Bobby Ray theft counter", "Team change during a hit", "Visible area of the map loaded last"). The clock
+starts unpaused (deviation "Pause state after an import"); the enemy-sighting pause of an enemy turn is not restored.
 
 **The save's tables win.** A native save keeps the strategic traversability its campaign started with (vanilla's
 differs from the shipped JSON on the I2/I3 border, `tools/oracle/README.md` "Strategic movement"), and Stracciatella does not

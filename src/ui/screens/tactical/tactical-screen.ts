@@ -135,6 +135,7 @@ const DAMAGE_OFFSET_X = 20;
 const DAMAGE_OFFSET_Y = -5;
 const RADAR_MAP_BLINK_MS = 400;
 const NUMBER_OF_SQUADS = 20;
+const NO_CURRENT_SQUAD = NUMBER_OF_SQUADS;
 const SQUAD_COLUMNS = 2;
 const MSG_INTERFACE_LOG_Y = 150;
 const CONTINUE_OVER_FACE_STR = 63;
@@ -206,6 +207,7 @@ export class TacticalScreen implements Screen {
   #smMerc: number | null = null;
   #selected: number | null = null;
   #serverSelection: number | null | undefined;
+  #serverSquad: number | undefined;
   #squad = 0;
   #slotsSquad: number | null = null;
   #slots: (number | null)[] = [];
@@ -423,12 +425,8 @@ export class TacticalScreen implements Screen {
   }
 
   #changeSquad(squad: number): boolean {
-    const members = ownSoldiers(this.#view()).filter((s) => squadOf(s) === squad && !isInVehicle(s) && !isDead(s));
-    if (members.length === 0) return false;
-    this.#squad = squad;
-    const selected = soldierById(this.#view(), this.#selected);
-    const first = members[0];
-    if ((!selected || squadOf(selected) !== squad) && first) this.#selectSoldier(first, false, false);
+    if (!this.#squadsOnMap().has(squad)) return false;
+    if (squad !== this.#squad) void this.#env.client.command({ type: 'selectSquad', squad });
     return true;
   }
 
@@ -588,8 +586,9 @@ export class TacticalScreen implements Screen {
   enter(): void {
     this.#entered = true;
     this.#serverSelection = undefined;
+    this.#serverSquad = undefined;
     this.#rebuildSlots();
-    this.#followServerSelection();
+    this.#followServer();
     this.#hudView.build();
     this.#panelView().build();
     this.#defineViewportRegion();
@@ -617,11 +616,25 @@ export class TacticalScreen implements Screen {
     this.#smView.dispose();
   }
 
+  #followServer(): void {
+    this.#followServerSelection();
+    this.#followServerSquad();
+  }
+
   #followServerSelection(): void {
     const id = this.#view()?.selected;
     if (id === undefined || id === this.#serverSelection) return;
     this.#serverSelection = id;
     this.#adoptSelection(id);
+  }
+
+  #followServerSquad(): void {
+    const current = this.#view()?.currentSquad;
+    if (current === undefined) return;
+    const squad = current ?? NO_CURRENT_SQUAD;
+    if (squad === this.#serverSquad) return;
+    this.#serverSquad = squad;
+    this.#squad = squad;
   }
 
   #adoptSelection(id: number | null): void {
@@ -633,13 +646,6 @@ export class TacticalScreen implements Screen {
     if (this.#selected !== null) this.#locators.delete(this.#selected);
     this.#selected = null;
     this.#requestPanel('team', null);
-    this.#showSquadOnMap();
-  }
-
-  #showSquadOnMap(): void {
-    if (this.#teamMembers().some((s) => !isDead(s))) return;
-    const first = ownSoldiers(this.#view()).find((s) => !isDead(s));
-    if (first) this.#squad = squadOf(first);
   }
 
   #defineViewportRegion(): void {
@@ -840,7 +846,7 @@ export class TacticalScreen implements Screen {
   update(now: number): void {
     this.#now = this.#env.runtime.clock.ja2Now;
     const view = this.#view();
-    this.#followServerSelection();
+    this.#followServer();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
     for (const s of ownSoldiers(view)) this.#lastSeen.set(s.id, s);
@@ -1322,12 +1328,7 @@ export class TacticalScreen implements Screen {
             if (reason & MouseReason.LOST_MOUSE) this.#hoveredSquad = -1;
           },
           onButton: (_r, reason) => {
-            if (reason & MouseReason.LBUTTON_UP && this.#squadsOnMap().has(i)) {
-              this.#squad = i;
-              this.#radarShown = true;
-              const first = this.#teamMembers()[0];
-              if (first) this.select(first.id, false);
-            }
+            if (reason & MouseReason.LBUTTON_UP && this.#changeSquad(i)) this.#radarShown = true;
           },
         }),
       );

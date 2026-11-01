@@ -9,7 +9,7 @@
 // @src Interface_Items.cc HandleItemPointerClick (the give branch,
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
-// @src line short).
+// @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -88,7 +88,6 @@ import { dealerState } from '../strategic/economy/merchants/state.ts';
 import { shopKind } from '../strategic/economy/merchants/view.ts';
 import { mineIdForSector, playerControlsMine } from '../strategic/economy/mine-status.ts';
 import { fatigueCharacter } from '../strategic/economy/rest.ts';
-import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { MikeGreeting } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
@@ -108,6 +107,7 @@ import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../tactical/movement.ts';
+import { soldierAssignment } from '../tactical/narrative/assignment.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { sexSceneWarpSeconds } from '../tactical/narrative/npc-actions/san-mona.ts';
@@ -116,7 +116,7 @@ import { talkLineOfSight, talkRange, talkWalkUp, teleportNpc } from '../tactical
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { refuse as refuseCommand } from '../tactical/refusal.ts';
-import { selectOrderedMerc, selectSoldier } from '../tactical/selection.ts';
+import { selectOrderedMerc, selectSoldier, setCurrentSquad } from '../tactical/selection.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
@@ -502,9 +502,9 @@ export class TalkFlow {
       pauseForLine: (on) => pauseUnderLock(state.clock, on, LOCK_PAUSE_MERC_TALKING),
       selectTalker: (s) => {
         const t = this.#t;
-        const merc = campaign.strategic?.mercs.get(s.id);
-        if (merc && merc.assignment >= 0 && merc.assignment < NUMBER_OF_SQUADS) state.forces.currentSquad = merc.assignment;
-        if (t) selectSoldier(t, s);
+        if (!t) return;
+        setCurrentSquad(t, soldierAssignment(t, s), false);
+        selectSoldier(t, s);
       },
       isDealer: (profile) => (campaign.merchants ? isMercADealer(campaign.merchants, profile) : false),
       openShop: (dealer) => {

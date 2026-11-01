@@ -5,7 +5,8 @@
 // @src IsThisSquadOnTheMove, CopyPathOfSquadToCharacter, CopyPathOfCharacterToSquad, NumberOfPlayerControllableMercsInSquad,
 // @src DoesVehicleExistInSquad, CheckSquadMovementGroups; Strategic/Assignments.cc AssignMercToAMovementGroup;
 // @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles; Squads.cc RemoveCharacterFromSquads
-// @src (UpdateCurrentlySelectedMerc on the tactical screen, 2026-10-31).
+// @src (UpdateCurrentlySelectedMerc on the tactical screen, 2026-10-31); Squads.cc IsSquadOnCurrentTacticalMap, the end of
+// @src AddCharacterToSquad (SetCurrentSquad through the world port, 2026-11-01).
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import {
@@ -86,6 +87,15 @@ export function getFirstEmptySquad(ctx: StrategicContext): number {
 export function sectorSquadIsIn(ctx: StrategicContext, q: number): Sector | null {
   const first = squad(ctx, q)[0];
   return first === undefined ? null : requireMerc(ctx, first).sector;
+}
+
+export function isSquadOnCurrentTacticalMap(ctx: StrategicContext, q: number): boolean {
+  const world = ctx.state.worldSector;
+  if (q < 0 || q >= NUMBER_OF_SQUADS || !world) return false;
+  return squad(ctx, q).some((id) => {
+    const m = requireMerc(ctx, id);
+    return sameSector(m.sector, world) && !m.betweenSectors;
+  });
 }
 
 export function isThisSquadOnTheMove(ctx: StrategicContext, q: number): boolean {
@@ -198,8 +208,7 @@ export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number
   }
   members.push(id);
   ctx.mercs.assignToSquad(id, q);
-  const f = ctx.state.forces;
-  if (ctx.state.flow === 'tactical' && (f.currentSquad === NO_CURRENT_SQUAD || squadIsEmpty(ctx, f.currentSquad))) f.currentSquad = q;
+  ctx.world.addedToSquad?.(id, q);
   return true;
 }
 

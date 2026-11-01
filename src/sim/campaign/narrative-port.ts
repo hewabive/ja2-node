@@ -8,11 +8,12 @@
 // @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController); Tactical/Boxing.cc (PauseGame, UnPauseGame,
 // @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
 // @src (TriggerFriendWithHostileQuote); Tactical/Soldier_Control.cc EVENT_SoldierGotHit (our merc on another assignment
-// @src wakes and joins a squad, 2026-10-31); Tactical/Overhead.cc SelectSoldier (SetCurrentSquad, PutMercInAwakeState and
+// @src wakes and joins a squad, 2026-10-31); Tactical/Overhead.cc SelectSoldier (iCurrentTacticalSquad, PutMercInAwakeState and
 // @src MERC_TYPE__PLAYER_CHARACTER through the roster, 2026-10-31); Tactical/Squads.cc Squad[] and GameScreen.cc
 // @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner
 // @src from Tactical/Overhead.cc ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc
-// @src AnyDoctorWhoCanHealThisPatient with HEALABLE_EVER from Tactical/Soldier_Control.cc CheckBleeding (2026-11-01).
+// @src AnyDoctorWhoCanHealThisPatient with HEALABLE_EVER from Tactical/Soldier_Control.cc CheckBleeding (2026-11-01);
+// @src Tactical/Squads.cc IsSquadOnCurrentTacticalMap (2026-11-01).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
@@ -21,9 +22,8 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { playerAttackedHeadMiner } from '../strategic/economy/mines.ts';
 import { putMercInAwakeState } from '../strategic/economy/rest.ts';
-import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
-import { addCharacterToAnySquad } from '../strategic/forces/squads.ts';
+import { addCharacterToAnySquad, isSquadOnCurrentTacticalMap } from '../strategic/forces/squads.ts';
 import { findUndergroundSector } from '../strategic/map/sectors.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
 import { questStatus } from '../strategic/narrative/facts.ts';
@@ -59,11 +59,6 @@ function wakeSelectedMerc(campaign: CampaignSim, soldier: Soldier): void {
   const economy = campaign.economy;
   const merc = campaign.battle?.roster.get(soldier.id);
   if (economy && merc?.soldier === soldier) putMercInAwakeState(economy, merc);
-}
-
-function setCurrentSquad(campaign: CampaignSim, soldier: Soldier): void {
-  const squad = campaign.battle?.roster.get(soldier.id)?.assignment ?? -1;
-  if (squad >= 0 && squad < NUMBER_OF_SQUADS) campaign.state.forces.currentSquad = squad;
 }
 
 function squadSoldiers(campaign: CampaignSim, squad: number): Soldier[] {
@@ -109,8 +104,12 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     assignment: (soldier) => campaign.battle?.roster.get(soldier.id)?.assignment ?? null,
     mercAsleep: (soldier) => campaign.battle?.roster.get(soldier.id)?.asleep ?? false,
     putMercInAwakeState: (soldier) => wakeSelectedMerc(campaign, soldier),
-    setCurrentSquad: (soldier) => setCurrentSquad(campaign, soldier),
+    currentSquad: () => s.forces.currentSquad,
+    changeCurrentSquad: (squad) => {
+      s.forces.currentSquad = squad;
+    },
     squadMembers: (squad) => squadSoldiers(campaign, squad),
+    squadOnCurrentTacticalMap: (squad) => (campaign.strategic ? isSquadOnCurrentTacticalMap(campaign.strategic, squad) : false),
     inTacticalScreen: () => s.flow === 'tactical',
     putOnSquadWhenHit: (soldier) => putOnSquadWhenHit(campaign, soldier),
     anyDoctorWhoCanHeal: (soldier) => anyDoctorWhoCanHeal(campaign, soldier),

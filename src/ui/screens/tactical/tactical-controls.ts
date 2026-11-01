@@ -544,9 +544,10 @@ export class TacticalControls {
     if (!sel || !this.#screen.panelButtonEnabled('squad')) return;
     const current = this.#screen.currentSquad();
     const own = (this.#view()?.soldiers ?? []).filter((s) => s.team === OUR_TEAM && !isDead(s) && s.canAct !== false && !isVehicleBody(s));
+    const from = sel.squad ?? 0;
     const order = [
-      ...Array.from({ length: NUMBER_OF_SQUADS - current - 1 }, (_, i) => current + 1 + i),
-      ...Array.from({ length: current + 1 }, (_, i) => i),
+      ...Array.from({ length: NUMBER_OF_SQUADS - from - 1 }, (_, i) => from + 1 + i),
+      ...Array.from({ length: from + 1 }, (_, i) => i),
     ];
     for (const squad of order) {
       const s = own.find((m) => (m.squad ?? 0) === squad && !isInVehicle(m));

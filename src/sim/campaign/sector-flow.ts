@@ -16,7 +16,10 @@
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
 // @src and the screen entry after a load), Merc_Entering.cc HandleHeliDrop (the first seat's selection), Squads.cc
 // @src RemoveCharacterFromSquads (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
-// @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31).
+// @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
+// @src Squads.cc AddCharacterToSquad (SetCurrentSquad on the game screen) and RebuildCurrentSquad, SaveLoadGame.cc
+// @src LoadSavedGame (the forced reselect in tactical) and SaveLoadScreen.cc SetSaveLoadExitScreen (EnterTacticalScreen)
+// @src for a native import (2026-11-01).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -131,11 +134,15 @@ import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import {
   enterTacticalScreen,
+  enterTacticalScreenAfterLoad,
   locateToSoldier,
   NO_SELECTION,
+  rebuildCurrentSquad,
   SelectFlags,
   selectAfterRemovalFromSector,
   selectSoldier,
+  setCurrentSquadAfterJoin,
+  setDefaultSquadOnSectorEntry,
   unselectRemovedSoldier,
   updateCurrentlySelectedMerc,
 } from '../tactical/selection.ts';
@@ -618,6 +625,7 @@ export class SectorFlow {
     }
     this.#installHooks(sim);
     this.postSchedulesOfLoadedSector(t, true);
+    if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
   }
 
   reattachLoadedSector(): void {
@@ -891,6 +899,19 @@ export class SectorFlow {
     const merc = this.setup.roster.get(id);
     if (!merc || c.state.flow !== 'tactical' || squad !== c.state.forces.currentSquad) return;
     this.#withTactical((t) => updateCurrentlySelectedMerc(t, merc.soldier));
+  }
+
+  addedToSquad(id: number, squad: number): void {
+    const merc = this.setup.roster.get(id);
+    if (merc) this.#withTactical((t) => setCurrentSquadAfterJoin(t, merc.soldier, squad));
+  }
+
+  setDefaultSquadOnSectorEntry(force: boolean): void {
+    this.#withTactical((t) => setDefaultSquadOnSectorEntry(t, force));
+  }
+
+  rebuildCurrentSquad(): void {
+    this.#withTactical((t) => rebuildCurrentSquad(t));
   }
 
   #mercInLoadedSector(m: RosterMerc): boolean {
@@ -1396,6 +1417,14 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
     removedFromSquad: (id, squad) => {
       flowOf()?.removedFromSquad(id, squad);
       base.removedFromSquad?.(id, squad);
+    },
+    addedToSquad: (id, squad) => {
+      flowOf()?.addedToSquad(id, squad);
+      base.addedToSquad?.(id, squad);
+    },
+    rebuildCurrentSquad: () => {
+      flowOf()?.rebuildCurrentSquad();
+      base.rebuildCurrentSquad?.();
     },
   };
 }

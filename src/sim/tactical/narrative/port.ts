@@ -16,11 +16,12 @@
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
 // @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
 // @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
-// @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc SetCurrentSquad and MERC_TYPE__PLAYER_CHARACTER
+// @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc iCurrentTacticalSquad and MERC_TYPE__PLAYER_CHARACTER
 // @src for InternalSelectSoldier, Squad[] (FOR_EACH_IN_SQUAD) and guiCurrentScreen == GAME_SCREEN for the selections of
 // @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
 // @src ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc AnyDoctorWhoCanHealThisPatient from
-// @src Tactical/Soldier_Control.cc CheckBleeding (2026-11-01).
+// @src Tactical/Soldier_Control.cc CheckBleeding, Tactical/Squads.cc IsSquadOnCurrentTacticalMap and FIRST_SQUAD
+// @src (2026-11-01).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -28,6 +29,7 @@ import { type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 
 const NO_INITIATING_TARGET = -1;
+const FIRST_SQUAD = 0;
 
 export interface QuoteSaidRecord {
   quoteSaidFlags: number;
@@ -57,8 +59,10 @@ export interface NarrativePort {
   assignment(s: Soldier): number | null;
   mercAsleep(s: Soldier): boolean;
   putMercInAwakeState(s: Soldier): void;
-  setCurrentSquad(s: Soldier): void;
+  currentSquad(): number;
+  changeCurrentSquad(squad: number): void;
   squadMembers(squad: number): readonly Soldier[];
+  squadOnCurrentTacticalMap(squad: number): boolean;
   inTacticalScreen(): boolean;
   putOnSquadWhenHit(s: Soldier): void;
   isAimMerc(s: Soldier): boolean;
@@ -136,8 +140,10 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   assignment: () => null,
   mercAsleep: () => false,
   putMercInAwakeState: () => {},
-  setCurrentSquad: () => {},
+  currentSquad: () => FIRST_SQUAD,
+  changeCurrentSquad: () => {},
   squadMembers: () => [],
+  squadOnCurrentTacticalMap: () => false,
   inTacticalScreen: () => true,
   putOnSquadWhenHit: () => {},
   isAimMerc: () => false,

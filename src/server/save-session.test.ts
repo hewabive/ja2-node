@@ -176,6 +176,9 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       expect(mercsHere.every((e) => c.tactical?.state.soldiers[e.soldier.id]?.placed)).toBe(true);
       if (save.generalInfo.screenAfterLoading !== NATIVE_MAP_SCREEN) {
         expect(session.view().strategic?.flow).toBe('tactical');
+        const selected = c.tactical?.state.turn.selected ?? -1;
+        expect(selected).toBe(save.generalInfo.selectedSoldier);
+        expect(c.state.forces.currentSquad).toBe(session.roster?.get(selected)?.assignment);
         return;
       }
       expect(session.view().strategic?.flow).toBe('strategic');

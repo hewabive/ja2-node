@@ -8,7 +8,8 @@
 // @src Soldier_Control.cc EVENT_InitNewSoldierAnim (USE_REMOTE), SetSoldierAsUnderAiControl (the AI turn in the
 // @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet); Handle_UI.cc
 // @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
-// @src (2026-10-31).
+// @src (2026-10-31); Turn_Based_Input.cc ChangeCurrentSquad and Radar_Screen.cc TacticalSquadListBtnCallBack
+// @src (IsSquadOnCurrentTacticalMap, then SetCurrentSquad) for the selectSquad command (2026-11-01).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -23,6 +24,7 @@ import type { GunImprintEvent, SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { KnowledgeLight } from '../knowledge/view.ts';
 import { applyOptionChange, type GameOptions, parseOptionChange } from '../options.ts';
+import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { AiAction } from './ai/actions.ts';
@@ -138,7 +140,7 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
-import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier } from './selection.ts';
+import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
 import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
@@ -535,6 +537,19 @@ export class TacticalSim {
     return { ok: true, data: { woke: sleepers.filter((x) => !t.narrative.mercAsleep(x)).map((x) => x.id) } };
   }
 
+  #selectSquad(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const squad = cmd.squad;
+    if (typeof squad !== 'number' || !Number.isInteger(squad) || squad < 0 || squad >= NUMBER_OF_SQUADS)
+      return refuse('badSquad', 'squad must be 0..19');
+    if (!t.narrative.squadOnCurrentTacticalMap(squad)) return refuse('squadNotHere', 'no merc of that squad is in the loaded sector');
+    const first = t.narrative.squadMembers(squad)[0];
+    const locked = first ? this.#selectionLock(first) : null;
+    if (locked) return refused(locked);
+    setCurrentSquad(t, squad, false);
+    return { ok: true };
+  }
+
   canAct(s: Soldier): string | null {
     return this.actRefusal(s)?.reason ?? null;
   }
@@ -606,6 +621,8 @@ export class TacticalSim {
         return this.#door(cmd);
       case 'select':
         return this.#select(cmd);
+      case 'selectSquad':
+        return this.#selectSquad(cmd);
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return refuse('noSuchSoldier', 'no such soldier of yours');

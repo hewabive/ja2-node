@@ -3,7 +3,8 @@
 // @src src/game/Strategic/StrategicMap.cc OKForSectorExit, UndergroundTacticalTraversalTime, JumpIntoAdjacentSector (with
 // @src gPreferredInitialSelectedGuy, 2026-10-31),
 // @src AllMercsHaveWalkedOffSector, SetupTacticalTraversalInformation, SetInsertionDataFromAdjacentMoveDirection,
-// @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector;
+// @src DoneFadeOutAdjacentSector, AllMercsWalkedToExitGrid, DoneFadeOutExitGridSector (SetDefaultSquadOnSectorEntry after
+// @src an exit without a load, 2026-11-01);
 // @src Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu, SingleMoveAction, AllMoveAction, RemoveSectorExitMenu,
 // @src InitSectorExitMenu, WarpToSurfaceCallback, DoneFadeOutWarpCallback (the warp out of a creature lair).
 
@@ -494,6 +495,7 @@ export function allMercsHaveWalkedOffSector(flow: SectorFlow): void {
   });
   if (isNoLoadJump(jump.jumpCode)) {
     for (const m of groupMercs(flow, group)) flow.setup.roster.removeFromTacticalSector(m.id);
+    flow.setDefaultSquadOnSectorEntry(true);
     return;
   }
   const clock = flow.campaign.clockContext;
@@ -548,6 +550,7 @@ export function allMercsWalkedToExitGrid(flow: SectorFlow): void {
       flow.setup.roster.removeFromTacticalSector(m.id);
     }
     setGroupSectorValue(flow.ctx, jump.target, group);
+    flow.setDefaultSquadOnSectorEntry(true);
   } else {
     const tt = flow.campaign.state.movement.tacticalTraversal;
     tt.active = true;

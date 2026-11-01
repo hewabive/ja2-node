@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   type CampaignKit,
   createTestCampaign,
+  eastEdgeTile,
   landFirstSquad,
   ourSoldiers,
   runTicks,
@@ -13,6 +14,7 @@ import { mainAdvance } from '../../../tests/support/explosives.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
+import { setSoldierAssignmentHospital } from '../strategic/economy/set-assignment.ts';
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import { NO_SELECTION } from '../tactical/selection.ts';
 import { Personality } from '../tactical/soldier.ts';
@@ -38,6 +40,7 @@ const FIRST_PROFILE = 4;
 const WALK_OFF_TICKS = 2_000;
 const LONE_EXIT_TICKS = 1_500;
 const LONE_EXIT_TILE = 75 * 160 + 150;
+const WOUND = 10;
 
 function rosterMerc(roster: Roster, id: number): RosterMerc {
   const merc = roster.get(id);
@@ -204,6 +207,171 @@ describe('the selections the server makes when a merc dies or leaves', () => {
     expect(selected(c)).toBe(NO_SELECTION);
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(selected(c)).toBe(NO_SELECTION);
+  });
+});
+
+function selectedSquad(c: CampaignSim): [number, number] {
+  return [selected(c), c.state.forces.currentSquad];
+}
+
+function assignSquad(c: CampaignSim, soldier: number, squad: number | 'new'): void {
+  expect(c.dispatch({ type: 'assignSquad', soldier, squad })).toMatchObject({ ok: true });
+}
+
+function leaveWhileOnTheMap(c: CampaignSim, roster: Roster, ids: readonly number[]): void {
+  for (const id of ids) {
+    rosterMerc(roster, id).betweenSectors = true;
+    c.strategic?.mercs.removeFromTacticalSector(id);
+  }
+}
+
+function firstOfSquad(c: CampaignSim, squad: number): number | undefined {
+  return c.state.forces.squads[squad]?.[0];
+}
+
+function soldierIds(c: CampaignSim): number[] {
+  return ourSoldiers(c).map((s) => s.id);
+}
+
+describe('the current squad the server keeps (Squads.cc SetCurrentSquad)', () => {
+  it('makes a squad on the map current with selectSquad and selects its first merc, forced: a psycho draws (ChangeCurrentSquad)', () => {
+    const prepare = (c: CampaignSim) => {
+      landFirstSquad(c);
+      assignSquad(c, soldierIds(c)[2] ?? -1, 'new');
+    };
+    const [plain, psycho] = psychoDraws(50, 3, prepare, (c) => expect(c.dispatch({ type: 'selectSquad', squad: 1 })).toEqual({ ok: true }));
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(1);
+    const { campaign: c } = createTestCampaign(kit, { seed: 50, mercs: 3, garrison: NO_GARRISON });
+    prepare(c);
+    const third = soldierIds(c)[2];
+    expect(selectedSquad(c)).toEqual([soldierIds(c)[0], 0]);
+    expect(c.dispatch({ type: 'selectSquad', squad: 1 })).toEqual({ ok: true });
+    expect(selectedSquad(c)).toEqual([third, 1]);
+  });
+
+  it('refuses selectSquad for a squad off the map, a bad squad and on the map screen, and changes nothing for the current squad', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 51, mercs: 2, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    const before = c.state.rng.state();
+    expect(c.dispatch({ type: 'selectSquad', squad: 0 })).toEqual({ ok: true });
+    expect(mainAdvance(before, c.state.rng.state())).toBe(0);
+    expect(c.dispatch({ type: 'selectSquad', squad: 3 })).toMatchObject({ ok: false, data: { refusal: 'squadNotHere' } });
+    expect(c.dispatch({ type: 'selectSquad', squad: 20 })).toMatchObject({ ok: false, data: { refusal: 'badSquad' } });
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    expect(c.dispatch({ type: 'selectSquad', squad: 0 })).toMatchObject({ ok: false, data: { refusal: 'notInTactical' } });
+    expect(selectedSquad(c)).toEqual([soldierIds(c)[0], 0]);
+  });
+
+  it('selects the first merc of the squad the selected merc joins when his old squad, the current one, is left empty, forced (AddCharacterToSquad)', () => {
+    const prepare = (c: CampaignSim) => {
+      landFirstSquad(c);
+      assignSquad(c, soldierIds(c)[1] ?? -1, 'new');
+    };
+    const join = (c: CampaignSim) => assignSquad(c, soldierIds(c)[0] ?? -1, 1);
+    const [plain, psycho] = psychoDraws(52, 2, prepare, join);
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(1);
+    const { campaign: c } = createTestCampaign(kit, { seed: 52, mercs: 2, garrison: NO_GARRISON });
+    prepare(c);
+    const [first, second] = soldierIds(c);
+    expect(selectedSquad(c)).toEqual([first, 0]);
+    join(c);
+    expect(selectedSquad(c)).toEqual([second, 1]);
+  });
+
+  it('makes the first squad on the map current on the return from the map when the current squad left it, selecting its first merc twice (SetDefaultSquadOnSectorEntry)', () => {
+    const prepare = (c: CampaignSim, roster: Roster) => {
+      landFirstSquad(c);
+      const [first, second, third, fourth] = soldierIds(c);
+      assignSquad(c, third ?? -1, 'new');
+      assignSquad(c, fourth ?? -1, 1);
+      expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+      leaveWhileOnTheMap(c, roster, [first ?? -1, second ?? -1]);
+    };
+    const enter = (c: CampaignSim) => expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const [plain, psycho] = psychoDraws(53, 4, prepare, enter);
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(2);
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 53, mercs: 4, garrison: NO_GARRISON });
+    prepare(c, roster);
+    expect(selectedSquad(c)).toEqual([NO_SELECTION, 0]);
+    enter(c);
+    expect(selectedSquad(c)).toEqual([firstOfSquad(c, 1), 1]);
+  });
+
+  it('makes the first squad left on the map current after a squad walks off without a load while nobody is selected, forced (AllMercsHaveWalkedOffSector)', () => {
+    const prepare = (c: CampaignSim, roster: Roster) => {
+      landFirstSquad(c);
+      const [first, second, third, fourth] = soldierIds(c);
+      assignSquad(c, third ?? -1, 'new');
+      assignSquad(c, fourth ?? -1, 'new');
+      for (const id of [first, second])
+        expect(c.dispatch({ type: 'move', soldier: id, to: eastEdgeTile(id ?? 0), mode: 'run' })).toMatchObject({ ok: true });
+      runUntilIdle(c);
+      expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+      leaveWhileOnTheMap(c, roster, [fourth ?? -1]);
+      expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+      expect(selectedSquad(c)).toEqual([NO_SELECTION, 0]);
+    };
+    const walkOff = (c: CampaignSim) => {
+      const first = soldierIds(c)[0] ?? -1;
+      expect(c.dispatch({ type: 'exitSector', soldier: first, direction: 'east', who: 'squad', load: false })).toMatchObject({ ok: true });
+      runTicks(c, WALK_OFF_TICKS, () => c.state.forces.currentSquad !== 0);
+    };
+    const [plain, psycho] = psychoDraws(54, 4, prepare, walkOff);
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(1);
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 54, mercs: 4, garrison: NO_GARRISON });
+    prepare(c, roster);
+    walkOff(c);
+    expect(selectedSquad(c)).toEqual([firstOfSquad(c, 1), 1]);
+  });
+});
+
+describe('the current squad after a hospital assignment (Assignments.cc SetSoldierAssignmentHospital, RebuildCurrentSquad)', () => {
+  it('makes the first squad on the map current when the patient was the last of the current squad and selects its first merc, forced', () => {
+    const prepare = (c: CampaignSim, roster: Roster) => {
+      landFirstSquad(c);
+      const [first, second] = soldierIds(c);
+      assignSquad(c, second ?? -1, 'new');
+      rosterMerc(roster, first ?? -1).soldier.life -= WOUND;
+    };
+    const admit = (c: CampaignSim, roster: Roster) => {
+      const economy = c.economy;
+      if (!economy) throw new Error('no economy');
+      expect(setSoldierAssignmentHospital(economy, rosterMerc(roster, soldierIds(c)[0] ?? -1))).toBe(true);
+    };
+    const [plain, psycho] = psychoDraws(57, 2, prepare, (c) => admit(c, c.battle?.roster ?? fail()));
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(1);
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 57, mercs: 2, garrison: NO_GARRISON });
+    prepare(c, roster);
+    const second = soldierIds(c)[1];
+    admit(c, roster);
+    expect(selectedSquad(c)).toEqual([second, 1]);
+  });
+});
+
+describe('the selections when a native save resumes in tactical (SaveLoadGame.cc LoadSavedGame, SaveLoadScreen.cc SetSaveLoadExitScreen)', () => {
+  it('selects the saved selected merc again, forced, then enters the tactical screen, which selects him again: he wakes and a psycho draws twice', () => {
+    const prepare = (c: CampaignSim, roster: Roster) => {
+      landFirstSquad(c);
+      const economy = c.economy;
+      if (!economy) throw new Error('no economy');
+      putMercInAsleepState(economy, rosterMerc(roster, ourSoldiers(c)[0]?.id ?? -1));
+    };
+    const adopt = (c: CampaignSim) => c.sectors?.adoptLoadedSector([]);
+    const [plain, psycho] = psychoDraws(55, 2, prepare, adopt);
+    expect((psycho ?? 0) - (plain ?? 0)).toBe(2);
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 55, mercs: 2, garrison: NO_GARRISON });
+    prepare(c, roster);
+    const first = ourSoldiers(c)[0]?.id ?? -1;
+    adopt(c);
+    expect([selected(c), rosterMerc(roster, first).asleep, c.state.forces.currentSquad]).toEqual([first, false, 0]);
+  });
+
+  it('makes no selection when the save resumes on the map screen: a psycho draws nothing', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 56, mercs: 2, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+    for (const m of roster.all()) makePsycho(roster, m.id);
+    expect(draws(c, () => c.sectors?.adoptLoadedSector([]))).toBe(0);
   });
 });
 

@@ -936,6 +936,7 @@ export interface PlayerView {
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly selected?: number | null;
+  readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
   readonly corpses?: readonly CorpseView[];
@@ -977,6 +978,7 @@ export interface ViewFrame {
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly selected?: number | null;
+  readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
   readonly corpses?: readonly CorpseView[];
@@ -1063,6 +1065,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if ((previous.selected ?? null) !== (next.selected ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), selected: next.selected ?? null };
+  if ((previous.currentSquad ?? null) !== (next.currentSquad ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), currentSquad: next.currentSquad ?? null };
   if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };
   if (next.clock && !sameClock(previous.clock, next.clock))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), clock: next.clock };

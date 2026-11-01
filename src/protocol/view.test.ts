@@ -74,6 +74,20 @@ describe('view frames', () => {
     expect(nobody).toMatchObject({ selected: null });
     expect(nobody && applyViewFrame(selected, nobody).selected).toBeNull();
   });
+
+  it('carry the current squad when the server makes another squad current or none', () => {
+    const current: PlayerView = { ...base, currentSquad: 0 };
+    expect(diffPlayerView(current, { ...current, tick: 20 })).toBeNull();
+    expect(diffPlayerView(current, { ...current, tick: 20, currentSquad: 1 })).toEqual({
+      tick: 20,
+      changed: [],
+      removed: [],
+      currentSquad: 1,
+    });
+    const none = diffPlayerView(current, { ...current, tick: 30, currentSquad: null });
+    expect(none).toMatchObject({ currentSquad: null });
+    expect(none && applyViewFrame(current, none).currentSquad).toBeNull();
+  });
 });
 
 function soldier(id: number, gridNo: number): SoldierView {

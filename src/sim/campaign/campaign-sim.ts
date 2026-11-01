@@ -718,8 +718,9 @@ export class CampaignSim {
       case 'tacticalScreen':
         return openTacticalScreen(this);
       case 'select':
+      case 'selectSquad':
         if (this.state.flow !== 'tactical' || !this.tactical)
-          return refuse('notInTactical', 'mercs are selected on the tactical screen only');
+          return refuse('notInTactical', 'mercs and squads are selected on the tactical screen only');
         return this.tactical.dispatch(cmd);
       default:
         return (

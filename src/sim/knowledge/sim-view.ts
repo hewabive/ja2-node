@@ -1,7 +1,8 @@
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
+import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import type { Bullet } from '../tactical/combat/bullets.ts';
 import { revealedRooms } from '../tactical/perception/fov.ts';
-import { selectedSoldier } from '../tactical/selection.ts';
+import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
 import { shownToPlayer } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -13,6 +14,11 @@ export function bulletsShownToPlayer(t: TacticalState, since: (b: Bullet) => num
   return bulletViews(t, shownToPlayer, since);
 }
 
+function currentSquadView(t: TacticalState): number | null {
+  const squad = currentSquad(t);
+  return squad === NO_CURRENT_SQUAD ? null : squad;
+}
+
 export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTimeline = NO_PRESENTATION) {
   return {
     mapPath: sim.mapPath,
@@ -22,6 +28,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     doors: sim.doors(),
     combat: sim.combatView(),
     selected: selectedSoldier(sim.state)?.id ?? null,
+    currentSquad: currentSquadView(sim.state),
     revealedRooms: revealedRooms(sim.state),
     items: sim.visibleItems(),
     light: sim.lightView(),

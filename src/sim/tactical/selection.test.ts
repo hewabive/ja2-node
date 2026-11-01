@@ -3,6 +3,7 @@ import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
+import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { updateSkullReleases } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
@@ -10,10 +11,15 @@ import type { QuoteSaidRecord } from './narrative/port.ts';
 import { leaveTacticalSector } from './sector-presence.ts';
 import {
   enterTacticalScreen,
+  enterTacticalScreenAfterLoad,
   locateToSoldier,
   NO_SELECTION,
+  rebuildCurrentSquad,
   SelectFlags,
   selectSoldier,
+  setCurrentSquad,
+  setCurrentSquadAfterJoin,
+  setDefaultSquadOnSectorEntry,
   unselectRemovedSoldier,
   updateCurrentlySelectedMerc,
 } from './selection.ts';
@@ -49,6 +55,8 @@ interface Scene {
   readonly flags: Map<number, QuoteSaidRecord>;
   readonly assignments: Map<number, number>;
   readonly playerCharacters: Set<number>;
+  readonly offMap: Set<number>;
+  current: number;
   onScreen: boolean;
 }
 
@@ -71,8 +79,11 @@ function scene(count = 3): Scene {
     flags: new Map(),
     assignments: new Map(),
     playerCharacters: new Set(),
+    offMap: new Set(),
+    current: NO_CURRENT_SQUAD,
     onScreen: true,
   };
+  const squadMembers = (squad: number) => s.mercs.filter((m) => (s.assignments.get(m.id) ?? Assignment.SQUAD_1) === squad);
   t.narrative = {
     ...t.narrative,
     mercAsleep: (m) => s.asleep.has(m.id),
@@ -80,9 +91,14 @@ function scene(count = 3): Scene {
       s.asleep.delete(m.id);
       s.woken.push(m.id);
     },
-    setCurrentSquad: (m) => s.squads.push(m.id),
+    currentSquad: () => s.current,
+    changeCurrentSquad: (squad) => {
+      s.current = squad;
+      s.squads.push(squad);
+    },
     assignment: (m) => s.assignments.get(m.id) ?? null,
-    squadMembers: (squad) => s.mercs.filter((m) => (s.assignments.get(m.id) ?? Assignment.SQUAD_1) === squad),
+    squadMembers,
+    squadOnCurrentTacticalMap: (squad) => squad < NUMBER_OF_SQUADS && !s.offMap.has(squad) && squadMembers(squad).length > 0,
     inTacticalScreen: () => s.onScreen,
     isPlayerCharacter: (m) => s.playerCharacters.has(m.id),
     sayQuote: (m, quote) => s.said.push([m.id, quote]),
@@ -127,7 +143,7 @@ describe('selecting a merc (Overhead.cc SelectSoldier)', () => {
     s.asleep.add(1);
     s.script.push(KEEPS_QUIET);
     expect(select(s, 1)).toEqual({ ok: true, data: { woke: [1] } });
-    expect([s.t.turn.selected, s.squads, s.woken, s.draws, s.said]).toEqual([1, [1], [1], [PERSONALITY_QUOTE_ODDS], []]);
+    expect([s.t.turn.selected, s.squads, s.woken, s.draws, s.said]).toEqual([1, [Assignment.SQUAD_1], [1], [PERSONALITY_QUOTE_ODDS], []]);
     expect(s.flags.get(1)?.quoteSaidFlags ?? 0).toBe(0);
   });
 
@@ -250,10 +266,11 @@ describe('the selections the sim makes itself', () => {
     const s = scene();
     spawnSoldier(s.sim, ENEMY_ID, Team.ENEMY, FAR_AWAY, Direction.SOUTH);
     s.asleep.add(2);
+    onSquads(s, [0, 0, 1]);
     merc(s, 1).ai.oppCount = 1;
     merc(s, 2).ai.oppCount = 1;
     enterCombatMode(s.t, Team.OUR);
-    expect([s.t.turn.selected, s.squads, s.woken]).toEqual([2, [1, 2], [2]]);
+    expect([s.t.turn.selected, s.squads, s.woken]).toEqual([2, [0, 1], [2]]);
   });
 
   it('selects the first controllable merc of the team, not the one after him, when the selected merc is down at our turn (SelectNextAvailSoldier)', () => {
@@ -328,8 +345,9 @@ describe('the selections on entering the tactical screen (GameScreen.cc EnterTac
     expect(s.t.turn.selected).toBe(NO_SELECTION);
   });
 
-  it('selects nobody when nobody is selected, and skips the forced reselect of a merc without a move in our interrupt', () => {
+  it('selects nobody when nobody is selected and the current squad is on the map, and skips the forced reselect of a merc without a move in our interrupt', () => {
     const s = scene();
+    s.current = Assignment.SQUAD_1;
     psycho(s, 1);
     enterTacticalScreen(s.t);
     expect([s.t.turn.selected, s.draws]).toEqual([NO_SELECTION, []]);
@@ -457,5 +475,161 @@ describe('the selection when a merc leaves his squad or the team (Squads.cc Upda
     expect(s.t.turn.selected).toBe(1);
     unselectRemovedSoldier(s.t, merc(s, 1));
     expect(s.t.turn.selected).toBe(NO_SELECTION);
+  });
+});
+
+describe('the current squad (Squads.cc SetCurrentSquad)', () => {
+  it('selects the first merc of the new current squad with FORCE_RESELECT when the selected merc is not on it: he wakes and a psycho draws', () => {
+    const s = scene();
+    onSquads(s, [0, 1, 1]);
+    selectSoldier(s.t, merc(s, 0));
+    psycho(s, 1);
+    s.asleep.add(1);
+    s.script.push(KEEPS_QUIET);
+    setCurrentSquad(s.t, 1, false);
+    expect([s.current, s.t.turn.selected, s.woken, s.draws]).toEqual([1, 1, [1], [PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('keeps the selection when the selected merc is on the new squad, and changes nothing for the current squad unless forced', () => {
+    const s = scene();
+    onSquads(s, [0, 1, 1]);
+    psycho(s, 0);
+    selectSoldier(s.t, merc(s, 2));
+    setCurrentSquad(s.t, 1, true);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([1, 2, []]);
+    s.current = 0;
+    setCurrentSquad(s.t, 0, false);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([0, 2, []]);
+    s.script.push(KEEPS_QUIET);
+    setCurrentSquad(s.t, 0, true);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([0, 0, [PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it("changes the squad but keeps the selection when the squad's first merc cannot be selected: it tries Squad[q][0], not the first who can", () => {
+    const s = scene();
+    onSquads(s, [0, 1, 1]);
+    selectSoldier(s.t, merc(s, 0));
+    merc(s, 1).life = DYING;
+    setCurrentSquad(s.t, 1, false);
+    expect([s.current, s.t.turn.selected]).toEqual([1, 0]);
+  });
+
+  it('sets no current squad and keeps the selection for NO_CURRENT_SQUAD, and changes nothing off the tactical screen', () => {
+    const s = scene();
+    onSquads(s, [0, 1, 1]);
+    selectSoldier(s.t, merc(s, 0));
+    s.onScreen = false;
+    setCurrentSquad(s.t, 1, true);
+    setCurrentSquad(s.t, NO_CURRENT_SQUAD, false);
+    expect([s.current, s.t.turn.selected]).toEqual([0, 0]);
+    s.onScreen = true;
+    setCurrentSquad(s.t, NO_CURRENT_SQUAD, false);
+    expect([s.current, s.t.turn.selected]).toEqual([NO_CURRENT_SQUAD, 0]);
+  });
+});
+
+describe('the current squad on entering a sector (Squads.cc SetDefaultSquadOnSectorEntry)', () => {
+  it('leaves the current squad and the selection alone while the current squad is on the map, even when forced', () => {
+    const s = scene();
+    onSquads(s, [0, 1, 1]);
+    selectSoldier(s.t, merc(s, 1));
+    s.current = 0;
+    setDefaultSquadOnSectorEntry(s.t, true);
+    expect([s.current, s.t.turn.selected]).toEqual([0, 1]);
+  });
+
+  it('makes the first squad on the map current when the current squad left it and selects its first merc, forced', () => {
+    const s = scene(4);
+    onSquads(s, [0, 2, 1, 1]);
+    selectSoldier(s.t, merc(s, 0));
+    s.offMap.add(0);
+    psycho(s, 2);
+    s.script.push(KEEPS_QUIET);
+    setDefaultSquadOnSectorEntry(s.t, true);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([1, 2, [PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('sets no current squad when no squad is on the map, and keeps the selection', () => {
+    const s = scene();
+    selectSoldier(s.t, merc(s, 1));
+    s.offMap.add(0);
+    setDefaultSquadOnSectorEntry(s.t, true);
+    expect([s.current, s.t.turn.selected]).toEqual([NO_CURRENT_SQUAD, 1]);
+  });
+
+  it('on entering the tactical screen selects the first merc of the first squad on the map when nobody is selected: a psycho draws twice', () => {
+    const s = scene();
+    onSquads(s, [1, 0, 0]);
+    s.current = 1;
+    s.offMap.add(1);
+    psycho(s, 1);
+    s.script.push(KEEPS_QUIET, KEEPS_QUIET);
+    enterTacticalScreen(s.t);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([0, 1, [PERSONALITY_QUOTE_ODDS, PERSONALITY_QUOTE_ODDS]]);
+  });
+});
+
+describe('the current squad rebuilt (Squads.cc RebuildCurrentSquad)', () => {
+  it('sets the default squad, forced, when there is a current squad, and leaves no current squad alone though a squad is on the map', () => {
+    const s = scene();
+    onSquads(s, [1, 0, 0]);
+    s.current = NO_CURRENT_SQUAD;
+    rebuildCurrentSquad(s.t);
+    expect([s.current, s.t.turn.selected]).toEqual([NO_CURRENT_SQUAD, NO_SELECTION]);
+    s.current = 2;
+    rebuildCurrentSquad(s.t);
+    expect([s.current, s.t.turn.selected]).toEqual([0, 1]);
+  });
+});
+
+describe('the current squad when a merc joins a squad (the end of Squads.cc AddCharacterToSquad)', () => {
+  it('makes the joined squad current when the current squad is empty and selects its first merc, forced', () => {
+    const s = scene();
+    onSquads(s, [1, 1, 2]);
+    s.current = 0;
+    psycho(s, 0);
+    s.asleep.add(0);
+    s.script.push(KEEPS_QUIET);
+    setCurrentSquadAfterJoin(s.t, merc(s, 1), 1);
+    expect([s.current, s.t.turn.selected, s.woken, s.draws]).toEqual([1, 0, [0], [PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('takes the current squad along with the selected merc who joins another squad, without a new selection or a draw', () => {
+    const s = scene();
+    onSquads(s, [0, 0, 1]);
+    psycho(s, 0);
+    s.script.push(KEEPS_QUIET);
+    selectSoldier(s.t, merc(s, 0));
+    s.assignments.set(0, 1);
+    setCurrentSquadAfterJoin(s.t, merc(s, 0), 1);
+    expect([s.current, s.t.turn.selected, s.draws]).toEqual([1, 0, [PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('changes nothing when another merc joins a squad while the current squad has members', () => {
+    const s = scene();
+    onSquads(s, [0, 0, 1]);
+    selectSoldier(s.t, merc(s, 0));
+    setCurrentSquadAfterJoin(s.t, merc(s, 2), 1);
+    expect([s.current, s.t.turn.selected]).toEqual([0, 0]);
+  });
+});
+
+describe('the selection after loading a game in tactical (SaveLoadGame.cc LoadSavedGame, then the screen entry)', () => {
+  it('selects the loaded selected merc again, forced, before the screen entry selects him again: he wakes and a psycho draws twice', () => {
+    const s = scene();
+    selectSoldier(s.t, merc(s, 1));
+    psycho(s, 1);
+    s.asleep.add(1);
+    s.script.push(KEEPS_QUIET, KEEPS_QUIET);
+    enterTacticalScreenAfterLoad(s.t);
+    expect([s.t.turn.selected, s.woken, s.draws]).toEqual([1, [1], [PERSONALITY_QUOTE_ODDS, PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('keeps a sleeper the load woke selected, where the screen entry alone would hand the selection to the first merc', () => {
+    const s = scene();
+    selectSoldier(s.t, merc(s, 1));
+    s.asleep.add(1);
+    enterTacticalScreenAfterLoad(s.t);
+    expect([s.t.turn.selected, s.woken]).toEqual([1, [1]]);
   });
 });

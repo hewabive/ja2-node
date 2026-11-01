@@ -121,6 +121,16 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
   Each has the checks, squad, wake-up and psycho `Random(50)` of `InternalSelectSoldier`. Any merc leaving the loaded
   sector while the map is up, and the departure of the selected merc, leave nobody selected, as in the original.
   It matters for `StandardInterruptConditionsMet`, `EndInterrupt` and `CheckForMercContMove`.
+- The current squad (`forces.currentSquad`; in the view as `currentSquad`, null for none) is the original's
+  `iCurrentTacticalSquad`, whose members the team panel shows: a selection makes the selected merc's squad current, and
+  `selectSquad` makes a squad on the map current, as the squad keys and the squad list do. As `SetCurrentSquad` does,
+  a new current squad's first merc is selected, forced, when the selected merc is not on it; only the first slot is
+  tried, so a first merc who cannot be selected leaves the selection where it was. The server also changes it where
+  the original does: a screen entry or an exit without a load while the current squad is off the map (the first squad
+  on the map, or none), a merc joining a squad while the current one is empty, the selected merc joining another squad,
+  a talk, an escort's recruitment and a hospital assignment. A native save resumed in tactical selects its selected
+  merc again, forced, before the screen entry; a ja2-node save restores the selection and the current squad as they
+  were (deviation "Selection on load").
 - An order to one merc selects him first, once the turn locks and his own state let him act (`actRefusal`) and before
   the order reads its fields or draws, because the original's player selects a merc before ordering him. The selection,
   his wake-up and its draw stay when the order is then refused. An order given while he plays the wake-up takes over at
@@ -303,7 +313,10 @@ mode the original keeps beside the stance (deviation "Stance") and refuses a hei
 `mercUnavailable` and its message, the selected merc with `alreadySelected`) and under the order locks; `group` (the
 other members, possibly none) ends a real-time multi-selection: every member wakes before the selection, which is
 skipped when the chosen merc is selected already, as in `EndMultiSoldierSelection`, and `data.woke` lists who woke. A
-selection wakes a sleeper even when he collapsed, which `wake` refuses. A new `move` re-plans a halted move for any merc
+selection wakes a sleeper even when he collapsed, which `wake` refuses. `selectSquad` is the squad key's
+`ChangeCurrentSquad`: it refuses a squad with nobody in the loaded sector (`squadNotHere`, `IsSquadOnCurrentTacticalMap`),
+a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
+squad's first merc; the current squad itself changes nothing. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give or first aid), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
