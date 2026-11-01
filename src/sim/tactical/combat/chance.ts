@@ -107,11 +107,11 @@ function proneShooterCloseShotPenalty(aimPos: number, range: number): number {
 
 function queenShotDodge(t: TacticalState, shooter: Soldier, target: Soldier): number {
   if (shooter.bodyType !== Body.QUEENMONSTER || isTank(target) || target.oppList[shooter.id] !== Opp.SEEN_CURRENTLY) return 0;
-  let dodge = idiv(effectiveAgility(target), 5) + 2 * effectiveExpLevel(target);
+  let dodge = idiv(effectiveAgility(target), 5) + 2 * effectiveExpLevel(t, target);
   const stance = height(t.content, target.state);
   if (stance === AnimHeight.CROUCH) dodge = idiv(dodge * 2, 3);
   else if (stance === AnimHeight.PRONE) dodge = idiv(dodge, 3);
-  const tracking = idiv(effectiveDexterity(shooter), 5) + 2 * effectiveExpLevel(shooter);
+  const tracking = idiv(effectiveDexterity(shooter), 5) + 2 * effectiveExpLevel(t, shooter);
   return Math.max(0, dodge - tracking);
 }
 
@@ -148,7 +148,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   const cond = weaponStatusMod(gun.status[0] ?? 0);
   let mrk =
     def?.name === 'ROCKET_LAUNCHER'
-      ? idiv(effectiveDexterity(s) + effectiveMarksmanship(s) + effectiveWisdom(s) + 10 * effectiveExpLevel(s), 4) +
+      ? idiv(effectiveDexterity(s) + effectiveMarksmanship(s) + effectiveWisdom(s) + 10 * effectiveExpLevel(t, s), 4) +
         (SKILL_TRAIT_BONUS[SkillTrait.HEAVY_WEAPS] ?? 0) * numSkillTraits(s, SkillTrait.HEAVY_WEAPS)
       : aimingMarksmanship(t, s);
   mrk += moraleModifier(s);
@@ -254,7 +254,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   } else if (isTank(s) && range < MIN_TANK_RANGE) c -= TANK_PRONE_TARGET_PENALTY_PER_TILE * tilesInside(MIN_TANK_RANGE, range);
   if (c > 0 && s.life < s.lifeMax) {
     const p = idiv(c * 2 * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax);
-    c -= idiv(p * (100 - 10 * (effectiveExpLevel(s) - 1)), 100);
+    c -= idiv(p * (100 - 10 * (effectiveExpLevel(t, s) - 1)), 100);
   }
   if (c > 0 && s.breath < 100) {
     const p = idiv(c * (100 - s.breath), 200);

@@ -57,7 +57,7 @@ export function dressWound(
 ): number {
   if (victim.bleeding < 1 || victim.life === 0) return 0;
   const skill = idiv(
-    3 * effectiveMedical(medic) + 2 * kitStatus + 10 * effectiveExpLevel(medic) + effectiveDexterity(medic),
+    3 * effectiveMedical(medic) + 2 * kitStatus + 10 * effectiveExpLevel(ctx, medic) + effectiveDexterity(medic),
     DRESS_SKILL_DIVISOR,
   );
   let possible = u32(idiv(RT_FIRST_AID_GAIN_MODIFIER * skill, POSSIBLE_DIVISOR));

@@ -161,6 +161,7 @@ export interface AutoresolveWorld {
   readonly day: number;
   readonly playerCapturedForRescue: boolean;
   readonly lastMapRestrictedScroll: number;
+  readonly loadedSector: { readonly z: number } | null;
 }
 
 export interface AutoresolveEnv {
@@ -325,6 +326,7 @@ export function combatContext(env: AutoresolveEnv, ar: AutoresolveState): Combat
     rng: env.rng.main,
     fx: env.rng.fx,
     profiles: env.profiles,
+    sector: env.world.loadedSector,
     inCombat: false,
     turn: { attackBusyCount: 0 },
     events: { push: (e: StatChangedEvent) => ar.statEvents.push({ ...e, battleMs: ar.elapsedMs }) },

@@ -90,6 +90,11 @@ export function markQuoteSaid(t: Pick<TacticalState, 'narrative'>, s: Soldier, f
   if (said) said.quoteSaidFlags |= flag;
 }
 
+export function clearQuoteSaid(t: Pick<TacticalState, 'narrative'>, s: Soldier, flag: number): void {
+  const said = t.narrative.quoteSaidFlags(s);
+  if (said) said.quoteSaidFlags &= ~flag;
+}
+
 export function markExtQuoteSaid(t: Pick<TacticalState, 'narrative'>, s: Soldier, flag: number): void {
   const said = t.narrative.quoteSaidFlags(s);
   if (said) said.quoteSaidExtFlags |= flag;

@@ -100,8 +100,8 @@ const turnsFromAttacks = (s: Soldier) => !s.monsterOrAnimal && !isVehicle(s);
 function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number): number {
   let a =
     mode === MeleeMode.STEAL
-      ? idiv(effectiveDexterity(att) + effectiveAgility(att) + 3 * att.stats.strength + 10 * effectiveExpLevel(att), 6)
-      : idiv(3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att), 6);
+      ? idiv(effectiveDexterity(att) + effectiveAgility(att) + 3 * att.stats.strength + 10 * effectiveExpLevel(t, att), 6)
+      : idiv(3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(t, att), 6);
   if (att.profile !== NO_PROFILE && att.personalityTrait === Personality.PSYCHO) a += Aim.BONUS_PSYCHO;
   a += moraleModifier(att);
   a -= skillCheckFatiguePenalty(att, a);
@@ -128,8 +128,8 @@ function tentacleDefence(def: Soldier, stance: number): number {
 function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: number): number {
   let d =
     mode === MeleeMode.STEAL
-      ? idiv(effectiveAgility(def) + effectiveDexterity(def) + 3 * def.stats.strength + 10 * effectiveExpLevel(def), 6)
-      : idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def), 6);
+      ? idiv(effectiveAgility(def) + effectiveDexterity(def) + 3 * def.stats.strength + 10 * effectiveExpLevel(t, def), 6)
+      : idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(t, def), 6);
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
   if (def.gassed) d -= Aim.PENALTY_GASSED;
@@ -196,7 +196,7 @@ export function meleeChanceToHit(t: TacticalState, att: Soldier, def: Soldier, a
 }
 
 export function hthImpact(t: CombatContext, att: Soldier, tgt: Soldier, hitBy: number, blade: boolean): number {
-  let impact = idiv(effectiveExpLevel(att), 2);
+  let impact = idiv(effectiveExpLevel(t, att), 2);
   const strength = effectiveStrength(att);
   const weapon = att.attackingWeapon;
   const weaponImpact = t.content.items.byIndex.get(weapon)?.weapon?.impact ?? 0;

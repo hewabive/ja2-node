@@ -89,11 +89,11 @@ function handItem(t: TacticalState, s: Soldier): number {
   return s.weaponMode === WeaponMode.ATTACHED ? itemIndex(t, 'UNDER_GLAUNCHER') : (s.inv[InvSlot.HAND]?.item ?? NOTHING);
 }
 
-function baseThrownChance(s: Soldier, mechanical: boolean): number {
+function baseThrownChance(t: TacticalState, s: Soldier, mechanical: boolean): number {
   if (!mechanical)
     return idiv(effectiveDexterity(s) + effectiveMarksmanship(s), 2) + THROWING_BONUS * numSkillTraits(s, SkillTrait.THROWING);
   return (
-    idiv(effectiveDexterity(s) + effectiveMarksmanship(s) + effectiveWisdom(s) + 10 * effectiveExpLevel(s), 4) +
+    idiv(effectiveDexterity(s) + effectiveMarksmanship(s) + effectiveWisdom(s) + 10 * effectiveExpLevel(t, s), 4) +
     HEAVY_WEAPONS_BONUS * numSkillTraits(s, SkillTrait.HEAVY_WEAPS)
   );
 }
@@ -101,7 +101,7 @@ function baseThrownChance(s: Soldier, mechanical: boolean): number {
 export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, aimTime: number): number {
   const hand = handItem(t, s);
   const launcher = itemDef(t, hand)?.itemClass === ItemClass.LAUNCHER;
-  let c = baseThrownChance(s, launcher || s.weaponMode === WeaponMode.ATTACHED);
+  let c = baseThrownChance(t, s, launcher || s.weaponMode === WeaponMode.ATTACHED);
   c += moraleModifier(s);
   c -= skillCheckFatiguePenalty(s, c);
   if (g === s.lastTarget) c += Aim.BONUS_SAME_TARGET;
@@ -119,7 +119,7 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   if (c > 0 && s.life < s.lifeMax) {
     let penalty = i8(idiv(2 * c * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
     if (launcher) penalty = idiv(penalty, 2);
-    c -= idiv(penalty * (100 - 10 * (effectiveExpLevel(s) - 1)), 100);
+    c -= idiv(penalty * (100 - 10 * (effectiveExpLevel(t, s) - 1)), 100);
   }
   if (c > 0 && s.breath < 100) {
     let penalty = i8(idiv(c * (100 - s.breath), 200));

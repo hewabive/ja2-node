@@ -158,7 +158,7 @@ describe('an AI attack decided in real time (AIMain.cc NPCDoesAct, TeamTurns.cc 
     expect(t.turn.currentTeam).toBe(Team.ENEMY);
     expect([attacker.aiTurnControl, attacker.turnInProgress, other.aiTurnControl]).toEqual([true, true, false]);
     expect([attacker.ai.lastAction, attacker.ai.action]).toEqual([AiAction.FIRE_GUN, AiAction.NONE]);
-    for (const s of [...mercs, attacker, other]) expect(s.actionPoints).toBe(calcActionPoints(s) + MAX_AP_CARRIED);
+    for (const s of [...mercs, attacker, other]) expect(s.actionPoints).toBe(calcActionPoints(t, s) + MAX_AP_CARRIED);
     expect(sim.combatView()).toMatchObject({
       team: Team.ENEMY,
       round: 1,

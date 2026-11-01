@@ -15,7 +15,7 @@ import { RestrictedScroll } from '../../../../content/world/render-bounds.ts';
 import { createItem } from '../../../items/object.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { InvSlot } from '../../../tactical/inventory.ts';
-import { SoldierClass } from '../../../tactical/soldier.ts';
+import { Personality, SoldierClass } from '../../../tactical/soldier.ts';
 import { autoBandageMercs, canBandage, dressWound } from './bandage.ts';
 import { type AutoresolveClosePort, checkOneMilitiaForPromotion, closeAutoresolve, MilitiaRank, randomGridNo } from './close.ts';
 import { answerSurrender, attemptPlayerCapture } from './end.ts';
@@ -84,6 +84,21 @@ describe('bandaging after a victory', () => {
     expect(dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100)).toBe(14);
     expect(patient.life).toBe(15);
     expect(patient.bleeding).toBe(11);
+  });
+
+  it('dresses one level lower for a claustrophobic medic still in the loaded underground sector', () => {
+    const MEDIC_PROFILE = 4;
+    const dressed = (loadedSector: { readonly z: number } | null) => {
+      const { ar, medic, patient } = wounded();
+      Object.assign(medic, { profile: MEDIC_PROFILE, personalityTrait: Personality.CLAUSTROPHOBIC, placed: true });
+      medic.stats.dexterity = 61;
+      const env = arEnv(content, { world: { loadedSector } });
+      const kit = medic.inv[InvSlot.SMALLPOCK1];
+      if (!kit) throw new Error('no kit');
+      return dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100);
+    };
+    expect(dressed(null)).toBe(15);
+    expect(dressed({ z: 1 })).toBe(14);
   });
 
   it('clears the bleeding warning only while healing a patient out of dying, before the rest of the bleeding is stopped (quirk Q31)', () => {

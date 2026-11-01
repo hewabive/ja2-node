@@ -89,7 +89,7 @@ function spawn(sim: TacticalSim, id: number, team: number, at: number, direction
   registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
-  s.actionPoints = calcActionPoints(s);
+  s.actionPoints = calcActionPoints(t, s);
   return s;
 }
 

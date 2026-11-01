@@ -26,6 +26,7 @@ import { createTacticalState, placeOccupant, registerSoldier, type TacticalState
 import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts';
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
+import { sectorFromName } from './strategic-state.ts';
 import type { KnowledgeLight, KnowledgeSoldier, KnowledgeView } from './view.ts';
 
 const SANDBOX_HOUR = 12;
@@ -49,6 +50,7 @@ const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'explosives',
   'boxing',
   'addedExitGrids',
+  'sector',
 ]);
 
 const BOXING_FIELDS: ReadonlySet<PropertyKey> = new Set(['state']);
@@ -130,6 +132,7 @@ export class TacticalProjection {
   sync(view: KnowledgeView, guard: GuardOptions): TacticalState {
     const t = this.state;
     t.inCombat = view.combat !== null && view.combat !== undefined;
+    t.sector = view.strategic?.worldSector ? sectorFromName(view.strategic.worldSector) : null;
     this.#syncDoors(view, guard);
     this.#syncSoldiers(view.soldiers, guard);
     this.#syncItems(view, guard);

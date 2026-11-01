@@ -39,7 +39,7 @@ import { NO_SLOT } from '../inventory.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { onSquad } from '../narrative/assignment.ts';
 import { sayBattleEndQuote, sayLullQuote, weSawSomeoneThisTurn } from '../narrative/battle-quotes.ts';
-import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
+import { boxingActive, boxingFight, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { clearBuddyWitnessedQuotes, okControllableMerc } from '../narrative/merc-quotes.ts';
 import { clearBattleSightingQuotes } from '../narrative/sighting-quotes.ts';
@@ -84,6 +84,7 @@ import {
 } from '../soldier.ts';
 import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
+import { handlePersonalityAtTurnStart } from './personality.ts';
 import { addTopMessage, endTopMessage, initPlayerUIBar, TopMessageKind } from './top-message.ts';
 import { TEAM_COUNT } from './turn-state.ts';
 
@@ -156,11 +157,12 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   unusedAPsToBreath(pointsContext(t), s, s.gassed);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
   if (s.placed) checkForBreathCollapse(s);
-  calcNewActionPoints(s, boxingHalvesPoints(t));
+  calcNewActionPoints(t, s);
   s.tilesMoved = 0;
   if (s.placed) {
     beginSoldierGetup(t, s);
     if (t.inCombat) verifyAndDecayOpplist(t, s);
+    handlePersonalityAtTurnStart(t, s);
   }
   s.pummeledQuoteSaid = false;
   s.closeCallQuoteSaid = false;
@@ -402,7 +404,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
     s.aiTurnControl = false;
     checkForPotentialAddToBattleIncrement(t, s);
     if (t.narrative.mercAsleep(s)) startWakingUp(t, s);
-    calcNewActionPoints(s, boxingHalvesPoints(t));
+    calcNewActionPoints(t, s);
   }
   t.turn.round = 1;
   t.events.push({ type: 'combatStarted', team: startTeam });

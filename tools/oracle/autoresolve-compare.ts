@@ -338,6 +338,7 @@ function replayEnv(
       day: num(p.day),
       playerCapturedForRescue: Boolean(p.playerCapturedForRescue),
       lastMapRestrictedScroll: RestrictedScroll.NONE,
+      loadedSector: null,
     },
     hooks: { ...extraHooks, surrender: () => answer, controlsRobot: (s) => s.id === controllerId },
   };

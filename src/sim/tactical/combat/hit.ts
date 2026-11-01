@@ -351,7 +351,7 @@ export function eventSoldierGotHit(
   }
   const combined = soldierTakeDamage(t, s, damage, breath, reason, att);
   if (s.team === Team.OUR && !isVehicle(s)) t.narrative.putOnSquadWhenHit(s);
-  const volume = screamVolume(s, combined);
+  const volume = screamVolume(t, s, combined);
   const attackerShown = att !== null && shownToPlayer(att);
   t.events.push({
     type: 'soldierHit',

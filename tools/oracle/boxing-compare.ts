@@ -22,7 +22,7 @@ import {
   exitBoxing,
   triggerEndOfBoxingRecord,
 } from '../../src/sim/tactical/narrative/boxing.ts';
-import { BOXER_GRIDNOS, boxingHalvesPoints } from '../../src/sim/tactical/narrative/boxing-state.ts';
+import { BOXER_GRIDNOS } from '../../src/sim/tactical/narrative/boxing-state.ts';
 import { AttackReason, processImplicationsOfPCAttack } from '../../src/sim/tactical/narrative/civ-hostility.ts';
 import { handleNpcDoAction } from '../../src/sim/tactical/narrative/npc-actions/catalog.ts';
 import { NpcActionCode } from '../../src/sim/tactical/narrative/npc-actions/codes.ts';
@@ -405,9 +405,8 @@ export class BoxingComparer {
       case 'boxingpoints': {
         const s = this.#soldier(c, a.who);
         if (a.ap !== undefined) s.actionPoints = num(a.ap);
-        const halves = boxingHalvesPoints(t);
-        const full = calcActionPoints(s, halves);
-        calcNewActionPoints(s, halves);
+        const full = calcActionPoints(t, s);
+        calcNewActionPoints(t, s);
         return [full, s.actionPoints, s.initialActionPoints];
       }
       default:

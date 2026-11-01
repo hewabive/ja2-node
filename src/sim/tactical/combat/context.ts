@@ -1,6 +1,7 @@
 import type { TacticalContent } from '../content.ts';
 import type { NarrativePort } from '../narrative/port.ts';
 import type { ProfileProgress, StatKey } from '../profiles.ts';
+import type { LoadedSector } from '../skills.ts';
 import type { Soldier } from '../soldier.ts';
 
 export interface RandomStream {
@@ -20,7 +21,7 @@ export interface ExperienceHooks {
 
 export const NO_EXPERIENCE_HOOKS: ExperienceHooks = { levelGained: () => {} };
 
-export interface CombatContext {
+export interface CombatContext extends LoadedSector {
   readonly content: TacticalContent;
   readonly pre: RandomStream;
   readonly rng: RandomStream;

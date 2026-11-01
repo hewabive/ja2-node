@@ -40,6 +40,7 @@ exitCombatMode → real time; a real-time turn on the next tick
 | `selection.ts` | The selected merc: the checks, squad, wake-up and psycho quote of `InternalSelectSoldier`, `SelectNextAvailSoldier`, the end of a multi-selection, the selections of a screen entry, a sector load, a native load, a death and a removal (called from `src/sim/campaign/screens.ts`, `sector-flow.ts`, `combat/death.ts`, `sector-presence.ts`); the current squad, kept in `forces.currentSquad` through the narrative port: `SetCurrentSquad`, `SetDefaultSquadOnSectorEntry`, `RebuildCurrentSquad` and the end of `AddCharacterToSquad` (called from `sector-flow.ts`, `sector-exits.ts`, the talk and escort flows, the `selectSquad` command) |
 | `turns/turn-state.ts` | `TurnState`: the original's tactical-status, interrupt and AI-list globals; `intList` is `gOutOfTurnOrder` without its unused slot 0 |
 | `turns/ai-list.ts`, `turns/top-message.ts` | The AI list of a team's turn; the top message bar and the AI progress |
+| `turns/personality.ts` | A merc's phobias and nervousness at his turn start: the morale events and the personality quote |
 | `perception/duel.ts` | Duel points, who may interrupt, the duel, seen opponents, watched locations |
 | `perception/sight.ts` | The best-sighting list with its real-time and door resolutions, `handleSight` |
 | `perception/noise.ts`, `perception/wiring.ts` | Noise held back while an attack resolves, noise interrupts; the looks at a tile centre, a stance end, a roof climb and a door |
@@ -70,6 +71,16 @@ its turn start. A turn start decays the team's public opplist and watched locati
 living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a
 debt of up to 100 kept). At our End Turn a merc whose path still has an affordable first step loses his pending move;
 one stopped for want of APs keeps it and his freeze into the next turn.
+
+**Phobias.** A merc's phobia cuts the APs of every turn computed while it applies: a claustrophobe's in an underground
+sector, an insect-phobic merc's while he sees a creature (`calcActionPoints`); a claustrophobe in an underground sector
+also counts a level less wherever the rules read his experience (`effectiveExpLevel`), the AI's threat estimates
+included. The loaded sector is the tactical state's `sector`, the original's `gWorldSector`; the roster's effective
+stats, which the assignments read, take the merc's own sector while he is placed (`src/sim/campaign/roster.ts`), and
+autoresolve the sector it leaves loaded underground. At a turn start in the sector our merc's phobia, or a nervous merc's being alone, costs
+tactical morale, down to the original's phobic floor, and brings his personality quote once (`turns/personality.ts`).
+Soldiers waiting to move with others and AI soldiers walking off the map on a traversal ignore AP costs
+(`enoughPoints`).
 
 **Where interrupts happen.** Where a soldier looks with the interrupt flag: at a tile centre after the step is paid;
 at the end of a stance change when nothing is pending and no attack resolves; at the end of a roof climb; when a door
@@ -138,7 +149,8 @@ fade without merc lights").
 `mercSlots` order; the close-call quote draws `Random(3)` per eligible merc on `main` at every AI soldier's turn end and
 at our interrupt; the quotes at the end of a lull or a won battle pick their speaker with `Random(n)` on `main`
 (`narrative/battle-quotes.ts`, the bloodcat battle sound excepted: deviation "Battle sound after bloodcats"); a turn
-start's bleeding and getting up draw as in `33`; the AI's decisions as in `13`.
+start's bleeding and getting up draw as in `33`, a claustrophobic merc's in an underground sector `Random(6 − level)` on
+`main`, real-time turn starts included; the AI's decisions as in `13`.
 
 ## 3. Quirks of the original the code keeps
 
@@ -159,6 +171,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
+| An insect-phobic merc loses APs for a creature he only heard or saw before, as long as he sees anyone: `MercSeesCreature` reads any opplist entry | `points.test.ts` |
+| A claustrophobe's AP cut reads the loaded sector alone, so a merc created or inserted while an underground map is loaded gets it before he is placed; his level loss waits for him to be in the sector | `points.test.ts`, `skills.test.ts` |
+| A collapsed soldier waiting to move with others has enough points: `EnoughPoints` tests the wait before the collapse | `points.test.ts` |
 | Combat started after our first sighting in the sector, which ends the virgin sector, leaves the enemy presence unset: `SetEnemyPresence` asks for a virgin sector | `narrative/sighting-quotes.test.ts` |
 | Entering combat plays a sleeping merc's wake-up but leaves him asleep, so his morale still waits for him to wake | `turns/turns.test.ts`, `combat/morale.test.ts`, `src/sim/campaign/narrative-port.test.ts` |
 | Entering combat on our turn selects every merc of ours with an opponent in turn, each with the selection's wake-up and draw, and the last one stays selected | `selection.test.ts` |

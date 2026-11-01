@@ -13,7 +13,7 @@ import { AiMorale } from '../combat/types.ts';
 import { InvSlot, itemIn, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { onSquad } from '../narrative/assignment.ts';
-import { boxingFight, boxingHalvesPoints } from '../narrative/boxing-state.ts';
+import { boxingFight } from '../narrative/boxing-state.ts';
 import { seenOpponent } from '../perception/duel.ts';
 import { freshestLastKnown, ignoredByBountyHunter } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
@@ -99,7 +99,7 @@ function armedThreat(t: TacticalState, enemy: Soldier): number {
 
 function soldierThreat(t: TacticalState, enemy: Soldier): number {
   let threat = enemy.stats.experience;
-  threat += calcActionPoints(enemy, boxingHalvesPoints(t));
+  threat += calcActionPoints(t, enemy);
   threat += idiv(enemy.actionPoints, 2);
   threat += idiv(enemy.life, 10);
   if (onSquad(t, enemy)) threat += armedThreat(t, enemy);

@@ -14,7 +14,6 @@ import { assignmentPose } from './assignment-animations.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
-import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
@@ -201,7 +200,7 @@ export function addSoldierToSector(
   animation: PlacementAnimation | null = null,
 ): boolean {
   keepElliotAliveInMeanwhile(t, s);
-  s.actionPoints = calcActionPoints(s, boxingHalvesPoints(t));
+  s.actionPoints = calcActionPoints(t, s);
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
   const spot = s.team === Team.CREATURE ? creatureSpot(t, s, order, calculateDirection) : soldierSpot(t, s, order, calculateDirection);
   if (!spot || !isVisibleTile(spot.gridNo)) return false;

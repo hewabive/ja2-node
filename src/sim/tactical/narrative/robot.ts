@@ -24,7 +24,7 @@ export function uncontrolledRobot(t: TacticalState, s: Soldier): boolean {
 
 export function interruptBasePoints(t: TacticalState, s: Soldier): number {
   const holder = isRobot(s) ? t.narrative.robotController(s) : null;
-  if (holder) return effectiveExpLevel(holder) - CONTROLLER_DISTRACTION;
-  const own = effectiveExpLevel(s);
+  if (holder) return effectiveExpLevel(t, holder) - CONTROLLER_DISTRACTION;
+  const own = effectiveExpLevel(t, s);
   return t.narrative.controllingRobot(s) ? own - CONTROLLER_DISTRACTION : own;
 }

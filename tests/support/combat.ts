@@ -9,8 +9,9 @@ import type { CommandResult } from '../../src/sim/command.ts';
 import type { SimEvent } from '../../src/sim/events.ts';
 import { answerHint } from '../../src/sim/hints/answer.ts';
 import { createItem } from '../../src/sim/items/object.ts';
-import { knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
+import { type KnowledgeWorld, knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
 import { knowledgeViewOf } from '../../src/sim/knowledge/sim-view.ts';
+import type { KnowledgeView } from '../../src/sim/knowledge/view.ts';
 import { initNewSoldierAnim, states } from '../../src/sim/tactical/animation.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
@@ -63,11 +64,15 @@ export function newCombatSim(
   return sim;
 }
 
-export function hintAnswer(sim: TacticalSim, type: string, cmd: Readonly<Record<string, unknown>>): CommandResult {
+export function knowledgeOf(sim: TacticalSim, patch: Partial<KnowledgeView> = {}): KnowledgeWorld {
   const build = WORLD_BUILDERS.get(sim);
   if (!build) throw new Error('hints need a sim made by newCombatSim');
   const rules = knowledgeRules(sim.state.content, { world: () => build() });
-  return answerHint(knowledgeWorld(knowledgeViewOf(sim), rules, { strict: true }), { type, ...cmd });
+  return knowledgeWorld({ ...knowledgeViewOf(sim), ...patch }, rules, { strict: true });
+}
+
+export function hintAnswer(sim: TacticalSim, type: string, cmd: Readonly<Record<string, unknown>>): CommandResult {
+  return answerHint(knowledgeOf(sim), { type, ...cmd });
 }
 
 export function estimateAttack(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
@@ -110,7 +115,7 @@ export function spawnSoldier(
   registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
-  s.actionPoints = calcActionPoints(s);
+  s.actionPoints = calcActionPoints(t, s);
   return s;
 }
 

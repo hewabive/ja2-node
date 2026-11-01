@@ -49,7 +49,14 @@ const DERIVED_FROM_HOSTILE = ['side', 'neutral'] as const;
 const APPEARANCE_STAND_INS = ['inv'] as const;
 const HAND_SLOTS: ReadonlySet<PropertyKey> = new Set([String(InvSlot.HAND), String(InvSlot.SECOND_HAND)]);
 
-const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = ['turningUntilDone', 'tempObject', 'pendingGive', 'dead'] as const;
+const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = [
+  'turningUntilDone',
+  'tempObject',
+  'pendingGive',
+  'dead',
+  'waitActionToDo',
+  'quoteActionId',
+] as const;
 
 const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed', 'gassed', 'dead'] as const;
 
@@ -88,7 +95,10 @@ const OWN_FIELDS = [
   'underAiControl',
   'uiMovementMode',
   'uiMovementFast',
+  'ai',
 ] as const;
+
+const OWN_AI_FIELDS: ReadonlySet<PropertyKey> = new Set(['oppCount']);
 
 const WEAPON_MODES: Readonly<Record<WeaponModeView, number>> = {
   single: WeaponMode.NORMAL,
@@ -221,6 +231,8 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.underAiControl = hint.underAiControl;
   applyStance(content, s, v.stance);
   for (const id of v.sees ?? []) s.oppList[id] = Opp.SEEN_CURRENTLY;
+  s.ai.oppCount = v.opponents ?? 0;
+  s.ai = guardFields(s.ai, OWN_AI_FIELDS, `soldier ${v.id}.ai`, guard);
   const inv = inventoryFromView(content.items, v.inventory ?? [], `soldier ${v.id}`, guard);
   inv.forEach((o, slot) => {
     s.inv[slot] = o;

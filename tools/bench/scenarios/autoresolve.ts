@@ -122,7 +122,7 @@ function env(content: TacticalContent, b: Battle): AutoresolveEnv {
     content,
     profiles: b.profiles,
     rng: { main, pre: PreRandom.create(main), fx: Rng.fromSeed(b.seed ^ FX_SALT) },
-    world: { day: BATTLE_DAY, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE },
+    world: { day: BATTLE_DAY, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE, loadedSector: null },
     hooks: { surrender: () => 'reject' },
   };
 }

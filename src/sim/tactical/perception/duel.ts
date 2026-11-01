@@ -225,7 +225,7 @@ export function standardInterruptConditionsMet(t: TacticalState, s: Soldier, opp
     if (s.oppList[opp.id] === Opp.SEEN_CURRENTLY) {
       if (oldOpp === Opp.SEEN_CURRENTLY || oldOpp === Opp.SEEN_THIS_TURN) return false;
       const dir = atan8Of(s, opp);
-      if ((s.desiredDirection + 4) % 8 === dir && pythSpacesAway(s.gridNo, opp.gridNo) > effectiveExpLevel(s)) return false;
+      if ((s.desiredDirection + 4) % 8 === dir && pythSpacesAway(s.gridNo, opp.gridNo) > effectiveExpLevel(t, s)) return false;
       const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
       need = height(t.content, s.state) !== AnimHeight.CROUCH ? AP_CROUCH : minPtsToMove(ctx, s, s.uiMovementMode);
     } else if (opp.oppList[s.id] !== Opp.SEEN_CURRENTLY || s.ai.oppCount > 0 || oldOpp === Opp.HEARD_THIS_TURN) return false;

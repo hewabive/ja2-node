@@ -22,11 +22,10 @@ import type { RandomStream } from './combat/context.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
 import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
-import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { CivGroupHostility } from './narrative/constants.ts';
 import { NOWHERE } from './pathfinding.ts';
 import { initSoldierOppList, type OppListTables } from './perception/opplist-reset.ts';
-import { calcActionPoints } from './points.ts';
+import { type ActionPointWorld, calcActionPoints } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import {
   Body,
@@ -42,7 +41,7 @@ import {
   type SoldierStats,
   Team,
 } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import type { SectorRef, TacticalState } from './state.ts';
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
 const HAIR_IDS = ['WHITEHEAD', 'BLACKHEAD', 'BROWNHEAD', 'BLONDHEAD', 'REDHEAD'];
@@ -224,6 +223,8 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
 export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'>, Partial<OppListTables> {
   readonly rng: RandomStream;
   readonly boxing?: BoxingRecord;
+  readonly sector?: SectorRef | null;
+  readonly soldiers?: readonly Soldier[];
   readonly civGroups?: CivGroupState;
   readonly profiles?: ReadonlyMap<number, ProfileProgress>;
 }
@@ -786,7 +787,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   s.hasKeys = pp.hasKeys;
   if (pp.team === Team.CIV) s.neutral = civilianStartsNeutral(c, pp.profile, s.civilianGroup);
   if (pp.team === Team.OUR || pp.team === Team.MILITIA) s.visible = 1;
-  s.actionPoints = calcActionPoints(s, boxingHalvesPoints(c));
+  s.actionPoints = creationActionPoints(c, s);
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   s.insertionGridNo = pp.insertionGridNo;
@@ -851,7 +852,18 @@ export function createMercFromProfile(
   });
 }
 
-export type HiredMercContext = BodyContext;
+export type HiredMercContext = BodyContext & Pick<CreationContext, 'sector' | 'soldiers' | 'boxing'>;
+
+const NOBODY_IN_SECTOR: readonly Soldier[] = [];
+
+function creationActionPoints(c: Pick<CreationContext, 'sector' | 'soldiers' | 'boxing'>, s: Soldier): number {
+  const world: ActionPointWorld = {
+    sector: c.sector ?? null,
+    soldiers: c.soldiers ?? NOBODY_IN_SECTOR,
+    ...(c.boxing ? { boxing: c.boxing } : {}),
+  };
+  return calcActionPoints(world, s);
+}
 
 function progressStats(p: ProfileProgress): SoldierStats {
   const s = p.stats;
@@ -912,7 +924,7 @@ export function createHiredMerc(
   s.breath = INITIAL_BREATH;
   s.breathMax = INITIAL_BREATH_MAX;
   s.visible = 1;
-  s.actionPoints = calcActionPoints(s);
+  s.actionPoints = creationActionPoints(c, s);
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   bodyTypeSetup(c, s);

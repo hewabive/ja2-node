@@ -47,6 +47,7 @@ export interface KnowledgeSoldier {
   readonly stealth?: boolean;
   readonly weaponMode?: WeaponModeView;
   readonly sees?: readonly number[];
+  readonly opponents?: number;
   readonly canAct?: boolean;
   readonly stance?: Stance;
   readonly firstAid?: FirstAidRole | null;

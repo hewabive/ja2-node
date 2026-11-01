@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/SkillCheck.cc Effective*; Soldier_Control.h effectiveLife
+// @src src/game/Tactical/SkillCheck.cc Effective* (the claustrophobic level 2026-11-01); Soldier_Control.h effectiveLife
 
 import { idiv } from '../../core/int.ts';
-import type { Soldier } from './soldier.ts';
+import { NO_PROFILE, Personality, type Soldier } from './soldier.ts';
 
 export interface LifeState {
   readonly life: number;
@@ -53,8 +53,28 @@ export function effectiveLeadership(s: Soldier): number {
   return s.stats.leadership;
 }
 
-export function effectiveExpLevel(s: Soldier): number {
-  return Math.max(s.stats.experience, 1);
+export interface LoadedSector {
+  readonly sector?: { readonly z: number } | null;
+}
+
+const CLAUSTROPHOBIC_LEVEL_LOSS = 1;
+const LOWEST_EXP_LEVEL = 1;
+
+export function undergroundSectorLoaded(w: LoadedSector): boolean {
+  return (w.sector?.z ?? 0) > 0;
+}
+
+export function hasPersonality(s: Soldier, trait: number): boolean {
+  return s.profile !== NO_PROFILE && s.personalityTrait === trait;
+}
+
+function claustrophobicUnderground(w: LoadedSector, s: Soldier): boolean {
+  return hasPersonality(s, Personality.CLAUSTROPHOBIC) && s.placed && undergroundSectorLoaded(w);
+}
+
+export function effectiveExpLevel(w: LoadedSector, s: Soldier): number {
+  const level = s.stats.experience - (claustrophobicUnderground(w, s) ? CLAUSTROPHOBIC_LEVEL_LOSS : 0);
+  return Math.max(level, LOWEST_EXP_LEVEL);
 }
 
 const MORALE_PC_TEAM = 0;

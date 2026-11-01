@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.h opplist values, sight flags, callers; Isometric_Utils.cc atan8; OppList.cc the values of
-// @src gfPlayerTeamSawCreatures (2026-10-30)
+// @src gfPlayerTeamSawCreatures (2026-10-30), MercSeesCreature (2026-11-01)
+
+import { isMonster, type Soldier, Team } from '../soldier.ts';
 
 export const Opp = {
   NOT_HEARD_OR_SEEN: 0,
@@ -32,4 +34,11 @@ export function atan8(x1: number, y1: number, x2: number, y2: number): number {
 
 export function atan8Of(from: { readonly x: number; readonly y: number }, to: { readonly x: number; readonly y: number }): number {
   return atan8(Math.trunc(from.x), Math.trunc(from.y), Math.trunc(to.x), Math.trunc(to.y));
+}
+
+const isPlacedCreature = (c: Soldier | undefined): c is Soldier => c?.placed === true && c.team === Team.CREATURE && isMonster(c);
+
+export function mercSeesCreature(t: { readonly soldiers: readonly Soldier[] }, s: Soldier): boolean {
+  if (s.ai.oppCount <= 0) return false;
+  return t.soldiers.some((c) => isPlacedCreature(c) && s.oppList[c.id] !== Opp.NOT_HEARD_OR_SEEN);
 }

@@ -87,7 +87,7 @@ function spawn(t: TacticalState, o: SpawnOptions): Soldier {
   registerSoldier(t, s);
   setSoldierPosition(t, s, o.at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
-  s.actionPoints = calcActionPoints(s);
+  s.actionPoints = calcActionPoints(t, s);
   return s;
 }
 
@@ -133,7 +133,7 @@ describe('calcMorale', () => {
     const guard = spawn(t, { id: 20, team: Team.ENEMY, at: gridNo(80, 80) });
     const merc = spawn(t, { id: 0, team: Team.OUR, at: gridNo(80, 86), direction: Direction.NORTH, experience: 8 });
     const deadliness = content.items.byName.get('GLOCK_17')?.weapon?.deadliness ?? 0;
-    const base = 8 + calcActionPoints(merc) + idiv(merc.actionPoints, 2) + 8 + 14 + deadliness;
+    const base = 8 + calcActionPoints(t, merc) + idiv(merc.actionPoints, 2) + 8 + 14 + deadliness;
     expect(calcManThreatValue(t, merc, NOWHERE, false, guard)).toBe(base);
     expect(calcManThreatValue(t, merc, guard.gridNo, false, guard)).toBe(base + idiv(base, 20));
     merc.lastTarget = guard.gridNo;
@@ -145,12 +145,12 @@ describe('calcMorale', () => {
     const guard = spawn(t, { id: 20, team: Team.ENEMY, at: gridNo(80, 80) });
     const merc = spawn(t, { id: 0, team: Team.OUR, at: gridNo(80, 86), direction: Direction.NORTH, experience: 8 });
     const deadliness = content.items.byName.get('GLOCK_17')?.weapon?.deadliness ?? 0;
-    const unarmed = 8 + calcActionPoints(merc) + idiv(merc.actionPoints, 2) + 8;
+    const unarmed = 8 + calcActionPoints(t, merc) + idiv(merc.actionPoints, 2) + 8;
     const threats = (assignment: number) => {
       t.narrative = { ...t.narrative, assignment: (s) => (s === merc ? assignment : null) };
       return [calcManThreatValue(t, merc, NOWHERE, false, guard), calcManThreatValue(t, guard, NOWHERE, false, merc)];
     };
-    const guardThreat = 3 + calcActionPoints(guard) + idiv(guard.actionPoints, 2) + 8 + 14 + deadliness;
+    const guardThreat = 3 + calcActionPoints(t, guard) + idiv(guard.actionPoints, 2) + 8 + 14 + deadliness;
     expect(threats(Assignment.SQUAD_20)).toEqual([unarmed + 14 + deadliness, guardThreat]);
     expect(threats(Assignment.ON_DUTY)).toEqual([unarmed, guardThreat]);
     expect(threats(Assignment.TRAIN_SELF)).toEqual([unarmed, guardThreat]);

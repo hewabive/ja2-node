@@ -104,7 +104,7 @@ function stealthRollWithSecondChance(t: TacticalState, stealth: number): number 
 
 export function movementNoise(t: TacticalState, s: Soldier): number {
   if (s.team === Team.ENEMY) return MAX_MOVEMENT_NOISE - t.pre.int(2);
-  let stealth = 20 + 4 * effectiveExpLevel(s) + idiv(effectiveDexterity(s) * 4, 10);
+  let stealth = 20 + 4 * effectiveExpLevel(t, s) + idiv(effectiveDexterity(s) * 4, 10);
   stealth += s.bodyType === Body.BLOODCAT ? BLOODCAT_STEALTH_BONUS : STEALTHY_TRAIT_BONUS * numSkillTraits(s, SkillTrait.STEALTHY);
   const life = effectiveLife(s);
   if (life < 50) stealth -= idiv(stealth * (50 - life), 100);

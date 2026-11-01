@@ -34,7 +34,7 @@ import {
   effectiveWisdom,
 } from '../../src/sim/tactical/skills.ts';
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
-import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
+import { registerSoldier, type TacticalState, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
@@ -219,7 +219,7 @@ function compareCosts(ctx: Context, probe: Json): number {
   return report('costs', hash === probe.fnv1a32 && differing === 0, `fnv1a32 ${hash}/${probe.fnv1a32}, ${differing} differing entries`);
 }
 
-function soldierFacts(s: Soldier): Json {
+function soldierFacts(t: TacticalState, s: Soldier): Json {
   return {
     gridNo: s.gridNo,
     level: s.level,
@@ -236,7 +236,7 @@ function soldierFacts(s: Soldier): Json {
     bleeding: s.bleeding,
     ap: s.actionPoints,
     initialAp: s.initialActionPoints,
-    apPerTurn: calcActionPoints(s),
+    apPerTurn: calcActionPoints(t, s),
     morale: s.morale,
     aiMorale: s.ai.morale,
     alert: s.ai.alertStatus,
@@ -249,7 +249,7 @@ function soldierFacts(s: Soldier): Json {
       dexterity: effectiveDexterity(s),
       agility: effectiveAgility(s),
       wisdom: effectiveWisdom(s),
-      expLevel: effectiveExpLevel(s),
+      expLevel: effectiveExpLevel(t, s),
     },
     personality: s.personalityTrait,
     oppList: Array.from(s.oppList.subarray(0, OPPLIST_ENTRIES)),
@@ -293,7 +293,7 @@ function oracleFacts(o: Json): Json {
 function compareSoldier(ctx: Context, o: Json, line: unknown): number {
   const s = ctx.sim.state.soldiers[Number(o.id)];
   if (!s?.placed) return report(`soldier ${o.id} line ${line}`, false, 'missing in ja2-node');
-  const ours = soldierFacts(s);
+  const ours = soldierFacts(ctx.sim.state, s);
   const theirs = oracleFacts(o);
   const differing = Object.keys(theirs).filter((k) => JSON.stringify(ours[k]) !== JSON.stringify(theirs[k]));
   const detail = differing.map((k) => `${k} ${JSON.stringify(ours[k])}/${JSON.stringify(theirs[k])}`).join('; ');

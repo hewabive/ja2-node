@@ -80,7 +80,7 @@ describe('melee chance and impact', () => {
     merc.attackingWeapon = merc.inv[InvSlot.HAND]?.item ?? 0;
     const clone = PreRandom.fromState(t.pre.state(), Rng.fromState(t.rng.state()));
     const fluke = clone.int(51) - 25;
-    const base = Math.trunc(effectiveExpLevel(merc) / 2) + Math.trunc(effectiveStrength(merc) / 20) + KNIFE_IMPACT;
+    const base = Math.trunc(effectiveExpLevel(t, merc) / 2) + Math.trunc(effectiveStrength(merc) / 20) + KNIFE_IMPACT;
     expect(hthImpact(t, merc, enemy, 30, true)).toBe(Math.trunc((base * (100 + fluke + 15)) / 100));
   });
 

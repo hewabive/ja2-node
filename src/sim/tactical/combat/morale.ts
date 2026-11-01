@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
-// @src (soldier-only tactical events).
+// @src (soldier-only tactical events; the phobic ones and PHOBIC_LIMIT 2026-11-01).
 
 import { idiv } from '../../../core/int.ts';
 import { profileProgress } from '../profiles.ts';
@@ -9,14 +9,32 @@ import { Body, NO_PROFILE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { CONSCIOUSNESS } from './types.ts';
 
-export const MoraleEvent = { KILLED_ENEMY: 0, SUPPRESSED: 2, DID_LOTS_OF_DAMAGE: 4, TOOK_LOTS_OF_DAMAGE: 5 } as const;
+export const MoraleEvent = {
+  KILLED_ENEMY: 0,
+  SUPPRESSED: 2,
+  DID_LOTS_OF_DAMAGE: 4,
+  TOOK_LOTS_OF_DAMAGE: 5,
+  CLAUSTROPHOBE_UNDERGROUND: 28,
+  INSECT_PHOBIC_SEES_CREATURE: 29,
+  NERVOUS_ALONE: 30,
+} as const;
 
 const TACTICAL_CHANGE: Readonly<Record<number, number>> = {
   [MoraleEvent.KILLED_ENEMY]: 4,
   [MoraleEvent.SUPPRESSED]: -1,
   [MoraleEvent.DID_LOTS_OF_DAMAGE]: 2,
   [MoraleEvent.TOOK_LOTS_OF_DAMAGE]: -3,
+  [MoraleEvent.CLAUSTROPHOBE_UNDERGROUND]: -1,
+  [MoraleEvent.INSECT_PHOBIC_SEES_CREATURE]: -5,
+  [MoraleEvent.NERVOUS_ALONE]: -1,
 };
+
+const PHOBIC_EVENTS: ReadonlySet<number> = new Set([
+  MoraleEvent.CLAUSTROPHOBE_UNDERGROUND,
+  MoraleEvent.INSECT_PHOBIC_SEES_CREATURE,
+  MoraleEvent.NERVOUS_ALONE,
+]);
+const PHOBIC_LIMIT = -20;
 
 const Attitude = { OPTIMIST: 3, PESSIMIST: 4, AGGRESSIVE: 5, COWARD: 9 } as const;
 const MORALE_MOD_MAX = 50;
@@ -33,6 +51,7 @@ export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
 export function handleMoraleEvent(t: TacticalState, s: Soldier, event: number): void {
   const base = TACTICAL_CHANGE[event];
   if (base === undefined || !s.placed || s.life < CONSCIOUSNESS || isMechanical(s) || s.profile === NO_PROFILE) return;
+  if (PHOBIC_EVENTS.has(event) && s.tacticalMoraleMod <= PHOBIC_LIMIT) return;
   const p = profileProgress(t, s.profile);
   if (!p) return;
   let mod = base;

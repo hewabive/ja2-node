@@ -5,6 +5,7 @@
 // @src SetupProfileInsertionDataForCivilians; TacticalAI/NPC.cc HandleNPCChangesForTacticalTraversal; Tactical/Soldier_Profile.cc
 // @src UpdateSoldierPointerDataIntoProfile; TacticalAI/AI.h QUOTE_ACTION_ID_*; TacticalAI/NPC.h APPROACH_DONE_TRAVERSAL.
 
+import { isTraversalQuoteAction } from '../../../content/narrative/npc-constants.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
 import { QuoteAction } from '../ai/cover.ts';
 import { type SoldierCreate, tacticalCreateSoldier } from '../creation.ts';
@@ -158,10 +159,6 @@ export function handleNpcChangesForTacticalTraversal(s: Soldier, p: ProfileProgr
   }
 }
 
-function isTraversal(action: number): boolean {
-  return action >= QuoteAction.TRAVERSE_EAST && action <= QuoteAction.TRAVERSE_NORTH;
-}
-
 export interface SoldierWhereabouts {
   readonly inSector: boolean;
   readonly strategicInsertionCode: number;
@@ -181,7 +178,7 @@ export function setupProfileInsertionDataForSoldier(s: Soldier, where: SoldierWh
     p.useProfileInsertion = false;
     return;
   }
-  if (isTraversal(s.quoteActionId)) {
+  if (isTraversalQuoteAction(s.quoteActionId)) {
     handleNpcChangesForTacticalTraversal(s, p);
     p.useProfileInsertion = false;
     if (hooks.hasUnusedRecordWithApproach(s.profile, APPROACH_DONE_TRAVERSAL)) p.miscFlags3 |= HANDLE_DONE_TRAVERSAL;

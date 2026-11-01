@@ -526,7 +526,8 @@ projection").
 
 **The projection** (`src/sim/knowledge/`, `knowledgeWorld`) builds from a player view and the rule content the minimal
 world the hints read. In tactical it is a `TacticalState` over a fresh copy of the sector's world with the view's
-doors, containers, items and light, our soldiers in full and the seen soldiers with their visible fields only: unseen
+doors, containers, items and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
+soldiers in full and the seen soldiers with their visible fields only: unseen
 soldiers do not exist, so they block no path, absorb no bullet and are no target. On the map it is a minimal strategic
 state from the strategic view. In strict mode (tests) every unsupplied field throws (`guard.ts`,
 `UnsuppliedFieldError`), so a hint that reads hidden state fails at once; each such read was decided: supplied by the

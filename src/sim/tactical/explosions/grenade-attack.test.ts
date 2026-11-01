@@ -82,7 +82,7 @@ describe('grenade attacks through the attack command', () => {
     expect(t.inCombat).toBe(true);
     const target = gridNo(80, 88);
     const throwAt = () => {
-      merc.actionPoints = calcActionPoints(merc);
+      merc.actionPoints = calcActionPoints(t, merc);
       const before = merc.actionPoints;
       expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toEqual({ ok: true });
       runUntilIdle(sim);

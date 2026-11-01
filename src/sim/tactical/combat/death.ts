@@ -434,7 +434,7 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       killer: s.attacker?.id ?? null,
       ...(shownToPlayer(s)
         ? { gridNo: s.gridNo }
-        : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(s), NoiseKind.SCREAM) }),
+        : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(t, s), NoiseKind.SCREAM) }),
     });
     madeCorpse = turnSoldierIntoCorpse(t, s);
     removeManAsTarget(t, s);

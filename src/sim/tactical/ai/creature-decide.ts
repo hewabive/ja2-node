@@ -165,7 +165,7 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
   if (call) {
     const where = shownToPlayer(caller)
       ? {}
-      : { unseen: { bodyType: caller.bodyType }, ...heardOnly(t, caller, loudestScream(caller), NoiseKind.SCREAM) };
+      : { unseen: { bodyType: caller.bodyType }, ...heardOnly(t, caller, loudestScream(t, caller), NoiseKind.SCREAM) };
     t.events.push({ type: 'creatureCall', soldier: caller.id, call, ...where });
   }
   playCallAnimation(t, caller);

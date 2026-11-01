@@ -41,13 +41,13 @@ function robotSetup(controlled: boolean): { sim: TacticalSim; robot: Soldier; ho
 describe('the robot in tactical (TeamTurns.cc, Overhead.cc UIOKMoveDestination)', () => {
   it('takes its interrupt points from the controller, who loses two for the distraction', () => {
     const { sim, robot, holder } = robotSetup(true);
-    expect(interruptBasePoints(sim.state, robot)).toBe(effectiveExpLevel(holder) - DISTRACTION);
-    expect(interruptBasePoints(sim.state, holder)).toBe(effectiveExpLevel(holder) - DISTRACTION);
+    expect(interruptBasePoints(sim.state, robot)).toBe(effectiveExpLevel(sim.state, holder) - DISTRACTION);
+    expect(interruptBasePoints(sim.state, holder)).toBe(effectiveExpLevel(sim.state, holder) - DISTRACTION);
   });
 
   it('uses its own level without a controller and then takes no orders', () => {
     const { sim, robot } = robotSetup(false);
-    expect(interruptBasePoints(sim.state, robot)).toBe(effectiveExpLevel(robot));
+    expect(interruptBasePoints(sim.state, robot)).toBe(effectiveExpLevel(sim.state, robot));
     expect(uncontrolledRobot(sim.state, robot)).toBe(true);
     expect(sim.canAct(robot)).toMatch(/robot has no controller/);
     expect(sim.dispatch({ type: 'move', soldier: robot.id, to: AT + 6 })).toMatchObject({ ok: false });

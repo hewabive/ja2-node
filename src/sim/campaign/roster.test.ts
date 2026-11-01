@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import type { TacticalContent } from '../tactical/content.ts';
-import { createSoldier, Team } from '../tactical/soldier.ts';
+import { createSoldier, Personality, Team } from '../tactical/soldier.ts';
 import { createMercRecord, createRosterState } from './merc-record.ts';
 import { MercKind, Roster, RosterMerc } from './roster.ts';
 
@@ -85,5 +85,18 @@ describe('the roster list', () => {
     expect(r.all().map((m) => m.id)).toEqual([2]);
     if (record) state.mercs.set(9, record);
     expect(r.all().map((m) => m.id)).toEqual([2, 9]);
+  });
+});
+
+describe('the effective stats', () => {
+  it('take a level from a claustrophobic merc only while he stands in his underground sector', () => {
+    const m = merc(3);
+    Object.assign(m.soldier, { profile: 7, personalityTrait: Personality.CLAUSTROPHOBIC });
+    m.sector = { x: 13, y: 9, z: 1 };
+    expect(m.effective.expLevel).toBe(3);
+    m.soldier.placed = true;
+    expect(m.effective.expLevel).toBe(2);
+    m.sector = { x: 13, y: 9, z: 0 };
+    expect(m.effective.expLevel).toBe(3);
   });
 });

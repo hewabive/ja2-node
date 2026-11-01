@@ -21,7 +21,7 @@ import { inGasOrSmoke, wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
-import { BoxingState, boxingHalvesPoints } from '../narrative/boxing-state.ts';
+import { BoxingState } from '../narrative/boxing-state.ts';
 import { CivGroupHostility, TIXA_SECTOR } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
@@ -1148,7 +1148,7 @@ function executeAttackChoice(
     const gun = s.inv[best.weaponIn];
     const burstCapable = (t.content.items.byIndex.get(gun?.item ?? NOTHING)?.weapon?.shotsPerBurst ?? 0) > 0;
     if (burstCapable && (bestShot.opponent?.life ?? 0) >= OKLIFE && (gun?.gunShotsLeft ?? 0) > 1 && s.team !== Team.OUR && gun) {
-      const burstAPs = calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), gun);
+      const burstAPs = calcAPsToBurst(t, calcActionPoints(t, s), gun);
       let reraise = 0;
       if (changeStanceFirst && weaponRaised(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
       if (s.actionPoints - (best.apCost - best.aimTime) - reraise >= burstAPs) {
@@ -1179,9 +1179,7 @@ function executeAttackChoice(
         }
         if (t.pre.int(100) < chance) {
           best.aimTime = BURSTING;
-          best.apCost = u8(
-            best.apCost - best.aimTime + calcAPsToBurst(t, calcActionPoints(s, boxingHalvesPoints(t)), s.inv[InvSlot.HAND] as typeof gun),
-          );
+          best.apCost = u8(best.apCost - best.aimTime + calcAPsToBurst(t, calcActionPoints(t, s), s.inv[InvSlot.HAND] as typeof gun));
           if (ai.attitude !== Attitude.ATTACKSLAYONLY) calcSpreadBurst(t, s, best.target, best.targetLevel);
         }
       }

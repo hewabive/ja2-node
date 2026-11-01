@@ -127,7 +127,7 @@ export function arEnv(content: TacticalContent, o: EnvOptions = {}): Autoresolve
     content,
     profiles: o.profiles ?? new Map(),
     rng: { pre: o.pre ?? base.pre, main: o.main ?? base.main, fx: o.fx ?? base.fx },
-    world: { day: 1, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE, ...o.world },
+    world: { day: 1, playerCapturedForRescue: false, lastMapRestrictedScroll: RestrictedScroll.NONE, loadedSector: null, ...o.world },
     hooks: o.hooks ?? {},
   };
 }

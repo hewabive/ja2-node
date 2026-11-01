@@ -2,20 +2,34 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc TerrainActionPoints, TerrainBreathPoints, ActionPointCost, MinAPsToStartMovement,
 // @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h; Soldier_Control.cc CalcActionPoints,
-// @src CalcNewActionPoints (the boxing halving).
+// @src CalcNewActionPoints (the boxing halving); the phobia terms of CalcActionPoints and EnoughPoints' waiting and
+// @src traversal exceptions (2026-11-01).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
+import { isTraversalQuoteAction } from '../../content/narrative/npc-constants.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { i8, idiv, u8 } from '../../core/int.ts';
+import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { AnimHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
+import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { doorObstacleIfClosed, doorState, isWater, type PathEnv, terrainCost } from './pathfinding.ts';
-import { effectiveAgility, effectiveDexterity, effectiveExpLevel, effectiveLife, effectiveStrength } from './skills.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { mercSeesCreature } from './perception/opp.ts';
+import {
+  effectiveAgility,
+  effectiveDexterity,
+  effectiveExpLevel,
+  effectiveLife,
+  effectiveStrength,
+  hasPersonality,
+  type LoadedSector,
+  undergroundSectorLoaded,
+} from './skills.ts';
+import { Body, Personality, type Soldier, Team } from './soldier.ts';
 
 export const AP = {
   MOVEMENT_FLAT: 3,
@@ -177,6 +191,9 @@ const MAX_BREATH_RED = 10000;
 export const MAX_AP_CARRIED = 5;
 const BOXING_POINTS_DIVISOR = 2;
 export const MAX_AP_DEBT = 100;
+const AP_CLAUSTROPHOBE = 9;
+const AP_AFRAID_OF_INSECTS = 8;
+const PHOBIA_AP_DIVISOR = 10;
 
 export const AP_LIMITS = {
   MINIMUM: 10,
@@ -444,7 +461,9 @@ function adjustBreathPts(s: Soldier, cost: number): number {
 }
 
 export function enoughPoints(inCombat: boolean, s: Soldier, apCost: number): boolean {
+  if (s.waitActionToDo) return true;
   if (s.collapsed) return false;
+  if (isTraversalQuoteAction(s.quoteActionId)) return true;
   return s.actionPoints - (inCombat ? apCost : 0) >= 0;
 }
 
@@ -523,9 +542,22 @@ export function maxActionPoints(bodyType: number): number {
   return AP_LIMITS.MAXIMUM;
 }
 
-export function calcActionPoints(s: Soldier, boxingRound = false): number {
+export interface ActionPointWorld extends LoadedSector {
+  readonly soldiers: readonly Soldier[];
+  readonly boxing?: BoxingRecord;
+}
+
+function phobicPoints(w: ActionPointWorld, s: Soldier, points: number): number {
+  if (hasPersonality(s, Personality.CLAUSTROPHOBIC) && undergroundSectorLoaded(w))
+    return idiv(points * AP_CLAUSTROPHOBE, PHOBIA_AP_DIVISOR);
+  if (hasPersonality(s, Personality.FEAR_OF_INSECTS) && mercSeesCreature(w, s))
+    return idiv(points * AP_AFRAID_OF_INSECTS, PHOBIA_AP_DIVISOR);
+  return points;
+}
+
+export function calcActionPoints(w: ActionPointWorld, s: Soldier): number {
   if (!s.life) return 0;
-  let points = 5 + idiv(10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
+  let points = 5 + idiv(10 * effectiveExpLevel(w, s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
   points = u8(points);
   if (s.life < s.lifeMax) points = u8(points - idiv(2 * points * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
   if (s.breath < 100) points = u8(points - idiv(points * (100 - s.breath), 200));
@@ -538,14 +570,15 @@ export function calcActionPoints(s: Soldier, boxingRound = false): number {
       points = idiv(points * AP_LIMITS.YOUNG_MONST_FACTOR, 10);
     if (s.ai.frenzied) points = idiv(points * AP_LIMITS.MONST_FRENZY_FACTOR, 10);
   }
-  if (boxingRound) points = idiv(u8(points), BOXING_POINTS_DIVISOR);
+  points = u8(phobicPoints(w, s, u8(points)));
+  if (boxingHalvesPoints(w)) points = idiv(points, BOXING_POINTS_DIVISOR);
   return u8(points);
 }
 
-export function calcNewActionPoints(s: Soldier, boxingRound = false): void {
-  const carried = boxingRound ? idiv(MAX_AP_CARRIED, BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
+export function calcNewActionPoints(w: ActionPointWorld, s: Soldier): void {
+  const carried = boxingHalvesPoints(w) ? idiv(MAX_AP_CARRIED, BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
   if (s.actionPoints > carried) s.actionPoints = carried;
-  s.actionPoints += calcActionPoints(s, boxingRound);
+  s.actionPoints += calcActionPoints(w, s);
   s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));
   s.initialActionPoints = s.actionPoints;
 }

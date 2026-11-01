@@ -15,6 +15,7 @@ import {
   effectiveMechanical,
   effectiveStrength,
   effectiveWisdom,
+  type LoadedSector,
   moraleModifier,
   skillCheckFatiguePenalty,
 } from '../skills.ts';
@@ -42,7 +43,8 @@ export const SkillCheckReason = {
 } as const;
 
 export type SkillCheckContext = Pick<TacticalState, 'content' | 'profiles'> &
-  Partial<Pick<TacticalState, 'soldiers' | 'narrative'>> & {
+  Partial<Pick<TacticalState, 'soldiers' | 'narrative'>> &
+  LoadedSector & {
     readonly pre: RandomStream;
   };
 
@@ -78,7 +80,7 @@ function lockpickingSkill(t: SkillCheckContext, s: Soldier, electronic: boolean)
   if (skill === 0) return 0;
   skill = idiv(skill * (effectiveWisdom(s) + 100), 200);
   skill = idiv(skill * (effectiveDexterity(s) + 100), 200);
-  skill += effectiveExpLevel(s) * 3;
+  skill += effectiveExpLevel(t, s) * 3;
   skill += (SKILL_TRAIT_BONUS[SkillTrait.LOCKPICKING] ?? 0) * numSkillTraits(s, SkillTrait.LOCKPICKING);
   if (electronic && !hasElectronics(s)) skill = idiv(skill, 2);
   const kit = findObj(s.inv, t.content.items.byName.get('LOCKSMITHKIT')?.index ?? -1);
@@ -86,18 +88,18 @@ function lockpickingSkill(t: SkillCheckContext, s: Soldier, electronic: boolean)
   return idiv(skill * (s.inv[kit]?.status[0] ?? 0), 100);
 }
 
-function plantingSkill(s: Soldier, remote: boolean): number {
-  let skill = idiv(effectiveExplosive(s) * 7 + effectiveWisdom(s) * 2 + effectiveExpLevel(s) * 10, 10);
+function plantingSkill(t: SkillCheckContext, s: Soldier, remote: boolean): number {
+  let skill = idiv(effectiveExplosive(s) * 7 + effectiveWisdom(s) * 2 + effectiveExpLevel(t, s) * 10, 10);
   if (remote && !hasElectronics(s)) skill = idiv(skill * 3, 4);
   const quarters = idiv(skill, 25);
   return idiv(skill + 100 * quarters, quarters + 1);
 }
 
-function disarmSkill(s: Soldier, electronic: boolean): number {
+function disarmSkill(t: SkillCheckContext, s: Soldier, electronic: boolean): number {
   const base = electronic ? Math.max(effectiveMechanical(s), effectiveExplosive(s)) : effectiveExplosive(s);
   let skill = base * 7;
   if (skill === 0) return 0;
-  skill = idiv(skill + effectiveDexterity(s) * 2 + effectiveExpLevel(s) * 10, 10);
+  skill = idiv(skill + effectiveDexterity(s) * 2 + effectiveExpLevel(t, s) * 10, 10);
   skill -= idiv(100 - effectiveWisdom(s), 5);
   if (electronic && !hasElectronics(s)) skill = idiv(skill * 3, 4);
   return skill;
@@ -110,12 +112,12 @@ function attachingDetonatorSkill(s: Soldier, remote: boolean): number {
   return remote && !hasElectronics(s) ? idiv(skill, 2) : skill;
 }
 
-function attachingSpecialItemSkill(s: Soldier, electronic: boolean): number {
+function attachingSpecialItemSkill(t: SkillCheckContext, s: Soldier, electronic: boolean): number {
   let skill = effectiveMechanical(s);
   if (skill === 0) return 0;
   skill = idiv(skill * (effectiveWisdom(s) + 100), 200);
   skill = idiv(skill * (effectiveDexterity(s) + 100), 200);
-  skill += effectiveExpLevel(s) * 3;
+  skill += effectiveExpLevel(t, s) * 3;
   return electronic && !hasElectronics(s) ? idiv(skill, 2) : skill;
 }
 
@@ -126,16 +128,16 @@ function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
       return attachingDetonatorSkill(s, reason === R.ATTACHING_REMOTE_DETONATOR);
     case R.ATTACHING_SPECIAL_ITEM:
     case R.ATTACHING_SPECIAL_ELECTRONIC_ITEM:
-      return attachingSpecialItemSkill(s, reason === R.ATTACHING_SPECIAL_ELECTRONIC_ITEM);
+      return attachingSpecialItemSkill(t, s, reason === R.ATTACHING_SPECIAL_ELECTRONIC_ITEM);
     case R.LOCKPICKING:
     case R.ELECTRONIC_LOCKPICKING:
       return lockpickingSkill(t, s, reason === R.ELECTRONIC_LOCKPICKING);
     case R.PLANTING_BOMB:
     case R.PLANTING_REMOTE_BOMB:
-      return plantingSkill(s, reason === R.PLANTING_REMOTE_BOMB);
+      return plantingSkill(t, s, reason === R.PLANTING_REMOTE_BOMB);
     case R.DISARM_TRAP:
     case R.DISARM_ELECTRONIC_TRAP:
-      return disarmSkill(s, reason === R.DISARM_ELECTRONIC_TRAP);
+      return disarmSkill(t, s, reason === R.DISARM_ELECTRONIC_TRAP);
     case R.OPEN_WITH_CROWBAR:
       return effectiveStrength(s) + CROWBAR_STRENGTH_BONUS;
     case R.SMASH_DOOR:
@@ -143,7 +145,7 @@ function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
     case R.UNJAM_GUN:
       return 30 + idiv(effectiveMechanical(s), 2);
     case R.NOTICE_DART:
-      return idiv(effectiveWisdom(s), 10) + effectiveExpLevel(s);
+      return idiv(effectiveWisdom(s), 10) + effectiveExpLevel(t, s);
     default:
       return 0;
   }
@@ -212,7 +214,7 @@ function buddiesCommentSuccess(t: SkillCheckContext, s: Soldier): void {
 }
 
 export function calcTrapDetectLevel(t: TacticalState, s: Soldier, examining: boolean): number {
-  let level = effectiveExpLevel(s);
+  let level = effectiveExpLevel(t, s);
   level += idiv(effectiveExplosive(s), 40);
   level -= idiv(100 - effectiveWisdom(s), 20);
   if (examining) level += t.pre.int(idiv(level, 3) + 2);

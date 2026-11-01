@@ -40,7 +40,7 @@ function threatenedBefore(t: TacticalState, profile: number): boolean {
 }
 
 function targetDiceOf(t: TacticalState, target: Soldier): DrawDice {
-  const dice = drawDice(effectiveExpLevel(target));
+  const dice = drawDice(effectiveExpLevel(t, target));
   if (!threatenedBefore(t, target.profile)) return dice;
   return { smaller: dice.smaller + THREATENED_BONUS, larger: dice.larger + THREATENED_BONUS };
 }
@@ -57,7 +57,7 @@ function readyToDraw(t: TacticalState, attacker: Soldier, target: Soldier): bool
 
 export function npcFirstDraw(t: TacticalState, attacker: Soldier, target: Soldier): boolean {
   if (!readyToDraw(t, attacker, target)) return false;
-  const ours = drawDice(effectiveExpLevel(attacker));
+  const ours = drawDice(effectiveExpLevel(t, attacker));
   const theirs = targetDiceOf(t, target);
   return rollDraw(t, theirs) > rollDraw(t, ours);
 }

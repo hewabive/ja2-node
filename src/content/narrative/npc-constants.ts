@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/NPC.h Approach, NPC_TALK_RADIUS; NPC.cc StandardQuoteIDs, gsCivQuoteSector,
-// @src NUM_CIVQUOTE_SECTORS, MINERS_CIV_QUOTE_INDEX, INITIATING_FACTOR, LARGE_AMOUNT_MONEY; TacticalAI/AI.h QuoteActionType;
+// @src NUM_CIVQUOTE_SECTORS, MINERS_CIV_QUOTE_INDEX, INITIATING_FACTOR, LARGE_AMOUNT_MONEY; TacticalAI/AI.h QuoteActionType (and its traversal range);
 // @src Tactical/Interface_Dialogue.h NPCAction (the codes the dialogue mechanics use); Strategic/Quests.h Quests,
 // @src QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; src/externalized/internals/enums.cc getApproachEnumFromString,
 // @src getQuestEnumFromString; Tactical/Civ_Quotes.h CIV_QUOTE_*, NUM_CIV_QUOTES; Civ_Quotes.cc gubNumEntries,
@@ -113,6 +113,10 @@ export const QuoteActionId = {
   TRAVERSE_WEST: 7,
   TRAVERSE_NORTH: 8,
 } as const;
+
+export function isTraversalQuoteAction(action: number): boolean {
+  return action >= QuoteActionId.TRAVERSE_EAST && action <= QuoteActionId.TRAVERSE_NORTH;
+}
 
 export const NpcAction = {
   NONE: 0,

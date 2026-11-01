@@ -125,9 +125,9 @@ export function soldierBeginFirstAid(t: TacticalState, s: Soldier, gridNo: numbe
   t.events.push({ type: 'firstAidStarted', soldier: s.id, patient: patient.id });
 }
 
-function dressSkill(medic: Soldier, kitStatus: number): number {
+function dressSkill(t: TacticalState, medic: Soldier, kitStatus: number): number {
   return u32(
-    idiv(3 * effectiveMedical(medic) + 2 * kitStatus + 10 * effectiveExpLevel(medic) + effectiveDexterity(medic), DRESS_SKILL_DIVISOR),
+    idiv(3 * effectiveMedical(medic) + 2 * kitStatus + 10 * effectiveExpLevel(t, medic) + effectiveDexterity(medic), DRESS_SKILL_DIVISOR),
   );
 }
 
@@ -173,7 +173,7 @@ function affordableDressing(medicKit: boolean, wanted: number, kitPoints: number
 export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Soldier, kitPoints: number, kitStatus: number): number {
   if (victim.bleeding < 1 && victim.life >= OKLIFE) return 0;
   if (victim.life === 0) return 0;
-  const skill = dressSkill(medic, Math.min(kitStatus, MAX_KIT_STATUS));
+  const skill = dressSkill(t, medic, Math.min(kitStatus, MAX_KIT_STATUS));
   const available = u32(t.inCombat ? medic.actionPoints : RT_FIRST_AID_GAIN_MODIFIER);
   let possible = u32(udiv(u32(Math.imul(available, skill)), POSSIBLE_DIVISOR));
   if (!possible) return 0;

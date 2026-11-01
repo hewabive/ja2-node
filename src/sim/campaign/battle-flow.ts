@@ -516,6 +516,7 @@ export class BattleFlow implements FateContext {
         day: worldDay(s.clock),
         playerCapturedForRescue: (s.status.flags & CaptureFlag.FOR_RESCUE) !== 0,
         lastMapRestrictedScroll: lastMapRestrictedScroll(s, this.campaign.tactical?.state ?? null),
+        loadedSector: this.campaign.tactical?.state.sector ?? null,
       },
       hooks: {
         surrender: () => null,

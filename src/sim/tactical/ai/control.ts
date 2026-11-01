@@ -8,7 +8,7 @@
 // @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { Approach, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
+import { Approach, isTraversalQuoteAction, QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
@@ -54,7 +54,7 @@ import {
 } from './actions.ts';
 import { loadWeaponIfNeeded } from './attack-choice.ts';
 import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
-import { findNearestUngassedLand, isTraversalQuoteAction, QuoteAction, traversalDirection } from './cover.ts';
+import { findNearestUngassedLand, QuoteAction, traversalDirection } from './cover.ts';
 import { creatureCall, creatureDecideAction, crowDecideAction, decidesAsCreature, isCrow } from './creature-decide.ts';
 import {
   type AiHooks,

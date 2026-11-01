@@ -8,19 +8,19 @@ import { battleVoiceBasename } from '../../content/audio/battle-sound.ts';
 import { u8 } from '../../core/int.ts';
 import type { HeardFrom, UnseenVictim } from '../events.ts';
 import { squadHears } from './perception/noise.ts';
-import { effectiveExpLevel } from './skills.ts';
+import { effectiveExpLevel, type LoadedSector } from './skills.ts';
 import { NO_PROFILE, type Soldier, shownToPlayer } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 const LOUDEST_SCREAM = 10;
 
-export function loudestScream(s: Soldier): number {
-  return Math.max(1, LOUDEST_SCREAM - effectiveExpLevel(s));
+export function loudestScream(t: LoadedSector, s: Soldier): number {
+  return Math.max(1, LOUDEST_SCREAM - effectiveExpLevel(t, s));
 }
 
-export function screamVolume(s: Soldier, combinedLoss: number): number {
+export function screamVolume(t: LoadedSector, s: Soldier, combinedLoss: number): number {
   const volume = combinedLoss < 1 ? 1 : combinedLoss;
-  return volume > LOUDEST_SCREAM - effectiveExpLevel(s) ? u8(LOUDEST_SCREAM - effectiveExpLevel(s)) : volume;
+  return volume > LOUDEST_SCREAM - effectiveExpLevel(t, s) ? u8(LOUDEST_SCREAM - effectiveExpLevel(t, s)) : volume;
 }
 
 export function unseenVictim(s: Soldier): UnseenVictim {

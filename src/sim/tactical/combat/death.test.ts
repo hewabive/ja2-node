@@ -147,7 +147,7 @@ function shootDead(targetContent: TacticalContent, spawnTarget: (sim: TacticalSi
   const creature = spawnTarget(sim);
   sim.lookAround();
   for (let shot = 0; shot < MAX_SHOTS && creature.placed; shot++) {
-    merc.actionPoints = calcActionPoints(merc);
+    merc.actionPoints = calcActionPoints(t, merc);
     expect(sim.dispatch({ type: 'attack', soldier: merc.id, target: CREATURE_AT, aimTime: 4 }).ok).toBe(true);
     runUntilIdle(sim);
   }

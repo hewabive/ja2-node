@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
+import { QuoteActionId } from '../../content/narrative/npc-constants.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
@@ -8,6 +9,7 @@ import { initNewSoldierAnim, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { getNewSoldierPath, setSoldierPosition } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
+import { Opp } from './perception/opp.ts';
 import {
   AP,
   apsToChangeStance,
@@ -15,13 +17,14 @@ import {
   calcActionPoints,
   calcNewActionPoints,
   deductPoints,
+  enoughPoints,
   MAX_AP_CARRIED,
   ptsToMoveDirection,
   terrainActionPoints,
   terrainBreathPoints,
   unusedAPsToBreath,
 } from './points.ts';
-import { createSoldier, type Soldier, Team } from './soldier.ts';
+import { Body, createSoldier, NO_PROFILE, Personality, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from './state.ts';
 
 let content: TacticalContent;
@@ -48,13 +51,13 @@ function tactical(): TacticalState {
   return createTacticalState({ ...syntheticWorld(testDoorCosts()), mapDoors: new Map() }, content, Rng.fromSeed(5));
 }
 
-function spawn(t: TacticalState, at: number): Soldier {
+function spawn(t: TacticalState, at: number, team: number = Team.OUR, bodyType = 0): Soldier {
   const st = states(content.animations);
   const s = createSoldier({
     id: t.soldiers.length,
-    team: Team.OUR,
+    team,
     name: 'S',
-    bodyType: 0,
+    bodyType,
     palettes: { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' },
     stats: STATS,
     life: 100,
@@ -75,20 +78,20 @@ describe('action points', () => {
   it('derives turn APs from experience, agility, dexterity, wounds and breath', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
-    expect(calcActionPoints(s)).toBe(21);
+    expect(calcActionPoints(t, s)).toBe(21);
     s.life = 50;
-    expect(calcActionPoints(s)).toBe(18);
+    expect(calcActionPoints(t, s)).toBe(18);
     s.breath = 50;
-    expect(calcActionPoints(s)).toBe(14);
+    expect(calcActionPoints(t, s)).toBe(14);
     s.life = 0;
-    expect(calcActionPoints(s)).toBe(0);
+    expect(calcActionPoints(t, s)).toBe(0);
   });
 
   it('carries at most five APs into the next turn', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
     s.actionPoints = 9;
-    calcNewActionPoints(s);
+    calcNewActionPoints(t, s);
     expect(s.actionPoints).toBe(MAX_AP_CARRIED + 21 > 25 ? 25 : MAX_AP_CARRIED + 21);
     expect(s.initialActionPoints).toBe(s.actionPoints);
   });
@@ -139,6 +142,94 @@ describe('action points', () => {
     s.actionPoints = 15;
     unusedAPsToBreath(ctx(t), s, false);
     expect(s.breath).toBeGreaterThan(70);
+  });
+});
+
+const MERC_PROFILE = 5;
+const MINE_LEVEL = { x: 13, y: 9, z: 1 };
+
+function phobic(t: TacticalState, trait: number): Soldier {
+  const s = spawn(t, gridNo(80, 80));
+  s.profile = MERC_PROFILE;
+  s.personalityTrait = trait;
+  return s;
+}
+
+function creatureSeenBy(t: TacticalState, s: Soldier, body: number, seen: number): Soldier {
+  const creature = spawn(t, gridNo(80, 90), Team.CREATURE, body);
+  s.oppList[creature.id] = seen;
+  if (seen === Opp.SEEN_CURRENTLY) s.ai.oppCount++;
+  return creature;
+}
+
+describe('phobias in the turn APs (Soldier_Control.cc CalcActionPoints)', () => {
+  it('cuts a claustrophobic merc to nine tenths while the loaded sector is underground', () => {
+    const t = tactical();
+    const s = phobic(t, Personality.CLAUSTROPHOBIC);
+    expect(calcActionPoints(t, s)).toBe(21);
+    t.sector = MINE_LEVEL;
+    expect(calcActionPoints(t, s)).toBe(18);
+  });
+
+  it('cuts a claustrophobic merc not placed yet too: the cut reads the loaded sector only', () => {
+    const t = tactical();
+    t.sector = MINE_LEVEL;
+    const s = phobic(t, Personality.CLAUSTROPHOBIC);
+    s.placed = false;
+    expect(calcActionPoints(t, s)).toBe(18);
+  });
+
+  it('leaves an unprofiled soldier with the trait his full points', () => {
+    const t = tactical();
+    t.sector = MINE_LEVEL;
+    const s = phobic(t, Personality.CLAUSTROPHOBIC);
+    s.profile = NO_PROFILE;
+    expect(calcActionPoints(t, s)).toBe(21);
+  });
+
+  it('cuts an insect-phobic merc to eight tenths while he sees a creature, not a bloodcat', () => {
+    const t = tactical();
+    const s = phobic(t, Personality.FEAR_OF_INSECTS);
+    creatureSeenBy(t, s, Body.BLOODCAT, Opp.SEEN_CURRENTLY);
+    expect(calcActionPoints(t, s)).toBe(21);
+    creatureSeenBy(t, s, Body.YAM_MONSTER, Opp.SEEN_CURRENTLY);
+    expect(calcActionPoints(t, s)).toBe(16);
+  });
+
+  it('cuts an insect-phobic merc for a creature he only heard while he sees anyone: MercSeesCreature reads any opplist entry', () => {
+    const t = tactical();
+    const s = phobic(t, Personality.FEAR_OF_INSECTS);
+    creatureSeenBy(t, s, Body.YAM_MONSTER, Opp.HEARD_THIS_TURN);
+    expect(calcActionPoints(t, s)).toBe(21);
+    s.ai.oppCount = 1;
+    expect(calcActionPoints(t, s)).toBe(16);
+  });
+});
+
+describe('enough points (Points.cc EnoughPoints)', () => {
+  it('lets a soldier waiting to move with others act without APs, even collapsed: the waiting test comes first', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.actionPoints = 0;
+    s.collapsed = true;
+    expect(enoughPoints(true, s, AP.PICKUP_ITEM)).toBe(false);
+    s.waitActionToDo = 1;
+    expect(enoughPoints(true, s, AP.PICKUP_ITEM)).toBe(true);
+  });
+
+  it('lets a soldier traversing off the map act without APs unless he is collapsed', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80), Team.CIV);
+    s.actionPoints = 0;
+    for (const traversal of [QuoteActionId.TRAVERSE_EAST, QuoteActionId.TRAVERSE_NORTH]) {
+      s.quoteActionId = traversal;
+      expect(enoughPoints(true, s, AP.MOVEMENT_FLAT)).toBe(true);
+    }
+    s.quoteActionId = QuoteActionId.CHECKFORDEST;
+    expect(enoughPoints(true, s, AP.MOVEMENT_FLAT)).toBe(false);
+    s.quoteActionId = QuoteActionId.TRAVERSE_WEST;
+    s.collapsed = true;
+    expect(enoughPoints(true, s, AP.MOVEMENT_FLAT)).toBe(false);
   });
 });
 
