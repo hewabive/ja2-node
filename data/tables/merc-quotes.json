@@ -1,7 +1,7 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.h DialogQuoteIDs, src/game/Tactical/QArray.cc QuoteExp_PassingDislike, QuoteExp_GotGunOrUsedGun, QuoteExp_GenderCode",
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.h DialogQuoteIDs, src/game/Tactical/QArray.cc QuoteExp_PassingDislike, QuoteExp_GotGunOrUsedGun, QuoteExp_GenderCode, QuoteExp_HeadShotOnly",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
-  "format": "merc quote numbers in enum order: name without the QUOTE_ prefix and the camelCase key used in events; an alias names the first entry with its number; passingDislike: the profile ids whose QuoteExp_PassingDislike entry is not 0, who say the passing dislike when its roll comes up as another merc talks to them; gotGunOrUsedGun: QuoteExp_GotGunOrUsedGun by profile id, the gun quote each profile has (61 found something special, 62 satisfaction with the gun after a kill, 0 none); genderCode: QuoteExp_GenderCode by profile id, the sex of the likable person quote 58 is about (0 male, 1 female, 2 either)",
+  "format": "merc quote numbers in enum order: name without the QUOTE_ prefix and the camelCase key used in events; an alias names the first entry with its number; passingDislike: the profile ids whose QuoteExp_PassingDislike entry is not 0, who say the passing dislike when its roll comes up as another merc talks to them; gotGunOrUsedGun: QuoteExp_GotGunOrUsedGun by profile id, the gun quote each profile has (61 found something special, 62 satisfaction with the gun after a kill, 0 none); genderCode: QuoteExp_GenderCode by profile id, the sex of the likable person quote 58 is about (0 male, 1 female, 2 either); headShotOnly: QuoteExp_HeadShotOnly by profile id, what quote 33 is about (0 generic gross-out, also said at a rotting corpse; 1 head shot only)",
   "quotes": [
     {
       "id": 65535,
@@ -636,5 +636,9 @@
   "genderCode": [
     0, 2, 0, 2, 2, 2, 2, 2, 0, 2, 0, 1, 0, 2, 0, 0, 1, 2, 0, 1, 0, 2, 2, 0, 2, 2, 2, 2, 0, 2, 0, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 0, 2, 0, 2,
     0, 1, 2, 2, 0, 1, 0, 2, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ],
+  "headShotOnly": [
+    1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0,
+    1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ]
 }

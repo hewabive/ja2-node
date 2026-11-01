@@ -16,8 +16,10 @@ import { createStrategicState } from '../strategic/state.ts';
 import { states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Direction } from './directions.ts';
+import { handleCrowLeave } from './rotting-corpses.ts';
 import { importCampaignWideState, importSave } from './save-import.ts';
 import {
+  Body,
   cellCentre,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
@@ -346,6 +348,18 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const at = gridNo(80, 84);
     const sim = importedSim(syntheticSave({ corpses: [{ ...savedCorpse(at, 0), headTaken: true }, savedCorpse(at + 2, 0)] }));
     expect(sim.state.corpses.map((c) => c.headTaken)).toEqual([true, false]);
+  });
+
+  it('keeps the crows feeding on a saved corpse and the corpse each saved crow feeds on (bNumServicingCrows, uiPendingActionData1, sPendingActionData2)', () => {
+    const at = gridNo(80, 84);
+    const save = syntheticSave({
+      corpses: [savedCorpse(at - 4, 0), { ...savedCorpse(at, 0), servicingCrows: 2 }],
+      soldiers: [savedSoldier(CIVILIAN_ID, Team.CIV, at + 1, { ubBodyType: Body.CROW, uiPendingActionData1: 1, sPendingActionData2: at })],
+    });
+    const sim = importedSim(save);
+    expect(sim.state.corpses.map((c) => c.servicingCrows)).toEqual([0, 2]);
+    handleCrowLeave(sim.state, soldierOf(sim, CIVILIAN_ID));
+    expect(sim.state.corpses.map((c) => c.servicingCrows)).toEqual([0, 1]);
   });
 
   it('puts a soldier saved mid-step at the centre of his saved tile, as setting his position on load does (Soldier_Add.cc AddSoldierToSectorGridNo)', () => {

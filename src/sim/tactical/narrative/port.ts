@@ -15,7 +15,8 @@
 // @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote), BeginLoggingForBleedMeToos,
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
 // @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
-// @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
+// @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30),
+// @src bCorpseQuoteTolerance (2026-11-01);
 // @src Strategic/Assignments.cc PutMercInAwakeState, Tactical/Squads.cc iCurrentTacticalSquad and MERC_TYPE__PLAYER_CHARACTER
 // @src for InternalSelectSoldier, Squad[] (FOR_EACH_IN_SQUAD) and guiCurrentScreen == GAME_SCREEN for the selections of
 // @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
@@ -34,6 +35,10 @@ const FIRST_SQUAD = 0;
 export interface QuoteSaidRecord {
   quoteSaidFlags: number;
   quoteSaidExtFlags: number;
+}
+
+export interface CorpseQuoteRecord {
+  corpseQuoteTolerance: number;
 }
 
 export interface NarrativePort {
@@ -68,6 +73,7 @@ export interface NarrativePort {
   isAimMerc(s: Soldier): boolean;
   isPlayerCharacter(s: Soldier): boolean;
   quoteSaidFlags(s: Soldier): QuoteSaidRecord | null;
+  corpseQuoteRecord(s: Soldier): CorpseQuoteRecord | null;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
   townLoyaltyChange(town: number, amount: number): void;
@@ -149,6 +155,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   isAimMerc: () => false,
   isPlayerCharacter: () => false,
   quoteSaidFlags: () => null,
+  corpseQuoteRecord: () => null,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},
   townLoyaltyChange: () => {},

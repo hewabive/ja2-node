@@ -116,6 +116,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     isAimMerc: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.AIM_MERC,
     isPlayerCharacter: (soldier) => campaign.battle?.roster.get(soldier.id)?.kind === MercKind.PLAYER_CHARACTER,
     quoteSaidFlags: (soldier) => campaign.battle?.roster.get(soldier.id) ?? null,
+    corpseQuoteRecord: (soldier) => campaign.battle?.roster.get(soldier.id) ?? null,
     civGroupWillBecomeHostile: (group) => {
       addStrategicEvent(
         s.queue,

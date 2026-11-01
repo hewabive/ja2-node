@@ -45,7 +45,7 @@ import { removeMercStructure } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
-import { addRottingCorpse, nowMinuteOf } from '../rotting-corpses.ts';
+import { addRottingCorpse, handleCrowLeave, nowMinuteOf } from '../rotting-corpses.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
@@ -77,6 +77,7 @@ export interface Corpse {
   readonly type: number;
   readonly timeOfDeath: number;
   readonly headTaken: boolean;
+  readonly servicingCrows: number;
   readonly findSweetSpot?: boolean;
   readonly entryPoint?: number;
   readonly palettes?: readonly [hair: string, skin: string, vest: string, pants: string];
@@ -359,7 +360,10 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   const direction = corpseDirection(t, s, type);
   removeOccupant(t, s);
   removeMercStructure(t, s);
-  if (s.team !== Team.OUR) unregisterSoldier(t, s);
+  if (s.team !== Team.OUR) {
+    handleCrowLeave(t, s);
+    unregisterSoldier(t, s);
+  }
   s.placed = false;
   if (type === NO_CORPSE) return true;
   const corpse: Corpse = {
@@ -372,6 +376,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     type,
     timeOfDeath: nowMinuteOf(t),
     headTaken: false,
+    servicingCrows: 0,
     ...corpseLook(s),
   };
   return addRottingCorpse(t, corpse, { nowMinute: corpse.timeOfDeath, loadingSave: false }) !== null;

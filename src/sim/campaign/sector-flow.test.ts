@@ -28,7 +28,7 @@ import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
-import { ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
+import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
@@ -59,6 +59,8 @@ const MIN_CROWS_POSSIBLE = 5;
 const MAX_CROWS_POSSIBLE = 9;
 const NIGHT_ENDS_HOUR = 7;
 const CROW_LANDING_RADIUS = 2;
+const NOON_HOUR = 12;
+const HOURS_PER_DAY = 24;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -191,8 +193,30 @@ describe('leaving a sector', () => {
     if (!t) throw new Error('no sector');
     const dropped = t.worldItems.map((wi) => [wi.gridNo, wi.object.item]);
     t.corpses.push(
-      { gridNo: merc.gridNo + 3, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false },
-      { gridNo: merc.gridNo + 5, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false },
+      {
+        gridNo: merc.gridNo + 3,
+        level: 0,
+        bodyType: 0,
+        direction: 0,
+        state: 0,
+        profile: 200,
+        type: 1,
+        timeOfDeath: 0,
+        headTaken: false,
+        servicingCrows: 0,
+      },
+      {
+        gridNo: merc.gridNo + 5,
+        level: 0,
+        bodyType: 0,
+        direction: 0,
+        state: 0,
+        profile: 200,
+        type: 1,
+        timeOfDeath: 0,
+        headTaken: false,
+        servicingCrows: 0,
+      },
     );
     const revealed = Uint8Array.from(t.fog.revealed);
     walkSquadToEastEdge(campaign);
@@ -247,6 +271,33 @@ describe('leaving a sector', () => {
     for (const crow of crows) expect(Math.max(...spacesApart(crow.gridNo, corpseAt))).toBeLessThanOrEqual(CROW_LANDING_RADIUS);
   });
 
+  it('saves a corpse with the crows feeding on it as the squad leaves, so it counts them on return with none of them there (SaveCurrentSectorsInformationToTempItemFile before TrashWorld)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const merc = ourSoldiers(campaign)[0];
+    if (!merc) throw new Error('no merc');
+    const corpseAt = merc.gridNo + 3;
+    campaign.tactical?.state.corpses.push({ ...lyingCorpse(corpseAt), type: ROTTING_STAGE2 });
+    walkSquadToEastEdge(campaign);
+    const leaving = campaign.tactical?.state;
+    if (!leaving) throw new Error('no sector');
+    const feeding = teamMembers(leaving, Team.CIV).filter((s) => s.bodyType === Body.CROW && s.pendingActionData2 === corpseAt).length;
+    expect(feeding).toBeGreaterThan(0);
+    expect(leaving.corpses.map((c) => c.servicingCrows)).toEqual([feeding]);
+    campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'east', who: 'squad' });
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 10);
+    expect(campaign.state.sectorDiffs.get(sectorKey(A9))?.corpses?.map((c) => c.servicingCrows)).toEqual([feeding]);
+    runUntilIdle(campaign);
+    walkWest(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'west', who: 'squad' }).ok).toBe(true);
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 9);
+    const back = campaign.tactical?.state;
+    if (!back) throw new Error('no sector');
+    const arrived = teamMembers(back, Team.CIV).filter((s) => s.bodyType === Body.CROW);
+    expect(arrived.every((s) => s.pendingActionData1 === 0 && s.pendingActionData2 === corpseAt)).toBe(true);
+    expect(back.corpses.map((c) => c.servicingCrows)).toEqual([feeding + arrived.length]);
+  });
+
   it('keeps the blood and smell of A9 and draws its pools again at once (SaveLoadMap.cc SLM_BLOOD_SMELL)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);
@@ -275,12 +326,40 @@ describe('leaving a sector', () => {
   });
 });
 
+describe('a native save loaded into its sector', () => {
+  it('sends crows to a rotting corpse by day once more, as loading the corpses file does (Tactical_Save.cc LoadRottingCorpsesFromTempCorpseFile from SaveLoadGame.cc LoadSavedGame)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    warpMinutes(campaign, ((NOON_HOUR - worldHour(campaign.state.clock) + HOURS_PER_DAY) % HOURS_PER_DAY) * 60);
+    const t = campaign.tactical?.state;
+    const merc = ourSoldiers(campaign)[0];
+    if (!t || !merc) throw new Error('no sector');
+    const corpseAt = merc.gridNo + 3;
+    addRottingCorpse(t, { ...lyingCorpse(corpseAt), type: ROTTING_STAGE2 }, { nowMinute: 0, loadingSave: true });
+    flowOf(campaign).adoptLoadedSector([]);
+    const crows = teamMembers(t, Team.CIV).filter((s) => s.bodyType === Body.CROW);
+    expect(crows.map((s) => s.pendingActionData2)).toEqual([corpseAt, corpseAt]);
+    expect(t.corpses.map((c) => c.servicingCrows)).toEqual([2]);
+  });
+});
+
 function spacesApart(a: number, b: number): [number, number] {
   return [Math.abs((a % 160) - (b % 160)), Math.abs(Math.trunc(a / 160) - Math.trunc(b / 160))];
 }
 
 function lyingCorpse(gridNo: number) {
-  return { gridNo, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false };
+  return {
+    gridNo,
+    level: 0,
+    bodyType: 0,
+    direction: 0,
+    state: 0,
+    profile: 200,
+    type: 1,
+    timeOfDeath: 0,
+    headTaken: false,
+    servicingCrows: 0,
+  };
 }
 
 function walkWest(campaign: ReturnType<typeof createTestCampaign>['campaign']): void {

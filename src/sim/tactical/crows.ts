@@ -9,7 +9,7 @@ import { i16, idiv } from '../../core/int.ts';
 import { roomAt } from './ai/destinations.ts';
 import { anim } from './anim-states.ts';
 import { changeSoldierState, initNewSoldierAnim, states } from './animation.ts';
-import { type Corpse, isVehicleCorpse } from './combat/death.ts';
+import { isVehicleCorpse } from './combat/death.ts';
 import { newSoldierCreate, randomizeNewSoldierStats, tacticalCreateSoldier } from './creation.ts';
 import { Direction } from './directions.ts';
 import { worldSeconds } from './explosions/state.ts';
@@ -18,7 +18,7 @@ import { addSoldierToSector, Insertion } from './insertion.ts';
 import { NOWHERE } from './pathfinding.ts';
 import { Opp } from './perception/opp.ts';
 import { setSoldierHeight } from './roofs.ts';
-import { corpseInSlot, ROTTING_STAGE2, rottingCorpseSlots } from './rotting-corpses.ts';
+import { corpseInSlot, handleCrowLeave, linkCrowToCorpse, ROTTING_STAGE2, rottingCorpseSlots } from './rotting-corpses.ts';
 import { removeSoldierFromTacticalSector } from './sector-presence.ts';
 import { Body, firstFreeSoldierId, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { type TacticalState, teamMembers } from './state.ts';
@@ -58,16 +58,20 @@ function crowsInSector(t: TacticalState): number {
   return teamMembers(t, Team.CIV).filter((s) => s.life >= OKLIFE && !s.gassed && isCrow(s)).length;
 }
 
-function addCrowToCorpse(t: TacticalState, corpse: Corpse): void {
-  if (roomAt(t, corpse.gridNo) !== NO_ROOM) return;
-  const create = newSoldierCreate(Team.CIV, Body.CROW, Direction.SOUTH, corpse.gridNo);
+function addCrowToCorpse(t: TacticalState, slot: number, corpseGridNo: number): void {
+  if (roomAt(t, corpseGridNo) !== NO_ROOM) return;
+  const create = newSoldierCreate(Team.CIV, Body.CROW, Direction.SOUTH, corpseGridNo);
   randomizeNewSoldierStats(t, create);
   const id = firstFreeSoldierId((n) => soldierSlotTaken(t, n), Team.CIV);
   const crow = id < 0 ? null : tacticalCreateSoldier(t, create, id, NEUTRAL_POPULATION);
   if (!crow) return;
   initNewSoldierAnim(t, crow, states(t.content.animations).STANDING, t.rng.int(STANDING_FRAME_CHOICES), true);
-  const landing = findRandomGridNoFromSweetSpot(t, crow, corpse.gridNo, LANDING_RADIUS);
-  if (landing === NOWHERE) return;
+  linkCrowToCorpse(t, crow, slot);
+  const landing = findRandomGridNoFromSweetSpot(t, crow, corpseGridNo, LANDING_RADIUS);
+  if (landing === NOWHERE) {
+    handleCrowLeave(t, crow);
+    return;
+  }
   crow.insertionGridNo = landing;
   crow.insertionData = landing;
   crow.targetHeightAdjustment = GROUND_HEIGHT;
@@ -84,9 +88,10 @@ export function handleRottingCorpses(t: TacticalState): void {
     return;
   }
   if (teamMembers(t, Team.CREATURE).length > 0) return;
-  const corpse = corpseInSlot(t, t.rng.int(rottingCorpseSlots(t)));
+  const slot = t.rng.int(rottingCorpseSlots(t));
+  const corpse = corpseInSlot(t, slot);
   if (!corpse || isVehicleCorpse(corpse) || corpse.type !== ROTTING_STAGE2) return;
-  for (let i = 0; i < CROWS_PER_CORPSE; i++) addCrowToCorpse(t, corpse);
+  for (let i = 0; i < CROWS_PER_CORPSE; i++) addCrowToCorpse(t, slot, corpse.gridNo);
 }
 
 function handleCrowFlyAway(t: TacticalState, s: Soldier): void {

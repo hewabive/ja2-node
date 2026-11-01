@@ -821,6 +821,22 @@ function addLandedHelicopter(snapshot: Readonly<Record<string, unknown>>): Recor
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SERVICING_CROWS_KEY = 'servicingCrows';
+
+function withServicingCrows(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withServicingCrows(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withServicingCrows(v);
+  return isCorpseRecord(mapped) ? insertAfter(mapped, HEAD_TAKEN_KEY, SERVICING_CROWS_KEY, 0) : mapped;
+}
+
+function addServicingCrows(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withServicingCrows(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -853,5 +869,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     28: addCrows,
     29: addPendingRobotReload,
     30: addLandedHelicopter,
+    31: addServicingCrows,
   };
 }

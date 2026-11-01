@@ -1,15 +1,17 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-31. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (aging), IsValidDecapitationCorpse, GetCorpseAtGridNo,
-// @src DecapitateCorpse; GetFreeRottingCorpse, RemoveCorpse, RemoveCorpses and the gRottingCorpse slots (2026-11-01).
+// @src DecapitateCorpse; GetFreeRottingCorpse, RemoveCorpse, RemoveCorpses and the gRottingCorpse slots (2026-11-01);
+// @src AddCrowToCorpse (the crow's link and bNumServicingCrows), HandleCrowLeave (2026-11-01).
 
 import { NO_CORPSE } from '../../content/anim/corpses.ts';
 import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
-import { idiv, u32 } from '../../core/int.ts';
+import { i8, idiv, u32 } from '../../core/int.ts';
 import { createItem } from '../items/object.ts';
 import { addCorpseStructure, type Corpse, corpseOfStructure } from './combat/death.ts';
 import { worldSeconds } from './explosions/state.ts';
 import { Profile } from './narrative/constants.ts';
+import { Body, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from './world-items.ts';
 
@@ -129,6 +131,25 @@ function replaceCorpse(t: TacticalState, corpse: Corpse, base: StructureInstance
 
 function markHeadTaken(t: TacticalState, corpse: Corpse): void {
   t.corpses[t.corpses.indexOf(corpse)] = { ...corpse, headTaken: true };
+}
+
+function withServicingCrows(t: TacticalState, corpse: Corpse, servicingCrows: number): void {
+  t.corpses[t.corpses.indexOf(corpse)] = { ...corpse, servicingCrows };
+}
+
+export function linkCrowToCorpse(t: TacticalState, crow: Soldier, slot: number): void {
+  const corpse = corpseInSlot(t, slot);
+  if (!corpse) return;
+  crow.pendingActionData1 = slot;
+  crow.pendingActionData2 = corpse.gridNo;
+  withServicingCrows(t, corpse, i8(corpse.servicingCrows + 1));
+}
+
+export function handleCrowLeave(t: TacticalState, s: Soldier): void {
+  if (s.bodyType !== Body.CROW) return;
+  const corpse = corpseInSlot(t, s.pendingActionData1);
+  if (!corpse || s.pendingActionData2 !== corpse.gridNo) return;
+  withServicingCrows(t, corpse, Math.max(0, i8(corpse.servicingCrows - 1)));
 }
 
 function headOf(t: TacticalState, profile: number): number {

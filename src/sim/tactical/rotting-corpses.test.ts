@@ -35,7 +35,7 @@ function withCorpse(type: string, profile = NO_PROFILE, ageMinutes = 0): Tactica
   const t = newCombatSim(content).state;
   t.explosives.worldMs = ageMinutes * MS_PER_MINUTE;
   const corpse = { gridNo: CORPSE_AT, level: 0, bodyType: 0, direction: Direction.NORTH, state: 0, profile };
-  t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false });
+  t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false, servicingCrows: 0 });
   addCorpseStructure(t, CORPSE_AT, 0, corpseType(type), Direction.NORTH);
   return t;
 }
@@ -98,6 +98,7 @@ describe('the rotting corpse slots (Rotting_Corpses.cc GetFreeRottingCorpse, Rem
     type: corpseType('M_DEAD1'),
     timeOfDeath: 0,
     headTaken: false,
+    servicingCrows: 0,
   });
   const base = (t: TacticalState, g: number) => {
     const found = t.world.structures.find(g, StructureFlags.CORPSE);

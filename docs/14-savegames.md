@@ -64,7 +64,8 @@ enters it (a 5–60 minute compression mode stays but stops, any other becomes X
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation), stands a landed helicopter on the map and bumps the soldiers around it (deviation "Helicopter on load"),
-recompiles the movement costs, posts the schedules, powers the map lights for the saved hour, sets the
+recompiles the movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows
+on load"), posts the schedules, powers the map lights for the saved hour, sets the
 ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks"); resumed in tactical, it
 selects the selected merc again, forced, and enters the tactical screen (deviation "Selection on load"). The import
 does the same; ja2-node's own loads never do (`27`). The load's fix-ups come along: `SyncLastMercFromSaveGame`, the
@@ -128,6 +129,6 @@ Inferred from reading the source:
   process keeps whatever the previous game left there.
 - The dropped reservations and pending animations and the items' new tiles: the soldier dump compares neither.
 
-Not ported: gaps "Savegame import", "Unread savegame sections", "Corpses" (the crows' draw at a load). Other
+Not ported: gaps "Savegame import", "Unread savegame sections". Other
 deviations of the import: "Map changes of the loaded sector on import", "Ambient sound events", "Blood on the ground",
 "Difficulty and progress in tactical", "Corpse structure past its file".

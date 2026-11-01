@@ -18,6 +18,7 @@ import { idiv } from '../../../core/int.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { BOXING_SECTOR } from '../narrative/constants.ts';
+import { lookForAndMayCommentOnSeeingCorpse } from '../narrative/corpse-comments.ts';
 import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
@@ -287,8 +288,11 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           throughWindowDirection = dir;
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
-        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators)
-          itemsQuoteSaid = noticeRevealedItems(t, s, itemsQuoteSaid);
+        if (revealItems) {
+          lookForAndMayCommentOnSeeingCorpse(t, s, marker);
+          if (setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators)
+            itemsQuoteSaid = noticeRevealedItems(t, s, itemsQuoteSaid);
+        }
         tilesLeftToSee--;
         if (tilesLeftToSee <= 0) break;
         if (blocking === Blocking.FULL || (travelCostObstacle && !throughWindow)) break;

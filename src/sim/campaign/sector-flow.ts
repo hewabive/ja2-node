@@ -19,7 +19,8 @@
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
 // @src Squads.cc AddCharacterToSquad (SetCurrentSquad on the game screen) and RebuildCurrentSquad, SaveLoadGame.cc
 // @src LoadSavedGame (the forced reselect in tactical) and SaveLoadScreen.cc SetSaveLoadExitScreen (EnterTacticalScreen)
-// @src for a native import (2026-11-01).
+// @src for a native import (2026-11-01); SaveLoadGame.cc LoadSavedGame (HandleRottingCorpses of
+// @src LoadRottingCorpsesFromTempCorpseFile) for a native import (2026-11-01).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -94,6 +95,7 @@ import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { handleRottingCorpses } from '../tactical/crows.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
@@ -636,6 +638,7 @@ export class SectorFlow {
     this.#installHooks(sim);
     handleHelicopterOnGround(this.ctx, true);
     t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
   }

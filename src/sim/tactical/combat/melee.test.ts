@@ -476,7 +476,7 @@ describe('decapitation (EVENT_SoldierBeginBladeAttack, DecapitateCorpse)', () =>
     sim.lookAround();
     sim.drainEvents();
     const corpse = { gridNo: CORPSE_AT, level: 0, bodyType: 0, direction: Direction.NORTH, state: 0, profile: NO_PROFILE };
-    t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false });
+    t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false, servicingCrows: 0 });
     addCorpseStructure(t, CORPSE_AT, 0, corpseType(type), Direction.NORTH);
     return { sim, merc };
   }

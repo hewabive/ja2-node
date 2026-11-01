@@ -117,7 +117,8 @@ there halt him in combat, and his look takes the item locator lock and queues on
 lock in combat silences and an attack in progress holds until it ends on our turn. The drop at a death makes every merc
 look so at once. Other new items (a dropped item, a knife laid by a throw, a dud) only set every soldier's
 `lookForItems`; he then looks at his next animation frame (`overhead.ts`) without locators: the items show, but he
-does not halt and queues no items-seen quote.
+does not halt and queues no items-seen quote. Every such look also shows him the rotting corpses on the tiles where it
+reveals items, which he may comment on (`33`).
 
 **Decay.** A team's turn start decays its public opplist and watched locations, each soldier's his own. In real time
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
@@ -186,6 +187,5 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Cave lights", "Guard room run", "Doors", "Corpses" (the comment on a seen corpse), the camera's slide
-to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
+Not ported: gaps "Cave lights", "Guard room run", "Doors", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
 after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

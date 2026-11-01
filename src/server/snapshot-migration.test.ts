@@ -746,6 +746,7 @@ describe('snapshot version 21 (corpses without a taken head) migrates with every
       type: SMERC_FWD,
       timeOfDeath: 0,
       headTaken: false,
+      servicingCrows: 0,
     });
     const current = snapshotSession(sandbox);
     const legacy = versionTwentyOne(current.sim);
@@ -1202,5 +1203,59 @@ describe('snapshot version 30 (no landed helicopter) migrates with no helicopter
 
   it('a landed campaign', async () => {
     await expectNoLandedHelicopter(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+const SERVICING_CROWS_KEY = 'servicingCrows';
+
+function withoutServicingCrows(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutServicingCrows(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === SERVICING_CROWS_KEY) expect(v).toBe(0);
+    else out[key] = withoutServicingCrows(v);
+  }
+  return out;
+}
+
+function versionThirtyOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutServicingCrows(value)]);
+  return { ...snapshot, version: 31, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 31 (corpses without a crow count) migrates with no crow feeding on any corpse', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a corpse', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    sandbox.sim.state.corpses.push({
+      gridNo: CORPSE_AT,
+      level: 0,
+      bodyType: 0,
+      direction: 0,
+      state: 0,
+      profile: 200,
+      type: SMERC_FWD,
+      timeOfDeath: 0,
+      headTaken: false,
+      servicingCrows: 0,
+    });
+    const current = snapshotSession(sandbox);
+    const legacy = versionThirtyOne(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${SERVICING_CROWS_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${SERVICING_CROWS_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });

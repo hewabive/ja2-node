@@ -95,6 +95,7 @@ export function addDeadSoldierToUnloadedSector(
     type: corpseTypeFor(content.corpses.table, s.bodyType, anim(content, record.deathAnimation)),
     timeOfDeath: worldTotalMinutes(state.clock),
     headTaken: false,
+    servicingCrows: 0,
     findSweetSpot: true,
     ...corpseLook(s),
   });
@@ -110,6 +111,7 @@ export function addCorpsesToBloodcatLair(state: StrategicState, table: CorpseTab
     type: table.types.indexOf(LAIR_CORPSE_TYPE),
     timeOfDeath: u32(worldTotalMinutes(state.clock) - LAIR_CORPSE_AGE_MINUTES),
     headTaken: false,
+    servicingCrows: 0,
     findSweetSpot: true,
     palettes: LAIR_CORPSE_PALETTES,
   };

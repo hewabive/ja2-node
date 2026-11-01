@@ -2,17 +2,18 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
+import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import { anim, animName } from './anim-states.ts';
 import { adjustNoAPToFinishMove, initNewSoldierAnim, states } from './animation.ts';
 import { internalReduceAttackBusyCount } from './combat/barrier.ts';
-import type { Corpse } from './combat/death.ts';
+import { type Corpse, handleSoldierDeath } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { crowOpcode, crowsFlyAway, handleRottingCorpses } from './crows.ts';
 import { handleNextTile } from './movement.ts';
 import { makeNoise, NoiseKind } from './perception/noise.ts';
 import { Opp } from './perception/opp.ts';
 import { setSoldierHeight } from './roofs.ts';
-import { addRottingCorpse, ROTTING_STAGE2 } from './rotting-corpses.ts';
+import { addRottingCorpse, handleCrowLeave, ROTTING_STAGE2, removeRottingCorpse } from './rotting-corpses.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
 import { type TacticalState, teamMembers } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -55,7 +56,18 @@ function recordDraws(t: TacticalState): number[] {
 }
 
 function corpse(at: number, type = ROTTING_STAGE2, bodyType: number = Body.REGMALE): Corpse {
-  return { gridNo: at, level: 0, bodyType, direction: Direction.NORTH, state: 0, profile: 200, type, timeOfDeath: 0, headTaken: false };
+  return {
+    gridNo: at,
+    level: 0,
+    bodyType,
+    direction: Direction.NORTH,
+    state: 0,
+    profile: 200,
+    type,
+    timeOfDeath: 0,
+    headTaken: false,
+    servicingCrows: 0,
+  };
 }
 
 function sector(seconds = NOON): { sim: TacticalSim; t: TacticalState; world: { seconds: number } } {
@@ -318,3 +330,69 @@ describe('crows flying away (OppList.cc HearNoise, Soldier_Control.cc CrowsFlyAw
     expect(t.inCombat).toBe(false);
   });
 });
+
+describe('the crows feeding on a corpse (Rotting_Corpses.cc AddCrowToCorpse, HandleCrowLeave)', () => {
+  const servicing = (t: TacticalState) => t.corpses.map((c) => c.servicingCrows);
+
+  function pickSlot(t: TacticalState, slot: number): void {
+    const rng = t.rng as unknown as { int(n: number): number };
+    const int = rng.int.bind(rng);
+    rng.int = (n: number) => {
+      rng.int = int;
+      expect(slot).toBeLessThan(n);
+      return slot;
+    };
+  }
+
+  it('links each crow to the slot and tile of its corpse and counts it there', () => {
+    const { t } = sector();
+    addRottingCorpse(t, corpse(CORPSE_AT - 6, 1), { nowMinute: 0, loadingSave: true });
+    addRottingCorpse(t, corpse(CORPSE_AT), { nowMinute: 0, loadingSave: true });
+    const [fresh] = t.corpses;
+    if (!fresh) throw new Error('no corpse');
+    removeRottingCorpse(t, fresh, structureBase(t, fresh.gridNo));
+    pickSlot(t, 1);
+    handleRottingCorpses(t);
+    expect(crows(t).map((s) => [s.pendingActionData1, s.pendingActionData2])).toEqual([
+      [1, CORPSE_AT],
+      [1, CORPSE_AT],
+    ]);
+    expect(servicing(t)).toEqual([2]);
+  });
+
+  it('takes a crow off the count when it flies off the map and when it dies', () => {
+    const { sim, t, birds } = settledFlock();
+    const [flier, victim] = birds;
+    if (!flier || !victim) throw new Error('no flock');
+    flier.targetHeightAdjustment = FLIGHT_HEIGHT;
+    flier.uiMovementMode = anim(content, 'CROW_FLY');
+    t.gameEvents.push({ kind: 'getNewPath', soldier: flier.id, destination: flier.gridNo + 1, mode: flier.uiMovementMode });
+    for (let tick = 0; tick < BUDGET_TICKS && flier.placed; tick++) sim.step();
+    expect([flier.placed, servicing(t)]).toEqual([false, [1]]);
+    victim.life = 0;
+    handleSoldierDeath(t, victim);
+    expect([victim.placed, servicing(t)]).toEqual([false, [0]]);
+  });
+
+  it('never counts below 0, and leaves alone a corpse that took the slot of its own on another tile', () => {
+    const { t, birds } = flock();
+    const [first, second] = birds;
+    if (!first || !second) throw new Error('no flock');
+    handleCrowLeave(t, first);
+    handleCrowLeave(t, first);
+    handleCrowLeave(t, second);
+    expect(servicing(t)).toEqual([0]);
+    const [eaten] = t.corpses;
+    if (!eaten) throw new Error('no corpse');
+    removeRottingCorpse(t, eaten, structureBase(t, CORPSE_AT));
+    addRottingCorpse(t, { ...corpse(CORPSE_AT + 6), servicingCrows: 1 }, { nowMinute: 0, loadingSave: true });
+    handleCrowLeave(t, first);
+    expect(servicing(t)).toEqual([1]);
+  });
+});
+
+function structureBase(t: TacticalState, at: number): StructureInstance {
+  const found = t.world.structures.find(at, StructureFlags.CORPSE);
+  if (!found) throw new Error('no corpse structure');
+  return t.world.structures.findBase(found) ?? found;
+}
