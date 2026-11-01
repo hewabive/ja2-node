@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
-// @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment)
+// @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
+// @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01)
 
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
@@ -139,6 +140,10 @@ export function shownToPlayer(s: { readonly team: number; readonly visible: numb
 
 export function isMonster(s: { readonly bodyType: number }): boolean {
   return s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;
+}
+
+export function hasThreatenStance(s: { readonly bodyType: number }): boolean {
+  return s.bodyType === Body.BIGMALE;
 }
 
 export function isCreatureOrBloodcat(s: { readonly bodyType: number }): boolean {

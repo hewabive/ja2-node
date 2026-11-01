@@ -331,3 +331,51 @@ describe('a civilian body cowers instead of changing stance (Soldier_Control.cc 
     expect([stateOf(s), s.cowering, animName(content, s.pendingAnimation)]).toEqual(['END_COWER', false, 'STANDING']);
   });
 });
+
+describe('a big merc with a rifle kneels through his own transition (Soldier_Control.cc EVENT_InitNewSoldierAnim)', () => {
+  const RIFLE = 'M14';
+  const PISTOL = 'GLOCK_17';
+  const MAX_STANCE_TICKS = 2_000;
+
+  function soldierWith(body: number, gun: string) {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { body, gun });
+    sim.state.inCombat = true;
+    return { sim, merc };
+  }
+
+  function statesPlayed(sim: TacticalSim, merc: Soldier): string[] {
+    const played = [animName(content, merc.state)];
+    for (let tick = 0; tick < MAX_STANCE_TICKS && !sim.isIdle(); tick++) {
+      sim.step();
+      const name = animName(content, merc.state);
+      if (played.at(-1) !== name) played.push(name);
+    }
+    return played;
+  }
+
+  it('crouches through BIGMERC_CROUCH_TRANS_INTO and stands through BIGMERC_CROUCH_TRANS_OUTOF, paying the crouch APs', () => {
+    const { sim, merc } = soldierWith(Body.BIGMALE, RIFLE);
+    const ap = merc.actionPoints;
+    expect(order(sim, { type: 'stance', stance: 'crouch' }).ok).toBe(true);
+    expect(statesPlayed(sim, merc)).toEqual(['BIGMERC_CROUCH_TRANS_INTO', 'CROUCHING']);
+    expect(merc.actionPoints).toBe(ap - AP.CROUCH);
+    expect(order(sim, { type: 'stance', stance: 'stand' }).ok).toBe(true);
+    expect(statesPlayed(sim, merc)).toEqual(['BIGMERC_CROUCH_TRANS_OUTOF', 'STANDING']);
+    expect(merc.actionPoints).toBe(ap - 2 * AP.CROUCH);
+  });
+
+  it('kneels with KNEEL_DOWN and KNEEL_UP without a rifle in hand', () => {
+    const { sim, merc } = soldierWith(Body.BIGMALE, PISTOL);
+    expect(order(sim, { type: 'stance', stance: 'crouch' }).ok).toBe(true);
+    expect(statesPlayed(sim, merc)).toEqual(['KNEEL_DOWN', 'CROUCHING']);
+    expect(order(sim, { type: 'stance', stance: 'stand' }).ok).toBe(true);
+    expect(statesPlayed(sim, merc)).toEqual(['KNEEL_UP', 'STANDING']);
+  });
+
+  it('leaves every other body with a rifle in KNEEL_DOWN: only a BIGMALE has the threaten stance', () => {
+    const { sim, merc } = soldierWith(Body.STOCKYMALE, RIFLE);
+    expect(order(sim, { type: 'stance', stance: 'crouch' }).ok).toBe(true);
+    expect(statesPlayed(sim, merc)).toEqual(['KNEEL_DOWN', 'CROUCHING']);
+  });
+});

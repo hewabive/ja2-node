@@ -1,7 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-01. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame code 491 (TIME_FOR_RANDOM_ANIM_CHECK); Soldier_Create.cc
-// @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE).
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame code 491 (TIME_FOR_RANDOM_ANIM_CHECK)
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type RandomAnim, RandomAnimFlags, RandomAnimHand } from '../../content/anim/tables.ts';
@@ -10,7 +9,7 @@ import { u32 } from '../../core/int.ts';
 import { changeSoldierState, endHeight } from './animation.ts';
 import { InvSlot } from './inventory.ts';
 import { mercInWater } from './person-structure.ts';
-import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { hasThreatenStance, OKLIFE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 const RANDOM_ANIM_CHECK = 491;
@@ -28,7 +27,6 @@ function randomHandIndex(t: TacticalState, s: Soldier): Hand | null {
 }
 
 const injured = (s: Soldier) => s.life < INJURED_CHANGE_THRESHOLD;
-const threatenStance = (s: Soldier) => s.bodyType === Body.BIGMALE;
 const forInjured = (a: RandomAnim) => (a.flags & RandomAnimFlags.INJURED) !== 0;
 
 function allowed(t: TacticalState, s: Soldier, a: RandomAnim, hand: Hand): boolean {
@@ -36,8 +34,8 @@ function allowed(t: TacticalState, s: Soldier, a: RandomAnim, hand: Hand): boole
   if (a.flags & RandomAnimFlags.DRUNK) return false;
   if (a.hand !== RandomAnimHand.IRRELEVANT && a.hand !== hand) return false;
   if (a.flags & RandomAnimFlags.CASUAL && (s.team !== Team.OUR || t.inCombat)) return false;
-  if (a.flags & RandomAnimFlags.FIRST_BIG_MERC && threatenStance(s)) return false;
-  if (a.flags & RandomAnimFlags.SECOND_BIG_MERC && !threatenStance(s)) return false;
+  if (a.flags & RandomAnimFlags.FIRST_BIG_MERC && hasThreatenStance(s)) return false;
+  if (a.flags & RandomAnimFlags.SECOND_BIG_MERC && !hasThreatenStance(s)) return false;
   return a.height === endHeight(t.content, s.state);
 }
 

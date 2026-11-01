@@ -56,7 +56,10 @@ a second pistol, life below 30, water and the big-guy flags, not on the state al
 answers for both sides: the simulation asks it whether a state is valid for a body and which structure file gives the
 soldier's collision shape, the client asks it for the sheet. The original refuses a new state when its sheet fails to
 load; deciding from the tables keeps the simulation independent of the files a user has. The client falls back to a
-stub sheet of the same kind when a file is missing.
+stub sheet of the same kind when a file is missing. The threaten stance flag is the body: `TacticalCreateSoldier` sets
+it on every `BIGMALE`, `prof.dat` never sets it, nothing clears it and no game path changes a big male's body, so
+neither side keeps the flag and a native save's `uiAnimSubFlags` is not read; the idle animations, the big merc's
+crouch transitions and the client's threaten sheets all test the body.
 
 **The frame clock is game time.** A frame lasts `aniDelay` game ms, checked every 5 ms tick (`01`, deviation "Frame
 timers"). States with speed 0 compute it from breath, life, agility, terrain and the body, halved in combat and doubled
@@ -146,8 +149,8 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Big merc kneel", "Reverse move animations", "Soldier draw
-height", "Drugs and alcohol" (adrenaline and drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other
-deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts", "Creature
+Not ported: gaps "Soldier palettes and surfaces", "Reverse move animations", "Soldier draw height", "Drugs and
+alcohol" (adrenaline and drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other deviations of this
+domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts", "Creature
 and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures",
 "Soldier fade without merc lights".

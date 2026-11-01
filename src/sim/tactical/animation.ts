@@ -6,7 +6,7 @@
 // @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck, the stance
 // @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31); the crow of
 // @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
-// @src (2026-11-01).
+// @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions (2026-11-01).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -45,7 +45,18 @@ import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-st
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { setSoldierHeight } from './roofs.ts';
 import { effectiveAgility } from './skills.ts';
-import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
+import {
+  Body,
+  hasThreatenStance,
+  NO_PENDING_ANIMATION,
+  NO_PENDING_DIRECTION,
+  NOBODY,
+  NOWHERE,
+  OKLIFE,
+  type Soldier,
+  Team,
+  Visible,
+} from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -411,6 +422,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
     next = st.END_HURT_WALKING;
   next = substituteBodyTypeAnimation(content, s, next);
   if (!isAnimationValidForBodyType(content, s, next)) return;
+  next = bigMercStanceTransition(t, s, next);
   if (next === st.RUNNING && WADING_TERRAINS.includes(s.overTerrain)) next = st.WALKING;
 
   s.pauseAnimMove = false;
@@ -472,6 +484,16 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
 }
 
 const TURN_FIRST_STATES = ['ADJACENT_GET_ITEM', 'CLIMBUPROOF', 'CLIMBDOWNROOF'];
+
+function bigMercStanceTransition(t: TacticalState, s: Soldier, next: number): number {
+  if (!hasThreatenStance(s) || !isRifle(t, s.inv[InvSlot.HAND]?.item ?? 0)) return next;
+  const st = states(t.content.animations);
+  const into = anim(t.content, 'BIGMERC_CROUCH_TRANS_INTO');
+  const outOf = anim(t.content, 'BIGMERC_CROUCH_TRANS_OUTOF');
+  if (next === st.KNEEL_DOWN && s.state !== into) return into;
+  if (next === st.KNEEL_UP && s.state !== outOf) return outOf;
+  return next;
+}
 
 const GETTING_HIT_STATES = [
   'GENERIC_HIT_STAND',
