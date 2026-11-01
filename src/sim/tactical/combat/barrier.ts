@@ -206,7 +206,10 @@ export function internalReduceAttackBusyCount(
     if (target && soldier.attackNoticed) {
       if (target.bodyType !== Body.CROW && soldier.team === Team.OUR)
         enterCombat = processImplicationsOfPCAttack(t, soldier, target, AttackReason.NORMAL);
-      if (target.bodyType === Body.CROW) enterCombat = false;
+      if (target.bodyType === Body.CROW) {
+        t.hooks.crowsSeeingAttackerFlyAway(t, target.team, soldier);
+        enterCombat = false;
+      }
       if (boxingFight(t) && target.life <= 0) endBoxingMatch(t, target);
       if (soldier.team !== Team.OUR || target.team !== Team.OUR) {
         if ((target.oppList[soldier.id] ?? 0) !== Opp.SEEN_CURRENTLY) noticeUnseenAttacker(t, soldier, target);

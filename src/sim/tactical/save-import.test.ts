@@ -145,6 +145,8 @@ function syntheticSave({
       itemsSeenOnAttack: false,
       itemsSeenOnAttackSoldier: NOBODY,
       lockItemLocators: false,
+      numCrowsPossible: 0,
+      dontAddNewCrows: false,
       ...tactical,
     },
     keyTable: [],
@@ -266,6 +268,11 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(sim.state.reserved[reserved]).toBe(-1);
     expect(civilian.pendingAnimation).toBe(NO_PENDING_ANIMATION);
     expect(civilian.pendingDirection).toBe(NO_PENDING_DIRECTION);
+  });
+
+  it('keeps the height a crow is flying to (sDesiredHeight)', () => {
+    const save = syntheticSave({ soldiers: [savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(80, 82), { sDesiredHeight: 100 })] });
+    expect(soldierOf(importedSim(save), CIVILIAN_ID).targetHeightAdjustment).toBe(100);
   });
 
   it('restores the personal last-known locations of soldiers 0-77 only, the rest keep the zeroed memory of a fresh process: the original saves the INT16 array with its element count as byte count (SaveLoadGame.cc LoadOppListInfoFromSavedGame, TODO000F)', () => {
@@ -427,8 +434,8 @@ function importedCampaignWideState(save: SaveGame) {
   const strategic = createStrategicState({ seed: 1 });
   const { civGroups, keyTable, profiles, pre } = strategic;
   const contentProfiles = { profiles: stubProfiles(content.items) };
-  const realtimeClock = strategic.sectorFlow.realtimeClock;
-  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, content: contentProfiles }, save);
+  const { realtimeClock, crows } = strategic.sectorFlow;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, content: contentProfiles }, save);
   return strategic;
 }
 
@@ -448,7 +455,7 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     expect(strategic.profiles.get(kept.id)?.nickname).toBeUndefined();
   });
 
-  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups and the opplist decay', () => {
+  it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay and the crows', () => {
     const base = syntheticSave({});
     const ring = Array.from({ length: 256 }, (_, k) => (k * 37) % 1000);
     const key = { sectorFound: 12, dateFound: 345 };
@@ -456,9 +463,16 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
       ...base,
       preRandom: { index: 65, numbers: ring },
       keyTable: [key],
-      tactical: { ...base.tactical, civGroupHostile: [0, 2, 1], timeSinceLastOpplistDecay: 4321 },
+      tactical: {
+        ...base.tactical,
+        civGroupHostile: [0, 2, 1],
+        timeSinceLastOpplistDecay: 4321,
+        numCrowsPossible: 7,
+        dontAddNewCrows: true,
+      },
     } as SaveGame;
     const strategic = importedCampaignWideState(save);
+    expect(strategic.sectorFlow.crows).toEqual({ possible: 7, dontAddNew: true });
     expect(strategic.pre.state()).toEqual({ ring, index: 65 });
     expect(strategic.keyTable[0]).toEqual(key);
     expect(strategic.civGroups.hostility.slice(0, 3)).toEqual([0, 2, 1]);

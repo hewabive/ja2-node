@@ -68,11 +68,16 @@ function lookForItemsIfNotified(t: TacticalState, s: Soldier): void {
   s.lookForItems = false;
 }
 
+function inTacticalEngine(s: Soldier): boolean {
+  return s.placed || s.offMap;
+}
+
 function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
   lookForItemsIfNotified(t, s);
   const moving = hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
   if ((moving && s.noAPToFinishMove) || s.pauseAllAnimation) return true;
   adjustToNextAnimationFrame(t, s);
+  if (!inTacticalEngine(s)) return false;
   if (!hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) handleNextTileWaiting(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE) && !s.pauseAnimMove) {
     if (!handleMovementFrame(t, s)) return false;
@@ -90,7 +95,7 @@ export interface OverheadHooks {
 export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): void {
   hooks.beforePass?.(t);
   t.mercSlots.forEach((s, slot) => {
-    if (!s || !(s.placed || s.offMap)) return;
+    if (!s || !inTacticalEngine(s)) return;
     updateDamageDisplay(t, s);
     updateSoldierFade(t, s);
     if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;

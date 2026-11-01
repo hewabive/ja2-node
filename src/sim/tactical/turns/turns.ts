@@ -16,7 +16,8 @@
 // @src SetSoldierAsUnderAiControl; Overhead.cc CheckForEndOfBattle (fAnEnemyRetreated, the buddy-witnessed quote flags,
 // @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
 // @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31); the BeginLoggingForBleedMeToos window
-// @src of BeginTeamTurn and HandleTacticalEndTurn.
+// @src of BeginTeamTurn and HandleTacticalEndTurn; HandleTacticalEndTurn's static stamp before HandleRottingCorpses
+// @src (2026-11-01).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -175,6 +176,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
 }
 
 export const RT_TURN_MS = 5000;
+const ROTTING_CORPSES_INTERVAL_SECONDS = 1200;
 export const STRATEGIC_OVERHEAD_MS = 20;
 
 export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): void {
@@ -210,7 +212,15 @@ function forceOpplistDecay(t: TacticalState, clock: RealtimeClock): void {
   nonCombatDecayPublicOpplist(t, clock, now);
 }
 
+function handleRottingCorpsesAtTurnEnd(t: TacticalState, clock: RealtimeClock): void {
+  const now = worldSeconds(t);
+  if (u32(clock.lastRottingCorpsesSeconds - now) <= ROTTING_CORPSES_INTERVAL_SECONDS) return;
+  t.hooks.rottingCorpses(t);
+  clock.lastRottingCorpsesSeconds = now;
+}
+
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
+  handleRottingCorpsesAtTurnEnd(t, clock);
   const now = worldSeconds(t);
   decaySmokeEffects(t);
   decayLightEffects(t);

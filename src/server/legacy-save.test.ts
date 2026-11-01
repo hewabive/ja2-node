@@ -67,7 +67,10 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'NINJA_SPINKICK',
   'DECAPITATE',
   'STEAL_ITEM',
+  'CROW_EAT',
+  'CROW_DIE',
 ];
+const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
 const CREATURE_DEATH_STOPS_AT_070 = ['ADULTMONSTER_DYING_STOP', 'LARVAE_DIE_STOP', 'QUEEN_DIE_STOP', 'INFANT_DIE_STOP'];
@@ -190,6 +193,8 @@ async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<U
       scriptOf(codes, state).filter((code) => !FALL_SOUNDS_ADDED_AFTER_070.has(code)),
     );
   }
+  for (const name of LOOPS_REPLACED_AFTER_070)
+    replaceScript(codes, stateId(tables, name), [...frames(RECORDED_LOOP_FRAMES), JUMP_TO_START]);
   for (const name of CREATURE_FALLS_AT_070)
     replaceScript(codes, stateId(tables, name), [...frames(RECORDED_ONE_SHOT_FRAMES), NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE]);
   for (const name of CREATURE_DEATH_STOPS_AT_070)

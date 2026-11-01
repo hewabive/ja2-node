@@ -22,7 +22,7 @@ import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/co
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
 import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
-import { warpGameTime } from '../strategic/time/world-clock.ts';
+import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
@@ -30,7 +30,7 @@ import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel }
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
-import { Body, NO_PROFILE, Side, SoldierClass, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { bloodViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
@@ -55,6 +55,10 @@ const UNSEEN = -1;
 const A10 = { x: 10, y: 1, z: 0 };
 const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
+const MIN_CROWS_POSSIBLE = 5;
+const MAX_CROWS_POSSIBLE = 9;
+const NIGHT_ENDS_HOUR = 7;
+const CROW_LANDING_RADIUS = 2;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -212,6 +216,37 @@ describe('leaving a sector', () => {
     for (let g = 0; g < revealed.length; g++) if (revealed[g]) expect(back.fog.revealed[g]).toBeTruthy();
   });
 
+  it('keeps the crow count drawn at the sector entry (StrategicMap.cc SetCurrentWorldSector)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    expect(campaign.state.sectorFlow.crows).toEqual({ possible: 0, dontAddNew: false });
+    landFirstSquad(campaign);
+    const { possible, dontAddNew } = campaign.state.sectorFlow.crows;
+    expect([possible >= MIN_CROWS_POSSIBLE && possible <= MAX_CROWS_POSSIBLE, dontAddNew]).toEqual([true, false]);
+    expect(campaign.tactical?.state.crows).toBe(campaign.state.sectorFlow.crows);
+  });
+
+  it('lands two crows on a rotting corpse of A9 by day as its corpses load (Tactical_Save.cc LoadRottingCorpsesFromTempCorpseFile)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const merc = ourSoldiers(campaign)[0];
+    if (!merc) throw new Error('no merc');
+    const corpseAt = merc.gridNo + 3;
+    campaign.tactical?.state.corpses.push({ ...lyingCorpse(corpseAt), type: ROTTING_STAGE2 });
+    walkSquadToEastEdge(campaign);
+    campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'east', who: 'squad' });
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 10);
+    expect(worldHour(campaign.state.clock)).toBeGreaterThanOrEqual(NIGHT_ENDS_HOUR);
+    runUntilIdle(campaign);
+    walkWest(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'west', who: 'squad' }).ok).toBe(true);
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 9);
+    const back = campaign.tactical?.state;
+    if (!back) throw new Error('no sector');
+    const crows = teamMembers(back, Team.CIV).filter((s) => s.bodyType === Body.CROW);
+    expect(crows.map((s) => s.id)).toEqual([TEAM_FIRST_ID[Team.CIV], (TEAM_FIRST_ID[Team.CIV] ?? 0) + 1]);
+    for (const crow of crows) expect(Math.max(...spacesApart(crow.gridNo, corpseAt))).toBeLessThanOrEqual(CROW_LANDING_RADIUS);
+  });
+
   it('keeps the blood and smell of A9 and draws its pools again at once (SaveLoadMap.cc SLM_BLOOD_SMELL)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);
@@ -239,6 +274,14 @@ describe('leaving a sector', () => {
     expect(smellStrength(back.smell.smell[trail] ?? 0)).toBeGreaterThan(0);
   });
 });
+
+function spacesApart(a: number, b: number): [number, number] {
+  return [Math.abs((a % 160) - (b % 160)), Math.abs(Math.trunc(a / 160) - Math.trunc(b / 160))];
+}
+
+function lyingCorpse(gridNo: number) {
+  return { gridNo, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0, headTaken: false };
+}
 
 function walkWest(campaign: ReturnType<typeof createTestCampaign>['campaign']): void {
   for (const s of ourSoldiers(campaign)) {

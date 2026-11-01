@@ -14,7 +14,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
-import { i16, idiv } from '../../../core/int.ts';
+import { i16 } from '../../../core/int.ts';
 import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -29,7 +29,6 @@ import {
 } from '../animation.ts';
 import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { checkEquipmentForFragileItemDamage } from '../explosions/item-damage.ts';
-import { worldSeconds } from '../explosions/state.ts';
 import { cancelAllServices } from '../first-aid.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
@@ -46,6 +45,7 @@ import { removeMercStructure } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
+import { addRottingCorpse, nowMinuteOf } from '../rotting-corpses.ts';
 import { deathSuccessor, selectAfterPlayerTeamMemberDeath } from '../selection.ts';
 import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
@@ -362,7 +362,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   if (s.team !== Team.OUR) unregisterSoldier(t, s);
   s.placed = false;
   if (type === NO_CORPSE) return true;
-  t.corpses.push({
+  const corpse: Corpse = {
     gridNo: s.gridNo,
     level: s.level,
     bodyType: s.bodyType,
@@ -370,12 +370,11 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     state: s.state,
     profile: s.profile,
     type,
-    timeOfDeath: idiv(worldSeconds(t), SECONDS_PER_MINUTE),
+    timeOfDeath: nowMinuteOf(t),
     headTaken: false,
     ...corpseLook(s),
-  });
-  addCorpseStructure(t, s.gridNo, s.level, type, direction);
-  return true;
+  };
+  return addRottingCorpse(t, corpse, { nowMinute: corpse.timeOfDeath, loadingSave: false }) !== null;
 }
 
 function corpseDirection(t: TacticalState, s: Soldier, type: number): number {
@@ -401,11 +400,6 @@ export function isVehicleCorpse(c: Corpse): boolean {
 export function corpseOfStructure(t: TacticalState, base: StructureInstance): Corpse | null {
   const level = base.cubeOffset >= STRUCTURE_ON_ROOF ? 1 : 0;
   return t.corpses.find((c) => c.gridNo === base.gridNo && c.level === level) ?? null;
-}
-
-export function removeCorpse(t: TacticalState, corpse: Corpse, base: StructureInstance): void {
-  t.corpses.splice(t.corpses.indexOf(corpse), 1);
-  t.world.structures.remove(base);
 }
 
 export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDead: boolean; madeCorpse: boolean } {
@@ -453,7 +447,6 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
 }
 
 const SKULL_UI_MS = 1920;
-const SECONDS_PER_MINUTE = 60;
 const MILITIA_KILL_POINTS = 2;
 const MILITIA_ASSIST_POINTS = 1;
 

@@ -2,10 +2,20 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpot, FindGridNoFromSweetSpotThroughPeople,
 // @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
-// @src FindGridNoFromSweetSpotExcludingSweetSpot; Tactical/PathAI.h SaveNPCBudgetAndDistLimit (the dummy soldier's
-// @src flood); TileEngine/GridSquare.cc GridSquare.
+// @src FindGridNoFromSweetSpotExcludingSweetSpot, FindRandomGridNoFromSweetSpot (2026-11-01); Tactical/PathAI.h
+// @src SaveNPCBudgetAndDistLimit (the dummy soldier's flood); TileEngine/GridSquare.cc GridSquare.
 
-import { cardinalSpacesAway, DIRECTION_COUNT, gridSquare, pythSpacesAway, rangeInCellCoords } from '../../content/world/grid.ts';
+import {
+  cardinalSpacesAway,
+  DIRECTION_COUNT,
+  gridSquare,
+  pythSpacesAway,
+  rangeInCellCoords,
+  WORLD_COLS,
+  WORLD_MAX,
+} from '../../content/world/grid.ts';
+import { idiv } from '../../core/int.ts';
+import { roomAt } from './ai/destinations.ts';
 import { states } from './animation.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
@@ -14,6 +24,8 @@ import { Body, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 const NO_RANGE = 999999;
+const NO_ROOM = 0;
+const RANDOM_SWEET_SPOT_TRIES = 2000;
 const DUMMY_SOLDIER_ID = 0;
 const SWEET_SPOT_FLOOD_FLAGS = PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE;
 
@@ -151,4 +163,25 @@ export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier,
 
 export function findGridNoFromSweetSpotExcludingSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
   return lowestRanked(gridSquare(sweet, radius), (g) => (g !== sweet && freeFor(t, s, g) ? rangeInCellCoords(sweet, g) : null));
+}
+
+function onSweetSpotRow(sweet: number, dy: number, g: number): boolean {
+  const rowStart = idiv(sweet + WORLD_COLS * dy, WORLD_COLS) * WORLD_COLS;
+  return g >= 0 && g < WORLD_MAX && g >= rowStart && g < rowStart + WORLD_COLS;
+}
+
+function randomSpotFits(t: TacticalState, s: Soldier, g: number): boolean {
+  return freeFor(t, s, g) && (s.bodyType !== Body.CROW || roomAt(t, g) === NO_ROOM);
+}
+
+export function findRandomGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
+  const reachable = new Set(reachableAround(t, dummySoldier(sweet, Team.ENEMY, 0), radius, { flags: SWEET_SPOT_FLOOD_FLAGS }));
+  for (let tries = 1; ; tries++) {
+    const dx = t.rng.int(radius * 2 + 1) - radius;
+    const dy = t.rng.int(radius * 2 + 1) - radius;
+    const g = sweet + WORLD_COLS * dy + dx;
+    const found = onSweetSpotRow(sweet, dy, g) && reachable.has(g) && randomSpotFits(t, s, g);
+    if (tries > RANDOM_SWEET_SPOT_TRIES) return NOWHERE;
+    if (found) return g;
+  }
 }

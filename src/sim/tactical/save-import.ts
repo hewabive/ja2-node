@@ -25,7 +25,7 @@ import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
-import { addCorpseStructure, type Corpse } from './combat/death.ts';
+import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
 import type { KeyTable } from './doors/keys.ts';
 import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
@@ -36,9 +36,10 @@ import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
+import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
 import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
-import { type RealtimeClock, registerSoldier, type TacticalState } from './state.ts';
+import { type CrowStatus, type RealtimeClock, registerSoldier, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool } from './world-items.ts';
 
@@ -73,6 +74,7 @@ export interface CampaignWideState {
   readonly keyTable: KeyTable;
   readonly profiles: Map<number, ProfileProgress>;
   readonly realtimeClock: RealtimeClock;
+  readonly crows: CrowStatus;
   readonly pre: PreRandom;
   readonly content: { readonly profiles: readonly MercProfile[] };
 }
@@ -131,6 +133,8 @@ export function importCampaignWideState(state: CampaignWideState, save: SaveGame
     if (p) state.profiles.set(id, progressFromSavedProfile(p, state.content.profiles[id]));
   });
   state.realtimeClock.lastOpplistDecaySeconds = save.tactical.timeSinceLastOpplistDecay;
+  state.crows.possible = save.tactical.numCrowsPossible;
+  state.crows.dontAddNew = save.tactical.dontAddNewCrows;
   state.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
 }
 
@@ -202,12 +206,11 @@ function savedCorpse(c: SavedCorpse): Corpse {
 }
 
 function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): number {
-  t.corpses.length = 0;
+  removeAllCorpses(t);
   for (const saved of corpses) {
     const c = placeLoadedCorpse(t, savedCorpse(saved));
     if (c.gridNo < 0 || c.gridNo >= WORLD_MAX) continue;
-    t.corpses.push(c);
-    addCorpseStructure(t, c.gridNo, c.level, c.type, c.direction);
+    addRottingCorpse(t, c, { nowMinute: nowMinuteOf(t), loadingSave: true });
   }
   return t.corpses.length;
 }
@@ -400,6 +403,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.muzzleFlash = r.muzzleFlash;
   s.sleepDrugCounter = r.sleepDrugCounter;
   s.heightAdjustment = r.heightAdjustment;
+  s.targetHeightAdjustment = r.targetHeightAdjustment;
   s.uiMovementMode = m.uiMovementMode;
   s.movementDirection = m.movementDirection;
   s.reverse = m.reverse !== 0;

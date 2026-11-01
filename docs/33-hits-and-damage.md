@@ -1,7 +1,8 @@
 # 33 — Hits and damage
 
 From a bullet, blade, punch, blast or thrown object reaching a soldier to the end of the attack: hit location, armour,
-damage, hit and death animations, corpses, bleeding, the attack busy count, suppression, morale and experience.
+damage, hit and death animations, corpses and the crows they draw, bleeding, the attack busy count, suppression, morale
+and experience.
 Siblings: `11` guns, bullets and melee up to the impact; `34` throwing and item physics; `12` explosions; `10` turns
 and interrupts; `13` the combat AI. Each module's `@src` header names the Stracciatella functions it ports; read those
 for the formulas.
@@ -29,7 +30,8 @@ melee: the hit arrives as a queued game event          combat/melee.ts → game-
 | `combat/hit.ts` | The hit itself: location, damage, hit animations, falls, collapse, the damage window |
 | `combat/impact.ts`, `combat/armour.ts` | Damage from impact: fluke, armour wear, criticals and stat loss, instant kills |
 | `combat/death.ts` | Incapacitation and death opcodes, jars broken in a fall, corpses and dropped items, kill records, getting up, the skull delay |
-| `rotting-corpses.ts` | A corpse's aging when it is added, decapitation and the heads it leaves |
+| `rotting-corpses.ts` | The corpse slots, a corpse's aging when it is added, decapitation and the heads it leaves |
+| `crows.ts` | Crows sent to rotting corpses by day, a flock's flight from a noise or an attack, the climb of code 466 |
 | `combat/bleeding.ts` | Bleeding at turn start, the next-bleed time, the dying line and the bleeding warning; no bleeding for a patient being bandaged or whom a doctor in his sector can heal (the campaign answers through `NarrativePort.anyDoctorWhoCanHeal`) |
 | `combat/barrier.ts` | The attack busy count, suppression, noticing an unseen attacker, the end of an attack |
 | `combat/morale.ts` | Tactical morale events; strategic events and the death fan-out are `sim/campaign/morale.ts` |
@@ -76,6 +78,19 @@ chance to hit read the value of the soldier's last decision.
 
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
+**Corpses keep the original's slots.** `t.corpses` lists the lying corpses in slot order and `t.corpseHoles` the slots
+emptied this sector, a corpse too old to lie included, because the crows' pick draws over every slot ever taken
+(`rottingCorpseSlots`); a new corpse takes the first empty slot. A sector load starts with none.
+
+**Rotting corpses draw crows by day above ground,** at a real-time turn and when a sector's corpses load from its diff
+(`16`): before the sector's soldiers, with the previous sector's crow count. The crow count and its stop flag are
+campaign-wide like the original's `gTacticalStatus`: `SectorFlowState.crows`, shared with the loaded sector as the
+real-time clock is, drawn at every sector entry. A crow is a civilian soldier created as `AddCrowToCorpse` creates it,
+with its draws; noises and attacks reach `crows.ts` through tactical hooks. A flying crow climbs at code 466 and leaves
+the map at 100. The stub pack's crow scripts carry codes 466, 785 and 786 (`stubs/anim-scripts.ts`); with no crow art
+the stub pack draws a crow with the stub soldier sheets. The pecking sound's draw is the browser's (deviation "Cosmetic
+draws of creatures") and the crows come whatever the camera shows (deviation "Crows on screen").
+
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6); the order of a whole shot is
 `11`. The kill quotes draw on `main` in `HandleKilledQuote`'s order, also when nobody speaks. Curses, laughs (the laugh
 or cool after a kill among them), blood-pool graphics and stat-change messages are not drawn (deviation "Cosmetic draws
@@ -83,7 +98,7 @@ in attacks").
 
 ## 3. Quirks of the original the code keeps
 
-Each looks like a bug and is the original's behaviour. Pinned by tests in `combat/`:
+Each looks like a bug and is the original's behaviour. Pinned by tests in `combat/` unless a path is given:
 
 | Quirk | Test |
 |---|---|
@@ -97,6 +112,11 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | Two of our mercs who shoot each other out of combat trade shots until one falls: every end of attack makes its target, if conscious and holding a gun, fire back at the attacker's tile | `src/sim/tactical/narrative/civ-hostility.test.ts` |
 | A skill check with no chance at all passes on a roll of 0: the margin is 0, not below it | `skill-check.test.ts` |
 | A merc corpse cut more than a day after death rots on the spot and gives a second head: `DecapitateCorpse` copies the corpse before marking its head taken | `src/sim/tactical/rotting-corpses.test.ts` |
+| The crows' corpse pick draws over every slot taken this sector, so it may land on an emptied slot or one a corpse too old to lie took | `src/sim/tactical/crows.test.ts`, `src/sim/tactical/rotting-corpses.test.ts` |
+| `HandleTacticalEndTurn` sends crows whenever the world clock moved since its last call: its unsigned stamp only holds it while the stamp is up to 1200 s ahead | `src/sim/tactical/crows.test.ts` |
+| Every crow that hears a noise sends the flock up again: the paths start with the next game events, so each crow's flight is drawn once per listening crow | `src/sim/tactical/crows.test.ts` |
+| A crow off the ground stands on the roof level, roof or not: `SetSoldierHeight` sets the level by the height | `src/sim/tactical/crows.test.ts` |
+| Code 466 compares the truncated height with the target and steps the fractional one | `src/sim/tactical/crows.test.ts` |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).

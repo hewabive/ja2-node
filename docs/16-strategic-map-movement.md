@@ -101,9 +101,8 @@ runs in CI. `sectorMapPath` takes the original map, else the stub pack's map of 
 `scroll` and `optional` on `soldier:` lines (`src/content/formats/stub-map.ts`).
 
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), including draws whose result
-ja2-node does not use: the creature tense-quote delay and the crow count at every sector load. Speaker picks are not
-drawn, and the bloodcat lair corpses face a draw of the `movement` cosmetic stream (deviation "Cosmetic draws in
-strategic movement").
+ja2-node does not use: the creature tense-quote delay at every sector load. Speaker picks are not drawn, and the
+bloodcat lair corpses face a draw of the `movement` cosmetic stream (deviation "Cosmetic draws in strategic movement").
 
 ## 3. Quirks of the original the code keeps
 
@@ -165,8 +164,8 @@ the source:
 - Not probed: strategic advance with replayed draws (enemy sleep, queued battles and reversals in one run), and player
   ETAs with encumbrance unless every member is in the loaded sector.
 
-Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles",
-"Helicopter on the map", "Creature quest scripting", "Corpses", "Savegame import". Other
-deviations of this domain: "Underground traversal flag", "Insertion data in the loaded sector", "Strategic hints and
-enemy counts", "Sandbox population", "Difficulty and progress in tactical", "Map changes of the loaded sector on
-import", "Strategic AI PD placement pass", "Cosmetic draws of the helicopter".
+Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles", "Helicopter on the map",
+"Creature quest scripting", "Savegame import". Other deviations of this domain: "Underground traversal flag",
+"Insertion data in the loaded sector", "Strategic hints and enemy counts", "Sandbox population", "Difficulty and
+progress in tactical", "Map changes of the loaded sector on import", "Strategic AI PD placement pass", "Cosmetic draws
+of the helicopter".

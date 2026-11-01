@@ -298,7 +298,7 @@ const LOOPS = [
 ];
 
 const CREATURE_HITS = ['ADULTMONSTER_HIT', 'LARVAE_HIT', 'INFANT_HIT', 'QUEEN_HIT', 'BLOODCAT_HIT', 'COW_HIT'];
-const CREATURE_DEATHS = ['LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE', 'MONSTER_MELT', 'BLOODCAT_DYING', 'COW_DYING'];
+const CREATURE_DEATHS = ['LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE', 'MONSTER_MELT', 'BLOODCAT_DYING', 'COW_DYING', 'CROW_DIE'];
 const OTHER_BODY_HITS = ['CRIPPLE_HIT', 'ROBOTNW_HIT'];
 const OTHER_BODY_DEATHS = ['CRIPPLE_DIE', 'CRIPPLE_DIE_FLYBACK', 'ROBOTNW_DIE'];
 
@@ -414,6 +414,7 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   for (const name of [...CREATURE_DEATHS, ...OTHER_BODY_DEATHS]) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
   for (const [name, script] of meleeScripts(t)) m.set(name, script);
   for (const [name, script] of creatureAttackScripts(t)) m.set(name, script);
+  for (const [name, script] of crowScripts()) m.set(name, script);
   for (const name of LOOPS) m.set(name, [...frames(LOOP_FRAMES), JUMP_TO_START]);
   return m;
 }
@@ -533,6 +534,19 @@ function creatureAttackScripts(t: Parameters<typeof stateId>[0]): Map<string, nu
     ['MONSTER_BEGIN_EATTING_FLESH', [Op.BUSY_UP, ...frames(6), NONINTERRUPTIBLE_DONE, to('MONSTER_EATTING_FLESH')]],
     ['MONSTER_EATTING_FLESH', [...frames(5, 7), CreatureOp.EAT_FLESH_DAMAGE, ...frames(4, 8), to('MONSTER_END_EATTING_FLESH')]],
     ['MONSTER_END_EATTING_FLESH', [...frames(6), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+  ]);
+}
+
+const CrowOp = { ADJUST_TO_TARGET_HEIGHT: 466, PECK: 785, FLY_AWAY_SOUND: 786 } as const;
+const CROW_FLY_FRAMES = 8;
+const CROW_PECK_FRAMES = 4;
+
+function crowScripts(): Map<string, number[]> {
+  const rising = frames(CROW_FLY_FRAMES).flatMap((frame) => [frame, CrowOp.ADJUST_TO_TARGET_HEIGHT]);
+  const pecking = [...frames(CROW_PECK_FRAMES), CrowOp.PECK, ...frames(CROW_PECK_FRAMES, CROW_PECK_FRAMES + 1), CrowOp.PECK];
+  return new Map([
+    ['CROW_FLY', [CrowOp.FLY_AWAY_SOUND, ...rising, JUMP_TO_START]],
+    ['CROW_EAT', [...pecking, JUMP_TO_START]],
   ]);
 }
 

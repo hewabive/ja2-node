@@ -6,7 +6,14 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { Profile } from './narrative/constants.ts';
-import { decapitateCorpse, ROTTING_STAGE2 } from './rotting-corpses.ts';
+import {
+  addRottingCorpse,
+  corpseInSlot,
+  decapitateCorpse,
+  ROTTING_STAGE2,
+  removeRottingCorpse,
+  rottingCorpseSlots,
+} from './rotting-corpses.ts';
 import { NO_PROFILE } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -76,5 +83,60 @@ describe('DecapitateCorpse', () => {
     expect(t.corpses).toEqual([]);
     expect(t.world.structures.find(CORPSE_AT, StructureFlags.CORPSE)).toBeNull();
     expect(heads(t)).toEqual([itemIndex('HEAD_1')]);
+  });
+});
+
+describe('the rotting corpse slots (Rotting_Corpses.cc GetFreeRottingCorpse, RemoveCorpse)', () => {
+  const at = (k: number) => CORPSE_AT + 4 * k;
+  const lying = (k: number) => ({
+    gridNo: at(k),
+    level: 0,
+    bodyType: 0,
+    direction: Direction.NORTH,
+    state: 0,
+    profile: NO_PROFILE,
+    type: corpseType('M_DEAD1'),
+    timeOfDeath: 0,
+    headTaken: false,
+  });
+  const base = (t: TacticalState, g: number) => {
+    const found = t.world.structures.find(g, StructureFlags.CORPSE);
+    if (!found) throw new Error('no corpse structure');
+    return t.world.structures.findBase(found) ?? found;
+  };
+  const slotsOf = (t: TacticalState) => Array.from({ length: rottingCorpseSlots(t) }, (_, slot) => corpseInSlot(t, slot)?.gridNo ?? null);
+
+  it('keeps a removed corpse slot empty but counted until a new corpse takes the first empty slot', () => {
+    const t = newCombatSim(content).state;
+    for (const k of [0, 1, 2]) addRottingCorpse(t, lying(k), { nowMinute: 0, loadingSave: false });
+    const middle = t.corpses[1];
+    if (!middle) throw new Error('no corpse');
+    removeRottingCorpse(t, middle, base(t, at(1)));
+    expect(slotsOf(t)).toEqual([at(0), null, at(2)]);
+    addRottingCorpse(t, lying(3), { nowMinute: 0, loadingSave: false });
+    expect(slotsOf(t)).toEqual([at(0), at(3), at(2)]);
+    expect(t.corpses.map((c) => c.gridNo)).toEqual([at(0), at(3), at(2)]);
+  });
+
+  it('takes a slot for a corpse too old to lie and leaves it empty', () => {
+    const t = newCombatSim(content).state;
+    addRottingCorpse(t, lying(0), { nowMinute: 0, loadingSave: false });
+    addRottingCorpse(t, lying(1), { nowMinute: FOUR_DAYS_MINUTES, loadingSave: false });
+    expect(slotsOf(t)).toEqual([at(0), null]);
+    expect(t.world.structures.find(at(1), StructureFlags.CORPSE)).toBeNull();
+  });
+
+  it('lays a headless corpse in the first empty slot, which may come before the cut one', () => {
+    const t = withCorpse('MMERC_FWD');
+    addRottingCorpse(t, lying(1), { nowMinute: 0, loadingSave: false });
+    addRottingCorpse(t, lying(2), { nowMinute: 0, loadingSave: false });
+    const first = t.corpses[0];
+    if (!first) throw new Error('no corpse');
+    removeRottingCorpse(t, first, base(t, CORPSE_AT));
+    const cut = t.corpses.find((c) => c.gridNo === at(2));
+    if (!cut) throw new Error('no corpse');
+    t.corpses[t.corpses.indexOf(cut)] = { ...cut, type: corpseType('MMERC_FWD') };
+    decapitateCorpse(t, at(2));
+    expect(slotsOf(t)).toEqual([at(2), at(1), null]);
   });
 });

@@ -492,6 +492,7 @@ export interface Soldier {
   tempObject: ItemObject | null;
   tempNewGridNo: number;
   heightAdjustment: number;
+  targetHeightAdjustment: number;
   groupId: number;
   insertionGridNo: number;
   insertionData: number;
@@ -835,6 +836,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     tempObject: null,
     tempNewGridNo: NOWHERE,
     heightAdjustment: 0,
+    targetHeightAdjustment: 0,
     groupId: 0,
     insertionGridNo: NOWHERE,
     insertionData: 0,

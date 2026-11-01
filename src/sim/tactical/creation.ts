@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Create.cc CreateDetailedPlacementGivenBasicPlacementInfo,
+// @src src/game/Tactical/Soldier_Create.cc RandomizeNewSoldierStats (2026-11-01), CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
 // @src Soldier_Control.cc CreateSoldierCommon (the opplist reset);
@@ -68,6 +68,10 @@ const CAMOUFLAGE_ROLL = 5;
 const FULL_CAMOUFLAGE = 100;
 const CREATURE_PART_STATUS_BASE = 80;
 const CREATURE_PART_STATUS_RANGE = 21;
+const RANDOM_STAT_BASE = 50;
+const RANDOM_STAT_RANGE = 50;
+const RANDOM_EXP_LEVEL_RANGE = 4;
+const MAX_ATTITUDES = 6;
 const DIFF_STEP = 20;
 const DIFF_UPPER_HALF = 10;
 
@@ -428,6 +432,61 @@ function blankCreate(bp: BasicPlacement): SoldierCreate {
     name: '',
     scheduleId: 0,
   };
+}
+
+export function newSoldierCreate(team: number, bodyType: number, direction: number, insertionGridNo: number): SoldierCreate {
+  return {
+    profile: NO_PROFILE,
+    team,
+    soldierClass: SoldierClass.NONE,
+    civilianGroup: CivilianGroup.NONE,
+    bodyType,
+    orders: Orders.STATIONARY,
+    attitude: SoldierAttitude.DEFENSIVE,
+    direction,
+    insertionGridNo,
+    onRoof: false,
+    hasKeys: false,
+    patrolCount: 0,
+    patrolGrid: [],
+    expLevel: 0,
+    life: 0,
+    lifeMax: 0,
+    agility: 0,
+    dexterity: 0,
+    marksmanship: 0,
+    medical: 0,
+    mechanical: 0,
+    explosives: 0,
+    leadership: 0,
+    strength: 0,
+    wisdom: 0,
+    morale: 0,
+    visible: false,
+    palettes: {},
+    inv: emptyInventory(),
+    name: '',
+    scheduleId: 0,
+  };
+}
+
+export function randomizeNewSoldierStats(c: { readonly rng: RandomStream }, pp: SoldierCreate): void {
+  const stat = () => c.rng.int(RANDOM_STAT_RANGE) + RANDOM_STAT_BASE;
+  pp.lifeMax = stat();
+  pp.life = pp.lifeMax;
+  pp.agility = stat();
+  pp.dexterity = stat();
+  pp.expLevel = MIN_EXP_LEVEL + c.rng.int(RANDOM_EXP_LEVEL_RANGE);
+  pp.marksmanship = stat();
+  pp.medical = stat();
+  pp.mechanical = stat();
+  pp.explosives = stat();
+  pp.leadership = stat();
+  pp.strength = stat();
+  pp.wisdom = stat();
+  pp.attitude = c.rng.int(MAX_ATTITUDES);
+  pp.orders = Orders.FARPATROL;
+  pp.morale = DEFAULT_MORALE;
 }
 
 function generateEquipment(c: CreationContext, pp: SoldierCreate, soldierClass: number, equipmentLevel: number, env: CreationEnv): void {

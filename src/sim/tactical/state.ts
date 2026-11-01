@@ -104,6 +104,9 @@ export interface TacticalHooks {
   endAiGuysTurn(t: TacticalState, s: Soldier): void;
   collapse(t: TacticalState, s: Soldier): void;
   opcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null;
+  rottingCorpses(t: TacticalState): void;
+  crowsFlyAway(t: TacticalState, team: number): void;
+  crowsSeeingAttackerFlyAway(t: TacticalState, team: number, attacker: Soldier): void;
 }
 
 export const NO_HOOKS: TacticalHooks = {
@@ -122,6 +125,9 @@ export const NO_HOOKS: TacticalHooks = {
   endAiGuysTurn: () => {},
   collapse: () => {},
   opcode: () => null,
+  rottingCorpses: () => {},
+  crowsFlyAway: () => {},
+  crowsSeeingAttackerFlyAway: () => {},
 };
 
 export interface PerceptionHooks {
@@ -234,6 +240,7 @@ export interface TacticalState {
   clockMs: number;
   tick: number;
   readonly realtimeClock: RealtimeClock;
+  readonly crows: CrowStatus;
   readonly aiPass: AiPassState;
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
@@ -267,6 +274,7 @@ export interface TacticalState {
   readonly bullets: Bullet[];
   readonly missAnimations: MissAnimation[];
   readonly corpses: Corpse[];
+  readonly corpseHoles: number[];
   readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
   readonly explosives: ExplosivesState;
   readonly smell: SmellMap;
@@ -298,10 +306,20 @@ export interface RealtimeClock {
   lastTurnMs: number;
   lastOpplistDecaySeconds: number;
   lastOverheadMs: number;
+  lastRottingCorpsesSeconds: number;
 }
 
 export function createRealtimeClock(): RealtimeClock {
-  return { lastTurnMs: 0, lastOpplistDecaySeconds: 0, lastOverheadMs: 0 };
+  return { lastTurnMs: 0, lastOpplistDecaySeconds: 0, lastOverheadMs: 0, lastRottingCorpsesSeconds: 0 };
+}
+
+export interface CrowStatus {
+  possible: number;
+  dontAddNew: boolean;
+}
+
+export function createCrowStatus(): CrowStatus {
+  return { possible: 0, dontAddNew: false };
 }
 
 export const RESET_AWAY_AI_CURSOR = 0xffff;
@@ -332,6 +350,7 @@ export interface SharedCampaignState {
   readonly civGroups?: CivGroupState;
   readonly boxing?: BoxingRecord;
   readonly realtimeClock?: RealtimeClock;
+  readonly crows?: CrowStatus;
 }
 
 export interface SectorRef {
@@ -403,6 +422,7 @@ export function createTacticalState(
     clockMs: 0,
     tick: 0,
     realtimeClock: shared.realtimeClock ?? createRealtimeClock(),
+    crows: shared.crows ?? createCrowStatus(),
     aiPass: createAiPassState(),
     world,
     content,
@@ -436,6 +456,7 @@ export function createTacticalState(
     bullets: [],
     missAnimations: [],
     corpses: [],
+    corpseHoles: [],
     pendingSkullReleases: [],
     explosives: createExplosivesState(),
     smell: createSmellMap(),

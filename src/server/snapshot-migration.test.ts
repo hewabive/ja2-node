@@ -244,7 +244,7 @@ function withTacticalMsDecayStamp(value: Json): Json {
   const out: Record<string, Json> = {};
   for (const [key, v] of Object.entries(value)) {
     if (key === 'lastOpplistDecaySeconds') out.lastDecayMs = LEGACY_DECAY_MS;
-    else out[key] = withTacticalMsDecayStamp(v);
+    else if (key !== 'lastRottingCorpsesSeconds') out[key] = withTacticalMsDecayStamp(v);
   }
   return out;
 }
@@ -268,6 +268,7 @@ describe('snapshot version 10 (opplist decay on the tactical clock) migrates to 
 
   async function expectDecayDueAtNextRealtimeTurn(session: SessionSim, clock: RealtimeClock): Promise<void> {
     clock.lastOpplistDecaySeconds = 0;
+    clock.lastRottingCorpsesSeconds = 0;
     const current = snapshotSession(session);
     const legacy = versionTen(current.sim);
     expect(JSON.stringify(legacy)).toContain(`"lastDecayMs":${LEGACY_DECAY_MS}`);
@@ -1044,5 +1045,70 @@ describe('snapshot version 27 (the gassed state per sector) migrates with the fl
     const t = campaign.campaign.tactical?.state;
     if (!t) throw new Error('no loaded sector');
     await expectFlagsOnTheSoldiers(campaign, t);
+  });
+});
+
+const CROW_DEFAULTS: Readonly<Record<string, Json>> = {
+  crows: { possible: 0, dontAddNew: false },
+  corpseHoles: [],
+  targetHeightAdjustment: 0,
+  lastRottingCorpsesSeconds: 0,
+};
+
+function isReference(value: Json | undefined): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && '$ref' in value;
+}
+
+function withoutCrowState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutCrowState(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (!(key in CROW_DEFAULTS)) out[key] = withoutCrowState(v);
+    else if (!isReference(v)) expect(v).toEqual(CROW_DEFAULTS[key]);
+  }
+  return out;
+}
+
+function versionTwentyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutCrowState(value)]);
+  return { ...snapshot, version: 28, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 28 (no crows) migrates with no crow to come, no emptied corpse slot and nobody on the way up', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoCrowState(session: SessionSim, t: TacticalState): Promise<void> {
+    t.crows.possible = 0;
+    t.crows.dontAddNew = false;
+    t.realtimeClock.lastRottingCorpsesSeconds = 0;
+    const current = snapshotSession(session);
+    const legacy = versionTwentyEight(current.sim);
+    for (const key of Object.keys(CROW_DEFAULTS)) expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectNoCrowState(sandbox, sandbox.sim.state);
+  });
+
+  it('a landed campaign keeps one crow state for the sector flow and the loaded sector', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    expect(t.crows).toBe(campaign.campaign.state.sectorFlow.crows);
+    await expectNoCrowState(campaign, t);
   });
 });

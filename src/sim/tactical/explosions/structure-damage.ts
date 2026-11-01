@@ -12,12 +12,13 @@ import { recompileLocalMovementCosts } from '../../../content/world/movement-cos
 import { has, ORIENT_LEFT, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import type { WindowShatterTile } from '../../events.ts';
-import { corpseOfStructure, isVehicleCorpse, removeCorpse } from '../combat/death.ts';
+import { corpseOfStructure, isVehicleCorpse } from '../combat/death.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { handleBrothelWallDestroyed } from '../narrative/civ-hostility.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
+import { removeRottingCorpse } from '../rotting-corpses.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { itemsAt, removeWorldItem, Visibility } from '../world-items.ts';
@@ -127,7 +128,7 @@ function vaporizeCorpse(t: TacticalState, current: StructureInstance): void {
   if (!corpse || isVehicleCorpse(corpse)) return;
   const g = base.gridNo;
   t.events.push({ type: 'corpseVaporized', gridNo: g, x: centreX(g), y: centreY(g), z: 0 });
-  removeCorpse(t, corpse, base);
+  removeRottingCorpse(t, corpse, base);
   if (corpse.level === 0) spreadEffect(t, g, CORPSE_BLOOD_RADIUS, NOTHING, null, Spread.BLOOD, 0, null);
 }
 

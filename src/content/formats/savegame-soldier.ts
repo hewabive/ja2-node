@@ -667,6 +667,7 @@ export interface SavedSoldier {
   readonly desiredDirection: number;
   readonly hiResDirection: number;
   readonly heightAdjustment: number;
+  readonly targetHeightAdjustment: number;
   readonly animState: number;
   readonly pendingAnimation: number;
   readonly aniCode: number;
@@ -786,6 +787,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     desiredDirection: n('bDesiredDirection'),
     hiResDirection: n('ubHiResDirection'),
     heightAdjustment: n('sHeightAdjustment'),
+    targetHeightAdjustment: n('sDesiredHeight'),
     animState: n('usAnimState'),
     pendingAnimation: n('usPendingAnimation'),
     aniCode: n('usAniCode'),

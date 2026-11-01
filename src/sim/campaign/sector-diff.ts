@@ -14,15 +14,16 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { idiv, u32 } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
-import { addCorpseStructure, type Corpse } from '../tactical/combat/death.ts';
+import type { Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
+import { handleRottingCorpses } from '../tactical/crows.ts';
 import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructureForPartner } from '../tactical/doors.ts';
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
-import { agedCorpse } from '../tactical/rotting-corpses.ts';
+import { addRottingCorpse, type CorpseAging, removeAllCorpses } from '../tactical/rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -268,25 +269,21 @@ export function restoreWorldItems(t: TacticalState, items: readonly DiffWorldIte
   }
 }
 
-export interface CorpseAging {
-  readonly nowMinute: number;
+export interface SectorCorpseAging extends CorpseAging {
   readonly inTown: boolean;
-  readonly loadingSave: boolean;
 }
 
-export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], aging: CorpseAging): void {
-  t.corpses.length = 0;
+export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], aging: SectorCorpseAging): void {
+  removeAllCorpses(t);
   const maybeDrop = !aging.loadingSave && aging.inTown;
   for (const stored of corpses) {
     const c = placeLoadedCorpse(t, stored);
     if (c.gridNo < 0 || c.gridNo >= WORLD_MAX) continue;
     const indoors = t.world.terrain[c.gridNo] === Terrain.FLAT_FLOOR;
     if (maybeDrop && indoors && u32(aging.nowMinute - c.timeOfDeath) >= INDOOR_CORPSE_MAX_AGE_MINUTES) continue;
-    const corpse = agedCorpse(c, aging.nowMinute, aging.loadingSave);
-    if (!corpse) continue;
-    t.corpses.push(corpse);
-    addCorpseStructure(t, corpse.gridNo, corpse.level, corpse.type, corpse.direction);
+    addRottingCorpse(t, c, aging);
   }
+  handleRottingCorpses(t);
 }
 
 export function restoreRevealed(t: TacticalState, revealed: RevealedState): void {

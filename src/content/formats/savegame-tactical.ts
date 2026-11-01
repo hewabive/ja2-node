@@ -338,6 +338,8 @@ export interface TacticalStatus {
     readonly sectorY: number;
   };
   readonly hasEnteredCombatModeSinceEntering: boolean;
+  readonly numCrowsPossible: number;
+  readonly dontAddNewCrows: boolean;
   readonly worldSector: SectorPosition;
 }
 
@@ -528,6 +530,8 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
       sectorY: n('bGuideDescriptionSectorY'),
     },
     hasEnteredCombatModeSinceEntering: b('fHasEnteredCombatModeSinceEntering'),
+    numCrowsPossible: n('ubNumCrowsPossible'),
+    dontAddNewCrows: b('fDontAddNewCrows'),
     worldSector,
   };
 }

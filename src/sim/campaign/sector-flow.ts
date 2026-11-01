@@ -223,6 +223,7 @@ const PALACE: Sector = { x: 3, y: 16, z: 0 };
 const STATUE_SECTOR: Sector = { x: 3, y: 15, z: 0 };
 const PRESERVED_ENEMY_MAX_AGE_MINUTES = 300;
 const CREATURE_TENSE_QUOTE_RANGE = 20;
+const CROWS_POSSIBLE_BASE = 5;
 const CROWS_POSSIBLE_RANGE = 5;
 const NO_DIFFICULTY_TOWN = 0;
 const SECONDS_PER_MINUTE = 60;
@@ -456,8 +457,9 @@ export class SectorFlow {
     this.#handleRpcDescriptionOfSector(sector, day);
     setSectorFlag(s.map, sector, SectorFlag.HAS_ENTERED_TACTICAL, day);
     this.hasEnteredCombatModeSinceEntering = false;
+    this.#flow.crows.dontAddNew = false;
     s.rng.int(CREATURE_TENSE_QUOTE_RANGE);
-    s.rng.int(CROWS_POSSIBLE_RANGE);
+    this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
     this.#withTactical((t) => this.#selectOnArrival(t));
@@ -559,6 +561,7 @@ export class SectorFlow {
       boxing: s.narrative.boxing,
       startMs: s.realMs,
       realtimeClock: this.realtimeClock,
+      crows: this.#flow.crows,
       hour: worldHour(s.clock),
       dayAmbient,
     });

@@ -4,7 +4,9 @@
 // @src SoldierGotoStationaryStance, ChangeSoldierStance (its civilian cower branch, 2026-10-31), SetSoldierCowerState,
 // @src EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection, TurnSoldier, AdjustForFastTurnAnimation,
 // @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck, the stance
-// @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31).
+// @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31); the crow of
+// @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
+// @src (2026-11-01).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -41,6 +43,7 @@ import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
+import { setSoldierHeight } from './roofs.ts';
 import { effectiveAgility } from './skills.ts';
 import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -214,6 +217,7 @@ export function frameTimerDone(t: TacticalState, s: Soldier): boolean {
 }
 
 export function adjustNoAPToFinishMove(s: Soldier, set: boolean): void {
+  if (s.bodyType === Body.CROW) return;
   s.noAPToFinishMove = set;
 }
 
@@ -428,8 +432,8 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
       if (!hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) {
         const result = handleGotoNewGridNo(t, s, true, next);
         if (!result.ok || !result.keepMoving) return;
-        cancelAllServices(t, s);
-      }
+      } else setSoldierDestination(t, s, s.path[s.pathIndex] ?? 0, s.state);
+      cancelAllServices(t, s);
     }
   }
   if (nextMoving && s.dontUpdateNewGridNoOnMoveAnimChange !== LOCKED_NO_NEWGRIDNO) s.dontUpdateNewGridNoOnMoveAnimChange = 0;
@@ -879,6 +883,9 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       break;
     case 'QUEEN_SWIPE':
       s.pendingActionData1 = 0;
+      break;
+    case 'CROW_EAT':
+      setSoldierHeight(t, s, 0);
       break;
   }
   if (PENDING_COUNT_RESET_STATES.includes(name) && s.pendingMelee) s.pendingMelee.animCount = 0;

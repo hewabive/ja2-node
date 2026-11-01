@@ -80,7 +80,7 @@ state: an unseen soldier animates at full speed in combat once he has faded out 
 the listener's hearing (experience, night ops, an extended ear worn on the head, ambient light; a tank hears worse and a
 walkman deafens) and how many opponents he sees; no ray. A listener turns his head: a full-circle look at the noise
 tile, which may reveal the maker; a tank looks only the way it is turning and never at a noise it would have to turn
-to, and a crow ignores what it hears. An impact or explosion hides its maker and is only remembered as a noise grid and
+to, and a crow sends its whole flock flying instead (`33`). An impact or explosion hides its maker and is only remembered as a noise grid and
 volume for the AI (`09`). Some never listen: our mercs held prisoner (`heldPrisoner`, the roster's assignment through
 `NarrativePort.assignment`), militia on our side to us or to a noise nobody made, we to them, and the Warden, the
 General, the Sergeant and Conrad to the army.
@@ -186,6 +186,6 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Cave lights", "Guard room run", "Doors", "Corpses" (crows), the camera's slide to a sighting
-("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn after
-combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".
+Not ported: gaps "Cave lights", "Guard room run", "Doors", "Corpses" (the comment on a seen corpse), the camera's slide
+to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
+after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

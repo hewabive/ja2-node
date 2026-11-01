@@ -70,6 +70,7 @@ import { parseSpread, pickBurstLocations } from './combat/spread-burst.ts';
 import { apsToStealItem, canBeStolenFrom, mercStealFromMerc, stealActionGridNo, stealOpcode } from './combat/steal.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
+import { crowOpcode, crowsFlyAway, crowsSeeingAttackerFlyAway, handleRottingCorpses } from './crows.ts';
 import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
 import { doorCommand, handlePendingDoorOnArrival } from './doors/door-command.ts';
 import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/door-view.ts';
@@ -143,7 +144,7 @@ import { checkMercsWaiting } from './sector-exit.ts';
 import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSoldier, setCurrentSquad } from './selection.ts';
 import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
-import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
+import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
@@ -292,6 +293,7 @@ export interface TacticalSimOptions {
   readonly boxing?: BoxingRecord;
   readonly startMs?: number;
   readonly realtimeClock?: RealtimeClock;
+  readonly crows?: CrowStatus;
   readonly hour?: number;
   readonly dayAmbient?: number;
 }
@@ -309,6 +311,7 @@ function createSimState(world: TacticalWorld, content: TacticalContent, seed: nu
       ...(options.civGroups ? { civGroups: options.civGroups } : {}),
       ...(options.boxing ? { boxing: options.boxing } : {}),
       ...(options.realtimeClock ? { realtimeClock: options.realtimeClock } : {}),
+      ...(options.crows ? { crows: options.crows } : {}),
     },
   );
   t.clockMs = options.startMs ?? 0;
@@ -329,7 +332,11 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       throwOpcode(state, s, code) ??
       firstAidOpcode(state, s, code) ??
       wheelchairOpcode(state, s, code) ??
-      stealOpcode(state, s, code),
+      stealOpcode(state, s, code) ??
+      crowOpcode(state, s, code),
+    rottingCorpses: handleRottingCorpses,
+    crowsFlyAway,
+    crowsSeeingAttackerFlyAway,
     turnFinished: freeUpFromTurning,
     stanceFreeUp: freeUpFromStanceChange,
     pendingAction: (state, s) =>

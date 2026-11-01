@@ -1,13 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-31. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (aging), IsValidDecapitationCorpse, GetCorpseAtGridNo,
-// @src DecapitateCorpse.
+// @src DecapitateCorpse; GetFreeRottingCorpse, RemoveCorpse, RemoveCorpses and the gRottingCorpse slots (2026-11-01).
 
 import { NO_CORPSE } from '../../content/anim/corpses.ts';
 import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import { idiv, u32 } from '../../core/int.ts';
 import { createItem } from '../items/object.ts';
-import { addCorpseStructure, type Corpse, corpseOfStructure, removeCorpse } from './combat/death.ts';
+import { addCorpseStructure, type Corpse, corpseOfStructure } from './combat/death.ts';
 import { worldSeconds } from './explosions/state.ts';
 import { Profile } from './narrative/constants.ts';
 import type { TacticalState } from './state.ts';
@@ -18,6 +18,7 @@ const LAST_FRESH_MERC_CORPSE = 24;
 const DELAY_UNTIL_ROTTING_MINUTES = 1440;
 const DELAY_UNTIL_DONE_ROTTING_MINUTES = 3 * 1440;
 const SECONDS_PER_MINUTE = 60;
+const MAX_ROTTING_CORPSES = 100;
 const HEAD_STATUS = 100;
 const HEAD_LEVEL = 0;
 const HEAD_FLAGS = 0;
@@ -41,6 +42,72 @@ export function agedCorpse(corpse: Corpse, nowMinute: number, loadingSave: boole
   return corpse;
 }
 
+export interface CorpseAging {
+  readonly nowMinute: number;
+  readonly loadingSave: boolean;
+}
+
+export function rottingCorpseSlots(t: TacticalState): number {
+  return t.corpses.length + t.corpseHoles.length;
+}
+
+function holesBelow(t: TacticalState, slot: number): number {
+  return t.corpseHoles.filter((hole) => hole < slot).length;
+}
+
+export function corpseInSlot(t: TacticalState, slot: number): Corpse | null {
+  if (t.corpseHoles.includes(slot)) return null;
+  return t.corpses[slot - holesBelow(t, slot)] ?? null;
+}
+
+function slotOfCorpseAt(t: TacticalState, index: number): number {
+  let slot = index;
+  for (const hole of t.corpseHoles) if (hole <= slot) slot++;
+  return slot;
+}
+
+function freeSlot(t: TacticalState): number | null {
+  const hole = t.corpseHoles[0];
+  if (hole !== undefined) return hole;
+  const appended = rottingCorpseSlots(t);
+  if (appended >= MAX_ROTTING_CORPSES) return null;
+  t.corpseHoles.push(appended);
+  return appended;
+}
+
+function activateSlot(t: TacticalState, slot: number, corpse: Corpse): void {
+  t.corpseHoles.splice(t.corpseHoles.indexOf(slot), 1);
+  t.corpses.splice(slot - holesBelow(t, slot), 0, corpse);
+}
+
+export function addRottingCorpse(t: TacticalState, corpse: Corpse, aging: CorpseAging): Corpse | null {
+  const slot = freeSlot(t);
+  if (slot === null) return null;
+  const added = agedCorpse(corpse, aging.nowMinute, aging.loadingSave);
+  if (!added) return null;
+  activateSlot(t, slot, added);
+  addCorpseStructure(t, added.gridNo, added.level, added.type, added.direction);
+  return added;
+}
+
+export function removeRottingCorpse(t: TacticalState, corpse: Corpse, base: StructureInstance): void {
+  const index = t.corpses.indexOf(corpse);
+  const slot = slotOfCorpseAt(t, index);
+  t.corpses.splice(index, 1);
+  t.corpseHoles.push(slot);
+  t.corpseHoles.sort((a, b) => a - b);
+  t.world.structures.remove(base);
+}
+
+export function removeAllCorpses(t: TacticalState): void {
+  t.corpses.length = 0;
+  t.corpseHoles.length = 0;
+}
+
+export function nowMinuteOf(t: TacticalState): number {
+  return idiv(worldSeconds(t), SECONDS_PER_MINUTE);
+}
+
 function corpseBaseAt(t: TacticalState, g: number): StructureInstance | null {
   const structure = t.world.structures.find(g, StructureFlags.CORPSE);
   return structure ? t.world.structures.findBase(structure) : null;
@@ -56,12 +123,8 @@ export function isValidDecapitationCorpse(t: TacticalState, c: Corpse): boolean 
 }
 
 function replaceCorpse(t: TacticalState, corpse: Corpse, base: StructureInstance, replacement: Corpse): void {
-  const slot = t.corpses.indexOf(corpse);
-  removeCorpse(t, corpse, base);
-  const added = agedCorpse(replacement, idiv(worldSeconds(t), SECONDS_PER_MINUTE), false);
-  if (!added) return;
-  t.corpses.splice(slot, 0, added);
-  addCorpseStructure(t, added.gridNo, added.level, added.type, added.direction);
+  removeRottingCorpse(t, corpse, base);
+  addRottingCorpse(t, replacement, { nowMinute: nowMinuteOf(t), loadingSave: false });
 }
 
 function markHeadTaken(t: TacticalState, corpse: Corpse): void {

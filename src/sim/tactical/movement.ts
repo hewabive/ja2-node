@@ -3,13 +3,15 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InternalGetNewSoldierPath, EVENT_InternalSetSoldierDestination, MoveMerc,
 // @src EVENT_SetSoldierPosition(XY), SetSoldierGridNo, EVENT_StopMerc; Overhead.cc HandleGotoNewGridNo, HandleAtNewGridNo;
 // @src Soldier_Tile.cc TileIsClear, HandleNextTile, HandleNextTileWaiting, SetDelayedTileWaiting, (Un)MarkMovementReserved;
-// @src Structure_Wrap.cc IsJumpableFencePresentAtGridno.
+// @src Structure_Wrap.cc IsJumpableFencePresentAtGridno; the flying crow of HandleNextTile and of ExecuteOverhead's arrival
+// @src (2026-11-01).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
 import { i8, idiv } from '../../core/int.ts';
+import { anim } from './anim-states.ts';
 import {
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
@@ -46,7 +48,18 @@ import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { dropSmell } from './smell.ts';
-import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
+import {
+  Body,
+  cellCentre,
+  NO_PENDING_ANIMATION,
+  NO_PENDING_DIRECTION,
+  NOWHERE,
+  OKBREATH,
+  OKLIFE,
+  Orders,
+  type Soldier,
+  Team,
+} from './soldier.ts';
 import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 import { findGridNoFromSweetSpot, findGridNoFromSweetSpotThroughPeople } from './sweet-spots.ts';
 
@@ -265,6 +278,7 @@ function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): void {
 
 export function handleNextTile(t: TacticalState, s: Soldier, direction: number, g: number, finalDest: number): boolean {
   if (!onVisibleWorldTile(t, g)) return true;
+  if (s.state === anim(t.content, 'CROW_FLY')) return true;
   const blocked = tileIsClear(t, s, direction, g, s.level);
   if (blocked !== MoveTile.CLEAR) {
     const walkingOutOfSector = s.waitActionToDo !== 0;
@@ -507,6 +521,10 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   return keepMoving;
 }
 
+function crowInTheAir(s: Soldier): boolean {
+  return s.bodyType === Body.CROW && Math.trunc(s.heightAdjustment) !== 0;
+}
+
 export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
   s.pathIndex = 0;
   s.pathSize = 0;
@@ -526,7 +544,8 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
     const walkingOffEdge = s.waitActionToDo === 2;
     handleWaitActionOnArrival(t, s);
     if (walkingOffEdge) return;
-  } else if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= 15) soldierGotoStationaryStance(t, s);
+  } else if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= OKLIFE && !crowInTheAir(s))
+    soldierGotoStationaryStance(t, s);
   t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
 }
 

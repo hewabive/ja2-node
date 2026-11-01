@@ -169,9 +169,6 @@ Not pinned yet:
   speed at resolution 0, and a native save shows it.
 - `MercArrivesCallback` posts the equipment complaint `540 + Random(660)` minutes after midnight, though its comment
   says 9–10 am (`contracts/hire-contract.ts`).
-- `HandleTacticalEndTurn` rots corpses at every real-time turn: its unsigned comparison of the last update is true
-  whenever the time changed (`Tactical/Tactical_Turns.cc:86-90`); ja2-node ages corpses only at sector load
-  (`agedCorpse`, `campaign/sector-diff.ts`), and the crows are gap "Corpses".
 
 ## 4. Not checked against the native build
 
@@ -181,7 +178,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage", "Corpses". Other
+Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage". Other
 deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause", "Time
 compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after combat",
 "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time".

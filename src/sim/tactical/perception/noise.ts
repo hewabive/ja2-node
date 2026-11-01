@@ -202,7 +202,10 @@ function sourceTileSeen(t: TacticalState, l: Soldier, source: Soldier | null, g:
 }
 
 function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
-  if (l.bodyType === Body.CROW) return false;
+  if (l.bodyType === Body.CROW) {
+    t.hooks.crowsFlyAway(t, l.team);
+    return false;
+  }
   const sourceSeen = sourceTileSeen(t, l, source, g, level, kind);
   const hadToTurn = l.direction !== noiseDirectionFor(l, g);
   const hooks = t.perceptionHooks;

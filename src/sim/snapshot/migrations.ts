@@ -741,6 +741,55 @@ function moveGassedOntoSoldiers(snapshot: Readonly<Record<string, unknown>>): Re
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CROWS_KEY = 'crows';
+const REALTIME_CLOCK_KEY = 'realtimeClock';
+const CORPSES_KEY = 'corpses';
+const CORPSE_HOLES_KEY = 'corpseHoles';
+const HEIGHT_KEY = 'heightAdjustment';
+const TARGET_HEIGHT_KEY = 'targetHeightAdjustment';
+const ROTTING_CORPSES_STAMP_KEY = 'lastRottingCorpsesSeconds';
+const SECONDS_REALTIME_CLOCK_KEYS = ['lastTurnMs', 'lastOpplistDecaySeconds', 'lastOverheadMs'];
+const NO_CROWS: JsonObject = { possible: 0, dontAddNew: false };
+const SHARED_CROWS: JsonObject = { [REF]: `strategic/${SECTOR_FLOW_KEY}/${CROWS_KEY}` };
+
+function isSecondsRealtimeClock(o: JsonObject): boolean {
+  return (
+    Object.keys(o).length === SECONDS_REALTIME_CLOCK_KEYS.length && SECONDS_REALTIME_CLOCK_KEYS.every((key) => typeof o[key] === 'number')
+  );
+}
+
+function withCrowFields(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withCrowFields(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withCrowFields(v);
+  if (isSecondsRealtimeClock(mapped)) return { ...mapped, [ROTTING_CORPSES_STAMP_KEY]: 0 };
+  return isSoldierRecord(mapped) ? insertAfter(mapped, HEIGHT_KEY, TARGET_HEIGHT_KEY, 0) : mapped;
+}
+
+function withSectorFlowCrows(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: insertAfter(flow, REALTIME_CLOCK_KEY, CROWS_KEY, NO_CROWS) };
+}
+
+function withTacticalCrows(tactical: JsonObject, shared: boolean): JsonObject {
+  const crows = insertAfter(tactical, REALTIME_CLOCK_KEY, CROWS_KEY, shared ? SHARED_CROWS : NO_CROWS);
+  return insertAfter(crows, CORPSES_KEY, CORPSE_HOLES_KEY, []);
+}
+
+function addCrows(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const shared = isObject(sectionOf(graph.sections, 'strategic'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const fields = withCrowFields(value);
+    if (name === 'strategic' && isObject(fields)) return [name, withSectorFlowCrows(fields)];
+    if (name === 'tactical' && isObject(fields)) return [name, withTacticalCrows(fields, shared)];
+    return [name, fields];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -770,5 +819,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     25: addBleedingQuoteState,
     26: addLinePauseFlag,
     27: moveGassedOntoSoldiers,
+    28: addCrows,
   };
 }

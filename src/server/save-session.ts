@@ -195,6 +195,7 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
     keyTable: sim.state.keyTable,
     boxing: sim.state.boxing,
     realtimeClock: sim.state.realtimeClock,
+    crows: sim.state.crows,
   });
   return { strategic, sim, report };
 }
@@ -202,8 +203,8 @@ function startInSavedWorld(world: TacticalWorld, save: SaveGame, parts: Campaign
 function startWithoutWorld(save: SaveGame, parts: CampaignParts, seed: number, options: GameOptions): ImportStart {
   const strategic = createStrategicState({ seed, options });
   const { civGroups, keyTable, profiles, pre } = strategic;
-  const realtimeClock = strategic.sectorFlow.realtimeClock;
-  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, content: parts.content }, save);
+  const { realtimeClock, crows } = strategic.sectorFlow;
+  importCampaignWideState({ civGroups, keyTable, profiles, pre, realtimeClock, crows, content: parts.content }, save);
   return { strategic, sim: null, report: NO_WORLD_REPORT };
 }
 
