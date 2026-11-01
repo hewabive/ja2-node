@@ -16,7 +16,7 @@ import { distanceVisible } from '../perception/sight.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { findGridNoFromSweetSpotWithStructData } from '../sweet-spots.ts';
-import { teleportSoldier } from './quest-items.ts';
+import { teleportSoldier } from '../teleport.ts';
 import { bumpAnyExistingMerc } from './schedules.ts';
 
 const DIRECTION_IRRELEVANT = -1;

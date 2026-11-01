@@ -4,12 +4,16 @@ import { layProne, raiseTiles, withTwoTileCreatureBodies, withTwoTileProneBody }
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
+import { TravelCost } from '../../content/world/movement-costs.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
+import { createItem } from '../items/object.ts';
+import { AiAction } from './ai/actions.ts';
 import { initNewSoldierAnim, states, TurningFromProne } from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
+import { InvSlot } from './inventory.ts';
 import {
   getNewSoldierPath,
   handleAtNewGridNo,
@@ -25,8 +29,10 @@ import {
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { MAX_PATH_LIST_SIZE, NOWHERE } from './pathfinding.ts';
+import { revealedRooms } from './perception/fov.ts';
+import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
-import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team, Visible } from './soldier.ts';
+import { Body, createSoldier, NO_PENDING_DIRECTION, Orders, type Soldier, Team, Visible } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
 const doorCosts = testDoorCosts();
@@ -84,6 +90,21 @@ function runUntilStill(t: TacticalState, limit = 20_000): void {
 }
 
 const START = gridNo(80, 80);
+const CORRIDOR_END = gridNo(89, 80);
+
+function corridor(place: (w: WorldStructures) => void = () => {}, gaps: readonly number[] = []): TacticalState {
+  return tactical((w) => {
+    const wall = (g: number) => {
+      if (!gaps.includes(g)) w.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
+    };
+    for (let x = 70; x <= 90; x++) {
+      wall(gridNo(x, 79));
+      wall(gridNo(x, 81));
+    }
+    wall(CORRIDOR_END);
+    place(w);
+  });
+}
 
 describe('walking', () => {
   it('walks along the path and occupies the destination', () => {
@@ -228,6 +249,48 @@ describe('walking', () => {
   });
 });
 
+describe('starting a walk (Soldier_Control.cc EVENT_InternalGetNewSoldierPath)', () => {
+  const stateNamed = (name: string) => content.animations.stateIndex.get(name) ?? -1;
+  const nameOf = (s: Soldier) => content.animations.controls[s.state]?.id;
+
+  function aiming(t: TacticalState, aim: string): Soldier {
+    const s = spawn(t, START);
+    s.inv[InvSlot.HAND] = createItem(content.items, content.items.byName.get('GLOCK_17')?.index ?? 0, 100);
+    s.state = stateNamed(aim);
+    return s;
+  }
+
+  it('lowers the weapon of a soldier aiming on his feet before the first step, then walks on', () => {
+    const t = tactical();
+    const s = aiming(t, 'AIM_RIFLE_STAND');
+    expect(getNewSoldierPath(t, s, START + 5, s.uiMovementMode)).toBe(true);
+    expect([nameOf(s), s.pendingAnimation, s.gridNo]).toEqual(['END_RIFLE_STAND', states(content.animations).WALKING, START]);
+    runUntilStill(t);
+    expect(s.gridNo).toBe(START + 5);
+  });
+
+  it('gets an EPC cowering on an order up and walking at once, whatever mode the order asked for', () => {
+    const t = tactical();
+    t.narrative = { ...t.narrative, isEpc: () => true };
+    const s = spawn(t, START);
+    s.bodyType = Body.MANCIV;
+    s.cowering = true;
+    s.state = stateNamed('COWERING');
+    const ordered = 1;
+    expect(getNewSoldierPath(t, s, START + 5, states(content.animations).RUNNING, ordered)).toBe(true);
+    expect([nameOf(s), s.cowering]).toEqual(['WALKING', false]);
+  });
+
+  it('keeps the aim of a crouched soldier, whose walk starts by standing up', () => {
+    const t = tactical();
+    const s = aiming(t, 'AIM_RIFLE_CROUCH');
+    expect(getNewSoldierPath(t, s, START + 5, s.uiMovementMode)).toBe(true);
+    expect(nameOf(s)).not.toBe('END_RIFLE_CROUCH');
+    runUntilStill(t);
+    expect(s.gridNo).toBe(START + 5);
+  });
+});
+
 describe('paying for a step', () => {
   it('does not charge the first crawl step again after getting up to turn', () => {
     const crawling = states(content.animations).CRAWLING;
@@ -245,6 +308,40 @@ describe('paying for a step', () => {
     };
     expect(apsAfterFirstStep(TurningFromProne.OFF)).toBeLessThan(20);
     expect(apsAfterFirstStep(TurningFromProne.ENDING_UP_FROM_MOVE)).toBe(20);
+  });
+
+  it('halts like a lack of APs at a door step taken diagonally or into a tile without the door, keeping the destination', () => {
+    const DOOR = gridNo(80, 79);
+    const closed = {
+      ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE, Orientation.INSIDE_LEFT),
+      number: 0,
+      partnerDelta: 1,
+    };
+    const open = {
+      ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE | StructureFlags.OPEN, Orientation.INSIDE_LEFT),
+      number: 1,
+      partnerDelta: -1,
+    };
+    const file = { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] };
+    const steps = [
+      { from: DOOR - 1 + WORLD_COLS, direction: Direction.NORTHEAST, code: TravelCost.DOOR_CLOSED_HERE },
+      { from: DOOR + 2, direction: Direction.WEST, code: TravelCost.DOOR_CLOSED_W },
+    ];
+    for (const { from, direction, code } of steps) {
+      const t = tactical((w) => w.add(DOOR, 0, closed, undefined, file));
+      t.inCombat = true;
+      const into = from + (DIRECTION_INCREMENT[direction] ?? 0);
+      const beyond = into + (DIRECTION_INCREMENT[direction] ?? 0);
+      t.world.costs.force(into, direction, 0, code);
+      const s = spawn(t, from);
+      s.actionPoints = 20;
+      s.path = [direction, direction];
+      s.pathSize = s.path.length;
+      s.finalDestination = beyond;
+      expect(handleGotoNewGridNo(t, s, true, states(content.animations).WALKING)).toEqual({ ok: false, keepMoving: false });
+      expect([s.gridNo, s.finalDestination, s.noAPToFinishMove, s.actionPoints]).toEqual([from, beyond, true, 20]);
+      expect(t.events.filter((e) => e.type === 'stopped')).toEqual([{ type: 'stopped', soldier: s.id, gridNo: from, reason: 'outOfAPs' }]);
+    }
   });
 });
 
@@ -267,13 +364,7 @@ describe('a blocked next tile', () => {
 
   it('swaps two enemies blocking each other head-on and stops both, but a multi-tile one leaves the other stopped', () => {
     for (const multiTile of [false, true]) {
-      const t = tactical((w) => {
-        for (let x = 70; x <= 90; x++) {
-          w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.GENERIC));
-          w.add(gridNo(x, 81), 0, syntheticStructure(StructureFlags.GENERIC));
-        }
-        w.add(gridNo(89, 80), 0, syntheticStructure(StructureFlags.GENERIC));
-      });
+      const t = corridor();
       const mover = spawn(t, START, Team.ENEMY);
       const other = spawn(t, START + 1, Team.ENEMY);
       other.finalDestination = gridNo(75, 80);
@@ -289,6 +380,130 @@ describe('a blocked next tile', () => {
       expect(other.finalDestination).toBe(other.gridNo);
       expect(other.blockedByAnotherMerc).toBe(multiTile);
     }
+  });
+
+  it('leaves both soldiers of a head-on swap in place when one cannot stand on the tile of the other', () => {
+    const CLUTTERED = START + 1;
+    const t = corridor((w) => w.add(CLUTTERED, 0, syntheticStructure(StructureFlags.GENERIC)));
+    const mover = spawn(t, START, Team.ENEMY);
+    const other = spawn(t, CLUTTERED, Team.ENEMY);
+    other.finalDestination = gridNo(75, 80);
+    other.blockedByAnotherMerc = true;
+    other.blockedByAnotherMercDirection = Direction.WEST;
+    mover.finalDestination = gridNo(85, 80);
+    expect(handleNextTile(t, mover, Direction.EAST, CLUTTERED, mover.finalDestination)).toBe(false);
+    expect([mover.gridNo, other.gridNo]).toEqual([START, CLUTTERED]);
+    expect([whoIsThere(t, START, 0), whoIsThere(t, CLUTTERED, 0)]).toEqual([mover, other]);
+    expect([mover.finalDestination, other.finalDestination, other.blockedByAnotherMerc]).toEqual([START, CLUTTERED, false]);
+  });
+});
+
+describe('waiting for a blocked tile in a corridor (Soldier_Tile.cc HandleNextTileWaiting)', () => {
+  const END_OF_CORRIDOR = gridNo(85, 80);
+  const BLOCKED_TILE = START + 1;
+  const SECOND_WAIT = 2;
+
+  function waitAgain(t: TacticalState, s: Soldier, delayedMovement: number, cause = BLOCKED_TILE): void {
+    setDelayedTileWaiting(t, s, cause, delayedMovement);
+    t.clockMs = s.nextTileCheckAt;
+    handleNextTileWaiting(t, s);
+  }
+
+  function scriptedNpc(t: TacticalState, destination: number): Soldier {
+    const npc = spawn(t, START, Team.CIV);
+    npc.quoteRecord = 5;
+    npc.absoluteFinalDestination = destination;
+    npc.finalDestination = destination;
+    return npc;
+  }
+
+  it('tests the first tile of the route through the blocker again when no route leads around him, and keeps waiting', () => {
+    const NICHE = gridNo(80, 79);
+    const t = corridor(
+      (w) => {
+        for (const step of [Direction.NORTHWEST, Direction.NORTH, Direction.NORTHEAST])
+          w.add(NICHE + (DIRECTION_INCREMENT[step] ?? 0), 0, syntheticStructure(StructureFlags.GENERIC));
+      },
+      [NICHE],
+    );
+    const mover = spawn(t, START, Team.ENEMY);
+    spawn(t, BLOCKED_TILE, Team.ENEMY);
+    mover.finalDestination = END_OF_CORRIDOR;
+    waitAgain(t, mover, 1);
+    expect([mover.delayedMovement, mover.blockedByAnotherMerc, mover.blockedByAnotherMercDirection]).toEqual([2, true, Direction.EAST]);
+  });
+
+  it('forces a swap at the third wait for an NPC on a quote record, even with our stationary merc in the way', () => {
+    const t = corridor();
+    const npc = scriptedNpc(t, END_OF_CORRIDOR);
+    const merc = spawn(t, BLOCKED_TILE);
+    waitAgain(t, npc, SECOND_WAIT);
+    expect([npc.gridNo, merc.gridNo, npc.finalDestination, npc.delayedMovement]).toEqual([BLOCKED_TILE, START, END_OF_CORRIDOR, 0]);
+    expect(content.animations.controls[npc.state]?.id).toBe('WALKING');
+    runUntilStill(t);
+    expect(npc.gridNo).toBe(END_OF_CORRIDOR);
+  });
+
+  it('lets an NPC swapped onto his scripted destination report his arrival and wait there', () => {
+    const t = corridor();
+    const npc = scriptedNpc(t, BLOCKED_TILE);
+    npc.profile = 57;
+    spawn(t, BLOCKED_TILE);
+    const reached: number[] = [];
+    t.narrative = { ...t.narrative, npcReachedDestination: (s) => reached.push(s.id) };
+    waitAgain(t, npc, SECOND_WAIT);
+    expect(npc.gridNo).toBe(BLOCKED_TILE);
+    expect(reached).toEqual([npc.id]);
+    expect([npc.ai.nextAction, npc.ai.nextActionData, npc.pathStored]).toEqual([AiAction.WAIT, 500, false]);
+    expect(content.animations.controls[npc.state]?.id).toBe('STANDING');
+  });
+
+  it('forces a swap at the third wait for our merc in auto-bandage, unless a stationary civilian blocks him', () => {
+    const cases = [
+      { team: Team.ENEMY, orders: Orders.STATIONARY, swapped: true },
+      { team: Team.CIV, orders: Orders.ONGUARD, swapped: true },
+      { team: Team.CIV, orders: Orders.STATIONARY, swapped: false },
+    ];
+    for (const { team, orders, swapped } of cases) {
+      const t = corridor();
+      Object.assign(t.pathEnv, { autoBandage: true });
+      const merc = spawn(t, START);
+      merc.finalDestination = END_OF_CORRIDOR;
+      const blocker = spawn(t, BLOCKED_TILE, team);
+      blocker.ai.orders = orders;
+      waitAgain(t, merc, SECOND_WAIT);
+      expect([merc.gridNo, blocker.gridNo]).toEqual(swapped ? [BLOCKED_TILE, START] : [START, BLOCKED_TILE]);
+    }
+  });
+
+  it('leaves a merc swapped in auto-bandage standing with no final destination: the swap resets the tile his route search heads for', () => {
+    const t = corridor();
+    Object.assign(t.pathEnv, { autoBandage: true });
+    const merc = spawn(t, START);
+    merc.finalDestination = END_OF_CORRIDOR;
+    spawn(t, BLOCKED_TILE, Team.ENEMY);
+    waitAgain(t, merc, SECOND_WAIT);
+    expect([merc.gridNo, merc.finalDestination, merc.pathStored]).toEqual([BLOCKED_TILE, NOWHERE, true]);
+    expect(content.animations.controls[merc.state]?.id).toBe('STANDING');
+  });
+
+  it('makes the first soldier of a swap look and reveal the room in view, but not the second: his teleport fails on his own tile', () => {
+    const ROOM = 5;
+    const SIGHT_RANGE = 26;
+    const t = corridor();
+    Object.assign(t.pathEnv, { autoBandage: true });
+    for (let x = 72; x <= 74; x++) t.world.level.rooms[gridNo(x, 80)] = ROOM;
+    const merc = spawn(t, BLOCKED_TILE);
+    merc.direction = merc.desiredDirection = Direction.WEST;
+    merc.finalDestination = gridNo(72, 80);
+    const blocker = spawn(t, START, Team.ENEMY);
+    const enemyComingIntoRange = spawn(t, START - SIGHT_RANGE, Team.ENEMY);
+    const mercInFrontOfTheBlocker = spawn(t, gridNo(86, 80));
+    waitAgain(t, merc, SECOND_WAIT, START);
+    expect([merc.gridNo, blocker.gridNo]).toEqual([START, BLOCKED_TILE]);
+    expect(merc.oppList[enemyComingIntoRange.id]).toBe(Opp.SEEN_CURRENTLY);
+    expect(revealedRooms(t)).toEqual([ROOM]);
+    expect(blocker.oppList[mercInFrontOfTheBlocker.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
   });
 });
 

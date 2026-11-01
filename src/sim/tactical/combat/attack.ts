@@ -60,7 +60,7 @@ export { ItemHandle };
 
 export const FireResult = { FIREABLE: 0, JAMMED: 1, UNJAMMED: 2, FAILED: 3, FIRED: 4 } as const;
 
-const INVALID_ANIMATION = -1;
+export const INVALID_ANIMATION = -1;
 const BASIC_DEPRECIATE_CHANCE = 15;
 const BURST_ROUND_EARNING_MARKSMANSHIP = 2;
 const GUN_HIT_DIFFICULTY_DIVISOR = 25;

@@ -5,7 +5,7 @@
 // @src HandleTBClimbWindow; Interface_Panels.cc BtnStealthModeCallback, BtnMuteCallback, BtnBurstModeCallback,
 // @src BtnClimbCallback (the fence jump); Weapons.cc ChangeWeaponMode; Handle_UI.cc UIHandleJumpOver, UIHandleCMoveMerc
 // @src (the all-move), HandleMultiSelectionMove; Soldier_Control.cc GetMoveStateBasedOnStance, BeginSoldierClimbWindow;
-// @src Soldier_Tile.cc SwapMercPositions, CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
+// @src Soldier_Tile.cc CanExchangePlaces; Soldier_Add.cc CanSoldierReachGridNoInGivenTileLimit;
 // @src Isometric_Utils.cc IsFacingClimableWindow; Structure_Wrap.cc IsJumpableWindowPresentAtGridNo;
 // @src Points.cc GetAPsToJumpFence; Turn_Based_Input.cc SwitchHeadGear (CTRL+N: the squad's living non-vehicles in
 // @src squad order, refused with the interface locked as the key is).
@@ -33,18 +33,17 @@ import { type HeadGear, switchHeadGear } from './head-gear.ts';
 import { playerInterfaceLocked } from './interface-lock.ts';
 import { InvSlot } from './inventory.ts';
 import { apsToJumpOver, jumpOverAt } from './jump-over.ts';
-import { directionToward, getNewSoldierPath, setSoldierPosition } from './movement.ts';
-import { teleportSoldier } from './narrative/quest-items.ts';
+import { directionToward, getNewSoldierPath } from './movement.ts';
 import { uncontrolledRobot } from './narrative/robot.ts';
 import { findBestPath, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { removePendingAction } from './pending-action.ts';
-import { removeMercStructure } from './person-structure.ts';
 import { AP, apsToChangeStance, BP, deductPoints, enoughPoints } from './points.ts';
 import { canExchangePlaces, validQuickExchangePosition } from './quick-exchange.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
 import { selectOrderedMerc } from './selection.ts';
 import { Body, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
-import { removeOccupant, type TacticalState } from './state.ts';
+import type { TacticalState } from './state.ts';
+import { swapMercPositions, teleportSoldier } from './teleport.ts';
 
 export interface OrderCommand {
   readonly type: string;
@@ -194,24 +193,6 @@ function canReachInOneTile(t: TacticalState, s: Soldier, g: number, level: numbe
 
 function hostileToOurTeam(s: Soldier): boolean {
   return !s.neutral && s.side !== Side.FRIENDLY;
-}
-
-function liftOffGrid(t: TacticalState, s: Soldier): void {
-  removeOccupant(t, s);
-  removeMercStructure(t, s);
-  s.placed = false;
-}
-
-export function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): void {
-  let ga = a.gridNo;
-  let gb = b.gridNo;
-  liftOffGrid(t, a);
-  liftOffGrid(t, b);
-  const canSwap = newOKDestination(t.pathEnv, a, gb, true, 0) && newOKDestination(t.pathEnv, b, ga, true, 0);
-  if (canSwap) [ga, gb] = [gb, ga];
-  setSoldierPosition(t, b, gb);
-  teleportSoldier(t, a, ga, !canSwap);
-  teleportSoldier(t, b, gb, !canSwap);
 }
 
 function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {

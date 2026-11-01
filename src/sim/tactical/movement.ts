@@ -5,26 +5,33 @@
 // @src Soldier_Tile.cc TileIsClear, HandleNextTile, HandleNextTileWaiting, SetDelayedTileWaiting, (Un)MarkMovementReserved;
 // @src Structure_Wrap.cc IsJumpableFencePresentAtGridno; the flying crow of HandleNextTile and of ExecuteOverhead's arrival
 // @src (2026-11-01); the creatures stepping backwards of HandleGotoNewGridNo and the side step of
-// @src EVENT_InternalSetSoldierDestination (2026-11-01).
+// @src EVENT_InternalSetSoldierDestination (2026-11-01); the end of aim and the EPC's uncower of
+// @src EVENT_InternalGetNewSoldierPath, the door-step halt of HandleGotoNewGridNo and HandleNextTileWaiting's forced swap
+// @src through SwapMercPositions (2026-11-01).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags, structureHeight } from '../../content/world/structures.ts';
 import { i8, idiv } from '../../core/int.ts';
+import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import {
+  AnimHeight,
   adjustNoAPToFinishMove,
   beginSoldierClimbFence,
+  endHeight,
   hasAnimFlag,
   initNewSoldierAnim,
   setDesiredDirection,
   setSoldierAniSpeed,
+  setSoldierCowerState,
   setSoldierDirection,
   soldierGotoStationaryStance,
   states,
   TurningFromProne,
 } from './animation.ts';
+import { INVALID_ANIMATION, pickSoldierReadyAnimation } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction, perpendicularDirection } from './directions.ts';
@@ -55,6 +62,7 @@ import {
   isMonster,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
+  NO_PROFILE,
   NOWHERE,
   OKBREATH,
   OKLIFE,
@@ -64,6 +72,7 @@ import {
 } from './soldier.ts';
 import { onVisibleWorldTile, placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 import { findGridNoFromSweetSpot, findGridNoFromSweetSpotThroughPeople } from './sweet-spots.ts';
+import { swapMercPositions } from './teleport.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
 type MoveTileResult = (typeof MoveTile)[keyof typeof MoveTile];
@@ -73,6 +82,8 @@ const DESPERATE_WAIT = 150;
 const NEAR_SWEET_SPOT_RADIUS = 6;
 const FAR_SWEET_SPOT_RADIUS = 16;
 const DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE = 0x01;
+const FORCED_SWAP_WAIT = 3;
+const WAIT_AT_SCRIPTED_DESTINATION = 500;
 const MATERIAL_SANDBAG = 18;
 
 export interface GotoResult {
@@ -268,19 +279,6 @@ function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number,
   return MoveTile.CLEAR;
 }
 
-function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): void {
-  const ga = a.gridNo;
-  const gb = b.gridNo;
-  removeOccupant(t, a);
-  removeOccupant(t, b);
-  removeMercStructure(t, a);
-  removeMercStructure(t, b);
-  a.placed = false;
-  b.placed = false;
-  setSoldierPosition(t, a, gb);
-  setSoldierPosition(t, b, ga);
-}
-
 export function handleNextTile(t: TacticalState, s: Soldier, direction: number, g: number, finalDest: number): boolean {
   if (!onVisibleWorldTile(t, g)) return true;
   if (s.state === anim(t.content, 'CROW_FLY')) return true;
@@ -336,7 +334,8 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
           ? s.gridNo
           : NOWHERE;
     if (doorGridNo === NOWHERE || !t.world.structures.find(doorGridNo, StructureFlags.ANYDOOR)) {
-      haltForDoor(t, s);
+      haltGuyBecauseOfNoAPs(t, s);
+      s.endDoorOpenCode = 0;
       return { ok: false, keepMoving: false };
     }
     interactWithDoorAt(t, s, doorGridNo, direction);
@@ -408,14 +407,6 @@ function haltGuyBecauseOfNoAPs(t: TacticalState, s: Soldier): void {
   if (s.team === Team.OUR && t.inCombat) t.events.push({ type: 'stopped', soldier: s.id, gridNo: s.gridNo, reason: 'outOfAPs' });
 }
 
-function haltForDoor(t: TacticalState, s: Soldier): void {
-  t.events.push({ type: 'stopped', soldier: s.id, gridNo: s.gridNo, reason: 'closedDoor' });
-  s.endDoorOpenCode = 0;
-  const savedFinal = s.finalDestination;
-  stopMerc(t, s);
-  s.finalDestination = savedFinal;
-}
-
 function pathInMovementMode(t: TacticalState, s: Soldier, dest: number, mode: number, options: PathOptions): PathResult {
   return findBestPath(t.pathEnv, s, dest, s.level, { ...options, mode: pathMoveMode(t.content, mode) });
 }
@@ -436,6 +427,7 @@ export function getNewSoldierPath(
   let flags = 0;
   const plotToExitGrid = plottingToExitGrid(t, s);
   const ui = fromUI === 3 ? (s.team === Team.OUR ? 1 : 0) : fromUI;
+  const moveState = ui && s.cowering && t.narrative.isEpc(s) ? uncowerToWalk(t, s) : mode;
   s.goodContPath = false;
   if (s.delayedMovement) {
     flags = s.delayedMovementFlags & DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE ? PathFlags.THROUGH_PEOPLE : PathFlags.IGNORE_PERSON_AT_DEST;
@@ -468,8 +460,23 @@ export function getNewSoldierPath(
   s.finalDestination = dest;
   s.pastX = false;
   s.pastY = false;
-  initNewSoldierAnim(t, s, mode, 0, forceRestart);
+  startMoveAnimation(t, s, moveState, forceRestart);
   return true;
+}
+
+function uncowerToWalk(t: TacticalState, s: Soldier): number {
+  setSoldierCowerState(t, s, false);
+  return states(t.content.animations).WALKING;
+}
+
+function startMoveAnimation(t: TacticalState, s: Soldier, mode: number, forceRestart: boolean): void {
+  const endAim = pickSoldierReadyAnimation(t, s, true);
+  if (endAim !== INVALID_ANIMATION && endHeight(t.content, s.state) === AnimHeight.STAND) {
+    initNewSoldierAnim(t, s, endAim, 0, false);
+    s.pendingAnimation = mode;
+    return;
+  }
+  initNewSoldierAnim(t, s, mode, 0, forceRestart);
 }
 
 const FACING_SIN_COS: readonly (readonly [number, number])[] = [
@@ -614,13 +621,13 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
     else if (!newOKDestination(t.pathEnv, s, s.finalDestination, true, s.level)) target = waitingSweetSpot(t, s);
     else target = s.finalDestination;
     const plotToExitGrid = plottingToExitGrid(t, s);
-    let path = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
+    const path = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
     if (path.length > 0) {
       let first = path.steps[0] ?? 0;
       let pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
       if (pathBlocked === MoveTile.STATIONARY_BLOCKED) {
-        path = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.IGNORE_PERSON_AT_DEST, plotToExitGrid });
-        first = path.steps[0] ?? 0;
+        const around = pathInMovementMode(t, s, target, s.uiMovementMode, { flags: PathFlags.IGNORE_PERSON_AT_DEST, plotToExitGrid });
+        if (around.length > 0) first = around.steps[0] ?? 0;
         pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
         s.delayedMovementFlags &= ~DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE;
       } else if (s.delayedMovement < DESPERATE_WAIT) {
@@ -634,30 +641,7 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
       }
     }
     s.delayedMovement++;
-    if (s.delayedMovement === 3 && s.absoluteFinalDestination !== NOWHERE) {
-      const other = whoIsThere(t, s.delayedMovementCause, s.level);
-      if (
-        other &&
-        s.team !== Team.OUR &&
-        s.ai.orders !== Orders.STATIONARY &&
-        other.team !== Team.OUR &&
-        other.ai.orders !== Orders.STATIONARY
-      ) {
-        swapMercPositions(t, s, other);
-        s.delayedMovement = 0;
-        const route = pathInMovementMode(t, s, s.absoluteFinalDestination, s.uiMovementMode, {
-          flags: PathFlags.THROUGH_PEOPLE,
-          copy: PathCopy.ROUTE,
-        });
-        if (route.length > 0) {
-          s.path = [...route.steps];
-          s.pathIndex = 0;
-          s.pathSize = route.length;
-        }
-        s.pathStored = true;
-        getNewSoldierPath(t, s, s.absoluteFinalDestination, s.uiMovementMode);
-      }
-    }
+    if (s.delayedMovement === FORCED_SWAP_WAIT) forceSwapWithBlocker(t, s);
     if (
       ((s.delayedMovement > 20 && s.delayedMovement !== DESPERATE_WAIT) || s.delayedMovement > 170) &&
       pythSpacesAway(s.gridNo, s.finalDestination) < 5 &&
@@ -667,6 +651,40 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
       s.delayedMovement = 0;
     }
   }
+}
+
+function forcesSwapWith(t: TacticalState, s: Soldier, other: Soldier): boolean {
+  if (s.quoteRecord !== 0) return true;
+  if (s.team !== Team.OUR) return s.ai.orders !== Orders.STATIONARY && other.team !== Team.OUR && other.ai.orders !== Orders.STATIONARY;
+  return t.pathEnv.autoBandage && (other.team !== Team.CIV || other.ai.orders !== Orders.STATIONARY);
+}
+
+function copyRouteThroughPeople(t: TacticalState, s: Soldier, dest: number): boolean {
+  const route = pathInMovementMode(t, s, dest, s.uiMovementMode, { flags: PathFlags.THROUGH_PEOPLE, copy: PathCopy.ROUTE });
+  if (route.length === 0) return false;
+  s.path = [...route.steps];
+  s.pathIndex = 0;
+  s.pathSize = route.length;
+  return true;
+}
+
+function forceSwapWithBlocker(t: TacticalState, s: Soldier): void {
+  if (s.absoluteFinalDestination === NOWHERE && !t.pathEnv.autoBandage) return;
+  const other = whoIsThere(t, s.delayedMovementCause, s.level);
+  if (!other || !forcesSwapWith(t, s, other)) return;
+  swapMercPositions(t, s, other);
+  s.delayedMovement = 0;
+  if (t.pathEnv.autoBandage && s.absoluteFinalDestination === NOWHERE) copyRouteThroughPeople(t, s, s.finalDestination);
+  else if (s.absoluteFinalDestination !== NOWHERE && !copyRouteThroughPeople(t, s, s.absoluteFinalDestination)) {
+    if (s.gridNo === s.absoluteFinalDestination) {
+      if (s.profile !== NO_PROFILE) t.narrative.npcReachedDestination(s);
+      s.ai.nextAction = AiAction.WAIT;
+      s.ai.nextActionData = WAIT_AT_SCRIPTED_DESTINATION;
+      return;
+    }
+  }
+  s.pathStored = true;
+  getNewSoldierPath(t, s, s.absoluteFinalDestination, s.uiMovementMode);
 }
 
 export function directionToward(from: number, to: number): number {

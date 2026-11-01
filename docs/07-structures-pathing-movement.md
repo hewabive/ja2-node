@@ -38,6 +38,7 @@ every 5 ms tick: executeOverhead, soldiers in mercSlots     overhead.ts
 | `sweet-spots.ts` | The original's searches for a free tile near a sweet spot: a dummy soldier's reachability flood, then the closest candidate (plain, through people, with a structure fit, excluding the spot) |
 | `points.ts`, `plot-path.ts`, `ai/utils.ts` | AP and breath of a step (`actionPointCost`, `terrainBreathPoints`), of a path (`plotPathSteps` = `PlotPath`), the AI's estimates |
 | `movement.ts`, `overhead.ts` | The walking protocol: path orders, the tile step, blocking, reservations, waiting, stopping; the per-tick pass |
+| `teleport.ts` | A teleport with its look and roof reveal; the swap of two soldiers |
 | `animation.ts`, `roofs.ts`, `jump-over.ts` | Turning, the fence hop; climbing roofs and jumping over a prone soldier, separate actions |
 
 ## 2. Design
@@ -84,8 +85,12 @@ next step starts from the overshot position.
 charged while walking. Sight at each arrival uses the facing of that moment.
 
 **Randomness.** The path search draws nothing. Walking draws only what the ported steps draw (the gas check's
-`PreRandom(5)`); the marbles, blind and drunk falls and the forgetful counter are not ported, so their draws do not
-happen (gaps "Walking side effects").
+`PreRandom(5)`, and the sight of a soldier a swap moves); the marbles, blind and drunk falls and the forgetful counter
+are not ported, so their draws do not happen (gaps "Walking side effects").
+
+**Swaps.** The head-on swap of two blocked AI soldiers, the forced swap of a soldier's third wait and the player's
+exchange of places all go through `swapMercPositions` (`teleport.ts`): both destinations are tested, and the soldier
+swapped first looks and reveals roofs as a teleport does.
 
 ## 3. Quirks of the original the code keeps
 
@@ -102,6 +107,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A roof step's breath comes from the ground costs under the roof | `points.test.ts` |
 | A mover arrives twice at the tile where his 30-step route runs out: noise and sight run twice | `movement.test.ts` |
 | Two soldiers swapped head-on both stop: the new positions reset their final destinations before they re-path | `movement.test.ts` |
+| The soldier swapped second neither looks nor reveals roofs: his teleport fails the destination test on the tile he was just put on | `movement.test.ts` |
+| A merc swapped at his third wait in auto-bandage stands with no final destination: the swap resets the tile his route search heads for, and the path order takes the absolute destination, `NOWHERE` | `movement.test.ts` |
+| A waiting soldier with no route around his blocker tests the first step of the route through him again (the search leaves `guiPathingData` as it was) | `movement.test.ts` |
 | A multi-tile soldier blocked head-on leaves the other blocked, with his final destination on his own tile | `movement.test.ts` |
 | A sweet spot search floods as a merc-bodied dummy whoever searches, so a crow's spot may lie in water | `sweet-spots.test.ts` |
 | The tiles moved since a turn began count in a signed byte: the 128th wraps the count to −128, which camouflage, bleeding and the moving-target penalty read | `movement.test.ts` |
@@ -118,6 +126,7 @@ Not pinned yet:
   unchanged and `TerrainActionPoints` has no case for it.
 - The AI's `EstimatePlotPath` ignores people only for multi-tile bodies, despite its comment.
 - Opcode 402 never pauses a move: `pausedMove` is cleared before the frame's step is taken.
+- A swap tests both destinations on the ground level, also for soldiers on a roof (`Tactical/Soldier_Tile.cc:655`).
 
 ## 4. Not checked against the native build
 
@@ -130,7 +139,6 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Not ported: gaps "Walking side effects", "Walking protocol details", "Mines in the pathfinder", "Doors", "Unseen
-soldiers in combat", "Map items". Other deviations of this domain: "Recalculated path cost", "AI path-cost cache",
-"Multi-tile turning", "Creature and bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the
-loaded sector".
+Not ported: gaps "Walking side effects", "Mines in the pathfinder", "Doors", "Unseen soldiers in combat", "Map items".
+Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
+bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded sector".

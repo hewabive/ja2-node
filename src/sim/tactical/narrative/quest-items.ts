@@ -4,7 +4,7 @@
 // @src SetOffBombsByFrequency (remote action items), ActivateSwitchInGridNo, AddBombToQueue,
 // @src HandleExplosionQueue (the action item branch and the queue end), PerformItemAction (ACTION_ITEM_CLOSE_DOOR,
 // @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
-// @src CallEldinTo; Tactical/Soldier_Tile.cc TeleportSoldier;
+// @src CallEldinTo;
 // @src Action_Items.h ItemActionType; Item_Types.h DetonatorType and the bomb fields of OBJECTTYPE
 // @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld.
 
@@ -20,15 +20,14 @@ import { changeSoldierState, states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
 import { handleDoorChangeFromGridNo } from '../doors.ts';
-import { givingSoldierCancelServices } from '../first-aid.ts';
-import { setSoldierPosition, stopMerc } from '../movement.ts';
-import { NOWHERE, newOKDestination } from '../pathfinding.ts';
+import { stopMerc } from '../movement.ts';
 import { revealRoofsAndItems } from '../perception/fov.ts';
 import { Opp } from '../perception/opp.ts';
-import { allTeamsLookForAll, handleSight, SightFlags } from '../perception/sight.ts';
+import { allTeamsLookForAll } from '../perception/sight.ts';
 import { AlertStatus, Body, CivilianGroup, OKLIFE, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../state.ts';
 import { findGridNoFromSweetSpotWithStructData } from '../sweet-spots.ts';
+import { teleportSoldier } from '../teleport.ts';
 import { enterCombatMode, isTeamActive } from '../turns/turns.ts';
 import { type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { makeCivHostile } from './civ-hostility.ts';
@@ -196,16 +195,6 @@ function kingpinAlarm(t: TacticalState, gridNo: number): void {
 function hookerInRoom(t: TacticalState, room: number): boolean {
   const rooms = sectorMapOf(t).rooms;
   return teamMembers(t, Team.CIV).some((s) => s.life >= OKLIFE && s.neutral && s.bodyType === Body.MINICIV && rooms[s.gridNo] === room);
-}
-
-export function teleportSoldier(t: TacticalState, s: Soldier, gridNo: number, force: boolean): boolean {
-  if (gridNo === NOWHERE || (!newOKDestination(t.pathEnv, s, gridNo, true, 0) && !force)) return false;
-  setSoldierPosition(t, s, gridNo);
-  s.finalDestination = gridNo;
-  revealRoofsAndItems(t, s, true);
-  handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO);
-  givingSoldierCancelServices(t, s);
-  return true;
 }
 
 function sexActionItem(t: TacticalState, gridNo: number): boolean {
