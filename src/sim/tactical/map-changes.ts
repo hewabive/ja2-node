@@ -1,22 +1,30 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/SaveLoadMap.cc AddStructToMapTempFile, RemoveStructFromMapTempFile,
-// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem.
+// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem; TileEngine/WorldMan.cc
+// @src AddStructToTail, RemoveStruct, IndexExistsInStructLayer (the replayed tile records, over the structure layer the
+// @src landed helicopter's pieces are already appended to).
 
-import type { StructureFile } from '../../content/formats/jsd.ts';
+import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
+import { levelTilesAt } from '../../content/world/level.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { idiv } from '../../core/int.ts';
+import { helicopterPieces } from './helicopter-pieces.ts';
 import type { TacticalState } from './state.ts';
+import type { TileChangeKind } from './world-view.ts';
 
 export const MapChangeKind = {
   REMOVE: 'removeStructure',
   ADD: 'addStructure',
   DAMAGE: 'damageStructure',
   ADD_EXIT_GRID: 'addExitGrid',
+  APPEND_STRUCT_TILE: 'appendStructTile',
+  REMOVE_STRUCT_TILE: 'removeStructTile',
 } as const;
 export type MapChangeKind = (typeof MapChangeKind)[keyof typeof MapChangeKind];
+export type StructTileChangeKind = typeof MapChangeKind.APPEND_STRUCT_TILE | typeof MapChangeKind.REMOVE_STRUCT_TILE;
 
 export interface AddedExitGrid {
   readonly mapIndex: number;
@@ -32,9 +40,17 @@ export interface MapChange {
   readonly number: number;
   readonly hitPoints: number;
   readonly exitGrid?: AddedExitGrid;
+  readonly tile?: number;
+}
+
+export interface StructLayerEdit {
+  readonly kind: TileChangeKind;
+  readonly tile: number;
 }
 
 const NO_FILE = -1;
+const GROUND_LEVEL = 0;
+const NO_EDITS: readonly StructLayerEdit[] = [];
 const NO_TILES: readonly TileElement[] = [];
 const fileKeys = new WeakMap<object, Map<StructureFile, number>>();
 
@@ -101,6 +117,7 @@ function tileOfStructure(t: TacticalState): Map<object, number> {
 const changeTiles = new WeakMap<MapChange, number | null>();
 
 export function mapChangeTile(t: TacticalState, c: MapChange): number | null {
+  if (c.tile !== undefined) return c.tile;
   const known = changeTiles.get(c);
   if (known !== undefined) return known;
   const def = fileForKey(t, c.fileKey)?.structures[c.number];
@@ -125,21 +142,119 @@ export function addExitGridToWorld(t: TacticalState, exit: AddedExitGrid): void 
   t.addedExitGrids.push(exit);
 }
 
-export function recordExitGridAdded(t: TacticalState, exit: AddedExitGrid): void {
-  t.mapChanges.push({
+export function exitGridChange(exit: AddedExitGrid): MapChange {
+  return {
     kind: MapChangeKind.ADD_EXIT_GRID,
     gridNo: exit.mapIndex,
-    level: 0,
+    level: GROUND_LEVEL,
     fileKey: NO_FILE,
     number: 0,
     hitPoints: 0,
     exitGrid: exit,
-  });
+  };
+}
+
+export function recordExitGridAdded(t: TacticalState, exit: AddedExitGrid): void {
+  t.mapChanges.push(exitGridChange(exit));
+}
+
+export function structTileChange(kind: StructTileChangeKind, gridNo: number, tile: number): MapChange {
+  return { kind, gridNo, level: GROUND_LEVEL, fileKey: NO_FILE, number: 0, hitPoints: 0, tile };
+}
+
+export class StructLayerReplay {
+  readonly #t: TacticalState;
+  readonly #layers = new Map<number, number[]>();
+
+  constructor(t: TacticalState) {
+    this.#t = t;
+  }
+
+  edits(c: MapChange): readonly StructLayerEdit[] {
+    if (c.kind === MapChangeKind.APPEND_STRUCT_TILE) return this.#appendTile(c);
+    if (c.kind === MapChangeKind.REMOVE_STRUCT_TILE) return this.#removeTile(c);
+    if (c.kind === MapChangeKind.ADD) return this.#structureEdit(c, 'add');
+    if (c.kind === MapChangeKind.REMOVE) return this.#structureEdit(c, 'remove');
+    return NO_EDITS;
+  }
+
+  #layer(gridNo: number): number[] {
+    let layer = this.#layers.get(gridNo);
+    if (!layer) {
+      layer = [...levelTilesAt(this.#t.world.level.layers.structs, gridNo), ...landedHelicopterTilesAt(this.#t, gridNo)];
+      this.#layers.set(gridNo, layer);
+    }
+    return layer;
+  }
+
+  #appendTile(c: MapChange): readonly StructLayerEdit[] {
+    const layer = this.#layer(c.gridNo);
+    const tile = c.tile;
+    if (tile === undefined || layer.includes(tile)) return NO_EDITS;
+    layer.push(tile);
+    return [{ kind: 'append', tile }];
+  }
+
+  #removeTile(c: MapChange): readonly StructLayerEdit[] {
+    const tile = c.tile;
+    if (tile === undefined || !this.#takeOut(c.gridNo, tile)) return NO_EDITS;
+    return [{ kind: 'remove', tile }];
+  }
+
+  #structureEdit(c: MapChange, kind: TileChangeKind): readonly StructLayerEdit[] {
+    const tile = mapChangeTile(this.#t, c);
+    if (tile === null) return NO_EDITS;
+    if (c.level === GROUND_LEVEL && kind === 'add') this.#layer(c.gridNo).unshift(tile);
+    else if (c.level === GROUND_LEVEL) this.#takeOut(c.gridNo, tile);
+    return [{ kind, tile }];
+  }
+
+  #takeOut(gridNo: number, tile: number): boolean {
+    const layer = this.#layer(gridNo);
+    const at = layer.indexOf(tile);
+    if (at >= 0) layer.splice(at, 1);
+    return at >= 0;
+  }
+}
+
+function landedHelicopterTilesAt(t: TacticalState, gridNo: number): number[] {
+  const heli = t.landedHelicopter;
+  return heli ? helicopterPieces(heli).flatMap((piece) => (piece.gridNo === gridNo ? [piece.tile] : [])) : [];
+}
+
+function structTileEdits(t: TacticalState, c: MapChange): readonly StructLayerEdit[] {
+  const replay = new StructLayerReplay(t);
+  for (const earlier of t.mapChanges) if (earlier.gridNo === c.gridNo) replay.edits(earlier);
+  return replay.edits(c);
+}
+
+function groundStructureBase(t: TacticalState, gridNo: number, def: StructureDef): StructureInstance | null {
+  return (
+    t.world.structures.at(gridNo).find((s) => has(s.flags, StructureFlags.BASE_TILE) && s.def === def && levelOf(s) === GROUND_LEVEL) ??
+    null
+  );
+}
+
+function applyStructTileChange(t: TacticalState, c: MapChange): void {
+  for (const edit of structTileEdits(t, c)) {
+    const te = (t.world.tiles ?? NO_TILES)[edit.tile];
+    if (!te?.structure) continue;
+    if (edit.kind === 'append') {
+      t.world.structures.add(c.gridNo, GROUND_LEVEL, te.structure, undefined, te.structureFile);
+      continue;
+    }
+    const base = groundStructureBase(t, c.gridNo, te.structure);
+    if (base) t.world.structures.remove(base);
+  }
 }
 
 function applyMapChange(t: TacticalState, c: MapChange): void {
   if (c.kind === MapChangeKind.ADD_EXIT_GRID) {
     if (c.exitGrid) addExitGridToWorld(t, c.exitGrid);
+    return;
+  }
+  if (c.kind === MapChangeKind.APPEND_STRUCT_TILE || c.kind === MapChangeKind.REMOVE_STRUCT_TILE) {
+    applyStructTileChange(t, c);
     return;
   }
   if (c.kind === MapChangeKind.ADD) {

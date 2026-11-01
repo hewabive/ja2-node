@@ -8,34 +8,19 @@ import { WORLD_COLS } from '../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { idiv } from '../../core/int.ts';
+import { type HelicopterPiece, helicopterPieces, type LandedHelicopter } from './helicopter-pieces.ts';
 import { bumpAnyExistingMerc } from './narrative/schedules.ts';
 import type { TacticalState } from './state.ts';
 import type { TileChangeView } from './world-view.ts';
-
-export interface LandedHelicopter {
-  readonly gridNo: number;
-  readonly firstTile: number;
-}
 
 export interface HelicopterLandingSite {
   readonly gridNo: number;
   readonly heliTileType: number;
 }
 
-interface HelicopterPiece {
-  readonly gridNo: number;
-  readonly tile: number;
-}
-
 const GROUND_LEVEL = 0;
-const NORTH_PIECE_OFFSET = -800;
-const PIECE_OFFSETS: readonly number[] = [0, 0, NORTH_PIECE_OFFSET, 0, 0, NORTH_PIECE_OFFSET];
 const BUMP_HALF_SIDE = 5;
 const NO_TILES: readonly TileElement[] = [];
-
-function helicopterPieces(heli: LandedHelicopter): HelicopterPiece[] {
-  return PIECE_OFFSETS.map((offset, k) => ({ gridNo: heli.gridNo + offset, tile: heli.firstTile + k }));
-}
 
 function tileElement(t: TacticalState, tile: number): TileElement | null {
   return (t.world.tiles ?? NO_TILES)[tile] ?? null;

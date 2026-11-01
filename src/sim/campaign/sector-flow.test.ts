@@ -13,10 +13,12 @@ import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosive
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
+import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
+import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
+import { typeIndex } from '../../content/world/tile-tables.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
@@ -26,13 +28,15 @@ import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
+import { MapChangeKind, recordStructureRemoved } from '../tactical/map-changes.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
-import { bloodViews } from '../tactical/world-view.ts';
+import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { sectorKey } from './sector-diff.ts';
 import { UnloadCode } from './sector-flow.ts';
@@ -63,6 +67,10 @@ const NIGHT_ENDS_HOUR = 7;
 const CROW_LANDING_RADIUS = 2;
 const NOON_HOUR = 12;
 const HOURS_PER_DAY = 24;
+const B13 = { x: 13, y: 2, z: 0 };
+const DRASSEN_HELIPAD = 9001;
+const TAIL_BOOM_GRIDNO = DRASSEN_HELIPAD - 800;
+const TAIL_BOOM_SUB_INDEX = 3;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -351,6 +359,57 @@ describe('a native save loaded into its sector', () => {
     const crows = teamMembers(t, Team.CIV).filter((s) => s.bodyType === Body.CROW);
     expect(crows.map((s) => s.pendingActionData2)).toEqual([corpseAt, corpseAt]);
     expect(t.corpses.map((c) => c.servicingCrows)).toEqual([2]);
+  });
+
+  it('keeps a helicopter piece destroyed before the save off the map: the helicopter stands before the saved map changes apply (StrategicMap.cc:520 from SaveLoadGame.cc:743, the map changes at :1016)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    if (!sim) throw new Error('no sector');
+    const helicopterType = typeIndex(sim.world.tables, 'FIRSTOSTRUCT');
+    setHelicopterOnMap(sim.state, { gridNo: DRASSEN_HELIPAD, heliTileType: helicopterType }, false);
+    const destroyedTailBoom = {
+      type: MapModificationType.REMOVE_STRUCT,
+      gridNo: TAIL_BOOM_GRIDNO,
+      imageType: helicopterType,
+      subImageIndex: TAIL_BOOM_SUB_INDEX,
+      extra: 0,
+    };
+    flow.adoptLoadedSector([], { mapModifications: [destroyedTailBoom], doorStatus: null });
+    const t = sim.state;
+    const vehicles = (g: number) => t.world.structures.at(g).filter((x) => (x.flags & StructureFlags.VEHICLE) !== 0).length;
+    expect([vehicles(DRASSEN_HELIPAD), vehicles(TAIL_BOOM_GRIDNO)]).toEqual([1, 0]);
+    expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(1);
+    expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE_STRUCT_TILE, TAIL_BOOM_GRIDNO]]);
+  });
+
+  it('brings a helicopter piece destroyed in the sector back at the next entry, unlike a load: the entry stands the helicopter again after the map changes took the piece away (StrategicMap.cc:520 after EnterSector, :880)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const vehiclesAt = (g: number) =>
+      campaign.tactical?.state.world.structures.at(g).filter((x) => has(x.flags, StructureFlags.VEHICLE)).length;
+    const left = campaign.tactical?.state;
+    const tailBoom = left?.world.structures.at(TAIL_BOOM_GRIDNO).find((x) => has(x.flags, StructureFlags.VEHICLE));
+    if (!left || !tailBoom) throw new Error('no helicopter');
+    recordStructureRemoved(left, tailBoom);
+    left.world.structures.remove(tailBoom);
+    for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+    expect(flow.setCurrentWorldSector(A9)).toBe(true);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    expect(vehiclesAt(TAIL_BOOM_GRIDNO)).toBe(1);
+    const t = campaign.tactical?.state;
+    if (!t) throw new Error('no sector');
+    expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE, TAIL_BOOM_GRIDNO]]);
+    expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(2);
   });
 });
 

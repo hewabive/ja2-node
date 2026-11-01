@@ -135,6 +135,7 @@ import {
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
+import { applySavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import {
   enterTacticalScreen,
@@ -621,7 +622,10 @@ export class SectorFlow {
     };
   }
 
-  adoptLoadedSector(links: readonly { readonly nodeId: number; readonly soldierId: number }[]): void {
+  adoptLoadedSector(
+    links: readonly { readonly nodeId: number; readonly soldierId: number }[],
+    saved: SavedSectorChanges = NO_SAVED_SECTOR_CHANGES,
+  ): void {
     const sim = this.campaign.tactical;
     const world = this.world;
     if (!sim || !world) return;
@@ -638,6 +642,7 @@ export class SectorFlow {
     }
     this.#installHooks(sim);
     handleHelicopterOnGround(this.ctx, true);
+    applySavedSectorChanges(sim, saved);
     t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);

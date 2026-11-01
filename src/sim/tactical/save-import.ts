@@ -15,11 +15,17 @@ import type { MapDoor } from '../../content/formats/map.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
-import { MapModificationType, type SavedCorpse, type SavedDoorStatus } from '../../content/formats/savegame-temp-files.ts';
+import {
+  MapModificationType,
+  type SavedCorpse,
+  type SavedDoorStatus,
+  type SavedMapModification,
+} from '../../content/formats/savegame-temp-files.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { type TileTables, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
@@ -33,6 +39,7 @@ import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
+import { type AddedExitGrid, applyMapChanges, exitGridChange, type MapChange, MapChangeKind, structTileChange } from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
@@ -59,6 +66,9 @@ const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
 const AI_FLAG_ASLEEP = 0x20;
 const AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE = 0x40;
 const AI_FLAG_CHECK_SCHEDULE = 0x80;
+const FIRST_DOOR_TYPE = 'FIRSTDOOR';
+const LAST_DOOR_TYPE = 'FOURTHDOOR';
+const BYTE_BITS = 8;
 
 export interface SaveImportReport {
   readonly mapPath: string | null;
@@ -68,6 +78,13 @@ export interface SaveImportReport {
   readonly skippedMapModifications: number;
   readonly droppedOptions?: readonly DroppedNativeOption[];
 }
+
+export interface SavedSectorChanges {
+  readonly mapModifications: readonly SavedMapModification[] | null;
+  readonly doorStatus: readonly SavedDoorStatus[] | null;
+}
+
+export const NO_SAVED_SECTOR_CHANGES: SavedSectorChanges = { mapModifications: null, doorStatus: null };
 
 export interface CampaignWideState {
   readonly civGroups: CivGroupState;
@@ -110,8 +127,7 @@ export function importSave(sim: TacticalSim, save: SaveGame, presentation: Prese
   loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
-  const skippedMapModifications = applyMapModifications(t, save);
-  applyDoorStatus(t, save.currentSector.doorStatus ?? []);
+  const skippedMapModifications = skippedMapModificationCount(sim.world.tables, save.currentSector.mapModifications ?? []);
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
   const soldiers = importSoldiers(t, save, presentation);
   importAwaySoldiers(t, save);
@@ -218,14 +234,52 @@ function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): numbe
   return t.corpses.length;
 }
 
-function applyMapModifications(t: TacticalState, save: SaveGame): number {
-  let skipped = 0;
-  for (const m of save.currentSector.mapModifications ?? []) {
-    if (m.type === MapModificationType.OPENABLE_STRUCT) setOpenableStructStatus(t, m.gridNo, m.imageType !== 0);
-    else if (m.type === MapModificationType.BLOOD_SMELL) restoreBloodAndSmell(t, m.gridNo, m.imageType, m.subImageIndex);
-    else skipped++;
+export function applySavedSectorChanges(sim: TacticalSim, saved: SavedSectorChanges): void {
+  for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
+  applyDoorStatus(sim.state, saved.doorStatus ?? []);
+}
+
+function applyMapModification(sim: TacticalSim, m: SavedMapModification): void {
+  const t = sim.state;
+  if (m.type === MapModificationType.OPENABLE_STRUCT) setOpenableStructStatus(t, m.gridNo, m.imageType !== 0);
+  else if (m.type === MapModificationType.BLOOD_SMELL) restoreBloodAndSmell(t, m.gridNo, m.imageType, m.subImageIndex);
+  else {
+    const change = savedMapChange(sim.world.tables, m);
+    if (change) applyMapChanges(t, [change]);
   }
-  return skipped;
+}
+
+function appliedOutsideMapChanges(m: SavedMapModification): boolean {
+  return m.type === MapModificationType.OPENABLE_STRUCT || m.type === MapModificationType.BLOOD_SMELL;
+}
+
+function skippedMapModificationCount(tables: TileTables, modifications: readonly SavedMapModification[]): number {
+  return modifications.filter((m) => !appliedOutsideMapChanges(m) && savedMapChange(tables, m) === null).length;
+}
+
+function savedMapChange(tables: TileTables, m: SavedMapModification): MapChange | null {
+  if (m.gridNo < 0 || m.gridNo >= WORLD_MAX) return null;
+  if (m.type === MapModificationType.EXIT_GRIDS) return exitGridChange(savedExitGrid(m));
+  const tile = savedStructTile(tables, m);
+  if (tile === null) return null;
+  if (m.type === MapModificationType.STRUCT) return structTileChange(MapChangeKind.APPEND_STRUCT_TILE, m.gridNo, tile);
+  if (m.type === MapModificationType.REMOVE_STRUCT && !isDoorType(tables, m.imageType))
+    return structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, m.gridNo, tile);
+  return null;
+}
+
+function savedStructTile(tables: TileTables, m: SavedMapModification): number | null {
+  const type = tables.types[m.imageType];
+  if (!type || m.subImageIndex < 1 || m.subImageIndex > type.count) return null;
+  return tileIndexFromTypeSubIndex(tables, m.imageType, m.subImageIndex);
+}
+
+function isDoorType(tables: TileTables, type: number): boolean {
+  return type >= typeIndex(tables, FIRST_DOOR_TYPE) && type <= typeIndex(tables, LAST_DOOR_TYPE);
+}
+
+function savedExitGrid(m: SavedMapModification): AddedExitGrid {
+  return { mapIndex: m.gridNo, gridNo: m.subImageIndex, sector: { x: u8(m.imageType), y: u8(m.imageType >> BYTE_BITS), z: m.extra } };
 }
 
 function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, smell: number): void {

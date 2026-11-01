@@ -165,7 +165,7 @@ export async function createSaveSession(
       return profile ? { x: profile.sectorX, y: profile.sectorY, z: profile.sectorZ } : null;
     });
   }
-  if (sim) campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
+  if (sim) campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save), save.currentSector);
   const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
     kind: 'imported',
     parts,

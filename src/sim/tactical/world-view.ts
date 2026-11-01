@@ -15,7 +15,7 @@ import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke
 import type { RealObject } from './explosions/state.ts';
 import { landedHelicopterTileChanges } from './landed-helicopter.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
-import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
+import { StructLayerReplay } from './map-changes.ts';
 import { shownBloodPools } from './smell.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -124,22 +124,15 @@ export function dynamicLightSprites(t: TacticalState): LightSprite[] {
   return sprites.filter(shining);
 }
 
-function tileChangeKind(c: MapChange): TileChangeKind | null {
-  if (c.kind === MapChangeKind.REMOVE) return 'remove';
-  if (c.kind === MapChangeKind.ADD) return 'add';
-  return null;
-}
-
 export function bloodViews(t: TacticalState): BloodPoolView[] {
   return shownBloodPools(t.smell).map((p) => ({ gridNo: p.gridNo, strength: p.strength, ...(p.creature ? { creature: true } : {}) }));
 }
 
 export function tileChangeViews(t: TacticalState): TileChangeView[] {
+  const replay = new StructLayerReplay(t);
   const out: TileChangeView[] = [];
   for (const c of t.mapChanges) {
-    const kind = tileChangeKind(c);
-    const tile = kind === null ? null : mapChangeTile(t, c);
-    if (kind !== null && tile !== null) out.push({ kind, gridNo: c.gridNo, level: c.level, tile });
+    for (const edit of replay.edits(c)) out.push({ kind: edit.kind, gridNo: c.gridNo, level: c.level, tile: edit.tile });
   }
   return [...out, ...landedHelicopterTileChanges(t)];
 }

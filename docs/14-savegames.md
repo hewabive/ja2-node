@@ -23,7 +23,9 @@ newSession {save}, JA2_SAVE: the file from $JA2_SAVES_DIR       src/server/sessi
     then one import per subsystem:
       time, roster, merchants, map, strategic AI, story,        sim/**/save-import.ts, sim/campaign/save-roster.ts
       creatures, economy, contracts, laptop, narrative,
-      assignments, NPC records, the loaded sector's links and schedules
+      assignments, NPC records
+    the loaded sector: links, helicopter, map changes,          sim/campaign/sector-flow.ts adoptLoadedSector
+      door states, schedules
 ```
 
 `savegame.ts` decodes the header (`savegame-header.ts`: both layouts, the encryption set, the record cipher), the
@@ -64,7 +66,8 @@ enters it (a 5–60 minute compression mode stays but stops, any other becomes X
 **An import runs the native load's hooks once.** `LoadSavedGame` does more than read: it adds the sector's soldiers
 through `UpdateMercsInSector` (in id order, at the centre of the saved tile, without movement reservation or pending
 animation), stands a landed helicopter on the map and bumps the soldiers around it (deviation "Helicopter on load"),
-recompiles the movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows
+applies the loaded sector's map changes and door states after that, as it reads the temp files last, recompiles the
+movement costs, sends crows to a rotting corpse by day as loading the corpses file does (deviation "Crows
 on load"), posts the schedules, powers the map lights for the saved hour, sets the
 ambient light and runs `LoadStrategicAI`'s recomputation (deviation "Strategic AI load hooks"); resumed in tactical, it
 selects the selected merc again, forced, and enters the tactical screen (deviation "Selection on load"). The import

@@ -102,7 +102,10 @@ queue reaches the event after his first line. As in the original there is no fue
 Drassen until Skyrider is met) it stands on the map: `handleHelicopterOnGround` asks the campaign (`helicopterOnMap`)
 to append its six pieces to the structure layer, with their structures, and to bump the soldiers around them, at a
 sector load, a landing and a takeoff. The pieces are no map changes: the sector's temp state never holds them, the next
-load adds them again, and the view sends them as `append` tile changes after the map changes (`29` §7).
+load adds them again, and the view sends them as `append` tile changes after the map changes (`29` §7). A native import
+adds them before it applies the sector's saved map changes, as the original's load reads the temp files last, so a piece
+destroyed before the save stays off the map; the map changes replay over the structure layer the pieces are appended
+to.
 
 **Quest action items.** Our soldiers stepping on a tile set off its armed pressure action items and switches, a switch
 the remote action items on its frequency; the queue runs at the next overhead pass with sight disallowed and keeps the
@@ -144,6 +147,7 @@ says otherwise:
 | Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
 | A landing or takeoff at the loaded refuel site changes the helicopter's structures but not the movement costs: the path over its tiles stays open after a landing and blocked after a takeoff until the next sector load | `src/sim/tactical/landed-helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
 | Adding the helicopter bumps every soldier of the ten-tile square around the landing site off his own tile, under the helicopter or not, the square ending a tile short south and east; one bumped onto a tile the sweep has still to visit is bumped again | `src/sim/tactical/landed-helicopter.test.ts` |
+| A helicopter piece destroyed in the sector stays off the map after a load, but comes back at the next sector entry: the entry adds the helicopter a second time after the map changes took the piece away (`Strategic/StrategicMap.cc:520` after `:880`) | `src/sim/campaign/sector-flow.test.ts` "brings a helicopter piece destroyed …", "keeps a helicopter piece destroyed before the save …" |
 
 Not pinned yet:
 - `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` reads the town of the sector above when underground, and `WALKER_AT_BAR` ignores
