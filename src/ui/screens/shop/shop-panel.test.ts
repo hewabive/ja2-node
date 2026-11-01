@@ -15,6 +15,7 @@ import {
 const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
 const SETTLE_FRAMES = 6;
+const FONT_RED = 162;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -171,6 +172,21 @@ describe('the shop screen at the stub dealer', () => {
     playOut(f);
     f.t.frame();
     expect(shop.open).toBe(false);
+  });
+
+  it('empties the tactical message log on the way back from the shop, as EnterTacticalScreen does', async () => {
+    const { f } = await atTheDealer(4);
+    const shop = f.screen.dialogue.shop;
+    const tick = f.client.view.tick;
+    f.frames([{ tick, changed: [], removed: [], messages: [{ tick, kind: 'interface', colour: FONT_RED, args: [{ text: 'Sold' }] }] }]);
+    f.t.frame();
+    expect(f.screen.messageLines).toEqual(['Sold']);
+    await f.click('shopDone');
+    await settleShop(f);
+    playOut(f);
+    f.t.frame();
+    expect(shop.open).toBe(false);
+    expect(f.screen.messageLines).toEqual([]);
   });
 
   it('offers a pocket from the single merc panel, hatches it, and takes it back with a right click', async () => {

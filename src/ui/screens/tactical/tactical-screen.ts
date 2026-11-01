@@ -12,7 +12,8 @@
 // @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides, the selected merc blinking
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
-// @src message log); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
+// @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
+// @src shop too); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
 // @src range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
@@ -231,6 +232,7 @@ export class TacticalScreen implements Screen {
 
   constructor(env: TacticalEnvironment) {
     this.#env = env;
+    this.#log.timeCompressed = env.client.view?.clock?.compressing ?? false;
     this.#team = new TeamPanelController({
       selectFace: (slot) => this.#selectFace(slot),
       openSmPanel: (slot) => this.#openSmPanelFromSlot(slot),
@@ -336,6 +338,7 @@ export class TacticalScreen implements Screen {
       nextMerc: () => this.#stepMerc(1),
       describeItem: (view, at) => this.#describeAt(view, at),
       descriptionOpen: () => this.description.open,
+      shopLeft: () => this.#log.clear(),
     });
     const custom = this.#renderers();
     const common = { services: env.runtime, sliders: env.runtime.sliders, text: env.text, custom };
@@ -593,6 +596,7 @@ export class TacticalScreen implements Screen {
     this.#syncViewport();
     this.dialogue.enter();
     if (this.#selected !== null) this.#selectedChanged();
+    this.#log.clear();
     this.#env.client.start();
   }
 
@@ -1084,6 +1088,7 @@ export class TacticalScreen implements Screen {
       for (const lost of lostSectorsOf(frames))
         this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label)));
     for (const frame of frames) {
+      if (frame.clock) this.#log.timeCompressed = frame.clock.compressing;
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
       for (const event of frame.events ?? []) this.#event(event, frame);
       for (const entry of frame.messages ?? []) {

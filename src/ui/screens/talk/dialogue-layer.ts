@@ -6,7 +6,7 @@
 // @src key down, a key up advances a waiting line), HandleTalkingMenuKeys (Esc and Backspace on key up in the panel);
 // @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBoxIfActive; src/game/Tactical/ShopKeeper_Interface.cc
 // @src EnterShopKeeperInterface (the SM panel of the selected merc), ShopKeeperScreenHandle (leaving once the farewell is
-// @src said), InitShopKeeperSubTitledText (only with SUBTITLES).
+// @src said, back through EnterTacticalScreen), InitShopKeeperSubTitledText (only with SUBTITLES).
 
 import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
@@ -57,6 +57,7 @@ export interface DialogueHost {
   nextMerc(): void;
   describeItem(view: InventoryItemView, at: { readonly x: number; readonly y: number }): void;
   descriptionOpen(): boolean;
+  shopLeft(): void;
 }
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
@@ -338,7 +339,12 @@ export class DialogueLayer {
       return;
     }
     this.#pricingRequested = null;
-    if (this.shop.open && !this.shop.linesLeft()) this.shop.hide();
+    if (this.shop.open && !this.shop.linesLeft()) this.#leaveShop();
+  }
+
+  #leaveShop(): void {
+    this.shop.hide();
+    this.#host.shopLeft();
   }
 
   #followPricing(pricing: number): void {

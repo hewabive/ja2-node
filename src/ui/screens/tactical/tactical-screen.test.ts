@@ -111,6 +111,10 @@ function frame(tick: number, events: NonNullable<ViewFrame['events']>, messages:
   return { tick, changed: [], removed: [], events, messages };
 }
 
+function otherScreen(id: string): Screen {
+  return { id, enter: () => {}, exit: () => {}, update: () => {}, input: () => false, render: () => {} };
+}
+
 function logLines(tick: number, count: number): NonNullable<ViewFrame['messages']> {
   return Array.from({ length: count }, (_, k) => ({ tick, kind: 'interface', colour: FONT_RED, args: [{ text: `Line ${k}` }] }));
 }
@@ -311,6 +315,19 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.messageLines).toEqual([]);
   });
 
+  it('empties its shown and queued message lines at every entry to the screen, as EnterTacticalScreen does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    f.frames([frame(tick, [], logLines(tick, LOG_LINES))]);
+    await f.settle(2);
+    expect(f.screen.messageLines).not.toEqual([]);
+    f.t.runtime.host.push(otherScreen('options'));
+    f.t.runtime.host.pop();
+    expect(f.screen.messageLines).toEqual([]);
+    await f.settle(LOG_LINES);
+    expect(f.screen.messageLines).toEqual([]);
+  });
+
   it('shows the message log, the feedback box, stat flashes and the death animation of a face', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.frames([
@@ -487,14 +504,28 @@ describe('the tactical screen in a stub campaign', () => {
     f.frames([frame(tick, [], lines)]);
     await f.settle(2);
     expect(f.screen.messageLines).not.toEqual([]);
-    const map: Screen = { id: 'map', enter: () => {}, exit: () => {}, update: () => {}, input: () => false, render: () => {} };
-    f.t.runtime.host.push(map);
+    f.t.runtime.host.push(otherScreen('map'));
     expect(await f.session.prepareAndDispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect(await f.session.prepareAndDispatch({ type: 'compressTime' })).toEqual({ ok: true });
     f.deliver();
-    f.t.runtime.host.pop();
-    await f.settle(lines.length);
     expect(f.screen.messageLines).toEqual([]);
+  });
+
+  it('queues no message line while time is compressed, as TacticalScreenMsg does', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    expect(await f.session.prepareAndDispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(await f.session.prepareAndDispatch({ type: 'compressTime' })).toEqual({ ok: true });
+    f.deliver();
+    const tick = f.client.view.tick;
+    f.frames([frame(tick, [], logLines(tick, 1))]);
+    await f.settle(2);
+    expect(f.screen.messageLines).toEqual([]);
+    expect(await f.session.prepareAndDispatch({ type: 'stopTime' })).toEqual({ ok: true });
+    f.deliver();
+    f.frames([frame(tick, [], logLines(tick, 1))]);
+    await f.settle(2);
+    expect(f.screen.messageLines).toEqual(['Line 0']);
   });
 
   it('boxes a town the enemy took while in tactical, centred above the inventory panel', async () => {

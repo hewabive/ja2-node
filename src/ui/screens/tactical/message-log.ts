@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Utils/Message.cc TacticalScreenMsg (MSG_INTERFACE and MSG_DIALOG force their colours, LineWrap at
-// @src LINE_WIDTH in TINYFONT1, one queued line each, the first marked as a new string), ScrollString (the aging against
+// @src src/game/Utils/Message.cc TacticalScreenMsg (no line while IsTimeBeingCompressed, MSG_INTERFACE and MSG_DIALOG
+// @src force their colours, LineWrap at LINE_WIDTH in TINYFONT1, one queued line each, the first marked as a new
+// @src string), ScrollString (the aging against
 // @src MAX_AGE - 1000 per queued line, the ditched last line, one line in per frame when the top slot is free, the positions
 // @src Y_START - slot × the SMALLFONT1 height - WIDTH_BETWEEN_NEW_STRINGS per new string, the beep when slot 4 was free),
 // @src BlitString (TINYFONT1, DEFAULT_SHADOW, black background), HideMessagesDuringNPCDialogue and
@@ -38,6 +39,7 @@ export class TacticalMessageLog {
   readonly #queue: LogLine[] = [];
   readonly #shown: (ShownLine | null)[] = Array.from({ length: MAX_LINE_COUNT }, () => null);
   #hiddenSince: number | null = null;
+  timeCompressed = false;
 
   get queued(): number {
     return this.#queue.length;
@@ -48,6 +50,7 @@ export class TacticalMessageLog {
   }
 
   push(text: string, colour: number, font: BitmapFont): void {
+    if (this.timeCompressed) return;
     let first = true;
     for (const line of lineWrap(font, LINE_WIDTH, text)) {
       this.#queue.push({ text: line, colour, startsMessage: first });
