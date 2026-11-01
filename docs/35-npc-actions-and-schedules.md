@@ -156,6 +156,8 @@ the door actions and menu, and schedules through entries, warps, loads and AI de
 "Facts and NPC presence", "NPC actions", "Civilians", "Doors", "Schedules"); the new-game probes of "Laptop" compare
 every profile's sector. Inferred from reading the source:
 - The walking door and cabinet actions (3, 27, 40): unit tests on the stub village door only.
+- An NPC drawing first, the ownership check of a pickup and the room owners' grudge after our explosions
+  (`first-draw.ts`, `minor-offenses.ts`): unit tests on synthetic maps only.
 - That the original cannot save while a requestor box or the talk panel is open, so their globals need no save.
 - That a walked departure ends in an away slot at the next load, and that the second schedule event after a native load
   is harmless.
