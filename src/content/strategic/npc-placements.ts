@@ -18,7 +18,7 @@ export interface NpcPlacement {
   readonly sciFiOnly: boolean;
 }
 
-function profileIdsByName(json: unknown): Map<string, number> {
+export function profileIdsByName(json: unknown): Map<string, number> {
   const ids = new Map<string, number>();
   asArray(json, 'mercs profile info').forEach((v, i) => {
     const o = asObject(v, `mercs profile info[${i}]`);

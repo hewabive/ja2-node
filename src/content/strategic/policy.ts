@@ -28,6 +28,7 @@ export interface StrategicPolicy {
 
 export interface VehicleType {
   readonly profile: string;
+  readonly profileId: number;
   readonly movementType: number;
   readonly seats: number;
 }
@@ -63,12 +64,16 @@ function movementType(value: unknown, what: string): number {
   return mask;
 }
 
-export function parseVehicleTypes(json: unknown): VehicleType[] {
+export function parseVehicleTypes(json: unknown, profileIds: ReadonlyMap<string, number>): VehicleType[] {
   return asArray(json, 'vehicles').map((v, i) => {
     const what = `vehicles[${i}]`;
     const o = asObject(v, what);
+    const profile = asString(o.profile, `${what}.profile`);
+    const profileId = profileIds.get(profile);
+    if (profileId === undefined) throw new FormatError(`${what}: unknown profile ${profile}`);
     return {
-      profile: asString(o.profile, `${what}.profile`),
+      profile,
+      profileId,
       movementType: movementType(o.movementType, `${what}.movementType`),
       seats: asInt(o.seats, `${what}.seats`),
     };

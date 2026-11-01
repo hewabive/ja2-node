@@ -67,7 +67,7 @@ export interface HelicopterPort {
   cosmeticChoice(n: number): number;
   killInVehicle(id: number): boolean;
   scheduleKillChopperMeanwhile(): void;
-  skyriderOnGround(sector: Sector | null): void;
+  removeSkyriderSoldier(): void;
   emit(event: HelicopterEventWithoutTick): void;
 }
 

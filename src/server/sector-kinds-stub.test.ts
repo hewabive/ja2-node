@@ -7,6 +7,7 @@ import { FinanceCode } from '../sim/campaign/finances.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { getGroup, setGroupSectorValue } from '../sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { profileSector, profileSectorValid } from '../sim/strategic/narrative/presence.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
@@ -36,6 +37,8 @@ const DAY_SECONDS = 24 * 3600;
 const TRAINING_SLICE_SECONDS = 6 * 3600;
 const TRAINING_BUDGET = 12;
 const LOYALTY_TO_TRAIN = 20;
+const HELICOPTER_RETURN_BUDGET = 12;
+const HELICOPTER_RETURN_SLICE_SECONDS = 600;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -130,6 +133,55 @@ function firstMerc(session: CampaignSession): number {
   return merc.id;
 }
 
+async function escortSkyriderToTheHelipad(c: Campaign): Promise<void> {
+  const skyrider = c.session.campaign.narrative.profile(SKYRIDER);
+  if (!skyrider) throw new Error('no Skyrider');
+  const farm: Sector = { x: skyrider.sectorX, y: skyrider.sectorY, z: 0 };
+  Object.assign(sectorInfo(c.session.campaign.state.map, farm), noGarrison());
+  teleportSquad(c.session, farm);
+  await enter(c, sectorShortString(farm));
+  expect(c.session.view().mapPath).toBe(`stubs/world/maps/${sectorShortString(farm).toLowerCase()}_a.dat`);
+  const merc = firstMerc(c.session);
+  expect(talk(c, merc, SKYRIDER)).toEqual([0]);
+  talkThrough(c, { type: 'approach', kind: 'recruit' });
+  const prompt = c.session.view().npcRequest as NpcRequestPromptView | null | undefined;
+  expect(prompt).toMatchObject({ request: 'escort', npc: SKYRIDER });
+  talkThrough(c, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
+  if (c.session.view().conversation) c.session.dispatch({ type: 'closeTalk' });
+  expect(c.session.campaign.battle?.roster.byProfile(SKYRIDER)).toBeDefined();
+  expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  teleportSquad(c.session, parseSectorString('B13'));
+  await enter(c, 'B13');
+  expect(c.session.view().mapPath).toBe('stubs/world/maps/b13.dat');
+  c.session.drainEvents();
+  const escort = soldierOfProfile(c.session, SKYRIDER);
+  expect(c.session.dispatch({ type: 'move', soldier: escort, to: HELIPAD, mode: 'walk' })).toMatchObject({ ok: true });
+  const events = c.live.advance({ idle: true }).events;
+  const all = [...events, ...c.session.drainEvents()].map((e) => e.type);
+  expect(all).toContain('helicopterSetUp');
+}
+
+function skyriderSector(session: CampaignSession): string | null {
+  const p = session.campaign.narrative.profile(SKYRIDER);
+  return p && profileSectorValid(p) ? sectorShortString(profileSector(p)) : null;
+}
+
+function befriend(session: CampaignSession, names: readonly string[]): void {
+  for (const name of names) {
+    const e = session.campaign.state.map.elements[strategicIndex(parseSectorString(name))];
+    if (e) Object.assign(e, { enemyControlled: false, enemyAirControlled: false });
+  }
+}
+
+async function reloadAirport(c: Campaign): Promise<void> {
+  expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  teleportSquad(c.session, parseSectorString('A9'));
+  await enter(c, 'A9');
+  expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  teleportSquad(c.session, parseSectorString('B13'));
+  await enter(c, 'B13');
+}
+
 describe('stub sector kinds in a campaign', () => {
   it('liberates a stub mine whose head miner starts it, pays for it the next day and trains militia in the town', async () => {
     const c = await landedCampaign(61, ['B13', 'C13', 'D13']);
@@ -199,31 +251,31 @@ describe('stub sector kinds in a campaign', () => {
 
   it('escorts Skyrider from his farm to the Drassen helipad and gets his helicopter', async () => {
     const c = await landedCampaign(63, ['B13']);
-    const skyrider = c.session.campaign.narrative.profile(SKYRIDER);
-    if (!skyrider) throw new Error('no Skyrider');
-    const farm: Sector = { x: skyrider.sectorX, y: skyrider.sectorY, z: 0 };
-    Object.assign(sectorInfo(c.session.campaign.state.map, farm), noGarrison());
-    teleportSquad(c.session, farm);
-    await enter(c, sectorShortString(farm));
-    expect(c.session.view().mapPath).toBe(`stubs/world/maps/${sectorShortString(farm).toLowerCase()}_a.dat`);
-    const merc = firstMerc(c.session);
-    expect(talk(c, merc, SKYRIDER)).toEqual([0]);
-    talkThrough(c, { type: 'approach', kind: 'recruit' });
-    const prompt = c.session.view().npcRequest as NpcRequestPromptView | null | undefined;
-    expect(prompt).toMatchObject({ request: 'escort', npc: SKYRIDER });
-    talkThrough(c, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
-    if (c.session.view().conversation) c.session.dispatch({ type: 'closeTalk' });
-    expect(c.session.campaign.battle?.roster.byProfile(SKYRIDER)).toBeDefined();
-    expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
-    teleportSquad(c.session, parseSectorString('B13'));
-    await enter(c, 'B13');
-    expect(c.session.view().mapPath).toBe('stubs/world/maps/b13.dat');
-    c.session.drainEvents();
-    const escort = soldierOfProfile(c.session, SKYRIDER);
-    expect(c.session.dispatch({ type: 'move', soldier: escort, to: HELIPAD, mode: 'walk' })).toMatchObject({ ok: true });
-    const events = c.live.advance({ idle: true }).events;
-    const all = [...events, ...c.session.drainEvents()].map((e) => e.type);
-    expect(all).toContain('helicopterSetUp');
+    await escortSkyriderToTheHelipad(c);
     expect(c.session.view().strategic?.helicopter).toBeDefined();
+  });
+
+  it('finds Skyrider at the Drassen airport only while his helicopter stands there', async () => {
+    const c = await landedCampaign(63, ['B13']);
+    befriend(c.session, ['B12', 'B13']);
+    await escortSkyriderToTheHelipad(c);
+    expect(placedProfiles(c.session)).toContain(SKYRIDER);
+    expect(skyriderSector(c.session)).toBe('B13');
+    expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.session.dispatch({ type: 'heliRoute', to: 'B12' })).toMatchObject({ ok: false, data: { refusal: 'emptyHelicopterHint' } });
+    expect(c.session.dispatch({ type: 'heliRoute', to: 'B12' })).toMatchObject({ ok: true });
+    expect(placedProfiles(c.session)).not.toContain(SKYRIDER);
+    expect(skyriderSector(c.session)).toBeNull();
+    await reloadAirport(c);
+    expect(c.session.view().strategic?.helicopter).toMatchObject({ airborne: true });
+    expect(placedProfiles(c.session)).not.toContain(SKYRIDER);
+    expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const landed = () => !c.session.campaign.state.forces.helicopterAirborne;
+    for (let k = 0; k < HELICOPTER_RETURN_BUDGET && !landed(); k++) c.live.advance({ worldSeconds: HELICOPTER_RETURN_SLICE_SECONDS });
+    expect(c.session.view().strategic?.helicopter).toMatchObject({ sector: 'B13', airborne: false });
+    expect(skyriderSector(c.session)).toBe('B13');
+    expect(placedProfiles(c.session)).not.toContain(SKYRIDER);
+    await reloadAirport(c);
+    expect(placedProfiles(c.session)).toContain(SKYRIDER);
   });
 });

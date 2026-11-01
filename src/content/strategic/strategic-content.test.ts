@@ -66,7 +66,7 @@ describe('strategic content from data/externalized', () => {
     expect(content.cacheSectors.sectors).toHaveLength(5);
   });
 
-  it('reads the policy values and vehicle movement types', () => {
+  it('reads the policy values, the vehicle movement types and the vehicle profiles by name', () => {
     expect(content.policy).toEqual({
       squadSize: 6,
       startSector: parseSectorId('A9'),
@@ -77,6 +77,7 @@ describe('strategic content from data/externalized', () => {
     });
     expect(content.shipping.primaryDeliverySector).toBe(parseSectorId('B13'));
     expect(content.vehicles.map((v) => v.movementType)).toEqual([2, 2, 2, 2, 2, TransportMask.AIR]);
+    expect(content.vehicles.map((v) => v.profileId)).toEqual([161, 160, 162, 164, 164, 163]);
   });
 
   it('transcribes the travel table and the known facilities', () => {

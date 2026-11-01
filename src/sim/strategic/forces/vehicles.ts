@@ -8,8 +8,10 @@
 // @src Strategic/Map_Screen_Helicopter.h IsHelicopter, InHelicopter.
 
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
+import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { setSectorFlag } from '../map/sectors.ts';
+import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay, worldTotalMinutes } from '../time/world-clock.ts';
 import { Assignment, InsertionCode, NO_VEHICLE, SectorFlag } from './constants.ts';
 import {
@@ -94,6 +96,11 @@ export function addVehicleToList(ctx: StrategicContext, s: Sector, type: number)
   return vid;
 }
 
+function vehicleProfile(ctx: StrategicContext, v: VehicleRecord): ProfileProgress | undefined {
+  const id = ctx.content.vehicles[v.type]?.profileId;
+  return id === undefined ? undefined : ctx.state.profiles.get(id);
+}
+
 export function removeVehicleFromList(v: VehicleRecord): void {
   v.path = [];
   v.valid = false;
@@ -101,6 +108,8 @@ export function removeVehicleFromList(v: VehicleRecord): void {
 
 export function setVehicleSectorValues(ctx: StrategicContext, v: VehicleRecord, s: Sector): void {
   v.sector = { ...s };
+  const profile = vehicleProfile(ctx, v);
+  if (profile) setProfileSector(profile, s);
   for (const id of passengersOf(v)) {
     const m = requireMerc(ctx, id);
     m.sector = { ...s };

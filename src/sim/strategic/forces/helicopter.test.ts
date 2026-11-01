@@ -9,6 +9,7 @@ import { addSoldierToVehicle } from '../economy/vehicle-assignment.ts';
 import { updateAirspaceControl } from '../map/control.ts';
 import { initStrategicMovementCosts } from '../map/init.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Npc } from '../narrative/npc-ids.ts';
 import { EventKind } from '../time/constants.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { Assignment, SectorFlag } from './constants.ts';
@@ -21,6 +22,7 @@ import {
   FACT_ESTONI_REFUELLING_POSSIBLE,
   FACT_SKYRIDER_USED_IN_MAPSCREEN,
   HELICOPTER_VEHICLE_TYPE,
+  handleHelicopterOnGround,
   handleHeliEnteringSector,
   handleHeliHoverLong,
   handleHeliHoverTooLong,
@@ -57,13 +59,22 @@ interface HeliWorld {
   readonly killed: number[];
   meanwhiles: number;
   loyaltyLow: boolean;
+  skyriderRemovals: number;
 }
 
 function heliWorld(options: { money?: number; pre?: readonly number[]; cosmetic?: number } = {}): HeliWorld {
   const events: HelicopterEventWithoutTick[] = [];
   const facts = new Set<number>();
   const killed: number[] = [];
-  const world: HeliWorld = { ctx: undefined as unknown as EconomyContext, events, facts, killed, meanwhiles: 0, loyaltyLow: false };
+  const world: HeliWorld = {
+    ctx: undefined as unknown as EconomyContext,
+    events,
+    facts,
+    killed,
+    meanwhiles: 0,
+    loyaltyLow: false,
+    skyriderRemovals: 0,
+  };
   const { ctx } = economyTestContext({
     content,
     stateOptions: { worldSeconds: NOON_DAY_2 },
@@ -80,6 +91,9 @@ function heliWorld(options: { money?: number; pre?: readonly number[]; cosmetic?
       killInVehicle: (id) => {
         killed.push(id);
         return true;
+      },
+      removeSkyriderSoldier: () => {
+        world.skyriderRemovals++;
       },
     },
   });
@@ -414,5 +428,77 @@ describe('leaving the helicopter', () => {
     expect(squadGroup).toMatchObject({ sector: S('B11'), betweenSectors: false });
     expect(passengersOf(helicopterVehicle(w.ctx) as NonNullable<ReturnType<typeof helicopterVehicle>>)).toEqual([0]);
     expect(sectorId(m?.sector ?? S('A1'))).toBe(sectorId(S('B11')));
+  });
+});
+
+function placeProfile(w: HeliWorld, id: number, at: { x: number; y: number; z: number }): void {
+  const p = w.ctx.state.profiles.get(id) ?? ({ balance: 0, life: 50 } as ProfileProgress);
+  w.ctx.state.profiles.set(id, Object.assign(p, { sectorX: at.x, sectorY: at.y, sectorZ: at.z }));
+}
+
+function profileSectorOf(w: HeliWorld, id: number): number[] {
+  const p = w.ctx.state.profiles.get(id);
+  return [p?.sectorX ?? -1, p?.sectorY ?? -1, p?.sectorZ ?? -1];
+}
+
+const FARM = { x: 15, y: 2, z: 0 };
+
+describe('the profiles of Skyrider and the helicopter', () => {
+  it('moves the helicopter profile into every sector the helicopter enters', () => {
+    const w = withHelicopter({ money: 1000 });
+    placeProfile(w, Npc.PROF_HELICOPTER, S('B13'));
+    const start = now(w.ctx);
+    fly(w, 'B11');
+    runUntil(w.ctx, start + 10);
+    expect(profileSectorOf(w, Npc.PROF_HELICOPTER)).toEqual([12, 2, 0]);
+    runUntil(w.ctx, start + 20);
+    expect(profileSectorOf(w, Npc.PROF_HELICOPTER)).toEqual([11, 2, 0]);
+  });
+
+  it('puts Skyrider in the loaded refuel sector while the helicopter stands on its ground', () => {
+    const w = heliWorld();
+    placeProfile(w, SKYRIDER, FARM);
+    setUpHelicopterForPlayer(w.ctx, S('I6'));
+    w.ctx.state.worldSector = S('I6');
+    handleHelicopterOnGround(w.ctx);
+    expect(profileSectorOf(w, SKYRIDER)).toEqual([6, 9, 0]);
+    expect(w.skyriderRemovals).toBe(0);
+  });
+
+  it('takes Skyrider off the map, clearing only x and y, when the helicopter leaves the loaded refuel sector', () => {
+    const w = withHelicopter({ money: 1000 });
+    w.ctx.state.worldSector = S('B13');
+    placeProfile(w, SKYRIDER, { x: 13, y: 2, z: 1 });
+    fly(w, 'B12');
+    expect(profileSectorOf(w, SKYRIDER)).toEqual([0, 0, 1]);
+    expect(w.skyriderRemovals).toBe(1);
+  });
+
+  it('brings Skyrider back when the helicopter lands at the loaded refuel sector', () => {
+    const w = withHelicopter({ money: 1000 });
+    w.ctx.state.worldSector = S('B13');
+    const start = now(w.ctx);
+    fly(w, 'B12');
+    runUntil(w.ctx, start + 10);
+    placeProfile(w, SKYRIDER, FARM);
+    fly(w, 'B13');
+    runUntil(w.ctx, start + 20);
+    expect(w.ctx.state.forces.helicopterAirborne).toBe(false);
+    expect(profileSectorOf(w, SKYRIDER)).toEqual([13, 2, 0]);
+  });
+
+  it('leaves Skyrider where he is outside a loaded surface refuel sector and before the helicopter is set up', () => {
+    const w = heliWorld({ money: 1000 });
+    placeProfile(w, SKYRIDER, FARM);
+    w.ctx.state.worldSector = S('B13');
+    handleHelicopterOnGround(w.ctx);
+    expect(profileSectorOf(w, SKYRIDER)).toEqual([15, 2, 0]);
+    setUpHelicopterForPlayer(w.ctx, S('B13'));
+    w.ctx.state.worldSector = { x: 13, y: 2, z: 1 };
+    handleHelicopterOnGround(w.ctx);
+    w.ctx.state.worldSector = S('A9');
+    fly(w, 'B12');
+    expect(profileSectorOf(w, SKYRIDER)).toEqual([15, 2, 0]);
+    expect(w.skyriderRemovals).toBe(0);
   });
 });

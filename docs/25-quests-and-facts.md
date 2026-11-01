@@ -133,6 +133,7 @@ says otherwise:
 | The Kingpin alarm rings again at the next step: its "zap" clears the disabled flag it means to set | `src/sim/tactical/narrative/quest-items.test.ts` |
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
 | A crash that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts` |
+| Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
 
 Not pinned yet:
 - `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` reads the town of the sector above when underground, and `WALKER_AT_BAR` ignores
@@ -153,7 +154,7 @@ Inferred from reading the source:
 - The profile flag and Pacos' fact set when our team hurts an NPC, and the creature queen's death beginning only with
   a killer.
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
+- Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 
 Not ported: gaps "Strategic move refusals" (the museum chalice), "Map items", "Ground vehicles", "Helicopter on the
-map", "Profile sectors of Skyrider and the helicopter", "Helicopter entrance", "Creature quest scripting", "Vehicles
-as characters".
+map", "Helicopter entrance", "Creature quest scripting", "Vehicles as characters".

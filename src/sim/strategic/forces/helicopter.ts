@@ -5,7 +5,7 @@
 // @src TakeOffHelicopter, StartHoverTime, HandleHeliHoverLong, HandleHeliHoverTooLong, DoesSkyriderNoticeEnemiesInSector,
 // @src SetUpHelicopterForMovement, IsRefuelSiteInSector, IsRefuelAvailableInSector, UpdateRefuelSiteAvailability,
 // @src SetUpHelicopterForPlayer, MoveAllInHelicopterToFootMovementGroup, the monologue handlers, CheckAndHandleSkyriderMonologues,
-// @src HandleHelicopterOnGround (the profile part), IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
+// @src HandleHelicopterOnGround (Skyrider's profile), IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
 // @src CanHelicopterTakeOff, IsSkyriderFlyingInSector, PaySkyriderBill, PayOffSkyriderDebtIfAny, MakeHeliReturnToBase,
 // @src SoldierAboardAirborneHeli; Map_Screen_Helicopter.h quote ids and costs; MapScreen.cc RequestGiveSkyriderNewDestination,
 // @src ExplainWhySkyriderCantFly, PlayerMercsInHelicopterSector, HandleNewDestConfirmation and CheckIfClickOnLastSectorInPath
@@ -23,10 +23,12 @@ import {
 } from '../../../content/strategic/sector-ids.ts';
 import { i32, u8, u32 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
+import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { markSecretFoundAt } from '../map/control.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../map/knowledge.ts';
 import { appendStrategicPath, findStratPath, lastSectorOfPath } from '../map/pathing.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { setProfileSector } from '../narrative/presence.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldTotalMinutes } from '../time/world-clock.ts';
@@ -282,7 +284,18 @@ export function handleHelicopterOnGround(ctx: StrategicContext): void {
   if (world?.z !== 0) return;
   const site = REFUEL_SITES.findIndex((r) => strategicIndex(r.sector) === strategicIndex(world));
   if (site < 0 || ctx.state.forces.helicopterVehicleId === NO_HELICOPTER_ID) return;
-  ctx.helicopter.skyriderOnGround(isHelicopterOnGroundAtRefuelingSite(ctx, site) ? world : null);
+  const skyrider = ctx.state.profiles.get(SKYRIDER);
+  if (isHelicopterOnGroundAtRefuelingSite(ctx, site)) {
+    if (skyrider) setProfileSector(skyrider, world);
+    return;
+  }
+  if (skyrider) takeProfileOffTheMap(skyrider);
+  ctx.helicopter.removeSkyriderSoldier();
+}
+
+function takeProfileOffTheMap(p: ProfileProgress): void {
+  p.sectorX = 0;
+  p.sectorY = 0;
 }
 
 export function takeOffHelicopter(ctx: StrategicContext): void {

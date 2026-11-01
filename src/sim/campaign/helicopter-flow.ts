@@ -162,7 +162,7 @@ export class HelicopterFlow {
       cosmeticChoice: (n) => this.campaign.state.cosmetic.helicopter.int(n),
       killInVehicle: (id) => this.#killInVehicle(id),
       scheduleKillChopperMeanwhile: () => this.#scheduleKillChopperMeanwhile(),
-      skyriderOnGround: (sector) => this.#skyriderOnGround(sector),
+      removeSkyriderSoldier: () => this.#removeSkyriderSoldier(),
       emit: (e) => this.emit(e),
     };
   }
@@ -215,8 +215,7 @@ export class HelicopterFlow {
     if (q) handleKillChopperMeanwhileScene(q);
   }
 
-  #skyriderOnGround(sector: Sector | null): void {
-    if (sector) return;
+  #removeSkyriderSoldier(): void {
     const t = this.campaign.tactical?.state;
     const skyrider = t?.soldiers.find((x) => x?.placed && x.profile === SKYRIDER && x.team !== Team.OUR);
     if (t && skyrider) removeSoldierFromTacticalSector(t, skyrider);

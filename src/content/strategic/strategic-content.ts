@@ -26,7 +26,7 @@ import {
   type UndergroundTemplate,
 } from './map-tables.ts';
 import { NPC_ACTION_PARAMS_PATH, type NpcActionParamTable, parseNpcActionParams } from './npc-action-params.ts';
-import { NPC_PLACEMENTS_PATH, type NpcPlacement, PROFILE_INFO_PATH, parseNpcPlacements } from './npc-placements.ts';
+import { NPC_PLACEMENTS_PATH, type NpcPlacement, PROFILE_INFO_PATH, parseNpcPlacements, profileIdsByName } from './npc-placements.ts';
 import { parseStrategicPolicy, parseVehicleTypes, type StrategicPolicy, type VehicleType } from './policy.ts';
 import { parseShippingDestinations, SHIPPING_DESTINATIONS_PATH, type ShippingDestinations } from './shipping.ts';
 import {
@@ -101,7 +101,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
     bloodCatPlacements: parseBloodCatPlacements(sources.bloodCatPlacements),
     bloodCatSpawns: parseBloodCatSpawns(sources.bloodCatSpawns),
     creatureLairs: parseCreatureLairs(sources.creatureLairs),
-    vehicles: parseVehicleTypes(sources.vehicles),
+    vehicles: parseVehicleTypes(sources.vehicles, profileIdsByName(sources.profileInfo)),
     policy: parseStrategicPolicy(sources.policy),
     travel: parseTravelTable(sources.travel),
     facilities: parseSectorFacilities(sources.facilities),
