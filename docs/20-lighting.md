@@ -117,7 +117,7 @@ Not pinned yet:
 - Moving a switched-off light erases it once more each time: the erase does not clear `LIGHT_SPR_ERASE`. ja2-node
   never moves a placed sprite.
 - A map light flagged both prime-time and night keeps only the prime-time schedule.
-- Light passes doors as the player perceives them, not as they are; ja2-node keeps the two equal (gaps "Doors").
+- Light passes doors as the player perceives them, not as they are (`perceivedDoorTravelCost`; the perceived state: `35`).
 
 ## 4. Not checked against the native build
 

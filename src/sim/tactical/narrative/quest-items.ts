@@ -19,7 +19,7 @@ import { AiAction } from '../ai/actions.ts';
 import { changeSoldierState, states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
-import { toggleDoorAt } from '../doors.ts';
+import { handleDoorChangeFromGridNo } from '../doors.ts';
 import { givingSoldierCancelServices } from '../first-aid.ts';
 import { setSoldierPosition, stopMerc } from '../movement.ts';
 import { NOWHERE, newOKDestination } from '../pathfinding.ts';
@@ -178,7 +178,7 @@ function closeDoorAt(t: TacticalState, gridNo: number): boolean {
   const door = t.world.structures.find(gridNo, StructureFlags.ANYDOOR);
   if (!door || !has(door.flags, StructureFlags.OPEN)) return false;
   const base = t.world.structures.findBase(door)?.gridNo ?? gridNo;
-  toggleDoorAt(t, base);
+  handleDoorChangeFromGridNo(t, null, base);
   return true;
 }
 

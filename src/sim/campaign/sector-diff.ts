@@ -17,6 +17,7 @@ import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts
 import type { Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
+import { loadedDoorStatus } from '../tactical/doors/door-status.ts';
 import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructureForPartner } from '../tactical/doors.ts';
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
@@ -44,6 +45,7 @@ export interface DiffDoorStatus {
   readonly gridNo: number;
   readonly open: boolean;
   readonly perceivedOpen: boolean;
+  readonly perceivedNotSet: boolean;
 }
 
 export interface DiffSmoke {
@@ -148,6 +150,7 @@ export function captureDoorStatus(t: TacticalState): DiffDoorStatus[] {
     gridNo,
     open: isDoorOpenAt(t, gridNo),
     perceivedOpen: status.perceivedOpen,
+    perceivedNotSet: status.perceivedNotSet,
   }));
 }
 
@@ -300,7 +303,7 @@ export function restoreBloodAndSmell(t: TacticalState, records: readonly DiffBlo
 export function restoreDoorStatus(t: TacticalState, statuses: readonly DiffDoorStatus[]): void {
   t.doorStatus.clear();
   for (const d of statuses) {
-    t.doorStatus.set(d.gridNo, { perceivedOpen: d.perceivedOpen });
+    t.doorStatus.set(d.gridNo, loadedDoorStatus(d.perceivedOpen, d.perceivedNotSet));
     const door = t.world.structures.find(d.gridNo, StructureFlags.ANYDOOR);
     if (!door || has(door.flags, StructureFlags.OPEN) === d.open) continue;
     const base = t.world.structures.findBase(door);

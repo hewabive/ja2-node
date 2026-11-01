@@ -350,7 +350,10 @@ there while dialogue plays or another merc still walks up to give an item: then 
 only stands there. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
 `openManually` is the menu's open button (deviation "Door menu"). `close` by our merc answers vanilla's closing menu
 (`{closed: false, options}` and a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other
-soldiers close at once (deviation "Closing an open door"). Containers and switches take `open` and `close` with the
+soldiers close at once (deviation "Closing an open door"). A door swings for up to 375 ms after it changes; an order to
+act on it meanwhile stops the merc (`{started: busy}`), as `InteractWithOpenableStruct` does, and advance may reach idle
+before the door stops. A door that changes out of the squad's sight raises no `doorChanged` and keeps its place in
+`openDoors` until a merc sees it. Containers and switches take `open` and `close` with the
 original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which were open when it is left. `useRemote`
 presses the remote trigger in hand (the O3 statue, `26`).
 

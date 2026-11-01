@@ -9,7 +9,7 @@ import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { states } from '../animation.ts';
-import { swapStructureForPartner, toggleDoorAt } from '../doors.ts';
+import { handleDoorChangeFromGridNo, swapStructureForPartner } from '../doors.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
@@ -19,6 +19,7 @@ import { type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import { WaitForMercs } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, handleOpenableStruct } from './door-actions.ts';
+import { isDoorBusy } from './door-status.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
 import { handleDoorTrap } from './door-traps.ts';
 import { keyRingView } from './door-view.ts';
@@ -28,6 +29,7 @@ import { attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-att
 const VILLAGE = 'stubs/world/maps/village.dat';
 const DOOR = 11429;
 const OUTSIDE = DOOR + 160;
+const IN_SIGHT_OF_DOOR = DOOR + 3;
 const FAR = OUTSIDE + 160 * 4;
 const NORTH = 0;
 const MERC_PROFILE = 5;
@@ -68,12 +70,13 @@ function doorStructure(sim: TacticalSim) {
 }
 
 describe('a door the map holds open', () => {
-  it('is open in the view before anybody touches it, and leaves it once closed', () => {
+  it('is open in the view before anybody touches it, and leaves it once closed in sight of a merc', () => {
     const sim = village();
     expect(swapStructureForPartner(sim.state, doorStructure(sim))).not.toBeNull();
     expect(sim.state.doorStatus.has(DOOR)).toBe(false);
     expect(sim.openDoors()).toEqual([DOOR]);
-    expect(toggleDoorAt(sim.state, DOOR)).toBe(true);
+    spawnSoldier(sim, 0, Team.OUR, IN_SIGHT_OF_DOOR, NORTH);
+    expect(handleDoorChangeFromGridNo(sim.state, null, DOOR)).toBe(true);
     expect(sim.openDoors()).toEqual([]);
   });
 });
@@ -112,7 +115,7 @@ describe('the stub village door', () => {
   it('asks with the closing menu before our merc closes an open door, as vanilla does', () => {
     const sim = village();
     updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
-    expect(toggleDoorAt(sim.state, DOOR)).toBe(true);
+    expect(handleDoorChangeFromGridNo(sim.state, null, DOOR)).toBe(true);
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     sim.lookAround();
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'close' })).toMatchObject({
@@ -170,6 +173,7 @@ describe('the stub village door', () => {
     expect(resultsOf(unlocked)).toEqual(['unlock:opened']);
     expect(unlocked.some((e) => e.type === 'doorChanged' && e.open)).toBe(true);
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ locked: false, perceivedLocked: PerceivedLock.UNLOCKED });
+    while (isDoorBusy(sim.state, DOOR)) sim.step();
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'closeManually' }).ok).toBe(true);
     expect(runSimUntilIdle(sim).some((e) => e.type === 'doorChanged' && !e.open)).toBe(true);
   });
@@ -204,7 +208,7 @@ describe('the stub village door', () => {
     s.doorHandleCode = HandleDoor.OPEN;
     expect(handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim))).toBe(true);
     expect(s.actionPoints).toBe(full);
-    toggleDoorAt(sim.state, DOOR);
+    handleDoorChangeFromGridNo(sim.state, null, DOOR);
     removeDoorInfo(sim.state, DOOR);
     expect(handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim))).toBe(true);
     expect(s.actionPoints).toBe(full - doorApCost(HandleDoor.OPEN));

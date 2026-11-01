@@ -66,7 +66,8 @@ heap pops in the original's skip-list order without its draws (deviation "Pathfi
 and the trail limit are kept, so long searches fail where the original's do; reachability floods pass the larger limit
 the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. Players path with the
 perceived door state and never through a closed door; others go through a closed door that is unlocked, has no record
-in the map's door table or opens with their keys (perceived state = real state, gaps "Doors"). The oracle's `path`
+in the map's door table or opens with their keys. A door changed out of the squad's sight keeps its perceived state
+until a merc sees it (`35`). The oracle's `path`
 probe compares length, directions and the `PlotPath` AP cost for A9 and the save fighters.
 
 **Paying at the centre.** A step's APs and breath are paid at the tile centre before leaving it; real time charges no

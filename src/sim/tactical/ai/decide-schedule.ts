@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/DecideAction.cc DoneScheduleAction, DecideActionSchedule; TacticalAI/FindLocations.cc
-// @src FindNearbyPointOnEdgeOfMap.
+// @src src/game/TacticalAI/DecideAction.cc DoneScheduleAction, DecideActionSchedule (with the busy door, 2026-11-01);
+// @src TacticalAI/FindLocations.cc FindNearbyPointOnEdgeOfMap.
 
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { i16, idiv } from '../../../core/int.ts';
+import { isDoorBusy } from '../doors/door-status.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
 import { getSchedule, ScheduleAction, type ScheduleNode, UNSET_SCHEDULE_VALUE } from '../narrative/schedule-state.ts';
 import {
@@ -102,7 +103,7 @@ function decideDoorSchedule(t: TacticalState, s: Soldier, action: number, data1:
   }
   if (ai.scheduleProgress === 1) {
     const doorGridNo = findDoorAtGridNoOrAdjacent(t, data1);
-    if (doorGridNo === NOWHERE) return AiAction.NONE;
+    if (doorGridNo === NOWHERE || isDoorBusy(t, doorGridNo)) return AiAction.NONE;
     const useDoor = action === ScheduleAction.LOCKDOOR ? lockDecision(t, s, doorGridNo) : otherDoorDecision(t, action, doorGridNo);
     if (useDoor) {
       ai.actionData = doorGridNo;

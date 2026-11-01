@@ -97,6 +97,7 @@ import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
+import { updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
@@ -646,6 +647,7 @@ export class SectorFlow {
     loadSavedSectorChanges(sim, saved, () => handleHelicopterOnGround(this.ctx, true));
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
+    updateDoorGraphicsFromStatus(t);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
   }
 
@@ -674,6 +676,7 @@ export class SectorFlow {
     this.#loadCurrentSectorsInformation(sector, diff);
     if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
     this.prepareLoadedSector(options);
+    updateDoorGraphicsFromStatus(sim.state);
   }
 
   #flagged(sector: Sector, flag: number): boolean {

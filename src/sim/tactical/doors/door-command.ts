@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
 // @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival (the
 // @src LOCKUI_MODE test, 2026-10-30);
-// @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback.
+// @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback; Handle_Doors.cc InteractWithOpenableStruct (a busy door
+// @src stops the menu's merc, 2026-11-01).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -26,6 +27,7 @@ import {
   interactWithDoorAt,
   interactWithOpenableStruct,
   startInteractiveObject,
+  stoppedAtBusyDoor,
 } from './door-actions.ts';
 import { type DoorApproach, findAdjacentGridExAdvanced } from './door-approach.ts';
 import { findDoorInfo, PerceivedTrap } from './door-table.ts';
@@ -101,6 +103,7 @@ function openOrClose(t: TacticalState, s: Soldier, gridNo: number, direction: nu
 function closeManually(t: TacticalState, s: Soldier, gridNo: number, direction: number): Record<string, unknown> {
   startInteractiveObject(t, s, gridNo);
   s.reverse = false;
+  if (stoppedAtBusyDoor(t, s, gridNo)) return { started: 'busy' };
   if (!s.collapsed) setDesiredDirection(t, s, direction);
   closeDoorByHand(t, s);
   return { started: 'closeManually' };
@@ -109,6 +112,7 @@ function closeManually(t: TacticalState, s: Soldier, gridNo: number, direction: 
 function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: number, action: DoorActionName): Record<string, unknown> {
   startInteractiveObject(t, s, gridNo);
   s.reverse = false;
+  if (stoppedAtBusyDoor(t, s, gridNo)) return { started: 'busy' };
   if (!s.collapsed) setDesiredDirection(t, s, direction);
   if (!s.collapsed) soldierGotoStationaryStance(t, s);
   if (action !== 'lock' && doTrapCheckOnStartingMenu(t, s, gridNo)) {

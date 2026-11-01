@@ -19,6 +19,7 @@ import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
+import type { DoorStatusEntry } from './doors/door-status.ts';
 import { createKeyTable, type KeyTable } from './doors/keys.ts';
 import type { MapEdgepoints } from './edgepoints.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
@@ -250,7 +251,7 @@ export interface TacticalState {
   readonly awaySlots: (Soldier | null)[];
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly reserved: Int16Array;
-  readonly doorStatus: Map<number, DoorStatus>;
+  readonly doorStatus: Map<number, DoorStatusEntry>;
   readonly rng: Rng;
   readonly pre: PreRandom;
   inCombat: boolean;
@@ -419,7 +420,7 @@ export function createTacticalState(
 ): TacticalState {
   const occupant: [Int16Array, Int16Array] = [new Int16Array(WORLD_MAX).fill(-1), new Int16Array(WORLD_MAX).fill(-1)];
   const soldiers: Soldier[] = [];
-  const doorStatus = new Map<number, DoorStatus>();
+  const doorStatus = new Map<number, DoorStatusEntry>();
   const pathWorld: PathWorld = {
     costs: world.costs,
     terrain: world.terrain,

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Doors.cc GetAnimStateForInteraction, InteractWithClosedDoor, InteractWithOpenableStruct,
-// @src HandleOpenableStruct; Interface.cc PopupDoorOpenMenu, MakeButtonDoor, BtnDoorMenuCallback, DoorAction;
+// @src src/game/Tactical/Handle_Doors.cc GetAnimStateForInteraction, InteractWithClosedDoor, InteractWithOpenableStruct (the
+// @src busy door 2026-11-01), HandleOpenableStruct; Interface.cc PopupDoorOpenMenu, MakeButtonDoor, BtnDoorMenuCallback,
+// @src DoorAction;
 // @src Interactive_Tiles.cc StartInteractiveObject, SoldierHandleInteractiveObject; Soldier_Ani.cc code 495.
 // @src vanilla Build/Tactical/HandleDoors.c InteractWithOpenableStruct and Interface.c PopupDoorOpenMenu, BtnDoorMenuCallback (the
 // @src closing menu Stracciatella dropped).
@@ -10,12 +11,13 @@ import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { AiAction } from '../ai/actions.ts';
 import { AnimHeight, endHeight, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
-import { toggleDoorAt } from '../doors.ts';
+import { handleDoorChangeFromGridNo } from '../doors.ts';
+import { stopMerc } from '../movement.ts';
 import { processImplicationsOfPCMessingWithDoor } from '../narrative/civ-hostility.ts';
-import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
 import { AP, BP, DOOR_APS, deductPoints, enoughPoints } from '../points.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { isDoorBusy } from './door-status.ts';
 import { DOOR_TRAP_NAMES, DoorTrap, findDoorInfo, HandleDoor, PerceivedTrap } from './door-table.ts';
 import {
   attemptToUntrapDoor,
@@ -220,6 +222,12 @@ function offerToClose(t: TacticalState, s: Soldier, gridNo: number): Interaction
   return 'closeMenu';
 }
 
+export function stoppedAtBusyDoor(t: TacticalState, s: Soldier, gridNo: number): boolean {
+  if (!isDoorBusy(t, gridNo)) return false;
+  stopMerc(t, s);
+  return true;
+}
+
 export function interactWithOpenableStruct(
   t: TacticalState,
   s: Soldier,
@@ -229,6 +237,7 @@ export function interactWithOpenableStruct(
   const base = t.world.structures.findBase(structure) ?? structure;
   const isDoor = has(structure.flags, StructureFlags.ANYDOOR);
   const isSwitch = has(structure.flags, StructureFlags.SWITCH);
+  if (isDoor && stoppedAtBusyDoor(t, s, base.gridNo)) return 'busy';
   if (!s.collapsed) setDesiredDirection(t, s, direction);
   if (has(structure.flags, StructureFlags.OPEN)) {
     if (s.team === Team.OUR && isDoor) return offerToClose(t, s, base.gridNo);
@@ -453,10 +462,8 @@ export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: numbe
     playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
     r.handle = true;
   }
-  if (r.handle && isDoor) {
-    toggleDoorAt(t, gridNo, noisy);
-    if (!has(structure.flags, StructureFlags.OPEN)) checkPowPathsInAlmaPrison(t);
-  } else if (r.handle) handleStructChangeFromGridNo(t, s, gridNo);
+  if (r.handle && isDoor) handleDoorChangeFromGridNo(t, s, gridNo, { noisy });
+  else if (r.handle) handleStructChangeFromGridNo(t, s, gridNo);
   deductPoints(t.inCombat, s, r.ap, r.bp);
   if (s.team === Team.OUR) doorResult(t, s, gridNo, code, r);
   return r.handle;

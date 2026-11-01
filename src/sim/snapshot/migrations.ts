@@ -876,6 +876,35 @@ function addCreatureTenseQuoteTimer(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LIVE_DOOR_STATUS_KEYS = ['perceivedOpen'];
+const SAVED_DOOR_STATUS_KEYS = ['gridNo', 'open', 'perceivedOpen'];
+
+function hasExactlyKeys(o: JsonObject, keys: readonly string[]): boolean {
+  const own = Object.keys(o);
+  return own.length === keys.length && keys.every((key) => own.includes(key));
+}
+
+function withDoorStatusFlags(o: JsonObject): JsonObject {
+  if (hasExactlyKeys(o, LIVE_DOOR_STATUS_KEYS) && typeof o.perceivedOpen === 'boolean')
+    return { perceivedOpen: o.perceivedOpen, perceivedNotSet: false, busy: false, shownOpen: o.perceivedOpen };
+  if (hasExactlyKeys(o, SAVED_DOOR_STATUS_KEYS) && typeof o.perceivedOpen === 'boolean') return { ...o, perceivedNotSet: false };
+  return o;
+}
+
+function withDoorStatuses(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDoorStatuses(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withDoorStatuses(v);
+  return withDoorStatusFlags(mapped);
+}
+
+function addDoorStatusFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withDoorStatuses(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -911,5 +940,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     31: addServicingCrows,
     32: addRandomActionCounter,
     33: addCreatureTenseQuoteTimer,
+    34: addDoorStatusFlags,
   };
 }

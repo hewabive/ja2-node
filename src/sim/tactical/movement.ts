@@ -28,7 +28,7 @@ import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
-import { toggleDoorAt } from './doors.ts';
+import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
@@ -133,7 +133,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   if (s.offMap) return;
   if (s.endDoorOpenCode === 2) {
     s.endDoorOpenCode = 0;
-    toggleDoorAt(t, s.endDoorOpenCodeData);
+    handleDoorChangeFromGridNo(t, s, s.endDoorOpenCodeData);
   }
   s.walkToAttackGridNo = NOWHERE;
   unmarkMovementReserved(t, s);

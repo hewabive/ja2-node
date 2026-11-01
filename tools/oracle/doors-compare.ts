@@ -10,7 +10,7 @@ import { EventKind } from '../../src/sim/strategic/time/constants.ts';
 import { handleOpenableStruct } from '../../src/sim/tactical/doors/door-actions.ts';
 import { findDoorInfo, removeDoorInfo, updateDoor } from '../../src/sim/tactical/doors/door-table.ts';
 import { doTrapCheckOnStartingMenu } from '../../src/sim/tactical/doors/door-traps.ts';
-import { toggleDoorAt } from '../../src/sim/tactical/doors.ts';
+import { handleDoorChangeFromGridNo } from '../../src/sim/tactical/doors.ts';
 import {
   AttackReason,
   checkHostileOrSayQuoteList,
@@ -156,7 +156,7 @@ function int(a: Record<string, string>, key: string): number {
 
 function applyDoorSettings(t: TacticalState, g: number, a: Record<string, string>): void {
   const door = t.world.structures.find(g, StructureFlags.ANYDOOR);
-  if (int(a, 'close') === 1 && door && door.flags & StructureFlags.OPEN) toggleDoorAt(t, g);
+  if (int(a, 'close') === 1 && door && door.flags & StructureFlags.OPEN) handleDoorChangeFromGridNo(t, null, g, { noAnimation: true });
   if (has(a, 'remove') && findDoorInfo(t, g)) {
     removeDoorInfo(t, g);
     return;

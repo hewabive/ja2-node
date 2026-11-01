@@ -25,7 +25,7 @@ import {
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { MAX_PATH_LIST_SIZE, NOWHERE } from './pathfinding.ts';
-import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
+import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team, Visible } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
 const doorCosts = testDoorCosts();
@@ -172,7 +172,7 @@ describe('walking', () => {
     expect(s.gridNo).toBe(gridNo(80, 77));
   });
 
-  it('lets an enemy open a closed door on the way and close it behind him', () => {
+  it('lets an enemy in sight open a closed door on the way and close it behind him', () => {
     const closed = {
       ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE, Orientation.INSIDE_LEFT),
       number: 0,
@@ -191,6 +191,7 @@ describe('walking', () => {
       }
     });
     const s = spawn(t, START, Team.ENEMY);
+    s.visible = Visible.SEEN;
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));

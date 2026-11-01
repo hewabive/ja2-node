@@ -5,7 +5,8 @@
 // @src LoadRottingCorpsesFromTempCorpseFile;
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile,
 // @src AddBloodOrSmellFromMapTempFileToMap;
-// @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
+// @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData (the perceived flags
+// @src and the graphic of UpdateDoorGraphicsFromStatus 2026-11-01);
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
@@ -34,6 +35,7 @@ import type { DroppedNativeOption } from '../options.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
+import { loadedDoorStatus } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
 import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
 import { Insertion } from './insertion.ts';
@@ -56,6 +58,7 @@ import { addItemToPool } from './world-items.ts';
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
 const DOOR_OPEN = 0x01;
 const DOOR_PERCEIVED_OPEN = 0x02;
+const DOOR_PERCEIVED_NOTSET = 0x04;
 const NOBODY = TOTAL_SOLDIERS;
 const SAVED_OPPLIST_ENTRIES = 148;
 const SOLDIER_QUOTE_SAID_BEING_PUMMELED = 0x0004;
@@ -324,7 +327,7 @@ function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, s
 function applyDoorStatus(t: TacticalState, statuses: readonly SavedDoorStatus[]): void {
   t.doorStatus.clear();
   for (const d of statuses) {
-    t.doorStatus.set(d.gridNo, { perceivedOpen: (d.flags & DOOR_PERCEIVED_OPEN) !== 0 });
+    t.doorStatus.set(d.gridNo, loadedDoorStatus((d.flags & DOOR_PERCEIVED_OPEN) !== 0, (d.flags & DOOR_PERCEIVED_NOTSET) !== 0));
     const door = t.world.structures.find(d.gridNo, StructureFlags.ANYDOOR);
     if (!door || has(door.flags, StructureFlags.OPEN) === ((d.flags & DOOR_OPEN) !== 0)) continue;
     const base = t.world.structures.findBase(door);

@@ -47,7 +47,7 @@ door command → menu → animation → handleOpenableStruct  tactical/doors/
 | `campaign/sector-flow.ts` | Calls the entry and exit quest code, profile insertion and `postSchedules` at loads and unloads |
 | `tactical/narrative/civ-hostility.ts`, `team-change.ts`, `wheelchair.ts`; `strategic/narrative/civ-groups.ts` | `MakeCivHostile`, group changes, the attack and door implications, the brothel wall; `ChangeSoldierTeam`; Slay's kick-out; the saved group states |
 | `tactical/narrative/first-draw.ts`, `minor-offenses.ts` | `NPCFirstDraw` before our merc's attack out of combat; `MakeNPCGrumpyForMinorOffense` for a pickup from an owned tile and for our explosion in an owner's rooms |
-| `tactical/doors/` | Door table, keys and key ring, lock attempts, traps, the menu and `handleOpenableStruct`, the `door` command and view; `src/content/formats/locks.ts` reads the lock table |
+| `tactical/doors/` | Door table, keys and key ring, lock attempts, traps, the menu and `handleOpenableStruct`, the `door` command and view, door statuses (perceived, busy, shown) and the door's tile animation; `src/content/formats/locks.ts` reads the lock table |
 
 ## 2. Design
 
@@ -104,6 +104,14 @@ action charges the open-door APs where the original reads past its table (deviat
 `ExamineDoorsOnEnteringSector` never fires in the original (the tactical time stamp is set just before it,
 `Strategic/StrategicMap.cc:498,509`), so it is not ported.
 
+**Busy and perceived doors.** A door status (`doors/door-status.ts`) keeps the original's perceived and not-set flags,
+the busy flag and the door the player is shown, which the view sends as `openDoors`; the real state stays the structure.
+`handleDoorChangeFromGridNo` (`doors.ts`) decides as `HandleDoorsOpenClose` (`Tactical/Handle_Doors.cc:814`) whether a
+change is shown. A shown change sets the perceived state, raises `doorChanged` and runs the door's tile animation in the
+explosions' list (`doors/door-animation.ts`), which holds the door busy; an unshown one leaves what the player knows
+until `MercLooksForDoors` (`Tactical/Keys.cc:980`) in a merc's look. A load shows every door as perceived; the sector
+keeps the not-set flag, not the busy one.
+
 **Randomness.** Gameplay draws keep the original's statement order on `main` and `pre`. Kingpin's men placed around
 Hans' door take two `main` draws, x first, where the original's two engine draws have no defined order (deviation
 "Kingpin's men placement"); door creaks and curses are not drawn (deviation "Cosmetic draws of doors").
@@ -133,6 +141,9 @@ otherwise:
 | Our merc opens a door that has a lock entry for free; only a door without one costs the opening APs | `doors/doors.test.ts` |
 | A bash that misses by 10 to 39 never earns the token strength point: the failed check has just stored the merc's tile | `doors/doors.test.ts` |
 | An NPC told to open a door drops it on arrival during his own team's turn in combat: the interface is locked then | `narrative/npc-actions/open-thing.test.ts` |
+| A merc's look updates at most one door, the first whose status was made (the `break` in `MercLooksForDoors`) | `doors/door-status.test.ts` |
+| Only a soldier hidden at −1 changes a door unseen: one fading out at −2 still animates it and shows the player the change | `doors/door-status.test.ts` |
+| A door that already shows its new state runs its animation backward and is busy one frame, not five | `doors/door-status.test.ts` |
 | Every NPC placement draws a sector at a new game, also those whose profile does not move | `src/sim/strategic/map/init.test.ts` |
 | An enemy's pickup from an owned tile angers the owner too: the ownership check follows every soldier's pickup | `narrative/minor-offenses.test.ts` |
 | A second pickup within a second replaces the first one's ownership check, which never runs | `narrative/minor-offenses.test.ts` |
@@ -149,6 +160,9 @@ Not pinned yet:
   flags, where its bit means "attack noticed" (`markAttackNoticedByMisplacedEveryFrameFlag`, `ai/control.ts`).
 - A lock's smash difficulty above 127 turns into a bonus: both `INT8` casts wrap (`bashModifier`).
 - A threatened Kingpin moves Spike to C5 keeping his old level (`npc-events.ts`).
+- `MercLooksForDoors` tries the tiles around a door with the door tile's sight range, where `AllMercsLookForDoor` takes
+  each tile's own (`door-status.ts`).
+- A door whose perceived state is not set reads as closed to the player's paths, whatever it shows (`doorState`).
 
 ## 4. Not checked against the native build
 
@@ -158,6 +172,8 @@ the door actions and menu, and schedules through entries, warps, loads and AI de
 "Facts and NPC presence", "NPC actions", "Civilians", "Doors", "Schedules"); the new-game probes of "Laptop" compare
 every profile's sector. Inferred from reading the source:
 - The walking door and cabinet actions (3, 27, 40): unit tests on the stub village door only.
+- The busy door and the perceived door state: unit tests on the stub village and town; the oracle's door probes leave
+  the door statuses out.
 - An NPC drawing first, the ownership check of a pickup and the room owners' grudge after our explosions
   (`first-draw.ts`, `minor-offenses.ts`): unit tests on synthetic maps only.
 - That the original cannot save while a requestor box or the talk panel is open, so their globals need no save.

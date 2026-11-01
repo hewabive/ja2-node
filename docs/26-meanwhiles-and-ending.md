@@ -143,6 +143,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | With Alma holding no enemies the first capture skips Alma silently and goes straight to the interrogation | `campaign/battle-scenario.test.ts` |
 | The liar is chosen by wisdom alone: the comparison adds the candidate's leadership on both sides | `tactical/narrative/npc-actions/requestors.test.ts` |
 | The creature queen's death begins only when somebody killed her, so a killer-less death after Deidranna's never ends the campaign | `tactical/combat/death.test.ts` |
+| The I13 path checks of an opening door run before it opens, so that door frees a POW only at the next door or explosion | `tactical/doors/door-status.test.ts` |
 
 Not pinned yet:
 - Before reloading P3 the endgame sets the loaded sector's level to 1, which saves the loaded world under P3 b1: right

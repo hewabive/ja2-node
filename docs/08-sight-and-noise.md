@@ -189,5 +189,5 @@ are not probed. Inferred from reading the source:
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
 
-Not ported: gaps "Guard room run", "Doors", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
+Not ported: gaps "Guard room run", the camera's slide to a sighting ("Tactical HUD details"). Other deviations of this domain: "Enemy sighted on their turn", "Real-time turn
 after combat", "Ambient light and light schedule", "Sounds out of sight", "Bullets of unseen shooters".

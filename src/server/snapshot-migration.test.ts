@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
+import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
+import { loadedDoorStatus } from '../sim/tactical/doors/door-status.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
 import { Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
@@ -1373,5 +1375,82 @@ describe('snapshot version 33 (no creature tension timer) migrates with no delay
     if (!t) throw new Error('no loaded sector');
     expect(t.realtimeClock).toBe(campaign.campaign.state.sectorFlow.realtimeClock);
     await expectFreshTimer(campaign, t.realtimeClock);
+  });
+});
+
+const DOOR_STATUS_FLAG_KEYS = ['perceivedNotSet', 'busy', 'shownOpen'];
+const LIVE_DOOR_STATUS_KEYS = ['perceivedOpen', ...DOOR_STATUS_FLAG_KEYS];
+const SAVED_DOOR_STATUS_KEYS = ['gridNo', 'open', 'perceivedOpen', 'perceivedNotSet'];
+const SANDBOX_DOOR = 11429;
+const OTHER_DOOR = 11433;
+const LEFT_SECTOR = { x: 1, y: 1, z: 0 };
+
+function hasKeys(o: Readonly<Record<string, Json>>, keys: readonly string[]): boolean {
+  return Object.keys(o).length === keys.length && keys.every((key) => key in o);
+}
+
+function withoutDoorStatusFlags(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutDoorStatusFlags(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutDoorStatusFlags(v);
+  if (hasKeys(out, LIVE_DOOR_STATUS_KEYS)) {
+    expect([out.perceivedNotSet, out.busy, out.shownOpen]).toEqual([false, false, out.perceivedOpen]);
+    return { perceivedOpen: out.perceivedOpen ?? false };
+  }
+  if (hasKeys(out, SAVED_DOOR_STATUS_KEYS)) {
+    const { perceivedNotSet, ...saved } = out;
+    expect(perceivedNotSet).toBe(false);
+    return saved;
+  }
+  return out;
+}
+
+function versionThirtyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutDoorStatusFlags(value)]);
+  return { ...snapshot, version: 34, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 34 (door statuses with only the perceived state) migrates with doors free and shown as perceived', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectPerceivedDoors(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirtyFour(current.sim);
+    for (const key of DOOR_STATUS_FLAG_KEYS) {
+      expect(JSON.stringify(current.sim)).toContain(`"${key}"`);
+      expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    }
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    t.doorStatus.set(SANDBOX_DOOR, loadedDoorStatus(true, false));
+    t.doorStatus.set(OTHER_DOOR, loadedDoorStatus(false, false));
+    await expectPerceivedDoors(sandbox);
+  });
+
+  it('a landed campaign with a sector left behind', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    t.doorStatus.set(SANDBOX_DOOR, loadedDoorStatus(true, false));
+    const diff = emptySectorDiff();
+    diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false }];
+    campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
+    await expectPerceivedDoors(campaign);
   });
 });

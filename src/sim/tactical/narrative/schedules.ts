@@ -16,7 +16,7 @@ import { i16, idiv, u16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { awaySoldierAt, moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
-import { isDoorOpenAt, toggleDoorAt } from '../doors.ts';
+import { modifyDoorStatusOpen } from '../doors.ts';
 import { EdgeSide, findNearestEdgepointOnSpecifiedEdge } from '../edgepoints.ts';
 import { setSoldierPosition, setSoldierPositionXY } from '../movement.ts';
 import { NOWHERE } from '../pathfinding.ts';
@@ -205,27 +205,22 @@ export function findDoorAtGridNoOrAdjacent(t: TacticalState, g: number): number 
   return NOWHERE;
 }
 
-function setDoorOpen(t: TacticalState, doorGridNo: number, open: boolean): void {
-  if (!t.world.structures.find(doorGridNo, StructureFlags.ANYDOOR)) return;
-  if (isDoorOpenAt(t, doorGridNo) !== open) toggleDoorAt(t, doorGridNo);
-}
-
 export function performActionOnDoorAdjacentToGridNo(t: TacticalState, action: number, g: number): void {
   const doorGridNo = findDoorAtGridNoOrAdjacent(t, g);
   if (doorGridNo === NOWHERE) return;
   switch (action) {
     case ScheduleAction.LOCKDOOR:
       if (findDoorInfo(t, doorGridNo)) updateDoor(t, doorGridNo, { locked: true });
-      setDoorOpen(t, doorGridNo, false);
+      modifyDoorStatusOpen(t, doorGridNo, false);
       break;
     case ScheduleAction.UNLOCKDOOR:
       if (findDoorInfo(t, doorGridNo)) updateDoor(t, doorGridNo, { locked: false });
       break;
     case ScheduleAction.OPENDOOR:
-      setDoorOpen(t, doorGridNo, true);
+      modifyDoorStatusOpen(t, doorGridNo, true);
       break;
     case ScheduleAction.CLOSEDOOR:
-      setDoorOpen(t, doorGridNo, false);
+      modifyDoorStatusOpen(t, doorGridNo, false);
       break;
   }
 }

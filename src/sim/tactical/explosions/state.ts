@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Physics.h REAL_OBJECT; Explosion_Control.h EXPLOSIONTYPE; SmokeEffects.h SMOKEEFFECT;
 // @src LightEffects.h LIGHTEFFECT; Tactical/Soldier_Control.h THROW_PARAMS, SOLDIER_GASSED, fHitByGasFlags,
-// @src SOLDIER_MISC_HURT_BY_EXPLOSION; WorldDef.h ubExtFlags.
+// @src SOLDIER_MISC_HURT_BY_EXPLOSION; WorldDef.h ubExtFlags; Tile_Animation.h ANITILE (the door tiles 2026-11-01).
 
 import type { ExplosionAnimation } from '../../../content/items/explosions.ts';
 import { WORLD_MAX } from '../../../content/world/grid.ts';
@@ -99,7 +99,15 @@ export interface RippleTile {
   lastUpdate: number;
 }
 
-export type AniTile = ExplosionTile | RippleTile;
+export interface DoorTile {
+  readonly kind: 'door';
+  readonly gridNo: number;
+  readonly forward: boolean;
+  frame: number;
+  lastUpdate: number;
+}
+
+export type AniTile = ExplosionTile | RippleTile | DoorTile;
 
 export const SmokeFlags = { INDOORS: 0x01, ON_ROOF: 0x02, MARK_FOR_UPDATE: 0x04 } as const;
 
@@ -163,5 +171,10 @@ export function worldSeconds(t: { readonly explosives: ExplosivesState; readonly
 }
 
 export function explosivesBusy(e: ExplosivesState): boolean {
-  return e.objects.some((o) => o !== null) || e.aniTiles.length > 0;
+  return e.objects.some((o) => o !== null) || e.aniTiles.some((a) => a.kind !== 'door');
+}
+
+export function removeAniTile(e: ExplosivesState, a: AniTile): void {
+  const k = e.aniTiles.indexOf(a);
+  if (k >= 0) e.aniTiles.splice(k, 1);
 }

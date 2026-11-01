@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
+// @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics; MercLooksForDoors 2026-11-01), BuildSightDir,
+// @src ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
 // @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems;
 // @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus; TileEngine/WorldMan.cc TypeRangeExistsInRoofLayer;
@@ -18,6 +19,7 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { idiv } from '../../../core/int.ts';
+import { mercLooksForDoors } from '../doors/door-status.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, switchOnCaveLightAt } from '../lighting/lighting.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { BOXING_SECTOR } from '../narrative/constants.ts';
@@ -250,6 +252,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
     fog.markers.fill(0);
     fog.markerValue = 1;
   }
+  mercLooksForDoors(t, s);
   const level = s.level;
   const range = s.gassed
     ? GASSED_VIEW_RANGE

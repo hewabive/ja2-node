@@ -4,7 +4,8 @@
 // @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT; the
 // @src HandleBuldingDestruction call 2026-10-31),
 // @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
-// @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames);
+// @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames; the door tiles
+// @src in the same pass 2026-11-01);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
 
 import { NOTHING } from '../../../content/items/items.ts';
@@ -24,6 +25,7 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { i16, idiv, u8 } from '../../../core/int.ts';
 import { TICK_MS } from '../../clock.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
+import { DOOR_FRAME_DELAY_MS, stepDoorAnimation } from '../doors/door-animation.ts';
 import {
   type LightSprite,
   lightSpriteCreate,
@@ -43,7 +45,7 @@ import { itemsAt, removeWorldItem } from '../world-items.ts';
 import { damageSoldierFromBlast, reduceDamageAmount } from './blast-damage.ts';
 import { damageItemOnGround } from './item-damage.ts';
 import { addSmokeEffectToTile, dishOutGasDamage, newSmokeEffect, removeSmokeEffectFromTile, smokeTypeOf } from './smoke.ts';
-import type { AniTile, ExplosionTile, SmokeCloud } from './state.ts';
+import { type AniTile, type ExplosionTile, type RippleTile, removeAniTile, type SmokeCloud } from './state.ts';
 import { explosiveDamageGridNo, recompileChangedTiles, type StructureChanges, windowHit } from './structure-damage.ts';
 
 export const Spread = { NORMAL: 0, SUBSEQUENT: 1, ERASE: 2, BLOOD: 3, REDO: 4 } as const;
@@ -173,17 +175,12 @@ export function igniteExplosionXY(
 }
 
 function frameDelay(a: AniTile): number {
+  if (a.kind === 'door') return DOOR_FRAME_DELAY_MS;
   return a.kind === 'explosion' ? a.delay : RIPPLE_DELAY_MS;
 }
 
-function frameCount(a: AniTile): number {
+function frameCount(a: ExplosionTile | RippleTile): number {
   return a.kind === 'explosion' ? a.animation.frames : RIPPLE_FRAMES;
-}
-
-function removeAniTile(t: TacticalState, a: AniTile): void {
-  const tiles = t.explosives.aniTiles;
-  const k = tiles.indexOf(a);
-  if (k >= 0) tiles.splice(k, 1);
 }
 
 function applyExplosionEffect(t: TacticalState, a: ExplosionTile): void {
@@ -202,8 +199,12 @@ export function stepExplosions(t: TacticalState): void {
   for (const a of [...e.aniTiles]) {
     if (t.clockMs - a.lastUpdate <= frameDelay(a)) continue;
     a.lastUpdate = t.clockMs;
+    if (a.kind === 'door') {
+      if (stepDoorAnimation(t, a)) return;
+      continue;
+    }
     if (a.frame + 1 >= frameCount(a)) {
-      removeAniTile(t, a);
+      removeAniTile(e, a);
       if (a.kind === 'explosion') {
         if (a.light) lightSpriteDestroy(t, a.light);
         t.perception.disallowSight = false;
