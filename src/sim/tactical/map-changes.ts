@@ -5,7 +5,7 @@
 
 import type { StructureFile } from '../../content/formats/jsd.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
-import { PROFILE_Z_SIZE, type StructureInstance } from '../../content/world/structures.ts';
+import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { idiv } from '../../core/int.ts';
 import type { TacticalState } from './state.ts';
@@ -112,7 +112,7 @@ export function mapChangeTile(t: TacticalState, c: MapChange): number | null {
 function findRecordedBase(t: TacticalState, c: MapChange): StructureInstance | null {
   const file = fileForKey(t, c.fileKey);
   for (const s of t.world.structures.at(c.gridNo)) {
-    if (s.baseGridNo !== s.gridNo || s.def.number !== c.number || levelOf(s) !== c.level) continue;
+    if (!has(s.flags, StructureFlags.BASE_TILE) || s.def.number !== c.number || levelOf(s) !== c.level) continue;
     if (c.fileKey === NO_FILE || s.file === file) return s;
   }
   return null;
