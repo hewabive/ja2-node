@@ -33,6 +33,15 @@ describe('inventory view', () => {
     expect(view[2]?.money).toBe(250);
   });
 
+  it('shows ubMission only on an object that has one, which only an imported save can carry', () => {
+    const inv = emptyInventory();
+    inv[InvSlot.HAND] = { ...createItem(items, index('GLOCK_17'), 90), mission: 2 };
+    inv[InvSlot.SMALLPOCK1] = createItem(items, index('CLIP9_15'), 100);
+    const [onMission, ordinary] = inventoryView(items, inv);
+    expect(onMission?.mission).toBe(2);
+    expect(ordinary).not.toHaveProperty('mission');
+  });
+
   it('compares by content so frames carry inventory changes only', () => {
     const inv = emptyInventory();
     inv[InvSlot.HAND] = createItem(items, index('GLOCK_17'), 90);

@@ -41,6 +41,7 @@ export interface ItemObject {
   money: number;
   attachments: Attachment[];
   flags: number;
+  mission: number;
   trap: number;
   imprintId: number;
   keyId: number;
@@ -58,6 +59,7 @@ export function emptyObject(): ItemObject {
     money: 0,
     attachments: Array.from({ length: MAX_ATTACHMENTS }, () => ({ item: NOTHING, status: 0 })),
     flags: 0,
+    mission: 0,
     trap: 0,
     imprintId: 0,
     keyId: 0,
@@ -354,6 +356,7 @@ export function objectToRecord(o: ItemObject): ObjectRecord {
     money: o.money,
     attachments: o.attachments.map((a) => ({ ...a })),
     flags: o.flags,
+    mission: o.mission,
     trap: o.trap,
     imprintId: o.imprintId,
     keyId: o.keyId,
@@ -376,6 +379,7 @@ export function objectFromRecord(rec: ObjectRecord): ItemObject {
   o.money = rec.money;
   o.attachments = rec.attachments.map((a) => ({ ...a }));
   o.flags = rec.flags;
+  o.mission = rec.mission;
   o.trap = rec.trap;
   o.imprintId = rec.imprintId;
   o.keyId = rec.keyId;

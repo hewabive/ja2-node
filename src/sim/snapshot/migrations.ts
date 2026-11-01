@@ -627,6 +627,41 @@ function addPickedOwnershipCheck(snapshot: Readonly<Record<string, unknown>>): R
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ITEM_OBJECT_NUMBER_KEYS = [
+  'item',
+  'count',
+  'gunAmmoType',
+  'gunShotsLeft',
+  'gunAmmoItem',
+  'gunAmmoStatus',
+  'money',
+  'flags',
+  'trap',
+  'imprintId',
+  'keyId',
+];
+const OBJECT_FLAGS_KEY = 'flags';
+const MISSION_KEY = 'mission';
+const NO_MISSION = 0;
+
+function isItemObjectRecord(o: JsonObject): boolean {
+  return ITEM_OBJECT_NUMBER_KEYS.every((key) => typeof o[key] === 'number') && Array.isArray(o.status) && Array.isArray(o.attachments);
+}
+
+function withObjectMissions(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withObjectMissions(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withObjectMissions(v);
+  return isItemObjectRecord(mapped) ? insertAfter(mapped, OBJECT_FLAGS_KEY, MISSION_KEY, NO_MISSION) : mapped;
+}
+
+function addObjectMissions(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withObjectMissions(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -652,5 +687,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     21: addCorpseHeads,
     22: addPreferredSelection,
     23: addPickedOwnershipCheck,
+    24: addObjectMissions,
   };
 }

@@ -5,7 +5,8 @@
 // @src attachment or merge on a hand or armour slot opens the description box instead), MAPInvClickCallbackSecondary (the
 // @src stack popup in INV_REGION_X, INV_REGION_Y, 261 × 248 for a stack, else the description box at
 // @src MAP_ITEMDESC_START_X, MAP_ITEMDESC_START_Y), MAPInvMoveCallback, MAPInternalInitItemDescriptionBox,
-// @src TrashCanBtnCallback and TrashItemMessageBoxCallBack (pTrashItemText[0] asked before the cursor item is destroyed),
+// @src TrashCanBtnCallback and TrashItemMessageBoxCallBack (pTrashItemText[1] asked before an object with ubMission is
+// @src destroyed, pTrashItemText[0] before any other),
 // @src GlowTrashCan (its colour index stays 0 and the background is restored at once: no glow shows),
 // @src DoneInventoryMapBtnCallback (not with an item in the cursor or a stack popup up); src/game/Tactical/Interface_Panels.cc
 // @src KeyRingItemPanelButtonCallback (on the map screen the key ring opens at STD_SCREEN_X, MAP_START_KEYRING_Y in
@@ -21,7 +22,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect } from '../tactical/inventory.ts';
-import { cursorFromMoney, slotItem } from '../tactical/item-cursor.ts';
+import { cursorFromMoney, type ItemCursor, slotItem } from '../tactical/item-cursor.ts';
 import { type DescribedObject, type DescriptionGeometry, ItemDescriptionBox } from '../tactical/item-description.ts';
 import { type KeyRingGrid, KeyRingPopup, StackPopup } from '../tactical/item-popups.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
@@ -34,6 +35,7 @@ const KEY_RING_PANEL_WIDTH = 261;
 const KEY_RING_PANEL_HEIGHT = 359 - 107;
 const TRASH_TEXT = 'pTrashItemText';
 const TRASH_ORDINARY = 0;
+const TRASH_MISSION = 1;
 const DESCRIPTION_WIDGET = 'mapItemDescription';
 const SLOT_STYLE = 'mercSlots';
 
@@ -176,11 +178,17 @@ export class MercInventory {
   async trash(): Promise<void> {
     const cursor = this.panel.cursor;
     const command = cursor ? discardCommand(cursor) : null;
-    if (!command) return;
-    const text = this.#host.env.text.string(TRASH_TEXT, TRASH_ORDINARY) ?? '';
+    if (!cursor || !command) return;
+    const text = this.#host.env.text.string(TRASH_TEXT, this.#onMission(cursor) ? TRASH_MISSION : TRASH_ORDINARY) ?? '';
     if ((await this.#host.box(text, MessageBoxFlag.YESNO)) !== MessageBoxReturn.YES) return;
     const reply = await this.panel.send(command);
     if (reply.ok) this.panel.setCursor(null);
+  }
+
+  #onMission(cursor: ItemCursor): boolean {
+    const source = cursor.source;
+    if (source.kind !== 'slot') return false;
+    return (slotItem(this.#host.soldier(source.soldier), source.slot)?.mission ?? 0) !== 0;
   }
 
   update(now: number): void {

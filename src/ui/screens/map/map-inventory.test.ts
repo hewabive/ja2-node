@@ -355,6 +355,18 @@ describe('the map screen inventory over a scripted session', () => {
     expect(h.inventory.holding).toBe(false);
   });
 
+  it('asks the second trash question for an object with ubMission (TrashCanBtnCallback)', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [{ ...view(HAND, gun.name), mission: 1 }])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click('mercSlot5');
+    h.answer = MessageBoxReturn.NO;
+    await h.click('trashCan');
+    expect(h.boxes).toEqual(['This item looks REALLY important. Are you REALLY REALLY sure you want to trash it?']);
+    expect(h.client.commands).toEqual([]);
+  });
+
   it('pages the sector inventory, counts its objects and blocks Done while an item is held', async () => {
     const gun = item((i) => i.class === 'GUN');
     const h = await harness([merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name)])]);

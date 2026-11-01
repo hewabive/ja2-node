@@ -214,6 +214,7 @@ function savedWorldItem(item: number, at: number, flags: number): SavedWorldItem
       money: 0,
       attachments: [],
       flags: 0,
+      mission: 0,
       trap: 0,
       imprintId: 0,
       keyId: 0,
@@ -323,6 +324,14 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(moved).toMatchObject({ gridNo: north, direction: Direction.NORTH, findSweetSpot: true });
     expect(kept).toMatchObject({ gridNo: blocked, direction: Direction.SOUTH });
     expect(kept?.findSweetSpot).toBeUndefined();
+  });
+
+  it('keeps the ubMission of a saved object, which no game logic sets (LoadSaveObjectType.cc ExtractObject)', () => {
+    const at = gridNo(80, 84);
+    const knife = content.items.byName.get('COMBAT_KNIFE')?.index ?? -1;
+    const saved = savedWorldItem(knife, at, WorldItemFlags.REACHABLE);
+    const sim = importedSim(syntheticSave({ worldItems: [{ ...saved, object: { ...saved.object, mission: 3 } }] }));
+    expect(sim.state.worldItems[0]?.object.mission).toBe(3);
   });
 
   it('keeps whether a saved corpse lost its head (fHeadTaken)', () => {

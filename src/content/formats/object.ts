@@ -17,6 +17,7 @@ export interface ObjectRecord {
   readonly money: number;
   readonly attachments: readonly { readonly item: number; readonly status: number }[];
   readonly flags: number;
+  readonly mission: number;
   readonly trap: number;
   readonly imprintId: number;
   readonly keyId: number;
@@ -36,6 +37,7 @@ export function decodeObject(bytes: Uint8Array, offset: number): ObjectRecord {
     money: v.getUint32(8, true),
     attachments: Array.from({ length: 4 }, (_, k) => ({ item: v.getUint16(16 + k * 2, true), status: v.getInt8(24 + k) })),
     flags: v.getUint8(28),
+    mission: v.getUint8(29),
     trap: v.getInt8(30),
     imprintId: v.getUint8(31),
     keyId: v.getUint8(KEY_ID_OFFSET),

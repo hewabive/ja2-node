@@ -111,6 +111,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
       money: 0,
       attachments: [],
       flags: 0,
+      mission: 0,
       trap: 0,
       imprintId: 0,
       keyId: 0,

@@ -19,6 +19,7 @@ export interface InventoryItemView {
   readonly keyId?: number;
   readonly jammed?: true;
   readonly imprint?: number;
+  readonly mission?: number;
 }
 
 const IMPRINTABLE_ITEMS = ['ROCKET_RIFLE', 'AUTO_ROCKET_RIFLE'];
@@ -52,6 +53,7 @@ export function slotView(items: ItemTable, slot: number, o: ItemObject): Invento
     ...(def?.itemClass === ItemClass.KEY ? { keyId: o.keyId } : {}),
     ...(itemJammed(items, o) ? { jammed: true as const } : {}),
     ...(imprint !== null ? { imprint } : {}),
+    ...(o.mission !== 0 ? { mission: o.mission } : {}),
   };
 }
 

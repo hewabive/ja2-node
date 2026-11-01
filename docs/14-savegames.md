@@ -99,6 +99,7 @@ Each looks like a bug and is the original's behaviour. Paths are under `src/`:
 | A corpse with no free tile within five tiles is lost: the wider retry searches around the `NOWHERE` the first search left (`Tactical/Tactical_Save.cc:650-652`) | `sim/tactical/corpse-placement.test.ts` |
 | A loaded creature pool is redrawn as human blood: its type lives in the smell byte, which the load sets after the redraw | `sim/tactical/blood-pools.test.ts` |
 | `fFirstVisitSinceServerWentDown` is a `BOOLEAN` holding 0, 1 or 2 | `content/formats/savegame-laptop.test.ts` |
+| No game logic sets an object's `ubMission`, and no item or placement of the original maps has one: only a saved object can carry it, which rides with the object and makes the map screen's trash can ask its second question (`Strategic/MapScreen.cc:5856`) | `sim/tactical/save-import.test.ts` "keeps the ubMission of a saved object …", `ui/screens/map/map-inventory.test.ts` "asks the second trash question …" |
 
 Not pinned yet:
 - A vanilla save's `uiFlags` holds `LOADING_SAVED_GAME`, set while writing, and two bits Stracciatella no longer defines

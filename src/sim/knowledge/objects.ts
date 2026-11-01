@@ -21,6 +21,7 @@ const OWN_OBJECT_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'keyId',
   'gunAmmoStatus',
   'flags',
+  'mission',
   'trap',
 ]);
 const GROUND_OBJECT_FIELDS: ReadonlySet<PropertyKey> = new Set(['item', 'count', 'status', 'money', 'attachments']);
@@ -52,6 +53,7 @@ export function objectFromInventoryView(items: ItemTable, v: InventoryItemView, 
   o.money = v.money ?? 0;
   o.keyId = v.keyId ?? 0;
   o.imprintId = imprintOf(items, v);
+  o.mission = v.mission ?? 0;
   if (v.ammo) {
     o.gunAmmoItem = itemIndexOf(items, v.ammo.item);
     o.gunShotsLeft = v.ammo.shots;

@@ -820,3 +820,53 @@ describe('snapshot version 23 (no ownership check after a pickup) migrates with 
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function withoutMissions(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutMissions(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === 'mission') expect(v).toBe(0);
+    else out[key] = withoutMissions(v);
+  }
+  return out;
+}
+
+function versionTwentyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutMissions(value)]);
+  return { ...snapshot, version: 24, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 24 (objects without ubMission) migrates with every object off any mission', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionTwentyFour(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"mission"');
+    expect(JSON.stringify(legacy)).not.toContain('"mission"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionTwentyFour(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"mission"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
