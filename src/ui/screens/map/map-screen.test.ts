@@ -13,6 +13,10 @@ const MESSAGE_BOX = 'messageBox';
 const SPEAKER = 60;
 const MALE = 0;
 const FEMALE = 1;
+const FRED = 106;
+const FRED_RUNNING_OUT = 17;
+const FRED_KEY = { file: 'npcdata/106.edt', row: FRED_RUNNING_OUT, width: 240 };
+const DRASSEN_MINE = 1;
 const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
 
 let kit: StubSectorKit;
@@ -353,6 +357,26 @@ describe('the map screen over the stub map-screen campaign', () => {
         `${name} needs an escort to move. Place her on a squad with one.`,
       ]);
       expect(f.client.commands.at(-1)?.cmd.type).toBe('assignSquad');
+    }));
+
+  it("keeps the level it shows while a head miner speaks: Stracciatella's switch to the surface selects the sector it shows", () =>
+    withMap(async (f) => {
+      f.key('Delete');
+      await f.settle();
+      expect(f.screen.hook().level).toBe(1);
+      const tick = f.client.view.tick;
+      const said = {
+        type: 'headMinerQuote',
+        tick,
+        mine: DRASSEN_MINE,
+        profile: FRED,
+        quote: FRED_RUNNING_OUT,
+        textKey: FRED_KEY,
+        chars: 12,
+      } as const;
+      f.frames([{ tick, changed: [], removed: [], events: [said] }]);
+      await f.settle();
+      expect(f.screen.hook()).toMatchObject({ level: 1, selectedSector: expect.stringMatching(/-1$/) });
     }));
 
   it('selects the squad with its number key and the next merc with the arrow', () =>

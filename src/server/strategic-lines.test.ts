@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
-import { parseSectorString } from '../content/strategic/sector-ids.ts';
+import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { EventKind } from '../sim/strategic/time/constants.ts';
+import { addStrategicEvent } from '../sim/strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
 import { MercQuote } from '../sim/tactical/narrative/merc-quotes.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
@@ -34,6 +36,11 @@ const SECOND_HALF_OF_MENTION_DRASSEN_SAM_SITE = 21;
 const DRASSEN_SAM = 'D15';
 const DRASSEN_TOWN = 2;
 const LOYAL = 50;
+const DRASSEN_MINE = 1;
+const DRASSEN_SECTORS = ['B13', 'C13', 'D13'];
+const FRED_RUNNING_OUT = 17;
+const FRED_CREATURES_GONE = 27;
+const TEN_MINUTES_OF_TICKS = 200 * 600;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -160,5 +167,52 @@ describe('a contract line on the map screen (Strategic_Merc_Handler.cc MercDaily
     const [first, second] = report.events.filter((e) => e.type === 'mercQuote').map((e) => e.tick);
     expect(second).toBeGreaterThan(first ?? Number.POSITIVE_INFINITY);
     expect(c.session.campaign.state.clock.seconds).toBe(before);
+  });
+});
+
+describe("a head miner's line (Map_Screen_Interface.cc HandleMinerEvent, Strategic_Mines.cc IssueHeadMinerQuote)", () => {
+  function playerRunsTheDrassenMine(c: Campaign): void {
+    const state = c.session.campaign.state;
+    for (const sector of DRASSEN_SECTORS) {
+      const element = state.map.elements[strategicIndex(parseSectorString(sector))];
+      if (element) element.enemyControlled = false;
+      Object.assign(sectorInfo(state.map, parseSectorString(sector)), { numAdmins: 0, numTroops: 0, numElites: 0 });
+    }
+    Object.assign(state.economy.towns[DRASSEN_TOWN] ?? {}, { started: true, rating: LOYAL });
+    Object.assign(state.economy.mines[DRASSEN_MINE] ?? {}, { spokeToHeadMiner: true });
+  }
+
+  function minerLines(events: readonly SimEvent[]): number[] {
+    return events.flatMap((e) => (e.type === 'headMinerQuote' ? [e.quote] : []));
+  }
+
+  it('leaves tactical for the map screen once the step that queued the running-out line is done, and says it there', async () => {
+    const c = await squadInA9(131);
+    playerRunsTheDrassenMine(c);
+    const state = c.session.campaign.state;
+    Object.assign(state.economy.mines[DRASSEN_MINE] ?? {}, { remainingOreSupply: 13000, oreRunningOutPoint: 12999 });
+    addStrategicEvent(state.queue, EventKind.HANDLE_MINE_INCOME, worldTotalMinutes(state.clock) + 1, 0);
+    expect(c.session.campaign.state.flow).toBe('tactical');
+    const warned = c.live.advance({ events: ['mineRunningOut'], ticks: TEN_MINUTES_OF_TICKS });
+    expect(warned.reason).toBe('event');
+    expect(minerLines(warned.events)).toEqual([]);
+    expect(c.session.campaign.state.flow).toBe('strategic');
+    const said = c.live.advance({ events: ['headMinerQuote'], ticks: TEN_MINUTES_OF_TICKS });
+    expect(minerLines(said.events)).toEqual([FRED_RUNNING_OUT]);
+    expect(c.session.campaign.state.flow).toBe('strategic');
+  });
+
+  it('keeps the player in tactical for the creatures-gone line: he is in that mine, so he knows', async () => {
+    const c = await squadInA9(133);
+    playerRunsTheDrassenMine(c);
+    const state = c.session.campaign.state;
+    Object.assign(state.economy.mines[DRASSEN_MINE] ?? {}, { shutDown: true, shutDownIsPermanent: false });
+    addStrategicEvent(state.queue, EventKind.CHECK_IF_MINE_CLEARED, worldTotalMinutes(state.clock) + 1, 0);
+    const reopened = c.live.advance({ events: ['mineReopened'], ticks: TEN_MINUTES_OF_TICKS });
+    expect(reopened.reason).toBe('event');
+    expect(c.session.campaign.state.flow).toBe('tactical');
+    const said = c.live.advance({ events: ['headMinerQuote'], ticks: TEN_MINUTES_OF_TICKS });
+    expect(minerLines(said.events)).toEqual([FRED_CREATURES_GONE]);
+    expect(c.session.campaign.state.flow).toBe('tactical');
   });
 });

@@ -131,7 +131,8 @@ export function issueHeadMinerQuote(ctx: EconomyContext, mine: number, kind: num
     ctx.economy.headMiners.headMiners.find((h) => ctx.hooks.headMinerTown(h.profile) === town) ?? ctx.economy.headMiners.headMiners[0];
   if (!miner || !ctx.hooks.headMinerAlive(miner.profile)) return;
   const quote = miner.quotes[kind] ?? NO_QUOTE;
-  if (quote !== NO_QUOTE) ctx.hooks.headMinerDialogue(mine, miner.profile, quote);
+  const forceMapScreen = kind !== HeadMinerQuote.CREATURES_GONE;
+  if (quote !== NO_QUOTE) ctx.hooks.headMinerDialogue(mine, miner.profile, quote, forceMapScreen);
   stopTimeCompression(ctx.clock, CompressionStop.MINE_EVENT);
 }
 

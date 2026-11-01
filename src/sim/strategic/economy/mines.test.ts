@@ -153,6 +153,9 @@ describe('IssueHeadMinerQuote (Strategic_Mines.cc, Map_Screen_Interface.cc Handl
   const FRED = 106;
   const MATT = 148;
   const FRED_RUNNING_OUT = 17;
+  const FRED_CREATURES_ATTACK = 18;
+  const FRED_CREATURES_GONE = 27;
+  const FRED_CREATURES_AGAIN = 26;
 
   it('has the head miner of the mine say his line through the dialogue queue and stops compression, but says no line he lacks', () => {
     const { ctx } = context();
@@ -171,5 +174,27 @@ describe('IssueHeadMinerQuote (Strategic_Mines.cc, Map_Screen_Interface.cc Handl
     expect(said).toEqual([[DRASSEN_MINE, FRED, FRED_RUNNING_OUT]]);
     expect(ctx.events.filter((e) => e.type === 'headMinerQuote')).toEqual([]);
     expect(ctx.state.clock.compressionOn).toBe(false);
+  });
+
+  it('asks for the map screen with every line but the creatures-gone one, which the player hears in that mine', () => {
+    const { ctx } = context();
+    const forced: [number, boolean][] = [];
+    Object.assign(ctx.hooks, {
+      headMinerTown: () => townAssociatedWithMine(ctx, DRASSEN_MINE),
+      headMinerDialogue: (_mine: number, _profile: number, quote: number, forceMapScreen: boolean) => forced.push([quote, forceMapScreen]),
+    });
+    const kinds = [
+      HeadMinerQuote.RUNNING_OUT,
+      HeadMinerQuote.CREATURES_ATTACK,
+      HeadMinerQuote.CREATURES_GONE,
+      HeadMinerQuote.CREATURES_AGAIN,
+    ];
+    for (const kind of kinds) issueHeadMinerQuote(ctx, DRASSEN_MINE, kind);
+    expect(forced).toEqual([
+      [FRED_RUNNING_OUT, true],
+      [FRED_CREATURES_ATTACK, true],
+      [FRED_CREATURES_GONE, false],
+      [FRED_CREATURES_AGAIN, true],
+    ]);
   });
 });

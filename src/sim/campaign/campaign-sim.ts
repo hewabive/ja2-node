@@ -5,7 +5,8 @@
 // @src AnyUsableRealMercenariesOnTeam; Strategic/MapScreen.cc UpdatePausedStatesDueToTimeCompression;
 // @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
 // @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
-// @src TileEngine/Environment.cc EnvironmentController (the ambient light).
+// @src TileEngine/Environment.cc EnvironmentController (the ambient light); GameScreen.cc LeaveTacticalScreen (a leave
+// @src for the map screen asked during a step happens once the step is done).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -140,6 +141,7 @@ export class CampaignSim {
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
+  #leavingTacticalForMap = false;
 
   constructor(
     state: StrategicState = createStrategicState(),
@@ -492,6 +494,16 @@ export class CampaignSim {
     stopTimeCompression(this.#clock, reason);
   }
 
+  leaveTacticalScreenForMap(): void {
+    if (this.state.flow === 'tactical') this.#leavingTacticalForMap = true;
+  }
+
+  #leaveTacticalScreenIfAsked(): void {
+    const leaving = this.#leavingTacticalForMap;
+    this.#leavingTacticalForMap = false;
+    if (leaving && this.state.flow === 'tactical') enterMapScreen(this);
+  }
+
   #updatePausedStatesDueToTimeCompression(): void {
     const c = this.state.clock;
     const allowed = this.#clock.compressionRefusal() === null;
@@ -594,6 +606,7 @@ export class CampaignSim {
     if (s.flow === 'strategic') this.helicopter.afterStrategicStep();
     this.#collectEvents();
     this.battle?.afterStep();
+    this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
     this.#reEvaluateNothingToDo();
     this.#collectEvents();
@@ -688,6 +701,7 @@ export class CampaignSim {
     if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
     this.#collectEvents();
     this.battle?.settle();
+    this.#leaveTacticalScreenIfAsked();
     this.contracts?.settle();
     this.#collectEvents();
     this.#syncClockEvents();
