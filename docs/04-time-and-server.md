@@ -79,7 +79,7 @@ profiling demands it, which it has not (§4.5).
 | Logic that waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | The same queue, on ticks (`24`) |
 | Message boxes and dialogues with choices | UI screens | Decision prompts (D15); time stands still until an answer (deviations "Prompt time") |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
-| Idle animations draw on the shared generator and change soldier state | opcode 491 | Not simulated (gaps "Random idle animations") |
+| Idle animations draw on the shared generator and change soldier state | opcode 491 | Simulated with the same draws on `main`; the animals' idle sounds are the client's (deviation "Idle sounds of unseen animals") |
 | "Render visibility" `bLastRenderVisibleValue` and the soldier fade, 60 ms a shade step | `Tactical/Overhead.cc:544-634` | The same state on ticks (`src/sim/tactical/fade.ts`), from the simulation's own land shade (deviation "Soldier fade without merc lights") |
 
 Logic depends on rendering only through the soldier fade, whose length reads the land node's display shade (computed

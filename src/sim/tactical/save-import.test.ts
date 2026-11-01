@@ -350,6 +350,11 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(sim.state.corpses.map((c) => c.headTaken)).toEqual([true, false]);
   });
 
+  it('keeps how many breathing loops passed since the last random idle animation check (uiTimeOfLastRandomAction)', () => {
+    const save = syntheticSave({ soldiers: [savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(80, 82), { uiTimeOfLastRandomAction: 2 })] });
+    expect(soldierOf(importedSim(save), CIVILIAN_ID).timeOfLastRandomAction).toBe(2);
+  });
+
   it('keeps the crows feeding on a saved corpse and the corpse each saved crow feeds on (bNumServicingCrows, uiPendingActionData1, sPendingActionData2)', () => {
     const at = gridNo(80, 84);
     const save = syntheticSave({

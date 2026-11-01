@@ -37,7 +37,7 @@ client: frame of the view                             app/world/soldier-frames.t
 | Data | Where |
 |---|---|
 | Scripts per state | The user's `binarydata/ja2bin.dat`; the stub pack builds its own (`stubs/anim-scripts.ts`) |
-| Flags, speeds, heights per state; per-body speeds | `data/tables/anim-control.json` |
+| Flags, speeds, heights per state; per-body speeds; the random idle animations per body (`gRandomAnimDefs`) | `data/tables/anim-control.json` |
 | Sheets, directions, structure types; surfaces per body, state and hand | `data/tables/anim-surfaces.json` |
 | Palette replacements | The user's `binarydata/ja2pal.dat` (`content/formats/ja2pal.ts`) |
 | Merc profiles | The user's `binarydata/prof.dat` (`content/formats/prof.ts`) with Stracciatella's `mercs-profile-info.json`; the stub pack's `stubs/profiles.json` |
@@ -94,6 +94,13 @@ the gameplay stream in the order of `CreateDetailedPlacementGivenBasicPlacementI
 seeded replay creates the same sector (deviation "Soldier creation draws"); the first standing frame's draw is
 cosmetic and not made (deviation "Cosmetic face and frame draws").
 
+**Idle animations break the breathing loop.** The standing and the crow eating scripts end each pass with code 491
+(`random-anims.ts`): every third pass, or every pass below 30 life, a soldier with OKLIFE out of water draws
+`Random(100)` on `main` and may switch to an idle animation of his body, a casual one only for our mercs out of combat;
+an animal's idle sound only holds the script for a frame, the sound itself is the client's (deviation "Idle sounds of
+unseen animals"). The stub pack's `STANDING` and `CROW_EAT` carry 491 where the original's do, so stub tests draw it
+too; nobody is drunk until "Drugs and alcohol" is ported, so the drunk idle never plays.
+
 **Profiles.** ja2-node decodes `prof.dat` itself; Stracciatella's `mercs-profile-info.json` gives each profile its
 internal name and type, the face index is the profile id, and an empty vest or pants become `WHITEVEST` and
 `BLACKPANTS` (Stracciatella's rule for the player's own characters). The campaign's changing profile fields live in
@@ -116,6 +123,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A placement that sets its colours keeps only its clothes: skin and hair are rolled again | `creation.test.ts` |
 | An army woman becomes a man after her hair was rolled by the women's rules, so he is never white-haired | `creation.test.ts` |
 | An unseen enemy at the glow peak takes the step before it, 200 instead of 225 | `glow.test.ts` |
+| A one-handed gun in hand ends the idle check after its draw, injured or not: "Don't EVER do a trivial anim" | `random-anims.test.ts` |
+| An animal's idle sound holds its loop at code 491 for a frame, so the next pass counts it again | `random-anims.test.ts` |
+| Every big male idles with the second big merc animations: `TacticalCreateSoldier` gives each the threaten stance flag | `random-anims.test.ts` |
 
 Not pinned yet:
 - Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2`
@@ -136,8 +146,8 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Random idle animations", "Big merc kneel", "Reverse move
-animations", "Soldier draw height", "Drugs and alcohol" (adrenaline and drunkenness in the frame delay), "No-burn
-tiles". Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other
-scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Soldier fade
-without merc lights".
+Not ported: gaps "Soldier palettes and surfaces", "Big merc kneel", "Reverse move animations", "Soldier draw
+height", "Drugs and alcohol" (adrenaline and drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other
+deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts", "Creature
+and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures",
+"Soldier fade without merc lights".

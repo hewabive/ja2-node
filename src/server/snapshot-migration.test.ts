@@ -1259,3 +1259,52 @@ describe('snapshot version 31 (corpses without a crow count) migrates with no cr
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const RANDOM_ACTION_COUNTER_KEY = 'timeOfLastRandomAction';
+
+function withoutRandomActionCounter(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutRandomActionCounter(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === RANDOM_ACTION_COUNTER_KEY) expect(v).toBe(0);
+    else out[key] = withoutRandomActionCounter(v);
+  }
+  return out;
+}
+
+function versionThirtyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutRandomActionCounter(value)]);
+  return { ...snapshot, version: 32, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 32 (no random idle animation counter) migrates with every count at 0', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectCountsAtZero(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirtyTwo(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${RANDOM_ACTION_COUNTER_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${RANDOM_ACTION_COUNTER_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectCountsAtZero(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectCountsAtZero(await createCampaignSession(kit.read, exists, 9));
+  });
+});

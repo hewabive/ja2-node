@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Animation_Control.h (the ANIM_ flag values).
+// @src src/game/Tactical/Animation_Control.h (the ANIM_ flag values; the RANDOM_ANIM_ values and gRandomAnimDefs,
+// @src 2026-11-01).
 
 import { FormatError } from '../binary/errors.ts';
 
@@ -42,6 +43,21 @@ export const AnimFlags = {
   IGNOREHITFINISH: 0x80000000,
 } as const;
 
+export const RandomAnimHand = { NOTHING: 0, RIFLE: 1, IRRELEVANT: 2 } as const;
+
+export const RandomAnimFlags = { CASUAL: 0x01, SECOND_BIG_MERC: 0x02, FIRST_BIG_MERC: 0x04, INJURED: 0x08, DRUNK: 0x10 } as const;
+
+export interface RandomAnim {
+  readonly hand: number;
+  readonly state: number | null;
+  readonly firstRoll: number;
+  readonly lastRoll: number;
+  readonly flags: number;
+  readonly height: number;
+}
+
+type RandomAnimRow = Omit<RandomAnim, 'state'> & { readonly anim: string | null };
+
 export interface AnimationControl {
   readonly index: number;
   readonly id: string;
@@ -76,6 +92,7 @@ export interface AnimationTables {
   readonly controls: readonly AnimationControl[];
   readonly stateIndex: ReadonlyMap<string, number>;
   readonly bodyTypes: readonly string[];
+  readonly randomAnims: readonly (readonly RandomAnim[])[];
   readonly bodySpeeds: {
     readonly walk: readonly BodySpeed[];
     readonly run: readonly BodySpeed[];
@@ -92,13 +109,21 @@ export interface AnimationTables {
 }
 
 export function parseAnimationTables(controlJson: unknown, surfacesJson: unknown): AnimationTables {
-  const c = controlJson as { animations: AnimationControl[]; bodyTypes: string[]; bodySpeeds: AnimationTables['bodySpeeds'] };
-  const s = surfacesJson as Omit<AnimationTables, 'controls' | 'stateIndex' | 'bodyTypes' | 'bodySpeeds'>;
-  if (!Array.isArray(c?.animations) || !Array.isArray(s?.surfaces)) throw new FormatError('malformed animation tables');
+  const c = controlJson as {
+    animations: AnimationControl[];
+    bodyTypes: string[];
+    bodySpeeds: AnimationTables['bodySpeeds'];
+    randomAnims: RandomAnimRow[][];
+  };
+  const s = surfacesJson as Omit<AnimationTables, 'controls' | 'stateIndex' | 'bodyTypes' | 'randomAnims' | 'bodySpeeds'>;
+  if (!Array.isArray(c?.animations) || !Array.isArray(c.randomAnims) || !Array.isArray(s?.surfaces))
+    throw new FormatError('malformed animation tables');
+  const stateIndex = new Map(c.animations.map((a) => [a.id, a.index]));
   return {
     controls: c.animations,
-    stateIndex: new Map(c.animations.map((a) => [a.id, a.index])),
+    stateIndex,
     bodyTypes: c.bodyTypes,
+    randomAnims: c.randomAnims.map((rows) => rows.map((row) => randomAnim(row, stateIndex))),
     bodySpeeds: c.bodySpeeds,
     surfaces: s.surfaces,
     bodySurfaces: s.bodySurfaces,
@@ -108,6 +133,12 @@ export function parseAnimationTables(controlJson: unknown, surfacesJson: unknown
     injuredNothingWalk: s.injuredNothingWalk,
     doubleHandedStanding: s.doubleHandedStanding,
   };
+}
+
+function randomAnim(row: RandomAnimRow, stateIndex: ReadonlyMap<string, number>): RandomAnim {
+  const state = row.anim === null ? null : stateIndex.get(row.anim);
+  if (state === undefined) throw new FormatError(`unknown random animation ${row.anim}`);
+  return { hand: row.hand, state, firstRoll: row.firstRoll, lastRoll: row.lastRoll, flags: row.flags, height: row.height };
 }
 
 export function stateId(tables: AnimationTables, name: string): number {

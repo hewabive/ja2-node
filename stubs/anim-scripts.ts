@@ -18,6 +18,7 @@ const RT_NONINTERRUPT_FLAG = 0x04000000;
 const BEGIN_HOP_FENCE = 450;
 const END_HOP_FENCE = 444;
 const LOOPING_STATES = ['STANDING', 'CROUCHING', 'PRONE', 'COWERING'];
+const RANDOM_ANIM_CHECK = 491;
 
 function frames(count: number, first = 1): number[] {
   return Array.from({ length: count }, (_, i) => first + i);
@@ -548,7 +549,7 @@ function crowScripts(): Map<string, number[]> {
   const pecking = [...frames(CROW_PECK_FRAMES), CrowOp.PECK, ...frames(CROW_PECK_FRAMES, CROW_PECK_FRAMES + 1), CrowOp.PECK];
   return new Map([
     ['CROW_FLY', [CrowOp.FLY_AWAY_SOUND, ...rising, JUMP_TO_START]],
-    ['CROW_EAT', [...pecking, JUMP_TO_START]],
+    ['CROW_EAT', [...pecking, RANDOM_ANIM_CHECK, JUMP_TO_START]],
   ]);
 }
 
@@ -557,6 +558,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
   const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
   const codes = new Uint16Array(MAX_ANIMATIONS * MAX_FRAMES_PER_ANIM);
   const looping = new Set(LOOPING_STATES.map((n) => stateId(tables, n)));
+  const standing = stateId(tables, 'STANDING');
   const startSwat = stateId(tables, 'START_SWAT');
   const hopFence = stateId(tables, 'HOPFENCE');
   const combat = combatScripts(tables);
@@ -581,6 +583,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
         END_OF_ANIMATION,
       ];
     else if (STEPPING_STATES.includes(control.id)) script = steppingLoop();
+    else if (control.index === standing) script = [...frames(LOOP_FRAMES), RANDOM_ANIM_CHECK, JUMP_TO_START];
     else if (looping.has(control.index) || control.flags & AnimFlags.MOVING) script = [...frames(LOOP_FRAMES), JUMP_TO_START];
     else if (STANCE_SOUNDS[control.id] !== undefined)
       script = [1, STANCE_SOUNDS[control.id] as number, ...frames(ONE_SHOT_FRAMES - 1, 2), ...releases, END_OF_ANIMATION];

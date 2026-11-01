@@ -837,6 +837,23 @@ function addServicingCrows(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_ACTION_DATA_1_KEY = 'pendingActionData1';
+const RANDOM_ACTION_COUNTER_KEY = 'timeOfLastRandomAction';
+
+function withRandomActionCounter(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withRandomActionCounter(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withRandomActionCounter(v);
+  return isSoldierRecord(mapped) ? insertAfter(mapped, PENDING_ACTION_DATA_1_KEY, RANDOM_ACTION_COUNTER_KEY, 0) : mapped;
+}
+
+function addRandomActionCounter(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withRandomActionCounter(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -870,5 +887,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     29: addPendingRobotReload,
     30: addLandedHelicopter,
     31: addServicingCrows,
+    32: addRandomActionCounter,
   };
 }

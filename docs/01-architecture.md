@@ -210,7 +210,7 @@ handler acts on (`isSimulationOpcode`), at the same positions, so jumps and opco
 `adjustToNextAnimationFrame` (`src/sim/tactical/animation.ts`) walks the logic timeline and runs the opcodes of fence
 hops, pauses, doors and the end of an animation itself; every other opcode goes down the chain of subsystem `*Opcode`
 handlers (attack, death, items, roofs, throws, first aid) that `installTacticalHooks`
-(`src/sim/tactical/tactical-sim.ts`) wires. Not run: the random idle animations of 491 (gaps "Random idle animations").
+(`src/sim/tactical/tactical-sim.ts`) wires.
 The stub pack has invented scripts for every state with the same gameplay opcodes and shorter frames
 (`stubs/anim-scripts.ts`); a client whose scripts differ from the server's: `28`.
 

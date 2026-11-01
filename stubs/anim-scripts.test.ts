@@ -8,6 +8,8 @@ import { buildStubAnimationScripts } from './anim-scripts.ts';
 
 const NONINTERRUPTIBLE_DONE = 442;
 const RESUME_FIRE = 476;
+const RANDOM_ANIM_CHECK = 491;
+const JUMP_TO_START = 501;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -28,6 +30,18 @@ describe('stub animation scripts', () => {
       const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
       const end = script.indexOf(0);
       expect(script.slice(end - 2, end), name).toEqual([NONINTERRUPTIBLE_DONE, RESUME_FIRE]);
+    }
+  });
+
+  it('end the standing and the crow eating loops with the random idle animation check 491, as the original scripts do', async () => {
+    const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
+    const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
+    const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
+    for (const name of ['STANDING', 'CROW_EAT']) {
+      const start = stateId(tables, name) * MAX_FRAMES_PER_ANIM;
+      const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));
+      const end = script.indexOf(0);
+      expect(script.slice(end - 2, end), name).toEqual([RANDOM_ANIM_CHECK, JUMP_TO_START]);
     }
   });
 });

@@ -3633,5 +3633,331 @@
         "movement": 0
       }
     ]
-  }
+  },
+  "randomAnims": [
+    [
+      {
+        "hand": 1,
+        "anim": "REG_SPIT",
+        "firstRoll": 0,
+        "lastRoll": 3,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "REG_SQUISH",
+        "firstRoll": 10,
+        "lastRoll": 13,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "FEM_LOOK",
+        "firstRoll": 20,
+        "lastRoll": 23,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "REG_PULL",
+        "firstRoll": 30,
+        "lastRoll": 33,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "MERC_HURT_IDLE_ANIM",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 8,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "DRUNK_IDLE",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 16,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 0,
+        "anim": "BIGBUY_FLEX",
+        "firstRoll": 0,
+        "lastRoll": 3,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "BIGBUY_STRECH",
+        "firstRoll": 10,
+        "lastRoll": 13,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "BIGBUY_SHOEDUST",
+        "firstRoll": 20,
+        "lastRoll": 23,
+        "flags": 5,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "BIGBUY_HEADTURN",
+        "firstRoll": 30,
+        "lastRoll": 33,
+        "flags": 4,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "BIGMERC_IDLE_NECK",
+        "firstRoll": 30,
+        "lastRoll": 36,
+        "flags": 2,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "MERC_HURT_IDLE_ANIM",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 8,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "DRUNK_IDLE",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 16,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 1,
+        "anim": "REG_SPIT",
+        "firstRoll": 0,
+        "lastRoll": 3,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "REG_SQUISH",
+        "firstRoll": 10,
+        "lastRoll": 13,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "FEM_LOOK",
+        "firstRoll": 20,
+        "lastRoll": 23,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "REG_PULL",
+        "firstRoll": 30,
+        "lastRoll": 33,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "MERC_HURT_IDLE_ANIM",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 8,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "DRUNK_IDLE",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 16,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 1,
+        "anim": "FEM_CLEAN",
+        "firstRoll": 0,
+        "lastRoll": 3,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "FEM_KICKSN",
+        "firstRoll": 10,
+        "lastRoll": 13,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 1,
+        "anim": "FEM_LOOK",
+        "firstRoll": 20,
+        "lastRoll": 23,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 0,
+        "anim": "FEM_WIPE",
+        "firstRoll": 30,
+        "lastRoll": 33,
+        "flags": 0,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": "MERC_HURT_IDLE_ANIM",
+        "firstRoll": 40,
+        "lastRoll": 100,
+        "flags": 8,
+        "height": 6
+      }
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      {
+        "hand": 2,
+        "anim": "FATCIV_ASS_SCRATCH",
+        "firstRoll": 0,
+        "lastRoll": 10,
+        "flags": 1,
+        "height": 6
+      }
+    ],
+    [],
+    [
+      {
+        "hand": 2,
+        "anim": "MINIGIRL_STOCKING",
+        "firstRoll": 0,
+        "lastRoll": 10,
+        "flags": 1,
+        "height": 6
+      }
+    ],
+    [],
+    [
+      {
+        "hand": 2,
+        "anim": "HATKID_YOYO",
+        "firstRoll": 0,
+        "lastRoll": 10,
+        "flags": 1,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 2,
+        "anim": "KID_ARMPIT",
+        "firstRoll": 0,
+        "lastRoll": 10,
+        "flags": 1,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 2,
+        "anim": "CRIPPLE_BEG",
+        "firstRoll": 30,
+        "lastRoll": 70,
+        "flags": 1,
+        "height": 6
+      }
+    ],
+    [
+      {
+        "hand": 2,
+        "anim": "COW_EATING",
+        "firstRoll": 30,
+        "lastRoll": 100,
+        "flags": 1,
+        "height": 6
+      },
+      {
+        "hand": 2,
+        "anim": null,
+        "firstRoll": 0,
+        "lastRoll": 1,
+        "flags": 0,
+        "height": 6,
+        "sound": "sounds/cowmoo1.wav"
+      },
+      {
+        "hand": 2,
+        "anim": null,
+        "firstRoll": 2,
+        "lastRoll": 3,
+        "flags": 0,
+        "height": 6,
+        "sound": "sounds/cowmoo2.wav"
+      },
+      {
+        "hand": 2,
+        "anim": null,
+        "firstRoll": 4,
+        "lastRoll": 5,
+        "flags": 0,
+        "height": 6,
+        "sound": "sounds/cowmoo3.wav"
+      }
+    ],
+    [
+      {
+        "hand": 2,
+        "anim": null,
+        "firstRoll": 0,
+        "lastRoll": 50,
+        "flags": 0,
+        "height": 6,
+        "sound": "sounds/crow3.wav"
+      },
+      {
+        "hand": 2,
+        "anim": null,
+        "firstRoll": 51,
+        "lastRoll": 70,
+        "flags": 0,
+        "height": 6,
+        "sound": "sounds/crow2.wav"
+      }
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+  ]
 }

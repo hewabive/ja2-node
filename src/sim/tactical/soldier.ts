@@ -462,6 +462,7 @@ export interface Soldier {
   deadSoundPlayed: boolean;
   doingExternalDeath: boolean;
   pendingActionData1: number;
+  timeOfLastRandomAction: number;
   turningFromHit: boolean;
   changingStanceDueToSuppression: boolean;
   statDamage: { strength: number; dexterity: number; agility: number; wisdom: number };
@@ -812,6 +813,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     deadSoundPlayed: false,
     doingExternalDeath: false,
     pendingActionData1: 0,
+    timeOfLastRandomAction: 0,
     turningFromHit: false,
     changingStanceDueToSuppression: false,
     statDamage: { strength: 0, dexterity: 0, agility: 0, wisdom: 0 },

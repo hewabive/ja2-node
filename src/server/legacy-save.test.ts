@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { CORPSES_TABLE_PATH } from '../content/anim/corpses.ts';
-import { type AnimationTables, AnimFlags, stateId } from '../content/anim/tables.ts';
+import { ANIM_CONTROL_PATH, type AnimationTables, AnimFlags, stateId } from '../content/anim/tables.ts';
 import { STUB_ANIMATION_SCRIPTS_PATH } from '../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts, writeAnimationScripts } from '../content/formats/ja2bin.ts';
 import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
@@ -25,6 +25,7 @@ const OWNED_ROOMS_ADDED_AFTER_070 = /\n {6}"ownedRooms": \[[^\n]*\],/g;
 const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
 const TILESETS_AT_070 = 1;
 const DECAPITATION_TABLES_ADDED_AFTER_070 = /\n {2}"validForDecapitation": \[[^\]]*\],\n {2}"decapitated": \[[^\]]*\],/;
+const RANDOM_ANIMS_ADDED_AFTER_070 = /,\n {2}"randomAnims": \[[\s\S]*\n {2}\]\n\}/;
 const SURFACES_ADDED_AFTER_070 = new Set([
   'bullet.sprite.json',
   'miss.sprite.json',
@@ -72,7 +73,7 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'CROW_DIE',
   'RELOAD_ROBOT',
 ];
-const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY'];
+const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
 const CREATURE_DEATH_STOPS_AT_070 = ['ADULTMONSTER_DYING_STOP', 'LARVAE_DIE_STOP', 'QUEEN_DIE_STOP', 'INFANT_DIE_STOP'];
@@ -157,6 +158,11 @@ async function recordedCorpseTable(vfs: Vfs): Promise<Uint8Array> {
   return new TextEncoder().encode(current.replace(DECAPITATION_TABLES_ADDED_AFTER_070, ''));
 }
 
+async function recordedAnimControlTable(vfs: Vfs): Promise<Uint8Array> {
+  const current = new TextDecoder().decode(await vfs.read(ANIM_CONTROL_PATH));
+  return new TextEncoder().encode(current.replace(RANDOM_ANIMS_ADDED_AFTER_070, '\n}'));
+}
+
 function frames(count: number, first = 1): number[] {
   return Array.from({ length: count }, (_, k) => first + k);
 }
@@ -221,7 +227,10 @@ async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<V
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
     [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
   ]);
-  const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [[CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)]]);
+  const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [
+    [CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)],
+    [ANIM_CONTROL_PATH, await recordedAnimControlTable(vfs)],
+  ]);
   return new Vfs([recorded, recordedTables, ...vfs.layers.map(withoutFilesAddedAfter070)]);
 }
 

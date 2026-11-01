@@ -446,6 +446,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.lastMovementAnimPerRTBreathUpdate = m.lastMovementAnimPerRTBreathUpdate;
   s.pendingActionData1 = m.pendingActionData1;
   s.pendingActionData2 = m.pendingActionData2;
+  s.timeOfLastRandomAction = m.timeOfLastRandomAction;
   s.lastRenderVisible = m.lastRenderVisible;
   s.fade = m.beginFade;
   s.fadeShade = m.fadeLevel;

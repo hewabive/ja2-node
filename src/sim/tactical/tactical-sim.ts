@@ -131,6 +131,7 @@ import { invalidStanceRefusal } from './person-structure.ts';
 import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-orders.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
+import { randomAnimOpcode } from './random-anims.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
 import { cancelPendingRobotReload, handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
 import {
@@ -335,7 +336,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       wheelchairOpcode(state, s, code) ??
       stealOpcode(state, s, code) ??
       robotReloadOpcode(state, s, code) ??
-      crowOpcode(state, s, code),
+      crowOpcode(state, s, code) ??
+      randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
     crowsFlyAway,
     crowsSeeingAttackerFlyAway,

@@ -61,8 +61,9 @@ generator are not drawn, or drawn on the client's `ClientRandom`, seeded from th
 **The client hears what the squad hears.** The view has no position for an unseen soldier (D16), so an unseen source
 plays from where the squad hears it ("Sounds out of sight"), and only animals in sight make idle sounds ("Idle sounds
 of unseen animals"). Code 491 is counted from the passes of the loop that holds it, since the server sends no frames of
-a predictable loop. Frames more than 100 ticks behind the newest (`CATCH_UP_TICKS`) only update the director's memory,
-so a skip replays no sounds.
+a predictable loop; the simulation runs the same check with its own draw and does not tell the client what it rolled.
+Frames more than 100 ticks behind the newest (`CATCH_UP_TICKS`) only update the director's memory, so a skip replays
+no sounds.
 
 **The original's mixer on Web Audio.** Each cue's mix rule computes volume and pan as its call site in the original
 does, applied per voice under one master gain: 16 voices, a new sound dropped when all are busy; two gains per voice
