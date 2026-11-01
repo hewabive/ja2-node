@@ -9,6 +9,7 @@ import { type CampaignStatus, campaignStatus } from '../sim/campaign/ending-stat
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import type { GameOptions } from '../sim/options.ts';
 import type { SimSnapshot } from '../sim/snapshot/session.ts';
+import { bestPossibleSector } from '../sim/strategic/forces/save-sector.ts';
 import { worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
@@ -295,10 +296,11 @@ function mapSector(mapPath: string): string | null {
 function campaignSummary(session: CampaignSession): SessionSummary {
   const campaign = session.campaign;
   const s = campaign.state;
+  const sector = campaign.strategic ? bestPossibleSector(campaign.strategic) : s.worldSector;
   return {
     options: { ...s.options },
     world: { day: worldDay(s.clock), hour: worldHour(s.clock), minute: worldMinute(s.clock) },
-    sector: s.worldSector ? sectorString(s.worldSector) : null,
+    sector: sector ? sectorString(sector) : null,
     flow: storyFlow(campaign) ?? s.flow,
     mercs: campaign.strategic?.mercs.all().length ?? s.roster.mercs.size,
     balance: s.finances.balance,

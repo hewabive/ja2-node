@@ -176,6 +176,16 @@ describe('saves and loads on the stub pack', () => {
     });
   });
 
+  it('records the sector of the first merc in transit in a campaign saved before any map is loaded', async () => {
+    await withKit(async (k) => {
+      const session = await k.open({ seed: 9, campaign: { mercs: 2, land: false } });
+      expect((session.sim as CampaignSession).campaign.state.worldSector).toBeNull();
+      const saved = await k.saves.save(session, { name: 'arriving' });
+      expect(saved).toMatchObject({ ok: true, header: { session: 'campaign', sector: 'A9' } });
+      expect((await k.saves.list()).find((s) => s.name === 'arriving')).toMatchObject({ header: { sector: 'A9' } });
+    });
+  });
+
   it('autosaves into Auto01 and Auto02 when endTurn is accepted and combat goes on', async () => {
     await withKit(async (k) => {
       const session = await battleSandbox(k);

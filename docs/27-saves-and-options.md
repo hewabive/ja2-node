@@ -258,7 +258,8 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
   the original's list: newest first; in save mode quick and auto saves hidden and a new row first. A row's location is
   named from the header's sector with the rule pack's map tables, which the front end loads once
   (`src/app/game/front-end.ts`, `src/ui/screens/front-end/save-location.ts`): the current tables, not those the save
-  was made with, as in the original.
+  was made with, as in the original. With no map loaded the header takes a merc's sector
+  (`src/sim/strategic/forces/save-sector.ts`); a campaign without mercs shows N/A or `STR_LATE_14`.
 - The launcher's save panel (`src/app/launcher/save-panel.ts`) shows the same rows: Load with one warning box, Save as
   new or over a player or quick save, Delete, Download, Upload, and the native saves to import. Its row location and
   tooltip differ from the original (deviation "Save list in the launcher and on the canvas").
@@ -275,6 +276,7 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 | Iron Man refuses saves while enemies are in the loaded sector, even outside combat | `src/server/save-rules.test.ts` "in Iron Man refuse saves with enemies in the loaded sector …" |
 | `PreRandom` repeats after a reload until the saved values are used | `src/server/save-service.test.ts` "repeats the saved PreRandom ring after a player load …" |
 | The load screen names a secret's sector as found; the save screen names every row by the running game's secrets (`IsSecretFoundAt`, `Strategic/StrategicMap_Secrets.cc:46`) | `src/ui/screens/front-end/save-location.test.ts` "counts every secret as found on the load screen …" |
+| A save made with no map loaded names the sector of the current squad's first merc even while he travels between sectors (`GetBestPossibleSectorXYZValues`, `SaveLoadGame.cc:2165`) | `src/sim/strategic/forces/save-sector.test.ts` "takes the sector of the current squad's first merc even while he travels …" |
 | A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1245`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |
 
 Deviations: "Save side effects", "Schedules on load", "Selection on load", "Save compatibility", "Player loads", "Saving in the laptop",
