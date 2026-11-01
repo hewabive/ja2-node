@@ -87,6 +87,13 @@ records: deviation "Contract presentation". A buddy's comment on a kill he witne
 low roll is a tactical line through the dialogue queue (`24`); the witnessed flags and the gun quote's flag live in the
 roster's quote flags, which tactical reaches through `NarrativePort.quoteSaidFlags`.
 
+**Arrival lines wait for the drop.** A merc who lands says nothing while he sits in the helicopter; when he is dropped,
+an I.M.P. character says he was dropped in Omerta while the letter quest runs, unless a teammate of his voice with a
+lower profile has already arrived, and every A.I.M. merc who hates him complains (`Tactical/Merc_Hiring.cc:395`). The
+drop is instant here (gaps "Helicopter entrance"): the first squad's lines come at the end of its landing
+(`SectorFlow.endHelicopterDrop`), once the whole squad has arrived, so one character speaks for each voice as in the
+original; a later merc's lines come at his own arrival.
+
 **Hooks.** `ContractHooks` (no-op defaults for sandbox sessions) connect the laptop (`LaptopFlow.contractHooks`:
 insurance, the M.E.R.C. site, Larry's relapse, Speck's lost-merc flag, history, mail, personnel) and the narrative
 (Slay's day; `mercLeavingTeam`, Iggy's move to the army, which only the contract-ending event runs). An insured merc's

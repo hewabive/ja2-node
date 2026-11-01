@@ -4,7 +4,7 @@
 // @src Laptop/Laptop.h (bookmarks); Laptop/Mercs.h MERC_ACCOUNT_*, MERC_SITE_*; Laptop/Store_Inventory.h STORE_INVENTORY;
 // @src Laptop/BobbyRMailOrder.h NewBobbyRayOrderStruct; Laptop/EMail.h Email; Laptop/History.cc HistoryUnit; Laptop/Files.cc
 // @src FilesUnit; Laptop/Laptop.cc LaptopScreenInit, InitLaptopAndLaptopScreens; Laptop/Mercs.cc GameInitMercs;
-// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector.
+// @src Tactical/Merc_Hiring.cc g_merc_arrive_sector; Tactical/Soldier_Profile.cc LoadMercProfiles (ubVoiceId = profile).
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 
@@ -208,6 +208,10 @@ export function createLaptopState(startSector = 0): LaptopState {
 
 export function resetLaptopState(l: LaptopState, startSector: number): void {
   Object.assign(l, createLaptopState(startSector));
+}
+
+export function profileVoice(imp: Pick<ImpState, 'voices'>, profile: number): number {
+  return imp.voices.get(profile) ?? profile;
 }
 
 export function setBookmark(l: LaptopState, bookmark: number): void {

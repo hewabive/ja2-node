@@ -11,8 +11,8 @@ import { createItem, emptyObject } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
-import { Fact } from '../../strategic/narrative/fact-ids.ts';
-import { factValue } from '../../strategic/narrative/facts.ts';
+import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
+import { factValue, QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_SEC_IN_MIN, Warp } from '../../strategic/time/constants.ts';
 import { warpGameTime, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
@@ -122,6 +122,66 @@ describe('contract fields at hire and arrival', () => {
     expect(merc(cc, 1).contract.contractStartDay).toBe(1);
     expect(profile(cc, STUB.brack).mercMercContractLength).toBe(1);
     expect(profile(cc, STUB.kestrel).mercStatus).toBe(14);
+  });
+});
+
+describe('the I.M.P. arrival line (Merc_Hiring.cc HandleMercArrivesQuotes, SpeaksForItsVoice)', () => {
+  const IMP_SLOTS = [51, 52, 53] as const;
+  const SHARED_VOICE = 54;
+  const OWN_VOICE = 55;
+
+  function impTeam(hires: readonly ContractHire[], voices: ReadonlyMap<number, number>): ContractCampaign {
+    const cc = createContractCampaign(kit, { seed: 3, hires });
+    for (const [profile, voice] of voices) cc.campaign.state.laptop.imp.voices.set(profile, voice);
+    return cc;
+  }
+
+  function landedEvents(cc: ContractCampaign): SimEvent[] {
+    landFirstSquad(cc.campaign);
+    return cc.campaign.drainEvents();
+  }
+
+  function droppedInOmerta(events: readonly SimEvent[]): number[] {
+    return events.flatMap((e) => (e.type === 'mercQuote' && e.quote === 'pcDroppedOmerta' ? [e.profile] : []));
+  }
+
+  const imp = (slot: number): ContractHire => ({ profile: STUB.vant, asProfile: slot, kind: MercKind.PLAYER_CHARACTER });
+
+  it('has an I.M.P. character, and no A.I.M. merc, say at the first landing that he was dropped in Omerta', () => {
+    const cc = impTeam([{ profile: STUB.kestrel }, imp(51)], new Map([[51, SHARED_VOICE]]));
+    expect(droppedInOmerta(landedEvents(cc))).toEqual([51]);
+  });
+
+  it('says nothing once the letter quest no longer runs', () => {
+    const cc = impTeam([imp(51)], new Map([[51, SHARED_VOICE]]));
+    cc.campaign.state.narrative.quests[Quest.DELIVER_LETTER] = QuestStatus.DONE;
+    expect(droppedInOmerta(landedEvents(cc))).toEqual([]);
+  });
+
+  it('lets only the lowest profile of a shared voice speak at the first drop, whoever landed first', () => {
+    const [first, second, third] = IMP_SLOTS;
+    const voices = new Map([
+      [second, SHARED_VOICE],
+      [first, SHARED_VOICE],
+      [third, OWN_VOICE],
+    ]);
+    const cc = impTeam([imp(second), imp(first), imp(third)], voices);
+    expect(droppedInOmerta(landedEvents(cc))).toEqual([first, third]);
+  });
+
+  it('does not count a character of the same voice who is still in transit', () => {
+    const [first, second] = IMP_SLOTS;
+    const cc = impTeam(
+      [imp(first), imp(second)],
+      new Map([
+        [first, SHARED_VOICE],
+        [second, SHARED_VOICE],
+      ]),
+    );
+    landedEvents(cc);
+    merc(cc, 0).assignment = Assignment.IN_TRANSIT;
+    cc.flow.droppedFromHelicopter(1);
+    expect(droppedInOmerta(cc.campaign.drainEvents())).toEqual([second]);
   });
 });
 

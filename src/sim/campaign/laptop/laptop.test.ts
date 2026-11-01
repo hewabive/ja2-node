@@ -23,6 +23,7 @@ const LASKO = 6;
 const PUIG = 7;
 const MARLOW = 8;
 const VOSS = 10;
+const PC_DROPPED_OMERTA = 55;
 let kit: StubSectorKit;
 
 beforeAll(async () => {
@@ -435,5 +436,15 @@ describe('I.M.P.', () => {
     expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
     expect(session.view().clock).toMatchObject({ day: 1, hour: 7, minute: 0 });
     expect(session.campaign.state.profiles.get(51)?.mercStatus).toBe(MercStatus.HAS_NO_TEXT_FILE);
+  });
+
+  it('queues his line about being dropped in Omerta when the helicopter has dropped him', async () => {
+    const session = await inLaptop(43);
+    session.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
+    expect(session.dispatch(command)).toMatchObject({ ok: true, data: { profile: 51 } });
+    expect(session.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
+    await session.prepare({ type: 'compressTime', mode: 2 });
+    expect(session.dispatch({ type: 'compressTime', mode: 2 }).ok).toBe(true);
+    expect(session.campaign.talk?.talk.queue).toEqual([expect.objectContaining({ kind: 'quote', speaker: 51, quote: PC_DROPPED_OMERTA })]);
   });
 });

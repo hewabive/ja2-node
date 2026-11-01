@@ -14,8 +14,9 @@
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
-// @src and the screen entry after a load), Merc_Entering.cc HandleHeliDrop (the first seat's selection), Squads.cc
-// @src RemoveCharacterFromSquads (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
+// @src and the screen entry after a load), Merc_Entering.cc HandleHeliDrop (the first seat's selection; the arrival
+// @src quotes of each drop, Soldier_Ani.cc:988, 2026-11-01), Squads.cc RemoveCharacterFromSquads
+// @src (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
 // @src Squads.cc AddCharacterToSquad (SetCurrentSquad on the game screen) and RebuildCurrentSquad, SaveLoadGame.cc
 // @src LoadSavedGame (the forced reselect in tactical) and SaveLoadScreen.cc SetSaveLoadExitScreen (EnterTacticalScreen)
@@ -905,8 +906,10 @@ export class SectorFlow {
   }
 
   endHelicopterDrop(): void {
-    const first = this.#heliSeats[0];
+    const seats = this.#heliSeats;
     this.#heliSeats = [];
+    for (const s of seats) this.campaign.contracts?.droppedFromHelicopter(s.id);
+    const first = seats[0];
     if (first) this.#withTactical((t) => selectSoldier(t, first, SelectFlags.FORCE_RESELECT));
   }
 

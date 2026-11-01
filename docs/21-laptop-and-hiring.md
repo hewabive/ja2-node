@@ -48,7 +48,7 @@ BOBBYRAY_PURCHASE → the delivery                          laptop/bobby-ray.ts,
 | `laptop/bobby-ray.ts` | Stock lists, restock, prices, orders, shipments, Kulba's gift, the delivery |
 | `laptop/insurance.ts`, `florist.ts` | Life insurance with payouts and investigations; flower orders |
 | `laptop/save-import.ts` | The laptop sections of a native save |
-| `contracts/hire-contract.ts`, `contract-times.ts` | Contract fields at hire and arrival, the equipment complaint, the hated-arrives quotes; arrival slots and contract end |
+| `contracts/hire-contract.ts`, `contract-times.ts` | Contract fields at hire and arrival, the equipment complaint, the arrival quotes (hated mercs, an I.M.P. character dropped in Omerta); arrival slots and contract end |
 | `hiring.ts` | The first landing; hires for campaigns built without a laptop |
 | `finance-summary.ts` | The finance page's yesterday and today figures from the ledger (`finances.ts`, `18`) |
 | `src/content/strategic/laptop-content.ts` | `LaptopContent`: the externalized JSON (listings, destinations, `imp.json`, Bobby Ray's stock), `data/tables/laptop.json` (mail offsets, senders, the quiz, named profiles; `tools/transcribe/laptop.ts`), the bouquet prices |

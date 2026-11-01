@@ -1,14 +1,18 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Merc_Hiring.cc HireMerc (the contract fields), MercArrivesCallback (status, contract end,
-// @src equipment complaint), HandleMercArrivesQuotes.
+// @src equipment complaint), HandleMercArrivesQuotes, SpeaksForItsVoice.
 
 import { i8, u8, u32 } from '../../../core/int.ts';
+import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
+import { Quest } from '../../strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../../strategic/narrative/facts.ts';
 import { EventKind, FIRST_ARRIVAL_DELAY, NUM_SEC_IN_MIN, STARTING_TIME } from '../../strategic/time/constants.ts';
 import { addSameDayStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
+import { profileVoice } from '../laptop/laptop-state.ts';
 import { HatedSlot, whichHated } from '../relations/relations.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import type { ContractContext } from './context.ts';
@@ -61,14 +65,38 @@ export function hireContract(ctx: ContractContext, m: RosterMerc, length: number
   return arrival;
 }
 
-function handleMercArrivesQuotes(ctx: ContractContext, arrived: RosterMerc): void {
+function speaksForItsVoice(ctx: ContractContext, s: RosterMerc): boolean {
+  const imp = ctx.state.laptop.imp;
+  const voice = profileVoice(imp, s.profile);
+  for (const other of ctx.team()) {
+    if (other === s || other.assignment === Assignment.IN_TRANSIT) continue;
+    if (profileVoice(imp, other.profile) !== voice) continue;
+    if (other.profile < s.profile) return false;
+  }
+  return true;
+}
+
+function saysDroppedInOmerta(ctx: ContractContext, arrived: RosterMerc): boolean {
+  return (
+    arrived.kind === MercKind.PLAYER_CHARACTER &&
+    questStatus(ctx.state.narrative, Quest.DELIVER_LETTER) === QuestStatus.IN_PROGRESS &&
+    speaksForItsVoice(ctx, arrived)
+  );
+}
+
+export function handleMercArrivesQuotes(ctx: ContractContext, arrived: RosterMerc): void {
   if (arrived.insertionCode === InsertionCode.CHOPPER) return;
+  if (saysDroppedInOmerta(ctx, arrived)) ctx.say(arrived, 'PC_DROPPED_OMERTA');
   for (const other of ctx.team()) {
     if (other.kind !== MercKind.AIM_MERC) continue;
     const p = ctx.profile(other.profile);
     const quote = p ? HATED_ARRIVES[whichHated(p, arrived.profile)] : undefined;
     if (quote) ctx.say(other, quote, arrived.profile);
   }
+}
+
+function waitsForTheFirstHelicopterDrop(ctx: ContractContext): boolean {
+  return ctx.state.didGameJustStart;
 }
 
 export function mercArrived(ctx: ContractContext, m: RosterMerc): void {
@@ -84,5 +112,5 @@ export function mercArrived(ctx: ContractContext, m: RosterMerc): void {
     if (worldMinutesInDay(s.clock) < minute)
       addSameDayStrategicEvent(s.queue, s.clock, EventKind.MERC_COMPLAIN_EQUIPMENT, minute, m.profile);
   }
-  handleMercArrivesQuotes(ctx, m);
+  if (!waitsForTheFirstHelicopterDrop(ctx)) handleMercArrivesQuotes(ctx, m);
 }

@@ -76,7 +76,7 @@ import {
   strategicRemoveMerc,
 } from './departure.ts';
 import { type ExtensionResult, mercContractHandling } from './extension.ts';
-import { hireContract, mercArrived } from './hire-contract.ts';
+import { handleMercArrivesQuotes, hireContract, mercArrived } from './hire-contract.ts';
 import { dailyUpdateOfMercSite } from './merc-account.ts';
 import { HistoryCode, Quote, type QuoteName, quoteKey, SpecialProfile } from './quotes.ts';
 import {
@@ -681,6 +681,11 @@ export class ContractFlow implements ContractContext {
   mercArrived(id: number): void {
     const m = this.roster.get(id);
     if (m) mercArrived(this, m);
+  }
+
+  droppedFromHelicopter(id: number): void {
+    const m = this.roster.get(id);
+    if (m) handleMercArrivesQuotes(this, m);
   }
 
   teamMoraleEvent(e: TeamMoraleEvent): void {
