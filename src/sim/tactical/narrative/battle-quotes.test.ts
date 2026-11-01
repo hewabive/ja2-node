@@ -96,7 +96,7 @@ describe('the battle-end quote (Overhead.cc CheckForEndOfBattle)', () => {
       mercAsleep: (m) => m === asleep,
       assignment: (m) => (m === doctor ? Assignment.DOCTOR : null),
     };
-    s.t.explosives.gassed[gassed.id] = 1;
+    gassed.gassed = true;
     fightAndWin(s, []);
     expect([s.draws, s.said]).toEqual([[], []]);
     const t = scene(2);

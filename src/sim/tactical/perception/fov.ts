@@ -212,7 +212,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
     fog.markerValue = 1;
   }
   const level = s.level;
-  const range = t.explosives.gassed[s.id]
+  const range = s.gassed
     ? GASSED_VIEW_RANGE
     : idiv(adjustMaxSightRangeForEnvEffects(lightTrueLevel(t, s.gridNo, level), NORMAL_VIEW_RANGE) + NORMAL_VIEW_RANGE, 2);
   const dirs = [...(SIGHT_DIRS[s.direction] ?? SIGHT_DIRS[0] ?? []), s.direction];

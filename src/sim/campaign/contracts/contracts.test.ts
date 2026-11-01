@@ -577,13 +577,11 @@ describe('the daily update', () => {
 
   it('keeps the contract line of a gassed or captured merc unsaid (CanSayQuote)', () => {
     const cc = landed(AIM_TRIO);
-    const gassed = cc.campaign.tactical?.state.explosives.gassed;
-    if (!gassed) throw new Error('no loaded sector');
     cc.flow.drainEvents();
-    gassed[0] = 1;
+    merc(cc, 0).soldier.gassed = true;
     cc.flow.say(merc(cc, 0), 'CONTRACTS_OVER');
     expect(quotes(cc.flow.drainEvents())).toEqual([]);
-    gassed[0] = 0;
+    merc(cc, 0).soldier.gassed = false;
     merc(cc, 0).assignment = Assignment.ASSIGNMENT_POW;
     cc.flow.say(merc(cc, 0), 'CONTRACTS_OVER');
     expect(quotes(cc.flow.drainEvents())).toEqual([]);

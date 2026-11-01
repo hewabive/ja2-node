@@ -156,6 +156,26 @@ describe('leaving a sector', () => {
     expect(campaign.state.movement.undergroundTacticalTraversal).toBe(true);
   });
 
+  it('takes a gassed merc into A10 still gassed, until the first real-time turn there finds him off gas (SOLDIER_GASSED)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 7, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    walkSquadToEastEdge(campaign);
+    const id = ourSoldiers(campaign)[0]?.id ?? 0;
+    const merc = () => ourSoldiers(campaign).find((s) => s.id === id);
+    const gassed = merc();
+    if (!gassed) throw new Error('no merc');
+    gassed.gassed = true;
+    expect(campaign.dispatch({ type: 'exitSector', soldier: id, direction: 'east', who: 'squad' }).ok).toBe(true);
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 10);
+    expect(campaign.state.worldSector).toEqual(A10);
+    expect(merc()?.gassed).toBe(true);
+    const lastTurn = () => campaign.state.sectorFlow.realtimeClock.lastTurnMs;
+    const loadedTurn = lastTurn();
+    runTicks(campaign, 2000, () => lastTurn() !== loadedTurn);
+    expect(lastTurn()).not.toBe(loadedTurn);
+    expect(merc()?.gassed).toBe(false);
+  });
+
   it('keeps the dropped items, corpses and revealed tiles of A9 and ages the corpses by the days away', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);

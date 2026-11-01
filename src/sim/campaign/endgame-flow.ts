@@ -31,7 +31,6 @@ import { worldDay } from '../strategic/time/world-clock.ts';
 import { eventSoldierGotHit } from '../tactical/combat/hit.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
 import { Special } from '../tactical/combat/types.ts';
-import { isGassed } from '../tactical/explosions/smoke.ts';
 import { distanceVisible } from '../tactical/perception/sight.ts';
 import { isProfileDead } from '../tactical/profiles.ts';
 import { OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
@@ -187,7 +186,7 @@ export class EndgameFlow {
     if (killer) this.#say(killer, quote);
     if (!t) return;
     for (const s of teamMembers(t, Team.OUR)) {
-      if (s === killer || !this.#okControllable(s) || isGassed(t, s) || this.#isEpc(s)) continue;
+      if (s === killer || !this.#okControllable(s) || s.gassed || this.#isEpc(s)) continue;
       if (witnesses.has(s.profile) && this.#seesDeathTile(s)) this.#say(s, quote);
     }
   }

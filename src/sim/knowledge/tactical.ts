@@ -53,7 +53,7 @@ const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
 
 const BOXING_FIELDS: ReadonlySet<PropertyKey> = new Set(['state']);
 
-const EXPLOSIVES_FIELDS: ReadonlySet<PropertyKey> = new Set(['gassed', 'smokeTiles']);
+const EXPLOSIVES_FIELDS: ReadonlySet<PropertyKey> = new Set(['smokeTiles']);
 
 const PERCEPTION_FIELDS: ReadonlySet<PropertyKey> = new Set(['publicOpp', 'disallowSight']);
 const OUR_PUBLIC_OPP: ReadonlySet<PropertyKey> = new Set([String(Team.OUR), 'length']);
@@ -180,7 +180,6 @@ export class TacticalProjection {
     t.occupant[1].fill(-1);
     const ours = t.perception.publicOpp[Team.OUR];
     ours?.fill(Opp.NOT_HEARD_OR_SEEN);
-    t.explosives.gassed.fill(0);
     const ownIds = views.filter((v) => v.team === Team.OUR).map((v) => v.id);
     for (const v of views) {
       const { soldier, raw } = soldierFromView(t.content, v, ownIds, guard);
@@ -191,7 +190,6 @@ export class TacticalProjection {
       this.#placed.push(raw);
       if (v.team !== Team.OUR) continue;
       for (const id of v.sees ?? []) if (ours) ours[id] = Opp.SEEN_CURRENTLY;
-      if (v.hint?.gassed) t.explosives.gassed[v.id] = 1;
     }
   }
 

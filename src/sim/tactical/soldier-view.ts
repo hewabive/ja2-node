@@ -9,7 +9,6 @@
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
-import { isGassed } from './explosions/smoke.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
 import { type Stance, soldierStance } from './movement-mode.ts';
 import { Opp } from './perception/opp.ts';
@@ -134,11 +133,11 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     noApToFinishMove: s.noAPToFinishMove,
     firstAid: firstAidRole(s),
     blinded: s.blindedCounter > 0,
-    hint: ownHintInputs(t, s),
+    hint: ownHintInputs(s),
   };
 }
 
-export function ownHintInputs(t: TacticalState, s: Soldier): OwnHintInputs {
+export function ownHintInputs(s: Soldier): OwnHintInputs {
   return {
     skills: [s.skillTrait1, s.skillTrait2],
     personality: s.personalityTrait,
@@ -147,7 +146,7 @@ export function ownHintInputs(t: TacticalState, s: Soldier): OwnHintInputs {
     tilesMoved: s.tilesMoved,
     weightAtTurnStart: s.weightCarriedAtTurnStart,
     collapsed: s.collapsed,
-    gassed: isGassed(t, s),
+    gassed: s.gassed,
     underAiControl: s.underAiControl,
   };
 }

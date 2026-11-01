@@ -152,7 +152,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   clearGassedAtTurnStart(t, s);
   if (s.blindedCounter > 0 && --s.blindedCounter === 0) handleSight(t, s, SightFlags.LOOK);
   s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
-  unusedAPsToBreath(pointsContext(t), s, t.explosives.gassed[s.id] === 1);
+  unusedAPsToBreath(pointsContext(t), s, s.gassed);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
   if (s.placed) checkForBreathCollapse(s);
   calcNewActionPoints(s, boxingHalvesPoints(t));

@@ -139,7 +139,6 @@ export interface ExplosivesState {
   readonly throwParams: Map<number, ThrowParams>;
   readonly hurtByExplosion: Uint8Array;
   readonly hitByGas: Uint8Array;
-  readonly gassed: Uint8Array;
   nextPhysicsMs: number;
   worldMs: number;
 }
@@ -154,7 +153,6 @@ export function createExplosivesState(): ExplosivesState {
     throwParams: new Map(),
     hurtByExplosion: new Uint8Array(TOTAL_SOLDIERS),
     hitByGas: new Uint8Array(TOTAL_SOLDIERS),
-    gassed: new Uint8Array(TOTAL_SOLDIERS),
     nextPhysicsMs: 0,
     worldMs: 0,
   };

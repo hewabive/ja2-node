@@ -9,7 +9,6 @@ import { gunQuoteOf } from '../../../content/narrative/quote-speakers.ts';
 import { u8 } from '../../../core/int.ts';
 import { animName } from '../anim-states.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { isGassed } from '../explosions/smoke.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { Body, CivilianGroup, isMonster, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
@@ -74,7 +73,7 @@ function killerComments(t: TacticalState, victim: Soldier, killer: Soldier): voi
 }
 
 function headshotWitness(t: TacticalState, s: Soldier, k: EnemyKilledOnAttack): boolean {
-  if (s === k.killer || !okControllableMerc(t, s) || isGassed(t, s) || t.narrative.isEpc(s)) return false;
+  if (s === k.killer || !okControllableMerc(t, s) || s.gassed || t.narrative.isEpc(s)) return false;
   return seesLocation(t, s, k.gridNo, k.level);
 }
 

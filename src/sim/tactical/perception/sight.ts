@@ -250,7 +250,7 @@ export function updatePublic(t: TacticalState, team: number, opp: Soldier, value
   if (lastKnownLevel) lastKnownLevel[opp.id] = level;
   if (old === 0 && value !== 0) {
     for (const mate of mercs(t)) {
-      if (mate.team !== team || mate.life < OKLIFE || t.explosives.gassed[mate.id] || (mate.oppList[opp.id] ?? 0) !== 0) continue;
+      if (mate.team !== team || mate.life < OKLIFE || mate.gassed || (mate.oppList[opp.id] ?? 0) !== 0) continue;
       manLooksForMan(t, mate, opp, Caller.UPDATEPUBLIC);
       mate.newOppCnt = 0;
     }

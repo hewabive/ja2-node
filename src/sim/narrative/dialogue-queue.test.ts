@@ -69,7 +69,7 @@ describe('who may say a line (Dialogue_Control.cc CanSayQuote, ExecuteCharacterD
   it('keeps a gassed merc quiet, queued or delayed', () => {
     const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
     const host = fakeHost({ soldiers: [merc] });
-    tacticalOf(host).explosives.gassed[merc.id] = 1;
+    merc.gassed = true;
     expect(tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT)).toBe(false);
     expect(delayedTacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT)).toBe(false);
     expect(host.talk.queue).toEqual([]);
@@ -98,9 +98,9 @@ describe('who may say a line (Dialogue_Control.cc CanSayQuote, ExecuteCharacterD
     const host = fakeHost({ soldiers: [merc], assignments });
     tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
     tacticalCharacterDialogue(host, merc, MercQuote.KILLED_AN_ENEMY);
-    tacticalOf(host).explosives.gassed[merc.id] = 1;
+    merc.gassed = true;
     stepDialogue(host);
-    tacticalOf(host).explosives.gassed[merc.id] = 0;
+    merc.gassed = false;
     assignments[merc.id] = Assignment.ASSIGNMENT_POW;
     runQueueToTheEnd(host);
     expect(mercQuotesSaid(host)).toEqual([]);
@@ -199,7 +199,7 @@ describe('the ME_TOO bleeding line (Dialogue_Control.cc TacticalCharacterDialogu
   it('counts only bleeding lines that pass the speaker checks, and says them plainly while the log is closed', () => {
     const { host, mercs } = threeBleeders();
     const [first, gassed, third] = mercs as [Soldier, Soldier, Soldier];
-    tacticalOf(host).explosives.gassed[gassed.id] = 1;
+    gassed.gassed = true;
     beginLoggingForBleedMeToos(host.talk, true);
     tacticalCharacterDialogue(host, gassed, MercQuote.STARTING_TO_BLEED);
     tacticalCharacterDialogue(host, first, MercQuote.HEADSHOT);
@@ -300,7 +300,7 @@ describe('the map screen pause for a line (Dialogue_Control.cc DialogueEventQuot
   it('pauses for a line its speaker can no longer say until the next pass ends the empty face', () => {
     const { host, merc } = mercOnTheMap();
     tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
-    tacticalOf(host).explosives.gassed[merc.id] = 1;
+    merc.gassed = true;
     stepDialogue(host);
     expect(mercQuotesSaid(host)).toEqual([]);
     expect(pauseOf(host)).toEqual({ paused: true, pauseLocked: true });

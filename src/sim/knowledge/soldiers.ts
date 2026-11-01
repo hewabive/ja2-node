@@ -51,7 +51,7 @@ const HAND_SLOTS: ReadonlySet<PropertyKey> = new Set([String(InvSlot.HAND), Stri
 
 const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = ['turningUntilDone', 'tempObject', 'pendingGive', 'dead'] as const;
 
-const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed', 'dead'] as const;
+const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed', 'gassed', 'dead'] as const;
 
 const OWN_FIELDS = [
   ...SHOWN_FIELDS,
@@ -84,6 +84,7 @@ const OWN_FIELDS = [
   'tilesMoved',
   'weightCarriedAtTurnStart',
   'collapsed',
+  'gassed',
   'underAiControl',
   'uiMovementMode',
   'uiMovementFast',
@@ -216,6 +217,7 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.tilesMoved = hint.tilesMoved;
   s.weightCarriedAtTurnStart = hint.weightAtTurnStart;
   s.collapsed = hint.collapsed;
+  s.gassed = hint.gassed;
   s.underAiControl = hint.underAiControl;
   applyStance(content, s, v.stance);
   for (const id of v.sees ?? []) s.oppList[id] = Opp.SEEN_CURRENTLY;

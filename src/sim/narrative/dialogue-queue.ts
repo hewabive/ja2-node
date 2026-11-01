@@ -18,7 +18,6 @@ import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { i8 } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
-import { isGassed } from '../tactical/explosions/smoke.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { NarrativeHost } from './host.ts';
@@ -132,11 +131,6 @@ function isRobot(s: Soldier): boolean {
   return s.bodyType === Body.ROBOTNOWEAPON;
 }
 
-function speakerGassed(host: Pick<NarrativeHost, 'tactical'>, s: Soldier): boolean {
-  const t = host.tactical();
-  return t !== null && isGassed(t, s);
-}
-
 function heldPrisoner(host: Pick<NarrativeHost, 'assignment'>, s: Soldier): boolean {
   return host.assignment?.(s) === Assignment.ASSIGNMENT_POW;
 }
@@ -145,7 +139,7 @@ export function canSayQuote(host: NarrativeHost, s: Soldier, quote: number): boo
   if (s.profile === NO_PROFILE) return false;
   const minLife = quote === MercQuote.SERIOUSLY_WOUNDED ? CONSCIOUSNESS : OKLIFE;
   if (s.life < minLife || isRobot(s)) return false;
-  return !speakerGassed(host, s) && !heldPrisoner(host, s);
+  return !s.gassed && !heldPrisoner(host, s);
 }
 
 export function delayedTacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
@@ -174,7 +168,7 @@ export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote
 }
 
 function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolean {
-  if (s.life < CONSCIOUSNESS || speakerGassed(host, s) || isRobot(s)) return true;
+  if (s.life < CONSCIOUSNESS || s.gassed || isRobot(s)) return true;
   if (s.life < OKLIFE && quote !== MercQuote.SERIOUSLY_WOUNDED) return true;
   return heldPrisoner(host, s);
 }

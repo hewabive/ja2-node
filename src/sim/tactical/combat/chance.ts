@@ -9,7 +9,6 @@ import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';
 import { i8, idiv, u32 } from '../../../core/int.ts';
 import { createItem, findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
-import { isGassed } from '../explosions/smoke.ts';
 import { isValidSecondHandShot, wearsHeadGear } from '../inventory.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { isRobot } from '../narrative/robot.ts';
@@ -192,7 +191,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   if (sight > 0 && aim && !s.doBurst) c += Aim.BONUS_PER_AP * aim;
   if (s.team !== Team.OUR)
     c += t.options.difficulty === DIFFICULTY_EASY ? -EASY_ENEMY_PENALTY : Math.min(0, ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, s)] ?? 0);
-  if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
+  if (s.gassed) c -= Aim.PENALTY_GASSED;
   if (s.serviceCount > 0) c -= Aim.PENALTY_GETTINGAID;
   if (s.shock) c -= Aim.PENALTY_PER_SHOCK * s.shock;
   let maxRange = CELL_X_SIZE;

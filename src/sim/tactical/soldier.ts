@@ -297,6 +297,7 @@ export interface Soldier {
   stealthMode: boolean;
   muted: boolean;
   cowering: boolean;
+  gassed: boolean;
   heardGunshot: boolean;
   civilianGroup: number;
   hasKeys: boolean;
@@ -605,6 +606,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     stealthMode: false,
     muted: false,
     cowering: false,
+    gassed: false,
     heardGunshot: false,
     civilianGroup: init.civilianGroup ?? 0,
     hasKeys: false,

@@ -20,7 +20,6 @@ import {
   inGas,
   inGasOrSmoke,
   inSmoke,
-  isGassed,
   newSmokeEffect,
   SmokeTile,
   smokeFlagsAt,
@@ -186,7 +185,7 @@ describe('gas damage', () => {
     s.inv[InvSlot.HEAD1] = objectOf(t, 'GASMASK', 20);
     cloudAt(t, 'TEARGAS_GRENADE');
     expect(s.breath).toBeLessThan(100);
-    expect(isGassed(t, s)).toBe(true);
+    expect(s.gassed).toBe(true);
   });
 
   it('sets and clears the gassed state by tile and mask', () => {
@@ -195,9 +194,9 @@ describe('gas damage', () => {
     const s = soldierAt(sim, 0, CENTRE + 5);
     cloudAt(t, 'SMOKE_GRENADE');
     updateGassedOnNewGridNo(t, s, CENTRE);
-    expect(isGassed(t, s)).toBe(true);
+    expect(s.gassed).toBe(true);
     clearGassedAtTurnStart(t, s);
-    expect(isGassed(t, s)).toBe(false);
+    expect(s.gassed).toBe(false);
   });
 
   it('gasses a soldier whose mask is worn below 70, yet any mask clears it at his next turn though he stays in the cloud', () => {
@@ -208,9 +207,9 @@ describe('gas damage', () => {
     masked.inv[InvSlot.HEAD1] = objectOf(t, 'GASMASK', 50);
     cloudAt(t, 'SMOKE_GRENADE');
     for (const s of [masked, bare]) updateGassedOnNewGridNo(t, s, s.gridNo);
-    expect([isGassed(t, masked), isGassed(t, bare)]).toEqual([true, true]);
+    expect([masked.gassed, bare.gassed]).toEqual([true, true]);
     for (const s of [masked, bare]) clearGassedAtTurnStart(t, s);
-    expect([isGassed(t, masked), isGassed(t, bare)]).toEqual([false, true]);
+    expect([masked.gassed, bare.gassed]).toEqual([false, true]);
   });
 
   it('never stops a walker with a good mask, nor one on his first step', () => {

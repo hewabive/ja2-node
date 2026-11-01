@@ -11,7 +11,6 @@ import { pythSpacesAway } from '../../content/world/grid.ts';
 import { i8 } from '../../core/int.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
-import { isGassed } from '../tactical/explosions/smoke.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { isRobot } from '../tactical/narrative/robot.ts';
 import { MAX_DISTANCE_VISIBLE } from '../tactical/perception/sight.ts';
@@ -32,7 +31,7 @@ function hearsAt(host: NarrativeHost, s: Soldier, gridNo: number, distance: numb
   const t = host.tactical();
   if (!t || s.life < OKLIFE || !s.placed || !host.onSquad(s)) return false;
   if (pythSpacesAway(gridNo, s.gridNo) >= distance) return false;
-  if (host.isEpc(s) || isGassed(t, s) || isRobot(s) || host.mercAsleep?.(s)) return false;
+  if (host.isEpc(s) || s.gassed || isRobot(s) || host.mercAsleep?.(s)) return false;
   return soldierTo3DLocationLos(t, s, gridNo, 0, 0, MAX_DISTANCE_VISIBLE, true) !== 0;
 }
 

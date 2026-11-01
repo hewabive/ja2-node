@@ -90,8 +90,9 @@ water, which the original's water animation ends before its damage frame, hurts 
 explosion holds the attack busy count from ignition to its last frame and keeps sight off meanwhile; each soldier it
 hits adds his own hold (`33`).
 
-**Gas is state beside the soldier.** The gassed state, the per-round gas flags and the one-hit-per-blast flag live per
-soldier id in `ExplosivesState` (deviation "Gassed soldiers"). Clouds and flares age by world seconds, which stand still
+**Gas marks the soldier.** The gassed state is the soldier's own flag (`Soldier.gassed`): it leaves the sector with him,
+is saved with him and is read from a native save. The per-round gas flags and the one-hit-per-blast flag live per
+soldier id in `ExplosivesState` (deviation "Gas and blast hit flags"). Clouds and flares age by world seconds, which stand still
 in turn-based combat; the sandbox counts its own (deviation "World clock for smoke and light"). Sight reads the gas and
 smoke layer of the tiles (`08`). A soldier of the computer teams puts on a gas mask he carries when his team is called
 to an alarm or an ambush, when he hears an alarm (civilians too) and, in Tixa only, on a `pre` draw of a RED or BLACK
@@ -159,5 +160,5 @@ Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "B
 structures", "Drugs and alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item
 cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
 cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
-pass", "Water ripple", "Vaporized corpses", "Gassed soldiers", "World clock for smoke and light", "Cosmetic draws in
-explosions".
+pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic draws
+in explosions".

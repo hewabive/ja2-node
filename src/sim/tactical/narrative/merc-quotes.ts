@@ -5,7 +5,6 @@
 // @src OkControllableMerc; Soldier_Control.h SOLDIER_QUOTE_SAID_*, SOLDIER_QUOTE_SAID_BUDDY_*_WITNESSED; Soldier_Ani.cc
 // @src SayBuddyWitnessedQuoteFromKill and SkillCheck.cc SkillCheck (the buddy quote of each buddy slot).
 
-import { isGassed } from '../explosions/smoke.ts';
 import { BuddySlot, profileProgress, whichBuddy } from '../profiles.ts';
 import { NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
@@ -111,7 +110,7 @@ export function okControllableMerc(t: Pick<TacticalState, 'narrative'>, s: Soldi
 }
 
 export function awakeSpeaker(t: TacticalState, s: Soldier): boolean {
-  return okControllableMerc(t, s) && !t.narrative.isEpc(s) && !isGassed(t, s) && !isRobot(s) && !t.narrative.mercAsleep(s);
+  return okControllableMerc(t, s) && !t.narrative.isEpc(s) && !s.gassed && !isRobot(s) && !t.narrative.mercAsleep(s);
 }
 
 function skippedWithoutArmyFought(t: TacticalState, s: Soldier, quote: number): boolean {

@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
+import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
-import type { RealtimeClock } from '../sim/tactical/state.ts';
+import { Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
+import { type RealtimeClock, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -962,5 +964,85 @@ describe('snapshot version 26 (no map screen line pause flag) migrates with no l
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const GASSED_KEY = 'gassed';
+
+function withoutSoldierGassedFlag(value: Json, gassedIds: number[]): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutSoldierGassedFlag(v, gassedIds));
+  if (typeof value !== 'object' || value === null) return value;
+  const o = value as JsonObject;
+  const soldier = typeof o[GASSED_KEY] === 'boolean' && o.cowering !== undefined;
+  if (soldier && o[GASSED_KEY] === true) gassedIds.push(o.id as number);
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(o)) if (!(soldier && key === GASSED_KEY)) out[key] = withoutSoldierGassedFlag(v, gassedIds);
+  return out;
+}
+
+function sectorGassedArray(gassedIds: readonly number[]): Json {
+  const bytes = new Uint8Array(TOTAL_SOLDIERS);
+  for (const id of gassedIds) bytes[id] = 1;
+  return { $u8: encodeBase64(bytes) };
+}
+
+function withSectorGassedArray(explosives: JsonObject, gassedIds: readonly number[]): JsonObject {
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(explosives)) {
+    out[key] = v;
+    if (key === 'hitByGas') out[GASSED_KEY] = sectorGassedArray(gassedIds);
+  }
+  return out;
+}
+
+function versionTwentySeven(snapshot: SimSnapshot): SimSnapshot {
+  const gassedIds: number[] = [];
+  const stripped = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    withoutSoldierGassedFlag(value, gassedIds),
+  ]);
+  const sections = stripped.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    return [name, { ...tactical, explosives: withSectorGassedArray(object(tactical.explosives), gassedIds) }];
+  });
+  return { ...snapshot, version: 27, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 27 (the gassed state per sector) migrates with the flag on each gassed soldier', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectFlagsOnTheSoldiers(session: SessionSim, t: TacticalState): Promise<void> {
+    const [gassed] = teamMembers(t, Team.OUR);
+    if (!gassed) throw new Error('no merc on the map');
+    gassed.gassed = true;
+    const current = snapshotSession(session);
+    const legacy = versionTwentySeven(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"gassed":true');
+    expect(JSON.stringify(legacy)).not.toContain('"gassed":false');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectFlagsOnTheSoldiers(sandbox, sandbox.sim.state);
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const t = campaign.campaign.tactical?.state;
+    if (!t) throw new Error('no loaded sector');
+    await expectFlagsOnTheSoldiers(campaign, t);
   });
 });

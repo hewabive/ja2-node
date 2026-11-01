@@ -36,7 +36,6 @@ import { type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { igniteExplosion } from './explosion.ts';
 import { createPhysicalObject, HEIGHT_UNITS } from './physics.ts';
-import { isGassed } from './smoke.ts';
 import { type RealObject, ThrowAction, type ThrowParams } from './state.ts';
 import { calculateLaunchItemParamsForThrow } from './trajectory.ts';
 import { vec3 } from './vec3.ts';
@@ -107,7 +106,7 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   c -= skillCheckFatiguePenalty(s, c);
   if (g === s.lastTarget) c += Aim.BONUS_SAME_TARGET;
   if (aimTime) c += Aim.BONUS_PER_AP * aimTime;
-  if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
+  if (s.gassed) c -= Aim.PENALTY_GASSED;
   if (s.serviceCount > 0) c -= Aim.PENALTY_GETTINGAID;
   if (s.shock) c -= s.shock * Aim.PENALTY_PER_SHOCK;
   let range = rangeInUnits(s.gridNo, g);

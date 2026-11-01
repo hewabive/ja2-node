@@ -267,7 +267,6 @@ const DIRECTION_AT_ANY_LEVEL: ReadonlySet<number> = new Set([
 ]);
 
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
-const gassed = (t: TacticalState, s: Soldier) => (t.explosives.gassed[s.id] ?? 0) !== 0;
 
 const DEAF_TO_THE_ARMY: ReadonlySet<number> = new Set([Profile.WARDEN, Profile.GENERAL, Profile.SERGEANT, Profile.CONRAD]);
 
@@ -292,7 +291,7 @@ function ignoresMaker(l: Soldier, maker: Soldier): boolean {
 }
 
 function teamMemberNear(t: TacticalState, team: number, g: number, range: number): boolean {
-  return t.soldiers.some((s) => s?.placed && s.team === team && s.life >= OKLIFE && !gassed(t, s) && pythSpacesAway(s.gridNo, g) <= range);
+  return t.soldiers.some((s) => s?.placed && s.team === team && s.life >= OKLIFE && !s.gassed && pythSpacesAway(s.gridNo, g) <= range);
 }
 
 export type HeardDirection = number | 'above' | 'below';

@@ -707,6 +707,40 @@ function addLinePauseFlag(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const EXPLOSIVES_KEY = 'explosives';
+const GASSED_KEY = 'gassed';
+const COWERING_KEY = 'cowering';
+
+function gassedSoldierIds(tactical: Json | undefined): ReadonlySet<number> {
+  const flags = bytesOf(field(field(tactical, EXPLOSIVES_KEY, null), GASSED_KEY, null));
+  return new Set([...flags.keys()].filter((id) => flags[id] !== 0));
+}
+
+function withSoldierGassedFlag(value: Json, gassed: ReadonlySet<number>): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierGassedFlag(v, gassed));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierGassedFlag(v, gassed);
+  if (!isSoldierRecord(mapped)) return mapped;
+  return insertAfter(mapped, COWERING_KEY, GASSED_KEY, typeof mapped.id === 'number' && gassed.has(mapped.id));
+}
+
+function withoutGassedArray(tactical: JsonObject): JsonObject {
+  const explosives = tactical[EXPLOSIVES_KEY];
+  if (!isObject(explosives) || explosives[REF] !== undefined) return tactical;
+  return { ...tactical, [EXPLOSIVES_KEY]: withoutKeys(explosives, [GASSED_KEY]) };
+}
+
+function moveGassedOntoSoldiers(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const gassed = gassedSoldierIds(sectionOf(graph.sections, 'tactical'));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const soldiers = withSoldierGassedFlag(value, gassed);
+    return [name, name === 'tactical' && isObject(soldiers) ? withoutGassedArray(soldiers) : soldiers];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -735,5 +769,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     24: addObjectMissions,
     25: addBleedingQuoteState,
     26: addLinePauseFlag,
+    27: moveGassedOntoSoldiers,
   };
 }

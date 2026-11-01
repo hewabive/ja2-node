@@ -24,7 +24,6 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
-import { isGassed } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
@@ -108,7 +107,7 @@ function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number)
   a -= skillCheckFatiguePenalty(att, a);
   if (aim) a += idiv(Aim.BONUS_PER_AP * aim, 2);
   if (att.team !== Team.OUR) a += ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, att)] ?? 0;
-  if (isGassed(t, att)) a -= Aim.PENALTY_GASSED;
+  if (att.gassed) a -= Aim.PENALTY_GASSED;
   if (att.serviceCount > 0) a -= Aim.PENALTY_GETTINGAID;
   if (att.shock) a -= att.shock * Aim.PENALTY_PER_SHOCK;
   if (a > 0 && att.life < att.lifeMax) a -= idiv(2 * a * (att.lifeMax - effectiveLife(att)), 3 * att.lifeMax);
@@ -133,7 +132,7 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
       : idiv(3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def), 6);
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
-  if (isGassed(t, def)) d -= Aim.PENALTY_GASSED;
+  if (def.gassed) d -= Aim.PENALTY_GASSED;
   if (def.serviceCount > 0) d -= Aim.PENALTY_GETTINGAID;
   if (def.shock) d -= def.shock * Aim.PENALTY_PER_SHOCK;
   if (d > 0 && def.life < def.lifeMax) d -= idiv(2 * d * (def.lifeMax - effectiveLife(def)), 3 * def.lifeMax);

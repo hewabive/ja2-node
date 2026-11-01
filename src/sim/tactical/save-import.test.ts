@@ -51,6 +51,7 @@ const NOBODY = TOTAL_SOLDIERS;
 const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
 const SOLDIER_LOOKFOR_ITEMS = 0x200;
+const SOLDIER_GASSED = 0x01000000;
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -382,6 +383,17 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const merc = soldierOf(sim, MERC_ID);
     expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
     expect([sim.state.turn.lockItemLocators, sim.state.turn.itemsSeenOnAttack]).toEqual([true, merc]);
+  });
+
+  it('restores the gassed state of a soldier (SOLDIER_GASSED)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { uiStatusFlags: SOLDIER_GASSED }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82)),
+      ],
+    });
+    const sim = importedSim(save);
+    expect([soldierOf(sim, MERC_ID).gassed, soldierOf(sim, MERC_ID + 1).gassed]).toEqual([true, false]);
   });
 
   it('restores an out-of-ammo quote pending until the end of an attack (fSayAmmoQuotePending)', () => {

@@ -125,10 +125,6 @@ export function inGasOrSmoke(t: TacticalState, s: Soldier, g: number): boolean {
   return inSmoke(t, s, g) || inGas(t, s, g);
 }
 
-export function isGassed(t: TacticalState, s: Soldier): boolean {
-  return t.explosives.gassed[s.id] !== 0;
-}
-
 function alreadyAffected(t: TacticalState, s: Soldier, type: SmokeEffectType): boolean {
   return ((t.explosives.hitByGas[s.id] ?? 0) & (HIT_FLAG_BY_ID[type.id] ?? 0)) !== 0;
 }
@@ -243,7 +239,7 @@ function filterThroughMask(t: TacticalState, s: Soldier, slot: number, dose: Gas
   const status = s.inv[slot]?.status[0] ?? 0;
   if (status < GASMASK_MIN_STATUS) {
     dose.breath = i16(idiv(dose.breath * (100 - status), 100));
-    if (dose.breath > GASSED_BREATH) t.explosives.gassed[s.id] = 1;
+    if (dose.breath > GASSED_BREATH) s.gassed = true;
     if (s.team !== Team.OUR) return;
     if (dose.wound > 1) {
       wearMask(t, s, slot, 4);
@@ -289,10 +285,10 @@ export function checkForRunningIntoGas(t: TacticalState, s: Soldier): boolean {
 export function updateGassedOnNewGridNo(t: TacticalState, s: Soldier, g: number): void {
   if (smokeEffectOnTile(t, g, s.level) === SmokeEffectId.NOTHING) return;
   if (gasMaskSlot(t, s, GASMASK_MIN_STATUS) !== -1) return;
-  t.explosives.gassed[s.id] = 1;
+  s.gassed = true;
 }
 
 export function clearGassedAtTurnStart(t: TacticalState, s: Soldier): void {
-  if (!t.explosives.gassed[s.id]) return;
-  if (wearingGasMask(t, s) || smokeEffectOnTile(t, s.gridNo, s.level) === SmokeEffectId.NOTHING) t.explosives.gassed[s.id] = 0;
+  if (!s.gassed) return;
+  if (wearingGasMask(t, s) || smokeEffectOnTile(t, s.gridNo, s.level) === SmokeEffectId.NOTHING) s.gassed = false;
 }
