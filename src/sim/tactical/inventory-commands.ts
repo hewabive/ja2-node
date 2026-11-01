@@ -4,12 +4,14 @@
 // @src vehicles); Interface_Items.cc HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
 // @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket); Interface_Panels.cc
-// @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts).
+// @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
+// @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01).
 
 import type { ItemTable } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
 import { cloneObject, type ItemObject, removeObjectAt } from '../items/object.ts';
+import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload } from './combat/reload.ts';
 import { NUM_KEYS } from './doors/key-ring.ts';
@@ -31,9 +33,11 @@ import {
   unloadGun,
 } from './inventory-panel.ts';
 import { KeyRingRefusal, type KeySpot, moveKey } from './key-ring-panel.ts';
+import { soldierAssignment } from './narrative/assignment.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { refuse } from './refusal.ts';
+import { currentSquad } from './selection.ts';
 import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { cleanUpStack } from './stack-cleanup.ts';
@@ -195,6 +199,11 @@ function seesTile(t: TacticalState, viewer: Soldier, target: Soldier): boolean {
   return soldierTo3DLocationLos(t, viewer, target.gridNo, target.level, LOS_CUBE_LEVEL, range, true) > 0;
 }
 
+function isMercOnCurrentSquad(t: TacticalState, s: Soldier): boolean {
+  const squad = currentSquad(t);
+  return squad < NUMBER_OF_SQUADS && soldierAssignment(t, s) === squad;
+}
+
 function panelRangeRefusal(t: TacticalState, holder: Soldier, target: Soldier): InventoryRefusal | null {
   if (holder === target) return null;
   if (target.life < OKLIFE) {
@@ -202,6 +211,7 @@ function panelRangeRefusal(t: TacticalState, holder: Soldier, target: Soldier): 
       (m) =>
         m.life >= OKLIFE &&
         !isMechanical(m) &&
+        isMercOnCurrentSquad(t, m) &&
         pythSpacesAway(target.gridNo, m.gridNo) <= PASSING_ITEM_DISTANCE_NOTOKLIFE &&
         seesTile(t, m, target),
     );

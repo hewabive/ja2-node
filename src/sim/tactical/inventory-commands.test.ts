@@ -256,6 +256,10 @@ describe('reloading and unloading', () => {
   });
 });
 
+const DYING = 10;
+const FIRST_SQUAD = 0;
+const SECOND_SQUAD = 1;
+
 describe('passing items between mercs', () => {
   it('charges 2 AP to each merc in combat and needs both to have 3', () => {
     const sim = newCombatSim(content);
@@ -274,6 +278,20 @@ describe('passing items between mercs', () => {
       ok: false,
       data: { refusal: 'notEnoughAP' },
     });
+  });
+
+  it('passes to a merc below OKLIFE only when a near merc of the current squad sees him (IsMercOnCurrentSquad)', () => {
+    const sim = newCombatSim(content);
+    const a = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const dying = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 81), Direction.NORTH);
+    a.inv[InvSlot.BIGPOCK1] = createItems(content.items, item('CLIP9_15'), 100, 2);
+    dying.life = DYING;
+    const squads = new Map([[a.id, SECOND_SQUAD]]);
+    sim.state.narrative = { ...sim.state.narrative, assignment: (m) => squads.get(m.id) ?? FIRST_SQUAD, currentSquad: () => FIRST_SQUAD };
+    const pass = () => sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', toSoldier: 1, to: 'bigPocket1' });
+    expect(pass()).toMatchObject({ ok: false, data: { refusal: 'tooFar' } });
+    squads.set(a.id, FIRST_SQUAD);
+    expect(pass()).toMatchObject({ ok: true });
   });
 
   it('refuses a merc out of passing range', () => {
