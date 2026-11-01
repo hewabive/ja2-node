@@ -14,7 +14,7 @@ import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/grou
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
 import { fact, QuestStatus } from '../strategic/narrative/facts.ts';
-import { EventKind } from '../strategic/time/constants.ts';
+import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { Team } from '../tactical/soldier.ts';
@@ -41,6 +41,8 @@ const ENEMY_TROOPS = 6;
 const MILITIA = [3, 1, 0] as const;
 const ARRIVAL_MINUTES = 1;
 const TICKS_TO_ARRIVAL = 2 * 12_000;
+const UNCONSCIOUS_LIFE = 10;
+const BLOODCAT_PLACEMENTS = 5;
 
 function sendEnemyGroup(c: CampaignSim): number {
   const ctx = c.strategic;
@@ -341,6 +343,46 @@ describe('autoresolve from the strategic state', () => {
     expect(c.state.flow).toBe('strategic');
     expect(c.tactical).not.toBeNull();
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+  });
+
+  it('names the box of an attack on mercs who cannot fight on the automatic start that follows it', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    for (const m of c.battle?.roster.all() ?? []) m.soldier.life = UNCONSCIOUS_LIFE;
+    sendEnemyGroup(c);
+    const report = advance(c, { ticks: TICKS_TO_ARRIVAL, events: ['arStarted'] });
+    expect(report.events.find((e) => e.type === 'preBattle')).toMatchObject({
+      sector: 'A9',
+      autoStart: true,
+      notice: 'unconsciousMercsAttacked',
+    });
+    expect(c.state.flow).toBe('autoresolve');
+  });
+
+  it('names the bloodcat box on the panel of an ambush, and no box on an invasion panel', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 2, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const lair = sectorInfo(c.state.map, A10);
+    lair.numAdmins = 0;
+    lair.numTroops = 0;
+    lair.numElites = 0;
+    lair.bloodCatPlacements = BLOODCAT_PLACEMENTS;
+    c.state.encounter.autoAmbush = true;
+    expect(c.dispatch({ type: 'route', soldier: 0, to: 'A10' })).toMatchObject({ ok: true });
+    const report = advance(c, { compressionStopped: true, mode: CompressMode.MIN30 });
+    expect(report.reason).toBe('decision');
+    expect(report.events.find((e) => e.type === 'preBattle')).toMatchObject({
+      sector: 'A10',
+      encounter: 'bloodcatAmbush',
+      autoStart: false,
+      notice: 'bloodcatAmbush',
+    });
+    const invasion = landedTown(5);
+    const panel = advance(invasion.c, { ticks: TICKS_TO_ARRIVAL }).events.find((e) => e.type === 'preBattle');
+    expect(panel).toMatchObject({ encounter: 'enemyInvasion' });
+    expect(panel && 'notice' in panel).toBe(false);
   });
 
   it('lays the dead of a battle elsewhere on random tiles of the visible area of the basement loaded meanwhile', () => {

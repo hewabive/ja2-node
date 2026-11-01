@@ -418,10 +418,12 @@ The events the original pairs with `StopTimeCompression` or a box stop a strateg
 Rules: `19`; `src/sim/campaign/battle-flow.ts`, `pre-battle-panel.ts`; views `src/server/battle-view.ts`. The
 `preBattle` prompt freezes time until `answer` (deviation "Pre-battle interface"); saving is refused while it is open,
 as the original disables the options button. Automatic starts open no prompt: a `preBattle {autoStart: true, panel}`
-event carries what the panel showed with Autoresolve pressed, and autoresolve begins. `showBattle` opens the
-non-persistent panel where the original calls `InitPreBattleInterface(0, false)` (a click on the battle sector while
-the locator is on, a compression attempt during a tactical battle), with its side effects; `autoresolveBattle` skips
-the panel (deviation "Non-persistent pre-battle interface").
+event carries what the panel showed with Autoresolve pressed, and autoresolve begins. The OK box the original opens
+before the panel of an arrival comes as the event's `notice`: `bloodcatAmbush`, `bloodcatLair` or
+`unconsciousMercsAttacked` (no merc able to fight and no militia); an invasion's box is the `invasion` event.
+`showBattle` opens the non-persistent panel where the original calls `InitPreBattleInterface(0, false)` (a click on the
+battle sector while the locator is on, a compression attempt during a tactical battle), with its side effects;
+`autoresolveBattle` skips the panel (deviation "Non-persistent pre-battle interface").
 
 **Autoresolve is a flow** (deviation "Autoresolve session"): world time is frozen and `advance` runs slices of 1000
 battle ms, one per 200 ticks (`TICKS_PER_AUTORESOLVE_SLICE`): `{idle}` to the end or a prompt, `{ticks: n}` ⌊n / 200⌋

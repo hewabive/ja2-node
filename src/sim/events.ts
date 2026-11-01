@@ -5,6 +5,7 @@ import type { StoryEvent } from './campaign/narrative/story-events.ts';
 import type { NarrativeEvent } from './narrative/events.ts';
 import type { EconomyEvent } from './strategic/economy/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+import type { PanelNotice } from './strategic/forces/flow-state.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
@@ -455,6 +456,7 @@ export interface PreBattleEvent extends SimEventBase {
   readonly autoStart: boolean;
   readonly prompt: string | null;
   readonly panel?: PreBattlePanel;
+  readonly notice?: PanelNotice;
 }
 
 export interface RetreatedEvent extends SimEventBase {

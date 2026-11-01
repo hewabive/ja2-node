@@ -40,6 +40,13 @@ export interface PreBattleHandoff {
   readonly tacticalTraversal: boolean;
 }
 
+export const PanelNotice = {
+  BLOODCAT_AMBUSH: 'bloodcatAmbush',
+  BLOODCAT_LAIR: 'bloodcatLair',
+  UNCONSCIOUS_MERCS_ATTACKED: 'unconsciousMercsAttacked',
+} as const;
+export type PanelNotice = (typeof PanelNotice)[keyof typeof PanelNotice];
+
 export interface SimultaneousArrivalPrompt {
   readonly groupId: number;
   readonly sector: Sector;

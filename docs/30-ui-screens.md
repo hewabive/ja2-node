@@ -110,10 +110,11 @@ on entry.
 **The lost sector box goes to the screen of the flow.** The original opens it with `DoScreenIndependantMessageBox` on
 whatever screen is up; ja2-node's map and tactical screens both hear every frame, so the tactical screen opens it in the
 tactical flow and the map screen otherwise, once it is on top again after autoresolve (`map/lost-sector.ts`). The
-invasion box of a SAM site or town held by militia alone always goes to the map screen, which the battle it announces
-brings up; the screen opens it before the pre-battle panel and its automatic autoresolve, which wait for OK as the
-box's callback `TriggerPrebattleInterface` does, and the map host keeps the event for a screen not built yet
-(`map/invasion.ts`).
+invasion box of a SAM site or town held by militia alone, the bloodcat ambush and lair boxes and the box of an attack on
+mercs who cannot fight always go to the map screen, which the battle they announce brings up; the screen opens them
+before the pre-battle panel and its automatic autoresolve, which wait for OK as the boxes' callback
+`TriggerPrebattleInterface` does, and the map host keeps the events for a screen not built yet (`map/invasion.ts` from
+`invasion`, `map/battle-notice.ts` from the `preBattle` event's `notice`).
 
 **Plotting keeps the legs in the client.** The temporary path and ETA come from `previewRoute` after the pointer rests;
 the legs stay in the client until the confirming click sends one `route` per group, and the move box sends one
@@ -202,6 +203,6 @@ Inferred or observed in ja2-node only:
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
 cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
-"Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat preview", "Battle notice boxes",
-"Shop screen details", "Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "I.M.P.
-voice samples", "I.M.P. skill page and saved profiles".
+"Trash can warning for mission items", "Vehicles as characters", "Pre-battle retreat preview", "Shop screen details",
+"Save location on the canvas", "Inert options", "IME composition", "Laptop video faces", "I.M.P. voice samples", "I.M.P.
+skill page and saved profiles".

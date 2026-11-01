@@ -20,7 +20,7 @@
 // @src the player last saw said; v: DisplayGameSettings), HandleModAlt (Alt+S and Alt+L only where the screen may be left;
 // @src a refused quick save in a map box), MapScreenHandle (the box of the sector the enemy gained in autoresolve, once
 // @src the map screen is back); src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, the
-// @src invasion box before the pre-battle panel).
+// @src invasion, bloodcat and unconscious-merc boxes before the pre-battle panel).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -55,6 +55,7 @@ import { drawInventoryItem } from '../tactical/item-tile.ts';
 import { formatMessageEntry } from '../tactical/message-format.ts';
 import type { StatFlash } from '../tactical/panel-models.ts';
 import { AssignmentMenus } from './assignment-menus.ts';
+import { type BattleNoticeEvent, battleNoticesOf, battleNoticeText } from './battle-notice.ts';
 import { clockText, heliDistanceValues, renderBottomPanel, renderGroundEta, renderHeliDistances } from './bottom-panel.ts';
 import {
   Assignment,
@@ -208,7 +209,7 @@ export class MapScreen implements Screen {
   readonly #updateBox: UpdateBox;
   readonly #updates = new UpdateQueue();
   readonly #lostSectors: string[] = [];
-  readonly #invasions: string[] = [];
+  readonly #preBattleBoxes: string[] = [];
   readonly #message = new MapUiMessage();
   readonly #messages = new MapMessageList();
   readonly #route = new RouteAnimation();
@@ -657,6 +658,7 @@ export class MapScreen implements Screen {
       for (const lost of lostSectorsOf(frames))
         this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label, true)));
     this.noticeInvasions(invasionBoxesOf(frames));
+    this.noticeBattleNotices(battleNoticesOf(frames));
     this.#inventory.frames(frames);
     this.#battle.frames(frames);
   }
@@ -696,7 +698,7 @@ export class MapScreen implements Screen {
     this.#updateMessages();
     this.#updatePlotting();
     this.#syncPrompts();
-    if (!this.#showInvasion()) this.#battle.update(this.#now);
+    if (!this.#showPreBattleBox()) this.#battle.update(this.#now);
     this.#message.update(this.#now, false);
     this.#syncCursor();
     this.#syncHandHelp();
@@ -1366,11 +1368,15 @@ export class MapScreen implements Screen {
   }
 
   noticeInvasions(events: readonly InvasionEvent[]): void {
-    for (const e of events) this.#invasions.push(invasionText(this.#env.text, e, (label) => this.#sectorName(label, true)));
+    for (const e of events) this.#preBattleBoxes.push(invasionText(this.#env.text, e, (label) => this.#sectorName(label, true)));
   }
 
-  #showInvasion(): boolean {
-    const text = this.#invasions.shift();
+  noticeBattleNotices(events: readonly BattleNoticeEvent[]): void {
+    for (const e of events) this.#preBattleBoxes.push(battleNoticeText(this.#env.text, e, (label) => this.#sectorName(label, true)));
+  }
+
+  #showPreBattleBox(): boolean {
+    const text = this.#preBattleBoxes.shift();
     if (text === undefined) return false;
     void this.#mapBox(text);
     return true;

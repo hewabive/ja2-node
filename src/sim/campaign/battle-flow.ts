@@ -53,7 +53,8 @@ import {
   PromptKind,
 } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode } from '../strategic/forces/constants.ts';
-import { answerSimultaneousArrival } from '../strategic/forces/encounters.ts';
+import { answerSimultaneousArrival, panelNoticeOf } from '../strategic/forces/encounters.ts';
+import type { PanelNotice } from '../strategic/forces/flow-state.ts';
 import { getGroup, groupAtFinalDestination } from '../strategic/forces/groups.ts';
 import { answerNpcOfNotePrompt, resetMovementForEnemyGroupsInLocation } from '../strategic/forces/movement.ts';
 import {
@@ -403,7 +404,7 @@ export class BattleFlow implements FateContext {
     this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   }
 
-  #emitPreBattle(opening: PreBattleOpening, autoStart: boolean, prompt: string | null): void {
+  #emitPreBattle(opening: PreBattleOpening, autoStart: boolean, prompt: string | null, notice: PanelNotice | null = null): void {
     const battle = this.state.battle;
     const code = battle.persistent ? this.state.encounter.code : this.state.encounter.explicitCode;
     const panel = autoStart ? preBattlePanel(this.campaign, opening.sector, this.#enemiesKnown(opening.sector)) : null;
@@ -415,6 +416,7 @@ export class BattleFlow implements FateContext {
       autoStart,
       prompt,
       ...(panel ? { panel } : {}),
+      ...(notice ? { notice } : {}),
     });
   }
 
@@ -429,14 +431,15 @@ export class BattleFlow implements FateContext {
     const group = getGroup(this.economy, handoff.battleGroupId) ?? null;
     const opening = initPreBattleInterface(this.economy, group, true);
     if (!opening) return;
+    const notice = panelNoticeOf(handoff);
     if (s.encounter.delayAutoResolveStart) {
       s.encounter.delayAutoResolveStart = false;
-      this.#emitPreBattle(opening, true, null);
+      this.#emitPreBattle(opening, true, null, notice);
       this.#startAutoresolve();
       return;
     }
     const prompt = this.#openPrompt(PromptKind.PRE_BATTLE, { options: opening.options, enemiesKnown: this.#enemiesKnown(opening.sector) });
-    this.#emitPreBattle(opening, false, prompt.id);
+    this.#emitPreBattle(opening, false, prompt.id, notice);
   }
 
   openCreatureAttack(autoStart: boolean): void {

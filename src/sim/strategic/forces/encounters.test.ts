@@ -10,8 +10,8 @@ import { createStrategicState } from '../state.ts';
 import { EventKind, NUM_SEC_IN_DAY, NUM_SEC_IN_HOUR } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
 import { EncounterCode, GroupFlag, InsertionCode, PauseLock } from './constants.ts';
-import { answerSimultaneousArrival, checkConditionsForBattle, testForBloodcatAmbush } from './encounters.ts';
-import { PreBattleNotice } from './flow-state.ts';
+import { answerSimultaneousArrival, checkConditionsForBattle, panelNoticeOf, testForBloodcatAmbush } from './encounters.ts';
+import { PanelNotice, PreBattleNotice } from './flow-state.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
 import { groupArrivedAtSector, nowMinutes } from './movement.ts';
 import type { StrategicContext } from './ports.ts';
@@ -227,6 +227,25 @@ describe('TestForBloodcatAmbush', () => {
     expect(info.bloodCats).toBe(19);
     expect(s.ctx.state.encounter.code).toBe(EncounterCode.ENTERING_BLOODCAT_LAIR);
     expect(s.pre.ranges).toEqual([]);
+  });
+
+  it('names the box before the panel by the encounter of the arrival, even when a later arrival resets the code', () => {
+    const s = setup({ pre: [0], rolls: [3], facts: { [Fact.PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR]: 1 } });
+    sectorInfo(s.ctx.state.map, S('C3')).bloodCatPlacements = 12;
+    sectorInfo(s.ctx.state.map, S('I16')).bloodCatPlacements = 19;
+    const notices: (string | null)[] = [];
+    for (const sector of ['C3', 'I16']) {
+      expect(checkConditionsForBattle(s.ctx, squad(s, S(sector), [notices.length]))).toBe(true);
+      s.ctx.state.encounter.code = EncounterCode.NO_ENCOUNTER;
+      const handoff = s.ctx.state.encounter.preBattle;
+      notices.push(handoff && panelNoticeOf(handoff));
+      s.ctx.state.encounter.preBattle = null;
+    }
+    squad(s, S('C9'), [7], 10);
+    expect(checkConditionsForBattle(s.ctx, createNewEnemyGroupDepartingFromSector(s.ctx, parseSectorId('C9'), 0, 4, 0))).toBe(true);
+    const unconscious = s.ctx.state.encounter.preBattle;
+    notices.push(unconscious && panelNoticeOf(unconscious));
+    expect(notices).toEqual([PanelNotice.BLOODCAT_AMBUSH, PanelNotice.BLOODCAT_LAIR, PanelNotice.UNCONSCIOUS_MERCS_ATTACKED]);
   });
 
   it('turns a bloodcat ambush into a pre-battle hand-off with its notice', () => {

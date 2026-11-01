@@ -24,7 +24,7 @@ import {
   unPauseGame,
 } from '../time/world-clock.ts';
 import { ABOUT_TO_ARRIVE_DELAY, BLANK_SECTOR, Difficulty, EncounterCode, GroupFlag, InsertionCode, PauseLock } from './constants.ts';
-import { PreBattleNotice as Notice, type PreBattleHandoff, type PreBattleNotice } from './flow-state.ts';
+import { PreBattleNotice as Notice, PanelNotice, type PreBattleHandoff, type PreBattleNotice } from './flow-state.ts';
 import {
   countAllMilitiaInSector,
   findPlayerMovementGroupInSector,
@@ -170,6 +170,17 @@ function recordPreBattle(
     tacticalTraversal: tt.active && tt.groupId === battleGroup.id,
     ...inputs,
   };
+}
+
+const BLOODCAT_NOTICES: Readonly<Record<number, PanelNotice>> = {
+  [EncounterCode.BLOODCAT_AMBUSH]: PanelNotice.BLOODCAT_AMBUSH,
+  [EncounterCode.ENTERING_BLOODCAT_LAIR]: PanelNotice.BLOODCAT_LAIR,
+};
+
+export function panelNoticeOf(handoff: PreBattleHandoff): PanelNotice | null {
+  if (handoff.notice === Notice.UNCONSCIOUS_MERCS_ATTACKED) return PanelNotice.UNCONSCIOUS_MERCS_ATTACKED;
+  if (handoff.notice === Notice.BLOODCAT_BATTLE) return BLOODCAT_NOTICES[handoff.encounterCode] ?? null;
+  return null;
 }
 
 function triggerPrebattleInterface(ctx: StrategicContext, g: Group, s: Sector, notice: PreBattleNotice, inputs: EncounterInputs): void {

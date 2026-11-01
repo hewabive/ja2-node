@@ -291,6 +291,32 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.t.runtime.host.modal).toBeNull();
     }));
 
+  it('boxes a bloodcat ambush by the sector in full, the lair entrance by its fixed line and an attack on mercs who cannot fight', () =>
+    withMap(async (f) => {
+      const tick = f.client.view.tick;
+      const panel = { type: 'preBattle', tick, persistent: true, autoStart: false, prompt: null } as const;
+      const notices = [
+        { ...panel, sector: 'C13', encounter: 'bloodcatAmbush', notice: 'bloodcatAmbush' },
+        { ...panel, sector: 'I16', encounter: 'enteringBloodcatLair', notice: 'bloodcatLair' },
+        { ...panel, sector: 'D13', encounter: 'enemyInvasion' },
+        { ...panel, sector: 'D13', encounter: 'enemyInvasion', autoStart: true, notice: 'unconsciousMercsAttacked' },
+      ] as const;
+      f.frames([{ tick, changed: [], removed: [], events: notices }]);
+      const texts: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        await f.settle();
+        texts.push(f.widget(MESSAGE_BOX).text ?? '');
+        f.key('Enter');
+      }
+      await f.settle();
+      expect(texts).toEqual([
+        'You have been ambushed by bloodcats in sector C13: Drassen!',
+        'You have just entered what appears to be a bloodcat lair in sector I16!',
+        'Enemies attack your mercs in sector D13: Drassen Mine.  None of your mercs are able to fight!',
+      ]);
+      expect(f.t.runtime.host.modal).toBeNull();
+    }));
+
   it('leaves the box of a sector lost in the tactical flow to the tactical screen', () =>
     withMap(async (f) => {
       (f.session.sim as CampaignSession).campaign.state.flow = 'tactical';

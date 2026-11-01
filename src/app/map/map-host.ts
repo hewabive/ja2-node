@@ -6,6 +6,7 @@ import type { LayoutModel } from '../../ui/layout/model.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
 import type { MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
+import { type BattleNoticeEvent, battleNoticesOf } from '../../ui/screens/map/battle-notice.ts';
 import { MAP_LAYOUTS, type MapEnvironment, type MapFlow, type MapLayout } from '../../ui/screens/map/environment.ts';
 import { mapFacts } from '../../ui/screens/map/facts.ts';
 import { type InvasionEvent, invasionBoxesOf } from '../../ui/screens/map/invasion.ts';
@@ -72,6 +73,7 @@ export class MapHost implements MapPort {
   readonly #battleClient: SessionBattleClient;
   #pendingAutoStart: PreBattleEvent | null = null;
   readonly #pendingInvasions: InvasionEvent[] = [];
+  readonly #pendingNotices: BattleNoticeEvent[] = [];
   readonly #hints: HintProvider;
   readonly #hintHook: HintHook;
   readonly #client: SessionMapClient;
@@ -222,6 +224,7 @@ export class MapHost implements MapPort {
     if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);
     this.#pendingAutoStart = null;
     this.#screen.noticeInvasions(this.#pendingInvasions.splice(0));
+    this.#screen.noticeBattleNotices(this.#pendingNotices.splice(0));
     return this.#screen;
   }
 
@@ -258,6 +261,7 @@ export class MapHost implements MapPort {
     if (!this.#screen) {
       this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;
       this.#pendingInvasions.push(...invasionBoxesOf(frames));
+      this.#pendingNotices.push(...battleNoticesOf(frames));
     }
     this.#screen?.frames(frames);
   }

@@ -7,6 +7,7 @@ import {
   BATTLE_SECTOR,
   BattleVariant,
   campaignOf,
+  clearMilitia,
 } from '../../../../tests/support/battle-entry.ts';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
@@ -21,6 +22,10 @@ const CREATURES = 3;
 const MILITIA = 2;
 const MILITIA_TOWN = 'C13';
 const MILITIA_TOWN_APPROACH = 'C14';
+const UNCONSCIOUS_LIFE = 10;
+const BLOODCAT_SECTOR = 'D14';
+const BLOODCAT_PLACEMENTS = 5;
+const BLOODCAT_TRIP_SECONDS = 6 * 3600;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -230,6 +235,52 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
       f.key('Enter');
       await frames(f, FRAME_MS);
       expect(battle(f).preBattle).toMatchObject({ autoStart: true, encounter: 'enemyInvasion' });
+    } finally {
+      await f.dispose();
+    }
+  });
+
+  it('boxes an attack on mercs who cannot fight before the automatic start of the panel', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      clearMilitia(f.session);
+      for (const m of campaignOf(f.session).campaign.battle?.roster.all() ?? []) m.soldier.life = UNCONSCIOUS_LIFE;
+      arrangeEnemyArrival(f.session, BATTLE_FORCES.victory);
+      f.session.advance({ worldSeconds: ARRIVAL_WAIT_SECONDS });
+      f.deliver();
+      await frames(f, OPENING_MS + FRAME_MS);
+      expect(f.widget('messageBox').text).toBe(
+        `Enemies attack your mercs in sector ${BATTLE_SECTOR}: Drassen Mine.  None of your mercs are able to fight!`,
+      );
+      expect(battle(f).preBattle).toBeNull();
+      f.key('Enter');
+      await frames(f, FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ autoStart: true, phase: 'opening' });
+    } finally {
+      await f.dispose();
+    }
+  });
+
+  it('boxes a bloodcat ambush before the panel of its prompt opens', async () => {
+    const f = await mapUiTest(kit, ui);
+    try {
+      const campaign = campaignOf(f.session).campaign;
+      const lair = sectorInfo(campaign.state.map, parseSectorString(BLOODCAT_SECTOR));
+      lair.numAdmins = 0;
+      lair.numTroops = 0;
+      lair.numElites = 0;
+      lair.bloodCatPlacements = BLOODCAT_PLACEMENTS;
+      campaign.state.encounter.autoAmbush = true;
+      expect(f.session.dispatch({ type: 'route', soldier: f.mercs[0], to: BLOODCAT_SECTOR }).ok).toBe(true);
+      f.session.advance({ worldSeconds: BLOODCAT_TRIP_SECONDS });
+      f.deliver();
+      await frames(f, FRAME_MS * 2);
+      expect(f.client.view.prompt?.kind).toBe('preBattle');
+      expect(f.widget('messageBox').text).toBe(`You have been ambushed by bloodcats in sector ${BLOODCAT_SECTOR}: Water!`);
+      expect(battle(f).preBattle).toBeNull();
+      f.key('Enter');
+      await frames(f, FRAME_MS);
+      expect(battle(f).preBattle).toMatchObject({ persistent: true, encounter: 'bloodcatAmbush', phase: 'opening' });
     } finally {
       await f.dispose();
     }
