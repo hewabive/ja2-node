@@ -162,6 +162,7 @@ function copyCampaignFields(from: ProfileProgress, to: ProfileProgress): void {
   to.miscFlags3 = from.miscFlags3;
   to.daysOfMoraleHangover = from.daysOfMoraleHangover;
   to.precedentQuoteSaid = from.precedentQuoteSaid;
+  to.preCombatGridNo = from.preCombatGridNo;
 }
 
 export function swapLarrysProfileRecords(n: NarrativeState, from: ProfileProgress, to: ProfileProgress): void {

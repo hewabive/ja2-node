@@ -117,10 +117,25 @@ describe('HourlyLarryUpdate', () => {
 
   it('copies the campaign fields into the other Larry profile and flips FACT_LARRY_CHANGED', () => {
     const n = createNarrativeState();
-    const sober = testProfile(Npc.LARRY_NORMAL, { sectorX: 13, sectorY: 4, kills: 7, inventory: [1, 2], inventoryStatus: [100, 90] });
+    const PRE_COMBAT_TILE = 12_345;
+    const sober = testProfile(Npc.LARRY_NORMAL, {
+      sectorX: 13,
+      sectorY: 4,
+      kills: 7,
+      preCombatGridNo: PRE_COMBAT_TILE,
+      inventory: [1, 2],
+      inventoryStatus: [100, 90],
+    });
     const drunk = testProfile(Npc.LARRY_DRUNK, { inventory: [0, 0], inventoryStatus: [0, 0] });
     swapLarrysProfileRecords(n, sober, drunk);
-    expect([drunk.sectorX, drunk.sectorY, drunk.kills, drunk.inventory, drunk.inventoryStatus]).toEqual([13, 4, 7, [1, 2], [100, 90]]);
+    expect([drunk.sectorX, drunk.sectorY, drunk.kills, drunk.preCombatGridNo, drunk.inventory, drunk.inventoryStatus]).toEqual([
+      13,
+      4,
+      7,
+      PRE_COMBAT_TILE,
+      [1, 2],
+      [100, 90],
+    ]);
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(true);
     swapLarrysProfileRecords(n, drunk, sober);
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(false);

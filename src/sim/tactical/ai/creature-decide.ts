@@ -753,7 +753,7 @@ export function creatureDecideAlertStatus(t: TacticalState, s: Soldier, hooks: A
   alertStatusFromSenses(t, s, hooks);
   if (ai.alertStatus !== old) {
     if (old < AlertStatus.RED || ai.alertStatus < AlertStatus.RED) setNewSituation(t, s);
-    if (old < AlertStatus.RED && ai.alertStatus >= AlertStatus.RED) checkForChangingOrders(s);
+    if (old < AlertStatus.RED && ai.alertStatus >= AlertStatus.RED) checkForChangingOrders(t, s);
     return;
   }
   const tired = (ai.alertStatus === AlertStatus.GREEN && s.breath < 75) || (ai.alertStatus === AlertStatus.YELLOW && s.breath < 50);
@@ -761,7 +761,7 @@ export function creatureDecideAlertStatus(t: TacticalState, s: Soldier, hooks: A
   setNewSituation(t, s);
   if (ai.alertStatus === AlertStatus.YELLOW && hooks.mostImportantNoiseHeard(t, s) === NOWHERE) {
     ai.alertStatus = AlertStatus.GREEN;
-    checkForChangingOrders(s);
+    checkForChangingOrders(t, s);
   }
 }
 

@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct, HandleInitialRedAlert,
+// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI (with the soldiers a new situation spares), ExecuteAction, ActionDone,
+// @src CancelAIAction, NPCDoesAct, HandleInitialRedAlert,
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
 // @src HandleAITacticalTraversal, the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
@@ -670,11 +671,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
   if (waitsForQuoteTrigger(t, s)) return;
   const traversingOffMap = s.aiTurnControl && isTraversalQuoteAction(s.quoteActionId) && s.offMap;
   if (ai.newSituation === Situation.IS_NEW) {
-    if (newSituationCanBeProcessed(t, s) && !traversingOffMap) {
-      cancelAIAction(t, s);
-      ai.nextAction = AiAction.NONE;
-      decideAlertStatus(t, s, control.hooks);
-    }
+    if (newSituationCanBeProcessed(t, s) && !traversingOffMap) processNewSituation(t, s, control);
   } else {
     ai.newSituation = Situation.NOT_NEW;
   }
@@ -717,6 +714,22 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
       if (!pendingMove) triesToContinueAlongPath(t, s);
     }
   }
+}
+
+function rethinksOnNewSituation(t: TacticalState, s: Soldier): boolean {
+  return s.quoteRecord === 0 && !t.pathEnv.autoBandage;
+}
+
+function processNewSituation(t: TacticalState, s: Soldier, control: AiControl): void {
+  const ai = s.ai;
+  if (rethinksOnNewSituation(t, s)) {
+    cancelAIAction(t, s);
+    ai.nextAction = AiAction.NONE;
+    decideAlertStatus(t, s, control.hooks);
+    return;
+  }
+  if (s.quoteRecord !== 0) ai.alertStatus = AlertStatus.GREEN;
+  ai.newSituation = Situation.WAS_NEW;
 }
 
 function waitsForQuoteTrigger(t: TacticalState, s: Soldier): boolean {

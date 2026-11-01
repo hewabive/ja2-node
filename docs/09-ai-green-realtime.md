@@ -63,14 +63,17 @@ runs schedules, the named-NPC decision and the minute of rest after an NPC spoke
 down raises the soldier's alert only at his turn start in combat (`manChecksOnFriends`, `13`).
 
 **Waiting is an action.** A decision of nothing becomes WAIT with a delay of several seconds, shorter for civilians and
-militia when few of them are in the sector (`realtimeDelay`); green moves queue the same wait as the next action, so a
-soldier walks, arrives, waits and decides again. Waits are game-ms deadlines (deviation "Frame timers").
+militia when few of them are in the sector (`realtimeDelay`); Kingpin's men wait like soldiers, a third as long in the
+brothel. Green moves queue the same wait as the next action, so a soldier walks, arrives, waits and decides again.
+Waits are game-ms deadlines (deviation "Frame timers").
 
 **A new situation cuts the wait short.** A sighting, a heard noise, a change of alert status or running low on breath
 re-arms the soldier's timer to within a second (`setNewSituation`). That visit cancels the current and the queued
 action, so a walker stops at his tile centre, and decides the alert status again. A sighting also halts a walker at
 once (`08`); a noise waits for the visit. Otherwise an action is never re-decided: it runs until its completion hook or
-the end of its path.
+the end of its path. Two kinds of soldier get no new situation and keep their action through a pending one: an NPC
+acting out a quote record, whom the visit puts back to GREEN, and everybody while auto-bandage runs (`processNewSituation`,
+`setNewSituation`).
 
 **How actions end.** A move ends at the first visit after its path is used up. Stracciatella's movement range takes in
 CHANGE_FACING and CHANGE_STANCE (`13`), so a turn ends at the next visit too, and the WAIT queued behind it starts one
@@ -80,18 +83,22 @@ sometimes none. `LAST_MOVEMENT_ACTION` is the one switch to the vanilla behaviou
 **The alert status.** `decideAlertStatus` runs before every real-time decision and after every new situation. Opponents
 in sight mean BLACK; a team aware of opposition or fire on the soldier means RED, except for civilians; a noise the
 soldier still considers (`mostImportantNoiseHeard`) means YELLOW. BLACK falls to RED when the last opponent is out of
-sight, RED never falls back, YELLOW returns to GREEN when the noise is forgotten and no action runs. The soldier's own
-noise memory is not filtered by hostility: a civilian who hears an unseen soldier walk goes YELLOW, and so does a
-soldier who hears a civilian, without the player being involved. Seek-enemy troops roam the whole map, so in towns this
-can happen often. A YELLOW soldier often falls back on the GREEN decision with higher chances (`bypassToGreen`, `13`).
+sight, RED never falls back, YELLOW returns to GREEN when the noise is forgotten and no action runs. A neutral named
+civilian outside the Queen's group who calms down to GREEN stands up and walks back to where the last combat found him,
+once: the combat entry keeps that tile in his profile (`preCombatGridNo`, `recordPreCombatGridNo`), and the return
+clears it. The soldier's own noise memory is not filtered by hostility: a civilian who hears an unseen soldier walk
+goes YELLOW, and so does a soldier who hears a civilian, without the player being involved. Seek-enemy troops roam the
+whole map, so in towns this can happen often. A YELLOW soldier often falls back on the GREEN decision with higher
+chances (`bypassToGreen`, `13`).
 
 **The GREEN decision.** In real time a civilian first follows his schedule (`35`); a named NPC then walks up to a merc
 he wants to talk to, faces the player a record told him to face, or stalks a merc as an assassin
 (`decideActionNamedNPC`, `24`), and does nothing for a minute after he spoke; neutral civilians then do nothing four
 times out of five. Orders give a roaming range around the soldier's first tile (the next patrol point for point
 patrols, his current tile for seek-enemy troops); the chances to patrol, visit a friend or look around come from orders,
-attitude, injury and breath. STATIONARY orders give range 0 in GREEN, so such a soldier stays on his tile and only
-turns. A tank does nothing. Green soldiers always walk,
+attitude, injury and breath. In combat the look-around needs the APs to turn and rolls nothing without them; a facing
+his stance does not fit on his tile drops the turn. STATIONARY orders give range 0 in GREEN, so such a soldier stays on
+his tile and only turns. A tank does nothing. Green soldiers always walk,
 except children, who sometimes skip, and a merc under AI control whom the player switched to running. Any path search
 in the patrol branch, even a fruitless one, skips the visit to a friend: the original's limit on pathing per decision.
 
@@ -101,10 +108,10 @@ outdoor tiles always pass. `goAsFarAsPossibleTowards` cuts the stored path at th
 step, so a green leg is at most one stored path long. A move whose path cannot start blacklists its target until the
 next move that starts.
 
-**Randomness.** The chance rolls, the random patrol point, the friend picked and the look directions draw on `pre`, and
-so does a destination anywhere on the map; the offsets of a destination within range, the side of the friend to stand
-on, the GoAsFar fallback shuffle (deviation "GoAsFar fallback"), the delays, the new-situation delay and the children's
-skipping draw on `main` (`01` §3.6). A chance roll draws even when the chance
+**Randomness.** The chance rolls, the random patrol point, the friend picked (from a list in merc-slot order) and the
+look directions draw on `pre`, and so does a destination anywhere on the map; the offsets of a destination within
+range, the side of the friend to stand on, the GoAsFar fallback shuffle (deviation "GoAsFar fallback"), the delays, the
+new-situation delay and the children's skipping draw on `main` (`01` §3.6). A chance roll draws even when the chance
 is 0 or below, unless an earlier branch skipped it. `handleSoldierAI` itself draws nothing; footsteps are `08`.
 
 ## 3. Quirks of the original the code keeps
@@ -119,6 +126,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Any path search of the patrol branch, even one it could not use, skips the friend's roll | `ai.test.ts` |
 | The spot next to a friend is never north of him and north-east comes up twice as often: the direction is shifted by one | `ai.test.ts` |
 | A neutral civilian counts enemy soldiers as friends, but not the other way round: the civilians' side is the enemy's | `ai.test.ts` |
+| A neutral named civilian who calms down before any combat in the game heads for tile 0: every profile starts at prof.dat's 0, which only the combat entry reads as unset | `ai.test.ts` |
+| The walk back to the pre-combat tile dies at the new situation the calming down raised, unless he acts out a quote record: the original spares the queued action only while the cancelled action is END_COWER_AND_MOVE, which it never is | `ai.test.ts` |
 
 Not pinned yet:
 - Point patrol orders set the patrol chance to 0 and the friend's chance to −10 outright, so a YELLOW soldier's bonus
@@ -140,8 +149,7 @@ boxers and the creature AI from GREEN up (`tools/oracle/README.md`). Inferred fr
 - The 55 ms tick and every AI slot per tick assume ideal 5 ms passes and a fast CPU.
 - Green turns and stance changes ending early in practice (`13`).
 - `handleSystemNewAISituation` doing nothing in real time, where the current team stays ours.
-- `InternalIsValidStance` holding for every standing single-tile soldier in the look-around.
 - The GoAsFar fallback and its shuffle never running for a random destination, which is legal already.
 
-Not ported: gaps "AI decision details", "Auto-bandage", "Combat AI specials". Kept differences: deviations "Timing",
+Not ported: gaps "Auto-bandage", "Combat AI specials". Kept differences: deviations "Timing",
 "Frame timers", "Game events", "GoAsFar fallback", "Away civilians".

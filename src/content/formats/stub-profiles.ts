@@ -283,6 +283,7 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     balance: 0,
     daysOfMoraleHangover: 0,
     precedentQuoteSaid: 0,
+    preCombatGridNo: 0,
     suspiciousDeath: 0,
     mercMercContractLength: 0,
     totalCostToDate: 0,

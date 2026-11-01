@@ -356,13 +356,16 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
   });
-  t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) });
+  t.perceptionHooks = perceptionHooks(t, {
+    checkForChangingOrders: (s) => checkForChangingOrders(t, s),
+    setNewSituation: (s) => setNewSituation(t, s),
+  });
   t.turnHooks = {
     startNPCAI: (state, s) => startNPCAI(state, s, ai),
     cancelAIAction,
     decideAlertStatus: (state, s) => decideAlertStatus(state, s, ai.hooks),
     setNewSituation,
-    checkForChangingOrders: (_state, s) => checkForChangingOrders(s),
+    checkForChangingOrders,
     minAPsToAttack,
     suppressedStanceChange: (state, s, stance) => {
       cancelAIAction(state, s);

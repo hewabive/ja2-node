@@ -3,14 +3,22 @@
 // @src src/game/TacticalAI/AIList.cc RemoveFirstAIListEntry, InsertIntoAIList, SatisfiesAIListConditions,
 // @src MoveToFrontOfAIList, BuildAIListForTeam (and its InitEnemyUIBar).
 
+import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
+import { CivGroupHostility } from '../narrative/constants.ts';
 import { turnOffTeamsMuzzleFlashes } from '../perception/sight.ts';
-import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, CivilianGroup, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { initEnemyUIBar } from './top-message.ts';
 
 const MAX_AI_PRIORITY = 100;
 const AI_ACTION_NONE = 0;
+
+function neutralInNeutralGroup(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.neutral && (s.civilianGroup === CivilianGroup.NONE || civGroupHostility(t.civGroups, s.civilianGroup) === CivGroupHostility.NEUTRAL)
+  );
+}
 
 function satisfiesAIListConditions(t: TacticalState, s: Soldier, done: { n: number } | null, randomChecks: boolean): boolean {
   if (boxingFight(t) && !s.boxer) return false;
@@ -22,9 +30,9 @@ function satisfiesAIListConditions(t: TacticalState, s: Soldier, done: { n: numb
   t.turnHooks.decideAlertStatus(t, s);
   if (s.team === Team.CIV) {
     if (s.bodyType === Body.CROW || s.bodyType === Body.COW) return false;
-    if (s.neutral) {
+    if (neutralInNeutralGroup(t, s)) {
       if (s.ai.alertStatus < AlertStatus.RED) {
-        if (randomChecks && t.pre.int(10) !== 0) return false;
+        if (randomChecks && t.pre.int(10) !== 0 && s.quoteRecord === 0) return false;
       } else if (s.cowering) {
         if (s.visible === 0) return false;
         if (s.profile !== NO_PROFILE) return false;

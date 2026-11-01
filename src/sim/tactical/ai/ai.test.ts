@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { QuoteActionId } from '../../../content/narrative/npc-constants.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, newGridNo, spacesAway } from '../../../content/world/grid.ts';
@@ -7,15 +8,18 @@ import { syntheticStructure, syntheticWorld } from '../../../content/world/synth
 import { Rng } from '../../../core/rng.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
-import { initNewSoldierAnim, states } from '../animation.ts';
+import { AnimHeight, initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { BROTHEL_SECTOR, BrothelRooms } from '../narrative/constants.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
-import { AlertStatus, Body, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
+import { NOWHERE } from '../pathfinding.ts';
+import { AP } from '../points.ts';
+import { AlertStatus, Body, CivilianGroup, createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
+import { createTacticalState, registerSoldier, type TacticalState, unregisterSoldier } from '../state.ts';
 import { AI_DELAY, AiAction, Situation } from './actions.ts';
 import {
   aiForSlot,
@@ -26,7 +30,7 @@ import {
   freeUpFromTurning,
   handleSoldierAI,
 } from './control.ts';
-import { decideActionGreen, decideAlertStatus, determineMovementMode, NO_AI_HOOKS } from './decide.ts';
+import { decideActionGreen, decideAlertStatus, determineMovementMode, NO_AI_HOOKS, realtimeDelay, setNewSituation } from './decide.ts';
 import { randomFriendWithin } from './destinations.ts';
 
 let content: TacticalContent;
@@ -309,6 +313,84 @@ describe('alert status (DecideAction.cc DecideAlertStatus, AIMain.cc CheckForCha
   });
 });
 
+describe('the return to the pre-combat tile (AIMain.cc CheckForChangingOrders, Realtime.cc RTHandleAI)', () => {
+  const NAMED_NPC = 94;
+  const HERE = gridNo(80, 80);
+  const PRE_COMBAT_TILE = gridNo(80, 86);
+  const UNSET_IN_PROF_DAT = 0;
+
+  interface Calming {
+    readonly preCombatGridNo: number;
+    readonly neutral?: boolean;
+    readonly civilianGroup?: number;
+    readonly quoteRecord?: number;
+  }
+
+  function calmingNpc(calming: Calming) {
+    const { t } = world(3);
+    const npc = spawn(t, Team.CIV, HERE, Orders.STATIONARY);
+    Object.assign(npc, {
+      profile: NAMED_NPC,
+      neutral: calming.neutral ?? true,
+      civilianGroup: calming.civilianGroup ?? CivilianGroup.NONE,
+      quoteRecord: calming.quoteRecord ?? 0,
+    });
+    npc.ai.alertStatus = AlertStatus.YELLOW;
+    const profile = testProfile(NAMED_NPC, { preCombatGridNo: calming.preCombatGridNo });
+    t.profiles.set(NAMED_NPC, profile);
+    return { t, npc, profile };
+  }
+
+  function calmDown(calming: Calming) {
+    const { t, npc, profile } = calmingNpc(calming);
+    decideAlertStatus(t, npc, NO_AI_HOOKS);
+    expect(npc.ai.alertStatus).toBe(AlertStatus.GREEN);
+    return { next: [npc.ai.nextAction, npc.ai.nextActionData], preCombatGridNo: profile.preCombatGridNo };
+  }
+
+  it('sends a neutral named civilian who calms down back to where combat found him, once', () => {
+    expect(calmDown({ preCombatGridNo: PRE_COMBAT_TILE })).toEqual({
+      next: [AiAction.END_COWER_AND_MOVE, PRE_COMBAT_TILE],
+      preCombatGridNo: NOWHERE,
+    });
+  });
+
+  it('sends him to tile 0 when no combat came yet: prof.dat starts every profile at 0, which only the combat entry reads as unset', () => {
+    expect(calmDown({ preCombatGridNo: UNSET_IN_PROF_DAT })).toEqual({
+      next: [AiAction.END_COWER_AND_MOVE, UNSET_IN_PROF_DAT],
+      preCombatGridNo: NOWHERE,
+    });
+  });
+
+  it("only stands up anyone else: no tile, not neutral, or one of the Queen's people", () => {
+    const standUp = { next: [AiAction.CHANGE_STANCE, AnimHeight.STAND] };
+    expect(calmDown({ preCombatGridNo: NOWHERE })).toEqual({ ...standUp, preCombatGridNo: NOWHERE });
+    expect(calmDown({ preCombatGridNo: PRE_COMBAT_TILE, neutral: false })).toEqual({ ...standUp, preCombatGridNo: PRE_COMBAT_TILE });
+    expect(calmDown({ preCombatGridNo: PRE_COMBAT_TILE, civilianGroup: CivilianGroup.QUEENS })).toEqual({
+      ...standUp,
+      preCombatGridNo: PRE_COMBAT_TILE,
+    });
+  });
+
+  function returnAfterTwoVisits(quoteRecord: number) {
+    const { t, npc } = calmingNpc({ preCombatGridNo: PRE_COMBAT_TILE, quoteRecord });
+    const control = createAiControl();
+    handleSoldierAI(t, npc, control);
+    const queued = [npc.ai.nextAction, npc.ai.nextActionData];
+    t.clockMs = npc.ai.counter;
+    handleSoldierAI(t, npc, control);
+    return { queued, walking: npc.ai.action === AiAction.WALK && npc.ai.actionData === PRE_COMBAT_TILE };
+  }
+
+  it('waits, then walks back when nothing new comes up, as for an NPC acting out a quote record', () => {
+    expect(returnAfterTwoVisits(3)).toEqual({ queued: [AiAction.WALK, PRE_COMBAT_TILE], walking: true });
+  });
+
+  it('drops the walk back at the new situation his calming raised: the original spares it only while the cancelled action is END_COWER_AND_MOVE, never the case', () => {
+    expect(returnAfterTwoVisits(0)).toEqual({ queued: [AiAction.WALK, PRE_COMBAT_TILE], walking: false });
+  });
+});
+
 describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
   it('leaves a tear gas cloud for the nearest land outside it', () => {
     const { t } = world(3);
@@ -354,6 +436,36 @@ describe('the green decision (DecideAction.cc DecideActionGreen)', () => {
     expect(nextActionAfterSeekingFriend(Team.MILITIA)).toBe(AiAction.WAIT);
   });
 
+  it('rolls the look-around in combat only with the APs to turn', () => {
+    const PATROL_ROLL_FAILS = 99;
+    const SEEK_FRIEND_ROLL_FAILS = 99;
+    const LOOK_ROLL_SUCCEEDS = 0;
+    const lookAroundInCombat = (actionPoints: number) => {
+      const { t } = world(3);
+      const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
+      t.inCombat = true;
+      guard.actionPoints = actionPoints;
+      const pre = new ScriptedStream([PATROL_ROLL_FAILS, SEEK_FRIEND_ROLL_FAILS, LOOK_ROLL_SUCCEEDS, Direction.NORTH]);
+      Object.assign(t, { pre });
+      return { action: decideActionGreen(t, guard, createAiControl().green), draws: pre.requested };
+    };
+    expect(lookAroundInCombat(AP.LOOK_STANDING)).toEqual({ action: AiAction.CHANGE_FACING, draws: [100, 100, 100, 8] });
+    expect(lookAroundInCombat(AP.LOOK_STANDING - 1)).toEqual({ action: AiAction.NONE, draws: [100, 100] });
+  });
+
+  it('turns only to a facing his stance allows there: an escort, who may not lie down, keeps facing as he lies', () => {
+    const PATROL_ROLL_FAILS = 99;
+    const SEEK_FRIEND_ROLL_FAILS = 99;
+    const LOOK_ROLL_SUCCEEDS = 0;
+    const { t } = world(3);
+    const escort = spawn(t, Team.OUR, gridNo(80, 80), Orders.STATIONARY);
+    escort.state = states(content.animations).PRONE;
+    t.narrative = { ...NO_NARRATIVE_PORT, isEpc: (s) => s === escort };
+    Object.assign(t, { pre: new ScriptedStream([PATROL_ROLL_FAILS, SEEK_FRIEND_ROLL_FAILS, LOOK_ROLL_SUCCEEDS, Direction.NORTH]) });
+    expect(decideActionGreen(t, escort, createAiControl().green)).toBe(AiAction.NONE);
+    expect(escort.ai.nextAction).toBe(AiAction.NONE);
+  });
+
   it('skips the seek-friend roll once the patrol searched a path, even one it could not use', () => {
     const { t } = world(3);
     const guard = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.ONGUARD);
@@ -384,11 +496,88 @@ describe('the friend to visit (AIUtils.cc RandomFriendWithin)', () => {
     for (const [tile, count] of visits) if (tile !== beside(Direction.NORTHEAST)) expect(count).toBeLessThan(northEast);
   });
 
+  it('lists the friends in merc-slot order, not by soldier id', () => {
+    const { t } = world(3);
+    const visitor = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.SEEKENEMY);
+    const firstById = spawn(t, Team.ENEMY, gridNo(80, 90), Orders.STATIONARY);
+    const secondById = spawn(t, Team.ENEMY, gridNo(90, 80), Orders.STATIONARY);
+    unregisterSoldier(t, firstById);
+    spawn(t, Team.OUR, gridNo(40, 100), Orders.STATIONARY);
+    registerSoldier(t, firstById);
+    expect(t.mercSlots.indexOf(secondById)).toBeLessThan(t.mercSlots.indexOf(firstById));
+    const FIRST_LISTED = 0;
+    Object.assign(t, { pre: new ScriptedStream([FIRST_LISTED]) });
+    expect(randomFriendWithin(t, visitor)).toBe(true);
+    expect(spacesAway(visitor.ai.actionData, secondById.gridNo)).toBe(1);
+  });
+
   it("lets a neutral civilian visit an enemy soldier but not the other way round: the civilians' side is the enemy's", () => {
     const { t } = world(3);
     const civilian = spawn(t, Team.CIV, gridNo(80, 80), Orders.SEEKENEMY);
     const soldier = spawn(t, Team.ENEMY, gridNo(80, 90), Orders.SEEKENEMY);
     expect(randomFriendWithin(t, civilian)).toBe(true);
     expect(randomFriendWithin(t, soldier)).toBe(false);
+  });
+});
+
+describe('the real-time delay (Realtime.cc RealtimeDelay)', () => {
+  const BROTHEL_ROOM = BrothelRooms.FIRST;
+
+  function delayOf(civilianGroup: number, inBrothel: boolean, draw: number): number {
+    const { t } = world(3);
+    const s = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    s.civilianGroup = civilianGroup;
+    t.sector = { ...BROTHEL_SECTOR, z: 0 };
+    if (inBrothel) t.world.level.rooms[s.gridNo] = BROTHEL_ROOM;
+    Object.assign(t, { rng: new ScriptedStream([draw]) });
+    return realtimeDelay(t, s);
+  }
+
+  it("gives Kingpin's men a soldier's delay of 10 to 11 seconds, cut to a third in the brothel", () => {
+    const SOLDIER_DRAW = 500;
+    expect(delayOf(CivilianGroup.KINGPIN, false, SOLDIER_DRAW)).toBe(10_500);
+    expect(delayOf(CivilianGroup.KINGPIN, true, SOLDIER_DRAW)).toBe(3_500);
+  });
+
+  it('gives other civilians the delay that grows with the people in the sector, in the brothel too', () => {
+    const CIVILIAN_DRAW = 2;
+    const ONE_MAN_IN_SECTOR = 1000;
+    expect(delayOf(CivilianGroup.NONE, true, CIVILIAN_DRAW)).toBe(ONE_MAN_IN_SECTOR + 5000 + 2000 * CIVILIAN_DRAW);
+  });
+});
+
+describe('the soldiers a new situation spares (AIMain.cc HandleSoldierAI, SetNewSituation)', () => {
+  const SCRIPTED_NPC = 94;
+  const NO_QUOTE_RECORD = 0;
+  const QUOTE_RECORD = 3;
+
+  function busyWithNewSituation(quoteRecord: number, autoBandage: boolean) {
+    const { t } = world(3);
+    Object.assign(t.pathEnv, { autoBandage });
+    const s = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    s.profile = SCRIPTED_NPC;
+    s.quoteRecord = quoteRecord;
+    s.ai.alertStatus = AlertStatus.YELLOW;
+    s.ai.action = AiAction.PENDING_ACTION;
+    s.ai.actionInProgress = true;
+    s.ai.newSituation = Situation.IS_NEW;
+    handleSoldierAI(t, s, createAiControl());
+    return { t, s };
+  }
+
+  it('keeps an NPC acting out a quote record on his action and puts him back to GREEN', () => {
+    const { s } = busyWithNewSituation(QUOTE_RECORD, false);
+    expect([s.ai.action, s.ai.alertStatus, s.ai.newSituation]).toEqual([AiAction.PENDING_ACTION, AlertStatus.GREEN, Situation.WAS_NEW]);
+  });
+
+  it('keeps everybody on his action during auto-bandage, and raises no new situation then', () => {
+    const { t, s } = busyWithNewSituation(NO_QUOTE_RECORD, true);
+    expect([s.ai.action, s.ai.alertStatus, s.ai.newSituation]).toEqual([AiAction.PENDING_ACTION, AlertStatus.YELLOW, Situation.WAS_NEW]);
+    setNewSituation(t, s);
+    expect(s.ai.newSituation).toBe(Situation.WAS_NEW);
+  });
+
+  it('cancels the action of anyone else', () => {
+    expect(busyWithNewSituation(NO_QUOTE_RECORD, false).s.ai.action).not.toBe(AiAction.PENDING_ACTION);
   });
 });

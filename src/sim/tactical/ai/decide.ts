@@ -2,15 +2,21 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen (with the DecideActionSchedule call and the boxing
 // @src block), DecideAlertStatus (with its boxing gate);
-// @src AIMain.cc CheckForChangingOrders (with the creature branches), SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode;
-// @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause).
+// @src AIMain.cc CheckForChangingOrders (with the creature branches and the return to sPreCombatGridNo), SetNewSituation;
+// @src Realtime.cc RealtimeDelay (with Kingpin's group); AIUtils.cc DetermineMovementMode;
+// @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause, the look-around's AP gate and stance
+// @src check).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { i16, idiv } from '../../../core/int.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
+import { inBrothel } from '../narrative/civ-hostility.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
+import { internalIsValidStance } from '../person-structure.ts';
+import { apsToLook } from '../points.ts';
+import { type ProfileProgress, profileProgress } from '../profiles.ts';
 import {
   AlertStatus,
   Attitude,
@@ -29,7 +35,14 @@ import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY 
 import { creatureDecideAlertStatus, realtimeCreatureDelay } from './creature-decide.ts';
 import { decideActionGreenWhileBoxing } from './decide-boxing.ts';
 import { decideActionSchedule } from './decide-schedule.ts';
-import { goAsFarAsPossibleTowards, pointPatrolAI, randDestWithinRange, randomFriendWithin, randomPointPatrolAI } from './destinations.ts';
+import {
+  goAsFarAsPossibleTowards,
+  pointPatrolAI,
+  randDestWithinRange,
+  randomFriendWithin,
+  randomPointPatrolAI,
+  roomAt,
+} from './destinations.ts';
 
 const HATKIDCIV = 15;
 const KIDCIV = 16;
@@ -44,6 +57,7 @@ const CIV_DELAY_STEP = 2000;
 const AI_DELAY_BASE = 10000;
 const AI_DELAY_SPREAD = 1000;
 const NAMED_NPC_IDLE_AFTER_TALK_MS = 60000;
+const BROTHEL_DELAY_DIVISOR = 3;
 
 export interface AiHooks {
   mostImportantNoiseHeard(t: TacticalState, s: Soldier): number;
@@ -71,9 +85,19 @@ export function realtimeAiDelay(t: TacticalState): number {
   return AI_DELAY_BASE + t.rng.int(AI_DELAY_SPREAD);
 }
 
+function takesCivilianDelay(s: Soldier): boolean {
+  return isCivOrMilitia(s) && s.civilianGroup !== CivilianGroup.KINGPIN;
+}
+
+function kingpinGoonInBrothel(t: TacticalState, s: Soldier): boolean {
+  return s.civilianGroup === CivilianGroup.KINGPIN && inBrothel(t, roomAt(t, s.gridNo));
+}
+
 export function realtimeDelay(t: TacticalState, s: Soldier): number {
-  if (isCivOrMilitia(s)) return realtimeCivDelay(t);
-  return isCreatureOrBloodcat(s) && !s.hunting ? realtimeCreatureDelay(t) : realtimeAiDelay(t);
+  if (takesCivilianDelay(s)) return realtimeCivDelay(t);
+  if (isCreatureOrBloodcat(s) && !s.hunting) return realtimeCreatureDelay(t);
+  const delay = realtimeAiDelay(t);
+  return kingpinGoonInBrothel(t, s) ? idiv(delay, BROTHEL_DELAY_DIVISOR) : delay;
 }
 
 export function determineMovementMode(t: TacticalState, s: Soldier, action: number): number {
@@ -92,15 +116,28 @@ export function determineMovementMode(t: TacticalState, s: Soldier, action: numb
 
 export function setNewSituation(t: TacticalState, s: Soldier): void {
   if (s.team === Team.OUR) return;
-  if (s.quoteRecord !== 0 || (s.neutral && t.engagedInConv)) return;
+  if (s.quoteRecord !== 0 || t.pathEnv.autoBandage || (s.neutral && t.engagedInConv)) return;
   s.ai.newSituation = Situation.IS_NEW;
   if (!t.inCombat) s.ai.counter = t.clockMs + t.rng.int(NEW_SITUATION_DELAY_RANGE);
 }
 
-export function checkForChangingOrders(s: Soldier): void {
+function profileWithPreCombatTile(t: TacticalState, s: Soldier): ProfileProgress | null {
+  if (s.team !== Team.CIV || s.profile === NO_PROFILE || !s.neutral || s.civilianGroup === CivilianGroup.QUEENS) return null;
+  const profile = profileProgress(t, s.profile);
+  return profile && profile.preCombatGridNo !== NOWHERE ? profile : null;
+}
+
+export function checkForChangingOrders(t: TacticalState, s: Soldier): void {
   const ai = s.ai;
   if (ai.alertStatus === AlertStatus.GREEN) {
     if (isCreatureOrBloodcat(s)) return;
+    const profile = profileWithPreCombatTile(t, s);
+    if (profile) {
+      ai.nextAction = AiAction.END_COWER_AND_MOVE;
+      ai.nextActionData = profile.preCombatGridNo;
+      profile.preCombatGridNo = NOWHERE;
+      return;
+    }
     ai.nextAction = s.cowering ? AiAction.STOP_COWERING : AiAction.CHANGE_STANCE;
     ai.nextActionData = AnimHeight.STAND;
     return;
@@ -124,14 +161,14 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
   const old = ai.alertStatus;
   if (ai.oppCount > 0) {
     ai.alertStatus = AlertStatus.BLACK;
-    checkForChangingOrders(s);
+    checkForChangingOrders(t, s);
   } else if (old === AlertStatus.BLACK) {
     ai.alertStatus = AlertStatus.RED;
   } else if (old === AlertStatus.YELLOW) {
     if (s.team !== Team.CIV && (hooks.awareOfOpposition(t, s.team) || ai.underFire)) ai.alertStatus = AlertStatus.RED;
     else if (hooks.mostImportantNoiseHeard(t, s) === NOWHERE && !ai.actionInProgress) {
       ai.alertStatus = AlertStatus.GREEN;
-      checkForChangingOrders(s);
+      checkForChangingOrders(t, s);
     }
   } else if (old === AlertStatus.GREEN) {
     if (s.team !== Team.CIV && (hooks.awareOfOpposition(t, s.team) || ai.underFire)) ai.alertStatus = AlertStatus.RED;
@@ -140,7 +177,7 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
   if (boxingActive(t)) return;
   if (ai.alertStatus !== old) {
     if (old < AlertStatus.RED || ai.alertStatus < AlertStatus.RED) setNewSituation(t, s);
-    if (old < AlertStatus.RED && ai.alertStatus >= AlertStatus.RED) checkForChangingOrders(s);
+    if (old < AlertStatus.RED && ai.alertStatus >= AlertStatus.RED) checkForChangingOrders(t, s);
     return;
   }
   const tired =
@@ -150,7 +187,7 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
     setNewSituation(t, s);
     if (ai.alertStatus === AlertStatus.YELLOW && hooks.mostImportantNoiseHeard(t, s) === NOWHERE) {
       ai.alertStatus = AlertStatus.GREEN;
-      checkForChangingOrders(s);
+      checkForChangingOrders(t, s);
     }
   }
 }
@@ -238,6 +275,10 @@ function seekFriendChance(s: Soldier): number {
       break;
   }
   return chance - (s.lifeMax - s.life) - (100 - s.breath);
+}
+
+function canAffordLook(t: TacticalState, s: Soldier): boolean {
+  return !t.inCombat || apsToLook(t.content, s) <= s.actionPoints;
 }
 
 function lookChance(s: Soldier): number {
@@ -331,17 +372,19 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
       }
     }
   }
-  if (ai.lastAction !== AiAction.CHANGE_FACING && i16(t.pre.int(100)) < lookChance(s)) {
+  if (canAffordLook(t, s) && ai.lastAction !== AiAction.CHANGE_FACING && i16(t.pre.int(100)) < lookChance(s)) {
     do {
       if (ai.dominantDir >= 0 && ai.dominantDir <= 8 && s.direction !== ai.dominantDir && t.pre.int(2) !== 0)
         ai.actionData = ai.dominantDir;
       else ai.actionData = t.pre.int(8);
     } while (ai.actionData === s.direction);
-    if (!t.inCombat) {
-      ai.nextAction = AiAction.WAIT;
-      ai.nextActionData = realtimeDelay(t, s);
+    if (internalIsValidStance(t, s, ai.actionData, endHeight(t.content, s.state))) {
+      if (!t.inCombat) {
+        ai.nextAction = AiAction.WAIT;
+        ai.nextActionData = realtimeDelay(t, s);
+      }
+      return AiAction.CHANGE_FACING;
     }
-    return AiAction.CHANGE_FACING;
   }
   ai.actionData = NOWHERE;
   return AiAction.NONE;

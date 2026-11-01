@@ -905,6 +905,24 @@ function addDoorStatusFlags(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PRECEDENT_QUOTE_SAID_KEY = 'precedentQuoteSaid';
+const PRE_COMBAT_GRIDNO_KEY = 'preCombatGridNo';
+const UNSET_PRE_COMBAT_GRIDNO = 0;
+
+function withPreCombatGridNo(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withPreCombatGridNo(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withPreCombatGridNo(v);
+  return isProfileProgress(mapped) ? insertAfter(mapped, PRECEDENT_QUOTE_SAID_KEY, PRE_COMBAT_GRIDNO_KEY, UNSET_PRE_COMBAT_GRIDNO) : mapped;
+}
+
+function addPreCombatGridNo(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withPreCombatGridNo(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -941,5 +959,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     32: addRandomActionCounter,
     33: addCreatureTenseQuoteTimer,
     34: addDoorStatusFlags,
+    35: addPreCombatGridNo,
   };
 }

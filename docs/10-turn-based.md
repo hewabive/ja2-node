@@ -57,7 +57,8 @@ by his duel points, computed before the sighting is recorded. The list holds thr
 once or a door opens. The best's team starts, unless the second and the third are both of another team: then the
 second's team starts and the best interrupts it at once. Entering combat stops everyone at his tile centre, cancels the
 AI's actions and the player's pending moves, and adds a turn's APs to what everyone has: real time never spends APs, so
-everyone starts with a full turn plus the maximum carry-over of 5.
+everyone starts with a full turn plus the maximum carry-over of 5. It also keeps in each neutral named civilian's
+profile the tile he stood on, unless an earlier combat left one there, for his walk back once calm (`09`).
 
 **An AI attack out of combat.** An AI soldier about to shoot, throw or use a knife out of combat starts it himself,
 except in a meanwhile: his team's turn begins with him holding it and the computer's turn bar up (deviation "Hidden
@@ -145,8 +146,8 @@ fade without merc lights").
 `advance` stops and the interrupt decision; End Turn also closes an interrupt in our favour (`29`; deviations
 "Turn-based UI lock", "Interrupt prompt", "Continue a move").
 
-**Randomness.** Duels and the interrupt queue draw nothing. The AI list draws its skips of neutral civilians on `pre` in
-`mercSlots` order; the close-call quote draws `Random(3)` per eligible merc on `main` at every AI soldier's turn end and
+**Randomness.** Duels and the interrupt queue draw nothing. The AI list draws its skips of neutral civilians of no
+group or of a group still neutral on `pre` in `mercSlots` order; the close-call quote draws `Random(3)` per eligible merc on `main` at every AI soldier's turn end and
 at our interrupt; the quotes at the end of a lull or a won battle pick their speaker with `Random(n)` on `main`
 (`narrative/battle-quotes.ts`, the bloodcat battle sound excepted: deviation "Battle sound after bloodcats"); a turn
 start's bleeding and getting up draw as in `33`, a claustrophobic merc's in an underground sector `Random(6 − level)` on
@@ -168,6 +169,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | An AI interrupt nobody uses stays hidden, and our merc walks on to his destination | `turns/turns.test.ts` |
 | An AI attack out of combat is cancelled by the combat it starts and decided again; the rest of the attacker's team sits that turn out | `ai/combat-ai.test.ts` |
 | A soldier in his death animation (life 0) counts as a capable enemy, an unconscious one does not | `turns/end-of-battle.test.ts` |
+| An unalerted neutral civilian acting out a quote record costs the AI list its one-in-ten roll and is handled anyway | `turns/ai-list.test.ts` |
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
@@ -214,8 +216,8 @@ reading the source:
   change); the options and save screens are client-side and their return finds the selection unchanged, and the shop's
   return changes nothing (`SelectSoldier` refuses on the shopkeeper screen).
 
-Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "AI decision details" (the
-pre-combat grid, the AI list's civilian skip), "Automatic selections" (the assignment menu's close, the vehicles).
+Not ported: gaps "Action points and phobias", "Turn-based hooks", "Drugs and alcohol", "Automatic selections" (the
+assignment menu's close, the vehicles).
 Other deviations of this domain: "Preferred selection after a jump", "Selection on load", "Watchdogs", "Enemy sighted
 on their turn", "Real-time turn after combat", "Turn-based UI lock", "Interrupt prompt", "Continue a move", "Frame
 timers", "Soldier fade without merc lights", "Hidden attacks start combat", "Interface lock on arrival".

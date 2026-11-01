@@ -315,7 +315,7 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
   return true;
 }
 
-function inBrothel(t: TacticalState, room: number): boolean {
+export function inBrothel(t: TacticalState, room: number): boolean {
   return inSector(t, BROTHEL_SECTOR) && room >= BrothelRooms.FIRST && room <= BrothelRooms.LAST;
 }
 

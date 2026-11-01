@@ -138,6 +138,7 @@ export interface ProfileProgress extends NpcProfileFields {
   miscFlags3: number;
   daysOfMoraleHangover: number;
   precedentQuoteSaid: number;
+  preCombatGridNo: number;
   balance: number;
   mercMercContractLength: number;
   suspiciousDeath: number;
@@ -291,6 +292,7 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
     miscFlags3: p.miscFlags3,
     daysOfMoraleHangover: p.daysOfMoraleHangover,
     precedentQuoteSaid: p.precedentQuoteSaid,
+    preCombatGridNo: p.preCombatGridNo,
     balance: p.balance,
     mercMercContractLength: p.mercMercContractLength,
     suspiciousDeath: p.suspiciousDeath,
@@ -381,6 +383,7 @@ export type CampaignProfileFields = NpcProfileFields &
     | 'miscFlags3'
     | 'daysOfMoraleHangover'
     | 'precedentQuoteSaid'
+    | 'preCombatGridNo'
     | 'balance'
     | 'mercMercContractLength'
     | 'suspiciousDeath'
@@ -461,6 +464,7 @@ export function noCampaignFields(): CampaignProfileFields {
     miscFlags3: 0,
     daysOfMoraleHangover: 0,
     precedentQuoteSaid: 0,
+    preCombatGridNo: 0,
     balance: 0,
     mercMercContractLength: 0,
     suspiciousDeath: 0,

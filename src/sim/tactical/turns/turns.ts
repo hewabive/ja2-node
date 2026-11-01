@@ -4,7 +4,8 @@
 // @src StartPlayerTeamTurn, EndTurn, EndAITurn, EndAllAITurns, EndTurnEvents, BeginTeamTurn, DisplayHiddenInterrupt,
 // @src DisplayHiddenTurnbased (2026-10-30),
 // @src EveryoneInInterruptListOnSameTeam, StartInterrupt, EndInterrupt, DeleteFromIntList, AddToIntList,
-// @src VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs; Overhead.cc CommonEnterCombatModeCode,
+// @src VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs; Overhead.cc CommonEnterCombatModeCode (with the
+// @src profiles' sPreCombatGridNo),
 // @src EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode, SoldierHasSeenEnemiesLastFewTurns,
 // @src CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle; Soldier_Control.cc EVENT_BeginMercTurn
 // @src (the heard-noise pause and the per-turn quote flags), CheckForBreathCollapse; OppList.cc
@@ -391,6 +392,15 @@ export function setEnemyPresence(t: TacticalState): void {
   t.turn.enemyInSector = true;
 }
 
+const UNSET_PRE_COMBAT_GRIDNO = 0;
+
+function recordPreCombatGridNo(t: TacticalState, s: Soldier): void {
+  const profile = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
+  if (!profile) return;
+  if (s.team !== Team.CIV || !s.neutral) profile.preCombatGridNo = NOWHERE;
+  else if (profile.preCombatGridNo === UNSET_PRE_COMBAT_GRIDNO || profile.preCombatGridNo === NOWHERE) profile.preCombatGridNo = s.gridNo;
+}
+
 function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
   t.inCombat = true;
   t.turn.numFoughtInBattle.fill(0);
@@ -405,6 +415,7 @@ function commonEnterCombatModeCode(t: TacticalState, startTeam: number): void {
     checkForPotentialAddToBattleIncrement(t, s);
     if (t.narrative.mercAsleep(s)) startWakingUp(t, s);
     calcNewActionPoints(t, s);
+    recordPreCombatGridNo(t, s);
   }
   t.turn.round = 1;
   t.events.push({ type: 'combatStarted', team: startTeam });

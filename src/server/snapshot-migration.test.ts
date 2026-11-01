@@ -1454,3 +1454,45 @@ describe('snapshot version 34 (door statuses with only the perceived state) migr
     await expectPerceivedDoors(campaign);
   });
 });
+
+const PRE_COMBAT_GRIDNO_KEY = 'preCombatGridNo';
+
+function withoutPreCombatGridNo(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutPreCombatGridNo(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === PRE_COMBAT_GRIDNO_KEY) expect(v).toBe(0);
+    else out[key] = withoutPreCombatGridNo(v);
+  }
+  return out;
+}
+
+function versionThirtyFive(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutPreCombatGridNo(value)]);
+  return { ...snapshot, version: 35, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 35 (profiles without a pre-combat tile) migrates with every profile at prof.dat's 0", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const session = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(session);
+    const legacy = versionThirtyFive(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${PRE_COMBAT_GRIDNO_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${PRE_COMBAT_GRIDNO_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

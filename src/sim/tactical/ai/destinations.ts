@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/Movement.cc LegalNPCDestination, InternalGoAsFarAsPossibleTowards, NextPatrolPoint,
-// @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin.
+// @src PointPatrolAI, RandomPointPatrolAI; AIUtils.cc RoamingRange, RandDestWithinRange, RandomFriendWithin (in MercSlots order).
 
 import { newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { i8, idiv } from '../../../core/int.ts';
@@ -10,7 +10,7 @@ import { inGas } from '../explosions/smoke.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
 import { estimateActionPointCost } from '../points.ts';
 import { AlertStatus, Body, isCreatureOrBloodcat, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
-import { onVisibleWorldTile, type TacticalState } from '../state.ts';
+import { mercs, onVisibleWorldTile, type TacticalState } from '../state.ts';
 import { MAX_ROAMING_RANGE } from './actions.ts';
 
 export const PathMode = { IGNORE_PATH: 0, ENSURE_PATH: 1, ENSURE_PATH_COST: 2 } as const;
@@ -235,9 +235,7 @@ export function goAsFarAsPossibleTowards(
 export function randomFriendWithin(t: TacticalState, s: Soldier): boolean {
   const { range, origin } = roamingRange(s);
   if (origin >= WORLD_MAX) return false;
-  const friends = t.soldiers.filter(
-    (c) => c?.placed && c !== s && (c.neutral ? s.neutral : s.side === c.side) && spacesAway(s.gridNo, c.gridNo) > 1,
-  );
+  const friends = mercs(t).filter((c) => c !== s && (c.neutral ? s.neutral : s.side === c.side) && spacesAway(s.gridNo, c.gridNo) > 1);
   while (friends.length > 0) {
     const index = t.pre.int(friends.length);
     const chosen = friends[index] as Soldier;

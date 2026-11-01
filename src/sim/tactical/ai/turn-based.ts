@@ -97,7 +97,7 @@ function manChecksOnFriends(t: TacticalState, s: Soldier): void {
     if (soldierToSoldierLos(t, s, friend, u8(d), true) === 0) continue;
     if (friend.ai.alertStatus >= AlertStatus.RED || friend.ai.underFire || friend.life < OKLIFE) {
       s.ai.alertStatus = AlertStatus.RED;
-      checkForChangingOrders(s);
+      checkForChangingOrders(t, s);
       setNewSituation(t, s);
       break;
     }

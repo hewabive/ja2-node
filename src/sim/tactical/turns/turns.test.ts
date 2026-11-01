@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
@@ -16,6 +17,7 @@ import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { BoxingState } from '../narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../narrative/port.ts';
+import { NOWHERE } from '../pathfinding.ts';
 import { hasPendingAction } from '../pending-action.ts';
 import {
   AUTOMATIC_INTERRUPT,
@@ -299,6 +301,38 @@ describe('turn-based combat', () => {
     expect([animName(content, sleeper.state), sleeper.desiredHeight]).toEqual(['KNEEL_UP', AnimHeight.STAND]);
     run(sim);
     expect(animName(content, sleeper.state)).toBe('STANDING');
+  });
+
+  it("keeps where each neutral named civilian stood when combat began, once per game, and forgets it for everyone else's profile", () => {
+    const sim = newSim();
+    const t = sim.state;
+    const NEUTRAL_NPC = 94;
+    const NEUTRAL_NPC_IN_EARLIER_COMBAT = 65;
+    const HOSTILE_NPC = 91;
+    const MERC = 0;
+    const EARLIER_TILE = gridNo(10, 10);
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.profile = MERC;
+    const named = (id: number, profile: number, x: number, neutral: boolean) => {
+      const s = spawn(sim, id, Team.CIV, gridNo(x, 60), Direction.SOUTH);
+      Object.assign(s, { profile, neutral });
+      return s;
+    };
+    const civilian = named(30, NEUTRAL_NPC, 60, true);
+    named(31, NEUTRAL_NPC_IN_EARLIER_COMBAT, 64, true);
+    named(32, HOSTILE_NPC, 68, false);
+    for (const id of [NEUTRAL_NPC, HOSTILE_NPC, MERC]) t.profiles.set(id, testProfile(id));
+    t.profiles.set(NEUTRAL_NPC_IN_EARLIER_COMBAT, testProfile(NEUTRAL_NPC_IN_EARLIER_COMBAT, { preCombatGridNo: EARLIER_TILE }));
+    const profile = (id: number) => t.profiles.get(id)?.preCombatGridNo;
+    spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    expect([profile(NEUTRAL_NPC), profile(NEUTRAL_NPC_IN_EARLIER_COMBAT), profile(HOSTILE_NPC), profile(MERC)]).toEqual([
+      civilian.gridNo,
+      EARLIER_TILE,
+      NOWHERE,
+      NOWHERE,
+    ]);
   });
 });
 
