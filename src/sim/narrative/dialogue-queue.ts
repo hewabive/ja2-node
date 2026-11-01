@@ -1,8 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Dialogue_Control.cc HandleDialogue, DialogueEvent::Add, EmptyDialogueQueue, DialogueQueueIsEmpty,
-// @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue, CharacterDialogue (DialogueEventQuote),
-// @src CharacterDialogueUsingAlternateFile,
+// @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue, CharacterDialogue (DialogueEventQuote,
+// @src with the sleeping speaker's wake), MakeCharacterDialogueEventSleep, CharacterDialogueUsingAlternateFile,
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
 // @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech), InternalShutupaYoFace
@@ -14,6 +14,9 @@
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { TICK_MS } from '../clock.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
+import { isGassed } from '../tactical/explosions/smoke.ts';
+import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { NarrativeHost } from './host.ts';
 import { ProfileFlag } from './narrative-ids.ts';
@@ -39,7 +42,6 @@ function talkingTicks(host: NarrativeHost, speaker: number, textKey: TextKey, ch
   return voiceMs === null ? lineTicks(chars) : Math.max(voicedLineTicks(voiceMs), lineTicks(chars));
 }
 const CONSCIOUSNESS = 10;
-const QUOTE_SERIOUSLY_WOUNDED = 10;
 const QUOTE_SPOTTED_SOMETHING_ONE = 11;
 const SPOTTED_SOMETHING_QUOTES = 2;
 
@@ -76,6 +78,10 @@ export function soldierOnPlayerTeam(host: Pick<NarrativeHost, 'tactical'>, profi
   const t = host.tactical();
   if (!t || profile === NO_PROFILE) return null;
   return t.soldiers.find((s) => s?.placed && s.team === Team.OUR && s.profile === profile) ?? null;
+}
+
+function playerTeamSoldier(host: NarrativeHost, profile: number): Soldier | null {
+  return soldierOnPlayerTeam(host, profile) ?? host.offSectorPlayerSoldier?.(profile) ?? null;
 }
 
 export function profileCurrentlyTalkingInDialoguePanel(host: NarrativeHost, profile: number): boolean {
@@ -123,29 +129,40 @@ function isRobot(s: Soldier): boolean {
   return s.bodyType === Body.ROBOTNOWEAPON;
 }
 
-export function canSayQuote(s: Soldier, quote: number): boolean {
+function speakerGassed(host: Pick<NarrativeHost, 'tactical'>, s: Soldier): boolean {
+  const t = host.tactical();
+  return t !== null && isGassed(t, s);
+}
+
+function heldPrisoner(host: Pick<NarrativeHost, 'assignment'>, s: Soldier): boolean {
+  return host.assignment?.(s) === Assignment.ASSIGNMENT_POW;
+}
+
+export function canSayQuote(host: NarrativeHost, s: Soldier, quote: number): boolean {
   if (s.profile === NO_PROFILE) return false;
-  const minLife = quote === QUOTE_SERIOUSLY_WOUNDED ? CONSCIOUSNESS : OKLIFE;
-  return s.life >= minLife && !isRobot(s);
+  const minLife = quote === MercQuote.SERIOUSLY_WOUNDED ? CONSCIOUSNESS : OKLIFE;
+  if (s.life < minLife || isRobot(s)) return false;
+  return !speakerGassed(host, s) && !heldPrisoner(host, s);
 }
 
 export function delayedTacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
-  if (!canSayQuote(s, quote)) return false;
+  if (!canSayQuote(host, s, quote)) return false;
   characterDialogue(host, s.profile, quote, false, true, true);
   return true;
 }
 
 export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
-  if (!canSayQuote(s, quote) || host.inMeanwhile()) return false;
+  if (!canSayQuote(host, s, quote) || host.inMeanwhile()) return false;
   if (s.profile === host.talk.lastQuoteProfile && quote === host.talk.lastQuoteSaid) return false;
   if (host.isEpc(s) && !forcedNpcQuote(host, s.profile)) return false;
   characterDialogue(host, s.profile, quote, false, true);
   return true;
 }
 
-function speakerSilenced(s: Soldier, quote: number): boolean {
-  if (s.life < CONSCIOUSNESS || isRobot(s)) return true;
-  return s.life < OKLIFE && quote !== QUOTE_SERIOUSLY_WOUNDED;
+function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolean {
+  if (s.life < CONSCIOUSNESS || speakerGassed(host, s) || isRobot(s)) return true;
+  if (s.life < OKLIFE && quote !== MercQuote.SERIOUSLY_WOUNDED) return true;
+  return heldPrisoner(host, s);
 }
 
 export function executeCharacterDialogue(
@@ -159,9 +176,9 @@ export function executeCharacterDialogue(
 ): boolean {
   const tick = host.tick();
   host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null };
-  const s = soldierOnPlayerTeam(host, speaker) ?? host.offSectorPlayerSoldier?.(speaker) ?? null;
+  const s = playerTeamSoldier(host, speaker);
   if (!s && fromSoldier) return false;
-  if (s && speakerSilenced(s, quote)) return false;
+  if (s && speakerSilenced(host, s, quote)) return false;
   const key = dialogueTextKey(host, speaker, quote, alternate);
   const chars = host.quoteLengths.chars(key);
   if (chars === 0) return false;
@@ -188,6 +205,13 @@ export function finishTalking(talk: TalkState, tick: number): boolean {
   return cutTalkingFace(talk, tick + FINAL_TALKING_DELAY_TICKS);
 }
 
+function wakeSpeakerForHisLine(host: NarrativeHost, speaker: number): void {
+  const s = playerTeamSoldier(host, speaker);
+  if (!s || !host.mercAsleep?.(s)) return;
+  host.setMercAsleepFlag?.(s, false);
+  addDialogueEvent(host, { kind: 'backToSleep', speaker });
+}
+
 function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'quote' }>): boolean {
   if (e.alternate) {
     executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record, true);
@@ -195,6 +219,7 @@ function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'qu
   }
   const t = host.tactical();
   if (e.delayed && t && t.turn.currentTeam !== Team.OUR) return true;
+  wakeSpeakerForHisLine(host, e.speaker);
   host.talk.lastQuoteSaid = e.quote;
   host.talk.lastQuoteProfile = e.speaker;
   executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record);
@@ -213,6 +238,12 @@ function executeItemLocatorStart(host: NarrativeHost, e: Extract<DialogueEvent, 
   if (t) t.turn.lockItemLocators = false;
   const quote = QUOTE_SPOTTED_SOMETHING_ONE + host.random(SPOTTED_SOMETHING_QUOTES);
   executeCharacterDialogue(host, e.speaker, quote, false, true, null);
+  return false;
+}
+
+function executeBackToSleep(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'backToSleep' }>): boolean {
+  const s = playerTeamSoldier(host, e.speaker);
+  if (s) host.setMercAsleepFlag?.(s, true);
   return false;
 }
 
@@ -242,6 +273,8 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return false;
     case 'itemLocator':
       return executeItemLocatorStart(host, e);
+    case 'backToSleep':
+      return executeBackToSleep(host, e);
     case 'callback':
       h.callback(e.name);
       return false;

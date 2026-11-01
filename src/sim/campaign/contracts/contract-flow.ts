@@ -31,9 +31,11 @@ import {
 } from '../../strategic/time/world-clock.ts';
 import type { ExperienceHooks } from '../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../tactical/content.ts';
+import { isGassed } from '../../tactical/explosions/smoke.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { type RefusalTexts, refuse, refuseWithText } from '../../tactical/refusal.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier } from '../../tactical/soldier.ts';
+import type { TacticalState } from '../../tactical/state.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import type { MoraleContext } from '../morale.ts';
 import { campaignProfile, loadMercProfiles } from '../profiles.ts';
@@ -141,10 +143,9 @@ function soldierArg(cmd: Command): number | null {
   return typeof cmd.soldier === 'number' && Number.isInteger(cmd.soldier) ? cmd.soldier : null;
 }
 
-function canSayQuote(m: RosterMerc): boolean {
-  return (
-    m.profile !== NO_PROFILE && m.life >= OKLIFE && m.soldier.bodyType !== Body.ROBOTNOWEAPON && m.assignment !== Assignment.ASSIGNMENT_POW
-  );
+function canSayQuote(m: RosterMerc, t: TacticalState | null): boolean {
+  if (m.profile === NO_PROFILE || m.life < OKLIFE || m.soldier.bodyType === Body.ROBOTNOWEAPON) return false;
+  return !(t !== null && isGassed(t, m.soldier)) && m.assignment !== Assignment.ASSIGNMENT_POW;
 }
 
 export class ContractFlow implements ContractContext {
@@ -211,7 +212,7 @@ export class ContractFlow implements ContractContext {
   }
 
   say(m: RosterMerc, quote: QuoteName, subject?: number): void {
-    if (!canSayQuote(m)) return;
+    if (!canSayQuote(m, this.campaign.tactical?.state ?? null)) return;
     this.emit({
       type: 'mercQuote',
       soldier: m.id,

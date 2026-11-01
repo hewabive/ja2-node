@@ -462,7 +462,12 @@ export class TalkFlow {
       worldSector: () => state.worldSector,
       isEpc: (s) => this.#isEpc(s),
       onSquad: (s) => this.#onSquad(s),
+      assignment: (s) => campaign.battle?.roster.get(s.id)?.assignment ?? null,
       mercAsleep: (s) => campaign.strategic?.mercs.get(s.id)?.asleep ?? false,
+      setMercAsleepFlag: (s, asleep) => {
+        const merc = campaign.battle?.roster.get(s.id);
+        if (merc) merc.asleep = asleep;
+      },
       inMeanwhile: () => campaign.strategic?.world.inMeanwhile() ?? false,
       emit: (e) => this.#emit(e),
       setEngaged: (on) => {

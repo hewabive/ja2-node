@@ -109,6 +109,11 @@ through `signalItemLocatorStart`, which picks its line and unlocks the item loca
 comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue; contract, morale and
 other strategic merc lines are plain `mercQuote` events outside it.
 
+**Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
+no gas and no captivity, when it is queued and again when it plays; auto-bandage mode drops whatever reaches the head of
+the queue. A sleeping merc whose line comes up wakes by the roster flag alone, without the waking rules or animation, and
+an event at the back of the queue puts him back to sleep.
+
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
 boxes", "Surrender in tactical combat"). `openShop` is talk plus Buy/Sell in one command (deviation "Talking to
@@ -154,6 +159,7 @@ otherwise:
 | L12's civilians read the miners' hint records: the sector table's L12 entry is the miners' index | `civ-quotes.test.ts` |
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
+| A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
 Not pinned yet:
@@ -191,5 +197,5 @@ Inferred from reading the source:
 - The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Not ported: gaps "Dialogue queue conditions". Other deviations of this domain: "Lines and debug text in the talk
-panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".
+Not ported: gaps "Dialogue queue conditions", "Map screen pause for a line". Other deviations of this domain: "Lines and
+debug text in the talk panel", "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".

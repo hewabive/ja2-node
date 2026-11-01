@@ -575,6 +575,23 @@ describe('the daily update', () => {
     expect(s.contracts.pendingEndings).toContainEqual({ kind: 'withoutEquipment', soldier: 1 });
   });
 
+  it('keeps the contract line of a gassed or captured merc unsaid (CanSayQuote)', () => {
+    const cc = landed(AIM_TRIO);
+    const gassed = cc.campaign.tactical?.state.explosives.gassed;
+    if (!gassed) throw new Error('no loaded sector');
+    cc.flow.drainEvents();
+    gassed[0] = 1;
+    cc.flow.say(merc(cc, 0), 'CONTRACTS_OVER');
+    expect(quotes(cc.flow.drainEvents())).toEqual([]);
+    gassed[0] = 0;
+    merc(cc, 0).assignment = Assignment.ASSIGNMENT_POW;
+    cc.flow.say(merc(cc, 0), 'CONTRACTS_OVER');
+    expect(quotes(cc.flow.drainEvents())).toEqual([]);
+    merc(cc, 0).assignment = Assignment.SQUAD_1;
+    cc.flow.say(merc(cc, 0), 'CONTRACTS_OVER');
+    expect(quotes(cc.flow.drainEvents())).toEqual([[0, 'contractsOver']]);
+  });
+
   it('pays an R.P.C. nothing unless the balance covers the arrears too, and has him quit with quote 55, not the whine 54', () => {
     const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.hana, kind: MercKind.NPC }]);
     setTime(cc, at(2, 0));

@@ -17,7 +17,7 @@ import type { NarrativeHost } from '../../src/sim/narrative/host.ts';
 import { createNpcRecordState } from '../../src/sim/narrative/records.ts';
 import { createTalkContext, createTalkState } from '../../src/sim/narrative/talk-state.ts';
 import { type ProfileProgress, progressFromProfile } from '../../src/sim/tactical/profiles.ts';
-import { createSoldier, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
+import { createSoldier, type Soldier, Team, TOTAL_SOLDIERS } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 
 export function liveRecord(fields: Partial<NpcRecord> = {}): NpcRecord {
@@ -104,6 +104,8 @@ export interface FakeHostOptions {
   readonly mineControlled?: boolean;
   readonly mercSlots?: readonly Soldier[];
   readonly civilian?: Readonly<Record<number, NpcRecord[]>>;
+  readonly assignments?: Readonly<Record<number, number>>;
+  readonly asleep?: readonly number[];
 }
 
 export interface FakeHost extends NarrativeHost {
@@ -148,7 +150,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     engagedInConv: false,
     sector: options.sector ?? { x: 1, y: 1, z: 0 },
     mercSlots: [...(options.mercSlots ?? soldiers)],
+    explosives: { gassed: new Uint8Array(TOTAL_SOLDIERS) },
+    pathEnv: { autoBandage: false },
   } as unknown as TacticalState;
+  const asleep = new Set(options.asleep ?? []);
   const values = new Map<number, boolean>(Object.entries(options.facts ?? {}).map(([k, v]) => [Number(k), v]));
   const quests = new Map<number, number>(Object.entries(options.quests ?? {}).map(([k, v]) => [Number(k), v]));
   const draws = [...(options.draws ?? [])];
@@ -225,6 +230,12 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     worldSector: () => options.sector ?? { x: 1, y: 1, z: 0 },
     isEpc: () => false,
     onSquad: (s) => s.team === Team.OUR,
+    assignment: (s) => options.assignments?.[s.id] ?? null,
+    mercAsleep: (s) => asleep.has(s.id),
+    setMercAsleepFlag: (s, flag) => {
+      if (flag) asleep.add(s.id);
+      else asleep.delete(s.id);
+    },
     inMeanwhile: () => false,
     emit: (e) => host.emitted.push(e),
     setEngaged: (on) => {

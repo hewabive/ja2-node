@@ -913,7 +913,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     handleNpcDoAction: (npc, code, record) => host.actions.handleNpcDoAction(npc, code, record),
     triggerNpcRecord: (npc, record) => triggerNpcRecord(host, npc, record),
     mikeCheck: () => host.mercLines.mikeSaysHi(),
-    autoBandage: () => false,
+    autoBandage: () => host.tactical()?.pathEnv.autoBandage ?? false,
     removeEpc: (npc) => host.releaseEscort?.(npc),
     callback: (name) => host.dialogueCallback?.(name),
   };
