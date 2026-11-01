@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/CreatureDecideAction.cc CreatureCall (with the call kind code 717 of Soldier_Ani.cc cries),
 // @src CreatureDecideActionGreen/Yellow/Red/Black, CreatureDecideAction, CreatureDecideAlertStatus, CrowDecideActionGreen/Red,
-// @src CrowDecideAction; Movement.cc TrackScent; AIUtils.cc ValidCreatureTurn; Attacks.cc AdvanceToFiringRange;
+// @src CrowDecideAction; Movement.cc TrackScent; Attacks.cc AdvanceToFiringRange;
 // @src Rotting_Corpses.cc FindNearestRottingCorpse; Realtime.cc REALTIME_CREATURE_AI_DELAY.
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
@@ -11,12 +11,11 @@ import { i8, i16, idiv, u8 } from '../../../core/int.ts';
 import type { CreatureCallName } from '../../events.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { anim } from '../anim-states.ts';
-import { AnimHeight, initNewSoldierAnim } from '../animation.ts';
+import { initNewSoldierAnim } from '../animation.ts';
 import { minAPsToAttack } from '../combat/ap.ts';
 import { rangeInUnits } from '../combat/chance.ts';
 import { findAdjacentGridEx } from '../combat/melee-reach.ts';
 import { AimShot } from '../combat/types.ts';
-import { quickestTurnIncrement } from '../directions.ts';
 import { inGas } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
@@ -25,7 +24,7 @@ import { closestKnownOpponent, noiseHeard } from '../perception/knowledge.ts';
 import { NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
-import { internalIsValidStance } from '../person-structure.ts';
+import { validCreatureTurn } from '../person-structure.ts';
 import { apsToLook, minPtsToMove } from '../points.ts';
 import { SmellKind, smellStrength, smellType } from '../smell.ts';
 import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier, shownToPlayer } from '../soldier.ts';
@@ -181,27 +180,6 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
     t.turnHooks.cancelAIAction(t, r);
     if (priority > FRENZY_THRESHOLD && (r.bodyType === Body.ADULTFEMALEMONSTER || r.bodyType === Body.YAF_MONSTER)) r.ai.frenzied = true;
   }
-}
-
-export function validCreatureTurn(t: TacticalState, s: Soldier, newDirection: number): boolean {
-  let change = quickestTurnIncrement(s.direction, newDirection);
-  for (let loop = 0; loop < 2; loop++) {
-    let found = true;
-    let direction = s.direction;
-    do {
-      direction += change;
-      if (direction < 0) direction = 7;
-      else if (direction > 7) direction = 0;
-      if (!internalIsValidStance(t, s, direction, AnimHeight.STAND)) {
-        found = false;
-        break;
-      }
-    } while (direction !== newDirection);
-    if (found) return true;
-    if (loop > 0) return false;
-    change = -change;
-  }
-  return true;
 }
 
 function directionDifference(a: number, b: number): number {

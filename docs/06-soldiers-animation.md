@@ -129,6 +129,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A one-handed gun in hand ends the idle check after its draw, injured or not: "Don't EVER do a trivial anim" | `random-anims.test.ts` |
 | An animal's idle sound holds its loop at code 491 for a frame, so the next pass counts it again | `random-anims.test.ts` |
 | Every big male idles with the second big merc animations: `TacticalCreateSoldier` gives each the threaten stance flag | `random-anims.test.ts` |
+| A reverse swat starts in a plain `START_SWAT`; only the `SWATTING` it chains to turns into `SWAT_BACKWARDS` | `player-orders.test.ts` |
+| A reverse move of a body without the backward states pays the first step and leaves him standing: the new state's surface fails after the step was taken | `player-orders.test.ts` |
 
 Not pinned yet:
 - Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2`
@@ -149,8 +151,8 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Reverse move animations", "Soldier draw height", "Drugs and
-alcohol" (adrenaline and drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other deviations of this
-domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts", "Creature
-and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures",
-"Soldier fade without merc lights".
+Not ported: gaps "Soldier palettes and surfaces", "Soldier draw height", "Drugs and alcohol" (adrenaline and
+drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other deviations of this domain: "Frame timers",
+"Soldier frame on turning", "Soldier frames with other scripts", "Creature and bloodcat stub bodies", "Multi-tile
+turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed
+animation surface".

@@ -6,11 +6,12 @@
 // @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck, the stance
 // @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31); the crow of
 // @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
-// @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions (2026-11-01).
+// @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions, reverse moves and failed surface, and the side
+// @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
-import { type AnimationTables, AnimFlags, stateId } from '../../content/anim/tables.ts';
+import { type AnimationTables, AnimFlags, INVALID_SURFACE, stateId } from '../../content/anim/tables.ts';
 import { NO_FRAME_SLOT, SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM } from '../../content/formats/ja2bin.ts';
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
@@ -25,7 +26,14 @@ import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
-import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, quickestTurnIncrement } from './directions.ts';
+import {
+  DIRECTION_COUNT,
+  DIRECTION_INCREMENT,
+  Direction,
+  oppositeDirection,
+  perpendicularDirection,
+  quickestTurnIncrement,
+} from './directions.ts';
 import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
 import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
@@ -39,6 +47,7 @@ import {
   setSoldierPosition,
 } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
+import { soldierAnimSurface } from './multi-tile.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
@@ -245,7 +254,7 @@ export function setSoldierDirection(t: TacticalState, s: Soldier, direction: num
 const TURN_CHARGE_FLAGS = AnimFlags.BREATH | AnimFlags.OK_CHARGE_AP_FOR_TURN | AnimFlags.FIREREADY;
 
 export function setDesiredDirection(t: TacticalState, s: Soldier, direction: number, animState = s.state, initialMove = false): void {
-  s.desiredDirection = s.reverse ? (direction + 4) % DIRECTION_COUNT : direction;
+  s.desiredDirection = s.reverse && animState !== anim(t.content, 'SIDE_STEP') ? oppositeDirection(direction) : direction;
   if (s.noAPToFinishMove && hasAnimFlag(t.content, animState, AnimFlags.MOVING)) adjustNoAPToFinishMove(s, false);
   if (s.desiredDirection !== s.direction) {
     if (hasAnimFlag(t.content, animState, TURN_CHARGE_FLAGS) && !initialMove && !s.dontChargeTurningAPs) {
@@ -423,6 +432,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   next = substituteBodyTypeAnimation(content, s, next);
   if (!isAnimationValidForBodyType(content, s, next)) return;
   next = bigMercStanceTransition(t, s, next);
+  next = reverseMoveState(t, s, next);
   if (next === st.RUNNING && WADING_TERRAINS.includes(s.overTerrain)) next = st.WALKING;
 
   s.pauseAnimMove = false;
@@ -469,6 +479,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   const oldFlags = flags(content, s.state);
   const newFlags = flags(content, next);
   addMercStructure(t, s, next);
+  if (soldierAnimSurface(content, s, next) === INVALID_SURFACE) return;
   s.oldState = s.state;
   s.oldPc = s.pc;
   s.state = next;
@@ -493,6 +504,14 @@ function bigMercStanceTransition(t: TacticalState, s: Soldier, next: number): nu
   if (next === st.KNEEL_DOWN && s.state !== into) return into;
   if (next === st.KNEEL_UP && s.state !== outOf) return outOf;
   return next;
+}
+
+function reverseMoveState(t: TacticalState, s: Soldier, next: number): number {
+  const st = states(t.content.animations);
+  if (!s.reverse || (next !== st.WALKING && next !== st.RUNNING && next !== st.SWATTING)) return next;
+  if (s.direction === perpendicularDirection(s.direction, s.path[s.pathIndex] ?? 0)) return anim(t.content, 'SIDE_STEP');
+  if (endHeight(t.content, s.state) === AnimHeight.CROUCH) return anim(t.content, 'SWAT_BACKWARDS');
+  return anim(t.content, 'WALK_BACKWARDS');
 }
 
 const GETTING_HIT_STATES = [

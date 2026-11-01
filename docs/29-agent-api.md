@@ -328,7 +328,9 @@ selection wakes a sleeper even when he collapsed, which `wake` refuses. `selectS
 a number outside 0..19 (`badSquad`) and another screen (`notInTactical`), and takes `select`'s order locks for the
 squad's first merc; the current squad itself changes nothing. A new `move` re-plans a halted move for any merc
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
-give, first aid or a robot reload), as `UIHandleCMoveMerc` does; `attack` takes the click's checks of a melee attack, which the original never confirms without them
+give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `move` with `reverse` is the Alt move (`bReverse`):
+he walks or swats backwards facing away from his path, or side-steps when he faces across it, for one more AP a tile; a
+body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
 reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his

@@ -3,13 +3,14 @@
 // @src src/game/TileEngine/WorldMan.cc AddMercStructureInfoFromAnimSurface; Tactical/Animation_Control.cc
 // @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance (an
 // @src escort may crouch anywhere and never lie down), MercInWater; Tactical/Handle_UI.cc UIHandleSoldierStanceChange
-// @src (the message for a stance that is not valid; the tired collapse is refused before as outOfBreath)
+// @src (the message for a stance that is not valid; the tired collapse is refused before as outOfBreath);
+// @src TacticalAI/AIUtils.cc ValidCreatureTurn
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { AnimHeight, states } from './animation.ts';
-import { DIRECTION_COUNT } from './directions.ts';
+import { DIRECTION_COUNT, quickestTurnIncrement } from './directions.ts';
 import { animStructureFile } from './multi-tile.ts';
 import { isRobot } from './narrative/robot.ts';
 import type { Refusal } from './refusal.ts';
@@ -54,6 +55,27 @@ export function internalIsValidStance(t: TacticalState, s: Soldier, direction: n
   const def = animStructureDef(t, s, state, direction);
   if (!def) return true;
   return t.world.structures.okayToAdd(s.gridNo, s.level, def, s.id);
+}
+
+export function validCreatureTurn(t: TacticalState, s: Soldier, newDirection: number): boolean {
+  let change = quickestTurnIncrement(s.direction, newDirection);
+  for (let loop = 0; loop < 2; loop++) {
+    let found = true;
+    let direction = s.direction;
+    do {
+      direction += change;
+      if (direction < 0) direction = 7;
+      else if (direction > 7) direction = 0;
+      if (!internalIsValidStance(t, s, direction, AnimHeight.STAND)) {
+        found = false;
+        break;
+      }
+    } while (direction !== newDirection);
+    if (found) return true;
+    if (loop > 0) return false;
+    change = -change;
+  }
+  return true;
 }
 
 export function isValidStance(t: TacticalState, s: Soldier, stance: number): boolean {

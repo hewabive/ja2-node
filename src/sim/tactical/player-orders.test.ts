@@ -7,12 +7,13 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { attachObject, createItem } from '../items/object.ts';
-import { animName } from './anim-states.ts';
-import { states } from './animation.ts';
+import { anim, animName } from './anim-states.ts';
+import { AnimHeight, endHeight, setDesiredDirection, states } from './animation.ts';
 import { WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
 import { apsToJumpOver } from './jump-over.ts';
+import { setSoldierDestination } from './movement.ts';
 import { apsToJumpFence, facingClimbableWindow } from './player-orders.ts';
 import { AP, BP } from './points.ts';
 import { Body, Orders, Team } from './soldier.ts';
@@ -193,6 +194,85 @@ describe('reverse moves (bReverse)', () => {
     expect(full - s.actionPoints).toBe(forward + 3 * AP.REVERSE_MODIFIER);
     expect(s.gridNo).toBe(ORIGIN);
     expect(s.direction).toBe(Direction.EAST);
+  });
+
+  it('side-steps across each step at once: a diagonal step faces him across the diagonal', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.NORTH);
+    s.reverse = true;
+    setSoldierDestination(sim.state, s, Direction.NORTHEAST, anim(content, 'SIDE_STEP'));
+    expect([s.direction, s.desiredDirection, s.movementDirection]).toEqual([Direction.NORTHWEST, Direction.NORTHWEST, Direction.NORTHEAST]);
+  });
+
+  it('turns a side-stepper toward a new facing as asked, while a backward walker turns away from it', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.NORTH);
+    s.reverse = true;
+    setDesiredDirection(sim.state, s, Direction.EAST, anim(content, 'SIDE_STEP'));
+    expect(s.desiredDirection).toBe(Direction.EAST);
+    setDesiredDirection(sim.state, s, Direction.EAST, anim(content, 'WALK_BACKWARDS'));
+    expect(s.desiredDirection).toBe(Direction.WEST);
+  });
+
+  it('leaves a body without backward walks standing where he is after paying the first step: his surface fails as in the original', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST, { body: Body.MANCIV });
+    combat(sim);
+    const full = s.actionPoints;
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: ORIGIN - 3 * EAST, mode: 'walk', reverse: true }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect([animName(content, s.state), s.gridNo]).toEqual(['STANDING', ORIGIN]);
+    expect(s.actionPoints).toBeLessThan(full);
+  });
+
+  function reverseMove(facing: number, to: number, mode: string, stance = 'stand', withContent = content) {
+    const sim = newCombatSim(withContent);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, facing);
+    combat(sim);
+    if (stance !== 'stand') {
+      expect(sim.dispatch({ type: 'stance', soldier: 0, stance }).ok).toBe(true);
+      runUntilIdle(sim);
+    }
+    expect(sim.dispatch({ type: 'move', soldier: 0, to, mode, reverse: true }).ok).toBe(true);
+    const moving = new Set<string>();
+    const facings = new Set<number>();
+    for (let tick = 0; tick < 5_000 && !sim.isIdle(); tick++) {
+      sim.step();
+      if (s.gridNo !== ORIGIN && s.gridNo !== to) {
+        moving.add(animName(content, s.state));
+        facings.add(s.direction);
+      }
+    }
+    expect(s.gridNo).toBe(to);
+    return { moving: [...moving], facings: [...facings], s };
+  }
+
+  it('walks backwards in WALK_BACKWARDS, facing away from his path', () => {
+    const walk = reverseMove(Direction.EAST, ORIGIN - 3 * EAST, 'walk');
+    expect(walk).toMatchObject({ moving: ['WALK_BACKWARDS'], facings: [Direction.EAST] });
+    expect(walk.s.direction).toBe(Direction.EAST);
+  });
+
+  it('turns to face away from his path before stepping back when he faced along it', () => {
+    const walk = reverseMove(Direction.WEST, ORIGIN - 3 * EAST, 'walk');
+    expect(walk).toMatchObject({ moving: ['WALK_BACKWARDS'], facings: [Direction.EAST] });
+  });
+
+  it('swats backwards in SWAT_BACKWARDS when crouched, after a START_SWAT the reverse leaves as it is', () => {
+    const swat = reverseMove(Direction.EAST, ORIGIN - 3 * EAST, 'swat', 'crouch');
+    expect(swat).toMatchObject({ moving: ['START_SWAT', 'SWAT_BACKWARDS'], facings: [Direction.EAST] });
+    expect(endHeight(content, swat.s.state)).toBe(AnimHeight.CROUCH);
+  });
+
+  it('side-steps in SIDE_STEP, keeping his facing, when his path runs across it', () => {
+    const step = reverseMove(Direction.NORTH, ORIGIN + 3 * EAST, 'walk');
+    expect(step).toMatchObject({ moving: ['SIDE_STEP'], facings: [Direction.NORTH] });
+    expect(step.s.direction).toBe(Direction.NORTH);
+  });
+
+  it('runs backwards at the walk: a reverse run walks backwards', () => {
+    const run = reverseMove(Direction.EAST, ORIGIN - 3 * EAST, 'run');
+    expect(run).toMatchObject({ moving: ['WALK_BACKWARDS'], facings: [Direction.EAST] });
   });
 });
 

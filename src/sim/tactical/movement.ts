@@ -4,7 +4,8 @@
 // @src EVENT_SetSoldierPosition(XY), SetSoldierGridNo, EVENT_StopMerc; Overhead.cc HandleGotoNewGridNo, HandleAtNewGridNo;
 // @src Soldier_Tile.cc TileIsClear, HandleNextTile, HandleNextTileWaiting, SetDelayedTileWaiting, (Un)MarkMovementReserved;
 // @src Structure_Wrap.cc IsJumpableFencePresentAtGridno; the flying crow of HandleNextTile and of ExecuteOverhead's arrival
-// @src (2026-11-01).
+// @src (2026-11-01); the creatures stepping backwards of HandleGotoNewGridNo and the side step of
+// @src EVENT_InternalSetSoldierDestination (2026-11-01).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -26,7 +27,7 @@ import {
 } from './animation.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
-import { DIRECTION_INCREMENT, Direction } from './directions.ts';
+import { DIRECTION_INCREMENT, Direction, perpendicularDirection } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
@@ -44,13 +45,14 @@ import {
   type PathResult,
 } from './pathfinding.ts';
 import { removePendingAction } from './pending-action.ts';
-import { addMercStructure, removeMercStructure } from './person-structure.ts';
+import { addMercStructure, removeMercStructure, validCreatureTurn } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { dropSmell } from './smell.ts';
 import {
   Body,
   cellCentre,
+  isMonster,
   NO_PENDING_ANIMATION,
   NO_PENDING_DIRECTION,
   NOWHERE,
@@ -214,7 +216,10 @@ export function setSoldierDestination(t: TacticalState, s: Soldier, direction: n
   s.destX = centre.x;
   s.destY = centre.y;
   s.movementDirection = direction;
-  if (!hasAnimFlag(t.content, animState, AnimFlags.SPECIALMOVE)) setDesiredDirection(t, s, direction, animState, initialMove);
+  if (s.reverse && animState === anim(t.content, 'SIDE_STEP')) {
+    setSoldierDirection(t, s, perpendicularDirection(s.direction, direction));
+    s.desiredDirection = s.direction;
+  } else if (!hasAnimFlag(t.content, animState, AnimFlags.SPECIALMOVE)) setDesiredDirection(t, s, direction, animState, initialMove);
 }
 
 function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number, level: number): MoveTileResult {
@@ -362,9 +367,27 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
   }
   if (t.hooks.runningIntoGas(t, s)) return { ok: true, keepMoving: false };
   if (!stepPaidBeforeGettingUpToTurn(t, s, animState)) deductPoints(t.inCombat, s, ap, bp);
+  reverseCreatureThatCannotTurn(t, s, direction);
   setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
   return { ok: true, keepMoving: true };
+}
+
+function creatureBackwardsState(s: Soldier): string | null {
+  if (isMonster(s)) return s.bodyType === Body.INFANT_MONSTER ? 'WALK_BACKWARDS' : 'MONSTER_WALK_BACKWARDS';
+  return s.bodyType === Body.BLOODCAT ? 'BLOODCAT_WALK_BACKWARDS' : null;
+}
+
+function reverseCreatureThatCannotTurn(t: TacticalState, s: Soldier, direction: number): void {
+  const backwards = creatureBackwardsState(s);
+  if (backwards === null) return;
+  if (validCreatureTurn(t, s, direction)) {
+    s.reverse = false;
+    return;
+  }
+  if (s.reverse) return;
+  s.reverse = true;
+  initNewSoldierAnim(t, s, anim(t.content, backwards), 1, true);
 }
 
 function stepPaidBeforeGettingUpToTurn(t: TacticalState, s: Soldier, animState: number): boolean {

@@ -31,13 +31,13 @@ function facingOfStructure(index: number): number {
   return (index + DIRECTIONS - 1) % DIRECTIONS;
 }
 
-function proneBody(): StructureFile {
+function bodyWithTail(tailFlags: number): StructureFile {
   const structures = Array.from({ length: DIRECTIONS }, (_, index): StructureDef => {
     const behind = -(DIRECTION_INCREMENT[facingOfStructure(index)] ?? 0);
     return {
       ...syntheticStructure(PRONE_BODY_FLAGS),
       number: index,
-      tiles: [bodyTile(0, 0), bodyTile(behind, StructureTileFlags.PASSABLE)],
+      tiles: [bodyTile(0, 0), bodyTile(behind, tailFlags)],
     };
   });
   return { structureCount: structures.length, auxData: null, tileLocations: [], structures };
@@ -45,8 +45,13 @@ function proneBody(): StructureFile {
 
 export function withTwoTileProneBody(content: TacticalContent): TacticalContent {
   const animStructures = content.animStructures.map((files, body) =>
-    body === Body.REGMALE ? files.map((file, type) => (type === AnimStruct.P ? proneBody() : file)) : files,
+    body === Body.REGMALE ? files.map((file, type) => (type === AnimStruct.P ? bodyWithTail(StructureTileFlags.PASSABLE) : file)) : files,
   );
+  return { ...content, animStructures };
+}
+
+export function withTwoTileCreatureBodies(content: TacticalContent, bodies: readonly number[]): TacticalContent {
+  const animStructures = content.animStructures.map((files, body) => (bodies.includes(body) ? files.map(() => bodyWithTail(0)) : files));
   return { ...content, animStructures };
 }
 

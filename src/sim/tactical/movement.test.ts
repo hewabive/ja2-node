@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
-import { layProne, raiseTiles, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
+import { layProne, raiseTiles, withTwoTileCreatureBodies, withTwoTileProneBody } from '../../../tests/support/prone-body.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
@@ -25,6 +25,7 @@ import {
 } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { MAX_PATH_LIST_SIZE, NOWHERE } from './pathfinding.ts';
+import { AP } from './points.ts';
 import { Body, createSoldier, NO_PENDING_DIRECTION, type Soldier, Team, Visible } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
@@ -421,5 +422,111 @@ describe('stopping a soldier in combat', () => {
     enemy.finalDestination = enemy.gridNo;
     handleAtNewGridNo(t, enemy);
     expect(enemy.pendingTalk).toBeNull();
+  });
+});
+
+describe('a creature that cannot turn steps backwards (Overhead.cc HandleGotoNewGridNo)', () => {
+  const WEST = DIRECTION_INCREMENT[Direction.WEST] ?? 0;
+  const BESIDE_THE_CORRIDOR = [
+    Direction.NORTH,
+    Direction.NORTHEAST,
+    Direction.SOUTHEAST,
+    Direction.SOUTH,
+    Direction.SOUTHWEST,
+    Direction.NORTHWEST,
+  ].map((d) => START + (DIRECTION_INCREMENT[d] ?? 0));
+  const STEP_AP_BUDGET = 40;
+  const stateNamed = (name: string) => content.animations.stateIndex.get(name) ?? -1;
+  const nameOf = (s: Soldier) => content.animations.controls[s.state]?.id;
+
+  function creatureFacingEast(body: number, corridor: boolean): { t: TacticalState; s: Soldier } {
+    const t = tactical(() => {}, withTwoTileCreatureBodies(content, [body]));
+    if (corridor) raiseTiles(t, BESIDE_THE_CORRIDOR);
+    const st = states(content.animations);
+    const s = createSoldier({
+      id: 0,
+      team: Team.CREATURE,
+      name: 'C0',
+      bodyType: body,
+      palettes: { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' },
+      stats: STATS,
+      life: 100,
+      gridNo: START,
+      direction: Direction.EAST,
+      state: st.STANDING,
+    });
+    registerSoldier(t, s);
+    setSoldierPosition(t, s, START);
+    initNewSoldierAnim(t, s, st.STANDING, 0, true);
+    expect(s.multiTile).toBe(true);
+    return { t, s };
+  }
+
+  function stepWest(t: TacticalState, s: Soldier, walk: string): void {
+    t.inCombat = true;
+    s.actionPoints = STEP_AP_BUDGET;
+    s.state = stateNamed(walk);
+    s.path = [Direction.WEST, Direction.WEST];
+    s.pathIndex = 0;
+    s.pathSize = s.path.length;
+    s.finalDestination = START + 2 * WEST;
+    expect(handleGotoNewGridNo(t, s, false, s.state)).toEqual({ ok: true, keepMoving: true });
+  }
+
+  it('changes a walking bloodcat, adult monster and infant to their backward walks, facing away from the step', () => {
+    const walks: [number, string, string][] = [
+      [Body.BLOODCAT, 'WALKING', 'BLOODCAT_WALK_BACKWARDS'],
+      [Body.AM_MONSTER, 'ADULTMONSTER_WALKING', 'MONSTER_WALK_BACKWARDS'],
+      [Body.INFANT_MONSTER, 'WALKING', 'WALK_BACKWARDS'],
+    ];
+    for (const [body, walk, backwards] of walks) {
+      const { t, s } = creatureFacingEast(body, true);
+      stepWest(t, s, walk);
+      expect([nameOf(s), s.reverse, s.direction, s.desiredDirection, s.movementDirection]).toEqual([
+        backwards,
+        true,
+        Direction.EAST,
+        Direction.EAST,
+        Direction.WEST,
+      ]);
+    }
+  });
+
+  it('pays the step twice where it starts stepping backwards: the forced backward walk takes the step again, reversed', () => {
+    const spent = (corridor: boolean) => {
+      const { t, s } = creatureFacingEast(Body.BLOODCAT, corridor);
+      stepWest(t, s, 'WALKING');
+      return STEP_AP_BUDGET - s.actionPoints;
+    };
+    const forward = spent(false);
+    expect(forward).toBeGreaterThan(0);
+    expect(spent(true)).toBe(2 * forward + AP.REVERSE_MODIFIER);
+  });
+
+  it('walks a creature that can turn forward again, clearing the reverse but keeping the backward walk it is in', () => {
+    const { t, s } = creatureFacingEast(Body.BLOODCAT, false);
+    s.reverse = true;
+    stepWest(t, s, 'BLOODCAT_WALK_BACKWARDS');
+    expect([nameOf(s), s.reverse, s.desiredDirection]).toEqual(['BLOODCAT_WALK_BACKWARDS', false, Direction.WEST]);
+  });
+
+  it('leaves a soldier that is no creature walking forward', () => {
+    const { t, s } = creatureFacingEast(Body.REGMALE, true);
+    stepWest(t, s, 'WALKING');
+    expect([nameOf(s), s.reverse, s.desiredDirection]).toEqual(['WALKING', false, Direction.WEST]);
+  });
+
+  it('keeps its forward walk when it cannot turn at the first step of a move: the walk it set out in replaces the backward one', () => {
+    const { t, s } = creatureFacingEast(Body.BLOODCAT, true);
+    const walking = states(content.animations).WALKING;
+    expect(getNewSoldierPath(t, s, START + 2 * WEST, walking)).toBe(true);
+    expect([nameOf(s), s.reverse, s.desiredDirection, s.movementDirection]).toEqual(['WALKING', true, Direction.EAST, Direction.WEST]);
+    const walked = new Set<string>();
+    for (let pass = 0; pass < 2_000 && s.gridNo !== START + 2 * WEST; pass++) {
+      executeOverhead(t);
+      walked.add(`${nameOf(s)} facing ${s.direction}`);
+    }
+    expect(s.gridNo).toBe(START + 2 * WEST);
+    expect([...walked]).toEqual([`WALKING facing ${Direction.EAST}`]);
   });
 });

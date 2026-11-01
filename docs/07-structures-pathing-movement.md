@@ -105,6 +105,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A multi-tile soldier blocked head-on leaves the other blocked, with his final destination on his own tile | `movement.test.ts` |
 | A sweet spot search floods as a merc-bodied dummy whoever searches, so a crow's spot may lie in water | `sweet-spots.test.ts` |
 | The tiles moved since a turn began count in a signed byte: the 128th wraps the count to −128, which camouflage, bleeding and the moving-target penalty read | `movement.test.ts` |
+| A creature that cannot turn pays the step where it starts backwards twice, the second time with the reverse surcharge: the forced backward walk takes the step again | `movement.test.ts` |
+| A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |
+| A creature that can turn again clears its reverse but walks on, facing its path, in the backward walk | `movement.test.ts` |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count
