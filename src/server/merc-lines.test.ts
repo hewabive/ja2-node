@@ -40,6 +40,8 @@ const NPC_ID = TEAM_FIRST_ID[Team.CIV];
 const MALE = 0;
 const TILES_AHEAD = 3;
 const QUOTE_TICKS = 3000;
+const RT_TURN_TICKS = 1100;
+const RT_NEXT_BLEED_STEP = 0.5;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -158,5 +160,40 @@ describe('the out-of-ammo line in a campaign (Overhead.cc InternalReduceAttackBu
     expect(c.session.dispatch(attack)).toMatchObject({ ok: true });
     const said = c.live.advance({ ticks: QUOTE_TICKS }).events;
     expect(quotesSaid(said, [MercQuote.OUT_OF_AMMO])).toEqual([[KESTREL, MercQuote.OUT_OF_AMMO]]);
+  });
+});
+
+describe('the bleeding lines in a campaign (Soldier_Control.cc CheckBleeding, Dialogue_Control.cc TacticalCharacterDialogue)', () => {
+  const BLEEDING_LINES = [MercQuote.STARTING_TO_BLEED, MercQuote.ME_TOO];
+
+  function startBleeding(s: Soldier): void {
+    Object.assign(s, { lifeMax: 80, life: 50, bleeding: 30, nextBleed: RT_NEXT_BLEED_STEP });
+  }
+
+  it('has the first merc to bleed at a real-time turn say so and the next one say me too', async () => {
+    const c = await squadInA9(87);
+    const t = loadedSector(c).state;
+    for (const profile of [KESTREL, VANT]) startBleeding(ours(t, profile));
+    const said = c.live.advance({ ticks: RT_TURN_TICKS + QUOTE_TICKS }).events;
+    expect(quotesSaid(said, BLEEDING_LINES)).toEqual([
+      [KESTREL, MercQuote.STARTING_TO_BLEED],
+      [VANT, MercQuote.ME_TOO],
+    ]);
+  });
+
+  it('wakes a sleeping merc for his line and puts him back to sleep after it', async () => {
+    const c = await squadInA9(89);
+    const t = loadedSector(c).state;
+    const vant = ours(t, VANT);
+    startBleeding(vant);
+    const sleeper = c.session.campaign.battle?.roster.get(vant.id);
+    if (!sleeper) throw new Error('Vant is not on the roster');
+    sleeper.asleep = true;
+    const asleep = () => c.session.campaign.battle?.roster.get(vant.id)?.asleep;
+    const line = c.live.advance({ events: ['mercQuote'], ticks: RT_TURN_TICKS }).events;
+    expect(quotesSaid(line, BLEEDING_LINES)).toEqual([[VANT, MercQuote.STARTING_TO_BLEED]]);
+    expect(asleep()).toBe(false);
+    c.live.advance({ ticks: QUOTE_TICKS });
+    expect(asleep()).toBe(true);
   });
 });

@@ -86,6 +86,21 @@ describe('bandaging after a victory', () => {
     expect(patient.bleeding).toBe(11);
   });
 
+  it('clears the bleeding warning only while healing a patient out of dying, before the rest of the bleeding is stopped (quirk Q31)', () => {
+    const dress = (life: number, bleeding: number) => {
+      const { ar, medic, patient } = wounded();
+      Object.assign(patient, { life, bleeding, dyingComment: true, warnedAboutBleeding: true });
+      const env = arEnv(content);
+      const kit = medic.inv[InvSlot.SMALLPOCK1];
+      if (!kit) throw new Error('no kit');
+      dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100);
+      return [patient.life, patient.bleeding, patient.dyingComment, patient.warnedAboutBleeding];
+    };
+    expect(dress(10, 20)).toEqual([15, 11, false, true]);
+    expect(dress(10, 16)).toEqual([15, 7, false, false]);
+    expect(dress(50, 10)).toEqual([50, 0, true, true]);
+  });
+
   it('bandages everyone with the best medic and adds 200 ms per point used', () => {
     const { ar, patient, medic } = wounded();
     const env = arEnv(content);

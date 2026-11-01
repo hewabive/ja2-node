@@ -97,6 +97,23 @@ describe('first aid in tactical', () => {
     expect(cost).toBe(6);
   });
 
+  it('lets the patient warn of bleeding again once dressed to the threshold, and comment on dying again once above OKLIFE', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const { medic, patient } = bleedingSquad(sim);
+    patient.life = 10;
+    patient.lifeMax = 80;
+    patient.bleeding = 70;
+    Object.assign(patient, { dyingComment: true, warnedAboutBleeding: true });
+    soldierDressWound(t, medic, patient, 2, 100);
+    expect([patient.life, patient.dyingComment, patient.warnedAboutBleeding]).toEqual([11, true, true]);
+    soldierDressWound(t, medic, patient, 100, 100);
+    expect(patient.life).toBe(15);
+    expect([patient.dyingComment, patient.warnedAboutBleeding]).toEqual([false, true]);
+    while (patient.bleeding > 12) soldierDressWound(t, medic, patient, 100, 100);
+    expect(patient.warnedAboutBleeding).toBe(false);
+  });
+
   it('a moving patient or a hand item change ends the service', () => {
     const sim = newCombatSim(content);
     const { medic, patient } = bleedingSquad(sim);

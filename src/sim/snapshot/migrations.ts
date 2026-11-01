@@ -662,6 +662,34 @@ function addObjectMissions(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CLOSE_CALL_QUOTE_SAID_KEY = 'closeCallQuoteSaid';
+const DYING_COMMENT_KEY = 'dyingComment';
+const WARNED_ABOUT_BLEEDING_KEY = 'warnedAboutBleeding';
+const LAST_QUOTE_PROFILE_KEY = 'lastQuoteProfile';
+const ME_TOO_BLEED_LOG_KEY = 'meTooBleedLog';
+const ME_TOO_LOG_CLOSED = 0;
+
+function isTalkStateRecord(o: JsonObject): boolean {
+  return typeof o[LAST_QUOTE_PROFILE_KEY] === 'number' && typeof o.engagedSeen === 'boolean';
+}
+
+function withBleedingQuoteState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBleedingQuoteState(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withBleedingQuoteState(v);
+  if (isTalkStateRecord(mapped)) return insertAfter(mapped, LAST_QUOTE_PROFILE_KEY, ME_TOO_BLEED_LOG_KEY, ME_TOO_LOG_CLOSED);
+  if (!isSoldierRecord(mapped)) return mapped;
+  const dying = insertAfter(mapped, CLOSE_CALL_QUOTE_SAID_KEY, DYING_COMMENT_KEY, false);
+  return insertAfter(dying, DYING_COMMENT_KEY, WARNED_ABOUT_BLEEDING_KEY, false);
+}
+
+function addBleedingQuoteState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withBleedingQuoteState(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -688,5 +716,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     22: addPreferredSelection,
     23: addPickedOwnershipCheck,
     24: addObjectMissions,
+    25: addBleedingQuoteState,
   };
 }

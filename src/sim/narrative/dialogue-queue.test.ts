@@ -7,6 +7,7 @@ import { type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { stepDialogue } from './converse.ts';
 import {
+  beginLoggingForBleedMeToos,
   characterDialogue,
   delayedTacticalCharacterDialogue,
   signalItemLocatorStart,
@@ -170,5 +171,37 @@ describe('a sleeping speaker (Dialogue_Control.cc DialogueEventQuote, MakeCharac
     expect(host.mercAsleep?.(merc)).toBe(false);
     runQueueToTheEnd(host);
     expect(host.mercAsleep?.(merc)).toBe(true);
+  });
+});
+
+describe('the ME_TOO bleeding line (Dialogue_Control.cc TacticalCharacterDialogue, BeginLoggingForBleedMeToos)', () => {
+  function threeBleeders(): { host: FakeHost; mercs: Soldier[] } {
+    const mercs = [0, 1, 2].map((id) => testSoldier(id, Team.OUR, MERC_PROFILE + id, MERC_AT + id));
+    return { host: fakeHost({ soldiers: mercs }), mercs };
+  }
+
+  function queuedQuotes(host: FakeHost): number[] {
+    return host.talk.queue.flatMap((e) => (e.kind === 'quote' ? [e.quote] : []));
+  }
+
+  it('lets the first merc to bleed while the log is open say so and the next ones say me too', () => {
+    const { host, mercs } = threeBleeders();
+    beginLoggingForBleedMeToos(host.talk, true);
+    for (const s of mercs) tacticalCharacterDialogue(host, s, MercQuote.STARTING_TO_BLEED);
+    beginLoggingForBleedMeToos(host.talk, false);
+    expect(queuedQuotes(host)).toEqual([MercQuote.STARTING_TO_BLEED, MercQuote.ME_TOO, MercQuote.ME_TOO]);
+  });
+
+  it('counts only bleeding lines that pass the speaker checks, and says them plainly while the log is closed', () => {
+    const { host, mercs } = threeBleeders();
+    const [first, gassed, third] = mercs as [Soldier, Soldier, Soldier];
+    tacticalOf(host).explosives.gassed[gassed.id] = 1;
+    beginLoggingForBleedMeToos(host.talk, true);
+    tacticalCharacterDialogue(host, gassed, MercQuote.STARTING_TO_BLEED);
+    tacticalCharacterDialogue(host, first, MercQuote.HEADSHOT);
+    tacticalCharacterDialogue(host, first, MercQuote.STARTING_TO_BLEED);
+    beginLoggingForBleedMeToos(host.talk, false);
+    tacticalCharacterDialogue(host, third, MercQuote.STARTING_TO_BLEED);
+    expect(queuedQuotes(host)).toEqual([MercQuote.HEADSHOT, MercQuote.STARTING_TO_BLEED, MercQuote.STARTING_TO_BLEED]);
   });
 });

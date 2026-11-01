@@ -870,3 +870,57 @@ describe('snapshot version 24 (objects without ubMission) migrates with every ob
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const BLEEDING_QUOTE_STATE: Readonly<Record<string, Json>> = { dyingComment: false, warnedAboutBleeding: false, meTooBleedLog: 0 };
+
+function withoutBleedingQuoteState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutBleedingQuoteState(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key in BLEEDING_QUOTE_STATE) expect(v).toBe(BLEEDING_QUOTE_STATE[key]);
+    else out[key] = withoutBleedingQuoteState(v);
+  }
+  return out;
+}
+
+function versionTwentyFive(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutBleedingQuoteState(value)]);
+  return { ...snapshot, version: 25, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 25 (no bleeding quote flags, no ME_TOO log) migrates with nothing said and the log closed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionTwentyFive(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"warnedAboutBleeding"');
+    expect(JSON.stringify(legacy)).not.toContain('"dyingComment"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionTwentyFive(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"meTooBleedLog"');
+    expect(JSON.stringify(legacy)).not.toContain('"meTooBleedLog"');
+    expect(JSON.stringify(legacy)).not.toContain('"warnedAboutBleeding"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

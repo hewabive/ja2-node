@@ -51,6 +51,7 @@ import {
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
 import {
+  beginLoggingForBleedMeToos,
   cutTalkingFace,
   delayedTacticalCharacterDialogue,
   dialogueTextKey,
@@ -616,6 +617,7 @@ export class TalkFlow {
         if (delayed) delayedTacticalCharacterDialogue(host, s, quote);
         else tacticalCharacterDialogue(host, s, quote);
       },
+      logBleedMeToos: (on) => beginLoggingForBleedMeToos(this.talk, on),
       signalItemLocatorStart: (s) => signalItemLocatorStart(host, s),
     };
   }

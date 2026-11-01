@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Auto_Resolve.cc VirtualSoldierDressWound, FindMedicalKit, AutoBandageMercs, IsAnybodyWounded,
+// @src src/game/Strategic/Auto_Resolve.cc VirtualSoldierDressWound (with the quote flags it clears), FindMedicalKit, AutoBandageMercs, IsAnybodyWounded,
 // @src CanAnybodyBandage, DetermineBandageButtonState, SetupDoneInterface; Tactical/Items.cc TotalPoints, UseKitPoints.
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { i8, idiv, u8, u16, u32 } from '../../../../core/int.ts';
 import { deleteObject, type ItemObject } from '../../../items/object.ts';
+import { MIN_BLEEDING_THRESHOLD } from '../../../tactical/combat/bleeding.ts';
 import type { CombatContext } from '../../../tactical/combat/context.ts';
 import { StatCause, statChange } from '../../../tactical/combat/experience.ts';
 import { findObjClass } from '../../../tactical/combat/reload.ts';
@@ -91,6 +92,8 @@ export function dressWound(
       left %= 2;
     }
     if (victim.bleeding < 0) victim.bleeding = 0;
+    if (victim.life >= OKLIFE) victim.dyingComment = false;
+    if (victim.bleeding <= MIN_BLEEDING_THRESHOLD) victim.warnedAboutBleeding = false;
   }
   if (left && victim.bleeding) {
     if (left >= victim.bleeding) {

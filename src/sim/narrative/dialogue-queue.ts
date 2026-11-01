@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Dialogue_Control.cc HandleDialogue, DialogueEvent::Add, EmptyDialogueQueue, DialogueQueueIsEmpty,
-// @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue, CharacterDialogue (DialogueEventQuote,
+// @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue (with the ME_TOO bleeding line),
+// @src BeginLoggingForBleedMeToos, CharacterDialogue (DialogueEventQuote,
 // @src with the sleeping speaker's wake), MakeCharacterDialogueEventSleep, CharacterDialogueUsingAlternateFile,
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
@@ -13,6 +14,7 @@
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
+import { i8 } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { isGassed } from '../tactical/explosions/smoke.ts';
@@ -151,11 +153,22 @@ export function delayedTacticalCharacterDialogue(host: NarrativeHost, s: Soldier
   return true;
 }
 
+export function beginLoggingForBleedMeToos(talk: TalkState, on: boolean): void {
+  talk.meTooBleedLog = on ? 1 : 0;
+}
+
+function bleedingLineOrMeToo(talk: TalkState, quote: number): number {
+  if (quote !== MercQuote.STARTING_TO_BLEED || talk.meTooBleedLog === 0) return quote;
+  const said = talk.meTooBleedLog > 1 ? MercQuote.ME_TOO : quote;
+  talk.meTooBleedLog = i8(talk.meTooBleedLog + 1);
+  return said;
+}
+
 export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
   if (!canSayQuote(host, s, quote) || host.inMeanwhile()) return false;
   if (s.profile === host.talk.lastQuoteProfile && quote === host.talk.lastQuoteSaid) return false;
   if (host.isEpc(s) && !forcedNpcQuote(host, s.profile)) return false;
-  characterDialogue(host, s.profile, quote, false, true);
+  characterDialogue(host, s.profile, bleedingLineOrMeToo(host.talk, quote), false, true);
   return true;
 }
 

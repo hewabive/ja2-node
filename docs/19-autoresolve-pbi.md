@@ -131,6 +131,7 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q28 | The summary panel of an underground battle reads the surface sector's record (`PreBattle_Interface.cc:242`) | `forces/pre-battle.test.ts` |
 | Q29 | Losing a sector flips control before the "our mercs are still here" early return | `strategic/map/control.test.ts` |
 | Q30 | The dead of a battle lie on random tiles of the visible area of the map loaded last, a basement loaded elsewhere or already unloaded included (`TileEngine/Isometric_Utils.cc:667`) | `src/sim/campaign/battle-scenario.test.ts`, `autoresolve/close.test.ts` |
+| Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test

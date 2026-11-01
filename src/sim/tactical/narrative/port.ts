@@ -12,7 +12,7 @@
 // @src (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath), DoPOWPathChecks.
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
 // @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
-// @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote),
+// @src Dialogue_Control.cc TacticalCharacterDialogue, DelayedTacticalCharacterDialogue (sayQuote), BeginLoggingForBleedMeToos,
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, HandleDialogue (the UI lock while engaged without the talk panel);
 // @src Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (signalItemLocatorStart); Soldier_Control.h
 // @src fMercAsleep, ubWhatKindOfMercAmI (MERC_TYPE__AIM_MERC), usQuoteSaidFlags, usQuoteSaidExtFlags (2026-10-30);
@@ -107,6 +107,7 @@ export interface NarrativePort {
   setSoldierNeutral(s: Soldier): void;
   stuffMissingFromShipment(gridNo: number): boolean;
   sayQuote(s: Soldier, quote: number, delayed?: boolean): void;
+  logBleedMeToos(on: boolean): void;
   signalItemLocatorStart(s: Soldier): void;
 }
 
@@ -186,5 +187,6 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   },
   stuffMissingFromShipment: () => false,
   sayQuote: () => {},
+  logBleedMeToos: () => {},
   signalItemLocatorStart: () => {},
 };

@@ -15,7 +15,8 @@
 // @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
 // @src SetSoldierAsUnderAiControl; Overhead.cc CheckForEndOfBattle (fAnEnemyRetreated, the buddy-witnessed quote flags,
 // @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
-// @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31).
+// @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31); the BeginLoggingForBleedMeToos window
+// @src of BeginTeamTurn and HandleTacticalEndTurn.
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -217,11 +218,13 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
   t.sectorHooks.addPendingEnemies(t);
   nonCombatDecayPublicOpplist(t, clock, now);
   if (!t.inCombat) {
+    t.narrative.logBleedMeToos(true);
     for (const s of teamMembers(t, Team.OUR)) {
       if (s.life <= 0) continue;
       beginMercTurn(t, s);
       handlePlayerServices(t, s);
     }
+    t.narrative.logBleedMeToos(false);
     for (const s of mercs(t)) {
       if (s.team === Team.OUR) continue;
       beginMercTurn(t, s);
@@ -270,9 +273,11 @@ export function beginTeamTurn(t: TacticalState, start: number): void {
       t.turn.currentTeam++;
       continue;
     }
+    t.narrative.logBleedMeToos(true);
     decayPublicOpplist(t, team);
     for (const s of teamMembers(t, team)) if (s.life > 0) beginMercTurn(t, s);
     if (boxingRoundDecided(t)) return;
+    t.narrative.logBleedMeToos(false);
     if (team === Team.OUR) {
       if (t.inCombat) startPlayerTeamTurn(t, false);
       return;

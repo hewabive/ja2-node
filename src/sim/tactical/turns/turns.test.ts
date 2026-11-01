@@ -14,6 +14,7 @@ import { AnimHeight, initNewSoldierAnim, states, TurningFromProne } from '../ani
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { setSoldierPosition } from '../movement.ts';
+import { BoxingState } from '../narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { hasPendingAction } from '../pending-action.ts';
 import {
@@ -26,15 +27,17 @@ import {
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints, ptsToMoveDirection } from '../points.ts';
 import { AlertStatus, Body, CivilianGroup, createSoldier, Side, type Soldier, type SoldierStats, Team, Visible } from '../soldier.ts';
-import { registerSoldier, type TacticalState } from '../state.ts';
+import { createRealtimeClock, registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import {
   addToIntList,
+  beginTeamTurn,
   checkForEndOfCombatMode,
   checkForPotentialAddToBattleIncrement,
   displayHiddenInterrupt,
   doneAddingToIntList,
   endTurn,
+  handleTacticalEndTurn,
   InterruptKind,
   resolveInterruptsVs,
 } from './turns.ts';
@@ -296,6 +299,53 @@ describe('turn-based combat', () => {
     expect([animName(content, sleeper.state), sleeper.desiredHeight]).toEqual(['KNEEL_UP', AnimHeight.STAND]);
     run(sim);
     expect(animName(content, sleeper.state)).toBe('STANDING');
+  });
+});
+
+describe('the ME_TOO log around the turn start (TeamTurns.cc BeginTeamTurn, Tactical_Turns.cc HandleTacticalEndTurn)', () => {
+  const STARTING_TO_BLEED = 24;
+
+  function bleedingTeam(): { sim: TacticalSim; log: string[] } {
+    const sim = newSim();
+    const t = sim.state;
+    for (const [id, team, at] of [
+      [0, Team.OUR, gridNo(80, 80)],
+      [1, Team.OUR, gridNo(82, 80)],
+      [20, Team.ENEMY, gridNo(80, 120)],
+    ] as const) {
+      const s = spawn(sim, id, team, at, Direction.SOUTH);
+      Object.assign(s, { profile: id + 1, lifeMax: 80, life: 50, bleeding: 30, nextBleed: 0.5 });
+    }
+    const log: string[] = [];
+    t.narrative = {
+      ...t.narrative,
+      logBleedMeToos: (on) => log.push(on ? 'open' : 'close'),
+      sayQuote: (s, quote) => {
+        if (quote === STARTING_TO_BLEED) log.push(`${s.id}:${quote}`);
+      },
+    };
+    return { sim, log };
+  }
+
+  it('logs the bleeding lines of our team in real time, not those of the soldiers handled after it', () => {
+    const { sim, log } = bleedingTeam();
+    handleTacticalEndTurn(sim.state, createRealtimeClock());
+    expect(log).toEqual(['open', `0:${STARTING_TO_BLEED}`, `1:${STARTING_TO_BLEED}`, 'close', `20:${STARTING_TO_BLEED}`]);
+  });
+
+  it("logs the team's bleeding lines at its turn start", () => {
+    const { sim, log } = bleedingTeam();
+    sim.state.inCombat = true;
+    beginTeamTurn(sim.state, Team.OUR);
+    expect(log).toEqual(['open', `0:${STARTING_TO_BLEED}`, `1:${STARTING_TO_BLEED}`, 'close']);
+  });
+
+  it('leaves the log open when a decided boxing round ends the turn start early', () => {
+    const { sim, log } = bleedingTeam();
+    sim.state.inCombat = true;
+    sim.state.boxing.state = BoxingState.WON_ROUND;
+    beginTeamTurn(sim.state, Team.OUR);
+    expect(log).toEqual(['open', `0:${STARTING_TO_BLEED}`, `1:${STARTING_TO_BLEED}`]);
   });
 });
 

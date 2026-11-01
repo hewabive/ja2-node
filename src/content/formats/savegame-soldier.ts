@@ -594,6 +594,8 @@ export interface SoldierMotion {
   readonly movementNoiseHeard: number;
   readonly turnsUntilCanSayHeardNoise: number;
   readonly sayAmmoQuotePending: boolean;
+  readonly warnedAboutBleeding: boolean;
+  readonly dyingComment: boolean;
   readonly oldLife: number;
   readonly targetCubeLevel: number;
   readonly dontChargeReadyAPs: boolean;
@@ -953,6 +955,8 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       movementNoiseHeard: n('ubMovementNoiseHeard'),
       turnsUntilCanSayHeardNoise: n('ubTurnsUntilCanSayHeardNoise'),
       sayAmmoQuotePending: r.bool('fSayAmmoQuotePending'),
+      warnedAboutBleeding: r.bool('fWarnedAboutBleeding'),
+      dyingComment: r.bool('fDyingComment'),
       oldLife: n('bOldLife'),
       targetCubeLevel: n('bTargetCubeLevel'),
       dontChargeReadyAPs: r.bool('fDontChargeReadyAPs'),

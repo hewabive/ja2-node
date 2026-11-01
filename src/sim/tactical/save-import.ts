@@ -431,6 +431,8 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.dontChargeTurningAPs = m.dontChargeTurningAPs;
   s.turnsUntilCanSayHeardNoise = m.turnsUntilCanSayHeardNoise;
   s.sayAmmoQuotePending = m.sayAmmoQuotePending;
+  s.warnedAboutBleeding = m.warnedAboutBleeding;
+  s.dyingComment = m.dyingComment;
   s.pummeledQuoteSaid = (r.quoteSaidFlags & SOLDIER_QUOTE_SAID_BEING_PUMMELED) !== 0;
   s.closeCallQuoteSaid = (r.quoteSaidExtFlags & SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL) !== 0;
   s.dontUnsetLastTargetFromTurn = m.dontUnsetLastTargetFromTurn;

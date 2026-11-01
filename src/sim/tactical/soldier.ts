@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
-// @src Tactical/Overhead_Types.h CivilianGroup
+// @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment)
 
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
@@ -390,6 +390,8 @@ export interface Soldier {
   turnsUntilCanSayHeardNoise: number;
   pummeledQuoteSaid: boolean;
   closeCallQuoteSaid: boolean;
+  dyingComment: boolean;
+  warnedAboutBleeding: boolean;
 
   moved: boolean;
   movedPriorToInterrupt: boolean;
@@ -732,6 +734,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     turnsUntilCanSayHeardNoise: 0,
     pummeledQuoteSaid: false,
     closeCallQuoteSaid: false,
+    dyingComment: init.life < OKLIFE,
+    warnedAboutBleeding: false,
     moved: false,
     movedPriorToInterrupt: false,
     passedLastInterrupt: false,

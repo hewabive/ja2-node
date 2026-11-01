@@ -104,15 +104,16 @@ Tactical rules reach the dialogue only through `TacticalState.narrative` (deviat
 
 **Merc lines.** Lines that interleave with NPC events (close calls, beatings, sightings, kills, the end of a lull or a
 battle, a buddy's comment and the can't-do line of a skill check, the out-of-ammo line at the end of the attack that
-emptied the gun, the found-something-special line of a pickup, all through `TacticalPort.sayQuote`, the items-seen quote
-through `signalItemLocatorStart`, which picks its line and unlocks the item locators only when the queue runs it, the
-comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go through the queue; contract, morale and
-other strategic merc lines are plain `mercQuote` events outside it.
+emptied the gun, the found-something-special line of a pickup, the dying line and the bleeding warning, all through
+`TacticalPort.sayQuote`, the items-seen quote through `signalItemLocatorStart`, which picks its line and unlocks the item
+locators only when the queue runs it, the comment a closed conversation left to say, `narrative/nearby-quotes.ts`) go
+through the queue; contract, morale and other strategic merc lines are plain `mercQuote` events outside it.
 
 **Who speaks.** A merc's line needs a profile, `OKLIFE` (consciousness for the seriously-wounded line), no robot body,
 no gas and no captivity, when it is queued and again when it plays; auto-bandage mode drops whatever reaches the head of
 the queue. A sleeping merc whose line comes up wakes by the roster flag alone, without the waking rules or animation, and
-an event at the back of the queue puts him back to sleep.
+an event at the back of the queue puts him back to sleep. While a turn start bleeds a team (`logBleedMeToos`), the first
+bleeding warning is said as such and the next ones become ME_TOO.
 
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
@@ -160,6 +161,7 @@ otherwise:
 | An escorted E.P.C. counts as recruited: every team change to our team sets the flag | `tactical/narrative/team-change.test.ts` |
 | NPC requests run only for the panel's NPC (the lie and marriage boxes aside), the lie goes to the wisest merc, Willis's free care zeroes Vince's balance | `tactical/narrative/npc-actions/requestors.test.ts` |
 | A merc woken for his line sleeps again only after every event queued before his line ended: the sleep event goes to the back of the queue | `dialogue-queue.test.ts` |
+| A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
 Not pinned yet:

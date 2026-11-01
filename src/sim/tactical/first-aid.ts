@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (the medkit branch); Soldier_Control.cc EVENT_SoldierBeginFirstAid,
-// @src SoldierDressWound, InternalReceivingSoldierCancelServices, InternalGivingSoldierCancelServices,
+// @src SoldierDressWound (with the quote flags it clears), InternalReceivingSoldierCancelServices, InternalGivingSoldierCancelServices,
 // @src SoldierGotoStationaryStance (the GIVING_AID branch); Overhead.cc HandleTeamServices, HandlePlayerServices;
 // @src Points.cc GetAPsToBeginFirstAid; Soldier_Ani.cc code 768; externalized/Soldier.cc handlePendingAction
 // @src (MERC_GIVEAID); Handle_UI.cc the medkit checks of the item cursor; RT_Time_Defines.h RT_FIRST_AID_GAIN_MODIFIER.
@@ -14,6 +14,7 @@ import { findObj, totalPoints, useKitPoints } from '../strategic/economy/kits.ts
 import { plotPathCost } from './ai/utils.ts';
 import { anim } from './anim-states.ts';
 import { AnimHeight, changeSoldierStance, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
+import { MIN_BLEEDING_THRESHOLD } from './combat/bleeding.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { InvSlot, itemIn, NO_SLOT } from './inventory.ts';
@@ -142,6 +143,7 @@ function healBelowOkLife(victim: Soldier, points: number, belowOkLife: number): 
     left %= 2;
   }
   if (victim.bleeding < 0) victim.bleeding = 0;
+  if (victim.life >= OKLIFE) victim.dyingComment = false;
   return left;
 }
 
@@ -184,6 +186,7 @@ export function soldierDressWound(t: TacticalState, medic: Soldier, victim: Sold
   let left = u8(dressing.actual);
   if (left && victim.life < OKLIFE) left = healBelowOkLife(victim, left, belowOkLife);
   if (left && victim.bleeding) left = stopBleeding(victim, left);
+  if (victim.bleeding <= MIN_BLEEDING_THRESHOLD) victim.warnedAboutBleeding = false;
   const actual = u32(dressing.actual - left);
   let usedAPs = u32(udiv(u32(Math.imul(actual, available)), possible));
   if (medicKit) usedAPs = idiv(usedAPs * 2, 3);

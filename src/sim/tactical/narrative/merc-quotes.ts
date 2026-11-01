@@ -23,6 +23,7 @@ export const MercQuote = {
   ATTACKED_BY_MULTIPLE_CREATURES: 10,
   OUT_OF_AMMO: 13,
   SERIOUSLY_WOUNDED: 14,
+  STARTING_TO_BLEED: 24,
   KILLED_AN_ENEMY: 27,
   KILLED_A_CREATURE: 28,
   AIM_KILLED_MIKE: 32,
@@ -42,6 +43,7 @@ export const MercQuote = {
   KILLED_FACTORY_MANAGER: 67,
   SPOTTED_BLOODCAT: 68,
   ENEMY_RETREATED: 70,
+  ME_TOO: 73,
 } as const;
 
 export const QuoteSaidFlag = {

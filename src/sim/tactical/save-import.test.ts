@@ -394,6 +394,21 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     const sim = importedSim(save);
     expect([soldierOf(sim, MERC_ID).sayAmmoQuotePending, soldierOf(sim, MERC_ID + 1).sayAmmoQuotePending]).toEqual([true, false]);
   });
+
+  it('restores the bleeding lines already said (fWarnedAboutBleeding, fDyingComment)', () => {
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { fWarnedAboutBleeding: 1 }),
+        savedSoldier(MERC_ID + 1, Team.OUR, gridNo(82, 82), { fDyingComment: 1 }),
+      ],
+    });
+    const sim = importedSim(save);
+    const flags = (s: Soldier) => [s.warnedAboutBleeding, s.dyingComment];
+    expect([flags(soldierOf(sim, MERC_ID)), flags(soldierOf(sim, MERC_ID + 1))]).toEqual([
+      [true, false],
+      [false, true],
+    ]);
+  });
 });
 
 function importedCampaignWideState(save: SaveGame) {
