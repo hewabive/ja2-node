@@ -166,7 +166,7 @@ the source:
   ETAs with encumbrance unless every member is in the loaded sector.
 
 Not ported: gaps "Strategic move refusals", "Vehicles as characters", "Ground vehicles", "Creature quest scripting",
-"Savegame import". Other deviations of this domain: "Underground traversal flag",
-"Insertion data in the loaded sector", "Strategic hints and enemy counts", "Sandbox population", "Difficulty and
-progress in tactical", "Map changes of the loaded sector on import", "Strategic AI PD placement pass", "Cosmetic draws
+"Savegame import", "Helicopter on import". Other deviations of this domain: "Underground traversal flag", "Insertion
+data in the loaded sector", "Strategic hints and enemy counts", "Sandbox population", "Difficulty and progress in
+tactical", "Map changes of the loaded sector on import", "Strategic AI PD placement pass", "Cosmetic draws
 of the helicopter".

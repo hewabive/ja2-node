@@ -82,6 +82,7 @@ What a native savegame import leaves out. Paths are under `src/`.
 |---|---|---|---|
 | Savegame import | A load keeps every sector's temp files: revealed tiles, effects, map modifications (`Tactical/Tactical_Save.cc:469`) | Of the temp files only the loaded sector's items, corpses, doors, openables, blood and smell (`sim/tactical/save-import.ts`); other sectors load from their maps, without their items or changes | Other sectors' files need writing into the sector diffs |
 | Unread savegame sections | A load restores bullets, thrown objects and explosions in flight, the cursor item and the map messages (`SaveLoadGame.cc:855`) | Skipped (`content/formats/savegame.ts`) |  |
+| Helicopter on import | A load adds the helicopter's pieces before it applies the sector's saved map changes, so a piece destroyed before the save stays destroyed (`Strategic/StrategicMap.cc:520` from `SaveLoadGame.cc:743`, the map changes at `SaveLoadGame.cc:1016`) | The import applies the native map changes first (`sim/tactical/save-import.ts`) and `adoptLoadedSector` adds the helicopter after them (`sim/campaign/sector-flow.ts`), so a destroyed piece comes back | Native imports only; a sector entry keeps the original's order |
 
 ## 6. Presentation: screens, graphics, text, sound and video
 
@@ -113,6 +114,7 @@ What the client does not show or play yet; none of it changes an outcome. Paths 
 | Soldier draw height | A soldier is drawn `sHeightAdjustment` above his tile: 58 on a roof, changing in steps while climbing (`TileEngine/RenderWorld.cc:975`, `Tactical/Soldier_Add.cc:933`); a flying crow climbs 0–100 with a shadow on the ground (`fly_shdw.sti`, `Tactical/Soldier_Control.cc:233`) | `level × 50` (`render/world/dynamic-scene.ts`); no crow shadow | Soldiers placed on roofs sit 8 px low, a climb jumps a storey and a crow takes off at roof height; the view would need the height |
 | Light through destroyed structures | A light drawn after a structure is destroyed passes where it stood (`TileEngine/Lighting.cc:422`) | The client lights over the map's original structures (`app/world/world-lighting.ts`) | Needs the view's `tileChanges` in the lighting |
 | Message box over a settled frame | The map screen draws its frame before a message box opens over it, so the box covers the screen as the scene left it (`MapScreenHandle`, `Strategic/MapScreen.cc:1380`) | `ScreenHost.openModal` (`src/ui/screen.ts`) freezes the last drawn items: an image still loading stays missing and a button keeps the state of the update before the scene | Update the screen with the scene's state and its loaded art before freezing; changes the meanwhile box golden |
+| Escort refusal text | A move refused because an escort would travel without a merc shows `pMapErrorString` 6 or 7 by the escort's sex, with the escort's name (`Strategic/Map_Screen_Interface.cc:3846`) | `escortAlone` has no entry in `REFUSAL_MESSAGES` (`protocol/refusals.ts`), so the map screen shows no box | The text follows the profile's sex, which the refusal does not carry |
 
 ## 7. Code conventions
 
