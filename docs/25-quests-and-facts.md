@@ -156,5 +156,5 @@ Inferred from reading the source:
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
 
-Not ported: gaps "Strategic move refusals" (the museum chalice), "Map items", "Ground vehicles", "Helicopter on the
-map", "Helicopter entrance", "Creature quest scripting", "Vehicles as characters".
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Map items", "Ground vehicles",
+"Helicopter on the map", "Helicopter entrance", "Creature quest scripting", "Vehicles as characters".

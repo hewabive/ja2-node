@@ -412,13 +412,16 @@ boxer out of the ring (deviations "Boxing UI lock", "Abandoning a fight").
 Rules: `16` (map, movement, sector entry and exit), `17` (the Queen), `15` (time); `src/sim/campaign/commands.ts`,
 `sector-exits.ts`; views `src/server/strategic-view.ts`, `map-screen-view.ts`. There is no "exit tactical" command: the
 strategic view is always observable, and a sector is left by `exitSector` or by routing everyone away. `route` checks
-the whole group's move first, so a squad cannot leave the start sector before it is cleared; `extend` appends legs
-like the map screen's plotting, otherwise the path is replaced. `routeGroup` is the move box: mercs parting from their
-unit regroup on this command rather than at Done (deviation "Move box regrouping"). `enterSector` loads with automatic
-placement (deviation "Tactical placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and
-is a query with `dryRun: true`. On a creature lair level after the creature quest, `strategic.surfaceWarp` names the
-surface sector the exit dialog first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid
-exit takes every conscious merc of the sector there and loads it (`campaign/sector-exits.ts`).
+the whole group's move first, so a squad cannot leave the start sector before it is cleared; `extend` appends legs like
+the map screen's plotting, otherwise the path is replaced. As in the original, a move from the loaded sector during a
+bloodcat ambush is refused as `inCombat`, and a merc standing in the museum rooms of L12 while any merc carries the
+chalice and Eldin lives as `museumChalice` (`src/sim/strategic/forces/move-permission.ts`); the hints check neither, as
+the view has neither the encounter nor the rooms. `routeGroup` is the move box: mercs parting from their unit regroup on
+this command rather than at Done (deviation "Move box regrouping"). `enterSector` loads with automatic placement
+(deviation "Tactical placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query
+with `dryRun: true`. On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector
+the exit dialog first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every
+conscious merc of the sector there and loads it (`campaign/sector-exits.ts`).
 
 ### 8.8 Vehicles and the helicopter
 

@@ -1,6 +1,7 @@
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../items/object.ts';
+import { findObj, NO_SLOT } from '../strategic/economy/kits.ts';
 import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
 import { TravelStat, VehicleRole } from '../strategic/forces/ports.ts';
 import type { CombatContext } from '../tactical/combat/context.ts';
@@ -37,6 +38,7 @@ import {
 
 export const MercKind = { PLAYER_CHARACTER: 0, AIM_MERC: 1, MERC: 2, NPC: 3, EPC: 4, NPC_UNEXTENDABLE: 5, VEHICLE: 6 } as const;
 const NO_ITEM = -1;
+const NO_ROOM = 0;
 const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
 
 export class RosterMerc implements CrewMember {
@@ -444,6 +446,7 @@ export interface RosterHooks {
   tooTiredToTravel(merc: RosterMerc): boolean;
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
   spendVehicleFuel(vehicle: RosterMerc, fuel: number): number;
+  roomOf(merc: RosterMerc): number;
   dressWound(doctor: RosterMerc, patient: RosterMerc, kit: ItemObject, kitPoints: number, kitStatus: number): number;
   assignToSquad(merc: RosterMerc, squad: number): void;
 }
@@ -456,6 +459,7 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
   tooTiredToTravel: () => false,
   collapseFromFatigue: () => {},
   spendVehicleFuel: () => 0,
+  roomOf: () => NO_ROOM,
   dressWound: () => 0,
   assignToSquad: (merc, squad) => {
     merc.assignment = squad;
@@ -612,6 +616,17 @@ export class Roster implements CrewPort {
   spendVehicleFuel(vehicleSoldierId: number, fuel: number): number {
     const merc = this.get(vehicleSoldierId);
     return merc ? this.hooks.spendVehicleFuel(merc, fuel) : 0;
+  }
+
+  roomOf(id: number): number {
+    const merc = this.get(id);
+    return merc ? this.hooks.roomOf(merc) : NO_ROOM;
+  }
+
+  carries(id: number, itemName: string): boolean {
+    const merc = this.get(id);
+    const item = this.#content.items.byName.get(itemName)?.index;
+    return merc !== undefined && item !== undefined && findObj(merc.soldier.inv, item) !== NO_SLOT;
   }
 
   statChange(id: number, stat: number, chances: number, cause: number): void {

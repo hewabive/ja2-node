@@ -124,6 +124,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The defence placement's first pass looks at every other node (Stracciatella); the init-list sort reverses each class | `strategic/ai/queen-command.test.ts` |
 | One NPC in a wilderness sector who was ever spoken to, recruited or escorted silences the NPC-of-note box for every unmet NPC there | `strategic/forces/npcs-of-note.test.ts` |
 | A bloodcat lair's corpses carry profile 0 from their zeroed definition, and in the first two days of a campaign their unsigned time of death wraps, still two days back for the rot | `campaign/sector-loot.test.ts` |
+| The museum move check asks whether Eldin lives, not whether the alarm went off, counts the chalice on any merc of the team wherever he is, and reads the room under the merc's tile in whatever map is loaded, also when he stands in another sector | `strategic/forces/move-permission.test.ts` |
 | An arriving creature faces the first direction its body fits on the tile it found (north on open ground), whatever its insertion direction, a forced one too: the facing a creature attack sets per edge is never used | `tactical/insertion.test.ts` |
 
 Not pinned yet:

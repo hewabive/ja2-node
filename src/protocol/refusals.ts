@@ -34,6 +34,7 @@ export const MOVE_REFUSAL_INDEX: Readonly<Record<string, number>> = {
   vehicleDamaged: 47,
   robotAlone: 49,
   cannotLeaveSector: 29,
+  museumChalice: 34,
 };
 
 const log = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'log' });

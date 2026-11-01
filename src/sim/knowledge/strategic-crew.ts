@@ -33,6 +33,7 @@ const CREW_FIELDS: ReadonlySet<PropertyKey> = new Set([
 
 const NO_VEHICLE = -1;
 const NO_PROFILE = 200;
+const NO_ROOM = 0;
 const ROBOT_PROFILE = 62;
 
 const NO_STATS: MercStats = {
@@ -157,6 +158,10 @@ export function projectedCrewPort(members: readonly CrewMember[], weight: Readon
     dressWound: () => {
       unsupplied('crew.dressWound', guard);
       return 0;
+    },
+    roomOf: () => {
+      unsupplied('crew.roomOf', guard);
+      return NO_ROOM;
     },
     inTacticalSector: (id) => byId.get(id)?.inSector === true,
   };

@@ -147,7 +147,7 @@ import {
   updateCurrentlySelectedMerc,
 } from '../tactical/selection.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
-import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -226,6 +226,7 @@ const CREATURE_TENSE_QUOTE_RANGE = 20;
 const CROWS_POSSIBLE_BASE = 5;
 const CROWS_POSSIBLE_RANGE = 5;
 const NO_DIFFICULTY_TOWN = 0;
+const NO_ROOM = 0;
 const SECONDS_PER_MINUTE = 60;
 const NEIGHBOURS = [
   [0, -1],
@@ -259,7 +260,13 @@ export class SectorFlow {
       selectAfterRemoval: (merc) => this.#withTactical((t) => selectAfterRemovalFromSector(t, merc.soldier)),
       unselect: (merc) => this.#withTactical((t) => unselectRemovedSoldier(t, merc.soldier)),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
+      roomOf: (merc) => this.#loadedMapRoom(merc.soldier.gridNo),
     };
+  }
+
+  #loadedMapRoom(gridNo: number): number {
+    const t = this.campaign.tactical?.state;
+    return t ? (sectorMapOf(t).rooms[gridNo] ?? NO_ROOM) : NO_ROOM;
   }
 
   get #flow(): SectorFlowState {

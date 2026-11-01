@@ -2,11 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc CanCharacterMoveInStrategic, CanEntireMovementGroupMercIsInMove;
 // @src Assignments.cc PlayerSoldierTooTiredToTravel (through MercPort.tooTiredToTravel); Tactical/Squads.cc
-// @src IsRobotControllerInSquad and Tactical/Vehicles.cc IsRobotControllerInVehicle (through MercPort).
+// @src IsRobotControllerInSquad and Tactical/Vehicles.cc IsRobotControllerInVehicle (through MercPort); the bloodcat
+// @src ambush and the museum chalice checks of CanCharacterMoveInStrategic (2026-11-01).
 
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { MuseumRooms } from '../../tactical/narrative/constants.ts';
+import { isProfileDead } from '../../tactical/profiles.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
-import { Assignment } from './constants.ts';
+import { Npc } from '../narrative/npc-ids.ts';
+import { Assignment, EncounterCode } from './constants.ts';
 import { numHostilesInSector } from './groups.ts';
 import { soldierAboardAirborneHeli } from './helicopter.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
@@ -26,11 +30,15 @@ export const MoveRefusal = {
   EPC_ALONE: 'escortAlone',
   ROBOT_ALONE: 'robotAlone',
   CANNOT_LEAVE: 'cannotLeaveSector',
+  MUSEUM: 'museumChalice',
 } as const;
 export type MoveRefusal = (typeof MoveRefusal)[keyof typeof MoveRefusal];
 
 const MARIA = 88;
 const SAN_MONA_C5 = { x: 5, y: 3 } as const;
+const MUSEUM_SECTOR = { x: 12, y: 12, z: 0 } as const;
+const NO_ROOM = 0;
+const CHALICE = 'CHALICE';
 
 export interface LoadedSectorStatus {
   readonly inCombat: boolean;
@@ -59,14 +67,34 @@ function stuckInSector(m: StrategicMerc): boolean {
   return m.profile === MARIA && m.sector.x === SAN_MONA_C5.x && m.sector.y === SAN_MONA_C5.y;
 }
 
+function bloodcatAmbushGoesOn(ctx: StrategicContext): boolean {
+  return ctx.world.hostileBloodcatsPresent() && ctx.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH;
+}
+
 function hostilesHere(ctx: StrategicContext, m: StrategicMerc, loaded: LoadedSectorStatus): MoveRefusal | null {
   if (m.betweenSectors || soldierAboardAirborneHeli(ctx, m)) return null;
   const world = ctx.state.worldSector;
   if (world && sameSector(world, m.sector)) {
     if (loaded.inCombat) return MoveRefusal.COMBAT;
     if (ctx.world.enemyInSector()) return MoveRefusal.ENEMY;
+    if (bloodcatAmbushGoesOn(ctx)) return MoveRefusal.COMBAT;
   }
   return numHostilesInSector(ctx, m.sector) > 0 ? MoveRefusal.ENEMY : null;
+}
+
+function museumGuardAlive(ctx: StrategicContext): boolean {
+  const eldin = ctx.state.profiles.get(Npc.ELDIN);
+  return !eldin || !isProfileDead(eldin);
+}
+
+function inMuseumRooms(ctx: StrategicContext, m: StrategicMerc): boolean {
+  const room = ctx.mercs.roomOf?.(m.id) ?? NO_ROOM;
+  return room >= MuseumRooms.FIRST && room <= MuseumRooms.LAST;
+}
+
+function leavingMuseumWithChalice(ctx: StrategicContext, m: StrategicMerc): boolean {
+  if (!sameSector(m.sector, MUSEUM_SECTOR) || m.betweenSectors || !museumGuardAlive(ctx) || !inMuseumRooms(ctx, m)) return false;
+  return ctx.mercs.all().some((o) => ctx.mercs.carries?.(o.id, CHALICE) === true);
 }
 
 export function canCharacterMoveInStrategic(ctx: StrategicContext, m: StrategicMerc, loaded: LoadedSectorStatus): MoveRefusal | null {
@@ -82,6 +110,7 @@ export function canCharacterMoveInStrategic(ctx: StrategicContext, m: StrategicM
   }
   const hostile = hostilesHere(ctx, m, loaded);
   if (hostile) return hostile;
+  if (leavingMuseumWithChalice(ctx, m)) return MoveRefusal.MUSEUM;
   if (m.assignment >= Assignment.ON_DUTY && m.assignment !== Assignment.VEHICLE) return MoveRefusal.BUSY;
   if (ctx.mercs.tooTiredToTravel(m.id)) return MoveRefusal.TOO_TIRED;
   if (m.isRobot) {

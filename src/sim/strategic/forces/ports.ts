@@ -58,6 +58,8 @@ export interface MercPort {
   setInsertionData?(id: number, data: number): void;
   inTacticalSector?(id: number): boolean;
   removeFromGridNo?(id: number): void;
+  roomOf?(id: number): number;
+  carries?(id: number, itemName: string): boolean;
 }
 
 export interface HelicopterPort {
