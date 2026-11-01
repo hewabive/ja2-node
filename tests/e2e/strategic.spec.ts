@@ -78,6 +78,7 @@ test('extends and ends merc contracts from the map screen', async ({ page }) => 
   await boxes.first().uncheck();
   await boxes.last().check();
   await page.click('[data-contract="dismiss"]');
+  await page.click('#advance');
   await expect(page.locator('#battleTitle')).toHaveText('Decision: mercDeparture');
   await page.click('#choices [data-choice="here"]');
   await expect(page.locator('#battle')).toBeHidden();
