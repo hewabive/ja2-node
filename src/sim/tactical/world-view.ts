@@ -13,6 +13,7 @@ import { type Bullet, bulletHeightPixels, bulletWorldXY, drawnInFlight, isKnife,
 import { heightUnitsToPixels, objectDrawnInFlight, toGridNo } from './explosions/physics.ts';
 import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
 import type { RealObject } from './explosions/state.ts';
+import { landedHelicopterTileChanges } from './landed-helicopter.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
 import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
 import { shownBloodPools } from './smell.ts';
@@ -46,7 +47,7 @@ export interface BloodPoolView {
   readonly creature?: boolean;
 }
 
-export type TileChangeKind = 'remove' | 'add';
+export type TileChangeKind = 'remove' | 'add' | 'append';
 
 export interface TileChangeView {
   readonly kind: TileChangeKind;
@@ -140,7 +141,7 @@ export function tileChangeViews(t: TacticalState): TileChangeView[] {
     const tile = kind === null ? null : mapChangeTile(t, c);
     if (kind !== null && tile !== null) out.push({ kind, gridNo: c.gridNo, level: c.level, tile });
   }
-  return out;
+  return [...out, ...landedHelicopterTileChanges(t)];
 }
 
 export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean, since: (b: Bullet) => number): BulletView[] {

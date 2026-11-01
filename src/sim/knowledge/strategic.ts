@@ -94,6 +94,7 @@ function helicopterPort(rules: StrategicRules, strategic: KnowledgeStrategic, gu
     cosmeticChoice: () => 0,
     killInVehicle: () => false,
     scheduleKillChopperMeanwhile: blocked('scheduleKillChopperMeanwhile'),
+    helicopterOnMap: blocked('helicopterOnMap'),
     removeSkyriderSoldier: blocked('removeSkyriderSoldier'),
     emit: blocked('emit'),
   };

@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Structure.cc InternalSwapStructureForPartner (the node keeps its place, its index moves by
 // @src the partner delta); SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem (RemoveStruct, AddStructToHead,
 // @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
-// @src tile's first blood object at the head of its object layer).
+// @src tile's first blood object at the head of its object layer); WorldMan.cc AddStructToTail (the landed helicopter).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
@@ -12,7 +12,7 @@ import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } fro
 import { idiv } from '../../core/int.ts';
 
 export interface TileChange {
-  readonly kind: 'remove' | 'add';
+  readonly kind: 'remove' | 'add' | 'append';
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
@@ -106,6 +106,11 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
       lastRemoved = removeTile(edits, c);
       continue;
     }
+    if (c.kind === 'append') {
+      edits[layerOfLevel(c.level)].at(c.gridNo).push(c.tile);
+      lastRemoved = null;
+      continue;
+    }
     const inPlace = lastRemoved !== null && lastRemoved.gridNo === c.gridNo && lastRemoved.layer === layerOfLevel(c.level);
     const list = edits[layerOfLevel(c.level)].at(c.gridNo);
     list.splice(inPlace && lastRemoved ? lastRemoved.index : 0, 0, c.tile);
@@ -121,8 +126,10 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
   };
 }
 
+const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', append: 't' };
+
 export function tileChangesKey(changes: readonly TileChange[]): string {
-  return changes.map((c) => `${c.kind[0]}${c.gridNo}.${c.level}.${c.tile}`).join(',');
+  return changes.map((c) => `${KIND_KEYS[c.kind]}${c.gridNo}.${c.level}.${c.tile}`).join(',');
 }
 
 function poolVariant(pool: BloodPool): number {

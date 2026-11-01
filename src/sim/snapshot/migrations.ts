@@ -807,6 +807,20 @@ function addPendingRobotReload(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ADDED_EXIT_GRIDS_KEY = 'addedExitGrids';
+const LANDED_HELICOPTER_KEY = 'landedHelicopter';
+
+function addLandedHelicopter(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [
+      name,
+      name === 'tactical' && isObject(value) ? insertAfter(value, ADDED_EXIT_GRIDS_KEY, LANDED_HELICOPTER_KEY, null) : value,
+    ],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -838,5 +852,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     27: moveGassedOntoSoldiers,
     28: addCrows,
     29: addPendingRobotReload,
+    30: addLandedHelicopter,
   };
 }

@@ -50,10 +50,21 @@ describe('tile changes', () => {
     expect([...levelTilesAt(removed.layers.structs, AT)]).toEqual([WINDOW, 950]);
   });
 
+  it('appends the pieces of the landed helicopter at the tail of the structure layer, in their order', () => {
+    const landed = applyTileChanges(level(), [
+      { kind: 'append', gridNo: AT, level: 0, tile: 399 },
+      { kind: 'append', gridNo: AT, level: 0, tile: 400 },
+      { kind: 'append', gridNo: AT - 800, level: 0, tile: 401 },
+    ]);
+    expect([...levelTilesAt(landed.layers.structs, AT)]).toEqual([WALL, WINDOW, 950, 399, 400]);
+    expect([...levelTilesAt(landed.layers.structs, AT - 800)]).toEqual([401]);
+  });
+
   it('returns the same level when nothing changed and keys a change list by its content', () => {
     const l = level();
     expect(applyTileChanges(l, [])).toBe(l);
     expect(tileChangesKey([{ kind: 'add', gridNo: 5, level: 0, tile: 7 }])).toBe('a5.0.7');
+    expect(tileChangesKey([{ kind: 'append', gridNo: 5, level: 0, tile: 7 }])).not.toBe('a5.0.7');
   });
 });
 

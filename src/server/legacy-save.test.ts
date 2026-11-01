@@ -23,6 +23,7 @@ const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
 const OWNED_ROOMS_ADDED_AFTER_070 = /\n {6}"ownedRooms": \[[^\n]*\],/g;
 const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
+const TILESETS_AT_070 = 1;
 const DECAPITATION_TABLES_ADDED_AFTER_070 = /\n {2}"validForDecapitation": \[[^\]]*\],\n {2}"decapitated": \[[^\]]*\],/;
 const SURFACES_ADDED_AFTER_070 = new Set([
   'bullet.sprite.json',
@@ -144,7 +145,7 @@ async function recordedStubProfiles(vfs: Vfs): Promise<Uint8Array> {
 
 async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
   const current = parseTilesetDatabase(await vfs.read(STUB_TILESETS_FILE));
-  const tilesets = current.tilesets.map((t) => ({
+  const tilesets = current.tilesets.slice(0, TILESETS_AT_070).map((t) => ({
     ...t,
     surfaceFiles: t.surfaceFiles.map((file) => (SURFACES_ADDED_AFTER_070.has(file) ? '' : file)),
   }));

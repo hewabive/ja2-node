@@ -456,11 +456,11 @@ export class SectorFlow {
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
     s.map.selectedSector = { ...sector };
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
-    handleHelicopterOnGround(this.ctx);
+    handleHelicopterOnGround(this.ctx, false);
     const enemyPresence = this.#whileLoading(() => this.#enterSector(sector, baseWorld, options, previous));
     const day = worldDay(s.clock);
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_LOADED, day);
-    handleHelicopterOnGround(this.ctx);
+    handleHelicopterOnGround(this.ctx, true);
     this.#handleRpcDescriptionOfSector(sector, day);
     setSectorFlag(s.map, sector, SectorFlag.HAS_ENTERED_TACTICAL, day);
     this.hasEnteredCombatModeSinceEntering = false;
@@ -541,7 +541,7 @@ export class SectorFlow {
     if (!enemiesHere) this.prepareEnemyForSectorBattle();
     const world = this.world;
     if (world && this.campaign.creatures?.attackPendingFor(world)) this.prepareCreaturesForBattle();
-    handleHelicopterOnGround(this.ctx);
+    handleHelicopterOnGround(this.ctx, true);
     this.resetMilitia();
     this.campaign.tactical?.lookAround();
   }
@@ -634,6 +634,8 @@ export class SectorFlow {
       node.hasSoldier = true;
     }
     this.#installHooks(sim);
+    handleHelicopterOnGround(this.ctx, true);
+    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
     this.postSchedulesOfLoadedSector(t, true);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
   }
@@ -659,6 +661,7 @@ export class SectorFlow {
     const doorTable = diff && getSectorFlagStatus(s.map, sector, SectorFlag.DOOR_TABLE_TEMP_FILES_EXISTS) ? diff.doorTable : null;
     const sim = this.#createTactical(sector, this.#worldWithDoorTable(baseWorld, doorTable));
     this.campaign.tactical = sim;
+    handleHelicopterOnGround(this.ctx, true);
     this.#loadCurrentSectorsInformation(sector, diff);
     if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
     this.prepareLoadedSector(options);

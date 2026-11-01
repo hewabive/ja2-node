@@ -41,8 +41,8 @@ and Dead is Dead. The file is ja2-node's own; native saves are imported, never w
    and is written.
 2. **Restore is exact.** For any inputs `I`, `continue(S, I)` and `continue(restore(snapshot(S)), I)` produce the same
    event log and the same final snapshot, byte for byte ("load + replay = same outcome"). A load therefore never runs
-   the original's load hooks (deviations "Schedules on load", "Selection on load"); only a native import does, once
-   (`14`).
+   the original's load hooks (deviations "Schedules on load", "Selection on load", "Helicopter on load"); only a native
+   import does, once (`14`).
 3. **Versioned.** The file and the snapshot each carry a version; older ones go through migration chains on the plain
    JSON (`SAVE_MIGRATIONS` in `save-file.ts`, `snapshotMigrations` in `src/sim/snapshot/migrations.ts`). **Rule:** a
    change of the state's shape bumps `SNAPSHOT_VERSION` and adds a migration. `src/server/legacy-save.test.ts` loads
@@ -279,9 +279,9 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 | A save made with no map loaded names the sector of the current squad's first merc even while he travels between sectors (`GetBestPossibleSectorXYZValues`, `SaveLoadGame.cc:2165`) | `src/sim/strategic/forces/save-sector.test.ts` "takes the sector of the current squad's first merc even while he travels …" |
 | A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1245`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |
 
-Deviations: "Save side effects", "Schedules on load", "Selection on load", "Save compatibility", "Player loads", "Saving in the laptop",
-"Dead is Dead save points", "Error saves", "Cosmetic streams in saves", "Talk context in saves", "Carmen's departure
-timer", "Laptop page state", "Save list in the launcher and on the canvas".
+Deviations: "Save side effects", "Schedules on load", "Selection on load", "Helicopter on load", "Save compatibility",
+"Player loads", "Saving in the laptop", "Dead is Dead save points", "Error saves", "Cosmetic streams in saves", "Talk
+context in saves", "Carmen's departure timer", "Laptop page state", "Save list in the launcher and on the canvas".
 
 ---
 

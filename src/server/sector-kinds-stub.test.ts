@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString, type Sector, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
+import { Direction } from '../content/world/grid.ts';
+import { TravelCost } from '../content/world/movement-costs.ts';
 import type { NpcRequestPromptView, StrategicSectorView } from '../protocol/view.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -39,6 +41,17 @@ const TRAINING_BUDGET = 12;
 const LOYALTY_TO_TRAIN = 20;
 const HELICOPTER_RETURN_BUDGET = 12;
 const HELICOPTER_RETURN_SLICE_SECONDS = 600;
+const DRASSEN_HELICOPTER = 9001;
+const HELICOPTER_NORTH_PIECE = DRASSEN_HELICOPTER - 800;
+const HELICOPTER_PIECE_GRIDNOS = [
+  DRASSEN_HELICOPTER,
+  DRASSEN_HELICOPTER,
+  HELICOPTER_NORTH_PIECE,
+  DRASSEN_HELICOPTER,
+  DRASSEN_HELICOPTER,
+  HELICOPTER_NORTH_PIECE,
+];
+const UNDER_THE_HELICOPTER = DRASSEN_HELICOPTER - 160;
 
 interface Campaign {
   readonly session: CampaignSession;
@@ -173,6 +186,14 @@ function befriend(session: CampaignSession, names: readonly string[]): void {
   }
 }
 
+function helicopterPieces(session: CampaignSession): number[] {
+  return (session.view().tileChanges ?? []).filter((c) => c.kind === 'append').map((c) => c.gridNo);
+}
+
+function walkingCost(session: CampaignSession, g: number): number | undefined {
+  return session.campaign.tactical?.state.world.costs.get(g, Direction.NORTH, 0);
+}
+
 async function reloadAirport(c: Campaign): Promise<void> {
   expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
   teleportSquad(c.session, parseSectorString('A9'));
@@ -277,5 +298,31 @@ describe('stub sector kinds in a campaign', () => {
     expect(placedProfiles(c.session)).not.toContain(SKYRIDER);
     await reloadAirport(c);
     expect(placedProfiles(c.session)).toContain(SKYRIDER);
+  });
+
+  it('stands the helicopter on the Drassen helipad, takes it off the map at takeoff and puts it back at the landing', async () => {
+    const c = await landedCampaign(63, ['B13']);
+    befriend(c.session, ['B12', 'B13']);
+    await escortSkyriderToTheHelipad(c);
+    expect(helicopterPieces(c.session)).toEqual(HELICOPTER_PIECE_GRIDNOS);
+    expect(walkingCost(c.session, UNDER_THE_HELICOPTER)).toBe(TravelCost.OBSTACLE);
+    expect(c.session.dispatch({ type: 'move', soldier: firstMerc(c.session), to: UNDER_THE_HELICOPTER, mode: 'walk' }).ok).toBe(false);
+    expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.session.dispatch({ type: 'heliRoute', to: 'B12' })).toMatchObject({ ok: false, data: { refusal: 'emptyHelicopterHint' } });
+    expect(c.session.dispatch({ type: 'heliRoute', to: 'B12' })).toMatchObject({ ok: true });
+    expect(helicopterPieces(c.session)).toEqual([]);
+    expect(walkingCost(c.session, UNDER_THE_HELICOPTER)).toBe(TravelCost.OBSTACLE);
+    await reloadAirport(c);
+    expect(helicopterPieces(c.session)).toEqual([]);
+    expect(walkingCost(c.session, UNDER_THE_HELICOPTER)).not.toBe(TravelCost.OBSTACLE);
+    expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const landed = () => !c.session.campaign.state.forces.helicopterAirborne;
+    for (let k = 0; k < HELICOPTER_RETURN_BUDGET && !landed(); k++) c.live.advance({ worldSeconds: HELICOPTER_RETURN_SLICE_SECONDS });
+    expect(landed()).toBe(true);
+    expect(helicopterPieces(c.session)).toEqual(HELICOPTER_PIECE_GRIDNOS);
+    expect(walkingCost(c.session, UNDER_THE_HELICOPTER)).not.toBe(TravelCost.OBSTACLE);
+    await reloadAirport(c);
+    expect(helicopterPieces(c.session)).toEqual(HELICOPTER_PIECE_GRIDNOS);
+    expect(walkingCost(c.session, UNDER_THE_HELICOPTER)).toBe(TravelCost.OBSTACLE);
   });
 });

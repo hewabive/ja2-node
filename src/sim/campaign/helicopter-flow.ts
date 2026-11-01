@@ -6,8 +6,9 @@
 // @src Strategic/Meanwhile.cc
 // @src HandleKillChopperMeanwhileScene; Tactical/Vehicles.cc KillPersonInVehicle; Tactical/Soldier_Control.cc
 // @src SoldierTakeDamage (TAKE_DAMAGE_BLOODLOSS for a soldier outside the loaded sector), HandleTakeDamageDeath;
-// @src Strategic/Map_Screen_Helicopter.cc HandleHelicopterOnGround (removing Skyrider's soldier); Strategic/Assignments.cc
-// @src SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback; Strategic/Player_Command.cc
+// @src Strategic/Map_Screen_Helicopter.cc HandleHelicopterOnGround (removing Skyrider's soldier, the helicopter on the
+// @src loaded map); Strategic/Assignments.cc SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback;
+// @src Strategic/Player_Command.cc
 // @src SetThisSectorAsPlayerControlled (the SAM congratulation); Map_Screen_Interface_Map.cc
 // @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path).
 
@@ -49,6 +50,7 @@ import {
   whyHelicopterCannotFly,
 } from '../strategic/forces/helicopter.ts';
 import type { HelicopterEventWithoutTick } from '../strategic/forces/helicopter-events.ts';
+import type { RefuelSite } from '../strategic/forces/helicopter-state.ts';
 import { canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
 import { rebuildWayPointsForGroupPath } from '../strategic/forces/movement.ts';
 import type { HelicopterPort, StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
@@ -67,6 +69,7 @@ import { clearStrategicPathAfterSector } from '../strategic/map/pathing.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
+import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
@@ -162,6 +165,7 @@ export class HelicopterFlow {
       cosmeticChoice: (n) => this.campaign.state.cosmetic.helicopter.int(n),
       killInVehicle: (id) => this.#killInVehicle(id),
       scheduleKillChopperMeanwhile: () => this.#scheduleKillChopperMeanwhile(),
+      helicopterOnMap: (site, landed) => this.#helicopterOnMap(site, landed),
       removeSkyriderSoldier: () => this.#removeSkyriderSoldier(),
       emit: (e) => this.emit(e),
     };
@@ -213,6 +217,11 @@ export class HelicopterFlow {
   #scheduleKillChopperMeanwhile(): void {
     const q = this.campaign.queen;
     if (q) handleKillChopperMeanwhileScene(q);
+  }
+
+  #helicopterOnMap(site: RefuelSite, landed: boolean): void {
+    const t = this.campaign.tactical?.state;
+    if (t) setHelicopterOnMap(t, site, landed);
   }
 
   #removeSkyriderSoldier(): void {

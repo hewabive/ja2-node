@@ -8,6 +8,8 @@ import { layoutOffsets } from '../content/formats/savegame-layout.ts';
 import { TACTICAL_STATUS_LAYOUT } from '../content/formats/savegame-tactical.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
+import { Direction } from '../content/world/grid.ts';
+import { TravelCost } from '../content/world/movement-costs.ts';
 import { StructureFlags } from '../content/world/structures.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
@@ -38,6 +40,8 @@ const savedWithWorld = (file: string) => parseSaveHeader(new Uint8Array(readFile
 const worldSaves = saveFiles.filter(savedWithWorld);
 const noWorldSaves = saveFiles.filter((file) => !savedWithWorld(file));
 const TRAVEL_STEPS = 20_000;
+const DRASSEN_AIRPORT = { x: 13, y: 2, z: 0 };
+const DRASSEN_HELIPAD = 9001;
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign', () => {
   let data: DataVfs;
@@ -326,4 +330,32 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       }
     });
   }
+
+  const drassenAirportSaves = worldSaves.filter((file) => {
+    const { sector } = parseSaveHeader(new Uint8Array(readFileSync(join(savesDir, file)))).header;
+    return sector.x === DRASSEN_AIRPORT.x && sector.y === DRASSEN_AIRPORT.y && sector.z === 0;
+  });
+
+  it.skipIf(drassenAirportSaves.length === 0)(
+    'stands the helicopter on the Drassen helipad of a save made at the airport before Skyrider is met, its fuselage blocking the path',
+    async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, drassenAirportSaves[0] ?? '')));
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      expect(session.campaign.state.forces.helicopter.setUp).toBe(false);
+      const t = session.sim.state;
+      expect(t.landedHelicopter?.gridNo).toBe(DRASSEN_HELIPAD);
+      const pieces = (session.view().tileChanges ?? []).filter((c) => c.kind === 'append');
+      expect(pieces.map((c) => c.gridNo)).toEqual([
+        DRASSEN_HELIPAD,
+        DRASSEN_HELIPAD,
+        DRASSEN_HELIPAD - 800,
+        DRASSEN_HELIPAD,
+        DRASSEN_HELIPAD,
+        DRASSEN_HELIPAD - 800,
+      ]);
+      const vehicles = (g: number) => t.world.structures.at(g).filter((s) => (s.flags & StructureFlags.VEHICLE) !== 0).length;
+      expect([vehicles(DRASSEN_HELIPAD), vehicles(DRASSEN_HELIPAD - 800)]).toEqual([2, 1]);
+      expect(t.world.costs.get(DRASSEN_HELIPAD, Direction.NORTH, 0)).toBe(TravelCost.OBSTACLE);
+    },
+  );
 });

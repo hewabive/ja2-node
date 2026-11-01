@@ -47,6 +47,7 @@ the quest log of the player view                  src/server/quest-view.ts
 | `tactical/narrative/sight-rules.ts`, `escort-arrival.ts`, `assassin-approach.ts`, `death-rules.ts`, `quest-items.ts` | The quest rules of a sighting and its loss, a step, a death and the quest action items |
 | `tactical/narrative/boxing.ts`, `boxing-state.ts`, `boxing-events.ts`; `tactical/ai/decide-boxing.ts` | The match, the state tests the original spreads over tactical code, the boxers' AI |
 | `strategic/forces/helicopter.ts`, `helicopter-state.ts`, `helicopter-events.ts`, `vehicles.ts`; `campaign/helicopter-flow.ts` | Skyrider's helicopter; `HelicopterFlow`: the hover events, the hourly debt, the monologues, the KILL_CHOPPER meanwhile, the commands |
+| `tactical/landed-helicopter.ts` | The helicopter standing in the loaded map (`TacticalState.landedHelicopter`): its pieces, their structures, the bump and their tile changes |
 | `campaign/robot-control.ts`, `tactical/narrative/robot.ts` | `ControllingRobot` and the remote holder; an uncontrolled robot's orders and the controller's interrupt points |
 | `strategic/economy/vehicle-assignment.ts` | Boarding a vehicle and who must drive it |
 | `src/server/quest-view.ts` | The quest log of the player view |
@@ -94,7 +95,11 @@ original's globals; the vehicle sits in the vehicle list and flies its group's p
 `heliCancel` replace plotting and confirming on the map (deviation "Helicopter interface"); destruction happens at once
 rather than at the end of the crash sound, and the monologues are checked once per strategic step rather than at each
 map redraw (deviations "Helicopter destruction", "Skyrider monologues"); passengers cannot leave in flight (deviation
-"Leaving the helicopter in flight"). As in the original there is no fuel.
+"Leaving the helicopter in flight"). As in the original there is no fuel. On the ground at the loaded refuel site (at
+Drassen until Skyrider is met) it stands on the map: `handleHelicopterOnGround` asks the campaign (`helicopterOnMap`)
+to append its six pieces to the structure layer, with their structures, and to bump the soldiers around them, at a
+sector load, a landing and a takeoff. The pieces are no map changes: the sector's temp state never holds them, the next
+load adds them again, and the view sends them as `append` tile changes after the map changes (`29` §7).
 
 **Quest action items.** Our soldiers stepping on a tile set off its armed pressure action items and switches, a switch
 the remote action items on its frequency; the queue runs at the next overhead pass with sight disallowed and keeps the
@@ -134,6 +139,8 @@ says otherwise:
 | The museum alarm calls Eldin while sight is off, so he never sees the spot and always runs to it | `src/sim/tactical/narrative/quest-items.test.ts` |
 | A crash that kills everyone aboard stops at the first passenger already dead; those seated behind him survive | `src/sim/strategic/forces/vehicles.test.ts` |
 | Skyrider's profile follows his helicopter only while a refuel site is the loaded sector, and leaving it clears x and y but not z; a landing there brings him back only at the next load | `src/sim/strategic/forces/helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
+| A landing or takeoff at the loaded refuel site changes the helicopter's structures but not the movement costs: the path over its tiles stays open after a landing and blocked after a takeoff until the next sector load | `src/sim/tactical/landed-helicopter.test.ts`, `src/server/sector-kinds-stub.test.ts` |
+| Adding the helicopter bumps every soldier of the ten-tile square around the landing site off his own tile, under the helicopter or not, the square ending a tile short south and east; one bumped onto a tile the sweep has still to visit is bumped again | `src/sim/tactical/landed-helicopter.test.ts` |
 
 Not pinned yet:
 - `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` reads the town of the sector above when underground, and `WALKER_AT_BAR` ignores
@@ -155,6 +162,11 @@ Inferred from reading the source:
   a killer.
 - That checking Skyrider's monologues once per strategic step matches the map panel's redraws.
 - Skyrider's and the vehicles' profile sectors: the helicopter probe's dump records neither, though its saves load B13.
+- The helicopter on the map: no probe dumps the structures or the soldiers' tiles after a load of the airport with the
+  helicopter on the ground; the stub helicopter (`stubs/helicopter.ts`) has its own shapes, so stub tests pin the pieces'
+  order and the bump, the original's structure data only through a native save made at the airport
+  (`src/server/save-session.test.ts`).
 
 Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Map items", "Ground vehicles",
-"Helicopter on the map", "Helicopter entrance", "Creature quest scripting", "Vehicles as characters".
+"Helicopter entrance", "Creature quest scripting", "Vehicles as characters". Deviation of this domain: "Helicopter on
+load".

@@ -1,15 +1,16 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { writeTilesetDatabase } from '../src/content/formats/ja2set.ts';
+import { type TilesetEntry, writeTilesetDatabase } from '../src/content/formats/ja2set.ts';
 import { Orientation, type StructureDef, writeStructureFile } from '../src/content/formats/jsd.ts';
 import { writeMap } from '../src/content/formats/map.ts';
 import { parseStubMapSource, stubMapToMapDef } from '../src/content/formats/stub-map.ts';
 import { STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
 import { StructureFlags } from '../src/content/world/structures.ts';
 import { syntheticStructure } from '../src/content/world/synthetic.ts';
-import { parseTileTables, typeIndex } from '../src/content/world/tile-tables.ts';
+import { parseTileTables, type TileTables, typeIndex } from '../src/content/world/tile-tables.ts';
 import { Rng } from '../src/core/rng.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
+import { STUB_HELICOPTER_SURFACE } from './helicopter.ts';
 import { color, type RampName } from './palette.ts';
 import { IndexedRaster } from './raster.ts';
 import { loadSectorKinds, sectorKindAliases } from './sector-kinds.ts';
@@ -18,6 +19,7 @@ import { STUB_TILE_SURFACES, type StubSurface } from './tiles.ts';
 
 export const STUB_WORLD_DIR = 'world';
 const STUB_TILESET_ID = 0;
+const STUB_AIRSTRIP_TILESET_ID = 17;
 const STUB_WALL_HEIGHT = 50;
 const MAPS_SOURCE_DIR = join(import.meta.dirname, 'maps');
 
@@ -85,6 +87,8 @@ const DOOR_STRUCTURES = numbered([
   { ...syntheticStructure(OPEN_DOOR, Orientation.OUTSIDE_RIGHT), partnerDelta: -1 },
 ]);
 
+const BARREL_SPRITE = { path: 'barrel', frames: [barrel()] };
+
 const SURFACES: readonly StubSurface[] = [
   { type: 'FIRSTTEXTURE', sprite: { path: 'grass', frames: [groundTile('green', 7, 1), groundTile('green', 6, 2)] } },
   { type: 'SECONDTEXTURE', sprite: { path: 'dirt', frames: [groundTile('brown', 8, 3), groundTile('brown', 7, 4)] } },
@@ -93,7 +97,7 @@ const SURFACES: readonly StubSurface[] = [
   { type: 'FIRSTFLOOR', sprite: { path: 'floor', frames: [groundTile('khaki', 9, 7)] } },
   { type: 'FIRSTWALL', sprite: { path: 'wall', frames: [wall('left'), wall('right')] }, structures: WALL_STRUCTURES },
   { type: 'FIRSTROOF', sprite: { path: 'roof', frames: [groundTile('red', 6, 8)] } },
-  { type: 'FIRSTOSTRUCT', sprite: { path: 'barrel', frames: [barrel()] }, structures: BARREL_STRUCTURES },
+  { type: 'FIRSTOSTRUCT', sprite: BARREL_SPRITE, structures: BARREL_STRUCTURES },
   {
     type: 'FIRSTDOOR',
     sprite: { path: 'door', frames: [door('left', false), door('left', true), door('right', false), door('right', true)] },
@@ -102,16 +106,30 @@ const SURFACES: readonly StubSurface[] = [
   ...STUB_TILE_SURFACES,
 ];
 
+const AIRSTRIP_SURFACES: readonly StubSurface[] = [
+  STUB_HELICOPTER_SURFACE,
+  { type: 'THIRDOSTRUCT', sprite: BARREL_SPRITE, structures: BARREL_STRUCTURES },
+];
+
+interface StubTileset {
+  readonly id: number;
+  readonly name: string;
+  readonly surfaces: readonly StubSurface[];
+}
+
+export const STUB_TILESETS: readonly StubTileset[] = [
+  { id: STUB_TILESET_ID, name: 'STUB WORLD', surfaces: SURFACES },
+  { id: STUB_AIRSTRIP_TILESET_ID, name: 'STUB AIRSTRIP', surfaces: AIRSTRIP_SURFACES },
+];
+
 export interface StubWorldWriter {
   writeSprite(dir: string, sprite: StubSprite): Promise<string>;
 }
 
-export async function buildStubWorld(outDir: string, writer: StubWorldWriter, aliases: Map<string, string>): Promise<string[]> {
-  const root = join(outDir, STUB_WORLD_DIR);
-  const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
+async function writeStubTileset(root: string, writer: StubWorldWriter, tables: TileTables, tileset: StubTileset): Promise<TilesetEntry> {
   const surfaceFiles = tables.types.map(() => '');
-  const tilesetDir = join(root, 'tilesets', String(STUB_TILESET_ID));
-  for (const s of SURFACES) {
+  const tilesetDir = join(root, 'tilesets', String(tileset.id));
+  for (const s of tileset.surfaces) {
     await writer.writeSprite(tilesetDir, s.sprite);
     surfaceFiles[typeIndex(tables, s.type)] = `${s.sprite.path}${STUB_SPRITE_SUFFIX}`;
     if (s.structures || s.auxData) {
@@ -123,9 +141,17 @@ export async function buildStubWorld(outDir: string, writer: StubWorldWriter, al
       await writeFile(join(tilesetDir, `${s.sprite.path}.jsd`), jsd);
     }
   }
+  return { id: tileset.id, name: tileset.name, ambientId: 0, surfaceFiles };
+}
+
+export async function buildStubWorld(outDir: string, writer: StubWorldWriter, aliases: Map<string, string>): Promise<string[]> {
+  const root = join(outDir, STUB_WORLD_DIR);
+  const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
+  const entries: TilesetEntry[] = [];
+  for (const tileset of STUB_TILESETS) entries[tileset.id] = await writeStubTileset(root, writer, tables, tileset);
   const db = writeTilesetDatabase({
     tileTypeCount: tables.types.length,
-    tilesets: [{ id: STUB_TILESET_ID, name: 'STUB WORLD', ambientId: 0, surfaceFiles }],
+    tilesets: Array.from(entries, (entry, id) => entry ?? { id, name: '', ambientId: 0, surfaceFiles: [] }),
   });
   const dbPath = join(root, 'binarydata', 'ja2set.dat');
   await mkdir(dirname(dbPath), { recursive: true });

@@ -1161,3 +1161,46 @@ describe('snapshot version 29 (no pending robot reload) migrates with nobody on 
     await expectNoPendingReload(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+const LANDED_HELICOPTER_KEY = 'landedHelicopter';
+
+function versionThirty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const { [LANDED_HELICOPTER_KEY]: landed, ...rest } = object(value);
+    expect(landed).toBeNull();
+    return [name, rest];
+  });
+  return { ...snapshot, version: 30, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 30 (no landed helicopter) migrates with no helicopter on the map', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoLandedHelicopter(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirty(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${LANDED_HELICOPTER_KEY}"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${LANDED_HELICOPTER_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    await expectNoLandedHelicopter(await createSandboxSession(kit.read, false, 5));
+  });
+
+  it('a landed campaign', async () => {
+    await expectNoLandedHelicopter(await createCampaignSession(kit.read, exists, 9));
+  });
+});

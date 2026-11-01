@@ -25,6 +25,7 @@ import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
 import type { SoldierInitNode } from './init-list.ts';
+import type { LandedHelicopter } from './landed-helicopter.ts';
 import { createLightingState, type LightingState, NO_TIME_OF_DAY_LIGHT, type TimeOfDayLight } from './lighting/lighting.ts';
 import type { AddedExitGrid, MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
@@ -284,6 +285,7 @@ export interface TacticalState {
   initList: SoldierInitNode[];
   readonly mapChanges: MapChange[];
   readonly addedExitGrids: AddedExitGrid[];
+  landedHelicopter: LandedHelicopter | null;
   mercsWaiting: MercsWaiting | null;
   ignoreAllObstacles: boolean;
   sectorHooks: SectorHooks;
@@ -466,6 +468,7 @@ export function createTacticalState(
     initList: [],
     mapChanges: [],
     addedExitGrids: [],
+    landedHelicopter: null,
     mercsWaiting: null,
     ignoreAllObstacles: false,
     sectorHooks: NO_SECTOR_HOOKS,

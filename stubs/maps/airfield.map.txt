@@ -1,13 +1,13 @@
 ja2-node.map/1
 name: Stub airfield (an airstrip with a helipad, a hangar and a shed; the airport and the helicopter pilot's farm)
-tileset: 0
+tileset: 17
 origin: 30 44
 fill: land FIRSTTEXTURE 1
 legend '.': land FIRSTTEXTURE 1
 legend ':': land FIRSTTEXTURE 2
 legend ',': land SECONDTEXTURE 1
 legend '=': land THIRDTEXTURE 1
-legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+legend 'b': land SECONDTEXTURE 2; structs THIRDOSTRUCT 1
 legend 'F': land FIRSTTEXTURE 1; structs FENCESTRUCT 1
 legend '_': land FIRSTFLOOR 1; roofs SECONDROOF 1; room 1
 legend 'B': land FIRSTFLOOR 1; structs SECONDWALL 1; roofs SECONDROOF 1; room 1

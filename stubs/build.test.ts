@@ -35,6 +35,7 @@ import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs, STUB_LICENSE_FILE, STUB_NOTICE_FILE } from './build.ts';
 import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
+import { STUB_HELICOPTER_SURFACE } from './helicopter.ts';
 import { musicTracks } from './music.ts';
 import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
@@ -72,6 +73,8 @@ const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'i
 const SPLASH_BUDGET_BYTES = 64 * 1024;
 const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
 const STUB_PROFILE_FILE = 'profiles.json';
+const AIRSTRIP_TILESET_ID = 17;
+const HELICOPTER_PIECES = 6;
 const TEXT_FILES = [
   'binarydata/itemdesc.edt',
   'binarydata/credits.edt',
@@ -444,10 +447,26 @@ describe('stub media', () => {
     }
   });
 
+  it('puts the stub helicopter in the airstrip tileset, where the Drassen refuel site looks for it, and the barrels beside it', async () => {
+    const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
+    const db = parseTilesetDatabase(await data.vfs.read(stub('world/binarydata/ja2set.dat')));
+    const airstrip = db.tilesets[AIRSTRIP_TILESET_ID];
+    const file = (type: string) => airstrip?.surfaceFiles[tables.types.findIndex((t) => t.name === type)];
+    expect(file('FIRSTOSTRUCT')).toBe(`${STUB_HELICOPTER_SURFACE.sprite.path}${STUB_SPRITE_SUFFIX}`);
+    expect(STUB_HELICOPTER_SURFACE.sprite.frames).toHaveLength(HELICOPTER_PIECES);
+    expect(file('THIRDOSTRUCT')).toBe(`barrel${STUB_SPRITE_SUFFIX}`);
+    const jsd = parseStructureFile(await data.vfs.read(stub(`world/tilesets/${AIRSTRIP_TILESET_ID}/helicopter.jsd`)));
+    expect(jsd.structures.map((d) => d?.number ?? null)).toEqual([0, null, 2, null, null, null]);
+    const airfield = parseMap(await data.vfs.read(stub('world/maps/airfield.dat')));
+    expect(airfield.tilesetId).toBe(AIRSTRIP_TILESET_ID);
+  });
+
   it('decodes every stub map and reads every sector of the kind table through the alias manifest', async () => {
     const kinds = await loadSectorKinds();
     const aliases = parseVfsAliases(JSON.parse(await readFile(join(dir, VFS_ALIASES_FILE), 'utf8')));
-    for (const f of await filesUnder(dir, 'world/maps')) expect(parseMap(await data.vfs.read(stub(f))).tilesetId, f).toBe(0);
+    const tilesets = parseTilesetDatabase(await data.vfs.read(stub('world/binarydata/ja2set.dat'))).tilesets;
+    for (const f of await filesUnder(dir, 'world/maps'))
+      expect(tilesets[parseMap(await data.vfs.read(stub(f))).tilesetId]?.name, f).toMatch(/^STUB /);
     for (const kind of kinds.kinds) {
       for (const name of kind.sectors) {
         const path = `world/maps/${sectorMapFile(name)}`;

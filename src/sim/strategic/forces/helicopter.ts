@@ -5,7 +5,7 @@
 // @src TakeOffHelicopter, StartHoverTime, HandleHeliHoverLong, HandleHeliHoverTooLong, DoesSkyriderNoticeEnemiesInSector,
 // @src SetUpHelicopterForMovement, IsRefuelSiteInSector, IsRefuelAvailableInSector, UpdateRefuelSiteAvailability,
 // @src SetUpHelicopterForPlayer, MoveAllInHelicopterToFootMovementGroup, the monologue handlers, CheckAndHandleSkyriderMonologues,
-// @src HandleHelicopterOnGround (Skyrider's profile), IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
+// @src HandleHelicopterOnGround, IsHelicopterOnGroundAtRefuelingSite, HandleSAMSiteAttackOfHelicopterInSector,
 // @src CanHelicopterTakeOff, IsSkyriderFlyingInSector, PaySkyriderBill, PayOffSkyriderDebtIfAny, MakeHeliReturnToBase,
 // @src SoldierAboardAirborneHeli; Map_Screen_Helicopter.h quote ids and costs; MapScreen.cc RequestGiveSkyriderNewDestination,
 // @src ExplainWhySkyriderCantFly, PlayerMercsInHelicopterSector, HandleNewDestConfirmation and CheckIfClickOnLastSectorInPath
@@ -279,13 +279,17 @@ function isHelicopterOnGroundAtRefuelingSite(ctx: StrategicContext, site: number
   return v !== null && refuel !== undefined && strategicIndex(v.sector) === strategicIndex(refuel.sector);
 }
 
-export function handleHelicopterOnGround(ctx: StrategicContext): void {
+export function handleHelicopterOnGround(ctx: StrategicContext, handleGraphicToo: boolean): void {
   const world = ctx.state.worldSector;
   if (world?.z !== 0) return;
   const site = REFUEL_SITES.findIndex((r) => strategicIndex(r.sector) === strategicIndex(world));
-  if (site < 0 || ctx.state.forces.helicopterVehicleId === NO_HELICOPTER_ID) return;
+  const refuel = REFUEL_SITES[site];
+  if (!refuel) return;
+  const onGround = isHelicopterOnGroundAtRefuelingSite(ctx, site);
+  if (handleGraphicToo) ctx.helicopter.helicopterOnMap(refuel, onGround);
+  if (ctx.state.forces.helicopterVehicleId === NO_HELICOPTER_ID) return;
   const skyrider = ctx.state.profiles.get(SKYRIDER);
-  if (isHelicopterOnGroundAtRefuelingSite(ctx, site)) {
+  if (onGround) {
     if (skyrider) setProfileSector(skyrider, world);
     return;
   }
@@ -301,7 +305,7 @@ function takeProfileOffTheMap(p: ProfileProgress): void {
 export function takeOffHelicopter(ctx: StrategicContext): void {
   ctx.state.forces.helicopterAirborne = true;
   heliState(ctx).hovering = false;
-  handleHelicopterOnGround(ctx);
+  handleHelicopterOnGround(ctx, true);
   const v = helicopterVehicle(ctx);
   if (v) ctx.helicopter.emit({ type: 'heliTakeOff', sector: name(v.sector) });
 }
@@ -456,7 +460,7 @@ function landHelicopter(ctx: StrategicContext): void {
   ctx.state.forces.helicopterAirborne = false;
   heli.hovering = false;
   heli.returningToBase = false;
-  handleHelicopterOnGround(ctx);
+  handleHelicopterOnGround(ctx, true);
   const v = helicopterVehicle(ctx);
   if (v) ctx.helicopter.emit({ type: 'heliLanded', sector: name(v.sector) });
   if (!canHelicopterFly(ctx)) moveAllInHelicopterToFootMovementGroup(ctx);

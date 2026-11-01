@@ -70,7 +70,7 @@ Everything else must be own work, so that the dedication can cover it.
 | Area | Source | What it covers |
 |---|---|---|
 | Sector maps | `stubs/maps/*.map.txt`, compiled by `stubs/world.ts` | hand-made A9, A10, A10_b1, D5, N7, P3, P3_b1; `village` (the sandbox map, `STUB_SANDBOX_MAP`); `wilderness` for every sector without another map; five kind maps behind the sectors of `stubs/maps/sector-kinds.json` (§1.6) |
-| Tileset and structures | `stubs/world.ts`, `stubs/tiles.ts`, `stubs/effects.ts`; person and corpse structure files from `src/content/anim/` | tileset 0 with the tile types of §1.6 |
+| Tileset and structures | `stubs/world.ts`, `stubs/tiles.ts`, `stubs/effects.ts`, `stubs/helicopter.ts`; person and corpse structure files from `src/content/anim/` | tileset 0 with the tile types of §1.6; tileset 17 (the airstrip) with the helicopter |
 | Soldiers | `stubs/soldiers.ts`, `stubs/anim-scripts.ts` | stand, walk, run, crouch and prone sheets for every animation surface; an invented script for every animation state; palettes |
 | Characters and text | `stubs/profiles.json` (defaults in `src/content/formats/stub-profiles.ts`), `stubs/npc/`, `stubs/text/`, built by `stubs/npc.ts` and `stubs/text.ts` | the profiles of §1.6, their NPC records and EDTs, merc quotes, the item descriptions the stub campaign and tests use, credits, mails, help and laptop texts |
 | Locks | `stubs/locks.json` | |
@@ -123,7 +123,10 @@ barrels, doors, wooden and wire fences, low and high sandbags, a cliff with its 
 `y` row, right walls the far `x` column, read from the tileset 0 wall and door structure files), so the stone walls,
 windows and fences block sight and fire along one edge of their tile. `FIRSTWALL` (A9, the village houses, the bench
 arena) keeps full tiles, on which the arena's sealed bunker relies. A tile yard east of the village exercises each
-family (`src/sim/tactical/stub-tiles.test.ts`).
+family (`src/sim/tactical/stub-tiles.test.ts`). The airfield map uses tileset 17, the airstrip's id, whose only own
+types are the helicopter in `FIRSTOSTRUCT`, where the Drassen refuel site looks for its six pieces (`25`), and the
+airfield's barrels in `THIRDOSTRUCT`; every other type falls back to tileset 0. The stub town map does not reach the
+Estoni landing site, so the helicopter stands only at the stub airport.
 
 **Fonts.** `stubs/fonts.ts` builds two bitmap fonts from a subset of Terminus Font 4.49.1 (SIL OFL 1.1), renamed Stub
 Pixel 12 and Stub Pixel 16 Bold because of the licence's Reserved Font Name. The subset (`stubs/font/*.txt`) sits next

@@ -266,8 +266,10 @@ original shows them. Our soldiers carry what the original's panels and face read
 hatched face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). A soldier the
 squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits are told,
 as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke, light,
-structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Animation schedules,
-palettes and light sprites serve the renderer and the devtools.
+structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
+(`tileChanges`) are the map changes since the load (`remove`, and `add` at the head of the tile's structure layer),
+then the pieces of a helicopter standing in the sector (`append`, at its tail; `25`). Animation schedules, palettes
+and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured

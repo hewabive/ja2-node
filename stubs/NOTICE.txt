@@ -28,7 +28,7 @@ Not covered
     stubs/maps/sector-kinds.json                     which of the game's sectors load which stub map
     aliases.json                                     the game's file paths the pack's files stand in for
     binarydata/ja2bin.dat                            the animation scripts in the engine's state slots
-    world/binarydata/ja2set.dat                      the stub tileset's files in the engine's tile slots
+    world/binarydata/ja2set.dat                      the stub tilesets' files in the engine's tileset and tile slots
     translation_tables/translation-table-stub.json   the glyph numbers of the English glyph table
     interface/b_map.pcx                              the map board, coloured by the game's traversability
 

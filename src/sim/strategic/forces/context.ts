@@ -36,6 +36,7 @@ export function standaloneHelicopterPort(state: StrategicState): HelicopterPort 
     cosmeticChoice: () => 0,
     killInVehicle: () => true,
     scheduleKillChopperMeanwhile: () => {},
+    helicopterOnMap: () => {},
     removeSkyriderSoldier: () => {},
     emit: () => {},
   };

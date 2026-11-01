@@ -4,6 +4,7 @@ import type { StrategicState } from '../state.ts';
 import type { ClockContext } from '../time/world-clock.ts';
 import type { Group } from './groups.ts';
 import type { HelicopterEventWithoutTick } from './helicopter-events.ts';
+import type { RefuelSite } from './helicopter-state.ts';
 
 export interface RollSource {
   int(n: number): number;
@@ -69,6 +70,7 @@ export interface HelicopterPort {
   cosmeticChoice(n: number): number;
   killInVehicle(id: number): boolean;
   scheduleKillChopperMeanwhile(): void;
+  helicopterOnMap(site: RefuelSite, landed: boolean): void;
   removeSkyriderSoldier(): void;
   emit(event: HelicopterEventWithoutTick): void;
 }

@@ -460,7 +460,7 @@ describe('the profiles of Skyrider and the helicopter', () => {
     placeProfile(w, SKYRIDER, FARM);
     setUpHelicopterForPlayer(w.ctx, S('I6'));
     w.ctx.state.worldSector = S('I6');
-    handleHelicopterOnGround(w.ctx);
+    handleHelicopterOnGround(w.ctx, true);
     expect(profileSectorOf(w, SKYRIDER)).toEqual([6, 9, 0]);
     expect(w.skyriderRemovals).toBe(0);
   });
@@ -491,11 +491,11 @@ describe('the profiles of Skyrider and the helicopter', () => {
     const w = heliWorld({ money: 1000 });
     placeProfile(w, SKYRIDER, FARM);
     w.ctx.state.worldSector = S('B13');
-    handleHelicopterOnGround(w.ctx);
+    handleHelicopterOnGround(w.ctx, true);
     expect(profileSectorOf(w, SKYRIDER)).toEqual([15, 2, 0]);
     setUpHelicopterForPlayer(w.ctx, S('B13'));
     w.ctx.state.worldSector = { x: 13, y: 2, z: 1 };
-    handleHelicopterOnGround(w.ctx);
+    handleHelicopterOnGround(w.ctx, true);
     w.ctx.state.worldSector = S('A9');
     fly(w, 'B12');
     expect(profileSectorOf(w, SKYRIDER)).toEqual([15, 2, 0]);
