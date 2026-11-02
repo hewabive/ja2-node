@@ -148,6 +148,8 @@ const SELECT_LIGHT_X = 105;
 const SELECT_LIGHT_UP_Y = 7;
 const SELECT_LIGHT_HELD_Y = 8;
 const SELECT_LIGHT_SIZE = 8;
+const SMALL_TALK_WAIT_MS = 6000;
+const SUBTITLE_BORDER = 'interface/tactpopup.sti';
 
 async function until(h: LaptopHarness, done: () => boolean): Promise<void> {
   for (let elapsed = 0; elapsed < CONFERENCE_TIMEOUT_MS && !done(); elapsed += FRAME_MS) await wait(h, FRAME_MS);
@@ -235,6 +237,18 @@ describe('A.I.M. on the canvas laptop', () => {
     await until(h, conferenceClosed);
     await settle(t, 12);
     expect(t.runtime.host.modal).toBeNull();
+  });
+
+  it('has a merc kept waiting make small talk with its text after six silent seconds', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    const { t } = h;
+    await callMercAtHome(h);
+    const faceUp = t.now;
+    const subtitled = () => t.list.items.some((i) => i.kind === 'image' && i.asset === SUBTITLE_BORDER);
+    expect(subtitled()).toBe(false);
+    await until(h, () => find(t, 'shutUp')?.visible === true);
+    expect(t.now - faceUp).toBeGreaterThan(SMALL_TALK_WAIT_MS);
+    expect(subtitled()).toBe(true);
   });
 
   it("blinks the merc's face in the video conference", async () => {

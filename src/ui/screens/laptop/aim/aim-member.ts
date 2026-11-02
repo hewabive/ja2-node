@@ -105,6 +105,7 @@ export const AIM_MEMBER_CONTRACT: ControllerContract = {
     faceHover: { args: 1 },
     hire: {},
     hangUp: {},
+    endCall: {},
     contract: { args: 1 },
     equipment: { args: 1 },
     transfer: {},
@@ -235,7 +236,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
         const merc = current();
         videoFace = merc ? new VideoFace(videoFaceRecord(context.data.profile(merc.profile), merc.profile), now, facePorts) : null;
       },
-      say: (quote, now) => {
+      say: (quote, now, started) => {
         const merc = current();
         if (!merc || !videoFace) return;
         const voice = threeDigits(merc.profile);
@@ -249,6 +250,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
               subtitle = subtitles ? `"${text}"` : null;
               speaker = merc.profile;
               memory.speechDuration = textTimeAfterQuote(memory.speechDuration, text, subtitles || !speech);
+              started();
             },
           },
           now,
@@ -458,6 +460,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     },
     hire: () => conference.hire(),
     hangUp: () => conference.hangUp(),
+    endCall: () => conference.endCall(),
     contract: ([i]) => conference.setContract(i ?? ContractLength.ONE_WEEK),
     equipment: ([i]) => conference.setEquipment(i === 1),
     transfer: () => conference.transferFunds(),
@@ -552,7 +555,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   };
 
   const drawSubtitle = (list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView): void => {
-    if (!subtitle || !conference.talking || speaker !== current()?.profile) return;
+    if (!subtitle || !conference.subtitled || speaker !== current()?.profile) return;
     const style = typeof params.style === 'string' ? params.style : '';
     const box = new MercTextBox(
       textBoxArt(view.model, view.model.style(style)),

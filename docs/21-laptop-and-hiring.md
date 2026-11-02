@@ -69,8 +69,9 @@ runs: the state-based part of `AllowedToExitFromMapscreenTo`.
 
 **What the original runs on UI timers runs at a command.** Speck's opening and its draws run at a laptop session's first
 `visitSite merc`, or at its first M.E.R.C. command without a visit (deviation "Speck's opening"); the florist's
-order-number draw runs at `visitSite floristOrderForm` (deviation "Florist order form entry"). A.I.M. annoyance runs on
-the wall clock and is not simulated; its statuses and reset event stay for imports (deviation "A.I.M. annoyance").
+order-number draw runs at `visitSite floristOrderForm` (deviation "Florist order form entry"). A.I.M. impatience runs on
+the wall clock: the client plays the quotes and the hang-up, and the annoyance the hang-up raises is not simulated; its
+statuses and reset event stay for imports (deviation "A.I.M. annoyance").
 Cosmetic draws the original takes from the gameplay stream are not drawn (deviation "Cosmetic laptop draws").
 
 **Sites open through mail.** Opening `IMP_EMAIL_INTRO` or `IMP_EMAIL_AGAIN` bookmarks I.M.P., opening `MERC_INTRO` or

@@ -1,26 +1,31 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/AIMMembers.cc AIMVideoMode, HandleAIMMembers (the hang-up after the merc stops talking, the mode
-// @src change that rebuilds the buttons), InitDeleteVideoConferencePopUp (INIT resets one week and the kit when it costs
-// @src something; FIRST_CONTACT, HIRE, ANSWERING_MACHINE, UNAVAILABLE buttons), HandleCurrentVideoConfMode (the title bar
-// @src up, ten black steps then two passes of the six snow frames at VC_CONTACT_STATIC_TIME, WillMercAcceptCall, the
-// @src answering machine message, the title bar down and the "just hired" box), DisplayMovingTitleBar (Interpolate over
-// @src AIM_MEMBER_VIDEO_TITLE_ITERATIONS, done one step before the last going up and at 0 going down), DisplaySnowBackground
-// @src (it clears gfFirstTimeInContactScreen at its end, so the greeting at the end of a snow in FIRST_CONTACT never plays
-// @src after the connection snow of INIT), DisplayBlackBackground, BtnFirstContactButtonCallback, CanMercBeHired (asked from
-// @src the server), BtnContractLengthButtonCallback, BtnBuyEquipmentButtonCallback, BtnAuthorizeButtonCallback (both of its
-// @src buttons stop the merc talking),
+// @src change that rebuilds the buttons, the redraw that keeps a quote's text up only while the merc talks),
+// @src InitDeleteVideoConferencePopUp (INIT resets one week, the kit when it costs something and the attitude; FIRST_CONTACT,
+// @src HIRE, ANSWERING_MACHINE with no attitude, UNAVAILABLE busy; every mode change restarts the attitude time),
+// @src HandleCurrentVideoConfMode (the title bar up, ten black steps then two passes of the six snow frames at
+// @src VC_CONTACT_STATIC_TIME, WillMercAcceptCall, the answering machine message, the title bar down and the "just hired"
+// @src box), DisplayMovingTitleBar (Interpolate over AIM_MEMBER_VIDEO_TITLE_ITERATIONS, done one step before the last going
+// @src up and at 0 going down), DisplaySnowBackground (it clears gfFirstTimeInContactScreen at its end, so the greeting at
+// @src the end of a snow in FIRST_CONTACT never plays after the connection snow of INIT), DisplayBlackBackground,
+// @src BtnFirstContactButtonCallback, CanMercBeHired (asked from the server; a hang-up due goes before the mode change),
+// @src BtnContractLengthButtonCallback and BtnBuyEquipmentButtonCallback (both restart the attitude time),
+// @src BtnAuthorizeButtonCallback (both of its buttons stop the merc talking and end his attitude for the call),
 // @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback (the message-recorded box carries the success data, so
 // @src it too waits for the merc to stop and hangs up), DeleteAimPopUpBox (the machine's Hang Up enabled again),
-// @src BtnAnsweringMachineButtonCallback,
-// @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech (a
-// @src hang-up asked for while a quote waits drops the quote, as the mode change resets it),
-// @src InitVideoFace (at the first contact after the connection, the answering machine and the unavailable merc),
-// @src InitVideoFaceTalking, DisplayTalkingMercFaceForVideoPopUp (the face frozen on the answering machine; the merc talks
-// @src as long as his face does, and his quote ends once the face has stopped and the text time has passed),
-// @src DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms),
-// @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion
-// @src while the face is up and no answering machine shows (aim-distortion.ts). The impatience quotes are not reproduced.
+// @src BtnAnsweringMachineButtonCallback, BtnHangUpButtonCallback and BtnXToCloseVideoConfButtonCallback (the merc talks on
+// @src under the title bar until the conference closes; only the first contact's Hang Up stops him),
+// @src WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech (a hang-up asked for while a quote waits drops the quote, as
+// @src the mode change resets it), InitVideoFace (at the first contact after the connection, the answering machine and the
+// @src unavailable merc), InitVideoFaceTalking, DisplayTalkingMercFaceForVideoPopUp (the face frozen on the answering
+// @src machine; the merc talks as long as his face does, and his quote ends once the face has stopped and the text time has
+// @src passed; the attitude time restarts while he talks and as his quote ends), DisplayTextForMercFaceVideoPopUp (the text
+// @src in quotes, max(1500, 80 x characters) ms), SelectShutUpMercRegionCallBack, StopMercTalking, HandleMercAttitude (the
+// @src two very impatient quotes queued at once; its EnableDisableCurrentVideoConferenceButtons(FALSE) before the hang-up
+// @src comment does nothing, as the hire buttons are never disabled then; the annoyance it raises is not simulated),
+// @src DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion while the face is up and no answering machine
+// @src shows (aim-distortion.ts).
 
 import { idiv } from '../../../../core/int.ts';
 import { type DistortionClocks, distortionClocks, VideoDistortion } from './aim-distortion.ts';
@@ -40,10 +45,24 @@ export const ContractLength = { ONE_DAY: 0, ONE_WEEK: 1, TWO_WEEKS: 2 } as const
 export const CONTRACT_DAYS: readonly number[] = [1, 7, 14];
 
 export const ConferenceQuote = {
+  LAME_REFUSAL: 82,
   ANSWERING_MACHINE_MSG: 84,
   CONTRACT_ACCEPTANCE: 91,
+  PRECEDENT_TO_REPEATING_ONESELF: 96,
   REFUSAL_TO_JOIN_LACK_OF_FUNDS: 97,
+  SMALL_TALK: 109,
+  IMPATIENT_QUOTE: 110,
   LENGTH_OF_CONTRACT: 111,
+  COMMENT_BEFORE_HANG_UP: 112,
+} as const;
+
+const Attitude = {
+  SMALL_TALK: 1,
+  IMPATIENT_TALK: 2,
+  VERY_IMPATIENT_TALK: 3,
+  HANG_UP_TALK: 4,
+  NO_ACTION: 5,
+  MERC_BUSY: 6,
 } as const;
 
 export const TITLE_ITERATIONS = 18;
@@ -53,6 +72,8 @@ export const SNOW_FRAMES = 6;
 export const SPEECH_DELAY = 750;
 export const MINIMUM_TALKING_TIME = 1500;
 export const TEXT_SPEECH_MODIFIER = 80;
+export const FIRST_ATTITUDE_TIME = 3000;
+export const ATTITUDE_TIME = 10000;
 
 export type PopupKind = 'success' | 'failure' | 'message';
 
@@ -69,7 +90,7 @@ export interface ConferencePorts {
   hire(contract: number, gear: boolean): Promise<'hired' | 'funds' | 'teamFull' | 'refused'>;
   leaveMessage(): void;
   initFace(now: number): void;
-  say(quote: number, now: number): void;
+  say(quote: number, now: number, started: () => void): void;
   faceTalking(now: number, frozen: boolean): boolean;
   speechDuration(): number;
   stopTalking(): void;
@@ -127,6 +148,10 @@ export class Conference {
   #mercTalking = false;
   #talkStartedAt = 0;
   #wasTalking = false;
+  #attitude = 0;
+  #attitudeAt = 0;
+  #redraw = false;
+  #textUp = false;
   #now = 0;
 
   constructor(ports: ConferencePorts, stepMs: number, clocks: DistortionClocks = distortionClocks()) {
@@ -151,6 +176,10 @@ export class Conference {
     return this.#mercTalking;
   }
 
+  get subtitled(): boolean {
+    return this.#textUp;
+  }
+
   open(now: number): void {
     if (this.mode !== VideoMode.NOT_DISPLAYED) return;
     this.#now = now;
@@ -168,6 +197,7 @@ export class Conference {
     this.face = 'none';
     this.distortion.clear();
     this.#waitingForMercToStop = false;
+    this.#textUp = false;
   }
 
   #setMode(mode: number): void {
@@ -179,7 +209,9 @@ export class Conference {
   }
 
   #say(quote: number): void {
-    this.#ports.say(quote, this.#now);
+    this.#ports.say(quote, this.#now, () => {
+      this.#redraw = true;
+    });
     this.talk = { quote };
     this.#mercTalking = true;
     this.#talkStartedAt = this.#now;
@@ -210,6 +242,7 @@ export class Conference {
         this.titleStep = 1;
         break;
       case VideoMode.INIT:
+        this.#attitude = 0;
         this.contractLength = ContractLength.ONE_WEEK;
         this.buyEquipment = this.#ports.hasKit();
         this.#mercTalking = false;
@@ -234,9 +267,11 @@ export class Conference {
         this.face = 'face';
         this.leaveMessageDisabled = false;
         this.machineHangUpDisabled = false;
+        this.#attitude = Attitude.NO_ACTION;
         this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
         break;
       case VideoMode.UNAVAILABLE:
+        this.#attitude = Attitude.MERC_BUSY;
         this.#initFace();
         this.face = 'face';
         break;
@@ -246,6 +281,8 @@ export class Conference {
         break;
     }
     this.previousMode = this.mode;
+    this.#redraw = true;
+    this.#attitudeAt = this.#now;
   }
 
   #waitForMercToFinishTalking(): void {
@@ -264,7 +301,7 @@ export class Conference {
       if (this.mode !== VideoMode.FIRST_CONTACT) return;
       if (answer.accepted) {
         if (answer.quote !== null) this.#say(answer.quote);
-        this.#setMode(VideoMode.HIRE);
+        if (!this.#hangUpWhenSilent()) this.#setMode(VideoMode.HIRE);
         return;
       }
       this.#waitForMercToFinishTalking();
@@ -272,25 +309,37 @@ export class Conference {
     });
   }
 
+  get #callEndable(): boolean {
+    if (this.mode === VideoMode.NOT_DISPLAYED || this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) return false;
+    return this.popup === null;
+  }
+
   hangUp(): void {
-    if (this.mode === VideoMode.NOT_DISPLAYED || this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) return;
-    if (this.popup) return;
+    if (!this.#callEndable) return;
     this.stopTalking();
     this.#setMode(VideoMode.POPDOWN);
   }
 
+  endCall(): void {
+    if (this.#callEndable) this.#setMode(VideoMode.POPDOWN);
+  }
+
   setContract(length: number): void {
-    if (this.mode === VideoMode.HIRE && !this.hireButtonsDisabled) this.contractLength = length;
+    if (this.mode !== VideoMode.HIRE || this.hireButtonsDisabled) return;
+    this.contractLength = length;
+    this.#attitudeAt = this.#now;
   }
 
   setEquipment(buy: boolean): void {
     if (this.mode !== VideoMode.HIRE || this.hireButtonsDisabled) return;
     if (buy && !this.#ports.hasKit()) return;
     this.buyEquipment = buy;
+    this.#attitudeAt = this.#now;
   }
 
   transferFunds(): void {
     if (this.mode !== VideoMode.HIRE || this.hireButtonsDisabled || this.#busy) return;
+    this.#attitude = Attitude.NO_ACTION;
     this.stopTalking();
     this.#busy = true;
     void this.#ports.hire(CONTRACT_DAYS[this.contractLength] ?? 7, this.buyEquipment).then((result) => {
@@ -310,6 +359,7 @@ export class Conference {
 
   cancelHire(): void {
     if (this.mode !== VideoMode.HIRE || this.hireButtonsDisabled) return;
+    this.#attitude = Attitude.NO_ACTION;
     this.stopTalking();
     this.#setMode(VideoMode.FIRST_CONTACT);
   }
@@ -327,6 +377,7 @@ export class Conference {
     const popup = this.popup;
     if (!popup) return;
     this.popup = null;
+    this.#redraw = true;
     if (popup.kind === 'failure') {
       this.hireButtonsDisabled = false;
       return;
@@ -341,17 +392,65 @@ export class Conference {
     this.#ports.stopTalking();
     this.talk = null;
     this.#mercTalking = false;
+    this.#attitudeAt = this.#now;
+    this.#redraw = true;
   }
 
   #followFace(now: number): void {
     const talking = this.#ports.faceTalking(now, this.mode === VideoMode.ANSWERING_MACHINE);
+    if (talking) this.#attitudeAt = now;
     if (now - this.#talkStartedAt > this.#ports.speechDuration()) {
       if (this.#wasTalking && !talking) {
         this.#wasTalking = false;
+        this.#redraw = true;
+        this.#attitudeAt = now;
         this.stopTalking();
       }
     } else if (talking) this.#wasTalking = true;
     this.#mercTalking = talking;
+  }
+
+  #attitudeDue(now: number): boolean {
+    const waited = now - this.#attitudeAt;
+    return (this.#attitude <= Attitude.SMALL_TALK && waited > FIRST_ATTITUDE_TIME) || waited > ATTITUDE_TIME;
+  }
+
+  #handleAttitude(now: number): void {
+    if (!this.#attitudeDue(now)) return;
+    this.#sayAttitude();
+    if (this.#attitude !== Attitude.NO_ACTION && this.#attitude !== Attitude.MERC_BUSY) this.#attitude++;
+    this.#attitudeAt = now;
+  }
+
+  #sayAttitude(): void {
+    switch (this.#attitude) {
+      case Attitude.SMALL_TALK:
+        this.#say(ConferenceQuote.SMALL_TALK);
+        break;
+      case Attitude.IMPATIENT_TALK:
+        this.#say(ConferenceQuote.IMPATIENT_QUOTE);
+        break;
+      case Attitude.VERY_IMPATIENT_TALK:
+        this.#say(ConferenceQuote.PRECEDENT_TO_REPEATING_ONESELF);
+        this.#say(ConferenceQuote.IMPATIENT_QUOTE);
+        break;
+      case Attitude.HANG_UP_TALK:
+        this.#say(ConferenceQuote.COMMENT_BEFORE_HANG_UP);
+        this.#hangUp = true;
+        break;
+      case Attitude.MERC_BUSY:
+        this.#say(ConferenceQuote.LAME_REFUSAL);
+        this.#hangUp = true;
+        break;
+    }
+  }
+
+  #hangUpWhenSilent(): boolean {
+    if (!this.#hangUp || this.#mercTalking) return false;
+    this.#hangUp = false;
+    if (this.mode === VideoMode.NOT_DISPLAYED || this.popup) return false;
+    this.#setMode(VideoMode.POPDOWN);
+    return true;
   }
 
   #updateTitle(now: number): void {
@@ -404,16 +503,16 @@ export class Conference {
       this.#say(delayed.quote);
       if (delayed.hangUpAfter) this.#hangUp = true;
     }
-    if (this.#hangUp && !this.#mercTalking) {
-      if (this.mode !== VideoMode.NOT_DISPLAYED && !this.popup) this.#setMode(VideoMode.POPDOWN);
-      this.#hangUp = false;
-    }
+    if (!this.#busy) this.#hangUpWhenSilent();
     if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
     else if (this.mode === VideoMode.INIT) this.#updateInit(now);
     if (this.face === 'face') this.#followFace(now);
     if (this.distorted) this.distortion.update(now);
     else this.distortion.clear();
+    if (this.face === 'face' && !this.#mercTalking && !this.#busy) this.#handleAttitude(now);
     this.#justSwitched = false;
+    if (this.#redraw) this.#textUp = this.#mercTalking;
+    this.#redraw = false;
   }
 
   get distorted(): boolean {

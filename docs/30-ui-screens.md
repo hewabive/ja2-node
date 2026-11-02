@@ -134,7 +134,9 @@ them for the page's life, not in saves (deviation "Laptop page state"). The Worl
 units, scaled by the client setting `websiteLoadingTimeScale`. The zoom out of the map screen is built but off on
 `/play` (gap "Screen zooms"). The A.I.M. and M.E.R.C. video faces (`laptop/video-face.ts`) are the tactical
 `FaceAnimator` with a queue of their speaker's quotes: no server event carries these quotes, so the pages say them
-outside `SpeechPresenter` and play the voice through the handle `UiSoundSink.play` returns.
+outside `SpeechPresenter` and play the voice through the handle `UiSoundSink.play` returns. The A.I.M. conference runs
+the merc's impatience on the UI clock (`laptop/aim/aim-conference.ts`); the annoyance his hang-up raises is not
+simulated (deviation "A.I.M. annoyance").
 
 **Story events hold the flow.** `StoryLayer` sees every frame batch before the front-end flow and holds the frames after
 a story event until its step allows, so a screen switch the event brings waits for the box or the fade; the story
@@ -189,6 +191,10 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | An A.I.M. distortion line shows its first frame only on its first run: the counter starts at 255 and later runs step past frame 0 | `laptop/aim/aim-distortion.test.ts` "shows the first line frame only on the first run …" |
 | An A.I.M. merc hangs up as soon as his face stops talking, while his quote's text may stay up for its text time | `laptop/aim/aim-conference.test.ts` "hangs up once the face stops talking …" |
 | With subtitles off, a voiced A.I.M. quote keeps the text time of the last quote whose text showed: `CreateTalkingUI` sets it only for text it shows | `laptop/aim/aim-conference.test.ts` "keeps the text time of the last quote whose text showed …" |
+| An impatient A.I.M. merc says his two very impatient quotes from one queue: a click cuts only the first and closes the click region, and the second plays on with its text, which stays up after it until the next redraw | `laptop/aim/aim-conference.test.ts` "lets a click cut the first very impatient quote …", "keeps the text of the second very impatient quote up …" |
+| The A.I.M. hire buttons stay usable through the merc's hang-up comment: the call meant to disable them passes the flag that enables them, and they are enabled already (`Laptop/AIMMembers.cc:2221`) | `laptop/aim/aim-conference.test.ts` "leaves the contract buttons usable through the hang-up comment …" |
+| Hire clicked through the A.I.M. hang-up comment hangs up instead of opening the contract page: the hang-up goes before the mode change | `laptop/aim/aim-conference.test.ts` "hangs up rather than open the contract page …" |
+| Only the A.I.M. first contact's Hang Up stops the merc at once; the close button, the answering machine's and the busy merc's Hang Up let him talk on under the title bar until the conference closes | `laptop/aim/aim-conference.test.ts` "talks on under the title bar when the call is closed …" |
 | Enter or Space ticks the I.M.P. gender box that has the focus even when no further I.M.P. can be created; only the click checks | `laptop/imp/imp-begin.test.ts` "tick a gender box when no further I.M.P. can be created …" |
 | While the pointer is on the enabled Retreat button the map shows only the arrows out of the battle group's sector, and that sector's enemies keep the icon position of the sector drawn before it, as its team icons are skipped | `battle/battle-entry.test.ts` "draws the enemies of the sector the squad retreats from after the icons …" |
 | The Retreat button's bounds for the retreat arrows include the pixel past its bottom right | `battle/battle-entry.test.ts` "counts the pixel past the bottom right of the Retreat button …" |

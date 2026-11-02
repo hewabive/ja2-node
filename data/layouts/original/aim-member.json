@@ -1612,7 +1612,7 @@
       },
       "priority": "HIGH",
       "cursor": "CURSOR_LAPTOP_SCREEN",
-      "primary": "hangUp",
+      "primary": "endCall",
       "visible": "answeringMachine",
       "text": {
         "source": {
@@ -1639,7 +1639,7 @@
       },
       "priority": "HIGH",
       "cursor": "CURSOR_LAPTOP_SCREEN",
-      "primary": "hangUp",
+      "primary": "endCall",
       "visible": "unavailable",
       "text": {
         "source": {
@@ -1666,7 +1666,7 @@
       "cursor": "CURSOR_LAPTOP_SCREEN",
       "disabledStyle": "none",
       "enabled": "closeEnabled",
-      "primary": "hangUp",
+      "primary": "endCall",
       "visible": "terminal"
     },
     {

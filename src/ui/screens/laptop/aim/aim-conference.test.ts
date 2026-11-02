@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ATTITUDE_TIME,
   BLACK_LOOPS,
   Conference,
   type ConferencePorts,
   ConferenceQuote,
   ContractLength,
+  FIRST_ATTITUDE_TIME,
   MINIMUM_TALKING_TIME,
   SNOW_FRAMES,
   SPEECH_DELAY,
@@ -22,12 +24,22 @@ const QUOTE_MS = 1000;
 const CLEAN_ROLL = 150;
 const FUZZY_ROLL = 0;
 const PAST_THE_FIRST_ROLL = DISTORTION_PICK_TIME + 3 * STEP_MS;
+const RUN_LIMIT = 120_000;
+const SMALL_TALK_WAIT = 2 * FIRST_ATTITUDE_TIME;
+
+interface QueuedLine {
+  readonly quote: number;
+  readonly started: () => void;
+}
 
 interface FakePorts extends ConferencePorts {
   answer: ReturnType<ConferencePorts['contact']>;
   hireResult: Awaited<ReturnType<ConferencePorts['hire']>>;
   accepted: boolean;
   readonly said: number[];
+  readonly spoken: number[];
+  readonly queue: QueuedLine[];
+  faceBusy: boolean;
   readonly hires: { contract: number; gear: boolean }[];
   popdowns: number;
   messages: number;
@@ -41,12 +53,24 @@ interface FakePorts extends ConferencePorts {
   shutUps: number;
 }
 
+function startNextLine(p: FakePorts, now: number): void {
+  const line = p.queue.shift();
+  if (!line) return;
+  p.talkingFrom = now;
+  p.faceBusy = true;
+  p.spoken.push(line.quote);
+  line.started();
+}
+
 function ports(): FakePorts {
   const p: FakePorts = {
     answer: 'firstContact',
     hireResult: 'hired',
     accepted: true,
     said: [],
+    spoken: [],
+    queue: [],
+    faceBusy: false,
     hires: [],
     popdowns: 0,
     messages: 0,
@@ -71,19 +95,26 @@ function ports(): FakePorts {
     initFace: () => {
       p.faces++;
       p.frozen = false;
+      p.queue.length = 0;
+      p.talkingFrom = null;
+      p.faceBusy = false;
     },
-    say: (quote, now) => {
+    say: (quote, now, started) => {
       p.said.push(quote);
-      p.talkingFrom = now;
+      p.queue.push({ quote, started });
+      if (!p.faceBusy) startNextLine(p, now);
     },
     faceTalking: (now, frozen) => {
       if (frozen) p.frozen = true;
-      return p.talkingFrom !== null && now - p.talkingFrom < p.faceTalkMs;
+      if (!p.faceBusy) startNextLine(p, now);
+      p.faceBusy = p.talkingFrom !== null && now - p.talkingFrom < p.faceTalkMs;
+      return p.faceBusy;
     },
     speechDuration: () => p.textTime,
     stopTalking: () => {
       p.shutUps++;
       p.talkingFrom = null;
+      p.faceBusy = false;
     },
     popdownDone: () => {
       p.popdowns++;
@@ -106,6 +137,24 @@ function advance(conference: Conference, from: number, ms: number): number {
   let now = from;
   for (; now <= until; now += STEP_MS) conference.update(now);
   return now;
+}
+
+function runUntil(conference: Conference, from: number, done: () => boolean): number {
+  for (let now = from; now < from + RUN_LIMIT; now += STEP_MS) {
+    conference.update(now);
+    if (done()) return now;
+  }
+  throw new Error('the conference never got there');
+}
+
+function faceUp(conference: Conference): number {
+  conference.open(0);
+  return runUntil(conference, 0, () => conference.face === 'face');
+}
+
+function nextQuote(conference: Conference, p: FakePorts, from: number): number {
+  const said = p.said.length;
+  return runUntil(conference, from + STEP_MS, () => p.said.length > said);
 }
 
 function pastTheFirstRoll(conference: Conference, from: number): number {
@@ -371,5 +420,187 @@ describe('the A.I.M. video conference', () => {
     expect(talkingTime('x'.repeat(48))).toBe(50 * 80);
     expect(titleBarRect(0, 100, 30)).toEqual({ x: 331, y: 100, width: 74 });
     expect(titleBarRect(TITLE_ITERATIONS, 100, 30)).toEqual({ x: 125, y: 30, width: 365 });
+  });
+});
+
+describe('an A.I.M. merc kept waiting', () => {
+  it('makes small talk after two spells of three silent seconds, grows impatient every ten, comments and hangs up', () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    const smallTalk = nextQuote(conference, p, up);
+    expect(smallTalk - up).toBeGreaterThan(SMALL_TALK_WAIT);
+    expect(smallTalk - up).toBeLessThanOrEqual(SMALL_TALK_WAIT + 2 * STEP_MS);
+    const impatient = nextQuote(conference, p, smallTalk);
+    expect(impatient - smallTalk).toBeGreaterThan(QUOTE_MS + ATTITUDE_TIME);
+    expect(impatient - smallTalk).toBeLessThanOrEqual(QUOTE_MS + ATTITUDE_TIME + 3 * STEP_MS);
+    const veryImpatient = nextQuote(conference, p, impatient);
+    const comment = nextQuote(conference, p, veryImpatient);
+    expect(comment - veryImpatient).toBeGreaterThan(2 * QUOTE_MS + ATTITUDE_TIME);
+    expect(p.said).toEqual([
+      ConferenceQuote.SMALL_TALK,
+      ConferenceQuote.IMPATIENT_QUOTE,
+      ConferenceQuote.PRECEDENT_TO_REPEATING_ONESELF,
+      ConferenceQuote.IMPATIENT_QUOTE,
+      ConferenceQuote.COMMENT_BEFORE_HANG_UP,
+    ]);
+    expect(p.spoken).toEqual(p.said);
+    let now = advance(conference, comment, QUOTE_MS - 2 * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
+    now = advance(conference, now, 4 * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+    advance(conference, now, TITLE_ITERATIONS * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.NOT_DISPLAYED);
+    expect(p.popdowns).toBe(1);
+  });
+
+  it('has an unavailable merc give his lame refusal after ten silent seconds and hang up', () => {
+    const p = ports();
+    p.answer = 'unavailable';
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    const refusal = nextQuote(conference, p, up);
+    expect(p.said).toEqual([ConferenceQuote.LAME_REFUSAL]);
+    expect(refusal - up).toBeGreaterThan(ATTITUDE_TIME);
+    expect(refusal - up).toBeLessThanOrEqual(ATTITUDE_TIME + 2 * STEP_MS);
+    advance(conference, refusal, QUOTE_MS + 3 * STEP_MS + TITLE_ITERATIONS * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.NOT_DISPLAYED);
+  });
+
+  it('never grows impatient on the answering machine', () => {
+    const p = ports();
+    p.answer = 'answeringMachine';
+    const conference = new Conference(p, STEP_MS);
+    advance(conference, faceUp(conference), SMALL_TALK_WAIT + 4 * ATTITUDE_TIME);
+    expect([conference.mode, p.said]).toEqual([VideoMode.ANSWERING_MACHINE, [ConferenceQuote.ANSWERING_MACHINE_MSG]]);
+  });
+
+  it('grows impatient on the contract page too, and a Cancel ends his impatience for the call', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    conference.hire();
+    await flush();
+    const length = nextQuote(conference, p, up);
+    const smallTalk = nextQuote(conference, p, length);
+    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT, ConferenceQuote.SMALL_TALK]);
+    expect(smallTalk - length).toBeGreaterThan(QUOTE_MS + SMALL_TALK_WAIT);
+    conference.cancelHire();
+    advance(conference, smallTalk, SMALL_TALK_WAIT + 4 * ATTITUDE_TIME);
+    expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
+    expect(p.said).toHaveLength(2);
+  });
+
+  it('ends his impatience for the call at a funds transfer', async () => {
+    const p = ports();
+    p.hireResult = 'funds';
+    const conference = new Conference(p, STEP_MS);
+    const now = faceUp(conference);
+    conference.hire();
+    await flush();
+    conference.transferFunds();
+    await flush();
+    conference.popupOk();
+    advance(conference, now, SMALL_TALK_WAIT + 4 * ATTITUDE_TIME);
+    expect(conference.mode).toBe(VideoMode.HIRE);
+    expect(p.said).toEqual([ConferenceQuote.REFUSAL_TO_JOIN_LACK_OF_FUNDS]);
+  });
+
+  it('starts the wait again at a contract or kit click and lets the merc talk on', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    conference.hire();
+    await flush();
+    const length = nextQuote(conference, p, up);
+    conference.setEquipment(false);
+    expect([conference.talking, p.shutUps]).toEqual([true, 0]);
+    const quiet = advance(conference, length, QUOTE_MS + SMALL_TALK_WAIT - 10 * STEP_MS);
+    conference.update(quiet);
+    conference.setContract(ContractLength.ONE_DAY);
+    const smallTalk = nextQuote(conference, p, quiet);
+    expect(smallTalk - quiet).toBeGreaterThan(FIRST_ATTITUDE_TIME);
+    expect(smallTalk - quiet).toBeLessThanOrEqual(FIRST_ATTITUDE_TIME + 2 * STEP_MS);
+  });
+
+  it('lets a click cut the first very impatient quote and the second play on, its text up and out of the click region', () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const smallTalk = nextQuote(conference, p, faceUp(conference));
+    const veryImpatient = nextQuote(conference, p, nextQuote(conference, p, smallTalk));
+    expect(p.spoken.at(-1)).toBe(ConferenceQuote.PRECEDENT_TO_REPEATING_ONESELF);
+    conference.stopTalking();
+    advance(conference, veryImpatient + STEP_MS, STEP_MS);
+    expect(p.spoken.at(-1)).toBe(ConferenceQuote.IMPATIENT_QUOTE);
+    expect([conference.mercTalking, conference.talking, conference.subtitled]).toEqual([true, false, true]);
+  });
+
+  it('keeps the text of the second very impatient quote up after his face stops, until the next redraw', () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const smallTalk = nextQuote(conference, p, faceUp(conference));
+    const veryImpatient = nextQuote(conference, p, nextQuote(conference, p, smallTalk));
+    const now = advance(conference, veryImpatient, 2 * QUOTE_MS + 4 * STEP_MS);
+    expect([p.spoken.at(-1), conference.mercTalking, conference.talking, conference.subtitled]).toEqual([
+      ConferenceQuote.IMPATIENT_QUOTE,
+      false,
+      false,
+      true,
+    ]);
+    conference.hangUp();
+    advance(conference, now, STEP_MS);
+    expect(conference.subtitled).toBe(false);
+  });
+
+  it('leaves the contract buttons usable through the hang-up comment, as its call to disable them does nothing there', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    conference.hire();
+    await flush();
+    let now = up;
+    while (p.said.at(-1) !== ConferenceQuote.COMMENT_BEFORE_HANG_UP) now = nextQuote(conference, p, now);
+    expect(conference.hireButtonsDisabled).toBe(false);
+    conference.transferFunds();
+    now = advance(conference, now + STEP_MS, 2 * STEP_MS);
+    await flush();
+    expect([conference.mode, conference.popup, p.hires.length]).toEqual([VideoMode.HIRE, { kind: 'success' }, 1]);
+    now = advance(conference, now, SPEECH_DELAY + STEP_MS);
+    expect(p.said.at(-1)).toBe(ConferenceQuote.CONTRACT_ACCEPTANCE);
+    conference.popupOk();
+    advance(conference, now, QUOTE_MS + 2 * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+  });
+
+  it('hangs up rather than open the contract page when Hire cuts his hang-up comment', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    let now = faceUp(conference);
+    while (p.said.at(-1) !== ConferenceQuote.COMMENT_BEFORE_HANG_UP) now = nextQuote(conference, p, now);
+    conference.hire();
+    now = advance(conference, now + STEP_MS, 2 * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
+    await flush();
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+    advance(conference, now, SPEECH_DELAY + TITLE_ITERATIONS * STEP_MS);
+    expect(p.said).not.toContain(ConferenceQuote.LENGTH_OF_CONTRACT);
+  });
+
+  it('talks on under the title bar when the call is closed and stops as it closes; the first contact Hang Up stops him at once', () => {
+    const closing = ports();
+    const closed = new Conference(closing, STEP_MS);
+    const smallTalk = nextQuote(closed, closing, faceUp(closed));
+    closed.endCall();
+    expect([closed.mode, closing.shutUps]).toEqual([VideoMode.POPDOWN, 0]);
+    const now = advance(closed, smallTalk + STEP_MS, (TITLE_ITERATIONS - 3) * STEP_MS);
+    expect([closed.mercTalking, closing.shutUps]).toEqual([true, 0]);
+    advance(closed, now, 3 * STEP_MS);
+    expect([closed.mode, closing.shutUps]).toEqual([VideoMode.NOT_DISPLAYED, 1]);
+
+    const hanging = ports();
+    const hungUp = new Conference(hanging, STEP_MS);
+    nextQuote(hungUp, hanging, faceUp(hungUp));
+    hungUp.hangUp();
+    expect([hungUp.mode, hanging.shutUps]).toEqual([VideoMode.POPDOWN, 1]);
   });
 });
