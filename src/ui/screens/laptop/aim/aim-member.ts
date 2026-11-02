@@ -11,7 +11,7 @@
 // @src face says the quote; CreateTalkingUI sets the text and its time only when subtitles show or the quote has no
 // @src voice), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face stretched into 96 x 86 under the distortion, the
 // @src answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights (an 8 x 8 fill, green when
-// @src selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
+// @src selected, at +105, +7, at +105, +8 while its button is held), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (arrival-box.ts; over the page redrawn without the conference, as
 // @src HandleCurrentVideoConfMode).
 
@@ -92,6 +92,7 @@ const NO_FACE = -1;
 const GREEN = 0x00ff00;
 const BLACK = 0x000000;
 const VIDEO_TITLE_ASSET = 'laptop/videotitlebar.sti';
+const PRESSED = 'pressed';
 
 export const AIM_MEMBER_CONTRACT: ControllerContract = {
   id: 'aimMember',
@@ -527,11 +528,14 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     }
   };
 
-  const drawLight = (list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>): void => {
+  const drawLight = (list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView): void => {
     if (conference.mode !== VideoMode.HIRE) return;
     const index = typeof params.index === 'number' ? params.index : 0;
     const on = (model.lights as { on: boolean }[] | undefined)?.[index]?.on === true;
-    list.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, on ? GREEN : BLACK);
+    const held = view.describe().find((w) => w.id === params.button)?.state === PRESSED;
+    const x = rect.x + (held ? view.number(params.pressedDx as string, {}) : 0);
+    const y = rect.y + (held ? view.number(params.pressedDy as string, {}) : 0);
+    list.fill(x, y, x + rect.width, y + rect.height, on ? GREEN : BLACK);
   };
 
   const drawPopupTexts = (list: DrawList, rect: Area): void => {

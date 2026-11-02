@@ -144,6 +144,10 @@ async function blinks(h: LaptopHarness): Promise<boolean> {
 
 const CONFERENCE_TIMEOUT_MS = 15000;
 const KIT_BUTTONS = ['equipment0', 'equipment1'];
+const SELECT_LIGHT_X = 105;
+const SELECT_LIGHT_UP_Y = 7;
+const SELECT_LIGHT_HELD_Y = 8;
+const SELECT_LIGHT_SIZE = 8;
 
 async function until(h: LaptopHarness, done: () => boolean): Promise<void> {
   for (let elapsed = 0; elapsed < CONFERENCE_TIMEOUT_MS && !done(); elapsed += FRAME_MS) await wait(h, FRAME_MS);
@@ -189,6 +193,30 @@ describe('A.I.M. on the canvas laptop', () => {
     expect(h.replies.at(-1)?.ok).toBe(true);
     expect(KIT_BUTTONS.map((id) => shown(h.t, id).enabled)).toEqual([false, false]);
     expect(shadedButtons(h, KIT_BUTTONS)).toEqual([]);
+  });
+
+  it('draws the selection light of a contract button a pixel lower while the button is held', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    const { t } = h;
+    await callMercAtHome(h);
+    await click(t, 'hire');
+    await until(h, () => find(t, 'contract0')?.visible === true);
+    const { rect } = shown(t, 'contract0');
+    const lightAt = (dy: number) =>
+      t.list.items.some(
+        (i) => i.kind === 'fill' && i.x === rect.x + SELECT_LIGHT_X && i.y === rect.y + dy && i.width === SELECT_LIGHT_SIZE,
+      );
+    const x = rect.x + Math.floor(rect.width / 2);
+    const y = rect.y + Math.floor(rect.height / 2);
+    expect(lightAt(SELECT_LIGHT_UP_Y)).toBe(true);
+    t.move(x, y);
+    t.down(x, y);
+    t.frame();
+    expect(lightAt(SELECT_LIGHT_HELD_Y)).toBe(true);
+    expect(lightAt(SELECT_LIGHT_UP_Y)).toBe(false);
+    t.up(x, y);
+    t.frame();
+    expect(lightAt(SELECT_LIGHT_UP_Y)).toBe(true);
   });
 
   it('explains the arrival after the first hire of a laptop session only', async () => {

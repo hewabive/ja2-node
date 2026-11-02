@@ -2,7 +2,7 @@
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
     "src/game/Laptop/AIMMembers.cc EnterAIMMembers (the face region over the portrait, the shut-up region over the web area at MSYS_PRIORITY_HIGH - 1, the Previous, Contact and Next buttons on bottombuttons2.sti in AIM_M_FONT_PREV_NEXT_CONTACT), RenderAIMMembers, UpdateMercInfo, DisplayMercsInventory, DisplayMercsFace (the overlay at FACE_X + 1, FACE_Y + 107 in FONT14ARIAL colour 145), DisplayMercStats, DisplayAimMemberClickOnFaceHelpText",
-    "src/game/Laptop/AIMMembers.cc DisplayVideoConferencingDisplay, DisplayMercsVideoFace, DisplayMercChargeAmount (the amount at AIM_CONTRACT_CHARGE_AMOUNNT_X + 1, Y + 3), InitDeleteVideoConferencePopUp and MakeButtonVideo (videoconfbuttons.sti 0/1 and 2/3 in FONT12ARIAL, the contract and kit buttons left-justified AIM_MEMBER_BUY_EQUIPMENT_GAP apart, the others AIM_MEMBER_AUTHORIZE_PAY_GAP apart; x_button.sti at AIM_MEMBER_VIDEO_CONF_XCLOSE_X), DrawButtonSelection, CreateAimPopUpBox (videoconfpopup.sti, the OK button at +20, +62 with priority MSYS_PRIORITY_HIGH + 5), BtnAuthorizeButtonCallback and AimMemberHireMerc (the kit buttons drawn without their shade behind it), DisplayAimPopUpBox, the subtitle box (BASIC_MERC_POPUP, 300 wide, at TEXT_POPUP_WINDOW_Y)"
+    "src/game/Laptop/AIMMembers.cc DisplayVideoConferencingDisplay, DisplayMercsVideoFace, DisplayMercChargeAmount (the amount at AIM_CONTRACT_CHARGE_AMOUNNT_X + 1, Y + 3), InitDeleteVideoConferencePopUp and MakeButtonVideo (videoconfbuttons.sti 0/1 and 2/3 in FONT12ARIAL, the contract and kit buttons left-justified AIM_MEMBER_BUY_EQUIPMENT_GAP apart, the others AIM_MEMBER_AUTHORIZE_PAY_GAP apart; x_button.sti at AIM_MEMBER_VIDEO_CONF_XCLOSE_X), DrawButtonSelection (AIM_SELECT_LIGHT_ON_X/Y while the button is held), CreateAimPopUpBox (videoconfpopup.sti, the OK button at +20, +62 with priority MSYS_PRIORITY_HIGH + 5), BtnAuthorizeButtonCallback and AimMemberHireMerc (the kit buttons drawn without their shade behind it), DisplayAimPopUpBox, the subtitle box (BASIC_MERC_POPUP, 300 wide, at TEXT_POPUP_WINDOW_Y)"
   ],
   "screen": "aimMember",
   "frame": "std640",
@@ -1293,7 +1293,10 @@
       "width": 8,
       "height": 8,
       "params": {
-        "index": 0
+        "index": 0,
+        "button": "contract0",
+        "pressedDx": "AIM_SELECT_LIGHT_ON_X - AIM_SELECT_LIGHT_OFF_X",
+        "pressedDy": "AIM_SELECT_LIGHT_ON_Y - AIM_SELECT_LIGHT_OFF_Y"
       }
     },
     {
@@ -1332,7 +1335,10 @@
       "width": 8,
       "height": 8,
       "params": {
-        "index": 1
+        "index": 1,
+        "button": "contract1",
+        "pressedDx": "AIM_SELECT_LIGHT_ON_X - AIM_SELECT_LIGHT_OFF_X",
+        "pressedDy": "AIM_SELECT_LIGHT_ON_Y - AIM_SELECT_LIGHT_OFF_Y"
       }
     },
     {
@@ -1371,7 +1377,10 @@
       "width": 8,
       "height": 8,
       "params": {
-        "index": 2
+        "index": 2,
+        "button": "contract2",
+        "pressedDx": "AIM_SELECT_LIGHT_ON_X - AIM_SELECT_LIGHT_OFF_X",
+        "pressedDy": "AIM_SELECT_LIGHT_ON_Y - AIM_SELECT_LIGHT_OFF_Y"
       }
     },
     {
@@ -1411,7 +1420,10 @@
       "width": 8,
       "height": 8,
       "params": {
-        "index": 3
+        "index": 3,
+        "button": "equipment0",
+        "pressedDx": "AIM_SELECT_LIGHT_ON_X - AIM_SELECT_LIGHT_OFF_X",
+        "pressedDy": "AIM_SELECT_LIGHT_ON_Y - AIM_SELECT_LIGHT_OFF_Y"
       }
     },
     {
@@ -1451,7 +1463,10 @@
       "width": 8,
       "height": 8,
       "params": {
-        "index": 4
+        "index": 4,
+        "button": "equipment1",
+        "pressedDx": "AIM_SELECT_LIGHT_ON_X - AIM_SELECT_LIGHT_OFF_X",
+        "pressedDy": "AIM_SELECT_LIGHT_ON_Y - AIM_SELECT_LIGHT_OFF_Y"
       }
     },
     {
