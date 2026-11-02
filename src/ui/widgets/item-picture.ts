@@ -38,6 +38,10 @@ export function centredItemPosition(box: ItemBox, frame: FrameMetrics): { x: num
 }
 
 export function drawItemPicture(list: DrawList, images: ImageCatalog, graphic: ItemGraphic, box: ItemBox, shadow: boolean): void {
+  if (!images.info(graphic.path)) {
+    images.request?.(graphic.path);
+    return;
+  }
   const at = centredItemPosition(box, frameOf(images, graphic.path, graphic.frame));
   if (shadow) list.image(graphic.path, graphic.frame, at.x + SHADOW_DX, at.y + SHADOW_DY, { effect: { kind: 'outlineShadow' } });
   list.image(graphic.path, graphic.frame, at.x, at.y, { effect: { kind: 'outline', color: null } });

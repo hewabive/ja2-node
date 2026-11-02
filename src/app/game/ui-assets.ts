@@ -63,6 +63,7 @@ export class UiAssets implements ImageCatalog {
   readonly #images = new Map<AssetKey, ImageInfo>();
   readonly #fonts = new Map<FontId, BitmapFont>();
   readonly #failed = new Set<AssetKey>();
+  readonly #requested = new Set<AssetKey>();
   #imagesLoading = 0;
 
   constructor(renderer: UiRenderer, source: AssetSource, cache: AssetCache) {
@@ -127,6 +128,17 @@ export class UiAssets implements ImageCatalog {
     } finally {
       this.#imagesLoading--;
     }
+  }
+
+  request(key: AssetKey): void {
+    if (this.#images.has(key) || this.#failed.has(key) || this.#requested.has(key)) return;
+    this.#requested.add(key);
+    void this.image(key)
+      .catch(() => {
+        this.#failed.add(key);
+        return false;
+      })
+      .finally(() => this.#requested.delete(key));
   }
 
   addPicture(key: AssetKey, picture: IndexedPicture, palette: Uint8Array): void {

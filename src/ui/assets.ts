@@ -16,6 +16,7 @@ export interface ImageInfo {
 export interface ImageCatalog {
   readonly imagesLoading?: number;
   info(key: AssetKey): ImageInfo | undefined;
+  request?(key: AssetKey): void;
 }
 
 export const NO_FRAME: FrameMetrics = { width: 0, height: 0, offsetX: 0, offsetY: 0 };
@@ -26,6 +27,7 @@ export function frameOf(catalog: ImageCatalog, key: AssetKey, frame: number): Fr
 
 export class StaticImageCatalog implements ImageCatalog {
   readonly #images = new Map<AssetKey, ImageInfo>();
+  readonly #requested = new Set<AssetKey>();
 
   set(key: AssetKey, info: ImageInfo): void {
     this.#images.set(key, info);
@@ -37,6 +39,14 @@ export class StaticImageCatalog implements ImageCatalog {
 
   keys(): AssetKey[] {
     return [...this.#images.keys()];
+  }
+
+  request(key: AssetKey): void {
+    this.#requested.add(key);
+  }
+
+  requested(): AssetKey[] {
+    return [...this.#requested];
   }
 }
 

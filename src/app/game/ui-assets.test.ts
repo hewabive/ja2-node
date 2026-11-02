@@ -12,6 +12,7 @@ import { imageInfo, pcxAsRgbSti, UiAssets } from './ui-assets.ts';
 
 const TOKEN = 'ui-assets-test-token-0123456789';
 const FACE = 'faces/33face/01.sti';
+const SETTLE_TURNS = 50;
 
 async function heldSource(entries: readonly [string, Uint8Array][]): Promise<{ source: HttpAssetSource; release: () => void }> {
   const app = createApp({
@@ -79,5 +80,23 @@ describe('the UI images', () => {
     expect(await loading).toBe(true);
     expect([assets.imagesLoading, assets.info(FACE)?.frames.length]).toEqual([0, 1]);
     expect([await assets.image('faces/none.sti'), assets.imagesLoading]).toEqual([false, 0]);
+  });
+
+  it('load a requested image once in the background and drop a request for a missing one', async () => {
+    const face = encodeStiIndexed({
+      palette: new Uint8Array(768),
+      subImages: [{ offsetX: 0, offsetY: 0, width: 2, height: 2, pixels: new Uint8Array(4) }],
+    });
+    const { source, release } = await heldSource([[FACE, face]]);
+    const added: string[] = [];
+    const renderer = { addImage: (key: string) => added.push(key), addFont: () => {} } as unknown as UiRenderer;
+    const assets = new UiAssets(renderer, source, new AssetCache());
+    assets.request(FACE);
+    assets.request(FACE);
+    assets.request('faces/none.sti');
+    expect([assets.imagesLoading, assets.info(FACE), assets.missing]).toEqual([1, undefined, ['faces/none.sti']]);
+    release();
+    for (let turn = 0; turn < SETTLE_TURNS && assets.imagesLoading > 0; turn++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect([assets.imagesLoading, assets.info(FACE)?.frames.length, added]).toEqual([0, 1, [FACE]]);
   });
 });

@@ -17,6 +17,7 @@ import { LaptopMode } from '../laptop-modes.ts';
 import { conditionText } from './personnel-page.ts';
 
 const CONTRACT_DAYS = 7;
+const SHOWN_INVENTORY_ROWS = 8;
 const EXTRA_ITEMS = [
   'FIRSTAIDKIT',
   'MEDICKIT',
@@ -130,5 +131,17 @@ describe('the personnel page', () => {
 
     await clickWidget(h.t, 'personnelCurrentToggle');
     expect(shownWidget(h.t, 'personnelName').text).toBe(team[0]?.name);
+  });
+
+  it('asks for the picture of every item it shows, though no other page has loaded its file', async () => {
+    const h = await openLaptopHarness(kit, ui);
+    const { soldiers } = hireTwo(h);
+    fillPockets(h, soldiers[0] as number);
+    await openProgram(h, 'personnelButton');
+    await clickWidget(h.t, 'personnelInventoryButton');
+    const shownItems = (h.laptop().personnel.current[0]?.inventory ?? []).slice(0, SHOWN_INVENTORY_ROWS);
+    const pictures = new Set(shownItems.map((entry) => ui.items.get(entry.item)?.graphic.path));
+    expect(pictures).toContain('interface/mdp2items.sti');
+    for (const picture of pictures) expect(h.t.images.requested()).toContain(picture);
   });
 });

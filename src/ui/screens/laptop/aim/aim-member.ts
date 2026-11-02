@@ -287,11 +287,6 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     const merc = current();
     if (!merc) return;
     void context.media.loadImages([portraitPath(faceOf(merc), 'big'), portraitPath(faceOf(merc), 'small')]);
-    const graphics = (merc.kit?.items ?? []).flatMap((i) => {
-      const item = context.data.item(i.item);
-      return item ? [item.graphic.path] : [];
-    });
-    void context.media.loadImages([...new Set(graphics)]);
     void context.media.loadTexts([`mercedt/${threeDigits(merc.profile)}.edt`]);
   };
 
