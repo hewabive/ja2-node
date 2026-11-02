@@ -8,7 +8,7 @@ import type { ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { KeyModifier, MouseButton } from '../../input/events.ts';
+import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
 
@@ -122,6 +122,12 @@ function otherScreen(id: string): Screen {
 
 function logLines(tick: number, count: number): NonNullable<ViewFrame['messages']> {
   return Array.from({ length: count }, (_, k) => ({ tick, kind: 'interface', colour: FONT_RED, args: [{ text: `Line ${k}` }] }));
+}
+
+function pressKeypad(f: TacticalUiTest, key: string, code: string, numLock: boolean): void {
+  const raw: RawKey = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock };
+  for (const event of [...keyDownEvents(raw), ...keyUpEvents(raw)]) f.t.runtime.input(event);
+  f.t.frame();
 }
 
 function pointerTo(f: TacticalUiTest, x: number, y: number): void {
@@ -383,6 +389,17 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.pickup.open).toBe(false);
     f.advance(2000);
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
+  });
+
+  it('keeps the player paused through keypad 5 without NumLock, which the input layer drops, and unpauses at the typed 5', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('Pause');
+    expect(f.client.paused).toBe(true);
+    pressKeypad(f, 'Clear', 'Numpad5', false);
+    pressKeypad(f, 'Unidentified', 'Numpad5', false);
+    expect(f.client.paused).toBe(true);
+    pressKeypad(f, '5', 'Numpad5', true);
+    expect(f.client.paused).toBe(false);
   });
 
   it('empties the shown message lines with F12, and the queued ones too with CTRL+F12 (ClearTacticalMessageQueue)', async () => {

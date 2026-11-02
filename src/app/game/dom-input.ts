@@ -1,4 +1,4 @@
-import { keyDownEvents, keyUpEvent, MouseButton, modifierMask, type RawKey, type UiInputEvent } from '../../ui/input/events.ts';
+import { keyDownEvents, keyUpEvents, MouseButton, modifierMask, type RawKey, type UiInputEvent } from '../../ui/input/events.ts';
 import { type Resolution, toLogical } from '../../ui/resolution.ts';
 
 export type InputSink = (event: UiInputEvent) => void;
@@ -130,7 +130,7 @@ export function installDomInput(
         toggleFullscreen(stage);
         return;
       }
-      sink(keyUpEvent(rawKey(event)));
+      for (const e of keyUpEvents(rawKey(event))) sink(e);
     },
     options,
   );

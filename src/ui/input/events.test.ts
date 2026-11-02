@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { digitKeyOf, KeyModifier, keyDownEvents, keyUpEvent, modifierMask, type RawKey, uiKeyOf } from './events.ts';
+import { digitKeyOf, KeyModifier, keyDownEvents, keyUpEvents, modifierMask, type RawKey, uiKeyOf } from './events.ts';
 
 const raw = (key: string, code: string, extra: Partial<RawKey> = {}): RawKey => ({
   key,
@@ -50,8 +50,23 @@ describe('key events', () => {
     expect(uiKeyOf(raw('Insert', 'Numpad0', off))).toBe('Insert');
     expect(uiKeyOf(raw('PageDown', 'Numpad3', off))).toBe('PageDown');
     expect(uiKeyOf(raw('Delete', 'NumpadDecimal', off))).toBe('Delete');
-    expect(uiKeyOf(raw('Clear', 'Numpad5', off))).toBe('Numpad5');
+    expect(uiKeyOf(raw('Clear', 'Numpad5', off))).toBeNull();
     expect(uiKeyOf(raw('8', 'Numpad8', off))).toBe('8');
+  });
+
+  it('drops keypad 5 without NumLock, pressed and released, so no screen sees it, as KeyChange does', () => {
+    for (const key of ['Clear', 'Unidentified']) {
+      const five = raw(key, 'Numpad5', { numLock: false });
+      expect([keyDownEvents(five), keyDownEvents({ ...five, repeat: true }), keyUpEvents(five)]).toEqual([[], [], []]);
+    }
+    const typed = raw('5', 'Numpad5');
+    expect([keyDownEvents(typed), keyUpEvents(typed)]).toEqual([
+      [
+        { kind: 'keyDown', key: '5', code: 'Numpad5', modifiers: 0 },
+        { kind: 'text', text: '5' },
+      ],
+      [{ kind: 'keyUp', key: '5', code: 'Numpad5', modifiers: 0 }],
+    ]);
   });
 
   it('reads a digit from the digit row whatever the Shift, and from the keypad only when it types one', () => {
@@ -78,6 +93,8 @@ describe('key events', () => {
     expect(keyDownEvents(raw('Enter', 'Enter', { repeat: true }))).toEqual([
       { kind: 'keyRepeat', key: 'Enter', code: 'Enter', modifiers: 0 },
     ]);
-    expect(keyUpEvent(raw('S', 'KeyS', { shift: true }))).toEqual({ kind: 'keyUp', key: 's', code: 'KeyS', modifiers: KeyModifier.SHIFT });
+    expect(keyUpEvents(raw('S', 'KeyS', { shift: true }))).toEqual([
+      { kind: 'keyUp', key: 's', code: 'KeyS', modifiers: KeyModifier.SHIFT },
+    ]);
   });
 });

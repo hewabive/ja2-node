@@ -6,7 +6,7 @@ import { MercKind } from '../../../sim/campaign/roster.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { KeyModifier, keyDownEvents, keyUpEvent, MouseButton } from '../../input/events.ts';
+import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton } from '../../input/events.ts';
 
 const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
@@ -83,10 +83,9 @@ function radarShade(f: MapUiTest) {
   return radar?.kind === 'image' ? radar.shade : undefined;
 }
 
-function pressKeypad(f: MapUiTest, key: string, code: string): void {
-  const raw = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
-  for (const event of keyDownEvents(raw)) f.t.runtime.input(event);
-  f.t.runtime.input(keyUpEvent(raw));
+function pressKeypad(f: MapUiTest, key: string, code: string, numLock = true): void {
+  const raw = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock };
+  for (const event of [...keyDownEvents(raw), ...keyUpEvents(raw)]) f.t.runtime.input(event);
   f.t.frame();
 }
 
@@ -454,6 +453,17 @@ describe('the map screen over the stub map-screen campaign', () => {
       pressKeypad(f, '1', 'Numpad1');
       await f.settle();
       expect(f.screen.hook().selected).toHaveLength(4);
+    }));
+
+  it('keeps the player paused through keypad 5 without NumLock, which the input layer drops, and unpauses at the typed 5', () =>
+    withMap(async (f) => {
+      f.key('Pause');
+      expect(f.client.paused).toBe(true);
+      pressKeypad(f, 'Clear', 'Numpad5', false);
+      pressKeypad(f, 'Unidentified', 'Numpad5', false);
+      expect(f.client.paused).toBe(true);
+      pressKeypad(f, '5', 'Numpad5');
+      expect(f.client.paused).toBe(false);
     }));
 
   it('selects the squad with its number key and the next merc with the arrow', () =>

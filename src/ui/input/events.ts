@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Input.h SHIFT_DOWN, CTRL_DOWN, ALT_DOWN, KEY_DOWN, KEY_UP, KEY_REPEAT, TEXT_INPUT; src/sgp/Input.cc
-// @src KeyDown, KeyUp, KeyChange (the keypad), HandleSingleClicksAndButtonRepeats.
+// @src KeyDown, KeyUp, KeyChange (the keypad, its 5 dropped without NumLock), HandleSingleClicksAndButtonRepeats.
 
 export const KeyModifier = { SHIFT: 1, CTRL: 2, ALT: 4 } as const;
 
@@ -116,16 +116,15 @@ function keypadTypesNumbers(raw: Pick<RawKey, 'key' | 'numLock'>): boolean {
   return raw.numLock || isPrintableAscii(raw.key);
 }
 
-function keypadKeyOf(raw: Pick<RawKey, 'key' | 'code' | 'numLock'>): string {
+function keypadKeyOf(raw: Pick<RawKey, 'key' | 'code' | 'numLock'>): string | null {
   const character = KEYPAD_CHARACTERS[raw.code];
   if (character !== undefined) return character;
   const numberKey = KEYPAD_NUMBER_KEYS[raw.code];
   if (numberKey === undefined) return raw.code;
-  if (keypadTypesNumbers(raw)) return numberKey.withNumLock;
-  return numberKey.withoutNumLock ?? raw.code;
+  return keypadTypesNumbers(raw) ? numberKey.withNumLock : numberKey.withoutNumLock;
 }
 
-export function uiKeyOf(raw: Pick<RawKey, 'key' | 'code' | 'numLock'>): string {
+export function uiKeyOf(raw: Pick<RawKey, 'key' | 'code' | 'numLock'>): string | null {
   if (raw.code.startsWith(KEYPAD_PREFIX)) return keypadKeyOf(raw);
   if (isPrintableAscii(raw.key)) return raw.key.toLowerCase();
   return latinFromCode(raw.code) ?? raw.key;
@@ -142,11 +141,14 @@ export function modifierMask(raw: Pick<RawKey, 'shift' | 'ctrl' | 'alt'>): numbe
 }
 
 export function keyDownEvents(raw: RawKey): UiInputEvent[] {
-  const event: UiKeyEvent = { kind: raw.repeat ? 'keyRepeat' : 'keyDown', key: uiKeyOf(raw), code: raw.code, modifiers: modifierMask(raw) };
+  const key = uiKeyOf(raw);
+  if (key === null) return [];
+  const event: UiKeyEvent = { kind: raw.repeat ? 'keyRepeat' : 'keyDown', key, code: raw.code, modifiers: modifierMask(raw) };
   const typesText = [...raw.key].length === 1 && !raw.ctrl && !raw.alt;
   return typesText ? [event, { kind: 'text', text: raw.key }] : [event];
 }
 
-export function keyUpEvent(raw: RawKey): UiKeyEvent {
-  return { kind: 'keyUp', key: uiKeyOf(raw), code: raw.code, modifiers: modifierMask(raw) };
+export function keyUpEvents(raw: RawKey): UiKeyEvent[] {
+  const key = uiKeyOf(raw);
+  return key === null ? [] : [{ kind: 'keyUp', key, code: raw.code, modifiers: modifierMask(raw) }];
 }
