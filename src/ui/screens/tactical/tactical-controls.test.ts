@@ -10,8 +10,10 @@ import {
   tacticalUiTest,
 } from '../../../../tests/support/tactical-ui.ts';
 import { Body } from '../../../content/anim/body-types.ts';
+import { WeaponClass } from '../../../content/items/items.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
+import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
@@ -28,6 +30,7 @@ const HOLD_MS = 400;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
+const NOBODY = -1;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -208,6 +211,56 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle(4);
     expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
     expect(f.screen.controls.input.hover.target?.id).toBe(1);
+  });
+
+  it('moves the view to the miss of our team gun bullet with show misses, on the ground or off the map', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    const gun = ui.catalogue.items.find((i) => i.weapon?.weaponClass === WeaponClass.HANDGUN);
+    const knife = f.media.item('THROWING_KNIFE');
+    const other = f.client.view.soldiers.find((v) => v.team !== 0)?.id ?? NOBODY;
+    if (!gun || !knife) throw new Error('no handgun or throwing knife in the catalogue');
+    const shot = (soldier: number, item: number) => ({ tick, type: 'shotFired' as const, soldier, item });
+    const impact = (soldier: number, gridNo: number, effect: BulletImpactEffect) => ({
+      tick,
+      type: 'bulletImpact' as const,
+      soldier,
+      gridNo,
+      x: 0,
+      y: 0,
+      z: 0,
+      effect,
+    });
+    const offMap = (soldier: number, gridNo: number) => ({
+      tick,
+      type: 'bulletStopped' as const,
+      soldier,
+      gridNo,
+      reason: 'offMap' as const,
+    });
+    const misses = [101, 102, 103, 104, 105, 106];
+    const located = () => f.world.located.filter((g) => misses.includes(g));
+    f.frames([{ tick, changed: [], removed: [], events: [shot(0, gun.index), impact(0, 101, 'dust')] }]);
+    expect(located()).toEqual([]);
+    f.display = { ...f.display, showMisses: true };
+    f.frames([
+      {
+        tick,
+        changed: [],
+        removed: [],
+        events: [
+          impact(0, 101, 'dust'),
+          impact(0, 102, 'splash'),
+          impact(0, 103, 'miniboom'),
+          offMap(0, 104),
+          shot(1, knife.index),
+          offMap(1, 105),
+          shot(other, gun.index),
+          impact(other, 106, 'dust'),
+        ],
+      },
+    ]);
+    expect(located()).toEqual([101, 102, 104]);
   });
 
   it('sends the stance, stealth and weapon mode keys for the selected merc', async () => {

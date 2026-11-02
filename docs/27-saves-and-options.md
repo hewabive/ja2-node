@@ -361,9 +361,8 @@ game the options screen sends `setOption`. The help screens seen are kept per ca
 (deviation "Help screens seen"). The launcher exports and imports them as a file
 (`src/app/launcher/settings-file.ts`).
 
-Stored but read by nothing: the old selection method, show misses and smart cursor (gap "Inert options") and the cover
-and LOS display sizes (the display is not built, `28`); "don't move mouse" is inert by design (deviation "Pointer
-warp").
+Stored but read by nothing: the cover and LOS display sizes (the display is not built, `28`); "don't move mouse" is inert
+by design (deviation "Pointer warp"). Show misses does not follow a bullet into a window yet (gap "Inert options").
 
 ### 2.5 Deviations
 

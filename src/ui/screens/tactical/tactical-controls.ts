@@ -51,9 +51,21 @@ import { type HotkeyHost, handleTacticalKey, type SmButton } from './input/hotke
 import { type Lock, type MovementChoice, TacticalInput, type TacticalInputHost } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { slotItem } from './item-cursor.ts';
+import { MissCamera } from './miss-camera.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
 import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from './popup-menus.ts';
-import { inCombat, isDead, isEpc, isInVehicle, isRobot, OUR_TEAM, opponentCount, ourTurn, visibleEnemies } from './soldiers.ts';
+import {
+  inCombat,
+  isDead,
+  isEpc,
+  isInVehicle,
+  isRobot,
+  OUR_TEAM,
+  opponentCount,
+  ourTurn,
+  soldierById,
+  visibleEnemies,
+} from './soldiers.ts';
 
 const SCROLL_STEP_MS = 20;
 const SCROLL_SPEED = 40;
@@ -174,6 +186,7 @@ export class TacticalControls {
   readonly #screen: ControlsScreen;
   readonly #art: ControlsArt;
   readonly #gridNos = new Map<number, number>();
+  readonly #missCamera: MissCamera;
   readonly #lastVisibleEnemy = new Map<number, number>();
   #lastKnownEnemy = 0;
   #nextScrollAt = 0;
@@ -201,6 +214,12 @@ export class TacticalControls {
       closed: () => undefined,
     });
     this.input = new TacticalInput(this.#inputHost());
+    this.#missCamera = new MissCamera({
+      showMisses: () => env.display().showMisses,
+      ourTeam: (soldier) => soldierById(env.client.view, soldier)?.team === OUR_TEAM,
+      weaponClass: (item) => env.media.itemByIndex(item)?.weapon?.weaponClass ?? null,
+      locate: (gridNo) => env.world.locate(gridNo),
+    });
   }
 
   #env(): TacticalEnvironment {
@@ -344,7 +363,10 @@ export class TacticalControls {
   frames(frames: readonly ViewFrame[]): void {
     const env = this.#env();
     for (const frame of frames) {
-      for (const event of frame.events ?? []) if (event.type === 'doorMenu') this.#openDoorMenu(event);
+      for (const event of frame.events ?? []) {
+        if (event.type === 'doorMenu') this.#openDoorMenu(event);
+        this.#missCamera.observe(event);
+      }
       for (const s of frame.changed) {
         const before = this.#gridNos.get(s.id);
         this.#gridNos.set(s.id, s.gridNo);
