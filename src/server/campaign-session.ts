@@ -78,7 +78,7 @@ function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierVie
     if (!s || (!shop && !talk)) return v;
     const label = shop?.merchantLabel(s.profile) ?? null;
     const talkable = talk?.talkableLabel(s) ?? null;
-    const profile = s.profile !== NO_PROFILE && (label || talkable) ? { profile: s.profile } : {};
+    const profile = s.profile !== NO_PROFILE ? { profile: s.profile } : {};
     return { ...v, ...(label ? { merchant: label } : {}), ...(talkable ? { talkable } : {}), ...profile };
   });
 }

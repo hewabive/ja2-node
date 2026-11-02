@@ -12,8 +12,9 @@
 // @src HandlePanelFaceAnimations (p_close.sti and p_dead.sti frames 0 to 5 every 160 ms), RenderTeamSlotBorder,
 // @src RenderSoldierTeamInv, SMInvClickCamoCallback; src/game/Tactical/Faces.cc HandleAutoFaces (the white highlight of
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
-// @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides, the selected merc blinking
-// @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
+// @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides and none for crows, the
+// @src selected merc blinking every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList,
+// @src TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
 // @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld, none while the overhead map is up; Message.cc
@@ -38,6 +39,7 @@
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
 // @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02).
 
+import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv } from '../../../core/int.ts';
@@ -2117,6 +2119,7 @@ export class TacticalScreen implements Screen {
     const box = this.#env.world.radarViewport();
     if (box) list.rectangle(rect.x + box.x1, rect.y + box.y1, rect.x + box.x2, rect.y + box.y2, RADAR_VIEW_COLOUR);
     for (const s of this.#view()?.soldiers ?? []) {
+      if (s.bodyType === Body.CROW) continue;
       const dot = this.#env.world.radarDot(s.gridNo);
       if (!dot) continue;
       const x = rect.x + dot.x;

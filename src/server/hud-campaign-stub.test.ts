@@ -35,6 +35,7 @@ const WITH_PASSING_DISLIKE = 4;
 const ROUTE_SLICE_SECONDS = 2 * 3600;
 const SPOTTED_SOMETHING_QUOTES = [11, 12];
 const TILES_AHEAD = 2;
+const ICE_CREAM_TRUCK = 162;
 const QUOTE_TICKS = 60;
 const TOWN_PICTURES = new Set<number>([LoadingScreen.DAYTOWN1, LoadingScreen.DAYTOWN2, LoadingScreen.NIGHTTOWN1, LoadingScreen.NIGHTTOWN2]);
 
@@ -146,6 +147,25 @@ describe('strategic HUD events and refusals in a stub campaign', () => {
     };
     expect(barks(WITHOUT_PASSING_DISLIKE, WITH_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, PASSING_DISLIKE]));
     expect(barks(WITH_PASSING_DISLIKE, WITHOUT_PASSING_DISLIKE)).toEqual(new Set([NEGATIVE_COMPANY, SOCIAL_TRAIT]));
+  });
+
+  it('names the profile of a seen civilian nobody can talk to, which the radar draws as a named civilian (Radar_Screen.cc:274)', async () => {
+    const c = await landedCampaign(74, []);
+    const enter = { type: 'enterSector', sector: 'A9' };
+    await c.session.prepare(enter);
+    expect(c.session.dispatch(enter)).toMatchObject({ ok: true });
+    c.live.advance({ idle: true });
+    const sim = c.session.campaign.tactical;
+    if (!sim) throw new Error('no sector is loaded');
+    const merc = sim.state.soldiers.find((s) => s?.placed && s.team === Team.OUR);
+    if (!merc) throw new Error('no merc');
+    const truck = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV] ?? 0, Team.CIV, merc.gridNo + TILES_AHEAD, merc.direction, {
+      profile: ICE_CREAM_TRUCK,
+    });
+    merc.direction = directionToward(merc.gridNo, truck.gridNo);
+    sim.lookAround();
+    const seen = c.session.view().soldiers.find((s) => s.id === truck.id);
+    expect([seen?.talkable, seen?.profile]).toEqual([undefined, ICE_CREAM_TRUCK]);
   });
 
   it('has the merc who sees a dead civilian’s drops say the items-seen quote once the dialogue queue runs it', async () => {

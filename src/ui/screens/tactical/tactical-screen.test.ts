@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
+import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
-import type { ViewFrame } from '../../../protocol/view.ts';
+import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -37,6 +38,13 @@ const LOG_LINES = 8;
 const SCROLL_STEP_MS = 20;
 const SCREEN_EDGE_X = 2;
 const VIEW_ROW_Y = 100;
+const CIV_TEAM = 4;
+const HEALTHY_INDEX = 6;
+const CROW_ID = 150;
+const NAMED_CIVILIAN_ID = 151;
+const CROW_TILE = 100 * 160 + 100;
+const NAMED_CIVILIAN_TILE = 104 * 160 + 104;
+const NAMED_CIVILIAN_DOT = '#5555ff';
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -813,6 +821,28 @@ describe('the tactical screen over a stub sandbox session', () => {
     await f.settle();
     expect([...f.screen.controls.input.multiSelected].sort()).toEqual([0, 1, 2, 3]);
     expect(namedAboveHead(f)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('draws no radar dot for a crow and the named-civilian dot for a civilian with a profile (Radar_Screen.cc:254, :274)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const radar = f.widget('radar').rect;
+    const dotColours = (gridNo: number) => {
+      const dot = f.world.radarDot(gridNo);
+      if (!dot) throw new Error('no radar dot');
+      return f
+        .draw()
+        .items.flatMap((i) =>
+          i.kind === 'rectangle' && i.x1 === radar.x + dot.x && i.y1 === radar.y + dot.y && i.x2 === i.x1 + 1 ? [hex(i.color)] : [],
+        );
+    };
+    const soldiers = f.client.view.soldiers as SoldierView[];
+    const base = soldiers[0];
+    if (!base) throw new Error('no soldier');
+    const civilian = { ...base, team: CIV_TEAM, hostile: false, healthIndex: HEALTHY_INDEX, level: 0 };
+    soldiers.push({ ...civilian, id: CROW_ID, bodyType: Body.CROW, gridNo: CROW_TILE });
+    soldiers.push({ ...civilian, id: NAMED_CIVILIAN_ID, bodyType: Body.REGMALE, gridNo: NAMED_CIVILIAN_TILE, profile: STUB_NPC });
+    f.t.frame();
+    expect([dotColours(CROW_TILE), dotColours(NAMED_CIVILIAN_TILE)]).toEqual([[], [NAMED_CIVILIAN_DOT]]);
   });
 
   it('blinks the faces from the client random and the face record', async () => {
