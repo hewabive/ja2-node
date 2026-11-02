@@ -7,7 +7,8 @@
 // @src NEW_ITEM_CYCLES cycles of NEW_ITEM_CYCLE_COUNT steps, a click stops it), us16BPPItemCyclePlacedItemColors,
 // @src HandleCompatibleAmmoUI (white outlines after 100 ms over a slot), GetHelpTextForItem, RenderInvBodyPanel;
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (CTRL cleans up the stack clicked, UIHandleItemPlacement
-// @src with the cursor's objects of the same item), SMInvClickCallbackSecondary (the stack popup for a
+// @src with the cursor's objects of the same item, A_CHANGE_TO_MOVE after a placement but not after a merge, 2026-11-02),
+// @src SMInvClickCallbackSecondary (the stack popup for a
 // @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback,
 // @src MergeMessageBoxCallBack, ReevaluateItemHatches; Interface_Items.cc InternalBeginItemPointer and EndItemPointer
 // @src (gbItemPointerLocateGood from a slot's object taken into the cursor until it leaves the cursor, 2026-11-02).
@@ -100,6 +101,7 @@ export interface InventoryHooks {
   disabledForItems(): boolean;
   inCombat(): boolean;
   extraHatch?(soldier: number, slot: number): boolean;
+  placed?(): void;
 }
 
 export class InventoryPanel {
@@ -310,7 +312,8 @@ export class InventoryPanel {
     if (!cursor) return;
     const reply = await this.send(placeCommand(cursor, target.id, slot, merge));
     if (reply.ok) {
-      this.#cursor = null;
+      if (merge === true) this.#cursor = null;
+      else this.#endPlacement();
       return;
     }
     const refusal = refusalOf(reply.data);
@@ -322,6 +325,11 @@ export class InventoryPanel {
       const yes = await this.#env().boxes.confirm(this.#env().text.string('Message', STR_MERGE_ITEMS) ?? '');
       await this.place(target, slot, yes);
     }
+  }
+
+  #endPlacement(): void {
+    this.#cursor = null;
+    this.#hooks.placed?.();
   }
 
   slotSecondary(slot: number): void {

@@ -28,7 +28,9 @@
 // @src cursor, selecting its owner; only a key in the cursor goes onto the ring); GameScreen.cc
 // @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02);
 // @src Interface_Items.cc DrawItemTileCursor (the item's owner selected while the item is over the map, and located
-// @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02).
+// @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02); Turn_Based_Input.cc
+// @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (A_CHANGE_TO_MOVE once an item pointer click is
+// @src handled, 2026-11-02).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -293,6 +295,7 @@ export class TacticalScreen implements Screen {
       disabledForItems: () => this.#disabledForItems(),
       inCombat: () => inCombat(this.#view()),
       extraHatch: (soldier, slot) => this.dialogue?.shopHatched(soldier, slot) === true,
+      placed: () => this.controls.input.changeToMove(),
     });
     const popupHooks = {
       services: env.runtime,
@@ -344,6 +347,7 @@ export class TacticalScreen implements Screen {
       view: () => this.#view(),
       smSoldier: () => this.#smSoldier(),
       disabled: () => this.#disabledForItems(),
+      changeToMove: () => this.controls.input.changeToMove(),
       shopOpen: () => this.dialogue.shopOpen,
       offerCash: (soldier, slot, amount) => this.dialogue.shop.offerCash(soldier, slot, amount),
       showBalance: (soldier, amount) => {
@@ -493,7 +497,7 @@ export class TacticalScreen implements Screen {
     const at = target?.gridNo ?? gridNo;
     const distance = holder ? pythSpacesAway(holder.gridNo, at) : 0;
     const other = target !== null && target.id !== cursor.source.soldier;
-    const send = (cmd: CommandEnvelope) => void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
+    const send = (cmd: CommandEnvelope) => void this.inventory.send(cmd).then((r) => r.ok && this.#endItemPointer());
     if (other && receivesGive(target, distance)) {
       const give = giveCommand(cursor, target.id);
       if (give) send(give);
@@ -506,7 +510,12 @@ export class TacticalScreen implements Screen {
     }
     const drop = dropCommand(cursor);
     if (drop) send(drop);
-    else this.inventory.setCursor(null);
+    else this.#endItemPointer();
+  }
+
+  #endItemPointer(): void {
+    this.inventory.setCursor(null);
+    this.controls.input.changeToMove();
   }
 
   #pickUpAt(picker: SoldierView, gridNo: number, level: number): void {

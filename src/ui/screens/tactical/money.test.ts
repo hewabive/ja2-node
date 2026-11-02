@@ -4,6 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import { MouseButton } from '../../input/events.ts';
 import type { TacticalEnvironment } from './environment.ts';
+import { UiMode } from './input/ui-events.ts';
 import type { InventoryPanel } from './inventory.ts';
 import { MoneyActions } from './money-actions.ts';
 import { MAX_MONEY_PER_SLOT, MoneyBox } from './money-box.ts';
@@ -63,6 +64,7 @@ describe('money actions in the shop', () => {
       view: () => ({ tick: 0, mapPath: null, soldiers: [], strategic: { balance: 5000 } }) as never,
       smSoldier: () => ({ id: 3 }) as never,
       disabled: () => false,
+      changeToMove: () => undefined,
       shopOpen: () => true,
       showBalance: () => {
         shown++;
@@ -132,5 +134,37 @@ describe('money through the single merc panel in a stub campaign', () => {
     expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
     expect(balance(f)).toBe(before - 1900);
     expect(moneyPockets(f, merc).map((p) => p.money)).toEqual([1900]);
+  });
+
+  it('goes back to move mode as soon as the money region asks to deposit the held money (SMInvMoneyButtonCallback)', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const merc = a10.mercs[0] ?? 0;
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    await f.click('smMoney');
+    await f.click('itemDescriptionMoney0');
+    await f.click('itemDescriptionMoneyDone');
+    const pocket = moneyPockets(f, merc)[0];
+    await f.click(`slot${pocket?.slot}`);
+    expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'slot', slot: pocket?.slot });
+    const overMap = { x: f.t.runtime.geometry().width / 2, y: 100 };
+    for (const dx of [0, 1]) {
+      f.t.runtime.input({
+        kind: 'pointerMove',
+        x: overMap.x + dx,
+        y: overMap.y,
+        button: MouseButton.LEFT,
+        buttons: 0,
+        wheel: 0,
+        modifiers: 0,
+      });
+      f.t.frame(20);
+    }
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    await f.click('smMoney');
+    await f.settle();
+    expect(f.t.runtime.host.modal?.id).toBe('messageBox');
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
   });
 });

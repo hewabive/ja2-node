@@ -11,6 +11,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
+import { UiMode } from './input/ui-events.ts';
 import { MAX_AGE } from './message-log.ts';
 
 const HAND = 5;
@@ -140,6 +141,20 @@ function pressAlone(f: TacticalUiTest, key: string, code: string, held: Partial<
 function pointerTo(f: TacticalUiTest, x: number, y: number): void {
   f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
   f.t.frame(SCROLL_STEP_MS);
+}
+
+function centreOn(f: TacticalUiTest, gridNo: number): void {
+  f.world.camera = { centerX: (gridNo % 160) * 10 + 5, centerY: Math.floor(gridNo / 160) * 10 + 5 };
+}
+
+function freeTileBeside(f: TacticalUiTest, gridNo: number): number {
+  const free = (tile: number) => {
+    const at = f.world.pickPoint(tile);
+    return !f.client.view.soldiers.some((s) => s.gridNo === tile || f.world.soldierPictureAt(s.id, at.x, at.y));
+  };
+  const tile = [gridNo - 1, gridNo + 160, gridNo - 160, gridNo + 159, gridNo - 161].find(free);
+  if (tile === undefined) throw new Error(`no free tile beside ${gridNo}`);
+  return tile;
 }
 
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
@@ -348,6 +363,40 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([true, shown]);
     f.key('Escape');
     expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([false, ['Late']]);
+  });
+
+  it('goes back to move mode once the held item is dropped beside the merc, as the click posts A_CHANGE_TO_MOVE', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const owner = f.client.view.soldiers.find((s) => s.id === f.screen.inventory.cursor?.source.soldier);
+    if (!owner) throw new Error('no owner');
+    centreOn(f, owner.gridNo);
+    const at = f.world.pickPoint(freeTileBeside(f, owner.gridNo));
+    pointerTo(f, at.x, at.y);
+    pointerTo(f, at.x + 1, at.y);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'drop', soldier: owner.id, slot: BIG_POCKET }, reply: { ok: true } });
+    pointerTo(f, at.x, at.y);
+    expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
+  });
+
+  it('goes back to move mode once the held item, carried over the map, goes into a slot (UIHandleItemPlacement)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const { width } = f.t.runtime.geometry();
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    pointerTo(f, width / 2 + 1, VIEW_ROW_Y);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'moveItem', from: BIG_POCKET, to: NEXT_BIG_POCKET },
+      reply: { ok: true },
+    });
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
   });
 
   it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
