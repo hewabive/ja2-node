@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { KEY_TEXT } from '../../../../tests/support/map-screen.ts';
 import type { StrategicView } from '../../../protocol/view.ts';
-import { departureBox, type PromptContext } from './map-prompts.ts';
+import { MessageBoxReturn } from '../../widgets/message-box.ts';
+import { departureBox, type PromptContext, promptBox } from './map-prompts.ts';
 
 const SOLDIER = 7;
 
@@ -25,5 +26,19 @@ describe("the departing merc's equipment box (NotifyPlayerOfMercDepartureAndProm
     const here = departure(['here'], null);
     expect(departureBox(context(false), here).text).toBe('str_he_leaves_drops_equipment[0]');
     expect(departureBox(context(true), here).text).toBe('str_she_leaves_drops_equipment[0]');
+  });
+});
+
+describe('the surrender box (ShutDownQuoteBox, SurrenderMessageBoxCallBack)', () => {
+  it('asks Message[STR_SURRENDER] for an offer in tactical and answers accept or reject', () => {
+    const box = promptBox(context(false), { id: 'p', kind: 'surrender', context: 'tactical', soldier: 20, choices: ['accept', 'reject'] });
+    expect(box?.text).toBe('Message[54]');
+    expect([box?.answer(MessageBoxReturn.YES), box?.answer(MessageBoxReturn.NO)]).toEqual(['accept', 'reject']);
+  });
+
+  it('answers the autoresolve offer with accept or reject too', () => {
+    const box = promptBox(context(false), { id: 'p', kind: 'surrender', context: 'autoresolve', choices: ['accept', 'reject'] });
+    expect(box?.text).toBe('gpStrategicString[3]');
+    expect([box?.answer(MessageBoxReturn.YES), box?.answer(MessageBoxReturn.NO)]).toEqual(['accept', 'reject']);
   });
 });

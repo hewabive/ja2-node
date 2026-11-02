@@ -7,7 +7,8 @@
 // @src CONTINUE/STOP); src/game/Strategic/Merc_Contract.cc NotifyPlayerOfMercDepartureAndPromptEquipmentPlacement (the
 // @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired, the text by the profile's sex),
 // @src HandleNotifyPlayerCanAffordInsurance
-// @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340). The
+// @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340);
+// @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBox, SurrenderMessageBoxCallBack (the tactical surrender). The
 // @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
 
 import type { PromptView, StrategicView } from '../../../protocol/view.ts';
@@ -15,6 +16,7 @@ import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
+import { surrenderChoice, surrenderQuestion } from '../talk/surrender-box.ts';
 import { mercById } from './character-list.ts';
 
 const MILITIA = 'pMilitiaConfirmStrings';
@@ -81,8 +83,10 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
         ? { text: body, flags: MessageBoxFlag.OK, answer: () => 'ok' }
         : { text: body, flags: MessageBoxFlag.CONTINUESTOP, answer: (r) => (r === MessageBoxReturn.OK ? 'continue' : 'stop') };
     }
-    case 'surrender':
-      return yesNo(text.string(STRATEGIC, STR_ENEMY_SURRENDER_OFFER) ?? '');
+    case 'surrender': {
+      const question = prompt.context === 'tactical' ? surrenderQuestion(text) : (text.string(STRATEGIC, STR_ENEMY_SURRENDER_OFFER) ?? '');
+      return { text: question, flags: MessageBoxFlag.YESNO, answer: surrenderChoice };
+    }
     case 'preBattle':
     case 'autoresolveDone':
       return null;
