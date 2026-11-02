@@ -383,7 +383,8 @@ export function confirmPage(imp: ImpContext): LaptopPage {
       yes: () => {
         if (busy) return;
         busy = true;
-        void imp.context.command({ type: 'impCreate', ...draft.request() }).then((reply) => {
+        void imp.context.command({ type: 'impCreate', ...draft.request() }).then(async (reply) => {
+          if (reply.ok) await imp.context.data.refreshProfiles().catch(() => undefined);
           busy = false;
           if (!disposed && reply.ok) draft.confirmed();
         });

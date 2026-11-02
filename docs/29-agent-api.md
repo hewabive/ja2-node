@@ -606,7 +606,7 @@ carries no music and no sound.
   client's faces and pages; on stubs from `stubs/profiles.json`. A profile free for I.M.P. is listed only once a
   character is created there (`profileFaceRecords`, `src/server/campaign-session.ts`), so the map and tactical screens,
   which fetch the list again when the team shows a profile they do not know, pick up a character created after they
-  loaded.
+  loaded; the laptop fetches it again after `impCreate` (`src/ui/screens/laptop/imp/imp-pages.ts`).
 - `GET /api/items?lang=` (`src/server/item-catalogue.ts`): the item catalogue with names, descriptions, graphics and the
   numbers the client's screens print.
 - The game page's test switches (URL parameters `holdTime=1`, `pinClock`, `shadowHints=1`) and its `window.__ja2Ui`

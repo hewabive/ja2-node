@@ -143,6 +143,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
         aimBio: null,
       }),
       item: (index) => ui.items.get(index),
+      refreshProfiles: async () => undefined,
     },
     media: {
       loadImages: async () => undefined,

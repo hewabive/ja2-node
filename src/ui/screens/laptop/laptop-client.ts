@@ -54,6 +54,7 @@ export interface LaptopItem {
 export interface LaptopData {
   profile(id: number): LaptopProfile | undefined;
   item(index: number): LaptopItem | undefined;
+  refreshProfiles(): Promise<void>;
 }
 
 export interface LaptopSettings {

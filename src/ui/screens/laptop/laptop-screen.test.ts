@@ -83,6 +83,7 @@ async function openLaptop(): Promise<Harness> {
         aimBio: null,
       }),
       item: () => undefined,
+      refreshProfiles: async () => undefined,
     },
     media: { loadImages: async () => undefined, loadTexts: async () => undefined, gaps: () => null, random: () => 0 },
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),

@@ -10,10 +10,18 @@ import type { CampaignSession } from '../../src/server/campaign-session.ts';
 import { buildItemCatalogue } from '../../src/server/item-catalogue.ts';
 import { Session } from '../../src/server/session.ts';
 import { TextService } from '../../src/server/text-service.ts';
+import { NUM_PROFILES } from '../../src/sim/campaign/profiles.ts';
 import type { LayoutModel } from '../../src/ui/layout/model.ts';
 import { messageBoxStyles } from '../../src/ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../src/ui/layout/types.ts';
-import type { LaptopClient, LaptopCommand, LaptopCommandReply, LaptopData, LaptopItem } from '../../src/ui/screens/laptop/laptop-client.ts';
+import type {
+  LaptopClient,
+  LaptopCommand,
+  LaptopCommandReply,
+  LaptopData,
+  LaptopItem,
+  LaptopProfile,
+} from '../../src/ui/screens/laptop/laptop-client.ts';
 import { LAPTOP_LAYOUTS, LaptopScreen } from '../../src/ui/screens/laptop/laptop-screen.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
@@ -46,6 +54,7 @@ export interface LaptopHarness {
   readonly live: Session;
   readonly commands: LaptopCommand[];
   readonly replies: LaptopCommandReply[];
+  readonly requestedImages: string[];
   closed: boolean;
 }
 
@@ -79,26 +88,35 @@ function laptopData(catalogue: readonly CatalogueItem[], session: CampaignSessio
       },
     ]),
   );
+  let profiles = serverProfiles(session);
   return {
-    profile: (id) => {
-      const record = session.campaign.laptop?.profileRecord(id);
-      return record
-        ? {
-            id,
-            name: record.name,
-            nickname: record.nickname,
-            faceIndex: record.faceIndex ?? id,
-            eyes: [record.eyesX, record.eyesY],
-            mouth: [record.mouthX, record.mouthY],
-            blinkFrequency: record.blinkFrequency,
-            expressionFrequency: record.expressionFrequency,
-            aimBio: null,
-            mercBio: null,
-          }
-        : undefined;
-    },
+    profile: (id) => profiles.get(id),
     item: (index) => items.get(index),
+    refreshProfiles: async () => {
+      profiles = serverProfiles(session);
+    },
   };
+}
+
+function serverProfiles(session: CampaignSession): Map<number, LaptopProfile> {
+  const profiles = new Map<number, LaptopProfile>();
+  for (let id = 0; id < NUM_PROFILES; id++) {
+    const record = session.campaign.laptop?.profileRecord(id);
+    if (!record) continue;
+    profiles.set(id, {
+      id,
+      name: record.name,
+      nickname: record.nickname,
+      faceIndex: record.faceIndex ?? id,
+      eyes: [record.eyesX, record.eyesY],
+      mouth: [record.mouthX, record.mouthY],
+      blinkFrequency: record.blinkFrequency,
+      expressionFrequency: record.expressionFrequency,
+      aimBio: null,
+      mercBio: null,
+    });
+  }
+  return profiles;
 }
 
 export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, options: LaptopHarnessOptions): Promise<LaptopHarness> {
@@ -128,7 +146,8 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
   const box = ui.layouts.get(MESSAGE_BOX_LAYOUT);
   if (!box) throw new Error('no message box layout');
   const styles = messageBoxStyles(box);
-  const harness = { t, commands, replies, session, live, closed: false } as LaptopHarness;
+  const requestedImages: string[] = [];
+  const harness = { t, commands, replies, requestedImages, session, live, closed: false } as LaptopHarness;
   const screen = new LaptopScreen({
     runtime: t.runtime,
     layouts: ui.layouts,
@@ -137,6 +156,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     data: laptopData(ui.catalogue, session),
     media: {
       loadImages: async (paths) => {
+        requestedImages.push(...paths);
         for (const path of paths) await loadImage(t, kit, path);
       },
       loadTexts: async () => undefined,

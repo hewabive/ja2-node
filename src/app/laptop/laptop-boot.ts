@@ -54,13 +54,9 @@ async function json<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function loadLaptopData(session: string, language: string | null): Promise<LaptopData> {
-  const [profileList, itemList] = await Promise.all([
-    json<{ profiles: ProfilePresentation[] }>(`/api/sessions/${encodeURIComponent(session)}/profiles`),
-    json<{ items: CatalogueItem[] }>(`/api/items${language ? `?lang=${encodeURIComponent(language)}` : ''}`),
-  ]);
-  const profiles = new Map<number, LaptopProfile>(
-    profileList.profiles.map((p) => [
+function laptopProfiles(list: { readonly profiles: readonly ProfilePresentation[] }): Map<number, LaptopProfile> {
+  return new Map(
+    list.profiles.map((p) => [
       p.id,
       {
         id: p.id,
@@ -76,6 +72,15 @@ export async function loadLaptopData(session: string, language: string | null): 
       },
     ]),
   );
+}
+
+export async function loadLaptopData(session: string, language: string | null): Promise<LaptopData> {
+  const fetchProfiles = () => json<{ profiles: ProfilePresentation[] }>(`/api/sessions/${encodeURIComponent(session)}/profiles`);
+  const [profileList, itemList] = await Promise.all([
+    fetchProfiles(),
+    json<{ items: CatalogueItem[] }>(`/api/items${language ? `?lang=${encodeURIComponent(language)}` : ''}`),
+  ]);
+  let profiles = laptopProfiles(profileList);
   const items = new Map<number, LaptopItem>(
     itemList.items.map((i) => [
       i.index,
@@ -91,7 +96,13 @@ export async function loadLaptopData(session: string, language: string | null): 
       },
     ]),
   );
-  return { profile: (id) => profiles.get(id), item: (index) => items.get(index) };
+  return {
+    profile: (id) => profiles.get(id),
+    item: (index) => items.get(index),
+    refreshProfiles: async () => {
+      profiles = laptopProfiles(await fetchProfiles());
+    },
+  };
 }
 
 function gapLists(ui: UiBoot): (file: string) => readonly AudioGap[] | null {

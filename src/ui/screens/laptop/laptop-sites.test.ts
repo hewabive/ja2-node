@@ -18,6 +18,7 @@ import { parseSectorString, strategicIndex } from '../../../content/strategic/se
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
 import { MouseButton } from '../../input/events.ts';
+import { portraitPath } from '../../widgets/portrait.ts';
 import { faceFileOf } from '../tactical/faces.ts';
 import { LaptopMode } from './laptop-modes.ts';
 
@@ -336,5 +337,17 @@ describe('I.M.P. on the canvas laptop', () => {
     expect(h.replies.at(-1)?.ok).toBe(true);
     expect(h.session.view().strategic?.mercs.length).toBe(before + 1);
     await waitFor(h, 'impHomeTitle');
+
+    const reply = h.replies[h.commands.findIndex((c) => c.type === 'impCreate')];
+    const profile = (reply?.data as { profile?: number } | undefined)?.profile ?? -1;
+    const face = h.session.campaign.state.laptop.imp.profiles.get(profile)?.faceIndex ?? -1;
+    if (find(t, 'newMailOk')?.visible) await click(t, 'newMailOk');
+    h.requestedImages.length = 0;
+    await click(t, 'personnelButton');
+    await settle(t, 12);
+    expect(h.screen.shell.mode).toBe(LaptopMode.PERSONNEL);
+    expect(h.requestedImages).toContain(portraitPath(face, 'small'));
+    expect(h.requestedImages).toContain(portraitPath(face, 'big'));
+    expect(h.requestedImages).not.toContain(portraitPath(profile, 'small'));
   });
 });
