@@ -172,6 +172,10 @@ the door actions and menu, and schedules through entries, warps, loads and AI de
 "Facts and NPC presence", "NPC actions", "Civilians", "Doors", "Schedules"); the new-game probes of "Laptop" compare
 every profile's sector. Inferred from reading the source:
 - The walking door and cabinet actions (3, 27, 40): unit tests on the stub village door only.
+- An NPC action's give to an NPC (Fatima's letter to Miguel, action 101) and the done-giving record after an action's
+  give (Darren's record 33 after the boxing payout): the give probes cover gives from mercs only; an original-data test
+  plays the rebel basement from Carlos 1 (`src/server/rebel-hideout-original.test.ts`), the steps in A9 and A10 before
+  it are untested.
 - The busy door and the perceived door state: unit tests on the stub village and town; the oracle's door probes leave
   the door statuses out.
 - An NPC drawing first, the ownership check of a pickup and the room owners' grudge after our explosions

@@ -195,6 +195,8 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
 - That Stracciatella cannot guess Russian Gold (it has no resource pack); that Ё and № cannot render with Russian data;
   that a speech archive speaks whatever language it holds; that mixed-case Russian on the original's fonts needs
   Russian data (from the glyph tables).
+- The stand-ins for Ч and П (deviation "Missing Cyrillic capitals") are checked on English fonts only: French data needs
+  190 glyphs, and its block fonts are not corrected unless they are exactly one glyph short of that.
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
 Not ported: gaps "Sound coverage", "Data version detection", "Helicopter entrance", "Map screen speech".
