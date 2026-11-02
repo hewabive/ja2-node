@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CONTACT_SNOW_NOISE,
   DISTORTION_FRAME_TIME,
   DISTORTION_PICK_RANGE,
   DISTORTION_PICK_TIME,
@@ -22,16 +23,20 @@ interface Script {
   readonly rolls: number[];
   readonly ranges: number[];
   readonly noises: string[];
+  readonly stopped: string[];
 }
 
 function scripted(rolls: number[]): { distortion: VideoDistortion; script: Script } {
-  const script: Script = { rolls, ranges: [], noises: [] };
+  const script: Script = { rolls, ranges: [], noises: [], stopped: [] };
   const distortion = new VideoDistortion(distortionClocks(), {
     random: (range) => {
       script.ranges.push(range);
       return script.rolls.shift() ?? CLEAN_ROLL;
     },
-    noise: (file) => script.noises.push(file),
+    noise: (file) => {
+      script.noises.push(file);
+      return { stop: () => script.stopped.push(file) };
+    },
   });
   return { distortion, script };
 }
@@ -100,6 +105,25 @@ describe('the A.I.M. conference distortion', () => {
     const { overlays } = runUntilClean(distortion, FIRST_PICK);
     expect(overlays).toEqual(['shade', 'shade', 'shade', 'shade']);
     expect(script.noises).toEqual(['laptop/static3.wav']);
+  });
+
+  it('plays static4.wav once over the connection snow and stops it on the first clean frame after it', () => {
+    const { distortion, script } = scripted([]);
+    distortion.contactSnow();
+    distortion.contactSnow();
+    expect([script.noises, script.stopped, distortion.overlay]).toEqual([[CONTACT_SNOW_NOISE], [], null]);
+    distortion.update(1);
+    expect(script.stopped).toEqual([CONTACT_SNOW_NOISE]);
+    distortion.contactSnow();
+    expect(script.noises).toEqual([CONTACT_SNOW_NOISE, CONTACT_SNOW_NOISE]);
+  });
+
+  it('forgets a static sample as its mode ends, so the clean frames after it stop nothing', () => {
+    const { distortion, script } = scripted([FUZZY_ROLL]);
+    distortion.update(FIRST_PICK);
+    const { now } = runUntilClean(distortion, FIRST_PICK);
+    distortion.update(now + FRAME_STEP);
+    expect([script.noises, script.stopped]).toEqual([['laptop/static1.wav'], []]);
   });
 
   it('holds a frame until more than 100 ms passed', () => {

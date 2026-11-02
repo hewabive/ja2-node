@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-29. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/AIMMembers.cc HandleVideoDistortion (a Random(200) pick at most every 2500 ms, each static sample
-// @src played once per run of a mode at LOWVOLUME), DisplayDistortionLine, DisplayPixelatedImage, DisplayTransparentSnow
-// @src (their function statics live as long as the laptop memory), InitVideoFace (VC_NO_STATIC); VC_* in the same file.
-// @src The snowy background of HandleVideoDistortion is not reproduced: the connection snow clears its flag first.
+// @src src/game/Laptop/AIMMembers.cc HandleVideoDistortion (a Random(200) pick at most every 2500 ms; uiStaticNoiseSound:
+// @src a static sample played at LOWVOLUME while no other is held, held through a run of a mode, forgotten as the mode
+// @src changes, stopped by VC_NO_STATIC; the connection snow's static4.wav), DisplayDistortionLine, DisplayPixelatedImage,
+// @src DisplayTransparentSnow (their function statics live as long as the laptop memory), InitVideoFace (VC_NO_STATIC);
+// @src VC_* in the same file.
 
 import { u32 } from '../../../../core/int.ts';
 
@@ -44,6 +45,8 @@ const PICKS: readonly (readonly [below: number, mode: number])[] = [
   [100, StaticMode.TRANS_SNOW_IN],
 ];
 
+export const CONTACT_SNOW_NOISE = 'laptop/static4.wav';
+
 const NOISES: Readonly<Record<number, string>> = {
   [StaticMode.FUZZY_LINE]: 'laptop/static1.wav',
   [StaticMode.STRAIGHT_LINE]: 'laptop/static5.wav',
@@ -55,6 +58,10 @@ const NOISES: Readonly<Record<number, string>> = {
 
 export type DistortionOverlay = { readonly asset: string; readonly frame: number } | 'shade' | null;
 
+export interface StaticNoise {
+  stop(): void;
+}
+
 export interface DistortionCounter {
   count: number;
   last: number;
@@ -62,7 +69,7 @@ export interface DistortionCounter {
 
 export interface DistortionClocks {
   mode: number;
-  noisePlayed: boolean;
+  noise: StaticNoise | null;
   lastPick: number;
   readonly line: DistortionCounter;
   readonly pixelate: DistortionCounter;
@@ -72,7 +79,7 @@ export interface DistortionClocks {
 export function distortionClocks(): DistortionClocks {
   return {
     mode: StaticMode.NO_STATIC,
-    noisePlayed: false,
+    noise: null,
     lastPick: 0,
     line: { count: UNSTARTED_LINE, last: 0 },
     pixelate: { count: UNSTARTED_LINE, last: 0 },
@@ -82,7 +89,7 @@ export function distortionClocks(): DistortionClocks {
 
 export interface DistortionPorts {
   random(range: number): number;
-  noise(file: string): void;
+  noise(file: string): StaticNoise;
 }
 
 function due(counter: DistortionCounter, now: number): boolean {
@@ -113,16 +120,24 @@ export class VideoDistortion {
     this.overlay = null;
   }
 
+  contactSnow(): void {
+    this.overlay = null;
+    this.#play(CONTACT_SNOW_NOISE);
+  }
+
   update(now: number): void {
     const clocks = this.#clocks;
     const running = clocks.mode;
     this.overlay = null;
-    if (running === StaticMode.NO_STATIC) this.#pick(now);
-    else {
+    if (running === StaticMode.NO_STATIC) {
+      this.#stopNoise();
+      this.#pick(now);
+    } else {
       clocks.mode = this.#show(running, now);
-      this.#playNoise(running);
+      const noise = NOISES[running];
+      if (noise !== undefined) this.#play(noise);
     }
-    if (clocks.mode !== running) clocks.noisePlayed = false;
+    if (clocks.mode !== running) clocks.noise = null;
   }
 
   #pick(now: number): void {
@@ -133,11 +148,13 @@ export class VideoDistortion {
     clocks.lastPick = now;
   }
 
-  #playNoise(running: number): void {
-    const noise = NOISES[running];
-    if (this.#clocks.noisePlayed || noise === undefined) return;
-    this.#ports.noise(noise);
-    this.#clocks.noisePlayed = true;
+  #play(file: string): void {
+    if (this.#clocks.noise === null) this.#clocks.noise = this.#ports.noise(file);
+  }
+
+  #stopNoise(): void {
+    this.#clocks.noise?.stop();
+    this.#clocks.noise = null;
   }
 
   #show(running: number, now: number): number {

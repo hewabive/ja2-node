@@ -9,6 +9,7 @@ import {
   FIRST_ATTITUDE_TIME,
   MINIMUM_TALKING_TIME,
   SNOW_FRAMES,
+  SNOW_PASSES,
   SPEECH_DELAY,
   STATIC_TIME,
   TITLE_ITERATIONS,
@@ -17,7 +18,7 @@ import {
   titleBarRect,
   VideoMode,
 } from './aim-conference.ts';
-import { DISTORTION_PICK_TIME, DistortionAsset, distortionClocks, StaticMode } from './aim-distortion.ts';
+import { CONTACT_SNOW_NOISE, DISTORTION_PICK_TIME, DistortionAsset, distortionClocks, StaticMode } from './aim-distortion.ts';
 
 const STEP_MS = 16;
 const QUOTE_MS = 1000;
@@ -123,6 +124,7 @@ function ports(): FakePorts {
     random: () => p.roll,
     noise: (file) => {
       p.noises.push(file);
+      return { stop: () => undefined };
     },
   };
   return p;
@@ -157,18 +159,32 @@ function nextQuote(conference: Conference, p: FakePorts, from: number): number {
   return runUntil(conference, from + STEP_MS, () => p.said.length > said);
 }
 
+function greeted(conference: Conference, p: FakePorts): number {
+  const greeting = nextQuote(conference, p, faceUp(conference));
+  return runUntil(conference, greeting, () => !conference.talking);
+}
+
+function snowFrames(conference: Conference, from: number): number[] {
+  const shown: number[] = [];
+  runUntil(conference, from, () => {
+    if (conference.snowFrame !== null && shown.at(-1) !== conference.snowFrame) shown.push(conference.snowFrame);
+    return conference.snowFrame === null;
+  });
+  return shown;
+}
+
 function pastTheFirstRoll(conference: Conference, from: number): number {
   return advance(conference, from, PAST_THE_FIRST_ROLL - from);
 }
 
 function connect(conference: Conference): number {
   conference.open(0);
-  const ms = TITLE_ITERATIONS * STEP_MS + (BLACK_LOOPS + 2 * SNOW_FRAMES + 2) * (STATIC_TIME + STEP_MS);
+  const ms = TITLE_ITERATIONS * STEP_MS + (BLACK_LOOPS + SNOW_PASSES * SNOW_FRAMES + 2) * (STATIC_TIME + STEP_MS);
   return advance(conference, 0, ms);
 }
 
 describe('the A.I.M. video conference', () => {
-  it('raises the title bar, shows black then two passes of snow and then the merc', () => {
+  it('raises the title bar, shows black, then the merc at once under two passes of snow', () => {
     const conference = new Conference(ports(), STEP_MS);
     conference.open(0);
     expect(conference.mode).toBe(VideoMode.POPUP);
@@ -179,17 +195,43 @@ describe('the A.I.M. video conference', () => {
     expect(conference.mode).toBe(VideoMode.INIT);
     expect(conference.face).toBe('black');
     expect(conference.buyEquipment).toBe(true);
-    connect(conference);
-    const fresh = new Conference(ports(), STEP_MS);
-    connect(fresh);
-    expect(fresh.mode).toBe(VideoMode.FIRST_CONTACT);
-    expect(fresh.face).toBe('face');
+    const up = runUntil(conference, now, () => conference.mode !== VideoMode.INIT);
+    expect([conference.mode, conference.face, conference.snowFrame]).toEqual([VideoMode.FIRST_CONTACT, 'face', 0]);
+    expect(snowFrames(conference, up)).toEqual([0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5]);
   });
 
-  it('greets with nothing after the connection snow: the snow clears the first-contact flag the greeting waits for', () => {
+  it('greets once the snow over his face has passed, with static4.wav under the snow', () => {
     const p = ports();
-    connect(new Conference(p, STEP_MS));
-    expect(p.said).toEqual([]);
+    const conference = new Conference(p, STEP_MS);
+    const up = faceUp(conference);
+    expect([p.said, p.noises]).toEqual([[], [CONTACT_SNOW_NOISE]]);
+    const greeting = nextQuote(conference, p, up);
+    expect(conference.snowFrame).toBeNull();
+    expect(greeting - up).toBeLessThanOrEqual((SNOW_PASSES * SNOW_FRAMES + 1) * (STATIC_TIME + STEP_MS));
+    expect([p.said, p.noises]).toEqual([[ConferenceQuote.GREETING], [CONTACT_SNOW_NOISE]]);
+  });
+
+  it('greets no one pressing Hire during the snow, no busy merc, and shows no snow before the answering machine', async () => {
+    const hiring = ports();
+    const conference = new Conference(hiring, STEP_MS);
+    const up = faceUp(conference);
+    conference.hire();
+    await flush();
+    expect([conference.mode, conference.snowFrame]).toEqual([VideoMode.HIRE, 0]);
+    advance(conference, up, SPEECH_DELAY + 2 * STEP_MS);
+    expect(hiring.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+
+    const busy = ports();
+    busy.answer = 'unavailable';
+    const unavailable = new Conference(busy, STEP_MS);
+    advance(unavailable, faceUp(unavailable), FIRST_ATTITUDE_TIME);
+    expect([busy.said, busy.noises]).toEqual([[], [CONTACT_SNOW_NOISE]]);
+
+    const answering = ports();
+    answering.answer = 'answeringMachine';
+    const machine = new Conference(answering, STEP_MS);
+    advance(machine, faceUp(machine), FIRST_ATTITUDE_TIME);
+    expect([machine.snowFrame, answering.noises, answering.said]).toEqual([null, [], [ConferenceQuote.ANSWERING_MACHINE_MSG]]);
   });
 
   it('plays the answering machine and leaves a message', () => {
@@ -246,7 +288,7 @@ describe('the A.I.M. video conference', () => {
     await flush();
     expect(conference.mode).toBe(VideoMode.HIRE);
     now = advance(conference, now, SPEECH_DELAY + STEP_MS);
-    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+    expect(p.said).toEqual([ConferenceQuote.GREETING, ConferenceQuote.LENGTH_OF_CONTRACT]);
     conference.setContract(ContractLength.TWO_WEEKS);
     conference.setEquipment(false);
     conference.transferFunds();
@@ -284,7 +326,7 @@ describe('the A.I.M. video conference', () => {
     now = advance(conference, now, STEP_MS);
     expect(conference.mode).toBe(VideoMode.POPDOWN);
     advance(conference, now, SPEECH_DELAY + TITLE_ITERATIONS * STEP_MS);
-    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+    expect(p.said).toEqual([ConferenceQuote.GREETING, ConferenceQuote.LENGTH_OF_CONTRACT]);
     expect(p.popdowns).toBe(1);
   });
 
@@ -295,7 +337,7 @@ describe('the A.I.M. video conference', () => {
     conference.hire();
     await flush();
     now = advance(conference, now, SPEECH_DELAY + STEP_MS);
-    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+    expect(p.said).toEqual([ConferenceQuote.GREETING, ConferenceQuote.LENGTH_OF_CONTRACT]);
     expect(conference.talking).toBe(true);
     conference.cancelHire();
     expect(conference.talking).toBe(false);
@@ -313,7 +355,7 @@ describe('the A.I.M. video conference', () => {
     await flush();
     expect(refusing.mode).toBe(VideoMode.FIRST_CONTACT);
     expect(refusing.hireDisabled).toBe(false);
-    expect(declined.said).toEqual([13]);
+    expect(declined.said).toEqual([ConferenceQuote.GREETING, 13]);
 
     const poor = ports();
     poor.hireResult = 'funds';
@@ -337,7 +379,7 @@ describe('the A.I.M. video conference', () => {
     expect(conference.distortion.overlay).toBeNull();
     pastTheFirstRoll(conference, now);
     expect(conference.distortion.overlay).toMatchObject({ asset: DistortionAsset.FUZZ_LINES });
-    expect(p.noises).toEqual(['laptop/static1.wav']);
+    expect(p.noises).toEqual([CONTACT_SNOW_NOISE, 'laptop/static1.wav']);
 
     const answering = ports();
     answering.roll = FUZZY_ROLL;
@@ -390,10 +432,11 @@ describe('the A.I.M. video conference', () => {
     let now = connect(conference);
     conference.hire();
     await flush();
+    const greetingCut = p.shutUps;
     now = advance(conference, now, 2 * MINIMUM_TALKING_TIME);
     expect([conference.talking, conference.mercTalking, conference.mode]).toEqual([true, true, VideoMode.FIRST_CONTACT]);
     advance(conference, now, MINIMUM_TALKING_TIME + STEP_MS);
-    expect([conference.talking, conference.mercTalking, p.shutUps]).toEqual([false, false, 1]);
+    expect([conference.talking, conference.mercTalking, p.shutUps - greetingCut]).toEqual([false, false, 1]);
     expect(conference.mode).toBe(VideoMode.POPDOWN);
   });
 
@@ -427,10 +470,10 @@ describe('an A.I.M. merc kept waiting', () => {
   it('makes small talk after two spells of three silent seconds, grows impatient every ten, comments and hangs up', () => {
     const p = ports();
     const conference = new Conference(p, STEP_MS);
-    const up = faceUp(conference);
-    const smallTalk = nextQuote(conference, p, up);
-    expect(smallTalk - up).toBeGreaterThan(SMALL_TALK_WAIT);
-    expect(smallTalk - up).toBeLessThanOrEqual(SMALL_TALK_WAIT + 2 * STEP_MS);
+    const quiet = greeted(conference, p);
+    const smallTalk = nextQuote(conference, p, quiet);
+    expect(smallTalk - quiet).toBeGreaterThan(SMALL_TALK_WAIT);
+    expect(smallTalk - quiet).toBeLessThanOrEqual(SMALL_TALK_WAIT + 2 * STEP_MS);
     const impatient = nextQuote(conference, p, smallTalk);
     expect(impatient - smallTalk).toBeGreaterThan(QUOTE_MS + ATTITUDE_TIME);
     expect(impatient - smallTalk).toBeLessThanOrEqual(QUOTE_MS + ATTITUDE_TIME + 3 * STEP_MS);
@@ -438,6 +481,7 @@ describe('an A.I.M. merc kept waiting', () => {
     const comment = nextQuote(conference, p, veryImpatient);
     expect(comment - veryImpatient).toBeGreaterThan(2 * QUOTE_MS + ATTITUDE_TIME);
     expect(p.said).toEqual([
+      ConferenceQuote.GREETING,
       ConferenceQuote.SMALL_TALK,
       ConferenceQuote.IMPATIENT_QUOTE,
       ConferenceQuote.PRECEDENT_TO_REPEATING_ONESELF,
@@ -526,7 +570,7 @@ describe('an A.I.M. merc kept waiting', () => {
   it('lets a click cut the first very impatient quote and the second play on, its text up and out of the click region', () => {
     const p = ports();
     const conference = new Conference(p, STEP_MS);
-    const smallTalk = nextQuote(conference, p, faceUp(conference));
+    const smallTalk = nextQuote(conference, p, greeted(conference, p));
     const veryImpatient = nextQuote(conference, p, nextQuote(conference, p, smallTalk));
     expect(p.spoken.at(-1)).toBe(ConferenceQuote.PRECEDENT_TO_REPEATING_ONESELF);
     conference.stopTalking();
@@ -538,7 +582,7 @@ describe('an A.I.M. merc kept waiting', () => {
   it('keeps the text of the second very impatient quote up after his face stops, until the next redraw', () => {
     const p = ports();
     const conference = new Conference(p, STEP_MS);
-    const smallTalk = nextQuote(conference, p, faceUp(conference));
+    const smallTalk = nextQuote(conference, p, greeted(conference, p));
     const veryImpatient = nextQuote(conference, p, nextQuote(conference, p, smallTalk));
     const now = advance(conference, veryImpatient, 2 * QUOTE_MS + 4 * STEP_MS);
     expect([p.spoken.at(-1), conference.mercTalking, conference.talking, conference.subtitled]).toEqual([

@@ -239,15 +239,21 @@ describe('A.I.M. on the canvas laptop', () => {
     expect(t.runtime.host.modal).toBeNull();
   });
 
-  it('has a merc kept waiting make small talk with its text after six silent seconds', async () => {
+  it('has a merc greet the caller after the snow, then, kept waiting, make small talk with its text after six silent seconds', async () => {
     const h = await openLaptopHarness(kit, ui, { seed: 27 });
     const { t } = h;
     await callMercAtHome(h);
     const faceUp = t.now;
+    const talking = () => find(t, 'shutUp')?.visible === true;
     const subtitled = () => t.list.items.some((i) => i.kind === 'image' && i.asset === SUBTITLE_BORDER);
-    expect(subtitled()).toBe(false);
-    await until(h, () => find(t, 'shutUp')?.visible === true);
-    expect(t.now - faceUp).toBeGreaterThan(SMALL_TALK_WAIT_MS);
+    expect([talking(), subtitled()]).toEqual([false, false]);
+    await until(h, talking);
+    expect(t.now - faceUp).toBeLessThan(SMALL_TALK_WAIT_MS);
+    expect(subtitled()).toBe(true);
+    await until(h, () => !talking());
+    const silent = t.now;
+    await until(h, talking);
+    expect(t.now - silent).toBeGreaterThanOrEqual(SMALL_TALK_WAIT_MS);
     expect(subtitled()).toBe(true);
   });
 

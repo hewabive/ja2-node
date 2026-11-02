@@ -503,9 +503,9 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   const drawFace = (list: DrawList, rect: Area): void => {
     if (!conference.terminalShown) return;
     if (conference.face === 'black') list.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, BLACK);
-    else if (conference.face === 'snow') list.image(DistortionAsset.BW_SNOW, conference.snowFrame, rect.x, rect.y);
     else if (conference.face === 'face') {
       list.snapshot(FACE_SOURCE, { x: rect.x, y: rect.y, width: SMALL_FACE_WIDTH, height: SMALL_FACE_HEIGHT }, rect);
+      if (conference.snowFrame !== null) list.image(DistortionAsset.BW_SNOW, conference.snowFrame, rect.x, rect.y);
       drawDistortion(list, rect, conference.distortion.overlay);
       if (conference.mode === VideoMode.ANSWERING_MACHINE) {
         list.shadow(rect.x, rect.y, rect.x + rect.width - 1, rect.y + rect.height - 1);

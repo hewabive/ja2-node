@@ -4,11 +4,13 @@
 // @src change that rebuilds the buttons, the redraw that keeps a quote's text up only while the merc talks),
 // @src InitDeleteVideoConferencePopUp (INIT resets one week, the kit when it costs something and the attitude; FIRST_CONTACT,
 // @src HIRE, ANSWERING_MACHINE with no attitude, UNAVAILABLE busy; every mode change restarts the attitude time),
-// @src HandleCurrentVideoConfMode (the title bar up, ten black steps then two passes of the six snow frames at
-// @src VC_CONTACT_STATIC_TIME, WillMercAcceptCall, the answering machine message, the title bar down and the "just hired"
-// @src box), DisplayMovingTitleBar (Interpolate over AIM_MEMBER_VIDEO_TITLE_ITERATIONS, done one step before the last going
-// @src up and at 0 going down), DisplaySnowBackground (it clears gfFirstTimeInContactScreen at its end, so the greeting at
-// @src the end of a snow in FIRST_CONTACT never plays after the connection snow of INIT), DisplayBlackBackground,
+// @src HandleCurrentVideoConfMode (the title bar up, ten black steps at VC_CONTACT_STATIC_TIME after which INIT goes to
+// @src WillMercAcceptCall in the same pass, so its snow branch never runs; the answering machine message, the title bar down
+// @src and the "just hired" box), DisplayMovingTitleBar (Interpolate over AIM_MEMBER_VIDEO_TITLE_ITERATIONS, done one step
+// @src before the last going up and at 0 going down), DisplaySnowBackground (two passes of the six snow frames over the face
+// @src while gfFirstTimeInContactScreen, set by the contact click, holds; at their end it clears the flag and, in
+// @src FIRST_CONTACT, says QUOTE_GREETING while gfAimMemberCanMercSayOpeningQuote holds, which POPUP sets and the first
+// @src contact buttons clear), DisplayBlackBackground (the step count it shares with the snow, reset as it ends),
 // @src BtnFirstContactButtonCallback, CanMercBeHired (asked from the server; a hang-up due goes before the mode change),
 // @src BtnContractLengthButtonCallback and BtnBuyEquipmentButtonCallback (both restart the attitude time),
 // @src BtnAuthorizeButtonCallback (both of its buttons stop the merc talking and end his attitude for the call),
@@ -25,10 +27,11 @@
 // @src two very impatient quotes queued at once; its EnableDisableCurrentVideoConferenceButtons(FALSE) before the hang-up
 // @src comment does nothing, as the hire buttons are never disabled then; the annoyance it raises is not simulated),
 // @src DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion while the face is up and no answering machine
-// @src shows (aim-distortion.ts).
+// @src shows: the connection snow with static4.wav while gfFirstTimeInContactScreen holds, the distortion
+// @src (aim-distortion.ts) after it.
 
 import { idiv } from '../../../../core/int.ts';
-import { type DistortionClocks, distortionClocks, VideoDistortion } from './aim-distortion.ts';
+import { type DistortionClocks, distortionClocks, type StaticNoise, VideoDistortion } from './aim-distortion.ts';
 
 export const VideoMode = {
   NOT_DISPLAYED: 0,
@@ -50,6 +53,7 @@ export const ConferenceQuote = {
   CONTRACT_ACCEPTANCE: 91,
   PRECEDENT_TO_REPEATING_ONESELF: 96,
   REFUSAL_TO_JOIN_LACK_OF_FUNDS: 97,
+  GREETING: 108,
   SMALL_TALK: 109,
   IMPATIENT_QUOTE: 110,
   LENGTH_OF_CONTRACT: 111,
@@ -69,6 +73,7 @@ export const TITLE_ITERATIONS = 18;
 export const STATIC_TIME = 30;
 export const BLACK_LOOPS = 10;
 export const SNOW_FRAMES = 6;
+export const SNOW_PASSES = 2;
 export const SPEECH_DELAY = 750;
 export const MINIMUM_TALKING_TIME = 1500;
 export const TEXT_SPEECH_MODIFIER = 80;
@@ -81,7 +86,7 @@ export interface ConferencePopup {
   readonly kind: PopupKind;
 }
 
-export type FaceShown = 'none' | 'black' | 'snow' | 'face';
+export type FaceShown = 'none' | 'black' | 'face';
 
 export interface ConferencePorts {
   contact(): 'firstContact' | 'answeringMachine' | 'unavailable';
@@ -97,7 +102,7 @@ export interface ConferencePorts {
   popdownDone(): void;
   teamFullBox(): void;
   random(range: number): number;
-  noise(file: string): void;
+  noise(file: string): StaticNoise;
 }
 
 export interface TalkState {
@@ -127,7 +132,7 @@ export class Conference {
   popup: ConferencePopup | null = null;
   talk: TalkState | null = null;
   face: FaceShown = 'none';
-  snowFrame = 0;
+  snowFrame: number | null = null;
   titleStep = 0;
   hireDisabled = false;
   leaveMessageDisabled = false;
@@ -140,7 +145,8 @@ export class Conference {
   #titleStart = 0;
   #count = 0;
   #lastTick = 0;
-  #initPhase: 'black' | 'snow' = 'black';
+  #firstTimeInContact = false;
+  #canSayOpeningQuote = true;
   #hangUp = false;
   #delayed: { quote: number; at: number; hangUpAfter: boolean } | null = null;
   #busy = false;
@@ -183,6 +189,7 @@ export class Conference {
   open(now: number): void {
     if (this.mode !== VideoMode.NOT_DISPLAYED) return;
     this.#now = now;
+    this.#firstTimeInContact = true;
     this.#setMode(VideoMode.POPUP);
   }
 
@@ -195,6 +202,7 @@ export class Conference {
     this.mode = VideoMode.NOT_DISPLAYED;
     this.previousMode = VideoMode.NOT_DISPLAYED;
     this.face = 'none';
+    this.snowFrame = null;
     this.distortion.clear();
     this.#waitingForMercToStop = false;
     this.#textUp = false;
@@ -240,6 +248,7 @@ export class Conference {
       case VideoMode.POPUP:
         this.#titleStart = this.#now;
         this.titleStep = 1;
+        this.#canSayOpeningQuote = true;
         break;
       case VideoMode.INIT:
         this.#attitude = 0;
@@ -249,7 +258,6 @@ export class Conference {
         this.#hangUp = false;
         this.#count = 0;
         this.#lastTick = 0;
-        this.#initPhase = 'black';
         this.face = 'black';
         break;
       case VideoMode.FIRST_CONTACT:
@@ -295,6 +303,7 @@ export class Conference {
   hire(): void {
     if (this.mode !== VideoMode.FIRST_CONTACT || this.hireDisabled || this.#busy) return;
     this.stopTalking();
+    this.#canSayOpeningQuote = false;
     this.#busy = true;
     void this.#ports.hireCheck().then((answer) => {
       this.#busy = false;
@@ -317,6 +326,7 @@ export class Conference {
   hangUp(): void {
     if (!this.#callEndable) return;
     this.stopTalking();
+    this.#canSayOpeningQuote = false;
     this.#setMode(VideoMode.POPDOWN);
   }
 
@@ -467,16 +477,15 @@ export class Conference {
     }
   }
 
+  #step(now: number): void {
+    if (now - this.#lastTick <= STATIC_TIME) return;
+    this.#count++;
+    this.#lastTick = now;
+  }
+
   #updateInit(now: number): void {
-    const limit = this.#initPhase === 'black' ? BLACK_LOOPS : SNOW_FRAMES * 2;
-    if (this.#count >= limit) {
+    if (this.#count >= BLACK_LOOPS) {
       this.#count = 0;
-      if (this.#initPhase === 'black') {
-        this.#initPhase = 'snow';
-        this.face = 'snow';
-        this.snowFrame = 0;
-        return;
-      }
       const contact = this.#ports.contact();
       this.#setMode(
         contact === 'firstContact'
@@ -487,12 +496,30 @@ export class Conference {
       );
       return;
     }
-    if (now - this.#lastTick > STATIC_TIME) {
-      this.#count++;
-      this.#lastTick = now;
+    this.#step(now);
+    this.face = 'black';
+  }
+
+  #displaySnow(now: number): void {
+    if (this.#count >= SNOW_FRAMES * SNOW_PASSES) {
+      this.#firstTimeInContact = false;
+      this.#count = 0;
+      this.snowFrame = null;
+      if (this.mode === VideoMode.FIRST_CONTACT && this.#canSayOpeningQuote) this.#say(ConferenceQuote.GREETING);
+      return;
     }
-    this.face = this.#initPhase === 'black' ? 'black' : 'snow';
-    this.snowFrame = this.#count % SNOW_FRAMES;
+    const frame = this.#count % SNOW_FRAMES;
+    this.#step(now);
+    this.snowFrame = frame;
+  }
+
+  #handleVideoDistortion(now: number): void {
+    if (!this.#firstTimeInContact) {
+      this.distortion.update(now);
+      return;
+    }
+    this.#displaySnow(now);
+    this.distortion.contactSnow();
   }
 
   update(now: number): void {
@@ -507,8 +534,11 @@ export class Conference {
     if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
     else if (this.mode === VideoMode.INIT) this.#updateInit(now);
     if (this.face === 'face') this.#followFace(now);
-    if (this.distorted) this.distortion.update(now);
-    else this.distortion.clear();
+    if (this.distorted) this.#handleVideoDistortion(now);
+    else {
+      this.snowFrame = null;
+      this.distortion.clear();
+    }
     if (this.face === 'face' && !this.#mercTalking && !this.#busy) this.#handleAttitude(now);
     this.#justSwitched = false;
     if (this.#redraw) this.#textUp = this.#mercTalking;
