@@ -95,6 +95,12 @@ function pressAlone(f: MapUiTest, key: string, code: string, held: Partial<RawKe
   f.t.frame();
 }
 
+function setGameJustStarted(f: MapUiTest, started: boolean): void {
+  (f.session.sim as CampaignSession).campaign.state.didGameJustStart = started;
+  f.client.refresh();
+  f.t.frame();
+}
+
 async function withMap(run: (f: MapUiTest) => Promise<void>): Promise<void> {
   const f = await mapUiTest(kit, ui);
   try {
@@ -499,5 +505,18 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().inventoryOpen).toBe(true);
       f.key('Escape');
       expect(f.screen.hook().inventoryOpen).toBe(false);
+    }));
+
+  it('ignores clicks on the map until the first arrival, with mercs hired too, as DidGameJustStart does', () =>
+    withMap(async (f) => {
+      const start = f.screen.hook().selectedSector;
+      expect(start).not.toBe('C13');
+      setGameJustStarted(f, true);
+      await f.clickSector('C13');
+      await f.clickSector('C13', MouseButton.RIGHT);
+      expect(f.screen.hook()).toMatchObject({ selectedSector: start, townBox: null });
+      setGameJustStarted(f, false);
+      await f.clickSector('C13');
+      expect(f.screen.hook().selectedSector).toBe('C13');
     }));
 });

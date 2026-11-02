@@ -25,7 +25,9 @@
 // @src escort's text by his sex) (2026-11-01); Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom and
 // @src Radar_Screen.cc RenderRadarScreen (the radar picture of a visited selected sector, darker at night while the map
 // @src shows the surface) (2026-11-02); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
-// @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02).
+// @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
+// @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
+// @src arrival, DidGameJustStart) (2026-11-02).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1219,7 +1221,7 @@ export class MapScreen implements Screen {
   }
 
   #gameJustStarted(): boolean {
-    return (this.#strategic()?.mercs.length ?? 0) === 0;
+    return this.#strategic()?.gameJustStarted === true;
   }
 
   #inConfirmMoveMode(): boolean {
