@@ -63,7 +63,7 @@ import {
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { refuse } from '../tactical/refusal.ts';
-import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
+import { hostileBloodcatsPresent, hostileCiviliansPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { assignmentAnimationHooks } from './assignment-animations.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
@@ -380,7 +380,13 @@ export class CampaignSim {
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
     if (!this.#hooks.sectors) return ports;
     const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
-    return { ...ports, world: sectorWorldPort(base, () => this.sectors) };
+    const world = sectorWorldPort(base, () => this.sectors);
+    return { ...ports, world: { ...world, hostileCiviliansPresent: () => this.#hostileCiviliansPresent(world) } };
+  }
+
+  #hostileCiviliansPresent(base: TacticalWorldPort): boolean {
+    const t = this.tactical?.state;
+    return t ? hostileCiviliansPresent(t) : base.hostileCiviliansPresent();
   }
 
   get tick(): number {

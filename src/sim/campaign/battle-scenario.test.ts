@@ -1,23 +1,27 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
+import { spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
+import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { gridNoOnVisibleWorldTile, RestrictedScroll } from '../../content/world/render-bounds.ts';
 import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import { meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
+import { EncounterCode } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
+import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
 import { fact, QuestStatus } from '../strategic/narrative/facts.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
-import { Team } from '../tactical/soldier.ts';
+import { TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { checkForEndOfBattle } from '../tactical/turns/turns.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -43,6 +47,7 @@ const ARRIVAL_MINUTES = 1;
 const TICKS_TO_ARRIVAL = 2 * 12_000;
 const UNCONSCIOUS_LIFE = 10;
 const BLOODCAT_PLACEMENTS = 5;
+const CIVILIAN_DISTANCE = 4 * WORLD_COLS;
 
 function sendEnemyGroup(c: CampaignSim): number {
   const ctx = c.strategic;
@@ -383,6 +388,25 @@ describe('autoresolve from the strategic state', () => {
     const panel = advance(invasion.c, { ticks: TICKS_TO_ARRIVAL }).events.find((e) => e.type === 'preBattle');
     expect(panel).toMatchObject({ encounter: 'enemyInvasion' });
     expect(panel && 'notice' in panel).toBe(false);
+  });
+
+  it('names hostile civilians of the loaded sector on the panel, and not once they are neutral again (HostileCiviliansPresent)', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 5, mercs: 1, garrison: { admins: 0, troops: 0, elites: 0 } });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const economy = c.economy;
+    const sim = c.tactical;
+    const merc = sim ? teamMembers(sim.state, Team.OUR)[0] : undefined;
+    if (!economy || !sim || !merc) throw new Error('our merc in A9');
+    const civilian = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, merc.gridNo + CIVILIAN_DISTANCE, Direction.NORTH);
+    const explicitCode = (neutral: boolean) => {
+      civilian.neutral = neutral;
+      c.state.battle.locator = false;
+      calculateNonPersistentPbiInfo(economy);
+      return c.state.encounter.explicitCode;
+    };
+    expect(explicitCode(false)).toBe(EncounterCode.HOSTILE_CIVILIANS);
+    expect(explicitCode(true)).not.toBe(EncounterCode.HOSTILE_CIVILIANS);
   });
 
   it('lays the dead of a battle elsewhere on random tiles of the visible area of the basement loaded meanwhile', () => {

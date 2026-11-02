@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector (with its next selection, 2026-10-31),
-// @src HostileBloodcatsPresent; Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule, HandleCrowLeave
+// @src HostileBloodcatsPresent, HostileCiviliansPresent; Soldier_Create.cc InternalTacticalRemoveSoldier (DeleteSchedule, HandleCrowLeave
 // @src 2026-11-01).
 
 import { removeFromAwaySlots } from './away-slots.ts';
@@ -35,4 +35,8 @@ export function leaveTacticalSector(t: TacticalState, s: Soldier): void {
 
 export function hostileBloodcatsPresent(t: Pick<TacticalState, 'soldiers'>): boolean {
   return teamMembers(t, Team.CREATURE).some((s) => s.life > 0 && s.bodyType === Body.BLOODCAT);
+}
+
+export function hostileCiviliansPresent(t: Pick<TacticalState, 'soldiers'>): boolean {
+  return teamMembers(t, Team.CIV).some((s) => s.life > 0 && !s.neutral);
 }
