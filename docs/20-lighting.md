@@ -33,7 +33,7 @@ gameplay: lightTrueLevel(g, level)                              perception/, com
 | `src/content/formats/lht.ts`, `load-content.ts` | `.LHT` files and Stracciatella's `light-templates.json` (`TacticalContent.lightTemplates`) |
 | `save-import.ts` | Map lights for the saved hour, then the saved ambient level |
 | `src/sim/knowledge/tactical.ts` | The agent's projection, lit from the view's `light` (`lightView`) |
-| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights (`05`) |
+| `src/app/world/world-lighting.ts` | The client's shade field: the same ray walk over the map lights the view reports powered (those the hour powers when a view has no `light`), the view's dynamic lights and our mercs' lights, across the map's structures with the view's `tileChanges` applied (`05`) |
 
 ## 2. Design
 
@@ -62,7 +62,10 @@ is commented out (`Tactical/Overhead.cc:2036`).
 **Lights change only when drawn.** A sprite adds its light when placed and subtracts it when moved or destroyed;
 `lightSetBaseLevel` and `lightSpriteRenderAll` draw every powered sprite again. Switching power shows at the next
 render, and a door that opens or a wall a grenade destroys changes no light until then
-(`UpdateLightSpritesOnStructureChange` is declared but never defined).
+(`UpdateLightSpritesOnStructureChange` is declared but never defined). The client keeps the rule for structures: a
+change in the view's `tileChanges` redraws nothing; the map lights pass where a destroyed structure stood once the hour,
+the ambient level, the open doors or the powered map lights make it draw them again, our mercs' and the dynamic lights
+once one of them moves.
 
 **The clock powers map lights once.** At a map load the hour decides which scheduled lights are on: night lights from
 21:00 to 7:00, prime-time lights from 21:00 to midnight, none in caves. Afterwards only the strategic light events

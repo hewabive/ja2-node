@@ -136,6 +136,15 @@ export class WorldStructures {
     return { heights: this.heights, lists: this.lists, nextId: this.nextId };
   }
 
+  clone(): WorldStructures {
+    const copy = new WorldStructures(this.heights);
+    this.lists.forEach((list, g) => {
+      copy.lists[g] = list.map((s) => ({ ...s }));
+    });
+    copy.nextId = this.nextId;
+    return copy;
+  }
+
   at(g: number): readonly StructureInstance[] {
     return this.lists[g] ?? [];
   }

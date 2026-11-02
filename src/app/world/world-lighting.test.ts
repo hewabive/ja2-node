@@ -8,6 +8,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Rng } from '../../core/rng.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
+import type { TileChangeView } from '../../protocol/view.ts';
 import { prepareLevelRenderData, updateLevelRenderData } from '../../render/world/level-render-data.ts';
 import { applyTileChanges } from '../../render/world/tile-changes.ts';
 import { doorGridNos } from '../../sim/tactical/doors.ts';
@@ -15,7 +16,7 @@ import { initLighting, lightTrueLevel } from '../../sim/tactical/lighting/lighti
 import { createTacticalState } from '../../sim/tactical/state.ts';
 import { loadItemTiles } from './item-tiles.ts';
 import { LightTemplates, MERC_LIGHT } from './light-templates.ts';
-import { surfaceAmbientAt, WorldLighting } from './world-lighting.ts';
+import { type MercLight, surfaceAmbientAt, WorldLighting } from './world-lighting.ts';
 import { type LoadedWorld, loadWorld } from './world-loader.ts';
 
 const NIGHT = { hour: 22, minute: 0 };
@@ -117,6 +118,25 @@ describe('client lighting on the stub village', () => {
     expect(switchedOff).toBe(12);
     expect(switchedOn(NIGHT)).toBe(byTheHour);
     expect(switchedOn(NOON)).toBeLessThan(3);
+  });
+
+  it('lets a light drawn after a wall was destroyed pass where it stood, while a light drawn before keeps its shadow until it is drawn again', () => {
+    const wall = 72 * 160 + 123;
+    const behind = 70 * 160 + 123;
+    const wallTile = levelTilesAt(world.level.layers.structs, wall)[0];
+    const template = new LightTemplates().resolve(MERC_LIGHT)?.template;
+    if (wallTile === undefined || !template) throw new Error('no stub wall or merc light');
+    const destroyed: readonly TileChangeView[] = [{ kind: 'remove', gridNo: wall, level: 0, tile: wallTile }];
+    const mercSouthOfTheWall: readonly MercLight[] = [{ x: 1235, y: 745, level: 0, template }];
+    const at = (lighting: WorldLighting, mercLights: readonly MercLight[], tileChanges: readonly TileChangeView[] = []) =>
+      lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights, tileChanges }).land[behind];
+    const lighting = new WorldLighting(world.tactical);
+    const shadowed = at(lighting, mercSouthOfTheWall);
+    expect(at(lighting, mercSouthOfTheWall, destroyed)).toBe(shadowed);
+    at(lighting, [], destroyed);
+    const passing = at(lighting, mercSouthOfTheWall, destroyed);
+    expect(passing).toBeLessThan(shadowed ?? 0);
+    expect(at(new WorldLighting(world.tactical), mercSouthOfTheWall, destroyed)).toBe(passing);
   });
 
   it('updates the level render data of patched tiles as a full preparation would', () => {

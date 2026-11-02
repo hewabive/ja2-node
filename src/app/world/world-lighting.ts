@@ -2,12 +2,18 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Lighting.cc LightAddTileNode (ubMaxLights, ubShadeLevel), LightSetBaseLevel;
 // @src src/game/Tactical/Soldier_Control.cc PositionSoldierLight, CreateSoldierLight, SetSoldierPersonalLightLevel;
-// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel.
+// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel; Lighting.cc LightIlluminateWall (the live
+// @src structures a light is drawn over).
 
-import type { MapDef } from '../../content/formats/map.ts';
+import type { StructureDef } from '../../content/formats/jsd.ts';
+import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { MovementCosts, recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
+import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type WorldStructures } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { clamp, idiv } from '../../core/int.ts';
+import type { TileChangeView } from '../../protocol/view.ts';
+import { tileChangesKey } from '../../render/world/tile-changes.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import { EventKind } from '../../sim/strategic/time/constants.ts';
 import { buildDayLightLevels, NORMAL_LIGHTLEVEL_NIGHT } from '../../sim/strategic/time/environment.ts';
@@ -35,6 +41,8 @@ const SHADE_MIN = 15;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const CELLS_PER_TILE = 10;
+const RECOMPILE_RADIUS = 1;
+const NO_TILE_CHANGES: readonly TileChangeView[] = [];
 
 export interface MercLight {
   readonly x: number;
@@ -72,6 +80,7 @@ export interface LightingInput {
   readonly mapLights?: readonly MapLight[] | null;
   readonly mercLights: readonly MercLight[];
   readonly dynamicLights?: readonly DynamicLight[];
+  readonly tileChanges?: readonly TileChangeView[];
 }
 
 type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv'>;
@@ -96,26 +105,69 @@ interface LightMaxima {
   readonly roof: Uint8Array;
 }
 
+interface StandingStructures {
+  readonly structures: WorldStructures;
+  readonly costs: MovementCosts;
+}
+
+function changedBase(structures: WorldStructures, c: TileChangeView, def: StructureDef): StructureInstance | null {
+  const at = structures.at(c.gridNo);
+  return at.find((s) => has(s.flags, StructureFlags.BASE_TILE) && s.def === def && idiv(s.cubeOffset, PROFILE_Z_SIZE) === c.level) ?? null;
+}
+
+function applyStructureChange(world: TacticalWorld, structures: WorldStructures, c: TileChangeView): boolean {
+  const te = world.tiles[c.tile];
+  if (!te?.structure || c.kind === 'object') return false;
+  if (c.kind !== 'remove') return structures.add(c.gridNo, c.level, te.structure, undefined, te.structureFile) !== null;
+  const base = changedBase(structures, c, te.structure);
+  if (base) structures.remove(base);
+  return base !== null;
+}
+
+function standingStructures(world: TacticalWorld, changes: readonly TileChangeView[]): StandingStructures {
+  if (changes.length === 0) return world;
+  const structures = world.structures.clone();
+  const touched = new Set<number>();
+  for (const c of changes) {
+    if (!applyStructureChange(world, structures, c)) continue;
+    for (const tile of world.tiles[c.tile]?.structure?.tiles ?? []) touched.add(c.gridNo + tile.posRelToBase);
+  }
+  const costs = MovementCosts.fromSnapshot(world.costs.toSnapshot());
+  const changed = { ...world, structures };
+  for (const g of touched) recompileLocalMovementCosts(costs, changed, g, RECOMPILE_RADIUS);
+  return { structures, costs };
+}
+
 export class WorldLighting {
+  readonly #world: TacticalWorld;
   readonly #map: MapDef;
-  readonly #host: LightingHost;
+  readonly #mapDoors: Map<number, MapDoor>;
+  #host: LightingHost;
   readonly #doorStatus = new Map<number, DoorStatus>();
   readonly #doors: readonly number[];
   #version = 0;
   #staticKey = '';
   #mercKey = '';
+  #structureKey = '';
   #static: LightMaxima | null = null;
   #field: ShadeField | null = null;
 
   constructor(world: TacticalWorld) {
+    this.#world = world;
     this.#map = world.map;
     this.#doors = doorGridNos(world);
-    const mapDoors = new Map(world.map.doors.map((d) => [d.gridNo, d] as const));
+    this.#mapDoors = new Map(world.map.doors.map((d) => [d.gridNo, d] as const));
+    this.#host = this.#hostOver(world, createLightingState(world.level));
+  }
+
+  #hostOver(standing: StandingStructures, lighting: TacticalState['lighting']): LightingHost {
+    const world = this.#world;
+    const mapDoors = this.#mapDoors;
     const pathWorld: PathWorld = {
-      costs: world.costs,
+      costs: standing.costs,
       terrain: world.terrain,
       heights: world.level.heights,
-      structures: world.structures,
+      structures: standing.structures,
       mapDoors,
     };
     const pathEnv: PathEnv = {
@@ -126,7 +178,14 @@ export class WorldLighting {
       showAllMercs: false,
       autoBandage: false,
     };
-    this.#host = { lighting: createLightingState(world.level), world: { ...world, mapDoors }, pathWorld, pathEnv };
+    return { lighting, world: { ...world, structures: standing.structures, costs: standing.costs, mapDoors }, pathWorld, pathEnv };
+  }
+
+  #followStructureChanges(changes: readonly TileChangeView[]): void {
+    const key = tileChangesKey(changes);
+    if (key === this.#structureKey) return;
+    this.#structureKey = key;
+    this.#host = this.#hostOver(standingStructures(this.#world, changes), this.#host.lighting);
   }
 
   get underground(): boolean {
@@ -148,6 +207,7 @@ export class WorldLighting {
     const staticKey = `${input.time.hour}|${ambient}|${doors}|${mapLightsKey(input.mapLights ?? null)}`;
     const placed = placedLights(input);
     const mercKey = placed.map((m) => `${m.x},${m.y},${m.flags},${m.template.name}`).join(';');
+    this.#followStructureChanges(input.tileChanges ?? NO_TILE_CHANGES);
     if (this.#field && staticKey === this.#staticKey && mercKey === this.#mercKey) return this.#field;
     const t = this.#host as TacticalState;
     if (!this.#static || staticKey !== this.#staticKey) {

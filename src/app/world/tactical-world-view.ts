@@ -277,6 +277,7 @@ export class TacticalWorldView {
       mapLights: this.#mapLights(view.light),
       mercLights,
       dynamicLights: this.#dynamicLights(view.light),
+      tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });
     const hostile = f.hostile ?? defaultHostile;
     const soldiers = this.#soldiers.build({
