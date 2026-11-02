@@ -33,7 +33,9 @@
 // @src handled, 2026-11-02); Interface_Items.cc CancelItemPointer as Overhead.cc CommonEnterCombatModeCode and
 // @src Interface_Dialogue.cc InternalInitTalkingMenu call it, EndItemPointer once the object is no longer the holder's
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
-// @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02).
+// @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02);
+// @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
+// @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -343,7 +345,7 @@ export class TacticalScreen implements Screen {
       item: (name) => env.media.item(name),
       tileImage: (item) => env.world.itemTile(item),
       pickUp: (soldier, gridNo, level, items) => void this.#command({ type: 'pickUp', soldier, gridNo, zLevel: level, items }),
-      closed: () => undefined,
+      closed: () => this.controls.input.changeToMove(),
       hover: () => undefined,
     });
     this.#money = new MoneyActions({
@@ -1474,6 +1476,7 @@ export class TacticalScreen implements Screen {
       item: fonts.get(FontName.BLOCKFONT2),
       tiny: fonts.get(FontName.TINYFONT1),
     });
+    this.controls.input.override(UiEvent.G_GETTINGITEM);
   }
 
   #openDescription(soldier: number, slot: number, index: number): void {

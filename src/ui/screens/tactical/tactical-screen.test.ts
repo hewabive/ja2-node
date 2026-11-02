@@ -534,6 +534,35 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
   });
 
+  it('puts the input into GETTINGITEM_MODE while the pickup menu is up and back into move mode as it closes', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const dropper = f.client.view.soldiers.find((s) => s.id === 3);
+    if (!dropper) throw new Error('no merc 3');
+    const tile = dropper.gridNo + 4;
+    expect((await f.client.command({ type: 'move', soldier: 3, to: tile })).ok).toBe(true);
+    f.advance(400);
+    expect((await f.client.command({ type: 'drop', soldier: 3, slot: HAND })).ok).toBe(true);
+    f.advance(200);
+    expect((await f.client.command({ type: 'drop', soldier: 3, slot: BIG_POCKET })).ok).toBe(true);
+    f.advance(200);
+    expect((await f.client.command({ type: 'move', soldier: 3, to: tile + 4 })).ok).toBe(true);
+    f.advance(400);
+    const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    await f.clickAt(at.x, at.y);
+    f.t.frame();
+    expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([true, UiMode.GETTINGITEM_MODE]);
+    const sent = f.client.commands.length;
+    f.key('c');
+    await f.settle();
+    expect(f.client.commands.length).toBe(sent);
+    await f.click('pickupCancel');
+    f.t.frame();
+    expect([f.screen.pickup.open, f.screen.controls.input.mode]).toEqual([false, UiMode.MOVE_MODE]);
+  });
+
   it('keeps the player paused through keypad 5 without NumLock, which the input layer drops, and unpauses at the typed 5', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.key('Pause');
