@@ -240,9 +240,9 @@ export class TacticalWorldPresenter implements WorldPresenter {
     };
   }
 
-  soldierAt(x: number, y: number): number | null {
+  soldierAt(x: number, y: number, pickable?: (id: number) => boolean): number | null {
     if (y < this.#top || y >= this.#viewport.height) return null;
-    return this.#renderer.soldierAt(x, y);
+    return this.#renderer.soldierAt(x, y, pickable);
   }
 
   gridNoAt(x: number, y: number): number | null {

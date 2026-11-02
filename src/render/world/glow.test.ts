@@ -111,6 +111,16 @@ describe('soldier picking', () => {
     expect(pickSoldierAt(placed, 11.5, 11.5)).toBe(1);
     expect(pickSoldierAt([...placed, { ...placed[0], id: 3, topmost: true } as (typeof placed)[0]], 10.5, 10.5)).toBe(3);
   });
+
+  it('passes over the soldiers the caller cannot pick to the one drawn under them', () => {
+    const placed = [
+      { id: 1, x: 10, y: 10, width: 2, height: 2, sprite: sprite([1, 1, 1, 1]), topmost: false },
+      { id: 2, x: 10, y: 10, width: 2, height: 2, sprite: sprite([1, 1, 1, 1]), topmost: false },
+    ];
+    expect(pickSoldierAt(placed, 10.5, 10.5)).toBe(2);
+    expect(pickSoldierAt(placed, 10.5, 10.5, (id) => id !== 2)).toBe(1);
+    expect(pickSoldierAt(placed, 10.5, 10.5, () => false)).toBeNull();
+  });
 });
 
 describe('soldier fades', () => {

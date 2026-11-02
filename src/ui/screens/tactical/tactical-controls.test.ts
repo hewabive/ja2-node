@@ -10,6 +10,7 @@ import {
   tacticalUiTest,
 } from '../../../../tests/support/tactical-ui.ts';
 import { Body } from '../../../content/anim/body-types.ts';
+import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
@@ -20,12 +21,13 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
-import { UiMode } from './input/ui-events.ts';
+import { UiEvent, UiMode } from './input/ui-events.ts';
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
+const PICTURE_TOP_PX = 5;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -100,6 +102,14 @@ function hover(f: TacticalUiTest, gridNo: number) {
   pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
 }
 
+function aboveTheFeetOf(f: TacticalUiTest, id: number): { x: number; y: number } {
+  const box = f.world.soldierBox(id);
+  if (!box) throw new Error(`no box for ${id}`);
+  const at = { x: box.x + box.width / 2, y: box.y + PICTURE_TOP_PX };
+  if (f.world.gridNoAt(at.x, at.y) === merc(f, id).gridNo) throw new Error(`the top of ${id}'s picture is on his tile`);
+  return at;
+}
+
 function fallIntoComa(f: TacticalUiTest, id: number) {
   const t = tacticalOf(f.session).state;
   const s = t.soldiers.find((v) => v?.id === id);
@@ -159,6 +169,45 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle(4);
     expect(f.screen.selected).toBe(1);
     expect(f.world.markers.some((m) => m.gridNo === tile)).toBe(true);
+  });
+
+  it('finds our merc under the pointer by his tile only without the smart cursor, by his picture with it', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const at = aboveTheFeetOf(f, 1);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    expect([f.screen.controls.input.hover.target?.id, f.world.hovered]).toEqual([undefined, null]);
+    f.display = { ...f.display, smartCursor: true };
+    await f.settle(4);
+    expect([f.screen.controls.input.hover.target?.id, f.world.hovered]).toEqual([1, 1]);
+  });
+
+  it('finds our merc by his picture in an action mode the player chose, not in one the pointer over an enemy brought', async () => {
+    const f = await inCombat();
+    const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const t = tacticalOf(f.session).state;
+    const mate = t.soldiers.find((v) => v?.id === 1);
+    if (!mate) throw new Error('no merc 1');
+    setSoldierPosition(t, mate, enemy.gridNo + 2 * WORLD_COLS);
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const over = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', over.x, over.y - 5, MouseButton.LEFT);
+    f.t.frame();
+    f.t.frame();
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    const at = aboveTheFeetOf(f, 1);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    expect(f.screen.controls.input.hover.target?.id).not.toBe(1);
+    await f.settle(4);
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    await f.settle(4);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    expect(f.screen.controls.input.hover.target?.id).toBe(1);
   });
 
   it('sends the stance, stealth and weapon mode keys for the selected merc', async () => {

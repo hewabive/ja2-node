@@ -31,7 +31,7 @@ import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
 import { type LevelRenderData, updateLevelRenderData } from './level-render-data.ts';
 import { PartialRedrawCheck, type PartialRedrawChecks } from './partial-redraw-check.ts';
-import { pickSoldierAt } from './picking.ts';
+import { pickSoldierAt, type SoldierPickable } from './picking.ts';
 import { PictureMemo, type PictureUpdate } from './picture-memo.ts';
 import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
@@ -466,9 +466,9 @@ export class WorldRenderer {
     return this.#scene?.dynamic.placedSoldiers ?? [];
   }
 
-  soldierAt(sx: number, sy: number): number | null {
+  soldierAt(sx: number, sy: number, pickable?: SoldierPickable): number | null {
     const s = this.#scene;
-    return s ? pickSoldierAt(s.dynamic.placedSoldiers, sx, sy) : null;
+    return s ? pickSoldierAt(s.dynamic.placedSoldiers, sx, sy, pickable) : null;
   }
 
   dispose(): void {

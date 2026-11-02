@@ -21,7 +21,9 @@
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
-// @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY.
+// @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
+// @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
+// @src brought by the pointer over an enemy, 2026-11-01).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -268,6 +270,16 @@ export class TacticalInput {
     return this.#hover;
   }
 
+  pickableUnderPointer(id: number): boolean {
+    if (this.#env().display().smartCursor || this.#actionModeChosen()) return true;
+    return soldierById(this.#view(), id)?.team !== OUR_TEAM;
+  }
+
+  #actionModeChosen(): boolean {
+    const action = this.#mode === UiMode.ACTION_MODE || this.#mode === UiMode.CONFIRM_ACTION_MODE;
+    return action && !this.#actionChangeByMouseOver;
+  }
+
   get arrows(): number {
     return this.#arrows;
   }
@@ -469,7 +481,8 @@ export class TacticalInput {
     const view = this.#view();
     const shift = (env.runtime.modifiers & KeyModifier.SHIFT) !== 0;
     const level = this.#host.interfaceLevel();
-    const picked = shift ? null : soldierById(view, env.world.soldierAt(x, y));
+    const pickable = (id: number) => this.pickableUnderPointer(id);
+    const picked = shift ? null : soldierById(view, env.world.soldierAt(x, y, pickable));
     const byTile = view?.soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null;
     const target = picked ?? byTile;
     this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, view) : 0 };

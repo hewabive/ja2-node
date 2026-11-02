@@ -11,11 +11,15 @@ function opaqueAt(s: PlacedSoldier, sx: number, sy: number): boolean {
   return index !== TRANSPARENT && index !== SHADOW_INDEX;
 }
 
-export function pickSoldierAt(placed: readonly PlacedSoldier[], sx: number, sy: number): number | null {
+export type SoldierPickable = (id: number) => boolean;
+
+const EVERY_SOLDIER: SoldierPickable = () => true;
+
+export function pickSoldierAt(placed: readonly PlacedSoldier[], sx: number, sy: number, pickable = EVERY_SOLDIER): number | null {
   for (const topmost of [true, false]) {
     for (let i = placed.length - 1; i >= 0; i--) {
       const s = placed[i] as PlacedSoldier;
-      if (s.topmost === topmost && opaqueAt(s, sx, sy)) return s.id;
+      if (s.topmost === topmost && pickable(s.id) && opaqueAt(s, sx, sy)) return s.id;
     }
   }
   return null;

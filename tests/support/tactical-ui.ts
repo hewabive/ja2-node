@@ -227,8 +227,9 @@ export class FakeWorld implements WorldPresenter {
     return this.soldierMarkers.get(id) ?? { stanceOffset: 0, hidden: false, moving: false, stationary: true };
   }
 
-  soldierAt(x: number, y: number): number | null {
+  soldierAt(x: number, y: number, pickable: (id: number) => boolean = () => true): number | null {
     for (const s of this.#view().soldiers) {
+      if (!pickable(s.id)) continue;
       const box = this.soldierBox(s.id);
       if (box && x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height) return s.id;
     }

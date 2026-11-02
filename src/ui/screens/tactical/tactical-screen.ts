@@ -873,7 +873,7 @@ export class TacticalScreen implements Screen {
   #pointerSoldier(): number | null {
     const regions = this.#env.runtime.regions;
     if (regions.current !== this.#viewportRegion || !regions.pointerKnown) return null;
-    return this.#env.world.soldierAt(regions.mouseX, regions.mouseY);
+    return this.#env.world.soldierAt(regions.mouseX, regions.mouseY, (id) => this.controls.input.pickableUnderPointer(id));
   }
 
   #updateFaces(): void {

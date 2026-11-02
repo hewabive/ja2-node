@@ -115,7 +115,7 @@ export interface WorldPresenter {
   soldierBox(id: number): ScreenBox | null;
   soldierHeight(id: number): SoldierHeight;
   soldierMarker(id: number): SoldierMarker;
-  soldierAt(x: number, y: number): number | null;
+  soldierAt(x: number, y: number, pickable?: (id: number) => boolean): number | null;
   gridNoAt(x: number, y: number): number | null;
   radarViewport(): RadarBox | null;
   radarDot(gridNo: number): ScreenPoint | null;
