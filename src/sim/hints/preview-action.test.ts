@@ -58,11 +58,16 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(action(sim, 'swap', enemy.gridNo, { target: enemy.id })).toMatchObject({ ok: false, refusal: 'invalidExchange' });
   });
 
-  it('bandages a bleeding squad mate and refuses one who needs nothing', () => {
+  it('bandages a bleeding squad mate and refuses one who needs nothing, with the cost the cursor shows over both', () => {
     const sim = newCombatSim(content);
     const medic = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST, { gun: 'FIRSTAIDKIT' });
     const patient = spawnSoldier(sim, 1, Team.OUR, ORIGIN + EAST, Direction.WEST);
-    expect(action(sim, 'aid', patient.gridNo)).toMatchObject({ ok: false, refusal: 'noNeed' });
+    expect(action(sim, 'aid', patient.gridNo)).toMatchObject({
+      ok: false,
+      refusal: 'noNeed',
+      apCost: apsToBeginFirstAid(sim.state, medic),
+    });
+    expect(action(sim, 'aid', ORIGIN + 3 * SOUTH)).toMatchObject({ ok: false, refusal: 'noTarget', apCost: 0 });
     patient.life -= 10;
     patient.bleeding = 5;
     expect(action(sim, 'aid', patient.gridNo)).toMatchObject({ ok: true, apCost: apsToBeginFirstAid(sim.state, medic) });

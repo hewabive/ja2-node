@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID, STEAL; the
-// @src AP sums), UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
+// @src AP sums; MERCSFORAID walks to any soldier, whether or not first aid would be refused, 2026-11-02),
+// @src UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
 // @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet).
@@ -214,15 +215,18 @@ function lookAction(c: ActionContext): ActionPart {
 
 function aidAction(c: ActionContext): ActionPart {
   const { t, s, target } = c;
-  const refusal = firstAidMedicRefusal(t, s, target) ?? (target && target.team === Team.OUR ? firstAidNeedRefusal(target) : null);
-  if (refusal || !target) return refused(c, refusal ?? 'noTarget');
+  if (!target) return refused(c, firstAidMedicRefusal(t, s, target) ?? 'noTarget');
   const approach = findAdjacentGridEx(t, s, target.gridNo, true);
   if (!approach) return refused(c, 'cannotGetThere');
   const walk = walkTo(c, approach.actionGridNo);
   const reachable = approach.actionGridNo === s.gridNo || walk.cost !== 0;
+  const refusal =
+    firstAidMedicRefusal(t, s, target) ??
+    (target.team === Team.OUR ? firstAidNeedRefusal(target) : null) ??
+    (reachable ? null : 'cannotGetThere');
   return {
-    ok: reachable,
-    ...(reachable ? {} : { refusal: 'cannotGetThere' }),
+    ok: refusal === null,
+    ...(refusal ? { refusal } : {}),
     apCost: apsToBeginFirstAid(t, s) + walk.cost,
     actionGridNo: approach.actionGridNo,
     steps: walk.steps,

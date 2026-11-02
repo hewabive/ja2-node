@@ -115,6 +115,10 @@ const LADDER_OPTIONS = {
   },
 };
 
+function centreOn(f: TacticalUiTest, gridNo: number): void {
+  f.world.camera = { centerX: (gridNo % WORLD_COLS) * 10 + 5, centerY: Math.floor(gridNo / WORLD_COLS) * 10 + 5 };
+}
+
 function itemNameLines(f: TacticalUiTest): number {
   return f.draw().items.filter((i) => i.kind === 'glyphs' && i.font === SMALL_FONT && i.foreground === FontColor.MCOLOR_DKGRAY).length;
 }
@@ -899,6 +903,26 @@ describe('the tactical input on the tactical screen', () => {
     const grid = f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'));
     expect(grid?.gridNo).not.toBe(enemy.gridNo);
     expect(grid?.gridNo).not.toBe(merc(f, 0).gridNo);
+  });
+
+  it('shows the cost of the walk and the first aid with the first aid cursor over a squad mate in combat (HandleAidCursor)', async () => {
+    const f = await inCombat();
+    const t = tacticalOf(f.session).state;
+    const medic = t.soldiers.find((v) => v?.id === 0);
+    const kit = t.content.items.byName.get('FIRSTAIDKIT');
+    if (!medic || !kit) throw new Error('no merc 0 or no first aid kit');
+    medic.inv[InvSlot.HAND] = createItem(t.content.items, kit.index, 100);
+    f.client.refresh();
+    const mate = merc(f, 1);
+    const preview = await f.client.hintNow({ type: 'previewAction', soldier: 0, gridNo: mate.gridNo, kind: 'aid', level: 0 });
+    const apCost = (preview.data as { apCost: number }).apCost;
+    expect(apCost).toBeGreaterThan(0);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    centreOn(f, mate.gridNo);
+    hover(f, mate.gridNo);
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toMatch(/FIRSTAID/);
+    expect(f.screen.controls.input.mouseText()?.actionPoints).toMatchObject({ value: apCost, center: true });
   });
 
   it('names the items under every hand cursor, by CTRL, by the hand button or after the pointer rests (gfUIOverItemPoolGridNo)', async () => {

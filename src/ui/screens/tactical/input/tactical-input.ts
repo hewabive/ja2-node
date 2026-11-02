@@ -23,7 +23,7 @@
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
-// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
+// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor, HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
 // @src brought by the pointer over an enemy, 2026-11-01).
@@ -2335,6 +2335,10 @@ export class TacticalInput {
       if (data) {
         this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
         if (data.actionGridNo !== sel.gridNo) this.#showMoveGridAt = data.actionGridNo;
+        this.#currentAp = data.apCost;
+        this.#displayAp = true;
+        this.#apCenter = true;
+        this.#apInvalid = !data.affordable;
       }
     }
     if (estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#meleeWalkPath(sel, estimate, activated);
