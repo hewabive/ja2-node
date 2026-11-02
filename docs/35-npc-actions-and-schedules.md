@@ -47,7 +47,7 @@ door command → menu → animation → handleOpenableStruct  tactical/doors/
 | `campaign/sector-flow.ts` | Calls the entry and exit quest code, profile insertion and `postSchedules` at loads and unloads |
 | `tactical/narrative/civ-hostility.ts`, `team-change.ts`, `wheelchair.ts`; `strategic/narrative/civ-groups.ts` | `MakeCivHostile`, group changes, the attack and door implications, the brothel wall; `ChangeSoldierTeam`; Slay's kick-out; the saved group states |
 | `tactical/narrative/first-draw.ts`, `minor-offenses.ts` | `NPCFirstDraw` before our merc's attack out of combat; `MakeNPCGrumpyForMinorOffense` for a pickup from an owned tile and for our explosion in an owner's rooms |
-| `tactical/doors/` | Door table, keys and key ring, lock attempts, traps, the menu and `handleOpenableStruct`, the `door` command and view, door statuses (perceived, busy, shown) and the door's tile animation; `src/content/formats/locks.ts` reads the lock table |
+| `tactical/doors/` | Door table, keys and key ring, lock attempts, traps, the menu and `handleOpenableStruct`, the `door` command and view, door statuses (real, perceived, busy, shown) and the door's tile animation; `src/content/formats/locks.ts` reads the lock table |
 
 ## 2. Design
 
@@ -85,8 +85,9 @@ draws come before the first landing.
 (teleporting, never walking), so a civilian ends in the state of his latest entry; on the map screen a schedule event
 auto-processes the window since the last event query; in tactical the AI walks the entry. A civilian without a map
 schedule gets a default one on the surface (in 07:00–08:00, out 18:00–20:00, two `main` draws) when the map has an
-entry point. A civilian who leaves the map goes to the away slots (deviation "Away civilians"); auto-processed door
-changes swap the structure at once (deviation "Schedule door changes").
+entry point. A civilian who leaves the map goes to the away slots (deviation "Away civilians"); an auto-processed door
+change sets only the door status's real state, and the structure follows when a merc sees the door or at the next load
+(`PerformActionOnDoorAdjacentToGridNo`, `Strategic/Scheduling.cc:958`).
 
 **Saves keep schedules exactly.** ja2-node's own saves keep every schedule, temporary ones included, and its events, and
 do not post again (`SectorFlow.reattachLoadedSector`). A native save import posts again without auto-processing, as the
@@ -104,13 +105,18 @@ action charges the open-door APs where the original reads past its table (deviat
 `ExamineDoorsOnEnteringSector` never fires in the original (the tactical time stamp is set just before it,
 `Strategic/StrategicMap.cc:498,509`), so it is not ported.
 
-**Busy and perceived doors.** A door status (`doors/door-status.ts`) keeps the original's perceived and not-set flags,
-the busy flag and the door the player is shown, which the view sends as `openDoors`; the real state stays the structure.
-`handleDoorChangeFromGridNo` (`doors.ts`) decides as `HandleDoorsOpenClose` (`Tactical/Handle_Doors.cc:814`) whether a
-change is shown. A shown change sets the perceived state, raises `doorChanged` and runs the door's tile animation in the
-explosions' list (`doors/door-animation.ts`), which holds the door busy; an unshown one leaves what the player knows
-until `MercLooksForDoors` (`Tactical/Keys.cc:980`) in a merc's look. A load shows every door as perceived; the sector
-keeps the not-set flag, not the busy one.
+**Busy and perceived doors.** A door status (`doors/door-status.ts`) keeps the original's real state (`DOOR_OPEN`),
+the perceived and not-set flags, the busy flag and the door the player is shown, which the view sends as `openDoors`.
+The structure usually matches the real state, but the original lets the two part: a schedule's change writes only the
+status, and a load gives a door the structure of what the player perceives where the map draws its real state
+(`InternalUpdateDoorGraphicFromStatus`, `Tactical/Keys.cc:1114`), until a merc's look puts it back. A sector entry
+updates the doors twice, after the temp files and at its end (`Strategic/StrategicMap.cc:514`), so only its own steps
+see that structure; a native import updates them once, so it stays. Everything that walks, sees or opens reads the
+structure, as in the original. `handleDoorChangeFromGridNo` (`doors.ts`) decides as `HandleDoorsOpenClose`
+(`Tactical/Handle_Doors.cc:814`) whether a change is shown. A shown change sets the perceived state, raises
+`doorChanged` and runs the door's tile animation in the explosions' list (`doors/door-animation.ts`), which holds the
+door busy; an unshown one leaves what the player knows until `MercLooksForDoors` (`Tactical/Keys.cc:980`) in a merc's
+look. The sector keeps the not-set flag, not the busy one.
 
 **Randomness.** Gameplay draws keep the original's statement order on `main` and `pre`. Kingpin's men placed around
 Hans' door take two `main` draws, x first, where the original's two engine draws have no defined order (deviation
@@ -144,6 +150,8 @@ otherwise:
 | A merc's look updates at most one door, the first whose status was made (the `break` in `MercLooksForDoors`) | `doors/door-status.test.ts` |
 | Only a soldier hidden at −1 changes a door unseen: one fading out at −2 still animates it and shows the player the change | `doors/door-status.test.ts` |
 | A door that already shows its new state runs its animation backward and is busy one frame, not five | `doors/door-status.test.ts` |
+| After a load, a door the player perceives otherwise than it is, where the map draws its real state, has the structure of the perceived state until a merc sees it; a sector entry's second update puts the real one back | `doors/door-status.test.ts`, `src/sim/campaign/sector-flow.test.ts` |
+| A schedule's door change on the map screen leaves the structure as it was until a merc sees the door or the next load | `doors/door-status.test.ts` |
 | Every NPC placement draws a sector at a new game, also those whose profile does not move | `src/sim/strategic/map/init.test.ts` |
 | An enemy's pickup from an owned tile angers the owner too: the ownership check follows every soldier's pickup | `narrative/minor-offenses.test.ts` |
 | A second pickup within a second replaces the first one's ownership check, which never runs | `narrative/minor-offenses.test.ts` |
@@ -176,8 +184,9 @@ every profile's sector. Inferred from reading the source:
   give (Darren's record 33 after the boxing payout): the give probes cover gives from mercs only; an original-data test
   plays the rebel basement from Carlos 1 (`src/server/rebel-hideout-original.test.ts`), the steps in A9 and A10 before
   it are untested.
-- The busy door and the perceived door state: unit tests on the stub village and town; the oracle's door probes leave
-  the door statuses out.
+- The busy door, the perceived door state and the structure a load gives a door perceived otherwise than it is: unit
+  tests on the stub village, town and airfield; the oracle's door probes leave the door statuses out, and the native
+  saves hold no door perceived otherwise than it is.
 - An NPC drawing first, the ownership check of a pickup and the room owners' grudge after our explosions
   (`first-draw.ts`, `minor-offenses.ts`): unit tests on synthetic maps only.
 - That the original cannot save while a requestor box or the talk panel is open, so their globals need no save.
@@ -187,6 +196,6 @@ every profile's sector. Inferred from reading the source:
 - The "robot under construction" graphic: its gridno is never assigned in Stracciatella or vanilla, so its removal is a
   no-op; ja2-node only sets the fact.
 
-Not ported: gaps "Doors", "NPC opens a door on arrival". Other deviations of this domain:
+Not ported: gap "NPC opens a door on arrival". Other deviations of this domain:
 "Terrorist names", "NPC gives an item", "Interface lock on arrival", "Team change during a hit", "Ownership check
 timer".

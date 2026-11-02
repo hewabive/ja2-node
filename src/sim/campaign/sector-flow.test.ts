@@ -26,6 +26,7 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
+import { isDoorOpenAt } from '../tactical/doors.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
@@ -81,6 +82,8 @@ const DRASSEN_HELIPAD = 9001;
 const TAIL_BOOM_GRIDNO = DRASSEN_HELIPAD - 800;
 const TAIL_BOOM_SUB_INDEX = 3;
 const BESIDE_HELIPAD = DRASSEN_HELIPAD + 2;
+const AIRFIELD_DOOR = 8060;
+const DOOR_PERCEIVED_OPEN = 0x02;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -415,6 +418,53 @@ describe('a native save loaded into its sector', () => {
     expect(merc.gridNo).toBe(BESIDE_HELIPAD);
     expect(whoIsThere(t, BESIDE_HELIPAD, 0)).toBe(merc);
     expect(t.world.structures.at(BESIDE_HELIPAD).some((x) => x === merc.structure)).toBe(true);
+  });
+
+  it('gives a door of a native import the structure the player perceives while the map draws the real one: the load updates the doors once (Keys.cc:1206), the import runs no second update', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    if (!sim) throw new Error('no sector');
+    expect(isDoorOpenAt(sim.state, AIRFIELD_DOOR)).toBe(false);
+    flow.adoptLoadedSector([], {
+      mapModifications: null,
+      revealed: null,
+      doorStatus: [{ gridNo: AIRFIELD_DOOR, flags: DOOR_PERCEIVED_OPEN }],
+    });
+    const t = sim.state;
+    expect([isDoorOpenAt(t, AIRFIELD_DOOR), t.doorStatus.get(AIRFIELD_DOOR)?.open, sim.openDoors()]).toEqual([
+      true,
+      false,
+      [AIRFIELD_DOOR],
+    ]);
+  });
+
+  it('gives the door back the structure of its real state at the end of a sector entry, still shown as the player perceives it (StrategicMap.cc:514)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 9, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const left = campaign.tactical?.state;
+    if (!left) throw new Error('no sector');
+    left.doorStatus.set(AIRFIELD_DOOR, { open: false, perceivedOpen: true, perceivedNotSet: false, busy: false, shownOpen: true });
+    for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+    expect(flow.setCurrentWorldSector(A9)).toBe(true);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    if (!sim) throw new Error('no sector');
+    const t = sim.state;
+    expect([isDoorOpenAt(t, AIRFIELD_DOOR), t.doorStatus.get(AIRFIELD_DOOR)?.open, sim.openDoors()]).toEqual([
+      false,
+      false,
+      [AIRFIELD_DOOR],
+    ]);
   });
 
   it('brings a helicopter piece destroyed in the sector back at the next entry, unlike a load: the entry stands the helicopter again after the map changes took the piece away (StrategicMap.cc:520 after EnterSector, :880)', () => {

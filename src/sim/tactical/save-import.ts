@@ -5,8 +5,7 @@
 // @src LoadRottingCorpsesFromTempCorpseFile;
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile,
 // @src AddBloodOrSmellFromMapTempFileToMap;
-// @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData (the perceived flags
-// @src and the graphic of UpdateDoorGraphicsFromStatus 2026-11-01);
+// @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile (the door status flags);
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
@@ -25,7 +24,6 @@ import {
 } from '../../content/formats/savegame-temp-files.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
-import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { type TileTables, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { i16, u8 } from '../../core/int.ts';
@@ -35,9 +33,9 @@ import type { DroppedNativeOption } from '../options.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
-import { loadedDoorStatus } from './doors/door-status.ts';
+import { loadDoorStatusArray, type StoredDoorStatus } from './doors/door-status.ts';
 import type { KeyTable } from './doors/keys.ts';
-import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
+import { setOpenableStructStatus } from './doors.ts';
 import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
@@ -257,7 +255,7 @@ export function loadSavedSectorChanges(sim: TacticalSim, saved: SavedSectorChang
     standHelicopter();
     for (const m of saved.mapModifications ?? []) applyMapModification(sim, m);
     applyRevealedStatus(t, saved.revealed);
-    applyDoorStatus(t, saved.doorStatus ?? []);
+    loadDoorStatusArray(t, (saved.doorStatus ?? []).map(storedDoorStatus));
     initLoadedWorld(t);
   });
 }
@@ -333,15 +331,13 @@ function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, s
   if (gridNo >= 0 && gridNo < WORLD_MAX) restoreBloodAndSmellAt(t, gridNo, blood, smell);
 }
 
-function applyDoorStatus(t: TacticalState, statuses: readonly SavedDoorStatus[]): void {
-  t.doorStatus.clear();
-  for (const d of statuses) {
-    t.doorStatus.set(d.gridNo, loadedDoorStatus((d.flags & DOOR_PERCEIVED_OPEN) !== 0, (d.flags & DOOR_PERCEIVED_NOTSET) !== 0));
-    const door = t.world.structures.find(d.gridNo, StructureFlags.ANYDOOR);
-    if (!door || has(door.flags, StructureFlags.OPEN) === ((d.flags & DOOR_OPEN) !== 0)) continue;
-    const base = t.world.structures.findBase(door);
-    if (base) swapStructureForPartner(t, base);
-  }
+function storedDoorStatus(d: SavedDoorStatus): StoredDoorStatus {
+  return {
+    gridNo: d.gridNo,
+    open: (d.flags & DOOR_OPEN) !== 0,
+    perceivedOpen: (d.flags & DOOR_PERCEIVED_OPEN) !== 0,
+    perceivedNotSet: (d.flags & DOOR_PERCEIVED_NOTSET) !== 0,
+  };
 }
 
 export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {

@@ -1,8 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo, HandleDoorsOpenClose (the busy door, the perceived
-// @src state and the door's animation 2026-11-01); Tactical/Keys.cc ModifyDoorStatus with the structure swap of
-// @src Strategic/Scheduling.cc PerformActionOnDoorAdjacentToGridNo;
+// @src state and the door's animation 2026-11-01);
 // @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc
 // @src SetOpenableStructureToClosed; SaveLoadMap.cc SaveBloodSmellAndRevealedStatesFromMapToTempFile (the openable
 // @src statuses), SetOpenableStructStatusFromMapTempFile.
@@ -13,7 +12,7 @@ import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type World
 import { idiv } from '../../core/int.ts';
 import type { DoorSoundKind } from '../events.ts';
 import { endDoorAnimationEarly, startDoorAnimation } from './doors/door-animation.ts';
-import { allMercsLookForDoor, doorStatusAt, noteDoorStatus, perceiveDoor, shownDoorOpen } from './doors/door-status.ts';
+import { allMercsLookForDoor, doorStatusAt, perceiveDoor, setDoorStatusOpen, shownDoorOpen } from './doors/door-status.ts';
 import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import { checkPowPathsInAlmaPrison } from './narrative/pow-rules.ts';
 import { type Soldier, Team, Visible } from './soldier.ts';
@@ -76,7 +75,7 @@ function handleDoorsOpenClose(t: TacticalState, s: Soldier | null, gridNo: numbe
   endDoorAnimationEarly(t, base.gridNo);
   const graphicShowsOpen = shownDoorOpen(t, base.gridNo);
   const opening = !has(door.flags, StructureFlags.OPEN);
-  const status = noteDoorStatus(t, base.gridNo);
+  const status = setDoorStatusOpen(t, base.gridNo, opening);
   if (opening) checkPowPathsInAlmaPrison(t);
   if (!doorChangeShown(t, s, gridNo) || noAnimation) return false;
   perceiveDoor(status, opening);
@@ -98,15 +97,6 @@ export function handleDoorChangeFromGridNo(t: TacticalState, s: Soldier | null, 
     t.events.push({ type: 'doorChanged', gridNo: swapped.gridNo, open, kind: doorSoundKind(swapped), noisy: options.noisy === true });
   }
   return swapped !== null;
-}
-
-export function modifyDoorStatusOpen(t: TacticalState, gridNo: number, open: boolean): void {
-  const door = t.world.structures.find(gridNo, StructureFlags.ANYDOOR);
-  const base = door ? t.world.structures.findBase(door) : null;
-  if (!door || !base) return;
-  noteDoorStatus(t, base.gridNo);
-  if (has(door.flags, StructureFlags.OPEN) === open || !swapStructureForPartner(t, door)) return;
-  recompileLocalMovementCosts(t.world.costs, t.world, gridNo);
 }
 
 export function setOpenableStructureToClosed(t: TacticalState, gridNo: number): boolean {

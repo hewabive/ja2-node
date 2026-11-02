@@ -4,8 +4,7 @@
 // @src BumpAnyExistingMerc, AutoProcessSchedule, PostSchedule, PrepareScheduleForAutoProcessing, PostDefaultSchedule,
 // @src PostSchedules, PerformActionOnDoorAdjacentToGridNo, PostNextSchedule, ExtractScheduleDoorLockAndUnlockInfo,
 // @src ScheduleHasMorningNonSleepEntries, GetEmptyScheduleEntry, FindSleepSpot, ReplaceSleepSpot, SecureSleepSpot;
-// @src Tactical/Structure_Wrap.cc FindDoorAtGridNoOrAdjacent; Tactical/Keys.cc ModifyDoorStatus (with the structure sync of
-// @src UpdateDoorGraphicsFromStatus); Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter;
+// @src Tactical/Structure_Wrap.cc FindDoorAtGridNoOrAdjacent; Tactical/Soldier_Control.cc EVENT_SetSoldierPositionNoCenter;
 // @src TacticalAI/FindLocations.cc FindNearestEdgePoint; TileEngine/Isometric_Utils.cc GridNoOnEdgeOfMap.
 
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, Direction, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
@@ -15,8 +14,8 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import { i16, idiv, u16, u32 } from '../../../core/int.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { awaySoldierAt, moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
+import { modifyDoorStatus } from '../doors/door-status.ts';
 import { findDoorInfo, updateDoor } from '../doors/door-table.ts';
-import { modifyDoorStatusOpen } from '../doors.ts';
 import { EdgeSide, findNearestEdgepointOnSpecifiedEdge } from '../edgepoints.ts';
 import { setSoldierPosition, setSoldierPositionXY } from '../movement.ts';
 import { NOWHERE } from '../pathfinding.ts';
@@ -211,16 +210,16 @@ export function performActionOnDoorAdjacentToGridNo(t: TacticalState, action: nu
   switch (action) {
     case ScheduleAction.LOCKDOOR:
       if (findDoorInfo(t, doorGridNo)) updateDoor(t, doorGridNo, { locked: true });
-      modifyDoorStatusOpen(t, doorGridNo, false);
+      modifyDoorStatus(t, doorGridNo, false);
       break;
     case ScheduleAction.UNLOCKDOOR:
       if (findDoorInfo(t, doorGridNo)) updateDoor(t, doorGridNo, { locked: false });
       break;
     case ScheduleAction.OPENDOOR:
-      modifyDoorStatusOpen(t, doorGridNo, true);
+      modifyDoorStatus(t, doorGridNo, true);
       break;
     case ScheduleAction.CLOSEDOOR:
-      modifyDoorStatusOpen(t, doorGridNo, false);
+      modifyDoorStatus(t, doorGridNo, false);
       break;
   }
 }

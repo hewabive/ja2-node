@@ -25,6 +25,7 @@ import { whoIsThere } from '../sim/tactical/state.ts';
 import { createSaveSession } from './save-session.ts';
 
 const DOOR_OPEN = 0x01;
+const DOOR_PERCEIVED_OPEN = 0x02;
 const ENEMY_TURN_BUDGET = 40_000;
 const AIM_MERC_KIND = 1;
 const MINUTES_PER_DAY = 1440;
@@ -268,7 +269,10 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames imported into a campaign',
       }
       for (const d of save.currentSector.doorStatus ?? []) {
         const door = t.world.structures.find(d.gridNo, StructureFlags.ANYDOOR);
-        if (door) expect((door.flags & StructureFlags.OPEN) !== 0).toBe((d.flags & DOOR_OPEN) !== 0);
+        if (!door) continue;
+        const open = (d.flags & DOOR_OPEN) !== 0;
+        expect(t.doorStatus.get(d.gridNo)?.open).toBe(open);
+        if (((d.flags & DOOR_PERCEIVED_OPEN) !== 0) === open) expect((door.flags & StructureFlags.OPEN) !== 0).toBe(open);
       }
       expect(t.pre.state()).toEqual({ ring: save.preRandom.numbers, index: save.preRandom.index });
       const lightTime = lightTimeAt(save.worldTime.hour);

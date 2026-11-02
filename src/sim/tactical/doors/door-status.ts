@@ -2,22 +2,33 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-01. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.h DOOR_STATUS; Keys.cc ModifyDoorStatus, GetDoorStatus, IsCloseEnoughAndHasLOS,
 // @src AllMercsLookForDoor, MercLooksForDoors, InternalIsPerceivedDifferentThanReality, InternalUpdateDoorsPerceivedValue,
-// @src InternalUpdateDoorGraphicFromStatus (the graphic as an open or a closed door), UpdateDoorGraphicsFromStatus.
+// @src InternalUpdateDoorGraphicFromStatus (the graphic as an open or a closed door), UpdateDoorGraphicsFromStatus,
+// @src SynchronizeDoorStatusToStructureData, SaveDoorStatusArrayToDoorStatusTempFile, LoadDoorStatusArrayFromDoorStatusTempFile.
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
-import { StructureFlags } from '../../../content/world/structures.ts';
+import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
+import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { swapStructureForPartner } from '../doors.ts';
 import type { DoorStatus } from '../pathfinding.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 
 export interface DoorStatusEntry extends DoorStatus {
+  open: boolean;
   perceivedOpen: boolean;
   perceivedNotSet: boolean;
   busy: boolean;
   shownOpen: boolean;
+}
+
+export interface StoredDoorStatus {
+  readonly gridNo: number;
+  readonly open: boolean;
+  readonly perceivedOpen: boolean;
+  readonly perceivedNotSet: boolean;
 }
 
 const DIRECTION_IRRELEVANT = -1;
@@ -59,16 +70,44 @@ export function shownDoorOpen(t: TacticalState, base: number): boolean {
   return t.doorStatus.get(base)?.shownOpen ?? doorStructureOpen(t, base) === true;
 }
 
-export function noteDoorStatus(t: TacticalState, base: number): DoorStatusEntry {
+export function setDoorStatusOpen(t: TacticalState, base: number, open: boolean): DoorStatusEntry {
   const known = t.doorStatus.get(base);
-  if (known) return known;
-  const added: DoorStatusEntry = { perceivedOpen: false, perceivedNotSet: true, busy: false, shownOpen: shownDoorOpen(t, base) };
+  if (known) {
+    known.open = open;
+    return known;
+  }
+  const added: DoorStatusEntry = { open, perceivedOpen: false, perceivedNotSet: true, busy: false, shownOpen: shownDoorOpen(t, base) };
   t.doorStatus.set(base, added);
   return added;
 }
 
-export function loadedDoorStatus(perceivedOpen: boolean, perceivedNotSet: boolean): DoorStatusEntry {
-  return { perceivedOpen, perceivedNotSet, busy: false, shownOpen: perceivedOpen };
+export function modifyDoorStatus(t: TacticalState, gridNo: number, open: boolean): void {
+  const base = doorBaseGridNo(t, gridNo);
+  if (base !== null) setDoorStatusOpen(t, base, open);
+}
+
+export function storedDoorStatuses(t: TacticalState): StoredDoorStatus[] {
+  return [...t.doorStatus].map(([gridNo, s]) => ({
+    gridNo,
+    open: s.open,
+    perceivedOpen: s.perceivedOpen,
+    perceivedNotSet: s.perceivedNotSet,
+  }));
+}
+
+export function loadDoorStatusArray(t: TacticalState, stored: readonly StoredDoorStatus[]): void {
+  t.doorStatus.clear();
+  for (const d of stored) {
+    const shownOpen = doorStructureOpen(t, d.gridNo) === true;
+    t.doorStatus.set(d.gridNo, {
+      open: d.open,
+      perceivedOpen: d.perceivedOpen,
+      perceivedNotSet: d.perceivedNotSet,
+      busy: false,
+      shownOpen,
+    });
+  }
+  updateDoorGraphicsFromStatus(t);
 }
 
 export function perceiveDoor(status: DoorStatusEntry, open: boolean): void {
@@ -101,8 +140,8 @@ export function allMercsLookForDoor(t: TacticalState, gridNo: number): boolean {
   return teamMembers(t, Team.OUR).some((s) => s.life >= OKLIFE && mercSeesDoorOrAround(t, s, gridNo));
 }
 
-function perceivedDifferentThanReality(t: TacticalState, base: number, status: DoorStatusEntry): boolean {
-  return status.perceivedNotSet || (doorStructureOpen(t, base) ?? false) !== status.perceivedOpen;
+function perceivedDifferentThanReality(status: DoorStatusEntry): boolean {
+  return status.perceivedNotSet || status.open !== status.perceivedOpen;
 }
 
 function seesDoorWithItsRange(t: TacticalState, s: Soldier, base: number): boolean {
@@ -110,23 +149,46 @@ function seesDoorWithItsRange(t: TacticalState, s: Soldier, base: number): boole
   return seesTile(t, s, base, range) || LOOK_DIRECTIONS.some((d) => seesTile(t, s, adjacentTile(base, d), range));
 }
 
-function updateDoorFromReality(t: TacticalState, base: number, status: DoorStatusEntry): void {
-  const open = doorStructureOpen(t, base);
-  perceiveDoor(status, open === true);
-  if (open !== null) status.shownOpen = open;
+function swapDoorStructure(t: TacticalState, door: StructureInstance): void {
+  const base = t.world.structures.findBase(door);
+  if (!base) return;
+  swapStructureForPartner(t, base);
+  recompileLocalMovementCosts(t.world.costs, t.world, base.gridNo);
+}
+
+function updateDoorGraphicFromStatus(t: TacticalState, base: number, status: DoorStatusEntry): void {
+  const door = t.world.structures.find(base, StructureFlags.ANYDOOR);
+  if (!door) return;
+  const wantOpen = status.perceivedOpen;
+  if (has(door.flags, StructureFlags.OPEN) === wantOpen) {
+    status.shownOpen = wantOpen;
+    return;
+  }
+  if (status.shownOpen === wantOpen) return;
+  status.shownOpen = wantOpen;
+  swapDoorStructure(t, door);
+}
+
+function synchronizeDoorStatusToStructureData(t: TacticalState, base: number, status: DoorStatusEntry): void {
+  const door = t.world.structures.find(base, StructureFlags.ANYDOOR);
+  if (door && has(door.flags, StructureFlags.OPEN) !== status.open) swapDoorStructure(t, door);
 }
 
 export function mercLooksForDoors(t: TacticalState, s: Soldier): void {
   for (const [base, status] of t.doorStatus) {
-    if (!perceivedDifferentThanReality(t, base, status)) continue;
+    if (!perceivedDifferentThanReality(status)) continue;
     if (!seesDoorWithItsRange(t, s, base)) continue;
-    updateDoorFromReality(t, base, status);
+    perceiveDoor(status, status.open);
+    updateDoorGraphicFromStatus(t, base, status);
     return;
   }
 }
 
 export function updateDoorGraphicsFromStatus(t: TacticalState): void {
-  for (const status of t.doorStatus.values()) status.shownOpen = status.perceivedOpen;
+  for (const [base, status] of t.doorStatus) {
+    synchronizeDoorStatusToStructureData(t, base, status);
+    updateDoorGraphicFromStatus(t, base, status);
+  }
 }
 
 export function clearDoorBusy(t: TacticalState, base: number): void {

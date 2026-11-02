@@ -10,15 +10,14 @@
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { DetailedPlacement } from '../../content/formats/placement.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { idiv, u32 } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
-import { loadedDoorStatus } from '../tactical/doors/door-status.ts';
-import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructureForPartner } from '../tactical/doors.ts';
+import type { StoredDoorStatus } from '../tactical/doors/door-status.ts';
+import { type OpenableStatus, setOpenableStructStatus } from '../tactical/doors.ts';
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
@@ -39,13 +38,6 @@ export interface DiffWorldItem {
   readonly flags: number;
   readonly zHeight: number;
   readonly visible: number;
-}
-
-export interface DiffDoorStatus {
-  readonly gridNo: number;
-  readonly open: boolean;
-  readonly perceivedOpen: boolean;
-  readonly perceivedNotSet: boolean;
 }
 
 export interface DiffSmoke {
@@ -90,7 +82,7 @@ export interface SectorDiff {
   mapChanges: MapChange[] | null;
   doorTable: MapDoor[] | null;
   revealed: RevealedState | null;
-  doorStatus: DiffDoorStatus[] | null;
+  doorStatus: StoredDoorStatus[] | null;
   openables?: OpenableStatus[];
   bloodSmell?: DiffBloodSmell[];
   enemies: PreservedSoldiers | null;
@@ -143,15 +135,6 @@ export function visibleItemCount(items: readonly DiffWorldItem[]): number {
   let n = 0;
   for (const wi of items) if (wi.exists && wi.visible === Visibility.VISIBLE) n += wi.object.count;
   return n;
-}
-
-export function captureDoorStatus(t: TacticalState): DiffDoorStatus[] {
-  return [...t.doorStatus.entries()].map(([gridNo, status]) => ({
-    gridNo,
-    open: isDoorOpenAt(t, gridNo),
-    perceivedOpen: status.perceivedOpen,
-    perceivedNotSet: status.perceivedNotSet,
-  }));
 }
 
 export function captureRevealed(t: TacticalState): RevealedState {
@@ -298,17 +281,6 @@ export function restoreRevealed(t: TacticalState, revealed: RevealedState): void
 
 export function restoreBloodAndSmell(t: TacticalState, records: readonly DiffBloodSmell[]): void {
   for (const r of records) restoreBloodAndSmellAt(t, r.gridNo, r.blood, r.smell);
-}
-
-export function restoreDoorStatus(t: TacticalState, statuses: readonly DiffDoorStatus[]): void {
-  t.doorStatus.clear();
-  for (const d of statuses) {
-    t.doorStatus.set(d.gridNo, loadedDoorStatus(d.perceivedOpen, d.perceivedNotSet));
-    const door = t.world.structures.find(d.gridNo, StructureFlags.ANYDOOR);
-    if (!door || has(door.flags, StructureFlags.OPEN) === d.open) continue;
-    const base = t.world.structures.findBase(door);
-    if (base) swapStructureForPartner(t, base);
-  }
 }
 
 export function restoreOpenables(t: TacticalState, openables: readonly OpenableStatus[]): void {

@@ -1,3 +1,4 @@
+import { StructureFlags } from '../../content/world/structures.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
@@ -1000,6 +1001,43 @@ function compactMercSlots(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const DOOR_STATUS_KEY = 'doorStatus';
+const MAP_TAG = '$map';
+const STRUCTURES_TAG = '$structures';
+
+function structureListsOf(world: Json | undefined): Json {
+  return field(field(field(world, 'structures', null), STRUCTURES_TAG, null), 'lists', null);
+}
+
+function doorStructureOpen(lists: Json, gridNo: number): boolean {
+  const list = Array.isArray(lists) ? lists[gridNo] : undefined;
+  const isDoor = (s: Json) => isObject(s) && typeof s.flags === 'number' && (s.flags & StructureFlags.ANYDOOR) !== 0;
+  const door = Array.isArray(list) ? list.find(isDoor) : undefined;
+  return isObject(door) && ((door.flags as number) & StructureFlags.OPEN) !== 0;
+}
+
+function withRealDoorState(entry: Json, lists: Json): Json {
+  if (!Array.isArray(entry) || typeof entry[0] !== 'number') return entry;
+  const [gridNo, status] = entry;
+  if (!isObject(status) || status.open !== undefined || status[REF] !== undefined) return entry;
+  return [gridNo, { open: doorStructureOpen(lists, gridNo), ...status }];
+}
+
+function addRealDoorState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const tactical = sectionOf(graph.sections, 'tactical');
+  const doorStatus = isObject(tactical) ? tactical[DOOR_STATUS_KEY] : undefined;
+  const entries = isObject(doorStatus) ? doorStatus[MAP_TAG] : undefined;
+  if (!Array.isArray(entries)) return { ...snapshot };
+  const lists = structureListsOf(sectionOf(graph.sections, 'world'));
+  const migrated: Json = { [MAP_TAG]: entries.map((entry: Json) => withRealDoorState(entry, lists)) };
+  const sections = graph.sections.map(([name, value]): Section => {
+    if (name !== 'tactical' || !isObject(value)) return [name, value];
+    return [name, { ...value, [DOOR_STATUS_KEY]: migrated }];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1038,5 +1076,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     34: addDoorStatusFlags,
     35: addPreCombatGridNo,
     36: compactMercSlots,
+    37: addRealDoorState,
   };
 }

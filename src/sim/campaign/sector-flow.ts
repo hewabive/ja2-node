@@ -97,7 +97,7 @@ import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
-import { updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
+import { loadDoorStatusArray, storedDoorStatuses, updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
 import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
@@ -173,7 +173,6 @@ import { returnToLoadedSector } from './screens.ts';
 import {
   applyPreservedEnemyRecord,
   captureBloodAndSmell,
-  captureDoorStatus,
   captureLights,
   captureRevealed,
   captureSmoke,
@@ -183,7 +182,6 @@ import {
   preserveSoldiers,
   restoreBloodAndSmell,
   restoreCorpses,
-  restoreDoorStatus,
   restoreLights,
   restoreMapChanges,
   restoreOpenables,
@@ -648,7 +646,6 @@ export class SectorFlow {
     loadSavedSectorChanges(sim, saved, () => handleHelicopterOnGround(this.ctx, true));
     handleRottingCorpses(t);
     this.postSchedulesOfLoadedSector(t, true);
-    updateDoorGraphicsFromStatus(t);
     if (this.campaign.state.flow === 'tactical') enterTacticalScreenAfterLoad(t);
   }
 
@@ -706,7 +703,7 @@ export class SectorFlow {
       }
       if (diff.openables) restoreOpenables(t, diff.openables);
       if (diff.revealed && this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) restoreRevealed(t, diff.revealed);
-      if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) restoreDoorStatus(t, diff.doorStatus);
+      if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) loadDoorStatusArray(t, diff.doorStatus);
       if (diff.enemies && this.#flagged(sector, SectorFlag.ENEMY_PRESERVED_TEMP_FILE_EXISTS)) this.#loadPreservedEnemies(sector, diff);
       if (diff.civilians && this.#flagged(sector, SectorFlag.CIV_PRESERVED_TEMP_FILE_EXISTS))
         loadPreservedCivilians(t, diff.civilians, now);
@@ -1237,7 +1234,7 @@ export class SectorFlow {
     mark(SectorFlag.DOOR_TABLE_TEMP_FILES_EXISTS, true);
     diff.revealed = captureRevealed(t);
     mark(SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS, true);
-    diff.doorStatus = captureDoorStatus(t);
+    diff.doorStatus = storedDoorStatuses(t);
     diff.openables = openableStatuses(t);
     mark(SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS, true);
     diff.enemies = preserveSoldiers(t, true, now);

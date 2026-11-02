@@ -5,7 +5,8 @@ import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
-import { loadedDoorStatus } from '../sim/tactical/doors/door-status.ts';
+import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
+import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
 import { Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
@@ -1379,7 +1380,8 @@ describe('snapshot version 33 (no creature tension timer) migrates with no delay
 });
 
 const DOOR_STATUS_FLAG_KEYS = ['perceivedNotSet', 'busy', 'shownOpen'];
-const LIVE_DOOR_STATUS_KEYS = ['perceivedOpen', ...DOOR_STATUS_FLAG_KEYS];
+const REAL_DOOR_STATE_KEY = 'open';
+const LIVE_DOOR_STATUS_KEYS = [REAL_DOOR_STATE_KEY, 'perceivedOpen', ...DOOR_STATUS_FLAG_KEYS];
 const SAVED_DOOR_STATUS_KEYS = ['gridNo', 'open', 'perceivedOpen', 'perceivedNotSet'];
 const SANDBOX_DOOR = 11429;
 const OTHER_DOOR = 11433;
@@ -1387,6 +1389,10 @@ const LEFT_SECTOR = { x: 1, y: 1, z: 0 };
 
 function hasKeys(o: Readonly<Record<string, Json>>, keys: readonly string[]): boolean {
   return Object.keys(o).length === keys.length && keys.every((key) => key in o);
+}
+
+function shownAsPerceived(open: boolean, perceivedOpen: boolean): DoorStatusEntry {
+  return { open, perceivedOpen, perceivedNotSet: false, busy: false, shownOpen: perceivedOpen };
 }
 
 function withoutDoorStatusFlags(value: Json): Json {
@@ -1438,8 +1444,8 @@ describe('snapshot version 34 (door statuses with only the perceived state) migr
   it('a sandbox', async () => {
     const sandbox = await createSandboxSession(kit.read, false, 5);
     const t = sandbox.sim.state;
-    t.doorStatus.set(SANDBOX_DOOR, loadedDoorStatus(true, false));
-    t.doorStatus.set(OTHER_DOOR, loadedDoorStatus(false, false));
+    t.doorStatus.set(SANDBOX_DOOR, shownAsPerceived(false, true));
+    t.doorStatus.set(OTHER_DOOR, shownAsPerceived(false, false));
     await expectPerceivedDoors(sandbox);
   });
 
@@ -1447,7 +1453,7 @@ describe('snapshot version 34 (door statuses with only the perceived state) migr
     const campaign = await createCampaignSession(kit.read, exists, 9);
     const t = campaign.campaign.tactical?.state;
     if (!t) throw new Error('no loaded sector');
-    t.doorStatus.set(SANDBOX_DOOR, loadedDoorStatus(true, false));
+    t.doorStatus.set(SANDBOX_DOOR, shownAsPerceived(false, true));
     const diff = emptySectorDiff();
     diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false }];
     campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
@@ -1556,5 +1562,48 @@ describe('snapshot version 36 (merc slots left empty by soldiers who left) migra
 
   it('a landed campaign', async () => {
     await expectGapsClosed(await createCampaignSession(kit.read, exists, 9));
+  });
+});
+
+function withoutRealDoorState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutRealDoorState(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutRealDoorState(v);
+  if (!hasKeys(out, LIVE_DOOR_STATUS_KEYS)) return out;
+  const { [REAL_DOOR_STATE_KEY]: _open, ...older } = out;
+  return older;
+}
+
+function versionThirtySeven(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutRealDoorState(value)]);
+  return { ...snapshot, version: 37, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 37 (door statuses without DOOR_OPEN) migrates with the real state of each door's structure", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with an opened door and a status where no door stands', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    handleDoorChangeFromGridNo(t, null, SANDBOX_DOOR);
+    t.doorStatus.set(OTHER_DOOR, shownAsPerceived(false, true));
+    expect([isDoorOpenAt(t, SANDBOX_DOOR), t.doorStatus.get(SANDBOX_DOOR)?.open]).toEqual([true, true]);
+    const current = snapshotSession(sandbox);
+    const legacy = versionThirtySeven(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${REAL_DOOR_STATE_KEY}":true,"perceivedOpen"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${REAL_DOOR_STATE_KEY}":true,"perceivedOpen"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
