@@ -87,6 +87,7 @@ describe('a new campaign session', () => {
     const prompt = session.view().contractPrompt;
     expect(prompt).toMatchObject({ kind: 'mercDeparture', soldier: dismissed.id, name: dismissed.name, sector: 'A9' });
     expect(prompt?.kind === 'mercDeparture' && prompt.choices).toContain('here');
+    expect(session.view().strategic?.mercs.map((m) => m.id)).toContain(dismissed.id);
     expect(session.dispatch({ type: 'compressTime', mode: CompressMode.MIN60 }).ok).toBe(false);
     expect(session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'here' })).toEqual({ ok: true });
     expect(session.view().contractPrompt ?? null).toBeNull();

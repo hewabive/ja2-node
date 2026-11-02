@@ -5,7 +5,8 @@
 // @src PossibleToCoordinateSimultaneousGroupArrivals (STR_DETECTED_SINGULAR or _PLURAL, the enemy type, STR_COORDINATE),
 // @src HandlePlayerGroupEnteringSectorToCheckForNPCsOfNote (pLandMarkInSectorString, OK at the final destination, else
 // @src CONTINUE/STOP); src/game/Strategic/Merc_Contract.cc NotifyPlayerOfMercDepartureAndPromptEquipmentPlacement (the
-// @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired), HandleNotifyPlayerCanAffordInsurance
+// @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired, the text by the profile's sex),
+// @src HandleNotifyPlayerCanAffordInsurance
 // @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340). The
 // @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
 
@@ -14,6 +15,7 @@ import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
+import { mercById } from './character-list.ts';
 
 const MILITIA = 'pMilitiaConfirmStrings';
 const STRATEGIC = 'gpStrategicString';
@@ -26,7 +28,9 @@ const LANDMARK = 'pLandMarkInSectorString';
 const INSURANCE = 10;
 const MARKS = 'zMarksMapScreenText';
 const HE_CHOOSES = 'str_he_leaves_where_drop_equipment';
+const SHE_CHOOSES = 'str_she_leaves_where_drop_equipment';
 const HE_DROPS = 'str_he_leaves_drops_equipment';
+const SHE_DROPS = 'str_she_leaves_drops_equipment';
 const LOCATIVES = 'strategic-map-town-name-locatives';
 
 export interface PromptBox {
@@ -87,17 +91,24 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
 
 export function departureBox(
   ctx: PromptContext,
-  prompt: { readonly name: string; readonly sector: string; readonly choices: readonly string[]; readonly elsewhereSector: string | null },
+  prompt: {
+    readonly soldier: number;
+    readonly name: string;
+    readonly sector: string;
+    readonly choices: readonly string[];
+    readonly elsewhereSector: string | null;
+  },
 ): PromptBox {
   const text = ctx.text;
   const here = prompt.sector.split('-')[0] ?? prompt.sector;
   const rehire = prompt.choices.includes('rehire');
+  const female = mercById(ctx.strategic, prompt.soldier)?.female === true;
   if (prompt.elsewhereSector && prompt.choices.includes('elsewhere')) {
     const elsewhere = prompt.elsewhereSector;
     const town = ctx.townOf(elsewhere);
     const locative = text.string(LOCATIVES, town) ?? '';
     return {
-      text: printf(text.string(HE_CHOOSES, 0) ?? '', [prompt.name, here, locative, elsewhere]),
+      text: printf(text.string(female ? SHE_CHOOSES : HE_CHOOSES, 0) ?? '', [prompt.name, here, locative, elsewhere]),
       flags: rehire ? MessageBoxFlag.GENERICCONTRACT : MessageBoxFlag.GENERIC,
       user1: here,
       user2: elsewhere,
@@ -106,7 +117,7 @@ export function departureBox(
     };
   }
   return {
-    text: printf(text.string(HE_DROPS, 0) ?? '', [prompt.name, here]),
+    text: printf(text.string(female ? SHE_DROPS : HE_DROPS, 0) ?? '', [prompt.name, here]),
     flags: rehire ? MessageBoxFlag.OKCONTRACT : MessageBoxFlag.OK,
     answer: (r) => (r === MessageBoxReturn.CONTRACT ? 'rehire' : 'here'),
   };
