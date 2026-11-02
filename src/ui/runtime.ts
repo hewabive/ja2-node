@@ -5,7 +5,7 @@ import { type ComposedCursor, CursorState } from './cursors/cursor-state.ts';
 import type { CursorTable } from './cursors/cursor-table.ts';
 import { DiagnosticsOverlay } from './diagnostics-overlay.ts';
 import type { DrawList } from './draw-list.ts';
-import { isPointerEvent, type UiInputEvent } from './input/events.ts';
+import { isPointerEvent, queuesNoEvent, type UiInputEvent } from './input/events.ts';
 import { RegionDispatcher } from './input/regions.ts';
 import { FastHelp } from './input/tooltips.ts';
 import { ScreenHost } from './screen.ts';
@@ -99,6 +99,7 @@ export class UiRuntime implements UiServices {
       this.regions.pointer(event, this.clock.now);
     } else if (event.kind !== 'text') {
       this.#modifiers = event.modifiers;
+      if (queuesNoEvent(event)) return false;
       if (event.kind === 'keyUp') this.#keysDown.delete(event.key);
       else this.#keysDown.add(event.key);
     }

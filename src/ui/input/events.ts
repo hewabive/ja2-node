@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/sgp/Input.h SHIFT_DOWN, CTRL_DOWN, ALT_DOWN, KEY_DOWN, KEY_UP, KEY_REPEAT, TEXT_INPUT; src/sgp/Input.cc
-// @src KeyDown, KeyUp, KeyChange (the keypad, its 5 dropped without NumLock), HandleSingleClicksAndButtonRepeats.
+// @src KeyDown, KeyUp (Shift, Ctrl, Alt, Print Screen and Scroll Lock queue no event), KeyChange (the keypad, its 5
+// @src dropped without NumLock), HandleSingleClicksAndButtonRepeats.
 
 export const KeyModifier = { SHIFT: 1, CTRL: 2, ALT: 4 } as const;
 
@@ -51,6 +52,7 @@ export interface RawKey {
   readonly numLock: boolean;
 }
 
+const KEYS_WITHOUT_EVENTS: ReadonlySet<string> = new Set(['Shift', 'Control', 'Alt', 'AltGraph', 'PrintScreen', 'ScrollLock']);
 const FIRST_PRINTABLE = 0x20;
 const LAST_PRINTABLE = 0x7e;
 const KEYPAD_PREFIX = 'Numpad';
@@ -134,6 +136,10 @@ export function digitKeyOf(event: Pick<UiKeyEvent, 'key' | 'code'>): number | nu
   const row = DIGIT_ROW_CODE.exec(event.code);
   if (row) return Number(row[1]);
   return event.code.startsWith(KEYPAD_PREFIX) && SINGLE_DIGIT.test(event.key) ? Number(event.key) : null;
+}
+
+export function queuesNoEvent(event: Pick<UiKeyEvent, 'key'>): boolean {
+  return KEYS_WITHOUT_EVENTS.has(event.key);
 }
 
 export function modifierMask(raw: Pick<RawKey, 'shift' | 'ctrl' | 'alt'>): number {

@@ -131,6 +131,12 @@ function pressKeypad(f: TacticalUiTest, key: string, code: string, numLock: bool
   f.t.frame();
 }
 
+function pressAlone(f: TacticalUiTest, key: string, code: string, held: Partial<RawKey>): void {
+  const released: RawKey = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
+  for (const event of [...keyDownEvents({ ...released, ...held }), ...keyUpEvents(released)]) f.t.runtime.input(event);
+  f.t.frame();
+}
+
 function pointerTo(f: TacticalUiTest, x: number, y: number): void {
   f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
   f.t.frame(SCROLL_STEP_MS);
@@ -432,6 +438,20 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.client.paused).toBe(true);
     pressKeypad(f, 'Clear', 'Numpad5', false);
     pressKeypad(f, 'Unidentified', 'Numpad5', false);
+    expect(f.client.paused).toBe(true);
+    pressKeypad(f, '5', 'Numpad5', true);
+    expect(f.client.paused).toBe(false);
+  });
+
+  it('keeps the player paused through Shift, Ctrl, Alt, Print Screen and Scroll Lock pressed alone, which queue no key event', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('Pause');
+    pressAlone(f, 'Shift', 'ShiftLeft', { shift: true });
+    pressAlone(f, 'Control', 'ControlLeft', { ctrl: true });
+    pressAlone(f, 'Alt', 'AltLeft', { alt: true });
+    pressAlone(f, 'AltGraph', 'AltRight', { ctrl: true, alt: true });
+    pressAlone(f, 'PrintScreen', 'PrintScreen', {});
+    pressAlone(f, 'ScrollLock', 'ScrollLock', {});
     expect(f.client.paused).toBe(true);
     pressKeypad(f, '5', 'Numpad5', true);
     expect(f.client.paused).toBe(false);

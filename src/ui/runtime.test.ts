@@ -3,7 +3,7 @@ import { type TestRuntime, testRuntime, uniformImage } from '../../tests/support
 import { encodeEdtRecords } from '../content/formats/edt.ts';
 import { EdtLayouts } from '../content/text/edt-layouts.ts';
 import type { DrawList } from './draw-list.ts';
-import { KeyModifier } from './input/events.ts';
+import { KeyModifier, type UiInputEvent } from './input/events.ts';
 import type { Screen } from './screen.ts';
 import { EdtTextCache } from './text/edt-text.ts';
 import { Fade } from './widgets/fade.ts';
@@ -122,6 +122,35 @@ describe('the ui runtime', () => {
     expect([t.runtime.isKeyDown('a'), t.runtime.modifiers]).toEqual([true, KeyModifier.SHIFT]);
     t.runtime.input({ kind: 'keyUp', key: 'a', code: 'KeyA', modifiers: 0 });
     expect([t.runtime.isKeyDown('a'), t.runtime.modifiers]).toEqual([false, 0]);
+  });
+
+  it('keeps Shift, Ctrl and Alt pressed alone as the modifiers only and passes them, Print Screen and Scroll Lock to no screen, as KeyDown and KeyUp do', () => {
+    const seen: UiInputEvent[] = [];
+    t.runtime.host.push({ ...contentScreen(false), input: (event) => seen.push(event) > 0 });
+    const modifiers: number[] = [];
+    const press = (key: string, code: string, held: number) => {
+      t.runtime.input({ kind: 'keyDown', key, code, modifiers: held });
+      t.runtime.input({ kind: 'keyRepeat', key, code, modifiers: held });
+      modifiers.push(t.runtime.modifiers);
+      t.runtime.input({ kind: 'keyUp', key, code, modifiers: 0 });
+      modifiers.push(t.runtime.modifiers);
+    };
+    press('Shift', 'ShiftLeft', KeyModifier.SHIFT);
+    press('Control', 'ControlRight', KeyModifier.CTRL);
+    press('Alt', 'AltLeft', KeyModifier.ALT);
+    press('AltGraph', 'AltRight', KeyModifier.CTRL | KeyModifier.ALT);
+    press('PrintScreen', 'PrintScreen', 0);
+    press('ScrollLock', 'ScrollLock', 0);
+    expect([seen, modifiers]).toEqual([
+      [],
+      [KeyModifier.SHIFT, 0, KeyModifier.CTRL, 0, KeyModifier.ALT, 0, KeyModifier.CTRL | KeyModifier.ALT, 0, 0, 0, 0, 0],
+    ]);
+    t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    t.runtime.input({ kind: 'keyDown', key: 'a', code: 'KeyA', modifiers: KeyModifier.SHIFT });
+    expect([seen, t.runtime.modifiers]).toEqual([
+      [{ kind: 'keyDown', key: 'a', code: 'KeyA', modifiers: KeyModifier.SHIFT }],
+      KeyModifier.SHIFT,
+    ]);
   });
 });
 

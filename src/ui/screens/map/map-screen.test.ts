@@ -6,7 +6,7 @@ import { MercKind } from '../../../sim/campaign/roster.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton } from '../../input/events.ts';
+import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 
 const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
@@ -86,6 +86,12 @@ function radarShade(f: MapUiTest) {
 function pressKeypad(f: MapUiTest, key: string, code: string, numLock = true): void {
   const raw = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock };
   for (const event of [...keyDownEvents(raw), ...keyUpEvents(raw)]) f.t.runtime.input(event);
+  f.t.frame();
+}
+
+function pressAlone(f: MapUiTest, key: string, code: string, held: Partial<RawKey>): void {
+  const released: RawKey = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
+  for (const event of [...keyDownEvents({ ...released, ...held }), ...keyUpEvents(released)]) f.t.runtime.input(event);
   f.t.frame();
 }
 
@@ -461,6 +467,20 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.client.paused).toBe(true);
       pressKeypad(f, 'Clear', 'Numpad5', false);
       pressKeypad(f, 'Unidentified', 'Numpad5', false);
+      expect(f.client.paused).toBe(true);
+      pressKeypad(f, '5', 'Numpad5');
+      expect(f.client.paused).toBe(false);
+    }));
+
+  it('keeps the player paused through Shift, Ctrl, Alt, Print Screen and Scroll Lock pressed alone, which queue no key event', () =>
+    withMap(async (f) => {
+      f.key('Pause');
+      pressAlone(f, 'Shift', 'ShiftLeft', { shift: true });
+      pressAlone(f, 'Control', 'ControlLeft', { ctrl: true });
+      pressAlone(f, 'Alt', 'AltLeft', { alt: true });
+      pressAlone(f, 'AltGraph', 'AltRight', { ctrl: true, alt: true });
+      pressAlone(f, 'PrintScreen', 'PrintScreen', {});
+      pressAlone(f, 'ScrollLock', 'ScrollLock', {});
       expect(f.client.paused).toBe(true);
       pressKeypad(f, '5', 'Numpad5');
       expect(f.client.paused).toBe(false);
