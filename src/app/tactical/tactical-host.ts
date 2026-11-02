@@ -351,14 +351,16 @@ export class TacticalHost {
     this.#o.page.world = this.#worldLayer();
     const target = storyCameraTarget(this.#o.session.view);
     if (target !== null) loaded.presenter.centerOn(target);
-    const screen = (this.#screenFor === loaded ? this.#screen : null) ?? this.#createScreen(loaded, flow);
-    this.#locateOnEntry(screen);
+    const reused = this.#screenFor === loaded ? this.#screen : null;
+    const screen = reused ?? this.#createScreen(loaded, flow);
+    this.#startSoldiers(loaded, screen, reused !== null);
     return screen;
   }
 
-  #locateOnEntry(screen: TacticalScreen): void {
+  #startSoldiers(loaded: Loaded, screen: TacticalScreen, reused: boolean): void {
     const entry = this.#entry;
     this.#entry = null;
+    if (entry || !reused) loaded.presenter.resetEffects(entry ? 'created' : 'restored');
     if (entry && entry.located !== null) screen.locateOnEntry(entry.located);
   }
 
@@ -489,7 +491,7 @@ export class TacticalHost {
     this.#sound.director?.reset(this.#o.session.soldiers, this.#o.session.openContainers);
     this.#frames?.reset();
     this.#entry = null;
-    this.#loaded?.presenter.resetEffects();
+    this.#loaded?.presenter.resetEffects('restored');
   }
 
   #unknownProfile(frames: readonly ViewFrame[]): boolean {

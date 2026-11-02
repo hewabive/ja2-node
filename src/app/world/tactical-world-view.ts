@@ -30,7 +30,7 @@ import {
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
-import { ROOF_MARKER_TILE, RoofMarkers } from './roof-markers.ts';
+import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
 import { defaultHostile, nightTime, type SoldierLightOptions, SoldierScene } from './soldier-scene.ts';
@@ -250,9 +250,9 @@ export class TacticalWorldView {
     this.#effectAnimations.observe(effects);
   }
 
-  resetEffects(): void {
+  resetEffects(soldiers: SoldierOrigin): void {
     this.#effectAnimations.reset();
-    this.#roofMarkers.reset();
+    this.#roofMarkers.reset(soldiers);
   }
 
   #roofMarkerNodes(soldiers: readonly SoldierView[]): WorldUiNode[] {

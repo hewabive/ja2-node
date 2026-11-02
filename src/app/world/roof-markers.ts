@@ -5,7 +5,10 @@
 // @src forced), InternalRemoveSoldierFromGridNo (taken off the tile he leaves), CreateSoldierCommon (fSoldierWasMoving
 // @src starts TRUE); src/game/Tactical/Overhead.cc ExecuteOverhead (taken off at a fade-out, put back at an other team's
 // @src fade-in, put back when a seen soldier who was moving stands, taken off when he starts moving);
-// @src src/game/Tactical/Soldier_Ani.cc code 408 (forced at the end of our merc's climb up).
+// @src src/game/Tactical/Soldier_Ani.cc code 408 (forced at the end of our merc's climb up);
+// @src src/game/Tactical/LoadSaveSoldierType.cc ExtractSoldierType (a loaded soldier keeps the fSoldierWasMoving he was
+// @src saved with: a soldier standing in sight is saved after he stopped, one walking before; the loaded map has no
+// @src markers, 2026-11-02).
 
 import type { SoldierView } from '../../protocol/view.ts';
 
@@ -14,6 +17,8 @@ const OUR_TEAM = 0;
 const SECOND_LEVEL = 1;
 
 type Shown = 'seen' | 'fading' | 'gone';
+
+export type SoldierOrigin = 'created' | 'restored';
 
 interface Standing {
   readonly gridNo: number;
@@ -41,6 +46,7 @@ export class RoofMarkers {
   readonly #markers = new Set<number>();
   readonly #soldiers = new Map<number, TrackedSoldier>();
   #started = false;
+  #origin: SoldierOrigin = 'created';
 
   constructor(rules: RoofMarkerRules) {
     this.#rules = rules;
@@ -57,20 +63,27 @@ export class RoofMarkers {
     return [...this.#markers];
   }
 
-  reset(): void {
+  reset(origin: SoldierOrigin): void {
     this.#markers.clear();
     this.#soldiers.clear();
     this.#started = false;
+    this.#origin = origin;
   }
 
   #arrival(s: SoldierView): TrackedSoldier {
-    return { gridNo: s.gridNo, level: s.level, animation: s.animation, shown: this.#started ? 'gone' : shownOf(s), wasMoving: true };
+    const restored = !this.#started && this.#origin === 'restored';
+    const shown = this.#started ? 'gone' : shownOf(s);
+    return { gridNo: s.gridNo, level: s.level, animation: s.animation, shown, wasMoving: restored ? !this.#stationary(s) : true };
+  }
+
+  #stationary(s: SoldierView): boolean {
+    return this.#rules.stationary(s.animation) || s.noApToFinishMove === true;
   }
 
   #follow(s: SoldierView, before: TrackedSoldier): TrackedSoldier {
     if (before.gridNo !== s.gridNo) this.#remove(before);
     const shown = shownOf(s);
-    const stationary = this.#rules.stationary(s.animation) || s.noApToFinishMove === true;
+    const stationary = this.#stationary(s);
     const now: Standing = { gridNo: s.gridNo, level: s.level, animation: s.animation };
     let wasMoving = before.wasMoving;
     if (before.shown === 'seen' && shown === 'fading') this.#remove(now);

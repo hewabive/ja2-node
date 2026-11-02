@@ -55,6 +55,7 @@ import type {
 import { findSoldier } from '../../ui/screens/tactical/input/targets.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
+import type { SoldierOrigin } from '../world/roof-markers.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
@@ -177,8 +178,8 @@ export class TacticalWorldPresenter implements WorldPresenter {
     this.#world.observeEffects(effects);
   }
 
-  resetEffects(): void {
-    this.#world.resetEffects();
+  resetEffects(soldiers: SoldierOrigin): void {
+    this.#world.resetEffects(soldiers);
   }
 
   get night(): boolean {

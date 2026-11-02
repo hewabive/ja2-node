@@ -105,8 +105,10 @@ next frame is drawn; `picking.ts`'s pixel pick serves the developer pages.
 node flags and recomputes the wireframes of the whole map (`reveal.ts`). Structure changes, blood pools, corpses, smoke,
 bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
 roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
-starting or ending, a fade, our merc's climb, a step off the tile (`roof-markers.ts`; deviation "Roof marker after a
-load"). On the stub pack an explosion shows only its light: the stubs have no explosion graphics.
+starting or ending, a fade, our merc's climb, a step off the tile (`roof-markers.ts`). The host starts the soldiers of
+a picture as created when a `sectorLoaded` event came before it, and as restored from a save otherwise: a load, or a
+reconnect, which the original does not have (`app/tactical/tactical-host.ts`). On the stub pack an explosion shows only
+its light: the stubs have no explosion graphics.
 
 **Not drawn**: animated and dynamic land (nor does the original draw it), the cover and line-of-sight tiles (`28`),
 and the original's redundant-tile optimisation, which changes nothing visible.
@@ -134,6 +136,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/r
 | A miss frame lasts until more than its delay has passed | `effect-animations.test.ts` |
 | An enemy who climbs onto a roof in sight gets no roof marker until he walks and stops: only our merc's climb places one | `roof-markers.test.ts` |
 | A soldier seen again before his fade-out ends gets no roof marker until he walks and stops; one who walks back into sight on a roof is marked on his tile until he steps off it | `roof-markers.test.ts` |
+| After a load a soldier standing on a roof shows no marker until he walks and stops; a sector entry marks him at once | `roof-markers.test.ts` |
 
 Not pinned yet:
 - Cliff-hang objects sort at z 0, so they lose to every object pixel drawn before them.
