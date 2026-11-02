@@ -985,7 +985,7 @@ export class TacticalScreen implements Screen {
     const cursor = this.inventory.cursor;
     const item = cursor ? this.#env.media.item(cursor.item) : null;
     const graphic = item?.inventoryGraphics.small ?? null;
-    if (!graphic || !this.#env.media.image(graphic.path)) {
+    if (!graphic || !this.#env.media.image(graphic.path) || this.controls.hidesHeldItem) {
       if (this.#externCursor) this.#env.runtime.cursor.set(this.#env.runtime.regions.current?.cursor ?? CursorId.NORMAL, now);
       this.#externCursor = false;
       return;

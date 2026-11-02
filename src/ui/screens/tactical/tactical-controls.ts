@@ -15,8 +15,9 @@
 // @src ToggleWireFrame (the messages); src/game/TileEngine/RenderWorld.cc ScrollWorld (the arrow keys and the
 // @src 15-pixel screen edges, 20 << (SHIFT ? 2 : 1) pixels across and half down per NEXTSCROLL 20 ms, the pending first
 // @src step, no scrolling with ALT or while the UI is locked or a menu is up; ClearInterface at the pending step and
-// @src RestoreInterface as the scroll stops, Interface.cc), GameScreen.cc MainGameScreenHandle (no SetUpInterface and
-// @src no fast help while scrolling); src/game/Tactical/Interface_Control.cc
+// @src RestoreInterface as the scroll stops, Interface.cc, the viewport's cursor cleared with an item held too),
+// @src GameScreen.cc MainGameScreenHandle (no SetUpInterface, so no DrawItemTileCursor, and no fast help while
+// @src scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
 // @src (burst locations, arrows on our turn); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
 // @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
@@ -33,6 +34,7 @@ import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions, MovementOptions 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
 import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
 import { KeyModifier, type UiKeyEvent } from '../../input/events.ts';
 import type { MouseRegion } from '../../input/regions.ts';
@@ -315,6 +317,7 @@ export class TacticalControls {
     region.flashesCursor = true;
     if (this.#screen.itemInCursor()) {
       runtime.cursor.mouseText = null;
+      if (this.hidesHeldItem && region.cursor !== VIDEO_NO_CURSOR) region.changeCursor(VIDEO_NO_CURSOR);
       return;
     }
     const id = this.input.viewportCursor();
@@ -325,6 +328,11 @@ export class TacticalControls {
 
   get scrolling(): boolean {
     return this.#scrollPending || this.#scrollInertia;
+  }
+
+  get hidesHeldItem(): boolean {
+    const region = this.#screen.viewportRegion();
+    return this.scrolling && region?.inArea === true && this.#env().runtime.regions.current === region;
   }
 
   #ignoreScrolling(): boolean {

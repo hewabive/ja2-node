@@ -6,6 +6,7 @@ import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
+import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
@@ -31,6 +32,9 @@ const ABOVE_GUY_HEIGHT = 62;
 const ABOVE_GUY_HALF_WIDTH = 40;
 const ABOVE_GUY_LINE = 10;
 const LOG_LINES = 8;
+const SCROLL_STEP_MS = 20;
+const SCREEN_EDGE_X = 2;
+const VIEW_ROW_Y = 100;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -118,6 +122,11 @@ function otherScreen(id: string): Screen {
 
 function logLines(tick: number, count: number): NonNullable<ViewFrame['messages']> {
   return Array.from({ length: count }, (_, k) => ({ tick, kind: 'interface', colour: FONT_RED, args: [{ text: `Line ${k}` }] }));
+}
+
+function pointerTo(f: TacticalUiTest, x: number, y: number): void {
+  f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
+  f.t.frame(SCROLL_STEP_MS);
 }
 
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
@@ -258,6 +267,24 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
     await f.click(`slot${BIG_POCKET}`);
     expect(inventory(f, 0).find((i) => i.slot === BIG_POCKET)).toMatchObject({ item: 'CLIP9_15', count: 2 });
+  });
+
+  it('hides the held item over the view from the pending scroll step and shows it again once the scroll stops', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
+    const { width } = f.t.runtime.geometry();
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect(f.t.runtime.cursor.current).toBe(EXTERN_CURSOR);
+    pointerTo(f, SCREEN_EDGE_X, VIEW_ROW_Y);
+    expect([f.screen.controls.scrolling, f.t.runtime.cursor.current]).toEqual([true, VIDEO_NO_CURSOR]);
+    for (let i = 0; i < 3; i++) f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.scrolled.length).toBeGreaterThan(0);
+    expect(f.t.runtime.cursor.current).toBe(VIDEO_NO_CURSOR);
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect([f.screen.controls.scrolling, f.t.runtime.cursor.current]).toEqual([false, EXTERN_CURSOR]);
+    expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
   });
 
   it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
