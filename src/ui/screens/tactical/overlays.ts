@@ -13,7 +13,10 @@
 // @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
 // @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
 // @src src/game/Tactical/Overhead.cc (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps); src/game/Tactical/
-// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast).
+// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast); src/game/Tactical/Overhead.cc LocateSoldier (10
+// @src centres on the soldier even on screen; 10 and SETLOCATOR show the normal locator, the other flags but
+// @src DONTSETLOCATOR the fast one), SlideTo (any flag but DONTSETLOCATOR shows the normal locator,
+// @src SETANDREMOVEPREVIOUSLOCATOR stops the others first) (2026-11-01); Overhead_Types.h the locator flags.
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -146,6 +149,35 @@ export const LOCATOR_FRAME_MS = 80;
 const LOCATOR_FRAMES = 5;
 export const SHOW_LOCATOR_NORMAL_CYCLES = 5;
 export const SHOW_LOCATOR_FAST_CYCLES = 3;
+
+export const LocateFlag = {
+  DONTSETLOCATOR: 0,
+  SETLOCATOR: 1,
+  SETANDREMOVEPREVIOUSLOCATOR: 2,
+  SETLOCATORFAST: 3,
+  CENTER_AND_SETLOCATOR: 10,
+} as const;
+export type LocateFlag = (typeof LocateFlag)[keyof typeof LocateFlag];
+
+export function locateCentresOnScreen(flag: LocateFlag): boolean {
+  return flag === LocateFlag.CENTER_AND_SETLOCATOR;
+}
+
+export function locateLocatorCycles(flag: LocateFlag): number | null {
+  switch (flag) {
+    case LocateFlag.DONTSETLOCATOR:
+      return null;
+    case LocateFlag.CENTER_AND_SETLOCATOR:
+    case LocateFlag.SETLOCATOR:
+      return SHOW_LOCATOR_NORMAL_CYCLES;
+    default:
+      return SHOW_LOCATOR_FAST_CYCLES;
+  }
+}
+
+export function slideLocatorCycles(flag: LocateFlag): number | null {
+  return flag === LocateFlag.DONTSETLOCATOR ? null : SHOW_LOCATOR_NORMAL_CYCLES;
+}
 
 export class Locator {
   #flash = 1;

@@ -16,6 +16,7 @@ const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
 const SETTLE_FRAMES = 6;
 const FONT_RED = 162;
+const RADIO = 'interface/radio.sti';
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -187,6 +188,17 @@ describe('the shop screen at the stub dealer', () => {
     f.t.frame();
     expect(shop.open).toBe(false);
     expect(f.screen.messageLines).toEqual([]);
+  });
+
+  it("steps the single merc panel to the next merc in the shop with a locate but no locator, as SelectMerc's DONTSETLOCATOR does", async () => {
+    const { f, merc } = await atTheDealer(4);
+    const located = f.world.located.length;
+    await f.click('smNextMerc');
+    const next = f.screen.smMerc;
+    expect(next).not.toBe(merc);
+    const gridNo = f.client.view.soldiers.find((s) => s.id === next)?.gridNo;
+    expect(f.world.located.slice(located)).toEqual([gridNo]);
+    expect(f.draw().items.filter((i) => i.kind === 'image' && i.asset === RADIO)).toEqual([]);
   });
 
   it('offers a pocket from the single merc panel, hatches it, and takes it back with a right click', async () => {

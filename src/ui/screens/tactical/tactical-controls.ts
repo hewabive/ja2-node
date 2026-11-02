@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Turn_Based_Input.cc HandleModNone, HandleModShift, HandleModCtrl, HandleModAlt,
-// @src HandleModCtrlShift (the actions behind the keys), ChangeCurrentSquad, HandleSelectMercSlot, GroupAutoReload,
-// @src HandleTBReload, HandleTBSwapHands, HandleTBClimbWindow, HandleStanceChangeFromUIKeys,
+// @src HandleModCtrlShift (the actions behind the keys; the locate flag of each, 2026-11-01), ChangeCurrentSquad,
+// @src HandleSelectMercSlot, GroupAutoReload, HandleTBReload, HandleTBSwapHands, HandleTBClimbWindow,
+// @src HandleStanceChangeFromUIKeys,
 // @src HandleStealthChangeFromUIKeys, FindNextMercInTeamPanel; Handle_UI.cc ClimbUpOrDown, GotoHigherStance,
 // @src GotoLowerStance, ToggleHandCursorMode, ToggleTalkCursorMode, ToggleLookCursorMode; Overhead.cc
 // @src CycleVisibleEnemies, CycleThroughKnownEnemies, FindNextActiveSquad, HandleLocateToGuyAsHeWalks (the view follows
@@ -53,6 +54,7 @@ import { UiEvent, UiMode } from './input/ui-events.ts';
 import { slotItem } from './item-cursor.ts';
 import { MissCamera } from './miss-camera.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
+import { LocateFlag } from './overlays.ts';
 import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from './popup-menus.ts';
 import {
   hasFemaleProfile,
@@ -65,7 +67,6 @@ import {
   opponentCount,
   ourTurn,
   soldierById,
-  visibleEnemies,
 } from './soldiers.ts';
 
 const SCROLL_STEP_MS = 20;
@@ -80,7 +81,6 @@ const LAST_VEHICLE_BODY = 27;
 const NUMBER_OF_SQUADS = 20;
 const LATE = 'gzLateLocalizedString';
 const STR_LATE_33 = 32;
-const SHOW_LOCATOR_NORMAL_CYCLES = 10;
 const TACTICAL = 'TacticalStr';
 const MESSAGES = 'pMessageStrings';
 const NEW_TACTICAL = 'zNewTacticalMessages';
@@ -145,7 +145,9 @@ export interface ControlsScreen {
   panelButtonEnabled(button: PanelButton): boolean;
   popupsOpen(): boolean;
   closePopups(): void;
-  locate(s: SoldierView, cycles: number | null): void;
+  locate(s: SoldierView, flag: LocateFlag): void;
+  slideTo(s: SoldierView, flag: LocateFlag): void;
+  cycleVisibleEnemies(s: SoldierView): void;
   locateSelect(s: SoldierView, force: boolean): void;
   clearMessages(queue: boolean): void;
   swapHands(id: number): void;
@@ -188,7 +190,6 @@ export class TacticalControls {
   readonly #art: ControlsArt;
   readonly #gridNos = new Map<number, number>();
   readonly #missCamera: MissCamera;
-  readonly #lastVisibleEnemy = new Map<number, number>();
   #lastKnownEnemy = 0;
   #nextScrollAt = 0;
   #scrollPending = false;
@@ -437,7 +438,7 @@ export class TacticalControls {
   #openDoorMenu({ soldier, gridNo, options, closing }: DoorMenuEvent): void {
     const s = this.#view()?.soldiers.find((v) => v.id === soldier);
     if (!s || s.team !== OUR_TEAM) return;
-    this.#screen.locate(s, null);
+    this.#screen.locate(s, LocateFlag.DONTSETLOCATOR);
     this.input.override(UiEvent.OP_OPENDOORMENU);
     this.#env().runtime.pauseGame(true);
     const request = {
@@ -560,7 +561,7 @@ export class TacticalControls {
     const next = slots[(at + 1) % Math.max(1, slots.length)] ?? sel;
     this.#screen.locateSelect(next, true);
     const now = this.#screen.selected();
-    if (now) this.#screen.locate(now, SHOW_LOCATOR_NORMAL_CYCLES);
+    if (now) this.#screen.locate(now, LocateFlag.SETLOCATOR);
   }
 
   #nextSquad(): void {
@@ -580,7 +581,7 @@ export class TacticalControls {
       this.#screen.locateSelect(s, true);
       this.#screen.log(printf(this.#text(MESSAGES, MSG_SQUAD_ACTIVE), [this.#screen.currentSquad() + 1]));
       const now = this.#screen.selected();
-      if (now) this.#screen.locate(now, SHOW_LOCATOR_NORMAL_CYCLES);
+      if (now) this.#screen.locate(now, LocateFlag.SETLOCATOR);
       return;
     }
   }
@@ -592,16 +593,7 @@ export class TacticalControls {
       this.#screen.feedback(this.#text(TACTICAL, NO_ENEMIES_IN_SIGHT_STR));
       return;
     }
-    const enemies = visibleEnemies(this.#view(), sel);
-    const last = this.#lastVisibleEnemy.get(sel.id) ?? -1;
-    const next = enemies.find((e) => e.id > last) ?? enemies[0];
-    if (!next) {
-      this.#lastVisibleEnemy.delete(sel.id);
-      return;
-    }
-    this.#lastVisibleEnemy.set(sel.id, next.id);
-    this.#screen.locate(next, SHOW_LOCATOR_NORMAL_CYCLES);
-    this.#screen.setInterfaceLevel(next.level);
+    this.#screen.cycleVisibleEnemies(sel);
   }
 
   #cycleKnownEnemies(): void {
@@ -615,7 +607,7 @@ export class TacticalControls {
     }
     const next = enemies.find((e) => e.id > this.#lastKnownEnemy) ?? (enemies[0] as SoldierView);
     this.#lastKnownEnemy = next.id;
-    this.#screen.locate(next, SHOW_LOCATOR_NORMAL_CYCLES);
+    this.#screen.slideTo(next, LocateFlag.SETANDREMOVEPREVIOUSLOCATOR);
     this.#screen.setInterfaceLevel(next.level);
   }
 
@@ -774,7 +766,7 @@ export class TacticalControls {
       },
       locateSelected: () => {
         const sel = screen.selected();
-        if (sel) screen.locate(sel, SHOW_LOCATOR_NORMAL_CYCLES);
+        if (sel) screen.locate(sel, LocateFlag.CENTER_AND_SETLOCATOR);
       },
       selectAllInSector: () => this.#selectAllInSector(),
       weaponMode: () => {

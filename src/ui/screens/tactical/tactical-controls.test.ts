@@ -14,6 +14,7 @@ import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
+import type { SoldierView } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
@@ -26,6 +27,7 @@ import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
+import { LOCATOR_FRAME_MS, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
@@ -35,6 +37,11 @@ const PICTURE_TOP_PX = 5;
 const NOBODY = -1;
 const MALE = 0;
 const FEMALE = 1;
+const RADIO = 'interface/radio.sti';
+const HOSTILE_RADIO = 'interface/radio2.sti';
+const LOCATOR_FRAMES = 5;
+const NORMAL_LOCATOR_MS = (SHOW_LOCATOR_NORMAL_CYCLES - 1) * LOCATOR_FRAMES * LOCATOR_FRAME_MS;
+const LONGEST_LOCATOR_MS = 10_000;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -137,6 +144,15 @@ async function playOut(f: TacticalUiTest): Promise<void> {
 
 function imagesOf(f: TacticalUiTest, asset: string): DrawItem[] {
   return f.draw().items.filter((i) => i.kind === 'image' && i.asset === asset);
+}
+
+function locatorMs(f: TacticalUiTest, asset: string): number {
+  let ms = 0;
+  while (imagesOf(f, asset).length > 0 && ms < LONGEST_LOCATOR_MS) {
+    f.t.frame(LOCATOR_FRAME_MS);
+    ms += LOCATOR_FRAME_MS;
+  }
+  return ms;
 }
 
 async function inCombat(): Promise<TacticalUiTest> {
@@ -790,6 +806,45 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'))).toBe(true);
     await f.clickAt(at.x, at.y - 5);
     expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'steal', soldier: 0, target: enemy.id }, reply: { ok: true } });
+  });
+
+  it('centres the view on the selected merc with / even when he is on screen and flashes the normal locator, as LocateSoldier(sel, 10) does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const sel = merc(f, f.screen.selected ?? NOBODY);
+    f.key('/');
+    expect([f.world.centred, f.world.located]).toEqual([[sel.gridNo], []]);
+    expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it('locates the next merc with space only off screen and flashes the normal locator, as LocateSoldier(SETLOCATOR) does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const first = f.screen.selected;
+    f.key(' ');
+    const next = merc(f, f.screen.selected ?? NOBODY);
+    expect(next.id).not.toBe(first);
+    expect([f.world.centred, f.world.located.at(-1)]).toEqual([[], next.gridNo]);
+    expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it('cycles the seen enemies by e and by the enemy indicator from one last enemy, stopping the other locators, as CycleVisibleEnemies does', async () => {
+    const f = await inCombat();
+    const selected = merc(f, f.screen.selected ?? 0);
+    const enemy = (selected.sees ?? []).map((id) => merc(f, id)).find((v) => v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    const twin = { ...enemy, id: Math.max(...f.client.view.soldiers.map((v) => v.id)) + 1, gridNo: enemy.gridNo + 2 };
+    (f.client.view.soldiers as SoldierView[]).push(twin);
+    Object.assign(selected, { sees: [...(selected.sees ?? []), twin.id], opponents: 2 });
+    f.key('/');
+    expect(imagesOf(f, RADIO)).toHaveLength(1);
+    f.key('e');
+    expect(f.world.located.at(-1)).toBe(enemy.gridNo);
+    expect([imagesOf(f, RADIO), imagesOf(f, HOSTILE_RADIO)].map((l) => l.length)).toEqual([0, 1]);
+    await f.click(`teamEnemyIndicator${f.screen.teamSlots.indexOf(selected.id)}`);
+    expect(f.world.located.at(-1)).toBe(twin.gridNo);
+    expect(imagesOf(f, HOSTILE_RADIO)).toHaveLength(1);
+    f.key('Enter');
+    expect(f.world.located.at(-1)).toBe(enemy.gridNo);
+    expect(locatorMs(f, HOSTILE_RADIO)).toBe(NORMAL_LOCATOR_MS);
   });
 
   it('locates the seen enemies with e and Enter and skips the ones whose life is gone while they fall', async () => {

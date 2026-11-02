@@ -6,7 +6,9 @@
 // @src panel), ToggleTacticalPanels; src/game/Tactical/Interface_Panels.cc InitializeTEAMPanel, InitializeSMPanel
 // @src (the viewport region ends at the panel), DrawFillerOnSurface, FillEmptySpaceAtBottom, CheckForAndAddMercToTeamPanel,
 // @src HandleLocateSelectMerc (locate, slide or select by the old selection method and force_select; ALT locates, or
-// @src selects with the old method; below OKLIFE only locates; ResetMultiSelection), SelectMerc,
+// @src selects with the old method; below OKLIFE only locates; ResetMultiSelection), SelectMerc (no locator in a shop),
+// @src EnemyIndicatorClickCallback; Overhead.cc CycleVisibleEnemies (one last cycled enemy per merc for the key, the
+// @src indicator and the panel) (2026-11-01),
 // @src HandlePanelFaceAnimations (p_close.sti and p_dead.sti frames 0 to 5 every 160 ms), RenderTeamSlotBorder,
 // @src RenderSoldierTeamInv, SMInvClickCamoCallback; src/game/Tactical/Faces.cc HandleAutoFaces (the white highlight of
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
@@ -92,11 +94,13 @@ import {
   DamageNumber,
   FeedbackBox,
   healthString,
+  LocateFlag,
   Locator,
+  locateCentresOnScreen,
+  locateLocatorCycles,
   printAboveGuy,
-  SHOW_LOCATOR_FAST_CYCLES,
-  SHOW_LOCATOR_NORMAL_CYCLES,
   showsDamage,
+  slideLocatorCycles,
   TOP_BAR_HEIGHT,
   TopBar,
 } from './overlays.ts';
@@ -399,7 +403,9 @@ export class TacticalScreen implements Screen {
       panelButtonEnabled: (button) => this.#panelButtonEnabled(button),
       popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open,
       closePopups: () => this.#closePopups(),
-      locate: (s, cycles) => this.#locateSoldier(s, cycles),
+      locate: (s, flag) => this.#locateSoldier(s, flag),
+      slideTo: (s, flag) => this.#slideTo(s, flag),
+      cycleVisibleEnemies: (s) => this.#cycleVisibleEnemies(s),
       locateSelect: (s, force) => this.#handleLocateSelect(s, force),
       clearMessages: (queue) => (queue ? this.#log.clear() : this.#log.clearShown()),
       swapHands: (id) => this.#swapHands(id),
@@ -1178,7 +1184,7 @@ export class TacticalScreen implements Screen {
       }
       case 'aiTurn': {
         const s = soldierById(view, event.soldier);
-        if (s) this.#locateSoldier(s, SHOW_LOCATOR_FAST_CYCLES);
+        if (s) this.#locateSoldier(s, LocateFlag.SETLOCATORFAST);
         return;
       }
       case 'enemyTurnProgress':
@@ -1202,19 +1208,30 @@ export class TacticalScreen implements Screen {
     return { x: box.x - pos.x, y: box.y - pos.y };
   }
 
-  locate(id: number, cycles: number | null): void {
+  locate(id: number, flag: LocateFlag): void {
     const s = soldierById(this.#view(), id);
-    if (s) this.#locateSoldier(s, cycles);
+    if (s) this.#locateSoldier(s, flag);
   }
 
-  #locateSoldier(s: SoldierView, cycles: number | null): void {
+  #locateSoldier(s: SoldierView, flag: LocateFlag): void {
+    if (locateCentresOnScreen(flag)) this.#env.world.centerOn(s.gridNo);
+    else this.#env.world.locate(s.gridNo);
+    this.#showLocator(s, locateLocatorCycles(flag));
+  }
+
+  #slideTo(s: SoldierView, flag: LocateFlag): void {
+    if (flag === LocateFlag.SETANDREMOVEPREVIOUSLOCATOR) this.#locators.clear();
+    this.#showLocator(s, slideLocatorCycles(flag));
     this.#env.world.locate(s.gridNo);
+  }
+
+  #showLocator(s: SoldierView, cycles: number | null): void {
     if (cycles !== null) this.#locators.set(s.id, new Locator(this.#now, cycles));
   }
 
   #handleLocateSelect(s: SoldierView, force: boolean): void {
     if ((s.life ?? 0) < OKLIFE) {
-      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
+      this.#locateSoldier(s, LocateFlag.SETLOCATOR);
       return;
     }
     const oldMethod = this.#env.display().oldSelectionMethod;
@@ -1225,7 +1242,7 @@ export class TacticalScreen implements Screen {
 
   #altLocateSelect(s: SoldierView, oldMethod: boolean): void {
     if (!oldMethod) {
-      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
+      this.#locateSoldier(s, LocateFlag.SETLOCATOR);
       return;
     }
     this.#selectSoldier(s, true, true);
@@ -1236,11 +1253,11 @@ export class TacticalScreen implements Screen {
     const selected = s.id === this.#selected;
     if (!this.#locators.has(s.id)) {
       if (!selected && !oldMethod) return true;
-      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
+      this.#locateSoldier(s, LocateFlag.SETLOCATOR);
       return false;
     }
     if (!selected && !oldMethod) return true;
-    this.#locateSoldier(s, null);
+    this.#locateSoldier(s, LocateFlag.DONTSETLOCATOR);
     return oldMethod;
   }
 
@@ -1267,6 +1284,10 @@ export class TacticalScreen implements Screen {
       this.#selectFace(this.#slots.indexOf(s.id));
       return;
     }
+    this.#cycleVisibleEnemies(s);
+  }
+
+  #cycleVisibleEnemies(s: SoldierView): void {
     const enemies = visibleEnemies(this.#view(), s);
     const last = this.#lastEnemyCycled.get(s.id) ?? 0;
     const next = enemies.find((e) => e.id > last) ?? enemies.find((e) => e.id > 0);
@@ -1275,8 +1296,7 @@ export class TacticalScreen implements Screen {
       return;
     }
     this.#lastEnemyCycled.set(s.id, next.id);
-    for (const other of this.#locators.keys()) this.#locators.delete(other);
-    this.#locateSoldier(next, SHOW_LOCATOR_NORMAL_CYCLES);
+    this.#slideTo(next, LocateFlag.SETANDREMOVEPREVIOUSLOCATOR);
     this.#setInterfaceLevel(next.level);
   }
 
@@ -1579,7 +1599,7 @@ export class TacticalScreen implements Screen {
     const next = nextMerc(ownSoldiers(this.#view()), this.#smMerc, step);
     if (!next) return;
     this.#requestPanel('sm', next.id);
-    if (!this.pickup.open && !this.dialogue.shopOpen) this.locate(next.id, SHOW_LOCATOR_NORMAL_CYCLES);
+    if (!this.pickup.open) this.locate(next.id, this.dialogue.shopOpen ? LocateFlag.DONTSETLOCATOR : LocateFlag.SETLOCATOR);
   }
 
   #changeStance(s: SoldierView, up: boolean): void {
