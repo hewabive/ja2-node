@@ -341,7 +341,9 @@ base is unknown). A push or pull request that touches only `docs/`, Markdown fil
   drawn hatched until the answer arrives. A message box keeps the screen's draw items once its images have loaded, but
   not past a pending hint, which no later settling changes, so a golden of one lets the event that opens it happen only
   after `waitForSettledFrames` with game time held (`?holdTime=1`, then `advance`; the meanwhile box of
-  `story.spec.ts`). The browser suite compares a
+  `story.spec.ts`). `capture()` does not wait for a command the page sent: a golden taken after a click that sends
+  one first waits for the widget its reply changes (the laptop's balance, the new-file icon's help once a file is
+  read in `laptop-pages.spec.ts`). The browser suite compares a
   screenshot only with a frame that did not change while it was taken.
 - **Timeouts.** One limit per runner, sized for a loaded machine (a busy hypervisor, parallel agents):
   `tests/support/patience.ts` for vitest, `tests/e2e/env.ts` for Playwright. Tests and helpers set no limits of their

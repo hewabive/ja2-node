@@ -155,9 +155,11 @@ test.describe('the laptop pages of U12 on stubs', () => {
 
     await clickWidget(page, 'filesButton');
     await waitVisible(page, 'fileRow0');
+    const newFileHelp = await waitText(page, 'newFileIcon', '.+');
     await clickWidget(page, 'fileRow0');
     await waitVisible(page, 'fileText');
     await waitEnabled(page, 'nextFilePage');
+    await waitChanged(page, 'newFileIcon', newFileHelp);
     await expectGolden('laptop-files', await capture(page));
     await clickWidget(page, 'nextFilePage');
     await waitEnabled(page, 'prevFilePage');
