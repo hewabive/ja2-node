@@ -16,7 +16,8 @@
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
-// @src shop too); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
+// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld; Message.cc ScrollString: no line in or out while
+// @src the view scrolls); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
 // @src range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
@@ -871,6 +872,7 @@ export class TacticalScreen implements Screen {
     this.inventory.update(this.#now);
     this.#updateModels(view);
     this.controls.update(this.#now);
+    this.#scrollMessages();
     this.#updateCursor(now);
     this.#updateRadarDrag();
     this.#syncSquadRegions();
@@ -914,6 +916,10 @@ export class TacticalScreen implements Screen {
     }
     this.#topBar.sync(this.#view()?.combat, this.#simMs());
     this.#feedback.update(this.#now);
+  }
+
+  #scrollMessages(): void {
+    if (this.controls.scrolling) return;
     const font = this.#env.runtime.fonts.get(FontName.SMALLFONT1);
     const { height } = this.#env.runtime.geometry();
     if (this.#log.scroll(this.#now, height - MSG_INTERFACE_LOG_Y, lineHeightOf(font))) this.#env.sounds.newMessageBeep();

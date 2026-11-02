@@ -11,6 +11,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
+import { MAX_AGE } from './message-log.ts';
 
 const HAND = 5;
 const BIG_POCKET = 7;
@@ -291,6 +292,22 @@ describe('the tactical screen over a stub sandbox session', () => {
     pointerTo(f, width / 2, VIEW_ROW_Y);
     expect([f.screen.controls.scrolling, f.t.runtime.cursor.current]).toEqual([false, EXTERN_CURSOR]);
     expect(f.screen.inventory.cursor).toMatchObject({ item: 'CLIP9_15' });
+  });
+
+  it('lets no message line in or out while the view scrolls and drops the lines aged meanwhile together as it stops, as ScrollString does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    f.frames([frame(tick, [], logLines(tick, 2))]);
+    await f.settle(2);
+    const shown = f.screen.messageLines;
+    expect(shown).toEqual(['Line 1', 'Line 0']);
+    const { width } = f.t.runtime.geometry();
+    pointerTo(f, SCREEN_EDGE_X, VIEW_ROW_Y);
+    f.frames([frame(tick, [], [{ tick, kind: 'interface', colour: FONT_RED, args: [{ text: 'Late' }] }])]);
+    f.t.frame(MAX_AGE);
+    expect([f.screen.controls.scrolling, f.world.scrolled.length > 0, f.screen.messageLines]).toEqual([true, true, shown]);
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect([f.screen.controls.scrolling, f.screen.messageLines]).toEqual([false, ['Late']]);
   });
 
   it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
