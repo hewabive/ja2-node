@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc CheckForAndAddMercToTeamPanel (the mercs of the current squad), PrintAP
 // @src (the AP colour), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's STR_LATE_16), FindNextActiveAndAliveMerc;
-// @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString;
+// @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; Soldier_Create.cc (SOLDIER_VEHICLE for the
+// @src HUMVEE to TANK_NE bodies); src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
 // @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead).
 // @src gMercProfiles[ubProfile].bSex (the texts by a merc's sex take his profile's, not his body type's) (2026-11-01).
@@ -15,6 +16,8 @@ import { OKLIFE } from './faces.ts';
 
 export const OUR_TEAM = 0;
 const REGFEMALE = 3;
+const FIRST_VEHICLE_BODY = 22;
+const LAST_VEHICLE_BODY = 27;
 const DYING_HEALTH_INDEX = 0;
 const MERC_VITAL_STATS_POPUPTEXT = 61;
 const STR_LATE_16 = 15;
@@ -48,6 +51,10 @@ export function squadOf(s: SoldierView): number {
 
 export function isMercBodyType(s: SoldierView): boolean {
   return s.bodyType >= 0 && s.bodyType <= REGFEMALE;
+}
+
+export function isVehicleBody(s: SoldierView): boolean {
+  return s.bodyType >= FIRST_VEHICLE_BODY && s.bodyType <= LAST_VEHICLE_BODY;
 }
 
 export function hasFemaleProfile(view: PlayerView | null, s: SoldierView): boolean {

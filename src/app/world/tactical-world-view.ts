@@ -12,7 +12,7 @@ import type {
   TileChangeView,
   WorldLightView,
 } from '../../protocol/view.ts';
-import type { SceneAniTile, SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
+import type { SceneAniTile, SceneItem, SoldierSprite, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
@@ -195,6 +195,10 @@ export class TacticalWorldView {
 
   get drawnImpacts(): number {
     return this.#drawnImpacts;
+  }
+
+  soldierSprite(id: number): SoldierSprite | null {
+    return this.#soldiers.shownSprite(id);
   }
 
   get lightTemplates(): LightTemplates {

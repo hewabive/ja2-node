@@ -1,0 +1,87 @@
+import { describe, expect, it } from 'vitest';
+import type { SoldierView } from '../../../../protocol/view.ts';
+import type { ScreenBox } from '../environment.ts';
+import { findSoldier, type SoldierScreenRects } from './targets.ts';
+
+const POINTER_TILE = 500;
+const OTHER_TILE = 501;
+const HUMVEE = 22;
+
+function soldier(id: number, over: Partial<SoldierView> = {}): SoldierView {
+  return {
+    id,
+    team: 1,
+    name: '',
+    bodyType: 0,
+    gridNo: OTHER_TILE,
+    x: 0,
+    y: 0,
+    level: 0,
+    direction: 0,
+    animation: 0,
+    frame: 0,
+    palettes: ['', '', '', ''],
+    hand: '',
+    frameSlot: 0,
+    stateTick: 0,
+    frameDelay: 0,
+    ...over,
+  };
+}
+
+function rects(boxes: Record<number, ScreenBox>, picture: (id: number, x: number, y: number) => boolean = () => true): SoldierScreenRects {
+  return { soldierBox: (id) => boxes[id] ?? null, soldierPictureAt: picture };
+}
+
+const at = (x: number, y: number, level = 0) => ({ x, y, gridNo: POINTER_TILE, level });
+const anyone = () => true;
+
+describe('the soldier under the pointer (FindSoldier)', () => {
+  it('finds the soldier whose screen rectangle holds the pointer, its right and bottom edges included', () => {
+    const world = rects({ 1: { x: 100, y: 50, width: 20, height: 40 } });
+    const soldiers = [soldier(1)];
+    expect(findSoldier(soldiers, at(120, 90), world, anyone)?.id).toBe(1);
+    expect(findSoldier(soldiers, at(121, 90), world, anyone)).toBeNull();
+    expect(findSoldier(soldiers, at(120, 91), world, anyone)).toBeNull();
+  });
+
+  it('takes the rectangle that reaches lowest on screen, the first soldier of a tie', () => {
+    const world = rects({
+      1: { x: 100, y: 50, width: 20, height: 40 },
+      2: { x: 105, y: 60, width: 20, height: 40 },
+      3: { x: 110, y: 60, width: 20, height: 40 },
+    });
+    expect(findSoldier([soldier(1), soldier(2), soldier(3)], at(112, 70), world, anyone)?.id).toBe(2);
+  });
+
+  it('finds the soldier standing on the pointer tile away from his rectangle, and he competes by his rectangle bottom', () => {
+    const world = rects({ 1: { x: 0, y: 200, width: 20, height: 40 }, 2: { x: 100, y: 50, width: 20, height: 40 } });
+    expect(findSoldier([soldier(1, { gridNo: POINTER_TILE }), soldier(2)], at(110, 60), world, anyone)?.id).toBe(1);
+  });
+
+  it('looks only at soldiers on the interface level', () => {
+    const world = rects({ 1: { x: 100, y: 50, width: 20, height: 40 } });
+    const onRoof = [soldier(1, { level: 1, gridNo: POINTER_TILE })];
+    expect(findSoldier(onRoof, at(110, 60), world, anyone)).toBeNull();
+    expect(findSoldier(onRoof, at(110, 60, 1), world, anyone)?.id).toBe(1);
+  });
+
+  it('passes over a rectangle the caller cannot pick by but still finds that soldier on the pointer tile', () => {
+    const world = rects({ 1: { x: 100, y: 50, width: 20, height: 40 } });
+    const byTileOnly = () => false;
+    expect(findSoldier([soldier(1)], at(110, 60), world, byTileOnly)).toBeNull();
+    expect(findSoldier([soldier(1, { gridNo: POINTER_TILE })], at(110, 60), world, byTileOnly)?.id).toBe(1);
+  });
+
+  it('finds a vehicle only where his picture has data, even on the pointer tile', () => {
+    const box = { x: 100, y: 50, width: 20, height: 40 };
+    const truck = [soldier(1, { bodyType: HUMVEE, gridNo: POINTER_TILE })];
+    const noData = rects({ 1: box }, () => false);
+    expect(findSoldier(truck, at(110, 60), noData, anyone)).toBeNull();
+    expect(findSoldier(truck, at(110, 60), rects({ 1: box }), anyone)?.id).toBe(1);
+  });
+
+  it('finds no soldier without a picture shown', () => {
+    expect(findSoldier([soldier(1, { gridNo: POINTER_TILE })], at(110, 60), rects({}), anyone)).toBeNull();
+  });
+});

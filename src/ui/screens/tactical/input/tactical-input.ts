@@ -68,7 +68,7 @@ import {
 } from './attack-cursors.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
 import { PointerQueue } from './pointer-queue.ts';
-import { BodyPart, FindFlag, hostileToOurTeam, relativeBodyPart, soldierFindFlags } from './targets.ts';
+import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, relativeBodyPart, soldierFindFlags } from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
 import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
 import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selectionMarker, showMoveGridMarker } from './world-markers.ts';
@@ -495,10 +495,10 @@ export class TacticalInput {
     const view = this.#view();
     const shift = (env.runtime.modifiers & KeyModifier.SHIFT) !== 0;
     const level = this.#host.interfaceLevel();
-    const pickable = (id: number) => this.pickableUnderPointer(id);
-    const picked = shift ? null : soldierById(view, env.world.soldierAt(x, y, pickable));
-    const byTile = view?.soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null;
-    const target = picked ?? byTile;
+    const soldiers = view?.soldiers ?? [];
+    const target = shift
+      ? (soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null)
+      : findSoldier(soldiers, { x, y, gridNo, level }, env.world, (s) => this.pickableUnderPointer(s.id));
     this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, view) : 0 };
   }
 

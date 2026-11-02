@@ -96,6 +96,34 @@ export function screenHeightAdjustment(heightAdjustment: number): number {
   return Math.trunc(heightAdjustment);
 }
 
+export interface SoldierScreenView {
+  readonly viewport: Viewport;
+  readonly camera: Camera;
+  readonly renderHeight: number;
+}
+
+export interface SoldierPosition {
+  readonly x: number;
+  readonly y: number;
+  readonly heightAdjustment: number;
+}
+
+export function soldierScreenPoint(view: SoldierScreenView, landHeight: number, s: SoldierPosition): { x: number; y: number } {
+  const c = mapCenter(view.viewport);
+  const dx = Math.fround(s.x - view.camera.centerX);
+  const dy = Math.fround(s.y - view.camera.centerY);
+  return {
+    x: c.x + Math.trunc(Math.fround(2 * dx - 2 * dy)),
+    y:
+      c.y +
+      Math.trunc(Math.fround(dx + dy)) -
+      landHeight -
+      MERC_SCREEN_OFFSET_Y -
+      screenHeightAdjustment(s.heightAdjustment) +
+      view.renderHeight,
+  };
+}
+
 type MercPass = 'structMercs' | 'mercs' | 'highMercs';
 
 function inPass(m: SceneSoldier, pass: MercPass): boolean {
@@ -600,13 +628,9 @@ export class DynamicScene {
     const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
     for (const m of soldiers) {
       if (!inPass(m, pass)) continue;
-      const dx = Math.fround(m.x - frame.camera.centerX);
-      const dy = Math.fround(m.y - frame.camera.centerY);
-      const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
-      const lift = screenHeightAdjustment(m.heightAdjustment);
-      const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - lift + frame.renderHeight;
-      const sx = screenX + m.sprite.offsetX - offX;
-      const sy = screenY + m.sprite.offsetY - offY;
+      const at = soldierScreenPoint(frame, height, m);
+      const sx = at.x + m.sprite.offsetX - offX;
+      const sy = at.y + m.sprite.offsetY - offY;
       const noBurn = this.#noBurn[g] === 1;
       this.#emitSoldierParts(m, { x: sx, y: sy }, this.#soldierZ(m, x, y, noBurn), noBurn);
       this.placedSoldiers.push({

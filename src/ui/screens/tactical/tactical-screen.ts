@@ -72,6 +72,7 @@ import {
   WHITE_HILIGHT,
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
+import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
 import {
@@ -884,7 +885,13 @@ export class TacticalScreen implements Screen {
   #pointerSoldier(): number | null {
     const regions = this.#env.runtime.regions;
     if (regions.current !== this.#viewportRegion || !regions.pointerKnown) return null;
-    return this.#env.world.soldierAt(regions.mouseX, regions.mouseY, (id) => this.controls.input.pickableUnderPointer(id));
+    const x = regions.mouseX;
+    const y = regions.mouseY;
+    const gridNo = this.#env.world.gridNoAt(x, y);
+    if (gridNo === null) return null;
+    const at = { x, y, gridNo, level: this.#interfaceLevel };
+    const byRectangle = (s: SoldierView) => this.controls.input.pickableUnderPointer(s.id);
+    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, byRectangle)?.id ?? null;
   }
 
   #updateFaces(): void {

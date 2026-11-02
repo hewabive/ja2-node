@@ -64,6 +64,7 @@ export class SoldierScene {
   readonly #assets: SoldierAssets;
   readonly #fades = new SoldierFades<SoldierView>();
   readonly #lastDrawn = new Map<number, DrawnSprite>();
+  readonly #shown = new Map<number, SoldierSprite>();
   readonly #lastPosition = new Map<number, { readonly x: number; readonly y: number }>();
   readonly #stationary = new Map<number, { readonly x: number; readonly y: number }>();
   readonly #ungreyedStates: ReadonlySet<number>;
@@ -86,7 +87,12 @@ export class SoldierScene {
   setSprites(sprites: WorldSprites): void {
     this.#sprites = sprites;
     this.#lastDrawn.clear();
+    this.#shown.clear();
     this.#fades.reset();
+  }
+
+  shownSprite(id: number): SoldierSprite | null {
+    return this.#shown.get(id) ?? null;
   }
 
   ungreyed(s: SoldierView): boolean {
@@ -156,12 +162,14 @@ export class SoldierScene {
     const hostile = input.hostile ?? defaultHostile;
     const out: SceneSoldier[] = [];
     let drawn = 0;
+    this.#shown.clear();
     for (const s of input.soldiers) {
       if (this.#fades.fadedOut(s, input.clockMs)) continue;
       const current = this.#currentSprite(s, input.frameOf(s));
       const sprite = current ?? this.#lastDrawn.get(s.id) ?? null;
       if (!sprite) continue;
       this.#lastDrawn.set(s.id, sprite);
+      this.#shown.set(s.id, sprite.sprite);
       drawn++;
       const look = soldierLook(
         {

@@ -67,6 +67,7 @@ import {
   isEpc,
   isInVehicle,
   isRobot,
+  isVehicleBody,
   OUR_TEAM,
   opponentCount,
   ourTurn,
@@ -80,8 +81,6 @@ const EDGE_PX = 15;
 const RUBBER_BAND_STEP_MS = 60;
 const BURST_FRAME = 1;
 const HANDPOS = 5;
-const FIRST_VEHICLE_BODY = 22;
-const LAST_VEHICLE_BODY = 27;
 const NUMBER_OF_SQUADS = 20;
 const LATE = 'gzLateLocalizedString';
 const STR_LATE_33 = 32;
@@ -172,10 +171,6 @@ export interface ControlsArt {
 
 function locksOurInput(frame: ViewFrame): boolean {
   return !!frame.combat && (frame.combat.uiLocked || frame.combat.team !== OUR_TEAM);
-}
-
-function isVehicleBody(s: SoldierView): boolean {
-  return s.bodyType >= FIRST_VEHICLE_BODY && s.bodyType <= LAST_VEHICLE_BODY;
 }
 
 function cellRange(a: number, b: number): number {
