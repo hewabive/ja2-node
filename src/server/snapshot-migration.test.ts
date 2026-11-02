@@ -743,6 +743,7 @@ describe('snapshot version 21 (corpses without a taken head) migrates with every
     sandbox.sim.state.corpses.push({
       gridNo: CORPSE_AT,
       level: 0,
+      heightAdjustment: 0,
       bodyType: 0,
       direction: 0,
       state: 0,
@@ -1249,6 +1250,7 @@ describe('snapshot version 31 (corpses without a crow count) migrates with no cr
     sandbox.sim.state.corpses.push({
       gridNo: CORPSE_AT,
       level: 0,
+      heightAdjustment: 0,
       bodyType: 0,
       direction: 0,
       state: 0,
@@ -1605,5 +1607,80 @@ describe("snapshot version 37 (door statuses without DOOR_OPEN) migrates with th
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const CORPSE_HEIGHT_KEY = 'heightAdjustment';
+const TIME_OF_DEATH_KEY = 'timeOfDeath';
+const ROOF_CORPSE_AT = 12_505;
+const LEFT_CORPSE_AT = 12_665;
+const PLACED_ROOF_SOLDIER_CORPSE_HEIGHT = 8;
+
+function withoutCorpseHeights(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutCorpseHeights(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const corpse = object(value)[TIME_OF_DEATH_KEY] !== undefined;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) if (!corpse || key !== CORPSE_HEIGHT_KEY) out[key] = withoutCorpseHeights(v);
+  return out;
+}
+
+function versionThirtyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutCorpseHeights(value)]);
+  return { ...snapshot, version: 38, graph: { ...snapshot.graph, sections } };
+}
+
+function lyingCorpse(gridNo: number, level: number, heightAdjustment: number) {
+  return {
+    gridNo,
+    level,
+    heightAdjustment,
+    bodyType: 0,
+    direction: 0,
+    state: 0,
+    profile: 200,
+    type: SMERC_FWD,
+    timeOfDeath: 0,
+    headTaken: false,
+    servicingCrows: 0,
+  };
+}
+
+describe("snapshot version 38 (corpses without a height) migrates with each corpse at its level's default: flat on the ground, 8 px up on a roof as a soldier the map placed there leaves", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectCorpseHeights(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirtyEight(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"level":1,"${CORPSE_HEIGHT_KEY}":${PLACED_ROOF_SOLDIER_CORPSE_HEIGHT},"bodyType"`);
+    expect(JSON.stringify(current.sim)).toContain(`"level":0,"${CORPSE_HEIGHT_KEY}":0,"bodyType"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${CORPSE_HEIGHT_KEY}":${PLACED_ROOF_SOLDIER_CORPSE_HEIGHT},"bodyType"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${CORPSE_HEIGHT_KEY}":0,"bodyType"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox with a corpse on the ground and one on a roof', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    sandbox.sim.state.corpses.push(lyingCorpse(CORPSE_AT, 0, 0), lyingCorpse(ROOF_CORPSE_AT, 1, PLACED_ROOF_SOLDIER_CORPSE_HEIGHT));
+    await expectCorpseHeights(sandbox);
+  });
+
+  it('a landed campaign with corpses in a sector left behind', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const diff = emptySectorDiff();
+    diff.corpses = [lyingCorpse(LEFT_CORPSE_AT, 0, 0), lyingCorpse(ROOF_CORPSE_AT, 1, PLACED_ROOF_SOLDIER_CORPSE_HEIGHT)];
+    campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
+    await expectCorpseHeights(campaign);
   });
 });

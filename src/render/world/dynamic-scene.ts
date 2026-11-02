@@ -4,7 +4,8 @@
 // @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE);
 // @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
-// @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc).
+// @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc; its sZ lifts the
+// @src picture, not the depth).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -166,6 +167,7 @@ export interface SceneAniTile {
   readonly kind: AniTileKind;
   readonly gridNo: number;
   readonly level: number;
+  readonly heightAdjustment?: number;
   readonly at?: WorldPoint & { readonly z: number };
   readonly translucent?: boolean;
   readonly sprite: OffsetSprite;
@@ -473,7 +475,8 @@ export class DynamicScene {
       return;
     }
     const centre = this.#centreScreen(a.gridNo, a.level);
-    const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY };
+    const lift = screenHeightAdjustment(a.heightAdjustment ?? 0);
+    const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY - lift };
     const z = this.#aniZ(a, x, y);
     const shadeKey = a.shaded ? (a.level > 0 ? ShadeKey.ROOF_BASE + a.gridNo : a.gridNo) : ShadeKey.FIXED;
     const out = this.instances;

@@ -128,6 +128,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/r
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A corpse on a roof sorts twice its on-roof offset up | `dynamic-scene.test.ts` |
+| A corpse is drawn its height up but sorts as if it lay flat: the corpse branch picks its depth before the node's height is read | `dynamic-scene.test.ts` |
 | An item on a structure sorts at the structure z plus its height in z units, not world units | `dynamic-scene.test.ts` |
 | A node at an absolute position (a bullet) is shifted a cell west, which puts it on its tile's box | `dynamic-scene.test.ts` |
 | A miss frame lasts until more than its delay has passed | `effect-animations.test.ts` |

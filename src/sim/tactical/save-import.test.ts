@@ -354,6 +354,12 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(sim.state.corpses.map((c) => c.headTaken)).toEqual([true, false]);
   });
 
+  it('keeps the height a saved corpse is drawn at above its level (sHeightAdjustment)', () => {
+    const at = gridNo(80, 84);
+    const sim = importedSim(syntheticSave({ corpses: [{ ...savedCorpse(at, 0), heightAdjustment: 58 }, savedCorpse(at + 2, 0)] }));
+    expect(sim.state.corpses.map((c) => c.heightAdjustment)).toEqual([58, 0]);
+  });
+
   it('keeps how many breathing loops passed since the last random idle animation check (uiTimeOfLastRandomAction)', () => {
     const save = syntheticSave({ soldiers: [savedSoldier(CIVILIAN_ID, Team.CIV, gridNo(80, 82), { uiTimeOfLastRandomAction: 2 })] });
     expect(soldierOf(importedSim(save), CIVILIAN_ID).timeOfLastRandomAction).toBe(2);

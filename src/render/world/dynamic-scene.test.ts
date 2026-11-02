@@ -363,6 +363,22 @@ describe('dynamic scene', () => {
     expect(scene.runs.slice(0, 2).map((r) => r.state)).toEqual([DrawState.NEARER_SHADOW, DrawState.NEARER_WRITE]);
   });
 
+  it('draws a corpse its height above its level and sorts it at its tile as if it lay flat, as a corpse ignores its sRelativeZ for depth', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const placed = (level: number, heightAdjustment: number) => {
+      const scene = new DynamicScene(staticWorld, prepared);
+      scene.build(frame({ aniTiles: [{ ...aniTile('corpse', g(80, 80), level, 1), heightAdjustment }] }));
+      return decode(scene).find((p) => p.tile === 7001);
+    };
+    const flat = placed(0, 0);
+    const roof = placed(1, 0);
+    expect([placed(1, 8), placed(1, -30), placed(0, 58)].map((p) => [p?.x, p?.y, p?.z])).toEqual([
+      [roof?.x, (roof?.y ?? 0) - 8, roof?.z],
+      [roof?.x, (roof?.y ?? 0) + 30, roof?.z],
+      [flat?.x, (flat?.y ?? 0) - 58, flat?.z],
+    ]);
+  });
+
   it('sorts a corpse on a roof twice its on-roof offset up, as the original adds that offset twice', () => {
     const onRoofCorpseOffset = WALL_HEIGHT + 40;
     const wy = worldY(84, 80, 860);

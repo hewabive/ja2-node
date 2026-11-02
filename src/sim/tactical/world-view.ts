@@ -25,6 +25,7 @@ export type SoldierPaletteNames = readonly [hair: string, skin: string, vest: st
 export interface CorpseView {
   readonly gridNo: number;
   readonly level: number;
+  readonly heightAdjustment?: number;
   readonly type: number;
   readonly direction: number;
   readonly bodyType: number;
@@ -76,6 +77,7 @@ export function corpseViews(t: TacticalState): CorpseView[] {
   return t.corpses.map((c) => ({
     gridNo: c.gridNo,
     level: c.level,
+    ...(c.heightAdjustment !== 0 ? { heightAdjustment: c.heightAdjustment } : {}),
     type: c.type,
     direction: c.direction,
     bodyType: c.bodyType,

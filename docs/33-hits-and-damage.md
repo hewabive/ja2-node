@@ -79,6 +79,11 @@ chance to hit read the value of the soldier's last decision.
 
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
 
+**A corpse keeps the height it is drawn at** above its level (`Corpse.heightAdjustment`, the definition's
+`sHeightAdjustment`): set from the soldier's height as he dies or is added to an unloaded sector, kept by the sector
+diff and read by the native import, and sent in the corpse view and the vaporize event. The client draws the corpse that
+many pixels up at a flat corpse's depth (`05`).
+
 **Corpses keep the original's slots.** `t.corpses` lists the lying corpses in slot order and `t.corpseHoles` the slots
 emptied this sector, a corpse too old to lie included, because the crows' pick draws over every slot ever taken
 (`rottingCorpseSlots`); a new corpse takes the first empty slot. A sector load starts with none.
@@ -133,6 +138,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A flying crow's shadow appears only once he reaches the next tile after taking off or coming into sight: the flight state is switched on before it is set, and the shadow's visibility is the one before the change | `src/app/world/crow-shadows.test.ts` |
 | A corpse is saved with the crows feeding on it when the squad leaves, before the unload removes them, so on return it counts crows that are gone and the mercs comment on it sooner | `src/sim/campaign/sector-flow.test.ts` |
 | A merc on a roof comments on a corpse on the ground below the tile he looks at: `GetCorpseAtGridNo` ignores the level | `src/sim/tactical/narrative/corpse-comments.test.ts` |
+| A corpse on a roof keeps the soldier's height above the storey: one the map placed there (58) lies 8 px above the roof, one who climbed up (50) on it | `death.test.ts` |
+| A corpse added to an unloaded sector takes no level from its definition: it lies on the ground at the soldier's whole height, 58 px up for one who stood on a roof, while his items stay on the roof level | `src/sim/campaign/sector-loot.test.ts` |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).
@@ -154,4 +161,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Morale without drugs", "Unseen soldiers in combat", "Corpse height".
+Not ported: gaps "Morale without drugs", "Unseen soldiers in combat".

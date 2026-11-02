@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc AddItemsToUnLoadedSector, AddDeadSoldierToUnLoadedSector (the corpse and the
-// @src item records; the drop rules are in autoresolve/close.ts), AddRottingCorpseToUnloadedSectorsRottingCorpseFile;
-// @src Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector; Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair
-// @src (the facing drawn on a cosmetic stream; the zeroed definition leaves profile 0 and level 0).
+// @src item records; the drop rules are in autoresolve/close.ts; the corpse's level 0 and the soldier's height, 2026-11-02),
+// @src AddRottingCorpseToUnloadedSectorsRottingCorpseFile; Strategic/Strategic_Town_Loyalty.cc RemoveRandomItemsInSector;
+// @src Strategic/Strategic_Movement.cc AddCorpsesToBloodcatLair (the facing drawn on a cosmetic stream; the zeroed
+// @src definition leaves profile 0 and level 0).
 
 import { type CorpseTable, corpseTypeFor } from '../../content/anim/corpses.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
@@ -16,7 +17,7 @@ import type { StrategicState } from '../strategic/state.ts';
 import { NUM_SEC_IN_DAY, NUM_SEC_IN_MIN } from '../strategic/time/constants.ts';
 import { worldDay, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
-import { type Corpse, corpseLook } from '../tactical/combat/death.ts';
+import { type Corpse, corpseLook, truncatedHeight } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { Body } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -29,8 +30,10 @@ const PERCENT = 100;
 const LAIR_CORPSE_GRID_NOS = [14319, 9835, 11262];
 const LAIR_CORPSE_TYPE = 'SMERC_JFK';
 const LAIR_CORPSE_PALETTES = ['BROWNHEAD', 'PINKSKIN', 'YELLOWVEST', 'GREENPANTS'] as const;
+const LAIR_CORPSE_HEIGHT = 0;
 const LAIR_CORPSE_AGE_MINUTES = (2 * NUM_SEC_IN_DAY) / NUM_SEC_IN_MIN;
 const ZEROED_PROFILE = 0;
+const ZEROED_LEVEL = 0;
 const NO_ANIMATION = 0;
 
 export interface LootRandom {
@@ -87,7 +90,8 @@ export function addDeadSoldierToUnloadedSector(
   const s = record.soldier;
   addRottingCorpseToUnloadedSector(state, sector, {
     gridNo: record.gridNo,
-    level: record.level,
+    level: ZEROED_LEVEL,
+    heightAdjustment: truncatedHeight(s),
     bodyType: s.bodyType,
     direction: s.direction,
     state: anim(content, record.deathAnimation),
@@ -103,7 +107,8 @@ export function addDeadSoldierToUnloadedSector(
 
 export function addCorpsesToBloodcatLair(state: StrategicState, table: CorpseTable, sector: Sector, direction: number): void {
   const definition = {
-    level: 0,
+    level: ZEROED_LEVEL,
+    heightAdjustment: LAIR_CORPSE_HEIGHT,
     bodyType: Body.REGMALE,
     direction,
     state: NO_ANIMATION,

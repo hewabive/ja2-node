@@ -104,7 +104,7 @@ function vaporizeCorpse(t: TacticalState, current: StructureInstance): void {
   const corpse = corpseOfStructure(t, base);
   if (!corpse || isVehicleCorpse(corpse)) return;
   const g = base.gridNo;
-  t.events.push({ type: 'corpseVaporized', gridNo: g, x: centreX(g), y: centreY(g), z: 0 });
+  t.events.push({ type: 'corpseVaporized', gridNo: g, x: centreX(g), y: centreY(g), z: corpse.heightAdjustment });
   removeRottingCorpse(t, corpse, base);
   if (corpse.level === 0) spreadEffect(t, g, CORPSE_BLOOD_RADIUS, NOTHING, null, Spread.BLOOD, 0, null);
 }

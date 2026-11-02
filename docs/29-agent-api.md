@@ -272,7 +272,8 @@ original has no string); the browser gets the same blocks in view frames when th
 the shop, the laptop, a conversation, boxing, autoresolve, a meanwhile, the end) are present only while the original
 shows them. Our soldiers carry what the original's panels and face read (the single merc panel's numbers, the hatched
 face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). A soldier off the ground
-(on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`). A
+(on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`); a
+corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
 soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
 are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
 light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes

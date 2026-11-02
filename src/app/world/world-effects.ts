@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (graphic, direction start frame, vehicle loop at 150 ms),
+// @src src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (graphic, direction start frame, vehicle loop at 150 ms, the
+// @src height as sZ),
 // @src CreateCorpsePalette, GetCorpseStructIndex; Tactical/Animation_Control.cc GetBodyTypePaletteSubstitution;
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphics by density, Random(5) start frame,
 // @src 300 + Random(300) ms per frame, translucent; the static graphic when smoke is not animated);
@@ -298,6 +299,7 @@ export class WorldEffects {
       kind: vehicle ? 'vehicleCorpse' : 'corpse',
       gridNo: c.gridNo,
       level: c.level,
+      heightAdjustment: c.heightAdjustment ?? 0,
       sprite,
       paletteRow: sprites.shadedPaletteBase(`corpse|${path}|${palette.key}`, () => palette.palette),
       shaded: true,

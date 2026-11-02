@@ -38,6 +38,7 @@ describe('restoring the corpses of a sector diff', () => {
     const dropped: Corpse = {
       gridNo: blocked,
       level: 0,
+      heightAdjustment: 0,
       bodyType: 0,
       direction: Direction.SOUTH,
       state: 0,

@@ -46,6 +46,7 @@ function corpse(type = ROTTING_STAGE2, servicingCrows = 0): Corpse {
   return {
     gridNo: CORPSE_AT,
     level: 0,
+    heightAdjustment: 0,
     bodyType: 0,
     direction: Direction.NORTH,
     state: 0,

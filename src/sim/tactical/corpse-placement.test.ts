@@ -51,6 +51,7 @@ function droppedCorpse(at: number, extra: Partial<Corpse> = {}): Corpse {
   return {
     gridNo: at,
     level: 0,
+    heightAdjustment: 0,
     bodyType: 0,
     direction: Direction.SOUTH,
     state: 0,

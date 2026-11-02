@@ -61,6 +61,7 @@ function corpse(at: number, type = ROTTING_STAGE2, bodyType: number = Body.REGMA
   return {
     gridNo: at,
     level: 0,
+    heightAdjustment: 0,
     bodyType,
     direction: Direction.NORTH,
     state: 0,

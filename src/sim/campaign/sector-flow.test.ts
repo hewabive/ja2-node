@@ -231,6 +231,7 @@ describe('leaving a sector', () => {
       {
         gridNo: merc.gridNo + 3,
         level: 0,
+        heightAdjustment: 0,
         bodyType: 0,
         direction: 0,
         state: 0,
@@ -243,6 +244,7 @@ describe('leaving a sector', () => {
       {
         gridNo: merc.gridNo + 5,
         level: 0,
+        heightAdjustment: 0,
         bodyType: 0,
         direction: 0,
         state: 0,
@@ -596,6 +598,7 @@ function lyingCorpse(gridNo: number) {
   return {
     gridNo,
     level: 0,
+    heightAdjustment: 0,
     bodyType: 0,
     direction: 0,
     state: 0,

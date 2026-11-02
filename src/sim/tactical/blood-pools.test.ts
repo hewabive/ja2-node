@@ -37,6 +37,7 @@ const MAX_DECAY_ROUNDS = 30;
 const FLYBACK_BLOOD = 765;
 const FULL_POOL = 7;
 const DAMAGE_FLUKE_RANGE = 51;
+const ROOF_SOLDIER_HEIGHT = 58;
 
 function squad(facing: number = Direction.NORTH): { sim: TacticalSim; merc: Soldier } {
   const sim = newCombatSim(content);
@@ -107,12 +108,13 @@ describe('blood pools on the ground (Smell.cc InternalDropBlood, UpdateBloodGrap
   });
 });
 
-function corpseAt(sim: TacticalSim, g: number): void {
+function corpseAt(sim: TacticalSim, g: number, heightAdjustment = 0): void {
   const t = sim.state;
   const type = someCorpseType(sim);
   t.corpses.push({
     gridNo: g,
     level: 0,
+    heightAdjustment,
     bodyType: Body.REGMALE,
     direction: Direction.NORTH,
     state: 0,
@@ -147,6 +149,16 @@ describe('a corpse in a blast (Explosion_Control.cc ExplosiveDamageStructureAtGr
     expect(pools.get(AHEAD - 160 + 1)).toBe(FULL_POOL - 2);
     expect(pools.get(AHEAD + 2)).toBe(FULL_POOL - 4);
     expect(pools.has(AHEAD + 3)).toBe(false);
+  });
+
+  it('blows the corpse apart at its height: a corpse laid in an unloaded sector at a roof soldier’s height bursts that high (VaporizeCorpse sZ)', () => {
+    const lying = squad();
+    corpseAt(lying.sim, AHEAD);
+    const raised = squad();
+    corpseAt(raised.sim, AHEAD, ROOF_SOLDIER_HEIGHT);
+    const burstHeights = (events: SimEvent[]) => events.flatMap((e) => (e.type === 'corpseVaporized' ? [e.z] : []));
+    expect(burstHeights(grenadeAt(lying.sim, AHEAD))).toEqual([0]);
+    expect(burstHeights(grenadeAt(raised.sim, AHEAD))).toEqual([ROOF_SOLDIER_HEIGHT]);
   });
 
   it('leaves the corpse lying with blood and gore off or two tiles from the grenade', () => {

@@ -223,6 +223,7 @@ function savedCorpse(c: SavedCorpse): Corpse {
   return {
     gridNo: c.gridNo,
     level: c.level,
+    heightAdjustment: c.heightAdjustment,
     bodyType: c.bodyType,
     direction: c.direction,
     state: 0,

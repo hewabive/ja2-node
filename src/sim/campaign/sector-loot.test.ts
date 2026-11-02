@@ -1,15 +1,20 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { scripted } from '../../../tests/support/autoresolve.ts';
+import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { gridNo } from '../../content/world/grid.ts';
 import { createItem } from '../items/object.ts';
 import { SectorFlag } from '../strategic/forces/constants.ts';
 import { getSectorFlagStatus } from '../strategic/map/sectors.ts';
 import { createStrategicState } from '../strategic/state.ts';
+import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from '../tactical/roofs.ts';
 import { agedCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { createSoldier, Team } from '../tactical/soldier.ts';
 import { Visibility, WorldItemFlags } from '../tactical/world-items.ts';
-import { sectorKey } from './sector-diff.ts';
+import { corpseViews } from '../tactical/world-view.ts';
+import { restoreCorpses, sectorKey } from './sector-diff.ts';
 import {
   addCorpsesToBloodcatLair,
   addDeadSoldierToUnloadedSector,
@@ -24,6 +29,7 @@ beforeAll(async () => {
 });
 
 const SECTOR = { x: 13, y: 4, z: 0 };
+const DROPPED_AT = gridNo(80, 80);
 
 function enemy() {
   return createSoldier({
@@ -105,6 +111,27 @@ describe('drops and corpses in unloaded sectors', () => {
     expect(diff?.corpses?.[0]).toMatchObject({ gridNo: 12000, direction: 3, findSweetSpot: true });
     expect(getSectorFlagStatus(state.map, SECTOR, SectorFlag.ITEM_TEMP_FILE_EXISTS)).toBe(true);
     expect(getSectorFlagStatus(state.map, SECTOR, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS)).toBe(true);
+  });
+
+  it('lays the corpse of a soldier who stood on a roof on the ground at his whole height, as the definition sets no level, and his items on the roof level (Tactical_Save.cc AddDeadSoldierToUnLoadedSector)', () => {
+    const state = createStrategicState();
+    const gun = content.items.byName.get('GLOCK_17')?.index ?? 0;
+    const s = enemy();
+    setUnplacedSoldierHeight(s, SECOND_LEVEL_Z_OFFSET);
+    addDeadSoldierToUnloadedSector(state, content, SECTOR, {
+      soldier: s,
+      gridNo: DROPPED_AT,
+      level: s.level,
+      deathAnimation: 'FALLBACK_HIT_DEATH',
+      items: [createItem(content.items, gun, 90)],
+    });
+    const diff = state.sectorDiffs.get(sectorKey(SECTOR));
+    expect(diff?.items?.[0]?.level).toBe(1);
+    expect(diff?.corpses?.[0]).toMatchObject({ level: 0, heightAdjustment: SECOND_LEVEL_Z_OFFSET });
+    const t = newCombatSim(content).state;
+    const nowMinute = worldTotalMinutes(state.clock);
+    restoreCorpses(t, diff?.corpses ?? [], { nowMinute, inTown: false, loadingSave: false });
+    expect(corpseViews(t)).toMatchObject([{ level: 0, heightAdjustment: SECOND_LEVEL_Z_OFFSET }]);
   });
 
   it('reuses the first non-existing slot and lets thieves take visible reachable items below the chance', () => {

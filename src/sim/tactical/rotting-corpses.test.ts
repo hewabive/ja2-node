@@ -34,7 +34,7 @@ const itemIndex = (name: string) => content.items.byName.get(name)?.index ?? -1;
 function withCorpse(type: string, profile = NO_PROFILE, ageMinutes = 0): TacticalState {
   const t = newCombatSim(content).state;
   t.explosives.worldMs = ageMinutes * MS_PER_MINUTE;
-  const corpse = { gridNo: CORPSE_AT, level: 0, bodyType: 0, direction: Direction.NORTH, state: 0, profile };
+  const corpse = { gridNo: CORPSE_AT, level: 0, heightAdjustment: 0, bodyType: 0, direction: Direction.NORTH, state: 0, profile };
   t.corpses.push({ ...corpse, type: corpseType(type), timeOfDeath: 0, headTaken: false, servicingCrows: 0 });
   addCorpseStructure(t, CORPSE_AT, 0, corpseType(type), Direction.NORTH);
   return t;
@@ -91,6 +91,7 @@ describe('the rotting corpse slots (Rotting_Corpses.cc GetFreeRottingCorpse, Rem
   const lying = (k: number) => ({
     gridNo: at(k),
     level: 0,
+    heightAdjustment: 0,
     bodyType: 0,
     direction: Direction.NORTH,
     state: 0,

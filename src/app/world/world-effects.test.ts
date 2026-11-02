@@ -97,6 +97,22 @@ describe('corpses, smoke and crow shadows on the stub pack', () => {
     expect(tiles[0]?.zStrip).not.toBeNull();
   });
 
+  it('lifts a corpse by the height its view carries and lays one without it flat (AddRottingCorpse sZ)', async () => {
+    const prepared = await WorldEffects.load(read, available, null);
+    prepared.setSprites(new FakeSprites());
+    prepared.prepareCorpses([{ bodyType: 0 }], true);
+    await prepared.loaded();
+    const corpses: CorpseView[] = [
+      { gridNo: 12880, level: 1, heightAdjustment: 8, type: backCorpseType, direction: 5, bodyType: 0 },
+      { gridNo: 12882, level: 0, type: backCorpseType, direction: 5, bodyType: 0 },
+    ];
+    const tiles = prepared.build({ corpses, smoke: [], clockMs: 0, bloodAndGore: true, animateSmoke: true });
+    expect(tiles.map((t) => [t.gridNo, t.level, t.heightAdjustment])).toEqual([
+      [12880, 1, 8],
+      [12882, 0, 0],
+    ]);
+  });
+
   it('draws the static smoke graphic, opaque, when smoke is not animated', async () => {
     effects.setSprites(new FakeSprites());
     const input = { corpses: [], smoke: [{ gridNo: 100, level: 0, effect: 'SMOKE' }], clockMs: 0, bloodAndGore: true, animateSmoke: false };

@@ -17,10 +17,12 @@ import { InvSlot } from '../inventory.ts';
 import { loadTacticalContent } from '../load-content.ts';
 import { Profile } from '../narrative/constants.ts';
 import { calcActionPoints } from '../points.ts';
+import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from '../roofs.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { Visibility } from '../world-items.ts';
+import { corpseViews } from '../world-view.ts';
 import type { RandomStream } from './context.ts';
 import { deathOpcode, handleSoldierDeath } from './death.ts';
 
@@ -31,6 +33,7 @@ beforeAll(async () => {
 });
 
 const DEATH_OR_RELEASE = 497;
+const CLIMBED_ONTO_ROOF_HEIGHT = 50;
 
 describe('kill records (Overhead.cc HandleNPCTeamMemberDeath, Soldier_Ani.cc HandleSoldierDeath)', () => {
   it('counts a militia kill three times: once where the enemy dies and twice more where the kill is credited', () => {
@@ -218,6 +221,42 @@ describe('the robot and the crippled civilian shot dead (Soldier_Ani.cc codes 43
   it('leaves the corpse their dying animation names', () => {
     expect(shootBodyDead(content, Body.CRIPPLECIV).corpses).toEqual([{ at: CREATURE_AT, type: 'SMERC_BCK' }]);
     expect(shootBodyDead(content, Body.ROBOTNOWEAPON).corpses).toEqual([{ at: CREATURE_AT, type: 'ROBOT_DEAD' }]);
+  });
+});
+
+const ON_THE_ROOF = gridNo(87, 80);
+
+function roofedSim(): TacticalSim {
+  const roofs = new Set<number>();
+  for (let x = 85; x <= 90; x++) for (let y = 78; y <= 82; y++) roofs.add(gridNo(x, y));
+  return newCombatSim(content, [], 3, roofs);
+}
+
+function corpseOfSoldierAt(height: number) {
+  const sim = roofedSim();
+  const t = sim.state;
+  const s = spawnSoldier(sim, TEAM_FIRST_ID[Team.ENEMY] ?? 0, Team.ENEMY, ON_THE_ROOF, Direction.NORTH);
+  setSoldierHeight(t, s, height);
+  s.state = anim(t.content, 'GENERIC_HIT_DEATH');
+  s.life = 0;
+  handleSoldierDeath(t, s);
+  return { corpse: t.corpses[0], view: corpseViews(t)[0] };
+}
+
+describe('the height of a corpse (Rotting_Corpses.cc TurnSoldierIntoCorpse, AddRottingCorpse)', () => {
+  it('keeps a roof soldier’s height above the storey: 8 px for one the map placed on the roof at 58, none for one who climbed up to 50', () => {
+    expect(corpseOfSoldierAt(SECOND_LEVEL_Z_OFFSET).corpse).toMatchObject({ level: 1, heightAdjustment: 8 });
+    expect(corpseOfSoldierAt(SECOND_LEVEL_Z_OFFSET).view).toMatchObject({ level: 1, heightAdjustment: 8 });
+    expect(corpseOfSoldierAt(CLIMBED_ONTO_ROOF_HEIGHT).corpse).toMatchObject({ level: 1, heightAdjustment: 0 });
+    expect(corpseOfSoldierAt(CLIMBED_ONTO_ROOF_HEIGHT).view?.heightAdjustment).toBeUndefined();
+  });
+
+  it('takes the truncated height, as sHeightAdjustment holds it', () => {
+    expect(corpseOfSoldierAt(SECOND_LEVEL_Z_OFFSET + 0.9).corpse?.heightAdjustment).toBe(8);
+  });
+
+  it('lays a corpse on the ground, under the roof, flat on its tile', () => {
+    expect(corpseOfSoldierAt(0).corpse).toMatchObject({ level: 0, heightAdjustment: 0 });
   });
 });
 

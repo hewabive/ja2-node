@@ -1038,6 +1038,29 @@ function addRealDoorState(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const CORPSE_LEVEL_KEY = 'level';
+const GROUND_CORPSE_HEIGHT = 0;
+const PLACED_ROOF_SOLDIER_CORPSE_HEIGHT = 8;
+
+function levelDefaultCorpseHeight(level: Json | undefined): number {
+  return typeof level === 'number' && level > 0 ? PLACED_ROOF_SOLDIER_CORPSE_HEIGHT : GROUND_CORPSE_HEIGHT;
+}
+
+function withCorpseHeights(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withCorpseHeights(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withCorpseHeights(v);
+  if (!isCorpseRecord(mapped)) return mapped;
+  return insertAfter(mapped, CORPSE_LEVEL_KEY, HEIGHT_KEY, levelDefaultCorpseHeight(mapped[CORPSE_LEVEL_KEY]));
+}
+
+function addCorpseHeights(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withCorpseHeights(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1077,5 +1100,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     35: addPreCombatGridNo,
     36: compactMercSlots,
     37: addRealDoorState,
+    38: addCorpseHeights,
   };
 }

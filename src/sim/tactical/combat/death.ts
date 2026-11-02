@@ -70,6 +70,7 @@ import { AimShot, DamageReason } from './types.ts';
 export interface Corpse {
   readonly gridNo: number;
   readonly level: number;
+  readonly heightAdjustment: number;
   readonly bodyType: number;
   readonly direction: number;
   readonly state: number;
@@ -87,6 +88,16 @@ export interface Corpse {
 export function corpseLook(s: Soldier): Pick<Corpse, 'palettes' | 'camo'> {
   const p = s.palettes;
   return { palettes: [p.hair, p.skin, p.vest, p.pants], ...(s.camo !== 0 ? { camo: true } : {}) };
+}
+
+const WALL_HEIGHT = 50;
+
+export function truncatedHeight(s: Soldier): number {
+  return i16(Math.trunc(s.heightAdjustment));
+}
+
+function heightAboveStorey(s: Soldier): number {
+  return s.level > 0 ? i16(truncatedHeight(s) - WALL_HEIGHT) : 0;
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -369,6 +380,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   const corpse: Corpse = {
     gridNo: s.gridNo,
     level: s.level,
+    heightAdjustment: heightAboveStorey(s),
     bodyType: s.bodyType,
     direction,
     state: s.state,
