@@ -8,6 +8,7 @@ import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
+import { Assignment } from './character-list.ts';
 
 const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
@@ -546,5 +547,16 @@ describe('the map screen over the stub map-screen campaign', () => {
       hoverWidget(f, 'teamRow0.destination');
       expect(textColourIn(f, 'teamRow0.name')).toBe(FontColor.WHITE);
       expect(textColourIn(f, 'teamRow1.name')).toBe(FontColor.LTBLUE);
+    }));
+
+  it('moves the landing zone from the bullseye with nobody in transit, as the original does after the first arrival', () =>
+    withMap(async (f) => {
+      const zone = f.client.view.strategic?.landingZone ?? '';
+      expect(f.client.view.strategic?.mercs.some((m) => m.assignment === Assignment.IN_TRANSIT)).toBe(false);
+      await f.click('filter4');
+      await f.clickSector(zone);
+      expect(f.screen.hook().changingArrival).toBe(true);
+      await f.clickSector('C13');
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'setLandingZone', sector: 'C13' });
     }));
 });

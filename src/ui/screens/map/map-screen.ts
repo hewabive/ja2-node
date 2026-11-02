@@ -27,7 +27,7 @@
 // @src shows the surface) (2026-11-02); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
 // @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
 // @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
-// @src arrival, DidGameJustStart) (2026-11-02).
+// @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt (2026-11-02).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1298,8 +1298,7 @@ export class MapScreen implements Screen {
   #overBullseye(s: Sector): boolean {
     const strategic = this.#strategic();
     const zone = strategic?.landingZone ? parseSectorLabel(strategic.landingZone) : null;
-    const arriving = strategic?.mercs.some((m) => m.assignment === Assignment.IN_TRANSIT) ?? false;
-    return zone !== null && zone.x === s.x && zone.y === s.y && arriving;
+    return zone !== null && zone.x === s.x && zone.y === s.y && this.#level === 0;
   }
 
   async #setLandingZone(s: Sector): Promise<void> {
