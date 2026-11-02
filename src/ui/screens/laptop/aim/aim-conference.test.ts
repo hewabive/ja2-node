@@ -221,6 +221,22 @@ describe('the A.I.M. video conference', () => {
     expect(conference.hireDisabled).toBe(false);
   });
 
+  it('cuts the contract length quote on Cancel and goes back to the first contact', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    let now = connect(conference);
+    conference.hire();
+    await flush();
+    now = advance(conference, now, SPEECH_DELAY + STEP_MS);
+    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+    expect(conference.talking).toBe(true);
+    conference.cancelHire();
+    expect(conference.talking).toBe(false);
+    expect(p.talkingFrom).toBeNull();
+    advance(conference, now, STEP_MS);
+    expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
+  });
+
   it('says the refusal when the server declines, leaving the hire button as it was, and re-enables the buttons after a lack of funds', async () => {
     const declined = ports();
     declined.accepted = false;

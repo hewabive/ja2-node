@@ -8,7 +8,8 @@
 // @src AIM_MEMBER_VIDEO_TITLE_ITERATIONS, done one step before the last going up and at 0 going down), DisplaySnowBackground
 // @src (it clears gfFirstTimeInContactScreen at its end, so the greeting at the end of a snow in FIRST_CONTACT never plays
 // @src after the connection snow of INIT), DisplayBlackBackground, BtnFirstContactButtonCallback, CanMercBeHired (asked from
-// @src the server), BtnContractLengthButtonCallback, BtnBuyEquipmentButtonCallback, BtnAuthorizeButtonCallback,
+// @src the server), BtnContractLengthButtonCallback, BtnBuyEquipmentButtonCallback, BtnAuthorizeButtonCallback (both of its
+// @src buttons stop the merc talking),
 // @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback (the message-recorded box carries the success data, so
 // @src it too waits for the merc to stop and hangs up), DeleteAimPopUpBox (the machine's Hang Up enabled again),
 // @src BtnAnsweringMachineButtonCallback,
@@ -307,7 +308,9 @@ export class Conference {
   }
 
   cancelHire(): void {
-    if (this.mode === VideoMode.HIRE && !this.hireButtonsDisabled) this.#setMode(VideoMode.FIRST_CONTACT);
+    if (this.mode !== VideoMode.HIRE || this.hireButtonsDisabled) return;
+    this.stopTalking();
+    this.#setMode(VideoMode.FIRST_CONTACT);
   }
 
   leaveMessage(): void {
