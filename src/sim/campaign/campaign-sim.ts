@@ -37,6 +37,7 @@ import {
 import { wildernessSectorWithAllProfiledNpcsNotSpokenWith } from '../strategic/forces/npcs-of-note.ts';
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
+import { rebelsNotNeutral } from '../strategic/narrative/civ-groups.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
@@ -286,6 +287,7 @@ export class CampaignSim {
       removeRandomItemsInSector: (sector: { x: number; y: number; z: number }, chance: number) =>
         this.battle?.removeRandomItemsInSector(sector, chance),
       mineClearOfMonsters: (mine: number) => this.creatures?.mineClear(mine) ?? true,
+      rebelsHostile: () => rebelsNotNeutral(this.state.civGroups),
       checkConditionsForTriggeringCreatureQuest: () => this.creatures?.checkConditionsForQuest(),
       startCreatureQuest: (sector: { x: number; y: number; z: number }) => {
         if (questStatus(this.state.narrative, Quest.CREATURES) === QuestStatus.NOT_STARTED)

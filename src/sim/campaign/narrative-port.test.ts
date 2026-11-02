@@ -9,16 +9,19 @@ import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { idiv } from '../../core/int.ts';
 import { createItem, emptyObject } from '../items/object.ts';
-import { Assignment, Town } from '../strategic/economy/constants.ts';
+import { Assignment, LoyaltyEvent, Town } from '../strategic/economy/constants.ts';
+import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
+import { civGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { animName } from '../tactical/anim-states.ts';
 import { InvSlot, itemIn } from '../tactical/inventory.ts';
 import { heldPrisoner, onSquad } from '../tactical/narrative/assignment.ts';
+import { CivGroupHostility } from '../tactical/narrative/constants.ts';
 import { QuoteSaidExtFlag } from '../tactical/narrative/merc-quotes.ts';
 import { calcInterruptDuelPts, seenOpponent } from '../tactical/perception/duel.ts';
-import { NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { CivilianGroup, NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import { enterCombatMode } from '../tactical/turns/turns.ts';
 import { MercKind, type Roster, type RosterMerc } from './roster.ts';
@@ -244,6 +247,42 @@ describe('our attack on a head miner in tactical reaches his mine (NarrativePort
     expect(rating).toBeLessThan(STARTING_RATING);
     shoot();
     expect([status()?.shutDown, c.state.economy.towns[Town.DRASSEN]?.rating]).toEqual([true, rating]);
+  });
+});
+
+describe('our attack on a rebel in tactical caps the loyalty of Omerta (Strategic_Town_Loyalty.cc UpdateTownLoyaltyRating)', () => {
+  const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
+  const REBEL_DISTANCE = 4 * WORLD_COLS;
+  const A9 = { x: 9, y: 1, z: 0 };
+  const BELOW_CAP = 9;
+  const ABOVE_CAP = 30;
+  const UNCAPPED_AFTER_BATTLE_WON = 16;
+  const HOSTILE_OMERTA_CAP = 10;
+  const ATTACK_BUDGET = 40_000;
+
+  it('lets a won battle raise Omerta freely while the rebels are neutral, and once they are betrayed sets it to 10, even from above', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 41, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    advance(c, { idle: true }, ATTACK_BUDGET);
+    const sim = c.tactical;
+    const [merc] = ourSoldiers(c);
+    if (!sim || !merc) throw new Error('our merc in A9');
+    const battleWonFrom = (rating: number) => {
+      const economy = c.economy;
+      const omerta = c.state.economy.towns[Town.OMERTA];
+      if (!economy || !omerta) throw new Error('no loyalty for Omerta');
+      Object.assign(omerta, { started: true, rating, change: 0 });
+      handleGlobalLoyaltyEvent(economy, LoyaltyEvent.BATTLE_WON, A9);
+      return [omerta.rating, omerta.change];
+    };
+    expect(battleWonFrom(BELOW_CAP)[0]).toBe(UNCAPPED_AFTER_BATTLE_WON);
+    const rebel = spawnSoldier(sim, TEAM_FIRST_ID[Team.CIV], Team.CIV, merc.gridNo + REBEL_DISTANCE, Direction.NORTH);
+    rebel.civilianGroup = CivilianGroup.REBEL;
+    expect(c.dispatch({ type: 'attack', soldier: merc.id, target: rebel.gridNo })).toEqual({ ok: true });
+    advance(c, { idle: true }, ATTACK_BUDGET);
+    expect(civGroupHostility(c.state.civGroups, CivilianGroup.REBEL)).not.toBe(CivGroupHostility.NEUTRAL);
+    expect(battleWonFrom(BELOW_CAP)).toEqual([HOSTILE_OMERTA_CAP, 0]);
+    expect(battleWonFrom(ABOVE_CAP)).toEqual([HOSTILE_OMERTA_CAP, 0]);
   });
 });
 
