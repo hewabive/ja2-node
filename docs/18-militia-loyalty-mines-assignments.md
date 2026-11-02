@@ -141,6 +141,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | Militia the player attacks stay on our side and never defect: Stracciatella's `MakeCivHostile` sets no side outside Conrad and the General (`Overhead.cc:2591`), and the unload asks the militia team (`Town_Militia.cc:610`) | `campaign/sector-flow.test.ts` |
 | A negative loyalty remainder keeps its sign; reaching the cap zeroes the remainder | `loyalty.test.ts` |
 | Betraying the rebels starts every loyalty town, so one not taken yet starts at 0 | `loyalty.test.ts` |
+| A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above (`Strategic_Town_Loyalty.cc:296-305`) | `loyalty.test.ts`, `campaign/narrative-port.test.ts` |
 | An enemy takeover steals in a visited sector every time, also when the enemy held it already (reinforcements) | `loyalty.test.ts` |
 | An enemy sector taken without a fight brings no town, mine or SAM effects, so a town completed that way is never liberated | `strategic/map/control.test.ts` |
 | A creature that is no monster (a bloodcat) costs a murder's full price as a loss, even in an enemy sector; so do militia when the rebels hate the player | `campaign/civilian-murder.test.ts` |
@@ -166,7 +167,6 @@ Not pinned yet:
   `enlistMilitia`).
 - Kill points earned in a tactical battle that goes straight to autoresolve are lost: the unload skips promotions and
   autoresolve creates its militia afresh.
-- A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above.
 - The theft chance wraps above 51 enemies (`theftChance`).
 - A town with no path to the event counts as distance 0, the full +75 %.
 - A trainer whose sector became full or disloyal is flagged nothing-to-do but keeps training; the session is wasted.
