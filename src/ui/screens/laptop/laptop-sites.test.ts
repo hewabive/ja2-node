@@ -7,6 +7,7 @@ import {
   type LaptopHarness,
   type LaptopUiKit,
   laptopUiKit,
+  loadStubImage,
   openLaptopHarness,
   settle,
   shown,
@@ -17,6 +18,7 @@ import { parseSectorString, strategicIndex } from '../../../content/strategic/se
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
 import { MouseButton } from '../../input/events.ts';
+import { faceFileOf } from '../tactical/faces.ts';
 import { LaptopMode } from './laptop-modes.ts';
 
 const DRASSEN_ROW = 2;
@@ -122,6 +124,42 @@ async function wait(h: LaptopHarness, ms: number): Promise<void> {
   h.t.frame(ms);
   await settle(h.t, 2);
 }
+
+const EYE_FRAMES = [1, 2, 3, 4];
+const FRAME_MS = 16;
+const BLINK_WAIT_MS = 6000;
+
+function smallFaceFrames(h: LaptopHarness): number[] {
+  return h.t.list.items.flatMap((i) => (i.kind === 'image' && /^faces\/\d+\.sti$/.test(i.asset) ? [i.frame] : []));
+}
+
+async function blinks(h: LaptopHarness): Promise<boolean> {
+  for (let ms = 0; ms < BLINK_WAIT_MS; ms += FRAME_MS) {
+    h.t.frame(FRAME_MS);
+    if (smallFaceFrames(h).some((frame) => EYE_FRAMES.includes(frame))) return true;
+  }
+  return false;
+}
+
+describe('A.I.M. on the canvas laptop', () => {
+  it("blinks the merc's face in the video conference", async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    const { t } = h;
+    await toBookmark(h, 0);
+    await click(t, 'memberCardLink');
+    await click(t, 'toMugShotsLink');
+    const atHome = h.session.view().laptop?.aim.find((m) => m.contact === 'firstContact');
+    const profile = atHome ? h.session.campaign.laptop?.profileRecord(atHome.profile) : null;
+    const mug = t.runtime.describe().find((w) => w.id.startsWith('mugName') && w.text === profile?.nickname);
+    if (!profile || !mug) throw new Error('no mug shot of a merc at home');
+    await loadStubImage(t, kit, faceFileOf(profile.faceIndex));
+    await click(t, mug.id.replace('mugName', 'mugRegion'));
+    expect(h.screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
+    await click(t, 'aimContact');
+    expect(await blinks(h)).toBe(true);
+    expect(shown(t, 'hire').visible).toBe(true);
+  });
+});
 
 describe('M.E.R.C. on the canvas laptop', () => {
   it("plays Speck's opening, opens an account, hires from the files, pays the bill and shows the broken link while the site is down", async () => {

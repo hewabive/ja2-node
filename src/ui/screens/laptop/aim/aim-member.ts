@@ -7,9 +7,11 @@
 // @src DrawStat (white from 80, dark white below, the level always white), DisplayDots (a dot every 7 pixels),
 // @src BtnPreviousButtonCallback, BtnNextButtonCallback (wrapping over MAX_NUMBER_MERCS), BtnContactButtonCallback,
 // @src SelectFaceRegionCallBackPrimary/Secondary, SelectFaceMovementRegionCallBack, DisplayVideoConferencingDisplay,
-// @src DisplayMercsVideoFace (the terminal's 3-pixel shadow), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face
-// @src stretched into 96 x 86 under the distortion, the answering machine shaded with its caption), DrawButtonSelection and
-// @src DisplaySelectLights (an 8 x 8 fill, green when selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
+// @src DisplayMercsVideoFace (the terminal's 3-pixel shadow), InitVideoFace and InitVideoFaceTalking (the merc's animated
+// @src face says the quote; CreateTalkingUI sets the text and its time only when subtitles show or the quote has no
+// @src voice), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face stretched into 96 x 86 under the distortion, the
+// @src answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights (an 8 x 8 fill, green when
+// @src selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector, day = arrival / 1440, "HH:00"; the German
 // @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode).
 
@@ -32,7 +34,8 @@ import { MessageBoxFlag } from '../../../widgets/message-box.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
-import { Conference, ContractLength, TITLE_ITERATIONS, talkingTime, titleBarRect, VideoMode } from './aim-conference.ts';
+import { VideoFace, videoFacePorts, videoFaceRecord } from '../video-face.ts';
+import { Conference, ContractLength, TITLE_ITERATIONS, textTimeAfterQuote, titleBarRect, VideoMode } from './aim-conference.ts';
 import { DistortionAsset, type DistortionOverlay, STATIC_NOISE_VOLUME } from './aim-distortion.ts';
 import { aimBar, aimChrome, mugShotState } from './aim-pages.ts';
 
@@ -82,7 +85,6 @@ const FACE_SOURCE = 'aimVideoFace';
 const TITLE_SOURCE = 'aimVideoTitle';
 const SMALL_FACE_WIDTH = 48;
 const SMALL_FACE_HEIGHT = 43;
-const SPEECH_VOLUME = 127;
 const GERMAN_DATA = 'german';
 const AIM_MEMBER_PRERECORDED_MESSAGE = 7;
 const CAPTION_COLOR = 145;
@@ -201,9 +203,11 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   let chargeKey = '';
   let disposed = false;
   let arrivalAfterRender = false;
+  let videoFace: VideoFace | null = null;
   const mercs = () => context.view()?.aim ?? [];
   const current = () => context.aim.current(mercs());
   const faceOf = (merc: AimMercView) => context.data.profile(merc.profile)?.faceIndex ?? merc.profile;
+  const facePorts = videoFacePorts(context);
 
   const conference = new Conference(
     {
@@ -232,17 +236,38 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
         const merc = current();
         if (merc) void context.command({ type: 'aimLeaveMessage', profile: merc.profile });
       },
-      say: (quote) => {
+      initFace: (now) => {
         const merc = current();
-        if (!merc) return 0;
+        videoFace = merc ? new VideoFace(videoFaceRecord(context.data.profile(merc.profile), merc.profile), now, facePorts) : null;
+      },
+      say: (quote, now) => {
+        const merc = current();
+        if (!merc || !videoFace) return;
         const voice = threeDigits(merc.profile);
         const text = context.text.edt(`mercedt/${voice}.edt`, quote) ?? '';
-        subtitle = context.settings.subtitles ? `"${text}"` : null;
-        speaker = merc.profile;
-        if (context.settings.speech) context.playSound(`speech/${voice}_${threeDigits(quote)}.wav`, SPEECH_VOLUME);
-        return talkingTime(text);
+        const { speech, subtitles } = context.settings;
+        videoFace.say(
+          {
+            voice: speech ? `speech/${voice}_${threeDigits(quote)}.wav` : null,
+            text,
+            started: () => {
+              subtitle = subtitles ? `"${text}"` : null;
+              speaker = merc.profile;
+              memory.speechDuration = textTimeAfterQuote(memory.speechDuration, text, subtitles || !speech);
+            },
+          },
+          now,
+        );
       },
+      faceTalking: (now, frozen) => {
+        if (!videoFace) return false;
+        if (frozen) videoFace.freeze();
+        videoFace.update(now);
+        return videoFace.talking;
+      },
+      speechDuration: () => memory.speechDuration,
       stopTalking: () => {
+        videoFace?.shutUp();
         subtitle = null;
       },
       popdownDone: () => {
@@ -424,8 +449,14 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     model.faceHelp = hovering && !conference.displayed;
   };
 
-  const switchMerc = (delta: number): void => {
+  const closeConference = (): void => {
     conference.close();
+    videoFace?.clear();
+    videoFace = null;
+  };
+
+  const switchMerc = (delta: number): void => {
+    closeConference();
     context.aim.step(mercs(), delta);
     chargeKey = '';
     charge = null;
@@ -479,10 +510,8 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   };
 
   const drawFaceSource = (list: DrawList, rect: Area): void => {
-    if (!conference.terminalShown || conference.face !== 'face') return;
-    const merc = current();
-    if (!merc) return;
-    list.image(portraitPath(faceOf(merc), 'small'), 0, rect.x, rect.y);
+    if (!conference.terminalShown || conference.face !== 'face' || !videoFace) return;
+    videoFace.draw(list, rect.x, rect.y);
     list.capture(FACE_SOURCE);
   };
 
@@ -569,7 +598,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     update: refresh,
     dispose: () => {
       disposed = true;
-      conference.close();
+      closeConference();
     },
     blocksNewMail: () => conference.displayed,
     renderOverlay: (list, redraw) => {

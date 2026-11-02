@@ -11,7 +11,10 @@
 // @src the server), BtnContractLengthButtonCallback, BtnBuyEquipmentButtonCallback, BtnAuthorizeButtonCallback,
 // @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback, BtnAnsweringMachineButtonCallback,
 // @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech,
-// @src InitVideoFaceTalking, DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms),
+// @src InitVideoFace (at the first contact after the connection, the answering machine and the unavailable merc),
+// @src InitVideoFaceTalking, DisplayTalkingMercFaceForVideoPopUp (the face frozen on the answering machine; the merc talks
+// @src as long as his face does, and his quote ends once the face has stopped and the text time has passed),
+// @src DisplayTextForMercFaceVideoPopUp (the text in quotes, max(1500, 80 x characters) ms),
 // @src SelectShutUpMercRegionCallBack, StopMercTalking, DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion
 // @src while the face is up and no answering machine shows (aim-distortion.ts). The impatience quotes are not reproduced.
 
@@ -61,7 +64,10 @@ export interface ConferencePorts {
   hireCheck(): Promise<{ readonly accepted: boolean; readonly quote: number | null }>;
   hire(contract: number, gear: boolean): Promise<'hired' | 'funds' | 'teamFull' | 'refused'>;
   leaveMessage(): void;
-  say(quote: number): number;
+  initFace(now: number): void;
+  say(quote: number, now: number): void;
+  faceTalking(now: number, frozen: boolean): boolean;
+  speechDuration(): number;
   stopTalking(): void;
   popdownDone(): void;
   teamFullBox(): void;
@@ -71,11 +77,14 @@ export interface ConferencePorts {
 
 export interface TalkState {
   readonly quote: number;
-  readonly until: number;
 }
 
 export function talkingTime(text: string): number {
   return Math.max(MINIMUM_TALKING_TIME, [...`"${text}"`].length * TEXT_SPEECH_MODIFIER);
+}
+
+export function textTimeAfterQuote(previous: number, text: string, textShown: boolean): number {
+  return textShown ? talkingTime(text) : previous;
 }
 
 export function titleBarRect(step: number, fromY: number, toY: number): { x: number; y: number; width: number } {
@@ -110,6 +119,9 @@ export class Conference {
   #delayed: { quote: number; at: number; hangUpAfter: boolean } | null = null;
   #busy = false;
   #waitingForMercToStop = false;
+  #mercTalking = false;
+  #talkStartedAt = 0;
+  #wasTalking = false;
   #now = 0;
 
   constructor(ports: ConferencePorts, stepMs: number, clocks: DistortionClocks = distortionClocks()) {
@@ -130,6 +142,10 @@ export class Conference {
     return this.talk !== null;
   }
 
+  get mercTalking(): boolean {
+    return this.#mercTalking;
+  }
+
   open(now: number): void {
     if (this.mode !== VideoMode.NOT_DISPLAYED) return;
     this.#now = now;
@@ -139,6 +155,7 @@ export class Conference {
   close(): void {
     this.#ports.stopTalking();
     this.talk = null;
+    this.#mercTalking = false;
     this.#delayed = null;
     this.popup = null;
     this.mode = VideoMode.NOT_DISPLAYED;
@@ -157,8 +174,15 @@ export class Conference {
   }
 
   #say(quote: number): void {
-    const duration = this.#ports.say(quote);
-    this.talk = { quote, until: this.#now + duration };
+    this.#ports.say(quote, this.#now);
+    this.talk = { quote };
+    this.#mercTalking = true;
+    this.#talkStartedAt = this.#now;
+  }
+
+  #initFace(): void {
+    this.distortion.restart();
+    this.#ports.initFace(this.#now);
   }
 
   #delaySpeech(quote: number): void {
@@ -170,8 +194,10 @@ export class Conference {
   #enterMode(): void {
     switch (this.mode) {
       case VideoMode.NOT_DISPLAYED:
+        if (this.face === 'face') this.stopTalking();
         this.face = 'none';
         this.talk = null;
+        this.#mercTalking = false;
         this.#waitingForMercToStop = false;
         break;
       case VideoMode.POPUP:
@@ -181,7 +207,7 @@ export class Conference {
       case VideoMode.INIT:
         this.contractLength = ContractLength.ONE_WEEK;
         this.buyEquipment = this.#ports.hasKit();
-        this.talk = null;
+        this.#mercTalking = false;
         this.#hangUp = false;
         this.#count = 0;
         this.#lastTick = 0;
@@ -189,7 +215,7 @@ export class Conference {
         this.face = 'black';
         break;
       case VideoMode.FIRST_CONTACT:
-        if (this.previousMode === VideoMode.INIT || this.previousMode === VideoMode.NOT_DISPLAYED) this.distortion.restart();
+        if (this.previousMode === VideoMode.INIT || this.previousMode === VideoMode.NOT_DISPLAYED) this.#initFace();
         this.face = 'face';
         this.hireDisabled = this.#waitingForMercToStop;
         this.#waitingForMercToStop = false;
@@ -199,13 +225,13 @@ export class Conference {
         this.#delaySpeech(ConferenceQuote.LENGTH_OF_CONTRACT);
         break;
       case VideoMode.ANSWERING_MACHINE:
-        this.distortion.restart();
+        this.#initFace();
         this.face = 'face';
         this.answeringButtonsDisabled = false;
         this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
         break;
       case VideoMode.UNAVAILABLE:
-        this.distortion.restart();
+        this.#initFace();
         this.face = 'face';
         break;
       default:
@@ -302,6 +328,18 @@ export class Conference {
     if (!this.talk) return;
     this.#ports.stopTalking();
     this.talk = null;
+    this.#mercTalking = false;
+  }
+
+  #followFace(now: number): void {
+    const talking = this.#ports.faceTalking(now, this.mode === VideoMode.ANSWERING_MACHINE);
+    if (now - this.#talkStartedAt > this.#ports.speechDuration()) {
+      if (this.#wasTalking && !talking) {
+        this.#wasTalking = false;
+        this.stopTalking();
+      }
+    } else if (talking) this.#wasTalking = true;
+    this.#mercTalking = talking;
   }
 
   #updateTitle(now: number): void {
@@ -354,13 +392,13 @@ export class Conference {
       this.#say(delayed.quote);
       if (delayed.hangUpAfter) this.#hangUp = true;
     }
-    if (this.talk && now > this.talk.until) this.stopTalking();
-    if (this.#hangUp && !this.talking && !this.#delayed) {
+    if (this.#hangUp && !this.#mercTalking && !this.#delayed) {
       if (this.mode !== VideoMode.NOT_DISPLAYED && !this.popup) this.#setMode(VideoMode.POPDOWN);
       this.#hangUp = false;
     }
     if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
     else if (this.mode === VideoMode.INIT) this.#updateInit(now);
+    if (this.face === 'face') this.#followFace(now);
     if (this.distorted) this.distortion.update(now);
     else this.distortion.clear();
     this.#justSwitched = false;

@@ -1,19 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { MERC_EXIT_TIME, MERC_INTRO_TIME, SpeckMode, SpeckVideo } from './speck-video.ts';
 
-function speck(duration = 2000) {
+function speck(talkMs = 2000) {
   const said: number[] = [];
+  const faces: number[] = [];
   let stops = 0;
+  let talkingFrom: number | null = null;
   const video = new SpeckVideo({
-    say: (quote) => {
-      said.push(quote);
-      return duration;
+    initFace: (now) => {
+      faces.push(now);
     },
+    say: (quote, now) => {
+      said.push(quote);
+      talkingFrom = now;
+    },
+    faceTalking: (now) => talkingFrom !== null && now - talkingFrom <= talkMs,
     stop: () => {
       stops++;
+      talkingFrom = null;
     },
   });
-  return { video, said, stops: () => stops };
+  return { video, said, faces, stops: () => stops };
 }
 
 describe("Speck's video window", () => {
@@ -33,6 +40,17 @@ describe("Speck's video window", () => {
     expect(video.displayed).toBe(false);
   });
 
+  it("puts up Speck's face as the window opens and holds each quote as long as the face talks", () => {
+    const { video, said, faces } = speck(300);
+    video.enqueue([7, 8], 5);
+    expect(faces).toEqual([5]);
+    video.update(MERC_INTRO_TIME + 6);
+    video.update(MERC_INTRO_TIME + 306);
+    expect([said, video.talking]).toEqual([[7], true]);
+    video.update(MERC_INTRO_TIME + 307);
+    expect(said).toEqual([7, 8]);
+  });
+
   it('skips the current quote on a subtitle click and closes on the X', () => {
     const { video, said, stops } = speck();
     video.enqueue([3, 4, 5], 0);
@@ -46,13 +64,14 @@ describe("Speck's video window", () => {
   });
 
   it('opens again after the exit when new quotes arrive meanwhile', () => {
-    const { video } = speck(10);
+    const { video, faces } = speck(10);
     video.enqueue([1], 0);
     video.update(MERC_INTRO_TIME + 1);
     video.close(MERC_INTRO_TIME + 2);
     video.enqueue([9], MERC_INTRO_TIME + 3);
     video.update(MERC_INTRO_TIME + 3 + MERC_EXIT_TIME + 1);
     expect(video.mode).toBe(SpeckMode.INIT);
+    expect(faces).toEqual([0, MERC_INTRO_TIME + 3 + MERC_EXIT_TIME + 1]);
   });
 
   it('ignores an empty queue', () => {

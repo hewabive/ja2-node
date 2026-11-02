@@ -131,7 +131,17 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     text,
     client,
     data: {
-      profile: (id) => ({ id, name: `Merc ${id}`, nickname: `M${id}`, faceIndex: id, aimBio: null }),
+      profile: (id) => ({
+        id,
+        name: `Merc ${id}`,
+        nickname: `M${id}`,
+        faceIndex: id,
+        eyes: [0, 0],
+        mouth: [0, 0],
+        blinkFrequency: 0,
+        expressionFrequency: 0,
+        aimBio: null,
+      }),
       item: (index) => ui.items.get(index),
     },
     media: {
@@ -143,6 +153,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
           if (bytes) edt.add(file, bytes);
         }
       },
+      gaps: () => null,
       random: () => 0,
     },
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),

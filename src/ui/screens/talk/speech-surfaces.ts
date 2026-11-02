@@ -28,8 +28,7 @@ import { reduceStringLength } from '../../text/wrap.ts';
 import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import type { BarValues } from '../tactical/bars.ts';
-import { FaceAnimator, type FaceRecord, faceFileOf } from '../tactical/faces.ts';
-import { drawTalkingFace } from './talk-panel.ts';
+import { drawTalkingFace, FaceAnimator, type FaceRecord, faceFileOf } from '../tactical/faces.ts';
 
 export const TACTICAL_SPEECH_SCREEN = 'tacticalSpeech';
 export const TACTICAL_SPEECH_LAYOUT = 'tactical-speech';

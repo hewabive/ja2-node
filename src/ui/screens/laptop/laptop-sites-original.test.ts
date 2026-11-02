@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
+import { decodeSti } from '../../../content/formats/sti.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
@@ -10,6 +11,7 @@ import { detectDataVersion } from '../../../server/data-version.ts';
 import { TextService } from '../../../server/text-service.ts';
 import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
+import { faceFileOf } from '../tactical/faces.ts';
 import { voiceSample } from './imp/imp-looks.ts';
 import { questionRecord } from './imp/imp-quiz.ts';
 import { IMP_TEXT_FILE } from './imp/imp-site.ts';
@@ -23,6 +25,7 @@ const IMP_CON_3 = 208;
 const ATTRIBUTE_LABELS = [164, 166, 165, 167, 169, 168, 170, 172, 173, 171];
 const SPECK_REPLY_QUOTES = [9, 14, 45, 46, 69, 70, 71];
 const RECORDS = { firstQuestion: IMP_QUESTION_1, lastFinishRecord: IMP_CON_3 };
+const ANIMATED_FACE_FRAMES = 8;
 
 describe.skipIf(!dataDir)('the U11 laptop pages on the original data', () => {
   let data: DataVfs;
@@ -77,5 +80,17 @@ describe.skipIf(!dataDir)('the U11 laptop pages on the original data', () => {
     const file = `npcdata/${String(SPECK).padStart(3, '0')}.edt`;
     for (const quote of [...opening, ...SPECK_REPLY_QUOTES]) expect(await row(file, quote), `quote ${quote}`).not.toBe('');
     expect(data.vfs.stat(portraitPath(SPECK, 'small'))).toBeDefined();
+  });
+
+  it("animates Speck's and every A.I.M. merc's video face: eight frames and eye and mouth offsets", async () => {
+    const aim = session.view().laptop?.aim.map((merc) => merc.profile) ?? [];
+    expect(aim.length).toBeGreaterThan(0);
+    for (const id of [SPECK, ...aim]) {
+      const profile = session.campaign.laptop?.profileRecord(id);
+      if (!profile) throw new Error(`no profile ${id}`);
+      const face = decodeSti(await data.vfs.read(faceFileOf(profile.faceIndex)));
+      expect(face.kind === 'indexed' ? face.subImages.length : 0, profile.nickname).toBe(ANIMATED_FACE_FRAMES);
+      expect([profile.eyesY, profile.mouthY], profile.nickname).not.toContain(0);
+    }
   });
 });

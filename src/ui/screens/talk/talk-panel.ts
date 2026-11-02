@@ -14,7 +14,6 @@
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { idiv } from '../../../core/int.ts';
 import type { ConversationView } from '../../../protocol/view.ts';
-import type { ImageCatalog } from '../../assets.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { UiInputEvent } from '../../input/events.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
@@ -28,7 +27,7 @@ import type { UiTextService } from '../../text/text-service.ts';
 import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { SliderSystem } from '../../widgets/slider.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
-import { FaceAnimator, type FaceRecord } from '../tactical/faces.ts';
+import { drawTalkingFace, FaceAnimator, type FaceRecord } from '../tactical/faces.ts';
 
 export const TALK_PANEL_SCREEN = 'talkPanel';
 export const TALK_PANEL_LAYOUT = 'talk-panel';
@@ -130,16 +129,6 @@ export function bigFaceRecord(profile: ProfilePresentation, variant: string | nu
     blinkFrequency: profile.blinkFrequency,
     expressionFrequency: profile.expressionFrequency,
   };
-}
-
-const MOUTH_FRAME_OFFSET = 4;
-
-export function drawTalkingFace(list: DrawList, images: ImageCatalog, face: FaceAnimator, x: number, y: number): void {
-  const record = face.record;
-  list.image(record.path, 0, x, y);
-  if (face.invalidAnim(images)) return;
-  if (face.eyeFrame > 0) list.image(record.path, face.eyeFrame, x + record.eyes[0], y + record.eyes[1]);
-  if (face.mouthFrame > 0) list.image(record.path, face.mouthFrame + MOUTH_FRAME_OFFSET, x + record.mouth[0], y + record.mouth[1]);
 }
 
 export interface TalkPanelHooks {

@@ -11,6 +11,7 @@ import {
   STATIC_TIME,
   TITLE_ITERATIONS,
   talkingTime,
+  textTimeAfterQuote,
   titleBarRect,
   VideoMode,
 } from './aim-conference.ts';
@@ -32,6 +33,12 @@ interface FakePorts extends ConferencePorts {
   messages: number;
   roll: number;
   readonly noises: string[];
+  faces: number;
+  frozen: boolean;
+  faceTalkMs: number;
+  textTime: number;
+  talkingFrom: number | null;
+  shutUps: number;
 }
 
 function ports(): FakePorts {
@@ -45,6 +52,12 @@ function ports(): FakePorts {
     messages: 0,
     roll: CLEAN_ROLL,
     noises: [],
+    faces: 0,
+    frozen: false,
+    faceTalkMs: QUOTE_MS,
+    textTime: QUOTE_MS,
+    talkingFrom: null,
+    shutUps: 0,
     contact: () => p.answer,
     hasKit: () => true,
     hireCheck: async () => ({ accepted: p.accepted, quote: p.accepted ? null : 13 }),
@@ -55,11 +68,23 @@ function ports(): FakePorts {
     leaveMessage: () => {
       p.messages++;
     },
-    say: (quote) => {
-      p.said.push(quote);
-      return QUOTE_MS;
+    initFace: () => {
+      p.faces++;
+      p.frozen = false;
     },
-    stopTalking: () => undefined,
+    say: (quote, now) => {
+      p.said.push(quote);
+      p.talkingFrom = now;
+    },
+    faceTalking: (now, frozen) => {
+      if (frozen) p.frozen = true;
+      return p.talkingFrom !== null && now - p.talkingFrom < p.faceTalkMs;
+    },
+    speechDuration: () => p.textTime,
+    stopTalking: () => {
+      p.shutUps++;
+      p.talkingFrom = null;
+    },
     popdownDone: () => {
       p.popdowns++;
     },
@@ -223,6 +248,55 @@ describe('the A.I.M. video conference', () => {
     expect(next.mode).toBe(VideoMode.FIRST_CONTACT);
     expect(clocks.mode).toBe(StaticMode.NO_STATIC);
     expect(clocks.line).toEqual(line);
+  });
+
+  it('puts up a new face at the first contact, on the answering machine, frozen there, and for an unavailable merc', () => {
+    const p = ports();
+    connect(new Conference(p, STEP_MS));
+    expect([p.faces, p.frozen]).toEqual([1, false]);
+    const answering = ports();
+    answering.answer = 'answeringMachine';
+    connect(new Conference(answering, STEP_MS));
+    expect([answering.faces, answering.frozen]).toEqual([1, true]);
+    const busy = ports();
+    busy.answer = 'unavailable';
+    const conference = new Conference(busy, STEP_MS);
+    connect(conference);
+    expect([conference.mode, busy.faces, busy.frozen]).toEqual([VideoMode.UNAVAILABLE, 1, false]);
+  });
+
+  it('keeps a quote up while the face talks past its text time and ends it once the face has stopped', async () => {
+    const p = ports();
+    p.accepted = false;
+    p.textTime = MINIMUM_TALKING_TIME;
+    p.faceTalkMs = 3 * MINIMUM_TALKING_TIME;
+    const conference = new Conference(p, STEP_MS);
+    let now = connect(conference);
+    conference.hire();
+    await flush();
+    now = advance(conference, now, 2 * MINIMUM_TALKING_TIME);
+    expect([conference.talking, conference.mercTalking, conference.mode]).toEqual([true, true, VideoMode.FIRST_CONTACT]);
+    advance(conference, now, MINIMUM_TALKING_TIME + STEP_MS);
+    expect([conference.talking, conference.mercTalking, p.shutUps]).toEqual([false, false, 1]);
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+  });
+
+  it('hangs up once the face stops talking, while the text of its quote is still up', async () => {
+    const p = ports();
+    p.accepted = false;
+    p.textTime = 3 * QUOTE_MS;
+    p.faceTalkMs = QUOTE_MS;
+    const conference = new Conference(p, STEP_MS);
+    const now = connect(conference);
+    conference.hire();
+    await flush();
+    advance(conference, now, QUOTE_MS + STEP_MS);
+    expect([conference.mode, conference.talking]).toEqual([VideoMode.POPDOWN, true]);
+  });
+
+  it('keeps the text time of the last quote whose text showed: a voiced quote without subtitles leaves it as it was', () => {
+    expect(textTimeAfterQuote(0, 'x'.repeat(48), true)).toBe(talkingTime('x'.repeat(48)));
+    expect(textTimeAfterQuote(4000, 'Hi', false)).toBe(4000);
   });
 
   it('times the subtitles by the quoted text and slides the title bar between its ends', () => {

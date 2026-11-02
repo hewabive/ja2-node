@@ -194,5 +194,4 @@ splash and beginning videos and every credits row (`content/formats/*-original.t
   Russian data (from the glyph tables).
 - The oracle has never run on Russian data; the probes that read line lengths should be rerun once on a Russian copy.
 
-Not ported: gaps "Sound coverage", "Data version detection", "Helicopter entrance", "Map screen speech", "Laptop video
-faces".
+Not ported: gaps "Sound coverage", "Data version detection", "Helicopter entrance", "Map screen speech".

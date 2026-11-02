@@ -3,7 +3,8 @@
 // @src src/game/Laptop/Mercs.cc EnterMercs (the visit only when entering from outside the site, the files button disabled
 // @src without an account), RenderMercs, BtnAccountBoxButtonCallback, BtnFileBoxButtonCallback, ExitMercs (Speck stops),
 // @src DisplayTextForSpeckVideoPopUp (the subtitle in quotes, at most 300 wide, centred on the laptop screen at
-// @src MERC_TEXT_BOX_POS_Y), HandleSpeckTalking (the 48 x 43 face stretched to the video face rectangle);
+// @src MERC_TEXT_BOX_POS_Y), StartSpeckTalking (Speck's animated face says the quote), HandleSpeckTalking (the 48 x 43 face
+// @src stretched to the video face rectangle);
 // @src src/game/Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback (Speck thanks the player on the home page),
 // @src BtnCancelBoxButtonCallback; src/game/Laptop/Mercs_Account.cc RenderMercsAccount (the account number "%05d"),
 // @src DisplayHiredMercs (the mercs on the team or owed money, red when dead, "$%6d"), BtnMercAuthorizeButtonCallback,
@@ -33,10 +34,10 @@ import { printf } from '../../../text/printf.ts';
 import { MercTextBox } from '../../../widgets/merc-text-box.ts';
 import { MessageBoxFlag, MessageBoxReturn, MessageBoxStyleId } from '../../../widgets/message-box.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
-import { talkingTime } from '../aim/aim-conference.ts';
 import { showArrivalBox } from '../arrival-box.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
+import { VideoFace, videoFacePorts, videoFaceRecord } from '../video-face.ts';
 import { MERC_SUB_PAGES } from './merc-session.ts';
 import { SpeckMode, SpeckVideo } from './speck-video.ts';
 
@@ -47,7 +48,6 @@ export const MERC_FILES_LAYOUT = 'merc-files';
 export const BROKEN_LINK_LAYOUT = 'broken-link';
 export const SPECK = 159;
 
-const SPEECH_VOLUME = 127;
 const NPC_SPEECH_DIR = 'npc_speech';
 const FACE_SOURCE = 'speckVideoFace';
 const SMALL_FACE_WIDTH = 48;
@@ -129,14 +129,32 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
   let subtitle: string | null = null;
   let subtitleRegion: MouseRegion | null = null;
   let disposed = false;
+  let face: VideoFace | null = null;
+  const facePorts = videoFacePorts(context);
   const video = new SpeckVideo({
-    say: (quote) => {
+    initFace: (time) => {
+      face = new VideoFace(videoFaceRecord(context.data.profile(SPECK), SPECK), time, facePorts);
+    },
+    say: (quote, time) => {
       const text = context.text.edt(`npcdata/${threeDigits(SPECK)}.edt`, quote) ?? '';
-      subtitle = context.settings.subtitles && text !== '' ? `"${text}"` : null;
-      if (context.settings.speech) context.playSound(`${NPC_SPEECH_DIR}/${threeDigits(SPECK)}_${threeDigits(quote)}.wav`, SPEECH_VOLUME);
-      return talkingTime(text);
+      const voice = `${NPC_SPEECH_DIR}/${threeDigits(SPECK)}_${threeDigits(quote)}.wav`;
+      face?.say(
+        {
+          voice: context.settings.speech ? voice : null,
+          text,
+          started: () => {
+            subtitle = context.settings.subtitles && text !== '' ? `"${text}"` : null;
+          },
+        },
+        time,
+      );
+    },
+    faceTalking: (time) => {
+      face?.update(time);
+      return face?.talking ?? false;
     },
     stop: () => {
+      face?.shutUp();
       subtitle = null;
     },
   });
@@ -166,8 +184,8 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
   });
 
   const drawFaceSource = (list: DrawList, rect: Area): void => {
-    if (video.mode !== SpeckMode.VIDEO) return;
-    list.image(portraitPath(speckFace(context), 'small'), 0, rect.x, rect.y);
+    if (video.mode !== SpeckMode.VIDEO || !face) return;
+    face.draw(list, rect.x, rect.y);
     list.capture(FACE_SOURCE);
   };
   const drawFace = (list: DrawList, rect: Area): void => {

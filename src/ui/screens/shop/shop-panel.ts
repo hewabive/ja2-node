@@ -42,9 +42,9 @@ import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../w
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
 import type { SliderSystem } from '../../widgets/slider.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
-import { FaceAnimator } from '../tactical/faces.ts';
+import { drawTalkingFace, FaceAnimator } from '../tactical/faces.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
-import { bigFaceRecord, drawTalkingFace } from '../talk/talk-panel.ts';
+import { bigFaceRecord } from '../talk/talk-panel.ts';
 import { DEALER_SLOTS, type DealerSelection, OFFER_SLOTS, type PocketOffer, ShopModel, ShopQuoteId } from './shop-model.ts';
 import { drawShopTile, hatchSlot, MATCH_OUTLINE, type ShopTile, SKI_INV_SLOT_HEIGHT, SKI_INV_SLOT_WIDTH } from './shop-tile.ts';
 

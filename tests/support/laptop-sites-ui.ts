@@ -3,6 +3,7 @@ import { decodeSti } from '../../src/content/formats/sti.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { STUB_DATA_VERSION } from '../../src/content/text/data-version.ts';
 import { loadUiStrings } from '../../src/content/text/strings.ts';
+import { STUBS_PREFIX } from '../../src/node/data-vfs.ts';
 import type { CatalogueItem } from '../../src/protocol/items.ts';
 import { createCampaignSession } from '../../src/server/campaign-factory.ts';
 import type { CampaignSession } from '../../src/server/campaign-session.ts';
@@ -60,6 +61,10 @@ async function loadImage(t: TestRuntime, kit: StubSectorKit, path: string): Prom
   t.images.set(key, imageInfo(key.endsWith('.pcx') ? pcxAsRgbSti(bytes) : decodeSti(bytes)));
 }
 
+export async function loadStubImage(t: TestRuntime, kit: StubSectorKit, path: string): Promise<void> {
+  t.images.set(path, imageInfo(decodeSti(await kit.vfs.read(`${STUBS_PREFIX}/${path}`))));
+}
+
 function laptopData(catalogue: readonly CatalogueItem[], session: CampaignSession): LaptopData {
   const items = new Map<number, LaptopItem>(
     catalogue.map((i) => [
@@ -77,7 +82,18 @@ function laptopData(catalogue: readonly CatalogueItem[], session: CampaignSessio
     profile: (id) => {
       const record = session.campaign.laptop?.profileRecord(id);
       return record
-        ? { id, name: record.name, nickname: record.nickname, faceIndex: record.faceIndex ?? id, aimBio: null, mercBio: null }
+        ? {
+            id,
+            name: record.name,
+            nickname: record.nickname,
+            faceIndex: record.faceIndex ?? id,
+            eyes: [record.eyesX, record.eyesY],
+            mouth: [record.mouthX, record.mouthY],
+            blinkFrequency: record.blinkFrequency,
+            expressionFrequency: record.expressionFrequency,
+            aimBio: null,
+            mercBio: null,
+          }
         : undefined;
     },
     item: (index) => items.get(index),
@@ -91,6 +107,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
   const session = drivenSession(created, stubSessionSources(kit));
   options.prepare?.(session);
   const live = new Session('laptop-sites', session);
+  let draws = 0;
   const commands: LaptopCommand[] = [];
   const replies: LaptopCommandReply[] = [];
   const client: LaptopClient = {
@@ -122,7 +139,8 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
         for (const path of paths) await loadImage(t, kit, path);
       },
       loadTexts: async () => undefined,
-      random: () => 0,
+      gaps: () => null,
+      random: (range) => draws++ % range,
     },
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),
     messageBoxLabels: messageBoxLabels(text),

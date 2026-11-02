@@ -1,3 +1,5 @@
+import type { AudioGap } from '../../../content/formats/gap.ts';
+import type { Offset } from '../../../content/narrative/profile-presentation.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { ClockView, LaptopView, StrategicView } from '../../../protocol/view.ts';
 import type { AssetKey } from '../../draw-list.ts';
@@ -30,6 +32,10 @@ export interface LaptopProfile {
   readonly name: string;
   readonly nickname: string;
   readonly faceIndex: number;
+  readonly eyes: Offset;
+  readonly mouth: Offset;
+  readonly blinkFrequency: number;
+  readonly expressionFrequency: number;
   readonly aimBio: number | null;
   readonly mercBio?: number | null;
 }
@@ -61,6 +67,7 @@ export interface LaptopSettings {
 export interface LaptopMedia {
   loadImages(paths: readonly AssetKey[]): Promise<void>;
   loadTexts(files: readonly string[]): Promise<void>;
+  gaps(file: string): readonly AudioGap[] | null;
   random(range: number): number;
 }
 

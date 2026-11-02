@@ -1,4 +1,5 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
+import { type AudioGap, gapPathFor, parseGap } from '../../content/formats/gap.ts';
 import type { ProfilePresentation } from '../../content/narrative/profile-presentation.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
 import type { DrawItem } from '../../ui/draw-list.ts';
@@ -61,7 +62,18 @@ export async function loadLaptopData(session: string, language: string | null): 
   const profiles = new Map<number, LaptopProfile>(
     profileList.profiles.map((p) => [
       p.id,
-      { id: p.id, name: p.name, nickname: p.nickname, faceIndex: p.faceIndex, aimBio: p.aimBio, mercBio: p.mercBio },
+      {
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+        faceIndex: p.faceIndex,
+        eyes: p.eyes,
+        mouth: p.mouth,
+        blinkFrequency: p.blinkFrequency,
+        expressionFrequency: p.expressionFrequency,
+        aimBio: p.aimBio,
+        mercBio: p.mercBio,
+      },
     ]),
   );
   const items = new Map<number, LaptopItem>(
@@ -82,6 +94,21 @@ export async function loadLaptopData(session: string, language: string | null): 
   return { profile: (id) => profiles.get(id), item: (index) => items.get(index) };
 }
 
+function gapLists(ui: UiBoot): (file: string) => readonly AudioGap[] | null {
+  const lists = new Map<string, readonly AudioGap[] | null>();
+  return (file) => {
+    if (lists.has(file)) return lists.get(file) ?? null;
+    lists.set(file, null);
+    void ui.source.readOptional(gapPathFor(file)).then(
+      (bytes) => {
+        if (bytes) lists.set(file, parseGap(bytes));
+      },
+      () => undefined,
+    );
+    return null;
+  };
+}
+
 export function laptopMedia(ui: UiBoot, random: ClientRandom): LaptopMedia {
   return {
     loadImages: async (paths) => {
@@ -92,6 +119,7 @@ export function laptopMedia(ui: UiBoot, random: ClientRandom): LaptopMedia {
       const loaded = await Promise.all(missing.map(async (file) => [file, await ui.source.readOptional(file)] as const));
       for (const [file, bytes] of loaded) if (bytes) ui.edt.add(file, bytes);
     },
+    gaps: gapLists(ui),
     random: (range) => random.int(range),
   };
 }

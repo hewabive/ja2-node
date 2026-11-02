@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Faces.cc InitFace (the blink frequency ± Random(2000), the eye delay 50 + Random(30), the eight
 // @src subimages of an animated face), GetFaceRelativeCoordinates, BlinkAutoFace, NewEye, MouthAutoFace, NewMouth,
-// @src HandleTalkingAutoFace, SetupFinalTalkingDelay, SetFaceShade, HandleFaceHilights, DrawFaceRect,
+// @src SetFaceTalking, HandleTalkingAutoFace, SetupFinalTalkingDelay, InternalShutupaYoFace (the mouth closed, the face
+// @src done talking), fInvalidAnim (set by its owner, as the A.I.M. answering machine does), RenderAutoFace (the face
+// @src without a soldier: frame 0, the eyes and the mouth), SetFaceShade, HandleFaceHilights, DrawFaceRect,
 // @src HandleRenderFaceAdjustments (closed eyes, hatch, skull, enemy count, hatch for those who cannot act, the text over the
 // @src face, the right icons and the bottom-right icon), HandleAutoFaces (the portrait flash); src/game/Tactical/Gap.cc
 // @src PollAudioGap; src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
@@ -130,6 +132,7 @@ export class FaceAnimator {
   #flashFrame: FaceShade = FaceShade.STARTSHADE;
   #flashSince = 0;
   #gettingHit = false;
+  #frozen = false;
 
   constructor(record: FaceRecord, now: number, random: (range: number) => number) {
     this.record = record;
@@ -159,9 +162,26 @@ export class FaceAnimator {
   }
 
   invalidAnim(images: ImageCatalog): boolean {
+    if (this.#frozen) return true;
     const info = images.info(this.record.path);
     if (!info || info.frames.length !== ANIMATED_FACE_FRAMES) return true;
     return this.record.eyes[1] === 0 || this.record.mouth[1] === 0;
+  }
+
+  freeze(): void {
+    this.#frozen = true;
+  }
+
+  startTalking(): void {
+    this.#talking = true;
+    this.#animatingTalking = true;
+    this.#finishTalking = false;
+  }
+
+  shutUp(): void {
+    this.#mouthFrame = 0;
+    this.#talking = false;
+    this.#animatingTalking = false;
   }
 
   hit(now: number): void {
@@ -300,6 +320,14 @@ export class FaceAnimator {
     if (soldier.ap === 0 && inCombat) return FaceShade.LITESHADE;
     return FaceShade.NOSHADE;
   }
+}
+
+export function drawTalkingFace(list: DrawList, images: ImageCatalog, face: FaceAnimator, x: number, y: number): void {
+  const record = face.record;
+  list.image(record.path, 0, x, y);
+  if (face.invalidAnim(images)) return;
+  if (face.eyeFrame > 0) list.image(record.path, face.eyeFrame, x + record.eyes[0], y + record.eyes[1]);
+  if (face.mouthFrame > 0) list.image(record.path, face.mouthFrame + MOUTH_FRAME_OFFSET, x + record.mouth[0], y + record.mouth[1]);
 }
 
 export function shadeOf(shade: FaceShade): PaletteShade {
