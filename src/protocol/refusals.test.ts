@@ -8,6 +8,14 @@ describe('refusal messages', () => {
   });
 });
 
+describe('the exchange of places (CanExchangePlaces)', () => {
+  it('logs STR_LATE_03 for an NPC with a profile and REFUSE_EXCHANGE_PLACES for anyone else', () => {
+    expect(refusalMessage('npcRefusesToMove')).toEqual({ table: 'gzLateLocalizedString', index: 2, shown: 'log' });
+    expect(refusalMessage('personRefusesToMove')).toEqual({ table: 'TacticalStr', index: 119, shown: 'log' });
+    expect(refusalMessage('cannotExchange')).toBeNull();
+  });
+});
+
 describe("the escort's lone move (CanCharacterMoveInStrategic, ME_CUSTOM)", () => {
   it('boxes pMapErrorString 6 for a male escort and 7 for a female one', () => {
     expect(refusalMessage('escortAlone')).toEqual({ table: 'pMapErrorString', index: 6, shown: 'box' });

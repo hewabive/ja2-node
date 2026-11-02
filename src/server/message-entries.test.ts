@@ -177,6 +177,27 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     });
   });
 
+  it('prints the line of CanExchangePlaces for a soldier who refuses to move, naming him when he has a profile', () => {
+    const swap = { type: 'swapPlaces', soldier: 0, with: 116, cursor: true };
+    expect(refusalEntry(9, swap, refuse('npcRefusesToMove', 'refuses', { soldier: 116 }), facts)).toEqual({
+      tick: 9,
+      kind: 'uiFeedback',
+      colour: 144,
+      table: 'gzLateLocalizedString',
+      index: 2,
+      args: [{ text: 'Fatima' }],
+    });
+    expect(refusalEntry(9, swap, refuse('personRefusesToMove', 'refuses', { soldier: 20 }), facts)).toEqual({
+      tick: 9,
+      kind: 'uiFeedback',
+      colour: 144,
+      table: 'TacticalStr',
+      index: 119,
+    });
+    expect(refusalEntry(9, swap, refuse('notEnoughAP', 'short'), facts)).toMatchObject({ table: 'TacticalStr', index: 87 });
+    expect(refusalEntry(9, swap, refuse('cannotExchange', 'moving'), facts)).toBeNull();
+  });
+
   it('leaves the refusals of a sector exit to the exit cursor, which prints its own lines', () => {
     const refused = refuse('uncontrolledRobot', 'the robot cannot leave without a merc using its controller');
     expect(refusalEntry(9, { type: 'exitSector', soldier: 0, direction: 'north' }, refused, facts)).toBeNull();

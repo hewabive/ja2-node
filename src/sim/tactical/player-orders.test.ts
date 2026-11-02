@@ -28,6 +28,7 @@ beforeAll(async () => {
 const ORIGIN = gridNo(80, 80);
 const EAST = DIRECTION_INCREMENT[Direction.EAST] ?? 0;
 const SOUTH = DIRECTION_INCREMENT[Direction.SOUTH] ?? 0;
+const FATIMA = 101;
 const item = (name: string) => content.items.byName.get(name)?.index ?? 0;
 
 function combat(sim: TacticalSim): void {
@@ -312,6 +313,24 @@ describe('exchanging places', () => {
     expect(sim.dispatch({ type: 'swapPlaces', soldier: 0, with: 116, cursor: true })).toEqual({ ok: true });
     expect([merc.gridNo, civ.gridNo]).toEqual([ORIGIN + EAST, ORIGIN]);
     expect(merc.actionPoints).toBe(ap);
+  });
+
+  it('names the NPC who refuses to move on the cursor and the x key, and refuses our merc short of APs as the AP line', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const npc = spawnSoldier(sim, 116, Team.CIV, ORIGIN + EAST, Direction.WEST, { profile: FATIMA });
+    npc.ai.orders = Orders.STATIONARY;
+    sim.lookAround();
+    combat(sim);
+    for (const cursor of [true, false]) {
+      expect(sim.dispatch({ type: 'swapPlaces', soldier: 0, with: 116, cursor }).data).toEqual({
+        refusal: 'npcRefusesToMove',
+        soldier: 116,
+      });
+    }
+    merc.actionPoints = AP.EXCHANGE_PLACES - 1;
+    expect(sim.dispatch({ type: 'swapPlaces', soldier: 0, with: 116, cursor: true }).data).toEqual({ refusal: 'notEnoughAP' });
+    expect([merc.gridNo, npc.gridNo]).toEqual([ORIGIN, ORIGIN + EAST]);
   });
 });
 

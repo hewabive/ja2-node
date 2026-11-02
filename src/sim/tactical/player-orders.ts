@@ -38,8 +38,8 @@ import { uncontrolledRobot } from './narrative/robot.ts';
 import { findBestPath, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { removePendingAction } from './pending-action.ts';
 import { AP, apsToChangeStance, BP, deductPoints, enoughPoints } from './points.ts';
-import { canExchangePlaces, validQuickExchangePosition } from './quick-exchange.ts';
-import { type Refusal, refuse, refused } from './refusal.ts';
+import { type ExchangeRefusal, exchangeRefusal, validQuickExchangePosition } from './quick-exchange.ts';
+import { type Refusal, type RefusalTexts, refuse, refused } from './refusal.ts';
 import { selectOrderedMerc } from './selection.ts';
 import { Body, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -195,6 +195,19 @@ function hostileToOurTeam(s: Soldier): boolean {
   return !s.neutral && s.side !== Side.FRIENDLY;
 }
 
+const EXCHANGE_REFUSALS: RefusalTexts<ExchangeRefusal> = {
+  notEnoughAP: `not enough APs: ${AP.EXCHANGE_PLACES} needed`,
+  cannotExchange: 'the soldiers cannot exchange places',
+  npcRefusesToMove: 'the other soldier refuses to move',
+  personRefusesToMove: 'the other soldier refuses to move',
+};
+
+const REFUSALS_OF_THE_OTHER: ReadonlySet<ExchangeRefusal> = new Set(['npcRefusesToMove', 'personRefusesToMove']);
+
+function refuseExchange(token: ExchangeRefusal, other: Soldier): CommandResult {
+  return refuse(token, EXCHANGE_REFUSALS[token], REFUSALS_OF_THE_OTHER.has(token) ? { soldier: other.id } : {});
+}
+
 function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const t = ctx.t;
   const s = orderedSoldier(ctx, cmd.soldier);
@@ -204,7 +217,8 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   const level = cmd.level === 1 ? 1 : cmd.level === 0 ? 0 : s.level;
   if (cmd.cursor === true) {
     if (!validQuickExchangePosition(t, s, other)) return refuse('invalidExchange', 'not an adjacent neutral or friendly soldier in sight');
-    if (!canExchangePlaces(t, s, other)) return refuse('cannotExchange', 'the soldiers cannot exchange places');
+    const refusal = exchangeRefusal(t, s, other);
+    if (refusal) return refuseExchange(refusal, other);
     swapMercPositions(t, s, other);
     t.events.push({ type: 'placesSwapped', soldier: s.id, with: other.id, gridNo: s.gridNo });
     return { ok: true };
@@ -212,7 +226,8 @@ function swapPlaces(ctx: OrderContext, cmd: OrderCommand): CommandResult {
   if (s.life < OKLIFE || other.life < OKLIFE) return refuse('cannotExchange', 'both soldiers must be conscious');
   if (!canReachInOneTile(t, s, other.gridNo, level)) return refuse('notAdjacent', 'the soldier must stand next to the other');
   if (hostileToOurTeam(other)) return refuse('hostileTarget', 'cannot exchange places with an enemy');
-  if (!canExchangePlaces(t, s, other)) return refuse('cannotExchange', 'the soldiers cannot exchange places');
+  const refusal = exchangeRefusal(t, s, other);
+  if (refusal) return refuseExchange(refusal, other);
   swapMercPositions(t, s, other);
   deductPoints(t.inCombat, s, AP.EXCHANGE_PLACES, 0);
   deductPoints(t.inCombat, other, AP.EXCHANGE_PLACES, 0);

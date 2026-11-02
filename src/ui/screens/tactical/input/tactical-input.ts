@@ -13,7 +13,8 @@
 // @src UIHandleRubberBandOnTerrain, EndRubberBanding, EndMultiSoldierSelection, ResetMultiSelection, UIHandleOnMerc,
 // @src HandleUIMovementCursor (the 80 ms PATHFINDCOUNTER rest, the AP offsets), DrawUIMovementPath (the PLOT rule),
 // @src SetMovementModeCursor, SetConfirmMovementModeCursor, UIHandleInteractiveTilesAndItemsOnTerrain, GetCursorMovementFlags,
-// @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition,
+// @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition
+// @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
 // @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31),
@@ -219,6 +220,7 @@ export class TacticalInput {
   #validDoubleRight = false;
   #exchangeOk = false;
   #exchangeSince = 0;
+  #overExchangePosition = false;
   #reverse = false;
   #ctrlDown = false;
   #altDown = false;
@@ -680,6 +682,16 @@ export class TacticalInput {
   }
 
   #validQuickExchange(): boolean {
+    const over = this.#quickExchangePosition();
+    if (over !== this.#overExchangePosition) {
+      this.#exchangeSince = this.#now;
+      this.#exchangeOk = true;
+    }
+    this.#overExchangePosition = over;
+    return over && this.#exchangeOk;
+  }
+
+  #quickExchangePosition(): boolean {
     const sel = this.#sel();
     const target = this.#hover.target;
     if (!sel || !target || target.id === sel.id) return false;

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
+import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
@@ -22,6 +22,7 @@ import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
+import { Orders } from '../../../sim/tactical/soldier.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
@@ -42,6 +43,8 @@ const HOSTILE_RADIO = 'interface/radio2.sti';
 const LOCATOR_FRAMES = 5;
 const NORMAL_LOCATOR_MS = (SHOW_LOCATOR_NORMAL_CYCLES - 1) * LOCATOR_FRAMES * LOCATOR_FRAME_MS;
 const LONGEST_LOCATOR_MS = 10_000;
+const EXCHANGE_CURSOR_SAMPLE_MS = 100;
+const EXCHANGE_CURSOR_SAMPLES = 30;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -1010,5 +1013,49 @@ describe('the exit texts of a merc escorting someone, in a stub campaign', () =>
       '<merc> cannot leave this sector alone as he is escorting <escort>.',
       '<merc> cannot leave this sector alone as she is escorting <escort>.',
     ]);
+  });
+});
+
+describe('the exchange cursor over a talkable NPC next to the selected merc, in a stub campaign', () => {
+  async function besideTheStubNpc(): Promise<{ f: TacticalUiTest; npc: SoldierView }> {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const sim = tacticalOf(a10.session);
+    const t = sim.state;
+    const npc = t.soldiers.find((v) => v?.profile === STUB_NPC);
+    const sel = t.soldiers.find((v) => v?.id === f.screen.selected);
+    if (!npc || !sel) throw new Error('no stub NPC or no selected merc');
+    npc.ai.orders = Orders.STATIONARY;
+    setSoldierPosition(t, sel, npc.gridNo + 1);
+    sim.lookAround();
+    f.deliver();
+    f.world.camera = { centerX: (npc.gridNo % WORLD_COLS) * 10 + 5, centerY: Math.floor(npc.gridNo / WORLD_COLS) * 10 + 5 };
+    return { f, npc: merc(f, npc.id) };
+  }
+
+  it('alternates every second with the talk cursor, the exchange cursor first', async () => {
+    const { f, npc } = await besideTheStubNpc();
+    hover(f, npc.gridNo);
+    const cursors: string[] = [];
+    for (let i = 0; i < EXCHANGE_CURSOR_SAMPLES; i++) {
+      f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
+      cursors.push(f.screen.controls.input.uiCursor);
+    }
+    expect([cursors[4], cursors[15], cursors[26]]).toEqual(['EXCHANGE_PLACES_UICURSOR', 'TALK_A_UICURSOR', 'EXCHANGE_PLACES_UICURSOR']);
+  });
+
+  it('prints that the NPC refuses to move on a click on the exchange cursor', async () => {
+    const { f, npc } = await besideTheStubNpc();
+    hover(f, npc.gridNo);
+    f.t.frame(EXCHANGE_CURSOR_SAMPLE_MS);
+    expect(f.screen.controls.input.uiCursor).toBe('EXCHANGE_PLACES_UICURSOR');
+    const at = f.world.pickPoint(npc.gridNo);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'swapPlaces', with: npc.id, cursor: true },
+      reply: { ok: false, data: { refusal: 'npcRefusesToMove', soldier: npc.id } },
+    });
+    f.deliver();
+    expect(f.screen.messageLines.at(-1)).toBe(`${npc.name} refuses to move.`);
   });
 });

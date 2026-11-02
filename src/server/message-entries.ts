@@ -12,7 +12,8 @@
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
 // @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM), src/externalized/Soldier.cc
 // @src showGearEquipMessage, showGearRemoveMessage (NS_SOLDIER_EQUIPS_ITEM, NS_SOLDIER_REMOVES_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box;
-// @src Interface_Items.cc IsValidAmmoToReloadRobot names the robot gun's calibre (2026-11-01).
+// @src Interface_Items.cc IsValidAmmoToReloadRobot names the robot gun's calibre (2026-11-01); Soldier_Tile.cc
+// @src CanExchangePlaces names the NPC who refuses to move.
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -308,12 +309,14 @@ export function gameSavedEntry(tick: number): MessageEntry {
 
 const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst', 'invalidStance']);
 const REFUSALS_NAMING_THE_CALIBRE: ReadonlySet<string> = new Set(['robotNeedsCalibre']);
+const REFUSALS_NAMING_THE_REFUSER: ReadonlySet<string> = new Set(['npcRefusesToMove']);
 const COMMANDS_THE_CURSOR_EXPLAINS: ReadonlySet<string> = new Set(['exitSector']);
 const CALIBRE_NAMES = 'ammo-calibre';
 
 function refusalArgs(token: string, cmd: CommandEnvelope, data: Readonly<Record<string, unknown>>, facts: MessageFacts): MessageArg[] {
   const soldier = typeof cmd.soldier === 'number' ? cmd.soldier : null;
   if (REFUSALS_NAMING_THE_CALIBRE.has(token)) return [typeof data.calibre === 'number' ? ref(CALIBRE_NAMES, data.calibre) : text(null)];
+  if (REFUSALS_NAMING_THE_REFUSER.has(token)) return [text(typeof data.soldier === 'number' ? facts.soldierName(data.soldier) : null)];
   return REFUSALS_NAMING_THE_MERC.has(token) && soldier !== null ? [text(facts.soldierName(soldier))] : [];
 }
 

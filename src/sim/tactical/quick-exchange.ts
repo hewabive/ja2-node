@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc ValidQuickExchangePosition (the target, the distance, the line of sight and the path,
-// @src without the cursor timer); Soldier_Tile.cc CanExchangePlaces.
+// @src without the cursor timer); Soldier_Tile.cc CanExchangePlaces (the refusals it reports: Points.cc EnoughPoints'
+// @src NOT_ENOUGH_APS_STR for our own soldier short of APs, REFUSE_EXCHANGE_PLACES or STR_LATE_03 for an unwilling one).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
@@ -13,12 +14,14 @@ import { findBestPath, PathCopy, PathFlags } from './pathfinding.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { internalIsValidStance } from './person-structure.ts';
 import { AP, enoughPoints } from './points.ts';
-import { Body, CivilianGroup, NOWHERE, OKLIFE, Orders, Side, type Soldier, Team } from './soldier.ts';
+import { Body, CivilianGroup, NO_PROFILE, NOWHERE, OKLIFE, Orders, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 const DIRECTION_IRRELEVANT = -1;
 const EXCHANGE_LOS_CUBE_LEVEL = 3;
 const ADJACENT = 1;
+
+export type ExchangeRefusal = 'notEnoughAP' | 'cannotExchange' | 'npcRefusesToMove' | 'personRefusesToMove';
 
 export function isAnimalBody(s: { readonly bodyType: number }): boolean {
   return s.bodyType === Body.COW || s.bodyType === Body.CROW || s.bodyType === Body.BLOODCAT;
@@ -52,7 +55,6 @@ export function seenExchangeChecks(t: TacticalState, s1: Soldier, s2: Soldier): 
 }
 
 function willingToExchange(s2: Soldier): boolean {
-  if (isAnimalBody(s2)) return false;
   const moving = s2.absoluteFinalDestination !== NOWHERE && s2.absoluteFinalDestination !== s2.gridNo;
   return (
     s2.neutral &&
@@ -62,8 +64,20 @@ function willingToExchange(s2: Soldier): boolean {
   );
 }
 
-export function canExchangePlaces(t: TacticalState, s1: Soldier, s2: Soldier): boolean {
-  if (!enoughPoints(t.inCombat, s1, AP.EXCHANGE_PLACES) || !enoughPoints(t.inCombat, s2, AP.EXCHANGE_PLACES)) return false;
-  if (!seenExchangeChecks(t, s1, s2)) return false;
-  return s2.side === Side.FRIENDLY || willingToExchange(s2);
+function pointsRefusal(t: TacticalState, s: Soldier): ExchangeRefusal | null {
+  if (enoughPoints(t.inCombat, s, AP.EXCHANGE_PLACES)) return null;
+  return s.team === Team.OUR && !s.collapsed ? 'notEnoughAP' : 'cannotExchange';
+}
+
+function unwillingRefusal(s2: Soldier): ExchangeRefusal {
+  return s2.profile === NO_PROFILE ? 'personRefusesToMove' : 'npcRefusesToMove';
+}
+
+export function exchangeRefusal(t: TacticalState, s1: Soldier, s2: Soldier): ExchangeRefusal | null {
+  const points = pointsRefusal(t, s1) ?? pointsRefusal(t, s2);
+  if (points) return points;
+  if (!seenExchangeChecks(t, s1, s2)) return 'cannotExchange';
+  if (s2.side === Side.FRIENDLY) return null;
+  if (isAnimalBody(s2)) return 'cannotExchange';
+  return willingToExchange(s2) ? null : unwillingRefusal(s2);
 }

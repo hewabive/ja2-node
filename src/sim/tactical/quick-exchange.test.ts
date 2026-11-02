@@ -3,7 +3,8 @@ import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import type { TacticalContent } from './content.ts';
-import { canExchangePlaces, isAnimalBody, seenExchangeChecks, validQuickExchangePosition } from './quick-exchange.ts';
+import { AP } from './points.ts';
+import { exchangeRefusal, isAnimalBody, seenExchangeChecks, validQuickExchangePosition } from './quick-exchange.ts';
 import { Body, Orders, Side, Team } from './soldier.ts';
 
 let content: TacticalContent;
@@ -13,6 +14,7 @@ beforeAll(async () => {
 });
 
 const ORIGIN = gridNo(80, 80);
+const FATIMA = 101;
 
 describe('quick exchange of places (ValidQuickExchangePosition, CanExchangePlaces)', () => {
   it('accepts an adjacent neutral civilian or friendly militiaman in sight with a one-step path', () => {
@@ -40,11 +42,41 @@ describe('quick exchange of places (ValidQuickExchangePosition, CanExchangePlace
     const civ = spawnSoldier(sim, 116, Team.CIV, ORIGIN + 1, Direction.WEST);
     expect(seenExchangeChecks(sim.state, merc, civ)).toBe(true);
     civ.ai.orders = Orders.STATIONARY;
-    expect(canExchangePlaces(sim.state, merc, civ)).toBe(false);
+    expect(exchangeRefusal(sim.state, merc, civ)).not.toBeNull();
     civ.ai.orders = Orders.FARPATROL;
-    expect(canExchangePlaces(sim.state, merc, civ)).toBe(true);
+    expect(exchangeRefusal(sim.state, merc, civ)).toBeNull();
     sim.state.inCombat = true;
     merc.actionPoints = 2;
-    expect(canExchangePlaces(sim.state, merc, civ)).toBe(false);
+    expect(exchangeRefusal(sim.state, merc, civ)).not.toBeNull();
+  });
+
+  it('reports what the original prints: our merc short of APs, the person or the named NPC who refuses to move', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const civ = spawnSoldier(sim, 116, Team.CIV, ORIGIN + 1, Direction.WEST);
+    const fatima = spawnSoldier(sim, 117, Team.CIV, ORIGIN - 1, Direction.EAST, { profile: FATIMA });
+    civ.ai.orders = Orders.STATIONARY;
+    fatima.ai.orders = Orders.STATIONARY;
+    expect(exchangeRefusal(sim.state, merc, civ)).toBe('personRefusesToMove');
+    expect(exchangeRefusal(sim.state, merc, fatima)).toBe('npcRefusesToMove');
+    sim.state.inCombat = true;
+    merc.actionPoints = AP.EXCHANGE_PLACES - 1;
+    expect(exchangeRefusal(sim.state, merc, fatima)).toBe('notEnoughAP');
+    merc.actionPoints = AP.EXCHANGE_PLACES;
+    civ.actionPoints = 0;
+    expect(exchangeRefusal(sim.state, merc, civ)).toBe('cannotExchange');
+  });
+
+  it('refuses an animal and a merc of ours too collapsed to act without a line', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const mate = spawnSoldier(sim, 1, Team.OUR, ORIGIN + 1, Direction.WEST);
+    const cow = spawnSoldier(sim, 116, Team.CIV, ORIGIN - 1, Direction.EAST);
+    cow.bodyType = Body.COW;
+    expect(exchangeRefusal(sim.state, merc, cow)).toBe('cannotExchange');
+    mate.collapsed = true;
+    sim.state.inCombat = true;
+    mate.actionPoints = 0;
+    expect(exchangeRefusal(sim.state, merc, mate)).toBe('cannotExchange');
   });
 });
