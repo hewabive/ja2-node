@@ -261,6 +261,7 @@ export class MainFlow {
   async approach(): Promise<BattleResult> {
     const player = await this.player();
     const result = await fightHere(player, { done: (view: Observation) => ourTurn(view) && hostilesInSight(player, view).length > 0 });
+    if (result === 'reached') await player.advance({ idle: true });
     await showLatest(this.page);
     return result;
   }
