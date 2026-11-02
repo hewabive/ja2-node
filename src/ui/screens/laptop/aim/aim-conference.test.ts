@@ -153,7 +153,40 @@ describe('the A.I.M. video conference', () => {
     conference.leaveMessage();
     expect(p.messages).toBe(1);
     expect(conference.popup).toEqual({ kind: 'message' });
-    expect(conference.answeringButtonsDisabled).toBe(true);
+    expect(conference.leaveMessageDisabled).toBe(true);
+    expect(conference.machineHangUpDisabled).toBe(true);
+  });
+
+  it('hangs up when the message-recorded box is closed after the machine has finished, as the success box does', () => {
+    const p = ports();
+    p.answer = 'answeringMachine';
+    const conference = new Conference(p, STEP_MS);
+    let now = advance(conference, connect(conference), QUOTE_MS + STEP_MS);
+    expect(conference.talking).toBe(false);
+    conference.leaveMessage();
+    now = advance(conference, now, STEP_MS);
+    expect(conference.mode).toBe(VideoMode.ANSWERING_MACHINE);
+    conference.popupOk();
+    expect(conference.machineHangUpDisabled).toBe(false);
+    expect(conference.leaveMessageDisabled).toBe(true);
+    advance(conference, now, STEP_MS);
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+  });
+
+  it('keeps the call up with its Hang Up enabled when the box is closed while the machine still talks', () => {
+    const p = ports();
+    p.answer = 'answeringMachine';
+    const conference = new Conference(p, STEP_MS);
+    let now = connect(conference);
+    expect(conference.talking).toBe(true);
+    conference.leaveMessage();
+    conference.popupOk();
+    now = advance(conference, now, STEP_MS);
+    expect(conference.mode).toBe(VideoMode.ANSWERING_MACHINE);
+    expect(conference.machineHangUpDisabled).toBe(false);
+    advance(conference, now, QUOTE_MS + TITLE_ITERATIONS * STEP_MS);
+    expect(conference.mode).toBe(VideoMode.NOT_DISPLAYED);
+    expect(p.popdowns).toBe(1);
   });
 
   it('hires for the chosen length after the server accepts and hangs up once the merc stops talking', async () => {

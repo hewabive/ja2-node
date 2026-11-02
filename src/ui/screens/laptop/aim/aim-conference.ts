@@ -9,7 +9,9 @@
 // @src (it clears gfFirstTimeInContactScreen at its end, so the greeting at the end of a snow in FIRST_CONTACT never plays
 // @src after the connection snow of INIT), DisplayBlackBackground, BtnFirstContactButtonCallback, CanMercBeHired (asked from
 // @src the server), BtnContractLengthButtonCallback, BtnBuyEquipmentButtonCallback, BtnAuthorizeButtonCallback,
-// @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback, BtnAnsweringMachineButtonCallback,
+// @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback (the message-recorded box carries the success data, so
+// @src it too waits for the merc to stop and hangs up), DeleteAimPopUpBox (the machine's Hang Up enabled again),
+// @src BtnAnsweringMachineButtonCallback,
 // @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech,
 // @src InitVideoFace (at the first contact after the connection, the answering machine and the unavailable merc),
 // @src InitVideoFaceTalking, DisplayTalkingMercFaceForVideoPopUp (the face frozen on the answering machine; the merc talks
@@ -105,7 +107,8 @@ export class Conference {
   snowFrame = 0;
   titleStep = 0;
   hireDisabled = false;
-  answeringButtonsDisabled = false;
+  leaveMessageDisabled = false;
+  machineHangUpDisabled = false;
   hireButtonsDisabled = false;
   readonly distortion: VideoDistortion;
   readonly #ports: ConferencePorts;
@@ -227,7 +230,8 @@ export class Conference {
       case VideoMode.ANSWERING_MACHINE:
         this.#initFace();
         this.face = 'face';
-        this.answeringButtonsDisabled = false;
+        this.leaveMessageDisabled = false;
+        this.machineHangUpDisabled = false;
         this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
         break;
       case VideoMode.UNAVAILABLE:
@@ -307,21 +311,25 @@ export class Conference {
   }
 
   leaveMessage(): void {
-    if (this.mode !== VideoMode.ANSWERING_MACHINE || this.answeringButtonsDisabled) return;
+    if (this.mode !== VideoMode.ANSWERING_MACHINE || this.leaveMessageDisabled) return;
     this.#ports.leaveMessage();
     this.#waitForMercToFinishTalking();
     this.popup = { kind: 'message' };
-    this.answeringButtonsDisabled = true;
+    this.leaveMessageDisabled = true;
+    this.machineHangUpDisabled = true;
   }
 
   popupOk(): void {
     const popup = this.popup;
     if (!popup) return;
     this.popup = null;
-    if (popup.kind === 'success') {
-      this.mode = VideoMode.HIRE;
-      this.#waitForMercToFinishTalking();
-    } else if (popup.kind === 'failure') this.hireButtonsDisabled = false;
+    if (popup.kind === 'failure') {
+      this.hireButtonsDisabled = false;
+      return;
+    }
+    if (popup.kind === 'success') this.mode = VideoMode.HIRE;
+    else this.machineHangUpDisabled = false;
+    this.#waitForMercToFinishTalking();
   }
 
   stopTalking(): void {

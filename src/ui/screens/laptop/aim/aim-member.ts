@@ -396,8 +396,8 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     model.buyEnabled = merc.kit !== null && !conference.hireButtonsDisabled;
     model.hireButtonsEnabled = !conference.hireButtonsDisabled;
     model.hireEnabled = !conference.hireDisabled;
-    model.leaveEnabled = !merc.messageLeft && !conference.answeringButtonsDisabled;
-    model.answeringEnabled = !conference.answeringButtonsDisabled;
+    model.leaveEnabled = !merc.messageLeft && !conference.leaveMessageDisabled;
+    model.answeringEnabled = !conference.machineHangUpDisabled;
     const popup = conference.popup;
     model.popup = popup !== null;
     model.popupText1 =
