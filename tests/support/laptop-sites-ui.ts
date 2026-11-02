@@ -56,8 +56,9 @@ export interface LaptopHarnessOptions {
 
 async function loadImage(t: TestRuntime, kit: StubSectorKit, path: string): Promise<void> {
   const key = path.toLowerCase();
-  if (t.images.info(key) || !kit.vfs.stat(key)) return;
-  const bytes = await kit.vfs.read(key);
+  const file = kit.vfs.stat(key) ?? kit.vfs.stat(`${STUBS_PREFIX}/${key}`);
+  if (t.images.info(key) || !file) return;
+  const bytes = await kit.vfs.read(file.path);
   t.images.set(key, imageInfo(key.endsWith('.pcx') ? pcxAsRgbSti(bytes) : decodeSti(bytes)));
 }
 
