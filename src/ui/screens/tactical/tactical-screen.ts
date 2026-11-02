@@ -25,7 +25,10 @@
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
 // @src INV_INTERFACE_START_Y); Interface_Panels.cc KeyRingSlotInvClickCallbackPrimary (a key off the ring into the
-// @src cursor, selecting its owner; only a key in the cursor goes onto the ring).
+// @src cursor, selecting its owner; only a key in the cursor goes onto the ring); GameScreen.cc
+// @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02);
+// @src Interface_Items.cc DrawItemTileCursor (the item's owner selected while the item is over the map, and located
+// @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -101,6 +104,7 @@ import {
   locateCentresOnScreen,
   locateLocatorCycles,
   printAboveGuy,
+  SOLDIER_LOCATE_FLAGS,
   showsDamage,
   slideLocatorCycles,
   TOP_BAR_HEIGHT,
@@ -246,6 +250,7 @@ export class TacticalScreen implements Screen {
   #radarBlink = false;
   #radarBlinkAt = 0;
   #entered = false;
+  #entryLocate: number | null = null;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
   readonly #lostSectors: string[] = [];
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
@@ -858,6 +863,7 @@ export class TacticalScreen implements Screen {
   update(now: number): void {
     this.#now = this.#env.runtime.clock.ja2Now;
     const view = this.#view();
+    this.#locateToSoldierOnEntry();
     this.#followServer();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
@@ -875,6 +881,7 @@ export class TacticalScreen implements Screen {
     this.controls.update(this.#now);
     this.#scrollMessages();
     this.#updateCursor(now);
+    this.#itemTileCursor();
     this.#updateRadarDrag();
     this.#syncSquadRegions();
     this.#hudView.update();
@@ -1006,6 +1013,18 @@ export class TacticalScreen implements Screen {
     this.#env.runtime.cursor.setExternCursor(graphic.path, graphic.subImageIndex);
     this.#env.runtime.cursor.set(EXTERN_CURSOR, now);
     this.#externCursor = true;
+  }
+
+  #itemTileCursor(): void {
+    const cursor = this.inventory.cursor;
+    if (!cursor || this.controls.scrolling || this.#viewportRegion?.inArea !== true) return;
+    const regions = this.#env.runtime.regions;
+    if (this.#env.world.gridNoAt(regions.mouseX, regions.mouseY) === null) return;
+    const holder = soldierById(this.#view(), cursor.source.soldier);
+    if (holder) this.#selectSoldier(holder, false, false);
+    if (!this.inventory.takeItemPointerLocate()) return;
+    const selected = soldierById(this.#view(), this.#selected);
+    if (selected) this.#locateSoldier(selected, LocateFlag.DONTSETLOCATOR);
   }
 
   #updateRadarDrag(): void {
@@ -1203,6 +1222,11 @@ export class TacticalScreen implements Screen {
         if (s) this.#locateSoldier(s, LocateFlag.SETLOCATORFAST);
         return;
       }
+      case 'soldierLocated': {
+        const s = soldierById(view, event.soldier);
+        if (s) this.#locateSoldier(s, SOLDIER_LOCATE_FLAGS[event.locator]);
+        return;
+      }
       case 'enemyTurnProgress':
         this.#topBar.observeProgress(event.done);
         return;
@@ -1227,6 +1251,17 @@ export class TacticalScreen implements Screen {
   locate(id: number, flag: LocateFlag): void {
     const s = soldierById(this.#view(), id);
     if (s) this.#locateSoldier(s, flag);
+  }
+
+  locateOnEntry(id: number): void {
+    this.#entryLocate = id;
+  }
+
+  #locateToSoldierOnEntry(): void {
+    const id = this.#entryLocate;
+    if (id === null) return;
+    this.#entryLocate = null;
+    this.locate(id, LocateFlag.CENTER_AND_SETLOCATOR);
   }
 
   #locateSoldier(s: SoldierView, flag: LocateFlag): void {

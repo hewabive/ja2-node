@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit
-// @src (its squad for our merc on another assignment, 2026-10-31),
+// @src (its squad for our merc on another assignment, 2026-10-31; the view sent to our seen merc hit in combat, 2026-11-02),
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
 // @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
@@ -43,7 +43,7 @@ import { profileProgress, StatKind } from '../profiles.ts';
 import { cancelPendingRobotReload } from '../robot-reload.ts';
 import { effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
-import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
+import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
@@ -367,6 +367,8 @@ export function eventSoldierGotHit(
   if (isVehicle(s)) return;
   if (!hasAnimFlag(t.content, s.state, AnimFlags.HITSTOP) || animName(t.content, s.state) !== 'JFK_HITDEATH_STOP')
     makeNoise(t, s, s.gridNo, s.level, volume, NoiseKind.SCREAM);
+  if (t.inCombat && s.visible !== Visible.HIDDEN && s.team === Team.OUR)
+    t.events.push({ type: 'soldierLocated', soldier: s.id, locator: 'none' });
   const before = s.state;
   const locked = animationLocked(t, s);
   startHitAnimation(t, s, cls, weapon, direction, range, att, special);

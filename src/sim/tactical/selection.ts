@@ -145,10 +145,12 @@ function replaceSelectionUnfitForTactical(t: TacticalState): void {
   if (kept && t.narrative.mercAsleep(kept)) selectNextAvailSoldier(t, kept);
 }
 
-export function locateToSoldier(t: TacticalState, preferred: Soldier | null): void {
+export function locateToSoldier(t: TacticalState, preferred: Soldier | null): Soldier | null {
   const mayAct = (s: Soldier) => okControllableMerc(t, s) && okInterruptMerc(t, s);
   const chosen = preferred && mayAct(preferred) ? preferred : teamMembers(t, Team.OUR).find(mayAct);
-  if (chosen) selectSoldier(t, chosen, SelectFlags.FORCE_RESELECT);
+  if (!chosen) return null;
+  selectSoldier(t, chosen, SelectFlags.FORCE_RESELECT);
+  return chosen;
 }
 
 export function deathSuccessor(t: TacticalState, dead: Soldier): Soldier | null {

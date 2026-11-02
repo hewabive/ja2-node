@@ -295,12 +295,16 @@ saved, sent whole in `welcome`, new ones in frames and in every `advance` report
 reads them (deviation "Message list").
 
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
-what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, and the
-window a friendly bullet first meets in combat, where show misses moves the view (`bulletLocated`, `27` §2.4). The
-session copies the cosmetic animations into `ViewFrame.effects` stamped with the session tick, and records the
-bullets in flight after every tick as `ViewFrame.bullets`, since a flight usually falls between two frames. The client
-derives all sound and cosmetic animation from them, the frames and the animation codes it replays (`31`); agents get
-the same events, never audio.
+what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, the
+window a friendly bullet first meets in combat, where show misses moves the view (`bulletLocated`, `27` §2.4), and the
+soldiers the original moves the view to (`soldierLocated {soldier, locator: none|normal|fast}`: a seen soldier not of
+ours turning to shoot, our merc hit in combat, the seen NPC a trigger waits for, a seen Hicks turning hostile at night;
+deviation "Locates of unseen soldiers"). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the
+view centres on with his locator; a load sends no `sectorLoaded` (deviation "View after a load"). The session copies
+the cosmetic animations into `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after
+every tick as `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and
+cosmetic animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never
+audio.
 
 **What the squad does not see, it hears** (`08`; deviations "Sounds out of sight", "Bullets of unseen shooters"). A
 source out of sight carries `heard {by, direction, volumeClass}` instead of its grid: the merc of ours who hears it

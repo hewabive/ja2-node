@@ -72,8 +72,8 @@ One `<name>.j2s` per save, a gzip of one JSON document (`SaveFile`): `header`, `
 - A save's **digest** (SHA-256 of the inflated text) identifies it as a log origin (§1.7).
 
 **What a save never holds:** text (only quote lengths reach the simulation, `31`); client settings and screen state
-(deviations "Laptop page state", "Help screens seen"); the session's driver, real-time carry and speech mode (`29`
-§27); undrained output events (§1.2).
+(deviations "Laptop page state", "Help screens seen", "View after a load"); the session's driver, real-time carry and
+speech mode (`29` §27); undrained output events (§1.2).
 
 ### 1.4 Content identity
 
@@ -281,7 +281,8 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 
 Deviations: "Save side effects", "Schedules on load", "Selection on load", "Helicopter on load", "Save compatibility",
 "Player loads", "Saving in the laptop", "Dead is Dead save points", "Error saves", "Cosmetic streams in saves", "Talk
-context in saves", "Carmen's departure timer", "Laptop page state", "Save list in the launcher and on the canvas".
+context in saves", "Carmen's departure timer", "Laptop page state", "View after a load", "Save list in the launcher and on
+the canvas".
 
 ---
 

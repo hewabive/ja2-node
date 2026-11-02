@@ -159,6 +159,12 @@ export const LocateFlag = {
 } as const;
 export type LocateFlag = (typeof LocateFlag)[keyof typeof LocateFlag];
 
+export const SOLDIER_LOCATE_FLAGS = {
+  none: LocateFlag.DONTSETLOCATOR,
+  normal: LocateFlag.SETLOCATOR,
+  fast: LocateFlag.SETLOCATORFAST,
+} as const satisfies Readonly<Record<string, LocateFlag>>;
+
 export function locateCentresOnScreen(flag: LocateFlag): boolean {
   return flag === LocateFlag.CENTER_AND_SETLOCATOR;
 }

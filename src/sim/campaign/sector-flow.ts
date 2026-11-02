@@ -14,8 +14,9 @@
 // @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
-// @src and the screen entry after a load), Merc_Entering.cc HandleHeliDrop (the first seat's selection; the arrival
-// @src quotes of each drop, Soldier_Ani.cc:988, 2026-11-01), Squads.cc RemoveCharacterFromSquads
+// @src with the merc it locates, and the screen entry after a load), Merc_Entering.cc
+// @src HandleHeliDrop (the first seat's selection; the arrival quotes of each drop, Soldier_Ani.cc:988, 2026-11-01),
+// @src Squads.cc RemoveCharacterFromSquads
 // @src (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
 // @src Squads.cc AddCharacterToSquad (SetCurrentSquad on the game screen) and RebuildCurrentSquad, SaveLoadGame.cc
@@ -215,6 +216,7 @@ type SectorEvent =
       readonly loadScreen: LoadScreenView;
       readonly enemyPresence?: true;
       readonly firstArrival?: true;
+      readonly located?: number;
     };
 
 export const UnloadCode = { ABOUT_TO_LOAD_NEW_MAP: 0, ABOUT_TO_TRASH_WORLD: 1 } as const;
@@ -475,7 +477,7 @@ export class SectorFlow {
     this.#flow.crows.possible = CROWS_POSSIBLE_BASE + s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
-    this.#withTactical((t) => this.#selectOnArrival(t));
+    const located = this.#selectOnArrival();
     this.#event({
       type: 'sectorLoaded',
       sector: sectorShortString(sector),
@@ -483,15 +485,19 @@ export class SectorFlow {
       loadScreen: this.#loadScreenView(),
       ...(enemyPresence ? { enemyPresence: true as const } : {}),
       ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
+      ...(located !== null ? { located } : {}),
     });
     return true;
   }
 
-  #selectOnArrival(t: TacticalState): void {
+  #selectOnArrival(): number | null {
+    const t = this.campaign.tactical?.state;
+    if (!t) return null;
     const preferred = this.#flow.preferredSelection;
     this.#flow.preferredSelection = NO_SELECTION;
-    locateToSoldier(t, t.soldiers[preferred] ?? null);
+    const located = locateToSoldier(t, t.soldiers[preferred] ?? null);
     enterTacticalScreen(t);
+    return located?.id ?? null;
   }
 
   #loadScreenView(): LoadScreenView {

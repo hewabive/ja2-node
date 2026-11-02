@@ -29,7 +29,7 @@ import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
-import { LOCATOR_FRAME_MS, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
+import { LOCATOR_FRAME_MS, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
@@ -43,6 +43,7 @@ const RADIO = 'interface/radio.sti';
 const HOSTILE_RADIO = 'interface/radio2.sti';
 const LOCATOR_FRAMES = 5;
 const NORMAL_LOCATOR_MS = (SHOW_LOCATOR_NORMAL_CYCLES - 1) * LOCATOR_FRAMES * LOCATOR_FRAME_MS;
+const FAST_LOCATOR_MS = (SHOW_LOCATOR_FAST_CYCLES - 1) * LOCATOR_FRAMES * LOCATOR_FRAME_MS;
 const LONGEST_LOCATOR_MS = 10_000;
 const EXCHANGE_CURSOR_SAMPLE_MS = 100;
 const SCROLL_STEP_MS = 20;
@@ -862,6 +863,29 @@ describe('the tactical input on the tactical screen', () => {
     f.key('/');
     expect([f.world.centred, f.world.located]).toEqual([[sel.gridNo], []]);
     expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it('centres the view on the merc a sector entry located at the next update, even on screen, with the normal locator (TacticalScreenLocateToSoldier)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const entered = merc(f, f.screen.selected ?? NOBODY);
+    f.screen.locateOnEntry(entered.id);
+    expect(f.world.centred).toEqual([]);
+    f.t.frame();
+    expect(f.world.centred).toEqual([entered.gridNo]);
+    expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS);
+  });
+
+  it('moves the view to a soldier the simulation locates only off screen, with the locator it names (soldierLocated)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    const [first, second] = f.client.view.soldiers.filter((v) => v.team === 0);
+    if (!first || !second) throw new Error('two mercs');
+    const located = (soldier: number, locator: 'none' | 'fast') => ({ tick, type: 'soldierLocated' as const, soldier, locator });
+    f.frames([{ tick, changed: [], removed: [], events: [located(first.id, 'none')] }]);
+    expect([f.world.centred, f.world.located.at(-1), imagesOf(f, RADIO).length]).toEqual([[], first.gridNo, 0]);
+    f.frames([{ tick, changed: [], removed: [], events: [located(second.id, 'fast')] }]);
+    expect(f.world.located.at(-1)).toBe(second.gridNo);
+    expect(locatorMs(f, RADIO)).toBe(FAST_LOCATOR_MS);
   });
 
   it('locates the next merc with space only off screen and flashes the normal locator, as LocateSoldier(SETLOCATOR) does', async () => {

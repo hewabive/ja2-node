@@ -127,6 +127,22 @@ describe('the selections the server makes when the tactical screen opens', () =>
     expect(selected(c)).toBe(ourSoldiers(c)[0]?.id);
   });
 
+  it('names the merc an entry selects for the view to locate; the first arrival finds nobody on the map yet (gfGameScreenLocateToSoldier)', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: 44, garrison: NO_GARRISON });
+    const entries = () => c.drainEvents().filter((e) => e.type === 'sectorLoaded');
+    landFirstSquad(c);
+    const [arrival] = entries();
+    expect(arrival).toMatchObject({ firstArrival: true });
+    expect(arrival && 'located' in arrival).toBe(false);
+    walkSquadToEastEdge(c);
+    const [first, chosen] = ourSoldiers(c);
+    if (!first || !chosen) throw new Error('two mercs');
+    expect(c.dispatch({ type: 'select', soldier: chosen.id }).ok).toBe(true);
+    expect(c.dispatch({ type: 'exitSector', soldier: first.id, direction: 'east', who: 'squad' }).ok).toBe(true);
+    runTicks(c, WALK_OFF_TICKS, () => c.state.worldSector?.x === A10.x);
+    expect(entries()).toMatchObject([{ sector: 'A10', located: chosen.id }]);
+  });
+
   it('selects in the next sector the merc who was selected when the squad left, not the first one (gPreferredInitialSelectedGuy)', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 44, garrison: NO_GARRISON });
     landFirstSquad(c);

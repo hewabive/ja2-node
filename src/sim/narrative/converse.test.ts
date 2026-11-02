@@ -3,7 +3,7 @@ import { type FakeHost, fakeHost, NPC_TYPE, recordArray, testSoldier } from '../
 import { type NpcRecord, QuoteFlag, UiCode } from '../../content/formats/npc.ts';
 import { Approach, NpcAction, StandardQuote } from '../../content/narrative/npc-constants.ts';
 import { TICK_MS } from '../clock.ts';
-import { AlertStatus, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
+import { AlertStatus, TEAM_FIRST_ID, Team, Visible } from '../tactical/soldier.ts';
 import {
   converse,
   deleteTalkingMenu,
@@ -287,6 +287,22 @@ describe('triggers and scripted sequences', () => {
     expect(host.talk.initiatedBy).toBe('npc');
     expect(host.context.src).toBe(MERC_ID);
     expect(kinds(host)).toEqual(['quote 40']);
+  });
+
+  it('flashes the fast locator of a seen NPC a trigger with lines waits for and moves the view to him; an unseen one gets none (HandleNPCTriggerNPC)', () => {
+    const records = recordArray({ 3: { approachRequired: Approach.TRIGGER_NPC, quoteNum: 40, numQuotes: 1 } });
+    const located = (host: FakeHost) => host.emitted.filter((e) => e.type === 'soldierLocated');
+    const unseen = setup(records);
+    triggerNpcRecord(unseen, NPC, 3);
+    stepDialogue(unseen);
+    expect([unseen.talk.waitingForTrigger, located(unseen)]).toEqual([true, []]);
+    const seen = setup(records);
+    const npc = seen.tactical()?.soldiers[NPC_ID];
+    if (!npc) throw new Error('no NPC');
+    npc.visible = Visible.SEEN;
+    triggerNpcRecord(seen, NPC, 3);
+    stepDialogue(seen);
+    expect(located(seen)).toEqual([{ type: 'soldierLocated', soldier: NPC_ID, locator: 'fast' }]);
   });
 
   it('lets the open panel’s NPC say another NPC’s quote-0 trigger: quote 0 is a line for the wait but not for closing the panel', () => {

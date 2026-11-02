@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (gun path, the rocket rifle imprint), HandItemWorks;
-// @src Soldier_Control.cc EVENT_FireSoldierWeapon, SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon,
+// @src Soldier_Control.cc EVENT_FireSoldierWeapon (with the view sent to a seen soldier not of ours turning to shoot),
+// @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon,
 // @src PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
 // @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
@@ -39,7 +40,7 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, shownToPlayer, Team } from '../soldier.ts';
+import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { heardOnly } from '../unseen-sources.ts';
 import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
@@ -331,7 +332,10 @@ export function eventFireSoldierWeapon(t: TacticalState, s: Soldier, target: num
     s.turningFromPronePosition = TurningFromProne.OFF;
     setSoldierDirection(t, s, s.desiredDirection);
     initNewSoldierAnim(t, s, selectFireAnimation(t, s, endHeight(t.content, s.state)), 0, false);
-  } else s.turningToShoot = true;
+    return;
+  }
+  s.turningToShoot = true;
+  if (s.team !== Team.OUR && s.visible !== Visible.HIDDEN) t.events.push({ type: 'soldierLocated', soldier: s.id, locator: 'none' });
 }
 
 export function turnToShoot(t: TacticalState, s: Soldier): void {

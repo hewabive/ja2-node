@@ -276,6 +276,24 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(inventory(f, 0).find((i) => i.slot === BIG_POCKET)).toMatchObject({ item: 'CLIP9_15', count: 2 });
   });
 
+  it('selects the owner of the item held over the map and moves the view to him once per object taken from a slot (DrawItemTileCursor)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const owner = f.client.view.soldiers.find((s) => s.id === f.screen.inventory.cursor?.source.soldier);
+    const other = f.client.view.soldiers.find((s) => s.team === owner?.team && s.id !== owner.id);
+    if (!owner || !other) throw new Error('two mercs');
+    f.screen.select(other.id, false);
+    const before = f.world.located.length;
+    const { width } = f.t.runtime.geometry();
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    pointerTo(f, width / 2 + 1, VIEW_ROW_Y);
+    expect([f.screen.selected, f.world.located.slice(before)]).toEqual([owner.id, [owner.gridNo]]);
+    f.screen.select(other.id, false);
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect([f.screen.selected, f.world.located.slice(before)]).toEqual([owner.id, [owner.gridNo]]);
+  });
+
   it('hides the held item over the view from the pending scroll step and shows it again once the scroll stops', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);

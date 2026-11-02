@@ -75,6 +75,10 @@ interface Loaded {
   readonly uiCursors: UiCursorTable;
 }
 
+interface SectorEntry {
+  readonly located: number | null;
+}
+
 export class TacticalHost {
   readonly hook: TacticalHook;
   readonly #o: TacticalHostOptions;
@@ -95,6 +99,7 @@ export class TacticalHost {
   #screen: TacticalScreen | null = null;
   #screenFor: Loaded | null = null;
   #loadScreen: number | null = null;
+  #entry: SectorEntry | null = null;
   #redItemGlow = false;
   #refreshing = false;
   readonly #requestedProfiles = new Set<number>();
@@ -346,7 +351,18 @@ export class TacticalHost {
     this.#o.page.world = this.#worldLayer();
     const target = storyCameraTarget(this.#o.session.view);
     if (target !== null) loaded.presenter.centerOn(target);
-    if (this.#screen && this.#screenFor === loaded) return this.#screen;
+    const screen = (this.#screenFor === loaded ? this.#screen : null) ?? this.#createScreen(loaded, flow);
+    this.#locateOnEntry(screen);
+    return screen;
+  }
+
+  #locateOnEntry(screen: TacticalScreen): void {
+    const entry = this.#entry;
+    this.#entry = null;
+    if (entry && entry.located !== null) screen.locateOnEntry(entry.located);
+  }
+
+  #createScreen(loaded: Loaded, flow: TacticalFlow): TacticalScreen {
     const ui = this.#o.ui;
     const env: TacticalEnvironment = {
       runtime: ui.runtime,
@@ -386,10 +402,11 @@ export class TacticalHost {
       battleSound: (soldier, sound) => this.#battleSound(soldier, sound),
       facts: () => this.#mapFacts(),
     };
-    this.#screen = new TacticalScreen(env);
+    const screen = new TacticalScreen(env);
+    this.#screen = screen;
     this.#screenFor = loaded;
-    this.#screen.dialogue.frames(this.#dialogueBeforeScreen.splice(0));
-    return this.#screen;
+    screen.dialogue.frames(this.#dialogueBeforeScreen.splice(0));
+    return screen;
   }
 
   #changeSettings(change: SettingsChange): void {
@@ -448,7 +465,11 @@ export class TacticalHost {
     this.#sound.frames(frames);
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
-      for (const event of frame.events ?? []) if (event.type === 'sectorLoaded' && event.loadScreen) this.#loadScreen = event.loadScreen.id;
+      for (const event of frame.events ?? []) {
+        if (event.type !== 'sectorLoaded') continue;
+        if (event.loadScreen) this.#loadScreen = event.loadScreen.id;
+        this.#entry = { located: event.located ?? null };
+      }
     if (this.#screen) this.#screen.frames(frames);
     else this.#keepDialogue(frames);
   }
@@ -467,6 +488,7 @@ export class TacticalHost {
   welcome(): void {
     this.#sound.director?.reset(this.#o.session.soldiers, this.#o.session.openContainers);
     this.#frames?.reset();
+    this.#entry = null;
     this.#loaded?.presenter.resetEffects();
   }
 

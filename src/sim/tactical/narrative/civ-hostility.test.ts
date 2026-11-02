@@ -19,7 +19,7 @@ import { damageSoldierFromBlast } from '../explosions/blast-damage.ts';
 import type { GameEvent } from '../game-events.ts';
 import { Caller, Opp } from '../perception/opp.ts';
 import { manLooksForMan } from '../perception/sight.ts';
-import { AlertStatus, Attitude, Body, CivilianGroup, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, OKLIFE, Orders, Side, type Soldier, Team, Visible } from '../soldier.ts';
 import { sectorMapOf } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import {
@@ -46,6 +46,7 @@ beforeAll(async () => {
 const NORTH = 0;
 const MERC_AT = 80 * 160 + 80;
 const NEAR = MERC_AT + 5;
+const IN_FRONT = MERC_AT - 160 * 2;
 const FAR = MERC_AT + 160 * 40;
 const DUEL_TICKS = 200_000;
 
@@ -377,6 +378,23 @@ describe('sight rules', () => {
     sim.attachWorldClock({ seconds: 86400 + 3 * 3600 });
     newSightingRules(sim.state, hick, merc);
     expect(hick.neutral).toBe(false);
+  });
+
+  it('moves the view to a seen hick turning hostile at night with the normal locator; not to an unseen one (OppList.cc ManSeesMan)', () => {
+    const located = (sim: TacticalSim) => sim.drainEvents().filter((e) => e.type === 'soldierLocated');
+    const unseen = setup();
+    const behind = civilian(unseen.sim, 116, NEAR, CivilianGroup.HICKS);
+    newSightingRules(unseen.sim.state, behind, unseen.sim.state.soldiers[0] as never);
+    expect([behind.neutral, behind.visible, located(unseen.sim)]).toEqual([false, Visible.HIDDEN, []]);
+    const { sim } = setup();
+    const hick = civilian(sim, 116, IN_FRONT, CivilianGroup.HICKS);
+    sim.attachWorldClock({ seconds: 86400 + 12 * 3600 });
+    sim.lookAround();
+    sim.drainEvents();
+    expect(hick.visible).toBe(Visible.SEEN);
+    sim.attachWorldClock({ seconds: 86400 + 3 * 3600 });
+    newSightingRules(sim.state, hick, sim.state.soldiers[0] as never);
+    expect(located(sim)).toMatchObject([{ type: 'soldierLocated', soldier: hick.id, locator: 'normal' }]);
   });
 
   it('sends a neutral assassin seeking and starts Carmen hunting Slay', () => {

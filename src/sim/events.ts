@@ -62,6 +62,14 @@ export interface AiTurnEvent extends SimEventBase {
   readonly soldier: number;
 }
 
+export type SoldierLocator = 'none' | 'normal' | 'fast';
+
+export interface SoldierLocatedEvent extends SimEventBase {
+  readonly type: 'soldierLocated';
+  readonly soldier: number;
+  readonly locator: SoldierLocator;
+}
+
 export interface EnemyTurnProgressEvent extends SimEventBase {
   readonly type: 'enemyTurnProgress';
   readonly done: number;
@@ -397,6 +405,7 @@ export interface SectorLoadedEvent extends SimEventBase {
   readonly loadScreen?: LoadScreenView;
   readonly enemyPresence?: true;
   readonly firstArrival?: true;
+  readonly located?: number;
 }
 
 export interface EnemyPresenceEvent extends SimEventBase {
@@ -625,6 +634,7 @@ export type SimEvent =
   | TurnStartedEvent
   | InterruptEvent
   | AiTurnEvent
+  | SoldierLocatedEvent
   | EnemyTurnProgressEvent
   | InterruptEndedEvent
   | CombatEndedEvent

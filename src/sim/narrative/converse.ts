@@ -7,7 +7,8 @@
 // @src NPCReachedDestination, NPCConsiderInitiatingConv; Tactical/Interface_Dialogue.cc InitiateConversationFull,
 // @src HandlePendingInitConv, InternalInitiateConversation, DeleteTalkingMenu, HandleTalkingMenuEscape,
 // @src TalkPanelClickCallback, TalkPanelNameRegionClickCallback, NPCGotoGridNo, NPCDoAction,
-// @src SourceSoldierPointerIsValidAndReachableForGive, HandleNPCTriggerNPC, HandleNPCTrigger,
+// @src SourceSoldierPointerIsValidAndReachableForGive, HandleNPCTriggerNPC (the fast locator and the view on a seen NPC,
+// @src 2026-11-02), HandleNPCTrigger,
 // @src HandleWaitTimerForNPCTrigger, HandleNPCGotoGridNo; TacticalAI/AIUtils.cc ClosestPC; Dialogue_Control.cc
 // @src HandleDialogue (face flags).
 
@@ -34,7 +35,7 @@ import { initNewSoldierAnim, states } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { Opp } from '../tactical/perception/opp.ts';
-import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
+import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, Side, type Soldier, Team, Visible } from '../tactical/soldier.ts';
 import { teamMembers, whoIsThere } from '../tactical/state.ts';
 import {
   addDialogueEvent,
@@ -665,6 +666,7 @@ export function handleNpcTriggerNpc(host: NarrativeHost, npc: number, record: nu
   if (show) {
     talk.waitingForTrigger = true;
     talk.triggerWaitStart = host.tactical()?.clockMs ?? 0;
+    if (s.visible !== Visible.HIDDEN) host.emit({ type: 'soldierLocated', soldier: s.id, locator: 'fast' });
   } else handleNpcTrigger(host);
   if (recordHasDialogue(host, npc, record)) deleteTalkingMenu(host, 'script');
 }

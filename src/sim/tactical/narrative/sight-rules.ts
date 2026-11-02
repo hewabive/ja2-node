@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc ManSeesMan (new sighting of an OUR merc: civilian groups, Carmen, Eldin, the
-// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey);
+// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote, located when seen; our mercs
+// @src seeing Mike and Joey);
 // @src HandleManNoLongerSeen (the run to block the brothel guard room).
 
 import { idiv } from '../../../core/int.ts';
@@ -11,7 +12,7 @@ import { AiAction } from '../ai/actions.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { stopMerc } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
-import { Attitude, CivilianGroup, NO_PROFILE, NOWHERE, Orders, type Soldier, Team } from '../soldier.ts';
+import { Attitude, CivilianGroup, NO_PROFILE, NOWHERE, Orders, type Soldier, Team, Visible } from '../soldier.ts';
 import { sectorMapOf, type TacticalState } from '../state.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { addToShouldBecomeHostileOrSayQuoteList, inBrothelGuardRoom, makeCivHostile } from './civ-hostility.ts';
@@ -113,9 +114,13 @@ function unprofiledCivilianSees(t: TacticalState, s: Soldier, opp: Soldier): voi
     } else if (roomOf(t, opp.gridNo) === BrothelRooms.GUARD_ROOM) goHostileAndFight(t, s);
   } else if (s.civilianGroup === CivilianGroup.HICKS && !t.narrative.fact(Fact.HICKS_MARRIED_PLAYER_MERC)) {
     const minute = minuteOfDay(t);
-    if ((minute < HicksCurfew.MORNING_MINUTE || minute > HicksCurfew.EVENING_MINUTE) && goHostileAndFight(t, s))
-      t.narrative.beginCivQuote(s, HICKS_SEE_US_AT_NIGHT, 0);
+    if ((minute < HicksCurfew.MORNING_MINUTE || minute > HicksCurfew.EVENING_MINUTE) && goHostileAndFight(t, s)) hicksSeeUsAtNight(t, s);
   }
+}
+
+function hicksSeeUsAtNight(t: TacticalState, s: Soldier): void {
+  if (s.visible !== Visible.HIDDEN) t.events.push({ type: 'soldierLocated', soldier: s.id, locator: 'normal' });
+  t.narrative.beginCivQuote(s, HICKS_SEE_US_AT_NIGHT, 0);
 }
 
 export function newSightingRules(t: TacticalState, s: Soldier, opp: Soldier): void {

@@ -9,7 +9,8 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (CTRL cleans up the stack clicked, UIHandleItemPlacement
 // @src with the cursor's objects of the same item), SMInvClickCallbackSecondary (the stack popup for a
 // @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback,
-// @src MergeMessageBoxCallBack, ReevaluateItemHatches.
+// @src MergeMessageBoxCallBack, ReevaluateItemHatches; Interface_Items.cc InternalBeginItemPointer and EndItemPointer
+// @src (gbItemPointerLocateGood from a slot's object taken into the cursor until it leaves the cursor, 2026-11-02).
 
 import { idiv } from '../../../core/int.ts';
 import type { Placements } from '../../../protocol/hints.ts';
@@ -104,6 +105,7 @@ export interface InventoryHooks {
 export class InventoryPanel {
   readonly #hooks: InventoryHooks;
   #cursor: ItemCursor | null = null;
+  #locateGoodFor: ItemCursor | null = null;
   #pending = false;
   #hovered: { slot: number; since: number } | null = null;
   #highlight: { soldier: number; slots: ReadonlySet<number>; applyOnMerc: boolean } | null = null;
@@ -137,6 +139,12 @@ export class InventoryPanel {
   setCursor(cursor: ItemCursor | null): void {
     this.#cursor = cursor;
     this.#highlight = null;
+  }
+
+  takeItemPointerLocate(): boolean {
+    const good = this.#cursor !== null && this.#cursor === this.#locateGoodFor;
+    this.#locateGoodFor = null;
+    return good;
   }
 
   #env(): InventoryEnvironment {
@@ -281,6 +289,7 @@ export class InventoryPanel {
       }
       this.stopGlow(sm.id, slot);
       this.#cursor = cursorFromSlot(sm, slot, shift);
+      this.#locateGoodFor = this.#cursor;
       this.#hovered = null;
       this.#highlight = null;
       return;
