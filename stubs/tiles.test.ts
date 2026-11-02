@@ -109,6 +109,12 @@ describe('stub tile families', () => {
       expect(surface(type).structures, type).toBeUndefined();
   });
 
+  it('draw the roof marker FIRSTPOINTERS11 and leave the pointer tiles before it undrawn', () => {
+    const frames = surface('FIRSTPOINTERS').sprite.frames;
+    expect(frames.map((f) => f.raster.pixels.some((p) => p !== 0))).toEqual([...Array(10).fill(false), true]);
+    expect(frames.slice(0, 10).every((f) => f.raster.width === 0 && f.raster.height === 0)).toBe(true);
+  });
+
   it('draw every blood pool graphic, four sizes in four variants', async () => {
     const t = await tables();
     for (const type of ['HUMANBLOOD', 'CREATUREBLOOD'])

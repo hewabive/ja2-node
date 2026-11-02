@@ -164,7 +164,7 @@ describe('stub pack', () => {
         const png = await data.vfs.read(f.path.replace(/[^/]+$/, manifest.image));
         const pic = pictureFromStubSprite(manifest, png);
         expect(pic.frames.length).toBe(manifest.frames.length);
-        expect(pic.frames.every((fr) => fr.pixels.some((p) => p !== 0))).toBe(true);
+        expect(pic.frames.every((fr) => fr.pixels.length === 0 || fr.pixels.some((p) => p !== 0))).toBe(true);
       }
       const soldier = data.vfs.stat('stubs/soldier/capsule.sprite.json');
       expect(soldier?.layer).toBe('stubs');

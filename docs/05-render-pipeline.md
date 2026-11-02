@@ -40,7 +40,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
 | `content/world/zstrip.ts`, `shading.ts`, `render-bounds.ts` | ZStripInfo, the shade palettes, the scroll rectangle and absolute screen frame (shared with the simulation) |
-| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
+| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), the roof marker (`roof-markers.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
 | `app/tactical/overhead-map.ts` | The overhead map, composed once per sector from the small tiles |
 | `devtools/map-viewer/` | A developer page that renders any map with picking |
 
@@ -101,8 +101,10 @@ where the flat projection picks its tile.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`; the client applies the original's
 node flags and recomputes the wireframes of the whole map (`reveal.ts`). Structure changes, blood pools, corpses, smoke,
-bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. On the
-stub pack an explosion shows only its light: the stubs have no explosion graphics.
+bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
+roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
+starting or ending, a fade, our merc's climb, a step off the tile (`roof-markers.ts`; deviation "Roof marker after a
+load"). On the stub pack an explosion shows only its light: the stubs have no explosion graphics.
 
 **Not drawn**: animated and dynamic land (nor does the original draw it), the cover and line-of-sight tiles (`28`),
 and the original's redundant-tile optimisation, which changes nothing visible.
@@ -127,6 +129,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/r
 | An item on a structure sorts at the structure z plus its height in z units, not world units | `dynamic-scene.test.ts` |
 | A node at an absolute position (a bullet) is shifted a cell west, which puts it on its tile's box | `dynamic-scene.test.ts` |
 | A miss frame lasts until more than its delay has passed | `effect-animations.test.ts` |
+| An enemy who climbs onto a roof in sight gets no roof marker until he walks and stops: only our merc's climb places one | `roof-markers.test.ts` |
+| A soldier seen again before his fade-out ends gets no roof marker until he walks and stops; one who walks back into sight on a roof is marked on his tile until he steps off it | `roof-markers.test.ts` |
 
 Not pinned yet:
 - Cliff-hang objects sort at z 0, so they lose to every object pixel drawn before them.

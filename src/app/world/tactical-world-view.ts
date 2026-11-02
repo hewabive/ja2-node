@@ -1,4 +1,4 @@
-import { stateId } from '../../content/anim/tables.ts';
+import { AnimFlags, stateId } from '../../content/anim/tables.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import type {
   BloodPoolView,
@@ -30,6 +30,7 @@ import {
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
+import { ROOF_MARKER_TILE, RoofMarkers } from './roof-markers.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
 import { defaultHostile, nightTime, type SoldierLightOptions, SoldierScene } from './soldier-scene.ts';
@@ -39,6 +40,7 @@ import { type LoadedWorld, loadWorld, renderWorldOf } from './world-loader.ts';
 
 const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
 const CROW_FLY = 'CROW_FLY';
+const CLIMB_UP_ROOF = 'CLIMBUPROOF';
 const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
@@ -124,6 +126,8 @@ export class TacticalWorldView {
   readonly #bulletTiles: BulletTiles | null;
   readonly #effectAnimations = new EffectAnimations();
   readonly #crowShadows: CrowShadows;
+  readonly #roofMarkers: RoofMarkers;
+  readonly #roofMarkerTile: number | null;
   #drawnEffects = 0;
   #drawnBullets = 0;
   #drawnImpacts = 0;
@@ -135,12 +139,19 @@ export class TacticalWorldView {
     this.#soldiers = presentation.soldiers;
     this.#frames = presentation.frames ?? null;
     this.#effects = presentation.effects ?? null;
-    this.#crowShadows = new CrowShadows(stateId(presentation.soldiers.assets.tables, CROW_FLY));
+    const animations = presentation.soldiers.assets.tables;
+    this.#crowShadows = new CrowShadows(stateId(animations, CROW_FLY));
     this.#templates = presentation.lightTemplates ?? new LightTemplates();
     this.#itemTiles = itemTiles;
     this.#roofed = Uint8Array.from({ length: world.level.heights.length }, (_, g) =>
       levelTilesAt(world.level.layers.roofs, g).length > 0 ? 1 : 0,
     );
+    this.#roofMarkers = new RoofMarkers({
+      climbUpRoof: stateId(animations, CLIMB_UP_ROOF),
+      stationary: (animation) => ((animations.controls[animation]?.flags ?? 0) & AnimFlags.STATIONARY) !== 0,
+      hasRoof: (g) => this.#roofed[g] === 1,
+    });
+    this.#roofMarkerTile = world.tables.tileIndexByName.get(ROOF_MARKER_TILE) ?? null;
     this.#bulletTiles = bulletTiles(world.tables);
     const sprites = renderer.setWorld(renderWorldOf(world));
     this.#soldiers.setSprites(sprites);
@@ -237,6 +248,13 @@ export class TacticalWorldView {
 
   resetEffects(): void {
     this.#effectAnimations.reset();
+    this.#roofMarkers.reset();
+  }
+
+  #roofMarkerNodes(soldiers: readonly SoldierView[]): WorldUiNode[] {
+    const gridNos = this.#roofMarkers.update(soldiers);
+    const tile = this.#roofMarkerTile;
+    return tile === null ? [] : gridNos.map((gridNo) => ({ gridNo, layer: 'roof', tile }));
   }
 
   #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
@@ -347,7 +365,7 @@ export class TacticalWorldView {
       revealedRooms: new Set(view.revealedRooms),
       soldiers,
       items: this.#items(view.items),
-      uiNodes: f.uiNodes,
+      uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(view.soldiers)],
       aniTiles: animatedTiles,
       structNodes: [
         ...effectStructNodes(effects, this.world.tables, this.world.tiles),

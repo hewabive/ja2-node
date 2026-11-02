@@ -67,6 +67,9 @@ const SHATTER_FRAMES = 5;
 const SHATTER_SHARDS = 9;
 const SHATTER_TOP = -38;
 const AUX_ANIMATED_TILE = 0x02;
+const ROOF_MARKER_SUBINDEX = 11;
+const ROOF_MARKER_INSET = 3;
+const ROOF_MARKER_SHADE = 12;
 
 export type Side = 'left' | 'right';
 type WallFace = 'solid' | 'window' | 'shattered';
@@ -220,6 +223,26 @@ function slantedRoof(ramp: RampName, rise: number): StubFrame {
   const r = frame.raster;
   for (let k = 0; k <= ROOF_RIDGE_HEIGHT + rise; k++) r.set(HALF_W, TILE_H / 2 + rise - k, color(ramp, 12));
   return frame;
+}
+
+function undrawnFrame(): StubFrame {
+  return { raster: new IndexedRaster(0, 0), ox: 0, oy: 0 };
+}
+
+function roofMarker(): StubFrame {
+  const r = new IndexedRaster(TILE_W, TILE_H);
+  const c = color('teal', ROOF_MARKER_SHADE);
+  for (let y = ROOF_MARKER_INSET; y < TILE_H - ROOF_MARKER_INSET; y++) {
+    const dy = (y < TILE_H / 2 ? y : TILE_H - 1 - y) - ROOF_MARKER_INSET;
+    const half = 2 + dy * 2;
+    r.set(HALF_W - half, y, c);
+    r.set(HALF_W + half - 1, y, c);
+  }
+  return { raster: r, ox: 0, oy: 0 };
+}
+
+function pointers(): StubFrame[] {
+  return [...Array.from({ length: ROOF_MARKER_SUBINDEX - 1 }, undrawnFrame), roofMarker()];
 }
 
 function bulletDot(c: number): StubFrame {
@@ -494,6 +517,7 @@ export const STUB_TILE_SURFACES: readonly StubSurface[] = [
       frames: Array.from({ length: SHATTER_SETS * SHATTER_FRAMES }, (_, i) => shatter(Math.floor(i / SHATTER_FRAMES), i % SHATTER_FRAMES)),
     },
   },
+  { type: 'FIRSTPOINTERS', sprite: { path: 'pointers', frames: pointers() } },
   {
     type: 'BULLETTILE',
     sprite: { path: 'bullet', frames: [bulletDot(color('gray', BULLET_SHADE)), bulletDot(color('gray', BULLET_SHADOW_SHADE))] },

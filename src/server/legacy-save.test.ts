@@ -35,6 +35,7 @@ const SURFACES_ADDED_AFTER_070 = new Set([
   'glassshatter.sprite.json',
   'blood.sprite.json',
   'creatureblood.sprite.json',
+  'pointers.sprite.json',
 ]);
 const SCRIPTS_ADDED_AFTER_070 = [
   'THROW_KNIFE',
