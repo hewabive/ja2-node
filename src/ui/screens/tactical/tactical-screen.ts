@@ -192,7 +192,9 @@ interface PanelFaceAnimation {
 export class TacticalScreen implements Screen {
   readonly id = TACTICAL_SCREEN;
   readonly soundScreen = UiScreenKind.GAME;
-  readonly rendersTooltips = true;
+  get rendersTooltips(): boolean {
+    return !this.controls.scrolling;
+  }
   readonly drawsWorld = true;
   readonly #env: TacticalEnvironment;
   readonly #team: TeamPanelController;

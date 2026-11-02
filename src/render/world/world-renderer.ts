@@ -22,7 +22,6 @@ import {
   ROOF_LEVEL_HEIGHT,
   ROW_COUNT,
   rowOf,
-  screenToGridNo,
   topYOf,
   type Viewport,
   visibleRows,
@@ -174,7 +173,6 @@ export class WorldRenderer {
   #scene: LoadedScene | null = null;
   #staticUploads = 0;
   #picture = 0;
-  #last: WorldFrameInput | null = null;
   #stats: WorldDrawStats = NO_STATS;
   #rebuildMs = 0;
 
@@ -225,7 +223,6 @@ export class WorldRenderer {
       uploaded: false,
       shadeVersion: -1,
     };
-    this.#last = null;
     this.#memo.forget();
     return sprites;
   }
@@ -301,7 +298,6 @@ export class WorldRenderer {
     const gl = this.#gl;
     const resized = this.#front.width !== f.viewport.width || this.#front.height !== f.viewport.height;
     for (const fb of this.#framebuffers()) fb.resize(f.viewport.width, f.viewport.height);
-    this.#last = f;
     const s = this.#scene;
     if (!s) {
       this.#front.begin();
@@ -455,11 +451,6 @@ export class WorldRenderer {
 
   get checks(): PartialRedrawChecks | null {
     return this.#check?.results ?? null;
-  }
-
-  gridNoAt(sx: number, sy: number): number | null {
-    const f = this.#last;
-    return f ? screenToGridNo(sx, sy, f.viewport, f.camera) : null;
   }
 
   get placedSoldiers(): readonly PlacedSoldier[] {

@@ -23,6 +23,7 @@ import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
+import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
@@ -44,6 +45,7 @@ const LOCATOR_FRAMES = 5;
 const NORMAL_LOCATOR_MS = (SHOW_LOCATOR_NORMAL_CYCLES - 1) * LOCATOR_FRAMES * LOCATOR_FRAME_MS;
 const LONGEST_LOCATOR_MS = 10_000;
 const EXCHANGE_CURSOR_SAMPLE_MS = 100;
+const SCROLL_STEP_MS = 20;
 const EXCHANGE_CURSOR_SAMPLES = 30;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
@@ -574,6 +576,35 @@ describe('the tactical input on the tactical screen', () => {
     for (let i = 0; i < 5; i++) f.t.frame(20);
     expect(f.world.scrolled.length).toBeGreaterThan(0);
     expect(f.world.scrolled[0]).toEqual({ dx: -40, dy: 0 });
+  });
+
+  it('clears the tile cursor, the path, the mouse cursor and the fast help from the pending step until the scroll stops', async () => {
+    const f = await inCombat();
+    const tile = merc(f, 0).gridNo - 2;
+    const at = f.world.pickPoint(tile);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(8);
+    await f.clickAt(at.x, at.y);
+    await f.settle(8);
+    expect(f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'))).toBe(true);
+    pointer(f, 'pointerMove', 2, at.y, MouseButton.LEFT);
+    f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.scrolled).toEqual([]);
+    expect([f.screen.controls.scrolling, f.world.markers, f.t.runtime.cursor.current, f.screen.rendersTooltips]).toEqual([
+      true,
+      [],
+      VIDEO_NO_CURSOR,
+      false,
+    ]);
+    expect(f.screen.controls.input.apNumber()).toBeNull();
+    for (let i = 0; i < 3; i++) f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.scrolled.length).toBeGreaterThan(0);
+    expect([f.world.markers, f.t.runtime.cursor.current]).toEqual([[], VIDEO_NO_CURSOR]);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    expect([f.screen.controls.scrolling, f.screen.rendersTooltips]).toEqual([false, true]);
+    expect(f.world.markers.some((m) => m.gridNo === tile)).toBe(true);
+    expect(f.t.runtime.cursor.current).not.toBe(VIDEO_NO_CURSOR);
   });
 
   it('shows the path and the AP cost on the first click in combat and moves on the confirming click', async () => {

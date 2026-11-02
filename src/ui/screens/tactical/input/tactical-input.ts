@@ -221,6 +221,7 @@ export class TacticalInput {
   #exchangeOk = false;
   #exchangeSince = 0;
   #overExchangePosition = false;
+  #scrolling = false;
   #reverse = false;
   #ctrlDown = false;
   #altDown = false;
@@ -545,6 +546,13 @@ export class TacticalInput {
 
   #pathfindDone(): boolean {
     return this.#now - this.#pathRestSince >= PATHFIND_DELAY_MS;
+  }
+
+  setScrolling(on: boolean): void {
+    if (on === this.#scrolling) return;
+    this.#scrolling = on;
+    if (on) this.#erasePath();
+    else this.#plotNew = true;
   }
 
   #erasePath(): void {
@@ -2772,7 +2780,7 @@ export class TacticalInput {
     const sel = this.#sel();
     const level = this.#host.interfaceLevel();
     const mapPos = this.#mapPos();
-    if (this.#host.itemInCursor()) return out;
+    if (this.#host.itemInCursor() || this.#scrolling) return out;
     if (mapPos !== null && this.#cursor !== 'NO_UICURSOR') {
       out.push(
         ...cursorMarkers(this.#env().uiCursors, {
@@ -2803,7 +2811,7 @@ export class TacticalInput {
 
   apNumber(): { readonly marker: WorldMarker; readonly value: number; readonly black: boolean } | null {
     const mapPos = this.#mapPos();
-    if (mapPos === null || !this.#displayAp || !this.#combat()) return null;
+    if (mapPos === null || this.#scrolling || !this.#displayAp || !this.#combat()) return null;
     if (!this.#env().uiCursors.has(this.#cursor, UiCursorFlag.SNAPPING)) return null;
     return {
       marker: apNumberMarker(mapPos, this.#host.interfaceLevel()),
@@ -2818,7 +2826,7 @@ export class TacticalInput {
 
   mouseText(): MouseText | null {
     const env = this.#env();
-    if (!env.uiCursors.has(this.#cursor, UiCursorFlag.FREEFLOWING)) return null;
+    if (this.#scrolling || !env.uiCursors.has(this.#cursor, UiCursorFlag.FREEFLOWING)) return null;
     const ap =
       this.#displayAp && this.#combat()
         ? {
@@ -2839,7 +2847,7 @@ export class TacticalInput {
 
   viewportCursor(): number {
     const env = this.#env();
-    if (this.#host.itemInCursor()) return VIDEO_NO_CURSOR;
+    if (this.#host.itemInCursor() || this.#scrolling) return VIDEO_NO_CURSOR;
     const entry = env.uiCursors.entry(this.#cursor);
     if (this.#cursor === 'NO_UICURSOR' || entry.flags & UiCursorFlag.SNAPPING || !entry.cursor) return VIDEO_DEFAULT_TO_NO_CURSOR;
     if (entry.cursor === 'VIDEO_DEFAULT_TO_NO_CURSOR') return VIDEO_DEFAULT_TO_NO_CURSOR;

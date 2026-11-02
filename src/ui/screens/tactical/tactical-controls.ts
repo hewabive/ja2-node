@@ -14,7 +14,9 @@
 // @src ToggleItemGlow; Soldier_Control.cc HandlePlayerTogglingLightEffects; Turn_Based_Input.cc ToggleTreeTops,
 // @src ToggleWireFrame (the messages); src/game/TileEngine/RenderWorld.cc ScrollWorld (the arrow keys and the
 // @src 15-pixel screen edges, 20 << (SHIFT ? 2 : 1) pixels across and half down per NEXTSCROLL 20 ms, the pending first
-// @src step, no scrolling with ALT or while the UI is locked or a menu is up); src/game/Tactical/Interface_Control.cc
+// @src step, no scrolling with ALT or while the UI is locked or a menu is up; ClearInterface at the pending step and
+// @src RestoreInterface as the scroll stops, Interface.cc), GameScreen.cc MainGameScreenHandle (no SetUpInterface and
+// @src no fast help while scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
 // @src (burst locations, arrows on our turn); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
 // @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
@@ -297,6 +299,7 @@ export class TacticalControls {
     if (this.overhead.open) return;
     const env = this.#env();
     this.#scroll(now);
+    this.input.setScrolling(this.scrolling);
     const region = this.#screen.viewportRegion();
     const inArea = region?.inArea === true && env.runtime.regions.current === region;
     this.input.frame(now, inArea);
@@ -318,6 +321,10 @@ export class TacticalControls {
     if (region.cursor !== id) region.changeCursor(id);
     if (inArea) runtime.cursor.set(id, runtime.clock.ja2Now);
     runtime.cursor.mouseText = inArea ? this.input.mouseText() : null;
+  }
+
+  get scrolling(): boolean {
+    return this.#scrollPending || this.#scrollInertia;
   }
 
   #ignoreScrolling(): boolean {

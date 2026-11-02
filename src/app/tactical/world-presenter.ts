@@ -9,7 +9,8 @@
 // @src (THIRDPOINTERS1/2 behind the overhead bars); src/game/Tactical/Interface_Control.cc SetUpInterface (the UI
 // @src nodes of the tactical input); src/game/TileEngine/RenderWorld.cc ScrollWorld, HandleScrollDirections (the
 // @src scrolled-to-edge flags, the scroll steps); src/game/TileEngine/Interactive_Tiles.cc
-// @src InternalGetCurInteractiveTile (doors and switches; the tile under the pointer, not the picture's pixels).
+// @src InternalGetCurInteractiveTile (doors and switches; the tile under the pointer, not the picture's pixels);
+// @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile under the pointer from the current render centre).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
@@ -26,6 +27,7 @@ import {
   cameraOffset,
   mapCenter,
   ROOF_LEVEL_HEIGHT,
+  screenToGridNo,
   type Viewport,
   WALL_HEIGHT,
   worldOrigin,
@@ -247,7 +249,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   gridNoAt(x: number, y: number): number | null {
     if (y < this.#top || y >= this.#viewport.height) return null;
-    return this.#renderer.gridNoAt(x, y);
+    return screenToGridNo(x, y, this.#viewport, this.#camera);
   }
 
   radarViewport(): RadarBox | null {
