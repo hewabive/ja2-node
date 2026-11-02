@@ -384,6 +384,22 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.overhead.open).toBe(false);
   });
 
+  it('lifts a person on the overhead map by a fifth of his drawn height and brightens him while it is not zero', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    const raised = tacticalOf(f.session).state.soldiers.find((v) => v?.id === 1);
+    if (!raised) throw new Error('no merc 1');
+    raised.heightAdjustment = 58;
+    f.session.advance({ ticks: 1 });
+    f.client.refresh();
+    f.frames(f.client.takeFrames());
+    f.key('Insert');
+    const persons = imagesOf(f, 'interface/persons.sti').flatMap((i) => (i.kind === 'image' ? [i] : []));
+    const ground = Math.max(...persons.map((i) => i.y));
+    const lifted = persons.filter((i) => i.y !== ground);
+    expect(lifted.map((i) => [ground - i.y, i.shade?.red])).toEqual([[11, 310]]);
+  });
+
   it('points the diagnostics at the cell under the pointer, none over the panels, the overhead map cell while it is open', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tile = merc(f, 0).gridNo + 3;

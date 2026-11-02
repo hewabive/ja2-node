@@ -28,11 +28,13 @@ const PERSON_X = 2;
 const PERSON_Y = -5;
 const ITEM_Y = 6;
 const NAME_LIFT = 13;
-const ROOF_HEIGHT_ADJUSTMENT = 50;
 const SCALE = 5;
 const CLOSEST_RADIUS = 1;
 const WORLD_COLS = 160;
 const BLACK = rgb(0, 0, 0);
+const drawnHeight = (s: SoldierView) => Math.trunc(s.heightAdjustment ?? 0);
+const drawnRaised = (s: SoldierView) => drawnHeight(s) !== 0;
+const heightLift = (s: SoldierView) => idiv(drawnHeight(s), SCALE);
 const WHITE = rgb(255, 255, 255);
 const NORMAL_SHADE = { red: 256, green: 256, blue: 256, mono: false };
 const ROOF_SHADE = { red: 310, green: 310, blue: 310, mono: false };
@@ -165,8 +167,8 @@ export class OverheadMap {
     const selected = this.#hooks.selected();
     for (const s of this.#hooks.soldiers()) {
       const p = map.pointOf(s.gridNo);
-      const lift = s.level > 0 ? idiv(ROOF_HEIGHT_ADJUSTMENT, SCALE) : 0;
-      const shade = blink && s.id === selected ? SELECTED_SHADE : s.level > 0 ? ROOF_SHADE : NORMAL_SHADE;
+      const lift = heightLift(s);
+      const shade = blink && s.id === selected ? SELECTED_SHADE : drawnRaised(s) ? ROOF_SHADE : NORMAL_SHADE;
       list.image(this.#hooks.art.persons, s.team, o.x + p.x + PERSON_X, o.y + p.y + PERSON_Y - lift, { shade });
     }
     for (const item of this.#hooks.items()) {
@@ -177,7 +179,7 @@ export class OverheadMap {
     }
     const name = (s: SoldierView) => {
       const p = map.pointOf(s.gridNo);
-      const lift = (s.level > 0 ? idiv(ROOF_HEIGHT_ADJUSTMENT, SCALE) : 0) + NAME_LIFT;
+      const lift = heightLift(s) + NAME_LIFT;
       const at = hCenterVCenterAlign(o.x + p.x, o.y + p.y - lift, 1, 1, s.name, tiny);
       mprint(list, tiny, at.x, at.y, s.name, fontColors(FontColor.MCOLOR_WHITE));
     };

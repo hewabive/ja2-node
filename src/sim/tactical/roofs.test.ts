@@ -2,12 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { tacticalViewParts } from '../knowledge/sim-view.ts';
 import { AnimHeight, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
 import { checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
-import { Attitude, Orders, Team } from './soldier.ts';
+import { Attitude, Body, Orders, Team } from './soldier.ts';
 import { whoIsThere } from './state.ts';
 
 let content: TacticalContent;
@@ -69,6 +70,41 @@ describe('climbing roofs', () => {
     expect(merc.level).toBe(1);
     expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_CURRENTLY);
     expect(t.inCombat).toBe(true);
+  });
+});
+
+describe('the height a climbing soldier is drawn at (sHeightAdjustment)', () => {
+  function viewHeights(sim: ReturnType<typeof newCombatSim>, id: number, until: () => boolean): number[] {
+    const shown = () => tacticalViewParts(sim).soldiers.find((s) => s.id === id)?.heightAdjustment ?? 0;
+    const seen: number[] = [];
+    let last = shown();
+    for (let tick = 0; tick < 5000 && !until(); tick++) {
+      sim.step();
+      const h = shown();
+      if (h !== last) seen.push(h);
+      last = h;
+    }
+    return seen.map((h) => Math.round(h * 10) / 10);
+  }
+
+  it('rises in the climb steps and lands at 50, then climbing down starts at 5 and sinks below his tile before landing (Soldier_Ani.cc 454, 455, 408, 411, 456, 410)', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH);
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    const up = viewHeights(sim, 0, () => merc.level === 1 && !sim.isBusy(merc));
+    expect(up).toEqual([2, 4, 6, 8, 7.1, 6.2, 5.3, 4.4, 3.5, 2.6, 1.7, 0.8, 50]);
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    const down = viewHeights(sim, 0, () => merc.level === 0 && merc.heightAdjustment === 0 && !sim.isBusy(merc));
+    expect(down).toEqual([5, 3, 1, -1, 0]);
+  });
+
+  it('lifts a big man a tenth of a pixel per climb step, so he stays under one pixel for the first steps (gClimbUpRoofDist)', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH, { body: Body.BIGMALE });
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    const up = viewHeights(sim, 0, () => merc.level === 1 && !sim.isBusy(merc));
+    expect(up.slice(0, 4)).toEqual([0.1, 0.2, 0.3, 0.4]);
+    expect(up.at(-1)).toBe(50);
   });
 });
 

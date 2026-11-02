@@ -163,6 +163,7 @@ export interface SoldierSnapshot {
   readonly x: number;
   readonly y: number;
   readonly level: number;
+  readonly heightAdjustment?: number;
   readonly direction: number;
   readonly animation: number;
   readonly frame: number;
@@ -1065,6 +1066,7 @@ export class TacticalSim {
       x: s.x,
       y: s.y,
       level: s.level,
+      ...(s.heightAdjustment !== 0 ? { heightAdjustment: s.heightAdjustment } : {}),
       direction: s.direction,
       animation: s.state,
       frame: spriteFrameAt(presentation, s.frameSlot),

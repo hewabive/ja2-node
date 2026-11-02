@@ -18,6 +18,7 @@ import { clearCreatureTensionQuotesSaid } from './narrative/creature-tension.ts'
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
+import { FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { Body, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import { registerSoldier, sectorMapOf, type TacticalState } from './state.ts';
 import { findGridNoFromSweetSpot, findSweetSpotWithStructData, type SweetSpot } from './sweet-spots.ts';
@@ -218,6 +219,11 @@ function placementAnimation(t: TacticalState, s: Soldier, ctx: Pick<InsertionCon
   return ctx.assignment === undefined ? null : assignmentPose(t, s, ctx.assignment);
 }
 
+function settleOnRoof(t: TacticalState, s: Soldier): void {
+  const roof = t.world.structures.find(s.gridNo, StructureFlags.ROOF) !== null;
+  setSoldierHeight(t, s, roof ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFSET);
+}
+
 function addSoldierToSectorGridNo(
   t: TacticalState,
   s: Soldier,
@@ -247,7 +253,7 @@ function addSoldierToSectorGridNo(
   }
   if (!s.neutral && s.side !== Side.FRIENDLY && s.bodyType !== Body.BLOODCAT) setEnemyPresence(t);
   if (s.dead) return;
-  if (s.level === SECOND_LEVEL && !t.world.structures.find(s.gridNo, StructureFlags.ROOF)) s.level = 0;
+  if (s.level === SECOND_LEVEL) settleOnRoof(t, s);
   if (insertionCode === Insertion.ARRIVING_GAME) return;
   if (animation) initNewSoldierAnim(t, s, animation.state, animation.code, true);
   else if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);

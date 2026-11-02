@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Isometric_Utils.cc FindHigherLevel, FindLowerLevel; WorldMan.cc IsHeigherLevel;
 // @src Tactical/Soldier_Control.cc BeginSoldierClimbUpRoof, BeginSoldierClimbDownRoof, SetSoldierHeight;
+// @src TileEngine/WorldDef.h FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET;
 // @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
 // @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb.
 
@@ -35,19 +36,21 @@ const Code = {
   CLIMB_DOWN_COMMIT: 475,
 } as const;
 
-const ROOF_HEIGHT = 50;
+export const FIRST_LEVEL_Z_OFFSET = 0;
+export const SECOND_LEVEL_Z_OFFSET = 58;
+const CLIMBED_UP_HEIGHT = 50;
 const MOVE_DOWN_STEP = 2;
 const MOVE_FORWARD_SOME = 0.7;
 const MOVE_BACKWARD_SOME = 1;
 const CLIMB_DOWN_START_MOVE = 3.5;
 const FALLOFF_BACKWARDS_DIST = [1, 0.8, 1, 1];
-const CLIMB_UP_ROOF_DIST = [2.0, 0.1, 2.0, 2.0];
+const fround = Math.fround;
+const CLIMB_UP_ROOF_DIST = [2.0, fround(0.1), 2.0, 2.0];
 const CLIMB_UP_ROOF_LAT_DIST = [0.7, 0.5, 0.7, 0.5];
 const CLIMB_DOWN_ROOF_START_DIST = [5.0, 1.0, 1, 1];
 const CLIMB_UP_ROOF_DIST_GOING_LOWER = [0.9, 0.1, 1, 1];
 
 const bodyRow = (s: Soldier) => (s.bodyType <= Body.REGFEMALE ? s.bodyType : 0);
-const fround = Math.fround;
 
 function turnsBetween(from: number, to: number): number {
   const diff = Math.abs(from - to);
@@ -112,9 +115,16 @@ export function beginSoldierClimbDownRoof(t: TacticalState, s: Soldier): boolean
   return true;
 }
 
+const levelOfHeight = (height: number) => (Math.trunc(height) > 0 ? 1 : 0);
+
+export function setUnplacedSoldierHeight(s: Soldier, height: number): void {
+  s.heightAdjustment = fround(height);
+  s.level = levelOfHeight(s.heightAdjustment);
+}
+
 export function setSoldierHeight(t: TacticalState, s: Soldier, height: number): void {
   s.heightAdjustment = fround(height);
-  const level = Math.trunc(s.heightAdjustment) > 0 ? 1 : 0;
+  const level = levelOfHeight(s.heightAdjustment);
   if (level === s.level) return;
   removeOccupant(t, s);
   s.level = level;
@@ -128,7 +138,7 @@ function climbUpCommit(t: TacticalState, s: Soldier): void {
   setSoldierDirection(t, s, (s.direction + DIRECTION_COUNT - 2) % DIRECTION_COUNT);
   setDesiredDirection(t, s, s.direction);
   s.desiredHeight = AnimHeight.CROUCH;
-  setSoldierHeight(t, s, ROOF_HEIGHT);
+  setSoldierHeight(t, s, CLIMBED_UP_HEIGHT);
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
   t.hooks.climbedRoof(t, s);
 }
@@ -155,10 +165,10 @@ export function roofOpcode(t: TacticalState, s: Soldier, code: number): OpOutcom
       climbUpCommit(t, s);
       return 'continue';
     case Code.MOVE_DOWN:
-      setSoldierHeight(t, s, s.heightAdjustment - MOVE_DOWN_STEP);
+      setSoldierHeight(t, s, Math.trunc(s.heightAdjustment) - MOVE_DOWN_STEP);
       return 'continue';
     case Code.SET_GROUND_HEIGHT:
-      setSoldierHeight(t, s, 0);
+      setSoldierHeight(t, s, FIRST_LEVEL_Z_OFFSET);
       return 'continue';
     case Code.CLIMB_DOWN_START:
       setSoldierDirection(t, s, (s.direction + 2) % DIRECTION_COUNT);

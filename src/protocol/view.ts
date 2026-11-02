@@ -42,6 +42,7 @@ export interface SoldierView {
   readonly x: number;
   readonly y: number;
   readonly level: number;
+  readonly heightAdjustment?: number;
   readonly direction: number;
   readonly animation: number;
   readonly frame: number;
@@ -1158,6 +1159,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.x === b.x &&
     a.y === b.y &&
     a.level === b.level &&
+    a.heightAdjustment === b.heightAdjustment &&
     a.direction === b.direction &&
     a.animation === b.animation &&
     a.frame === b.frame &&

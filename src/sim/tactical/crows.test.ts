@@ -19,6 +19,8 @@ import { type TacticalState, teamMembers } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { handleTacticalEndTurn } from './turns/turns.ts';
 
+const NO_PRESENTATION = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
+
 let content: TacticalContent;
 
 beforeAll(async () => {
@@ -243,6 +245,22 @@ describe('crows flying away (OppList.cc HearNoise, Soldier_Control.cc CrowsFlyAw
     expect(t.occupant.some((layer) => layer.includes(bird.id))).toBe(false);
     expect(bird.structure).toBeNull();
     expect([...heights].sort((a, b) => a - b)).toEqual([...Array.from({ length: 49 }, (_, i) => i * 2), FLIGHT_HEIGHT]);
+  });
+
+  it('shows the flight height of a crow in the view, from two pixels up to 100, and none on the ground', () => {
+    const { sim, t, birds } = settledFlock();
+    const [bird] = birds;
+    if (!bird) throw new Error('no crow');
+    const shown = () => sim.snapshot(NO_PRESENTATION).find((s) => s.id === bird.id);
+    expect(shown()?.heightAdjustment).toBeUndefined();
+    crowsFlyAway(t, Team.CIV);
+    const heights = new Set<number>();
+    for (let tick = 0; tick < BUDGET_TICKS && bird.placed; tick++) {
+      sim.step();
+      const height = shown()?.heightAdjustment;
+      if (height !== undefined) heights.add(height);
+    }
+    expect([...heights].sort((a, b) => a - b)).toEqual([...Array.from({ length: 48 }, (_, i) => (i + 1) * 2), FLIGHT_HEIGHT]);
   });
 
   it('takes a crow reaching 100 off the map in the middle of its path, leaving nothing of it behind', () => {

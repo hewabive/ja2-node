@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Create.cc RandomizeNewSoldierStats (2026-11-01), CreateDetailedPlacementGivenBasicPlacementInfo,
 // @src CreateDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo, ReduceHighExpLevels, TacticalCreateSoldier,
 // @src TacticalCopySoldierFromCreateStruct, TacticalCopySoldierFromProfile, ChooseHairColor, GeneratePaletteForSoldier;
-// @src Soldier_Control.cc CreateSoldierCommon (the opplist reset);
+// @src Soldier_Control.cc CreateSoldierCommon (the opplist reset), SetSoldierHeight (a placement on a flat roof);
 // @src Inventory_Choosing.cc AssignCreatureInventory.
 
 import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
@@ -27,6 +27,7 @@ import { NOWHERE } from './pathfinding.ts';
 import { initSoldierOppList, type OppListTables } from './perception/opplist-reset.ts';
 import { type ActionPointWorld, calcActionPoints } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
+import { SECOND_LEVEL_Z_OFFSET, setUnplacedSoldierHeight } from './roofs.ts';
 import {
   Body,
   CivilianGroup,
@@ -42,6 +43,7 @@ import {
   Team,
 } from './soldier.ts';
 import type { SectorRef, TacticalState } from './state.ts';
+import { flatRoofAboveGridNo } from './world-items.ts';
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
 const HAIR_IDS = ['WHITEHEAD', 'BLACKHEAD', 'BROWNHEAD', 'BLONDHEAD', 'REDHEAD'];
@@ -220,7 +222,10 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
   [Body.CRIPPLECIV]: { life: [20, 26], agility: [30, 16] },
 };
 
-export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'>, Partial<OppListTables> {
+export interface CreationContext
+  extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'>,
+    Partial<OppListTables>,
+    Partial<Pick<TacticalState, 'world'>> {
   readonly rng: RandomStream;
   readonly boxing?: BoxingRecord;
   readonly sector?: SectorRef | null;
@@ -728,7 +733,6 @@ function profiledSoldier(c: CreationContext, pp: SoldierCreate, id: number, reco
     personalityTrait: p.personalityTrait,
     civilianGroup: p.civilianGroup,
     gridNo: NOWHERE,
-    level: pp.onRoof ? 1 : 0,
     direction: pp.direction,
     state: states(c.content.animations).STANDING,
     ai: { orders: pp.orders, attitude: pp.attitude, patrolGrid: [], patrolCount: pp.patrolCount },
@@ -763,7 +767,6 @@ function generatedSoldier(c: CreationContext, pp: SoldierCreate, id: number): So
     morale: pp.morale,
     civilianGroup: pp.civilianGroup,
     gridNo: NOWHERE,
-    level: pp.onRoof ? 1 : 0,
     direction: pp.direction,
     state: states(c.content.animations).STANDING,
     ai: {
@@ -808,8 +811,15 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
       s.camo = FULL_CAMOUFLAGE;
   }
   bodyTypeSetup(c, s);
-  if (!env.autoresolve) createSoldierCommon(c, s);
+  if (env.autoresolve) return s;
+  createSoldierCommon(c, s);
+  if (pp.onRoof && onFlatRoof(c, pp.insertionGridNo)) setUnplacedSoldierHeight(s, SECOND_LEVEL_Z_OFFSET);
   return s;
+}
+
+function onFlatRoof(c: CreationContext, g: number): boolean {
+  const world = c.world;
+  return world !== undefined && flatRoofAboveGridNo({ world }, g);
 }
 
 function createSoldierCommon(c: CreationContext, s: Soldier): void {

@@ -29,6 +29,10 @@ const TRAILS: readonly { readonly path: string; readonly ramp: RampName; readonl
 ];
 const KNIFE_SPIN_FRAMES = 4;
 const KNIFE_LENGTH = 7;
+const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
+const CROW_SHADOW_FRAMES = 4;
+const CROW_SHADOW_SIZE = 16;
+const CROW_WING_SPANS = [7, 5, 3, 5];
 const SMOKE_RAMPS: Readonly<Record<string, RampName>> = { SMOKE: 'gray', TEARGAS: 'sand', MUSTARDGAS: 'olive', CREATUREGAS: 'teal' };
 const SCREEN_VECTOR_BY_DIRECTION: readonly (readonly [number, number])[] = [
   [0.7, -0.35],
@@ -124,6 +128,17 @@ function knifeFrame(block: number, spin: number): StiSubImage {
   return { offsetX: -Math.round(half), offsetY: -Math.round(half), width: size, height: size, pixels: r.pixels };
 }
 
+function crowShadow(block: number, flap: number): StiSubImage {
+  const direction = (block + DIRECTIONS - 1) % DIRECTIONS;
+  const [vx, vy] = SCREEN_VECTOR_BY_DIRECTION[direction] ?? [1, 0];
+  const r = new IndexedRaster(CROW_SHADOW_SIZE, CROW_SHADOW_SIZE);
+  const c = CROW_SHADOW_SIZE / 2;
+  const span = CROW_WING_SPANS[flap] ?? 5;
+  r.line(c - vx * 3, c - vy * 2, c + vx * 3, c + vy * 2, SHADOW_INDEX);
+  r.line(c - vy * span, c + vx * span * 0.5, c + vy * span, c - vx * span * 0.5, SHADOW_INDEX);
+  return { offsetX: -c, offsetY: -c, width: r.width, height: r.height, pixels: r.pixels };
+}
+
 async function writeSti(
   out: string,
   path: string,
@@ -170,6 +185,10 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
     knifeFrame(Math.floor(f / KNIFE_SPIN_FRAMES), f % KNIFE_SPIN_FRAMES),
   );
   written.push(await writeSti(out, KNIFE_PATH, palette, knife, KNIFE_SPIN_FRAMES));
+  const crow = Array.from({ length: DIRECTIONS * CROW_SHADOW_FRAMES }, (_, f) =>
+    crowShadow(Math.floor(f / CROW_SHADOW_FRAMES), f % CROW_SHADOW_FRAMES),
+  );
+  written.push(await writeSti(out, CROW_SHADOW_PATH, palette, crow, CROW_SHADOW_FRAMES));
   for (const trail of TRAILS) {
     const puffs = Array.from({ length: TRAIL_FRAMES }, (_, f) => trailPuff(f, trail.ramp, trail.size));
     written.push(await writeSti(out, trail.path, palette, puffs, TRAIL_FRAMES));

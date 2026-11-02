@@ -1,3 +1,4 @@
+import { stateId } from '../../content/anim/tables.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import type {
   BloodPoolView,
@@ -17,6 +18,7 @@ import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../r
 import type { EffectEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
+import { CrowShadows } from './crow-shadows.ts';
 import {
   EffectAnimations,
   type EffectFrame,
@@ -36,6 +38,7 @@ import { type DynamicLight, type LightingTime, type MapLight, WorldLighting } fr
 import { type LoadedWorld, loadWorld, renderWorldOf } from './world-loader.ts';
 
 const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
+const CROW_FLY = 'CROW_FLY';
 const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
@@ -120,6 +123,7 @@ export class TacticalWorldView {
   readonly #roofed: Uint8Array;
   readonly #bulletTiles: BulletTiles | null;
   readonly #effectAnimations = new EffectAnimations();
+  readonly #crowShadows: CrowShadows;
   #drawnEffects = 0;
   #drawnBullets = 0;
   #drawnImpacts = 0;
@@ -131,6 +135,7 @@ export class TacticalWorldView {
     this.#soldiers = presentation.soldiers;
     this.#frames = presentation.frames ?? null;
     this.#effects = presentation.effects ?? null;
+    this.#crowShadows = new CrowShadows(stateId(presentation.soldiers.assets.tables, CROW_FLY));
     this.#templates = presentation.lightTemplates ?? new LightTemplates();
     this.#itemTiles = itemTiles;
     this.#roofed = Uint8Array.from({ length: world.level.heights.length }, (_, g) =>
@@ -249,6 +254,17 @@ export class TacticalWorldView {
     return bullets.flatMap((b) => (b.knife ? effects.knife({ ...b, knife: b.knife }, tick, this.world.level.heights) : []));
   }
 
+  #crowShadowTiles(soldiers: readonly SoldierView[], clockMs: number): SceneAniTile[] {
+    const effects = this.#effects;
+    if (!effects) return [];
+    return this.#crowShadows
+      .update(soldiers, clockMs, () => effects.crowShadowFramesPerDirection())
+      .flatMap((c) => {
+        const tile = effects.crowShadow(c);
+        return tile ? [tile] : [];
+      });
+  }
+
   #cachedEffectTiles(shown: readonly EffectFrame[]): SceneAniTile[] {
     const effects = this.#effects;
     if (!effects) return [];
@@ -313,7 +329,12 @@ export class TacticalWorldView {
     this.#drawnImpacts = effects.length;
     const bullets = f.options.hideBullets ? NO_BULLETS : (f.bullets ?? NO_BULLETS);
     this.#drawnBullets = bullets.length;
-    const animatedTiles = [...aniTiles, ...this.#cachedEffectTiles(effects), ...this.#knifeTiles(bullets, Math.floor(shownTick))];
+    const animatedTiles = [
+      ...aniTiles,
+      ...this.#crowShadowTiles(view.soldiers, f.clockMs),
+      ...this.#cachedEffectTiles(effects),
+      ...this.#knifeTiles(bullets, Math.floor(shownTick)),
+    ];
     this.#drawnEffects = animatedTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,

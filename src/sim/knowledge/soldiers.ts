@@ -33,6 +33,7 @@ const SHOWN_FIELDS = [
   'x',
   'y',
   'level',
+  'heightAdjustment',
   'direction',
   'state',
   'placed',
@@ -263,6 +264,7 @@ export function soldierFromView(
   });
   s.x = v.x;
   s.y = v.y;
+  s.heightAdjustment = v.heightAdjustment ?? 0;
   s.placed = true;
   s.visible = v.fadingOut ? Visible.FADING_OUT : Visible.SEEN;
   s.muzzleFlash = v.muzzleFlash === true;

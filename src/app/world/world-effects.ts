@@ -11,7 +11,8 @@
 // @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); Rotting_Corpses.cc
 // @src VaporizeCorpse (gen_blow.sti in the struct layer, opaque); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
-// @src thrower's tile).
+// @src thrower's tile); src/game/Tactical/Soldier_Control.cc HandleCrowShadowNewGridNo (fly_shdw.sti on the shadow layer
+// @src at the crow's position, on the ground).
 
 import {
   CORPSES_TABLE_PATH,
@@ -38,6 +39,7 @@ import type { BulletView, CorpseView, KnifeFlight, SmokeTileView } from '../../p
 import type { SceneAniTile } from '../../render/world/dynamic-scene.ts';
 import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-sprites.ts';
 import { bulletGridNo } from './bullet-nodes.ts';
+import type { CrowShadow } from './crow-shadows.ts';
 import { type EffectFrame, isCachedEffect, knifeFrame } from './effect-animations.ts';
 
 export type EffectSprites = Pick<WorldSprites, 'addSheet' | 'soldierFrame' | 'shadedPaletteBase' | 'plainPaletteRow'>;
@@ -53,6 +55,7 @@ const TRAIL_PATHS: Readonly<Record<string, string>> = {
   spit: 'tilecache/msle_spt.sti',
 };
 const KNIFE_PATH = 'tilecache/knifing.sti';
+const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
 const STUB_PREFIX = 'stubs/';
 const CAMO_PALETTE = 'anims/camo.col';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
@@ -401,6 +404,31 @@ export class WorldEffects {
       { ...flying, kind: 'knife', at: { x: b.x, y: b.y, z: raised } },
       { ...flying, kind: 'knifeShadow', at: { x: b.x, y: b.y, z: 0 } },
     ];
+  }
+
+  crowShadowFramesPerDirection(): number | null {
+    return this.#picture(CROW_SHADOW_PATH)?.framesPerDirection ?? null;
+  }
+
+  crowShadow(c: CrowShadow): SceneAniTile | null {
+    const sprites = this.#sprites;
+    const loaded = this.#picture(CROW_SHADOW_PATH);
+    if (!sprites || !loaded) return null;
+    const sheet = this.#sheet(CROW_SHADOW_PATH, loaded.picture);
+    const sprite = sheet ? sprites.soldierFrame(sheet, c.frame) : null;
+    if (!sprite) return null;
+    return {
+      kind: 'crowShadow',
+      gridNo: c.gridNo,
+      level: 0,
+      at: { x: c.x, y: c.y, z: 0 },
+      sprite,
+      paletteRow: sprites.plainPaletteRow(`effect|${CROW_SHADOW_PATH}`, () => loaded.picture.palette),
+      shaded: false,
+      zStrip: null,
+      zTileOffsetX: 0,
+      zTileOffsetY: 0,
+    };
   }
 
   #forgetClearedSmoke(smoke: readonly SmokeTileView[]): void {

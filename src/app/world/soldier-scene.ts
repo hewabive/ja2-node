@@ -179,6 +179,7 @@ export class SoldierScene {
         x: s.x,
         y: s.y,
         level: s.level,
+        heightAdjustment: s.heightAdjustment ?? 0,
         sprite: sprite.sprite,
         paletteRow: sprite.paletteBase + look.row,
         topmost: look.topmost,

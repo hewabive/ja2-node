@@ -61,7 +61,7 @@ export interface ItemSnapshot {
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 
-export function flatRoofAboveGridNo(t: TacticalState, g: number): boolean {
+export function flatRoofAboveGridNo(t: Pick<TacticalState, 'world'>, g: number): boolean {
   return levelTilesAt(t.world.level.layers.roofs, g).length > 0;
 }
 

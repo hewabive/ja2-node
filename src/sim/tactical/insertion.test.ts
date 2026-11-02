@@ -8,7 +8,9 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import type { TacticalContent } from './content.ts';
 import { addSoldierToSector, Insertion } from './insertion.ts';
+import { setSoldierHeight } from './roofs.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
+import { whoIsThere } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
@@ -91,5 +93,25 @@ describe('InternalAddSoldierToSector for the creature team (Soldier_Add.cc)', ()
     expect(insert(creatures, arrivingCreature(creatures), ARRIVAL_FACING, true)).toMatchObject({ placed: false, gridNo: gridNo(60, 60) });
     const soldiers = walledIn();
     expect(insert(soldiers, arrivingSoldier(soldiers), ARRIVAL_FACING, true)).toMatchObject({ placed: true, gridNo: SWEET });
+  });
+});
+
+describe('a soldier added on the roof level (Soldier_Add.cc SECOND_LEVEL_Z_OFFSET)', () => {
+  const CLIMBED_HEIGHT = 50;
+  const roofAround = (g: number) => new Set([g - 1, g, g + 1, g - WORLD_COLS, g + WORLD_COLS]);
+
+  it('stands him 58 px up where a roof is, 8 more than a climb leaves him, and on the ground where none is', () => {
+    const roofed = newCombatSim(content, [], 3, roofAround(SWEET));
+    const climber = arrivingSoldier(roofed);
+    setSoldierHeight(roofed.state, climber, CLIMBED_HEIGHT);
+    expect(insert(roofed, climber, ARRIVAL_FACING, false)).toMatchObject({ placed: true, gridNo: SWEET });
+    expect([climber.level, climber.heightAdjustment]).toEqual([1, 58]);
+    expect(whoIsThere(roofed.state, SWEET, 1)).toBe(climber);
+    const bare = newCombatSim(content);
+    const stranded = arrivingSoldier(bare);
+    setSoldierHeight(bare.state, stranded, CLIMBED_HEIGHT);
+    expect(insert(bare, stranded, ARRIVAL_FACING, false)).toMatchObject({ placed: true, gridNo: SWEET });
+    expect([stranded.level, stranded.heightAdjustment]).toEqual([0, 0]);
+    expect([whoIsThere(bare.state, SWEET, 0), whoIsThere(bare.state, SWEET, 1)]).toEqual([stranded, null]);
   });
 });

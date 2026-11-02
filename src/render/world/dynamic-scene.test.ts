@@ -71,12 +71,20 @@ function world(
 }
 
 const pixels = new Uint8Array(40 * 20).fill(1);
-const soldier = (id: number, gridNo: number, level: number, topmost = false): SceneSoldier => ({
+const CLIMBED_ROOF_HEIGHT = 50;
+const soldier = (
+  id: number,
+  gridNo: number,
+  level: number,
+  topmost = false,
+  heightAdjustment = level * CLIMBED_ROOF_HEIGHT,
+): SceneSoldier => ({
   id,
   gridNo,
   x: (gridNo % WORLD_COLS) * 10 + 5,
   y: Math.floor(gridNo / WORLD_COLS) * 10 + 5,
   level,
+  heightAdjustment,
   sprite: { layer: 0, x: 0, y: 9000 + id, width: 40, height: 20, offsetX: 0, offsetY: 0, pixels },
   paletteRow: 100 + id,
   topmost,
@@ -131,6 +139,31 @@ describe('dynamic scene', () => {
     expect(roof[0]?.z).toBe(roofMercZ(worldY(81, 80, 860)));
     expect(scene.runs.slice(0, 3).map((r) => r.state)).toEqual([DrawState.NEARER_SHADOW, DrawState.NEARER_OR_EQUAL, DrawState.FARTHER]);
     expect(scene.placedSoldiers.map((p) => p.id)).toEqual([1, 2, 2]);
+  });
+
+  it('draws a soldier his truncated height adjustment above his tile: 58 placed on a roof, 50 climbed up, below it climbing down', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const at = g(80, 80);
+    const bodyY = (heightAdjustment: number, level: number) => {
+      const scene = new DynamicScene(staticWorld, prepared);
+      scene.build(frame({ soldiers: [soldier(1, at, level, false, heightAdjustment)] }));
+      return scene.placedSoldiers[0]?.y;
+    };
+    const ground = bodyY(0, 0) as number;
+    expect([bodyY(58, 1), bodyY(50, 1), bodyY(Math.fround(2.9), 1), bodyY(-3, 0)].map((y) => ground - (y as number))).toEqual([
+      58, 50, 2, -3,
+    ]);
+  });
+
+  it('sorts a soldier at the roof z while his height is above zero, even below a pixel on the ground level', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const zOf = (heightAdjustment: number) => {
+      const scene = new DynamicScene(staticWorld, prepared);
+      scene.build(frame({ soldiers: [soldier(1, g(80, 80), 0, false, heightAdjustment)] }));
+      return decode(scene).find((p) => p.tile === 9001)?.z;
+    };
+    const wy = worldY(80, 80, 860);
+    expect([zOf(Math.fround(0.6)), zOf(0), zOf(-3)]).toEqual([roofMercZ(wy), mercZ(wy), mercZ(wy)]);
   });
 
   it('puts a glowing soldier at the topmost z', () => {
@@ -215,6 +248,19 @@ describe('dynamic scene', () => {
     expect(drawnShadow).toMatchObject({ x: -100, y: 1630, z: 0 });
     expect(drawnKnife).toMatchObject({ x: -100, y: 1600, z: animationTileZ(worldY(80, 80, 860), 30) });
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.SHADOW_FLAT, DrawState.NEARER_OR_EQUAL]);
+  });
+
+  it('draws a flying crow flat on the ground in the shadow layer, below the crow drawn at his height', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const crow = { ...soldier(6, g(80, 84), 1, false, 40), x: 805, y: 845 };
+    const ground = aniTileOf('crowShadow', g(80, 84), 0, 6);
+    const shadow: SceneAniTile = { ...ground, sprite: { ...ground.sprite, offsetX: 0, offsetY: 0 }, at: { x: 805, y: 845, z: 0 } };
+    scene.build(frame({ soldiers: [crow], aniTiles: [shadow] }));
+    const parts = decode(scene);
+    expect(parts.find((p) => p.tile === 7006)).toMatchObject({ x: -80, y: 1640, z: 0 });
+    expect(parts.find((p) => p.tile === 9006)).toMatchObject({ x: -80, y: 1640 - 40 });
+    expect(scene.runs[0]?.state).toBe(DrawState.SHADOW_FLAT);
   });
 
   it('draws a missile trail translucent at the on-roof z of its tile raised by its height', () => {

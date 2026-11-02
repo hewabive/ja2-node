@@ -20,7 +20,7 @@ import { idiv } from '../../core/int.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
 import type { BulletView, PlayerView, SoldierView } from '../../protocol/view.ts';
 import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
-import type { WorldUiNode } from '../../render/world/dynamic-scene.ts';
+import { screenHeightAdjustment, type WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import {
   type Camera,
   cameraOffset,
@@ -197,7 +197,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const land = this.#world.world.level.heights[s.gridNo] ?? 0;
     return {
       x: c.x + Math.trunc(Math.fround(2 * dx - 2 * dy)),
-      y: c.y + Math.trunc(Math.fround(dx + dy)) + this.#renderHeight() - land - (s.level > 0 ? WALL_HEIGHT : 0),
+      y: c.y + Math.trunc(Math.fround(dx + dy)) + this.#renderHeight() - land - screenHeightAdjustment(s.heightAdjustment ?? 0),
     };
   }
 

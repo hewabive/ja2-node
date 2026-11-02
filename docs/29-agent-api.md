@@ -266,15 +266,16 @@ input log, the replay or the logic hash.
 
 ## 7. The view, events and messages
 
-**The view.** `observe` returns the `PlayerView` (`src/protocol/view.ts`, built by the session adapters: `04` §5.3)
-with labels in the session's language beside the machine tokens (`labelledView`, `src/server/text-keys.ts`; null where
-the original has no string); the browser gets the same blocks in view frames when they change. Campaign blocks (a
-prompt, the shop, the laptop, a conversation, boxing, autoresolve, a meanwhile, the end) are present only while the
-original shows them. Our soldiers carry what the original's panels and face read (the single merc panel's numbers, the
-hatched face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). A soldier the
-squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits are told,
-as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke, light,
-structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
+**The view.** `observe` returns the `PlayerView` (`src/protocol/view.ts`, built by the session adapters: `04` §5.3) with
+labels in the session's language beside the machine tokens (`labelledView`, `src/server/text-keys.ts`; null where the
+original has no string); the browser gets the same blocks in view frames when they change. Campaign blocks (a prompt,
+the shop, the laptop, a conversation, boxing, autoresolve, a meanwhile, the end) are present only while the original
+shows them. Our soldiers carry what the original's panels and face read (the single merc panel's numbers, the hatched
+face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`). A soldier off the ground
+(on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`). A
+soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
+are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
+light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
 (`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer; `append`
 at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's trapdoor and crate, structures a
 native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's

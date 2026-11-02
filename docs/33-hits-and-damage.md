@@ -88,13 +88,15 @@ emptied this sector, a corpse too old to lie included, because the crows' pick d
 campaign-wide like the original's `gTacticalStatus`: `SectorFlowState.crows`, shared with the loaded sector as the
 real-time clock is, drawn at every sector entry. A crow is a civilian soldier created as `AddCrowToCorpse` creates it,
 with its draws; noises and attacks reach `crows.ts` through tactical hooks. A flying crow climbs at code 466 and leaves
-the map at 100. The stub pack's crow scripts carry codes 466, 785 and 786 (`stubs/anim-scripts.ts`); with no crow art
-the stub pack draws a crow with the stub soldier sheets. The pecking sound's draw is the browser's (deviation "Cosmetic
-draws of creatures") and the crows come whatever the camera shows (deviation "Crows on screen"). A crow keeps the slot
-and tile of its corpse in `pendingActionData1` and `pendingActionData2`, as the original does, and the corpse counts the
-crows feeding on it (`servicingCrows`) until each leaves the map or dies. A native import sends crows once more after
-the helicopter is placed, as loading the corpses file does (`adoptLoadedSector`, `src/sim/campaign/sector-flow.ts`; a
-ja2-node load does not, deviation "Crows on load").
+the map at 100; the client draws its shadow on the ground (`fly_shdw.sti`, a stub graphic in the stub pack) from the
+crow's tiles in the view (`src/app/world/crow-shadows.ts`, deviation "Crow shadows out of sight"). The stub pack's crow
+scripts carry codes 466, 785 and 786 (`stubs/anim-scripts.ts`); with no crow art the stub pack draws a crow with the
+stub soldier sheets. The pecking sound's draw is the browser's (deviation "Cosmetic draws of creatures") and the crows
+come whatever the camera shows (deviation "Crows on screen"). A crow keeps the slot and tile of its corpse in
+`pendingActionData1` and `pendingActionData2`, as the original does, and the corpse counts the crows feeding on it
+(`servicingCrows`) until each leaves the map or dies. A native import sends crows once more after the helicopter is
+placed, as loading the corpses file does (`adoptLoadedSector`, `src/sim/campaign/sector-flow.ts`; a ja2-node load does
+not, deviation "Crows on load").
 
 **A rotting corpse turns a merc's stomach.** Every look that reveals items (`08`) shows a merc the corpses on its
 tiles; at a rotting one he says quote 33 when his `corpseQuoteTolerance` is 0, or 1 while crows feed on it, which
@@ -128,6 +130,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | Every crow that hears a noise sends the flock up again: the paths start with the next game events, so each crow's flight is drawn once per listening crow | `src/sim/tactical/crows.test.ts` |
 | A crow off the ground stands on the roof level, roof or not: `SetSoldierHeight` sets the level by the height | `src/sim/tactical/crows.test.ts` |
 | Code 466 compares the truncated height with the target and steps the fractional one | `src/sim/tactical/crows.test.ts` |
+| A flying crow's shadow appears only once he reaches the next tile after taking off or coming into sight: the flight state is switched on before it is set, and the shadow's visibility is the one before the change | `src/app/world/crow-shadows.test.ts` |
 | A corpse is saved with the crows feeding on it when the squad leaves, before the unload removes them, so on return it counts crows that are gone and the mercs comment on it sooner | `src/sim/campaign/sector-flow.test.ts` |
 | A merc on a roof comments on a corpse on the ground below the tile he looks at: `GetCorpseAtGridNo` ignores the level | `src/sim/tactical/narrative/corpse-comments.test.ts` |
 
@@ -151,4 +154,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Morale without drugs", "Unseen soldiers in combat".
+Not ported: gaps "Morale without drugs", "Unseen soldiers in combat", "Corpse height".

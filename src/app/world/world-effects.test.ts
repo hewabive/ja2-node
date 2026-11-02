@@ -38,7 +38,7 @@ class FakeSprites implements EffectSprites {
   }
 }
 
-describe('corpses and smoke on the stub pack', () => {
+describe('corpses, smoke and crow shadows on the stub pack', () => {
   let data: DataVfs;
   let effects: WorldEffects;
   let corpseType = 0;
@@ -103,5 +103,16 @@ describe('corpses and smoke on the stub pack', () => {
     effects.build(input);
     await effects.loaded();
     expect(effects.build(input).map((t) => t.kind)).toEqual(['staticSmoke']);
+  });
+
+  it('draws a crow shadow from the stub fly_shdw.sti flat on the ground at the crow position, in the frame it is given', async () => {
+    effects.setSprites(new FakeSprites());
+    expect(effects.crowShadowFramesPerDirection()).toBeNull();
+    await effects.loaded();
+    const framesPerDirection = effects.crowShadowFramesPerDirection() ?? 0;
+    expect(framesPerDirection).toBeGreaterThan(1);
+    const tile = effects.crowShadow({ gridNo: 12880, x: 805, y: 1287, frame: framesPerDirection * 3 + 1 });
+    expect(tile).toMatchObject({ kind: 'crowShadow', gridNo: 12880, level: 0, at: { x: 805, y: 1287, z: 0 }, shaded: false });
+    expect(tile?.sprite.x).toBe(framesPerDirection * 3 + 1);
   });
 });

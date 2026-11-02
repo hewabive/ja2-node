@@ -23,6 +23,7 @@ export interface KnowledgeSoldier {
   readonly x: number;
   readonly y: number;
   readonly level: number;
+  readonly heightAdjustment?: number;
   readonly direction: number;
   readonly animation: number;
   readonly hand?: string;

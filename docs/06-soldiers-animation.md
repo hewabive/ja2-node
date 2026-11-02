@@ -26,7 +26,7 @@ every 5 ms tick: executeOverhead                      overhead.ts
   fade step, then the new-visibility check            fade.ts
   frame due → adjustToNextAnimationFrame              animation.ts; other opcodes through the tactical hooks
   moving state → moveMerc (07); turning state → turnSoldier
-view: state, frame slot, state tick, frame delay      tactical-sim.ts
+view: state, frame slot, state tick, delay, height    tactical-sim.ts
 client: frame of the view                             app/world/soldier-frames.ts, content/anim/schedule-track.ts
   sheet, palette from the standing sheet              app/world/soldier-assets.ts, content/anim/soldier-sprite.ts
   shade, glow, fade, multi-tile z strips              app/world/soldier-scene.ts, render/world/glow.ts, soldier-fade.ts,
@@ -80,6 +80,12 @@ replacements serves every sheet he shows: on the Gold data the sheets differ onl
 254, the shadow marker. Shadows are pixels of every frame (index 254); ja2-node draws them as a separate darkening part
 of the quad (`05`, deviation "Shadow darkening").
 
+**The draw height is simulation state.** `heightAdjustment` is the original's float height above the tile: a
+placement on a roof, the climb frames and a crow's flight set it (`insertion.ts`, `roofs.ts`, `crows.ts`), and
+`setSoldierHeight` sets the level from it. The view carries it while it is not zero. The client draws the soldier its
+truncated value above his tile and sorts him at the roof z while it is above zero; the level alone picks the render
+pass (`render/world/dynamic-scene.ts`; the overhead map in `ui/screens/tactical/overhead-map.ts`).
+
 **Enemies glow instead of being lit.** A soldier takes his tile's shade two levels brighter, never brighter than the
 default. A hostile soldier takes a glow row during our turn (always in real time) or under AI control, grey while the
 selected merc does not see him, and draws topmost at the pulse's peak or under the cursor. The soldier under AI control
@@ -116,6 +122,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Quirk | Test |
 |---|---|
 | Only our mercs fast-turn; enemies turn at their state's delay | `animation.test.ts` |
+| A soldier the map puts on a roof stands 58 px up, 8 more than one who climbed there | `insertion.test.ts`, `creation.test.ts` |
+| Climbing down drops a soldier to 5 px and below his tile before he lands; a big man climbing up stays under one pixel for his first steps, sorted at the roof z while drawn on his tile | `roofs.test.ts`, `src/render/world/dynamic-scene.test.ts` |
 | A body's negative frame delay bonus never applies: women and big men walk with a man's delay | `animation.test.ts` |
 | Raising a rifle standing takes 70 ms a frame, 150 aimed, whatever the stats, and combat does not halve it | `animation.test.ts` |
 | In combat an unseen creature rising to call keeps its state's delay; every other unseen soldier runs at the loop rate | `animation.test.ts` |
@@ -151,7 +159,7 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Soldier draw height", "Drugs and alcohol" (adrenaline and
+Not ported: gaps "Soldier palettes and surfaces", "Drugs and alcohol" (adrenaline and
 drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other deviations of this domain: "Frame timers",
 "Soldier frame on turning", "Soldier frames with other scripts", "Creature and bloodcat stub bodies", "Multi-tile
 turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed

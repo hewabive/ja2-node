@@ -40,7 +40,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
 | `content/world/zstrip.ts`, `shading.ts`, `render-bounds.ts` | ZStripInfo, the shade palettes, the scroll rectangle and absolute screen frame (shared with the simulation) |
-| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
+| `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
 | `app/tactical/overhead-map.ts` | The overhead map, composed once per sector from the small tiles |
 | `devtools/map-viewer/` | A developer page that renders any map with picking |
 

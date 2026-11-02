@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -123,6 +124,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
 }
 
 const ZEROS = (n: number) => new Array<number>(n).fill(0);
+const ROOF_TILE = 1000;
 
 describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
   it('clamps elites to the policy range 6..10 and leaves them out of ReduceHighExpLevels', () => {
@@ -157,6 +159,18 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
 });
 
 describe('TacticalCreateSoldier', () => {
+  it('lifts a placement on a flat roof to 58 px on the roof level, and leaves one off a roof or in autoresolve on the ground', () => {
+    const world = newCombatSim(kit.content, [], 3, new Set([ROOF_TILE])).state.world;
+    const onRoof = (insertionGridNo: number, env: CreationEnv) => {
+      const { c } = creation([]);
+      const s = tacticalCreateSoldier({ ...c, rng: new ScriptedStream([], 0), world }, create({ onRoof: true, insertionGridNo }), 30, env);
+      return [s?.level, s?.heightAdjustment];
+    };
+    expect(onRoof(ROOF_TILE, ENV(40))).toEqual([1, 58]);
+    expect(onRoof(ROOF_TILE + 1, ENV(40))).toEqual([0, 0]);
+    expect(onRoof(ROOF_TILE, { ...ENV(40), autoresolve: true })).toEqual([0, 0]);
+  });
+
   it('gives elites night ops (and the expert level late in the game), then palettes, battle sound and the female sound', () => {
     const { c, rolls } = creation([10, 5, 0, 50, 2, 1], 60);
     const s = tacticalCreateSoldier(c, create({ soldierClass: SoldierClass.ELITE, bodyType: Body.REGFEMALE }), 30, ENV(40));

@@ -85,10 +85,15 @@ export interface SceneSoldier {
   readonly x: number;
   readonly y: number;
   readonly level: number;
+  readonly heightAdjustment: number;
   readonly sprite: SoldierSprite;
   readonly paletteRow: number;
   readonly topmost: boolean;
   readonly multiTile?: MultiTileLook | null;
+}
+
+export function screenHeightAdjustment(heightAdjustment: number): number {
+  return Math.trunc(heightAdjustment);
 }
 
 type MercPass = 'structMercs' | 'mercs' | 'highMercs';
@@ -108,17 +113,19 @@ export type AniTileKind =
   | 'explosion'
   | 'knife'
   | 'knifeShadow'
+  | 'crowShadow'
   | 'trail'
   | 'vaporize';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
+const SHADOW_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['knifeShadow', 'crowShadow']);
 
 type AniLayer = 'paused' | 'shadows' | 'structs' | 'onRoof' | 'topmost';
 
 function aniLayerOf(a: SceneAniTile): AniLayer {
   if (PAUSED_ANI_KINDS.has(a.kind)) return 'paused';
   if (a.kind === 'miniboom' || a.kind === 'explosion') return 'topmost';
-  if (a.kind === 'knifeShadow') return 'shadows';
+  if (SHADOW_ANI_KINDS.has(a.kind)) return 'shadows';
   return a.level > 0 ? 'onRoof' : 'structs';
 }
 
@@ -465,7 +472,7 @@ export class DynamicScene {
     const p = this.#cachedAniPosition(a, at);
     const out = this.instances;
     const s = a.sprite;
-    if (a.kind === 'knifeShadow') {
+    if (SHADOW_ANI_KINDS.has(a.kind)) {
       this.#push(out, this.runs, DrawState.SHADOW_FLAT, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, 0, ShadeKey.FIXED, 0, 0));
       return;
     }
@@ -566,7 +573,7 @@ export class DynamicScene {
     let z: number;
     if (mt?.vehicle) z = u16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL);
     else if (m.topmost) z = TOPMOST_Z_LEVEL;
-    else z = m.level > 0 ? roofMercZ(wy) : mercZ(wy);
+    else z = m.heightAdjustment > 0 ? roofMercZ(wy) : mercZ(wy);
     return noBurn ? u16(z + NOBURN_Z_BONUS) : z;
   }
 
@@ -596,7 +603,8 @@ export class DynamicScene {
       const dx = Math.fround(m.x - frame.camera.centerX);
       const dy = Math.fround(m.y - frame.camera.centerY);
       const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
-      const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - m.level * WALL_HEIGHT + frame.renderHeight;
+      const lift = screenHeightAdjustment(m.heightAdjustment);
+      const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - lift + frame.renderHeight;
       const sx = screenX + m.sprite.offsetX - offX;
       const sy = screenY + m.sprite.offsetY - offY;
       const noBurn = this.#noBurn[g] === 1;

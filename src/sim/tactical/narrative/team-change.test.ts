@@ -104,6 +104,16 @@ describe('ChangeSoldierTeam (Soldier_Profile.cc)', () => {
     expect(t.soldiers[FREE_OUR_SLOT]).toBeUndefined();
   });
 
+  it('stands the replacement of a soldier on the roof level 58 px up, whatever height the old one had (Soldier_Profile.cc SECOND_LEVEL_Z_OFFSET)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const old = civilianWithProfile(sim);
+    old.placed = false;
+    Object.assign(old, { level: 1, heightAdjustment: 50 });
+    const fresh = changeSoldierTeam(t, old, Team.OUR, { freeSoldierId: () => FREE_OUR_SLOT });
+    expect([fresh?.level, fresh?.heightAdjustment]).toEqual([1, 58]);
+  });
+
   it('gives up without a free slot', () => {
     const sim = newCombatSim(content);
     expect(changeSoldierTeam(sim.state, civilianWithProfile(sim), Team.OUR, { freeSoldierId: () => -1 })).toBeNull();
