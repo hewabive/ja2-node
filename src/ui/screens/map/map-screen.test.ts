@@ -209,6 +209,18 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().plotting).toBeNull();
     }));
 
+  it('tells why time cannot compress when the plus key is refused, as the other compression keys do', () =>
+    withMap(async (f) => {
+      (f.session.sim as CampaignSession).campaign.state.atLeastOneMercHired = false;
+      f.client.refresh();
+      const sent = f.client.commands.length;
+      f.key('+');
+      await f.settle();
+      expect(f.client.commands.length).toBe(sent);
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+      expect(f.widget(MESSAGE_BOX).text).toBe("Go to AIM and hire some mercs ( *Hint* it's in the Laptop )");
+    }));
+
   it('answers the militia payment prompt through a message box after a trainer is assigned', () =>
     withMap(async (f) => {
       const assigned = await f.client.command({ type: 'assign', soldiers: [f.trainer], to: { kind: 'trainMilitia' } });

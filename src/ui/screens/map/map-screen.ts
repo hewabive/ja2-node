@@ -24,7 +24,8 @@
 // @src and Map_Screen_Interface.cc ReportMapScreenMovementError (the custom error names the soldier who cannot move; the
 // @src escort's text by his sex) (2026-11-01); Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom and
 // @src Radar_Screen.cc RenderRadarScreen (the radar picture of a visited selected sector, darker at night while the map
-// @src shows the surface) (2026-11-02).
+// @src shows the surface) (2026-11-02); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
+// @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1657,7 +1658,7 @@ export class MapScreen implements Screen {
     const clock = this.#playerView()?.clock;
     if (!clock) return;
     if (!this.#compressionAllowedByUi() || clock.canCompress === false) {
-      if (request !== 'more') this.#explainCompression();
+      this.#explainCompression();
       return;
     }
     const command = compressionCommand(clock, request);
