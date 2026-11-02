@@ -6,6 +6,7 @@
 import type { Sti } from '../../content/formats/sti.ts';
 import { type GlyphTable, glyphIndexOf } from '../../content/text/glyph-table.ts';
 import type { FontId } from '../draw-list.ts';
+import { fontGlyphTable } from './missing-capitals.ts';
 
 export interface GlyphMetrics {
   readonly width: number;
@@ -34,7 +35,11 @@ export function fontIdOfPath(path: string): FontId {
 
 export function bitmapFontFromSti(id: FontId, sti: Sti, table: GlyphTable): BitmapFont {
   if (sti.kind !== 'indexed') throw new Error(`font ${id} is not an indexed STI`);
-  return { id, table, glyphs: sti.subImages.map((s) => ({ width: s.width, height: s.height, offsetX: s.offsetX, offsetY: s.offsetY })) };
+  return {
+    id,
+    table: fontGlyphTable(id, sti.subImages.length, table),
+    glyphs: sti.subImages.map((s) => ({ width: s.width, height: s.height, offsetX: s.offsetX, offsetY: s.offsetY })),
+  };
 }
 
 export function glyphOf(font: BitmapFont, codePoint: number): number | null {

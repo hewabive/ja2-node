@@ -269,6 +269,16 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('the original fonts', () => {
     expect(drawableGlyph(block, 'ź'.codePointAt(0) as number)).toBe(drawableGlyph(block, 0x3f));
   });
 
+  it('lack one Cyrillic capital in the block fonts and FONT14HUMANIST only, drawn with a stand-in', () => {
+    const short = new Set<string>([FontName.BLOCKFONT, FontName.BLOCKFONT2, FontName.BLOCKFONTNARROW, FontName.FONT14HUMANIST]);
+    const whole = Math.max(...Object.values(FontName).map((name) => fonts.get(name).glyphs.length));
+    for (const name of Object.values(FontName)) expect(fonts.get(name).glyphs.length, name).toBe(short.has(name) ? whole - 1 : whole);
+    const glyph = (name: string, character: string): number => drawableGlyph(fonts.get(name), character.codePointAt(0) as number);
+    expect(glyph(FontName.BLOCKFONT2, 'Ч')).toBe(glyph(FontName.BLOCKFONT2, '4'));
+    expect(glyph(FontName.FONT14HUMANIST, 'П')).toBe(glyph(FontName.FONT14HUMANIST, '?'));
+    expect(glyph(FontName.BLOCKFONT2, 'Я')).toBe(glyph(FontName.TINYFONT1, 'Я') - 1);
+  });
+
   it('measure and wrap exactly as the original arithmetic over the real glyph widths', () => {
     const font = fonts.get(FontName.FONT12ARIAL);
     const bold = fonts.get(FontName.FONT10ARIALBOLD);
