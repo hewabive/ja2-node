@@ -12,8 +12,8 @@
 // @src voice), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face stretched into 96 x 86 under the distortion, the
 // @src answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights (an 8 x 8 fill, green when
 // @src selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
-// @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector, day = arrival / 1440, "HH:00"; the German
-// @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode).
+// @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (arrival-box.ts; over the page redrawn without the conference, as
+// @src HandleCurrentVideoConfMode).
 
 import { idiv } from '../../../../core/int.ts';
 import { refusalOf } from '../../../../protocol/refusals.ts';
@@ -27,11 +27,11 @@ import { FontName } from '../../../text/fonts.ts';
 import { stringPixLength } from '../../../text/measure.ts';
 import { sprintMoney } from '../../../text/money.ts';
 import { fontColors, mprint } from '../../../text/print.ts';
-import { printf } from '../../../text/printf.ts';
 import { displayWrappedString, lineWrap, TextFlag } from '../../../text/wrap.ts';
 import { MercTextBox } from '../../../widgets/merc-text-box.ts';
 import { MessageBoxFlag } from '../../../widgets/message-box.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
+import { showArrivalBox } from '../arrival-box.ts';
 import { LaptopMode } from '../laptop-modes.ts';
 import type { LaptopContext, LaptopPage } from '../laptop-page.ts';
 import { VideoFace, videoFacePorts, videoFaceRecord } from '../video-face.ts';
@@ -76,16 +76,10 @@ const AIM_MEMBER_WITH_MEDICAL = 14;
 const POW_STRINGS = 'pPOWStrings';
 const MERC_INFO = 'MercInfo';
 const MERC_FILES_ALREADY_HIRED = 5;
-const MESSAGE_STRINGS = 'pMessageStrings';
-const MSG_JUST_HIRED_MERC_ARRIVAL_LOCATION_POPUP = 66;
-const TOWN_NAMES = 'strategic-map-town-names';
-const MINUTES_PER_DAY = 1440;
-const MINUTES_PER_HOUR = 60;
 const FACE_SOURCE = 'aimVideoFace';
 const TITLE_SOURCE = 'aimVideoTitle';
 const SMALL_FACE_WIDTH = 48;
 const SMALL_FACE_HEIGHT = 43;
-const GERMAN_DATA = 'german';
 const AIM_MEMBER_PRERECORDED_MESSAGE = 7;
 const CAPTION_COLOR = 145;
 const CAPTION_DY = 20;
@@ -226,7 +220,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
         const reply = await context.command({ type: 'aimHire', profile: merc.profile, contract, gear });
         if (reply.ok) {
           const arrival = (reply.data as { arrival?: { minute: number; sector: string } } | undefined)?.arrival;
-          memory.lastHired = { profile: merc.profile, arrivalMinute: arrival?.minute ?? 0, sector: arrival?.sector ?? '' };
+          context.sites.arrival.hired({ profile: merc.profile, arrivalMinute: arrival?.minute ?? 0, sector: arrival?.sector ?? '' });
           return 'hired';
         }
         const refusal = refusalOf(reply.data);
@@ -281,22 +275,9 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     memory.distortion,
   );
 
-  const sectorLabel = (sector: string): string => {
-    const town = context.client.strategic()?.sectors.find((s) => s.sector === sector)?.town ?? 0;
-    return town > 0 ? `${sector}: ${context.string(TOWN_NAMES, town)}` : sector;
-  };
-
   const arrivalBox = (): void => {
-    const hired = memory.lastHired;
-    if (!hired) return;
-    memory.lastHired = null;
-    const nickname = context.data.profile(hired.profile)?.nickname ?? '';
-    const day = idiv(hired.arrivalMinute, MINUTES_PER_DAY);
-    const time = `${String(idiv(hired.arrivalMinute % MINUTES_PER_DAY, MINUTES_PER_HOUR)).padStart(2, '0')}:00`;
-    const template = context.string(MESSAGE_STRINGS, MSG_JUST_HIRED_MERC_ARRIVAL_LOCATION_POPUP);
-    const sector = sectorLabel(hired.sector);
-    const args = context.dataVersion === GERMAN_DATA ? [nickname, day, time, sector] : [nickname, sector, day, time];
-    context.messageBox(printf(template, args), MessageBoxFlag.OK);
+    const hired = context.sites.arrival.take();
+    if (hired) showArrivalBox(context, hired);
   };
 
   const loadMerc = (): void => {

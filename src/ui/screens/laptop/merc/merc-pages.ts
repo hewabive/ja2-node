@@ -415,7 +415,8 @@ export function mercFilesPage(context: LaptopContext): LaptopPage {
       if (reply.ok) {
         const arrival = (reply.data as { arrival?: { minute: number; sector: string } } | undefined)?.arrival;
         session.pendingQuotes = quotes;
-        session.arrival = { profile: merc.profile, arrivalMinute: arrival?.minute ?? 0, sector: arrival?.sector ?? '' };
+        context.sites.arrival.hired({ profile: merc.profile, arrivalMinute: arrival?.minute ?? 0, sector: arrival?.sector ?? '' });
+        session.arrival = context.sites.arrival.take();
         context.shell.setPage(LaptopMode.MERC);
         return;
       }

@@ -1,7 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-24. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/AIMMembers.cc DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector with its town,
-// @src day = arrival / 1440, "HH:00", the German argument order), called by Mercs_Files.cc BtnMercHireButtonCallback.
+// @src day = arrival / 1440, "HH:00", the German argument order; nothing once the box was shown in this laptop session),
+// @src called by Mercs_Files.cc BtnMercHireButtonCallback; EnterInitAimMembers (the last hired merc and the shown flag
+// @src reset at every laptop entry); LaptopSave.h LAST_HIRED_MERC_STRUCT (one slot for both sites, which
+// @src Tactical/Merc_Hiring.cc HireMerc sets).
 
 import { idiv } from '../../../core/int.ts';
 import { printf } from '../../text/printf.ts';
@@ -19,6 +22,23 @@ export interface HiredArrival {
   readonly profile: number;
   readonly arrivalMinute: number;
   readonly sector: string;
+}
+
+export class ArrivalBox {
+  #lastHired: HiredArrival | null = null;
+  #shown = false;
+
+  hired(arrival: HiredArrival): void {
+    this.#lastHired = arrival;
+  }
+
+  take(): HiredArrival | null {
+    const hired = this.#lastHired;
+    if (!hired || this.#shown) return null;
+    this.#lastHired = null;
+    this.#shown = true;
+    return hired;
+  }
 }
 
 export function arrivalText(context: LaptopContext, hired: HiredArrival): string {

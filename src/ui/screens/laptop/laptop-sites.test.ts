@@ -191,6 +191,24 @@ describe('A.I.M. on the canvas laptop', () => {
     expect(shadedButtons(h, KIT_BUTTONS)).toEqual([]);
   });
 
+  it('explains the arrival after the first hire of a laptop session only', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    const { t } = h;
+    const conferenceClosed = () => find(t, 'closeConference')?.visible !== true;
+    const first = await callMercAtHome(h);
+    await transferFunds(h);
+    await click(t, 'popupOk');
+    await until(h, () => t.runtime.host.modal !== null);
+    await dismissModal(t);
+    await callMercAtHome(h, [first]);
+    await transferFunds(h);
+    expect(h.replies.at(-1)?.ok).toBe(true);
+    await click(t, 'popupOk');
+    await until(h, conferenceClosed);
+    await settle(t, 12);
+    expect(t.runtime.host.modal).toBeNull();
+  });
+
   it("blinks the merc's face in the video conference", async () => {
     const h = await openLaptopHarness(kit, ui, { seed: 27 });
     const { t } = h;
