@@ -4,7 +4,7 @@ import { cursorTable } from '../../../tests/support/ui-runtime.ts';
 import { StaticImageCatalog, uniformImage } from '../assets.ts';
 import { DrawList } from '../draw-list.ts';
 import { FontName, type FontSet } from '../text/fonts.ts';
-import type { ButtonSoundRequest } from '../widgets/button-sounds.ts';
+import { type ButtonSoundRequest, NO_SOUND } from '../widgets/button-sounds.ts';
 import { CursorId, EXTERN_CURSOR, VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from './cursor-ids.ts';
 import { CURSOR_ANIMATION_MS, CURSOR_FLASH_MS, CursorState, DELAY_START_MS } from './cursor-state.ts';
 import { CursorFlag, type CursorTable } from './cursor-table.ts';
@@ -26,7 +26,14 @@ describe('the cursor database', () => {
       images.set(file.path, uniformImage(12, w, h, animated ?? 0));
     }
     images.set('items/gun.sti', { kind: 'indexed', animatedFrames: 0, frames: [{ width: 30, height: 20, offsetX: 2, offsetY: 1 }] });
-    return new CursorState(table, images, { sounds: { play: (request) => played.push(request) } });
+    return new CursorState(table, images, {
+      sounds: {
+        play: (request) => {
+          played.push(request);
+          return NO_SOUND;
+        },
+      },
+    });
   }
 
   it('transcribes 68 files and every CursorTypeDefines entry, and the named ids agree with it', () => {

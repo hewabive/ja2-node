@@ -4,6 +4,7 @@ import type { LayoutController } from '../../layout/controller.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import type { UiServices } from '../../services.ts';
 import type { UiTextService } from '../../text/text-service.ts';
+import type { UiSoundHandle } from '../../widgets/button-sounds.ts';
 import type { MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { AimSession } from './aim/aim-session.ts';
 import type {
@@ -50,7 +51,7 @@ export interface LaptopContext {
   command(cmd: LaptopCommand): Promise<LaptopCommandReply>;
   string(table: string, index?: number): string;
   messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void;
-  playSound(file: string, volume: number): void;
+  playSound(file: string, volume: number): UiSoundHandle;
   openOldestUnreadMail(): void;
   takeOpenUnreadMailRequest(): boolean;
   takeOpenUnreadFileRequest(): boolean;

@@ -3,10 +3,13 @@
 // @src src/game/Laptop/IMP_Portraits.cc EnterIMPPortraits, RenderPortrait (faces/bigfaces/<face>.sti of the gender's n-th
 // @src portrait), IncrementPictureIndex, DecrementPicture, BtnIMPPortraitDoneCallback; IMP_Voices.cc EnterIMPVoices (the
 // @src sample played on entry), PlayVoice (speech/<profile>_001.wav at MIDVOLUME), IncrementVoice, DecrementVoice,
-// @src BtnIMPVoicesDoneCallback, IMPPortraitRegionButtonCallback, RenderVoiceIndex ("<pIMPVoicesStrings> <n>").
+// @src BtnIMPVoicesNextCallback and BtnIMPVoicesPreviousCallback (the sample playing stopped before the next),
+// @src BtnIMPVoicesDoneCallback, IMPPortraitRegionButtonCallback (a sample only while none plays), RenderVoiceIndex
+// @src ("<pIMPVoicesStrings> <n>").
 
 import type { ControllerContract } from '../../../layout/controller.ts';
 import { ViewModelController } from '../../../layout/controller.ts';
+import { NO_SOUND, type UiSoundHandle } from '../../../widgets/button-sounds.ts';
 import { portraitPath } from '../../../widgets/portrait.ts';
 import type { LaptopPage } from '../laptop-page.ts';
 import { genderList, type ImpContext } from './imp-site.ts';
@@ -68,9 +71,10 @@ export function voicePage(imp: ImpContext): LaptopPage {
   const voices = () => genderList(imp, 'voices');
   draft.enterVoices(voices().length);
   const volume = context.constant(IMP_VOICE_LAYOUT, MID_VOLUME);
+  let sample: UiSoundHandle = NO_SOUND;
   const play = () => {
     const profile = voices()[draft.voice];
-    if (profile !== undefined) context.playSound(voiceSample(profile), volume);
+    if (profile !== undefined) sample = context.playSound(voiceSample(profile), volume);
   };
   const model: Record<string, unknown> = {};
   const refresh = () => {
@@ -78,13 +82,16 @@ export function voicePage(imp: ImpContext): LaptopPage {
   };
   const step = (delta: 1 | -1) => {
     draft.stepVoice(delta, voices().length);
+    if (sample.active) sample.stop();
     play();
   };
   const controller = new ViewModelController(IMP_VOICE_CONTRACT, model, {
     next: () => step(1),
     previous: () => step(-1),
     done: () => draft.voiceDone(),
-    replay: play,
+    replay: () => {
+      if (!sample.active) play();
+    },
   });
   play();
   refresh();

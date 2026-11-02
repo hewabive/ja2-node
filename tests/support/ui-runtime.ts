@@ -10,16 +10,41 @@ import { LayoutLoader } from '../../src/ui/layout/loader.ts';
 import { UiRuntime } from '../../src/ui/runtime.ts';
 import type { ScreenGeometry } from '../../src/ui/services.ts';
 import type { FontSet } from '../../src/ui/text/fonts.ts';
-import type { ButtonSoundRequest, UiSoundSink } from '../../src/ui/widgets/button-sounds.ts';
+import type { ButtonSoundRequest, UiSoundHandle, UiSoundSink } from '../../src/ui/widgets/button-sounds.ts';
 import { stubFontSet } from './ui-fonts.ts';
 
 export const GEOMETRY_640: ScreenGeometry = { width: 640, height: 480, stdX: 0, stdY: 0 };
 
+export class RecordedSound implements UiSoundHandle {
+  readonly request: ButtonSoundRequest;
+  readonly failed = false;
+  readonly elapsedMs = 0;
+  active = true;
+  stopped = false;
+
+  constructor(request: ButtonSoundRequest) {
+    this.request = request;
+  }
+
+  stop(): void {
+    this.stopped = this.active;
+    this.active = false;
+  }
+
+  end(): void {
+    this.active = false;
+  }
+}
+
 export class RecordingSounds implements UiSoundSink {
   readonly played: ButtonSoundRequest[] = [];
+  readonly sounds: RecordedSound[] = [];
 
-  play(request: ButtonSoundRequest): void {
+  play(request: ButtonSoundRequest): RecordedSound {
     this.played.push(request);
+    const sound = new RecordedSound(request);
+    this.sounds.push(sound);
+    return sound;
   }
 
   names(): string[] {

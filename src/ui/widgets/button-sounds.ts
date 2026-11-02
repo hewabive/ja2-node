@@ -69,11 +69,20 @@ export type ButtonSoundRequest =
   | { readonly sample: string; readonly volume: number }
   | { readonly file: string; readonly volume: number; readonly speech?: boolean };
 
-export interface UiSoundSink {
-  play(request: ButtonSoundRequest): void;
+export interface UiSoundHandle {
+  readonly active: boolean;
+  readonly failed: boolean;
+  readonly elapsedMs: number;
+  stop(): void;
 }
 
-export const SILENT: UiSoundSink = { play: () => undefined };
+export const NO_SOUND: UiSoundHandle = { active: false, failed: true, elapsedMs: 0, stop: () => undefined };
+
+export interface UiSoundSink {
+  play(request: ButtonSoundRequest): UiSoundHandle;
+}
+
+export const SILENT: UiSoundSink = { play: () => NO_SOUND };
 
 export function resolveScheme(scheme: ButtonSoundScheme, screen: UiScreenKind): ButtonSoundScheme {
   if (scheme !== ButtonSoundScheme.GENERIC) return scheme;

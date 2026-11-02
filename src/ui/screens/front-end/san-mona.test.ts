@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest } from '../../../../tests/support/front-end.ts';
+import { NO_SOUND, type UiSoundHandle } from '../../widgets/button-sounds.ts';
 import { SanMonaController } from './san-mona.ts';
 
 const STEP_MS = 101;
 const END_MS = 1001;
 const SOUND = { file: 'sounds/sex.wav', volume: 127 };
 
-function played(): { sounds: unknown[]; play: (request: unknown) => void } {
+function played(): { sounds: unknown[]; play: (request: unknown) => UiSoundHandle } {
   const sounds: unknown[] = [];
-  return { sounds, play: (request) => sounds.push(request) };
+  return {
+    sounds,
+    play: (request) => {
+      sounds.push(request);
+      return NO_SOUND;
+    },
+  };
 }
 
 describe('the San Mona screen (JAScreens.cc SexScreenHandle)', () => {

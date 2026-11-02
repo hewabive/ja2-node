@@ -38,8 +38,12 @@ class EngineSpeechVoice implements SpeechVoice {
   }
 }
 
+export function engineVoice(handle: VoiceHandle): SpeechVoice {
+  return new EngineSpeechVoice(handle);
+}
+
 export function engineSpeechVoices(engine: AudioEngine): SpeechVoices {
-  return { play: (path) => new EngineSpeechVoice(engine.play(speechCue(path))) };
+  return { play: (path) => engineVoice(engine.play(speechCue(path))) };
 }
 
 export function storedSpeechSettings(now: () => number): () => SpeechSettings {

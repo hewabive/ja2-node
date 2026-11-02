@@ -194,7 +194,7 @@ async function clickThrough(h: LaptopHarness, id: string, next: string): Promise
 }
 
 describe('I.M.P. on the canvas laptop', () => {
-  it('refuses a bad code, creates a character through every page and charges the profile', async () => {
+  it('refuses a bad code, creates a character through every page without overlapping voice samples and charges the profile', async () => {
     const h = await openLaptopHarness(kit, ui, { seed: 24, prepare: bookmark(Bookmark.IMP) });
     const { t } = h;
     await toBookmark(h, 1);
@@ -273,8 +273,18 @@ describe('I.M.P. on the canvas laptop', () => {
     await click(t, 'impPortraitNext');
     await clickThrough(h, 'impPortraitDone', 'impMainTitle');
     await clickThrough(h, 'impProfile3', 'impVoiceTitle');
+    const samples = () => t.sounds.sounds.filter((s) => 'file' in s.request && s.request.file.startsWith('speech/'));
+    const [entrySample] = samples();
+    expect(entrySample?.active).toBe(true);
+    await click(t, 'impVoiceSilhouette');
+    expect(samples()).toHaveLength(1);
     await click(t, 'impVoiceNext');
     expect(shown(t, 'impVoiceIndex').text).toMatch(/ 2$/);
+    expect(entrySample?.stopped).toBe(true);
+    expect(samples()).toHaveLength(2);
+    samples()[1]?.end();
+    await click(t, 'impVoiceSilhouette');
+    expect(samples()).toHaveLength(3);
     await clickThrough(h, 'impVoiceDone', 'impFinishName');
     expect(shown(t, 'impFinishName').text).toContain('Ivan Testov');
 
