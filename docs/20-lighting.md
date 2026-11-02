@@ -16,6 +16,7 @@ map load: initLighting                                          lighting/lightin
   loadMapLights: one sprite per map light, powered by the hour
   lightSetBaseLevel(ambient): natural level, every light drawn again
   map items placed → lightSpriteRenderAll                       src/server/sandbox.ts, src/sim/campaign/sector-flow.ts
+  sector diff or save changes applied → initLoadedWorld         src/sim/campaign/sector-flow.ts, save-import.ts
 a sprite: lightSpriteCreate(template) → power → position        lighting/lighting.ts, lighting/templates.ts
   traceLight: the rays from the centre, illuminationFilter per step, light added to the land or roof sum
   move or destroy: the same walk with the filters stored at draw time, light subtracted
@@ -62,10 +63,13 @@ is commented out (`Tactical/Overhead.cc:2036`).
 **Lights change only when drawn.** A sprite adds its light when placed and subtracts it when moved or destroyed;
 `lightSetBaseLevel` and `lightSpriteRenderAll` draw every powered sprite again. Switching power shows at the next
 render, and a door that opens or a wall a grenade destroys changes no light until then
-(`UpdateLightSpritesOnStructureChange` is declared but never defined). The client keeps the rule for structures: a
-change in the view's `tileChanges` redraws nothing; the map lights pass where a destroyed structure stood once the hour,
-the ambient level, the open doors or the powered map lights make it draw them again, our mercs' and the dynamic lights
-once one of them moves.
+(`UpdateLightSpritesOnStructureChange` is declared but never defined). A sector entry and a native load draw them
+once the sector's map changes, doors and revealed tiles are back (`initLoadedWorld`, `Tactical/Tactical_Save.cc:509`),
+so a door left open or a wall destroyed shows in the light at the next entry; a meanwhile scene returns before that
+render and keeps the lights its map load drew (`Tactical/Tactical_Save.cc:456`). The client keeps the rule for
+structures: a change in the view's `tileChanges` redraws nothing; the map lights pass where a destroyed structure stood
+once the hour, the ambient level, the open doors or the powered map lights make it draw them again, our mercs' and the
+dynamic lights once one of them moves.
 
 **The clock powers map lights once.** At a map load the hour decides which scheduled lights are on: night lights from
 21:00 to 7:00, prime-time lights from 21:00 to midnight, none in caves. Afterwards only the strategic light events

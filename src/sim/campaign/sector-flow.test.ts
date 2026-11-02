@@ -26,11 +26,18 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
-import { isDoorOpenAt } from '../tactical/doors.ts';
+import { perceiveDoor } from '../tactical/doors/door-status.ts';
+import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
-import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
+import {
+  lightSpriteRenderAll,
+  lightTrueLevel,
+  NORMAL_LIGHTLEVEL_DAY,
+  NORMAL_LIGHTLEVEL_NIGHT,
+  timeOfDayAmbientLevel,
+} from '../tactical/lighting/lighting.ts';
 import {
   addObjectToHead,
   MapChangeKind,
@@ -44,7 +51,7 @@ import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
-import { teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
+import { type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { sectorKey } from './sector-diff.ts';
@@ -84,6 +91,11 @@ const TAIL_BOOM_SUB_INDEX = 3;
 const BESIDE_HELIPAD = DRASSEN_HELIPAD + 2;
 const AIRFIELD_DOOR = 8060;
 const DOOR_PERCEIVED_OPEN = 0x02;
+const NIGHT_LIGHTS_HOUR = 22;
+const HANGAR_DOOR = 8374;
+const HANGAR_WALL = HANGAR_DOOR + 1;
+const HANGAR_FLOOR = HANGAR_WALL - 160;
+const GROUND_LEVEL = 0;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -517,6 +529,64 @@ describe('a native save loaded into its sector', () => {
     expect(objectLayerAt(back, g)[0]).toBe(debris);
   });
 });
+
+describe('the lights of a sector entry', () => {
+  it('draws the lights once the map changes are back: the light passes where a wall was destroyed before the squad left (InitLoadedWorld from Tactical_Save.cc:509)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    const shaded = lightTrueLevel(left, HANGAR_FLOOR, GROUND_LEVEL);
+    const wall = left.world.structures.at(HANGAR_WALL).find((s) => has(s.flags, StructureFlags.WALL));
+    if (!wall) throw new Error('no hangar wall');
+    recordStructureRemoved(left, wall);
+    left.world.structures.remove(wall);
+    const t = reenterAirfield(campaign);
+    const entered = lightTrueLevel(t, HANGAR_FLOOR, GROUND_LEVEL);
+    expect(entered).toBeLessThan(shaded);
+    expect(entered).toBe(redrawnLightLevel(t, HANGAR_FLOOR));
+  });
+
+  it('draws the lights once the door status is back: the light passes a door the player saw open before leaving (Tactical_Save.cc:509 after the door status at :486)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    const shaded = lightTrueLevel(left, HANGAR_FLOOR, GROUND_LEVEL);
+    expect(handleDoorChangeFromGridNo(left, null, HANGAR_DOOR, { noAnimation: true })).toBe(true);
+    const status = left.doorStatus.get(HANGAR_DOOR);
+    if (!status) throw new Error('no door status');
+    perceiveDoor(status, true);
+    const t = reenterAirfield(campaign);
+    const entered = lightTrueLevel(t, HANGAR_FLOOR, GROUND_LEVEL);
+    expect(entered).toBeLessThan(shaded);
+    expect(entered).toBe(redrawnLightLevel(t, HANGAR_FLOOR));
+  });
+});
+
+function enterAirfieldAtNight(campaign: ReturnType<typeof createTestCampaign>['campaign']): TacticalState {
+  landFirstSquad(campaign);
+  warpMinutes(campaign, ((NIGHT_LIGHTS_HOUR - worldHour(campaign.state.clock) + HOURS_PER_DAY) % HOURS_PER_DAY) * 60);
+  const flow = flowOf(campaign);
+  Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+  for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+  expect(flow.setCurrentWorldSector(B13)).toBe(true);
+  const t = campaign.tactical?.state;
+  if (!t) throw new Error('no sector');
+  return t;
+}
+
+function reenterAirfield(campaign: ReturnType<typeof createTestCampaign>['campaign']): TacticalState {
+  const flow = flowOf(campaign);
+  for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+  expect(flow.setCurrentWorldSector(A9)).toBe(true);
+  for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+  expect(flow.setCurrentWorldSector(B13)).toBe(true);
+  const t = campaign.tactical?.state;
+  if (!t) throw new Error('no sector');
+  return t;
+}
+
+function redrawnLightLevel(t: TacticalState, gridNo: number): number {
+  lightSpriteRenderAll(t);
+  return lightTrueLevel(t, gridNo, GROUND_LEVEL);
+}
 
 function spacesApart(a: number, b: number): [number, number] {
   return [Math.abs((a % 160) - (b % 160)), Math.abs(Math.trunc(a / 160) - Math.trunc(b / 160))];

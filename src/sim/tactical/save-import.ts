@@ -264,7 +264,7 @@ function applyRevealedStatus(t: TacticalState, revealed: Uint8Array | null): voi
   if (revealed) setMapRevealedStatus(t, (g) => revealed[g] === 1);
 }
 
-function initLoadedWorld(t: TacticalState): void {
+export function initLoadedWorld(t: TacticalState): void {
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
   lightSpriteRenderAll(t);
 }

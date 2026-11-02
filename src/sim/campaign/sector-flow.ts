@@ -137,7 +137,7 @@ import {
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
-import { loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
+import { initLoadedWorld, loadSavedSectorChanges, NO_SAVED_SECTOR_CHANGES, type SavedSectorChanges } from '../tactical/save-import.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import {
   enterTacticalScreen,
@@ -710,7 +710,7 @@ export class SectorFlow {
       if (diff.smoke && this.#flagged(sector, SectorFlag.SMOKE_EFFECTS_TEMP_FILE_EXISTS)) restoreSmoke(t, diff.smoke);
       if (diff.lights && this.#flagged(sector, SectorFlag.LIGHTING_EFFECTS_TEMP_FILE_EXISTS)) restoreLights(t, diff.lights);
     }
-    t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+    initLoadedWorld(t);
     if (sector.z === 0 && sectorInfo(s.map, sector).timeLastPlayerLiberated !== 0) stripEnemyDetailedPlacements(t, this.populationEnv());
   }
 
