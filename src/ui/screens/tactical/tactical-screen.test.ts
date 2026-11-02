@@ -186,6 +186,49 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.panel).toBe('team');
   });
 
+  it('locates a merc at the first face click and selects him at the next under the old selection method, as HandleLocateSelectMerc does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.display = { ...f.display, oldSelectionMethod: true };
+    const located = f.world.located.length;
+    await f.click('teamFaceRegion1');
+    expect([f.screen.selected, selects(f), f.world.located.length]).toEqual([0, [], located + 1]);
+    await f.click('teamFaceRegion1');
+    expect([f.screen.selected, selects(f)]).toEqual([1, [{ type: 'select', soldier: 1 }]]);
+    expect(f.attention).toEqual([1]);
+  });
+
+  it('only locates with ALT and a face click, and selects with them under the old selection method', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await f.click('teamFaceRegion1', MouseButton.LEFT, KeyModifier.ALT);
+    expect([f.screen.selected, selects(f)]).toEqual([0, []]);
+    f.display = { ...f.display, oldSelectionMethod: true };
+    await f.click('teamFaceRegion2', MouseButton.LEFT, KeyModifier.ALT);
+    expect([f.screen.selected, selects(f)]).toEqual([2, [{ type: 'select', soldier: 2 }]]);
+  });
+
+  it('selects the merc of a slot with Shift and his F key as a face click does, and forces the selection with the F key alone', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('F2', KeyModifier.SHIFT);
+    await f.settle();
+    expect([f.screen.selected, selects(f)]).toEqual([1, [{ type: 'select', soldier: 1 }]]);
+    f.display = { ...f.display, oldSelectionMethod: true };
+    f.key('F3', KeyModifier.SHIFT);
+    await f.settle();
+    expect(f.screen.selected).toBe(1);
+    f.key('F4');
+    await f.settle();
+    expect([f.screen.selected, selects(f).at(-1)]).toEqual([3, { type: 'select', soldier: 3 }]);
+  });
+
+  it('drops the multi-selection at a face click, whatever the click does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.key('=');
+    await f.settle();
+    expect(f.screen.controls.input.multiSelected.size).toBe(4);
+    await f.click('teamFaceRegion0');
+    expect([f.screen.selected, f.screen.controls.input.multiSelected.size]).toEqual([0, 0]);
+  });
+
   it('asks for real time every time the screen is entered, as the map screen hands the driver back in manual', async () => {
     const f = await tacticalUiTest(kit, ui);
     const first = f.client.starts;

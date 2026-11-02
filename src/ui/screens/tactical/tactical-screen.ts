@@ -5,7 +5,8 @@
 // @src src/game/Tactical/Interface.cc SetCurrentTacticalPanelCurrentMerc (non-merc bodies and escorts force the team
 // @src panel), ToggleTacticalPanels; src/game/Tactical/Interface_Panels.cc InitializeTEAMPanel, InitializeSMPanel
 // @src (the viewport region ends at the panel), DrawFillerOnSurface, FillEmptySpaceAtBottom, CheckForAndAddMercToTeamPanel,
-// @src HandleLocateSelectMerc (locate, slide or select; ALT only locates; below OKLIFE only locates), SelectMerc,
+// @src HandleLocateSelectMerc (locate, slide or select by the old selection method and force_select; ALT locates, or
+// @src selects with the old method; below OKLIFE only locates; ResetMultiSelection), SelectMerc,
 // @src HandlePanelFaceAnimations (p_close.sti and p_dead.sti frames 0 to 5 every 160 ms), RenderTeamSlotBorder,
 // @src RenderSoldierTeamInv, SMInvClickCamoCallback; src/game/Tactical/Faces.cc HandleAutoFaces (the white highlight of
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
@@ -399,7 +400,7 @@ export class TacticalScreen implements Screen {
       popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open,
       closePopups: () => this.#closePopups(),
       locate: (s, cycles) => this.#locateSoldier(s, cycles),
-      locateSelect: (s, force) => this.#locateSelect(s, force),
+      locateSelect: (s, force) => this.#handleLocateSelect(s, force),
       clearMessages: (queue) => (queue ? this.#log.clear() : this.#log.clearShown()),
       swapHands: (id) => this.#swapHands(id),
       viewportTop: () => (this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0),
@@ -436,14 +437,6 @@ export class TacticalScreen implements Screen {
     if (!this.#squadsOnMap().has(squad)) return false;
     if (squad !== this.#squad) void this.#env.client.command({ type: 'selectSquad', squad });
     return true;
-  }
-
-  #locateSelect(s: SoldierView, force: boolean): void {
-    if (!force) {
-      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
-      return;
-    }
-    this.#handleLocateSelect(s);
   }
 
   #panelButtonEnabled(button: PanelButton): boolean {
@@ -1219,17 +1212,36 @@ export class TacticalScreen implements Screen {
     if (cycles !== null) this.#locators.set(s.id, new Locator(this.#now, cycles));
   }
 
-  #handleLocateSelect(s: SoldierView): void {
-    if ((s.life ?? 0) < OKLIFE || this.#env.runtime.modifiers & ALT_MASK) {
+  #handleLocateSelect(s: SoldierView, force: boolean): void {
+    if ((s.life ?? 0) < OKLIFE) {
       this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
       return;
     }
-    const flashing = this.#locators.has(s.id);
-    if (s.id === this.#selected) {
-      this.#locateSoldier(s, flashing ? null : SHOW_LOCATOR_NORMAL_CYCLES);
+    const oldMethod = this.#env.display().oldSelectionMethod;
+    if (this.#env.runtime.modifiers & ALT_MASK) this.#altLocateSelect(s, oldMethod);
+    else if ((this.#locateBeforeSelecting(s, oldMethod) || force) && !isDead(s)) this.#selectSoldier(s, true, true);
+    this.controls.input.multiSelected.clear();
+  }
+
+  #altLocateSelect(s: SoldierView, oldMethod: boolean): void {
+    if (!oldMethod) {
+      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
       return;
     }
     this.#selectSoldier(s, true, true);
+    this.#locators.delete(s.id);
+  }
+
+  #locateBeforeSelecting(s: SoldierView, oldMethod: boolean): boolean {
+    const selected = s.id === this.#selected;
+    if (!this.#locators.has(s.id)) {
+      if (!selected && !oldMethod) return true;
+      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
+      return false;
+    }
+    if (!selected && !oldMethod) return true;
+    this.#locateSoldier(s, null);
+    return oldMethod;
   }
 
   #selectFace(slot: number): void {
@@ -1239,7 +1251,7 @@ export class TacticalScreen implements Screen {
       void this.#command({ type: 'move', soldier: s.id, to: s.continueTo });
       return;
     }
-    this.#handleLocateSelect(s);
+    this.#handleLocateSelect(s, false);
   }
 
   #openSmPanelFromSlot(slot: number): void {
@@ -1479,7 +1491,7 @@ export class TacticalScreen implements Screen {
     const [first = 0, second = 0] = args;
     switch (action) {
       case 'selectMerc':
-        if (s && !this.#disabledForItems()) this.#handleLocateSelect(s);
+        if (s && !this.#disabledForItems()) this.#handleLocateSelect(s, false);
         return;
       case 'closePanel':
         this.description.close(false);
