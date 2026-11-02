@@ -528,6 +528,33 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.overhead.open).toBe(false);
   });
 
+  it('gives the overhead map every key while it is up, as HandleOverheadUI dequeues them: ALT+x asks to leave the game, Backspace stops no line', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    const presenter = f.screen.dialogue.presenter;
+    const m = merc(f, 0);
+    const text = 'A line under the overhead map';
+    presenter.enqueue({
+      surface: 'tactical',
+      profile: m.profile ?? 0,
+      soldier: m.id,
+      text,
+      chars: text.length,
+      voice: null,
+      sector: null,
+      keyWait: false,
+    });
+    f.key('Insert');
+    f.key('Backspace');
+    f.key('o');
+    expect([f.screen.controls.overhead.open, presenter.busy, f.flow]).toEqual([true, true, []]);
+    f.key('x', KeyModifier.ALT);
+    expect([f.screen.controls.overhead.open, f.flow]).toEqual([true, ['exitGame']]);
+    f.key('Escape');
+    f.key('Backspace');
+    expect([f.screen.controls.overhead.open, presenter.busy]).toEqual([false, false]);
+  });
+
   it('lifts a person on the overhead map by a fifth of his drawn height and brightens him while it is not zero', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };

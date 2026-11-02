@@ -16,9 +16,9 @@
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
-// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld; Message.cc ScrollString: no line in or out while
-// @src the view scrolls); Interface_Items.cc HandleItemPointerClick (give to a talkable soldier or a merc within passing
-// @src range, toss beyond a tile or at anybody else, else drop);
+// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld, none while the overhead map is up; Message.cc
+// @src ScrollString: no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick (give to a
+// @src talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
@@ -933,7 +933,7 @@ export class TacticalScreen implements Screen {
   }
 
   #scrollMessages(): void {
-    if (this.controls.scrolling) return;
+    if (this.controls.overhead.open || this.controls.scrolling) return;
     const font = this.#env.runtime.fonts.get(FontName.SMALLFONT1);
     const { height } = this.#env.runtime.geometry();
     if (this.#log.scroll(this.#now, height - MSG_INTERFACE_LOG_Y, lineHeightOf(font))) this.#env.sounds.newMessageBeep();
@@ -1039,6 +1039,10 @@ export class TacticalScreen implements Screen {
 
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) return false;
+    if (this.controls.overhead.open) {
+      this.controls.overhead.keyInput(event);
+      return true;
+    }
     if (this.dialogue.input(event)) return true;
     if (event.kind !== 'text' && this.controls.keyInput(event)) return true;
     if (event.kind === 'keyUp' && this.#env.client.paused && event.key !== PAUSE_KEY) {

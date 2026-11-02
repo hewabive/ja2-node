@@ -213,6 +213,7 @@ export class TacticalControls {
       blink: () => screen.radarBlink(),
       centerOn: (gridNo) => env.world.centerOn(gridNo),
       closed: () => undefined,
+      exitGame: () => env.flow.exitGame(),
     });
     this.input = new TacticalInput(this.#inputHost());
     this.#missCamera = new MissCamera({
@@ -390,10 +391,6 @@ export class TacticalControls {
   }
 
   keyInput(event: UiKeyEvent): boolean {
-    if (this.overhead.open) {
-      if (event.kind === 'keyDown' && (event.key === 'Escape' || event.key === 'Insert')) this.overhead.close();
-      return true;
-    }
     if (this.exitDialog.open) {
       if (event.kind === 'keyDown' && event.key === 'Escape') this.exitDialog.close(false);
       else if (event.kind === 'keyDown' && event.key === 'Enter') this.exitDialog.close(true);

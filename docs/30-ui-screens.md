@@ -181,8 +181,9 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | A head miner's line leaves the map on the level it shows: Stracciatella's switch to the surface passes the selected sector, whose level `iCurrentMapSectorZ` is (`Strategic/Map_Screen_Interface.cc:1623`, `Strategic/Map_Screen_Interface.h:229`) | `map/map-screen.test.ts` "keeps the level it shows while a head miner speaks …" |
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | The description box over a dealer box drifts down by column (the slot is multiplied before the division by the row length); over the offer area near the face it moves down instead of right | `shop/shop-panel.test.ts` "places the description box with the original quirks" |
-| No tactical message line comes in or ages out while the view scrolls; the lines that aged meanwhile drop together as it stops (`Utils/Message.cc:131`) | `tactical/tactical-screen.test.ts` "lets no message line in or out while the view scrolls …" |
+| No tactical message line comes in or ages out while the view scrolls or the overhead map is up; the lines that aged meanwhile drop together as it stops or closes (`Utils/Message.cc:131`, `GameScreen.cc:366`) | `tactical/tactical-screen.test.ts` "lets no message line in or out while the view scrolls …", "… while the overhead map is up …" |
 | The overhead map finds the cell under the pointer eight rows above it | `src/app/tactical/overhead-map.test.ts` |
+| The overhead map takes every key while it is up: only ESC, INSERT and ALT+x act, and Backspace stops no line (`TileEngine/Overhead_Map.cc:419`) | `tactical/tactical-controls.test.ts` "gives the overhead map every key while it is up …" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | The new-mail icon opens the oldest unread mail and the new-file icon the last unread file, where the functions' names promise the most recent mail and the first file | `laptop/email/email-list.test.ts`, `laptop/files/file-pages.test.ts` |
 | With exactly twenty departed mercs, going back from the first face shows an empty page | `laptop/personnel/personnel-model.test.ts` "… the empty last page included" |
@@ -219,5 +220,6 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
-cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
-"Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page and saved profiles".
+cursor", "Auto-bandage", "Overhead map", "Tactical overlays under the overhead map", "Clock under the overhead map",
+"Inventory panel clicks", "Team panel vehicle exit", "Map inventory details", "Vehicles as characters", "Shop screen
+details", "IME composition", "I.M.P. skill page and saved profiles".

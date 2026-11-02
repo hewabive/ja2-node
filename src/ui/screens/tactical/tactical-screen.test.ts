@@ -334,6 +334,22 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.controls.scrolling, f.screen.messageLines]).toEqual([false, ['Late']]);
   });
 
+  it('lets no message line in or out while the overhead map is up and drops the lines aged meanwhile together as it closes, as MainGameScreenHandle returns before ScrollString', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    const tick = f.client.view.tick;
+    f.frames([frame(tick, [], logLines(tick, 2))]);
+    await f.settle(2);
+    const shown = f.screen.messageLines;
+    expect(shown).toEqual(['Line 1', 'Line 0']);
+    f.key('Insert');
+    f.frames([frame(tick, [], [{ tick, kind: 'interface', colour: FONT_RED, args: [{ text: 'Late' }] }])]);
+    f.t.frame(MAX_AGE);
+    expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([true, shown]);
+    f.key('Escape');
+    expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([false, ['Late']]);
+  });
+
   it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
     const f = await tacticalUiTest(kit, ui);
     await smPanelOf(f, 0);

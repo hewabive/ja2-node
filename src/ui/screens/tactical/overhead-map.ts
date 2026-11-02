@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Overhead_Map.cc GoIntoOverheadMap (the 640 × 360 background region and the 640 × 320 map
-// @src region at MSYS_PRIORITY_HIGH, the persons.sti shades 256, 310 and black), HandleOverheadUI (ESC and INSERT
-// @src close it), KillOverheadMap, RenderOverheadMap (black area, map_bord.sti border), RenderOverheadOverlays (the
-// @src persons by team at +2, -5 lifted by the height adjustment / 5, the selected merc black while the radar blink
-// @src is on, roof soldiers brighter; one pixel per visible item at +6, black while blinking),
+// @src region at MSYS_PRIORITY_HIGH, the persons.sti shades 256, 310 and black), HandleOverheadUI (every key goes to it:
+// @src ESC and INSERT close it on key-down, ALT+x asks to leave the game), KillOverheadMap, RenderOverheadMap (black
+// @src area, map_bord.sti border), RenderOverheadOverlays (the persons by team at +2, -5 lifted by the height
+// @src adjustment / 5, the selected merc black while the radar blink is on, roof soldiers brighter; one pixel per
+// @src visible item at +6, black while blinking),
 // @src DisplayMercNameInOverhead (TINYFONT1 white, 13 above), GetClosestMercInOverheadMap (radius 1),
 // @src ClickOverheadRegionCallbackPrimary (centre the view there and close), ClickOverheadRegionCallbackSecondary.
 
@@ -12,6 +13,7 @@ import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
 import type { ItemView, SoldierView } from '../../../protocol/view.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
+import { KeyModifier, type UiKeyEvent, type UiTextEvent } from '../../input/events.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
@@ -24,6 +26,8 @@ export const OVERHEAD_AREA_WIDTH = 640;
 export const OVERHEAD_AREA_HEIGHT = 360;
 export const OVERHEAD_MAP_HEIGHT = 320;
 const OWNER = 'tacticalOverhead';
+const CLOSE_KEYS: ReadonlySet<string> = new Set(['Escape', 'Insert']);
+const EXIT_GAME_KEY = 'x';
 const PERSON_X = 2;
 const PERSON_Y = -5;
 const ITEM_Y = 6;
@@ -55,6 +59,7 @@ export interface OverheadHooks {
   blink(): boolean;
   centerOn(gridNo: number): void;
   closed(): void;
+  exitGame(): void;
 }
 
 function tileRange(a: number, b: number): number {
@@ -119,6 +124,12 @@ export class OverheadMap {
     this.#mapRegion = null;
     this.#hooks.services.pauseGame?.(false);
     this.#hooks.closed();
+  }
+
+  keyInput(event: UiKeyEvent | UiTextEvent): void {
+    if (event.kind !== 'keyDown') return;
+    if (CLOSE_KEYS.has(event.key)) this.close();
+    else if (event.key === EXIT_GAME_KEY && event.modifiers & KeyModifier.ALT) this.#hooks.exitGame();
   }
 
   #button(reason: number): void {
