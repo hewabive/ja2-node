@@ -220,6 +220,6 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
-cursor", "Auto-bandage", "Overhead map", "Tactical overlays under the overhead map", "Clock under the overhead map",
-"Inventory panel clicks", "Team panel vehicle exit", "Map inventory details", "Vehicles as characters", "Shop screen
-details", "IME composition", "I.M.P. skill page and saved profiles".
+cursor", "Auto-bandage", "Overhead map", "Tactical overlays under the overhead map", "Inventory panel clicks", "Team
+panel vehicle exit", "Map inventory details", "Vehicles as characters", "Shop screen details", "IME composition",
+"I.M.P. skill page and saved profiles".
