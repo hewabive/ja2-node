@@ -189,9 +189,11 @@ export function floristGalleryPage(context: LaptopContext): LaptopPage {
   const florist = context.memory.pages.florist;
   const visits = visitsOf(context.shell);
   const model: Record<string, unknown> = {};
+  let shownIndex = florist.galleryIndex;
   void context.media.loadTexts([FLOWER_TEXT_FILE]);
   const refresh = () => {
-    const index = florist.galleryIndex;
+    shownIndex = florist.galleryIndex;
+    const index = shownIndex;
     const shown = flowersOnPage(index);
     model.rows = Array.from({ length: FLOWERS_PER_PAGE }, (_, i): GalleryRow => {
       const flower = index + i;
@@ -218,7 +220,7 @@ export function floristGalleryPage(context: LaptopContext): LaptopPage {
       else changeSubPage(previousGalleryIndex(florist.galleryIndex));
     },
     flower: ([i]) => {
-      florist.flower = florist.galleryIndex + (i ?? 0);
+      florist.flower = shownIndex + (i ?? 0);
       context.shell.showBookmarks = false;
       context.shell.setPage(LaptopMode.FLORIST_ORDERFORM);
     },

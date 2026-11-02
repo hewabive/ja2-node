@@ -26,6 +26,7 @@ import { projectLayoutLoader, type TestRuntime, testRuntime } from './ui-runtime
 
 const MESSAGE_BOX_LAYOUT = 'message-box';
 const SETTLE_FRAMES = 6;
+const PAGE_LOAD_FRAMES_LIMIT = 500;
 const DEFAULT_SEED = 7;
 
 export interface LaptopHire {
@@ -36,6 +37,7 @@ export interface LaptopHire {
 export interface LaptopHarnessOptions {
   readonly seed?: number;
   readonly hire?: readonly LaptopHire[];
+  readonly loadingTimeScale?: number;
 }
 
 export interface LaptopHarness {
@@ -160,7 +162,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),
     messageBoxLabels: messageBoxLabels(text),
     dataVersion: STUB_DATA_VERSION,
-    settings: { loadingTimeScale: 0, slideStepMs: 0, subtitles: true, speech: false },
+    settings: { loadingTimeScale: options.loadingTimeScale ?? 0, slideStepMs: 0, subtitles: true, speech: false },
     zoomOnOpen: false,
     zoomOnClose: false,
     onClosed: () => {
@@ -203,6 +205,12 @@ export async function settleLaptop(t: TestRuntime, frames = SETTLE_FRAMES): Prom
     t.frame();
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
+}
+
+export async function waitForPageLoad(h: LaptopHarness): Promise<void> {
+  for (let frame = 0; frame < PAGE_LOAD_FRAMES_LIMIT && h.screen.shell.loading; frame++) await settleLaptop(h.t, 1);
+  if (h.screen.shell.loading) throw new Error('the page never finished loading');
+  await settleLaptop(h.t);
 }
 
 export function findWidget(t: TestRuntime, id: string): WidgetInfo | undefined {

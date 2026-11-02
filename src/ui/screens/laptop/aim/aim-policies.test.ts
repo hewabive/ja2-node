@@ -9,6 +9,7 @@ import {
   openWebPage,
   settleLaptop,
   shownWidget,
+  waitForPageLoad,
 } from '../../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
 import { Bookmark, LaptopMode } from '../laptop-modes.ts';
@@ -95,6 +96,29 @@ describe('the A.I.M. policies', () => {
     expect(shownWidget(h.t, 'aimPolicyTocTitle0').text).toBe('1. Definitions');
     await clickWidget(h.t, `aimPolicyMenu${PolicyMenu.HOME}`);
     expect(h.screen.shell.mode).toBe(LaptopMode.AIM);
+  });
+
+  it('shows the page it leaves through the wait, and a click during the wait moves on without starting the wait again', async () => {
+    const h = await openLaptopHarness(kit, ui, { loadingTimeScale: 1 });
+    const loaded = () => waitForPageLoad(h);
+    await openWebPage(h, Bookmark.AIM);
+    await loaded();
+    await clickWidget(h.t, 'policiesLink');
+    await loaded();
+    expect(shownWidget(h.t, 'aimPolicyStatementTitle').text).toBe('Statement of policy');
+    await clickWidget(h.t, 'aimPolicyAgreement1');
+    const wait = h.screen.shell.load;
+    expect(h.screen.shell.loading).toBe(true);
+    expect(shownWidget(h.t, 'aimPolicyStatementTitle').visible).toBe(true);
+    expect(findWidget(h.t, 'aimPolicyToc0')?.visible ?? false).toBe(false);
+    const counted = wait?.total ?? 0;
+    expect(counted).toBeGreaterThan(0);
+    await clickWidget(h.t, 'aimPolicyAgreement1');
+    expect(h.screen.shell.load).toBe(wait);
+    expect(wait?.total ?? 0).toBeGreaterThanOrEqual(counted);
+    expect(shownWidget(h.t, 'aimPolicyStatementTitle').visible).toBe(true);
+    await loaded();
+    expect(shownWidget(h.t, 'aimPolicySectionTitle').text).toBe('1. Definitions');
   });
 
   it('returns to the A.I.M. home page on disagree', async () => {

@@ -185,17 +185,18 @@ export function insuranceInfoPage(context: LaptopContext): LaptopPage {
   const text = insuranceText(context);
   const visited = infoVisited(context);
   let subPage: number = InsuranceInfoPage.TOC;
+  let shownSubPage = subPage;
   const model: Record<string, unknown> = {};
   const refresh = () => {
-    model.subPage = subPage;
-    model.title = subPage === InsuranceInfoPage.TOC ? '' : text(INSURANCE_INFO_TITLES[subPage] ?? 0);
-    model.previousEnabled = subPage !== InsuranceInfoPage.TOC;
-    model.nextEnabled = subPage !== INSURANCE_INFO_PAGES - 1;
+    shownSubPage = subPage;
+    model.subPage = shownSubPage;
+    model.title = shownSubPage === InsuranceInfoPage.TOC ? '' : text(INSURANCE_INFO_TITLES[shownSubPage] ?? 0);
+    model.previousEnabled = shownSubPage !== InsuranceInfoPage.TOC;
+    model.nextEnabled = shownSubPage !== INSURANCE_INFO_PAGES - 1;
   };
   const change = (page: number) => {
     subPage = page;
     context.shell.connectToSubPage(visited.visit(page));
-    refresh();
   };
   const controller = new ViewModelController(INSURANCE_INFO_CONTRACT, model, {
     previous: () => change(subPage > 0 ? subPage - 1 : subPage),
@@ -204,7 +205,7 @@ export function insuranceInfoPage(context: LaptopContext): LaptopPage {
     contract: () => context.shell.setPage(LaptopMode.INSURANCE_CONTRACT),
   });
   const draw: CustomRenderer = (list: DrawList, rect, _params, view) =>
-    drawInsuranceInfoPage(new InsurancePen(list, view, rect, text), subPage);
+    drawInsuranceInfoPage(new InsurancePen(list, view, rect, text), shownSubPage);
   refresh();
   return {
     layouts: [chrome(context, false), { name: INSURANCE_INFO_LAYOUT, controller }],

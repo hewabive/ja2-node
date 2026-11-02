@@ -44,6 +44,19 @@ describe('the laptop timers', () => {
     expect(frames * FRAME_MS).toBeGreaterThanOrEqual(UNIT_TIME * LOAD_UNITS);
   });
 
+  it('keeps the time counted when the speed changes during a load and counts on with the new unit time', () => {
+    const load = new LoadPending({ fast: false, subPage: true, slowSite: false }, 1);
+    load.update(0);
+    load.update(26);
+    expect(load.total).toBe(26);
+    load.retime({ fast: true, subPage: true, slowSite: false }, 1);
+    expect([load.total, load.unitTime, load.speed.fast]).toEqual([26, 2, true]);
+    expect(load.update(29)).toBe(false);
+    expect(load.total).toBe(29);
+    expect(load.update(2 * LOAD_UNITS)).toBe(false);
+    expect(load.update(2 * LOAD_UNITS + 1)).toBe(true);
+  });
+
   it('finishes at once when the World Wide Wait is switched off', () => {
     const load = new LoadPending({ fast: false, subPage: false, slowSite: false }, 0);
     expect(load.update(0)).toBe(true);

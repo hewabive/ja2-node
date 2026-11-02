@@ -23,6 +23,8 @@ import { faceFileOf } from '../tactical/faces.ts';
 import { LaptopMode } from './laptop-modes.ts';
 
 const DRASSEN_ROW = 2;
+const UNDER_CONSTRUCTION = 'laptop/underconstruction.sti';
+const CONSTRUCTION_FRAME_MS = 200;
 
 let kit: StubSectorKit;
 let ui: LaptopUiKit;
@@ -67,6 +69,24 @@ describe("Bobby Ray's on the canvas laptop", () => {
     expect(shown(h.t, 'underConstructionText').text).not.toBe('');
     expect(shown(h.t, 'bobbyRaySign2').enabled).toBe(false);
     expect(find(h.t, 'bobbyRaySentence1')?.visible).toBe(false);
+  });
+
+  it('holds the under-construction animation while the next site loads', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 21, prepare: bookmark(Bookmark.BOBBYR), loadingTimeScale: 1 });
+    const { t } = h;
+    const constructionFrames = () => t.list.items.flatMap((i) => (i.kind === 'image' && i.asset === UNDER_CONSTRUCTION ? [i.frame] : []));
+    await toBookmark(h, 1);
+    await until(h, () => !h.screen.shell.loading && h.screen.shell.shownMode === LaptopMode.BOBBY_R);
+    await wait(h, CONSTRUCTION_FRAME_MS);
+    const before = constructionFrames();
+    expect(before.length).toBeGreaterThan(0);
+    await toBookmark(h, 0);
+    expect([h.screen.shell.loading, h.screen.shell.shownMode]).toEqual([true, LaptopMode.BOBBY_R]);
+    const held = constructionFrames();
+    for (let step = 0; step < 4; step++) await wait(h, CONSTRUCTION_FRAME_MS);
+    expect(h.screen.shell.loading).toBe(true);
+    expect(constructionFrames()).toEqual(held);
+    await until(h, () => !h.screen.shell.loading);
   });
 
   it('buys from the guns catalogue, ships to Drassen through the drop-down and lists the shipment', async () => {

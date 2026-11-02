@@ -67,18 +67,25 @@ export function aimArchivesPage(context: LaptopContext): LaptopPage {
   const visits = subPageVisits(context.shell, VISITS_KEY, ALUMNI_PAGES, true);
   const popupFont = context.services.fonts.get(FontName.FONT10ARIAL);
   let page = context.shell.subPage;
+  let shownPage = page;
+  let faceRegions = true;
   let popupMerc: number | null = null;
   const model: Record<string, unknown> = {};
   void context.media.loadTexts([ALUMNI_NAMES_FILE, ALUMNI_TEXTS_FILE]);
   const alumniText = (merc: number, column: number) => context.text.edt(ALUMNI_TEXTS_FILE, merc * ALUMNI_TEXT_COLUMNS + column) ?? '';
+  const holdPageButton = () => {
+    model.pageHeld = Array.from({ length: ALUMNI_PAGES }, (_, i) => i === page);
+  };
   const refresh = () => {
-    const shown = alumniOnPage(page);
+    shownPage = page;
+    faceRegions = true;
+    const shown = alumniOnPage(shownPage);
     model.faces = Array.from({ length: MAX_NUMBER_OLD_MERCS_ON_PAGE }, (_, i): AlumniFace => {
       const merc = shown[i];
       if (merc === undefined) return { present: false, clickable: false, frame: 0, name: '' };
       return { present: true, clickable: popupMerc === null, frame: merc, name: context.text.edt(ALUMNI_NAMES_FILE, merc) ?? '' };
     });
-    model.pageHeld = Array.from({ length: ALUMNI_PAGES }, (_, i) => i === page);
+    holdPageButton();
     model.popup = popupMerc !== null;
     model.popupBottom = popupMerc === null ? [] : [popupMerc];
     if (popupMerc === null) {
@@ -99,10 +106,13 @@ export function aimArchivesPage(context: LaptopContext): LaptopPage {
       const next = target ?? 0;
       changeSubPage(context.shell, visits, next);
       page = next;
+      faceRegions = false;
       popupMerc = null;
+      holdPageButton();
     },
     face: ([i]) => {
-      const merc = alumniOnPage(page)[i ?? 0];
+      if (!faceRegions) return;
+      const merc = alumniOnPage(shownPage)[i ?? 0];
       if (merc !== undefined && popupMerc === null) popupMerc = merc;
     },
     done: () => {

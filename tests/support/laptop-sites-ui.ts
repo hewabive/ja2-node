@@ -61,6 +61,7 @@ export interface LaptopHarness {
 export interface LaptopHarnessOptions {
   readonly seed: number;
   readonly prepare?: (session: CampaignSession) => void;
+  readonly loadingTimeScale?: number;
 }
 
 async function loadImage(t: TestRuntime, kit: StubSectorKit, path: string): Promise<void> {
@@ -166,7 +167,7 @@ export async function openLaptopHarness(kit: StubSectorKit, ui: LaptopUiKit, opt
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),
     messageBoxLabels: messageBoxLabels(text),
     dataVersion: STUB_DATA_VERSION,
-    settings: { loadingTimeScale: 0, slideStepMs: 0, subtitles: true, speech: false, metric: true },
+    settings: { loadingTimeScale: options.loadingTimeScale ?? 0, slideStepMs: 0, subtitles: true, speech: false, metric: true },
     zoomOnOpen: false,
     zoomOnClose: false,
     onClosed: () => {

@@ -77,9 +77,13 @@ export function aimHistoryPage(context: LaptopContext): LaptopPage {
   let page = context.shell.subPage;
   const model: Record<string, unknown> = {};
   void context.media.loadTexts([AIM_HISTORY_TEXT_FILE]);
+  const holdMenuButtons = () => {
+    model.menuHeld = historyMenuHeld(page);
+  };
   const goTo = (target: number) => {
     page = target;
     changeSubPage(context.shell, visits, page);
+    holdMenuButtons();
   };
   const refresh = () => {
     const chapter = HISTORY_CHAPTERS[page];
@@ -87,7 +91,7 @@ export function aimHistoryPage(context: LaptopContext): LaptopPage {
     model.chapter = chapter !== undefined;
     model.founderPage = page === FOUNDER_PAGE;
     model.incorporationPage = page === INCORPORATION_PAGE;
-    model.menuHeld = historyMenuHeld(page);
+    holdMenuButtons();
     const title = chapter ? constant(chapter.title) : 0;
     const first = chapter ? historyText(title + 1) : '';
     model.chapterTitle = chapter ? historyText(title) : '';

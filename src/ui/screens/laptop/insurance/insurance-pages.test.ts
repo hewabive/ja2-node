@@ -9,6 +9,7 @@ import {
   openWebPage,
   settleLaptop,
   shownWidget,
+  waitForPageLoad,
 } from '../../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
 import type { LaptopCommand } from '../laptop-client.ts';
@@ -99,6 +100,23 @@ describe('the insurance site', () => {
     expect(shownWidget(h.t, 'insuranceCommentsTitle').text).toBe(COMMENTS_TITLE);
     expect(h.t.list.items.filter((i) => i.kind === 'line').length).toBeGreaterThanOrEqual(14);
     await go(h, 'insuranceCommentsHomeLink', LaptopMode.INSURANCE);
+  });
+
+  it('keeps the info page it leaves drawn through the wait for the next one', async () => {
+    const h = await openLaptopHarness(kit, ui, { loadingTimeScale: 1 });
+    const fraudText = () => h.t.list.items.some((i) => i.kind === 'glyphs' && i.foreground === FRAUD_RED);
+    await openWebPage(h, Bookmark.INSURANCE);
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'insuranceInfoLink');
+    await waitForPageLoad(h);
+    expect(shownWidget(h.t, 'insuranceInfoTocTitle').text).not.toBe('');
+    await clickWidget(h.t, 'insuranceInfoNext');
+    expect(h.screen.shell.loading).toBe(true);
+    expect(shownWidget(h.t, 'insuranceInfoTocTitle').visible).toBe(true);
+    expect(fraudText()).toBe(false);
+    await waitForPageLoad(h);
+    expect(shownWidget(h.t, 'insuranceInfoTitle').text).toBe(SUBMITTING_CLAIM);
+    expect(fraudText()).toBe(true);
   });
 
   it('reads the funds refusal of insure from its token and shows the short of funds box', async () => {

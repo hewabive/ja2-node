@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/Laptop.cc DisplayLoadPending (UNIT_TIME 40, FAST_UNIT_TIME 3, FASTEST_UNIT_TIME 2,
 // @src ALMOST_FAST_UNIT_TIME 25, LONG_UNIT_TIME 120, 30 units, a unit accounted when more than its time passed, the
-// @src segments drawn while time is left), DisplayTitleBarMaximizeGraphic (18 steps from the side button to the title bar,
+// @src segments drawn while time is left; the unit time follows the speed flags at every pass while the time already
+// @src counted stays), DisplayTitleBarMaximizeGraphic (18 steps from the side button to the title bar,
 // @src the last one snapped), LaptopScreenHandle and LeaveLapTopScreen (the zoom: 1000 ms, the gravity factor, the scale
 // @src 10000 / (100 - p), the centre from (472, 424) to (320, 240)), FlickerHDLight (Random(2) every 50 ms, 3000 ms more
 // @src after the load), ExitLaptopDone (100 ms with the power light off), HandleWebBookMarkNotifyTimer (2000 ms).
@@ -42,15 +43,28 @@ export function loadUnitTime(speed: LoadSpeed, scale: number): number {
 }
 
 export class LoadPending {
-  readonly speed: LoadSpeed;
-  readonly unitTime: number;
+  #speed: LoadSpeed;
+  #unitTime: number;
   #base: number | null = null;
   #total = 0;
   #done = false;
 
   constructor(speed: LoadSpeed, scale: number) {
-    this.speed = speed;
-    this.unitTime = loadUnitTime(speed, scale);
+    this.#speed = speed;
+    this.#unitTime = loadUnitTime(speed, scale);
+  }
+
+  get speed(): LoadSpeed {
+    return this.#speed;
+  }
+
+  get unitTime(): number {
+    return this.#unitTime;
+  }
+
+  retime(speed: LoadSpeed, scale: number): void {
+    this.#speed = speed;
+    this.#unitTime = loadUnitTime(speed, scale);
   }
 
   get done(): boolean {

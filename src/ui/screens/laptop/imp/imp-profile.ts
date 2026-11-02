@@ -97,7 +97,7 @@ export function charProfilePage(context: LaptopContext): LaptopPage {
       const fast = visited.has(draft.page);
       visited.add(draft.page);
       if (shown !== NO_PAGE) {
-        context.shell.startSubPageLoad(fast);
+        context.shell.connectToSubPage(fast);
         loadStarted = true;
         return;
       }

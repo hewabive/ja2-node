@@ -9,6 +9,7 @@ import {
   pressKey,
   settleLaptop,
   shownWidget,
+  waitForPageLoad,
 } from '../../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
 import type { TestRuntime } from '../../../../../tests/support/ui-runtime.ts';
@@ -90,6 +91,21 @@ describe('the florist pages', () => {
     expect(h.laptop().balance).toBe(balance - price);
     expect(h.laptop().finances.at(-1)).toMatchObject({ code: FinanceCode.PURCHASED_FLOWERS, amount: -price });
     expect(h.screen.shell.mode).toBe(LaptopMode.FLORIST);
+  });
+
+  it('keeps the gallery page it leaves through the wait, so a flower clicked then is one of those shown', async () => {
+    const h = await openLaptopHarness(kit, ui, { loadingTimeScale: 1 });
+    await openWebPage(h, Bookmark.FLORIST);
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'floristGallery');
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'floristGalleryNext');
+    expect(h.screen.shell.loading).toBe(true);
+    expect(shownWidget(h.t, 'floristFlowerName0').text).toBe('Morning Field');
+    await clickWidget(h.t, 'floristFlower1');
+    await waitForPageLoad(h);
+    expect(h.screen.shell.mode).toBe(LaptopMode.FLORIST_ORDERFORM);
+    expect(shownWidget(h.t, 'floristFlowerName').text).toBe('Red Promise');
   });
 
   it('fills the sentiment from a standard card and keeps the form across the card gallery', async () => {

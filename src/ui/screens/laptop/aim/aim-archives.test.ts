@@ -7,6 +7,7 @@ import {
   openLaptopHarness,
   openWebPage,
   shownWidget,
+  waitForPageLoad,
 } from '../../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../../tests/support/sectors.ts';
 import { Bookmark, LaptopMode } from '../laptop-modes.ts';
@@ -64,5 +65,24 @@ describe('the A.I.M. alumni archives', () => {
     expect(shownWidget(h.t, 'aimAlumnusName10').text).toBe('Alumnus 51');
     expect(findWidget(h.t, 'aimAlumnusName11')?.visible).toBe(false);
     expect(findWidget(h.t, 'aimAlumnus11')?.visible).toBe(false);
+  });
+
+  it('keeps the faces of the page it leaves through the wait, holding the new page button and taking no face click', async () => {
+    const h = await openLaptopHarness(kit, ui, { loadingTimeScale: 1 });
+    await openWebPage(h, Bookmark.AIM);
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'memberCardLink');
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'toAlumniLink');
+    await waitForPageLoad(h);
+    await clickWidget(h.t, 'aimAlumniPage2');
+    expect(h.screen.shell.loading).toBe(true);
+    expect(shownWidget(h.t, 'aimAlumnusName0').text).toBe('Alumnus 01');
+    expect(shownWidget(h.t, 'aimAlumniPage2').state).toBe('pressed');
+    await clickWidget(h.t, 'aimAlumnus3');
+    expect(findWidget(h.t, 'aimAlumniPopupName')?.visible).toBe(false);
+    await waitForPageLoad(h);
+    expect(shownWidget(h.t, 'aimAlumnusName0').text).toBe('Alumnus 41');
+    expect(findWidget(h.t, 'aimAlumniPopupName')?.visible).toBe(false);
   });
 });

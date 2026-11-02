@@ -178,9 +178,13 @@ export function aimPoliciesPage(context: LaptopContext): LaptopPage {
   let page = context.shell.subPage;
   const model: Record<string, unknown> = {};
   void context.media.loadTexts([AIM_POLICY_TEXT_FILE]);
+  const holdMenuButtons = () => {
+    model.menuHeld = policyMenuHeld(page);
+  };
   const goTo = (target: number) => {
     page = target;
     changeSubPage(context.shell, visits, page);
+    holdMenuButtons();
   };
   const refresh = () => {
     const statement = page === STATEMENT_PAGE;
@@ -209,7 +213,7 @@ export function aimPoliciesPage(context: LaptopContext): LaptopPage {
       y: tops[i] ?? 0,
     }));
     model.menuBar = !statement;
-    model.menuHeld = policyMenuHeld(page);
+    holdMenuButtons();
   };
   const controller = new ViewModelController(AIM_POLICIES_CONTRACT, model, {
     agree: ([choice]) => {

@@ -31,6 +31,7 @@ import {
   FLICKER_TIME,
   HD_FLICKER_TIME,
   LoadPending,
+  type LoadSpeed,
   slideFinished,
   slideStep,
 } from './laptop-timers.ts';
@@ -156,10 +157,16 @@ export class LaptopShell {
     const fast = this.#visitedBookmarks.has(bookmark);
     this.#visitedBookmarks.add(bookmark);
     this.enteredFromBookmark = bookmark;
-    this.load = new LoadPending(
-      { fast, subPage: false, slowSite: page === LaptopMode.MERC && this.#ports.mercSlowLoad() },
-      this.#options.loadingTimeScale,
-    );
+    this.#startLoad({
+      fast,
+      subPage: this.loading && this.load?.speed.subPage === true,
+      slowSite: page === LaptopMode.MERC && this.#ports.mercSlowLoad(),
+    });
+  }
+
+  #startLoad(speed: LoadSpeed): void {
+    if (this.loading && this.load) this.load.retime(speed, this.#options.loadingTimeScale);
+    else this.load = new LoadPending(speed, this.#options.loadingTimeScale);
   }
 
   selectBookmark(row: number, bookmarks: readonly number[]): void {
@@ -174,10 +181,6 @@ export class LaptopShell {
 
   setPage(mode: number): void {
     this.mode = mode;
-  }
-
-  startSubPageLoad(fast: boolean): void {
-    this.load = new LoadPending({ fast, subPage: true, slowSite: false }, this.#options.loadingTimeScale);
   }
 
   #lastOpenProgram(): number {
@@ -280,7 +283,7 @@ export class LaptopShell {
     }
     const fast = this.#visitedSubSites.has(this.mode);
     this.#visitedSubSites.add(this.mode);
-    this.load = new LoadPending({ fast, subPage: true, slowSite: false }, this.#options.loadingTimeScale);
+    this.#startLoad({ fast, subPage: true, slowSite: false });
   }
 
   #enterNewMode(): void {
@@ -410,7 +413,7 @@ export class LaptopShell {
   }
 
   connectToSubPage(fast: boolean): void {
-    this.load = new LoadPending({ fast, subPage: true, slowSite: false }, this.#options.loadingTimeScale);
+    this.#startLoad({ fast, subPage: true, slowSite: false });
   }
 
   update(now: number): void {
