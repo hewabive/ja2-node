@@ -98,7 +98,8 @@ export function emailPage(context: LaptopContext): LaptopPage {
   const model: Record<string, unknown> = {};
   let page = context.memory.emailPage;
   let open: OpenMail | null = null;
-  let toDelete: LaptopEmailView | null = null;
+  let toDelete: number | null = null;
+  const shownToPlayer = new Set<number>();
   let disposed = false;
   const fonts = context.services.fonts;
   const constant = (name: string) => context.constant(EMAIL_LAYOUT, name);
@@ -112,6 +113,8 @@ export function emailPage(context: LaptopContext): LaptopPage {
       subject: SUBJECT_PREFIX + m.subject,
       read: m.read,
     }));
+  const mailById = (id: number | null): LaptopEmailView | undefined => (id === null ? undefined : mails().find((m) => m.id === id));
+  const isRead = (mail: LaptopEmailView): boolean => mail.read || shownToPlayer.has(mail.id);
   const lastPage = () => lastListPage(mails().length);
   const clampPage = () => {
     if (page > lastPage()) page = lastPage();
@@ -141,6 +144,7 @@ export function emailPage(context: LaptopContext): LaptopPage {
   const openMail = (mail: LaptopEmailView): void => {
     const opened: OpenMail = { id: mail.id, mail, records: null, pages: null, page: 0 };
     open = opened;
+    shownToPlayer.add(mail.id);
     void context.command({ type: 'readEmail', id: mail.id });
     void context.command({ type: 'emailText', id: mail.id }).then((reply) => {
       if (disposed || open !== opened || !reply.ok) return;
@@ -158,7 +162,8 @@ export function emailPage(context: LaptopContext): LaptopPage {
     order.sync(view?.emails ?? []);
     clampPage();
     if (open && !mails().some((m) => m.id === open?.id)) open = null;
-    if (toDelete && !mails().some((m) => m.id === toDelete?.id)) toDelete = null;
+    const deleting = mailById(toDelete);
+    if (!deleting) toDelete = null;
     const list = mails();
     const day = context.string(DAY_STRING);
     model.rows = Array.from({ length: MAX_MESSAGES_PAGE }, (_, i): Row => {
@@ -178,9 +183,9 @@ export function emailPage(context: LaptopContext): LaptopPage {
     model.pageText = `${label.current} / ${label.last}`;
     model.prevListEnabled = page > 0;
     model.nextListEnabled = page < lastPage();
-    model.deleteBox = toDelete !== null;
-    model.deleteRead = toDelete?.read === true;
-    model.deleteUnread = toDelete !== null && !toDelete.read;
+    model.deleteBox = deleting !== undefined;
+    model.deleteRead = deleting !== undefined && isRead(deleting);
+    model.deleteUnread = deleting !== undefined && !isRead(deleting);
     const shown = open?.pages ? open : null;
     model.viewer = shown ? [shown.id] : [];
     if (shown?.pages) {
@@ -229,14 +234,14 @@ export function emailPage(context: LaptopContext): LaptopPage {
     askDelete: ([i]) => {
       if (open) return;
       const mail = rowAt(i ?? 0);
-      if (mail) toDelete = mail;
+      if (mail) toDelete = mail.id;
       else context.rightButtonUp();
     },
     closeViewer: () => {
       open = null;
     },
     deleteCurrent: () => {
-      if (open) toDelete = open.mail;
+      if (open) toDelete = open.id;
     },
     prevMailPage: () => {
       if (open && open.page > 0) open.page--;
@@ -245,10 +250,10 @@ export function emailPage(context: LaptopContext): LaptopPage {
       if (open?.pages && open.page + 1 < open.pages.pageCount - 1) open.page++;
     },
     confirmDelete: () => {
-      const mail = toDelete;
+      const id = toDelete;
       toDelete = null;
       open = null;
-      if (mail) void context.command({ type: 'deleteEmail', id: mail.id });
+      if (id !== null) void context.command({ type: 'deleteEmail', id });
     },
     cancelDelete: () => {
       toDelete = null;
@@ -288,7 +293,7 @@ export function emailPage(context: LaptopContext): LaptopPage {
       disposed = true;
     },
     cancelPopup: () => {
-      if (!toDelete) return false;
+      if (toDelete === null) return false;
       toDelete = null;
       return true;
     },

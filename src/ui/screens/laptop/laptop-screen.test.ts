@@ -167,6 +167,17 @@ describe('the canvas laptop on a stub campaign', () => {
     expect(shown(t, 'financePage').text).toMatch(/2 \/ 2$/);
   });
 
+  it('asks to delete a mail opened unread from the new-mail icon as a read one, as showing it marks it read', async () => {
+    const { t, screen } = await openLaptop();
+    await click(t, 'newMailOk');
+    await click(t, 'newMailIcon');
+    expect(screen.shell.mode).toBe(LaptopMode.EMAIL);
+    expect(shown(t, 'viewerSubject.0').text).toBe(` ${IMP_INTRO_SUBJECT}`);
+    await click(t, 'deleteMail.0');
+    expect(shown(t, 'deleteReadText').visible).toBe(true);
+    expect(find(t, 'deleteUnreadText')?.visible ?? false).toBe(false);
+  });
+
   it('opens the bookmarks on the first browser use, reaches the A.I.M. members and closes on Esc', async () => {
     const h = await openLaptop();
     const { t, screen, commands } = h;
