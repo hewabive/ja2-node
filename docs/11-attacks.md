@@ -120,6 +120,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A steal ends the attack twice, at codes 442 and 753 of `STEAL_ITEM`, so the end-of-attack checks run twice | `steal.test.ts` |
 | A thrown knife that strikes a wall is lost: only one that falls to the ground stays on the map | `knife-throw.test.ts` |
 | A thrown knife stopped by a window, or dropped by a target with full pockets, lies on a raised table or shelf of its tile; one that falls to the ground lies under it. The window's roof branch (`Tactical/LOS.cc:4060`) never runs: the window test admits only heights in the ground cubes | `knife-throw.test.ts` |
+| A bullet is marked located at the first window it meets out of combat too, so it never moves the view at a later window should combat start during its flight; a militia bullet moves it like ours, by side, where a miss moves it for our team only (`LocateBullet`) | `impacts.test.ts` |
 | A diagonal knife target is priced without the step to the side tile the stab needs: the AP cost finds the target on all eight neighbours, `HandleItem`'s blade path on the four sides only | `melee.test.ts` |
 | The adjacent-tile search never answers the soldier's own tile when a switch is on it (`Tactical/Overhead.cc:3293`), with or without its door handling: a merc bandaging himself on a switch tile first walks to a tile beside it | `src/sim/tactical/first-aid.test.ts` |
 

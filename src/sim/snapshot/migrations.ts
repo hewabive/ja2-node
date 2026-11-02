@@ -1061,6 +1061,28 @@ function addCorpseHeights(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const BULLET_KEYS = ['firer', 'real', 'msPerUpdate', 'tilesPerUpdate', 'toDelete', 'lastStructureHit'];
+const BULLET_DELETE_KEY = 'toDelete';
+const BULLET_LOCATED_KEY = 'located';
+
+function isBulletRecord(o: JsonObject): boolean {
+  return BULLET_KEYS.every((key) => o[key] !== undefined);
+}
+
+function withBulletLocatedFlag(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBulletLocatedFlag(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withBulletLocatedFlag(v);
+  return isBulletRecord(mapped) ? insertAfter(mapped, BULLET_DELETE_KEY, BULLET_LOCATED_KEY, false) : mapped;
+}
+
+function addBulletLocatedFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withBulletLocatedFlag(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1101,5 +1123,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     36: compactMercSlots,
     37: addRealDoorState,
     38: addCorpseHeights,
+    39: addBulletLocatedFlags,
   };
 }

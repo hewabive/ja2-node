@@ -362,9 +362,11 @@ game the options screen sends `setOption`. The help screens seen are kept per ca
 (`src/app/launcher/settings-file.ts`).
 
 Stored but read by nothing: the cover and LOS display sizes (the display is not built, `28`); "don't move mouse" is inert
-by design (deviation "Pointer warp"). Show misses does not follow a bullet into a window yet (gap "Inert options").
+by design (deviation "Pointer warp"). Show misses moves the view where the original's does
+(`src/ui/screens/tactical/miss-camera.ts`): to our misses from their events, and to a friendly bullet's first window
+from `bulletLocated`, which the simulation sends whatever the setting (deviation "Show misses").
 
 ### 2.5 Deviations
 
-"API default difficulty", "Game policy keys", "Key-advance speech", "Hide bullets", "Sleep and wake notification",
-"Timed turns", "Help screens seen", "Pointer warp", "Cheats".
+"API default difficulty", "Game policy keys", "Key-advance speech", "Hide bullets", "Show misses", "Sleep and wake
+notification", "Timed turns", "Help screens seen", "Pointer warp", "Cheats".

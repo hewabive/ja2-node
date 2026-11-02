@@ -3,7 +3,8 @@
 // @src src/game/Tactical/LOS.cc FireBulletGivenTarget, CalculateFiringIncrements, FireBullet, MoveBullet,
 // @src ChanceOfBulletHittingStructure, StructureResistanceIncreasedByRange, HandleBulletStructureInteraction,
 // @src CTGTHandleBulletStructureInteraction, CalcChanceToGetThrough, *ChanceToGetThrough; Bullets.cc CreateBullet,
-// @src RemoveBullet, StopBullet, UpdateBullets, AddMissileTrail (fGoingOver is never reset within one MoveBullet);
+// @src RemoveBullet, StopBullet, LocateBullet (without TOPTION_SHOW_MISSES, which the client applies), UpdateBullets,
+// @src AddMissileTrail (fGoingOver is never reset within one MoveBullet);
 // @src Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE.
 
@@ -34,7 +35,7 @@ import { landHeightUnits, resolveHitOnWall, ZPos } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, NO_PROFILE, type Soldier, Team } from '../soldier.ts';
+import { Body, NO_PROFILE, Side, type Soldier, Team } from '../soldier.ts';
 import { onVisibleWorldTile, type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, notifySoldiersToLookForItems, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
@@ -166,6 +167,7 @@ export interface Bullet {
   lastUpdate: number;
   tilesPerUpdate: number;
   toDelete: boolean;
+  located: boolean;
   lastStructureHit: number;
 }
 
@@ -246,6 +248,7 @@ function createBullet(t: TacticalState, firer: Soldier, fake: boolean, flags: nu
     lastUpdate: 0,
     tilesPerUpdate: 1,
     toDelete: false,
+    located: false,
     lastStructureHit: 0,
   };
 }
@@ -259,6 +262,12 @@ export function removeBullet(t: TacticalState, b: Bullet): void {
 
 function stopBullet(b: Bullet): void {
   b.flags |= BulletFlag.STOPPED;
+}
+
+function locateBullet(t: TacticalState, b: Bullet): void {
+  if (b.firer.side !== Side.FRIENDLY || b.located) return;
+  b.located = true;
+  if (t.inCombat) t.events.push({ type: 'bulletLocated', soldier: b.firer.id, gridNo: b.gridNo });
 }
 
 function calculateFiringIncrements(t: TacticalState, hIn: number, vIn: number, d2: number, b: Bullet): [number, number] {
@@ -841,6 +850,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
                 } else {
                   const blowSouth = s.wallOrientation & ORIENT_RIGHT ? b.incX > 0 : b.incY > 0;
                   windowHit(t, b.tileX + b.tileY * WORLD_COLS, s.id, blowSouth);
+                  locateBullet(t, b);
                   entry.s = null;
                 }
               }

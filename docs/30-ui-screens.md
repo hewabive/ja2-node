@@ -220,5 +220,4 @@ Inferred or observed in ja2-node only:
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
 cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
-"Vehicles as characters", "Shop screen details", "Inert options", "IME composition", "I.M.P. skill page and saved
-profiles".
+"Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page and saved profiles".

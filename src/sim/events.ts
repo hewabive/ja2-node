@@ -158,6 +158,12 @@ export interface BulletStoppedEvent extends SimEventBase {
   readonly explosiveAmmo?: boolean;
 }
 
+export interface BulletLocatedEvent extends SimEventBase {
+  readonly type: 'bulletLocated';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
 export interface StructureStruckEvent extends SimEventBase {
   readonly type: 'structureStruck';
   readonly soldier: number;
@@ -630,6 +636,7 @@ export type SimEvent =
   | MeleeStrikeEvent
   | StealAttemptEvent
   | BulletStoppedEvent
+  | BulletLocatedEvent
   | BulletImpactEvent
   | WindowShatteredEvent
   | MissileTrailEvent

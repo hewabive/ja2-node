@@ -288,6 +288,20 @@ describe('the tactical input on the tactical screen', () => {
     expect(located()).toEqual([101, 102, 104]);
   });
 
+  it('moves the view to the window where the simulation located a bullet of the friendly side, with show misses only', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    const notOurTeam = f.client.view.soldiers.find((v) => v.team !== 0)?.id ?? NOBODY;
+    const atWindow = (soldier: number, gridNo: number) => ({ tick, type: 'bulletLocated' as const, soldier, gridNo });
+    const windows = [201, 202];
+    const located = () => f.world.located.filter((g) => windows.includes(g));
+    f.frames([{ tick, changed: [], removed: [], events: [atWindow(0, 201)] }]);
+    expect(located()).toEqual([]);
+    f.display = { ...f.display, showMisses: true };
+    f.frames([{ tick, changed: [], removed: [], events: [atWindow(notOurTeam, 202)] }]);
+    expect(located()).toEqual([202]);
+  });
+
   it('sends the stance, stealth and weapon mode keys for the selected merc', async () => {
     const f = await tacticalUiTest(kit, ui);
     f.key('c');

@@ -1,15 +1,21 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { Orientation } from '../../../content/formats/jsd.ts';
 import { AmmoType } from '../../../content/items/items.ts';
-import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_COLS } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
+import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
+import { Opp } from '../perception/opp.ts';
 import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
+import { handleItem, ItemHandle } from './attack.ts';
+import type { Bullet } from './bullets.ts';
 import { eventSoldierGotHit } from './hit.ts';
 import { AimShot } from './types.ts';
 
@@ -134,6 +140,84 @@ describe('what a hit tells the player (Soldier_Control.cc EVENT_SoldierGotHit, I
     expect(hits[1]).toMatchObject({ soldier: hidden.id, gridNo: hidden.gridNo, conscious: true, unseen: { voice: 'bad2', bodyType: 0 } });
     expect(hits[1]).not.toHaveProperty('life');
     expect(hits[1]).not.toHaveProperty('damage');
+  });
+});
+
+const WINDOW_ROWS = [84, 87] as const;
+const WINDOW_COLUMNS = Array.from({ length: 9 }, (_, k) => 76 + k);
+const SHOOTER_AT = gridNo(80, 80);
+const TARGET_AT = gridNo(80, 92);
+const FIRST_SOLDIER_OF: Readonly<Record<number, number>> = { [Team.OUR]: 0, [Team.ENEMY]: 20, [Team.MILITIA]: 84 };
+const MAX_FLIGHT_TICKS = 2000;
+
+const rowOf = (g: number) => Math.trunc(g / WORLD_COLS);
+
+function windowsAcrossTheLine(shooterTeam: number, inCombat: boolean) {
+  const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+    for (const row of WINDOW_ROWS)
+      for (const col of WINDOW_COLUMNS)
+        world.structures.add(gridNo(col, row), 0, syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_LEFT));
+  });
+  const targetTeam = shooterTeam === Team.ENEMY ? Team.OUR : Team.ENEMY;
+  const shooter = spawnSoldier(sim, FIRST_SOLDIER_OF[shooterTeam] ?? 0, shooterTeam, SHOOTER_AT, Direction.SOUTH, { marksmanship: 90 });
+  const target = spawnSoldier(sim, FIRST_SOLDIER_OF[targetTeam] ?? 0, targetTeam, TARGET_AT, Direction.NORTH);
+  sim.state.inCombat = inCombat;
+  shooter.oppList[target.id] = Opp.SEEN_CURRENTLY;
+  expect(handleItem(sim.state, shooter, target.gridNo, 0, shooter.inv[InvSlot.HAND]?.item ?? 0)).toBe(ItemHandle.OK);
+  const events: SimEvent[] = [];
+  let bullet: Bullet | undefined;
+  const fly = (until: (b: Bullet) => boolean) => {
+    for (let tick = 0; tick < MAX_FLIGHT_TICKS && !(bullet && until(bullet)); tick++) {
+      sim.step();
+      events.push(...sim.drainEvents());
+      bullet ??= sim.state.bullets[0];
+    }
+  };
+  return { sim, shooter, target, events, fly };
+}
+
+function passedBothWindowRows(events: readonly SimEvent[], target: number): boolean {
+  return events.some(
+    (e) =>
+      (e.type === 'soldierHit' && e.soldier === target) ||
+      ((e.type === 'bulletStopped' || e.type === 'bulletImpact') && rowOf(e.gridNo) > WINDOW_ROWS[1]),
+  );
+}
+
+const locatedAt = (events: readonly SimEvent[]) => events.flatMap((e) => (e.type === 'bulletLocated' ? [e] : []));
+
+describe('show misses at a window (Bullets.cc LocateBullet, LOS.cc MoveBullet)', () => {
+  it("names the window our bullet passes first in combat, and only that one: fLocated is the bullet's", () => {
+    const { shooter, target, events, fly } = windowsAcrossTheLine(Team.OUR, true);
+    fly((b) => b.toDelete);
+    expect(passedBothWindowRows(events, target.id)).toBe(true);
+    expect(locatedAt(events)).toMatchObject([{ soldier: shooter.id }]);
+    expect(rowOf(locatedAt(events)[0]?.gridNo ?? 0)).toBe(WINDOW_ROWS[0]);
+  });
+
+  it('follows the bullets of the friendly side, so militia ones too, never the enemy ones', () => {
+    const militia = windowsAcrossTheLine(Team.MILITIA, true);
+    militia.fly((b) => b.toDelete);
+    expect(locatedAt(militia.events)).toMatchObject([{ soldier: militia.shooter.id }]);
+    const enemy = windowsAcrossTheLine(Team.ENEMY, true);
+    enemy.fly((b) => b.toDelete);
+    expect(passedBothWindowRows(enemy.events, enemy.target.id)).toBe(true);
+    expect(locatedAt(enemy.events)).toEqual([]);
+  });
+
+  it('marks the bullet located at its first window out of combat too, so a fight starting in its flight sees no later window', () => {
+    const { sim, target, events, fly } = windowsAcrossTheLine(Team.OUR, false);
+    let flying: Bullet | undefined;
+    fly((b) => {
+      flying = b;
+      return b.tileY > WINDOW_ROWS[0];
+    });
+    expect(flying?.tileY).toBeLessThan(WINDOW_ROWS[1]);
+    expect(flying?.located).toBe(true);
+    sim.state.inCombat = true;
+    fly((b) => b.toDelete);
+    expect(passedBothWindowRows(events, target.id)).toBe(true);
+    expect(locatedAt(events)).toEqual([]);
   });
 });
 

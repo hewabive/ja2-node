@@ -295,7 +295,8 @@ saved, sent whole in `welcome`, new ones in frames and in every `advance` report
 reads them (deviation "Message list").
 
 **Presentation events** never enter the state or an outcome: optional fields (materials, sound facts) and events for
-what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps. The
+what the original only draws or plays: impacts, trails, ripples, shattered windows, creature calls, footsteps, and the
+window a friendly bullet first meets in combat, where show misses moves the view (`bulletLocated`, `27` §2.4). The
 session copies the cosmetic animations into `ViewFrame.effects` stamped with the session tick, and records the
 bullets in flight after every tick as `ViewFrame.bullets`, since a flight usually falls between two frames. The client
 derives all sound and cosmetic animation from them, the frames and the animation codes it replays (`31`); agents get

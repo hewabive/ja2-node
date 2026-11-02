@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
+import { WORLD_COLS } from '../content/world/grid.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
@@ -1682,5 +1683,56 @@ describe("snapshot version 38 (corpses without a height) migrates with each corp
     diff.corpses = [lyingCorpse(LEFT_CORPSE_AT, 0, 0), lyingCorpse(ROOF_CORPSE_AT, 1, PLACED_ROOF_SOLDIER_CORPSE_HEIGHT)];
     campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
     await expectCorpseHeights(campaign);
+  });
+});
+
+const BULLET_LOCATED_KEY = 'located';
+const LIVE_BULLET_KEYS = ['toDelete', BULLET_LOCATED_KEY, 'lastStructureHit'];
+const SHOT_ROWS_AHEAD = 6;
+const SHOT_TICKS = 2000;
+
+function withoutBulletLocatedFlags(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutBulletLocatedFlags(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = withoutBulletLocatedFlags(v);
+  if (!LIVE_BULLET_KEYS.every((key) => key in out)) return out;
+  const { [BULLET_LOCATED_KEY]: _located, ...older } = out;
+  return older;
+}
+
+function versionThirtyNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutBulletLocatedFlags(value)]);
+  return { ...snapshot, version: 39, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 39 (bullets without fLocated) migrates with every bullet in flight not located yet, as CreateBullet leaves it', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with a bullet in flight', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const merc = teamMembers(t, Team.OUR)[0];
+    if (!merc) throw new Error('no merc in the sandbox');
+    const target = merc.gridNo + SHOT_ROWS_AHEAD * WORLD_COLS;
+    expect(sandbox.dispatch({ type: 'attack', soldier: merc.id, target })).toMatchObject({ ok: true });
+    for (let i = 0; i < SHOT_TICKS && t.bullets.length === 0; i++) sandbox.step();
+    expect(t.bullets.map((b) => b.located)).toEqual([false]);
+    const current = snapshotSession(sandbox);
+    const legacy = versionThirtyNine(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"toDelete":false,"${BULLET_LOCATED_KEY}":false,"lastStructureHit"`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${BULLET_LOCATED_KEY}":`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
