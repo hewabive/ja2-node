@@ -114,13 +114,13 @@ out.
 **Compression in other rules.** Natural healing asks whether time is compressed; ja2-node asks whether the flow is
 strategic (deviation "Time compression for healing"). The original's map runs a real-time turn every 20 ms while
 compressing, so bleeding per world minute depends on the compression level; ja2-node runs real-time turns only in the
-loaded sector (gap "Absent mercs between hourly updates"). Starting compression stops every soldier of the loaded
-sector, cancels their AI actions and drops the game events not yet dequeued (`clearTacticalStuffDueToTimeCompression`,
-`tactical/overhead.ts`); the `tacticalClearedForCompression` event it emits makes the client empty its tactical message
-log, shown and queued lines, as `ClearTacticalMessageQueue` does (`src/ui/screens/tactical/tactical-screen.ts`); the
-screen empties it again at every entry and on the way back from a shop (`EnterTacticalScreen`) and queues no line while
-the view's clock says time is compressed (`TacticalScreenMsg`). A speed picked while time stands sets the level without
-that start, as the original's increase button does.
+tactical step, for the loaded sector, so nobody bleeds on the map screen (gap "Absent mercs between hourly updates").
+Starting compression stops every soldier of the loaded sector, cancels their AI actions and drops the game events not
+yet dequeued (`clearTacticalStuffDueToTimeCompression`, `tactical/overhead.ts`); the `tacticalClearedForCompression`
+event it emits makes the client empty its tactical message log, shown and queued lines, as `ClearTacticalMessageQueue`
+does (`src/ui/screens/tactical/tactical-screen.ts`); the screen empties it again at every entry and on the way back from
+a shop (`EnterTacticalScreen`) and queues no line while the view's clock says time is compressed (`TacticalScreenMsg`).
+A speed picked while time stands sets the level without that start, as the original's increase button does.
 
 **A new game.** `initNewGame` follows `InitNewGame` and `InitStrategicLayer` in order, without the screen state machine,
 the scripting engine and the message queues. Every draw is on `main` and the call order is the draw order: the same seed

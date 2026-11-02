@@ -143,9 +143,11 @@ maps' extra bytes are skipped by the map's own version. A save records the data 
 like Stracciatella's version warning.
 
 **Fonts decide what can be drawn.** One glyph table per data version serves all fonts; a missing code point draws `?`.
-The English fonts carry only upper-case Cyrillic, so `/play` with English data in Russian draws the other Cyrillic
-letters as `?`; the stub fonts have the whole alphabet but are no fallback (`32`). Money and numbers keep `$`, `,` and
-`.` in every language, as in the original; Stracciatella's tooltips exist only in English and are off by default.
+The English fonts carry only upper-case Cyrillic and the English table maps the lower case onto it, so `/play` with
+English data in Russian draws capitals; `BLOCKFONT`, `BLOCKFONT2` and `BLOCKFONTNARROW` (the map and the tactical panel
+titles) lack Ч and `FONT14HUMANIST` lacks П, so the letters after the gap draw one glyph later (Я as Ä). The stub fonts
+have the whole alphabet but are no fallback (`32`). Money and numbers keep `$`, `,` and `.` in every language, as in the
+original; Stracciatella's tooltips exist only in English and are off by default.
 
 **Repository rule.** The Russian strings are Stracciatella's externalized tables (SFI-SCLA, like the rest of
 `data/externalized`); nothing from the user's EDT files, fonts or speech is committed, and tests assert keys, counts
