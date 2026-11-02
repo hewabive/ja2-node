@@ -33,7 +33,7 @@ import { refusalMessage, refusalOf, refusalSoldierOf } from '../../../protocol/r
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { frameOf } from '../../assets.ts';
 import type { DrawItem, DrawList } from '../../draw-list.ts';
-import { isPointerEvent, KeyModifier, type UiInputEvent } from '../../input/events.ts';
+import { digitKeyOf, isPointerEvent, KeyModifier, type UiInputEvent } from '../../input/events.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { LayoutModel } from '../../layout/model.ts';
@@ -149,7 +149,6 @@ const MAP_BOX_WIDTH = 640;
 const START_SECTOR: Sector = { x: 9, y: 1, z: 0 };
 const MINUTES_PER_DAY = 1440;
 const MINUTES_PER_HOUR = 60;
-const DIGIT_CODE = /^Digit(\d)$/;
 const UNDESCRIBED_REGIONS: ReadonlySet<string> = new Set(['mapScreenMask', 'mapMenuMask']);
 const LEVELS = [0, 1, 2, 3];
 const DEEPEST_LEVEL = 3;
@@ -1785,9 +1784,9 @@ export class MapScreen implements Screen {
       return true;
     }
     if (event.kind === 'keyDown' && (event.modifiers === 0 || event.modifiers === KeyModifier.SHIFT)) {
-      const digit = DIGIT_CODE.exec(event.code);
-      if (digit) {
-        const squad = (Number(digit[1]) + SQUADS_PER_DIGIT_ROW - 1) % SQUADS_PER_DIGIT_ROW;
+      const digit = digitKeyOf(event);
+      if (digit !== null) {
+        const squad = (digit + SQUADS_PER_DIGIT_ROW - 1) % SQUADS_PER_DIGIT_ROW;
         this.#selectSquad(event.modifiers === KeyModifier.SHIFT ? SQUADS_PER_DIGIT_ROW + squad : squad);
         return true;
       }

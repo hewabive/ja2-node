@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KeyModifier, keyDownEvents, keyUpEvent, modifierMask, type RawKey, uiKeyOf } from './events.ts';
+import { digitKeyOf, KeyModifier, keyDownEvents, keyUpEvent, modifierMask, type RawKey, uiKeyOf } from './events.ts';
 
 const raw = (key: string, code: string, extra: Partial<RawKey> = {}): RawKey => ({
   key,
@@ -26,12 +26,40 @@ describe('key events', () => {
     expect(uiKeyOf(raw('é', 'Digit2'))).toBe('2');
   });
 
-  it('names special keys by the key and the keypad by the code unless NumLock is off', () => {
+  it('names special keys by the key', () => {
     expect(uiKeyOf(raw('Escape', 'Escape'))).toBe('Escape');
     expect(uiKeyOf(raw('F5', 'F5'))).toBe('F5');
-    expect(uiKeyOf(raw('8', 'Numpad8'))).toBe('Numpad8');
-    expect(uiKeyOf(raw('ArrowUp', 'Numpad8', { numLock: false }))).toBe('ArrowUp');
-    expect(uiKeyOf(raw('+', 'NumpadAdd', { numLock: false }))).toBe('NumpadAdd');
+  });
+
+  it('types the main keys with the keypad: its operators always, its digits and point with NumLock on', () => {
+    for (const numLock of [true, false]) {
+      expect(uiKeyOf(raw('+', 'NumpadAdd', { numLock }))).toBe('+');
+      expect(uiKeyOf(raw('-', 'NumpadSubtract', { numLock }))).toBe('-');
+      expect(uiKeyOf(raw('*', 'NumpadMultiply', { numLock }))).toBe('*');
+      expect(uiKeyOf(raw('/', 'NumpadDivide', { numLock }))).toBe('/');
+      expect(uiKeyOf(raw('Enter', 'NumpadEnter', { numLock }))).toBe('Enter');
+    }
+    expect(uiKeyOf(raw('8', 'Numpad8'))).toBe('8');
+    expect(uiKeyOf(raw('0', 'Numpad0'))).toBe('0');
+    expect(uiKeyOf(raw(',', 'NumpadDecimal'))).toBe('.');
+  });
+
+  it('turns the keypad digits and point into the navigation keys with NumLock off and names no key for the 5', () => {
+    const off = { numLock: false };
+    expect(uiKeyOf(raw('ArrowUp', 'Numpad8', off))).toBe('ArrowUp');
+    expect(uiKeyOf(raw('Insert', 'Numpad0', off))).toBe('Insert');
+    expect(uiKeyOf(raw('PageDown', 'Numpad3', off))).toBe('PageDown');
+    expect(uiKeyOf(raw('Delete', 'NumpadDecimal', off))).toBe('Delete');
+    expect(uiKeyOf(raw('Clear', 'Numpad5', off))).toBe('Numpad5');
+    expect(uiKeyOf(raw('8', 'Numpad8', off))).toBe('8');
+  });
+
+  it('reads a digit from the digit row whatever the Shift, and from the keypad only when it types one', () => {
+    expect(digitKeyOf({ key: '!', code: 'Digit1' })).toBe(1);
+    expect(digitKeyOf({ key: '0', code: 'Digit0' })).toBe(0);
+    expect(digitKeyOf({ key: '3', code: 'Numpad3' })).toBe(3);
+    expect(digitKeyOf({ key: 'PageDown', code: 'Numpad3' })).toBeNull();
+    expect(digitKeyOf({ key: '3', code: '' })).toBeNull();
   });
 
   it('builds the original modifier masks', () => {

@@ -4,7 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { DrawItem } from '../../draw-list.ts';
-import { KeyModifier, MouseButton } from '../../input/events.ts';
+import { KeyModifier, keyDownEvents, keyUpEvent, MouseButton } from '../../input/events.ts';
 
 const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
@@ -61,6 +61,13 @@ function snapshot(f: MapUiTest): string {
 
 function lastCommand(f: MapUiTest) {
   return f.client.commands.at(-1);
+}
+
+function pressKeypad(f: MapUiTest, key: string, code: string): void {
+  const raw = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
+  for (const event of keyDownEvents(raw)) f.t.runtime.input(event);
+  f.t.runtime.input(keyUpEvent(raw));
+  f.t.frame();
 }
 
 async function withMap(run: (f: MapUiTest) => Promise<void>): Promise<void> {
@@ -377,6 +384,19 @@ describe('the map screen over the stub map-screen campaign', () => {
       f.frames([{ tick, changed: [], removed: [], events: [said] }]);
       await f.settle();
       expect(f.screen.hook()).toMatchObject({ level: 1, selectedSector: expect.stringMatching(/-1$/) });
+    }));
+
+  it('compresses time with the keypad plus and minus and selects the squad with a keypad digit', () =>
+    withMap(async (f) => {
+      pressKeypad(f, '+', 'NumpadAdd');
+      await f.settle();
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'compressTime', mode: 2 });
+      pressKeypad(f, '-', 'NumpadSubtract');
+      await f.settle();
+      expect(lastCommand(f)?.cmd).toEqual({ type: 'stopTime' });
+      pressKeypad(f, '1', 'Numpad1');
+      await f.settle();
+      expect(f.screen.hook().selected).toHaveLength(4);
     }));
 
   it('selects the squad with its number key and the next merc with the arrow', () =>

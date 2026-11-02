@@ -255,12 +255,13 @@ the measured height. The 33 pictures with baked-in text (`mlg.json`) are chosen 
 language; layouts name the MLG id, never a path (`31`).
 
 **Keyboard.** A key is `event.key` when printable ASCII (lower-cased), else taken from `event.code`, which gives
-non-Latin layouts their Latin keys; the keypad goes by `code` unless NumLock is off (`src/ui/input/events.ts`). The
-original hard-codes whether each hotkey fires on key-down or key-up and with which exact modifiers; ja2-node keeps both
-in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow remapping. Text fields get
-keys first. The page `preventDefault`s every key except with Meta; Ctrl+W, Ctrl+T, Ctrl+N and Ctrl+Tab cannot be
-overridden. Alt+Enter on release toggles fullscreen and takes the Keyboard Lock (Chromium), so Esc reaches the game
-instead of leaving fullscreen. Scroll Lock's mouse confinement and the Print Screen PNG are not built.
+non-Latin layouts their Latin keys; the keypad types the main keys as the original's input layer does: its operators and
+Enter always, its digits and point with NumLock on, the navigation keys with it off (`src/sgp/Input.cc:367-385`,
+`src/ui/input/events.ts`). The original hard-codes whether each hotkey fires on key-down or key-up and with which exact
+modifiers; ja2-node keeps both in hotkey tables per layout and modal (`src/ui/input/hotkeys.ts`), which would also allow
+remapping. Text fields get keys first. The page `preventDefault`s every key except with Meta; Ctrl+W, Ctrl+T, Ctrl+N and
+Ctrl+Tab cannot be overridden. Alt+Enter on release toggles fullscreen and takes the Keyboard Lock (Chromium), so Esc
+reaches the game instead of leaving fullscreen. Scroll Lock's mouse confinement and the Print Screen PNG are not built.
 
 **Draw list and blits.** The draw list (`src/ui/draw-list.ts`) holds images, glyph runs, fills, rectangles, lines,
 shades, hatches, clips, captures and snapshots, with the original functions' coordinates. `src/render/ui-draw/` draws
