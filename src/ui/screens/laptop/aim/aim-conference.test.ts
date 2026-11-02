@@ -221,6 +221,24 @@ describe('the A.I.M. video conference', () => {
     expect(conference.hireDisabled).toBe(false);
   });
 
+  it('hangs up at once and drops the acceptance quote when the hire box is closed before the quote starts', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    let now = connect(conference);
+    conference.hire();
+    await flush();
+    now = advance(conference, now, SPEECH_DELAY + QUOTE_MS + STEP_MS);
+    conference.transferFunds();
+    await flush();
+    now = advance(conference, now, SPEECH_DELAY / 2);
+    conference.popupOk();
+    now = advance(conference, now, STEP_MS);
+    expect(conference.mode).toBe(VideoMode.POPDOWN);
+    advance(conference, now, SPEECH_DELAY + TITLE_ITERATIONS * STEP_MS);
+    expect(p.said).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT]);
+    expect(p.popdowns).toBe(1);
+  });
+
   it('cuts the contract length quote on Cancel and goes back to the first contact', async () => {
     const p = ports();
     const conference = new Conference(p, STEP_MS);

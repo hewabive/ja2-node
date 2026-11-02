@@ -13,7 +13,8 @@
 // @src AimMemberHireMerc, CreateAimPopUpBox, BtnPopUpOkButtonCallback (the message-recorded box carries the success data, so
 // @src it too waits for the merc to stop and hangs up), DeleteAimPopUpBox (the machine's Hang Up enabled again),
 // @src BtnAnsweringMachineButtonCallback,
-// @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech,
+// @src BtnHangUpButtonCallback, BtnXToCloseVideoConfButtonCallback, WaitForMercToFinishTalkingOrUserToClick, DelayMercSpeech (a
+// @src hang-up asked for while a quote waits drops the quote, as the mode change resets it),
 // @src InitVideoFace (at the first contact after the connection, the answering machine and the unavailable merc),
 // @src InitVideoFaceTalking, DisplayTalkingMercFaceForVideoPopUp (the face frozen on the answering machine; the merc talks
 // @src as long as his face does, and his quote ends once the face has stopped and the text time has passed),
@@ -403,7 +404,7 @@ export class Conference {
       this.#say(delayed.quote);
       if (delayed.hangUpAfter) this.#hangUp = true;
     }
-    if (this.#hangUp && !this.#mercTalking && !this.#delayed) {
+    if (this.#hangUp && !this.#mercTalking) {
       if (this.mode !== VideoMode.NOT_DISPLAYED && !this.popup) this.#setMode(VideoMode.POPDOWN);
       this.#hangUp = false;
     }
