@@ -18,7 +18,7 @@ import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../conte
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
-import { typeIndex } from '../../content/world/tile-tables.ts';
+import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
@@ -30,7 +30,14 @@ import { igniteExplosion } from '../tactical/explosions/explosion.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { setHelicopterOnMap } from '../tactical/landed-helicopter.ts';
 import { NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT, timeOfDayAmbientLevel } from '../tactical/lighting/lighting.ts';
-import { MapChangeKind, recordStructureRemoved } from '../tactical/map-changes.ts';
+import {
+  addObjectToHead,
+  MapChangeKind,
+  objectLayerAt,
+  recordStructureRemoved,
+  removeStructTile,
+  structLayerAt,
+} from '../tactical/map-changes.ts';
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
@@ -433,6 +440,31 @@ describe('a native save loaded into its sector', () => {
     if (!t) throw new Error('no sector');
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE, TAIL_BOOM_GRIDNO]]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(2);
+  });
+
+  it('keeps the debris for the next entry but not a change made outside ApplyMapChangesToMapTempFile, as the wall decals an explosion takes off (Explosion_Control.cc:498)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    if (!sim) throw new Error('no sector');
+    const left = sim.state;
+    const g = Array.from({ length: 25600 }, (_, k) => k).find((k) => structLayerAt(left, k).length > 0) ?? -1;
+    const tile = structLayerAt(left, g)[0] ?? -1;
+    const debris = tileIndex(sim.world.tables, 'FIRSTEXPLDEBRIS1');
+    expect(removeStructTile(left, g, tile, true)).toBe(true);
+    addObjectToHead(left, g, debris);
+    for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
+    expect(flow.setCurrentWorldSector(A9)).toBe(true);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const back = campaign.tactical?.state;
+    if (!back) throw new Error('no sector');
+    expect(structLayerAt(back, g)).toContain(tile);
+    expect(objectLayerAt(back, g)[0]).toBe(debris);
   });
 });
 

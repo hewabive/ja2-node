@@ -45,26 +45,46 @@ async function itemTileGraphics(): Promise<{ type: string; subIndex: number; ite
 }
 
 describe('stub tile families', () => {
-  it('fill each tile type with at most as many frames as the type has and one structure per frame', async () => {
+  it('give the stone wall the end pieces ReplaceWall puts beside a destroyed wall, sub-indices 48 to 55', () => {
+    const ends = (surface('SECONDWALL').structures ?? []).filter((d) => d.number >= 47);
+    expect(ends.map((d) => [d.number + 1, d.flags, d.wallOrientation])).toEqual(
+      [
+        Orientation.OUTSIDE_LEFT,
+        Orientation.OUTSIDE_LEFT,
+        Orientation.OUTSIDE_RIGHT,
+        Orientation.OUTSIDE_RIGHT,
+        Orientation.INSIDE_LEFT,
+        Orientation.INSIDE_LEFT,
+        Orientation.INSIDE_RIGHT,
+        Orientation.INSIDE_RIGHT,
+      ].map((orientation, k) => [48 + k, StructureFlags.WALL, orientation]),
+    );
+    expect(surface('SECONDWALL').sprite.frames).toHaveLength(55);
+  });
+
+  it('fill each tile type with at most as many frames as the type has and a structure per used frame, in frame order', async () => {
     const t = await tables();
     for (const s of STUB_TILE_SURFACES) {
       const count = t.types[typeIndex(t, s.type)]?.count ?? 0;
       expect(s.sprite.frames.length, s.type).toBeGreaterThan(0);
       expect(s.sprite.frames.length, s.type).toBeLessThanOrEqual(count);
       if (!s.structures) continue;
-      expect(s.structures.map((d) => d.number)).toEqual(s.sprite.frames.map((_, k) => k));
+      const numbers = s.structures.map((d) => d.number);
+      expect(numbers, s.type).toEqual([...numbers].sort((a, b) => a - b));
+      expect(new Set(numbers).size, s.type).toBe(numbers.length);
+      expect(Math.max(...numbers), s.type).toBeLessThan(s.sprite.frames.length);
       const file = parseStructureFile(writeStructureFile({ structureCount: s.sprite.frames.length, structures: s.structures }));
-      expect(file.structures.map((d) => [d?.flags, d?.wallOrientation, d?.armour, d?.partnerDelta, d?.density])).toEqual(
-        s.structures.map((d) => [d.flags, d.wallOrientation, d.armour, d.partnerDelta, d.density]),
-      );
+      expect(
+        numbers.map((n) => file.structures[n]).map((d) => [d?.flags, d?.wallOrientation, d?.armour, d?.partnerDelta, d?.density]),
+      ).toEqual(s.structures.map((d) => [d.flags, d.wallOrientation, d.armour, d.partnerDelta, d.density]));
     }
   });
 
   it('pair every window and wire fence with its broken partner', () => {
     const W = StructureFlags.WALLNWINDOW;
     const O = StructureFlags.OPEN;
-    expect(flagsOf('SECONDWALL')).toEqual([StructureFlags.WALL, StructureFlags.WALL, W, W | O, W, W | O]);
-    expect(surface('SECONDWALL').structures?.map((d) => d.partnerDelta)).toEqual([0, 0, 1, 0, 1, 0]);
+    expect(flagsOf('SECONDWALL').slice(0, 6)).toEqual([StructureFlags.WALL, StructureFlags.WALL, W, W | O, W, W | O]);
+    expect(surface('SECONDWALL').structures?.map((d) => d.partnerDelta)).toEqual([0, 0, 1, 0, 1, 0, ...Array(8).fill(0)]);
     const wire = StructureFlags.WIREFENCE | StructureFlags.TRANSPARENT;
     const cut = wire | O | StructureFlags.PASSABLE;
     expect(flagsOf('FENCESTRUCT')).toEqual([StructureFlags.FENCE, StructureFlags.FENCE, wire, cut, wire, cut]);

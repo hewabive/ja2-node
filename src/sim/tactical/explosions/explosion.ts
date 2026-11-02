@@ -46,7 +46,8 @@ import { damageSoldierFromBlast, reduceDamageAmount } from './blast-damage.ts';
 import { damageItemOnGround } from './item-damage.ts';
 import { addSmokeEffectToTile, dishOutGasDamage, newSmokeEffect, removeSmokeEffectFromTile, smokeTypeOf } from './smoke.ts';
 import { type AniTile, type ExplosionTile, type RippleTile, removeAniTile, type SmokeCloud } from './state.ts';
-import { explosiveDamageGridNo, recompileChangedTiles, type StructureChanges, windowHit } from './structure-damage.ts';
+import { explosiveDamageGridNo, recompileChangedTiles, windowHit } from './structure-damage.ts';
+import type { StructureChanges } from './wreckage.ts';
 
 export const Spread = { NORMAL: 0, SUBSEQUENT: 1, ERASE: 2, BLOOD: 3, REDO: 4 } as const;
 

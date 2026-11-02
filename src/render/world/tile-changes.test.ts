@@ -60,6 +60,18 @@ describe('tile changes', () => {
     expect([...levelTilesAt(landed.layers.structs, AT - 800)]).toEqual([401]);
   });
 
+  it("puts a destroyed structure's debris at the head of the tile's object layer, later debris first, and leaves the structures alone", () => {
+    const first = tileIndex(tables, 'FIRSTEXPLDEBRIS4');
+    const second = tileIndex(tables, 'SECONDEXPLDEBRIS2');
+    const wrecked = applyTileChanges(level(), [
+      { kind: 'object', gridNo: AT, level: 0, tile: first },
+      { kind: 'object', gridNo: AT, level: 0, tile: second },
+    ]);
+    expect([...levelTilesAt(wrecked.layers.objects, AT)]).toEqual([second, first, DEBRIS, OLD_POOL]);
+    expect([...levelTilesAt(wrecked.layers.structs, AT)]).toEqual([WALL, WINDOW, 950]);
+    expect(tileChangesKey([{ kind: 'object', gridNo: 5, level: 0, tile: 7 }])).toBe('o5.0.7');
+  });
+
   it('returns the same level when nothing changed and keys a change list by its content', () => {
     const l = level();
     expect(applyTileChanges(l, [])).toBe(l);

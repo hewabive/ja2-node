@@ -8,6 +8,7 @@ import { WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
 import { gridNoOnVisibleWorldTile, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
+import type { TileTables } from '../../content/world/tile-tables.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import { type GameOptions, gameOptions } from '../options.ts';
@@ -48,6 +49,7 @@ export interface TacticalWorldData extends MovementWorld {
   readonly mapDoors: Map<number, MapDoor>;
   readonly map?: SectorMapData;
   readonly tiles?: readonly TileElement[];
+  readonly tables?: TileTables;
 }
 
 const NO_ENTRY = -1;

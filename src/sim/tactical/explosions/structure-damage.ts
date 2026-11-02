@@ -1,20 +1,21 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo, ExplosiveDamageGridNo, RemoveOnWall;
+// @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo (what wreckage.ts does not cover),
+// @src ExplosiveDamageGridNo;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
 // @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
 // @src BeforeStructureDamaged listener); Tactical/Overhead.cc HandleBrothelWallDestroyed and Strategic/SAM_Sites.cc
 // @src UpdateAndDamageSAMIfFound (the OnStructureDamaged listeners, in key order); Tactical/Rotting_Corpses.cc VaporizeCorpse.
 
 import { NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
-import { has, ORIENT_LEFT, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
+import { has, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import type { WindowShatterTile } from '../../events.ts';
 import { corpseOfStructure, isVehicleCorpse } from '../combat/death.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
-import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
+import { levelNodeTile, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { handleBrothelWallDestroyed } from '../narrative/civ-hostility.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -23,6 +24,7 @@ import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { itemsAt, removeWorldItem, Visibility } from '../world-items.ts';
 import { internalIgniteExplosion, Spread, spreadEffect } from './explosion.ts';
+import { addPartnerGraphic, markStructureTiles, type StructureChanges, wreckSurroundings } from './wreckage.ts';
 
 export const StructureDamage = { NOT_DAMAGED: 0, DAMAGED: 1, DESTROYED: 2 } as const;
 
@@ -37,10 +39,6 @@ const NO_MULTI_FLAG = -1;
 const CORPSE_SPRAYING_WOUND = 10;
 const VAPORIZING_DISTANCE = 1;
 const CORPSE_BLOOD_RADIUS = 2;
-
-export interface StructureChanges {
-  readonly gridNos: Set<number>;
-}
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const centreX = (g: number) => (g % WORLD_COLS) * 10 + 5;
@@ -97,29 +95,8 @@ function putItemPoolOnGround(t: TacticalState, g: number, level: number): void {
   for (const wi of itemsAt(t, g, level)) wi.zHeight = 0;
 }
 
-function removeOnWall(t: TacticalState, g: number, flag: number): void {
-  for (let attached = t.world.structures.find(g, flag); attached; attached = t.world.structures.find(g, flag)) {
-    const base = t.world.structures.findBase(attached);
-    if (!base) return;
-    recordStructureRemoved(t, base);
-    t.world.structures.remove(base);
-  }
-}
-
-function removeWallAttachments(t: TacticalState, s: StructureInstance, baseG: number): void {
-  if (s.wallOrientation & ORIENT_LEFT) {
-    removeOnWall(t, baseG, StructureFlags.ON_LEFT_WALL);
-    removeOnWall(t, newGridNo(baseG, DIRECTION_INCREMENT[Direction.SOUTH] ?? 0), StructureFlags.ON_LEFT_WALL);
-  } else {
-    removeOnWall(t, baseG, StructureFlags.ON_RIGHT_WALL);
-    removeOnWall(t, newGridNo(baseG, DIRECTION_INCREMENT[Direction.EAST] ?? 0), StructureFlags.ON_RIGHT_WALL);
-  }
-}
-
-function addDamagedGraphic(t: TacticalState, base: StructureInstance, partner: number): void {
-  const def = base.file?.structures[partner - 1];
-  const added = def ? t.world.structures.add(base.gridNo, 0, def, undefined, base.file) : null;
-  if (added) recordStructureAdded(t, added);
+function standing(t: TacticalState, base: StructureInstance): boolean {
+  return t.world.structures.findById(base.gridNo, base.id) === base;
 }
 
 function vaporizeCorpse(t: TacticalState, current: StructureInstance): void {
@@ -167,12 +144,14 @@ function explosiveDamageStructureAtGridNo(
   if (result === StructureDamage.DESTROYED && partner < 0) result = StructureDamage.DAMAGED;
   const swap = result === StructureDamage.DAMAGED && partner < 0;
   if (result !== StructureDamage.DESTROYED && !swap) return true;
-  if (has(current.flags, StructureFlags.WALLSTUFF)) removeWallAttachments(t, current, baseG);
+  wreckSurroundings(t, { current, base, destructionPartner: partner, baseTile: levelNodeTile(t, base) }, changes);
   if (has(current.flags, StructureFlags.HASITEMONTOP)) putItemPoolOnGround(t, g, level);
-  recordStructureRemoved(t, base);
-  t.world.structures.remove(base);
-  if (swap) addDamagedGraphic(t, base, -partner);
-  for (const tile of base.def.tiles) changes.gridNos.add(baseG + tile.posRelToBase);
+  if (standing(t, base)) {
+    recordStructureRemoved(t, base);
+    t.world.structures.remove(base);
+  }
+  if (swap) addPartnerGraphic(t, base, -partner);
+  markStructureTiles(changes, base);
   t.events.push({ type: 'structureDamaged', gridNo: baseG, destroyed: !swap });
   if (explosive) internalIgniteExplosion(t, owner, centreX(baseG), centreY(baseG), 0, baseG, itemIndex(t, 'STRUCTURE_EXPLOSION'), level);
   return !swap;

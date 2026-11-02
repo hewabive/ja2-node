@@ -119,6 +119,7 @@ import {
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
+import { sectorTempFileChanges } from '../tactical/map-changes.ts';
 import { drawFirstCreatureTenseQuoteDelay } from '../tactical/narrative/creature-tension.ts';
 import {
   civilianPlacementOverride,
@@ -1228,7 +1229,8 @@ export class SectorFlow {
     setVisibleItemCount(map, world, visibleItemCount(diff.items));
     diff.corpses = [...t.corpses];
     mark(SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, true);
-    diff.mapChanges = t.mapChanges.length > 0 ? [...t.mapChanges] : null;
+    const mapChanges = sectorTempFileChanges(t.mapChanges);
+    diff.mapChanges = mapChanges.length > 0 ? mapChanges : null;
     diff.bloodSmell = captureBloodAndSmell(t);
     mark(SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS, diff.mapChanges !== null || diff.bloodSmell.length > 0);
     diff.doorTable = [...t.world.mapDoors.values()];

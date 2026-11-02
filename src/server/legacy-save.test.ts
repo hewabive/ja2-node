@@ -8,6 +8,7 @@ import { ANIM_CONTROL_PATH, type AnimationTables, AnimFlags, stateId } from '../
 import { STUB_ANIMATION_SCRIPTS_PATH } from '../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM, parseAnimationScripts, writeAnimationScripts } from '../content/formats/ja2bin.ts';
 import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
+import { parseStructureFile, type StructureDef, writeStructureFile } from '../content/formats/jsd.ts';
 import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -75,6 +76,12 @@ const SCRIPTS_ADDED_AFTER_070 = [
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);
+const WALL_FRAMES_AT_070: Readonly<Record<string, number>> = {
+  'stubs/world/tilesets/0/wall': 2,
+  'stubs/world/tilesets/0/stonewall': 6,
+};
+const MANIFEST_FRAMES_START = '  "frames": [';
+const MANIFEST_FRAME_INDENT = '    {';
 const CREATURE_FALLS_AT_070 = ['ADULTMONSTER_DYING', 'LARVAE_DIE', 'QUEEN_DIE', 'INFANT_DIE'];
 const CREATURE_DEATH_STOPS_AT_070 = ['ADULTMONSTER_DYING_STOP', 'LARVAE_DIE_STOP', 'QUEEN_DIE_STOP', 'INFANT_DIE_STOP'];
 const SCRIPTS_WITH_FALL_SOUNDS_ADDED_AFTER_070 = [
@@ -153,6 +160,29 @@ async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
   return writeTilesetDatabase({ ...current, tilesets });
 }
 
+async function recordedWallStructures(vfs: Vfs, family: string, frames: number): Promise<Uint8Array> {
+  const current = parseStructureFile(await vfs.read(`${family}.jsd`));
+  const structures = current.structures.filter((d): d is StructureDef => d !== null && d.number < frames);
+  return writeStructureFile({ structureCount: frames, structures });
+}
+
+async function recordedWallSprite(vfs: Vfs, family: string, frames: number): Promise<Uint8Array> {
+  const lines = new TextDecoder().decode(await vfs.read(`${family}.sprite.json`)).split('\n');
+  const start = lines.indexOf(MANIFEST_FRAMES_START) + 1;
+  const end = lines.findIndex((line, k) => k >= start && !line.startsWith(MANIFEST_FRAME_INDENT));
+  const kept = lines.slice(start, start + frames).map((line) => line.replace(/,$/, ''));
+  return new TextEncoder().encode([...lines.slice(0, start), kept.join(',\n'), ...lines.slice(end)].join('\n'));
+}
+
+async function recordedWallFamilies(vfs: Vfs): Promise<[string, Uint8Array][]> {
+  const files: [string, Uint8Array][] = [];
+  for (const [family, frames] of Object.entries(WALL_FRAMES_AT_070)) {
+    files.push([`${family}.jsd`, await recordedWallStructures(vfs, family, frames)]);
+    files.push([`${family}.sprite.json`, await recordedWallSprite(vfs, family, frames)]);
+  }
+  return files;
+}
+
 async function recordedCorpseTable(vfs: Vfs): Promise<Uint8Array> {
   const current = new TextDecoder().decode(await vfs.read(CORPSES_TABLE_PATH));
   return new TextEncoder().encode(current.replace(DECAPITATION_TABLES_ADDED_AFTER_070, ''));
@@ -226,6 +256,7 @@ async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<V
     [STUB_PROFILES_FILE, await recordedStubProfiles(vfs)],
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
     [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
+    ...(await recordedWallFamilies(vfs)),
   ]);
   const recordedTables = new MemoryLayer(PROJECT_DATA_LAYER, [
     [CORPSES_TABLE_PATH, await recordedCorpseTable(vfs)],

@@ -118,9 +118,10 @@ pass and runs the special events queued behind it (`24`).
 original's with the non-interruptible release and opcode 476, which returns to the shooting animation the jam
 interrupted; otherwise the shot never comes and its busy count stays (`stubs/anim-scripts.test.ts`).
 
-**Tile types.** The stub tileset fills grounds, a floor, two wall families, roofs (flat climbable, slanted, high),
-barrels, doors, wooden and wire fences, low and high sandbags, a cliff with its lip, debris, the item graphics (every
-`tileGraphic` of the item tables) and the effect tiles. Stub structures come from `syntheticStructure`
+**Tile types.** The stub tileset fills grounds, a floor, two wall families (each with the end pieces at sub-indices
+48 to 55 that a destroyed wall leaves its neighbours, `12`; the frames between are unused), roofs (flat climbable,
+slanted, high), barrels, doors, wooden and wire fences, low and high sandbags, a cliff with its lip, debris, the item
+graphics (every `tileGraphic` of the item tables) and the effect tiles. Stub structures come from `syntheticStructure`
 (`src/content/world/synthetic.ts`); its `edge` option fills the cells of the original's wall shapes (left walls the far
 `y` row, right walls the far `x` column, read from the tileset 0 wall and door structure files), so the stone walls,
 windows and fences block sight and fire along one edge of their tile. `FIRSTWALL` (A9, the village houses, the bench

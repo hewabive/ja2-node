@@ -3,7 +3,8 @@
 // @src src/game/TileEngine/Structure.cc InternalSwapStructureForPartner (the node keeps its place, its index moves by
 // @src the partner delta); SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem (RemoveStruct, AddStructToHead,
 // @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
-// @src tile's first blood object at the head of its object layer); WorldMan.cc AddStructToTail (the landed helicopter).
+// @src tile's first blood object at the head of its object layer); WorldMan.cc AddStructToTail (the landed helicopter),
+// @src AddObjectToHead (a destroyed structure's debris).
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
@@ -12,7 +13,7 @@ import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } fro
 import { idiv } from '../../core/int.ts';
 
 export interface TileChange {
-  readonly kind: 'remove' | 'add' | 'append';
+  readonly kind: 'remove' | 'add' | 'append' | 'object';
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
@@ -100,8 +101,13 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
     structs: new LayerEdit(level.layers.structs),
     onRoof: new LayerEdit(level.layers.onRoof),
   };
+  const objects = new LayerEdit(level.layers.objects);
   let lastRemoved: Removed | null = null;
   for (const c of changes) {
+    if (c.kind === 'object') {
+      objects.at(c.gridNo).unshift(c.tile);
+      continue;
+    }
     if (c.kind === 'remove') {
       lastRemoved = removeTile(edits, c);
       continue;
@@ -122,11 +128,12 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
       ...level.layers,
       structs: edits.structs.changed ? edits.structs.build() : level.layers.structs,
       onRoof: edits.onRoof.changed ? edits.onRoof.build() : level.layers.onRoof,
+      objects: objects.changed ? objects.build() : level.layers.objects,
     },
   };
 }
 
-const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', append: 't' };
+const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', append: 't', object: 'o' };
 
 export function tileChangesKey(changes: readonly TileChange[]): string {
   return changes.map((c) => `${KIND_KEYS[c.kind]}${c.gridNo}.${c.level}.${c.tile}`).join(',');

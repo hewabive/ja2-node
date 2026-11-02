@@ -15,7 +15,7 @@ import { color, type RampName } from './palette.ts';
 import { IndexedRaster } from './raster.ts';
 import { loadSectorKinds, sectorKindAliases } from './sector-kinds.ts';
 import type { StubFrame, StubSprite } from './sprites.ts';
-import { STUB_TILE_SURFACES, type StubSurface } from './tiles.ts';
+import { type BrokenEnd, type Side, STUB_TILE_SURFACES, type StubSurface, standingHeight, withWallEnds } from './tiles.ts';
 
 export const STUB_WORLD_DIR = 'world';
 const STUB_TILESET_ID = 0;
@@ -34,16 +34,16 @@ function groundTile(ramp: RampName, base: number, seed: number): StubFrame {
   return { raster: r, ox: 0, oy: 0 };
 }
 
-function wall(side: 'left' | 'right'): StubFrame {
+function wall(side: Side, broken: BrokenEnd = null): StubFrame {
   const raised = STUB_WALL_HEIGHT + 1;
   const r = new IndexedRaster(24, raised + 21);
   for (let i = 0; i <= 20; i++) {
     const x = side === 'left' ? i : 20 - i;
     const baseY = raised + 10 - Math.floor(i / 2);
     const px = side === 'left' ? x : x + 2;
-    for (let y = baseY - STUB_WALL_HEIGHT; y <= baseY; y++)
-      r.set(px, y, color('brown', 7 + (side === 'left' ? 1 : -1) + ((y + i) % 11 === 0 ? 3 : 0)));
-    r.set(px, baseY - STUB_WALL_HEIGHT, color('brown', 13));
+    const top = baseY - standingHeight(STUB_WALL_HEIGHT, i, broken);
+    for (let y = top; y <= baseY; y++) r.set(px, y, color('brown', 7 + (side === 'left' ? 1 : -1) + ((y + i) % 11 === 0 ? 3 : 0)));
+    r.set(px, top, color('brown', 13));
   }
   return { raster: r, ox: side === 'left' ? 0 : 18, oy: -raised };
 }
@@ -73,10 +73,17 @@ function numbered(defs: readonly StructureDef[]): StructureDef[] {
   return defs.map((d, number) => ({ ...d, number }));
 }
 
-const WALL_STRUCTURES = numbered([
-  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT),
-  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT),
-]);
+const WALLS = withWallEnds(
+  {
+    frames: [wall('left'), wall('right')],
+    structures: numbered([
+      syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT),
+      syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT),
+    ]),
+  },
+  wall,
+  (orientation) => syntheticStructure(StructureFlags.WALL, orientation),
+);
 const BARREL_STRUCTURES = numbered([syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 })]);
 const CLOSED_DOOR = StructureFlags.DOOR | StructureFlags.OPENABLE;
 const OPEN_DOOR = CLOSED_DOOR | StructureFlags.OPEN;
@@ -95,7 +102,7 @@ const SURFACES: readonly StubSurface[] = [
   { type: 'THIRDTEXTURE', sprite: { path: 'road', frames: [groundTile('gray', 7, 5)] } },
   { type: 'REGWATERTEXTURE', sprite: { path: 'water', frames: [groundTile('water', 7, 6)] } },
   { type: 'FIRSTFLOOR', sprite: { path: 'floor', frames: [groundTile('khaki', 9, 7)] } },
-  { type: 'FIRSTWALL', sprite: { path: 'wall', frames: [wall('left'), wall('right')] }, structures: WALL_STRUCTURES },
+  { type: 'FIRSTWALL', sprite: { path: 'wall', frames: WALLS.frames }, structures: WALLS.structures },
   { type: 'FIRSTROOF', sprite: { path: 'roof', frames: [groundTile('red', 6, 8)] } },
   { type: 'FIRSTOSTRUCT', sprite: BARREL_SPRITE, structures: BARREL_STRUCTURES },
   {

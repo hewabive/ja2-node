@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Rotting_Corpses.cc ROTTING_CORPSE_DEFINITION (what a corpse is drawn from);
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphic per tile); Lighting.cc LightSpriteRenderAll
-// @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
+// @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes, objects); Bullets.cc
 // @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
 // @src tile it hangs on); Physics.cc PhysicsMoveObject (a thrown object's tile at its position, raised by the land
 // @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows).
@@ -47,7 +47,7 @@ export interface BloodPoolView {
   readonly creature?: boolean;
 }
 
-export type TileChangeKind = 'remove' | 'add' | 'append';
+export type TileChangeKind = 'remove' | 'add' | 'append' | 'object';
 
 export interface TileChangeView {
   readonly kind: TileChangeKind;

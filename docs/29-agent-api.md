@@ -277,8 +277,9 @@ as in the original, until the fade ends or he reaches the next tile. The tactica
 structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
 (`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer; `append`
 at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's trapdoor and crate, structures a
-native save added), then the pieces of a helicopter standing in the sector (`append`; `25`). Animation schedules, palettes
-and light sprites serve the renderer and the devtools.
+native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's
+debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client draws them.
+Animation schedules, palettes and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured

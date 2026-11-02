@@ -13,6 +13,7 @@ import { initNewSoldierAnim, states } from './animation.ts';
 import { soldierToSoldierChanceToGetThrough } from './combat/bullets.ts';
 import { soldierToSoldierLos } from './combat/positions.ts';
 import { swapStructureForPartner } from './doors.ts';
+import { explosiveDamageGridNo, recompileChangedTiles } from './explosions/structure-damage.ts';
 import { isJumpableFenceAt } from './movement.ts';
 import { findHigherLevel } from './roofs.ts';
 import { type Soldier, Team } from './soldier.ts';
@@ -140,6 +141,20 @@ describe('the stub tile yard in the village', () => {
     expect([...wall.tile.shape].filter((cubes) => cubes !== 0)).toHaveLength(5);
     expect(soldierToSoldierLos(t, viewer, other, SIGHT_TILES, true)).toBeGreaterThan(0);
     expect(soldierToSoldierChanceToGetThrough(t, viewer, other)).toBeGreaterThan(0);
+  });
+
+  it('leaves end pieces of the stone wall on both sides of a gap a blast tore into it, and they still block', () => {
+    const sim = village();
+    const t = sim.state;
+    const gap = at(16, 6);
+    const changes = { gridNos: new Set<number>() };
+    explosiveDamageGridNo(t, gap, 255, 0, false, -1, null, 0, changes);
+    recompileChangedTiles(t, changes);
+    expect(t.world.structures.find(gap, StructureFlags.WALL)).toBeNull();
+    const ends = [at(15, 6), at(17, 6)].map((g) => structureAt(sim, g, StructureFlags.WALL));
+    expect(ends.map((s) => s.def.number + 1)).toEqual([48, 49]);
+    expect(t.world.costs.get(gap, Direction.NORTH, 0)).not.toBe(TravelCost.WALL);
+    expect(ends.map((s) => t.world.costs.get(s.gridNo, Direction.NORTH, 0))).toEqual([TravelCost.WALL, TravelCost.WALL]);
   });
 
   it('shatters the window glass with a shot through it', () => {

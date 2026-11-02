@@ -1,9 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
+import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo } from '../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
-import { tileIndex } from '../../content/world/tile-tables.ts';
-import { applyMapChanges, MapChangeKind, recordStructureDamaged, recordStructureRemoved, structTileChange } from './map-changes.ts';
+import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import {
+  applyMapChanges,
+  MapChangeKind,
+  objectLayerAt,
+  recordStructureDamaged,
+  recordStructureRemoved,
+  structTileChange,
+} from './map-changes.ts';
+import { loadSavedSectorChanges } from './save-import.ts';
 import type { TacticalState } from './state.ts';
 import { TacticalSim } from './tactical-sim.ts';
 import { tileChangeViews } from './world-view.ts';
@@ -94,5 +103,24 @@ describe('replaying the map changes of a sector', () => {
     const t = freshA10();
     applyMapChanges(t, [structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, OPEN_GROUND, sandbagTile())]);
     expect(tileChangeViews(t)).toEqual([]);
+  });
+});
+
+describe('the map changes of a native save', () => {
+  it('adds a saved object record at the head of the object layer, as AddObjectFromMapTempFileToMap does (SaveLoadMap.cc:105)', () => {
+    const sim = new TacticalSim(kit.world(A10), kit.content, 1);
+    const tables = kit.world(A10).tables;
+    const debris = { type: MapModificationType.OBJECT, gridNo: OPEN_GROUND, imageType: typeIndex(tables, 'FIRSTEXPLDEBRIS'), extra: 0 };
+    loadSavedSectorChanges(sim, {
+      mapModifications: [
+        { ...debris, subImageIndex: 3 },
+        { ...debris, subImageIndex: 5 },
+      ],
+      revealed: null,
+      doorStatus: null,
+    });
+    const tiles = [tileIndex(tables, 'FIRSTEXPLDEBRIS3'), tileIndex(tables, 'FIRSTEXPLDEBRIS5')];
+    expect(objectLayerAt(sim.state, OPEN_GROUND)).toEqual([tiles[1], tiles[0]]);
+    expect(tileChangeViews(sim.state)).toEqual(tiles.map((tile) => ({ kind: 'object', gridNo: OPEN_GROUND, level: 0, tile })));
   });
 });

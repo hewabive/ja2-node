@@ -42,7 +42,15 @@ import { Insertion } from './insertion.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { loadedWorldItemGridNo } from './item-placement.ts';
 import { lightSetBaseLevel, lightSpriteRenderAll, loadMapLights } from './lighting/lighting.ts';
-import { type AddedExitGrid, applyMapChanges, exitGridChange, type MapChange, MapChangeKind, structTileChange } from './map-changes.ts';
+import {
+  type AddedExitGrid,
+  applyMapChanges,
+  exitGridChange,
+  type MapChange,
+  MapChangeKind,
+  objectChange,
+  structTileChange,
+} from './map-changes.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { setMapRevealedStatus } from './perception/fov.ts';
@@ -300,6 +308,7 @@ function savedMapChange(tables: TileTables, m: SavedMapModification): MapChange 
   if (m.type === MapModificationType.EXIT_GRIDS) return exitGridChange(savedExitGrid(m));
   const tile = savedStructTile(tables, m);
   if (tile === null) return null;
+  if (m.type === MapModificationType.OBJECT) return objectChange(m.gridNo, tile);
   if (m.type === MapModificationType.STRUCT) return structTileChange(MapChangeKind.APPEND_STRUCT_TILE, m.gridNo, tile);
   if (m.type === MapModificationType.REMOVE_STRUCT && !isDoorType(tables, m.imageType))
     return structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, m.gridNo, tile);

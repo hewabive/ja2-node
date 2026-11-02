@@ -35,7 +35,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `level-render-data.ts` | What the original's loader leaves behind: the land start node, the shadow lists after `OptimizeMapForShadows`, `gsRenderHeight`, the no-burn tiles |
 | `static-scene.ts` | The static layers: node filters, segments, z strips, the obscured pass |
 | `dynamic-scene.ts` | Dynamic and animated map nodes, soldiers, items, corpses, smoke, effect nodes and UI nodes, every frame |
-| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes; structure changes and blood pools |
+| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes; structure and object changes (debris) and blood pools |
 | `world-program.ts`, `instances.ts`, `world-framebuffer.ts` | The shader, the draw states, the instance records, the framebuffers |
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |

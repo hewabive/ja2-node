@@ -34,6 +34,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
 | `explosions/explosion.ts`, `blast-damage.ts`, `structure-damage.ts`, `item-damage.ts` | Ignition, the tile animation, the spread, damage to soldiers, structures and items, chain reactions |
+| `explosions/wreckage.ts`, `map-changes.ts` | What a wrecked structure leaves around it, recorded as map changes |
 | `explosions/smoke.ts`, `light.ts`, `state.ts` | Gas clouds and gas damage, flares, `ExplosivesState` |
 
 The path of an explosion:
@@ -44,7 +45,7 @@ igniteExplosion: busy count +1, sight off                           explosions/e
     damage key frame → spreadEffect over the radius, or newSmokeEffect    explosion.ts, smoke.ts
       expAffect per tile (one PreRandom(100) for a blast or stun)
         neutral owners of the tile's room take offence (ours only)  narrative/minor-offenses.ts (35)
-        structures and their listeners                              structure-damage.ts
+        structures and their listeners, the wreckage                structure-damage.ts, wreckage.ts
         items on the ground, chain reactions → igniteExplosion      item-damage.ts
         damageSoldierFromBlast → eventSoldierGotHit                 blast-damage.ts, combat/hit.ts (33)
         dishOutGasDamage                                            smoke.ts
@@ -100,16 +101,28 @@ decision (`wearGasMaskIfAvailable`, `explosions/smoke.ts`).
 
 **Structures report damage.** Before a structure takes a hit, the O3 statue may take it (`26`); after a damaging hit
 the brothel listener runs, then `SectorHooks.structureDamaged` (the SAM sites, `18`), both with the wound before the
-structure's armour. A structure is swapped for its damaged graphic or removed; debris, decals and wall end pieces are
-not simulated (gap "Wrecked structures").
+structure's armour. A structure is swapped for its damaged graphic or removed.
+
+**Wreckage is map changes.** A wrecked structure leaves debris in the object layer, swaps the fences beside it to their
+damaged graphic, takes the decals off its wall, replaces the walls beside it with end pieces, removes what hangs on it
+and drains the fountain (`wreckSurroundings`). Every such change is a `MapChange` (`map-changes.ts`): structure records
+where the change has a structure, tile records for the structure layer and the object layer (`addObject`) otherwise.
+The simulation keeps no tile layers: it reads a tile's structure and object layer as the map's tiles with the records
+replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the view's `tileChanges` carry to the client
+(`29`). A change the original makes outside `ApplyMapChangesToMapTempFile` (the decals) is `liveOnly`: it stays for
+the stay and in ja2-node saves but is left out of the sector diff (`sectorTempFileChanges`), so it is undone at the
+next entry as in the original; a native save never holds it (deviation "Wall decals after a load"). The end piece's
+insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
+roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
 **Bombs and mines are scenery.** Map mines load armed and buried but never go off; there is no planting, disarming,
 timer, remote detonator or explosive bomb queue, and picking an item up sets off no booby trap (gaps "Map items", "Duds
 and timed bombs", "Unbuilt item actions", "Booby-trapped items"). The bomb queue runs only its action-item branch
 (`25`); `useRemote` only opens the O3 statue.
 
-**Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6). Explosion sounds, debris
-variants and smoke graphics are not drawn (deviation "Cosmetic draws in explosions").
+**Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the debris variant's
+`Random(3)` per piece of debris included. Explosion sounds and smoke graphics are not drawn (deviation "Cosmetic draws
+in explosions").
 
 ## 3. Quirks of the original the code keeps
 
@@ -123,6 +136,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Grenades hit structures with their full blast: the parser asks for `structuralDamageDisivor`, so the divisor 3 in their data is never read | `explosions/explosion.test.ts` |
 | A damage key frame ends the tile-animation pass, so of two explosions going off together the one ignited first hurts a tick later | `explosions/explosion.test.ts` |
 | A blast's side branches run to the full blast range, even where a low structure shortened their ray | `explosions/explosion.test.ts` |
+| A destroyed wall's decals come back at the next entry: their removal is never written to the temp file | `explosions/wreckage.test.ts` |
+| The end piece beside a destroyed wall replaces a decal on the same side of its wall | `explosions/wreckage.test.ts` |
+| A drained fountain loses each of its first three water pieces twice, so a doubled piece goes too | `explosions/wreckage.test.ts` |
 | Creature gas has no explosion animation: igniting it would raise the busy count for good (spit lays its gas directly) | `explosions/explosion.test.ts` |
 | Once one cloud is due to age in real time, every later cloud ages too, by the same count | `explosions/smoke.test.ts` |
 | A tile keeps the first cloud's gas: tear gas over smoke leaves it smoky | `explosions/smoke.test.ts` |
@@ -156,9 +172,9 @@ source:
 - That in real time a cloud ages about every third real-time turn while its occupants are gassed every turn, and that a
   flare never fades during turn-based combat.
 
-Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Wrecked
-structures", "Drugs and alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item
+Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Drugs and
+alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item
 cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
 cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic draws
-in explosions".
+in explosions", "Wall decals after a load".

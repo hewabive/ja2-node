@@ -68,8 +68,56 @@ const SHATTER_SHARDS = 9;
 const SHATTER_TOP = -38;
 const AUX_ANIMATED_TILE = 0x02;
 
-type Side = 'left' | 'right';
+export type Side = 'left' | 'right';
 type WallFace = 'solid' | 'window' | 'shattered';
+export type BrokenEnd = 'start' | 'end' | null;
+
+const FIRST_WALL_END_SUBINDEX = 48;
+const RUIN_SPAN = 10;
+const RUIN_LOWEST = 0.3;
+const UNUSED_FRAME_SHADE = 8;
+const WALL_ENDS: readonly { readonly orientation: number; readonly side: Side; readonly broken: Exclude<BrokenEnd, null> }[] = [
+  { orientation: Orientation.OUTSIDE_LEFT, side: 'left', broken: 'end' },
+  { orientation: Orientation.OUTSIDE_LEFT, side: 'left', broken: 'start' },
+  { orientation: Orientation.OUTSIDE_RIGHT, side: 'right', broken: 'start' },
+  { orientation: Orientation.OUTSIDE_RIGHT, side: 'right', broken: 'end' },
+  { orientation: Orientation.INSIDE_LEFT, side: 'left', broken: 'end' },
+  { orientation: Orientation.INSIDE_LEFT, side: 'left', broken: 'start' },
+  { orientation: Orientation.INSIDE_RIGHT, side: 'right', broken: 'start' },
+  { orientation: Orientation.INSIDE_RIGHT, side: 'right', broken: 'end' },
+];
+
+export function standingHeight(height: number, i: number, broken: BrokenEnd): number {
+  const fromBreak = broken === 'start' ? i : broken === 'end' ? EDGE_RUN - i : RUIN_SPAN;
+  if (fromBreak >= RUIN_SPAN) return height;
+  return Math.round(height * (RUIN_LOWEST + ((1 - RUIN_LOWEST) * fromBreak) / RUIN_SPAN));
+}
+
+function unusedFrame(): StubFrame {
+  const r = new IndexedRaster(1, 1);
+  r.set(0, 0, color('gray', UNUSED_FRAME_SHADE));
+  return { raster: r, ox: 0, oy: 0 };
+}
+
+export interface StubWallFamily {
+  readonly frames: readonly StubFrame[];
+  readonly structures: readonly StructureDef[];
+}
+
+export function withWallEnds(
+  family: StubWallFamily,
+  endFrame: (side: Side, broken: BrokenEnd) => StubFrame,
+  endStructure: (orientation: number) => StructureDef,
+): StubWallFamily {
+  const unused = Array.from({ length: FIRST_WALL_END_SUBINDEX - 1 - family.frames.length }, unusedFrame);
+  return {
+    frames: [...family.frames, ...unused, ...WALL_ENDS.map((e) => endFrame(e.side, e.broken))],
+    structures: [
+      ...family.structures,
+      ...WALL_ENDS.map((e, k) => ({ ...endStructure(e.orientation), number: FIRST_WALL_END_SUBINDEX - 1 + k })),
+    ],
+  };
+}
 
 function numbered(defs: readonly StructureDef[]): StructureDef[] {
   return defs.map((d, number) => ({ ...d, number }));
@@ -93,9 +141,10 @@ function inWindow(i: number, rise: number): boolean {
   return i >= WINDOW_INSET && i <= EDGE_RUN - WINDOW_INSET && rise >= WINDOW_BOTTOM && rise <= WINDOW_TOP;
 }
 
-function stoneWall(side: Side, face: WallFace): StubFrame {
+function stoneWall(side: Side, face: WallFace, broken: BrokenEnd = null): StubFrame {
   return edgeFrame(side, WALL_HEIGHT, (r, px, i, baseY) => {
-    for (let rise = 0; rise <= WALL_HEIGHT; rise++) {
+    const top = standingHeight(WALL_HEIGHT, i, broken);
+    for (let rise = 0; rise <= top; rise++) {
       const y = baseY - rise;
       if (face !== 'solid' && inWindow(i, rise)) {
         const edge = rise === WINDOW_BOTTOM || rise === WINDOW_TOP || i === WINDOW_INSET || i === EDGE_RUN - WINDOW_INSET;
@@ -106,7 +155,7 @@ function stoneWall(side: Side, face: WallFace): StubFrame {
       const mortar = rise % 8 === 0 || (rise % 16 < 8 ? i % 6 === 0 : i % 6 === 3);
       r.set(px, y, color('gray', mortar ? 4 : 7 + (side === 'left' ? 1 : -1)));
     }
-    r.set(px, baseY - WALL_HEIGHT, color('gray', 12));
+    r.set(px, baseY - top, color('gray', 12));
   });
 }
 
@@ -367,22 +416,24 @@ const SANDBAG_STRUCTURES = numbered([
 const roofStructures = (flags: number, height: number, armour: number) =>
   numbered([syntheticStructure(flags, Orientation.NONE, { armour, height })]);
 
-export const STUB_TILE_SURFACES: readonly StubSurface[] = [
+const STONE_WALLS = withWallEnds(
   {
-    type: 'SECONDWALL',
-    sprite: {
-      path: 'stonewall',
-      frames: [
-        stoneWall('left', 'solid'),
-        stoneWall('right', 'solid'),
-        stoneWall('left', 'window'),
-        stoneWall('left', 'shattered'),
-        stoneWall('right', 'window'),
-        stoneWall('right', 'shattered'),
-      ],
-    },
+    frames: [
+      stoneWall('left', 'solid'),
+      stoneWall('right', 'solid'),
+      stoneWall('left', 'window'),
+      stoneWall('left', 'shattered'),
+      stoneWall('right', 'window'),
+      stoneWall('right', 'shattered'),
+    ],
     structures: STONE_WALL_STRUCTURES,
   },
+  (side, broken) => stoneWall(side, 'solid', broken),
+  (orientation) => syntheticStructure(StructureFlags.WALL, orientation, STONE),
+);
+
+export const STUB_TILE_SURFACES: readonly StubSurface[] = [
+  { type: 'SECONDWALL', sprite: { path: 'stonewall', frames: STONE_WALLS.frames }, structures: STONE_WALLS.structures },
   {
     type: 'FENCESTRUCT',
     sprite: {
