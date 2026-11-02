@@ -5,6 +5,7 @@ import { loadUiStrings } from '../content/text/strings.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
+import { impSlotInProgress } from '../sim/campaign/laptop/imp.ts';
 import { impReportRows } from '../sim/campaign/laptop/imp-report.ts';
 import { mailSpec, sender } from '../sim/campaign/laptop/mail.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -39,6 +40,15 @@ describe.skipIf(!dataDir)('the laptop texts on the original data', () => {
       expect(body.paragraphs).toHaveLength(mail.length - 1);
     }
     expect(laptop?.finances[0]?.text.length).toBeGreaterThan(0);
+  });
+
+  it('leaves the prof.dat placeholders at the free I.M.P. slots out of the profile presentation: there is no face file for them', () => {
+    const flow = session.campaign.laptop;
+    const slot = flow ? impSlotInProgress(flow) : null;
+    if (slot === null) throw new Error('no free I.M.P. slot');
+    expect(flow?.tactical.profiles[slot]?.faceIndex).toBe(slot);
+    expect(data.vfs.stat(`faces/${slot}.sti`)).toBeUndefined();
+    expect(session.profileFaceRecords().some((r) => r.id === slot)).toBe(false);
   });
 
   it("builds the I.M.P. report from impass.edt with the character's name", () => {
@@ -76,5 +86,7 @@ describe.skipIf(!dataDir)('the laptop texts on the original data', () => {
     const report = text.data as { paragraphs: string[] };
     expect(report.paragraphs).toHaveLength(impReportRows({ ...record, initial: record }, c.imp.portraits, mail.id % 2 === 0).length);
     expect(report.paragraphs[0]?.endsWith(' Oracle Tester')).toBe(true);
+    expect(session.profileFaceRecords().find((r) => r.id === profile)?.faceIndex).toBe(record.faceIndex);
+    expect(data.vfs.stat(`faces/${record.faceIndex}.sti`)).toBeDefined();
   });
 });

@@ -10,6 +10,7 @@ import { loadUiStrings } from '../content/text/strings.ts';
 import { REPO_ROOT } from '../node/repo.ts';
 import type { LaptopView } from '../protocol/view.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
+import { impSlotInProgress } from '../sim/campaign/laptop/imp.ts';
 import { impReportRows } from '../sim/campaign/laptop/imp-report.ts';
 import { BobbyRaySiteVisit, Bookmark, MercSiteVisit } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailSpec, sender } from '../sim/campaign/laptop/mail.ts';
@@ -41,6 +42,27 @@ interface Laptop {
 const STUB_MAILS = JSON.parse(readFileSync(join(REPO_ROOT, 'stubs/text/email.json'), 'utf8')) as {
   readonly mails: Readonly<Record<string, readonly string[]>>;
 };
+
+const STUB_IMP_CHARACTER = {
+  code: 'XEP624',
+  name: 'Stub Tester',
+  gender: 'female',
+  answers: [1, 0, 0, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 1, 0, 0],
+  attributes: {
+    health: 75,
+    agility: 75,
+    dexterity: 70,
+    strength: 55,
+    wisdom: 60,
+    leadership: 35,
+    marksmanship: 75,
+    medical: 55,
+    mechanical: 55,
+    explosives: 0,
+  },
+  portrait: 0,
+  voice: 0,
+} as const;
 
 async function newGame(seed: number): Promise<Laptop> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { hire: [] });
@@ -279,27 +301,7 @@ describe('the mail text the server assembles', () => {
   it('builds the I.M.P. report from impass.edt for the profile of the mail, the name after the first record', async () => {
     const { session, live } = await newGame(122);
     live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
-    const created = live.dispatch({
-      type: 'impCreate',
-      code: 'XEP624',
-      name: 'Stub Tester',
-      gender: 'female',
-      answers: [1, 0, 0, 1, 0, 1, 0, 2, 2, 1, 2, 1, 1, 1, 0, 0],
-      attributes: {
-        health: 75,
-        agility: 75,
-        dexterity: 70,
-        strength: 55,
-        wisdom: 60,
-        leadership: 35,
-        marksmanship: 75,
-        medical: 55,
-        mechanical: 55,
-        explosives: 0,
-      },
-      portrait: 0,
-      voice: 0,
-    });
+    const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
     const profile = (created.data as { profile: number }).profile;
     const flow = session.campaign.laptop;
     const record = flow?.profileRecord(profile);
@@ -320,5 +322,21 @@ describe('the mail text the server assembles', () => {
     });
     expect(emailText(session.campaign, legacy, texts)?.paragraphs).toEqual(expected(legacy.id));
     expect(expected(named.id)).not.toEqual(expected(legacy.id));
+  });
+});
+
+describe('the profile presentation the clients fetch', () => {
+  it("sends an I.M.P. character's own face once he is created, whatever the content holds at his slot", async () => {
+    const { session, live } = await newGame(122);
+    live.dispatch({ type: 'readEmail', id: mailId(session, 'IMP_EMAIL_INTRO') });
+    const flow = session.campaign.laptop;
+    const slot = flow ? impSlotInProgress(flow) : null;
+    if (slot === null) throw new Error('no free I.M.P. slot');
+    expect(session.profileFaceRecords().some((r) => r.id === slot)).toBe(false);
+    const created = live.dispatch({ type: 'impCreate', ...STUB_IMP_CHARACTER });
+    expect((created.data as { profile: number }).profile).toBe(slot);
+    const character = session.campaign.state.laptop.imp.profiles.get(slot);
+    const record = session.profileFaceRecords().find((r) => r.id === slot);
+    expect(record).toMatchObject({ nickname: character?.nickname, faceIndex: character?.faceIndex });
   });
 });

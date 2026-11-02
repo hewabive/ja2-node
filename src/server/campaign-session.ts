@@ -16,6 +16,7 @@ import type {
 } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { isImpSlotType } from '../sim/campaign/laptop/imp.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
@@ -262,9 +263,12 @@ export class CampaignSession implements SessionSim {
   }
 
   profileFaceRecords(): ProfileFaceRecord[] {
-    const imp = this.campaign.state.laptop.imp.profiles;
+    const characters = this.campaign.state.laptop.imp.profiles;
     const base = this.origin?.parts.content.profiles ?? this.campaign.battle?.content.profiles ?? [];
-    return base.filter((p) => p !== undefined).map((p) => profileFaceRecord(imp.get(p.id) ?? p));
+    const types = this.campaign.economy?.economy.mercTypes;
+    const freeForImp = (id: number) => types !== undefined && isImpSlotType(types.get(id));
+    const declared = base.flatMap((p) => (p === undefined || characters.has(p.id) || freeForImp(p.id) ? [] : [p]));
+    return [...declared, ...characters.values()].sort((a, b) => a.id - b.id).map(profileFaceRecord);
   }
 
   messageFacts(): MessageFacts {

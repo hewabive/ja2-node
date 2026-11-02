@@ -171,9 +171,12 @@ export type ImpResult =
     }
   | { readonly ok: false; readonly reason: ImpRefusal };
 
-function isImpSlot(ctx: LaptopContext, profile: number): boolean {
-  const type = ctx.mercType(profile);
+export function isImpSlotType(type: number | undefined): boolean {
   return type === undefined || type === MercType.IMP;
+}
+
+function isImpSlot(ctx: LaptopContext, profile: number): boolean {
+  return isImpSlotType(ctx.mercType(profile));
 }
 
 export function impCharactersCreated(ctx: LaptopContext): number {
