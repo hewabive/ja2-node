@@ -184,7 +184,6 @@ are not probed. Inferred from reading the source:
 - A neighbour outside the map has no wall in the wall-corner rule; the original reads past its array.
 - Structure list order matters only for the fog of war and the window test. A bush tile with a soldier in it does not
   stop the view: the original reads the person structure appended last, ja2-node the occupancy map.
-- The order of `mercSlots` after soldiers leave and re-enter the sector (ja2-node reuses the first free slot).
 - Hiring a merc while a sector is loaded wipes our team's public last-known locations there (`TacticalCreateSoldier`
   runs at the hire); ja2-node creates hired mercs outside the tactical layer and skips it. Only the AI reads these
   locations, and it never decides for our team.
