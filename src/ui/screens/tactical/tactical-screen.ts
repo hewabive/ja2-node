@@ -30,7 +30,10 @@
 // @src Interface_Items.cc DrawItemTileCursor (the item's owner selected while the item is over the map, and located
 // @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02); Turn_Based_Input.cc
 // @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (A_CHANGE_TO_MOVE once an item pointer click is
-// @src handled, 2026-11-02).
+// @src handled, 2026-11-02); Interface_Items.cc CancelItemPointer as Overhead.cc CommonEnterCombatModeCode and
+// @src Interface_Dialogue.cc InternalInitTalkingMenu call it, EndItemPointer once the object is no longer the holder's
+// @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
+// @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -82,6 +85,7 @@ import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
 import {
   cursorFromKeyRing,
+  cursorObjectHeld,
   dropCommand,
   giveCommand,
   type ItemCursor,
@@ -240,6 +244,7 @@ export class TacticalScreen implements Screen {
   readonly #panelAnimations = new Map<number, PanelFaceAnimation>();
   readonly #lastEnemyCycled = new Map<number, number>();
   #externCursor = false;
+  #cursorEndingState = { combat: false, conversation: false };
   #radarShown = true;
   #radarPressed = false;
   #squadRegions: MouseRegion[] = [];
@@ -420,6 +425,7 @@ export class TacticalScreen implements Screen {
       locate: (s, flag) => this.#locateSoldier(s, flag),
       slideTo: (s, flag) => this.#slideTo(s, flag),
       cycleVisibleEnemies: (s) => this.#cycleVisibleEnemies(s),
+      cancelItemPointer: () => this.inventory.cancel(),
       locateSelect: (s, force) => this.#handleLocateSelect(s, force),
       clearMessages: (queue) => (queue ? this.#log.clear() : this.#log.clearShown()),
       swapHands: (id) => this.#swapHands(id),
@@ -511,6 +517,15 @@ export class TacticalScreen implements Screen {
     const drop = dropCommand(cursor);
     if (drop) send(drop);
     else this.#endItemPointer();
+  }
+
+  #endItemPointerWhereTheOriginalDoes(view: PlayerView | null): void {
+    const now = { combat: inCombat(view), conversation: (view?.conversation ?? null) !== null };
+    const was = this.#cursorEndingState;
+    this.#cursorEndingState = now;
+    if ((now.combat && !was.combat) || (now.conversation && !was.conversation)) this.inventory.cancel();
+    const cursor = this.inventory.cursor;
+    if (cursor && !cursorObjectHeld(cursor, soldierById(view, cursor.source.soldier))) this.inventory.setCursor(null);
   }
 
   #endItemPointer(): void {
@@ -885,6 +900,7 @@ export class TacticalScreen implements Screen {
     this.#env.world.setSelected(this.#selected);
     this.#hoveredSoldier = this.#pointerSoldier();
     this.#env.world.setHovered(this.#hoveredSoldier);
+    this.#endItemPointerWhereTheOriginalDoes(view);
     this.inventory.update(this.#now);
     this.#updateModels(view);
     this.controls.update(this.#now);
@@ -1063,7 +1079,6 @@ export class TacticalScreen implements Screen {
       else if (this.description.open) this.description.close(true);
       else if (this.stack.open) this.stack.close();
       else if (this.keyRing.open) this.keyRing.close();
-      else if (this.inventory.cursor) this.inventory.cancel();
       else return this.#viewInput(event);
       return true;
     }
@@ -1446,10 +1461,6 @@ export class TacticalScreen implements Screen {
   }
 
   #viewportButton(reason: number): void {
-    if (this.inventory.cursor && reason & MouseReason.RBUTTON_UP) {
-      this.inventory.cancel();
-      return;
-    }
     this.controls.pointerButton(reason);
   }
 

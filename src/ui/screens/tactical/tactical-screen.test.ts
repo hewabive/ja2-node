@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
-import { tacticalOf } from '../../../../tests/support/save-scenarios.ts';
+import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
@@ -397,6 +397,43 @@ describe('the tactical screen over a stub sandbox session', () => {
     });
     pointerTo(f, width / 2, VIEW_ROW_Y);
     expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
+  });
+
+  it('keeps the held item through Esc and a right click on the map until it goes back into its slot, with no command', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const held = f.screen.inventory.cursor;
+    f.key('Escape');
+    const { width } = f.t.runtime.geometry();
+    await f.clickAt(width / 2, VIEW_ROW_Y, MouseButton.RIGHT);
+    expect(f.screen.inventory.cursor).toBe(held);
+    const sent = f.client.commands.length;
+    await f.click(`slot${BIG_POCKET}`);
+    pointerTo(f, width / 2, VIEW_ROW_Y);
+    expect([f.screen.inventory.cursor, f.client.commands.length, f.screen.controls.input.mode]).toEqual([null, sent, UiMode.MOVE_MODE]);
+  });
+
+  it('puts the held item back when combat starts, as CommonEnterCombatModeCode cancels the item pointer', async () => {
+    const f = await tacticalUiTest(kit, ui, BATTLE_SANDBOX_SEED);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const item = inventory(f, f.screen.smMerc ?? -1).find((i) => i.slot === BIG_POCKET)?.item;
+    expect(f.screen.inventory.cursor?.item).toBe(item);
+    approachUntilCombat(f.session, false);
+    f.deliver();
+    expect(f.screen.inventory.cursor).toBeNull();
+    expect(inventory(f, f.screen.smMerc ?? -1).find((i) => i.slot === BIG_POCKET)?.item).toBe(item);
+  });
+
+  it('ends the cursor once its object is gone from the holder, as a death or a drop ends the item pointer', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const holder = f.screen.inventory.cursor?.source.soldier ?? -1;
+    expect((await f.client.command({ type: 'drop', soldier: holder, slot: BIG_POCKET })).ok).toBe(true);
+    f.advance(200);
+    expect(f.screen.inventory.cursor).toBeNull();
   });
 
   it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {

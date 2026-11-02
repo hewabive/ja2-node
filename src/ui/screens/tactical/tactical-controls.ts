@@ -26,7 +26,8 @@
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump);
 // @src src/game/Tactical/Strategic_Exit_GUI.cc InitSectorExitMenu, WarpToSurfaceCallback (STR_LATE_33 asked before the
-// @src exit menu: yes warps, no opens the menu).
+// @src exit menu: yes warps, no opens the menu); Interface.cc InitDoorOpenMenu (EraseInterfaceMenus cancels the item
+// @src pointer, 2026-11-02).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -151,6 +152,7 @@ export interface ControlsScreen {
   locate(s: SoldierView, flag: LocateFlag): void;
   slideTo(s: SoldierView, flag: LocateFlag): void;
   cycleVisibleEnemies(s: SoldierView): void;
+  cancelItemPointer(): void;
   locateSelect(s: SoldierView, force: boolean): void;
   clearMessages(queue: boolean): void;
   swapHands(id: number): void;
@@ -445,6 +447,7 @@ export class TacticalControls {
   #openDoorMenu({ soldier, gridNo, options, closing }: DoorMenuEvent): void {
     const s = this.#view()?.soldiers.find((v) => v.id === soldier);
     if (!s || s.team !== OUR_TEAM) return;
+    this.#screen.cancelItemPointer();
     this.#screen.locate(s, LocateFlag.DONTSETLOCATOR);
     this.input.override(UiEvent.OP_OPENDOORMENU);
     this.#env().runtime.pauseGame(true);

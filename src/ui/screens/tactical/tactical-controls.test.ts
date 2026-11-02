@@ -36,6 +36,8 @@ import { LOCATOR_FRAME_MS, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
 const SMALL_FONT = 'smallfont1';
+const BIG_POCKET = 7;
+const HAND_SLOT = 5;
 const ITEMS_OVER_MS = 1500;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
@@ -480,6 +482,24 @@ describe('the tactical input on the tactical screen', () => {
     await f.click('doorOpen');
     expect(f.screen.controls.doorMenu.open).toBe(false);
     expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: s.gridNo + 1, action: 'openManually' });
+  });
+
+  it('puts the held item back as the door menu opens, as InitDoorOpenMenu erases the interface menus', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    await f.click(`slot${BIG_POCKET}`);
+    expect(f.screen.inventory.cursor).not.toBeNull();
+    f.frames([
+      {
+        tick: f.client.view.tick,
+        changed: [],
+        removed: [],
+        events: [{ type: 'doorMenu', tick: f.client.view.tick, soldier: 0, gridNo: s.gridNo + 1, options: OPEN_DOOR_OPTIONS }],
+      },
+    ]);
+    expect([f.screen.controls.doorMenu.open, f.screen.inventory.cursor]).toEqual([true, null]);
   });
 
   it('asks to travel to the surface before the exit menu of a creature lair: yes warps, no opens the menu', async () => {
@@ -1183,6 +1203,19 @@ describe('the exchange cursor over a talkable NPC next to the selected merc, in 
       cursors.push(f.screen.controls.input.uiCursor);
     }
     expect([cursors[4], cursors[15], cursors[26]]).toEqual(['EXCHANGE_PLACES_UICURSOR', 'TALK_A_UICURSOR', 'EXCHANGE_PLACES_UICURSOR']);
+  });
+
+  it('puts the held item back as a conversation starts, as InternalInitTalkingMenu erases the interface menus', async () => {
+    const { f } = await besideTheStubNpc();
+    const talker = f.screen.selected ?? -1;
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    const pocket = merc(f, f.screen.smMerc ?? -1).inventory?.find((i) => i.slot !== HAND_SLOT);
+    await f.click(`slot${pocket?.slot}`);
+    expect(f.screen.inventory.cursor).not.toBeNull();
+    expect((await f.client.command({ type: 'talk', soldier: talker, target: { npc: STUB_NPC } })).ok).toBe(true);
+    f.deliver();
+    expect([f.client.view.conversation === null, f.screen.inventory.cursor]).toEqual([false, null]);
   });
 
   it('prints that the NPC refuses to move on a click on the exchange cursor', async () => {

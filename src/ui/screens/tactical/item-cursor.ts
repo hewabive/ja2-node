@@ -8,7 +8,8 @@
 // @src cursor is deposited); Interface_Items.cc HandleItemPointerClick (the toss to a tile or a catcher, the give to a
 // @src talkable target: an escort or the robot at any distance, 2026-11-01), RemoveMoney (the split amount goes into the cursor),
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
-// @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC.
+// @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC;
+// @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -206,6 +207,28 @@ export function cancelCommand(cursor: ItemCursor): CommandEnvelope | null {
   if (s.kind === 'attachment') return { type: 'detach', soldier: s.soldier, slot: s.slot, attachment: s.attachment };
   if (s.kind === 'magazine') return { type: 'unload', soldier: s.soldier, slot: s.slot };
   return null;
+}
+
+export function returnsToItsSlot(cursor: ItemCursor, soldier: number, slot: number): boolean {
+  const s = cursor.source;
+  return (s.kind === 'slot' || s.kind === 'money') && s.soldier === soldier && s.slot === slot;
+}
+
+export function cursorObjectHeld(cursor: ItemCursor, holder: SoldierView | null): boolean {
+  const s = cursor.source;
+  if (s.kind === 'keyRing') return (holder?.keys?.find((k) => k.position === s.position)?.count ?? 0) > 0;
+  const item = slotItem(holder, s.slot);
+  if (!item) return false;
+  switch (s.kind) {
+    case 'slot':
+      return item.item === cursor.item && (s.count === 'all' || s.index < item.count);
+    case 'money':
+      return item.item === cursor.item && (item.money ?? 0) >= s.amount;
+    case 'attachment':
+      return item.attachments?.[s.attachment]?.item === cursor.item;
+    case 'magazine':
+      return item.ammo?.item === cursor.item && item.ammo.shots > 0;
+  }
 }
 
 export function takenFrom(cursor: ItemCursor | null, soldier: number, slot: number): CursorCount | null {

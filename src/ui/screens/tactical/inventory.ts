@@ -37,6 +37,7 @@ import {
   placeCommand,
   REFUSAL_MERGE_PROMPT,
   REFUSAL_USE_ATTACH,
+  returnsToItsSlot,
   shownCount,
   slotItem,
 } from './item-cursor.ts';
@@ -310,6 +311,10 @@ export class InventoryPanel {
   async place(target: SoldierView, slot: number, merge?: boolean): Promise<void> {
     const cursor = this.#cursor;
     if (!cursor) return;
+    if (returnsToItsSlot(cursor, target.id, slot)) {
+      this.#endPlacement();
+      return;
+    }
     const reply = await this.send(placeCommand(cursor, target.id, slot, merge));
     if (reply.ok) {
       if (merge === true) this.#cursor = null;
