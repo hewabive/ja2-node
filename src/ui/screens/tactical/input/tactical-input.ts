@@ -18,8 +18,9 @@
 // @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
-// @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31),
-// @src HandleMoveModeInteractiveClick, HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
+// @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31;
+// @src the z-level of the pool, the search at z-level 0, 2026-11-02),
+// @src HandleMoveModeInteractiveClick (GetLargestZLevelOfItemPool, 2026-11-02), HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
@@ -44,6 +45,7 @@ import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from
 import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
 import { slotItem } from '../item-cursor.ts';
+import { FLOOR_Z_LEVEL, itemPool, largestZLevel, onZLevel } from '../item-pool.ts';
 import {
   hasFemaleProfile,
   inCombat,
@@ -1555,11 +1557,12 @@ export class TacticalInput {
     }
     const tile = this.#interactiveTile();
     if (!tile) return 0;
-    const items = (this.#view()?.items ?? []).filter((i) => i.gridNo === tile.gridNo && i.level === sel.level && !i.notRendered);
-    if (items.length > 0 && !tile.door && !tile.switch) {
+    const pool = itemPool(this.#view()?.items, tile.gridNo, sel.level);
+    const zLevel = largestZLevel(pool);
+    if (onZLevel(pool, zLevel).length > 0 && !tile.door && !tile.switch) {
       if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
       else {
-        this.#host.pickUp(sel, tile.gridNo, sel.level);
+        this.#host.pickUp(sel, tile.gridNo, zLevel);
         return -3;
       }
     }
@@ -1578,13 +1581,11 @@ export class TacticalInput {
       actionGridNo = tile.gridNo;
       if (tile.switch || (tile.door && actionGridNo !== mapPos)) ignoreItems = true;
     }
-    const items = ignoreItems
-      ? []
-      : (this.#view()?.items ?? []).filter((i) => i.gridNo === actionGridNo && i.level === sel.level && !i.notRendered);
-    if (items.length > 0) {
+    const pool = ignoreItems ? [] : itemPool(this.#view()?.items, actionGridNo, sel.level);
+    if (pool.length > 0) {
       if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
       else {
-        this.#host.pickUp(sel, actionGridNo, sel.level);
+        this.#host.pickUp(sel, actionGridNo, largestZLevel(pool));
         return UiEvent.A_CHANGE_TO_MOVE;
       }
       return event;
@@ -1597,7 +1598,7 @@ export class TacticalInput {
     if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
     else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) this.#env().battleSound(sel.id, 'curse');
     else if (this.#currentAp === 0) this.#feedback(NO_PATH_STR);
-    else void this.#host.sendBusyOrder({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: sel.level });
+    else void this.#host.sendBusyOrder({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: FLOOR_Z_LEVEL });
     return UiEvent.A_CHANGE_TO_MOVE;
   }
 
@@ -1929,7 +1930,7 @@ export class TacticalInput {
 
   #trackItemsOver(mapPos: number): void {
     const level = this.#host.interfaceLevel();
-    const visible = (this.#view()?.items ?? []).some((i) => i.gridNo === mapPos && i.level === level && !i.notRendered);
+    const visible = itemPool(this.#view()?.items, mapPos, level).length > 0;
     if (!visible) {
       this.#itemsOver = null;
       return;
@@ -1968,7 +1969,7 @@ export class TacticalInput {
     const itemsAllowed =
       !(itemsOnlyIfOnIntTiles && !tile) && !tile?.switch && !(tile?.door && (actionGridNo !== mapPos || itemsOnlyIfOnIntTiles));
     if (itemsAllowed) {
-      const visible = (this.#view()?.items ?? []).some((i) => i.gridNo === actionGridNo && i.level === sel.level && !i.notRendered);
+      const visible = itemPool(this.#view()?.items, actionGridNo, sel.level).length > 0;
       if (visible) {
         this.#newCursor = useOkCursor || this.#combat() ? 'OKHANDCURSOR_UICURSOR' : 'NORMALHANDCURSOR_UICURSOR';
         this.#movementCursor(sel, actionGridNo, MoveUiTarget.ITEMS);
@@ -2080,7 +2081,7 @@ export class TacticalInput {
         kind,
         level,
         mode: this.moveModeOf(sel),
-        zLevel: sel.level,
+        zLevel: largestZLevel(itemPool(this.#view()?.items, gridNo, sel.level)),
       });
       if (answer.state === 'pending') return false;
       const data = dataOf(answer);

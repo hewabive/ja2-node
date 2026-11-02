@@ -19,10 +19,13 @@
 // @src GameScreen.cc MainGameScreenHandle (no SetUpInterface, so no DrawItemTileCursor, and no fast help while
 // @src scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
-// @src (burst locations, arrows on our turn, the item pool list at gfUIOverItemPoolGridNo, 2026-11-02); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
+// @src (burst locations, arrows on our turn, the item pool list at gfUIOverItemPoolGridNo, 2026-11-02);
+// @src src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
 // @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
 // @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
-// @src when the merc's level has none); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
+// @src when the merc's level has none; the items of one z-level, drawn in the world or not, 2026-11-02); Overhead_Map.cc
+// @src RenderOverheadOverlays (a dot for every visible item, drawn in the world or not, 2026-11-02);
+// @src src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump);
 // @src src/game/Tactical/Strategic_Exit_GUI.cc InitSectorExitMenu, WarpToSurfaceCallback (STR_LATE_33 asked before the
@@ -57,6 +60,7 @@ import { type HotkeyHost, handleTacticalKey, type SmButton } from './input/hotke
 import { type Lock, type MovementChoice, TacticalInput, type TacticalInputHost } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { slotItem } from './item-cursor.ts';
+import { itemPool, largestZLevel, onZLevel } from './item-pool.ts';
 import { MissCamera } from './miss-camera.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
 import { LocateFlag } from './overlays.ts';
@@ -136,7 +140,7 @@ export interface ControlsScreen {
   setInterfaceLevel(level: number): void;
   itemInCursor(): boolean;
   itemPointerClick(gridNo: number, target: SoldierView | null): void;
-  pickUp(s: SoldierView, gridNo: number, level: number): void;
+  pickUp(s: SoldierView, gridNo: number, zLevel: number): void;
   feedback(text: string): void;
   log(text: string): void;
   currentSquad(): number;
@@ -210,7 +214,7 @@ export class TacticalControls {
       art: art.overhead,
       map: () => env.world.overheadMap(),
       soldiers: () => env.client.view?.soldiers ?? [],
-      items: () => (env.client.view?.items ?? []).filter((i) => !i.notRendered),
+      items: () => env.client.view?.items ?? [],
       selected: () => screen.selected()?.id ?? null,
       blink: () => screen.radarBlink(),
       centerOn: (gridNo) => env.world.centerOn(gridNo),
@@ -868,9 +872,10 @@ export class TacticalControls {
     const gridNo = this.input.overItemPoolGridNo;
     const sel = this.#screen.selected();
     if (gridNo === null || !sel || this.#screen.itemInCursor()) return;
-    const items = this.#view()?.items ?? [];
-    const onLevel = (level: number) => items.filter((i) => i.gridNo === gridNo && i.level === level && !i.notRendered);
-    const shown = onLevel(sel.level).length > 0 ? onLevel(sel.level) : onLevel(sel.level === 0 ? 1 : 0);
+    const items = this.#view()?.items;
+    const ownLevel = itemPool(items, gridNo, sel.level);
+    const pool = ownLevel.length > 0 ? ownLevel : itemPool(items, gridNo, sel.level === 0 ? 1 : 0);
+    const shown = onZLevel(pool, largestZLevel(pool));
     if (shown.length === 0) return;
     const env = this.#env();
     const font = env.runtime.fonts.get(FontName.SMALLFONT1);

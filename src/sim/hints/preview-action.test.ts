@@ -13,7 +13,7 @@ import { AP, apsToChangeStance } from '../tactical/points.ts';
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { Body, Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
-import { addItemToPool, Visibility } from '../tactical/world-items.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import type { PreviewAction } from './preview-action.ts';
 
 let content: TacticalContent;
@@ -87,6 +87,9 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(far.apCost).toBeGreaterThan(AP.PICKUP_ITEM);
     expect(far.steps.length).toBe(3);
     expect(action(sim, 'pickUp', ORIGIN + 2 * EAST)).toMatchObject({ ok: false, refusal: 'nothingThere' });
+    addItemToPool(sim.state, ORIGIN + 2 * EAST, pistol(), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
+    expect(action(sim, 'pickUp', ORIGIN + 2 * EAST, { zLevel: 0 })).toMatchObject({ ok: false, refusal: 'nothingThere' });
+    expect(action(sim, 'pickUp', ORIGIN + 2 * EAST)).toMatchObject({ ok: true, actionGridNo: ORIGIN + 2 * EAST });
   });
 
   it('looks for GetAPsToLook unless already facing, and talks to a squad mate for a bark', () => {

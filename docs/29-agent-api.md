@@ -340,7 +340,10 @@ give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `move` with `
 he walks or swats backwards facing away from his path, or side-steps when he faces across it, for one more AP a tile; a
 body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). `attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
-("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"). A melee attack at a soldier out of
+("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
+click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the
+world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
+(`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). A melee attack at a soldier out of
 reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile

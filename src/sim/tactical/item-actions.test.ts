@@ -13,7 +13,7 @@ import type { QuoteSaidRecord } from './narrative/port.ts';
 import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { addItemToPool, Visibility } from './world-items.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from './world-items.ts';
 
 let content: TacticalContent;
 
@@ -70,6 +70,18 @@ describe('picking up and dropping items', () => {
     expect(events.some((e) => e.type === 'itemsPickedUp')).toBe(true);
     expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
     expect(t.worldItems).toHaveLength(0);
+  });
+
+  it('picks up the items lying on a structure when no zLevel is given, as GetLargestZLevelOfItemPool does for a click on it', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const cabinet = gridNo(82, 80);
+    addItemToPool(t, cabinet, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: cabinet, zLevel: 0 })).toMatchObject({ ok: false });
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: cabinet })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    expect(merc.inv.some((o) => o.item === item('CANTEEN'))).toBe(true);
   });
 
   it('approaches a pile under another soldier from a side tile, never from a diagonal one', () => {

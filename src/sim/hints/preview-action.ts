@@ -23,7 +23,7 @@ import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
-import { adjustGridNoForItemPlacement, pickupCandidates } from '../tactical/item-actions.ts';
+import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel } from '../tactical/item-actions.ts';
 import { apsToJumpOver, jumpOverAt } from '../tactical/jump-over.ts';
 import { directionToward } from '../tactical/movement.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
@@ -127,9 +127,9 @@ function doorAction(c: ActionContext): ActionPart {
   };
 }
 
-function pickUpAction(c: ActionContext, zLevel: number): ActionPart {
+function pickUpAction(c: ActionContext, zLevel: unknown): ActionPart {
   const { t, s } = c;
-  if (pickupCandidates(t, s, c.g, zLevel).length === 0) return refused(c, 'nothingThere');
+  if (pickupCandidates(t, s, c.g, requestedZLevel(t, s, c.g, zLevel)).length === 0) return refused(c, 'nothingThere');
   const actionGridNo = adjustGridNoForItemPlacement(t, s, c.g);
   if (actionGridNo === s.gridNo) return { ok: true, apCost: AP.PICKUP_ITEM, actionGridNo, steps: NO_STEPS };
   const walk = walkTo(c, actionGridNo);
@@ -247,7 +247,7 @@ function stealAction(c: ActionContext): ActionPart {
   };
 }
 
-function preview(c: ActionContext, kind: ActionKind, zLevel: number): ActionPart {
+function preview(c: ActionContext, kind: ActionKind, zLevel: unknown): ActionPart {
   switch (kind) {
     case 'door':
       return doorAction(c);
@@ -293,9 +293,8 @@ export function previewAction(world: KnowledgeWorld, req: PreviewActionRequest):
   const { state: t, soldier: s } = acting;
   const level = interfaceLevelOf(s, req.level);
   const mode = movementModeState(t, s, req.mode);
-  const zLevel = req.zLevel === 1 ? 1 : 0;
   return withTemporaryFields(s, { uiMovementMode: mode, reverse: false }, () => {
     const c: ActionContext = { world, t, s, g, level, mode, target: targetOf(world, t, req, g, level) };
-    return hintData(complete(acting, kind as ActionKind, preview(c, kind as ActionKind, zLevel)));
+    return hintData(complete(acting, kind as ActionKind, preview(c, kind as ActionKind, req.zLevel)));
   });
 }

@@ -76,7 +76,7 @@ export interface PickupHooks {
   readonly art: string;
   readonly item: (name: string) => CatalogueItem | null;
   readonly tileImage: (item: CatalogueItem) => WorldTileImage | null;
-  readonly pickUp: (soldier: number, gridNo: number, level: number, items: readonly number[]) => void;
+  readonly pickUp: (soldier: number, gridNo: number, zLevel: number, items: readonly number[]) => void;
   readonly closed: () => void;
   readonly hover: (item: ItemView | null) => void;
 }
@@ -101,7 +101,7 @@ export class ItemPickupMenu {
   #slots = 0;
   #soldier = -1;
   #gridNo = -1;
-  #level = 0;
+  #zLevel = 0;
   #regions: MouseRegion[] = [];
   #buttons: Button[] = [];
   #ok: Button | null = null;
@@ -133,7 +133,7 @@ export class ItemPickupMenu {
   show(
     soldier: number,
     gridNo: number,
-    level: number,
+    zLevel: number,
     items: readonly ItemView[],
     pointer: { x: number; y: number },
     viewport: { top: number; bottom: number },
@@ -147,7 +147,7 @@ export class ItemPickupMenu {
     this.#selected = items.map(() => false);
     this.#soldier = soldier;
     this.#gridNo = gridNo;
-    this.#level = level;
+    this.#zLevel = zLevel;
     this.#slots = Math.min(items.length, NUM_PICKUP_SLOTS);
     this.#allSelected = false;
     this.#current = -1;
@@ -298,9 +298,9 @@ export class ItemPickupMenu {
 
   #confirm(): void {
     const chosen = this.#selected.flatMap((on, i) => (on ? [i] : []));
-    const { soldier, gridNo, level } = { soldier: this.#soldier, gridNo: this.#gridNo, level: this.#level };
+    const { soldier, gridNo, zLevel } = { soldier: this.#soldier, gridNo: this.#gridNo, zLevel: this.#zLevel };
     this.close(true);
-    if (chosen.length > 0) this.#hooks.pickUp(soldier, gridNo, level, chosen);
+    if (chosen.length > 0) this.#hooks.pickUp(soldier, gridNo, zLevel, chosen);
   }
 
   close(notify: boolean): void {

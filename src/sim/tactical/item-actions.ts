@@ -6,7 +6,7 @@
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
 // @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give); Items.cc ItemIsCool
 // @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30), its ownership check
-// @src timer (2026-10-31).
+// @src timer (2026-10-31); GetLargestZLevelOfItemPool (the z-level a pickup without one takes, 2026-11-02).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -77,6 +77,17 @@ export function pickupCandidates(t: TacticalState, s: Soldier, g: number, zLevel
 }
 
 export const ITEM_IGNORE_Z_LEVEL = -1;
+const ON_STRUCTURE_Z_LEVEL = 1;
+const FLOOR_Z_LEVEL = 0;
+
+export function largestZLevelOfItemPool(t: TacticalState, g: number, level: number): number {
+  return itemsAt(t, g, level).some((wi) => wi.zHeight > 0) ? ON_STRUCTURE_Z_LEVEL : FLOOR_Z_LEVEL;
+}
+
+export function requestedZLevel(t: TacticalState, s: Soldier, g: number, zLevel: unknown): number {
+  if (zLevel === undefined) return largestZLevelOfItemPool(t, g, s.level);
+  return zLevel === ON_STRUCTURE_Z_LEVEL ? ON_STRUCTURE_Z_LEVEL : FLOOR_Z_LEVEL;
+}
 
 function itemPoolOKForPickup(s: Soldier, wi: WorldItem, zLevel: number): boolean {
   if (s.team === Team.OUR && wi.visible !== Visibility.VISIBLE) return false;

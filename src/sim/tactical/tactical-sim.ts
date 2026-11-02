@@ -95,6 +95,7 @@ import {
   handlePendingPickupOnArrival,
   itemOpcode,
   pickupCandidates,
+  requestedZLevel,
   soldierDropItem,
   soldierDropObject,
   soldierPickupItem,
@@ -692,7 +693,7 @@ export class TacticalSim {
     const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
-    const zLevel = cmd.zLevel === 1 ? 1 : 0;
+    const zLevel = requestedZLevel(t, s, g, cmd.zLevel);
     const candidates = pickupCandidates(t, s, g, zLevel);
     if (candidates.length === 0) return refuse('nothingThere', 'nothing to pick up there');
     let selection = null;

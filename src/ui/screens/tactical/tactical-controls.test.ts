@@ -24,7 +24,7 @@ import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
-import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
@@ -39,6 +39,7 @@ const SMALL_FONT = 'smallfont1';
 const BIG_POCKET = 7;
 const HAND_SLOT = 5;
 const ITEMS_OVER_MS = 1500;
+const CABINET_HEIGHT = 40;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
@@ -952,6 +953,30 @@ describe('the tactical input on the tactical screen', () => {
     f.t.frame(ITEMS_OVER_MS + 1);
     await f.settle(4);
     expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.HANDCURSOR_MODE, 1]);
+  });
+
+  it('names, picks up and marks on the overhead map an item in an open cabinet, which only the world leaves undrawn', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'CANTEEN', WorldItemFlags.DONTRENDER, CABINET_HEIGHT);
+    expect(f.client.view.items?.find((i) => i.gridNo === tile)).toMatchObject({ notRendered: true, height: CABINET_HEIGHT });
+    const at = f.world.pickPoint(tile);
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    expect(itemNameLines(f)).toBe(1);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', gridNo: tile, zLevel: 1 }, reply: { ok: true } });
+    f.world.overhead = {
+      render: () => undefined,
+      pointOf: (gridNo) => ({ x: (gridNo % 160) * 2, y: Math.floor(gridNo / 160) }),
+      gridNoAt: () => tile,
+    };
+    f.key('Insert');
+    const items = f.client.view.items ?? [];
+    expect(items.some((i) => i.gridNo === tile)).toBe(true);
+    const dots = f.draw().items.filter((i) => i.kind === 'fill' && i.width === 0 && i.height === 0);
+    expect(dots).toHaveLength(items.length);
   });
 
   it('shows the walk of a steal with the hand cursor over an enemy and steals on the click', async () => {
