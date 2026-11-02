@@ -119,6 +119,7 @@ export interface NarrativePort {
   setSoldierNeutral(s: Soldier): void;
   stuffMissingFromShipment(gridNo: number): boolean;
   sayQuote(s: Soldier, quote: number, delayed?: boolean): void;
+  cosmeticPick(choices: number): number;
   logBleedMeToos(on: boolean): void;
   signalItemLocatorStart(s: Soldier): void;
 }
@@ -203,6 +204,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   },
   stuffMissingFromShipment: () => false,
   sayQuote: () => {},
+  cosmeticPick: () => 0,
   logBleedMeToos: () => {},
   signalItemLocatorStart: () => {},
 };

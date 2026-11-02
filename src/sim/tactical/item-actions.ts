@@ -6,7 +6,9 @@
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
 // @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give); Items.cc ItemIsCool
 // @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30), its ownership check
-// @src timer (2026-10-31); GetLargestZLevelOfItemPool (the z-level a pickup without one takes, 2026-11-02).
+// @src timer (2026-10-31), the QUOTE_SPOTTED_SOMETHING_ONE + Random(2) line after LookForHiddenItems found something in
+// @src both (the pick on the talk's cosmetic stream, 2026-11-02); GetLargestZLevelOfItemPool (the z-level a pickup
+// @src without one takes, 2026-11-02).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -42,6 +44,7 @@ import {
 
 const Code = { GIVE_ITEM: 486, DROP_ITEM: 487, PICKUP_ITEM: 493 } as const;
 const HIDDEN_ITEM_WISDOM_GAIN = 5;
+const SPOTTED_SOMETHING_QUOTES = 2;
 const COOL_ITEM_MIN_STATUS = 60;
 const COOL_WEAPON_MIN_DEADLINESS = 30;
 const COOL_ARMOUR_MIN_PROTECTION = 20;
@@ -166,8 +169,12 @@ function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
   }
   const allHidden = pool.every((wi) => wi.visible === Visibility.HIDDEN_ITEM);
   if (pickupCandidates(t, s, pending.gridNo, pending.zLevel).length > 0) soldierGetItemFromWorld(t, s, pending);
-  else if (allHidden && lookForHiddenItems(t, pending.gridNo, s.level))
-    statChange(t, s, StatKind.WISDOM, HIDDEN_ITEM_WISDOM_GAIN, StatCause.SUCCESS);
+  else if (allHidden && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
+}
+
+function foundHiddenItems(t: TacticalState, s: Soldier): void {
+  statChange(t, s, StatKind.WISDOM, HIDDEN_ITEM_WISDOM_GAIN, StatCause.SUCCESS);
+  t.narrative.sayQuote(s, MercQuote.SPOTTED_SOMETHING_ONE + t.narrative.cosmeticPick(SPOTTED_SOMETHING_QUOTES));
 }
 
 function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingPickup): void {
@@ -187,8 +194,7 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
     if (s.team === Team.OUR) dontCharge = true;
   }
   const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s));
-  if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level))
-    statChange(t, s, StatKind.WISDOM, HIDDEN_ITEM_WISDOM_GAIN, StatCause.SUCCESS);
+  if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
   if (!dontCharge) deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
   t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });
   schedulePickedOwnershipCheck(t, s, pending.gridNo);

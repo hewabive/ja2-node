@@ -189,7 +189,12 @@ export function setItemsVisibilityHidden(t: TacticalState, g: number, level: num
 }
 
 export function lookForHiddenItems(t: TacticalState, g: number, level: number): boolean {
-  const found = itemsAt(t, g, level).some((wi) => wi.visible === Visibility.HIDDEN_ITEM && wi.object.item !== itemIndex(t, 'OWNERSHIP'));
+  let found = false;
+  for (const wi of itemsAt(t, g, level)) {
+    if (wi.visible !== Visibility.HIDDEN_ITEM || wi.object.item === itemIndex(t, 'OWNERSHIP')) continue;
+    wi.visible = Visibility.INVISIBLE;
+    found = true;
+  }
   if (found) setItemsVisibilityOn(t, g, level, Visibility.INVISIBLE, true);
   return found;
 }

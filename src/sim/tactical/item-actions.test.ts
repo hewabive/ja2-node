@@ -227,3 +227,47 @@ describe('the found-something-special line (Handle_Items.cc SoldierGetItemFromWo
     expect([picked?.battleSound, s.said]).toEqual([undefined, []]);
   });
 });
+
+describe('the spotted-something line after hidden items are found (Handle_Items.cc LookForHiddenItems)', () => {
+  function withCosmeticPick(s: PickupScene, pick: number): number[] {
+    const draws: number[] = [];
+    s.sim.state.narrative = {
+      ...s.sim.state.narrative,
+      cosmeticPick: (choices) => {
+        draws.push(choices);
+        return pick;
+      },
+    };
+    return draws;
+  }
+
+  function hideWirecutters(s: PickupScene): void {
+    const t = s.sim.state;
+    addItemToPool(t, s.merc.gridNo, createItem(t.content.items, item('WIRECUTTERS'), 100), Visibility.HIDDEN_ITEM, 0);
+  }
+
+  it('has our merc who picks up and turns up a hidden item say one of the two lines, picked on the cosmetic stream (:1283-1290)', () => {
+    const s = pickupScene(BARRY);
+    const draws = withCosmeticPick(s, 1);
+    hideWirecutters(s);
+    pickUp(s, 'CANTEEN', 100);
+    const wirecutters = s.sim.state.worldItems.find((wi) => wi.object.item === item('WIRECUTTERS'));
+    expect([s.said, draws, wirecutters?.visible]).toEqual([[[s.merc.id, MercQuote.SPOTTED_SOMETHING_ONE + 1]], [2], Visibility.VISIBLE]);
+  });
+
+  it('has our merc who searches a tile of hidden items only say the line too (:1360-1365)', () => {
+    const s = pickupScene(BARRY);
+    const draws = withCosmeticPick(s, 0);
+    hideWirecutters(s);
+    soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
+    for (let tick = 0; tick < PICKUP_TICKS; tick++) s.sim.step();
+    expect([s.said, draws]).toEqual([[[s.merc.id, MercQuote.SPOTTED_SOMETHING_ONE]], [2]]);
+  });
+
+  it('keeps a merc who finds nothing hidden quiet and draws nothing', () => {
+    const s = pickupScene(BARRY);
+    const draws = withCosmeticPick(s, 1);
+    pickUp(s, 'CANTEEN', 100);
+    expect([s.said, draws]).toEqual([[], []]);
+  });
+});

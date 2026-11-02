@@ -642,6 +642,7 @@ export class TalkFlow {
         if (delayed) delayedTacticalCharacterDialogue(host, s, quote);
         else tacticalCharacterDialogue(host, s, quote);
       },
+      cosmeticPick: (choices) => this.talk.fx.int(choices),
       logBleedMeToos: (on) => beginLoggingForBleedMeToos(this.talk, on),
       signalItemLocatorStart: (s) => signalItemLocatorStart(host, s),
     };
