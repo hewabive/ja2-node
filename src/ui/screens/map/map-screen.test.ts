@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { FontColor } from '../../../content/text/font-colors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
@@ -93,6 +94,21 @@ function pressAlone(f: MapUiTest, key: string, code: string, held: Partial<RawKe
   const released: RawKey = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
   for (const event of [...keyDownEvents({ ...released, ...held }), ...keyUpEvents(released)]) f.t.runtime.input(event);
   f.t.frame();
+}
+
+function hoverWidget(f: MapUiTest, id: string): void {
+  const { rect } = f.widget(id);
+  const x = rect.x + Math.floor(rect.width / 2);
+  const y = rect.y + Math.floor(rect.height / 2);
+  f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
+  f.t.frame();
+}
+
+function textColourIn(f: MapUiTest, id: string): number | undefined {
+  const { rect } = f.widget(id);
+  const inside = (x: number, y: number) => x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+  const item = f.draw().items.find((i) => i.kind === 'glyphs' && i.glyphs[0] !== undefined && inside(i.glyphs[0].x, i.glyphs[0].y));
+  return item?.kind === 'glyphs' ? item.foreground : undefined;
 }
 
 function setGameJustStarted(f: MapUiTest, started: boolean): void {
@@ -518,5 +534,17 @@ describe('the map screen over the stub map-screen campaign', () => {
       setGameJustStarted(f, false);
       await f.clickSector('C13');
       expect(f.screen.hook().selectedSector).toBe('C13');
+    }));
+
+  it('draws the other selected rows light blue while the destination column of a selected row is under the pointer', () =>
+    withMap(async (f) => {
+      f.key('1', 0, 'Digit1');
+      await f.settle();
+      expect(f.screen.hook().selected.length).toBeGreaterThan(1);
+      hoverWidget(f, 'teamRow0.name');
+      expect(textColourIn(f, 'teamRow1.name')).not.toBe(FontColor.LTBLUE);
+      hoverWidget(f, 'teamRow0.destination');
+      expect(textColourIn(f, 'teamRow0.name')).toBe(FontColor.WHITE);
+      expect(textColourIn(f, 'teamRow1.name')).toBe(FontColor.LTBLUE);
     }));
 });

@@ -1961,7 +1961,7 @@ export class MapScreen implements Screen {
       characters: this.list,
       selected: this.#selected,
       level: this.#level,
-      plottingMercs: this.#plot?.mode === 'merc',
+      plottingRow: this.#plot?.mode === 'merc' ? this.#plot.row : NO_CHARACTER,
       sleepIcon: p.asset('sleepIcon'),
       arrow: p.asset('arrow'),
     });

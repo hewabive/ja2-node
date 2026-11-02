@@ -6,7 +6,8 @@
 // @src HandleContractTimeFlashForMercThatIsAboutLeave, the sleep icon at 125 in the sleep column, the selected-character
 // @src arrow, HighLightAssigment/Destination/Sleep/Contract and GlowColor (red 25 × i, rows of a
 // @src selected set framed together, the vehicle gap closing the frame), HandleCommonGlowTimer (GLOW_DELAY 70 ms between
-// @src steps 0..10).
+// @src steps 0..10); Map_Screen_Interface.cc CharacterIsGettingPathPlotted with the glowing destination line as
+// @src giDestHighLine (2026-11-02).
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -86,7 +87,7 @@ export interface TeamRenderContext {
   readonly characters: CharacterList;
   readonly selected: Sector;
   readonly level: number;
-  readonly plottingMercs: boolean;
+  readonly plottingRow: number;
   readonly sleepIcon: string;
   readonly arrow: string;
 }
@@ -135,13 +136,14 @@ export class TeamListView {
 
   render(ctx: TeamRenderContext): void {
     this.#renderGlow(ctx);
+    const destinationHighLine = this.#glow?.column === TeamColumn.DESTINATION ? this.#glow.line : NO_CHARACTER;
     ctx.characters.slots.forEach((slot, row) => {
       const m = slot.merc !== null ? mercById(ctx.strategic, slot.merc) : null;
       if (!m) return;
       const at = parseSectorLabel(m.sector);
       const colour = rowColour(m, {
         hovered: row === this.highLine,
-        plotted: ctx.plottingMercs && ctx.characters.isSelected(row),
+        plotted: ctx.characters.isGettingPathPlotted(row, ctx.plottingRow, destinationHighLine),
         inSelectedSector: at !== null && at.x === ctx.selected.x && at.y === ctx.selected.y && at.z === ctx.level,
       });
       const y = ctx.origin.y + this.rowY(row) + 1;

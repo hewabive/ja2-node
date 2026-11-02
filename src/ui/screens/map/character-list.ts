@@ -7,7 +7,7 @@
 // @src GetMapscreenMercDestinationString, GetMapscreenMercDepartureString, DisplayCharacterList (the row colours);
 // @src src/game/Strategic/Map_Screen_Interface.cc SetEntryInSelectedCharacterList, ResetEntryForSelectedList,
 // @src ResetSelectedListForMapScreen, ToggleEntryInSelectedList, BuildSelectedListFromAToB, GetMoraleString,
-// @src MultipleCharacterListEntriesSelected.
+// @src MultipleCharacterListEntriesSelected, CharacterIsGettingPathPlotted (2026-11-02).
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -248,6 +248,12 @@ export class CharacterList {
 
   isSelected(row: number): boolean {
     return this.slots[row]?.selected === true;
+  }
+
+  isGettingPathPlotted(row: number, plottingRow: number, destinationHighLine: number): boolean {
+    if ((this.slots[row]?.merc ?? null) === null) return false;
+    const plottingSelected = this.isSelected(destinationHighLine) || this.isSelected(plottingRow);
+    return plottingSelected ? this.isSelected(row) : row === plottingRow || row === destinationHighLine;
   }
 
   changeInfo(row: number, resetList: boolean): boolean {
