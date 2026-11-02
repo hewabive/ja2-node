@@ -3,6 +3,8 @@ import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
+import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
+import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvent, MouseButton } from '../../input/events.ts';
 
@@ -18,6 +20,12 @@ const FRED_RUNNING_OUT = 17;
 const FRED_KEY = { file: 'npcdata/106.edt', row: FRED_RUNNING_OUT, width: 240 };
 const DRASSEN_MINE = 1;
 const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
+const RADAR = 'radarmaps/test.sti';
+const DRASSEN_MINE_FIRST_LEVEL = { x: 13, y: 4, z: 1 };
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
+const NIGHT_SHADE = { red: 100, green: 100, blue: 100, mono: false };
+const FULL_SHADE = { red: 255, green: 255, blue: 255, mono: false };
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -63,6 +71,18 @@ function lastCommand(f: MapUiTest) {
   return f.client.commands.at(-1);
 }
 
+function setWorldHour(f: MapUiTest, hour: number): void {
+  const clock = (f.session.sim as CampaignSession).campaign.state.clock;
+  clock.seconds = Math.floor(clock.seconds / SECONDS_PER_DAY) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR;
+  f.client.refresh();
+  f.t.frame();
+}
+
+function radarShade(f: MapUiTest) {
+  const radar = f.draw().items.find((item) => item.kind === 'image' && item.asset === RADAR);
+  return radar?.kind === 'image' ? radar.shade : undefined;
+}
+
 function pressKeypad(f: MapUiTest, key: string, code: string): void {
   const raw = { key, code, repeat: false, shift: false, ctrl: false, alt: false, numLock: true };
   for (const event of keyDownEvents(raw)) f.t.runtime.input(event);
@@ -90,6 +110,31 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.client.started).toBe(true);
       expect(f.widget('teamRow0.name').rect.width).toBeGreaterThan(0);
       expect(snapshot(f)).toMatchSnapshot();
+    }));
+
+  it('darkens the radar picture of the selected sector at night, from 21:00 to 7:00', () =>
+    withMap(async (f) => {
+      f.media.radar = () => RADAR;
+      setWorldHour(f, 12);
+      expect(radarShade(f)).toEqual(FULL_SHADE);
+      setWorldHour(f, 21);
+      expect(radarShade(f)).toEqual(NIGHT_SHADE);
+      setWorldHour(f, 6);
+      expect(radarShade(f)).toEqual(NIGHT_SHADE);
+      setWorldHour(f, 7);
+      expect(radarShade(f)).toEqual(FULL_SHADE);
+    }));
+
+  it('keeps the radar picture of a level below ground light at night', () =>
+    withMap(async (f) => {
+      f.media.radar = () => RADAR;
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      setSectorFlag(campaign.state.map, DRASSEN_MINE_FIRST_LEVEL, SectorFlag.ALREADY_VISITED, 1);
+      setWorldHour(f, 22);
+      await f.clickSector('D13');
+      f.key('Delete');
+      expect(f.screen.selectedSector).toEqual(DRASSEN_MINE_FIRST_LEVEL);
+      expect(radarShade(f)).toEqual(FULL_SHADE);
     }));
 
   it('plots the squad to a sector through the destination column and confirms it with one route command', () =>

@@ -106,6 +106,7 @@ import {
 } from './overlays.ts';
 import { type PanelState, type StatFlash, smPanelModel, teamPanelModel } from './panel-models.ts';
 import { ItemPickupMenu } from './pickup-menu.ts';
+import { drawRadarPicture } from './radar-picture.ts';
 import { SmPanelController, STAT_KEYS, type Stance, type StatKey } from './sm-panel.ts';
 import {
   barValues,
@@ -2023,16 +2024,7 @@ export class TacticalScreen implements Screen {
       return;
     }
     const image = this.#env.world.radarImage;
-    if (image && this.#env.media.image(image)) {
-      const night = this.#env.world.night;
-      list.image(
-        image,
-        0,
-        rect.x,
-        rect.y,
-        night ? { shade: { red: 100, green: 100, blue: 100, mono: false } } : { shade: { red: 255, green: 255, blue: 255, mono: false } },
-      );
-    }
+    if (image && this.#env.media.image(image)) drawRadarPicture(list, image, rect.x, rect.y, this.#env.world.night);
     list.pushClip(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
     const box = this.#env.world.radarViewport();
     if (box) list.rectangle(rect.x + box.x1, rect.y + box.y1, rect.x + box.x2, rect.y + box.y2, RADAR_VIEW_COLOUR);

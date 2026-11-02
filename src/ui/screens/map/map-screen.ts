@@ -22,7 +22,9 @@
 // @src the map screen is back); src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, the
 // @src invasion, bloodcat and unconscious-merc boxes before the pre-battle panel); MapScreen.cc CanChangeDestinationForChar
 // @src and Map_Screen_Interface.cc ReportMapScreenMovementError (the custom error names the soldier who cannot move; the
-// @src escort's text by his sex) (2026-11-01).
+// @src escort's text by his sex) (2026-11-01); Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom and
+// @src Radar_Screen.cc RenderRadarScreen (the radar picture of a visited selected sector, darker at night while the map
+// @src shows the surface) (2026-11-02).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -56,6 +58,7 @@ import { drawFace, FaceAnimator, type FaceArt, faceRecordOf } from '../tactical/
 import { drawInventoryItem } from '../tactical/item-tile.ts';
 import { formatMessageEntry } from '../tactical/message-format.ts';
 import type { StatFlash } from '../tactical/panel-models.ts';
+import { drawRadarPicture, nightTime } from '../tactical/radar-picture.ts';
 import { AssignmentMenus } from './assignment-menus.ts';
 import { type BattleNoticeEvent, battleNoticesOf, battleNoticeText } from './battle-notice.ts';
 import { clockText, heliDistanceValues, renderBottomPanel, renderGroundEta, renderHeliDistances } from './bottom-panel.ts';
@@ -2049,7 +2052,12 @@ export class MapScreen implements Screen {
         ? (this.#strategic()?.sectors ?? []).some((s) => s.sector === label && s.visited)
         : this.#visitedUnderground(this.#selected);
     const image = visited ? this.#env.media.radar(label) : null;
-    if (image && this.#env.media.image(image)) list.image(image, 0, rect.x, rect.y);
+    if (image && this.#env.media.image(image)) drawRadarPicture(list, image, rect.x, rect.y, this.#radarAtNight());
+  }
+
+  #radarAtNight(): boolean {
+    const clock = this.#playerView()?.clock;
+    return this.#level === 0 && !!clock && nightTime(clock.hour);
   }
 
   #renderEta(list: DrawList, p: LayoutParams): void {

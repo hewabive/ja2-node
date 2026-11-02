@@ -140,7 +140,7 @@ export class MapSessionClient implements MapClient {
 export class FakeMapMedia implements MapMedia {
   readonly gunNut = false;
   readonly board = TEST_BOARD;
-  readonly radar = (): string | null => null;
+  radar: (sector: string) => string | null = () => null;
   speaking: SpeechPlayback | null = null;
   log: MessageEntry[] = [];
   readonly #items = new Map<string, CatalogueItem>();
