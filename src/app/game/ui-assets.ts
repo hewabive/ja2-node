@@ -63,6 +63,7 @@ export class UiAssets implements ImageCatalog {
   readonly #images = new Map<AssetKey, ImageInfo>();
   readonly #fonts = new Map<FontId, BitmapFont>();
   readonly #failed = new Set<AssetKey>();
+  #imagesLoading = 0;
 
   constructor(renderer: UiRenderer, source: AssetSource, cache: AssetCache) {
     this.#renderer = renderer;
@@ -84,6 +85,10 @@ export class UiAssets implements ImageCatalog {
 
   get missing(): readonly AssetKey[] {
     return [...this.#failed];
+  }
+
+  get imagesLoading(): number {
+    return this.#imagesLoading;
   }
 
   info(key: AssetKey): ImageInfo | undefined {
@@ -111,12 +116,17 @@ export class UiAssets implements ImageCatalog {
       this.#failed.add(key);
       return false;
     }
-    const sti = key.toLowerCase().endsWith(PCX_EXTENSION)
-      ? await loadDecodedAsset(this.#source, this.#cache, key, PCX_DECODER)
-      : await loadDecodedAsset(this.#source, this.#cache, key, STI_DECODER);
-    this.#renderer.addImage(key, sti);
-    this.#images.set(key, imageInfo(sti));
-    return true;
+    this.#imagesLoading++;
+    try {
+      const sti = key.toLowerCase().endsWith(PCX_EXTENSION)
+        ? await loadDecodedAsset(this.#source, this.#cache, key, PCX_DECODER)
+        : await loadDecodedAsset(this.#source, this.#cache, key, STI_DECODER);
+      this.#renderer.addImage(key, sti);
+      this.#images.set(key, imageInfo(sti));
+      return true;
+    } finally {
+      this.#imagesLoading--;
+    }
   }
 
   addPicture(key: AssetKey, picture: IndexedPicture, palette: Uint8Array): void {

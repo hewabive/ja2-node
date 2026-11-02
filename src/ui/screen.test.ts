@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DrawList } from './draw-list.ts';
 import type { UiInputEvent } from './input/events.ts';
-import { type Modal, ScreenHost } from './screen.ts';
+import { type Modal, type Screen, ScreenHost } from './screen.ts';
 
 class Probe implements Modal {
   readonly id: string;
@@ -40,6 +40,47 @@ class Probe implements Modal {
 }
 
 const TEXT: UiInputEvent = { kind: 'text', text: 'a' };
+
+class Counter implements Screen {
+  readonly id = 'map';
+  updates = 0;
+  renders = 0;
+  onUpdate: () => void = () => {};
+
+  enter(): void {}
+
+  exit(): void {}
+
+  update(): void {
+    this.updates++;
+    this.onUpdate();
+  }
+
+  input(): boolean {
+    return false;
+  }
+
+  render(list: DrawList): void {
+    this.renders++;
+    list.fill(0, 0, this.updates, 1, 0);
+  }
+}
+
+class Box extends Probe {
+  readonly freezesScreen = true;
+}
+
+function frame(host: ScreenHost, now: number): DrawList {
+  host.update(now);
+  const list = new DrawList();
+  host.render(list);
+  return list;
+}
+
+const widthOfFirst = (list: DrawList) => {
+  const first = list.items[0];
+  return first?.kind === 'fill' ? first.width : null;
+};
 
 describe('the screen and modal stacks', () => {
   it('enters and exits screens as they are pushed, replaced and popped', () => {
@@ -86,5 +127,54 @@ describe('the screen and modal stacks', () => {
     log.length = 0;
     host.input(TEXT);
     expect(log).toEqual(['popup.text', 'map.text']);
+  });
+
+  it('freezes the screen under a box opened between frames as its next update leaves it, then stops updating it', () => {
+    const host = new ScreenHost();
+    const map = new Counter();
+    host.push(map);
+    frame(host, 16);
+    host.openModal(new Box('meanwhile', []));
+    expect([widthOfFirst(frame(host, 32)), map.updates]).toEqual([2, 2]);
+    expect(host.frozen).toBe(true);
+    expect([widthOfFirst(frame(host, 48)), map.updates, map.renders]).toEqual([2, 2, 2]);
+  });
+
+  it('freezes the screen whose own update opened the box without updating it again', () => {
+    const host = new ScreenHost();
+    const map = new Counter();
+    host.push(map);
+    map.onUpdate = () => {
+      if (map.updates === 1) host.openModal(new Box('prompt', []));
+    };
+    expect([widthOfFirst(frame(host, 16)), host.frozen]).toEqual([1, true]);
+    expect([widthOfFirst(frame(host, 32)), map.updates]).toEqual([1, 1]);
+  });
+
+  it('draws the screen under the box again each frame while art is loading and freezes it once the art is in', () => {
+    let loading = true;
+    const host = new ScreenHost(() => loading);
+    const map = new Counter();
+    host.push(map);
+    host.openModal(new Box('box', []));
+    frame(host, 16);
+    frame(host, 32);
+    expect([host.frozen, map.updates, map.renders]).toEqual([false, 1, 2]);
+    loading = false;
+    frame(host, 48);
+    frame(host, 64);
+    expect([host.frozen, map.updates, map.renders]).toEqual([true, 1, 3]);
+  });
+
+  it('freezes nothing for a box closed before the screen under it settled', () => {
+    const host = new ScreenHost(() => true);
+    const map = new Counter();
+    host.push(map);
+    const box = new Box('box', []);
+    host.openModal(box);
+    frame(host, 16);
+    host.closeModal(box);
+    frame(host, 32);
+    expect([host.frozen, map.updates]).toEqual([false, 2]);
   });
 });

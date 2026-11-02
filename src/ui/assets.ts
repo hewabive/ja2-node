@@ -14,6 +14,7 @@ export interface ImageInfo {
 }
 
 export interface ImageCatalog {
+  readonly imagesLoading?: number;
   info(key: AssetKey): ImageInfo | undefined;
 }
 

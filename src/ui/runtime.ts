@@ -40,7 +40,7 @@ interface CursorEffects {
 export class UiRuntime implements UiServices {
   readonly regions = new RegionDispatcher(CursorId.NORMAL);
   readonly clock = new UiClock();
-  readonly host = new ScreenHost();
+  readonly host = new ScreenHost(() => (this.images.imagesLoading ?? 0) > 0);
   readonly diagnostics = new DiagnosticsOverlay();
   readonly fonts: FontSet;
   readonly images: ImageCatalog;

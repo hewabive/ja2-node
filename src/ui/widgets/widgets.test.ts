@@ -187,9 +187,9 @@ describe('the shared widgets', () => {
       t.frame();
       expect(results).toEqual([MessageBoxReturn.NO]);
       expect(t.runtime.host.modal).toBeNull();
-      expect(under.updates).toBe(0);
-      t.frame();
       expect(under.updates).toBe(1);
+      t.frame();
+      expect(under.updates).toBe(2);
     });
 
     it('answers its keys on key up only, and the four numbered set with 1-4', () => {
@@ -214,7 +214,7 @@ describe('the shared widgets', () => {
       expect(results).toEqual([MessageBoxReturn.YES, 3, MessageBoxReturn.OK]);
     });
 
-    it('freezes the screen under it: the backdrop is the screen as it was, and the UI clock stops', () => {
+    it('freezes the screen under it once the frame it opened in has updated the screen, and the UI clock stops', () => {
       const under = idleScreen();
       t.runtime.host.push(under);
       const before = t.runtime.clock.ja2Now;
@@ -223,7 +223,7 @@ describe('the shared widgets', () => {
       t.frame(100);
       expect(t.runtime.clock.ja2Now).toBe(before);
       expect(t.list.items[0]).toMatchObject({ kind: 'fill', color: 0x123456 });
-      expect(under.updates).toBe(0);
+      expect([under.updates, t.runtime.host.frozen]).toEqual([1, true]);
     });
   });
 

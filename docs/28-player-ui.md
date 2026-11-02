@@ -90,7 +90,10 @@ the controller.
 **Screens and modals.** `/play` holds one session client, one WebGL2 context, one audio engine, one asset source and
 cache, and a `ScreenHost` (`src/ui/screen.ts`): a screen stack under a modal stack. Modals take input first and block
 the rest unless they pass unhandled input; the screen under a modal is drawn but not updated, and a modal that freezes
-the screen (message boxes, fades) replays the draw items taken when it opened. Tactical, map screen and laptop are
+the screen (message boxes, fades) replays the screen's draw items as the frame it opened in left them, as the
+original's map screen draws its whole frame before the meanwhile box opens at its end (`Strategic/MapScreen.cc:2009`):
+a modal opened between frames (by a frame of the session, a click) lets the screen update once more, and the items are
+taken on the first frame drawn with no image loading. Tactical, map screen and laptop are
 screen changes on one page, so decoded assets survive them. The front-end flow follows the server: a frame that shows
 another flow while a game screen is up re-enters the game, so every screen change the server makes takes one path
 (`30`). A page that fails to boot shows a plain HTML panel with the reason and Retry, since the game's fonts may not
