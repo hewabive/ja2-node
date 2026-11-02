@@ -4,6 +4,7 @@
 // @src Tactical/Overhead_Types.h CivilianGroup; Tactical/Soldier_Control.cc CreateSoldierCommon (fDyingComment); Soldier_Create.cc
 // @src TacticalCreateSoldier (SUB_ANIM_BIGGUYTHREATENSTANCE on every BIGMALE, 2026-11-01)
 
+import { Body } from '../../content/anim/body-types.ts';
 import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { idiv } from '../../core/int.ts';
@@ -14,36 +15,7 @@ import { emptyInventory, type Inventory } from './inventory.ts';
 import type { LightSprite } from './lighting/lighting.ts';
 import type { WorldItem } from './world-items.ts';
 
-export const Body = {
-  REGMALE: 0,
-  BIGMALE: 1,
-  STOCKYMALE: 2,
-  REGFEMALE: 3,
-  ADULTFEMALEMONSTER: 4,
-  AM_MONSTER: 5,
-  YAF_MONSTER: 6,
-  YAM_MONSTER: 7,
-  LARVAE_MONSTER: 8,
-  INFANT_MONSTER: 9,
-  QUEENMONSTER: 10,
-  FATCIV: 11,
-  MANCIV: 12,
-  MINICIV: 13,
-  DRESSCIV: 14,
-  HATKIDCIV: 15,
-  KIDCIV: 16,
-  CRIPPLECIV: 17,
-  COW: 18,
-  CROW: 19,
-  BLOODCAT: 20,
-  ROBOTNOWEAPON: 21,
-  HUMVEE: 22,
-  TANK_NW: 23,
-  TANK_NE: 24,
-  ELDORADO: 25,
-  ICECREAMTRUCK: 26,
-  JEEP: 27,
-} as const;
+export { Body } from '../../content/anim/body-types.ts';
 
 export const SkillTrait = {
   NONE: 0,

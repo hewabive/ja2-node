@@ -9,6 +9,7 @@ import {
   tacticalUiKit,
   tacticalUiTest,
 } from '../../../../tests/support/tactical-ui.ts';
+import { Body } from '../../../content/anim/body-types.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
@@ -24,6 +25,7 @@ import { UiMode } from './input/ui-events.ts';
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
 const COMA_LIFE = 5;
+const CROW_HIT_LOCATION_STR = 105;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -579,6 +581,21 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle();
     expect(commandsOf(f, 'attack').at(-1)).toMatchObject({ soldier: 0, target: enemy.gridNo });
     expect(f.screen.controls.lockState()).toBe('ourTurn');
+  });
+
+  it('names the aim at a crow with the crow string and no body part, as HandleUIHitLocation does for CROW bodies', async () => {
+    const f = await inCombat();
+    const seen = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+    const enemy = tacticalOf(f.session).state.soldiers.find((v) => v?.id === seen?.id);
+    if (!enemy) throw new Error('no enemy in sight');
+    enemy.bodyType = Body.CROW;
+    f.client.refresh();
+    f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+    const at = f.world.pickPoint(enemy.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toMatch(/TARGET/);
+    expect(f.screen.controls.input.mouseText()?.location).toBe(f.text.string('TacticalStr', CROW_HIT_LOCATION_STR));
   });
 
   it('leaves the shot of an aim confirmed on an enemy to HandleItem, which denies a rocket rifle imprinted on someone else silently', async () => {

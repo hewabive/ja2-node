@@ -23,6 +23,7 @@
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY.
 
+import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
 import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
@@ -1589,7 +1590,7 @@ export class TacticalInput {
   }
 
   #noExitFeedback(sel: SoldierView): void {
-    const female = sel.bodyType === REGFEMALE;
+    const female = sel.bodyType === Body.REGFEMALE;
     const epcs = this.#host.squadSoldiers().filter((s) => s.id !== sel.id && isEpc(s));
     switch (this.#exitRefusal) {
       case 'invalidTraversal':
@@ -2330,12 +2331,12 @@ export class TacticalInput {
     const regions = env.runtime.regions;
     const part = relativeBodyPart(env.world.soldierBox(target.id), env.world.soldierHeight(target.id), regions.mouseX, regions.mouseY);
     this.#bodyPart = part;
-    if (target.bodyType === CROW) {
+    if (target.bodyType === Body.CROW) {
       this.#hitLocation = this.#text('TacticalStr', CROW_HIT_LOCATION_STR);
       this.#bodyPart = BodyPart.LEGS;
       return;
     }
-    if (!part || target.bodyType > REGFEMALE) return;
+    if (!part || target.bodyType > Body.REGFEMALE) return;
     const blade = sel.hand === 'blade' || sel.hand === 'knife';
     this.#hitLocation = this.#text('TacticalStr', part === BodyPart.HEAD && blade ? NECK_HIT_LOCATION_STR : HIT_LOCATION_STR[part]);
   }
@@ -2860,8 +2861,6 @@ const NOT_ENOUGH_APS_STR = 87;
 const EPC_CANNOT_DO_THAT = 124;
 const MERC_IS_TOO_FAR_AWAY_STR = 102;
 const MORALE_REFUSE_SEARCH = 30;
-const CROW = 28;
-const REGFEMALE = 3;
 const CROW_HIT_LOCATION_STR = 105;
 const AP_BLINK_MS = 150;
 const CENTRE_PROBE_TILE = 'MOCKFLOOR1';
