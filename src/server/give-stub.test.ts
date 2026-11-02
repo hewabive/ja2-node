@@ -3,13 +3,14 @@ import { armSquadWithPistols } from '../../tests/support/pistol-kit.ts';
 import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
+import { NOTHING } from '../content/items/items.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createMoney } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
-import type { Soldier } from '../sim/tactical/soldier.ts';
+import { NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import type { Session } from './session.ts';
@@ -253,5 +254,29 @@ describe('giving items and money to the stub NPC in A10', () => {
       });
     };
     expect(await digest(true)).toBe(await digest(false));
+  });
+});
+
+describe('a give in an NPC action', () => {
+  it('hands the object over at once and opens the receiving NPC’s giving-item conversation (Handle_Items.cc:2490)', async () => {
+    const { session, live } = await inA10(27);
+    const t = session.campaign.tactical?.state;
+    const placed = t?.soldiers.filter((s): s is Soldier => s?.placed === true) ?? [];
+    const vasko = placed.find((s) => s.profile === VASKO);
+    const giver = placed.find((s) => s.team !== Team.OUR && s.profile !== NO_PROFILE && s.profile !== VASKO);
+    const env = session.campaign.talk?.npcActions.env;
+    if (!t || !vasko || !giver || !env) throw new Error('no NPCs to give between in A10');
+    const clip = item(session, 'CLIP9_15');
+    const slot = giver.inv.findIndex((o, k) => k >= InvSlot.BIGPOCK1 && o.item === NOTHING);
+    Object.assign(giver.inv[slot] as object, createItem(t.content.items, clip, 100));
+    env.giveItem(giver, vasko, slot);
+    const report = live.advance({ idle: true });
+    expect(report.events).toContainEqual(
+      expect.objectContaining({ type: 'npcTookItem', profile: VASKO, from: giver.id, item: 'CLIP9_15' }),
+    );
+    expect(report.events.flatMap((e) => (e.type === 'npcQuote' ? [e.quote] : []))).toContain(Quote.ROUNDS);
+    expect(session.view().conversation).toMatchObject({ profile: VASKO, initiatedBy: 'npc', talker: giver.id });
+    expect(giver.inv.some((o) => o.item === clip)).toBe(false);
+    expect(session.campaign.state.profiles.get(VASKO)?.inventory).toContain(clip);
   });
 });

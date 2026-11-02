@@ -206,5 +206,5 @@ export function dealerTakesGive(
 }
 
 export function giveToNpc(host: NarrativeHost, giver: Soldier, target: Soldier, object: ItemObject): void {
-  initiateConversationFull(host, target, giver, Approach.GIVINGITEM, 0, cloneObject(object), 'player');
+  initiateConversationFull(host, target, giver, Approach.GIVINGITEM, 0, cloneObject(object), giver.team === Team.OUR ? 'player' : 'npc');
 }

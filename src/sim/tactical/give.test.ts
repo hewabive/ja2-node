@@ -5,7 +5,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { cloneObject, createItems, createMoney, type ItemObject } from '../items/object.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import type { TacticalContent } from './content.ts';
-import { apsToGiveItem, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
+import { apsToGiveItem, giveItemAtOnce, setEngagedInConvFromPcAction, soldierGiveItem } from './give.ts';
 import { InvSlot, NO_SLOT } from './inventory.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { AP } from './points.ts';
@@ -174,5 +174,36 @@ describe('the give action', () => {
     expect(giver.tempObject).toBeNull();
     stepUntil(sim, () => false, 2000);
     expect(clipsIn(mate)).toBe(0);
+  });
+});
+
+describe('a give in an NPC action', () => {
+  it('hands the object to another NPC at once: his giving-item conversation, then the giver’s done-giving record (Handle_Items.cc:2490, Soldier_Ani.cc code 486)', () => {
+    const sim = newCombatSim(content);
+    const log = port(sim, { receivesAsTeamMember: () => false, isNpcProfile: () => true });
+    const giver = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: 101 });
+    const receiver = spawnSoldier(sim, 61, Team.CIV, gridNo(86, 80), Direction.WEST, { profile: 57 });
+    withClips(giver, 1);
+    giveItemAtOnce(sim.state, giver, receiver, InvSlot.BIGPOCK1);
+    expect(log.npcGives.map(([g, n, o]) => [g, n, o.item, o.count])).toEqual([[60, 61, item('CLIP9_15'), 1]]);
+    expect(log.doneGiving).toEqual([101]);
+    expect(clipsIn(giver)).toBe(0);
+    expect([giver.gridNo, giver.pendingGive, giver.tempObject]).toEqual([gridNo(80, 80), null, null]);
+    expect([giver.engagedInAction, receiver.engagedInAction]).toEqual([false, false]);
+  });
+
+  it('hands the object to a merc at once with the hand-over event naming the NPC’s soldier and profile', () => {
+    const sim = newCombatSim(content);
+    const log = port(sim, { isNpcProfile: () => true });
+    const giver = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.EAST, { profile: 87 });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(86, 80), Direction.WEST);
+    withClips(giver, 2);
+    sim.drainEvents();
+    giveItemAtOnce(sim.state, giver, merc, InvSlot.BIGPOCK1);
+    expect([clipsIn(giver), clipsIn(merc)]).toEqual([0, 2]);
+    expect(sim.drainEvents()).toContainEqual(
+      expect.objectContaining({ type: 'npcGaveItem', npc: 60, profile: 87, to: 0, item: 'CLIP9_15', count: 2, dropped: false }),
+    );
+    expect(log.doneGiving).toEqual([87]);
   });
 });

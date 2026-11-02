@@ -4,12 +4,11 @@
 // @src grid), StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
 // @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
 // @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
-// @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
+// @src SoldierGiveItem (at once, without the walk and the give animation); Strategic/StrategicMap_Secrets.cc SetTownAsFound;
 // @src Tactical/Squads.cc SetCurrentSquad for an escort (2026-11-01).
 
 import { tileIndex } from '../../../content/world/tile-tables.ts';
 import type { CommandResult } from '../../command.ts';
-import { cloneObject, deleteObject } from '../../items/object.ts';
 import type { NarrativeHost } from '../../narrative/host.ts';
 import { incrementTownLoyalty, incrementTownLoyaltyEverywhere } from '../../strategic/economy/loyalty.ts';
 import { mineStatus, restartMineProduction, shutOffMineProduction } from '../../strategic/economy/mine-status.ts';
@@ -27,8 +26,8 @@ import { Warp } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { warpGameTime, worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
+import { giveItemAtOnce } from '../../tactical/give.ts';
 import { Insertion } from '../../tactical/insertion.ts';
-import { autoPlaceObject } from '../../tactical/inventory.ts';
 import { addExitGridToWorld, recordExitGridAdded } from '../../tactical/map-changes.ts';
 import { soldierAssignment } from '../../tactical/narrative/assignment.ts';
 import { boxerAvailable, checkOnBoxers, exitBoxing, startBoxingMatch } from '../../tactical/narrative/boxing.ts';
@@ -56,9 +55,7 @@ import { kickOutWheelchair } from '../../tactical/narrative/wheelchair.ts';
 import { refuse } from '../../tactical/refusal.ts';
 import { setCurrentSquad } from '../../tactical/selection.ts';
 import { OKLIFE, type Soldier, Team } from '../../tactical/soldier.ts';
-import { soldierInventoryContext } from '../../tactical/soldier-inventory.ts';
 import { WaitForMercs } from '../../tactical/state.ts';
-import { addItemToPool, Visibility } from '../../tactical/world-items.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { numberOfMercsOnPlayerTeam } from '../laptop/hire.ts';
 import { MoraleEvent } from '../morale.ts';
@@ -185,16 +182,7 @@ export class NpcActionFlow {
       return;
     }
     const t = this.#host.tactical();
-    const o = giver.inv[slot];
-    if (!t || !o) return;
-    const given = cloneObject(o);
-    deleteObject(o);
-    if (autoPlaceObject(soldierInventoryContext(t, receiver), receiver, given)) {
-      this.#emit({ type: 'npcGaveItem', npc: giver.profile, to: receiver.id, item: given.item });
-      return;
-    }
-    addItemToPool(t, giver.gridNo, given, Visibility.VISIBLE, giver.level, 0, -1);
-    this.#emit({ type: 'npcMessage', kind: 'itemPlacedOnGround', profile: giver.profile });
+    if (t) giveItemAtOnce(t, giver, receiver, slot);
   }
 
   #mines(): MineActions {
