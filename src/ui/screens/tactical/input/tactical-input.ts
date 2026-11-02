@@ -11,7 +11,8 @@
 // @src UIHandleHCOnTerrain, UIHandleLCOnTerrain, UIHandleLCLook, UIHandleTOnTerrain, UIHandleJumpOverOnTerrain,
 // @src UIHandleJumpOver, UIHandleLUIBeginLock, UIHandleLUIEndLock, UIHandleLABeginLockOurTurn, UIHandleLAEndLockOurTurn,
 // @src UIHandleRubberBandOnTerrain, EndRubberBanding, EndMultiSoldierSelection, ResetMultiSelection, UIHandleOnMerc,
-// @src HandleUIMovementCursor (the 80 ms PATHFINDCOUNTER rest, the AP offsets), DrawUIMovementPath (the PLOT rule),
+// @src HandleUIMovementCursor (the 80 ms PATHFINDCOUNTER rest, the AP offsets, gfUIOverItemPoolGridNo of a standing merc's
+// @src item target, reset every frame, 2026-11-02), DrawUIMovementPath (the PLOT rule),
 // @src SetMovementModeCursor, SetConfirmMovementModeCursor, UIHandleInteractiveTilesAndItemsOnTerrain, GetCursorMovementFlags,
 // @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition
 // @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
@@ -240,6 +241,7 @@ export class TacticalInput {
   #rubberEnd = { x: 0, y: 0 };
   #itemsOver: { gridNo: number; level: number; since: number } | null = null;
   #overItemsGridNo: number | null = null;
+  #overItemPoolGridNo: number | null = null;
   #overEnemy = false;
   #outOfRange: { gridNo: number; soldier: number } | null = null;
   #moveTarget: number | null = null;
@@ -306,8 +308,8 @@ export class TacticalInput {
     return this.#spreadTracking ? this.#burstLocations : [];
   }
 
-  get overItemsGridNo(): number | null {
-    return this.#overItemsGridNo;
+  get overItemPoolGridNo(): number | null {
+    return this.#overItemPoolGridNo;
   }
 
   selectGroup(ids: readonly number[]): void {
@@ -476,6 +478,7 @@ export class TacticalInput {
     this.#showExitGrid = false;
     this.#impact = null;
     this.#showMoveGrid = 0;
+    this.#overItemPoolGridNo = null;
   }
 
   #updateHover(inArea: boolean): void {
@@ -2023,6 +2026,7 @@ export class TacticalInput {
       this.#erasePath();
       return true;
     }
+    if (target === MoveUiTarget.ITEMS) this.#overItemPoolGridNo = mapPos;
     if (this.#moveState !== MouseMove.STATIONARY) {
       if (this.#moveState === MouseMove.NEW_TILE) {
         this.#erasePath();

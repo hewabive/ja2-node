@@ -19,7 +19,7 @@
 // @src GameScreen.cc MainGameScreenHandle (no SetUpInterface, so no DrawItemTileCursor, and no fast help while
 // @src scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
-// @src (burst locations, arrows on our turn); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
+// @src (burst locations, arrows on our turn, the item pool list at gfUIOverItemPoolGridNo, 2026-11-02); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
 // @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
 // @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
 // @src when the merc's level has none); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
@@ -862,7 +862,7 @@ export class TacticalControls {
   }
 
   #renderItemPool(list: DrawList, width: number, bottom: number): void {
-    const gridNo = this.input.overItemsGridNo;
+    const gridNo = this.input.overItemPoolGridNo;
     const sel = this.#screen.selected();
     if (gridNo === null || !sel || this.#screen.itemInCursor()) return;
     const items = this.#view()?.items ?? [];

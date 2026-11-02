@@ -12,6 +12,7 @@ import {
 } from '../../../../tests/support/tactical-ui.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
+import { FontColor } from '../../../content/text/font-colors.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
@@ -23,6 +24,7 @@ import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { Orders } from '../../../sim/tactical/soldier.ts';
+import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
@@ -33,6 +35,8 @@ import { LOCATOR_FRAME_MS, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES 
 
 const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
+const SMALL_FONT = 'smallfont1';
+const ITEMS_OVER_MS = 1500;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
@@ -108,6 +112,18 @@ const LADDER_OPTIONS = {
     gotoSectorDisabled: true,
   },
 };
+
+function itemNameLines(f: TacticalUiTest): number {
+  return f.draw().items.filter((i) => i.kind === 'glyphs' && i.font === SMALL_FONT && i.foreground === FontColor.MCOLOR_DKGRAY).length;
+}
+
+function placeItem(f: TacticalUiTest, tile: number, item: string, flags = 0, zHeight?: number): void {
+  const t = tacticalOf(f.session).state;
+  const def = t.content.items.byName.get(item);
+  if (!def) throw new Error(`no item ${item}`);
+  addItemToPool(t, tile, createItem(t.content.items, def.index, 100), Visibility.VISIBLE, 0, flags, zHeight);
+  f.advance(1);
+}
 
 function commandsOf(f: TacticalUiTest, type: string) {
   return f.client.commands.filter((c) => c.cmd.type === type).map((c) => c.cmd);
@@ -863,6 +879,35 @@ describe('the tactical input on the tactical screen', () => {
     const grid = f.world.markers.find((m) => m.tile.startsWith('FIRSTPOINTERS'));
     expect(grid?.gridNo).not.toBe(enemy.gridNo);
     expect(grid?.gridNo).not.toBe(merc(f, 0).gridNo);
+  });
+
+  it('names the items under every hand cursor, by CTRL, by the hand button or after the pointer rests (gfUIOverItemPoolGridNo)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'GLOCK_17');
+    const at = f.world.pickPoint(tile);
+    f.t.runtime.input({
+      kind: 'pointerMove',
+      x: at.x,
+      y: at.y,
+      button: MouseButton.LEFT,
+      buttons: 0,
+      wheel: 0,
+      modifiers: KeyModifier.CTRL,
+    });
+    await f.settle(4);
+    expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.HANDCURSOR_MODE, 1]);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.MOVE_MODE, 0]);
+    f.screen.controls.toggleHandCursor();
+    await f.settle(4);
+    expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.HANDCURSOR_MODE, 1]);
+    f.screen.controls.toggleHandCursor();
+    await f.settle(4);
+    f.t.frame(ITEMS_OVER_MS + 1);
+    await f.settle(4);
+    expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.HANDCURSOR_MODE, 1]);
   });
 
   it('shows the walk of a steal with the hand cursor over an enemy and steals on the click', async () => {
