@@ -678,6 +678,7 @@ export class LayoutView {
       ...(json.hover ? { onMove: (_b: Button, reason: number) => this.#regionCallbacks(json, vars).onMove(button.region, reason) } : {}),
     });
     if (json.allowDisabledTooltip === true) button.allowDisabledTooltip();
+    const disabledStyle = button.disabledStyle;
     const syncText = () => {
       if (!textJson) return;
       const font = this.#font(textJson.font ?? 'FONT12ARIAL');
@@ -735,6 +736,7 @@ export class LayoutView {
     const sync = () => {
       button.setVisible(this.#visible(json, vars));
       button.setEnabled(this.condition(json.enabled as Condition | undefined, vars));
+      button.disabledStyle = this.condition(json.plainWhenDisabled as Condition | undefined, vars, false) ? 'none' : disabledStyle;
       const state = checked();
       if (state !== undefined && !this.services.regions.isButtonDown(MouseButtonMask.LEFT)) button.setClicked(state);
       const tooltip = this.text(json.tooltip as TextSourceJson | undefined, vars);

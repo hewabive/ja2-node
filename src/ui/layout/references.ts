@@ -48,7 +48,7 @@ const ACTION_KEYS = [
   'result',
   'focus',
 ] as const;
-const CONDITION_KEYS = ['visible', 'enabled', 'checked', 'open'] as const;
+const CONDITION_KEYS = ['visible', 'enabled', 'checked', 'open', 'plainWhenDisabled'] as const;
 const BINDING_KEYS = ['value'] as const;
 const FONT_KEYS = ['font'] as const;
 const TEXT_KEYS = ['text', 'tooltip'] as const;

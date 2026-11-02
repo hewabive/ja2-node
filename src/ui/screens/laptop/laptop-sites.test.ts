@@ -142,7 +142,55 @@ async function blinks(h: LaptopHarness): Promise<boolean> {
   return false;
 }
 
+const CONFERENCE_TIMEOUT_MS = 15000;
+const KIT_BUTTONS = ['equipment0', 'equipment1'];
+
+async function until(h: LaptopHarness, done: () => boolean): Promise<void> {
+  for (let elapsed = 0; elapsed < CONFERENCE_TIMEOUT_MS && !done(); elapsed += FRAME_MS) await wait(h, FRAME_MS);
+  expect(done()).toBe(true);
+}
+
+async function callMercAtHome(h: LaptopHarness, exclude: readonly number[] = []): Promise<number> {
+  const { t } = h;
+  await toBookmark(h, 0);
+  await click(t, 'memberCardLink');
+  await click(t, 'toMugShotsLink');
+  const accepts = (profile: number) => (h.live.dispatch({ type: 'hireCheck', profile }).data as { accepted?: boolean }).accepted === true;
+  const merc = h.session
+    .view()
+    .laptop?.aim.find((m) => m.contact === 'firstContact' && m.face === 'available' && !exclude.includes(m.profile) && accepts(m.profile));
+  const mug = t.runtime.describe().find((w) => w.id.startsWith('mugName') && w.text === merc?.nickname);
+  if (!merc || !mug) throw new Error('no mug shot of a merc at home who would join');
+  await click(t, mug.id.replace('mugName', 'mugRegion'));
+  await click(t, 'aimContact');
+  await until(h, () => find(t, 'hire')?.visible === true);
+  return merc.profile;
+}
+
+async function transferFunds(h: LaptopHarness): Promise<void> {
+  await click(h.t, 'hire');
+  await until(h, () => find(h.t, 'transferFunds')?.visible === true);
+  await click(h.t, 'transferFunds');
+  await until(h, () => find(h.t, 'popupOk')?.visible === true);
+}
+
+function shadedButtons(h: LaptopHarness, ids: readonly string[]): string[] {
+  return ids.filter((id) => {
+    const { rect } = shown(h.t, id);
+    return h.t.list.items.some((i) => i.kind === 'shadow' && i.x === rect.x && i.y === rect.y);
+  });
+}
+
 describe('A.I.M. on the canvas laptop', () => {
+  it('keeps the kit buttons disabled but undimmed behind the funds transfer box', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    await callMercAtHome(h);
+    await transferFunds(h);
+    expect(h.replies.at(-1)?.ok).toBe(true);
+    expect(KIT_BUTTONS.map((id) => shown(h.t, id).enabled)).toEqual([false, false]);
+    expect(shadedButtons(h, KIT_BUTTONS)).toEqual([]);
+  });
+
   it("blinks the merc's face in the video conference", async () => {
     const h = await openLaptopHarness(kit, ui, { seed: 27 });
     const { t } = h;
