@@ -3,7 +3,8 @@ import { newCombatSim, type SpawnOptions, spawnSoldier } from '../../../tests/su
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
-import { animName } from './anim-states.ts';
+import { anim, animName } from './anim-states.ts';
+import { changeSoldierState } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { randomAnimOpcode } from './random-anims.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
@@ -153,5 +154,20 @@ describe('code 491, the random idle animation check (Soldier_Ani.cc AdjustToNext
       if (s.timeOfLastRandomAction !== (counts.at(-1) ?? 0)) counts.push(s.timeOfLastRandomAction);
     }
     expect(counts).toEqual([1, 2, 0, 1]);
+  });
+});
+
+describe('a random idle animation on our turn (Handle_UI.cc SetUIBusy: only orders lock the turn)', () => {
+  it('neither locks the interface nor keeps the other mercs and the turn waiting while our merc looks around', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const looker = spawnSoldier(sim, 0, Team.OUR, AT, Direction.SOUTH, { gun: RIFLE, body: Body.REGFEMALE });
+    spawnSoldier(sim, 1, Team.OUR, gridNo(82, 80), Direction.SOUTH);
+    spawnSoldier(sim, ENEMY_ID, Team.ENEMY, gridNo(80, 120), Direction.NORTH);
+    t.inCombat = true;
+    changeSoldierState(t, looker, anim(content, 'FEM_LOOK'));
+    expect([animName(content, looker.state), sim.uiLocked(), sim.isBusy(looker)]).toEqual(['FEM_LOOK', false, false]);
+    expect(sim.dispatch({ type: 'select', soldier: 1 })).toMatchObject({ ok: true });
+    expect(sim.dispatch({ type: 'endTurn' })).toMatchObject({ ok: true });
   });
 });

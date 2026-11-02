@@ -9,7 +9,8 @@
 // @src combat view); Interface_Items.cc HandleItemPointerClick (the drop at the feet); Handle_UI.cc
 // @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
 // @src (2026-10-31); Turn_Based_Input.cc ChangeCurrentSquad and Radar_Screen.cc TacticalSquadListBtnCallBack
-// @src (IsSquadOnCurrentTacticalMap, then SetCurrentSquad) for the selectSquad command (2026-11-01).
+// @src (IsSquadOnCurrentTacticalMap, then SetCurrentSquad) for the selectSquad command (2026-11-01); Handle_UI.cc
+// @src SetUIBusy (only orders lock our turn: the random idle animations of Soldier_Ani.cc code 491 do not, 2026-11-02).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -465,7 +466,7 @@ export class TacticalSim {
     if (frozen) return false;
     return (
       !hasAnimFlag(content, s.state, AnimFlags.STATIONARY) ||
-      !timelineLoops(content.timeline, s.state) ||
+      (!timelineLoops(content.timeline, s.state) && !hasAnimFlag(content, s.state, AnimFlags.MERCIDLE)) ||
       hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM) ||
       s.desiredDirection !== s.direction ||
       s.inNonInterruptibleAnimation ||
