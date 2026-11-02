@@ -165,7 +165,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
       await page.evaluate((g) => window.__ja2Ui.tactical?.centerOn(g), EAST_EDGE_ROW * COLS + COLS - 1);
       const logical = await page.evaluate(() => window.__ja2Ui.logical);
       await pointAt(page, logical.width - EDGE_INSET, Math.floor(logical.height / 3));
-      await page.waitForFunction(() => /EXIT_EAST/.test(window.__ja2Ui.tactical?.uiCursor ?? ''));
+      await page.waitForFunction(() => /^EXIT_EAST/.test(window.__ja2Ui.tactical?.uiCursor ?? ''));
       await clickAt(page, logical.width - EDGE_INSET, Math.floor(logical.height / 3));
       await page.waitForFunction(() => window.__ja2Ui.tactical?.exitDialogOpen === true);
       await restPointer(page);

@@ -192,7 +192,7 @@ test.describe('the sector exit dialog in a stub campaign', () => {
     await nextFrames(page, 2);
     const logical = await page.evaluate(() => window.__ja2Ui.logical);
     await pointAt(page, logical.width - EDGE_INSET, Math.floor(logical.height / 3));
-    await expect.poll(() => field(page, 'uiCursor')).toMatch(/EXIT_EAST/);
+    await expect.poll(() => field(page, 'uiCursor')).toMatch(/^EXIT_EAST/);
     await clickHere(page);
     await expect.poll(() => field(page, 'exitDialogOpen')).toBe(true);
     await clickWidget(page, 'exitOk');
