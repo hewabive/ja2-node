@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
@@ -13,6 +14,7 @@ import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
+import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
 import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
@@ -31,6 +33,8 @@ const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
 const NOBODY = -1;
+const MALE = 0;
+const FEMALE = 1;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -874,6 +878,7 @@ describe('the tactical input on the tactical screen', () => {
       exitGrid: null,
       options,
       selected: merc(f, 0),
+      selectedFemale: false,
       selectedIsEpc: false,
       squadEpcs: [],
       viewportBottom: 340,
@@ -895,5 +900,60 @@ describe('the tactical input on the tactical screen', () => {
     dialog.show(request, boxFonts, (c) => choices.push(c));
     f.key('Escape');
     expect(choices.at(-1)).toBeNull();
+  });
+});
+
+describe('the exit texts of a merc escorting someone, in a stub campaign', () => {
+  async function escortingSquad(sex: number): Promise<{ f: TacticalUiTest; name: string; escort: string }> {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    const roster = a10.campaign.campaign.battle?.roster;
+    const sel = f.screen.selected ?? NOBODY;
+    const escort = roster?.get(a10.mercs.find((id) => id !== sel) ?? NOBODY);
+    const leader = roster?.get(sel);
+    if (!escort || !leader) throw new Error('no squad');
+    Object.assign(escort.record, { kind: MercKind.EPC });
+    Object.assign(a10.campaign.campaign.state.profiles.get(leader.soldier.profile) ?? {}, { sex });
+    f.deliver();
+    return { f, name: leader.soldier.name, escort: escort.soldier.name };
+  }
+
+  it("words the exit menu's single-move help by the selected merc's profile sex, not his body", async () => {
+    const texts: string[] = [];
+    for (const sex of [MALE, FEMALE]) {
+      const { f, name, escort } = await escortingSquad(sex);
+      f.client.hintNow = async () => ({
+        ok: true,
+        data: { ...LADDER_OPTIONS, surfaceWarp: null, menu: { ...LADDER_OPTIONS.menu, singleMoveDisabled: true } },
+      });
+      await f.screen.controls.openExitDialog('north', null);
+      const help = f.t.runtime.regions.regions.find((r) => r.id === 'exitSingle')?.tooltip ?? '';
+      texts.push(help.replace(name, '<merc>').replace(escort, '<escort>'));
+    }
+    expect(texts).toEqual([
+      '<merc> cannot leave this sector alone as he is escorting <escort>.',
+      '<merc> cannot leave this sector alone as she is escorting <escort>.',
+    ]);
+  });
+
+  it("words the lone merc's refused exit by his profile sex, not his body", async () => {
+    const texts: string[] = [];
+    for (const sex of [MALE, FEMALE]) {
+      const { f, name, escort } = await escortingSquad(sex);
+      const hint = f.client.hint.bind(f.client);
+      f.client.hint = (request) =>
+        request.type === 'exitSector'
+          ? { state: 'ready', answer: { ok: false, data: { refusal: 'abandonEPC' } }, source: 'local' }
+          : hint(request);
+      f.world.edges = { left: false, right: false, top: true, bottom: false };
+      const { width } = f.t.runtime.geometry();
+      const before = f.screen.messageLines.length;
+      await f.clickAt(width / 2, 1);
+      texts.push(f.screen.messageLines.toReversed().slice(before).join(' ').replace(name, '<merc>').replace(escort, '<escort>'));
+    }
+    expect(texts).toEqual([
+      '<merc> cannot leave this sector alone as he is escorting <escort>.',
+      '<merc> cannot leave this sector alone as she is escorting <escort>.',
+    ]);
   });
 });

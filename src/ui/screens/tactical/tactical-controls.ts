@@ -55,6 +55,7 @@ import { MissCamera } from './miss-camera.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
 import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from './popup-menus.ts';
 import {
+  hasFemaleProfile,
   inCombat,
   isDead,
   isEpc,
@@ -476,6 +477,7 @@ export class TacticalControls {
         exitGrid,
         options: answer.data,
         selected: sel,
+        selectedFemale: hasFemaleProfile(this.#view(), sel),
         selectedIsEpc: isEpc(sel),
         squadEpcs: this.#screen.squadSoldiers().filter((s) => s.id !== sel.id && isEpc(s)),
         viewportBottom: height - INV_INTERFACE_HEIGHT,

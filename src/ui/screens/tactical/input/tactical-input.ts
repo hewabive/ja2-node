@@ -17,7 +17,8 @@
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
 // @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31),
-// @src HandleMoveModeInteractiveClick, HandleCheckForExitArrowsInput, TacticalViewPortTouchCallbackTB (the wheel);
+// @src HandleMoveModeInteractiveClick, HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
+// @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor; Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
@@ -41,7 +42,17 @@ import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from
 import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
 import { slotItem } from '../item-cursor.ts';
-import { inCombat, isEpc, isRobot, nextActiveAndAliveMerc, OUR_TEAM, ourTurn, ownSoldiers, soldierById } from '../soldiers.ts';
+import {
+  hasFemaleProfile,
+  inCombat,
+  isEpc,
+  isRobot,
+  nextActiveAndAliveMerc,
+  OUR_TEAM,
+  ourTurn,
+  ownSoldiers,
+  soldierById,
+} from '../soldiers.ts';
 import { Arrows } from './arrows.ts';
 import {
   type AimState,
@@ -1603,7 +1614,7 @@ export class TacticalInput {
   }
 
   #noExitFeedback(sel: SoldierView): void {
-    const female = sel.bodyType === Body.REGFEMALE;
+    const female = hasFemaleProfile(this.#view(), sel);
     const epcs = this.#host.squadSoldiers().filter((s) => s.id !== sel.id && isEpc(s));
     switch (this.#exitRefusal) {
       case 'invalidTraversal':

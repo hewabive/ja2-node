@@ -4,9 +4,10 @@
 // @src EXIT_GUI_TITLE_STR, 100 wide with the margins 85, 2 and 75, centred over the viewport above the inventory
 // @src panel; the back region at MSYS_PRIORITY_HIGHEST - 1, the single, all and load regions and check boxes, the OK and
 // @src Cancel buttons of popupbuttons.sti at +65 and +135, +78; the game paused), UpdateSectorExitMenu (the check states
-// @src and the help texts), RenderSectorExitMenu (ESC cancels, ENTER confirms; FONT12ARIAL labels in dark grey when
-// @src disabled, light yellow under the pointer, else white), RemoveSectorExitMenu (MSG_EPC_CANT_TRAVERSE, the jump
-// @src code), CheckLoadMapCallback, SingleMoveAction, AllMoveAction, the region move callbacks.
+// @src and the help texts, the selected merc's by his profile's sex), RenderSectorExitMenu (ESC cancels, ENTER confirms;
+// @src FONT12ARIAL labels in dark grey when disabled, light yellow under the pointer, else white), RemoveSectorExitMenu
+// @src (MSG_EPC_CANT_TRAVERSE, the jump code), CheckLoadMapCallback, SingleMoveAction, AllMoveAction, the region move
+// @src callbacks.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -70,7 +71,6 @@ const RADIO_OFFSET_Y = -2;
 const BUTTONS_Y = 78;
 const OK_X = 65;
 const CANCEL_X = 135;
-const REGFEMALE = 3;
 
 export type ExitDirection = 'north' | 'east' | 'south' | 'west' | 'exitGrid';
 
@@ -91,6 +91,7 @@ export interface ExitDialogRequest {
   readonly exitGrid: number | null;
   readonly options: ExitSectorOptions;
   readonly selected: SoldierView;
+  readonly selectedFemale: boolean;
   readonly selectedIsEpc: boolean;
   readonly squadEpcs: readonly SoldierView[];
   readonly viewportBottom: number;
@@ -358,7 +359,7 @@ export class ExitDialog {
     if (request.selectedIsEpc) return printf(this.#string(HELP, ExitHelp.ESCORTED_CHARACTERS_MUST_BE_ESCORTED), [name]);
     const epc = request.squadEpcs[0];
     if (!epc) return '';
-    const female = request.selected.bodyType === REGFEMALE;
+    const female = request.selectedFemale;
     if (request.squadEpcs.length === 1) {
       const index = female ? ExitHelp.CANT_ISOLATE_EPC_FEMALE_SINGULAR : ExitHelp.CANT_ISOLATE_EPC_MALE_SINGULAR;
       return printf(this.#string(HELP, index), [name, epc.name]);

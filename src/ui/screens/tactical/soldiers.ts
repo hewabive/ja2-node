@@ -5,6 +5,7 @@
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
 // @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead).
+// @src gMercProfiles[ubProfile].bSex (the texts by a merc's sex take his profile's, not his body type's) (2026-11-01).
 
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
@@ -47,6 +48,10 @@ export function squadOf(s: SoldierView): number {
 
 export function isMercBodyType(s: SoldierView): boolean {
   return s.bodyType >= 0 && s.bodyType <= REGFEMALE;
+}
+
+export function hasFemaleProfile(view: PlayerView | null, s: SoldierView): boolean {
+  return view?.strategic?.mercs.find((m) => m.id === s.id)?.female === true;
 }
 
 export function isEpc(s: SoldierView): boolean {
