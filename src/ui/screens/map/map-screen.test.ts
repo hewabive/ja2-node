@@ -559,4 +559,14 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.clickSector('C13');
       expect(lastCommand(f)?.cmd).toEqual({ type: 'setLandingZone', sector: 'C13' });
     }));
+
+  it('selects the level of the merc whose destination plot starts, as JumpToLevel moves the selected sector with the level', () =>
+    withMap(async (f) => {
+      f.key('Delete');
+      await f.settle();
+      expect(f.screen.hook()).toMatchObject({ level: 1, selectedSector: expect.stringMatching(/-1$/) });
+      await f.click('teamRow0.destination');
+      expect(f.screen.hook()).toMatchObject({ level: 0, plotting: { mode: 'merc' } });
+      expect(f.screen.hook().selectedSector).not.toMatch(/-/);
+    }));
 });

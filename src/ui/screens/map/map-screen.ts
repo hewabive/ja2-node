@@ -27,7 +27,8 @@
 // @src shows the surface) (2026-11-02); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
 // @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
 // @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
-// @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt (2026-11-02).
+// @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
+// @src plotting merc's level) (2026-11-02).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -1148,7 +1149,7 @@ export class MapScreen implements Screen {
     turnOnTeams(this.filters);
     this.#applyFilterEffects(turnOffAirspace(this.filters));
     const s = parseSectorLabel(m.sector);
-    if (s) this.#level = s.z;
+    if (s && s.z !== this.#level) this.#jumpToLevel(s.z);
     this.#plot = new Plotting('merc', m.id, row, origin, mercPath(strategic, m));
     this.#route.reset();
     this.#team.startGlow(row, TeamColumn.DESTINATION);
