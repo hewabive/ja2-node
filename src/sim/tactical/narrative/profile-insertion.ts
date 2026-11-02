@@ -202,7 +202,7 @@ export function setupProfileInsertionDataForCivilians(t: TacticalState, hooks: P
 
 export function updateSoldierPointerDataIntoProfile(t: TacticalState, hooks: ProfileInsertionHooks): void {
   for (const s of t.mercSlots) {
-    if (!s?.placed || s.profile === NO_PROFILE || hooks.isPlayerMerc(s.profile)) continue;
+    if (!s.placed || s.profile === NO_PROFILE || hooks.isPlayerMerc(s.profile)) continue;
     const p = hooks.profile(s.profile);
     if (!p) continue;
     p.life = s.life;

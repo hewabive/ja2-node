@@ -98,7 +98,7 @@ function sayUnderHeavyFire(t: TacticalState, s: Soldier, targeted: Soldier | nul
 
 export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null, caused: Soldier | null): void {
   for (const s of t.mercSlots) {
-    if (!s?.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
+    if (!s.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
     const tol = calcSuppressionTolerance(t, s);
     let lost = u8(idiv(idiv(s.suppressionPoints * SUPPRESSION_FIRE_MODIFIER, tol + 6) * 2 + 1, 2));
     if (lost > MAX_APS_SUPPRESSED) lost = MAX_APS_SUPPRESSED;

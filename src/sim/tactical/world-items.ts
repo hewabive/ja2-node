@@ -181,7 +181,7 @@ export function setItemsVisibilityOn(t: TacticalState, g: number, level: number,
 }
 
 export function notifySoldiersToLookForItems(t: TacticalState): void {
-  for (const s of t.mercSlots) if (s) s.lookForItems = true;
+  for (const s of t.mercSlots) s.lookForItems = true;
 }
 
 export function setItemsVisibilityHidden(t: TacticalState, g: number, level: number): void {

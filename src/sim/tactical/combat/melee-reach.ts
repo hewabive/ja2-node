@@ -47,7 +47,7 @@ function walkCost(t: TacticalState, s: Soldier, g: number): number {
 
 export function findSoldierAtGridNo(t: TacticalState, g: number, level: number): Soldier | null {
   for (const m of t.mercSlots) {
-    if (!m?.placed || m.dead) continue;
+    if (!m.placed || m.dead) continue;
     if (m.visible === -1 && !t.pathEnv.showAllMercs) continue;
     if (m.gridNo === g && !newOKDestination(t.pathEnv, m, g, true, level)) return m;
   }

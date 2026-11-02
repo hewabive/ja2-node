@@ -739,7 +739,7 @@ function stowUselessGun(t: TacticalState, s: Soldier): boolean {
 
 function numPcsInSector(t: TacticalState): number {
   let n = 0;
-  for (const x of t.mercSlots) if (x?.placed && x.team === Team.OUR && x.life > 0) n++;
+  for (const x of t.mercSlots) if (x.placed && x.team === Team.OUR && x.life > 0) n++;
   return n;
 }
 

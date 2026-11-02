@@ -391,7 +391,7 @@ export class CivComparer {
     const s = this.#soldier(t, p.who);
     const offered = offersSurrender(t, s);
     if (offered) t.turn.enemyOfferedSurrender = true;
-    const pcs = t.mercSlots.filter((x) => x?.placed && x.team === Team.OUR && x.life > 0).length;
+    const pcs = t.mercSlots.filter((x) => x.placed && x.team === Team.OUR && x.life > 0).length;
     const ours = {
       offered,
       enemyFlags: t.turn.enemyOfferedSurrender ? ENEMY_OFFERED_SURRENDER : 0,

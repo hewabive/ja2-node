@@ -322,6 +322,7 @@ ja2-node follows the Stracciatella column (D1) unless `deviations.md` says other
 | Area | Vanilla | Stracciatella |
 |---|---|---|
 | `PreRandom` | Never refilled; `n*range/RAND_MAX%range` | Refilled after each use; uniform mapping (§3.6) |
+| Merc slots | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`Tactical/Overhead.cc:133-271`) |
 | AP debt | AP floored at 0 (`V:Tactical/Points.c:465-486`), refunding suppression debt | Debt down to −100 (`Tactical/Points.cc:488`) |
 | Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:881`) |
 | Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3230`) |

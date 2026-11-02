@@ -757,7 +757,7 @@ export function npcConsiderInitiatingConv(host: NarrativeHost, npcSoldier: Soldi
   let bestDistance = 100;
   let target: Soldier | null = null;
   for (const m of t.mercSlots) {
-    if (!m || m.side !== Side.FRIENDLY || !assignedBelowDuty(host, m)) continue;
+    if (m.side !== Side.FRIENDLY || !assignedBelowDuty(host, m)) continue;
     if (npcSoldier.oppList[m.id] !== Opp.SEEN_CURRENTLY) continue;
     const desire = npcConsiderTalking(selectEnv(host), npc, m.profile, Approach.NPC_INITIATING_CONV, 0, records).opinion;
     if (desire === 0) continue;

@@ -76,10 +76,12 @@ APs and 1.25 × breath. An interrupt, a sighting on the enemy's turn or a lack o
 `noAPToFinishMove` until the next order or turn (`10`). Tile reservations exist only in real time.
 
 **The tick loop is the walk.** One pass over `mercSlots` per 5 ms tick; slot order decides real-time races for tiles.
-Positions are float32 as in the original (`MOVE_SIN_COS` holds glibc's values for the original's `PI`), and the
+The slots list the soldiers in the order they entered the sector, and the pass walks them by index, reading their number
+at every step: a soldier who leaves during the pass skips the one after him, one who enters is handled at once (`01`
+§3.10). Positions are float32 as in the original (`MOVE_SIN_COS` holds glibc's values for the original's `PI`), and the
 occupied tile switches when the position crosses into the next tile, so a diagonal step never occupies a side tile.
-There is no snap to the centre: arrival logic runs on the frame after the position passes the tile centre, and the
-next step starts from the overshot position.
+There is no snap to the centre: arrival logic runs on the frame after the position passes the tile centre, and the next
+step starts from the overshot position.
 
 **No turn before a step.** The facing turns one octant per frame while the soldier already moves; turning APs are never
 charged while walking. Sight at each arrival uses the facing of that moment.
@@ -116,6 +118,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A creature that cannot turn pays the step where it starts backwards twice, the second time with the reverse surcharge: the forced backward walk takes the step again | `movement.test.ts` |
 | A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |
 | A creature that can turn again clears its reverse but walks on, facing its path, in the backward walk | `movement.test.ts` |
+| A soldier who leaves the sector during a pass makes the one after him miss that pass: the merc slots close up under the pass's index | `merc-slots.test.ts` |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count

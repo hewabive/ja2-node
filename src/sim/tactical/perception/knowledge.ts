@@ -73,7 +73,7 @@ function loudestNoise(t: TacticalState, s: Soldier): LoudestNoise {
     if (value > best.value) best = { gridNo, value, level };
   };
   for (const opp of t.mercSlots) {
-    if (!opp?.placed || !opp.life || considered(s, opp)) continue;
+    if (!opp.placed || !opp.life || considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     if (personal < Opp.NOT_HEARD_OR_SEEN) {
       const heard = personalLastKnown(s, opp);
@@ -124,7 +124,7 @@ export function whatIKnowThatPublicDont(t: TacticalState, s: Soldier, inSightOnl
   const publicVolume = t.perception.publicNoiseVolume[s.team] ?? 0;
   if (!isCreatureOrBloodcat(s) && s.ai.noiseVolume > publicVolume) total = u8(total + s.ai.noiseVolume - publicVolume);
   for (const opp of t.mercSlots) {
-    if (!opp?.placed || considered(s, opp)) continue;
+    if (!opp.placed || considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (inSightOnly) {
@@ -136,7 +136,7 @@ export function whatIKnowThatPublicDont(t: TacticalState, s: Soldier, inSightOnl
 
 export function guySawEnemyThisTurnOrBefore(t: TacticalState, s: Soldier): boolean {
   for (const opp of t.mercSlots) {
-    if (!opp?.placed || opp.side === s.side) continue;
+    if (!opp.placed || opp.side === s.side) continue;
     const v = s.oppList[opp.id] ?? 0;
     if (v >= Opp.SEEN_CURRENTLY && v <= Opp.SEEN_3_TURNS_AGO) return true;
   }
@@ -153,7 +153,7 @@ export function closestKnownOpponent(t: TacticalState, s: Soldier): number {
   let closest = NOWHERE;
   let closestRange = 1500;
   for (const opp of t.mercSlots) {
-    if (!opp?.placed) continue;
+    if (!opp.placed) continue;
     if (considered(s, opp) || ignoredByBountyHunter(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;

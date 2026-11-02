@@ -182,6 +182,40 @@ describe('snapshot versions', () => {
   });
 });
 
+describe('snapshot version 36 (merc slots with empty slots)', () => {
+  const OFF_MAP_CURSOR = 0xffff;
+
+  function migratedTactical(tactical: Record<string, unknown>): unknown {
+    const graph = { externals: [], sections: [['tactical', tactical]] };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 36, kind: 'tactical', mapPath: null, graph });
+    return migrated.graph.sections[0]?.[1];
+  }
+
+  it('closes the gaps, keeps each cursor on its soldier and moves the references into the slots along', () => {
+    const migrated = migratedTactical({
+      aiPass: { lastTickMs: 0, cursor: 3, awayCursor: OFF_MAP_CURSOR, handleThisPass: false },
+      mercSlots: [null, { $ref: 'soldiers/0' }, null, { id: 7 }],
+      awaySlots: [null, null],
+      target: { $ref: 'tactical/mercSlots/3/inv' },
+    });
+    expect(migrated).toEqual({
+      aiPass: { lastTickMs: 0, cursor: 1, awayCursor: OFF_MAP_CURSOR, handleThisPass: false },
+      mercSlots: [{ $ref: 'soldiers/0' }, { id: 7 }],
+      awaySlots: [],
+      target: { $ref: 'tactical/mercSlots/1/inv' },
+    });
+  });
+
+  it('points a cursor on an emptied slot at the soldier after it, as an erase leaves the vector index of Stracciatella', () => {
+    const migrated = migratedTactical({
+      aiPass: { lastTickMs: 0, cursor: 2, awayCursor: 0, handleThisPass: false },
+      mercSlots: [{ $ref: 'soldiers/0' }, null, null, { $ref: 'soldiers/1' }],
+      awaySlots: [null, { $ref: 'soldiers/2' }],
+    });
+    expect(migrated).toMatchObject({ aiPass: { cursor: 1, awayCursor: 0 } });
+  });
+});
+
 describe('base64', () => {
   it('round-trips every length and refuses bad input', () => {
     for (let n = 0; n < 12; n++) {

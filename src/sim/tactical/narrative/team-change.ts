@@ -55,7 +55,7 @@ function moveInventory(from: Soldier, to: Soldier): void {
 }
 
 function retargetAttackers(t: TacticalState, old: Soldier, fresh: Soldier): void {
-  for (const s of t.mercSlots) if (s?.target === old) s.target = fresh;
+  for (const s of t.mercSlots) if (s.target === old) s.target = fresh;
 }
 
 function markRecruited(t: TacticalState, s: Soldier, team: number): void {

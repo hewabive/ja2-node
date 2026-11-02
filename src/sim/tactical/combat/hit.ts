@@ -649,7 +649,7 @@ export function changeToFallbackAnimation(t: TacticalState, s: Soldier, directio
 
 function menInSector(t: TacticalState, team: number): number {
   let n = 0;
-  for (const m of t.mercSlots) if (m?.placed && m.team === team && !m.dead) n++;
+  for (const m of t.mercSlots) if (m.placed && m.team === team && !m.dead) n++;
   return n;
 }
 

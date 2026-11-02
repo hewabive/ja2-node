@@ -9,6 +9,7 @@ import { Rng } from '../../../core/rng.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AnimHeight, initNewSoldierAnim, states } from '../animation.ts';
+import { moveSoldierFromAwayToMercSlot, moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import type { TacticalContent } from '../content.ts';
 import { inGas, SmokeTile } from '../explosions/smoke.ts';
 import { dequeueAllGameEvents } from '../game-events.ts';
@@ -23,6 +24,7 @@ import { createTacticalState, registerSoldier, type TacticalState, unregisterSol
 import { AI_DELAY, AiAction, Situation } from './actions.ts';
 import {
   aiForSlot,
+  awayAiForPass,
   beginAiPass,
   createAiControl,
   executeAction,
@@ -176,6 +178,38 @@ describe('green real-time AI', () => {
       }
     });
     expect(visits[0]).toBe(110);
+  });
+
+  it('leaves the soldier after one who walks off the map at his AI tick for the next tick: the slots close up under the cursor', () => {
+    const { t, hooks } = world(9);
+    spawn(t, Team.OUR, gridNo(40, 100), Orders.STATIONARY);
+    const leaver = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
+    const waiter = spawn(t, Team.ENEMY, gridNo(84, 80), Orders.STATIONARY);
+    const last = spawn(t, Team.ENEMY, gridNo(88, 80), Orders.STATIONARY);
+    Object.assign(leaver.ai, { action: AiAction.WALK, newSituation: Situation.NOT_NEW });
+    leaver.quoteActionId = QuoteActionId.TRAVERSE_EAST;
+    const firstVisits = new Map<Soldier, number>();
+    run(t, hooks, 200, () => {
+      for (const s of [waiter, last]) if (!firstVisits.has(s) && s.ai.counter !== 0) firstVisits.set(s, t.clockMs - 5);
+    });
+    expect(t.mercSlots).not.toContain(leaver);
+    expect([firstVisits.get(last), firstVisits.get(waiter)]).toEqual([55, 110]);
+  });
+
+  it('gives the away pass to the next away soldier once the one it named is back on the map: the cursor keeps its index', () => {
+    const { t, hooks } = world(9);
+    const returning = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
+    const next = spawn(t, Team.CIV, gridNo(84, 80), Orders.STATIONARY);
+    for (const s of [returning, next]) {
+      s.ai.checkSchedule = true;
+      moveSoldierFromMercToAwaySlot(t, s);
+    }
+    run(t, hooks, 60);
+    expect(t.aiPass.awayCursor).toBe(0);
+    moveSoldierFromAwayToMercSlot(t, returning);
+    awayAiForPass(t, createAiControl());
+    expect(returning.ai.counter).toBe(0);
+    expect(next.ai.counter).toBeGreaterThan(t.clockMs);
   });
 });
 

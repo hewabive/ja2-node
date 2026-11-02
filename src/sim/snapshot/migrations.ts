@@ -923,6 +923,83 @@ function addPreCombatGridNo(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MERC_SLOTS_KEY = 'mercSlots';
+const AWAY_SLOTS_KEY = 'awaySlots';
+const AI_PASS_KEY = 'aiPass';
+const AI_CURSOR_KEY = 'cursor';
+const AWAY_AI_CURSOR_KEY = 'awayCursor';
+const EMPTY_SLOT = null;
+
+interface SlotCompaction {
+  readonly path: string;
+  readonly soldiersBefore: readonly number[];
+}
+
+function slotCompaction(tactical: JsonObject, key: string): SlotCompaction {
+  const slots = tactical[key];
+  const soldiersBefore: number[] = [];
+  let kept = 0;
+  for (const slot of Array.isArray(slots) ? slots : []) {
+    soldiersBefore.push(kept);
+    if (slot !== EMPTY_SLOT) kept++;
+  }
+  return { path: `tactical/${key}/`, soldiersBefore };
+}
+
+function mappedField(o: JsonObject, key: string, map: (value: Json) => Json): JsonObject {
+  const value = o[key];
+  return value === undefined ? o : { ...o, [key]: map(value) };
+}
+
+function compactedSlots(slots: Json): Json {
+  return Array.isArray(slots) ? slots.filter((slot: Json) => slot !== EMPTY_SLOT) : slots;
+}
+
+function compactedCursor(cursor: Json, compaction: SlotCompaction): Json {
+  if (typeof cursor !== 'number' || cursor < 0 || cursor >= compaction.soldiersBefore.length) return cursor;
+  return compaction.soldiersBefore[cursor] ?? cursor;
+}
+
+function withCompactedCursors(pass: Json, merc: SlotCompaction, away: SlotCompaction): Json {
+  if (!isObject(pass) || pass[REF] !== undefined) return pass;
+  const withMercCursor = mappedField(pass, AI_CURSOR_KEY, (cursor) => compactedCursor(cursor, merc));
+  return mappedField(withMercCursor, AWAY_AI_CURSOR_KEY, (cursor) => compactedCursor(cursor, away));
+}
+
+function movedSlotRef(ref: string, compaction: SlotCompaction): string {
+  if (!ref.startsWith(compaction.path)) return ref;
+  const [slot = '', ...rest] = ref.slice(compaction.path.length).split('/');
+  return [`${compaction.path}${compaction.soldiersBefore[Number(slot)] ?? slot}`, ...rest].join('/');
+}
+
+function withMovedSlotRefs(value: Json, compactions: readonly SlotCompaction[]): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withMovedSlotRefs(v, compactions));
+  if (!isObject(value)) return value;
+  const ref = value[REF];
+  if (typeof ref === 'string') return { [REF]: compactions.reduce((moved, c) => movedSlotRef(moved, c), ref) };
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withMovedSlotRefs(v, compactions);
+  return mapped;
+}
+
+function withCompactedSlots(tactical: JsonObject, merc: SlotCompaction, away: SlotCompaction): JsonObject {
+  const withCursors = mappedField(tactical, AI_PASS_KEY, (pass) => withCompactedCursors(pass, merc, away));
+  return mappedField(mappedField(withCursors, MERC_SLOTS_KEY, compactedSlots), AWAY_SLOTS_KEY, compactedSlots);
+}
+
+function compactMercSlots(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const tactical = sectionOf(graph.sections, 'tactical');
+  if (!isObject(tactical)) return { ...snapshot };
+  const merc = slotCompaction(tactical, MERC_SLOTS_KEY);
+  const away = slotCompaction(tactical, AWAY_SLOTS_KEY);
+  const sections = graph.sections.map(([name, value]): Section => {
+    const compacted = name === 'tactical' && isObject(value) ? withCompactedSlots(value, merc, away) : value;
+    return [name, withMovedSlotRefs(compacted, [merc, away])];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -960,5 +1037,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     33: addCreatureTenseQuoteTimer,
     34: addDoorStatusFlags,
     35: addPreCombatGridNo,
+    36: compactMercSlots,
   };
 }

@@ -126,9 +126,9 @@ reveals items, which he may comment on (`33`).
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
 forces up to two decays at once (deviation "Real-time turn after combat").
 
-**Iteration order is state.** Looks walk `mercSlots`, team and radio loops walk soldiers by id. Both decide `visible`
-transitions, ties in the best-sighting list and which draws happen. A `handleSight` runs to completion, nested looks
-included, before the next event.
+**Iteration order is state.** Looks walk `mercSlots`, in the order the soldiers entered the sector (`07`), team and
+radio loops walk soldiers by id. Both decide `visible` transitions, ties in the best-sighting list and which draws
+happen. A `handleSight` runs to completion, nested looks included, before the next event.
 
 **Randomness.** `pre`: each footstep (one draw for the army, zero to two for others, also for a door's noise), the
 experience chances of spotting an enemy who has not seen the merc (`33`), thrown objects landing (`34`). `main`: the

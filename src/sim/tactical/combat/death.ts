@@ -261,7 +261,7 @@ export function checkForAndHandleSoldierDyingNotFromHit(t: TacticalState, s: Sol
 
 function checkForAlertWhenEnemyDies(t: TacticalState, dying: Soldier): void {
   for (const s of t.mercSlots) {
-    if (!s?.placed || s.team !== dying.team || s === dying || s.life < OKLIFE || s.ai.alertStatus >= AlertStatus.RED) continue;
+    if (!s.placed || s.team !== dying.team || s === dying || s.life < OKLIFE || s.ai.alertStatus >= AlertStatus.RED) continue;
     const dir = atan8Of(s, dying);
     const visible = distanceVisible(t, s, s.desiredDirection, dir, dying.gridNo, dying.level);
     if (pythSpacesAway(s.gridNo, dying.gridNo) > visible) continue;

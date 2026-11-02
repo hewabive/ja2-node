@@ -1496,3 +1496,65 @@ describe("snapshot version 35 (profiles without a pre-combat tile) migrates with
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+const MERC_SLOTS_KEY = 'mercSlots';
+const AWAY_SLOTS_KEY = 'awaySlots';
+
+function withEmptySlotBeforeEach(slots: Json | undefined): Json[] {
+  if (!Array.isArray(slots)) throw new Error('no slots');
+  return slots.flatMap((slot: Json) => [null, slot]);
+}
+
+function cursorWithEmptySlotsBefore(cursor: Json | undefined, slots: Json | undefined): Json {
+  if (typeof cursor !== 'number' || !Array.isArray(slots) || cursor >= slots.length) return cursor ?? null;
+  return cursor * 2 + 1;
+}
+
+function versionThirtySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const t = object(value);
+    const pass = object(t.aiPass);
+    const aiPass = {
+      ...pass,
+      cursor: cursorWithEmptySlotsBefore(pass.cursor, t[MERC_SLOTS_KEY]),
+      awayCursor: cursorWithEmptySlotsBefore(pass.awayCursor, t[AWAY_SLOTS_KEY]),
+    };
+    const mercSlots = withEmptySlotBeforeEach(t[MERC_SLOTS_KEY]);
+    const awaySlots = withEmptySlotBeforeEach(t[AWAY_SLOTS_KEY]);
+    return [name, { ...t, aiPass, [MERC_SLOTS_KEY]: mercSlots, [AWAY_SLOTS_KEY]: awaySlots }];
+  });
+  return { ...snapshot, version: 36, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 36 (merc slots left empty by soldiers who left) migrates with the gaps closed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectGapsClosed(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionThirtySix(current.sim);
+    expect(JSON.stringify(legacy)).toContain(`"${MERC_SLOTS_KEY}":[null,`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    sandbox.sim.state.aiPass.cursor = 1;
+    await expectGapsClosed(sandbox);
+  });
+
+  it('a landed campaign', async () => {
+    await expectGapsClosed(await createCampaignSession(kit.read, exists, 9));
+  });
+});

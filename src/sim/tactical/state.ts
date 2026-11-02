@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/WorldMan.cc WhoIsThere2.
+// @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc AddMercSlot, RemoveMercSlot (the vector of
+// @src Stracciatella, 2026-11-02).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
@@ -249,8 +250,8 @@ export interface TacticalState {
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
   readonly soldiers: Soldier[];
-  readonly mercSlots: (Soldier | null)[];
-  readonly awaySlots: (Soldier | null)[];
+  readonly mercSlots: Soldier[];
+  readonly awaySlots: Soldier[];
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly reserved: Int16Array;
   readonly doorStatus: Map<number, DoorStatusEntry>;
@@ -524,20 +525,25 @@ export function asPathSoldier(s: Soldier): PathSoldier {
   return s;
 }
 
-export function registerSoldier(t: TacticalState, s: Soldier): void {
-  t.soldiers[s.id] = s;
-  const free = t.mercSlots.indexOf(null);
-  if (free >= 0) t.mercSlots[free] = s;
-  else t.mercSlots.push(s);
+export function eraseFromSlots(slots: Soldier[], s: Soldier): boolean {
+  const before = slots.length;
+  let kept = 0;
+  for (const other of slots) if (other !== s) slots[kept++] = other;
+  slots.length = kept;
+  return kept !== before;
 }
 
-export function unregisterSoldier(t: TacticalState, s: Soldier): void {
-  const slot = t.mercSlots.indexOf(s);
-  if (slot >= 0) t.mercSlots[slot] = null;
+export function registerSoldier(t: TacticalState, s: Soldier): void {
+  t.soldiers[s.id] = s;
+  t.mercSlots.push(s);
+}
+
+export function unregisterSoldier(t: TacticalState, s: Soldier): boolean {
+  return eraseFromSlots(t.mercSlots, s);
 }
 
 export function mercs(t: Pick<TacticalState, 'mercSlots'>): Soldier[] {
-  return t.mercSlots.filter((s): s is Soldier => s?.placed === true);
+  return t.mercSlots.filter((s) => s.placed);
 }
 
 export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {
