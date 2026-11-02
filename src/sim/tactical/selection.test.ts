@@ -8,6 +8,7 @@ import { updateSkullReleases } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
+import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from './roofs.ts';
 import { leaveTacticalSector } from './sector-presence.ts';
 import {
   enterTacticalScreen,
@@ -187,6 +188,18 @@ describe('selecting a merc (Overhead.cc SelectSoldier)', () => {
     expect(selectSoldier(s.t, merc(s, 1))).toBe(false);
     expect(selectSoldier(s.t, merc(s, 1), SelectFlags.FORCE_RESELECT)).toBe(true);
     expect([s.woken, s.draws]).toEqual([[1], [PERSONALITY_QUOTE_ODDS, PERSONALITY_QUOTE_ODDS]]);
+  });
+
+  it('switches the interface to the level of the merc it selects, again at a forced reselection of the selected merc', () => {
+    const s = scene();
+    const levels = () => s.sim.drainEvents().flatMap((e) => (e.type === 'interfaceLevel' ? [[e.soldier, e.level]] : []));
+    selectSoldier(s.t, merc(s, 1));
+    expect(levels()).toEqual([[1, 0]]);
+    setSoldierHeight(s.t, merc(s, 1), SECOND_LEVEL_Z_OFFSET);
+    expect(selectSoldier(s.t, merc(s, 1))).toBe(false);
+    expect(levels()).toEqual([]);
+    expect(selectSoldier(s.t, merc(s, 1), SelectFlags.FORCE_RESELECT)).toBe(true);
+    expect(levels()).toEqual([[1, 1]]);
   });
 
   it('refuses like the early returns of SelectSoldier: a merc out of control or without a move in our interrupt', () => {

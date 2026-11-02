@@ -4,7 +4,7 @@
 // @src Tactical/Soldier_Control.cc BeginSoldierClimbUpRoof, BeginSoldierClimbDownRoof, SetSoldierHeight;
 // @src TileEngine/WorldDef.h FIRST_LEVEL_Z_OFFSET, SECOND_LEVEL_Z_OFFSET;
 // @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
-// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb.
+// @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb; Tactical/Handle_UI.cc ChangeInterfaceLevel at codes 408 and 475.
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
@@ -35,6 +35,9 @@ const Code = {
   CLIMB_DOWN: 456,
   CLIMB_DOWN_COMMIT: 475,
 } as const;
+
+const GROUND_LEVEL = 0;
+const ROOF_LEVEL = 1;
 
 export const FIRST_LEVEL_Z_OFFSET = 0;
 export const SECOND_LEVEL_Z_OFFSET = 58;
@@ -132,6 +135,11 @@ export function setSoldierHeight(t: TacticalState, s: Soldier, height: number): 
   addMercStructure(t, s);
 }
 
+function followClimbWithInterface(t: TacticalState, s: Soldier, level: number): void {
+  if (s.team === Team.OUR && !t.pathEnv.autoBandage && s.id === t.turn.selected)
+    t.events.push({ type: 'interfaceLevel', soldier: s.id, level });
+}
+
 function climbUpCommit(t: TacticalState, s: Soldier): void {
   t.perception.disallowSight = false;
   setSoldierPosition(t, s, s.tempNewGridNo);
@@ -139,6 +147,7 @@ function climbUpCommit(t: TacticalState, s: Soldier): void {
   setDesiredDirection(t, s, s.direction);
   s.desiredHeight = AnimHeight.CROUCH;
   setSoldierHeight(t, s, CLIMBED_UP_HEIGHT);
+  followClimbWithInterface(t, s, ROOF_LEVEL);
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
   t.hooks.climbedRoof(t, s);
 }
@@ -147,6 +156,7 @@ function climbDownCommit(t: TacticalState, s: Soldier): void {
   s.desiredHeight = AnimHeight.STAND;
   s.finalDestination = s.gridNo;
   t.perception.disallowSight = false;
+  followClimbWithInterface(t, s, GROUND_LEVEL);
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromRoofClimb(t, s);
   s.uiMovementMode = anim(t.content, 'WALKING');
   t.hooks.climbedRoof(t, s);

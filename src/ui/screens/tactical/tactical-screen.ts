@@ -1259,6 +1259,9 @@ export class TacticalScreen implements Screen {
         if (s) this.#locateSoldier(s, SOLDIER_LOCATE_FLAGS[event.locator]);
         return;
       }
+      case 'interfaceLevel':
+        this.#setInterfaceLevel(event.level);
+        return;
       case 'enemyTurnProgress':
         this.#topBar.observeProgress(event.done);
         return;

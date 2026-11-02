@@ -1029,6 +1029,17 @@ describe('the tactical input on the tactical screen', () => {
     expect(locatorMs(f, RADIO)).toBe(FAST_LOCATOR_MS);
   });
 
+  it('follows the interface level the simulation switches to, as ChangeInterfaceLevel after a climb or a forced reselection (interfaceLevel)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    const soldier = f.screen.selected ?? NOBODY;
+    const level = (to: number) => ({ tick, type: 'interfaceLevel' as const, soldier, level: to });
+    f.frames([{ tick, changed: [], removed: [], events: [level(1)] }]);
+    expect(f.world.roofLevel).toBe(true);
+    f.frames([{ tick, changed: [], removed: [], events: [level(0)] }]);
+    expect(f.world.roofLevel).toBe(false);
+  });
+
   it('locates the next merc with space only off screen and flashes the normal locator, as LocateSoldier(SETLOCATOR) does', async () => {
     const f = await tacticalUiTest(kit, ui);
     const first = f.screen.selected;

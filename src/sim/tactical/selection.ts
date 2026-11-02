@@ -1,14 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-31. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc SelectSoldier (InternalSelectSoldier: its checks, the squad, PutMercInAwakeState and
-// @src the psycho's personality quote), SelectNextAvailSoldier; Tactical/Soldier_Macros.h OK_CONTROLLABLE_MERC,
-// @src OK_INTERRUPT_MERC; Tactical/Handle_UI.cc EndMultiSoldierSelection (the wake of the multi-selected mercs);
-// @src GameScreen.cc EnterTacticalScreen (a selected merc out of control or asleep), MainGameScreenHandle (the forced
-// @src reselect on entry), TacticalScreenLocateToSoldier; Tactical/Overhead.cc HandlePlayerTeamMemberDeath and
-// @src RemoveSoldierFromTacticalSector (the next selection), FindActiveAndAliveMerc, FindNextActiveSquad;
-// @src Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc InternalTacticalRemoveSoldier;
-// @src Tactical/Squads.cc SetCurrentSquad (the forced selection of the squad's first merc), SetDefaultSquadOnSectorEntry,
-// @src RebuildCurrentSquad (its squad check; the team panel stays the client's),
+// @src src/game/Tactical/Overhead.cc SelectSoldier (InternalSelectSoldier: its checks, the squad, ChangeInterfaceLevel,
+// @src PutMercInAwakeState and the psycho's personality quote), SelectNextAvailSoldier; Tactical/Soldier_Macros.h
+// @src OK_CONTROLLABLE_MERC, OK_INTERRUPT_MERC; Tactical/Handle_UI.cc EndMultiSoldierSelection (the wake of the
+// @src multi-selected mercs); GameScreen.cc EnterTacticalScreen (a selected merc out of control or asleep),
+// @src MainGameScreenHandle (the forced reselect on entry), TacticalScreenLocateToSoldier; Tactical/Overhead.cc
+// @src HandlePlayerTeamMemberDeath and RemoveSoldierFromTacticalSector (the next selection), FindActiveAndAliveMerc,
+// @src FindNextActiveSquad; Tactical/Squads.cc UpdateCurrentlySelectedMerc; Tactical/Soldier_Create.cc
+// @src InternalTacticalRemoveSoldier; Tactical/Squads.cc SetCurrentSquad (the forced selection of the squad's first
+// @src merc), SetDefaultSquadOnSectorEntry, RebuildCurrentSquad (its squad check; the team panel stays the client's),
 // @src the end of AddCharacterToSquad; SaveLoadGame.cc LoadSavedGame (the forced reselect in tactical) (2026-11-01).
 
 import { NO_CURRENT_SQUAD, NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
@@ -45,6 +45,7 @@ export function selectSoldier(t: TacticalState, s: Soldier, flags: number = Sele
   if (s.id === t.turn.selected && !(flags & SelectFlags.FORCE_RESELECT)) return false;
   t.turn.selected = s.id;
   setCurrentSquad(t, soldierAssignment(t, s), false);
+  t.events.push({ type: 'interfaceLevel', soldier: s.id, level: s.level });
   wakeIfAsleep(t, s);
   maySayPersonalityQuote(t, s);
   return true;

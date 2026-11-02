@@ -2,12 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import type { InterfaceLevelEvent, SimEvent } from '../events.ts';
 import { tacticalViewParts } from '../knowledge/sim-view.ts';
 import { AnimHeight, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { Opp } from './perception/opp.ts';
 import { AP } from './points.ts';
-import { checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
+import { beginSoldierClimbUpRoof, checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
 import { Attitude, Body, Orders, Team } from './soldier.ts';
 import { whoIsThere } from './state.ts';
 
@@ -70,6 +71,33 @@ describe('climbing roofs', () => {
     expect(merc.level).toBe(1);
     expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_CURRENTLY);
     expect(t.inCombat).toBe(true);
+  });
+});
+
+describe('the interface level after a climb (Soldier_Ani.cc 408, 475: ChangeInterfaceLevel)', () => {
+  const levels = (events: readonly SimEvent[]) =>
+    events.filter((e): e is InterfaceLevelEvent => e.type === 'interfaceLevel').map((e) => [e.soldier, e.level]);
+
+  it('switches to the roof once the selected merc of ours is up, and back to the ground once he is down', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH);
+    expect(sim.dispatch({ type: 'select', soldier: 0 }).ok).toBe(true);
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    expect(levels(runUntilIdle(sim))).toEqual([[0, 1]]);
+    expect(sim.dispatch({ type: 'climb', soldier: 0 })).toEqual({ ok: true });
+    expect(levels(runUntilIdle(sim))).toEqual([[0, 0]]);
+  });
+
+  it('leaves the interface where it is when a merc who is not selected climbs', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const climber = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH);
+    spawnSoldier(sim, 1, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    expect(sim.dispatch({ type: 'select', soldier: 1 }).ok).toBe(true);
+    sim.drainEvents();
+    expect(beginSoldierClimbUpRoof(sim.state, climber)).toBe(true);
+    const events = runUntilIdle(sim);
+    expect([climber.level, levels(events)]).toEqual([1, []]);
   });
 });
 
