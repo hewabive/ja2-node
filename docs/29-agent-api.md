@@ -47,7 +47,8 @@ manual driver, which pauses between any two ticks, or by waiting on a viewer's r
 an LLM agent without pausing is a non-goal.
 
 **Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
-jars and tin cans on a tile (gap "Unbuilt item actions"; `previewAction` answers `notSupported`); auto-bandage (gap
+jars and tin cans on a tile, and the x-ray detector (gap "Unbuilt item actions"; `previewAction` answers `notSupported`,
+`useRemote` refuses the detector); auto-bandage (gap
 "Auto-bandage"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and
 alcohol"); vehicles' condition and fuel (gap "Vehicles as characters").
 
