@@ -180,6 +180,7 @@ async function realtimeWaitScript(r: Rig): Promise<{ order: string[]; reason: st
 
 async function deadIsDeadScript(r: Rig): Promise<{ results: unknown[]; written: string | null }> {
   const host = await r.create('dead', { seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME } });
+  await host.advance({ idle: true });
   const results = [
     stable(await host.save({ description: 'mine' })),
     stable(await host.save({ name: 'quick' })),

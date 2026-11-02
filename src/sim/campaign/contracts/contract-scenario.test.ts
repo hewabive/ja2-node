@@ -75,7 +75,7 @@ function answer(c: CampaignSim, rec: Recorder, choice: string): unknown {
 
 function renewalScenario(drive: Driver): string {
   const { campaign: c, roster } = createContractCampaign(kit, {
-    seed: 11,
+    seed: 12,
     hires: [
       { profile: STUB.kestrel, length: 1 },
       { profile: STUB.moraga, length: 1 },

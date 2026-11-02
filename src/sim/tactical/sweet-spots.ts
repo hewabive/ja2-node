@@ -2,8 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Add.cc FindGridNoFromSweetSpot, FindGridNoFromSweetSpotThroughPeople,
 // @src FindGridNoFromSweetSpotWithStructData, FindGridNoFromSweetSpotWithStructDataFromSoldier (the bump's variant),
-// @src FindGridNoFromSweetSpotExcludingSweetSpot, FindRandomGridNoFromSweetSpot (2026-11-01); Tactical/PathAI.h
-// @src SaveNPCBudgetAndDistLimit (the dummy soldier's flood); TileEngine/GridSquare.cc GridSquare.
+// @src FindGridNoFromSweetSpotExcludingSweetSpot, FindRandomGridNoFromSweetSpot (2026-11-01),
+// @src FindGridNoFromSweetSpotExcludingSweetSpotInQuardent (its SOUTHEAST quadrant, the only one it narrows, 2026-11-02);
+// @src Tactical/PathAI.h SaveNPCBudgetAndDistLimit (the dummy soldier's flood); TileEngine/GridSquare.cc GridSquare.
 
 import {
   cardinalSpacesAway,
@@ -163,6 +164,21 @@ export function findGridNoFromSweetSpotNearSoldier(t: TacticalState, s: Soldier,
 
 export function findGridNoFromSweetSpotExcludingSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
   return lowestRanked(gridSquare(sweet, radius), (g) => (g !== sweet && freeFor(t, s, g) ? rangeInCellCoords(sweet, g) : null));
+}
+
+export function findGridNoFromSweetSpotExcludingSweetSpotInSouthEastQuadrant(
+  t: TacticalState,
+  s: Soldier,
+  sweet: number,
+  radius: number,
+): number {
+  const quadrant: number[] = [];
+  for (let dy = 0; dy <= radius; dy++)
+    for (let dx = 0; dx <= radius; dx++) {
+      const g = sweet + WORLD_COLS * dy + dx;
+      if (g !== sweet && onSweetSpotRow(sweet, dy, g)) quadrant.push(g);
+    }
+  return lowestRanked(quadrant, (g) => (freeFor(t, s, g) ? rangeInCellCoords(sweet, g) : null));
 }
 
 function onSweetSpotRow(sweet: number, dy: number, g: number): boolean {

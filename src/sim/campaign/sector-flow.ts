@@ -15,7 +15,8 @@
 // @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules); Soldier_Control.cc
 // @src SoldierTakeDamage (the player activity of a hit); GameScreen.cc MainGameScreenHandle (TacticalScreenLocateToSoldier
 // @src with the merc it locates, and the screen entry after a load), Merc_Entering.cc
-// @src HandleHeliDrop (the first seat's selection; the arrival quotes of each drop, Soldier_Ani.cc:988, 2026-11-01),
+// @src HandleHeliDrop (the first seat's selection; the arrival quotes of each drop, Soldier_Ani.cc:988, 2026-11-01; the
+// @src landing's code 467 for each merc in seat order, 2026-11-02),
 // @src Squads.cc RemoveCharacterFromSquads
 // @src (UpdateCurrentlySelectedMerc on the game screen), Overhead.cc
 // @src RemoveSoldierFromTacticalSector and Soldier_Create.cc InternalTacticalRemoveSoldier (the selection, 2026-10-31);
@@ -103,6 +104,7 @@ import { callAvailableEnemiesTo } from '../tactical/doors/door-traps.ts';
 import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
+import { stepAwayFromHelicopter } from '../tactical/helicopter-landing.ts';
 import {
   addCreaturesToBattle,
   addEnemiesToBattle,
@@ -913,14 +915,18 @@ export class SectorFlow {
     if (!t) return;
     order.code = Insertion.NORTH;
     const merc = this.setup.roster.get(s.id);
-    updateMercInSector(t, s, order, this.#insertionContext(merc ?? null));
-    this.#heliSeats.push(s);
+    const placed = updateMercInSector(t, s, order, this.#insertionContext(merc ?? null));
+    if (this.campaign.state.didGameJustStart) this.#heliSeats.push(s);
+    else if (placed) stepAwayFromHelicopter(t, s);
   }
 
   endHelicopterDrop(): void {
     const seats = this.#heliSeats;
     this.#heliSeats = [];
-    for (const s of seats) this.campaign.contracts?.droppedFromHelicopter(s.id);
+    for (const s of seats) {
+      if (s.placed) this.#withTactical((t) => stepAwayFromHelicopter(t, s));
+      this.campaign.contracts?.droppedFromHelicopter(s.id);
+    }
     const first = seats[0];
     if (first) this.#withTactical((t) => selectSoldier(t, first, SelectFlags.FORCE_RESELECT));
   }

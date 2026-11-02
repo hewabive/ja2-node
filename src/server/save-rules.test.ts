@@ -170,6 +170,7 @@ describe('save rules', () => {
     await withKit(async (k) => {
       const writes = recordWrites(k);
       const session = await k.open({ seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME } });
+      session.advance({ idle: true });
       expect(await k.saves.save(session, { description: 'mine' })).toMatchObject({ ok: false, refused: 'deadIsDead' });
       expect(await k.saves.save(session, { name: 'quick' })).toMatchObject({ ok: true, name: DEAD_IS_DEAD_NAME, kind: 'deadIsDead' });
       expect(session.advance({ ticks: 5 }).events.some((e) => (e as { type: string }).type === 'gameSaved')).toBe(false);
@@ -201,6 +202,7 @@ describe('save rules', () => {
       await k.saves.flush();
       expect(writes.slice(beforeLoad).map((w) => w.name)).toEqual([DEAD_IS_DEAD_NAME]);
       const shutdownSession = await k.open({ seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: 'Shutdown' } });
+      shutdownSession.advance({ idle: true });
       await k.saves.shutdown();
       expect(writes.at(-1)).toMatchObject({ name: 'Shutdown', tick: shutdownSession.sim.tick });
       expect(await k.store.read('Shutdown')).not.toBeNull();

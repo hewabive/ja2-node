@@ -234,6 +234,7 @@ describe('our attack on a head miner in tactical reaches his mine (NarrativePort
       profile: Npc.FRED,
     });
     fred.neutral = false;
+    Object.assign(merc, { direction: Direction.SOUTH, desiredDirection: Direction.SOUTH });
     const shoot = () => {
       const target = c.tactical?.state.soldiers[TEAM_FIRST_ID[Team.CIV]]?.gridNo;
       expect(c.dispatch({ type: 'attack', soldier: merc.id, target })).toEqual({ ok: true });

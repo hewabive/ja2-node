@@ -15,10 +15,12 @@ import { reloadPoint } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { MapModificationType } from '../../content/formats/savegame-temp-files.ts';
 import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import { idiv } from '../../core/int.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
@@ -96,6 +98,7 @@ const HANGAR_DOOR = 8374;
 const HANGAR_WALL = HANGAR_DOOR + 1;
 const HANGAR_FLOOR = HANGAR_WALL - 160;
 const GROUND_LEVEL = 0;
+const LANDING_WALK_RADIUS = 3;
 
 describe('loading a sector from the strategic layer', () => {
   it('lands the first squad in A9 and places the garrison from the strategic counts', () => {
@@ -118,6 +121,30 @@ describe('loading a sector from the strategic layer', () => {
     expect(t.rng).toBe(campaign.state.rng);
     expect(t.pre).toBe(campaign.state.pre);
     expect(t.profiles).toBe(campaign.state.profiles);
+  });
+
+  it('turns each dropped merc east and walks him to the closest free tile of his south-east quadrant (Soldier_Ani.cc code 467)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 5, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const t = campaign.tactical?.state;
+    if (!t) throw new Error('no sector');
+    const landed = new Map(
+      ourSoldiers(campaign).map((s) => [s.id, { gridNo: s.gridNo, eastFree: whoIsThere(t, s.gridNo + 1, 0) === null }]),
+    );
+    expect(new Set(ourSoldiers(campaign).map((s) => s.direction))).toEqual(new Set([Direction.EAST]));
+    runUntilIdle(campaign);
+    const steps = ourSoldiers(campaign).map((s) => {
+      const from = landed.get(s.id) ?? { gridNo: s.gridNo, eastFree: false };
+      const east = (s.gridNo % WORLD_COLS) - (from.gridNo % WORLD_COLS);
+      const south = idiv(s.gridNo, WORLD_COLS) - idiv(from.gridNo, WORLD_COLS);
+      return { east, south, eastFree: from.eastFree, direction: s.direction };
+    });
+    const inQuadrant = ({ east, south }: { east: number; south: number }) =>
+      east >= 0 && south >= 0 && east <= LANDING_WALK_RADIUS && south <= LANDING_WALK_RADIUS && east + south > 0;
+    expect(steps.every(inQuadrant)).toBe(true);
+    const eastward = steps.filter((step) => step.eastFree);
+    expect(eastward.length).toBeGreaterThan(0);
+    expect(eastward).toEqual(eastward.map((step) => ({ ...step, east: 1, south: 0, direction: Direction.EAST })));
   });
 
   it('uses the guide description of a described town sector once, H13 only with sci-fi', () => {
@@ -220,6 +247,7 @@ describe('leaving a sector', () => {
   it('keeps the dropped items, corpses and revealed tiles of A9 and ages the corpses by the days away', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);
+    runUntilIdle(campaign);
     const merc = ourSoldiers(campaign)[0];
     if (!merc) throw new Error('no merc');
     expect(campaign.dispatch({ type: 'drop', soldier: merc.id, slot: InvSlot.HAND })).toEqual({ ok: true });
