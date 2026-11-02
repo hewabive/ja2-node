@@ -1,8 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { createItem } from '../items/object.ts';
+import { createStrategicState } from '../strategic/state.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { createSoldier, Personality, Team } from '../tactical/soldier.ts';
 import { createMercRecord, createRosterState } from './merc-record.ts';
+import { offMapCombatContext } from './off-map-combat.ts';
 import { MercKind, Roster, RosterMerc } from './roster.ts';
 
 let content: TacticalContent;
@@ -98,5 +101,24 @@ describe('the effective stats', () => {
     expect(m.effective.expLevel).toBe(2);
     m.sector = { x: 13, y: 9, z: 0 };
     expect(m.effective.expLevel).toBe(3);
+  });
+});
+
+describe("a doctor's bandage of a bleeding patient (Assignments.cc BandageBleedingDyingPatientsBeingTreated)", () => {
+  const PATIENT_BLEEDING = 20;
+  const KIT_STATUS = 100;
+  const KIT_POINTS_USED = 6;
+  const BLEEDING_LEFT = 7;
+
+  it('dresses the wound with the medical kit as VirtualSoldierDressWound does, and reports the kit points used', () => {
+    const state = createRosterState();
+    const r = new Roster({ state, content, combat: () => offMapCombatContext(createStrategicState(), content) });
+    const doctor = merc(1);
+    const patient = merc(2);
+    for (const m of [doctor, patient]) r.add(m);
+    patient.soldier.bleeding = PATIENT_BLEEDING;
+    const kit = createItem(content.items, content.items.byName.get('MEDICKIT')?.index ?? -1, KIT_STATUS);
+    const used = r.dressWound(doctor.id, patient.id, kit, KIT_STATUS, KIT_STATUS);
+    expect([used, patient.soldier.bleeding]).toEqual([KIT_POINTS_USED, BLEEDING_LEFT]);
   });
 });

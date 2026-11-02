@@ -81,7 +81,7 @@ describe('bandaging after a victory', () => {
     const env = arEnv(content);
     const kit = medic.inv[InvSlot.SMALLPOCK1];
     if (!kit) throw new Error('no kit');
-    expect(dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100)).toBe(14);
+    expect(dressWound(env.content.items, combatContext(env, ar), medic, patient, kit, 100, 100)).toBe(14);
     expect(patient.life).toBe(15);
     expect(patient.bleeding).toBe(11);
   });
@@ -95,7 +95,7 @@ describe('bandaging after a victory', () => {
       const env = arEnv(content, { world: { loadedSector } });
       const kit = medic.inv[InvSlot.SMALLPOCK1];
       if (!kit) throw new Error('no kit');
-      return dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100);
+      return dressWound(env.content.items, combatContext(env, ar), medic, patient, kit, 100, 100);
     };
     expect(dressed(null)).toBe(15);
     expect(dressed({ z: 1 })).toBe(14);
@@ -108,7 +108,7 @@ describe('bandaging after a victory', () => {
       const env = arEnv(content);
       const kit = medic.inv[InvSlot.SMALLPOCK1];
       if (!kit) throw new Error('no kit');
-      dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100);
+      dressWound(env.content.items, combatContext(env, ar), medic, patient, kit, 100, 100);
       return [patient.life, patient.bleeding, patient.dyingComment, patient.warnedAboutBleeding];
     };
     expect(dress(10, 20)).toEqual([15, 11, false, true]);
@@ -139,7 +139,7 @@ describe('bandaging after a victory', () => {
       const env = arEnv(content);
       const firstAid = medic.inv[InvSlot.SMALLPOCK1];
       if (!firstAid) throw new Error('no kit');
-      return dressWound(env, combatContext(env, ar), medic, patient, firstAid, 100, 100);
+      return dressWound(env.content.items, combatContext(env, ar), medic, patient, firstAid, 100, 100);
     };
     const inHand = kit(InvSlot.HAND);
     expect(kit(InvSlot.HELMET)).toBe(inHand + Math.trunc(inHand / 2));

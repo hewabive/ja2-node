@@ -3,6 +3,7 @@ import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../items/object.ts';
 import { findObj, NO_SLOT } from '../strategic/economy/kits.ts';
 import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
+import { dressWound as virtualSoldierDressWound } from '../strategic/forces/autoresolve/bandage.ts';
 import { TravelStat, VehicleRole } from '../strategic/forces/ports.ts';
 import type { CombatContext } from '../tactical/combat/context.ts';
 import { StatCause, statChange } from '../tactical/combat/experience.ts';
@@ -450,7 +451,6 @@ export interface RosterHooks {
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
   spendVehicleFuel(vehicle: RosterMerc, fuel: number): number;
   roomOf(merc: RosterMerc): number;
-  dressWound(doctor: RosterMerc, patient: RosterMerc, kit: ItemObject, kitPoints: number, kitStatus: number): number;
   assignToSquad(merc: RosterMerc, squad: number): void;
 }
 
@@ -463,7 +463,6 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
   collapseFromFatigue: () => {},
   spendVehicleFuel: () => 0,
   roomOf: () => NO_ROOM,
-  dressWound: () => 0,
   assignToSquad: (merc, squad) => {
     merc.assignment = squad;
   },
@@ -651,7 +650,7 @@ export class Roster implements CrewPort {
   dressWound(doctor: number, patient: number, kit: ItemObject, kitPoints: number, kitStatus: number): number {
     const d = this.get(doctor);
     const p = this.get(patient);
-    return d && p ? this.hooks.dressWound(d, p, kit, kitPoints, kitStatus) : 0;
+    return d && p ? virtualSoldierDressWound(this.#content.items, this.#combat(), d.soldier, p.soldier, kit, kitPoints, kitStatus) : 0;
   }
 
   setVehicleRole(id: number, role: number): void {

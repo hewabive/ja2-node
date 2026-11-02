@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Auto_Resolve.cc VirtualSoldierDressWound (with the quote flags it clears), FindMedicalKit, AutoBandageMercs, IsAnybodyWounded,
 // @src CanAnybodyBandage, DetermineBandageButtonState, SetupDoneInterface; Tactical/Items.cc TotalPoints, UseKitPoints.
 
-import { ItemClass } from '../../../../content/items/items.ts';
+import { ItemClass, type ItemTable } from '../../../../content/items/items.ts';
 import { i8, idiv, u8, u16, u32 } from '../../../../core/int.ts';
 import { deleteObject, type ItemObject } from '../../../items/object.ts';
 import { MIN_BLEEDING_THRESHOLD } from '../../../tactical/combat/bleeding.ts';
@@ -44,10 +44,10 @@ export function useKitPoints(o: ItemObject, original: number): number {
   return original - points;
 }
 
-const isMedicKit = (env: AutoresolveEnv, item: number) => env.content.items.byName.get('MEDICKIT')?.index === item;
+const isMedicKit = (items: ItemTable, item: number) => items.byName.get('MEDICKIT')?.index === item;
 
 export function dressWound(
-  env: AutoresolveEnv,
+  items: ItemTable,
   ctx: CombatContext,
   medic: Soldier,
   victim: Soldier,
@@ -62,14 +62,14 @@ export function dressWound(
   );
   let possible = u32(idiv(RT_FIRST_AID_GAIN_MODIFIER * skill, POSSIBLE_DIVISOR));
   if (possible === 0) return 0;
-  if (isMedicKit(env, medic.inv[InvSlot.HELMET]?.item ?? -1)) possible = u32(possible + idiv(possible, 2));
+  if (isMedicKit(items, medic.inv[InvSlot.HELMET]?.item ?? -1)) possible = u32(possible + idiv(possible, 2));
   let actual = possible;
   const below = victim.life >= OKLIFE ? 0 : OKLIFE - victim.life;
   let deficiency = 2 * below;
   if (victim.bleeding - below > 0) deficiency += victim.bleeding - below;
   actual = Math.min(actual, deficiency);
   let cost: number;
-  if (isMedicKit(env, kit.item)) {
+  if (isMedicKit(items, kit.item)) {
     cost = idiv(actual, 2);
     if (cost === 0 && actual > 0) cost = 1;
     if (cost > kitPoints) {
@@ -150,7 +150,7 @@ function bandageSelf(env: AutoresolveEnv, ctx: CombatContext, s: Soldier, firstS
       slot = next;
       continue;
     }
-    useKitPoints(kit, dressWound(env, ctx, s, s, kit, points, points));
+    useKitPoints(kit, dressWound(env.content.items, ctx, s, s, kit, points, points));
     if (++passes > SELF_BANDAGE_PASS_LIMIT) break;
   }
   return kit;
@@ -181,7 +181,7 @@ function bandageTeam(
         continue;
       }
       const before = { life: s.life, bleeding: s.bleeding };
-      const cost = dressWound(env, ctx, medic, s, kit, points, points);
+      const cost = dressWound(env.content.items, ctx, medic, s, kit, points, points);
       useKitPoints(kit, cost);
       used += cost;
       if (cost === 0 && s.life === before.life && s.bleeding === before.bleeding) return { complete: false, pointsUsed: used };
