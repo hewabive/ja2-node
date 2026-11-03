@@ -139,6 +139,9 @@ In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 
   the real-time driver stays in real time, but its batches run no ticks, log nothing and drop the elapsed time; time
   runs on by itself once the decision is resolved. The game page itself switches a running real-time driver to manual
   while it shows something modal (`28` §3).
+- **No viewer, no real time.** When the last subscriber leaves, the host switches a real-time driver to manual
+  through its input queue, unless a viewer is back by then (`InProcessHost.subscribe`, `src/server/session-host.ts`);
+  the switch is a logged `drive` input like any other.
 - **Equal outcomes.** Turn-based combat gives the same outcome under every driver; real time does too when commands
   arrive at the same ticks. An agent that orders while paused is a player with zero reaction time. The original can
   pause tactical play, but masks the screen and accepts no orders while paused (`Strategic/Game_Clock.cc:795-835`,

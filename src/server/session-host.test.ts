@@ -11,6 +11,7 @@ const BUSY_TICK_MS = 2;
 const LONG_ADVANCE_TICKS = 150;
 const EVENT_EVERY_TICKS = 7;
 const EVERY_STEP = 0;
+const REAL_TIME = { mode: 'realtime', speed: 1 } as const;
 
 interface Walker extends SessionSim {
   views: number;
@@ -161,6 +162,36 @@ describe('the in-process session host', () => {
     const shown = framesOf(messages).reduce((soldiers, f) => applyFrame(soldiers, f), welcome.view.soldiers);
     expect(shown[0]?.x).toBe(80);
     expect(framesOf(messages).flatMap((f) => f.events ?? []).length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the manual driver when the last viewer leaves real time', async () => {
+    const host = new InProcessHost(new Session('watched', walker()), { slicer: everyStep() });
+    const first = host.subscribe(() => undefined);
+    const second = host.subscribe(() => undefined);
+    await host.setDriver(REAL_TIME);
+    second();
+    await host.inputLog();
+    expect(host.session.driver).toEqual(REAL_TIME);
+    first();
+    first();
+    const log = await host.inputLog();
+    expect(host.session.driver).toEqual({ mode: 'manual' });
+    expect(log.entries.filter((e) => e.kind === 'drive').map((e) => e.payload)).toEqual([
+      { driver: REAL_TIME },
+      { driver: { mode: 'manual' } },
+    ]);
+  });
+
+  it('keeps real time for a viewer who is back before the fallback runs', async () => {
+    const host = new InProcessHost(new Session('reloaded', walker()), { slicer: everyStep() });
+    const leaving = host.subscribe(() => undefined);
+    await host.setDriver(REAL_TIME);
+    leaving();
+    const returned = host.subscribe(() => undefined);
+    await host.inputLog();
+    expect(host.session.driver).toEqual(REAL_TIME);
+    await host.close();
+    returned();
   });
 
   it('refuses calls after close and closes once', async () => {

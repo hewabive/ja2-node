@@ -93,6 +93,7 @@ export interface InProcessHostOptions {
 }
 
 const NO_SAVES = 'saves are not available';
+const MANUAL: DriverMode = { mode: 'manual' };
 
 export function closedSessionError(id: string): Error {
   return new Error(`session ${id} is closed`);
@@ -189,7 +190,19 @@ export class InProcessHost implements SessionHost {
   }
 
   subscribe(listener: Listener): () => void {
-    return this.session.subscribe(listener);
+    const unsubscribe = this.session.subscribe(listener);
+    return () => {
+      unsubscribe();
+      if (this.#realTimeUnwatched()) void this.#queued('drive', () => this.#stopUnwatchedRealTime()).catch(() => undefined);
+    };
+  }
+
+  #realTimeUnwatched(): boolean {
+    return !this.#closing && this.session.viewers === 0 && this.session.driver.mode === 'realtime';
+  }
+
+  #stopUnwatchedRealTime(): Promise<void> | undefined {
+    return this.#realTimeUnwatched() ? this.session.setDriverSliced(MANUAL, this.#slicer) : undefined;
   }
 
   save(request: SaveRequest): Promise<SaveOutcome> {

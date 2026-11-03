@@ -205,7 +205,8 @@ real-time batches with the same stop conditions (`Session.waitInRealtime`, `Adva
 holds, after 30 s at most with `timeout` (call again), or `refused` when real time stops; a strategic advance is
 refused, as the viewer compresses on the map screen (deviation "Advance with a real-time viewer"). The wait holds no
 place in the host's input queue, so the player's commands go through meanwhile and nothing enters the input log. The
-browser's own `advance` requests (a compression to a world time, autoresolve slices) still run ticks.
+browser's own `advance` requests (a compression to a world time, autoresolve slices) still run ticks. When the last
+viewer leaves, the session falls back to the manual driver (`04` §4.3) and a waiting `advance` answers `refused`.
 
 ## 5. Commands, refusals and modal states
 
