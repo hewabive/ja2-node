@@ -76,6 +76,9 @@ into `docs/`.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/gaps.md`: behaviour not ported yet and code that does not follow this file yet; add to it when leaving
   something out, drop the entry when it is done.
+- Bugs and planned work beyond porting the original (agent API, client, server, tooling) are GitHub issues
+  (`gh issue`), not docs: in English, labelled, and free of original game data like the repository (no screenshots or
+  extracted text).
 - `docs/test-stability.md`: tests that fail without a code change; record every such failure there.
 - `docs/releases.md`: release notes.
 - `tools/oracle/README.md`: the native oracle (probe build, probes, comparers).
