@@ -127,6 +127,10 @@ export class Player {
     return this.#view;
   }
 
+  get lastView(): Observation | null {
+    return this.#view;
+  }
+
   item(name: string | undefined): ItemDef | undefined {
     return name === undefined ? undefined : this.items.byName.get(name);
   }

@@ -48,7 +48,7 @@ test('the main flow on /play with the shadow mode on: a new game, an A.I.M. hire
     expect(flow.shadow.tactical, 'tactical hints compared with the server').toBeGreaterThan(0);
     expect(flow.shadow.map, 'map hints compared with the server').toBeGreaterThan(0);
   } catch (error) {
-    console.log(`main flow state: ${JSON.stringify(await flow.state().catch(() => null))}`);
+    console.log(await flow.failureReport());
     throw error;
   } finally {
     const saved = await flow.savedNamed(description).catch(() => null);

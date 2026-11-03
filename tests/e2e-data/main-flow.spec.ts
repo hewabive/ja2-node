@@ -40,7 +40,7 @@ test('the main flow on the original data, structure only: a new game, an A.I.M. 
     expect(flow.shadow.tactical).toBeGreaterThan(0);
     expect(flow.shadow.map).toBeGreaterThan(0);
   } catch (error) {
-    console.log(`main flow state: ${JSON.stringify(await flow.state().catch(() => null))}`);
+    console.log(await flow.failureReport());
     throw error;
   } finally {
     const saved = await flow.savedNamed(description).catch(() => null);

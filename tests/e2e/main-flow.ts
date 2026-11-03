@@ -37,6 +37,7 @@ const FIRST_ROW = 0;
 const MAX_BEGINNING_VIDEOS = 8;
 const SAVE_DESCRIPTION_FIELD = 'description.0';
 const MARKER_TIMEOUT_MS = 30_000;
+const BOT_LOG_LINES = 300;
 
 export interface ShadowTally {
   tactical: number;
@@ -107,6 +108,7 @@ export class MainFlow {
   readonly shadow: ShadowTally = { tactical: 0, map: 0 };
   session = '';
   #player: Player | null = null;
+  readonly #botLog: string[] = [];
 
   constructor(page: Page, game: McpGame) {
     this.page = page;
@@ -254,8 +256,38 @@ export class MainFlow {
   }
 
   async player(): Promise<Player> {
-    this.#player ??= new Player(this.game, this.session, await loadItems(), () => {});
+    if (!this.#player) {
+      const player = new Player(this.game, this.session, await loadItems(), (line) => this.#logBot(line));
+      player.trace = true;
+      player.verbose = true;
+      this.#player = player;
+    }
     return this.#player;
+  }
+
+  #logBot(line: string): void {
+    this.#botLog.push(line);
+    if (this.#botLog.length > BOT_LOG_LINES) this.#botLog.shift();
+  }
+
+  async failureReport(): Promise<string> {
+    const state = await this.state().catch(() => null);
+    const replay = await this.#snapshotForReplay().catch((error: Error) => `none (${error.message})`);
+    return [`main flow state: ${JSON.stringify(state)}`, `input log for a replay: save ${replay}`, ...this.#botReport()].join('\n');
+  }
+
+  async #snapshotForReplay(): Promise<string> {
+    if (!this.session) return 'none (no session)';
+    const name = `main-flow-failure-${Date.now()}`;
+    const reply = await this.page.request.post(`/api/sessions/${encodeURIComponent(this.session)}/snapshot`, { data: { name } });
+    return reply.ok() ? name : `none (${reply.status()})`;
+  }
+
+  #botReport(): string[] {
+    const view = this.#player?.lastView ?? null;
+    const soldiers = (view?.soldiers ?? []).map((s) => `${s.id}/${s.team}@${s.gridNo} ap ${s.ap} life ${s.life} anim ${s.animation}`);
+    const last = view ? { combat: view.combat ?? null, flow: view.strategic?.flow, soldiers } : null;
+    return [`bot's last view: ${JSON.stringify(last)}`, `bot's last ${this.#botLog.length} log lines:`, ...this.#botLog];
   }
 
   async approach(): Promise<BattleResult> {
