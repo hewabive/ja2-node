@@ -35,3 +35,12 @@ describe('the A.I.M. member order', () => {
     expect(memory.order).toEqual([10, 11, 12, 13]);
   });
 });
+
+describe('a laptop entry', () => {
+  it('restarts the A.I.M. connection snow and keeps the rest of the conference', () => {
+    const memory = aimMemory();
+    Object.assign(memory.conference, { count: 7, firstTimeInContact: false, attitude: 3, contractLength: 2 });
+    AimSession.enterLaptop(memory);
+    expect(memory.conference).toMatchObject({ count: 0, firstTimeInContact: true, attitude: 3, contractLength: 2 });
+  });
+});

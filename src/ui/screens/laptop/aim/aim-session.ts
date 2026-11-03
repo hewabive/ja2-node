@@ -3,10 +3,11 @@
 // @src src/game/Laptop/AIMSort.cc GameInitAimSort (price, descending), EnterAimSort (the list reset to the A.I.M. listing
 // @src order), ExitAimSort and MercArrayCompare (weekly salary, level, marksmanship, medical, explosives, mechanical; the
 // @src original's std::sort is unstable, the listing order breaks ties here); src/game/Laptop/AIMMembers.cc gbCurrentIndex,
-// @src giCurrentSubPage (the conference mode restored on re-entry), the distortion statics, usAimMercSpeechDuration.
+// @src giCurrentSubPage (the conference mode restored on re-entry), the conference's statics, usAimMercSpeechDuration,
+// @src EnterInitAimMembers (the connection snow restarted at every laptop entry).
 
 import type { AimMercView } from '../../../../protocol/view.ts';
-import { type DistortionClocks, distortionClocks } from './aim-distortion.ts';
+import { type ConferenceMemory, conferenceMemory, restartContactSnow } from './aim-conference.ts';
 
 export const AimSortCriterion = { PRICE: 0, EXPERIENCE: 1, MARKSMANSHIP: 2, MEDICAL: 3, EXPLOSIVES: 4, MECHANICAL: 5 } as const;
 export const AIM_ASCEND = 6;
@@ -20,7 +21,7 @@ export interface AimMemory {
   index: number;
   conferenceSubPage: number;
   speechDuration: number;
-  readonly distortion: DistortionClocks;
+  readonly conference: ConferenceMemory;
 }
 
 export function aimMemory(): AimMemory {
@@ -31,7 +32,7 @@ export function aimMemory(): AimMemory {
     index: 0,
     conferenceSubPage: 0,
     speechDuration: 0,
-    distortion: distortionClocks(),
+    conference: conferenceMemory(),
   };
 }
 
@@ -65,6 +66,11 @@ export class AimSession {
 
   constructor(memory: AimMemory) {
     this.memory = memory;
+  }
+
+  static enterLaptop(memory: AimMemory): AimSession {
+    restartContactSnow(memory.conference);
+    return new AimSession(memory);
   }
 
   resetOrder(mercs: readonly AimMercView[]): void {

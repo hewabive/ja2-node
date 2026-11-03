@@ -6,6 +6,7 @@ import {
   type ConferencePorts,
   ConferenceQuote,
   ContractLength,
+  conferenceMemory,
   FIRST_ATTITUDE_TIME,
   MINIMUM_TALKING_TIME,
   SNOW_FRAMES,
@@ -18,7 +19,7 @@ import {
   titleBarRect,
   VideoMode,
 } from './aim-conference.ts';
-import { CONTACT_SNOW_NOISE, DISTORTION_PICK_TIME, DistortionAsset, distortionClocks, StaticMode } from './aim-distortion.ts';
+import { CONTACT_SNOW_NOISE, DISTORTION_PICK_TIME, DistortionAsset, StaticMode } from './aim-distortion.ts';
 
 const STEP_MS = 16;
 const QUOTE_MS = 1000;
@@ -149,9 +150,13 @@ function runUntil(conference: Conference, from: number, done: () => boolean): nu
   throw new Error('the conference never got there');
 }
 
+function callFrom(conference: Conference, from: number): number {
+  conference.open(from);
+  return runUntil(conference, from, () => conference.face === 'face');
+}
+
 function faceUp(conference: Conference): number {
-  conference.open(0);
-  return runUntil(conference, 0, () => conference.face === 'face');
+  return callFrom(conference, 0);
 }
 
 function nextQuote(conference: Conference, p: FakePorts, from: number): number {
@@ -198,6 +203,22 @@ describe('the A.I.M. video conference', () => {
     const up = runUntil(conference, now, () => conference.mode !== VideoMode.INIT);
     expect([conference.mode, conference.face, conference.snowFrame]).toEqual([VideoMode.FIRST_CONTACT, 'face', 0]);
     expect(snowFrames(conference, up)).toEqual([0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5]);
+  });
+
+  it('cuts the next black short by the snow steps a call hung up during its snow left, as INIT keeps the step count', () => {
+    const conference = new Conference(ports(), STEP_MS);
+    const blackTime = (from: number): { black: number; up: number } => {
+      conference.open(from);
+      const black = runUntil(conference, from, () => conference.mode === VideoMode.INIT);
+      const up = runUntil(conference, black, () => conference.face === 'face');
+      return { black: up - black, up };
+    };
+    const first = blackTime(0);
+    conference.hangUp();
+    const closed = runUntil(conference, first.up, () => conference.mode === VideoMode.NOT_DISPLAYED);
+    const next = blackTime(closed);
+    expect(next.black).toBeLessThan(first.black / 2);
+    expect(snowFrames(conference, next.up)).toEqual([0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5]);
   });
 
   it('greets once the snow over his face has passed, with static4.wav under the snow', () => {
@@ -392,16 +413,17 @@ describe('the A.I.M. video conference', () => {
   });
 
   it('starts every new face without static, keeping the frame counters of the last conference', () => {
-    const clocks = distortionClocks();
+    const memory = conferenceMemory();
+    const clocks = memory.distortion;
     const p = ports();
     p.roll = FUZZY_ROLL;
-    const first = new Conference(p, STEP_MS, clocks);
+    const first = new Conference(p, STEP_MS, memory);
     pastTheFirstRoll(first, connect(first));
     expect(clocks.mode).toBe(StaticMode.FUZZY_LINE);
     first.close();
     const line = { ...clocks.line };
     p.roll = CLEAN_ROLL;
-    const next = new Conference(p, STEP_MS, clocks);
+    const next = new Conference(p, STEP_MS, memory);
     connect(next);
     expect(next.mode).toBe(VideoMode.FIRST_CONTACT);
     expect(clocks.mode).toBe(StaticMode.NO_STATIC);
@@ -646,5 +668,30 @@ describe('an A.I.M. merc kept waiting', () => {
     nextQuote(hungUp, hanging, faceUp(hungUp));
     hungUp.hangUp();
     expect([hungUp.mode, hanging.shutUps]).toEqual([VideoMode.POPDOWN, 1]);
+  });
+
+  it('hangs up the next call after its contract length quote when Transfer Funds cut his hang-up comment and OK beat the acceptance quote', async () => {
+    const memory = conferenceMemory();
+    const p = ports();
+    const first = new Conference(p, STEP_MS, memory);
+    let now = faceUp(first);
+    first.hire();
+    await flush();
+    while (p.said.at(-1) !== ConferenceQuote.COMMENT_BEFORE_HANG_UP) now = nextQuote(first, p, now);
+    first.transferFunds();
+    await flush();
+    now = advance(first, now + STEP_MS, SPEECH_DELAY / 2);
+    first.popupOk();
+    now = runUntil(first, now, () => first.mode === VideoMode.NOT_DISPLAYED);
+    expect(p.said).not.toContain(ConferenceQuote.CONTRACT_ACCEPTANCE);
+
+    const next = new Conference(p, STEP_MS, memory);
+    now = callFrom(next, now);
+    next.hire();
+    await flush();
+    const length = nextQuote(next, p, now);
+    expect([p.said.at(-1), next.mode]).toEqual([ConferenceQuote.LENGTH_OF_CONTRACT, VideoMode.HIRE]);
+    advance(next, length, QUOTE_MS + 2 * STEP_MS);
+    expect(next.mode).toBe(VideoMode.POPDOWN);
   });
 });

@@ -275,7 +275,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
       noise: (file) => context.playSound(file, STATIC_NOISE_VOLUME),
     },
     context.settings.slideStepMs ?? 16,
-    memory.distortion,
+    memory.conference,
   );
 
   const arrivalBox = (): void => {

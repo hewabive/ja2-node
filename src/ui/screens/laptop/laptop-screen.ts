@@ -385,7 +385,7 @@ export class LaptopScreen implements Screen {
       settings: this.#settings,
       media: this.#options.media,
       shell: this.shell,
-      aim: new AimSession(this.#memory.aim),
+      aim: AimSession.enterLaptop(this.#memory.aim),
       memory: this.#memory,
       sites: laptopSites(),
       dataVersion: this.#options.dataVersion,
