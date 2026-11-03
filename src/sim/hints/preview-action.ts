@@ -6,8 +6,10 @@
 // @src UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
-// @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet).
+// @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet); Interface_Items.cc DrawItemTileCursor
+// @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03).
 
+import { NOTHING } from '../../content/items/items.ts';
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
@@ -24,6 +26,8 @@ import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
+import { InvSlot, itemIn } from '../tactical/inventory.ts';
+import { parseCount, parseSlot } from '../tactical/inventory-commands.ts';
 import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel, showsItems } from '../tactical/item-actions.ts';
 import { apsToJumpOver, jumpOverAt } from '../tactical/jump-over.ts';
 import { directionToward } from '../tactical/movement.ts';
@@ -35,11 +39,12 @@ import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quic
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
+import { AP_TOSS_ITEM, previewToss } from '../tactical/toss.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
 
-export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal'] as const;
+export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal', 'toss'] as const;
 export const UNSUPPORTED_ACTIONS = ['cutFence', 'repair', 'refuel', 'jar', 'can', 'bomb', 'enterVehicle'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
@@ -58,6 +63,9 @@ export interface PreviewAction {
   readonly inRange?: boolean;
   readonly lineOfSight?: boolean;
   readonly reload?: boolean;
+  readonly pathClear?: boolean;
+  readonly landsAt?: number;
+  readonly landsOnLevel?: number;
 }
 
 export interface PreviewActionRequest extends HintRequestBase {
@@ -68,6 +76,9 @@ export interface PreviewActionRequest extends HintRequestBase {
   readonly target?: unknown;
   readonly mode?: unknown;
   readonly zLevel?: unknown;
+  readonly slot?: unknown;
+  readonly count?: unknown;
+  readonly index?: unknown;
 }
 
 interface ActionContext {
@@ -249,12 +260,35 @@ function stealAction(c: ActionContext): ActionPart {
   };
 }
 
-function preview(c: ActionContext, kind: ActionKind, zLevel: unknown): ActionPart {
+function tossAction(c: ActionContext, req: PreviewActionRequest): ActionPart {
+  const { t, s } = c;
+  const slot = req.slot === undefined ? InvSlot.HAND : parseSlot(req.slot);
+  if (slot === null) return refused(c, 'badSlot', s.gridNo);
+  if (itemIn(s.inv, slot) === NOTHING) return refused(c, 'emptySlot', s.gridNo);
+  const count = parseCount(req.count, 'all');
+  if (count === null) return refused(c, 'badCount', s.gridNo);
+  const index = req.index ?? 0;
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
+    return refused(c, 'badIndex', s.gridNo);
+  const { refusal, landing } = previewToss(t, s, { slot, count, index, gridNo: c.g, level: c.level });
+  return {
+    ok: refusal === null,
+    ...(refusal ? { refusal } : {}),
+    apCost: AP_TOSS_ITEM,
+    actionGridNo: c.g,
+    steps: NO_STEPS,
+    pathClear: landing.ok,
+    landsAt: landing.gridNo,
+    landsOnLevel: landing.level,
+  };
+}
+
+function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest): ActionPart {
   switch (kind) {
     case 'door':
       return doorAction(c);
     case 'pickUp':
-      return pickUpAction(c, zLevel);
+      return pickUpAction(c, req.zLevel);
     case 'talk':
       return talkAction(c);
     case 'give':
@@ -269,6 +303,8 @@ function preview(c: ActionContext, kind: ActionKind, zLevel: unknown): ActionPar
       return aidAction(c);
     case 'steal':
       return stealAction(c);
+    case 'toss':
+      return tossAction(c, req);
   }
 }
 
@@ -297,6 +333,6 @@ export function previewAction(world: KnowledgeWorld, req: PreviewActionRequest):
   const mode = movementModeState(t, s, req.mode);
   return withTemporaryFields(s, { uiMovementMode: mode, reverse: false }, () => {
     const c: ActionContext = { world, t, s, g, level, mode, target: targetOf(world, t, req, g, level) };
-    return hintData(complete(acting, kind as ActionKind, preview(c, kind as ActionKind, req.zLevel)));
+    return hintData(complete(acting, kind as ActionKind, preview(c, kind as ActionKind, req)));
   });
 }

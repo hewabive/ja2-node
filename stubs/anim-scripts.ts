@@ -130,6 +130,7 @@ function steppingLoop(): number[] {
   ];
 }
 const DROP_ITEM_CODE = 487;
+const DROP_BESIDE_CODE = 763;
 const END_FIRST_AID = 768;
 const GIVE_ITEM_CODE = 486;
 const RELOAD_ROBOT_CODE = 756;
@@ -167,6 +168,7 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     END_OF_ANIMATION,
   ],
   DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  DROP_ADJACENT_OBJECT: () => [...frames(5), DROP_BESIDE_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   STEAL_ITEM: () => [
     Op.BUSY_UP,
     ...frames(6),

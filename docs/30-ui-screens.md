@@ -87,7 +87,7 @@ lock: frames arrive unevenly under the real-time driver and a tick threshold mad
 (deviations "Turn-based UI lock", "Playback lock").
 
 **The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
-until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, …) ends it; a refusal keeps it (deviation
+until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it (deviation
 "Item cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp`
 (deviation "Pickup menu").
 
@@ -191,6 +191,9 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The overhead map takes every key while it is up: only ESC, INSERT and ALT+x act, and Backspace stops no line (`TileEngine/Overhead_Map.cc:419`) | `tactical/tactical-controls.test.ts` "gives the overhead map every key while it is up …" |
 | While the overhead map is up the line already playing runs to its end with its voice and the panel face but no subtitle box or face popup, no other line starts, a civilian quote outlives its time unseen and the locators stand; all of it goes on as the map closes (`GameScreen.cc:366`, `TileEngine/Overhead_Map.cc:287`) | `tactical/tactical-screen.test.ts` "plays the line it opens over to its end …", "keeps a civilian quote past its lifetime under the overhead map …"; `tactical/tactical-controls.test.ts` "stops the locators under the overhead map …" |
 | A locator takes at most one step a frame, the first at once unless the soldier's last step is under 80 ms old, so a slow frame slows it down (`Tactical/Interface.cc:935`) | `tactical/overlays.test.ts` |
+| Over an enemy next to the merc the item cursor says Drop for a pickup's AP, while the click tosses at him (`Tactical/Interface_Items.cc:3011`, `:3323`) | `tactical/input/item-tile-cursor.test.ts` "tosses at an enemy next to him, though the cursor there says Drop …" |
+| The item cursor's crosshair stays bad from the last landing check until the pointer rests long enough on another tile, and a click before that is refused as a bad throw (`Tactical/Interface_Items.cc:3078`, `:3475`) | `tactical/input/item-tile-cursor.test.ts` "turns the crosshair bad … until the next rest …" |
+| A real-time right click within the double-click time of the last one does not swap the item cursor's give and throw (`Tactical/Real_Time_Input.cc:931`) | `tactical/tactical-screen.test.ts` "passes the held item … a real-time double click does not swap back" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | The new-mail icon opens the oldest unread mail and the new-file icon the last unread file, where the functions' names promise the most recent mail and the first file | `laptop/email/email-list.test.ts`, `laptop/files/file-pages.test.ts` |
 | With exactly twenty departed mercs, going back from the first face shows an empty page | `laptop/personnel/personnel-model.test.ts` "… the empty last page included" |

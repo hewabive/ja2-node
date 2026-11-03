@@ -24,6 +24,7 @@ const CURSOR_ITEM_COMMANDS: ReadonlySet<string> = new Set([
   'discardItem',
   'drop',
   'toss',
+  'pass',
   'give',
   'moveKey',
 ]);

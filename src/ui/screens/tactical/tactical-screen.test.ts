@@ -7,6 +7,7 @@ import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
+import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
 import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
@@ -47,6 +48,11 @@ const CROW_TILE = 100 * 160 + 100;
 const NAMED_CIVILIAN_TILE = 104 * 160 + 104;
 const NAMED_CIVILIAN_DOT = '#5555ff';
 const OVERHEAD_MAP = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+const GROUND_PICTURE = { path: 'tiles/ground-item.sti', frame: 3 };
+const MSG_DROP = 36;
+const PATHFIND_REST_MS = 100;
+const PAST_DOUBLE_CLICK_MS = 400;
+const MSG_THROW = 37;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -190,6 +196,24 @@ function freeTileBeside(f: TacticalUiTest, gridNo: number): number {
   const tile = [gridNo - 1, gridNo + 160, gridNo - 160, gridNo + 159, gridNo - 161].find(free);
   if (tile === undefined) throw new Error(`no free tile beside ${gridNo}`);
   return tile;
+}
+
+function holderOf(f: TacticalUiTest): SoldierView {
+  const holder = f.client.view.soldiers.find((s) => s.id === f.screen.inventory.cursor?.source.soldier);
+  if (!holder) throw new Error('no item held');
+  return holder;
+}
+
+function besideTheHolder(f: TacticalUiTest, holder: SoldierView, tiles: number): SoldierView {
+  const t = tacticalOf(f.session).state;
+  const mate = t.soldiers.find((s) => s?.team === 0 && s.id !== holder.id && s.placed);
+  if (!mate) throw new Error('no other merc of ours');
+  setSoldierPosition(t, mate, holder.gridNo - tiles * 160);
+  f.client.refresh();
+  f.deliver();
+  const view = f.client.view.soldiers.find((s) => s.id === mate.id);
+  if (!view) throw new Error('the mate is not in the view');
+  return view;
 }
 
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
@@ -443,9 +467,70 @@ describe('the tactical screen over a stub sandbox session', () => {
     pointerTo(f, at.x + 1, at.y);
     expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
     await f.clickAt(at.x, at.y);
-    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'drop', soldier: owner.id, slot: BIG_POCKET }, reply: { ok: true } });
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'drop', soldier: owner.id, slot: BIG_POCKET, gridNo: freeTileBeside(f, owner.gridNo) },
+      reply: { ok: true },
+    });
     pointerTo(f, at.x, at.y);
     expect([f.screen.inventory.cursor, f.screen.controls.input.mode]).toEqual([null, UiMode.MOVE_MODE]);
+  });
+
+  it('holds the item’s ground picture in the throw crosshair over the map, Drop beside the merc and Throw farther (DrawItemTileCursor)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.itemTileOf = () => GROUND_PICTURE;
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    const owner = holderOf(f);
+    centreOn(f, owner.gridNo);
+    const cursors = f.t.runtime.cursor;
+    const beside = f.world.pickPoint(freeTileBeside(f, owner.gridNo));
+    pointerTo(f, beside.x, beside.y);
+    expect([cursors.current, cursors.mouseText?.tile]).toEqual([
+      cursors.idOf('CURSOR_ITEM_GOOD_THROW'),
+      f.text.string('pMessageStrings', MSG_DROP),
+    ]);
+    const far = f.world.pickPoint(owner.gridNo - 6 * 160);
+    pointerTo(f, far.x, far.y);
+    expect([cursors.current, cursors.mouseText?.tile]).toEqual([
+      cursors.idOf('CURSOR_ITEM_GOOD_THROW'),
+      f.text.string('pMessageStrings', MSG_THROW),
+    ]);
+    expect(cursors.compose(f.t.runtime.clock.ja2Now)?.images.some((i) => i.asset === GROUND_PICTURE.path)).toBe(true);
+    f.t.frame(PATHFIND_REST_MS);
+    await f.settle();
+    f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.markers.some((m) => m.tile === 'FIRSTPOINTERS8')).toBe(true);
+  });
+
+  it('passes the held item to a merc of ours within 3 tiles; a right click swaps to the give, a real-time double click does not swap back', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    f.world.itemTileOf = () => GROUND_PICTURE;
+    const owner = holderOf(f);
+    const mate = besideTheHolder(f, owner, 2);
+    centreOn(f, mate.gridNo);
+    const at = f.world.pickPoint(mate.gridNo);
+    pointerTo(f, at.x, at.y);
+    expect(f.screen.controls.input.itemTile.catcher).toEqual({ soldier: mate.id, kind: 'pass' });
+    await f.clickAt(at.x, at.y, MouseButton.RIGHT);
+    pointerTo(f, at.x, at.y);
+    expect(f.screen.controls.input.itemTile.catcher).toEqual({ soldier: mate.id, kind: 'give' });
+    expect(f.t.runtime.cursor.current).toBe(f.t.runtime.cursor.idOf('CURSOR_ITEM_GIVE'));
+    await f.clickAt(at.x, at.y, MouseButton.RIGHT);
+    pointerTo(f, at.x, at.y);
+    expect(f.screen.controls.input.itemTile.catcher?.kind).toBe('give');
+    f.t.frame(PAST_DOUBLE_CLICK_MS);
+    await f.clickAt(at.x, at.y, MouseButton.RIGHT);
+    pointerTo(f, at.x, at.y);
+    expect(f.screen.controls.input.itemTile.catcher?.kind).toBe('pass');
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'pass', soldier: owner.id, slot: BIG_POCKET, target: mate.id },
+      reply: { ok: true, data: { passed: true } },
+    });
+    pointerTo(f, at.x, at.y);
+    expect(f.screen.inventory.cursor).toBeNull();
   });
 
   it('goes back to move mode once the held item, carried over the map, goes into a slot (UIHandleItemPlacement)', async () => {

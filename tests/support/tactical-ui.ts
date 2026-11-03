@@ -276,8 +276,10 @@ export class FakeWorld implements WorldPresenter {
     this.selected = id;
   }
 
-  itemTile(): UiImageRef | null {
-    return null;
+  itemTileOf: (item: CatalogueItem) => UiImageRef | null = () => null;
+
+  itemTile(item: CatalogueItem): UiImageRef | null {
+    return this.itemTileOf(item);
   }
 
   pointerBox(): UiImageRef | null {

@@ -627,6 +627,15 @@ describe('the sound director', () => {
     expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
   });
 
+  it('sounds a drop at the feet from its event and leaves a drop beside the merc to its animation code 763', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'itemDropped', tick: 10, soldier: 1, gridNo: G, beside: true }])]);
+    expect(files(r)).toEqual([]);
+    r.director.applyFrames([frame(20, [], [{ type: 'itemDropped', tick: 20, soldier: 1, gridNo: G }])]);
+    expect(files(r)).toEqual([book.paths.get('THROW_IMPACT_2')]);
+  });
+
   it('closes the crate of a Bobby Ray delivery silently and keeps quiet about containers open when the sector loads', () => {
     const r = rig(world(1, [], 5));
     r.director.reset([], [G]);

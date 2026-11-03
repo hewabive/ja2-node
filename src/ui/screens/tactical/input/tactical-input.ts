@@ -27,7 +27,9 @@
 // @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor, HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
-// @src brought by the pointer over an enemy, 2026-11-01).
+// @src brought by the pointer over an enemy, 2026-11-01); Interface_Items.cc DrawItemTileCursor's frame (the item tile
+// @src cursor while an item is held over the map, its own PATHFINDCOUNTER rest), Turn_Based_Input.cc GetTBMouseButtonInput
+// @src and Real_Time_Input.cc GetRTMouseButtonInput (the right click with an item held, 2026-11-03).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -44,7 +46,7 @@ import { printf } from '../../../text/printf.ts';
 import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
 import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
-import { slotItem } from '../item-cursor.ts';
+import { type ItemCursor, slotItem } from '../item-cursor.ts';
 import { FLOOR_Z_LEVEL, itemPool, largestZLevel, onZLevel } from '../item-pool.ts';
 import {
   hasFemaleProfile,
@@ -70,6 +72,7 @@ import {
   wheelAdjust,
 } from './attack-cursors.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
+import { ITEM_AP_OFFSET, ItemTileCursor, type ItemTileText } from './item-tile-cursor.ts';
 import { PointerQueue } from './pointer-queue.ts';
 import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, relativeBodyPart, soldierFindFlags } from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
@@ -132,6 +135,7 @@ export interface TacticalInputHost {
   setInterfaceLevel(level: number): void;
   viewportBottom(): number;
   itemInCursor(): boolean;
+  itemPointer(): ItemCursor | null;
   feedback(text: string): void;
   log(text: string): void;
   currentSquad(): number;
@@ -139,7 +143,7 @@ export interface TacticalInputHost {
   send(cmd: CommandEnvelope): Promise<CommandReply>;
   sendBusyOrder(cmd: CommandEnvelope): Promise<CommandReply>;
   locked(): Lock;
-  itemPointerClick(gridNo: number, target: SoldierView | null): void;
+  itemPointerClick(gridNo: number, target: SoldierView | null, tile: ItemTileCursor): void;
   pickUp(soldier: SoldierView, gridNo: number, level: number): void;
   openMovementMenu(x: number, y: number, done: (choice: MovementChoice | null) => void): void;
   openExitDialog(direction: ExitDirection, exitGrid: number | null): void;
@@ -170,6 +174,8 @@ const NO_HOVER: Hover = { gridNo: null, target: null, flags: 0 };
 
 export class TacticalInput {
   readonly #host: TacticalInputHost;
+  readonly itemTile = new ItemTileCursor();
+  #itemRestSince = 0;
   readonly #pointer = new PointerQueue();
   readonly #events = new Map<UiEvent, EventState>();
   readonly #keys: UiKeyEvent[] = [];
@@ -426,6 +432,7 @@ export class TacticalInput {
     this.#event = next;
     if (next !== old) this.#clearEvent(next);
     this.#handle(next);
+    this.#itemTileFrame(viewportInArea);
     const state = this.#state(next);
     state.firstTime = false;
     const spec = UI_EVENTS[next];
@@ -443,6 +450,42 @@ export class TacticalInput {
     if (!this.#combat()) this.#displayAp = false;
     this.#setUiMouseCursor();
     if (this.multiSelected.size > 0 && !MULTI_SELECT_MODES.has(this.#mode)) this.multiSelected.clear();
+  }
+
+  #itemTileFrame(inArea: boolean): void {
+    this.itemTile.clear();
+    if (this.#moveState !== MouseMove.STATIONARY) this.#itemRestSince = this.#now;
+    const cursor = this.#host.itemPointer();
+    const mapPos = this.#mapPos();
+    if (!cursor || !inArea || this.#scrolling || mapPos === null) return;
+    const holder = soldierById(this.#view(), cursor.source.soldier);
+    if (!holder) return;
+    const target = this.#hover.target;
+    const stationary = this.#moveState === MouseMove.STATIONARY;
+    this.itemTile.frame({
+      cursor,
+      holder,
+      target,
+      mapPos: target?.gridNo ?? mapPos,
+      level: this.#host.interfaceLevel(),
+      inCombat: this.#combat(),
+      moving: (s) => this.#env().world.soldierMarker(s.id).moving,
+      stationary,
+      recalc: stationary && this.#now - this.#itemRestSince >= PATHFIND_DELAY_MS,
+      hint: (request) => this.#hint(request),
+    });
+    if (!this.itemTile.showsActionPoints) return;
+    this.#displayAp = true;
+    this.#currentAp = this.itemTile.actionPoints;
+    this.#apCenter = false;
+    this.#apInvalid = false;
+    this.#apOffX = ITEM_AP_OFFSET;
+    this.#apOffY = ITEM_AP_OFFSET;
+  }
+
+  #swapItemPointer(): void {
+    const cursor = this.#host.itemPointer();
+    if (cursor && this.#hover.target) this.itemTile.swap(cursor);
   }
 
   #state(event: UiEvent): EventState {
@@ -1004,7 +1047,7 @@ export class TacticalInput {
     if (this.#host.env.client.view && this.#feedbackOpenClosed()) return next;
     if (this.#exitArrowsInput(true)) return next;
     if (this.#host.itemInCursor()) {
-      if (mapPos !== null) this.#host.itemPointerClick(mapPos, this.#hover.target);
+      if (mapPos !== null) this.#host.itemPointerClick(mapPos, this.#hover.target, this.itemTile);
       return next;
     }
     switch (this.#mode) {
@@ -1173,7 +1216,10 @@ export class TacticalInput {
   }
 
   #tbRightClickEvent(event: UiEvent, mapPos: number): UiEvent {
-    if (this.#host.itemInCursor()) return event;
+    if (this.#host.itemInCursor()) {
+      this.#swapItemPointer();
+      return event;
+    }
     const sel = this.#sel();
     if (!sel) return event;
     switch (this.#mode) {
@@ -1351,7 +1397,7 @@ export class TacticalInput {
     if (this.#feedbackOpenClosed()) return next;
     if (this.#exitArrowsInput(true)) return next;
     if (this.#host.itemInCursor()) {
-      if (mapPos !== null) this.#host.itemPointerClick(mapPos, this.#hover.target);
+      if (mapPos !== null) this.#host.itemPointerClick(mapPos, this.#hover.target, this.itemTile);
       return next;
     }
     switch (this.#mode) {
@@ -1495,8 +1541,10 @@ export class TacticalInput {
           this.#allMoveOn = 0;
           this.#canBeginAllMove = true;
         }
-      } else if (!this.#rtRightHold && !this.#rtRightClick && !this.#host.itemInCursor() && sel)
-        next = this.#rtRightClickEvent(next, mapPos, sel);
+      } else if (!this.#rtRightHold && !this.#rtRightClick) {
+        if (this.#host.itemInCursor()) this.#swapItemPointer();
+        else if (sel) next = this.#rtRightClickEvent(next, mapPos, sel);
+      }
     }
     this.#rightDown = false;
     this.#rtRightHold = false;
@@ -2797,7 +2845,8 @@ export class TacticalInput {
     const sel = this.#sel();
     const level = this.#host.interfaceLevel();
     const mapPos = this.#mapPos();
-    if (this.#host.itemInCursor() || this.#scrolling) return out;
+    if (this.#scrolling) return out;
+    if (this.#host.itemInCursor()) return this.#itemTileMarkers();
     if (mapPos !== null && this.#cursor !== 'NO_UICURSOR') {
       out.push(
         ...cursorMarkers(this.#env().uiCursors, {
@@ -2826,6 +2875,17 @@ export class TacticalInput {
     return out;
   }
 
+  #itemTileMarkers(): WorldMarker[] {
+    const out: WorldMarker[] = [];
+    const landing = this.itemTile.landing;
+    if (landing) out.push(impactMarker(landing.gridNo, landing.level, landing.good));
+    const sel = this.#sel();
+    const walkUpTo = this.itemTile.walkUpTo;
+    if (sel && walkUpTo !== null && walkUpTo !== sel.gridNo && ourTurn(this.#view()))
+      out.push(showMoveGridMarker(walkUpTo, this.#host.interfaceLevel(), sel.stealth ? 'FIRSTPOINTERS9' : 'FIRSTPOINTERS2'));
+    return out;
+  }
+
   apNumber(): { readonly marker: WorldMarker; readonly value: number; readonly black: boolean } | null {
     const mapPos = this.#mapPos();
     if (mapPos === null || this.#scrolling || !this.#displayAp || !this.#combat()) return null;
@@ -2839,6 +2899,18 @@ export class TacticalInput {
 
   #apBlink(): boolean {
     return Math.trunc(this.#now / AP_BLINK_MS) % 2 === 1;
+  }
+
+  itemTileMouseText(): MouseText | null {
+    if (this.itemTile.cursor === null) return null;
+    const text = this.itemTile.text;
+    const ap = this.#displayAp && this.#combat();
+    return {
+      ...(text ? { tile: this.#text('pMessageStrings', ITEM_TILE_TEXT[text]) } : {}),
+      ...(ap
+        ? { actionPoints: { value: this.#currentAp, center: false, offsetX: this.#apOffX, offsetY: this.#apOffY, invalid: false } }
+        : {}),
+    };
   }
 
   mouseText(): MouseText | null {
@@ -2920,6 +2992,7 @@ const EXIT_GUI_ESCORTED_CHARACTERS_CANT_LEAVE_SECTOR_ALONE_STR = 13;
 const MAX_BURST_LOCATIONS = 50;
 const NOT_ENOUGH_APS_STR = 87;
 const EPC_CANNOT_DO_THAT = 124;
+const ITEM_TILE_TEXT: Readonly<Record<ItemTileText, number>> = { drop: 36, throw: 37 };
 const MERC_IS_TOO_FAR_AWAY_STR = 102;
 const MORALE_REFUSE_SEARCH = 30;
 const CROW_HIT_LOCATION_STR = 105;

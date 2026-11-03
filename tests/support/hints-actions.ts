@@ -49,6 +49,13 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
       requests.push({ ...base, kind: 'aid', gridNo: o.gridNo, level: o.level });
     }
     requests.push({ ...base, kind: 'aid', gridNo: s.gridNo });
+    const pocket = (s.inventory ?? []).find((i) => i.slot !== InvSlot.HAND);
+    if (pocket) {
+      const toss = { ...base, kind: 'toss', slot: pocket.slot };
+      for (const off of LOOK_OFFSETS) requests.push({ ...toss, gridNo: s.gridNo + off });
+      for (const o of others) if (o.id !== s.id) requests.push({ ...toss, gridNo: o.gridNo, level: o.level });
+      requests.push({ ...toss, gridNo: s.gridNo + 1, count: 1 });
+    }
     for (const item of view.items ?? []) {
       requests.push({ ...base, kind: 'pickUp', gridNo: item.gridNo, level: item.level });
       requests.push({ ...base, kind: 'pickUp', gridNo: item.gridNo, mode: 'run' });

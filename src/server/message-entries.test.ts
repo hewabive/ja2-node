@@ -239,6 +239,20 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints a pass with the short item name and the catcher, and the no-room line when it does not fit', () => {
+    const args = [{ item: 4, name: 'short' }, { text: 'Fox' }];
+    const events = [at({ type: 'itemPassed', soldier: 0, target: 1, item: 4 }), at({ type: 'passFailed', soldier: 0, target: 1, item: 4 })];
+    expect(messageEntriesOf(events, facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 39, args },
+      { tick: 40, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 40, args },
+    ]);
+  });
+
+  it('prints CANNOT_THROW_TO_DEST_STR for a toss that cannot get there', () => {
+    const entry = refusalEntry(40, { type: 'toss', soldier: 0 }, refuse('badThrow', 'the item cannot get there'), facts);
+    expect(entry).toEqual({ tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 45 });
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(

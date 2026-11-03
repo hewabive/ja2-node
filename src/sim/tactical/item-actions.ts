@@ -10,7 +10,10 @@
 // @src both (the pick on the talk's cosmetic stream, 2026-11-02); GetLargestZLevelOfItemPool (the z-level a pickup
 // @src without one takes, 2026-11-02); Turn_Based_Input.cc HandleHandCursorClick (the search of a tile that shows no
 // @src item: the morale refusal with QUOTE_REFUSING_ORDER, the AP shown by Handle_UI.cc HandleUIMovementCursor for
-// @src MOVEUI_TARGET_ITEMS and no AP check) and HandleSoldierPickupItem's BATTLE_SOUND_NOTHING (2026-11-03).
+// @src MOVEUI_TARGET_ITEMS and no AP check) and HandleSoldierPickupItem's BATTLE_SOUND_NOTHING (2026-11-03);
+// @src Interface_Items.cc HandleItemPointerClick (a click next to the merc drops beside him on a tile that is no good
+// @src destination or one step away, else at his feet: DROP_ADJACENT_OBJECT turned towards it when standing, else at
+// @src once with NotifySoldiersToLookforItems), Soldier_Ani.cc code 763 (2026-11-03).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -19,7 +22,7 @@ import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../
 import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
-import { AnimHeight, height, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
+import { AnimHeight, height, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from './animation.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
@@ -27,7 +30,7 @@ import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from './narrative/merc-quotes.ts';
 import { schedulePickedOwnershipCheck } from './narrative/minor-offenses.ts';
-import { isWater, newOKDestination } from './pathfinding.ts';
+import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
 import { type PendingPickup, type Soldier, Team } from './soldier.ts';
@@ -44,7 +47,8 @@ import {
   type WorldItem,
 } from './world-items.ts';
 
-const Code = { GIVE_ITEM: 486, DROP_ITEM: 487, PICKUP_ITEM: 493 } as const;
+const Code = { GIVE_ITEM: 486, DROP_ITEM: 487, PICKUP_ITEM: 493, DROP_BESIDE: 763 } as const;
+const ONE_STEP = 1;
 const HIDDEN_ITEM_WISDOM_GAIN = 5;
 const SPOTTED_SOMETHING_QUOTES = 2;
 const COOL_ITEM_MIN_STATUS = 60;
@@ -256,6 +260,39 @@ function soldierHandleDropItem(t: TacticalState, s: Soldier): void {
   t.events.push({ type: 'itemDropped', soldier: s.id, gridNo: s.gridNo });
 }
 
+export function dropsBeside(t: TacticalState, s: Soldier, g: number): boolean {
+  if (g === s.gridNo) return false;
+  return (
+    !newOKDestination(t.pathEnv, s, g, false, s.level) ||
+    findBestPath(t.pathEnv, s, g, s.level, { copy: PathCopy.NONE }).length === ONE_STEP
+  );
+}
+
+function putBeside(t: TacticalState, s: Soldier, o: ItemObject, g: number): void {
+  addItemToPool(t, g, o, Visibility.VISIBLE, s.level, 0, FORCE_ON_GROUND);
+  notifySoldiersToLookForItems(t);
+  t.events.push({ type: 'itemDropped', soldier: s.id, gridNo: g, beside: true });
+}
+
+export function soldierDropObjectBeside(t: TacticalState, s: Soldier, o: ItemObject, g: number): void {
+  if (height(t.content, s.state) !== AnimHeight.STAND) {
+    putBeside(t, s, o, g);
+    return;
+  }
+  s.tempObject = o;
+  s.pendingActionData2 = g;
+  s.reverse = false;
+  setDesiredDirection(t, s, directionToward(s.gridNo, g));
+  initNewSoldierAnim(t, s, anim(t.content, 'DROP_ADJACENT_OBJECT'), 0, false);
+}
+
+function soldierHandleDropItemBeside(t: TacticalState, s: Soldier): void {
+  const o = s.tempObject;
+  if (!o) return;
+  s.tempObject = null;
+  putBeside(t, s, o, s.pendingActionData2);
+}
+
 export function itemOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   if (code === Code.GIVE_ITEM) {
     giveItemOpcode(t, s);
@@ -263,6 +300,10 @@ export function itemOpcode(t: TacticalState, s: Soldier, code: number): OpOutcom
   }
   if (code === Code.DROP_ITEM) {
     soldierHandleDropItem(t, s);
+    return 'continue';
+  }
+  if (code === Code.DROP_BESIDE) {
+    soldierHandleDropItemBeside(t, s);
     return 'continue';
   }
   if (code === Code.PICKUP_ITEM) {

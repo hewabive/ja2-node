@@ -116,6 +116,7 @@ const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   'steal',
   'drop',
   'toss',
+  'pass',
   'climb',
   'useRemote',
   'door',

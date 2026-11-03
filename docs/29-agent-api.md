@@ -416,6 +416,16 @@ stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (deviat
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 
+The item cursor's click on the map (`HandleItemPointerClick`) is one of four commands, picked as the original picks its
+branch (`src/ui/screens/tactical/input/item-tile-cursor.ts`): `give` to a talkable soldier (a named NPC, an escort, the
+robot; after the right click's swap a squad mate instead, while an NPC or an escort takes a toss), `drop` with `gridNo`
+on the merc's tile or the next one, `pass` to a merc of ours within 3 tiles who is no escort and no vehicle, and `toss`
+for anything farther or anybody else (`src/sim/tactical/item-pointer.ts`, `toss.ts`). `drop` puts the object beside him
+when that tile is no place to stand on or one step away (`DROP_ADJACENT_OBJECT`, `itemDropped` with `beside`), else at his
+feet. `pass` charges both mercs their 3 AP before the object goes into the catcher's pockets, so a catcher without room
+for all of it keeps what fits and both have paid (`data.passed` false and `passFailed`). `previewAction` kind `toss` is
+the cursor's landing tile (`landsAt`, `landsOnLevel`, `pathClear`) with the refusals of the command but its AP.
+
 ### 8.4 Conversations
 
 Rules: `24`. A conversation with a named NPC is a modal talk session (`src/sim/campaign/talk-flow.ts`) over the NPC

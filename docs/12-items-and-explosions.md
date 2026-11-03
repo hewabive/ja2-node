@@ -29,7 +29,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
-| `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts` | World items: map load, pools, visibility; picking up, dropping, giving, tossing |
+| `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
@@ -148,6 +148,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A search pays only its walk and its click checks no APs: in combat a merc short of the walk sets off and stops where they run out, and one on the tile searches with none left | `item-actions.test.ts` |
 | A search turns up hidden items only on a tile where every item is hidden: one beside a buried item stays hidden, and the merc finds nothing | `item-actions.test.ts` |
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
+| A pass to a merc without room for all of it still costs both mercs their 3 AP, and what fits stays with him: the APs go before `AutoPlaceObject` | `item-pointer.test.ts` |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts

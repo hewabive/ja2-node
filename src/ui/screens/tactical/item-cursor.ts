@@ -13,9 +13,6 @@
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
-import { isEpc, OUR_TEAM } from './soldiers.ts';
-
-const PASSING_ITEM_DISTANCE_OKLIFE = 3;
 
 export type CursorCount = 'all' | 1;
 
@@ -162,30 +159,33 @@ export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelop
   return { type: 'applyItem', soldier: s.soldier, slot: s.slot, ...(target !== s.soldier ? { target } : {}) };
 }
 
-export function dropCommand(cursor: ItemCursor): CommandEnvelope | null {
+export interface PocketFields {
+  readonly slot: number;
+  readonly count?: CursorCount;
+  readonly index?: number;
+}
+
+export function tossFields(cursor: ItemCursor): PocketFields | null {
   const s = cursor.source;
-  if (s.kind === 'slot')
-    return { type: 'drop', soldier: s.soldier, slot: s.slot, ...countField(s.count), ...(s.index !== 0 ? { index: s.index } : {}) };
-  return cancelCommand(cursor);
+  if (s.kind !== 'slot') return null;
+  return { slot: s.slot, ...countField(s.count), ...(s.index !== 0 ? { index: s.index } : {}) };
+}
+
+export function dropCommand(cursor: ItemCursor, gridNo?: number): CommandEnvelope | null {
+  const fields = tossFields(cursor);
+  if (!fields) return cancelCommand(cursor);
+  return { type: 'drop', soldier: cursor.source.soldier, ...fields, ...(gridNo !== undefined ? { gridNo } : {}) };
 }
 
 export function tossCommand(cursor: ItemCursor, gridNo: number, level: number): CommandEnvelope | null {
-  const s = cursor.source;
-  if (s.kind !== 'slot') return null;
-  return {
-    type: 'toss',
-    soldier: s.soldier,
-    slot: s.slot,
-    gridNo,
-    ...(level !== 0 ? { level } : {}),
-    ...countField(s.count),
-    ...(s.index !== 0 ? { index: s.index } : {}),
-  };
+  const fields = tossFields(cursor);
+  if (!fields) return null;
+  return { type: 'toss', soldier: cursor.source.soldier, ...fields, gridNo, ...(level !== 0 ? { level } : {}) };
 }
 
-export function receivesGive(target: SoldierView, distance: number): boolean {
-  if (target.team !== OUR_TEAM) return target.talkable !== undefined;
-  return isEpc(target) || distance <= PASSING_ITEM_DISTANCE_OKLIFE;
+export function passCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
+  const fields = tossFields(cursor);
+  return fields ? { type: 'pass', soldier: cursor.source.soldier, ...fields, target } : null;
 }
 
 export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {

@@ -362,6 +362,21 @@ export interface ItemDroppedEvent extends SimEventBase {
   readonly type: 'itemDropped';
   readonly soldier: number;
   readonly gridNo: number;
+  readonly beside?: true;
+}
+
+export interface ItemPassedEvent extends SimEventBase {
+  readonly type: 'itemPassed';
+  readonly soldier: number;
+  readonly target: number;
+  readonly item: number;
+}
+
+export interface PassFailedEvent extends SimEventBase {
+  readonly type: 'passFailed';
+  readonly soldier: number;
+  readonly target: number;
+  readonly item: number;
 }
 
 export interface ExplosionEvent extends SimEventBase {
@@ -687,6 +702,8 @@ export type SimEvent =
   | NothingFoundEvent
   | ItemsRevealedEvent
   | ItemDroppedEvent
+  | ItemPassedEvent
+  | PassFailedEvent
   | PreBattleEvent
   | RetreatedEvent
   | ArStartedEvent

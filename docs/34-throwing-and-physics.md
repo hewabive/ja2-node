@@ -38,7 +38,7 @@ every 20 game ms, before bullets: stepThrownObjects                           ex
 | `explosions/trajectory.ts` | Launch parameters, the miss scatter, the force and angle searches, the landing check of the AI, the hint and `toss.ts` |
 | `explosions/physics.ts`, `explosions/catching.ts` | Physics objects: flight, collisions, end of life, duds and the explosion hand-off; catches |
 | `explosions/state.ts`, `explosions/vec3.ts` | The object record, the pending throw parameters, the 20 ms timer; float32 vector arithmetic |
-| `toss.ts` | Inventory tosses: no roll, `AP_TOSS_ITEM`, a merc of ours may catch |
+| `toss.ts` | Inventory tosses: no roll, `AP_TOSS_ITEM`, a merc of ours may catch; the item cursor's landing tile (`previewToss`) |
 | `perception/wiring.ts`, `ai/system-situation.ts` | A throw called off before its release hands the copied object back |
 
 ## 2. Design
@@ -123,6 +123,7 @@ from reading the source:
 - Catches, windows broken by a thrown object and objects hitting soldiers are ported as read.
 - Caves and basements: throws as from under a roof, and a ceiling one storey up on every tile.
 
-Not ported: gaps "Duds and timed bombs", "Tossing from the item cursor".
+Not ported: gaps "Duds and timed bombs".
 Other deviations of this domain: "Physics cadence and floats", "Water ripple", "Dud test operand order", "Cosmetic draws
-in attacks", "Cosmetic draws in explosions", "Bullets of unseen shooters", "Watchdogs".
+in attacks", "Cosmetic draws in explosions", "Bullets of unseen shooters", "Watchdogs", "Toss landing at a fallen squad
+mate".

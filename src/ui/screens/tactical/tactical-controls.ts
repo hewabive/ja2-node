@@ -57,9 +57,10 @@ import { OKLIFE } from './faces.ts';
 import { arrowSprites } from './input/arrows.ts';
 import { hintNow } from './input/hints.ts';
 import { type HotkeyHost, handleTacticalKey, type SmButton } from './input/hotkeys.ts';
+import type { ItemTileCursor } from './input/item-tile-cursor.ts';
 import { type Lock, type MovementChoice, TacticalInput, type TacticalInputHost } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
-import { slotItem } from './item-cursor.ts';
+import { type ItemCursor, slotItem } from './item-cursor.ts';
 import { itemPool, largestZLevel, onZLevel } from './item-pool.ts';
 import { MissCamera } from './miss-camera.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
@@ -139,7 +140,8 @@ export interface ControlsScreen {
   interfaceLevel(): number;
   setInterfaceLevel(level: number): void;
   itemInCursor(): boolean;
-  itemPointerClick(gridNo: number, target: SoldierView | null): void;
+  itemPointer(): ItemCursor | null;
+  itemPointerClick(gridNo: number, target: SoldierView | null, tile: ItemTileCursor): void;
   pickUp(s: SoldierView, gridNo: number, zLevel: number): void;
   feedback(text: string): void;
   log(text: string): void;
@@ -256,6 +258,7 @@ export class TacticalControls {
       setInterfaceLevel: (level) => screen.setInterfaceLevel(level),
       viewportBottom: () => screen.viewportBottom(),
       itemInCursor: () => screen.itemInCursor(),
+      itemPointer: () => screen.itemPointer(),
       feedback: (text) => screen.feedback(text),
       log: (text) => screen.log(text),
       currentSquad: () => screen.currentSquad(),
@@ -263,7 +266,7 @@ export class TacticalControls {
       send: (cmd) => screen.send(cmd),
       sendBusyOrder: (cmd) => this.#sendBusyOrder(cmd),
       locked: () => this.lockState(),
-      itemPointerClick: (gridNo, target) => screen.itemPointerClick(gridNo, target),
+      itemPointerClick: (gridNo, target, tile) => screen.itemPointerClick(gridNo, target, tile),
       pickUp: (s, gridNo, level) => screen.pickUp(s, gridNo, level),
       openMovementMenu: (x, y, done) => this.#openMovementMenu(x, y, done),
       openExitDialog: (direction, exitGrid) => void this.openExitDialog(direction, exitGrid),
@@ -320,7 +323,7 @@ export class TacticalControls {
     region.animatesCursor = true;
     region.flashesCursor = true;
     if (this.#screen.itemInCursor()) {
-      runtime.cursor.mouseText = null;
+      runtime.cursor.mouseText = inArea ? this.input.itemTileMouseText() : null;
       if (this.hidesHeldItem && region.cursor !== VIDEO_NO_CURSOR) region.changeCursor(VIDEO_NO_CURSOR);
       return;
     }

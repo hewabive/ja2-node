@@ -586,7 +586,7 @@ export class SoundDirector {
         this.#battleSound(e.soldier, 'NOTHING', false);
         return;
       case 'itemDropped':
-        if (this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));
+        if (!e.beside && this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));
         return;
       case 'mercQuote':
         if (e.textKey) this.#speak(e.profile, e.soldier >= 0 ? e.soldier : null, e.textKey);

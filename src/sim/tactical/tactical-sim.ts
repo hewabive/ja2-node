@@ -16,7 +16,7 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
 import { MapFlags } from '../../content/formats/map.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
-import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
+import { isVisibleTile, pythSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { type PreRandom, Rng } from '../../core/rng.ts';
@@ -93,6 +93,7 @@ import { takeObjects } from './inventory-panel.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
   apsToPickupItem,
+  dropsBeside,
   handlePendingPickupOnArrival,
   itemOpcode,
   pickupCandidates,
@@ -101,8 +102,10 @@ import {
   showsItems,
   soldierDropItem,
   soldierDropObject,
+  soldierDropObjectBeside,
   soldierPickupItem,
 } from './item-actions.ts';
+import { DROPPING_DISTANCE, PASS_REFUSALS, type Pass, passItem } from './item-pointer.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -635,6 +638,8 @@ export class TacticalSim {
         return this.#drop(cmd);
       case 'toss':
         return this.#toss(cmd);
+      case 'pass':
+        return this.#pass(cmd);
       case 'climb':
         return this.#climb(cmd);
       case 'useRemote':
@@ -766,13 +771,7 @@ export class TacticalSim {
     return dispatchInventoryCommand(this.state, s, cmd);
   }
 
-  #drop(cmd: TacticalCommand): CommandResult {
-    const t = this.state;
-    const s = this.soldier(cmd.soldier);
-    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
-    const refusal = this.actRefusal(s);
-    if (refusal) return refused(refusal);
-    selectOrderedMerc(t, s);
+  #pocketObject(s: Soldier, cmd: TacticalCommand): Pass | CommandResult {
     const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
     if (slot === null) return refuse('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
     if (itemIn(s.inv, slot) === NOTHING) return refuse('emptySlot', 'that slot is empty');
@@ -781,14 +780,49 @@ export class TacticalSim {
     const index = cmd.index ?? 0;
     if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
       return refuse('badIndex', 'index must point to an object in the stack');
+    return { slot, count, index };
+  }
+
+  #drop(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
+    const object = this.#pocketObject(s, cmd);
+    if ('ok' in object) return object;
+    const g = cmd.gridNo ?? s.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
+    if (pythSpacesAway(s.gridNo, g) > DROPPING_DISTANCE) return refuse('tooFar', 'drop takes his tile or one next to it: toss farther');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
-    const item = itemIn(s.inv, slot);
-    const dropped = takeObjects(t.content.items, s.inv[slot] as ItemObject, count, index) as ItemObject;
-    handleTacticalEffectsOfEquipmentChange(t, s, slot, item, NOTHING);
+    const beside = dropsBeside(t, s, g);
+    const item = itemIn(s.inv, object.slot);
+    const dropped = takeObjects(t.content.items, s.inv[object.slot] as ItemObject, object.count, object.index) as ItemObject;
+    handleTacticalEffectsOfEquipmentChange(t, s, object.slot, item, NOTHING);
     deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
-    soldierDropObject(t, s, dropped);
+    if (beside) soldierDropObjectBeside(t, s, dropped, g);
+    else soldierDropObject(t, s, dropped);
     return { ok: true };
+  }
+
+  #pass(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
+    const object = this.#pocketObject(s, cmd);
+    if ('ok' in object) return object;
+    const target = this.soldier(cmd.target);
+    if (!target?.placed || target === s || !shownToPlayer(target))
+      return refuse('noSuchTarget', 'target must be another soldier the squad sees');
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    const outcome = passItem(t, s, target, object);
+    if (typeof outcome === 'string') return refuse(outcome, PASS_REFUSALS[outcome]);
+    return { ok: true, data: { passed: outcome.passed } };
   }
 
   #toss(cmd: TacticalCommand): CommandResult {
@@ -798,14 +832,9 @@ export class TacticalSim {
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
     selectOrderedMerc(t, s);
-    const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
-    if (slot === null) return refuse('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
-    if (itemIn(s.inv, slot) === NOTHING) return refuse('emptySlot', 'that slot is empty');
-    const count = parseCount(cmd.count, 'all');
-    if (count === null) return refuse('badCount', 'count must be 1 or "all"');
-    const index = cmd.index ?? 0;
-    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
-      return refuse('badIndex', 'index must point to an object in the stack');
+    const object = this.#pocketObject(s, cmd);
+    if ('ok' in object) return object;
+    const { slot, count, index } = object;
     const g = cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const level = cmd.level ?? 0;

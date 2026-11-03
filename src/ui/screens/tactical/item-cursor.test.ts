@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../protocol/view.ts';
-import { cursorFromSlot, giveCommand, receivesGive } from './item-cursor.ts';
+import { cursorFromSlot, dropCommand, giveCommand, passCommand, tossCommand } from './item-cursor.ts';
 
 const OUR_TEAM = 0;
-const CIV_TEAM = 4;
 const ROBOT_BODY = 21;
 const SMALL_POCKET = 11;
 const CLIP_INDEX = 71;
-const FAR = 10;
-const NEAR = 2;
+const BESIDE = 1201;
+const FAR_TILE = 1210;
 
 function view(id: number, team: number, extra: Partial<SoldierView> = {}): SoldierView {
   return {
@@ -32,25 +31,23 @@ function view(id: number, team: number, extra: Partial<SoldierView> = {}): Soldi
   };
 }
 
-describe('the item cursor dropped on a soldier (HandleItemPointerClick)', () => {
-  it('gives to the robot at any distance, the drop the server turns into its reload', () => {
-    const clips = { slot: SMALL_POCKET, item: 'CLIP9_15', index: CLIP_INDEX, count: 2, status: [15, 15] };
-    const merc = view(0, OUR_TEAM, { inventory: [clips] });
+describe('the commands of the item cursor dropped on the map (HandleItemPointerClick)', () => {
+  const clips = { slot: SMALL_POCKET, item: 'CLIP9_15', index: CLIP_INDEX, count: 2, status: [15, 15] };
+  const merc = view(0, OUR_TEAM, { inventory: [clips] });
+
+  it('gives one clip to the robot, the drop the server turns into its reload', () => {
     const robot = view(1, OUR_TEAM, { bodyType: ROBOT_BODY, kind: 'epc', controlled: true });
     const cursor = cursorFromSlot(merc, SMALL_POCKET, false);
     if (!cursor) throw new Error('no cursor');
-    expect(receivesGive(robot, FAR)).toBe(true);
     expect(giveCommand(cursor, robot.id)).toEqual({ type: 'give', soldier: 0, target: 1, slot: SMALL_POCKET, count: 1 });
   });
 
-  it('gives to an escort at any distance and to a squad mate only within passing distance', () => {
-    expect(receivesGive(view(2, OUR_TEAM, { kind: 'epc' }), FAR)).toBe(true);
-    expect(receivesGive(view(3, OUR_TEAM), NEAR)).toBe(true);
-    expect(receivesGive(view(3, OUR_TEAM), FAR)).toBe(false);
-  });
-
-  it('gives to a talkable NPC and never to another soldier', () => {
-    expect(receivesGive(view(4, CIV_TEAM, { talkable: 'npc' }), FAR)).toBe(true);
-    expect(receivesGive(view(5, CIV_TEAM), NEAR)).toBe(false);
+  it('drops at the feet or on the tile beside him, tosses to a tile and passes to a merc, with the pocket object', () => {
+    const cursor = cursorFromSlot(merc, SMALL_POCKET, true);
+    if (!cursor) throw new Error('no cursor');
+    expect(dropCommand(cursor)).toEqual({ type: 'drop', soldier: 0, slot: SMALL_POCKET });
+    expect(dropCommand(cursor, BESIDE)).toEqual({ type: 'drop', soldier: 0, slot: SMALL_POCKET, gridNo: BESIDE });
+    expect(tossCommand(cursor, FAR_TILE, 1)).toEqual({ type: 'toss', soldier: 0, slot: SMALL_POCKET, gridNo: FAR_TILE, level: 1 });
+    expect(passCommand(cursor, 3)).toEqual({ type: 'pass', soldier: 0, slot: SMALL_POCKET, target: 3 });
   });
 });

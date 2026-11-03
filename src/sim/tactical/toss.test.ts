@@ -6,7 +6,7 @@ import { createItem } from '../items/object.ts';
 import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { OKLIFE, type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { AP_TOSS_ITEM } from './toss.ts';
 
@@ -101,5 +101,16 @@ describe('tossing an item from the item cursor', () => {
       data: { refusal: 'emptySlot' },
     });
     expect(carries(merc)).toBe(true);
+  });
+
+  it('refuses a toss at an unconscious merc of ours within passing range, as the click passes to him whatever his life', () => {
+    const { sim, merc } = thrower();
+    const near = gridNo(72, 80);
+    const fallen = catcherFor(sim, near);
+    fallen.life = OKLIFE - 1;
+    expect(sim.dispatch({ type: 'toss', soldier: merc.id, slot: 'bigPocket1', gridNo: near })).toMatchObject({
+      ok: false,
+      data: { refusal: 'passInstead' },
+    });
   });
 });

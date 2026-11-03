@@ -4,29 +4,33 @@
 // @src cannot toss, the AP_TOSS_ITEM check, a moving target refused, a merc of ours beyond passing range set up to catch
 // @src with the end height of his stance and turned to face the thrower, the bad chance to get through refused, the
 // @src thrower turned without the turning cost, the attack busy count, CalculateLaunchItemParamsForThrow,
-// @src HandleSoldierThrowItem), SoldierCanSeeCatchComing (always TRUE), HandleItemCursor (the throw end height).
+// @src HandleSoldierThrowItem), SoldierCanSeeCatchComing (always TRUE), HandleItemCursor (the throw end height);
+// @src DrawItemTileCursor (CalculateLaunchItemChanceToGetThrough for the landing tile, 2026-11-03); a merc of ours within
+// @src passing range takes a pass whatever his life (2026-11-03).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
-import { Terrain } from '../../content/world/terrain.ts';
 import { cloneObject, type ItemObject } from '../items/object.ts';
 import { AnimHeight, hasAnimFlag, height, setDesiredDirection, soldierGotoStationaryStance } from './animation.ts';
 import { HEIGHT_UNITS } from './explosions/physics.ts';
 import { ThrowAction } from './explosions/state.ts';
 import { handleSoldierThrowItem } from './explosions/throwing.ts';
-import { calculateLaunchItemChanceToGetThrough, calculateLaunchItemParamsForThrow } from './explosions/trajectory.ts';
+import {
+  calculateLaunchItemChanceToGetThrough,
+  calculateLaunchItemParamsForThrow,
+  type LandingPrediction,
+} from './explosions/trajectory.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { itemIn } from './inventory.ts';
 import { type Count, takeObjects } from './inventory-panel.ts';
+import { DROPPING_DISTANCE, itemPointerHolderBlocked, PASSING_ITEM_DISTANCE_OKLIFE, takesPass } from './item-pointer.ts';
 import { directionToward } from './movement.ts';
 import { enoughPoints } from './points.ts';
-import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { OKLIFE, type Soldier } from './soldier.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
 
 export const AP_TOSS_ITEM = 8;
-const PASSING_ITEM_DISTANCE_OKLIFE = 3;
-const DROPPING_DISTANCE = 1;
 const CATCH_HEIGHT: Readonly<Record<number, number>> = { [AnimHeight.STAND]: 150, [AnimHeight.CROUCH]: 80, [AnimHeight.PRONE]: 10 };
 
 export type TossRefusal = 'cannotToss' | 'tooClose' | 'passInstead' | 'targetMoving' | 'notEnoughAP' | 'badThrow';
@@ -48,12 +52,10 @@ export interface Toss {
   readonly level: number;
 }
 
-const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
-
 function catcherAt(t: TacticalState, thrower: Soldier, toss: Toss): Soldier | null {
   const target = whoIsThere(t, toss.gridNo, toss.level);
-  if (!target || target === thrower || target.team !== Team.OUR || target.life < OKLIFE) return null;
-  return t.narrative.isEpc(target) || isVehicle(target) ? null : target;
+  if (!target || target === thrower || target.life < OKLIFE) return null;
+  return takesPass(t, target) ? target : null;
 }
 
 function throwEndZ(t: TacticalState, catcher: Soldier | null): number {
@@ -61,20 +63,55 @@ function throwEndZ(t: TacticalState, catcher: Soldier | null): number {
   return CATCH_HEIGHT[height(t.content, catcher.state)] ?? 0;
 }
 
-function tosserRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
-  if (t.narrative.isEpc(s) || s.life < OKLIFE || s.overTerrain === Terrain.DEEP_WATER) return 'cannotToss';
+function passesInstead(t: TacticalState, s: Soldier, target: Soldier | null, distance: number): boolean {
+  return target !== null && target !== s && takesPass(t, target) && distance <= PASSING_ITEM_DISTANCE_OKLIFE;
+}
+
+function placementRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
+  if (itemPointerHolderBlocked(t, s)) return 'cannotToss';
   const target = whoIsThere(t, toss.gridNo, toss.level);
   if (target && hasAnimFlag(t.content, target.state, AnimFlags.MOVING)) return 'targetMoving';
-  if (!enoughPoints(t.inCombat, s, AP_TOSS_ITEM)) return 'notEnoughAP';
+  return null;
+}
+
+function targetRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
+  const target = whoIsThere(t, toss.gridNo, toss.level);
   const distance = pythSpacesAway(s.gridNo, toss.gridNo);
-  if (catcherAt(t, s, toss) && distance <= PASSING_ITEM_DISTANCE_OKLIFE) return 'passInstead';
+  if (passesInstead(t, s, target, distance)) return 'passInstead';
   if ((!target || target === s) && distance <= DROPPING_DISTANCE) return 'tooClose';
   return null;
+}
+
+function tosserRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
+  const refusal = placementRefusal(t, s, toss);
+  if (refusal) return refusal;
+  if (!enoughPoints(t.inCombat, s, AP_TOSS_ITEM)) return 'notEnoughAP';
+  return targetRefusal(t, s, toss);
 }
 
 function tossedPreview(t: TacticalState, s: Soldier, toss: Toss): ItemObject {
   const preview = cloneObject(s.inv[toss.slot] as ItemObject);
   return takeObjects(t.content.items, preview, toss.count, toss.index) ?? preview;
+}
+
+function tossEndZ(t: TacticalState, s: Soldier, toss: Toss): { catcher: Soldier | null; endZ: number } {
+  const catcher = catcherAt(t, s, toss);
+  return { catcher, endZ: toss.level * HEIGHT_UNITS + throwEndZ(t, catcher) };
+}
+
+function tossLanding(t: TacticalState, s: Soldier, toss: Toss, endZ: number): LandingPrediction {
+  return calculateLaunchItemChanceToGetThrough(t, s, tossedPreview(t, s, toss), toss.gridNo, toss.level, endZ, false, true);
+}
+
+export interface TossPreview {
+  readonly refusal: TossRefusal | null;
+  readonly landing: LandingPrediction;
+}
+
+export function previewToss(t: TacticalState, s: Soldier, toss: Toss): TossPreview {
+  const landing = tossLanding(t, s, toss, tossEndZ(t, s, toss).endZ);
+  const refusal = placementRefusal(t, s, toss) ?? targetRefusal(t, s, toss) ?? (landing.ok ? null : 'badThrow');
+  return { refusal, landing };
 }
 
 function faceThrower(t: TacticalState, catcher: Soldier, thrower: Soldier): void {
@@ -85,10 +122,8 @@ function faceThrower(t: TacticalState, catcher: Soldier, thrower: Soldier): void
 export function tossItem(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
   const refusal = tosserRefusal(t, s, toss);
   if (refusal) return refusal;
-  const catcher = catcherAt(t, s, toss);
-  const endZ = toss.level * HEIGHT_UNITS + throwEndZ(t, catcher);
-  if (!calculateLaunchItemChanceToGetThrough(t, s, tossedPreview(t, s, toss), toss.gridNo, toss.level, endZ, false, true).ok)
-    return 'badThrow';
+  const { catcher, endZ } = tossEndZ(t, s, toss);
+  if (!tossLanding(t, s, toss, endZ).ok) return 'badThrow';
   const item = itemIn(s.inv, toss.slot);
   const tossed = takeObjects(t.content.items, s.inv[toss.slot] as ItemObject, toss.count, toss.index) as ItemObject;
   handleTacticalEffectsOfEquipmentChange(t, s, toss.slot, item, itemIn(s.inv, toss.slot) === NOTHING ? NOTHING : item);

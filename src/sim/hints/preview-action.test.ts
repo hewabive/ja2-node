@@ -13,6 +13,7 @@ import { AP, apsToChangeStance } from '../tactical/points.ts';
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { Body, Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { AP_TOSS_ITEM } from '../tactical/toss.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import type { PreviewAction } from './preview-action.ts';
 
@@ -142,6 +143,26 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(preview.apCost).toBe(apsToReloadRobot(sim.state, merc, robot));
     expect(preview.apCost - ROBOT_RELOAD_AP).toBe(apsToGiveItem(sim.state, merc, ORIGIN + 3 * EAST) - AP.GIVE_ITEM);
     expect(preview.steps).not.toHaveLength(0);
+  });
+
+  it('previews a toss from the item cursor: AP_TOSS_ITEM and the landing tile, refused next to him and at a squad mate in passing range', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, content.items.byName.get('FIRSTAIDKIT')?.index ?? 0, 100);
+    const far = ORIGIN + 6 * EAST;
+    const pocket = { slot: 'bigPocket1' };
+    expect(action(sim, 'toss', far, pocket)).toMatchObject({
+      ok: true,
+      apCost: AP_TOSS_ITEM,
+      actionGridNo: far,
+      landsAt: far,
+      landsOnLevel: 0,
+    });
+    expect(action(sim, 'toss', ORIGIN + EAST, pocket)).toMatchObject({ ok: false, refusal: 'tooClose' });
+    spawnSoldier(sim, 1, Team.OUR, ORIGIN + 2 * EAST, Direction.WEST);
+    expect(action(sim, 'toss', ORIGIN + 2 * EAST, pocket)).toMatchObject({ ok: false, refusal: 'passInstead' });
+    expect(action(sim, 'toss', far, { slot: 'smallPocket8' })).toMatchObject({ ok: false, refusal: 'emptySlot' });
+    expect(sim.dispatch({ type: 'toss', soldier: 0, ...pocket, gridNo: far })).toEqual({ ok: true });
   });
 
   it('answers notSupported for the item cursors without a command', () => {

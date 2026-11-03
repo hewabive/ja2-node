@@ -21,10 +21,14 @@
 // @src RenderTopmostTacticalInterface after HandleTacticalUI; while the overhead map is up no ScrollString,
 // @src HandleDialogue, ExecuteVideoOverlays or RenderTopmostTacticalInterface, 2026-11-03; Message.cc ScrollString:
 // @src no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick
-// @src (give to a talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
+// @src (give to a talkable soldier, pass to a merc of ours within passing range, toss beyond a tile or at anybody else,
+// @src else drop at the feet or on the next tile, 2026-11-03);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several; Handle_Items.cc HandleSoldierPickupItem counts the items of the click's z-level, 2026-11-02);
-// @src Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
+// @src Interface.cc EndUIMessage (a key or click closes the feedback box); Interface_Items.cc HandleItemPointerClick (a
+// @src moving soldier under the pointer refused, the stale bad throw with CANNOT_THROW_TO_DEST_STR), DrawItemTileCursor (the
+// @src item's ground picture in the throw and give cursors, SetExternVOData), Interface.cc DrawSelectedUIAboveGuy (the
+// @src catcher's CATCH_STR, RELOAD_STR, MSG_PASS or GIVE_STR, 2026-11-03); src/game/Tactical/Squads.cc
 // @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody);
 // @src src/game/MessageBoxScreen.cc DoScreenIndependantMessageBox (the lost sector box, centred above
@@ -43,9 +47,9 @@
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
-import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv } from '../../../core/int.ts';
 import type { ItemInfo } from '../../../protocol/hints.ts';
+import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
@@ -88,6 +92,7 @@ import {
   WHITE_HILIGHT,
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
+import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
 import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
@@ -98,7 +103,7 @@ import {
   giveCommand,
   type ItemCursor,
   keyRingCommand,
-  receivesGive,
+  passCommand,
   slotItem,
   tossCommand,
 } from './item-cursor.ts';
@@ -153,7 +158,13 @@ import { TeamPanelController } from './team-panel.ts';
 
 export const TACTICAL_SCREEN = 'tactical';
 const PANEL_FACE_FRAME_MS = 160;
-const DROPPING_DISTANCE = 1;
+const CANNOT_THROW_TO_DEST_STR = 45;
+const GIVE_STR = 78;
+const CATCHER_LABELS: Readonly<Record<Exclude<CatcherKind, 'give'>, { table: string; index: number }>> = {
+  catch: { table: 'TacticalStr', index: 76 },
+  reload: { table: 'TacticalStr', index: 77 },
+  pass: { table: 'pMessageStrings', index: 38 },
+};
 const CLOSE_PANEL_LAST_FRAME = 5;
 const ALT_MASK = 4;
 const SHIFT_MASK = 1;
@@ -419,7 +430,8 @@ export class TacticalScreen implements Screen {
       interfaceLevel: () => this.#interfaceLevel,
       setInterfaceLevel: (level) => this.#setInterfaceLevel(level),
       itemInCursor: () => this.inventory.cursor !== null,
-      itemPointerClick: (gridNo, target) => this.#itemPointerClick(gridNo, target),
+      itemPointer: () => this.inventory.cursor,
+      itemPointerClick: (gridNo, target, tile) => this.#itemPointerClick(gridNo, target, tile),
       pickUp: (s, gridNo, zLevel) => this.#pickUpAt(s, gridNo, zLevel),
       feedback: (text) => this.#localFeedback(text, FontColor.MCOLOR_LTYELLOW),
       log: (text) => this.#log.push(text, FontColor.MCOLOR_LTYELLOW, env.runtime.fonts.get(FontName.TINYFONT1)),
@@ -508,27 +520,50 @@ export class TacticalScreen implements Screen {
     }
   }
 
-  #itemPointerClick(gridNo: number, target: SoldierView | null): void {
+  #itemPointerClick(gridNo: number, target: SoldierView | null, tile: ItemTileCursor): void {
     const cursor = this.inventory.cursor;
-    if (!cursor) return;
-    const holder = this.#view()?.soldiers.find((s) => s.id === cursor.source.soldier) ?? null;
+    const holder = cursor ? soldierById(this.#view(), cursor.source.soldier) : null;
+    if (!cursor || !holder || isEpc(holder) || isUnconscious(holder)) return;
+    if (target && this.#env.world.soldierMarker(target.id).moving) return;
     const at = target?.gridNo ?? gridNo;
-    const distance = holder ? pythSpacesAway(holder.gridNo, at) : 0;
-    const other = target !== null && target.id !== cursor.source.soldier;
-    const send = (cmd: CommandEnvelope) => void this.inventory.send(cmd).then((r) => r.ok && this.#endItemPointer());
-    if (other && receivesGive(target, distance)) {
-      const give = giveCommand(cursor, target.id);
-      if (give) send(give);
+    const action = itemPointerAction({
+      holder,
+      target,
+      mapPos: at,
+      alternative: tile.alternative(cursor),
+      inCombat: inCombat(this.#view()),
+      moving: (s) => this.#env.world.soldierMarker(s.id).moving,
+    });
+    if (action === 'toss' && tile.badThrow && tossCommand(cursor, at, this.#interfaceLevel)) {
+      this.#localFeedback(this.#env.text.string('TacticalStr', CANNOT_THROW_TO_DEST_STR) ?? '', FontColor.MCOLOR_LTYELLOW);
       return;
     }
-    const toss = other || distance > DROPPING_DISTANCE ? tossCommand(cursor, at, target?.level ?? this.#interfaceLevel) : null;
-    if (toss) {
-      send(toss);
-      return;
-    }
-    const drop = dropCommand(cursor);
-    if (drop) send(drop);
+    const command = this.#itemPointerCommand(cursor, action, at, holder, target);
+    if (command) void this.inventory.send(command).then((r) => r.ok && this.#endsItemPointer(command, r.data) && this.#endItemPointer());
     else this.#endItemPointer();
+  }
+
+  #itemPointerCommand(
+    cursor: ItemCursor,
+    action: ItemPointerAction,
+    at: number,
+    holder: SoldierView,
+    target: SoldierView | null,
+  ): CommandEnvelope | null {
+    switch (action) {
+      case 'drop':
+        return dropCommand(cursor, at === holder.gridNo ? undefined : at);
+      case 'give':
+        return target ? giveCommand(cursor, target.id) : null;
+      case 'pass':
+        return (target ? (passCommand(cursor, target.id) ?? giveCommand(cursor, target.id)) : null) ?? dropCommand(cursor);
+      case 'toss':
+        return tossCommand(cursor, at, this.#interfaceLevel) ?? dropCommand(cursor);
+    }
+  }
+
+  #endsItemPointer(command: CommandEnvelope, data: unknown): boolean {
+    return command.type !== 'pass' || (data as { passed?: boolean } | undefined)?.passed !== false;
   }
 
   #endItemPointerWhereTheOriginalDoes(view: PlayerView | null): void {
@@ -1047,6 +1082,7 @@ export class TacticalScreen implements Screen {
   #updateCursor(now: number): void {
     const cursor = this.inventory.cursor;
     const item = cursor ? this.#env.media.item(cursor.item) : null;
+    if (item && this.#itemTileCursorShown(item, now)) return;
     const graphic = item?.inventoryGraphics.small ?? null;
     if (!graphic || !this.#env.media.image(graphic.path) || this.controls.hidesHeldItem) {
       if (this.#externCursor) this.#env.runtime.cursor.set(this.#env.runtime.regions.current?.cursor ?? CursorId.NORMAL, now);
@@ -1056,6 +1092,18 @@ export class TacticalScreen implements Screen {
     this.#env.runtime.cursor.setExternCursor(graphic.path, graphic.subImageIndex);
     this.#env.runtime.cursor.set(EXTERN_CURSOR, now);
     this.#externCursor = true;
+  }
+
+  #itemTileCursorShown(item: CatalogueItem, now: number): boolean {
+    const name = this.controls.input.itemTile.cursor;
+    if (!name || this.controls.hidesHeldItem) return false;
+    const tile = this.#env.world.itemTile(item);
+    if (!tile || !this.#env.media.image(tile.path)) return false;
+    const cursors = this.#env.runtime.cursor;
+    cursors.setExternData(tile.path, tile.frame);
+    cursors.set(cursors.idOf(name), now);
+    this.#externCursor = true;
+    return true;
   }
 
   #itemTileCursor(): void {
@@ -2114,9 +2162,11 @@ export class TacticalScreen implements Screen {
     const at = aboveGuyPosition(pos, offset, this.#damage.has(s.id), top, profiled);
     let x = at.x;
     let y = at.y;
+    const catcher = this.controls.input.itemTile.catcher;
+    const caught = catcher?.soldier === s.id ? catcher.kind : null;
     if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled) {
-      let action = '';
-      if (s.team === OUR_TEAM && squadOf(s) !== this.#squad && !multiSelected)
+      let action = caught && caught !== 'give' ? this.#catcherLabel(caught) : '';
+      if (!action && s.team === OUR_TEAM && squadOf(s) !== this.#squad && !multiSelected)
         action = (this.#env.text.string('gzLateLocalizedString', STR_LATE_34) ?? '').replace('%d', String(squadOf(s) + 1));
       if (action) printAboveGuy(list, font, x, y, action, FontColor.MCOLOR_WHITE);
       printAboveGuy(list, font, x, action ? y - 10 : y, s.name, FontColor.MCOLOR_WHITE);
@@ -2133,9 +2183,18 @@ export class TacticalScreen implements Screen {
         return;
       }
       y += 10;
+      if (caught === 'give') {
+        printAboveGuy(list, font, x, y, this.#env.text.string('TacticalStr', GIVE_STR) ?? '', FontColor.MCOLOR_WHITE);
+        return;
+      }
     } else if (s.level !== 0)
       printAboveGuy(list, font, x, y + 10, this.#env.text.string('gzLateLocalizedString', STR_LATE_15) ?? '', FontColor.YELLOW);
     printAboveGuy(list, font, x, y, healthString(this.#env.text, s.healthIndex ?? 0), FontColor.MCOLOR_DKRED);
+  }
+
+  #catcherLabel(kind: Exclude<CatcherKind, 'give'>): string {
+    const label = CATCHER_LABELS[kind];
+    return this.#env.text.string(label.table, label.index) ?? '';
   }
 
   #radarRenderer(list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView): void {
