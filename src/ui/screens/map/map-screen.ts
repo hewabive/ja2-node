@@ -30,7 +30,8 @@
 // @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
 // @src plotting merc's level) (2026-11-02); Map_Screen_Interface_Bottom.cc CreateMapScreenBottomMessageScrollBarRegion and
 // @src EnableDisableMessageScrollButtonsAndRegions (the scroll area live only while the list scrolls, the message box
-// @src under the wheel) (2026-11-03).
+// @src under the wheel), MapScreen.cc CreateBullsEyeOrChopperSelectionPopup and BullsEyeOrChopperSelectionPopupCallback
+// @src (the bullseye under the helicopter icon asks which to move) (2026-11-03).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -61,7 +62,7 @@ import {
   viewerBoxPrompt,
 } from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
-import { MessageBox, MessageBoxFlag } from '../../widgets/message-box.ts';
+import { MessageBox, MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
 import type { PopupBoxStyle } from '../../widgets/popup-box.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
@@ -169,6 +170,8 @@ const UPDATE_FACE = 'updateFace';
 const SECTOR_INVENTORY_COMPRESS = 54;
 const Plot = { CLICK_AGAIN: 0, CONFIRMED: 1, UNCHANGED: 2, CANCELED: 3, SHORTENED: 4 } as const;
 const Bullseye = { CHOOSE: 0, CHANGED: 1, CANNOT: 2, CANCELED: 3 } as const;
+const HELI_ETA = 'pHelicopterEtaStrings';
+const BullseyeOrChopper = { QUESTION: 7, CHOPPER: 8, BULLSEYE: 9 } as const;
 const MAP_BOX_HEIGHT = 340;
 const MAP_BOX_WIDTH = 640;
 const START_SECTOR: Sector = { x: 9, y: 1, z: 0 };
@@ -1313,8 +1316,8 @@ export class MapScreen implements Screen {
       return;
     }
     if (this.filters.airspace && this.#overBullseye(hover)) {
-      this.#changingArrival = true;
-      this.#uiMessage(this.#text(BULLSEYE, Bullseye.CHOOSE));
+      if (this.#overHelicopter(hover)) void this.#askBullseyeOrChopper();
+      else this.#startChangingArrival();
       return;
     }
     const wasSelected = hover.x === this.#selected.x && hover.y === this.#selected.y;
@@ -1356,6 +1359,23 @@ export class MapScreen implements Screen {
     const data = reply.data as { refusal?: string; sector?: string } | undefined;
     const text = reply.ok ? null : this.#refusalText(data?.refusal, data?.sector ? [this.#sectorName(data.sector, true)] : []);
     if (text) void this.#mapBox(text);
+  }
+
+  #startChangingArrival(): void {
+    this.#changingArrival = true;
+    this.#uiMessage(this.#text(BULLSEYE, Bullseye.CHOOSE));
+  }
+
+  async #askBullseyeOrChopper(): Promise<void> {
+    const choice = await this.#openBox({
+      text: this.#text(HELI_ETA, BullseyeOrChopper.QUESTION),
+      flags: MessageBoxFlag.GENERIC,
+      user1: this.#text(HELI_ETA, BullseyeOrChopper.CHOPPER),
+      user2: this.#text(HELI_ETA, BullseyeOrChopper.BULLSEYE),
+      answer: () => null,
+    });
+    if (choice === MessageBoxReturn.YES) void this.#requestHeliPlotting();
+    else if (choice === MessageBoxReturn.NO) this.#startChangingArrival();
   }
 
   #overBullseye(s: Sector): boolean {

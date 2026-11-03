@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest, TEST_VERSION } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
@@ -10,6 +11,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { Assignment } from './character-list.ts';
+import { parseSectorLabel } from './facts.ts';
 import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
 
 const PLOT_REST_MS = 250;
@@ -127,6 +129,22 @@ function wheelOver(f: MapUiTest, id: string, wheel: number): void {
   const y = rect.y + rect.height - 1;
   f.t.runtime.input({ kind: 'wheel', x: rect.x + 1, y, button: MouseButton.LEFT, buttons: 0, wheel, modifiers: 0 });
   f.t.frame();
+}
+
+function putBullseyeAt(f: MapUiTest, sector: string): void {
+  const at = parseSectorLabel(sector);
+  if (!at) throw new Error(`no sector ${sector}`);
+  (f.session.sim as CampaignSession).campaign.state.laptop.mercArriveSector = sectorId(at);
+  f.client.refresh();
+  f.t.frame();
+}
+
+async function clickBullseyeUnderHelicopter(f: MapUiTest): Promise<void> {
+  const heli = f.client.view.strategic?.helicopter;
+  const sector = heli && 'sector' in heli ? heli.sector : '';
+  putBullseyeAt(f, sector);
+  await f.click('filter4');
+  await f.clickSector(sector);
 }
 
 function setGameJustStarted(f: MapUiTest, started: boolean): void {
@@ -575,6 +593,33 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().changingArrival).toBe(true);
       await f.clickSector('C13');
       expect(lastCommand(f)?.cmd).toEqual({ type: 'setLandingZone', sector: 'C13' });
+    }));
+
+  it('asks whether Skyrider or the landing zone moves when the helicopter icon is over the bullseye, and Arrivals moves the zone', () =>
+    withMap(async (f) => {
+      await clickBullseyeUnderHelicopter(f);
+      expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+      expect(f.widget(MESSAGE_BOX).text).toBe('Select Skyrider or the Arrivals Drop-off?');
+      expect([f.widget(`${MESSAGE_BOX}.yes`).text, f.widget(`${MESSAGE_BOX}.no`).text]).toEqual(['Skyrider', 'Arrivals']);
+      expect(f.screen.hook().changingArrival).toBe(false);
+      await f.click(`${MESSAGE_BOX}.no`);
+      expect(f.t.runtime.host.modal).toBeNull();
+      expect(f.client.commands.some((c) => c.cmd.type === 'heliPlot')).toBe(false);
+      expect(f.screen.hook()).toMatchObject({
+        changingArrival: true,
+        plotting: null,
+        uiMessage: 'Click on the sector where you would like the mercs to arrive instead.',
+      });
+    }));
+
+  it('plots the helicopter when Skyrider is chosen in the box over the bullseye', () =>
+    withMap(async (f) => {
+      expect((await f.client.command({ type: 'boardVehicle', soldier: f.mercs[1] ?? -1, vehicle: 'helicopter' })).ok).toBe(true);
+      await clickBullseyeUnderHelicopter(f);
+      await f.click(`${MESSAGE_BOX}.yes`);
+      expect(f.t.runtime.host.modal).toBeNull();
+      expect(f.client.commands.find((c) => c.cmd.type === 'heliPlot')?.reply).toEqual({ ok: true });
+      expect(f.screen.hook()).toMatchObject({ changingArrival: false, plotting: { mode: 'heli' } });
     }));
 
   it('moves the message list to the spot pressed in its scroll area, and on under the pointer while the button is held', () =>
