@@ -94,11 +94,13 @@ test.describe('the laptop sites on stubs', () => {
     await page.waitForFunction(() => window.__ja2Ui.widgets.find((w) => w.id === 'onOrder0')?.text?.trim() === '1');
     await expectGolden('laptop-bobby-ray-guns', await capture(page));
     await through(page, 'bobbyRayOrderForm', 'orderQuantity0');
+    const unquotedShipping = await widgetText(page, 'orderShipping');
     await clickWidget(page, 'cityDropDownToggle');
     await shown(page, `cityDropDown.row${DRASSEN_ROW}`);
     await clickWidget(page, `cityDropDown.row${DRASSEN_ROW}`);
     await page.waitForFunction(() => window.__ja2Ui.widgets.find((w) => w.id === 'shippingCity')?.text === 'Drassen');
     await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'acceptOrder' && w.enabled));
+    await page.waitForFunction((before) => window.__ja2Ui.widgets.find((w) => w.id === 'orderShipping')?.text !== before, unquotedShipping);
     await expectGolden('laptop-bobby-ray-order', await capture(page));
     await clickWidget(page, 'acceptOrder');
     await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'confirmOrderArea' && w.enabled));
