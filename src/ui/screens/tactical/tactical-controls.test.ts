@@ -1213,6 +1213,25 @@ describe('the tactical input on the tactical screen', () => {
     expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS - 2 * LOCATOR_FRAME_MS);
   });
 
+  it('stands the locator of a soldier out of sight and goes on where it stood once he is seen again, as DrawSelectedUIAboveGuy returns for bVisible -1', async () => {
+    const f = await inCombat();
+    const selected = merc(f, f.screen.selected ?? 0);
+    const enemy = (selected.sees ?? []).map((id) => merc(f, id)).find((v) => v.hostile === true);
+    if (!enemy) throw new Error('no enemy in sight');
+    f.key('e');
+    f.t.frame(LOCATOR_FRAME_MS);
+    expect(locatorFrames(f, HOSTILE_RADIO)).toEqual([2]);
+    const soldiers = f.client.view.soldiers as SoldierView[];
+    const at = soldiers.indexOf(enemy);
+    soldiers.splice(at, 1);
+    for (let ms = 0; ms <= NORMAL_LOCATOR_MS; ms += LOCATOR_FRAME_MS) f.t.frame(LOCATOR_FRAME_MS);
+    expect(imagesOf(f, HOSTILE_RADIO)).toEqual([]);
+    soldiers.splice(at, 0, enemy);
+    f.t.frame(LOCATOR_FRAME_MS);
+    expect(locatorFrames(f, HOSTILE_RADIO)).toEqual([3]);
+    expect(locatorMs(f, HOSTILE_RADIO)).toBe(NORMAL_LOCATOR_MS - 2 * LOCATOR_FRAME_MS);
+  });
+
   it('locates the next merc with space only off screen and flashes the normal locator, as LocateSoldier(SETLOCATOR) does', async () => {
     const f = await tacticalUiTest(kit, ui);
     const first = f.screen.selected;

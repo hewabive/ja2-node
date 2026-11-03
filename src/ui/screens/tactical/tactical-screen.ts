@@ -19,8 +19,9 @@
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
 // @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld; the locators step in
 // @src RenderTopmostTacticalInterface after HandleTacticalUI; while the overhead map is up no ScrollString,
-// @src HandleDialogue, ExecuteVideoOverlays or RenderTopmostTacticalInterface, 2026-11-03; Message.cc ScrollString:
-// @src no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick
+// @src HandleDialogue, ExecuteVideoOverlays or RenderTopmostTacticalInterface, 2026-11-03; Interface.cc
+// @src DrawSelectedUIAboveGuy leaves the locator of a soldier out of sight as it stands, 2026-11-03; Message.cc
+// @src ScrollString: no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick
 // @src (give to a talkable soldier, pass to a merc of ours within passing range, toss beyond a tile or at anybody else,
 // @src else drop at the feet or on the next tile, 2026-11-03);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
@@ -1009,7 +1010,11 @@ export class TacticalScreen implements Screen {
   }
 
   #stepLocators(): void {
-    for (const [id, locator] of this.#locators) if (!locator.update(this.#now)) this.#locators.delete(id);
+    const view = this.#view();
+    for (const [id, locator] of this.#locators) {
+      if (!soldierById(view, id)) continue;
+      if (!locator.update(this.#now)) this.#locators.delete(id);
+    }
   }
 
   #scrollMessages(): void {
