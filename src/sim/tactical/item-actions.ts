@@ -8,7 +8,9 @@
 // @src and SoldierGetItemFromWorld's QUOTE_FOUND_SOMETHING_SPECIAL or BATTLE_SOUND_GOTIT (2026-10-30), its ownership check
 // @src timer (2026-10-31), the QUOTE_SPOTTED_SOMETHING_ONE + Random(2) line after LookForHiddenItems found something in
 // @src both (the pick on the talk's cosmetic stream, 2026-11-02); GetLargestZLevelOfItemPool (the z-level a pickup
-// @src without one takes, 2026-11-02).
+// @src without one takes, 2026-11-02); Turn_Based_Input.cc HandleHandCursorClick (the search of a tile that shows no
+// @src item: the morale refusal with QUOTE_REFUSING_ORDER, the AP shown by Handle_UI.cc HandleUIMovementCursor for
+// @src MOVEUI_TARGET_ITEMS and no AP check) and HandleSoldierPickupItem's BATTLE_SOUND_NOTHING (2026-11-03).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -82,6 +84,7 @@ export function pickupCandidates(t: TacticalState, s: Soldier, g: number, zLevel
 export const ITEM_IGNORE_Z_LEVEL = -1;
 const ON_STRUCTURE_Z_LEVEL = 1;
 const FLOOR_Z_LEVEL = 0;
+const SEARCH_MIN_MORALE = 30;
 
 export function largestZLevelOfItemPool(t: TacticalState, g: number, level: number): number {
   return itemsAt(t, g, level).some((wi) => wi.zHeight > 0) ? ON_STRUCTURE_Z_LEVEL : FLOOR_Z_LEVEL;
@@ -105,7 +108,26 @@ export function adjustGridNoForItemPlacement(t: TacticalState, s: Soldier, g: nu
 
 export function apsToPickupItem(t: TacticalState, s: Soldier, g: number): number {
   if (itemsAt(t, g, s.level).length === 0) return 0;
+  return apsToReachItems(t, s, g);
+}
+
+export function apsToReachItems(t: TacticalState, s: Soldier, g: number): number {
   return apsToMovePlusAction(t, s, adjustGridNoForItemPlacement(t, s, g), AP.PICKUP_ITEM);
+}
+
+export function showsItems(t: TacticalState, s: Soldier, g: number): boolean {
+  return pickupCandidates(t, s, g, ITEM_IGNORE_Z_LEVEL).length > 0;
+}
+
+export type SearchRefusal = 'refusesOrder' | 'noPath';
+
+export function searchTile(t: TacticalState, s: Soldier, g: number): SearchRefusal | null {
+  if (s.morale < SEARCH_MIN_MORALE) {
+    t.narrative.sayQuote(s, MercQuote.REFUSING_ORDER);
+    return 'refusesOrder';
+  }
+  if (apsToReachItems(t, s, g) === 0) return 'noPath';
+  return soldierPickupItem(t, s, g, FLOOR_Z_LEVEL, null) ? null : 'noPath';
 }
 
 export function soldierPickupItem(
@@ -162,7 +184,10 @@ function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
   s.pendingPickup = null;
   if (!pending) return;
   const pool = itemsAt(t, pending.gridNo, s.level);
-  if (pool.length === 0) return;
+  if (pool.length === 0) {
+    sayNothingFound(t, s, pending.gridNo);
+    return;
+  }
   if (s.team !== Team.OUR) {
     soldierGetItemFromWorld(t, s, pending);
     return;
@@ -170,6 +195,11 @@ function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
   const allHidden = pool.every((wi) => wi.visible === Visibility.HIDDEN_ITEM);
   if (pickupCandidates(t, s, pending.gridNo, pending.zLevel).length > 0) soldierGetItemFromWorld(t, s, pending);
   else if (allHidden && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
+  else sayNothingFound(t, s, pending.gridNo);
+}
+
+function sayNothingFound(t: TacticalState, s: Soldier, gridNo: number): void {
+  t.events.push({ type: 'nothingFound', soldier: s.id, gridNo });
 }
 
 function foundHiddenItems(t: TacticalState, s: Soldier): void {

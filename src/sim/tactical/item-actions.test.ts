@@ -7,7 +7,7 @@ import { createItem } from '../items/object.ts';
 import { changeSoldierStance } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot, itemIn } from './inventory.ts';
-import { adjustGridNoForItemPlacement, apsToPickupItem, soldierPickupItem } from './item-actions.ts';
+import { adjustGridNoForItemPlacement, apsToPickupItem, apsToReachItems, soldierPickupItem } from './item-actions.ts';
 import { MercQuote, QuoteSaidFlag } from './narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from './narrative/port.ts';
 import { AP } from './points.ts';
@@ -269,5 +269,115 @@ describe('the spotted-something line after hidden items are found (Handle_Items.
     const draws = withCosmeticPick(s, 1);
     pickUp(s, 'CANTEEN', 100);
     expect([s.said, draws]).toEqual([[], []]);
+  });
+});
+
+describe('searching a tile that shows no item (Turn_Based_Input.cc HandleHandCursorClick, Handle_Items.cc HandleSoldierPickupItem)', () => {
+  const nothingFound = (events: readonly SimEvent[]) => events.filter((e) => e.type === 'nothingFound');
+
+  function combatScene(): { sim: TacticalSim; merc: Soldier } {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    sim.lookAround();
+    expect(sim.state.inCombat).toBe(true);
+    return { sim, merc };
+  }
+
+  it('walks to the tile, searches it and says the NOTHING battle sound, paying only the walk (:1369)', () => {
+    const { sim, merc } = combatScene();
+    const tile = gridNo(83, 80);
+    const walk = apsToReachItems(sim.state, merc, tile) - AP.PICKUP_ITEM;
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: tile })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect([merc.gridNo, nothingFound(events), before - merc.actionPoints]).toEqual([
+      tile,
+      [expect.objectContaining({ soldier: 0, gridNo: tile })],
+      walk,
+    ]);
+  });
+
+  it('turns up the hidden items of the searched tile with the spotted line and no NOTHING sound (:1360-1365)', () => {
+    const s = pickupScene(BARRY);
+    const t = s.sim.state;
+    const tile = gridNo(82, 80);
+    addItemToPool(t, tile, createItem(t.content.items, item('WIRECUTTERS'), 100), Visibility.HIDDEN_ITEM, 0);
+    expect(s.sim.dispatch({ type: 'pickUp', soldier: s.merc.id, gridNo: tile })).toEqual({ ok: true });
+    const events = runUntilIdle(s.sim);
+    const wirecutters = t.worldItems.find((wi) => wi.object.item === item('WIRECUTTERS'));
+    expect([s.said, wirecutters?.visible, nothingFound(events)]).toEqual([
+      [[s.merc.id, MercQuote.SPOTTED_SOMETHING_ONE]],
+      Visibility.VISIBLE,
+      [],
+    ]);
+  });
+
+  it('leaves a hidden item beside a buried one hidden: only a tile of hidden items alone is searched (all_hidden)', () => {
+    const s = pickupScene(BARRY);
+    const t = s.sim.state;
+    addItemToPool(t, s.merc.gridNo, createItem(t.content.items, item('WIRECUTTERS'), 100), Visibility.HIDDEN_ITEM, 0);
+    addItemToPool(t, s.merc.gridNo, createItem(t.content.items, item('CROWBAR'), 100), Visibility.BURIED, 0);
+    expect(s.sim.dispatch({ type: 'pickUp', soldier: s.merc.id })).toEqual({ ok: true });
+    const events = runUntilIdle(s.sim);
+    expect([s.said, t.worldItems.map((wi) => wi.visible), nothingFound(events).length]).toEqual([
+      [],
+      [Visibility.HIDDEN_ITEM, Visibility.BURIED],
+      1,
+    ]);
+  });
+
+  it('has a merc below 30 morale refuse with his refusing-order line, and one at 30 search', () => {
+    const s = pickupScene(BARRY);
+    s.merc.morale = 29;
+    expect(s.sim.dispatch({ type: 'pickUp', soldier: s.merc.id })).toMatchObject({ ok: false, data: { refusal: 'refusesOrder' } });
+    expect(s.said).toEqual([[s.merc.id, MercQuote.REFUSING_ORDER]]);
+    s.merc.morale = 30;
+    expect(s.sim.dispatch({ type: 'pickUp', soldier: s.merc.id })).toEqual({ ok: true });
+  });
+
+  it('checks no APs: a merc short of the walk sets off and stops where they run out, one on the tile searches with none', () => {
+    const { sim, merc } = combatScene();
+    const tile = gridNo(84, 80);
+    merc.actionPoints = apsToReachItems(sim.state, merc, tile) - AP.PICKUP_ITEM - 1;
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: tile })).toEqual({ ok: true });
+    const walked = runUntilIdle(sim);
+    expect([merc.gridNo !== tile, merc.gridNo !== gridNo(80, 80), merc.pendingPickup?.gridNo, nothingFound(walked)]).toEqual([
+      true,
+      true,
+      tile,
+      [],
+    ]);
+    const spent = combatScene();
+    spent.merc.actionPoints = 0;
+    expect(spent.sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
+    expect(nothingFound(runUntilIdle(spent.sim))).toHaveLength(1);
+  });
+
+  it('keeps nothingThere for chosen items on a tile that shows none and for a height without items', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const cabinet = gridNo(82, 80);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: cabinet, items: [0] })).toMatchObject({
+      ok: false,
+      data: { refusal: 'nothingThere' },
+    });
+    addItemToPool(t, cabinet, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: cabinet, zLevel: 0 })).toMatchObject({
+      ok: false,
+      data: { refusal: 'nothingThere' },
+    });
+  });
+
+  it('has a soldier whose pile is gone when he gets there say the NOTHING battle sound (:1313)', () => {
+    const s = pickupScene(IVAN, Team.ENEMY);
+    soldierPickupItem(s.sim.state, s.merc, s.merc.gridNo, 0, null);
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < PICKUP_TICKS; tick++) {
+      s.sim.step();
+      events.push(...s.sim.drainEvents());
+    }
+    expect(nothingFound(events)).toEqual([expect.objectContaining({ soldier: s.merc.id, gridNo: s.merc.gridNo })]);
   });
 });

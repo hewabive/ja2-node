@@ -620,6 +620,13 @@ describe('the sound director', () => {
     expect(files(r)[2]).toBe(book.paths.get('CLOSE_LOCKER'));
   });
 
+  it('has a merc whose pickup or search finds nothing say the NOTHING battle sound at once', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'nothingFound', tick: 10, soldier: 1, gridNo: G }])]);
+    expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
+  });
+
   it('closes the crate of a Bobby Ray delivery silently and keeps quiet about containers open when the sector loads', () => {
     const r = rig(world(1, [], 5));
     r.director.reset([], [G]);

@@ -366,8 +366,13 @@ body without those states, as a civilian escort's, pays the first step and stays
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
 click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the
 world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
-(`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). A melee attack at a soldier out of
-reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
+(`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). On a tile that shows no item, `pickUp` without `items` is the
+hand cursor's search (`Turn_Based_Input.cc:3079`): it takes the click's morale check (`refusesOrder`, and the merc says
+his refusing line) but no AP check, so in combat he may stop short of the tile. Hidden items turn up with his
+spotted-something line; otherwise, and whenever a pile is gone by the time he gets there, the `nothingFound` event
+carries his NOTHING battle sound. `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
+pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A melee attack at a
+soldier out of reach walks up first (`estimateAttack` gives `walkTo` and the footsteps), then strikes. A knife takes any tile of his
 level, as the original's knife cursor does: at one without a soldier he stabs the ground, or cuts the head off a corpse
 lying there (`11`); fists need a soldier (`needMeleeTarget`). `steal` is the hand cursor's click on a conscious hostile
 soldier, with its AP check (`GetAPsToStealItem`); `previewAction` kind `steal` gives the cost and the walk the cursor

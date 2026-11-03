@@ -979,6 +979,44 @@ describe('the tactical input on the tactical screen', () => {
     expect(dots).toHaveLength(items.length);
   });
 
+  it('searches a tile that shows no item on the hand click: pickUp at the floor height, the merc walks there and finds nothing', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    const at = f.world.pickPoint(tile);
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', soldier: 0, gridNo: tile, zLevel: 0 }, reply: { ok: true } });
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    f.client.takeFrames();
+    f.advance(400);
+    const events = f.client.takeFrames().flatMap((frame) => frame.events ?? []);
+    expect([merc(f, 0).gridNo, events.filter((e) => e.type === 'nothingFound')]).toEqual([
+      tile,
+      [expect.objectContaining({ soldier: 0, gridNo: tile })],
+    ]);
+  });
+
+  it('sends the search of a merc below 30 morale for the server to refuse with his line, and stays in the hand mode', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const searcher = tacticalOf(f.session).state.soldiers.find((s) => s?.id === 0);
+    if (!searcher) throw new Error('no merc 0');
+    searcher.morale = 29;
+    f.advance(1);
+    const tile = merc(f, 0).gridNo + 3;
+    const at = f.world.pickPoint(tile);
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({
+      cmd: { type: 'pickUp', gridNo: tile },
+      reply: { ok: false, data: { refusal: 'refusesOrder' } },
+    });
+    expect([f.screen.controls.input.mode, f.battleSounds]).toEqual([UiMode.HANDCURSOR_MODE, []]);
+  });
+
   it('shows the walk of a steal with the hand cursor over an enemy and steals on the click', async () => {
     const f = await inCombat();
     const seen = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);

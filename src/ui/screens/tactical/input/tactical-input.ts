@@ -19,7 +19,7 @@
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
 // @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31;
-// @src the z-level of the pool, the search at z-level 0, 2026-11-02),
+// @src the z-level of the pool, the search at z-level 0, 2026-11-02; the morale refusal the server says, 2026-11-03),
 // @src HandleMoveModeInteractiveClick (GetLargestZLevelOfItemPool, 2026-11-02), HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
@@ -1595,11 +1595,19 @@ export class TacticalInput {
       else if (this.#canAffordMove()) return UiEvent.C_MOVE_MERC;
       return event;
     }
+    return this.#searchClick(sel, actionGridNo, event);
+  }
+
+  #searchClick(sel: SoldierView, gridNo: number, event: UiEvent): UiEvent {
+    const search = { type: 'pickUp', soldier: sel.id, gridNo, zLevel: FLOOR_Z_LEVEL };
     if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
-    else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) this.#env().battleSound(sel.id, 'curse');
+    else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) void this.#host.sendBusyOrder(search);
     else if (this.#currentAp === 0) this.#feedback(NO_PATH_STR);
-    else void this.#host.sendBusyOrder({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: FLOOR_Z_LEVEL });
-    return UiEvent.A_CHANGE_TO_MOVE;
+    else {
+      void this.#host.sendBusyOrder(search);
+      return UiEvent.A_CHANGE_TO_MOVE;
+    }
+    return event;
   }
 
   #stealClick(sel: SoldierView, target: number, event: UiEvent): UiEvent {

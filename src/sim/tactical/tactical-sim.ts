@@ -97,6 +97,8 @@ import {
   itemOpcode,
   pickupCandidates,
   requestedZLevel,
+  searchTile,
+  showsItems,
   soldierDropItem,
   soldierDropObject,
   soldierPickupItem,
@@ -694,6 +696,7 @@ export class TacticalSim {
     const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    if (cmd.items === undefined && !showsItems(t, s, g)) return this.#search(s, g);
     const zLevel = requestedZLevel(t, s, g, cmd.zLevel);
     const candidates = pickupCandidates(t, s, g, zLevel);
     if (candidates.length === 0) return refuse('nothingThere', 'nothing to pick up there');
@@ -708,6 +711,13 @@ export class TacticalSim {
     if (apCost === 0) return refuse('noPath', 'no path');
     if (!enoughPoints(t.inCombat, s, apCost)) return refuse('notEnoughAP', `not enough APs: ${apCost} needed`);
     if (!soldierPickupItem(t, s, g, zLevel, selection)) return refuse('noPath', 'no path');
+    return { ok: true };
+  }
+
+  #search(s: Soldier, g: number): CommandResult {
+    const refusal = searchTile(this.state, s, g);
+    if (refusal === 'refusesOrder') return refuse(refusal, 'his morale is too low to search');
+    if (refusal === 'noPath') return refuse(refusal, 'no path');
     return { ok: true };
   }
 

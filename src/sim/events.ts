@@ -346,6 +346,12 @@ export interface ItemsPickedUpEvent extends SimEventBase {
   readonly battleSound?: 'GOTIT';
 }
 
+export interface NothingFoundEvent extends SimEventBase {
+  readonly type: 'nothingFound';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
 export interface ItemsRevealedEvent extends SimEventBase {
   readonly type: 'itemsRevealed';
   readonly gridNo: number;
@@ -678,6 +684,7 @@ export type SimEvent =
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent
+  | NothingFoundEvent
   | ItemsRevealedEvent
   | ItemDroppedEvent
   | PreBattleEvent

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_INTTILES for doors, ITEMS, MERCSFORAID, STEAL; the
-// @src AP sums; MERCSFORAID walks to any soldier, whether or not first aid would be refused, 2026-11-02),
+// @src AP sums; MERCSFORAID walks to any soldier, whether or not first aid would be refused, 2026-11-02; ITEMS over a
+// @src tile that shows no item, the search of Turn_Based_Input.cc HandleHandCursorClick, 2026-11-03),
 // @src UIHandleTOnTerrain (talk range, line of sight, AP_TALK), IsValidJumpLocation, ValidQuickExchangePosition,
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
@@ -23,7 +24,7 @@ import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
-import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel } from '../tactical/item-actions.ts';
+import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel, showsItems } from '../tactical/item-actions.ts';
 import { apsToJumpOver, jumpOverAt } from '../tactical/jump-over.ts';
 import { directionToward } from '../tactical/movement.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
@@ -129,7 +130,8 @@ function doorAction(c: ActionContext): ActionPart {
 
 function pickUpAction(c: ActionContext, zLevel: unknown): ActionPart {
   const { t, s } = c;
-  if (pickupCandidates(t, s, c.g, requestedZLevel(t, s, c.g, zLevel)).length === 0) return refused(c, 'nothingThere');
+  if (showsItems(t, s, c.g) && pickupCandidates(t, s, c.g, requestedZLevel(t, s, c.g, zLevel)).length === 0)
+    return refused(c, 'nothingThere');
   const actionGridNo = adjustGridNoForItemPlacement(t, s, c.g);
   if (actionGridNo === s.gridNo) return { ok: true, apCost: AP.PICKUP_ITEM, actionGridNo, steps: NO_STEPS };
   const walk = walkTo(c, actionGridNo);

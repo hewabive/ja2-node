@@ -17,7 +17,8 @@
 // @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
 // @src predictable loop); Tactical/Rotting_Corpses.cc VaporizeCorpse (BODY_EXPLODE_1); Tactical/OppList.cc OurTeamSeesSomeone
 // @src and SaySeenQuote (the ENEMY and CURSE1 battle sounds of a sighting, 2026-10-30); Tactical/Handle_Items.cc
-// @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30); Tactical/Weapons.cc UseHandToHand (the curse
+// @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30), HandleSoldierPickupItem (the NOTHING
+// @src battle sound of a pickup or search that finds nothing, 2026-11-03); Tactical/Weapons.cc UseHandToHand (the curse
 // @src of a failed or fumbled steal, 2026-10-31); Tactical/Dialogue_Control.cc DialogueEventQuote::Execute (the battle sound
 // @src of the merc on our team with a line's profile, which holds the line, 2026-10-31).
 
@@ -580,6 +581,9 @@ export class SoundDirector {
       case 'enemySighted':
       case 'itemsPickedUp':
         if (e.battleSound) this.#battleSound(e.soldier, e.battleSound, false);
+        return;
+      case 'nothingFound':
+        this.#battleSound(e.soldier, 'NOTHING', false);
         return;
       case 'itemDropped':
         if (this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));

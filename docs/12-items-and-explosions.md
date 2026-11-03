@@ -145,6 +145,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Plain smoke gasses whoever steps into it without a good mask (aim −50, no interrupts), though it does no damage | `explosions/smoke.test.ts` |
 | A mask worn below 70 lets a soldier get gassed, yet any mask clears the state at his next turn start | `explosions/smoke.test.ts` |
 | A pile under a soldier or a blocking structure is picked up from a side tile only, though the reach animation turns to any neighbour: a merc on its diagonal walks first | `item-actions.test.ts` |
+| A search pays only its walk and its click checks no APs: in combat a merc short of the walk sets off and stops where they run out, and one on the tile searches with none left | `item-actions.test.ts` |
+| A search turns up hidden items only on a tile where every item is hidden: one beside a buried item stays hidden, and the merc finds nothing | `item-actions.test.ts` |
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
 
 Not pinned yet:

@@ -86,10 +86,21 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(far.ok).toBe(true);
     expect(far.apCost).toBeGreaterThan(AP.PICKUP_ITEM);
     expect(far.steps.length).toBe(3);
-    expect(action(sim, 'pickUp', ORIGIN + 2 * EAST)).toMatchObject({ ok: false, refusal: 'nothingThere' });
     addItemToPool(sim.state, ORIGIN + 2 * EAST, pistol(), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
     expect(action(sim, 'pickUp', ORIGIN + 2 * EAST, { zLevel: 0 })).toMatchObject({ ok: false, refusal: 'nothingThere' });
     expect(action(sim, 'pickUp', ORIGIN + 2 * EAST)).toMatchObject({ ok: true, actionGridNo: ORIGIN + 2 * EAST });
+  });
+
+  it('searches a tile that shows no item, hidden items or none, for the walk plus AP_PICKUP_ITEM of a pickup there', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    const wirecutters = createItem(content.items, content.items.byName.get('WIRECUTTERS')?.index ?? 0, 100);
+    addItemToPool(sim.state, ORIGIN + 3 * EAST, wirecutters, Visibility.HIDDEN_ITEM, 0);
+    expect(action(sim, 'pickUp', ORIGIN)).toMatchObject({ ok: true, apCost: AP.PICKUP_ITEM, actionGridNo: ORIGIN });
+    const empty = action(sim, 'pickUp', ORIGIN + 3 * SOUTH);
+    const hidden = action(sim, 'pickUp', ORIGIN + 3 * EAST);
+    expect([empty.ok, empty.actionGridNo, empty.steps.length, empty.apCost > AP.PICKUP_ITEM]).toEqual([true, ORIGIN + 3 * SOUTH, 2, true]);
+    expect([hidden.ok, hidden.apCost, hidden.steps.length]).toEqual([true, empty.apCost, 2]);
   });
 
   it('looks for GetAPsToLook unless already facing, and talks to a squad mate for a bark', () => {
