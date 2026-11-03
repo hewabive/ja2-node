@@ -30,6 +30,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
+import { COMPATIBLE_HILIGHT } from './faces.ts';
 import { Arrows } from './input/arrows.ts';
 import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
@@ -133,6 +134,15 @@ function placeItem(f: TacticalUiTest, tile: number, item: string, flags = 0, zHe
   if (!def) throw new Error(`no item ${item}`);
   addItemToPool(t, tile, createItem(t.content.items, def.index, 100), Visibility.VISIBLE, 0, flags, zHeight);
   f.advance(1);
+}
+
+function compatibleFaces(f: TacticalUiTest): number[] {
+  const lit = f.draw().items.filter((i) => i.kind === 'rectangle' && i.color === COMPATIBLE_HILIGHT);
+  return f.screen.teamSlots.flatMap((id, slot) => {
+    const face = f.widget(`teamFace${slot}`).rect;
+    const framed = lit.some((r) => r.kind === 'rectangle' && r.x1 === face.x - 2 && r.y1 === face.y - 1);
+    return framed && id !== null ? [id] : [];
+  });
 }
 
 function commandsOf(f: TacticalUiTest, type: string) {
@@ -1038,6 +1048,32 @@ describe('the tactical input on the tactical screen', () => {
     f.t.frame(ITEMS_OVER_MS + 1);
     await f.settle(4);
     expect([f.screen.controls.input.mode, itemNameLines(f)]).toEqual([UiMode.HANDCURSOR_MODE, 1]);
+  });
+
+  it('lights the faces of the squad mates carrying something compatible with an item of the pool list under the pointer, as DrawItemPoolList does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const clip = t.content.items.byName.get('CLIP9_15')?.index ?? 0;
+    for (const s of t.soldiers) {
+      if (s?.team !== 0) continue;
+      for (let slot = 0; slot < s.inv.length; slot++) s.inv[slot] = emptyObject();
+    }
+    const loader = t.soldiers.find((s) => s?.id === 2);
+    if (!loader) throw new Error('no merc 2');
+    loader.inv[InvSlot.SMALLPOCK1] = createItem(t.content.items, clip, 100);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'KEVLAR_VEST');
+    placeItem(f, tile, 'GLOCK_17');
+    const at = f.world.pickPoint(tile);
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(8);
+    expect(itemNameLines(f)).toBe(2);
+    expect(compatibleFaces(f)).toEqual([2]);
+    const away = f.world.pickPoint(merc(f, 0).gridNo - 3);
+    pointer(f, 'pointerMove', away.x, away.y, MouseButton.LEFT);
+    await f.settle(8);
+    expect([itemNameLines(f), compatibleFaces(f)]).toEqual([0, []]);
   });
 
   it('names, picks up and marks on the overhead map an item in an open cabinet, which only the world leaves undrawn', async () => {

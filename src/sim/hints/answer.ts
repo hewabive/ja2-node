@@ -2,6 +2,7 @@ import type { CommandResult } from '../command.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { assignmentOptions } from './assignment-options.ts';
 import { canEnterSector } from './can-enter-sector.ts';
+import { compatibleMercs } from './compatible-mercs.ts';
 import { estimateAttack } from './estimate-attack.ts';
 import { exitSectorDryRun, exitSectorOptions } from './exit-sector.ts';
 import { itemInfo } from './item-info.ts';
@@ -22,6 +23,7 @@ const ANSWERERS: Readonly<Partial<Record<HintKind, HintAnswerer>>> = {
   previewAction,
   placements,
   itemInfo,
+  compatibleMercs,
   previewRoute,
   previewHeliRoute,
   canEnterSector,

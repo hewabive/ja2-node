@@ -85,7 +85,11 @@ export function sampleInventoryHints(view: PlayerView, itemIndices: readonly num
     }
     requests.push({ type: 'placements', soldier: s.id, slot: NUM_INV_SLOTS - 1 });
   }
-  for (const item of itemIndices) requests.push({ type: 'itemInfo', item, metric: item % 2 === 0 });
+  for (const item of itemIndices) {
+    requests.push({ type: 'itemInfo', item, metric: item % 2 === 0 });
+    requests.push({ type: 'compatibleMercs', items: [item] });
+  }
+  requests.push({ type: 'compatibleMercs', items: itemIndices });
   return requests;
 }
 

@@ -38,7 +38,7 @@ import { idiv } from '../../../core/int.ts';
 import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions, MovementOptions } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
-import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import type { ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
 import { KeyModifier, type UiKeyEvent } from '../../input/events.ts';
@@ -874,14 +874,18 @@ export class TacticalControls {
     this.#renderItemPool(list, width, bottom);
   }
 
-  #renderItemPool(list: DrawList, width: number, bottom: number): void {
+  poolListItems(): readonly ItemView[] {
     const gridNo = this.input.overItemPoolGridNo;
     const sel = this.#screen.selected();
-    if (gridNo === null || !sel || this.#screen.itemInCursor()) return;
+    if (gridNo === null || !sel || this.#screen.itemInCursor() || this.overhead.open) return [];
     const items = this.#view()?.items;
     const ownLevel = itemPool(items, gridNo, sel.level);
     const pool = ownLevel.length > 0 ? ownLevel : itemPool(items, gridNo, sel.level === 0 ? 1 : 0);
-    const shown = onZLevel(pool, largestZLevel(pool));
+    return onZLevel(pool, largestZLevel(pool));
+  }
+
+  #renderItemPool(list: DrawList, width: number, bottom: number): void {
+    const shown = this.poolListItems();
     if (shown.length === 0) return;
     const env = this.#env();
     const font = env.runtime.fonts.get(FontName.SMALLFONT1);

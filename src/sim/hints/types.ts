@@ -29,6 +29,7 @@ export const TACTICAL_HINT_KINDS = [
   'estimateAttack',
   'placements',
   'itemInfo',
+  'compatibleMercs',
   'exitSector',
   'movementOptions',
 ] as const;

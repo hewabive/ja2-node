@@ -43,12 +43,14 @@
 // @src (Rotting_Corpses.cc TurnSoldierIntoCorpse, Handle_Items.cc SoldierGiveItemFromAnimation); neither Esc nor a right
 // @src click ends the item pointer (Turn_Based_Input.cc GetKeyboardInput, GetTBMouseButtonInput) (2026-11-02);
 // @src Handle_Items.cc HandleSoldierPickupItem (G_GETTINGITEM as the pickup menu opens), Interface_Items.cc
-// @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02).
+// @src RemoveItemPickupMenu (A_CHANGE_TO_MOVE as it closes, 2026-11-02); Interface_Control.cc
+// @src RenderTopmostTacticalInterface and Handle_Items.cc DrawItemPoolList (the faces lit by every item of the pool list
+// @src under the pointer, HandleAnyMercInSquadHasCompatibleStuff, 2026-11-03).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { ItemInfo } from '../../../protocol/hints.ts';
+import type { CompatibleMercs, ItemInfo } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
@@ -1815,7 +1817,16 @@ export class TacticalScreen implements Screen {
   }
 
   #compatibleFace(s: SoldierView): boolean {
-    return this.inventory.cursor !== null && this.inventory.compatibleMercs().has(s.id);
+    if (this.inventory.cursor !== null) return this.inventory.compatibleMercs().has(s.id);
+    return this.#poolListCompatibleMercs().includes(s.id);
+  }
+
+  #poolListCompatibleMercs(): readonly number[] {
+    const listed = this.controls.poolListItems();
+    if (listed.length === 0) return [];
+    const items = listed.flatMap((i) => this.#env.media.item(i.item)?.index ?? []);
+    const reply = this.#env.client.hint({ type: 'compatibleMercs', items });
+    return reply.state === 'ready' && reply.answer.ok ? (reply.answer.data as CompatibleMercs).mercs : [];
   }
 
   #continueText(s: SoldierView): string | null {

@@ -81,6 +81,7 @@ describe('action and inventory hints on stub scenarios, client against server', 
     kitSquad(session);
     const report = await expectAgreement(session, itemSpread());
     expect(report.kinds.get('placements')).toBeGreaterThan(10);
+    expect(report.kinds.get('compatibleMercs')).toBeGreaterThan(1);
     expect(report.answered).toBeGreaterThan(80);
   });
 
