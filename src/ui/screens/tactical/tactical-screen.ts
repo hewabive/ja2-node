@@ -17,9 +17,10 @@
 // @src TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
-// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld, none while the overhead map is up; Message.cc
-// @src ScrollString: no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick (give to a
-// @src talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
+// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld, none while the overhead map is up; the locators
+// @src step in RenderTopmostTacticalInterface after HandleTacticalUI, 2026-11-03; Message.cc ScrollString: no line in or
+// @src out while the view scrolls); Interface_Items.cc HandleItemPointerClick
+// @src (give to a talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several; Handle_Items.cc HandleSoldierPickupItem counts the items of the click's z-level, 2026-11-02);
 // @src Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
@@ -120,6 +121,7 @@ import {
   SOLDIER_LOCATE_FLAGS,
   showsDamage,
   slideLocatorCycles,
+  TimeCounter,
   TOP_BAR_HEIGHT,
   TopBar,
 } from './overlays.ts';
@@ -226,6 +228,7 @@ export class TacticalScreen implements Screen {
   readonly #flashes = new Map<number, Map<StatKey, StatFlash>>();
   readonly #damage = new Map<number, DamageNumber>();
   readonly #locators = new Map<number, Locator>();
+  readonly #blinkCounters = new Map<number, TimeCounter>();
   readonly #log = new TacticalMessageLog();
   readonly #topBar = new TopBar();
   readonly #feedback = new FeedbackBox();
@@ -913,6 +916,7 @@ export class TacticalScreen implements Screen {
     this.inventory.update(this.#now);
     this.#updateModels(view);
     this.controls.update(this.#now);
+    this.#stepLocators();
     this.#scrollMessages();
     this.#updateCursor(now);
     this.#itemTileCursor();
@@ -957,13 +961,16 @@ export class TacticalScreen implements Screen {
 
   #updateTimers(now: number): void {
     for (const [id, damage] of this.#damage) if (!damage.update(this.#simMs())) this.#damage.delete(id);
-    for (const [id, locator] of this.#locators) if (!locator.update(this.#now)) this.#locators.delete(id);
     if (now - this.#radarBlinkAt >= RADAR_MAP_BLINK_MS) {
       this.#radarBlinkAt = now;
       this.#radarBlink = !this.#radarBlink;
     }
     this.#topBar.sync(this.#view()?.combat, this.#simMs());
     this.#feedback.update(this.#now);
+  }
+
+  #stepLocators(): void {
+    for (const [id, locator] of this.#locators) if (!locator.update(this.#now)) this.#locators.delete(id);
   }
 
   #scrollMessages(): void {
@@ -1323,7 +1330,18 @@ export class TacticalScreen implements Screen {
   }
 
   #showLocator(s: SoldierView, cycles: number | null): void {
-    if (cycles !== null) this.#locators.set(s.id, new Locator(this.#now, cycles));
+    if (cycles === null) return;
+    const shown = this.#locators.get(s.id);
+    if (shown) shown.show(cycles);
+    else this.#locators.set(s.id, new Locator(cycles, this.#blinkCounter(s.id)));
+  }
+
+  #blinkCounter(id: number): TimeCounter {
+    const known = this.#blinkCounters.get(id);
+    if (known) return known;
+    const counter = new TimeCounter();
+    this.#blinkCounters.set(id, counter);
+    return counter;
   }
 
   #handleLocateSelect(s: SoldierView, force: boolean): void {

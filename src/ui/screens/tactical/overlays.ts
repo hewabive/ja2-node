@@ -6,17 +6,19 @@
 // @src turn strings and STR_BLOODCATS_TURN), HandleTopMessages (TEAMTURNUPDATE: the counter rises every 100 ms up to the
 // @src current soldier's share), InitEnemyUIBar, UpdateEnemyUIBar, PLAYER_TEAM_TIMER_TICKS_PER_ENEMY,
 // @src GetSoldierAboveGuyPositions (the 80-pixel column at the true position - 62 + the stance offset, below the soldier
-// @src when showing damage or above the viewport), DrawSelectedUIAboveGuy (the radio locator every 80 ms, the selected,
-// @src located, multi-selected or pointed soldier, THIRDPOINTERS1 for the selected one during the rubber band, no squad
-// @src line when multi-selected, the action line, the name, the bar box of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7,
-// @src the health word, "(roof)"),
+// @src when showing damage or above the viewport), DrawSelectedUIAboveGuy (the radio locator one step a frame once the
+// @src soldier's BlinkSelCounter is done, at once for a counter long done, which Timer_Control.cc TIMECOUNTERDONE
+// @src restarts at 80 ms, 2026-11-03; the selected, located, multi-selected or pointed soldier, THIRDPOINTERS1 for
+// @src the selected one during the rubber band, no squad line when multi-selected, the action line, the name, the bar box
+// @src of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7, the health word, "(roof)"),
 // @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
 // @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
 // @src src/game/Tactical/Overhead.cc (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps); src/game/Tactical/
-// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast); src/game/Tactical/Overhead.cc LocateSoldier (10
-// @src centres on the soldier even on screen; 10 and SETLOCATOR show the normal locator, the other flags but
-// @src DONTSETLOCATOR the fast one), SlideTo (any flag but DONTSETLOCATOR shows the normal locator,
-// @src SETANDREMOVEPREVIOUSLOCATOR stops the others first) (2026-11-01); Overhead_Types.h the locator flags.
+// @src Interface_Panels.cc ShowRadioLocator (5 cycles, 3 when fast; frame and cycles start again, the counter and the
+// @src shown flag stay, 2026-11-03); src/game/Tactical/Overhead.cc LocateSoldier (10 centres on the soldier even
+// @src on screen; 10 and SETLOCATOR show the normal locator, the other flags but DONTSETLOCATOR the fast one), SlideTo
+// @src (any flag but DONTSETLOCATOR shows the normal locator, SETANDREMOVEPREVIOUSLOCATOR stops the others first)
+// @src (2026-11-01); Overhead_Types.h the locator flags.
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -185,16 +187,26 @@ export function slideLocatorCycles(flag: LocateFlag): number | null {
   return flag === LocateFlag.DONTSETLOCATOR ? null : SHOW_LOCATOR_NORMAL_CYCLES;
 }
 
+export class TimeCounter {
+  #expiresAt = 0;
+
+  done(now: number, duration: number): boolean {
+    if (now < this.#expiresAt) return false;
+    this.#expiresAt = now + duration;
+    return true;
+  }
+}
+
 export class Locator {
   #flash = 1;
   #frame = 0;
-  #since: number;
-  readonly #cycles: number;
+  #cycles: number;
   #shown = false;
+  readonly #counter: TimeCounter;
 
-  constructor(now: number, cycles: number) {
-    this.#since = now;
+  constructor(cycles: number, counter: TimeCounter) {
     this.#cycles = cycles;
+    this.#counter = counter;
   }
 
   get frame(): number {
@@ -205,17 +217,23 @@ export class Locator {
     return this.#shown;
   }
 
+  show(cycles: number): void {
+    this.#flash = 1;
+    this.#frame = 0;
+    this.#cycles = cycles;
+  }
+
   update(now: number): boolean {
-    while (now - this.#since >= LOCATOR_FRAME_MS) {
-      this.#since += LOCATOR_FRAME_MS;
-      this.#shown = true;
-      if (++this.#frame === LOCATOR_FRAMES) {
-        this.#flash++;
-        this.#frame = 0;
-      }
-      if (this.#flash === this.#cycles) return false;
+    if (this.#counter.done(now, LOCATOR_FRAME_MS)) this.#step();
+    return this.#flash !== this.#cycles;
+  }
+
+  #step(): void {
+    this.#shown = true;
+    if (++this.#frame === LOCATOR_FRAMES) {
+      this.#flash++;
+      this.#frame = 0;
     }
-    return true;
   }
 }
 
