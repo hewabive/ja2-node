@@ -83,6 +83,24 @@ describe('what a click with the item cursor does (Interface_Items.cc HandleItemP
     expect(itemPointerAction(aim(mate(BESIDE, { kind: 'epc' }), BESIDE, alternative))).toBe('toss');
   });
 
+  it('gives on the right click to a squad mate by his collapse, as the server refuses a give to a collapsed target, not by his life', () => {
+    const alternative = { alternative: true };
+    const hint = (collapsed: boolean) => ({
+      skills: [0, 0] as const,
+      personality: 0,
+      shock: 0,
+      lastTarget: -1,
+      tilesMoved: 0,
+      weightAtTurnStart: 0,
+      collapsed,
+      gassed: false,
+      underAiControl: false,
+    });
+    expect(itemPointerAction(aim(mate(FAR, { hint: hint(true) }), FAR, alternative))).toBe('toss');
+    expect(itemPointerAction(aim(mate(FAR, { life: 5, hint: hint(false) }), FAR, alternative))).toBe('give');
+    expect(itemPointerAction(aim(mate(FAR, { kind: 'epc', hint: hint(true) }), FAR))).toBe('toss');
+  });
+
   it('tosses at an NPC walking by out of combat, whom combat lets take a give', () => {
     const walker = view(5, CIV_TEAM, FAR, { talkable: 'npc' });
     expect(itemPointerAction(aim(walker, FAR, { moving: () => true }))).toBe('toss');

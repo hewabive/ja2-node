@@ -5,7 +5,7 @@
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; Soldier_Create.cc (SOLDIER_VEHICLE for the
 // @src HUMVEE to TANK_NE bodies); src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
-// @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead).
+// @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead); bCollapsed, our soldiers' own (2026-11-03).
 // @src gMercProfiles[ubProfile].bSex (the texts by a merc's sex take his profile's, not his body type's) (2026-11-01).
 
 import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
@@ -81,6 +81,11 @@ export function isDead(s: SoldierView): boolean {
 export function isUnconscious(s: SoldierView): boolean {
   if (s.team === OUR_TEAM) return (s.life ?? 0) < OKLIFE;
   return s.healthIndex === DYING_HEALTH_INDEX || s.healthIndex === LIFELESS_HEALTH_INDEX;
+}
+
+export function isCollapsed(s: SoldierView): boolean {
+  if (s.team === OUR_TEAM) return s.hint?.collapsed === true;
+  return isUnconscious(s);
 }
 
 export function inCombat(view: PlayerView | null): boolean {

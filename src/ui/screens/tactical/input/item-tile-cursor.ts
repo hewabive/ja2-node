@@ -8,8 +8,8 @@
 // @src drop, pass or toss; a moving soldier under the pointer refused; a stale bad chance to get through refused with
 // @src CANNOT_THROW_TO_DEST_STR); InternalBeginItemPointer (the swap off for a new object); Turn_Based_Input.cc
 // @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (a right click over a soldier swaps give and
-// @src throw; not a real-time double click); Handle_UI.cc IsValidTalkableNPC with fGive; Interface.cc DrawSelectedUIAboveGuy
-// @src (CATCH_STR, RELOAD_STR, MSG_PASS, GIVE_STR over the catcher).
+// @src throw; not a real-time double click); Handle_UI.cc IsValidTalkableNPC with fGive (bCollapsed); Interface.cc
+// @src DrawSelectedUIAboveGuy (CATCH_STR, RELOAD_STR, MSG_PASS, GIVE_STR over the catcher).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { pythSpacesAway } from '../../../../content/world/grid.ts';
@@ -18,7 +18,7 @@ import type { CommandEnvelope } from '../../../../protocol/messages.ts';
 import type { SoldierView } from '../../../../protocol/view.ts';
 import type { ItemCursor } from '../item-cursor.ts';
 import { tossFields } from '../item-cursor.ts';
-import { isDead, isEpc, isUnconscious, isVehicleBody, OUR_TEAM } from '../soldiers.ts';
+import { isCollapsed, isDead, isEpc, isVehicleBody, OUR_TEAM } from '../soldiers.ts';
 import { dataOf, type HintState } from './hints.ts';
 
 export const DROPPING_DISTANCE = 1;
@@ -63,7 +63,7 @@ const isRobotBody = (s: SoldierView) => s.bodyType === Body.ROBOTNOWEAPON;
 
 function givesTo(aim: ItemPointerAim, target: SoldierView, rule: Talkable): boolean {
   if (isRobotBody(aim.holder) || isDead(target) || isVehicleBody(target)) return false;
-  if (rule.checkCollapsed && isUnconscious(target)) return false;
+  if (rule.checkCollapsed && isCollapsed(target)) return false;
   const npc = target.team !== OUR_TEAM && target.talkable === 'npc';
   const valid = npc || isEpc(target) || (target.team === OUR_TEAM && rule.mercs);
   return valid && (aim.inCombat || !aim.moving(target));
