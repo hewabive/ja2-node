@@ -17,9 +17,10 @@
 // @src TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
-// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld, none while the overhead map is up; the locators
-// @src step in RenderTopmostTacticalInterface after HandleTacticalUI, 2026-11-03; Message.cc ScrollString: no line in or
-// @src out while the view scrolls); Interface_Items.cc HandleItemPointerClick
+// @src shop too), MainGameScreenHandle (ScrollString after ScrollWorld; the locators step in
+// @src RenderTopmostTacticalInterface after HandleTacticalUI; while the overhead map is up no ScrollString,
+// @src HandleDialogue, ExecuteVideoOverlays or RenderTopmostTacticalInterface, 2026-11-03; Message.cc ScrollString:
+// @src no line in or out while the view scrolls); Interface_Items.cc HandleItemPointerClick
 // @src (give to a talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
 // @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
 // @src several; Handle_Items.cc HandleSoldierPickupItem counts the items of the click's z-level, 2026-11-02);
@@ -444,6 +445,7 @@ export class TacticalScreen implements Screen {
       viewportRegion: () => this.#viewportRegion,
       dismissFeedback: () => this.#dismissFeedback(),
       closeCivQuote: () => this.dialogue.closeCivQuoteIfActive(),
+      holdDialogue: (held) => this.dialogue.presenter.holdDialogue(held),
       radarBlink: () => this.#radarBlink,
     };
   }
@@ -916,7 +918,7 @@ export class TacticalScreen implements Screen {
     this.inventory.update(this.#now);
     this.#updateModels(view);
     this.controls.update(this.#now);
-    this.#stepLocators();
+    if (!this.controls.overhead.open) this.#stepLocators();
     this.#scrollMessages();
     this.#updateCursor(now);
     this.#itemTileCursor();
@@ -1132,7 +1134,7 @@ export class TacticalScreen implements Screen {
     this.pickup.render(list, ctx);
     this.controls.renderMenus(list);
     this.controls.renderOverhead(list);
-    this.dialogue.render(list);
+    if (!this.controls.overhead.open) this.dialogue.render(list);
     if (this.dialogue.shopOpen && this.description.open) this.description.render(list, ctx, this.#env.runtime.images);
   }
 
@@ -2073,6 +2075,7 @@ export class TacticalScreen implements Screen {
   }
 
   #overlaysRenderer(list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView): void {
+    if (this.controls.overhead.open) return;
     const top = this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0;
     list.pushClip(rect.x, top, rect.x + rect.width, rect.y + rect.height);
     const font = this.#env.runtime.fonts.get(FontName.TINYFONT1);

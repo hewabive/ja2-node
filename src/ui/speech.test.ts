@@ -325,6 +325,24 @@ describe('SpeechPresenter', () => {
     expect(isQueuedQuoteEvent({ ...event, skipped: false } as QuoteEvent)).toBe(true);
   });
 
+  it('plays the current line to its end while the dialogue is held but starts no line and keeps the civilian quote until it goes on, as a screen without HandleDialogue does', () => {
+    const { p } = presenter({ speech: false });
+    p.update(0);
+    p.enqueue(line({ profile: 1, chars: 1 }));
+    p.showCivQuote({ soldier: 3, text: 'Go away', chars: 7, hint: false }, 0);
+    p.holdDialogue(true);
+    p.enqueue(line({ profile: 2, chars: 1 }));
+    p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    expect([p.current, p.queued.map((l) => l.profile)]).toEqual([null, [2]]);
+    p.flush();
+    p.enqueue(line({ profile: 3, chars: 1 }));
+    p.update(civQuoteLifetime(7));
+    expect([p.current, p.queued.map((l) => l.profile), p.civQuote?.text]).toEqual([null, [3], 'Go away']);
+    p.holdDialogue(false);
+    p.update(civQuoteLifetime(7) + 1);
+    expect([p.current?.line.profile, p.civQuote]).toEqual([3, null]);
+  });
+
   it('keeps a civilian quote for its lifetime, replaces it, and closes it on a click after 300 ms', () => {
     const { p } = presenter();
     p.showCivQuote({ soldier: 3, text: 'Go away', chars: 7, hint: false }, 0);

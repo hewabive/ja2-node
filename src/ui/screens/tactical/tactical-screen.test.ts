@@ -12,6 +12,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
+import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, type SpeechLineRequest, textDelay } from '../../speech.ts';
 import { UiMode } from './input/ui-events.ts';
 import { MAX_AGE } from './message-log.ts';
 
@@ -45,6 +46,7 @@ const NAMED_CIVILIAN_ID = 151;
 const CROW_TILE = 100 * 160 + 100;
 const NAMED_CIVILIAN_TILE = 104 * 160 + 104;
 const NAMED_CIVILIAN_DOT = '#5555ff';
+const OVERHEAD_MAP = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -149,6 +151,31 @@ function pressAlone(f: TacticalUiTest, key: string, code: string, held: Partial<
 function pointerTo(f: TacticalUiTest, x: number, y: number): void {
   f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
   f.t.frame(SCROLL_STEP_MS);
+}
+
+function ownMerc(f: TacticalUiTest): SoldierView {
+  const merc = f.client.view.soldiers.find((s) => s.team === 0);
+  if (!merc) throw new Error('no merc of ours');
+  return merc;
+}
+
+function mercLine(f: TacticalUiTest, text: string): SpeechLineRequest {
+  const merc = ownMerc(f);
+  return {
+    surface: 'tactical',
+    profile: merc.profile ?? 0,
+    soldier: merc.id,
+    text,
+    chars: text.length,
+    voice: null,
+    sector: null,
+    keyWait: false,
+  };
+}
+
+function drawnRegion(f: TacticalUiTest, id: string): boolean {
+  const { x, y, width, height } = f.widget(id).rect;
+  return f.draw().items.some((i) => i.kind === 'clipPush' && i.x === x && i.y === y && i.width === width && i.height === height);
 }
 
 function centreOn(f: TacticalUiTest, gridNo: number): void {
@@ -359,7 +386,7 @@ describe('the tactical screen over a stub sandbox session', () => {
 
   it('lets no message line in or out while the overhead map is up and drops the lines aged meanwhile together as it closes, as MainGameScreenHandle returns before ScrollString', async () => {
     const f = await tacticalUiTest(kit, ui);
-    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.world.overhead = OVERHEAD_MAP;
     const tick = f.client.view.tick;
     f.frames([frame(tick, [], logLines(tick, 2))]);
     await f.settle(2);
@@ -371,6 +398,37 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([true, shown]);
     f.key('Escape');
     expect([f.screen.controls.overhead.open, f.screen.messageLines]).toEqual([false, ['Late']]);
+  });
+
+  it('plays the line it opens over to its end without its subtitle box and starts the next only as the overhead map closes, as MainGameScreenHandle leaves out ExecuteVideoOverlays and HandleDialogue', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = OVERHEAD_MAP;
+    const presenter = f.screen.dialogue.presenter;
+    const first = presenter.enqueue(mercLine(f, 'Said as the map opens'));
+    f.t.frame();
+    expect(drawnRegion(f, 'speechTextBox')).toBe(true);
+    f.key('Insert');
+    const second = presenter.enqueue(mercLine(f, 'Said once it closes'));
+    expect([f.screen.controls.overhead.open, presenter.current?.line.id, drawnRegion(f, 'speechTextBox')]).toEqual([true, first.id, false]);
+    f.t.frame(textDelay(first.chars) + FINAL_TALKING_DELAY_MS);
+    expect([presenter.current, presenter.queued.map((l) => l.id), f.find('speechTextBox')]).toEqual([null, [second.id], undefined]);
+    f.key('Escape');
+    expect([presenter.current?.line.id, drawnRegion(f, 'speechTextBox')]).toEqual([second.id, true]);
+  });
+
+  it('keeps a civilian quote past its lifetime under the overhead map without drawing it and closes it as the map closes, as HandleCivQuote runs in HandleDialogue', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = OVERHEAD_MAP;
+    const presenter = f.screen.dialogue.presenter;
+    const quote = { soldier: ownMerc(f).id, text: 'Go away', chars: 7, hint: false };
+    presenter.showCivQuote(quote, f.t.runtime.clock.ja2Now);
+    f.t.frame();
+    expect(drawnRegion(f, 'civQuoteBox')).toBe(true);
+    f.key('Insert');
+    f.t.frame(civQuoteLifetime(quote.chars));
+    expect([presenter.civQuote?.text, drawnRegion(f, 'civQuoteBox')]).toEqual([quote.text, false]);
+    f.key('Escape');
+    expect([presenter.civQuote, f.find('civQuoteBox')]).toEqual([null, undefined]);
   });
 
   it('goes back to move mode once the held item is dropped beside the merc, as the click posts A_CHANGE_TO_MOVE', async () => {

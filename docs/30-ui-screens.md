@@ -93,10 +93,11 @@ until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, �
 
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
-subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`)
-and reports a cut or finished line with `skipLine`. The simulation finishes lines in ticks and never waits for a
-viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap "Map screen
-speech"); its Backspace cuts the line its frames said last.
+subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`) and
+reports a cut or finished line with `skipLine`. The overhead map holds it (`holdDialogue`) as the original leaves out
+`HandleDialogue` then: the current line plays on, no other starts. The simulation finishes lines in ticks and never
+waits for a viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap
+"Map screen speech"); its Backspace cuts the line its frames said last.
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
@@ -188,6 +189,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | No tactical message line comes in or ages out while the view scrolls or the overhead map is up; the lines that aged meanwhile drop together as it stops or closes (`Utils/Message.cc:131`, `GameScreen.cc:366`) | `tactical/tactical-screen.test.ts` "lets no message line in or out while the view scrolls …", "… while the overhead map is up …" |
 | The overhead map finds the cell under the pointer eight rows above it | `src/app/tactical/overhead-map.test.ts` |
 | The overhead map takes every key while it is up: only ESC, INSERT and ALT+x act, and Backspace stops no line (`TileEngine/Overhead_Map.cc:419`) | `tactical/tactical-controls.test.ts` "gives the overhead map every key while it is up …" |
+| While the overhead map is up the line already playing runs to its end with its voice and the panel face but no subtitle box or face popup, no other line starts, a civilian quote outlives its time unseen and the locators stand; all of it goes on as the map closes (`GameScreen.cc:366`, `TileEngine/Overhead_Map.cc:287`) | `tactical/tactical-screen.test.ts` "plays the line it opens over to its end …", "keeps a civilian quote past its lifetime under the overhead map …"; `tactical/tactical-controls.test.ts` "stops the locators under the overhead map …" |
 | A locator takes at most one step a frame, the first at once unless the soldier's last step is under 80 ms old, so a slow frame slows it down (`Tactical/Interface.cc:935`) | `tactical/overlays.test.ts` |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | The new-mail icon opens the oldest unread mail and the new-file icon the last unread file, where the functions' names promise the most recent mail and the first file | `laptop/email/email-list.test.ts`, `laptop/files/file-pages.test.ts` |
@@ -229,6 +231,5 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
-cursor", "Auto-bandage", "Overhead map", "Tactical overlays under the overhead map", "Inventory panel clicks", "Team
-panel vehicle exit", "Map inventory details", "Vehicles as characters", "Shop screen details", "IME composition",
-"I.M.P. skill page and saved profiles".
+cursor", "Auto-bandage", "Overhead map", "Inventory panel clicks", "Team panel vehicle exit", "Map inventory details",
+"Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page and saved profiles".

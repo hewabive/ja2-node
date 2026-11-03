@@ -9,7 +9,9 @@
 // @src as its voice), SetupFinalTalkingDelay
 // @src (300 ms with the mouth closed, the key wait of a FACE_POTENTIAL_KEYWAIT face with KEY_ADVANCE_SPEECH when the
 // @src line had no voice or subtitles are on); src/game/Tactical/Civ_Quotes.cc BeginCivQuote (a new quote replaces
-// @src the old one, the lifetime of the quoted text plus 500 ms), ShutDownQuoteBox (a click closes after 300 ms).
+// @src the old one, the lifetime of the quoted text plus 500 ms), ShutDownQuoteBox (a click closes after 300 ms);
+// @src a screen that leaves out Dialogue_Control.cc HandleDialogue starts no queued line and keeps the civilian quote
+// @src (HandleCivQuote), while Faces.cc HandleTalkingAutoFaces plays the current line to its end (2026-11-03).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { ViewFrame } from '../protocol/view.ts';
@@ -141,6 +143,7 @@ export class SpeechPresenter {
   #civ: CivQuoteLine | null = null;
   #nextId = 1;
   #now = 0;
+  #dialogueHeld = false;
   readonly #started: ((line: SpeechLine) => void)[] = [];
   readonly #ended: ((line: SpeechLine) => void)[] = [];
   readonly #stopped: ((line: SpeechLine, how: LineStop) => void)[] = [];
@@ -214,9 +217,13 @@ export class SpeechPresenter {
     return true;
   }
 
+  holdDialogue(held: boolean): void {
+    this.#dialogueHeld = held;
+  }
+
   update(now: number): void {
     this.#now = now;
-    if (this.#civ && now >= this.#civ.endsAt) this.#civ = null;
+    if (!this.#dialogueHeld && this.#civ && now >= this.#civ.endsAt) this.#civ = null;
     for (let guard = 0; guard < this.#queue.length + 2; guard++) {
       const r = this.#running;
       if (!r) {
@@ -278,7 +285,7 @@ export class SpeechPresenter {
 
   #startNext(now: number): boolean {
     const line = this.#queue[0];
-    if (!line || this.#speakerBattleSoundPlaying(line)) return false;
+    if (!line || this.#dialogueHeld || this.#speakerBattleSoundPlaying(line)) return false;
     this.#queue.shift();
     const settings = this.#o.settings();
     const voice = settings.speech && line.voice ? (this.#o.voices?.play(line.voice) ?? null) : null;

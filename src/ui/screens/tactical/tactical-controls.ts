@@ -165,6 +165,7 @@ export interface ControlsScreen {
   viewportRegion(): MouseRegion | null;
   dismissFeedback(): boolean;
   closeCivQuote(): boolean;
+  holdDialogue(held: boolean): void;
   radarBlink(): boolean;
 }
 
@@ -218,7 +219,8 @@ export class TacticalControls {
       selected: () => screen.selected()?.id ?? null,
       blink: () => screen.radarBlink(),
       centerOn: (gridNo) => env.world.centerOn(gridNo),
-      closed: () => undefined,
+      opened: () => screen.holdDialogue(true),
+      closed: () => screen.holdDialogue(false),
       exitGame: () => env.flow.exitGame(),
     });
     this.input = new TacticalInput(this.#inputHost());

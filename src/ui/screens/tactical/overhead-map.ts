@@ -58,6 +58,7 @@ export interface OverheadHooks {
   selected(): number | null;
   blink(): boolean;
   centerOn(gridNo: number): void;
+  opened(): void;
   closed(): void;
   exitGame(): void;
 }
@@ -115,6 +116,7 @@ export class OverheadMap {
     });
     this.#regions.push(this.#mapRegion);
     this.#hooks.services.pauseGame?.(true);
+    this.#hooks.opened();
   }
 
   close(): void {

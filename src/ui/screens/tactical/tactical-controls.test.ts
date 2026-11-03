@@ -176,6 +176,10 @@ function imagesOf(f: TacticalUiTest, asset: string): DrawItem[] {
   return f.draw().items.filter((i) => i.kind === 'image' && i.asset === asset);
 }
 
+function locatorFrames(f: TacticalUiTest, asset: string): number[] {
+  return imagesOf(f, asset).flatMap((i) => (i.kind === 'image' ? [i.frame] : []));
+}
+
 function locatorMs(f: TacticalUiTest, asset: string): number {
   let ms = 0;
   while (imagesOf(f, asset).length > 0 && ms < LONGEST_LOCATOR_MS) {
@@ -1077,6 +1081,20 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.world.roofLevel).toBe(true);
     f.frames([{ tick, changed: [], removed: [], events: [level(0)] }]);
     expect(f.world.roofLevel).toBe(false);
+  });
+
+  it('stops the locators under the overhead map and goes on where they stood as it closes, as MainGameScreenHandle leaves out RenderTopmostTacticalInterface', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.key('/');
+    f.t.frame(LOCATOR_FRAME_MS);
+    expect(locatorFrames(f, RADIO)).toEqual([2]);
+    f.key('Insert');
+    for (let ms = 0; ms <= NORMAL_LOCATOR_MS; ms += LOCATOR_FRAME_MS) f.t.frame(LOCATOR_FRAME_MS);
+    expect([f.screen.controls.overhead.open, imagesOf(f, RADIO)]).toEqual([true, []]);
+    f.key('Escape');
+    expect(locatorFrames(f, RADIO)).toEqual([3]);
+    expect(locatorMs(f, RADIO)).toBe(NORMAL_LOCATOR_MS - 2 * LOCATOR_FRAME_MS);
   });
 
   it('locates the next merc with space only off screen and flashes the normal locator, as LocateSoldier(SETLOCATOR) does', async () => {
