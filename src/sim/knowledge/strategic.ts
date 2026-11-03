@@ -5,6 +5,7 @@ import { loadStrategicContent, type StrategicContent } from '../../content/strat
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
 import { updateRobotControllerGivenRobot } from '../campaign/robot-control.ts';
 import type { RosterMerc } from '../campaign/roster.ts';
+import { playerSoldierTooTiredToTravel } from '../strategic/economy/conditions.ts';
 import { createEconomyContext } from '../strategic/economy/context.ts';
 import type { CrewMember, EconomyContext } from '../strategic/economy/ports.ts';
 import { createStrategicContext, standaloneClockContext } from '../strategic/forces/context.ts';
@@ -133,7 +134,7 @@ export function strategicKnowledge(view: KnowledgeView, rules: StrategicRules | 
   const crew = strategic.mercs.map((m) => crewMemberFromView(rules.items, m, placementOf(strategic, view, m), guard));
   linkRobotController(rules, crew, strategic.mercs);
   const weight = new Map(strategic.mercs.map((m) => [m.id, m.weight ?? 0]));
-  const port = projectedCrewPort(crew, weight, guard);
+  const port = projectedCrewPort(crew, weight, (m) => playerSoldierTooTiredToTravel(ctx, m), guard);
   const inCombat = view.combat !== null && view.combat !== undefined;
   const base = createStrategicContext({
     state,

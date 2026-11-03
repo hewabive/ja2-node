@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Assignments.cc CalcSoldierNeedForSleep, RestCharacter, FatigueCharacter, CharacterIsTakingItEasy,
 // @src HandleRestFatigueAndSleepStatus (with the tired complaints through the dialogue queue, 2026-11-01), SetMercAsleep,
 // @src PutMercInAsleepState, SetMercAwake, PutMercInAwakeState,
-// @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving.
+// @src HandleNaturalHealing, HandleHealingByNaturalCauses, UpDateSoldierLife, AnyMercInGroupCantContinueMoving (one merc's
+// @src stop, 2026-11-03).
 
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
@@ -15,7 +16,6 @@ import {
   isCharacterInTransit,
   isMechanical,
   isOnSquad,
-  playerSoldierTooTiredToTravel,
 } from './conditions.ts';
 import {
   Assignment,
@@ -200,14 +200,10 @@ export function handleNaturalHealing(ctx: EconomyContext): void {
   for (const s of ctx.crew.all()) if (!isMechanical(s)) handleHealingByNaturalCauses(ctx, s);
 }
 
-export function anyMercInGroupCantContinueMoving(ctx: EconomyContext, members: readonly number[]): boolean {
-  let mustStop = false;
-  for (const id of members) {
-    const s = ctx.crew.get(id);
-    if (!s || !playerSoldierTooTiredToTravel(ctx, s)) continue;
-    mustStop = true;
-    putMercInAsleepState(ctx, s);
-    s.collapsed = true;
-  }
-  return mustStop;
+export function collapseFromTravelFatigue(ctx: EconomyContext, s: CrewMember, firstToComplain: boolean): void {
+  const wasAsleep = s.asleep;
+  ctx.hooks.handleImportantMercQuote(s.id, firstToComplain ? MercQuote.NEED_SLEEP : MercQuote.ME_TOO);
+  putMercInAsleepState(ctx, s);
+  s.collapsed = true;
+  if (!wasAsleep) ctx.events.push({ type: 'fellAsleep', soldier: s.id, collapsed: true });
 }

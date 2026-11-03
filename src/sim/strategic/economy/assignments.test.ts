@@ -12,7 +12,14 @@ import { NOWHERE } from '../../tactical/soldier.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import { assignmentDone, reEvaluateNothingToDoIfFlagged, setTimeOfAssignmentChange } from './assignment-done.ts';
-import { AC, areAssignmentConditionsMet, canCharacterTrainStat, enoughTimeOnAssignment, numberThatCanBeDoctored } from './conditions.ts';
+import {
+  AC,
+  areAssignmentConditionsMet,
+  canCharacterTrainStat,
+  enoughTimeOnAssignment,
+  numberThatCanBeDoctored,
+  playerSoldierTooTiredToTravel,
+} from './conditions.ts';
 import { Assignment, HOSPITAL_SECTOR, SkillTrait, StatAmt, StatCause, TrainStat } from './constants.ts';
 import { checkForAndHandleHospitalPatients, healCharacters, healPatient, sectorsWithSoldiersKey } from './doctor.ts';
 import { kitItems, Slot, useKitPoints } from './kits.ts';
@@ -26,6 +33,7 @@ import {
 import { doActualRepair, handleRepairBySoldier, repairItemsOnOthers } from './repair.ts';
 import {
   calcSoldierNeedForSleep,
+  collapseFromTravelFatigue,
   fatigueCharacter,
   handleHealingByNaturalCauses,
   handleRestFatigueAndSleepStatus,
@@ -420,6 +428,7 @@ function recordLines(made: ReturnType<typeof context>): string[] {
   Object.assign(made.ctx.hooks, {
     tacticalCharacterDialogue: (id: number, quote: number) => lines.push(`${id} says ${quote}`),
     makeCharacterDialogueEventSleep: (id: number, asleep: boolean) => lines.push(`${id} ${asleep ? 'sleeps' : 'wakes'} after`),
+    handleImportantMercQuote: (id: number, quote: number) => lines.push(`${id} says ${quote}, awake for it`),
   });
   return lines;
 }
@@ -475,5 +484,64 @@ describe('the lines of done assignments and tired mercs (Assignments.cc Assignme
     handleRestFatigueAndSleepStatus(made.ctx);
     expect(lines).toEqual([`0 says ${NEED_SLEEP}`, `1 says ${NEED_SLEEP}`, '1 sleeps after']);
     expect(collapsing).toMatchObject({ breathMax: 10, asleep: true, collapsed: true });
+  });
+});
+
+describe('a merc too tired to travel on (Assignments.cc PlayerSoldierTooTiredToTravel, AnyMercInGroupCantContinueMoving)', () => {
+  const NEED_SLEEP = 25;
+  const ME_TOO = 73;
+  const TOO_TIRED_TO_MOVE = 29;
+
+  it('is too tired awake below 30 or asleep beyond waking, never as a machine', () => {
+    const made = context();
+    const tired = merc(made, { id: 0, assignment: Assignment.SQUAD_1, breathMax: TOO_TIRED_TO_MOVE });
+    const fit = merc(made, { id: 1, assignment: Assignment.SQUAD_1, breathMax: TOO_TIRED_TO_MOVE + 1 });
+    const sleeper = merc(made, { id: 2, assignment: Assignment.SQUAD_1, breathMax: 20 });
+    const collapsed = merc(made, { id: 3, assignment: Assignment.SQUAD_1, breathMax: 40 });
+    const robot = merc(made, { id: 4, assignment: Assignment.SQUAD_1, breathMax: TOO_TIRED_TO_MOVE, isRobot: true });
+    sleeper.asleep = true;
+    Object.assign(collapsed, { asleep: true, collapsed: true });
+    const answers = [tired, fit, sleeper, collapsed, robot].map((s) => playerSoldierTooTiredToTravel(made.ctx, s));
+    expect(answers).toEqual([true, false, false, true, false]);
+  });
+
+  it('marks a sleeper at 10 collapsed when asked whether he can travel: the check sets the flag it reads', () => {
+    const made = context();
+    const sleeper = merc(made, { id: 0, assignment: Assignment.SQUAD_1, breathMax: 10 });
+    sleeper.asleep = true;
+    expect(sleeper.collapsed).toBe(false);
+    expect(playerSoldierTooTiredToTravel(made.ctx, sleeper)).toBe(true);
+    expect(sleeper.collapsed).toBe(true);
+  });
+
+  it('has the first say he needs sleep and the next me too, then drops each asleep beyond waking', () => {
+    const made = context();
+    const lines = recordLines(made);
+    Object.assign(made.ctx.hooks, { animateFallingAsleep: (id: number) => lines.push(`${id} falls asleep`) });
+    const first = merc(made, { id: 0, assignment: Assignment.SQUAD_1, breathMax: TOO_TIRED_TO_MOVE, inSector: true });
+    const next = merc(made, { id: 1, assignment: Assignment.SQUAD_1, breathMax: TOO_TIRED_TO_MOVE });
+    collapseFromTravelFatigue(made.ctx, first, true);
+    collapseFromTravelFatigue(made.ctx, next, false);
+    expect(lines).toEqual([`0 says ${NEED_SLEEP}, awake for it`, '0 falls asleep', `1 says ${ME_TOO}, awake for it`, '1 falls asleep']);
+    expect([first, next].map((s) => [s.asleep, s.collapsed])).toEqual([
+      [true, true],
+      [true, true],
+    ]);
+    expect(made.ctx.events).toEqual([
+      { type: 'fellAsleep', soldier: 0, collapsed: true },
+      { type: 'fellAsleep', soldier: 1, collapsed: true },
+    ]);
+    expect(wakeSoldier(made.ctx, 0)).toEqual({ ok: false, reason: 'collapsed' });
+  });
+
+  it('has a sleeper who cannot be woken say it as well, without falling asleep again', () => {
+    const made = context();
+    const lines = recordLines(made);
+    const sleeper = merc(made, { id: 0, assignment: Assignment.SQUAD_1, breathMax: 10 });
+    sleeper.asleep = true;
+    collapseFromTravelFatigue(made.ctx, sleeper, true);
+    expect(lines).toEqual([`0 says ${NEED_SLEEP}, awake for it`]);
+    expect(sleeper).toMatchObject({ asleep: true, collapsed: true });
+    expect(made.ctx.events).toEqual([]);
   });
 });

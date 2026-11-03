@@ -160,6 +160,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | The need for sleep wraps below 0 to the maximum | `assignments.test.ts` |
 | A militia trainer says the done line at the end of every session: his line comes before the once-only check | `assignments.test.ts` |
 | A dead-tired squad merc who drops asleep always says NEED_SLEEP, even after another merc complained, yet turns the next complaint into ME_TOO | `assignments.test.ts` |
+| Asking whether a sleeper at breathMax 10 can travel or be woken marks him collapsed: the check sets the flag it reads | `assignments.test.ts` |
 | A dead merc's camouflage wears off too, with its screen message: the hourly loop walks the whole team | `campaign/camouflage.test.ts` |
 
 Not pinned yet:

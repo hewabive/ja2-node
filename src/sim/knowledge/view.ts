@@ -149,6 +149,7 @@ export interface KnowledgeMerc {
   readonly breath: number;
   readonly breathMax: number;
   readonly asleep: boolean;
+  readonly collapsed?: boolean;
   readonly kind?: string;
   readonly vehicle?: number;
   readonly controlled?: boolean;

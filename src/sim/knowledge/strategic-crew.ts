@@ -17,6 +17,7 @@ const CREW_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'isRobot',
   'isEpc',
   'asleep',
+  'collapsed',
   'sector',
   'betweenSectors',
   'groupId',
@@ -110,7 +111,7 @@ export function crewMemberFromView(items: ItemTable, m: KnowledgeMerc, placement
     breath: m.breath,
     breathMax: m.breathMax,
     absoluteFinalDestination: NOWHERE,
-    collapsed: false,
+    collapsed: m.collapsed ?? false,
     forcedToStayAwake: false,
     complainedThatTired: false,
     nothingToDo: false,
@@ -133,7 +134,12 @@ export function crewMemberFromView(items: ItemTable, m: KnowledgeMerc, placement
   return guardFields(member, CREW_FIELDS, `merc ${m.id}`, guard);
 }
 
-export function projectedCrewPort(members: readonly CrewMember[], weight: ReadonlyMap<number, number>, guard: GuardOptions): CrewPort {
+export function projectedCrewPort(
+  members: readonly CrewMember[],
+  weight: ReadonlyMap<number, number>,
+  tooTiredToTravel: (m: CrewMember) => boolean,
+  guard: GuardOptions,
+): CrewPort {
   const byId = new Map(members.map((m) => [m.id, m]));
   const change = (name: string) => () => unsupplied(`crew.${name}`, guard);
   return {
@@ -141,7 +147,10 @@ export function projectedCrewPort(members: readonly CrewMember[], weight: Readon
     byProfile: (profile) => members.find((m) => m.profile === profile),
     all: () => members,
     carriedWeightPercent: (id) => weight.get(id) ?? 0,
-    tooTiredToTravel: () => false,
+    tooTiredToTravel: (id) => {
+      const m = byId.get(id);
+      return m !== undefined && tooTiredToTravel(m);
+    },
     changeAssignment: change('changeAssignment'),
     assignToSquad: change('assignToSquad'),
     awardTravelExperience: change('awardTravelExperience'),

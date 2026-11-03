@@ -20,11 +20,13 @@ import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link
 import { areInMeanwhile, handleFlowersMeanwhileScene, handleScientistAwolMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
 import { reEvaluateNothingToDoIfFlagged } from '../strategic/economy/assignment-done.ts';
+import { playerSoldierTooTiredToTravel } from '../strategic/economy/conditions.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
 import { dailyUpdateOfArmsDealersInventory } from '../strategic/economy/merchants/daily.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { collapseFromTravelFatigue } from '../strategic/economy/rest.ts';
 import { applySquadAssignment } from '../strategic/economy/set-assignment.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
 import { EncounterCode, SectorFlag } from '../strategic/forces/constants.ts';
@@ -213,7 +215,7 @@ export class CampaignSim {
     this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
     const battleSetup = hooks.battle ?? hooks.sectors;
     this.battle = this.economy && battleSetup ? new BattleFlow(this, battleSetup) : null;
-    this.#joinSquadsThroughTheEconomy();
+    this.#rosterThroughTheEconomy();
     this.creatures = this.economy ? new CreatureFlow(this) : null;
     this.merchants = hooks.merchants ? this.#merchantContext(hooks.merchants) : null;
     this.shop = this.merchants ? new ShopFlow(this) : null;
@@ -250,11 +252,16 @@ export class CampaignSim {
     if (creating) this.#startSession();
   }
 
-  #joinSquadsThroughTheEconomy(): void {
+  #rosterThroughTheEconomy(): void {
     const economy = this.economy;
     const roster = this.battle?.roster;
     if (!economy || !roster) return;
-    roster.hooks = { ...roster.hooks, assignToSquad: (merc, squad) => applySquadAssignment(economy, merc, squad) };
+    roster.hooks = {
+      ...roster.hooks,
+      assignToSquad: (merc, squad) => applySquadAssignment(economy, merc, squad),
+      tooTiredToTravel: (merc) => playerSoldierTooTiredToTravel(economy, merc),
+      collapseFromFatigue: (merc, firstToComplain) => collapseFromTravelFatigue(economy, merc, firstToComplain),
+    };
   }
 
   static restore(state: StrategicState, tactical: TacticalSim | null, hooks: CampaignHooks): CampaignSim {

@@ -465,12 +465,16 @@ the whole group's move first, so a squad cannot leave the start sector before it
 the map screen's plotting, otherwise the path is replaced. As in the original, a move from the loaded sector during a
 bloodcat ambush is refused as `inCombat`, and a merc standing in the museum rooms of L12 while any merc carries the
 chalice and Eldin lives as `museumChalice` (`src/sim/strategic/forces/move-permission.ts`); the hints check neither, as
-the view has neither the encounter nor the rooms. `routeGroup` is the move box: mercs parting from their unit regroup on
-this command rather than at Done (deviation "Move box regrouping"). `enterSector` loads with automatic placement
-(deviation "Tactical placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query
-with `dryRun: true`. On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector
-the exit dialog first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every
-conscious merc of the sector there and loads it (`campaign/sector-exits.ts`).
+the view has neither the encounter nor the rooms. A merc awake with `breathMax` below 30, or asleep and `collapsed`,
+refuses a move as `tooTired` (in a vehicle only the one who must drive); a group that has such a merc when it reaches a
+sector short of its destination stops there: its paths are cleared, compression stops (`halted`), each such merc says
+his need for sleep (the next ones "me too") and drops asleep, `collapsed` until rested (`fellAsleep {collapsed: true}`),
+so `wake` refuses him. `routeGroup` is the move box: mercs parting from their unit regroup on this command rather than
+at Done (deviation "Move box regrouping"). `enterSector` loads with automatic placement (deviation "Tactical
+placement"); `exitSector` applies the exit dialog's rules (deviation "Exit dialog") and is a query with `dryRun: true`.
+On a creature lair level after the creature quest, `strategic.surfaceWarp` names the surface sector the exit dialog
+first offers (so does `exitSectorOptions`); `exitSector` with `warp: true` at a valid exit takes every conscious merc of
+the sector there and loads it (`campaign/sector-exits.ts`).
 
 ### 8.8 Vehicles and the helicopter
 

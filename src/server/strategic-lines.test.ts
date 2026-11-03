@@ -216,3 +216,61 @@ describe("a head miner's line (Map_Screen_Interface.cc HandleMinerEvent, Strateg
     expect(c.session.campaign.state.flow).toBe('tactical');
   });
 });
+
+describe('a squad too tired to go on (Strategic_Movement.cc PlayerGroupArrivedSafelyInSector, Assignments.cc AnyMercInGroupCantContinueMoving)', () => {
+  const NEED_SLEEP = 25;
+  const ME_TOO = 73;
+  const TOO_TIRED_TO_MOVE = 29;
+  const ROUTE = ['A10', 'A11'];
+
+  function quietRoute(c: Campaign): void {
+    for (const sector of ROUTE)
+      Object.assign(sectorInfo(c.session.campaign.state.map, parseSectorString(sector)), { numAdmins: 0, numTroops: 0, numElites: 0 });
+  }
+
+  function tire(c: Campaign, profile: number): void {
+    const merc = c.session.campaign.battle?.roster.byProfile(profile);
+    if (!merc) throw new Error(`no merc with profile ${profile}`);
+    Object.assign(merc, { breathMax: TOO_TIRED_TO_MOVE, complainedThatTired: true });
+  }
+
+  function squadGroup(c: Campaign) {
+    const id = ours(c, KESTREL).id;
+    const g = c.session.campaign.state.forces.groups.find((x) => x.player && x.members.includes(id));
+    if (!g) throw new Error('no squad group');
+    return g;
+  }
+
+  it('refuses a move while a merc of the squad is too tired for it, naming him', async () => {
+    const c = await onTheMap(135);
+    tire(c, VANT);
+    const route = c.live.dispatch({ type: 'route', soldier: ours(c, KESTREL).id, to: 'A11' });
+    expect(route).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: ours(c, VANT).id } });
+  });
+
+  it('stops at the next sector, where the first says he needs sleep and the next me too, both asleep beyond waking', async () => {
+    const c = await onTheMap(137);
+    quietRoute(c);
+    expect(c.live.dispatch({ type: 'route', soldier: ours(c, KESTREL).id, to: 'A11' })).toMatchObject({ ok: true });
+    tire(c, KESTREL);
+    tire(c, VANT);
+    const stopped = c.live.advance({ compressionStopped: true, mode: 3 });
+    expect(stopped.events).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'halted' }));
+    expect(squadGroup(c)).toMatchObject({ sector: parseSectorString('A10'), betweenSectors: false, waypoints: [] });
+    const said = [...stopped.events, ...c.live.advance({ idle: true }).events];
+    expect(lines(said)).toEqual([`${KESTREL}:${NEED_SLEEP}`, `${VANT}:${ME_TOO}`]);
+    const ids = [ours(c, KESTREL).id, ours(c, VANT).id];
+    expect(said.filter((e) => e.type === 'fellAsleep')).toEqual(
+      ids.map((soldier) => expect.objectContaining({ soldier, collapsed: true })),
+    );
+    const map = c.session.view().strategic;
+    expect(map?.mercs.filter((m) => ids.includes(m.id)).map((m) => [m.asleep, m.collapsed])).toEqual([
+      [true, true],
+      [true, true],
+    ]);
+    expect(map?.groups.find((g) => g.members.includes(ids[0] ?? -1))?.path).toEqual([]);
+    const onwards = c.live.dispatch({ type: 'route', soldier: ids[0], to: 'A11' });
+    expect(onwards).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: ids[0] } });
+    expect(c.live.dispatch({ type: 'wake', soldier: ids[1] })).toMatchObject({ ok: false, data: { refusal: 'collapsed' } });
+  });
+});

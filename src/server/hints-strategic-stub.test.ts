@@ -154,6 +154,25 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     const after = await Promise.all(requests.map((q) => c.session.query(q)));
     expect(after).toEqual(before);
   });
+
+  it('refuse a route as too tired like the command, for a merc awake below 30 and for a sleeper beyond waking', async () => {
+    const c = await landedCampaign(36);
+    const roster = c.sim.campaign.battle?.roster;
+    const [tired, collapsed, fit] = roster?.all() ?? [];
+    if (!tired || !collapsed || !fit) throw new Error('three mercs expected');
+    tired.breathMax = 29;
+    Object.assign(collapsed, { breathMax: 40, asleep: true, collapsed: true });
+    const view = serialisedView(c.session);
+    await expectHintsAgree(c.session, client, sampleStrategicHints(view));
+    for (const m of [tired, collapsed]) {
+      const preview = await c.session.query({ type: 'previewRoute', soldier: m.id, to: 'B11', alone: true });
+      expect(preview).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: m.id } });
+    }
+    const squad = await c.session.query({ type: 'previewRoute', soldier: fit.id, to: 'B11' });
+    const routed = c.sim.dispatch({ type: 'route', soldier: fit.id, to: 'B11' });
+    expect(squad).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
+    expect(routed).toMatchObject({ ok: false, data: { refusal: 'tooTired', soldier: tired.id } });
+  });
 });
 
 describe('the warp out of a destroyed creature lair, client against server', () => {

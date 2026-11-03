@@ -200,6 +200,31 @@ describe('arrival', () => {
     expect(mercs.experience).toEqual([{ id: 0, stat: TravelStat.STRENGTH, points: 0 }]);
   });
 
+  it('stops in the sector it reached when members are too tired to go on: the first says he needs sleep, the next me too', () => {
+    const { ctx, mercs } = squadContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0, 1, 2]);
+    mercs.tired.add(1);
+    mercs.tired.add(2);
+    giveRoute(ctx, mercs, g, route('A9', 'A10', 'A11'));
+    groupArrivedAtSector(ctx, g, true, false);
+    expect(g).toMatchObject({ sector: S('A10'), betweenSectors: false, waypoints: [] });
+    expect(mercs.collapsed).toEqual([
+      { id: 1, firstToComplain: true },
+      { id: 2, firstToComplain: false },
+    ]);
+    expect(g.members.map((id) => mercs.get(id)?.path)).toEqual([[], [], []]);
+  });
+
+  it('lets a tired squad reach its destination without a word: only a group that has to go on stops', () => {
+    const { ctx, mercs } = squadContext();
+    const g = squadAt(ctx, mercs, S('A9'), [0]);
+    mercs.tired.add(0);
+    giveRoute(ctx, mercs, g, route('A9', 'A10'));
+    groupArrivedAtSector(ctx, g, true, false);
+    expect(g).toMatchObject({ sector: S('A10'), betweenSectors: false });
+    expect(mercs.collapsed).toEqual([]);
+  });
+
   it('delays the arrival by 3 to 5 minutes while another battle runs', () => {
     const rolls = new ScriptedRolls([2]);
     const { ctx, mercs } = squadContext({ random: rolls, world: { enemyInSector: () => true } });

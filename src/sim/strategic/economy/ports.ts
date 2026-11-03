@@ -92,6 +92,7 @@ export interface EconomyHooks {
   animateAssignment(id: number): void;
   tacticalCharacterDialogue(id: number, quote: number): void;
   makeCharacterDialogueEventSleep(id: number, asleep: boolean): void;
+  handleImportantMercQuote(id: number, quote: number): void;
   headMinerDialogue(mine: number, profile: number, quote: number, forceMapScreen: boolean): void;
 }
 
@@ -152,6 +153,7 @@ export const defaultEconomyHooks: EconomyHooks = {
   animateAssignment: () => {},
   tacticalCharacterDialogue: () => {},
   makeCharacterDialogueEventSleep: () => {},
+  handleImportantMercQuote: () => {},
   headMinerDialogue: () => {},
 };
 

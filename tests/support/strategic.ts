@@ -92,7 +92,7 @@ export class FakeMercs implements MercPort {
   readonly experience: ExperienceAward[] = [];
   readonly placedInSector: number[] = [];
   readonly removedFromSector: number[] = [];
-  readonly collapsed: number[] = [];
+  readonly collapsed: { readonly id: number; readonly firstToComplain: boolean }[] = [];
   fuel = 10000;
 
   add(o: FakeMercOptions): StrategicMerc {
@@ -164,8 +164,8 @@ export class FakeMercs implements MercPort {
     return this.tired.has(id);
   }
 
-  collapseFromFatigue(id: number): void {
-    this.collapsed.push(id);
+  collapseFromFatigue(id: number, firstToComplain: boolean): void {
+    this.collapsed.push({ id, firstToComplain });
   }
 
   spendVehicleFuel(_vehicleSoldierId: number, fuel: number): number {
