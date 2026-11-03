@@ -40,6 +40,7 @@ interface Harness {
   readonly t: TestRuntime;
   readonly screen: LaptopScreen;
   readonly commands: string[];
+  readonly elsewhere: (cmd: LaptopCommand) => void;
   closed: boolean;
 }
 
@@ -64,7 +65,8 @@ async function openLaptop(): Promise<Harness> {
   const box = layouts.get(MESSAGE_BOX_LAYOUT);
   if (!box) throw new Error('no message box layout');
   const styles = messageBoxStyles(box);
-  const harness: Harness = { t, commands, closed: false, screen: null as unknown as LaptopScreen };
+  const elsewhere = (cmd: LaptopCommand) => void live.dispatch(cmd as Parameters<Session['dispatch']>[0]);
+  const harness: Harness = { t, commands, elsewhere, closed: false, screen: null as unknown as LaptopScreen };
   const screen = new LaptopScreen({
     runtime: t.runtime,
     layouts,
@@ -201,5 +203,15 @@ describe('the canvas laptop on a stub campaign', () => {
     await settle(t, 20);
     expect(commands).toContain('closeLaptop');
     expect(h.closed).toBe(true);
+  });
+
+  it('closes without a command of its own when another client closes the laptop', async () => {
+    const h = await openLaptop();
+    await click(h.t, 'newMailOk');
+    expect(h.closed).toBe(false);
+    h.elsewhere({ type: 'closeLaptop' });
+    await settle(h.t);
+    expect(h.closed).toBe(true);
+    expect(h.commands).not.toContain('closeLaptop');
   });
 });

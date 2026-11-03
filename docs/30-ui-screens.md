@@ -26,8 +26,10 @@ in a game the server's flow picks the screen (gameScreenOf):
 
 `FrontEndFlow` (`src/ui/screens/front-end/flow.ts`) switches screens like the original's exit screens; `gameScreenOf`
 maps a view to tactical, map or laptop: the map while a `preBattle` prompt is open, tactical for the flows `meanwhile`,
-`endgame` and `ended`. A game screen that cannot open shows the debug layout `screen-unavailable` with the reason and
-Retry.
+`endgame` and `ended`. Every page follows the flow whoever changed it (another tab, an agent): the tactical and map
+screens on the frame that changes it (`FrontEndFlow.frames`), the laptop by powering down when the flow leaves
+`laptop` without its own exit (`LaptopScreen`, `laptop/laptop-screen.ts`). A game screen that cannot open shows the
+debug layout `screen-unavailable` with the reason and Retry.
 
 | Screen | Controllers, under `src/ui/screens/` | Host, under `src/app/` |
 |---|---|---|

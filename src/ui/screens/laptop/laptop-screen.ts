@@ -88,6 +88,7 @@ import { PERSONNEL_LAYOUT, personnelPage } from './personnel/personnel-page.ts';
 
 export const LAPTOP_SCREEN = 'laptop';
 export const LAPTOP_SHELL_LAYOUT = 'laptop';
+const LAPTOP_FLOW = 'laptop';
 export const LAPTOP_LAYOUTS: readonly string[] = [
   'laptop',
   'laptop-email',
@@ -648,9 +649,20 @@ export class LaptopScreen implements Screen {
   }
 
   #updateClose(now: number): void {
-    if (!this.shell.exited || this.#closing) return;
+    if (this.#closing) return;
+    if (this.shell.exited) {
+      void this.#options.client.command({ type: 'closeLaptop' });
+      this.#beginClose(now);
+    } else if (this.#closedElsewhere()) this.#beginClose(now);
+  }
+
+  #closedElsewhere(): boolean {
+    const flow = this.#options.client.strategic()?.flow;
+    return flow !== undefined && flow !== LAPTOP_FLOW;
+  }
+
+  #beginClose(now: number): void {
     this.#closing = true;
-    void this.#options.client.command({ type: 'closeLaptop' });
     if (this.#options.zoomOnClose) {
       this.#zoom = { opening: false, start: now };
       this.#runtime.sounds.play({ file: POWER_DOWN_SOUND, volume: HIGH_VOLUME });
