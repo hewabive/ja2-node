@@ -267,7 +267,8 @@ describe('session', () => {
     let now = 0;
     session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
     session.holdTime('a', 'modal', true);
-    session.holdTime('b', 'map', true);
+    session.holdTime('b', 'updateBox', true);
+    expect(session.timeHolds).toEqual(['modal', 'updateBox']);
     session.holdTime('a', 'modal', false);
     now += 20 * TICK_MS;
     session.runRealtime(now);

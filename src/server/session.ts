@@ -273,6 +273,10 @@ export class Session {
     return this.#timeHolds.size > 0;
   }
 
+  get timeHolds(): readonly string[] {
+    return [...new Set([...this.#timeHolds.values()].flatMap((reasons) => [...reasons]))].sort();
+  }
+
   holdTime(holder: string, reason: string, held: boolean): void {
     const was = this.timeHeld;
     const reasons = this.#timeHolds.get(holder) ?? new Set<string>();

@@ -144,7 +144,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     map: view.mapPath,
     driver: session.driver,
     viewers: session.viewers,
-    ...(session.timeHeld ? { timeHeld: true } : {}),
+    ...(session.timeHeld ? { timeHeld: session.timeHolds } : {}),
     language: session.language,
     dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,

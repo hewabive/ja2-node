@@ -207,8 +207,10 @@ the host's input queue, so the player's commands go through meanwhile and nothin
 advance (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`) on the map screen runs its own ticks instead, as the
 browser's own advances (a compression to a world time, autoresolve slices) do: the map has no ×1 pace to keep, and the
 viewer plays its frames back at the compressed pace; on the tactical screen it is refused (deviation "Advance with a
-real-time viewer"). `status` shows the driver, `viewers`, the pages watching, and `timeHeld` while a viewer holds time
-for a box or a pause on its page (`04` §4.3): real time then runs no ticks and a wait ends in `timeout`. When the last
+real-time viewer"). `status` shows the driver, `viewers`, the pages watching, and `timeHeld`, the reasons a viewer
+holds time for (`04` §4.3): `modal` (a message box, menu or screen on the page waits for a click), the map screen's
+`updateBox`, `townBox`, `moveBox`, `militia`, `menus`, `inventory`, `plotting`, `mapPaused` and `catchingUp`, and
+`tacticalPause`. Real time then runs no ticks and a wait ends in `timeout` until the viewer closes it. When the last
 viewer leaves, the session falls back to the manual driver and a waiting `advance` answers `refused`.
 
 ## 5. Commands, refusals and modal states

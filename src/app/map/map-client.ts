@@ -14,7 +14,8 @@ const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1, pauseOn: BOX_EVENTS 
 const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';
 const AUTORESOLVE_FLOW = 'autoresolve';
-const MAP_HOLD = 'map';
+const PAUSED_HOLD = 'mapPaused';
+const CATCHING_UP_HOLD = 'catchingUp';
 
 export interface MapCommandRecord {
   readonly cmd: CommandEnvelope;
@@ -26,6 +27,7 @@ export class SessionMapClient implements MapClient {
   readonly #session: SessionClient;
   readonly #hints: HintProvider;
   readonly #holds = new Set<string>();
+  readonly #sentHolds = new Set<string>();
   readonly #timeHeld: boolean;
   #paused = false;
   #enabled = false;
@@ -85,8 +87,20 @@ export class SessionMapClient implements MapClient {
     return this.#enabled && !view?.prompt && !view?.contractPrompt && view?.strategic?.flow !== AUTORESOLVE_FLOW;
   }
 
-  #holdsTime(): boolean {
-    return this.#paused || this.#serverStopped || this.#holds.size > 0;
+  #timeHolds(): Set<string> {
+    const holds = new Set(this.#holds);
+    if (this.#paused) holds.add(PAUSED_HOLD);
+    if (this.#serverStopped) holds.add(CATCHING_UP_HOLD);
+    return holds;
+  }
+
+  #sendHolds(wanted: ReadonlySet<string>): void {
+    for (const reason of [...this.#sentHolds, ...wanted]) {
+      const held = wanted.has(reason);
+      this.#session.hold(reason, held);
+      if (held) this.#sentHolds.add(reason);
+      else this.#sentHolds.delete(reason);
+    }
   }
 
   sync(): void {
@@ -99,7 +113,7 @@ export class SessionMapClient implements MapClient {
     if (runs && !ours) void this.#session.drive(REAL_TIME);
     else if (!runs && ours) void this.#session.drive(MANUAL);
     this.#driving = sameJson(this.#session.driver, REAL_TIME);
-    this.#session.hold(MAP_HOLD, runs && this.#holdsTime());
+    this.#sendHolds(runs ? this.#timeHolds() : new Set());
   }
 
   async command(cmd: CommandEnvelope): Promise<MapCommandReply> {

@@ -322,7 +322,7 @@ describe('the session host contract, in process and in a worker thread', () => {
 
   it("holds and releases a viewer's time across the host boundary and tells the subscribers", async () => {
     const [inProcess, worker] = await both(heldTimeScript);
-    expect(inProcess).toEqual({ held: true, released: undefined, told: [true, false] });
+    expect(inProcess).toEqual({ held: ['modal'], released: undefined, told: [true, false] });
     expect(worker).toEqual(inProcess);
   });
 

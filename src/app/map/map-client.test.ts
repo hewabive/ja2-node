@@ -76,10 +76,10 @@ describe('the map client clock', () => {
     const client = mapClientOn(session);
     client.start();
     client.holdTime('updateBox', true);
-    expect([...session.held]).toEqual(['map']);
+    expect([...session.held]).toEqual(['updateBox']);
     client.holdTime('updateBox', false);
     client.setPaused(true);
-    expect([...session.held]).toEqual(['map']);
+    expect([...session.held]).toEqual(['mapPaused']);
     client.setPaused(false);
     expect([...session.held]).toEqual([]);
     expect(session.drives).toEqual(['realtime']);
@@ -107,7 +107,7 @@ describe('the map client clock', () => {
     session.latestTick = 40;
     client.sync();
     expect(session.drives).toEqual(['realtime', 'realtime']);
-    expect([...session.held]).toEqual(['map']);
+    expect([...session.held]).toEqual(['catchingUp']);
     session.shownTick = 40;
     client.sync();
     expect([...session.held]).toEqual([]);
