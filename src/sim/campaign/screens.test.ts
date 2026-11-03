@@ -48,6 +48,30 @@ describe('map and tactical screens', () => {
     expect(c.state.flow).toBe('tactical');
   });
 
+  it('refuses tactical orders on the map screen, where the loaded sector does not run, and takes them back on the tactical screen', () => {
+    const c = landed(0);
+    const [merc, patient] = ourSoldiers(c);
+    if (!merc || !patient) throw new Error('no squad');
+    const turn = { type: 'turn', soldier: merc.id, direction: (merc.direction + 4) % 8 };
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    const offScreen = [
+      turn,
+      { type: 'move', soldier: merc.id, to: merc.gridNo + 1 },
+      { type: 'endTurn' },
+      { type: 'bandage', soldier: merc.id, target: patient.id },
+      { type: 'talk', soldier: merc.id },
+    ];
+    for (const order of offScreen) {
+      expect(c.dispatch(order)).toEqual({
+        ok: false,
+        reason: `${order.type} is given on the tactical screen only`,
+        data: { refusal: 'notInTactical' },
+      });
+    }
+    expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    expect(c.dispatch(turn)).toMatchObject({ ok: true });
+  });
+
   it('enters the loaded sector from the map screen into the tactical screen', () => {
     const c = landed(0);
     expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });

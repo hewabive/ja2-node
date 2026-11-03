@@ -62,6 +62,7 @@ import {
 } from '../strategic/time/world-clock.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
+import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, hostileCiviliansPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -101,6 +102,28 @@ export type SimConstruction = 'create' | 'createOnMapScreen' | 'restore';
 
 const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
 const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
+const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
+  ...PLAYER_ORDERS,
+  'move',
+  'turn',
+  'stance',
+  'endTurn',
+  'attack',
+  'pickUp',
+  'steal',
+  'drop',
+  'toss',
+  'climb',
+  'useRemote',
+  'door',
+  'stop',
+  'select',
+  'selectSquad',
+  'bandage',
+  'talk',
+  'approach',
+  'give',
+]);
 
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
@@ -722,6 +745,11 @@ export class CampaignSim {
     return refuse('boxingUiLock', BOXING_UI_LOCK_TEXT);
   }
 
+  #offTacticalScreenRefusal(cmd: CampaignCommand): CommandResult | null {
+    if (!TACTICAL_SCREEN_ORDERS.has(cmd.type) || (this.state.flow === 'tactical' && this.tactical)) return null;
+    return refuse('notInTactical', `${cmd.type} is given on the tactical screen only`);
+  }
+
   #promptOpen(): boolean {
     return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true;
   }
@@ -740,7 +768,7 @@ export class CampaignSim {
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     const story = storyRefusal(this, cmd);
     if (story) return story;
-    const locked = this.#boxingUiLockRefusal(cmd);
+    const locked = this.#boxingUiLockRefusal(cmd) ?? this.#offTacticalScreenRefusal(cmd);
     if (locked) return locked;
     const talk = this.talk?.dispatch(cmd);
     if (talk) return talk;
@@ -760,11 +788,6 @@ export class CampaignSim {
         return openMapScreen(this, cmd.abandonFight === true);
       case 'tacticalScreen':
         return openTacticalScreen(this);
-      case 'select':
-      case 'selectSquad':
-        if (this.state.flow !== 'tactical' || !this.tactical)
-          return refuse('notInTactical', 'mercs and squads are selected on the tactical screen only');
-        return this.tactical.dispatch(cmd);
       default:
         return (
           this.money.dispatch(cmd) ??
