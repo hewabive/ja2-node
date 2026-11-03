@@ -258,6 +258,21 @@ describe('session', () => {
     session.close();
   });
 
+  it('does not catch up in real time the wall time an advance of its own took', () => {
+    const sim = walker();
+    const session = new Session('s14b', sim);
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    now = 1000;
+    expect(session.advance({ ticks: 5 })).toMatchObject({ reason: 'ticks', tick: 5 });
+    session.runRealtime(now);
+    expect(sim.tick).toBe(5);
+    now += 10 * TICK_MS;
+    session.runRealtime(now);
+    expect(sim.tick).toBe(15);
+    session.close();
+  });
+
   it('keeps the speech mode as a logged session setting and hands it to every simulation it runs', () => {
     const skips: boolean[] = [];
     const speaking = <T extends SessionSim>(sim: T): T => Object.assign(sim, { skipSpeech: (skip: boolean) => skips.push(skip) });

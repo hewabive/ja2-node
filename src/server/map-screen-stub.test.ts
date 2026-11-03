@@ -12,6 +12,8 @@ import { findUndergroundSector, sectorInfo, setSectorFlag } from '../sim/strateg
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
+import { Session } from './session.ts';
+import { InProcessHost } from './session-host.ts';
 
 let kit: StubSectorKit;
 
@@ -29,6 +31,7 @@ const OMERTA_TOWN = 1;
 const GREEN = 0;
 const REGULAR = 1;
 const STEP_SECONDS = 600;
+const HOUR_SECONDS = 3600;
 const STEPS = 200;
 const MINE_STATUS = new Set(['producing', 'runningOut', 'shutDown', 'abandoned']);
 
@@ -165,6 +168,22 @@ describe('map screen view fields and commands in a stub campaign', () => {
       if (u) u.visibleItems = 4;
       expect(strategic(c).underground).toContainEqual({ sector: 'A10-1', items: 4 });
     }
+  });
+
+  it("runs an agent's world-time advance on the map beside a real-time viewer and keeps waiting on the tactical screen", async () => {
+    const c = await landedCampaign(83, 2, ['A10']);
+    const session = new Session('beside-a-viewer', c.session);
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => 0);
+    const host = new InProcessHost(session);
+    const start = c.session.worldClock?.worldTime().seconds ?? 0;
+    const report = await host.advance({ worldSeconds: HOUR_SECONDS }, undefined, { waitInRealtime: true });
+    expect(report).toMatchObject({ reason: 'worldTime' });
+    expect((report.worldTime?.seconds ?? 0) - start).toBeGreaterThanOrEqual(HOUR_SECONDS);
+    expect((await host.inputLog()).entries.at(-1)).toMatchObject({ kind: 'advance', payload: { until: { worldSeconds: HOUR_SECONDS } } });
+    expect(await host.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
+    const tactical = await host.advance({ worldSeconds: HOUR_SECONDS }, undefined, { waitInRealtime: true });
+    expect(tactical).toMatchObject({ reason: 'refused', refusal: expect.stringContaining('tactical screen') });
+    await host.close();
   });
 
   it('plots routes through legs, previews them alike, shortens them and moves part of a squad', async () => {

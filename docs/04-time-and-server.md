@@ -309,7 +309,7 @@ The server surfaces (MCP tools, the WebSocket endpoint, the HTTP routes) never t
     grants at most one slice per event-loop turn across sessions, so four battles in one process never run slices back
     to back, and commands that need no advance run at once. The frames collected so far go out at every pause, so
     viewers watch a long enemy turn as it happens. While a sliced input is paused the real-time driver skips its batch
-    and catches up afterwards.
+    and catches up afterwards, except after an advance, whose ticks stand for that time.
   - *What still blocks.* A single tick cannot be split: the longest AI decision of a tick is the floor. A save's
     snapshot and its serialization are synchronous (the gzip runs on the thread pool), and opening a session or loading
     a save builds its content.

@@ -143,6 +143,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     tick: view.tick,
     map: view.mapPath,
     driver: session.driver,
+    viewers: session.viewers,
     language: session.language,
     dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,

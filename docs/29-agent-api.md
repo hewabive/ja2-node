@@ -202,11 +202,13 @@ queue, which says the next line when the face stops talking or at once on a clic
 
 While a viewer runs the session in real time (the browser's default), MCP `advance` runs no ticks: it watches the
 real-time batches with the same stop conditions (`Session.waitInRealtime`, `AdvanceRun.observe`) and answers when one
-holds, after 30 s at most with `timeout` (call again), or `refused` when real time stops; a strategic advance is
-refused, as the viewer compresses on the map screen (deviation "Advance with a real-time viewer"). The wait holds no
-place in the host's input queue, so the player's commands go through meanwhile and nothing enters the input log. The
-browser's own `advance` requests (a compression to a world time, autoresolve slices) still run ticks. When the last
-viewer leaves, the session falls back to the manual driver (`04` §4.3) and a waiting `advance` answers `refused`.
+holds, after 30 s at most with `timeout` (call again), or `refused` when real time stops. The wait holds no place in
+the host's input queue, so the player's commands go through meanwhile and nothing enters the input log. A strategic
+advance (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`) on the map screen runs its own ticks instead, as the
+browser's own advances (a compression to a world time, autoresolve slices) do: the map has no ×1 pace to keep, and the
+viewer plays its frames back at the compressed pace; on the tactical screen it is refused (deviation "Advance with a
+real-time viewer"). `status` shows the driver and `viewers`, the pages watching. When the last viewer leaves, the
+session falls back to the manual driver (`04` §4.3) and a waiting `advance` answers `refused`.
 
 ## 5. Commands, refusals and modal states
 

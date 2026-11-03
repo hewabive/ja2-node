@@ -47,7 +47,7 @@ const PAUSED_STOP_ID = 0;
 export const REALTIME_WAIT_MS = 30_000;
 export const SET_SPEECH = 'setSpeech';
 export const SPEECH_MODES = ['listen', 'skip'] as const;
-const REALTIME_COMPRESSION = 'the session runs in real time: time compression belongs to the viewer on the map screen';
+const REALTIME_COMPRESSION = 'a viewer runs the session in real time: on the tactical screen advance waits for idle, events or ticks';
 const REALTIME_LEFT = 'the session no longer runs in real time';
 const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
 
@@ -140,6 +140,7 @@ export class Session {
   #timer: ReturnType<typeof setInterval> | null = null;
   #lastRealtime = 0;
   #carryMs = 0;
+  #now: () => number = () => performance.now();
   #speech: SpeechMode = 'listen';
   readonly #waits = new Set<RealtimeWait>();
   #lastView: PlayerView;
@@ -462,7 +463,7 @@ export class Session {
   }
 
   waitInRealtime(until: StopCondition, budget?: number, waitMs = REALTIME_WAIT_MS): Promise<SessionAdvanceReport> | null {
-    if (this.#driver.mode !== 'realtime') return null;
+    if (this.#driver.mode !== 'realtime' || this.#compressesOnMap(until)) return null;
     const run = new AdvanceRun(this.#sim, until, budget);
     const stop = isStrategicCondition(until) ? run.stopped('refused', REALTIME_COMPRESSION) : run.observe([]);
     if (stop) return Promise.resolve(this.#reported(stop));
@@ -470,6 +471,10 @@ export class Session {
       const wait: RealtimeWait = { run, resolve, timer: setTimeout(() => this.#settle(wait, run.stopped('timeout')), waitMs) };
       this.#waits.add(wait);
     });
+  }
+
+  #compressesOnMap(until: StopCondition): boolean {
+    return isStrategicCondition(until) && this.#sim.worldClock?.onMap() === true;
   }
 
   #reported(report: StopReport): SessionAdvanceReport {
@@ -507,7 +512,9 @@ export class Session {
 
   *#loggedAdvanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
     this.log.append('advance', this.#sim.tick, { until, ...(budget !== undefined ? { budget } : {}) });
-    return yield* this.#advanceRun(until, budget, due);
+    const report = yield* this.#advanceRun(until, budget, due);
+    if (this.#driver.mode === 'realtime') this.#restartRealtimeClock();
+    return report;
   }
 
   *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
@@ -567,11 +574,16 @@ export class Session {
     this.#stopTimer();
     if (driver.mode !== 'realtime') this.#settleWaits('refused', REALTIME_LEFT);
     if (driver.mode === 'realtime') {
-      this.#lastRealtime = now();
-      this.#carryMs = 0;
+      this.#now = now;
+      this.#restartRealtimeClock();
       this.#timer = setInterval(() => this.runRealtime(now()), REALTIME_INTERVAL_MS);
     }
     if (driver.mode === 'instant') yield* this.#loggedAdvance({ idle: true }, undefined, due);
+  }
+
+  #restartRealtimeClock(): void {
+    this.#lastRealtime = this.#now();
+    this.#carryMs = 0;
   }
 
   #stopTimer(): void {
