@@ -64,6 +64,23 @@ describe('the rebel hideout', () => {
     expect(getSectorFlagStatus(c.state.map, A10, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)).toBe(true);
   });
 
+  it('writes the moved crate into the temp file of A10 with no map loaded, from the tile tables of the content', async () => {
+    const c = await inA10(33);
+    const actions = c.talk?.npcActions;
+    const tables = c.sectors?.setup.content.tileTables;
+    if (!actions || !tables) throw new Error('no NPC actions');
+    c.sectors?.trashWorld();
+    expect(c.tactical).toBeNull();
+    actions.env.hideout.removeStructFromUnloadedMap(TRAPDOOR, 'SECONDOSTRUCT1', A10);
+    actions.env.hideout.addStructToUnloadedMap(MOVED_CRATE, 'SECONDOSTRUCT1', A10);
+    const crate = tileIndex(tables, 'SECONDOSTRUCT1');
+    const changes = c.state.sectorDiffs.get(sectorKey(A10))?.mapChanges ?? [];
+    expect(changes.filter((m) => m.tile === crate).map((m) => [m.kind, m.gridNo])).toEqual([
+      [MapChangeKind.REMOVE_STRUCT_TILE, TRAPDOOR],
+      [MapChangeKind.APPEND_STRUCT_TILE, MOVED_CRATE],
+    ]);
+  });
+
   it('shows the open trapdoor, the moved crate and the way down when the squad comes back up', async () => {
     const c = await inA10(32);
     doAction(c, NpcActionCode.GOTO_HIDEOUT);

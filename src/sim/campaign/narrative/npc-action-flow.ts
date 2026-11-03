@@ -230,7 +230,7 @@ export class NpcActionFlow {
   }
 
   #changeUnloadedMap(change: UnloadedStructChange, gridNo: number, tileName: string, sector: SectorPosition): void {
-    const tables = this.#campaign.tactical?.world.tables;
+    const tables = this.#campaign.sectors?.setup.content.tileTables;
     if (tables) change(this.#state, gridNo, tileIndex(tables, tileName), sector);
   }
 
