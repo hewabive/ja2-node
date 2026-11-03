@@ -76,7 +76,7 @@ function corpse(at: number, type = ROTTING_STAGE2, bodyType: number = Body.REGMA
 function sector(seconds = NOON): { sim: TacticalSim; t: TacticalState; world: { seconds: number } } {
   const sim = newCombatSim(content);
   const t = sim.state;
-  const world = { seconds };
+  const world = { seconds, paused: false };
   t.worldClock = world;
   t.crows.possible = POSSIBLE;
   return { sim, t, world };

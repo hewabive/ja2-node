@@ -1083,6 +1083,23 @@ function addBulletLocatedFlags(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_WAIT_KEY = 'pendingWait';
+const INTERFACE_LOCK_ACTIVE_KEY = 'interfaceLockActive';
+
+function withInterfaceLockFlag(strategic: JsonObject): JsonObject {
+  const flow = strategic[SECTOR_FLOW_KEY];
+  if (!isObject(flow) || flow[REF] !== undefined) return strategic;
+  return { ...strategic, [SECTOR_FLOW_KEY]: insertAfter(flow, PENDING_WAIT_KEY, INTERFACE_LOCK_ACTIVE_KEY, false) };
+}
+
+function addInterfaceLockFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withInterfaceLockFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1124,5 +1141,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     37: addRealDoorState,
     38: addCorpseHeights,
     39: addBulletLocatedFlags,
+    40: addInterfaceLockFlag,
   };
 }

@@ -81,7 +81,9 @@ original's message. Per domain:
 Sessions start under the manual driver: game time moves only inside `advance`, so the agent is a player with zero
 reaction time and a pause between any two ticks (`04` §4.3, deviation "Real-time pause"). `advance` runs to a stop
 condition (`04` §4.2): idle, a watched event, a tick count, a world time, a decision, a refusal, the budget, the end of
-the campaign or, beside a real-time viewer, a timeout. Each report carries the world time in a campaign.
+the campaign or, beside a real-time viewer, a timeout. Each report carries the world time in a campaign. In tactical
+the world clock runs real time; it stands in turn-based combat and while the interface is locked: mercs walking off or
+in, the action-item queue, the boxers leaving the ring, a scripted sequence (`15`).
 
 ### 4.2 Decisions
 

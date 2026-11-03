@@ -4,7 +4,8 @@
 // @src EndMapScreen (to tactical: X1); StrategicMap.cc CanGoToTacticalInSector; Tactical/Interface_Panels.cc
 // @src GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a flag); GameScreen.cc
 // @src EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the loaded sector (2026-10-31);
-// @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, 2026-11-03).
+// @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, and
+// @src CheckForDisabledRegionRemove, 2026-11-03).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -17,6 +18,7 @@ import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts
 import { refuse } from '../tactical/refusal.ts';
 import { enterTacticalScreen } from '../tactical/selection.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 
 const ABSENT = new Set<number>([Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW, Assignment.ASSIGNMENT_DEAD]);
 const ABANDON_FIGHT_TEXT = 'a boxing match is under way; send "abandonFight": true to abandon it and open the map';
@@ -44,6 +46,7 @@ export function leaveTacticalScreen(campaign: CampaignSim): void {
   battle.lostBattleUnloadAtMs = null;
   if (!battle.autoStart) campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   enterMapScreen(campaign);
+  syncInterfaceLockPause(campaign);
 }
 
 export function enterMapScreen(campaign: CampaignSim): void {

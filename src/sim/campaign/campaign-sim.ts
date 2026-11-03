@@ -79,6 +79,7 @@ import { economyLineHooks } from './economy-lines.ts';
 import { EndgameFlow } from './endgame-flow.ts';
 import { HelicopterFlow, SKYRIDER_CALLBACKS } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
+import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
@@ -628,6 +629,7 @@ export class CampaignSim {
     if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
     const s = this.state;
     s.session.tick++;
+    syncInterfaceLockPause(this);
     if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();

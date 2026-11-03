@@ -18,7 +18,7 @@
 // @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
 // @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31); the BeginLoggingForBleedMeToos window
 // @src of BeginTeamTurn and HandleTacticalEndTurn; HandleTacticalEndTurn's static stamp before HandleRottingCorpses
-// @src (2026-11-01).
+// @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -182,6 +182,10 @@ export const RT_TURN_MS = 5000;
 const ROTTING_CORPSES_INTERVAL_SECONDS = 1200;
 export const STRATEGIC_OVERHEAD_MS = 20;
 
+function gamePaused(t: TacticalState): boolean {
+  return t.worldClock?.paused === true;
+}
+
 export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): void {
   if (!t.inCombat && t.turn.forceRealtimeTurn) {
     t.turn.forceRealtimeTurn = false;
@@ -192,7 +196,7 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
   }
   if (t.clockMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return;
   clock.lastOverheadMs = t.clockMs;
-  if (t.engagedInConv) return;
+  if (gamePaused(t)) return;
   if (t.inCombat) {
     clock.lastTurnMs = t.clockMs;
     return;

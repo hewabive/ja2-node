@@ -197,5 +197,5 @@ every profile's sector. Inferred from reading the source:
   no-op; ja2-node only sets the fact.
 
 Not ported: gap "NPC opens a door on arrival". Other deviations of this domain:
-"Terrorist names", "NPC gives an item", "Interface lock on arrival", "Team change during a hit", "Ownership check
+"Terrorist names", "NPC gives an item", "Interface lock per source", "Team change during a hit", "Ownership check
 timer".

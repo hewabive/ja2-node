@@ -22,7 +22,7 @@ function rememberedEnemy(): { t: TacticalState; world: { seconds: number }; enem
   const t = sim.state;
   spawnSoldier(sim, 0, Team.OUR, gridNo(60, 60), Direction.NORTH);
   const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(110, 110), Direction.SOUTH);
-  const world = { seconds: NOW };
+  const world = { seconds: NOW, paused: false };
   t.worldClock = world;
   const ours = t.perception.publicOpp[Team.OUR];
   if (ours) ours[enemy.id] = Opp.SEEN_THIS_TURN;
@@ -45,6 +45,29 @@ describe('real-time turns', () => {
       if (clock.lastTurnMs !== before) turns.push(t.clockMs);
     }
     expect(turns).toEqual([5020, 10040, 15060]);
+  });
+
+  it('wait while the game is paused, their timer running on, so the first counter after the pause brings one (HandleStrategicTurn)', () => {
+    const t = newCombatSim(content).state;
+    t.inCombat = false;
+    const world = { seconds: NOW, paused: true };
+    t.worldClock = world;
+    const clock = createRealtimeClock();
+    const turns: number[] = [];
+    const runTo = (endMs: number) => {
+      for (t.clockMs += 5; t.clockMs <= endMs; t.clockMs += 5) {
+        const before = clock.lastTurnMs;
+        handleRealtimeTurns(t, clock);
+        if (clock.lastTurnMs !== before) turns.push(t.clockMs);
+      }
+      t.clockMs -= 5;
+    };
+    t.clockMs = 0;
+    runTo(12_000);
+    expect(turns).toEqual([]);
+    world.paused = false;
+    runTo(17_100);
+    expect(turns).toEqual([12_020, 17_040]);
   });
 });
 

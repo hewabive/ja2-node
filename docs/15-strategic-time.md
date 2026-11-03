@@ -14,6 +14,7 @@ Paths are under `src/sim/`; `time/` is `strategic/time/`.
 
 ```
 CampaignSim.step: one 5 ms tick                           campaign/campaign-sim.ts
+  the interface lock's pause, before and after the pass   campaign/interface-lock-pause.ts
   tactical flow: light change, the loaded sector's pass;  tactical/tactical-sim.ts, tactical/turns/turns.ts
     realMs = the sector's clockMs
   strategic flow: realMs += 5, dialogue, automatic pause
@@ -67,9 +68,12 @@ its face ends, unless the game is paused already, and leaves compression on to r
 the strategic lines (assignments, tiredness, contracts, Skyrider, head miners) go through that queue too, and while
 anything waits in it compression cannot start (`dialogueQueued`).
 A pause lock forbids unpausing and compressing (a new speed too), not pausing, and it is one flag: any unlock lifts it,
-whoever locked. Subsystems lock with the original's reason ids, which a native save carries. The
-original's `PauseTime` under message boxes has no counterpart: an open decision prompt stops the whole simulation (D15,
-deviation "Prompt time").
+whoever locked. Subsystems lock with the original's reason ids, which a native save carries. In tactical the interface
+lock pauses the game under lock 16 from the start of its first source to the end of its last, and that end lifts every
+pause and lock unless a conversation is engaged; leaving tactical lifts it too (`campaign/interface-lock-pause.ts`,
+deviation "Interface lock per source"). A pause also holds back the real-time turn, whose timer runs on, so the first
+20 ms counter after a long pause brings it. The original's `PauseTime` under message boxes has no counterpart: an open
+decision prompt stops the whole simulation (D15, deviation "Prompt time").
 
 **Compression is state that commands change.** `compressTime {mode?}` and `stopTime` are the map's buttons; `mapScreen`
 and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60 minute mode but stops it, anything else
@@ -159,6 +163,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | An event that stops compression still lets its 60-second slice run to the end | `time/world-clock.test.ts` |
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
+| The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
@@ -180,7 +185,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage". Other
-deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause", "Time
-compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after combat",
-"Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time".
+Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage", "Map screen exit
+pause". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause",
+"Time compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after
+combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source".

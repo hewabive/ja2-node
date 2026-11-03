@@ -79,6 +79,8 @@ const A10 = { x: 10, y: 1, z: 0 };
 const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
 const LONE_ADMIN = { admins: 1, troops: 0, elites: 0 };
+const WALK_OFF_TICKS = 2000;
+const TICKS_PER_WORLD_SECOND = 200;
 const QUICK_TRAVERSAL_MINUTES = 5;
 const MIN_CROWS_POSSIBLE = 5;
 const MAX_CROWS_POSSIBLE = 9;
@@ -227,6 +229,24 @@ describe('leaving a sector', () => {
     expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
     expect([campaign.tactical, campaign.state.worldSector]).toEqual([null, null]);
     expect(campaign.dispatch({ type: 'compressTime', mode: 2 })).toEqual({ ok: true });
+  });
+
+  it('stands the world clock while a merc walks off, the interface lock pausing the game, and runs it again once he is gone (StrategicMap.cc JumpIntoAdjacentSector LU_BEGINUILOCK)', () => {
+    const { campaign, roster } = createTestCampaign(kit, { seed: 11, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const leaver = ourSoldiers(campaign)[0];
+    if (!leaver) throw new Error('no merc');
+    walkSquadToEastEdge(campaign);
+    const r = campaign.dispatch({ type: 'exitSector', soldier: leaver.id, direction: 'east', who: 'merc', load: false });
+    expect(r).toMatchObject({ ok: true, data: { who: 'merc', load: false } });
+    const seconds = campaign.state.clock.seconds;
+    const clock = () => campaign.state.clock;
+    const walking = runTicks(campaign, WALK_OFF_TICKS, () => !campaign.tactical?.state.mercsWaiting);
+    expect(walking).toBeGreaterThan(TICKS_PER_WORLD_SECOND);
+    expect(roster.get(leaver.id)?.soldier.placed).toBe(false);
+    expect([clock().seconds, clock().paused, clock().pauseLocked]).toEqual([seconds, false, false]);
+    runTicks(campaign, TICKS_PER_WORLD_SECOND);
+    expect(clock().seconds).toBe(seconds + 1);
   });
 
   it('lifts the pause of a traversal into a hostile sector once the squad has walked in (Overhead.cc WAIT_FOR_MERCS_TO_WALKON_SCREEN, Handle_UI.cc UIHandleLUIEndLock)', () => {

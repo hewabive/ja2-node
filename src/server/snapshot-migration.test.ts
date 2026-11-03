@@ -1736,3 +1736,38 @@ describe('snapshot version 39 (bullets without fLocated) migrates with every bul
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
   });
 });
+
+function versionForty(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { interfaceLockActive, ...sectorFlow } = object(strategic.sectorFlow);
+    expect(interfaceLockActive).toBe(false);
+    return [name, { ...strategic, sectorFlow }];
+  });
+  return { ...snapshot, version: 40, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 40 (no interface lock flag) migrates with no lock that paused the game', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionForty(current.sim);
+    expect(JSON.stringify(current.sim)).toContain('"pendingWait":null,"interfaceLockActive":false,');
+    expect(JSON.stringify(legacy)).not.toContain('"interfaceLockActive"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

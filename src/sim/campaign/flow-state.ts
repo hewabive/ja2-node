@@ -27,6 +27,7 @@ export interface SectorFlowState {
   overrideInsertionWithExitGrid: number | null;
   hasEnteredCombatModeSinceEntering: boolean;
   pendingWait: number | null;
+  interfaceLockActive: boolean;
   powSquad: number;
   readonly powsSeen: number[];
   trashedMapRestrictedScroll: number;
@@ -74,6 +75,7 @@ export function createSectorFlowState(
     overrideInsertionWithExitGrid: null,
     hasEnteredCombatModeSinceEntering: false,
     pendingWait: null,
+    interfaceLockActive: false,
     powSquad: NO_CURRENT_SQUAD,
     powsSeen: [],
     trashedMapRestrictedScroll: RestrictedScroll.NONE,

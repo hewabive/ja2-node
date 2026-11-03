@@ -123,8 +123,8 @@ the pause or lines wait in the dialogue queue it steps until they ended and star
    real time (`AdvanceRun`, the `inTactical` of the world clock);
 6. the budget (at least 2,000,000 ticks, at most 7 world days).
 
-In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks); an advance with `mode` or
-`compressionStopped` but no time target is refused there.
+In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks) and stand while the interface
+lock pauses the game (`15`); an advance with `mode` or `compressionStopped` but no time target is refused there.
 
 ### 4.3. Drivers
 

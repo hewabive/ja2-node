@@ -24,7 +24,7 @@
 // @src LoadSavedGame (the forced reselect in tactical) and SaveLoadScreen.cc SetSaveLoadExitScreen (EnterTacticalScreen)
 // @src for a native import (2026-11-01); SaveLoadGame.cc LoadSavedGame (HandleRottingCorpses of
 // @src LoadRottingCorpsesFromTempCorpseFile) for a native import (2026-11-01); Overhead.cc ExecuteOverhead (the LU_ENDUILOCK
-// @src that ends the wait for mercs on our turn) and Handle_UI.cc UIHandleLUIEndLock (its unpause, 2026-11-03).
+// @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -97,7 +97,7 @@ import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
-import { setGameTimeCompressionLevel, unLockPauseState, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
 import { loadDoorStatusArray, storedDoorStatuses, updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
@@ -164,6 +164,7 @@ import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/wo
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
+import { syncInterfaceLockPause } from './interface-lock-pause.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
 import {
   GUIDE_DESCRIPTION_COUNTDOWN_RANGE,
@@ -1206,19 +1207,13 @@ export class SectorFlow {
   afterTacticalStep(): void {
     const t = this.campaign.tactical?.state;
     if (t?.inCombat) this.hasEnteredCombatModeSinceEntering = true;
+    syncInterfaceLockPause(this.campaign);
     const code = this.#pendingWait;
     if (code === null) return;
     this.#pendingWait = null;
-    if (t) this.#endInterfaceLockOfTheWait(t);
     if (code === WaitForMercs.WALKOFF_SCREEN) allMercsHaveWalkedOffSector(this);
     else if (code === WaitForMercs.WALK_TO_GRIDNO) allMercsWalkedToExitGrid(this);
-  }
-
-  #endInterfaceLockOfTheWait(t: TacticalState): void {
-    if (t.turn.currentTeam !== Team.OUR || t.engagedInConv) return;
-    const clock = this.campaign.state.clock;
-    unLockPauseState(clock);
-    unPauseGame(clock);
+    syncInterfaceLockPause(this.campaign);
   }
 
   militiaFriendly(): boolean {

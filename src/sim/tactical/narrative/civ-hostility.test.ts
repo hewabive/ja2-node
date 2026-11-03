@@ -372,10 +372,10 @@ describe('sight rules', () => {
     const { sim } = setup();
     const hick = civilian(sim, 116, NEAR, CivilianGroup.HICKS);
     const merc = sim.state.soldiers[0] as never;
-    sim.attachWorldClock({ seconds: 86400 + 12 * 3600 });
+    sim.attachWorldClock({ seconds: 86400 + 12 * 3600, paused: false });
     newSightingRules(sim.state, hick, merc);
     expect(hick.neutral).toBe(true);
-    sim.attachWorldClock({ seconds: 86400 + 3 * 3600 });
+    sim.attachWorldClock({ seconds: 86400 + 3 * 3600, paused: false });
     newSightingRules(sim.state, hick, merc);
     expect(hick.neutral).toBe(false);
   });
@@ -388,11 +388,11 @@ describe('sight rules', () => {
     expect([behind.neutral, behind.visible, located(unseen.sim)]).toEqual([false, Visible.HIDDEN, []]);
     const { sim } = setup();
     const hick = civilian(sim, 116, IN_FRONT, CivilianGroup.HICKS);
-    sim.attachWorldClock({ seconds: 86400 + 12 * 3600 });
+    sim.attachWorldClock({ seconds: 86400 + 12 * 3600, paused: false });
     sim.lookAround();
     sim.drainEvents();
     expect(hick.visible).toBe(Visible.SEEN);
-    sim.attachWorldClock({ seconds: 86400 + 3 * 3600 });
+    sim.attachWorldClock({ seconds: 86400 + 3 * 3600, paused: false });
     newSightingRules(sim.state, hick, sim.state.soldiers[0] as never);
     expect(located(sim)).toMatchObject([{ type: 'soldierLocated', soldier: hick.id, locator: 'normal' }]);
   });
