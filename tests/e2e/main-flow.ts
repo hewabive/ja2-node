@@ -1,10 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
+import type { SoldierView } from '../../src/protocol/view.ts';
 import { type BattleResult, fightHere, hostilesInSight, ourTurn } from '../../tools/campaign-bot/battle.ts';
 import { HIRE_PREFERENCE } from '../../tools/campaign-bot/campaign.ts';
 import { loadItems } from '../../tools/campaign-bot/items.ts';
 import type { McpGame, Observation } from '../../tools/campaign-bot/mcp-game.ts';
-import { Player } from '../../tools/campaign-bot/player.ts';
+import { ourMercs, Player } from '../../tools/campaign-bot/player.ts';
 import {
   clickAt,
   clickVisible,
@@ -38,6 +39,7 @@ const MAX_BEGINNING_VIDEOS = 8;
 const SAVE_DESCRIPTION_FIELD = 'description.0';
 const MARKER_TIMEOUT_MS = 30_000;
 const BOT_LOG_LINES = 300;
+const PLAYER_TURN = 'playerTurn';
 
 export interface ShadowTally {
   tactical: number;
@@ -47,6 +49,19 @@ export interface ShadowTally {
 export interface Point {
   readonly x: number;
   readonly y: number;
+}
+
+function ourRegularTurn(view: Observation): boolean {
+  return ourTurn(view) && view.combat?.topMessage?.kind === PLAYER_TURN;
+}
+
+async function standStill(player: Player): Promise<void> {
+  for (const merc of ourMercs(await player.observe())) if (holdsHaltedMove(merc)) await player.act({ type: 'stop', soldier: merc.id });
+  await player.advance({ idle: true });
+}
+
+function holdsHaltedMove(merc: SoldierView): boolean {
+  return merc.continueTo !== undefined && merc.continueTo !== null;
 }
 
 async function tacticalReady(page: Page): Promise<void> {
@@ -292,15 +307,15 @@ export class MainFlow {
 
   async approach(): Promise<BattleResult> {
     const player = await this.player();
-    const result = await fightHere(player, { done: (view: Observation) => ourTurn(view) && hostilesInSight(player, view).length > 0 });
-    if (result === 'reached') await player.advance({ idle: true });
+    const result = await fightHere(player, { done: (view) => ourRegularTurn(view) && hostilesInSight(player, view).length > 0 });
+    if (result === 'reached') await standStill(player);
     await showLatest(this.page);
     return result;
   }
 
   async cursorsInCombat(): Promise<void> {
     const page = this.page;
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.topMessage === 'playerTurn');
+    await page.waitForFunction((turn) => window.__ja2Ui.tactical?.topMessage === turn, PLAYER_TURN);
     await clickWidget(page, 'teamFaceRegion0');
     const selected = await page.evaluate(() => window.__ja2Ui.tactical?.selected ?? null);
     expect(selected).not.toBeNull();
