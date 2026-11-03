@@ -208,6 +208,21 @@ describe('websocket transport', () => {
     only.ws.close();
   });
 
+  it("holds time for a viewer, tells every viewer, and releases a closed viewer's holds", async () => {
+    const host = openSession('held');
+    const first = await viewer('held');
+    const second = await viewer('held');
+    expect(welcomeOf(first.inbox).held).toBe(false);
+    first.ws.send(JSON.stringify({ t: 'hold', id: 1, reason: 'modal', held: true }));
+    expect(await until(first.inbox, (m) => m.t === 'result')).toMatchObject({ id: 1, ok: true });
+    expect(await until(second.inbox, (m) => m.t === 'time')).toMatchObject({ held: true, driver: { mode: 'manual' } });
+    expect(host.session.timeHeld).toBe(true);
+    first.ws.close();
+    await until(second.inbox, (m) => m.t === 'time' && !m.held);
+    expect(host.session.timeHeld).toBe(false);
+    second.ws.close();
+  });
+
   it('answers a request that failed with an error carrying its id', async () => {
     openSession('game-failing');
     const v = await viewer('game-failing');

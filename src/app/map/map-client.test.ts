@@ -9,6 +9,7 @@ class FakeSession {
   latestView: PlayerView | null = null;
   driver: DriverMode = { mode: 'manual' };
   readonly drives: DriverMode['mode'][] = [];
+  readonly held = new Set<string>();
   shownTick = 0;
   latestTick = 0;
 
@@ -16,7 +17,14 @@ class FakeSession {
     this.driver = driver;
     this.drives.push(driver.mode);
   }
+
+  hold(reason: string, held: boolean): void {
+    if (held) this.held.add(reason);
+    else this.held.delete(reason);
+  }
 }
+
+const TACTICAL_REAL_TIME: DriverMode = { mode: 'realtime', speed: 1 };
 
 function viewIn(flow: string): PlayerView {
   return { strategic: { flow } } as unknown as PlayerView;
@@ -60,5 +68,48 @@ describe('the map client clock', () => {
       speed: 1,
       pauseOn: ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon', 'sectorLost', 'invasion'],
     });
+  });
+
+  it('holds time on the server for its boxes and its pause and keeps the driver running', () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    const client = mapClientOn(session);
+    client.start();
+    client.holdTime('updateBox', true);
+    expect([...session.held]).toEqual(['map']);
+    client.holdTime('updateBox', false);
+    client.setPaused(true);
+    expect([...session.held]).toEqual(['map']);
+    client.setPaused(false);
+    expect([...session.held]).toEqual([]);
+    expect(session.drives).toEqual(['realtime']);
+  });
+
+  it('takes over a real-time driver without its box events on entering the map and leaves it alone on leaving', () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    session.driver = TACTICAL_REAL_TIME;
+    const client = mapClientOn(session);
+    client.start();
+    expect(session.drives).toEqual(['realtime']);
+    expect(session.driver.mode === 'realtime' && session.driver.pauseOn).toBeTruthy();
+    session.driver = TACTICAL_REAL_TIME;
+    client.stop();
+    expect(session.drives).toEqual(['realtime']);
+  });
+
+  it('restarts real time at once after the server stopped it and holds it until the page has played up to the stop', () => {
+    const session = new FakeSession();
+    session.latestView = viewIn('strategic');
+    const client = mapClientOn(session);
+    client.start();
+    session.driver = { mode: 'manual' };
+    session.latestTick = 40;
+    client.sync();
+    expect(session.drives).toEqual(['realtime', 'realtime']);
+    expect([...session.held]).toEqual(['map']);
+    session.shownTick = 40;
+    client.sync();
+    expect([...session.held]).toEqual([]);
   });
 });

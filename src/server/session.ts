@@ -143,6 +143,7 @@ export class Session {
   #now: () => number = () => performance.now();
   #speech: SpeechMode = 'listen';
   readonly #waits = new Set<RealtimeWait>();
+  readonly #timeHolds = new Map<string, Set<string>>();
   #lastView: PlayerView;
   #sentView: PlayerView;
   #shownTick: number;
@@ -268,6 +269,30 @@ export class Session {
     return this.#listeners.size;
   }
 
+  get timeHeld(): boolean {
+    return this.#timeHolds.size > 0;
+  }
+
+  holdTime(holder: string, reason: string, held: boolean): void {
+    const was = this.timeHeld;
+    const reasons = this.#timeHolds.get(holder) ?? new Set<string>();
+    if (held) reasons.add(reason);
+    else reasons.delete(reason);
+    if (reasons.size > 0) this.#timeHolds.set(holder, reasons);
+    else this.#timeHolds.delete(holder);
+    if (was !== this.timeHeld) this.#broadcastTime();
+  }
+
+  releaseTime(holder: string): void {
+    const was = this.timeHeld;
+    this.#timeHolds.delete(holder);
+    if (was !== this.timeHeld) this.#broadcastTime();
+  }
+
+  #broadcastTime(): void {
+    this.#broadcast({ t: 'time', driver: this.#driver, held: this.timeHeld });
+  }
+
   get busy(): boolean {
     return this.#depth > 0;
   }
@@ -289,6 +314,7 @@ export class Session {
       instance: this.instance,
       view,
       driver: this.#driver,
+      held: this.timeHeld,
       messages: this.#messages,
       ...(this.#campaign ? { campaign: this.#campaign } : {}),
       ...this.identity,
@@ -571,6 +597,7 @@ export class Session {
   *#driverRun(driver: DriverMode, now: () => number, due: PauseCheck): Run<void> {
     this.log.append('drive', this.#sim.tick, { driver });
     this.#driver = driver;
+    this.#broadcastTime();
     this.#stopTimer();
     if (driver.mode !== 'realtime') this.#settleWaits('refused', REALTIME_LEFT);
     if (driver.mode === 'realtime') {
@@ -597,7 +624,7 @@ export class Session {
     this.#lastRealtime = at;
     const ticks = Math.max(0, Math.floor(this.#carryMs / TICK_MS));
     this.#carryMs -= ticks * TICK_MS;
-    const runs = ticks > 0 && !this.#sim.hasPendingDecision();
+    const runs = ticks > 0 && !this.timeHeld && !this.#sim.hasPendingDecision();
     const report = runs ? finish(this.#input(this.#realtimeRun(ticks, this.#driver.pauseOn ?? []))) : null;
     this.#serveWaits(report?.events ?? []);
     if (report?.reason === 'event') {

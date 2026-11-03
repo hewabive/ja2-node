@@ -102,9 +102,12 @@ have arrived; `?screen=testPattern` shows every draw primitive (the golden of `t
 **Time while the client shows something modal.** The original pauses game time while a message box, the options or
 save screen, help, a popup menu, the pickup menu or the sector inventory is open, at the event that opens it
 (`MessageBoxScreen.cc:270-274`, `Options_Screen.cc:169`, `HelpScreen.cc:465-472`). In ja2-node the server owns time:
-- client modals call `UiRuntime.pauseGame`; `ModalPause` (`src/app/game/modal-pause.ts`) counts nested ones, switches a
-  running real-time driver to manual for the outermost and restores it after the last, only on the same session and
-  only while the driver is still manual, so a driver set by someone else meanwhile stays;
+- client modals call `UiRuntime.pauseGame`; `ModalPause` (`src/app/game/modal-pause.ts`) counts nested ones and holds
+  time on the server (`04` §4.3) from the outermost to the last, on the session it took the hold on;
+- the map screen's own boxes, its pause and its catching up after a server stop hold time the same way, and so does
+  the tactical pause (`src/app/map/map-client.ts`, `src/app/tactical/tactical-client.ts`); the clients switch the
+  driver only for what every page shares: entering or leaving a screen, a prompt, an autoresolve battle, and the
+  tactical screen restarts real time that someone stopped;
 - a box opened by an event on the map screen (the update box, the lost sector box, the invasion box) relies on the
   real-time driver's `pauseOn`, which stops on the event's tick (`04`);
 - decision prompts freeze the server anyway (D15).
@@ -112,7 +115,7 @@ save screen, help, a popup menu, the pickup menu or the sector inventory is open
 **Connection.** `SessionClient` keeps its session over `src/app/net/session-link.ts`. A closed socket, or a server
 silent after a heartbeat ping, makes it dial again with a growing delay and a hello for the same session; requests made
 meanwhile fail at once, except `drive`, which only records the wanted driver until the welcome brings back the
-server's. A welcome from the same server `instance` (`04`) restores the session and resets the client like a load in
+server's, and `hold`, whose held reasons the client sends again after every welcome. A welcome from the same server `instance` (`04`) restores the session and resets the client like a load in
 place; another instance or an unknown session ends it as gone, a `closed` message with the server's reason. The flow
 shows a `reconnecting` box meanwhile and leaves for the main menu, naming the reason, when the session ends.
 

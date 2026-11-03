@@ -137,8 +137,11 @@ In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 
   {until: {ticks, events}}`, so a replay stops at the same tick.
 - **Decisions.** On a decision (an interrupt in our favour with nobody acting, a prompt, an open conversation or shop)
   the real-time driver stays in real time, but its batches run no ticks, log nothing and drop the elapsed time; time
-  runs on by itself once the decision is resolved. The game page itself switches a running real-time driver to manual
-  while it shows something modal (`28` §3).
+  runs on by itself once the decision is resolved.
+- **Holds.** A viewer holds time while its page shows something that pauses the game (`28` §3): `hold {reason, held}`
+  per connection (`Session.holdTime`). While any viewer holds, real-time batches run no ticks, log nothing and drop the
+  elapsed time, as on a decision, so one page's box is not undone by another page; a connection's holds go with it.
+  Every change of the driver or of the held state reaches every viewer as `time {driver, held}`.
 - **No viewer, no real time.** When the last subscriber leaves, the host switches a real-time driver to manual
   through its input queue, unless a viewer is back by then (`InProcessHost.subscribe`, `src/server/session-host.ts`);
   the switch is a logged `drive` input like any other.
@@ -215,11 +218,12 @@ WebSocket endpoint `/ws`; MCP and HTTP map onto the same `SessionHost` calls (§
 
 | Client → server | Server → client |
 |---|---|
-| `hello` | `welcome`: the session, its instance, the view, the driver, the message log, the engine and rule-pack identity (§5.10); again after a load in place |
+| `hello` | `welcome`: the session, its instance, the view, the driver and held state, the message log, the engine and rule-pack identity (§5.10); again after a load in place |
 | `cmd` (prompt answers are commands of type `answer`) | `result`; `frames` (§4.4) |
 | `query` (`29` §9) | `answer` |
 | `advance` | `stopped` (`id` 0 for a driver's own stop) |
-| `drive` (§4.3), `save`, `load` (`29` §10), `closeSession`, `leave` (`29` §6) | `result` |
+| `drive`, `hold` (§4.3), `save`, `load` (`29` §10), `closeSession`, `leave` (`29` §6) | `result` |
+| | `time` (§4.3): the driver and whether a viewer holds time, after every change |
 | `ping` (`29` §11) | `pong` |
 | | `closed` (`closed`, `lost` or `shutdown`); `error` |
 

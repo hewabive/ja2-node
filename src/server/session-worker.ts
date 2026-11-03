@@ -67,6 +67,12 @@ function serve(port: MessagePort, booted: Booted, post: (m: FromWorker) => void)
         subscriptions.get(m.sub)?.();
         subscriptions.delete(m.sub);
         return;
+      case 'holdTime':
+        booted.host.holdTime(m.holder, m.reason, m.held);
+        return;
+      case 'releaseTime':
+        booted.host.releaseTime(m.holder);
+        return;
       case 'call':
         if (m.method === 'close') {
           const closing = booted.close(m.args[0] as SessionCloseReason).finally(() => {

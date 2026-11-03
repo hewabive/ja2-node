@@ -1,4 +1,5 @@
 import type { CommandEnvelope, DriverMode } from '../../protocol/messages.ts';
+import { sameJson } from '../../protocol/same-json.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { SimEventType } from '../../sim/events.ts';
 import type { HintAnswer, HintReply } from '../../ui/game-client.ts';
@@ -13,6 +14,7 @@ const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1, pauseOn: BOX_EVENTS 
 const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';
 const AUTORESOLVE_FLOW = 'autoresolve';
+const MAP_HOLD = 'map';
 
 export interface MapCommandRecord {
   readonly cmd: CommandEnvelope;
@@ -78,17 +80,13 @@ export class SessionMapClient implements MapClient {
     this.sync();
   }
 
-  #wantsTime(): boolean {
+  #runsTime(): boolean {
     const view = this.#session.latestView;
-    return (
-      this.#enabled &&
-      !this.#paused &&
-      !this.#serverStopped &&
-      this.#holds.size === 0 &&
-      !view?.prompt &&
-      !view?.contractPrompt &&
-      view?.strategic?.flow !== AUTORESOLVE_FLOW
-    );
+    return this.#enabled && !view?.prompt && !view?.contractPrompt && view?.strategic?.flow !== AUTORESOLVE_FLOW;
+  }
+
+  #holdsTime(): boolean {
+    return this.#paused || this.#serverStopped || this.#holds.size > 0;
   }
 
   sync(): void {
@@ -96,15 +94,12 @@ export class SessionMapClient implements MapClient {
     const realtime = this.#session.driver.mode === 'realtime';
     if (this.#driving && !realtime) this.#serverStopped = true;
     if (this.#serverStopped && this.caughtUp) this.#serverStopped = false;
-    this.#driving = realtime;
-    const wants = this.#wantsTime();
-    if (wants && !realtime) {
-      this.#driving = true;
-      void this.#session.drive(REAL_TIME);
-    } else if (!wants && realtime) {
-      this.#driving = false;
-      void this.#session.drive(MANUAL);
-    }
+    const runs = this.#runsTime();
+    const ours = sameJson(this.#session.driver, REAL_TIME);
+    if (runs && !ours) void this.#session.drive(REAL_TIME);
+    else if (!runs && ours) void this.#session.drive(MANUAL);
+    this.#driving = sameJson(this.#session.driver, REAL_TIME);
+    this.#session.hold(MAP_HOLD, runs && this.#holdsTime());
   }
 
   async command(cmd: CommandEnvelope): Promise<MapCommandReply> {

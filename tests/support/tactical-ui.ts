@@ -126,6 +126,10 @@ export class SessionClient implements TacticalClient {
     this.starts++;
   }
 
+  sync(): void {}
+
+  stop(): void {}
+
   setPaused(paused: boolean): void {
     this.paused = paused;
   }

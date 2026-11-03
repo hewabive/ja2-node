@@ -47,6 +47,7 @@ function welcome(session: string, instance: string, tick = 0): WelcomeMessage {
     instance,
     view: { tick, mapPath: null, soldiers: [] },
     driver: { mode: 'manual' },
+    held: false,
     messages: [],
     engine: { version: 'test', commit: 'test' },
     rules: { pack: 'test', scripts: 'test' },

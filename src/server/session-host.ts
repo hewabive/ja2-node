@@ -51,6 +51,8 @@ export interface SessionHost {
   query(q: CommandEnvelope): Promise<QueryAnswer>;
   advance(until: StopCondition, budget?: number, options?: AdvanceOptions): Promise<SessionAdvanceReport>;
   setDriver(driver: DriverMode): Promise<void>;
+  holdTime(holder: string, reason: string, held: boolean): void;
+  releaseTime(holder: string): void;
   subscribe(listener: Listener): () => void;
   save(request: SaveRequest): Promise<SaveOutcome>;
   saveSnapshot(name: string, description?: string): Promise<SaveOutcome>;
@@ -187,6 +189,14 @@ export class InProcessHost implements SessionHost {
 
   setDriver(driver: DriverMode): Promise<void> {
     return this.#queued('drive', () => this.session.setDriverSliced(driver, this.#slicer));
+  }
+
+  holdTime(holder: string, reason: string, held: boolean): void {
+    if (!this.#closing) this.session.holdTime(holder, reason, held);
+  }
+
+  releaseTime(holder: string): void {
+    this.session.releaseTime(holder);
   }
 
   subscribe(listener: Listener): () => void {

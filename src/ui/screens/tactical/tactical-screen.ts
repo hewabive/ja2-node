@@ -648,6 +648,7 @@ export class TacticalScreen implements Screen {
 
   exit(): void {
     this.#entered = false;
+    this.#env.client.stop();
     this.dialogue.dispose();
     this.controls.exit();
     this.description.close(false);
@@ -893,6 +894,7 @@ export class TacticalScreen implements Screen {
   update(now: number): void {
     this.#now = this.#env.runtime.clock.ja2Now;
     const view = this.#view();
+    this.#env.client.sync();
     this.#locateToSoldierOnEntry();
     this.#followServer();
     this.#applyPanelSwitch();

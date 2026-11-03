@@ -232,6 +232,21 @@ async function healthScript(r: Rig): Promise<{ start: number; reports: unknown[]
   return { start, reports };
 }
 
+async function heldTimeScript(r: Rig): Promise<{ held: unknown; released: unknown; told: unknown[] }> {
+  const host = await r.create('held', { seed: BATTLE_SEED });
+  const told: unknown[] = [];
+  const unsubscribe = host.subscribe((m) => {
+    if (m.t === 'time') told.push(m.held);
+  });
+  host.holdTime('viewer', 'modal', true);
+  const held = (await host.describe()).timeHeld;
+  host.releaseTime('viewer');
+  const released = (await host.describe()).timeHeld;
+  unsubscribe();
+  await host.close();
+  return { held, released, told };
+}
+
 async function both<T>(script: (r: Rig) => Promise<T>): Promise<[T, T]> {
   const results: T[] = [];
   for (const kind of ['inprocess', 'worker'] as const) {
@@ -303,6 +318,12 @@ describe('the session host contract, in process and in a worker thread', () => {
         await r.close();
       }
     }
+  });
+
+  it("holds and releases a viewer's time across the host boundary and tells the subscribers", async () => {
+    const [inProcess, worker] = await both(heldTimeScript);
+    expect(inProcess).toEqual({ held: true, released: undefined, told: [true, false] });
+    expect(worker).toEqual(inProcess);
   });
 
   it('keeps Dead is Dead: explicit saves refused, quick save and the save point on close write the one file', async () => {

@@ -74,6 +74,7 @@ const LEFT = 'left the game session';
 
 export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
+  timeHeld = false;
   playbackSpeed = 1;
   session: string | null = null;
   campaign: string | null = null;
@@ -92,6 +93,7 @@ export class SessionClient {
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
   readonly #bullets = new BulletTrack();
+  readonly #holds = new Set<string>();
   #nextId = 1;
   #shown: PlayerView | null = null;
   #latest: PlayerView | null = null;
@@ -260,11 +262,17 @@ export class SessionClient {
         this.identity = { engine: m.engine, rules: m.rules };
         this.rules = m.rules;
         this.driver = m.driver;
+        this.timeHeld = m.held;
         this.#shown = m.view;
         this.#latest = m.view;
         this.#shownTick = m.view.tick;
         this.#messages = appendToLog([], m.messages);
+        for (const reason of this.#holds) this.#sendHold(reason, true);
         this.onWelcome?.();
+        break;
+      case 'time':
+        this.driver = m.driver;
+        this.timeHeld = m.held;
         break;
       case 'frames':
         this.#frames.push(...m.frames);
@@ -361,6 +369,22 @@ export class SessionClient {
     await this.#request({ t: 'drive', id: this.#nextId++, driver }, 'drive').catch((error: unknown) => {
       if (this.#link.open) throw error;
     });
+  }
+
+  get holds(): readonly string[] {
+    return [...this.#holds];
+  }
+
+  hold(reason: string, held: boolean): void {
+    if (held === this.#holds.has(reason)) return;
+    if (held) this.#holds.add(reason);
+    else this.#holds.delete(reason);
+    this.#sendHold(reason, held);
+  }
+
+  #sendHold(reason: string, held: boolean): void {
+    if (!this.#link.open) return;
+    this.#request({ t: 'hold', id: this.#nextId++, reason, held }, 'hold').catch(() => undefined);
   }
 
   async ping(): Promise<PingReply> {

@@ -1,19 +1,15 @@
-import type { DriverMode } from '../../protocol/messages.ts';
-import type { SessionClient } from '../net/session-client.ts';
+const MODAL_HOLD = 'modal';
 
-const MANUAL: DriverMode = { mode: 'manual' };
-
-export interface DriverControl {
-  readonly driver: DriverMode;
-  drive(driver: DriverMode): Promise<void>;
+export interface TimeHolder {
+  hold(reason: string, held: boolean): void;
 }
 
 export class ModalPause {
-  readonly #client: () => DriverControl | null;
+  readonly #client: () => TimeHolder | null;
   #depth = 0;
-  #held: { readonly client: DriverControl; readonly restore: DriverMode } | null = null;
+  #held: TimeHolder | null = null;
 
-  constructor(client: () => DriverControl | SessionClient | null) {
+  constructor(client: () => TimeHolder | null) {
     this.#client = client;
   }
 
@@ -35,15 +31,12 @@ export class ModalPause {
   }
 
   #hold(): void {
-    const client = this.#client();
-    if (client?.driver.mode !== 'realtime') return;
-    this.#held = { client, restore: client.driver };
-    void client.drive(MANUAL);
+    this.#held = this.#client();
+    this.#held?.hold(MODAL_HOLD, true);
   }
 
   #release(): void {
-    const held = this.#held;
+    this.#held?.hold(MODAL_HOLD, false);
     this.#held = null;
-    if (held && held.client === this.#client() && held.client.driver.mode === 'manual') void held.client.drive(held.restore);
   }
 }

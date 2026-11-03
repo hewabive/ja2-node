@@ -6,8 +6,8 @@ import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 
 const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1 };
-const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';
+const PAUSE_HOLD = 'tacticalPause';
 
 export interface CommandRecord {
   readonly cmd: CommandEnvelope;
@@ -20,6 +20,7 @@ export class SessionTacticalClient implements TacticalClient {
   readonly #hints: HintProvider;
   readonly #keepDriver: boolean;
   #paused = false;
+  #active = false;
 
   constructor(session: SessionClient, hints: HintProvider, keepDriver: boolean) {
     this.#session = session;
@@ -52,14 +53,25 @@ export class SessionTacticalClient implements TacticalClient {
   }
 
   start(): void {
-    if (this.#keepDriver || this.#paused || this.#session.driver.mode !== 'manual') return;
+    this.#active = true;
+    this.#session.hold(PAUSE_HOLD, this.#paused);
+    this.sync();
+  }
+
+  sync(): void {
+    if (this.#keepDriver || !this.#active || this.#session.driver.mode !== 'manual') return;
     void this.#session.drive(REAL_TIME);
+  }
+
+  stop(): void {
+    this.#active = false;
+    this.#session.hold(PAUSE_HOLD, false);
   }
 
   setPaused(paused: boolean): void {
     if (paused === this.#paused) return;
     this.#paused = paused;
-    void this.#session.drive(paused ? MANUAL : REAL_TIME);
+    if (this.#active) this.#session.hold(PAUSE_HOLD, paused);
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {

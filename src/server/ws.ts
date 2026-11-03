@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { type WebSocket, WebSocketServer } from 'ws';
@@ -97,7 +97,7 @@ function answerOf(id: number, a: QueryAnswer): ServerMessage {
 function reply(
   options: WebSocketOptions,
   host: SessionHost,
-  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' } | { t: 'leave' }>,
+  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' } | { t: 'leave' } | { t: 'hold' }>,
 ): Promise<Reply> {
   switch (message.t) {
     case 'closeSession':
@@ -116,6 +116,7 @@ function reply(
 }
 
 function serve(ws: WebSocket, options: WebSocketOptions): void {
+  const holder = randomUUID();
   let unsubscribe: (() => void) | null = null;
   let host: SessionHost | null = null;
   let replies: Promise<unknown> = Promise.resolve();
@@ -123,6 +124,7 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
   };
   const detach = () => {
+    host?.releaseTime(holder);
     unsubscribe?.();
     unsubscribe = null;
     host = null;
@@ -173,6 +175,10 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
         (err: Error) => send({ t: 'answer', id, ok: false, tick: 0, reason: err.message }),
       );
       return;
+    }
+    if (message.t === 'hold') {
+      host.holdTime(holder, message.reason, message.held);
+      return inOrder(message.id, Promise.resolve({ t: 'result', id: message.id, ok: true }));
     }
     if (message.t === 'leave') {
       const left = host;

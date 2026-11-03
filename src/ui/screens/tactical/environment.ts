@@ -42,6 +42,8 @@ export interface TacticalClient extends GameClient {
   readonly paused: boolean;
   command(cmd: CommandEnvelope): Promise<CommandReply>;
   start(): void;
+  sync(): void;
+  stop(): void;
   setPaused(paused: boolean): void;
 }
 

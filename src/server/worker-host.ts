@@ -65,7 +65,9 @@ export type HostCall = (typeof HOST_CALLS)[number];
 export type ToWorker =
   | { readonly op: 'call'; readonly seq: number; readonly method: HostCall; readonly args: readonly unknown[] }
   | { readonly op: 'subscribe'; readonly sub: number }
-  | { readonly op: 'unsubscribe'; readonly sub: number };
+  | { readonly op: 'unsubscribe'; readonly sub: number }
+  | { readonly op: 'holdTime'; readonly holder: string; readonly reason: string; readonly held: boolean }
+  | { readonly op: 'releaseTime'; readonly holder: string };
 
 export type FromWorker =
   | { readonly t: 'ready'; readonly savesAvailable: boolean }
@@ -223,6 +225,14 @@ export class WorkerHost implements SessionHost {
 
   setDriver(driver: DriverMode): Promise<void> {
     return this.#call('setDriver', driver);
+  }
+
+  holdTime(holder: string, reason: string, held: boolean): void {
+    if (!this.#gone && !this.#closing) this.#post({ op: 'holdTime', holder, reason, held });
+  }
+
+  releaseTime(holder: string): void {
+    if (!this.#gone) this.#post({ op: 'releaseTime', holder });
   }
 
   subscribe(listener: Listener): () => void {

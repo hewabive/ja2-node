@@ -37,6 +37,7 @@ export type ClientMessage =
   | { readonly t: 'query'; readonly id: number; readonly q: CommandEnvelope }
   | { readonly t: 'advance'; readonly id: number; readonly until: StopCondition }
   | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
+  | { readonly t: 'hold'; readonly id: number; readonly reason: string; readonly held: boolean }
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
   | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean }
   | { readonly t: 'closeSession'; readonly id: number }
@@ -83,6 +84,7 @@ export interface WelcomeMessage extends WelcomeIdentity {
   readonly instance: string;
   readonly view: PlayerView;
   readonly driver: DriverMode;
+  readonly held: boolean;
   readonly messages: readonly MessageEntry[];
   readonly campaign?: string;
 }
@@ -102,6 +104,7 @@ export type ServerMessage =
   | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
   | AnswerMessage
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
+  | { readonly t: 'time'; readonly driver: DriverMode; readonly held: boolean }
   | { readonly t: 'pong'; readonly id: number; readonly health?: SessionHealthView }
   | { readonly t: 'closed'; readonly session: string; readonly reason: SessionCloseReason }
   | { readonly t: 'error'; readonly id?: number; readonly message: string };
@@ -139,6 +142,10 @@ export function parseClientMessage(text: string): ClientMessage | null {
         (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64 && validPauseOn(d.pauseOn));
       return typeof m.id === 'number' && valid ? (m as ClientMessage) : null;
     }
+    case 'hold':
+      return typeof m.id === 'number' && typeof m.reason === 'string' && m.reason.length <= MAX_HOLD_REASON && typeof m.held === 'boolean'
+        ? (m as ClientMessage)
+        : null;
     case 'save':
       return typeof m.id === 'number' && optionalString(m.name) && optionalString(m.description) ? (m as ClientMessage) : null;
     case 'load':
@@ -155,6 +162,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
 }
 
 const MAX_PAUSE_EVENTS = 64;
+const MAX_HOLD_REASON = 64;
 
 function validPauseOn(value: unknown): boolean {
   return value === undefined || (Array.isArray(value) && value.length <= MAX_PAUSE_EVENTS && value.every((e) => typeof e === 'string'));

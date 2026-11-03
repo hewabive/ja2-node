@@ -215,8 +215,9 @@ describe('session', () => {
     session.replace(loaded, { name: 'QuickSave', digest: 'abc' });
     expect(session.sim).toBe(loaded);
     expect(session.driver).toEqual({ mode: 'manual' });
-    expect(messages.map((m) => m.t)).toEqual(['welcome', 'stopped', 'welcome']);
-    expect(messages[1]).toMatchObject({ report: { reason: 'loaded' } });
+    expect(messages.map((m) => m.t)).toEqual(['welcome', 'time', 'stopped', 'welcome']);
+    expect(messages[2]).toMatchObject({ report: { reason: 'loaded' } });
+    expect(messages[3]).toMatchObject({ driver: { mode: 'manual' }, held: false });
     expect(session.log.entries().at(-1)).toMatchObject({ kind: 'load', payload: { name: 'QuickSave', digest: 'abc' } });
     session.close();
   });
@@ -255,6 +256,31 @@ describe('session', () => {
     const stopped = session.waitInRealtime({ idle: true });
     session.setDriver({ mode: 'manual' });
     expect(await stopped).toMatchObject({ reason: 'refused', refusal: expect.stringContaining('real time') });
+    session.close();
+  });
+
+  it('runs no real-time ticks while any viewer holds time, drops that time and tells every subscriber', () => {
+    const sim = walker();
+    const session = new Session('s14a', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    session.holdTime('a', 'modal', true);
+    session.holdTime('b', 'map', true);
+    session.holdTime('a', 'modal', false);
+    now += 20 * TICK_MS;
+    session.runRealtime(now);
+    expect(sim.tick).toBe(0);
+    session.releaseTime('b');
+    now += 10 * TICK_MS;
+    session.runRealtime(now);
+    expect(sim.tick).toBe(10);
+    expect(messages.filter((m) => m.t === 'time')).toEqual([
+      { t: 'time', driver: { mode: 'realtime', speed: 1 }, held: false },
+      { t: 'time', driver: { mode: 'realtime', speed: 1 }, held: true },
+      { t: 'time', driver: { mode: 'realtime', speed: 1 }, held: false },
+    ]);
     session.close();
   });
 
