@@ -7,7 +7,8 @@
 // @src the look cursor (GetAPsToLook when the direction differs); Points.cc GetAPsToGiveItem, GetAPsToJumpOver,
 // @src GetAPsToBeginFirstAid, GetAPsToReloadRobot; Interface_Items.cc DrawItemTileCursor (the reload cursor on the robot,
 // @src 2026-11-01); UI_Cursors.cc (the item cursors this port does not support yet); Interface_Items.cc DrawItemTileCursor
-// @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03).
+// @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03); Turn_Based_Input.cc
+// @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03).
 
 import { NOTHING } from '../../content/items/items.ts';
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
@@ -141,6 +142,7 @@ function doorAction(c: ActionContext): ActionPart {
 
 function pickUpAction(c: ActionContext, zLevel: unknown): ActionPart {
   const { t, s } = c;
+  if (c.world.tactical?.soldierView(s.id)?.kind === 'epc') return refused(c, 'escortCannotDoThat', s.gridNo);
   if (showsItems(t, s, c.g) && pickupCandidates(t, s, c.g, requestedZLevel(t, s, c.g, zLevel)).length === 0)
     return refused(c, 'nothingThere');
   const actionGridNo = adjustGridNoForItemPlacement(t, s, c.g);

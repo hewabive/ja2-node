@@ -9,7 +9,8 @@
 // @src MSG_CANT_CHANGE_STANCE, CANNOT_STANCE_CHANGE_STR), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
 // @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime, HandleMilitiaRedistributionClick (pMapErrorString 30
 // @src and 31, pMilitiaString 2), Soldier_Tile.cc CanExchangePlaces (STR_LATE_03, REFUSE_EXCHANGE_PLACES),
-// @src Interface_Items.cc HandleItemPointerClick (CANNOT_THROW_TO_DEST_STR, 2026-11-03).
+// @src Interface_Items.cc HandleItemPointerClick (CANNOT_THROW_TO_DEST_STR, 2026-11-03), Turn_Based_Input.cc
+// @src HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT, 2026-11-03).
 
 export interface UiTextKey {
   readonly table: string;
@@ -63,6 +64,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   invalidStance: log('TacticalStr', 31),
   robotNeedsCalibre: log('TacticalStr', 44),
   badThrow: log('TacticalStr', 45),
+  escortCannotDoThat: log('TacticalStr', 124),
   npcRefusesToMove: log('gzLateLocalizedString', 2),
   personRefusesToMove: log('TacticalStr', 119),
   ...Object.fromEntries(Object.entries(MOVE_REFUSAL_INDEX).map(([token, index]) => [token, box('pMapErrorString', index)])),

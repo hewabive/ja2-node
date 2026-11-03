@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
 import { createItem } from '../items/object.ts';
 import { changeSoldierStance } from './animation.ts';
@@ -128,6 +129,30 @@ describe('picking up and dropping items', () => {
     expect(sim.visibleItems()).toEqual([
       { gridNo: merc.gridNo, level: 0, item: t.content.items.byIndex.get(gun)?.name, count: 1, status: 100 },
     ]);
+  });
+
+  it('refuses an escort’s pickup, search, drop, toss and pass, and a swimmer’s drop, as the hand cursor and the item cursor do', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const escort = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const mate = spawnSoldier(sim, 1, Team.OUR, gridNo(82, 80), Direction.WEST);
+    t.narrative = { ...t.narrative, isEpc: (s) => s === escort };
+    addItemToPool(t, escort.gridNo, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0);
+    const refusal = (cmd: { readonly type: string; readonly [key: string]: unknown }) => {
+      const result = sim.dispatch({ soldier: 0, ...cmd });
+      return result.ok ? null : result.data.refusal;
+    };
+    expect([
+      refusal({ type: 'pickUp' }),
+      refusal({ type: 'pickUp', gridNo: gridNo(80, 85) }),
+      refusal({ type: 'drop' }),
+      refusal({ type: 'toss', gridNo: gridNo(80, 90) }),
+      refusal({ type: 'pass', target: mate.id }),
+    ]).toEqual(['escortCannotDoThat', 'escortCannotDoThat', 'cannotDrop', 'cannotToss', 'cannotPass']);
+    expect(t.worldItems).toHaveLength(1);
+    const swimmer = spawnSoldier(sim, 2, Team.OUR, gridNo(90, 90), Direction.SOUTH);
+    swimmer.overTerrain = Terrain.DEEP_WATER;
+    expect(sim.dispatch({ type: 'drop', soldier: swimmer.id })).toMatchObject({ ok: false, data: { refusal: 'cannotDrop' } });
   });
 
   it('reveals items our mercs see and leaves unseen ones hidden', () => {

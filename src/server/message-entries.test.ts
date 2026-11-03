@@ -253,6 +253,16 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(entry).toEqual({ tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 45 });
   });
 
+  it('prints EPC_CANNOT_DO_THAT for an escort’s pickup or search', () => {
+    const entry = refusalEntry(
+      40,
+      { type: 'pickUp', soldier: 0 },
+      refuse('escortCannotDoThat', 'an escort can neither pick up nor search'),
+      facts,
+    );
+    expect(entry).toEqual({ tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 124 });
+  });
+
   it('keeps the last 256 entries of the log', () => {
     const entry = (tick: number): MessageEntry => ({ tick, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 67 });
     const log = appendToLog(

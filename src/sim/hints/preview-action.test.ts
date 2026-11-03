@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { hintAnswer, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { hintAnswer, knowledgeOf, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem } from '../items/object.ts';
+import { knowledgeViewOf } from '../knowledge/sim-view.ts';
 import { AnimHeight, states } from '../tactical/animation.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { apsToBeginFirstAid } from '../tactical/first-aid.ts';
@@ -15,6 +16,7 @@ import { Body, Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { AP_TOSS_ITEM } from '../tactical/toss.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
+import { answerHint } from './answer.ts';
 import type { PreviewAction } from './preview-action.ts';
 
 let content: TacticalContent;
@@ -163,6 +165,27 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
     expect(action(sim, 'toss', ORIGIN + 2 * EAST, pocket)).toMatchObject({ ok: false, refusal: 'passInstead' });
     expect(action(sim, 'toss', far, { slot: 'smallPocket8' })).toMatchObject({ ok: false, refusal: 'emptySlot' });
     expect(sim.dispatch({ type: 'toss', soldier: 0, ...pocket, gridNo: far })).toEqual({ ok: true });
+  });
+
+  it('refuses an escort’s pickup and search as the hand cursor does', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    addItemToPool(
+      sim.state,
+      ORIGIN + EAST,
+      createItem(content.items, content.items.byName.get('CANTEEN')?.index ?? 0, 100),
+      Visibility.VISIBLE,
+      0,
+    );
+    const view = knowledgeViewOf(sim);
+    const escort = { ...view, soldiers: view.soldiers.map((v) => (v.id === 0 ? { ...v, kind: 'epc' } : v)) };
+    const preview = (gridNoAt: number) =>
+      answerHint(knowledgeOf(sim, escort), { type: 'previewAction', soldier: 0, kind: 'pickUp', gridNo: gridNoAt }).data as PreviewAction;
+    expect([preview(ORIGIN + EAST), preview(ORIGIN + 3 * EAST)]).toMatchObject([
+      { ok: false, refusal: 'escortCannotDoThat' },
+      { ok: false, refusal: 'escortCannotDoThat' },
+    ]);
+    expect(action(sim, 'pickUp', ORIGIN + EAST)).toMatchObject({ ok: true });
   });
 
   it('answers notSupported for the item cursors without a command', () => {

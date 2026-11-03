@@ -368,7 +368,9 @@ click passes: 1 for the items lying on a structure (`height` in the view: a tabl
 world does not draw), 0 for the floor, by default 1 when any item of the tile lies on a structure
 (`GetLargestZLevelOfItemPool`, `Handle_Items.cc:1703`). On a tile that shows no item, `pickUp` without `items` is the
 hand cursor's search (`Turn_Based_Input.cc:3079`): it takes the click's morale check (`refusesOrder`, and the merc says
-his refusing line) but no AP check, so in combat he may stop short of the tile. Hidden items turn up with his
+his refusing line) but no AP check, so in combat he may stop short of the tile. An escort may neither pick up nor search:
+`escortCannotDoThat`, the hand cursor's `EPC_CANNOT_DO_THAT` (`Turn_Based_Input.cc:3051`, `:3081`, `:3148`), which
+`previewAction pickUp` answers too. Hidden items turn up with his
 spotted-something line; otherwise, and whenever a pile is gone by the time he gets there, the `nothingFound` event
 carries his NOTHING battle sound. `previewAction pickUp` gives what the cursor shows over such a tile, the walk plus a
 pickup's 3 AP, of which the search pays only the walk (deviation "Hand cursor over hidden items"). A melee attack at a
@@ -422,7 +424,10 @@ robot; after the right click's swap a squad mate instead, while an NPC or an esc
 on the merc's tile or the next one, `pass` to a merc of ours within 3 tiles who is no escort and no vehicle, and `toss`
 for anything farther or anybody else (`src/sim/tactical/item-pointer.ts`, `toss.ts`). `drop` puts the object beside him
 when that tile is no place to stand on or one step away (`DROP_ADJACENT_OBJECT`, `itemDropped` with `beside`), else at his
-feet. `pass` charges both mercs their 3 AP before the object goes into the catcher's pockets, so a catcher without room
+feet. An escort, an unconscious merc and a swimmer in deep water click for nothing (`Interface_Items.cc:3146`): `drop`,
+`toss` and `pass` refuse them as `cannotDrop`, `cannotToss` and `cannotPass`, and `give` as `giverCannotGive`; an
+escort takes a give like a named NPC (`Handle_UI.cc:4606`) but never a pass or a catch. `pass` charges both mercs their
+3 AP before the object goes into the catcher's pockets, so a catcher without room
 for all of it keeps what fits and both have paid (`data.passed` false and `passFailed`). `previewAction` kind `toss` is
 the cursor's landing tile (`landsAt`, `landsOnLevel`, `pathClear`) with the refusals of the command but its AP.
 

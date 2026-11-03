@@ -10,7 +10,10 @@
 // @src UIHandleRubberBandOnTerrain (who may be multi-selected) and EndMultiSoldierSelection for the select command
 // @src (2026-10-31); Turn_Based_Input.cc ChangeCurrentSquad and Radar_Screen.cc TacticalSquadListBtnCallBack
 // @src (IsSquadOnCurrentTacticalMap, then SetCurrentSquad) for the selectSquad command (2026-11-01); Handle_UI.cc
-// @src SetUIBusy (only orders lock our turn: the random idle animations of Soldier_Ani.cc code 491 do not, 2026-11-02).
+// @src SetUIBusy (only orders lock our turn: the random idle animations of Soldier_Ani.cc code 491 do not, 2026-11-02);
+// @src Turn_Based_Input.cc HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT for a pickup or
+// @src search by an escort), Interface_Items.cc HandleItemPointerClick (no drop by an escort, the unconscious or a
+// @src swimmer in deep water, 2026-11-03).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -105,7 +108,7 @@ import {
   soldierDropObjectBeside,
   soldierPickupItem,
 } from './item-actions.ts';
-import { DROPPING_DISTANCE, PASS_REFUSALS, type Pass, passItem } from './item-pointer.ts';
+import { DROPPING_DISTANCE, itemPointerHolderBlocked, PASS_REFUSALS, type Pass, passItem } from './item-pointer.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -210,6 +213,7 @@ export interface CombatSnapshot {
 }
 
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
+const ESCORT_CANNOT_PICK_UP = 'an escort can neither pick up nor search';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
 const NPC_DREW_FIRST = 'the neutral NPC drew first: no attack was made, and he turns on us';
@@ -700,6 +704,7 @@ export class TacticalSim {
     selectOrderedMerc(t, s);
     const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
+    if (t.narrative.isEpc(s)) return refuse('escortCannotDoThat', ESCORT_CANNOT_PICK_UP);
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
     if (cmd.items === undefined && !showsItems(t, s, g)) return this.#search(s, g);
     const zLevel = requestedZLevel(t, s, g, cmd.zLevel);
@@ -796,6 +801,8 @@ export class TacticalSim {
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     if (pythSpacesAway(s.gridNo, g) > DROPPING_DISTANCE) return refuse('tooFar', 'drop takes his tile or one next to it: toss farther');
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    if (itemPointerHolderBlocked(t, s))
+      return refuse('cannotDrop', 'escorts, the unconscious and swimmers in deep water cannot drop items');
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return refuse('notEnoughAP', `not enough APs: ${AP.PICKUP_ITEM} needed`);
     const beside = dropsBeside(t, s, g);
     const item = itemIn(s.inv, object.slot);
