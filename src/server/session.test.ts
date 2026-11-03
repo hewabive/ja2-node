@@ -273,7 +273,7 @@ describe('session', () => {
     now += 20 * TICK_MS;
     session.runRealtime(now);
     expect(sim.tick).toBe(0);
-    session.releaseTime('b');
+    session.releaseViewer('b');
     now += 10 * TICK_MS;
     session.runRealtime(now);
     expect(sim.tick).toBe(10);
@@ -282,6 +282,33 @@ describe('session', () => {
       { t: 'time', driver: { mode: 'realtime', speed: 1 }, held: true },
       { t: 'time', driver: { mode: 'realtime', speed: 1 }, held: false },
     ]);
+    session.close();
+  });
+
+  it("keeps viewers' prompts until one is answered, tells every subscriber and answers a late copy at once", () => {
+    const session = new Session('s14c', walker());
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    const prompt = { id: 'meanwhile-40', kind: 'meanwhile', text: 'Meanwhile.....', choices: ['ok', 'skip'] };
+    session.showViewerPrompt('a', prompt);
+    session.showViewerPrompt('b', prompt);
+    expect(session.viewerPrompts).toEqual([prompt]);
+    session.closeViewerPrompt('a', prompt.id, null);
+    expect(session.viewerPrompts).toEqual([prompt]);
+    expect(session.answerViewerPrompt(prompt.id, 'later')).toMatchObject({ ok: false, data: { refusal: 'badChoice' } });
+    expect(session.answerViewerPrompt(prompt.id, 'skip')).toEqual({ ok: true, data: { prompt: prompt.id, choice: 'skip', viewer: true } });
+    expect(session.viewerPrompts).toEqual([]);
+    expect(session.answerViewerPrompt(prompt.id, 'ok')).toMatchObject({ ok: false, data: { refusal: 'noSuchPrompt' } });
+    session.showViewerPrompt('c', prompt);
+    expect(session.viewerPrompts).toEqual([]);
+    expect(messages.filter((m) => m.t === 'promptAnswered')).toEqual([
+      { t: 'promptAnswered', prompt: prompt.id, choice: 'skip' },
+      { t: 'promptAnswered', prompt: prompt.id, choice: 'skip' },
+    ]);
+    session.showViewerPrompt('d', { ...prompt, id: 'updateBox-7' });
+    session.releaseViewer('d');
+    expect(session.viewerPrompts).toEqual([]);
+    expect(session.log.entries()).toEqual([]);
     session.close();
   });
 

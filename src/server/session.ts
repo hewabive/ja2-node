@@ -12,6 +12,7 @@ import {
   type SessionCloseReason,
   type SessionStopReport,
   UNKNOWN_IDENTITY,
+  type ViewerPromptView,
   type WelcomeIdentity,
   type WelcomeMessage,
 } from '../protocol/messages.ts';
@@ -49,6 +50,7 @@ export const SET_SPEECH = 'setSpeech';
 export const SPEECH_MODES = ['listen', 'skip'] as const;
 const REALTIME_COMPRESSION = 'a viewer runs the session in real time: on the tactical screen advance waits for idle, events or ticks';
 const REALTIME_LEFT = 'the session no longer runs in real time';
+const REMEMBERED_ANSWERS = 32;
 const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
 
 export type { CommandResult };
@@ -98,6 +100,11 @@ export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion:
 
 type Yield = 'claim' | 'pause';
 
+interface OpenViewerPrompt {
+  readonly prompt: ViewerPromptView;
+  readonly holders: Set<string>;
+}
+
 interface RealtimeWait {
   readonly run: AdvanceRun;
   readonly timer: ReturnType<typeof setTimeout>;
@@ -144,6 +151,8 @@ export class Session {
   #speech: SpeechMode = 'listen';
   readonly #waits = new Set<RealtimeWait>();
   readonly #timeHolds = new Map<string, Set<string>>();
+  readonly #viewerPrompts = new Map<string, OpenViewerPrompt>();
+  readonly #answeredPrompts = new Map<string, string>();
   #lastView: PlayerView;
   #sentView: PlayerView;
   #shownTick: number;
@@ -287,10 +296,60 @@ export class Session {
     if (was !== this.timeHeld) this.#broadcastTime();
   }
 
-  releaseTime(holder: string): void {
+  releaseViewer(holder: string): void {
     const was = this.timeHeld;
     this.#timeHolds.delete(holder);
+    for (const id of this.#viewerPrompts.keys()) this.#withdrawViewerPrompt(holder, id);
     if (was !== this.timeHeld) this.#broadcastTime();
+  }
+
+  get viewerPrompts(): readonly ViewerPromptView[] {
+    return [...this.#viewerPrompts.values()].map((open) => open.prompt);
+  }
+
+  hasViewerPrompt(id: unknown): boolean {
+    return typeof id === 'string' && this.#viewerPrompts.has(id);
+  }
+
+  showViewerPrompt(holder: string, prompt: ViewerPromptView): void {
+    const answered = this.#answeredPrompts.get(prompt.id);
+    if (answered !== undefined) {
+      this.#broadcast({ t: 'promptAnswered', prompt: prompt.id, choice: answered });
+      return;
+    }
+    const open = this.#viewerPrompts.get(prompt.id);
+    if (open) open.holders.add(holder);
+    else this.#viewerPrompts.set(prompt.id, { prompt, holders: new Set([holder]) });
+  }
+
+  closeViewerPrompt(holder: string, id: string, choice: string | null): CommandResult {
+    if (choice !== null) return this.answerViewerPrompt(id, choice);
+    this.#withdrawViewerPrompt(holder, id);
+    return { ok: true };
+  }
+
+  answerViewerPrompt(id: string, choice: unknown): CommandResult {
+    const open = this.#viewerPrompts.get(id);
+    if (!open) return refuse('noSuchPrompt', `no viewer prompt ${id}`);
+    if (typeof choice !== 'string' || !open.prompt.choices.includes(choice))
+      return refuse('badChoice', `choice is one of ${open.prompt.choices.join(', ')}`);
+    this.#viewerPrompts.delete(id);
+    this.#rememberAnswer(id, choice);
+    this.#broadcast({ t: 'promptAnswered', prompt: id, choice });
+    return { ok: true, data: { prompt: id, choice, viewer: true } };
+  }
+
+  #rememberAnswer(id: string, choice: string): void {
+    this.#answeredPrompts.set(id, choice);
+    const oldest = this.#answeredPrompts.keys().next().value;
+    if (this.#answeredPrompts.size > REMEMBERED_ANSWERS && oldest !== undefined) this.#answeredPrompts.delete(oldest);
+  }
+
+  #withdrawViewerPrompt(holder: string, id: string): void {
+    const open = this.#viewerPrompts.get(id);
+    if (!open) return;
+    open.holders.delete(holder);
+    if (open.holders.size === 0) this.#viewerPrompts.delete(id);
   }
 
   #broadcastTime(): void {

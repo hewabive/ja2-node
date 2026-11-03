@@ -63,6 +63,7 @@ import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
+import { eventPrompt, type PromptedText } from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
@@ -265,7 +266,7 @@ export class TacticalScreen implements Screen {
   #entered = false;
   #entryLocate: number | null = null;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
-  readonly #lostSectors: string[] = [];
+  readonly #lostSectors: PromptedText[] = [];
   #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
@@ -1170,7 +1171,10 @@ export class TacticalScreen implements Screen {
     this.controls.frames(frames);
     if (inTacticalFlow(this.#view()))
       for (const lost of lostSectorsOf(frames))
-        this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label)));
+        this.#lostSectors.push({
+          text: lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label)),
+          prompt: eventPrompt(lost, lost.sector),
+        });
     for (const frame of frames) {
       if (frame.clock) this.#log.timeCompressed = frame.clock.compressing;
       for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
@@ -1193,10 +1197,13 @@ export class TacticalScreen implements Screen {
   }
 
   #showLostSector(): void {
-    const text = this.#lostSectors.shift();
-    if (text === undefined) return;
+    const lost = this.#lostSectors.shift();
+    if (lost === undefined) return;
     const { width, height } = this.#env.runtime.geometry();
-    void this.#env.boxes.ask(text, 'ok', { centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT } });
+    void this.#env.boxes.ask(lost.text, 'ok', {
+      centering: { x: 0, y: 0, width, height: height - INV_INTERFACE_HEIGHT },
+      viewer: lost.prompt,
+    });
   }
 
   #beginFeedback(text: string, skull: boolean): void {

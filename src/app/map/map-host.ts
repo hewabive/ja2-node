@@ -209,6 +209,7 @@ export class MapHost implements MapPort {
       messageBoxLabels: this.#o.messageBoxLabels,
       basicTextBox: this.#o.basicTextBox,
       client: this.#client,
+      prompts: () => this.#o.session,
       media: loaded.media,
       facts: mapFacts(strategic.content, strategic.economy),
       flow,

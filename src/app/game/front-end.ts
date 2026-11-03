@@ -127,7 +127,12 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       if (!model) throw new Error(`front-end layout ${name} is not loaded`);
       return model;
     },
-    boxes: new CanvasMessageBoxes({ services: ui.runtime, style: (s) => styles[s] ?? fallback, labels: () => boxLabels }),
+    boxes: new CanvasMessageBoxes({
+      services: ui.runtime,
+      style: (s) => styles[s] ?? fallback,
+      labels: () => boxLabels,
+      prompts: () => client.client,
+    }),
     messageBoxStyle: (s) => styles[s] ?? fallback,
     messageBoxLabels: boxLabels,
   };

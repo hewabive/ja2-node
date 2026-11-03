@@ -110,7 +110,10 @@ save screen, help, a popup menu, the pickup menu or the sector inventory is open
   tactical screen restarts real time that someone stopped;
 - a box opened by an event on the map screen (the update box, the lost sector box, the invasion box) relies on the
   real-time driver's `pauseOn`, which stops on the event's tick (`04`);
-- decision prompts freeze the server anyway (D15).
+- decision prompts freeze the server anyway (D15);
+- a box the page shows for a game event is also a viewer prompt (`29` §4.6): `MessageBoxRequest.viewer` for the
+  canvas boxes, `ViewerPrompt` for the map screen's boxes and update box (`src/ui/viewer-prompts.ts`), so another
+  client's answer closes it as the click would.
 
 **Connection.** `SessionClient` keeps its session over `src/app/net/session-link.ts`. A closed socket, or a server
 silent after a heartbeat ping, makes it dial again with a growing delay and a hello for the same session; requests made

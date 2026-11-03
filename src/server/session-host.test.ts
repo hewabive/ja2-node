@@ -194,6 +194,15 @@ describe('the in-process session host', () => {
     returned();
   });
 
+  it("answers a viewer's prompt through answer outside the input queue and the input log", async () => {
+    const host = new InProcessHost(new Session('prompted', walker()), { slicer: everyStep() });
+    host.showViewerPrompt('page', { id: 'sectorLost-9-A9', kind: 'sectorLost', text: 'Lost', choices: ['ok'] });
+    expect(await host.dispatch({ type: 'answer', prompt: 'sectorLost-9-A9', choice: 'ok' })).toMatchObject({ ok: true });
+    expect(host.session.viewerPrompts).toEqual([]);
+    expect(await host.dispatch({ type: 'answer', prompt: 'sectorLost-9-A9', choice: 'ok' })).toMatchObject({ ok: false });
+    expect((await host.inputLog()).entries.map((e) => e.kind)).toEqual(['answer']);
+  });
+
   it('refuses calls after close and closes once', async () => {
     const host = new InProcessHost(new Session('closing', walker()));
     const first = host.close();

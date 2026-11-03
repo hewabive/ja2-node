@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
+import type { ViewerPromptView } from '../protocol/messages.ts';
 import { type GameOptions, SAVE_MODES } from '../sim/options.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
@@ -136,6 +137,11 @@ export function importReport(session: Session): { readonly import?: SaveImportRe
   return report ? { import: report } : {};
 }
 
+export function viewerPromptsStatus(session: Session): { readonly viewerPrompts?: readonly ViewerPromptView[] } {
+  const prompts = session.viewerPrompts;
+  return prompts.length > 0 ? { viewerPrompts: prompts } : {};
+}
+
 export function describeSession(session: Session): Record<string, unknown> {
   const view = session.sim.view();
   return {
@@ -145,6 +151,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     driver: session.driver,
     viewers: session.viewers,
     ...(session.timeHeld ? { timeHeld: session.timeHolds } : {}),
+    ...viewerPromptsStatus(session),
     language: session.language,
     dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,

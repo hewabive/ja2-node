@@ -223,6 +223,21 @@ describe('websocket transport', () => {
     second.ws.close();
   });
 
+  it("shows a viewer's prompt to every client and closes it on every page when one answers", async () => {
+    const host = openSession('prompting');
+    const page = await viewer('prompting');
+    const other = await viewer('prompting');
+    const prompt = { id: 'invasion-12-B13', kind: 'invasion', text: 'Drassen is under attack', choices: ['ok'] };
+    page.ws.send(JSON.stringify({ t: 'showPrompt', id: 1, prompt }));
+    await until(page.inbox, (m) => m.t === 'result');
+    expect(host.session.viewerPrompts).toEqual([prompt]);
+    other.ws.send(JSON.stringify({ t: 'closePrompt', id: 1, prompt: prompt.id, choice: 'ok' }));
+    expect(await until(page.inbox, (m) => m.t === 'promptAnswered')).toEqual({ t: 'promptAnswered', prompt: prompt.id, choice: 'ok' });
+    expect(host.session.viewerPrompts).toEqual([]);
+    page.ws.close();
+    other.ws.close();
+  });
+
   it('answers a request that failed with an error carrying its id', async () => {
     openSession('game-failing');
     const v = await viewer('game-failing');

@@ -25,8 +25,10 @@ export interface StoryPort {
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 
+const MEANWHILE_PROMPT = 'meanwhile';
+
 type StoryStep =
-  | { readonly kind: 'meanwhile'; readonly scene: string; readonly loadsSector: boolean }
+  | { readonly kind: 'meanwhile'; readonly scene: string; readonly loadsSector: boolean; readonly prompt: string }
   | { readonly kind: 'upstairs' }
   | { readonly kind: 'ending'; readonly ending: CampaignEndingView };
 
@@ -42,9 +44,9 @@ export interface StoryHook {
 function stepOf(event: FrameEvent): StoryStep | null {
   switch (event.type) {
     case 'meanwhile':
-      return { kind: 'meanwhile', scene: event.scene, loadsSector: false };
+      return { kind: 'meanwhile', scene: event.scene, loadsSector: false, prompt: `${MEANWHILE_PROMPT}-${event.tick}` };
     case 'meanwhileStarted':
-      return { kind: 'meanwhile', scene: event.scene, loadsSector: true };
+      return { kind: 'meanwhile', scene: event.scene, loadsSector: true, prompt: `${MEANWHILE_PROMPT}-${event.tick}` };
     case 'squadMovedUpstairs':
       return { kind: 'upstairs' };
     case 'campaignWon':
@@ -137,7 +139,7 @@ export class StoryLayer {
   async #play(step: StoryStep): Promise<void> {
     switch (step.kind) {
       case 'meanwhile':
-        await this.#meanwhile(step.scene, step.loadsSector);
+        await this.#meanwhile(step);
         return;
       case 'upstairs':
         await this.#reloadThroughFades();
@@ -148,15 +150,15 @@ export class StoryLayer {
     }
   }
 
-  async #meanwhile(scene: string, loadsSector: boolean): Promise<void> {
+  async #meanwhile(step: Extract<StoryStep, { kind: 'meanwhile' }>): Promise<void> {
     this.hook.meanwhileBoxes++;
     const port = this.#port;
     await port.boxes.ask(
       meanwhileBoxText(port.text),
-      meanwhileBoxButtons(scene, (id) => port.sceneSeen(id)),
-      { id: MEANWHILE_BOX },
+      meanwhileBoxButtons(step.scene, (id) => port.sceneSeen(id)),
+      { id: MEANWHILE_BOX, viewer: { id: step.prompt, kind: MEANWHILE_PROMPT } },
     );
-    if (loadsSector) await this.#reloadThroughFades();
+    if (step.loadsSector) await this.#reloadThroughFades();
   }
 
   async #reloadThroughFades(): Promise<void> {

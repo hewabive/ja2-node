@@ -93,6 +93,7 @@ export interface MessageBoxOptions {
   readonly onClose?: (result: number) => void;
   readonly id?: string;
   readonly closeWhen?: () => boolean;
+  readonly answered?: () => number | null;
 }
 
 export function messageBoxLabels(text: UiTextService): MessageBoxLabels {
@@ -301,7 +302,11 @@ export class MessageBox implements Modal {
 
   update(): void {
     if (this.#closed) return;
-    if (this.#handled === MessageBoxReturn.NONE && !this.#options.closeWhen?.()) return;
+    if (this.#handled === MessageBoxReturn.NONE) {
+      const answered = this.#options.answered?.() ?? null;
+      if (answered !== null) this.#handled = answered;
+      else if (!this.#options.closeWhen?.()) return;
+    }
     this.#closed = true;
     this.#services.host.closeModal(this);
     this.#options.onClose?.(this.#handled);

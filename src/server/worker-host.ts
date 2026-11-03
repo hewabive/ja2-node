@@ -7,6 +7,7 @@ import type {
   SessionAdvanceReport,
   SessionCloseReason,
   SessionHealthView,
+  ViewerPromptView,
 } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -47,6 +48,7 @@ export const HOST_CALLS = [
   'query',
   'advance',
   'setDriver',
+  'closeViewerPrompt',
   'save',
   'saveSnapshot',
   'load',
@@ -67,7 +69,8 @@ export type ToWorker =
   | { readonly op: 'subscribe'; readonly sub: number }
   | { readonly op: 'unsubscribe'; readonly sub: number }
   | { readonly op: 'holdTime'; readonly holder: string; readonly reason: string; readonly held: boolean }
-  | { readonly op: 'releaseTime'; readonly holder: string };
+  | { readonly op: 'releaseViewer'; readonly holder: string }
+  | { readonly op: 'showViewerPrompt'; readonly holder: string; readonly prompt: ViewerPromptView };
 
 export type FromWorker =
   | { readonly t: 'ready'; readonly savesAvailable: boolean }
@@ -231,8 +234,16 @@ export class WorkerHost implements SessionHost {
     if (!this.#gone && !this.#closing) this.#post({ op: 'holdTime', holder, reason, held });
   }
 
-  releaseTime(holder: string): void {
-    if (!this.#gone) this.#post({ op: 'releaseTime', holder });
+  releaseViewer(holder: string): void {
+    if (!this.#gone) this.#post({ op: 'releaseViewer', holder });
+  }
+
+  showViewerPrompt(holder: string, prompt: ViewerPromptView): void {
+    if (!this.#gone && !this.#closing) this.#post({ op: 'showViewerPrompt', holder, prompt });
+  }
+
+  closeViewerPrompt(holder: string, id: string, choice: string | null): Promise<CommandResult> {
+    return this.#call('closeViewerPrompt', holder, id, choice);
   }
 
   subscribe(listener: Listener): () => void {

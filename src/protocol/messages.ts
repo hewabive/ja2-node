@@ -31,6 +31,13 @@ export interface CommandEnvelope {
   readonly [key: string]: unknown;
 }
 
+export interface ViewerPromptView {
+  readonly id: string;
+  readonly kind: string;
+  readonly text: string;
+  readonly choices: readonly string[];
+}
+
 export type ClientMessage =
   | { readonly t: 'hello'; readonly session?: string }
   | { readonly t: 'cmd'; readonly id: number; readonly cmd: CommandEnvelope }
@@ -38,6 +45,8 @@ export type ClientMessage =
   | { readonly t: 'advance'; readonly id: number; readonly until: StopCondition }
   | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
   | { readonly t: 'hold'; readonly id: number; readonly reason: string; readonly held: boolean }
+  | { readonly t: 'showPrompt'; readonly id: number; readonly prompt: ViewerPromptView }
+  | { readonly t: 'closePrompt'; readonly id: number; readonly prompt: string; readonly choice: string | null }
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
   | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean }
   | { readonly t: 'closeSession'; readonly id: number }
@@ -105,6 +114,7 @@ export type ServerMessage =
   | AnswerMessage
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
   | { readonly t: 'time'; readonly driver: DriverMode; readonly held: boolean }
+  | { readonly t: 'promptAnswered'; readonly prompt: string; readonly choice: string }
   | { readonly t: 'pong'; readonly id: number; readonly health?: SessionHealthView }
   | { readonly t: 'closed'; readonly session: string; readonly reason: SessionCloseReason }
   | { readonly t: 'error'; readonly id?: number; readonly message: string };
@@ -146,6 +156,12 @@ export function parseClientMessage(text: string): ClientMessage | null {
       return typeof m.id === 'number' && typeof m.reason === 'string' && m.reason.length <= MAX_HOLD_REASON && typeof m.held === 'boolean'
         ? (m as ClientMessage)
         : null;
+    case 'showPrompt':
+      return typeof m.id === 'number' && validViewerPrompt(m.prompt) ? (m as ClientMessage) : null;
+    case 'closePrompt':
+      return typeof m.id === 'number' && shortString(m.prompt) && (m.choice === null || shortString(m.choice))
+        ? (m as ClientMessage)
+        : null;
     case 'save':
       return typeof m.id === 'number' && optionalString(m.name) && optionalString(m.description) ? (m as ClientMessage) : null;
     case 'load':
@@ -166,6 +182,29 @@ const MAX_HOLD_REASON = 64;
 
 function validPauseOn(value: unknown): boolean {
   return value === undefined || (Array.isArray(value) && value.length <= MAX_PAUSE_EVENTS && value.every((e) => typeof e === 'string'));
+}
+
+const MAX_PROMPT_TEXT = 4096;
+const MAX_PROMPT_CHOICES = 8;
+
+function shortString(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= MAX_HOLD_REASON;
+}
+
+function validViewerPrompt(value: unknown): boolean {
+  const p = value as Partial<ViewerPromptView> | null;
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    shortString(p.id) &&
+    shortString(p.kind) &&
+    typeof p.text === 'string' &&
+    p.text.length <= MAX_PROMPT_TEXT &&
+    Array.isArray(p.choices) &&
+    p.choices.length > 0 &&
+    p.choices.length <= MAX_PROMPT_CHOICES &&
+    p.choices.every(shortString)
+  );
 }
 
 function optionalString(value: unknown): boolean {

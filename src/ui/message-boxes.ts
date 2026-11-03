@@ -1,5 +1,6 @@
 import type { UiServices } from './services.ts';
 import { TextCode } from './text/wrap.ts';
+import { type ViewerPromptPort, type ViewerPromptRef, viewerBoxPrompt } from './viewer-prompts.ts';
 import {
   MessageBox,
   MessageBoxFlag,
@@ -17,6 +18,7 @@ export interface MessageBoxRequest {
   readonly centering?: MessageBoxRect;
   readonly id?: string;
   readonly closeWhen?: () => boolean;
+  readonly viewer?: ViewerPromptRef;
 }
 
 export interface MessageBoxes {
@@ -39,6 +41,7 @@ export interface CanvasMessageBoxesOptions {
   readonly services: UiServices;
   readonly style: (id: number) => MessageBoxStyle;
   readonly labels: () => MessageBoxLabels;
+  readonly prompts?: () => ViewerPromptPort | null;
 }
 
 export class CanvasMessageBoxes implements MessageBoxes {
@@ -50,6 +53,7 @@ export class CanvasMessageBoxes implements MessageBoxes {
 
   ask(text: string, buttons: MessageBoxButtons, request: MessageBoxRequest = {}): Promise<number> {
     const { services, style, labels } = this.#options;
+    const prompt = viewerBoxPrompt(this.#options.prompts?.() ?? null, request.viewer, text, FLAGS[buttons]);
     return new Promise((resolve) => {
       services.host.openModal(
         new MessageBox(services, {
@@ -60,7 +64,11 @@ export class CanvasMessageBoxes implements MessageBoxes {
           ...(request.centering ? { centeringRect: request.centering } : {}),
           ...(request.id ? { id: request.id } : {}),
           ...(request.closeWhen ? { closeWhen: request.closeWhen } : {}),
-          onClose: resolve,
+          ...(prompt ? { answered: () => prompt.answered() } : {}),
+          onClose: (result) => {
+            prompt?.closed(result);
+            resolve(result);
+          },
         }),
       );
     });

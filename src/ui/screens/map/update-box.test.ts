@@ -8,6 +8,8 @@ import type { UiTextService } from '../../text/text-service.ts';
 import { Assignment } from './character-list.ts';
 import { UpdateBox, UpdateQueue, UpdateReason, updatePanelGeometry } from './update-box.ts';
 
+const TICK = 40;
+
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 
 const STRINGS: Readonly<Record<string, readonly string[]>> = {
@@ -49,26 +51,26 @@ describe('the update box queue', () => {
       { type: 'assignmentDone', soldier: 1, sayQuote: false } as FrameEvent,
       { type: 'fellAsleep', soldier: 4, collapsed: false } as FrameEvent,
     ];
-    queue.observe(events, mercs, true);
-    expect(queue.next()).toEqual({ reason: UpdateReason.ASLEEP_GOING_AUTO, soldiers: [1, 4] });
+    queue.observe(TICK, events, mercs, true);
+    expect(queue.next()).toEqual({ reason: UpdateReason.ASLEEP_GOING_AUTO, soldiers: [1, 4], tick: TICK });
     expect(queue.next()).toBeNull();
   });
 
   it('leaves out the dead, collapses, squad mercs who wake up and sleep notices when they are off', () => {
     const queue = new UpdateQueue();
-    queue.observe([{ type: 'assignmentDone', soldier: 3, sayQuote: false } as FrameEvent], mercs, true);
-    queue.observe([{ type: 'fellAsleep', soldier: 1, collapsed: true } as FrameEvent], mercs, true);
-    queue.observe([{ type: 'wokeUp', soldier: 2 } as FrameEvent], mercs, true);
-    queue.observe([{ type: 'wokeUp', soldier: 1 } as FrameEvent], mercs, false);
+    queue.observe(TICK, [{ type: 'assignmentDone', soldier: 3, sayQuote: false } as FrameEvent], mercs, true);
+    queue.observe(TICK, [{ type: 'fellAsleep', soldier: 1, collapsed: true } as FrameEvent], mercs, true);
+    queue.observe(TICK, [{ type: 'wokeUp', soldier: 2 } as FrameEvent], mercs, true);
+    queue.observe(TICK, [{ type: 'wokeUp', soldier: 1 } as FrameEvent], mercs, false);
     expect(queue.pending).toBe(0);
-    queue.observe([{ type: 'wokeUp', soldier: 1 } as FrameEvent], mercs, true);
-    expect(queue.next()).toEqual({ reason: UpdateReason.ASSIGNMENT_RETURNING, soldiers: [1] });
+    queue.observe(TICK, [{ type: 'wokeUp', soldier: 1 } as FrameEvent], mercs, true);
+    expect(queue.next()).toEqual({ reason: UpdateReason.ASSIGNMENT_RETURNING, soldiers: [1], tick: TICK });
   });
 
   it('warns about contracts expiring soon', () => {
     const queue = new UpdateQueue();
-    queue.observe([{ type: 'contractsExpiringSoon', soldiers: [4, 1] } as unknown as FrameEvent], mercs, true);
-    expect(queue.next()).toEqual({ reason: UpdateReason.CONTRACT_EXPIRE_WARNING, soldiers: [4, 1] });
+    queue.observe(TICK, [{ type: 'contractsExpiringSoon', soldiers: [4, 1] } as unknown as FrameEvent], mercs, true);
+    expect(queue.next()).toEqual({ reason: UpdateReason.CONTRACT_EXPIRE_WARNING, soldiers: [4, 1], tick: TICK });
   });
 });
 
@@ -120,7 +122,7 @@ describe('the update panel', () => {
 
   it('shows the faces, the reason and the two buttons, beeps, and continues time compression', async () => {
     const h = await harness([merc(1), merc(2)]);
-    expect(h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1, 2] })).toBe(true);
+    expect(h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1, 2], tick: TICK })).toBe(true);
     expect(h.beeps()).toBe(1);
     const list = new DrawList();
     h.box.render(list);
@@ -139,17 +141,17 @@ describe('the update panel', () => {
 
   it('stops time compression with Stop and closes on a right click without changing it', async () => {
     const h = await harness([merc(1)]);
-    h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1] });
+    h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1], tick: TICK });
     const stop = h.box.describe().find((w) => w.id === 'updateBox.stop');
     h.t.click((stop?.rect.x ?? 0) + 5, (stop?.rect.y ?? 0) + 5);
-    h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1] });
+    h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1], tick: TICK });
     h.t.click(5, 5, MouseButton.RIGHT);
     expect(h.finished).toEqual([false, null]);
   });
 
   it('does not open for the dead', async () => {
     const h = await harness([merc(1, { life: 0 })]);
-    expect(h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1] })).toBe(false);
+    expect(h.box.show({ reason: UpdateReason.ASSIGNMENT_FINISHED, soldiers: [1], tick: TICK })).toBe(false);
     expect(h.box.open).toBe(false);
   });
 });

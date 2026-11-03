@@ -50,6 +50,14 @@ import { type SaidLine, saidLineOf } from '../../speech.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { printf } from '../../text/printf.ts';
+import {
+  eventPrompt,
+  type PromptChoice,
+  type PromptedText,
+  ViewerPrompt,
+  type ViewerPromptRef,
+  viewerBoxPrompt,
+} from '../../viewer-prompts.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MessageBox, MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { PopupBoxStyle } from '../../widgets/popup-box.ts';
@@ -113,7 +121,7 @@ import { Plotting, pathSectors } from './plotting.ts';
 import { TEAM_COLUMN_KEYS, TeamColumn, TeamListView, teamGeometry } from './team-list-view.ts';
 import { type TownBoxButtonArt, TownInfoBox } from './town-info-box.ts';
 import { MapUiMessage } from './ui-message.ts';
-import { UpdateBox, UpdateQueue } from './update-box.ts';
+import { type UpdateBatch, UpdateBox, UpdateQueue } from './update-box.ts';
 
 export const MAP_SCREEN_ID = 'map';
 const BATTLE_SCREEN_PROMPTS: ReadonlySet<string> = new Set(['preBattle', 'autoresolveDone']);
@@ -122,6 +130,14 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
   return BATTLE_SCREEN_PROMPTS.has(prompt.kind) || (prompt.kind === 'surrender' && prompt.context === 'autoresolve');
 }
 const OWNER = 'mapScreen';
+const UPDATE_REASONS = 'pUpdateMercStrings';
+const UPDATE_BOX_PROMPT = 'updateBox';
+const UPDATE_CONTINUE = 1;
+const UPDATE_STOP = 0;
+const UPDATE_BOX_CHOICES: readonly PromptChoice[] = [
+  ['continue', UPDATE_CONTINUE],
+  ['stop', UPDATE_STOP],
+];
 const ROW_HELP = [0, 1, 5, 0, 2, 3];
 const ROW_HELP_TABLE = 'pMapScreenMouseRegionHelpText';
 const HAND_HELP_TABLE = 'pMiscMapScreenMouseRegionHelpText';
@@ -216,8 +232,9 @@ export class MapScreen implements Screen {
   readonly #moveBox: MoveBox;
   readonly #updateBox: UpdateBox;
   readonly #updates = new UpdateQueue();
-  readonly #lostSectors: string[] = [];
-  readonly #preBattleBoxes: string[] = [];
+  readonly #lostSectors: PromptedText[] = [];
+  #updatePrompt: ViewerPrompt | null = null;
+  readonly #preBattleBoxes: PromptedText[] = [];
   readonly #message = new MapUiMessage();
   readonly #messages = new MapMessageList();
   readonly #route = new RouteAnimation();
@@ -330,7 +347,10 @@ export class MapScreen implements Screen {
       face: (id) => this.#mediumFace(id),
       ensure: (path) => env.media.image(path),
       beep: () => env.sounds.newMessageBeep(),
-      finished: (continueTime) => void this.#updateFinished(continueTime),
+      finished: (continueTime) => {
+        this.#closeUpdatePrompt(continueTime);
+        void this.#updateFinished(continueTime);
+      },
     });
     this.#battle = new BattleEntry({
       env: env.battle,
@@ -647,7 +667,7 @@ export class MapScreen implements Screen {
   frames(frames: readonly ViewFrame[]): void {
     this.#closeAnsweredPrompts();
     const mercs = this.#strategic()?.mercs ?? [];
-    for (const frame of frames) this.#updates.observe(frame.events ?? [], mercs, this.#env.notifySleepWake());
+    for (const frame of frames) this.#updates.observe(frame.tick, frame.events ?? [], mercs, this.#env.notifySleepWake());
     for (const frame of frames)
       for (const event of frame.events ?? []) {
         const said = saidLineOf(event);
@@ -664,7 +684,10 @@ export class MapScreen implements Screen {
       }
     if (!inTacticalFlow(this.#playerView()))
       for (const lost of lostSectorsOf(frames))
-        this.#lostSectors.push(lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label, true)));
+        this.#lostSectors.push({
+          text: lostSectorText(this.#env.text, lost, (label) => this.#sectorName(label, true)),
+          prompt: eventPrompt(lost, lost.sector),
+        });
     this.noticeInvasions(invasionBoxesOf(frames));
     this.noticeBattleNotices(battleNoticesOf(frames));
     this.#inventory.frames(frames);
@@ -717,6 +740,7 @@ export class MapScreen implements Screen {
     this.#env.client.holdTime('townBox', this.#townBox.open);
     this.#env.client.holdTime('militia', this.#militia.open);
     this.#showNextUpdate();
+    this.#followUpdatePrompt();
     this.#showLostSector();
     this.#env.client.holdTime('updateBox', this.#updateBox.open);
     this.#env.client.holdTime('moveBox', this.#moveBox.open);
@@ -891,13 +915,14 @@ export class MapScreen implements Screen {
     return answer.ok ? ((answer.data as { options?: ContractOptionView[] }).options ?? null) : null;
   }
 
-  #mapBox(text: string): Promise<number> {
-    return this.#openBox({ text, flags: MessageBoxFlag.OK, answer: () => null });
+  #mapBox(text: string, viewer?: ViewerPromptRef): Promise<number> {
+    return this.#openBox({ text, flags: MessageBoxFlag.OK, answer: () => null }, null, viewer);
   }
 
-  #openBox(spec: PromptBox, prompt: string | null = null): Promise<number> {
+  #openBox(spec: PromptBox, prompt: string | null = null, viewer?: ViewerPromptRef): Promise<number> {
     const o = this.#origin();
     this.#boxOpen++;
+    const asked = viewerBoxPrompt(this.#env.prompts(), viewer, spec.text, spec.flags);
     return new Promise((resolve) => {
       const labels = {
         ...this.#env.messageBoxLabels,
@@ -910,7 +935,9 @@ export class MapScreen implements Screen {
         flags: spec.flags,
         labels,
         centeringRect: { x: o.x, y: o.y, width: MAP_BOX_WIDTH, height: MAP_BOX_HEIGHT },
+        ...(asked ? { answered: () => asked.answered() } : {}),
         onClose: (result) => {
+          asked?.closed(result);
           this.#boxOpen--;
           if (prompt !== null) this.#promptBoxes.delete(prompt);
           resolve(result);
@@ -1378,28 +1405,57 @@ export class MapScreen implements Screen {
     for (let batch = this.#updates.next(); batch; batch = this.#updates.next()) {
       this.#closeMenus();
       this.#moveBox.close(false);
-      if (this.#updateBox.show(batch)) return;
+      if (this.#updateBox.show(batch)) {
+        this.#updatePrompt = this.#updateBoxPrompt(batch);
+        return;
+      }
     }
   }
 
+  #updateBoxPrompt(batch: UpdateBatch): ViewerPrompt | null {
+    const port = this.#env.prompts();
+    if (!port) return null;
+    const names = batch.soldiers.map((id) => mercById(this.#strategic(), id)?.name ?? `#${id}`).join(', ');
+    const text = `${this.#text(UPDATE_REASONS, batch.reason)} ${names}`;
+    return new ViewerPrompt(port, { id: `${UPDATE_BOX_PROMPT}-${batch.tick}`, kind: UPDATE_BOX_PROMPT }, text, UPDATE_BOX_CHOICES);
+  }
+
+  #followUpdatePrompt(): void {
+    const answered = this.#updatePrompt?.answered() ?? null;
+    if (answered !== null) this.#updateBox.end(answered === UPDATE_CONTINUE);
+  }
+
+  #closeUpdatePrompt(continueTime: boolean | null): void {
+    this.#updatePrompt?.closed(continueTime === null ? null : continueTime ? UPDATE_CONTINUE : UPDATE_STOP);
+    this.#updatePrompt = null;
+  }
+
   noticeInvasions(events: readonly InvasionEvent[]): void {
-    for (const e of events) this.#preBattleBoxes.push(invasionText(this.#env.text, e, (label) => this.#sectorName(label, true)));
+    for (const e of events)
+      this.#preBattleBoxes.push({
+        text: invasionText(this.#env.text, e, (label) => this.#sectorName(label, true)),
+        prompt: eventPrompt(e, e.sector),
+      });
   }
 
   noticeBattleNotices(events: readonly BattleNoticeEvent[]): void {
-    for (const e of events) this.#preBattleBoxes.push(battleNoticeText(this.#env.text, e, (label) => this.#sectorName(label, true)));
+    for (const e of events)
+      this.#preBattleBoxes.push({
+        text: battleNoticeText(this.#env.text, e, (label) => this.#sectorName(label, true)),
+        prompt: eventPrompt(e, `${e.notice}-${e.sector}`),
+      });
   }
 
   #showPreBattleBox(): boolean {
-    const text = this.#preBattleBoxes.shift();
-    if (text === undefined) return false;
-    void this.#mapBox(text);
+    const box = this.#preBattleBoxes.shift();
+    if (box === undefined) return false;
+    void this.#mapBox(box.text, box.prompt);
     return true;
   }
 
   #showLostSector(): void {
-    const text = this.#lostSectors.shift();
-    if (text !== undefined) void this.#mapBox(text);
+    const lost = this.#lostSectors.shift();
+    if (lost !== undefined) void this.#mapBox(lost.text, lost.prompt);
   }
 
   async #updateFinished(continueTime: boolean | null): Promise<void> {

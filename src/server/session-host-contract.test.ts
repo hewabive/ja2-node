@@ -240,11 +240,26 @@ async function heldTimeScript(r: Rig): Promise<{ held: unknown; released: unknow
   });
   host.holdTime('viewer', 'modal', true);
   const held = (await host.describe()).timeHeld;
-  host.releaseTime('viewer');
+  host.releaseViewer('viewer');
   const released = (await host.describe()).timeHeld;
   unsubscribe();
   await host.close();
   return { held, released, told };
+}
+
+async function viewerPromptScript(r: Rig): Promise<{ open: unknown; answer: unknown; after: unknown; told: unknown[] }> {
+  const host = await r.create('prompted', { seed: BATTLE_SEED });
+  const told: unknown[] = [];
+  const unsubscribe = host.subscribe((m) => {
+    if (m.t === 'promptAnswered') told.push(m);
+  });
+  host.showViewerPrompt('page', { id: 'meanwhile-40', kind: 'meanwhile', text: 'Meanwhile.....', choices: ['ok', 'skip'] });
+  const open = (await host.describe()).viewerPrompts;
+  const answer = await host.dispatch({ type: 'answer', prompt: 'meanwhile-40', choice: 'skip' });
+  const after = (await host.describe()).viewerPrompts;
+  unsubscribe();
+  await host.close();
+  return { open, answer, after, told };
 }
 
 async function both<T>(script: (r: Rig) => Promise<T>): Promise<[T, T]> {
@@ -323,6 +338,17 @@ describe('the session host contract, in process and in a worker thread', () => {
   it("holds and releases a viewer's time across the host boundary and tells the subscribers", async () => {
     const [inProcess, worker] = await both(heldTimeScript);
     expect(inProcess).toEqual({ held: ['modal'], released: undefined, told: [true, false] });
+    expect(worker).toEqual(inProcess);
+  });
+
+  it("shows and answers a viewer's prompt across the host boundary", async () => {
+    const [inProcess, worker] = await both(viewerPromptScript);
+    expect(inProcess).toEqual({
+      open: [{ id: 'meanwhile-40', kind: 'meanwhile', text: 'Meanwhile.....', choices: ['ok', 'skip'] }],
+      answer: { ok: true, data: { prompt: 'meanwhile-40', choice: 'skip', viewer: true } },
+      after: undefined,
+      told: [{ t: 'promptAnswered', prompt: 'meanwhile-40', choice: 'skip' }],
+    });
     expect(worker).toEqual(inProcess);
   });
 

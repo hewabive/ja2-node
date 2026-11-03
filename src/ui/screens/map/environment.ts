@@ -7,6 +7,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiRuntime } from '../../runtime.ts';
 import type { UiTextService } from '../../text/text-service.ts';
+import type { ViewerPromptPort } from '../../viewer-prompts.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
 import type { MessageBoxLabels, MessageBoxStyle } from '../../widgets/message-box.ts';
 import type { BattleEnvironment } from '../battle/environment.ts';
@@ -72,6 +73,7 @@ export interface MapEnvironment {
   readonly messageBoxLabels: MessageBoxLabels;
   readonly basicTextBox: MercTextBoxArt;
   readonly client: MapClient;
+  readonly prompts: () => ViewerPromptPort | null;
   readonly media: MapMedia;
   readonly facts: MapFacts;
   readonly flow: MapFlow;

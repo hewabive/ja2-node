@@ -225,6 +225,7 @@ WebSocket endpoint `/ws`; MCP and HTTP map onto the same `SessionHost` calls (§
 | `query` (`29` §9) | `answer` |
 | `advance` | `stopped` (`id` 0 for a driver's own stop) |
 | `drive`, `hold` (§4.3), `save`, `load` (`29` §10), `closeSession`, `leave` (`29` §6) | `result` |
+| `showPrompt`, `closePrompt` (`29` §4.6) | `result`; `promptAnswered` to every viewer |
 | | `time` (§4.3): the driver and whether a viewer holds time, after every change |
 | `ping` (`29` §11) | `pong` |
 | | `closed` (`closed`, `lost` or `shutdown`); `error` |

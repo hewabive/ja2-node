@@ -213,6 +213,16 @@ holds time for (`04` §4.3): `modal` (a message box, menu or screen on the page 
 `tacticalPause`. Real time then runs no ticks and a wait ends in `timeout` until the viewer closes it. When the last
 viewer leaves, the session falls back to the manual driver and a waiting `advance` answers `refused`.
 
+**Viewer prompts.** A box a page shows for the game, not for its player's own action, is also a prompt any client may
+answer: the meanwhile box (`ok`, or `ok` and `skip` for a scene seen before, as `BringupMeanwhileBox`,
+`Strategic/Meanwhile.cc:225`), the map screen's update box (`continue`, `stop`), the lost sector, invasion and
+pre-battle notices (`ok`). The page publishes it with an id taken from the game event, so every page shows the same id
+(`showPrompt`, `src/ui/viewer-prompts.ts`); `observe.viewerPrompts` and `status` list the open ones, and `answer` with
+that id closes the box on every page as the click would (`Session.answerViewerPrompt`). A viewer's own click answers it
+the same way. These answers are presentation: they run outside the input queue and never enter the input log; the
+session remembers the last ones so a page that shows the box late closes it at once. Boxes a player opens for himself
+(confirmations, options, saves, menus) stay his and show only as `timeHeld`.
+
 ## 5. Commands, refusals and modal states
 
 **Commands.** `act {command: {type, …}}` → `{ok, reason?, data?}`. Every command goes into the input log and is

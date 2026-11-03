@@ -97,7 +97,10 @@ function answerOf(id: number, a: QueryAnswer): ServerMessage {
 function reply(
   options: WebSocketOptions,
   host: SessionHost,
-  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' } | { t: 'leave' } | { t: 'hold' }>,
+  message: Exclude<
+    ClientMessage,
+    { t: 'hello' } | { t: 'query' } | { t: 'ping' } | { t: 'leave' } | { t: 'hold' } | { t: 'showPrompt' } | { t: 'closePrompt' }
+  >,
 ): Promise<Reply> {
   switch (message.t) {
     case 'closeSession':
@@ -124,7 +127,7 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
   };
   const detach = () => {
-    host?.releaseTime(holder);
+    host?.releaseViewer(holder);
     unsubscribe?.();
     unsubscribe = null;
     host = null;
@@ -180,6 +183,15 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       host.holdTime(holder, message.reason, message.held);
       return inOrder(message.id, Promise.resolve({ t: 'result', id: message.id, ok: true }));
     }
+    if (message.t === 'showPrompt') {
+      host.showViewerPrompt(holder, message.prompt);
+      return inOrder(message.id, Promise.resolve({ t: 'result', id: message.id, ok: true }));
+    }
+    if (message.t === 'closePrompt')
+      return inOrder(
+        message.id,
+        host.closeViewerPrompt(holder, message.prompt, message.choice).then((r) => resultOf(message.id, r)),
+      );
     if (message.t === 'leave') {
       const left = host;
       detach();

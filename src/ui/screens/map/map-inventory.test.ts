@@ -204,6 +204,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
     messageBoxLabels: labels,
     basicTextBox: textBoxArt(ui.messageBox, (ui.messageBox.style('textBoxes') as Record<string, unknown>).basic),
     client,
+    prompts: () => null,
     media: new FakeMapMedia(ui.catalogue),
     facts: {} as MapFacts,
     flow: {

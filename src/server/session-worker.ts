@@ -14,6 +14,7 @@ const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
   query: (h, [q]) => h.query(q as CommandEnvelope),
   advance: (h, [until, budget, options]) => h.advance(until as StopCondition, budget as number | undefined, options as AdvanceOptions),
   setDriver: (h, [driver]) => h.setDriver(driver as DriverMode),
+  closeViewerPrompt: (h, [holder, id, choice]) => h.closeViewerPrompt(holder as string, id as string, choice as string | null),
   save: (h, [request]) => h.save(request as SaveRequest),
   saveSnapshot: (h, [name, description]) => h.saveSnapshot(name as string, description as string | undefined),
   load: (h, [name, reseed]) => h.load(name as string, reseed as boolean),
@@ -70,8 +71,11 @@ function serve(port: MessagePort, booted: Booted, post: (m: FromWorker) => void)
       case 'holdTime':
         booted.host.holdTime(m.holder, m.reason, m.held);
         return;
-      case 'releaseTime':
-        booted.host.releaseTime(m.holder);
+      case 'releaseViewer':
+        booted.host.releaseViewer(m.holder);
+        return;
+      case 'showViewerPrompt':
+        booted.host.showViewerPrompt(m.holder, m.prompt);
         return;
       case 'call':
         if (m.method === 'close') {

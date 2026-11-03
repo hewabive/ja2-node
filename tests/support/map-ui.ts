@@ -287,6 +287,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     messageBoxLabels: boxLabels,
     basicTextBox: textBoxArt(ui.messageBox, (ui.messageBox.style('textBoxes') as Record<string, unknown>)[BASIC_TEXT_BOX]),
     client,
+    prompts: () => null,
     media,
     facts: mapFacts(strategic.content, strategic.economy),
     flow: {

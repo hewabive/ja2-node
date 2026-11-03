@@ -9,6 +9,7 @@ import {
   type SessionStopReport,
   type StopCondition,
   TICK_MS,
+  type ViewerPromptView,
   type WelcomeIdentity,
 } from '../../protocol/messages.ts';
 import {
@@ -35,6 +36,7 @@ import {
   type ViewFrame,
 } from '../../protocol/view.ts';
 import type { SessionConnection } from '../../ui/client/front-end-client.ts';
+import type { ViewerPromptPort } from '../../ui/viewer-prompts.ts';
 import { BulletTrack } from './bullet-track.ts';
 import { type LinkOptions, SessionLink } from './session-link.ts';
 
@@ -72,7 +74,7 @@ const CONNECTION_LOST = 'the connection to the game server was lost';
 const SESSION_ENDED = 'the game session ended';
 const LEFT = 'left the game session';
 
-export class SessionClient {
+export class SessionClient implements ViewerPromptPort {
   driver: DriverMode = { mode: 'manual' };
   timeHeld = false;
   playbackSpeed = 1;
@@ -94,6 +96,8 @@ export class SessionClient {
   readonly #frames: ViewFrame[] = [];
   readonly #bullets = new BulletTrack();
   readonly #holds = new Set<string>();
+  readonly #prompts = new Map<string, ViewerPromptView>();
+  readonly #answers = new Map<string, string>();
   #nextId = 1;
   #shown: PlayerView | null = null;
   #latest: PlayerView | null = null;
@@ -268,11 +272,15 @@ export class SessionClient {
         this.#shownTick = m.view.tick;
         this.#messages = appendToLog([], m.messages);
         for (const reason of this.#holds) this.#sendHold(reason, true);
+        for (const prompt of this.#prompts.values()) this.#sendPrompt(prompt);
         this.onWelcome?.();
         break;
       case 'time':
         this.driver = m.driver;
         this.timeHeld = m.held;
+        break;
+      case 'promptAnswered':
+        if (this.#prompts.delete(m.prompt)) this.#answers.set(m.prompt, m.choice);
         break;
       case 'frames':
         this.#frames.push(...m.frames);
@@ -385,6 +393,26 @@ export class SessionClient {
   #sendHold(reason: string, held: boolean): void {
     if (!this.#link.open) return;
     this.#request({ t: 'hold', id: this.#nextId++, reason, held }, 'hold').catch(() => undefined);
+  }
+
+  showPrompt(prompt: ViewerPromptView): void {
+    this.#prompts.set(prompt.id, prompt);
+    this.#sendPrompt(prompt);
+  }
+
+  promptAnswer(id: string): string | null {
+    return this.#answers.get(id) ?? null;
+  }
+
+  closePrompt(id: string, choice: string | null): void {
+    this.#answers.delete(id);
+    if (!this.#prompts.delete(id) || !this.#link.open) return;
+    this.#request({ t: 'closePrompt', id: this.#nextId++, prompt: id, choice }, 'closePrompt').catch(() => undefined);
+  }
+
+  #sendPrompt(prompt: ViewerPromptView): void {
+    if (!this.#link.open) return;
+    this.#request({ t: 'showPrompt', id: this.#nextId++, prompt }, 'showPrompt').catch(() => undefined);
   }
 
   async ping(): Promise<PingReply> {

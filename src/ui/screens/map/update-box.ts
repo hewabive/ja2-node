@@ -98,6 +98,7 @@ type Point = { readonly x: number; readonly y: number };
 export interface UpdateBatch {
   readonly reason: number;
   readonly soldiers: readonly number[];
+  readonly tick: number;
 }
 
 function offSquadAndVehicle(m: StrategicMercView | undefined): boolean {
@@ -111,7 +112,7 @@ export class UpdateQueue {
     return this.#batches.length;
   }
 
-  observe(events: readonly FrameEvent[], mercs: readonly StrategicMercView[], notifySleepWake: boolean): void {
+  observe(tick: number, events: readonly FrameEvent[], mercs: readonly StrategicMercView[], notifySleepWake: boolean): void {
     let reason: number | null = null;
     const soldiers: number[] = [];
     const add = (id: number) => {
@@ -133,7 +134,7 @@ export class UpdateQueue {
         reason = UpdateReason.CONTRACT_EXPIRE_WARNING;
       }
     }
-    if (reason !== null && soldiers.length > 0) this.#batches.push({ reason, soldiers });
+    if (reason !== null && soldiers.length > 0) this.#batches.push({ reason, soldiers, tick });
   }
 
   next(): UpdateBatch | null {
@@ -206,7 +207,7 @@ export class UpdateBox {
   show(batch: UpdateBatch): boolean {
     const soldiers = batch.soldiers.filter((id) => (this.#host.merc(id)?.life ?? 0) > 0);
     if (soldiers.length === 0) return false;
-    this.#batch = { reason: batch.reason, soldiers };
+    this.#batch = { ...batch, soldiers };
     for (const id of soldiers) {
       const face = this.#host.face(id);
       if (face) this.#host.ensure(face);

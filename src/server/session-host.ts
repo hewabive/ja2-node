@@ -7,6 +7,7 @@ import type {
   SessionAdvanceReport,
   SessionCloseReason,
   SessionHealthView,
+  ViewerPromptView,
 } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { StopCondition } from '../sim/advance.ts';
@@ -19,7 +20,14 @@ import { snapshotText } from './save-file.ts';
 import { saveStatus } from './save-rules.ts';
 import { type LoadOutcome, SaveLoadError, type SaveOutcome, type SaveRequest, type SaveService, sessionSnapshot } from './save-service.ts';
 import type { Listener, Session } from './session.ts';
-import { describeSession, importReport, optionsStatus, type SessionFactory, type SessionRequest } from './session-registry.ts';
+import {
+  describeSession,
+  importReport,
+  optionsStatus,
+  type SessionFactory,
+  type SessionRequest,
+  viewerPromptsStatus,
+} from './session-registry.ts';
 import { type Slicer, SliceScheduler, TimeSlicer } from './slicing.ts';
 
 export const SESSION_HOST_ENV = 'JA2_SESSION_HOST';
@@ -52,7 +60,9 @@ export interface SessionHost {
   advance(until: StopCondition, budget?: number, options?: AdvanceOptions): Promise<SessionAdvanceReport>;
   setDriver(driver: DriverMode): Promise<void>;
   holdTime(holder: string, reason: string, held: boolean): void;
-  releaseTime(holder: string): void;
+  releaseViewer(holder: string): void;
+  showViewerPrompt(holder: string, prompt: ViewerPromptView): void;
+  closeViewerPrompt(holder: string, id: string, choice: string | null): Promise<CommandResult>;
   subscribe(listener: Listener): () => void;
   save(request: SaveRequest): Promise<SaveOutcome>;
   saveSnapshot(name: string, description?: string): Promise<SaveOutcome>;
@@ -85,7 +95,7 @@ export function observeSession(session: Session): SessionObservation {
     view: session.sim.view(),
     language: session.language,
     dataVersion: session.dataVersion,
-    status: { ...optionsStatus(session.sim), ...saveStatus(session.sim) },
+    status: { ...optionsStatus(session.sim), ...saveStatus(session.sim), ...viewerPromptsStatus(session) },
   };
 }
 
@@ -96,6 +106,7 @@ export interface InProcessHostOptions {
 
 const NO_SAVES = 'saves are not available';
 const MANUAL: DriverMode = { mode: 'manual' };
+const ANSWER = 'answer';
 
 export function closedSessionError(id: string): Error {
   return new Error(`session ${id} is closed`);
@@ -163,12 +174,23 @@ export class InProcessHost implements SessionHost {
 
   dispatch(cmd: CommandEnvelope): Promise<CommandResult> {
     if (isQueryCommand(cmd)) return this.query(cmd);
+    if (this.#answersViewer(cmd)) return this.#answerViewer(cmd);
     return this.#queued(cmd.type, () => this.session.dispatchSliced(cmd, this.#slicer));
   }
 
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
     if (isQueryCommand(cmd)) return this.query(cmd);
+    if (this.#answersViewer(cmd)) return this.#answerViewer(cmd);
     return this.#queued(cmd.type, () => this.session.prepareAndDispatch(cmd, this.#slicer));
+  }
+
+  #answersViewer(cmd: CommandEnvelope): boolean {
+    return cmd.type === ANSWER && this.session.hasViewerPrompt(cmd.prompt);
+  }
+
+  #answerViewer(cmd: CommandEnvelope): Promise<CommandResult> {
+    if (this.#closing) return Promise.reject(closedSessionError(this.id));
+    return Promise.resolve(this.session.answerViewerPrompt(String(cmd.prompt), cmd.choice));
   }
 
   query(q: CommandEnvelope): Promise<QueryAnswer> {
@@ -195,8 +217,17 @@ export class InProcessHost implements SessionHost {
     if (!this.#closing) this.session.holdTime(holder, reason, held);
   }
 
-  releaseTime(holder: string): void {
-    this.session.releaseTime(holder);
+  releaseViewer(holder: string): void {
+    this.session.releaseViewer(holder);
+  }
+
+  showViewerPrompt(holder: string, prompt: ViewerPromptView): void {
+    if (!this.#closing) this.session.showViewerPrompt(holder, prompt);
+  }
+
+  closeViewerPrompt(holder: string, id: string, choice: string | null): Promise<CommandResult> {
+    if (this.#closing) return Promise.reject(closedSessionError(this.id));
+    return Promise.resolve(this.session.closeViewerPrompt(holder, id, choice));
   }
 
   subscribe(listener: Listener): () => void {
