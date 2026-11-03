@@ -138,7 +138,9 @@ units, scaled by the client setting `websiteLoadingTimeScale`. The zoom out of t
 `FaceAnimator` with a queue of their speaker's quotes: no server event carries these quotes, so the pages say them
 outside `SpeechPresenter` and play the voice through the handle `UiSoundSink.play` returns. The A.I.M. conference runs
 the merc's impatience on the UI clock (`laptop/aim/aim-conference.ts`); the annoyance his hang-up raises is not
-simulated (deviation "A.I.M. annoyance").
+simulated (deviation "A.I.M. annoyance"). Its file statics live in `LaptopMemory` and its mode in the shell's `subPage`
+(`giCurrentSubPage`), so a conference left for a program outside the web comes back, and a web page switch or a new
+laptop session drops it, as in the original.
 
 **Story events hold the flow.** `StoryLayer` sees every frame batch before the front-end flow and holds the frames after
 a story event until its step allows, so a screen switch the event brings waits for the box or the fade; the story
@@ -201,6 +203,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | Only the A.I.M. first contact's Hang Up stops the merc at once; the close button, the answering machine's and the busy merc's Hang Up let him talk on under the title bar until the conference closes | `laptop/aim/aim-conference.test.ts` "talks on under the title bar when the call is closed …" |
 | A hang-up pending as an A.I.M. quote is delayed waits in `DelayMercSpeech`'s static until a delayed quote is said; a mode change drops only the quote, so Transfer Funds through the hang-up comment and OK before the acceptance quote hang up the next call after its contract length quote (`Laptop/AIMMembers.cc:2832`, `:2850`) | `laptop/aim/aim-conference.test.ts` "hangs up the next call after its contract length quote …" |
 | INIT leaves the A.I.M. snow and black step count as it was, so a call hung up during its snow shortens the next call's black (`Laptop/AIMMembers.cc:2374`, `:1913`) | `laptop/aim/aim-conference.test.ts` "cuts the next black short …" |
+| An A.I.M. conference left for a program outside the web comes back with the statics it left: a pending hang-up closes it at once, before the answering machine plays again; a merc left refusing comes back with Hire disabled; left while the title bar rose, the merc's face and its snow show without the terminal (`Laptop/AIMMembers.cc:505`, `:2415`, `:587`, `:1653`) | `laptop/aim/aim-conference.test.ts` "plays the answering machine again, but closes at once …", "comes back to a refusing merc with Hire disabled …"; `laptop/laptop-screen.test.ts` "brings the merc's face back under its snow …" |
 | Enter or Space ticks the I.M.P. gender box that has the focus even when no further I.M.P. can be created; only the click checks | `laptop/imp/imp-begin.test.ts` "tick a gender box when no further I.M.P. can be created …" |
 | While the pointer is on the enabled Retreat button the map shows only the arrows out of the battle group's sector, and that sector's enemies keep the icon position of the sector drawn before it, as its team icons are skipped | `battle/battle-entry.test.ts` "draws the enemies of the sector the squad retreats from after the icons …" |
 | The Retreat button's bounds for the retreat arrows include the pixel past its bottom right | `battle/battle-entry.test.ts` "counts the pixel past the bottom right of the Retreat button …" |

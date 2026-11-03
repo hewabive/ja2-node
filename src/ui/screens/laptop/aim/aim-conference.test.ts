@@ -695,3 +695,131 @@ describe('an A.I.M. merc kept waiting', () => {
     expect(next.mode).toBe(VideoMode.POPDOWN);
   });
 });
+
+describe('an A.I.M. conference left for another laptop program', () => {
+  it('comes back to the contract page with the length and kit chosen, a new face and the contract length quote again', async () => {
+    const memory = conferenceMemory();
+    const p = ports();
+    const left = new Conference(p, STEP_MS, memory);
+    let now = connect(left);
+    left.hire();
+    await flush();
+    now = advance(left, now, SPEECH_DELAY + QUOTE_MS + 2 * STEP_MS);
+    left.setContract(ContractLength.TWO_WEEKS);
+    left.setEquipment(false);
+    const kept = left.modeKeptOnExit;
+    left.close();
+    expect(kept).toBe(VideoMode.HIRE);
+
+    const faces = p.faces;
+    const back = new Conference(p, STEP_MS, memory);
+    back.resume(kept, now);
+    expect([back.mode, back.face, p.faces - faces]).toEqual([VideoMode.HIRE, 'face', 1]);
+    expect([back.contractLength, back.buyEquipment]).toEqual([ContractLength.TWO_WEEKS, false]);
+    advance(back, now, SPEECH_DELAY + 2 * STEP_MS);
+    expect(p.said.filter((quote) => quote === ConferenceQuote.LENGTH_OF_CONTRACT)).toHaveLength(2);
+    expect(p.said.at(-1)).toBe(ConferenceQuote.LENGTH_OF_CONTRACT);
+  });
+
+  it('keeps the merc as impatient as he was', () => {
+    const memory = conferenceMemory();
+    const p = ports();
+    const left = new Conference(p, STEP_MS, memory);
+    const smallTalk = nextQuote(left, p, greeted(left, p));
+    const quiet = runUntil(left, smallTalk, () => !left.talking);
+    left.close();
+
+    const back = new Conference(p, STEP_MS, memory);
+    back.resume(VideoMode.FIRST_CONTACT, quiet);
+    const impatient = nextQuote(back, p, quiet);
+    expect(p.said.at(-1)).toBe(ConferenceQuote.IMPATIENT_QUOTE);
+    expect(impatient - quiet).toBeGreaterThan(ATTITUDE_TIME);
+  });
+
+  it('goes on with the connection snow where it was and greets after it', () => {
+    const memory = conferenceMemory();
+    const p = ports();
+    const left = new Conference(p, STEP_MS, memory);
+    const up = faceUp(left);
+    const now = runUntil(left, up, () => left.snowFrame === 3);
+    left.close();
+
+    const back = new Conference(p, STEP_MS, memory);
+    back.resume(VideoMode.FIRST_CONTACT, now);
+    expect(snowFrames(back, now)).toEqual([3, 4, 5, 0, 1, 2, 3, 4, 5]);
+    expect(p.said).toEqual([ConferenceQuote.GREETING]);
+  });
+
+  it('plays the answering machine again, but closes at once, before it plays, when the hang-up after the message was pending', () => {
+    const machine = ports();
+    machine.answer = 'answeringMachine';
+    const memory = conferenceMemory();
+    const left = new Conference(machine, STEP_MS, memory);
+    let now = connect(left);
+    left.close();
+    const back = new Conference(machine, STEP_MS, memory);
+    back.resume(VideoMode.ANSWERING_MACHINE, now);
+    advance(back, now, STEP_MS);
+    expect([back.mode, machine.said]).toEqual([
+      VideoMode.ANSWERING_MACHINE,
+      [ConferenceQuote.ANSWERING_MACHINE_MSG, ConferenceQuote.ANSWERING_MACHINE_MSG],
+    ]);
+
+    const recorded = ports();
+    recorded.answer = 'answeringMachine';
+    const hangingUp = conferenceMemory();
+    const leaving = new Conference(recorded, STEP_MS, hangingUp);
+    now = connect(leaving);
+    leaving.leaveMessage();
+    leaving.popupOk();
+    now = advance(leaving, now, STEP_MS);
+    expect([leaving.mode, leaving.talking]).toEqual([VideoMode.ANSWERING_MACHINE, true]);
+    const kept = leaving.modeKeptOnExit;
+    leaving.close();
+    const closing = new Conference(recorded, STEP_MS, hangingUp);
+    closing.resume(kept, now);
+    advance(closing, now, STEP_MS);
+    expect([closing.mode, recorded.said]).toEqual([VideoMode.POPDOWN, [ConferenceQuote.ANSWERING_MACHINE_MSG]]);
+  });
+
+  it('comes back to a refusing merc with Hire disabled and hangs up at once, where the next merc on the page starts clean', async () => {
+    const memory = conferenceMemory();
+    const p = ports();
+    p.accepted = false;
+    const left = new Conference(p, STEP_MS, memory);
+    let now = connect(left);
+    left.hire();
+    await flush();
+    expect([left.mode, left.hireDisabled, left.talking]).toEqual([VideoMode.FIRST_CONTACT, false, true]);
+    const kept = left.modeKeptOnExit;
+    left.close();
+    const back = new Conference(p, STEP_MS, memory);
+    back.resume(kept, now);
+    expect(back.hireDisabled).toBe(true);
+    now = advance(back, now, STEP_MS);
+    expect(back.mode).toBe(VideoMode.POPDOWN);
+
+    const switched = new Conference(p, STEP_MS, conferenceMemory());
+    now = connect(switched);
+    switched.hire();
+    await flush();
+    switched.close();
+    now = advance(switched, now, STEP_MS);
+    callFrom(switched, now);
+    expect([switched.mode, switched.hireDisabled]).toEqual([VideoMode.FIRST_CONTACT, false]);
+  });
+
+  it('keeps no conference when its box was up', async () => {
+    const p = ports();
+    const conference = new Conference(p, STEP_MS);
+    connect(conference);
+    conference.hire();
+    await flush();
+    conference.transferFunds();
+    await flush();
+    expect([conference.mode, conference.modeKeptOnExit]).toEqual([VideoMode.HIRE, VideoMode.NOT_DISPLAYED]);
+    const back = new Conference(p, STEP_MS);
+    back.resume(conference.modeKeptOnExit, 0);
+    expect([back.mode, back.face]).toEqual([VideoMode.NOT_DISPLAYED, 'none']);
+  });
+});

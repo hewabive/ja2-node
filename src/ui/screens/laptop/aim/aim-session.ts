@@ -3,8 +3,8 @@
 // @src src/game/Laptop/AIMSort.cc GameInitAimSort (price, descending), EnterAimSort (the list reset to the A.I.M. listing
 // @src order), ExitAimSort and MercArrayCompare (weekly salary, level, marksmanship, medical, explosives, mechanical; the
 // @src original's std::sort is unstable, the listing order breaks ties here); src/game/Laptop/AIMMembers.cc gbCurrentIndex,
-// @src giCurrentSubPage (the conference mode restored on re-entry), the conference's statics, usAimMercSpeechDuration,
-// @src EnterInitAimMembers (the connection snow restarted at every laptop entry).
+// @src the conference's statics, usAimMercSpeechDuration, EnterInitAimMembers (the connection snow restarted at every laptop
+// @src entry).
 
 import type { AimMercView } from '../../../../protocol/view.ts';
 import { type ConferenceMemory, conferenceMemory, restartContactSnow } from './aim-conference.ts';
@@ -19,7 +19,6 @@ export interface AimMemory {
   listMode: number;
   order: number[];
   index: number;
-  conferenceSubPage: number;
   speechDuration: number;
   readonly conference: ConferenceMemory;
 }
@@ -30,7 +29,6 @@ export function aimMemory(): AimMemory {
     listMode: AIM_DESCEND,
     order: [],
     index: 0,
-    conferenceSubPage: 0,
     speechDuration: 0,
     conference: conferenceMemory(),
   };

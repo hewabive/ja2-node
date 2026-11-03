@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/AIMMembers.cc EnterAIMMembers, ExitAIMMembers (the conference mode kept for the next entry unless
-// @src a popup was up), RenderAIMMembers, UpdateMercInfo (the salaries, the medical deposit line moved up when it wraps to
-// @src more than two lines, the bio and the additional information), DisplayMercsInventory (eight boxes, "xN", the short
+// @src src/game/Laptop/AIMMembers.cc EnterAIMMembers (the kept conference mode entered again), ExitAIMMembers (the
+// @src conference mode kept in giCurrentSubPage for the next entry unless a popup was up), RenderAIMMembers, UpdateMercInfo
+// @src (the salaries, the medical deposit line moved up when it wraps to more than two lines, the bio and the additional
+// @src information), DisplayMercsInventory (eight boxes, "xN", the short
 // @src name wrapped in two lines and centred when it fits in one), DisplayMercsFace (the overlays), DisplayMercStats and
 // @src DrawStat (white from 80, dark white below, the level always white), DisplayDots (a dot every 7 pixels),
 // @src BtnPreviousButtonCallback, BtnNextButtonCallback (wrapping over MAX_NUMBER_MERCS), BtnContactButtonCallback,
@@ -10,7 +11,8 @@
 // @src DisplayMercsVideoFace (the terminal's 3-pixel shadow), InitVideoFace and InitVideoFaceTalking (the merc's animated
 // @src face says the quote; CreateTalkingUI sets the text and its time only when subtitles show or the quote has no
 // @src voice), DisplayTalkingMercFaceForVideoPopUp (the 48 x 43 face stretched into 96 x 86 under the distortion, the
-// @src answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights (an 8 x 8 fill, green when
+// @src answering machine shaded with its caption; drawn while the face is up, without the terminal too when the page comes
+// @src back while the title bar rises), DrawButtonSelection and DisplaySelectLights (an 8 x 8 fill, green when
 // @src selected, at +105, +7, at +105, +8 while its button is held), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (arrival-box.ts; over the page redrawn without the conference, as
 // @src HandleCurrentVideoConfMode).
@@ -490,7 +492,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   };
 
   const drawFaceSource = (list: DrawList, rect: Area): void => {
-    if (!conference.terminalShown || conference.face !== 'face' || !videoFace) return;
+    if (conference.face !== 'face' || !videoFace) return;
     videoFace.draw(list, rect.x, rect.y);
     list.capture(FACE_SOURCE);
   };
@@ -501,7 +503,6 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   };
 
   const drawFace = (list: DrawList, rect: Area): void => {
-    if (!conference.terminalShown) return;
     if (conference.face === 'black') list.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, BLACK);
     else if (conference.face === 'face') {
       list.snapshot(FACE_SOURCE, { x: rect.x, y: rect.y, width: SMALL_FACE_WIDTH, height: SMALL_FACE_HEIGHT }, rect);
@@ -564,7 +565,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   loadMerc();
   void context.media.loadTexts([AIM_BIOS_FILE]);
   void context.media.loadImages([VIDEO_TITLE_ASSET, ...Object.values(DistortionAsset)]);
-  if (memory.conferenceSubPage !== VideoMode.NOT_DISPLAYED) memory.conferenceSubPage = VideoMode.NOT_DISPLAYED;
+  conference.resume(context.shell.subPage, context.services.clock.ja2Now);
   refresh(context.services.clock.ja2Now);
 
   return {
@@ -581,6 +582,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
     update: refresh,
     dispose: () => {
       disposed = true;
+      context.shell.subPage = conference.modeKeptOnExit;
       closeConference();
     },
     blocksNewMail: () => conference.displayed,

@@ -19,6 +19,10 @@ import { LAPTOP_LAYOUTS, LaptopScreen } from './laptop-screen.ts';
 
 const SEED = 7;
 const SETTLE_FRAMES = 6;
+const CONNECTION_FRAMES = 60;
+const STEP_MS = 16;
+const SLIDE_FRAMES = 25;
+const BW_SNOW = 'laptop/bwsnow.sti';
 const MESSAGE_BOX_LAYOUT = 'message-box';
 const IMP_INTRO_SUBJECT = 'Build your own mercenary';
 
@@ -44,7 +48,7 @@ interface Harness {
   closed: boolean;
 }
 
-async function openLaptop(): Promise<Harness> {
+async function openLaptop(slideStepMs = 0): Promise<Harness> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), SEED, { hire: [] });
   const strings = await loadUiStrings(kit.read, 'eng');
   created.useLabels(strings);
@@ -91,7 +95,7 @@ async function openLaptop(): Promise<Harness> {
     messageBoxStyle: (style) => styles[style] ?? (styles[0] as (typeof styles)[number]),
     messageBoxLabels: messageBoxLabels(text),
     dataVersion: STUB_DATA_VERSION,
-    settings: { loadingTimeScale: 0, slideStepMs: 0, subtitles: true, speech: false },
+    settings: { loadingTimeScale: 0, slideStepMs, subtitles: true, speech: false },
     zoomOnOpen: false,
     zoomOnClose: false,
     onClosed: () => {
@@ -135,6 +139,17 @@ async function key(t: TestRuntime, name: string): Promise<void> {
   t.runtime.input({ kind: 'keyDown', key: name, code: name, modifiers: 0 });
   t.runtime.input({ kind: 'keyUp', key: name, code: name, modifiers: 0 });
   await settle(t);
+}
+
+async function toAimMember(h: Harness): Promise<void> {
+  await click(h.t, 'memberCardLink');
+  await click(h.t, 'toMugShotsLink');
+  await click(h.t, 'mugRegion0_0');
+  expect(h.screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
+}
+
+function drawnImages(t: TestRuntime): string[] {
+  return t.list.items.filter((i): i is ImageItem => i.kind === 'image').map((i) => i.asset);
 }
 
 describe('the canvas laptop on a stub campaign', () => {
@@ -203,6 +218,50 @@ describe('the canvas laptop on a stub campaign', () => {
     await settle(t, 20);
     expect(commands).toContain('closeLaptop');
     expect(h.closed).toBe(true);
+  });
+
+  it('keeps the A.I.M. conference through a laptop program outside the web and drops it on another web page', async () => {
+    const h = await openLaptop();
+    const { t, screen } = h;
+    await click(t, 'newMailOk');
+    await click(t, 'webButton');
+    await click(t, 'bookmarkRegion0');
+    await toAimMember(h);
+    await click(t, 'aimContact');
+    await settle(t, CONNECTION_FRAMES);
+    expect(shown(t, 'hire').visible).toBe(true);
+
+    await click(t, 'emailButton');
+    expect(screen.shell.mode).toBe(LaptopMode.EMAIL);
+    await click(t, 'webButton');
+    expect(screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
+    expect(shown(t, 'hire').visible).toBe(true);
+
+    await click(t, 'webButton');
+    await click(t, 'bookmarkRegion0');
+    expect(screen.shell.mode).toBe(LaptopMode.AIM);
+    await toAimMember(h);
+    expect(find(t, 'hire')?.visible ?? false).toBe(false);
+    expect(find(t, 'terminal')?.visible ?? false).toBe(false);
+  });
+
+  it("brings the merc's face back under its snow, without the terminal, to a page left while the title bar rose", async () => {
+    const h = await openLaptop(STEP_MS);
+    const { t, screen } = h;
+    await click(t, 'newMailOk');
+    await click(t, 'webButton');
+    await settle(t, SLIDE_FRAMES);
+    await click(t, 'bookmarkRegion0');
+    await toAimMember(h);
+    await click(t, 'aimContact');
+    expect(drawnImages(t)).not.toContain(BW_SNOW);
+    await click(t, 'emailButton');
+    await settle(t, SLIDE_FRAMES);
+    expect(screen.shell.mode).toBe(LaptopMode.EMAIL);
+    await click(t, 'webButton');
+    expect(screen.shell.mode).toBe(LaptopMode.AIM_MEMBERS);
+    expect(find(t, 'terminal')?.visible ?? false).toBe(false);
+    expect(drawnImages(t)).toContain(BW_SNOW);
   });
 
   it('closes without a command of its own when another client closes the laptop', async () => {

@@ -30,10 +30,13 @@
 // @src never disabled then; the annoyance it raises is not simulated),
 // @src DisableNewMailMessage; HandleAIMMembers runs HandleVideoDistortion while the face is up and no answering machine
 // @src shows: the connection snow with static4.wav while gfFirstTimeInContactScreen holds, the distortion
-// @src (aim-distortion.ts) after it. The file statics (gubContractLength, gfBuyEquipment, gubMercAttitudeLevel,
-// @src gfHangUpMerc, gfWaitingForMercToStopTalkingOrUserToClick, gfFirstTimeInContactScreen, gubCurrentCount, which INIT
-// @src leaves as the last snow or black left it, guiLastHandleMercTime, guiTimeThatMercStartedTalking, fWasTheMercTalking)
-// @src live in the laptop memory; EnterInitAimMembers resets the connection snow's at every laptop entry.
+// @src (aim-distortion.ts) after it. The file statics the page keeps across its exits (gubContractLength, gfBuyEquipment,
+// @src gubMercAttitudeLevel, gfHangUpMerc, gfWaitingForMercToStopTalkingOrUserToClick, gfFirstTimeInContactScreen,
+// @src gubCurrentCount, which INIT leaves as the last snow or black left it, guiLastHandleMercTime,
+// @src guiTimeThatMercStartedTalking, fWasTheMercTalking) live in the laptop memory; EnterInitAimMembers resets the
+// @src connection snow's at every laptop entry; EnterAIMMembers enters a kept mode again (the face put up first for every
+// @src mode but the first contact), and the answering machine's message waits for HandleCurrentVideoConfMode, after the
+// @src pending hang-up.
 
 import { idiv } from '../../../../core/int.ts';
 import { type DistortionClocks, distortionClocks, type StaticNoise, VideoDistortion } from './aim-distortion.ts';
@@ -208,6 +211,10 @@ export class Conference {
     return this.#memory.buyEquipment;
   }
 
+  get modeKeptOnExit(): number {
+    return this.popup ? VideoMode.NOT_DISPLAYED : this.mode;
+  }
+
   get displayed(): boolean {
     return this.mode !== VideoMode.NOT_DISPLAYED;
   }
@@ -235,6 +242,16 @@ export class Conference {
     this.#setMode(VideoMode.POPUP);
   }
 
+  resume(mode: number, now: number): void {
+    if (mode === VideoMode.NOT_DISPLAYED) return;
+    this.#now = now;
+    this.mode = mode;
+    this.previousMode = VideoMode.NOT_DISPLAYED;
+    if (mode !== VideoMode.FIRST_CONTACT) this.#showFace();
+    this.#justSwitched = true;
+    this.#enterMode();
+  }
+
   close(): void {
     this.#ports.stopTalking();
     this.talk = null;
@@ -246,7 +263,6 @@ export class Conference {
     this.face = 'none';
     this.snowFrame = null;
     this.distortion.clear();
-    this.#memory.waitingForMercToStop = false;
     this.#textUp = false;
   }
 
@@ -333,7 +349,6 @@ export class Conference {
         this.leaveMessageDisabled = false;
         this.machineHangUpDisabled = false;
         this.#memory.attitude = Attitude.NO_ACTION;
-        this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
         break;
       case VideoMode.UNAVAILABLE:
         this.#memory.attitude = Attitude.MERC_BUSY;
@@ -579,12 +594,18 @@ export class Conference {
     this.distortion.contactSnow();
   }
 
+  #handleCurrentMode(now: number): void {
+    if (this.mode === VideoMode.NOT_DISPLAYED) this.#memory.waitingForMercToStop = false;
+    else if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
+    else if (this.mode === VideoMode.INIT) this.#updateInit(now);
+    if (this.mode === VideoMode.ANSWERING_MACHINE && this.#justSwitched) this.#say(ConferenceQuote.ANSWERING_MACHINE_MSG);
+  }
+
   update(now: number): void {
     this.#now = now;
     this.#sayDelayedQuote(now);
     if (!this.#busy) this.#hangUpWhenSilent();
-    if (this.mode === VideoMode.POPUP || this.mode === VideoMode.POPDOWN) this.#updateTitle(now);
-    else if (this.mode === VideoMode.INIT) this.#updateInit(now);
+    this.#handleCurrentMode(now);
     if (this.face === 'face') this.#followFace(now);
     if (this.distorted) this.#handleVideoDistortion(now);
     else {
