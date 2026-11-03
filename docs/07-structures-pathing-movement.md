@@ -53,8 +53,11 @@ whole table of A9 byte by byte.
 match, and line of sight walks the same lists (`08`). A structure's cube offset puts it on the ground or on the roof.
 A struct-layer node whose structure is rejected (overlapping obstacles in a few maps) loses its graphic as well, as in
 the original loader; a rejection on a roof layer throws. Soldiers own a person structure built from their animation's
-structure file for the current facing (multi-tile checks, sight); `TacticalState.occupant` answers who stands where.
-Person structures never add movement costs.
+structure file for the current facing (multi-tile checks, sight); `TacticalState.occupant` answers who stands where,
+and `whoIsThere` (`src/sim/tactical/state.ts`) also finds a soldier on every other tile of his body that is not
+passable, as `WhoIsThere2` does (`TileEngine/WorldMan.cc:1479-1501`): paths, destinations and the next-tile test keep
+off a fallen soldier's legs, where a soldier could not turn (`movement.test.ts`, "a tile under the body of another
+soldier"). Person structures never add movement costs.
 
 **The visible area.** `gridNoOnVisibleWorldTile` tests the render bounds of the map's scroll restriction, so basements
 have a smaller area. It gates the cost table (outside is off-map on both levels), terrain ids, destinations, who stands

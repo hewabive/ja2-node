@@ -8,6 +8,7 @@ import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
 import { gridNoOnVisibleWorldTile, restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
+import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
@@ -508,7 +509,19 @@ export function onVisibleWorldTile(t: { readonly world: TacticalWorldData }, g: 
 export function whoIsThere(state: Pick<TacticalState, 'world' | 'occupant' | 'soldiers'>, g: number, level: number): Soldier | null {
   if (!onVisibleWorldTile(state, g)) return null;
   const id = state.occupant[level > 0 ? 1 : 0][g] ?? -1;
-  return id < 0 ? null : (state.soldiers[id] ?? null);
+  if (id >= 0) return state.soldiers[id] ?? null;
+  return personLyingOver(state, g, level);
+}
+
+function personLyingOver(state: Pick<TacticalState, 'world' | 'soldiers'>, g: number, level: number): Soldier | null {
+  const onRoof = level > 0;
+  for (const piece of state.world.structures.at(g)) {
+    if (!has(piece.flags, StructureFlags.PERSON) || has(piece.flags, StructureFlags.PASSABLE)) continue;
+    if (onRoof !== piece.cubeOffset > 0) continue;
+    const owner = state.soldiers[piece.id];
+    if (owner?.placed && owner.gridNo !== g) return owner;
+  }
+  return null;
 }
 
 export function placeOccupant(state: TacticalState, s: Soldier): void {

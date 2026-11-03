@@ -10,7 +10,7 @@ import { syntheticStructure, syntheticWorld } from '../../content/world/syntheti
 import { Rng } from '../../core/rng.ts';
 import { createItem } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
-import { initNewSoldierAnim, states, TurningFromProne } from './animation.ts';
+import { initNewSoldierAnim, setDesiredDirection, states, TurningFromProne } from './animation.ts';
 import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
@@ -90,6 +90,7 @@ function runUntilStill(t: TacticalState, limit = 20_000): void {
 }
 
 const START = gridNo(80, 80);
+const TURN_TICKS = 2_000;
 const CORRIDOR_END = gridNo(89, 80);
 
 function corridor(place: (w: WorldStructures) => void = () => {}, gaps: readonly number[] = []): TacticalState {
@@ -743,5 +744,55 @@ describe('a creature that cannot turn steps backwards (Overhead.cc HandleGotoNew
     }
     expect(s.gridNo).toBe(START + 2 * WEST);
     expect([...walked]).toEqual([`WALKING facing ${Direction.EAST}`]);
+  });
+});
+
+describe('a tile under the body of another soldier (WorldMan.cc WhoIsThere2: a person tile nobody may pass holds him)', () => {
+  const TAIL = START + WORLD_COLS;
+  const BEFORE_THE_TAIL = TAIL + WORLD_COLS;
+
+  function bodyFacingNorth(): { t: TacticalState; body: Soldier } {
+    const t = tactical(() => {}, withTwoTileCreatureBodies(content, [Body.REGFEMALE]));
+    const st = states(content.animations);
+    const body = createSoldier({
+      id: 0,
+      team: Team.OUR,
+      name: 'B0',
+      bodyType: Body.REGFEMALE,
+      palettes: { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' },
+      stats: STATS,
+      life: 100,
+      gridNo: START,
+      direction: Direction.NORTH,
+      state: st.STANDING,
+    });
+    registerSoldier(t, body);
+    setSoldierPosition(t, body, START);
+    initNewSoldierAnim(t, body, st.STANDING, 0, true);
+    body.finalDestination = body.gridNo;
+    expect(body.multiTile).toBe(true);
+    return { t, body };
+  }
+
+  it('holds him on every tile his body covers', () => {
+    const { t, body } = bodyFacingNorth();
+    const tiles: [number, number][] = [
+      [START, 0],
+      [TAIL, 0],
+      [BEFORE_THE_TAIL, 0],
+      [TAIL, 1],
+    ];
+    expect(tiles.map(([g, level]) => whoIsThere(t, g, level)?.id ?? null)).toEqual([body.id, body.id, null, null]);
+  });
+
+  it('stops an enemy sent onto it short of it, where he can still turn', () => {
+    const { t } = bodyFacingNorth();
+    const walker = spawn(t, BEFORE_THE_TAIL + 2 * WORLD_COLS, Team.ENEMY);
+    expect(getNewSoldierPath(t, walker, TAIL, walker.uiMovementMode)).toBe(true);
+    runUntilStill(t);
+    expect(walker.gridNo).toBe(BEFORE_THE_TAIL);
+    setDesiredDirection(t, walker, Direction.WEST);
+    for (let tick = 0; tick < TURN_TICKS && walker.direction !== Direction.WEST; tick++) executeOverhead(t);
+    expect(walker.direction).toBe(Direction.WEST);
   });
 });
