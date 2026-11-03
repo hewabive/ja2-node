@@ -3,7 +3,8 @@
 // @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0),
 // @src EndMapScreen (to tactical: X1); StrategicMap.cc CanGoToTacticalInSector; Tactical/Interface_Panels.cc
 // @src GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a flag); GameScreen.cc
-// @src EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the loaded sector (2026-10-31).
+// @src EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the loaded sector (2026-10-31);
+// @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, 2026-11-03).
 
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
@@ -33,8 +34,16 @@ export function openMapScreen(campaign: CampaignSim, abandonFight = false): Comm
     if (!abandonFight) return refuse('boxingInProgress', ABANDON_FIGHT_TEXT);
     setBoxingState(t, BoxingState.NOT_BOXING);
   }
-  enterMapScreen(campaign);
+  leaveTacticalScreen(campaign);
   return { ok: true };
+}
+
+export function leaveTacticalScreen(campaign: CampaignSim): void {
+  if (campaign.state.flow !== 'tactical') return;
+  const battle = campaign.state.battle;
+  battle.lostBattleUnloadAtMs = null;
+  if (!battle.autoStart) campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
+  enterMapScreen(campaign);
 }
 
 export function enterMapScreen(campaign: CampaignSim): void {

@@ -361,8 +361,10 @@ export function allMoveAction(menu: ExitMenu): void {
   menu.allMove = true;
 }
 
+const loadsNextSector = (menu: ExitMenu) => menu.gotoSector && menu.loadOffered;
+
 export function jumpCodeOf(menu: ExitMenu): number | null {
-  const load = menu.gotoSector && menu.loadOffered;
+  const load = loadsNextSector(menu);
   if (menu.allMove) return load ? JumpCode.ALL_LOAD_NEW : JumpCode.ALL_NO_LOAD;
   if (menu.singleMove) return load ? JumpCode.SINGLE_LOAD_NEW : JumpCode.SINGLE_NO_LOAD;
   return null;
@@ -676,8 +678,8 @@ export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readon
     if (menu.singleMoveDisabled) return declined('mercNotAllowed');
     singleMoveAction(w, menu);
   }
-  if (typeof cmd.load === 'boolean' && cmd.load !== menu.gotoSector) {
-    if (menu.gotoSectorDisabled) return declined('loadDisabled');
+  if (typeof cmd.load === 'boolean' && cmd.load !== loadsNextSector(menu)) {
+    if (menu.gotoSectorDisabled || !menu.loadOffered) return declined('loadDisabled');
     menu.gotoSector = cmd.load;
   }
   if (selected.isEpc && menu.peopleOnSquad === 0) return declined('loneEPC');

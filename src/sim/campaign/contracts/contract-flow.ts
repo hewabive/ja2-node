@@ -50,7 +50,7 @@ import type { MoraleContext } from '../morale.ts';
 import { campaignProfile, loadMercProfiles } from '../profiles.ts';
 import { BuddySlot, whichBuddy } from '../relations/relations.ts';
 import { MercKind, type Roster, type RosterMerc } from '../roster.ts';
-import { enterMapScreen } from '../screens.ts';
+import { leaveTacticalScreen } from '../screens.ts';
 import type { TeamMoraleEvent } from '../team-morale.ts';
 import {
   type ContractContext,
@@ -359,7 +359,7 @@ export class ContractFlow implements ContractContext {
   }
 
   enterMapScreen(): void {
-    if (this.state.flow === 'tactical') enterMapScreen(this.campaign);
+    leaveTacticalScreen(this.campaign);
   }
 
   register(d: EventDispatch<CampaignSim>): void {

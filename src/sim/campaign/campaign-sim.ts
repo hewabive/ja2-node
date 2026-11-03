@@ -84,7 +84,7 @@ import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
 import { PowFlow } from './pow.ts';
-import { enterMapScreen, openMapScreen, openTacticalScreen } from './screens.ts';
+import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
 import { storyRefusal } from './story-refusals.ts';
@@ -509,7 +509,7 @@ export class CampaignSim {
   #leaveTacticalScreenIfAsked(): void {
     const leaving = this.#leavingTacticalForMap;
     this.#leavingTacticalForMap = false;
-    if (leaving && this.state.flow === 'tactical') enterMapScreen(this);
+    if (leaving) leaveTacticalScreen(this);
   }
 
   #updatePausedStatesDueToTimeCompression(): void {

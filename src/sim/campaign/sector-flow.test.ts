@@ -51,6 +51,7 @@ import {
 import { setSoldierPosition } from '../tactical/movement.ts';
 import { militiaChangesSides } from '../tactical/narrative/civ-hostility.ts';
 import { addRottingCorpse, ROTTING_STAGE2 } from '../tactical/rotting-corpses.ts';
+import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
@@ -77,6 +78,8 @@ const UNSEEN = -1;
 const A10 = { x: 10, y: 1, z: 0 };
 const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 const NO_GARRISON_COUNTS = { numAdmins: 0, numTroops: 0, numElites: 0 };
+const LONE_ADMIN = { admins: 1, troops: 0, elites: 0 };
+const QUICK_TRAVERSAL_MINUTES = 5;
 const MIN_CROWS_POSSIBLE = 5;
 const MAX_CROWS_POSSIBLE = 9;
 const FIRST_TENSE_QUOTE_DELAY_MIN = 10;
@@ -208,6 +211,39 @@ describe('leaving a sector', () => {
     runUntilIdle(campaign);
     expect(campaign.tactical?.state.mercsWaiting).toBeNull();
     expect(campaign.tactical?.state.perception.disallowSight).toBe(false);
+  });
+
+  it('keeps a hostile sector the last merc walked off without a load until the map opens, which unloads it so time compresses again (GameScreen.cc InternalLeaveTacticalScreen)', () => {
+    const { campaign, roster } = createTestCampaign(kit, { seed: 11, mercs: 1, garrison: LONE_ADMIN });
+    landFirstSquad(campaign);
+    const leaver = ourSoldiers(campaign)[0];
+    if (!leaver) throw new Error('no merc');
+    walkSquadToEastEdge(campaign);
+    expect(campaign.tactical?.state.turn.enemyInSector).toBe(true);
+    const r = campaign.dispatch({ type: 'exitSector', soldier: leaver.id, direction: 'east', who: 'merc', load: false });
+    expect(r).toMatchObject({ ok: true, data: { who: 'merc', load: false, target: 'A10' } });
+    runTicks(campaign, 2000, () => !roster.get(leaver.id)?.soldier.placed && !campaign.tactical?.state.mercsWaiting);
+    expect([campaign.state.worldSector, campaign.tactical?.state.turn.enemyInSector]).toEqual([A9, true]);
+    expect(campaign.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect([campaign.tactical, campaign.state.worldSector]).toEqual([null, null]);
+    expect(campaign.dispatch({ type: 'compressTime', mode: 2 })).toEqual({ ok: true });
+  });
+
+  it('lifts the pause of a traversal into a hostile sector once the squad has walked in (Overhead.cc WAIT_FOR_MERCS_TO_WALKON_SCREEN, Handle_UI.cc UIHandleLUIEndLock)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 7, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    Object.assign(sectorInfo(campaign.state.map, A10), { ...NO_GARRISON_COUNTS, numAdmins: 1 });
+    walkSquadToEastEdge(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' })).toMatchObject({
+      ok: true,
+      data: { load: true, target: 'A10' },
+    });
+    const before = campaign.tactical?.state;
+    runTicks(campaign, 2000, () => campaign.tactical?.state !== before);
+    const clock = () => campaign.state.clock;
+    expect([campaign.state.worldSector, campaign.tactical?.state.turn.enemyInSector, clock().paused]).toEqual([A10, true, true]);
+    runTicks(campaign, 4000, () => campaign.tactical?.state.mercsWaiting === null);
+    expect([campaign.tactical?.state.mercsWaiting, clock().paused, clock().pauseLocked]).toEqual([null, false, false]);
   });
 
   it('never lowers the underground traversal flag, so every traversal after the first underground one takes a minute (StrategicMap.cc AllMercsHaveWalkedOffSector)', () => {
@@ -655,6 +691,22 @@ describe('the exit menu', () => {
       reason: 'no merc of the squad stands at that exit',
       data: { refusal: 'tooFar' },
     });
+  });
+
+  it('lets the squad leave over a traversal too long to load, where the dialog sends no load', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 12, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const t = campaign.tactical?.state;
+    const merc = ourSoldiers(campaign)[0];
+    if (!t || !merc) throw new Error('no merc');
+    const edge = pickGridNoNearestEdge(t, merc, Direction.SOUTH);
+    expect(campaign.dispatch({ type: 'move', soldier: merc.id, to: edge, mode: 'run' })).toMatchObject({ ok: true });
+    runUntilIdle(campaign);
+    const exit = { type: 'exitSector', soldier: merc.id, direction: 'south', who: 'squad' } as const;
+    expect(campaign.dispatch({ ...exit, load: true })).toMatchObject({ ok: false, data: { refusal: 'loadDisabled' } });
+    const r = campaign.dispatch({ ...exit, load: false });
+    expect(r).toMatchObject({ ok: true, data: { who: 'squad', load: false, target: 'B9' } });
+    expect(r.ok && Number((r.data as { minutes: number }).minutes)).toBeGreaterThan(QUICK_TRAVERSAL_MINUTES);
   });
 
   it('lets a lone merc leave without loading while his squad stays', () => {
