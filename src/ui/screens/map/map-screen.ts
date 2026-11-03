@@ -28,7 +28,9 @@
 // @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
 // @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
 // @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
-// @src plotting merc's level) (2026-11-02).
+// @src plotting merc's level) (2026-11-02); Map_Screen_Interface_Bottom.cc CreateMapScreenBottomMessageScrollBarRegion and
+// @src EnableDisableMessageScrollButtonsAndRegions (the scroll area live only while the list scrolls, the message box
+// @src under the wheel) (2026-11-03).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -185,6 +187,13 @@ const FACE_ART: FaceArt = { hatch: 'interface/hatch.sti', dead: 'interface/p_dea
 const COMPRESSION_REFUSALS_WITH_BATTLE: ReadonlySet<string> = new Set(['inCombat', 'enemiesPresent']);
 const PLAYER_INFO_HAND = ['PLAYER_INFO_HAND_START_X', 'PLAYER_INFO_HAND_START_Y', 'PLAYER_INFO_HAND_END_X', 'PLAYER_INFO_HAND_END_Y'];
 const PLAYER_INFO_FACE = ['PLAYER_INFO_FACE_START_X', 'PLAYER_INFO_FACE_START_Y', 'PLAYER_INFO_FACE_END_X', 'PLAYER_INFO_FACE_END_Y'];
+const MESSAGE_SCROLL_AREA = [
+  'MESSAGE_SCROLL_AREA_START_X',
+  'MESSAGE_SCROLL_AREA_START_Y',
+  'MESSAGE_SCROLL_AREA_START_X + MESSAGE_SCROLL_AREA_WIDTH',
+  'MESSAGE_SCROLL_AREA_START_Y + MESSAGE_SCROLL_AREA_HEIGHT',
+];
+const MESSAGE_BOX_AREA = ['MESSAGE_BOX_X', 'MESSAGE_BOX_Y', 'MESSAGE_BOX_X + MESSAGE_BOX_W', 'MESSAGE_BOX_Y + MESSAGE_BOX_H'];
 
 export interface MapScreenHook {
   readonly selectedSector: string;
@@ -197,6 +206,7 @@ export interface MapScreenHook {
   readonly uiMessage: string | null;
   readonly rows: readonly (number | null)[];
   readonly messages: readonly string[];
+  readonly firstMessage: number;
   readonly clock: string;
   readonly inventoryOpen: boolean;
   readonly changingArrival: boolean;
@@ -249,6 +259,7 @@ export class MapScreen implements Screen {
   #saidLine: SaidLine | null = null;
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
+  #messageScrollRegion: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
   #level = 0;
   #hover: Sector | null = null;
@@ -476,6 +487,7 @@ export class MapScreen implements Screen {
       uiMessage: this.#message.text,
       rows: this.list.slots.map((s) => s.merc),
       messages: this.#messages.lines.map((l) => l.text),
+      firstMessage: this.#messages.first,
       clock: clockText(this.#env.text, this.#playerView()?.clock ?? null, this.#playerPaused),
       inventoryOpen: this.#inventoryOpen,
       changingArrival: this.#changingArrival,
@@ -574,6 +586,7 @@ export class MapScreen implements Screen {
     this.#env.runtime.regions.removeOwner(OWNER);
     this.#screenMask = null;
     this.#handRegion = null;
+    this.#messageScrollRegion = null;
     this.#view.dispose();
   }
 
@@ -607,6 +620,7 @@ export class MapScreen implements Screen {
     });
     this.#defineTeamRegions();
     this.#defineInfoRegions();
+    this.#defineMessageRegions();
   }
 
   #defineTeamRegions(): void {
@@ -662,6 +676,26 @@ export class MapScreen implements Screen {
       },
     });
     this.#handRegion = hand;
+  }
+
+  #defineMessageRegions(): void {
+    const regions = this.#env.runtime.regions;
+    this.#messageScrollRegion = regions.define({
+      ...this.#box(MESSAGE_SCROLL_AREA),
+      priority: Priority.NORMAL,
+      cursor: NO_CURSOR,
+      owner: OWNER,
+      id: 'messageScrollArea',
+      onButton: (r, reason) => this.#messages.scrollBarButton(r.relativeY, reason),
+    });
+    regions.define({
+      ...this.#box(MESSAGE_BOX_AREA),
+      priority: Priority.NORMAL,
+      cursor: NO_CURSOR,
+      owner: OWNER,
+      id: 'messageList',
+      onButton: (_r, reason) => this.#messages.wheel(reason),
+    });
   }
 
   frames(frames: readonly ViewFrame[]): void {
@@ -727,6 +761,7 @@ export class MapScreen implements Screen {
     this.#updateSelectedFlash();
     this.#updateFace();
     this.#updateMessages();
+    this.#messageScrollRegion?.setEnabled(this.#messages.scrollable);
     this.#updatePlotting();
     this.#syncPrompts();
     if (!this.#showPreBattleBox()) this.#battle.update(this.#now);

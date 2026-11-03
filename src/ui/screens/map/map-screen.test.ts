@@ -8,7 +8,9 @@ import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
+import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
 import { Assignment } from './character-list.ts';
+import { localMessage, MAX_MESSAGES_ON_MAP_BOTTOM } from './message-list.ts';
 
 const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
@@ -27,6 +29,9 @@ const DRASSEN_MINE_FIRST_LEVEL = { x: 13, y: 4, z: 1 };
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 const NIGHT_SHADE = { red: 100, green: 100, blue: 100, mono: false };
+const MESSAGE_LINES = 30;
+const LAST_TOP_LINE = MESSAGE_LINES - MAX_MESSAGES_ON_MAP_BOTTOM;
+const SCROLL_AREA_X = 7;
 const FULL_SHADE = { red: 255, green: 255, blue: 255, mono: false };
 
 let kit: StubSectorKit;
@@ -110,6 +115,18 @@ function textColourIn(f: MapUiTest, id: string): number | undefined {
   const inside = (x: number, y: number) => x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
   const item = f.draw().items.find((i) => i.kind === 'glyphs' && i.glyphs[0] !== undefined && inside(i.glyphs[0].x, i.glyphs[0].y));
   return item?.kind === 'glyphs' ? item.foreground : undefined;
+}
+
+function fillMessageList(f: MapUiTest, lines: number): void {
+  f.media.log = Array.from({ length: lines }, (_, i) => localMessage(i, `Line ${i}`));
+  f.t.frame();
+}
+
+function wheelOver(f: MapUiTest, id: string, wheel: number): void {
+  const { rect } = f.widget(id);
+  const y = rect.y + rect.height - 1;
+  f.t.runtime.input({ kind: 'wheel', x: rect.x + 1, y, button: MouseButton.LEFT, buttons: 0, wheel, modifiers: 0 });
+  f.t.frame();
 }
 
 function setGameJustStarted(f: MapUiTest, started: boolean): void {
@@ -558,6 +575,53 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(f.screen.hook().changingArrival).toBe(true);
       await f.clickSector('C13');
       expect(lastCommand(f)?.cmd).toEqual({ type: 'setLandingZone', sector: 'C13' });
+    }));
+
+  it('moves the message list to the spot pressed in its scroll area, and on under the pointer while the button is held', () =>
+    withMap(async (f) => {
+      fillMessageList(f, MESSAGE_LINES);
+      expect(f.screen.hook().firstMessage).toBe(LAST_TOP_LINE);
+      const area = f.widget('messageScrollArea');
+      expect(area.enabled).toBe(true);
+      const x = area.rect.x + SCROLL_AREA_X;
+      f.t.down(x, area.rect.y + 4);
+      f.t.frame();
+      expect(f.screen.hook().firstMessage).toBe(0);
+      f.t.move(x, area.rect.y + 30);
+      f.t.frame();
+      expect(f.screen.hook().firstMessage).toBe(0);
+      f.t.frame(BUTTON_REPEAT_TIMEOUT_MS);
+      expect(f.screen.hook().firstMessage).toBe(11);
+      f.t.up(x, area.rect.y + 30);
+      f.t.frame();
+      f.t.click(x, area.rect.y + 20);
+      f.t.frame();
+      expect(f.screen.hook().firstMessage).toBe(7);
+      f.t.click(x, area.rect.y + 54);
+      f.t.frame();
+      expect(f.screen.hook().firstMessage).toBe(LAST_TOP_LINE);
+      f.t.click(x, area.rect.y + 5);
+      f.t.frame();
+      expect(f.screen.hook().firstMessage).toBe(0);
+    }));
+
+  it('scrolls the message list by three lines with the wheel over the list or its scroll area', () =>
+    withMap(async (f) => {
+      fillMessageList(f, MESSAGE_LINES);
+      wheelOver(f, 'messageList', -1);
+      expect(f.screen.hook().firstMessage).toBe(LAST_TOP_LINE - 3);
+      wheelOver(f, 'messageScrollArea', -1);
+      expect(f.screen.hook().firstMessage).toBe(LAST_TOP_LINE - 6);
+      wheelOver(f, 'messageScrollArea', 1);
+      expect(f.screen.hook().firstMessage).toBe(LAST_TOP_LINE - 3);
+    }));
+
+  it('turns the message scroll area off while the list fits on the panel, as EnableDisableMessageScrollButtonsAndRegions does', () =>
+    withMap(async (f) => {
+      fillMessageList(f, MAX_MESSAGES_ON_MAP_BOTTOM);
+      expect(f.widget('messageScrollArea').enabled).toBe(false);
+      fillMessageList(f, MAX_MESSAGES_ON_MAP_BOTTOM + 1);
+      expect(f.widget('messageScrollArea').enabled).toBe(true);
     }));
 
   it('selects the level of the merc whose destination plot starts, as JumpToLevel moves the selected sector with the level', () =>

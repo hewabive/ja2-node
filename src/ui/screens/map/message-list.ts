@@ -6,7 +6,8 @@
 // @src STD_SCREEN_X + 20, STD_SCREEN_Y + 377, spaced by the font height, clipped to 17, 366 .. 407, 461),
 // @src MoveToEndOfMapScreenMessageList, GetRangeOfMapScreenMessages; src/game/Strategic/Map_Screen_Interface_Bottom.cc
 // @src MapScreenMsgScrollUp, MapScreenMsgScrollDown, ChangeCurrentMapscreenMessageIndex, DisplayScrollBarSlider,
-// @src MapScreenMessageScrollBarCallBack, EnableDisableMessageScrollButtonsAndRegions; src/game/Tactical/Dialogue_Control.cc
+// @src MapScreenMessageScrollBarCallBack (a press or a held button over the scroll area, the wheel by three lines),
+// @src MapScreenMessageBoxCallBack, EnableDisableMessageScrollButtonsAndRegions; src/game/Tactical/Dialogue_Control.cc
 // @src (a dialogue line printed as `Name: "line"`); src/game/Utils/Message.cc ScreenMsg (a message the screen itself
 // @src prints joins the list in time order).
 
@@ -14,6 +15,7 @@ import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts'
 import { idiv } from '../../../core/int.ts';
 import { MESSAGE_LOG_SIZE, type MessageEntry } from '../../../protocol/message-log.ts';
 import type { DrawList } from '../../draw-list.ts';
+import { MouseReason, POINTER_DWN, POINTER_REPEAT } from '../../input/mouse.ts';
 import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { fontColors, mprint, withClip } from '../../text/print.ts';
 import { lineWrap } from '../../text/wrap.ts';
@@ -25,6 +27,7 @@ const MESSAGE_SCROLL_AREA_HEIGHT = 59;
 const SLIDER_HEIGHT = 11;
 const SLIDER_BAR_RANGE = MESSAGE_SCROLL_AREA_HEIGHT - SLIDER_HEIGHT;
 const SLIDER_FRAME = 8;
+const WHEEL_LINES = 3;
 
 export interface MessageLine {
   readonly text: string;
@@ -109,6 +112,10 @@ export class MapMessageList {
     this.setFirst(this.#first + n);
   }
 
+  get scrollable(): boolean {
+    return this.range > MAX_MESSAGES_ON_MAP_BOTTOM;
+  }
+
   get canScrollUp(): boolean {
     return this.range > MAX_MESSAGES_ON_MAP_BOTTOM && this.#first > 0;
   }
@@ -128,6 +135,16 @@ export class MapMessageList {
       index = idiv(offset * (n - MAX_MESSAGES_ON_MAP_BOTTOM) + idiv(SLIDER_BAR_RANGE, 2), SLIDER_BAR_RANGE);
     }
     this.setFirst(index);
+  }
+
+  scrollBarButton(relativeY: number, reason: number): void {
+    if (reason & (POINTER_DWN | POINTER_REPEAT)) this.scrollBarClick(relativeY);
+    else this.wheel(reason);
+  }
+
+  wheel(reason: number): void {
+    if (reason & MouseReason.WHEEL_UP) this.scrollUp(WHEEL_LINES);
+    else if (reason & MouseReason.WHEEL_DOWN) this.scrollDown(WHEEL_LINES);
   }
 
   render(list: DrawList, font: BitmapFont, origin: { x: number; y: number }, at: { x: number; y: number }): void {
