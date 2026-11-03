@@ -554,6 +554,7 @@ export class CampaignSim {
     return {
       worldTime: (): WorldTimeReading => worldTimeReading(this.state.clock.seconds),
       onMap: () => this.state.flow === 'strategic',
+      inTactical: () => this.state.flow === 'tactical',
       modalRefusal: () => {
         const talk = this.talk?.modalRefusal();
         if (talk) return talk;

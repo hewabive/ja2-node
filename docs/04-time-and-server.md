@@ -119,7 +119,9 @@ the pause or lines wait in the dialogue queue it steps until they ended and star
    player's click on that frame would, so the clock lands on the end of a 60 s slice, at most 59 s past the target; it
    emits `worldTimeReached`;
 4. a watched event (`groupArrived`, `mercArrived`, `dayStarted`, …);
-5. the budget (at least 2,000,000 ticks, at most 7 world days).
+5. the tactical screen opening, a landing or an entered sector: `tactical`, on that tick, since world time there runs
+   real time (`AdvanceRun`, the `inTactical` of the world clock);
+6. the budget (at least 2,000,000 ticks, at most 7 world days).
 
 In tactical, `worldTime` and `worldSeconds` run real time (1 world second = 200 ticks); an advance with `mode` or
 `compressionStopped` but no time target is refused there.

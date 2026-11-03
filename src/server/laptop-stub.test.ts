@@ -26,6 +26,10 @@ import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
+const ELEVEN_HOURS = 11 * 3600;
+const COMPRESS_30_MINUTES = 3;
+const NOON = 12;
+
 beforeAll(async () => {
   kit = await loadStubSectorKit();
 });
@@ -130,6 +134,20 @@ describe('the laptop view for the canvas pages', () => {
     expect(hired?.text).toBe(`Hired ${nickname} from AIM`);
     const after = laptopOf(session);
     expect(after.financeSummary.today.debits).toBe(after.balance - start.balance);
+  });
+
+  it('stops a strategic advance on the tick the arriving squad opens the tactical screen', async () => {
+    const { session, live } = await newGame(105);
+    const profile = laptopOf(session).aim.find((a) => a.face === 'available')?.profile;
+    if (profile === undefined) throw new Error('nobody is available');
+    expect(live.dispatch({ type: 'aimHire', profile, contract: 1, gear: false })).toMatchObject({ ok: true });
+    expect(live.dispatch({ type: 'closeLaptop' })).toEqual({ ok: true });
+    await session.prepare({ type: 'compressTime', mode: COMPRESS_30_MINUTES });
+    const report = live.advance({ worldSeconds: ELEVEN_HOURS, mode: COMPRESS_30_MINUTES });
+    expect(report.reason).toBe('tactical');
+    expect(report.events.map((e) => e.type)).toContain('sectorLoaded');
+    expect(session.view().strategic?.flow).toBe('tactical');
+    expect(report.worldTime?.hour).toBeLessThan(NOON);
   });
 
   it('tells the conference the contact mode, the left message and the hire check before any money moves', async () => {

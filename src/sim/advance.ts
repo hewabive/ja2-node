@@ -20,7 +20,7 @@ export interface StopCondition {
   readonly mode?: number;
 }
 
-export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'refused' | 'ended' | 'timeout';
+export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'tactical' | 'refused' | 'ended' | 'timeout';
 
 const ALWAYS_STOP_EVENTS: readonly SimEventType[] = ['meanwhileEnded', 'endgameDeferred'];
 
@@ -42,6 +42,7 @@ export interface StopReport {
 export interface WorldTimeControl {
   worldTime(): WorldTimeReading;
   onMap(): boolean;
+  inTactical?(): boolean;
   compressing(): boolean;
   startCompression(mode?: number): string | null;
   stopCompression(): void;
@@ -94,6 +95,7 @@ export class AdvanceRun {
   readonly #until: StopCondition;
   readonly #clock: WorldTimeControl | null;
   readonly #strategic: boolean;
+  readonly #fromMap: boolean;
   readonly #start: number;
   readonly #startSeconds: number;
   readonly #target: number | null;
@@ -111,6 +113,7 @@ export class AdvanceRun {
     this.#start = sim.tick;
     this.#clock = sim.worldClock ?? null;
     this.#strategic = this.#clock !== null && isStrategicCondition(until);
+    this.#fromMap = this.#strategic && this.#clock?.onMap() === true;
     this.#startSeconds = this.#clock?.worldTime().seconds ?? 0;
     this.#target = this.#clock ? targetSeconds(until, this.#startSeconds) : null;
     this.#tickBudget = this.#strategic ? Math.max(budget, STRATEGIC_ADVANCE_BUDGET_TICKS) : budget;
@@ -234,6 +237,7 @@ export class AdvanceRun {
     this.#collected.push(...events);
     if (sim.ended?.()) return this.#report('ended');
     if (sim.hasPendingDecision()) return this.#report('decision');
+    if (this.#fromMap && this.#clock?.inTactical?.() === true) return this.#report('tactical');
     if (events.some((e) => this.#watched.has(e.type))) return this.#report('event');
     return null;
   }
