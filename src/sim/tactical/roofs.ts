@@ -92,6 +92,13 @@ export function findLowerLevel(t: TacticalState, s: Soldier): number {
   return bestClimbDirection(s, (g) => newOKDestination(t.pathEnv, s, g, true, 0) && !hasRoof(t, g));
 }
 
+export type RoofClimb = 'up' | 'down';
+
+export function roofClimb(t: TacticalState, s: Soldier): RoofClimb | null {
+  if (findLowerLevel(t, s) >= 0) return 'down';
+  return findHigherLevel(t, s) >= 0 ? 'up' : null;
+}
+
 export function apsToClimbRoof(t: TacticalState, s: Soldier, down: boolean): number {
   return down
     ? AP.CLIMBOFFROOF + apsToChangeStance(t.content, s, AnimHeight.CROUCH)

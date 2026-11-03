@@ -6,8 +6,10 @@
 // @src UIHandleIDoNothing, UIHandleSelectMerc, UIHandleMOnTerrain (the 1.5 s over items, the exit grid flag, the height
 // @src check, the next merc for a dying one, CANNOT_MOVE_UICURSOR, the exchange cursor), UIHandleAOnTerrain (the out-of-range line once per target),
 // @src UIHandleCWait, UIHandleCMoveMerc (the all-move and the multi-selection through people, bReverse, the OK battle sound
-// @src past 5 steps, interactive tiles), UIHandleMCycleMovement, UIHandleMAdjustStanceMode and UIHandlePADJAdjustStance
-// @src (GO_MOVE_ONE/TWO/THREE), UIHandleCAOnTerrain, UIHandleMercAttack, UIHandleCAMercShoot (the own-man prompt),
+// @src past 5 steps, interactive tiles), UIHandleMCycleMovement, UIHandleMAdjustStanceMode (the roof edges by
+// @src FindHigherLevel and FindLowerLevel, the last arrows kept where no step applies, 2026-11-03) and
+// @src UIHandlePADJAdjustStance (GO_MOVE_ONE/TWO/THREE), UIHandleCAOnTerrain, UIHandleMercAttack, UIHandleCAMercShoot
+// @src (the own-man prompt),
 // @src UIHandleHCOnTerrain, UIHandleLCOnTerrain, UIHandleLCLook, UIHandleTOnTerrain, UIHandleJumpOverOnTerrain,
 // @src UIHandleJumpOver, UIHandleLUIBeginLock, UIHandleLUIEndLock, UIHandleLABeginLockOurTurn, UIHandleLAEndLockOurTurn,
 // @src UIHandleRubberBandOnTerrain, EndRubberBanding, EndMultiSoldierSelection, ResetMultiSelection, UIHandleOnMerc,
@@ -261,6 +263,7 @@ export class TacticalInput {
   #stanceDiff = 0;
   #climbId = 0;
   #stanceRange = { up: 0, down: 0, higher: false, lower: false };
+  #stanceArrows = 0;
   #confirmExitArrows = false;
   #showExitGrid = false;
   #lockRegion: MouseRegion | null = null;
@@ -2229,21 +2232,21 @@ export class TacticalInput {
       this.#stanceAnchorY = regions.mouseY;
       this.#stanceDiff = 0;
       this.#climbId = 0;
-      this.#arrows = Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE;
+      this.#stanceArrows = Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE;
       this.#stanceRange = this.#stanceRangeOf(sel);
     }
     const diff = Math.abs(this.#stanceAnchorY - regions.mouseY);
     const r = this.#stanceRange;
-    this.#arrows = Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE;
-    if (!sel) return;
-    if (this.#stanceAnchorY > regions.mouseY) this.#stanceUp(diff, r);
-    else if (this.#stanceAnchorY < regions.mouseY) this.#stanceDown(diff, r);
+    this.#arrows = this.#stanceArrows;
+    if (sel && this.#stanceAnchorY > regions.mouseY) this.#stanceUp(diff, r);
+    else if (sel && this.#stanceAnchorY < regions.mouseY) this.#stanceDown(diff, r);
+    this.#stanceArrows = this.#arrows;
   }
 
   #stanceRangeOf(sel: SoldierView | null): { up: number; down: number; higher: boolean; lower: boolean } {
     if (!sel) return { up: 0, down: 0, higher: false, lower: false };
-    const higher = sel.level === 0 && this.#climbable === true;
-    const lower = sel.level > 0;
+    const higher = sel.climb?.roof === 'up';
+    const lower = sel.climb?.roof === 'down';
     const height = this.#env().world.soldierHeight(sel.id);
     const table: Readonly<Record<string, readonly [number, number]>> = {
       stand: higher ? [1, 2] : lower ? [0, 3] : [0, 2],
@@ -2252,12 +2255,6 @@ export class TacticalInput {
     };
     const [up, down] = table[height] ?? [0, 0];
     return { up, down, higher, lower };
-  }
-
-  #climbable = false;
-
-  setClimbable(on: boolean): void {
-    this.#climbable = on;
   }
 
   #stanceUp(diff: number, r: { up: number; higher: boolean }): void {

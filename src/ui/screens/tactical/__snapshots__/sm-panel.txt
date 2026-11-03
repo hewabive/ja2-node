@@ -71,6 +71,7 @@ image interface/inventory_buttons.sti#0 187,380 normal
 hatch checker 187,380 30x28
 image interface/inventory_buttons.sti#9 91,413 normal
 image interface/inventory_buttons.sti#3 187,348 normal
+hatch checker 187,348 30x28
 image interface/inventory_buttons.sti#8 187,448 normal
 image interface/inventory_buttons.sti#1 123,413 normal
 image interface/inventory_buttons.sti#20 9,410 normal

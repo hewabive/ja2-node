@@ -5,7 +5,8 @@
 // @src HandleSelectMercSlot, GroupAutoReload, HandleTBReload, HandleTBSwapHands, HandleTBClimbWindow,
 // @src HandleStanceChangeFromUIKeys,
 // @src HandleStealthChangeFromUIKeys, FindNextMercInTeamPanel; Handle_UI.cc ClimbUpOrDown, GotoHigherStance,
-// @src GotoLowerStance, ToggleHandCursorMode, ToggleTalkCursorMode, ToggleLookCursorMode; Overhead.cc
+// @src GotoLowerStance (the climb only at a roof edge, FindHigherLevel and FindLowerLevel, 2026-11-03),
+// @src ToggleHandCursorMode, ToggleTalkCursorMode, ToggleLookCursorMode; Overhead.cc
 // @src CycleVisibleEnemies, CycleThroughKnownEnemies, FindNextActiveSquad, HandleLocateToGuyAsHeWalks (the view follows
 // @src a merc walking in combat with tracking on, and every visible soldier of the others); DisplayCover.cc
 // @src DisplayRangeToTarget; GameSettings.cc DisplayGameSettings; DisplayCover.cc ChangeSizeOfDisplayCover,
@@ -530,7 +531,7 @@ export class TacticalControls {
     if (!sel || this.#screen.itemInCursor()) return;
     const height = this.#env().world.soldierHeight(sel.id);
     if (height === 'stand') {
-      if (sel.level === 0) void this.#screen.send({ type: 'climb', soldier: sel.id });
+      if (sel.climb?.roof === 'up') void this.#screen.send({ type: 'climb', soldier: sel.id });
     } else this.#stance(height === 'crouch' ? 'stand' : 'crouch');
   }
 
@@ -539,7 +540,7 @@ export class TacticalControls {
     if (!sel || this.#screen.itemInCursor()) return;
     const height = this.#env().world.soldierHeight(sel.id);
     if (height === 'prone') {
-      if (sel.level > 0) void this.#screen.send({ type: 'climb', soldier: sel.id });
+      if (sel.climb?.roof === 'down') void this.#screen.send({ type: 'climb', soldier: sel.id });
     } else this.#stance(height === 'stand' ? 'crouch' : 'prone');
   }
 

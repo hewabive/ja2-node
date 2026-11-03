@@ -4,15 +4,19 @@
 // @src Faces.cc HandleRenderFaceAdjustments (the hatch: OK_INTERRUPT_MERC, gfHiddenInterrupt); Soldier_Macros.h
 // @src OK_INTERRUPT_MERC; Points.cc UIOKMoveDestination / Soldier_Control.cc ContinueMercMovement (the continue
 // @src location); Interface.cc GetSoldierHealthString; RenderWorld.cc (the enemy glow test !bNeutral && bSide !=
-// @src FRIENDLY).
+// @src FRIENDLY); Interface_Panels.cc UpdateSMPanel (the climb button: FindLowerLevel or FindHigherLevel with
+// @src EnoughPoints for GetAPsToClimbRoof, or FindFenceJumpDirection); Handle_UI.cc UIHandleMAdjustStanceMode (the roof
+// @src edges of the stance drag).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
+import { findFenceJumpDirection } from './animation.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
 import { type Stance, soldierStance } from './movement-mode.ts';
 import { Opp } from './perception/opp.ts';
-import { carriedWeightPercentOf } from './points.ts';
+import { carriedWeightPercentOf, enoughPoints } from './points.ts';
+import { apsToClimbRoof, type RoofClimb, roofClimb } from './roofs.ts';
 import { NOBODY, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -37,6 +41,12 @@ export interface VehicleSeatView {
   readonly driver: boolean;
 }
 
+export interface ClimbView {
+  readonly roof: RoofClimb | null;
+  readonly enoughAp: boolean;
+  readonly fence: boolean;
+}
+
 export interface OwnSoldierFields {
   readonly bleeding: number;
   readonly breathMax: number;
@@ -56,6 +66,7 @@ export interface OwnSoldierFields {
   readonly noApToFinishMove: boolean;
   readonly firstAid: FirstAidRole | null;
   readonly blinded: boolean;
+  readonly climb: ClimbView;
   readonly hint: OwnHintInputs;
 }
 
@@ -107,6 +118,15 @@ function continueLocation(t: TacticalState, s: Soldier): number | null {
   return s.gridNo === s.finalDestination ? null : s.finalDestination;
 }
 
+function climbView(t: TacticalState, s: Soldier): ClimbView {
+  const roof = roofClimb(t, s);
+  return {
+    roof,
+    enoughAp: roof !== null && enoughPoints(t.inCombat, s, apsToClimbRoof(t, s, roof === 'down')),
+    fence: findFenceJumpDirection(t, s) >= 0,
+  };
+}
+
 function firstAidRole(s: Soldier): FirstAidRole | null {
   if (s.servicePartner !== NOBODY) return 'medic';
   return s.serviceCount > 0 ? 'patient' : null;
@@ -133,6 +153,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     noApToFinishMove: s.noAPToFinishMove,
     firstAid: firstAidRole(s),
     blinded: s.blindedCounter > 0,
+    climb: climbView(t, s),
     hint: ownHintInputs(s),
   };
 }

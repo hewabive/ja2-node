@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel, RenderTEAMPanel (the hands' fast help, the driver and
 // @src passenger texts), UpdateSMPanel (burst for a burst-capable gun or an under-barrel launcher in the hand, mute
-// @src always, stealth with the action buttons), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
+// @src always, stealth with the action buttons, climb by the roof edge with its APs or the fence next to the merc),
+// @src EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
 // @src Interface_Items.cc DisableInvRegions (the key ring off only with the inventory, an item in the cursor leaves it on).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
@@ -102,6 +103,12 @@ export function teamPanelModel(
   };
 }
 
+function climbs(s: SoldierView): boolean {
+  const climb = s.climb;
+  if (!climb) return false;
+  return (climb.roof !== null && climb.enoughAp) || climb.fence;
+}
+
 function statColour(s: SoldierView, flash: StatFlash | undefined, now: number): StatColour {
   if ((s.life ?? 0) < OKLIFE) return 'dim';
   if (!flash || now >= CHANGE_STAT_RECENTLY_DURATION_MS + flash.at) return 'normal';
@@ -155,7 +162,7 @@ export function smPanelModel(
     stanceUpEnabled: !shop && !actionsOff && stance !== 'stand',
     levelEnabled: !shop && !actionsOff,
     levelChecked: state.interfaceLevel > 0,
-    climbEnabled: !shop && !actionsOff,
+    climbEnabled: !shop && !actionsOff && climbs(s),
     stanceDownEnabled: !shop && !actionsOff && stance !== 'prone',
     handEnabled: !shop && !actionsOff,
     handChecked: state.cursorMode === 'hand',

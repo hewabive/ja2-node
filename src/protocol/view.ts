@@ -5,7 +5,7 @@ import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { Stance } from '../sim/tactical/movement-mode.ts';
-import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import type { BloodPoolView, BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
 import type { MessageEntry } from './message-log.ts';
@@ -19,7 +19,7 @@ export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { Stance } from '../sim/tactical/movement-mode.ts';
-export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+export type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
   BloodPoolView,
@@ -87,6 +87,7 @@ export interface SoldierView {
   readonly vehicle?: VehicleSeatView | null;
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
+  readonly climb?: ClimbView;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
   readonly hint?: OwnHintInputs;
@@ -1146,7 +1147,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'fadingOut',
 ] as const satisfies readonly (keyof SoldierView)[];
 
-const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle', 'hint'] as const satisfies readonly (keyof SoldierView)[];
+const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle', 'climb', 'hint'] as const satisfies readonly (keyof SoldierView)[];
 
 function samePresentationFields(a: SoldierView, b: SoldierView): boolean {
   return SCALAR_SOLDIER_FIELDS.every((key) => a[key] === b[key]) && STRUCTURED_SOLDIER_FIELDS.every((key) => sameJson(a[key], b[key]));

@@ -15,7 +15,7 @@ import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
-import type { SoldierView } from '../../../protocol/view.ts';
+import type { ClimbView, SoldierView } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
 import type { BulletImpactEffect } from '../../../sim/events.ts';
 import { createItem, emptyObject } from '../../../sim/items/object.ts';
@@ -30,6 +30,8 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
+import { Arrows } from './input/arrows.ts';
+import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { LOCATOR_FRAME_MS, SHOW_LOCATOR_FAST_CYCLES, SHOW_LOCATOR_NORMAL_CYCLES } from './overlays.ts';
 
@@ -342,6 +344,84 @@ describe('the tactical input on the tactical screen', () => {
     expect(commandsOf(f, 'stealth')[0]).toMatchObject({ soldiers: [0] });
     expect(commandsOf(f, 'stealth')[1]).toMatchObject({ squad: true });
     expect(commandsOf(f, 'weaponMode').at(-1)).toMatchObject({ soldier: 0 });
+  });
+
+  it('enables the climb button by a roof edge with the APs to climb it or by a fence to jump, as UpdateSMPanel does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    await f.click('teamFaceRegion0', MouseButton.RIGHT);
+    await f.settle();
+    const s = merc(f, 0);
+    const climbEnabled = (climb: ClimbView) => {
+      Object.assign(s, { climb });
+      f.t.frame();
+      return f.t.runtime.buttons.buttons.find((b) => b.id === 'smClimb')?.enabled;
+    };
+    expect(climbEnabled({ roof: null, enoughAp: false, fence: false })).toBe(false);
+    expect(climbEnabled({ roof: 'up', enoughAp: true, fence: false })).toBe(true);
+    expect(climbEnabled({ roof: 'down', enoughAp: false, fence: false })).toBe(false);
+    expect(climbEnabled({ roof: 'down', enoughAp: true, fence: false })).toBe(true);
+    expect(climbEnabled({ roof: null, enoughAp: false, fence: true })).toBe(true);
+  });
+
+  it('climbs only from a roof edge with the stance keys, as GotoHigherStance and GotoLowerStance ask FindHigherLevel and FindLowerLevel', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    f.key('PageUp');
+    await f.settle();
+    expect(commandsOf(f, 'climb')).toEqual([]);
+    Object.assign(s, { climb: { roof: 'up', enoughAp: true, fence: false } });
+    f.key('PageUp');
+    await f.settle();
+    expect(commandsOf(f, 'climb')).toEqual([{ type: 'climb', soldier: 0 }]);
+  });
+
+  it('shows the climb arrow on the stance drag only by a roof edge and climbs at the release, as UIHandleMAdjustStanceMode does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    const drag = (dy: number) => {
+      const at = f.world.pickPoint(s.gridNo);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      f.t.frame();
+      pointer(f, 'pointerDown', at.x, at.y, MouseButton.LEFT);
+      f.t.frame();
+      pointer(f, 'pointerMove', at.x, at.y - dy, MouseButton.LEFT);
+      f.t.frame();
+      const arrows = f.screen.controls.input.arrows;
+      pointer(f, 'pointerUp', at.x, at.y - dy, MouseButton.LEFT);
+      f.t.frame();
+      return arrows;
+    };
+    expect(drag(GO_MOVE_ONE + 10)).toBe(Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE);
+    await f.settle();
+    expect(commandsOf(f, 'climb')).toEqual([]);
+    Object.assign(s, { climb: { roof: 'up', enoughAp: false, fence: false } });
+    expect(drag(GO_MOVE_ONE + 10)).toBe(Arrows.SHOW_UP_ABOVE_CLIMB);
+    await f.settle();
+    expect(commandsOf(f, 'climb')).toEqual([{ type: 'climb', soldier: 0 }]);
+  });
+
+  it('keeps the last arrows of the stance drag where no step applies, as UIHandleMAdjustStanceMode restores uiOldShowUPDownArrows', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    f.world.heights.set(s.id, 'crouch');
+    const at = f.world.pickPoint(s.gridNo);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerDown', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    pointer(f, 'pointerMove', at.x, at.y - GO_MOVE_ONE - 10, MouseButton.LEFT);
+    f.t.frame();
+    expect(f.screen.controls.input.arrows).toBe(Arrows.SHOW_UP_ABOVE_Y);
+    pointer(f, 'pointerMove', at.x, at.y - GO_MOVE_TWO - 10, MouseButton.LEFT);
+    f.t.frame();
+    expect(f.screen.controls.input.arrows).toBe(Arrows.SHOW_UP_ABOVE_Y);
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    expect(f.screen.controls.input.arrows).toBe(Arrows.SHOW_UP_ABOVE_Y);
+    pointer(f, 'pointerUp', at.x, at.y, MouseButton.LEFT);
+    f.t.frame();
+    await f.settle();
+    expect(commandsOf(f, 'stance')).toEqual([{ type: 'stance', soldier: 0, stance: 'stand' }]);
   });
 
   it('sends the stance key of a multi-selection as multiSelected orders, which leave the selected merc selected', async () => {

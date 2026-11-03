@@ -2,7 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent, loadTestTimelines } from '../../../tests/support/tactical.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, createMoney } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
@@ -12,6 +15,8 @@ import { DamageReason, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { LIFELESS_HEALTH_INDEX } from './health.ts';
 import { InvSlot } from './inventory.ts';
+import { setSoldierPosition } from './movement.ts';
+import { apsToClimbRoof, setSoldierHeight } from './roofs.ts';
 import { Team } from './soldier.ts';
 import type { OwnSoldierSnapshot, TacticalSim } from './tactical-sim.ts';
 import { addToIntList, doneAddingToIntList } from './turns/turns.ts';
@@ -103,6 +108,35 @@ describe('own soldiers in the view', () => {
     expect(inventory.find((i) => i.slot === InvSlot.HAND)).toMatchObject({ jammed: true });
     expect(inventory.find((i) => i.slot === InvSlot.BIGPOCK1)).toMatchObject({ imprint: 7 });
     expect(inventory.find((i) => i.slot === InvSlot.BIGPOCK1)?.jammed).toBeUndefined();
+  });
+
+  it('carry the climb button inputs: the roof edge next to them with the APs to climb it, and a fence to jump (UpdateSMPanel)', () => {
+    const roofs = new Set<number>();
+    for (let x = 85; x <= 90; x++) for (let y = 78; y <= 82; y++) roofs.add(gridNo(x, y));
+    const fence = gridNo(80, 71);
+    const sim = newCombatSim(content, [], 3, roofs, (world) =>
+      world.structures.add(fence, 0, syntheticStructure(StructureFlags.FENCE, Orientation.NONE, { height: 1 })),
+    );
+    const t = sim.state;
+    const below = spawnSoldier(sim, 0, Team.OUR, gridNo(84, 80), Direction.NORTH);
+    const above = spawnSoldier(sim, 1, Team.OUR, gridNo(86, 80), Direction.NORTH);
+    setSoldierHeight(t, above, 50);
+    const byTheFence = spawnSoldier(sim, 2, Team.OUR, gridNo(80, 72), Direction.SOUTH);
+    const inTheOpen = spawnSoldier(sim, 3, Team.OUR, gridNo(70, 70), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(40, 40), Direction.SOUTH);
+    expect(shown(sim, below.id).climb).toEqual({ roof: 'up', enoughAp: true, fence: false });
+    expect(shown(sim, above.id).climb).toEqual({ roof: null, enoughAp: false, fence: false });
+    expect(shown(sim, byTheFence.id).climb).toEqual({ roof: null, enoughAp: false, fence: true });
+    expect(shown(sim, inTheOpen.id).climb).toEqual({ roof: null, enoughAp: false, fence: false });
+    setSoldierPosition(t, above, gridNo(85, 78));
+    expect(shown(sim, above.id).climb).toEqual({ roof: 'down', enoughAp: true, fence: false });
+    t.inCombat = true;
+    below.actionPoints = apsToClimbRoof(t, below, false) - 1;
+    above.actionPoints = apsToClimbRoof(t, above, true);
+    byTheFence.actionPoints = 0;
+    expect(shown(sim, below.id).climb).toEqual({ roof: 'up', enoughAp: false, fence: false });
+    expect(shown(sim, above.id).climb).toEqual({ roof: 'down', enoughAp: true, fence: false });
+    expect(shown(sim, byTheFence.id).climb).toEqual({ roof: null, enoughAp: false, fence: true });
   });
 });
 
