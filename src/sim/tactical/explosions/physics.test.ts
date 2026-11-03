@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { knowledgeOf, newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { countDraws, explosivesBusy, itemId, objectOf, stepWithExplosives } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
@@ -10,6 +10,7 @@ import { syntheticStructure, syntheticWorld } from '../../../content/world/synth
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
+import { actingSoldier } from '../../hints/soldier-check.ts';
 import { attachObject, createItem } from '../../items/object.ts';
 import { minAPsToThrow } from '../combat/ap.ts';
 import { WeaponMode } from '../combat/types.ts';
@@ -310,6 +311,15 @@ describe('the force search behind throws', () => {
     });
     expect(flights[0]).toBeGreaterThan(40);
     expect(flights[1]).toBe(flights[0]);
+  });
+
+  it('flies a probe off the visible map without the physics slots, so a hint may run it on the projection', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, THROWER, Direction.SOUTH);
+    const acting = actingSoldier(knowledgeOf(sim), 0);
+    if ('refusal' in acting) throw new Error('no soldier to act');
+    const grenade = objectOf(sim.state, 'HAND_GRENADE');
+    expect(calculateObjectTrajectory(acting.state, 0, grenade, vec3(805, 805, 191), vec3(0, 3000, 3000))).toBeGreaterThan(0);
   });
 
   it("caps every throw in a basement at the thrower's feet: the probe for the force cap starts off its smaller visible map", () => {

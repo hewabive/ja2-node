@@ -272,8 +272,9 @@ function physicsUpdateLife(t: TacticalState, o: RealObject): boolean {
   if (o.lifeLength !== -1 && o.lifeSpan > o.lifeLength) o.alive = false;
   if (!onVisibleWorldTile(t, o.gridNo)) o.alive = false;
   if (o.alive) return true;
-  if (!o.testObject && whistles(t, o)) t.events.push({ type: 'mortarWhistle', sounding: false });
-  if (!o.testObject) endOfLife(t, o);
+  if (o.testObject) return false;
+  if (whistles(t, o)) t.events.push({ type: 'mortarWhistle', sounding: false });
+  endOfLife(t, o);
   deletePhysicalObject(t, o);
   return false;
 }
