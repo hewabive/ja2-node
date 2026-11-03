@@ -398,8 +398,9 @@ import `server`. Debug hook `window.__ja2Launcher`; e2e `tests/e2e/launcher.spec
   `MessageBoxes` interface (`src/ui/message-boxes.ts`).
 - **Loads in place.** The session client (`src/app/net/session-client.ts`) drops its queued frames whenever a `welcome`
   arrives, so no frame of a replaced simulation is applied after a load in place.
-- **Known limitation**: the playback speed setting is stored, but no page reads it (the developer pages keep their own
-  playback buttons).
+- **Playback speed.** `/play` plays the frames at the stored playback speed (`front-end.ts` sets it on the session
+  client at connect and on every change); above 1× it only shortens a backlog, since playback never passes the
+  newest frame. The developer pages keep their own playback buttons.
 
 ---
 

@@ -137,6 +137,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   settings.listen((current) => {
     ui.audio.engine.setVolumes(engineVolumes(current));
     music.settings(current);
+    if (client.client) client.client.playbackSpeed = current.playbackSpeed;
   });
   const random = new ClientRandom(seedFromText(FRONT_END_RANDOM_SEED));
   let tactical: TacticalHost | null = null;
@@ -264,6 +265,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   stories = { help, story };
   client.onConnected = (session: SessionClient | null) => {
     page.client = session;
+    if (session) session.playbackSpeed = settings.current().playbackSpeed;
     page.hook.session = session?.session ?? null;
     if (tactical && tactical.session !== session) {
       tactical.dispose();
