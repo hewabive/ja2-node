@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadStrategicTestContent } from '../../../tests/support/strategic.ts';
-import { AdjacentSector, parseMovementCosts, parseTraversabilityMap, StrategicMove } from './map-tables.ts';
+import { AdjacentSector, parseMovementCosts, parseSamSites, parseTraversabilityMap, StrategicMove } from './map-tables.ts';
 import { TransportMask } from './policy.ts';
 import { parseSectorId } from './sector-ids.ts';
 import type { StrategicContent } from './strategic-content.ts';
@@ -64,6 +64,20 @@ describe('strategic content from data/externalized', () => {
     expect(content.secrets.filter((s) => !s.isSamSite).map((s) => s.sector)).toEqual(['J9', 'K4'].map(parseSectorId));
     expect(content.bloodCatSpawns.find((b) => b.isLair)).toMatchObject({ sector: parseSectorId('I16'), spawnsByDifficulty: [14, 19, 26] });
     expect(content.cacheSectors.sectors).toHaveLength(5);
+  });
+
+  it('puts the lower of the two SAM tiles first and takes the terminal graphic from their orientation (SamSiteModel)', () => {
+    expect(content.samSites.map((s) => [s.gridNos, s.graphicIndex])).toEqual([
+      [[10196, 10195], 4],
+      [[11295, 11135], 3],
+      [[16080, 15920], 3],
+      [[11913, 11912], 4],
+    ]);
+    expect(parseSamSites([{ sector: 'D15', gridNos: [11135, 11295] }])).toEqual([
+      { sector: parseSectorId('D15'), gridNos: [11295, 11135], graphicIndex: 3 },
+    ]);
+    expect(() => parseSamSites([{ sector: 'D2', gridNos: [10196, 10194] }])).toThrow();
+    expect(() => parseSamSites([{ sector: 'D2', gridNos: [10196] }])).toThrow();
   });
 
   it('reads the policy values, the vehicle movement types and the vehicle profiles by name', () => {

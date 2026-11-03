@@ -87,6 +87,7 @@ import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { flagNothingToDoAfterItemMove } from './nothing-to-do.ts';
 import { PowFlow } from './pow.ts';
+import { repairSamTerminal } from './sam-repair.ts';
 import { enterMapScreen, leaveTacticalScreen, openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
@@ -193,6 +194,7 @@ export class CampaignSim {
           mines: queenMineIncome(() => this.economy),
           ...hooks.queen,
           hooks: {
+            samRepaired: (sector) => repairSamTerminal(this, sector),
             creatureQuestEnded: () => this.#creatureQuestEnded(),
             profile: (id) => this.narrative.profile(id),
             startQuest: (quest, sector) => this.narrative.startQuest(quest, sector),

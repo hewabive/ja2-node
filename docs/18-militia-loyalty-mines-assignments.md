@@ -47,7 +47,7 @@ tactical militia from the counts; promotions on unload          campaign/sector-
 | `rest.ts`, `doctor.ts`, `repair.ts`, `training.ts` | The hourly work |
 | `set-assignment.ts`, `assignment-done.ts`, `update.ts` | Setting assignments, sleep and wake; done, aborted, nothing to do; the hourly update and the economy events |
 | `save-import.ts`, `sector-loss.ts` | Imported mines, loyalty, ledger and assignment fields; the notice for a lost important sector |
-| `strategic/map/control.ts`, `map/sam.ts` | Sector control changes, air control, SAM damage and repair |
+| `strategic/map/control.ts`, `map/sam.ts`, `campaign/sam-repair.ts` | Sector control changes, air control, SAM damage and repair; the terminal graphic the repair puts back |
 | `campaign/finances.ts`, `finance-summary.ts` | The ledger (`addTransaction`) and the laptop's daily figures |
 | `src/content/strategic/economy-content.ts` | Mines, starting cash, stat healing and merc types from `data/externalized/`; loyalty and head miner tables from `data/tables/` (`tools/transcribe/town-loyalty.ts`, `head-miners.ts`) |
 
@@ -118,8 +118,13 @@ changes come from:
 balance. Every transaction is a `moneyChanged` event (deviation "Finance ledger").
 
 **SAM sites** lose condition only to explosions on one of their two tiles (`SectorHooks.structureDamaged` →
-`sector-flow.ts` → `damageSamIfFound`) and get it back only from the Queen's reinforcements (`ai/orders.ts`). Air
-control is recomputed on every control change, SAM hit and repair; the helicopter's use of it is `16`.
+`sector-flow.ts` → `damageSamIfFound`) and get it back only from the Queen's reinforcements (`ai/orders.ts`). The
+explosion swaps the terminal for its damaged graphic like any structure (`12`); the repair's `samRepaired` hook swaps it
+back, in the loaded map or in the unloaded sector's stored map changes that its next load replays
+(`campaign/sam-repair.ts`; deviation "SAM repair over a working terminal"). The terminal's tile and graphic come from the site's two tiles
+(`src/content/strategic/map-tables.ts`, as `src/externalized/strategic/SamSiteModel.cc:16`); the tile tables are part
+of the tactical content, so the repair needs no map loaded. Air control is recomputed on every control change, SAM hit
+and repair; the helicopter's use of it is `16`.
 
 **Randomness.** Draws keep the original's order on `main` and `pre` (`01` §3.6). Stat changes from doctoring, repair,
 training and militia training draw `pre` (`33`); on `main` come the mine setup and head miner placement loops, the
@@ -144,6 +149,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above (`Strategic_Town_Loyalty.cc:296-305`) | `loyalty.test.ts`, `campaign/narrative-port.test.ts` |
 | An enemy takeover steals in a visited sector every time, also when the enemy held it already (reinforcements) | `loyalty.test.ts` |
 | An enemy sector taken without a fight brings no town, mine or SAM effects, so a town completed that way is never liberated | `strategic/map/control.test.ts` |
+| Every reinforcement that reaches a SAM garrison repairs the site, an undamaged one too: the condition goes back to 100 and the terminal swap is written into the sector's stored map changes | `campaign/sam-repair.test.ts` |
 | A creature that is no monster (a bloodcat) costs a murder's full price as a loss, even in an enemy sector; so do militia when the rebels hate the player | `campaign/civilian-murder.test.ts` |
 | A day with a progress or setback mail is not inactive; a day with a creature or progress mail keeps all its new sectors | `inactivity.test.ts` |
 | The Queen depletes a mine only once it produced for the player; an emptied mine shrinks the income share of progress | `mines.test.ts` |

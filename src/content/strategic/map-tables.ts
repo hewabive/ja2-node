@@ -6,6 +6,7 @@
 
 import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
+import { WORLD_COLS } from '../world/grid.ts';
 import {
   asArray,
   asBool,
@@ -66,7 +67,8 @@ export interface UndergroundTemplate {
 
 export interface SamSite {
   readonly sector: number;
-  readonly gridNos: readonly number[];
+  readonly gridNos: readonly [number, number];
+  readonly graphicIndex: number;
 }
 
 export interface MapSecret {
@@ -196,10 +198,24 @@ export function parseUndergroundTemplates(json: unknown): UndergroundTemplate[] 
   });
 }
 
+const SAM_GRAPHIC_INDEX_NE_SW = 3;
+const SAM_GRAPHIC_INDEX_NW_SE = 4;
+const SAM_TILE_COUNT = 2;
+const ADJACENT_IN_ROW = 1;
+
+function samGridNos(value: unknown, what: string): [number, number] {
+  const [lower, upper] = intArray(value, what, SAM_TILE_COUNT).sort((a, b) => b - a) as [number, number];
+  const step = lower - upper;
+  if (step !== ADJACENT_IN_ROW && step !== WORLD_COLS) throw new FormatError(`${what}: the SAM site gridNos must be 2 adjacent tiles`);
+  return [lower, upper];
+}
+
 export function parseSamSites(json: unknown): SamSite[] {
   return asArray(json, 'SAM sites').map((v, i) => {
     const o = asObject(v, `SAM sites[${i}]`);
-    return { sector: parseSectorId(asString(o.sector, 'sector')), gridNos: intArray(o.gridNos, `SAM sites[${i}].gridNos`) };
+    const gridNos = samGridNos(o.gridNos, `SAM sites[${i}].gridNos`);
+    const graphicIndex = gridNos[0] - gridNos[1] === WORLD_COLS ? SAM_GRAPHIC_INDEX_NE_SW : SAM_GRAPHIC_INDEX_NW_SE;
+    return { sector: parseSectorId(asString(o.sector, 'sector')), gridNos, graphicIndex };
   });
 }
 

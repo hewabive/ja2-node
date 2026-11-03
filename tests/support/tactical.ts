@@ -13,6 +13,7 @@ import { loadItemTable } from '../../src/content/items/items.ts';
 import { MERC_QUOTES_PATH, parseQuoteSpeakers } from '../../src/content/narrative/quote-speakers.ts';
 import { DEFAULT_DATA_DECODING } from '../../src/content/text/data-version.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
+import { parseTileTables, TILE_TABLES_PATH } from '../../src/content/world/tile-tables.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { shippedLightTemplates } from '../../src/sim/tactical/lighting/templates.ts';
 import { parseMaterialArmour } from '../../src/sim/tactical/load-content.ts';
@@ -61,5 +62,6 @@ export async function loadTestContent(): Promise<TacticalContent> {
     lightTemplates: shippedLightTemplates(parseLightTemplatesJson(readDataJson(SHIPPED_LIGHT_TEMPLATES_PATH))),
     quoteSpeakers: parseQuoteSpeakers(readDataJson(MERC_QUOTES_PATH)),
     sightingBattleSound: DEFAULT_DATA_DECODING.sightingBattleSound,
+    tileTables: parseTileTables(readDataJson(TILE_TABLES_PATH)),
   };
 }

@@ -294,9 +294,10 @@ corpse carries it while it is not 0, the pixels it is drawn above its level (`33
 soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
 are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
 light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
-(`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer; `append`
-at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's trapdoor and crate, structures a
-native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's
+(`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer, as a
+SAM terminal the Queen's reinforcements repaired, `18`; `append` at its tail, for a tile the original adds with
+`AddStructToTail`: the rebel hideout's trapdoor and crate, a SAM terminal repaired while its sector was not loaded,
+structures a native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's
 debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client draws them and lights
 over them (`20`). Animation schedules, palettes and light sprites serve the renderer and the devtools.
 
