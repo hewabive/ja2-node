@@ -52,7 +52,9 @@ export const NEW_SESSION_SHAPE = {
   reseed: z
     .boolean()
     .optional()
-    .describe('with load: false restores the random streams exactly (reproducible); default true reseeds the main stream'),
+    .describe(
+      'with load: false restores the random streams and the dialogue queue exactly (reproducible); default true empties the dialogue queue and reseeds the main stream',
+    ),
   speech: z
     .enum(SPEECH_MODES)
     .optional()

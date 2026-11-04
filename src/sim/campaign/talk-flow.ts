@@ -57,6 +57,7 @@ import {
   cutTalkingFace,
   delayedTacticalCharacterDialogue,
   dialogueTextKey,
+  quietDialogueForLoad,
   signalItemLocatorStart,
   soldierByProfile,
   tacticalCharacterDialogue,
@@ -545,6 +546,10 @@ export class TalkFlow {
 
   linePauseHeld(): boolean {
     return this.talk.pausedForLine;
+  }
+
+  quietForLoad(): void {
+    quietDialogueForLoad(this.host);
   }
 
   scriptedSequence(): boolean {

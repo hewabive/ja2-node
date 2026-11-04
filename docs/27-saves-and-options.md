@@ -42,7 +42,8 @@ and Dead is Dead. The file is ja2-node's own; native saves are imported, never w
 2. **Restore is exact.** For any inputs `I`, `continue(S, I)` and `continue(restore(snapshot(S)), I)` produce the same
    event log and the same final snapshot, byte for byte ("load + replay = same outcome"). A load therefore never runs
    the original's load hooks (deviations "Schedules on load", "Selection on load", "Helicopter on load"); only a native
-   import does, once (`14`).
+   import does, once (`14`). A player load adds one logged step after the restore, which empties the dialogue queue as
+   `LoadSavedGame` does and reseeds `main` (§1.5).
 3. **Versioned.** The file and the snapshot each carry a version; older ones go through migration chains on the plain
    JSON (`SAVE_MIGRATIONS` in `save-file.ts`, `snapshotMigrations` in `src/sim/snapshot/migrations.ts`). **Rule:** a
    change of the state's shape bumps `SNAPSHOT_VERSION` and adds a migration. `src/server/legacy-save.test.ts` loads
@@ -99,21 +100,31 @@ accepted; a re-save writes the scoped one. Version 1 saves (0.7.0) list the file
 `ContentLedger.matchesSaved` recomputes their hash, taking the project tables from the repository's history at the
 save's engine commit (`git cat-file`) when the current ones differ.
 
-### 1.5 Random streams on load
+### 1.5 Random streams and the dialogue queue on load
 
 The original saves only the `PreRandom` table and index (`SaveLoadGame.cc:2110-2127`), seeds its engine once at
 start-up (`sgp/SGP.cc:433`) and refills each used `PreRandom` slot from it (`sgp/Random.cc:24-28`): after a reload the
 next `PreRandom` draws repeat until used, while `Random` continues from the running process, in effect a fresh stream.
+No save holds its dialogue queue: before reading the save, `LoadSavedGame` empties the queue, with the trigger wait,
+and silences the line being said (`SaveLoadGame.cc:659-662`, `:689`, `Tactical/Dialogue_Control.cc:215-221`), whose
+face then ends at the next `HandleDialogue` (`Tactical/Dialogue_Control.cc:393-430`): a loaded game starts quiet.
 
-The snapshot stores `main`, `pre` and every cosmetic stream exactly; `load {reseed}` picks one of two modes:
+The snapshot stores `main`, `pre`, every cosmetic stream and the dialogue queue exactly; `load {reseed}` picks one of
+two modes:
 
-- **Player** (`reseed: true`, the default for the browser and MCP): `pre` is restored, so the original's
-  anti-save-scum repeat holds, and `main` is reseeded from server entropy through `reseedMain` (`Rng.restore` in place,
-  so the tactical layer and the `PreRandom` refill keep following the same object). The seed is returned and logged as
-  `reseed {seed}`, so a player load is reproducible from (save, seed, inputs) (deviation "Player loads"): a player load
-  with seed `s` is an exact load followed by `reseed {s}`.
-- **Exact** (`reseed: false`): everything continues bit-identically; for tests, replays, bug reports and agents that
-  want reproducible experiments.
+- **Player** (`reseed: true`, the default for the browser and MCP): one step after the exact restore
+  (`applyPlayerLoad`, `src/server/save-service.ts`), logged as `reseed {seed}`. In the original's order it first
+  empties the queue and ends the talking face as that `HandleDialogue` would (`quietDialogueForLoad`,
+  `src/sim/narrative/dialogue-queue.ts`), lifting a line's map screen pause but not triggering the NPC record a merc's
+  line would trigger at its end, which no save holds (its scripted sequence refuses saves, §1.6). Then it reseeds
+  `main` from server entropy through `reseedMain` (`Rng.restore` in place, so the tactical layer and the `PreRandom`
+  refill keep following the same object), while `pre` stays restored, so the original's anti-save-scum repeat holds.
+  The seed is returned and logged, so a player load is reproducible from (save, seed, inputs) (deviation "Player
+  loads"): a player load with seed `s` is an exact load followed by `reseed {s}`. A tactical save can hold queued
+  lines and their callbacks, such as a contract ending, since the tactical save key ignores the queue (§1.6); like the
+  original's load, a player load drops them.
+- **Exact** (`reseed: false`): everything continues bit-identically, the queued lines too; for tests, replays, bug
+  reports and agents that want reproducible experiments.
 
 ### 1.6 Names, folders and save rules
 
@@ -158,7 +169,7 @@ running it; queries are never logged. Besides commands and prompt answers:
 |---|---|
 | `advance` | it has side effects (it can start compression, `src/sim/advance.ts`). Real-time batches are `advance` entries; consecutive batches that ran their full tick count merge (up to 100,000 ticks), which is equivalent because a full batch stopped on no decision, end or watched event; a batch with pause events never merges |
 | `prepare` | the maps a command's asynchronous preparation added: the world cache is history-dependent |
-| `reseed` | the seed of a player load |
+| `reseed` | a player load's step with its seed (§1.5) |
 | `load` | the name and digest of a load in place; a replay refuses a save that changed since |
 | `speech` | the session's speech mode (`29` §4.5) |
 | `drive` | informational: the advances a driver causes are logged themselves, so a replay uses the manual driver |
@@ -238,7 +249,8 @@ world) and those hold nothing the codec cannot write. Rules for code that adds s
 check the content (§1.4), restore through `restoreSession` (fresh content through the rule pack, the same prepared
 maps, the loaded sector's world), compare the text identity. A load in place first takes the session's Dead is Dead
 save point, then `Session.replace` swaps the simulation, music, message log and campaign identity (every viewer gets a
-fresh `welcome`; a running real-time driver stops with `loaded`, `29` §10); a player load then reseeds. A new session
+fresh `welcome`; a running real-time driver stops with `loaded`, `29` §10); a player load then empties the dialogue
+queue and reseeds (§1.5). A new session
 from a load gets the log origin `load`. An upload is parsed, migrated and checked against the content before it is
 written.
 
@@ -275,6 +287,7 @@ than the streams and on any function. `pnpm cli replay` checks a saved log again
 | Dead is Dead keeps two backups and never blocks a load | `src/server/save-store.test.ts` "… keeps two backups of a Dead is Dead save", `src/server/save-rules.test.ts` "in Dead is Dead save into the one file …" |
 | Iron Man refuses saves while enemies are in the loaded sector, even outside combat | `src/server/save-rules.test.ts` "in Iron Man refuse saves with enemies in the loaded sector …" |
 | `PreRandom` repeats after a reload until the saved values are used | `src/server/save-service.test.ts` "repeats the saved PreRandom ring after a player load …" |
+| A player load drops the lines queued at the save and their callbacks, a contract ending among them (`SaveLoadGame.cc:659-662`) | `src/server/save-service.test.ts` "starts a player load with an empty queue and nobody talking …" |
 | The load screen names a secret's sector as found; the save screen names every row by the running game's secrets (`IsSecretFoundAt`, `Strategic/StrategicMap_Secrets.cc:46`) | `src/ui/screens/front-end/save-location.test.ts` "counts every secret as found on the load screen …" |
 | A save made with no map loaded names the sector of the current squad's first merc even while he travels between sectors (`GetBestPossibleSectorXYZValues`, `SaveLoadGame.cc:2165`) | `src/sim/strategic/forces/save-sector.test.ts` "takes the sector of the current squad's first merc even while he travels …" |
 | A row in an underground level of the list is named even unvisited; any other underground level is left empty (`gfGettingNameFromSaveLoadScreen`, `Strategic/StrategicMap.cc:1245`) | `src/ui/screens/front-end/save-location.test.ts` "names every underground level of the list …" |

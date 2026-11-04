@@ -14,7 +14,9 @@
 // @src DialogueEventRemoveEPC; Overhead.cc MakeCharacterDialogueEventSignalItemLocatorStart (the slide to its location,
 // @src 2026-11-03); Dialogue_Control.cc
 // @src HandleImportantMercQuote, CreateTalkingUI (the DIALOGUE_EXTERNAL_NPC_UI faces of Skyrider and the head miners)
-// @src and DialogueEvent::Execute returning true for a special event that waits (2026-11-01).
+// @src and DialogueEvent::Execute returning true for a special event that waits (2026-11-01); SaveLoadGame.cc
+// @src LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech, the silenced face ending at the next
+// @src HandleDialogue, 2026-11-04).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -383,6 +385,19 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
   talk.lastQuoteProfile = NO_PROFILE;
   endLinePause(host);
   return true;
+}
+
+function dropTalkingFace(host: NarrativeHost): void {
+  const talk = host.talk;
+  if (!talk.face) return;
+  talk.face = null;
+  talk.lastQuoteProfile = NO_PROFILE;
+  endLinePause(host);
+}
+
+export function quietDialogueForLoad(host: NarrativeHost): void {
+  emptyDialogueQueue(host);
+  dropTalkingFace(host);
 }
 
 export function handleDialogue(host: NarrativeHost, h: DialogueHandlers): void {

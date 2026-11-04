@@ -113,8 +113,9 @@ reports a cut or finished line with `skipLine`. The overhead map and the laptop 
 screen cuts the current one as the laptop opens, `StopAnyCurrentlyTalkingSpeech`); the laptop's hold follows the shown
 view, so a line the server said before the laptop opened waits for the map screen. A load in place (a `welcome` on an
 open link) and a switch to another session drop the queue and silence the line being said without reporting them
-(`discardLines`), as `LoadSavedGame` empties the dialogue queue. The simulation finishes lines in ticks and never
-waits for a viewer (`24`, deviation "Talk panel and speech on the canvas").
+(`discardLines`), as `LoadSavedGame` empties the dialogue queue, which a player load does on the server too (`27`
+§1.5). The simulation finishes lines in ticks and never waits for a viewer (`24`, deviation "Talk panel and speech on
+the canvas").
 
 **One presenter per session serves the tactical and map screens** (`src/app/sound/session-speech.ts`), as the original
 has one talking face for every screen: a line goes on across a screen switch and each screen draws it its own way.

@@ -177,7 +177,12 @@ function sessionStateOf(sim: SessionSim): { readonly rng: Parameters<typeof rese
   throw new Error('this session kind cannot be reseeded');
 }
 
-export function reseedSessionSim(sim: SessionSim, seed: number): void {
+function quietDialogue(sim: SessionSim): void {
+  if (sim instanceof CampaignSession) sim.campaign.talk?.quietForLoad();
+}
+
+export function applyPlayerLoad(sim: SessionSim, seed: number): void {
+  quietDialogue(sim);
   reseedMain(sessionStateOf(sim), seed);
 }
 
@@ -446,7 +451,7 @@ export class SaveService {
     let seed: number | null = null;
     if (reseed) {
       const chosen = this.#entropy();
-      session.reseed(chosen, () => reseedSessionSim(session.sim, chosen));
+      session.reseed(chosen, () => applyPlayerLoad(session.sim, chosen));
       seed = chosen;
     }
     session.notify({ type: 'gameLoaded', name: opened.name, seed, tick: session.sim.tick });

@@ -8,14 +8,19 @@ import { battleSandbox, ourTurn } from '../../tests/support/save-scenarios.ts';
 import { createSaveKit, type SaveKit, type SaveKitOptions } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { PRE_RANDOM_RING_SIZE } from '../core/rng.ts';
+import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { tacticalCharacterDialogue } from '../sim/narrative/dialogue-queue.ts';
+import type { TalkState } from '../sim/narrative/talk-state.ts';
+import { MercQuote } from '../sim/tactical/narrative/merc-quotes.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { CampaignSession } from './campaign-session.ts';
 import type { ContentFileEntry } from './content-identity.ts';
 import { decodeInputLog } from './input-log.ts';
+import { replaySegment } from './replay.ts';
 import type { TacticalSession } from './sandbox.ts';
 import { encodeSaveFile, inflateSave, parseSaveText, SAVE_VERSION, type SaveFile, snapshotText } from './save-file.ts';
-import { loadProblemOf, reseedSessionSim, sessionSnapshot } from './save-service.ts';
+import { applyPlayerLoad, loadProblemOf, sessionSnapshot } from './save-service.ts';
 import { MAX_UPLOAD_BYTES } from './save-store.ts';
 import { Session, type SessionSim } from './session.ts';
 import type { SessionSnapshot } from './session-snapshot.ts';
@@ -123,7 +128,7 @@ describe('saves and loads on the stub pack', () => {
       const player = await k.open({ load: saved.name });
       expect(k.saves.lastLoad(player)?.seed).toBe(PLAYER_SEED);
       const manual = await k.open({ load: saved.name, reseed: false });
-      reseedSessionSim(manual.sim, PLAYER_SEED);
+      applyPlayerLoad(manual.sim, PLAYER_SEED);
       expect(text(player)).toBe(text(manual));
       expect(player.log.entries().map((e) => e.kind)).toEqual(['reseed']);
       expect(await k.replay(saved.name)).toMatchObject({ equal: true, difference: null });
@@ -334,6 +339,73 @@ describe('saves and loads on the stub pack', () => {
       expect(log.entries).toEqual([{ seq: 0, tick: 0, kind: 'cmd', payload: { cmd: { type: 'explode' } } }]);
       expect(k.warnings.join()).toMatch(/Error\.log\.jsonl\.gz/);
       expect(await k.store.read('Error')).toBeNull();
+    });
+  });
+});
+
+describe('the dialogue queue on a load (SaveLoadGame.cc LoadSavedGame: EmptyDialogueQueue, StopAnyCurrentlyTalkingSpeech)', () => {
+  const TALKING = 'talking';
+  const QUIET = 'quiet';
+  const TICKS_AFTER_THE_LOAD = 20;
+
+  function campaignOf(session: Session): CampaignSim {
+    return (session.sim as CampaignSession).campaign;
+  }
+
+  function talkOf(session: Session): TalkState {
+    const talk = campaignOf(session).talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    return talk.talk;
+  }
+
+  function queueAndFace(session: Session): Pick<TalkState, 'queue' | 'face'> {
+    const { queue, face } = talkOf(session);
+    return structuredClone({ queue, face });
+  }
+
+  async function savedWhileTalkingInTactical(k: SaveKit): Promise<Session> {
+    const session = await k.open({ seed: 9, campaign: {} });
+    const campaign = campaignOf(session);
+    const host = campaign.talk?.host;
+    const [first, second] = campaign.battle?.roster.all() ?? [];
+    if (!host || !first || !second || !campaign.contracts) throw new Error('a landed campaign with two mercs was expected');
+    session.advance({ idle: true });
+    expect(queueAndFace(session)).toEqual({ queue: [], face: null });
+    expect(tacticalCharacterDialogue(host, first.soldier, MercQuote.HEADSHOT)).toBe(true);
+    expect(tacticalCharacterDialogue(host, second.soldier, MercQuote.KILLED_AN_ENEMY)).toBe(true);
+    campaign.contracts.queueEnding({ kind: 'departure', soldier: second.id, rehire: true });
+    session.advance({ ticks: 1 });
+    expect(campaign.state.flow).toBe('tactical');
+    expect(talkOf(session).face?.speaker).toBe(first.profile);
+    expect(talkOf(session).face?.busyUntil).toBeGreaterThan(session.sim.tick);
+    expect(talkOf(session).queue.map((e) => e.kind)).toEqual(['quote', 'callback']);
+    expect(await k.saves.save(session, { name: TALKING })).toMatchObject({ ok: true });
+    return session;
+  }
+
+  it('starts a player load with an empty queue and nobody talking, and keeps both on an exact load', async () => {
+    await withKit(async (k) => {
+      const saved = queueAndFace(await savedWhileTalkingInTactical(k));
+      const exact = await k.open({ load: TALKING, reseed: false });
+      expect(queueAndFace(exact)).toEqual(saved);
+      const player = await k.open({ load: TALKING });
+      expect(queueAndFace(player)).toEqual({ queue: [], face: null });
+    });
+  });
+
+  it('replays the logged player load to the same quiet state', async () => {
+    await withKit(async (k) => {
+      await savedWhileTalkingInTactical(k);
+      const player = await k.open({ load: TALKING });
+      player.advance({ ticks: TICKS_AFTER_THE_LOAD });
+      expect(await k.saves.save(player, { name: QUIET })).toMatchObject({ ok: true });
+      const log = decodeInputLog((await k.store.readLog(QUIET)) ?? new Uint8Array());
+      expect(log.origin).toMatchObject({ kind: 'load', name: TALKING });
+      expect(log.entries.map((e) => e.kind)).toEqual(['reseed', 'advance']);
+      const replayed = await replaySegment(log, k.build, k.saves);
+      expect(queueAndFace(replayed)).toEqual({ queue: [], face: null });
+      expect(text(replayed)).toBe(text(player));
+      expect(await k.replay(QUIET)).toMatchObject({ equal: true });
     });
   });
 });

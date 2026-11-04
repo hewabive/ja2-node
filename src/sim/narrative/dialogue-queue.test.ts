@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type FakeHost, fakeHost, LOCK_PAUSE_MERC_TALKING, testSoldier } from '../../../tests/support/narrative.ts';
+import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { MercQuote } from '../tactical/narrative/merc-quotes.ts';
 import type { PathEnv } from '../tactical/pathfinding.ts';
@@ -16,6 +17,7 @@ import {
   externalNpcDialogue,
   FINAL_TALKING_DELAY_TICKS,
   handleImportantMercQuote,
+  quietDialogueForLoad,
   signalItemLocatorStart,
   tacticalCharacterDialogue,
 } from './dialogue-queue.ts';
@@ -486,5 +488,39 @@ describe('a special event that waits (DialogueEvent::Execute returning true)', (
     runQueueToTheEnd(host);
     expect(ran).toEqual([[3, 1]]);
     expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+  });
+});
+
+describe('a loaded game starts quiet (SaveLoadGame.cc LoadSavedGame: EmptyDialogueQueue, StopAnyCurrentlyTalkingSpeech)', () => {
+  it('empties the queue with its callbacks and the trigger wait, and ends the talking face with its line pause and last speaker', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc], inMapMode: true });
+    const ran: string[] = [];
+    Object.assign(host, {
+      dialogueCallback: (name: string) => {
+        ran.push(name);
+        return false;
+      },
+    });
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    tacticalCharacterDialogue(host, merc, MercQuote.KILLED_AN_ENEMY);
+    addDialogueEvent(host, { kind: 'callback', name: 'test:departure', args: [merc.id, 1] });
+    stepDialogue(host);
+    host.talk.waitingForTrigger = true;
+    expect(host.talk.face?.speaker).toBe(MERC_PROFILE);
+    expect({ paused: host.paused, pauseLocked: host.pauseLocked }).toEqual({ paused: true, pauseLocked: true });
+    quietDialogueForLoad(host);
+    expect(host.talk).toMatchObject({
+      queue: [],
+      face: null,
+      waitingForTrigger: false,
+      pausedForLine: false,
+      lastQuoteProfile: NO_PROFILE,
+      lastQuoteSaid: MercQuote.HEADSHOT,
+    });
+    expect({ paused: host.paused, pauseLocked: host.pauseLocked }).toEqual({ paused: false, pauseLocked: false });
+    runQueueToTheEnd(host);
+    expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
+    expect(ran).toEqual([]);
   });
 });

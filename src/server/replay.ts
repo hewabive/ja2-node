@@ -3,7 +3,7 @@ import type { StopCondition } from '../sim/advance.ts';
 import type { LogOrigin } from './input-log.ts';
 import { decodeInputLog, type InputEntry, type LogSegment } from './input-log.ts';
 import { inflateSave, parseSaveText, snapshotOf, snapshotText } from './save-file.ts';
-import { reseedSessionSim, type SaveService, sessionSnapshot } from './save-service.ts';
+import { applyPlayerLoad, type SaveService, sessionSnapshot } from './save-service.ts';
 import { DEFAULT_SESSION_TEXT, Session, type SessionSim } from './session.ts';
 
 const DIFFERENCE_CONTEXT = 120;
@@ -33,7 +33,7 @@ async function applyEntry(session: Session, entry: InputEntry, saves: SaveServic
       return;
     case 'reseed': {
       const seed = Number(p.seed);
-      session.reseed(seed, () => reseedSessionSim(session.sim, seed));
+      session.reseed(seed, () => applyPlayerLoad(session.sim, seed));
       return;
     }
     case 'load': {

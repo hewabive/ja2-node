@@ -699,8 +699,10 @@ resolves one EDT record cell with its layout (`data/tables/edt-layouts.json`) or
 written) and the developer-only `POST /api/sessions/:id/snapshot`, which ignores the save rules; the WebSocket has
 `save` and `load`. A load in place sends every viewer a fresh `welcome`, after `stopped {reason: 'loaded'}` when a
 real-time driver ran (it becomes manual). `status`, `GET /api/sessions` and `observe` show `saveMode`, `canSave` and
-`saveRefusal`, so an agent need not try. A load is a player load by default: the main stream is reseeded, the seed
-returned and logged (deviation "Player loads"); `reseed: false` is an exact load for experiments and bug reports.
+`saveRefusal`, so an agent need not try. A load is a player load by default: as in the original the dialogue queue is
+emptied and the line being said ends, so lines queued at the save and what they lead to (a contract ending) are
+dropped, and the main stream is reseeded, the seed returned and logged (deviation "Player loads"); `reseed: false` is
+an exact load for experiments and bug reports, which keeps the queued lines.
 `gameSaved` and `gameLoaded` come with the next report; autosaves and Dead is Dead saves send none, as in the original.
 
 **Options** (`27` §2). The game options are chosen once, in `newSession {campaign: {options}}`; `setOption

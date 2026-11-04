@@ -151,8 +151,9 @@ presentation (a civilian's line, the merc who answers Miguel, an own merc's bark
 session's cosmetic stream `TalkState.fx` (deviation "Cosmetic draws in dialogue").
 
 **Saving.** ja2-node refuses a save while a conversation is open or, outside tactical, the queue is busy (`27`), and
-keeps the whole talk state in its saves. A native save is believed never to be made in a conversation, so its import
-starts the session empty.
+keeps the whole talk state in its saves. A player load then empties the queue and ends the talking face, as
+`LoadSavedGame` does; an exact load keeps them (`27` §1.5). A native save is believed never to be made in a
+conversation, so its import starts the session empty.
 
 ## 3. Quirks of the original the code keeps
 
