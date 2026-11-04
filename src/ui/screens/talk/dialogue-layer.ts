@@ -147,6 +147,7 @@ export class DialogueLayer {
           nickname: (profile) => media.profile(profile)?.nickname ?? null,
         }),
       command: (cmd) => env.client.command(cmd),
+      hintNow: (request) => env.client.hintNow(request),
       subtitles: () => env.speechSettings?.().subtitles ?? true,
       rpcSpeechPrefixed: env.rpcSpeechPrefixed ?? false,
       modifiers: () => services.modifiers,
@@ -274,6 +275,7 @@ export class DialogueLayer {
     }
     const line = speechLineOf(event.type === 'shopkeeperQuote' ? withDealerTextKey(event) : event, routing);
     if (!line || (event.type === 'shopkeeperQuote' && line.text.length === 0)) return;
+    if (event.type === 'shopkeeperQuote' && this.shop.defersEntryQuote(event.dealer, event.quote, line)) return;
     const queued = this.presenter.enqueue(line);
     if (event.type === 'shopkeeperQuote') this.shop.lineQueued(queued.id, event.quote);
   }

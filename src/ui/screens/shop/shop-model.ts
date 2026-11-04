@@ -25,6 +25,7 @@ const MAX_REQUOTES = OFFER_SLOTS + 2;
 export const ShopQuoteId = {
   NOT_INTERESTED: 4,
   GIFT: 10,
+  FIRST_ENTERS: 11,
   IDLE_1: 12,
   IDLE_2: 13,
   ITEMS_CHOSEN_TO_TRADE: 14,
@@ -39,6 +40,7 @@ export const ShopQuoteId = {
   TOO_MUCH_MONEY: 23,
   STUFF_ON_TABLE: 26,
   CANT_AFFORD: 27,
+  REPAIR_DELAYED: 29,
   CAN_RESET_IMPRINTING: 31,
 } as const;
 

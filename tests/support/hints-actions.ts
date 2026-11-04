@@ -96,7 +96,10 @@ export function sampleInventoryHints(view: PlayerView, itemIndices: readonly num
     requests.push({ type: 'compatibleMercs', items: [item] });
   }
   requests.push({ type: 'compatibleMercs', items: itemIndices });
-  for (const item of itemIndices) requests.push({ type: 'compatibleItems', item, items: itemIndices });
+  for (const item of itemIndices) {
+    requests.push({ type: 'compatibleItems', item, items: itemIndices });
+    requests.push({ type: 'compatibleItems', item, items: itemIndices, rule: 'shop' });
+  }
   return requests;
 }
 

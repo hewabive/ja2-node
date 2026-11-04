@@ -13,17 +13,24 @@
 // @src evaluation quote's chance 100/60/25/10/0 by the time since the last), GetShopKeeperInterfaceUserInput (ESC = Done,
 // @src SPACE = the next merc), BuildDoneWhenTimeString, BuildRepairTimeString, BuildItemHelpTextString,
 // @src SetSkiFaceRegionHelpText, InitShopKeeperItemDescBox (the placement quirks), IsGunOrAmmoOfSameTypeSelected,
-// @src SetSkiCursor.
+// @src SetSkiCursor; HandleShopKeeperDialog (the entry quote 800 ms after entering, the wait restarted while the dealer
+// @src talks or the description box is up, dropped once the player asks to leave), CreateSkiInventorySlotMouseRegions
+// @src (the small face regions at SKI_SMALL_FACE_OFFSET_X: the repairman's stock and offer area, the player's offer
+// @src area) and SetSkiFaceRegionHelpText (the owner's nickname, MSG_DASH_S and the item's help text), the outline by
+// @src the compatibleItems hint's shop rule (2026-11-04).
 
 import { speechPathForLine } from '../../../content/audio/speech.ts';
 import type { AudioGap } from '../../../content/formats/gap.ts';
 import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
+import { NO_PROFILE } from '../../../content/narrative/npc-constants.ts';
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import { idiv } from '../../../core/int.ts';
+import type { CompatibleItems } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, PlayerView, ShopBoxView, ShopView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
+import type { HintAnswer } from '../../game-client.ts';
 import type { UiInputEvent } from '../../input/events.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
@@ -32,7 +39,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { LayoutView } from '../../layout/view.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiServices } from '../../services.ts';
-import { quoted, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
+import { quoted, type SpeechLineRequest, type SpeechPresenter, SpeechSurface } from '../../speech.ts';
 import { fontHeight } from '../../text/bitmap-font.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
@@ -85,6 +92,10 @@ export const SHOP_CONTRACT: ControllerContract = {
     dealerTips: 'list',
     dealerOfferTips: 'list',
     playerOfferTips: 'list',
+    repairs: 'boolean',
+    dealerFaceTips: 'list',
+    dealerOfferFaceTips: 'list',
+    playerOfferFaceTips: 'list',
   },
 };
 
@@ -129,9 +140,11 @@ const DESC_MIN_X_NEAR_FACE = 160;
 const DESC_OFFER_LEFT_X = 10;
 const DESC_OFFER_Y_NEAR_FACE = 140;
 const SCREEN_WIDTH_640 = 640;
-const GUN_CLASS = 'GUN';
-const AMMO_CLASS = 'AMMO';
-const ATTACHMENT_FLAG = 'ATTACHMENT';
+const ENTRY_QUOTE_DELAY_MS = 800;
+const ENTRY_QUOTES: ReadonlySet<number> = new Set([ShopQuoteId.FIRST_ENTERS, ShopQuoteId.REPAIR_DELAYED]);
+const MSG_DASH_S = 54;
+const SHOP_OUTLINE_RULE = 'shop';
+const AREAS: readonly Area[] = ['dealer', 'dealerOffer', 'playerOffer'];
 
 type Area = 'dealer' | 'dealerOffer' | 'playerOffer';
 
@@ -153,6 +166,7 @@ export interface ShopPanelHooks {
   readonly tileContext: (list: DrawList) => TileDrawContext;
   readonly helpText: (view: InventoryItemView) => string;
   readonly command: (cmd: CommandEnvelope) => Promise<{ readonly ok: boolean; readonly reason?: string; readonly data?: unknown }>;
+  readonly hintNow: (request: CommandEnvelope) => Promise<HintAnswer>;
   readonly subtitles: () => boolean;
   readonly rpcSpeechPrefixed: boolean;
   readonly modifiers: () => number;
@@ -167,6 +181,12 @@ interface Subtitle {
   readonly lineId: number;
   readonly box: MercTextBox;
   readonly region: MouseRegion;
+}
+
+interface EntryQuote {
+  readonly dealer: number;
+  readonly quote: number;
+  readonly line: SpeechLineRequest;
 }
 
 export function repairTimeString(text: UiTextService, minutes: number): string {
@@ -224,6 +244,10 @@ export class ShopPanel {
   #subtitle: Subtitle | null = null;
   #now = 0;
   #highlight: string | null = null;
+  #outlined: ReadonlySet<string> = new Set();
+  #outlineRequest = '';
+  #entry: EntryQuote | null = null;
+  #entryWaitSince = 0;
   readonly #quoteOfLine = new Map<number, number>();
   readonly #commonQuotesSaid = new Set<number>();
   #idleSince = 0;
@@ -307,6 +331,8 @@ export class ShopPanel {
     this.#open = true;
     this.#idleSince = now;
     this.#notEnoughSince = now;
+    this.#entryWaitSince = now;
+    if (this.#entry?.dealer !== shop.dealer) this.#entry = null;
     this.#randomQuoteDelay = RANDOM_QUOTE_DELAY_MS;
     this.#idleDue = this.#nextIdleDelay();
     this.#commonQuotesSaid.clear();
@@ -327,6 +353,7 @@ export class ShopPanel {
   hide(): void {
     if (!this.#open) return;
     this.#open = false;
+    if (this.#entry?.dealer === this.#dealer) this.#entry = null;
     this.#removeSubtitle();
     this.#hooks.setHeldCursor(null);
     this.#view.dispose();
@@ -335,6 +362,26 @@ export class ShopPanel {
 
   lineQueued(lineId: number, quote: number): void {
     this.#quoteOfLine.set(lineId, quote);
+  }
+
+  defersEntryQuote(dealer: number, quote: number, line: SpeechLineRequest): boolean {
+    if (!ENTRY_QUOTES.has(quote)) return false;
+    this.#entry = { dealer, quote, line };
+    return true;
+  }
+
+  #sayEntryQuote(now: number): void {
+    const entry = this.#entry;
+    if (!entry || entry.dealer !== this.#dealer) return;
+    if (this.talking() || this.#hooks.descriptionOpen()) {
+      this.#entryWaitSince = now;
+      return;
+    }
+    if (now - this.#entryWaitSince <= ENTRY_QUOTE_DELAY_MS) return;
+    this.#entry = null;
+    if (this.model.leaveRequested || this.model.reminded) return;
+    const line = this.#hooks.presenter.enqueue(entry.line);
+    this.#quoteOfLine.set(line.id, entry.quote);
   }
 
   #currentShopLine() {
@@ -398,8 +445,10 @@ export class ShopPanel {
         this.#hooks.services.images,
       );
     }
+    this.#sayEntryQuote(now);
     this.#syncSubtitle();
     this.#idleQuotes(now);
+    this.#syncOutline();
     const held = this.model.held;
     this.#hooks.setHeldCursor(held ? this.#hooks.item(held.kind === 'pocket' ? held.item : held.offer.item) : null);
     this.#controller.model = this.#modelValues();
@@ -582,25 +631,42 @@ export class ShopPanel {
 
   #itemAt(area: Area, slot: number): string | null {
     if (area === 'dealer') return this.model.dealerBox(slot)?.box.item ?? null;
-    if (area === 'dealerOffer') return this.model.dealerOffer[slot]?.item ?? null;
+    if (area === 'dealerOffer')
+      return (this.model.repairs ? this.model.quote?.repair[slot]?.item : this.model.dealerOffer[slot]?.item) ?? null;
     const occupant = this.model.playerOffer[slot];
     return occupant ? occupant.item : null;
   }
 
-  #matches(item: string): boolean {
+  #shownItems(): CatalogueItem[] {
+    const names = new Set<string>();
+    for (const area of AREAS)
+      for (let slot = 0; slot < (area === 'dealer' ? DEALER_SLOTS : OFFER_SLOTS); slot++) {
+        const name = this.#itemAt(area, slot);
+        if (name) names.add(name);
+      }
+    return [...names].flatMap((name) => this.#hooks.item(name) ?? []).sort((a, b) => a.index - b.index);
+  }
+
+  #syncOutline(): void {
     const highlighted = this.#highlight ? this.#hooks.item(this.#highlight) : null;
-    const other = this.#hooks.item(item);
-    if (!highlighted || !other) return false;
-    const calibre = (gun: CatalogueItem, ammo: CatalogueItem) =>
-      gun.weapon?.calibre !== null && gun.weapon?.calibre?.index === ammo.magazine?.calibre.index;
-    if (highlighted.class === AMMO_CLASS && other.class === GUN_CLASS && calibre(other, highlighted)) return true;
-    if (highlighted.class === GUN_CLASS && other.class === AMMO_CLASS && calibre(highlighted, other)) return true;
-    if (other.flags.includes(ATTACHMENT_FLAG)) return highlighted.weapon?.attachments.includes(other.name) ?? false;
-    return other.weapon?.attachments.includes(highlighted.name) ?? false;
+    const shown = highlighted ? this.#shownItems() : [];
+    const request = highlighted
+      ? { type: 'compatibleItems', rule: SHOP_OUTLINE_RULE, item: highlighted.index, items: shown.map((i) => i.index) }
+      : null;
+    const key = request ? JSON.stringify(request) : '';
+    if (key === this.#outlineRequest) return;
+    this.#outlineRequest = key;
+    this.#outlined = new Set();
+    if (!request) return;
+    void this.#hooks.hintNow(request).then((answer) => {
+      if (this.#outlineRequest !== key || !answer.ok) return;
+      const compatible = (answer.data as CompatibleItems).compatible;
+      this.#outlined = new Set(shown.filter((_, k) => compatible[k] === true).map((i) => i.name));
+    });
   }
 
   #outline(item: string) {
-    return this.#matches(item) ? MATCH_OUTLINE : null;
+    return this.#outlined.has(item) ? MATCH_OUTLINE : null;
   }
 
   #ownerFace(owner: number | undefined | null): number | null {
@@ -774,6 +840,26 @@ export class ShopPanel {
     return Array.from({ length: count }, (_, slot) => this.#tip(area, slot));
   }
 
+  #faceTips(area: Area, count: number): string[] {
+    return Array.from({ length: count }, (_, slot) => this.#faceTip(area, slot));
+  }
+
+  #faceTip(area: Area, slot: number): string {
+    const owner = this.#ownerAt(area, slot);
+    const nickname = owner === null || owner === NO_PROFILE ? null : this.#hooks.profile(owner)?.nickname;
+    if (nickname === null || nickname === undefined) return '';
+    return `${nickname}${this.#hooks.text.string('pMessageStrings', MSG_DASH_S) ?? ''} ${this.#tip(area, slot)}`;
+  }
+
+  #ownerAt(area: Area, slot: number): number | null {
+    if (area === 'dealer') return this.model.repairs ? (this.model.dealerBox(slot)?.box.owner ?? null) : null;
+    if (area === 'dealerOffer') return this.model.repairs ? (this.model.quote?.repair[slot]?.owner ?? null) : null;
+    const occupant = this.model.playerOffer[slot];
+    if (!occupant) return null;
+    if (occupant.kind === 'repaired') return occupant.owner;
+    return this.#hooks.view()?.soldiers.find((v) => v.id === occupant.soldier)?.profile ?? null;
+  }
+
   #tip(area: Area, slot: number): string {
     const help = this.#hooks.helpText;
     if (area === 'dealer') {
@@ -823,6 +909,10 @@ export class ShopPanel {
       dealerTips: this.#tips('dealer', DEALER_SLOTS),
       dealerOfferTips: this.#tips('dealerOffer', OFFER_SLOTS),
       playerOfferTips: this.#tips('playerOffer', OFFER_SLOTS),
+      repairs: this.model.repairs,
+      dealerFaceTips: this.#faceTips('dealer', DEALER_SLOTS),
+      dealerOfferFaceTips: this.#faceTips('dealerOffer', OFFER_SLOTS),
+      playerOfferFaceTips: this.#faceTips('playerOffer', OFFER_SLOTS),
     };
   }
 }

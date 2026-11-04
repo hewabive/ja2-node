@@ -597,7 +597,9 @@ records it goes through a conversation (deviation "Talking to dealers"). `trade`
 validated before anything changes; deliveries go in offer-area order, with drops VISIBLE at the receiver's tile.
 `quoteTrade` answers what pressing the button would show, `dealerCannotAfford` included, which the player learns only
 by pressing it (its `refusal` is the `data` a refused `trade` carries), and the shopkeeper quotes the trade would emit,
-which the client plays as items are offered (`EvaluateItemAddedToPlayersOfferArea`).
+which the client plays as items are offered (`EvaluateItemAddedToPlayersOfferArea`). Its `poa` lists the player's offer
+area as the trade leaves it, the parts a repairman splits off included. The `compatibleItems` hint with `rule: shop`
+names the items the shop screen outlines for the one under the pointer (`IsGunOrAmmoOfSameTypeSelected`).
 
 ### 8.14 Quests, meanwhiles and the ending
 

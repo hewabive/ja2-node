@@ -2,8 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10, STUB_DEALER } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import type { SimEvent } from '../../../sim/events.ts';
+import { createItem } from '../../../sim/items/object.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
+import { OFFER_SLOTS } from './shop-model.ts';
 import {
   dealerBoxDescriptionAt,
   dealerOfferDescriptionAt,
@@ -11,8 +14,22 @@ import {
   normalEvaluationChance,
   repairTimeString,
 } from './shop-panel.ts';
+import { MATCH_OUTLINE } from './shop-tile.ts';
 
 const LINE_STEP_MS = 250;
+const ENTRY_QUOTE_DELAY_MS = 800;
+const FIRST_ENTERS = 11;
+const MSG_DASH_S = 54;
+const SMALL_POCKETS = [11, 12, 13, 14] as const;
+const NO_FACE = {
+  eyes: [0, 0] as const,
+  mouth: [0, 0] as const,
+  blinkFrequency: 0,
+  expressionFrequency: 0,
+  smallFace: null,
+  aimBio: null,
+  mercBio: null,
+};
 const MAX_LINE_FRAMES = 400;
 const SETTLE_FRAMES = 6;
 const FONT_RED = 162;
@@ -60,6 +77,24 @@ function shopSnapshot(f: TacticalUiTest): string {
   return `${items.slice(start).map(line).join('\n')}\n`;
 }
 
+function hover(f: TacticalUiTest, id: string): void {
+  const { rect } = f.widget(id);
+  const x = rect.x + Math.floor(rect.width / 2);
+  const y = rect.y + Math.floor(rect.height / 2);
+  f.t.runtime.input({ kind: 'pointerMove', x, y, button: MouseButton.LEFT, buttons: 0, wheel: 0, modifiers: 0 });
+  f.t.frame();
+}
+
+function outlinedOfferSlots(f: TacticalUiTest): number[] {
+  const outlines = f
+    .draw()
+    .items.flatMap((i) => (i.kind === 'image' && i.effect?.kind === 'outline' && i.effect.color === MATCH_OUTLINE ? [i] : []));
+  return Array.from({ length: OFFER_SLOTS }, (_, slot) => slot).filter((slot) => {
+    const { rect } = f.widget(`shopPlayerOfferSlot${slot}`);
+    return outlines.some((i) => i.x >= rect.x && i.x < rect.x + rect.width && i.y >= rect.y && i.y < rect.y + rect.height);
+  });
+}
+
 function playOut(f: TacticalUiTest): void {
   let frames = 0;
   while (f.screen.dialogue.presenter.busy && frames++ < MAX_LINE_FRAMES) f.t.frame(LINE_STEP_MS);
@@ -72,9 +107,18 @@ async function settleShop(f: TacticalUiTest): Promise<void> {
   }
 }
 
-async function atTheDealer(seed: number): Promise<{ f: TacticalUiTest; merc: number }> {
+async function atTheDealer(seed: number, pockets: readonly string[] = []): Promise<{ f: TacticalUiTest; merc: number }> {
   const a10 = await campaignInA10(kit, seed);
   const merc = a10.mercs[0] ?? 0;
+  const tactical = a10.campaign.campaign.tactical?.state;
+  const carrier = tactical?.soldiers[merc];
+  if (!tactical || !carrier) throw new Error('no merc in tactical');
+  pockets.forEach((name, k) => {
+    const def = tactical.content.items.byName.get(name);
+    const slot = SMALL_POCKETS[k];
+    if (!def || slot === undefined) throw new Error(`cannot pocket ${name}`);
+    carrier.inv[slot] = createItem(tactical.content.items, def.index, 100);
+  });
   const dealer = a10.campaign.campaign.tactical?.state.soldiers.find((s) => s?.placed && s.profile === STUB_DEALER);
   if (!dealer) throw new Error('no stub dealer');
   const moved = a10.session.dispatch({ type: 'move', soldier: merc, to: dealer.gridNo + 2, mode: 'walk' });
@@ -199,6 +243,65 @@ describe('the shop screen at the stub dealer', () => {
     const gridNo = f.client.view.soldiers.find((s) => s.id === next)?.gridNo;
     expect(f.world.located.slice(located)).toEqual([gridNo]);
     expect(f.draw().items.filter((i) => i.kind === 'image' && i.asset === RADIO)).toEqual([]);
+  });
+
+  it('starts the entry quote 800 ms after entering, and waits on while the description box is up', async () => {
+    const { f } = await atTheDealer(4);
+    const shop = f.screen.dialogue.shop;
+    const tick = f.client.view.tick;
+    const entry = { type: 'shopkeeperQuote', dealer: STUB_DEALER, quote: FIRST_ENTERS, text: 'Welcome.', chars: 8, tick };
+    f.frames([{ tick, changed: [], removed: [], events: [entry as unknown as SimEvent] }]);
+    expect(shop.talking()).toBe(false);
+    await f.click('shopDealerSlot0', MouseButton.RIGHT);
+    expect(f.screen.description.open).toBe(true);
+    f.t.frame(ENTRY_QUOTE_DELAY_MS * 2);
+    f.t.frame();
+    expect(shop.talking()).toBe(false);
+    f.key('Escape');
+    expect(f.screen.description.open).toBe(false);
+    f.t.frame(ENTRY_QUOTE_DELAY_MS - 100);
+    expect(shop.talking()).toBe(false);
+    f.t.frame(200);
+    expect(shop.talking()).toBe(true);
+  });
+
+  it('outlines a detonator for TNT under the pointer, which the guns’ attachment lists leave out, and no grenade for a launcher', async () => {
+    const { f } = await atTheDealer(6, ['TNT', 'DETONATOR', 'GLAUNCHER', 'GL_HE_GRENADE']);
+    const shop = f.screen.dialogue.shop;
+    for (const slot of SMALL_POCKETS) {
+      await f.click(`slot${slot}`);
+      await settleShop(f);
+    }
+    expect(shop.model.playerOffer.slice(0, 4).map((o) => o?.item)).toEqual(['TNT', 'DETONATOR', 'GLAUNCHER', 'GL_HE_GRENADE']);
+    expect(outlinedOfferSlots(f)).toEqual([]);
+    hover(f, 'shopPlayerOfferSlot0');
+    await settleShop(f);
+    expect(outlinedOfferSlots(f)).toEqual([1]);
+    hover(f, 'shopPlayerOfferSlot1');
+    await settleShop(f);
+    expect(outlinedOfferSlots(f)).toEqual([0]);
+    hover(f, 'shopPlayerOfferSlot2');
+    await settleShop(f);
+    expect(outlinedOfferSlots(f)).toEqual([]);
+  });
+
+  it('names the owner of an offered pocket in the tooltip of its small face, and has no face regions over the stock', async () => {
+    const { f, merc } = await atTheDealer(6);
+    const pocket = (f.client.view.soldiers.find((s) => s.id === merc)?.inventory ?? []).find((i) => i.item === 'GLOCK_17');
+    if (!pocket) throw new Error('no pistol in a pocket');
+    await f.click(`slot${pocket.slot}`);
+    await settleShop(f);
+    const profile = f.client.view.soldiers.find((s) => s.id === merc)?.profile ?? -1;
+    const nickname = 'Ivan';
+    f.media.profiles.set(profile, { ...NO_FACE, id: profile, name: 'Ivan Dolvich', nickname, faceIndex: profile });
+    f.t.frame();
+    const dash = f.text.string('pMessageStrings', MSG_DASH_S) ?? '';
+    const help = f.widget('shopPlayerOfferSlot0').text ?? '';
+    expect(help.length).toBeGreaterThan(0);
+    expect(f.widget('shopPlayerOfferFace0').text).toBe(`${nickname}${dash} ${help}`);
+    expect(f.widget('shopPlayerOfferFace1').text).toBeNull();
+    expect(f.widget('shopDealerFace0')).toMatchObject({ visible: false, enabled: false });
+    expect(f.widget('shopDealerOfferFace0')).toMatchObject({ visible: false, enabled: false });
   });
 
   it('offers a pocket from the single merc panel, hatches it, and takes it back with a right click', async () => {

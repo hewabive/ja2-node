@@ -56,7 +56,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 | Screen | Hints and queries | Commands | Events and view parts that drive it |
 |---|---|---|---|
 | Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `selected`, `currentSquad`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), the message log |
-| Talk and shop | `quoteTrade` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), `observe.shop` |
+| Talk and shop | `quoteTrade`, `compatibleItems` with `rule: shop` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), `observe.shop` |
 | Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
 | Laptop | `hireCheck`, `aimQuote`, `bobbyRayQuote`, `impCheckCode`, `emailText` | `visitSite`, `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, `orderFlowers`, `closeLaptop`, … | `observe.laptop` |
@@ -109,7 +109,8 @@ face; the box, the face, Backspace and Esc cut it, opening the contract menu or 
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
-screen pockets").
+screen pockets"). The entry quote comes with `openShop`; the panel holds it the original's 800 ms (`ShopPanel`), and
+outlines what goes with the item under the pointer by the `compatibleItems` hint's shop rule.
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
 on the events that open a box (`pauseOn`: the update box's, `sectorLost` and `invasion`); menus, plotting, boxes and the
@@ -254,6 +255,6 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Tossing from the item
-cursor", "Auto-bandage", "Overhead map", "Team panel vehicle exit", "Vehicles as characters", "Shop screen details", "IME
-composition", "I.M.P. skill page and saved profiles".
+Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Auto-bandage", "Overhead
+map", "Team panel vehicle exit", "Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page
+and saved profiles".

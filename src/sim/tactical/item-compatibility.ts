@@ -4,7 +4,8 @@
 // @src CompatibleGunForAmmo, CompatibleItemForApplyingOnMerc, SoldierContainsAnyCompatibleStuff,
 // @src InternalHandleCompatibleAmmoUI (the slots outlined for an item in the cursor), HandleCompatibleAmmoUIForMapScreen
 // @src and HandleCompatibleAmmoUIForMapInventory (the same rule for a merc's slots and the sector inventory's page on the
-// @src map screen, 2026-11-03).
+// @src map screen, 2026-11-03); ShopKeeper_Interface.cc IsGunOrAmmoOfSameTypeSelected (the shop screen's outline: no
+// @src launchables, an attachment-flagged item tested only as the attachment, 2026-11-04).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -65,6 +66,14 @@ export function compatibleWithItem(items: ItemTable, candidate: number, testItem
   if (cls === ItemClass.GUN) return compatibleAmmoForGun(items, candidate, testItem);
   if (cls === ItemClass.AMMO) return compatibleGunForAmmo(items, candidate, testItem);
   return false;
+}
+
+export function gunOrAmmoOfSameType(items: ItemTable, candidate: number, highlighted: number): boolean {
+  const highlightedClass = itemClassOf(items, highlighted);
+  if (highlightedClass === ItemClass.AMMO && compatibleGunForAmmo(items, candidate, highlighted)) return true;
+  if (highlightedClass === ItemClass.GUN && compatibleAmmoForGun(items, candidate, highlighted)) return true;
+  const attachment = ((items.byIndex.get(candidate)?.flags ?? 0) & ItemFlags.ATTACHMENT) !== 0;
+  return attachment ? validAttachment(items, candidate, highlighted) : validAttachment(items, highlighted, candidate);
 }
 
 export function compatibleSlots(items: ItemTable, inv: Inventory, cursorItem: number): boolean[] {
