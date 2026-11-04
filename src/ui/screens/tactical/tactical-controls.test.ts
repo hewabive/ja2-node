@@ -3,6 +3,7 @@ import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
+  interactiveNodeKey,
   OFF_SCREEN_SLIDE,
   type TacticalUiKit,
   type TacticalUiTest,
@@ -54,6 +55,7 @@ const CABINET_HEIGHT = 40;
 const COMA_LIFE = 5;
 const CROW_HIT_LOCATION_STR = 105;
 const PICTURE_TOP_PX = 5;
+const CRATE_TILE = 7;
 const NOBODY = -1;
 const MALE = 0;
 const FEMALE = 1;
@@ -311,6 +313,46 @@ describe('the tactical input on the tactical screen', () => {
     await f.settle(8);
     expect(f.screen.controls.input.uiCursor).toMatch(/FIRSTAID/);
     expect([f.screen.controls.input.hover.target?.id, f.world.hovered]).toEqual([0, 0]);
+  });
+
+  it('cycles the soldiers stacked under the pointer with n, through nobody on the tile (CycleSoldierFindStack)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.display = { ...f.display, smartCursor: true };
+    const front = merc(f, 0);
+    const t = tacticalOf(f.session).state;
+    const mate = t.soldiers.find((v) => v?.id === 1);
+    if (!mate) throw new Error('no merc 1');
+    setSoldierPosition(t, mate, front.gridNo + WORLD_COLS + 1);
+    f.client.refresh();
+    hover(f, front.gridNo);
+    await f.settle(4);
+    const targets = [f.screen.controls.input.hover.target?.id ?? null];
+    for (let press = 0; press < 3; press++) {
+      f.key('n');
+      await f.settle();
+      targets.push(f.screen.controls.input.hover.target?.id ?? null);
+    }
+    expect(targets).toEqual([1, null, 0, 1]);
+    expect(f.world.hovered).toBe(1);
+  });
+
+  it('opens the openable picture under the pointer that n cycles to, the lowest first (CycleIntTileFindStack)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    const near = s.gridNo + 3;
+    const far = near - WORLD_COLS;
+    const at = f.world.pickPoint(near);
+    const crate = (gridNo: number, bottom: number) => ({ gridNo, index: 0, tile: CRATE_TILE, bottom, door: false, open: false });
+    f.world.interactiveNodes = () => [crate(far, at.y + 20), crate(near, at.y + 30)];
+    for (const node of f.world.interactiveNodes(at.x, at.y))
+      f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: node.gridNo, door: false, switch: false, open: false });
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: near, action: 'open' });
+    f.key('n');
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: far, action: 'open' });
   });
 
   it('moves the view to the miss of our team gun bullet with show misses, on the ground or off the map', async () => {

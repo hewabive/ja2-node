@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox } from '../environment.ts';
-import { findSoldier, PICK_ANYONE, type PickRules, type SoldierScreenRects } from './targets.ts';
+import { findSoldier, PICK_ANYONE, type PickRules, type SoldierScreenRects, SoldierStack } from './targets.ts';
 
 const POINTER_TILE = 500;
 const OTHER_TILE = 501;
@@ -91,5 +91,68 @@ describe('the soldier under the pointer (FindSoldier)', () => {
 
   it('finds no soldier without a picture shown', () => {
     expect(findSoldier([soldier(1, { gridNo: POINTER_TILE })], at(110, 60), rects({}), anyone)).toBeNull();
+  });
+});
+
+describe('the soldier stack under the pointer (FindSoldier with FIND_SOLDIER_BEGINSTACK, CycleSoldierFindStack)', () => {
+  const stacked = rects({
+    1: { x: 100, y: 50, width: 20, height: 40 },
+    2: { x: 105, y: 60, width: 20, height: 40 },
+    3: { x: 110, y: 55, width: 20, height: 40 },
+  });
+  const crowd = [soldier(1), soldier(2), soldier(3)];
+  const pointer = at(112, 70);
+
+  function stackOver(soldiers = crowd): SoldierStack {
+    const stack = new SoldierStack();
+    stack.begin(soldiers, pointer, stacked, anyone);
+    return stack;
+  }
+
+  it('cycles from the one after the lowest rectangle to the last, then to nobody on the tile, then from the first', () => {
+    const stack = stackOver();
+    const cycled: (number | null)[] = [];
+    const kinds: string[] = [];
+    for (let press = 0; press < 5; press++) {
+      kinds.push(stack.cycle(POINTER_TILE));
+      cycled.push(stack.current);
+    }
+    expect(cycled).toEqual([3, null, 1, 2, 3]);
+    expect(kinds).toEqual(['soldier', 'ground', 'soldier', 'soldier', 'soldier']);
+  });
+
+  it('makes no stack where nobody is under the pointer', () => {
+    const stack = stackOver([soldier(4)]);
+    expect([stack.handling, stack.cycle(POINTER_TILE)]).toEqual([false, 'none']);
+  });
+
+  it('keeps the stacked soldier while the pointer is on him, though another reaches lower', () => {
+    const stack = stackOver();
+    stack.cycle(POINTER_TILE);
+    stack.cycle(POINTER_TILE);
+    stack.cycle(POINTER_TILE);
+    expect(findSoldier(crowd, pointer, stacked, anyone, stack)?.id).toBe(1);
+    expect(findSoldier(crowd, pointer, stacked, anyone)?.id).toBe(2);
+  });
+
+  it('finds nobody the first time the pointer is off the stacked soldier, and the stack ends then', () => {
+    const stack = stackOver();
+    stack.cycle(POINTER_TILE);
+    const offTheThird = at(106, 92);
+    expect(findSoldier(crowd, offTheThird, stacked, anyone, stack)).toBeNull();
+    stack.endUnlessHeldAt(POINTER_TILE);
+    expect(stack.handling).toBe(false);
+    expect(findSoldier(crowd, offTheThird, stacked, anyone, stack)?.id).toBe(2);
+  });
+
+  it('keeps nobody while the stack is on the ground of its tile, and ends it on another tile', () => {
+    const stack = stackOver();
+    stack.cycle(POINTER_TILE);
+    stack.cycle(POINTER_TILE);
+    expect(findSoldier(crowd, pointer, stacked, anyone, stack)).toBeNull();
+    stack.endUnlessHeldAt(POINTER_TILE);
+    expect(stack.handling).toBe(true);
+    stack.endUnlessHeldAt(OTHER_TILE);
+    expect(stack.handling).toBe(false);
   });
 });

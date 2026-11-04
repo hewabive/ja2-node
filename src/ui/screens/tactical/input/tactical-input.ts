@@ -33,7 +33,9 @@
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
 // @src brought by the pointer over an enemy, 2026-11-01); Interface_Items.cc DrawItemTileCursor's frame (the item tile
 // @src cursor while an item is held over the map, its own PATHFINDCOUNTER rest), Turn_Based_Input.cc GetTBMouseButtonInput
-// @src and Real_Time_Input.cc GetRTMouseButtonInput (the right click with an item held, 2026-11-03).
+// @src and Real_Time_Input.cc GetRTMouseButtonInput (the right click with an item held, 2026-11-03); Turn_Based_Input.cc
+// @src HandleModNone 'n' (the soldier stack under the pointer, else the interactive tile stack, 2026-11-04);
+// @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -79,7 +81,16 @@ import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
 import { InteractiveTileCheck } from './interactive-tiles.ts';
 import { ITEM_AP_OFFSET, ItemTileCursor, type ItemTileText } from './item-tile-cursor.ts';
 import { PointerQueue } from './pointer-queue.ts';
-import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, type PickRules, relativeBodyPart, soldierFindFlags } from './targets.ts';
+import {
+  BodyPart,
+  FindFlag,
+  findSoldier,
+  hostileToOurTeam,
+  type PickRules,
+  relativeBodyPart,
+  SoldierStack,
+  soldierFindFlags,
+} from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
 import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
 import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selectionMarker, showMoveGridMarker } from './world-markers.ts';
@@ -187,6 +198,7 @@ export class TacticalInput {
   readonly #cycledModes = new Map<number, MoveModeName>();
   readonly #aims = new Map<number, AimState>();
   readonly multiSelected = new Set<number>();
+  readonly soldierStack = new SoldierStack();
   readonly #interactiveTiles = new InteractiveTileCheck();
   #now = 0;
   #mode: UiMode = UiMode.IDLE_MODE;
@@ -569,8 +581,37 @@ export class TacticalInput {
     const soldiers = view?.soldiers ?? [];
     const target = shift
       ? (soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null)
-      : findSoldier(soldiers, { x, y, gridNo, level }, env.world, this.pickRules());
-    this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, view) : 0 };
+      : findSoldier(soldiers, { x, y, gridNo, level }, env.world, this.pickRules(), this.soldierStack);
+    if (!target) this.soldierStack.endUnlessHeldAt(gridNo);
+    this.#setHover(gridNo, target);
+  }
+
+  #setHover(gridNo: number, target: SoldierView | null): void {
+    this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, this.#view()) : 0 };
+  }
+
+  cycleStack(): void {
+    const mapPos = this.#mapPos();
+    if (mapPos === null) return;
+    if (this.#cycleSoldierStack(mapPos)) return;
+    this.#interactiveTiles.cycle();
+    this.#plotNew = true;
+  }
+
+  #cycleSoldierStack(mapPos: number): boolean {
+    const env = this.#env();
+    const stack = this.soldierStack;
+    if (!stack.handling) {
+      const at = { x: env.runtime.regions.mouseX, y: env.runtime.regions.mouseY, gridNo: mapPos, level: this.#host.interfaceLevel() };
+      stack.begin(this.#view()?.soldiers ?? [], at, env.world, this.pickRules());
+    }
+    const cycled = stack.cycle(mapPos);
+    if (cycled === 'none') return false;
+    if (cycled === 'ground') this.#actionChangeByMouseOver = false;
+    const target = soldierById(this.#view(), stack.current);
+    this.#setHover(mapPos, target);
+    if (target) this.#targetSoldier = target.id;
+    return true;
   }
 
   resetInteractiveTiles(): void {

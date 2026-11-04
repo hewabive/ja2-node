@@ -888,7 +888,7 @@ export class TacticalControls {
       mapScreen: () => env.flow.mapScreen(),
       help: () => env.flow.help?.(),
       gameSettings: () => void this.#gameSettings(),
-      cycleStack: () => undefined,
+      cycleStack: () => this.input.cycleStack(),
       clearMessages: (queue) => screen.clearMessages(queue),
       swapHands: () => {
         const sel = screen.selected();

@@ -5,7 +5,9 @@
 // @src FindSoldier with FINDSOLDIERSAMELEVEL (the soldiers on the interface level whose screen rectangle, edges
 // @src included, holds the pointer or who stand on its tile, the selected merc passed over in the action modes unless
 // @src his action cursor is the aid cursor, a vehicle only by his picture, the one whose rectangle reaches lowest on
-// @src screen, the first of a tie); TileEngine/Isometric_Utils.cc IsPointInScreenRect;
+// @src screen, the first of a tie); FindSoldier with FIND_SOLDIER_BEGINSTACK and the stack it keeps (the stacked
+// @src soldier while the pointer is on him, none while the stack is on the ground of its tile), CycleSoldierFindStack
+// @src (2026-11-04); TileEngine/Isometric_Utils.cc IsPointInScreenRect;
 // @src Soldier_Macros.h IsHostileToOurTeam; Overhead.cc OK_INTERRUPT_MERC.
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
@@ -61,16 +63,19 @@ function inScreenRect(x: number, y: number, box: ScreenBox): boolean {
   return box.x <= x && x <= box.x + box.width && box.y <= y && y <= box.y + box.height;
 }
 
-export function findSoldier(
+interface PointedSoldier {
+  readonly soldier: SoldierView;
+  readonly bottom: number;
+}
+
+function* pointedSoldiers(
   soldiers: readonly SoldierView[],
   at: PointerSpot,
   world: SoldierScreenRects,
   rules: PickRules,
-): SoldierView | null {
+): Generator<PointedSoldier> {
   const x = Math.floor(at.x);
   const y = Math.floor(at.y);
-  let best: SoldierView | null = null;
-  let lowest = NO_SCREEN_Y;
   for (const s of soldiers) {
     if (s.level !== at.level) continue;
     const box = world.soldierBox(s.id);
@@ -79,10 +84,79 @@ export function findSoldier(
     if (!inRect && s.gridNo !== at.gridNo) continue;
     if (rules.passedOver(s)) continue;
     if (isVehicleBody(s) && !world.soldierPictureAt(s.id, x, y)) continue;
-    const bottom = box.y + box.height;
+    yield { soldier: s, bottom: box.y + box.height };
+  }
+}
+
+export type StackCycle = 'soldier' | 'ground' | 'none';
+
+export class SoldierStack {
+  readonly #soldiers: number[] = [];
+  #count = 0;
+  #current = 0;
+  #handling = false;
+  #onGround = false;
+  #groundGridNo = -1;
+
+  get handling(): boolean {
+    return this.#handling;
+  }
+
+  get current(): number | null {
+    return this.#handling && !this.#onGround ? (this.#soldiers[this.#current] ?? null) : null;
+  }
+
+  begin(soldiers: readonly SoldierView[], at: PointerSpot, world: SoldierScreenRects, rules: PickRules): void {
+    this.#count = 0;
+    this.#onGround = false;
+    let lowest = NO_SCREEN_Y;
+    for (const { soldier, bottom } of pointedSoldiers(soldiers, at, world, rules)) {
+      this.#handling = true;
+      this.#soldiers[this.#count++] = soldier.id;
+      if (lowest < bottom) {
+        lowest = bottom;
+        this.#current = this.#count - 1;
+      }
+    }
+  }
+
+  cycle(gridNo: number): StackCycle {
+    if (!this.#handling) return 'none';
+    if (!this.#onGround) this.#current++;
+    if (this.#current === this.#count) {
+      if (!this.#onGround) {
+        this.#onGround = true;
+        this.#groundGridNo = gridNo;
+        return 'ground';
+      }
+      this.#current = 0;
+      this.#onGround = false;
+    }
+    return 'soldier';
+  }
+
+  endUnlessHeldAt(gridNo: number): void {
+    if (this.#handling && (!this.#onGround || this.#groundGridNo !== gridNo)) this.#handling = false;
+  }
+}
+
+export function findSoldier(
+  soldiers: readonly SoldierView[],
+  at: PointerSpot,
+  world: SoldierScreenRects,
+  rules: PickRules,
+  stack: SoldierStack | null = null,
+): SoldierView | null {
+  let best: SoldierView | null = null;
+  let lowest = NO_SCREEN_Y;
+  for (const { soldier, bottom } of pointedSoldiers(soldiers, at, world, rules)) {
+    if (stack?.handling) {
+      if (stack.current === soldier.id) return soldier;
+      continue;
+    }
     if (lowest < bottom) {
       lowest = bottom;
-      best = s;
+      best = soldier;
     }
   }
   return best;

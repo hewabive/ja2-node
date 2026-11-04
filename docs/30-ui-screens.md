@@ -77,10 +77,11 @@ hide, so a menu line the original shades because of an unseen enemy is enabled a
 **Tactical input is the original's state machine, ported as client code.** `tactical/input/` keeps the modes and UI
 events of `Handle_UI.cc` with their names, the real-time and turn-based button queries, the menu modes and the cursor
 choice; `TacticalControls` joins it with the hotkeys (`hotkeys.ts`, after `GetKeyboardInput`), the menus, scrolling and
-the input lock. The dialogue layer (`talk/dialogue-layer.ts`) takes input before it and draws after it. The
-interactive tile is the openable structure whose picture holds the pointer among the tiles the original's dynamic
-render pass sweeps (`src/app/world/interactive-nodes.ts`), looked for again only as the pointer or the camera moves
-(`input/interactive-tiles.ts`).
+the input lock. The dialogue layer (`talk/dialogue-layer.ts`) takes input before it and draws after it. The soldier
+under the pointer is `FindSoldier`'s, with the stack n cycles (`input/targets.ts`); the interactive tile is the
+openable structure whose picture holds the pointer among the tiles the original's dynamic render pass sweeps
+(`src/app/world/interactive-nodes.ts`), looked for again only as the pointer or the camera moves, with the stack n
+cycles when no soldier stack is under the pointer (`input/interactive-tiles.ts`).
 
 **The input lock follows the server, not the clock.** The enemy's turn locks input; on our turn in combat it locks
 while the view says `combat.uiLocked`, while a received frame not yet played back locks the interface or passes the
@@ -216,6 +217,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | With an item held and an enemy in the loaded sector the map screen's info character changes to nobody, not even back to the merc the item came from (`Strategic/Map_Screen_Interface.cc:1457`) | `src/sim/campaign/item-passing.test.ts` "passes nothing to anybody while the loaded sector holds enemies …" |
 | On the map screen a right click on a key of the ring shows no description, as its call is commented out, while one on an empty position closes the ring (`Tactical/Interface_Panels.cc:3572`) | `map/map-inventory.test.ts` "takes keys off the ring of a merc in no loaded sector …" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
+| With n cycling a soldier stack, the pointer moving off the stacked soldier finds nobody once, and the stack ends then (`Tactical/Soldier_Find.cc:232`) | `tactical/input/targets.test.ts` "finds nobody the first time the pointer is off the stacked soldier …" |
 | An interactive tile's picture is tested one pixel left of the pointer in a rectangle ten pixels below where it is drawn, raised by the tile's height even for a picture drawn without it (`TileEngine/Interactive_Tiles.cc:290`) | `src/app/world/interactive-nodes.test.ts` "tests the picture one pixel left of the pointer …", "raises the rectangle by the tile's height …" |
 | The interactive tile is looked for again only when the pointer or the camera moves: the door rules of the UI mode, and the reset at a selection, a level change or a structure an explosion changes, hold until then; a picture whose rectangle reaches no lower than the screen top is never the one found, and the one found before stays (`TileEngine/Interactive_Tiles.cc:603`, `:343`) | `tactical/input/interactive-tiles.test.ts` "checks again only when the pointer or the render centre moves …", "keeps no node after a reset …", "never takes a node …" |
 | A soldier's screen rectangle keeps the frame his animation started with while later frames show, and a turn keeps the frame shown in the facing before it, as `EVENT_SetSoldierDirection` converts no frame (`Tactical/Soldier_Control.cc:3992`); a vehicle's current frame is tested from the bottom of that rectangle up | `src/app/world/soldier-bounding-boxes.test.ts` "takes the first frame of his animation as it starts …", "keeps the frame shown at a turn in the facing before it …"; `src/app/tactical/world-presenter.test.ts` "tests a vehicle's current frame from the bottom of his rectangle up …" |

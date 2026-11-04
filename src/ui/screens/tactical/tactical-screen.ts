@@ -984,7 +984,8 @@ export class TacticalScreen implements Screen {
     const gridNo = this.#env.world.gridNoAt(x, y);
     if (gridNo === null) return null;
     const at = { x, y, gridNo, level: this.#interfaceLevel };
-    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, this.controls.input.pickRules())?.id ?? null;
+    const input = this.controls.input;
+    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, input.pickRules(), input.soldierStack)?.id ?? null;
   }
 
   #updateFaces(): void {
