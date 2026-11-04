@@ -28,7 +28,9 @@
 // @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
 // @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
 // @src when the merc's level has none; the items of one z-level, drawn in the world or not, 2026-11-02); Overhead_Map.cc
-// @src RenderOverheadOverlays (a dot for every visible item, drawn in the world or not, 2026-11-02);
+// @src RenderOverheadOverlays (a dot for every visible item, drawn in the world or not, 2026-11-02), GoIntoOverheadMap
+// @src and KillOverheadMap (the team panel, DisableTacticalTeamPanelButtons on and off), HandleOverheadMap (its item
+// @src lists light the faces of the mercs with compatible stuff instead of the world's, 2026-11-04);
 // @src src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump);
@@ -183,6 +185,7 @@ export interface ControlsScreen {
   dismissFeedback(): boolean;
   closeCivQuote(): boolean;
   holdDialogue(held: boolean): void;
+  disableTeamPanelButtons(disabled: boolean): void;
   radarBlink(): boolean;
 }
 
@@ -244,9 +247,18 @@ export class TacticalControls {
       selected: () => screen.selected()?.id ?? null,
       blink: () => screen.radarBlink(),
       centerOn: (gridNo) => env.world.centerOn(gridNo),
-      opened: () => screen.holdDialogue(true),
-      closed: () => screen.holdDialogue(false),
+      opened: () => {
+        env.world.redrawOverheadMap();
+        screen.requestTeamPanel();
+        screen.disableTeamPanelButtons(true);
+        screen.holdDialogue(true);
+      },
+      closed: () => {
+        screen.disableTeamPanelButtons(false);
+        screen.holdDialogue(false);
+      },
       exitGame: () => env.flow.exitGame(),
+      drawPoolList: (list, items, x, y) => this.drawItemPoolList(list, items, x, y),
     });
     this.input = new TacticalInput(this.#inputHost());
     this.#missCamera = new MissCamera({
@@ -880,10 +892,7 @@ export class TacticalControls {
       },
       swapPlaces: () => this.#swapPlaces(),
       stealth: (squad) => this.stealth(squad),
-      overheadMap: () => {
-        screen.requestTeamPanel();
-        this.overhead.show();
-      },
+      overheadMap: () => this.overhead.show(),
       continueMove: () => this.#continueMove(),
       mapScreen: () => env.flow.mapScreen(),
       help: () => env.flow.help?.(),
@@ -947,6 +956,7 @@ export class TacticalControls {
   }
 
   poolListItems(): readonly ItemView[] {
+    if (this.overhead.open) return this.overhead.poolListItems();
     return this.poolList()?.items ?? [];
   }
 

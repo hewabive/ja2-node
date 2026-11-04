@@ -42,7 +42,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
 | `content/world/zstrip.ts`, `shading.ts`, `render-bounds.ts` | ZStripInfo, the shade palettes, the scroll rectangle and absolute screen frame (shared with the simulation) |
 | `app/world/` | Loading, client lighting, the soldier scene, corpses and smoke (`world-effects.ts`), crow shadows (`crow-shadows.ts`), the roof marker (`roof-markers.ts`), misses, trails and explosions (`effect-animations.ts`), bullets and thrown objects (`bullet-nodes.ts`), the radar geometry (`radar.ts`), display options |
-| `app/tactical/overhead-map.ts` | The overhead map, composed once per sector from the small tiles |
+| `app/tactical/overhead-map.ts` | The overhead map, composed from the small tiles at every entry from the world as last drawn: tile changes, room reveals, open doors and the shade field (`30`) |
 | `devtools/map-viewer/` | A developer page that renders any map with picking |
 
 Tile types, full base tiles and shadow buddies: `data/tables/tiles.json`; tile flags: `content/world/tile-database.ts`.
@@ -168,6 +168,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
 
-Not ported: gaps "Overhead map", "Room reveal at a load", "No-burn tiles". Other deviations of this
+Not ported: gaps "Room reveal at a load", "No-burn tiles". Other deviations of this
 domain: "Sweep window", "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall
 translucency template", "Bullets of unseen shooters", "Soldier frame on turning".

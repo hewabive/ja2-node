@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { AnimationTables } from '../../content/anim/tables.ts';
-import { gridNo, WORLD_COLS } from '../../content/world/grid.ts';
+import { gridNo, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import type { LevelLayer } from '../../content/world/level.ts';
 import type { PlayerView, SoldierView } from '../../protocol/view.ts';
 import type { SoldierSprite } from '../../render/world/dynamic-scene.ts';
 import type { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import type { BoundingBox } from '../world/soldier-bounding-boxes.ts';
 import type { TacticalWorldView } from '../world/tactical-world-view.ts';
+import type { LoadedWorld } from '../world/world-loader.ts';
+import { OverheadTiles } from './overhead-map.ts';
 import { type PresenterSources, TacticalWorldPresenter } from './world-presenter.ts';
 
 const MAP_CENTRE = gridNo(80, 80);
@@ -93,5 +96,73 @@ describe('the soldier under the pointer (FindSoldier, GetSoldierScreenRect)', ()
     const topRowOfTheFrame = box.y + box.height - 2;
     expect(presenter.soldierPictureAt(SOLDIER, box.x + 3, box.y)).toBe(false);
     expect([1, 2, 3, 4].map((dx) => presenter.soldierPictureAt(SOLDIER, box.x + dx, topRowOfTheFrame))).toEqual([false, false, true, true]);
+  });
+});
+
+function emptyLayer(): LevelLayer {
+  return { offsets: new Uint32Array(WORLD_MAX + 1), tiles: new Uint16Array(0) };
+}
+
+interface OverheadFixture {
+  readonly presenter: TacticalWorldPresenter;
+  readonly added: string[];
+  readonly removed: string[];
+  readonly reads: () => number;
+}
+
+function overheadPresenter(): OverheadFixture {
+  const layers = {
+    land: emptyLayer(),
+    objects: emptyLayer(),
+    shadows: emptyLayer(),
+    structs: emptyLayer(),
+    roofs: emptyLayer(),
+    onRoof: emptyLayer(),
+  };
+  const level = { heights: new Uint8Array(WORLD_MAX), layers };
+  const loaded = {
+    mapPath: 'maps/test.dat',
+    map: { info: { restrictedScrollId: 0, centerGridNo: MAP_CENTRE }, lights: null },
+    level,
+    tiles: [],
+    surfaces: [],
+    prepared: { renderHeight: 0 },
+  } as unknown as LoadedWorld;
+  const shade = { land: new Uint8Array(WORLD_MAX), roof: new Uint8Array(WORLD_MAX) };
+  const world = { world: loaded, shade } as unknown as TacticalWorldView;
+  let reads = 0;
+  const renderer = {
+    get shownWorld() {
+      reads++;
+      const reveal = { nodeFlags: () => 0, ceilings: () => [] };
+      return {
+        level,
+        prepared: { landStart: new Int8Array(WORLD_MAX).fill(-1), shadows: emptyLayer() },
+        reveal,
+        openStructures: new Set(),
+      };
+    },
+  } as unknown as WorldRenderer;
+  const added: string[] = [];
+  const removed: string[] = [];
+  const assets = { addRgb: (key: string) => added.push(key), remove: (key: string) => removed.push(key) } as unknown as UiAssets;
+  const presenter = new TacticalWorldPresenter(world, renderer, assets, {} as AnimationTables, {} as PresenterSources, null);
+  presenter.setOverheadTiles(async () => new OverheadTiles(loaded, []));
+  return { presenter, added, removed, reads: () => reads };
+}
+
+describe('the overhead map picture (GoIntoOverheadMap, gfOverheadMapDirty)', () => {
+  it('is composed again from the world as last drawn at every entry, and only then', async () => {
+    const { presenter, added, removed, reads } = overheadPresenter();
+    expect(presenter.overheadMap()).toBeNull();
+    presenter.redrawOverheadMap();
+    await Promise.resolve();
+    const first = presenter.overheadMap();
+    expect(first).not.toBeNull();
+    expect(presenter.overheadMap()).toBe(first);
+    presenter.redrawOverheadMap();
+    const second = presenter.overheadMap();
+    expect(second).not.toBe(first);
+    expect([added, removed, reads()]).toEqual([['overhead:maps/test.dat:1', 'overhead:maps/test.dat:2'], ['overhead:maps/test.dat:1'], 2]);
   });
 });

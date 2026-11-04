@@ -56,7 +56,7 @@ const NAMED_CIVILIAN_ID = 151;
 const CROW_TILE = 100 * 160 + 100;
 const NAMED_CIVILIAN_TILE = 104 * 160 + 104;
 const NAMED_CIVILIAN_DOT = '#5555ff';
-const OVERHEAD_MAP = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+const OVERHEAD_MAP = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
 const GROUND_PICTURE = { path: 'tiles/ground-item.sti', frame: 3 };
 const MSG_DROP = 36;
 const PATHFIND_REST_MS = 100;

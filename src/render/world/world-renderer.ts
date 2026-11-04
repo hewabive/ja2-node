@@ -108,6 +108,8 @@ export interface WorldFrameInput {
 
 export interface ShownWorld {
   readonly level: Level;
+  readonly prepared: LevelRenderData;
+  readonly reveal: RevealState;
   readonly revealed: Uint8Array;
   readonly openStructures: ReadonlySet<number>;
 }
@@ -469,7 +471,15 @@ export class WorldRenderer {
 
   get shownWorld(): ShownWorld | null {
     const s = this.#scene;
-    return s ? { level: s.world.level, revealed: s.reveal.revealed, openStructures: s.scene.state.openStructures } : null;
+    return s
+      ? {
+          level: s.world.level,
+          prepared: s.world.prepared,
+          reveal: s.reveal,
+          revealed: s.reveal.revealed,
+          openStructures: s.scene.state.openStructures,
+        }
+      : null;
   }
 
   get placedSoldiers(): readonly PlacedSoldier[] {

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel (End turn on our turn in combat, Map unless engaged in a
-// @src conversation, everything off while the item pointer or the pickup menu disables the panel buttons), RenderTEAMPanel
+// @src conversation, everything off while gfDisableTacticalPanelButtons is set), RenderTEAMPanel
 // @src (the fast help of the hands: GetHelpTextForItem, DRIVER_POPUPTEXT, EXIT_VEHICLE_POPUPTEXT), MercFacePanelCallback*
 // @src (left: locate or select, right: the SM panel unless dead, an EPC or in a vehicle), EnemyIndicatorClickCallback,
 // @src TMClickFirstHandInvCallbackSecondary and TMClickSecondHandInvCallbackSecondary (swap hands, not the robot).

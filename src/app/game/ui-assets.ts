@@ -154,6 +154,11 @@ export class UiAssets implements ImageCatalog {
     this.#images.set(key, imageInfo(sti));
   }
 
+  remove(key: AssetKey): void {
+    if (!this.#images.delete(key)) return;
+    this.#renderer.removeImage(key);
+  }
+
   async font(id: FontId, table: GlyphTable): Promise<BitmapFont | null> {
     const known = this.#fonts.get(id);
     if (known) return known;

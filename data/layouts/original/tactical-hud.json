@@ -143,6 +143,8 @@
       "priority": "HIGHEST",
       "enabled": "radarEnabled",
       "down": "radarPress",
+      "primary": "radarPrimary",
+      "secondary": "radarSecondary",
       "hover": "radarHover"
     },
     {

@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Game_Clock.cc UpdateGameClockGlobals ("{day string} {day}, {hh:02}:{mm:02}"), RenderClock
 // @src (pPausedGameText[0] while the player paused), CreateMouseRegionForPauseOfClock (pPausedGameText 1 when paused,
 // @src else 2), HandlePlayerPauseUnPauseOfGame (refused while engaged in a conversation); src/game/TileEngine/Radar_Screen.cc
-// @src RadarRegionMoveCallback, RadarRegionButtonCallbackPrimary (the camera follows a press and a drag), ToggleRadarScreenRender.
+// @src RadarRegionMoveCallback (a drag moves the camera), RadarRegionButtonCallbackPrimary (on the release),
+// @src RadarRegionButtonCallbackSecondary, ToggleRadarScreenRender.
 
 import type { ClockView } from '../../../protocol/view.ts';
 import type { ControllerContract, LayoutController } from '../../layout/controller.ts';
@@ -14,7 +15,17 @@ export const HUD_SCREEN = 'tacticalHud';
 
 export const HUD_CONTRACT: ControllerContract = {
   id: HUD_SCREEN,
-  actions: { radarPress: {}, radarHover: { args: 1 }, togglePause: {}, options: {}, saveGame: {}, loadGame: {}, exitGame: {} },
+  actions: {
+    radarPress: {},
+    radarPrimary: {},
+    radarSecondary: {},
+    radarHover: { args: 1 },
+    togglePause: {},
+    options: {},
+    saveGame: {},
+    loadGame: {},
+    exitGame: {},
+  },
   bindings: {
     radarEnabled: 'boolean',
     radarShown: 'boolean',
@@ -64,6 +75,8 @@ export function sectorOfMap(mapPath: string | null): string {
 
 export interface HudActions {
   radarPress(): void;
+  radarPrimary(): void;
+  radarSecondary(): void;
   radarHover(on: boolean): void;
   togglePause(): void;
   options(): void;
@@ -87,6 +100,8 @@ export class HudController implements LayoutController {
 
   invoke(action: string, args: readonly number[]): void {
     if (action === 'radarPress') this.#actions.radarPress();
+    else if (action === 'radarPrimary') this.#actions.radarPrimary();
+    else if (action === 'radarSecondary') this.#actions.radarSecondary();
     else if (action === 'radarHover') this.#actions.radarHover(args[0] === 1);
     else if (action === 'togglePause') this.#actions.togglePause();
     else if (action === 'options') this.#actions.options();

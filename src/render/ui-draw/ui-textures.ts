@@ -84,6 +84,12 @@ export class UiTextures {
     this.#images.set(key, { kind: 'indexed', palette: sti.palette, frames: this.#frames(sti), rows: new Map() });
   }
 
+  removeImage(key: AssetKey): void {
+    const image = this.#images.get(key);
+    if (image?.kind === 'rgb') this.#gl.deleteTexture(image.texture);
+    this.#images.delete(key);
+  }
+
   addFont(id: FontId, sti: Sti): void {
     if (this.#fonts.has(id)) return;
     if (sti.kind !== 'indexed') throw new Error(`font ${id} is not an indexed STI`);

@@ -14,7 +14,9 @@
 // @src src/game/Tactical/Soldier_Find.cc GetSoldierScreenRect, GetSoldierScreenPos (the soldier's rectangle from the
 // @src current render centre, his position now and his bounding box); FindSoldier with
 // @src src/game/TileEngine/Interactive_Tiles.cc CheckVideoObjectScreenCoordinateInData (a vehicle's current frame tested
-// @src one pixel left of the pointer, its rows counted up from the bottom of the rectangle).
+// @src one pixel left of the pointer, its rows counted up from the bottom of the rectangle);
+// @src src/game/TileEngine/Overhead_Map.cc GoIntoOverheadMap (gfOverheadMapDirty: the overhead map composed again from the
+// @src world as last drawn at every entry, 2026-11-04).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
@@ -64,10 +66,12 @@ import { slideView } from '../world/slide.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
+import { OverheadPicture, type OverheadTiles } from './overhead-map.ts';
 
 const BAR_BOX = 'THIRDPOINTERS1';
 const SELECTED_BAR_BOX = 'THIRDPOINTERS2';
 const TILE_PICTURE_PREFIX = 'tile:';
+const OVERHEAD_PICTURE_PREFIX = 'overhead:';
 const HEIGHT_STAND = 6;
 const HEIGHT_CROUCH = 3;
 const HEIGHT_PRONE = 1;
@@ -120,9 +124,12 @@ export class TacticalWorldPresenter implements WorldPresenter {
   #selected: number | null = null;
   #stats: WorldDrawStats | null = null;
   #markers: readonly WorldMarker[] = [];
-  #overhead: OverheadMapView | null = null;
-  #overheadLoader: (() => Promise<OverheadMapView | null>) | null = null;
-  #overheadLoading = false;
+  #overhead: OverheadPicture | null = null;
+  #overheadTilesLoader: (() => Promise<OverheadTiles>) | null = null;
+  #overheadTiles: OverheadTiles | null = null;
+  #overheadTilesLoading = false;
+  #overheadDirty = false;
+  #overheadPictures = 0;
 
   constructor(
     world: TacticalWorldView,
@@ -450,19 +457,48 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return true;
   }
 
-  setOverheadLoader(loader: () => Promise<OverheadMapView | null>): void {
-    this.#overheadLoader = loader;
+  setOverheadTiles(loader: () => Promise<OverheadTiles>): void {
+    this.#overheadTilesLoader = loader;
+  }
+
+  redrawOverheadMap(): void {
+    this.#overheadDirty = true;
+    this.#loadOverheadTiles();
   }
 
   overheadMap(): OverheadMapView | null {
-    if (this.#overhead || this.#overheadLoading || !this.#overheadLoader) return this.#overhead;
-    this.#overheadLoading = true;
-    void this.#overheadLoader()
-      .then((view) => {
-        this.#overhead = view;
+    if (this.#overheadDirty) this.#composeOverheadMap();
+    return this.#overhead;
+  }
+
+  #loadOverheadTiles(): void {
+    const loader = this.#overheadTilesLoader;
+    if (this.#overheadTiles || this.#overheadTilesLoading || !loader) return;
+    this.#overheadTilesLoading = true;
+    void loader()
+      .then((tiles) => {
+        this.#overheadTiles = tiles;
       })
       .catch(() => undefined);
-    return null;
+  }
+
+  #composeOverheadMap(): void {
+    const tiles = this.#overheadTiles;
+    const shown = this.#renderer.shownWorld;
+    const shade = this.#world.shade;
+    if (!tiles || !shown || !shade) return;
+    const world = this.#world.world;
+    const previous = this.#overhead?.key ?? null;
+    const key = `${OVERHEAD_PICTURE_PREFIX}${world.mapPath}:${++this.#overheadPictures}`;
+    this.#overhead = OverheadPicture.compose(
+      key,
+      world,
+      tiles,
+      { ...shown, shade },
+      { addRgb: (k, width, height, pixels) => this.#assets.addRgb(k, { kind: 'rgb', width, height, flags: 0, pixels }) },
+    );
+    if (previous !== null) this.#assets.remove(previous);
+    this.#overheadDirty = false;
   }
 
   tileImage(name: string): UiImageRef | null {

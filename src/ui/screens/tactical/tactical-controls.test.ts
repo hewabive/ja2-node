@@ -725,6 +725,7 @@ describe('the tactical input on the tactical screen', () => {
       render: (list, x, y) => list.fill(x, y, x + 10, y + 10, 0x123456),
       pointOf: (gridNo) => ({ x: (gridNo % 160) * 2, y: Math.floor(gridNo / 160) }),
       gridNoAt: () => 12345,
+      soldierGridNoAt: () => 12345,
     };
     f.key('Insert');
     expect(f.screen.controls.overhead.open).toBe(true);
@@ -742,7 +743,7 @@ describe('the tactical input on the tactical screen', () => {
 
   it('gives the overhead map every key while it is up, as HandleOverheadUI dequeues them: ALT+x asks to leave the game, Backspace stops no line', async () => {
     const f = await tacticalUiTest(kit, ui);
-    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
     const presenter = f.screen.dialogue.presenter;
     const m = merc(f, 0);
     const text = 'A line under the overhead map';
@@ -769,7 +770,7 @@ describe('the tactical input on the tactical screen', () => {
 
   it('lifts a person on the overhead map by a fifth of his drawn height and brightens him while it is not zero', async () => {
     const f = await tacticalUiTest(kit, ui);
-    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
     const raised = tacticalOf(f.session).state.soldiers.find((v) => v?.id === 1);
     if (!raised) throw new Error('no merc 1');
     raised.heightAdjustment = 58;
@@ -794,7 +795,7 @@ describe('the tactical input on the tactical screen', () => {
     f.t.move(radar.x + 1, radar.y + 1);
     f.t.frame();
     expect(f.screen.pointedCell().gridNo).toBeNull();
-    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
     f.key('Insert');
     const map = f.widget('overheadMap').rect;
     f.t.move(map.x + 5, map.y + 5);
@@ -1306,11 +1307,12 @@ describe('the tactical input on the tactical screen', () => {
       render: () => undefined,
       pointOf: (gridNo) => ({ x: (gridNo % 160) * 2, y: Math.floor(gridNo / 160) }),
       gridNoAt: () => tile,
+      soldierGridNoAt: () => tile,
     };
     f.key('Insert');
     const items = f.client.view.items ?? [];
     expect(items.some((i) => i.gridNo === tile)).toBe(true);
-    const dots = f.draw().items.filter((i) => i.kind === 'fill' && i.width === 0 && i.height === 0);
+    const dots = f.draw().items.filter((i) => i.kind === 'fill' && i.width === 1 && i.height === 1);
     expect(dots).toHaveLength(items.length);
   });
 
@@ -1415,7 +1417,7 @@ describe('the tactical input on the tactical screen', () => {
 
   it('stops the locators under the overhead map and goes on where they stood as it closes, as MainGameScreenHandle leaves out RenderTopmostTacticalInterface', async () => {
     const f = await tacticalUiTest(kit, ui);
-    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345 };
+    f.world.overhead = { render: () => undefined, pointOf: () => ({ x: 0, y: 0 }), gridNoAt: () => 12345, soldierGridNoAt: () => 12345 };
     f.key('/');
     f.t.frame(LOCATOR_FRAME_MS);
     expect(locatorFrames(f, RADIO)).toEqual([2]);

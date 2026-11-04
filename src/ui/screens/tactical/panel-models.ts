@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel, RenderTEAMPanel (the hands' fast help, the driver and
-// @src passenger texts), UpdateSMPanel (burst for a burst-capable gun or an under-barrel launcher in the hand, mute
-// @src always, stealth with the action buttons, climb by the roof edge with its APs or the fence next to the merc),
-// @src EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
+// @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel (gfDisableTacticalPanelButtons), RenderTEAMPanel (the
+// @src hands' fast help, the driver and passenger texts), UpdateSMPanel (burst for a burst-capable gun or an
+// @src under-barrel launcher in the hand, mute always, stealth with the action buttons, climb by the roof edge with its
+// @src APs or the fence next to the merc), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp;
 // @src Interface_Items.cc DisableInvRegions (the key ring off only with the inventory, an item in the cursor leaves it on).
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
@@ -38,6 +38,7 @@ export interface PanelState {
   readonly selected: number | null;
   readonly itemInCursor: boolean;
   readonly pickupMenuOpen: boolean;
+  readonly teamButtonsDisabled: boolean;
   readonly popupOpen: boolean;
   readonly descriptionOpen: boolean;
   readonly disabledForItems: boolean;
@@ -93,13 +94,13 @@ export function teamPanelModel(
       secondHandHelp: handHelp(text, s, 6, help),
     };
   });
-  const panelButtonsDisabled = state.itemInCursor || state.pickupMenuOpen;
+  const disabled = state.teamButtonsDisabled;
   return {
     slots,
-    endTurnEnabled: !panelButtonsDisabled && inCombat(view) && ourTurn(view),
-    mapScreenEnabled: !panelButtonsDisabled && !view?.conversation,
-    squadEnabled: !panelButtonsDisabled,
-    panelRegionsEnabled: !panelButtonsDisabled,
+    endTurnEnabled: !disabled && inCombat(view) && ourTurn(view),
+    mapScreenEnabled: !disabled && !view?.conversation,
+    squadEnabled: !disabled,
+    panelRegionsEnabled: !disabled,
   };
 }
 

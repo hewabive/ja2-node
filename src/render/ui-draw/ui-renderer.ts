@@ -66,6 +66,10 @@ export class UiRenderer {
     this.textures.addImage(key, sti);
   }
 
+  removeImage(key: AssetKey): void {
+    this.textures.removeImage(key);
+  }
+
   addFont(id: FontId, sti: Sti): void {
     this.textures.addFont(id, sti);
   }

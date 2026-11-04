@@ -38,7 +38,7 @@ import { SoldierAssets } from '../world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.ts';
 import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
-import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
+import { loadOverheadTiles } from './overhead-map.ts';
 import { storyCameraTarget } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, LOAD_PHASES, type LoadPhase, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
@@ -247,12 +247,7 @@ export class TacticalHost {
     presenter.resize(geometry.width, geometry.height);
     const own = session.soldiers.find((s) => s.team === OUR_TEAM);
     presenter.centerOn(own?.gridNo ?? world.world.map.info.centerGridNo);
-    presenter.setOverheadLoader(async () => {
-      const small = await loadSmallTiles(world.world, available, fetchVfsFile);
-      return OverheadPicture.compose(`overhead:${mapPath}`, world.world, small, {
-        addRgb: (key, width, height, pixels) => this.#o.ui.assets.addRgb(key, { kind: 'rgb', width, height, flags: 0, pixels }),
-      });
-    });
+    presenter.setOverheadTiles(() => loadOverheadTiles(world.world, available, fetchVfsFile));
     this.#loaded = { presenter, media: loadedMedia.store, layouts, uiCursors };
     this.#openKnowledgeAfterNextFrame();
     this.hook.map = mapPath;

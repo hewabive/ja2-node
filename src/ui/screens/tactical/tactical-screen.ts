@@ -57,7 +57,15 @@
 // @src the first item's height, with DrawItemPoolList of the items at that height beside it); Overhead.cc SlideToLocation
 // @src (the items-seen quote), SlideTo (a sighting); Soldier_Control.cc FlashSoldierPortrait (the damage feedback,
 // @src 2026-11-03); Interactive_Tiles.cc BeginCurInteractiveTileCheck as Overhead.cc SelectSoldier, Handle_UI.cc
-// @src ChangeInterfaceLevel and Explosion_Control.cc ExplosiveDamageStructureAtGridNo call it (2026-11-04).
+// @src ChangeInterfaceLevel and Explosion_Control.cc ExplosiveDamageStructureAtGridNo call it (2026-11-04);
+// @src Interface_Panels.cc DisableTacticalTeamPanelButtons (gfDisableTacticalPanelButtons set as the item pointer or the
+// @src pickup menu comes and goes, EnableSMPanelButtons from item pickup, on by InitializeSMPanel under an item pointer,
+// @src and on and off by the overhead map whatever else is up), MercFacePanelCallbackPrimary and
+// @src MercFacePanelCallbackSecondary (under the overhead map a face click only selects, acknowledged, and the right
+// @src click opens no panel); Overhead_Map.cc HandleOverheadMap (gSelectedGuy lights our merc's face);
+// @src Radar_Screen.cc RadarRegionMoveCallback (a drag on the radar moves the view, under the overhead map too),
+// @src RadarRegionButtonCallbackPrimary (the release centres the view there, or closes the overhead map),
+// @src RadarRegionButtonCallbackSecondary (the right click opens or closes the overhead map) (2026-11-04).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -276,6 +284,9 @@ export class TacticalScreen implements Screen {
   #cursorEndingState = { combat: false, conversation: false };
   #radarShown = true;
   #radarPressed = false;
+  #radarPointer: { readonly x: number; readonly y: number } | null = null;
+  #teamButtonsDisabled = false;
+  #itemsUp = false;
   #squadRegions: MouseRegion[] = [];
   #hoveredSquad = -1;
   #viewportRegion: MouseRegion | null = null;
@@ -309,6 +320,8 @@ export class TacticalScreen implements Screen {
     this.#sm = new SmPanelController((action, args) => this.#smAction(action, args));
     this.#hud = new HudController({
       radarPress: () => this.#radarPress(),
+      radarPrimary: () => this.#radarPrimary(),
+      radarSecondary: () => this.#radarSecondary(),
       radarHover: (on) => {
         if (!on) this.#radarPressed = false;
       },
@@ -465,6 +478,9 @@ export class TacticalScreen implements Screen {
       dismissFeedback: () => this.#dismissFeedback(),
       closeCivQuote: () => this.dialogue.closeCivQuoteIfActive(),
       holdDialogue: (held) => this.dialogue.presenter.holdDialogue(held),
+      disableTeamPanelButtons: (disabled) => {
+        this.#teamButtonsDisabled = disabled;
+      },
       radarBlink: () => this.#radarBlink,
     };
   }
@@ -848,6 +864,7 @@ export class TacticalScreen implements Screen {
     if (kind === 'sm' && (!s || !isMercBodyType(s) || isEpc(s))) kind = 'team';
     if (kind === 'sm' && s) this.#smMerc = s.id;
     if (kind === this.#panel) return;
+    if (kind === 'sm' && this.inventory.cursor !== null) this.#teamButtonsDisabled = true;
     if (this.description.open) this.description.close(false);
     this.stack.close();
     this.keyRing.close();
@@ -958,10 +975,11 @@ export class TacticalScreen implements Screen {
     this.#updateTimers(now);
     this.#syncViewport();
     this.#env.world.setSelected(this.#selected);
-    this.#hoveredSoldier = this.#pointerSoldier();
+    this.#hoveredSoldier = this.controls.overhead.open ? this.#overheadHoveredMerc() : this.#pointerSoldier();
     this.#env.world.setHovered(this.#hoveredSoldier);
     this.#endItemPointerWhereTheOriginalDoes(view);
     this.inventory.update(this.#now);
+    this.#syncTeamButtons();
     this.#updateModels(view);
     this.controls.update(this.#now);
     if (!this.controls.overhead.open) this.#stepLocators();
@@ -974,6 +992,18 @@ export class TacticalScreen implements Screen {
     this.#hudView.update();
     this.#panelView().update();
     this.#showLostSector();
+  }
+
+  #overheadHoveredMerc(): number | null {
+    const s = this.controls.overhead.hoveredSoldier();
+    return s?.team === OUR_TEAM ? s.id : null;
+  }
+
+  #syncTeamButtons(): void {
+    const up = this.inventory.cursor !== null || this.pickup.open;
+    if (up === this.#itemsUp) return;
+    this.#itemsUp = up;
+    this.#teamButtonsDisabled = up;
   }
 
   #pointerSoldier(): number | null {
@@ -1051,6 +1081,7 @@ export class TacticalScreen implements Screen {
       selected: this.#selected,
       itemInCursor: this.inventory.cursor !== null,
       pickupMenuOpen: this.pickup.open,
+      teamButtonsDisabled: this.#teamButtonsDisabled,
       popupOpen: this.stack.open || this.keyRing.open,
       descriptionOpen: this.description.open,
       disabledForItems: this.#disabledForItems(),
@@ -1149,7 +1180,10 @@ export class TacticalScreen implements Screen {
       this.#radarPressed = false;
       return;
     }
-    this.#radarPress();
+    const from = this.#radarPointer;
+    if (from && from.x === regions.mouseX && from.y === regions.mouseY) return;
+    this.#radarPointer = { x: regions.mouseX, y: regions.mouseY };
+    this.#centreFromRadar();
   }
 
   input(event: UiInputEvent): boolean {
@@ -1479,6 +1513,10 @@ export class TacticalScreen implements Screen {
   #selectFace(slot: number): void {
     const s = this.#slotSoldier(this.#slots[slot] ?? null);
     if (!s || this.pickup.open || this.inventory.cursor) return;
+    if (this.controls.overhead.open) {
+      this.#selectSoldier(s, true, false);
+      return;
+    }
     if (s.continueTo !== undefined && s.continueTo !== null) {
       void this.#command({ type: 'move', soldier: s.id, to: s.continueTo });
       return;
@@ -1488,7 +1526,7 @@ export class TacticalScreen implements Screen {
 
   #openSmPanelFromSlot(slot: number): void {
     const s = soldierById(this.#view(), this.#slots[slot] ?? null);
-    if (!s || isDead(s) || isEpc(s) || isInVehicle(s)) return;
+    if (!s || this.controls.overhead.open || isDead(s) || isEpc(s) || isInVehicle(s)) return;
     this.#requestPanel('sm', s.id);
   }
 
@@ -1536,9 +1574,26 @@ export class TacticalScreen implements Screen {
 
   #radarPress(): void {
     if (!this.#radarShown) return;
-    const rect = this.#radarRect();
     const regions = this.#env.runtime.regions;
     this.#radarPressed = true;
+    this.#radarPointer = { x: regions.mouseX, y: regions.mouseY };
+  }
+
+  #radarPrimary(): void {
+    if (!this.#radarShown) return;
+    if (this.controls.overhead.open) this.controls.overhead.close();
+    else this.#centreFromRadar();
+  }
+
+  #radarSecondary(): void {
+    if (!this.#radarShown) return;
+    if (this.controls.overhead.open) this.controls.overhead.close();
+    else this.controls.overhead.show();
+  }
+
+  #centreFromRadar(): void {
+    const rect = this.#radarRect();
+    const regions = this.#env.runtime.regions;
     this.#env.world.centerFromRadar(regions.mouseX - rect.x, regions.mouseY - rect.y);
   }
 
@@ -1849,6 +1904,7 @@ export class TacticalScreen implements Screen {
   }
 
   #compatibleFace(s: SoldierView): boolean {
+    if (this.controls.overhead.open) return this.#compatibleMercsOf(this.controls.poolListItems()).includes(s.id);
     if (this.inventory.cursor !== null) return this.inventory.compatibleMercs().has(s.id) || this.#lightsLocatorFace(s);
     if (this.pickup.open) return this.inventory.groundCompatibleMercs().has(s.id) || this.#lightsLocatorFace(s);
     return this.#compatibleMercsOf(this.controls.poolListItems()).includes(s.id);

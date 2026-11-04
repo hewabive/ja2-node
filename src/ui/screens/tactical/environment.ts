@@ -134,6 +134,7 @@ export interface OverheadMapView {
   render(list: DrawList, x: number, y: number): void;
   pointOf(gridNo: number): ScreenPoint;
   gridNoAt(x: number, y: number): number | null;
+  soldierGridNoAt(x: number, y: number): number | null;
 }
 
 export interface WorldPresenter {
@@ -168,6 +169,7 @@ export interface WorldPresenter {
   scrollBy(dx: number, dy: number): boolean;
   slideView(gridNo: number): SlideView;
   overheadMap(): OverheadMapView | null;
+  redrawOverheadMap(): void;
   tileImage(name: string): UiImageRef | null;
   tileCentre(gridNo: number): ScreenPoint;
 }

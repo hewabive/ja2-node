@@ -95,6 +95,15 @@ until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `p
 "Item cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp`
 (deviation "Pickup menu").
 
+**The overhead map is the picture the player last saw.** The original composes it from the level nodes at every entry;
+ja2-node composes it in the client at every entry (`redrawOverheadMap`) from what the world renderer last drew: the
+level with the view's tile changes and blood, the room reveals, the open doors and the shade field
+(`src/app/tactical/overhead-map.ts`, `05`), each node at its tile's land or roof shade (deviation "Light on
+structures").
+Persons, item dots and the item lists come from the view, so hidden items and unseen soldiers stay out (deviation
+"Overhead item lists over hidden items"). The team panel disables its buttons by a flag the overhead map, the item
+cursor and the pickup menu set and clear, as the original's is (`tactical/tactical-screen.ts`).
+
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
 subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`) and
@@ -201,7 +210,10 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | The description box over a dealer box drifts down by column (the slot is multiplied before the division by the row length); over the offer area near the face it moves down instead of right | `shop/shop-panel.test.ts` "places the description box with the original quirks" |
 | No tactical message line comes in or ages out while the view scrolls or the overhead map is up; the lines that aged meanwhile drop together as it stops or closes (`Utils/Message.cc:131`, `GameScreen.cc:366`) | `tactical/tactical-screen.test.ts` "lets no message line in or out while the view scrolls …", "… while the overhead map is up …" |
-| The overhead map finds the cell under the pointer eight rows above it | `src/app/tactical/overhead-map.test.ts` |
+| The overhead map finds the cell under the pointer eight rows above it, for the click and the item lists, and at the pointer for the soldier it names (`TileEngine/Overhead_Map.cc:874`) | `src/app/tactical/overhead-map.test.ts` "finds the cell under the pointer …", "finds a soldier's cell …" |
+| The overhead map lists the items a pool holds on a structure only with the pointer on their cell; a pool next to the pointer lists its floor items, as `GetZLevelOfItemPoolGivenStructure` reads the pointer's cell (`TileEngine/Overhead_Map.cc:323`) | `tactical/overhead-map.test.ts` "lists the pool nearest the pointer …" |
+| Closing the overhead map enables the team panel's buttons and hands even under an item cursor, which disabled them, until the cursor ends (`TileEngine/Overhead_Map.cc:458`, `Tactical/Interface_Panels.cc:2628`) | `tactical/overhead-map.test.ts` "disables the team panel buttons …" |
+| A basement's overhead map blacks out its east edge from x 444, 8 pixels short of the west edge's mirror: `NORMAL_MAP_SCREEN_WIDTH` is 3160, 20 below the full map's screen width (`TileEngine/Overhead_Map.cc:56`, `:935`) | `src/app/tactical/overhead-map.test.ts` "blacks out a basement's edges …" |
 | The overhead map takes every key while it is up: only ESC, INSERT and ALT+x act, and Backspace stops no line (`TileEngine/Overhead_Map.cc:419`) | `tactical/tactical-controls.test.ts` "gives the overhead map every key while it is up …" |
 | While the overhead map is up the line already playing runs to its end with its voice and the panel face but no subtitle box or face popup, no other line starts, a civilian quote outlives its time unseen and the locators stand; all of it goes on as the map closes (`GameScreen.cc:366`, `TileEngine/Overhead_Map.cc:287`) | `tactical/tactical-screen.test.ts` "plays the line it opens over to its end …", "keeps a civilian quote past its lifetime under the overhead map …"; `tactical/tactical-controls.test.ts` "stops the locators under the overhead map …" |
 | The stance drag keeps the arrows of its last step where no step applies (the pointer exactly 40 pixels up, beyond the stances he can take, back at the anchor), and the release goes by that step (`Tactical/Handle_UI.cc:1956`) | `tactical/tactical-controls.test.ts` "keeps the last arrows of the stance drag …" |
@@ -256,12 +268,13 @@ Not pinned yet:
 The oracle runs headless, so no screen is compared with the native build: the e2e goldens cover pixels on the stub
 pack, and the `*-original.test.ts` files check that the art and texts each screen reads exist in the user's data.
 Inferred or observed in ja2-node only:
-- Layout above 640×480 follows Stracciatella's `STD_SCREEN` offsets as read; the centred shop and the talk subtitle test
-  are deviations ("Shop placement above 640×480", "Talk subtitle placement above 640×480").
+- Layout above 640×480 follows Stracciatella's `STD_SCREEN` offsets as read; the centred shop, the talk subtitle test and
+  the overhead map's black edges are deviations ("Shop placement above 640×480", "Talk subtitle placement above
+  640×480", "Overhead map edges above 640×480").
 - A.I.M.'s sort leaves ties to `std::sort`, which is unstable; ja2-node keeps the listing order.
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Auto-bandage", "Overhead
-map", "Team panel vehicle exit", "Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page
-and saved profiles".
+Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Auto-bandage", "Team panel
+vehicle exit", "Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page and saved
+profiles".

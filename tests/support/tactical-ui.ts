@@ -187,6 +187,7 @@ export class FakeWorld implements WorldPresenter {
   readonly night = false;
   readonly located: number[] = [];
   readonly centred: number[] = [];
+  readonly radarCentred: ScreenPoint[] = [];
   camera = { centerX: 805, centerY: 725 };
   hovered: number | null = null;
   selected: number | null = null;
@@ -200,6 +201,7 @@ export class FakeWorld implements WorldPresenter {
   edges: ScrollEdges = { left: false, right: false, top: false, bottom: false };
   readonly scrolled: { readonly dx: number; readonly dy: number }[] = [];
   overhead: OverheadMapView | null = null;
+  overheadRedraws = 0;
   readonly #view: () => PlayerView;
 
   constructor(view: () => PlayerView) {
@@ -271,7 +273,9 @@ export class FakeWorld implements WorldPresenter {
     this.located.push(gridNo);
   }
 
-  centerFromRadar(): void {}
+  centerFromRadar(x: number, y: number): void {
+    this.radarCentred.push({ x, y });
+  }
 
   setViewport(): void {}
 
@@ -335,6 +339,10 @@ export class FakeWorld implements WorldPresenter {
 
   overheadMap(): OverheadMapView | null {
     return this.overhead;
+  }
+
+  redrawOverheadMap(): void {
+    this.overheadRedraws++;
   }
 
   tileImage(name: string): UiImageRef | null {

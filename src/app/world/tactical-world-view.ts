@@ -14,7 +14,7 @@ import type {
 } from '../../protocol/view.ts';
 import type { SceneAniTile, SceneItem, SoldierSprite, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
-import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
+import type { ShadeField, WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
@@ -134,6 +134,7 @@ export class TacticalWorldView {
   #drawnEffects = 0;
   #drawnBullets = 0;
   #drawnImpacts = 0;
+  #shade: ShadeField | null = null;
 
   private constructor(world: LoadedWorld, renderer: WorldRenderer, presentation: TacticalPresentation, itemTiles: ItemTileLookup) {
     this.world = world;
@@ -198,6 +199,10 @@ export class TacticalWorldView {
 
   get drawnImpacts(): number {
     return this.#drawnImpacts;
+  }
+
+  get shade(): ShadeField | null {
+    return this.#shade;
   }
 
   soldierSprite(id: number): SoldierSprite | null {
@@ -329,6 +334,7 @@ export class TacticalWorldView {
       dynamicLights: this.#dynamicLights(view.light),
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });
+    this.#shade = shade;
     const hostile = f.hostile ?? defaultHostile;
     const soldiers = this.#soldiers.build({
       soldiers: view.soldiers,
