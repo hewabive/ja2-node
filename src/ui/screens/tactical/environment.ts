@@ -96,6 +96,23 @@ export interface InteractiveTile {
   readonly open: boolean;
 }
 
+export interface InteractiveNodeRef {
+  readonly gridNo: number;
+  readonly index: number;
+  readonly tile: number;
+}
+
+export interface InteractiveNode extends InteractiveNodeRef {
+  readonly bottom: number;
+  readonly door: boolean;
+  readonly open: boolean;
+}
+
+export interface RenderCentre {
+  readonly centerX: number;
+  readonly centerY: number;
+}
+
 export interface ScrollEdges {
   readonly left: boolean;
   readonly right: boolean;
@@ -123,6 +140,7 @@ export interface WorldPresenter {
   readonly ready: boolean;
   readonly radarImage: string | null;
   readonly night: boolean;
+  readonly camera: RenderCentre;
   soldierTrueScreenPosition(id: number): ScreenPoint | null;
   soldierBox(id: number): ScreenBox | null;
   soldierHeight(id: number): SoldierHeight;
@@ -143,7 +161,8 @@ export interface WorldPresenter {
   cellScreenPosition(gridNo: number): ScreenPoint;
   setMarkers(markers: readonly WorldMarker[]): void;
   markerScreenPoint(marker: WorldMarker): ScreenPoint | null;
-  interactiveTileAt(gridNo: number, level: number): InteractiveTile | null;
+  interactiveNodesAt(x: number, y: number): readonly InteractiveNode[];
+  interactiveTile(node: InteractiveNodeRef): InteractiveTile | null;
   exitGridAt(gridNo: number): boolean;
   scrollEdges(): ScrollEdges;
   scrollBy(dx: number, dy: number): boolean;

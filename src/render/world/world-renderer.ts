@@ -106,6 +106,12 @@ export interface WorldFrameInput {
   readonly bloodPools?: readonly BloodPool[];
 }
 
+export interface ShownWorld {
+  readonly level: Level;
+  readonly revealed: Uint8Array;
+  readonly openStructures: ReadonlySet<number>;
+}
+
 export interface WorldDrawStats {
   readonly drawCalls: number;
   readonly instances: number;
@@ -459,6 +465,11 @@ export class WorldRenderer {
 
   get checks(): PartialRedrawChecks | null {
     return this.#check?.results ?? null;
+  }
+
+  get shownWorld(): ShownWorld | null {
+    const s = this.#scene;
+    return s ? { level: s.world.level, revealed: s.reveal.revealed, openStructures: s.scene.state.openStructures } : null;
   }
 
   get placedSoldiers(): readonly PlacedSoldier[] {

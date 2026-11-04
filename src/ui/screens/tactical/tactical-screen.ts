@@ -56,7 +56,8 @@
 // @src Handle_Items.cc RenderTopmostFlashingItems (the locator 20 up and left of the tile centre, raised by the level and
 // @src the first item's height, with DrawItemPoolList of the items at that height beside it); Overhead.cc SlideToLocation
 // @src (the items-seen quote), SlideTo (a sighting); Soldier_Control.cc FlashSoldierPortrait (the damage feedback,
-// @src 2026-11-03).
+// @src 2026-11-03); Interactive_Tiles.cc BeginCurInteractiveTileCheck as Overhead.cc SelectSoldier, Handle_UI.cc
+// @src ChangeInterfaceLevel and Explosion_Control.cc ExplosiveDamageStructureAtGridNo call it (2026-11-04).
 
 import { Body } from '../../../content/anim/body-types.ts';
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -815,6 +816,7 @@ export class TacticalScreen implements Screen {
     if (this.#panel === 'sm') this.#requestPanel('sm', s.id);
     this.#selectedChanged();
     this.#setInterfaceLevel(s.level);
+    this.controls.input.resetInteractiveTiles();
   }
 
   #selectedChanged(): void {
@@ -822,8 +824,10 @@ export class TacticalScreen implements Screen {
   }
 
   #setInterfaceLevel(level: number): void {
-    this.#interfaceLevel = level > 0 ? 1 : 0;
-    this.#env.world.setRoofLevel(this.#interfaceLevel > 0);
+    const next = level > 0 ? 1 : 0;
+    if (next !== this.#interfaceLevel) this.controls.input.resetInteractiveTiles();
+    this.#interfaceLevel = next;
+    this.#env.world.setRoofLevel(next > 0);
   }
 
   #localFeedback(text: string, colour: number): void {
@@ -1363,6 +1367,9 @@ export class TacticalScreen implements Screen {
         return;
       case 'interfaceLevel':
         this.#setInterfaceLevel(event.level);
+        return;
+      case 'structureDamaged':
+        this.controls.input.resetInteractiveTiles();
         return;
       case 'enemyTurnProgress':
         this.#topBar.observeProgress(event.done);

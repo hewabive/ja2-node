@@ -9,7 +9,7 @@
 // @src (THIRDPOINTERS1/2 behind the overhead bars); src/game/Tactical/Interface_Control.cc SetUpInterface (the UI
 // @src nodes of the tactical input); src/game/TileEngine/RenderWorld.cc ScrollWorld, HandleScrollDirections (the
 // @src scrolled-to-edge flags, the scroll steps); src/game/TileEngine/Interactive_Tiles.cc
-// @src InternalGetCurInteractiveTile (doors and switches; the tile under the pointer, not the picture's pixels);
+// @src InternalGetCurInteractiveTile (the found node's structure as it is now, 2026-11-04);
 // @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile under the pointer from the current render centre);
 // @src src/game/Tactical/Soldier_Find.cc GetSoldierScreenRect, GetSoldierScreenPos (the soldier's rectangle from the
 // @src current render centre, his position now and his bounding box); FindSoldier with
@@ -19,13 +19,12 @@
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
 import { tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
 import { idiv } from '../../core/int.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
 import type { BulletView, PlayerView, SoldierView } from '../../protocol/view.ts';
 import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
-import { type SoldierSprite, screenHeightAdjustment, soldierScreenPoint, type WorldUiNode } from '../../render/world/dynamic-scene.ts';
+import { ANIMATED_TILE_FRAME_MS, screenHeightAdjustment, soldierScreenPoint, type WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import {
   type Camera,
   cameraOffset,
@@ -41,6 +40,8 @@ import type { EffectEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
 import { TEAMPANEL_HEIGHT } from '../../ui/layout/frames.ts';
 import type {
+  InteractiveNode,
+  InteractiveNodeRef,
   InteractiveTile,
   OverheadMapView,
   RadarBox,
@@ -56,6 +57,7 @@ import type {
 } from '../../ui/screens/tactical/environment.ts';
 import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/targets.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
+import { type InteractiveWorld, interactiveNodesAt, interactiveTileOf, pictureHasDataAt } from '../world/interactive-nodes.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
 import type { SoldierOrigin } from '../world/roof-markers.ts';
 import { slideView } from '../world/slide.ts';
@@ -77,10 +79,7 @@ const HALF_CELL = 5;
 const PICK_LIFT = 10;
 const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false, stationary: true };
 const EDGE_PROBE_PX = 1;
-const INTERACTIVE_MASK = StructureFlags.ANYDOOR | StructureFlags.SWITCH | StructureFlags.OPENABLE;
 const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof']);
-const TRANSPARENT = 0;
-const PIXEL_BEFORE_POINTER = 1;
 
 export interface PresenterSources {
   readonly view: () => PlayerView | null;
@@ -94,11 +93,6 @@ function heightName(height: number): SoldierHeight {
   if (height === HEIGHT_PRONE) return 'prone';
   if (height === HEIGHT_CROUCH) return 'crouch';
   return 'stand';
-}
-
-function pictureDataAt(sprite: SoldierSprite, x: number, y: number): boolean {
-  const index = y * sprite.width + x - PIXEL_BEFORE_POINTER;
-  return index >= 0 && index < sprite.pixels.length && sprite.pixels[index] !== TRANSPARENT;
 }
 
 function stanceOffsetOf(height: number): number {
@@ -249,7 +243,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const sprite = this.#world.soldierSprite(id);
     if (!box || !sprite) return false;
     const aboveBottom = box.y + box.height - Math.floor(y);
-    return pictureDataAt(sprite, Math.floor(x) - box.x, sprite.height - aboveBottom);
+    return pictureHasDataAt(sprite, Math.floor(x) - box.x, sprite.height - aboveBottom);
   }
 
   soldierHeight(id: number): SoldierHeight {
@@ -393,19 +387,34 @@ export class TacticalWorldPresenter implements WorldPresenter {
     };
   }
 
-  interactiveTileAt(gridNo: number, level: number): InteractiveTile | null {
-    if (level > 0) return null;
-    const found = this.#world.world.structures.find(gridNo, INTERACTIVE_MASK);
-    if (!found) return null;
-    const base = this.#world.world.structures.findBase(found) ?? found;
-    const view = this.#sources.view();
-    const door = (found.flags & StructureFlags.ANYDOOR) !== 0;
+  #interactiveWorld(): InteractiveWorld | null {
+    const shown = this.#renderer.shownWorld;
+    if (!shown) return null;
+    const world = this.#world.world;
     return {
-      gridNo: base.gridNo,
-      door,
-      switch: (found.flags & StructureFlags.SWITCH) !== 0,
-      open: ((door ? view?.openDoors : view?.openContainers) ?? []).includes(base.gridNo),
+      ...shown,
+      tiles: world.tiles,
+      surfaces: world.surfaces,
+      structures: world.structures,
+      basement: world.map.ambient?.basement === true,
     };
+  }
+
+  interactiveNodesAt(x: number, y: number): readonly InteractiveNode[] {
+    const w = this.#interactiveWorld();
+    if (!w) return [];
+    const screen = {
+      viewport: this.#viewport,
+      camera: this.#camera,
+      renderHeight: this.#renderHeight(),
+      animationStep: Math.floor(this.#sources.clockMs() / ANIMATED_TILE_FRAME_MS),
+    };
+    return interactiveNodesAt(w, screen, x, y);
+  }
+
+  interactiveTile(node: InteractiveNodeRef): InteractiveTile | null {
+    const w = this.#interactiveWorld();
+    return w ? interactiveTileOf(w, node) : null;
   }
 
   exitGridAt(gridNo: number): boolean {

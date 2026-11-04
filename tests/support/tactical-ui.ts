@@ -23,6 +23,8 @@ import { mapFacts } from '../../src/ui/screens/map/facts.ts';
 import {
   type BattleSound,
   type CommandReply,
+  type InteractiveNode,
+  type InteractiveNodeRef,
   type InteractiveTile,
   type OverheadMapView,
   type RadarBox,
@@ -175,6 +177,10 @@ export class SessionClient implements TacticalClient {
 export const ON_SCREEN_SLIDE: SlideView = { onScreen: true, inView: true, visibleTile: true, direction: 0, centreFlags: 0 };
 export const OFF_SCREEN_SLIDE: SlideView = { ...ON_SCREEN_SLIDE, onScreen: false, inView: false };
 
+export function interactiveNodeKey(node: InteractiveNodeRef): string {
+  return `${node.gridNo}:${node.index}`;
+}
+
 export class FakeWorld implements WorldPresenter {
   readonly ready = true;
   readonly radarImage = null;
@@ -188,7 +194,8 @@ export class FakeWorld implements WorldPresenter {
   heights = new Map<number, SoldierHeight>();
   soldierMarkers = new Map<number, SoldierMarker>();
   markers: readonly WorldMarker[] = [];
-  doors = new Map<number, InteractiveTile>();
+  interactiveNodes: (x: number, y: number) => readonly InteractiveNode[] = () => [];
+  readonly interactiveTiles = new Map<string, InteractiveTile>();
   exitGrids = new Set<number>();
   edges: ScrollEdges = { left: false, right: false, top: false, bottom: false };
   readonly scrolled: { readonly dx: number; readonly dy: number }[] = [];
@@ -299,8 +306,12 @@ export class FakeWorld implements WorldPresenter {
     return { x: p.x + (marker.offsetX ?? 0), y: p.y + (marker.offsetY ?? 0) };
   }
 
-  interactiveTileAt(gridNo: number): InteractiveTile | null {
-    return this.doors.get(gridNo) ?? null;
+  interactiveNodesAt(x: number, y: number): readonly InteractiveNode[] {
+    return this.interactiveNodes(x, y);
+  }
+
+  interactiveTile(node: InteractiveNodeRef): InteractiveTile | null {
+    return this.interactiveTiles.get(interactiveNodeKey(node)) ?? null;
   }
 
   exitGridAt(gridNo: number): boolean {

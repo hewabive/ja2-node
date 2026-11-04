@@ -100,8 +100,9 @@ and the radar), and a map smaller than the view is centred. Picking is the exact
 ignores tile heights and the render height, as the original's does: at the roof level the 50 px shift puts every roof
 where the flat projection picks its tile. A soldier is picked as `FindSoldier` picks him, by his bounding box (the frame
 his animation started with or his last turn showed, `app/world/soldier-bounding-boxes.ts`) at the current camera
-(`ui/screens/tactical/input/targets.ts`), so a scroll or a centring moves it before the next frame is drawn;
-`picking.ts`'s pixel pick serves the developer pages.
+(`ui/screens/tactical/input/targets.ts`), so a scroll or a centring moves it before the next frame is drawn; an
+interactive tile by the pixels of the pictures of the shown map (`renderer.shownWorld`) that the original's dynamic
+pass sweeps (`app/world/interactive-nodes.ts`, `30`). `picking.ts`'s pixel pick serves the developer pages.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`; the client applies the original's
 node flags and recomputes the wireframes of the whole map (`reveal.ts`). The ceilings of slanted roofs arrive as

@@ -19,7 +19,9 @@
 // @src SelectedMercCanAffordMove, SelectedMercCanAffordAttack, UIMouseOnValidAttackLocation, ValidQuickExchangePosition
 // @src (gfOKForExchangeCursor: on as the pointer comes onto or leaves a valid soldier, flipped every second, 2026-11-02),
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
-// @src and action modes, a door only with snap-cursor-to-door outside the hand mode); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
+// @src and action modes, a door only with snap-cursor-to-door outside the hand mode, none for the weaponless robot, as the
+// @src check runs, 2026-11-04), LogMouseOverInteractiveTile (none at the roof level or with the selected merc on a roof),
+// @src InternalGetCurInteractiveTile (none while SHIFT is down); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
 // @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31;
 // @src the z-level of the pool, the search at z-level 0, 2026-11-02; the morale refusal the server says, 2026-11-03),
 // @src HandleMoveModeInteractiveClick (GetLargestZLevelOfItemPool, 2026-11-02), HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
@@ -45,7 +47,7 @@ import { KeyModifier, type UiKeyEvent } from '../../../input/events.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../../../input/mouse.ts';
 import type { MouseRegion } from '../../../input/regions.ts';
 import { printf } from '../../../text/printf.ts';
-import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
+import type { CommandReply, InteractiveNode, InteractiveTile, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
 import { OKLIFE } from '../faces.ts';
 import { HAND_SLOT } from '../inventory.ts';
 import { type ItemCursor, slotItem } from '../item-cursor.ts';
@@ -74,6 +76,7 @@ import {
   wheelAdjust,
 } from './attack-cursors.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
+import { InteractiveTileCheck } from './interactive-tiles.ts';
 import { ITEM_AP_OFFSET, ItemTileCursor, type ItemTileText } from './item-tile-cursor.ts';
 import { PointerQueue } from './pointer-queue.ts';
 import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, type PickRules, relativeBodyPart, soldierFindFlags } from './targets.ts';
@@ -184,6 +187,7 @@ export class TacticalInput {
   readonly #cycledModes = new Map<number, MoveModeName>();
   readonly #aims = new Map<number, AimState>();
   readonly multiSelected = new Set<number>();
+  readonly #interactiveTiles = new InteractiveTileCheck();
   #now = 0;
   #mode: UiMode = UiMode.IDLE_MODE;
   #event: UiEvent = UiEvent.I_DO_NOTHING;
@@ -432,6 +436,7 @@ export class TacticalInput {
     this.#now = now;
     this.#resetFrameFlags();
     this.#updateHover(viewportInArea);
+    this.#checkInteractiveTiles();
     this.#updateMoveState();
     this.#syncLock();
     if (now - this.#exchangeSince > EXCHANGE_CURSOR_MS) {
@@ -566,6 +571,34 @@ export class TacticalInput {
       ? (soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null)
       : findSoldier(soldiers, { x, y, gridNo, level }, env.world, this.pickRules());
     this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, view) : 0 };
+  }
+
+  resetInteractiveTiles(): void {
+    this.#interactiveTiles.begin();
+  }
+
+  #checkInteractiveTiles(): void {
+    const env = this.#env();
+    const regions = env.runtime.regions;
+    const camera = env.world.camera;
+    const at = regions.pointerKnown ? { x: regions.mouseX, y: regions.mouseY, centerX: camera.centerX, centerY: camera.centerY } : null;
+    this.#interactiveTiles.frame(at, () => this.#interactiveNodesUnder(regions.mouseX, regions.mouseY));
+  }
+
+  #interactiveNodesUnder(x: number, y: number): readonly InteractiveNode[] {
+    if (this.#host.interfaceLevel() > 0) return [];
+    const sel = this.#sel();
+    if (sel && (sel.level === 1 || sel.bodyType === Body.ROBOTNOWEAPON)) return [];
+    return this.#env()
+      .world.interactiveNodesAt(x, y)
+      .filter((node) => this.#doorNodeTaken(node));
+  }
+
+  #doorNodeTaken(node: InteractiveNode): boolean {
+    if (!node.door) return true;
+    const hand = this.#mode === UiMode.HANDCURSOR_MODE;
+    if (node.open && !hand && this.#mode !== UiMode.ACTION_MODE) return false;
+    return hand || this.#env().display().snapCursorToDoor;
   }
 
   #updateMoveState(): void {
@@ -1602,15 +1635,10 @@ export class TacticalInput {
     return this.#env().world.scrollEdges().bottom && regions.mouseY >= height - NO_PX_SHOW_EXIT_CURS;
   }
 
-  #interactiveTile(): ReturnType<TacticalEnvironment['world']['interactiveTileAt']> {
-    const mapPos = this.#mapPos();
-    if (mapPos === null) return null;
-    const tile = this.#env().world.interactiveTileAt(mapPos, this.#host.interfaceLevel());
-    if (!tile?.door) return tile;
-    const hand = this.#mode === UiMode.HANDCURSOR_MODE;
-    if (tile.open && !hand && this.#mode !== UiMode.ACTION_MODE) return null;
-    if (!this.#env().display().snapCursorToDoor && !hand) return null;
-    return tile;
+  #interactiveTile(): InteractiveTile | null {
+    if (this.#mapPos() === null || (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0) return null;
+    const over = this.#interactiveTiles.over;
+    return over ? this.#env().world.interactiveTile(over) : null;
   }
 
   #moveModeInteractiveClick(): number {
