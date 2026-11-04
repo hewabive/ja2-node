@@ -96,8 +96,15 @@ a surface (the talk panel, the comm popup, the external popup, the shopkeeper, t
 subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`) and
 reports a cut or finished line with `skipLine`. The overhead map holds it (`holdDialogue`) as the original leaves out
 `HandleDialogue` then: the current line plays on, no other starts. The simulation finishes lines in ticks and never
-waits for a viewer (`24`, deviation "Talk panel and speech on the canvas"). The map screen has no speech source (gap
-"Map screen speech"); its Backspace cuts the line its frames said last.
+waits for a viewer (`24`, deviation "Talk panel and speech on the canvas").
+
+**One presenter per session serves the tactical and map screens** (`src/app/sound/session-speech.ts`), as the original
+has one talking face for every screen: a line goes on across a screen switch and each screen draws it its own way.
+Both screens hear every frame, so the screen that hears a frame first takes its lines (`takesFrame`); the map screen
+takes none while another screen is up, so its routing never decides a tactical line. On the map a merc's line moves
+the lips of the info face, makes him the info character with speech on (on entry whatever the option, as
+`ContinueDialogue`) and is subtitled in a box beside the face; the box, the face, Backspace and Esc cut it, opening the
+contract menu or the laptop stops it (`map/map-speech.ts`). The external faces there are gap "Map screen speech".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
@@ -183,6 +190,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | A path node in map column 16 is not drawn at 640 pixels wide: the original tests it against the screen width | `map/plotting.test.ts` "leaves out the column 16 pieces …" |
 | The plotting ETA counts the remaining leg twice and drops the first temporary edge while the squad travels | `src/server/hints-strategic-stub.test.ts` "count the remaining leg twice …" |
 | The move box's Other header counts vehicle passengers and skips doctors | `map/move-selection.test.ts` "keeps the original test of the others header …" |
+| While a subtitle box is up the map screen's contract button and the contract column of the team list open no contract menu (the column still selects its merc), while the c key does (`Strategic/MapScreen.cc:4239`, `:5134`) | `map/map-speech.test.ts` "opens no contract menu from the contract button or column while the subtitle box is up …" |
 | A head miner's line leaves the map on the level it shows: Stracciatella's switch to the surface passes the selected sector, whose level `iCurrentMapSectorZ` is (`Strategic/Map_Screen_Interface.cc:1623`, `Strategic/Map_Screen_Interface.h:229`) | `map/map-screen.test.ts` "keeps the level it shows while a head miner speaks …" |
 | Space in autoresolve toggles pause and play but keeps Fast or Finish | `battle/autoresolve-screen.test.ts` "… keeps Fast through Space and Pause …" |
 | The description box over a dealer box drifts down by column (the slot is multiplied before the division by the row length); over the offer area near the face it moves down instead of right | `shop/shop-panel.test.ts` "places the description box with the original quirks" |

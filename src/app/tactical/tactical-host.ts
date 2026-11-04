@@ -18,7 +18,7 @@ import {
 import { parseUiCursorTable, UI_CURSORS_TABLE_PATH, type UiCursorTable } from '../../ui/screens/tactical/input/ui-cursors.ts';
 import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
 import { type SettingsChange, updateSettings } from '../../ui/settings.ts';
-import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
+import type { SpeechPresenter, SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
 import { TimeSamples } from '../game/time-samples.ts';
@@ -29,6 +29,7 @@ import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { fetchVfsFile, fetchVfsList, readVfsFileOrNull } from '../net/vfs.ts';
 import { loadSettings, saveSettings } from '../settings.ts';
+import type { SessionSpeech } from '../sound/session-speech.ts';
 import { TacticalSound } from '../sound/tactical-sound.ts';
 import { tacticalOptionsOf } from '../world/display-options.ts';
 import { LightTemplates } from '../world/light-templates.ts';
@@ -38,7 +39,6 @@ import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.t
 import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
 import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
-import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { storyCameraTarget } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, LOAD_PHASES, type LoadPhase, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
@@ -59,6 +59,7 @@ export interface TacticalHostOptions {
   readonly page: GamePage;
   readonly ui: UiBoot;
   readonly session: SessionClient;
+  readonly speech: SessionSpeech;
   readonly boxes: MessageBoxes;
   readonly basicTextBox: MercTextBoxArt;
   readonly language: () => UiLanguage | null;
@@ -105,7 +106,6 @@ export class TacticalHost {
   readonly #requestedProfiles = new Set<number>();
   readonly #speechSettings: () => SpeechSettings;
   readonly #presenter: SpeechPresenter;
-  #spoken = 0;
   #beep: ReturnType<TacticalSound['engine']['play']> | null = null;
   readonly #dialogueBeforeScreen: ViewFrame[] = [];
 
@@ -114,20 +114,9 @@ export class TacticalHost {
     const params = new URLSearchParams(location.search);
     this.#renderer = new WorldRenderer(options.page.gl, { checkPartialRedraws: params.get(WORLD_CHECK_PARAM) === '1' });
     this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false, dataVersion: options.ui.dataVersion });
-    this.#speechSettings = storedSpeechSettings(() => performance.now());
-    this.#presenter = new SpeechPresenter({
-      voices: engineSpeechVoices(this.#sound.engine),
-      settings: this.#speechSettings,
-      battleSounds: { playing: (profile) => this.#sound.director?.mercBattleSoundPlaying(profile) ?? false },
-    });
-    this.#presenter.onLineStarted(() => {
-      this.#spoken++;
-    });
-    this.#presenter.onLineStopped((line, how) => {
-      if (line.saidAt === undefined) return;
-      const talkEnded = how === 'talkEnded' ? { talkEnded: true } : {};
-      void this.#command({ type: 'skipLine', profile: line.profile, tick: line.saidAt, ...talkEnded });
-    });
+    this.#speechSettings = options.speech.settings;
+    this.#presenter = options.speech.presenter;
+    options.speech.addBattleSounds({ playing: (profile) => this.#sound.director?.mercBattleSoundPlaying(profile) ?? false });
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
     this.#hints = new HintProvider({ channel: options.session, knowledge: () => this.#knowledge, now: () => performance.now(), shadow });
     this.#hintHook = createHintHook(this.#hints);
@@ -279,13 +268,7 @@ export class TacticalHost {
       session.session ?? 'local',
     );
     this.#sound.director?.reset(session.soldiers, session.openContainers);
-    this.#sound.director?.setSpeechOwner({
-      isTalking: (soldier) => {
-        const speaking = this.#presenter.speaking;
-        return speaking !== null && speaking.speaker === soldier && speaking.playing;
-      },
-      cut: (soldier) => this.#presenter.cutSpeaker(soldier),
-    });
+    this.#sound.director?.setSpeechOwner(this.#o.speech.owner);
   }
 
   async #mediaStore(): Promise<TacticalMediaStore> {
@@ -665,7 +648,7 @@ export class TacticalHost {
           }
         : null,
       queued: presenter.queued.length,
-      spoken: this.#spoken,
+      spoken: this.#o.speech.spoken,
       textBox: dialogue.surfaces.textBoxText,
       facePopup: dialogue.surfaces.facePopupShown,
       civQuote: dialogue.surfaces.civQuoteText,

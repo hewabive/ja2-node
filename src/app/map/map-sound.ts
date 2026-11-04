@@ -2,12 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc PlayGlowRegionSound (glowclick.wav at MIDVOLUME, one at a time);
 // @src src/game/Strategic/MapScreen.cc RandomAwakeSelectedMercConfirmsStrategicMove (DoMercBattleSound BATTLE_SOUND_OK1);
+// @src src/game/Tactical/Soldier_Control.cc InternalDoMercBattleSound (the merc's last battle sound and his talking
+// @src face decide over a new one, which may stop the old; uiBattleSoundID per merc for the dialogue's wait) (2026-11-03);
 // @src src/game/Utils/Message.cc PlayNewMessageSound (newbeep.wav, one at a time); src/game/Tactical/Vehicles.cc
 // @src AddSoldierToVehicle (the enter sound of a ground vehicle, vehicles.json enterSound, at HIGHVOLUME; the helicopter
 // @src has no vehicle soldier and stays silent).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
-import type { AudioEngine } from '../../audio/engine.ts';
+import type { SpeechOwner } from '../../audio/director.ts';
+import type { AudioEngine, VoiceHandle } from '../../audio/engine.ts';
 import { type BattleMemory, battleSoundCue, NO_BATTLE_MEMORY } from '../../content/audio/battle-sound.ts';
 import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
@@ -26,6 +29,7 @@ const REGULAR_MALE = 0;
 const NOWHERE = -1;
 const VOICE_DIGITS = 3;
 const NORMAL_MORALE = 50;
+const SPEECH_BUS = 'speech';
 
 type Voice = ReturnType<AudioEngine['play']>;
 
@@ -34,16 +38,24 @@ export class MapSound implements MapSounds {
   readonly #source: AssetSource;
   readonly #view: () => PlayerView | null;
   readonly #random: ClientRandom;
+  readonly #speech: SpeechOwner;
   readonly #memory = new Map<number, BattleMemory>();
+  readonly #battleVoices = new Map<number, VoiceHandle>();
   #book: CueBook | null = null;
   #glow: Voice | null = null;
   #beep: Voice | null = null;
 
-  constructor(engine: AudioEngine, source: AssetSource, view: () => PlayerView | null, session: string) {
+  constructor(engine: AudioEngine, source: AssetSource, view: () => PlayerView | null, session: string, speech: SpeechOwner) {
     this.#engine = engine;
     this.#source = source;
     this.#view = view;
+    this.#speech = speech;
     this.#random = new ClientRandom(seedFromText(`${session}/map`));
+  }
+
+  mercBattleSoundPlaying(profile: number): boolean {
+    const merc = this.#view()?.strategic?.mercs.find((m) => m.profile === profile);
+    return merc !== undefined && (this.#battleVoices.get(merc.id)?.active ?? false);
   }
 
   async load(): Promise<void> {
@@ -77,6 +89,7 @@ export class MapSound implements MapSounds {
     if (!book || !merc || merc.profile === undefined) return;
     const tactical = view?.soldiers.find((s) => s.id === soldier);
     const settings = loadSettings();
+    const playing = this.#battleVoices.get(soldier);
     const outcome = battleSoundCue(
       book,
       {
@@ -90,8 +103,8 @@ export class MapSound implements MapSounds {
       {
         sound: 'OK1',
         nowMs: performance.now(),
-        playing: false,
-        talking: false,
+        playing: playing?.active ?? false,
+        talking: this.#speech.isTalking(soldier),
         muteConfirmations: settings.muteConfirmations,
         lowerVolume: false,
       },
@@ -99,6 +112,11 @@ export class MapSound implements MapSounds {
       this.#random.rand,
     );
     this.#memory.set(soldier, outcome.memory);
-    for (const cue of outcome.cues) this.#engine.play(cue);
+    if (outcome.stopPrevious) playing?.stop();
+    if (outcome.cutSpeech) this.#speech.cut(soldier);
+    for (const cue of outcome.cues) {
+      const voice = this.#engine.play(cue);
+      if (cue.bus === SPEECH_BUS) this.#battleVoices.set(soldier, voice);
+    }
   }
 }

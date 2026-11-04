@@ -31,7 +31,12 @@
 // @src plotting merc's level) (2026-11-02); Map_Screen_Interface_Bottom.cc CreateMapScreenBottomMessageScrollBarRegion and
 // @src EnableDisableMessageScrollButtonsAndRegions (the scroll area live only while the list scrolls, the message box
 // @src under the wheel), MapScreen.cc CreateBullsEyeOrChopperSelectionPopup and BullsEyeOrChopperSelectionPopupCallback
-// @src (the bullseye under the helicopter icon asks which to move) (2026-11-03).
+// @src (the bullseye under the helicopter icon asks which to move) (2026-11-03); MapScreen.cc HandleKeyESC (a talking face
+// @src stops after the UI message), FaceRegionBtnCallbackPrimary (a left click on the info face stops the line at once,
+// @src not under the pre-battle panel), ContractButtonCallback and ContractRegionBtnCallbackPrimary (no contract menu
+// @src from the button or the column while a subtitle box is up, g_dialogue_box; the c key still opens it),
+// @src RequestContractMenu (the line stops as the contract menu opens), the exit to the laptop (StopAnyCurrentlyTalkingSpeech)
+// @src (2026-11-03).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
@@ -49,7 +54,7 @@ import type { LayoutModel } from '../../layout/model.ts';
 import { popupBoxStyle } from '../../layout/styles.ts';
 import { type CustomRenderer, LayoutView } from '../../layout/view.ts';
 import type { Screen } from '../../screen.ts';
-import { type SaidLine, saidLineOf } from '../../speech.ts';
+import { recruitedSpeaker, SpeechPresenter, type SpeechRouting } from '../../speech.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { printf } from '../../text/printf.ts';
@@ -100,6 +105,7 @@ import { type MapAction, MapScreenController } from './map-controller.ts';
 import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
 import { departureBox, insuranceBox, type PromptBox, type PromptContext, promptBox } from './map-prompts.ts';
+import { MapSpeech } from './map-speech.ts';
 import {
   allowedToHighlight,
   helicopterIconPosition,
@@ -133,6 +139,8 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
   return BATTLE_SCREEN_PROMPTS.has(prompt.kind) || (prompt.kind === 'surrender' && prompt.context === 'autoresolve');
 }
 const OWNER = 'mapScreen';
+const SILENT_SPEECH = { speech: false, subtitles: true, keyAdvance: false } as const;
+const SUBTITLE_BOX = 'subtitleBox';
 const UPDATE_REASONS = 'pUpdateMercStrings';
 const UPDATE_BOX_PROMPT = 'updateBox';
 const UPDATE_CONTINUE = 1;
@@ -221,6 +229,8 @@ export interface MapScreenHook {
   readonly militiaCursor: readonly number[];
   readonly moveBox: readonly string[] | null;
   readonly updateBox: { readonly reason: number; readonly soldiers: readonly number[] } | null;
+  readonly subtitle: string | null;
+  readonly faceTalking: boolean;
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -258,8 +268,8 @@ export class MapScreen implements Screen {
   readonly #promptBoxes = new Map<string, MessageBox>();
   readonly #answeredElsewhere = new Set<string>();
   readonly #battle: BattleEntry;
+  readonly #speech: MapSpeech;
   #lastItems: readonly DrawItem[] = [];
-  #saidLine: SaidLine | null = null;
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
   #messageScrollRegion: MouseRegion | null = null;
@@ -375,6 +385,40 @@ export class MapScreen implements Screen {
       sectorName: (label) => this.#sectorName(label, true),
       preparePanel: (sector) => this.#preparePreBattle(sector),
     });
+    this.#speech = new MapSpeech({
+      services: env.runtime,
+      presenter: env.speech ?? new SpeechPresenter({ voices: null, settings: () => SILENT_SPEECH }),
+      boxArt: env.basicTextBox,
+      boxFonts: () => ({ text: this.#font(FontName.FONT12ARIAL), bold: this.#font(FontName.FONT10ARIALBOLD) }),
+      place: () => this.#subtitlePlace(),
+      speechOn: () => env.speechSettings?.().speech ?? false,
+      routing: () => this.#speechRouting(),
+      listed: (soldier) => this.list.rowOf(soldier) >= 0,
+      select: (soldier) => this.#selectSpeaker(soldier),
+    });
+  }
+
+  #subtitlePlace(): { readonly x: number; readonly y: number; readonly width: number } {
+    const style = this.#model.style(SUBTITLE_BOX) as Readonly<Record<string, number | string>>;
+    const o = this.#origin();
+    const n = (key: string) => this.#model.number(style[key] ?? 0);
+    return { x: o.x + n('x'), y: o.y + n('y'), width: n('width') };
+  }
+
+  #speechRouting(): SpeechRouting {
+    const view = this.#playerView();
+    return {
+      conversationProfile: null,
+      shopDealer: null,
+      rpcSpeechPrefixed: this.#env.rpcSpeechPrefixed ?? false,
+      recruited: (soldier) => recruitedSpeaker(view, soldier),
+      text: (key) => this.#env.media.dialogueText(key.file, key.row),
+    };
+  }
+
+  #selectSpeaker(soldier: number): void {
+    const row = this.list.rowOf(soldier);
+    if (row >= 0 && row !== this.list.info) this.list.changeInfo(row, true);
   }
 
   get mapInventory(): MapInventory {
@@ -502,6 +546,8 @@ export class MapScreen implements Screen {
       militiaCursor: this.#militia.cursor,
       moveBox: this.#moveBox.open ? this.#moveBox.lines.map((l) => l.text) : null,
       updateBox: this.#updateBox.batch,
+      subtitle: this.#speech.subtitle,
+      faceTalking: this.#infoFace()?.talking ?? false,
     };
   }
 
@@ -568,6 +614,7 @@ export class MapScreen implements Screen {
     if (!strategic || strategic.mercs.length === 0) this.#changeSelectedSector(START_SECTOR);
     else if (world) this.#changeSelectedSector(world);
     this.list.rebuild(strategic, false);
+    this.#speech.enter(this.#env.runtime.clock.ja2Now);
     this.#defineRegions();
     this.#inventory.enter();
     this.#env.client.start();
@@ -583,6 +630,7 @@ export class MapScreen implements Screen {
     this.#updateBox.end(null);
     this.#message.end();
     this.#inventory.exit();
+    this.#speech.exit();
     this.#inventoryOpen = false;
     this.#sectorInventoryOpen = false;
     this.#env.client.stop();
@@ -665,7 +713,8 @@ export class MapScreen implements Screen {
       owner: OWNER,
       id: 'infoFace',
       onButton: (_r, reason) => {
-        if (reason & MouseReason.RBUTTON_UP) this.#toggleInventory();
+        if (reason & MouseReason.LBUTTON_UP) this.#faceClick();
+        else if (reason & MouseReason.RBUTTON_UP) this.#toggleInventory();
       },
     });
     const hand = regions.define({
@@ -679,6 +728,10 @@ export class MapScreen implements Screen {
       },
     });
     this.#handRegion = hand;
+  }
+
+  #faceClick(): void {
+    if (this.list.infoMerc(this.#strategic()) && !this.#battle.panel) this.#stopSpeech();
   }
 
   #defineMessageRegions(): void {
@@ -705,12 +758,9 @@ export class MapScreen implements Screen {
     this.#closeAnsweredPrompts();
     const mercs = this.#strategic()?.mercs ?? [];
     for (const frame of frames) this.#updates.observe(frame.tick, frame.events ?? [], mercs, this.#env.notifySleepWake());
+    if (this.#entered) this.#speech.frames(frames);
     for (const frame of frames)
       for (const event of frame.events ?? []) {
-        const said = saidLineOf(event);
-        if (said) this.#saidLine = said;
-        else if (event.type === 'lineCut' && this.#saidLine?.profile === event.profile && this.#saidLine.saidAt === event.saidAt)
-          this.#saidLine = null;
         if (event.type === 'statChanged') {
           const key = event.stat === 'experience' ? 'level' : event.stat;
           const flashes = this.#flashes.get(event.soldier) ?? new Map<string, StatFlash>();
@@ -760,6 +810,7 @@ export class MapScreen implements Screen {
     this.#sectorInventoryOpen = this.#inventory.pool.open;
     const strategic = this.#strategic();
     if (this.list.needsRebuild(strategic)) this.list.rebuild(strategic, true);
+    this.#speech.update(this.#now);
     this.#team.update(this.#now);
     this.#updateSelectedFlash();
     this.#updateFace();
@@ -799,6 +850,11 @@ export class MapScreen implements Screen {
     this.#selectedYellow = !this.#selectedYellow;
   }
 
+  #infoFace(): FaceAnimator | null {
+    const m = this.list.infoMerc(this.#strategic());
+    return m ? (this.#faces.get(m.id) ?? null) : null;
+  }
+
   #updateFace(): void {
     const m = this.list.infoMerc(this.#strategic());
     if (!m) return;
@@ -810,7 +866,7 @@ export class MapScreen implements Screen {
       this.#faces.set(m.id, face);
     }
     this.#env.media.image(face.record.path);
-    const speech = this.#env.media.speech();
+    const speech = this.#speech.speaking;
     const speaking = speech && speech.speaker === m.id ? speech : null;
     const gaps = speaking ? (this.#env.media.gaps(speaking.file) ?? []) : [];
     const playback = speaking ? { playing: speaking.playing, elapsedMs: speaking.elapsedMs, gaps } : null;
@@ -1256,7 +1312,7 @@ export class MapScreen implements Screen {
     this.list.changeInfo(row, true);
     if (this.#plot) this.#abortPlotting(false);
     const m = this.#mercAt(row);
-    if (m && this.#canExtendContract(m)) this.#requestContractMenu(this.#team.rowY(row));
+    if (m && this.#canExtendContract(m) && !this.#speech.boxShown) this.#requestContractMenu(this.#team.rowY(row));
   }
 
   #requestContractMenu(boxY: number | null): void {
@@ -1266,7 +1322,10 @@ export class MapScreen implements Screen {
     this.#menus.close(false);
     this.list.resetSelected();
     if (m.life === 0 || isPow(m)) this.#showAssignmentMenu(m.id, this.list.info);
-    else if (this.#canExtendContract(m)) void this.#withMask(() => this.#contract.show(m.id, boxY));
+    else if (this.#canExtendContract(m)) {
+      void this.#withMask(() => this.#contract.show(m.id, boxY));
+      this.#stopSpeech();
+    }
   }
 
   #mapMove(region: MouseRegion, reason: number): void {
@@ -1739,6 +1798,7 @@ export class MapScreen implements Screen {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
     } else if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
+    else if (this.#speech.talking) this.#stopSpeech();
     else if (this.#updateBox.open) this.#updateBox.end(false);
     else if (this.#plot) this.#abortPlotting(true);
     else if (this.#menus.open) {
@@ -1758,11 +1818,12 @@ export class MapScreen implements Screen {
     if (this.#canEnterSelected()) void this.#leave({ type: 'enterSector', sector: sectorLabel(this.#selected) });
   }
 
-  async #leave(cmd: CommandEnvelope): Promise<void> {
+  async #leave(cmd: CommandEnvelope, left?: () => void): Promise<void> {
     if (this.#leaving) return;
     this.#leaving = true;
     const reply = await this.#env.client.command(cmd);
     this.#leaving = false;
+    if (reply.ok) left?.();
     const text = reply.ok ? null : this.#refusalText(this.#refusalOf(reply));
     if (text) void this.#mapBox(text);
   }
@@ -1809,13 +1870,16 @@ export class MapScreen implements Screen {
     return {
       sort: (arg) => this.#sort(arg),
       contract: () => this.#requestContractMenu(null),
+      contractButton: () => {
+        if (!this.#speech.boxShown) this.#requestContractMenu(null);
+      },
       prevMerc: () => this.#nextMerc(-1),
       nextMerc: () => this.#nextMerc(1),
       filter: (arg) => this.#filter(arg),
       level: (arg) => this.#jumpToLevel(arg),
       levelUp: () => this.#jumpToLevel(this.#level - 1),
       levelDown: () => this.#jumpToLevel(this.#level + 1),
-      laptop: whenExitAllowed(() => void this.#leave({ type: 'openLaptop' })),
+      laptop: whenExitAllowed(() => void this.#leave({ type: 'openLaptop' }, () => this.#stopSpeech())),
       tactical: () => this.#tactical(),
       options: whenExitAllowed(() => this.#env.flow.options()),
       compressCheck: () => this.#abortPlotting(true),
@@ -1858,9 +1922,7 @@ export class MapScreen implements Screen {
   }
 
   #stopSpeech(): void {
-    const line = this.#saidLine;
-    this.#saidLine = null;
-    if (line) void this.#env.client.command({ type: 'skipLine', profile: line.profile, tick: line.saidAt });
+    this.#speech.stop();
   }
 
   async #displayGameSettings(): Promise<void> {
@@ -1924,6 +1986,7 @@ export class MapScreen implements Screen {
     this.#message.render(list, this.#origin());
     this.#battle.render(list, list.items.slice(start));
     this.#lastItems = list.items.slice(start);
+    this.#speech.render(list);
   }
 
   describe(): readonly WidgetInfo[] {
@@ -1938,6 +2001,7 @@ export class MapScreen implements Screen {
       ...this.#moveBox.describe(),
       ...this.#updateBox.describe(),
       ...this.#battle.describe(),
+      ...this.#speech.describe(),
     ];
   }
 
@@ -2006,8 +2070,7 @@ export class MapScreen implements Screen {
     const locator = this.#strategic()?.battleLocator ?? (prompt?.kind === 'preBattle' ? prompt.sector : null);
     const battle = locator ? parseSectorLabel(locator) : null;
     if (battle) locators.push({ sector: battle, colour: 'red' });
-    const speech = this.#env.media.speech();
-    const speaker = speech?.playing ? mercById(this.#strategic(), speech.speaker) : null;
+    const speaker = mercById(this.#strategic(), this.#speech.speaker);
     const at = speaker ? parseSectorLabel(speaker.sector) : null;
     if (at && at.z === this.#level) locators.push({ sector: at, colour: 'yellow' });
     return locators;

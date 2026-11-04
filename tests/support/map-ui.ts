@@ -31,6 +31,7 @@ import { mapFacts } from '../../src/ui/screens/map/facts.ts';
 import { MapScreen } from '../../src/ui/screens/map/map-screen.ts';
 import type { MapBoardArt } from '../../src/ui/screens/map/map-view.ts';
 import type { SpeechPlayback } from '../../src/ui/screens/tactical/environment.ts';
+import { reportStoppedLines, SpeechPresenter, type SpeechSettings, type SpeechVoice } from '../../src/ui/speech.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
@@ -223,6 +224,52 @@ async function stubImages(t: TestRuntime): Promise<void> {
 export const TEST_VERSION = '9.9.9 (test)';
 export const TEST_GAME_OPTIONS: GameOptions = { difficulty: 3, sciFi: false, gunNut: true, saveMode: 'ironMan', bloodAndGore: true };
 
+export class TestVoice implements SpeechVoice {
+  active = true;
+  playing = true;
+  failed = false;
+  elapsedMs = 0;
+  readonly file: string;
+
+  constructor(file: string) {
+    this.file = file;
+  }
+
+  stop(): void {
+    this.active = false;
+    this.playing = false;
+  }
+}
+
+export interface MapSpeechTest {
+  readonly presenter: SpeechPresenter;
+  readonly settings: { -readonly [K in keyof SpeechSettings]: SpeechSettings[K] };
+  readonly voices: TestVoice[];
+  voiced: boolean;
+}
+
+function mapSpeechTest(client: MapSessionClient): MapSpeechTest {
+  const voices: TestVoice[] = [];
+  const test: MapSpeechTest = {
+    presenter: new SpeechPresenter({
+      voices: {
+        play: (path) => {
+          if (!test.voiced) return null;
+          const voice = new TestVoice(path);
+          voices.push(voice);
+          return voice;
+        },
+      },
+      settings: () => test.settings,
+    }),
+    settings: { speech: true, subtitles: true, keyAdvance: false },
+    voices,
+    voiced: false,
+  };
+  reportStoppedLines(test.presenter, (cmd) => void client.command(cmd));
+  return test;
+}
+
 export interface MapFlowReplies {
   quickSaveFailure: string | null;
   gameOptions: GameOptions | null;
@@ -235,6 +282,7 @@ export interface MapUiTest {
   readonly battleClient: BattleSessionClient;
   readonly battleSounds: FakeBattleSounds;
   readonly media: FakeMapMedia;
+  readonly speech: MapSpeechTest;
   readonly screen: MapScreen;
   readonly mercs: readonly number[];
   readonly trainer: number;
@@ -277,6 +325,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
   const battleSounds = new FakeBattleSounds();
   const boxes = new CanvasMessageBoxes({ services: t.runtime, style, labels: () => boxLabels });
   const replies: MapFlowReplies = { quickSaveFailure: null, gameOptions: TEST_GAME_OPTIONS };
+  const speech = mapSpeechTest(client);
   let die = 0;
   const env: MapEnvironment = {
     runtime: t.runtime,
@@ -313,6 +362,8 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,
     notifySleepWake: () => true,
+    speech: speech.presenter,
+    speechSettings: () => speech.settings,
     battle: testBattleEnvironment({
       t,
       text,
@@ -366,6 +417,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     battleClient,
     battleSounds,
     media,
+    speech,
     screen,
     mercs: campaign.mercs,
     trainer: campaign.trainer,

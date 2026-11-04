@@ -12,6 +12,7 @@ export const MAP_SCREEN_CONTRACT: ControllerContract = {
   actions: {
     sort: { args: 1 },
     contract: {},
+    contractButton: {},
     prevMerc: {},
     nextMerc: {},
     filter: { args: 1 },

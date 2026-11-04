@@ -73,8 +73,9 @@ sample cache. ja2-node decodes WAV itself, since almost every battle sound and a
 bundled; a missing file is skipped, as the original skips a failed play.
 
 **Speech** plays for every quote with a text key; the next line waits for the sample, a line of a merc on our team
-waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`), and a line end on
-the simulation's side never cuts it. On `/play` the speech presenter owns voice, subtitle and skip (`30`).
+waits, face and subtitle too, until his battle sound ends (`SoundDirector.mercBattleSoundPlaying`, on the map screen
+`MapSound.mercBattleSoundPlaying` for the route confirmation), and a line end on the simulation's side never cuts it. On
+`/play` the speech presenter owns voice, subtitle and skip (`30`).
 
 ### Music
 

@@ -1,5 +1,5 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
-import type { UiLanguage } from '../../content/text/data-version.ts';
+import { rpcSpeechPrefixed, type UiLanguage } from '../../content/text/data-version.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
@@ -23,6 +23,7 @@ import { createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { loadSettings } from '../settings.ts';
+import type { SessionSpeech } from '../sound/session-speech.ts';
 import { fetchItemCatalogue, fetchProfiles } from '../tactical/tactical-media.ts';
 import { BOARD_KEYS, BOARD_PCX, boardImages } from './map-board.ts';
 import { SessionMapClient } from './map-client.ts';
@@ -40,6 +41,7 @@ export interface MapHostOptions {
   readonly page: GamePage;
   readonly ui: UiBoot;
   readonly session: SessionClient;
+  readonly speech: SessionSpeech;
   readonly boxes: MessageBoxes;
   readonly basicTextBox: MercTextBoxArt;
   readonly messageBoxStyle: (style: number) => MessageBoxStyle;
@@ -139,7 +141,9 @@ export class MapHost implements MapPort {
     };
     onProgress(done, LOAD_STEPS);
     const battleSound = new BattleSound(ui.audio.engine, ui.source, session.session ?? 'battle');
-    const sound = new MapSound(ui.audio.engine, ui.source, () => session.view, session.session ?? 'map');
+    const speech = this.#o.speech;
+    const sound = new MapSound(ui.audio.engine, ui.source, () => session.view, session.session ?? 'map', speech.owner);
+    speech.addBattleSounds({ playing: (profile) => sound.mercBattleSoundPlaying(profile) });
     const [knowledge, layouts, , media, battleLayouts] = await Promise.all([
       (this.#knowledge ? Promise.resolve(this.#knowledge) : this.#openKnowledge()).then(step),
       loadLayouts(ui, MAP_LAYOUTS).then(step),
@@ -177,7 +181,7 @@ export class MapHost implements MapPort {
       edt: ui.edt,
       catalogue,
       profiles,
-      speech: () => null,
+      speech: () => ({ speaking: this.#o.speech.presenter.soldierSpeaking }),
       gunNut,
       messages: () => session.messages,
     });
@@ -220,6 +224,9 @@ export class MapHost implements MapPort {
       battle: this.#battleEnvironment(loaded, flow),
       version: this.#o.version,
       gameOptions: () => this.#o.gameOptions().catch(() => null),
+      speech: this.#o.speech.presenter,
+      speechSettings: this.#o.speech.settings,
+      rpcSpeechPrefixed: rpcSpeechPrefixed(ui.dataVersion),
     };
     this.#screen = new MapScreen(env);
     if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);

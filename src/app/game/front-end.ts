@@ -33,6 +33,7 @@ import { MapHost } from '../map/map-host.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { fetchVfsFile } from '../net/vfs.ts';
 import { manifestRuleListing } from '../rules/client-rules.ts';
+import { SessionSpeech } from '../sound/session-speech.ts';
 import { TacticalHost } from '../tactical/tactical-host.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
 import { beginningPlan, sequenceEnabled } from '../video/sequences.ts';
@@ -145,6 +146,11 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     if (client.client) client.client.playbackSpeed = current.playbackSpeed;
   });
   const random = new ClientRandom(seedFromText(FRONT_END_RANDOM_SEED));
+  let speech: SessionSpeech | null = null;
+  const speechFor = (session: SessionClient): SessionSpeech => {
+    if (speech?.client !== session) speech = new SessionSpeech(session, ui.audio.engine);
+    return speech;
+  };
   let tactical: TacticalHost | null = null;
   const tacticalFor = (session: SessionClient): TacticalHost => {
     if (tactical?.session === session) return tactical;
@@ -153,6 +159,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       page,
       ui,
       session,
+      speech: speechFor(session),
       boxes: env.boxes,
       basicTextBox,
       language: () => settings.current().language,
@@ -171,6 +178,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       page,
       ui,
       session,
+      speech: speechFor(session),
       boxes: env.boxes,
       basicTextBox,
       messageBoxStyle: env.messageBoxStyle,

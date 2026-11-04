@@ -100,4 +100,17 @@ describe('speech surfaces in a stub campaign', () => {
     f.t.frame();
     expect(f.find('speechTextBox')).toBeUndefined();
   });
+
+  it('takes no line from a frame the map screen took first, as both screens hear every frame', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tick = f.client.view.tick;
+    const textKey = { file: 'npcdata/097.edt', row: 3, width: 240 };
+    const quote = { type: 'skyriderQuote', tick, quote: 3, profile: 97, textKey, chars: 12, text: 'Hop in, mate' } as never;
+    const frame = { tick, changed: [], removed: [], events: [quote] };
+    expect(f.screen.dialogue.presenter.takesFrame(frame)).toBe(true);
+    f.frames([frame]);
+    expect(f.screen.dialogue.presenter.current).toBeNull();
+    f.frames([{ ...frame }]);
+    expect(f.screen.dialogue.presenter.current?.line).toMatchObject({ surface: 'external', profile: 97 });
+  });
 });

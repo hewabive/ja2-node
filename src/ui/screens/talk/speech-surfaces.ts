@@ -29,6 +29,7 @@ import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../w
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { drawTalkingFace, FaceAnimator, type FaceRecord, faceFileOf } from '../tactical/faces.ts';
+import { SubtitleBox, skipRegion } from './subtitle-box.ts';
 
 export const TACTICAL_SPEECH_SCREEN = 'tacticalSpeech';
 export const TACTICAL_SPEECH_LAYOUT = 'tactical-speech';
@@ -108,8 +109,8 @@ export function smallFaceRecord(profile: ProfilePresentation): FaceRecord {
 
 export class SpeechSurfaces {
   readonly #hooks: SpeechSurfaceHooks;
+  readonly #textBox: SubtitleBox;
   #now = 0;
-  #textBox: PlacedBox | null = null;
   #civBox: PlacedBox | null = null;
   #faceRegion: MouseRegion | null = null;
   #faceLine = -1;
@@ -119,6 +120,7 @@ export class SpeechSurfaces {
 
   constructor(hooks: SpeechSurfaceHooks) {
     this.#hooks = hooks;
+    this.#textBox = new SubtitleBox({ ...hooks, owner: OWNER, now: () => this.#now });
   }
 
   renderers(): Readonly<Record<string, CustomRenderer>> {
@@ -134,7 +136,7 @@ export class SpeechSurfaces {
   }
 
   get textBoxText(): string | null {
-    return this.#textBox?.box.request.text ?? null;
+    return this.#textBox.text;
   }
 
   get civQuoteText(): string | null {
@@ -147,7 +149,7 @@ export class SpeechSurfaces {
     const surface = current?.line.surface;
     const tactical = surface === SpeechSurface.TACTICAL || surface === SpeechSurface.EXTERNAL;
     this.#syncFaceRegion(tactical && this.#hooks.speechOn() ? current : null);
-    this.#syncTextBox(tactical && current?.subtitles ? current : null);
+    this.#textBox.sync(tactical && current?.subtitles ? current : null, () => this.#textBoxPlace());
     this.#syncPopupFace(now, tactical && !this.#ownSpeaker(current) ? current : null);
     this.#syncCivBox(this.#hooks.presenter.civQuote);
   }
@@ -155,8 +157,7 @@ export class SpeechSurfaces {
   dispose(): void {
     this.#faceRegion?.remove();
     this.#faceRegion = null;
-    this.#textBox?.region.remove();
-    this.#textBox = null;
+    this.#textBox.dispose();
     this.#civBox?.region.remove();
     this.#civBox = null;
     this.#civAnchor = null;
@@ -168,8 +169,7 @@ export class SpeechSurfaces {
       out.push({ id, kind: 'region', rect: { x, y, width, height }, visible: true, enabled: true, state: null, text, frame: null });
     const face = this.#faceRegion;
     if (face) add('speechFacePopup', face.x1, face.y1, face.width, face.height, null);
-    const box = this.#textBox;
-    if (box) add('speechTextBox', box.x, box.y, box.box.width, box.box.height, box.box.request.text);
+    out.push(...this.#textBox.describe());
     const civ = this.#civBox;
     if (civ) add('civQuoteBox', civ.x, civ.y, civ.box.width, civ.box.height, civ.box.request.text);
     return out;
@@ -197,28 +197,9 @@ export class SpeechSurfaces {
     return (value as unknown[]).map((v) => this.#number(v)) as unknown as Rect4;
   }
 
-  #skipRegion(id: string, x: number, y: number, width: number, height: number): MouseRegion {
-    let down = false;
-    return this.#hooks.services.regions.define({
-      x1: x,
-      y1: y,
-      x2: x + width,
-      y2: y + height,
-      priority: Priority.HIGHEST,
-      cursor: 0,
-      owner: OWNER,
-      id,
-      onButton: (_r, reason) => {
-        if (reason & MouseReason.LBUTTON_DWN) down = true;
-        if (reason & MouseReason.LBUTTON_UP && down) {
-          down = false;
-          this.#hooks.presenter.skip(this.#now, false);
-        }
-      },
-      onMove: (_r, reason) => {
-        if (reason & MouseReason.LOST_MOUSE) down = false;
-      },
-    });
+  #textBoxPlace() {
+    const s = this.#style('textBox');
+    return { x: this.#number(s.x), y: this.#number(s.y), width: this.#number(s.width) };
   }
 
   #syncFaceRegion(line: ActiveLine | null): void {
@@ -231,7 +212,8 @@ export class SpeechSurfaces {
     if (this.#faceRegion && this.#faceLine === line.line.id) return;
     this.#faceRegion?.remove();
     const s = this.#style('facePopup');
-    this.#faceRegion = this.#skipRegion(
+    this.#faceRegion = skipRegion(
+      { ...this.#hooks, owner: OWNER, now: () => this.#now },
       'speechFacePopup',
       this.#number(s.x),
       this.#number(s.y),
@@ -239,25 +221,6 @@ export class SpeechSurfaces {
       this.#number(s.height),
     );
     this.#faceLine = line.line.id;
-  }
-
-  #syncTextBox(line: ActiveLine | null): void {
-    if (!line) {
-      this.#textBox?.region.remove();
-      this.#textBox = null;
-      return;
-    }
-    if (this.#textBox?.id === line.line.id) return;
-    this.#textBox?.region.remove();
-    const s = this.#style('textBox');
-    const box = new MercTextBox(
-      this.#hooks.boxArt,
-      { text: quoted(line.line.text), width: this.#number(s.width), marginX: 0, marginTop: 0, marginBottom: 0 },
-      this.#hooks.boxFonts(),
-    );
-    const x = this.#number(s.x);
-    const y = this.#number(s.y);
-    this.#textBox = { id: line.line.id, box, x, y, region: this.#skipRegion('speechTextBox', x, y, box.width, box.height) };
   }
 
   #syncPopupFace(now: number, line: ActiveLine | null): void {
@@ -355,8 +318,7 @@ export class SpeechSurfaces {
   }
 
   #renderTextBox(list: DrawList): void {
-    const box = this.#textBox;
-    if (box) box.box.render(list, box.x, box.y);
+    this.#textBox.render(list);
   }
 
   #renderCivBox(list: DrawList): void {

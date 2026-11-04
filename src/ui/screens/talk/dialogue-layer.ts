@@ -22,7 +22,7 @@ import {
   civQuoteOf,
   isQueuedQuoteEvent,
   isQuoteEvent,
-  type SpeakingFace,
+  recruitedSpeaker,
   SpeechPresenter,
   type SpeechRouting,
   SpeechSurface,
@@ -216,9 +216,7 @@ export class DialogueLayer {
   }
 
   get speaking(): SpeechPlayback | null {
-    const s: SpeakingFace | null = this.presenter.speaking;
-    if (!s || s.speaker < 0 || s.surface !== SpeechSurface.TACTICAL) return null;
-    return { speaker: s.speaker, file: s.file, elapsedMs: s.elapsedMs, playing: s.playing };
+    return this.presenter.soldierSpeaking;
   }
 
   #view(): PlayerView | null {
@@ -247,7 +245,7 @@ export class DialogueLayer {
   frames(frames: readonly ViewFrame[]): void {
     for (const frame of frames) {
       if (frame.conversation !== undefined) this.#conversationProfile = frame.conversation?.profile ?? null;
-      for (const event of frame.events ?? []) this.#event(event);
+      if (this.presenter.takesFrame(frame)) for (const event of frame.events ?? []) this.#event(event);
     }
   }
 
@@ -257,10 +255,7 @@ export class DialogueLayer {
       conversationProfile: this.#conversationProfile,
       shopDealer: view?.shop?.dealer ?? null,
       rpcSpeechPrefixed: this.#env.rpcSpeechPrefixed ?? false,
-      recruited: (soldier) => {
-        const kind = view?.soldiers.find((s) => s.id === soldier)?.kind;
-        return kind === 'rpc' || kind === 'epc';
-      },
+      recruited: (soldier) => recruitedSpeaker(view, soldier),
       text: (key) => this.#env.text.edt(key.file, key.row),
     };
   }

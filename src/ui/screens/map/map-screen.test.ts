@@ -18,14 +18,12 @@ const PLOT_REST_MS = 250;
 const ASSIGN_MENU_TRAIN = 5;
 const TRAIN_MENU_TOWN = 1;
 const MESSAGE_BOX = 'messageBox';
-const SPEAKER = 60;
 const MALE = 0;
 const FEMALE = 1;
 const FRED = 106;
 const FRED_RUNNING_OUT = 17;
 const FRED_KEY = { file: 'npcdata/106.edt', row: FRED_RUNNING_OUT, width: 240 };
 const DRASSEN_MINE = 1;
-const QUOTE_KEY = { file: 'npcdata/060.edt', row: 0, width: 240 };
 const RADAR = 'radarmaps/test.sti';
 const DRASSEN_MINE_FIRST_LEVEL = { x: 13, y: 4, z: 1 };
 const SECONDS_PER_HOUR = 3600;
@@ -326,23 +324,6 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.settle();
       expect(f.t.runtime.host.modal).toBeNull();
       expect(f.client.commands.length).toBe(sent);
-    }));
-
-  it('cuts the line the player last saw said with Backspace, and nothing once that line was cut', () =>
-    withMap(async (f) => {
-      const tick = f.client.view.tick;
-      const said = { type: 'npcQuote', tick, profile: SPEAKER, soldier: null, quote: 0, textKey: QUOTE_KEY, chars: 12 } as const;
-      f.frames([{ tick, changed: [], removed: [], events: [said] }]);
-      f.key('Backspace');
-      await f.settle();
-      expect(lastCommand(f)?.cmd).toEqual({ type: 'skipLine', profile: SPEAKER, tick });
-      const sent = f.client.commands.length;
-      f.frames([
-        { tick, changed: [], removed: [], events: [said, { type: 'lineCut', tick, profile: SPEAKER, saidAt: tick, tail: false }] },
-      ]);
-      f.key('Backspace');
-      await f.settle();
-      expect(f.client.commands).toHaveLength(sent);
     }));
 
   it('lists the version and the game options in the message list with v', () =>

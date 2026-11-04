@@ -6,6 +6,7 @@ import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiRuntime } from '../../runtime.ts';
+import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { ViewerPromptPort } from '../../viewer-prompts.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
@@ -83,6 +84,9 @@ export interface MapEnvironment {
   readonly notifySleepWake: () => boolean;
   readonly battle: BattleEnvironment;
   readonly version: string;
+  readonly speech?: SpeechPresenter;
+  readonly speechSettings?: () => SpeechSettings;
+  readonly rpcSpeechPrefixed?: boolean;
   gameOptions(): Promise<GameOptions | null>;
 }
 

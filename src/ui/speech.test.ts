@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import type { PlayerView } from '../protocol/view.ts';
 import {
   civQuoteLifetime,
   civQuoteOf,
   FINAL_TALKING_DELAY_MS,
   isQueuedQuoteEvent,
   type QuoteEvent,
+  recruitedSpeaker,
   type SpeechLineRequest,
   SpeechPresenter,
   type SpeechRouting,
@@ -403,5 +405,18 @@ describe('speechLineOf', () => {
   it('turns a civilian quote into the civilian box', () => {
     const civ = { type: 'civQuote', tick: 1, soldier: 12, quote: 2, entry: 0, hint: false, textKey: key, chars: 5 } as QuoteEvent;
     expect(civQuoteOf(civ, routing)).toEqual({ soldier: 12, text: 'row 3', chars: 5, hint: false });
+  });
+});
+
+describe('recruitedSpeaker', () => {
+  it('reads a recruited NPC from his soldier, and from the strategic merc list when he is away from the loaded sector', () => {
+    const view = {
+      soldiers: [{ id: 1, kind: 'rpc' }],
+      strategic: { mercs: [{ id: 1 }, { id: 2, kind: 'epc' }, { id: 3, kind: 'aim' }] },
+    } as unknown as PlayerView;
+    expect(recruitedSpeaker(view, 1)).toBe(true);
+    expect(recruitedSpeaker(view, 2)).toBe(true);
+    expect(recruitedSpeaker(view, 3)).toBe(false);
+    expect(recruitedSpeaker(view, null)).toBe(false);
   });
 });

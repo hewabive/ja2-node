@@ -11,10 +11,13 @@
 // @src line had no voice or subtitles are on); src/game/Tactical/Civ_Quotes.cc BeginCivQuote (a new quote replaces
 // @src the old one, the lifetime of the quoted text plus 500 ms), ShutDownQuoteBox (a click closes after 300 ms);
 // @src a screen that leaves out Dialogue_Control.cc HandleDialogue starts no queued line and keeps the civilian quote
-// @src (HandleCivQuote), while Faces.cc HandleTalkingAutoFaces plays the current line to its end (2026-11-03).
+// @src (HandleCivQuote), while Faces.cc HandleTalkingAutoFaces plays the current line to its end (2026-11-03);
+// @src Dialogue_Control.cc gpCurrentTalkingFace is one face for every screen: a line goes on across a screen switch
+// @src (2026-11-03).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
-import type { ViewFrame } from '../protocol/view.ts';
+import type { CommandEnvelope } from '../protocol/messages.ts';
+import type { PlayerView, ViewFrame } from '../protocol/view.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
 export const FINAL_TALKING_DELAY_MS = 300;
@@ -22,6 +25,7 @@ export const MIN_TALK_BEFORE_SKIP_MS = 500;
 export const CIV_QUOTE_EXTRA_MS = 500;
 export const CIV_QUOTE_MIN_LIFE_MS = 300;
 const QUOTE_MARKS = 2;
+const RECRUITED_KINDS: ReadonlySet<string> = new Set(['rpc', 'epc']);
 
 export const SpeechSurface = {
   PANEL: 'panel',
@@ -144,6 +148,7 @@ export class SpeechPresenter {
   #nextId = 1;
   #now = 0;
   #dialogueHeld = false;
+  readonly #framesTaken = new WeakSet<object>();
   readonly #started: ((line: SpeechLine) => void)[] = [];
   readonly #ended: ((line: SpeechLine) => void)[] = [];
   readonly #stopped: ((line: SpeechLine, how: LineStop) => void)[] = [];
@@ -194,6 +199,17 @@ export class SpeechPresenter {
       elapsedMs: voice ? voice.elapsedMs : this.#now - r.startedAt,
       playing: r.phase === 'talking',
     };
+  }
+
+  get soldierSpeaking(): SpeakingFace | null {
+    const face = this.speaking;
+    return face && face.speaker >= 0 && face.surface === SpeechSurface.TACTICAL ? face : null;
+  }
+
+  takesFrame(frame: ViewFrame): boolean {
+    if (this.#framesTaken.has(frame)) return false;
+    this.#framesTaken.add(frame);
+    return true;
   }
 
   enqueue(request: SpeechLineRequest): SpeechLine {
@@ -339,6 +355,19 @@ export class SpeechPresenter {
     this.#running = null;
     for (const listener of this.#ended) listener(r.line);
   }
+}
+
+export function reportStoppedLines(presenter: SpeechPresenter, send: (cmd: CommandEnvelope) => void): void {
+  presenter.onLineStopped((line, how) => {
+    if (line.saidAt === undefined) return;
+    send({ type: 'skipLine', profile: line.profile, tick: line.saidAt, ...(how === 'talkEnded' ? { talkEnded: true } : {}) });
+  });
+}
+
+export function recruitedSpeaker(view: PlayerView | null, soldier: number | null): boolean {
+  if (soldier === null) return false;
+  const kind = view?.soldiers.find((s) => s.id === soldier)?.kind ?? view?.strategic?.mercs.find((m) => m.id === soldier)?.kind;
+  return kind !== undefined && RECRUITED_KINDS.has(kind);
 }
 
 export type QuoteEvent = Extract<
