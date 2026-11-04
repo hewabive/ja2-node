@@ -58,6 +58,14 @@ export function sampleAssignmentHints(view: PlayerView): CommandEnvelope[] {
   return mercIds(view).map((soldier) => ({ type: 'assignmentOptions', soldier }));
 }
 
+export function samplePassHints(view: PlayerView): CommandEnvelope[] {
+  const stashes = view.strategic?.mercs.map((m) => m.sector) ?? [];
+  return [
+    ...mercIds(view).map((soldier) => ({ type: 'passTargets', soldier })),
+    ...[...new Set([...stashes, 'A9', 'A9-1', 'P16'])].map((sector) => ({ type: 'passTargets', sector })),
+  ];
+}
+
 const DIRECTIONS = ['north', 'east', 'south', 'west'] as const;
 
 export function sampleExitHints(view: PlayerView): CommandEnvelope[] {
@@ -81,6 +89,7 @@ export function sampleStrategicHints(view: PlayerView, step = STRATEGIC_HINT_SAM
     ...sampleEnterHints(view, step),
     ...sampleAssignmentHints(view),
     ...sampleMoveBoxHints(view),
+    ...samplePassHints(view),
     ...sampleExitHints(view),
   ];
 }

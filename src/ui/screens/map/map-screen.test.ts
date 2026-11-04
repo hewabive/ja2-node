@@ -9,6 +9,7 @@ import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts
 import { createItem } from '../../../sim/items/object.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
+import { WorldItemFlags } from '../../../sim/tactical/world-items.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { BUTTON_REPEAT_TIMEOUT_MS } from '../../input/mouse.ts';
@@ -155,6 +156,33 @@ function setGameJustStarted(f: MapUiTest, started: boolean): void {
   (f.session.sim as CampaignSession).campaign.state.didGameJustStart = started;
   f.client.refresh();
   f.t.frame();
+}
+
+function listedMercs(f: MapUiTest): [number, number, number] {
+  const mercOn = (row: number) => {
+    const id = f.screen.list.slots[row]?.merc;
+    if (id === null || id === undefined) throw new Error(`no merc on row ${row}`);
+    return id;
+  };
+  return [mercOn(0), mercOn(1), mercOn(2)];
+}
+
+function moveMercAway(f: MapUiTest, id: number): void {
+  const merc = (f.session.sim as CampaignSession).campaign.battle?.roster.get(id);
+  if (!merc) throw new Error(`no roster merc ${id}`);
+  merc.sector = { x: 1, y: 1, z: 0 };
+  f.client.refresh();
+  f.t.frame();
+}
+
+function stashClipInSelectedSector(f: MapUiTest): void {
+  const campaign = (f.session.sim as CampaignSession).campaign;
+  const items = campaign.battle?.content.items;
+  if (!items) throw new Error('no item table');
+  const object = createItem(items, items.byName.get('CLIP9_15')?.index ?? 0, 15);
+  const flags = WorldItemFlags.REACHABLE;
+  const diff = { ...emptySectorDiff(), items: [{ exists: true, gridNo: STASH_GRIDNO, level: 0, object, flags, zHeight: 0, visible: 1 }] };
+  campaign.state.sectorDiffs.set(sectorKey(f.screen.selectedSector), diff);
 }
 
 async function withMap(run: (f: MapUiTest) => Promise<void>): Promise<void> {
@@ -691,5 +719,43 @@ describe('the map screen over the stub map-screen campaign', () => {
       await f.click('teamRow0.destination');
       expect(f.screen.hook()).toMatchObject({ level: 0, plotting: { mode: 'merc' } });
       expect(f.screen.hook().selectedSector).not.toMatch(/-/);
+    }));
+
+  it('keeps the info character on a team row click while a sector inventory item is held, unless that merc stands in the sector', () =>
+    withMap(async (f) => {
+      const [holder, away, near] = listedMercs(f);
+      moveMercAway(f, away);
+      await f.click('teamRow0.name');
+      stashClipInSelectedSector(f);
+      f.screen.openSectorInventory();
+      await f.settle();
+      await f.click('poolSlot0');
+      await f.click('teamRow1.name');
+      expect(f.screen.hook().info).toBe(holder);
+      await f.click('teamRow2.name');
+      expect(f.screen.hook().info).toBe(near);
+      f.key('Escape');
+      await f.click('teamRow1.name');
+      expect(f.screen.hook().info).toBe(away);
+    }));
+
+  it('steps the info character with the arrows past a merc who could not take the held item, as ValidSelectableCharForNextOrPrev', () =>
+    withMap(async (f) => {
+      const [holder, away, near] = listedMercs(f);
+      moveMercAway(f, away);
+      await f.click('teamRow0.name', MouseButton.RIGHT);
+      const pocket = f.client.view.strategic?.mercs.find((m) => m.id === holder)?.inventory?.[0];
+      if (!pocket) throw new Error('the info merc carries nothing');
+      await f.click(`mercSlot${pocket.slot}`);
+      f.key('ArrowRight');
+      await f.settle();
+      expect(f.screen.hook().info).toBe(near);
+      f.key('ArrowLeft');
+      await f.settle();
+      expect(f.screen.hook().info).toBe(holder);
+      f.key('Escape');
+      f.key('ArrowRight');
+      await f.settle();
+      expect(f.screen.hook().info).toBe(away);
     }));
 });

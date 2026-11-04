@@ -8,6 +8,7 @@ export type { ExitSectorDryRun, ExitSectorOptions } from '../sim/hints/exit-sect
 export type { ItemInfo, ItemInfoKind } from '../sim/hints/item-info.ts';
 export type { MoveBoxOptions, MoveBoxSoldier } from '../sim/hints/move-box-options.ts';
 export type { MovementOptions } from '../sim/hints/movement-options.ts';
+export type { PassTargets } from '../sim/hints/pass-targets.ts';
 export type { Placements, SlotPlacement } from '../sim/hints/placements.ts';
 export type { ActionKind, PreviewAction } from '../sim/hints/preview-action.ts';
 export type { PreviewHeliRoute } from '../sim/hints/preview-heli-route.ts';

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
-import { sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
+import { samplePassHints, sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import { Direction } from '../content/world/grid.ts';
@@ -153,6 +153,28 @@ describe('strategic cursor hints on a stub campaign, client against server', () 
     expect(serialisedView(c.session).strategic).toEqual(viewBefore);
     const after = await Promise.all(requests.map((q) => c.session.query(q)));
     expect(after).toEqual(before);
+  });
+
+  it('name the mercs a held item could pass to on the map, and moveItem refuses the others with the same rule', async () => {
+    const c = await landedCampaign(37);
+    const roster = c.sim.campaign.battle?.roster;
+    const [holder, away, near] = roster?.all() ?? [];
+    if (!holder || !away || !near) throw new Error('three mercs expected');
+    away.sector = parseSectorString('B10');
+    const view = serialisedView(c.session);
+    await expectHintsAgree(c.session, client, samplePassHints(view));
+    const targets = async (request: Record<string, unknown>) =>
+      ((await c.session.query({ type: 'passTargets', ...request })).data as { mercs: number[] }).mercs;
+    expect(await targets({ soldier: holder.id })).toEqual(expect.arrayContaining([holder.id, near.id]));
+    expect(await targets({ soldier: holder.id })).not.toContain(away.id);
+    expect(await targets({ soldier: away.id })).toEqual([away.id]);
+    expect(await targets({ sector: 'B10' })).toEqual([away.id]);
+    const pocket = view.strategic?.mercs.find((m) => m.id === holder.id)?.inventory?.[0];
+    if (!pocket) throw new Error('the holder carries nothing');
+    const pass = (to: number) => ({ type: 'moveItem', soldier: holder.id, from: pocket.slot, toSoldier: to, to: pocket.slot });
+    expect(c.sim.dispatch(pass(away.id))).toMatchObject({ ok: false, data: { refusal: 'otherSector' } });
+    expect(await c.session.query({ type: 'passTargets', soldier: 999 })).toMatchObject({ ok: false, data: { refusal: 'noSuchMerc' } });
+    expect(await c.session.query({ type: 'passTargets' })).toMatchObject({ ok: false, data: { refusal: 'badSource' } });
   });
 
   it('refuse a route as too tired like the command, for a merc awake below 30 and for a sleeper beyond waking', async () => {

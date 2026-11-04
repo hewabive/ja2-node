@@ -7,7 +7,8 @@
 // @src GetMapscreenMercDestinationString, GetMapscreenMercDepartureString, DisplayCharacterList (the row colours);
 // @src src/game/Strategic/Map_Screen_Interface.cc SetEntryInSelectedCharacterList, ResetEntryForSelectedList,
 // @src ResetSelectedListForMapScreen, ToggleEntryInSelectedList, BuildSelectedListFromAToB, GetMoraleString,
-// @src MultipleCharacterListEntriesSelected, CharacterIsGettingPathPlotted (2026-11-02).
+// @src MultipleCharacterListEntriesSelected, CharacterIsGettingPathPlotted (2026-11-02); ChangeSelectedInfoChar's
+// @src held-item check, MapscreenCanPassItemToChar through the passTargets hint (2026-11-04).
 
 import { FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -137,11 +138,18 @@ function sortsBefore(mode: number, view: StrategicView, merc: StrategicMercView,
   }
 }
 
+export type HeldItemTakers = () => ReadonlySet<number> | null;
+
 export class CharacterList {
   slots: CharacterSlot[] = Array.from({ length: MAX_CHARACTER_COUNT }, () => ({ merc: null, selected: false }));
   info = NO_CHARACTER;
   sortMode: number = SortMode.NAME;
   #roster = '';
+  readonly #heldItemTakers: HeldItemTakers;
+
+  constructor(heldItemTakers: HeldItemTakers = () => null) {
+    this.#heldItemTakers = heldItemTakers;
+  }
 
   merc(view: StrategicView | undefined, row: number): StrategicMercView | null {
     return mercById(view, this.slots[row]?.merc ?? null);
@@ -256,8 +264,15 @@ export class CharacterList {
     return plottingSelected ? this.isSelected(row) : row === plottingRow || row === destinationHighLine;
   }
 
+  canTakeHeldItem(merc: number | null): boolean {
+    const takers = this.#heldItemTakers();
+    return takers === null || (merc !== null && takers.has(merc));
+  }
+
   changeInfo(row: number, resetList: boolean): boolean {
-    if (row !== NO_CHARACTER && this.slots[row]?.merc === null) return false;
+    const merc = row === NO_CHARACTER ? null : (this.slots[row]?.merc ?? null);
+    if (row !== NO_CHARACTER && merc === null) return false;
+    if (!this.canTakeHeldItem(merc)) return false;
     if (resetList) this.resetSelected();
     if (this.info !== row) {
       if (resetList && this.info !== NO_CHARACTER) this.setSelected(this.info, false);

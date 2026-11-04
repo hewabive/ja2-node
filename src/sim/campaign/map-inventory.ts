@@ -6,8 +6,9 @@
 // @src CreateDestroyMapInventoryPoolButtons (the reachability of the loaded sector's items); MapScreen.cc
 // @src MAPInvClickCallbackPrimary, MAPBeginItemPointer, MapCharacterHasAccessibleInventory, MAPInvClickCamoCallback (no
 // @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
-// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar; Tactical/Interface_Items.cc RemoveMoney (on the
-// @src map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a pocket).
+// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar (item-passing.ts); Tactical/Interface_Items.cc
+// @src RemoveMoney (on the map screen a money split goes into the map cursor, SetMapCursorItem, to be placed into a
+// @src pocket).
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -60,6 +61,7 @@ import { combineStacks } from '../tactical/stack-cleanup.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { addItemToPool, removeWorldItem, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { passBetweenHoldersRefused } from './item-passing.ts';
 import { campaignCombatContext } from './off-map-combat.ts';
 import type { RosterMerc } from './roster.ts';
 import { type DiffWorldItem, emptySectorDiff, sectorKey, visibleItemCount } from './sector-diff.ts';
@@ -314,11 +316,7 @@ function accessible(m: RosterMerc): boolean {
 function passRefusal(campaign: CampaignSim, from: RosterMerc, to: RosterMerc): MapInventoryRefusal | null {
   if (from === to) return null;
   if (enemyInLoadedSector(campaign)) return MapInventoryRefusal.HOSTILE_SECTOR;
-  if (!sameSector(from.sector, to.sector)) return MapInventoryRefusal.OTHER_SECTOR;
-  if (!to.betweenSectors) return null;
-  if (!from.betweenSectors || from.assignment !== to.assignment) return MapInventoryRefusal.OTHER_SECTOR;
-  if (to.assignment === Assignment.VEHICLE && to.vehicleId !== from.vehicleId) return MapInventoryRefusal.OTHER_SECTOR;
-  return null;
+  return passBetweenHoldersRefused(from, to) ? MapInventoryRefusal.OTHER_SECTOR : null;
 }
 
 function stashRefusal(campaign: CampaignSim, m: RosterMerc, sector: Sector): MapInventoryRefusal | null {

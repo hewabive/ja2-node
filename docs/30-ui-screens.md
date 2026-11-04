@@ -57,7 +57,7 @@ every decision is one command; a refusal comes back as a token in `data.refusal`
 |---|---|---|---|
 | Tactical | `previewMove`, `previewAction`, `estimateAttack`, `placements`, `itemInfo`, `compatibleMercs`, `exitSector {dryRun}`, `exitSectorOptions`, `movementOptions` | the orders and inventory commands, `select` (every change of the selection the player makes, a multi-selection with its `group`; the selections the server makes are followed from the view's `selected`, not sent back), `selectSquad` (the squad keys and the squad list; the team panel follows the view's `currentSquad`), `door`, `pickUp`, `steal`, `exitSector`, `endTurn`, `mapScreen` | `combat`, `selected`, `currentSquad`, `doorMenu`, `lifeLost`, `soldierHit`, `statChanged`, `aiTurn`, `soldierLocated`, `interfaceLevel`, `sectorLoaded.located` (the entry's locate, kept by the host until the sector's screen exists), the message log |
 | Talk and shop | `quoteTrade` | `talk`, `approach`, `answer`, `closeTalk`, `skipLine`; `setShopPricing`, `trade`, `closeShop` | the quote events, `civQuote`, `npcRequest`, the tactical `surrender` prompt (asked once the offer's quote box closes), `observe.shop` |
-| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
+| Map screen | `assignmentOptions`, `previewRoute`, `previewHeliRoute`, `moveBoxOptions`, `contractOptions`, `canEnterSector`, `compatibleItems`, `passTargets` | `route`, `routeGroup`, `shortenRoute`, `heliRoute`, the assignment commands, `moveMilitia`, `distributeMilitia`, `openLaptop`, `enterSector`, `answer` | the strategic view, the prompts, `groupArrived`, the update box events, `sectorLost` |
 | Battle entry | the `preBattle` prompt's options | `answer`, `showBattle`, `autoresolveRetreat` | the `ar*` events, `observe.autoresolve` |
 | Laptop | `hireCheck`, `aimQuote`, `bobbyRayQuote`, `impCheckCode`, `emailText` | `visitSite`, `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, `orderFlowers`, `closeLaptop`, … | `observe.laptop` |
 | Story | | `answer` (the lie) | `meanwhile`, `meanwhileStarted`, `queenKilled`, `squadMovedUpstairs`, `endgameDeferred`, `campaignWon`, `sexScene` |
@@ -103,8 +103,9 @@ has one talking face for every screen: a line goes on across a screen switch and
 Both screens hear every frame, so the screen that hears a frame first takes its lines (`takesFrame`); the map screen
 takes none while another screen is up, so its routing never decides a tactical line. On the map a merc's line moves
 the lips of the info face, makes him the info character with speech on (on entry whatever the option, as
-`ContinueDialogue`) and is subtitled in a box beside the face; the box, the face, Backspace and Esc cut it, opening the
-contract menu or the laptop stops it (`map/map-speech.ts`). The external faces there are gap "Map screen speech".
+`ContinueDialogue`; with an item held only if he could take it, `passTargets`) and is subtitled in a box beside the
+face; the box, the face, Backspace and Esc cut it, opening the contract menu or the laptop stops it
+(`map/map-speech.ts`). The external faces there are gap "Map screen speech".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
 original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
@@ -208,6 +209,7 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 | The item cursor's crosshair stays bad from the last landing check until the pointer rests long enough on another tile, and a click before that is refused as a bad throw (`Tactical/Interface_Items.cc:3078`, `:3475`) | `tactical/input/item-tile-cursor.test.ts` "turns the crosshair bad … until the next rest …" |
 | A real-time right click within the double-click time of the last one does not swap the item cursor's give and throw (`Tactical/Real_Time_Input.cc:931`) | `tactical/tactical-screen.test.ts` "passes the held item … a real-time double click does not swap back" |
 | On the map screen a CTRL+click on a stack without a cursor cleans the stack up and still picks it up, as `MAPInvClickCallbackPrimary` does not return after `CleanUpStack` (`Strategic/MapScreen.cc:3704`); the tactical panel returns | `map/map-inventory.test.ts` "cleans up a stack with CTRL+click on the map and still picks it up …" |
+| With an item held and an enemy in the loaded sector the map screen's info character changes to nobody, not even back to the merc the item came from (`Strategic/Map_Screen_Interface.cc:1457`) | `src/sim/campaign/item-passing.test.ts` "passes nothing to anybody while the loaded sector holds enemies …" |
 | On the map screen a right click on a key of the ring shows no description, as its call is commented out, while one on an empty position closes the ring (`Tactical/Interface_Panels.cc:3572`) | `map/map-inventory.test.ts` "takes keys off the ring of a merc in no loaded sector …" |
 | The pointer is on a soldier also on the right and bottom edge of his screen rectangle; a vehicle's picture is tested one pixel left of the pointer, at its left edge on the last pixel of the row above | `tactical/input/targets.test.ts` "… its right and bottom edges included", `src/app/tactical/world-presenter.test.ts` "tests a vehicle's picture one pixel left of the pointer …" |
 | A soldier's screen rectangle keeps the frame his animation started with while later frames show, and a turn keeps the frame shown in the facing before it, as `EVENT_SetSoldierDirection` converts no frame (`Tactical/Soldier_Control.cc:3992`); a vehicle's current frame is tested from the bottom of that rectangle up | `src/app/world/soldier-bounding-boxes.test.ts` "takes the first frame of his animation as it starts …", "keeps the frame shown at a turn in the facing before it …"; `src/app/tactical/world-presenter.test.ts` "tests a vehicle's current frame from the bottom of his rectangle up …" |
@@ -234,6 +236,9 @@ Each looks like a bug and is the original's behaviour. Tests are under `src/ui/s
 
 Not pinned yet:
 - `GlowTrashCan` never shows a glow: its colour index stays 0 (`map/merc-inventory.ts`).
+- The arrows' search for the next info character can spend one of its twenty steps on row 20 (the left arrow where it
+  starts or wraps, the right one from row 19), so with nobody else to select it may end without the current merc and
+  his sector (`#nextMerc`, `map/map-screen.ts`).
 - The unvisited sectors' shadow sits one pixel above the airspace tints (`map/map-view.ts`; the map goldens show it).
 - The laptop's one-paragraph help pages add no line after their paragraph; the other pages add one after each
   (`help/help-pages.ts`).

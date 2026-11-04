@@ -425,7 +425,9 @@ slot it came from, else a free pocket, else the feet; on the map screen the sect
 cursor"). A placement runs on copies first, so a refused move changes nothing. The message boxes for merges and
 permanent attachments become refusals to repeat with `merge` or `permanent`; the description box charges its AP per
 command (deviation "Attachment AP"). On the map screen the same commands cost no AP and pass items within one sector
-only. Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
+only; the `passTargets` hint names the mercs an item held there could pass to (`src/sim/campaign/item-passing.ts`), the
+only ones the map screen makes the info character while it is held, with the enemy in the loaded sector read from the
+view (deviation "Strategic hints and enemy counts"). Money moves through the cursor in the original: `withdrawCash`, `depositCash` and `splitMoney` do the click and
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
 is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a

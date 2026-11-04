@@ -42,6 +42,7 @@ export const STRATEGIC_HINT_KINDS = [
   'previewRoute',
   'previewHeliRoute',
   'moveBoxOptions',
+  'passTargets',
 ] as const;
 
 export const HINT_KINDS = [...TACTICAL_HINT_KINDS, ...STRATEGIC_HINT_KINDS] as const;
@@ -53,6 +54,7 @@ export const HINT_KINDS_WITHOUT_SECTOR_WORLD = [
   'previewRoute',
   'previewHeliRoute',
   'moveBoxOptions',
+  'passTargets',
 ] as const;
 
 export type HintKind = (typeof HINT_KINDS)[number];

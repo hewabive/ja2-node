@@ -37,11 +37,13 @@
 // @src not under the pre-battle panel), ContractButtonCallback and ContractRegionBtnCallbackPrimary (no contract menu
 // @src from the button or the column while a subtitle box is up, g_dialogue_box; the c key still opens it),
 // @src RequestContractMenu (the line stops as the contract menu opens), the exit to the laptop (StopAnyCurrentlyTalkingSpeech)
-// @src (2026-11-03).
+// @src (2026-11-03); Map_Screen_Interface.cc GoToNextCharacterInList and ValidSelectableCharForNextOrPrev (with an item
+// @src held or the inventory shown only a merc with an accessible inventory, with an item held only one who could take
+// @src it, MapscreenCanPassItemToChar through the passTargets hint) (2026-11-04).
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
-import type { AssignmentOptions, MoveBoxOptions } from '../../../protocol/hints.ts';
+import type { AssignmentOptions, MoveBoxOptions, PassTargets } from '../../../protocol/hints.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalMessage, refusalOf, refusalSoldierOf } from '../../../protocol/refusals.ts';
@@ -244,7 +246,7 @@ export class MapScreen implements Screen {
   readonly id = MAP_SCREEN_ID;
   readonly soundScreen = UiScreenKind.MAP;
   readonly rendersTooltips = true;
-  readonly list = new CharacterList();
+  readonly list = new CharacterList(() => this.#passTargets());
   readonly filters: MapFilters = initialFilters();
   readonly #env: MapEnvironment;
   readonly #model: LayoutModel;
@@ -829,6 +831,7 @@ export class MapScreen implements Screen {
     this.#syncCursor();
     this.#syncHandHelp();
     this.#inventory.update(this.#now);
+    this.#askPassTargets();
     this.#syncModel();
     if (this.#militia.open && !this.filters.militia) this.#militia.close();
     this.#militia.update();
@@ -1777,14 +1780,47 @@ export class MapScreen implements Screen {
   }
 
   #nextMerc(step: 1 | -1): void {
-    const filled = this.list.slots.flatMap((s, i) => (s.merc !== null ? [i] : []));
-    if (filled.length < 2) return;
-    const at = filled.indexOf(this.list.info);
-    const next = filled[(at + step + filled.length) % filled.length] ?? 0;
+    if (this.#inventory.merc.description.open) return;
     if (this.#plot) this.#abortPlotting(false);
-    this.list.changeInfo(next, true);
-    const m = this.#mercAt(next);
-    if (m && m.life > 0 && !isPow(m)) this.#selectMercSector(m);
+    const first = step < 0 ? MAX_CHARACTER_COUNT : 0;
+    const last = step < 0 ? 0 : MAX_CHARACTER_COUNT;
+    let row = this.list.info === NO_CHARACTER || this.list.info === last ? first : this.list.info + step;
+    for (let tried = 0; tried < MAX_CHARACTER_COUNT; tried++) {
+      const m = row < MAX_CHARACTER_COUNT ? this.#mercAt(row) : null;
+      if (m && this.#selectableForNextOrPrev(m)) {
+        this.list.changeInfo(row, true);
+        if (m.life > 0 && !isPow(m)) this.#selectMercSector(m);
+        return;
+      }
+      row += step;
+      if (row < 0 || row >= MAX_CHARACTER_COUNT) row = first;
+    }
+  }
+
+  #selectableForNextOrPrev(m: StrategicMercView): boolean {
+    const holding = this.#inventory.holding;
+    if ((holding || this.#inventory.merc.open) && !accessibleInventory(m)) return false;
+    return !holding || this.list.canTakeHeldItem(m.id);
+  }
+
+  #passTargetsRequest(): CommandEnvelope | null {
+    const held = this.#inventory.merc.panel.cursor;
+    if (held) return { type: 'passTargets', soldier: held.source.soldier };
+    const stash = this.#inventory.pool.cursor;
+    const at = stash ? parseSectorLabel(stash.sector) : null;
+    return stash && at ? { type: 'passTargets', sector: sectorLabel({ ...at, z: stash.z }) } : null;
+  }
+
+  #askPassTargets(): void {
+    const request = this.#passTargetsRequest();
+    if (request) this.#env.client.hint(request);
+  }
+
+  #passTargets(): ReadonlySet<number> | null {
+    const request = this.#passTargetsRequest();
+    if (!request) return null;
+    const reply = this.#env.client.hint(request);
+    return new Set(reply.state === 'ready' && reply.answer.ok ? (reply.answer.data as PassTargets).mercs : []);
   }
 
   #selectSquad(squad: number): void {
