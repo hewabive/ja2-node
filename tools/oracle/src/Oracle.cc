@@ -19,6 +19,8 @@
 // @src Tactical/End_Game.cc ChangeO3SectorStatue, HandleStatueDamaged (meanwhile probes)
 // @src src/game/Tactical/Drugs_And_Alcohol.cc ApplyDrugs, Soldier_Control.cc EVENT_BeginMercTurn,
 // @src Strategic/Hourly_Update.cc UpdateRegenCounters (drug probes)
+// @src src/game/TileEngine/Explosion_Control.cc, Tactical/World_Items.cc, Tactical/Handle_Items.cc, Tactical/Items.cc
+// @src ArmBomb, ActivateXRayDevice, TacticalAI/PanicButtons.cc, AIMain.cc ExecuteAction, Soldier_Ani.cc code 762 (bomb probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -7873,6 +7875,679 @@ void ProbeRegenHour(Command const& c)
 	Emit(Json{}.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c)).raw("team", JsonArray(team)));
 }
 
+}
+
+#include "GameScreen.h"
+#include "MessageBoxScreen.h"
+#include "Timer_Control.h"
+
+UINT32 OracleExplosionSlotCount();
+EXPLOSIONTYPE const* OracleExplosionSlot(UINT32 i);
+BOOLEAN OracleExplosionQueueEntry(UINT8 i, UINT32* bomb, UINT32* timestamp);
+BOOLEAN OracleExplosionQueueMayHaveChangedSight();
+SOLDIERTYPE* OraclePersonToSetOffExplosions();
+void OracleResetExplosions();
+extern void (*gOracleMessageBoxHook)(const ST::string& str, MSGBOX_CALLBACK ReturnCallback);
+BOOLEAN OracleCheckIfNearbyGroundSeemsWrong(SOLDIERTYPE* s, UINT16 gridno, BOOLEAN check_around);
+void OracleFinishItemLocators();
+void OracleBoobyTrapState(INT16* gridno, INT8* level, BOOLEAN* buried, INT8* difficulty, BOOLEAN* just_found);
+
+namespace {
+
+struct OracleBox
+{
+	std::string kind;
+	MSGBOX_CALLBACK callback;
+};
+
+std::vector<OracleBox> gOracleBoxes;
+
+constexpr UINT32 MINE_FLAGS = MAPELEMENT_ENEMY_MINE_PRESENT | MAPELEMENT_PLAYER_MINE_PRESENT;
+constexpr long long NO_SOLDIER_ID = -1;
+constexpr long long DEFAULT_BOMB_STATUS = 100;
+constexpr long long DEFAULT_ATTACHMENT_STATUS = 100;
+
+std::string BoxKind(ST::string const& text)
+{
+	struct Entry
+	{
+		int id;
+		char const* kind;
+	};
+	static Entry const ENTRIES[] = {
+		{DISARM_BOOBYTRAP_PROMPT, "disarmTrap"},
+		{DISARM_TRAP_PROMPT, "disarmTrap"},
+		{ACTIVATE_SWITCH_PROMPT, "activateSwitch"},
+		{PLACE_BLUE_FLAG_PROMPT, "placeBlueFlag"},
+		{REMOVE_BLUE_FLAG_PROMPT, "removeBlueFlag"},
+		{CHOOSE_BOMB_FREQUENCY_STR, "remoteFrequency"},
+		{CHOOSE_TIMER_STR, "bombSetting/timed"},
+		{CHOOSE_REMOTE_FREQUENCY_STR, "bombSetting/remote"},
+	};
+	for (Entry const& e : ENTRIES)
+	{
+		if (text == TacticalStr[e.id]) return e.kind;
+	}
+	return "other";
+}
+
+void RecordBox(ST::string const& text, MSGBOX_CALLBACK const callback)
+{
+	gOracleBoxes.push_back({BoxKind(text), callback});
+}
+
+std::string Strings(std::vector<std::string> const& values)
+{
+	std::vector<std::string> quoted;
+	for (std::string const& v : values) quoted.push_back("\"" + Escape(v) + "\"");
+	return JsonArray(quoted);
+}
+
+long long SoldierIdOrNone(SOLDIERTYPE const* const s)
+{
+	return s ? s->ubID : NO_SOLDIER_ID;
+}
+
+std::string DescribeBombObject(WORLDITEM const& wi)
+{
+	OBJECTTYPE const& o = wi.o;
+	return Numbers({wi.sGridNo, wi.ubLevel, o.usItem, wi.bVisible, wi.usFlags, o.fFlags, o.bTrap, o.bBombStatus, o.bDetonatorType,
+		o.usBombItem, o.bFrequency, o.ubBombOwner, o.bActionValue, o.ubTolerance});
+}
+
+std::string DescribeWorldBombs()
+{
+	std::vector<std::string> rows;
+	for (size_t i = 0; i < gWorldBombs.size(); ++i)
+	{
+		WORLDBOMB const& wb = gWorldBombs[i];
+		if (!wb.fExists) continue;
+		rows.push_back("[" + std::to_string(i) + "," + DescribeBombObject(GetWorldItem(wb.iItemIndex)) + "]");
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeExplosionQueue()
+{
+	std::vector<std::string> rows;
+	long long const now = GetJA2Clock();
+	for (UINT8 i = 0; i < gubElementsOnExplosionQueue; ++i)
+	{
+		UINT32 bomb = 0;
+		UINT32 timestamp = 0;
+		BOOLEAN const exists = OracleExplosionQueueEntry(i, &bomb, &timestamp);
+		rows.push_back(Numbers({bomb, static_cast<long long>(timestamp) - now, exists ? 1 : 0}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeMineFlags()
+{
+	std::vector<std::string> rows;
+	for (GridNo g = 0; g < WORLD_MAX; ++g)
+	{
+		UINT32 const flags = gpWorldLevelData[g].uiFlags & MINE_FLAGS;
+		if (flags) rows.push_back(Numbers({g, flags}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribePanic()
+{
+	TacticalStatusType const& ts = gTacticalStatus;
+	std::vector<std::string> triggers;
+	for (int k = 0; k < NUM_PANIC_TRIGGERS; ++k)
+	{
+		triggers.push_back(Numbers({ts.sPanicTriggerGridNo[k], ts.bPanicTriggerIsAlarm[k], ts.ubPanicTolerance[k]}));
+	}
+	return Json{}
+		.num("flags", ts.fPanicFlags)
+		.num("chosen", SoldierIdOrNone(ts.the_chosen_one))
+		.num("killed", ts.ubArmyGuysKilled)
+		.raw("triggers", JsonArray(triggers))
+		.text();
+}
+
+std::string DescribeExplosions()
+{
+	std::vector<std::string> rows;
+	for (UINT32 i = 0; i < OracleExplosionSlotCount(); ++i)
+	{
+		EXPLOSIONTYPE const* const e = OracleExplosionSlot(i);
+		if (!e->fAllocated) continue;
+		rows.push_back(Numbers({SoldierIdOrNone(e->owner), e->sX, e->sY, e->sZ, e->sGridNo, e->usItem, e->bLevel}));
+	}
+	return JsonArray(rows);
+}
+
+std::string DescribeBoxes()
+{
+	std::vector<std::string> kinds;
+	for (OracleBox const& b : gOracleBoxes) kinds.push_back(b.kind);
+	return Strings(kinds);
+}
+
+std::string DescribeBoobyTrap()
+{
+	INT16 gridNo = 0;
+	INT8 level = 0;
+	BOOLEAN buried = FALSE;
+	INT8 difficulty = 0;
+	BOOLEAN justFound = FALSE;
+	OracleBoobyTrapState(&gridNo, &level, &buried, &difficulty, &justFound);
+	return Numbers({gridNo, level, buried ? 1 : 0, difficulty, justFound ? 1 : 0});
+}
+
+std::string DescribeBombState()
+{
+	TacticalStatusType const& ts = gTacticalStatus;
+	return Json{}
+		.raw("bombs", DescribeWorldBombs())
+		.num("slots", static_cast<long long>(gWorldBombs.size()))
+		.raw("queue", DescribeExplosionQueue())
+		.flag("queueActive", gfExplosionQueueActive != FALSE)
+		.flag("mayChangeSight", OracleExplosionQueueMayHaveChangedSight() != FALSE)
+		.num("person", SoldierIdOrNone(OraclePersonToSetOffExplosions()))
+		.raw("mines", DescribeMineFlags())
+		.raw("panic", DescribePanic())
+		.num("busy", ts.ubAttackBusyCount)
+		.flag("disallowSight", (ts.uiFlags & DISALLOW_SIGHT) != 0)
+		.flag("checkSight", (ts.uiFlags & CHECK_SIGHT_AT_END_OF_ATTACK) != 0)
+		.raw("explosions", DescribeExplosions())
+		.raw("boxes", DescribeBoxes())
+		.raw("boobyTrap", DescribeBoobyTrap())
+		.text();
+}
+
+std::string DescribeBombInventory(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> slots;
+	for (int k = 0; k < NUM_INV_SLOTS; ++k)
+	{
+		OBJECTTYPE const& o = s.inv[k];
+		if (o.usItem == NOTHING) continue;
+		std::vector<long long> attachments;
+		for (int a = 0; a < MAX_ATTACHMENTS; ++a)
+		{
+			if (o.usAttachItem[a] == NOTHING) continue;
+			attachments.push_back(o.usAttachItem[a]);
+			attachments.push_back(o.bAttachStatus[a]);
+		}
+		slots.push_back("[" + std::to_string(k) + "," + Numbers({o.usItem, o.ubNumberOfObjects, o.bStatus[0], o.bTrap, o.fFlags}) + "," +
+			Numbers(attachments) + "]");
+	}
+	return JsonArray(slots);
+}
+
+std::string DescribeBombSoldier(SOLDIERTYPE const& s)
+{
+	Json j;
+	j.num("id", s.ubID)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.num("ap", s.bActionPoints)
+		.num("breath", s.bBreath)
+		.num("life", s.bLife)
+		.num("keys", s.bHasKeys)
+		.nums("stats", {s.bWisdom, s.bExplosive})
+		.num("xrayedBy", SoldierIdOrNone(s.xrayed_by))
+		.num("xrayTime", s.uiXRayActivatedTime ? 1 : 0)
+		.raw("inv", DescribeBombInventory(s));
+	if (s.bTeam != OUR_TEAM)
+	{
+		j.num("alert", s.bAlertStatus)
+			.num("action", s.bAction)
+			.num("actionData", static_cast<INT16>(s.usActionData))
+			.num("newSituation", s.bNewSituation)
+			.flag("pathStored", s.bPathStored != FALSE)
+			.nums("noise", {s.sNoiseGridno, s.ubNoiseVolume});
+	}
+	else if (s.ubProfile != NO_PROFILE)
+	{
+		MERCPROFILESTRUCT const& p = GetProfile(s.ubProfile);
+		j.nums("gains", {p.sWisdomGain, p.sExplosivesGain, p.usStatChangeChances[WISDOMAMT], p.usStatChangeSuccesses[WISDOMAMT],
+			p.usStatChangeChances[EXPLODEAMT], p.usStatChangeSuccesses[EXPLODEAMT]});
+	}
+	return j.text();
+}
+
+std::string DescribeBombSoldiers(SOLDIERTYPE const* const who)
+{
+	std::vector<std::string> soldiers;
+	if (who) soldiers.push_back(DescribeBombSoldier(*who));
+	FOR_EACH_IN_TEAM(s, ENEMY_TEAM)
+	{
+		if (s->bInSector && s != who) soldiers.push_back(DescribeBombSoldier(*s));
+	}
+	return JsonArray(soldiers);
+}
+
+std::string DescribeBombPool(GridNo const gridNo, INT8 const level)
+{
+	std::vector<std::string> items;
+	CFOR_EACH_WORLD_ITEM(wi)
+	{
+		if (wi.sGridNo != gridNo || wi.ubLevel != level) continue;
+		items.push_back(DescribeBombObject(wi));
+	}
+	return JsonArray(items);
+}
+
+std::string DescribeBombDoors(Command const& c)
+{
+	std::vector<std::string> doors;
+	for (std::string const& g : SplitList(Text(c, "doors", ""), ','))
+	{
+		if (g.empty()) continue;
+		GridNo const gridNo = static_cast<GridNo>(ParseInteger("doors", g));
+		STRUCTURE const* const structure = FindStructure(gridNo, STRUCTURE_ANYDOOR);
+		DOOR const* const door = FindDoorInfoAtGridNo(gridNo);
+		bool const open = structure && (structure->fFlags & STRUCTURE_OPEN);
+		doors.push_back(door ? Numbers({gridNo, open ? 1 : 0, door->fLocked ? 1 : 0, door->ubTrapID, door->ubTrapLevel})
+			: Numbers({gridNo, open ? 1 : 0}));
+	}
+	return JsonArray(doors);
+}
+
+template<typename Run>
+void RunBombProbe(Command const& c, SOLDIERTYPE const* const who, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	ScreenID const screen = guiCurrentScreen;
+	guiCurrentScreen = GAME_SCREEN;
+	gOracleMessageBoxHook = RecordBox;
+	OracleTraceRandom(&draws);
+	std::string const result = run();
+	OracleTraceRandom(nullptr);
+	gOracleMessageBoxHook = NULL;
+	guiCurrentScreen = screen;
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDraws(draws))
+		.raw("result", result.empty() ? "null" : result)
+		.raw("doors", DescribeBombDoors(c))
+		.raw("soldiers", DescribeBombSoldiers(who))
+		.raw("state", DescribeBombState()));
+}
+
+MessageBoxReturnValue AnswerValue(std::string const& answer)
+{
+	if (answer == "yes") return MSG_BOX_RETURN_YES;
+	if (answer == "no") return MSG_BOX_RETURN_NO;
+	return static_cast<MessageBoxReturnValue>(ParseInteger("answers", answer));
+}
+
+bool RunStopTimeQuoteCallback()
+{
+	if (!gModalDoneCallback) return false;
+	gModalDoneCallback();
+	gModalDoneCallback = NULL;
+	OracleFinishItemLocators();
+	return true;
+}
+
+std::string AnswerBoxes(Command const& c, bool const quote)
+{
+	std::vector<std::string> asked;
+	for (std::string const& answer : SplitList(Text(c, "answers", ""), ','))
+	{
+		if (answer.empty() || gOracleBoxes.empty()) break;
+		OracleBox const box = gOracleBoxes.front();
+		gOracleBoxes.erase(gOracleBoxes.begin());
+		asked.push_back(box.kind);
+		box.callback(AnswerValue(answer));
+	}
+	return Json{}.flag("quote", quote).raw("asked", Strings(asked)).text();
+}
+
+void ResetPanicState()
+{
+	TacticalStatusType& ts = gTacticalStatus;
+	ts.ubArmyGuysKilled = 0;
+	ts.fPanicFlags = 0;
+	for (int k = 0; k < NUM_PANIC_TRIGGERS; ++k)
+	{
+		ts.sPanicTriggerGridNo[k] = NOWHERE;
+		ts.bPanicTriggerIsAlarm[k] = FALSE;
+		ts.ubPanicTolerance[k] = 0;
+	}
+	ts.the_chosen_one = NULL;
+}
+
+std::string DescribeMapBombItems()
+{
+	std::vector<std::string> rows;
+	CFOR_EACH_WORLD_ITEM(wi)
+	{
+		OBJECTTYPE const& o = wi.o;
+		bool const bomb = (wi.usFlags & WORLD_ITEM_ARMED_BOMB) != 0;
+		if (!bomb && o.bTrap <= 0 && o.usItem != ACTION_ITEM && o.usItem != SWITCH) continue;
+		rows.push_back(DescribeBombObject(wi));
+	}
+	return JsonArray(rows);
+}
+
+void ProbeBombMap(Command const& c)
+{
+	std::string const name = Text(c, "_0", Text(c, "sector", ""));
+	if (name.empty()) throw std::runtime_error("bombmap needs a sector such as F9");
+	SGPSector const sector = SGPSector::FromShortString(ST::string(name), static_cast<INT8>(Integer(c, "z", 0)));
+	if (!sector.IsValid()) throw std::runtime_error("invalid sector " + name);
+	gWorldSector = sector;
+	ST::string const map = Has(c, "map") ? ST::string(Text(c, "map", "")) : GetMapFileName(sector, FALSE);
+	std::vector<OracleDraw> draws;
+	OracleTraceRandom(&draws);
+	LoadWorld(map);
+	OracleTraceRandom(nullptr);
+	ResetPanicState();
+	InitPanicSystem();
+	Emit(Json{}
+		.str("probe", "bombmap")
+		.num("line", c.line)
+		.str("sector", sector.AsShortString().to_std_string())
+		.num("z", sector.z)
+		.str("map", map.to_std_string())
+		.raw("draws", DescribeDraws(draws))
+		.raw("items", DescribeMapBombItems())
+		.raw("state", DescribeBombState()));
+}
+
+void AttachProbeItems(Command const& c, OBJECTTYPE& o)
+{
+	if (!Has(c, "attach")) return;
+	int slot = 0;
+	for (std::string const& name : SplitList(Text(c, "attach", ""), ','))
+	{
+		if (slot == MAX_ATTACHMENTS) throw std::runtime_error("too many attachments");
+		o.usAttachItem[slot] = ItemArgument(name);
+		o.bAttachStatus[slot] = static_cast<INT8>(DEFAULT_ATTACHMENT_STATUS);
+		++slot;
+	}
+}
+
+void ProbeArmBomb(Command const& c)
+{
+	UINT16 const item = ItemArgument(Text(c, "item", ""));
+	GridNo const gridNo = GridArgument(c, "grid");
+	UINT8 const level = static_cast<UINT8>(Integer(c, "level", 0));
+	OBJECTTYPE o;
+	CreateItem(item, static_cast<INT8>(Integer(c, "status", DEFAULT_BOMB_STATUS)), &o);
+	AttachProbeItems(c, o);
+	if (Has(c, "action")) o.bActionValue = static_cast<UINT8>(Required(c, "action"));
+	if (Has(c, "setting")) ArmBomb(&o, static_cast<INT8>(Required(c, "setting")));
+	if (Has(c, "det")) o.bDetonatorType = static_cast<INT8>(Required(c, "det"));
+	if (Has(c, "freq")) o.bFrequency = static_cast<INT8>(Required(c, "freq"));
+	if (Has(c, "bombitem")) o.usBombItem = ItemArgument(Text(c, "bombitem", ""));
+	o.ubBombOwner = static_cast<UINT8>(Integer(c, "owner", 1));
+	if (Has(c, "trap")) o.bTrap = static_cast<INT8>(Required(c, "trap"));
+	if (Has(c, "tolerance")) o.ubTolerance = static_cast<UINT8>(Required(c, "tolerance"));
+	if (Integer(c, "armed", Has(c, "det") ? 1 : 0) != 0) o.fFlags |= OBJECT_ARMED_BOMB;
+	if (Integer(c, "known", 0) != 0) o.fFlags |= OBJECT_KNOWN_TO_BE_TRAPPED;
+	if (Integer(c, "disabled", 0) != 0) o.fFlags |= OBJECT_DISABLED_BOMB;
+	if (Integer(c, "alarm", 0) != 0) o.fFlags |= OBJECT_ALARM_TRIGGER;
+	UINT16 const flags = static_cast<UINT16>(Integer(c, "flags", WORLD_ITEM_ARMED_BOMB));
+	Visibility const visible = static_cast<Visibility>(Integer(c, "visible", BURIED));
+	INT8 const z = static_cast<INT8>(Integer(c, "z", 0));
+	RunBombProbe(c, nullptr, [&] {
+		AddItemToPool(gridNo, &o, visible, level, flags, z);
+		return std::string{};
+	});
+}
+
+void ProbeBombSoldier(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	if (Has(c, "explosives")) s.bExplosive = static_cast<INT8>(Required(c, "explosives"));
+	if (Has(c, "wisdom")) s.bWisdom = static_cast<INT8>(Required(c, "wisdom"));
+	if (Has(c, "explevel")) s.bExpLevel = static_cast<INT8>(Required(c, "explevel"));
+	if (Has(c, "bleeding")) s.bBleeding = static_cast<INT8>(Required(c, "bleeding"));
+	if (Has(c, "shock")) s.bShock = static_cast<INT8>(Required(c, "shock"));
+	if (Has(c, "life")) s.bLife = static_cast<INT8>(Required(c, "life"));
+	if (Has(c, "breath")) s.bBreath = static_cast<INT8>(Required(c, "breath"));
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+	if (Has(c, "keys")) s.bHasKeys = static_cast<INT8>(Required(c, "keys"));
+	if (Has(c, "alert")) s.bAlertStatus = static_cast<INT8>(Required(c, "alert"));
+	if (Has(c, "grid")) EVENT_SetSoldierPosition(&s, GridArgument(c, "grid"), SSP_NONE);
+	if (Has(c, "hand"))
+	{
+		OBJECTTYPE& o = s.inv[HANDPOS];
+		if (Text(c, "hand", "") == "none")
+		{
+			DeleteObj(&o);
+		}
+		else
+		{
+			CreateItem(ItemArgument(Text(c, "hand", "")), static_cast<INT8>(Integer(c, "handstatus", DEFAULT_BOMB_STATUS)), &o);
+			AttachProbeItems(c, o);
+		}
+	}
+	if (Has(c, "slot"))
+	{
+		OBJECTTYPE& o = s.inv[Required(c, "slot")];
+		if (Text(c, "item", "none") == "none") DeleteObj(&o);
+		else CreateItem(ItemArgument(Text(c, "item", "")), static_cast<INT8>(Integer(c, "status", DEFAULT_BOMB_STATUS)), &o);
+	}
+	RunBombProbe(c, &s, [] { return std::string{}; });
+}
+
+void ProbeMineFlag(Command const& c)
+{
+	GridNo const gridNo = GridArgument(c, "grid");
+	UINT32 const flags = static_cast<UINT32>(Required(c, "flags")) & MINE_FLAGS;
+	RunBombProbe(c, nullptr, [&] {
+		gpWorldLevelData[gridNo].uiFlags = (gpWorldLevelData[gridNo].uiFlags & ~MINE_FLAGS) | flags;
+		return std::string{};
+	});
+}
+
+void ProbeStepOn(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+	INT8 const level = static_cast<INT8>(Integer(c, "level", s.bLevel));
+	BOOLEAN const all = Integer(c, "all", 0) != 0;
+	RunBombProbe(c, &s, [&] {
+		BOOLEAN const found = SetOffBombsInGridNo(&s, gridNo, all, level);
+		return Json{}.flag("found", found != FALSE).text();
+	});
+}
+
+void ProbeBombFrequency(Command const& c)
+{
+	SOLDIERTYPE* const s = Integer(c, "who", NO_SOLDIER_ID) == NO_SOLDIER_ID ? nullptr : &ExistingSoldier(Required(c, "who"));
+	INT8 const frequency = static_cast<INT8>(Required(c, "freq"));
+	RunBombProbe(c, s, [&] {
+		SetOffBombsByFrequency(s, frequency);
+		return std::string{};
+	});
+}
+
+void ProbeDecayBombs(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	RunBombProbe(c, nullptr, [&] {
+		for (long long i = 0; i < count; ++i) DecayBombTimers();
+		return std::string{};
+	});
+}
+
+void ProbeBombQueue(Command const& c)
+{
+	UINT32 const ms = static_cast<UINT32>(Integer(c, "ms", 0));
+	long long const steps = Integer(c, "steps", 1);
+	RunBombProbe(c, nullptr, [&] {
+		for (long long i = 0; i < steps; ++i)
+		{
+			guiBaseJA2Clock += ms;
+			HandleExplosionQueue();
+		}
+		return std::string{};
+	});
+}
+
+void ProbeBombReset(Command const& c)
+{
+	OracleResetExplosions();
+	gTacticalStatus.ubAttackBusyCount = 0;
+	gTacticalStatus.uiFlags &= ~(DISALLOW_SIGHT | CHECK_SIGHT_AT_END_OF_ATTACK);
+	gOracleBoxes.clear();
+	gModalDoneCallback = NULL;
+	RunBombProbe(c, nullptr, [] { return std::string{}; });
+}
+
+void ProbeGroundCheck(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+	BOOLEAN const around = Integer(c, "around", 1) != 0;
+	bool const raw = Text(c, "mode", "check") == "raw";
+	RunBombProbe(c, &s, [&] {
+		if (raw)
+		{
+			INT16 problem = NOWHERE;
+			BOOLEAN const found = NearbyGroundSeemsWrong(&s, gridNo, around, &problem);
+			return Json{}.flag("found", found != FALSE).num("problem", problem).text();
+		}
+		BOOLEAN const keepMoving = OracleCheckIfNearbyGroundSeemsWrong(&s, gridNo, around);
+		bool const quote = RunStopTimeQuoteCallback();
+		return Json{}.flag("keepMoving", keepMoving != FALSE).raw("boxes", AnswerBoxes(c, quote)).text();
+	});
+}
+
+void ProbeBombPickup(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+	RunBombProbe(c, &s, [&] {
+		HandleSoldierPickupItem(&s, ITEM_PICKUP_ACTION_ALL, gridNo, 0);
+		bool const quote = RunStopTimeQuoteCallback();
+		std::string const boxes = AnswerBoxes(c, quote);
+		return Json{}.raw("boxes", boxes).raw("pool", DescribeBombPool(gridNo, s.bLevel)).text();
+	});
+}
+
+void ProbeAnswerBoxes(Command const& c)
+{
+	SOLDIERTYPE* const s = Has(c, "who") ? &ExistingSoldier(Required(c, "who")) : nullptr;
+	RunBombProbe(c, s, [&] { return Json{}.raw("boxes", AnswerBoxes(c, false)).text(); });
+}
+
+void ProbePlantBomb(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+	bool const remote = Text(c, "use", "drop") == "remote";
+	RunBombProbe(c, &s, [&] {
+		if (remote) HandleSoldierUseRemote(&s, gridNo);
+		else HandleSoldierDropBomb(&s, gridNo);
+		std::string const boxes = AnswerBoxes(c, false);
+		return Json{}.raw("boxes", boxes).raw("pool", DescribeBombPool(gridNo, s.bLevel)).text();
+	});
+}
+
+void ProbeXRay(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	bool const off = Integer(c, "off", 0) != 0;
+	RunBombProbe(c, &s, [&] {
+		if (off) TurnOffXRayEffects(&s);
+		else ActivateXRayDevice(&s);
+		std::vector<std::string> xrayed;
+		FOR_EACH_MERC(i)
+		{
+			SOLDIERTYPE const* const tgt = *i;
+			if (tgt->ubMiscSoldierFlags & SOLDIER_MISC_XRAYED) xrayed.push_back(Numbers({tgt->ubID, SoldierIdOrNone(tgt->xrayed_by)}));
+		}
+		return Json{}.raw("xrayed", JsonArray(xrayed)).text();
+	});
+}
+
+void ProbePanicInit(Command const& c)
+{
+	RunBombProbe(c, nullptr, [] {
+		ResetPanicState();
+		InitPanicSystem();
+		return std::string{};
+	});
+}
+
+void ProbePanicSet(Command const& c)
+{
+	TacticalStatusType& ts = gTacticalStatus;
+	if (Has(c, "killed")) ts.ubArmyGuysKilled = static_cast<UINT8>(Required(c, "killed"));
+	if (Has(c, "chosen")) ts.the_chosen_one = Required(c, "chosen") == NO_SOLDIER_ID ? NULL : &ExistingSoldier(Required(c, "chosen"));
+	if (Has(c, "aware")) ts.Team[ENEMY_TEAM].bAwareOfOpposition = static_cast<INT8>(Required(c, "aware"));
+	RunBombProbe(c, nullptr, [] { return std::string{}; });
+}
+
+void ProbeChosenOne(Command const& c)
+{
+	RunBombProbe(c, nullptr, [] {
+		MakeClosestEnemyChosenOne();
+		return std::string{};
+	});
+}
+
+void ProbePossiblyChosen(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunBombProbe(c, &s, [&] {
+		PossiblyMakeThisEnemyChosenOne(&s);
+		return std::string{};
+	});
+}
+
+void ProbePanicAI(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunBombProbe(c, &s, [&] {
+		UINT8 const canMove = static_cast<UINT8>(Integer(c, "canmove", s.bActionPoints >= MinPtsToMove(&s) ? 1 : 0));
+		INT8 const action = PanicAI(&s, canMove);
+		return Json{}.num("canMove", canMove).num("decision", action).num("decisionData", static_cast<INT16>(s.usActionData)).text();
+	});
+}
+
+void ProbePullTrigger(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunBombProbe(c, &s, [&] {
+		INT8 const trigger = ClosestPanicTrigger(&s);
+		if (trigger != -1) SetOffPanicBombs(&s, trigger);
+		s.bHasKeys = s.bHasKeys >> 1;
+		return Json{}.num("trigger", trigger).text();
+	});
+}
+
+void ProbeUseDetonator(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunBombProbe(c, &s, [&] {
+		gTacticalStatus.the_chosen_one = NULL;
+		DeductPoints(&s, AP_USE_REMOTE, BP_USE_DETONATOR);
+		SetOffPanicBombs(&s, 0);
+		s.usActionData = NOWHERE;
+		s.bLastAction = s.bAction;
+		s.bAction = AI_ACTION_NONE;
+		return std::string{};
+	});
+}
+
+void ProbeMinePath(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const destination = GridArgument(c, "to");
+	UINT16 const mode = Lookup(MOVE_MODES, c, "mode", "walk");
+	RunBombProbe(c, &s, [&] {
+		INT32 const length = FindBestPath(&s, destination, s.bLevel, mode, NO_COPYROUTE, 0);
+		std::vector<long long> directions;
+		for (INT32 i = 0; i < length; ++i) directions.push_back(guiPathingData[i]);
+		INT16 const apCost = PlotPath(&s, destination, NO_COPYROUTE, NO_PLOT, mode, 0);
+		return Json{}.num("length", length).nums("directions", directions).num("apCost", apCost).text();
+	});
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -8096,6 +8771,28 @@ void Dispatch(Command const& c)
 	if (c.name == "drug") return ProbeDrug(c);
 	if (c.name == "mercturn") return ProbeMercTurn(c);
 	if (c.name == "regenhour") return ProbeRegenHour(c);
+	if (c.name == "bombmap") return ProbeBombMap(c);
+	if (c.name == "armbomb") return ProbeArmBomb(c);
+	if (c.name == "bombsoldier") return ProbeBombSoldier(c);
+	if (c.name == "mineflag") return ProbeMineFlag(c);
+	if (c.name == "stepon") return ProbeStepOn(c);
+	if (c.name == "bombfrequency") return ProbeBombFrequency(c);
+	if (c.name == "decaybombs") return ProbeDecayBombs(c);
+	if (c.name == "bombqueue") return ProbeBombQueue(c);
+	if (c.name == "bombreset") return ProbeBombReset(c);
+	if (c.name == "groundcheck") return ProbeGroundCheck(c);
+	if (c.name == "bombpickup") return ProbeBombPickup(c);
+	if (c.name == "bombanswer") return ProbeAnswerBoxes(c);
+	if (c.name == "plantbomb") return ProbePlantBomb(c);
+	if (c.name == "xray") return ProbeXRay(c);
+	if (c.name == "panicinit") return ProbePanicInit(c);
+	if (c.name == "panicset") return ProbePanicSet(c);
+	if (c.name == "chosenone") return ProbeChosenOne(c);
+	if (c.name == "possiblychosen") return ProbePossiblyChosen(c);
+	if (c.name == "panicai") return ProbePanicAI(c);
+	if (c.name == "pulltrigger") return ProbePullTrigger(c);
+	if (c.name == "usedetonator") return ProbeUseDetonator(c);
+	if (c.name == "minepath") return ProbeMinePath(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

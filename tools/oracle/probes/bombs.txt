@@ -1,0 +1,363 @@
+# Bombs, mines, booby traps and the panic AI (0027). Every command but bombmap prints the draws, its result, the soldier
+# it names with every enemy in the sector (position, APs, keys, x-ray state, inventory with traps and attachments; for
+# enemies the alert status, action and data, new situation and stored path; for our mercs the wisdom and explosives gains
+# with their stat change chances and successes), and the bomb state: the world bomb slots with each object's bomb fields,
+# the explosion queue with timestamps relative to the JA2 clock, the queue flags and its person, the tile mine flags, the
+# panic state, the attack busy count and sight flags, the ignited explosions, the message boxes waiting for an answer and
+# the booby trap globals.
+#
+# bombmap loads a map bare (LoadWorld with its PreRandom item rolls traced) and runs InitPanicSystem after the reset of
+# InitializeTacticalStatusAtBattleStart. armbomb makes an object with CreateItem (attach= adds attachments, action= the
+# action value, setting= runs ArmBomb, det=, freq=, bombitem=, owner= (default 1, a map bomb), trap=, tolerance=, known=,
+# disabled= and alarm= set the fields) and adds it with AddItemToPool (visible= default buried, flags= default armed bomb).
+# bombsoldier sets soldier fields, moves him (grid=), fills his hand (hand=, attach=) or a pocket (slot=, item=).
+# stepon runs SetOffBombsInGridNo, bombfrequency SetOffBombsByFrequency (who=-1: no soldier), decaybombs
+# DecayBombTimers, bombqueue advances the JA2 clock by ms= and runs HandleExplosionQueue steps= times, bombreset frees the
+# explosions, the queue, the busy count and the boxes. groundcheck runs NearbyGroundSeemsWrong (mode=raw) or the static
+# CheckIfNearbyGroundSeemsWrong; bombpickup runs HandleSoldierPickupItem; plantbomb runs HandleSoldierDropBomb (or
+# HandleSoldierUseRemote with use=remote); all of them run a pending stop-time quote callback and the item locator it
+# starts, then answer the message boxes in order (answers=yes,no,1..4). xray runs ActivateXRayDevice (off=1:
+# TurnOffXRayEffects). panicinit, panicset, chosenone, possiblychosen, panicai, pulltrigger (code 762 of Soldier_Ani.cc)
+# and usedetonator (AI_ACTION_USE_DETONATOR of ExecuteAction) drive the panic AI; minepath runs FindBestPath and PlotPath.
+
+# Map loads: the mine flags the map file stores with its tiles (F9's mine, E13_B1, H8_B1, H9_B1), pressure minefield
+# action items (I8, N3, N5, P3, P3_B1), panic switches in Tixa (J9), panic triggers and bombs (H13, I13, I8, K4_B1, N7,
+# P1, P1_B1 with the alarm), switches (L12 museum, H14 cells, C5, E4_A container) and trapped items (F9, H2, I6).
+bombmap F9
+bombmap E13 z=1
+bombmap H8 z=1
+bombmap H9 z=1
+bombmap I8
+bombmap N3
+bombmap N5
+bombmap P3
+bombmap P3 z=1
+bombmap J9
+bombmap I13
+bombmap H13
+bombmap K4 z=1
+bombmap N7
+bombmap P1
+bombmap P1 z=1
+bombmap L12
+bombmap H14
+bombmap C5
+bombmap E4 map=E4_A.dat
+bombmap D15
+bombmap H2
+bombmap I6
+bombmap A9
+
+# SaveGame10: D13 in real time, mercs 0, 1 and 2 near 8519, enemies 20-24 far away.
+save SaveGame10
+seed value=11 pre=reseed
+
+# A map mine under merc 0: the first bomb of a call is due at once, the Random(500) delay only follows each explosive.
+# The ignition stays on the busy count while the person is set, so the queue never ends until bombreset.
+armbomb grid=8519 item=MINE setting=0 trap=3
+stepon who=0
+bombqueue ms=0
+bombqueue ms=2000
+bombreset
+
+# One tile with a klaxon plate, a minefield plate (BLOW_UP with a mine) and merc 0's own mine: our team sets off both
+# plates (the klaxon without a delay draw, the minefield with one) and skips its own mine; the klaxon stays armed.
+armbomb grid=8520 item=ACTION_ITEM action=18 det=3
+armbomb grid=8520 item=ACTION_ITEM action=3 det=3 bombitem=MINE
+armbomb grid=8520 item=MINE setting=0 trap=2 owner=2
+stepon who=0 grid=8520
+bombqueue ms=0
+bombqueue ms=1000
+bombqueue ms=600
+bombreset
+# An enemy on the same tile: only pressure-triggered explosives, so merc 0's mine and not the klaxon.
+stepon who=20 grid=8520
+bombqueue ms=0
+bombreset
+# Every bomb of the tile with fAllBombs (the failed buried disarm): the klaxon plate again.
+stepon who=1 grid=8520 all=1
+bombqueue ms=0
+bombreset
+
+# A pressure switch on frequency 60 sets off the remote bombs of that frequency in slot order: a remote TNT, a remote
+# klaxon action item (no delay draw after it) and a disabled remote C4.
+armbomb grid=8679 item=SWITCH det=3 freq=60
+armbomb grid=9000 item=TNT attach=REMDETONATOR setting=60
+armbomb grid=9001 item=ACTION_ITEM action=18 setting=60
+armbomb grid=9002 item=C4 attach=REMDETONATOR setting=60 disabled=1
+armbomb grid=9003 item=TNT attach=REMDETONATOR setting=60
+stepon who=1 grid=8679
+bombqueue ms=0
+bombqueue ms=1200
+bombqueue ms=1200
+bombqueue ms=1200
+bombreset
+bombfrequency who=-1 freq=60
+bombqueue ms=0
+bombqueue ms=3000
+bombreset
+# An enemy on the switch: it is no pressure-triggered explosive, so nothing goes off.
+stepon who=20 grid=8679
+bombqueue ms=0
+bombreset
+
+# Action items through the queue: toggles of the frequency-51 remote bombs and of the tile's pressure items, a global
+# alarm, a klaxon.
+armbomb grid=9320 item=TNT attach=REMDETONATOR setting=51
+armbomb grid=9321 item=ACTION_ITEM action=7 setting=61
+armbomb grid=9322 item=ACTION_ITEM action=22 setting=61
+armbomb grid=9322 item=MINE setting=0 trap=1
+armbomb grid=9323 item=ACTION_ITEM action=17 setting=62
+armbomb grid=9324 item=ACTION_ITEM action=18 setting=62
+bombfrequency who=0 freq=61
+bombqueue ms=0
+bombreset
+bombfrequency who=0 freq=51
+bombfrequency who=0 freq=62
+bombqueue ms=0
+bombreset
+# Door action items on the doors at 13321 and 17677: toggle, open an open door, close, unlock, toggle the lock, untrap;
+# a silent local alarm.
+armbomb grid=13321 item=ACTION_ITEM action=6 setting=65
+armbomb grid=17677 item=ACTION_ITEM action=1 setting=65
+armbomb grid=13321 item=ACTION_ITEM action=19 setting=66
+armbomb grid=17677 item=ACTION_ITEM action=20 setting=66
+armbomb grid=13321 item=ACTION_ITEM action=21 setting=66
+armbomb grid=17677 item=ACTION_ITEM action=2 setting=67
+armbomb grid=13321 item=ACTION_ITEM action=1 setting=67
+armbomb grid=9325 item=ACTION_ITEM action=16 setting=68
+bombfrequency who=0 freq=65 doors=13321,17677
+bombqueue ms=0 doors=13321,17677
+bombreset doors=13321,17677
+bombfrequency who=0 freq=66
+bombqueue ms=0 doors=13321,17677
+bombreset
+bombfrequency who=0 freq=67
+bombqueue ms=0 doors=13321,17677
+bombreset
+bombfrequency who=0 freq=68
+bombqueue ms=0
+bombreset
+
+# Timed bombs: real-time arming adds a turn, the owner becomes the person, a dud (no bomb item) is removed without a blast,
+# a bomb at delay 0 decays through the INT8 range and comes round after 256 turns.
+armbomb grid=9480 item=TNT attach=DETONATOR setting=2
+armbomb grid=9481 item=C4 attach=DETONATOR setting=1 owner=3
+armbomb grid=9482 item=MINI_GRENADE det=1 freq=1
+armbomb grid=9483 item=HAND_GRENADE det=1 freq=0 bombitem=HAND_GRENADE
+decaybombs
+bombqueue ms=0
+decaybombs
+bombqueue ms=0
+bombqueue ms=2000
+decaybombs
+bombqueue ms=0
+bombreset
+decaybombs count=253
+decaybombs
+bombqueue ms=0
+bombreset
+
+# Mine detection. Merc 0 (detect level 3) next to an unknown map mine of trap 3, then a mine of trap 4 he misses; merc 2
+# bleeding draws PreRandom(3) on every check, mines or not; merc 1 with a metal detector flags a mine of trap 10 for
+# anyone; an enemy sees through the enemy flag, then finds a mine of the player's and plants the flag of his side.
+armbomb grid=8680 item=MINE setting=0 trap=3
+groundcheck who=0 mode=raw
+groundcheck who=0 mode=raw
+armbomb grid=8518 item=MINE setting=0 trap=4
+groundcheck who=0 grid=8678 mode=raw
+bombsoldier who=2 bleeding=25
+groundcheck who=2 mode=raw
+groundcheck who=2 grid=8678 mode=raw
+groundcheck who=2 grid=8678 mode=raw around=0
+bombsoldier who=1 slot=10 item=METALDETECTOR
+groundcheck who=1 grid=8678 mode=raw
+groundcheck who=1 grid=8678
+armbomb grid=7605 item=MINE setting=0 trap=1 owner=3
+armbomb grid=7607 item=MINE setting=0 trap=1
+mineflag grid=7607 flags=4
+groundcheck who=20 mode=raw
+groundcheck who=20
+groundcheck who=20
+bombsoldier who=21 slot=10 item=METALDETECTOR
+armbomb grid=11267 item=MINE setting=0 trap=9
+groundcheck who=21
+groundcheck who=21
+
+# Merc 0 walks past the unknown trap-3 mine: he stops every merc out of combat, says the suspicious ground quote and its
+# callback starts the locator, then the blue flag box; yes places the flag at the booby trap level of the last trap.
+armbomb grid=8839 item=MINE setting=0 trap=2
+groundcheck who=0 grid=8679 answers=yes
+armbomb grid=8999 item=MINE setting=0 trap=1
+groundcheck who=0 grid=8839 answers=no
+
+# Paths: an enemy avoids his side's flag, our mercs the player's flag but not as the destination.
+minepath who=0 to=8999
+minepath who=0 to=8839
+minepath who=0 to=9159
+minepath who=20 to=7608
+minepath who=20 to=7607
+
+# Booby traps on pickups: merc 0 spots a trap-3 TNT, the quote's callback asks to disarm, yes; then a trap-6 item he
+# misses goes off as a mini grenade at ground level; a known trap asks at once, no; our own timed bomb picked up.
+seed value=23 pre=reseed
+armbomb grid=8358 item=TNT trap=3 visible=1 flags=0
+bombpickup who=0 grid=8358 answers=yes
+armbomb grid=8357 item=RDX trap=6 visible=1 flags=0
+bombpickup who=0 grid=8357
+bombqueue ms=0
+bombreset
+armbomb grid=8356 item=C4 trap=2 visible=1 flags=0 known=1
+bombpickup who=1 grid=8356 answers=no
+bombpickup who=1 grid=8356 answers=yes
+armbomb grid=8355 item=TNT attach=DETONATOR setting=3 owner=2 trap=4 visible=1
+bombpickup who=0 grid=8355 answers=yes
+bombreset
+
+# Buried bombs under the player's flag: the disarm prompt, a dug-up switch becomes a remote bomb trigger and a non-blow-up
+# action item a detonator with 1 + Random(9) status; a mine comes up as itself; no asks to remove the flag.
+armbomb grid=8200 item=SWITCH det=3 freq=63 trap=1
+mineflag grid=8200 flags=8
+bombpickup who=0 grid=8200 answers=yes
+armbomb grid=8201 item=ACTION_ITEM action=18 det=3 trap=1
+mineflag grid=8201 flags=8
+bombpickup who=0 grid=8201 answers=yes
+armbomb grid=8202 item=MINE setting=0 trap=2
+mineflag grid=8202 flags=8
+bombpickup who=1 grid=8202 answers=yes
+armbomb grid=8203 item=MINE setting=0 trap=2
+mineflag grid=8203 flags=8
+bombpickup who=1 grid=8203 answers=no,yes
+bombpickup who=1 grid=8203 answers=no,no
+# An expert digs up a klaxon plate as a detonator, a minefield plate as its mine and a mine as itself.
+bombreset
+bombsoldier who=1 explosives=100 explevel=10 wisdom=100
+armbomb grid=8206 item=ACTION_ITEM action=18 det=3 trap=1
+mineflag grid=8206 flags=8
+bombpickup who=1 grid=8206 answers=yes
+armbomb grid=8207 item=MINE setting=0 trap=2
+mineflag grid=8207 flags=8
+bombpickup who=1 grid=8207 answers=yes
+armbomb grid=8208 item=ACTION_ITEM action=3 det=3 bombitem=MINE trap=1 status=77
+mineflag grid=8208 flags=8
+bombpickup who=1 grid=8208 answers=yes
+# A clumsy merc fails: the failure XP, then every bomb of the tile goes off, our own mine but for our team.
+bombsoldier who=2 explosives=1 explevel=1 wisdom=30 bleeding=0
+armbomb grid=8204 item=MINE setting=0 trap=5
+armbomb grid=8204 item=MINE setting=0 trap=5 owner=4
+mineflag grid=8204 flags=8
+bombpickup who=2 grid=8204 answers=yes
+bombpickup who=2 grid=8204 answers=yes
+bombqueue ms=0
+bombreset
+armbomb grid=8205 item=TNT trap=8 visible=1 flags=0 known=1
+bombpickup who=2 grid=8205 answers=yes
+bombpickup who=2 grid=8205 answers=yes
+bombqueue ms=0
+bombreset
+
+# Planting: a mine (no box, pressure, player flag, buried), a timed TNT (box answered 2), a remote C4 (frequency 3), and
+# the clumsy merc's fumbles (the setting moved by Random(3) - 1, or the bomb going off in his hand and staying there).
+seed value=31 pre=reseed
+bombsoldier who=0 hand=MINE
+plantbomb who=0 grid=8840
+bombsoldier who=0 hand=TNT attach=DETONATOR
+plantbomb who=0 grid=8841 answers=2
+bombsoldier who=1 hand=C4 attach=REMDETONATOR
+plantbomb who=1 grid=8842 answers=3
+bombsoldier who=2 hand=TNT attach=DETONATOR
+plantbomb who=2 grid=8843 answers=1
+bombsoldier who=2 hand=TNT attach=DETONATOR
+plantbomb who=2 grid=8844 answers=4
+bombsoldier who=2 hand=TNT attach=DETONATOR
+plantbomb who=2 grid=8845 answers=2
+bombsoldier who=2 hand=C4 attach=REMDETONATOR
+plantbomb who=2 grid=8846 answers=1
+bombsoldier who=2 hand=C4 attach=REMDETONATOR
+plantbomb who=2 grid=8847 answers=3
+bombqueue ms=0
+bombreset
+# The remote bomb trigger sets off frequency 3.
+bombsoldier who=1 hand=REMOTEBOMBTRIGGER
+plantbomb who=1 use=remote answers=3
+bombqueue ms=0
+bombqueue ms=2000
+bombreset
+decaybombs count=3
+bombqueue ms=0
+bombqueue ms=2000
+bombreset
+
+# The x-ray device: no batteries does nothing, batteries drain by 8 + Random(5) and every soldier of another team within
+# 40 tiles is x-rayed; switched off again.
+bombsoldier who=0 hand=XRAY_DEVICE
+xray who=0
+bombsoldier who=0 hand=XRAY_DEVICE attach=BATTERIES
+xray who=0
+xray who=0
+xray who=0 off=1
+
+# Panic: a trigger switch on frequency 127 with a panic bomb, a second trigger (126, tolerance 50) and its bomb. The
+# closest enemy who can walk there is chosen, goes red and gets keys; his panic AI walks to the trigger, pulls it there,
+# and the pull sets off the frequency and clears the flags.
+bombsoldier who=0 hand=none
+armbomb grid=10660 item=SWITCH det=4 freq=127 tolerance=0
+armbomb grid=10500 item=TNT attach=REMDETONATOR setting=127
+armbomb grid=10820 item=SWITCH det=4 freq=126 tolerance=50
+armbomb grid=10501 item=TNT attach=REMDETONATOR setting=126
+panicinit
+chosenone
+panicai who=20
+panicai who=20 canmove=0
+panicai who=21
+bombsoldier who=20 grid=10660
+panicai who=20
+bombsoldier who=20 ap=1
+panicai who=20
+bombsoldier who=20 ap=21
+pulltrigger who=20
+bombqueue ms=0
+bombreset
+# The second trigger waits for half the army dead: 3 of 8 is not enough, 5 of 10 is.
+panicset chosen=-1
+chosenone
+possiblychosen who=22
+panicset killed=3
+chosenone
+possiblychosen who=22
+panicset killed=5
+possiblychosen who=22
+panicset chosen=-1
+chosenone
+panicai who=22
+panicai who=23
+# A panic bomb and an enemy holding a remote bomb trigger: he uses it at once, or waits without the APs.
+panicinit
+panicset chosen=-1 killed=0
+armbomb grid=10502 item=TNT attach=REMDETONATOR setting=127
+panicinit
+bombsoldier who=23 slot=10 item=REMOTEBOMBTRIGGER ap=1
+panicai who=23
+bombsoldier who=23 ap=10
+panicai who=23
+usedetonator who=23
+bombqueue ms=0
+bombreset
+
+# SaveGame07: D13 in turn-based combat. Timed bombs are armed without the extra turn; the chosen one of a lone enemy.
+save SaveGame07
+seed value=5 pre=reseed
+armbomb grid=12868 item=TNT attach=DETONATOR setting=2
+bombsoldier who=2 hand=TNT attach=DETONATOR
+plantbomb who=2 grid=12866 answers=1
+decaybombs
+bombqueue ms=0
+bombreset
+armbomb grid=12550 item=SWITCH det=4 freq=127
+armbomb grid=12551 item=TNT attach=REMDETONATOR setting=127
+panicinit
+chosenone
+panicai who=23
+groundcheck who=23 mode=raw
+armbomb grid=12398 item=MINE setting=0 trap=1 owner=2
+groundcheck who=23

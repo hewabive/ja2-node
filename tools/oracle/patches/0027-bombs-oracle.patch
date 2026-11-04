@@ -1,0 +1,207 @@
+Bomb oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-04. See LICENSE (SFI-SCLA).
+Lets the bomb probes run the bomb queue, the booby trap and planting boxes and the suspicious ground headless: with
+gOracleMessageBoxHook set, DoMessageBox hands the box's text and callback to the hook instead of opening it, so the probe
+answers it through the callback; appended accessors read the static explosion queue and its person, the allocated
+explosions and the booby trap globals, free the explosions and the queue, run the static CheckIfNearbyGroundSeemsWrong
+and finish the item locators (running their callbacks). The cosmetic Random draws on the probes' paths (the explosion
+sound, the curse after a failed skill check, the stat-change quote, the battle sound variant) are marked 4001/4000 in the
+draw trace of 0002. No behaviour change while the hook is clear. Applied by tools/oracle/build.sh after 0026.
+
+--- a/src/game/MessageBoxScreen.cc
++++ b/src/game/MessageBoxScreen.cc
+@@ -85,8 +85,12 @@
+ static_assert(NUMBER_OF_MSG_BOX_STYLES == std::size(g_msg_box_style));
+ 
+ 
++void (*gOracleMessageBoxHook)(const ST::string& str, MSGBOX_CALLBACK ReturnCallback) = NULL;
++
+ void DoMessageBox(MessageBoxStyleID ubStyle, const ST::string& str, ScreenID uiExitScreen, MessageBoxFlags usFlags, MSGBOX_CALLBACK ReturnCallback, const SGPBox* centering_rect)
+ {
++	if (gOracleMessageBoxHook) return gOracleMessageBoxHook(str, ReturnCallback);
++
+ 	pOldMousePosition = GetMousePos();
+ 
+ 	//this variable can be unset if ur in a non gamescreen and DONT want the msg box to use the save buffer
+--- a/src/game/Tactical/Campaign.cc
++++ b/src/game/Tactical/Campaign.cc
+@@ -37,6 +37,10 @@
+ #include "GameInstance.h"
+ #include "policy/GamePolicy.h"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ // Convert hired mercs' stats subpoint changes into actual point changes where warranted
+ static void ProcessUpdateStats(MERCPROFILESTRUCT&, SOLDIERTYPE*);
+ 
+@@ -580,7 +584,10 @@
+ 			// ( except health; not only will it sound silly, but
+ 			// also we give points for health on sector traversal and this would
+ 			// probaby mess up battle handling too )
+-			if ( (ubStat != HEALTHAMT) && ( (ubStat == EXPERAMT) || Random( 100 ) < 25 ) )
++			OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
++			bool const say = (ubStat != HEALTHAMT) && ( (ubStat == EXPERAMT) || Random( 100 ) < 25 );
++			OracleTraceMark(ORACLE_MARK_COSMETIC_END);
++			if ( say )
+ 			//if ( (ubStat != EXPERAMT) && (ubStat != HEALTHAMT) && ( Random( 100 ) < 25 ) )
+ 			{
+ 				// Pipe up with "I'm getting better at this!"
+--- a/src/game/Tactical/Handle_Items.cc
++++ b/src/game/Tactical/Handle_Items.cc
+@@ -3472,3 +3472,20 @@
+ 	if (gTacticalStatus.uiFlags & SHOW_ALL_ITEMS) return true;
+ 	return false;
+ }
++
++void OracleFinishItemLocators()
++{
++	FOR_EACH(ITEM_POOL_LOCATOR, i, FlashItemSlots)
++	{
++		if (i->pItemPool) RemoveFlashItemSlot(i->pItemPool);
++	}
++}
++
++void OracleBoobyTrapState(INT16* const gridno, INT8* const level, BOOLEAN* const buried, INT8* const difficulty, BOOLEAN* const just_found)
++{
++	*gridno     = gsBoobyTrapGridNo;
++	*level      = gbBoobyTrapLevel;
++	*buried     = gfDisarmingBuriedBomb;
++	*difficulty = gbTrapDifficulty;
++	*just_found = gfJustFoundBoobyTrap;
++}
+--- a/src/game/Tactical/Overhead.cc
++++ b/src/game/Tactical/Overhead.cc
+@@ -6252,3 +6252,10 @@
+ }
+ 
+ #endif
++
++BOOLEAN OracleCheckIfNearbyGroundSeemsWrong(SOLDIERTYPE* const s, UINT16 const gridno, BOOLEAN const check_around)
++{
++	BOOLEAN keep_moving = TRUE;
++	CheckIfNearbyGroundSeemsWrong(s, gridno, check_around, &keep_moving);
++	return keep_moving;
++}
+--- a/src/game/Tactical/SkillCheck.cc
++++ b/src/game/Tactical/SkillCheck.cc
+@@ -10,6 +10,10 @@
+ #include "Drugs_And_Alcohol.h"
+ #include "StrategicMap.h"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ 
+ INT8 EffectiveStrength(const SOLDIERTYPE* s)
+ {
+@@ -367,7 +371,10 @@
+ 			pSoldier->sSkillCheckGridNo = pSoldier->sGridNo;
+ 		}
+ 
+-		if ( fForceDamnSound || Random( 100 ) < 40 )
++		OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
++		bool const damn = fForceDamnSound || Random( 100 ) < 40;
++		OracleTraceMark(ORACLE_MARK_COSMETIC_END);
++		if ( damn )
+ 		{
+ 			switch( bReason )
+ 			{
+--- a/src/game/Tactical/Soldier_Control.cc
++++ b/src/game/Tactical/Soldier_Control.cc
+@@ -88,6 +88,10 @@
+ 
+ #define PALETTEFILENAME			BINARYDATADIR "/ja2pal.dat"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ 
+ #define TURNING_FROM_PRONE_OFF			0
+ #define TURNING_FROM_PRONE_ON			1
+@@ -6003,7 +6007,9 @@
+ 	}
+ 
+ 	// Randomize between sounds, if applicable (Random(0) returns 0).
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 	battle_snd_id = static_cast<BattleSound>(battle_snd_id + Random(battle_snd.ubRandomVal));
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 	auto const& adjusted_battle_snd = gBattleSndsData[battle_snd_id];
+ 
+ 	ST::string basename;
+--- a/src/game/TileEngine/Explosion_Control.cc
++++ b/src/game/TileEngine/Explosion_Control.cc
+@@ -86,6 +86,10 @@
+ 
+ static void GenerateExplosionFromExplosionPointer(EXPLOSIONTYPE* pExplosion);
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ 
+ // GENERATE EXPLOSION
+ void InternalIgniteExplosion(SOLDIERTYPE* const owner, const INT16 sX, const INT16 sY, const INT16 sZ, const INT16 sGridNo, const UINT16 usItem, const BOOLEAN fLocate, const INT8 bLevel)
+@@ -229,8 +233,10 @@
+ 	}
+ 
+ 	auto && soundCandidates{ explosionAnimation->getSounds() };
+-	PlayLocationJA2Sample(sGridNo, soundCandidates.at(
+-			Random(static_cast<UINT32>(soundCandidates.size()))),
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
++	UINT32 const sound = Random(static_cast<UINT32>(soundCandidates.size()));
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
++	PlayLocationJA2Sample(sGridNo, soundCandidates.at(sound),
+ 		HIGHVOLUME, 1);
+ }
+ 
+@@ -2415,3 +2421,47 @@
+ 		RemoveItemFromWorld(item_idx);
+ 	}
+ }
++
++UINT32 OracleExplosionSlotCount()
++{
++	return NUM_EXPLOSION_SLOTS;
++}
++
++EXPLOSIONTYPE const* OracleExplosionSlot(UINT32 const i)
++{
++	return &gExplosionData[i];
++}
++
++BOOLEAN OracleExplosionQueueEntry(UINT8 const i, UINT32* const bomb, UINT32* const timestamp)
++{
++	ExplosionQueueElement const& e = gExplosionQueue[i];
++	*bomb      = e.uiWorldBombIndex;
++	*timestamp = e.uiTimeStamp;
++	return e.fExists;
++}
++
++BOOLEAN OracleExplosionQueueMayHaveChangedSight()
++{
++	return gfExplosionQueueMayHaveChangedSight;
++}
++
++SOLDIERTYPE* OraclePersonToSetOffExplosions()
++{
++	return gPersonToSetOffExplosions;
++}
++
++void OracleResetExplosions()
++{
++	FOR_EACH(EXPLOSIONTYPE, e, gExplosionData)
++	{
++		if (e->fAllocated) RemoveExplosionData(e);
++	}
++	FOR_EACH(ExplosionQueueElement, e, gExplosionQueue)
++	{
++		*e = ExplosionQueueElement{};
++	}
++	gubElementsOnExplosionQueue         = 0;
++	gfExplosionQueueActive              = FALSE;
++	gfExplosionQueueMayHaveChangedSight = FALSE;
++	gPersonToSetOffExplosions           = 0;
++}

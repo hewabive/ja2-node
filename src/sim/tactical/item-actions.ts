@@ -219,7 +219,7 @@ function turnToRaisedItems(t: TacticalState, s: Soldier, structure: StructureIns
   setSoldierDirection(t, s, direction);
 }
 
-function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
+export function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {
   const pending = s.pendingPickup;
   s.pendingPickup = null;
   if (!pending) return;

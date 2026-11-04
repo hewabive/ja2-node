@@ -332,11 +332,15 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | A merc whose attacking hand is still his second hand gets the setting box at once, and the bomb lands on the clicked tile without a walk (the detonator box at the end of `HandleItem`) | `tactical/bombs/planting.test.ts` "asks for the setting at once and puts the bomb on the clicked tile …" |
 | The hand item roll comes before the remote's APs: a broken remote bomb trigger costs nothing | `tactical/bombs/planting.test.ts` "refuses a broken trigger before its APs …" |
 
-Not checked against the native build: no oracle probe covers the bomb list, the flags, paths around mines, the queue's
-times and draws, the timers, the suspicious ground's draws, the buried disarm or the planting box's draws yet; the action item probes of
-`tools/oracle/README.md` "Give" check the queue with the quest action items. With the original data
-`tactical/bombs/item-actions-original.test.ts` works the museum switch of L12, the Orta basement cell switch and the
-brothel's untrap switch, and `tactical/bombs/planting-original.test.ts` the real `PLANT_BOMB` and `USE_REMOTE` scripts. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
+The oracle's bomb probes (`tools/oracle/README.md` "Bombs") check the map loads (bomb lists, mine flags, panic
+triggers), the set-offs by step, frequency and timer with the queue's times and draws, the action items on doors and
+alarms, the suspicious ground with its draws, the metal detector and the AI's branch, paths around flagged tiles, booby
+traps and buried disarms with their boxes and gains, planting with the box and its fumbles, the remote bomb trigger and
+the x-ray detector; the action item probes of "Give" check the queue with the quest action items. Not checked against
+the native build: the planting and remote animations, the step chain of a walk, militia, pits and the stop-time freeze.
+With the original data `tactical/bombs/item-actions-original.test.ts` works the museum switch of L12, the Orta basement
+cell switch and the brothel's untrap switch, and `tactical/bombs/planting-original.test.ts` the real `PLANT_BOMB` and
+`USE_REMOTE` scripts. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
 From scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag;
 six store mine flags with their tiles, all for the enemy (F9's mine tile, nine tiles of E13_B1 and five of its alternate,
 eight of H8_B1, H9_B1 and its alternate);
@@ -383,7 +387,8 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | A merc who already stands where he would tie the can ties nothing: `HandleItem` sends him down the jar's path, which says NOTHING | `tile-tools.test.ts` "ties nothing when he already stands where he would tie it" |
 | The x-ray detector takes its 2 AP without batteries too | `xray.test.ts` "uses up batteries at 0 or below and then does nothing, though the APs still go" |
 
-Not checked against the native build: no oracle probe covers the tools or the x-ray. With the original data
+The oracle's bomb probes (`tools/oracle/README.md` "Bombs") check the x-ray detector's batteries and targets. Not
+checked against the native build: the wire cutters, the jar and the tin can. With the original data
 `tile-tools-original.test.ts` cuts B13's wire fence and fills a jar through the real `CUTTING_FENCE` and
 `TAKE_BLOOD_FROM_CORPSE` scripts. Not ported: a corpse that vanishes during the jar's animation (an explosion) gives
 human blood here, where the original reads the type its freed slot still holds.

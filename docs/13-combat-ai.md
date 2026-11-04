@@ -147,8 +147,9 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - The AI path costs excluding the cost of starting to move.
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
-- The panic choice, decisions and trigger pull: no probe yet (`panic-original.test.ts` checks the triggers the shipped
-  maps give).
+- The panic decisions inside `DecideActionRed` and `DecideActionBlack` and the radio chances: the bomb probes
+  (`tools/oracle/README.md` "Bombs") check the triggers the maps give, the chosen one with his keys, `PanicAI`, the
+  pull and the detonator.
 
 Not ported: gaps "Combat AI specials". Kept differences: deviations "Armed civilian without ammo", "AI climb that
 cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies",

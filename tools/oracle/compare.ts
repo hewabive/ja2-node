@@ -41,6 +41,7 @@ import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
+import { BOMB_PROBES, BombComparer } from './bombs-compare.ts';
 import { BOXING_PROBES, BoxingComparer } from './boxing-compare.ts';
 import { CIV_PROBES, CivComparer } from './civ-compare.ts';
 import { CONTRACT_PROBES, ContractComparer } from './contract-compare.ts';
@@ -599,6 +600,7 @@ for (const file of files) {
   const recruits = new RecruitComparer(read, exists);
   const boxing = new BoxingComparer(read, exists);
   const drugs = new DrugComparer(read, exists);
+  const bombs = new BombComparer(read, exists, content);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -634,6 +636,7 @@ for (const file of files) {
       if (ctx.bytes) meanwhiles.loadSave(ctx.bytes);
       if (ctx.bytes) boxing.loadSave(ctx.bytes);
       if (ctx.bytes) drugs.loadSave(ctx.bytes);
+      if (ctx.bytes) bombs.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -664,6 +667,7 @@ for (const file of files) {
     else if (MEANWHILE_PROBES.has(String(p.probe))) failures += await meanwhiles.compare(p, ctx?.sim ?? null);
     else if (BOXING_PROBES.has(String(p.probe))) failures += await boxing.compare(p);
     else if (DRUG_PROBES.has(String(p.probe))) failures += await drugs.compare(p);
+    else if (BOMB_PROBES.has(String(p.probe))) failures += await bombs.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

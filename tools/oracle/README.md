@@ -35,6 +35,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
 | Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
+| Bombs, mines and the panic AI | map loads (bomb lists, mine flags, panic triggers), set-offs by step, frequency and timer with the queue's times, action items, the suspicious ground, mine paths, booby traps and buried disarms with their boxes, planting and the remote trigger, the x-ray detector, the chosen one, `PanicAI`, the pull and the detonator | `bombs.txt` | `bombs-compare.ts` | 0027 | `12`, `13` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -174,6 +175,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 1000 + node id / 999 | 0004 | every `AddPlacementToWorld`: draws inside a placement are skipped and the native outcome answers it |
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
+| 4001 / 4000 | 0027 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant, dropped by the bomb comparer (deviations "Cosmetic draws …") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
@@ -560,6 +562,31 @@ level, life, breath, morale, APs (held, initial, `CalcActionPoints`) and effecti
 dump field by field. No save holds drug state, so `drugs.txt` starts every course itself, on SaveGame01's mercs, who
 draw nothing at a turn start in B13.
 
+### Bombs
+
+Commands (0027): `bombmap` (a bare `LoadWorld` with its draws traced, then `InitPanicSystem` after the panic reset of
+`InitializeTacticalStatusAtBattleStart`), `armbomb` (an object made with `CreateItem`, optionally `ArmBomb`, its bomb
+fields set, added with `AddItemToPool`), `bombsoldier`, `mineflag`, `stepon` (`SetOffBombsInGridNo`), `bombfrequency`
+(`SetOffBombsByFrequency`), `decaybombs`, `bombqueue` (the JA2 clock advanced, then `HandleExplosionQueue`),
+`bombreset`, `groundcheck` (`NearbyGroundSeemsWrong` or `CheckIfNearbyGroundSeemsWrong`), `bombpickup`
+(`HandleSoldierPickupItem`), `bombanswer`, `plantbomb` (`HandleSoldierDropBomb` or `HandleSoldierUseRemote`), `xray`,
+`panicinit`, `panicset`, `chosenone`, `possiblychosen`, `panicai`, `pulltrigger` (code 762), `usedetonator` and
+`minepath`. Every command but `bombmap` prints its result, the doors it names, its soldier with every enemy and the bomb
+state: the world bomb slots with their objects' bomb fields, the explosion queue with timestamps relative to the JA2
+clock, the tile mine flags, the panic state, the busy count, the sight flags, the explosions ignited (their animations
+never run), the message boxes waiting and the booby trap globals. The JA2 clock only moves when a probe moves it: the
+oracle runs no game loop. A message box goes to the probe instead of the screen and is answered through its callback
+(`answers=yes,no,1..4`); a pending stop-time quote callback runs as the quote would end, with the item locator it
+starts.
+
+`bombs-compare.ts` imports the save, replays the draws strictly with the pathfinder's and the cosmetic marks dropped,
+runs the same ja2-node functions and compares everything field by field (native `NOWHERE` is 25601, an explosion's
+height on a roof is the raised one). A `bombmap` loads the map into a fresh sandbox state and replays the item rolls'
+`PreRandom` draws; the load's `Random` draws (the edgepoints) are left out. The comparer's narrative port reports every
+stop-time quote as not said, so its callback runs at once, as the probe runs the native one when the quote would end.
+The native booby trap globals outlive a save load, so a new save session starts from the last ones printed. Not probed: the plant, remote and switch animations,
+the walk's step chain, militia, pits and the tile tools.
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -603,4 +630,5 @@ done > /tmp/hooks.patch
 The base of the diff is `reference/stracciatella` with the earlier patches applied; it differs from the plain reference
 only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004, 0012),
 `Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020),
-`Tactical/OppList.cc` (0011, 0022) and `Strategic/Hourly_Update.cc` (0012, 0026).
+`Tactical/OppList.cc` (0011, 0022), `Strategic/Hourly_Update.cc` (0012, 0026), `Tactical/Campaign.cc` (0007, 0027),
+`Tactical/Handle_Items.cc` (0017, 0027) and `Tactical/Overhead.cc` (0020, 0027).
