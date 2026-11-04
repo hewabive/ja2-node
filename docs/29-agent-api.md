@@ -332,14 +332,14 @@ and to an opponent turning visible in combat or before the sector's first sighti
 deviation "Locates of unseen soldiers"), the items' tile the view slides to as the items-seen quote starts or an escort
 sees items (`itemsLocated {gridNo}`, `Tactical/Overhead.cc:6180`), the locator at a rotting corpse a merc comments on
 (`corpseLocated {gridNo, level}`, `Tactical/Rotting_Corpses.cc:1318`), the portrait flash of a seen soldier hurt by
-bleeding, gas or electricity (`damageFeedback {soldier}`, `Tactical/Soldier_Control.cc:8770`) and the interface level the original switches to (`interfaceLevel {soldier,
-level}`: at every selection, a forced reselection of the selected merc included, and when the selected merc of ours ends
-a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`, `:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the
-view centres on with his locator; a load sends no `sectorLoaded` (deviation "View after a load"). The session copies
-the cosmetic animations into `ViewFrame.effects` stamped with the session tick, and records the bullets in flight after
-every tick as `ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and
-cosmetic animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never
-audio.
+bleeding, gas or electricity (`damageFeedback {soldier}`, `Tactical/Soldier_Control.cc:8770`) and the interface level
+the original switches to (`interfaceLevel {soldier, level}`: at every selection, a forced reselection of the selected
+merc included, and when the selected merc of ours ends a climb onto or off a roof, `Tactical/Soldier_Ani.cc:261`,
+`:1165`). `sectorLoaded` carries `located`, the merc a sector entry selects, whom the view centres on with his locator;
+a load sends no `sectorLoaded` (deviation "View after a load"). The session copies the cosmetic animations into
+`ViewFrame.effects` stamped with the session tick, and records the bullets in flight after every tick as
+`ViewFrame.bullets`, since a flight usually falls between two frames. The client derives all sound and cosmetic
+animation from them, the frames and the animation codes it replays (`31`); agents get the same events, never audio.
 
 **What the squad does not see, it hears** (`08`; deviations "Sounds out of sight", "Bullets of unseen shooters"). A
 source out of sight carries `heard {by, direction, volumeClass}` instead of its grid: the merc of ours who hears it
