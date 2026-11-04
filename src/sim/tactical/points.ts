@@ -4,7 +4,8 @@
 // @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h; Soldier_Control.cc CalcActionPoints,
 // @src CalcNewActionPoints (the boxing halving); the phobia terms of CalcActionPoints and EnoughPoints' waiting and
 // @src traversal exceptions (2026-11-01); the sleep dart, drug and INT8 terms of CalcActionPoints and
-// @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs (2026-11-04).
+// @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs, the INT16 breath of DeductPoints and
+// @src AdjustBreathPts (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -459,7 +460,7 @@ function adjustBreathPts(s: Soldier, cost: number): number {
   factor += idiv(100 * (s.lifeMax - effectiveLife(s)), s.lifeMax);
   if (s.stats.strength > 80) factor -= idiv(s.stats.strength - 80, 2);
   if (factor === 0) return 0;
-  return cost > 0 ? idiv(cost * factor, 100) : idiv(cost * 100, factor);
+  return i16(cost > 0 ? idiv(cost * factor, 100) : idiv(cost * 100, factor));
 }
 
 export function enoughPoints(inCombat: boolean, s: Soldier, apCost: number): boolean {
@@ -473,9 +474,10 @@ export function deductPoints(inCombat: boolean, s: Soldier, apCost: number, bpCo
   let ap = s.actionPoints - (inCombat ? apCost : 0);
   if (ap < 0 && s.actionPoints > 0) ap = 0;
   s.actionPoints = Math.max(ap, -MAX_AP_DEBT);
-  if (!bpCost) return;
-  const cost = adjustBreathPts(s, bpCost);
-  s.breathRed = Math.min(MAX_BREATH_RED, Math.max(0, s.breathRed + cost));
+  const cost = i16(bpCost);
+  if (!cost) return;
+  const regained = i16(-adjustBreathPts(s, cost));
+  s.breathRed = Math.min(MAX_BREATH_RED, Math.max(0, i16(s.breathRed - regained)));
   let breath = i8(Math.trunc(Math.fround(s.breathMax - Math.fround(s.breathRed / 100))));
   if (breath > 100) breath = 100;
   if (breath < 0) {

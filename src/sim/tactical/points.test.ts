@@ -123,6 +123,20 @@ describe('action points', () => {
     expect([s.actionPoints, s.breath]).toEqual([0, 0]);
   });
 
+  it('keeps the INT16 breath of DeductPoints: a cost scaled past 32767 or a reduction pushed past it gives breath back', () => {
+    const t = tactical();
+    const scaled = spawn(t, gridNo(80, 80));
+    scaled.breath = 90;
+    scaled.breathRed = 1000;
+    deductPoints(true, scaled, 0, 32536);
+    expect([scaled.breathRed, scaled.breath]).toEqual([0, 100]);
+    const pushed = spawn(t, gridNo(82, 80));
+    pushed.breath = 0;
+    pushed.breathRed = 10000;
+    deductPoints(true, pushed, 0, 16000);
+    expect([pushed.breathRed, pushed.breath]).toEqual([0, 100]);
+  });
+
   it('prices stance changes, turning and a running start', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
@@ -316,6 +330,16 @@ describe('drugs in the breath between turns (Points.cc UnusedAPsToBreath, Drugs_
     expect(hungover).toBeLessThan(sober);
     expect(breathAfter(true, (s) => (s.drugs.adrenaline.sideEffect = AFTER_ADRENALINE))).toBeLessThan(70);
     expect(breathAfter(true, (s) => (s.drugs.alcohol.sideEffect = HANGOVER))).toBeLessThan(70);
+  });
+
+  it('fills the breath when stacked adrenaline overflows the INT16 gain into a cost that AdjustBreathPts overflows back', () => {
+    const wrapped = breathAfter(true, (s) => {
+      s.breath = 90;
+      s.breathRed = 1000;
+      s.actionPoints = 120;
+      s.drugs.adrenaline.effect = 100;
+    });
+    expect(wrapped).toBe(100);
   });
 
   it('skips the drug term turn-based for a gassed soldier who would have rested', () => {

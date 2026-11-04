@@ -225,6 +225,7 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | The crash and hangover clamps to 10 APs come after the phobia's cut: a claustrophobe's 9 APs become 10 | `points.test.ts` "raises a claustrophobe's 9 APs to 10 …" |
 | Stacked adrenaline wraps: the effect, the turn APs and the APs held are INT8 | `drugs.test.ts` "wraps a stacked effect past 127 …", `points.test.ts` "wraps stacked adrenaline …" |
 | In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
+| Stacked adrenaline with many unused APs overflows the INT16 breath gain into a cost, which the breath factor overflows back into a gain: the breath fills | `points.test.ts` "fills the breath when stacked adrenaline overflows …" |
 
 Not checked against the native build: no oracle probe sets up a course, so the order inside `EVENT_BeginMercTurn`, the
 crash's morale with attitudes, the AP clamp chain, the INT8 wraps and the booster's `PreRandom` draw are read from the

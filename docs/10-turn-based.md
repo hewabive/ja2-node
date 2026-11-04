@@ -174,6 +174,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A real-time turn comes every 5020 ms: the 5 s test runs on the 20 ms strategic counter | `turns/realtime-turns.test.ts` |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
+| Breath changes are INT16: a cost the breath factor scales past 32767, or a breath reduction pushed past it, gives breath back | `points.test.ts` "keeps the INT16 breath of DeductPoints …" |
 | An insect-phobic merc loses APs for a creature he only heard or saw before, as long as he sees anyone: `MercSeesCreature` reads any opplist entry | `points.test.ts` |
 | A claustrophobe's AP cut reads the loaded sector alone, so a merc created or inserted while an underground map is loaded gets it before he is placed; his level loss waits for him to be in the sector | `points.test.ts`, `skills.test.ts` |
 | A collapsed soldier waiting to move with others has enough points: `EnoughPoints` tests the wait before the collapse | `points.test.ts` |
