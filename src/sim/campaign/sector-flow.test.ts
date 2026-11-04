@@ -19,7 +19,7 @@ import { Direction, WORLD_COLS } from '../../content/world/grid.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
-import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import { tileIndex, tileTypeOf, typeIndex } from '../../content/world/tile-tables.ts';
 import { idiv } from '../../core/int.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
@@ -496,6 +496,35 @@ describe('a native save loaded into its sector', () => {
     expect([vehicles(DRASSEN_HELIPAD), vehicles(TAIL_BOOM_GRIDNO)]).toEqual([1, 0]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(1);
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE_STRUCT_TILE, TAIL_BOOM_GRIDNO]]);
+  });
+
+  it("takes the door off the tile of a native save's door removal, whichever door graphic it names (SaveLoadMap.cc:156)", () => {
+    const { campaign } = createTestCampaign(kit, { seed: 11, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const flow = flowOf(campaign);
+    Object.assign(sectorInfo(campaign.state.map, B13), NO_GARRISON_COUNTS);
+    for (const m of flow.setup.roster.all()) m.sector = { ...B13 };
+    expect(flow.setCurrentWorldSector(B13)).toBe(true);
+    const sim = campaign.tactical;
+    if (!sim) throw new Error('no sector');
+    const t = sim.state;
+    const tables = sim.world.tables;
+    const [closedDoor = -1] = structLayerAt(t, HANGAR_DOOR);
+    const doorType = tileTypeOf(tables, closedDoor);
+    const openGraphic = closedDoor + 1;
+    const removedOpenDoor = {
+      type: MapModificationType.REMOVE_STRUCT,
+      gridNo: HANGAR_DOOR,
+      imageType: doorType,
+      subImageIndex: openGraphic - (tables.types[doorType]?.start ?? 0) + 1,
+      extra: 0,
+    };
+    flow.adoptLoadedSector([], { mapModifications: [removedOpenDoor], revealed: null, doorStatus: null });
+    const doors = t.world.structures.at(HANGAR_DOOR).filter((s) => has(s.flags, StructureFlags.ANYDOOR));
+    expect([doors, structLayerAt(t, HANGAR_DOOR)]).toEqual([[], []]);
+    expect(tileChangeViews(t).filter((c) => c.gridNo === HANGAR_DOOR)).toEqual([
+      { kind: 'remove', gridNo: HANGAR_DOOR, level: GROUND_LEVEL, tile: closedDoor },
+    ]);
   });
 
   it('bumps nobody when a native import stands the helicopter: the saved soldiers enter the map only after it and the map changes (UpdateMercsInSector, SaveLoadGame.cc:1036)', () => {

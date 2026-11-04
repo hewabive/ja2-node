@@ -25,7 +25,7 @@ import {
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { type TileTables, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
+import { type TileTables, tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
 import { i16, u8 } from '../../core/int.ts';
 import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
@@ -78,8 +78,6 @@ const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
 const AI_FLAG_ASLEEP = 0x20;
 const AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE = 0x40;
 const AI_FLAG_CHECK_SCHEDULE = 0x80;
-const FIRST_DOOR_TYPE = 'FIRSTDOOR';
-const LAST_DOOR_TYPE = 'FOURTHDOOR';
 const BYTE_BITS = 8;
 
 export interface SaveImportReport {
@@ -309,8 +307,7 @@ function savedMapChange(tables: TileTables, m: SavedMapModification): MapChange 
   if (tile === null) return null;
   if (m.type === MapModificationType.OBJECT) return objectChange(m.gridNo, tile);
   if (m.type === MapModificationType.STRUCT) return structTileChange(MapChangeKind.APPEND_STRUCT_TILE, m.gridNo, tile);
-  if (m.type === MapModificationType.REMOVE_STRUCT && !isDoorType(tables, m.imageType))
-    return structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, m.gridNo, tile);
+  if (m.type === MapModificationType.REMOVE_STRUCT) return structTileChange(MapChangeKind.REMOVE_STRUCT_TILE, m.gridNo, tile);
   return null;
 }
 
@@ -318,10 +315,6 @@ function savedStructTile(tables: TileTables, m: SavedMapModification): number | 
   const type = tables.types[m.imageType];
   if (!type || m.subImageIndex < 1 || m.subImageIndex > type.count) return null;
   return tileIndexFromTypeSubIndex(tables, m.imageType, m.subImageIndex);
-}
-
-function isDoorType(tables: TileTables, type: number): boolean {
-  return type >= typeIndex(tables, FIRST_DOOR_TYPE) && type <= typeIndex(tables, LAST_DOOR_TYPE);
 }
 
 function savedExitGrid(m: SavedMapModification): AddedExitGrid {

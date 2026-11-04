@@ -249,7 +249,9 @@ export class StructLayerReplay {
 
   #removeTile(c: MapChange): readonly StructLayerEdit[] {
     const tile = c.tile;
-    if (tile === undefined || !this.#takeOut(c.gridNo, tile)) return NO_EDITS;
+    if (tile === undefined) return NO_EDITS;
+    if (isDoorTile(this.#t, tile)) return this.#removeAllDoors(c.gridNo);
+    if (!this.#takeOut(c.gridNo, tile)) return NO_EDITS;
     return [{ kind: 'remove', tile }];
   }
 
