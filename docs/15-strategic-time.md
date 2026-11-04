@@ -77,7 +77,11 @@ decision prompt stops the whole simulation (D15, deviation "Prompt time").
 
 **Compression is state that commands change.** `compressTime {mode?}` and `stopTime` are the map's buttons; `mapScreen`
 and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60 minute mode but stops it, anything else
-becomes X0; tactical is always X1). Every stop carries a reason (`CompressionStop`) that the `compressionStopped` event
+becomes X0; tactical is always X1). Leaving the map lifts the pause lock, whoever set it: the way back to the loaded
+sector also lifts any pause but the player's, and a sector load from the map stops compression before the load's own
+unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3239-3256`; `campaign/screens.ts`). The laptop leaves the lock as it
+is (gaps "Map screen exit checks"); autoresolve starts from the pre-battle interface, which leaves neither compression
+nor a lock for the exit to end. Every stop carries a reason (`CompressionStop`) that the `compressionStopped` event
 reports. The automatic pause pauses a compression that is no longer allowed and resumes it once it is, so a refusal that
 comes and goes stops time without stopping compression. The refusal checks game states only (deviation "Time
 compression checks"). Under the instant driver `compressTime` compresses until something stops or pauses it; an
@@ -164,6 +168,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests:
 | The clock stands in turn-based combat and adds a second at once after it | `time/world-clock.test.ts` |
 | One pause lock for every reason: any unlock lifts it | `time/world-clock.test.ts` |
 | The end of the interface lock lifts every pause and pause lock, whoever set them | `campaign/interface-lock-pause.test.ts` |
+| Leaving the map lifts the pause lock, whoever set it, and the way back to the loaded sector every pause but the player's | `campaign/screens.test.ts` |
 | The Queen's first evaluation is stamped on Day 0, before the campaign starts | `strategic/ai/init.test.ts` |
 | No hourly or quarter-hour update does anything in the warp to the first landing | `campaign/new-game.test.ts` |
 | The real-time turn comes every 5020 ms, on the 20 ms counter | `tactical/turns/realtime-turns.test.ts` |
@@ -186,6 +191,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
 Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage", "Map screen exit
-pause". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause",
+checks". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause",
 "Time compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after
-combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source".
+combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source",
+"Options and saves on the map".

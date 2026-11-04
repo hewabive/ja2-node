@@ -1,9 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/MapScreen.cc MapScreenHandle (entering: keep a 5-60 min mode but stop it, else X0),
-// @src EndMapScreen (to tactical: X1); StrategicMap.cc CanGoToTacticalInSector; Tactical/Interface_Panels.cc
-// @src GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a flag); GameScreen.cc
-// @src EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the loaded sector (2026-10-31);
+// @src EndMapScreen (to tactical: X1; the pause lock and a pause the player did not set lifted, and for a sector load
+// @src compression stopped and the lock lifted, 2026-11-03); StrategicMap.cc CanGoToTacticalInSector;
+// @src Tactical/Interface_Panels.cc GoToMapScreenFromTactical, AbandonBoxingCallback (the abandon-fight question as a
+// @src flag); GameScreen.cc EnterTacticalScreen and the forced reselect of MainGameScreenHandle on a return to the
+// @src loaded sector (2026-10-31);
 // @src GameScreen.cc InternalLeaveTacticalScreen (the timer and the unload of a sector nobody of ours is left in, and
 // @src CheckForDisabledRegionRemove, 2026-11-03).
 
@@ -12,7 +14,14 @@ import type { CommandResult } from '../command.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import type { StrategicMerc } from '../strategic/forces/ports.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
-import { CompressionStop, setGameTimeCompressionLevel, stopTimeCompression } from '../strategic/time/world-clock.ts';
+import {
+  CompressionStop,
+  setGameTimeCompressionLevel,
+  stopTimeCompression,
+  unLockPauseState,
+  unPauseGame,
+  type WorldClock,
+} from '../strategic/time/world-clock.ts';
 import { setBoxingState } from '../tactical/narrative/boxing.ts';
 import { BoxingState, boxingActive } from '../tactical/narrative/boxing-state.ts';
 import { refuse } from '../tactical/refusal.ts';
@@ -71,11 +80,23 @@ export function returnToLoadedSector(campaign: CampaignSim): void {
   const s = campaign.state;
   const t = campaign.tactical?.state;
   const entering = s.flow !== 'tactical';
+  const fromMap = s.flow === 'strategic';
   if (t) {
     s.realMs = t.clockMs;
     s.clock.driver.lastSecondMs = t.clockMs;
   }
   s.flow = 'tactical';
   setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
+  if (fromMap) endMapScreenForTactical(s.clock);
   if (t && entering) enterTacticalScreen(t);
+}
+
+function endMapScreenForTactical(clock: WorldClock): void {
+  unLockPauseState(clock);
+  if (!clock.playerPause) unPauseGame(clock);
+}
+
+export function endMapScreenForSectorLoad(campaign: CampaignSim): void {
+  stopTimeCompression(campaign.clockContext, CompressionStop.MAP_EXIT);
+  unLockPauseState(campaign.state.clock);
 }

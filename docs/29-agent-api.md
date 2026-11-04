@@ -148,10 +148,11 @@ driver is the pause. A strategic `advance` (one with a world-time field, `compre
 compression itself and stops where the original stops it (`04` §4.2); the clock's `canCompress` and `compressRefusal`
 say beforehand whether it would start. `status.flow` names the flow (`tactical`, `strategic`, `autoresolve`, `laptop`,
 `meanwhile`, `endgame`, `ended`); `mapScreen` and `tacticalScreen` switch between the first two like the original's
-screen toggle, and the loaded sector stays frozen on the map (deviation "Map and tactical screens"). A head miner's
-line other than "creatures gone" takes tactical to the map screen before it is said (deviation "Head miner map switch"). The sleep and wake
-notification is a client setting: an agent that wants the original's stop passes `events: ['fellAsleep', 'wokeUp']`
-beside its time target.
+screen toggle, and the loaded sector stays frozen on the map (deviation "Map and tactical screens"). `tacticalScreen` and
+a sector load from the map lift the clock's `pauseLocked`, and `tacticalScreen` its `paused` unless the player paused
+(`15`). A head miner's line other than "creatures gone" takes tactical to the map screen before it is said (deviation
+"Head miner map switch"). The sleep and wake notification is a client setting: an agent that wants the original's stop
+passes `events: ['fellAsleep', 'wokeUp']` beside its time target.
 
 `compressionStarted {mode}` and `compressionStopped {reason}` follow whether time runs compressed
 (`IsTimeBeingCompressed`), so a speed picked while time stands and an unpause start it too; a line's pause (below) marks

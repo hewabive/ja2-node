@@ -65,7 +65,7 @@ command that carries what the pages collect (the whole Bobby Ray cart, every I.M
 boxes and drafts stay in the client (deviation "Laptop as commands"). Queries (`aimQuote`, `hireCheck`,
 `bobbyRayQuote`, `impPreview`, …) work in any flow and never act. `openLaptop` works only from the strategic flow, stops
 compression, and is refused while a battle prompt is open, the pre-battle interface is pending or the renewal sequence
-runs: the state-based part of `AllowedToExitFromMapscreenTo`.
+runs: part of `AllowedToExitFromMapscreenTo` (the rest: gaps "Map screen exit checks").
 
 **What the original runs on UI timers runs at a command.** Speck's opening and its draws run at a laptop session's first
 `visitSite merc`, or at its first M.E.R.C. command without a visit (deviation "Speck's opening"); the florist's

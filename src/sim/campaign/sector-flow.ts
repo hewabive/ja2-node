@@ -24,7 +24,8 @@
 // @src LoadSavedGame (the forced reselect in tactical) and SaveLoadScreen.cc SetSaveLoadExitScreen (EnterTacticalScreen)
 // @src for a native import (2026-11-01); SaveLoadGame.cc LoadSavedGame (HandleRottingCorpses of
 // @src LoadRottingCorpsesFromTempCorpseFile) for a native import (2026-11-01); Overhead.cc ExecuteOverhead (the LU_ENDUILOCK
-// @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03).
+// @src that ends the wait for mercs on our turn before AllMercsHaveWalkedOffSector, 2026-11-03); StrategicMap.cc EnterSector
+// @src (its EndMapScreen before PrepareLoadedSector on a load from the map, 2026-11-03).
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
@@ -174,7 +175,7 @@ import {
 } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
-import { returnToLoadedSector } from './screens.ts';
+import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
 import {
   applyPreservedEnemyRecord,
   captureBloodAndSmell,
@@ -683,6 +684,7 @@ export class SectorFlow {
     handleHelicopterOnGround(this.ctx, true);
     this.#loadCurrentSectorsInformation(sector, diff);
     if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
+    if (s.flow === 'strategic') endMapScreenForSectorLoad(this.campaign);
     this.prepareLoadedSector(options);
     updateDoorGraphicsFromStatus(sim.state);
   }
