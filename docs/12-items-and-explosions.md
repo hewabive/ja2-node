@@ -203,11 +203,12 @@ adrenaline icon (an effect, not its crash) and drink icon (any level but sober) 
 the map screen's faces (`drawFace`, `src/ui/screens/tactical/faces.ts`; `mercSoldier`,
 `src/ui/screens/map/merc-soldier.ts`; `Tactical/Faces.cc:837`), and turns the AP number light blue for either, below
 dark red and above the sneaking yellow (`apColour`, `src/ui/screens/tactical/soldiers.ts`;
-`Tactical/Interface_Panels.cc:1167`). The merc says COOL1 after any applied item but the canteen, which plays its
-drinking sound by his profile's sex, named on `itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). The
-knowledge projection rebuilds an alcohol course with the shown drunk level (`drugCoursesShowing`) and supplies the
-adrenaline numbers as zero only while the view shows none (`knowledge/soldiers.ts`): deviation "Drugs in the
-projection".
+`Tactical/Interface_Panels.cc:1167`). The talk face of Father Walker or Micky shows the same drink icon from their own
+drink counter, no course (`drunkTalkFace`, `src/sim/narrative/face-variant.ts`; `Tactical/Faces.cc:944`). The merc says
+COOL1 after any applied item but the canteen, which plays its drinking sound by his profile's sex, named on
+`itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). The knowledge projection rebuilds an alcohol course
+with the shown drunk level (`drugCoursesShowing`) and supplies the adrenaline numbers as zero only while the view shows
+none (`knowledge/soldiers.ts`): deviation "Drugs in the projection".
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 

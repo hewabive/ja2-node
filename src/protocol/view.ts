@@ -915,6 +915,7 @@ export interface ConversationView {
   readonly npc: number | null;
   readonly profile: number;
   readonly faceVariant: FaceVariant | null;
+  readonly drunk?: boolean;
   readonly name: string;
   readonly talker: number | null;
   readonly initiatedBy: 'player' | 'npc';

@@ -61,7 +61,7 @@ import {
   soldierByProfile,
   tacticalCharacterDialogue,
 } from '../narrative/dialogue-queue.ts';
-import { elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.ts';
+import { drunkTalkFace, elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.ts';
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag, ProfileFlag2 } from '../narrative/narrative-ids.ts';
@@ -230,6 +230,7 @@ export interface ConversationView {
   readonly npc: number | null;
   readonly profile: number;
   readonly faceVariant: FaceVariant | null;
+  readonly drunk?: boolean;
   readonly name: string;
   readonly talker: number | null;
   readonly initiatedBy: 'player' | 'npc';
@@ -1127,6 +1128,7 @@ export class TalkFlow {
       npc: dest?.id ?? null,
       profile,
       faceVariant: this.#faceVariant(profile),
+      ...(drunkTalkFace(profile, this.host.profile(profile)?.npcData ?? 0) ? { drunk: true } : {}),
       name: dest?.name ?? this.#setup.profiles[profile]?.nickname ?? String(profile),
       talker: talkerSoldier(this.host)?.id ?? null,
       initiatedBy: this.talk.initiatedBy,

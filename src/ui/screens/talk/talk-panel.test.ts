@@ -11,6 +11,22 @@ const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
 const COLS = 160;
 const NEAR_STUB_RPC = 72 * COLS + 81;
+const BIG_FACE = `faces/b${STUB_NPC}.sti`;
+const BIG_FACE_WIDTH = 90;
+const BIG_FACE_HEIGHT = 100;
+const ANIMATED_FACE_FRAMES = 8;
+const PORTRAIT_ICONS = 'interface/portraiticons.sti';
+const DRUNK_ICON = 8;
+const STUB_ICON_HEIGHT = 8;
+const NO_FACE = {
+  eyes: [0, 0] as const,
+  mouth: [0, 0] as const,
+  blinkFrequency: 0,
+  expressionFrequency: 0,
+  smallFace: null,
+  aimBio: null,
+  mercBio: null,
+};
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -216,6 +232,35 @@ describe('the talk panel on the stub NPC', () => {
     f.deliver();
     f.t.frame();
     expect(f.screen.dialogue.talk.open).toBe(false);
+  });
+
+  it('draws the drink icon at the bottom left of the talk face while the view says the NPC is drunk', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.media.profiles.set(STUB_NPC, { ...NO_FACE, id: STUB_NPC, name: 'Stub', nickname: 'Stub', faceIndex: STUB_NPC });
+    f.t.images.set(BIG_FACE, {
+      kind: 'indexed',
+      animatedFrames: 0,
+      frames: Array.from({ length: ANIMATED_FACE_FRAMES }, () => ({
+        width: BIG_FACE_WIDTH,
+        height: BIG_FACE_HEIGHT,
+        offsetX: 0,
+        offsetY: 0,
+      })),
+    });
+    expect((await f.client.command({ type: 'talk', soldier: a10.mercs[0] ?? 0, target: { npc: STUB_NPC } })).ok).toBe(true);
+    runTheLines(f, a10.session);
+    const images = () => f.draw().items.flatMap((i) => (i.kind === 'image' ? [i] : []));
+    const icons = () => images().filter((i) => i.asset === PORTRAIT_ICONS);
+    const conversation = f.client.view.conversation;
+    if (!conversation) throw new Error('no conversation');
+    expect(conversation.drunk).toBeUndefined();
+    expect(icons()).toEqual([]);
+    Object.assign(conversation, { drunk: true });
+    f.t.frame();
+    const face = images().find((i) => i.asset === BIG_FACE && i.frame === 0);
+    if (!face) throw new Error('no talk face');
+    expect(icons()).toMatchObject([{ frame: DRUNK_ICON, x: face.x + 1, y: face.y + BIG_FACE_HEIGHT - STUB_ICON_HEIGHT - 1 }]);
   });
 
   it('recruits the stub R.P.C. with the Recruit approach and the hire box', async () => {

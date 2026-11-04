@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../tests/support/autoresolve.ts';
 import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
@@ -27,6 +28,8 @@ afterAll(async () => {
 });
 
 const VASKO = 94;
+const MICKY = 96;
+const FATHER = 100;
 const DEALER = 91;
 const LOOKOUT_TILE = 11755;
 const HERMIT_QUEST = 14;
@@ -321,6 +324,20 @@ describe('the stub NPC in A10', () => {
 
   it('lets an unnamed civilian bark a civilian quote instead of opening a panel, the same across reloads', async () => {
     await expectReloadsInvisible(civilianBark);
+  });
+
+  it("marks Father Walker's or Micky's conversation drunk from a drink counter of 5, for the talk face's drink icon", async () => {
+    const { session, live } = await inA10(5);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    expect(walkUpAndTalk(session, live, merc)?.drunk).toBeUndefined();
+    const talk = session.campaign.talk;
+    if (!talk) throw new Error('no talk flow');
+    const drunk = (profile: number, npcData: number) => {
+      talk.talk.charNum = profile;
+      session.campaign.state.profiles.set(profile, progressFor(profile, { npcData }));
+      return session.view().conversation?.drunk;
+    };
+    expect([drunk(FATHER, 4), drunk(FATHER, 5), drunk(MICKY, 5), drunk(VASKO, 5)]).toEqual([undefined, true, true, undefined]);
   });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {

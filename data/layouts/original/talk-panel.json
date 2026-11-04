@@ -1,13 +1,15 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
-    "src/game/Tactical/Interface_Dialogue.cc InternalInitTalkingMenu (talkbox1.sti frame 0, the full-screen region at MSYS_PRIORITY_HIGHEST, the panel, name and six approach regions, the Done button from talkbox2.sti frames 3 and 4 with zDialogActions in MILITARYFONT1 colour 33, hilited white), RenderTalkingMenu (the name in MILITARYFONT1 colour 33, white while the pointer is on it, centred in TALK_PANEL_NAME_WIDTH × TALK_PANEL_NAME_HEIGHT; the face at TALK_PANEL_FACE_X/Y; ShadowRect over the TALK_PANEL_SHADOW_AREA while the face talks or the queue is not empty; the menu texts in FONT_WHITE with DEFAULT_SHADOW when selected, FONT_BLACK with MILITARY_SHADOW otherwise, zDealerStrings for a dealer's fifth entry), TALK_PANEL_* defines"
+    "src/game/Tactical/Interface_Dialogue.cc InternalInitTalkingMenu (talkbox1.sti frame 0, the full-screen region at MSYS_PRIORITY_HIGHEST, the panel, name and six approach regions, the Done button from talkbox2.sti frames 3 and 4 with zDialogActions in MILITARYFONT1 colour 33, hilited white), RenderTalkingMenu (the name in MILITARYFONT1 colour 33, white while the pointer is on it, centred in TALK_PANEL_NAME_WIDTH × TALK_PANEL_NAME_HEIGHT; the face at TALK_PANEL_FACE_X/Y; ShadowRect over the TALK_PANEL_SHADOW_AREA while the face talks or the queue is not empty; the menu texts in FONT_WHITE with DEFAULT_SHADOW when selected, FONT_BLACK with MILITARY_SHADOW otherwise, zDealerStrings for a dealer's fifth entry), TALK_PANEL_* defines",
+    "src/game/Tactical/Faces.cc HandleRenderFaceAdjustments (portraiticons.sti frame 8, the drink icon of a face without a soldier)"
   ],
   "screen": "talkPanel",
   "frame": "screen",
   "constants": ["Interface_Dialogue", "Text"],
   "assets": {
     "panel": { "sti": "interface/talkbox1.sti", "stub": { "size": [214, 136] } },
+    "portraitIcons": { "sti": "interface/portraiticons.sti", "stub": { "frames": 9, "size": [8, 8] } },
     "buttons": {
       "sti": "interface/talkbox2.sti",
       "stub": {

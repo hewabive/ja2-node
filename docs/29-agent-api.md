@@ -482,7 +482,9 @@ records and the dialogue queue (`src/sim/narrative/`); deviation "Talk session t
 in its order, walks up beyond 4 tiles (the talk starts on arrival during `advance`) and returns at once with the talk
 reply; the lines follow in game time (§4.5) as quote events, collected in `conversation.lastQuotes`. An idle open
 session is modal (§5). A scripted sequence (`ENGAGED_IN_CONV` without a panel, a pending conversation, the 500 ms
-trigger wait) refuses player commands until `advance` has run it. Saving is refused throughout (`27`).
+trigger wait) refuses player commands until `advance` has run it. Saving is refused throughout (`27`). The talk face
+shows what the original's face without a soldier shows: Elliot's beaten variants (`faceVariant`) and, with `drunk`,
+the drink icon of Father Walker or Micky from a drink counter of 5 (`Tactical/Faces.cc:944`).
 
 **Quote text.** The simulation carries only `textKey {file, row, width}` and `chars` (the line's length in characters,
 which times it), never text: not in state, saves, the input log or stored events. The session resolves keys to `text`

@@ -27,7 +27,7 @@ import type { UiTextService } from '../../text/text-service.ts';
 import { MercTextBox, type MercTextBoxArt, type MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { SliderSystem } from '../../widgets/slider.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
-import { drawTalkingFace, FaceAnimator, type FaceRecord } from '../tactical/faces.ts';
+import { drawDrunkTalkFaceIcon, drawTalkingFace, FaceAnimator, type FaceRecord } from '../tactical/faces.ts';
 
 export const TALK_PANEL_SCREEN = 'talkPanel';
 export const TALK_PANEL_LAYOUT = 'talk-panel';
@@ -64,6 +64,7 @@ const POPUP_RIGHT = 3;
 const FACES_DIR = 'faces';
 const HOVER_ON = 1;
 const PANEL_ASSET = 'panel';
+const PORTRAIT_ICONS_ASSET = 'portraitIcons';
 
 export type PopupOrientation = typeof POPUP_LEFT | typeof POPUP_TOP | typeof POPUP_BOTTOM | typeof POPUP_RIGHT;
 
@@ -197,15 +198,21 @@ export class TalkPanel {
       owner: TALK_PANEL_SCREEN,
       origin: () => ({ x: this.#rect.x, y: this.#rect.y }),
       custom: {
-        talkFace: (list, rect) => {
-          if (this.#face) drawTalkingFace(list, this.#hooks.services.images, this.#face, rect.x, rect.y);
-        },
+        talkFace: (list, rect) => this.#drawFace(list, rect.x, rect.y),
       },
     });
   }
 
   get open(): boolean {
     return this.#open;
+  }
+
+  #drawFace(list: DrawList, x: number, y: number): void {
+    const face = this.#face;
+    if (!face) return;
+    const images = this.#hooks.services.images;
+    drawTalkingFace(list, images, face, x, y);
+    if (this.#conversation?.drunk) drawDrunkTalkFaceIcon(list, images, this.#hooks.model.asset(PORTRAIT_ICONS_ASSET).path, face, x, y);
   }
 
   get profile(): number | null {
@@ -239,6 +246,7 @@ export class TalkPanel {
     const profile = this.#hooks.profile(conversation.profile);
     this.#face = profile ? new FaceAnimator(bigFaceRecord(profile, conversation.faceVariant), now, this.#hooks.random) : null;
     if (this.#face) this.#hooks.ensureImage(this.#face.record.path);
+    this.#hooks.ensureImage(this.#hooks.model.asset(PORTRAIT_ICONS_ASSET).path);
     this.#selected = -1;
     this.#onName = false;
     this.#closing = false;

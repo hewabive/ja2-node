@@ -6,7 +6,8 @@
 // @src done talking), fInvalidAnim (set by its owner, as the A.I.M. answering machine does), RenderAutoFace (the face
 // @src without a soldier: frame 0, the eyes and the mouth), SetFaceShade, HandleFaceHilights, DrawFaceRect,
 // @src HandleRenderFaceAdjustments (closed eyes, hatch, skull, enemy count, hatch for those who cannot act, the text over the
-// @src face, the right icons, the adrenaline and drink ones 2026-11-04, and the bottom-right icon), HandleAutoFaces (the
+// @src face, the right icons, the adrenaline and drink ones and the drink icon of Father Walker's or Micky's face without a
+// @src soldier 2026-11-04, and the bottom-right icon), HandleAutoFaces (the
 // @src portrait flash started and held by fGettingHit, the moving highlight by sFinalDestination, 2026-11-03);
 // @src src/game/Tactical/Soldier_Control.cc FlashSoldierPortrait (2026-11-03); src/game/Tactical/Gap.cc PollAudioGap;
 // @src src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
@@ -379,6 +380,22 @@ function iconSize(images: ImageCatalog, path: string, index: number): { width: n
   return { width: frame?.width ?? 0, height: frame?.height ?? 0 };
 }
 
+function drawRightIcon(
+  list: DrawList,
+  images: ImageCatalog,
+  icons: string,
+  icon: number,
+  position: number,
+  face: { readonly x: number; readonly y: number; readonly height: number },
+): void {
+  const s = iconSize(images, icons, icon);
+  list.image(icons, icon, face.x + s.width * position + 1, face.y + face.height - s.height - 1);
+}
+
+export function drawDrunkTalkFaceIcon(list: DrawList, images: ImageCatalog, icons: string, face: FaceAnimator, x: number, y: number): void {
+  drawRightIcon(list, images, icons, DRUNK_ICON, 0, { x, y, height: faceSize(images, face.record.path).height });
+}
+
 function rightIcons(soldier: SoldierView): number[] {
   const icons: number[] = [];
   if (soldier.blinded === true) icons.push(BLINDED_ICON);
@@ -434,8 +451,7 @@ export function drawFace(
     mprint(list, font, at.x, at.y, overlays.textOver, fontColors(FontColor.MCOLOR_WHITE, DEFAULT_SHADOW));
   }
   rightIcons(soldier).forEach((icon, position) => {
-    const s = iconSize(images, art.icons, icon);
-    list.image(art.icons, icon, x + s.width * position + 1, y + size.height - s.height - 1);
+    drawRightIcon(list, images, art.icons, icon, position, { x, y, height: size.height });
   });
   const icon = bottomRightIcon(soldier);
   if (icon !== null) {
