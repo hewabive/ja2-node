@@ -455,7 +455,9 @@ combat and charges none; on the tactical screen an attachment or a merge onto a 
 stack itself goes back on top of it, at `data.index`.
 `applyItem` is the cursor dropped on the single merc panel's portrait (`SMInvClickCamoCallback`): one object of the
 stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). Drugs and
-drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`).
+drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`). `itemApplied` names
+the canteen's drinking sound by the drinker's profile (`sound`, `Tactical/Items.cc:3458`); the client says COOL1 after
+the other items, as the panel does.
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 

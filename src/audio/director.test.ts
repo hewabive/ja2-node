@@ -628,6 +628,18 @@ describe('the sound director', () => {
     expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
   });
 
+  it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);
+    const applied = (tick: number, item: string, sound?: 'DRINK_CANTEEN_FEMALE') =>
+      frame(tick, [], [{ type: 'itemApplied', tick, soldier: 1, target: 2, item, ...(sound ? { sound } : {}) }]);
+    r.director.applyFrames([applied(10, 'CAMOUFLAGEKIT')]);
+    r.director.applyFrames([applied(20, 'CANTEEN', 'DRINK_CANTEEN_FEMALE')]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/011_cool/);
+    expect(files(r).slice(1)).toEqual([book.paths.get('DRINK_CANTEEN_FEMALE')]);
+    expect(r.cues[1]).toMatchObject({ mix: 'fixed', baseVolume: 65 });
+  });
+
   it('sounds a drop at the feet from its event and leaves a drop beside the merc to its animation code 763', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0)], []);

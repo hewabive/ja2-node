@@ -203,9 +203,11 @@ adrenaline icon (an effect, not its crash) and drink icon (any level but sober) 
 the map screen's faces (`drawFace`, `src/ui/screens/tactical/faces.ts`; `mercSoldier`,
 `src/ui/screens/map/merc-soldier.ts`; `Tactical/Faces.cc:837`), and turns the AP number light blue for either, below
 dark red and above the sneaking yellow (`apColour`, `src/ui/screens/tactical/soldiers.ts`;
-`Tactical/Interface_Panels.cc:1167`). The knowledge projection rebuilds an alcohol course with the shown drunk level
-(`drugCoursesShowing`) and supplies the adrenaline numbers as zero only while the view shows none
-(`knowledge/soldiers.ts`): deviation "Drugs in the projection".
+`Tactical/Interface_Panels.cc:1167`). The merc says COOL1 after any applied item but the canteen, which plays its
+drinking sound by his profile's sex, named on `itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). The
+knowledge projection rebuilds an alcohol course with the shown drunk level (`drugCoursesShowing`) and supplies the
+adrenaline numbers as zero only while the view shows none (`knowledge/soldiers.ts`): deviation "Drugs in the
+projection".
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 
@@ -228,8 +230,7 @@ crash's morale with attitudes, the AP clamp chain, the INT8 wraps and the booste
 source and unit-tested only.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
-"Walking side effects" (water damage to items, the drunk fall), "Sound coverage" (the OK after an applied item). Other
-deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
-"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
-and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load",
-"Drugs in the projection".
+"Walking side effects" (water damage to items, the drunk fall). Other deviations of this domain: "Object union", "Item
+cursor", "Key ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing",
+"Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and
+light", "Cosmetic draws in explosions", "Wall decals after a load", "Drugs in the projection".

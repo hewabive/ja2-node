@@ -20,7 +20,9 @@
 // @src SoldierGetItemFromWorld (the GOTIT battle sound of a pickup, 2026-10-30), HandleSoldierPickupItem (the NOTHING
 // @src battle sound of a pickup or search that finds nothing, 2026-11-03); Tactical/Weapons.cc UseHandToHand (the curse
 // @src of a failed or fumbled steal, 2026-10-31); Tactical/Dialogue_Control.cc DialogueEventQuote::Execute (the battle sound
-// @src of the merc on our team with a line's profile, which holds the line, 2026-10-31).
+// @src of the merc on our team with a line's profile, which holds the line, 2026-10-31); Tactical/Interface_Panels.cc
+// @src SMInvClickCamoCallback (the COOL1 battle sound after a camouflage kit, elixir or drug applied on the portrait, none
+// @src after the canteen) and Tactical/Items.cc ApplyCanteen (its drinking sound at MIDVOLUME, 2026-11-04).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -84,6 +86,7 @@ const UNSEEN_VICTIM_TEAM = 1;
 const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const ANIM_STAND = 6;
+const CANTEEN = 'CANTEEN';
 const DYING_HEALTH_INDEX = 0;
 const CRITICAL_HEALTH_INDEX = 1;
 
@@ -585,6 +588,9 @@ export class SoundDirector {
       case 'nothingFound':
         this.#battleSound(e.soldier, 'NOTHING', false);
         return;
+      case 'itemApplied':
+        this.#itemApplied(e);
+        return;
       case 'itemDropped':
         if (!e.beside && this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));
         return;
@@ -597,6 +603,11 @@ export class SoundDirector {
       default:
         return;
     }
+  }
+
+  #itemApplied(e: EventOf<'itemApplied'>): void {
+    if (e.sound) this.#play(effectCue(this.#o.book, e.sound, 'fixed', VolumeLevel.MID));
+    if (e.item !== CANTEEN) this.#battleSound(e.target, 'COOL1', false);
   }
 
   #weaponOf(soldier: number) {

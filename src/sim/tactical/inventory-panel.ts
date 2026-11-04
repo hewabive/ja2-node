@@ -9,7 +9,8 @@
 // @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box);
 // @src Interface_Items.cc RemoveMoney, BtnMoneyButtonCallback* (the money box splits money off a pocket into the cursor,
 // @src then the drop places it: one command); Interface_Items.cc BeginItemPointer (SHIFT takes the stack onto the
-// @src portrait too) and Drugs_And_Alcohol.cc ApplyDrugs from SMInvClickCamoCallback (2026-11-04).
+// @src portrait too) and Drugs_And_Alcohol.cc ApplyDrugs from SMInvClickCamoCallback (2026-11-04); Items.cc ApplyCanteen
+// @src (the drinking sound by the profile's sex, 2026-11-04).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -42,7 +43,7 @@ import {
   NO_SLOT,
   placeObject,
 } from './inventory.ts';
-import type { KeySpotView } from './inventory-events.ts';
+import type { AppliedSound, KeySpotView } from './inventory-events.ts';
 import { attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
 import { AP, deductPoints, enoughPoints } from './points.ts';
 import { Body, OKLIFE, type Soldier } from './soldier.ts';
@@ -72,7 +73,13 @@ export type PanelEvent =
   | { readonly type: 'itemAttached'; readonly soldier: number; readonly item: string; readonly to: string; readonly result: string }
   | { readonly type: 'itemDetached'; readonly soldier: number; readonly item: string; readonly from: string }
   | { readonly type: 'gunUnloaded'; readonly soldier: number; readonly item: string; readonly magazine: string; readonly rounds: number }
-  | { readonly type: 'itemApplied'; readonly soldier: number; readonly target: number; readonly item: string }
+  | {
+      readonly type: 'itemApplied';
+      readonly soldier: number;
+      readonly target: number;
+      readonly item: string;
+      readonly sound?: AppliedSound;
+    }
   | {
       readonly type: 'moneySplit';
       readonly soldier: number;
@@ -140,6 +147,7 @@ const TRANSFER_CHARGE_APS = 2;
 const FULL_CAMO = 100;
 const CANTEEN_POINTS_PER_DRINK = 20;
 const MAX_HUMAN_CREATURE_SMELL = 9;
+const MALE = 0;
 
 const refuse = (refusal: PanelRefusal): PanelOutcome => ({ ok: false, refusal });
 const name = (items: ItemTable, item: number) => items.byIndex.get(item)?.name ?? String(item);
@@ -537,6 +545,7 @@ interface MercApplication {
   appliesTo(itemName: string): boolean;
   check(env: PanelEnv, target: Soldier, o: ItemObject): ApplyCheck;
   apply(env: PanelEnv, target: Soldier, o: ItemObject): void;
+  sound?(env: PanelEnv, target: Soldier): AppliedSound;
 }
 
 const CAMO: MercApplication = {
@@ -565,6 +574,7 @@ const CANTEEN: MercApplication = {
     deductPoints(env.inCombat, target, AP.DRINK, 2 * points * -(100 - target.breath));
     useKitPoints(o, points);
   },
+  sound: (env, target) => ((env.combat.profiles.get(target.profile)?.sex ?? MALE) === MALE ? 'DRINK_CANTEEN_MALE' : 'DRINK_CANTEEN_FEMALE'),
 };
 
 const ELIXIR: MercApplication = {
@@ -614,8 +624,9 @@ export function applyItem(env: PanelEnv, req: ApplyRequest): PanelOutcome {
   if (check === 'notThis') return refuse(PanelRefusal.CANNOT_APPLY);
   const cursor = takeObjects(env.items, source, req.count, req.index) as ItemObject;
   env.equipmentChanged(user, slot, item, NOTHING);
+  const sound = application.sound?.(env, target);
   application.apply(env, target, cursor);
   cancelCursor(env, user, slot, cursor);
-  env.emit({ type: 'itemApplied', soldier: user.id, target: target.id, item: itemName });
+  env.emit({ type: 'itemApplied', soldier: user.id, target: target.id, item: itemName, ...(sound ? { sound } : {}) });
   return { ok: true, data: { item: itemName } };
 }

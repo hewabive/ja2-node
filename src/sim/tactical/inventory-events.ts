@@ -2,6 +2,8 @@ import type { SimEventBase } from '../events.ts';
 
 export type KeySpotView = { readonly ring: number } | { readonly slot: number };
 
+export type AppliedSound = 'DRINK_CANTEEN_MALE' | 'DRINK_CANTEEN_FEMALE';
+
 export interface FirstAidStartedEvent extends SimEventBase {
   readonly type: 'firstAidStarted';
   readonly soldier: number;
@@ -115,6 +117,7 @@ export interface ItemAppliedEvent extends SimEventBase {
   readonly soldier: number;
   readonly target: number;
   readonly item: string;
+  readonly sound?: AppliedSound;
 }
 
 export interface HandsSwappedEvent extends SimEventBase {

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { progressFor } from '../../../tests/support/autoresolve.ts';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
@@ -13,6 +14,10 @@ import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
+
+const MERC_PROFILE = 5;
+const MALE = 0;
+const FEMALE = 1;
 
 beforeAll(async () => {
   content = await loadTestContent();
@@ -383,6 +388,24 @@ describe('items applied to a merc and dropped', () => {
     expect(ap - merc.actionPoints).toBe(AP.DRINK);
     expect(merc.breath).toBeGreaterThan(breath);
     expect(merc.inv[InvSlot.BIGPOCK1]?.status[0]).toBe(80);
+  });
+
+  it('drinks with the drinking sound of the profile’s sex, which the other applied items leave to the panel', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    sim.state.profiles.set(MERC_PROFILE, progressFor(MERC_PROFILE, { sex: FEMALE }));
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('CANTEEN'), 100);
+    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('CAMOUFLAGEKIT'), 100);
+    sim.drainEvents();
+    for (const slot of ['bigPocket1', 'bigPocket2'])
+      expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot })).toMatchObject({ ok: true });
+    sim.state.profiles.set(MERC_PROFILE, progressFor(MERC_PROFILE, { sex: MALE }));
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({ ok: true });
+    expect(sim.drainEvents().filter((e) => e.type === 'itemApplied')).toEqual([
+      expect.objectContaining({ item: 'CANTEEN', sound: 'DRINK_CANTEEN_FEMALE' }),
+      expect.not.objectContaining({ sound: expect.anything() }),
+      expect.objectContaining({ item: 'CANTEEN', sound: 'DRINK_CANTEEN_MALE' }),
+    ]);
   });
 
   it('paints camouflage', () => {
