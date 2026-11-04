@@ -176,7 +176,7 @@ source:
   flare never fades during turn-based combat.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Drugs and
-alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item cursor". Other
-deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
-"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
-and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load".
+alcohol", "Auto-bandage", "Walking side effects" (water damage to items). Other deviations of this domain: "Object
+union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades",
+"Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock
+for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load".
