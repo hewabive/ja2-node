@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newSmokeEffect } from '../tactical/explosions/smoke.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
@@ -32,6 +33,18 @@ describe('the item cursor of the hand item', () => {
     expect(cursorFor('REMOTETRIGGER')).toMatchObject({ ok: true, data: { cursor: 'remote', apCost: AP.USE_REMOTE } });
     expect(cursorFor('WIRECUTTERS')).toMatchObject({ ok: true, data: { cursor: 'wirecutter' } });
     expect(cursorFor('CANTEEN')).toMatchObject({ ok: true, data: { cursor: 'invalid' } });
+  });
+});
+
+describe('a merc in deep water', () => {
+  it('gets the invalid cursor with a gun in his hand', () => {
+    const sim = newCombatSim(content, [], 3, new Set(), (world) => {
+      world.terrain[MERC_AT] = Terrain.DEEP_WATER;
+    });
+    spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH, { gun: 'GLOCK_17' });
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.lookAround();
+    expect(estimateAttack(sim, { soldier: 0, target: enemy.gridNo })).toMatchObject({ ok: true, data: { cursor: 'invalid' } });
   });
 });
 

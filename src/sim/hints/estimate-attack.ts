@@ -1,14 +1,15 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/UI_Cursors.cc GetActionModeCursor, HandleNonActivatedTargetCursor (the reload cursors, the chance
-// @src to get through below OK_CHANCE_TO_GET_THROUGH, InRange), HandleNonActivatedTossCursor (the launchable attachment, the
-// @src under-barrel launcher in attached mode, CalculateLaunchItemChanceToGetThrough with the landing level);
-// @src Weapons.cc InRange; LOS.h OK_CHANCE_TO_GET_THROUGH; Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk
-// @src up to a melee target and its move grid).
+// @src src/game/Tactical/UI_Cursors.cc GetActionModeCursor (no cursor in deep water, 2026-11-03),
+// @src HandleNonActivatedTargetCursor (the reload cursors, the chance to get through below OK_CHANCE_TO_GET_THROUGH,
+// @src InRange), HandleNonActivatedTossCursor (the launchable attachment, the under-barrel launcher in attached mode,
+// @src CalculateLaunchItemChanceToGetThrough with the landing level); Weapons.cc InRange; LOS.h OK_CHANCE_TO_GET_THROUGH;
+// @src Handle_UI.cc DrawUIMovementPath (MOVEUI_TARGET_MERCS: the walk up to a melee target and its move grid).
 
 import { ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, isVisibleTile, newGridNo } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { createItem, findAttachment, type ItemObject } from '../items/object.ts';
 import { withTemporaryFields } from '../knowledge/guard.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
@@ -145,6 +146,7 @@ function actionModeCursor(t: TacticalState, s: Soldier, isEpc: boolean): number 
     (findAttachment(hand, itemIndex(t, 'DETONATOR')) !== -1 || findAttachment(hand, itemIndex(t, 'REMDETONATOR')) !== -1)
   )
     cursor = ItemCursor.BOMB;
+  if (s.overTerrain === Terrain.DEEP_WATER) cursor = ItemCursor.INVALID;
   if (s.breath < OKBREATH && s.collapsed) cursor = ItemCursor.INVALID;
   return cursor;
 }
