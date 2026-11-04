@@ -7,7 +7,7 @@
 // @src (2026-11-01); the creatures stepping backwards of HandleGotoNewGridNo and the side step of
 // @src EVENT_InternalSetSoldierDestination (2026-11-01); the end of aim and the EPC's uncower of
 // @src EVENT_InternalGetNewSoldierPath, the door-step halt of HandleGotoNewGridNo and HandleNextTileWaiting's forced swap
-// @src through SwapMercPositions (2026-11-01).
+// @src through SwapMercPositions (2026-11-01); the place of the blind and drunk falls after the gas check (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -38,6 +38,7 @@ import { DIRECTION_INCREMENT, Direction, perpendicularDirection } from './direct
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { handleDoorChangeFromGridNo } from './doors.ts';
 import { cancelFadeOutAwayFromStart } from './fade.ts';
+import { tripsAndFalls } from './falls.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
@@ -365,6 +366,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     return { ok: true, keepMoving: false };
   }
   if (t.hooks.runningIntoGas(t, s)) return { ok: true, keepMoving: false };
+  if (tripsAndFalls(t, s)) return { ok: false, keepMoving: true };
   if (!stepPaidBeforeGettingUpToTurn(t, s, animState)) deductPoints(t.inCombat, s, ap, bp);
   reverseCreatureThatCannotTurn(t, s, direction);
   setSoldierDestination(t, s, direction, animState, initial);

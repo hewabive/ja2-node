@@ -89,9 +89,14 @@ step starts from the overshot position.
 **No turn before a step.** The facing turns one octant per frame while the soldier already moves; turning APs are never
 charged while walking. Sight at each arrival uses the facing of that moment.
 
+**Falls.** From the second step of a move, after the gas check, a blinded runner and then a soldier who is DRUNK
+(`12` §5) may trip over (`tripsAndFalls`, `falls.ts`; `Tactical/Overhead.cc:1499`): he collapses where he stands, loses
+some APs and the move ends there. The player hears his curse and reads the original's line through `fellDown`, only for
+our soldiers and those the squad sees (deviation "Falls out of sight").
+
 **Randomness.** The path search draws nothing. Walking draws only what the ported steps draw (the gas check's
-`PreRandom(5)`, and the sight of a soldier a swap moves); the marbles, blind and drunk falls and the forgetful counter
-are not ported, so their draws do not happen (gaps "Walking side effects").
+`PreRandom(5)`, the falls' `Random(5)` rolls with the fall itself, and the sight of a soldier a swap moves); the marbles
+and the forgetful counter are not ported, so their draws do not happen (gaps "Walking side effects").
 
 **Swaps.** The head-on swap of two blocked AI soldiers, the forced swap of a soldier's third wait and the player's
 exchange of places all go through `swapMercPositions` (`teleport.ts`): both destinations are tested, and the soldier
@@ -122,6 +127,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |
 | A creature that can turn again clears its reverse but walks on, facing its path, in the backward walk | `movement.test.ts` |
 | A soldier who leaves the sector during a pass makes the one after him miss that pass: the merc slots close up under the pass's index | `merc-slots.test.ts` |
+| A soldier moved one tile at a time never trips: the falls skip the first step of a move | `falls.test.ts` "rolls for neither fall on the first step …" |
+| A fall is rolled before its room is tested, on the tile the soldier faces, not the next of his path: where the path turns, a soldier on the faced tile keeps him up after the roll | `falls.test.ts` "tests for room to fall after the roll …" |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count
@@ -137,7 +144,8 @@ Not pinned yet:
 ## 4. Not checked against the native build
 
 The oracle covers the cost table, paths and their AP cost, multi-tile creature paths (`13`), edgepoints and walking off
-the map (`16`). The walking protocol itself (frames per tile, reservations, waiting, swaps, re-planning) is not probed.
+the map (`16`). The walking protocol itself (frames per tile, reservations, waiting, swaps, re-planning, the falls) is
+not probed.
 Inferred from reading the source:
 - No shipped map has a structure on the array border, where the original's neighbour writes would wrap or overflow;
   `MovementCosts` drops writes outside the map and keeps the row wrap.

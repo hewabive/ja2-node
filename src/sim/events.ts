@@ -33,6 +33,12 @@ export interface StoppedEvent extends SimEventBase {
   readonly reason: string;
 }
 
+export interface FellDownEvent extends SimEventBase {
+  readonly type: 'fellDown';
+  readonly soldier: number;
+  readonly cause: 'blind' | 'drunk';
+}
+
 export interface NoPathEvent extends SimEventBase {
   readonly type: 'noPath';
   readonly soldier: number;
@@ -675,6 +681,7 @@ export type SimEvent =
   | MercsLeftSectorEvent
   | ArrivedEvent
   | StoppedEvent
+  | FellDownEvent
   | NoPathEvent
   | CombatStartedEvent
   | TurnStartedEvent

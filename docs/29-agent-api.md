@@ -384,7 +384,11 @@ squad's first merc; the current squad itself changes nothing. A new `move` re-pl
 ("Continue a move") and, unless refused, drops what the merc was walking up to do (a melee attack, a pickup, a door, talk,
 give, first aid or a robot reload), as `UIHandleCMoveMerc` does. A `move` with `reverse` is the Alt move (`bReverse`):
 he walks or swats backwards facing away from his path, or side-steps when he faces across it, for one more AP a tile; a
-body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). `attack` takes the click's checks of a melee attack, which the original never confirms without them
+body without those states, as a civilian escort's, pays the first step and stays where he is (`06`). A blinded merc who
+runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls where he stands with some
+APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1 and the original's line,
+for our soldiers and those the squad sees (deviation "Falls out of sight").
+`attack` takes the click's checks of a melee attack, which the original never confirms without them
 (no path to a punch target, the APs with the walk: `combat/melee-order.ts`), but not the click's checks of a shot
 ("Attack refusals"); `pickUp` picks entries instead of the menu ("Picking up items"); its `zLevel` is the height the original's
 click passes: 1 for the items lying on a structure (`height` in the view: a table, inside an open cabinet, which the

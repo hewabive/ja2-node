@@ -628,6 +628,13 @@ describe('the sound director', () => {
     expect(files(r)).toEqual(['battlesnds/007_noth.wav']);
   });
 
+  it('has a soldier who trips and falls on the way curse with CURSE1', () => {
+    const r = rig(world(1));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    r.director.applyFrames([frame(10, [], [{ type: 'fellDown', tick: 10, soldier: 1, cause: 'drunk' }])]);
+    expect(files(r)[0]).toMatch(/^battlesnds\/007_curse/);
+  });
+
   it('has the merc an item was applied to say COOL1, except after a canteen, which plays its drinking sound instead', () => {
     const r = rig(world(1));
     r.director.reset([soldier(1, 'STANDING', 0), soldier(2, 'STANDING', 0, { voice: '011' })], []);

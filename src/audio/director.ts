@@ -22,7 +22,8 @@
 // @src of a failed or fumbled steal, 2026-10-31); Tactical/Dialogue_Control.cc DialogueEventQuote::Execute (the battle sound
 // @src of the merc on our team with a line's profile, which holds the line, 2026-10-31); Tactical/Interface_Panels.cc
 // @src SMInvClickCamoCallback (the COOL1 battle sound after a camouflage kit, elixir or drug applied on the portrait, none
-// @src after the canteen) and Tactical/Items.cc ApplyCanteen (its drinking sound at MIDVOLUME, 2026-11-04).
+// @src after the canteen) and Tactical/Items.cc ApplyCanteen (its drinking sound at MIDVOLUME, 2026-11-04);
+// @src Tactical/Overhead.cc HandleGotoNewGridNo (the CURSE1 of the blind and the drunk fall, 2026-11-04).
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -587,6 +588,9 @@ export class SoundDirector {
         return;
       case 'nothingFound':
         this.#battleSound(e.soldier, 'NOTHING', false);
+        return;
+      case 'fellDown':
+        this.#battleSound(e.soldier, 'CURSE1', false);
         return;
       case 'itemApplied':
         this.#itemApplied(e);

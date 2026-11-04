@@ -15,7 +15,8 @@
 // @src Interface_Items.cc IsValidAmmoToReloadRobot names the robot gun's calibre (2026-11-01); Soldier_Tile.cc
 // @src CanExchangePlaces names the NPC who refuses to move; Interface_Items.cc HandleItemPointerClick
 // @src (MSG_ITEM_PASSED_TO_MERC, MSG_NO_ROOM_TO_PASS_ITEM with the item's short name and the catcher, 2026-11-03);
-// @src Drugs_And_Alcohol.cc ApplyDrugs (MSG_DRANK_SOME with the drink's short name, MSG_MERC_TOOK_DRUG, 2026-11-04).
+// @src Drugs_And_Alcohol.cc ApplyDrugs (MSG_DRANK_SOME with the drink's short name, MSG_MERC_TOOK_DRUG, 2026-11-04);
+// @src Overhead.cc HandleGotoNewGridNo (STR_LATE_37 of the blind and the drunk fall, 2026-11-04).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -95,6 +96,7 @@ const GUN_GOT_FINGERPRINT = 111;
 const STR_CAMO_WORN_OFF = 30;
 const STR_STOLE_SOMETHING = 33;
 const STR_FAILED_TO_STEAL_SOMETHING = 51;
+const STR_LATE_37 = 36;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
   teamFull: { kind: 'uiFeedback', table: 'TacticalStr', index: 35 },
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
@@ -242,6 +244,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   firstAidDone: (e, facts) => [line('TacticalStr', 83, [text(facts.soldierName(e.patient))])],
   outOfBandages: (e, facts) => [line('TacticalStr', 84, [text(facts.soldierName(e.soldier))])],
   firstAidRefused: () => [line('Message', 55, [], 'uiFeedback')],
+  fellDown: (e, facts) => [line('gzLateLocalizedString', STR_LATE_37, [text(facts.soldierName(e.soldier))])],
   stopped: (e, facts) =>
     e.reason === 'outOfAPs' && facts.soldierTeam(e.soldier) === OUR_TEAM
       ? [line('TacticalStr', 81, [text(facts.soldierName(e.soldier))])]

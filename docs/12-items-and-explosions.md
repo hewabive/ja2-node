@@ -183,13 +183,14 @@ one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_
 course; it is the drug application of `applyItem` (`inventory-panel.ts`), tried after the camouflage kit, the canteen
 and the elixir as `SMInvClickCamoCallback` tries them (`Tactical/Interface_Panels.cc:1459`). The course steps at each
 turn start of the merc (`handleEndTurnDrugAdjustments`, called where `EVENT_BeginMercTurn` calls it, with the
-regeneration booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn
-APs, the new APs' maximum and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`,
-`src/sim/campaign/morale.ts`), stealth (`perception/noise.ts`), the moving frame delay (`animation.ts`) and code 491's
-drunk idle (`random-anims.ts`). The boosters of the day drop every 6 world hours through the hourly slot
-(`src/sim/campaign/battle-flow.ts`). The profile keeps the lifetime adrenaline count (`numTimesDrugUseInLifetime`,
-`prof.dat` byte 691), which the original writes and never reads. A drug for sober Larry swaps his profiles first,
-through the narrative port (`swapLarrysProfiles`, the campaign's `NarrativeFlow`; nothing in the sandbox).
+regeneration booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn APs,
+the new APs' maximum and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`,
+`src/sim/campaign/morale.ts`), stealth (`perception/noise.ts`), the moving frame delay (`animation.ts`), code 491's
+drunk idle (`random-anims.ts`) and the drunk fall on the way (`falls.ts`, `07`). The boosters of the day drop every 6
+world hours through the hourly slot (`src/sim/campaign/battle-flow.ts`). The profile keeps the lifetime adrenaline count
+(`numTimesDrugUseInLifetime`, `prof.dat` byte 691), which the original writes and never reads. A drug for sober Larry
+swaps his profiles first, through the narrative port (`swapLarrysProfiles`, the campaign's `NarrativeFlow`; nothing in
+the sandbox).
 
 **Design.** The courses belong to the soldier: they leave the sector with him, are saved with him and come from a
 native save, and other modules read them only through `drugs.ts`. Taking one costs no AP and needs none, as in the
@@ -206,9 +207,10 @@ dark red and above the sneaking yellow (`apColour`, `src/ui/screens/tactical/sol
 `Tactical/Interface_Panels.cc:1167`). The talk face of Father Walker or Micky shows the same drink icon from their own
 drink counter, no course (`drunkTalkFace`, `src/sim/narrative/face-variant.ts`; `Tactical/Faces.cc:944`). The merc says
 COOL1 after any applied item but the canteen, which plays its drinking sound by his profile's sex, named on
-`itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). The knowledge projection rebuilds an alcohol course
-with the shown drunk level (`drugCoursesShowing`) and supplies the adrenaline numbers as zero only while the view shows
-none (`knowledge/soldiers.ts`): deviation "Drugs in the projection".
+`itemApplied` (`src/audio/director.ts`; `Tactical/Items.cc:3458`). A drunk soldier who trips says CURSE1 and the log
+prints `STR_LATE_37` (`fellDown`, `29` §8.1). The knowledge projection rebuilds an alcohol course with the shown drunk
+level (`drugCoursesShowing`) and supplies the adrenaline numbers as zero only while the view shows none
+(`knowledge/soldiers.ts`): deviation "Drugs in the projection".
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 
@@ -226,15 +228,17 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | Stacked adrenaline wraps: the effect, the turn APs and the APs held are INT8 | `drugs.test.ts` "wraps a stacked effect past 127 …", `points.test.ts` "wraps stacked adrenaline …" |
 | In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
 | Stacked adrenaline with many unused APs overflows the INT16 breath gain into a cost, which the breath factor overflows back into a gain: the breath fills | `points.test.ts` "fills the breath when stacked adrenaline overflows …" |
+| A drunk soldier trips in any move: swatting he falls from his crouch, crawling he collapses where he lies; a blinded drunk runner whose blind roll missed rolls again for the drink | `falls.test.ts` "trips a drunk merc in any stance …", "takes the blind fall first …" |
 
 The oracle's drug probes (`tools/oracle/README.md` "Drugs") check every drug and drink taken, with the booster's
 `PreRandom` draw and the lifetime count, and the courses over turn starts in real time and turn-based: the order inside
-`EVENT_BeginMercTurn`, the crash's morale with attitudes, the AP clamp chain, the INT8 wraps, the breath, the drunk stats
-and the boosters of the day. Not checked against the native build: Larry's swap (no save has him on the team), the
-asleep merc's morale and the campaign's morale refresh, stealth, the moving frame delay and code 491's drunk idle.
+`EVENT_BeginMercTurn`, the crash's morale with attitudes, the AP clamp chain, the INT8 wraps, the breath, the drunk
+stats and the boosters of the day. Not checked against the native build: Larry's swap (no save has him on the team), the
+asleep merc's morale and the campaign's morale refresh, stealth, the moving frame delay, code 491's drunk idle and the
+drunk fall.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
-"Walking side effects" (water damage to items, the drunk fall). Other deviations of this domain: "Object union", "Item
-cursor", "Key ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing",
-"Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and
-light", "Cosmetic draws in explosions", "Wall decals after a load", "Drugs in the projection".
+"Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key
+ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
+pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
+draws in explosions", "Wall decals after a load", "Drugs in the projection".

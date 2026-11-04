@@ -264,6 +264,14 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints STR_LATE_37 with the name of a soldier who trips and falls, blind or drunk, ours or not', () => {
+    const fell = (soldier: number, cause: 'blind' | 'drunk') => at({ type: 'fellDown', soldier, cause });
+    expect(messageEntriesOf([fell(1, 'drunk'), fell(20, 'blind')], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Fox' }] },
+      { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 36, args: [{ text: 'Soldier' }] },
+    ]);
+  });
+
   it('prints CANNOT_THROW_TO_DEST_STR for a toss that cannot get there', () => {
     const entry = refusalEntry(40, { type: 'toss', soldier: 0 }, refuse('badThrow', 'the item cannot get there'), facts);
     expect(entry).toEqual({ tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 45 });
