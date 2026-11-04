@@ -7,8 +7,8 @@
 import { Approach } from '../../../content/narrative/npc-constants.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
+import { activateSwitchInGridNo } from '../bombs/bomb-queue.ts';
 import { swapStructureForPartner } from '../doors.ts';
-import { activateSwitchInGridNo } from '../narrative/quest-items.ts';
 import { NO_PROFILE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { ANY_VISIBILITY_VALUE, itemsAt, setItemsVisibilityHidden, setItemsVisibilityOn } from '../world-items.ts';

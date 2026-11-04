@@ -1,42 +1,28 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Explosion_Control.cc SetOffBombsInGridNo (pressure-triggered action items and switches),
-// @src SetOffBombsByFrequency (remote action items), ActivateSwitchInGridNo, AddBombToQueue,
-// @src HandleExplosionQueue (the action item branch and the queue end), PerformItemAction (ACTION_ITEM_CLOSE_DOOR,
-// @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
-// @src CallEldinTo.
+// @src src/game/TileEngine/Explosion_Control.cc PerformItemAction (ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX,
+// @src ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc CallEldinTo.
 
-import { has, StructureFlags } from '../../../content/world/structures.ts';
-import { ObjectFlags } from '../../items/object.ts';
+import { emptyObject } from '../../items/object.ts';
 import { setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { changeSoldierState, states } from '../animation.ts';
-import { actionValueOf, bombOwnerOf, Detonator, detonatorOf, frequencyOf, ItemAction } from '../bombs/bomb-object.ts';
+import { ItemAction, setActionValue } from '../bombs/bomb-object.ts';
+import { performItemAction } from '../bombs/item-action.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
-import { handleDoorChangeFromGridNo } from '../doors.ts';
 import { stopMerc } from '../movement.ts';
-import { revealRoofsAndItems } from '../perception/fov.ts';
 import { Opp } from '../perception/opp.ts';
-import { allTeamsLookForAll } from '../perception/sight.ts';
-import { AlertStatus, Body, CivilianGroup, OKLIFE, type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
-import { sectorMapOf, type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../state.ts';
+import { AlertStatus, Body, CivilianGroup, OKLIFE, TEAM_FIRST_ID, Team } from '../soldier.ts';
+import { sectorMapOf, type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import { findGridNoFromSweetSpotWithStructData } from '../sweet-spots.ts';
 import { teleportSoldier } from '../teleport.ts';
 import { enterCombatMode, isTeamActive } from '../turns/turns.ts';
-import { type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { makeCivHostile } from './civ-hostility.ts';
 import { CivGroupHostility } from './constants.ts';
 
-const PERFORMED_ACTIONS: ReadonlySet<number> = new Set([
-  ItemAction.CLOSE_DOOR,
-  ItemAction.KINGPIN_ALARM,
-  ItemAction.SEX,
-  ItemAction.MUSEUM_ALARM,
-]);
-const PLAYER_BOMB_OWNER_THRESHOLD = 1;
 const NO_ROOM = 0;
 const SEX_TELEPORT_RADIUS = 2;
 const MAX_DISTANCE_VISIBLE = 26;
@@ -50,107 +36,7 @@ const SEX_SPOTS: ReadonlyMap<number, { readonly door: number; readonly teleport:
   [12290, { door: 12290, teleport: 12291 }],
 ]);
 
-function armedItem(t: TacticalState, wi: WorldItem, name: string): boolean {
-  return (wi.flags & WorldItemFlags.ARMED_BOMB) !== 0 && wi.object.item === t.content.items.byName.get(name)?.index;
-}
-
-function isPerformedActionItem(t: TacticalState, wi: WorldItem): boolean {
-  return armedItem(t, wi, 'ACTION_ITEM') && PERFORMED_ACTIONS.has(actionValueOf(wi.object));
-}
-
-function isDisabled(wi: WorldItem): boolean {
-  return (wi.object.flags & ObjectFlags.DISABLED_BOMB) !== 0;
-}
-
-function walkingOffOrToExit(t: TacticalState): boolean {
-  const code = t.mercsWaiting?.code;
-  return code === WaitForMercs.WALKOFF_SCREEN || code === WaitForMercs.WALK_TO_GRIDNO;
-}
-
-export function setOffActionItemsInGridNo(t: TacticalState, s: Soldier): void {
-  if (s.team !== Team.OUR || walkingOffOrToExit(t)) return;
-  for (const wi of t.worldItems) {
-    if (wi.gridNo !== s.gridNo || wi.level !== s.level || isDisabled(wi)) continue;
-    const isSwitch = armedItem(t, wi, 'SWITCH');
-    if (!isSwitch && !isPerformedActionItem(t, wi)) continue;
-    if (detonatorOf(wi.object) !== Detonator.PRESSURE || bombOwnerOf(wi.object) > PLAYER_BOMB_OWNER_THRESHOLD) continue;
-    if (isSwitch) setOffActionItemsByFrequency(t, s, frequencyOf(wi.object));
-    else queueActionItem(t, wi, s);
-  }
-}
-
-export function activateSwitchInGridNo(t: TacticalState, s: Soldier, g: number): void {
-  for (const wi of [...t.worldItems]) {
-    if (wi.gridNo !== g || !armedItem(t, wi, 'SWITCH') || isDisabled(wi)) continue;
-    if (detonatorOf(wi.object) !== Detonator.SWITCH) continue;
-    t.turn.attackBusyCount = 0;
-    setOffActionItemsByFrequency(t, s, frequencyOf(wi.object));
-  }
-}
-
-export function setOffActionItemsByFrequency(t: TacticalState, s: Soldier, frequency: number): void {
-  for (const wi of t.worldItems) {
-    if (!isPerformedActionItem(t, wi) || isDisabled(wi)) continue;
-    if (detonatorOf(wi.object) === Detonator.REMOTE && frequencyOf(wi.object) === frequency) queueActionItem(t, wi, s);
-  }
-}
-
-function queueActionItem(t: TacticalState, item: WorldItem, by: Soldier): void {
-  const q = t.actionItems;
-  q.person = by;
-  q.queue.push(item);
-  if (q.active) return;
-  q.active = true;
-  t.perception.disallowSight = true;
-}
-
-export function handleActionItemQueue(t: TacticalState): void {
-  const q = t.actionItems;
-  if (!q.active) return;
-  for (const item of q.queue.splice(0)) {
-    if (performItemAction(t, item.gridNo, actionValueOf(item.object))) q.sightChanged = true;
-  }
-  const person = q.person;
-  if (person && t.turn.attackBusyCount !== 0) return;
-  t.perception.disallowSight = false;
-  if (person && person.team !== Team.OUR) t.turnHooks.freeUpFromPendingAction(t, person);
-  if (q.sightChanged) {
-    t.turn.interruptProvoker = person;
-    allTeamsLookForAll(t, true);
-    for (const m of teamMembers(t, Team.OUR)) revealRoofsAndItems(t, m, false);
-    q.sightChanged = false;
-    q.person = null;
-  }
-  q.active = false;
-}
-
-function performItemAction(t: TacticalState, gridNo: number, action: number): boolean {
-  switch (action) {
-    case ItemAction.CLOSE_DOOR:
-      return closeDoorAt(t, gridNo);
-    case ItemAction.KINGPIN_ALARM:
-      kingpinAlarm(t, gridNo);
-      return false;
-    case ItemAction.SEX:
-      return sexActionItem(t, gridNo);
-    case ItemAction.MUSEUM_ALARM:
-      t.events.push({ type: 'alarm', gridNo, kind: 'museum' });
-      callEldinTo(t, gridNo);
-      return false;
-    default:
-      return false;
-  }
-}
-
-function closeDoorAt(t: TacticalState, gridNo: number): boolean {
-  const door = t.world.structures.find(gridNo, StructureFlags.ANYDOOR);
-  if (!door || !has(door.flags, StructureFlags.OPEN)) return false;
-  const base = t.world.structures.findBase(door)?.gridNo ?? gridNo;
-  handleDoorChangeFromGridNo(t, null, base);
-  return true;
-}
-
-function kingpinAlarm(t: TacticalState, gridNo: number): void {
+export function kingpinAlarm(t: TacticalState, gridNo: number): void {
   t.events.push({ type: 'alarm', gridNo, kind: 'kingpin' });
   callAvailableKingpinMenTo(t, gridNo);
   setCivGroupHostility(t.civGroups, CivilianGroup.KINGPIN, CivGroupHostility.HOSTILE);
@@ -166,7 +52,7 @@ function hookerInRoom(t: TacticalState, room: number): boolean {
   return teamMembers(t, Team.CIV).some((s) => s.life >= OKLIFE && s.neutral && s.bodyType === Body.MINICIV && rooms[s.gridNo] === room);
 }
 
-function sexActionItem(t: TacticalState, gridNo: number): boolean {
+export function sexActionItem(t: TacticalState, gridNo: number): boolean {
   if (t.inCombat) return false;
   const merc = whoIsThere(t, gridNo, 0);
   if (!merc || merc.team !== Team.OUR) return false;
@@ -177,7 +63,9 @@ function sexActionItem(t: TacticalState, gridNo: number): boolean {
   stopMerc(t, merc);
   const spot = SEX_SPOTS.get(gridNo);
   if (!spot) return false;
-  const sightChanged = closeDoorAt(t, spot.door);
+  const doorCloser = emptyObject();
+  setActionValue(doorCloser, ItemAction.CLOSE_DOOR);
+  const sightChanged = performItemAction(t, spot.door, doorCloser);
   t.events.push({ type: 'sexScene', soldier: merc.id });
   const standing = states(t.content.animations).STANDING;
   const teleport = findGridNoFromSweetSpotWithStructData(t, merc, spot.teleport, SEX_TELEPORT_RADIUS, {
@@ -188,6 +76,11 @@ function sexActionItem(t: TacticalState, gridNo: number): boolean {
   teleportSoldier(t, merc, teleport, false);
   t.narrative.sexEffects(merc);
   return sightChanged;
+}
+
+export function museumAlarm(t: TacticalState, gridNo: number): void {
+  t.events.push({ type: 'alarm', gridNo, kind: 'museum' });
+  callEldinTo(t, gridNo);
 }
 
 function callEldinTo(t: TacticalState, gridNo: number): void {

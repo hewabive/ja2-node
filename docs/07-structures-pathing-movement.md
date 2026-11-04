@@ -91,6 +91,12 @@ step starts from the overshot position.
 **No turn before a step.** The facing turns one octant per frame while the soldier already moves; turning APs are never
 charged while walking. Sight at each arrival uses the facing of that moment.
 
+**The arrival on a tile.** `handleAtNewGridNo` (`movement.ts`, `Tactical/Overhead.cc:1709`) keeps the original's early
+returns before noise and sight: while any squad walks off the map or to an exit grid, every soldier's arrival stops there,
+the enemies' too, so walkers make no noise and nobody looks; a soldier at 0 breath is marked to collapse and walks on
+until his animation lets him; a mine or pressure item under him goes into the bomb queue, and if it is an explosive he
+stops (`12` §6). The landing behind a jumped fence sets off the mines of its tile as well (code 444).
+
 **Falls.** From the second step of a move, after the gas check, a blinded runner and then a soldier who is DRUNK
 (`12` §5) may trip over (`tripsAndFalls`, `falls.ts`; `Tactical/Overhead.cc:1499`): he collapses where he stands, loses
 some APs and the move ends there. The player hears his curse and reads the original's line through `fellDown`, only for
@@ -157,6 +163,6 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Not ported: gaps "Walking side effects", "Doors", "Unseen soldiers in combat", "Map items".
+Not ported: gaps "Walking side effects", "Doors", "Unseen soldiers in combat".
 Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
 bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded sector".

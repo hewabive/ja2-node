@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (pressure action items, noise and the stealthy footstep of a PC,
+// @src src/game/Tactical/Overhead.cc HandleAtNewGridNo (noise and the stealthy footstep of a PC,
 // @src then sight, then interrupts);
 // @src Soldier_Control.cc HaultSoldierFromSighting; Soldier_Ani.cc opcode 495 (door opening sight and noise), opcodes 408
 // @src and 475 (the sight after a roof climb);
@@ -13,7 +13,6 @@ import { reduceAttackBusyCount, unSetUIBusy } from '../combat/barrier.ts';
 import { unsetEngagedInConvFromPcAction } from '../give.ts';
 import { autoPlaceObject } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
-import { setOffActionItemsInGridNo } from '../narrative/quest-items.ts';
 import { type SightingBattleSound, saySeenQuote } from '../narrative/sighting-quotes.ts';
 import { hasPendingAction, removePendingAction } from '../pending-action.ts';
 import { NO_PENDING_ANIMATION, ReasonCantFinishMove, type Soldier, Team, Visible } from '../soldier.ts';
@@ -123,7 +122,6 @@ export function sightHooks(previous: TacticalHooks): TacticalHooks {
   return {
     ...previous,
     atNewGridNo: (t, s) => {
-      setOffActionItemsInGridNo(t, s);
       t.turn.interruptOccurred = false;
       const volume = movementNoise(t, s);
       if (volume > 0) {

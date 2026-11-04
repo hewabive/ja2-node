@@ -67,7 +67,8 @@ cancels his attack too, so he decides again with his new APs; when his turn ends
 next team follows.
 
 **Team turns.** A round runs our team, the enemy, creatures, militia, civilians, then the end-of-round events (first
-aid, smell, smoke and light decay). A team with nobody in the sector is skipped, an AI team with an empty AI list after
+aid, smell, the bomb timers, smoke and light decay); out of combat the bomb timers count down at each real-time turn
+(`12` §6). A team with nobody in the sector is skipped, an AI team with an empty AI list after
 its turn start. A turn start decays the team's public opplist and watched locations and runs `beginMercTurn` for each
 living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a debt
 of up to 100 kept). It first steps his drug courses and regeneration, which then change his breath, his new APs and

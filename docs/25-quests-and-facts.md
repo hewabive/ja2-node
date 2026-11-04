@@ -26,7 +26,7 @@ facts and quests: the store, start, end, history  strategic/narrative/facts.ts, 
 tactical quest rules, through the port            tactical/narrative/port.ts, campaign/narrative-port.ts
   seeing and losing sight of our merc             tactical/narrative/sight-rules.ts
   a step: escorts, assassins, boxing              tactical/narrative/escort-arrival.ts, assassin-approach.ts, boxing.ts
-  a pressure item or switch underfoot             tactical/narrative/quest-items.ts
+  a quest action item the bomb queue runs         tactical/bombs/item-action.ts → tactical/narrative/quest-items.ts
   a hit and a death                               tactical/combat/hit.ts, death.ts → tactical/narrative/death-rules.ts
 strategic checks: goods, money, hospital          strategic/narrative/npc-events.ts, kingpin.ts, hospital.ts
   over the campaign, sector loaded or not         campaign/narrative/quest-world.ts
@@ -107,10 +107,10 @@ adds them before it applies the sector's saved map changes, as the original's lo
 destroyed before the save stays off the map (the map changes replay over the structure layer the pieces are appended
 to), and before the saved soldiers enter the map, so its bump moves nobody (`14`).
 
-**Quest action items.** Our soldiers stepping on a tile set off its armed pressure action items and switches, a switch
-the remote action items on its frequency; the queue runs at the next overhead pass with sight disallowed and keeps the
-AI busy, and a changed door makes all teams look at its end. Only the door closer, the Kingpin and museum alarms and the
-brothel room scene act; the others and switches worked by hand are inert (gap "Map items").
+**Quest action items.** The Kingpin and museum alarms and the brothel room scene are action items the bomb queue runs
+like any other (`12` §6): our soldiers set them off by stepping on their pressure plates or on a switch of their
+frequency, and the queue runs them with sight disallowed and the AI held. `bombs/item-action.ts` hands them to
+`narrative/quest-items.ts`; the scene's door closer is the queue's own door action.
 
 **The hospital.** Each merc's price modifier lives on `RosterMerc.hospitalPriceModifier` (imported from native saves);
 leaving the hospital assignment refunds what he did not use (`setTimeOfAssignmentChange`).
@@ -174,5 +174,5 @@ Inferred from reading the source:
   order and the bump, the original's structure data only through a native save made at the airport
   (`src/server/save-session.test.ts`).
 
-Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Map items", "Ground vehicles",
+Not ported: gaps "Strategic move refusals" (the museum check with no map loaded), "Ground vehicles",
 "Helicopter entrance", "Vehicles as characters". Deviation of this domain: "Helicopter on load".

@@ -84,6 +84,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   collapsed: box('zMarksMapScreenText', 6),
   noMercsHired: box('pMapScreenJustStartedHelpText', 0),
   noUsableMercs: box('pMapErrorString', 39),
+  activeTimedBomb: box('gzLateLocalizedString', 1),
   creatureMine: box('gzLateLocalizedString', 27),
   reassignOnTheMove: box('pMapErrorString', 41),
   samSite: box('pMapErrorString', 30),

@@ -123,7 +123,7 @@ export interface SexSceneEvent extends SimEventBase {
 export interface AlarmEvent extends SimEventBase {
   readonly type: 'alarm';
   readonly gridNo: number;
-  readonly kind: 'kingpin' | 'museum';
+  readonly kind: 'kingpin' | 'museum' | 'klaxon';
 }
 
 export type GiveEvent = ItemGivenEvent | GiveAbortedEvent | NpcTookItemEvent | ItemReturnedEvent | NpcGaveItemEvent;

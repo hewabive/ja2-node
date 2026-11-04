@@ -7,7 +7,8 @@
 // @src Strategic/Queen_Command.cc PrepareEnemyForSectorBattle (tactical side), AddPossiblePendingEnemiesToBattle;
 // @src Tactical/Militia_Control.cc PrepareMilitiaForTactical, ResetMilitia; Overhead.cc HandleNPCTeamMemberDeath
 // @src (strategic part); Town_Militia.cc HandleMilitiaStatusInCurrentMapBeforeLoadingNewMap; StrategicMap.cc
-// @src HandleRPCDescriptionOfSector; TacticalAI/Knowledge.cc CallAvailableTeamEnemiesToAmbush; TileEngine/WorldDef.cc
+// @src HandleRPCDescriptionOfSector; HandleDefiniteUnloadingOfWorld (RemoveAllActiveTimedBombs, 2026-11-04);
+// @src TacticalAI/Knowledge.cc CallAvailableTeamEnemiesToAmbush; TileEngine/WorldDef.cc
 // @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld); StrategicMap.cc EnterSector (SetupProfileInsertionDataForCivilians,
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
@@ -99,6 +100,7 @@ import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { removeAllActiveTimedBombs } from '../tactical/bombs/bomb-queue.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
 import { loadDoorStatusArray, storedDoorStatuses, updateDoorGraphicsFromStatus } from '../tactical/doors/door-status.ts';
@@ -1275,6 +1277,7 @@ export class SectorFlow {
     const t = this.campaign.tactical?.state;
     const world = this.world;
     if (!t || !world) return;
+    removeAllActiveTimedBombs(t);
     this.campaign.narrative.handleQuestCodeOnSectorExit(world);
     t.turn.enemyInSector = false;
     this.saveCurrentSectorsInformation();

@@ -28,6 +28,7 @@ export const MercQuote = {
   SERIOUSLY_WOUNDED: 14,
   STARTING_TO_BLEED: 24,
   NEED_SLEEP: 25,
+  OUT_OF_BREATH: 26,
   KILLED_AN_ENEMY: 27,
   KILLED_A_CREATURE: 28,
   AIM_KILLED_MIKE: 32,
@@ -55,6 +56,7 @@ export const MercQuote = {
 
 export const QuoteSaidFlag = {
   IN_SHIT: 0x0001,
+  LOW_BREATH: 0x0002,
   LOW_MORAL: 0x0010,
   MULTIPLE_CREATURES: 0x0020,
   ANNOYING_MERC: 0x0040,

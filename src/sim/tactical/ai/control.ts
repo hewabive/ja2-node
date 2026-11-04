@@ -167,13 +167,17 @@ function npcPendingActionDone(t: TacticalState, s: Soldier, name: string): void 
     t.narrative.triggerNpcWithGivenApproach(s.profile, Approach.DONE_GET_ITEM);
 }
 
+export function freeUpNpcFromPendingAction(t: TacticalState, s: Soldier): void {
+  if (!PENDING_ACTIONS.has(s.ai.action)) return;
+  npcPendingActionDone(t, s, t.content.animations.controls[s.state]?.id ?? '');
+  actionDone(t, s);
+}
+
 export function freeUpFromPendingAction(t: TacticalState, s: Soldier): void {
   if (s.team === Team.OUR || s.ai.action === AiAction.PULL_TRIGGER) return;
   if (!PENDING_ACTIONS.has(s.ai.action)) return;
-  const name = t.content.animations.controls[s.state]?.id ?? '';
-  if (!PENDING_RELEASE_STATES.includes(name)) return;
-  npcPendingActionDone(t, s, name);
-  actionDone(t, s);
+  if (!PENDING_RELEASE_STATES.includes(t.content.animations.controls[s.state]?.id ?? '')) return;
+  freeUpNpcFromPendingAction(t, s);
 }
 
 function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
@@ -614,7 +618,7 @@ function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiCont
 
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
-  if (s.engagedInAction || t.turn.enemySightingOnTheirTurn || t.actionItems.queue.length > 0 || t.actionItems.active) return;
+  if (s.engagedInAction || t.turn.enemySightingOnTheirTurn || t.explosionQueue.entries.length > 0 || t.explosionQueue.active) return;
   if (s.team === Team.OUR && !(s.underAiControl && (s.quoteRecord !== 0 || s.boxer))) {
     ai.handleEveryFrame = false;
     return;

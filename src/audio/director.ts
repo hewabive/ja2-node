@@ -34,6 +34,7 @@ import { CALL_CRY_CODES, callAnimationState, codesInScript } from '../content/au
 import { type Cue, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
+  alarmCue,
   type CreatureCall,
   type DoorKind,
   doorCue,
@@ -578,6 +579,9 @@ export class SoundDirector {
         return;
       case 'doorTrap':
         this.#play(doorTrapCue(book, e.trap, e.gridNo));
+        return;
+      case 'alarm':
+        this.#play(alarmCue(book, e.gridNo));
         return;
       case 'contentsExclaimed':
         this.#o.later(CONTENTS_EXCLAMATION_DELAY_MS, () => this.#battleSound(e.soldier, e.sound, false));

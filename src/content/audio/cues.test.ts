@@ -8,6 +8,7 @@ import { type BattleRequest, battleSoundCue, battleVoiceBasename, NO_BATTLE_MEMO
 import type { Rand } from './cue.ts';
 import { type CueBook, loadCueBook } from './cue-book.ts';
 import {
+  alarmCue,
   burstSoundName,
   doorCue,
   doorTrapCue,
@@ -213,6 +214,7 @@ describe('doors and locks', () => {
     });
     expect(lockOutcomeCue(book, { ...o, action: 'pickLock', result: 'failed' })).toBeNull();
     expect(doorTrapCue(book, 'siren', G)).toMatchObject({ file: book.paths.get('KLAXON_ALARM'), loops: 5 });
+    expect(alarmCue(book, G)).toEqual(doorTrapCue(book, 'siren', G));
     expect(doorTrapCue(book, 'electric', G)?.file).toBe(book.paths.get('DOOR_ELECTRICITY'));
     expect(doorTrapCue(book, 'explosion', G)).toBeNull();
   });

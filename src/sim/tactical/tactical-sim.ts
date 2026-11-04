@@ -44,6 +44,7 @@ import {
   freeUpFromRoofClimb,
   freeUpFromStanceChange,
   freeUpFromTurning,
+  freeUpNpcFromPendingAction,
 } from './ai/control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './ai/decide.ts';
 import { endTimedAiPause } from './ai/pause.ts';
@@ -62,6 +63,7 @@ import {
   soldierGotoStationaryStance,
   states,
 } from './animation.ts';
+import { handleExplosionQueue } from './bombs/bomb-queue.ts';
 import { generateBuildings } from './buildings.ts';
 import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
@@ -127,7 +129,6 @@ import { handleCreatureTenseQuote } from './narrative/creature-tension.ts';
 import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
-import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
 import { useStatueRemote } from './narrative/statue.ts';
@@ -391,6 +392,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
     freeUpFromAttacking: actionDone,
     aiAttack: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
     freeUpFromPendingAction,
+    freeUpNpcFromPendingAction,
     actionDone,
     freeUpFromRoofClimb,
     aiPickup: (state, s, g, item) => soldierPickupItem(state, s, g, 0, item ? [item] : null),
@@ -405,7 +407,7 @@ function overheadHooks(ai: AiControl): OverheadHooks {
       stepThrownObjects(state);
       updateBullets(state);
       stepExplosions(state);
-      handleActionItemQueue(state);
+      handleExplosionQueue(state);
       handleCreatureTenseQuote(state);
       checkHostileOrSayQuoteList(state);
       endTimedAiPause(state);
@@ -493,7 +495,7 @@ export class TacticalSim {
   isIdle(): boolean {
     const t = this.state;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
-    if (t.actionItems.active) return false;
+    if (t.explosionQueue.active) return false;
     if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));

@@ -2012,3 +2012,64 @@ describe('snapshot version 44 (no world bombs, mine flags or items on structures
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });
+
+const ACTION_ITEMS_KEY = 'actionItems';
+const EXPLOSION_QUEUE_KEY = 'explosionQueue';
+
+function versionFortyFive(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const queue = object(tactical[EXPLOSION_QUEUE_KEY]);
+    const slots = tactical[WORLD_BOMBS_KEY] as Json[];
+    const actionItems: Json = {
+      queue: (queue.entries as Json[]).map((e) => object(slots[object(e).bomb as number]).item as Json),
+      active: queue.active as Json,
+      person: queue.person as Json,
+      sightChanged: queue.mayHaveChangedSight as Json,
+    };
+    const renamed = Object.entries(tactical).map(([key, v]): [string, Json] =>
+      key === EXPLOSION_QUEUE_KEY ? [ACTION_ITEMS_KEY, actionItems] : [key, v],
+    );
+    return [name, Object.fromEntries(renamed)];
+  });
+  return { ...snapshot, version: 45, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 45 (the action item queue) migrates into the bomb queue: each queued item by its bomb slot, due at once', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with an action item queued by a merc', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const merc = teamMembers(t, Team.OUR)[0];
+    if (!merc) throw new Error('the stub sandbox has no merc');
+    const item = (name: string) => createItem(t.content.items, t.content.items.byName.get(name)?.index ?? 0, 100);
+    addItemToPool(t, merc.gridNo + 2, item('SWITCH'), Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    addItemToPool(t, merc.gridNo + 3, item('ACTION_ITEM'), Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    t.explosionQueue.entries.push({ bomb: 1, timestamp: 0, exists: true });
+    Object.assign(t.explosionQueue, { active: true, mayHaveChangedSight: true, person: merc });
+    const current = snapshotSession(sandbox);
+    const legacy = versionFortyFive(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain(`"${EXPLOSION_QUEUE_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionFortyFive(current.sim);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+  });
+});

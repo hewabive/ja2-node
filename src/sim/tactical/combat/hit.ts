@@ -24,6 +24,7 @@ import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
+import { checkForBreathCollapse } from '../breath-collapse.ts';
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { newSmokeEffect } from '../explosions/smoke.ts';
@@ -660,10 +661,6 @@ function calcNextBleed(s: Soldier): number {
   return Math.fround(1 + Math.fround(effectiveLife(s)) / (10 + s.tilesMoved));
 }
 
-function checkForBreathCollapse(s: Soldier): void {
-  if (s.breath === 0 && !s.collapsed && !isVehicle(s) && !isRobot(s) && !s.monsterOrAnimal) s.breathCollapsed = true;
-}
-
 function noticeMariaEscapeWhenKingpinsManIsHurt(t: TacticalState, s: Soldier): void {
   if (s.team !== Team.CIV || s.civilianGroup !== CivilianGroup.KINGPIN || boxingActive(t)) return;
   if (t.narrative.questStatus(Quest.RESCUE_MARIA) !== QuestStatus.IN_PROGRESS) return;
@@ -743,7 +740,7 @@ export function soldierTakeDamage(
   }
   const blood = Math.min(u8(idiv(life, BLOOD_DIVISOR)), MAX_BLOOD_QUANTITY);
   if (!isRobot(s) && blood !== 0 && s.placed) dropBlood(t, s, blood);
-  if (s.placed) checkForBreathCollapse(s);
+  if (s.placed) checkForBreathCollapse(t, s);
   if (attacker && attacker.team === Team.OUR && s.team !== Team.OUR && reason === DamageReason.EXPLOSION)
     statChange(t, attacker, StatKind.EXPLOSIVES, 10 * combined, StatCause.SUCCESS);
   if (s.team === Team.OUR) {

@@ -3,7 +3,8 @@
 // @src src/game/TileEngine/Physics.cc CreatePhysicalObject, SimulateWorld, SimulateObject, PhysicsComputeForces,
 // @src PhysicsUpdateLife, PhysicsIntegrate, PhysicsHandleCollisions, PhysicsCheckForCollisions, PhysicsResolveCollision,
 // @src PhysicsMoveObject (the level node that decides when the catch is looked at), PhysicsDeleteObject,
-// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact, CheckForCollision, vector_3ToGridNo.
+// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact (the dud's timer 2026-11-04),
+// @src CheckForCollision, vector_3ToGridNo.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
@@ -12,6 +13,7 @@ import { has, INVALID_STRUCTURE_ID, ORIENT_RIGHT, PROFILE_Z_SIZE, StructureFlags
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, i16, idiv } from '../../../core/int.ts';
 import { cloneObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { Detonator, setDelay, setDetonator } from '../bombs/bomb-object.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { Special } from '../combat/types.ts';
@@ -79,7 +81,6 @@ const PASSING_TARGET_MIN_Z = 32;
 const IMPACT_NOISE_BASE = 9;
 const IMPACT_NOISE_SPREAD = 9;
 const DUD_TRAP_RANGE = 4;
-const DUD_TRAP_BASE = 2;
 const DUD_DELAY_RANGE = 2;
 
 const WALL_CODES: ReadonlySet<number> = new Set([
@@ -303,9 +304,10 @@ function goesOff(t: TacticalState, status: number): boolean {
   return status >= USABLE_STATUS && t.pre.int(100) < status + t.pre.int(50);
 }
 
-function drawTimedBombSettings(t: TacticalState): { readonly trapLevel: number; readonly delay: number } {
-  const trapLevel = t.pre.int(DUD_TRAP_RANGE) + DUD_TRAP_BASE;
-  return { trapLevel, delay: 1 + t.pre.int(DUD_DELAY_RANGE) };
+function armDudAsTimedBomb(t: TacticalState, o: ItemObject): void {
+  t.pre.int(DUD_TRAP_RANGE);
+  setDetonator(o, Detonator.TIMED);
+  setDelay(o, 1 + t.pre.int(DUD_DELAY_RANGE));
 }
 
 function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
@@ -322,7 +324,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
     impact = z !== 0 || o.inWater || goesOff(t, status);
     if (!impact) {
       const rearmed = goesOff(t, status);
-      if (rearmed) drawTimedBombSettings(t);
+      if (rearmed) armDudAsTimedBomb(t, obj);
       const level = o.oldCollisionCode === Collision.ROOF ? 1 : 0;
       addItemToPool(t, o.gridNo, obj, Visibility.INVISIBLE, level, rearmed ? WorldItemFlags.ARMED_BOMB : 0, 0);
       notifySoldiersToLookForItems(t);

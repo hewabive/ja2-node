@@ -62,8 +62,9 @@ its tiles, in list order (`07`). People and corpses are transparent; foliage sho
 blocking, three times as much for an unaware viewer; walls block except at some corner cells; there is no chance roll
 (random cover is for bullets, `11`). Float arithmetic is float32 and the distance is `Math.sqrt`, never `Math.hypot`,
 so whether a distance is integral matches the original; the original's `PI` decides the wall corners. While an
-explosion or an action item resolves, a roof climb runs or the squad gathers to leave the sector, every test returns 0
-(`disallowSight`), so known targets are lost.
+explosion or the bomb queue runs, a roof climb runs or the squad gathers to leave the sector, every test returns 0
+(`disallowSight`), so known targets are lost; an explosion the queue sets off leaves sight off until the queue ends, when
+all teams look at once (`12` §6).
 
 **An aware viewer sees all around.** An unaware look counts the angle from the facing the soldier is turning to, with
 sub-tile positions. A soldier who saw or heard the opponent in the last three turns, himself or through his team, looks

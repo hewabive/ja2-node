@@ -8,7 +8,7 @@
 // @src profiles' sPreCombatGridNo),
 // @src EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode, SoldierHasSeenEnemiesLastFewTurns,
 // @src CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle; Soldier_Control.cc EVENT_BeginMercTurn
-// @src (the heard-noise pause and the per-turn quote flags), CheckForBreathCollapse; OppList.cc
+// @src (the heard-noise pause and the per-turn quote flags); OppList.cc
 // @src BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src the drug turn of EVENT_BeginMercTurn (2026-11-04); the boxing gates of BeginTeamTurn,
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
@@ -20,7 +20,8 @@
 // @src of BeginTeamTurn and HandleTacticalEndTurn; HandleTacticalEndTurn's static stamp before HandleRottingCorpses
 // @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03); the soldiers
 // @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03);
-// @src HandleTacticalEndTurn's IsMechanical skip (2026-11-04).
+// @src HandleTacticalEndTurn's IsMechanical skip (2026-11-04); the DecayBombTimers calls of HandleTacticalEndTurn and
+// @src EndTurnEvents, EVENT_BeginMercTurn's low breath flag reset (2026-11-04).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -29,6 +30,8 @@ import { Situation } from '../ai/actions.ts';
 import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance, TurningFromProne } from '../animation.ts';
 import { startWakingUp } from '../assignment-animations.ts';
+import { decayBombTimers } from '../bombs/bomb-queue.ts';
+import { checkForBreathCollapse, resetLowBreathWarning } from '../breath-collapse.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
@@ -110,11 +113,6 @@ export function isTeamActive(t: TacticalState, team: number): boolean {
   return teamMembers(t, team).length > 0;
 }
 
-function checkForBreathCollapse(s: Soldier): void {
-  if (s.breath !== 0 || s.collapsed || s.monsterOrAnimal) return;
-  s.breathCollapsed = true;
-}
-
 const CLOSE_CALL_QUOTE = 22;
 const CLOSE_CALL_ODDS = 3;
 
@@ -152,8 +150,9 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.blindedCounter > 0 && --s.blindedCounter === 0) handleSight(t, s, SightFlags.LOOK);
   s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
   unusedAPsToBreath(pointsContext(t), s, s.gassed);
+  resetLowBreathWarning(t, s);
   if (s.turnsUntilCanSayHeardNoise > 0) s.turnsUntilCanSayHeardNoise--;
-  if (s.placed) checkForBreathCollapse(s);
+  if (s.placed) checkForBreathCollapse(t, s);
   calcNewActionPoints(t, s);
   s.tilesMoved = 0;
   if (s.placed) {
@@ -225,6 +224,7 @@ function handleRottingCorpsesAtTurnEnd(t: TacticalState, clock: RealtimeClock): 
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
   handleRottingCorpsesAtTurnEnd(t, clock);
   const now = worldSeconds(t);
+  decayBombTimers(t);
   decaySmokeEffects(t);
   decayLightEffects(t);
   decayBloodAndSmells(t, now);
@@ -257,6 +257,7 @@ export function betweenTurnsVisibilityAdjustments(t: TacticalState): void {
 function endTurnEvents(t: TacticalState): void {
   handleTeamServices(t, Team.OUR);
   decaySmells(t.smell);
+  decayBombTimers(t);
   decaySmokeEffects(t);
   decayLightEffects(t);
 }

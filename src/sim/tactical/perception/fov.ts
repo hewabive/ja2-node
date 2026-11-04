@@ -3,7 +3,8 @@
 // @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics; MercLooksForDoors 2026-11-01), BuildSightDir,
 // @src ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
-// @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems;
+// @src SetGridNoRevealedFlag and the spotted-something quote; without a soldier for the REVEAL_ROOM action item 2026-11-04);
+// @src Tactical/Handle_Items.cc AllSoldiersLookforItems;
 // @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
@@ -222,7 +223,7 @@ function sightRevealsGround(t: TacticalState, g: number): boolean {
   return (t.world.level.rooms[g] ?? NO_ROOM) !== NO_ROOM || !flatRoofAboveGridNo(t, g);
 }
 
-function removeRoomRoof(t: TacticalState, room: number, s: Soldier, slots: SlantRoofSlots): void {
+function removeRoomRoof(t: TacticalState, room: number, s: Soldier | null, slots: SlantRoofSlots): void {
   const rooms = t.world.level.rooms;
   let saidItemSeenQuote = false;
   for (let g = 0; g < WORLD_MAX; g++) {
@@ -231,9 +232,22 @@ function removeRoomRoof(t: TacticalState, room: number, s: Soldier, slots: Slant
     slots.addRoofsHiddenOver(t, g);
     if (!setItemsVisibilityOn(t, g, 0, Visibility.INVISIBLE, true) || saidItemSeenQuote) continue;
     saidItemSeenQuote = true;
-    t.narrative.sayQuote(s, SPOTTED_SOMETHING_QUOTE + t.rng.int(SPOTTED_SOMETHING_QUOTES));
+    if (s) t.narrative.sayQuote(s, SPOTTED_SOMETHING_QUOTE + t.rng.int(SPOTTED_SOMETHING_QUOTES));
   }
   t.events.push({ type: 'roomRevealed', room });
+}
+
+function hiddenRoomAt(t: TacticalState, g: number): number {
+  const room = t.world.level.rooms[g] ?? NO_ROOM;
+  return room !== NO_ROOM && t.fog.roomHidden[room] ? room : NO_ROOM;
+}
+
+export function removeHiddenRoomRoofAt(t: TacticalState, g: number): void {
+  const room = hiddenRoomAt(t, g);
+  if (room === NO_ROOM) return;
+  const slots = new SlantRoofSlots();
+  removeRoomRoof(t, room, null, slots);
+  slots.examine(t, (x) => groundRevealed(t, x));
 }
 
 function revealHiddenRoom(t: TacticalState, room: number, s: Soldier, slots: SlantRoofSlots): void {

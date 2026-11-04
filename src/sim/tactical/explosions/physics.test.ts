@@ -3,6 +3,7 @@ import { knowledgeOf, newCombatSim, spawnSoldier } from '../../../../tests/suppo
 import { countDraws, explosivesBusy, itemId, objectOf, stepWithExplosives } from '../../../../tests/support/explosives.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
+import { NOTHING } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { RestrictedScroll } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
@@ -12,12 +13,14 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
 import { actingSoldier } from '../../hints/soldier-check.ts';
 import { attachObject, createItem } from '../../items/object.ts';
+import { bombItemOf, Detonator, delayOf, detonatorOf } from '../bombs/bomb-object.ts';
 import { minAPsToThrow } from '../combat/ap.ts';
 import { WeaponMode } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
+import { Visibility, type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { bulletViews } from '../world-view.ts';
 import { Collision, checkForCollision, HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
 import { ThrowAction } from './state.ts';
@@ -293,6 +296,28 @@ describe('thrown object physics', () => {
     expect(flight).toEqual({ pre: 0, main: 0 });
     expect(landing).toEqual({ pre: 3, main: 0 });
     expect(explosivesBusy(t)).toBe(true);
+  });
+});
+
+describe('duds (Physics.cc HandleArmedObjectImpact)', () => {
+  const DUD_SEEDS = 60;
+  const WORN_GRENADE = 10;
+
+  it('arms a dud that passes its second roll as a timed bomb of 1 or 2 turns, its bomb item none', () => {
+    const armedDuds: WorldItem[] = [];
+    for (let seed = 1; seed <= DUD_SEEDS && armedDuds.length === 0; seed++) {
+      const sim = newCombatSim(content, [], seed);
+      const s = grenadier(sim);
+      const grenade = s.inv[InvSlot.HAND];
+      if (grenade) grenade.status[0] = WORN_GRENADE;
+      throwAndLand(sim, s, gridNo(80, 88));
+      armedDuds.push(...sim.state.worldItems.filter((i) => i.flags & WorldItemFlags.ARMED_BOMB));
+      if (armedDuds.length > 0) expect(sim.state.worldBombs.map((b) => b.item)).toEqual(armedDuds);
+    }
+    const [dud] = armedDuds;
+    if (!dud) throw new Error(`no armed dud in ${DUD_SEEDS} throws`);
+    expect([detonatorOf(dud.object), bombItemOf(dud.object), dud.visible]).toEqual([Detonator.TIMED, NOTHING, Visibility.INVISIBLE]);
+    expect([1, 2]).toContain(delayOf(dud.object));
   });
 });
 

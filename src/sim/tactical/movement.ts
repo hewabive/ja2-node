@@ -7,7 +7,8 @@
 // @src (2026-11-01); the creatures stepping backwards of HandleGotoNewGridNo and the side step of
 // @src EVENT_InternalSetSoldierDestination (2026-11-01); the end of aim and the EPC's uncower of
 // @src EVENT_InternalGetNewSoldierPath, the door-step halt of HandleGotoNewGridNo and HandleNextTileWaiting's forced swap
-// @src through SwapMercPositions (2026-11-01); the place of the blind and drunk falls after the gas check (2026-11-04).
+// @src through SwapMercPositions (2026-11-01); the place of the blind and drunk falls after the gas check (2026-11-04);
+// @src HandleAtNewGridNo's walk-off return, breath collapse and mines (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../content/world/grid.ts';
@@ -31,6 +32,8 @@ import {
   states,
   TurningFromProne,
 } from './animation.ts';
+import { setOffBombsInGridNo } from './bombs/bomb-queue.ts';
+import { checkForBreathCollapse } from './breath-collapse.ts';
 import { INVALID_ANIMATION, pickSoldierReadyAnimation } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
@@ -519,6 +522,11 @@ export function moveMerc(t: TacticalState, s: Soldier, speed: number, direction:
   setSoldierPositionXY(t, s, x, y, { keepDestination: true, keepFinalDestination: true });
 }
 
+function mercsWalkingOff(t: TacticalState): boolean {
+  const code = t.mercsWaiting?.code;
+  return code === WaitForMercs.WALKOFF_SCREEN || code === WaitForMercs.WALK_TO_GRIDNO;
+}
+
 export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   cancelFadeOutAwayFromStart(t, s);
   let keepMoving = true;
@@ -527,6 +535,11 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   if (!t.inCombat) {
     s.tilesMovedPerRTBreathUpdate++;
     s.lastMovementAnimPerRTBreathUpdate = s.state;
+  }
+  if (mercsWalkingOff(t) || checkForBreathCollapse(t, s)) return true;
+  if (setOffBombsInGridNo(t, s, s.gridNo, false, s.level)) {
+    stopMerc(t, s);
+    return false;
   }
   const interrupted = t.hooks.atNewGridNo(t, s);
   const pause = t.turn.enemySightingOnTheirTurn;

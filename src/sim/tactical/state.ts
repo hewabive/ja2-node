@@ -17,6 +17,7 @@ import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { anim } from './anim-states.ts';
+import type { ExplosionQueue } from './bombs/bomb-queue.ts';
 import type { WorldBomb } from './bombs/world-bombs.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
@@ -166,6 +167,7 @@ export interface TurnHooks {
   freeUpFromAttacking(t: TacticalState, s: Soldier): void;
   aiAttack(t: TacticalState, s: Soldier, target: number, level: number): number;
   freeUpFromPendingAction(t: TacticalState, s: Soldier): void;
+  freeUpNpcFromPendingAction(t: TacticalState, s: Soldier): void;
   actionDone(t: TacticalState, s: Soldier): void;
   freeUpFromRoofClimb(t: TacticalState, s: Soldier): void;
   aiPickup(t: TacticalState, s: Soldier, gridNo: number, item: WorldItem | null): boolean;
@@ -183,6 +185,7 @@ export const NO_TURN_HOOKS: TurnHooks = {
   freeUpFromAttacking: () => {},
   aiAttack: () => 0,
   freeUpFromPendingAction: () => {},
+  freeUpNpcFromPendingAction: () => {},
   actionDone: () => {},
   freeUpFromRoofClimb: () => {},
   aiPickup: () => false,
@@ -308,7 +311,7 @@ export interface TacticalState {
   schedules: ScheduleList;
   scheduleClock: ScheduleClock;
   engagedInConvFromActionMerc: number;
-  readonly actionItems: ActionItemQueue;
+  readonly explosionQueue: ExplosionQueue;
   pickedOwnershipCheck: PickedOwnershipCheck | null;
 }
 
@@ -352,13 +355,6 @@ export interface AiPassState {
 
 export function createAiPassState(): AiPassState {
   return { lastTickMs: 0, cursor: 0, awayCursor: RESET_AWAY_AI_CURSOR, handleThisPass: false };
-}
-
-export interface ActionItemQueue {
-  readonly queue: WorldItem[];
-  active: boolean;
-  person: Soldier | null;
-  sightChanged: boolean;
 }
 
 export interface SharedCampaignState {
@@ -505,7 +501,7 @@ export function createTacticalState(
     schedules: createScheduleList(),
     scheduleClock: NO_SCHEDULE_CLOCK,
     engagedInConvFromActionMerc: NOBODY,
-    actionItems: { queue: [], active: false, person: null, sightChanged: false },
+    explosionQueue: { entries: [], active: false, mayHaveChangedSight: false, person: null },
     pickedOwnershipCheck: null,
   };
 }

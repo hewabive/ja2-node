@@ -10,6 +10,7 @@ import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { Detonator, ItemAction, setActionValue, setBombOwner, setDetonator, setFrequency } from '../bombs/bomb-object.ts';
+import { handleExplosionQueue, setOffBombsInGridNo } from '../bombs/bomb-queue.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
 import { AlertStatus, Body, CivilianGroup, type Soldier, Team } from '../soldier.ts';
@@ -17,7 +18,6 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../world-items.ts';
 import { CivGroupHostility } from './constants.ts';
 import { NO_NARRATIVE_PORT } from './port.ts';
-import { handleActionItemQueue, setOffActionItemsInGridNo } from './quest-items.ts';
 
 let content: TacticalContent;
 
@@ -102,7 +102,7 @@ describe('the sex action item', () => {
     expect(merc.gridNo).toBe(SEX_DOOR);
     expect(log.sex).toEqual([0]);
     expect(sim.state.perception.disallowSight).toBe(false);
-    expect(sim.state.actionItems.active).toBe(false);
+    expect(sim.state.explosionQueue.active).toBe(false);
   });
 
   it('puts the merc back outside on the closest tile his structure fits on', () => {
@@ -182,14 +182,14 @@ describe('the Kingpin alarm', () => {
     narrative(sim);
     const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(81, 80), Direction.EAST);
     arm(sim, gridNo(81, 80), actionItem(ItemAction.KINGPIN_ALARM));
-    setOffActionItemsInGridNo(sim.state, enemy);
-    expect(sim.state.actionItems.queue).toEqual([]);
+    setOffBombsInGridNo(sim.state, enemy, enemy.gridNo, false, enemy.level);
+    expect(sim.state.explosionQueue.entries).toEqual([]);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(85, 80), Direction.EAST);
     const disabled = actionItem(ItemAction.KINGPIN_ALARM);
     disabled.flags |= ObjectFlags.DISABLED_BOMB;
     arm(sim, merc.gridNo, disabled);
-    setOffActionItemsInGridNo(sim.state, merc);
-    expect(sim.state.actionItems.queue).toEqual([]);
+    setOffBombsInGridNo(sim.state, merc, merc.gridNo, false, merc.level);
+    expect(sim.state.explosionQueue.entries).toEqual([]);
     expect(civGroupHostility(sim.state.civGroups, CivilianGroup.KINGPIN)).toBe(CivGroupHostility.NEUTRAL);
   });
 
@@ -200,8 +200,8 @@ describe('the Kingpin alarm', () => {
     arm(sim, merc.gridNo, actionItem(ItemAction.KINGPIN_ALARM));
     const alarmsRung = () => sim.drainEvents().filter((e) => e.type === 'alarm').length;
     for (let step = 0; step < 2; step++) {
-      setOffActionItemsInGridNo(sim.state, merc);
-      handleActionItemQueue(sim.state);
+      setOffBombsInGridNo(sim.state, merc, merc.gridNo, false, merc.level);
+      handleExplosionQueue(sim.state);
       expect(alarmsRung()).toBe(1);
     }
   });
@@ -231,11 +231,11 @@ describe('the museum alarm', () => {
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(82, 80), Direction.EAST);
     const eldin = spawnSoldier(sim, 60, Team.CIV, gridNo(83, 120), Direction.NORTH, { profile: Npc.ELDIN });
     arm(sim, gridNo(82, 80), actionItem(ItemAction.MUSEUM_ALARM));
-    setOffActionItemsInGridNo(sim.state, merc);
+    setOffBombsInGridNo(sim.state, merc, merc.gridNo, false, merc.level);
     expect(sim.state.perception.disallowSight).toBe(true);
     eldin.ai.alertStatus = AlertStatus.YELLOW;
     eldin.ai.noiseVolume = 6;
-    handleActionItemQueue(sim.state);
+    handleExplosionQueue(sim.state);
     expect(sim.state.perception.disallowSight).toBe(false);
     expect(log.facts).toEqual([]);
     expect(eldin.ai.noiseGridNo).not.toBe(gridNo(82, 80));

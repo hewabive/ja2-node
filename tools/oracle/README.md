@@ -456,8 +456,9 @@ setup of facts, quests, balance, NPC data and hospital globals and prints what i
 
 `give-compare.ts` applies the same setup, replays the native `CheckFact` results, `CalcMedicalCost` values (0017) and
 draws, and runs `npcConsiderReceivingItemFromMerc`, `giveItemOpcode` with the narrative port pointed at the replay,
-`handleNpcItemGiven` and the action item queue. For a give to a dealer whose shop opens, it first applies the original's
-`RemoveObjFrom` to the giver's pocket ("Giving to a dealer" in `deviations.md`).
+`handleNpcItemGiven` and the bomb queue (`setOffBombsInGridNo`, `handleExplosionQueue`). For a give to a dealer whose
+shop opens, it first applies the original's `RemoveObjFrom` to the giver's pocket ("Giving to a dealer" in
+`deviations.md`).
 
 ### Civilians
 

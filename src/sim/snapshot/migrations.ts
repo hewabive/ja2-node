@@ -1257,6 +1257,43 @@ function addWorldBombsAndMineFlags(snapshot: Readonly<Record<string, unknown>>):
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const ACTION_ITEMS_KEY = 'actionItems';
+const EXPLOSION_QUEUE_KEY = 'explosionQueue';
+const DUE_AT_ONCE = 0;
+
+function slotRefOf(slot: Json): Json {
+  return isObject(slot) && slot.exists === true ? field(slot.item, REF, null) : null;
+}
+
+function queuedBombsOf(queue: Json | undefined, slots: Json | undefined): Json[] {
+  if (!Array.isArray(queue) || !Array.isArray(slots)) return [];
+  const refs = slots.map(slotRefOf);
+  return queue.flatMap((item: Json): Json[] => {
+    const bomb = refs.indexOf(field(item, REF, null));
+    return bomb < 0 ? [] : [{ bomb, timestamp: DUE_AT_ONCE, exists: true }];
+  });
+}
+
+function withExplosionQueue(tactical: JsonObject): JsonObject {
+  const actionItems = tactical[ACTION_ITEMS_KEY];
+  if (!isObject(actionItems)) return tactical;
+  const queue: Json = {
+    entries: queuedBombsOf(actionItems.queue, tactical[WORLD_BOMBS_KEY]),
+    active: field(actionItems, 'active', false),
+    mayHaveChangedSight: field(actionItems, 'sightChanged', false),
+    person: field(actionItems, 'person', null),
+  };
+  return replaceKey(tactical, ACTION_ITEMS_KEY, EXPLOSION_QUEUE_KEY, queue, []);
+}
+
+function actionItemsIntoExplosionQueue(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withExplosionQueue(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1303,5 +1340,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     42: addSlantRoofCeilings,
     43: addDrugCourses,
     44: addWorldBombsAndMineFlags,
+    45: actionItemsIntoExplosionQueue,
   };
 }

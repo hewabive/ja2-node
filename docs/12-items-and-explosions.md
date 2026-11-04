@@ -31,7 +31,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
-| `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags (§6) |
+| `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items (§6) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
@@ -245,8 +245,12 @@ drunk fall.
 or frequency, owner, action, panic tolerance) and arms a bomb (`armBomb`); `bombs/world-bombs.ts` keeps the world bomb
 list; `bombs/mine-flags.ts` the mine flags of the tiles and the blue flags. `world-items.ts` arms the map's hidden
 mines at the load, buries pits and switches and lists the armed items as they enter and leave the pools;
-`pathfinding.ts` reads the flags (`07`); `narrative/quest-items.ts` runs the action items the queue can run so far
-(`25`).
+`pathfinding.ts` reads the flags (`07`). `bombs/bomb-queue.ts` is the original's explosion queue with what feeds it: a
+step on a tile (`setOffBombsInGridNo`, from `handleAtNewGridNo` and the fence landing, `07`), a frequency
+(`setOffBombsByFrequency`, from a pressure switch underfoot and from a switch worked by hand,
+`activateSwitchInGridNo`), and the timers (`decayBombTimers`, at each real-time turn and at the end of each round,
+`10`); `bombs/item-action.ts` runs the action items, the quest ones through `narrative/quest-items.ts` (`25`). The
+queue runs in the overhead pass after the tile animations.
 
 **Design.**
 - The bomb fields stay in the union aliases of the object (deviation "Object union"), so map records, native saves,
@@ -261,6 +265,15 @@ mines at the load, buries pits and switches and lists the armed items as they en
 - The view's `knownMines` lists the tiles with the player flag, which the original's path cursor reveals anyway; the
   enemy flag, trap levels, timers and owners never reach the view (D16, `29` §7). The knowledge projection rebuilds the
   player flags from it, so a hint paths around a mine as the order does.
+- The bomb queue (`TacticalState.explosionQueue`) holds bomb slot indices with their due times on the tactical clock
+  (`clockMs`), at most 40, as the original's array: a set-off spaces the explosive bombs it queues
+  `1000 + Random(500)` ms apart in slot order and queues action items with no gap and no draw. The count shrinks only
+  over entries at its end that went off. While the queue is active sight is off, the AI waits and the player interface
+  is locked (`interface-lock.ts`); at its end all teams look and our mercs reveal roofs and items if a blast or a door
+  may have changed sight, and the soldier who set it off, unless one of ours, is freed from any pending action.
+- A dud that passes its second roll lies as a timed bomb (`34`); leaving the sector deletes every active timed bomb
+  with its item before the sector's state is kept, and while one is on the map time compression is refused
+  (`activeTimedBomb`).
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
@@ -270,14 +283,23 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | A mine the map stores armed gets no enemy flag: only a hidden pressure explosive with a trap level is armed and marked at the load, and the one map mine, F9's, is stored armed | `tactical/world-items.test.ts` "marks no tile for the enemy where the map stored a mine armed already …", `tactical/bombs/map-bombs-original.test.ts` |
 | A blue flag blocks its tile for everybody: its structure is a generic one without cells, which the movement costs read as an obstacle | `tactical/bombs/mine-flags.test.ts` "blocks the flagged tile for everybody …" |
 | Taking a blue flag off at the roof level clears the mark alone: the flag, always put on the ground, stays and marks the tile again at the next load | `tactical/bombs/mine-flags.test.ts` "takes the flag off the ground, but on the roof level …" |
+| A trip klaxon stays armed: every step on it calls the enemies again | `tactical/bombs/bomb-queue.test.ts` "keeps a trip klaxon armed …" |
+| A timer set to 0 counts down through 255 turns before it goes off: the delay is a signed byte | `tactical/bombs/bomb-queue.test.ts` "runs a timer of 0 through 255 turns …" |
+| Map minefields (pressure action items that blow up) go off for our team alone; enemies and militia set off only explosives that are pressure-triggered themselves, and our team and the militia never a bomb a soldier planted | `tactical/bombs/bomb-queue.test.ts` "lets enemies and militia walk over a map minefield …", "lets our team and the militia walk over a mine a soldier planted …" |
+| Explosions during the queue keep sight off until the queue ends: an explosion turns sight back on only with the queue idle | `tactical/bombs/bomb-queue.test.ts` "keeps sight off from one blast to the next …" |
+| A bomb taken off the map after it was queued still goes off: an entry keeps its slot, the slot its last item | `tactical/bombs/bomb-queue.test.ts` "still sets off a bomb taken off the map …" |
+| The queue's end frees the soldier who set it off from any pending action, a pulled panic trigger too, with no animation test | `tactical/bombs/bomb-queue.test.ts` "frees the soldier who set it off …" |
 
-Not checked against the native build: no oracle probe covers the bomb list, the flags or paths around mines yet. From
-scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag; every
-loose switch's stored detonator already matches the one the load gives it, a switch over a switch structure and a
-pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the 14 soldiers placed on roofs all stand on
-flat roofs, so the roof type test moves none of them.
+Not checked against the native build: no oracle probe covers the bomb list, the flags, paths around mines, the queue's
+times and draws or the timers yet; the action item probes of `tools/oracle/README.md` "Give" check the queue with the
+quest action items. With the original data `tactical/bombs/item-actions-original.test.ts` works the museum switch of
+L12, the Orta basement cell switch and the brothel's untrap switch. Not pinned: an entry whose slot a new bomb took
+after it was queued sets off the new bomb. From scans of the 261 original maps: no map holds a hidden pressure explosive
+with a trap level, a pit or a blue flag; every loose switch's stored detonator already matches the one the load gives
+it, a switch over a switch structure and a pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the
+14 soldiers placed on roofs all stand on flat roofs, so the roof type test moves none of them.
 
-Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
+Not ported: gaps "Map items" (the pits), "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
 "Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key
 ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic

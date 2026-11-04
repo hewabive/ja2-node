@@ -62,7 +62,7 @@ describe('the locked player interface (LOCKUI_MODE) as simulation state', () => 
     const boxing = newCombatSim(content);
     boxing.state.boxing.uiLocked = true;
     const actionItems = newCombatSim(content);
-    actionItems.state.actionItems.active = true;
+    actionItems.state.explosionQueue.active = true;
     const scripted = newCombatSim(content);
     scripted.state.narrative = { ...NO_NARRATIVE_PORT, scriptedSequence: () => true };
     for (const sim of [boxing, actionItems, scripted]) expect(playerInterfaceLocked(sim.state)).toBe(true);

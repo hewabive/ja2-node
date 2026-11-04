@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim, SetSoldierAniSpeed, CalculateSoldierAniSpeed,
 // @src SoldierGotoStationaryStance, ChangeSoldierStance (its civilian cower branch, 2026-10-31), SetSoldierCowerState,
 // @src EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection, TurnSoldier, AdjustForFastTurnAnimation,
-// @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck, the stance
+// @src BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with its BoxingMovementCheck and its
+// @src SetOffBombsInGridNo 2026-11-04, the stance
 // @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31); the crow of
 // @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
 // @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions, reverse moves and failed surface, and the side
@@ -22,6 +23,7 @@ import { idiv } from '../../core/int.ts';
 import { TICK_MS } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
+import { setOffBombsInGridNo } from './bombs/bomb-queue.ts';
 import { turnToShoot } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
@@ -47,6 +49,7 @@ import {
   moveMercFacingDirection,
   setSoldierDestination,
   setSoldierPosition,
+  stopMerc,
 } from './movement.ts';
 import { moveStateBasedOnStance } from './movement-mode.ts';
 import { soldierAnimSurface } from './multi-tile.ts';
@@ -628,6 +631,10 @@ function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
   setSoldierDirection(t, s, (s.direction + 2) % DIRECTION_COUNT);
   setDesiredDirection(t, s, s.direction);
   boxingMovementCheckWhileTracked(t, s);
+  if (setOffBombsInGridNo(t, s, s.gridNo, false, s.level)) {
+    stopMerc(t, s);
+    return 'stop';
+  }
   if (s.gridNo !== s.finalDestination) return 'continue';
   const movementEnd = endHeight(t.content, s.uiMovementMode);
   if (endHeight(t.content, s.state) !== movementEnd) changeSoldierStance(t, s, movementEnd);

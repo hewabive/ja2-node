@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Item_Types.h DetonatorType, PANIC_FREQUENCY and the bomb fields of OBJECTTYPE (bBombStatus,
+// @src src/game/Tactical/Item_Types.h DetonatorType, PANIC_FREQUENCY, FIRST_MAP_PLACED_FREQUENCY, OBJECT_DISABLED_BOMB and
+// @src the bomb fields of OBJECTTYPE (bBombStatus,
 // @src bDetonatorType, usBombItem, bDelay/bFrequency, ubBombOwner, bActionValue, ubTolerance in the union at byte 4,
 // @src LoadSaveObjectType.cc ExtractObject); Action_Items.h ItemActionType; Items.cc ArmBomb.
 
@@ -38,11 +39,13 @@ export const ItemAction = {
 } as const;
 
 export const PANIC_FREQUENCY = 127;
+export const FIRST_MAP_PLACED_FREQUENCY = 50;
 
 const LOW_BYTE = 0xff;
 const OWNER_SHIFT = 8;
 const TOLERANCE_SHIFT = 24;
 const NO_FREQUENCY = 0;
+const SOLDIER_OWNER_OFFSET = 2;
 
 export function detonatorOf(o: ItemObject): number {
   return i8(o.gunAmmoType);
@@ -56,7 +59,7 @@ export function bombItemOf(o: ItemObject): number {
   return u16(o.gunShotsLeft);
 }
 
-function setBombItem(o: ItemObject, item: number): void {
+export function setBombItem(o: ItemObject, item: number): void {
   o.gunShotsLeft = u16(item);
 }
 
@@ -70,10 +73,18 @@ export function setFrequency(o: ItemObject, frequency: number): void {
   o.money = u32((o.money & ~LOW_BYTE) | u8(frequency));
 }
 
-const setDelay = setFrequency;
+export const setDelay = setFrequency;
 
 export function bombOwnerOf(o: ItemObject): number {
   return u8(o.money >>> OWNER_SHIFT);
+}
+
+export function placedBySoldier(o: ItemObject): boolean {
+  return bombOwnerOf(o) >= SOLDIER_OWNER_OFFSET;
+}
+
+export function bombOwnerIdOf(o: ItemObject): number | null {
+  return placedBySoldier(o) ? bombOwnerOf(o) - SOLDIER_OWNER_OFFSET : null;
 }
 
 export function setBombOwner(o: ItemObject, owner: number): void {
@@ -90,6 +101,18 @@ export function setActionValue(o: ItemObject, action: number): void {
 
 export function toleranceOf(o: ItemObject): number {
   return u8(o.money >>> TOLERANCE_SHIFT);
+}
+
+export function isDisabledBomb(o: ItemObject): boolean {
+  return (o.flags & ObjectFlags.DISABLED_BOMB) !== 0;
+}
+
+export function toggleDisabledBomb(o: ItemObject): void {
+  o.flags ^= ObjectFlags.DISABLED_BOMB;
+}
+
+export function clearDisabledBomb(o: ItemObject): void {
+  o.flags &= ~ObjectFlags.DISABLED_BOMB;
 }
 
 type BombKind = 'remote' | 'pressure' | 'timed' | 'switch';

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Bottom.cc AllowedToTimeCompress (the refusal order, the pause lock first;
-// @src a non-empty dialogue queue, 2026-11-01),
+// @src a non-empty dialogue queue, 2026-11-01; an active timed bomb, 2026-11-04),
 // @src AnyUsableRealMercenariesOnTeam; Strategic/MapScreen.cc UpdatePausedStatesDueToTimeCompression;
 // @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
 // @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
@@ -62,6 +62,7 @@ import {
   worldDay,
   worldTotalMinutes,
 } from '../strategic/time/world-clock.ts';
+import { activeTimedBombExists } from '../tactical/bombs/world-bombs.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
@@ -479,6 +480,7 @@ export class CampaignSim {
     if (this.state.meanwhile.trying) return 'meanwhileStarting';
     if (this.#dialogueQueued()) return 'dialogueQueued';
     if (this.noUsableMercs()) return 'noUsableMercs';
+    if (t && activeTimedBombExists(t)) return 'activeTimedBomb';
     if (t?.inCombat) return 'inCombat';
     if (t?.turn.enemyInSector) return 'enemiesPresent';
     if (this.creatures?.playerInInfestedMine()) return 'creatureMine';

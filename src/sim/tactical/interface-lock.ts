@@ -20,5 +20,5 @@ function computerTurnLocks(t: TacticalState): boolean {
 }
 
 export function playerInterfaceLocked(t: TacticalState): boolean {
-  return computerTurnLocks(t) || t.mercsWaiting !== null || t.boxing.uiLocked || t.actionItems.active || t.narrative.scriptedSequence();
+  return computerTurnLocks(t) || t.mercsWaiting !== null || t.boxing.uiLocked || t.explosionQueue.active || t.narrative.scriptedSequence();
 }

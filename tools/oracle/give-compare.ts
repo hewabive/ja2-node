@@ -13,10 +13,10 @@ import { npcConsiderReceivingItemFromMerc } from '../../src/sim/narrative/select
 import { dealerIdFromProfile } from '../../src/sim/strategic/economy/merchants/context.ts';
 import { dealerState } from '../../src/sim/strategic/economy/merchants/state.ts';
 import { Npc } from '../../src/sim/strategic/narrative/npc-ids.ts';
+import { handleExplosionQueue, setOffBombsInGridNo } from '../../src/sim/tactical/bombs/bomb-queue.ts';
 import { giveItemOpcode } from '../../src/sim/tactical/give.ts';
 import { NO_SLOT } from '../../src/sim/tactical/inventory.ts';
 import { stopMerc } from '../../src/sim/tactical/movement.ts';
-import { handleActionItemQueue, setOffActionItemsInGridNo } from '../../src/sim/tactical/narrative/quest-items.ts';
 import type { Soldier } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
 import { addItemToPool, removeWorldItem, Visibility, type WorldItem, WorldItemFlags } from '../../src/sim/tactical/world-items.ts';
@@ -405,10 +405,10 @@ export class GiveComparer {
     } else added.push(this.#probeBomb(t, 'ACTION_ITEM', at, merc.level, det, freq, owner, action));
     const factsBefore = Uint8Array.from(c.state.narrative.facts);
     this.#resetTalk(c);
-    setOffActionItemsInGridNo(t, merc);
-    const queued = t.actionItems.queue.length;
+    setOffBombsInGridNo(t, merc, merc.gridNo, false, merc.level);
+    const queued = t.explosionQueue.entries.length;
     const disallowBefore = t.perception.disallowSight;
-    handleActionItemQueue(t);
+    handleExplosionQueue(t);
     const problems: string[] = [];
     const compare = (key: string, ours: unknown) => {
       if (JSON.stringify(ours) !== JSON.stringify(p[key])) problems.push(`${key}: ${JSON.stringify(ours)} vs ${JSON.stringify(p[key])}`);
@@ -416,7 +416,7 @@ export class GiveComparer {
     compare('queued', queued);
     compare('disallowBefore', disallowBefore);
     compare('disallowAfter', t.perception.disallowSight);
-    compare('active', t.actionItems.active);
+    compare('active', t.explosionQueue.active);
     compare('groups', [...t.civGroups.hostility]);
     compare('inCombat', t.inCombat);
     if (t.inCombat) compare('team', t.turn.currentTeam);

@@ -73,7 +73,7 @@ the AI's throw planning, and the probe for the force cap is the same for every t
 **No fuses.** Hand and launcher grenades go off when the object comes to rest (or dies after 30 collisions or off the
 visible map), after bouncing and rolling; a mortar shell goes off at its first counted collision; an armed object in
 water goes off when its ripple reaches its key frame, without a dud test. Only an object at rest on the ground plane can
-be a dud; the dud is laid down armed, without the original's timer (gap "Duds and timed bombs").
+be a dud; a dud that passes a second roll is laid down as a timed bomb of one or two turns (`12` §6).
 
 **One barrier.** Every object in flight holds the attack busy count until it dies; an explosion raises its own hold
 before the object's is released (`12`), so the attack ends after the blast. Holds the original leaves to its watchdog
@@ -101,6 +101,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `explo
 | A big wound penalty wraps around as a signed byte, so a dying expert throws better than a wounded one | `physics.test.ts` |
 | On a map with a restricted scroll area the probe for the force cap starts off the visible map: every throw falls at the thrower's feet | `physics.test.ts` |
 | The AI's landing check passes only where the flight hits a structure or a person: open ground records no end position | `physics.test.ts` |
+| A dud's timer has no bomb item behind it (`usBombItem` aliases the grenade's empty statuses): at its end the queue takes the grenade off the map without a blast, and until then it blocks time compression | `physics.test.ts` "arms a dud …", `bombs/bomb-queue.test.ts` "takes a dud's timed bomb off the map …" |
 
 Not pinned yet:
 - A mortar's chance is 0 below 15 tiles, before the 1–99 clamp: any roll but 0 misses.
@@ -123,7 +124,6 @@ from reading the source:
 - Catches, windows broken by a thrown object and objects hitting soldiers are ported as read.
 - Caves and basements: throws as from under a roof, and a ceiling one storey up on every tile.
 
-Not ported: gaps "Duds and timed bombs".
 Other deviations of this domain: "Physics cadence and floats", "Water ripple", "Dud test operand order", "Cosmetic draws
 in attacks", "Cosmetic draws in explosions", "Bullets of unseen shooters", "Watchdogs", "Toss landing at a fallen squad
 mate".

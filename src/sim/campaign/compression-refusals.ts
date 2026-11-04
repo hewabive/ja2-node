@@ -3,6 +3,7 @@ export const COMPRESSION_REFUSALS = {
   meanwhileStarting: 'a meanwhile scene is about to start',
   dialogueQueued: 'someone has something to say',
   noUsableMercs: 'no usable mercs are left on the team',
+  activeTimedBomb: 'a timed bomb is about to go off',
   inCombat: 'combat is in progress',
   enemiesPresent: 'enemies are present in the loaded sector',
   creatureMine: 'mercs are in a creature-infested mine',

@@ -6,7 +6,8 @@
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791, the battle cry of 717);
 // @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure, GetStructureOpenSound; TileEngine/Explosion_Control.cc
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
+// @src HandleDoorTrap; TileEngine/Explosion_Control.cc PerformItemAction and HandleExplosionQueue (the klaxon,
+// @src 2026-11-04); Tactical/Handle_Items.cc (the drop impact, the rocket rifle's RG_ID sounds in HandleItem), Handle_UI.cc
 // @src UIMouseOnValidAttackLocation (RG_ID_INVALID); Laptop/Laptop.cc (power up and down).
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
@@ -293,8 +294,12 @@ export function lockOutcomeCue(book: CueBook, o: LockOutcome): Cue | null {
 
 const SIREN_LOOPS = 5;
 
+export function alarmCue(book: CueBook, gridNo: number): Cue | null {
+  return effectCue(book, 'KLAXON_ALARM', 'location', VolumeLevel.MID, gridNo, SIREN_LOOPS);
+}
+
 export function doorTrapCue(book: CueBook, trap: string, gridNo: number): Cue | null {
-  if (trap === 'siren') return effectCue(book, 'KLAXON_ALARM', 'location', VolumeLevel.MID, gridNo, SIREN_LOOPS);
+  if (trap === 'siren') return alarmCue(book, gridNo);
   if (trap === 'electric') return effectCue(book, 'DOOR_ELECTRICITY', 'location', VolumeLevel.MID, gridNo);
   return null;
 }

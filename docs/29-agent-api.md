@@ -148,7 +148,8 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
 `compressTime {mode}` and `stopTime` are the map screen's clock buttons; the player's pause is not a command, the manual
 driver is the pause. A strategic `advance` (one with a world-time field, `compressionStopped` or `mode`) starts
 compression itself and stops where the original stops it (`04` §4.2); the clock's `canCompress` and `compressRefusal`
-say beforehand whether it would start. `status.flow` names the flow (`tactical`, `strategic`, `autoresolve`, `laptop`,
+say beforehand whether it would start. A timed bomb ticking on the loaded map refuses compression (`activeTimedBomb`)
+until it goes off or the sector unloads. `status.flow` names the flow (`tactical`, `strategic`, `autoresolve`, `laptop`,
 `meanwhile`, `endgame`, `ended`); `mapScreen` and `tacticalScreen` switch between the first two like the original's
 screen toggle, and the loaded sector stays frozen on the map (deviation "Map and tactical screens"). `tacticalScreen` and
 a sector load from the map lift the clock's `pauseLocked`, and `tacticalScreen` its `paused` unless the player paused

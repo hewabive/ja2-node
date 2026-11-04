@@ -43,7 +43,7 @@ export function hasDoorTrapGoneOff(t: TacticalState, s: Soldier, door: Door): bo
   return calcTrapDetectLevel(t, s, false) < door.trapLevel;
 }
 
-function callAvailableTeamEnemiesTo(t: TacticalState, gridNo: number, team: number): void {
+export function callAvailableTeamEnemiesTo(t: TacticalState, gridNo: number, team: number): void {
   const members = teamMembers(t, team);
   if (members.length === 0) return;
   t.perception.publicNoiseGridNo[team] = gridNo;

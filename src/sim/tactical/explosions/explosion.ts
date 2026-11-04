@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Explosion_Control.cc InternalIgniteExplosion, IgniteExplosion, IgniteExplosionXY,
+// @src src/game/TileEngine/Explosion_Control.cc InternalIgniteExplosion (its sight flags only with an empty bomb queue,
+// @src 2026-11-04), IgniteExplosion, IgniteExplosionXY,
 // @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT; the
 // @src HandleBuldingDestruction call 2026-10-31),
 // @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames; the door tiles
-// @src in the same pass 2026-11-01);
+// @src in the same pass 2026-11-01; sight left off while the bomb queue runs 2026-11-04);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
 
 import { NOTHING } from '../../../content/items/items.ts';
@@ -119,8 +120,10 @@ export function internalIgniteExplosion(
 ): void {
   const explosive = itemDef(t, item)?.explosive;
   if (!explosive) return;
-  t.perception.disallowSight = true;
-  t.turn.checkSightAtEndOfAttack = true;
+  if (t.explosionQueue.entries.length === 0) {
+    t.perception.disallowSight = true;
+    t.turn.checkSightAtEndOfAttack = true;
+  }
   t.turn.attackBusyCount++;
   if (explosionCount(t) >= NUM_EXPLOSION_SLOTS) return;
   const animations = t.content.explosions.animations;
@@ -208,7 +211,7 @@ export function stepExplosions(t: TacticalState): void {
       removeAniTile(e, a);
       if (a.kind === 'explosion') {
         if (a.light) lightSpriteDestroy(t, a.light);
-        t.perception.disallowSight = false;
+        if (!t.explosionQueue.active) t.perception.disallowSight = false;
         reduceAttackBusyCount(t, a.owner, false);
       }
       return;

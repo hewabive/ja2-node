@@ -21,6 +21,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { tileIndex, tileTypeOf, typeIndex } from '../../content/world/tile-tables.ts';
 import { idiv } from '../../core/int.ts';
+import { createItem } from '../items/object.ts';
 import { assignGameOptions } from '../options.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector, getGroup } from '../strategic/forces/groups.ts';
@@ -28,6 +29,7 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
+import { Detonator, setDelay, setDetonator } from '../tactical/bombs/bomb-object.ts';
 import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/bombs/mine-flags.ts';
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
@@ -56,6 +58,7 @@ import { pickGridNoNearestEdge } from '../tactical/sector-exit.ts';
 import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, Side, SoldierClass, TEAM_FIRST_ID, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs, whoIsThere } from '../tactical/state.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
 import { bloodViews, tileChangeViews } from '../tactical/world-view.ts';
 import { lastMapRestrictedScroll } from './flow-state.ts';
 import { sectorKey } from './sector-diff.ts';
@@ -629,6 +632,19 @@ describe('a native save loaded into its sector', () => {
     const t = reenterAirfield(campaign);
     expect(knownMineTiles(t)).toEqual([HANGAR_FLOOR - 2]);
     expect(t.mineFlags.some((flags) => flags & MineFlag.ENEMY)).toBe(false);
+  });
+
+  it('refuses time compression while a timed bomb ticks and takes it off the map when the sector unloads (ActiveTimedBombExists, RemoveAllActiveTimedBombs)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    const bomb = createItem(left.content.items, itemId(left, 'C4'), 100);
+    setDetonator(bomb, Detonator.TIMED);
+    setDelay(bomb, 3);
+    addItemToPool(left, HANGAR_FLOOR, bomb, Visibility.VISIBLE, GROUND_LEVEL, WorldItemFlags.ARMED_BOMB);
+    expect(campaign.compressionRefusalToken()).toBe('activeTimedBomb');
+    const t = reenterAirfield(campaign);
+    expect(t.worldItems.filter((i) => i.object.item === itemId(t, 'C4'))).toEqual([]);
+    expect(campaign.compressionRefusalToken()).toBeNull();
   });
 
   it('keeps a door blown up open off the map, its closed graphic too, at the next entry that loads it closed: the removal of a door type takes any door off its tile (SaveLoadMap.cc:156)', () => {
