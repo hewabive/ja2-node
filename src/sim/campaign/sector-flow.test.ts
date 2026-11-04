@@ -590,6 +590,22 @@ describe('a native save loaded into its sector', () => {
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(2);
   });
 
+  it('keeps a door blown up open off the map, its closed graphic too, at the next entry that loads it closed: the removal of a door type takes any door off its tile (SaveLoadMap.cc:156)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    const [closedDoor] = structLayerAt(left, HANGAR_DOOR);
+    expect(handleDoorChangeFromGridNo(left, null, HANGAR_DOOR, { noAnimation: true })).toBe(true);
+    expect(isDoorOpenAt(left, HANGAR_DOOR)).toBe(true);
+    igniteExplosion(left, null, 0, HANGAR_DOOR, itemId(left, 'TNT'), 0);
+    runExplosivesUntilIdle(campaign.tactical ?? never());
+    const doorsAt = (t: TacticalState) => t.world.structures.at(HANGAR_DOOR).filter((s) => has(s.flags, StructureFlags.ANYDOOR));
+    const removedDoorTile = [{ kind: 'remove', gridNo: HANGAR_DOOR, level: GROUND_LEVEL, tile: closedDoor }];
+    const doorTileChanges = (t: TacticalState) => tileChangeViews(t).filter((c) => c.gridNo === HANGAR_DOOR);
+    expect([doorsAt(left), structLayerAt(left, HANGAR_DOOR), doorTileChanges(left)]).toEqual([[], [], removedDoorTile]);
+    const t = reenterAirfield(campaign);
+    expect([doorsAt(t), structLayerAt(t, HANGAR_DOOR), doorTileChanges(t)]).toEqual([[], [], removedDoorTile]);
+  });
+
   it('keeps the debris for the next entry but not a change made outside ApplyMapChangesToMapTempFile, as the wall decals an explosion takes off (Explosion_Control.cc:498)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
     landFirstSquad(campaign);

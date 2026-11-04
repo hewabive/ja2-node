@@ -108,6 +108,8 @@ structure's armour. A structure is swapped for its damaged graphic or removed.
 damaged graphic, takes the decals off its wall, replaces the walls beside it with end pieces, removes what hangs on it
 and drains the fountain (`wreckSurroundings`). Every such change is a `MapChange` (`map-changes.ts`): structure records
 where the change has a structure, tile records for the structure layer and the object layer (`addObject`) otherwise.
+A door's removal names the structure it had, open or closed, and its replay takes any door off the tile, as the
+original's removal of a door type does (`TileEngine/SaveLoadMap.cc:156`), so a door blown up open stays gone.
 The simulation keeps no tile layers: it reads a tile's structure and object layer as the map's tiles with the records
 replayed over them (`structLayerAt`, `objectLayerAt`), which is also what the view's `tileChanges` carry to the client
 (`29`). A change the original makes outside `ApplyMapChangesToMapTempFile` (the decals) is `liveOnly`: it stays for

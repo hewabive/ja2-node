@@ -6,13 +6,15 @@
 // @src AddObjectFromMapTempFileToMap; TileEngine/WorldMan.cc AddStructToTail, AddStructToHead, RemoveStruct,
 // @src IndexExistsInStructLayer (the replayed tile records, over the structure layer the landed helicopter's pieces are
 // @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
-// @src (a partner swap keeps its node's place, 2026-11-04).
+// @src (a partner swap keeps its node's place, 2026-11-04); the door removal of
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem with WorldMan.cc RemoveAllStructsOfTypeRange (2026-11-04).
 
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
+import { typeIndex } from '../../content/world/tile-tables.ts';
 import { idiv } from '../../core/int.ts';
 import { helicopterPieces } from './helicopter-pieces.ts';
 import type { TacticalState } from './state.ts';
@@ -56,6 +58,8 @@ export interface StructLayerEdit {
 
 const NO_FILE = -1;
 const GROUND_LEVEL = 0;
+const FIRST_DOOR_TYPE = 'FIRSTDOOR';
+const LAST_DOOR_TYPE = 'FOURTHDOOR';
 const NO_EDITS: readonly StructLayerEdit[] = [];
 const NO_TILES: readonly TileElement[] = [];
 const fileKeys = new WeakMap<object, Map<StructureFile, number>>();
@@ -139,6 +143,19 @@ export function mapChangeTile(t: TacticalState, c: MapChange): number | null {
   const tile = def ? (tileOfStructure(t).get(def) ?? null) : null;
   changeTiles.set(c, tile);
   return tile;
+}
+
+function isDoorTile(t: TacticalState, tile: number): boolean {
+  const tables = t.world.tables;
+  const type = (t.world.tiles ?? NO_TILES)[tile]?.type;
+  if (!tables || type === undefined) return false;
+  return type >= typeIndex(tables, FIRST_DOOR_TYPE) && type <= typeIndex(tables, LAST_DOOR_TYPE);
+}
+
+function removesAnyDoor(t: TacticalState, c: MapChange): boolean {
+  if (c.kind !== MapChangeKind.REMOVE || c.level !== GROUND_LEVEL) return false;
+  const tile = mapChangeTile(t, c);
+  return tile !== null && isDoorTile(t, tile);
 }
 
 function findRecordedBase(t: TacticalState, c: MapChange): StructureInstance | null {
@@ -239,8 +256,15 @@ export class StructLayerReplay {
   #removeStructure(c: MapChange): readonly StructLayerEdit[] {
     const tile = mapChangeTile(this.#t, c);
     if (tile === null) return NO_EDITS;
+    if (removesAnyDoor(this.#t, c)) return this.#removeAllDoors(c.gridNo);
     if (c.level === GROUND_LEVEL) this.#takeOut(c.gridNo, tile);
     return [{ kind: 'remove', tile }];
+  }
+
+  #removeAllDoors(gridNo: number): readonly StructLayerEdit[] {
+    const doors = this.#layer(gridNo).filter((tile) => isDoorTile(this.#t, tile));
+    for (const door of doors) this.#takeOut(gridNo, door);
+    return doors.map((tile): StructLayerEdit => ({ kind: 'remove', tile }));
   }
 
   #addStructure(c: MapChange): readonly StructLayerEdit[] {
@@ -358,7 +382,7 @@ function applyMapChange(t: TacticalState, c: MapChange): void {
     if (c.exitGrid) addExitGridToWorld(t, c.exitGrid);
     return;
   }
-  if (c.kind === MapChangeKind.APPEND_STRUCT_TILE || c.kind === MapChangeKind.REMOVE_STRUCT_TILE) {
+  if (c.kind === MapChangeKind.APPEND_STRUCT_TILE || c.kind === MapChangeKind.REMOVE_STRUCT_TILE || removesAnyDoor(t, c)) {
     applyStructTileChange(t, c);
     return;
   }
