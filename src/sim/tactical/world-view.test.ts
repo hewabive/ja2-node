@@ -5,7 +5,7 @@ import { loadTestContent } from '../../../tests/support/tactical.ts';
 import type { StructureDef, StructureFile } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
-import { syntheticStructure } from '../../content/world/synthetic.ts';
+import { layerWith, syntheticStructure } from '../../content/world/synthetic.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { SimEvent } from '../events.ts';
 import { BulletFlag } from './combat/bullets.ts';
@@ -13,6 +13,7 @@ import type { TacticalContent } from './content.ts';
 import { swapStructureForPartnerAndRecord } from './doors.ts';
 import { decaySmokeEffects, newSmokeEffect } from './explosions/smoke.ts';
 import { lightSpriteCreate, lightSpritePosition, lightSpritePower } from './lighting/lighting.ts';
+import { recordStructureAdded, recordStructureRemoved, structLayerAt } from './map-changes.ts';
 import { type Soldier, Team } from './soldier.ts';
 import { type BulletView, bulletViews, corpseViews, dynamicLightSprites, smokeViews, tileChangeViews } from './world-view.ts';
 
@@ -91,7 +92,7 @@ describe('the world view', () => {
     expect(sim.lightView().sprites.filter((l) => l.dynamic)).toEqual([{ template: 'L-R03.LHT', x: 80, y: 81, dynamic: true }]);
   });
 
-  it('turns recorded structure swaps into tile removals and additions', () => {
+  function windowWall() {
     const intact: StructureDef = {
       ...syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.WALL),
       number: 0,
@@ -99,18 +100,43 @@ describe('the world view', () => {
     };
     const cracked: StructureDef = { ...syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.WALL), number: 1 };
     const file: StructureFile = { structures: [intact, cracked] } as unknown as StructureFile;
-    const tile = (index: number, structure: StructureDef): TileElement =>
-      ({ index, type: 7, structure, structureFile: file }) as unknown as TileElement;
+    const tile = (index: number, structure: StructureDef | null): TileElement =>
+      ({ index, type: 7, structure, structureFile: structure ? file : null }) as unknown as TileElement;
     const sim = newCombatSim(content);
     const t = sim.state;
-    Object.assign(t.world, { tiles: [tile(0, intact), tile(1, intact), tile(2, cracked)] });
+    const structs = layerWith((g) => (g === CENTRE ? [DECAL, INTACT] : []));
+    Object.assign(t.world, {
+      tiles: [tile(0, null), tile(INTACT, intact), tile(CRACKED, cracked)],
+      level: { ...t.world.level, layers: { ...t.world.level.layers, structs } },
+    });
     const window = t.world.structures.add(CENTRE, 0, intact, undefined, file);
     if (!window) throw new Error('window not added');
+    return { t, window, cracked, file };
+  }
+
+  const DECAL = 0;
+  const INTACT = 1;
+  const CRACKED = 2;
+
+  it('turns a recorded partner swap into a removal and a swap that keeps the place of the node, as SwapStructureForPartner does', () => {
+    const { t, window } = windowWall();
     swapStructureForPartnerAndRecord(t, window);
     expect(tileChangeViews(t)).toEqual([
-      { kind: 'remove', gridNo: CENTRE, level: 0, tile: 0 },
-      { kind: 'add', gridNo: CENTRE, level: 0, tile: 2 },
+      { kind: 'remove', gridNo: CENTRE, level: 0, tile: INTACT },
+      { kind: 'swap', gridNo: CENTRE, level: 0, tile: CRACKED },
     ]);
+    expect(structLayerAt(t, CENTRE)).toEqual([DECAL, CRACKED]);
+  });
+
+  it('puts a structure added after a removal at the head of the tile, as AddStructToHead does', () => {
+    const { t, window, cracked, file } = windowWall();
+    recordStructureRemoved(t, window);
+    t.world.structures.remove(window);
+    const added = t.world.structures.add(CENTRE, 0, cracked, undefined, file);
+    if (!added) throw new Error('graphic not added');
+    recordStructureAdded(t, added);
+    expect(tileChangeViews(t).map((c) => c.kind)).toEqual(['remove', 'add']);
+    expect(structLayerAt(t, CENTRE)).toEqual([CRACKED, DECAL]);
   });
 
   const anyFirer = () => true;

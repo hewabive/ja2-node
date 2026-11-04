@@ -9,6 +9,7 @@ import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/l
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import { type TileTables, typeIndex } from '../../content/world/tile-tables.ts';
+import { loadedNoBurn } from './no-burn.ts';
 
 const NO_LAND_START = -1;
 const SHADOW_SEARCH_DIRECTIONS: readonly number[] = [
@@ -26,18 +27,6 @@ export interface LevelRenderData {
   readonly noBurn: Uint8Array;
   readonly hasStructure: Uint8Array;
   readonly hasTree: Uint8Array;
-}
-
-function noBurnStruct(structs: Uint16Array, tiles: readonly TileElement[]): number {
-  let wall = false;
-  let flag = 0;
-  for (const t of structs) {
-    const def = tiles[t]?.structure;
-    if (!def) continue;
-    if (has(def.flags, StructureFlags.WALLSTUFF)) wall = true;
-    flag = !wall && def.tiles.length === 1 ? 1 : 0;
-  }
-  return flag;
 }
 
 function firstFullLandFromHead(land: Uint16Array, tiles: readonly TileElement[]): number {
@@ -125,14 +114,11 @@ export function prepareLevelRenderData(
   underground: boolean,
 ): LevelRenderData {
   const landStart = new Int8Array(WORLD_MAX);
-  const noBurn = new Uint8Array(WORLD_MAX);
   const { hasStructure, hasTree } = structureFootprints(level, tiles);
   const inputs: ShadowInputs = { level, tiles, ...floorRange(tables), hasStructure, hasTree };
-  for (let g = 0; g < WORLD_MAX; g++) {
-    landStart[g] = firstFullLandFromHead(levelTilesAt(level.layers.land, g), tiles);
-    noBurn[g] = noBurnStruct(levelTilesAt(level.layers.structs, g), tiles);
-  }
+  for (let g = 0; g < WORLD_MAX; g++) landStart[g] = firstFullLandFromHead(levelTilesAt(level.layers.land, g), tiles);
   const shadows = packShadows((g) => shadowList(inputs, g));
+  const noBurn = loadedNoBurn(level, tiles);
   return { landStart, shadows, renderHeight: renderHeight(level, info, underground), noBurn, hasStructure, hasTree };
 }
 
@@ -142,9 +128,8 @@ export function updateLevelRenderData(
   tiles: readonly TileElement[],
   tables: TileTables,
   gridNos: ReadonlySet<number>,
+  noBurn: Uint8Array,
 ): LevelRenderData {
-  const noBurn = previous.noBurn.slice();
-  for (const g of gridNos) noBurn[g] = noBurnStruct(levelTilesAt(level.layers.structs, g), tiles);
   const inputs: ShadowInputs = { level, tiles, ...floorRange(tables), hasStructure: previous.hasStructure, hasTree: previous.hasTree };
   const shadows = packShadows((g) => (gridNos.has(g) ? shadowList(inputs, g) : levelTilesAt(previous.shadows, g)));
   return { ...previous, shadows, noBurn };

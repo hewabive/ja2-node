@@ -98,7 +98,7 @@ export function structureHeight(s: StructureInstance): number {
   return s.cachedHeight;
 }
 
-function instanceFlags(def: StructureDef, tile: StructureTile): number {
+export function instanceFlags(def: StructureDef, tile: StructureTile): number {
   let flags =
     has(def.flags, StructureFlags.SLIDINGDOOR) && def.tiles.length === 2
       ? u32((def.flags & ~StructureFlags.SLIDINGDOOR) | StructureFlags.GARAGEDOOR)

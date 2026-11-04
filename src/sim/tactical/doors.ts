@@ -13,7 +13,7 @@ import { idiv } from '../../core/int.ts';
 import type { DoorSoundKind } from '../events.ts';
 import { endDoorAnimationEarly, startDoorAnimation } from './doors/door-animation.ts';
 import { allMercsLookForDoor, doorStatusAt, perceiveDoor, setDoorStatusOpen, shownDoorOpen } from './doors/door-status.ts';
-import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
+import { recordStructureSwappedForPartner } from './map-changes.ts';
 import { checkPowPathsInAlmaPrison } from './narrative/pow-rules.ts';
 import { type Soldier, Team, Visible } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -44,8 +44,7 @@ export function swapStructureForPartnerAndRecord(t: TacticalState, s: StructureI
   const base = t.world.structures.findBase(s);
   const swapped = swapStructureForPartner(t, s);
   if (!swapped || !base) return swapped;
-  recordStructureRemoved(t, base);
-  recordStructureAdded(t, swapped);
+  recordStructureSwappedForPartner(t, base, swapped);
   return swapped;
 }
 

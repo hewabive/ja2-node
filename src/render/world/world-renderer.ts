@@ -29,6 +29,7 @@ import {
 import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
 import { type LevelRenderData, updateLevelRenderData } from './level-render-data.ts';
+import { noBurnAfterChanges } from './no-burn.ts';
 import { PartialRedrawCheck, type PartialRedrawChecks } from './partial-redraw-check.ts';
 import { pickSoldierAt, type SoldierPickable } from './picking.ts';
 import { PictureMemo, type PictureUpdate } from './picture-memo.ts';
@@ -244,7 +245,8 @@ export class WorldRenderer {
     const both = [...s.changes, ...changes];
     const touched = new Set([...both, ...s.pools, ...pools].map((c) => c.gridNo));
     const level = applyBloodPools(applyTileChanges(s.original.level, changes), s.original.tables, pools);
-    const prepared = updateLevelRenderData(s.world.prepared, level, s.original.tiles, s.original.tables, touched);
+    const noBurn = noBurnAfterChanges(s.original.prepared.noBurn, s.original.structures, s.original.tiles, changes);
+    const prepared = updateLevelRenderData(s.world.prepared, level, s.original.tiles, s.original.tables, touched, noBurn);
     const world: RenderWorld = { ...s.original, level, prepared };
     const previousReveal = s.reveal;
     s.world = world;

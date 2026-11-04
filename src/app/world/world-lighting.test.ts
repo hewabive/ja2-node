@@ -139,14 +139,13 @@ describe('client lighting on the stub village', () => {
     expect(at(new WorldLighting(world.tactical), mercSouthOfTheWall, destroyed)).toBe(passing);
   });
 
-  it('updates the level render data of patched tiles as a full preparation would', () => {
+  it('updates the shadows of patched tiles as a full preparation would', () => {
     let at = 0;
     while (levelTilesAt(world.level.layers.structs, at).length === 0) at++;
     const tile = levelTilesAt(world.level.layers.structs, at)[0] as number;
     const level = applyTileChanges(world.level, [{ kind: 'remove', gridNo: at, level: 0, tile }]);
     const full = prepareLevelRenderData(level, world.tiles, world.tables, world.map.info, world.underground);
-    const local = updateLevelRenderData(world.prepared, level, world.tiles, world.tables, new Set([at]));
-    expect(local.noBurn).toEqual(full.noBurn);
+    const local = updateLevelRenderData(world.prepared, level, world.tiles, world.tables, new Set([at]), world.prepared.noBurn);
     expect(local.shadows.offsets).toEqual(full.shadows.offsets);
     expect(local.shadows.tiles).toEqual(full.shadows.tiles);
   });

@@ -44,6 +44,7 @@ export interface MapChange {
   readonly exitGrid?: AddedExitGrid;
   readonly tile?: number;
   readonly liveOnly?: boolean;
+  readonly partnerSwap?: boolean;
 }
 
 export interface StructLayerEdit {
@@ -81,15 +82,19 @@ function levelOf(s: StructureInstance): number {
   return idiv(s.cubeOffset, PROFILE_Z_SIZE);
 }
 
-function record(t: TacticalState, kind: MapChangeKind, s: StructureInstance): void {
-  t.mapChanges.push({
+function structureRecord(t: TacticalState, kind: MapChangeKind, s: StructureInstance): MapChange {
+  return {
     kind,
     gridNo: s.gridNo,
     level: levelOf(s),
     fileKey: fileKeyOf(t, s.file),
     number: s.def.number,
     hitPoints: s.hitPoints,
-  });
+  };
+}
+
+function record(t: TacticalState, kind: MapChangeKind, s: StructureInstance): void {
+  t.mapChanges.push(structureRecord(t, kind, s));
 }
 
 export function recordStructureRemoved(t: TacticalState, base: StructureInstance): void {
@@ -98,6 +103,11 @@ export function recordStructureRemoved(t: TacticalState, base: StructureInstance
 
 export function recordStructureAdded(t: TacticalState, base: StructureInstance): void {
   record(t, MapChangeKind.ADD, base);
+}
+
+export function recordStructureSwappedForPartner(t: TacticalState, removed: StructureInstance, partner: StructureInstance): void {
+  record(t, MapChangeKind.REMOVE, removed);
+  t.mapChanges.push({ ...structureRecord(t, MapChangeKind.ADD, partner), partnerSwap: true });
 }
 
 export function recordStructureDamaged(t: TacticalState, base: StructureInstance): void {
@@ -173,9 +183,15 @@ export function sectorTempFileChanges(changes: readonly MapChange[]): MapChange[
   return changes.filter((c) => c.liveOnly !== true);
 }
 
+interface RemovedNode {
+  readonly gridNo: number;
+  readonly index: number;
+}
+
 export class StructLayerReplay {
   readonly #t: TacticalState;
   readonly #layers = new Map<number, number[]>();
+  #lastRemoved: RemovedNode | null = null;
 
   constructor(t: TacticalState) {
     this.#t = t;
@@ -185,8 +201,8 @@ export class StructLayerReplay {
     if (c.kind === MapChangeKind.ADD_OBJECT) return c.tile === undefined ? NO_EDITS : [{ kind: 'object', tile: c.tile }];
     if (c.kind === MapChangeKind.APPEND_STRUCT_TILE) return this.#appendTile(c);
     if (c.kind === MapChangeKind.REMOVE_STRUCT_TILE) return this.#removeTile(c);
-    if (c.kind === MapChangeKind.ADD) return this.#structureEdit(c, 'add');
-    if (c.kind === MapChangeKind.REMOVE) return this.#structureEdit(c, 'remove');
+    if (c.kind === MapChangeKind.ADD) return this.#addStructure(c);
+    if (c.kind === MapChangeKind.REMOVE) return this.#removeStructure(c);
     return NO_EDITS;
   }
 
@@ -208,6 +224,7 @@ export class StructLayerReplay {
     const tile = c.tile;
     if (tile === undefined || layer.includes(tile)) return NO_EDITS;
     layer.push(tile);
+    this.#lastRemoved = null;
     return [{ kind: 'append', tile }];
   }
 
@@ -217,18 +234,34 @@ export class StructLayerReplay {
     return [{ kind: 'remove', tile }];
   }
 
-  #structureEdit(c: MapChange, kind: TileChangeKind): readonly StructLayerEdit[] {
+  #removeStructure(c: MapChange): readonly StructLayerEdit[] {
     const tile = mapChangeTile(this.#t, c);
     if (tile === null) return NO_EDITS;
-    if (c.level === GROUND_LEVEL && kind === 'add') this.#layer(c.gridNo).unshift(tile);
-    else if (c.level === GROUND_LEVEL) this.#takeOut(c.gridNo, tile);
+    if (c.level === GROUND_LEVEL) this.#takeOut(c.gridNo, tile);
+    return [{ kind: 'remove', tile }];
+  }
+
+  #addStructure(c: MapChange): readonly StructLayerEdit[] {
+    const tile = mapChangeTile(this.#t, c);
+    if (tile === null) return NO_EDITS;
+    const kind: TileChangeKind = c.partnerSwap ? 'swap' : 'add';
+    if (c.level === GROUND_LEVEL) this.#layer(c.gridNo).splice(this.#insertionIndex(c.gridNo, kind), 0, tile);
+    this.#lastRemoved = null;
     return [{ kind, tile }];
+  }
+
+  #insertionIndex(gridNo: number, kind: TileChangeKind): number {
+    const removed = this.#lastRemoved;
+    return kind === 'swap' && removed?.gridNo === gridNo ? removed.index : 0;
   }
 
   #takeOut(gridNo: number, tile: number): boolean {
     const layer = this.#layer(gridNo);
     const at = layer.indexOf(tile);
-    if (at >= 0) layer.splice(at, 1);
+    if (at >= 0) {
+      layer.splice(at, 1);
+      this.#lastRemoved = { gridNo, index: at };
+    }
     return at >= 0;
   }
 }

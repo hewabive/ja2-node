@@ -41,9 +41,14 @@ describe('tile changes', () => {
   it('keeps the place of a swapped structure, adds plain additions at the head and drops removals', () => {
     const swapped = applyTileChanges(level(), [
       { kind: 'remove', gridNo: AT, level: 0, tile: WINDOW },
-      { kind: 'add', gridNo: AT, level: 0, tile: WINDOW + 1 },
+      { kind: 'swap', gridNo: AT, level: 0, tile: WINDOW + 1 },
     ]);
     expect([...levelTilesAt(swapped.layers.structs, AT)]).toEqual([WALL, WINDOW + 1, 950]);
+    const replaced = applyTileChanges(level(), [
+      { kind: 'remove', gridNo: AT, level: 0, tile: WINDOW },
+      { kind: 'add', gridNo: AT, level: 0, tile: WINDOW + 1 },
+    ]);
+    expect([...levelTilesAt(replaced.layers.structs, AT)]).toEqual([WINDOW + 1, WALL, 950]);
     const added = applyTileChanges(level(), [{ kind: 'add', gridNo: AT + 1, level: 1, tile: 77 }]);
     expect([...levelTilesAt(added.layers.onRoof, AT + 1)]).toEqual([77]);
     const removed = applyTileChanges(level(), [{ kind: 'remove', gridNo: AT, level: 1, tile: WALL }]);
@@ -77,6 +82,7 @@ describe('tile changes', () => {
     expect(applyTileChanges(l, [])).toBe(l);
     expect(tileChangesKey([{ kind: 'add', gridNo: 5, level: 0, tile: 7 }])).toBe('a5.0.7');
     expect(tileChangesKey([{ kind: 'append', gridNo: 5, level: 0, tile: 7 }])).not.toBe('a5.0.7');
+    expect(tileChangesKey([{ kind: 'swap', gridNo: 5, level: 0, tile: 7 }])).not.toBe('a5.0.7');
   });
 });
 

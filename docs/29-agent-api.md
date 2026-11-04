@@ -305,7 +305,8 @@ soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`
 are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
 light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
 (`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer, as a
-SAM terminal the Queen's reinforcements repaired, `18`; `append` at its tail, for a tile the original adds with
+SAM terminal the Queen's reinforcements repaired, `18`; `swap` in place of the tile removed just before it, a structure
+swapped for its partner such as a broken window; `append` at its tail, for a tile the original adds with
 `AddStructToTail`: the rebel hideout's trapdoor and crate, a SAM terminal repaired while its sector was not loaded,
 structures a native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's
 debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client draws them and lights

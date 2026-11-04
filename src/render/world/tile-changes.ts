@@ -13,7 +13,7 @@ import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } fro
 import { idiv } from '../../core/int.ts';
 
 export interface TileChange {
-  readonly kind: 'remove' | 'add' | 'append' | 'object';
+  readonly kind: 'remove' | 'add' | 'swap' | 'append' | 'object';
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
@@ -117,7 +117,7 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
       lastRemoved = null;
       continue;
     }
-    const inPlace = lastRemoved !== null && lastRemoved.gridNo === c.gridNo && lastRemoved.layer === layerOfLevel(c.level);
+    const inPlace = c.kind === 'swap' && lastRemoved?.gridNo === c.gridNo && lastRemoved.layer === layerOfLevel(c.level);
     const list = edits[layerOfLevel(c.level)].at(c.gridNo);
     list.splice(inPlace && lastRemoved ? lastRemoved.index : 0, 0, c.tile);
     lastRemoved = null;
@@ -133,7 +133,7 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
   };
 }
 
-const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', append: 't', object: 'o' };
+const KIND_KEYS: Readonly<Record<TileChange['kind'], string>> = { remove: 'r', add: 'a', swap: 's', append: 't', object: 'o' };
 
 export function tileChangesKey(changes: readonly TileChange[]): string {
   return changes.map((c) => `${KIND_KEYS[c.kind]}${c.gridNo}.${c.level}.${c.tile}`).join(',');

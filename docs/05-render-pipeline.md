@@ -14,7 +14,7 @@ Paths are under `src/` (`render/world/` for bare names).
 
 ```
 map load: layers, tile database, structures, surfaces   content/world/, app/world/world-loader.ts renderWorldOf
-  land start, shadow lists, render height, no-burn      level-render-data.ts
+  land start, shadow lists, render height, no-burn      level-render-data.ts, no-burn.ts
   atlas and palette rows                                world-sprites.ts, render/array-atlas.ts, render/palette-rows.ts
   StaticScene: instances per segment and row            static-scene.ts
 every frame: the view → WorldFrameInput                 app/tactical/world-presenter.ts,
@@ -32,7 +32,8 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | Module | Holds |
 |---|---|
 | `geometry.ts`, `camera.ts` | Z levels, world y, tile positions, visible rows, picking; the render centre, scroll limits and scrolling |
-| `level-render-data.ts` | What the original's loader leaves behind: the land start node, the shadow lists after `OptimizeMapForShadows`, `gsRenderHeight`, the no-burn tiles |
+| `level-render-data.ts` | What the original's loader leaves behind: the land start node, the shadow lists after `OptimizeMapForShadows`, `gsRenderHeight` |
+| `no-burn.ts` | The no-burn tiles, where a soldier sorts 2 z units nearer and is never shown through: set as the map loads and as the view's structure changes add structures |
 | `static-scene.ts` | The static layers: node filters, segments, z strips, the obscured pass |
 | `dynamic-scene.ts` | Dynamic and animated map nodes, soldiers, items, corpses, smoke, effect nodes and UI nodes, every frame |
 | `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes; structure and object changes (debris) and blood pools |
@@ -130,6 +131,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/r
 | A wireframe towards a roofed tile not yet revealed always shows; only one towards a revealed tile follows the option | `reveal.test.ts` (original data) |
 | Soldiers on roofs are drawn twice, in the struct-merc and the high-merc passes | `dynamic-scene.test.ts` |
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
+| A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |
+| As the map loads, a tile's no-burn flag sees only the wall pieces of structures loaded before it: a multi-tile wall based on a later tile does not count | `no-burn.test.ts` |
 | A corpse on a roof sorts twice its on-roof offset up | `dynamic-scene.test.ts` |
 | A corpse is drawn its height up but sorts as if it lay flat: the corpse branch picks its depth before the node's height is read | `dynamic-scene.test.ts` |
 | An item on a structure sorts at the structure z plus its height in z units, not world units | `dynamic-scene.test.ts` |

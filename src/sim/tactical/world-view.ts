@@ -48,7 +48,7 @@ export interface BloodPoolView {
   readonly creature?: boolean;
 }
 
-export type TileChangeKind = 'remove' | 'add' | 'append' | 'object';
+export type TileChangeKind = 'remove' | 'add' | 'swap' | 'append' | 'object';
 
 export interface TileChangeView {
   readonly kind: TileChangeKind;
