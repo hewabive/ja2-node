@@ -52,6 +52,8 @@ export function mercSoldier(view: PlayerView | null, m: StrategicMercView): Sold
     ...(m.keys !== undefined ? { keys: m.keys } : {}),
     ...(m.weight !== undefined ? { weight: m.weight } : {}),
     ...(m.controlled !== undefined ? { controlled: m.controlled } : {}),
+    ...(m.drunk !== undefined ? { drunk: m.drunk } : {}),
+    ...(m.adrenaline !== undefined ? { adrenaline: m.adrenaline } : {}),
   };
 }
 

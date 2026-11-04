@@ -62,6 +62,37 @@ describe('the face in the team panel', () => {
     const digits = list.items.flatMap((i) => (i.kind === 'glyphs' ? i.glyphs.map((g) => g.index) : []));
     expect(digits).toEqual([1]);
   });
+
+  it('places each right icon at its own width times its place, so the adrenaline and drink icons overlap a wider blinded one', () => {
+    const images = catalog();
+    const iconFrame = (width: number, height: number) => ({ width, height, offsetX: 0, offsetY: 0 });
+    images.set(ART.icons, {
+      kind: 'indexed',
+      frames: [...Array.from({ length: 6 }, () => iconFrame(12, 12)), iconFrame(15, 14), iconFrame(9, 15), iconFrame(10, 16)],
+      animatedFrames: 0,
+    });
+    const face = new FaceAnimator(RECORD, 0, () => 0);
+    const icons = (soldier: Partial<SoldierView>) => {
+      const list = new DrawList();
+      drawFace(
+        { list, images, art: ART, fonts: { tiny: {} as BitmapFont }, inCombat: false },
+        { id: 2, life: 60, ...soldier } as SoldierView,
+        face,
+        0,
+        0,
+        NO_OVERLAYS,
+      );
+      return list.items.flatMap((i) => (i.kind === 'image' && i.asset === ART.icons ? [[i.frame, i.x, i.y]] : []));
+    };
+    expect(icons({ blinded: true, adrenaline: 'active', drunk: 'feelingGood' })).toEqual([
+      [6, 1, 28],
+      [7, 10, 27],
+      [8, 21, 26],
+    ]);
+    expect(icons({ adrenaline: 'crash', drunk: 'hungover' })).toEqual([[8, 1, 26]]);
+    expect(icons({ adrenaline: 'active' })).toEqual([[7, 1, 27]]);
+    expect(icons({})).toEqual([]);
+  });
 });
 
 describe('the portrait flash of a merc being hit (HandleAutoFaces)', () => {

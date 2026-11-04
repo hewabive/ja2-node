@@ -11,4 +11,18 @@ describe('the AP number of a merc in combat (PrintAP)', () => {
     expect(apColour({ ...merc, stealth: true, enoughApToAttack: false })).toBe('dkred');
     expect(apColour({ ...merc, ap: -2 })).toBe('dkred');
   });
+
+  it('turns light blue under a drink, a hangover, adrenaline or its crash, ahead of the sneaking yellow but not of dark red', () => {
+    const influences: readonly Partial<SoldierView>[] = [
+      { drunk: 'feelingGood' },
+      { drunk: 'hungover' },
+      { adrenaline: 'active' },
+      { adrenaline: 'crash' },
+    ];
+    for (const influence of influences) {
+      expect(apColour({ ...merc, ...influence, stealth: true })).toBe('ltblue');
+      expect(apColour({ ...merc, ...influence, enoughApToAttack: false })).toBe('dkred');
+      expect(apColour({ ...merc, ...influence, ap: -1 })).toBe('dkred');
+    }
+  });
 });

@@ -40,6 +40,9 @@ const RADAR_ITEM_COLUMNS = 88;
 const RADAR_ITEM_ROW = 7;
 const RADAR_FLASH_MS = 210;
 const STASH_GRIDNO = 12_345;
+const PORTRAIT_ICONS = 'interface/portraiticons.sti';
+const ADRENALINE_ICON = 7;
+const DRUNK_ICON = 8;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -526,6 +529,25 @@ describe('the map screen over the stub map-screen campaign', () => {
         `${name} needs an escort to move. Place her on a squad with one.`,
       ]);
       expect(f.client.commands.at(-1)?.cmd.type).toBe('assignSquad');
+    }));
+
+  it('draws the adrenaline and drink icons on the info face, as every face with a soldier has them', () =>
+    withMap(async (f) => {
+      const info = f.screen.hook().info;
+      const drinker = (f.session.sim as CampaignSession).campaign.battle?.roster.get(info ?? -1)?.soldier;
+      if (!drinker) throw new Error('no info merc');
+      const icons = () => {
+        f.client.refresh();
+        f.t.frame();
+        return f.draw().items.flatMap((i) => (i.kind === 'image' && i.asset === PORTRAIT_ICONS ? [i.frame] : []));
+      };
+      expect(icons()).toEqual([]);
+      drinker.drugs.adrenaline.effect = 16;
+      drinker.drugs.alcohol.effect = 40;
+      expect(icons()).toEqual([ADRENALINE_ICON, DRUNK_ICON]);
+      drinker.drugs.adrenaline.effect = 0;
+      drinker.drugs.adrenaline.sideEffect = 20;
+      expect(icons()).toEqual([DRUNK_ICON]);
     }));
 
   it("keeps the level it shows while a head miner speaks: Stracciatella's switch to the surface selects the sector it shows", () =>
