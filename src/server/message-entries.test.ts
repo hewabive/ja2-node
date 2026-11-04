@@ -6,6 +6,7 @@ import { type MessageFacts, messageEntriesOf, refusalEntry } from './message-ent
 
 const NAMES: Readonly<Record<number, string>> = { 0: 'Ivan', 1: 'Fox', 20: 'Soldier', 116: 'Fatima' };
 const TEAMS: Readonly<Record<number, number>> = { 0: 0, 1: 0, 20: 1, 116: 4 };
+const ITEM_INDICES: Readonly<Record<string, number>> = { GLOCK_17: 2, WINE: 255 };
 
 const facts: MessageFacts = {
   soldierName: (id) => NAMES[id] ?? null,
@@ -13,7 +14,7 @@ const facts: MessageFacts = {
   soldierProfile: (id) => (id === 116 ? 101 : null),
   soldierVisible: (id) => id !== 20,
   profileName: (profile) => (profile === 101 ? 'Fatima' : null),
-  itemIndex: (name) => (name === 'GLOCK_17' ? 2 : null),
+  itemIndex: (name) => ITEM_INDICES[name] ?? null,
 };
 
 const at = (e: Record<string, unknown>): SimEvent => ({ tick: 40, ...e }) as unknown as SimEvent;
@@ -245,6 +246,21 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     expect(messageEntriesOf(events, facts)).toEqual([
       { tick: 40, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 39, args },
       { tick: 40, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 40, args },
+    ]);
+  });
+
+  it('prints a drink with the drinker and its short name, another drug with the merc who took it, and nothing for the rest', () => {
+    const applied = (item: string) => at({ type: 'itemApplied', soldier: 0, target: 1, item });
+    expect(messageEntriesOf([applied('WINE'), applied('REGEN_BOOSTER'), applied('CANTEEN')], facts)).toEqual([
+      {
+        tick: 40,
+        kind: 'interface',
+        colour: 145,
+        table: 'pMessageStrings',
+        index: 64,
+        args: [{ text: 'Fox' }, { item: 255, name: 'short' }],
+      },
+      { tick: 40, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 30, args: [{ text: 'Fox' }] },
     ]);
   });
 

@@ -22,7 +22,7 @@
 // @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
 // @src ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc AnyDoctorWhoCanHealThisPatient from
 // @src Tactical/Soldier_Control.cc CheckBleeding, Tactical/Squads.cc IsSquadOnCurrentTacticalMap and FIRST_SQUAD
-// @src (2026-11-01).
+// @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -122,6 +122,7 @@ export interface NarrativePort {
   cosmeticPick(choices: number): number;
   logBleedMeToos(on: boolean): void;
   signalItemLocatorStart(s: Soldier, gridNo: number): void;
+  swapLarrysProfiles(s: Soldier): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -207,4 +208,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   cosmeticPick: () => 0,
   logBleedMeToos: () => {},
   signalItemLocatorStart: () => {},
+  swapLarrysProfiles: () => {},
 };

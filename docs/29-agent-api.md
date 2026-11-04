@@ -48,9 +48,8 @@ an LLM agent without pausing is a non-goal.
 
 **Not built as commands** (the client shows them disabled): planting bombs and using wire cutters, toolkits, gas cans,
 jars and tin cans on a tile, and the x-ray detector (gap "Unbuilt item actions"; `previewAction` answers `notSupported`,
-`useRemote` refuses the detector); auto-bandage (gap
-"Auto-bandage"); the placement GUI (deviation "Tactical placement"); drugs and alcohol (`notPorted`, gap "Drugs and
-alcohol"); vehicles' condition and fuel (gap "Vehicles as characters").
+`useRemote` refuses the detector); auto-bandage (gap "Auto-bandage"); the placement GUI (deviation "Tactical
+placement"); vehicles' condition and fuel (gap "Vehicles as characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -454,6 +453,9 @@ combat and charges none; on the tactical screen an attachment or a merge onto a 
 (`useAttach`, `mergePrompt`), on the map screen the cleanup comes first and the client still picks the stack up, as
 `MAPInvClickCallbackPrimary` does. `data.left` counts the objects still in the cursor; one object taken from the clicked
 stack itself goes back on top of it, at `data.index`.
+`applyItem` is the cursor dropped on the single merc panel's portrait (`SMInvClickCamoCallback`): one object of the
+stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). Drugs and
+drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`).
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 

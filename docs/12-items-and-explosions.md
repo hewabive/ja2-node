@@ -179,19 +179,23 @@ source:
 ## 5. Drugs and alcohol
 
 **Where.** `drugs.ts` holds the drug rules and every read of a soldier's `drugs` record: one course for adrenaline and
-one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_Control.h:740`), stepped at each turn
-start of the merc (`handleEndTurnDrugAdjustments`, called where `EVENT_BeginMercTurn` calls it, with the regeneration
-booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn APs, the new APs' maximum
-and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`, `src/sim/campaign/morale.ts`),
-stealth (`perception/noise.ts`), the moving frame delay (`animation.ts`) and code 491's drunk idle
-(`random-anims.ts`). The boosters of the day drop every 6 world hours through the hourly slot
-(`src/sim/campaign/battle-flow.ts`). The profile keeps the lifetime drug count (`numTimesDrugUseInLifetime`, `prof.dat`
-byte 691), which the original writes and never reads.
+one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_Control.h:740`). `applyDrugs` starts a
+course; it is the drug application of `applyItem` (`inventory-panel.ts`), tried after the camouflage kit, the canteen
+and the elixir as `SMInvClickCamoCallback` tries them (`Tactical/Interface_Panels.cc:1459`). The course steps at each
+turn start of the merc (`handleEndTurnDrugAdjustments`, called where `EVENT_BeginMercTurn` calls it, with the
+regeneration booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn
+APs, the new APs' maximum and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`,
+`src/sim/campaign/morale.ts`), stealth (`perception/noise.ts`), the moving frame delay (`animation.ts`) and code 491's
+drunk idle (`random-anims.ts`). The boosters of the day drop every 6 world hours through the hourly slot
+(`src/sim/campaign/battle-flow.ts`). The profile keeps the lifetime adrenaline count (`numTimesDrugUseInLifetime`,
+`prof.dat` byte 691), which the original writes and never reads. A drug for sober Larry swaps his profiles first,
+through the narrative port (`swapLarrysProfiles`, the campaign's `NarrativeFlow`; nothing in the sandbox).
 
 **Design.** The courses belong to the soldier: they leave the sector with him, are saved with him and come from a
-native save, and other modules read them only through `drugs.ts`. Taking a drug is not ported yet (gaps "Drugs and
-alcohol"): until then only an imported save or a test starts a course. A course runs only where turn starts run: in the
-loaded sector, not on the map screen and not for mercs elsewhere (gaps "Absent mercs between hourly updates").
+native save, and other modules read them only through `drugs.ts`. Taking one costs no AP and needs none, as in the
+original; `count: 'all'` applies the cursor's SHIFT stack, so a booster's status is the stack's last and a beer drinks
+into the next bottle (`Tactical/Interface_Items.cc:2693`). A course runs only where turn starts run: in the loaded
+sector, not on the map screen and not for mercs elsewhere (gaps "Absent mercs between hourly updates").
 
 **What the player sees.** Our soldiers and strategic mercs carry the derived `drunk` level and `adrenaline` state
 (`drugView`), what the face's drug icons and the light blue AP number need (`Tactical/Faces.cc:837`,
@@ -203,6 +207,8 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 
 | Quirk | Test |
 |---|---|
+| The heart attack never comes: the side-effect rate it tests was just set to 0, so nine boosters at once lower no stat (`Tactical/Drugs_And_Alcohol.cc:114`, `:141`) | `drugs.test.ts` "never has the heart attack …" |
+| A bottle with less left than its drink points still gives a full drink | `drugs.test.ts` "gives a full drink from a bottle with less left …" |
 | One adrenaline dose peaks at 16, not 15: its rate of 4 overshoots the 15 to come; a drink rises 2, 4, 6, 8 | `drugs.test.ts` "peaks one adrenaline dose at 16 …", "raises a drink by 2 a turn …" |
 | One dose ends with two crash morale events: the side effect over the dose's, plus one | `drugs.test.ts` "ends one dose with two crash morale events …" |
 | Morale follows the effect only while it rises: the peak bonus stays through the wear-off until the crash's events refresh it | `drugs.test.ts` "refreshes morale only while the effect rises …" |
@@ -214,10 +220,12 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
 
 Not checked against the native build: no oracle probe sets up a course, so the order inside `EVENT_BeginMercTurn`, the
-crash's morale with attitudes, the AP clamp chain and the INT8 wraps are read from the source and unit-tested only.
+crash's morale with attitudes, the AP clamp chain, the INT8 wraps and the booster's `PreRandom` draw are read from the
+source and unit-tested only.
 
-Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Drugs and
-alcohol", "Auto-bandage", "Walking side effects" (water damage to items). Other deviations of this domain: "Object
-union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades",
-"Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock
-for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load", "Drugs in the projection".
+Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
+"Walking side effects" (water damage to items, the drunk fall), "Tactical HUD details" (the drug icons and AP colour),
+"Sound coverage" (the OK after an applied item). Other deviations of this domain: "Object union", "Item cursor", "Key
+ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
+pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic
+draws in explosions", "Wall decals after a load", "Drugs in the projection".

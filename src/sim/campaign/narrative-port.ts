@@ -13,7 +13,8 @@
 // @src guiCurrentScreen for RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner
 // @src from Tactical/Overhead.cc ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc
 // @src AnyDoctorWhoCanHealThisPatient with HEALABLE_EVER from Tactical/Soldier_Control.cc CheckBleeding (2026-11-01);
-// @src Tactical/Squads.cc IsSquadOnCurrentTacticalMap (2026-11-01).
+// @src Tactical/Squads.cc IsSquadOnCurrentTacticalMap (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from
+// @src Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04).
 
 import { i8, idiv } from '../../core/int.ts';
 import { deleteTalkingMenu } from '../narrative/converse.ts';
@@ -166,7 +167,13 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
       if (env) env.setSoldierNeutral(soldier);
       else soldier.neutral = true;
     },
+    swapLarrysProfiles: (soldier) => swapLarrysProfiles(campaign, soldier),
   };
+}
+
+function swapLarrysProfiles(campaign: CampaignSim, soldier: Soldier): void {
+  const merc = campaign.battle?.roster.get(soldier.id);
+  if (merc?.soldier === soldier) campaign.narrative.swapLarrysProfiles(merc);
 }
 
 const SECONDS_PER_MINUTE = 60;

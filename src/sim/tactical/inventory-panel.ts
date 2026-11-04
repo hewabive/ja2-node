@@ -8,7 +8,8 @@
 // @src HandleUIReloading; Points.cc GetAPsToAutoReload; Items.cc RemoveObjectFromSlot, ApplyCamo, ApplyCanteen,
 // @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box);
 // @src Interface_Items.cc RemoveMoney, BtnMoneyButtonCallback* (the money box splits money off a pocket into the cursor,
-// @src then the drop places it: one command).
+// @src then the drop places it: one command); Interface_Items.cc BeginItemPointer (SHIFT takes the stack onto the
+// @src portrait too) and Drugs_And_Alcohol.cc ApplyDrugs from SMInvClickCamoCallback (2026-11-04).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -29,6 +30,7 @@ import { totalPoints, useKitPoints } from '../strategic/economy/kits.ts';
 import type { CombatContext } from './combat/context.ts';
 import { findAmmoToReload, isValidSecondHandShotForReloading } from './combat/reload.ts';
 import { CONSCIOUSNESS } from './combat/types.ts';
+import { applyDrugs, drugTypeOf } from './drugs.ts';
 import { reloadSoldierAnimationDueToHandItemChange, swapHandItems } from './hand-item.ts';
 import {
   AP_RELOAD_GUN,
@@ -111,7 +113,6 @@ export const PanelRefusal = {
   ROBOT: 'robot',
   UNCONSCIOUS_TARGET: 'unconsciousTarget',
   CANNOT_APPLY: 'cannotApply',
-  NOT_PORTED: 'notPorted',
   NOT_MONEY: 'notMoney',
   NOT_ENOUGH_MONEY: 'notEnoughMoney',
 } as const;
@@ -136,7 +137,6 @@ const NAILS_VEST_REFUSAL_EXEMPT = [
 const ATTACH_SLOTS: readonly number[] = [InvSlot.HAND, InvSlot.SECOND_HAND, InvSlot.HELMET, InvSlot.VEST, InvSlot.LEGS];
 const TRANSFER_CHECK_APS = 3;
 const TRANSFER_CHARGE_APS = 2;
-const DRUG_ITEMS = ['ADRENALINE_BOOSTER', 'REGEN_BOOSTER', 'SYRINGE_3', 'SYRINGE_4', 'SYRINGE_5', 'ALCOHOL', 'WINE', 'BEER'];
 const FULL_CAMO = 100;
 const CANTEEN_POINTS_PER_DRINK = 20;
 const MAX_HUMAN_CREATURE_SMELL = 9;
@@ -534,13 +534,13 @@ export function swapHands(env: PanelEnv, t: TacticalState | null, s: Soldier): P
 type ApplyCheck = 'applies' | 'noAPs' | 'notThis';
 
 interface MercApplication {
-  readonly item: string;
+  appliesTo(itemName: string): boolean;
   check(env: PanelEnv, target: Soldier, o: ItemObject): ApplyCheck;
   apply(env: PanelEnv, target: Soldier, o: ItemObject): void;
 }
 
 const CAMO: MercApplication = {
-  item: 'CAMOUFLAGEKIT',
+  appliesTo: (itemName) => itemName === 'CAMOUFLAGEKIT',
   check: (env, target, o) => {
     if (!enoughPoints(env.inCombat, target, AP.CAMOFLAGE)) return 'noAPs';
     return totalPoints(o) === 0 || target.camo === FULL_CAMO ? 'notThis' : 'applies';
@@ -554,7 +554,7 @@ const CAMO: MercApplication = {
 };
 
 const CANTEEN: MercApplication = {
-  item: 'CANTEEN',
+  appliesTo: (itemName) => itemName === 'CANTEEN',
   check: (env, target, o) => {
     if (totalPoints(o) === 0) return 'notThis';
     const collapsedFromBreathAlone = target.collapsed && target.life >= OKLIFE && target.sleepDrugCounter === 0;
@@ -568,7 +568,7 @@ const CANTEEN: MercApplication = {
 };
 
 const ELIXIR: MercApplication = {
-  item: 'JAR_ELIXIR',
+  appliesTo: (itemName) => itemName === 'JAR_ELIXIR',
   check: (env, target, o) => {
     if (totalPoints(o) === 0) return 'notThis';
     return enoughPoints(env.inCombat, target, AP.CAMOFLAGE) ? 'applies' : 'noAPs';
@@ -581,21 +581,38 @@ const ELIXIR: MercApplication = {
   },
 };
 
-const MERC_APPLICATIONS: readonly MercApplication[] = [CAMO, CANTEEN, ELIXIR];
+const DRUGS: MercApplication = {
+  appliesTo: (itemName) => drugTypeOf(itemName) !== null,
+  check: () => 'applies',
+  apply: (env, target, o) => {
+    applyDrugs(env.combat, target, o);
+  },
+};
 
-export function applyItem(env: PanelEnv, user: Soldier, slot: number, target: Soldier): PanelOutcome {
+const MERC_APPLICATIONS: readonly MercApplication[] = [CAMO, CANTEEN, ELIXIR, DRUGS];
+
+export interface ApplyRequest {
+  readonly user: Soldier;
+  readonly slot: number;
+  readonly target: Soldier;
+  readonly count: Count;
+  readonly index: number;
+}
+
+export function applyItem(env: PanelEnv, req: ApplyRequest): PanelOutcome {
+  const { user, slot, target } = req;
   const source = user.inv[slot] as ItemObject;
   if (source.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
   if (target.life < CONSCIOUSNESS) return refuse(PanelRefusal.UNCONSCIOUS_TARGET);
   const item = source.item;
   const itemName = name(env.items, item);
-  const application = MERC_APPLICATIONS.find((a) => a.item === itemName);
-  if (!application) return refuse(DRUG_ITEMS.includes(itemName) ? PanelRefusal.NOT_PORTED : PanelRefusal.CANNOT_APPLY);
-  const preview = takeObjects(env.items, cloneObject(source), 1, 0) as ItemObject;
+  const application = MERC_APPLICATIONS.find((a) => a.appliesTo(itemName));
+  if (!application) return refuse(PanelRefusal.CANNOT_APPLY);
+  const preview = takeObjects(env.items, cloneObject(source), req.count, req.index) as ItemObject;
   const check = application.check(env, target, preview);
   if (check === 'noAPs') return refuse(PanelRefusal.NOT_ENOUGH_AP);
   if (check === 'notThis') return refuse(PanelRefusal.CANNOT_APPLY);
-  const cursor = takeObjects(env.items, source, 1, 0) as ItemObject;
+  const cursor = takeObjects(env.items, source, req.count, req.index) as ItemObject;
   env.equipmentChanged(user, slot, item, NOTHING);
   application.apply(env, target, cursor);
   cancelCursor(env, user, slot, cursor);

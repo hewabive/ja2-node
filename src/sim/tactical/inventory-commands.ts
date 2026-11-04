@@ -125,7 +125,6 @@ export const INVENTORY_REFUSAL_TEXT: Readonly<Record<InventoryRefusal, string>> 
   robot: 'the robot cannot do that',
   unconsciousTarget: 'the target is unconscious',
   cannotApply: 'that item cannot be applied',
-  notPorted: 'drugs and alcohol are not simulated yet',
   notMoney: 'that slot holds no money',
   notEnoughMoney: 'there is not that much money',
   badAmount: 'amount must be a positive whole number of dollars',
@@ -317,9 +316,13 @@ function reloadCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
 function applyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const slot = parseSlot(cmd.slot);
   if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+  const count = parseCount(cmd.count, 1);
+  if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
+  const index = stackIndex(cmd.index, s.inv[slot]);
+  if (typeof index === 'string') return refusal(index);
   const target = panelTarget(t, s, cmd.target);
   if (typeof target === 'string') return refusal(target);
-  return outcomeResult(applyItem(tacticalPanelEnv(t), s, slot, target));
+  return outcomeResult(applyItem(tacticalPanelEnv(t), { user: s, slot, target, count, index }));
 }
 
 export function moneyAmount(value: unknown): number | null {

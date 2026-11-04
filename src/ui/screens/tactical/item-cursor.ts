@@ -184,7 +184,14 @@ export function cursorAfterCombine(cursor: ItemCursor, data: unknown): ItemCurso
 export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
   const s = cursor.source;
   if (s.kind !== 'slot') return null;
-  return { type: 'applyItem', soldier: s.soldier, slot: s.slot, ...(target !== s.soldier ? { target } : {}) };
+  return {
+    type: 'applyItem',
+    soldier: s.soldier,
+    slot: s.slot,
+    ...(s.count === 'all' ? { count: s.count } : {}),
+    ...(s.count === 1 && s.index !== 0 ? { index: s.index } : {}),
+    ...(target !== s.soldier ? { target } : {}),
+  };
 }
 
 export interface PocketFields {

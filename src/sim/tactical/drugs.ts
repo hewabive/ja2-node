@@ -1,18 +1,24 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Drugs_And_Alcohol.cc the drug tables, giDrunkModifier, HandleEndTurnDrugAdjustments,
-// @src GetDrugEffect, HandleAPEffectDueToDrugs, HandleBPEffectDueToDrugs, GetDrunkLevel, EffectStatForBeingDrunk,
-// @src MercUnderTheInfluence; Drugs_And_Alcohol.h; SkillCheck.cc EffectiveLeadership, EffectiveExpLevel (the drink);
-// @src Morale.cc RefreshSoldierMorale (DRUG_EFFECT_MORALE_MOD, ALCOHOL_EFFECT_MORALE_MOD); Strategic/Hourly_Update.cc
-// @src UpdateRegenCounters
+// @src src/game/Tactical/Drugs_And_Alcohol.cc the drug tables, giDrunkModifier, GetDrugType, ApplyDrugs,
+// @src HandleEndTurnDrugAdjustments, GetDrugEffect, HandleAPEffectDueToDrugs, HandleBPEffectDueToDrugs, GetDrunkLevel,
+// @src EffectStatForBeingDrunk, MercUnderTheInfluence; Drugs_And_Alcohol.h; SkillCheck.cc EffectiveLeadership,
+// @src EffectiveExpLevel (the drink); Morale.cc RefreshSoldierMorale (DRUG_EFFECT_MORALE_MOD, ALCOHOL_EFFECT_MORALE_MOD);
+// @src Strategic/Hourly_Update.cc UpdateRegenCounters
 
-import { i8, i16, idiv, u8 } from '../../core/int.ts';
+import { i8, i16, idiv, u8, u32 } from '../../core/int.ts';
+import { type ItemObject, removeObjectAt } from '../items/object.ts';
+import { useKitPoints } from '../strategic/economy/kits.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
+import type { CombatContext } from './combat/context.ts';
 import { handleMoraleEvent, MoraleEvent, refreshSoldierMorale } from './combat/morale.ts';
 import { AP_LIMITS } from './points.ts';
-import { type DrugCourse, type DrugCourses, noDrugCourse, type Soldier } from './soldier.ts';
+import { profileProgress } from './profiles.ts';
+import { type DrugCourse, type DrugCourses, NO_PROFILE, noDrugCourse, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export type DrugKind = keyof DrugCourses;
+export type DrugType = DrugKind | 'regeneration';
 
 interface DrugRules {
   readonly travelRate: number;
@@ -63,6 +69,25 @@ const DRUNK_EXP_LEVEL_CHANGE: Readonly<Record<DrunkLevel, number>> = {
   [DrunkLevel.HUNGOVER]: 0,
 };
 
+const DRUG_TYPES: ReadonlyMap<string, DrugType> = new Map([
+  ['ADRENALINE_BOOSTER', 'adrenaline'],
+  ['REGEN_BOOSTER', 'regeneration'],
+  ['ALCOHOL', 'alcohol'],
+  ['WINE', 'alcohol'],
+  ['BEER', 'alcohol'],
+]);
+
+const DRINK_KIT_POINTS: ReadonlyMap<string, number> = new Map([
+  ['ALCOHOL', 10],
+  ['WINE', 20],
+  ['BEER', 100],
+]);
+
+const DRUG_COUNTER_CAP = 127;
+const MAX_LIFETIME_DRUG_USES = 255;
+const REGEN_POINTS_PER_BOOSTER = 4;
+const FULL_BOOSTER_STATUS = 100;
+const BOOSTER_STATUS_PER_REGEN_POINT = idiv(FULL_BOOSTER_STATUS, REGEN_POINTS_PER_BOOSTER);
 const FEELING_GOOD_LEADERSHIP_PERCENT = 120;
 const FEELING_GOOD_MAX_DRINKS = 3;
 const BORDERLINE_MAX_DRINKS = 4;
@@ -70,6 +95,67 @@ const HANGOVER_AP_REDUCE = 5;
 const HANGOVER_BP_REDUCE = 200;
 const BP_RATIO_RED_PTS_TO_NORMAL = 100;
 const LIFE_GAIN_PER_REGEN_POINT = 10;
+
+export function drugTypeOf(itemName: string): DrugType | null {
+  return DRUG_TYPES.get(itemName) ?? null;
+}
+
+function larryTakesADrug(c: CombatContext, s: Soldier): void {
+  if (s.profile === Npc.LARRY_NORMAL) {
+    c.narrative?.swapLarrysProfiles(s);
+    return;
+  }
+  if (s.profile !== Npc.LARRY_DRUNK) return;
+  const drunk = profileProgress(c, Npc.LARRY_DRUNK);
+  if (drunk) drunk.npcData = 0;
+}
+
+function countLifetimeDrugUse(c: CombatContext, s: Soldier): void {
+  const p = s.profile === NO_PROFILE ? null : profileProgress(c, s.profile);
+  if (p && p.numTimesDrugUseInLifetime !== MAX_LIFETIME_DRUG_USES) p.numTimesDrugUseInLifetime++;
+}
+
+function addBelowCap(counter: number, amount: number): number {
+  return counter + amount < DRUG_COUNTER_CAP ? i8(counter + amount) : counter;
+}
+
+function takeComplexDrug(c: CombatContext, s: Soldier, o: ItemObject, kind: DrugKind, itemName: string): void {
+  const course = s.drugs[kind];
+  const rules = DRUG_RULES[kind];
+  course.future = addBelowCap(course.future, rules.effect);
+  course.rate = rules.travelRate;
+  if (kind === 'adrenaline') countLifetimeDrugUse(c, s);
+  course.sideEffect = addBelowCap(course.sideEffect, rules.sideEffect);
+  course.sideEffectRate = 0;
+  if (kind === 'alcohol') useKitPoints(o, DRINK_KIT_POINTS.get(itemName) ?? 0);
+  else removeObjectAt(o, o.count - 1);
+}
+
+function regenPointsOfBooster(c: CombatContext, status: number): number {
+  let points = i8(idiv(REGEN_POINTS_PER_BOOSTER * status, FULL_BOOSTER_STATUS));
+  const fraction = status % BOOSTER_STATUS_PER_REGEN_POINT;
+  if (fraction !== 0 && c.pre.int(BOOSTER_STATUS_PER_REGEN_POINT) < u32(fraction)) points++;
+  return points;
+}
+
+function takeRegenBooster(c: CombatContext, s: Soldier, o: ItemObject): void {
+  const last = o.count - 1;
+  const status = o.status[last] ?? 0;
+  removeObjectAt(o, last);
+  const points = i8(regenPointsOfBooster(c, status) - s.regenBoostersUsedToday);
+  if (points > 0) s.regenerationCounter = Math.min(s.regenerationCounter + points, REGEN_POINTS_PER_BOOSTER);
+  s.regenBoostersUsedToday = i8(s.regenBoostersUsedToday + 1);
+}
+
+export function applyDrugs(c: CombatContext, s: Soldier, o: ItemObject): boolean {
+  const itemName = c.content.items.byIndex.get(o.item)?.name ?? '';
+  const type = drugTypeOf(itemName);
+  if (type === null) return false;
+  larryTakesADrug(c, s);
+  if (type === 'regeneration') takeRegenBooster(c, s, o);
+  else takeComplexDrug(c, s, o, type, itemName);
+  return true;
+}
 
 export function adrenalineEffect(s: Soldier): number {
   return s.drugs.adrenaline.effect;

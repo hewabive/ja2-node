@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../protocol/view.ts';
 import {
+  applyCommand,
   combineCommand,
   cursorAfterCombine,
   cursorFromSlot,
@@ -15,6 +16,7 @@ const OUR_TEAM = 0;
 const ROBOT_BODY = 21;
 const SMALL_POCKET = 11;
 const CLIP_INDEX = 71;
+const BOOSTER_INDEX = 235;
 const BESIDE = 1201;
 const FAR_TILE = 1210;
 
@@ -59,6 +61,21 @@ describe('the commands of the item cursor dropped on the map (HandleItemPointerC
     expect(dropCommand(cursor, BESIDE)).toEqual({ type: 'drop', soldier: 0, slot: SMALL_POCKET, gridNo: BESIDE });
     expect(tossCommand(cursor, FAR_TILE, 1)).toEqual({ type: 'toss', soldier: 0, slot: SMALL_POCKET, gridNo: FAR_TILE, level: 1 });
     expect(passCommand(cursor, 3)).toEqual({ type: 'pass', soldier: 0, slot: SMALL_POCKET, target: 3 });
+  });
+});
+
+describe('the item cursor dropped on the portrait (SMInvClickCamoCallback)', () => {
+  const boosters = { slot: SMALL_POCKET, item: 'REGEN_BOOSTER', index: BOOSTER_INDEX, count: 3, status: [100, 60, 30] };
+  const merc = view(0, OUR_TEAM, { inventory: [boosters] });
+
+  it('applies one object by default, the SHIFT stack with count all and an object picked from the stack by its index', () => {
+    const one = cursorFromSlot(merc, SMALL_POCKET, false);
+    const stack = cursorFromSlot(merc, SMALL_POCKET, true);
+    const picked = cursorFromSlot(merc, SMALL_POCKET, false, 2);
+    if (!one || !stack || !picked) throw new Error('no cursor');
+    expect(applyCommand(one, 0)).toEqual({ type: 'applyItem', soldier: 0, slot: SMALL_POCKET });
+    expect(applyCommand(stack, 3)).toEqual({ type: 'applyItem', soldier: 0, slot: SMALL_POCKET, count: 'all', target: 3 });
+    expect(applyCommand(picked, 0)).toEqual({ type: 'applyItem', soldier: 0, slot: SMALL_POCKET, index: 2 });
   });
 });
 

@@ -108,6 +108,10 @@ const HOSPITAL: SectorPosition = { x: 8, y: 6, z: 0 };
 const CONRAD_SECTOR: SectorPosition = { x: 13, y: 8, z: 0 };
 const KINGPIN_MONEY_SECTOR: SectorPosition = { x: 5, y: 4, z: 1 };
 const NPC_ACTION_FREE_KIDS = 117;
+const LARRY_SWAPS: ReadonlyMap<number, number> = new Map([
+  [Npc.LARRY_NORMAL, Npc.LARRY_DRUNK],
+  [Npc.LARRY_DRUNK, Npc.LARRY_NORMAL],
+]);
 
 export interface NarrativeSlots {
   dialogueDesireToTalk(npc: number, merc: number, approach: number): number;
@@ -519,17 +523,17 @@ export class NarrativeFlow {
       },
       normalProfile: () => this.profile(Npc.LARRY_NORMAL),
       random: (n) => s.rng.int(n),
-      swapProfiles: () => this.#swapLarrysProfiles(),
+      swapProfiles: () => this.swapLarrysProfiles(this.#larryMerc()),
       onDutyAssignment: Assignment.ON_DUTY,
     };
   }
 
-  #swapLarrysProfiles(): void {
-    const m = this.#larryMerc();
+  swapLarrysProfiles(m: RosterMerc | null): void {
     const content = this.content();
     if (!m || !content) return;
     const fromId = m.profile;
-    const toId = fromId === Npc.LARRY_NORMAL ? Npc.LARRY_DRUNK : Npc.LARRY_NORMAL;
+    const toId = LARRY_SWAPS.get(fromId);
+    if (toId === undefined) return;
     const from = this.profile(fromId);
     const to = this.profile(toId);
     const record = content.profiles[toId] ?? null;

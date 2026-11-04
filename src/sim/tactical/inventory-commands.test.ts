@@ -385,18 +385,53 @@ describe('items applied to a merc and dropped', () => {
     expect(merc.inv[InvSlot.BIGPOCK1]?.status[0]).toBe(80);
   });
 
-  it('paints camouflage and refuses drugs', () => {
+  it('paints camouflage', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('CAMOUFLAGEKIT'), 100);
-    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('ADRENALINE_BOOSTER'), 100);
     expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({ ok: true });
     expect(merc.camo).toBe(100);
     expect(merc.inv[InvSlot.BIGPOCK1]?.status[0]).toBe(50);
-    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2' })).toMatchObject({
-      ok: false,
-      data: { refusal: 'notPorted' },
+  });
+
+  it('gives another merc a booster from the pocket for no AP in combat, and refuses a syringe as no drug', () => {
+    const sim = newCombatSim(content);
+    const medic = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const patient = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 81), Direction.NORTH);
+    medic.inv[InvSlot.BIGPOCK1] = createItems(content.items, item('ADRENALINE_BOOSTER'), 100, 2);
+    medic.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('SYRINGE_3'), 100);
+    inCombat(sim);
+    patient.actionPoints = 0;
+    const ap = medic.actionPoints;
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1', target: 1 })).toMatchObject({
+      ok: true,
+      data: { item: 'ADRENALINE_BOOSTER' },
     });
+    expect([medic.actionPoints, patient.actionPoints, medic.inv[InvSlot.BIGPOCK1]?.count]).toEqual([ap, 0, 1]);
+    expect(patient.drugs.adrenaline).toMatchObject({ future: 15, sideEffect: 20 });
+    expect(sim.drainEvents().filter((e) => e.type === 'itemApplied')).toMatchObject([
+      { soldier: 0, target: 1, item: 'ADRENALINE_BOOSTER' },
+    ]);
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2', target: 1 })).toMatchObject({
+      ok: false,
+      data: { refusal: 'cannotApply' },
+    });
+  });
+
+  it('applies the whole stack with count all, as SHIFT takes it into the cursor, and one object of it by index', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.BIGPOCK1] = createItems(content.items, item('CAMOUFLAGEKIT'), 30, 2);
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1', count: 'all' })).toMatchObject({ ok: true });
+    expect([merc.camo, merc.inv[InvSlot.BIGPOCK1]?.count, merc.inv[InvSlot.BIGPOCK1]?.status[0]]).toEqual([100, 1, 10]);
+    merc.inv[InvSlot.BIGPOCK2] = createItems(content.items, item('REGEN_BOOSTER'), 100, 2);
+    const boosters = merc.inv[InvSlot.BIGPOCK2];
+    if (boosters) boosters.status[1] = 50;
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2', index: 1 })).toMatchObject({ ok: true });
+    expect([merc.regenerationCounter, merc.inv[InvSlot.BIGPOCK2]?.count, merc.inv[InvSlot.BIGPOCK2]?.status[0]]).toEqual([2, 1, 100]);
+    const refusal = (fields: Record<string, unknown>) =>
+      (sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2', ...fields }) as { data?: { refusal?: string } }).data?.refusal;
+    expect([refusal({ count: 2 }), refusal({ index: 1 })]).toEqual(['badCount', 'badIndex']);
   });
 
   it('drops one magazine of a stack at the feet', () => {

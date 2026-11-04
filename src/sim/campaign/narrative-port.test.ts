@@ -13,6 +13,7 @@ import { Assignment, LoyaltyEvent, Town } from '../strategic/economy/constants.t
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { putMercInAsleepState } from '../strategic/economy/rest.ts';
 import { civGroupHostility } from '../strategic/narrative/civ-groups.ts';
+import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { calcManThreatValue } from '../tactical/ai/morale.ts';
 import { animName } from '../tactical/anim-states.ts';
@@ -211,6 +212,45 @@ describe('a doctor for a bleeding patient as tactical asks it of the campaign (N
     takeKits();
     nextRealtimeTurn();
     expect(patient().life).toBe(PATIENT_LIFE - 1);
+  });
+});
+
+describe('a drug for Larry in tactical swaps his profiles first (NarrativePort.swapLarrysProfiles from ApplyDrugs)', () => {
+  const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
+  const SOBER_DEXTERITY = 80;
+  const DRUNK_DEXTERITY = 55;
+  const KILLS = 6;
+
+  it('puts sober Larry on his drunk profile and its stats, sets FACT_LARRY_CHANGED and counts the dose there', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 39, mercs: 1, garrison: NO_GARRISON });
+    landFirstSquad(c);
+    advance(c, { idle: true }, 20_000);
+    const larry = roster.all()[0];
+    const items = c.tactical?.state.content.items;
+    const booster = items?.byName.get('ADRENALINE_BOOSTER')?.index;
+    if (!larry || !items || booster === undefined) throw new Error('A9 with our merc');
+    const sober = testProfile(Npc.LARRY_NORMAL, { kills: KILLS });
+    sober.stats.dexterity = SOBER_DEXTERITY;
+    const drunk = testProfile(Npc.LARRY_DRUNK);
+    drunk.stats.dexterity = DRUNK_DEXTERITY;
+    c.state.profiles.set(sober.id, sober);
+    c.state.profiles.set(drunk.id, drunk);
+    larry.soldier.profile = Npc.LARRY_NORMAL;
+    larry.soldier.inv[InvSlot.BIGPOCK2] = createItem(items, booster, 100);
+    expect(c.dispatch({ type: 'applyItem', soldier: larry.id, slot: 'bigPocket2' })).toMatchObject({ ok: true });
+    const swapped = rosterMerc(roster, larry.id).soldier;
+    const drunkRecord = c.state.profiles.get(Npc.LARRY_DRUNK);
+    expect([swapped.profile, swapped.stats.dexterity, c.narrative.checkFact(Fact.LARRY_CHANGED, 0)]).toEqual([
+      Npc.LARRY_DRUNK,
+      DRUNK_DEXTERITY,
+      true,
+    ]);
+    expect([
+      drunkRecord?.kills,
+      drunkRecord?.numTimesDrugUseInLifetime,
+      c.state.profiles.get(Npc.LARRY_NORMAL)?.numTimesDrugUseInLifetime,
+    ]).toEqual([KILLS, 1, 0]);
+    expect(swapped.drugs.adrenaline).toMatchObject({ future: 15, sideEffect: 20 });
   });
 });
 

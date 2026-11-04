@@ -14,12 +14,14 @@
 // @src showGearEquipMessage, showGearRemoveMessage (NS_SOLDIER_EQUIPS_ITEM, NS_SOLDIER_REMOVES_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box;
 // @src Interface_Items.cc IsValidAmmoToReloadRobot names the robot gun's calibre (2026-11-01); Soldier_Tile.cc
 // @src CanExchangePlaces names the NPC who refuses to move; Interface_Items.cc HandleItemPointerClick
-// @src (MSG_ITEM_PASSED_TO_MERC, MSG_NO_ROOM_TO_PASS_ITEM with the item's short name and the catcher, 2026-11-03).
+// @src (MSG_ITEM_PASSED_TO_MERC, MSG_NO_ROOM_TO_PASS_ITEM with the item's short name and the catcher, 2026-11-03);
+// @src Drugs_And_Alcohol.cc ApplyDrugs (MSG_DRANK_SOME with the drink's short name, MSG_MERC_TOOK_DRUG, 2026-11-04).
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { drugTypeOf } from '../sim/tactical/drugs.ts';
 import { refusalMessage } from './text-keys.ts';
 
 export interface MessageFacts {
@@ -77,10 +79,12 @@ const ABORT_LINES: Readonly<Record<string, number>> = {
 const SQUAD_ON_STEALTH = 44;
 const SQUAD_OFF_STEALTH = 45;
 const MERC_CAUGHT_ITEM = 29;
+const MERC_TOOK_DRUG = 30;
 const ITEM_PASSED_TO_MERC = 39;
 const NO_ROOM_TO_PASS_ITEM = 40;
 const MERC_ON_STEALTH = 46;
 const MERC_OFF_STEALTH = 47;
+const DRANK_SOME = 64;
 const MUTE_OFF = 64;
 const MUTE_ON = 65;
 const NO_PATH_FOR_MERC = 130;
@@ -193,6 +197,15 @@ function npcMessage(e: EventOf<'npcMessage'>, facts: MessageFacts): Omit<Message
   }
 }
 
+function drugTaken(e: EventOf<'itemApplied'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
+  const type = drugTypeOf(e.item);
+  if (type === null) return [];
+  const name = text(facts.soldierName(e.target));
+  if (type !== 'alcohol') return [line('pMessageStrings', MERC_TOOK_DRUG, [name])];
+  const item = facts.itemIndex(e.item);
+  return item === null ? [] : [line('pMessageStrings', DRANK_SOME, [name, { item, name: 'short' }])];
+}
+
 function groupArrived(e: EventOf<'groupArrived'>, facts: MessageFacts): Omit<MessageEntry, 'tick'>[] {
   if (!e.final || e.sector.includes('-')) return [];
   const who =
@@ -288,6 +301,7 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   itemCaught: (e, facts) => [
     line('pMessageStrings', MERC_CAUGHT_ITEM, [text(facts.soldierName(e.soldier)), { item: e.item, name: 'short' }]),
   ],
+  itemApplied: drugTaken,
   itemPassed: (e, facts) => [
     line('pMessageStrings', ITEM_PASSED_TO_MERC, [{ item: e.item, name: 'short' }, text(facts.soldierName(e.target))]),
   ],
