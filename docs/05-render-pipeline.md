@@ -97,9 +97,10 @@ scales the canvas by the integer UI scale (`28`). Dither parity, picking and the
 tiles. The scroll rectangle comes from the map's scroll restriction (`render-bounds.ts`, shared with the simulation
 and the radar), and a map smaller than the view is centred. Picking is the exact inverse of the flat projection and
 ignores tile heights and the render height, as the original's does: at the roof level the 50 px shift puts every roof
-where the flat projection picks its tile. A soldier is picked as `FindSoldier` picks him, by the rectangle of his drawn
-frame at the current camera (`ui/screens/tactical/input/targets.ts`), so a scroll or a centring moves it before the
-next frame is drawn; `picking.ts`'s pixel pick serves the developer pages.
+where the flat projection picks its tile. A soldier is picked as `FindSoldier` picks him, by his bounding box (the frame
+his animation started with or his last turn showed, `app/world/soldier-bounding-boxes.ts`) at the current camera
+(`ui/screens/tactical/input/targets.ts`), so a scroll or a centring moves it before the next frame is drawn;
+`picking.ts`'s pixel pick serves the developer pages.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`; the client applies the original's
 node flags and recomputes the wireframes of the whole map (`reveal.ts`). Structure changes, blood pools, corpses, smoke,

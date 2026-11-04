@@ -3,8 +3,9 @@
 // @src src/game/Tactical/Soldier_Find.h SoldierFindFlags; Soldier_Find.cc GetSoldierFindFlags, IsValidTargetMerc,
 // @src FindRelativeSoldierPosition (head above 20 %, the middle down to 60 % standing or 70 % crouched, the feet below),
 // @src FindSoldier with FINDSOLDIERSAMELEVEL (the soldiers on the interface level whose screen rectangle, edges
-// @src included, holds the pointer or who stand on its tile, a vehicle only by his picture, the one whose rectangle
-// @src reaches lowest on screen, the first of a tie); TileEngine/Isometric_Utils.cc IsPointInScreenRect;
+// @src included, holds the pointer or who stand on its tile, the selected merc passed over in the action modes unless
+// @src his action cursor is the aid cursor, a vehicle only by his picture, the one whose rectangle reaches lowest on
+// @src screen, the first of a tie); TileEngine/Isometric_Utils.cc IsPointInScreenRect;
 // @src Soldier_Macros.h IsHostileToOurTeam; Overhead.cc OK_INTERRUPT_MERC.
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
@@ -40,6 +41,13 @@ export interface SoldierScreenRects {
   soldierPictureAt(id: number, x: number, y: number): boolean;
 }
 
+export interface PickRules {
+  readonly byRectangle: (s: SoldierView) => boolean;
+  readonly passedOver: (s: SoldierView) => boolean;
+}
+
+export const PICK_ANYONE: PickRules = { byRectangle: () => true, passedOver: () => false };
+
 export interface PointerSpot {
   readonly x: number;
   readonly y: number;
@@ -57,7 +65,7 @@ export function findSoldier(
   soldiers: readonly SoldierView[],
   at: PointerSpot,
   world: SoldierScreenRects,
-  byRectangle: (s: SoldierView) => boolean,
+  rules: PickRules,
 ): SoldierView | null {
   const x = Math.floor(at.x);
   const y = Math.floor(at.y);
@@ -67,8 +75,9 @@ export function findSoldier(
     if (s.level !== at.level) continue;
     const box = world.soldierBox(s.id);
     if (!box) continue;
-    const inRect = byRectangle(s) && inScreenRect(x, y, box);
+    const inRect = rules.byRectangle(s) && inScreenRect(x, y, box);
     if (!inRect && s.gridNo !== at.gridNo) continue;
+    if (rules.passedOver(s)) continue;
     if (isVehicleBody(s) && !world.soldierPictureAt(s.id, x, y)) continue;
     const bottom = box.y + box.height;
     if (lowest < bottom) {

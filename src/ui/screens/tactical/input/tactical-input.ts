@@ -26,7 +26,7 @@
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
 // @src multi-selection), QueryRTRightButton (the all-move and its double click), QueryRTMiddleButton, GetRTMousePositionInput;
-// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor, HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
+// @src UI_Cursors.cc HandleLeftClickCursor, GetActionModeCursor (for FindSoldier, the aid cursor of the last estimate for the selected merc, 2026-11-03), HandleAidCursor (the walk's AP centred, 2026-11-02); Interface_Cursors.cc DrawUICursor; Interactive_Tiles.cc
 // @src GetInteractiveTileCursor; Handle_Doors.cc SetDoorString; Timer_Control.cc PATHFINDCOUNTER, L/R/MMOUSECLICK_DELAY;
 // @src Soldier_Find.cc FindSoldier (our mercs found by their picture only with the smart cursor or in an action mode not
 // @src brought by the pointer over an enemy, 2026-11-01); Interface_Items.cc DrawItemTileCursor's frame (the item tile
@@ -76,7 +76,7 @@ import {
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
 import { ITEM_AP_OFFSET, ItemTileCursor, type ItemTileText } from './item-tile-cursor.ts';
 import { PointerQueue } from './pointer-queue.ts';
-import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, relativeBodyPart, soldierFindFlags } from './targets.ts';
+import { BodyPart, FindFlag, findSoldier, hostileToOurTeam, type PickRules, relativeBodyPart, soldierFindFlags } from './targets.ts';
 import { UiCursorFlag } from './ui-cursors.ts';
 import { MouseMove, MoveUiTarget, Selection, SINGLE_EVENT, UI_EVENTS, UiEvent, UiMode } from './ui-events.ts';
 import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selectionMarker, showMoveGridMarker } from './world-markers.ts';
@@ -269,7 +269,7 @@ export class TacticalInput {
   #lockRegion: MouseRegion | null = null;
   #lock: Lock = 'none';
   #busy = false;
-  #lastAttack: { cursor: EstimateAttack | null } = { cursor: null };
+  #lastAttack: { cursor: EstimateAttack | null; soldier: number | null } = { cursor: null, soldier: null };
   #menuChoice: MovementChoice | null = null;
   #exitRefusal: string | null = null;
 
@@ -297,14 +297,29 @@ export class TacticalInput {
     return this.#hover;
   }
 
-  pickableUnderPointer(id: number): boolean {
+  pickRules(): PickRules {
+    return { byRectangle: (s) => this.#pickableByRectangle(s), passedOver: (s) => this.#passedOverInAction(s) };
+  }
+
+  #pickableByRectangle(s: SoldierView): boolean {
     if (this.#env().display().smartCursor || this.#actionModeChosen()) return true;
-    return soldierById(this.#view(), id)?.team !== OUR_TEAM;
+    return s.team !== OUR_TEAM;
+  }
+
+  #passedOverInAction(s: SoldierView): boolean {
+    return this.#inActionMode() && s.id === this.#sel()?.id && !this.#aidCursorOf(s.id);
+  }
+
+  #aidCursorOf(id: number): boolean {
+    return this.#lastAttack.soldier === id && this.#lastAttack.cursor?.cursor === 'aid';
+  }
+
+  #inActionMode(): boolean {
+    return this.#mode === UiMode.ACTION_MODE || this.#mode === UiMode.CONFIRM_ACTION_MODE;
   }
 
   #actionModeChosen(): boolean {
-    const action = this.#mode === UiMode.ACTION_MODE || this.#mode === UiMode.CONFIRM_ACTION_MODE;
-    return action && !this.#actionChangeByMouseOver;
+    return this.#inActionMode() && !this.#actionChangeByMouseOver;
   }
 
   get arrows(): number {
@@ -549,7 +564,7 @@ export class TacticalInput {
     const soldiers = view?.soldiers ?? [];
     const target = shift
       ? (soldiers.find((s) => s.gridNo === gridNo && (s.level > 0 ? 1 : 0) === level) ?? null)
-      : findSoldier(soldiers, { x, y, gridNo, level }, env.world, (s) => this.pickableUnderPointer(s.id));
+      : findSoldier(soldiers, { x, y, gridNo, level }, env.world, this.pickRules());
     this.#hover = { gridNo, target, flags: target ? soldierFindFlags(target, this.#sel()?.id ?? null, view) : 0 };
   }
 
@@ -2317,7 +2332,7 @@ export class TacticalInput {
     if (!sel) return;
     const target = this.#hover.target;
     const answer = this.#estimate(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel());
-    const estimate = this.#keepEstimate(answer);
+    const estimate = this.#keepEstimate(answer, sel.id);
     if (estimate?.cursor === 'target') {
       this.#actionDoorText();
       if (!estimate.inRange && target && (this.#outOfRange?.gridNo !== target.gridNo || this.#outOfRange.soldier !== sel.id)) {
@@ -2348,9 +2363,10 @@ export class TacticalInput {
     if (tile?.door) this.#doorText(tile.gridNo, tile.open);
   }
 
-  #keepEstimate(answer: HintState<EstimateAttack>): EstimateAttack | null {
-    if (answer.state === 'ok') this.#lastAttack.cursor = answer.data;
-    else if (answer.state === 'refused') this.#lastAttack.cursor = null;
+  #keepEstimate(answer: HintState<EstimateAttack>, soldier: number): EstimateAttack | null {
+    if (answer.state === 'pending') return this.#lastAttack.cursor;
+    this.#lastAttack.cursor = answer.state === 'ok' ? answer.data : null;
+    this.#lastAttack.soldier = soldier;
     return this.#lastAttack.cursor;
   }
 
@@ -2476,7 +2492,7 @@ export class TacticalInput {
     if (mapPos === null || !sel) return;
     const target = this.#hover.target;
     const answer = this.#estimate(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel());
-    this.#properItemCursor(sel, mapPos, true, this.#keepEstimate(answer), answer.state === 'refused');
+    this.#properItemCursor(sel, mapPos, true, this.#keepEstimate(answer, sel.id), answer.state === 'refused');
     this.#onMerc(false);
   }
 

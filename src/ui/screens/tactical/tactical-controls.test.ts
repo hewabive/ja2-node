@@ -279,6 +279,26 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.screen.controls.input.hover.target?.id).toBe(1);
   });
 
+  it('passes over the selected merc under the pointer in the action modes unless his cursor is the first aid cursor', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const s = merc(f, 0);
+    f.screen.controls.input.override(UiEvent.M_CHANGE_TO_ACTION);
+    hover(f, s.gridNo);
+    await f.settle(8);
+    expect(f.screen.controls.input.mode).toBe(UiMode.ACTION_MODE);
+    expect(f.screen.controls.input.hover.target?.id).not.toBe(0);
+    expect(f.world.hovered).not.toBe(0);
+    const t = tacticalOf(f.session).state;
+    const medic = t.soldiers.find((v) => v?.id === 0);
+    const firstAidKit = t.content.items.byName.get('FIRSTAIDKIT');
+    if (!medic || !firstAidKit) throw new Error('no merc 0 or no first aid kit');
+    medic.inv[InvSlot.HAND] = createItem(t.content.items, firstAidKit.index, 100);
+    f.client.refresh();
+    await f.settle(8);
+    expect(f.screen.controls.input.uiCursor).toMatch(/FIRSTAID/);
+    expect([f.screen.controls.input.hover.target?.id, f.world.hovered]).toEqual([0, 0]);
+  });
+
   it('moves the view to the miss of our team gun bullet with show misses, on the ground or off the map', async () => {
     const f = await tacticalUiTest(kit, ui);
     const tick = f.client.view.tick;

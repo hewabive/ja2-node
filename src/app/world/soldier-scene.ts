@@ -3,7 +3,9 @@
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InternalSetSoldierPosition (merc node light), PositionSoldierLight,
 // @src CreateSoldierLight; src/game/Tactical/Overhead.cc ExecuteOverhead (stationary light placement);
 // @src src/game/Strategic/Game_Clock.cc NightTime; src/game/TileEngine/RenderWorld.cc RenderTiles (who glows: not
-// @src bNeutral, not bSide FRIENDLY; grey when the selected merc does not see him, except while on fire or exploding).
+// @src bNeutral, not bSide FRIENDLY; grey when the selected merc does not see him, except while on fire or exploding);
+// @src src/game/Tactical/Soldier_Control.cc GetActualSoldierAnimDims (the bounding box from the sheet frame of the
+// @src recorded script frame and facing, 2026-11-03).
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';
@@ -17,6 +19,7 @@ import type { WorldSprites } from '../../render/world/world-sprites.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { SoldierAssets, SoldierSheet } from './soldier-assets.ts';
+import { type BoundingBox, SoldierBoundingBoxes } from './soldier-bounding-boxes.ts';
 import type { MercLight } from './world-lighting.ts';
 
 const OUR_TEAM = 0;
@@ -41,6 +44,7 @@ export interface SoldierSceneInput {
   readonly hostile?: (s: SoldierView) => boolean;
   readonly lights: SoldierLightOptions;
   readonly frameOf: (s: SoldierView) => number;
+  readonly firstFrameOf: (s: SoldierView) => number;
 }
 
 interface DrawnSprite {
@@ -67,6 +71,7 @@ export class SoldierScene {
   readonly #shown = new Map<number, SoldierSprite>();
   readonly #lastPosition = new Map<number, { readonly x: number; readonly y: number }>();
   readonly #stationary = new Map<number, { readonly x: number; readonly y: number }>();
+  readonly #boundingBoxes = new SoldierBoundingBoxes();
   readonly #ungreyedStates: ReadonlySet<number>;
   #sprites: WorldSprites | null = null;
   #drawn = 0;
@@ -89,10 +94,23 @@ export class SoldierScene {
     this.#lastDrawn.clear();
     this.#shown.clear();
     this.#fades.reset();
+    this.#boundingBoxes.reset();
   }
 
   shownSprite(id: number): SoldierSprite | null {
     return this.#shown.get(id) ?? null;
+  }
+
+  shownBoundingBox(id: number): BoundingBox | null {
+    const shown = this.#shown.get(id);
+    return shown ? (this.#boundingBox(id) ?? shown) : null;
+  }
+
+  #boundingBox(id: number): BoundingBox | null {
+    const frame = this.#boundingBoxes.frameOf(id);
+    const sheet = frame ? this.#assets.ready(frame.sheet) : null;
+    if (!frame || !sheet) return null;
+    return sheet.picture.frames[soldierSheetFrame(sheet.layout, frame.scriptFrame, frame.direction)] ?? null;
   }
 
   ungreyed(s: SoldierView): boolean {
@@ -163,6 +181,11 @@ export class SoldierScene {
     const out: SceneSoldier[] = [];
     let drawn = 0;
     this.#shown.clear();
+    this.#boundingBoxes.update(input.soldiers, {
+      sheetFor: (s) => this.#assets.sheetFor(s),
+      firstFrameOf: input.firstFrameOf,
+      frameOf: input.frameOf,
+    });
     for (const s of input.soldiers) {
       if (this.#fades.fadedOut(s, input.clockMs)) continue;
       const current = this.#currentSprite(s, input.frameOf(s));

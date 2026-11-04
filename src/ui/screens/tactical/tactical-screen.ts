@@ -975,8 +975,7 @@ export class TacticalScreen implements Screen {
     const gridNo = this.#env.world.gridNoAt(x, y);
     if (gridNo === null) return null;
     const at = { x, y, gridNo, level: this.#interfaceLevel };
-    const byRectangle = (s: SoldierView) => this.controls.input.pickableUnderPointer(s.id);
-    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, byRectangle)?.id ?? null;
+    return findSoldier(this.#view()?.soldiers ?? [], at, this.#env.world, this.controls.input.pickRules())?.id ?? null;
   }
 
   #updateFaces(): void {

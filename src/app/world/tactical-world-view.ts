@@ -32,6 +32,7 @@ import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './it
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import { ROOF_MARKER_TILE, RoofMarkers, type SoldierOrigin } from './roof-markers.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
+import type { BoundingBox } from './soldier-bounding-boxes.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
 import { defaultHostile, nightTime, type SoldierLightOptions, SoldierScene } from './soldier-scene.ts';
 import type { WorldEffects } from './world-effects.ts';
@@ -201,6 +202,10 @@ export class TacticalWorldView {
     return this.#soldiers.shownSprite(id);
   }
 
+  soldierBoundingBox(id: number): BoundingBox | null {
+    return this.#soldiers.shownBoundingBox(id);
+  }
+
   get lightTemplates(): LightTemplates {
     return this.#templates;
   }
@@ -244,6 +249,11 @@ export class TacticalWorldView {
   #frameOf(tick: number): (s: SoldierView) => number {
     const frames = this.#frames;
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
+  }
+
+  #firstFrameOf(): (s: SoldierView) => number {
+    const frames = this.#frames;
+    return frames ? (s) => frames.firstFrame(s.animation) : (s) => s.frame;
   }
 
   observeEffects(effects: readonly EffectEvent[]): void {
@@ -336,6 +346,7 @@ export class TacticalWorldView {
       hostile,
       lights: f.options,
       frameOf: this.#frameOf(view.tick),
+      firstFrameOf: this.#firstFrameOf(),
     });
     this.#effects?.prepareCorpses(view.soldiers, f.options.bloodAndGore);
     const aniTiles =

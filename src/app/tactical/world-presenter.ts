@@ -12,8 +12,9 @@
 // @src InternalGetCurInteractiveTile (doors and switches; the tile under the pointer, not the picture's pixels);
 // @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile under the pointer from the current render centre);
 // @src src/game/Tactical/Soldier_Find.cc GetSoldierScreenRect, GetSoldierScreenPos (the soldier's rectangle from the
-// @src current render centre and his position now); src/game/TileEngine/Interactive_Tiles.cc
-// @src CheckVideoObjectScreenCoordinateInData (a vehicle's picture tested one pixel left of the pointer).
+// @src current render centre, his position now and his bounding box); FindSoldier with
+// @src src/game/TileEngine/Interactive_Tiles.cc CheckVideoObjectScreenCoordinateInData (a vehicle's current frame tested
+// @src one pixel left of the pointer, its rows counted up from the bottom of the rectangle).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
@@ -52,7 +53,7 @@ import type {
   WorldMarker,
   WorldPresenter,
 } from '../../ui/screens/tactical/environment.ts';
-import { findSoldier } from '../../ui/screens/tactical/input/targets.ts';
+import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/targets.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
 import type { SoldierOrigin } from '../world/roof-markers.ts';
@@ -231,20 +232,22 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   soldierBox(id: number): ScreenBox | null {
     const s = this.#soldier(id);
-    const sprite = this.#world.soldierSprite(id);
-    if (!s || !sprite) return null;
+    const bounds = this.#world.soldierBoundingBox(id);
+    if (!s || !bounds) return null;
     const at = soldierScreenPoint(
       { viewport: this.#viewport, camera: this.#camera, renderHeight: this.#renderHeight() },
       this.#world.world.level.heights[s.gridNo] ?? 0,
       { x: s.x, y: s.y, heightAdjustment: s.heightAdjustment ?? 0 },
     );
-    return { x: at.x + sprite.offsetX, y: at.y + sprite.offsetY, width: sprite.width, height: sprite.height };
+    return { x: at.x + bounds.offsetX, y: at.y + bounds.offsetY, width: bounds.width, height: bounds.height };
   }
 
   soldierPictureAt(id: number, x: number, y: number): boolean {
     const box = this.soldierBox(id);
     const sprite = this.#world.soldierSprite(id);
-    return !!box && !!sprite && pictureDataAt(sprite, Math.floor(x) - box.x, Math.floor(y) - box.y);
+    if (!box || !sprite) return false;
+    const aboveBottom = box.y + box.height - Math.floor(y);
+    return pictureDataAt(sprite, Math.floor(x) - box.x, sprite.height - aboveBottom);
   }
 
   soldierHeight(id: number): SoldierHeight {
@@ -271,7 +274,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const gridNo = this.gridNoAt(x, y);
     const soldiers = this.#sources.view()?.soldiers ?? [];
     if (gridNo === null) return null;
-    return findSoldier(soldiers, { x, y, gridNo, level: this.#roofLevel ? 1 : 0 }, this, () => true)?.id ?? null;
+    return findSoldier(soldiers, { x, y, gridNo, level: this.#roofLevel ? 1 : 0 }, this, PICK_ANYONE)?.id ?? null;
   }
 
   gridNoAt(x: number, y: number): number | null {

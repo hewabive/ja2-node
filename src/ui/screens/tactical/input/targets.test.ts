@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox } from '../environment.ts';
-import { findSoldier, type SoldierScreenRects } from './targets.ts';
+import { findSoldier, PICK_ANYONE, type PickRules, type SoldierScreenRects } from './targets.ts';
 
 const POINTER_TILE = 500;
 const OTHER_TILE = 501;
@@ -34,7 +34,7 @@ function rects(boxes: Record<number, ScreenBox>, picture: (id: number, x: number
 }
 
 const at = (x: number, y: number, level = 0) => ({ x, y, gridNo: POINTER_TILE, level });
-const anyone = () => true;
+const anyone = PICK_ANYONE;
 
 describe('the soldier under the pointer (FindSoldier)', () => {
   it('finds the soldier whose screen rectangle holds the pointer, its right and bottom edges included', () => {
@@ -68,9 +68,17 @@ describe('the soldier under the pointer (FindSoldier)', () => {
 
   it('passes over a rectangle the caller cannot pick by but still finds that soldier on the pointer tile', () => {
     const world = rects({ 1: { x: 100, y: 50, width: 20, height: 40 } });
-    const byTileOnly = () => false;
+    const byTileOnly: PickRules = { ...PICK_ANYONE, byRectangle: () => false };
     expect(findSoldier([soldier(1)], at(110, 60), world, byTileOnly)).toBeNull();
     expect(findSoldier([soldier(1, { gridNo: POINTER_TILE })], at(110, 60), world, byTileOnly)?.id).toBe(1);
+  });
+
+  it('passes over a soldier the caller rules out, by his rectangle and on the pointer tile, for the one behind him', () => {
+    const world = rects({ 1: { x: 100, y: 50, width: 20, height: 40 }, 2: { x: 105, y: 40, width: 20, height: 40 } });
+    const soldiers = [soldier(1, { gridNo: POINTER_TILE }), soldier(2)];
+    const passOverFirst: PickRules = { ...PICK_ANYONE, passedOver: (s) => s.id === 1 };
+    expect(findSoldier(soldiers, at(110, 60), world, anyone)?.id).toBe(1);
+    expect(findSoldier(soldiers, at(110, 60), world, passOverFirst)?.id).toBe(2);
   });
 
   it('finds a vehicle only where his picture has data, even on the pointer tile', () => {

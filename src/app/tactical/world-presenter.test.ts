@@ -5,6 +5,7 @@ import type { PlayerView, SoldierView } from '../../protocol/view.ts';
 import type { SoldierSprite } from '../../render/world/dynamic-scene.ts';
 import type { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
+import type { BoundingBox } from '../world/soldier-bounding-boxes.ts';
 import type { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { type PresenterSources, TacticalWorldPresenter } from './world-presenter.ts';
 
@@ -23,7 +24,7 @@ function figure(width: number, height: number, pixels: readonly number[]): Soldi
   return { layer: 0, x: 0, y: 0, width, height, offsetX: -10, offsetY: -40, pixels: Uint8Array.from(pixels) };
 }
 
-function presenterWithSoldier(sprite: SoldierSprite): TacticalWorldPresenter {
+function presenterWithSoldier(sprite: SoldierSprite, bounds: BoundingBox = sprite): TacticalWorldPresenter {
   const shown = { id: SOLDIER, gridNo: MAP_CENTRE, x: MAP_CENTRE_POSITION, y: MAP_CENTRE_POSITION, level: 0 };
   const view = { soldiers: [shown as SoldierView] } as unknown as PlayerView;
   const world = {
@@ -33,6 +34,7 @@ function presenterWithSoldier(sprite: SoldierSprite): TacticalWorldPresenter {
       prepared: { renderHeight: 0 },
     },
     soldierSprite: (id: number) => (id === SOLDIER ? sprite : null),
+    soldierBoundingBox: (id: number) => (id === SOLDIER ? bounds : null),
   } as unknown as TacticalWorldView;
   const sources = { view: () => view } as unknown as PresenterSources;
   return new TacticalWorldPresenter(world, {} as WorldRenderer, {} as UiAssets, {} as AnimationTables, sources, null);
@@ -72,5 +74,24 @@ describe('the soldier under the pointer (FindSoldier, GetSoldierScreenRect)', ()
     expect([1, 2, 3, 4].map((dx) => presenter.soldierPictureAt(SOLDIER, box.x + dx, box.y))).toEqual([false, false, true, true]);
     expect(presenter.soldierPictureAt(SOLDIER, box.x, box.y + 1)).toBe(true);
     expect(presenter.soldierPictureAt(SOLDIER, box.x + 1, box.y + 1)).toBe(false);
+  });
+
+  it('takes his rectangle from his bounding box, not from the frame shown (sBoundingBox*)', () => {
+    const shown = figure(20, 40, Array(800).fill(1));
+    const bounds = { offsetX: -14, offsetY: -30, width: 28, height: 30 };
+    const box = presenterWithSoldier(shown, bounds).soldierBox(SOLDIER);
+    const drawn = presenterWithSoldier(shown).soldierBox(SOLDIER);
+    if (!box || !drawn) throw new Error('no rectangle for the soldier');
+    expect(box).toEqual({ x: drawn.x - 4, y: drawn.y + 10, width: 28, height: 30 });
+  });
+
+  it("tests a vehicle's current frame from the bottom of his rectangle up when the frame is shorter than his bounding box", () => {
+    const shown = figure(4, 2, [0, 0, 7, 9, 0, 0, 0, 0]);
+    const presenter = presenterWithSoldier(shown, { offsetX: -10, offsetY: -43, width: 4, height: 5 });
+    const box = presenter.soldierBox(SOLDIER);
+    if (!box) throw new Error('no rectangle for the soldier');
+    const topRowOfTheFrame = box.y + box.height - 2;
+    expect(presenter.soldierPictureAt(SOLDIER, box.x + 3, box.y)).toBe(false);
+    expect([1, 2, 3, 4].map((dx) => presenter.soldierPictureAt(SOLDIER, box.x + dx, topRowOfTheFrame))).toEqual([false, false, true, true]);
   });
 });
