@@ -41,6 +41,7 @@ a team turn start, every 20 world seconds in real time: known opponents checked,
 | `perception/duel.ts` | Duel points, interrupt conditions, watched locations (`10`) |
 | `perception/knowledge.ts` | The AI's reading of heard noises and known opponents |
 | `perception/fov.ts` | `revealRoofsAndItems`, `allSoldiersLookForItems`, revealed tiles and rooms (`TacticalState.fog`) |
+| `perception/slant-roofs.ts` | The ceilings of slanted roofs: which roofs a look or a load examines, and the tiles that show a ceiling (`fog.slantRoofCeilings`) |
 | `perception/item-locator.ts` | What a look that shows new items does: the halt in combat, the item locator lock, the items-seen quote with the tile it slides to and its hold until the end of an attack (`turn.lockItemLocators`, `turn.itemsSeenOnAttack`, `turn.itemsSeenOnAttackGridNo`) |
 | `perception/wiring.ts`, `perception/enemy-stance.ts` | The look triggers of a step, a turn, a stance, a climb and a door; what our sighting does (the quote or battle sound, the halt, the end of the virgin sector); the AI's stance after one |
 | `narrative/sighting-quotes.ts` | The sighting quotes: in trouble, creatures, bloodcats, the first enemy of the sector, the battle-sound roll |
@@ -112,7 +113,15 @@ saved in the sector diff (`sim/campaign/sector-diff.ts`). Vehicles and blinded m
 basement or a cave by the map's flags, a tile under a flat roof is revealed only inside a room, though the look still
 shows its items; in a cave every tile revealed, by a look, a room or a load of the revealed tiles, switches on its map
 light (`20`). The client derives hidden roofs, show-through and wireframes from the revealed rooms
-(`render/world/reveal.ts`). Above ground there is no terrain fog.
+(`render/world/reveal.ts`; a load's reveal of every revealed tile is gaps "Room reveal at a load"). Above ground there
+is no terrain fog.
+
+**Slanted roofs keep a ceiling.** A revealed room takes off every slanted roof with a tile in it; the tiles of such a
+roof that sight has not revealed show its flat ceiling instead (the original's `SLANTROOFCEILING1` at the head of their
+roof layer). The ceilings are fog of war state (`fog.slantRoofCeilings`), not derived from the revealed tiles: the
+original puts them on and takes them off only when a look or a load examines a roof, and a look examines the first
+slanted roof on each tile it sees and on the base tile of each roof a revealed room takes off. A load clears them and
+examines the roofs over every revealed tile. The view sends them as `slantRoofCeilings` (`29`).
 
 **Items are found by the same view paths.** A radio look shows a merc the items on them with their locator; new items
 there halt him in combat, and his look takes the item locator lock and queues one items-seen quote, which a locked
@@ -166,6 +175,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A look out of combat that shows items on two tiles or more leaves the item locators unlocked, so they flash before the items-seen quote; one tile leaves them locked until it starts | `item-locator.test.ts` "leaves the locators unlocked after a look out of combat …" |
 | Only a look forgets which creature the team saw last: a radio outside a look (a noise, an unseen attacker) that reveals a soldier brings the creature line | `../narrative/sighting-quotes.test.ts` |
 | A merc counts himself among the allies who see half the enemies, so the in-trouble line needs four opponents in his sight when he stands alone | `../narrative/sighting-quotes.test.ts` |
+| A look examines only the first slanted roof on a tile, so a hidden roof whose base lies under another gets its ceiling only once a tile of its own is seen | `slant-roofs.test.ts` |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.

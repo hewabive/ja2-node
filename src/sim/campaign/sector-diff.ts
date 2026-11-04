@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile, LoadCurrentSectorsInformationFromTempItemsFile,
 // @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
-// @src TileEngine/SaveLoadMap.cc revealed status (SetMapRevealedStatus with the cave lights), blood and smell, the openable statuses
+// @src TileEngine/SaveLoadMap.cc revealed status (SetMapRevealedStatus with the cave lights and the slanted roof ceilings),
+// @src blood and smell, the openable statuses
 // @src (SaveBloodSmellAndRevealedStatesFromMapToTempFile, AddBloodOrSmellFromMapTempFileToMap,
 // @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files.
 
@@ -23,7 +24,7 @@ import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { loadedWorldItemGridNo } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
-import { switchOnRevealedCaveLights } from '../tactical/perception/fov.ts';
+import { examineSlantRoofsOverRevealedTiles, switchOnRevealedCaveLights } from '../tactical/perception/fov.ts';
 import { addRottingCorpse, type CorpseAging, removeAllCorpses } from '../tactical/rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
@@ -276,6 +277,7 @@ export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], agi
 export function restoreRevealed(t: TacticalState, revealed: RevealedState): void {
   t.fog.revealed.set(revealed.revealed);
   t.fog.roomHidden.set(revealed.roomHidden);
+  examineSlantRoofsOverRevealedTiles(t);
   switchOnRevealedCaveLights(t);
 }
 

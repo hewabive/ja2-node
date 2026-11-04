@@ -310,7 +310,8 @@ swapped for its partner such as a broken window; `append` at its tail, for a til
 `AddStructToTail`: the rebel hideout's trapdoor and crate, a SAM terminal repaired while its sector was not loaded,
 structures a native save added, most wall end pieces; `object` at the head of the tile's object layer: a destroyed structure's
 debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client draws them and lights
-over them (`20`). Animation schedules, palettes and light sprites serve the renderer and the devtools.
+over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room took off shows its
+ceiling, the tiles of the roof no merc has seen yet (`08`). Animation schedules, palettes and light sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured

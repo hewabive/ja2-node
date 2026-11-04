@@ -2,6 +2,7 @@ import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import { NO_CURRENT_SQUAD } from '../strategic/forces/constants.ts';
 import type { Bullet } from '../tactical/combat/bullets.ts';
 import { revealedRooms } from '../tactical/perception/fov.ts';
+import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { currentSquad, selectedSoldier } from '../tactical/selection.ts';
 import { shownToPlayer } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -30,6 +31,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     selected: selectedSoldier(sim.state)?.id ?? null,
     currentSquad: currentSquadView(sim.state),
     revealedRooms: revealedRooms(sim.state),
+    slantRoofCeilings: slantRoofCeilingTiles(sim.state),
     items: sim.visibleItems(),
     light: sim.lightView(),
     corpses: corpseViews(sim.state),

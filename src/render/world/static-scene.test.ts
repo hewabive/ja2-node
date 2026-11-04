@@ -267,6 +267,20 @@ describe('static scene order and depth', () => {
     expect(names(segment(roofLevel, StaticSegment.ROOFS))).toEqual(['FIRSTROOF1']);
   });
 
+  it("draws a slanted roof's ceiling at the head of its tile's roofs, at roof height and shaded as the roof", () => {
+    const world = worldWith({ roofs: [[g(80, 80), [T('FIRSTROOF', 1)]]] });
+    const structures = placeWorldStructures(world.level, world.tiles).structures;
+    const ceilings = new Set([g(80, 80), g(81, 80)]);
+    const reveal = computeReveal({ level: world.level, tiles: world.tiles, tables, structures, basement: false }, new Set(), ceilings);
+    const roofs = segment(new StaticScene(world, { ...DEFAULT_STATE, reveal }), StaticSegment.ROOFS);
+    expect(names(roofs)).toEqual(['SLANTROOFCEILING1', 'FIRSTROOF1', 'SLANTROOFCEILING1']);
+    expect(roofs[0]).toMatchObject({
+      y: worldOrigin(80, 80).y - 50,
+      z: 8 * (10 * 160 - 835 + 50) + 5,
+      shadeKey: ShadeKey.ROOF_BASE + g(80, 80),
+    });
+  });
+
   it('keeps the on-roof objects of a revealed room in view, as nothing in the original hides them', () => {
     const world = withRoomRevealed(
       worldWith({ roofs: [[g(80, 80), [T('FIRSTROOF', 1)]]], onRoof: [[g(80, 80), [T('FIRSTONROOF', 1)]]] }),

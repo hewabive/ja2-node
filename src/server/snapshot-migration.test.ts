@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
-import { WORLD_COLS } from '../content/world/grid.ts';
+import { WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
@@ -1827,5 +1827,49 @@ describe('snapshot version 41 (no items-seen tiles) migrates with no tile to sli
     expect(JSON.stringify(legacy)).not.toContain(`"${ITEMS_SEEN_ON_ATTACK_GRID_NO_KEY}"`);
     const migrated = snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))));
     expect(migrated).toBe(snapshotJson(current.sim).replace(queued(ITEMS_TILE), queued(NO_ITEMS_TILE)));
+  });
+});
+
+const SLANT_ROOF_CEILINGS_KEY = 'slantRoofCeilings';
+
+function versionFortyTwo(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const { [SLANT_ROOF_CEILINGS_KEY]: ceilings, ...fog } = object(tactical.fog);
+    expect(ceilings).toEqual({ $u8: encodeBase64(new Uint8Array(WORLD_MAX)) });
+    return [name, { ...tactical, fog }];
+  });
+  return { ...snapshot, version: 42, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 42 (no slanted roof ceilings) migrates with no ceiling shown', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionFortyTwo(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${SLANT_ROOF_CEILINGS_KEY}":`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${SLANT_ROOF_CEILINGS_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionFortyTwo(current.sim);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });

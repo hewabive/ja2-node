@@ -63,6 +63,17 @@ function syntheticRevealWorld(m: SyntheticMap): RevealWorld {
   return { level: placed.level, tiles, tables, structures: placed.structures, basement: false };
 }
 
+describe('slanted roof ceilings', () => {
+  it("adds the ceiling graphic on the view's ceiling tiles and reports the tiles whose ceiling came or went", () => {
+    const w = syntheticRevealWorld({ defs: new Map() });
+    const ceiling = tileIndex(tables, 'SLANTROOFCEILING1');
+    const before = computeReveal(w, new Set(), new Set([AT, AT + 1]));
+    const after = computeReveal(w, new Set(), new Set([AT + 1, AT + 2]));
+    expect([before.ceilings(AT), before.ceilings(AT + 2)]).toEqual([[ceiling], []]);
+    expect(changedRevealTiles(before, after, w.level).sort((a, b) => a - b)).toEqual([AT, AT + 2]);
+  });
+});
+
 describe('room reveals find a structure by its base tile', () => {
   it('shows a single-tile obstacle of a revealed room through', () => {
     const crate = tileIndex(tables, 'FIRSTOSTRUCT1');

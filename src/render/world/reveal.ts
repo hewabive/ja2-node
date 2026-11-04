@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Render_Fun.cc SetGridNoRevealedFlag, RemoveRoomRoof; src/game/TileEngine/WorldMan.cc
+// @src src/game/TileEngine/Render_Fun.cc SetGridNoRevealedFlag, RemoveRoomRoof, ExamineGridNoForSlantRoofExtraGraphic (the
+// @src ceiling's graphic, AddRoofToHead); src/game/TileEngine/WorldMan.cc
 // @src SetStructAframeFlags, FindLevelNodeBasedOnStructure, SetRoofIndexFlagsFromTypeRange;
 // @src src/game/TileEngine/WorldDef.cc CalculateWorldWireFrameTiles, AddWireFrame, GetWireframeGraphicNumToUseForWall,
 // @src IsRoofVisibleForWireframe, IsHiddenTileMarkerThere.
@@ -32,6 +33,7 @@ export interface RevealState {
   readonly touched: ReadonlySet<number>;
   nodeFlags(layer: LayerName, g: number, index: number): number;
   wireframes(g: number): readonly WireframeNode[];
+  ceilings(g: number): readonly number[];
 }
 
 export interface RevealWorld {
@@ -44,8 +46,11 @@ export interface RevealWorld {
 
 const MAX_NODES_PER_TILE = 64;
 const NO_WIREFRAMES: readonly WireframeNode[] = [];
+const NO_CEILINGS: readonly number[] = [];
+const NO_CEILING_TILES: ReadonlySet<number> = new Set();
 const BROKEN_WALL_WIREFRAMES: Readonly<Record<number, number>> = { 48: 12, 52: 12, 49: 13, 53: 13, 50: 10, 54: 10, 51: 11, 55: 11 };
 const NODE_LAYERS: readonly LayerName[] = ['structs', 'roofs', 'objects', 'onRoof'];
+const SLANT_ROOF_CEILING = 'SLANTROOFCEILING1';
 
 function nodeKey(g: number, index: number): number {
   return g * MAX_NODES_PER_TILE + index;
@@ -192,7 +197,11 @@ class RevealBuilder {
   }
 }
 
-export function computeReveal(w: RevealWorld, revealedRooms: ReadonlySet<number>): RevealState {
+export function computeReveal(
+  w: RevealWorld,
+  revealedRooms: ReadonlySet<number>,
+  slantRoofCeilings: ReadonlySet<number> = NO_CEILING_TILES,
+): RevealState {
   const b = new RevealBuilder(w);
   if (revealedRooms.size > 0) {
     for (let g = 0; g < WORLD_MAX; g++) {
@@ -201,13 +210,15 @@ export function computeReveal(w: RevealWorld, revealedRooms: ReadonlySet<number>
     }
   }
   for (let g = 0; g < WORLD_MAX; g++) b.wireframesAt(g);
-  const touched = new Set<number>(b.wires.keys());
+  const touched = new Set<number>([...b.wires.keys(), ...slantRoofCeilings]);
   for (const m of b.flags.values()) for (const key of m.keys()) touched.add(Math.floor(key / MAX_NODES_PER_TILE));
+  const ceiling = [tileIndex(w.tables, SLANT_ROOF_CEILING)];
   return {
     revealed: b.revealed,
     touched,
     nodeFlags: (layer, g, index) => b.flags.get(layer)?.get(nodeKey(g, index)) ?? 0,
     wireframes: (g) => b.wires.get(g) ?? NO_WIREFRAMES,
+    ceilings: (g) => (slantRoofCeilings.has(g) ? ceiling : NO_CEILINGS),
   };
 }
 
@@ -216,6 +227,7 @@ export const NO_REVEAL: RevealState = {
   touched: new Set(),
   nodeFlags: () => 0,
   wireframes: () => NO_WIREFRAMES,
+  ceilings: () => NO_CEILINGS,
 };
 
 function tileSignature(r: RevealState, level: Level, g: number): string {
@@ -228,6 +240,7 @@ function tileSignature(r: RevealState, level: Level, g: number): string {
     }
   }
   for (const w of r.wireframes(g)) parts.push(`w${w.tile}${w.optional ? 'o' : ''}`);
+  for (const c of r.ceilings(g)) parts.push(`c${c}`);
   return parts.join(',');
 }
 

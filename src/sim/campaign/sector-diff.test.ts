@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
@@ -9,6 +10,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { Direction } from '../tactical/directions.ts';
 import { LightSpriteFlags } from '../tactical/lighting/lighting.ts';
 import { createFogOfWar, RevealedFlags } from '../tactical/perception/fov.ts';
+import { slantRoofCeilingTiles } from '../tactical/perception/slant-roofs.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { restoreCorpses, restoreRevealed } from './sector-diff.ts';
 
@@ -89,5 +91,29 @@ describe('restoring the revealed tiles of a sector diff', () => {
   it('switches on one cave light of each revealed tile, as loading the revealed map does (SaveLoadMap.cc SetMapRevealedStatus)', () => {
     expect(restoreSeen(sectorWithLamps(true))).toEqual([true, false, true, false]);
     expect(restoreSeen(sectorWithLamps(false))).toEqual([false, false, false, false]);
+  });
+
+  it('covers the unseen tiles of a slanted roof over a revealed room with its ceiling again, as loading the revealed map does', () => {
+    const ROOM = 5;
+    const roofTiles = [gridNo(80, 84), gridNo(80, 85), gridNo(80, 86)];
+    const roof = syntheticStructure(StructureFlags.SLANTED_ROOF, Orientation.NONE, {
+      tiles: [
+        [0, 0],
+        [0, 1],
+        [0, 2],
+      ],
+    });
+    const world = syntheticWorld(testDoorCosts(), (structures) => structures.add(gridNo(80, 84), 1, roof));
+    const t = new TacticalSim(
+      { ...world, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld,
+      content,
+      1,
+    ).state;
+    t.world.level.rooms[gridNo(80, 84)] = ROOM;
+    const fog = createFogOfWar();
+    fog.revealed[gridNo(80, 84)] = RevealedFlags.GROUND;
+    fog.roomHidden[ROOM] = 0;
+    restoreRevealed(t, { revealed: fog.revealed, roomHidden: fog.roomHidden });
+    expect(slantRoofCeilingTiles(t)).toEqual(roofTiles.slice(1));
   });
 });

@@ -46,6 +46,7 @@ const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
 const NO_BLOOD: readonly BloodPoolView[] = [];
+const NO_CEILINGS: readonly number[] = [];
 const NO_BULLETS: readonly BulletView[] = [];
 
 export interface TacticalViewState {
@@ -55,6 +56,7 @@ export interface TacticalViewState {
   readonly openDoors: readonly number[];
   readonly openContainers?: readonly number[];
   readonly revealedRooms: readonly number[];
+  readonly slantRoofCeilings?: readonly number[];
   readonly clock: ClockView | null;
   readonly combat: CombatView | null;
   readonly corpses?: readonly CorpseView[];
@@ -378,6 +380,7 @@ export class TacticalWorldView {
       shade,
       openStructures: new Set([...view.openDoors, ...(view.openContainers ?? [])]),
       revealedRooms: new Set(view.revealedRooms),
+      slantRoofCeilings: new Set(view.slantRoofCeilings ?? NO_CEILINGS),
       soldiers,
       items: this.#items(view.items),
       uiNodes: [...f.uiNodes, ...this.#roofMarkerNodes(view.soldiers)],

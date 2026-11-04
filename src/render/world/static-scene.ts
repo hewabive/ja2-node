@@ -217,6 +217,7 @@ export class StaticScene {
     levelTilesAt(w.level.layers.structs, g).forEach((t, i) => {
       this.#emitStruct(at, t, i);
     });
+    for (const t of this.#state.reveal.ceilings(g)) this.#emitCeiling(at, t);
     levelTilesAt(w.level.layers.roofs, g).forEach((t, i) => {
       this.#emitRoof(at, t, i);
     });
@@ -352,8 +353,16 @@ export class StaticScene {
 
   #emitRoof(at: TileAt, tile: number, index: number): void {
     const d = this.#drawable(tile);
-    if (!d) return;
-    if (this.#hidden(this.#nodeFlags('roofs', at.g, index), d.te)) return;
+    if (!d || this.#hidden(this.#nodeFlags('roofs', at.g, index), d.te)) return;
+    this.#pushRoof(at, d);
+  }
+
+  #emitCeiling(at: TileAt, tile: number): void {
+    const d = this.#drawable(tile);
+    if (d) this.#pushRoof(at, d);
+  }
+
+  #pushRoof(at: TileAt, d: { te: TileElement; sprite: TileSprite }): void {
     const p = this.#position(at, d.te, d.sprite, WALL_HEIGHT);
     this.#out(StaticSegment.ROOFS).push(
       p.x,

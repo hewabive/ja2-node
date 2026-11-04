@@ -96,6 +96,7 @@ export interface WorldFrameInput {
   readonly shade: ShadeField;
   readonly openStructures: ReadonlySet<number>;
   readonly revealedRooms: ReadonlySet<number>;
+  readonly slantRoofCeilings?: ReadonlySet<number>;
   readonly soldiers: readonly SceneSoldier[];
   readonly items: readonly SceneItem[];
   readonly uiNodes: readonly WorldUiNode[];
@@ -114,6 +115,7 @@ export interface WorldDrawStats {
 }
 
 const NO_STATS: WorldDrawStats = { drawCalls: 0, instances: 0, staticInstances: 0, dynamicInstances: 0, staticRebuildMs: 0 };
+const NO_CEILINGS: ReadonlySet<number> = new Set();
 
 let lastPicture = 0;
 
@@ -142,6 +144,7 @@ interface LoadedScene {
   pools: readonly BloodPool[];
   reveal: RevealState;
   revealedRooms: ReadonlySet<number>;
+  ceilings: ReadonlySet<number>;
   uploaded: boolean;
   shadeVersion: number;
 }
@@ -221,6 +224,7 @@ export class WorldRenderer {
       pools: [],
       reveal,
       revealedRooms: new Set(),
+      ceilings: NO_CEILINGS,
       uploaded: false,
       shadeVersion: -1,
     };
@@ -254,7 +258,7 @@ export class WorldRenderer {
     s.changes = changes;
     s.pools = pools;
     s.staticWorld = this.#staticWorld(world, s.sprites);
-    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms);
+    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms, s.ceilings);
     const rows = new Set([...touched].map(rowOf));
     for (const g of changedRevealTiles(previousReveal, s.reveal, level)) rows.add(rowOf(g));
     s.scene.replaceWorld(s.staticWorld, { ...s.scene.state, reveal: s.reveal }, rows);
@@ -271,10 +275,12 @@ export class WorldRenderer {
   #syncStatic(s: LoadedScene, f: WorldFrameInput): void {
     const old = s.scene.state;
     const rows = new Set<number>();
-    if (!sameSet(s.revealedRooms, f.revealedRooms)) {
+    const ceilings = f.slantRoofCeilings ?? NO_CEILINGS;
+    if (!sameSet(s.revealedRooms, f.revealedRooms) || !sameSet(s.ceilings, ceilings)) {
       const previous = s.reveal;
-      s.reveal = computeReveal(this.#revealWorld(s.world), f.revealedRooms);
       s.revealedRooms = new Set(f.revealedRooms);
+      s.ceilings = new Set(ceilings);
+      s.reveal = computeReveal(this.#revealWorld(s.world), s.revealedRooms, s.ceilings);
       for (const g of changedRevealTiles(previous, s.reveal, s.world.level)) rows.add(rowOf(g));
     }
     const next: StaticState = {

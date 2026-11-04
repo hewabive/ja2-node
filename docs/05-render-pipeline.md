@@ -36,7 +36,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `no-burn.ts` | The no-burn tiles, where a soldier sorts 2 z units nearer and is never shown through: set as the map loads and as the view's structure changes add structures |
 | `static-scene.ts` | The static layers: node filters, segments, z strips, the obscured pass |
 | `dynamic-scene.ts` | Dynamic and animated map nodes, soldiers, items, corpses, smoke, effect nodes and UI nodes, every frame |
-| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes; structure and object changes (debris) and blood pools |
+| `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes, the ceilings of slanted roofs; structure and object changes (debris) and blood pools |
 | `world-program.ts`, `instances.ts`, `world-framebuffer.ts` | The shader, the draw states, the instance records, the framebuffers |
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
@@ -104,7 +104,8 @@ his animation started with or his last turn showed, `app/world/soldier-bounding-
 `picking.ts`'s pixel pick serves the developer pages.
 
 **The picture is the client's.** Room reveals arrive as the view's `revealedRooms`; the client applies the original's
-node flags and recomputes the wireframes of the whole map (`reveal.ts`). Structure changes, blood pools, corpses, smoke,
+node flags and recomputes the wireframes of the whole map (`reveal.ts`). The ceilings of slanted roofs arrive as
+`slantRoofCeilings`, which the simulation's fog of war keeps (`08`), and are drawn at the head of their tile's roofs. Structure changes, blood pools, corpses, smoke,
 bullets and effect animations are drawn from the view and its events, and the simulation never waits for them. The
 roof marker under a soldier on a roof is placed and taken off where the view shows the original's triggers: a move
 starting or ending, a fade, our merc's climb, a step off the tile (`roof-markers.ts`). The host starts the soldiers of
@@ -166,6 +167,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
 
-Not ported: gaps "Overhead map", "Slanted roof ceilings", "No-burn tiles". Other deviations of this
+Not ported: gaps "Overhead map", "Room reveal at a load", "No-burn tiles". Other deviations of this
 domain: "Sweep window", "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall
 translucency template", "Bullets of unseen shooters", "Soldier frame on turning".

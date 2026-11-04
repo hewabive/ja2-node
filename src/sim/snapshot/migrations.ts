@@ -1,3 +1,4 @@
+import { WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
@@ -1131,6 +1132,25 @@ function addItemsSeenTiles(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const FOG_KEY = 'fog';
+const REVEALED_KEY = 'revealed';
+const SLANT_ROOF_CEILINGS_KEY = 'slantRoofCeilings';
+
+function withSlantRoofCeilings(tactical: JsonObject): JsonObject {
+  const fog = tactical[FOG_KEY];
+  if (!isObject(fog) || fog[REF] !== undefined) return tactical;
+  const none: Json = { [BYTES_TAG]: encodeBase64(new Uint8Array(WORLD_MAX)) };
+  return { ...tactical, [FOG_KEY]: insertAfter(fog, REVEALED_KEY, SLANT_ROOF_CEILINGS_KEY, none) };
+}
+
+function addSlantRoofCeilings(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'tactical' && isObject(value) ? withSlantRoofCeilings(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1174,5 +1194,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     39: addBulletLocatedFlags,
     40: addInterfaceLockFlag,
     41: addItemsSeenTiles,
+    42: addSlantRoofCeilings,
   };
 }

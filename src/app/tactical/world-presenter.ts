@@ -485,6 +485,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         openDoors: view.openDoors ?? [],
         openContainers: view.openContainers ?? [],
         revealedRooms: view.revealedRooms ?? [],
+        slantRoofCeilings: view.slantRoofCeilings ?? [],
         clock: view.clock ?? null,
         combat: view.combat ?? null,
         corpses: view.corpses ?? [],
