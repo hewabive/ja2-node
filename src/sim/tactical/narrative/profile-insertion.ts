@@ -56,7 +56,7 @@ export function profileSoldierCreate(profile: number, team: number, direction: n
     direction,
     insertionGridNo: NOWHERE,
     onRoof: false,
-    hasKeys: false,
+    hasKeys: 0,
     patrolCount: 0,
     patrolGrid: [],
     expLevel: 0,

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen (with the DecideActionSchedule call and the boxing
 // @src block), DecideAlertStatus (with its boxing gate);
-// @src AIMain.cc CheckForChangingOrders (with the creature branches and the return to sPreCombatGridNo), SetNewSituation;
+// @src AIMain.cc CheckForChangingOrders (with the creature branches, the return to sPreCombatGridNo and the Warden's panic
+// @src call, 2026-11-04), SetNewSituation;
 // @src Realtime.cc RealtimeDelay (with Kingpin's group); AIUtils.cc DetermineMovementMode;
 // @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause, the look-around's AP gate and stance
 // @src check).
@@ -43,6 +44,7 @@ import {
   randomPointPatrolAI,
   roomAt,
 } from './destinations.ts';
+import { wardenSendsClosestEnemy } from './panic.ts';
 
 const HATKIDCIV = 15;
 const KIDCIV = 16;
@@ -146,6 +148,7 @@ export function checkForChangingOrders(t: TacticalState, s: Soldier): void {
   if (ai.orders === Orders.ONGUARD || ai.orders === Orders.CLOSEPATROL) ai.orders++;
   else if (s.team === Team.MILITIA) ai.orders = Orders.SEEKENEMY;
   else if (isCreatureOrBloodcat(s) && ai.orders !== Orders.STATIONARY && ai.orders !== Orders.ONCALL) ai.orders = Orders.SEEKENEMY;
+  wardenSendsClosestEnemy(t, s);
 }
 
 function inWaterNow(t: TacticalState, s: Soldier): boolean {

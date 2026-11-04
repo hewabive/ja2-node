@@ -16,6 +16,7 @@ import type { SimEvent } from '../events.ts';
 import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
+import { createPanicState, type PanicState } from './ai/panic-triggers.ts';
 import { anim } from './anim-states.ts';
 import type { ExplosionQueue } from './bombs/bomb-queue.ts';
 import type { WorldBomb } from './bombs/world-bombs.ts';
@@ -173,6 +174,7 @@ export interface TurnHooks {
   freeUpFromRoofClimb(t: TacticalState, s: Soldier): void;
   aiPickup(t: TacticalState, s: Soldier, gridNo: number, item: WorldItem | null): boolean;
   aiDropHandItem(t: TacticalState, s: Soldier): void;
+  makeClosestEnemyChosenOne(t: TacticalState): void;
 }
 
 export const NO_TURN_HOOKS: TurnHooks = {
@@ -191,6 +193,7 @@ export const NO_TURN_HOOKS: TurnHooks = {
   freeUpFromRoofClimb: () => {},
   aiPickup: () => false,
   aiDropHandItem: () => {},
+  makeClosestEnemyChosenOne: () => {},
 };
 
 export const WaitForMercs = { NONE: 0, WALKOFF_SCREEN: 1, WALKON_SCREEN: 2, WALK_TO_GRIDNO: 3 } as const;
@@ -316,6 +319,7 @@ export interface TacticalState {
   prompt: TacticalPrompt | null;
   promptSeq: number;
   readonly boobyTrap: BoobyTrap;
+  readonly panic: PanicState;
   pickedOwnershipCheck: PickedOwnershipCheck | null;
 }
 
@@ -509,6 +513,7 @@ export function createTacticalState(
     prompt: null,
     promptSeq: 0,
     boobyTrap: createBoobyTrap(),
+    panic: createPanicState(),
     pickedOwnershipCheck: null,
   };
 }

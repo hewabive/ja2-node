@@ -67,7 +67,7 @@ function basic(o: Partial<BasicPlacement>): BasicPlacement {
     soldierClass: SoldierClass.ARMY,
     civilianGroup: 0,
     priorityExistence: false,
-    hasKeys: false,
+    hasKeys: 0,
     ...o,
   };
 }
@@ -84,7 +84,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
     direction: 0,
     insertionGridNo: 1000,
     onRoof: false,
-    hasKeys: false,
+    hasKeys: 0,
     patrolCount: 0,
     patrolGrid: [],
     expLevel: 3,

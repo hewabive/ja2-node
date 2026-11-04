@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches and
-// @src the Tixa gas mask draw).
+// @src the Tixa gas mask draw; the panic branches and NeedToRadioAboutPanicTrigger in the radio chances, 2026-11-04).
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
@@ -57,6 +57,7 @@ import { boxerClosesIn, decideActionBoxerEnteringRing } from './decide-boxing.ts
 import { GoFlag, goAsFarAsPossibleTowards, internalGoAsFarAsPossibleTowards } from './destinations.ts';
 import { ItemSearch, searchForItems } from './item-search.ts';
 import { calcMorale, rangeChangeDesire } from './morale.ts';
+import { blackPanicAction, NO_PANIC_ACTION, radioAsFirstRedAlert, radioIgnoresMorale, redPanicAction } from './panic.ts';
 import { queenEscape } from './queen-escape.ts';
 import {
   closestReachableDisturbance,
@@ -438,6 +439,8 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     return AiAction.NONE;
   }
   const canMove = s.actionPoints >= minPtsToMove(ctx(t), s, s.uiMovementMode);
+  const panic = redPanicAction(t, s, canMove);
+  if (panic !== NO_PANIC_ACTION) return panic;
   const flight = queenEscape(t, s, canMove, true);
   if (flight !== AiAction.NONE) return flight;
   const water = isWater(t.pathWorld, s.gridNo);
@@ -476,14 +479,14 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     if (ai.actionData !== NOWHERE) return AiAction.RUN_AWAY;
   }
   if (!civilian && s.actionPoints >= AP_RADIO && menInSector(t, s.team) > 1) {
-    let chance = !t.perception.awareOfOpposition[s.team]
+    let chance = radioAsFirstRedAlert(t, s.team)
       ? (RADIO_RED_ALERT_BY_DIFFICULTY[soldierDifficultyLevel(t, s)] ?? 0)
       : i16(10 * whatIKnowThatPublicDont(t, s, false));
     if (chance && !deep) {
       chance = i16(chance + ordersAdjust(ai.orders, RED_RADIO_ORDERS));
       if (ai.attitude === Attitude.ATTACKSLAYONLY) chance = 0;
       else chance = i16(chance + (RADIO_ATTITUDES[ai.attitude] ?? 0));
-      chance = moraleRadioChance(chance, ai.morale);
+      if (!radioIgnoresMorale(t, s.team)) chance = moraleRadioChance(chance, ai.morale);
       if (pre100(t) < chance) return AiAction.RED_ALERT;
     }
   }
@@ -767,6 +770,8 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     return AiAction.NONE;
   }
   const canMove = s.actionPoints >= minPtsToMove(ctx(t), s, s.uiMovementMode);
+  const panic = blackPanicAction(t, s, canMove);
+  if (panic !== NO_PANIC_ACTION) return panic;
   const flight = queenEscape(t, s, canMove, false);
   if (flight !== AiAction.NONE) return flight;
   let deep = false;
@@ -1075,7 +1080,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     }
   }
   if (s.team === Team.MILITIA && s.actionPoints >= AP_RADIO && menInSector(t, s.team) > 1) {
-    let chance = !t.perception.awareOfOpposition[s.team]
+    let chance = radioAsFirstRedAlert(t, s.team)
       ? (RADIO_RED_ALERT_BY_DIFFICULTY[soldierDifficultyLevel(t, s)] ?? 0)
       : i16(10 * whatIKnowThatPublicDont(t, s, false));
     if (chance && !deep) {

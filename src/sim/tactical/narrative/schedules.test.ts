@@ -136,7 +136,7 @@ function link(sim: TacticalSim, soldiers: readonly (readonly [Soldier, number | 
         patrolCount: 0,
         onRoof: false,
         civilianGroup: 0,
-        hasKeys: false,
+        hasKeys: 0,
       },
       detail,
     };

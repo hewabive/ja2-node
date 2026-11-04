@@ -36,6 +36,15 @@ describe('ReevaluateEnemyStance', () => {
     expect(enemy.actionPoints).toBe(9);
   });
 
+  it('leaves the panic chosen one facing his way: he does not turn towards one of ours he newly sees', () => {
+    const { sim, merc, enemy } = scene();
+    sim.state.inCombat = true;
+    enemy.actionPoints = 10;
+    sim.state.panic.chosenOne = enemy;
+    manSeesMan(sim.state, enemy, merc, Caller.VERIFYANDDECAYOPPLIST);
+    expect([enemy.desiredDirection, enemy.actionPoints]).toEqual([NORTH, 10]);
+  });
+
   it('leaves neutrals, our team and soldiers under AI control alone', () => {
     const { sim, merc, enemy } = scene();
     enemy.neutral = true;

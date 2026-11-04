@@ -138,6 +138,8 @@ const DROP_BOMB_CODE = 483;
 const USE_REMOTE_CODE = 484;
 const PLANT_BOMB_REACH = 6;
 const USE_REMOTE_REACH = 4;
+const SET_OFF_TRIGGER_CODE = 762;
+const PULL_SWITCH_REACH = 5;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
   FORWARD_FALL: 403,
@@ -195,6 +197,13 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     ...frames(USE_REMOTE_REACH),
     USE_REMOTE_CODE,
     ...descendingFrames(USE_REMOTE_REACH),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  AI_PULL_SWITCH: () => [
+    ...frames(PULL_SWITCH_REACH),
+    SET_OFF_TRIGGER_CODE,
+    ...descendingFrames(PULL_SWITCH_REACH),
     NONINTERRUPTIBLE_DONE,
     END_OF_ANIMATION,
   ],

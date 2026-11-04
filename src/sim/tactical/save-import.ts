@@ -10,7 +10,8 @@
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
 // @src before UpdateMercsInSector; SetBlueFlagFlags, 2026-11-04); TileEngine/SaveLoadMap.cc
-// @src LoadRevealedStatusArrayFromRevealedTempFile.
+// @src LoadRevealedStatusArrayFromRevealedTempFile; LoadSaveTacticalStatusType.cc ExtractTacticalStatusTypeFromFile (the
+// @src panic fields, 2026-11-04).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -483,7 +484,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.suppressionPoints = r.suppressionPoints;
   s.weightCarriedAtTurnStart = m.weightCarriedAtTurnStart;
   s.stealthMode = r.stealthMode !== 0;
-  s.hasKeys = r.hasKeys !== 0;
+  s.hasKeys = r.hasKeys;
   s.quoteRecord = r.quoteRecord;
   s.quoteActionId = r.quoteActionId;
   s.currentCivQuote = r.currentCivQuote;
@@ -731,4 +732,20 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.lastInterruptedGuy = soldierById(t, turns.lastInterruptedGuy);
   turn.whoThrewRock = soldierById(t, turns.whoThrewRock);
   turn.selected = save.generalInfo.selectedSoldier < NOBODY ? save.generalInfo.selectedSoldier : turn.selected;
+  importPanic(t, save);
+}
+
+function importPanic(t: TacticalState, save: SaveGame): void {
+  const ts = save.tactical;
+  const panic = t.panic;
+  panic.flags = ts.panicFlags;
+  panic.chosenOne = soldierById(t, ts.theChosenOne);
+  panic.armyGuysKilled = ts.armyGuysKilled;
+  ts.panicTriggers.forEach((saved, k) => {
+    const trigger = panic.triggers[k];
+    if (!trigger) return;
+    trigger.gridNo = saved.gridNo;
+    trigger.isAlarm = saved.isAlarm !== 0;
+    trigger.tolerance = saved.tolerance;
+  });
 }

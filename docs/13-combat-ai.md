@@ -38,6 +38,7 @@ team turn: AI list built                                turns/turns.ts, turns/ai
 | `ai/morale.ts` | `calcMorale`, `calcManThreatValue`, `rangeChangeDesire`, the personal-or-public knowledge choice |
 | `ai/cover.ts` | `findBestNearbyCover`, `findSpotMaxDistFromOpponents`, `findNearestUngassedLand`, `findNearbyDarkerSpot`, `inLightAtNight`, `reachabilityFlood` |
 | `ai/utils.ts`, `perception/knowledge.ts` | Closest disturbance, friend in trouble and opponents, path cost estimates with climbing, watched locations, noise heard, what the soldier knows that his team does not |
+| `ai/panic-triggers.ts`, `ai/panic.ts`, `ai/panic-actions.ts` | The panic state (`TacticalState.panic`) and its triggers found at a sector entry, who may go for a trigger, the chosen one and his keys; the panic decisions of RED and BLACK and the radio chance; pulling a trigger (`AI_PULL_SWITCH`, codes 762 and 499) and the remote bomb trigger |
 | `ai/queen-escape.ts`, `ai/decide-boxing.ts`, `ai/decide-named-npc.ts` | The Queen and Joe (`26`), boxers (`25`), named NPCs (`24`) |
 | `ai/creature-decide.ts`, `smell.ts`, `multi-tile.ts` | Creature, bloodcat and crow decisions, calls and scent; the smell and blood map; multi-tile structures (`07`) |
 
@@ -86,6 +87,14 @@ comes from `t.campaign.difficultyModifier`, computed at sector load (deviation "
 pickups and drops through `turnHooks.aiPickup` and `aiDropHandItem`, the surrender offer through
 `t.narrative.offerSurrender` (`24`), an edge escape through `sectorHooks.soldierLeftMap` (`17`).
 
+**Panic.** A sector's panic switches and panic bombs (armed items on the three panic frequencies, `12` §6) are found
+once at each sector entry, after its items and soldiers (`initPanicSystem` from `campaign/sector-flow.ts` and the
+sandbox); a native save brings the state it saved. The army's first red alert, the Warden's red alert in Tixa, a
+trigger pulled, a chosen one who dies, collapses or cannot get there anymore send the closest able soldier: he goes
+RED with keys pushed onto `Soldier.hasKeys`, the original's INT8 bit stack, which every door test reads for truth.
+`setOffPanicBombs` (`bombs/bomb-queue.ts`) sets the frequency off through the bomb queue and sends the next soldier;
+modules outside the AI reach the choice through `turnHooks.makeClosestEnemyChosenOne`.
+
 **Creatures** decide in `ai/creature-decide.ts`; monsters have their own alert status (bloodcats use the human one) and
 see by smell. With Stracciatella's data the queen's tentacles are a blade, so she only spits and calls; the tentacle
 attack is ported and unreachable.
@@ -106,6 +115,11 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `ai/`:
 | A target of equal value replaces the one already chosen | `attack-choice.test.ts` |
 | A creature's blade it cannot afford stays in its hand | `creature-ai.test.ts` |
 | Scent tracking tests the stale action data, not the trail tile | `creature-ai.test.ts` |
+| The search for panic triggers stops at the third: a panic bomb in a later bomb slot does not count | `panic.test.ts` "stops at the third trigger …" |
+| Any armed item on a panic frequency counts as a panic bomb, a door closer too: a soldier holding a remote bomb trigger sets it off | `panic.test.ts` "an alerted soldier holding one sets off the first panic frequency …" |
+| A panic switch our merc pulls sets off its frequency and leaves the trigger armed for the army | `panic.test.ts` "sets off its frequency but leaves the trigger armed …" |
+| A chosen one sent to an alarm trigger stays chosen when he collapses | `panic.test.ts` "a collapsing chosen one is replaced, unless …" |
+| The panic keys are a bit stack on an INT8: the eighth push wraps into a negative byte, which still opens locked doors | `panic.test.ts` "pushes a set bit onto the INT8 …", `../pathfinding.test.ts` "lets any keys byte but 0 …" |
 
 Not pinned yet:
 - A prone soldier needs 6 APs to afford a turn that costs 2; a stance change is affordable at 2 APs whatever the stance.
@@ -133,6 +147,8 @@ Inferred from reading the source; no probe compares the human YELLOW, RED and BL
 - The AI path costs excluding the cost of starting to move.
 - `SoldierToLocationChanceToGetThrough` drawing no random number, which keeps cover and stance searches draw-free.
 - That nothing ever sets the spotters' caller to NOBODY.
+- The panic choice, decisions and trigger pull: no probe yet (`panic-original.test.ts` checks the triggers the shipped
+  maps give).
 
 Not ported: gaps "Combat AI specials". Kept differences: deviations "Armed civilian without ammo", "AI climb that
 cannot start", "Watchdogs", "Recalculated path cost", "GoAsFar fallback", "Creature and bloodcat stub bodies",

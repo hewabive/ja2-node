@@ -518,7 +518,7 @@ function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
       soldierClass: s.soldierClass,
       civilianGroup: s.civilianGroup,
       priorityExistence: s.priority,
-      hasKeys: false,
+      hasKeys: 0,
     },
     detailedRaw,
   };

@@ -48,7 +48,7 @@ export interface DetailedPlacement {
   readonly onRoof: boolean;
   readonly civilianGroup: number;
   readonly scheduleId: number;
-  readonly hasKeys: boolean;
+  readonly hasKeys: number;
 }
 
 function ascii(bytes: Uint8Array, offset: number): string {
@@ -106,7 +106,7 @@ export function parseDetailedPlacement(raw: Uint8Array): DetailedPlacement {
     onRoof: raw[909] !== 0,
     civilianGroup: raw[917] ?? 0,
     scheduleId: raw[919] ?? 0,
-    hasKeys: raw[922] !== 0,
+    hasKeys: raw[922] ?? 0,
   };
 }
 

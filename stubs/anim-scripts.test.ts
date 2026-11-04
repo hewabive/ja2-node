@@ -13,6 +13,7 @@ const JUMP_TO_START = 501;
 const END_OF_ANIMATION = 499;
 const DROP_BOMB_CODE = 483;
 const USE_REMOTE_CODE = 484;
+const SET_OFF_TRIGGER_CODE = 762;
 const UNJAM_STATES = [
   'STANDING_SHOOT_UNJAM',
   'CROUCH_SHOOT_UNJAM',
@@ -36,13 +37,14 @@ describe('stub animation scripts', () => {
     }
   });
 
-  it('plant the bomb and press the remote with codes 483 and 484 in the middle of PLANT_BOMB and USE_REMOTE, as the original scripts do', async () => {
+  it('plant the bomb, press the remote and pull the panic switch with codes 483, 484 and 762 in the middle of PLANT_BOMB, USE_REMOTE and AI_PULL_SWITCH, as the original scripts do', async () => {
     const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
     const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
     const { codes } = parseAnimationScripts(await buildStubAnimationScripts());
     for (const [name, code] of [
       ['PLANT_BOMB', DROP_BOMB_CODE],
       ['USE_REMOTE', USE_REMOTE_CODE],
+      ['AI_PULL_SWITCH', SET_OFF_TRIGGER_CODE],
     ] as const) {
       const start = stateId(tables, name) * MAX_FRAMES_PER_ANIM;
       const script = Array.from(codes.slice(start, start + MAX_FRAMES_PER_ANIM));

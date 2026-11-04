@@ -33,7 +33,7 @@ function soldier(at: number, overrides: Partial<PathSoldier> = {}): PathSoldier 
     gridNo: at,
     level: 0,
     visible: 1,
-    hasKeys: false,
+    hasKeys: 0,
     underAiControl: false,
     monsterOrAnimal: false,
     ...overrides,
@@ -159,7 +159,14 @@ describe('findBestPath', () => {
     expect(findBestPath(env(houseWithDoor), enemy, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
     const locked = env(houseWithDoor, [], [doorRecord(true)]);
     expect(findBestPath(locked, enemy, behindDoor, 0).length).toBeGreaterThan(10);
-    expect(findBestPath(locked, { ...enemy, hasKeys: true }, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
+    expect(findBestPath(locked, { ...enemy, hasKeys: 1 }, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
+  });
+
+  it('lets any keys byte but 0 through a locked door, the negative byte of an overflowed panic key stack too (bHasKeys is an INT8 read for truth)', () => {
+    const behindDoor = gridNo(80, 78);
+    const enemy = soldier(START, { team: Team.ENEMY });
+    const locked = env(houseWithDoor, [], [doorRecord(true)]);
+    for (const hasKeys of [2, -64]) expect(findBestPath(locked, { ...enemy, hasKeys }, behindDoor, 0).steps).toEqual([NORTH, NORTH]);
   });
 
   it('charges an AI budget for opening a closed door only when the map has a record of the door', () => {

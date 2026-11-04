@@ -23,7 +23,7 @@ function probe(gridNo: number): PathSoldier {
     gridNo,
     level: 0,
     visible: 0,
-    hasKeys: false,
+    hasKeys: 0,
     underAiControl: false,
     monsterOrAnimal: false,
   };

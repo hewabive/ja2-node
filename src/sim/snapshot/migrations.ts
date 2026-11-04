@@ -1356,6 +1356,33 @@ function addPendingDropBomb(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PANIC_KEY = 'panic';
+const HAS_KEYS_KEY = 'hasKeys';
+const NO_PANIC_TRIGGER_GRIDNO = -1;
+const PANIC_TRIGGER_COUNT = 3;
+
+function noPanic(): Json {
+  const triggers = Array.from({ length: PANIC_TRIGGER_COUNT }, () => ({ gridNo: NO_PANIC_TRIGGER_GRIDNO, isAlarm: false, tolerance: 0 }));
+  return { flags: 0, triggers, chosenOne: null, armyGuysKilled: 0 };
+}
+
+function withKeysByte(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withKeysByte(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = key === HAS_KEYS_KEY && typeof v === 'boolean' ? Number(v) : withKeysByte(v);
+  return mapped;
+}
+
+function addPanicStateAndKeysByte(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const keyed = withKeysByte(value);
+    return [name, name === 'tactical' && isObject(keyed) ? insertAfter(keyed, BOOBY_TRAP_KEY, PANIC_KEY, noPanic()) : keyed];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1405,5 +1432,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     45: actionItemsIntoExplosionQueue,
     46: addTacticalPromptsAndStopTimeQuotes,
     47: addPendingDropBomb,
+    48: addPanicStateAndKeysByte,
   };
 }

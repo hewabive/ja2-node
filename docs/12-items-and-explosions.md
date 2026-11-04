@@ -249,7 +249,8 @@ mines at the load, buries pits and switches and lists the armed items as they en
 `pathfinding.ts` reads the flags (`07`). `bombs/bomb-queue.ts` is the original's explosion queue with what feeds it: a
 step on a tile (`setOffBombsInGridNo`, from `handleAtNewGridNo` and the fence landing, `07`), a frequency
 (`setOffBombsByFrequency`, from a pressure switch underfoot and from a switch worked by hand,
-`activateSwitchInGridNo`), and the timers (`decayBombTimers`, at each real-time turn and at the end of each round,
+`activateSwitchInGridNo`), a panic trigger (`setOffPanicBombs`, from the AI's trigger pull and remote bomb trigger,
+`13`), and the timers (`decayBombTimers`, at each real-time turn and at the end of each round,
 `10`); `bombs/item-action.ts` runs the action items, the quest ones through `narrative/quest-items.ts` (`25`). The
 queue runs in the overhead pass after the tile animations. `bombs/mine-detection.ts` is the suspicious ground: every
 soldier checks the tile ahead before a step and the tiles around after an arrival (`movement.ts`, `07`), and what our

@@ -1,9 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Item_Types.h DetonatorType, PANIC_FREQUENCY, FIRST_MAP_PLACED_FREQUENCY, OBJECT_DISABLED_BOMB and
-// @src the bomb fields of OBJECTTYPE (bBombStatus,
-// @src bDetonatorType, usBombItem, bDelay/bFrequency, ubBombOwner, bActionValue, ubTolerance in the union at byte 4,
-// @src LoadSaveObjectType.cc ExtractObject); Action_Items.h ItemActionType; Items.cc ArmBomb.
+// @src src/game/Tactical/Item_Types.h DetonatorType, PANIC_FREQUENCY (with _2 and _3), FIRST_MAP_PLACED_FREQUENCY,
+// @src OBJECT_DISABLED_BOMB and the bomb fields of OBJECTTYPE (bBombStatus, bDetonatorType, usBombItem,
+// @src bDelay/bFrequency, ubBombOwner, bActionValue, ubTolerance in the union at byte 4, LoadSaveObjectType.cc
+// @src ExtractObject); Action_Items.h ItemActionType; Items.cc ArmBomb.
 
 import { i8, u8, u16, u32 } from '../../../core/int.ts';
 import { findAttachment, type ItemObject, ObjectFlags } from '../../items/object.ts';
@@ -39,6 +39,7 @@ export const ItemAction = {
 } as const;
 
 export const PANIC_FREQUENCY = 127;
+export const PANIC_FREQUENCIES: readonly number[] = [PANIC_FREQUENCY, 126, 125];
 export const FIRST_MAP_PLACED_FREQUENCY = 50;
 
 const LOW_BYTE = 0xff;
@@ -109,6 +110,10 @@ export function setActionValue(o: ItemObject, action: number): void {
 
 export function toleranceOf(o: ItemObject): number {
   return u8(o.money >>> TOLERANCE_SHIFT);
+}
+
+export function setTolerance(o: ItemObject, tolerance: number): void {
+  o.money = u32((o.money & ~(LOW_BYTE << TOLERANCE_SHIFT)) | (u8(tolerance) << TOLERANCE_SHIFT));
 }
 
 export function isDisabledBomb(o: ItemObject): boolean {

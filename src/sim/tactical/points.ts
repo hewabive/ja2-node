@@ -257,6 +257,10 @@ export interface PointsContext {
   readonly inCombat: boolean;
 }
 
+function hasKeys(s: Soldier | null): boolean {
+  return s !== null && s.hasKeys !== 0;
+}
+
 export function doorTravelCost(
   ctx: PointsContext,
   s: Soldier | null,
@@ -285,7 +289,7 @@ export function doorTravelCost(
   if (!ref.obstacleIfClosed) return terrainCost(ctx.env.world, g);
   if (perceived || cannotOpenDoors) return replacement;
   const door = ctx.env.world.mapDoors.get(ref.door);
-  return door && (!door.locked || s?.hasKeys) && !returnDoorCost ? terrainCost(ctx.env.world, g) : replacement;
+  return door && (!door.locked || hasKeys(s)) && !returnDoorCost ? terrainCost(ctx.env.world, g) : replacement;
 }
 
 export function terrainActionPoints(ctx: PointsContext, s: Soldier, g: number, dir: number, level: number): number {

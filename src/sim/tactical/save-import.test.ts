@@ -168,6 +168,10 @@ function syntheticSave({
       dontAddNewCrows: false,
       creatureTenseQuoteDelay: 0,
       creatureTenseQuoteLastUpdate: 0,
+      panicFlags: 0,
+      theChosenOne: NOBODY,
+      armyGuysKilled: 0,
+      panicTriggers: [],
       ...tactical,
     },
     keyTable: [],
@@ -458,6 +462,29 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect([merc.lookForItems, soldierOf(sim, MERC_ID + 1).lookForItems]).toEqual([true, false]);
     const turn = sim.state.turn;
     expect([turn.lockItemLocators, turn.itemsSeenOnAttack, turn.itemsSeenOnAttackGridNo]).toEqual([true, merc, gridNo(80, 86)]);
+  });
+
+  it('restores the panic state, the chosen one by id, and a keys byte as the INT8 the panic stack may have wrapped (LoadSaveTacticalStatusType.cc, bHasKeys)', () => {
+    const enemyId = 20;
+    const trigger = { gridNo: gridNo(80, 70), isAlarm: 1, tolerance: 35 };
+    const none = { gridNo: NOWHERE, isAlarm: 0, tolerance: 0 };
+    const save = syntheticSave({
+      soldiers: [savedSoldier(enemyId, Team.ENEMY, gridNo(80, 82), { bHasKeys: 0xc0 })],
+      tactical: { panicFlags: 3, theChosenOne: enemyId, armyGuysKilled: 4, panicTriggers: [trigger, none, none] },
+    });
+    const sim = importedSim(save);
+    const enemy = soldierOf(sim, enemyId);
+    expect(sim.state.panic).toEqual({
+      flags: 3,
+      triggers: [
+        { gridNo: gridNo(80, 70), isAlarm: true, tolerance: 35 },
+        { gridNo: NOWHERE, isAlarm: false, tolerance: 0 },
+        { gridNo: NOWHERE, isAlarm: false, tolerance: 0 },
+      ],
+      chosenOne: enemy,
+      armyGuysKilled: 4,
+    });
+    expect(enemy.hasKeys).toBe(-64);
   });
 
   it('restores the gassed state of a soldier (SOLDIER_GASSED)', () => {

@@ -41,7 +41,7 @@ export function dummySoldier(sweet: number, team: number, level: number): PathSo
     gridNo: sweet,
     level,
     visible: 0,
-    hasKeys: false,
+    hasKeys: 0,
     underAiControl: false,
     monsterOrAnimal: false,
   };

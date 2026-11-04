@@ -59,7 +59,7 @@ export interface PathSoldier {
   readonly gridNo: number;
   readonly level: number;
   readonly visible: number;
-  readonly hasKeys: boolean;
+  readonly hasKeys: number;
   readonly underAiControl: boolean;
   readonly monsterOrAnimal: boolean;
 }
@@ -518,7 +518,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
           else {
             const mapDoor = world.mapDoors.get(ref.door);
             if (!mapDoor) nextCost = terrainCost(world, newLoc);
-            else if (!mapDoor.locked || s.hasKeys) {
+            else if (!mapDoor.locked || s.hasKeys !== 0) {
               if (budget) goingThroughDoor = true;
               nextCost = terrainCost(world, newLoc);
             } else nextCost = TravelCost.OBSTACLE;

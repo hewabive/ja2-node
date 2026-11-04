@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc ReevaluateEnemyStance; Soldier_Macros.h OK_ENEMY_MERC.
+// @src src/game/Tactical/Soldier_Control.cc ReevaluateEnemyStance (with the panic chosen one, 2026-11-04);
+// @src Soldier_Macros.h OK_ENEMY_MERC.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -34,7 +35,7 @@ function closestSeenMerc(t: TacticalState, s: Soldier): number {
 }
 
 export function reevaluateEnemyStance(t: TacticalState, s: Soldier, animState: number): boolean {
-  if (!okEnemyMerc(s) || endHeight(t.content, animState) !== AnimHeight.STAND || s.aiTurnControl) return false;
+  if (!okEnemyMerc(s) || s === t.panic.chosenOne || endHeight(t.content, animState) !== AnimHeight.STAND || s.aiTurnControl) return false;
   if (s.turningFromPronePosition !== NOT_TURNING_FROM_PRONE) return false;
   if (s.bodyType === Body.QUEENMONSTER) {
     if (hasAnimFlag(t.content, animState, AnimFlags.BREATH) && s.ai.oppCount > 0) {

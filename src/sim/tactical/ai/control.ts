@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI (with the soldiers a new situation spares), ExecuteAction, ActionDone,
-// @src CancelAIAction, NPCDoesAct, HandleInitialRedAlert,
+// @src src/game/TacticalAI/AIMain.cc HandleSoldierAI (with the soldiers a new situation spares), ExecuteAction (with the
+// @src panic trigger's red alert, 2026-11-04), ActionDone, CancelAIAction, NPCDoesAct, HandleInitialRedAlert (with the
+// @src closest enemy sent to a panic trigger),
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
 // @src HandleAITacticalTraversal, the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
@@ -71,6 +72,8 @@ import {
 } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
+import { redAlertIsInitial, sendClosestEnemyAfterRedAlert } from './panic.ts';
+import { executePullTrigger, executeUseDetonator, triggerPullerDone } from './panic-actions.ts';
 import { alertQueenAndJoe, traverseDown } from './queen-escape.ts';
 import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
 import { recalculatePathCost } from './utils.ts';
@@ -174,7 +177,11 @@ export function freeUpNpcFromPendingAction(t: TacticalState, s: Soldier): void {
 }
 
 export function freeUpFromPendingAction(t: TacticalState, s: Soldier): void {
-  if (s.team === Team.OUR || s.ai.action === AiAction.PULL_TRIGGER) return;
+  if (s.team === Team.OUR) return;
+  if (s.ai.action === AiAction.PULL_TRIGGER) {
+    if (triggerPullerDone(t, s)) freeUpNpcFromPendingAction(t, s);
+    return;
+  }
   if (!PENDING_ACTIONS.has(s.ai.action)) return;
   if (!PENDING_RELEASE_STATES.includes(t.content.animations.controls[s.state]?.id ?? '')) return;
   freeUpNpcFromPendingAction(t, s);
@@ -196,6 +203,7 @@ function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
 }
 
 function handleInitialRedAlert(t: TacticalState, team: number): void {
+  sendClosestEnemyAfterRedAlert(t, team);
   if (team === Team.ENEMY) alertQueenAndJoe(t);
   t.perception.awareOfOpposition[team] = true;
 }
@@ -428,8 +436,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
     }
     case AiAction.RED_ALERT:
     case AiAction.YELLOW_ALERT:
-      if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && !t.perception.awareOfOpposition[s.team])
-        handleInitialRedAlert(t, s.team);
+      if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && redAlertIsInitial(t, s.team)) handleInitialRedAlert(t, s.team);
       deductPoints(t.inCombat, s, AP.RADIO, 0);
       radioSightings(t, s, null, s.team);
       aiDecideRadioAnimation(t, s);
@@ -438,6 +445,12 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       deductPoints(t.inCombat, s, AP.RADIO, 0);
       creatureCall(t, s);
       return true;
+    case AiAction.PULL_TRIGGER:
+      executePullTrigger(t, s);
+      return true;
+    case AiAction.USE_DETONATOR:
+      executeUseDetonator(t, s);
+      return false;
     case AiAction.PICKUP_ITEM:
       if (!t.turnHooks.aiPickup(t, s, ai.actionData, ai.pickupItem)) {
         cancelAIAction(t, s);

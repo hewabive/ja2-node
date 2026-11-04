@@ -2190,3 +2190,62 @@ describe('snapshot version 47 (no pending drop bomb) migrates with nobody on the
     await expectNoPendingDropBomb(await createCampaignSession(kit.read, exists, 9));
   });
 });
+
+const PANIC_KEY = 'panic';
+const HAS_KEYS_KEY = 'hasKeys';
+const NO_PANIC_TRIGGER = { gridNo: -1, isAlarm: false, tolerance: 0 };
+const NO_PANIC = { flags: 0, triggers: [NO_PANIC_TRIGGER, NO_PANIC_TRIGGER, NO_PANIC_TRIGGER], chosenOne: null, armyGuysKilled: 0 };
+
+function withBooleanKeys(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBooleanKeys(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) out[key] = key === HAS_KEYS_KEY && typeof v === 'number' ? v !== 0 : withBooleanKeys(v);
+  return out;
+}
+
+function versionFortyEight(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    const legacy = withBooleanKeys(value);
+    if (name !== 'tactical') return [name, legacy];
+    const { [PANIC_KEY]: panic, ...rest } = object(legacy);
+    expect(panic).toEqual(NO_PANIC);
+    return [name, rest];
+  });
+  return { ...snapshot, version: 48, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 48 (no panic state, keys as a flag) migrates with no panic trigger, no chosen one and every keys flag as the byte 0 or 1', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoPanic(session: SessionSim, t: TacticalState | undefined): Promise<void> {
+    const enemy = t ? teamMembers(t, Team.ENEMY)[0] : undefined;
+    if (enemy) enemy.hasKeys = 1;
+    const current = snapshotSession(session);
+    const legacy = versionFortyEight(current.sim);
+    expect(JSON.stringify(current.sim)).toContain(`"${HAS_KEYS_KEY}":0`);
+    expect(JSON.stringify(legacy)).not.toContain(`"${HAS_KEYS_KEY}":0`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox with a guard holding keys', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    await expectNoPanic(sandbox, sandbox.sim.state);
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    await expectNoPanic(campaign, campaign.campaign.tactical?.state);
+  });
+});

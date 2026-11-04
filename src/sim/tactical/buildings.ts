@@ -52,7 +52,7 @@ function fakeRoofSoldier(g: number): PathSoldier {
     gridNo: g,
     level: 1,
     visible: 0,
-    hasKeys: false,
+    hasKeys: 0,
     underAiControl: false,
     monsterOrAnimal: false,
   };

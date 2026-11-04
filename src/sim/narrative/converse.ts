@@ -86,6 +86,7 @@ const UNSEEN_PC_DISTANCE_PENALTY = 10;
 const WORLD_MAX_DISTANCE = 25600;
 const GIVE_MENU_WAIT_MS = 10000;
 const ON_DUTY = 20;
+const HAS_KEYS = 1;
 
 export function selectEnv(host: NarrativeHost): SelectEnv {
   return {
@@ -342,7 +343,7 @@ function recordMovement(host: NarrativeHost, npc: number, q: NpcRecord, index: n
   if (q.goToGridNo === NO_MOVE) return;
   const s = soldierByProfile(host, npc);
   const t = host.tactical();
-  if (s && npc === NarrativeProfile.KYLE) s.hasKeys = true;
+  if (s && npc === NarrativeProfile.KYLE) s.hasKeys = HAS_KEYS;
   if (s && s.gridNo === q.goToGridNo) {
     s.quoteRecord = index + 1;
     npcReachedDestination(host, s, true);

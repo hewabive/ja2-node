@@ -55,4 +55,13 @@ describe('the AI of a soldier who is being hit', () => {
     expect(enemy.aiTurnControl).toBe(false);
     expect(enemy.moved).toBe(true);
   });
+
+  it('ends the turn of a militia soldier under AI control who collapses too: the original tests SOLDIER_ENEMY, set for every soldier not of our team', () => {
+    const { sim, t } = enemyOnHisTurn();
+    const militia = spawnSoldier(sim, 60, Team.MILITIA, gridNo(70, 88), Direction.NORTH);
+    t.turn.currentTeam = Team.MILITIA;
+    militia.aiTurnControl = true;
+    soldierCollapse(t, militia);
+    expect([militia.aiTurnControl, militia.moved]).toEqual([false, true]);
+  });
 });

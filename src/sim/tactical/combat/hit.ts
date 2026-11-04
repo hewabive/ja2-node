@@ -6,7 +6,8 @@
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
 // @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, HandleSoldierTakeDamageFeedback (the portrait flash of a soldier
 // @src the squad sees, 2026-11-03), CalcSoldierNextBleed, ReleaseSoldiersAttacker,
-// @src CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
+// @src CheckForFreeupFromHit, SoldierCollapse (with the panic chosen one and the turn end of every non-player soldier,
+// @src SOLDIER_ENEMY, 2026-11-04), ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
 // @src spit gas).
 
@@ -22,6 +23,7 @@ import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
+import { replaceCollapsedChosenOne } from '../ai/panic-triggers.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
 import { checkForBreathCollapse } from '../breath-collapse.ts';
@@ -624,7 +626,9 @@ export function soldierCollapse(t: TacticalState, s: Soldier): void {
       break;
     }
   }
-  if (s.team === Team.ENEMY && t.inCombat && s.aiTurnControl) t.hooks.endAiGuysTurn(t, s);
+  if (s.team === Team.OUR) return;
+  replaceCollapsedChosenOne(t, s);
+  if (t.inCombat && s.aiTurnControl) t.hooks.endAiGuysTurn(t, s);
 }
 
 function setSpecialMovePath(t: TacticalState, s: Soldier, steps: number, destination: number, state: number): void {

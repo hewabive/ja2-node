@@ -50,6 +50,8 @@ import {
   freeUpNpcFromPendingAction,
 } from './ai/control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './ai/decide.ts';
+import { makeClosestEnemyChosenOne } from './ai/panic.ts';
+import { pullTriggerOpcode } from './ai/panic-actions.ts';
 import { endTimedAiPause } from './ai/pause.ts';
 import { handleSystemNewAISituation } from './ai/system-situation.ts';
 import { endAIGuysTurn, startNPCAI } from './ai/turn-based.ts';
@@ -377,6 +379,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       stealOpcode(state, s, code) ??
       robotReloadOpcode(state, s, code) ??
       bombOpcode(state, s, code) ??
+      pullTriggerOpcode(state, s, code) ??
       crowOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
     rottingCorpses: handleRottingCorpses,
@@ -422,6 +425,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
     freeUpFromRoofClimb,
     aiPickup: (state, s, g, item) => soldierPickupItem(state, s, g, 0, item ? [item] : null),
     aiDropHandItem: (state, s) => soldierDropItem(state, s, InvSlot.HAND),
+    makeClosestEnemyChosenOne,
   };
 }
 

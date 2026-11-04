@@ -8,6 +8,7 @@
 // @src Tactical/Militia_Control.cc PrepareMilitiaForTactical, ResetMilitia; Overhead.cc HandleNPCTeamMemberDeath
 // @src (strategic part); Town_Militia.cc HandleMilitiaStatusInCurrentMapBeforeLoadingNewMap; StrategicMap.cc
 // @src HandleRPCDescriptionOfSector; HandleDefiniteUnloadingOfWorld (RemoveAllActiveTimedBombs, 2026-11-04);
+// @src SetCurrentWorldSector (InitAI's InitPanicSystem after EnterSector, 2026-11-04);
 // @src TacticalAI/Knowledge.cc CallAvailableTeamEnemiesToAmbush; TileEngine/WorldDef.cc
 // @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld); StrategicMap.cc EnterSector (SetupProfileInsertionDataForCivilians,
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
@@ -100,6 +101,7 @@ import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { initPanicSystem } from '../tactical/ai/panic-triggers.ts';
 import { removeAllActiveTimedBombs } from '../tactical/bombs/bomb-queue.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleRottingCorpses } from '../tactical/crows.ts';
@@ -688,6 +690,7 @@ export class SectorFlow {
     if (options.autoPlacement) this.#chooseRandomEdgepoints(sector);
     if (s.flow === 'strategic') endMapScreenForSectorLoad(this.campaign);
     this.prepareLoadedSector(options);
+    initPanicSystem(sim.state);
     updateDoorGraphicsFromStatus(sim.state);
   }
 

@@ -11,7 +11,7 @@ import { type DetailedPlacement, parseDetailedPlacement } from '../../content/fo
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem } from '../../content/items/rules.ts';
-import { idiv } from '../../core/int.ts';
+import { i8, idiv } from '../../core/int.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
 import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
@@ -257,7 +257,7 @@ export interface SoldierCreate {
   direction: number;
   insertionGridNo: number;
   onRoof: boolean;
-  hasKeys: boolean;
+  hasKeys: number;
   patrolCount: number;
   patrolGrid: readonly number[];
   expLevel: number;
@@ -452,7 +452,7 @@ export function newSoldierCreate(team: number, bodyType: number, direction: numb
     direction,
     insertionGridNo,
     onRoof: false,
-    hasKeys: false,
+    hasKeys: 0,
     patrolCount: 0,
     patrolGrid: [],
     expLevel: 0,
@@ -787,7 +787,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   const s = profile ? profiledSoldier(c, pp, id, profile) : generatedSoldier(c, pp, id);
   s.breath = INITIAL_BREATH;
   s.breathMax = INITIAL_BREATH_MAX;
-  s.hasKeys = pp.hasKeys;
+  s.hasKeys = i8(pp.hasKeys);
   if (pp.team === Team.CIV) s.neutral = civilianStartsNeutral(c, pp.profile, s.civilianGroup);
   if (pp.team === Team.OUR || pp.team === Team.MILITIA) s.visible = 1;
   s.actionPoints = creationActionPoints(c, s);

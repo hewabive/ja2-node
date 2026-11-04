@@ -277,7 +277,7 @@ export interface Soldier {
   gassed: boolean;
   heardGunshot: boolean;
   civilianGroup: number;
-  hasKeys: boolean;
+  hasKeys: number;
   visible: number;
   underAiControl: boolean;
   boxer: boolean;
@@ -622,7 +622,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     gassed: false,
     heardGunshot: false,
     civilianGroup: init.civilianGroup ?? 0,
-    hasKeys: false,
+    hasKeys: 0,
     visible: init.team === Team.OUR ? 1 : -1,
     underAiControl: false,
     boxer: false,

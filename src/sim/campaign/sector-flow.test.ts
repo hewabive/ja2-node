@@ -29,7 +29,8 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
-import { Detonator, setDelay, setDetonator } from '../tactical/bombs/bomb-object.ts';
+import { PanicFlags } from '../tactical/ai/panic-triggers.ts';
+import { Detonator, PANIC_FREQUENCY, setDelay, setDetonator, setFrequency } from '../tactical/bombs/bomb-object.ts';
 import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/bombs/mine-flags.ts';
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
@@ -632,6 +633,17 @@ describe('a native save loaded into its sector', () => {
     const t = reenterAirfield(campaign);
     expect(knownMineTiles(t)).toEqual([HANGAR_FLOOR - 2]);
     expect(t.mineFlags.some((flags) => flags & MineFlag.ENEMY)).toBe(false);
+  });
+
+  it('finds the panic triggers again at each entry, among the items the sector kept, and starts without a chosen one (StrategicMap.cc InitAI after EnterSector)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    expect(left.panic.flags).toBe(0);
+    const panicSwitch = createItem(left.content.items, itemId(left, 'SWITCH'), 100);
+    setFrequency(panicSwitch, PANIC_FREQUENCY);
+    addItemToPool(left, HANGAR_FLOOR, panicSwitch, Visibility.BURIED, GROUND_LEVEL, WorldItemFlags.ARMED_BOMB);
+    const t = reenterAirfield(campaign);
+    expect([t.panic.flags, t.panic.triggers[0]?.gridNo, t.panic.chosenOne]).toEqual([PanicFlags.TRIGGERS_HERE, HANGAR_FLOOR, null]);
   });
 
   it('refuses time compression while a timed bomb ticks and takes it off the map when the sector unloads (ActiveTimedBombExists, RemoveAllActiveTimedBombs)', () => {

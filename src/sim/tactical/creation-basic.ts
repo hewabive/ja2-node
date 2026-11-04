@@ -51,7 +51,7 @@ function basicPlacement(c: AutoresolveCreation, kind: PlacementKind): BasicPlace
     soldierClass,
     civilianGroup: 0,
     priorityExistence: false,
-    hasKeys: false,
+    hasKeys: 0,
   };
 }
 

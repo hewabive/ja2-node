@@ -14,6 +14,7 @@ import type { SimEvent } from '../sim/events.ts';
 import { tacticalViewParts } from '../sim/knowledge/sim-view.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
+import { initPanicSystem } from '../sim/tactical/ai/panic-triggers.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { createMercFromProfile } from '../sim/tactical/creation.ts';
 import { loadMapEdgepoints } from '../sim/tactical/edgepoints.ts';
@@ -220,6 +221,7 @@ export function populateSandbox(sim: TacticalSim): void {
     for (let i = 0; i < STUB_SQUAD_SIZE; i++) placeMerc(t, stubMerc(t.content, idFor(Team.OUR)), entry);
   addSoldierInitListTeamToWorld(t, Team.CIV, env);
   addSoldierInitListEnemyDefenceSoldiers(t, SANDBOX_GARRISON, env);
+  initPanicSystem(t);
 }
 
 export async function createSandboxSession(

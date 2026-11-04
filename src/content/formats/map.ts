@@ -98,7 +98,7 @@ export interface BasicPlacement {
   readonly soldierClass: number;
   readonly civilianGroup: number;
   readonly priorityExistence: boolean;
-  readonly hasKeys: boolean;
+  readonly hasKeys: number;
 }
 
 export interface Placement {
@@ -256,7 +256,7 @@ function readBasicPlacement(r: BinaryReader): BasicPlacement {
   const soldierClass = b.u8();
   const civilianGroup = b.u8();
   const priorityExistence = b.u8() !== 0;
-  const hasKeys = b.u8() !== 0;
+  const hasKeys = b.u8();
   return {
     detailed,
     startingGridNo,
@@ -495,7 +495,7 @@ export function writeMap(map: Omit<MapDef, 'trailingBytes'>): Uint8Array {
         .u8(b.soldierClass)
         .u8(b.civilianGroup)
         .u8(b.priorityExistence ? 1 : 0)
-        .u8(b.hasKeys ? 1 : 0)
+        .u8(b.hasKeys)
         .zeros(14);
       if (b.detailed) w.bytes(p.detailedRaw ?? new Uint8Array(DETAILED_PLACEMENT_BYTES));
     }

@@ -234,7 +234,7 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.blindedCounter = v.blinded ? 1 : 0;
   s.serviceCount = v.firstAid === 'patient' ? 1 : 0;
   s.keyRing = keyRingOf(v);
-  s.hasKeys = (v.keys ?? []).length > 0;
+  s.hasKeys = (v.keys ?? []).length > 0 ? 1 : 0;
   s.skillTrait1 = hint.skills[0];
   s.skillTrait2 = hint.skills[1];
   s.personalityTrait = hint.personality;

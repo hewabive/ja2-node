@@ -43,7 +43,7 @@ export interface InitBasic {
   patrolCount: number;
   onRoof: boolean;
   civilianGroup: number;
-  hasKeys: boolean;
+  hasKeys: number;
 }
 
 export interface SoldierInitNode {
@@ -425,7 +425,7 @@ export function tacticalCreateEnemySoldier(t: TacticalState, soldierClass: numbe
     soldierClass,
     civilianGroup: 0,
     priorityExistence: false,
-    hasKeys: false,
+    hasKeys: 0,
   };
   const upgrade: PlacementAdjust = (pp) => {
     if (soldierClass === SoldierClass.ELITE) env.upgradeEliteToProfiledEnemy(pp);
@@ -459,7 +459,7 @@ export function tacticalCreateCreature(t: TacticalState, bodyType: number, env: 
     soldierClass: SoldierClass.CREATURE,
     civilianGroup: 0,
     priorityExistence: false,
-    hasKeys: false,
+    hasKeys: 0,
   };
   return createSoldier(t, Team.CREATURE, basic, null, env);
 }

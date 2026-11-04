@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497, 721, 722, 765,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
-// @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
+// @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath; ubArmyGuysKilled and the panic
+// @src chosen one, 2026-11-04); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
 // @src corpse), RemoveCorpse, FindCorpseBasedOnStructure; Overhead.cc HandlePlayerTeamMemberDeath (the next selection,
 // @src 2026-10-31).
@@ -14,7 +15,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, u8 } from '../../../core/int.ts';
 import { createItem, ObjectFlags } from '../../items/object.ts';
 import { NarrativeHistory } from '../../strategic/narrative/history-codes.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -305,8 +306,10 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
   }
   if (old.team !== Team.CIV && old.team !== Team.MILITIA) {
     if (old.bodyType === Body.QUEENMONSTER && killer) t.narrative.creatureQueenDied(killer, old.gridNo, old.level);
+    if (old.team === Team.ENEMY) t.panic.armyGuysKilled = u8(t.panic.armyGuysKilled + 1);
     if (killer?.team === Team.OUR) handleMoraleEvent(t, killer, MoraleEvent.KILLED_ENEMY);
     checkForAlertWhenEnemyDies(t, old);
+    if (t.panic.chosenOne === old) t.panic.chosenOne = null;
   }
   if (old.bodyType !== Body.CROW && old.bodyType !== Body.COW && old.lastDamageReason !== DamageReason.BLOODLOSS) {
     if (killer?.team === Team.OUR) statChange(t, killer, StatKind.EXPERIENCE, 10 * old.stats.experience, StatCause.SUCCESS);

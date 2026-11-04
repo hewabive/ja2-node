@@ -12,7 +12,7 @@ import type { MapDoor } from '../../content/formats/map.ts';
 import type { DetailedPlacement } from '../../content/formats/placement.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
-import { idiv, u32 } from '../../core/int.ts';
+import { idiv, u8, u32 } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import { placeLoadedCorpse } from '../tactical/corpse-placement.ts';
@@ -228,7 +228,7 @@ function preservedRecord(t: TacticalState, s: Soldier, node: SoldierInitNode): D
     onRoof: useCurrent ? s.level > 0 : node.basic.onRoof,
     civilianGroup: s.civilianGroup,
     scheduleId: s.scheduleId,
-    hasKeys: s.hasKeys,
+    hasKeys: u8(s.hasKeys),
   };
 }
 

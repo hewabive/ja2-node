@@ -1,17 +1,18 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc BOMB_QUEUE_DELAY, MAX_BOMB_QUEUE, gExplosionQueue, AddBombToQueue,
-// @src HandleExplosionQueue, DecayBombTimers, SetOffBombsByFrequency, SetOffBombsInGridNo, ActivateSwitchInGridNo,
-// @src RemoveAllActiveTimedBombs; Explosion_Control.h ExplosionQueueElement.
+// @src HandleExplosionQueue, DecayBombTimers, SetOffBombsByFrequency, SetOffPanicBombs, SetOffBombsInGridNo,
+// @src ActivateSwitchInGridNo, RemoveAllActiveTimedBombs; Explosion_Control.h ExplosionQueueElement.
 
 import { type ExplosiveDef, ItemClass } from '../../../content/items/items.ts';
 import type { ItemObject } from '../../items/object.ts';
+import { FIRST_PANIC_TRIGGER, PanicFlags } from '../ai/panic-triggers.ts';
 import { callAvailableEnemiesTo } from '../doors/door-traps.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
 import { newLightEffect } from '../explosions/light.ts';
 import { revealRoofsAndItems } from '../perception/fov.ts';
 import { allTeamsLookForAll } from '../perception/sight.ts';
-import { type Soldier, Team } from '../soldier.ts';
+import { NOWHERE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import { removeWorldItem, type WorldItem } from '../world-items.ts';
 import {
@@ -24,6 +25,7 @@ import {
   frequencyOf,
   ItemAction,
   isDisabledBomb,
+  PANIC_FREQUENCIES,
   placedBySoldier,
   setDelay,
 } from './bomb-object.ts';
@@ -105,6 +107,17 @@ export function setOffBombsByFrequency(t: TacticalState, s: Soldier | null, freq
     t.explosionQueue.person = s;
     timestamp = queueBomb(t, bomb, o, timestamp);
   });
+}
+
+export function setOffPanicBombs(t: TacticalState, s: Soldier, trigger: number): void {
+  const panic = t.panic;
+  const pulled = panic.triggers[trigger];
+  if (pulled) pulled.gridNo = NOWHERE;
+  if (panic.triggers.every((x) => x.gridNo === NOWHERE)) panic.flags &= ~PanicFlags.TRIGGERS_HERE;
+  const frequency = PANIC_FREQUENCIES[trigger];
+  if (frequency !== undefined) setOffBombsByFrequency(t, s, frequency);
+  if (trigger === FIRST_PANIC_TRIGGER) panic.flags &= ~PanicFlags.BOMBS_HERE;
+  if (panic.flags) t.turnHooks.makeClosestEnemyChosenOne(t);
 }
 
 function setOffByStep(t: TacticalState, s: Soldier, o: ItemObject): boolean {
