@@ -5,7 +5,7 @@ import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactic
 import { corpseFileBase } from '../../../content/anim/corpses.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { deleteObject } from '../../items/object.ts';
 import { animName } from '../anim-states.ts';
@@ -36,7 +36,7 @@ interface Death {
 
 function sandbox(): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), () => {});
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 

@@ -111,7 +111,7 @@ describe('map items (LoadWorldItemsFromMap)', () => {
     expect([t.mineFlags.some((f) => f !== 0), t.worldBombs]).toEqual([false, []]);
   });
 
-  it('marks no tile for the enemy where the map stored a mine armed already, as F9 does', () => {
+  it("marks no tile for the enemy where the map stored a mine armed already: only the map's tile flags mark F9's", () => {
     const t = newCombatSim(content).state;
     const g = gridNo(80, 80);
     const armed = { flags: WorldItemFlags.ARMED_BOMB, visible: Visibility.BURIED, trap: 5, detonator: Detonator.PRESSURE };

@@ -6,7 +6,7 @@ import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { u8 } from '../../../core/int.ts';
 import { TICK_MS } from '../../clock.ts';
@@ -44,7 +44,7 @@ function simWith(
       structures.add(g, 0, { ...syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, { armour: material }), hitPoints });
     }
   });
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 

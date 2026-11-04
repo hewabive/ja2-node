@@ -3,7 +3,7 @@ import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.
 import { Orientation } from '../../content/formats/jsd.ts';
 import { gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { Corpse } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -27,7 +27,7 @@ function sectorBlockedAt(blocked: number): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), (structures) => structures.add(blocked, 0, syntheticStructure(StructureFlags.GENERIC)));
   const world = {
     ...base,
-    map: { doors: [], placements: [], info: { centerGridNo: blocked } },
+    map: syntheticMap({ info: { centerGridNo: blocked } }),
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 1);
@@ -67,13 +67,11 @@ describe('restoring the revealed tiles of a sector diff', () => {
     const sprites = lampsAt.map((g) => ({ x: g % 160, y: Math.trunc(g / 160), flags: 0, template: 'L-R03.LHT' }));
     const world = {
       ...base,
-      map: {
-        doors: [],
-        placements: [],
+      map: syntheticMap({
         info: { centerGridNo: TWO_LAMPS },
         ambient: { basement: !caves, caves, lightLevel: 11 },
         lights: { colors: [[0, 0, 0]], sprites },
-      },
+      }),
       mapPath: 'synthetic',
     } as unknown as TacticalWorld;
     return new TacticalSim(world, content, 1);
@@ -104,11 +102,7 @@ describe('restoring the revealed tiles of a sector diff', () => {
       ],
     });
     const world = syntheticWorld(testDoorCosts(), (structures) => structures.add(gridNo(80, 84), 1, roof));
-    const t = new TacticalSim(
-      { ...world, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld,
-      content,
-      1,
-    ).state;
+    const t = new TacticalSim({ ...world, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 1).state;
     t.world.level.rooms[gridNo(80, 84)] = ROOM;
     const fog = createFogOfWar();
     fog.revealed[gridNo(80, 84)] = RevealedFlags.GROUND;

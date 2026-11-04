@@ -4,7 +4,7 @@ import { corpseFileBase } from '../../content/anim/corpses.ts';
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import { gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { Corpse } from './combat/death.ts';
@@ -41,7 +41,7 @@ function sectorWith({ blocked = [], water = [] }: Layout, withContent: TacticalC
   for (const g of water) base.terrain[g] = Terrain.LOW_WATER;
   const world = {
     ...base,
-    map: { doors: [], placements: [], info: { centerGridNo: CENTRE, northGridNo: NORTH_ENTRY } },
+    map: syntheticMap({ info: { centerGridNo: CENTRE, northGridNo: NORTH_ENTRY } }),
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   return new TacticalSim(world, withContent, 1).state;

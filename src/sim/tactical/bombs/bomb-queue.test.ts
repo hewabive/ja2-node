@@ -6,7 +6,7 @@ import { Orientation } from '../../../content/formats/jsd.ts';
 import { NOTHING } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { Rng } from '../../../core/rng.ts';
 import { TICK_MS } from '../../clock.ts';
@@ -312,7 +312,7 @@ describe('stepping on bombs (SetOffBombsInGridNo, HandleAtNewGridNo)', () => {
     const base = syntheticWorld(testDoorCosts(), (structures) => {
       for (let x = 60; x <= 100; x++) structures.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT));
     });
-    const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+    const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
     const sim = new TacticalSim(world, content, 3);
     const t = sim.state;
     const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.NORTH);

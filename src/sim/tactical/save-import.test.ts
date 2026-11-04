@@ -10,7 +10,7 @@ import { decodeSoldierRecord, SOLDIER_LAYOUT, SOLDIER_RECORD_BYTES } from '../..
 import type { SavedCorpse, SavedWorldItem } from '../../content/formats/savegame-temp-files.ts';
 import { gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import { states } from './animation.ts';
@@ -205,7 +205,7 @@ function importedSim(save: SaveGame, blocked: readonly number[] = [], mapFields:
   });
   const world = {
     ...base,
-    map: { doors: [], placements: [], info: { centerGridNo: CENTRE }, ...mapFields },
+    map: syntheticMap({ info: { centerGridNo: CENTRE }, ...mapFields }),
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 1);

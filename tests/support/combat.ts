@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Orientation } from '../../src/content/formats/jsd.ts';
 import type { MapDef } from '../../src/content/formats/map.ts';
 import { StructureFlags } from '../../src/content/world/structures.ts';
-import { type SyntheticWorld, syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
+import { type SyntheticWorld, syntheticMap, syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { advance } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
@@ -57,7 +57,7 @@ export function newCombatSim(
       roofs,
     );
     shapeWorld(base);
-    return { ...base, map: { doors: [], placements: [], ...mapFields }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+    return { ...base, map: syntheticMap(mapFields), mapPath: 'synthetic' } as unknown as TacticalWorld;
   };
   const sim = new TacticalSim(build(), content, seed);
   WORLD_BUILDERS.set(sim, build);

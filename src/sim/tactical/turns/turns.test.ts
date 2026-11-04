@@ -3,7 +3,7 @@ import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
@@ -68,7 +68,7 @@ function newSim(blocked: readonly number[] = []): TacticalSim {
     ...syntheticWorld(testDoorCosts(), (structures) => {
       for (const g of blocked) structures.add(g, 0, syntheticStructure(StructureFlags.GENERIC));
     }),
-    map: { doors: [], placements: [] },
+    map: syntheticMap(),
     mapPath: 'synthetic',
   } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);

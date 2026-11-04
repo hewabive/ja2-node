@@ -19,6 +19,7 @@ import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/fa
 import { createPanicState, type PanicState } from './ai/panic-triggers.ts';
 import { anim } from './anim-states.ts';
 import type { ExplosionQueue } from './bombs/bomb-queue.ts';
+import { mineFlagsOfMap } from './bombs/mine-flags.ts';
 import type { WorldBomb } from './bombs/world-bombs.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
@@ -48,7 +49,10 @@ import { NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import type { WorldItem } from './world-items.ts';
 
-export type SectorMapData = Pick<MapDef, 'info' | 'rooms' | 'ambient' | 'placements' | 'exitGrids' | 'edgepoints' | 'tilesetId'>;
+export type SectorMapData = Pick<
+  MapDef,
+  'info' | 'rooms' | 'ambient' | 'placements' | 'exitGrids' | 'edgepoints' | 'tilesetId' | 'worldFlags'
+>;
 
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
@@ -78,6 +82,7 @@ const NO_SECTOR_MAP: SectorMapData = {
   exitGrids: [],
   edgepoints: null,
   tilesetId: 0,
+  worldFlags: new Uint8Array(WORLD_MAX),
 };
 
 export function sectorMapOf(t: { readonly world: TacticalWorldData }): SectorMapData {
@@ -441,7 +446,7 @@ export function createTacticalState(
     structures: world.structures,
     mapDoors: world.mapDoors,
   };
-  const mineFlags = new Uint8Array(WORLD_MAX);
+  const mineFlags = mineFlagsOfMap(sectorMapOf({ world }).worldFlags);
   const pathEnv = createPathEnv({ world, pathWorld, occupant, soldiers, doorStatus, mineFlags, content }, defaultPathEnvSettings());
   const options = shared.options ?? gameOptions();
   return {

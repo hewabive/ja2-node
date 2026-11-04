@@ -101,3 +101,7 @@ export function syntheticWorld(
   };
   return { ...world, costs: compileWorldMovementCosts(world) };
 }
+
+export function syntheticMap(fields: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, unknown>> {
+  return { doors: [], placements: [], worldFlags: new Uint8Array(WORLD_MAX), ...fields };
+}

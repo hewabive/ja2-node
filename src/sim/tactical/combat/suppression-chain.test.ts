@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { animName } from '../anim-states.ts';
 import type { TacticalContent } from '../content.ts';
@@ -24,7 +24,7 @@ const STANCE_TICKS = 400;
 
 function suppressedMerc() {
   const base = syntheticWorld(testDoorCosts(), () => {});
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 3);
   const t = sim.state;
   const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);

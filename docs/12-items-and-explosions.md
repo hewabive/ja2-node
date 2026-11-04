@@ -270,9 +270,11 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   empty with the item it held. Its order, not the item list's, is the order the original's bomb loops run in.
 - The mine flags are per tile, shared by both levels (`TacticalState.mineFlags`): the player flag for our team and the
   militia, the enemy flag for everybody else. They belong to the loaded sector: snapshots keep them, the sector's temp
-  state does not. A load marks for the player the tiles where the replayed map changes leave a blue flag
-  (`setBlueFlagFlags` at the end of `initLoadedWorld`, a native import included); the map load marks the hidden mines
-  it arms for the enemy, and every pit added to a pool its tile.
+  state does not. Every load starts from the flags the map file stores with each tile (`mineFlagsOfMap`, the high
+  nibble of a tile's layer count byte, `TileEngine/WorldDef.cc:2102`) and marks for the player the tiles where the
+  replayed map changes leave a blue flag (`setBlueFlagFlags` at the end of `initLoadedWorld`, a native import
+  included); the map's items mark the hidden mines the load arms for the enemy, and every pit added to a pool its
+  tile.
 - The view's `knownMines` lists the tiles with the player flag, which the original's path cursor reveals anyway; the
   enemy flag, trap levels, timers and owners never reach the view (D16, `29` §7). The knowledge projection rebuilds the
   player flags from it, so a hint paths around a mine as the order does.
@@ -301,8 +303,8 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
 | Quirk | Test |
 |---|---|
-| A sector entry forgets every mine flag but the blue flags: enemies walk into their own map mines | `campaign/sector-flow.test.ts` "forgets at a sector entry every mine flag but the blue flags …" |
-| A mine the map stores armed gets no enemy flag: only a hidden pressure explosive with a trap level is armed and marked at the load, and the one map mine, F9's, is stored armed | `tactical/world-items.test.ts` "marks no tile for the enemy where the map stored a mine armed already …", `tactical/bombs/map-bombs-original.test.ts` |
+| A sector entry forgets every mine flag but the blue flags and the ones the map file stores: enemies walk into the mines they found | `campaign/sector-flow.test.ts` "forgets at a sector entry every mine flag but the blue flags …", `tactical/bombs/mine-flags.test.ts` "takes at the load the mine flags the map stores …" |
+| A mine the map stores armed gets its enemy flag from the map's tile flags, not from its record: F9's one map mine is stored armed and its tile flagged, and E13_B1, H8_B1 and H9_B1 store enemy flags on tiles without one | `tactical/world-items.test.ts` "marks no tile for the enemy where the map stored a mine armed already …", `tactical/bombs/map-bombs-original.test.ts` |
 | A blue flag blocks its tile for everybody: its structure is a generic one without cells, which the movement costs read as an obstacle | `tactical/bombs/mine-flags.test.ts` "blocks the flagged tile for everybody …" |
 | Taking a blue flag off at the roof level clears the mark alone: the flag, always put on the ground, stays and marks the tile again at the next load | `tactical/bombs/mine-flags.test.ts` "takes the flag off the ground, but on the roof level …" |
 | A trip klaxon stays armed: every step on it calls the enemies again | `tactical/bombs/bomb-queue.test.ts` "keeps a trip klaxon armed …" |
@@ -336,6 +338,8 @@ times and draws, the timers, the suspicious ground's draws, the buried disarm or
 `tactical/bombs/item-actions-original.test.ts` works the museum switch of L12, the Orta basement cell switch and the
 brothel's untrap switch, and `tactical/bombs/planting-original.test.ts` the real `PLANT_BOMB` and `USE_REMOTE` scripts. Not pinned: an entry whose slot a new bomb took after it was queued sets off the new bomb.
 From scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag;
+six store mine flags with their tiles, all for the enemy (F9's mine tile, nine tiles of E13_B1 and five of its alternate,
+eight of H8_B1, H9_B1 and its alternate);
 every loose switch's stored detonator already matches the one the load gives it, a switch over a switch structure and a
 pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the 14 soldiers placed on roofs all stand on
 flat roofs, so the roof type test moves none of them; the pressure-triggered switches and quest action items lie at

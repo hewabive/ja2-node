@@ -7,7 +7,7 @@ import { NOTHING } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { RestrictedScroll } from '../../../content/world/render-bounds.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
@@ -47,7 +47,7 @@ function simWithWallRow(row: number): TacticalSim {
     for (let x = 76; x <= 84; x++)
       structures.add(gridNo(x, row), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, { armour: 12 }));
   });
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 

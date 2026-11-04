@@ -5,7 +5,7 @@ import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactic
 import { Orientation } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo, WORLD_MAX } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { emptyObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
@@ -50,7 +50,7 @@ function simWithDoor(): TacticalSim {
   };
   const file = { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] };
   const base = syntheticWorld(testDoorCosts(), (w) => w.add(DOOR, 0, closed, undefined, file));
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 

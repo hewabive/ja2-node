@@ -3,7 +3,7 @@ import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts'
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
@@ -24,7 +24,7 @@ const NPC_AT = gridNo(80, 90);
 const VEHICLE_ID = 120;
 
 function simWith(place: (s: WorldStructures) => void): TacticalSim {
-  const world = { ...syntheticWorld(testDoorCosts(), place), map: { doors: [], placements: [] }, mapPath: 'synthetic' };
+  const world = { ...syntheticWorld(testDoorCosts(), place), map: syntheticMap(), mapPath: 'synthetic' };
   return new TacticalSim(world as unknown as TacticalWorld, content, 3);
 }
 

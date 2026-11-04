@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { anim, animName } from '../anim-states.ts';
 import { initNewSoldierAnim } from '../animation.ts';
@@ -28,7 +28,7 @@ const DEATH_TICKS = 2000;
 
 function cowering(): { sim: TacticalSim; civilian: Soldier; shooter: Soldier; gun: number } {
   const base = syntheticWorld(testDoorCosts(), () => {});
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   const sim = new TacticalSim(world, content, 3);
   const t = sim.state;
   const civilian = spawnSoldier(sim, 116, Team.CIV, CIVILIAN_AT, Direction.SOUTH, { life: 30 });

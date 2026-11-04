@@ -4,7 +4,7 @@ import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactic
 import { Orientation, type StructureDef } from '../../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags, StructureTileFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { createItem } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
@@ -29,7 +29,7 @@ const MAX_FLIGHT_TICKS = 1000;
 
 function simWith(place: Parameters<typeof syntheticWorld>[1]): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), place);
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 

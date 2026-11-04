@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/WorldDef.h MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT; WorldDef.cc
 // @src SetBlueFlagFlags; Tactical/Handle_Items.cc AddBlueFlag, RemoveBlueFlag; TileEngine/TileDat.h BLUEFLAG_GRAPHIC.
+// @src 2026-11-04: WorldDef.cc LoadWorld (the map flags of each tile's layer count byte).
 
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
@@ -13,6 +14,11 @@ export const MineFlag = { ENEMY: 0x04, PLAYER: 0x08 } as const;
 
 const BLUE_FLAG_GRAPHIC = 'FIRSTSWITCHES21';
 const GROUND_LEVEL = 0;
+const MAP_MINE_FLAGS = MineFlag.ENEMY | MineFlag.PLAYER;
+
+export function mineFlagsOfMap(worldFlags: Uint8Array): Uint8Array {
+  return worldFlags.map((flags) => flags & MAP_MINE_FLAGS);
+}
 
 export function hasMineFlag(t: Pick<TacticalState, 'mineFlags'>, g: number, flag: number): boolean {
   return ((t.mineFlags[g] ?? 0) & flag) !== 0;

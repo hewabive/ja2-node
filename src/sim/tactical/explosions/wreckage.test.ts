@@ -9,7 +9,7 @@ import type { Level } from '../../../content/world/level.ts';
 import { compileWorldMovementCosts, type MovementWorld } from '../../../content/world/movement-costs.ts';
 import { placeWorldStructures } from '../../../content/world/placement.ts';
 import { has, StructureFlags } from '../../../content/world/structures.ts';
-import { layerWith, syntheticStructure } from '../../../content/world/synthetic.ts';
+import { layerWith, syntheticMap, syntheticStructure } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { buildTileDatabase, type TileSurface } from '../../../content/world/tile-database.ts';
@@ -143,7 +143,7 @@ function wreckWorld(structs: Layout, objects: Layout = new Map()): TacticalWorld
     doorCosts: testDoorCosts(),
   };
   const world = { ...movement, costs: compileWorldMovementCosts(movement), tables, tiles: TILES };
-  return { ...world, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  return { ...world, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
 }
 
 let content: TacticalContent;

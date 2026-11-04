@@ -4,7 +4,7 @@ import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.
 import { Orientation } from '../../content/formats/jsd.ts';
 import { DIRECTION_INCREMENT, Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { syntheticMap, syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { attachObject, createItem } from '../items/object.ts';
 import { anim, animName } from './anim-states.ts';
@@ -43,7 +43,7 @@ function proneAt(sim: TacticalSim, id: number, at: number) {
 
 function simWith(place: Parameters<typeof syntheticWorld>[1]): TacticalSim {
   const base = syntheticWorld(testDoorCosts(), place);
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  const world = { ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, 3);
 }
 
