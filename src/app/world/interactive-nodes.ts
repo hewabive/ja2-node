@@ -6,9 +6,11 @@
 // @src LogMouseOverInteractiveTile (the struct nodes of a tile, head first), GetLevelNodeScreenRect (from the tile's
 // @src corner and its raw height, ten pixels below where the picture is drawn), RefinePointCollisionOnStruct,
 // @src CheckVideoObjectScreenCoordinateInData (the pixel left of the pointer, rows counted from the rectangle's top),
-// @src RefineLogicOnStruct (openable structures; a door while IsDoorVisibleAtGridNo, a switch by the roof beyond its
-// @src wall, any other by the roof over it; items on structures are not ported); src/game/Tactical/Structure_Wrap.cc
-// @src IsDoorVisibleAtGridNo; src/game/TileEngine/WorldMan.cc IsRoofVisible, IsRoofVisible2.
+// @src RefineLogicOnStruct (openable structures and, from 2026-11-04, a structure with STRUCTURE_HASITEMONTOP, which
+// @src Handle_Items.cc InternalAddItemToPool sets on a generic structure an item is put on; a door while
+// @src IsDoorVisibleAtGridNo, a switch by the roof beyond its wall, any other by the roof over it);
+// @src src/game/Tactical/Structure_Wrap.cc IsDoorVisibleAtGridNo; src/game/TileEngine/WorldMan.cc IsRoofVisible,
+// @src IsRoofVisible2.
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { IndexedFrame } from '../../content/picture/picture.ts';
@@ -40,6 +42,7 @@ export interface InteractiveWorld {
   readonly structures: WorldStructures;
   readonly revealed: Uint8Array;
   readonly openStructures: ReadonlySet<number>;
+  readonly itemsOnTop: ReadonlySet<number>;
   readonly basement: boolean;
 }
 
@@ -79,7 +82,6 @@ const HALF_TILE_WIDTH = 2;
 const HALF_TILE_HEIGHT = 1;
 const TRANSPARENT = 0;
 const PIXEL_BEFORE_POINTER = 1;
-const INTERACTIVE = StructureFlags.OPENABLE;
 
 export function pictureHasDataAt(picture: PixelRows, x: number, y: number): boolean {
   const index = y * picture.width + x - PIXEL_BEFORE_POINTER;
@@ -186,6 +188,14 @@ function shownTile(w: InteractiveWorld, g: number, mapTile: number): number {
   return openableTileInState(w.tiles, w.openStructures, g, mapTile);
 }
 
+function hasItemOnTop(w: InteractiveWorld, g: number, def: StructureDef): boolean {
+  return has(def.flags, StructureFlags.GENERIC) && !has(def.flags, StructureFlags.OPENABLE) && w.itemsOnTop.has(g);
+}
+
+function interactive(w: InteractiveWorld, g: number, def: StructureDef): boolean {
+  return has(def.flags, StructureFlags.OPENABLE) || hasItemOnTop(w, g, def);
+}
+
 export function interactiveNodesAt(w: InteractiveWorld, screen: InteractiveScreen, pointerX: number, pointerY: number): InteractiveNode[] {
   const x = Math.floor(pointerX);
   const y = Math.floor(pointerY);
@@ -196,7 +206,7 @@ export function interactiveNodesAt(w: InteractiveWorld, screen: InteractiveScree
     levelTilesAt(structs, g).forEach((mapTile, index) => {
       const tile = shownTile(w, g, mapTile);
       const def = w.tiles[tile]?.structure;
-      if (!def || !has(def.flags, INTERACTIVE)) return;
+      if (!def || !interactive(w, g, def)) return;
       const drawn = w.tiles[animatedTile(w.tiles, tile, screen.animationStep)];
       const picture = drawn ? w.surfaces[drawn.type]?.picture.frames[drawn.regionIndex] : undefined;
       if (!picture) return;
@@ -225,5 +235,6 @@ export function interactiveTileOf(w: InteractiveWorld, node: InteractiveNodeRef)
     door: has(def.flags, StructureFlags.ANYDOOR),
     switch: has(def.flags, StructureFlags.SWITCH),
     open: has(def.flags, StructureFlags.OPEN),
+    itemOnTop: hasItemOnTop(w, node.gridNo, def),
   };
 }

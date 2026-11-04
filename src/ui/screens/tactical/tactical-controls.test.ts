@@ -345,7 +345,13 @@ describe('the tactical input on the tactical screen', () => {
     const crate = (gridNo: number, bottom: number) => ({ gridNo, index: 0, tile: CRATE_TILE, bottom, door: false, open: false });
     f.world.interactiveNodes = () => [crate(far, at.y + 20), crate(near, at.y + 30)];
     for (const node of f.world.interactiveNodes(at.x, at.y))
-      f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: node.gridNo, door: false, switch: false, open: false });
+      f.world.interactiveTiles.set(interactiveNodeKey(node), {
+        gridNo: node.gridNo,
+        door: false,
+        switch: false,
+        open: false,
+        itemOnTop: false,
+      });
     pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
     await f.settle(4);
     await f.clickAt(at.x, at.y);
@@ -1297,6 +1303,9 @@ describe('the tactical input on the tactical screen', () => {
     placeItem(f, tile, 'CANTEEN', WorldItemFlags.DONTRENDER, CABINET_HEIGHT);
     expect(f.client.view.items?.find((i) => i.gridNo === tile)).toMatchObject({ notRendered: true, height: CABINET_HEIGHT });
     const at = f.world.pickPoint(tile);
+    const cabinet = { gridNo: tile, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: true };
+    f.world.interactiveNodes = () => [cabinet];
+    f.world.interactiveTiles.set(interactiveNodeKey(cabinet), { gridNo: tile, door: false, switch: false, open: true, itemOnTop: false });
     f.screen.controls.toggleHandCursor();
     pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
     await f.settle(4);
@@ -1314,6 +1323,52 @@ describe('the tactical input on the tactical screen', () => {
     expect(items.some((i) => i.gridNo === tile)).toBe(true);
     const dots = f.draw().items.filter((i) => i.kind === 'fill' && i.width === 1 && i.height === 1);
     expect(dots).toHaveLength(items.length);
+  });
+
+  it('picks up the items on a table wherever the hand click hits its picture, at their height (ConditionalGetCurInteractiveTileGridNoAndStructure)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const table = merc(f, 0).gridNo + 3;
+    placeItem(f, table, 'CANTEEN', 0, CABINET_HEIGHT);
+    const at = f.world.pickPoint(table - WORLD_COLS);
+    const node = { gridNo: table, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: false };
+    f.world.interactiveNodes = () => [node];
+    f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: table, door: false, switch: false, open: false, itemOnTop: true });
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', gridNo: table, zLevel: 1 } });
+    expect(commandsOf(f, 'door')).toEqual([]);
+  });
+
+  it('leaves the items on a table alone in the move mode: no hand over its picture, and a click there picks nothing up (Handle_UI.cc:4983)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const table = merc(f, 0).gridNo + 3;
+    placeItem(f, table, 'CANTEEN', 0, CABINET_HEIGHT);
+    const at = f.world.pickPoint(table - WORLD_COLS);
+    const node = { gridNo: table, index: 0, tile: CRATE_TILE, bottom: at.y + 20, door: false, open: false };
+    f.world.interactiveNodes = () => [node];
+    f.world.interactiveTiles.set(interactiveNodeKey(node), { gridNo: table, door: false, switch: false, open: false, itemOnTop: true });
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    expect(f.screen.controls.input.uiCursor).not.toMatch(/HANDCURSOR/);
+    await f.clickAt(at.x, at.y);
+    expect(commandsOf(f, 'pickUp')).toEqual([]);
+    expect(commandsOf(f, 'door')).toEqual([]);
+  });
+
+  it('takes the floor items alone on a hand click off any interactive tile (GetZLevelOfItemPoolGivenStructure without a structure)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const tile = merc(f, 0).gridNo + 3;
+    placeItem(f, tile, 'CANTEEN', 0, CABINET_HEIGHT);
+    placeItem(f, tile, 'CROWBAR');
+    const at = f.world.pickPoint(tile);
+    f.screen.controls.toggleHandCursor();
+    pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+    await f.settle(4);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'pickUp', gridNo: tile, zLevel: 0 } });
   });
 
   it('searches a tile that shows no item on the hand click: pickUp at the floor height, the merc walks there and finds nothing', async () => {

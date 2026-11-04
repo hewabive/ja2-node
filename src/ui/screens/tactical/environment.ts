@@ -94,6 +94,7 @@ export interface InteractiveTile {
   readonly door: boolean;
   readonly switch: boolean;
   readonly open: boolean;
+  readonly itemOnTop: boolean;
 }
 
 export interface InteractiveNodeRef {

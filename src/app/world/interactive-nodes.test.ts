@@ -14,6 +14,7 @@ const LEFT_DOOR = 4;
 const RIGHT_DOOR = 5;
 const LEFT_SWITCH = 6;
 const FLAT_CRATE = 7;
+const TABLE = 8;
 const AT = gridNo(80, 80);
 const NORTH = AT - WORLD_COLS;
 const SOUTH = AT + WORLD_COLS;
@@ -54,6 +55,7 @@ TILES[LEFT_DOOR] = tile(LEFT_DOOR, StructureFlags.DOOR | StructureFlags.OPENABLE
 TILES[RIGHT_DOOR] = tile(RIGHT_DOOR, StructureFlags.DOOR | StructureFlags.OPENABLE, { wallOrientation: Orientation.INSIDE_RIGHT });
 TILES[LEFT_SWITCH] = tile(LEFT_SWITCH, StructureFlags.SWITCH | StructureFlags.OPENABLE, { wallOrientation: Orientation.OUTSIDE_LEFT });
 TILES[FLAT_CRATE] = tile(FLAT_CRATE, StructureFlags.OPENABLE, {}, TileFlags.IGNORE_WORLD_HEIGHT);
+TILES[TABLE] = tile(TABLE, StructureFlags.GENERIC);
 
 interface Setup {
   readonly structs: readonly (readonly [number, readonly number[]])[];
@@ -64,6 +66,7 @@ interface Setup {
   readonly open?: readonly number[];
   readonly basement?: boolean;
   readonly heights?: readonly (readonly [number, number])[];
+  readonly itemsOnTop?: readonly number[];
 }
 
 function structLayer(entries: Setup['structs']): LevelLayer {
@@ -103,6 +106,7 @@ function world(setup: Setup): InteractiveWorld {
     structures: structuresWith(new Set(setup.roofs), new Map(setup.doors)),
     revealed,
     openStructures: new Set(setup.open),
+    itemsOnTop: new Set(setup.itemsOnTop),
     basement: setup.basement ?? false,
   };
 }
@@ -168,6 +172,13 @@ describe('the openable structures under the pointer (LogMouseOverInteractiveTile
     expect(gridNos(world({ structs: [[AT, [LEFT_SWITCH]]], roofs: [SOUTH] }))).toEqual([]);
     expect(gridNos(world({ structs: [[AT, [LEFT_SWITCH]]], roofs: [AT] }))).toEqual([AT]);
   });
+
+  it('finds a generic structure only while an item the view shows lies on it (STRUCTURE_HASITEMONTOP), under the same roof rule', () => {
+    expect(gridNos(world({ structs: [[AT, [TABLE]]] }))).toEqual([]);
+    expect(gridNos(world({ structs: [[AT, [TABLE]]], itemsOnTop: [AT] }))).toEqual([AT]);
+    expect(gridNos(world({ structs: [[AT, [WALL]]], itemsOnTop: [AT] }))).toEqual([]);
+    expect(gridNos(world({ structs: [[AT, [TABLE]]], itemsOnTop: [AT], roofs: [AT] }))).toEqual([]);
+  });
 });
 
 describe('the tiles the dynamic pass sweeps (CalcRenderParameters, RenderTiles)', () => {
@@ -192,13 +203,22 @@ describe('the interactive tile found (InternalGetCurInteractiveTile)', () => {
   it('reads the node as it is now: a container opened since shows open, a node whose tile changed is gone', () => {
     const w = world({ structs: [[AT, [WALL, CRATE]]] });
     const node = { gridNo: AT, index: 1, tile: CRATE };
-    expect(interactiveTileOf(w, node)).toEqual({ gridNo: AT, door: false, switch: false, open: false });
+    expect(interactiveTileOf(w, node)).toEqual({ gridNo: AT, door: false, switch: false, open: false, itemOnTop: false });
     expect(interactiveTileOf({ ...w, openStructures: new Set([AT]) }, node)).toEqual({
       gridNo: AT,
       door: false,
       switch: false,
       open: true,
+      itemOnTop: false,
     });
     expect(interactiveTileOf(w, { ...node, index: 0 })).toBeNull();
+  });
+
+  it('marks a generic structure with an item on it, never an openable one, whose items lie inside', () => {
+    const table = { gridNo: AT, index: 0, tile: TABLE };
+    expect(interactiveTileOf(world({ structs: [[AT, [TABLE]]], itemsOnTop: [AT] }), table)).toMatchObject({ itemOnTop: true });
+    expect(interactiveTileOf(world({ structs: [[AT, [TABLE]]] }), table)).toMatchObject({ itemOnTop: false });
+    const crate = { gridNo: AT, index: 0, tile: CRATE };
+    expect(interactiveTileOf(world({ structs: [[AT, [CRATE]]], itemsOnTop: [AT] }), crate)).toMatchObject({ itemOnTop: false });
   });
 });

@@ -81,7 +81,11 @@ the input lock. The dialogue layer (`talk/dialogue-layer.ts`) takes input before
 under the pointer is `FindSoldier`'s, with the stack n cycles (`input/targets.ts`); the interactive tile is the
 openable structure whose picture holds the pointer among the tiles the original's dynamic render pass sweeps
 (`src/app/world/interactive-nodes.ts`), looked for again only as the pointer or the camera moves, with the stack n
-cycles when no soldier stack is under the pointer (`input/interactive-tiles.ts`).
+cycles when no soldier stack is under the pointer (`input/interactive-tiles.ts`). A generic structure is one too while
+an item the view shows lies on its tile, the client's reading of `STRUCTURE_HASITEMONTOP` (`12`): only the hand mode's
+click and the move mode's cursor take it, as only they ask the original for such a tile, so a hand click on its picture
+picks its items up and the move mode leaves them alone; the view holds only the items the squad has seen, so a
+structure with hidden items on it stays plain (D16).
 
 **The input lock follows the server, not the clock.** The enemy's turn locks input; on our turn in combat it locks
 while the view says `combat.uiLocked`, while a received frame not yet played back locks the interface or passes the
@@ -283,5 +287,5 @@ Inferred or observed in ja2-node only:
 - The militia filter's "no militia" message takes the first right click on the map.
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
-Not ported: gaps "Tactical keys not yet ported", "Interactive tiles", "Auto-bandage", "Team panel vehicle exit",
+Not ported: gaps "Tactical keys not yet ported", "Auto-bandage", "Team panel vehicle exit",
 "Vehicles as characters", "IME composition", "I.M.P. skill page and saved profiles".

@@ -21,9 +21,12 @@
 // @src IsValidJumpLocation, BeginDisplayTimedCursor; Interactive_Tiles.cc RefineLogicOnStruct (an open door only in the hand
 // @src and action modes, a door only with snap-cursor-to-door outside the hand mode, none for the weaponless robot, as the
 // @src check runs, 2026-11-04), LogMouseOverInteractiveTile (none at the roof level or with the selected merc on a roof),
-// @src InternalGetCurInteractiveTile (none while SHIFT is down); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
+// @src InternalGetCurInteractiveTile (none while SHIFT is down; a structure with STRUCTURE_HASITEMONTOP only where
+// @src ConditionalGetCurInteractiveTileGridNoAndStructure asks with FALSE, 2026-11-04), HandleUIMovementCursor's
+// @src MOVEUI_TARGET_INTTILES without one (a plain path); Turn_Based_Input.cc GetTBMouseButtonInput, QueryTBLeftButton,
 // @src QueryTBRightButton, QueryTBMiddleButton, GetTBMousePositionInput, GetPolledKeyboardInput, HandleHandCursorClick (the steal 2026-10-31;
-// @src the z-level of the pool, the search at z-level 0, 2026-11-02; the morale refusal the server says, 2026-11-03),
+// @src the z-level of the pool, the search at z-level 0, 2026-11-02; the morale refusal the server says, 2026-11-03; the
+// @src items on a structure as an interactive tile, GetZLevelOfItemPoolGivenStructure, 2026-11-04),
 // @src HandleMoveModeInteractiveClick (GetLargestZLevelOfItemPool, 2026-11-02), HandleCheckForExitArrowsInput (the escort texts by the profile's sex 2026-11-01),
 // @src TacticalViewPortTouchCallbackTB (the wheel);
 // @src Real_Time_Input.cc QueryRTLeftButton (the double click runs, the rubber band after 10 px, ALT toggles the
@@ -1676,10 +1679,15 @@ export class TacticalInput {
     return this.#env().world.scrollEdges().bottom && regions.mouseY >= height - NO_PX_SHOW_EXIT_CURS;
   }
 
-  #interactiveTile(): InteractiveTile | null {
+  #interactiveTileOrItemsOnTop(): InteractiveTile | null {
     if (this.#mapPos() === null || (this.#env().runtime.modifiers & KeyModifier.SHIFT) !== 0) return null;
     const over = this.#interactiveTiles.over;
     return over ? this.#env().world.interactiveTile(over) : null;
+  }
+
+  #interactiveTile(): InteractiveTile | null {
+    const tile = this.#interactiveTileOrItemsOnTop();
+    return tile?.itemOnTop ? null : tile;
   }
 
   #moveModeInteractiveClick(): number {
@@ -1709,7 +1717,7 @@ export class TacticalInput {
     if (!sel) return event;
     const target = this.#hover.target;
     if (target && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) return this.#stealClick(sel, target.id, event);
-    const tile = this.#interactiveTile();
+    const tile = this.#interactiveTileOrItemsOnTop();
     let actionGridNo = mapPos;
     let ignoreItems = false;
     if (tile) {
@@ -1720,12 +1728,12 @@ export class TacticalInput {
     if (pool.length > 0) {
       if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
       else {
-        this.#host.pickUp(sel, actionGridNo, largestZLevel(pool));
+        this.#host.pickUp(sel, actionGridNo, tile ? largestZLevel(pool) : FLOOR_Z_LEVEL);
         return UiEvent.A_CHANGE_TO_MOVE;
       }
       return event;
     }
-    if (tile) {
+    if (tile && !tile.itemOnTop) {
       if (this.#currentAp === 0 && actionGridNo !== sel.gridNo) this.#feedback(NO_PATH_STR);
       else if (this.#canAffordMove()) return UiEvent.C_MOVE_MERC;
       return event;
@@ -2090,7 +2098,7 @@ export class TacticalInput {
 
   #interactiveTilesAndItems(sel: SoldierView, mapPos: number, useOkCursor: boolean, itemsOnlyIfOnIntTiles: boolean): boolean {
     this.#onMerc(false);
-    const tile = this.#interactiveTile();
+    const tile = this.#interactiveTileOrItemsOnTop();
     const actionGridNo = tile?.gridNo ?? mapPos;
     const target = this.#hover.target;
     if (target && !itemsOnlyIfOnIntTiles && this.#targetIs(FindFlag.ENEMY) && !this.#targetIs(FindFlag.UNCONSCIOUS)) {
@@ -2110,7 +2118,9 @@ export class TacticalInput {
       this.#plotNew = true;
     }
     const itemsAllowed =
-      !(itemsOnlyIfOnIntTiles && !tile) && !tile?.switch && !(tile?.door && (actionGridNo !== mapPos || itemsOnlyIfOnIntTiles));
+      !(itemsOnlyIfOnIntTiles && (!tile || tile.itemOnTop)) &&
+      !tile?.switch &&
+      !(tile?.door && (actionGridNo !== mapPos || itemsOnlyIfOnIntTiles));
     if (itemsAllowed) {
       const visible = itemPool(this.#view()?.items, actionGridNo, sel.level).length > 0;
       if (visible) {
@@ -2213,8 +2223,8 @@ export class TacticalInput {
   #drawMovementPath(sel: SoldierView, mapPos: number, target: MoveUiTarget): boolean {
     const level = this.#host.interfaceLevel();
     if (target === MoveUiTarget.STEAL) return this.#drawStealPath(sel, mapPos, level);
-    if (target === MoveUiTarget.INTTILES || target === MoveUiTarget.ITEMS) {
-      const tile = this.#interactiveTile();
+    const tile = this.#interactiveTile();
+    if ((target === MoveUiTarget.INTTILES && tile) || target === MoveUiTarget.ITEMS) {
       const kind = tile?.door ? 'door' : 'pickUp';
       const gridNo = tile?.gridNo ?? mapPos;
       const answer = this.#hint<PreviewAction>({

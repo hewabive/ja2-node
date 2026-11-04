@@ -9,7 +9,8 @@
 // @src (THIRDPOINTERS1/2 behind the overhead bars); src/game/Tactical/Interface_Control.cc SetUpInterface (the UI
 // @src nodes of the tactical input); src/game/TileEngine/RenderWorld.cc ScrollWorld, HandleScrollDirections (the
 // @src scrolled-to-edge flags, the scroll steps); src/game/TileEngine/Interactive_Tiles.cc
-// @src InternalGetCurInteractiveTile (the found node's structure as it is now, 2026-11-04);
+// @src InternalGetCurInteractiveTile (the found node's structure as it is now, 2026-11-04; STRUCTURE_HASITEMONTOP read as
+// @src a shown item on the structure's tile, 2026-11-04);
 // @src src/game/TileEngine/Isometric_Utils.cc GetMouseWorldCoords (the tile under the pointer from the current render centre);
 // @src src/game/Tactical/Soldier_Find.cc GetSoldierScreenRect, GetSoldierScreenPos (the soldier's rectangle from the
 // @src current render centre, his position now and his bounding box); FindSoldier with
@@ -84,6 +85,7 @@ const PICK_LIFT = 10;
 const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false, stationary: true };
 const EDGE_PROBE_PX = 1;
 const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof']);
+const GROUND_LEVEL = 0;
 
 export interface PresenterSources {
   readonly view: () => PlayerView | null;
@@ -403,8 +405,14 @@ export class TacticalWorldPresenter implements WorldPresenter {
       tiles: world.tiles,
       surfaces: world.surfaces,
       structures: world.structures,
+      itemsOnTop: this.#itemsOnTop(),
       basement: world.map.ambient?.basement === true,
     };
+  }
+
+  #itemsOnTop(): ReadonlySet<number> {
+    const items = this.#sources.view()?.items ?? [];
+    return new Set(items.filter((i) => i.level === GROUND_LEVEL && (i.height ?? 0) > 0).map((i) => i.gridNo));
   }
 
   interactiveNodesAt(x: number, y: number): readonly InteractiveNode[] {
