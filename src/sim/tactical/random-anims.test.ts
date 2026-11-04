@@ -1,11 +1,17 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, type SpawnOptions, spawnSoldier } from '../../../tests/support/combat.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { withGraphicFacts } from '../../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../../content/vfs/vfs.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
+import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { anim, animName } from './anim-states.ts';
 import { changeSoldierState } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { loadTacticalContent } from './load-content.ts';
 import { randomAnimOpcode } from './random-anims.ts';
 import { Body, type Soldier, TEAM_FIRST_ID, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -154,6 +160,103 @@ describe('code 491, the random idle animation check (Soldier_Ani.cc AdjustToNext
       if (s.timeOfLastRandomAction !== (counts.at(-1) ?? 0)) counts.push(s.timeOfLastRandomAction);
     }
     expect(counts).toEqual([1, 2, 0, 1]);
+  });
+});
+
+const DRINK = 8;
+
+function drink(s: Soldier, drinks: number, hangover = 0): void {
+  s.drugs.alcohol.effect = drinks * DRINK;
+  s.drugs.alcohol.sideEffect = hangover;
+}
+
+describe('code 491 on drink (Soldier_Ani.cc AdjustToNextAnimationFrame, GetDrunkLevel >= BORDERLINE)', () => {
+  it('draws on every pass once borderline, hungover included, but on every third while he only feels good', () => {
+    const borderline = scene(Team.OUR, { gun: RIFLE });
+    drink(borderline.s, 4);
+    check(borderline, 10);
+    check(borderline, 10);
+    const hungover = scene(Team.OUR, { gun: RIFLE });
+    drink(hungover.s, 0, 10);
+    check(hungover, 10);
+    const merry = scene(Team.OUR, { gun: RIFLE });
+    drink(merry.s, 3);
+    check(merry);
+    expect([borderline.draws, hungover.draws, merry.draws]).toEqual([[DICE, DICE], [DICE], []]);
+  });
+
+  it('plays only the drunk idle once borderline, on 40 to 100, and never below borderline', () => {
+    const borderline = scene(Team.OUR, { gun: RIFLE });
+    drink(borderline.s, 4);
+    expect(check(borderline, 0)).toBe('continue');
+    expect(animName(content, borderline.s.state)).toBe('STANDING');
+    expect(check(borderline, 40)).toBe('stop');
+    expect(animName(content, borderline.s.state)).toBe('DRUNK_IDLE');
+    const merry = scene(Team.OUR, { gun: RIFLE });
+    drink(merry.s, 3);
+    passes(merry, PASSES_PER_CHECK, 40);
+    expect(animName(content, merry.s.state)).toBe('STANDING');
+  });
+
+  it('plays the drunk idle for a hungover merc too: HUNGOVER is 4, above BORDERLINE', () => {
+    const hungover = scene(Team.ENEMY, { gun: RIFLE, body: Body.BIGMALE });
+    drink(hungover.s, 0, 1);
+    expect(check(hungover, 99)).toBe('stop');
+    expect(animName(content, hungover.s.state)).toBe('DRUNK_IDLE');
+  });
+
+  it('has no drunk idle for a woman: drunk or hungover, she draws on every pass and never idles', () => {
+    const drunk = scene(Team.OUR, { gun: RIFLE, body: Body.REGFEMALE });
+    drink(drunk.s, 5);
+    const hungover = scene(Team.OUR, { gun: RIFLE, body: Body.REGFEMALE });
+    drink(hungover.s, 0, 10);
+    const rolls = [0, 20, 50, 99];
+    expect([...rolls.map((r) => check(drunk, r)), ...rolls.map((r) => check(hungover, r))]).toEqual(new Array(8).fill('continue'));
+    expect([drunk.draws.length, hungover.draws.length, animName(content, drunk.s.state)]).toEqual([4, 4, 'STANDING']);
+  });
+
+  it('breaks off after the draw with a one-handed gun in hand, drunk or not', () => {
+    const pistol = scene(Team.OUR, { gun: PISTOL });
+    drink(pistol.s, 5);
+    expect(check(pistol, 60)).toBe('continue');
+    expect([pistol.draws, animName(content, pistol.s.state)]).toEqual([[DICE], 'STANDING']);
+  });
+
+  it('runs a drunk merc through the drunk idle and back to standing in the sector', () => {
+    expect(drunkIdlePlayed(content, Body.REGMALE)).toEqual(['STANDING', 'DRUNK_IDLE', 'STANDING']);
+  });
+});
+
+function drunkIdlePlayed(rules: TacticalContent, body: number): string[] {
+  const sim = newCombatSim(rules);
+  const s = spawnSoldier(sim, 0, Team.OUR, AT, Direction.SOUTH, { gun: RIFLE, body });
+  drink(s, 5);
+  const rng = sim.state.rng as unknown as { int(n: number): number };
+  rng.int = () => DICE - 1;
+  const played = [animName(rules, s.state)];
+  for (let tick = 0; tick < LOOP_BUDGET_TICKS && played.length < 3; tick++) {
+    sim.step();
+    const name = animName(rules, s.state);
+    if (played.at(-1) !== name) played.push(name);
+  }
+  return played;
+}
+
+describe.skipIf(!ORIGINAL_DATA_DIR)('the drunk idle with the original scripts', () => {
+  let data: DataVfs;
+  let original: TacticalContent;
+
+  beforeAll(async () => {
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
+    original = await loadTacticalContent(withGraphicFacts((path) => vfsFileReader(data.vfs)(path)));
+  });
+  afterAll(async () => {
+    await data.close();
+  });
+
+  it('plays from code 491 for the regular, big and stocky man and returns to standing', () => {
+    for (const body of [Body.REGMALE, Body.BIGMALE, Body.STOCKYMALE])
+      expect(drunkIdlePlayed(original, body)).toEqual(['STANDING', 'DRUNK_IDLE', 'STANDING']);
   });
 });
 

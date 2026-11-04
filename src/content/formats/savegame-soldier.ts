@@ -15,6 +15,8 @@ const PATH_ENTRIES = 30;
 const PATROL_POINTS = 10;
 const SPREAD_LOCATIONS = 6;
 const DRUG_KINDS = 2;
+const DRUG_ADRENALINE = 0;
+const DRUG_ALCOHOL = 1;
 const LAST_LOCATIONS = 2;
 const FIRST_VERSION_WITH_STAT_DAMAGE = 103;
 const STAT_CHANGE_TIMES = [
@@ -556,6 +558,7 @@ export interface SoldierAi {
   readonly normalSmell: number;
   readonly monsterSmell: number;
   readonly regenerationCounter: number;
+  readonly regenBoostersUsedToday: number;
   readonly pendingActionData4: number;
 }
 
@@ -636,6 +639,19 @@ export interface SavedContract {
   readonly startTimeOfInsuranceContract: number;
 }
 
+export interface SavedDrugCourse {
+  readonly future: number;
+  readonly rate: number;
+  readonly effect: number;
+  readonly sideEffectRate: number;
+  readonly sideEffect: number;
+}
+
+export interface SavedDrugCourses {
+  readonly adrenaline: SavedDrugCourse;
+  readonly alcohol: SavedDrugCourse;
+}
+
 export interface SavedSoldier {
   readonly id: number;
   readonly name: string;
@@ -707,8 +723,7 @@ export interface SavedSoldier {
   readonly blindedCounter: number;
   readonly muzzleFlash: boolean;
   readonly sleepDrugCounter: number;
-  readonly drugEffect: readonly number[];
-  readonly drugSideEffect: readonly number[];
+  readonly drugs: SavedDrugCourses;
   readonly inventory: readonly ObjectRecord[];
   readonly hasKeys: number;
   readonly quoteRecord: number;
@@ -756,6 +771,13 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
   const n = (name: string) => r.num(name);
   const statDamage = (name: string) => (version >= FIRST_VERSION_WITH_STAT_DAMAGE ? n(name) : 0);
   const pathSize = Math.min(u8(n('usPathDataSize')), PATH_ENTRIES);
+  const drugCourse = (kind: number): SavedDrugCourse => ({
+    future: r.nums('bFutureDrugEffect')[kind] ?? 0,
+    rate: r.nums('bDrugEffectRate')[kind] ?? 0,
+    effect: r.nums('bDrugEffect')[kind] ?? 0,
+    sideEffectRate: r.nums('bDrugSideEffectRate')[kind] ?? 0,
+    sideEffect: r.nums('bDrugSideEffect')[kind] ?? 0,
+  });
   return {
     id: n('ubID'),
     name: r.str('name'),
@@ -855,8 +877,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     blindedCounter: n('bBlindedCounter'),
     muzzleFlash: r.bool('fMuzzleFlash'),
     sleepDrugCounter: n('bSleepDrugCounter'),
-    drugEffect: r.nums('bDrugEffect'),
-    drugSideEffect: r.nums('bDrugSideEffect'),
+    drugs: { adrenaline: drugCourse(DRUG_ADRENALINE), alcohol: drugCourse(DRUG_ALCOHOL) },
     inventory: r.objects('inv'),
     hasKeys: n('bHasKeys'),
     quoteRecord: n('ubQuoteRecord'),
@@ -922,6 +943,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       normalSmell: n('bNormalSmell'),
       monsterSmell: n('bMonsterSmell'),
       regenerationCounter: n('bRegenerationCounter'),
+      regenBoostersUsedToday: n('bRegenBoostersUsedToday'),
       pendingActionData4: n('uiPendingActionData4'),
     },
     interrupt: {

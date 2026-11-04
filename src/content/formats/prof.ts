@@ -104,6 +104,7 @@ export interface MercProfile {
   readonly mercStatus: number;
   readonly balance: number;
   readonly daysOfMoraleHangover: number;
+  readonly numTimesDrugUseInLifetime: number;
   readonly precedentQuoteSaid: number;
   readonly preCombatGridNo: number;
   readonly suspiciousDeath: number;
@@ -341,6 +342,7 @@ export function parseProfile(id: number, plain: Uint8Array, names: ProfileNameEn
     mercStatus: i8(652),
     balance: v.getInt32(676, true),
     daysOfMoraleHangover: v.getUint8(690),
+    numTimesDrugUseInLifetime: v.getUint8(691),
     precedentQuoteSaid: v.getUint32(692, true),
     preCombatGridNo: v.getInt16(700, true),
     suspiciousDeath: v.getUint8(703),

@@ -9,7 +9,7 @@ import { MercQuote, QuoteSaidFlag } from '../narrative/merc-quotes.ts';
 import type { QuoteSaidRecord } from '../narrative/port.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { handleMoraleEvent, MoraleEvent } from './morale.ts';
+import { handleMoraleEvent, MoraleEvent, refreshSoldierMorale } from './morale.ts';
 
 let content: TacticalContent;
 
@@ -44,6 +44,40 @@ describe('bad news (Morale.cc UpdateSoldierMorale)', () => {
         s.stats.experience = VETERAN_LEVEL;
       }),
     ).toBe(onTheGround);
+  });
+});
+
+const Attitude = { NORMAL: 0, OPTIMIST: 3, PESSIMIST: 4, COWARD: 9 } as const;
+
+function crashedMorale(event: number, attitude: number): number {
+  const sim = newCombatSim(content);
+  const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+  sim.state.profiles.set(MERC_PROFILE, progressFor(MERC_PROFILE, { attitude }));
+  handleMoraleEvent(sim.state, s, event);
+  return s.tacticalMoraleMod;
+}
+
+describe('a drug crash (Morale.cc gbMoraleEvent MORALE_DRUGS_CRASH, MORALE_ALCOHOL_CRASH)', () => {
+  it('is a tactical -10 with the attitude rules of bad news', () => {
+    const attitudes = [Attitude.NORMAL, Attitude.OPTIMIST, Attitude.PESSIMIST, Attitude.COWARD];
+    for (const event of [MoraleEvent.DRUGS_CRASH, MoraleEvent.ALCOHOL_CRASH])
+      expect(attitudes.map((a) => crashedMorale(event, a))).toEqual([-10, -9, -11, -12]);
+  });
+});
+
+describe('the morale of a soldier on drugs (Morale.cc RefreshSoldierMorale)', () => {
+  it('adds the adrenaline effect at 150 and the drink at 160 percent, each truncated, and waits while he sleeps', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    s.drugs.adrenaline.effect = 7;
+    s.drugs.alcohol.effect = 3;
+    let asleep = true;
+    sim.state.narrative = { ...sim.state.narrative, mercAsleep: () => asleep };
+    refreshSoldierMorale(sim.state, s);
+    expect(s.morale).toBe(50);
+    asleep = false;
+    refreshSoldierMorale(sim.state, s);
+    expect(s.morale).toBe(50 + 10 + 4);
   });
 });
 

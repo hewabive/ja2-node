@@ -2,11 +2,11 @@
 
 Items from their definitions to the world: the item table, the item object, soldier inventories and their commands,
 reloading, first aid, world items, what profiles and the equipment generator give soldiers, explosions, smoke, gas and
-flares. Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit does to a soldier
-(armour against bullets, the weapon knocked out of the hand, the drops at death); `34` throwing, launchers, duds and
-item physics; `35` and `25` locks, door traps, action items and switches; `23` merchants; `29` the inventory commands;
-`30` the inventory screens. Each module's `@src` header names the Stracciatella functions it ports; read those for the
-formulas, the check order and the AP costs (`AP` in `tactical/points.ts`).
+flares, drugs and alcohol (§5). Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit
+does to a soldier (armour against bullets, the weapon knocked out of the hand, the drops at death); `34` throwing,
+launchers, duds and item physics; `35` and `25` locks, door traps, action items and switches; `23` merchants; `29` the
+inventory commands; `30` the inventory screens. Each module's `@src` header names the Stracciatella functions it ports;
+read those for the formulas, the check order and the AP costs (`AP` in `tactical/points.ts`).
 
 Item content is Stracciatella's JSON, copied unchanged into `data/externalized/` (`items`, `weapons`, `magazines`,
 `armours`, `explosives`, `calibres`, `ammo-types`, `army-gun-choice-normal`/`-extended`, `explosion-animations`,
@@ -29,6 +29,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
+| `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
@@ -175,8 +176,48 @@ source:
 - That in real time a cloud ages about every third real-time turn while its occupants are gassed every turn, and that a
   flare never fades during turn-based combat.
 
+## 5. Drugs and alcohol
+
+**Where.** `drugs.ts` holds the drug rules and every read of a soldier's `drugs` record: one course for adrenaline and
+one for alcohol, each with the original's five INT8 counters (`Tactical/Soldier_Control.h:740`), stepped at each turn
+start of the merc (`handleEndTurnDrugAdjustments`, called where `EVENT_BeginMercTurn` calls it, with the regeneration
+booster's healing). The effects call it: the drunk stats, leadership and level (`skills.ts`), the turn APs, the new APs' maximum
+and the breath between turns (`points.ts`), both morale refreshes (`combat/morale.ts`, `src/sim/campaign/morale.ts`),
+stealth (`perception/noise.ts`), the moving frame delay (`animation.ts`) and code 491's drunk idle
+(`random-anims.ts`). The boosters of the day drop every 6 world hours through the hourly slot
+(`src/sim/campaign/battle-flow.ts`). The profile keeps the lifetime drug count (`numTimesDrugUseInLifetime`, `prof.dat`
+byte 691), which the original writes and never reads.
+
+**Design.** The courses belong to the soldier: they leave the sector with him, are saved with him and come from a
+native save, and other modules read them only through `drugs.ts`. Taking a drug is not ported yet (gaps "Drugs and
+alcohol"): until then only an imported save or a test starts a course. A course runs only where turn starts run: in the
+loaded sector, not on the map screen and not for mercs elsewhere (gaps "Absent mercs between hourly updates").
+
+**What the player sees.** Our soldiers and strategic mercs carry the derived `drunk` level and `adrenaline` state
+(`drugView`), what the face's drug icons and the light blue AP number need (`Tactical/Faces.cc:837`,
+`Tactical/Interface_Panels.cc:1167`); the counters, and so the turns left, stay hidden (D16, `29` §7). The knowledge
+projection rebuilds an alcohol course with the shown drunk level (`drugCoursesShowing`) and supplies the adrenaline
+numbers as zero only while the view shows none (`knowledge/soldiers.ts`): deviation "Drugs in the projection".
+
+Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
+
+| Quirk | Test |
+|---|---|
+| One adrenaline dose peaks at 16, not 15: its rate of 4 overshoots the 15 to come; a drink rises 2, 4, 6, 8 | `drugs.test.ts` "peaks one adrenaline dose at 16 …", "raises a drink by 2 a turn …" |
+| One dose ends with two crash morale events: the side effect over the dose's, plus one | `drugs.test.ts` "ends one dose with two crash morale events …" |
+| Morale follows the effect only while it rises: the peak bonus stays through the wear-off until the crash's events refresh it | `drugs.test.ts` "refreshes morale only while the effect rises …" |
+| Right after a drink the merc is hungover until his next turn start (effect 0, side effect 10): the drug icon, the light blue AP number and the every-pass idle check; a fresh adrenaline dose shows as its crash | `drugs.test.ts` "is hungover right after a drink …", "shows a fresh adrenaline dose as the crash …" |
+| HUNGOVER (4) counts as at least BORDERLINE (2): a hungover merc checks every pass and plays the drunk idle; a woman has none, so drunk or hungover she draws every pass and never idles | `random-anims.test.ts` "plays the drunk idle for a hungover merc too …", "has no drunk idle for a woman …" |
+| Leadership rises a fifth only while he feels good, the level that already cuts his other stats to 75 % | `skills.test.ts` "raises leadership by a fifth only …" |
+| The crash and hangover clamps to 10 APs come after the phobia's cut: a claustrophobe's 9 APs become 10 | `points.test.ts` "raises a claustrophobe's 9 APs to 10 …" |
+| Stacked adrenaline wraps: the effect, the turn APs and the APs held are INT8 | `drugs.test.ts` "wraps a stacked effect past 127 …", `points.test.ts` "wraps stacked adrenaline …" |
+| In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
+
+Not checked against the native build: no oracle probe sets up a course, so the order inside `EVENT_BeginMercTurn`, the
+crash's morale with attitudes, the AP clamp chain and the INT8 wraps are read from the source and unit-tested only.
+
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Drugs and
 alcohol", "Auto-bandage", "Walking side effects" (water damage to items). Other deviations of this domain: "Object
 union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades",
 "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock
-for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load".
+for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load", "Drugs in the projection".

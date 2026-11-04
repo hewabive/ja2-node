@@ -1873,3 +1873,64 @@ describe('snapshot version 42 (no slanted roof ceilings) migrates with no ceilin
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });
+
+const DRUGS_KEY = 'drugs';
+const DRUG_COUNTER_KEYS = ['regenBoostersUsedToday', 'numTimesDrugUseInLifetime'];
+const SOBER = { future: 0, rate: 0, effect: 0, sideEffectRate: 0, sideEffect: 0 };
+
+function withoutDrugKeys(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutDrugKeys(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === DRUGS_KEY) expect(v).toEqual({ adrenaline: SOBER, alcohol: SOBER });
+    else if (DRUG_COUNTER_KEYS.includes(key)) expect(v).toBe(0);
+    else out[key] = withoutDrugKeys(v);
+  }
+  return out;
+}
+
+function versionFortyThree(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutDrugKeys(value)]);
+  return { ...snapshot, version: 43, graph: { ...snapshot.graph, sections } };
+}
+
+function drugKeysIn(snapshot: SimSnapshot): string[] {
+  const json = JSON.stringify(snapshot);
+  return [DRUGS_KEY, ...DRUG_COUNTER_KEYS].filter((key) => json.includes(`"${key}"`));
+}
+
+describe("snapshot version 43 (no drug courses) migrates sober, with every profile's lifetime drug count at prof.dat's 0", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionFortyThree(current.sim);
+    expect(drugKeysIn(current.sim)).toEqual([DRUGS_KEY, 'regenBoostersUsedToday']);
+    expect(drugKeysIn(legacy)).toEqual([]);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionFortyThree(current.sim);
+    expect(drugKeysIn(current.sim)).toEqual([DRUGS_KEY, ...DRUG_COUNTER_KEYS]);
+    expect(drugKeysIn(legacy)).toEqual([]);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});

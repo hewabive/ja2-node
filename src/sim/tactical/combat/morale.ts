@@ -2,10 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEvent
 // @src (soldier-only tactical events; the phobic ones and PHOBIC_LIMIT, the EPC and assignment checks and the
-// @src low-morale quote of UpdateSoldierMorale 2026-11-01).
+// @src low-morale quote of UpdateSoldierMorale 2026-11-01; the drug term of RefreshSoldierMorale and the crash events
+// @src 2026-11-04).
 
 import { idiv } from '../../../core/int.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
+import { drugMoraleBonus } from '../drugs.ts';
 import { soldierAssignment } from '../narrative/assignment.ts';
 import { clearQuoteSaid, MercQuote, markQuoteSaid, QuoteSaidFlag, quoteSaid } from '../narrative/merc-quotes.ts';
 import { profileProgress } from '../profiles.ts';
@@ -18,6 +20,8 @@ export const MoraleEvent = {
   SUPPRESSED: 2,
   DID_LOTS_OF_DAMAGE: 4,
   TOOK_LOTS_OF_DAMAGE: 5,
+  DRUGS_CRASH: 24,
+  ALCOHOL_CRASH: 25,
   CLAUSTROPHOBE_UNDERGROUND: 28,
   INSECT_PHOBIC_SEES_CREATURE: 29,
   NERVOUS_ALONE: 30,
@@ -28,6 +32,8 @@ const TACTICAL_CHANGE: Readonly<Record<number, number>> = {
   [MoraleEvent.SUPPRESSED]: -1,
   [MoraleEvent.DID_LOTS_OF_DAMAGE]: 2,
   [MoraleEvent.TOOK_LOTS_OF_DAMAGE]: -3,
+  [MoraleEvent.DRUGS_CRASH]: -10,
+  [MoraleEvent.ALCOHOL_CRASH]: -10,
   [MoraleEvent.CLAUSTROPHOBE_UNDERGROUND]: -1,
   [MoraleEvent.INSECT_PHOBIC_SEES_CREATURE]: -5,
   [MoraleEvent.NERVOUS_ALONE]: -1,
@@ -55,7 +61,8 @@ const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bod
 
 export function refreshSoldierMorale(t: TacticalState, s: Soldier): void {
   if (t.narrative.mercAsleep(s)) return;
-  const m = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + idiv(t.campaign.progress, 5);
+  const mods = s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod;
+  const m = DEFAULT_MORALE + mods + idiv(t.campaign.progress, 5) + drugMoraleBonus(s);
   s.morale = Math.min(100, Math.max(0, m));
 }
 

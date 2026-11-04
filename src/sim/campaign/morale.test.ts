@@ -5,7 +5,7 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { createSoldier, NO_PROFILE } from '../tactical/soldier.ts';
 import { createMercRecord } from './merc-record.ts';
-import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
+import { handleMoraleEvent, type MoraleContext, MoraleEvent, refreshMercMorale } from './morale.ts';
 import { RosterMerc } from './roster.ts';
 
 const HERE: Sector = { x: 9, y: 1, z: 0 };
@@ -117,5 +117,20 @@ describe('strategic morale events', () => {
     expect(away.soldier.strategicMoraleMod).toBe(0);
     expect(pow.soldier.delayedStrategicMoraleMod + pow.soldier.strategicMoraleMod).toBe(0);
     expect(anonymous.soldier.strategicMoraleMod).toBe(0);
+  });
+});
+
+describe('the morale of a merc on drugs (Morale.cc RefreshSoldierMorale)', () => {
+  it('adds the adrenaline effect at 150 and the drink at 160 percent, each truncated, and waits while he sleeps', () => {
+    const m = merc(0, HERE);
+    const ctx = context([m]);
+    m.soldier.drugs.adrenaline.effect = 7;
+    m.soldier.drugs.alcohol.effect = 3;
+    m.asleep = true;
+    refreshMercMorale(ctx, m);
+    expect(m.soldier.morale).toBe(50);
+    m.asleep = false;
+    refreshMercMorale(ctx, m);
+    expect(m.soldier.morale).toBe(50 + 4 + 10 + 4);
   });
 });

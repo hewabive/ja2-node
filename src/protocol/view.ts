@@ -3,6 +3,7 @@ import type { OwnHintInputs } from '../sim/knowledge/view.ts';
 import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
+import type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
@@ -16,6 +17,7 @@ export type { KnowledgeLight as LightView, KnowledgeLightSprite as LightSpriteVi
 export type { FaceVariant } from '../sim/narrative/face-variant.ts';
 export type { ShopBoxView, ShopEta, ShopKind, ShopRepairedView, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
+export type { AdrenalineView, DrunkView } from '../sim/tactical/drugs.ts';
 export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { Stance } from '../sim/tactical/movement-mode.ts';
@@ -93,6 +95,8 @@ export interface SoldierView {
   readonly enoughApToAttack?: boolean;
   readonly destination?: number;
   readonly gettingHit?: boolean;
+  readonly drunk?: DrunkView;
+  readonly adrenaline?: AdrenalineView;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
   readonly hint?: OwnHintInputs;
@@ -222,6 +226,8 @@ export interface StrategicMercView {
   readonly salary?: number;
   readonly bleeding?: number;
   readonly collapsed?: boolean;
+  readonly drunk?: DrunkView;
+  readonly adrenaline?: AdrenalineView;
 }
 
 export interface StrategicVehicleView {
@@ -1158,6 +1164,8 @@ const SCALAR_SOLDIER_FIELDS = [
   'enoughApToAttack',
   'destination',
   'gettingHit',
+  'drunk',
+  'adrenaline',
   'firstAid',
   'blinded',
   'hostile',

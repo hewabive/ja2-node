@@ -116,7 +116,7 @@ function withHelicopter(c: Campaign, at: string): void {
 }
 
 describe('map screen view fields and commands in a stub campaign', () => {
-  it('shows the clock, the mercs, the towns, the mines and the sectors the map screen prints', async () => {
+  it('shows the clock, the mercs (with their drunk level and adrenaline for the faces), the towns, the mines and the sectors the map screen prints', async () => {
     const c = await landedCampaign(81, 3, ['A10', 'B9', 'B10']);
     const view = c.session.view();
     expect(view.clock).toMatchObject({ paused: false, playerPaused: false, pauseLocked: false, canCompress: true });
@@ -124,6 +124,14 @@ describe('map screen view fields and commands in a stub campaign', () => {
     const first = mercs(c)[0];
     if (!first) throw new Error('no merc');
     expect(first).toMatchObject({ idle: false, canChangeSleep: true, bleeding: 0, collapsed: false });
+    expect([first.drunk, first.adrenaline]).toEqual([undefined, undefined]);
+    const drinker = c.session.campaign.battle?.roster.get(first.id)?.soldier;
+    if (!drinker) throw new Error('no soldier');
+    drinker.drugs.alcohol.effect = 40;
+    drinker.drugs.adrenaline.sideEffect = 20;
+    expect(merc(c, first.id)).toMatchObject({ drunk: 'drunk', adrenaline: 'crash' });
+    drinker.drugs.alcohol.effect = 0;
+    drinker.drugs.adrenaline.sideEffect = 0;
     expect(first.contract?.type).toBe('aim');
     if (first.contract?.type === 'aim') {
       expect(first.salary).toBe(first.contract.dailyRate);

@@ -7,7 +7,8 @@
 // @src changes to standing of codes 457 and 474, 2026-10-31; code 442 freeing a steal, 2026-10-31); the crow of
 // @src AdjustNoAPToFinishMove, EVENT_InitNewSoldierAnim's CROW_EAT and the first destination of a moving special move
 // @src (2026-11-01); EVENT_InitNewSoldierAnim's big merc crouch transitions, reverse moves and failed surface, and the side
-// @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01).
+// @src step of EVENT_InternalSetSoldierDesiredDirection (2026-11-01); CalculateSoldierAniSpeed's adrenaline halving
+// @src (2026-11-04).
 
 import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
@@ -35,6 +36,7 @@ import {
   quickestTurnIncrement,
 } from './directions.ts';
 import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
+import { adrenalineEffect } from './drugs.ts';
 import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
 import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
@@ -191,11 +193,13 @@ export function computedAnimationDelay(t: TacticalState, s: Soldier): number {
   const bodyLimited = id === 'SWATTING' || id === 'CRAWLING';
   const table = speedTableFor(content.animations, id);
   const additional = table && (!bodyLimited || s.bodyType <= Body.REGFEMALE) ? Math.max(0, table[s.bodyType]?.speed ?? 0) : 0;
-  const terrain = control.flags & AnimFlags.MOVING ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
+  const moving = (control.flags & AnimFlags.MOVING) !== 0;
+  const terrain = moving ? (TERRAIN_SPEED_DELAY[s.overTerrain] ?? 5) : STATIONARY_COMPUTED_DELAY;
   const breathDeficit = Math.min(50 - idiv(s.breath, 2), MAX_BREATH_DEFICIT);
   const agilityDeficit = 50 - idiv(effectiveAgility(s), 4);
   const lifeDeficit = 50 - idiv(s.life, 2);
   let delay = terrain + lifeDeficit + breathDeficit + agilityDeficit + additional;
+  if (moving && adrenalineEffect(s) !== 0) delay = idiv(delay, 2);
   if (t.inCombat) delay = idiv(delay, 2);
   else if (s.stealthMode) delay *= 2;
   return delay;

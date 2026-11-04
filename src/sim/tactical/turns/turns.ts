@@ -10,7 +10,7 @@
 // @src CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle; Soldier_Control.cc EVENT_BeginMercTurn
 // @src (the heard-noise pause and the per-turn quote flags), CheckForBreathCollapse; OppList.cc
 // @src BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
-// @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
+// @src the drug turn of EVENT_BeginMercTurn (2026-11-04); the boxing gates of BeginTeamTurn,
 // @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
 // @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24); Overhead.cc
 // @src CheckForPotentialAddToBattleIncrement, the opplist decay stamp of ExitCombatMode (2026-10-28); Soldier_Control.cc
@@ -33,6 +33,7 @@ import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { findObjClass } from '../combat/reload.ts';
 import { DamageReason } from '../combat/types.ts';
+import { handleEndTurnDrugAdjustments } from '../drugs.ts';
 import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { worldSeconds } from '../explosions/state.ts';
@@ -98,7 +99,6 @@ const HUMAN_TEAM = [true, false, false, false, false, true] as const;
 const LAST_TEAM = Team.CIV;
 const MAX_DISTANCE_VISIBLE = 26;
 const TIME_BETWEEN_RT_OPPLIST_DECAYS = 20;
-const LIFE_GAIN_PER_REGEN_POINT = 10;
 
 function pointsContext(t: TacticalState): PointsContext {
   return { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
@@ -111,14 +111,6 @@ export function isTeamActive(t: TacticalState, team: number): boolean {
 function checkForBreathCollapse(s: Soldier): void {
   if (s.breath !== 0 || s.collapsed || s.monsterOrAnimal) return;
   s.breathCollapsed = true;
-}
-
-function regenerateAtTurnStart(s: Soldier): void {
-  if (s.regenerationCounter <= 0) return;
-  s.life = Math.min(s.life + LIFE_GAIN_PER_REGEN_POINT, s.lifeMax);
-  if (s.life === s.lifeMax) s.bleeding = 0;
-  else if (s.bleeding + s.life > s.lifeMax) s.bleeding = s.lifeMax - s.life;
-  s.regenerationCounter--;
 }
 
 const CLOSE_CALL_QUOTE = 22;
@@ -143,7 +135,7 @@ export function sayCloseCallQuotes(t: TacticalState): void {
 
 export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.ai.underFire !== 0) s.ai.underFire--;
-  regenerateAtTurnStart(s);
+  handleEndTurnDrugAdjustments(t, s);
   if (bleedsAtTurnStart(s)) {
     const blood = checkBleeding(t, s);
     if (blood !== NO_BLOOD && s.placed) dropBlood(t, s, u8(blood));

@@ -297,25 +297,28 @@ shows them. Our soldiers carry what the original's panels and face read (the sin
 face as `canAct`, the face's enemy count as `opponents`, the End key's target as `continueTo`, the climb button's roof
 edge, APs and fence as `climb`, the APs for the cheapest attack on the last target that keep the AP number out of dark
 red as `enoughApToAttack`, the move's final tile behind the face's moving highlight as `destination`, the hit animation
-that holds the portrait flash as `gettingHit`). `itemLocatorsLocked` stands while the original's item locators wait for
-the items-seen quote (`fLockItemLocators`, `08`). A soldier off the ground
-(on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`); a
-corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). Every soldier in the view
-carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by the simulation from
-his state, body, hand items, wounds, water and stance), and `camouflaged` while he wears camouflage paint, ours and
-theirs alike, as the screen shows both (`06`). A
-soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
-are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
-light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes
-(`tileChanges`) are the map changes since the load (`remove`; `add` at the head of the tile's structure layer, as a
-SAM terminal the Queen's reinforcements repaired, `18`; `swap` in place of the tile removed just before it, a structure
-swapped for its partner such as a broken window; `append` at its tail, for a tile the original adds with
-`AddStructToTail`: the rebel hideout's trapdoor and crate, a SAM terminal repaired while its sector was not loaded,
-the structures earlier stays added, which a sector entry and a native import add again, most wall end pieces;
-`object` at the head of the tile's object layer: a destroyed structure's debris, `12`), then the pieces of a helicopter
-standing in the sector (`append`; `25`). The client draws them and lights over them (`20`). `slantRoofCeilings` lists
-the tiles where a slanted roof that a revealed room took off shows its ceiling, the tiles of the roof no merc has seen
-yet (`08`). Animation schedules, palettes and light sprites serve the renderer and the devtools.
+that holds the portrait flash as `gettingHit`, the drink and adrenaline behind the face's drug icons and the light blue
+AP number as `drunk` (`feelingGood`, `borderline`, `drunk`, `hungover`) and `adrenaline` (`active`, or `crash` for its
+after-effect), each absent without it; strategic mercs carry the same two for the map screen's faces). The drug
+counters, and so the turns a course has left, are never shown, and other soldiers carry no drug state (`12` §5).
+`itemLocatorsLocked` stands while the original's item locators wait for the items-seen quote (`fLockItemLocators`,
+`08`). A soldier off the ground (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is
+drawn above his tile (`06`); a corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). Every
+soldier in the view carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by
+the simulation from his state, body, hand items, wounds, water and stance), and `camouflaged` while he wears camouflage
+paint, ours and theirs alike, as the screen shows both (`06`). A soldier the squad has just lost stays while he fades
+out, with `fadingOut` (`06`): he can still be targeted and his hits are told, as in the original, until the fade ends or
+he reaches the next tile. The tactical world (corpses, smoke, light, structure changes, blood;
+`src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes (`tileChanges`) are the map
+changes since the load (`remove`; `add` at the head of the tile's structure layer, as a SAM terminal the Queen's
+reinforcements repaired, `18`; `swap` in place of the tile removed just before it, a structure swapped for its partner
+such as a broken window; `append` at its tail, for a tile the original adds with `AddStructToTail`: the rebel hideout's
+trapdoor and crate, a SAM terminal repaired while its sector was not loaded, the structures earlier stays added, which a
+sector entry and a native import add again, most wall end pieces; `object` at the head of the tile's object layer: a
+destroyed structure's debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
+draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
+took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). Animation schedules, palettes and light
+sprites serve the renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured

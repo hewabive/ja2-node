@@ -9,7 +9,7 @@ import type { BasicPlacement } from '../../content/formats/map.ts';
 import { cloneObject } from '../items/object.ts';
 import { type CreationContext, createFromPlacementParts, type PlacementAdjust } from './creation.ts';
 import { BODY_RANDOM, MAX_ATTITUDES, type PopulationEnv, randomizeRelativeLevel } from './init-list.ts';
-import { Attitude, NOWHERE, Orders, type Soldier, SoldierClass, Team } from './soldier.ts';
+import { Attitude, copyDrugCourses, NOWHERE, Orders, type Soldier, SoldierClass, Team } from './soldier.ts';
 import { type TacticalState, teamMembers } from './state.ts';
 
 export const AUTORESOLVE_SOLDIER_ID = 255;
@@ -110,6 +110,7 @@ function copyForAutoresolve(s: Soldier): Soldier {
     inv: s.inv.map(cloneObject),
     stats: { ...s.stats },
     statDamage: { ...s.statDamage },
+    drugs: copyDrugCourses(s.drugs),
     gridNo: NOWHERE,
     placed: false,
   };

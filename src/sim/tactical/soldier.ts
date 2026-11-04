@@ -453,6 +453,7 @@ export interface Soldier {
   skillCheckGridNo: number;
   turningFromPronePosition: number;
   sleepDrugCounter: number;
+  drugs: DrugCourses;
   monsterSmell: number;
   sayAmmoQuotePending: boolean;
   teamMoraleMod: number;
@@ -493,6 +494,7 @@ export interface Soldier {
   normalSmell: number;
   hunting: boolean;
   regenerationCounter: number;
+  regenBoostersUsedToday: number;
   walkToAttackGridNo: number;
   walkToAttackCost: number;
   pendingMelee: PendingMelee | null;
@@ -501,6 +503,31 @@ export interface Soldier {
   serviceCount: number;
   pendingAid: PendingAid | null;
   pendingRobotReload: PendingRobotReload | null;
+}
+
+export interface DrugCourse {
+  future: number;
+  rate: number;
+  effect: number;
+  sideEffectRate: number;
+  sideEffect: number;
+}
+
+export interface DrugCourses {
+  readonly adrenaline: DrugCourse;
+  readonly alcohol: DrugCourse;
+}
+
+export function noDrugCourse(): DrugCourse {
+  return { future: 0, rate: 0, effect: 0, sideEffectRate: 0, sideEffect: 0 };
+}
+
+export function noDrugCourses(): DrugCourses {
+  return { adrenaline: noDrugCourse(), alcohol: noDrugCourse() };
+}
+
+export function copyDrugCourses(d: DrugCourses): DrugCourses {
+  return { adrenaline: { ...d.adrenaline }, alcohol: { ...d.alcohol } };
 }
 
 export interface PendingAid {
@@ -804,6 +831,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     skillCheckGridNo: NOWHERE,
     turningFromPronePosition: 0,
     sleepDrugCounter: 0,
+    drugs: noDrugCourses(),
     monsterSmell: 0,
     sayAmmoQuotePending: false,
     teamMoraleMod: 0,
@@ -844,6 +872,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     normalSmell: 0,
     hunting: false,
     regenerationCounter: 0,
+    regenBoostersUsedToday: 0,
     walkToAttackGridNo: NOWHERE,
     walkToAttackCost: 0,
     pendingMelee: null,

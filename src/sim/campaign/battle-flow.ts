@@ -89,6 +89,7 @@ import {
 import { actionDone } from '../tactical/ai/control.ts';
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { updateRegenCounters } from '../tactical/drugs.ts';
 import { healthCategory } from '../tactical/health.ts';
 import { profileProgress } from '../tactical/profiles.ts';
 import { type RefusalTexts, refuse } from '../tactical/refusal.ts';
@@ -316,6 +317,10 @@ export class BattleFlow implements FateContext {
       this.roster.all().map((m) => m.soldier),
       (s) => events.push({ type: 'camoWornOff', soldier: s.id }),
     );
+  }
+
+  updateRegenCounters(): void {
+    updateRegenCounters(this.roster.all().map((m) => m.soldier));
   }
 
   moraleEvent(subject: RosterMerc | null, event: number, sector: Sector): void {

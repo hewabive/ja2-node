@@ -341,6 +341,7 @@ export class CampaignSim {
       hourlyMoraleUpdate: () => this.battle?.hourlyMoraleUpdate(),
       decayTacticalMoraleModifiers: () => this.battle?.decayTacticalMoraleModifiers(),
       hourlyCamouflageUpdate: () => this.battle?.hourlyCamouflageUpdate(),
+      updateRegenCounters: () => this.battle?.updateRegenCounters(),
       payOffSkyriderDebtIfAny: () => this.helicopter.payOffSkyriderDebtIfAny(),
     };
     const narrativeSlots = this.narrative.periodicSlots(queen ? () => hourlyProgressUpdate(queen) : null);

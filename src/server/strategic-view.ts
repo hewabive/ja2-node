@@ -26,6 +26,7 @@ import { armourPercent, type MaxArmour, maxArmourPerClass } from '../sim/tactica
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { keyRingViewOf } from '../sim/tactical/doors/door-view.ts';
 import type { KeyTable } from '../sim/tactical/doors/keys.ts';
+import { drugView } from '../sim/tactical/drugs.ts';
 import { inventoryView } from '../sim/tactical/inventory-view.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { statsView } from '../sim/tactical/soldier-view.ts';
@@ -205,6 +206,7 @@ function mercView(m: ViewedMerc): StrategicMercView {
     breathMax: m.soldier?.breathMax ?? 0,
     asleep: m.asleep,
     ...(m.assignment === Assignment.VEHICLE ? { vehicle: m.vehicleId } : {}),
+    ...(m.soldier ? drugView(m.soldier) : {}),
   };
 }
 

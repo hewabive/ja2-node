@@ -161,6 +161,7 @@ function copyCampaignFields(from: ProfileProgress, to: ProfileProgress): void {
   to.insertionData = from.insertionData;
   to.miscFlags3 = from.miscFlags3;
   to.daysOfMoraleHangover = from.daysOfMoraleHangover;
+  to.numTimesDrugUseInLifetime = from.numTimesDrugUseInLifetime;
   to.precedentQuoteSaid = from.precedentQuoteSaid;
   to.preCombatGridNo = from.preCombatGridNo;
 }

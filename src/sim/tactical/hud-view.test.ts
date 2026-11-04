@@ -181,6 +181,27 @@ describe('own soldiers in the view', () => {
     merc.gettingHit = 1;
     expect(shown(sim, merc.id).gettingHit).toBe(true);
   });
+
+  it('carry the drunk level and the adrenaline state behind the drug icons and the light blue AP number, never the counters', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const drugFields = () => {
+      const { drunk, adrenaline } = shown(sim, merc.id);
+      return { drunk, adrenaline };
+    };
+    expect(drugFields()).toEqual({ drunk: undefined, adrenaline: undefined });
+    merc.drugs.alcohol.sideEffect = 10;
+    merc.drugs.adrenaline.sideEffect = 20;
+    expect(drugFields()).toEqual({ drunk: 'hungover', adrenaline: 'crash' });
+    merc.drugs.alcohol.effect = 8;
+    merc.drugs.adrenaline.effect = 4;
+    expect(drugFields()).toEqual({ drunk: 'feelingGood', adrenaline: 'active' });
+    merc.drugs.alcohol.effect = 32;
+    expect(drugFields().drunk).toBe('borderline');
+    merc.drugs.alcohol.effect = 40;
+    expect(drugFields().drunk).toBe('drunk');
+    expect(JSON.stringify(shown(sim, merc.id))).not.toMatch(/sideEffect|future|"rate"/);
+  });
 });
 
 describe('other soldiers in the view (G5)', () => {
@@ -195,6 +216,10 @@ describe('other soldiers in the view (G5)', () => {
     expect(enemy).toMatchObject({ hostile: true, healthIndex: 2 });
     expect(enemy.life).toBeUndefined();
     expect(enemy.stats).toBeUndefined();
+    wounded.drugs.alcohol.effect = 40;
+    wounded.drugs.adrenaline.effect = 4;
+    expect(shown(sim, 20)).not.toHaveProperty('drunk');
+    expect(shown(sim, 20)).not.toHaveProperty('adrenaline');
     expect(shown(sim, 116).hostile).toBe(false);
   });
 

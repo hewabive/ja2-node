@@ -4,6 +4,7 @@ import { endHeight, states } from '../tactical/animation.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newKeyRing } from '../tactical/doors/key-ring.ts';
+import { drugCoursesShowing } from '../tactical/drugs.ts';
 import { LIFELESS_HEALTH_INDEX } from '../tactical/health.ts';
 import { emptyInventory, InvSlot } from '../tactical/inventory.ts';
 import { movementForStanceChange, type Stance, stanceHeight } from '../tactical/movement-mode.ts';
@@ -11,6 +12,8 @@ import { Opp } from '../tactical/perception/opp.ts';
 import {
   Body,
   createSoldier,
+  type DrugCourse,
+  type DrugCourses,
   isCreatureOrBloodcat,
   NO_PROFILE,
   NOBODY,
@@ -97,9 +100,12 @@ const OWN_FIELDS = [
   'uiMovementMode',
   'uiMovementFast',
   'ai',
+  'drugs',
 ] as const;
 
 const OWN_AI_FIELDS: ReadonlySet<PropertyKey> = new Set(['oppCount']);
+const SHOWN_DRUG_FIELDS: ReadonlySet<PropertyKey> = new Set<keyof DrugCourse>(['effect', 'sideEffect']);
+const NO_DRUG_FIELDS: ReadonlySet<PropertyKey> = new Set();
 
 const WEAPON_MODES: Readonly<Record<WeaponModeView, number>> = {
   single: WeaponMode.NORMAL,
@@ -204,6 +210,15 @@ function applyStance(content: TacticalContent, s: Soldier, stance: Stance | unde
     : movementForStanceChange(content, stanceHeight(stance) ?? endHeight(content, s.state));
 }
 
+function drugsFromView(v: KnowledgeSoldier, guard: GuardOptions): DrugCourses {
+  const shown = drugCoursesShowing(v);
+  const adrenalineFields = v.adrenaline ? NO_DRUG_FIELDS : SHOWN_DRUG_FIELDS;
+  return {
+    adrenaline: guardFields(shown.adrenaline, adrenalineFields, `soldier ${v.id}.drugs.adrenaline`, guard),
+    alcohol: guardFields(shown.alcohol, SHOWN_DRUG_FIELDS, `soldier ${v.id}.drugs.alcohol`, guard),
+  };
+}
+
 function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldier, guard: GuardOptions): void {
   const hint = v.hint ?? NO_HINT_INPUTS;
   s.life = v.life ?? 0;
@@ -230,6 +245,7 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.collapsed = hint.collapsed;
   s.gassed = hint.gassed;
   s.underAiControl = hint.underAiControl;
+  s.drugs = drugsFromView(v, guard);
   applyStance(content, s, v.stance);
   for (const id of v.sees ?? []) s.oppList[id] = Opp.SEEN_CURRENTLY;
   s.ai.oppCount = v.opponents ?? 0;

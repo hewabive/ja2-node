@@ -76,7 +76,20 @@ function soldierRecord(fields: SoldierFields): Uint8Array {
   return bytes;
 }
 
-function savedSoldier(id: number, team: number, at: number, extra: SoldierFields = {}): SavedSoldierEntry {
+type SoldierArrays = Readonly<Record<string, readonly number[]>>;
+
+function fillInt8Arrays(record: Uint8Array, arrays: SoldierArrays): void {
+  const offsets = layoutOffsets(SOLDIER_LAYOUT, false);
+  for (const [name, values] of Object.entries(arrays)) {
+    const at = offsets.get(name);
+    if (at === undefined) throw new Error(`no field ${name}`);
+    values.forEach((v, k) => {
+      new DataView(record.buffer).setInt8(at + k, v);
+    });
+  }
+}
+
+function savedSoldier(id: number, team: number, at: number, extra: SoldierFields = {}, arrays: SoldierArrays = {}): SavedSoldierEntry {
   const standing = states(content.animations).STANDING;
   const record = soldierRecord({
     ubID: id,
@@ -97,6 +110,7 @@ function savedSoldier(id: number, team: number, at: number, extra: SoldierFields
     sReservedMovementGridNo: SAVED_NOWHERE,
     ...extra,
   });
+  fillInt8Arrays(record, arrays);
   return { soldier: decodeSoldierRecord(record, SAVE_VERSION, false), mercPath: [], keyRing: null };
 }
 
@@ -275,6 +289,24 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
     expect(sim.state.reserved[reserved]).toBe(-1);
     expect(civilian.pendingAnimation).toBe(NO_PENDING_ANIMATION);
     expect(civilian.pendingDirection).toBe(NO_PENDING_DIRECTION);
+  });
+
+  it('reads both drug courses, adrenaline first, and the regeneration counters (LoadSaveSoldierType.cc)', () => {
+    const drugs = {
+      bFutureDrugEffect: [3, 6],
+      bDrugEffectRate: [4, -2],
+      bDrugEffect: [12, 24],
+      bDrugSideEffectRate: [0, 1],
+      bDrugSideEffect: [20, 9],
+    };
+    const regen = { bRegenerationCounter: 2, bRegenBoostersUsedToday: 3 };
+    const save = syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), regen, drugs)] });
+    const merc = soldierOf(importedSim(save), MERC_ID);
+    expect(merc.drugs).toEqual({
+      adrenaline: { future: 3, rate: 4, effect: 12, sideEffectRate: 0, sideEffect: 20 },
+      alcohol: { future: 6, rate: -2, effect: 24, sideEffectRate: 1, sideEffect: 9 },
+    });
+    expect([merc.regenerationCounter, merc.regenBoostersUsedToday]).toEqual([2, 3]);
   });
 
   it('keeps the height a crow is flying to (sDesiredHeight)', () => {
@@ -528,6 +560,15 @@ describe('the campaign-wide part of an import (SaveLoadGame.cc LoadSavedGame)', 
     const strategic = importedCampaignWideState({ ...syntheticSave({}), profiles } as SaveGame);
     expect(strategic.profiles.get(renamed.id)?.nickname).toBe(`${renamed.nickname}!`);
     expect(strategic.profiles.get(kept.id)?.nickname).toBeUndefined();
+  });
+
+  it('keeps the lifetime drug count of a saved profile (LoadSaveMercProfile.cc ubNumTimesDrugUseInLifetime)', () => {
+    const [user] = stubProfiles(content.items).filter((p) => p.nickname !== '');
+    if (!user) throw new Error('the stub pack needs a named profile');
+    const profiles: SavedMercProfile[] = [];
+    profiles[user.id] = { ...savedProfile(user, user.nickname), numTimesDrugUseInLifetime: 7 };
+    const strategic = importedCampaignWideState({ ...syntheticSave({}), profiles } as SaveGame);
+    expect(strategic.profiles.get(user.id)?.numTimesDrugUseInLifetime).toBe(7);
   });
 
   it('fills a strategic state that has no world: the PreRandom ring, the key table, the civilian groups, the opplist decay, the crows and the creature tension timer', () => {

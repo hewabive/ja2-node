@@ -1,4 +1,5 @@
 import type { DoorView, KeyView } from '../tactical/doors/door-view.ts';
+import type { AdrenalineView, DrunkView } from '../tactical/drugs.ts';
 import type { InventoryItemView } from '../tactical/inventory-view.ts';
 import type { Stance } from '../tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, WeaponModeView } from '../tactical/soldier-view.ts';
@@ -53,6 +54,8 @@ export interface KnowledgeSoldier {
   readonly stance?: Stance;
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
+  readonly drunk?: DrunkView;
+  readonly adrenaline?: AdrenalineView;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
   readonly hint?: OwnHintInputs;

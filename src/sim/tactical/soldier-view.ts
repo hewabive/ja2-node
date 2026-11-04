@@ -8,13 +8,15 @@
 // @src EnoughPoints for GetAPsToClimbRoof, or FindFenceJumpDirection); Handle_UI.cc UIHandleMAdjustStanceMode (the roof
 // @src edges of the stance drag); Interface_Panels.cc PrintAP (EnoughPoints for MinAPsToAttack at sLastTarget with the
 // @src turning cost); Faces.cc HandleAutoFaces (sFinalDestination for the moving highlight, fGettingHit for the portrait
-// @src flash) (2026-11-03).
+// @src flash) (2026-11-03); Interface_Panels.cc PrintAP and Faces.cc HandleRenderFaceAdjustments (the drug state behind
+// @src the light blue AP number and the drug icons: MercUnderTheInfluence, GetDrugEffect, GetDrunkLevel; 2026-11-04).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { findFenceJumpDirection } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
+import { type AdrenalineView, type DrunkView, drugView } from './drugs.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
 import { type Stance, soldierStance } from './movement-mode.ts';
 import { Opp } from './perception/opp.ts';
@@ -73,6 +75,8 @@ export interface OwnSoldierFields {
   readonly enoughApToAttack: boolean;
   readonly destination: number;
   readonly gettingHit: boolean;
+  readonly drunk?: DrunkView;
+  readonly adrenaline?: AdrenalineView;
   readonly hint: OwnHintInputs;
 }
 
@@ -170,6 +174,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     enoughApToAttack: enoughApToAttackLastTarget(t, s),
     destination: s.finalDestination,
     gettingHit: s.gettingHit !== 0,
+    ...drugView(s),
     hint: ownHintInputs(s),
   };
 }

@@ -59,9 +59,9 @@ with the Queen (`17`).
 
 **One context, ports for the rest.** An `EconomyContext` is a `StrategicContext` whose `mercs` is the crew port, plus
 the content, hooks, decisions, periodic slots and an event list. Everything the economy does not own goes through a
-hook, so the module runs alone in tests (`tests/support/economy.ts`, `FakeCrew`). The campaign fills the
-`PeriodicSlots` in the original's hourly order (`15`); camouflage wears off in `campaign/camouflage.ts`, regeneration
-stays empty (gaps).
+hook, so the module runs alone in tests (`tests/support/economy.ts`, `FakeCrew`). The campaign fills the `PeriodicSlots`
+in the original's hourly order (`15`); camouflage wears off in `campaign/camouflage.ts`, the regeneration boosters of
+the day drop in `tactical/drugs.ts` (`12` §5).
 
 **Prompts and boxes.** The militia payment and continue boxes are decision prompts answered yes, no or later; a
 deferred one waits in `economy.prompts` with compression stopped (deviation "Militia payment and continue prompts").
@@ -196,5 +196,4 @@ estimates are not compared. Inferred from reading the source:
 - That Deidranna's death never maximises loyalty: `MaximizeLoyaltyForDeidrannaKilled` sits in the enemy branch while
   she is a civilian (`Overhead.cc:2477`), so `maximizeLoyaltyForDeidrannaKilled` has no caller.
 
-Not ported: gaps "Strategic economy stand-ins" (vehicle repair), "Regeneration counters", "Absent mercs between
-hourly updates".
+Not ported: gaps "Strategic economy stand-ins" (vehicle repair), "Absent mercs between hourly updates".

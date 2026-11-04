@@ -190,7 +190,7 @@ The oracle's `warp` probe runs `WarpGameTime` over every event and compares the 
 - The tie order of the standing schedule: derived from the posting order.
 - That immediate deletion matches the deferred flag, and the catch-up of a periodic event posted mid-day.
 
-Not ported: gaps "Absent mercs between hourly updates", "Regeneration counters", "Auto-bandage", "Map screen exit
+Not ported: gaps "Absent mercs between hourly updates", "Auto-bandage", "Map screen exit
 checks". Other deviations of this domain: "Ambient sound events", "Ambient light and light schedule", "Real-time pause",
 "Time compression checks", "Time compression for healing", "World clock for smoke and light", "Real-time turn after
 combat", "Brothel time warp", "Strategic map pacing", "Clock during fades", "Prompt time", "Interface lock per source",

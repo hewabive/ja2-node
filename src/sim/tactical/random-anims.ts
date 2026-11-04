@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-01. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame code 491 (TIME_FOR_RANDOM_ANIM_CHECK)
+// @src src/game/Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame code 491 (TIME_FOR_RANDOM_ANIM_CHECK; the drunk
+// @src checks 2026-11-04)
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type RandomAnim, RandomAnimFlags, RandomAnimHand } from '../../content/anim/tables.ts';
 import { ItemClass, isTwoHanded } from '../../content/items/items.ts';
 import { u32 } from '../../core/int.ts';
 import { changeSoldierState, endHeight } from './animation.ts';
+import { DrunkLevel, drunkLevel } from './drugs.ts';
 import { InvSlot } from './inventory.ts';
 import { mercInWater } from './person-structure.ts';
 import { hasThreatenStance, OKLIFE, type Soldier, Team } from './soldier.ts';
@@ -28,10 +30,12 @@ function randomHandIndex(t: TacticalState, s: Soldier): Hand | null {
 
 const injured = (s: Soldier) => s.life < INJURED_CHANGE_THRESHOLD;
 const forInjured = (a: RandomAnim) => (a.flags & RandomAnimFlags.INJURED) !== 0;
+const drunkForIdles = (s: Soldier) => drunkLevel(s) >= DrunkLevel.BORDERLINE;
+const forDrunk = (a: RandomAnim) => (a.flags & RandomAnimFlags.DRUNK) !== 0;
 
 function allowed(t: TacticalState, s: Soldier, a: RandomAnim, hand: Hand): boolean {
   if (forInjured(a) !== injured(s)) return false;
-  if (a.flags & RandomAnimFlags.DRUNK) return false;
+  if (forDrunk(a) !== drunkForIdles(s)) return false;
   if (a.hand !== RandomAnimHand.IRRELEVANT && a.hand !== hand) return false;
   if (a.flags & RandomAnimFlags.CASUAL && (s.team !== Team.OUR || t.inCombat)) return false;
   if (a.flags & RandomAnimFlags.FIRST_BIG_MERC && hasThreatenStance(s)) return false;
@@ -41,7 +45,7 @@ function allowed(t: TacticalState, s: Soldier, a: RandomAnim, hand: Hand): boole
 
 function dueForCheck(s: Soldier): boolean {
   s.timeOfLastRandomAction = u32(s.timeOfLastRandomAction + 1);
-  if (s.timeOfLastRandomAction <= TIME_FOR_RANDOM_ANIM_CHECK && !injured(s)) return false;
+  if (s.timeOfLastRandomAction <= TIME_FOR_RANDOM_ANIM_CHECK && !injured(s) && !drunkForIdles(s)) return false;
   s.timeOfLastRandomAction = 0;
   return true;
 }

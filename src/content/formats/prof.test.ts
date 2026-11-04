@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { encryptRecord, PROFILE_RECORD_BYTES, parseProfile, parseProfiles } from './prof.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
+import { openDataVfs } from '../../node/data-vfs.ts';
+import { PROJECT_DATA_DIR } from '../../node/repo.ts';
+import { vfsFileReader } from '../vfs/vfs.ts';
+import { encryptRecord, PROFILE_RECORD_BYTES, PROFILES_PATH, parseProfile, parseProfiles } from './prof.ts';
 
 function recordWithName(units: readonly number[]): Uint8Array {
   const plain = new Uint8Array(PROFILE_RECORD_BYTES);
@@ -17,6 +21,28 @@ describe('prof.dat fields', () => {
     const plain = new Uint8Array(PROFILE_RECORD_BYTES);
     new DataView(plain.buffer).setInt16(PRE_COMBAT_GRIDNO_OFFSET, NOWHERE, true);
     expect(parseProfile(0, plain).preCombatGridNo).toBe(NOWHERE);
+  });
+
+  it('reads the lifetime drug count from byte 691, between the days of morale hangover and the precedent quotes', () => {
+    const plain = new Uint8Array(PROFILE_RECORD_BYTES);
+    plain.set([4, 9], 690);
+    const p = parseProfile(0, plain);
+    expect([p.daysOfMoraleHangover, p.numTimesDrugUseInLifetime, p.precedentQuoteSaid]).toEqual([4, 9, 0]);
+  });
+});
+
+describe.skipIf(!ORIGINAL_DATA_DIR)('the shipped prof.dat', () => {
+  it('starts every profile with no drug use in its lifetime', async () => {
+    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
+    try {
+      const bytes = await vfsFileReader(data.vfs)(PROFILES_PATH);
+      if (!bytes) throw new Error('no prof.dat');
+      const profiles = parseProfiles(bytes);
+      expect(profiles.length).toBeGreaterThan(0);
+      expect(profiles.filter((p) => p.numTimesDrugUseInLifetime !== 0)).toEqual([]);
+    } finally {
+      await data.close();
+    }
   });
 });
 

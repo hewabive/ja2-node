@@ -5,6 +5,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import { handleHourlyUpdate } from '../strategic/economy/update.ts';
+import { worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import { createSoldier, SkillTrait, type Soldier } from '../tactical/soldier.ts';
 import { hourlyCamouflageUpdate } from './camouflage.ts';
 
@@ -95,6 +96,23 @@ describe('the hourly update of a campaign', () => {
     handleHourlyUpdate(economy);
     expect([first.soldier.camo, second.soldier.camo, second.soldier.monsterSmell]).toEqual([0, 28, 3]);
     expect(economy.events.filter((e) => e.type === 'camoWornOff')).toEqual([{ type: 'camoWornOff', soldier: first.id }]);
+  });
+
+  it('forgets one regeneration booster of the day at every sixth hour only (UpdateRegenCounters)', () => {
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 3, mercs: 1 });
+    landFirstSquad(c);
+    const economy = c.economy;
+    const [merc] = roster.all();
+    if (!economy || !merc) throw new Error('no merc');
+    const clock = economy.state.clock;
+    const atHour = (hour: number) => {
+      clock.seconds = (worldDay(clock) * 24 + hour) * 3600;
+      expect(worldHour(clock)).toBe(hour);
+      handleHourlyUpdate(economy);
+      return merc.soldier.regenBoostersUsedToday;
+    };
+    merc.soldier.regenBoostersUsedToday = 2;
+    expect([atHour(7), atHour(12), atHour(13), atHour(18), atHour(18)]).toEqual([2, 1, 1, 0, 0]);
   });
 
   it('wears the camouflage off a dead merc too and reports it: the team loop does not skip the dead', () => {

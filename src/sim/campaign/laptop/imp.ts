@@ -435,6 +435,7 @@ export function emptyProfile(id: number): MercProfile {
     mercStatus: 0,
     balance: 0,
     daysOfMoraleHangover: 0,
+    numTimesDrugUseInLifetime: 0,
     precedentQuoteSaid: 0,
     preCombatGridNo: 0,
     suspiciousDeath: 0,

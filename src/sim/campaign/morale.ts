@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Morale.cc gbMoraleEvent, RefreshSoldierMorale, UpdateSoldierMorale, HandleMoraleEventForSoldier,
-// @src HandleMoraleEvent (the strategic events and the reputation change); Strategic/Strategic_Status.h REPUTATION_*.
+// @src HandleMoraleEvent (the strategic events and the reputation change); Strategic/Strategic_Status.h REPUTATION_*;
+// @src the drug term of RefreshSoldierMorale (2026-11-04).
 
 import { type Sector, sameSector, sectorFromId } from '../../content/strategic/sector-ids.ts';
 import { clamp, i8, idiv, u8 } from '../../core/int.ts';
 import type { StrategicStatus } from '../strategic/ai/queen-state.ts';
 import { Assignment, CONSCIOUSNESS, MoraleEvent as EconomyMoraleEvent } from '../strategic/economy/constants.ts';
+import { drugMoraleBonus } from '../tactical/drugs.ts';
 import { QuoteSaidFlag } from '../tactical/narrative/merc-quotes.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import type { QuoteName } from './contracts/quotes.ts';
@@ -200,7 +202,8 @@ function moraleCounts(m: RosterMerc): boolean {
 export function refreshMercMorale(ctx: MoraleContext, m: RosterMerc): void {
   if (m.asleep) return;
   const s = m.soldier;
-  const total = DEFAULT_MORALE + s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod + idiv(ctx.progress, PROGRESS_MORALE_DIVISOR);
+  const mods = s.teamMoraleMod + s.tacticalMoraleMod + s.strategicMoraleMod;
+  const total = DEFAULT_MORALE + mods + idiv(ctx.progress, PROGRESS_MORALE_DIVISOR) + drugMoraleBonus(s);
   s.morale = clamp(total, 0, MAX_MORALE);
 }
 

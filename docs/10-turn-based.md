@@ -69,8 +69,9 @@ next team follows.
 **Team turns.** A round runs our team, the enemy, creatures, militia, civilians, then the end-of-round events (first
 aid, smell, smoke and light decay). A team with nobody in the sector is skipped, an AI team with an empty AI list after
 its turn start. A turn start decays the team's public opplist and watched locations and runs `beginMercTurn` for each
-living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a
-debt of up to 100 kept). At our End Turn a merc whose path still has an affordable first step loses his pending move;
+living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a debt
+of up to 100 kept). It first steps his drug courses and regeneration, which then change his breath, his new APs and
+their maximum (`12` §5). At our End Turn a merc whose path still has an affordable first step loses his pending move;
 one stopped for want of APs keeps it and his freeze into the next turn.
 
 **Phobias.** A merc's phobia cuts the APs of every turn computed while it applies: a claustrophobe's in an underground

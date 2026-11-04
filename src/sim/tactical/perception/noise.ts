@@ -2,13 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc MovementNoise, DoorOpeningNoise, MakeNoise, ProcessNoise, CalcEffVolume, DecideHearing,
 // @src HearNoise, TellPlayerAboutNoise (with QUOTE_HEARD_SOMETHING); Overhead.cc TeamMemberNear; SkillCheck.cc
-// @src EffectiveExpLevel, EffectiveDexterity.
+// @src EffectiveExpLevel, EffectiveDexterity; MovementNoise's adrenaline term (2026-11-04).
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import { states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { adrenalineEffect } from '../drugs.ts';
 import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
@@ -93,6 +94,7 @@ const MAX_MOVEMENT_NOISE = 9;
 const STEALTH_PER_MOVEMENT_NOISE = 16;
 const BLOODCAT_STEALTH_BONUS = 50;
 const STEALTHY_TRAIT_BONUS = 25;
+const STEALTH_LOST_PER_ADRENALINE_POINT = 3;
 const RED_ALERT_VOLUME = 3;
 const IRRELEVANT = -1;
 const NO_ITEM = -2;
@@ -110,6 +112,7 @@ export function movementNoise(t: TacticalState, s: Soldier): number {
   if (life < 50) stealth -= idiv(stealth * (50 - life), 100);
   if (s.breath < 50) stealth -= idiv(stealth * (50 - s.breath), 100);
   if (isWater(t.pathWorld, s.gridNo)) stealth -= s.overTerrain === Terrain.DEEP_WATER ? 20 : 10;
+  stealth -= STEALTH_LOST_PER_ADRENALINE_POINT * adrenalineEffect(s);
   stealth = Math.max(stealth, 0);
   const st = states(t.content.animations);
   if (!s.stealthMode) {

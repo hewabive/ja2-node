@@ -42,6 +42,24 @@ describe('the frame delay', () => {
     expect(computedAnimationDelay(t, merc) - unloaded).toBe(agilityDeficit(35) - agilityDeficit(70));
   });
 
+  it('halves a moving frame delay under the adrenaline effect, not under its crash nor while standing (CalculateSoldierAniSpeed)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.EAST);
+    const standing = computedAnimationDelay(t, merc);
+    merc.state = anim(content, 'WALKING');
+    const sober = computedAnimationDelay(t, merc);
+    merc.drugs.adrenaline.sideEffect = 20;
+    expect(computedAnimationDelay(t, merc)).toBe(sober);
+    merc.drugs.adrenaline.effect = 4;
+    expect(computedAnimationDelay(t, merc)).toBe(Math.trunc(sober / 2));
+    t.inCombat = true;
+    expect(computedAnimationDelay(t, merc)).toBe(Math.trunc(Math.trunc(sober / 2) / 2));
+    t.inCombat = false;
+    merc.state = anim(content, 'STANDING');
+    expect(computedAnimationDelay(t, merc)).toBe(standing);
+  });
+
   it('never applies a negative body bonus: men, big men and women walk with the same delay', () => {
     const sim = newCombatSim(content);
     const t = sim.state;

@@ -56,7 +56,7 @@ import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { type ProfileProgress, progressFromSavedProfile } from './profiles.ts';
 import { addRottingCorpse, nowMinuteOf, removeAllCorpses } from './rotting-corpses.ts';
 import { restoreBloodAndSmellAt } from './smell.ts';
-import { createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
+import { copyDrugCourses, createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
 import { type CrowStatus, placeOccupant, type RealtimeClock, registerSoldier, removeOccupant, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { addItemToPool } from './world-items.ts';
@@ -503,6 +503,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.blindedCounter = r.blindedCounter;
   s.muzzleFlash = r.muzzleFlash;
   s.sleepDrugCounter = r.sleepDrugCounter;
+  s.drugs = copyDrugCourses(r.drugs);
   s.heightAdjustment = r.heightAdjustment;
   s.targetHeightAdjustment = r.targetHeightAdjustment;
   s.uiMovementMode = m.uiMovementMode;
@@ -630,6 +631,7 @@ function copyAi(s: Soldier, r: SavedSoldier): void {
   s.normalSmell = a.normalSmell;
   s.monsterSmell = a.monsterSmell;
   s.regenerationCounter = a.regenerationCounter;
+  s.regenBoostersUsedToday = a.regenBoostersUsedToday;
   s.pendingActionData4 = a.pendingActionData4;
 }
 

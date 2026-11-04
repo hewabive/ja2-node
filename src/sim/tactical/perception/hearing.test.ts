@@ -20,7 +20,7 @@ import { AlertStatus, Body, Side, SkillTrait, type Soldier, TEAM_FIRST_ID, Team 
 import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
-import { makeNoise, NoiseKind, squadHears } from './noise.ts';
+import { makeNoise, movementNoise, NoiseKind, squadHears } from './noise.ts';
 import { Opp } from './opp.ts';
 
 let content: TacticalContent;
@@ -371,5 +371,25 @@ describe('the sounds of a soldier out of sight', () => {
     expect(hit).toMatchObject({ soldier: stranger.id, heard: { by: merc.id, direction: Direction.NORTH } });
     expect(hit).not.toHaveProperty('gridNo');
     expect(hit).not.toHaveProperty('life');
+  });
+});
+
+describe('the noise of a step (OppList.cc MovementNoise)', () => {
+  it('loses 3 stealth points per adrenaline point: one dose of 16 lets a plain step be three volumes louder', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, LISTENER_AT, Direction.NORTH);
+    const ranges: number[] = [];
+    const pre = sim.state.pre as unknown as { int(n: number): number };
+    pre.int = (n: number) => {
+      ranges.push(n);
+      return 0;
+    };
+    movementNoise(sim.state, merc);
+    merc.drugs.adrenaline.sideEffect = 20;
+    movementNoise(sim.state, merc);
+    merc.drugs.adrenaline.effect = 16;
+    movementNoise(sim.state, merc);
+    const [sober = 0, crashed, drugged] = ranges;
+    expect([crashed, drugged]).toEqual([sober, sober + 3]);
   });
 });

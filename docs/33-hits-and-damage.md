@@ -161,4 +161,4 @@ Inferred from reading the source:
   quote's `Random(2)` when the dialogue queue runs it.
 - Vehicle, boxing, Meanwhile and queen branches are ported as read, without probes.
 
-Not ported: gaps "Morale without drugs", "Unseen soldiers in combat".
+Not ported: gaps "Unseen soldiers in combat".

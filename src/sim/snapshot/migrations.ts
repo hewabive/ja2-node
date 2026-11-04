@@ -1151,6 +1151,35 @@ function addSlantRoofCeilings(snapshot: Readonly<Record<string, unknown>>): Reco
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SLEEP_DRUG_COUNTER_KEY = 'sleepDrugCounter';
+const DRUGS_KEY = 'drugs';
+const REGENERATION_COUNTER_KEY = 'regenerationCounter';
+const REGEN_BOOSTERS_USED_TODAY_KEY = 'regenBoostersUsedToday';
+const DAYS_OF_MORALE_HANGOVER_KEY = 'daysOfMoraleHangover';
+const DRUG_USES_IN_LIFETIME_KEY = 'numTimesDrugUseInLifetime';
+
+function soberCourses(): Json {
+  const course = { future: 0, rate: 0, effect: 0, sideEffectRate: 0, sideEffect: 0 };
+  return { adrenaline: { ...course }, alcohol: { ...course } };
+}
+
+function withDrugCourses(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withDrugCourses(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withDrugCourses(v);
+  if (isProfileProgress(mapped)) return insertAfter(mapped, DAYS_OF_MORALE_HANGOVER_KEY, DRUG_USES_IN_LIFETIME_KEY, 0);
+  if (!isSoldierRecord(mapped)) return mapped;
+  const drugged = insertAfter(mapped, SLEEP_DRUG_COUNTER_KEY, DRUGS_KEY, soberCourses());
+  return insertAfter(drugged, REGENERATION_COUNTER_KEY, REGEN_BOOSTERS_USED_TODAY_KEY, 0);
+}
+
+function addDrugCourses(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withDrugCourses(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1195,5 +1224,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     40: addInterfaceLockFlag,
     41: addItemsSeenTiles,
     42: addSlantRoofCeilings,
+    43: addDrugCourses,
   };
 }

@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Points.cc TerrainActionPoints, TerrainBreathPoints, ActionPointCost, MinAPsToStartMovement,
 // @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h; Soldier_Control.cc CalcActionPoints,
 // @src CalcNewActionPoints (the boxing halving); the phobia terms of CalcActionPoints and EnoughPoints' waiting and
-// @src traversal exceptions (2026-11-01).
+// @src traversal exceptions (2026-11-01); the sleep dart, drug and INT8 terms of CalcActionPoints and
+// @src CalcNewActionPoints, UnusedAPsToBreath's HandleBPEffectDueToDrugs (2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -11,10 +12,11 @@ import { isTraversalQuoteAction } from '../../content/narrative/npc-constants.ts
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
-import { i8, idiv, u8 } from '../../core/int.ts';
+import { i8, i16, idiv, u8 } from '../../core/int.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { AnimHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { adrenalineEffect, apEffectDueToDrugs, bpEffectDueToDrugs } from './drugs.ts';
 import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
 import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { doorObstacleIfClosed, doorState, isWater, type PathEnv, terrainCost } from './pathfinding.ts';
@@ -515,7 +517,8 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
 export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
   const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
   if (!ctx.inCombat) {
-    let change = UNUSED_APS_PER_REALTIME_TURN * idiv(breathPerAP(ctx, s, s.state) * 100, adjustment());
+    const perAP = i16(idiv(breathPerAP(ctx, s, s.state) * 100, adjustment()));
+    let change = bpEffectDueToDrugs(s, i16(UNUSED_APS_PER_REALTIME_TURN * perAP));
     if (change > 0) change = 0;
     else if (s.tilesMovedPerRTBreathUpdate > 0) {
       const moved = breathPerAP(ctx, s, s.lastMovementAnimPerRTBreathUpdate) * s.tilesMovedPerRTBreathUpdate;
@@ -531,9 +534,9 @@ export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolea
     let perAP = breathPerAP(ctx, s, s.state);
     if (perAP < 0 && gassed) return;
     perAP = idiv(perAP * 100, adjustment());
-    change = (s.actionPoints - MAX_AP_CARRIED) * perAP;
+    change = i16((s.actionPoints - MAX_AP_CARRIED) * perAP);
   }
-  deductPoints(ctx.inCombat, s, 0, change);
+  deductPoints(ctx.inCombat, s, 0, bpEffectDueToDrugs(s, change));
 }
 
 export function maxActionPoints(bodyType: number): number {
@@ -555,8 +558,13 @@ function phobicPoints(w: ActionPointWorld, s: Soldier, points: number): number {
   return points;
 }
 
+function collapsedFromSleepDart(s: Soldier): boolean {
+  return s.collapsed && s.sleepDrugCounter > 0;
+}
+
 export function calcActionPoints(w: ActionPointWorld, s: Soldier): number {
   if (!s.life) return 0;
+  if (collapsedFromSleepDart(s)) return 0;
   let points = 5 + idiv(10 * effectiveExpLevel(w, s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20, 40);
   points = u8(points);
   if (s.life < s.lifeMax) points = u8(points - idiv(2 * points * (s.lifeMax - effectiveLife(s)), 3 * s.lifeMax));
@@ -571,15 +579,16 @@ export function calcActionPoints(w: ActionPointWorld, s: Soldier): number {
     if (s.ai.frenzied) points = idiv(points * AP_LIMITS.MONST_FRENZY_FACTOR, 10);
   }
   points = u8(phobicPoints(w, s, u8(points)));
+  points = apEffectDueToDrugs(s, points);
   if (boxingHalvesPoints(w)) points = idiv(points, BOXING_POINTS_DIVISOR);
-  return u8(points);
+  return i8(points);
 }
 
 export function calcNewActionPoints(w: ActionPointWorld, s: Soldier): void {
   const carried = boxingHalvesPoints(w) ? idiv(MAX_AP_CARRIED, BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
   if (s.actionPoints > carried) s.actionPoints = carried;
-  s.actionPoints += calcActionPoints(w, s);
-  s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));
+  s.actionPoints = i8(s.actionPoints + calcActionPoints(w, s));
+  if (!adrenalineEffect(s)) s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));
   s.initialActionPoints = s.actionPoints;
 }
 

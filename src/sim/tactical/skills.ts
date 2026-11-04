@@ -1,8 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/SkillCheck.cc Effective* (the claustrophobic level 2026-11-01); Soldier_Control.h effectiveLife
+// @src src/game/Tactical/SkillCheck.cc Effective* (the claustrophobic level 2026-11-01, the drink 2026-11-04);
+// @src Soldier_Control.h effectiveLife
 
 import { idiv } from '../../core/int.ts';
+import { effectStatForBeingDrunk, expLevelForBeingDrunk, leadershipForBeingDrunk } from './drugs.ts';
 import { NO_PROFILE, Personality, type Soldier } from './soldier.ts';
 
 export interface LifeState {
@@ -21,36 +23,36 @@ export function effectiveStrength(s: Soldier): number {
 }
 
 export function effectiveAgility(s: Soldier): number {
-  const agility = s.stats.agility;
+  const agility = effectStatForBeingDrunk(s, s.stats.agility);
   return s.weightCarriedAtTurnStart > 100 ? idiv(agility * 100, s.weightCarriedAtTurnStart) : agility;
 }
 
 export function effectiveDexterity(s: Soldier): number {
-  return s.stats.dexterity;
+  return effectStatForBeingDrunk(s, s.stats.dexterity);
 }
 
 export function effectiveWisdom(s: Soldier): number {
-  return s.stats.wisdom;
+  return effectStatForBeingDrunk(s, s.stats.wisdom);
 }
 
 export function effectiveMarksmanship(s: Soldier): number {
-  return s.stats.marksmanship;
+  return effectStatForBeingDrunk(s, s.stats.marksmanship);
 }
 
 export function effectiveMechanical(s: Soldier): number {
-  return s.stats.mechanical;
+  return effectStatForBeingDrunk(s, s.stats.mechanical);
 }
 
 export function effectiveExplosive(s: Soldier): number {
-  return s.stats.explosives;
+  return effectStatForBeingDrunk(s, s.stats.explosives);
 }
 
 export function effectiveMedical(s: Soldier): number {
-  return s.stats.medical;
+  return effectStatForBeingDrunk(s, s.stats.medical);
 }
 
 export function effectiveLeadership(s: Soldier): number {
-  return s.stats.leadership;
+  return leadershipForBeingDrunk(s, s.stats.leadership);
 }
 
 export interface LoadedSector {
@@ -73,7 +75,8 @@ function claustrophobicUnderground(w: LoadedSector, s: Soldier): boolean {
 }
 
 export function effectiveExpLevel(w: LoadedSector, s: Soldier): number {
-  const level = s.stats.experience - (claustrophobicUnderground(w, s) ? CLAUSTROPHOBIC_LEVEL_LOSS : 0);
+  const drunk = expLevelForBeingDrunk(s, s.stats.experience);
+  const level = drunk - (claustrophobicUnderground(w, s) ? CLAUSTROPHOBIC_LEVEL_LOSS : 0);
   return Math.max(level, LOWEST_EXP_LEVEL);
 }
 

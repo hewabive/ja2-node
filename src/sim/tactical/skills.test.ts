@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { effectiveExpLevel } from './skills.ts';
+import {
+  effectiveAgility,
+  effectiveDexterity,
+  effectiveExpLevel,
+  effectiveExplosive,
+  effectiveLeadership,
+  effectiveMarksmanship,
+  effectiveMechanical,
+  effectiveMedical,
+  effectiveStrength,
+  effectiveWisdom,
+} from './skills.ts';
 import { createSoldier, NO_PROFILE, Personality, type Soldier, type SoldierStats } from './soldier.ts';
 
 const MERC_PROFILE = 5;
@@ -53,5 +64,58 @@ describe('the effective experience level (SkillCheck.cc EffectiveExpLevel)', () 
     away.placed = false;
     expect(effectiveExpLevel(MINE_LEVEL, away)).toBe(4);
     expect(effectiveExpLevel(MINE_LEVEL, merc(4, Personality.CLAUSTROPHOBIC, NO_PROFILE))).toBe(4);
+  });
+});
+
+const DRINK = 8;
+
+function drunk(s: Soldier, drinks: number, hangover = 0): Soldier {
+  s.drugs.alcohol.effect = drinks * DRINK;
+  s.drugs.alcohol.sideEffect = hangover;
+  return s;
+}
+
+function drinkStats(s: Soldier): number[] {
+  return [
+    effectiveAgility(s),
+    effectiveDexterity(s),
+    effectiveWisdom(s),
+    effectiveMarksmanship(s),
+    effectiveMechanical(s),
+    effectiveExplosive(s),
+    effectiveMedical(s),
+    effectiveStrength(s),
+  ];
+}
+
+describe('stats under drink (SkillCheck.cc, Drugs_And_Alcohol.cc EffectStatForBeingDrunk)', () => {
+  it('scales agility, dexterity, wisdom, marksmanship, mechanical, explosives and medical to 75, 65 and 50 percent, never strength', () => {
+    expect(drinkStats(merc(4, 0))).toEqual([70, 70, 70, 70, 30, 30, 30, 70]);
+    expect(drinkStats(drunk(merc(4, 0), 1))).toEqual([52, 52, 52, 52, 22, 22, 22, 70]);
+    expect(drinkStats(drunk(merc(4, 0), 4))).toEqual([45, 45, 45, 45, 19, 19, 19, 70]);
+    expect(drinkStats(drunk(merc(4, 0), 5))).toEqual([35, 35, 35, 35, 15, 15, 15, 70]);
+    expect(drinkStats(drunk(merc(4, 0), 0, 10))).toEqual([70, 70, 70, 70, 30, 30, 30, 70]);
+  });
+
+  it('scales agility before the weight it carries', () => {
+    const s = drunk(merc(4, 0), 1);
+    s.weightCarriedAtTurnStart = 150;
+    expect(effectiveAgility(s)).toBe(34);
+  });
+
+  it('raises leadership by a fifth only while he feels good, the level that already cuts his other stats to 75 percent', () => {
+    expect(effectiveLeadership(merc(4, 0))).toBe(50);
+    expect(effectiveLeadership(drunk(merc(4, 0), 1))).toBe(60);
+    expect(effectiveLeadership(drunk(merc(4, 0), 4))).toBe(50);
+    expect(effectiveLeadership(drunk(merc(4, 0), 0, 10))).toBe(50);
+  });
+
+  it('takes one level when borderline and two when drunk, before the claustrophobic level and the floor of 1', () => {
+    expect(effectiveExpLevel(SURFACE, drunk(merc(4, 0), 1))).toBe(4);
+    expect(effectiveExpLevel(SURFACE, drunk(merc(4, 0), 4))).toBe(3);
+    expect(effectiveExpLevel(SURFACE, drunk(merc(4, 0), 5))).toBe(2);
+    expect(effectiveExpLevel(MINE_LEVEL, drunk(merc(4, Personality.CLAUSTROPHOBIC), 5))).toBe(1);
+    expect(effectiveExpLevel(MINE_LEVEL, drunk(merc(2, Personality.CLAUSTROPHOBIC), 5))).toBe(1);
+    expect(effectiveExpLevel(SURFACE, drunk(merc(4, 0), 0, 10))).toBe(4);
   });
 });

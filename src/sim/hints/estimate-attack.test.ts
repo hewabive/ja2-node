@@ -3,6 +3,7 @@ import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { Terrain } from '../../content/world/terrain.ts';
+import { UnsuppliedFieldError } from '../knowledge/guard.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newSmokeEffect } from '../tactical/explosions/smoke.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
@@ -62,6 +63,35 @@ describe('the chance to hit through smoke and gas', () => {
     expect(throughGas).toBeLessThan(clear);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     expect(runUntilIdle(sim).find((e) => e.type === 'shotFired')).toMatchObject({ chance: throughGas });
+  });
+});
+
+describe('a shooter on drink or adrenaline', () => {
+  it("reads the drunk level the view shows: a drunk merc's estimate is the cost and chance of the shot he fires", () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.lookAround();
+    sim.drainEvents();
+    const estimate = () => estimateAttack(sim, { soldier: 0, target: enemy.gridNo }).data as { apCost: number; chanceToHit: number };
+    const sober = estimate();
+    merc.drugs.alcohol.effect = 40;
+    const drunk = estimate();
+    expect(drunk.chanceToHit).toBeLessThan(sober.chanceToHit);
+    const before = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.find((e) => e.type === 'shotFired')).toMatchObject({ chance: drunk.chanceToHit });
+    expect(before - merc.actionPoints).toBe(drunk.apCost);
+  });
+
+  it('leaves the adrenaline numbers out of the view: a strict estimate for a merc under it fails on the read', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    sim.lookAround();
+    merc.drugs.adrenaline.effect = 4;
+    expect(() => estimateAttack(sim, { soldier: 0, target: enemy.gridNo })).toThrow(UnsuppliedFieldError);
   });
 });
 

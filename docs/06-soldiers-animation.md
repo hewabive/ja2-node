@@ -123,9 +123,10 @@ cosmetic and not made (deviation "Cosmetic face and frame draws").
 **Idle animations break the breathing loop.** The standing and the crow eating scripts end each pass with code 491
 (`random-anims.ts`): every third pass, or every pass below 30 life, a soldier with OKLIFE out of water draws
 `Random(100)` on `main` and may switch to an idle animation of his body, a casual one only for our mercs out of combat;
-an animal's idle sound only holds the script for a frame, the sound itself is the client's (deviation "Idle sounds of
-unseen animals"). The stub pack's `STANDING` and `CROW_EAT` carry 491 where the original's do, so stub tests draw it
-too; nobody is drunk until "Drugs and alcohol" is ported, so the drunk idle never plays.
+a merc borderline drunk or worse, or hungover, checks on every pass and plays only the drunk idle (`12` §5); an animal's
+idle sound only holds the script for a frame, the sound itself is the client's (deviation "Idle sounds of unseen
+animals"). The stub pack's `STANDING` and `CROW_EAT` carry 491 where the original's do, so stub tests draw it too, and
+its `DRUNK_IDLE` is a plain one-shot.
 
 **Profiles.** ja2-node decodes `prof.dat` itself; Stracciatella's `mercs-profile-info.json` gives each profile its
 internal name and type, the face index is the profile id, and an empty vest or pants become `WHITEVEST` and
@@ -178,8 +179,6 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Drugs and alcohol" (adrenaline and drunkenness in the frame delay, the drunk
-idle). Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames
-with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals",
-"Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed animation surface", "Soldier sheet and
-palette refresh".
+Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames with other scripts",
+"Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals", "Cosmetic draws of
+creatures", "Soldier fade without merc lights", "Failed animation surface", "Soldier sheet and palette refresh".

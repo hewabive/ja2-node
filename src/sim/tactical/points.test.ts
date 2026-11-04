@@ -5,9 +5,11 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
+import { createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { getNewSoldierPath, setSoldierPosition } from './movement.ts';
+import { BoxingState } from './narrative/boxing-state.ts';
 import { executeOverhead } from './overhead.ts';
 import { Opp } from './perception/opp.ts';
 import {
@@ -203,6 +205,126 @@ describe('phobias in the turn APs (Soldier_Control.cc CalcActionPoints)', () => 
     expect(calcActionPoints(t, s)).toBe(21);
     s.ai.oppCount = 1;
     expect(calcActionPoints(t, s)).toBe(16);
+  });
+});
+
+const UNDER_ADRENALINE = 16;
+const AFTER_ADRENALINE = 20;
+const HANGOVER = 10;
+const LOW_BREATH_LIFE = 50;
+
+describe('drugs in the turn APs (Soldier_Control.cc CalcActionPoints, Drugs_And_Alcohol.cc HandleAPEffectDueToDrugs)', () => {
+  it('adds the adrenaline effect after the phobias, unclamped, and halves the sum in a boxing match', () => {
+    const t = tactical();
+    t.sector = MINE_LEVEL;
+    const s = phobic(t, Personality.CLAUSTROPHOBIC);
+    s.drugs.adrenaline.effect = UNDER_ADRENALINE;
+    expect(calcActionPoints(t, s)).toBe(18 + UNDER_ADRENALINE);
+    const boxing = { ...createBoxingRecord(), state: BoxingState.BOXING };
+    expect(calcActionPoints({ soldiers: t.soldiers, sector: t.sector, boxing }, s)).toBe(17);
+  });
+
+  it('takes the adrenaline crash and the hangover off, each clamped at the minimum of 10', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.drugs.adrenaline.sideEffect = AFTER_ADRENALINE;
+    expect(calcActionPoints(t, s)).toBe(10);
+    s.drugs.adrenaline.sideEffect = 0;
+    s.drugs.alcohol.sideEffect = HANGOVER;
+    expect(calcActionPoints(t, s)).toBe(21 - 5);
+    s.drugs.adrenaline.sideEffect = 8;
+    expect(calcActionPoints(t, s)).toBe(10);
+  });
+
+  it("raises a claustrophobe's 9 APs to 10 under the crash or the hangover: their clamp comes after the phobia's cut", () => {
+    const t = tactical();
+    t.sector = MINE_LEVEL;
+    const s = phobic(t, Personality.CLAUSTROPHOBIC);
+    s.life = LOW_BREATH_LIFE;
+    s.breath = 0;
+    expect(calcActionPoints(t, s)).toBe(9);
+    s.drugs.alcohol.sideEffect = HANGOVER;
+    expect(calcActionPoints(t, s)).toBe(10);
+    s.drugs.alcohol.sideEffect = 0;
+    s.drugs.adrenaline.sideEffect = 1;
+    expect(calcActionPoints(t, s)).toBe(10);
+  });
+
+  it('wraps stacked adrenaline: the turn APs and the APs held are INT8', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.drugs.adrenaline.effect = 104;
+    expect(calcActionPoints(t, s)).toBe(125);
+    s.actionPoints = MAX_AP_CARRIED;
+    calcNewActionPoints(t, s);
+    expect([s.actionPoints, s.initialActionPoints]).toEqual([-126, -126]);
+    s.drugs.adrenaline.effect = 120;
+    expect(calcActionPoints(t, s)).toBe(-115);
+  });
+
+  it('lets the new APs pass the maximum only while the adrenaline effect lasts', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.actionPoints = MAX_AP_CARRIED;
+    s.drugs.adrenaline.effect = UNDER_ADRENALINE;
+    calcNewActionPoints(t, s);
+    expect(s.actionPoints).toBe(MAX_AP_CARRIED + 21 + UNDER_ADRENALINE);
+    s.actionPoints = MAX_AP_CARRIED;
+    s.drugs.adrenaline.effect = 0;
+    calcNewActionPoints(t, s);
+    expect(s.actionPoints).toBe(25);
+  });
+
+  it('gives a sleep-dart victim no APs once he has collapsed', () => {
+    const t = tactical();
+    const s = spawn(t, gridNo(80, 80));
+    s.sleepDrugCounter = 3;
+    expect(calcActionPoints(t, s)).toBe(21);
+    s.collapsed = true;
+    expect(calcActionPoints(t, s)).toBe(0);
+    s.sleepDrugCounter = 0;
+    expect(calcActionPoints(t, s)).toBe(21);
+  });
+});
+
+describe('drugs in the breath between turns (Points.cc UnusedAPsToBreath, Drugs_And_Alcohol.cc HandleBPEffectDueToDrugs)', () => {
+  function breathAfter(inCombat: boolean, prepare: (s: Soldier) => void, gassed = false): number {
+    const t = tactical();
+    t.inCombat = inCombat;
+    const s = spawn(t, gridNo(80, 80));
+    s.breathRed = 3000;
+    s.breath = 70;
+    s.actionPoints = MAX_AP_CARRIED;
+    prepare(s);
+    unusedAPsToBreath(ctx(t), s, gassed);
+    return s.breath;
+  }
+
+  it('gives breath back for the adrenaline effect, in real time and turn-based', () => {
+    const sober = breathAfter(false, () => undefined);
+    expect(breathAfter(false, (s) => (s.drugs.adrenaline.effect = UNDER_ADRENALINE))).toBeGreaterThan(sober);
+    expect(breathAfter(true, () => undefined)).toBe(70);
+    expect(breathAfter(true, (s) => (s.drugs.adrenaline.effect = UNDER_ADRENALINE))).toBeGreaterThan(70);
+  });
+
+  it('costs breath for the crash and the hangover only turn-based: in real time they only shrink the gain', () => {
+    const sober = breathAfter(false, () => undefined);
+    const crashed = breathAfter(false, (s) => (s.drugs.adrenaline.sideEffect = AFTER_ADRENALINE));
+    const hungover = breathAfter(false, (s) => (s.drugs.alcohol.sideEffect = HANGOVER));
+    expect(crashed).toBe(70);
+    expect(hungover).toBeGreaterThan(70);
+    expect(hungover).toBeLessThan(sober);
+    expect(breathAfter(true, (s) => (s.drugs.adrenaline.sideEffect = AFTER_ADRENALINE))).toBeLessThan(70);
+    expect(breathAfter(true, (s) => (s.drugs.alcohol.sideEffect = HANGOVER))).toBeLessThan(70);
+  });
+
+  it('skips the drug term turn-based for a gassed soldier who would have rested', () => {
+    const rested = (s: Soldier) => {
+      s.actionPoints = 15;
+      s.drugs.adrenaline.sideEffect = 30;
+    };
+    expect(breathAfter(true, rested, true)).toBe(70);
+    expect(breathAfter(true, rested, false)).toBeLessThan(70);
   });
 });
 
