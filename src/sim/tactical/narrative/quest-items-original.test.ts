@@ -7,15 +7,18 @@ import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { objectFromRecord } from '../../items/object.ts';
+import { actionValueOf, Detonator, detonatorOf, frequencyOf, ItemAction } from '../bombs/bomb-object.ts';
 import { loadTacticalContent } from '../load-content.ts';
 import { WorldItemFlags } from '../world-items.ts';
-import { type BombFields, bombFieldsOf, Detonator, ItemAction } from './quest-items.ts';
 
 const dataDir = ORIGINAL_DATA_DIR;
 const WORLD_ITEM_OBJECT_OFFSET = 8;
 const SEX_TILES = [11174, 12290, 13414];
 
-interface ArmedItem extends BombFields {
+interface ArmedItem {
+  readonly detonator: number;
+  readonly frequency: number;
+  readonly action: number;
   readonly map: string;
   readonly gridNo: number;
   readonly isSwitch: boolean;
@@ -40,7 +43,8 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('quest action items in the original maps', (
     for (const file of data.vfs.list().filter((f) => /^maps\/[^/]+\.dat$/.test(f.path))) {
       for (const record of parseMap(await data.vfs.read(file.path)).items) {
         if ((record.item !== actionItem && record.item !== switchItem) || !(record.flags & WorldItemFlags.ARMED_BOMB)) continue;
-        const fields = bombFieldsOf(objectFromRecord(decodeObject(record.raw, WORLD_ITEM_OBJECT_OFFSET)));
+        const o = objectFromRecord(decodeObject(record.raw, WORLD_ITEM_OBJECT_OFFSET));
+        const fields = { detonator: detonatorOf(o), frequency: frequencyOf(o), action: actionValueOf(o) };
         armed.push({ ...fields, map: file.path, gridNo: record.gridNo, isSwitch: record.item === switchItem });
       }
     }

@@ -13,16 +13,33 @@
 // @src MOVEUI_TARGET_ITEMS and no AP check) and HandleSoldierPickupItem's BATTLE_SOUND_NOTHING (2026-11-03);
 // @src Interface_Items.cc HandleItemPointerClick (a click next to the merc drops beside him on a tile that is no good
 // @src destination or one step away, else at his feet: DROP_ADJACENT_OBJECT turned towards it when standing, else at
-// @src once with NotifySoldiersToLookforItems), Soldier_Ani.cc code 763 (2026-11-03).
+// @src once with NotifySoldiersToLookforItems), Soldier_Ani.cc code 763 (2026-11-03); PickPickupAnimation's turn to a
+// @src raised or openable structure on his own tile (2026-11-04).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
 import { gunQuoteOf } from '../../content/narrative/quote-speakers.ts';
-import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
+import { Direction } from '../../content/world/grid.ts';
+import {
+  has,
+  ORIENT_LEFT,
+  ORIENT_RIGHT,
+  STRUCTURE_ON_GROUND,
+  STRUCTURE_ON_ROOF,
+  StructureFlags,
+  type StructureInstance,
+} from '../../content/world/structures.ts';
 import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
-import { AnimHeight, height, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from './animation.ts';
+import {
+  AnimHeight,
+  height,
+  initNewSoldierAnim,
+  setDesiredDirection,
+  setSoldierDirection,
+  soldierGotoStationaryStance,
+} from './animation.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
@@ -179,8 +196,18 @@ function pickPickupAnimation(t: TacticalState, s: Soldier, g: number, zLevel: nu
     if (s.team !== Team.OUR) t.turnHooks.actionDone(t, s);
     return;
   }
-  initNewSoldierAnim(t, s, anim(t.content, zLevel > 0 ? 'ADJACENT_GET_ITEM' : 'PICKUP_ITEM'), 0, false);
+  const raised = zLevel > 0 ? t.world.structures.find(g, StructureFlags.HASITEMONTOP | StructureFlags.OPENABLE) : null;
+  if (raised) turnToRaisedItems(t, s, raised);
+  initNewSoldierAnim(t, s, anim(t.content, raised ? 'ADJACENT_GET_ITEM' : 'PICKUP_ITEM'), 0, false);
   if (s.team !== Team.OUR) s.ai.action = AiAction.PENDING_ACTION;
+}
+
+function turnToRaisedItems(t: TacticalState, s: Soldier, structure: StructureInstance): void {
+  let direction = s.direction;
+  if (structure.wallOrientation & ORIENT_LEFT) direction = Direction.NORTH;
+  else if (structure.wallOrientation & ORIENT_RIGHT) direction = Direction.WEST;
+  setDesiredDirection(t, s, direction);
+  setSoldierDirection(t, s, direction);
 }
 
 function handleSoldierPickupItem(t: TacticalState, s: Soldier): void {

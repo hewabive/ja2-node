@@ -6,7 +6,7 @@
 import { DIRECTION_INCREMENT, newGridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { TravelCost } from '../../content/world/movement-costs.ts';
 import { ABSMAX_TRAIL_TREE, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { Body, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 import { type WorldItem, WorldItemFlags } from './world-items.ts';
 
@@ -18,6 +18,7 @@ function probe(gridNo: number): PathSoldier {
   return {
     id: PROBE_SOLDIER_ID,
     team: Team.ENEMY,
+    side: Side.FRIENDLY,
     bodyType: Body.REGMALE,
     gridNo,
     level: 0,

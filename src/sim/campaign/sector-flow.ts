@@ -161,7 +161,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
+import { addItemToPool, loadWorldItemsFromMap, trashWorldItems, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { handleMurderOfCivilian } from './civilian-murder.ts';
 import type { SectorFlowState } from './flow-state.ts';
@@ -177,6 +177,7 @@ import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.t
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { endMapScreenForSectorLoad, returnToLoadedSector } from './screens.ts';
 import {
+  addDiffWorldItems,
   applyPreservedEnemyRecord,
   captureBloodAndSmell,
   captureLights,
@@ -193,7 +194,6 @@ import {
   restoreOpenables,
   restoreRevealed,
   restoreSmoke,
-  restoreWorldItems,
   type SectorDiff,
   sectorKey,
   visibleItemCount,
@@ -729,10 +729,8 @@ export class SectorFlow {
   #loadItemDiff(sector: Sector, diff: SectorDiff): void {
     const t = this.campaign.tactical?.state;
     if (!t || !diff.items || !this.#flagged(sector, SectorFlag.ITEM_TEMP_FILE_EXISTS)) return;
-    if (this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.length = 0;
-    const kept = [...t.worldItems];
-    restoreWorldItems(t, diff.items, t.world.map?.info.centerGridNo ?? CENTER_GRIDNO);
-    if (!this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.unshift(...kept);
+    if (this.#flagged(sector, SectorFlag.ALREADY_LOADED)) trashWorldItems(t);
+    addDiffWorldItems(t, diff.items, t.world.map?.info.centerGridNo ?? CENTER_GRIDNO);
   }
 
   #fileClassCounts(records: SectorDiff['enemies']): { elites: number; troops: number; admins: number; creatures: number } {

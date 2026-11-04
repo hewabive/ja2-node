@@ -115,6 +115,14 @@ describe('stub tile families', () => {
     expect(frames.slice(0, 10).every((f) => f.raster.width === 0 && f.raster.height === 0)).toBe(true);
   });
 
+  it('draw the blue flag FIRSTSWITCHES21 as the original builds it: a generic, transparent structure without cells, the switches before it undrawn', () => {
+    const frames = surface('FIRSTSWITCHES').sprite.frames;
+    expect(frames.map((f) => f.raster.pixels.some((p) => p !== 0))).toEqual([...Array(20).fill(false), true]);
+    const [flag] = surface('FIRSTSWITCHES').structures ?? [];
+    expect([flag?.number, flag?.flags, flag?.armour]).toEqual([20, StructureFlags.GENERIC | StructureFlags.TRANSPARENT, 0]);
+    expect(flag?.tiles.every((tile) => tile.shape.every((cells) => cells === 0) && tile.flags === 0)).toBe(true);
+  });
+
   it('draw every blood pool graphic, four sizes in four variants', async () => {
     const t = await tables();
     for (const type of ['HUMANBLOOD', 'CREATUREBLOOD'])

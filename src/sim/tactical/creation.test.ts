@@ -3,6 +3,7 @@ import { newCombatSim } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { NOTHING } from '../../content/items/items.ts';
+import type { TileElement } from '../../content/world/tile-database.ts';
 import { gameOptions } from '../options.ts';
 import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
 import {
@@ -125,6 +126,8 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
 
 const ZEROS = (n: number) => new Array<number>(n).fill(0);
 const ROOF_TILE = 1000;
+const FIRST_FLAT_ROOF_TYPE = 64;
+const FIRST_SLANTED_ROOF_TYPE = 68;
 
 describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
   it('clamps elites to the policy range 6..10 and leaves them out of ReduceHighExpLevels', () => {
@@ -159,9 +162,10 @@ describe('CreateDetailedPlacementGivenBasicPlacementInfo', () => {
 });
 
 describe('TacticalCreateSoldier', () => {
-  it('lifts a placement on a flat roof to 58 px on the roof level, and leaves one off a roof or in autoresolve on the ground', () => {
-    const world = newCombatSim(kit.content, [], 3, new Set([ROOF_TILE])).state.world;
-    const onRoof = (insertionGridNo: number, env: CreationEnv) => {
+  it('lifts a placement on a flat roof to 58 px on the roof level, and leaves one off a roof, under a slanted roof or in autoresolve on the ground', () => {
+    const synthetic = newCombatSim(kit.content, [], 3, new Set([ROOF_TILE])).state.world;
+    const roofOfType = (type: number) => ({ ...synthetic, tiles: [{ type } as TileElement] });
+    const onRoof = (insertionGridNo: number, env: CreationEnv, world = roofOfType(FIRST_FLAT_ROOF_TYPE)) => {
       const { c } = creation([]);
       const s = tacticalCreateSoldier({ ...c, rng: new ScriptedStream([], 0), world }, create({ onRoof: true, insertionGridNo }), 30, env);
       return [s?.level, s?.heightAdjustment];
@@ -169,6 +173,7 @@ describe('TacticalCreateSoldier', () => {
     expect(onRoof(ROOF_TILE, ENV(40))).toEqual([1, 58]);
     expect(onRoof(ROOF_TILE + 1, ENV(40))).toEqual([0, 0]);
     expect(onRoof(ROOF_TILE, { ...ENV(40), autoresolve: true })).toEqual([0, 0]);
+    expect(onRoof(ROOF_TILE, ENV(40), roofOfType(FIRST_SLANTED_ROOF_TYPE))).toEqual([0, 0]);
   });
 
   it('gives elites night ops (and the expert level late in the game), then palettes, battle sound and the female sound', () => {

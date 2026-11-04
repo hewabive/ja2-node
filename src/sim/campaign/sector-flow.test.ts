@@ -28,6 +28,7 @@ import { getSectorFlagStatus, sectorInfo } from '../strategic/map/sectors.ts';
 import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime, worldHour } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
+import { addBlueFlag, knownMineTiles, MineFlag, setMineFlag } from '../tactical/bombs/mine-flags.ts';
 import { perceiveDoor } from '../tactical/doors/door-status.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../tactical/doors.ts';
 import { igniteExplosion } from '../tactical/explosions/explosion.ts';
@@ -617,6 +618,17 @@ describe('a native save loaded into its sector', () => {
     if (!t) throw new Error('no sector');
     expect(t.mapChanges.map((c) => [c.kind, c.gridNo])).toEqual([[MapChangeKind.REMOVE, TAIL_BOOM_GRIDNO]]);
     expect(tileChangeViews(t).filter((c) => c.kind === 'append' && c.gridNo === TAIL_BOOM_GRIDNO)).toHaveLength(2);
+  });
+
+  it('forgets at a sector entry every mine flag but the blue flags: enemies walk into their own map mines (SetBlueFlagFlags)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 10, garrison: NO_GARRISON });
+    const left = enterAirfieldAtNight(campaign);
+    addBlueFlag(left, HANGAR_FLOOR - 2, GROUND_LEVEL);
+    setMineFlag(left, HANGAR_FLOOR - 4, MineFlag.PLAYER);
+    setMineFlag(left, HANGAR_FLOOR - 6, MineFlag.ENEMY);
+    const t = reenterAirfield(campaign);
+    expect(knownMineTiles(t)).toEqual([HANGAR_FLOOR - 2]);
+    expect(t.mineFlags.some((flags) => flags & MineFlag.ENEMY)).toBe(false);
   });
 
   it('keeps a door blown up open off the map, its closed graphic too, at the next entry that loads it closed: the removal of a door type takes any door off its tile (SaveLoadMap.cc:156)', () => {

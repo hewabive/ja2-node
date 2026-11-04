@@ -2,7 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
 import { WORLD_COLS, WORLD_MAX } from '../content/world/grid.ts';
+import { StructureFlags } from '../content/world/structures.ts';
 import { emptySectorDiff, sectorKey } from '../sim/campaign/sector-diff.ts';
+import { createItem } from '../sim/items/object.ts';
 import { encodeBase64 } from '../sim/snapshot/base64.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
@@ -11,6 +13,7 @@ import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.
 import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
 import { Team, TOTAL_SOLDIERS } from '../sim/tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers } from '../sim/tactical/state.ts';
+import { addItemToPool, Visibility, WorldItemFlags } from '../sim/tactical/world-items.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -1932,5 +1935,80 @@ describe("snapshot version 43 (no drug courses) migrates sober, with every profi
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const WORLD_BOMBS_KEY = 'worldBombs';
+const MINE_FLAGS_KEY = 'mineFlags';
+
+function withoutItemOnTopFlags(world: Json): Json {
+  const w = object(world);
+  const payload = object(object(w.structures).$structures);
+  const lists = (payload.lists as Json[]).map((list) =>
+    (list as Json[]).map((s) => {
+      const o = object(s);
+      return typeof o.flags === 'number' ? { ...o, flags: (o.flags & ~StructureFlags.HASITEMONTOP) >>> 0 } : o;
+    }),
+  );
+  return { ...w, structures: { $structures: { ...payload, lists } } };
+}
+
+function versionFortyFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name === 'world') return [name, withoutItemOnTopFlags(value)];
+    if (name !== 'tactical') return [name, value];
+    const { [WORLD_BOMBS_KEY]: _bombs, [MINE_FLAGS_KEY]: mineFlags, ...tactical } = object(value);
+    expect(mineFlags).toEqual({ $u8: encodeBase64(new Uint8Array(WORLD_MAX)) });
+    return [name, tactical];
+  });
+  return { ...snapshot, version: 44, graph: { ...snapshot.graph, sections } };
+}
+
+function genericStructureTiles(t: TacticalState): number[] {
+  const tiles: number[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const s = t.world.structures.at(g).find((x) => x.cubeOffset === 0 && x.flags & StructureFlags.BLOCKSMOVES);
+    if (s && s.flags & StructureFlags.GENERIC && !(s.flags & StructureFlags.OPENABLE) && s.gridNo === g) tiles.push(g);
+  }
+  return tiles;
+}
+
+describe('snapshot version 44 (no world bombs, mine flags or items on structures) migrates with a slot per armed item in list order, no known mine and the structures items lie on marked', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox with armed items and an item on a barrel', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const [barrel] = genericStructureTiles(t);
+    if (barrel === undefined) throw new Error('the stub sandbox has no barrel');
+    const item = (name: string) => createItem(t.content.items, t.content.items.byName.get(name)?.index ?? 0, 100);
+    addItemToPool(t, barrel, item('CANTEEN'), Visibility.VISIBLE, 0);
+    addItemToPool(t, barrel + 2, item('CANTEEN'), Visibility.VISIBLE, 0);
+    addItemToPool(t, barrel + 3, item('SWITCH'), Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    addItemToPool(t, barrel + 4, item('SWITCH'), Visibility.BURIED, 0, WorldItemFlags.ARMED_BOMB);
+    expect(t.worldBombs.map((b) => b.item.gridNo)).toEqual([barrel + 3, barrel + 4]);
+    expect(t.world.structures.find(barrel, StructureFlags.HASITEMONTOP)).not.toBeNull();
+    const current = snapshotSession(sandbox);
+    const legacy = versionFortyFour(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain(`"${WORLD_BOMBS_KEY}"`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const current = snapshotSession(campaign);
+    const legacy = versionFortyFour(current.sim);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });

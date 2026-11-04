@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc FindBestPath, IsDoorObstacleIfClosed, GetDoorState; Overhead.cc NewOKDestination,
 // @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
+// @src 2026-11-04: FindBestPath's mine checks (MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT).
 
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -18,7 +19,8 @@ import {
 } from '../../content/world/structures.ts';
 import { TERRAIN_MOVEMENT_COST, Terrain } from '../../content/world/terrain.ts';
 import { idiv, u8, u16 } from '../../core/int.ts';
-import { Team } from './soldier.ts';
+import { MineFlag } from './bombs/mine-flags.ts';
+import { Side, Team } from './soldier.ts';
 
 export const PathFlags = { THROUGH_PEOPLE: 0x01, IGNORE_PERSON_AT_DEST: 0x02, CLOSE_GOOD_ENOUGH: 0x04 } as const;
 export const PathCopy = { NONE: 0, ROUTE: 1, REACHABLE: 2, REACHABLE_AND_APS: 3 } as const;
@@ -52,6 +54,7 @@ export type MoveMode = (typeof MoveMode)[keyof typeof MoveMode];
 export interface PathSoldier {
   readonly id: number;
   readonly team: number;
+  readonly side: number;
   readonly bodyType: number;
   readonly gridNo: number;
   readonly level: number;
@@ -82,6 +85,7 @@ export interface PathWorld {
 
 export interface PathEnv {
   readonly world: PathWorld;
+  readonly mineFlags?: Uint8Array;
   readonly restrictedScrollId: number;
   whoIsThere(g: number, level: number): PathSoldier | null;
   doorStatus(g: number): DoorStatus | null;
@@ -397,6 +401,13 @@ export function aiPathCostIndex(dx: number, dy: number): number {
   return (AI_PATHCOST_RADIUS + dx) * AI_PATHCOST_SIZE + AI_PATHCOST_RADIUS + dy;
 }
 
+function knownMineBlocks(env: PathEnv, s: PathSoldier, loc: number, destination: number): boolean {
+  const flags = env.mineFlags?.[loc] ?? 0;
+  if (s.side !== Side.FRIENDLY) return (flags & MineFlag.ENEMY) !== 0;
+  if (s.team === Team.OUR && loc === destination) return false;
+  return (flags & MineFlag.PLAYER) !== 0;
+}
+
 export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, level: number, options: PathOptions = {}): PathResult {
   const world = env.world;
   const mode = options.mode ?? MoveMode.WALKING;
@@ -475,6 +486,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     if (visitOnce && used[newLoc] === 1) return EXPANDED;
     if (world.heights[newLoc] !== world.heights[curLoc]) return EXPANDED;
     if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) return EXPANDED;
+    if (knownMineBlocks(env, s, newLoc, dest)) return EXPANDED;
 
     let nextCost = world.costs.get(newLoc, dir, level);
     if (nextCost === TravelCost.NOT_STANDING) {

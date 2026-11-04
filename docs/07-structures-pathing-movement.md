@@ -68,11 +68,13 @@ where the original has no test: agent API gridno validation and the insertion gu
 mode matters for an AI budget, multi-tile structures and the AP total. Globals of the original are per-call options. A
 heap pops in the original's skip-list order without its draws (deviation "Pathfinder RNG"). The pool of 1022 open nodes
 and the trail limit are kept, so long searches fail where the original's do; reachability floods pass the larger limit
-the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. Players path with the
-perceived door state and never through a closed door; others go through a closed door that is unlocked, has no record
-in the map's door table or opens with their keys. A door changed out of the squad's sight keeps its perceived state
-until a merc sees it, and after a load the structure others path through may follow that state until then (`35`). The
-oracle's `path` probe compares length, directions and the `PlotPath` AP cost for A9 and the save fighters.
+the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A step onto a tile
+its side knows to hold a mine is skipped: the friendly side keeps off the player's mine flag, which our team may end its
+path on, the others off the enemy's (`12` §6). Players path with the perceived door state and never through a closed
+door; others go through a closed door that is unlocked, has no record in the map's door table or opens with their keys.
+A door changed out of the squad's sight keeps its perceived state until a merc sees it, and after a load the structure
+others path through may follow that state until then (`35`). The oracle's `path` probe compares length, directions and
+the `PlotPath` AP cost for A9 and the save fighters.
 
 **Paying at the centre.** A step's APs and breath are paid at the tile centre before leaving it; real time charges no
 APs and 1.25 × breath. An interrupt, a sighting on the enemy's turn or a lack of APs freezes a moving animation with
@@ -129,6 +131,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A soldier who leaves the sector during a pass makes the one after him miss that pass: the merc slots close up under the pass's index | `merc-slots.test.ts` |
 | A soldier moved one tile at a time never trips: the falls skip the first step of a move | `falls.test.ts` "rolls for neither fall on the first step …" |
 | A fall is rolled before its room is tested, on the tile the soldier faces, not the next of his path: where the path turns, a soldier on the faced tile keeps him up after the roll | `falls.test.ts` "tests for room to fall after the roll …" |
+| Our merc may end a path on a tile marked for the player as holding a mine, though no path of his passes one; a militia soldier may not even end there | `pathfinding.test.ts` "keeps our merc off a tile with the player mine flag …", "keeps the rest of the friendly side off the tile …" |
+| The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items keep off the player's marked mines, never the enemy's | `pathfinding.test.ts` "floods a dummy soldier around the player mine flag …" |
 
 Not pinned yet:
 - The origin is never marked visited, and a stale open-list node is expanded again in seven directions; both count
@@ -153,6 +157,6 @@ Inferred from reading the source:
 - `Math.atan2` gives the original's direction between tiles: integer deltas never fall on a sector boundary.
 - A stale node's re-expansion never finds a cheaper cost outside an AI budget.
 
-Not ported: gaps "Walking side effects", "Mines in the pathfinder", "Doors", "Unseen soldiers in combat", "Map items".
+Not ported: gaps "Walking side effects", "Doors", "Unseen soldiers in combat", "Map items".
 Other deviations of this domain: "Recalculated path cost", "AI path-cost cache", "Multi-tile turning", "Creature and
 bloodcat stub bodies", "Frame timers", "Continue a move", "Insertion data in the loaded sector".

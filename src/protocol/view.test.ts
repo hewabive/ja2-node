@@ -84,6 +84,16 @@ describe('view frames', () => {
     expect(unlocked && applyViewFrame(locked, unlocked).itemLocatorsLocked).toBe(false);
   });
 
+  it('carry the known mines when a tile is marked for the player or loses its mark', () => {
+    const none: PlayerView = { ...base, knownMines: [] };
+    const marked: PlayerView = { ...base, tick: 20, knownMines: [12000] };
+    expect(diffPlayerView(none, { ...none, tick: 20 })).toBeNull();
+    expect(diffPlayerView(none, marked)).toEqual({ tick: 20, changed: [], removed: [], knownMines: [12000] });
+    const cleared = diffPlayerView(marked, { ...none, tick: 30 });
+    expect(cleared).toMatchObject({ knownMines: [] });
+    expect(cleared && applyViewFrame(marked, cleared).knownMines).toEqual([]);
+  });
+
   it('carry the current squad when the server makes another squad current or none', () => {
     const current: PlayerView = { ...base, currentSquad: 0 };
     expect(diffPlayerView(current, { ...current, tick: 20 })).toBeNull();

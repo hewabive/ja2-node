@@ -9,7 +9,8 @@
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
-// @src before UpdateMercsInSector); TileEngine/SaveLoadMap.cc LoadRevealedStatusArrayFromRevealedTempFile.
+// @src before UpdateMercsInSector; SetBlueFlagFlags, 2026-11-04); TileEngine/SaveLoadMap.cc
+// @src LoadRevealedStatusArrayFromRevealedTempFile.
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -31,6 +32,7 @@ import type { PreRandom } from '../../core/rng.ts';
 import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { type CivGroupState, importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
+import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import type { Corpse } from './combat/death.ts';
 import { placeLoadedCorpse } from './corpse-placement.ts';
 import { loadDoorStatusArray, type StoredDoorStatus } from './doors/door-status.ts';
@@ -59,7 +61,7 @@ import { restoreBloodAndSmellAt } from './smell.ts';
 import { copyDrugCourses, createSoldier, NOWHERE, type Soldier, SoldierStatusFlags, TOTAL_SOLDIERS } from './soldier.ts';
 import { type CrowStatus, placeOccupant, type RealtimeClock, registerSoldier, removeOccupant, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { addItemToPool } from './world-items.ts';
+import { addItemToPool, trashWorldItems } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
 const DOOR_OPEN = 0x01;
@@ -186,7 +188,7 @@ function savedAmbientLight(sim: TacticalSim, save: SaveGame): number {
 function importWorldItems(t: TacticalState, save: SaveGame, centre: number): number {
   const items = save.currentSector.worldItems;
   if (!items) return t.worldItems.length;
-  t.worldItems.length = 0;
+  trashWorldItems(t);
   for (const wi of items) {
     if (!wi.exists) continue;
     const gridNo = loadedWorldItemGridNo(t, wi.gridNo, wi.flags, centre);
@@ -266,6 +268,7 @@ function applyRevealedStatus(t: TacticalState, revealed: Uint8Array | null): voi
 export function initLoadedWorld(t: TacticalState): void {
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
   lightSpriteRenderAll(t);
+  setBlueFlagFlags(t);
 }
 
 function withSoldiersOffTheMap(t: TacticalState, load: () => void): void {

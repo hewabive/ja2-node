@@ -1,5 +1,6 @@
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
+import { STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
+import { u32 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import { MOVEMENT_COSMETIC_SALT } from '../campaign/flow-state.ts';
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
@@ -1180,6 +1181,82 @@ function addDrugCourses(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const WORLD_ITEMS_KEY = 'worldItems';
+const WORLD_BOMBS_KEY = 'worldBombs';
+const MINE_FLAGS_KEY = 'mineFlags';
+const ITEMS_SECTION = 'items';
+const WORLD_ITEM_DONTRENDER = 0x0001;
+const WORLD_ITEM_ARMED_BOMB = 0x0040;
+
+function numberField(o: JsonObject, key: string): number {
+  const value = o[key];
+  return typeof value === 'number' ? value : 0;
+}
+
+function bombSlotsOf(items: Json | undefined): Json {
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item: Json, k: number): Json[] =>
+    isObject(item) && (numberField(item, 'flags') & WORLD_ITEM_ARMED_BOMB) !== 0
+      ? [{ exists: true, item: { [REF]: `${ITEMS_SECTION}/${k}` } }]
+      : [],
+  );
+}
+
+function withWorldBombsAndMineFlags(tactical: JsonObject, items: Json | undefined): JsonObject {
+  const noMineFlags: Json = { [BYTES_TAG]: encodeBase64(new Uint8Array(WORLD_MAX)) };
+  const withBombs = insertAfter(tactical, WORLD_ITEMS_KEY, WORLD_BOMBS_KEY, bombSlotsOf(items));
+  return insertAfter(withBombs, WORLD_BOMBS_KEY, MINE_FLAGS_KEY, noMineFlags);
+}
+
+function raisedItemTiles(items: Json | undefined): Map<number, number> {
+  const tiles = new Map<number, number>();
+  if (!Array.isArray(items)) return tiles;
+  for (const item of items) {
+    if (!isObject(item) || numberField(item, 'zHeight') <= 0 || numberField(item, 'flags') & WORLD_ITEM_DONTRENDER) continue;
+    tiles.set(numberField(item, 'gridNo'), numberField(item, 'level') ? STRUCTURE_ON_ROOF : STRUCTURE_ON_GROUND);
+  }
+  return tiles;
+}
+
+function holdsItems(s: Json, cubeOffset: number): boolean {
+  if (!isObject(s) || numberField(s, 'cubeOffset') !== cubeOffset) return false;
+  const flags = numberField(s, 'flags');
+  if (!(flags & StructureFlags.BLOCKSMOVES) || flags & (StructureFlags.PERSON | StructureFlags.CORPSE)) return false;
+  return (flags & (StructureFlags.OPENABLE | StructureFlags.GENERIC)) !== 0;
+}
+
+function withItemOnTopFlag(list: Json, cubeOffset: number): Json {
+  if (!Array.isArray(list)) return list;
+  const at = list.findIndex((s: Json) => holdsItems(s, cubeOffset));
+  const s = list[at];
+  if (!isObject(s) || numberField(s, 'flags') & StructureFlags.OPENABLE) return list;
+  return list.map((x: Json, k: number) => (k === at ? { ...s, flags: u32(numberField(s, 'flags') | StructureFlags.HASITEMONTOP) } : x));
+}
+
+function withItemsOnTop(world: Json | undefined, items: Json | undefined): Json | undefined {
+  const lists = structureListsOf(world);
+  const raised = raisedItemTiles(items);
+  if (!Array.isArray(lists) || raised.size === 0 || !isObject(world)) return world;
+  const marked = lists.map((list: Json, g: number) => {
+    const cubeOffset = raised.get(g);
+    return cubeOffset === undefined ? list : withItemOnTopFlag(list, cubeOffset);
+  });
+  const structures = field(world, 'structures', null);
+  const payload = field(structures, STRUCTURES_TAG, null);
+  if (!isObject(payload)) return world;
+  return { ...world, structures: { [STRUCTURES_TAG]: { ...payload, lists: marked } } };
+}
+
+function addWorldBombsAndMineFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const items = sectionOf(graph.sections, ITEMS_SECTION);
+  const sections = graph.sections.map(([name, value]): Section => {
+    if (name === 'world') return [name, withItemsOnTop(value, items) ?? value];
+    return [name, name === 'tactical' && isObject(value) ? withWorldBombsAndMineFlags(value, items) : value];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1225,5 +1302,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     41: addItemsSeenTiles,
     42: addSlantRoofCeilings,
     43: addDrugCourses,
+    44: addWorldBombsAndMineFlags,
   };
 }

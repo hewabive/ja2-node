@@ -1,7 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
+import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
 import { createItem } from '../items/object.ts';
@@ -71,6 +74,33 @@ describe('picking up and dropping items', () => {
     expect(events.some((e) => e.type === 'itemsPickedUp')).toBe(true);
     expect(merc.inv.some((o) => o.item === item('CROWBAR'))).toBe(true);
     expect(t.worldItems).toHaveLength(0);
+  });
+
+  it('turns a standing merc to the wall cabinet on his own tile before he reaches into it (PickPickupAnimation)', () => {
+    const turnsTo = (orientation: number) => {
+      const sim = newCombatSim(content);
+      const t = sim.state;
+      const tile = gridNo(80, 80);
+      t.world.structures.add(tile, 0, syntheticStructure(StructureFlags.OPENABLE | StructureFlags.OPEN, orientation, { edge: true }));
+      const merc = spawnSoldier(sim, 0, Team.OUR, tile, Direction.SOUTHEAST);
+      addItemToPool(t, tile, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0, WorldItemFlags.DONTRENDER, 40);
+      expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: tile, zLevel: 1 })).toEqual({ ok: true });
+      return [merc.direction, t.content.animations.controls[merc.state]?.id];
+    };
+    expect(turnsTo(Orientation.INSIDE_LEFT)).toEqual([Direction.NORTH, 'ADJACENT_GET_ITEM']);
+    expect(turnsTo(Orientation.OUTSIDE_RIGHT)).toEqual([Direction.WEST, 'ADJACENT_GET_ITEM']);
+    expect(turnsTo(Orientation.NONE)).toEqual([Direction.SOUTHEAST, 'ADJACENT_GET_ITEM']);
+  });
+
+  it('picks up a raised item on his own tile with the plain pickup when no structure holds it', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    addItemToPool(t, merc.gridNo, createItem(t.content.items, item('CANTEEN'), 100), Visibility.VISIBLE, 0, 0, 40);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: merc.gridNo, zLevel: 1 })).toEqual({ ok: true });
+    expect([merc.direction, t.content.animations.controls[merc.state]?.id]).toEqual([Direction.SOUTH, 'PICKUP_ITEM']);
+    runUntilIdle(sim);
+    expect(merc.inv.some((o) => o.item === item('CANTEEN'))).toBe(true);
   });
 
   it('picks up the items lying on a structure when no zLevel is given, as GetLargestZLevelOfItemPool does for a click on it', () => {

@@ -9,6 +9,7 @@ import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
+import { Detonator, ItemAction, setActionValue, setBombOwner, setDetonator, setFrequency } from '../bombs/bomb-object.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
 import { AlertStatus, Body, CivilianGroup, type Soldier, Team } from '../soldier.ts';
@@ -16,7 +17,7 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../world-items.ts';
 import { CivGroupHostility } from './constants.ts';
 import { NO_NARRATIVE_PORT } from './port.ts';
-import { Detonator, handleActionItemQueue, ItemAction, setOffActionItemsInGridNo } from './quest-items.ts';
+import { handleActionItemQueue, setOffActionItemsInGridNo } from './quest-items.ts';
 
 let content: TacticalContent;
 
@@ -34,17 +35,17 @@ const VEHICLE_ID = 120;
 
 function actionItem(action: number, owner = 0): ItemObject {
   const o = createItem(content.items, content.items.byName.get('ACTION_ITEM')?.index ?? 0, 100);
-  o.gunAmmoType = Detonator.PRESSURE;
-  o.keyId = action;
-  o.money = owner << 8;
+  setDetonator(o, Detonator.PRESSURE);
+  setActionValue(o, action);
+  setBombOwner(o, owner);
   return o;
 }
 
 function trigger(name: 'ACTION_ITEM' | 'SWITCH', detonator: number, frequency: number, action = 0): ItemObject {
   const o = createItem(content.items, content.items.byName.get(name)?.index ?? 0, 100);
-  o.gunAmmoType = detonator;
-  o.keyId = action;
-  o.money = frequency;
+  setDetonator(o, detonator);
+  setActionValue(o, action);
+  setFrequency(o, frequency);
   return o;
 }
 

@@ -955,6 +955,7 @@ export interface PlayerView {
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly slantRoofCeilings?: readonly number[];
+  readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
   readonly corpses?: readonly CorpseView[];
   readonly smoke?: readonly SmokeTileView[];
@@ -999,6 +1000,7 @@ export interface ViewFrame {
   readonly currentSquad?: number | null;
   readonly revealedRooms?: readonly number[];
   readonly slantRoofCeilings?: readonly number[];
+  readonly knownMines?: readonly number[];
   readonly items?: readonly ItemView[];
   readonly corpses?: readonly CorpseView[];
   readonly smoke?: readonly SmokeTileView[];
@@ -1071,6 +1073,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
   if (!sameList(previous.slantRoofCeilings, next.slantRoofCeilings))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), slantRoofCeilings: next.slantRoofCeilings ?? [] };
+  if (!sameList(previous.knownMines, next.knownMines))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), knownMines: next.knownMines ?? [] };
   if (!sameItems(previous.items, next.items))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), items: next.items ?? [] };
   if (!sameJson(previous.corpses ?? [], next.corpses ?? []))

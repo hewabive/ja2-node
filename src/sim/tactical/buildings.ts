@@ -10,7 +10,7 @@ import { DIRECTION_INCREMENT, Direction, newGridNo, pythSpacesAway, WORLD_MAX } 
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { roamingRange } from './ai/destinations.ts';
 import { findBestPath, newOKDestination, PathCopy, type PathSoldier } from './pathfinding.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { Side, type Soldier, Team } from './soldier.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
 
 export const NO_BUILDING = 0;
@@ -47,6 +47,7 @@ function fakeRoofSoldier(g: number): PathSoldier {
   return {
     id: 0,
     team: Team.ENEMY,
+    side: Side.FRIENDLY,
     bodyType: 0,
     gridNo: g,
     level: 1,

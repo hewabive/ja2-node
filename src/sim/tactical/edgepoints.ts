@@ -12,7 +12,7 @@ import { Terrain } from '../../content/world/terrain.ts';
 import { idiv } from '../../core/int.ts';
 import type { RandomStream } from './combat/context.ts';
 import { ABSMAX_TRAIL_TREE, findBestPath, NOWHERE, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
-import { Team } from './soldier.ts';
+import { Side, Team } from './soldier.ts';
 import { sectorMapOf, type TacticalState } from './state.ts';
 
 export const EdgeSide = { NORTH: 0, EAST: 1, SOUTH: 2, WEST: 3 } as const;
@@ -87,7 +87,18 @@ export function savedMapEdgepoints(map: Pick<MapDef, 'edgepoints' | 'info'>): Ma
 }
 
 function fakeSoldier(gridNo: number, team: number): PathSoldier {
-  return { id: -1, team, bodyType: 0, gridNo, level: 0, visible: -1, hasKeys: false, underAiControl: false, monsterOrAnimal: false };
+  return {
+    id: -1,
+    team,
+    side: Side.FRIENDLY,
+    bodyType: 0,
+    gridNo,
+    level: 0,
+    visible: -1,
+    hasKeys: false,
+    underAiControl: false,
+    monsterOrAnimal: false,
+  };
 }
 
 export function globalReachableTest(t: TacticalState, start: number): Uint8Array {

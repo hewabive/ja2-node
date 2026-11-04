@@ -17,6 +17,7 @@ import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { anim } from './anim-states.ts';
+import type { WorldBomb } from './bombs/world-bombs.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
@@ -276,6 +277,8 @@ export interface TacticalState {
   readonly equipment: EquipmentState;
   readonly profiles: Map<number, ProfileProgress>;
   readonly worldItems: WorldItem[];
+  readonly worldBombs: WorldBomb[];
+  readonly mineFlags: Uint8Array;
   readonly buildings: Buildings;
   readonly bullets: Bullet[];
   readonly missAnimations: MissAnimation[];
@@ -395,13 +398,15 @@ export interface PathEnvParts {
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly soldiers: Soldier[];
   readonly doorStatus: Map<number, DoorStatus>;
+  readonly mineFlags: Uint8Array;
   readonly content: TacticalContent;
 }
 
 export function createPathEnv(parts: PathEnvParts, settings: PathEnvSettings): PathEnv {
-  const { world, pathWorld, occupant, soldiers, doorStatus, content } = parts;
+  const { world, pathWorld, occupant, soldiers, doorStatus, mineFlags, content } = parts;
   return {
     world: pathWorld,
+    mineFlags,
     restrictedScrollId: restrictedScrollIdOf(world),
     whoIsThere: (g, level) => whoIsThere({ world, occupant, soldiers }, g, level),
     doorStatus: (g) => doorStatus.get(g) ?? null,
@@ -432,7 +437,8 @@ export function createTacticalState(
     structures: world.structures,
     mapDoors: world.mapDoors,
   };
-  const pathEnv = createPathEnv({ world, pathWorld, occupant, soldiers, doorStatus, content }, defaultPathEnvSettings());
+  const mineFlags = new Uint8Array(WORLD_MAX);
+  const pathEnv = createPathEnv({ world, pathWorld, occupant, soldiers, doorStatus, mineFlags, content }, defaultPathEnvSettings());
   const options = shared.options ?? gameOptions();
   return {
     clockMs: 0,
@@ -468,6 +474,8 @@ export function createTacticalState(
     equipment: createEquipmentState(content.items, options),
     profiles: shared.profiles ?? new Map(),
     worldItems: [],
+    worldBombs: [],
+    mineFlags,
     buildings: createBuildings(),
     bullets: [],
     missAnimations: [],

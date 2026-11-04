@@ -2,7 +2,7 @@
 
 Items from their definitions to the world: the item table, the item object, soldier inventories and their commands,
 reloading, first aid, world items, what profiles and the equipment generator give soldiers, explosions, smoke, gas and
-flares, drugs and alcohol (§5). Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit
+flares, drugs and alcohol (§5), bombs and mines (§6). Siblings: `11` firing (jams, wear, ammo use, the hand item breaking); `33` what a hit
 does to a soldier (armour against bullets, the weapon knocked out of the hand, the drops at death); `34` throwing,
 launchers, duds and item physics; `35` and `25` locks, door traps, action items and switches; `23` merchants; `29` the
 inventory commands; `30` the inventory screens. Each module's `@src` header names the Stracciatella functions it ports;
@@ -31,6 +31,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
+| `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags (§6) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
@@ -65,9 +66,9 @@ shipped JSON keeps each calibre's sizes side by side (`reloadGun`).
 a map loads, in profiles and in enemy equipment), sci-fi items on, `game.json` as shipped (not every drop, drops not all
 visible, no weapon status floor, no extra attachments).
 
-**One object without the union.** `ItemObject` keeps the gun, money, bomb and key fields apart where `OBJECTTYPE`
-aliases them (deviation "Object union"); one decoder reads the record of map items, detailed placements and native
-saves.
+**One object without the union.** `ItemObject` keeps the gun, money and key fields apart where `OBJECTTYPE` aliases
+them, and reads the bomb fields through those aliases (deviation "Object union", §6); one decoder reads the record of
+map items, detailed placements and native saves.
 
 **Commands instead of the cursor.** Each inventory command is one pick-up and one placement on the original panel code,
 tried on copies first, so a refused one changes nothing; what the original leaves in the cursor goes back at once
@@ -82,8 +83,10 @@ from the sector load (deviation "Difficulty and progress in tactical").
 
 **World items are one list.** `TacticalState.worldItems` holds every item of the loaded sector; a tile's pool is its
 entries in list order (`itemsAt`). Visibility keeps the original's values (hidden, buried, inside a closed container,
-not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. Other sectors' items,
-clouds and flares live in the campaign's sector diffs (`campaign/sector-diff.ts`).
+not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on a generic
+structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile turns to
+it to reach the items and a blast that wrecks it puts them on the floor. Other sectors' items, clouds and flares live
+in the campaign's sector diffs (`campaign/sector-diff.ts`).
 
 **Explosions run on the tick.** Frame `k` of an explosion shows `k·(delay + 5)` ms after ignition and the damage lands
 at the damage key frame (deviation "Explosion timing"). Frame counts come from the graphics through the rule pack's
@@ -118,11 +121,6 @@ next entry as in the original; a native save never holds it (deviation "Wall dec
 insertion before a roof tile of the structure layer (`TileEngine/WorldMan.cc:878`) is not ported: no original map has a
 roof tile in its structure layer. The stub walls carry end pieces at sub-indices 48 to 55 (`32`).
 
-**Bombs and mines are scenery.** Map mines load armed and buried but never go off; there is no planting, disarming,
-timer, remote detonator or explosive bomb queue, and picking an item up sets off no booby trap (gaps "Map items", "Duds
-and timed bombs", "Unbuilt item actions", "Booby-trapped items"). The bomb queue runs only its action-item branch
-(`25`); `useRemote` only opens the O3 statue.
-
 **Randomness.** Gameplay draws keep the original order on `main` and `pre` (`01` §3.6), the debris variant's
 `Random(3)` per piece of debris included. Explosion sounds and smoke graphics are not drawn (deviation "Cosmetic draws
 in explosions").
@@ -152,6 +150,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A search turns up hidden items only on a tile where every item is hidden: one beside a buried item stays hidden, and the merc finds nothing | `item-actions.test.ts` |
 | Night goggles already worn in the first head slot move to a free second one when the night gear is asked for: the search for the gear to put on looks at the head slots too | `head-gear.test.ts` |
 | A pass to a merc without room for all of it still costs both mercs their 3 AP, and what fits stays with him: the APs go before `AutoPlaceObject` | `item-pointer.test.ts` |
+| An item dropped on the second tile of a long table rolls to its base, but the mark stays on the tile it was dropped on: its pickup clears the base tile alone | `world-items.test.ts` "keeps the mark on the tile an item was dropped on …" |
 
 Not pinned yet:
 - A blast in water switches to the water animation, which ends before its damage frame in the original data: it hurts
@@ -238,6 +237,44 @@ The oracle's drug probes (`tools/oracle/README.md` "Drugs") check every drug and
 stats and the boosters of the day. Not checked against the native build: Larry's swap (no save has him on the team), the
 asleep merc's morale and the campaign's morale refresh, stealth, the moving frame delay, code 491's drunk idle and the
 drunk fall.
+
+## 6. Bombs and mines
+
+**Where.** `bombs/bomb-object.ts` is the only reader and writer of an object's bomb fields (detonator, bomb item, delay
+or frequency, owner, action, panic tolerance) and arms a bomb (`armBomb`); `bombs/world-bombs.ts` keeps the world bomb
+list; `bombs/mine-flags.ts` the mine flags of the tiles and the blue flags. `world-items.ts` arms the map's hidden
+mines at the load, buries pits and switches and lists the armed items as they enter and leave the pools;
+`pathfinding.ts` reads the flags (`07`); `narrative/quest-items.ts` runs the action items the queue can run so far
+(`25`).
+
+**Design.**
+- The bomb fields stay in the union aliases of the object (deviation "Object union"), so map records, native saves,
+  sector diffs and snapshots carry them unchanged.
+- The world bomb list is the original's slot array: a new bomb takes the first free slot, a removed one leaves its slot
+  empty with the item it held. Its order, not the item list's, is the order the original's bomb loops run in.
+- The mine flags are per tile, shared by both levels (`TacticalState.mineFlags`): the player flag for our team and the
+  militia, the enemy flag for everybody else. They belong to the loaded sector: snapshots keep them, the sector's temp
+  state does not. A load marks for the player the tiles where the replayed map changes leave a blue flag
+  (`setBlueFlagFlags` at the end of `initLoadedWorld`, a native import included); the map load marks the hidden mines
+  it arms for the enemy, and every pit added to a pool its tile.
+- The view's `knownMines` lists the tiles with the player flag, which the original's path cursor reveals anyway; the
+  enemy flag, trap levels, timers and owners never reach the view (D16, `29` §7). The knowledge projection rebuilds the
+  player flags from it, so a hint paths around a mine as the order does.
+
+Quirks of the original the code keeps, pinned by tests in `src/sim/`:
+
+| Quirk | Test |
+|---|---|
+| A sector entry forgets every mine flag but the blue flags: enemies walk into their own map mines | `campaign/sector-flow.test.ts` "forgets at a sector entry every mine flag but the blue flags …" |
+| A mine the map stores armed gets no enemy flag: only a hidden pressure explosive with a trap level is armed and marked at the load, and the one map mine, F9's, is stored armed | `tactical/world-items.test.ts` "marks no tile for the enemy where the map stored a mine armed already …", `tactical/bombs/map-bombs-original.test.ts` |
+| A blue flag blocks its tile for everybody: its structure is a generic one without cells, which the movement costs read as an obstacle | `tactical/bombs/mine-flags.test.ts` "blocks the flagged tile for everybody …" |
+| Taking a blue flag off at the roof level clears the mark alone: the flag, always put on the ground, stays and marks the tile again at the next load | `tactical/bombs/mine-flags.test.ts` "takes the flag off the ground, but on the roof level …" |
+
+Not checked against the native build: no oracle probe covers the bomb list, the flags or paths around mines yet. From
+scans of the 261 original maps: no map holds a hidden pressure explosive with a trap level, a pit or a blue flag; every
+loose switch's stored detonator already matches the one the load gives it, a switch over a switch structure and a
+pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the 14 soldiers placed on roofs all stand on
+flat roofs, so the roof type test moves none of them.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
 "Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key

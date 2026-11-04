@@ -316,8 +316,11 @@ trapdoor and crate, a SAM terminal repaired while its sector was not loaded, the
 sector entry and a native import add again, most wall end pieces; `object` at the head of the tile's object layer: a
 destroyed structure's debris, `12`), then the pieces of a helicopter standing in the sector (`append`; `25`). The client
 draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles where a slanted roof that a revealed room
-took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). Animation schedules, palettes and light
-sprites serve the renderer and the devtools.
+took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
+knows to hold a mine (a blue flag, and from later ports our own planted mines and the mines militia spot), which the
+paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
+levels, bomb timers and owners are never shown (`12` §6). Animation schedules, palettes and light sprites serve the
+renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
 `ViewFrame.events`. Events a command emits (a talk's lines, a shop's quotes, money events) reach the frame captured
@@ -652,7 +655,7 @@ projection").
 
 **The projection** (`src/sim/knowledge/`, `knowledgeWorld`) builds from a player view and the rule content the minimal
 world the hints read. In tactical it is a `TacticalState` over a fresh copy of the sector's world with the view's
-doors, containers, items and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
+doors, containers, items, known mines and light, the loaded sector of the strategic view (`worldSector`, which the phobias read), our
 soldiers in full and the seen soldiers with their visible fields only: unseen
 soldiers do not exist, so they block no path, absorb no bullet and are no target. On the map it is a minimal strategic
 state from the strategic view. In strict mode (tests) every unsupplied field throws (`guard.ts`,

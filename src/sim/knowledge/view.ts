@@ -119,6 +119,7 @@ export interface KnowledgeView {
   readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: KnowledgeCombat | null;
+  readonly knownMines?: readonly number[];
   readonly items?: readonly KnowledgeItem[];
   readonly clock?: KnowledgeClock;
   readonly light?: KnowledgeLight | null;

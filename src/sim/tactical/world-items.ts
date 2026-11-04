@@ -3,6 +3,9 @@
 // @src src/game/Tactical/World_Items.cc AddItemToWorld, LoadWorldItemsFromMap; Handle_Items.cc InternalAddItemToPool,
 // @src RemoveItemFromPool, SetItemsVisibilityOn, LookForHiddenItems, NotifySoldiersToLookforItems; Overhead.cc
 // @src FlatRoofAboveGridNo.
+// @src 2026-11-04: World_Items.cc RemoveItemFromWorld, TrashWorldItems and LoadWorldItemsFromMap's pits and map mines;
+// @src InternalAddItemToPool's STRUCTURE_HASITEMONTOP, switch detonators and pits; RemoveItemFromPool's
+// @src STRUCTURE_HASITEMONTOP; FlatRoofAboveGridNo's roof types (TileEngine/TileDat.h FIRSTROOF, LASTROOF).
 
 import type { MapItem } from '../../content/formats/map.ts';
 import { decodeObject } from '../../content/formats/object.ts';
@@ -16,8 +19,11 @@ import {
   type StructureInstance,
   structureHeight,
 } from '../../content/world/structures.ts';
-import { idiv } from '../../core/int.ts';
+import { idiv, u32 } from '../../core/int.ts';
 import { cloneObject, type ItemObject, objectFromRecord } from '../items/object.ts';
+import { armBomb, Detonator, isPit, setDetonator } from './bombs/bomb-object.ts';
+import { MineFlag, setMineFlag } from './bombs/mine-flags.ts';
+import { addBombToWorld, removeBombFromWorld } from './bombs/world-bombs.ts';
 import { isWater } from './pathfinding.ts';
 import type { TacticalState } from './state.ts';
 
@@ -35,6 +41,7 @@ export const WorldItemFlags = {
 } as const;
 
 export const FORCE_ON_GROUND = -1;
+const NO_DETONATOR = 0;
 
 const WORLD_ITEM_OBJECT_OFFSET = 8;
 
@@ -61,8 +68,16 @@ export interface ItemSnapshot {
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 
+const FIRST_ROOF_TYPE = 64;
+const LAST_ROOF_TYPE = 67;
+const NO_TILE_TYPE = -1;
+
 export function flatRoofAboveGridNo(t: Pick<TacticalState, 'world'>, g: number): boolean {
-  return levelTilesAt(t.world.level.layers.roofs, g).length > 0;
+  const tiles = t.world.tiles ?? [];
+  return levelTilesAt(t.world.level.layers.roofs, g).some((tile) => {
+    const type = tiles[tile]?.type ?? NO_TILE_TYPE;
+    return type >= FIRST_ROOF_TYPE && type <= LAST_ROOF_TYPE;
+  });
 }
 
 interface Placement {
@@ -90,6 +105,7 @@ function placeOnStructure(t: TacticalState, o: ItemObject, level: number, at: Pl
     }
     if (has(s.flags, StructureFlags.GENERIC)) {
       at.zHeight = densestLevelHeight(s);
+      s.flags = u32(s.flags | StructureFlags.HASITEMONTOP);
       return;
     }
   }
@@ -152,20 +168,44 @@ export function addItemToPool(
   const at: Placement = { gridNo: g, zHeight: forceOnGround ? 0 : zHeight, visible, flags, inOpenable: false };
   placeOnStructure(t, o, level, at, forceOnGround);
   const object = cloneObject(o);
-  if (object.item === itemIndex(t, 'SWITCH') && !at.inOpenable && at.visible !== Visibility.HIDDEN_IN_OBJECT)
-    at.visible = Visibility.BURIED;
+  setSwitchDetonator(t, object, g, at);
+  if (object.item === itemIndex(t, 'ACTION_ITEM') && isPit(object)) setMineFlag(t, at.gridNo, MineFlag.ENEMY);
   const item: WorldItem = { gridNo: at.gridNo, level, object, flags: at.flags, zHeight: at.zHeight, visible: at.visible };
   t.worldItems.push(item);
+  if (item.flags & WorldItemFlags.ARMED_BOMB) addBombToWorld(t, item);
   return item;
+}
+
+function setSwitchDetonator(t: TacticalState, o: ItemObject, g: number, at: Placement): void {
+  if (o.item !== itemIndex(t, 'SWITCH') || at.inOpenable) return;
+  if (at.visible === Visibility.HIDDEN_IN_OBJECT) {
+    setDetonator(o, Detonator.SWITCH);
+    return;
+  }
+  at.visible = Visibility.BURIED;
+  setDetonator(o, t.world.structures.find(g, StructureFlags.SWITCH) ? Detonator.SWITCH : Detonator.PRESSURE);
 }
 
 export function itemsAt(t: TacticalState, g: number, level: number): WorldItem[] {
   return t.worldItems.filter((i) => i.gridNo === g && i.level === level);
 }
 
+function clearItemOnTop(t: TacticalState, g: number): void {
+  const s = t.world.structures.find(g, StructureFlags.HASITEMONTOP);
+  if (s) s.flags = u32(s.flags & ~StructureFlags.HASITEMONTOP);
+}
+
 export function removeWorldItem(t: TacticalState, item: WorldItem): void {
   const k = t.worldItems.indexOf(item);
-  if (k >= 0) t.worldItems.splice(k, 1);
+  if (k < 0) return;
+  t.worldItems.splice(k, 1);
+  if (item.zHeight > 0 && itemsAt(t, item.gridNo, item.level).length === 0) clearItemOnTop(t, item.gridNo);
+  if (item.flags & WorldItemFlags.ARMED_BOMB) removeBombFromWorld(t, item);
+}
+
+export function trashWorldItems(t: TacticalState): void {
+  for (const wi of [...t.worldItems]) removeWorldItem(t, wi);
+  t.worldBombs.length = 0;
 }
 
 export function setItemsVisibilityOn(t: TacticalState, g: number, level: number, allGreaterThan: number, setLocator: boolean): boolean {
@@ -225,7 +265,7 @@ function isPressureTriggered(t: TacticalState, item: number): boolean {
 }
 
 export function loadWorldItemsFromMap(t: TacticalState, mapItems: readonly MapItem[]): void {
-  t.worldItems.length = 0;
+  trashWorldItems(t);
   const sciFi = t.options.sciFi;
   for (const record of mapItems) {
     const o = objectFromRecord(decodeObject(record.raw, WORLD_ITEM_OBJECT_OFFSET));
@@ -237,8 +277,17 @@ export function loadWorldItemsFromMap(t: TacticalState, mapItems: readonly MapIt
     if (!t.options.gunNut) replaceBigGun(t, o);
     let flags = record.flags;
     let visible = record.visible;
-    if (o.item !== itemIndex(t, 'ACTION_ITEM') && isPressureTriggered(t, o.item) && visible === Visibility.HIDDEN_ITEM && o.trap > 0)
+    if (o.item === itemIndex(t, 'ACTION_ITEM')) {
+      if (isPit(o)) {
+        flags &= ~WorldItemFlags.ARMED_BOMB;
+        visible = Visibility.BURIED;
+        setDetonator(o, NO_DETONATOR);
+      }
+    } else if (isPressureTriggered(t, o.item) && visible === Visibility.HIDDEN_ITEM && o.trap > 0) {
+      armBomb(t, o, Detonator.PRESSURE);
       flags |= WorldItemFlags.ARMED_BOMB;
+      setMineFlag(t, record.gridNo, MineFlag.ENEMY);
+    }
     if (flags & WorldItemFlags.ARMED_BOMB) visible = Visibility.BURIED;
     if (o.item === NOTHING) continue;
     addItemToPool(t, record.gridNo, o, visible, record.level, flags, record.renderZHeightAboveLevel);

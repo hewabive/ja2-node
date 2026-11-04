@@ -4,12 +4,9 @@
 // @src ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof (with
 // @src SetGridNoRevealedFlag and the spotted-something quote); Tactical/Handle_Items.cc AllSoldiersLookforItems;
-// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04); TileEngine/WorldMan.cc
-// @src TypeRangeExistsInRoofLayer;
-// @src TileEngine/TileDat.h FIRSTROOF, FOURTHROOF.
+// @src TileEngine/SaveLoadMap.cc SetMapRevealedStatus (with ExamineSlantRoofFOVSlots 2026-11-04).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
-import { levelTilesAt } from '../../../content/world/level.ts';
 import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -29,7 +26,7 @@ import { doorTravelCost } from '../points.ts';
 import { updateBloodGraphics } from '../smell.ts';
 import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { inCavesOrBasement, mercs, type TacticalState } from '../state.ts';
-import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
+import { flatRoofAboveGridNo, setItemsVisibilityOn, Visibility } from '../world-items.ts';
 import { noticeRevealedItems } from './item-locator.ts';
 import { SlantRoofSlots } from './slant-roofs.ts';
 
@@ -47,8 +44,6 @@ const MAX_ROOMS = 256;
 const ROOM_SURROUNDING_BOXING_RING = 3;
 const SPOTTED_SOMETHING_QUOTE = 11;
 const SPOTTED_SOMETHING_QUOTES = 2;
-const FIRSTROOF = 64;
-const FOURTHROOF = 67;
 
 const Blocking = {
   NOTHING: 0,
@@ -222,18 +217,9 @@ export function switchOnRevealedCaveLights(t: TacticalState): void {
   for (let g = 0; g < WORLD_MAX; g++) if ((t.fog.revealed[g] ?? 0) & RevealedFlags.GROUND) switchOnCaveLightAt(t, g);
 }
 
-function roofOver(t: TacticalState, g: number): boolean {
-  const tiles = t.world.tiles ?? [];
-  for (const tile of levelTilesAt(t.world.level.layers.roofs, g)) {
-    const type = tiles[tile]?.type ?? -1;
-    if (type >= FIRSTROOF && type <= FOURTHROOF) return true;
-  }
-  return false;
-}
-
 function sightRevealsGround(t: TacticalState, g: number): boolean {
   if (!inCavesOrBasement(t)) return true;
-  return (t.world.level.rooms[g] ?? NO_ROOM) !== NO_ROOM || !roofOver(t, g);
+  return (t.world.level.rooms[g] ?? NO_ROOM) !== NO_ROOM || !flatRoofAboveGridNo(t, g);
 }
 
 function removeRoomRoof(t: TacticalState, room: number, s: Soldier, slots: SlantRoofSlots): void {

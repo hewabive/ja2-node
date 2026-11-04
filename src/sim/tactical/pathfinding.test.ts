@@ -3,11 +3,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Orientation, type StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
-import { Direction, gridNo } from '../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_MAX } from '../../content/world/grid.ts';
 import { parseDoorCostTable } from '../../content/world/movement-costs.ts';
 import { RestrictedScroll } from '../../content/world/render-bounds.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
+import { MineFlag } from './bombs/mine-flags.ts';
 import {
   aiPathCostIndex,
   findBestPath,
@@ -18,7 +19,7 @@ import {
   PathFlags,
   type PathSoldier,
 } from './pathfinding.ts';
-import { Team } from './soldier.ts';
+import { Side, Team } from './soldier.ts';
 
 const doorCosts = parseDoorCostTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/door-costs.json'), 'utf8')));
 const { NORTH, EAST, SOUTHEAST, SOUTH, WEST } = Direction;
@@ -27,6 +28,7 @@ function soldier(at: number, overrides: Partial<PathSoldier> = {}): PathSoldier 
   return {
     id: 1,
     team: Team.OUR,
+    side: Side.FRIENDLY,
     bodyType: 0,
     gridNo: at,
     level: 0,
@@ -262,5 +264,51 @@ describe('findBestPath for multi-tile bodies', () => {
     const route = findBestPath(multiTileEnv(plain, EAST, tail), creature, target, 0);
     expect(route.length).toBeGreaterThan(5);
     expect(route.steps[0] === EAST || route.steps[0] === WEST).toBe(true);
+  });
+});
+
+describe('findBestPath around known mines', () => {
+  const mined = gridNo(81, 80);
+  const beyond = gridNo(82, 80);
+  const passes = (steps: readonly number[]) => steps.some((_, k) => walk(START, steps.slice(0, k + 1)) === mined);
+
+  function minedEnv(flag: number): PathEnv {
+    const mineFlags = new Uint8Array(WORLD_MAX);
+    mineFlags[mined] = flag;
+    return { ...env(), mineFlags };
+  }
+
+  it('keeps our merc off a tile with the player mine flag on the way, yet lets him end his path on it', () => {
+    const e = minedEnv(MineFlag.PLAYER);
+    const around = findBestPath(e, soldier(START), beyond, 0);
+    expect(walk(START, around.steps)).toBe(beyond);
+    expect(passes(around.steps)).toBe(false);
+    expect(findBestPath(e, soldier(START), mined, 0).steps).toEqual([EAST]);
+  });
+
+  it('keeps the rest of the friendly side off the tile even as their destination: only our team may step on its mine', () => {
+    const e = minedEnv(MineFlag.PLAYER);
+    const militia = soldier(START, { team: Team.MILITIA });
+    expect(passes(findBestPath(e, militia, beyond, 0).steps)).toBe(false);
+    expect(findBestPath(e, militia, mined, 0).length).toBe(0);
+  });
+
+  it('keeps the other sides off the enemy mine flag alone, the player flag means nothing to them', () => {
+    const enemy = soldier(START, { team: Team.ENEMY, side: Side.ENEMY });
+    expect(passes(findBestPath(minedEnv(MineFlag.ENEMY), enemy, beyond, 0).steps)).toBe(false);
+    expect(findBestPath(minedEnv(MineFlag.ENEMY), enemy, mined, 0).length).toBe(0);
+    expect(findBestPath(minedEnv(MineFlag.PLAYER), enemy, beyond, 0).steps).toEqual([EAST, EAST]);
+  });
+
+  it('walks our merc over a tile only the enemy knows to hold a mine', () => {
+    expect(findBestPath(minedEnv(MineFlag.ENEMY), soldier(START), beyond, 0).steps).toEqual([EAST, EAST]);
+  });
+
+  it('floods a dummy soldier around the player mine flag: a value-initialised soldier is on the friendly side', () => {
+    const e = minedEnv(MineFlag.PLAYER);
+    const dummy = soldier(START, { team: Team.ENEMY });
+    const flood = findBestPath(e, dummy, NOWHERE, 0, { copy: PathCopy.REACHABLE, flags: PathFlags.THROUGH_PEOPLE, distLimit: 3 });
+    expect(flood.reachable?.[beyond]).toBe(1);
+    expect(flood.reachable?.[mined]).toBe(0);
   });
 });

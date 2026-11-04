@@ -249,8 +249,7 @@ export function preserveSoldiers(t: TacticalState, enemies: boolean, nowMinute: 
   return { savedMinute: nowMinute, links, records };
 }
 
-export function restoreWorldItems(t: TacticalState, items: readonly DiffWorldItem[], centerGridNo: number): void {
-  t.worldItems.length = 0;
+export function addDiffWorldItems(t: TacticalState, items: readonly DiffWorldItem[], centerGridNo: number): void {
   for (const wi of items) {
     if (!wi.exists) continue;
     addItemToPool(t, loadedWorldItemGridNo(t, wi.gridNo, wi.flags, centerGridNo), wi.object, wi.visible, wi.level, wi.flags, wi.zHeight);

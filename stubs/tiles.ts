@@ -70,6 +70,12 @@ const AUX_ANIMATED_TILE = 0x02;
 const ROOF_MARKER_SUBINDEX = 11;
 const ROOF_MARKER_INSET = 3;
 const ROOF_MARKER_SHADE = 12;
+const BLUE_FLAG_SUBINDEX = 21;
+const FLAG_POLE_HEIGHT = 18;
+const FLAG_WIDTH = 9;
+const FLAG_ROWS = 7;
+const FLAG_POLE_SHADE = 5;
+const FLAG_SHADE = 11;
 
 export type Side = 'left' | 'right';
 type WallFace = 'solid' | 'window' | 'shattered';
@@ -244,6 +250,29 @@ function roofMarker(): StubFrame {
 function pointers(): StubFrame[] {
   return [...Array.from({ length: ROOF_MARKER_SUBINDEX - 1 }, undrawnFrame), roofMarker()];
 }
+
+function blueFlag(): StubFrame {
+  const r = new IndexedRaster(FLAG_WIDTH + 2, FLAG_POLE_HEIGHT + 1);
+  r.line(1, 0, 1, FLAG_POLE_HEIGHT, color('gray', FLAG_POLE_SHADE));
+  const middle = Math.floor(FLAG_ROWS / 2);
+  for (let y = 0; y < FLAG_ROWS; y++) {
+    const reach = Math.round((FLAG_WIDTH * (middle + 1 - Math.abs(y - middle))) / (middle + 1));
+    r.line(2, y, 1 + reach, y, color('blue', FLAG_SHADE - Math.abs(y - middle)));
+  }
+  return { raster: r, ox: HALF_W - 1, oy: TILE_H / 2 - FLAG_POLE_HEIGHT };
+}
+
+function switchesWithBlueFlag(): StubFrame[] {
+  return [...Array.from({ length: BLUE_FLAG_SUBINDEX - 1 }, undrawnFrame), blueFlag()];
+}
+
+const BLUE_FLAG_STRUCTURES: readonly StructureDef[] = [
+  {
+    ...syntheticStructure(StructureFlags.GENERIC | StructureFlags.TRANSPARENT, Orientation.NONE, { height: 0 }),
+    hitPoints: 0,
+    number: BLUE_FLAG_SUBINDEX - 1,
+  },
+];
 
 function bulletDot(c: number): StubFrame {
   const r = new IndexedRaster(1, 1);
@@ -518,6 +547,7 @@ export const STUB_TILE_SURFACES: readonly StubSurface[] = [
     },
   },
   { type: 'FIRSTPOINTERS', sprite: { path: 'pointers', frames: pointers() } },
+  { type: 'FIRSTSWITCHES', sprite: { path: 'switches', frames: switchesWithBlueFlag() }, structures: BLUE_FLAG_STRUCTURES },
   {
     type: 'BULLETTILE',
     sprite: { path: 'bullet', frames: [bulletDot(color('gray', BULLET_SHADE)), bulletDot(color('gray', BULLET_SHADOW_SHADE))] },

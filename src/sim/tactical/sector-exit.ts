@@ -29,7 +29,7 @@ import { moveStateBasedOnStance } from './movement-mode.ts';
 import { findBestPath, MAX_PATH_LIST_SIZE, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { enoughPoints } from './points.ts';
 import { leaveTacticalSector } from './sector-presence.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { Side, type Soldier, Team } from './soldier.ts';
 import { mercs, onVisibleWorldTile, sectorMapOf, type TacticalState, WaitForMercs } from './state.ts';
 
 export const ExitDirection = { NORTH: 0, EAST: 1, SOUTH: 2, WEST: 3, EXIT_GRID: -1 } as const;
@@ -64,6 +64,7 @@ function exitGridProbe(s: Soldier) {
   return {
     id: s.id,
     team: Team.ENEMY,
+    side: Side.FRIENDLY,
     bodyType: 0,
     gridNo: s.gridNo,
     level: 0,
@@ -78,7 +79,7 @@ function exitGridProbe(s: Soldier) {
 export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
   const target = exitGridAt(t, sweet);
   if (!target) return NOWHERE;
-  const probe = s.multiTile ? { ...s, team: Team.ENEMY, level: 0, bodyType: 0 } : exitGridProbe(s);
+  const probe = s.multiTile ? { ...s, team: Team.ENEMY, side: Side.FRIENDLY, level: 0, bodyType: 0 } : exitGridProbe(s);
   const flood = findBestPath(t.pathEnv, probe, NOWHERE, 0, {
     copy: PathCopy.REACHABLE,
     flags: PathFlags.THROUGH_PEOPLE,

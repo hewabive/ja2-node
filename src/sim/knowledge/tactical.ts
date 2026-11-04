@@ -3,6 +3,7 @@ import { recompileLocalMovementCosts } from '../../content/world/movement-costs.
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
+import { setKnownMines } from '../tactical/bombs/mine-flags.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
@@ -44,6 +45,7 @@ const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'pathEnv',
   'lighting',
   'worldItems',
+  'mineFlags',
   'perception',
   'narrative',
   'fog',
@@ -136,6 +138,7 @@ export class TacticalProjection {
     this.#syncDoors(view, guard);
     this.#syncSoldiers(view.soldiers, guard);
     this.#syncItems(view, guard);
+    setKnownMines(t, view.knownMines ?? []);
     this.#syncLight(view);
     this.#syncSmoke(view);
     t.narrative = projectionNarrative(viewNarrative(view.soldiers), guard);

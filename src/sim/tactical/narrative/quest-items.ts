@@ -4,19 +4,16 @@
 // @src SetOffBombsByFrequency (remote action items), ActivateSwitchInGridNo, AddBombToQueue,
 // @src HandleExplosionQueue (the action item branch and the queue end), PerformItemAction (ACTION_ITEM_CLOSE_DOOR,
 // @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
-// @src CallEldinTo;
-// @src Action_Items.h ItemActionType; Item_Types.h DetonatorType and the bomb fields of OBJECTTYPE
-// @src (LoadSaveObjectType.cc ExtractObject, ACTION_ITEM); World_Items.cc AddBombToWorld.
+// @src CallEldinTo.
 
 import { has, StructureFlags } from '../../../content/world/structures.ts';
-import { u8 } from '../../../core/int.ts';
-import type { ItemObject } from '../../items/object.ts';
 import { ObjectFlags } from '../../items/object.ts';
 import { setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
 import { changeSoldierState, states } from '../animation.ts';
+import { actionValueOf, bombOwnerOf, Detonator, detonatorOf, frequencyOf, ItemAction } from '../bombs/bomb-object.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
 import { handleDoorChangeFromGridNo } from '../doors.ts';
@@ -33,19 +30,6 @@ import { type WorldItem, WorldItemFlags } from '../world-items.ts';
 import { makeCivHostile } from './civ-hostility.ts';
 import { CivGroupHostility } from './constants.ts';
 
-export const ItemAction = {
-  OPEN_DOOR: 1,
-  CLOSE_DOOR: 2,
-  BLOW_UP: 3,
-  SMALL_PIT: 4,
-  LARGE_PIT: 5,
-  KINGPIN_ALARM: 13,
-  SEX: 14,
-  MUSEUM_ALARM: 23,
-} as const;
-
-export const Detonator = { TIMED: 1, REMOTE: 2, PRESSURE: 3, SWITCH: 4 } as const;
-
 const PERFORMED_ACTIONS: ReadonlySet<number> = new Set([
   ItemAction.CLOSE_DOOR,
   ItemAction.KINGPIN_ALARM,
@@ -53,7 +37,6 @@ const PERFORMED_ACTIONS: ReadonlySet<number> = new Set([
   ItemAction.MUSEUM_ALARM,
 ]);
 const PLAYER_BOMB_OWNER_THRESHOLD = 1;
-const BOMB_OWNER_SHIFT = 8;
 const NO_ROOM = 0;
 const SEX_TELEPORT_RADIUS = 2;
 const MAX_DISTANCE_VISIBLE = 26;
@@ -67,23 +50,12 @@ const SEX_SPOTS: ReadonlyMap<number, { readonly door: number; readonly teleport:
   [12290, { door: 12290, teleport: 12291 }],
 ]);
 
-export interface BombFields {
-  readonly detonator: number;
-  readonly frequency: number;
-  readonly owner: number;
-  readonly action: number;
-}
-
-export function bombFieldsOf(o: ItemObject): BombFields {
-  return { detonator: o.gunAmmoType, frequency: u8(o.money), owner: u8(o.money >>> BOMB_OWNER_SHIFT), action: o.keyId };
-}
-
 function armedItem(t: TacticalState, wi: WorldItem, name: string): boolean {
   return (wi.flags & WorldItemFlags.ARMED_BOMB) !== 0 && wi.object.item === t.content.items.byName.get(name)?.index;
 }
 
 function isPerformedActionItem(t: TacticalState, wi: WorldItem): boolean {
-  return armedItem(t, wi, 'ACTION_ITEM') && PERFORMED_ACTIONS.has(bombFieldsOf(wi.object).action);
+  return armedItem(t, wi, 'ACTION_ITEM') && PERFORMED_ACTIONS.has(actionValueOf(wi.object));
 }
 
 function isDisabled(wi: WorldItem): boolean {
@@ -101,9 +73,8 @@ export function setOffActionItemsInGridNo(t: TacticalState, s: Soldier): void {
     if (wi.gridNo !== s.gridNo || wi.level !== s.level || isDisabled(wi)) continue;
     const isSwitch = armedItem(t, wi, 'SWITCH');
     if (!isSwitch && !isPerformedActionItem(t, wi)) continue;
-    const fields = bombFieldsOf(wi.object);
-    if (fields.detonator !== Detonator.PRESSURE || fields.owner > PLAYER_BOMB_OWNER_THRESHOLD) continue;
-    if (isSwitch) setOffActionItemsByFrequency(t, s, fields.frequency);
+    if (detonatorOf(wi.object) !== Detonator.PRESSURE || bombOwnerOf(wi.object) > PLAYER_BOMB_OWNER_THRESHOLD) continue;
+    if (isSwitch) setOffActionItemsByFrequency(t, s, frequencyOf(wi.object));
     else queueActionItem(t, wi, s);
   }
 }
@@ -111,18 +82,16 @@ export function setOffActionItemsInGridNo(t: TacticalState, s: Soldier): void {
 export function activateSwitchInGridNo(t: TacticalState, s: Soldier, g: number): void {
   for (const wi of [...t.worldItems]) {
     if (wi.gridNo !== g || !armedItem(t, wi, 'SWITCH') || isDisabled(wi)) continue;
-    const fields = bombFieldsOf(wi.object);
-    if (fields.detonator !== Detonator.SWITCH) continue;
+    if (detonatorOf(wi.object) !== Detonator.SWITCH) continue;
     t.turn.attackBusyCount = 0;
-    setOffActionItemsByFrequency(t, s, fields.frequency);
+    setOffActionItemsByFrequency(t, s, frequencyOf(wi.object));
   }
 }
 
 export function setOffActionItemsByFrequency(t: TacticalState, s: Soldier, frequency: number): void {
   for (const wi of t.worldItems) {
     if (!isPerformedActionItem(t, wi) || isDisabled(wi)) continue;
-    const fields = bombFieldsOf(wi.object);
-    if (fields.detonator === Detonator.REMOTE && fields.frequency === frequency) queueActionItem(t, wi, s);
+    if (detonatorOf(wi.object) === Detonator.REMOTE && frequencyOf(wi.object) === frequency) queueActionItem(t, wi, s);
   }
 }
 
@@ -139,7 +108,7 @@ export function handleActionItemQueue(t: TacticalState): void {
   const q = t.actionItems;
   if (!q.active) return;
   for (const item of q.queue.splice(0)) {
-    if (performItemAction(t, item.gridNo, bombFieldsOf(item.object).action)) q.sightChanged = true;
+    if (performItemAction(t, item.gridNo, actionValueOf(item.object))) q.sightChanged = true;
   }
   const person = q.person;
   if (person && t.turn.attackBusyCount !== 0) return;

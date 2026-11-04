@@ -325,6 +325,22 @@ describe('items in the blast', () => {
   });
 });
 
+describe('items on a wrecked structure', () => {
+  it('puts the items lying on a table the blast destroys on the floor (PutItemPoolOnGround)', () => {
+    const sim = simWith();
+    const t = sim.state;
+    const table = { ...syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 }), hitPoints: 1 };
+    t.world.structures.add(north(1), 0, table);
+    const lying = addItemToPool(t, north(1), objectOf(t, 'CROWBAR'), Visibility.VISIBLE, 0);
+    expect(lying?.zHeight).toBeGreaterThan(0);
+    expect(t.world.structures.find(north(1), StructureFlags.HASITEMONTOP)).not.toBeNull();
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
+    runExplosivesUntilIdle(sim);
+    expect(t.world.structures.find(north(1), StructureFlags.GENERIC)).toBeNull();
+    expect(itemsAt(t, north(1), 0).map((wi) => [wi.object.item, wi.zHeight])).toEqual([[itemId(t, 'CROWBAR'), 0]]);
+  });
+});
+
 describe('RNG per blast', () => {
   it('draws one PreRandom(100) per affected tile and nothing on the main stream in the open', () => {
     const sim = simWith();

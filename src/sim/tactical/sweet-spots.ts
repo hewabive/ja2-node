@@ -21,7 +21,7 @@ import { states } from './animation.ts';
 import { pathMoveMode } from './movement-mode.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags, type PathSoldier } from './pathfinding.ts';
 import { animStructureDef } from './person-structure.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { Body, Side, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 const NO_RANGE = 999999;
@@ -36,6 +36,7 @@ export function dummySoldier(sweet: number, team: number, level: number): PathSo
   return {
     id: DUMMY_SOLDIER_ID,
     team,
+    side: Side.FRIENDLY,
     bodyType: Body.REGMALE,
     gridNo: sweet,
     level,
