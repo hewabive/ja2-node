@@ -1,3 +1,12 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Soldier_Control.cc CreateSoldierPalettes (the standing sheet with the replacements, a COL file
+// @src or the sheet's own palette); Tactical/Animation_Data.cc LoadAnimationSurface (z strips from the surface's own
+// @src structure type); TileEngine/WorldMan.cc AddMercStructureInfoFromAnimSurface and TileEngine/RenderWorld.cc (the
+// @src structure of the facing, one for the queen).
+
+import { substituteBodyTypeState } from '../../content/anim/body-substitution.ts';
+import { bodyTypePaletteSubstitution, OWN_SHEET_PALETTE, reloadsPalette } from '../../content/anim/palette-substitution.ts';
 import { composeSoldierPalette, type SheetLayout } from '../../content/anim/soldier-sprite.ts';
 import { AnimStruct, type AnimStructures, animStructType, loadAnimStructures } from '../../content/anim/structures.ts';
 import { chooseSurface, SubAnimFlags } from '../../content/anim/surface-choice.ts';
@@ -9,6 +18,8 @@ import {
   parseAnimationTables,
   stateId,
 } from '../../content/anim/tables.ts';
+import { zStripSourceFrame } from '../../content/anim/zstrip-frames.ts';
+import { parseColPalette } from '../../content/formats/col.ts';
 import { parseSoldierPalettes, SOLDIER_PALETTES_PATH, type SoldierPalettes } from '../../content/formats/ja2pal.ts';
 import type { StructureDef } from '../../content/formats/jsd.ts';
 import { decodeSti } from '../../content/formats/sti.ts';
@@ -16,11 +27,18 @@ import type { HandClass } from '../../content/items/items.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite } from '../../content/picture/stub-sprite.ts';
+import { type ZStripInfo, zStripInfo } from '../../content/world/zstrip.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 const QUEEN_BODY = 10;
+const BIGMALE = 1;
+const CIV_TEAM = 4;
 const DIRECTIONS = 8;
+const FULL_LIFE = 100;
+const SOUTHWEST = 5;
+const HAND_CLASSES: readonly string[] = ['nothing', 'pistol', 'rifle'] satisfies readonly HandClass[];
+const PRELOADED_STATES = ['STANDING', 'WALKING', 'RUNNING'];
 
 const STUB_PREFIX = 'stubs/';
 
@@ -29,7 +47,6 @@ export interface SoldierSheet {
   readonly layout: SheetLayout;
 }
 const STUB_SHEET_FRAMES_PER_DIRECTION = 18;
-const BIGMALE = 1;
 
 function stubKind(surfaceName: string): string {
   if (/PRONE|CRAWL/.test(surfaceName)) return 'prone';
@@ -44,6 +61,19 @@ export interface SheetRequest {
   readonly surface: number;
 }
 
+export interface SoldierPalette {
+  readonly key: string;
+  readonly compose: () => Uint8Array;
+}
+
+export function zStripIndex(view: Pick<SoldierView, 'bodyType' | 'direction'>): number {
+  return view.bodyType === QUEEN_BODY ? 0 : (view.direction + 1) % DIRECTIONS;
+}
+
+function handClassOf(hand: string): HandClass {
+  return HAND_CLASSES.includes(hand) ? (hand as HandClass) : 'nothing';
+}
+
 export class SoldierAssets {
   readonly tables: AnimationTables;
   readonly palettes: SoldierPalettes | null;
@@ -52,6 +82,8 @@ export class SoldierAssets {
   readonly #read: ReadVfsFile;
   readonly #sheets = new Map<string, Promise<SoldierSheet | null>>();
   readonly #ready = new Map<string, SoldierSheet | null>();
+  readonly #colPalettes = new Map<string, Uint8Array | null>();
+  readonly #pendingColPalettes = new Map<string, Promise<void>>();
 
   private constructor(
     tables: AnimationTables,
@@ -79,14 +111,16 @@ export class SoldierAssets {
     return new SoldierAssets(parseAnimationTables(controls, surfaces), palettes, structures, available, read);
   }
 
-  #surfaceFor(view: SoldierView, state: number): number {
+  #dryStateSurface(view: SoldierView, state: number): number {
     return chooseSurface(this.tables, {
       bodyType: view.bodyType,
-      state,
-      hand: view.hand as HandClass,
-      secondHandPistol: false,
-      life: 100,
+      state: substituteBodyTypeState(this.tables, { bodyType: view.bodyType, civilianTeam: view.team === CIV_TEAM }, state),
+      hand: handClassOf(view.hand),
+      secondHandOneHandedGun: false,
+      life: FULL_LIFE,
       subFlags: view.bodyType === BIGMALE ? SubAnimFlags.BIGGUY_THREATEN_STANCE : 0,
+      inWater: false,
+      queenSpitDirection: () => SOUTHWEST,
     });
   }
 
@@ -99,25 +133,35 @@ export class SoldierAssets {
   }
 
   sheetFor(view: SoldierView): SheetRequest | null {
-    return this.#request(this.#surfaceFor(view, view.animation));
-  }
-
-  structureDef(view: SoldierView): StructureDef | null {
-    const surface = this.#surfaceFor(view, view.animation);
-    if (surface === INVALID_SURFACE) return null;
-    const type = animStructType(this.tables.surfaces[surface]?.struct ?? AnimStruct.NONE, this.tables.controls[view.animation]?.id ?? '');
-    if (type === AnimStruct.NONE) return null;
-    const file = this.structures[view.bodyType]?.[type];
-    return file?.structures[view.bodyType === QUEEN_BODY ? 0 : (view.direction + 1) % DIRECTIONS] ?? null;
+    return this.#request(view.surface);
   }
 
   standingSheetFor(view: SoldierView): SheetRequest | null {
-    return this.#request(this.#surfaceFor(view, stateId(this.tables, 'STANDING')));
+    return this.#request(this.#dryStateSurface(view, stateId(this.tables, 'STANDING')));
+  }
+
+  structureDef(view: SoldierView): StructureDef | null {
+    const surface = this.tables.surfaces[view.surface];
+    if (!surface) return null;
+    const type = animStructType(surface.struct, this.tables.controls[view.animation]?.id ?? '');
+    if (type === AnimStruct.NONE) return null;
+    return this.structures[view.bodyType]?.[type]?.structures[zStripIndex(view)] ?? null;
+  }
+
+  zStripFor(view: SoldierView, sheet: SoldierSheet): ZStripInfo | null {
+    const type = this.tables.surfaces[view.surface]?.struct ?? AnimStruct.NONE;
+    const file = type === AnimStruct.NONE ? null : this.structures[view.bodyType]?.[type];
+    const structureIndex = zStripIndex(view);
+    const structure = file?.structures[structureIndex];
+    if (!file || !structure) return null;
+    const frame = zStripSourceFrame(this.tables, view.surface, sheet.layout.frameCount, file.structures.length, structureIndex);
+    const geometry = frame === null ? undefined : sheet.picture.frames[frame];
+    return geometry ? zStripInfo({ offsetX: geometry.offsetX, offsetY: geometry.offsetY, width: geometry.width }, structure) : null;
   }
 
   preload(view: SoldierView): Promise<SoldierSheet | null>[] {
-    const states = ['STANDING', 'WALKING', 'RUNNING'].map((n) => stateId(this.tables, n));
-    const requests = [view.animation, ...states].map((st) => this.#request(this.#surfaceFor(view, st)));
+    const states = PRELOADED_STATES.map((n) => this.#dryStateSurface(view, stateId(this.tables, n)));
+    const requests = [view.surface, ...states].map((surface) => this.#request(surface));
     return requests.flatMap((r) => (r ? [this.ensure(r)] : []));
   }
 
@@ -158,10 +202,57 @@ export class SoldierAssets {
     return { picture: picture as IndexedPicture, layout };
   }
 
-  paletteFor(view: SoldierView, standing: SoldierSheet): Uint8Array {
-    const base = standing.picture.palette;
-    if (!this.palettes) return base;
+  #colPalette(path: string): Uint8Array | null | undefined {
+    if (this.#colPalettes.has(path)) return this.#colPalettes.get(path);
+    const file = [path, `${STUB_PREFIX}${path}`].find((p) => this.#available.has(p));
+    if (!file) {
+      this.#colPalettes.set(path, null);
+      return null;
+    }
+    if (!this.#pendingColPalettes.has(path)) this.#pendingColPalettes.set(path, this.#loadColPalette(path, file));
+    return undefined;
+  }
+
+  async #loadColPalette(path: string, file: string): Promise<void> {
+    const palette = await this.#read(file)
+      .then(parseColPalette)
+      .catch(() => null);
+    this.#colPalettes.set(path, palette);
+    this.#pendingColPalettes.delete(path);
+  }
+
+  async loaded(): Promise<void> {
+    await Promise.all([...this.#sheets.values(), ...this.#pendingColPalettes.values()]);
+  }
+
+  #sheetPalette(request: SheetRequest | null): SoldierPalette | null {
+    const sheet = request ? this.ready(request) : null;
+    if (!request || !sheet) return null;
+    return { key: `own|${request.id}`, compose: () => sheet.picture.palette };
+  }
+
+  #replacedPalette(view: SoldierView): SoldierPalette | null {
+    const request = this.standingSheetFor(view);
+    const standing = request ? this.ready(request) : null;
+    if (!request || !standing) return null;
+    const palettes = this.palettes;
+    if (!palettes) return { key: `own|${request.id}`, compose: () => standing.picture.palette };
     const [hair, skin, vest, pants] = view.palettes;
-    return composeSoldierPalette(base, this.palettes, { hair, skin, vest, pants });
+    return {
+      key: `${request.id}|${view.palettes.join('|')}`,
+      compose: () => composeSoldierPalette(standing.picture.palette, palettes, { hair, skin, vest, pants }),
+    };
+  }
+
+  paletteFor(view: SoldierView): SoldierPalette | null {
+    const stateName = this.tables.controls[view.animation]?.id ?? '';
+    const substitution = bodyTypePaletteSubstitution(view.bodyType, { stateName, camouflaged: view.camouflaged === true });
+    if (substitution === null) return this.#replacedPalette(view);
+    if (substitution !== OWN_SHEET_PALETTE) {
+      const col = this.#colPalette(substitution);
+      if (col === undefined) return null;
+      if (col) return { key: substitution, compose: () => col };
+    }
+    return this.#sheetPalette(reloadsPalette(stateName) ? this.sheetFor(view) : this.standingSheetFor(view));
   }
 }

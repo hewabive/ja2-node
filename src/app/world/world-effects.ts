@@ -22,6 +22,7 @@ import {
   parseCorpseTable,
   STUB_TILE_CACHE_DIR,
 } from '../../content/anim/corpses.ts';
+import { bodyTypePaletteSubstitution, CAMO_PALETTE, OWN_SHEET_PALETTE } from '../../content/anim/palette-substitution.ts';
 import { composeSoldierPalette } from '../../content/anim/soldier-sprite.ts';
 import { parseColPalette } from '../../content/formats/col.ts';
 import type { SoldierPalettes } from '../../content/formats/ja2pal.ts';
@@ -58,7 +59,6 @@ const TRAIL_PATHS: Readonly<Record<string, string>> = {
 const KNIFE_PATH = 'tilecache/knifing.sti';
 const CROW_SHADOW_PATH = 'tilecache/fly_shdw.sti';
 const STUB_PREFIX = 'stubs/';
-const CAMO_PALETTE = 'anims/camo.col';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
 const VEHICLE_CORPSE_FRAME_MS = 150;
 const SMOKE_START_FRAMES = 5;
@@ -67,13 +67,6 @@ const SMOKE_DELAY_RANGE_MS = 300;
 const DIRECTIONS = 8;
 const FIRST_VEHICLE_BODY = 22;
 const FOUR_DIRECTION_TYPES = ['SMERC_FALL', 'SMERC_FALLF', 'MMERC_FALL', 'MMERC_FALLF', 'FMERC_FALL', 'FMERC_FALLF'];
-const MONSTER_PALETTES: Readonly<Record<number, string>> = {
-  4: 'anims/monsters/femmon.col',
-  5: 'anims/monsters/monster.col',
-  6: 'anims/monsters/fm_brite.col',
-  7: 'anims/monsters/mn_brite.col',
-};
-const OWN_PALETTE_BODIES: ReadonlySet<number> = new Set([10, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
 
 interface SmokeGraphics {
   readonly name: string;
@@ -206,8 +199,8 @@ export class WorldEffects {
       if (this.#preparedBodies.has(key)) continue;
       this.#preparedBodies.add(key);
       this.#colPalette(CAMO_PALETTE);
-      const monster = MONSTER_PALETTES[s.bodyType];
-      if (monster) this.#colPalette(monster);
+      const substitution = bodyTypePaletteSubstitution(s.bodyType, null);
+      if (substitution) this.#colPalette(substitution);
       const types = new Set(Object.values(this.#corpses.animationCorpse[String(s.bodyType)] ?? {}));
       for (const type of types) this.#prepareCorpseGraphic(type, bloodAndGore);
     }
@@ -250,18 +243,18 @@ export class WorldEffects {
     return this.#sprites?.addSheet(path, picture) ?? null;
   }
 
+  #corpseSubstitution(c: CorpseView): string | null {
+    if (this.#corpses.types[c.type] === ROTTING_STAGE2) return OWN_SHEET_PALETTE;
+    return c.camo ? CAMO_PALETTE : bodyTypePaletteSubstitution(c.bodyType, null);
+  }
+
   #corpsePalette(c: CorpseView, picture: IndexedPicture): { key: string; palette: Uint8Array } | null {
-    if (this.#corpses.types[c.type] === ROTTING_STAGE2) return { key: 'own', palette: picture.palette };
-    if (c.camo) {
-      const camo = this.#colPalette(CAMO_PALETTE);
-      return camo === undefined ? null : { key: 'camo', palette: camo ?? picture.palette };
+    const substitution = this.#corpseSubstitution(c);
+    if (substitution) {
+      const col = this.#colPalette(substitution);
+      return col === undefined ? null : { key: substitution, palette: col ?? picture.palette };
     }
-    const monster = MONSTER_PALETTES[c.bodyType];
-    if (monster) {
-      const col = this.#colPalette(monster);
-      return col === undefined ? null : { key: monster, palette: col ?? picture.palette };
-    }
-    if (OWN_PALETTE_BODIES.has(c.bodyType) || !c.palettes || !this.#soldierPalettes) return { key: 'own', palette: picture.palette };
+    if (substitution === OWN_SHEET_PALETTE || !c.palettes || !this.#soldierPalettes) return { key: 'own', palette: picture.palette };
     const [hair, skin, vest, pants] = c.palettes;
     return {
       key: c.palettes.join('|'),

@@ -26,6 +26,7 @@ function crow(over: Partial<SoldierView> = {}): SoldierView {
     frame: 0,
     palettes: ['', '', '', ''],
     hand: '',
+    surface: 0,
     frameSlot: 0,
     stateTick: 0,
     frameDelay: DELAY,

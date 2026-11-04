@@ -47,7 +47,9 @@ export interface SoldierView {
   readonly animation: number;
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
+  readonly camouflaged?: boolean;
   readonly hand: string;
+  readonly surface: number;
   readonly frameSlot: number;
   readonly stateTick: number;
   readonly frameDelay: number;
@@ -1132,6 +1134,8 @@ function sameClock(a: ClockView | undefined, b: ClockView): boolean {
 }
 
 const SCALAR_SOLDIER_FIELDS = [
+  'surface',
+  'camouflaged',
   'frameSlot',
   'stateTick',
   'frameDelay',

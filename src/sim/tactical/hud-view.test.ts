@@ -1,14 +1,22 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent, loadTestTimelines } from '../../../tests/support/tactical.ts';
+import { SubAnimFlags } from '../../content/anim/surface-choice.ts';
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
+import type { MercProfile } from '../../content/formats/prof.ts';
+import { parseStubProfiles, STUB_PROFILES_PATH } from '../../content/formats/stub-profiles.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, createMoney } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
+import { anim } from './anim-states.ts';
+import { states } from './animation.ts';
 import { minAPsToAttack } from './combat/ap.ts';
 import { checkBleeding } from './combat/bleeding.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
@@ -18,7 +26,7 @@ import { LIFELESS_HEALTH_INDEX } from './health.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { apsToClimbRoof, setSoldierHeight } from './roofs.ts';
-import { Team, Visible } from './soldier.ts';
+import { Body, Team, Visible } from './soldier.ts';
 import type { OwnSoldierSnapshot, TacticalSim } from './tactical-sim.ts';
 import { addToIntList, doneAddingToIntList } from './turns/turns.ts';
 import { addItemToPool, Visibility } from './world-items.ts';
@@ -197,6 +205,67 @@ describe('other soldiers in the view (G5)', () => {
     sim.lookAround();
     enemy.life = 0;
     expect(shown(sim, 20).healthIndex).toBe(LIFELESS_HEALTH_INDEX);
+  });
+
+  it('show the sheet the squad sees: in water, with two pistols, walking hurt, and a big man in his threatening stand', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const wading = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    const twoPistols = spawnSoldier(sim, 21, Team.ENEMY, gridNo(78, 92), Direction.WEST);
+    const launcher = spawnSoldier(sim, 22, Team.ENEMY, gridNo(76, 92), Direction.WEST);
+    const hurt = spawnSoldier(sim, 23, Team.ENEMY, gridNo(82, 92), Direction.WEST, { life: 29, gun: 'M14' });
+    const big = spawnSoldier(sim, 24, Team.ENEMY, gridNo(84, 92), Direction.WEST, { body: Body.BIGMALE, gun: 'M14' });
+    sim.lookAround();
+    for (const s of [wading, twoPistols, launcher, big]) s.state = states(content.animations).STANDING;
+    hurt.state = states(content.animations).WALKING;
+    wading.overTerrain = Terrain.LOW_WATER;
+    twoPistols.inv[InvSlot.SECOND_HAND] = createItem(content.items, item('BERETTA_92F'), 100);
+    launcher.inv[InvSlot.SECOND_HAND] = createItem(content.items, item('UNDER_GLAUNCHER'), 100);
+    const sheet = (id: number) => content.animations.surfaces[shown(sim, id).surface]?.name;
+    expect([20, 21, 22, 23, 24].map(sheet)).toEqual([
+      'RGMWATER_N_STD',
+      'RGMDBLBREATH',
+      'RGMPISTOLBREATH',
+      'RGMHURTWALKINGR',
+      'BGMTHREATENSTAND',
+    ]);
+  });
+
+  it("show a big man whose profile has the second shot flag aiming with the first big aim sheet (Grizzly's uiBodyTypeSubFlags)", () => {
+    const json = JSON.parse(readFileSync(join(import.meta.dirname, '../../..', STUB_PROFILES_PATH), 'utf8'));
+    const profiles = [...parseStubProfiles(json, (name) => content.items.byName.get(name)?.index)];
+    const [flagged, unflagged] = profiles.flatMap((p) => (p ? [p.id] : []));
+    if (flagged === undefined || unflagged === undefined) throw new Error('fewer than two stub profiles');
+    profiles[flagged] = { ...(profiles[flagged] as MercProfile), bodyTypeSubFlags: SubAnimFlags.BIGGUY_SHOOT2 };
+    const sim = newCombatSim({ ...content, profiles });
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const big = { body: Body.BIGMALE, gun: 'M14' } as const;
+    const grizzly = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST, { ...big, profile: flagged });
+    const other = spawnSoldier(sim, 21, Team.ENEMY, gridNo(78, 92), Direction.WEST, { ...big, profile: unflagged });
+    sim.lookAround();
+    for (const s of [grizzly, other]) s.state = anim(content, 'AIM_RIFLE_STAND');
+    expect([20, 21].map((id) => content.animations.surfaces[shown(sim, id).surface]?.name)).toEqual(['BGMSTANDAIM', 'BGMSTANDAIM2']);
+  });
+
+  it('show camouflage paint on ours and theirs', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const painted = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    spawnSoldier(sim, 21, Team.ENEMY, gridNo(78, 92), Direction.WEST);
+    merc.camo = 2;
+    painted.camo = 100;
+    sim.lookAround();
+    expect([0, 20, 21].map((id) => shown(sim, id).camouflaged)).toEqual([true, true, undefined]);
+  });
+
+  it("show the queen's spit aimed from two tiles east of her: a target to her north-east gets the north-west sheet", () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const queen = spawnSoldier(sim, 52, Team.CREATURE, gridNo(80, 90), Direction.SOUTH, { body: Body.QUEENMONSTER });
+    sim.lookAround();
+    queen.state = anim(content, 'QUEEN_SPIT');
+    queen.targetGridNo = gridNo(81, 89);
+    expect(content.animations.surfaces[shown(sim, 52).surface]?.name).toBe('QUEENMONSTERSPIT_NE');
   });
 });
 

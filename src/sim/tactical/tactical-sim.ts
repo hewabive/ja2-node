@@ -121,6 +121,7 @@ import {
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { movementForStanceChange, movementModeState, moveStateBasedOnStance, pathMoveMode, stanceHeight } from './movement-mode.ts';
+import { shownAnimSurface } from './multi-tile.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleCreatureTenseQuote } from './narrative/creature-tension.ts';
 import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
@@ -178,7 +179,9 @@ export interface SoldierSnapshot {
   readonly animation: number;
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
+  readonly camouflaged?: boolean;
   readonly hand: string;
+  readonly surface: number;
   readonly frameSlot: number;
   readonly stateTick: number;
   readonly frameDelay: number;
@@ -1111,7 +1114,9 @@ export class TacticalSim {
       animation: s.state,
       frame: spriteFrameAt(presentation, s.frameSlot),
       palettes: [s.palettes.hair, s.palettes.skin, s.palettes.vest, s.palettes.pants] as const,
+      ...(s.camo !== 0 ? { camouflaged: true } : {}),
       hand: handClass(this.state.content.items, itemIn(s.inv, InvSlot.HAND)),
+      surface: shownAnimSurface(this.state.content, s),
       frameSlot: s.frameSlot,
       stateTick: s.stateTick,
       frameDelay: s.aniDelay,

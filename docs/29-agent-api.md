@@ -62,7 +62,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints); lock tables, trap levels, lock damage |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -300,7 +300,10 @@ red as `enoughApToAttack`, the move's final tile behind the face's moving highli
 that holds the portrait flash as `gettingHit`). `itemLocatorsLocked` stands while the original's item locators wait for
 the items-seen quote (`fLockItemLocators`, `08`). A soldier off the ground
 (on a roof, climbing, a crow in flight) carries `heightAdjustment`, the pixels he is drawn above his tile (`06`); a
-corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). A
+corpse carries it while it is not 0, the pixels it is drawn above its level (`33`). Every soldier in the view
+carries `surface`, the animation sheet he shows (an index of `tables/anim-surfaces.json`, chosen by the simulation from
+his state, body, hand items, wounds, water and stance), and `camouflaged` while he wears camouflage paint, ours and
+theirs alike, as the screen shows both (`06`). A
 soldier the squad has just lost stays while he fades out, with `fadingOut` (`06`): he can still be targeted and his hits
 are told, as in the original, until the fade ends or he reaches the next tile. The tactical world (corpses, smoke,
 light, structure changes, blood; `src/sim/tactical/world-view.ts`) is sent whole on every change. Its structure changes

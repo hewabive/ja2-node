@@ -29,6 +29,7 @@ function soldier(over: Partial<SoldierView> = {}): SoldierView {
     frame: FIRST_STANDING_FRAME,
     palettes: ['', '', '', ''],
     hand: '',
+    surface: 0,
     frameSlot: 0,
     stateTick: 0,
     frameDelay: 0,

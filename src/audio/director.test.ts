@@ -94,6 +94,7 @@ function soldier(id: number, state: string, frame: number, extra: Partial<Soldie
     frame,
     palettes: ['', '', '', ''],
     hand: 'rifle',
+    surface: 0,
     frameSlot: 0,
     stateTick: 0,
     frameDelay: 0,

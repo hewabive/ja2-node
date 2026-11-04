@@ -36,9 +36,8 @@ const assets = {
     ]),
   } as unknown as AnimationTables,
   sheetFor: () => request,
-  standingSheetFor: () => request,
   ready: () => ({ picture, layout }),
-  paletteFor: () => new Uint8Array(768),
+  paletteFor: () => ({ key: 'standing', compose: () => new Uint8Array(768) }),
   structureDef: () => null,
 } as unknown as SoldierAssets;
 
@@ -66,6 +65,7 @@ function soldier(over: Partial<SoldierView>): SoldierView {
     frame: FIRST_FRAME,
     palettes: ['', '', '', ''],
     hand: '',
+    surface: 0,
     frameSlot: 0,
     stateTick: 0,
     frameDelay: 0,

@@ -102,6 +102,7 @@ export interface AnimationTables {
   readonly surfaces: readonly AnimationSurface[];
   readonly bodySurfaces: Readonly<Record<number, Readonly<Record<number, number>>>>;
   readonly itemSubSurfaces: Readonly<Record<number, Readonly<Record<number, number>>>>;
+  readonly midWaterSurfaces: Readonly<Record<number, Readonly<Record<number, readonly [number, number]>>>>;
   readonly nothingBreath: readonly number[];
   readonly injuredRifleWalk: SubType;
   readonly injuredNothingWalk: SubType;
@@ -128,6 +129,7 @@ export function parseAnimationTables(controlJson: unknown, surfacesJson: unknown
     surfaces: s.surfaces,
     bodySurfaces: s.bodySurfaces,
     itemSubSurfaces: s.itemSubSurfaces,
+    midWaterSurfaces: s.midWaterSurfaces,
     nothingBreath: s.nothingBreath,
     injuredRifleWalk: s.injuredRifleWalk,
     injuredNothingWalk: s.injuredNothingWalk,

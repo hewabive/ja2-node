@@ -1,3 +1,4 @@
+import { INVALID_SURFACE } from '../../../content/anim/tables.ts';
 import type { PlayerView, SoldierView, StrategicMercView } from '../../../protocol/view.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { Assignment } from './character-list.ts';
@@ -28,6 +29,7 @@ export function mercSoldier(view: PlayerView | null, m: StrategicMercView): Sold
     frame: NO_FRAME,
     palettes: EMPTY_PALETTES,
     hand: '',
+    surface: INVALID_SURFACE,
     frameSlot: 0,
     stateTick: 0,
     frameDelay: 0,

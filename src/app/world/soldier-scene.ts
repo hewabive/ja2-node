@@ -9,7 +9,6 @@
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';
-import { zStripInfo } from '../../content/world/zstrip.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import type { MultiTileLook, SceneSoldier, SoldierSprite } from '../../render/world/dynamic-scene.ts';
 import { type GlowContext, PERSONAL_LIGHT_SHADE, soldierLook } from '../../render/world/glow.ts';
@@ -121,24 +120,21 @@ export class SoldierScene {
     const sprites = this.#sprites;
     if (!sprites) return null;
     const request = this.#assets.sheetFor(s);
-    const standingRequest = this.#assets.standingSheetFor(s);
     const sheet = request ? this.#assets.ready(request) : null;
-    const standing = standingRequest ? this.#assets.ready(standingRequest) : null;
-    if (!request || !standingRequest || !sheet || !standing) return null;
+    const palette = this.#assets.paletteFor(s);
+    if (!request || !sheet || !palette) return null;
     const loaded = sprites.addSheet(request.id, sheet.picture);
     const sprite = sprites.soldierFrame(loaded, soldierSheetFrame(sheet.layout, frame, s.direction));
     if (!sprite) return null;
-    const key = `${standingRequest.id}|${s.palettes.join('|')}`;
-    const paletteBase = sprites.soldierPaletteBase(key, () => this.#assets.paletteFor(s, standing));
+    const paletteBase = sprites.soldierPaletteBase(palette.key, palette.compose);
     return { sprite, paletteBase, multiTile: this.#multiTile(s, sheet) };
   }
 
   #multiTile(s: SoldierView, sheet: SoldierSheet): MultiTileLook | null {
     const def = this.#assets.structureDef(s);
     if (!def || def.tiles.length <= 1) return null;
-    const first = sheet.picture.frames[soldierSheetFrame(sheet.layout, 0, s.direction)];
     return {
-      zStrip: first ? zStripInfo({ offsetX: first.offsetX, offsetY: first.offsetY, width: first.width }, def) : null,
+      zStrip: this.#assets.zStripFor(s, sheet),
       zTileOffsetX: def.zTileOffsetX,
       zTileOffsetY: def.zTileOffsetY,
       vehicle: s.bodyType >= FIRST_VEHICLE_BODY,

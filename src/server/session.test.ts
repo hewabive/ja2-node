@@ -43,6 +43,7 @@ function walker(): SessionSim & { target: number } {
           level: 0,
           direction: 2,
           hand: 'nothing',
+          surface: 0,
           animation: 0,
           frame: 0,
           palettes: ['', '', '', ''],

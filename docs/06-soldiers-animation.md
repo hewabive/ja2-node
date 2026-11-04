@@ -26,11 +26,13 @@ every 5 ms tick: executeOverhead                      overhead.ts
   fade step, then the new-visibility check            fade.ts
   frame due → adjustToNextAnimationFrame              animation.ts; other opcodes through the tactical hooks
   moving state → moveMerc (07); turning state → turnSoldier
-view: state, frame slot, state tick, delay, height    tactical-sim.ts
+view: state, frame slot, state tick, delay, height,   tactical-sim.ts, multi-tile.ts
+  sheet (surface), camouflage
 client: frame of the view                             app/world/soldier-frames.ts, content/anim/schedule-track.ts
-  sheet, palette from the standing sheet              app/world/soldier-assets.ts, content/anim/soldier-sprite.ts
-  shade, glow, fade, multi-tile z strips              app/world/soldier-scene.ts, render/world/glow.ts, soldier-fade.ts,
-                                                      soldier-palettes.ts
+  sheet of the view, palette (standing sheet with     app/world/soldier-assets.ts, content/anim/palette-substitution.ts,
+  replacements, a COL file or the sheet's own)        content/anim/soldier-sprite.ts
+  shade, glow, fade, multi-tile z strips              app/world/soldier-scene.ts, content/anim/zstrip-frames.ts,
+                                                      render/world/glow.ts, soldier-fade.ts, soldier-palettes.ts
   quads in the merc passes                            render/world/dynamic-scene.ts, geometry.ts (05)
 ```
 
@@ -51,15 +53,20 @@ his state, script position, frame slot and next-frame deadline; opcodes that cha
 through the tactical hooks (combat, doors, roofs, items). Frame counts, speeds and opcode positions come from the
 user's data, so the stub pack's shorter scripts give tests timings of their own.
 
-**The simulation never loads a sheet.** The surface a state shows depends on the body, the class of the item in hand,
-a second pistol, life below 30, water and the big-guy flags, not on the state alone. One function, `chooseSurface`,
-answers for both sides: the simulation asks it whether a state is valid for a body and which structure file gives the
-soldier's collision shape, the client asks it for the sheet. The original refuses a new state when its sheet fails to
-load; deciding from the tables keeps the simulation independent of the files a user has. The client falls back to a
-stub sheet of the same kind when a file is missing. The threaten stance flag is the body: `TacticalCreateSoldier` sets
-it on every `BIGMALE`, `prof.dat` never sets it, nothing clears it and no game path changes a big male's body, so
-neither side keeps the flag and a native save's `uiAnimSubFlags` is not read; the idle animations, the big merc's
-crouch transitions and the client's threaten sheets all test the body.
+**The simulation picks the sheet; it never loads one.** The surface a state shows depends on the body, the class of
+the item in hand, a one-handed gun in the second hand, life below 30, water, the queen's target and the big-guy flags,
+not on the state alone. `chooseSurface` decides from the tables: the simulation asks it whether a state is valid for a
+body, which structure file gives the soldier's collision shape, and which sheet the view carries (`surface`, worked
+out at each view: deviation "Soldier sheet and palette refresh"), so the client never guesses another soldier's water,
+second hand or wounds. The original refuses a new state when its sheet
+fails to load; deciding from the tables keeps the simulation independent of the files a user has. The client falls
+back to a stub sheet of the same kind when a file is missing, and asks `chooseSurface` itself only to preload the
+standing, walking and running sheets and for the standing sheet of the palette. The sub-flags are derived, not kept:
+`TacticalCreateSoldier` gives every `BIGMALE` the threaten stance, nothing clears it and no game path changes a big
+male's body; the second shot flag is the profile's (`prof.dat` sets it on a few big men), copied once and never changed, and it
+only swaps one aim sheet for another of the same structure, so only the view's sheet reads it (`shownAnimSurface`).
+So neither side keeps the flags and a native save's `uiAnimSubFlags` is not read; the idle animations, the big merc's
+crouch transitions and the threaten sheets test the body.
 
 **The frame clock is game time.** A frame lasts `aniDelay` game ms, checked every 5 ms tick (`01`, deviation "Frame
 timers"). States with speed 0 compute it from breath, life, agility, terrain and the body, halved in combat and doubled
@@ -76,9 +83,19 @@ if the soldier's structure fits the new facing; prone has no turning flag, so a 
 `WALKING` steps the body's walking speed per frame; every other state steps its own, whatever the body's table says.
 
 **One palette per soldier.** The palette of the soldier's standing sheet with the hair, skin, vest and pants
-replacements serves every sheet he shows: on the Gold data the sheets differ only at entries soldiers never use and at
-254, the shadow marker. Shadows are pixels of every frame (index 254); ja2-node draws them as a separate darkening part
-of the quad (`05`, deviation "Shadow darkening").
+replacements serves every sheet he shows: on the Gold data a body's sheets differ only at entries soldiers never use
+and at 254, the shadow marker, so the client takes the dry standing sheet for the hand the view names. A painted merc
+wears `camo.col` instead (the view's `camouflaged`, shown for every soldier in sight), the adult creatures their colour
+files; animals, vehicles, the robot and the queen wear their standing sheet's own palette, and a burning or exploding
+merc and a dying vehicle the palette of the sheet of that state, which differs from the standing one in most entries
+(`bodyTypePaletteSubstitution`, shared with corpses). Without a colour file, as in the stub pack, the sheet's own
+palette stands in, the original's fallback. Shadows are pixels of every frame (index 254); ja2-node draws
+them as a separate darkening part of the quad (`05`, deviation "Shadow darkening").
+
+**Z strips come from one frame per structure.** A multi-tile soldier is drawn in strips whose depth follows the
+structure of his facing (the queen's only one). As in `LoadAnimationSurface`, each structure of the surface's own
+structure file takes its strips from one frame of the sheet, picked by the surface's start frame and the step the sheet
+gives each structure (`content/anim/zstrip-frames.ts`); the vehicles' 32 facings feed eight structures.
 
 **The draw height is simulation state.** `heightAdjustment` is the original's float height above the tile: a
 placement on a roof, the climb frames and a crow's flight set it (`insertion.ts`, `roofs.ts`, `crows.ts`), and
@@ -139,10 +156,12 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Every big male idles with the second big merc animations: `TacticalCreateSoldier` gives each the threaten stance flag | `random-anims.test.ts` |
 | A reverse swat starts in a plain `START_SWAT`; only the `SWATTING` it chains to turns into `SWAT_BACKWARDS` | `player-orders.test.ts` |
 | A reverse move of a body without the backward states pays the first step and leaves him standing: the new state's surface fails after the step was taken | `player-orders.test.ts` |
+| Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2` and `m_raise` never show | `src/content/anim/surface-choice.test.ts`, `hud-view.test.ts` |
+| In water neither the hand item nor wounds choose the sheet: a state without a water sheet, like walking backwards, shows the rifle sheet even with empty hands | `src/content/anim/surface-choice.test.ts` |
+| The queen picks her spit sheet by the direction from two tiles east of her to the target, and has five sheets for eight directions | `hud-view.test.ts`, `src/content/anim/surface-choice.test.ts` |
+| Only the regular male's prone sheet takes its z strips from frame 5; the big man's and the woman's take frame 0 | `src/content/anim/zstrip-frames.test.ts` |
 
 Not pinned yet:
-- Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2`
-  and `m_raise` never show (`app/world/soldier-assets.ts` sets the flag from the body).
 - `STOCKYMALE` has the regular male's sheets, speeds and palettes; `RGMTHROW` plays `s_lob.sti` and `RGMLOB`
   `s_throw.sti` (`data/tables/anim-surfaces.json`).
 - A half turn always goes clockwise (`quickestTurnIncrement`).
@@ -159,8 +178,8 @@ source, and frames per tile against a float32 simulation of `MoveMerc` (`07`). I
   overwrites a slot.
 - The screen position truncates float32 offsets toward zero, as the original's `(INT16)` casts.
 
-Not ported: gaps "Soldier palettes and surfaces", "Drugs and alcohol" (adrenaline and
-drunkenness in the frame delay, the drunk idle), "No-burn tiles". Other deviations of this domain: "Frame timers",
-"Soldier frame on turning", "Soldier frames with other scripts", "Creature and bloodcat stub bodies", "Multi-tile
-turning", "Idle sounds of unseen animals", "Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed
-animation surface".
+Not ported: gaps "Drugs and alcohol" (adrenaline and drunkenness in the frame delay, the drunk
+idle), "No-burn tiles". Other deviations of this domain: "Frame timers", "Soldier frame on turning", "Soldier frames
+with other scripts", "Creature and bloodcat stub bodies", "Multi-tile turning", "Idle sounds of unseen animals",
+"Cosmetic draws of creatures", "Soldier fade without merc lights", "Failed animation surface", "Soldier sheet and
+palette refresh".
