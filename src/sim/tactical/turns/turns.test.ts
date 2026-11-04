@@ -486,6 +486,25 @@ describe('the interrupt queue', () => {
     doneAddingToIntList(t);
   }
 
+  it('names the AI soldier a hidden interrupt shows, for the slide to him, only while the squad sees him (DisplayHiddenInterrupt)', () => {
+    const shownInterrupter = (visible: number) => {
+      const sim = newSim();
+      const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+      const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+      interrupt(sim.state, Team.OUR, [
+        [merc, LOSES],
+        [enemy, GAINS],
+      ]);
+      expect(sim.state.turn.hiddenInterrupt).toBe(true);
+      enemy.visible = visible;
+      sim.drainEvents();
+      displayHiddenInterrupt(sim.state, enemy);
+      return sim.drainEvents().find((e) => e.type === 'interrupt');
+    };
+    expect(shownInterrupter(Visible.SEEN)).toMatchObject({ team: Team.ENEMY, interrupter: 20 });
+    expect(shownInterrupter(Visible.HIDDEN)).not.toHaveProperty('interrupter');
+  });
+
   it('stops the soldier it freezes from lying down again after a turn he began prone (TeamTurns.cc)', () => {
     const shown = newSim();
     const merc = spawn(shown, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

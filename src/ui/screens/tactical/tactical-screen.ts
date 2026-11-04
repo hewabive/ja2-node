@@ -37,6 +37,8 @@
 // @src cursor, selecting its owner; only a key in the cursor goes onto the ring); GameScreen.cc
 // @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02);
 // @src Interface_Panels.cc RenderTownIDString (the detailed GetSectorIDString of the loaded sector, 2026-11-03);
+// @src TeamTurns.cc StartPlayerTeamTurn, StartInterrupt, EndInterrupt, DisplayHiddenInterrupt (the slides to the
+// @src selected merc, the interrupted soldier and the AI interrupter, 2026-11-03);
 // @src Interface_Items.cc DrawItemTileCursor (the item's owner selected while the item is over the map, and located
 // @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02); Turn_Based_Input.cc
 // @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (A_CHANGE_TO_MOVE once an item pointer click is
@@ -1338,6 +1340,11 @@ export class TacticalScreen implements Screen {
         return;
       case 'interrupt':
         if (event.selected !== undefined) this.#adoptSelection(event.selected);
+        this.#slideToSoldier(event.interrupted ?? event.interrupter);
+        return;
+      case 'turnStarted':
+      case 'interruptEnded':
+        if (event.team === OUR_TEAM) this.#slideToSoldier(view?.selected);
         return;
       default:
         return;
@@ -1376,7 +1383,12 @@ export class TacticalScreen implements Screen {
   #slideTo(s: SoldierView, flag: LocateFlag): void {
     if (flag === LocateFlag.SETANDREMOVEPREVIOUSLOCATOR) this.#locators.clear();
     this.#showLocator(s, slideLocatorCycles(flag));
-    this.#env.world.locate(s.gridNo);
+    this.controls.slideTo(s.gridNo);
+  }
+
+  #slideToSoldier(id: number | null | undefined): void {
+    const s = soldierById(this.#view(), id ?? null);
+    if (s) this.#slideTo(s, LocateFlag.SETLOCATOR);
   }
 
   #showLocator(s: SoldierView, cycles: number | null): void {
@@ -1416,14 +1428,12 @@ export class TacticalScreen implements Screen {
 
   #locateBeforeSelecting(s: SoldierView, oldMethod: boolean): boolean {
     const selected = s.id === this.#selected;
-    if (!this.#locators.has(s.id)) {
-      if (!selected && !oldMethod) return true;
-      this.#locateSoldier(s, LocateFlag.SETLOCATOR);
-      return false;
-    }
     if (!selected && !oldMethod) return true;
-    this.#locateSoldier(s, LocateFlag.DONTSETLOCATOR);
-    return oldMethod;
+    const flashing = this.#locators.has(s.id);
+    const flag = flashing ? LocateFlag.DONTSETLOCATOR : LocateFlag.SETLOCATOR;
+    if (selected && (!flashing || oldMethod)) this.#slideTo(s, flag);
+    else this.#locateSoldier(s, flag);
+    return flashing && oldMethod;
   }
 
   #selectFace(slot: number): void {

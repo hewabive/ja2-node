@@ -106,6 +106,9 @@ bullets, queued game events and our soldiers' one-shot animations (getting up, p
 
 - An interrupt in our favour is a decision: only the mercs that have not moved may act (`OK_INTERRUPT_MERC`), and
   `endTurn` gives the turn back (deviation "Interrupt prompt").
+- An interrupt in our favour names the soldier it stops (`interrupted`) and a shown AI interrupt its AI soldier
+  (`interrupter`), both only while the squad sees them: the original slides the view to them (`Tactical/TeamTurns.cc:600`,
+  `:397`).
 - An AI interrupt shows nothing until `DisplayHiddenInterrupt`, then an `interrupt` event; while a hidden one runs the
   view shows our turn, as the original does, and orders are refused with `uiLocked`. A fully hidden one leaves no
   trace. `combat.aiTurn` names the AI soldier whose turn it is (the one the original highlights) while he is in the

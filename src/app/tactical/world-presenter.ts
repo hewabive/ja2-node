@@ -47,6 +47,7 @@ import type {
   ScreenBox,
   ScreenPoint,
   ScrollEdges,
+  SlideView,
   SoldierHeight,
   SoldierMarker,
   UiImageRef,
@@ -57,6 +58,7 @@ import { findSoldier, PICK_ANYONE } from '../../ui/screens/tactical/input/target
 import type { UiAssets } from '../game/ui-assets.ts';
 import { gridNoOnScreen, radarDotOf, radarRenderCenter, radarViewportBox } from '../world/radar.ts';
 import type { SoldierOrigin } from '../world/roof-markers.ts';
+import { slideView } from '../world/slide.ts';
 import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
@@ -426,6 +428,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
       top: this.#stuck(0, -EDGE_PROBE_PX * 20),
       bottom: this.#stuck(0, EDGE_PROBE_PX * 20),
     };
+  }
+
+  slideView(gridNo: number): SlideView {
+    return slideView(this.#restrictedScrollId, gridNo, { ...this.#viewport, camera: this.#camera }, this.#top > 0);
   }
 
   scrollBy(dx: number, dy: number): boolean {

@@ -18,7 +18,8 @@
 // @src 2026-10-30), SetEnemyPresence (with its call in EnterCombatMode) and the sighting quote flags of
 // @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31); the BeginLoggingForBleedMeToos window
 // @src of BeginTeamTurn and HandleTacticalEndTurn; HandleTacticalEndTurn's static stamp before HandleRottingCorpses
-// @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03).
+// @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03); the soldiers
+// @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -81,6 +82,7 @@ import {
   ReasonCantFinishMove,
   Side,
   type Soldier,
+  shownToPlayer,
   Team,
 } from '../soldier.ts';
 import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
@@ -745,7 +747,14 @@ function startInterrupt(t: TacticalState): void {
     selectSoldier(t, first, SelectFlags.FORCE_RESELECT);
     turn.currentTeam = Team.OUR;
     const soldiers = teamMembers(t, Team.OUR).filter((s) => !s.moved);
-    t.events.push({ type: 'interrupt', team, soldiers: soldiers.map((s) => s.id), selected: first.id });
+    const interrupted = turn.lastInterruptedGuy;
+    t.events.push({
+      type: 'interrupt',
+      team,
+      soldiers: soldiers.map((s) => s.id),
+      selected: first.id,
+      ...(interrupted && shownToPlayer(interrupted) ? { interrupted: interrupted.id } : {}),
+    });
     initPlayerUIBar(t, true);
     sayCloseCallQuotes(t);
   } else {
@@ -776,7 +785,7 @@ export function displayHiddenInterrupt(t: TacticalState, actor: Soldier): void {
   if (latest) freezeInterrupted(latest);
   addTopMessage(t, actor.team === Team.MILITIA ? TopMessageKind.MILITIA_INTERRUPT : TopMessageKind.COMPUTER_INTERRUPT);
   turn.hiddenInterrupt = false;
-  t.events.push({ type: 'interrupt', team: turn.currentTeam });
+  t.events.push({ type: 'interrupt', team: turn.currentTeam, ...(shownToPlayer(actor) ? { interrupter: actor.id } : {}) });
 }
 
 export function endInterrupt(t: TacticalState, markOccurred: boolean): void {

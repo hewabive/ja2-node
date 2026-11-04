@@ -29,6 +29,7 @@ import {
   type ScreenBox,
   type ScreenPoint,
   type ScrollEdges,
+  type SlideView,
   type SoldierHeight,
   type SoldierMarker,
   type SpeechPlayback,
@@ -171,6 +172,9 @@ export class SessionClient implements TacticalClient {
   }
 }
 
+export const ON_SCREEN_SLIDE: SlideView = { onScreen: true, inView: true, visibleTile: true, direction: 0, centreFlags: 0 };
+export const OFF_SCREEN_SLIDE: SlideView = { ...ON_SCREEN_SLIDE, onScreen: false, inView: false };
+
 export class FakeWorld implements WorldPresenter {
   readonly ready = true;
   readonly radarImage = null;
@@ -310,6 +314,12 @@ export class FakeWorld implements WorldPresenter {
   scrollBy(dx: number, dy: number): boolean {
     this.scrolled.push({ dx, dy });
     return true;
+  }
+
+  slideViewOf: (gridNo: number) => SlideView = () => ON_SCREEN_SLIDE;
+
+  slideView(gridNo: number): SlideView {
+    return this.slideViewOf(gridNo);
   }
 
   overheadMap(): OverheadMapView | null {

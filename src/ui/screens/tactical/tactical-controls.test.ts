@@ -3,6 +3,7 @@ import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import {
+  OFF_SCREEN_SLIDE,
   type TacticalUiKit,
   type TacticalUiTest,
   TEST_GAME_OPTIONS,
@@ -13,7 +14,7 @@ import {
 import { Body } from '../../../content/anim/body-types.ts';
 import { WeaponClass } from '../../../content/items/items.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
-import { WORLD_COLS } from '../../../content/world/grid.ts';
+import { Direction, WORLD_COLS } from '../../../content/world/grid.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import type { ClimbView, SoldierView } from '../../../protocol/view.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
@@ -30,6 +31,7 @@ import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { MAX_DISPLAY_SIZE, MIN_DISPLAY_SIZE } from '../../settings.ts';
 import { gameSettingsLines } from '../game-settings.ts';
+import { ScrollFlag } from './environment.ts';
 import { COMPATIBLE_HILIGHT } from './faces.ts';
 import { Arrows } from './input/arrows.ts';
 import { GO_MOVE_ONE, GO_MOVE_TWO } from './input/tactical-input.ts';
@@ -776,6 +778,38 @@ describe('the tactical input on the tactical screen', () => {
     expect(f.world.scrolled[0]).toEqual({ dx: -40, dy: 0 });
   });
 
+  it('slides to a target off screen in its direction past the edge scroll, until it has stayed in view for its direction’s frames, then steps once by the centre flags (ScrollWorld)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    let inView = false;
+    f.world.slideViewOf = () => ({ ...OFF_SCREEN_SLIDE, inView, direction: Direction.NORTH, centreFlags: ScrollFlag.DOWN });
+    f.screen.controls.slideTo(merc(f, 0).gridNo);
+    pointer(f, 'pointerMove', 2, 100, MouseButton.LEFT);
+    for (let frame = 0; frame < 3; frame++) f.t.frame(SCROLL_STEP_MS);
+    const upRight = { dx: 40, dy: -20 };
+    expect(f.world.scrolled).toEqual([upRight, upRight]);
+    inView = true;
+    f.world.scrolled.length = 0;
+    for (let frame = 0; frame < 5; frame++) f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.scrolled).toEqual([upRight, upRight, upRight, upRight, { dx: -40, dy: 20 }]);
+    expect(f.screen.controls.slideTarget).toBeNull();
+    f.t.frame(SCROLL_STEP_MS);
+    expect(f.world.scrolled.at(-1)).toEqual({ dx: -40, dy: 0 });
+  });
+
+  it('stops a slide east after two frames in view and does not start one to a tile on screen', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const target = merc(f, 0).gridNo;
+    f.screen.controls.slideTo(target);
+    expect(f.screen.controls.slideTarget).toBeNull();
+    f.world.slideViewOf = () => ({ ...OFF_SCREEN_SLIDE, inView: true, direction: Direction.EAST });
+    f.screen.controls.slideTo(target);
+    f.t.frame(SCROLL_STEP_MS);
+    expect(f.screen.controls.slideTarget).toBe(target);
+    f.t.frame(SCROLL_STEP_MS);
+    expect(f.screen.controls.slideTarget).toBeNull();
+    expect(f.world.scrolled).toEqual([]);
+  });
+
   it('clears the tile cursor, the path, the mouse cursor and the fast help from the pending step until the scroll stops', async () => {
     const f = await inCombat();
     const tile = merc(f, 0).gridNo - 2;
@@ -1270,20 +1304,21 @@ describe('the tactical input on the tactical screen', () => {
     const twin = { ...enemy, id: Math.max(...f.client.view.soldiers.map((v) => v.id)) + 1, gridNo: enemy.gridNo + 2 };
     (f.client.view.soldiers as SoldierView[]).push(twin);
     Object.assign(selected, { sees: [...(selected.sees ?? []), twin.id], opponents: 2 });
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
     f.key('/');
     expect(imagesOf(f, RADIO)).toHaveLength(1);
     f.key('e');
-    expect(f.world.located.at(-1)).toBe(enemy.gridNo);
+    expect(f.screen.controls.slideTarget).toBe(enemy.gridNo);
     expect([imagesOf(f, RADIO), imagesOf(f, HOSTILE_RADIO)].map((l) => l.length)).toEqual([0, 1]);
     await f.click(`teamEnemyIndicator${f.screen.teamSlots.indexOf(selected.id)}`);
-    expect(f.world.located.at(-1)).toBe(twin.gridNo);
+    expect(f.screen.controls.slideTarget).toBe(twin.gridNo);
     expect(imagesOf(f, HOSTILE_RADIO)).toHaveLength(1);
     f.key('Enter');
-    expect(f.world.located.at(-1)).toBe(enemy.gridNo);
+    expect(f.screen.controls.slideTarget).toBe(enemy.gridNo);
     expect(locatorMs(f, HOSTILE_RADIO)).toBe(NORMAL_LOCATOR_MS);
   });
 
-  it('locates the seen enemies with e and Enter and skips the ones whose life is gone while they fall', async () => {
+  it('slides to the seen enemies with e and Enter and skips the ones whose life is gone while they fall', async () => {
     const f = await inCombat();
     const selected = merc(f, f.screen.selected ?? 0);
     const enemies = (selected.sees ?? [])
@@ -1292,17 +1327,21 @@ describe('the tactical input on the tactical screen', () => {
       .sort((a, b) => a.id - b.id);
     const first = enemies[0];
     if (!first) throw new Error('no enemy in sight');
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
     f.key('e');
-    expect(f.world.located.at(-1)).toBe(first.gridNo);
+    expect(f.screen.controls.slideTarget).toBe(first.gridNo);
     f.key('Enter');
-    expect(f.world.located.at(-1)).toBe(first.gridNo);
+    expect(f.screen.controls.slideTarget).toBe(first.gridNo);
     const t = tacticalOf(f.session).state;
     for (const s of t.soldiers) if (s && s.team !== 0 && !s.neutral) s.life = 0;
     f.deliver();
     expect(f.screen.feedbackText).toBeNull();
-    const located = f.world.located.length;
+    f.world.slideViewOf = () => ({ ...OFF_SCREEN_SLIDE, inView: true, direction: Direction.NORTHEAST });
+    for (let frame = 0; frame < 2; frame++) f.t.frame();
+    expect(f.screen.controls.slideTarget).toBeNull();
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
     f.key('Enter');
-    expect(f.world.located).toHaveLength(located);
+    expect(f.screen.controls.slideTarget).toBeNull();
     expect(f.screen.feedbackText).toBeTruthy();
   });
 

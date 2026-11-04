@@ -41,7 +41,7 @@ export interface RadarScale {
   readonly y: number;
 }
 
-type ViewOnMap = Viewport & { readonly camera: Camera };
+export type ViewOnMap = Viewport & { readonly camera: Camera };
 
 export function radarPathForMap(mapPath: string): string {
   return mapPath.replace(/(^|\/)maps\/([^/]+)\.dat$/, '$1radarmaps/$2.sti');

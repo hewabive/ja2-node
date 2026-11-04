@@ -18,7 +18,7 @@ import { LIFELESS_HEALTH_INDEX } from './health.ts';
 import { InvSlot } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { apsToClimbRoof, setSoldierHeight } from './roofs.ts';
-import { Team } from './soldier.ts';
+import { Team, Visible } from './soldier.ts';
 import type { OwnSoldierSnapshot, TacticalSim } from './tactical-sim.ts';
 import { addToIntList, doneAddingToIntList } from './turns/turns.ts';
 import { addItemToPool, Visibility } from './world-items.ts';
@@ -283,7 +283,7 @@ describe('the combat block and the enemy turn (G6, events)', () => {
     expect(eventsOf(events, 'enemyTurnProgress')).toEqual([]);
   });
 
-  it('names the merc an interrupt in our favour selects and shows the interrupt bar', () => {
+  it('names the merc an interrupt in our favour selects, the seen soldier it stops, and shows the interrupt bar', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     spawnSoldier(sim, 0, Team.OUR, gridNo(80, 60), Direction.SOUTH);
@@ -295,7 +295,8 @@ describe('the combat block and the enemy turn (G6, events)', () => {
     addToIntList(t, mover, false);
     addToIntList(t, second, true);
     doneAddingToIntList(t);
-    expect(eventsOf(sim.drainEvents(), 'interrupt')).toMatchObject([{ team: Team.OUR, selected: 1 }]);
+    expect(mover.visible).not.toBe(Visible.HIDDEN);
+    expect(eventsOf(sim.drainEvents(), 'interrupt')).toMatchObject([{ team: Team.OUR, selected: 1, interrupted: mover.id }]);
     expect(sim.combatView()).toMatchObject({ team: Team.OUR, interrupt: true, topMessage: { kind: 'playerInterrupt' } });
   });
 });

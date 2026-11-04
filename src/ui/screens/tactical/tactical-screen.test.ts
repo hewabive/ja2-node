@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
-import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import {
+  OFF_SCREEN_SLIDE,
+  type TacticalUiKit,
+  type TacticalUiTest,
+  tacticalUiKit,
+  tacticalUiTest,
+} from '../../../../tests/support/tactical-ui.ts';
 import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
@@ -273,9 +279,10 @@ describe('the tactical screen over a stub sandbox session', () => {
     await f.click('teamFaceRegion1');
     expect(f.screen.selected).toBe(1);
     expect(f.attention).toEqual([1]);
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
     await f.click('teamFaceRegion1');
     expect(f.attention).toEqual([1]);
-    expect(f.world.located.length).toBeGreaterThan(0);
+    expect(f.screen.controls.slideTarget).toBe(f.client.view.soldiers.find((s) => s.id === 1)?.gridNo);
     await smPanelOf(f, 1);
     expect(f.screen.panel).toBe('sm');
     expect(f.screen.smMerc).toBe(1);
@@ -687,6 +694,27 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.pickup.open).toBe(false);
     f.advance(2000);
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
+  });
+
+  it('slides to the selected merc as our turn starts and an interrupt ends, and to the soldier an interrupt stops (TeamTurns)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.world.slideViewOf = () => OFF_SCREEN_SLIDE;
+    const view = f.client.view;
+    const selected = view.soldiers.find((s) => s.id === view.selected);
+    const other = view.soldiers.find((s) => s.team === 0 && s.id !== view.selected);
+    if (!selected || !other) throw new Error('no squad');
+    const tick = view.tick;
+    const slidTo = (event: NonNullable<ViewFrame['events']>[number]) => {
+      f.frames([frame(tick, [event])]);
+      return f.screen.controls.slideTarget;
+    };
+    expect(slidTo({ tick, type: 'turnStarted', team: CIV_TEAM, round: 1 })).toBeNull();
+    expect(slidTo({ tick, type: 'turnStarted', team: 0, round: 1 })).toBe(selected.gridNo);
+    expect(slidTo({ tick, type: 'interrupt', team: 1, interrupter: other.id })).toBe(other.gridNo);
+    const ours = { tick, type: 'interrupt', team: 0, soldiers: [other.id], selected: other.id, interrupted: selected.id } as const;
+    expect(slidTo(ours)).toBe(selected.gridNo);
+    expect(slidTo({ tick, type: 'interrupt', team: 1, interrupter: other.id })).toBe(other.gridNo);
+    expect(slidTo({ tick, type: 'interruptEnded', team: 0 })).toBe(selected.gridNo);
   });
 
   it('outlines the picker’s slots and lights the faces for the pickup row under the pointer, checked as the pointer enters the row', async () => {

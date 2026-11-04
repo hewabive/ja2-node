@@ -55,6 +55,8 @@ export interface InterruptEvent extends SimEventBase {
   readonly team: number;
   readonly soldiers?: readonly number[];
   readonly selected?: number;
+  readonly interrupted?: number;
+  readonly interrupter?: number;
 }
 
 export interface AiTurnEvent extends SimEventBase {

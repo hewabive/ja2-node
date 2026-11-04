@@ -15,8 +15,11 @@
 // @src ToggleItemGlow; Soldier_Control.cc HandlePlayerTogglingLightEffects; Turn_Based_Input.cc ToggleTreeTops,
 // @src ToggleWireFrame (the messages); src/game/TileEngine/RenderWorld.cc ScrollWorld (the arrow keys and the
 // @src 15-pixel screen edges, 20 << (SHIFT ? 2 : 1) pixels across and half down per NEXTSCROLL 20 ms, the pending first
-// @src step, no scrolling with ALT or while the UI is locked or a menu is up; ClearInterface at the pending step and
-// @src RestoreInterface as the scroll stops, Interface.cc, the viewport's cursor cleared with an item held too),
+// @src step, no scrolling with ALT or while a menu is up, no input while the UI is locked; ClearInterface at the pending
+// @src step and RestoreInterface as the scroll stops, Interface.cc, the viewport's cursor cleared with an item held too;
+// @src the slide to sSlideTarget in the direction of gScrollDirectionFlags, ignoring the input, until
+// @src SoldierLocationRelativeToScreen has had the target on screen for gScrollSlideInertiaDirection frames, its centre
+// @src flags making the last step, 2026-11-03), Overhead.cc SlideTo, SlideToLocation (no slide to a tile on screen),
 // @src GameScreen.cc MainGameScreenHandle (no SetUpInterface, so no DrawItemTileCursor, and no fast help while
 // @src scrolling); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
@@ -52,7 +55,7 @@ import { hCenterVCenterAlign, stringPixLength } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { gameSettingsLines } from '../game-settings.ts';
-import type { CommandReply, TacticalEnvironment } from './environment.ts';
+import { type CommandReply, ScrollFlag, type TacticalEnvironment } from './environment.ts';
 import { ExitDialog, type ExitDialogArt, type ExitDirection } from './exit-dialog.ts';
 import { OKLIFE } from './faces.ts';
 import { arrowSprites } from './input/arrows.ts';
@@ -84,6 +87,17 @@ import {
 const SCROLL_STEP_MS = 20;
 const SCROLL_SPEED = 40;
 const SHIFT_SCROLL_SPEED = 80;
+const SLIDE_DIRECTION_FLAGS: readonly number[] = [
+  ScrollFlag.UP | ScrollFlag.RIGHT,
+  ScrollFlag.RIGHT,
+  ScrollFlag.DOWN | ScrollFlag.RIGHT,
+  ScrollFlag.DOWN,
+  ScrollFlag.DOWN | ScrollFlag.LEFT,
+  ScrollFlag.LEFT,
+  ScrollFlag.UP | ScrollFlag.LEFT,
+  ScrollFlag.UP,
+];
+const SLIDE_INERTIA_FRAMES: readonly number[] = [3, 0, 0, 0, 0, 0, 3, 3];
 const EDGE_PX = 15;
 const RUBBER_BAND_STEP_MS = 60;
 const BURST_FRAME = 1;
@@ -203,6 +217,8 @@ export class TacticalControls {
   #nextScrollAt = 0;
   #scrollPending = false;
   #scrollInertia = false;
+  #slideTarget: number | null = null;
+  #slideCountdown = 0;
   #nightGearNext = true;
   #busyOrders = 0;
 
@@ -343,8 +359,50 @@ export class TacticalControls {
     return this.scrolling && region?.inArea === true && this.#env().runtime.regions.current === region;
   }
 
+  get slideTarget(): number | null {
+    return this.#slideTarget;
+  }
+
+  slideTo(gridNo: number): void {
+    if (this.#env().world.slideView(gridNo).onScreen) return;
+    this.#slideTarget = gridNo;
+  }
+
   #ignoreScrolling(): boolean {
-    return this.menuOpen || this.#screen.popupsOpen() || this.input.mode === UiMode.LOCKUI_MODE;
+    return this.menuOpen || this.#screen.popupsOpen();
+  }
+
+  #slideStillOn(inView: boolean, direction: number): boolean {
+    if (!inView) return true;
+    if (this.#slideCountdown > (SLIDE_INERTIA_FRAMES[direction] ?? 0)) {
+      this.#slideCountdown = 0;
+      return false;
+    }
+    this.#slideCountdown++;
+    return true;
+  }
+
+  #slideStep(): { readonly flags: number; readonly ignoresInput: boolean } | null {
+    const target = this.#slideTarget;
+    if (target === null) return null;
+    const view = this.#env().world.slideView(target);
+    if (this.#slideStillOn(view.inView, view.direction) && view.visibleTile)
+      return { flags: SLIDE_DIRECTION_FLAGS[view.direction] ?? 0, ignoresInput: true };
+    this.#slideTarget = null;
+    return { flags: view.centreFlags, ignoresInput: false };
+  }
+
+  #inputFlags(): number {
+    const runtime = this.#env().runtime;
+    const regions = runtime.regions;
+    const { width, height } = runtime.geometry();
+    const mouse = regions.pointerKnown;
+    let flags = 0;
+    if (runtime.isKeyDown('ArrowLeft') || (mouse && regions.mouseX < EDGE_PX)) flags |= ScrollFlag.LEFT;
+    if (runtime.isKeyDown('ArrowRight') || (mouse && regions.mouseX >= width - EDGE_PX)) flags |= ScrollFlag.RIGHT;
+    if (runtime.isKeyDown('ArrowUp') || (mouse && regions.mouseY < EDGE_PX)) flags |= ScrollFlag.UP;
+    if (runtime.isKeyDown('ArrowDown') || (mouse && regions.mouseY >= height - EDGE_PX)) flags |= ScrollFlag.DOWN;
+    return flags;
   }
 
   #scroll(now: number): void {
@@ -357,16 +415,12 @@ export class TacticalControls {
       flagsOff();
       return;
     }
-    const regions = runtime.regions;
-    const { width, height } = runtime.geometry();
-    const mouse = regions.pointerKnown;
-    const left = runtime.isKeyDown('ArrowLeft') || (mouse && regions.mouseX < EDGE_PX);
-    const right = runtime.isKeyDown('ArrowRight') || (mouse && regions.mouseX >= width - EDGE_PX);
-    const up = runtime.isKeyDown('ArrowUp') || (mouse && regions.mouseY < EDGE_PX);
-    const down = runtime.isKeyDown('ArrowDown') || (mouse && regions.mouseY >= height - EDGE_PX);
+    const slide = this.#slideStep();
+    const ignoresInput = slide?.ignoresInput === true || this.input.mode === UiMode.LOCKUI_MODE;
+    const flags = (slide?.flags ?? 0) | (ignoresInput ? 0 : this.#inputFlags());
     const speed = runtime.modifiers & KeyModifier.SHIFT ? SHIFT_SCROLL_SPEED : SCROLL_SPEED;
-    const dx = (right ? speed : 0) - (left ? speed : 0);
-    const dy = (down ? speed / 2 : 0) - (up ? speed / 2 : 0);
+    const dx = (flags & ScrollFlag.RIGHT ? speed : 0) - (flags & ScrollFlag.LEFT ? speed : 0);
+    const dy = (flags & ScrollFlag.DOWN ? speed / 2 : 0) - (flags & ScrollFlag.UP ? speed / 2 : 0);
     const edges = this.#env().world.scrollEdges();
     const canX = (dx < 0 && !edges.left) || (dx > 0 && !edges.right);
     const canY = (dy < 0 && !edges.top) || (dy > 0 && !edges.bottom);

@@ -103,6 +103,16 @@ export interface ScrollEdges {
   readonly bottom: boolean;
 }
 
+export const ScrollFlag = { UP: 1, RIGHT: 2, DOWN: 4, LEFT: 8 } as const;
+
+export interface SlideView {
+  readonly onScreen: boolean;
+  readonly inView: boolean;
+  readonly visibleTile: boolean;
+  readonly direction: number;
+  readonly centreFlags: number;
+}
+
 export interface OverheadMapView {
   render(list: DrawList, x: number, y: number): void;
   pointOf(gridNo: number): ScreenPoint;
@@ -137,6 +147,7 @@ export interface WorldPresenter {
   exitGridAt(gridNo: number): boolean;
   scrollEdges(): ScrollEdges;
   scrollBy(dx: number, dy: number): boolean;
+  slideView(gridNo: number): SlideView;
   overheadMap(): OverheadMapView | null;
   tileImage(name: string): UiImageRef | null;
   tileCentre(gridNo: number): ScreenPoint;
