@@ -1,17 +1,109 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { sharedStubPackDir } from '../../../tests/support/stub-pack.ts';
 import { type LoadedWorld, loadWorld } from '../../app/world/world-loader.ts';
-import { WORLD_MAX } from '../../content/world/grid.ts';
-import { levelTilesAt } from '../../content/world/level.ts';
-import { typeIndex } from '../../content/world/tile-tables.ts';
+import { Orientation, type StructureDef } from '../../content/formats/jsd.ts';
+import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { type Level, levelTilesAt } from '../../content/world/level.ts';
+import { placeWorldStructures } from '../../content/world/placement.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import { layerWith, syntheticStructure } from '../../content/world/synthetic.ts';
+import { buildTileDatabase, type TileSurface } from '../../content/world/tile-database.ts';
+import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { rowOf } from './geometry.ts';
-import { changedRevealTiles, computeReveal, NO_REVEAL, NodeFlags } from './reveal.ts';
+import { changedRevealTiles, computeReveal, NO_REVEAL, NodeFlags, type RevealWorld } from './reveal.ts';
 import { StaticScene, StaticSegment, type StaticWorld } from './static-scene.ts';
 
 const ROOM = 1;
+
+const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
+const surfaces: TileSurface[] = tables.types.map((t) => ({
+  type: t.index,
+  path: `t${t.index}.sti`,
+  frames: Array.from({ length: t.count }, () => ({ offsetX: 0, offsetY: 0, width: 40 })),
+  auxData: null,
+  structures: null,
+}));
+const AT = 80 * WORLD_COLS + 80;
+
+interface SyntheticMap {
+  readonly structs?: ReadonlyMap<number, readonly number[]>;
+  readonly roofs?: ReadonlyMap<number, readonly number[]>;
+  readonly rooms?: ReadonlyMap<number, number>;
+  readonly defs: ReadonlyMap<number, StructureDef>;
+}
+
+function syntheticRevealWorld(m: SyntheticMap): RevealWorld {
+  const tiles = buildTileDatabase(tables, surfaces).map((te) => {
+    const structure = m.defs.get(te.index);
+    return structure ? { ...te, structure } : te;
+  });
+  const empty = layerWith(() => []);
+  const rooms = new Uint8Array(WORLD_MAX);
+  for (const [g, room] of m.rooms ?? []) rooms[g] = room;
+  const level = {
+    tilesetId: 0,
+    heights: new Uint8Array(WORLD_MAX),
+    rooms,
+    layers: {
+      land: empty,
+      objects: empty,
+      structs: layerWith((g) => m.structs?.get(g) ?? []),
+      shadows: empty,
+      roofs: layerWith((g) => m.roofs?.get(g) ?? []),
+      onRoof: empty,
+      topmost: empty,
+    },
+  } as Level;
+  const placed = placeWorldStructures(level, tiles);
+  return { level: placed.level, tiles, tables, structures: placed.structures, basement: false };
+}
+
+describe('room reveals find a structure by its base tile', () => {
+  it('shows a single-tile obstacle of a revealed room through', () => {
+    const crate = tileIndex(tables, 'FIRSTOSTRUCT1');
+    const w = syntheticRevealWorld({
+      structs: new Map([[AT, [crate]]]),
+      rooms: new Map([[AT, ROOM]]),
+      defs: new Map([[crate, syntheticStructure(StructureFlags.GENERIC)]]),
+    });
+    expect(computeReveal(w, new Set([ROOM])).nodeFlags('structs', AT, 0)).toBe(NodeFlags.SHOW_THROUGH);
+  });
+
+  it('hides a slanted roof whose base tile alone lies in the revealed room', () => {
+    const slanted = tileIndex(tables, 'FIRSTSLANTROOF1');
+    const roof = syntheticStructure(StructureFlags.SLANTED_ROOF, Orientation.NONE, {
+      tiles: [
+        [0, 0],
+        [1, 0],
+      ],
+    });
+    const w = syntheticRevealWorld({ roofs: new Map([[AT, [slanted]]]), rooms: new Map([[AT, ROOM]]), defs: new Map([[slanted, roof]]) });
+    expect(computeReveal(w, new Set([ROOM])).nodeFlags('roofs', AT, 0)).toBe(NodeFlags.HIDDEN | NodeFlags.SHOW_THROUGH);
+  });
+
+  it("draws a wall end piece's broken-wall wireframe towards a roofed tile", () => {
+    const endPiece = tileIndexFromTypeSubIndex(tables, typeIndex(tables, 'FIRSTWALL'), 48);
+    const roofTile = tileIndex(tables, 'FIRSTROOF1');
+    const w = syntheticRevealWorld({
+      structs: new Map([[AT, [endPiece]]]),
+      roofs: new Map([[AT + WORLD_COLS, [roofTile]]]),
+      defs: new Map([
+        [endPiece, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT)],
+        [roofTile, syntheticStructure(StructureFlags.NORMAL_ROOF)],
+      ]),
+    });
+    const wires = computeReveal(w, new Set())
+      .wireframes(AT)
+      .map((n) => n.tile);
+    expect(wires).toContain(tileIndex(tables, 'WIREFRAMES12'));
+    expect(wires).not.toContain(tileIndex(tables, 'WIREFRAMES6'));
+  });
+});
 
 describe('revealed rooms on the stub village', () => {
   let data: DataVfs;

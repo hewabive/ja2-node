@@ -79,11 +79,15 @@ class RevealBuilder {
     });
   }
 
-  #baseNode(s: StructureInstance): { layer: LayerName; index: number } | null {
-    const layers: readonly LayerName[] = s.cubeOffset === STRUCTURE_ON_ROOF ? ['roofs', 'objects', 'onRoof'] : ['structs', 'objects'];
+  #baseNode(s: StructureInstance): { gridNo: number; layer: LayerName; index: number } | null {
+    const base = this.#w.structures.findBase(s);
+    if (!base) return null;
+    const layers: readonly LayerName[] = base.cubeOffset === STRUCTURE_ON_ROOF ? ['roofs', 'objects', 'onRoof'] : ['structs', 'objects'];
     for (const layer of layers) {
-      const list = levelTilesAt(this.#w.level.layers[layer], s.baseGridNo);
-      for (let i = 0; i < list.length; i++) if (this.#w.tiles[list[i] ?? 0]?.structure === s.def) return { layer, index: i };
+      const list = levelTilesAt(this.#w.level.layers[layer], base.gridNo);
+      for (let i = 0; i < list.length; i++) {
+        if (this.#w.tiles[list[i] ?? 0]?.structure === base.def) return { gridNo: base.gridNo, layer, index: i };
+      }
     }
     return null;
   }
@@ -108,7 +112,7 @@ class RevealBuilder {
       }
       const node = this.#baseNode(s);
       if (!node) continue;
-      this.#mark(node.layer, s.baseGridNo, node.index, NodeFlags.SHOW_THROUGH | (slanted ? NodeFlags.HIDDEN : 0));
+      this.#mark(node.layer, node.gridNo, node.index, NodeFlags.SHOW_THROUGH | (slanted ? NodeFlags.HIDDEN : 0));
     }
   }
 
@@ -126,11 +130,11 @@ class RevealBuilder {
 
   #wallWireframe(g: number, s: StructureInstance): number {
     const w = this.#w;
-    const base = w.structures.at(s.baseGridNo).find((b) => b.def === s.def && has(b.flags, StructureFlags.BASE_TILE));
+    const base = w.structures.findBase(s);
     if (base) {
       for (const t of levelTilesAt(w.level.layers.structs, g)) {
         const te = w.tiles[t];
-        if (te?.structure !== base.def || base.baseGridNo !== g) continue;
+        if (te?.structure !== base.def || base.gridNo !== g) continue;
         const subIndex = t - (w.tables.types[te.type]?.start ?? 0) + 1;
         const broken = BROKEN_WALL_WIREFRAMES[subIndex];
         if (broken !== undefined) return broken;
