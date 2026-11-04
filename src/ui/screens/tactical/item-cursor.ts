@@ -173,7 +173,7 @@ export function combineCommand(cursor: ItemCursor | null, target: number, slot: 
   return { type: 'combineStack', soldier: s.soldier, slot, ...combineSource(s), ...otherSoldier(s, target) };
 }
 
-export function cursorAfterCombine(cursor: ItemCursor, data: unknown): ItemCursor | null {
+export function remainingCursor(cursor: ItemCursor, data: unknown): ItemCursor | null {
   const result = data as { readonly left?: number; readonly index?: number } | undefined;
   if ((result?.left ?? 0) <= 0) return null;
   const s = cursor.source;

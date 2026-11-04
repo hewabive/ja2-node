@@ -3,12 +3,12 @@ import type { SoldierView } from '../../../protocol/view.ts';
 import {
   applyCommand,
   combineCommand,
-  cursorAfterCombine,
   cursorFromSlot,
   dropCommand,
   giveCommand,
   type ItemCursor,
   passCommand,
+  remainingCursor,
   tossCommand,
 } from './item-cursor.ts';
 
@@ -122,8 +122,8 @@ describe('the CTRL+click of a cursor on a stack (UIHandleItemPlacement, CleanUpS
 
   it('keeps the cursor while objects are left in it, on the index the server put them at', () => {
     const cursor = at({ kind: 'slot', soldier: 0, slot: 7, count: 1, index: 0 });
-    expect(cursorAfterCombine(cursor, { combined: true, left: 0 })).toBeNull();
-    expect(cursorAfterCombine(cursor, { combined: true, left: 1, index: 2 })?.source).toMatchObject({ index: 2 });
-    expect(cursorAfterCombine(cursor, { combined: false, left: 1 })).toBe(cursor);
+    expect(remainingCursor(cursor, { combined: true, left: 0 })).toBeNull();
+    expect(remainingCursor(cursor, { combined: true, left: 1, index: 2 })?.source).toMatchObject({ index: 2 });
+    expect(remainingCursor(cursor, { combined: false, left: 1 })).toBe(cursor);
   });
 });

@@ -10,7 +10,8 @@
 // @src Interface_Items.cc RemoveMoney, BtnMoneyButtonCallback* (the money box splits money off a pocket into the cursor,
 // @src then the drop places it: one command); Interface_Items.cc BeginItemPointer (SHIFT takes the stack onto the
 // @src portrait too) and Drugs_And_Alcohol.cc ApplyDrugs from SMInvClickCamoCallback (2026-11-04); Items.cc ApplyCanteen
-// @src (the drinking sound by the profile's sex, 2026-11-04).
+// @src (the drinking sound by the profile's sex) and SMInvClickCamoCallback (the item pointer ends only with no object
+// @src left in it, 2026-11-04).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -626,7 +627,12 @@ export function applyItem(env: PanelEnv, req: ApplyRequest): PanelOutcome {
   env.equipmentChanged(user, slot, item, NOTHING);
   const sound = application.sound?.(env, target);
   application.apply(env, target, cursor);
+  const left = cursor.count;
   cancelCursor(env, user, slot, cursor);
   env.emit({ type: 'itemApplied', soldier: user.id, target: target.id, item: itemName, ...(sound ? { sound } : {}) });
-  return { ok: true, data: { item: itemName } };
+  return { ok: true, data: { item: itemName, left, ...(left > 0 && req.count === 1 ? { index: topOfStack(user, slot) } : {}) } };
+}
+
+function topOfStack(s: Soldier, slot: number): number {
+  return (s.inv[slot]?.count ?? 0) - 1;
 }

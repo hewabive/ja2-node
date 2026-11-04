@@ -11,7 +11,8 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (CTRL cleans up the stack clicked, UIHandleItemPlacement
 // @src with the cursor's objects of the same item, A_CHANGE_TO_MOVE after a placement but not after a merge, 2026-11-02),
 // @src SMInvClickCallbackSecondary (the stack popup for a
-// @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback,
+// @src stack, else the description box), SMInvMoveCallback, SMInvMoveCamoCallback, SMInvClickCamoCallback (the cursor
+// @src kept while objects are left in it, 2026-11-04),
 // @src MergeMessageBoxCallBack, ReevaluateItemHatches; Interface_Items.cc InternalBeginItemPointer and EndItemPointer
 // @src (gbItemPointerLocateGood from a slot's object taken into the cursor until it leaves the cursor, 2026-11-02).
 
@@ -32,7 +33,6 @@ import {
   type CursorSource,
   cancelCommand,
   combineCommand,
-  cursorAfterCombine,
   cursorFromKeyRing,
   cursorFromSlot,
   hidesSlot,
@@ -42,6 +42,7 @@ import {
   placeCommand,
   REFUSAL_MERGE_PROMPT,
   REFUSAL_USE_ATTACH,
+  remainingCursor,
   returnsToItsSlot,
   shownCount,
   slotItem,
@@ -391,7 +392,7 @@ export class InventoryPanel {
     if (!cursor || !cmd) return;
     const reply = await this.send(cmd);
     if (reply.ok) {
-      if (this.#cursor === cursor) this.#cursor = cursorAfterCombine(cursor, reply.data);
+      if (this.#cursor === cursor) this.#cursor = remainingCursor(cursor, reply.data);
       return;
     }
     await this.#attachOrMerge(target, slot, refusalOf(reply.data));
@@ -466,7 +467,7 @@ export class InventoryPanel {
     const cmd = applyCommand(cursor, sm.id);
     if (!cmd) return;
     void this.send(cmd).then((reply) => {
-      if (reply.ok) this.#cursor = null;
+      if (reply.ok && this.#cursor === cursor) this.#cursor = remainingCursor(cursor, reply.data);
     });
   }
 

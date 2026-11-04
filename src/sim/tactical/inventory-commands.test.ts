@@ -408,6 +408,23 @@ describe('items applied to a merc and dropped', () => {
     ]);
   });
 
+  it('tells what is left in the cursor after an apply, and where one object left went back on top of its stack', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.BIGPOCK1] = createItems(content.items, item('CANTEEN'), 100, 3);
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({ data: { left: 1, index: 2 } });
+    expect(merc.inv[InvSlot.BIGPOCK1]?.status.slice(0, 3)).toEqual([100, 100, 80]);
+    merc.inv[InvSlot.BIGPOCK2] = createItems(content.items, item('ADRENALINE_BOOSTER'), 100, 3);
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2', index: 1 })).toEqual({
+      ok: true,
+      data: { item: 'ADRENALINE_BOOSTER', left: 0 },
+    });
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2', count: 'all' })).toEqual({
+      ok: true,
+      data: { item: 'ADRENALINE_BOOSTER', left: 1 },
+    });
+  });
+
   it('paints camouflage', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);

@@ -91,9 +91,10 @@ lock: frames arrive unevenly under the real-time driver and a tick threshold mad
 (deviations "Turn-based UI lock", "Playback lock").
 
 **The item cursor and the pickup menu live in the client.** The cursor is a local selection drawn as the mouse cursor
-until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it (deviation
-"Item cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp`
-(deviation "Pickup menu").
+until one command (`moveItem`, `attach`, `applyItem`, `drop`, `give`, `toss`, `pass`, …) ends it; a refusal keeps it,
+and so does a `combineStack` or an `applyItem` that leaves objects in it, at the index its answer names (deviation "Item
+cursor on the canvas"). The pickup menu opens on the clicked tile before the walk, and OK sends one `pickUp` (deviation
+"Pickup menu").
 
 **The overhead map is the picture the player last saw.** The original composes it from the level nodes at every entry;
 ja2-node composes it in the client at every entry (`redrawOverheadMap`) from what the world renderer last drew: the

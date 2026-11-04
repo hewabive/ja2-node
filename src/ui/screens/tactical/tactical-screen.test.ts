@@ -634,6 +634,36 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(merc.inv[NEXT_BIG_POCKET]?.status.slice(0, 1)).toEqual([15]);
   });
 
+  it('keeps the canteen it drank from in the cursor while water is left and ends the cursor with the last beer, as SMInvClickCamoCallback does', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const merc = t.soldiers[0];
+    if (!merc) throw new Error('no merc 0');
+    const items = t.content.items;
+    const objects = (name: string, status: readonly number[]) => ({
+      ...createItem(items, items.byName.get(name)?.index ?? 0, 0),
+      count: status.length,
+      status: [...status],
+    });
+    merc.inv[BIG_POCKET] = objects('CANTEEN', [100, 100]);
+    merc.inv[NEXT_BIG_POCKET] = objects('BEER', [100]);
+    f.client.refresh();
+    await smPanelOf(f, 0);
+    await f.click(`slot${BIG_POCKET}`);
+    for (let drink = 0; drink < 2; drink++) {
+      await f.click('smBodyRegion');
+      await f.settle();
+      expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'slot', slot: BIG_POCKET, count: 1, index: 1 });
+    }
+    expect(merc.inv[BIG_POCKET]?.status.slice(0, 2)).toEqual([100, 60]);
+    await f.click(`slot${BIG_POCKET}`);
+    await f.click(`slot${NEXT_BIG_POCKET}`);
+    await f.click('smBodyRegion');
+    await f.settle();
+    expect(f.client.commands.at(-1)?.reply).toMatchObject({ ok: true, data: { item: 'BEER', left: 0 } });
+    expect(f.screen.inventory.cursor).toBeNull();
+  });
+
   it('drops keys taken off the key ring at the merc’s feet with a click on his tile', async () => {
     const f = await tacticalUiTest(kit, ui);
     const merc = tacticalOf(f.session).state.soldiers[0];
