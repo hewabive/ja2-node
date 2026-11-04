@@ -46,10 +46,9 @@ arithmetic. Spatial reasoning over JSON (cover, elevation, roofs) is the weak pa
 manual driver, which pauses between any two ticks, or by waiting on a viewer's real time (§4.6); real-time control by
 an LLM agent without pausing is a non-goal.
 
-**Not built as commands** (the client shows them disabled): using wire cutters, toolkits, gas cans, jars and tin cans
-on a tile, and the x-ray detector (gap "Unbuilt item actions"; `previewAction` answers `notSupported`,
-`useRemote` refuses the detector); auto-bandage (gap "Auto-bandage"); the placement GUI (deviation "Tactical
-placement"); vehicles' condition and fuel (gap "Vehicles as characters").
+**Not built as commands** (the client shows them disabled): repairing and refuelling a vehicle with a toolkit or a gas
+can (gap "Ground vehicles"; `previewAction` answers `notSupported`); auto-bandage (gap "Auto-bandage"); the placement
+GUI (deviation "Tactical placement"); vehicles' condition and fuel (gap "Vehicles as characters").
 
 ## 3. Fairness: what the agent never sees
 
@@ -61,7 +60,7 @@ original's message. Per domain:
 
 | Domain | Shown | Never shown |
 |---|---|---|
-| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints); lock tables, trap levels, lock damage |
+| Tactical | Our soldiers in full, with what the original's panels and face read; others in sight with their visible fields, the sheet they show, their camouflage paint, `hostile` and the health category, and for a few 60 ms steps a soldier the squad has just lost (`fadingOut`, as the original draws him fading); doors with the lock and trap state the player knows | Others' life; unseen soldiers (absent from the view, events and hints, but for the tile and radar colour of those an x-ray detector shows); lock tables, trap levels, lock damage |
 | Sound, bullets, blood | The side and loudness of what the squad hears; bullets of shooters we see; blood pools as the squad last saw them (deviation "Blood on the ground") | The grid of an unseen source; bullets of unseen shooters |
 | Conversations and NPCs | Lines, the menu, requests, NPCs in sight | Facts, quest states, records and their conditions, desire, approach values, opinions, NPC inventories and cash, balances beyond what a message printed (Kingpin's, the hospital's modifier and refund), profile whereabouts and schedules (`npcMoved` is not an event), NPC system events |
 | Strategic map | Enemy counts by the player's knowledge (`16`), our groups; seen enemy soldiers in tactical show their class through the uniform | The Queen's state: garrisons, compositions, group routes, intentions, pool, alertness and the event queue (her evaluations, enemy arrivals, creature attacks, NPC timers, scheduled meanwhiles); enemy groups other than through the counts |
@@ -322,7 +321,9 @@ draws them and lights over them (`20`). `slantRoofCeilings` lists the tiles wher
 took off shows its ceiling, the tiles of the roof no merc has seen yet (`08`). `knownMines` lists the tiles our side
 knows to hold a mine (a blue flag, a mine the militia spotted, a mine one of our mercs planted), which the
 paths of our team avoid unless the tile is the destination and the militia's always; where the enemy knows mines, trap
-levels, bomb timers and owners are never shown (`12` §6). Animation schedules, palettes and light sprites serve the
+levels, bomb timers and owners are never shown (`12` §6). `radarContacts` is there only while an x-ray detector shows
+soldiers the squad does not see: their tile and the colour the radar draws them in (`enemy`, `creature`, `militia`,
+`civilian`, `hostileCivilian`, `namedCivilian`, `unconscious`), no id, as the radar shows no more. Animation schedules, palettes and light sprites serve the
 renderer and the devtools.
 
 **Events** (`src/sim/events.ts` and the domain event files) come with `advance` reports; a browser gets the same in
@@ -480,7 +481,21 @@ original's walk-up and `HandleStructChangeFromGridNo`; a sector remembers which 
 presses the remote trigger in hand: the O3 statue's at once (`26`, deviation "Remote trigger"); the remote bomb trigger
 after its hand item roll (`itemBroken`) for 2 AP, standing through its animation for 2 more, then `remoteFrequency`
 asks, and the answer sets off every armed remote bomb of that frequency through the bomb queue (`remoteUsed {result:
-bombs, frequency}`).
+bombs, frequency}`). The x-ray detector takes `useRemote` too: after its hand item roll, 2 AP and no animation, it uses
+8 to 12 points of its batteries (`remoteUsed {result: xray}`; without batteries it does nothing more) and shows every
+soldier of another team within 40 tiles on the radar (`radarContacts`, §7) until the merc's next turn starts in combat
+or more than 5 world seconds have passed at a real-time turn.
+
+The tools of the original's item cursors on a tile are commands of their own (`src/sim/tactical/tile-tools.ts`, rules
+`12` §7), each `{soldier, gridNo}` with `HandleItem`'s walk beside the tile and AP check: `cutFence` (wire cutters on a
+whole wire fence at his level 0; `fenceCut`, a `swap` in `tileChanges`, and soldiers pass the cut fence), `fillJar` (an
+empty jar beside a corpse: `jarFilled {item}` with creature, queen creature or human blood, the one Gabby makes elixir
+of being the creature blood; no corpse there gives his NOTHING battle sound, `nothingFound`) and `attachCan` (the tin
+can on a string on a door's tile: `canAttached`, and the door makes three times the noise when opened). Refusals:
+`noWireCutters`, `noJar`, `noCan` (the hand gives no such cursor), `noFence` (the cursor's check of
+`UIMouseOnValidAttackLocation`), `noInteractiveTile`, then the hand item roll (`itemBroken`), `noPath` and `notEnoughAP`.
+`previewAction` kinds `cutFence`, `jar` and `can` give what their cursors show: the walk beside the tile, the APs and,
+as `ok`, whether the cursor turns good.
 
 ### 8.3 Inventory, money and first aid
 

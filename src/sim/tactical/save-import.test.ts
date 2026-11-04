@@ -56,6 +56,8 @@ const SMERC_FWD = 3;
 const ROTTING_CORPSE_FIND_SWEETSPOT = 0x01;
 const SOLDIER_LOOKFOR_ITEMS = 0x200;
 const SOLDIER_GASSED = 0x01000000;
+const SOLDIER_MISC_XRAYED = 0x04;
+const DOOR_HAS_TIN_CAN = 0x10;
 
 type SoldierFields = Readonly<Record<string, number>>;
 
@@ -485,6 +487,35 @@ describe('importSave, the tactical part of LoadSavedGame', () => {
       armyGuysKilled: 4,
     });
     expect(enemy.hasKeys).toBe(-64);
+  });
+
+  it('restores the x-ray: when a merc started it, and whom it shows by xrayed_by while SOLDIER_MISC_XRAYED is set', () => {
+    const enemyId = 20;
+    const save = syntheticSave({
+      soldiers: [
+        savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82), { uiXRayActivatedTime: 4321 }),
+        savedSoldier(enemyId, Team.ENEMY, gridNo(80, 92), { ubMiscSoldierFlags: SOLDIER_MISC_XRAYED, xrayed_by: MERC_ID }),
+        savedSoldier(enemyId + 1, Team.ENEMY, gridNo(84, 92), { xrayed_by: MERC_ID }),
+      ],
+    });
+    const sim = importedSim(save);
+    const merc = soldierOf(sim, MERC_ID);
+    expect(merc.xrayActivatedTime).toBe(4321);
+    expect([soldierOf(sim, enemyId).xrayedBy, soldierOf(sim, enemyId + 1).xrayedBy]).toEqual([merc, null]);
+  });
+
+  it('keeps a tin can on a door from the door status flags (DOOR_HAS_TIN_CAN)', () => {
+    const sim = importedSim(syntheticSave({ soldiers: [savedSoldier(MERC_ID, Team.OUR, gridNo(80, 82))] }));
+    const [canned, plain] = [gridNo(70, 70), gridNo(72, 70)];
+    loadSavedSectorChanges(sim, {
+      mapModifications: null,
+      revealed: null,
+      doorStatus: [
+        { gridNo: canned, flags: DOOR_HAS_TIN_CAN },
+        { gridNo: plain, flags: 0 },
+      ],
+    });
+    expect([sim.state.doorStatus.get(canned)?.hasTinCan, sim.state.doorStatus.get(plain)?.hasTinCan]).toEqual([true, false]);
   });
 
   it('restores the gassed state of a soldier (SOLDIER_GASSED)', () => {

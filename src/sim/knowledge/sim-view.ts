@@ -9,6 +9,7 @@ import { shownToPlayer } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { type BulletView, bloodViews, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
+import { radarContacts } from '../tactical/xray.ts';
 
 const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
 
@@ -22,6 +23,7 @@ function currentSquadView(t: TacticalState): number | null {
 }
 
 export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTimeline = NO_PRESENTATION) {
+  const contacts = radarContacts(sim.state);
   return {
     mapPath: sim.mapPath,
     soldiers: sim.snapshot(presentation, shownToPlayer),
@@ -41,6 +43,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     tileChanges: tileChangeViews(sim.state),
     blood: bloodViews(sim.state),
     ...(sim.state.turn.lockItemLocators ? { itemLocatorsLocked: true } : {}),
+    ...(contacts.length > 0 ? { radarContacts: contacts } : {}),
   };
 }
 

@@ -11,7 +11,8 @@
 // @src (away slots of off-map soldiers); TileEngine/WorldDef.cc InitLoadedWorld (costs and lights after the temp files,
 // @src before UpdateMercsInSector; SetBlueFlagFlags, 2026-11-04); TileEngine/SaveLoadMap.cc
 // @src LoadRevealedStatusArrayFromRevealedTempFile; LoadSaveTacticalStatusType.cc ExtractTacticalStatusTypeFromFile (the
-// @src panic fields, 2026-11-04).
+// @src panic fields, 2026-11-04); Tactical/LoadSaveSoldierType.cc (uiXRayActivatedTime, xrayed_by with
+// @src SOLDIER_MISC_XRAYED) and Keys.h DOOR_HAS_TIN_CAN (2026-11-04).
 
 import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -68,6 +69,7 @@ const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
 const DOOR_OPEN = 0x01;
 const DOOR_PERCEIVED_OPEN = 0x02;
 const DOOR_PERCEIVED_NOTSET = 0x04;
+const DOOR_HAS_TIN_CAN = 0x10;
 const NOBODY = TOTAL_SOLDIERS;
 const SAVED_OPPLIST_ENTRIES = 148;
 const SOLDIER_QUOTE_SAID_BEING_PUMMELED = 0x0004;
@@ -78,6 +80,7 @@ const SAVED_NO_PENDING_STANCE = 254;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
 const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
+const SOLDIER_MISC_XRAYED = 0x04;
 const AI_FLAG_ASLEEP = 0x20;
 const AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE = 0x40;
 const AI_FLAG_CHECK_SCHEDULE = 0x80;
@@ -335,6 +338,7 @@ function storedDoorStatus(d: SavedDoorStatus): StoredDoorStatus {
     open: (d.flags & DOOR_OPEN) !== 0,
     perceivedOpen: (d.flags & DOOR_PERCEIVED_OPEN) !== 0,
     perceivedNotSet: (d.flags & DOOR_PERCEIVED_NOTSET) !== 0,
+    hasTinCan: (d.flags & DOOR_HAS_TIN_CAN) !== 0,
   };
 }
 
@@ -474,6 +478,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.gassed = (r.statusFlags & SoldierStatusFlags.GASSED) !== 0;
   s.lookForItems = (r.statusFlags & SoldierStatusFlags.LOOKFOR_ITEMS) !== 0;
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
+  s.xrayActivatedTime = r.xrayActivatedTime;
   s.breathMax = r.stats.breathMax;
   s.breathRed = r.breathRed;
   s.bleeding = r.bleeding;
@@ -642,6 +647,7 @@ function linkSoldier(t: TacticalState, s: Soldier, r: SavedSoldier): void {
   s.attacker = soldierById(t, r.attacker);
   s.previousAttacker = soldierById(t, r.previousAttacker);
   s.nextToPreviousAttacker = soldierById(t, r.nextToPreviousAttacker);
+  s.xrayedBy = (r.miscSoldierFlags & SOLDIER_MISC_XRAYED) !== 0 ? soldierById(t, r.xrayedBy) : null;
 }
 
 const PUBLIC_LAST_KNOWN_AFTER_WORLD_LOAD = NOWHERE;

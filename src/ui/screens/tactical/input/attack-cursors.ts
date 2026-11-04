@@ -46,12 +46,38 @@ export interface AttackContext {
 }
 
 const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], string>>> = {
-  wirecutter: 'BAD_WIRECUTTER_UICURSOR',
   repair: 'BAD_REPAIR_UICURSOR',
   refuel: 'REFUEL_GREY_UICURSOR',
-  jar: 'BAD_JAR_UICURSOR',
-  tincan: 'PLACE_TINCAN_GREY_UICURSOR',
 };
+
+export type TileToolCursor = 'wirecutter' | 'jar' | 'tincan';
+
+const TILE_TOOL_CURSORS: Readonly<Record<TileToolCursor, readonly [good: string, bad: string]>> = {
+  wirecutter: ['GOOD_WIRECUTTER_UICURSOR', 'BAD_WIRECUTTER_UICURSOR'],
+  jar: ['GOOD_JAR_UICURSOR', 'BAD_JAR_UICURSOR'],
+  tincan: ['PLACE_TINCAN_GREY_UICURSOR', 'PLACE_TINCAN_RED_UICURSOR'],
+};
+
+export const TILE_TOOL_ACTIONS: Readonly<Record<TileToolCursor, 'cutFence' | 'jar' | 'can'>> = {
+  wirecutter: 'cutFence',
+  jar: 'jar',
+  tincan: 'can',
+};
+
+export const TILE_TOOL_ORDERS: Readonly<Record<TileToolCursor, 'cutFence' | 'fillJar' | 'attachCan'>> = {
+  wirecutter: 'cutFence',
+  jar: 'fillJar',
+  tincan: 'attachCan',
+};
+
+export function isTileToolCursor(cursor: EstimateAttack['cursor']): cursor is TileToolCursor {
+  return cursor in TILE_TOOL_CURSORS;
+}
+
+export function tileToolCursor(cursor: TileToolCursor, good: boolean): string {
+  const [goodCursor, badCursor] = TILE_TOOL_CURSORS[cursor];
+  return good ? goodCursor : badCursor;
+}
 
 const RING_CURSOR = ['1', '3', '5', '7', '9'] as const;
 
@@ -91,6 +117,10 @@ export function attackCursor(e: EstimateAttack, aim: AimState, c: AttackContext)
       return withAp(c.activated ? 'PLACE_BOMB_RED_UICURSOR' : 'PLACE_BOMB_GREY_UICURSOR', e, c.inCombat);
     case 'other':
       return plain('NO_UICURSOR');
+    case 'wirecutter':
+    case 'jar':
+    case 'tincan':
+      return plain(tileToolCursor(e.cursor, false));
     default:
       return plain(UNBUILT_ACTION_CURSORS[e.cursor] ?? 'INVALID_ACTION_UICURSOR');
   }

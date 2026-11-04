@@ -41,7 +41,10 @@
 // @src Soldier_Find.cc CycleSoldierFindStack (gUIActionModeChangeDueToMouseOver cleared on the ground, gUITargetSoldier);
 // @src UI_Cursors.cc HandleBombCursor (the walk onto the tile and its move grid, MOVEUI_TARGET_BOMB of Handle_UI.cc
 // @src DrawUIMovementPath), Handle_UI.cc UIMouseOnValidAttackLocation (BOMBCURS: his own tile or one he could stand on)
-// @src and Handle_Items.cc HandleItem's bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04).
+// @src and Handle_Items.cc HandleItem's bomb branch (the order to plant, A_CHANGE_TO_MOVE, 2026-11-04); UI_Cursors.cc
+// @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the walk, the move grid and the AP in combat of
+// @src DrawUIMovementPath; the good cursor over a cuttable fence at ground level, a corpse, a door's interactive tile),
+// @src UIMouseOnValidAttackLocation (WIRECUTCURS) and HandleItem's wire cutters, jar and tin can (2026-11-04).
 
 import { Body } from '../../../../content/anim/body-types.ts';
 import { idiv } from '../../../../core/int.ts';
@@ -78,9 +81,14 @@ import {
   aimTimeOf,
   attackCursor,
   confirmsBeforeAttack,
+  isTileToolCursor,
   ordersAnAttack,
   REFINE_AIM_1,
   rightClickAdjust,
+  TILE_TOOL_ACTIONS,
+  TILE_TOOL_ORDERS,
+  type TileToolCursor,
+  tileToolCursor,
   wheelAdjust,
 } from './attack-cursors.ts';
 import { dataOf, type HintState, hintNow, hintState } from './hints.ts';
@@ -1214,6 +1222,7 @@ export class TacticalInput {
 
   #validAttackLocation(sel: SoldierView, e: EstimateAttack): boolean {
     if (e.cursor === 'invalid') return false;
+    if (e.cursor === 'wirecutter') return this.#tileToolPreview(sel, 'wirecutter')?.refusal !== 'noFence';
     if (e.cursor === 'bomb') return this.#validBombTile(sel);
     const target = this.#hover.target;
     if (target?.id === sel.id && e.cursor !== 'aid') return false;
@@ -2505,6 +2514,7 @@ export class TacticalInput {
     }
     if (estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#meleeWalkPath(sel, estimate, activated);
     if (estimate.cursor === 'bomb') this.#bombWalkPath(sel, mapPos);
+    if (isTileToolCursor(estimate.cursor)) this.#tileToolWalkPath(sel, estimate.cursor);
     if (
       (estimate.cursor === 'toss' || estimate.cursor === 'trajectory') &&
       estimate.landsAt !== undefined &&
@@ -2533,6 +2543,31 @@ export class TacticalInput {
     this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
     this.#showMoveGridAt = mapPos;
     this.#showMoveGrid = 1;
+  }
+
+  #tileToolPreview(sel: SoldierView, cursor: TileToolCursor): PreviewAction | null {
+    const mapPos = this.#mapPos();
+    if (mapPos === null) return null;
+    const kind = TILE_TOOL_ACTIONS[cursor];
+    const gridNo = kind === 'can' ? (this.#interactiveTile()?.gridNo ?? mapPos) : mapPos;
+    const level = this.#host.interfaceLevel();
+    return dataOf(this.#hint<PreviewAction>({ type: 'previewAction', soldier: sel.id, gridNo, kind, level, mode: this.moveModeOf(sel) }));
+  }
+
+  #tileToolWalkPath(sel: SoldierView, cursor: TileToolCursor): void {
+    const data = this.#tileToolPreview(sel, cursor);
+    const overDoor = cursor !== 'tincan' || this.#interactiveTile()?.door === true;
+    this.#newCursor = tileToolCursor(cursor, data?.ok === true && overDoor);
+    if (!data) return;
+    this.#steps = this.#plots() ? footstepMarkers(data.steps, sel.level) : [];
+    if (data.actionGridNo !== sel.gridNo) {
+      this.#showMoveGridAt = data.actionGridNo;
+      this.#showMoveGrid = 1;
+    }
+    if (!this.#combat()) return;
+    this.#currentAp = data.apCost;
+    this.#displayAp = this.#pathfindDone();
+    this.#apInvalid = !data.affordable;
   }
 
   #markFreeCursor(result: AttackCursor): void {
@@ -2635,6 +2670,11 @@ export class TacticalInput {
     }
     if (estimate?.cursor === 'bomb') {
       void this.#host.sendBusyOrder({ type: 'plantBomb', soldier: sel.id, gridNo });
+      this.#pending = UiEvent.A_CHANGE_TO_MOVE;
+      return;
+    }
+    if (estimate && isTileToolCursor(estimate.cursor)) {
+      void this.#host.sendBusyOrder({ type: TILE_TOOL_ORDERS[estimate.cursor], soldier: sel.id, gridNo });
       this.#pending = UiEvent.A_CHANGE_TO_MOVE;
       return;
     }

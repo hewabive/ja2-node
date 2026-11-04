@@ -50,6 +50,9 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
     }
     requests.push({ ...base, kind: 'aid', gridNo: s.gridNo });
     for (const off of [0, ...LOOK_OFFSETS]) requests.push({ ...base, kind: 'bomb', gridNo: s.gridNo + off });
+    for (const kind of ['cutFence', 'jar', 'can'] as const)
+      for (const off of [0, ...LOOK_OFFSETS]) requests.push({ ...base, kind, gridNo: s.gridNo + off });
+    for (const corpse of view.corpses ?? []) requests.push({ ...base, kind: 'jar', gridNo: corpse.gridNo });
     const pocket = (s.inventory ?? []).find((i) => i.slot !== InvSlot.HAND);
     if (pocket) {
       const toss = { ...base, kind: 'toss', slot: pocket.slot };
@@ -67,6 +70,7 @@ export function sampleActionHints(view: PlayerView, options: ActionSampleOptions
     for (const g of doors) {
       requests.push({ ...base, kind: 'door', gridNo: g });
       requests.push({ ...base, kind: 'door', gridNo: g, mode: 'swat' });
+      requests.push({ ...base, kind: 'can', gridNo: g });
     }
   }
   const first = own(view)[0];

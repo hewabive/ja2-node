@@ -94,6 +94,16 @@ describe('view frames', () => {
     expect(cleared && applyViewFrame(marked, cleared).knownMines).toEqual([]);
   });
 
+  it('carry the radar contacts of x-rayed soldiers while the x-ray shows them, and an empty list once it stops', () => {
+    const contact = { gridNo: 12000, kind: 'enemy' as const };
+    const xrayed: PlayerView = { ...base, tick: 20, radarContacts: [contact] };
+    expect(diffPlayerView(base, { ...base, tick: 20 })).toBeNull();
+    expect(diffPlayerView(base, xrayed)).toEqual({ tick: 20, changed: [], removed: [], radarContacts: [contact] });
+    const off = diffPlayerView(xrayed, { ...base, tick: 30 });
+    expect(off).toMatchObject({ radarContacts: [] });
+    expect(off && applyViewFrame(xrayed, off).radarContacts).toEqual([]);
+  });
+
   it('carry the current squad when the server makes another squad current or none', () => {
     const current: PlayerView = { ...base, currentSquad: 0 };
     expect(diffPlayerView(current, { ...current, tick: 20 })).toBeNull();

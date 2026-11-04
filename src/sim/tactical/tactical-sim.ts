@@ -15,7 +15,10 @@
 // @src Turn_Based_Input.cc HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT for a pickup or
 // @src search by an escort), Interface_Items.cc HandleItemPointerClick (no drop by an escort, the unconscious or a
 // @src swimmer in deep water, 2026-11-03); MessageBoxScreen.cc (the game stands while a box is up; its answer runs the
-// @src box's callback) and GameScreen.cc EndModalTactical (the stop-time quote's callback, 2026-11-04).
+// @src box's callback) and GameScreen.cc EndModalTactical (the stop-time quote's callback, 2026-11-04); Handle_UI.cc
+// @src UIMouseOnValidAttackLocation (WIRECUTCURS: a cuttable fence at ground level) and Turn_Based_Input.cc's click with the
+// @src wire cutters, jar and tin can (cutFence, fillJar, attachCan through HandleItem; the x-ray device takes useRemote,
+// @src 2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -34,6 +37,7 @@ import { applyOptionChange, type GameOptions, parseOptionChange } from '../optio
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
+import { actionModeCursor } from './action-cursor.ts';
 import { AiAction } from './ai/actions.ts';
 import {
   type AiControl,
@@ -177,6 +181,7 @@ import { endMultiSoldierSelection, selectionRefusal, selectOrderedMerc, selectSo
 import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team, Visible } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { type CrowStatus, createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
+import { fenceCuttableBy, handlePendingTileToolOnArrival, interactiveTileAt, tileToolOpcode } from './tile-tools.ts';
 import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { checkForEndOfCombatMode, endTurn, handleEnemySightingPause, handleRealtimeTurns } from './turns/turns.ts';
@@ -237,6 +242,7 @@ const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad mus
 const ESCORT_CANNOT_PICK_UP = 'an escort can neither pick up nor search';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
 const REMOTE_BOMB_TRIGGER = 'REMOTEBOMBTRIGGER';
+const XRAY_DEVICE = 'XRAY_DEVICE';
 const QUEUED_ORDER = 'the last order has not started yet: advance first';
 const NPC_DREW_FIRST = 'the neutral NPC drew first: no attack was made, and he turns on us';
 const BAD_GROUP: Refusal = { token: 'badGroup', reason: 'group must list controllable mercs of yours in the sector' };
@@ -297,6 +303,17 @@ const PLANT_BOMB_REFUSALS: Readonly<Record<PlantBombRefusal, string>> = {
   noPath: 'no path',
   badTile: 'the bomb cannot go on that tile: nobody could stand there',
   notEnoughAP: 'not enough APs to walk there and plant it',
+};
+
+interface TileToolOrder {
+  readonly cursor: number;
+  readonly refusal: readonly [token: string, reason: string];
+}
+
+const TILE_TOOL_ORDERS: Readonly<Record<string, TileToolOrder>> = {
+  cutFence: { cursor: ItemCursor.WIRECUT, refusal: ['noWireCutters', 'the soldier holds no wire cutters he can use'] },
+  fillJar: { cursor: ItemCursor.JAR, refusal: ['noJar', 'the soldier holds no empty jar he can use'] },
+  attachCan: { cursor: ItemCursor.TINCAN, refusal: ['noCan', 'the soldier holds no tin can on a string he can use'] },
 };
 
 const MELEE_ORDER_REFUSALS: Readonly<Record<MeleeOrderRefusal, string>> = {
@@ -379,6 +396,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       stealOpcode(state, s, code) ??
       robotReloadOpcode(state, s, code) ??
       bombOpcode(state, s, code) ??
+      tileToolOpcode(state, s, code) ??
       pullTriggerOpcode(state, s, code) ??
       crowOpcode(state, s, code) ??
       randomAnimOpcode(state, s, code),
@@ -395,7 +413,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       handlePendingGiveOnArrival(state, s) ||
       handlePendingAidOnArrival(state, s) ||
       handlePendingRobotReloadOnArrival(state, s) ||
-      handlePendingDropBombOnArrival(state, s),
+      handlePendingDropBombOnArrival(state, s) ||
+      handlePendingTileToolOnArrival(state, s),
     runningIntoGas: checkForRunningIntoGas,
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -724,6 +743,10 @@ export class TacticalSim {
         return this.#useRemote(cmd);
       case 'plantBomb':
         return this.#plantBomb(cmd);
+      case 'cutFence':
+      case 'fillJar':
+      case 'attachCan':
+        return this.#useTileTool(cmd);
       case 'door':
         return this.#door(cmd);
       case 'select':
@@ -946,7 +969,8 @@ export class TacticalSim {
     selectOrderedMerc(t, s);
     const hand = itemIn(s.inv, InvSlot.HAND);
     if (hand === t.content.items.byName.get(REMOTE_TRIGGER)?.index) return this.#pressStatueRemote(s);
-    if (hand !== t.content.items.byName.get(REMOTE_BOMB_TRIGGER)?.index) return refuse('noRemote', 'the soldier holds no remote trigger');
+    const remotes = [REMOTE_BOMB_TRIGGER, XRAY_DEVICE].map((name) => t.content.items.byName.get(name)?.index);
+    if (!remotes.includes(hand)) return refuse('noRemote', 'the soldier holds no remote trigger or x-ray detector');
     return this.#handItemResult(handleItem(t, s, s.gridNo, s.level, hand));
   }
 
@@ -970,6 +994,23 @@ export class TacticalSim {
     if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
     const planting = plantBombRefusal(t, s, g, t.narrative.isEpc(s));
     if (planting) return refuse(planting, PLANT_BOMB_REFUSALS[planting]);
+    return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
+  }
+
+  #useTileTool(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    selectOrderedMerc(t, s);
+    const g = cmd.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
+    const order = TILE_TOOL_ORDERS[cmd.type] as TileToolOrder;
+    if (actionModeCursor(t, s, t.narrative.isEpc(s)) !== order.cursor) return refuse(...order.refusal);
+    if (cmd.type === 'cutFence' && !fenceCuttableBy(t, s, g)) return refuse('noFence', 'no wire fence to cut on that tile at his level');
+    if (cmd.type === 'attachCan' && interactiveTileAt(t, g) === null)
+      return refuse('noInteractiveTile', 'nothing on that tile to tie the can to: give the gridNo of a door');
     return this.#handItemResult(handleItem(t, s, g, s.level, itemIn(s.inv, InvSlot.HAND)));
   }
 

@@ -79,6 +79,8 @@ const SCRIPTS_ADDED_AFTER_070 = [
   'PLANT_BOMB',
   'USE_REMOTE',
   'AI_PULL_SWITCH',
+  'CUTTING_FENCE',
+  'TAKE_BLOOD_FROM_CORPSE',
 ];
 const LOOPS_REPLACED_AFTER_070 = ['CROW_FLY', 'STANDING'];
 const STUB_FILES_ADDED_AFTER_070: ReadonlySet<string> = new Set(['stubs/anims/structdata/j_r_bret.jsd']);

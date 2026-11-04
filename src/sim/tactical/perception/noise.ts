@@ -2,13 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc MovementNoise, DoorOpeningNoise, MakeNoise, ProcessNoise, CalcEffVolume, DecideHearing,
 // @src HearNoise, TellPlayerAboutNoise (with QUOTE_HEARD_SOMETHING); Overhead.cc TeamMemberNear; SkillCheck.cc
-// @src EffectiveExpLevel, EffectiveDexterity; MovementNoise's adrenaline term (2026-11-04).
+// @src EffectiveExpLevel, EffectiveDexterity; MovementNoise's adrenaline term, DoorOpeningNoise's tin can (2026-11-04).
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { idiv, u8 } from '../../../core/int.ts';
 import { states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
+import { doorStatusAt } from '../doors/door-status.ts';
 import { adrenalineEffect } from '../drugs.ts';
 import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
@@ -132,8 +133,12 @@ export function movementNoise(t: TacticalState, s: Soldier): number {
   return volume;
 }
 
+const TIN_CAN_NOISE_FACTOR = 3;
+
 export function doorOpeningNoise(t: TacticalState, s: Soldier): number {
-  return movementNoise(t, s) === 0 ? 0 : DOOR_NOISE_VOLUME;
+  const tinCan = doorStatusAt(t, s.pendingDoorGridNo)?.hasTinCan === true;
+  const noise = tinCan ? DOOR_NOISE_VOLUME * TIN_CAN_NOISE_FACTOR : DOOR_NOISE_VOLUME;
+  return movementNoise(t, s) === 0 ? 0 : noise;
 }
 
 const TANK_HEARING = -5;

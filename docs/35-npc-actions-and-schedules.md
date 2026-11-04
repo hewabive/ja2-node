@@ -116,7 +116,9 @@ structure, as in the original. `handleDoorChangeFromGridNo` (`doors.ts`) decides
 (`Tactical/Handle_Doors.cc:814`) whether a change is shown. A shown change sets the perceived state, raises
 `doorChanged` and runs the door's tile animation in the explosions' list (`doors/door-animation.ts`), which holds the
 door busy; an unshown one leaves what the player knows until `MercLooksForDoors` (`Tactical/Keys.cc:980`) in a merc's
-look. The sector keeps the not-set flag, not the busy one.
+look. The sector keeps the not-set flag, not the busy one. A status also carries a tin can tied to the door
+(`hasTinCan`, `DOOR_HAS_TIN_CAN`, `12` §7), which the sector keeps and which triples the door's opening noise
+(`DoorOpeningNoise`, `Tactical/OppList.cc:3358`).
 
 **Randomness.** Gameplay draws keep the original's statement order on `main` and `pre`. Kingpin's men placed around
 Hans' door take two `main` draws, x first, where the original's two engine draws have no defined order (deviation

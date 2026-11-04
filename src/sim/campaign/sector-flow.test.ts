@@ -584,7 +584,14 @@ describe('a native save loaded into its sector', () => {
     expect(flow.setCurrentWorldSector(B13)).toBe(true);
     const left = campaign.tactical?.state;
     if (!left) throw new Error('no sector');
-    left.doorStatus.set(AIRFIELD_DOOR, { open: false, perceivedOpen: true, perceivedNotSet: false, busy: false, shownOpen: true });
+    left.doorStatus.set(AIRFIELD_DOOR, {
+      open: false,
+      perceivedOpen: true,
+      perceivedNotSet: false,
+      busy: false,
+      shownOpen: true,
+      hasTinCan: false,
+    });
     for (const m of flow.setup.roster.all()) m.sector = { ...A9 };
     expect(flow.setCurrentWorldSector(A9)).toBe(true);
     for (const m of flow.setup.roster.all()) m.sector = { ...B13 };

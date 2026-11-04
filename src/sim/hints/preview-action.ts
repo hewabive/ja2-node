@@ -10,7 +10,10 @@
 // @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03); Turn_Based_Input.cc
 // @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03); Handle_UI.cc
 // @src DrawUIMovementPath (MOVEUI_TARGET_BOMB: the walk onto the tile plus AP_DROP_BOMB), UIMouseOnValidAttackLocation
-// @src (BOMBCURS) and Points.cc GetTotalAPsToDropBomb (0 for a tile out of reach, 2026-11-04).
+// @src (BOMBCURS) and Points.cc GetTotalAPsToDropBomb (0 for a tile out of reach, 2026-11-04); Handle_UI.cc
+// @src DrawUIMovementPath (MOVEUI_TARGET_WIREFENCE, MOVEUI_TARGET_JAR, MOVEUI_TARGET_CAN) and UI_Cursors.cc
+// @src HandleWirecutterCursor, HandleJarCursor, HandleTinCanCursor (the good cursor: a cuttable fence at ground level, a
+// @src corpse, a door; 2026-11-04).
 
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -21,7 +24,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { isRobotSoldier } from '../narrative/talkable.ts';
 import { AnimHeight } from '../tactical/animation.ts';
 import { apsToDropBomb, bombTileRefusal } from '../tactical/bombs/planting.ts';
-import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
+import { findAdjacentGridEx, findAdjacentGridExForDoor } from '../tactical/combat/melee-reach.ts';
 import { canBeStolenFrom, stealActionGridNo } from '../tactical/combat/steal.ts';
 import { closingDoorMenu, doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
 import { findAdjacentGridExAdvanced } from '../tactical/doors/door-approach.ts';
@@ -41,13 +44,29 @@ import { seenExchangeChecks, validQuickExchangePosition } from '../tactical/quic
 import { apsToReloadRobot } from '../tactical/robot-reload.ts';
 import { NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
+import { apsToCutFence, fenceCuttableBy, interactiveTileAt, isCorpseAtGridNo } from '../tactical/tile-tools.ts';
 import { AP_TOSS_ITEM, previewToss } from '../tactical/toss.ts';
 import { type ActingSoldier, actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 import { interfaceLevelOf, plotWalk } from './walk-plot.ts';
 
-export const SUPPORTED_ACTIONS = ['door', 'pickUp', 'talk', 'give', 'jump', 'swap', 'look', 'aid', 'steal', 'toss', 'bomb'] as const;
-export const UNSUPPORTED_ACTIONS = ['cutFence', 'repair', 'refuel', 'jar', 'can', 'enterVehicle'] as const;
+export const SUPPORTED_ACTIONS = [
+  'door',
+  'pickUp',
+  'talk',
+  'give',
+  'jump',
+  'swap',
+  'look',
+  'aid',
+  'steal',
+  'toss',
+  'bomb',
+  'cutFence',
+  'jar',
+  'can',
+] as const;
+export const UNSUPPORTED_ACTIONS = ['repair', 'refuel', 'enterVehicle'] as const;
 
 export type ActionKind = (typeof SUPPORTED_ACTIONS)[number];
 
@@ -295,6 +314,43 @@ function bombAction(c: ActionContext): ActionPart {
   };
 }
 
+function withCursorCheck(part: ActionPart, refusal: string | null): ActionPart {
+  return refusal ? { ...part, ok: false, refusal } : part;
+}
+
+function cutFenceAction(c: ActionContext): ActionPart {
+  const { t, s } = c;
+  const approach = findAdjacentGridExForDoor(t, s, c.g);
+  const refusal = fenceCuttableBy(t, s, c.g) ? null : 'noFence';
+  if (!approach) return withCursorCheck(refused(c, 'noPath'), refusal);
+  const walk = walkTo(c, approach.actionGridNo);
+  const part = { ok: true, apCost: apsToCutFence(t, s) + walk.cost, actionGridNo: approach.actionGridNo, steps: walk.steps };
+  return withCursorCheck(part, refusal);
+}
+
+function jarAction(c: ActionContext): ActionPart {
+  const { t, s } = c;
+  const actionGridNo = findAdjacentGridExForDoor(t, s, c.g)?.actionGridNo ?? c.g;
+  const walk = walkTo(c, actionGridNo);
+  const useJar = walk.cost === 0 ? 0 : walk.cost + AP.TAKE_BLOOD;
+  const part = { ok: true, apCost: useJar + walk.cost, actionGridNo, steps: walk.steps };
+  return withCursorCheck(part, isCorpseAtGridNo(t, c.g) ? null : 'noCorpse');
+}
+
+function canAction(c: ActionContext): ActionPart {
+  const { t, s } = c;
+  const tile = interactiveTileAt(t, c.g);
+  if (tile === null) {
+    const walk = walkTo(c, c.g);
+    return { ok: false, refusal: 'noDoor', apCost: walk.cost, actionGridNo: c.g, steps: walk.steps };
+  }
+  const refusal = t.world.structures.find(tile, StructureFlags.ANYDOOR) ? null : 'noDoor';
+  const approach = findAdjacentGridExForDoor(t, s, tile);
+  if (!approach) return withCursorCheck(refused(c, 'noPath', tile), refusal);
+  const walk = walkTo(c, approach.actionGridNo);
+  return withCursorCheck({ ok: true, apCost: AP.ATTACH_CAN + walk.cost, actionGridNo: approach.actionGridNo, steps: walk.steps }, refusal);
+}
+
 function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest): ActionPart {
   switch (kind) {
     case 'door':
@@ -319,6 +375,12 @@ function preview(c: ActionContext, kind: ActionKind, req: PreviewActionRequest):
       return tossAction(c, req);
     case 'bomb':
       return bombAction(c);
+    case 'cutFence':
+      return cutFenceAction(c);
+    case 'jar':
+      return jarAction(c);
+    case 'can':
+      return canAction(c);
   }
 }
 

@@ -21,7 +21,8 @@
 // @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03); the soldiers
 // @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03);
 // @src HandleTacticalEndTurn's IsMechanical skip (2026-11-04); the DecayBombTimers calls of HandleTacticalEndTurn and
-// @src EndTurnEvents, EVENT_BeginMercTurn's low breath flag reset (2026-11-04).
+// @src EndTurnEvents, EVENT_BeginMercTurn's low breath flag reset, the x-ray turn-offs of EVENT_BeginMercTurn and
+// @src HandleTacticalEndTurn (2026-11-04).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -92,6 +93,7 @@ import {
   Team,
 } from '../soldier.ts';
 import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
+import { turnOffExpiredXRay, turnOffXRayAtCombatTurnStart } from '../xray.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { handlePersonalityAtTurnStart } from './personality.ts';
 import { addTopMessage, endTopMessage, initPlayerUIBar, TopMessageKind } from './top-message.ts';
@@ -157,7 +159,10 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   s.tilesMoved = 0;
   if (s.placed) {
     beginSoldierGetup(t, s);
-    if (t.inCombat) verifyAndDecayOpplist(t, s);
+    if (t.inCombat) {
+      verifyAndDecayOpplist(t, s);
+      turnOffXRayAtCombatTurnStart(t, s);
+    }
     handlePersonalityAtTurnStart(t, s);
   }
   s.pummeledQuoteSaid = false;
@@ -236,6 +241,7 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
       if (s.life <= 0 || isMechanical(s)) continue;
       beginMercTurn(t, s);
       handlePlayerServices(t, s);
+      turnOffExpiredXRay(t, s, now);
     }
     t.narrative.logBleedMeToos(false);
     for (const s of mercs(t)) {

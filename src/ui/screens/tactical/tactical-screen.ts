@@ -13,7 +13,7 @@
 // @src RenderSoldierTeamInv, SMInvClickCamoCallback; src/game/Tactical/Faces.cc HandleAutoFaces (the white highlight of
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
 // @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides and none for crows, the
-// @src selected merc blinking every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList,
+// @src selected merc blinking every RADAR_MAP_BLINK, the x-rayed soldiers out of sight, 2026-11-04), RenderSquadList, CreateDestroyMouseRegionsForSquadList,
 // @src TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame, ClearTacticalStuffDueToTimeCompression (the
 // @src message log); src/game/GameScreen.cc EnterTacticalScreen (ClearTacticalMessageQueue at every entry, back from a
@@ -76,7 +76,7 @@ import { idiv } from '../../../core/int.ts';
 import type { CompatibleMercs, ItemInfo } from '../../../protocol/hints.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
-import type { InventoryItemView, ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import type { InventoryItemView, ItemView, PlayerView, RadarContactKind, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { PointedCell } from '../../diagnostics-overlay.ts';
 import { type Area, type DrawList, rgb } from '../../draw-list.ts';
@@ -218,6 +218,15 @@ const TEAM_RADAR_COLOURS: readonly number[] = [
   rgb(0, 0, 255),
 ];
 const CIV_TEAM = 4;
+const RADAR_CONTACT_COLOURS: Readonly<Record<RadarContactKind, number>> = {
+  enemy: TEAM_RADAR_COLOURS[1] ?? 0,
+  creature: TEAM_RADAR_COLOURS[2] ?? 0,
+  militia: TEAM_RADAR_COLOURS[3] ?? 0,
+  civilian: TEAM_RADAR_COLOURS[CIV_TEAM] ?? 0,
+  hostileCivilian: HOSTILE_CIVILIAN_COLOUR,
+  namedCivilian: NAMED_CIVILIAN_COLOUR,
+  unconscious: UNCONSCIOUS_COLOUR,
+};
 const HANDPOS = 5;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
 
@@ -2359,6 +2368,11 @@ export class TacticalScreen implements Screen {
       const x = rect.x + dot.x;
       const y = rect.y + dot.y;
       list.rectangle(x, y, x + 1, y + 1, this.#radarColour(s));
+    }
+    for (const contact of this.#view()?.radarContacts ?? []) {
+      const dot = this.#env.world.radarDot(contact.gridNo);
+      if (!dot) continue;
+      list.rectangle(rect.x + dot.x, rect.y + dot.y, rect.x + dot.x + 1, rect.y + dot.y + 1, RADAR_CONTACT_COLOURS[contact.kind]);
     }
     list.popClip();
   }

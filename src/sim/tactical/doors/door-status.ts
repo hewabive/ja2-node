@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Keys.h DOOR_STATUS; Keys.cc ModifyDoorStatus, GetDoorStatus, IsCloseEnoughAndHasLOS,
 // @src AllMercsLookForDoor, MercLooksForDoors, InternalIsPerceivedDifferentThanReality, InternalUpdateDoorsPerceivedValue,
 // @src InternalUpdateDoorGraphicFromStatus (the graphic as an open or a closed door), UpdateDoorGraphicsFromStatus,
-// @src SynchronizeDoorStatusToStructureData, SaveDoorStatusArrayToDoorStatusTempFile, LoadDoorStatusArrayFromDoorStatusTempFile.
+// @src SynchronizeDoorStatusToStructureData, SaveDoorStatusArrayToDoorStatusTempFile, LoadDoorStatusArrayFromDoorStatusTempFile;
+// @src Keys.h DOOR_HAS_TIN_CAN and ModifyDoorStatus with the perceived state set (2026-11-04).
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
@@ -22,6 +23,7 @@ export interface DoorStatusEntry extends DoorStatus {
   perceivedNotSet: boolean;
   busy: boolean;
   shownOpen: boolean;
+  hasTinCan: boolean;
 }
 
 export interface StoredDoorStatus {
@@ -29,6 +31,7 @@ export interface StoredDoorStatus {
   readonly open: boolean;
   readonly perceivedOpen: boolean;
   readonly perceivedNotSet: boolean;
+  readonly hasTinCan: boolean;
 }
 
 const DIRECTION_IRRELEVANT = -1;
@@ -76,7 +79,14 @@ export function setDoorStatusOpen(t: TacticalState, base: number, open: boolean)
     known.open = open;
     return known;
   }
-  const added: DoorStatusEntry = { open, perceivedOpen: false, perceivedNotSet: true, busy: false, shownOpen: shownDoorOpen(t, base) };
+  const added: DoorStatusEntry = {
+    open,
+    perceivedOpen: false,
+    perceivedNotSet: true,
+    busy: false,
+    shownOpen: shownDoorOpen(t, base),
+    hasTinCan: false,
+  };
   t.doorStatus.set(base, added);
   return added;
 }
@@ -86,12 +96,21 @@ export function modifyDoorStatus(t: TacticalState, gridNo: number, open: boolean
   if (base !== null) setDoorStatusOpen(t, base, open);
 }
 
+export function modifyDoorStatusAsSeen(t: TacticalState, gridNo: number, open: boolean): DoorStatusEntry | null {
+  const base = doorBaseGridNo(t, gridNo);
+  if (base === null) return null;
+  const status = setDoorStatusOpen(t, base, open);
+  perceiveDoor(status, open);
+  return status;
+}
+
 export function storedDoorStatuses(t: TacticalState): StoredDoorStatus[] {
   return [...t.doorStatus].map(([gridNo, s]) => ({
     gridNo,
     open: s.open,
     perceivedOpen: s.perceivedOpen,
     perceivedNotSet: s.perceivedNotSet,
+    hasTinCan: s.hasTinCan,
   }));
 }
 
@@ -105,6 +124,7 @@ export function loadDoorStatusArray(t: TacticalState, stored: readonly StoredDoo
       perceivedNotSet: d.perceivedNotSet,
       busy: false,
       shownOpen,
+      hasTinCan: d.hasTinCan,
     });
   }
   updateDoorGraphicsFromStatus(t);

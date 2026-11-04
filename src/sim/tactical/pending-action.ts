@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/externalized/Soldier.cc Soldier::hasPendingAction, Soldier::removePendingAction (the one ubPendingAction slot is
-// @src split into the melee, pickup, door, talk, give, first-aid, robot reload and drop bomb records here).
+// @src split into the melee, pickup, door, talk, give, first-aid, robot reload, drop bomb and tile tool records here).
 
 import { clearPendingGive } from './give.ts';
 import { cancelPendingRobotReload } from './robot-reload.ts';
@@ -17,7 +17,8 @@ export function hasPendingAction(s: Soldier): boolean {
     s.pendingGive !== null ||
     s.pendingAid !== null ||
     s.pendingRobotReload !== null ||
-    s.pendingDropBomb
+    s.pendingDropBomb ||
+    s.pendingTileTool !== null
   );
 }
 
@@ -28,6 +29,7 @@ export function removePendingAction(t: TacticalState, s: Soldier): void {
   s.pendingTalk = null;
   s.pendingAid = null;
   s.pendingDropBomb = false;
+  s.pendingTileTool = null;
   clearPendingGive(t, s);
   cancelPendingRobotReload(t, s);
 }

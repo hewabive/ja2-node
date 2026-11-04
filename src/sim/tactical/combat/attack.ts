@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (gun path, the rocket rifle imprint, the remote and bomb cursors and
-// @src the detonator box at its end, 2026-11-04), HandItemWorks;
+// @src the detonator box at its end, the wire cutters, jar and tin can, 2026-11-04), HandItemWorks;
 // @src Soldier_Control.cc EVENT_FireSoldierWeapon (with the view sent to a seen soldier not of ours turning to shoot),
 // @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon,
 // @src PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
@@ -45,6 +45,7 @@ import { deductPoints, enoughPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, shownToPlayer, Team, Visible } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
+import { handleTileTool } from '../tile-tools.ts';
 import { heardOnly } from '../unseen-sources.ts';
 import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
@@ -121,7 +122,9 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
   if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
-  if (itemCursorOf(t, handItem) === ItemCursor.REMOTE) return handleRemoteItem(t, s, g);
+  const tileTool = handleTileTool(t, s, g, handItem);
+  if (tileTool !== null) return tileTool;
+  if (itemCursorOf(t, handItem) === ItemCursor.REMOTE) return handleRemoteItem(t, s, g, handItem);
   if (dropsBomb(t, s, handItem)) return handleDropBombItem(t, s, g);
   if (cls === ItemClass.BLADE) return handleBladeAttack(t, s, g);
   if (cls === ItemClass.TENTACLES) return handleTentacleAttack(t, s, g);

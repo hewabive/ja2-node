@@ -1,9 +1,10 @@
 import type { MapDoor } from '../../content/formats/map.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
+import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import { setKnownMines } from '../tactical/bombs/mine-flags.ts';
+import { corpseStructureDef } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
@@ -28,7 +29,7 @@ import { type GuardOptions, guardFields, UnsuppliedFieldError } from './guard.ts
 import { worldItemFromView } from './objects.ts';
 import { soldierFromView } from './soldiers.ts';
 import { sectorFromName } from './strategic-state.ts';
-import type { KnowledgeLight, KnowledgeSoldier, KnowledgeView } from './view.ts';
+import type { KnowledgeCorpse, KnowledgeLight, KnowledgeSoldier, KnowledgeView } from './view.ts';
 
 const SANDBOX_HOUR = 12;
 const PROJECTION_SEED = 0;
@@ -120,6 +121,8 @@ export class TacticalProjection {
   readonly #projectedMapDoors: Map<number, MapDoor>;
   #placed: Soldier[] = [];
   #lightKey = '';
+  #corpseKey = '';
+  #corpseBases: StructureInstance[] = [];
 
   constructor(world: TacticalWorld, content: TacticalContent) {
     this.mapPath = world.mapPath;
@@ -141,6 +144,7 @@ export class TacticalProjection {
     setKnownMines(t, view.knownMines ?? []);
     this.#syncLight(view);
     this.#syncSmoke(view);
+    this.#syncCorpses(view.corpses ?? []);
     t.narrative = projectionNarrative(viewNarrative(view.soldiers), guard);
     t.boxing.state = BOXING_STATE_NAMES.indexOf((view.boxing?.state ?? 'notBoxing') as BoxingStateName);
     return this.#guardedState(guard);
@@ -215,6 +219,20 @@ export class TacticalProjection {
       const type = smokeTypeOf(t, tile.effect);
       const level = tiles[tile.level > 0 ? 1 : 0];
       if (type) level[tile.gridNo] = smokeTileFlag(type);
+    }
+  }
+
+  #syncCorpses(corpses: readonly KnowledgeCorpse[]): void {
+    const t = this.state;
+    const key = corpses.map((c) => `${c.gridNo},${c.level},${c.type},${c.direction}`).join(';');
+    if (key === this.#corpseKey) return;
+    this.#corpseKey = key;
+    for (const base of this.#corpseBases) t.world.structures.remove(base);
+    this.#corpseBases = [];
+    for (const c of corpses) {
+      const def = corpseStructureDef(t, c.type, c.direction);
+      const base = def ? t.world.structures.add(c.gridNo, c.level, def) : null;
+      if (base) this.#corpseBases.push(base);
     }
   }
 

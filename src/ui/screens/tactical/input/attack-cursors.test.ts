@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EstimateAttack } from '../../../../protocol/hints.ts';
-import { attackCursor, OK_CHANCE_TO_GET_THROUGH, ordersAnAttack, REFINE_AIM_1 } from './attack-cursors.ts';
+import { attackCursor, OK_CHANCE_TO_GET_THROUGH, ordersAnAttack, REFINE_AIM_1, tileToolCursor } from './attack-cursors.ts';
 
 const GUN: EstimateAttack = {
   cursor: 'target',
@@ -41,7 +41,7 @@ describe('the aim cursor', () => {
     expect(attackCursor(knife, AIM, { ...HOVERING, onTarget: false }).cursor).toBe('KNIFE_REG_UICURSOR');
   });
 
-  it('draws the item cursors of HandleAidCursor, HandleRemoteCursor and HandleBombCursor, and the unbuilt item actions greyed out', () => {
+  it('draws the item cursors of HandleAidCursor, HandleRemoteCursor and HandleBombCursor, the tile tools bad until their preview says good, and the vehicle tools greyed out', () => {
     const item = (cursor: EstimateAttack['cursor'], apCost = 0): EstimateAttack => ({ ...GUN, cursor, apCost, apCostByAim: [] });
     expect(attackCursor(item('aid'), AIM, HOVERING).cursor).toBe('ACTION_FIRSTAID_RED');
     expect(attackCursor(item('aid'), AIM, { ...HOVERING, onTarget: false }).cursor).toBe('ACTION_FIRSTAID_GRAY');
@@ -51,7 +51,15 @@ describe('the aim cursor', () => {
     expect(attackCursor(item('bomb', 21), AIM, CONFIRMED)).toMatchObject({ cursor: 'PLACE_BOMB_RED_UICURSOR', apInvalid: true });
     expect(attackCursor(item('bomb', 9), AIM, { ...HOVERING, inCombat: false })).toMatchObject({ apCost: null });
     expect(attackCursor(item('wirecutter'), AIM, HOVERING).cursor).toBe('BAD_WIRECUTTER_UICURSOR');
-    expect(attackCursor(item('tincan'), AIM, HOVERING).cursor).toBe('PLACE_TINCAN_GREY_UICURSOR');
+    expect(attackCursor(item('jar'), AIM, HOVERING).cursor).toBe('BAD_JAR_UICURSOR');
+    expect(attackCursor(item('tincan'), AIM, HOVERING).cursor).toBe('PLACE_TINCAN_RED_UICURSOR');
+    expect((['wirecutter', 'jar', 'tincan'] as const).map((cursor) => tileToolCursor(cursor, true))).toEqual([
+      'GOOD_WIRECUTTER_UICURSOR',
+      'GOOD_JAR_UICURSOR',
+      'PLACE_TINCAN_GREY_UICURSOR',
+    ]);
+    expect(attackCursor(item('repair'), AIM, HOVERING).cursor).toBe('BAD_REPAIR_UICURSOR');
+    expect(attackCursor(item('refuel'), AIM, HOVERING).cursor).toBe('REFUEL_GREY_UICURSOR');
     expect(attackCursor(item('invalid'), AIM, HOVERING).cursor).toBe('INVALID_ACTION_UICURSOR');
     expect(attackCursor(item('other'), AIM, HOVERING).cursor).toBe('NO_UICURSOR');
     expect([item('aid'), item('remote'), item('bomb'), GUN].map(ordersAnAttack)).toEqual([false, false, false, true]);

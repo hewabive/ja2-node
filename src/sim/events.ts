@@ -11,6 +11,7 @@ import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
 import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
 import type { OrderEvent } from './tactical/order-events.ts';
+import type { TileToolEvent } from './tactical/tile-tool-events.ts';
 import type { TrapEvent } from './tactical/trap-events.ts';
 
 export interface SimEventBase {
@@ -769,5 +770,6 @@ export type SimEvent =
   | BoxingEvent
   | OrderEvent
   | TrapEvent
+  | TileToolEvent
   | (EconomyEvent & SimEventBase);
 export type SimEventType = SimEvent['type'];

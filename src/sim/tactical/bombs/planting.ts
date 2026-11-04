@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Items.cc HandleItem (the remote cursor's branch without the x-ray device, the bomb
+// @src src/game/Tactical/Handle_Items.cc HandleItem (the remote cursor's branch with the x-ray device, the bomb
 // @src cursor's walk onto the tile, the detonator box at its end), HandleSoldierDropBomb, HandleSoldierUseRemote,
 // @src StartBombMessageBox, BombMessageBoxCallBack; Soldier_Control.cc EVENT_SoldierBeginDropBomb,
 // @src EVENT_SoldierBeginUseDetonator; externalized/Soldier.cc handlePendingAction (MERC_DROPBOMB); Soldier_Ani.cc codes
@@ -30,6 +30,7 @@ import { effectiveExpLevel, effectiveExplosive } from '../skills.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../world-items.ts';
+import { activateXRayDevice } from '../xray.ts';
 import { armBomb, setPlacedBySoldier } from './bomb-object.ts';
 import { setOffBombsByFrequency } from './bomb-queue.ts';
 import { MineFlag, setMineFlag } from './mine-flags.ts';
@@ -98,9 +99,14 @@ export function handleDropBombItem(t: TacticalState, s: Soldier, g: number): num
   return ItemHandle.CANNOT_GETTO_LOCATION;
 }
 
-export function handleRemoteItem(t: TacticalState, s: Soldier, g: number): number {
+export function handleRemoteItem(t: TacticalState, s: Soldier, g: number, handItem: number): number {
   if (!enoughPoints(t.inCombat, s, AP.USE_REMOTE)) return ItemHandle.NOAPS;
   deductPoints(t.inCombat, s, AP.USE_REMOTE, 0);
+  if (handItem === itemIndex(t, 'XRAY_DEVICE')) {
+    t.events.push({ type: 'remoteUsed', soldier: s.id, result: 'xray' });
+    activateXRayDevice(t, s);
+    return ItemHandle.OK;
+  }
   s.pendingActionData2 = g;
   soldierBeginUseDetonator(t, s);
   return ItemHandle.OK;

@@ -68,6 +68,10 @@ function slotOfCorpseAt(t: TacticalState, index: number): number {
   return slot;
 }
 
+export function slotOfCorpse(t: TacticalState, corpse: Corpse): number {
+  return slotOfCorpseAt(t, t.corpses.indexOf(corpse));
+}
+
 function freeSlot(t: TacticalState): number | null {
   const hole = t.corpseHoles[0];
   if (hole !== undefined) return hole;

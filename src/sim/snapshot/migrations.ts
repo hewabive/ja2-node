@@ -1383,6 +1383,38 @@ function addPanicStateAndKeysByte(snapshot: Readonly<Record<string, unknown>>): 
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PENDING_TILE_TOOL_KEY = 'pendingTileTool';
+const XRAY_ACTIVATED_TIME_KEY = 'xrayActivatedTime';
+const XRAYED_BY_KEY = 'xrayedBy';
+const TIN_CAN_KEY = 'hasTinCan';
+const LIVE_DOOR_STATUS_KEYS_BEFORE_TIN_CANS = ['open', 'perceivedOpen', 'perceivedNotSet', 'busy', 'shownOpen'];
+const SAVED_DOOR_STATUS_KEYS_BEFORE_TIN_CANS = ['gridNo', 'open', 'perceivedOpen', 'perceivedNotSet'];
+
+function withTileToolAndXRay(o: JsonObject): JsonObject {
+  const pending = insertAfter(o, PENDING_DROP_BOMB_KEY, PENDING_TILE_TOOL_KEY, null);
+  const activated = insertAfter(pending, PENDING_TILE_TOOL_KEY, XRAY_ACTIVATED_TIME_KEY, 0);
+  return insertAfter(activated, XRAY_ACTIVATED_TIME_KEY, XRAYED_BY_KEY, null);
+}
+
+function isDoorStatusBeforeTinCans(o: JsonObject): boolean {
+  return hasExactlyKeys(o, LIVE_DOOR_STATUS_KEYS_BEFORE_TIN_CANS) || hasExactlyKeys(o, SAVED_DOOR_STATUS_KEYS_BEFORE_TIN_CANS);
+}
+
+function withTinCansAndXRay(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withTinCansAndXRay(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withTinCansAndXRay(v);
+  if (isSoldierRecord(mapped)) return withTileToolAndXRay(mapped);
+  return isDoorStatusBeforeTinCans(mapped) ? { ...mapped, [TIN_CAN_KEY]: false } : mapped;
+}
+
+function addTileToolsTinCansAndXRay(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withTinCansAndXRay(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1433,5 +1465,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     46: addTacticalPromptsAndStopTimeQuotes,
     47: addPendingDropBomb,
     48: addPanicStateAndKeysByte,
+    49: addTileToolsTinCansAndXRay,
   };
 }

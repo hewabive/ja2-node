@@ -206,7 +206,7 @@ describe('the action previews of DrawUIMovementPath on the projection', () => {
   it('answers notSupported for the item cursors without a command', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
-    for (const kind of ['cutFence', 'repair', 'refuel', 'jar', 'can', 'enterVehicle'])
+    for (const kind of ['repair', 'refuel', 'enterVehicle'])
       expect(hintAnswer(sim, 'previewAction', { soldier: 0, kind, gridNo: ORIGIN + 1 })).toMatchObject({
         ok: false,
         data: { refusal: 'notSupported' },

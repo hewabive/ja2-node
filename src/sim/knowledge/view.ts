@@ -111,6 +111,13 @@ export interface KnowledgeSmokeTile {
   readonly effect: string;
 }
 
+export interface KnowledgeCorpse {
+  readonly gridNo: number;
+  readonly level: number;
+  readonly type: number;
+  readonly direction: number;
+}
+
 export interface KnowledgeView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -124,6 +131,7 @@ export interface KnowledgeView {
   readonly clock?: KnowledgeClock;
   readonly light?: KnowledgeLight | null;
   readonly smoke?: readonly KnowledgeSmokeTile[];
+  readonly corpses?: readonly KnowledgeCorpse[];
   readonly boxing?: KnowledgeBoxing | null;
   readonly strategic?: KnowledgeStrategic;
   readonly prompt?: KnowledgePrompt | null;

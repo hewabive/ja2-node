@@ -140,6 +140,13 @@ const PLANT_BOMB_REACH = 6;
 const USE_REMOTE_REACH = 4;
 const SET_OFF_TRIGGER_CODE = 762;
 const PULL_SWITCH_REACH = 5;
+const CUT_FENCE_CODE = 481;
+const TAKE_BLOOD_CODE = 760;
+const ToolSound = { WIRE_CUTTERS: 770, FENCE_OPEN: 791, COOL_QUOTE: 766 } as const;
+const CUT_FENCE_REACH = 4;
+const SNIP_FRAMES = 4;
+const DRAIN_FRAMES = 8;
+const DRAIN_RETURN = 4;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
   FORWARD_FALL: 403,
@@ -204,6 +211,24 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     ...frames(PULL_SWITCH_REACH),
     SET_OFF_TRIGGER_CODE,
     ...descendingFrames(PULL_SWITCH_REACH),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  CUTTING_FENCE: () => [
+    ...frames(CUT_FENCE_REACH),
+    ToolSound.WIRE_CUTTERS,
+    ...frames(SNIP_FRAMES, CUT_FENCE_REACH + 1),
+    ToolSound.FENCE_OPEN,
+    CUT_FENCE_CODE,
+    ...descendingFrames(CUT_FENCE_REACH),
+    ToolSound.COOL_QUOTE,
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  TAKE_BLOOD_FROM_CORPSE: () => [
+    ...frames(DRAIN_FRAMES),
+    TAKE_BLOOD_CODE,
+    ...descendingFrames(DRAIN_RETURN),
     NONINTERRUPTIBLE_DONE,
     END_OF_ANIMATION,
   ],

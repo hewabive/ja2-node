@@ -9,6 +9,7 @@ import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { ClimbView, FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import type { BloodPoolView, BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
+import type { RadarContactView } from '../sim/tactical/xray.ts';
 import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
@@ -33,6 +34,7 @@ export type {
   TileChangeView,
   WorldLightView,
 } from '../sim/tactical/world-view.ts';
+export type { RadarContactKind, RadarContactView } from '../sim/tactical/xray.ts';
 export type { MusicView } from './music.ts';
 
 export interface SoldierView {
@@ -996,6 +998,7 @@ export interface PlayerView {
   readonly tileChanges?: readonly TileChangeView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
+  readonly radarContacts?: readonly RadarContactView[];
   readonly music?: MusicView;
 }
 
@@ -1041,6 +1044,7 @@ export interface ViewFrame {
   readonly tileChanges?: readonly TileChangeView[];
   readonly blood?: readonly BloodPoolView[];
   readonly itemLocatorsLocked?: boolean;
+  readonly radarContacts?: readonly RadarContactView[];
   readonly music?: MusicView;
 }
 
@@ -1122,6 +1126,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), blood: next.blood ?? [] };
   if ((previous.itemLocatorsLocked ?? false) !== (next.itemLocatorsLocked ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), itemLocatorsLocked: next.itemLocatorsLocked ?? false };
+  if (!sameJson(previous.radarContacts ?? [], next.radarContacts ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), radarContacts: next.radarContacts ?? [] };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if ((previous.selected ?? null) !== (next.selected ?? null))

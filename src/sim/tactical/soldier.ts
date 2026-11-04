@@ -504,6 +504,9 @@ export interface Soldier {
   pendingAid: PendingAid | null;
   pendingRobotReload: PendingRobotReload | null;
   pendingDropBomb: boolean;
+  pendingTileTool: PendingTileTool | null;
+  xrayActivatedTime: number;
+  xrayedBy: Soldier | null;
 }
 
 export interface DrugCourse {
@@ -538,6 +541,14 @@ export interface PendingAid {
 
 export interface PendingRobotReload {
   readonly targetGridNo: number;
+  readonly direction: number;
+}
+
+export type TileTool = 'cutFence' | 'takeBlood' | 'attachCan';
+
+export interface PendingTileTool {
+  readonly tool: TileTool;
+  readonly gridNo: number;
   readonly direction: number;
 }
 
@@ -883,5 +894,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingAid: null,
     pendingRobotReload: null,
     pendingDropBomb: false,
+    pendingTileTool: null,
+    xrayActivatedTime: 0,
+    xrayedBy: null,
   };
 }

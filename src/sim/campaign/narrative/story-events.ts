@@ -82,7 +82,7 @@ export interface StatueOpenedEvent extends StoryEventBase {
 export interface RemoteUsedEvent extends StoryEventBase {
   readonly type: 'remoteUsed';
   readonly soldier: number;
-  readonly result: 'statueOpened' | 'nothing' | 'bombs';
+  readonly result: 'statueOpened' | 'nothing' | 'bombs' | 'xray';
   readonly frequency?: number;
 }
 

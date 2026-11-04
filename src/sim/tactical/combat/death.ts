@@ -12,6 +12,7 @@
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, hasFixedCorpseDirection, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
+import type { StructureDef } from '../../../content/formats/jsd.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
@@ -404,10 +405,14 @@ function corpseDirection(t: TacticalState, s: Soldier, type: number): number {
   return s.direction === 0 || s.direction === 4 ? 0 : VEHICLE_CORPSE_DIRECTION;
 }
 
-export function addCorpseStructure(t: TacticalState, g: number, level: number, type: number, direction: number): void {
+export function corpseStructureDef(t: Pick<TacticalState, 'content' | 'options'>, type: number, direction: number): StructureDef | null {
   const corpses = t.content.corpses;
   const file = corpses.structures.get(corpseFileBase(corpses.table, type, t.options.bloodAndGore));
-  const def = file?.structures[corpseStructIndex(corpses.table, type, direction)];
+  return file?.structures[corpseStructIndex(corpses.table, type, direction)] ?? null;
+}
+
+export function addCorpseStructure(t: TacticalState, g: number, level: number, type: number, direction: number): void {
+  const def = corpseStructureDef(t, type, direction);
   if (!def) return;
   t.world.structures.add(g, level, def);
   for (const tile of def.tiles) removeBlood(t, g + tile.posRelToBase, level);

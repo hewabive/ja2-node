@@ -31,7 +31,7 @@ const TOWN_DOORS_IN_SIGHT = [9033, 9691, 10643] as const;
 const SEES_TOWN_DOORS = 9840;
 const STEP_BUDGET = 2_000;
 const ALMA_PRISON = { x: 13, y: 9, z: 0 };
-const SEEN_OPEN_LEFT_CLOSED = { gridNo: DOOR, open: false, perceivedOpen: true, perceivedNotSet: false };
+const SEEN_OPEN_LEFT_CLOSED = { gridNo: DOOR, open: false, perceivedOpen: true, perceivedNotSet: false, hasTinCan: false };
 
 let kit: StubSectorKit;
 
@@ -157,6 +157,7 @@ describe('the busy door (DOOR_BUSY while its tile animation plays)', () => {
       perceivedNotSet: false,
       busy: false,
       shownOpen: true,
+      hasTinCan: false,
     });
   });
 });
@@ -167,12 +168,26 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
     const t = sim.state;
     expect(handleDoorChangeFromGridNo(t, enemyAt(sim, OUTSIDE), DOOR)).toBe(true);
     expect(isDoorOpenAt(t, DOOR)).toBe(true);
-    expect(t.doorStatus.get(DOOR)).toEqual({ open: true, perceivedOpen: false, perceivedNotSet: true, busy: false, shownOpen: false });
+    expect(t.doorStatus.get(DOOR)).toEqual({
+      open: true,
+      perceivedOpen: false,
+      perceivedNotSet: true,
+      busy: false,
+      shownOpen: false,
+      hasTinCan: false,
+    });
     expect(sim.openDoors()).toEqual([]);
     expect(doorState(t.pathEnv, DOOR, true) & StructureFlags.OPEN).toBe(0);
     expect(doorChanges(sim)).toEqual([]);
     revealRoofsAndItems(t, spawnSoldier(sim, 0, Team.OUR, IN_SIGHT_OF_DOOR, NORTH), false);
-    expect(t.doorStatus.get(DOOR)).toEqual({ open: true, perceivedOpen: true, perceivedNotSet: false, busy: false, shownOpen: true });
+    expect(t.doorStatus.get(DOOR)).toEqual({
+      open: true,
+      perceivedOpen: true,
+      perceivedNotSet: false,
+      busy: false,
+      shownOpen: true,
+      hasTinCan: false,
+    });
     expect(sim.openDoors()).toEqual([DOOR]);
     expect(doorState(t.pathEnv, DOOR, true) & StructureFlags.OPEN).not.toBe(0);
   });
@@ -187,6 +202,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
       perceivedNotSet: false,
       busy: true,
       shownOpen: true,
+      hasTinCan: false,
     });
     expect(doorChanges(sim)).toEqual([true]);
   });
@@ -202,6 +218,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
       perceivedNotSet: false,
       busy: true,
       shownOpen: true,
+      hasTinCan: false,
     });
     expect(sim.openDoors()).toEqual([DOOR]);
     expect(doorChanges(sim)).toEqual([true]);
@@ -217,6 +234,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
       perceivedNotSet: true,
       busy: false,
       shownOpen: false,
+      hasTinCan: false,
     });
     const seen = village();
     spawnSoldier(seen, 0, Team.OUR, IN_SIGHT_OF_DOOR, NORTH);
@@ -227,6 +245,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
       perceivedNotSet: false,
       busy: true,
       shownOpen: true,
+      hasTinCan: false,
     });
   });
 
@@ -250,7 +269,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
     const sim = village();
     handleDoorChangeFromGridNo(sim.state, enemyAt(sim, OUTSIDE), DOOR);
     const saved = storedDoorStatuses(sim.state);
-    expect(saved).toEqual([{ gridNo: DOOR, open: true, perceivedOpen: false, perceivedNotSet: true }]);
+    expect(saved).toEqual([{ gridNo: DOOR, open: true, perceivedOpen: false, perceivedNotSet: true, hasTinCan: false }]);
     const later = village();
     loadDoorStatusArray(later.state, saved);
     expect([isDoorOpenAt(later.state, DOOR), later.openDoors()]).toEqual([true, []]);
@@ -260,6 +279,7 @@ describe('a door changed out of sight (HandleDoorsOpenClose, MercLooksForDoors)'
       perceivedNotSet: true,
       busy: false,
       shownOpen: false,
+      hasTinCan: false,
     });
   });
 });
@@ -273,7 +293,14 @@ describe('a door the player perceives otherwise than it is after a load (UpdateD
     expect(doorState(t.pathEnv, DOOR, false) & StructureFlags.OPEN).not.toBe(0);
     revealRoofsAndItems(t, spawnSoldier(sim, 0, Team.OUR, IN_SIGHT_OF_DOOR, NORTH), false);
     expect([isDoorOpenAt(t, DOOR), sim.openDoors()]).toEqual([false, []]);
-    expect(t.doorStatus.get(DOOR)).toEqual({ open: false, perceivedOpen: false, perceivedNotSet: false, busy: false, shownOpen: false });
+    expect(t.doorStatus.get(DOOR)).toEqual({
+      open: false,
+      perceivedOpen: false,
+      perceivedNotSet: false,
+      busy: false,
+      shownOpen: false,
+      hasTinCan: false,
+    });
     expect(doorState(t.pathEnv, DOOR, false) & StructureFlags.OPEN).toBe(0);
   });
 
@@ -292,7 +319,14 @@ describe('a door a schedule opens on the map screen (PerformActionOnDoorAdjacent
     const t = sim.state;
     performActionOnDoorAdjacentToGridNo(t, ScheduleAction.OPENDOOR, DOOR);
     expect([isDoorOpenAt(t, DOOR), sim.openDoors()]).toEqual([false, []]);
-    expect(t.doorStatus.get(DOOR)).toEqual({ open: true, perceivedOpen: false, perceivedNotSet: true, busy: false, shownOpen: false });
+    expect(t.doorStatus.get(DOOR)).toEqual({
+      open: true,
+      perceivedOpen: false,
+      perceivedNotSet: true,
+      busy: false,
+      shownOpen: false,
+      hasTinCan: false,
+    });
     revealRoofsAndItems(t, spawnSoldier(sim, 0, Team.OUR, IN_SIGHT_OF_DOOR, NORTH), false);
     expect([isDoorOpenAt(t, DOOR), sim.openDoors()]).toEqual([true, [DOOR]]);
   });

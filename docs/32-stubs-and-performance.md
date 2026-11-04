@@ -127,7 +127,8 @@ before it are empty frames, so the stub pack draws no tile cursor). Stub structu
 `y` row, right walls the far `x` column, read from the tileset 0 wall and door structure files), so the stone walls,
 windows and fences block sight and fire along one edge of their tile. `FIRSTWALL` (A9, the village houses, the bench
 arena) keeps full tiles, on which the arena's sealed bunker relies. A tile yard east of the village exercises each
-family (`src/sim/tactical/stub-tiles.test.ts`). The airfield map uses tileset 17, the airstrip's id, whose only own
+family (`src/sim/tactical/stub-tiles.test.ts`); its wire fence, each piece paired with its cut partner, is what `cutFence`
+cuts there (`src/sim/tactical/tile-tools.test.ts`). The airfield map uses tileset 17, the airstrip's id, whose only own
 types are the helicopter in `FIRSTOSTRUCT`, where the Drassen refuel site looks for its six pieces (`25`), and the
 airfield's barrels in `THIRDOSTRUCT`; every other type falls back to tileset 0. The stub town map does not reach the
 Estoni landing site, so the helicopter stands only at the stub airport.
@@ -199,7 +200,6 @@ P3_b1, the Queen, the ending) reach the victory with mercs placed in O3, not yet
 - Stub underground levels connect only to the surface above them, so the levels below a mine's first and the creature
   lairs have no way in: a sci-fi stub campaign whose creatures invade a mine cannot reach their queen (play stub
   campaigns with sci-fi off).
-- Wire cutting is not ported (gaps "Unbuilt item actions"); the cut fence pieces exist in the tileset.
 - `FIRSTWALL` structures fill their whole tile, so a merc on such a wall tile cannot see along the room.
 - Only the splash video exists; sequences skip the missing names (`31`).
 - The stub fonts are not used as a Cyrillic fallback with original data (`31`).

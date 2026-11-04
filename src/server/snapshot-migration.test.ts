@@ -1392,8 +1392,9 @@ describe('snapshot version 33 (no creature tension timer) migrates with no delay
 
 const DOOR_STATUS_FLAG_KEYS = ['perceivedNotSet', 'busy', 'shownOpen'];
 const REAL_DOOR_STATE_KEY = 'open';
-const LIVE_DOOR_STATUS_KEYS = [REAL_DOOR_STATE_KEY, 'perceivedOpen', ...DOOR_STATUS_FLAG_KEYS];
-const SAVED_DOOR_STATUS_KEYS = ['gridNo', 'open', 'perceivedOpen', 'perceivedNotSet'];
+const TIN_CAN_KEY = 'hasTinCan';
+const LIVE_DOOR_STATUS_KEYS = [REAL_DOOR_STATE_KEY, 'perceivedOpen', ...DOOR_STATUS_FLAG_KEYS, TIN_CAN_KEY];
+const SAVED_DOOR_STATUS_KEYS = ['gridNo', 'open', 'perceivedOpen', 'perceivedNotSet', TIN_CAN_KEY];
 const SANDBOX_DOOR = 11429;
 const OTHER_DOOR = 11433;
 const LEFT_SECTOR = { x: 1, y: 1, z: 0 };
@@ -1403,7 +1404,7 @@ function hasKeys(o: Readonly<Record<string, Json>>, keys: readonly string[]): bo
 }
 
 function shownAsPerceived(open: boolean, perceivedOpen: boolean): DoorStatusEntry {
-  return { open, perceivedOpen, perceivedNotSet: false, busy: false, shownOpen: perceivedOpen };
+  return { open, perceivedOpen, perceivedNotSet: false, busy: false, shownOpen: perceivedOpen, hasTinCan: false };
 }
 
 function withoutDoorStatusFlags(value: Json): Json {
@@ -1412,12 +1413,12 @@ function withoutDoorStatusFlags(value: Json): Json {
   const out: Record<string, Json> = {};
   for (const [key, v] of Object.entries(value)) out[key] = withoutDoorStatusFlags(v);
   if (hasKeys(out, LIVE_DOOR_STATUS_KEYS)) {
-    expect([out.perceivedNotSet, out.busy, out.shownOpen]).toEqual([false, false, out.perceivedOpen]);
+    expect([out.perceivedNotSet, out.busy, out.shownOpen, out[TIN_CAN_KEY]]).toEqual([false, false, out.perceivedOpen, false]);
     return { perceivedOpen: out.perceivedOpen ?? false };
   }
   if (hasKeys(out, SAVED_DOOR_STATUS_KEYS)) {
-    const { perceivedNotSet, ...saved } = out;
-    expect(perceivedNotSet).toBe(false);
+    const { perceivedNotSet, [TIN_CAN_KEY]: tinCan, ...saved } = out;
+    expect([perceivedNotSet, tinCan]).toEqual([false, false]);
     return saved;
   }
   return out;
@@ -1466,7 +1467,7 @@ describe('snapshot version 34 (door statuses with only the perceived state) migr
     if (!t) throw new Error('no loaded sector');
     t.doorStatus.set(SANDBOX_DOOR, shownAsPerceived(false, true));
     const diff = emptySectorDiff();
-    diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false }];
+    diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false, hasTinCan: false }];
     campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
     await expectPerceivedDoors(campaign);
   });
@@ -1582,7 +1583,7 @@ function withoutRealDoorState(value: Json): Json {
   const out: Record<string, Json> = {};
   for (const [key, v] of Object.entries(value)) out[key] = withoutRealDoorState(v);
   if (!hasKeys(out, LIVE_DOOR_STATUS_KEYS)) return out;
-  const { [REAL_DOOR_STATE_KEY]: _open, ...older } = out;
+  const { [REAL_DOOR_STATE_KEY]: _open, [TIN_CAN_KEY]: _tinCan, ...older } = out;
   return older;
 }
 
@@ -2247,5 +2248,65 @@ describe('snapshot version 48 (no panic state, keys as a flag) migrates with no 
   it('a landed campaign', async () => {
     const campaign = await createCampaignSession(kit.read, exists, 9);
     await expectNoPanic(campaign, campaign.campaign.tactical?.state);
+  });
+});
+
+const NO_TILE_TOOL_OR_XRAY: Readonly<Record<string, Json>> = { pendingTileTool: null, xrayActivatedTime: 0, xrayedBy: null };
+
+function withoutTileToolsTinCansOrXRay(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutTileToolsTinCansOrXRay(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key in NO_TILE_TOOL_OR_XRAY) expect(v).toEqual(NO_TILE_TOOL_OR_XRAY[key]);
+    else out[key] = withoutTileToolsTinCansOrXRay(v);
+  }
+  if (!hasKeys(out, LIVE_DOOR_STATUS_KEYS) && !hasKeys(out, SAVED_DOOR_STATUS_KEYS)) return out;
+  const { [TIN_CAN_KEY]: tinCan, ...older } = out;
+  expect(tinCan).toBe(false);
+  return older;
+}
+
+function versionFortyNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withoutTileToolsTinCansOrXRay(value)]);
+  return { ...snapshot, version: 49, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 49 (no tile tools, tin cans or x-ray) migrates with nobody walking up to use a tool, no can on any door and nobody x-rayed', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectNoToolsCansOrXRay(session: SessionSim): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = versionFortyNine(current.sim);
+    for (const key of [...Object.keys(NO_TILE_TOOL_OR_XRAY), TIN_CAN_KEY]) {
+      expect(JSON.stringify(current.sim)).toContain(`"${key}"`);
+      expect(JSON.stringify(legacy)).not.toContain(`"${key}"`);
+    }
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  }
+
+  it('a sandbox with a door status', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    handleDoorChangeFromGridNo(sandbox.sim.state, null, SANDBOX_DOOR);
+    await expectNoToolsCansOrXRay(sandbox);
+  });
+
+  it('a landed campaign with the door statuses of a sector left behind', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const diff = emptySectorDiff();
+    diff.doorStatus = [{ gridNo: SANDBOX_DOOR, open: true, perceivedOpen: false, perceivedNotSet: false, hasTinCan: false }];
+    campaign.campaign.state.sectorDiffs.set(sectorKey(LEFT_SECTOR), diff);
+    await expectNoToolsCansOrXRay(campaign);
   });
 });

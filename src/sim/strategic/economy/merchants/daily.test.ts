@@ -12,6 +12,7 @@ import { Rng } from '../../../../core/rng.ts';
 import { Fact } from '../../narrative/fact-ids.ts';
 import {
   adjustCertainDealersInventory,
+  canDealerTransactItem,
   convertCreatureBloodToElixir,
   dailyCheckOnItemQuantities,
   FRANZ_HAS_SOLD_VIDEO_CAMERA,
@@ -21,6 +22,7 @@ import {
   simulateArmsDealerCustomer,
 } from './daily.ts';
 import { addItemToArmsDealerInventory } from './inventory.ts';
+import { calcValueOfItemToDealer } from './pricing.ts';
 import { activeSpecials, defaultItemInfo, header } from './state.ts';
 import { dealerItemType } from './supply.ts';
 
@@ -100,6 +102,16 @@ describe('dealer initialisation and daily update', () => {
     addItemToArmsDealerInventory(f.ctx, TONY, rocketRifle, used(80), 1);
     simulateArmsDealerCustomer(f.ctx);
     expect(header(f.ctx.state, TONY, rocketRifle).total).toBe(0);
+  });
+
+  it('buys from the player the creature blood a jar takes from a creature corpse, the only way it comes to him', () => {
+    const f = merchantFixture(t);
+    const blood = itemId(t, 'JAR_CREATURE_BLOOD');
+    const gabby = t.content.dealers[GABBY];
+    if (!gabby) throw new Error('no Gabby');
+    const value = calcValueOfItemToDealer(f.ctx, GABBY, blood, false);
+    expect(value).toBeGreaterThan(0);
+    expect(canDealerTransactItem(f.ctx, gabby, blood, true, () => value)).toBe(true);
   });
 
   it('turns all of Gabby’s creature blood into elixir without a draw', () => {
