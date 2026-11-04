@@ -19,7 +19,8 @@
 // @src CommonEnterCombatModeCode (2026-10-30), its sleeper's wake-up (2026-10-31); the BeginLoggingForBleedMeToos window
 // @src of BeginTeamTurn and HandleTacticalEndTurn; HandleTacticalEndTurn's static stamp before HandleRottingCorpses
 // @src (2026-11-01); Strategic/Strategic_Turns.cc HandleStrategicTurn (its GamePaused gate, 2026-11-03); the soldiers
-// @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03).
+// @src StartInterrupt and DisplayHiddenInterrupt slide to, gLastInterruptedGuy and the AI interrupter (2026-11-03);
+// @src HandleTacticalEndTurn's IsMechanical skip (2026-11-04).
 
 import { WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -72,6 +73,7 @@ import {
   Body,
   CivilianGroup,
   consideredNeutral,
+  isMechanical,
   isMonster,
   NO_INTERRUPT,
   NO_PENDING_ANIMATION,
@@ -231,7 +233,7 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
   if (!t.inCombat) {
     t.narrative.logBleedMeToos(true);
     for (const s of teamMembers(t, Team.OUR)) {
-      if (s.life <= 0) continue;
+      if (s.life <= 0 || isMechanical(s)) continue;
       beginMercTurn(t, s);
       handlePlayerServices(t, s);
     }

@@ -4,7 +4,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import type { TacticalContent } from '../content.ts';
 import { Opp } from '../perception/opp.ts';
-import { Team } from '../soldier.ts';
+import { Body, type Soldier, Team } from '../soldier.ts';
 import { createRealtimeClock, type TacticalState } from '../state.ts';
 import { exitCombatMode, handleRealtimeTurns, handleTacticalEndTurn } from './turns.ts';
 
@@ -108,5 +108,31 @@ describe('the real-time opplist decay', () => {
     exitCombatMode(recent.t);
     handleRealtimeTurns(recent.t, recentClock);
     expect([publicValue(recent.t, recent.enemyId), recentClock.lastOpplistDecaySeconds]).toEqual([Opp.SEEN_LAST_TURN, NOW]);
+  });
+});
+
+describe('the real-time turn of our team', () => {
+  function turnCounters(s: Soldier): number[] {
+    return [s.numHitsThisTurn, s.shock];
+  }
+
+  it('skips the robot and our vehicles (IsMechanical), so their APs and per-turn counters wait for combat', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    t.inCombat = false;
+    t.worldClock = { seconds: NOW, paused: false };
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(60, 60), Direction.NORTH);
+    const robot = spawnSoldier(sim, 1, Team.OUR, gridNo(62, 60), Direction.NORTH, { body: Body.ROBOTNOWEAPON });
+    const jeep = spawnSoldier(sim, 2, Team.OUR, gridNo(66, 60), Direction.NORTH, { body: Body.JEEP });
+    for (const s of [merc, robot, jeep]) {
+      s.actionPoints = 0;
+      s.numHitsThisTurn = 3;
+      s.shock = 6;
+    }
+    handleTacticalEndTurn(t, createRealtimeClock());
+    expect(turnCounters(merc)).toEqual([0, 3]);
+    expect(merc.actionPoints).toBeGreaterThan(0);
+    expect([robot.actionPoints, ...turnCounters(robot)]).toEqual([0, 3, 6]);
+    expect([jeep.actionPoints, ...turnCounters(jeep)]).toEqual([0, 3, 6]);
   });
 });
