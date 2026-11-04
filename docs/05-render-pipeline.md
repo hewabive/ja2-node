@@ -119,7 +119,8 @@ and the original's redundant-tile optimisation, which changes nothing visible.
 
 ## 3. Quirks of the original the code keeps
 
-Each looks like a bug and is the original's behaviour. Pinned by tests in `src/render/world/` and `src/app/world/`:
+Each looks like a bug and is the original's behaviour. Pinned by tests in `src/render/world/` and `src/app/world/`
+unless a path is given:
 
 | Quirk | Test |
 |---|---|
@@ -135,6 +136,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/r
 | Corpses draw before every merc, at the z of the tile to the north-west | `dynamic-scene.test.ts` |
 | A structure added at the head of a tile makes it a no-burn tile only where a wall stands, the reverse of one added at the tail; removals and partner swaps leave the flag as it was | `no-burn.test.ts` |
 | As the map loads, a tile's no-burn flag sees only the wall pieces of structures loaded before it: a multi-tile wall based on a later tile does not count | `no-burn.test.ts` |
+| A sector entry adds the structures of earlier stays again at the tail of their tiles, whatever end they were added at, so they take the tail's no-burn rule and the last place in the structure layer | `src/sim/tactical/map-changes.test.ts` |
 | A corpse on a roof sorts twice its on-roof offset up | `dynamic-scene.test.ts` |
 | A corpse is drawn its height up but sorts as if it lay flat: the corpse branch picks its depth before the node's height is read | `dynamic-scene.test.ts` |
 | An item on a structure sorts at the structure z plus its height in z units, not world units | `dynamic-scene.test.ts` |
@@ -168,6 +170,6 @@ differ by luminance rounding: vanilla truncates each term). Inferred from readin
 - A light change makes the original redraw only the marked areas without clearing its z-buffer; ja2-node always draws
   whole frames.
 
-Not ported: gaps "Room reveal at a load", "No-burn tiles". Other deviations of this
-domain: "Sweep window", "Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall
-translucency template", "Bullets of unseen shooters", "Soldier frame on turning".
+Not ported: gaps "Room reveal at a load". Other deviations of this domain: "Structures on load", "Sweep window",
+"Show-through order", "Translucency", "Shadow darkening", "Light on structures", "Wall translucency template",
+"Bullets of unseen shooters", "Soldier frame on turning".

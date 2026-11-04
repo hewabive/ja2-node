@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/SaveLoadMap.cc AddStructToMapTempFile, RemoveStructFromMapTempFile,
-// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem, AddObjectToMapTempFile,
+// @src DamageStructsFromMapTempFile, LoadAllMapChangesFromMapTempFileAndApplyThem (a stored structure comes back at the
+// @src tail of its tile, 2026-11-04), AddObjectToMapTempFile,
 // @src AddObjectFromMapTempFileToMap; TileEngine/WorldMan.cc AddStructToTail, AddStructToHead, RemoveStruct,
 // @src IndexExistsInStructLayer (the replayed tile records, over the structure layer the landed helicopter's pieces are
 // @src already appended to), AddObjectToHead, TypeRangeExistsInObjectLayer; Structure.cc InternalSwapStructureForPartner
@@ -375,8 +376,15 @@ function applyMapChange(t: TacticalState, c: MapChange): void {
   else base.hitPoints = c.hitPoints;
 }
 
+function readdedAtTail(t: TacticalState, c: MapChange): MapChange {
+  if (c.kind !== MapChangeKind.ADD || c.partnerSwap) return c;
+  const tile = mapChangeTile(t, c);
+  return tile === null ? c : structTileChange(MapChangeKind.APPEND_STRUCT_TILE, c.gridNo, tile);
+}
+
 export function applyMapChanges(t: TacticalState, changes: readonly MapChange[]): void {
-  for (const c of changes) {
+  for (const stored of changes) {
+    const c = readdedAtTail(t, stored);
     applyMapChange(t, c);
     t.mapChanges.push(c);
     recompileLocalMovementCosts(t.world.costs, t.world, c.gridNo);

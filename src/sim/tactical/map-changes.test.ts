@@ -5,11 +5,14 @@ import { gridNo } from '../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import { tileIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import {
+  addStructTileToHead,
+  addStructTileToTail,
   applyMapChanges,
   MapChangeKind,
   objectLayerAt,
   recordStructureDamaged,
   recordStructureRemoved,
+  structLayerAt,
   structTileChange,
 } from './map-changes.ts';
 import { loadSavedSectorChanges } from './save-import.ts';
@@ -97,6 +100,34 @@ describe('replaying the map changes of a sector', () => {
       ['remove', sandbagTile()],
       ['append', trapdoorTile()],
     ]);
+  });
+
+  it('re-adds a structure the stay put at the head of its tile at the tail, as AddStructToTail does for every stored structure (SaveLoadMap.cc:123)', () => {
+    const left = freshA10();
+    addStructTileToTail(left, OPEN_GROUND, trapdoorTile());
+    addStructTileToHead(left, OPEN_GROUND, sandbagTile());
+    expect(structLayerAt(left, OPEN_GROUND)).toEqual([sandbagTile(), trapdoorTile()]);
+    expect(tileChangeViews(left).map((c) => c.kind)).toEqual(['append', 'add']);
+    const entered = freshA10();
+    applyMapChanges(entered, left.mapChanges);
+    expect(structLayerAt(entered, OPEN_GROUND)).toEqual([trapdoorTile(), sandbagTile()]);
+    expect(tileChangeViews(entered).map((c) => [c.kind, c.tile])).toEqual([
+      ['append', trapdoorTile()],
+      ['append', sandbagTile()],
+    ]);
+    expect(basesAt(entered, OPEN_GROUND)).toHaveLength(1);
+  });
+
+  it('finds a re-added structure for the damage recorded after it was added', () => {
+    const left = freshA10();
+    addStructTileToHead(left, OPEN_GROUND, sandbagTile());
+    const sandbag = basesAt(left, OPEN_GROUND)[0];
+    if (!sandbag) throw new Error('no sandbag');
+    sandbag.hitPoints = DAMAGED_HIT_POINTS;
+    recordStructureDamaged(left, sandbag);
+    const entered = freshA10();
+    applyMapChanges(entered, left.mapChanges);
+    expect(basesAt(entered, OPEN_GROUND).map((s) => s.hitPoints)).toEqual([DAMAGED_HIT_POINTS]);
   });
 
   it('removes nothing for a tile record whose tile is not in the structure layer', () => {
