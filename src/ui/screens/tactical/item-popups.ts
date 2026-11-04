@@ -8,7 +8,8 @@
 // @src InitKeyRingPopup (NUMBER_KEYS_ON_KEYRING cells, KEY_RING_ROW_WIDTH per row at + TACTICAL_INVENTORY_KEYRING_GRAPHIC_OFFSET_X,
 // @src 8 down), RenderKeyRingPopup (the shade from x 0, the key of each ring position: its item's graphic and count, a full
 // @src bar); src/game/Tactical/Interface_Panels.cc KeyRingItemPanelButtonCallback, KeyRingSlotInvClickCallback (the left
-// @src button on the button down).
+// @src button on the button down; KeyRingSlotInvClickCallbackSecondary: an empty position closes the ring, a key's
+// @src description only outside map mode, 2026-11-03).
 
 import { slotLimitOf } from '../../../content/items/slot-limit.ts';
 import { idiv } from '../../../core/int.ts';
@@ -74,7 +75,7 @@ export interface PopupHooks {
   readonly setCursor: (cursor: ItemCursor | null) => void;
   readonly send: (cmd: CommandEnvelope) => Promise<{ ok: boolean }>;
   readonly describe: (soldier: number, slot: number, index: number) => void;
-  readonly describeKey: (soldier: number, key: number) => void;
+  readonly describeKey?: (soldier: number, key: number) => void;
   readonly cellArt: string;
   readonly keyItem: (key: KeyView) => string | null;
   readonly keyRingPrimary?: (soldier: SoldierView, position: number) => void;
@@ -326,9 +327,11 @@ export class KeyRingPopup {
   #describe(position: number): void {
     const soldier = this.#soldier === null ? null : this.#hooks.soldier(this.#soldier);
     const key = keyAt(soldier, position);
-    if (!soldier || !key) return;
+    const describeKey = this.#hooks.describeKey;
+    if (!soldier || !key) this.close();
+    if (!soldier || !key || !describeKey) return;
     this.close();
-    this.#hooks.describeKey(soldier.id, (soldier.keys ?? []).indexOf(key));
+    describeKey(soldier.id, (soldier.keys ?? []).indexOf(key));
   }
 
   close(): void {

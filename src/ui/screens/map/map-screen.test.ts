@@ -5,6 +5,8 @@ import { sectorId } from '../../../content/strategic/sector-ids.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { MercKind } from '../../../sim/campaign/roster.ts';
+import { emptySectorDiff, sectorKey } from '../../../sim/campaign/sector-diff.ts';
+import { createItem } from '../../../sim/items/object.ts';
 import { SectorFlag } from '../../../sim/strategic/forces/constants.ts';
 import { setSectorFlag } from '../../../sim/strategic/map/sectors.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -33,6 +35,10 @@ const MESSAGE_LINES = 30;
 const LAST_TOP_LINE = MESSAGE_LINES - MAX_MESSAGES_ON_MAP_BOTTOM;
 const SCROLL_AREA_X = 7;
 const FULL_SHADE = { red: 255, green: 255, blue: 255, mono: false };
+const RADAR_ITEM_COLUMNS = 88;
+const RADAR_ITEM_ROW = 7;
+const RADAR_FLASH_MS = 210;
+const STASH_GRIDNO = 12_345;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -184,6 +190,33 @@ describe('the map screen over the stub map-screen campaign', () => {
       expect(radarShade(f)).toEqual(NIGHT_SHADE);
       setWorldHour(f, 7);
       expect(radarShade(f)).toEqual(FULL_SHADE);
+    }));
+
+  it('flashes the sector inventory item under the pointer on the radar, white and then green every 200 ms', () =>
+    withMap(async (f) => {
+      f.media.radar = () => RADAR;
+      f.media.radarItemDot = (gridNo) => ({ x: gridNo % RADAR_ITEM_COLUMNS, y: RADAR_ITEM_ROW });
+      const campaign = (f.session.sim as CampaignSession).campaign;
+      const items = campaign.battle?.content.items;
+      if (!items) throw new Error('no item table');
+      const clip = items.byName.get('CLIP9_15')?.index ?? 0;
+      const at = STASH_GRIDNO;
+      const object = createItem(items, clip, 15);
+      const diff = { ...emptySectorDiff(), items: [{ exists: true, gridNo: at, level: 0, object, flags: 0, zHeight: 0, visible: 1 }] };
+      campaign.state.sectorDiffs.set(sectorKey(f.screen.selectedSector), diff);
+      f.screen.openSectorInventory();
+      await f.settle();
+      hoverWidget(f, 'poolSlot0');
+      const blips = () =>
+        f
+          .draw()
+          .items.filter((i) => i.kind === 'rectangle' && i.x2 === i.x1 + 1 && i.y2 === i.y1 + 1)
+          .map((i) => (i.kind === 'rectangle' ? hex(i.color) : ''));
+      expect(blips()).toEqual(['#ffffff']);
+      f.t.frame(RADAR_FLASH_MS);
+      expect(blips()).toEqual(['#00ff00']);
+      hoverWidget(f, 'poolSlot1');
+      expect(blips()).toEqual([]);
     }));
 
   it('keeps the radar picture of a level below ground light at night', () =>

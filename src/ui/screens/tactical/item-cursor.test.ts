@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { SoldierView } from '../../../protocol/view.ts';
-import { cursorFromSlot, dropCommand, giveCommand, passCommand, tossCommand } from './item-cursor.ts';
+import {
+  combineCommand,
+  cursorAfterCombine,
+  cursorFromSlot,
+  dropCommand,
+  giveCommand,
+  type ItemCursor,
+  passCommand,
+  tossCommand,
+} from './item-cursor.ts';
 
 const OUR_TEAM = 0;
 const ROBOT_BODY = 21;
@@ -49,5 +58,54 @@ describe('the commands of the item cursor dropped on the map (HandleItemPointerC
     expect(dropCommand(cursor, BESIDE)).toEqual({ type: 'drop', soldier: 0, slot: SMALL_POCKET, gridNo: BESIDE });
     expect(tossCommand(cursor, FAR_TILE, 1)).toEqual({ type: 'toss', soldier: 0, slot: SMALL_POCKET, gridNo: FAR_TILE, level: 1 });
     expect(passCommand(cursor, 3)).toEqual({ type: 'pass', soldier: 0, slot: SMALL_POCKET, target: 3 });
+  });
+});
+
+describe('keys taken off the key ring into the cursor (BeginKeyRingItemPointer)', () => {
+  it('are dropped, given, passed and tossed with the ring position as their source', () => {
+    const keys: ItemCursor = { source: { kind: 'keyRing', soldier: 0, position: 4, count: 1 }, item: 'KEY_1' };
+    expect(dropCommand(keys)).toEqual({ type: 'drop', soldier: 0, slot: { ring: 4 }, count: 1 });
+    expect(giveCommand(keys, 2)).toEqual({ type: 'give', soldier: 0, target: 2, slot: { ring: 4 }, count: 1 });
+    expect(passCommand(keys, 3)).toEqual({ type: 'pass', soldier: 0, slot: { ring: 4 }, count: 1, target: 3 });
+    expect(tossCommand({ ...keys, source: { ...keys.source, count: 'all' } } as ItemCursor, FAR_TILE, 0)).toEqual({
+      type: 'toss',
+      soldier: 0,
+      slot: { ring: 4 },
+      gridNo: FAR_TILE,
+    });
+  });
+});
+
+describe('the CTRL+click of a cursor on a stack (UIHandleItemPlacement, CleanUpStack)', () => {
+  const at = (source: ItemCursor['source']): ItemCursor => ({ source, item: 'CLIP9_15' });
+
+  it('names the cursor’s source for every kind of cursor, and the other merc whose stack is clicked', () => {
+    const slot = at({ kind: 'slot', soldier: 1, slot: 7, count: 1, index: 2 });
+    expect(combineCommand(slot, 0, SMALL_POCKET)).toEqual({
+      type: 'combineStack',
+      soldier: 1,
+      slot: SMALL_POCKET,
+      from: 7,
+      index: 2,
+      toSoldier: 0,
+    });
+    expect(combineCommand(at({ kind: 'keyRing', soldier: 0, position: 4, count: 'all' }), 0, 8)).toEqual({
+      type: 'combineStack',
+      soldier: 0,
+      slot: 8,
+      from: { ring: 4 },
+    });
+    expect(combineCommand(at({ kind: 'magazine', soldier: 0, slot: 5 }), 0, 8)).toMatchObject({ from: { magazine: 5 } });
+    expect(combineCommand(at({ kind: 'attachment', soldier: 0, slot: 5, attachment: 1 }), 0, 8)).toMatchObject({
+      from: { attachment: 1, slot: 5 },
+    });
+    expect(combineCommand(at({ kind: 'money', soldier: 0, slot: 9, amount: 100 }), 0, 8)).toMatchObject({ from: 9 });
+  });
+
+  it('keeps the cursor while objects are left in it, on the index the server put them at', () => {
+    const cursor = at({ kind: 'slot', soldier: 0, slot: 7, count: 1, index: 0 });
+    expect(cursorAfterCombine(cursor, { combined: true, left: 0 })).toBeNull();
+    expect(cursorAfterCombine(cursor, { combined: true, left: 1, index: 2 })?.source).toMatchObject({ index: 2 });
+    expect(cursorAfterCombine(cursor, { combined: false, left: 1 })).toBe(cursor);
   });
 });

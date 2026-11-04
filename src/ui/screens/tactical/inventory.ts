@@ -16,10 +16,10 @@
 // @src (gbItemPointerLocateGood from a slot's object taken into the cursor until it leaves the cursor, 2026-11-02).
 
 import { idiv } from '../../../core/int.ts';
-import type { Placements } from '../../../protocol/hints.ts';
+import type { CompatibleItems, Placements } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalOf } from '../../../protocol/refusals.ts';
-import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
+import type { InventoryItemView, KeyView, SoldierView } from '../../../protocol/view.ts';
 import type { DrawList, RgbColor } from '../../draw-list.ts';
 import { rgb } from '../../draw-list.ts';
 import { sprintMoney } from '../../text/money.ts';
@@ -32,9 +32,12 @@ import {
   type CursorSource,
   cancelCommand,
   combineCommand,
+  cursorAfterCombine,
+  cursorFromKeyRing,
   cursorFromSlot,
   hidesSlot,
   type ItemCursor,
+  keyRingCommand,
   moneyTaken,
   placeCommand,
   REFUSAL_MERGE_PROMPT,
@@ -52,7 +55,8 @@ const ARMOUR_AND_HAND_SLOTS: ReadonlySet<number> = new Set([0, 1, 2, HAND_SLOT, 
 const INV_BAR_DX = 5;
 const INV_BAR_DY = 21;
 const ITEM_BAR_HEIGHT = 20;
-const COMPATIBLE_DELAY_MS = 100;
+const NOTHING = 0;
+export const COMPATIBLE_DELAY_MS = 100;
 const NEW_ITEM_STEP_MS = 100;
 const NEW_ITEM_CYCLES = 4;
 const NEW_ITEM_CYCLE_COUNT = 19;
@@ -112,6 +116,13 @@ export interface InventoryHooks {
   inCombat(): boolean;
   extraHatch?(soldier: number, slot: number): boolean;
   placed?(): void;
+  readonly mapScreen?: boolean;
+}
+
+export interface KeyRingTake {
+  readonly shift: boolean;
+  keyItem(key: KeyView): string | null;
+  isKey(item: string): boolean;
 }
 
 export class InventoryPanel {
@@ -120,7 +131,8 @@ export class InventoryPanel {
   #locateGoodFor: ItemCursor | null = null;
   #pending = false;
   #hovered: { slot: number; since: number } | null = null;
-  #highlight: { soldier: number; slots: ReadonlySet<number>; applyOnMerc: boolean } | null = null;
+  #highlight: InventoryPanel['highlight'] = null;
+  #foreign: { readonly soldier: number; readonly slots: ReadonlySet<number> } | null = null;
   #groundRow: GroundRow | null = null;
   #bodyHover = false;
   #bodyHighlights: ReadonlySet<number> = new Set();
@@ -131,6 +143,10 @@ export class InventoryPanel {
 
   constructor(hooks: InventoryHooks) {
     this.#hooks = hooks;
+  }
+
+  get highlight(): { readonly soldier: number; readonly slots: ReadonlySet<number>; readonly applyOnMerc: boolean } | null {
+    return this.#highlight;
   }
 
   get cursor(): ItemCursor | null {
@@ -236,6 +252,7 @@ export class InventoryPanel {
       return lit ? COMPATIBLE_OUTLINE : null;
     }
     if (this.#highlight?.soldier === soldier.id && this.#highlight.slots.has(slot)) return COMPATIBLE_OUTLINE;
+    if (this.#foreign?.soldier === soldier.id && this.#foreign.slots.has(slot)) return COMPATIBLE_OUTLINE;
     if (this.#bodyHover && this.#bodyHighlights.has(slot)) return COMPATIBLE_OUTLINE;
     return null;
   }
@@ -266,14 +283,43 @@ export class InventoryPanel {
 
   update(now: number): void {
     this.degradeGlows(now);
-    const hovered = this.#hovered;
     const sm = this.#hooks.smSoldier();
-    if (!hovered || this.#cursor || !sm || now - hovered.since <= COMPATIBLE_DELAY_MS) return;
-    const reply = this.#env().client.hint({ type: 'placements', soldier: sm.id, slot: hovered.slot });
-    if (reply.state !== 'ready' || !reply.answer.ok) return;
+    const slot = this.hoveredSlot(now);
+    if (!sm || slot === null) return;
+    const highlight = this.#hooks.mapScreen ? this.#compatibleSlots(sm, slot) : this.#placementHighlight(sm, slot);
+    if (highlight) this.#highlight = highlight;
+  }
+
+  hoveredSlot(now: number): number | null {
+    const hovered = this.#hovered;
+    if (!hovered || this.#cursor || now - hovered.since <= COMPATIBLE_DELAY_MS) return null;
+    return hovered.slot;
+  }
+
+  #placementHighlight(sm: SoldierView, slot: number): InventoryPanel['highlight'] {
+    const reply = this.#env().client.hint({ type: 'placements', soldier: sm.id, slot });
+    if (reply.state !== 'ready' || !reply.answer.ok) return null;
     const data = reply.answer.data as Placements;
     const slots = new Set(data.slots.filter((p) => p.highlight).map((p) => p.slot));
-    this.#highlight = { soldier: sm.id, slots, applyOnMerc: data.applyOnMerc };
+    return { soldier: sm.id, slots, applyOnMerc: data.applyOnMerc };
+  }
+
+  #compatibleSlots(sm: SoldierView, slot: number): InventoryPanel['highlight'] {
+    const item = slotItem(sm, slot);
+    const slots = item ? this.compatibleWith(sm, item.index) : null;
+    return slots ? { soldier: sm.id, slots, applyOnMerc: false } : null;
+  }
+
+  compatibleWith(soldier: SoldierView, item: number): ReadonlySet<number> | null {
+    const items = Array.from({ length: NUM_INV_SLOTS }, (_, slot) => slotItem(soldier, slot)?.index ?? NOTHING);
+    const reply = this.#env().client.hint({ type: 'compatibleItems', item, items });
+    if (reply.state !== 'ready' || !reply.answer.ok) return null;
+    const compatible = (reply.answer.data as CompatibleItems).compatible;
+    return new Set(compatible.flatMap((lit, slot) => (lit ? [slot] : [])));
+  }
+
+  foreignHighlight(highlight: { readonly soldier: number; readonly slots: ReadonlySet<number> } | null): void {
+    this.#foreign = highlight;
   }
 
   slotHover(slot: number, on: boolean, now: number): void {
@@ -316,26 +362,70 @@ export class InventoryPanel {
     if (!this.#cursor) {
       if (!slotItem(sm, slot)) return;
       this.#hooks.select(sm.id);
-      if (ctrl) {
-        void this.send({ type: 'combineStack', soldier: sm.id, slot });
-        return;
-      }
-      this.stopGlow(sm.id, slot);
-      this.#cursor = cursorFromSlot(sm, slot, shift);
-      this.#locateGoodFor = this.#cursor;
-      this.#hovered = null;
-      this.#highlight = null;
+      if (ctrl) void this.#cleanUpStack(sm, slot, shift);
+      else this.#pickUp(sm, slot, shift);
       return;
     }
     if (ctrl) void this.#combineWithCursor(sm, slot);
     else void this.place(sm, slot);
   }
 
+  #pickUp(sm: SoldierView, slot: number, shift: boolean): void {
+    this.stopGlow(sm.id, slot);
+    this.#cursor = cursorFromSlot(sm, slot, shift);
+    this.#locateGoodFor = this.#cursor;
+    this.#hovered = null;
+    this.#highlight = null;
+  }
+
+  async #cleanUpStack(sm: SoldierView, slot: number, shift: boolean): Promise<void> {
+    const reply = await this.send({ type: 'combineStack', soldier: sm.id, slot });
+    if (!reply.ok || !this.#hooks.mapScreen) return;
+    const after = this.#hooks.smSoldier();
+    if (after?.id === sm.id && slotItem(after, slot)) this.#pickUp(after, slot, shift);
+  }
+
   async #combineWithCursor(target: SoldierView, slot: number): Promise<void> {
-    const cmd = combineCommand(this.#cursor, target.id, slot);
-    if (!cmd) return;
+    const cursor = this.#cursor;
+    const cmd = combineCommand(cursor, target.id, slot);
+    if (!cursor || !cmd) return;
     const reply = await this.send(cmd);
-    if (reply.ok) this.#cursor = null;
+    if (reply.ok) {
+      if (this.#cursor === cursor) this.#cursor = cursorAfterCombine(cursor, reply.data);
+      return;
+    }
+    await this.#attachOrMerge(target, slot, refusalOf(reply.data));
+  }
+
+  async #attachOrMerge(target: SoldierView, slot: number, refusal: string | null): Promise<void> {
+    if (refusal === REFUSAL_USE_ATTACH && ARMOUR_AND_HAND_SLOTS.has(slot)) {
+      this.#hooks.openDescription(target.id, slot, 0);
+      return;
+    }
+    if (refusal === REFUSAL_MERGE_PROMPT) {
+      const yes = await this.#env().boxes.confirm(this.#env().text.string('Message', STR_MERGE_ITEMS) ?? '');
+      await this.place(target, slot, yes);
+    }
+  }
+
+  keyRingPrimary(owner: SoldierView, position: number, take: KeyRingTake): void {
+    if (this.#pending) return;
+    const cursor = this.#cursor;
+    if (!cursor) {
+      const key = owner.keys?.find((k) => k.position === position);
+      const item = key ? take.keyItem(key) : null;
+      const taken = item ? cursorFromKeyRing(owner, position, take.shift, item) : null;
+      if (!taken) return;
+      this.#hooks.select(owner.id);
+      this.#cursor = taken;
+      return;
+    }
+    if (!take.isKey(cursor.item)) return;
+    const cmd = keyRingCommand(cursor, owner.id, position);
+    if (cmd)
+      void this.send(cmd).then((reply) => {
+        if (reply.ok && this.#cursor === cursor) this.#cursor = null;
+      });
   }
 
   async place(target: SoldierView, slot: number, merge?: boolean): Promise<void> {
@@ -351,15 +441,7 @@ export class InventoryPanel {
       else this.#endPlacement();
       return;
     }
-    const refusal = refusalOf(reply.data);
-    if (refusal === REFUSAL_USE_ATTACH && ARMOUR_AND_HAND_SLOTS.has(slot)) {
-      this.#hooks.openDescription(target.id, slot, 0);
-      return;
-    }
-    if (refusal === REFUSAL_MERGE_PROMPT) {
-      const yes = await this.#env().boxes.confirm(this.#env().text.string('Message', STR_MERGE_ITEMS) ?? '');
-      await this.place(target, slot, yes);
-    }
+    await this.#attachOrMerge(target, slot, refusalOf(reply.data));
   }
 
   #endPlacement(): void {

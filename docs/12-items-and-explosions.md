@@ -24,8 +24,8 @@ Paths are under `src/sim/tactical/` unless stated.
 | `src/content/items/explosions.ts` | Explosion animations with their frame counts, smoke effect types |
 | `src/content/formats/object.ts`, `src/sim/items/object.ts` | The 36-byte `OBJECTTYPE` record; `ItemObject` without a soldier: creation, stacks, magazines, attachments, unloading |
 | `inventory.ts`, `soldier-inventory.ts`, `hand-item.ts` | Slots, placing and auto-placing, reloading, carried weight, the items of hired mercs and NPC profiles; what a hand change does |
-| `item-merge.ts`, `stack-cleanup.ts` | Attaching with the soldier's skill check, merges; pooling the points of a stack |
-| `inventory-panel.ts`, `inventory-commands.ts`, `key-ring-panel.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, keys in and out of the key ring, slot hatches, the description box values |
+| `item-merge.ts`, `stack-cleanup.ts` | Attaching with the soldier's skill check, merges; pooling the points of a stack, CTRL+click with the item cursor's objects |
+| `inventory-panel.ts`, `inventory-commands.ts`, `key-ring-panel.ts`, `item-source.ts`, `item-compatibility.ts`, `item-description.ts` | The inventory commands on the original panel code, keys in and out of the key ring, the pocket or ring position the item cursor's commands take from, slot hatches and compatible outlines, the description box values |
 | `combat/reload.ts` | Which ammunition a reload takes, the reload hotkey |
 | `head-gear.ts` | The squad's switch between night and sun goggles (CTRL+N) |
 | `first-aid.ts` | Bandaging: the start, the service loop, what ends it |
@@ -176,8 +176,7 @@ source:
   flare never fades during turn-based combat.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Drugs and
-alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item
-cursor", "Inventory panel clicks". Other deviations of this domain: "Object union", "Item
-cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
-pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic draws
-in explosions", "Wall decals after a load".
+alcohol", "Auto-bandage", "Walking side effects" (water damage to items), "Tossing from the item cursor". Other
+deviations of this domain: "Object union", "Item cursor", "Key ring cursor", "Attachment AP", "Picking up items",
+"Structural damage of grenades", "Explosion timing", "Tile-animation pass", "Water ripple", "Vaporized corpses", "Gas
+and blast hit flags", "World clock for smoke and light", "Cosmetic draws in explosions", "Wall decals after a load".

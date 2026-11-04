@@ -92,6 +92,24 @@ describe('the sector inventory pool', () => {
     expect(discardCommand(attachment)).toBeNull();
   });
 
+  it('puts keys taken off the key ring into the stash and into the trash can (BeginKeyRingItemPointer)', () => {
+    const keys: ItemCursor = { source: { kind: 'keyRing', soldier: 3, position: 6, count: 1 }, item: 'KEY_1' };
+    expect(toStashCommand(keys, entry(4), { sector: 'D13', z: 0 })).toEqual({
+      type: 'moveItem',
+      soldier: 3,
+      from: { ring: 6 },
+      to: 'ground',
+      stashIndex: 4,
+      sector: 'D13',
+      count: 1,
+    });
+    expect(discardCommand({ ...keys, source: { ...keys.source, count: 'all' } } as ItemCursor)).toEqual({
+      type: 'discardItem',
+      soldier: 3,
+      slot: { ring: 6 },
+    });
+  });
+
   it('checks a click in the original order', () => {
     const base = { entry: entry(0), holding: false, mercInSector: true, usable: true };
     expect(poolClickRefusal(base)).toBeNull();

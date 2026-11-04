@@ -9,7 +9,10 @@
 // @src talkable target: an escort or the robot at any distance, 2026-11-01), RemoveMoney (the split amount goes into the cursor),
 // @src BeginKeyRingItemPointer (one key off the ring, SHIFT all of the position); Interface_Panels.cc
 // @src KeyRingSlotInvClickCallbackPrimary (a key in the cursor onto a ring position); Handle_UI.cc IsValidTalkableNPC;
-// @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02).
+// @src UIHandleItemPlacement (PlaceObject back into the slot the object came from, 2026-11-02; CTRL pools the cursor's
+// @src objects into the stack clicked, any merc's and from any slot, a gun's magazine, an attachment, money or the key
+// @src ring, and leaves the rest in the cursor;
+// @src keys off the ring dropped, given, passed or thrown, 2026-11-03).
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -147,10 +150,35 @@ export function attachCommand(
   };
 }
 
+type CombineFrom = number | { ring: number } | { magazine: number } | { attachment: number; slot: number };
+
+function combineSource(s: CursorSource): { from: CombineFrom; index?: number } {
+  switch (s.kind) {
+    case 'keyRing':
+      return { from: { ring: s.position } };
+    case 'magazine':
+      return { from: { magazine: s.slot } };
+    case 'attachment':
+      return { from: { attachment: s.attachment, slot: s.slot } };
+    case 'money':
+      return { from: s.slot };
+    case 'slot':
+      return { from: s.slot, ...(s.count === 1 ? { index: s.index } : {}) };
+  }
+}
+
 export function combineCommand(cursor: ItemCursor | null, target: number, slot: number): CommandEnvelope | null {
   const s = cursor?.source;
-  if (s?.kind !== 'slot' || s.soldier !== target || s.slot === slot) return null;
-  return { type: 'combineStack', soldier: target, slot, from: s.slot, ...(s.count === 1 ? { index: s.index } : {}) };
+  if (!s) return null;
+  return { type: 'combineStack', soldier: s.soldier, slot, ...combineSource(s), ...otherSoldier(s, target) };
+}
+
+export function cursorAfterCombine(cursor: ItemCursor, data: unknown): ItemCursor | null {
+  const result = data as { readonly left?: number; readonly index?: number } | undefined;
+  if ((result?.left ?? 0) <= 0) return null;
+  const s = cursor.source;
+  if (s.kind !== 'slot' || result?.index === undefined) return cursor;
+  return { ...cursor, source: { ...s, index: result.index } };
 }
 
 export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
@@ -160,13 +188,14 @@ export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelop
 }
 
 export interface PocketFields {
-  readonly slot: number;
+  readonly slot: number | { readonly ring: number };
   readonly count?: CursorCount;
   readonly index?: number;
 }
 
 export function tossFields(cursor: ItemCursor): PocketFields | null {
   const s = cursor.source;
+  if (s.kind === 'keyRing') return { slot: { ring: s.position }, ...countField(s.count) };
   if (s.kind !== 'slot') return null;
   return { slot: s.slot, ...countField(s.count), ...(s.index !== 0 ? { index: s.index } : {}) };
 }
@@ -191,6 +220,7 @@ export function passCommand(cursor: ItemCursor, target: number): CommandEnvelope
 export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
   const s = cursor.source;
   if (s.kind === 'money') return { type: 'give', soldier: s.soldier, target, money: s.amount, slot: s.slot };
+  if (s.kind === 'keyRing') return { type: 'give', soldier: s.soldier, target, slot: { ring: s.position }, ...countField(s.count) };
   if (s.kind !== 'slot') return null;
   return { type: 'give', soldier: s.soldier, target, slot: s.slot, ...countField(s.count) };
 }

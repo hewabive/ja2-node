@@ -30,6 +30,7 @@ export const TACTICAL_HINT_KINDS = [
   'placements',
   'itemInfo',
   'compatibleMercs',
+  'compatibleItems',
   'exitSector',
   'movementOptions',
 ] as const;
@@ -46,6 +47,7 @@ export const STRATEGIC_HINT_KINDS = [
 export const HINT_KINDS = [...TACTICAL_HINT_KINDS, ...STRATEGIC_HINT_KINDS] as const;
 
 export const HINT_KINDS_WITHOUT_SECTOR_WORLD = [
+  'compatibleItems',
   'canEnterSector',
   'assignmentOptions',
   'previewRoute',

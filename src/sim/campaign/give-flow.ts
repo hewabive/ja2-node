@@ -3,14 +3,18 @@
 // @src src/game/Tactical/Interface_Items.cc HandleItemPointerClick (the give branch, the alternative cursor),
 // @src InternalBeginItemPointer, RemoveMoney (the money box in steps of 10), BeginItemPointer; Interface_Panels.cc
 // @src SMInvClickCallbackPrimary; Items.cc GetObjFrom, PlaceObject (the object put back into its slot); Handle_UI.cc
-// @src SelectedGuyInBusyAnimation.
+// @src SelectedGuyInBusyAnimation; BeginKeyRingItemPointer (keys given off the ring leave it with the order, as money
+// @src split off a pocket does, 2026-11-03).
 
 import { ItemClass } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { cloneObject, createMoney, deleteObject, type ItemObject } from '../items/object.ts';
 import { animName } from '../tactical/anim-states.ts';
+import { createKeyObject } from '../tactical/doors/keys.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
 import { InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../tactical/inventory.ts';
+import { parseKeySpot } from '../tactical/inventory-commands.ts';
+import { removeKeysFromPosition } from '../tactical/key-ring-panel.ts';
 import { enoughPoints } from '../tactical/points.ts';
 import { OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -127,9 +131,33 @@ function moneyRequest(t: TacticalState, merc: Soldier, slotArg: unknown, amount:
   };
 }
 
+function ringRequest(t: TacticalState, merc: Soldier, position: number, countArg: unknown): GiveRequest | GiveRefusal {
+  const ring = merc.keyRing?.[position];
+  if (!ring || ring.count === 0) return 'emptySlot';
+  const count = countArg === undefined ? ring.count : countArg;
+  if (!isInt(count) || (count !== 1 && count !== ring.count)) return 'badCount';
+  const preview = createKeyObject(t.content, count, ring.keyId);
+  if (!preview) return 'emptySlot';
+  return {
+    slot: NO_SLOT,
+    preview,
+    take: () => {
+      removeKeysFromPosition(ring, count);
+      return cloneObject(preview);
+    },
+  };
+}
+
+function ringOf(value: unknown): number | null {
+  const spot = typeof value === 'object' && value !== null ? parseKeySpot(value) : null;
+  return spot && 'ring' in spot ? spot.ring : null;
+}
+
 export function giveRequest(t: TacticalState, merc: Soldier, cmd: Readonly<Record<string, unknown>>): GiveRequest | GiveRefusal {
   if (cmd.money !== undefined) return moneyRequest(t, merc, cmd.slot, cmd.money);
   if (cmd.slot === undefined) return 'needItemOrMoney';
+  const ring = ringOf(cmd.slot);
+  if (ring !== null) return ringRequest(t, merc, ring, cmd.count);
   const slot = slotOf(cmd.slot);
   if (slot === null) return 'noSlot';
   return slotRequest(merc, slot, cmd.count);

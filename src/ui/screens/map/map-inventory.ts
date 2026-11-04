@@ -3,8 +3,13 @@
 // @src src/game/Strategic/MapScreen.cc CreateDestroyMapInvButton, BltCharInvPanel (the armour as "{3d}%", the weight and
 // @src the camouflage as "{}%"), SetMapCursorItem and MAPEndItemPointer (the item picture as the cursor), HandleKeyESC;
 // @src src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc CreateDestroyMapInventoryPoolButtons,
-// @src CancelSectorInventoryDisplayIfOn.
+// @src CancelSectorInventoryDisplayIfOn, HandleMouseInCompatableItemForMapSectorInventory (after 100 ms over a pool item:
+// @src the selected merc's and the page's compatible items outlined, HandleCompatibleAmmoUIForMapScreen and
+// @src HandleCompatibleAmmoUIForMapInventory), HandleCursorOverRifleAmmo (after 100 ms over a merc's item: the page's
+// @src compatible items outlined), HandleFlashForHighLightedItem (the radar blip of the pool item under the pointer
+// @src flips every DELAY_FOR_HIGHLIGHT_ITEM_FLASH, 2026-11-03).
 
+import type { CompatibleItems } from '../../../protocol/hints.ts';
 import type { SoldierView, StrategicMercView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawList } from '../../draw-list.ts';
@@ -13,7 +18,7 @@ import { type CustomRenderer, LayoutView } from '../../layout/view.ts';
 import { FontName } from '../../text/fonts.ts';
 import { MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
-import { helpTextForItem, NUM_INV_SLOTS } from '../tactical/inventory.ts';
+import { COMPATIBLE_DELAY_MS, helpTextForItem, NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { slotItem } from '../tactical/item-cursor.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import { Assignment } from './character-list.ts';
@@ -28,8 +33,17 @@ import { SectorInventory } from './sector-inventory.ts';
 const OWNER = 'mapInventory';
 const OKLIFE = 15;
 const EPC_KIND = 'epc';
-const ITEM_EVENTS: ReadonlySet<string> = new Set(['itemMoved', 'itemDiscarded', 'itemDropped', 'itemsPickedUp', 'itemsRevealed']);
+const ITEM_EVENTS: ReadonlySet<string> = new Set([
+  'itemMoved',
+  'keyMoved',
+  'itemDiscarded',
+  'itemDropped',
+  'itemsPickedUp',
+  'itemsRevealed',
+]);
 const ARMOUR_DIGITS = 3;
+const NOTHING = 0;
+const DELAY_FOR_HIGHLIGHT_ITEM_FLASH = 200;
 
 export function accessibleInventory(m: StrategicMercView): boolean {
   return m.assignment !== Assignment.IN_TRANSIT && !isPow(m) && !isMechanical(m) && m.kind !== EPC_KIND && m.life >= OKLIFE;
@@ -41,6 +55,7 @@ export interface MapInventoryHost {
   readonly location: () => PoolLocation;
   readonly box: (text: string, flags: MessageBoxFlag) => Promise<number>;
   readonly shift: () => boolean;
+  readonly ctrl: () => boolean;
   readonly mercClosed: () => void;
   readonly poolClosed: () => void;
 }
@@ -54,6 +69,7 @@ export class MapInventory {
   readonly #view: LayoutView;
   #externCursor = false;
   #now = 0;
+  readonly #flash = { base: 0, on: false };
 
   constructor(host: MapInventoryHost) {
     this.#host = host;
@@ -86,6 +102,7 @@ export class MapInventory {
       },
       box: (text, flags) => host.box(text, flags),
       shift: () => host.shift(),
+      ctrl: () => host.ctrl(),
     });
     this.pool = new SectorInventory({
       env,
@@ -219,6 +236,9 @@ export class MapInventory {
       case 'poolSlotSecondary':
         if (this.pool.slotSecondary()) this.#host.poolClosed();
         return;
+      case 'poolSlotHover':
+        this.pool.slotHover(first, second !== 0, this.#now);
+        return;
       case 'poolPrev':
         this.pool.prevPage();
         return;
@@ -237,9 +257,60 @@ export class MapInventory {
     this.#now = now;
     if (this.merc.open && !this.#mercSoldier()) this.closeMerc();
     this.merc.update(now);
+    this.#outlineCompatibles(now);
+    this.#updateRadarFlash(now);
     this.#syncModel();
     this.#view.update();
     this.#syncCursor(now);
+  }
+
+  radarHighlight(): { readonly gridNo: number; readonly flashOn: boolean } | null {
+    const entry = this.pool.hoveredEntry();
+    return entry && entry.count > 0 && entry.gridNo !== 0 ? { gridNo: entry.gridNo, flashOn: this.#flash.on } : null;
+  }
+
+  #updateRadarFlash(now: number): void {
+    const flash = this.#flash;
+    if (this.pool.hoveredSince() === null) {
+      flash.on = false;
+      flash.base = now;
+    } else if (now - flash.base > DELAY_FOR_HIGHLIGHT_ITEM_FLASH) {
+      flash.base = now;
+      flash.on = !flash.on;
+    }
+  }
+
+  #outlineCompatibles(now: number): void {
+    const merc = this.merc.open ? this.#mercSoldier() : null;
+    const fromPool = this.#hoveredPoolItem(now);
+    const test = fromPool ?? this.#hoveredMercItem(now, merc);
+    this.pool.outline(test === null ? new Set() : this.#poolSlotsCompatibleWith(test));
+    const slots = merc && fromPool !== null ? this.merc.panel.compatibleWith(merc, fromPool) : null;
+    this.merc.panel.foreignHighlight(merc && slots ? { soldier: merc.id, slots } : null);
+  }
+
+  #hoveredPoolItem(now: number): number | null {
+    const since = this.pool.hoveredSince();
+    const entry = this.pool.hoveredEntry();
+    if (since === null || now - since <= COMPATIBLE_DELAY_MS || !entry) return null;
+    return this.#itemIndex(entry.item);
+  }
+
+  #hoveredMercItem(now: number, merc: SoldierView | null): number | null {
+    const slot = merc ? this.merc.panel.hoveredSlot(now) : null;
+    return slot === null ? null : (slotItem(merc, slot)?.index ?? null);
+  }
+
+  #itemIndex(name: string): number | null {
+    return this.#host.env.media.item(name)?.index ?? null;
+  }
+
+  #poolSlotsCompatibleWith(item: number): ReadonlySet<number> {
+    const items = this.pool.pageEntries().map((e) => (e ? (this.#itemIndex(e.item) ?? NOTHING) : NOTHING));
+    const reply = this.#host.env.client.hint({ type: 'compatibleItems', item, items });
+    if (reply.state !== 'ready' || !reply.answer.ok) return new Set();
+    const compatible = (reply.answer.data as CompatibleItems).compatible;
+    return new Set(compatible.flatMap((lit, slot) => (lit ? [slot] : [])));
   }
 
   #syncModel(): void {

@@ -441,11 +441,121 @@ describe('combining stacks (CleanUpStack, CTRL+click)', () => {
     source.status = [2];
     s.inv[InvSlot.BIGPOCK1] = target;
     s.inv[InvSlot.BIGPOCK2] = source;
-    expect(sim.dispatch({ type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK2 }).ok).toBe(true);
+    expect(sim.dispatch({ type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK2 })).toEqual({
+      ok: true,
+      data: { combined: true, left: 0 },
+    });
     expect(target.status[0]).toBe(capacity - 1);
     expect(source.count).toBe(0);
     const gun = createItem(content.items, item('GLOCK_17'), 100);
     s.inv[InvSlot.BIGPOCK3] = gun;
     expect(sim.dispatch({ type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK3 }).data).toEqual({ combined: false });
+  });
+
+  function magazines(sim: TacticalSim, id: number, slot: number, status: readonly number[]) {
+    const s = sim.state.soldiers[id] ?? spawnSoldier(sim, id, Team.OUR, ORIGIN + id * EAST, Direction.EAST);
+    const stack = createItem(content.items, item('CLIP9_15'), status[0] ?? 0);
+    stack.count = status.length;
+    stack.status = [...status];
+    s.inv[slot] = stack;
+    return stack;
+  }
+
+  it('pours another merc’s cursor object into the stack clicked and leaves what found no room in the cursor', () => {
+    const sim = newCombatSim(content);
+    const target = magazines(sim, 0, InvSlot.BIGPOCK1, [10]);
+    const source = magazines(sim, 1, InvSlot.BIGPOCK2, [15, 8]);
+    const cmd = { type: 'combineStack', soldier: 1, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK2, index: 0, toSoldier: 0 };
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: true, left: 1 } });
+    expect(target.status.slice(0, target.count)).toEqual([15]);
+    expect(source.status.slice(0, source.count)).toEqual([10, 8]);
+  });
+
+  it('checks 3 AP of both mercs for another merc’s cursor in combat and charges none', () => {
+    const sim = newCombatSim(content);
+    combat(sim);
+    magazines(sim, 0, InvSlot.BIGPOCK1, [10]);
+    magazines(sim, 1, InvSlot.BIGPOCK2, [15]);
+    const [a, b] = [sim.state.soldiers[0], sim.state.soldiers[1]];
+    if (!a || !b) throw new Error('no mercs');
+    a.actionPoints = 2;
+    const cmd = { type: 'combineStack', soldier: 1, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK2, toSoldier: 0 };
+    expect(sim.dispatch(cmd).data).toMatchObject({ refusal: 'notEnoughAP' });
+    a.actionPoints = 3;
+    const ap = b.actionPoints;
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: true, left: 1 } });
+    expect([a.actionPoints, b.actionPoints]).toEqual([3, ap]);
+  });
+
+  it('pours one object taken from the stack into the rest of it and puts what is left on top', () => {
+    const sim = newCombatSim(content);
+    const stack = magazines(sim, 0, InvSlot.BIGPOCK1, [6, 15, 12]);
+    const cmd = { type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK1, index: 2 };
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: true, left: 1, index: 2 } });
+    expect(stack.status.slice(0, stack.count)).toEqual([15, 15, 3]);
+    const small = magazines(sim, 0, InvSlot.BIGPOCK2, [6, 4]);
+    const into = { ...cmd, slot: InvSlot.BIGPOCK2, from: InvSlot.BIGPOCK2, index: 1 };
+    expect(sim.dispatch(into)).toEqual({ ok: true, data: { combined: true, left: 0 } });
+    expect(small.status.slice(0, small.count)).toEqual([10]);
+  });
+
+  it('pours nothing from a whole stack taken into the cursor: its slot is empty for the click', () => {
+    const sim = newCombatSim(content);
+    const stack = magazines(sim, 0, InvSlot.BIGPOCK1, [6, 12]);
+    const cmd = { type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: InvSlot.BIGPOCK1 };
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: false, left: 2 } });
+    expect(stack.status.slice(0, stack.count)).toEqual([6, 12]);
+  });
+
+  it('asks to merge a kit with the kit in the hand before CTRL cleans up (ValidMerge first)', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    s.inv[InvSlot.HAND] = createItem(content.items, item('FIRSTAIDKIT'), 40);
+    s.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('FIRSTAIDKIT'), 30);
+    const cmd = { type: 'combineStack', soldier: 0, slot: InvSlot.HAND, from: InvSlot.BIGPOCK1 };
+    expect(sim.dispatch(cmd).data).toMatchObject({ refusal: 'mergePrompt' });
+    expect(sim.dispatch({ ...cmd, slot: InvSlot.BIGPOCK2 }).data).toMatchObject({ refusal: 'emptySlot' });
+  });
+
+  it('pours the rounds of a magazine taken out of a gun and empties the gun once they are all poured', () => {
+    const sim = newCombatSim(content);
+    const target = magazines(sim, 0, InvSlot.BIGPOCK1, [12]);
+    const s = sim.state.soldiers[0];
+    if (!s) throw new Error('no merc');
+    const gun = createItem(content.items, item('GLOCK_17'), 100);
+    Object.assign(gun, { gunAmmoItem: item('CLIP9_15'), gunShotsLeft: 10 });
+    s.inv[InvSlot.HAND] = gun;
+    const cmd = { type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: { magazine: 'hand' } };
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: true, left: 1 } });
+    expect([target.status[0], gun.gunShotsLeft]).toEqual([15, 7]);
+    target.status[0] = 5;
+    expect(sim.dispatch(cmd)).toEqual({ ok: true, data: { combined: true, left: 0 } });
+    expect([target.status[0], gun.gunShotsLeft]).toEqual([12, 0]);
+    expect(sim.dispatch(cmd).data).toMatchObject({ refusal: 'gunEmpty' });
+  });
+
+  it('opens the attachment for an attachment taken off a gun and clicked on a gun in the hand', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    s.inv[InvSlot.HAND] = createItem(content.items, item('GLOCK_17'), 100);
+    const host = createItem(content.items, item('GLOCK_17'), 100);
+    attachObject(content.items, host, createItem(content.items, item('SILENCER'), 90));
+    s.inv[InvSlot.BIGPOCK1] = host;
+    const cmd = { type: 'combineStack', soldier: 0, slot: InvSlot.HAND, from: { attachment: 'SILENCER', slot: InvSlot.BIGPOCK1 } };
+    expect(sim.dispatch(cmd).data).toMatchObject({ refusal: 'useAttach' });
+    expect(sim.dispatch({ ...cmd, slot: InvSlot.BIGPOCK1 })).toEqual({ ok: true, data: { combined: false, left: 1 } });
+  });
+
+  it('cleans up the stack clicked with keys from the ring in the cursor, which stay there', () => {
+    const sim = newCombatSim(content);
+    const stack = magazines(sim, 0, InvSlot.BIGPOCK1, [6, 12]);
+    const ring = sim.state.soldiers[0]?.keyRing ?? [];
+    ring[2] = { keyId: 1, count: 2 };
+    expect(sim.dispatch({ type: 'combineStack', soldier: 0, slot: InvSlot.BIGPOCK1, from: { ring: 2 } })).toEqual({
+      ok: true,
+      data: { combined: true, left: 2 },
+    });
+    expect(stack.status.slice(0, stack.count)).toEqual([15, 3]);
+    expect(ring[2]).toEqual({ keyId: 1, count: 2 });
   });
 });

@@ -10,7 +10,8 @@
 // @src MapInvenPoolScreenMaskCallbackSecondary, InventoryNextPage, InventoryPrevPage, DisplayPagesForMapInventoryPool,
 // @src DrawNumberOfInventoryPoolItems, DisplayCurrentSector (pMapVertIndex, pMapHortIndex, pMapDepthIndex),
 // @src DrawTextOnMapInventoryBackground (pMapInventoryStrings 0 and 1 wrapped right-justified at 268 and 369, 342 and
-// @src centred on their height, MAP_IVEN_FONT FONT_BEIGE), HandleButtonStatesWhileMapInventoryActive.
+// @src centred on their height, MAP_IVEN_FONT FONT_BEIGE), HandleButtonStatesWhileMapInventoryActive;
+// @src MapInvenPoolSlotsMove (the slot under the pointer, iCurrentlyHighLightedItem, 2026-11-03).
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -23,7 +24,7 @@ import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { displayWrappedString, reduceStringLength, TextFlag } from '../../text/wrap.ts';
 import { drawItemStatusBar } from '../tactical/bars.ts';
-import { helpTextForItem } from '../tactical/inventory.ts';
+import { COMPATIBLE_OUTLINE, helpTextForItem } from '../tactical/inventory.ts';
 import type { ItemCursor } from '../tactical/item-cursor.ts';
 import { drawInventoryItem, itemStatusValue, type TileDrawContext } from '../tactical/item-tile.ts';
 import type { MapEnvironment } from './environment.ts';
@@ -80,6 +81,8 @@ export class SectorInventory {
   #cursor: StashCursor | null = null;
   #asked = 0;
   #busy = false;
+  #hovered: { readonly slot: number; readonly since: number } | null = null;
+  #outlined: ReadonlySet<number> = new Set();
 
   constructor(host: SectorInventoryHost) {
     this.#host = host;
@@ -122,6 +125,30 @@ export class SectorInventory {
     this.#open = false;
     this.#cursor = null;
     this.#query = null;
+    this.#hovered = null;
+    this.#outlined = new Set();
+  }
+
+  slotHover(slot: number, on: boolean, now: number): void {
+    if (on) this.#hovered = { slot, since: now };
+    else if (this.#hovered?.slot === slot) this.#hovered = null;
+  }
+
+  hoveredEntry(): StashEntryView | null {
+    const hovered = this.#hovered;
+    return this.#open && hovered ? poolEntry(this.stash, this.#page, hovered.slot) : null;
+  }
+
+  hoveredSince(): number | null {
+    return this.#open ? (this.#hovered?.since ?? null) : null;
+  }
+
+  pageEntries(): readonly (StashEntryView | null)[] {
+    return Array.from({ length: POOL_SLOTS_PER_PAGE }, (_, slot) => poolEntry(this.stash, this.#page, slot));
+  }
+
+  outline(slots: ReadonlySet<number>): void {
+    this.#outlined = slots;
   }
 
   clearCursor(): void {
@@ -271,7 +298,7 @@ export class SectorInventory {
       const dy = o.y + (slotY ?? 0) + (slotH ?? 0) * cell.row;
       const view = entryView(entry);
       const box = { x: dx + (itemX ?? 0), y: dy + (itemY ?? 0), width: itemW ?? 0, height: itemH ?? 0 };
-      drawInventoryItem(ctx, view, box, { outline: null });
+      drawInventoryItem(ctx, view, box, { outline: this.#outlined.has(slot) ? COMPATIBLE_OUTLINE : null });
       drawItemStatusBar(list, itemStatusValue(view, ctx.items, 0), dx + (barX ?? 0), dy + (barY ?? 0) + (barH ?? 0) - 1, barH ?? 0);
       if (!entry.reachable || !mercHere) list.hatch(box.x, box.y, box.x + box.width - 1, box.y + box.height - 1);
       const name = reduceStringLength(ctx.items.item(entry.item)?.shortName ?? '', nameW ?? 0, nameFont);

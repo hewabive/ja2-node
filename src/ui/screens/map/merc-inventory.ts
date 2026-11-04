@@ -38,6 +38,7 @@ const TRASH_ORDINARY = 0;
 const TRASH_MISSION = 1;
 const DESCRIPTION_WIDGET = 'mapItemDescription';
 const SLOT_STYLE = 'mercSlots';
+const KEY_CLASS = 'KEY';
 
 export interface MercInventoryHost {
   readonly env: MapEnvironment;
@@ -49,6 +50,7 @@ export interface MercInventoryHost {
   readonly stashPlaced: () => void;
   readonly box: (text: string, flags: MessageBoxFlag) => Promise<number>;
   readonly shift: () => boolean;
+  readonly ctrl: () => boolean;
 }
 
 export class MercInventory {
@@ -72,6 +74,7 @@ export class MercInventory {
       popupOpen: () => this.stack.open || this.keyRing.open,
       disabledForItems: () => false,
       inCombat: () => false,
+      mapScreen: true,
     });
     const popupHooks = {
       services: env.runtime,
@@ -82,9 +85,9 @@ export class MercInventory {
       setCursor: (cursor: Parameters<InventoryPanel['setCursor']>[0]) => this.panel.setCursor(cursor),
       send: (cmd: CommandEnvelope) => this.panel.send(cmd),
       describe: (soldier: number, slot: number, index: number) => this.#describe({ kind: 'slot', soldier, slot, index }),
-      describeKey: (soldier: number, key: number) => this.#describe({ kind: 'key', soldier, key }),
       cellArt: host.model().asset('extraInventory').path,
       keyItem: (key: Parameters<MapEnvironment['media']['keyItem']>[0]) => env.media.keyItem(key),
+      keyRingPrimary: (owner: SoldierView, position: number) => this.#keyRingPrimary(owner, position),
     };
     this.stack = new StackPopup(popupHooks);
     this.keyRing = new KeyRingPopup(popupHooks);
@@ -156,7 +159,16 @@ export class MercInventory {
       });
       return;
     }
-    this.panel.slotPrimary(slot, this.#host.shift());
+    this.panel.slotPrimary(slot, this.#host.shift(), this.#host.ctrl());
+  }
+
+  #keyRingPrimary(owner: SoldierView, position: number): void {
+    const media = this.#host.env.media;
+    this.panel.keyRingPrimary(owner, position, {
+      shift: this.#host.shift(),
+      keyItem: (key) => media.keyItem(key),
+      isKey: (item) => media.item(item)?.class === KEY_CLASS,
+    });
   }
 
   slotSecondary(slot: number): void {

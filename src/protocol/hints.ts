@@ -1,6 +1,7 @@
 export type { ExitMenu } from '../sim/campaign/sector-exits.ts';
 export type { AssignmentLine, AssignmentOptions, PopUpShade } from '../sim/hints/assignment-options.ts';
 export type { CanEnterSector } from '../sim/hints/can-enter-sector.ts';
+export type { CompatibleItems } from '../sim/hints/compatible-items.ts';
 export type { CompatibleMercs } from '../sim/hints/compatible-mercs.ts';
 export type { AmmoState, AttackCursor, EstimateAttack } from '../sim/hints/estimate-attack.ts';
 export type { ExitSectorDryRun, ExitSectorOptions } from '../sim/hints/exit-sector.ts';

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Radar_Screen.cc RenderRadarScreen, AdjustWorldCenterFromRadarCoords; RenderWorld.cc
-// @src InitRenderParams (radar scale), ApplyScrolling (gsTopLeftWorldX/Y); src/game/Tactical/Soldier_Find.cc GridNoOnScreen
+// @src InitRenderParams (radar scale), ApplyScrolling (gsTopLeftWorldX/Y); src/game/Tactical/Soldier_Find.cc GridNoOnScreen;
+// @src RenderRadarScreen's map inventory branch (the highlighted item's position truncated, no visibility test, 2026-11-03)
 
 import { rgb565ToRgba } from '../../content/formats/rgb565.ts';
 import { decodeSti, type Sti } from '../../content/formats/sti.ts';
@@ -120,6 +121,12 @@ export function radarDotOf(restrictedScrollId: number, gridNo: number): { readon
   const at = absoluteScreenXY(restrictedScrollId, gridNo);
   const scale = radarScale(restrictedScrollId);
   return { x: Math.floor(at.x * scale.x), y: Math.floor(at.y * scale.y) };
+}
+
+export function radarItemDotOf(restrictedScrollId: number, gridNo: number): { readonly x: number; readonly y: number } {
+  const at = absoluteScreenXY(restrictedScrollId, gridNo);
+  const scale = radarScale(restrictedScrollId);
+  return { x: Math.trunc(at.x * scale.x), y: Math.trunc(at.y * scale.y) };
 }
 
 export function radarViewportBox(restrictedScrollId: number, o: ViewOnMap): RadarBox {

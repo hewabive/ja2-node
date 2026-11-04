@@ -55,7 +55,7 @@ export interface KeyMovedEvent extends SimEventBase {
   readonly item: string;
   readonly count: number;
   readonly from: KeySpotView;
-  readonly to: KeySpotView;
+  readonly to: KeySpotView | 'ground';
   readonly toSoldier?: number;
 }
 

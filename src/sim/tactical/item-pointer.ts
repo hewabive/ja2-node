@@ -4,7 +4,8 @@
 // @src click for nothing; a moving soldier under the pointer refused; the pass to a merc of ours within
 // @src PASSING_ITEM_DISTANCE_OKLIFE who is no escort and no vehicle: 3 AP each checked, his line of sight to the giver at
 // @src cube level 3, the 3 AP charged before AutoPlaceObject, MSG_ITEM_PASSED_TO_MERC or MSG_NO_ROOM_TO_PASS_ITEM, the
-// @src catcher stopped and both turned to each other into PASS_OBJECT when standing out of water).
+// @src catcher stopped and both turned to each other into PASS_OBJECT when standing out of water; keys off the ring passed
+// @src as BeginKeyRingItemPointer takes them, 2026-11-03).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
@@ -19,7 +20,8 @@ import { oppositeDirection } from './directions.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { autoPlaceObject, itemIn } from './inventory.ts';
 import { tacticalPanelEnv } from './inventory-commands.ts';
-import { type Count, cancelCursor, takeObjects } from './inventory-panel.ts';
+import { cancelCursor } from './inventory-panel.ts';
+import { type ItemSource, isRingSource, type PocketSource, type RingSource, returnKeysToRing, takeSourceObject } from './item-source.ts';
 import { directionToward, stopMerc } from './movement.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { mercInWater } from './person-structure.ts';
@@ -44,12 +46,6 @@ export const PASS_REFUSALS: Readonly<Record<PassRefusal, string>> = {
   notEnoughAP: `not enough APs: ${AP_PASS_ITEM} needed by both mercs`,
   noLineOfSight: 'the other merc cannot see the giver',
 };
-
-export interface Pass {
-  readonly slot: number;
-  readonly count: Count;
-  readonly index: number;
-}
 
 export interface PassOutcome {
   readonly passed: boolean;
@@ -101,15 +97,27 @@ function handOver(t: TacticalState, giver: Soldier, catcher: Soldier, o: ItemObj
   return true;
 }
 
-export function passItem(t: TacticalState, giver: Soldier, catcher: Soldier, pass: Pass): PassRefusal | PassOutcome {
+function passFromRing(t: TacticalState, giver: Soldier, catcher: Soldier, source: RingSource): boolean {
+  const keys = takeSourceObject(t.content, giver, source) as ItemObject;
+  const passed = handOver(t, giver, catcher, keys);
+  returnKeysToRing(giver, source, keys);
+  return passed;
+}
+
+function passFromPocket(t: TacticalState, giver: Soldier, catcher: Soldier, source: PocketSource): boolean {
+  const item = itemIn(giver.inv, source.slot);
+  const cursor = takeSourceObject(t.content, giver, source) as ItemObject;
+  const passed = handOver(t, giver, catcher, cursor);
+  cancelCursor(tacticalPanelEnv(t), giver, source.slot, cursor);
+  handleTacticalEffectsOfEquipmentChange(t, giver, source.slot, item, itemIn(giver.inv, source.slot) === NOTHING ? NOTHING : item);
+  return passed;
+}
+
+export function passItem(t: TacticalState, giver: Soldier, catcher: Soldier, source: ItemSource): PassRefusal | PassOutcome {
   const refusal = passRefusal(t, giver, catcher);
   if (refusal) return refusal;
   deductPoints(t.inCombat, catcher, AP_PASS_ITEM, 0);
   deductPoints(t.inCombat, giver, AP_PASS_ITEM, 0);
-  const item = itemIn(giver.inv, pass.slot);
-  const cursor = takeObjects(t.content.items, giver.inv[pass.slot] as ItemObject, pass.count, pass.index) as ItemObject;
-  const passed = handOver(t, giver, catcher, cursor);
-  cancelCursor(tacticalPanelEnv(t), giver, pass.slot, cursor);
-  handleTacticalEffectsOfEquipmentChange(t, giver, pass.slot, item, itemIn(giver.inv, pass.slot) === NOTHING ? NOTHING : item);
+  const passed = isRingSource(source) ? passFromRing(t, giver, catcher, source) : passFromPocket(t, giver, catcher, source);
   return { passed };
 }

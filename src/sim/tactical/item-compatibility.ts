@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc ReevaluateItemHatches; Interface_Items.cc CompatibleAmmoForGun,
 // @src CompatibleGunForAmmo, CompatibleItemForApplyingOnMerc, SoldierContainsAnyCompatibleStuff,
-// @src InternalHandleCompatibleAmmoUI (the slots outlined for an item in the cursor).
+// @src InternalHandleCompatibleAmmoUI (the slots outlined for an item in the cursor), HandleCompatibleAmmoUIForMapScreen
+// @src and HandleCompatibleAmmoUIForMapInventory (the same rule for a merc's slots and the sector inventory's page on the
+// @src map screen, 2026-11-03).
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
@@ -56,16 +58,17 @@ function attachOrLaunchCompatible(items: ItemTable, a: number, b: number): boole
   return validAttachment(items, a, b) || validAttachment(items, b, a) || validLaunchable(items, b, a) || validLaunchable(items, a, b);
 }
 
+export function compatibleWithItem(items: ItemTable, candidate: number, testItem: number): boolean {
+  const cls = itemClassOf(items, testItem);
+  const hidden = ((items.byIndex.get(candidate)?.flags ?? 0) & ItemFlags.HIDDEN_ADDON) !== 0;
+  if (!hidden && attachOrLaunchCompatible(items, candidate, testItem)) return true;
+  if (cls === ItemClass.GUN) return compatibleAmmoForGun(items, candidate, testItem);
+  if (cls === ItemClass.AMMO) return compatibleGunForAmmo(items, candidate, testItem);
+  return false;
+}
+
 export function compatibleSlots(items: ItemTable, inv: Inventory, cursorItem: number): boolean[] {
-  const cls = itemClassOf(items, cursorItem);
-  return Array.from({ length: NUM_INV_SLOTS }, (_, slot) => {
-    const slotItem = inv[slot]?.item ?? NOTHING;
-    const hidden = ((items.byIndex.get(slotItem)?.flags ?? 0) & ItemFlags.HIDDEN_ADDON) !== 0;
-    if (!hidden && attachOrLaunchCompatible(items, slotItem, cursorItem)) return true;
-    if (cls === ItemClass.GUN) return compatibleAmmoForGun(items, slotItem, cursorItem);
-    if (cls === ItemClass.AMMO) return compatibleGunForAmmo(items, slotItem, cursorItem);
-    return false;
-  });
+  return Array.from({ length: NUM_INV_SLOTS }, (_, slot) => compatibleWithItem(items, inv[slot]?.item ?? NOTHING, cursorItem));
 }
 
 export function soldierContainsAnyCompatibleStuff(items: ItemTable, inv: Inventory, cursorItem: number): boolean {

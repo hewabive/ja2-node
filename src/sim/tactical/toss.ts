@@ -6,12 +6,13 @@
 // @src thrower turned without the turning cost, the attack busy count, CalculateLaunchItemParamsForThrow,
 // @src HandleSoldierThrowItem), SoldierCanSeeCatchComing (always TRUE), HandleItemCursor (the throw end height);
 // @src DrawItemTileCursor (CalculateLaunchItemChanceToGetThrough for the landing tile, 2026-11-03); a merc of ours within
-// @src passing range takes a pass whatever his life (2026-11-03).
+// @src passing range takes a pass whatever his life (2026-11-03); BeginKeyRingItemPointer (keys off the ring tossed,
+// @src 2026-11-03).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
-import { cloneObject, type ItemObject } from '../items/object.ts';
+import { emptyObject, type ItemObject } from '../items/object.ts';
 import { AnimHeight, hasAnimFlag, height, setDesiredDirection, soldierGotoStationaryStance } from './animation.ts';
 import { HEIGHT_UNITS } from './explosions/physics.ts';
 import { ThrowAction } from './explosions/state.ts';
@@ -23,8 +24,8 @@ import {
 } from './explosions/trajectory.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { itemIn } from './inventory.ts';
-import { type Count, takeObjects } from './inventory-panel.ts';
 import { DROPPING_DISTANCE, itemPointerHolderBlocked, PASSING_ITEM_DISTANCE_OKLIFE, takesPass } from './item-pointer.ts';
+import { type ItemSource, isRingSource, sourceObject, takeSourceObject } from './item-source.ts';
 import { directionToward } from './movement.ts';
 import { enoughPoints } from './points.ts';
 import { OKLIFE, type Soldier } from './soldier.ts';
@@ -45,9 +46,7 @@ export const TOSS_REFUSALS: Readonly<Record<TossRefusal, string>> = {
 };
 
 export interface Toss {
-  readonly slot: number;
-  readonly count: Count;
-  readonly index: number;
+  readonly source: ItemSource;
   readonly gridNo: number;
   readonly level: number;
 }
@@ -90,8 +89,7 @@ function tosserRefusal(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | 
 }
 
 function tossedPreview(t: TacticalState, s: Soldier, toss: Toss): ItemObject {
-  const preview = cloneObject(s.inv[toss.slot] as ItemObject);
-  return takeObjects(t.content.items, preview, toss.count, toss.index) ?? preview;
+  return sourceObject(t.content, s, toss.source) ?? emptyObject();
 }
 
 function tossEndZ(t: TacticalState, s: Soldier, toss: Toss): { catcher: Soldier | null; endZ: number } {
@@ -119,14 +117,20 @@ function faceThrower(t: TacticalState, catcher: Soldier, thrower: Soldier): void
   setDesiredDirection(t, catcher, directionToward(catcher.gridNo, thrower.gridNo));
 }
 
+function takeTossed(t: TacticalState, s: Soldier, source: ItemSource): ItemObject {
+  if (isRingSource(source)) return takeSourceObject(t.content, s, source) as ItemObject;
+  const item = itemIn(s.inv, source.slot);
+  const tossed = takeSourceObject(t.content, s, source) as ItemObject;
+  handleTacticalEffectsOfEquipmentChange(t, s, source.slot, item, itemIn(s.inv, source.slot) === NOTHING ? NOTHING : item);
+  return tossed;
+}
+
 export function tossItem(t: TacticalState, s: Soldier, toss: Toss): TossRefusal | null {
   const refusal = tosserRefusal(t, s, toss);
   if (refusal) return refusal;
   const { catcher, endZ } = tossEndZ(t, s, toss);
   if (!tossLanding(t, s, toss, endZ).ok) return 'badThrow';
-  const item = itemIn(s.inv, toss.slot);
-  const tossed = takeObjects(t.content.items, s.inv[toss.slot] as ItemObject, toss.count, toss.index) as ItemObject;
-  handleTacticalEffectsOfEquipmentChange(t, s, toss.slot, item, itemIn(s.inv, toss.slot) === NOTHING ? NOTHING : item);
+  const tossed = takeTossed(t, s, toss.source);
   if (catcher) faceThrower(t, catcher, s);
   s.dontChargeTurningAPs = true;
   setDesiredDirection(t, s, directionToward(s.gridNo, toss.gridNo));

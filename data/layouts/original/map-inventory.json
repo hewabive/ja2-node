@@ -563,7 +563,8 @@
       "primary": "poolSlotPrimary(0)",
       "secondary": "poolSlotSecondary(0)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(0)"
     },
     {
       "type": "region",
@@ -580,7 +581,8 @@
       "primary": "poolSlotPrimary(1)",
       "secondary": "poolSlotSecondary(1)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(1)"
     },
     {
       "type": "region",
@@ -597,7 +599,8 @@
       "primary": "poolSlotPrimary(2)",
       "secondary": "poolSlotSecondary(2)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(2)"
     },
     {
       "type": "region",
@@ -614,7 +617,8 @@
       "primary": "poolSlotPrimary(3)",
       "secondary": "poolSlotSecondary(3)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(3)"
     },
     {
       "type": "region",
@@ -631,7 +635,8 @@
       "primary": "poolSlotPrimary(4)",
       "secondary": "poolSlotSecondary(4)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(4)"
     },
     {
       "type": "region",
@@ -648,7 +653,8 @@
       "primary": "poolSlotPrimary(5)",
       "secondary": "poolSlotSecondary(5)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(5)"
     },
     {
       "type": "region",
@@ -665,7 +671,8 @@
       "primary": "poolSlotPrimary(6)",
       "secondary": "poolSlotSecondary(6)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(6)"
     },
     {
       "type": "region",
@@ -682,7 +689,8 @@
       "primary": "poolSlotPrimary(7)",
       "secondary": "poolSlotSecondary(7)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(7)"
     },
     {
       "type": "region",
@@ -699,7 +707,8 @@
       "primary": "poolSlotPrimary(8)",
       "secondary": "poolSlotSecondary(8)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(8)"
     },
     {
       "type": "region",
@@ -716,7 +725,8 @@
       "primary": "poolSlotPrimary(9)",
       "secondary": "poolSlotSecondary(9)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(9)"
     },
     {
       "type": "region",
@@ -733,7 +743,8 @@
       "primary": "poolSlotPrimary(10)",
       "secondary": "poolSlotSecondary(10)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(10)"
     },
     {
       "type": "region",
@@ -750,7 +761,8 @@
       "primary": "poolSlotPrimary(11)",
       "secondary": "poolSlotSecondary(11)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(11)"
     },
     {
       "type": "region",
@@ -767,7 +779,8 @@
       "primary": "poolSlotPrimary(12)",
       "secondary": "poolSlotSecondary(12)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(12)"
     },
     {
       "type": "region",
@@ -784,7 +797,8 @@
       "primary": "poolSlotPrimary(13)",
       "secondary": "poolSlotSecondary(13)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(13)"
     },
     {
       "type": "region",
@@ -801,7 +815,8 @@
       "primary": "poolSlotPrimary(14)",
       "secondary": "poolSlotSecondary(14)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(14)"
     },
     {
       "type": "region",
@@ -818,7 +833,8 @@
       "primary": "poolSlotPrimary(15)",
       "secondary": "poolSlotSecondary(15)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(15)"
     },
     {
       "type": "region",
@@ -835,7 +851,8 @@
       "primary": "poolSlotPrimary(16)",
       "secondary": "poolSlotSecondary(16)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(16)"
     },
     {
       "type": "region",
@@ -852,7 +869,8 @@
       "primary": "poolSlotPrimary(17)",
       "secondary": "poolSlotSecondary(17)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(17)"
     },
     {
       "type": "region",
@@ -869,7 +887,8 @@
       "primary": "poolSlotPrimary(18)",
       "secondary": "poolSlotSecondary(18)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(18)"
     },
     {
       "type": "region",
@@ -886,7 +905,8 @@
       "primary": "poolSlotPrimary(19)",
       "secondary": "poolSlotSecondary(19)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(19)"
     },
     {
       "type": "region",
@@ -903,7 +923,8 @@
       "primary": "poolSlotPrimary(20)",
       "secondary": "poolSlotSecondary(20)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(20)"
     },
     {
       "type": "region",
@@ -920,7 +941,8 @@
       "primary": "poolSlotPrimary(21)",
       "secondary": "poolSlotSecondary(21)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(21)"
     },
     {
       "type": "region",
@@ -937,7 +959,8 @@
       "primary": "poolSlotPrimary(22)",
       "secondary": "poolSlotSecondary(22)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(22)"
     },
     {
       "type": "region",
@@ -954,7 +977,8 @@
       "primary": "poolSlotPrimary(23)",
       "secondary": "poolSlotSecondary(23)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(23)"
     },
     {
       "type": "region",
@@ -971,7 +995,8 @@
       "primary": "poolSlotPrimary(24)",
       "secondary": "poolSlotSecondary(24)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(24)"
     },
     {
       "type": "region",
@@ -988,7 +1013,8 @@
       "primary": "poolSlotPrimary(25)",
       "secondary": "poolSlotSecondary(25)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(25)"
     },
     {
       "type": "region",
@@ -1005,7 +1031,8 @@
       "primary": "poolSlotPrimary(26)",
       "secondary": "poolSlotSecondary(26)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(26)"
     },
     {
       "type": "region",
@@ -1022,7 +1049,8 @@
       "primary": "poolSlotPrimary(27)",
       "secondary": "poolSlotSecondary(27)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(27)"
     },
     {
       "type": "region",
@@ -1039,7 +1067,8 @@
       "primary": "poolSlotPrimary(28)",
       "secondary": "poolSlotSecondary(28)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(28)"
     },
     {
       "type": "region",
@@ -1056,7 +1085,8 @@
       "primary": "poolSlotPrimary(29)",
       "secondary": "poolSlotSecondary(29)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(29)"
     },
     {
       "type": "region",
@@ -1073,7 +1103,8 @@
       "primary": "poolSlotPrimary(30)",
       "secondary": "poolSlotSecondary(30)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(30)"
     },
     {
       "type": "region",
@@ -1090,7 +1121,8 @@
       "primary": "poolSlotPrimary(31)",
       "secondary": "poolSlotSecondary(31)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(31)"
     },
     {
       "type": "region",
@@ -1107,7 +1139,8 @@
       "primary": "poolSlotPrimary(32)",
       "secondary": "poolSlotSecondary(32)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(32)"
     },
     {
       "type": "region",
@@ -1124,7 +1157,8 @@
       "primary": "poolSlotPrimary(33)",
       "secondary": "poolSlotSecondary(33)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(33)"
     },
     {
       "type": "region",
@@ -1141,7 +1175,8 @@
       "primary": "poolSlotPrimary(34)",
       "secondary": "poolSlotSecondary(34)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(34)"
     },
     {
       "type": "region",
@@ -1158,7 +1193,8 @@
       "primary": "poolSlotPrimary(35)",
       "secondary": "poolSlotSecondary(35)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(35)"
     },
     {
       "type": "region",
@@ -1175,7 +1211,8 @@
       "primary": "poolSlotPrimary(36)",
       "secondary": "poolSlotSecondary(36)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(36)"
     },
     {
       "type": "region",
@@ -1192,7 +1229,8 @@
       "primary": "poolSlotPrimary(37)",
       "secondary": "poolSlotSecondary(37)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(37)"
     },
     {
       "type": "region",
@@ -1209,7 +1247,8 @@
       "primary": "poolSlotPrimary(38)",
       "secondary": "poolSlotSecondary(38)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(38)"
     },
     {
       "type": "region",
@@ -1226,7 +1265,8 @@
       "primary": "poolSlotPrimary(39)",
       "secondary": "poolSlotSecondary(39)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(39)"
     },
     {
       "type": "region",
@@ -1243,7 +1283,8 @@
       "primary": "poolSlotPrimary(40)",
       "secondary": "poolSlotSecondary(40)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(40)"
     },
     {
       "type": "region",
@@ -1260,7 +1301,8 @@
       "primary": "poolSlotPrimary(41)",
       "secondary": "poolSlotSecondary(41)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(41)"
     },
     {
       "type": "region",
@@ -1277,7 +1319,8 @@
       "primary": "poolSlotPrimary(42)",
       "secondary": "poolSlotSecondary(42)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(42)"
     },
     {
       "type": "region",
@@ -1294,7 +1337,8 @@
       "primary": "poolSlotPrimary(43)",
       "secondary": "poolSlotSecondary(43)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(43)"
     },
     {
       "type": "region",
@@ -1311,7 +1355,8 @@
       "primary": "poolSlotPrimary(44)",
       "secondary": "poolSlotSecondary(44)",
       "wheelUp": "poolPrev",
-      "wheelDown": "poolNext"
+      "wheelDown": "poolNext",
+      "hover": "poolSlotHover(44)"
     },
     {
       "type": "custom",

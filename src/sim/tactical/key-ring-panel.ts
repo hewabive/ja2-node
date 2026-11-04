@@ -12,7 +12,7 @@ import { INVALID_KEY_NUMBER } from '../../content/formats/locks.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { cloneObject, type ItemObject, removeObjectAt, removeObjects } from '../items/object.ts';
 import type { KeyOnRing } from './doors/key-ring.ts';
-import { collectKey, createKeyObject } from './doors/keys.ts';
+import { collectKey, createKeyObject, type KeyContent } from './doors/keys.ts';
 import { itemIn, placeObject } from './inventory.ts';
 import {
   type Count,
@@ -54,24 +54,33 @@ export type KeyMoveOutcome =
 
 const KEY_RING_TRANSFER_APS = 2;
 
+export interface KeyRingWorld {
+  readonly content: KeyContent;
+  collectKey(s: Soldier, keys: ItemObject): void;
+}
+
+export function tacticalKeyRingWorld(t: TacticalState): KeyRingWorld {
+  return { content: t.content, collectKey: (s, keys) => collectKey(t, s, keys) };
+}
+
 const refuse = (refusal: PanelRefusal | KeyRingRefusal): KeyMoveOutcome => ({ ok: false, refusal });
 
-function itemName(t: TacticalState, item: number): string {
-  return t.content.items.byIndex.get(item)?.name ?? String(item);
+function itemName(w: KeyRingWorld, item: number): string {
+  return w.content.items.byIndex.get(item)?.name ?? String(item);
 }
 
-function keysPerPosition(t: TacticalState, item: number): number {
-  return t.content.items.byIndex.get(item)?.perPocket ?? 0;
+function keysPerPosition(w: KeyRingWorld, item: number): number {
+  return w.content.items.byIndex.get(item)?.perPocket ?? 0;
 }
 
-function removeKeysFromSlot(ring: KeyOnRing, count: number): void {
+export function removeKeysFromPosition(ring: KeyOnRing, count: number): void {
   ring.count -= count;
   if (ring.count > 0) return;
   ring.count = 0;
   ring.keyId = INVALID_KEY_NUMBER;
 }
 
-function addToPosition(ring: KeyOnRing, keyId: number, count: number): void {
+export function addKeysToPosition(ring: KeyOnRing, keyId: number, count: number): void {
   if (ring.count === 0) ring.keyId = keyId;
   ring.count += count;
 }
@@ -80,7 +89,7 @@ function holdsOtherKey(ring: KeyOnRing, keyId: number): boolean {
   return ring.count !== 0 && ring.keyId !== keyId;
 }
 
-function moved(env: PanelEnv, t: TacticalState, req: KeyMoveRequest, item: number, count: number): KeyMoveOutcome {
+function moved(env: PanelEnv, t: KeyRingWorld, req: KeyMoveRequest, item: number, count: number): KeyMoveOutcome {
   const name = itemName(t, item);
   env.emit({
     type: 'keyMoved',
@@ -99,7 +108,7 @@ function placesWhole(env: PanelEnv, target: Soldier, slot: number, keys: ItemObj
   return placeObject(dryContext(env, target), clonedCarrier(target), slot, trial) && trial.count === 0;
 }
 
-function ringToSlot(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, ring: KeyOnRing, slot: number): KeyMoveOutcome {
+function ringToSlot(t: KeyRingWorld, env: PanelEnv, req: KeyMoveRequest, ring: KeyOnRing, slot: number): KeyMoveOutcome {
   const { mover, target } = req;
   const transfer = transferCheckRefusal(env, mover, target);
   if (transfer) return refuse(transfer);
@@ -109,7 +118,7 @@ function ringToSlot(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, ring: 
   const count = keys.count;
   if (nailsRefuses(env.items, target, slot, keyItem)) return refuse(PanelRefusal.NAILS_VEST);
   if (!placesWhole(env, target, slot, keys)) return refuse(PanelRefusal.DOES_NOT_FIT);
-  removeKeysFromSlot(ring, count);
+  removeKeysFromPosition(ring, count);
   const oldItem = itemIn(target.inv, slot);
   placeObject(env.context(target), target, slot, keys);
   chargeTransfer(env, mover, target);
@@ -117,7 +126,7 @@ function ringToSlot(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, ring: 
   return moved(env, t, req, keyItem, count);
 }
 
-function ringToRing(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, source: KeyOnRing, ring: KeyOnRing): KeyMoveOutcome {
+function ringToRing(t: KeyRingWorld, env: PanelEnv, req: KeyMoveRequest, source: KeyOnRing, ring: KeyOnRing): KeyMoveOutcome {
   const transfer = transferCheckRefusal(env, req.mover, req.target, KEY_RING_TRANSFER_APS);
   if (transfer) return refuse(transfer);
   const keys = createKeyObject(t.content, req.count === 'all' ? source.count : 1, source.keyId);
@@ -126,14 +135,14 @@ function ringToRing(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, source
   const held = ring === source ? ring.count - keys.count : ring.count;
   if (keys.count > keysPerPosition(t, keys.item) - held) return refuse(KeyRingRefusal.KEY_RING_FULL);
   const keyId = source.keyId;
-  collectKey(t, req.target, keys);
-  removeKeysFromSlot(source, keys.count);
-  addToPosition(ring, keyId, keys.count);
+  t.collectKey(req.target, keys);
+  removeKeysFromPosition(source, keys.count);
+  addKeysToPosition(ring, keyId, keys.count);
   chargeTransfer(env, req.mover, req.target);
   return moved(env, t, req, keys.item, keys.count);
 }
 
-function slotToRing(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, slot: number, ring: KeyOnRing): KeyMoveOutcome {
+function slotToRing(t: KeyRingWorld, env: PanelEnv, req: KeyMoveRequest, slot: number, ring: KeyOnRing): KeyMoveOutcome {
   const { mover, target } = req;
   const source = mover.inv[slot] as ItemObject;
   if (source.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
@@ -156,11 +165,11 @@ function slotToRing(t: TacticalState, env: PanelEnv, req: KeyMoveRequest, slot: 
   }
   const added = Math.min(wanted, keysPerPosition(t, keyItem) - ring.count);
   if (added <= 0) return refuse(KeyRingRefusal.KEY_RING_FULL);
-  collectKey(t, target, cursor);
+  t.collectKey(target, cursor);
   if (req.count === 1) removeObjectAt(source, req.index);
   else removeObjects(source, added);
   env.equipmentChanged(mover, slot, keyItem, NOTHING);
-  addToPosition(ring, keyId, added);
+  addKeysToPosition(ring, keyId, added);
   chargeTransfer(env, mover, target);
   return moved(env, t, req, keyItem, added);
 }
@@ -169,7 +178,7 @@ function ringAt(s: Soldier, position: number): KeyOnRing | null {
   return s.keyRing?.[position] ?? null;
 }
 
-export function moveKey(t: TacticalState, env: PanelEnv, req: KeyMoveRequest): KeyMoveOutcome {
+export function moveKey(t: KeyRingWorld, env: PanelEnv, req: KeyMoveRequest): KeyMoveOutcome {
   const { from, to } = req;
   if ('slot' in from && 'slot' in to) return refuse(KeyRingRefusal.SLOT_TO_SLOT);
   const source = 'ring' in from ? ringAt(req.mover, from.ring) : null;

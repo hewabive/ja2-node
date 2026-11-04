@@ -87,6 +87,7 @@ export interface MapEnvironment {
   readonly speech?: SpeechPresenter;
   readonly speechSettings?: () => SpeechSettings;
   readonly rpcSpeechPrefixed?: boolean;
+  readonly radarItemDot?: (gridNo: number) => { readonly x: number; readonly y: number } | null;
   gameOptions(): Promise<GameOptions | null>;
 }
 

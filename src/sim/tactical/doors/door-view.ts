@@ -7,7 +7,7 @@ import { NOTHING } from '../../../content/items/items.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { DOOR_TRAP_NAMES, PerceivedLock, PerceivedTrap } from './door-table.ts';
-import { keyItemForKeyId } from './keys.ts';
+import { type KeyContent, type KeyTable, keyItemForKeyId } from './keys.ts';
 
 export type PerceivedLockName = 'unknown' | 'locked' | 'unlocked' | 'broken';
 
@@ -54,19 +54,23 @@ export function doorViews(t: TacticalState): DoorView[] {
   return views.sort((a, b) => a.gridNo - b.gridNo);
 }
 
-function keyItemView(t: TacticalState, keyId: number): { item?: string; index?: number } {
-  const index = keyItemForKeyId(t.content, keyId);
-  const name = t.content.items.byIndex.get(index)?.name;
+function keyItemView(content: KeyContent, keyId: number): { item?: string; index?: number } {
+  const index = keyItemForKeyId(content, keyId);
+  const name = content.items.byIndex.get(index)?.name;
   return index === NOTHING || name === undefined ? {} : { item: name, index };
 }
 
-export function keyRingView(t: TacticalState, s: Soldier): KeyView[] {
+export function keyRingViewOf(content: KeyContent, keyTable: KeyTable, s: Soldier): KeyView[] {
   const keys: KeyView[] = [];
   for (const [position, k] of (s.keyRing ?? []).entries()) {
     if (k.count === 0) continue;
-    const found = t.keyTable[k.keyId];
+    const found = keyTable[k.keyId];
     const known = found && found.dateFound !== 0 ? { sectorFound: found.sectorFound, dayFound: found.dateFound } : {};
-    keys.push({ position, keyId: k.keyId, count: k.count, ...keyItemView(t, k.keyId), ...known });
+    keys.push({ position, keyId: k.keyId, count: k.count, ...keyItemView(content, k.keyId), ...known });
   }
   return keys;
+}
+
+export function keyRingView(t: TacticalState, s: Soldier): KeyView[] {
+  return keyRingViewOf(t.content, t.keyTable, s);
 }

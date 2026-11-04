@@ -9,6 +9,8 @@ import type { ShopBoxView, ShopView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { header } from '../sim/strategic/economy/merchants/state.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { worldDay } from '../sim/strategic/time/world-clock.ts';
+import { sectorByte } from '../sim/tactical/doors/keys.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -213,6 +215,50 @@ describe('inventory commands in a stub campaign', () => {
     expect(
       session.dispatch({ type: 'moveItem', soldier: a, from: 'ground', sector: 'A10', item: pistol?.index, to: 'secondHand' }),
     ).toMatchObject({ ok: false, data: { refusal: 'notInSector' } });
+  });
+
+  it('moves the keys of mercs in no loaded sector and pools their stacks with CTRL on the map screen', async () => {
+    const squad = await inA10(8);
+    const [a, b] = squad.mercs as [number, number];
+    const session = squad.session;
+    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    for (const id of [a, b]) expect(session.dispatch({ type: 'route', soldier: id, to: 'A9' })).toMatchObject({ ok: true });
+    const gone = () => session.view().strategic?.mercs.every((m) => m.sector === 'A9' && !m.betweenSectors) === true;
+    for (let k = 0; k < ROUTE_BUDGET && !gone(); k++) squad.live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
+    expect(session.campaign.tactical).toBeNull();
+    const rosterSoldier = (id: number) => {
+      const s = session.campaign.battle?.roster.get(id)?.soldier;
+      if (!s?.keyRing) throw new Error(`no key ring for ${id}`);
+      return s as Soldier & { keyRing: NonNullable<Soldier['keyRing']> };
+    };
+    rosterSoldier(a).keyRing[0] = { keyId: 1, count: 3 };
+    const keys = () => session.view().strategic?.mercs.find((m) => m.id === a)?.keys;
+    expect(keys()).toMatchObject([{ position: 0, keyId: 1, count: 3, item: 'KEY_1' }]);
+    expect(session.dispatch({ type: 'moveKey', soldier: a, from: { ring: 0 }, to: { ring: 5 }, count: 1 })).toMatchObject({ ok: true });
+    expect(session.dispatch({ type: 'moveKey', soldier: a, from: { ring: 0 }, to: { ring: 2 }, count: 1, toSoldier: b })).toMatchObject({
+      ok: true,
+    });
+    expect(rosterSoldier(b).keyRing[2]).toEqual({ keyId: 1, count: 1 });
+    const day = worldDay(session.campaign.state.clock);
+    expect(session.campaign.state.keyTable[1]).toEqual({ sectorFound: sectorByte(parseSectorString('A9')), dateFound: day });
+    expect(session.dispatch({ type: 'moveItem', soldier: a, from: { ring: 5 }, to: 'ground' })).toMatchObject({
+      ok: true,
+      data: { item: 'KEY_1', count: 1, sector: 'A9' },
+    });
+    const stash = session.dispatch({ type: 'inventory', soldier: a }).data as { stash: { item: string }[] };
+    expect(stash.stash.map((e) => e.item)).toContain('KEY_1');
+    expect(session.dispatch({ type: 'discardItem', soldier: a, slot: { ring: 0 } })).toMatchObject({ ok: true, data: { count: 1 } });
+    expect(keys()).toBeUndefined();
+    const kit = def('FIRSTAIDKIT')?.index ?? -1;
+    const kitIn = (id: number, slot: number, points: number) => {
+      const s = rosterSoldier(id);
+      s.inv[slot] = { ...(s.inv[slot] as Soldier['inv'][number]), item: kit, count: 1, status: [points] };
+    };
+    kitIn(a, InvSlot.HAND, 40);
+    kitIn(b, InvSlot.BIGPOCK4, 70);
+    const ctrl = { type: 'combineStack', soldier: b, slot: 'hand', from: InvSlot.BIGPOCK4, toSoldier: a };
+    expect(session.dispatch(ctrl)).toEqual({ ok: true, data: { combined: true, left: 1 } });
+    expect([rosterSoldier(a).inv[InvSlot.HAND]?.status[0], rosterSoldier(b).inv[InvSlot.BIGPOCK4]?.status[0]]).toEqual([100, 10]);
   });
 
   it('lets time run on the map screen right after a conversation closes (finding 19)', async () => {

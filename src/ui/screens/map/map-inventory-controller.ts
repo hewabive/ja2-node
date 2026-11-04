@@ -24,6 +24,7 @@ export const MAP_INVENTORY_CONTRACT: ControllerContract = {
     trash: {},
     poolSlotPrimary: { args: 1 },
     poolSlotSecondary: { args: 1 },
+    poolSlotHover: { args: 2 },
     poolPrev: {},
     poolNext: {},
     poolDone: {},

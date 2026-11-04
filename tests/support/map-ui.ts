@@ -142,6 +142,7 @@ export class FakeMapMedia implements MapMedia {
   readonly gunNut = false;
   readonly board = TEST_BOARD;
   radar: (sector: string) => string | null = () => null;
+  radarItemDot: (gridNo: number) => { readonly x: number; readonly y: number } | null = () => null;
   speaking: SpeechPlayback | null = null;
   log: MessageEntry[] = [];
   readonly #items = new Map<string, CatalogueItem>();
@@ -353,6 +354,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     },
     version: TEST_VERSION,
     gameOptions: async () => replies.gameOptions,
+    radarItemDot: (gridNo) => media.radarItemDot(gridNo),
     sounds: {
       glowClick: () => sounds.push('glowClick'),
       newMessageBeep: () => sounds.push('newMessageBeep'),

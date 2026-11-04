@@ -1,5 +1,6 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import { rpcSpeechPrefixed, type UiLanguage } from '../../content/text/data-version.ts';
+import { restrictedScrollIdOf } from '../../content/world/render-bounds.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import type { GameOptions } from '../../ui/client/api-types.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
@@ -25,6 +26,7 @@ import type { SessionClient } from '../net/session-client.ts';
 import { loadSettings } from '../settings.ts';
 import type { SessionSpeech } from '../sound/session-speech.ts';
 import { fetchItemCatalogue, fetchProfiles } from '../tactical/tactical-media.ts';
+import { radarItemDotOf } from '../world/radar.ts';
 import { BOARD_KEYS, BOARD_PCX, boardImages } from './map-board.ts';
 import { SessionMapClient } from './map-client.ts';
 import { attachMapHook, type MapHook } from './map-hook.ts';
@@ -227,6 +229,7 @@ export class MapHost implements MapPort {
       speech: this.#o.speech.presenter,
       speechSettings: this.#o.speech.settings,
       rpcSpeechPrefixed: rpcSpeechPrefixed(ui.dataVersion),
+      radarItemDot: (gridNo) => this.#radarItemDot(loaded, gridNo),
     };
     this.#screen = new MapScreen(env);
     if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);
@@ -234,6 +237,12 @@ export class MapHost implements MapPort {
     this.#screen.noticeInvasions(this.#pendingInvasions.splice(0));
     this.#screen.noticeBattleNotices(this.#pendingNotices.splice(0));
     return this.#screen;
+  }
+
+  #radarItemDot(loaded: Loaded, gridNo: number): { readonly x: number; readonly y: number } | null {
+    const mapPath = this.#o.session.latestView?.mapPath;
+    const world = mapPath ? loaded.knowledge.worlds.world(mapPath) : null;
+    return world ? radarItemDotOf(restrictedScrollIdOf(world), gridNo) : null;
   }
 
   #battleEnvironment(loaded: Loaded, flow: MapFlow): BattleEnvironment {

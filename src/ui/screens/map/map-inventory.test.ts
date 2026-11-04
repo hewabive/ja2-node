@@ -31,6 +31,7 @@ const BIG_POCKET = 7;
 const SMALL_POCKET = 11;
 const MERC = 3;
 const OTHER = 4;
+const POOL_LEFT = 270;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -58,6 +59,7 @@ class FakeClient implements MapClient {
   stash: StashEntryView[] = [];
   usable = true;
   reply: (cmd: CommandEnvelope) => MapCommandReply = () => ({ ok: true });
+  compatible: (item: number, candidate: number) => boolean = () => false;
 
   constructor(view: PlayerView) {
     this.view = view;
@@ -80,8 +82,11 @@ class FakeClient implements MapClient {
 
   holdTime(): void {}
 
-  hint(): HintReply {
-    return { state: 'ready', answer: { ok: false, reason: 'noSector' }, source: 'local' };
+  hint(request: CommandEnvelope): HintReply {
+    if (request.type !== 'compatibleItems') return { state: 'ready', answer: { ok: false, reason: 'noSector' }, source: 'local' };
+    const item = request.item as number;
+    const compatible = (request.items as number[]).map((candidate) => this.compatible(item, candidate));
+    return { state: 'ready', answer: { ok: true, data: { compatible } }, source: 'local' };
   }
 
   async hintNow(): Promise<HintAnswer> {
@@ -118,6 +123,7 @@ interface Harness {
   answer: number;
   settle(): Promise<void>;
   click(id: string, button?: number, modifiers?: number): Promise<void>;
+  hover(id: string): void;
   widget(id: string): { readonly rect: { x: number; y: number; width: number; height: number }; readonly text: string | null };
 }
 
@@ -127,8 +133,8 @@ function item(predicate: (i: CatalogueItem) => boolean): CatalogueItem {
   return found;
 }
 
-function view(slot: number, name: string, count = 1): InventoryItemView {
-  return { slot, item: name, index: 0, count, status: Array.from({ length: count }, () => 88) };
+function view(slot: number, name: string, count = 1, index = 0): InventoryItemView {
+  return { slot, item: name, index, count, status: Array.from({ length: count }, () => 88) };
 }
 
 function merc(id: number, name: string, sector: string, inventory: InventoryItemView[]): StrategicMercView {
@@ -223,6 +229,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
     battle: {} as BattleEnvironment,
     version: '',
     gameOptions: async () => null,
+    radarItemDot: (gridNo) => ({ x: gridNo % 100, y: 1 }),
   };
   const boxes: string[] = [];
   const h: Harness = {
@@ -251,6 +258,13 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       t.runtime.input({ kind: 'pointerUp', x, y, button, buttons: 0, wheel: 0, modifiers });
       await h.settle();
     },
+    hover: (id) => {
+      const { rect } = h.widget(id);
+      const x = rect.x + Math.floor(rect.width / 2);
+      const y = rect.y + Math.floor(rect.height / 2);
+      t.runtime.input({ kind: 'pointerMove', x, y, button: 0, buttons: 0, wheel: 0, modifiers: 0 });
+      t.frame();
+    },
     widget: (id) => {
       const found = h.inventory.describe().find((w) => w.id === id);
       if (!found) throw new Error(`no widget ${id}`);
@@ -266,6 +280,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       return flags === MessageBoxFlag.YESNO ? h.answer : MessageBoxReturn.OK;
     },
     shift: () => (t.runtime.modifiers & KeyModifier.SHIFT) !== 0,
+    ctrl: () => (t.runtime.modifiers & KeyModifier.CTRL) !== 0,
     mercClosed: () => undefined,
     poolClosed: () => undefined,
   });
@@ -452,6 +467,102 @@ describe('the map screen inventory over a scripted session', () => {
     const cells = h.t.list.items.filter((i) => i.kind === 'image' && i.asset === 'interface/extra_inventory.sti');
     expect(cells[0]).toMatchObject({ x: 40, y: 107 + 15 });
     expect(cells[4]).toMatchObject({ x: 40, y: 107 + 15 + 28 });
+  });
+
+  it('takes keys off the ring of a merc in no loaded sector into a pocket, onto another position and into the trash', async () => {
+    const key = item((i) => i.class === 'KEY');
+    const h = await harness([{ ...merc(MERC, 'Hollis', 'C13', []), keys: [{ position: 0, keyId: 1, count: 2, item: key.name }] }]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click('mercKeyRing');
+    expect(h.inventory.merc.keyRing.open).toBe(true);
+    const cell = async (position: number) => {
+      const rect = h.t.runtime.regions.regions.find((r) => r.id === `keyRingCell${position}`);
+      if (!rect) throw new Error(`no cell ${position}`);
+      h.t.click(rect.x1 + 2, rect.y1 + 2);
+      await h.settle();
+    };
+    const rightClick = async (position: number) => {
+      const rect = h.t.runtime.regions.regions.find((r) => r.id === `keyRingCell${position}`);
+      if (!rect) throw new Error(`no cell ${position}`);
+      h.t.click(rect.x1 + 2, rect.y1 + 2, MouseButton.RIGHT);
+      await h.settle();
+    };
+    await rightClick(0);
+    expect([h.inventory.merc.keyRing.open, h.inventory.merc.description.open]).toEqual([true, false]);
+    await rightClick(5);
+    expect(h.inventory.merc.keyRing.open).toBe(false);
+    await h.click('mercKeyRing');
+    await cell(0);
+    expect(h.inventory.merc.panel.cursor?.source).toEqual({ kind: 'keyRing', soldier: MERC, position: 0, count: 1 });
+    await cell(3);
+    expect(h.client.commands.at(-1)).toEqual({ type: 'moveKey', soldier: MERC, from: { ring: 0 }, to: { ring: 3 }, count: 1 });
+    expect(h.inventory.holding).toBe(false);
+    await cell(0);
+    h.inventory.merc.keyRing.close();
+    await h.click(`mercSlot${SMALL_POCKET}`);
+    expect(h.client.commands.at(-1)).toEqual({ type: 'moveKey', soldier: MERC, from: { ring: 0 }, to: SMALL_POCKET, count: 1 });
+    await h.click('mercKeyRing');
+    await cell(0);
+    h.inventory.merc.keyRing.close();
+    await h.click('trashCan');
+    expect(h.client.commands.at(-1)).toEqual({ type: 'discardItem', soldier: MERC, slot: { ring: 0 }, count: 1 });
+  });
+
+  it('cleans up a stack with CTRL+click on the map and still picks it up, as MAPInvClickCallbackPrimary does not return', async () => {
+    const clip = item((i) => i.class === 'AMMO');
+    const h = await harness([merc(MERC, 'Hollis', 'D13', [view(SMALL_POCKET, clip.name, 2), view(BIG_POCKET, clip.name)])]);
+    h.inventory.openMerc();
+    await h.settle();
+    await h.click(`mercSlot${SMALL_POCKET}`, 0, KeyModifier.CTRL);
+    expect(h.client.commands).toEqual([{ type: 'combineStack', soldier: MERC, slot: SMALL_POCKET }]);
+    expect(h.inventory.merc.panel.cursor?.source).toEqual({ kind: 'slot', soldier: MERC, slot: SMALL_POCKET, count: 1, index: 0 });
+    h.client.reply = () => ({ ok: true, data: { combined: true, left: 1 } });
+    await h.click(`mercSlot${BIG_POCKET}`, 0, KeyModifier.CTRL);
+    expect(h.client.commands.at(-1)).toEqual({ type: 'combineStack', soldier: MERC, slot: BIG_POCKET, from: SMALL_POCKET, index: 0 });
+    expect(h.inventory.holding).toBe(true);
+  });
+
+  it('outlines compatible items between the merc and the pool after 100 ms and flashes the pool item on the radar', async () => {
+    const gun = item((i) => i.class === 'GUN');
+    const clip = item((i) => i.class === 'AMMO');
+    const h = await harness([
+      merc(MERC, 'Hollis', 'D13', [view(HAND, gun.name, 1, gun.index), view(SMALL_POCKET, clip.name, 1, clip.index)]),
+    ]);
+    h.client.compatible = (a, b) => (a === gun.index && b === clip.index) || (a === clip.index && b === gun.index);
+    h.client.stash = [stashEntry(0, clip.name), stashEntry(1, gun.name)];
+    h.inventory.openMerc();
+    h.inventory.openPool();
+    await h.settle();
+    const pooled = () =>
+      h.t.list.items.flatMap((i) =>
+        i.kind === 'image' && i.x >= POOL_LEFT && i.effect?.kind === 'outline' && i.effect.color !== null ? [i.y] : [],
+      );
+    const soldier = h.inventory.merc.panel;
+    const merc0 = () => h.client.view.strategic?.mercs[0];
+    const lit = () =>
+      [HAND, SMALL_POCKET].filter((slot) => {
+        const m = merc0();
+        return m ? soldier.outlineOf({ id: MERC, inventory: m.inventory } as never, slot) !== null : false;
+      });
+    h.hover('poolSlot0');
+    expect([lit(), pooled()]).toEqual([[], []]);
+    h.t.frame(120);
+    expect(lit()).toEqual([HAND]);
+    expect(pooled()).toHaveLength(1);
+    h.hover('mercSlot5');
+    h.t.frame(120);
+    h.t.frame();
+    expect(lit()).toEqual([SMALL_POCKET]);
+    expect(pooled()).toHaveLength(1);
+    h.hover('poolSlot1');
+    expect(h.inventory.radarHighlight()).toEqual({ gridNo: 1001, flashOn: false });
+    h.t.frame(210);
+    expect(h.inventory.radarHighlight()).toEqual({ gridNo: 1001, flashOn: true });
+    h.t.frame(210);
+    expect(h.inventory.radarHighlight()).toEqual({ gridNo: 1001, flashOn: false });
+    h.hover('mercSlot5');
+    expect(h.inventory.radarHighlight()).toBeNull();
   });
 
   it('closes the description, then the cursor, then the pool on Escape', async () => {

@@ -429,7 +429,20 @@ only. Money moves through the cursor in the original: `withdrawCash`, `depositCa
 the drop at once (`splitMoney` on the map screen too, within a sector like `moveItem` there); money for another soldier
 is `give`, for a dealer `trade`. `moveKey` is the key ring popup with the cursor (`src/sim/tactical/key-ring-panel.ts`):
 `{ring}` names a position, which the view's `keys` give as `position` (deviation "Key ring cursor"); one key taken off a
-stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (deviation "Single key off a stack").
+stack in a slot, by `moveKey` or `moveItem`, keeps the lock of the stack (deviation "Single key off a stack"). The
+commands of the item cursor take keys off the ring with `slot: {ring}` and `count` (`src/sim/tactical/item-source.ts`):
+`drop`, `toss`, `pass`, `give` and `previewAction` kind `toss`, and on the map screen `moveItem` with `from: {ring}` to
+the ground and `discardItem`; the keys leave the ring when the command acts, a give's with the order as money split off
+a pocket does, and what a pass or the stash leaves goes back onto the ring. The strategic view lists our mercs' `keys`
+as the soldiers' do, and on the map screen `moveKey` and `combineStack` work for every merc with an inventory there,
+with the map's passing rules. CTRL+click is `combineStack` (`src/sim/tactical/stack-cleanup.ts`): `soldier` holds the
+cursor and `from` names its objects (a slot, with `index` for one object of its stack; `{ring}`; `{magazine: slot}`, the
+gun's magazine taken out in the description box; `{attachment, slot}`), `toSoldier` owns the stack in `slot` when it is
+another merc's; without `from` the stack is only cleaned up. Another merc's cursor needs 3 AP of each conscious merc in
+combat and charges none; on the tactical screen an attachment or a merge onto a hand or armour slot comes first
+(`useAttach`, `mergePrompt`), on the map screen the cleanup comes first and the client still picks the stack up, as
+`MAPInvClickCallbackPrimary` does. `data.left` counts the objects still in the cursor; one object taken from the clicked
+stack itself goes back on top of it, at `data.index`.
 `switchHeadGear` is CTRL+N for a squad (`src/sim/tactical/head-gear.ts`); the key alternates the night and the day
 gear, night first, and the client keeps that turn.
 

@@ -208,6 +208,7 @@ export interface StrategicMercView {
   readonly profile?: number;
   readonly stats?: SoldierStatsView;
   readonly inventory?: readonly InventoryItemView[];
+  readonly keys?: readonly KeyView[];
   readonly weight?: number;
   readonly armour?: number;
   readonly camo?: number;

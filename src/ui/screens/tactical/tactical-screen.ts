@@ -107,17 +107,7 @@ import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPoin
 import { findSoldier } from './input/targets.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import {
-  cursorFromKeyRing,
-  cursorObjectHeld,
-  dropCommand,
-  giveCommand,
-  type ItemCursor,
-  keyRingCommand,
-  passCommand,
-  slotItem,
-  tossCommand,
-} from './item-cursor.ts';
+import { cursorObjectHeld, dropCommand, giveCommand, type ItemCursor, passCommand, slotItem, tossCommand } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { ItemLocators, MultiPurposeLocator, type ShownLocator } from './item-locators.ts';
 import { itemPool, onZLevel } from './item-pool.ts';
@@ -1655,21 +1645,12 @@ export class TacticalScreen implements Screen {
   }
 
   #keyRingPrimary(owner: SoldierView, position: number): void {
-    const inventory = this.inventory;
-    if (inventory.busy) return;
-    const cursor = inventory.cursor;
-    if (!cursor) {
-      const key = owner.keys?.find((k) => k.position === position);
-      const item = key ? this.#env.media.keyItem(key) : null;
-      const taken = item ? cursorFromKeyRing(owner, position, (this.#env.runtime.modifiers & SHIFT_MASK) !== 0, item) : null;
-      if (!taken) return;
-      this.select(owner.id, false);
-      inventory.setCursor(taken);
-      return;
-    }
-    if (this.#env.media.item(cursor.item)?.class !== KEY_CLASS) return;
-    const cmd = keyRingCommand(cursor, owner.id, position);
-    if (cmd) void inventory.send(cmd).then((reply) => reply.ok && inventory.setCursor(null));
+    const media = this.#env.media;
+    this.inventory.keyRingPrimary(owner, position, {
+      shift: (this.#env.runtime.modifiers & SHIFT_MASK) !== 0,
+      keyItem: (key) => media.keyItem(key),
+      isKey: (item) => media.item(item)?.class === KEY_CLASS,
+    });
   }
 
   #openKeyRing(fromShortcut: boolean): void {

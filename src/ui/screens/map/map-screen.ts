@@ -24,7 +24,8 @@
 // @src and Map_Screen_Interface.cc ReportMapScreenMovementError (the custom error names the soldier who cannot move; the
 // @src escort's text by his sex) (2026-11-01); Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom and
 // @src Radar_Screen.cc RenderRadarScreen (the radar picture of a visited selected sector, darker at night while the map
-// @src shows the surface) (2026-11-02); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
+// @src shows the surface) (2026-11-02; with the sector inventory the flashing 2×2 blip of the pool item under the
+// @src pointer, 2026-11-03); MapScreen.cc TellPlayerWhyHeCantCompressTime after a refused compression key,
 // @src the increase included (Game_Clock.cc SetGameTimeCompressionLevel, IncreaseGameTimeCompressionRate) (2026-11-02);
 // @src MapScreen.cc MapViewRegionPrimaryCallback and MapViewRegionSecondaryCallback (no map clicks until the first
 // @src arrival, DidGameJustStart), CanMoveBullseyeAndClickedOnIt, MakeMapModesSuitableForDestPlotting (JumpToLevel to the
@@ -46,7 +47,7 @@ import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalMessage, refusalOf, refusalSoldierOf } from '../../../protocol/refusals.ts';
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { frameOf } from '../../assets.ts';
-import type { DrawItem, DrawList } from '../../draw-list.ts';
+import { type DrawItem, type DrawList, rgb } from '../../draw-list.ts';
 import { digitKeyOf, isPointerEvent, KeyModifier, type UiInputEvent } from '../../input/events.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
@@ -139,6 +140,10 @@ function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: 
   return BATTLE_SCREEN_PROMPTS.has(prompt.kind) || (prompt.kind === 'surrender' && prompt.context === 'autoresolve');
 }
 const OWNER = 'mapScreen';
+const RADAR_WIDTH = 88;
+const RADAR_HEIGHT = 44;
+const RADAR_ITEM_FLASH_ON = rgb(0, 255, 0);
+const RADAR_ITEM_FLASH_OFF = rgb(255, 255, 255);
 const SILENT_SPEECH = { speech: false, subtitles: true, keyAdvance: false } as const;
 const SUBTITLE_BOX = 'subtitleBox';
 const UPDATE_REASONS = 'pUpdateMercStrings';
@@ -341,6 +346,7 @@ export class MapScreen implements Screen {
       location: () => ({ sector: sectorLabel({ ...this.#selected, z: 0 }), z: this.#level }),
       box: (text, flags) => this.#openBox({ text, flags, answer: () => null }),
       shift: () => (env.runtime.modifiers & KeyModifier.SHIFT) !== 0,
+      ctrl: () => (env.runtime.modifiers & KeyModifier.CTRL) !== 0,
       mercClosed: () => {
         this.#inventoryOpen = false;
       },
@@ -2230,6 +2236,18 @@ export class MapScreen implements Screen {
         : this.#visitedUnderground(this.#selected);
     const image = visited ? this.#env.media.radar(label) : null;
     if (image && this.#env.media.image(image)) drawRadarPicture(list, image, rect.x, rect.y, this.#radarAtNight());
+    this.#renderRadarItem(list, rect);
+  }
+
+  #renderRadarItem(list: DrawList, rect: Point): void {
+    const item = this.#sectorInventoryOpen ? this.#inventory.radarHighlight() : null;
+    const dot = item ? (this.#env.radarItemDot?.(item.gridNo) ?? null) : null;
+    if (!item || !dot) return;
+    const x = rect.x + dot.x;
+    const y = rect.y + dot.y;
+    list.pushClip(rect.x, rect.y, rect.x + RADAR_WIDTH, rect.y + RADAR_HEIGHT);
+    list.rectangle(x, y, x + 1, y + 1, item.flashOn ? RADAR_ITEM_FLASH_ON : RADAR_ITEM_FLASH_OFF);
+    list.popClip();
   }
 
   #radarAtNight(): boolean {

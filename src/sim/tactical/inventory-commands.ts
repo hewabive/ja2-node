@@ -7,14 +7,16 @@
 // @src KeyRingSlotInvClickCallbackPrimary (keys in and out of the key ring, key-ring-panel.ts); Squads.cc
 // @src IsMercOnCurrentSquad for the helpers of a merc below OKLIFE (2026-11-01).
 
-import type { ItemTable } from '../../content/items/items.ts';
+import { type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
-import { cloneObject, type ItemObject, removeObjectAt } from '../items/object.ts';
+import { createItem, type ItemObject } from '../items/object.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload } from './combat/reload.ts';
+import type { TacticalContent } from './content.ts';
 import { NUM_KEYS } from './doors/key-ring.ts';
+import { createKeyObject } from './doors/keys.ts';
 import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-aid.ts';
 import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { InvSlot, NUM_INV_SLOTS } from './inventory.ts';
@@ -32,7 +34,7 @@ import {
   swapHands,
   unloadGun,
 } from './inventory-panel.ts';
-import { KeyRingRefusal, type KeySpot, moveKey } from './key-ring-panel.ts';
+import { KeyRingRefusal, type KeySpot, moveKey, tacticalKeyRingWorld } from './key-ring-panel.ts';
 import { soldierAssignment } from './narrative/assignment.ts';
 import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
@@ -40,7 +42,7 @@ import { refuse } from './refusal.ts';
 import { currentSquad } from './selection.ts';
 import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
-import { cleanUpStack } from './stack-cleanup.ts';
+import { type CombineCursor, combineStacks } from './stack-cleanup.ts';
 import { type TacticalState, teamMembers } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, notifySoldiersToLookForItems, Visibility } from './world-items.ts';
 
@@ -335,42 +337,56 @@ function splitMoneyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand):
   return outcomeResult(splitMoney(tacticalPanelEnv(t), { mover: s, from, amount, target, to }));
 }
 
-function cursorStack(o: ItemObject, index: number | null): ItemObject {
-  if (index === null) return o;
-  const one = cloneObject(o);
-  one.count = 1;
-  one.status = [o.status[index] ?? 0];
-  return one;
+function combineFromObject(content: TacticalContent, holder: Soldier, from: object): CombineCursor | InventoryRefusal {
+  const spec = from as { readonly magazine?: unknown; readonly attachment?: unknown; readonly slot?: unknown };
+  if (spec.magazine !== undefined) {
+    const gun = parseSlot(spec.magazine);
+    if (gun === null) return InventoryRefusal.BAD_SLOT;
+    return (holder.inv[gun]?.gunShotsLeft ?? 0) > 0 ? { magazine: gun } : InventoryRefusal.GUN_EMPTY;
+  }
+  if (spec.attachment !== undefined) {
+    const slot = parseSlot(spec.slot);
+    if (slot === null) return InventoryRefusal.BAD_SLOT;
+    const position = attachmentPosition(content.items, holder.inv[slot], spec.attachment);
+    if (typeof position === 'string') return position;
+    const attached = holder.inv[slot]?.attachments[position];
+    if (!attached || attached.item === NOTHING) return InventoryRefusal.NO_ATTACHMENT;
+    return { outside: createItem(content.items, attached.item, attached.status) };
+  }
+  const spot = parseKeySpot(from);
+  const ring = spot && 'ring' in spot ? holder.keyRing?.[spot.ring] : null;
+  if (!spot) return InventoryRefusal.BAD_SLOT;
+  const keys = ring && ring.count > 0 ? createKeyObject(content, ring.count, ring.keyId) : null;
+  return keys ? { outside: keys } : InventoryRefusal.EMPTY_SLOT;
 }
 
-function returnCursorObject(source: ItemObject, index: number | null, cursor: ItemObject): void {
-  if (index === null || cursor === source) return;
-  if (cursor.count === 0) removeObjectAt(source, index);
-  else source.status[index] = cursor.status[0] ?? 0;
+export function parseCombineCursor(
+  content: TacticalContent,
+  holder: Soldier,
+  cmd: InventoryCommand,
+): CombineCursor | null | InventoryRefusal {
+  if (cmd.from === undefined) return null;
+  if (typeof cmd.from === 'object' && cmd.from !== null) return combineFromObject(content, holder, cmd.from);
+  const slot = parseSlot(cmd.from);
+  if (slot === null) return InventoryRefusal.BAD_SLOT;
+  const source = holder.inv[slot] as ItemObject;
+  if (source.count === 0) return InventoryRefusal.EMPTY_SLOT;
+  const index = cmd.index === undefined ? null : stackIndex(cmd.index, source);
+  if (typeof index === 'string') return index;
+  return { slot, index };
 }
 
 function combineStackCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const slot = parseSlot(cmd.slot);
   if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
-  const target = s.inv[slot] as ItemObject;
-  if (target.count === 0) return refusal(InventoryRefusal.EMPTY_SLOT);
-  const from = optionalSlot(cmd.from);
-  if (typeof from === 'string') return refusal(from);
-  if (from === slot) return refusal(InventoryRefusal.SAME_SLOT);
-  const source = from === null ? null : (s.inv[from] as ItemObject);
-  if (source && source.count === 0) return refusal(InventoryRefusal.EMPTY_SLOT);
-  const index = cmd.index === undefined ? null : stackIndex(cmd.index, source ?? undefined);
-  if (typeof index === 'string') return refusal(index);
-  const sourceItem = source?.item ?? null;
-  const cursor = source ? cursorStack(source, index) : null;
-  const applies = cleanUpStack(t.content.items, target, cursor);
-  if (source && cursor) returnCursorObject(source, index, cursor);
-  if (from !== null && sourceItem !== null && source?.count === 0)
-    handleTacticalEffectsOfEquipmentChange(t, s, from, sourceItem, source.item);
-  return { ok: true, data: { combined: applies } };
+  const owner = panelTarget(t, s, cmd.toSoldier);
+  if (typeof owner === 'string') return refusal(owner);
+  const cursor = parseCombineCursor(t.content, s, cmd);
+  if (typeof cursor === 'string') return refusal(cursor);
+  return outcomeResult(combineStacks(tacticalPanelEnv(t), { holder: s, owner, slot, cursor }));
 }
 
-function keySpot(value: unknown): KeySpot | null {
+export function parseKeySpot(value: unknown): KeySpot | null {
   const ring = (value as { readonly ring?: unknown } | null)?.ring;
   if (typeof value === 'object' && value !== null)
     return typeof ring === 'number' && Number.isInteger(ring) && ring >= 0 && ring < NUM_KEYS ? { ring } : null;
@@ -379,8 +395,8 @@ function keySpot(value: unknown): KeySpot | null {
 }
 
 function moveKeyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
-  const from = keySpot(cmd.from);
-  const to = keySpot(cmd.to);
+  const from = parseKeySpot(cmd.from);
+  const to = parseKeySpot(cmd.to);
   if (!from || !to) return refusal(InventoryRefusal.BAD_SPOT);
   const count = parseCount(cmd.count, 'all');
   if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
@@ -388,7 +404,7 @@ function moveKeyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Co
   if (typeof index === 'string') return refusal(index);
   const target = panelTarget(t, s, cmd.toSoldier);
   if (typeof target === 'string') return refusal(target);
-  const outcome = moveKey(t, tacticalPanelEnv(t), { mover: s, from, count, index, target, to });
+  const outcome = moveKey(tacticalKeyRingWorld(t), tacticalPanelEnv(t), { mover: s, from, count, index, target, to });
   return outcome.ok ? { ok: true, data: outcome.data } : refusal(outcome.refusal);
 }
 

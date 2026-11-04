@@ -223,14 +223,22 @@ function attachPrecheck(env: PanelEnv, s: Soldier, target: ItemObject, cursor: I
   return null;
 }
 
-function attachOrMergeRefusal(env: PanelEnv, req: MoveRequest, cursorItem: number): PanelRefusal | null {
-  if (!ATTACH_SLOTS.includes(req.to)) return null;
-  const slotItem = itemIn(req.target.inv, req.to);
-  if (slotItem === NOTHING) return null;
+export function attachOrMergeAt(
+  env: PanelEnv,
+  slot: number,
+  slotItem: number,
+  cursorItem: number,
+  merge: boolean | undefined,
+): PanelRefusal | null {
+  if (!ATTACH_SLOTS.includes(slot) || slotItem === NOTHING) return null;
   if (validAttachment(env.items, cursorItem, slotItem)) return PanelRefusal.USE_ATTACH;
   if (!validMerge(env.items, cursorItem, slotItem)) return null;
   if (env.mapScreen) return PanelRefusal.USE_ATTACH;
-  return req.merge === undefined ? PanelRefusal.MERGE_PROMPT : null;
+  return merge === undefined ? PanelRefusal.MERGE_PROMPT : null;
+}
+
+function attachOrMergeRefusal(env: PanelEnv, req: MoveRequest, cursorItem: number): PanelRefusal | null {
+  return attachOrMergeAt(env, req.to, itemIn(req.target.inv, req.to), cursorItem, req.merge);
 }
 
 export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {

@@ -16,8 +16,10 @@ import type { SimEvent } from '../events.ts';
 import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { setVisibleItemCount } from '../strategic/map/sectors.ts';
+import { worldDay } from '../strategic/time/world-clock.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { collectKey, collectKeyFound, type KeyFinding, sectorByte } from '../tactical/doors/keys.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
 import { autoPlaceObject, type InventoryContext, InvSlot, itemIn, placeObject } from '../tactical/inventory.ts';
 import {
@@ -27,7 +29,9 @@ import {
   moneyAmount,
   optionalSlot,
   outcomeResult,
+  parseCombineCursor,
   parseCount,
+  parseKeySpot,
   parseSlot,
   refusal,
 } from '../tactical/inventory-commands.ts';
@@ -47,9 +51,12 @@ import {
 } from '../tactical/inventory-panel.ts';
 import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
+import { type RingSource, returnKeysToRing, sourceObject, takeSourceObject } from '../tactical/item-source.ts';
+import { type KeyRingWorld, moveKey } from '../tactical/key-ring-panel.ts';
 import { refuse } from '../tactical/refusal.ts';
 import { isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
+import { combineStacks } from '../tactical/stack-cleanup.ts';
 import { teamMembers } from '../tactical/state.ts';
 import { addItemToPool, removeWorldItem, Visibility, type WorldItem, WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -68,6 +75,8 @@ export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'applyItem',
   'bandage',
   'splitMoney',
+  'combineStack',
+  'moveKey',
 ]);
 
 export const MapInventoryRefusal = {
@@ -102,6 +111,11 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
 const MONEY_STATUS = 100;
 const NO_SLOT = -1;
 const DISCARD_ITEM = 'discardItem';
+
+function ringPosition(value: unknown): number | null {
+  const spot = typeof value === 'object' && value !== null ? parseKeySpot(value) : null;
+  return spot && 'ring' in spot ? spot.ring : null;
+}
 
 function contentOf(campaign: CampaignSim): TacticalContent {
   const content = campaign.battle?.content;
@@ -412,6 +426,10 @@ export class MapInventory {
         return this.#discard(merc, cmd);
       case 'splitMoney':
         return this.#splitMoney(merc, cmd);
+      case 'combineStack':
+        return this.#combine(merc, cmd);
+      case 'moveKey':
+        return this.#moveKey(merc, cmd);
       default:
         return mapRefusal(MapInventoryRefusal.TACTICAL_ONLY);
     }
@@ -452,10 +470,59 @@ export class MapInventory {
     return outcomeResult(splitMoney(this.#env(merc), { mover: merc.soldier, from, amount, target: target.soldier, to }));
   }
 
+  #combine(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const slot = parseSlot(cmd.slot);
+    if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+    const owner = this.#target(merc, cmd.toSoldier);
+    if (!('soldier' in owner)) return owner;
+    const cursor = parseCombineCursor(contentOf(this.#campaign), merc.soldier, cmd);
+    if (typeof cursor === 'string') return refusal(cursor);
+    return outcomeResult(combineStacks(this.#env(merc), { holder: merc.soldier, owner: owner.soldier, slot, cursor }));
+  }
+
+  #keyRingWorld(): KeyRingWorld {
+    const campaign = this.#campaign;
+    return {
+      content: contentOf(campaign),
+      collectKey: (s, keys) => {
+        const t = campaign.tactical?.state;
+        if (t && s.placed && t.soldiers[s.id] === s) collectKey(t, s, keys);
+        else collectKeyFound(campaign.state.keyTable, s, keys, this.#keyFinding(s));
+      },
+    };
+  }
+
+  #keyFinding(s: Soldier): KeyFinding {
+    const sector = this.#campaign.battle?.roster.get(s.id)?.sector;
+    return { day: worldDay(this.#campaign.state.clock), sector: sector ? sectorByte(sector) : 0 };
+  }
+
+  #moveKey(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const from = parseKeySpot(cmd.from);
+    const to = parseKeySpot(cmd.to);
+    if (!from || !to) return refusal(InventoryRefusal.BAD_SPOT);
+    const count = parseCount(cmd.count, 'all');
+    if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
+    const index = 'slot' in from ? this.#stackIndex(merc.soldier.inv[from.slot], cmd.index) : 0;
+    if (index === null) return refusal(InventoryRefusal.BAD_INDEX);
+    const target = this.#target(merc, cmd.toSoldier);
+    if (!('soldier' in target)) return target;
+    const req = { mover: merc.soldier, from, count, index, target: target.soldier, to };
+    const outcome = moveKey(this.#keyRingWorld(), this.#env(merc), req);
+    return outcome.ok ? { ok: true, data: outcome.data } : refusal(outcome.refusal);
+  }
+
+  #stackIndex(o: ItemObject | undefined, value: unknown): number | null {
+    const index = value ?? 0;
+    return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < Math.max(1, o?.count ?? 0) ? index : null;
+  }
+
   #move(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
     const count = parseCount(cmd.count, 'all');
     if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
     if (cmd.from === 'ground') return this.#fromStash(merc, cmd, count);
+    const ring = ringPosition(cmd.from);
+    if (ring !== null && cmd.to === 'ground') return this.#keysToStash(merc, { ring, count }, cmd);
     const from = parseSlot(cmd.from);
     if (from === null) return refusal(InventoryRefusal.BAD_SLOT);
     if (cmd.to === 'ground') return this.#toStash(merc, from, cmd, count);
@@ -470,7 +537,50 @@ export class MapInventory {
     );
   }
 
+  #discardKeys(merc: RosterMerc, source: RingSource): CommandResult {
+    const keys = takeSourceObject(contentOf(this.#campaign), merc.soldier, source);
+    if (!keys) return refusal(InventoryRefusal.EMPTY_SLOT);
+    const name = this.#name(keys.item);
+    this.#events.push({ type: 'itemDiscarded', soldier: merc.id, item: name, count: keys.count, tick: this.#campaign.tick });
+    return { ok: true, data: { item: name, count: keys.count } };
+  }
+
+  #keysToStash(merc: RosterMerc, source: RingSource, cmd: InventoryCommand): CommandResult {
+    const sector = this.#stashSector(merc, cmd);
+    if (!sector) return mapRefusal(MapInventoryRefusal.BAD_SECTOR);
+    const refused = stashRefusal(this.#campaign, merc, sector);
+    if (refused) return mapRefusal(refused);
+    const s = merc.soldier;
+    if (!sourceObject(contentOf(this.#campaign), s, source)) return refusal(InventoryRefusal.EMPTY_SLOT);
+    const stash = stashOf(this.#campaign, sector);
+    const into = cmd.stashIndex === undefined ? null : this.#stashIndex(stash, cmd.stashIndex);
+    if (cmd.stashIndex !== undefined && into === null) return mapRefusal(MapInventoryRefusal.BAD_STASH_INDEX);
+    const keys = takeSourceObject(contentOf(this.#campaign), s, source) as ItemObject;
+    const item = keys.item;
+    const moved = keys.count;
+    if (into === null) stash.add(keys, s.gridNo, s.level);
+    else stash.placeInto(into, keys);
+    if (keys.item === item) returnKeysToRing(s, source, keys);
+    this.#returnToMerc(merc, NO_SLOT, keys);
+    const name = this.#name(item);
+    this.#events.push({
+      type: 'keyMoved',
+      soldier: merc.id,
+      item: name,
+      count: moved,
+      from: { ring: source.ring },
+      to: 'ground',
+      tick: this.#campaign.tick,
+    });
+    return { ok: true, data: { item: name, count: moved, sector: sectorShortString(sector) } };
+  }
+
   #discard(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const ring = ringPosition(cmd.slot);
+    if (ring !== null) {
+      const count = parseCount(cmd.count, 'all');
+      return count === null ? refusal(InventoryRefusal.BAD_COUNT) : this.#discardKeys(merc, { ring, count });
+    }
     const slot = parseSlot(cmd.slot);
     if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
     const count = parseCount(cmd.count, 'all');
@@ -559,7 +669,7 @@ export class MapInventory {
   #returnToMerc(merc: RosterMerc, from: number, cursor: ItemObject): void {
     if (cursor.count === 0) return;
     const ctx = this.#context(merc.soldier);
-    placeObject(ctx, merc.soldier, from, cursor);
+    if (from !== NO_SLOT) placeObject(ctx, merc.soldier, from, cursor);
     if (cursor.count > 0) autoPlaceObject(ctx, merc.soldier, cursor);
     if (cursor.count > 0) stashOf(this.#campaign, merc.sector).add(cursor, merc.soldier.gridNo, merc.soldier.level);
   }

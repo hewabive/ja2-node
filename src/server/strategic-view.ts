@@ -23,6 +23,9 @@ import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
 import { armourPercent, type MaxArmour, maxArmourPerClass } from '../sim/tactical/combat/armour.ts';
+import type { TacticalContent } from '../sim/tactical/content.ts';
+import { keyRingViewOf } from '../sim/tactical/doors/door-view.ts';
+import type { KeyTable } from '../sim/tactical/doors/keys.ts';
 import { inventoryView } from '../sim/tactical/inventory-view.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { statsView } from '../sim/tactical/soldier-view.ts';
@@ -163,13 +166,25 @@ function maxArmourOf(items: ItemTable): MaxArmour {
   return max;
 }
 
-function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: ViewedMerc): Partial<StrategicMercView> {
+interface MercItemSources {
+  readonly content: TacticalContent;
+  readonly keyTable: KeyTable;
+}
+
+function keysField(sources: MercItemSources, s: Soldier): Partial<StrategicMercView> {
+  const keys = keyRingViewOf(sources.content, sources.keyTable, s);
+  return keys.length > 0 ? { keys } : {};
+}
+
+function mercInventoryFields(ctx: StrategicContext, sources: MercItemSources | null, m: ViewedMerc): Partial<StrategicMercView> {
   const s = m.soldier;
-  if (!s || !items) return {};
+  if (!s || !sources) return {};
+  const items = sources.content.items;
   return {
     profile: m.profile,
     stats: statsView(s),
     inventory: inventoryView(items, s.inv),
+    ...keysField(sources, s),
     weight: ctx.mercs.carriedWeightPercent(m.id),
     armour: armourPercent(items, maxArmourOf(items), s),
     camo: s.camo,
@@ -261,7 +276,8 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
   const world = campaign.state.worldSector;
   const vehicles = vehicleViews(campaign);
   const helicopter = helicopterView(campaign);
-  const items = campaign.battle?.content.items ?? null;
+  const content = campaign.battle?.content;
+  const items = content ? { content, keyTable: campaign.state.keyTable } : null;
   return {
     balance: campaign.state.finances.balance,
     worldSector: world ? sectorName(world) : null,

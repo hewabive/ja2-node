@@ -10,7 +10,6 @@
 // @src (the landing tile of a pocket object tossed from the item cursor, AP_TOSS_ITEM, 2026-11-03); Turn_Based_Input.cc
 // @src HandleHandCursorClick (EPC_CANNOT_DO_THAT for an escort's pickup or search, 2026-11-03).
 
-import { NOTHING } from '../../content/items/items.ts';
 import { NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
@@ -27,9 +26,8 @@ import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
 import { apsToBeginFirstAid, firstAidMedicRefusal, firstAidNeedRefusal } from '../tactical/first-aid.ts';
 import { apsToGiveItem } from '../tactical/give.ts';
-import { InvSlot, itemIn } from '../tactical/inventory.ts';
-import { parseCount, parseSlot } from '../tactical/inventory-commands.ts';
 import { adjustGridNoForItemPlacement, pickupCandidates, requestedZLevel, showsItems } from '../tactical/item-actions.ts';
+import { parseItemSource } from '../tactical/item-source.ts';
 import { apsToJumpOver, jumpOverAt } from '../tactical/jump-over.ts';
 import { directionToward } from '../tactical/movement.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
@@ -264,15 +262,9 @@ function stealAction(c: ActionContext): ActionPart {
 
 function tossAction(c: ActionContext, req: PreviewActionRequest): ActionPart {
   const { t, s } = c;
-  const slot = req.slot === undefined ? InvSlot.HAND : parseSlot(req.slot);
-  if (slot === null) return refused(c, 'badSlot', s.gridNo);
-  if (itemIn(s.inv, slot) === NOTHING) return refused(c, 'emptySlot', s.gridNo);
-  const count = parseCount(req.count, 'all');
-  if (count === null) return refused(c, 'badCount', s.gridNo);
-  const index = req.index ?? 0;
-  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
-    return refused(c, 'badIndex', s.gridNo);
-  const { refusal, landing } = previewToss(t, s, { slot, count, index, gridNo: c.g, level: c.level });
+  const source = parseItemSource(s, req);
+  if (typeof source === 'string') return refused(c, source, s.gridNo);
+  const { refusal, landing } = previewToss(t, s, { source, gridNo: c.g, level: c.level });
   return {
     ok: refusal === null,
     ...(refusal ? { refusal } : {}),

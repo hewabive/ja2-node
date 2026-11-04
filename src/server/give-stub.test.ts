@@ -211,6 +211,31 @@ describe('giving items and money to the stub NPC in A10', () => {
     expect(soldier(session, merc).inv[pocket]?.count ?? 0).toBe(0);
   });
 
+  it('gives keys off the key ring to a squad mate: they leave the ring with the order and arrive in his pockets', async () => {
+    const { session, live, merc } = await nearVasko(27);
+    const mate = session.view().strategic?.mercs[1]?.id;
+    if (mate === undefined) throw new Error('no second merc');
+    const ring = soldier(session, merc).keyRing ?? [];
+    ring[4] = { keyId: 1, count: 2 };
+    const key = item(session, 'KEY_1');
+    expect(session.dispatch({ type: 'give', soldier: merc, target: mate, slot: { ring: 5 } })).toMatchObject({
+      ok: false,
+      data: { refusal: 'emptySlot' },
+    });
+    expect(session.dispatch({ type: 'give', soldier: merc, target: mate, slot: { ring: 4 }, count: 3 })).toMatchObject({
+      ok: false,
+      data: { refusal: 'badCount' },
+    });
+    const handed = session.dispatch({ type: 'give', soldier: merc, target: mate, slot: { ring: 4 }, count: 1 });
+    expect(handed.ok, handed.reason).toBe(true);
+    expect(ring[4]?.count).toBe(1);
+    const report = live.advance({ idle: true });
+    expect(report.events.map((e: SimEvent) => e.type)).toContain('itemGiven');
+    const carried = soldier(session, mate).inv.filter((o) => o.item === key);
+    expect(carried.reduce((n, o) => n + o.count, 0)).toBe(1);
+    expect(soldier(session, merc).keyRing?.[4]?.count).toBe(1);
+  });
+
   it('gives to the NPC and to a squad mate the same way when the session is saved and restored after every input', async () => {
     await expectReloadsInvisible(async (mode) => {
       const { session, live, merc } = await nearVasko(26, mode);

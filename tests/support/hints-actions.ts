@@ -84,6 +84,8 @@ export function sampleInventoryHints(view: PlayerView, itemIndices: readonly num
       requests.push({ type: 'itemInfo', soldier: s.id, slot: item.slot, metric: true });
     }
     requests.push({ type: 'placements', soldier: s.id, slot: NUM_INV_SLOTS - 1 });
+    const carried = (s.inventory ?? []).map((i) => i.index);
+    for (const item of carried) requests.push({ type: 'compatibleItems', item, items: carried });
     const piles = (view.items ?? []).filter((i) => i.level === s.level);
     for (const pile of new Set(piles.map((i) => i.gridNo)))
       for (let ground = 0; ground <= piles.filter((i) => i.gridNo === pile).length; ground++)
@@ -94,6 +96,7 @@ export function sampleInventoryHints(view: PlayerView, itemIndices: readonly num
     requests.push({ type: 'compatibleMercs', items: [item] });
   }
   requests.push({ type: 'compatibleMercs', items: itemIndices });
+  for (const item of itemIndices) requests.push({ type: 'compatibleItems', item, items: itemIndices });
   return requests;
 }
 

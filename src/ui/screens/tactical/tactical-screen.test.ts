@@ -599,19 +599,62 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.inventory.cursor).toBeNull();
   });
 
-  it('cleans up the stack with CTRL+click, also with an object of the same item from the cursor', async () => {
+  it('cleans up the stack with CTRL+click, pours the cursor object into it and keeps what is left in the cursor', async () => {
     const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const merc = t.soldiers[0];
+    const clip = t.content.items.byName.get('CLIP9_15')?.index ?? 0;
+    if (!merc) throw new Error('no merc 0');
+    const magazines = (status: readonly number[]) => ({
+      ...createItem(t.content.items, clip, 0),
+      count: status.length,
+      status: [...status],
+    });
+    merc.inv[BIG_POCKET] = magazines([15, 3]);
+    merc.inv[NEXT_BIG_POCKET] = magazines([10]);
+    f.client.refresh();
     await smPanelOf(f, 0);
     await f.click(`slot${BIG_POCKET}`, MouseButton.LEFT, KeyModifier.CTRL);
     expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'combineStack', soldier: 0, slot: BIG_POCKET });
     expect(f.screen.inventory.cursor).toBeNull();
-    await f.click(`slot${BIG_POCKET}`);
-    await f.click(`slot${NEXT_BIG_POCKET}`);
+    expect(merc.inv[BIG_POCKET]?.status.slice(0, 1)).toEqual([15]);
+    merc.inv[BIG_POCKET] = magazines([15, 3]);
+    f.client.refresh();
     await f.click(`slot${BIG_POCKET}`);
     await f.click(`slot${NEXT_BIG_POCKET}`, MouseButton.LEFT, KeyModifier.CTRL);
     expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'combineStack', soldier: 0, slot: NEXT_BIG_POCKET, from: BIG_POCKET, index: 0 });
-    expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
+    expect(f.client.commands.at(-1)?.reply).toMatchObject({ ok: true, data: { combined: true, left: 1 } });
+    expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'slot', slot: BIG_POCKET, index: 0 });
+    expect(merc.inv[NEXT_BIG_POCKET]?.status.slice(0, 1)).toEqual([15]);
+    merc.inv[NEXT_BIG_POCKET] = magazines([5]);
+    f.client.refresh();
+    await f.click(`slot${NEXT_BIG_POCKET}`, MouseButton.LEFT, KeyModifier.CTRL);
+    expect(f.client.commands.at(-1)?.reply).toMatchObject({ ok: true, data: { combined: true, left: 0 } });
     expect(f.screen.inventory.cursor).toBeNull();
+    expect(merc.inv[NEXT_BIG_POCKET]?.status.slice(0, 1)).toEqual([15]);
+  });
+
+  it('drops keys taken off the key ring at the merc’s feet with a click on his tile', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const merc = tacticalOf(f.session).state.soldiers[0];
+    const ring = merc?.keyRing ?? [];
+    ring[1] = { keyId: 1, count: 2 };
+    f.client.refresh();
+    await smPanelOf(f, 0);
+    await f.click('smKeyRing');
+    f.t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
+    await f.click('keyRingCell1', MouseButton.LEFT, KeyModifier.SHIFT);
+    f.t.runtime.input({ kind: 'keyUp', key: 'Shift', code: 'ShiftLeft', modifiers: 0 });
+    expect(f.screen.inventory.cursor?.source).toEqual({ kind: 'keyRing', soldier: 0, position: 1, count: 'all' });
+    const area = f.widget('keyRingArea').rect;
+    await f.clickAt(area.x + 2, area.y + 2);
+    const at = f.world.pickPoint(merc?.gridNo ?? 0);
+    await f.clickAt(at.x, at.y);
+    expect(f.client.commands.at(-1)).toMatchObject({ cmd: { type: 'drop', soldier: 0, slot: { ring: 1 } }, reply: { ok: true } });
+    expect(f.screen.inventory.cursor).toBeNull();
+    f.advance(400);
+    expect(ring[1]?.count).toBe(0);
+    expect(f.client.view.items?.filter((i) => i.gridNo === merc?.gridNo && i.item === 'KEY_1')).toMatchObject([{ count: 2 }]);
   });
 
   it('takes a key off the key ring into a pocket and puts a pocket key back on another ring position', async () => {

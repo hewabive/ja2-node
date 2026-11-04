@@ -47,15 +47,25 @@ export function sectorByte(sector: { readonly x: number; readonly y: number }): 
   return (sector.y - 1) * SECTORS_PER_ROW + (sector.x - 1);
 }
 
-export function collectKey(t: TacticalState, s: Soldier, o: ItemObject): void {
-  if (s.team !== Team.OUR) return;
-  const k = t.keyTable[o.keyId];
-  if (k?.dateFound !== 0) return;
-  k.dateFound = idiv(worldSeconds(t), SECONDS_PER_DAY);
-  k.sectorFound = t.sector ? sectorByte(t.sector) : 0;
+export interface KeyFinding {
+  readonly day: number;
+  readonly sector: number;
 }
 
-type KeyContent = Pick<TacticalContent, 'locks' | 'items'>;
+export function collectKeyFound(table: KeyTable, s: Soldier, o: ItemObject, finding: KeyFinding): void {
+  if (s.team !== Team.OUR) return;
+  const k = table[o.keyId];
+  if (k?.dateFound !== 0) return;
+  k.dateFound = finding.day;
+  k.sectorFound = finding.sector;
+}
+
+export function collectKey(t: TacticalState, s: Soldier, o: ItemObject): void {
+  const day = idiv(worldSeconds(t), SECONDS_PER_DAY);
+  collectKeyFound(t.keyTable, s, o, { day, sector: t.sector ? sectorByte(t.sector) : 0 });
+}
+
+export type KeyContent = Pick<TacticalContent, 'locks' | 'items'>;
 
 export function keyItemForKeyId(content: KeyContent, keyId: number): number {
   const classIndex = lockAt(content.locks, keyId).keyItem;

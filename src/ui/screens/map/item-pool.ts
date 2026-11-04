@@ -4,7 +4,8 @@
 // @src whole pages of MAP_INVENTORY_POOL_SLOT_COUNT), CheckAndUnDateSlotAllocation (another page when fewer than two slots
 // @src are free), GetTotalNumberOfItemsInSectorStash, MapInvenPoolSlotsPrimary (the checks in their order: an unreachable
 // @src item, no merc selected, the merc not in the sector or on the road, a battle there), BeginInventoryPoolPtr (one object,
-// @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback.
+// @src SHIFT the whole slot); src/game/Strategic/MapScreen.cc TrashCanBtnCallback; Tactical/Interface_Items.cc
+// @src BeginKeyRingItemPointer (keys off the ring put into the pool or the trash can, 2026-11-03).
 
 import { idiv } from '../../../core/int.ts';
 import type { StashEntryView } from '../../../protocol/map-inventory.ts';
@@ -94,28 +95,33 @@ export function fromStashCommand(cursor: StashCursor, soldier: number, slot: num
 
 export function toStashCommand(cursor: ItemCursor, target: StashEntryView | null, pool: PoolLocation): CommandEnvelope | null {
   const s = cursor.source;
-  if (s.kind !== 'slot') return null;
+  if (s.kind !== 'slot' && s.kind !== 'keyRing') return null;
   return {
     type: 'moveItem',
     soldier: s.soldier,
-    from: s.slot,
+    from: s.kind === 'keyRing' ? { ring: s.position } : s.slot,
     to: 'ground',
     ...(target ? { stashIndex: target.index } : {}),
     ...location(pool),
-    ...(s.count === 'all' ? {} : { count: s.count }),
+    ...countOf(s.count),
   };
 }
 
 export function discardCommand(cursor: ItemCursor): CommandEnvelope | null {
   const s = cursor.source;
+  if (s.kind === 'keyRing') return { type: 'discardItem', soldier: s.soldier, slot: { ring: s.position }, ...countOf(s.count) };
   if (s.kind !== 'slot') return null;
   return {
     type: 'discardItem',
     soldier: s.soldier,
     slot: s.slot,
-    ...(s.count === 'all' ? {} : { count: s.count }),
+    ...countOf(s.count),
     ...(s.index !== 0 ? { index: s.index } : {}),
   };
+}
+
+function countOf(count: CursorCount): { count?: CursorCount } {
+  return count === 'all' ? {} : { count };
 }
 
 export const PoolRefusal = {
