@@ -2,8 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10, STUB_DEALER } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import type { ItemTable } from '../../../content/items/items.ts';
 import type { SimEvent } from '../../../sim/events.ts';
 import { createItem } from '../../../sim/items/object.ts';
+import type { Soldier } from '../../../sim/tactical/soldier.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
 import { OFFER_SLOTS } from './shop-model.ts';
@@ -34,6 +36,12 @@ const MAX_LINE_FRAMES = 400;
 const SETTLE_FRAMES = 6;
 const FONT_RED = 162;
 const RADIO = 'interface/radio.sti';
+const STUB_REPAIRMAN = 128;
+const HAND_SLOT = 5;
+const DAMAGED_STATUS = 60;
+const ROUNDS_LEFT = 9;
+const CROSS_OUT = 'interface/itemcrossout.sti';
+const CROSS_OUT_X = 22;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -107,20 +115,33 @@ async function settleShop(f: TacticalUiTest): Promise<void> {
   }
 }
 
+interface ShopVisit {
+  readonly pockets?: readonly string[];
+  readonly profile?: number;
+  readonly option?: string;
+  readonly prepare?: (merc: Soldier, items: ItemTable) => void;
+}
+
 async function atTheDealer(seed: number, pockets: readonly string[] = []): Promise<{ f: TacticalUiTest; merc: number }> {
+  return atTheShop(seed, { pockets });
+}
+
+async function atTheShop(seed: number, visit: ShopVisit): Promise<{ f: TacticalUiTest; merc: number }> {
   const a10 = await campaignInA10(kit, seed);
   const merc = a10.mercs[0] ?? 0;
   const tactical = a10.campaign.campaign.tactical?.state;
   const carrier = tactical?.soldiers[merc];
   if (!tactical || !carrier) throw new Error('no merc in tactical');
-  pockets.forEach((name, k) => {
+  (visit.pockets ?? []).forEach((name, k) => {
     const def = tactical.content.items.byName.get(name);
     const slot = SMALL_POCKETS[k];
     if (!def || slot === undefined) throw new Error(`cannot pocket ${name}`);
     carrier.inv[slot] = createItem(tactical.content.items, def.index, 100);
   });
-  const dealer = a10.campaign.campaign.tactical?.state.soldiers.find((s) => s?.placed && s.profile === STUB_DEALER);
-  if (!dealer) throw new Error('no stub dealer');
+  visit.prepare?.(carrier, tactical.content.items);
+  const profile = visit.profile ?? STUB_DEALER;
+  const dealer = a10.campaign.campaign.tactical?.state.soldiers.find((s) => s?.placed && s.profile === profile);
+  if (!dealer) throw new Error(`no stub shopkeeper ${profile}`);
   const moved = a10.session.dispatch({ type: 'move', soldier: merc, to: dealer.gridNo + 2, mode: 'walk' });
   expect(moved.ok, moved.reason).toBe(true);
   a10.session.advance({ idle: true });
@@ -131,9 +152,9 @@ async function atTheDealer(seed: number, pockets: readonly string[] = []): Promi
   f.deliver();
   playOut(f);
   expect(f.screen.dialogue.talk.open).toBe(true);
-  expect(f.widget('talkOptionText4').text).toBe('Buy/Sell');
+  expect(f.widget('talkOptionText4').text).toBe(visit.option ?? 'Buy/Sell');
   await f.click('talkOption4');
-  expect(f.client.commands.some((c) => c.cmd.type === 'approach' && c.cmd.kind === 'buySell' && c.reply.ok)).toBe(true);
+  expect(f.client.commands.some((c) => c.cmd.type === 'approach' && c.reply.ok)).toBe(true);
   await settleShop(f);
   return { f, merc };
 }
@@ -302,6 +323,44 @@ describe('the shop screen at the stub dealer', () => {
     expect(f.widget('shopPlayerOfferFace1').text).toBeNull();
     expect(f.widget('shopDealerFace0')).toMatchObject({ visible: false, enabled: false });
     expect(f.widget('shopDealerOfferFace0')).toMatchObject({ visible: false, enabled: false });
+  });
+
+  it('draws the bullets the repairman leaves of an offered gun in its slot, crossed out, and takes the whole gun back at a click on them', async () => {
+    const { f, merc } = await atTheShop(7, {
+      profile: STUB_REPAIRMAN,
+      option: 'Repair',
+      prepare: (carrier, items) => {
+        const pistol = items.byName.get('GLOCK_17');
+        const clip = items.byName.get('CLIP9_15');
+        if (!pistol || !clip) throw new Error('no pistol or clip');
+        const gun = createItem(items, pistol.index, DAMAGED_STATUS);
+        carrier.inv[HAND_SLOT] = gun;
+        gun.gunAmmoItem = clip.index;
+        gun.gunShotsLeft = ROUNDS_LEFT;
+      },
+    });
+    const shop = f.screen.dialogue.shop;
+    expect(shop.model.repairs).toBe(true);
+    await f.click(`slot${HAND_SLOT}`);
+    await settleShop(f);
+    expect(shop.model.quote?.repair.map((r) => r.item)).toEqual(['GLOCK_17']);
+    expect(shop.model.offerPart(0)).toMatchObject({ item: 'CLIP9_15', status: ROUNDS_LEFT, source: { soldier: merc, slot: HAND_SLOT } });
+    f.t.frame();
+    const { rect } = f.widget('shopPlayerOfferSlot0');
+    const drawn = f
+      .draw()
+      .items.flatMap((i) =>
+        i.kind === 'image' && i.x >= rect.x && i.x < rect.x + rect.width && i.y >= rect.y - 2 && i.y < rect.y + rect.height ? [i] : [],
+      );
+    const clip = f.media.item('CLIP9_15')?.inventoryGraphics.small.path.toLowerCase();
+    const gun = f.media.item('GLOCK_17')?.inventoryGraphics.small.path.toLowerCase();
+    expect(drawn.some((i) => i.asset === clip)).toBe(true);
+    expect(drawn.some((i) => i.asset === gun)).toBe(false);
+    expect(drawn.some((i) => i.asset === CROSS_OUT && i.x === rect.x + CROSS_OUT_X)).toBe(true);
+    await f.click('shopPlayerOfferSlot0');
+    await settleShop(f);
+    expect(shop.model.held).toMatchObject({ kind: 'offer', offer: { soldier: merc, slot: HAND_SLOT, item: 'GLOCK_17' } });
+    expect(shop.model.playerOffer[0]).toBeNull();
   });
 
   it('offers a pocket from the single merc panel, hatches it, and takes it back with a right click', async () => {

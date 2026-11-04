@@ -291,6 +291,35 @@ describe('ShopModel', () => {
     expect(f.model.enableState().transaction).toBe(false);
   });
 
+  it('stands a gun the repairman splits for the bullets he leaves, crossed out, and acts on the whole pocket at a click on them', async () => {
+    const f = fixture(shopView([], { kind: 'repair' } as Partial<ShopView>));
+    const bullets = { kind: 'part', item: 'CLIP9_15', count: 1, status: 9, owner: 4, source: { soldier: 0, slot: 5 }, value: 0 } as const;
+    f.answers = (cmd) => {
+      const repairs = (cmd.repair as { slot: number }[] | undefined) ?? [];
+      const gun = repairs.some((r) => r.slot === 5);
+      return {
+        ok: true,
+        data: quote({
+          repair: repairs.map(() => ({ item: 'GLOCK_17', owner: 4, cost: 56, minutes: 56, doneAt: 0 })),
+          poa: gun ? [bullets, ...Array.from({ length: 11 }, () => null)] : [],
+        }),
+      };
+    };
+    f.model.pocketClick(0, 6, 'GLOCK_18', false);
+    f.model.pocketClick(0, 5, 'GLOCK_17', false);
+    await settle();
+    expect(f.model.offerPart(0)).toBeNull();
+    expect(f.model.crossedOut(0)).toBe(false);
+    expect(f.model.offerPart(1)).toEqual(bullets);
+    expect(f.model.crossedOut(1)).toBe(true);
+    expect(f.model.playerOfferClick(1)).toBe(true);
+    expect(f.model.held).toMatchObject({ kind: 'offer', offer: { soldier: 0, slot: 5, item: 'GLOCK_17' } });
+    expect(f.model.offerPart(1)).toBeNull();
+    expect(f.model.cancelHeld()).toBe(true);
+    await settle();
+    expect(f.model.request().repair).toEqual([{ soldier: 0, slot: 6 }]);
+  });
+
   it('shows the repairs collected on entry as REPAIRED entries and asks for the pricing merc', async () => {
     const f = fixture(
       shopView([], { kind: 'repair', repaired: [{ item: 'GLOCK_17', status: 100, owner: 4, soldier: 0 }] } as Partial<ShopView>),

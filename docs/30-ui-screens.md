@@ -121,9 +121,10 @@ face; the box, the face, Backspace and Esc cut it, opening the contract menu or 
 (`map/map-speech.ts`). The external faces there are gap "Map screen speech".
 
 **The shop is a DOM-free model over the shop commands** (`ShopModel`): the offers, `quoteTrade` on every change, the
-original's Transaction and Done rules, the farewell before the screen closes (deviations "Shop as commands", "Shop
-screen pockets"). The entry quote comes with `openShop`; the panel holds it the original's 800 ms (`ShopPanel`), and
-outlines what goes with the item under the pointer by the `compatibleItems` hint's shop rule.
+original's Transaction and Done rules, the farewell before the screen closes, the parts a repairman leaves drawn in
+their pocket's slot (deviations "Shop as commands", "Shop screen pockets", "Repairman's parts"). The entry quote comes
+with `openShop`; the panel holds it the original's 800 ms (`ShopPanel`), and outlines what goes with the item under the
+pointer by the `compatibleItems` hint's shop rule.
 
 **The map screen drives its own time.** `SessionMapClient` runs the session in real time at speed 1 and stops the driver
 on the events that open a box (`pauseOn`: the update box's, `sectorLost` and `invasion`); menus, plotting, boxes and the
@@ -276,5 +277,4 @@ Inferred or observed in ja2-node only:
 - A merc put to sleep by command is not listed in the update box (`fellAsleep` is the hourly rest's).
 
 Not ported: gaps "Tactical HUD details", "Tactical keys not yet ported", "Interactive tiles", "Auto-bandage", "Team panel
-vehicle exit", "Vehicles as characters", "Shop screen details", "IME composition", "I.M.P. skill page and saved
-profiles".
+vehicle exit", "Vehicles as characters", "IME composition", "I.M.P. skill page and saved profiles".

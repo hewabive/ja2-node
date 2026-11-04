@@ -147,4 +147,4 @@ checks and quotes and a dealer's death have no probe. Inferred from reading the 
 - That the deduction box cannot fail between question and answer (it is modal), so one atomic trade is the same.
 - That trading is allowed in turn-based combat, as talking is.
 
-Not ported: gaps "Shop screen details".
+Other deviations of this domain: "Repairman's parts", "Shop screen pockets".

@@ -118,8 +118,8 @@ async function tradeAndRepair(mode?: RunMode): Promise<CampaignSession> {
   const repair = { repair: [{ soldier: merc, slot: 'hand' }], useBalance: true };
   const estimate = session.dispatch({ type: 'quoteTrade', ...repair });
   expect(estimate).toMatchObject({ ok: true, data: { repair: [{ item: 'GLOCK_17', owner: 0 }] } });
-  const parts = (estimate.data as { poa: ({ kind: string; item: string } | null)[] }).poa.filter((e) => e !== null);
-  expect(parts.map((e) => [e.kind, e.item])).toEqual([['part', 'CLIP9_15']]);
+  const parts = (estimate.data as { poa: ({ kind: string; item: string; source?: unknown } | null)[] }).poa.filter((e) => e !== null);
+  expect(parts.map((e) => [e.kind, e.item, e.source])).toEqual([['part', 'CLIP9_15', { soldier: merc, slot: 5 }]]);
   expect((estimate.data as { refusal?: unknown }).refusal ?? null).toBeNull();
   expect(session.dispatch({ type: 'trade', ...repair })).toMatchObject({ ok: true });
   expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });

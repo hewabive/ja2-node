@@ -294,7 +294,7 @@ function planRepair(p: Planner, o: PlayerObject, entry: number, inRepair: number
   for (const [k, part] of parts.entries()) {
     const source = single ? o.source : null;
     const main = k === 0 || o.object.count > 1;
-    const asPart = () => addToPoa(p, { kind: 'part', object: part, owner: o.owner, source, value: 0 });
+    const asPart = () => addToPoa(p, { kind: 'part', object: part, owner: o.owner, source: o.source, value: 0 });
     quoteEvaluation(p);
     if (!canDealerRepairItem(ctx, d, part.item)) {
       asPart();

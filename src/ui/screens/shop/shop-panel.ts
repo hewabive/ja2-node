@@ -17,7 +17,8 @@
 // @src talks or the description box is up, dropped once the player asks to leave), CreateSkiInventorySlotMouseRegions
 // @src (the small face regions at SKI_SMALL_FACE_OFFSET_X: the repairman's stock and offer area, the player's offer
 // @src area) and SetSkiFaceRegionHelpText (the owner's nickname, MSG_DASH_S and the item's help text), the outline by
-// @src the compatibleItems hint's shop rule (2026-11-04).
+// @src the compatibleItems hint's shop rule (2026-11-04); OfferObjectToDealer (the bullets or payload a repairman
+// @src leaves of an offered gun, crossed out, 2026-11-04).
 
 import { speechPathForLine } from '../../../content/audio/speech.ts';
 import type { AudioGap } from '../../../content/formats/gap.ts';
@@ -52,7 +53,15 @@ import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { drawTalkingFace, FaceAnimator } from '../tactical/faces.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import { bigFaceRecord } from '../talk/talk-panel.ts';
-import { DEALER_SLOTS, type DealerSelection, OFFER_SLOTS, type PocketOffer, ShopModel, ShopQuoteId } from './shop-model.ts';
+import {
+  DEALER_SLOTS,
+  type DealerSelection,
+  OFFER_SLOTS,
+  type PocketOffer,
+  type QuotePoaEntry,
+  ShopModel,
+  ShopQuoteId,
+} from './shop-model.ts';
 import { drawShopTile, hatchSlot, MATCH_OUTLINE, type ShopTile, SKI_INV_SLOT_HEIGHT, SKI_INV_SLOT_WIDTH } from './shop-tile.ts';
 
 export const SHOP_SCREEN = 'shop';
@@ -634,7 +643,7 @@ export class ShopPanel {
     if (area === 'dealerOffer')
       return (this.model.repairs ? this.model.quote?.repair[slot]?.item : this.model.dealerOffer[slot]?.item) ?? null;
     const occupant = this.model.playerOffer[slot];
-    return occupant ? occupant.item : null;
+    return this.model.offerPart(slot)?.item ?? occupant?.item ?? null;
   }
 
   #shownItems(): CatalogueItem[] {
@@ -818,6 +827,8 @@ export class ShopPanel {
         hatched: false,
         outline: this.#outline(occupant.item),
       };
+    const part = this.model.offerPart(slot);
+    if (part) return this.#partTile(part);
     const pocket = this.#pocket(occupant);
     const value = occupant.cash ? (occupant.amount ?? pocket?.money ?? 0) : this.model.offerValue(slot);
     const s = this.#hooks.view()?.soldiers.find((v) => v.id === occupant.soldier);
@@ -834,6 +845,26 @@ export class ShopPanel {
       hatched: false,
       outline: this.#outline(occupant.item),
     };
+  }
+
+  #partTile(part: QuotePoaEntry): ShopTile {
+    return {
+      item: part.item,
+      count: part.count,
+      status: part.status,
+      attachments: [],
+      jammed: false,
+      priceText: null,
+      showCount: part.count > 1,
+      ownerFace: this.#ownerFace(part.owner),
+      repaired: false,
+      hatched: false,
+      outline: this.#outline(part.item),
+    };
+  }
+
+  #partView(part: QuotePoaEntry): InventoryItemView {
+    return { slot: -1, item: part.item, index: 0, count: part.count, status: [part.status] };
   }
 
   #tips(area: Area, count: number): string[] {
@@ -880,6 +911,8 @@ export class ShopPanel {
     const occupant = this.model.playerOffer[slot];
     if (!occupant) return '';
     if (occupant.kind === 'repaired') return help({ slot: -1, item: occupant.item, index: 0, count: 1, status: [occupant.status] });
+    const part = this.model.offerPart(slot);
+    if (part) return help(this.#partView(part));
     const pocket = this.#pocket(occupant);
     return pocket ? help(occupant.cash && occupant.amount !== null ? { ...pocket, money: occupant.amount } : pocket) : '';
   }

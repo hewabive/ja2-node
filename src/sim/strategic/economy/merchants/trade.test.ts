@@ -188,8 +188,10 @@ describe('shop transactions', () => {
     const f = merchantFixture(t, { world: { minutes: DAY + 600 } });
     const glock = item('GLOCK_17', 50);
     glock.gunShotsLeft = 9;
-    const plan = planTrade(f.ctx, input(PERKO, { repair: [offer(glock)], cash: [cash(100)] }));
+    const offered = offer(glock);
+    const plan = planTrade(f.ctx, input(PERKO, { repair: [offered], cash: [cash(100)] }));
     expect(plan.refusal).toBeNull();
+    expect(plan.poa.filter((e) => e?.kind === 'part').map((e) => e?.source)).toEqual([offered.source]);
     expect(plan.doa.map((e) => [e.object.item, e.object.gunShotsLeft, e.price, e.repairMinutes, e.doneAt])).toEqual([
       [glock.item, 0, 56, 56, DAY + 656],
     ]);

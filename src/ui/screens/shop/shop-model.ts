@@ -718,11 +718,18 @@ export class ShopModel {
     return this.offerEvaluation(slot)?.value ?? 0;
   }
 
+  offerPart(slot: number): QuotePoaEntry | null {
+    const occupant = this.playerOffer[slot];
+    if (!this.repairs || occupant?.kind !== 'offer' || occupant.cash || this.#excluded.has(occupant.id)) return null;
+    const parts = this.#quote?.poa ?? [];
+    return parts.find((e) => e?.kind === 'part' && e.source?.soldier === occupant.soldier && e.source.slot === occupant.slot) ?? null;
+  }
+
   crossedOut(slot: number): boolean {
     const occupant = this.playerOffer[slot];
     if (occupant?.kind !== 'offer' || occupant.cash) return false;
     if (this.#excluded.has(occupant.id)) return true;
-    if (this.repairs) return false;
+    if (this.repairs) return this.offerPart(slot) !== null;
     const evaluation = this.offerEvaluation(slot);
     return evaluation !== null && evaluation.value === 0;
   }
