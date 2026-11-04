@@ -87,6 +87,7 @@ import { textBoxArt } from '../../layout/styles.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import { LayoutView } from '../../layout/view.ts';
 import type { Screen } from '../../screen.ts';
+import { DialogueHold } from '../../speech.ts';
 import { fontHeight } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
@@ -477,7 +478,7 @@ export class TacticalScreen implements Screen {
       viewportRegion: () => this.#viewportRegion,
       dismissFeedback: () => this.#dismissFeedback(),
       closeCivQuote: () => this.dialogue.closeCivQuoteIfActive(),
-      holdDialogue: (held) => this.dialogue.presenter.holdDialogue(held),
+      holdDialogue: (held) => this.dialogue.presenter.holdDialogue(held, DialogueHold.OVERHEAD_MAP),
       disableTeamPanelButtons: (disabled) => {
         this.#teamButtonsDisabled = disabled;
       },

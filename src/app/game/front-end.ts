@@ -277,6 +277,10 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   page.hook.story = story.hook;
   stories = { help, story };
   client.onConnected = (session: SessionClient | null) => {
+    if (speech && speech.client !== session) {
+      speech.discardLines();
+      speech = null;
+    }
     page.client = session;
     if (session) session.playbackSpeed = settings.current().playbackSpeed;
     page.hook.session = session?.session ?? null;
@@ -292,6 +296,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     story.reset();
     if (!session) return;
     session.onFrames = (frames) => {
+      speechFor(session).followScreen();
       music.frames(frames);
       lastLoadScreen = loadScreenOf(frames) ?? lastLoadScreen;
       if (!tactical && gameScreenOf(session.view) === 'tactical' && session.view?.mapPath) tacticalFor(session);
@@ -301,7 +306,12 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       story.frames(frames, (released) => flow.frames(released));
     };
     session.onReceive = (frames) => tactical?.received(frames);
-    session.onWelcome = () => tactical?.welcome();
+    session.onWelcome = (stateReplaced) => {
+      const sessionSpeech = speechFor(session);
+      if (stateReplaced) sessionSpeech.discardLines();
+      sessionSpeech.followScreen();
+      tactical?.welcome();
+    };
   };
   return { flow, client, music, video };
 }

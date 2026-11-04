@@ -180,6 +180,21 @@ describe('a dropped connection', () => {
   });
 });
 
+describe('a welcome on an open link', () => {
+  it('tells the state a load in place replaced from the first welcome and from the one a reconnect brings', async () => {
+    const rig = await connected('s1', 'first');
+    const welcomes: boolean[] = [];
+    rig.client.onWelcome = (stateReplaced) => welcomes.push(stateReplaced);
+    rig.sockets[0]?.deliver(welcome('s1', 'first', 90));
+    expect(rig.client.view?.tick).toBe(90);
+    rig.sockets[0]?.drop();
+    const back = await redial(rig, 0);
+    back.deliver(welcome('s1', 'first', 90));
+    back.deliver(welcome('s1', 'first', 30));
+    expect(welcomes).toEqual([true, false, true]);
+  });
+});
+
 describe('a session closed on the server', () => {
   it('ends at once with the reason, rejects the requests in flight and stops dialling', async () => {
     const rig = await connected('s1');

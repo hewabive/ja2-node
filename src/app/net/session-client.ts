@@ -83,7 +83,7 @@ export class SessionClient implements ViewerPromptPort {
   identity: WelcomeIdentity | null = null;
   onChange: (() => void) | null = null;
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
-  onWelcome: (() => void) | null = null;
+  onWelcome: ((stateReplaced: boolean) => void) | null = null;
   onReceive: ((frames: readonly ViewFrame[]) => void) | null = null;
   onReply: ((label: string, ms: number) => void) | null = null;
   onConnection: ((connection: SessionConnection) => void) | null = null;
@@ -103,6 +103,7 @@ export class SessionClient implements ViewerPromptPort {
   #latest: PlayerView | null = null;
   #shownTick = 0;
   #messages: MessageEntry[] = [];
+  #welcomed = false;
 
   private constructor(session: string | undefined, options: LinkOptions) {
     this.#link = new SessionLink(session, { message: (m) => this.#receive(m), connection: (c) => this.#connectionChanged(c) }, options);
@@ -258,7 +259,9 @@ export class SessionClient implements ViewerPromptPort {
 
   #receive(m: ServerMessage): void {
     switch (m.t) {
-      case 'welcome':
+      case 'welcome': {
+        const stateReplaced = this.#welcomed && this.connection.state === 'open';
+        this.#welcomed = true;
         this.#frames.length = 0;
         this.#bullets.clear();
         this.session = m.session;
@@ -273,8 +276,9 @@ export class SessionClient implements ViewerPromptPort {
         this.#messages = appendToLog([], m.messages);
         for (const reason of this.#holds) this.#sendHold(reason, true);
         for (const prompt of this.#prompts.values()) this.#sendPrompt(prompt);
-        this.onWelcome?.();
+        this.onWelcome?.(stateReplaced);
         break;
+      }
       case 'time':
         this.driver = m.driver;
         this.timeHeld = m.held;

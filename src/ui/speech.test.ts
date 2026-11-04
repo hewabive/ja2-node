@@ -3,6 +3,7 @@ import type { PlayerView } from '../protocol/view.ts';
 import {
   civQuoteLifetime,
   civQuoteOf,
+  DialogueHold,
   FINAL_TALKING_DELAY_MS,
   isQueuedQuoteEvent,
   type QuoteEvent,
@@ -332,7 +333,7 @@ describe('SpeechPresenter', () => {
     p.update(0);
     p.enqueue(line({ profile: 1, chars: 1 }));
     p.showCivQuote({ soldier: 3, text: 'Go away', chars: 7, hint: false }, 0);
-    p.holdDialogue(true);
+    p.holdDialogue(true, DialogueHold.OVERHEAD_MAP);
     p.enqueue(line({ profile: 2, chars: 1 }));
     p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
     expect([p.current, p.queued.map((l) => l.profile)]).toEqual([null, [2]]);
@@ -340,9 +341,41 @@ describe('SpeechPresenter', () => {
     p.enqueue(line({ profile: 3, chars: 1 }));
     p.update(civQuoteLifetime(7));
     expect([p.current, p.queued.map((l) => l.profile), p.civQuote?.text]).toEqual([null, [3], 'Go away']);
-    p.holdDialogue(false);
+    p.holdDialogue(false, DialogueHold.OVERHEAD_MAP);
     p.update(civQuoteLifetime(7) + 1);
     expect([p.current?.line.profile, p.civQuote]).toEqual([3, null]);
+  });
+
+  it('starts no line fed while the laptop is up, whose screen leaves out HandleDialogue, until the laptop and the overhead map both let go', () => {
+    const { p, voices } = presenter();
+    p.update(0);
+    p.holdDialogue(true, DialogueHold.LAPTOP);
+    p.holdDialogue(true, DialogueHold.OVERHEAD_MAP);
+    p.enqueue(line({ profile: 1 }));
+    p.update(1);
+    expect([p.current, voices.length]).toEqual([null, 0]);
+    p.holdDialogue(false, DialogueHold.OVERHEAD_MAP);
+    p.update(2);
+    expect([p.current, voices.length]).toEqual([null, 0]);
+    p.holdDialogue(false, DialogueHold.LAPTOP);
+    p.update(3);
+    expect(p.current?.line.profile).toBe(1);
+    expect(voices.map((v) => v.file)).toEqual(['npc_speech/094_001.wav']);
+  });
+
+  it("drops the queue and silences the line being said without reporting a cut, as a load's EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech do", () => {
+    const { p, voices } = presenter();
+    const stopped: number[] = [];
+    p.onLineStopped((l) => stopped.push(l.profile));
+    p.update(0);
+    p.enqueue(line({ profile: 1, saidAt: 10 }));
+    p.enqueue(line({ profile: 2, saidAt: 20 }));
+    p.discardLines();
+    expect([p.busy, p.current, p.queued.length]).toEqual([false, null, 0]);
+    expect(voices.map((v) => v.stopped)).toEqual([true]);
+    p.update(1);
+    expect(voices).toHaveLength(1);
+    expect(stopped).toEqual([]);
   });
 
   it('keeps a civilian quote for its lifetime, replaces it, and closes it on a click after 300 ms', () => {

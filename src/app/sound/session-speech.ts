@@ -1,6 +1,7 @@
 import type { SpeechOwner } from '../../audio/director.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
-import { reportStoppedLines, type SpeakerBattleSounds, SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
+import { gameScreenOf } from '../../ui/screens/front-end/flow.ts';
+import { DialogueHold, reportStoppedLines, type SpeakerBattleSounds, SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { engineSpeechVoices, storedSpeechSettings } from '../tactical/speech-voices.ts';
 
@@ -39,5 +40,13 @@ export class SessionSpeech {
 
   addBattleSounds(sounds: SpeakerBattleSounds): void {
     this.#battleSounds.push(sounds);
+  }
+
+  followScreen(): void {
+    this.presenter.holdDialogue(gameScreenOf(this.client.view) === 'laptop', DialogueHold.LAPTOP);
+  }
+
+  discardLines(): void {
+    this.presenter.discardLines();
   }
 }

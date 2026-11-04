@@ -107,8 +107,12 @@ cursor and the pickup menu set and clear, as the original's is (`tactical/tactic
 **Speech has one presenter.** `SpeechPresenter` queues every quote event as playback reaches its frame and routes it to
 a surface (the talk panel, the comm popup, the external popup, the shopkeeper, the civilian box); it owns voice,
 subtitle and skip, holds a merc's line while the sound director plays his battle sound (`SpeakerBattleSounds`, `31`) and
-reports a cut or finished line with `skipLine`. The overhead map holds it (`holdDialogue`) as the original leaves out
-`HandleDialogue` then: the current line plays on, no other starts. The simulation finishes lines in ticks and never
+reports a cut or finished line with `skipLine`. The overhead map and the laptop hold it (`holdDialogue`, each its own
+`DialogueHold`) as the original leaves out `HandleDialogue` then: the current line plays on, no other starts (the map
+screen cuts the current one as the laptop opens, `StopAnyCurrentlyTalkingSpeech`); the laptop's hold follows the shown
+view, so a line the server said before the laptop opened waits for the map screen. A load in place (a `welcome` on an
+open link) and a switch to another session drop the queue and silence the line being said without reporting them
+(`discardLines`), as `LoadSavedGame` empties the dialogue queue. The simulation finishes lines in ticks and never
 waits for a viewer (`24`, deviation "Talk panel and speech on the canvas").
 
 **One presenter per session serves the tactical and map screens** (`src/app/sound/session-speech.ts`), as the original

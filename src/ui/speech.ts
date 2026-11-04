@@ -13,7 +13,8 @@
 // @src a screen that leaves out Dialogue_Control.cc HandleDialogue starts no queued line and keeps the civilian quote
 // @src (HandleCivQuote), while Faces.cc HandleTalkingAutoFaces plays the current line to its end (2026-11-03);
 // @src Dialogue_Control.cc gpCurrentTalkingFace is one face for every screen: a line goes on across a screen switch
-// @src (2026-11-03).
+// @src (2026-11-03); SaveLoadGame.cc LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech before a load)
+// @src and Laptop/Laptop.cc, whose screen leaves out HandleDialogue (2026-11-04).
 
 import { speechPathForLine } from '../content/audio/speech.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -34,6 +35,12 @@ export const SpeechSurface = {
   SHOPKEEPER: 'shopkeeper',
 } as const;
 export type SpeechSurface = (typeof SpeechSurface)[keyof typeof SpeechSurface];
+
+export const DialogueHold = {
+  OVERHEAD_MAP: 'overheadMap',
+  LAPTOP: 'laptop',
+} as const;
+export type DialogueHold = (typeof DialogueHold)[keyof typeof DialogueHold];
 
 export interface TextKeyRef {
   readonly file: string;
@@ -147,7 +154,7 @@ export class SpeechPresenter {
   #civ: CivQuoteLine | null = null;
   #nextId = 1;
   #now = 0;
-  #dialogueHeld = false;
+  readonly #holds = new Set<DialogueHold>();
   readonly #framesTaken = new WeakSet<object>();
   readonly #started: ((line: SpeechLine) => void)[] = [];
   readonly #ended: ((line: SpeechLine) => void)[] = [];
@@ -233,8 +240,13 @@ export class SpeechPresenter {
     return true;
   }
 
-  holdDialogue(held: boolean): void {
-    this.#dialogueHeld = held;
+  holdDialogue(held: boolean, hold: DialogueHold): void {
+    if (held) this.#holds.add(hold);
+    else this.#holds.delete(hold);
+  }
+
+  get #dialogueHeld(): boolean {
+    return this.#holds.size > 0;
   }
 
   update(now: number): void {
@@ -272,6 +284,12 @@ export class SpeechPresenter {
     const r = this.#running;
     if (r) this.#cutShort(r);
     this.#queue.length = 0;
+  }
+
+  discardLines(): void {
+    this.#queue.length = 0;
+    const r = this.#running;
+    if (r) this.#finish(r);
   }
 
   cut(profile: number, saidAt: number, tail: boolean): void {
