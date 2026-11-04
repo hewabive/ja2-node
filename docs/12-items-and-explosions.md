@@ -227,9 +227,11 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/tactical/`:
 | In real time the crash and the hangover only shrink the breath regained, turn-based they cost breath; a gassed soldier who rested skips the drug term | `points.test.ts` "costs breath for the crash and the hangover only turn-based …", "skips the drug term …" |
 | Stacked adrenaline with many unused APs overflows the INT16 breath gain into a cost, which the breath factor overflows back into a gain: the breath fills | `points.test.ts` "fills the breath when stacked adrenaline overflows …" |
 
-Not checked against the native build: no oracle probe sets up a course, so the order inside `EVENT_BeginMercTurn`, the
-crash's morale with attitudes, the AP clamp chain, the INT8 wraps and the booster's `PreRandom` draw are read from the
-source and unit-tested only.
+The oracle's drug probes (`tools/oracle/README.md` "Drugs") check every drug and drink taken, with the booster's
+`PreRandom` draw and the lifetime count, and the courses over turn starts in real time and turn-based: the order inside
+`EVENT_BeginMercTurn`, the crash's morale with attitudes, the AP clamp chain, the INT8 wraps, the breath, the drunk stats
+and the boosters of the day. Not checked against the native build: Larry's swap (no save has him on the team), the
+asleep merc's morale and the campaign's morale refresh, stealth, the moving frame delay and code 491's drunk idle.
 
 Not ported: gaps "Map items", "Duds and timed bombs", "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
 "Walking side effects" (water damage to items, the drunk fall). Other deviations of this domain: "Object union", "Item

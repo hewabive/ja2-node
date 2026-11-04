@@ -47,6 +47,7 @@ import { CONTRACT_PROBES, ContractComparer } from './contract-compare.ts';
 import { CREATURE_AI_PROBES, CreatureAiComparer } from './creature-ai-compare.ts';
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { DOOR_PROBES, DoorComparer } from './doors-compare.ts';
+import { DRUG_PROBES, DrugComparer } from './drugs-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
 import { FACT_PROBES, FactComparer } from './facts-compare.ts';
 import { GIVE_PROBES, GiveComparer } from './give-compare.ts';
@@ -597,6 +598,7 @@ for (const file of files) {
   const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
   const recruits = new RecruitComparer(read, exists);
   const boxing = new BoxingComparer(read, exists);
+  const drugs = new DrugComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -631,6 +633,7 @@ for (const file of files) {
       if (ctx.bytes) recruits.loadSave(ctx.bytes);
       if (ctx.bytes) meanwhiles.loadSave(ctx.bytes);
       if (ctx.bytes) boxing.loadSave(ctx.bytes);
+      if (ctx.bytes) drugs.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -660,6 +663,7 @@ for (const file of files) {
     else if (RECRUIT_PROBES.has(String(p.probe))) failures += await recruits.compare(p);
     else if (MEANWHILE_PROBES.has(String(p.probe))) failures += await meanwhiles.compare(p, ctx?.sim ?? null);
     else if (BOXING_PROBES.has(String(p.probe))) failures += await boxing.compare(p);
+    else if (DRUG_PROBES.has(String(p.probe))) failures += await drugs.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

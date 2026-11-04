@@ -1,0 +1,147 @@
+# Drugs and alcohol on SaveGame01 (B13, real time, no enemies; mercs 0, 1 and 2 on the surface, none of them
+# claustrophobic, nervous or afraid of insects, so a turn start draws nothing but bleeding). No save holds drug state, so
+# every course starts here. drug runs ApplyDrugs on an object made with CreateItems (status=<s>[,<s>...] per object,
+# count= copies the first status; lifetime= sets the profile's ubNumTimesDrugUseInLifetime first) and prints the object
+# left; mercturn runs EVENT_BeginMercTurn count= times with INCOMBAT set (combat=1) or cleared, after setting life=,
+# bleeding= or ap= when given; regenhour runs UpdateRegenCounters count= times and prints the team's boosters used
+# today. drug and mercturn print the profile counter and the soldier's drug courses, regeneration, drunk level, life,
+# breath, morale, APs (current, initial, CalcActionPoints) and effective stats, with the draws.
+
+save SaveGame01
+
+# One adrenaline dose turn by turn in real time: the effect overshoots to 16, wears off, the crash's two morale events,
+# the side effect decays. A stack loses one booster; a canteen and a syringe are no drugs.
+drug who=0 item=CANTEEN status=100
+drug who=0 item=SYRINGE_3 status=100
+drug who=0 item=ADRENALINE_BOOSTER status=100 count=3
+mercturn who=0
+mercturn who=0
+mercturn who=0
+mercturn who=0
+mercturn who=0
+mercturn who=0 count=3
+mercturn who=0 count=3
+mercturn who=0
+mercturn who=0
+mercturn who=0 count=4
+mercturn who=0 count=6
+
+# The same dose turn-based, with carried APs and the unused-AP breath.
+drug who=1 item=ADRENALINE_BOOSTER status=100
+mercturn who=1 combat=1 ap=0
+mercturn who=1 combat=1
+mercturn who=1 combat=1
+mercturn who=1 combat=1 ap=3
+mercturn who=1 combat=1 count=4
+mercturn who=1 combat=1 count=4
+mercturn who=1 combat=1
+mercturn who=1 combat=1 count=5
+mercturn who=1 combat=1 count=6
+
+# Nine boosters at once: the future effect and the side effect stop below 127, the lifetime count stops at 255, the
+# effect passes 103 and CalcActionPoints wraps; nine more mid-course make the effect itself wrap, and it crashes at once.
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=8 lifetime=252
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=7
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=6
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=5
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=4
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=3
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=2
+drug who=2 item=ADRENALINE_BOOSTER status=100
+drug who=2 item=ADRENALINE_BOOSTER status=100
+mercturn who=2 combat=1 count=10
+mercturn who=2 combat=1 count=10
+mercturn who=2 combat=1 count=5
+mercturn who=2 combat=1 count=2
+mercturn who=2 combat=1 count=3
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=6
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=5
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=4
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=3
+drug who=2 item=ADRENALINE_BOOSTER status=100 count=2
+drug who=2 item=ADRENALINE_BOOSTER status=100
+mercturn who=2 combat=1 count=5
+mercturn who=2 combat=1 count=5
+mercturn who=2 combat=1 count=5
+mercturn who=2 combat=1 count=5
+mercturn who=2 combat=1 count=4
+mercturn who=2 combat=1
+mercturn who=2 combat=1
+mercturn who=2 count=10
+mercturn who=2 count=10
+mercturn who=2 count=10
+mercturn who=2 combat=1 count=30
+mercturn who=2 combat=1 count=10
+
+# Drinks one to seven: hungover right after the first drink, feeling good, borderline at 32, drunk at 40, the drinks'
+# kit points (a nearly empty bottle is still a full drink, a partial beer eats into the next), then the wear-off, eight
+# crash events against an optimist and the hangover in real time and turn-based.
+drug who=1 item=ALCOHOL status=100
+mercturn who=1 count=2
+drug who=1 item=WINE status=15
+mercturn who=1 count=2
+drug who=1 item=BEER status=50,50
+mercturn who=1 count=2
+drug who=1 item=BEER status=100
+mercturn who=1 count=4
+drug who=1 item=ALCOHOL status=5
+mercturn who=1 count=4
+drug who=1 item=WINE status=100
+mercturn who=1 count=2
+drug who=1 item=BEER status=100,30
+mercturn who=1 count=2
+mercturn who=1 count=2
+mercturn who=1 count=4
+mercturn who=1 count=4
+mercturn who=1 count=4
+mercturn who=1 count=10
+mercturn who=1 count=10
+mercturn who=1 count=4
+mercturn who=1 count=2
+mercturn who=1 combat=1 count=3
+mercturn who=1 count=10
+mercturn who=1 combat=1 ap=12 count=10
+mercturn who=1 count=30
+mercturn who=1 count=20
+
+# Regeneration boosters: status 100 and 75 give whole points without a draw, 60, 10 and 99 draw PreRandom(25) for the
+# fraction; the boosters used today cut the points, the counter stops at 4, every six hours one use is forgiven. The
+# turn starts heal 10 per point and fix the bleeding. The save's PreRandom ring holds small numbers that all draw 0, so
+# the ring is refilled first.
+seed value=7 pre=reseed
+mercturn who=0 count=0 life=40 bleeding=0
+drug who=0 item=REGEN_BOOSTER status=100
+mercturn who=0
+drug who=0 item=REGEN_BOOSTER status=60
+mercturn who=0 count=2
+drug who=0 item=REGEN_BOOSTER status=10
+regenhour
+drug who=0 item=REGEN_BOOSTER status=75,99
+regenhour count=3
+drug who=0 item=REGEN_BOOSTER status=100,100,60 count=3
+drug who=0 item=REGEN_BOOSTER status=60
+drug who=0 item=REGEN_BOOSTER status=60
+drug who=0 item=REGEN_BOOSTER status=100
+mercturn who=0
+mercturn who=0 count=2 combat=1
+mercturn who=0 count=0 life=75 bleeding=10
+regenhour count=4
+drug who=0 item=REGEN_BOOSTER status=100
+mercturn who=0
+mercturn who=0 count=0 life=82 bleeding=8
+mercturn who=0
+mercturn who=0 count=3
+regenhour count=2
+
+# Turn-based combat in D13 (SaveGame07, saved in combat): a dose for a crouching merc and a beer for a pessimist, with
+# the opplist decay of their turn starts.
+save SaveGame07
+drug who=2 item=ADRENALINE_BOOSTER status=100
+drug who=0 item=BEER status=100
+mercturn who=2 combat=1
+mercturn who=0 combat=1
+mercturn who=2 combat=1 count=4
+mercturn who=0 combat=1 count=4
+mercturn who=2 combat=1 count=8
+mercturn who=0 combat=1 count=8
+mercturn who=0 combat=1 count=10

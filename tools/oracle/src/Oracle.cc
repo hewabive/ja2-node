@@ -17,6 +17,8 @@
 // @src (talk probes); src/game/Strategic/Scheduling.cc, TacticalAI/DecideAction.cc DecideActionSchedule (schedule probes)
 // @src src/game/Strategic/Meanwhile.cc, Queen_Command.cc (capture), Tactical/Campaign.cc HourlyProgressUpdate,
 // @src Tactical/End_Game.cc ChangeO3SectorStatue, HandleStatueDamaged (meanwhile probes)
+// @src src/game/Tactical/Drugs_And_Alcohol.cc ApplyDrugs, Soldier_Control.cc EVENT_BeginMercTurn,
+// @src Strategic/Hourly_Update.cc UpdateRegenCounters (drug probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -126,6 +128,7 @@
 #include "End_Game.h"
 #include "Exit_Grids.h"
 #include "Observable.h"
+#include "Drugs_And_Alcohol.h"
 
 #include <string_theory/string>
 
@@ -251,6 +254,7 @@ void OracleRestoreNpcMeanwhile();
 void OracleClearNpcMeanwhileSaves();
 extern INT16 sWorldSectorLocationOfFirstBattle;
 extern Observable<UINT8_S*> OnCalcPlayerProgress;
+void OracleUpdateRegenCounters();
 
 namespace {
 
@@ -7753,6 +7757,122 @@ void ProbeAttachBox(Command const& c)
 		.num("breath", s.bBreath));
 }
 
+std::string DescribeDrugCourses(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> courses;
+	for (int k = 0; k < NUM_COMPLEX_DRUGS; ++k)
+	{
+		courses.push_back(Numbers({s.bFutureDrugEffect[k], s.bDrugEffectRate[k], s.bDrugEffect[k], s.bDrugSideEffectRate[k],
+			s.bDrugSideEffect[k]}));
+	}
+	return JsonArray(courses);
+}
+
+std::string DescribeDrugEffectiveStats(SOLDIERTYPE const& s)
+{
+	return Numbers({EffectiveAgility(&s), EffectiveDexterity(&s), EffectiveWisdom(&s), EffectiveLeadership(&s),
+		EffectiveMarksmanship(&s), EffectiveMechanical(&s), EffectiveExplosive(&s), EffectiveMedical(&s), EffectiveExpLevel(&s)});
+}
+
+std::string DescribeDrugSoldier(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.raw("courses", DescribeDrugCourses(s))
+		.nums("regen", {s.bRegenerationCounter, s.bRegenBoostersUsedToday})
+		.num("drunkLevel", GetDrunkLevel(&s))
+		.flag("underInfluence", MercUnderTheInfluence(&s))
+		.nums("life", {s.bLife, s.bLifeMax, s.bBleeding})
+		.nums("breath", {s.bBreath, s.bBreathMax, s.sBreathRed})
+		.nums("morale", {s.bMorale, s.bTacticalMoraleMod})
+		.nums("ap", {s.bActionPoints, s.bInitialActionPoints, CalcActionPoints(&s)})
+		.raw("effective", DescribeDrugEffectiveStats(s))
+		.text();
+}
+
+std::string DescribeDrugObject(OBJECTTYPE const& o)
+{
+	std::vector<long long> statuses;
+	for (int i = 0; i < o.ubNumberOfObjects; ++i) statuses.push_back(o.bStatus[i]);
+	return Json{}.num("item", o.usItem).num("count", o.ubNumberOfObjects).nums("status", statuses).text();
+}
+
+long long LifetimeDrugUses(SOLDIERTYPE const& s)
+{
+	return s.ubProfile == NO_PROFILE ? 0 : gMercProfiles[s.ubProfile].ubNumTimesDrugUseInLifetime;
+}
+
+template<typename Run>
+void RunDrugProbe(Command const& c, SOLDIERTYPE const& s, Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	OracleTraceRandom(&draws);
+	std::string const extra = run();
+	OracleTraceRandom(nullptr);
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", DescribeDraws(draws))
+		.raw("extra", extra.empty() ? "null" : extra)
+		.num("lifetime", LifetimeDrugUses(s))
+		.raw("soldier", DescribeDrugSoldier(s)));
+}
+
+OBJECTTYPE DrugProbeObject(Command const& c)
+{
+	UINT16 const item = ItemArgument(Text(c, "item", ""));
+	std::vector<long long> const statuses = ListArgument(c, "status");
+	if (statuses.empty()) throw std::runtime_error("drug needs status=<s>[,<s>...]");
+	UINT8 const count = static_cast<UINT8>(Integer(c, "count", static_cast<long long>(statuses.size())));
+	OBJECTTYPE o;
+	CreateItems(item, static_cast<INT8>(statuses[0]), count, &o);
+	for (size_t i = 1; i < statuses.size() && i < count; ++i) o.bStatus[i] = static_cast<INT8>(statuses[i]);
+	return o;
+}
+
+void ProbeDrug(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	OBJECTTYPE o = DrugProbeObject(c);
+	if (Has(c, "lifetime")) gMercProfiles[s.ubProfile].ubNumTimesDrugUseInLifetime = static_cast<UINT8>(Required(c, "lifetime"));
+	RunDrugProbe(c, s, [&] {
+		BOOLEAN const applied = ApplyDrugs(&s, &o);
+		return Json{}.flag("applied", applied != FALSE).raw("object", DescribeDrugObject(o)).text();
+	});
+}
+
+void SetDrugSoldier(SOLDIERTYPE& s, Command const& c)
+{
+	if (Has(c, "life")) s.bLife = static_cast<INT8>(Required(c, "life"));
+	if (Has(c, "bleeding")) s.bBleeding = static_cast<INT8>(Required(c, "bleeding"));
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+}
+
+void ProbeMercTurn(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SetDrugSoldier(s, c);
+	long long const turns = Integer(c, "count", 1);
+	UINT32 const savedFlags = gTacticalStatus.uiFlags;
+	if (Integer(c, "combat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+	else gTacticalStatus.uiFlags &= ~INCOMBAT;
+	RunDrugProbe(c, s, [&] {
+		for (long long i = 0; i < turns; ++i) EVENT_BeginMercTurn(s);
+		return std::string{};
+	});
+	gTacticalStatus.uiFlags = savedFlags;
+}
+
+void ProbeRegenHour(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	for (long long i = 0; i < count; ++i) OracleUpdateRegenCounters();
+	std::vector<std::string> team;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM) team.push_back(Numbers({s->ubID, s->bRegenBoostersUsedToday}));
+	Emit(Json{}.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c)).raw("team", JsonArray(team)));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -7973,6 +8093,9 @@ void Dispatch(Command const& c)
 	if (c.name == "surrender") return ProbeSurrender(c);
 	if (c.name == "surrenderanswer") return ProbeSurrenderAnswer(c);
 	if (c.name == "attachbox") return ProbeAttachBox(c);
+	if (c.name == "drug") return ProbeDrug(c);
+	if (c.name == "mercturn") return ProbeMercTurn(c);
+	if (c.name == "regenhour") return ProbeRegenHour(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

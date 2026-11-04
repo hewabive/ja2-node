@@ -34,6 +34,7 @@ keep them in the work dir outside the repository (default `~/ja2-oracle`), never
 | Recruiting | R.P.C.s, E.P.C. escort and release, the robot | `recruit.txt` | `recruit-compare.ts` | 0018 | `24` |
 | Meanwhile and ending | postings, the event and its implications, played NPC moves, first-battle rules, milestones, captures, the Queen's death, the O3 statue | `meanwhile.txt` | `meanwhile-compare.ts` | 0019 | `26` |
 | Boxing | the San Mona club | `boxing.txt` | `boxing-compare.ts` | 0021 | `25` |
+| Drugs and alcohol | adrenaline, drinks and regeneration boosters taken, their courses over turn starts in real time and turn-based, the six-hourly booster count | `drugs.txt` | `drugs-compare.ts` | 0026 | `12` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
 traces of 0013, 0015 and 0018.
@@ -546,6 +547,18 @@ dropped from the replay. Accepted differences:
   replay.
 - A decision's data is compared only when it decides an action.
 
+### Drugs
+
+Commands: `drug` (`ApplyDrugs` on an object made with `CreateItems`, then the object left), `mercturn`
+(`EVENT_BeginMercTurn` `count` times with `INCOMBAT` set or cleared), `regenhour` (`UpdateRegenCounters`, 0026). `drug`
+and `mercturn` print the profile's lifetime adrenaline count and the soldier's drug courses, regeneration counters, drunk
+level, life, breath, morale, APs (held, initial, `CalcActionPoints`) and effective stats.
+
+`drugs-compare.ts` makes the same object and runs `applyDrugs`, `beginMercTurn` and the hourly slot's
+`updateRegenCounters` on the imported save, replays the draws strictly (the booster's `PreRandom(25)`) and compares the
+dump field by field. No save holds drug state, so `drugs.txt` starts every course itself, on SaveGame01's mercs, who
+draw nothing at a turn start in B13.
+
 ## Shipped probes
 
 `compare-all.sh` lists the outputs it compares, relative to the work dir. `probes/<name>.txt` writes
@@ -588,5 +601,5 @@ done > /tmp/hooks.patch
 
 The base of the diff is `reference/stracciatella` with the earlier patches applied; it differs from the plain reference
 only for files two patches touch: `sgp/Random.{h,cc}` (0002, 0006), `Strategic/StrategicMap.cc` (0004, 0012),
-`Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020) and
-`Tactical/OppList.cc` (0011, 0022).
+`Strategic/Assignments.cc` (0007, 0018), `TacticalAI/NPC.cc` (0013, 0017), `TacticalAI/DecideAction.cc` (0016, 0020),
+`Tactical/OppList.cc` (0011, 0022) and `Strategic/Hourly_Update.cc` (0012, 0026).

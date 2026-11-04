@@ -1,0 +1,15 @@
+Drug oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-04. See LICENSE (SFI-SCLA).
+Appends OracleUpdateRegenCounters to Hourly_Update.cc, so the drug probes can run the static UpdateRegenCounters (the
+six-hourly decrement of bRegenBoostersUsedToday) alone. No behaviour change. Applied by tools/oracle/build.sh after 0025.
+
+--- a/src/game/Strategic/Hourly_Update.cc
++++ b/src/game/Strategic/Hourly_Update.cc
+@@ -337,3 +337,8 @@
+ {
+ 	HourlyCheckIfSlayAloneSoHeCanLeave();
+ }
++
++void OracleUpdateRegenCounters()
++{
++	UpdateRegenCounters();
++}
