@@ -122,6 +122,7 @@ describe('HourlyLarryUpdate', () => {
       sectorX: 13,
       sectorY: 4,
       kills: 7,
+      battlesFought: 4,
       preCombatGridNo: PRE_COMBAT_TILE,
       numTimesDrugUseInLifetime: 3,
       inventory: [1, 2],
@@ -129,8 +130,8 @@ describe('HourlyLarryUpdate', () => {
     });
     const drunk = testProfile(Npc.LARRY_DRUNK, { inventory: [0, 0], inventoryStatus: [0, 0] });
     swapLarrysProfileRecords(n, sober, drunk);
-    const copied = [drunk.sectorX, drunk.sectorY, drunk.kills, drunk.preCombatGridNo, drunk.numTimesDrugUseInLifetime];
-    expect([...copied, drunk.inventory, drunk.inventoryStatus]).toEqual([13, 4, 7, PRE_COMBAT_TILE, 3, [1, 2], [100, 90]]);
+    const copied = [drunk.sectorX, drunk.sectorY, drunk.kills, drunk.battlesFought, drunk.preCombatGridNo, drunk.numTimesDrugUseInLifetime];
+    expect([...copied, drunk.inventory, drunk.inventoryStatus]).toEqual([13, 4, 7, 4, PRE_COMBAT_TILE, 3, [1, 2], [100, 90]]);
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(true);
     swapLarrysProfileRecords(n, drunk, sober);
     expect(fact(n, Fact.LARRY_CHANGED)).toBe(false);

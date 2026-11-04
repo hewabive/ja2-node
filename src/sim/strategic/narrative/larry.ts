@@ -150,6 +150,7 @@ function copyCampaignFields(from: ProfileProgress, to: ProfileProgress): void {
   to.assists = from.assists;
   to.shotsFired = from.shotsFired;
   to.shotsHit = from.shotsHit;
+  to.battlesFought = from.battlesFought;
   to.timesWounded = from.timesWounded;
   to.totalDaysServed = from.totalDaysServed;
   to.useProfileInsertion = from.useProfileInsertion;
