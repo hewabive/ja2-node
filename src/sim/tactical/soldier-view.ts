@@ -6,10 +6,13 @@
 // @src location); Interface.cc GetSoldierHealthString; RenderWorld.cc (the enemy glow test !bNeutral && bSide !=
 // @src FRIENDLY); Interface_Panels.cc UpdateSMPanel (the climb button: FindLowerLevel or FindHigherLevel with
 // @src EnoughPoints for GetAPsToClimbRoof, or FindFenceJumpDirection); Handle_UI.cc UIHandleMAdjustStanceMode (the roof
-// @src edges of the stance drag).
+// @src edges of the stance drag); Interface_Panels.cc PrintAP (EnoughPoints for MinAPsToAttack at sLastTarget with the
+// @src turning cost); Faces.cc HandleAutoFaces (sFinalDestination for the moving highlight, fGettingHit for the portrait
+// @src flash) (2026-11-03).
 
 import type { OwnHintInputs } from '../knowledge/view.ts';
 import { findFenceJumpDirection } from './animation.ts';
+import { minAPsToAttack } from './combat/ap.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
@@ -67,6 +70,9 @@ export interface OwnSoldierFields {
   readonly firstAid: FirstAidRole | null;
   readonly blinded: boolean;
   readonly climb: ClimbView;
+  readonly enoughApToAttack: boolean;
+  readonly destination: number;
+  readonly gettingHit: boolean;
   readonly hint: OwnHintInputs;
 }
 
@@ -127,6 +133,13 @@ function climbView(t: TacticalState, s: Soldier): ClimbView {
   };
 }
 
+function enoughApToAttackLastTarget(t: TacticalState, s: Soldier): boolean {
+  const dontChargeReadyAPs = s.dontChargeReadyAPs;
+  const minAPs = minAPsToAttack(t, s, s.lastTarget, true);
+  s.dontChargeReadyAPs = dontChargeReadyAPs;
+  return enoughPoints(t.inCombat, s, minAPs);
+}
+
 function firstAidRole(s: Soldier): FirstAidRole | null {
   if (s.servicePartner !== NOBODY) return 'medic';
   return s.serviceCount > 0 ? 'patient' : null;
@@ -154,6 +167,9 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     firstAid: firstAidRole(s),
     blinded: s.blindedCounter > 0,
     climb: climbView(t, s),
+    enoughApToAttack: enoughApToAttackLastTarget(t, s),
+    destination: s.finalDestination,
+    gettingHit: s.gettingHit !== 0,
     hint: ownHintInputs(s),
   };
 }

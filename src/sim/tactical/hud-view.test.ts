@@ -9,6 +9,7 @@ import { syntheticStructure } from '../../content/world/synthetic.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, createMoney } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
+import { minAPsToAttack } from './combat/ap.ts';
 import { checkBleeding } from './combat/bleeding.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason, WeaponMode } from './combat/types.ts';
@@ -137,6 +138,40 @@ describe('own soldiers in the view', () => {
     expect(shown(sim, below.id).climb).toEqual({ roof: 'up', enoughAp: false, fence: false });
     expect(shown(sim, above.id).climb).toEqual({ roof: 'down', enoughAp: true, fence: false });
     expect(shown(sim, byTheFence.id).climb).toEqual({ roof: null, enoughAp: false, fence: true });
+  });
+
+  it('carry whether they have the APs for the cheapest attack on their last target, leaving the ready charge as it is (PrintAP)', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    merc.lastTarget = enemy.gridNo;
+    merc.dontChargeReadyAPs = true;
+    const minAPs = minAPsToAttack(t, merc, merc.lastTarget, true);
+    merc.dontChargeReadyAPs = true;
+    merc.actionPoints = minAPs;
+    expect(shown(sim, merc.id).enoughApToAttack).toBe(true);
+    merc.actionPoints = minAPs - 1;
+    expect(shown(sim, merc.id).enoughApToAttack).toBe(false);
+    expect(merc.dontChargeReadyAPs).toBe(true);
+  });
+
+  it('carry the final destination of a move and a hit animation playing, which the face highlights read', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    expect(shown(sim, merc.id)).toMatchObject({ destination: merc.gridNo, gettingHit: false });
+    const target = gridNo(80, 86);
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to: target })).toEqual({ ok: true });
+    sim.step();
+    const walking = shown(sim, merc.id);
+    expect(walking.destination).toBe(target);
+    expect(walking.gridNo).not.toBe(target);
+    runUntilIdle(sim);
+    expect(shown(sim, merc.id)).toMatchObject({ gridNo: target, destination: target });
+    merc.gettingHit = 1;
+    expect(shown(sim, merc.id).gettingHit).toBe(true);
   });
 });
 

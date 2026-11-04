@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc CheckForAndAddMercToTeamPanel (the mercs of the current squad), PrintAP
-// @src (the AP colour), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's STR_LATE_16), FindNextActiveAndAliveMerc;
+// @src (the AP colour, dark red without the APs to attack the last target, 2026-11-03), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's STR_LATE_16), FindNextActiveAndAliveMerc;
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; Soldier_Create.cc (SOLDIER_VEHICLE for the
 // @src HUMVEE to TANK_NE bodies); src/game/Strategic/Morale.cc GetMoraleString;
 // @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
@@ -102,6 +102,7 @@ export function okInterrupt(s: SoldierView): boolean {
 }
 
 export function apColour(s: SoldierView): ApColour {
+  if (s.enoughApToAttack === false) return 'dkred';
   if ((s.ap ?? 0) < 0) return 'dkred';
   if (s.stealth === true) return 'ltyellow';
   return 'ltgray';

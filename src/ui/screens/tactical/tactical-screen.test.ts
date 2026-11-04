@@ -6,14 +6,17 @@ import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest 
 import { Body } from '../../../content/anim/body-types.ts';
 import { FontColor } from '../../../content/text/font-colors.ts';
 import type { SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { createItem } from '../../../sim/items/object.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import { setSoldierPosition } from '../../../sim/tactical/movement.ts';
+import { addItemToPool, Visibility } from '../../../sim/tactical/world-items.ts';
 import { EXTERN_CURSOR, VIDEO_NO_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, keyDownEvents, keyUpEvents, MouseButton, type RawKey } from '../../input/events.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import type { Screen } from '../../screen.ts';
 import { civQuoteLifetime, FINAL_TALKING_DELAY_MS, type SpeechLineRequest, textDelay } from '../../speech.ts';
+import { COMPATIBLE_HILIGHT } from './faces.ts';
 import { UiMode } from './input/ui-events.ts';
 import { MAX_AGE } from './message-log.ts';
 
@@ -53,6 +56,7 @@ const MSG_DROP = 36;
 const PATHFIND_REST_MS = 100;
 const PAST_DOUBLE_CLICK_MS = 400;
 const MSG_THROW = 37;
+const PICKUP_PAGE_ROWS = 6;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -683,6 +687,78 @@ describe('the tactical screen over a stub sandbox session', () => {
     expect(f.screen.pickup.open).toBe(false);
     f.advance(2000);
     expect(inventory(f, 0).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
+  });
+
+  it('outlines the picker’s slots and lights the faces for the pickup row under the pointer, checked as the pointer enters the row', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const dropper = f.client.view.soldiers.find((s) => s.id === 3);
+    if (!dropper) throw new Error('no merc 3');
+    const tile = dropper.gridNo + 4;
+    expect((await f.client.command({ type: 'move', soldier: 3, to: tile })).ok).toBe(true);
+    f.advance(400);
+    expect((await f.client.command({ type: 'drop', soldier: 3, slot: HAND })).ok).toBe(true);
+    f.advance(200);
+    expect((await f.client.command({ type: 'drop', soldier: 3, slot: BIG_POCKET })).ok).toBe(true);
+    f.advance(200);
+    expect((await f.client.command({ type: 'move', soldier: 3, to: tile + 4 })).ok).toBe(true);
+    f.advance(400);
+    const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    await f.clickAt(at.x, at.y);
+    expect(f.screen.pickup.open).toBe(true);
+    const picker = f.client.view.soldiers.find((s) => s.id === 0);
+    if (!picker) throw new Error('no merc 0');
+    const lit = () => ({
+      slots: [HAND, BIG_POCKET, SMALL_POCKET].filter((slot) => f.screen.inventory.outlineOf(picker, slot) !== null),
+      faces: f.draw().items.filter((i) => i.kind === 'rectangle' && i.color === COMPATIBLE_HILIGHT).length,
+    });
+    const hoverRow = (row: number) => {
+      const rect = f.widget(`pickupRow${row}`).rect;
+      f.t.move(rect.x + 2, rect.y + 2);
+      f.t.frame();
+    };
+    expect(lit()).toEqual({ slots: [], faces: 0 });
+    hoverRow(0);
+    expect(lit()).toEqual({ slots: [BIG_POCKET, SMALL_POCKET], faces: 1 });
+    hoverRow(1);
+    expect(lit()).toEqual({ slots: [HAND], faces: 1 });
+    const menu = f.widget('pickupArea').rect;
+    f.t.move(menu.x + menu.width + 20, menu.y);
+    f.t.frame();
+    expect(lit()).toEqual({ slots: [], faces: 0 });
+  });
+
+  it('keeps the outlines of the pickup row the pointer entered while the wheel turns the page under it (ItemPickMenuMouseMoveCallback’s bChecked)', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    const t = tacticalOf(f.session).state;
+    const picker = f.client.view.soldiers.find((s) => s.id === 0);
+    if (!picker) throw new Error('no merc 0');
+    const tile = picker.gridNo + 2;
+    const itemOf = (name: string) => createItem(t.content.items, t.content.items.byName.get(name)?.index ?? -1, 100);
+    for (let k = 0; k < PICKUP_PAGE_ROWS; k++) addItemToPool(t, tile, itemOf('KEVLAR_VEST'), Visibility.VISIBLE, 0);
+    addItemToPool(t, tile, itemOf('CLIP9_15'), Visibility.VISIBLE, 0);
+    f.advance(10);
+    const at = f.world.pickPoint(tile);
+    f.screen.select(0, false);
+    f.screen.controls.toggleHandCursor();
+    f.t.frame();
+    await f.clickAt(at.x, at.y);
+    expect(f.screen.pickup.open).toBe(true);
+    const outlined = () => [HAND, BIG_POCKET, SMALL_POCKET].filter((slot) => f.screen.inventory.outlineOf(picker, slot) !== null);
+    const row = f.widget('pickupRow0').rect;
+    f.t.move(row.x + 2, row.y + 2);
+    f.t.frame();
+    expect(outlined()).toEqual([]);
+    f.t.runtime.input({ kind: 'wheel', x: row.x + 2, y: row.y + 2, button: 0, buttons: 0, wheel: 1, modifiers: 0 });
+    f.t.move(row.x + 3, row.y + 3);
+    f.t.frame();
+    expect(outlined()).toEqual([]);
+    f.t.move(row.x + 2, row.y + row.height + 2);
+    f.t.move(row.x + 2, row.y + 2);
+    f.t.frame();
+    expect(outlined()).toEqual([HAND]);
   });
 
   it('puts the input into GETTINGITEM_MODE while the pickup menu is up and back into move mode as it closes', async () => {

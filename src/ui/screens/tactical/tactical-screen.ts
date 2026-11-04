@@ -87,12 +87,9 @@ import {
   FaceAnimator,
   type FaceArt,
   type FaceDrawContext,
+  faceHighlight,
   faceRecordOf,
-  MOVING_HILIGHT,
-  NO_HILIGHT,
   OKLIFE,
-  STEALTH_MOVING_HILIGHT,
-  WHITE_HILIGHT,
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { type CatcherKind, type ItemPointerAction, type ItemTileCursor, itemPointerAction } from './input/item-tile-cursor.ts';
@@ -369,7 +366,7 @@ export class TacticalScreen implements Screen {
       tileImage: (item) => env.world.itemTile(item),
       pickUp: (soldier, gridNo, zLevel, items) => void this.#command({ type: 'pickUp', soldier, gridNo, zLevel, items }),
       closed: () => this.controls.input.changeToMove(),
-      hover: () => undefined,
+      hover: (ground) => this.#pickupRowHover(ground),
     });
     this.#money = new MoneyActions({
       env,
@@ -1280,15 +1277,6 @@ export class TacticalScreen implements Screen {
   #event(event: FrameEvent, frame: ViewFrame): void {
     const view = this.#view();
     switch (event.type) {
-      case 'soldierHit': {
-        const s = soldierById(view, event.soldier);
-        if (s?.team === OUR_TEAM) {
-          const face = this.#faces.get(s.id);
-          face?.hit(this.#now);
-          face?.hitOver();
-        }
-        return;
-      }
       case 'lifeLost': {
         const after = frame.changed.find((c) => c.id === event.soldier) ?? soldierById(view, event.soldier);
         if (!after) return;
@@ -1813,16 +1801,15 @@ export class TacticalScreen implements Screen {
     };
   }
 
-  #highlightOf(s: SoldierView): number | null {
-    if (s.id === this.#hoveredSoldier) return WHITE_HILIGHT;
-    if (!this.#env.world.soldierMarker(s.id).moving) return NO_HILIGHT;
-    if ((s.life ?? 0) < OKLIFE) return null;
-    return s.stealth ? STEALTH_MOVING_HILIGHT : MOVING_HILIGHT;
-  }
-
   #compatibleFace(s: SoldierView): boolean {
     if (this.inventory.cursor !== null) return this.inventory.compatibleMercs().has(s.id);
+    if (this.pickup.open) return this.inventory.groundCompatibleMercs().has(s.id);
     return this.#poolListCompatibleMercs().includes(s.id);
+  }
+
+  #pickupRowHover(ground: number | null): void {
+    const menu = this.pickup;
+    this.inventory.groundRowHover(ground === null ? null : { soldier: menu.soldier, gridNo: menu.gridNo, zLevel: menu.zLevel, ground });
   }
 
   #poolListCompatibleMercs(): readonly number[] {
@@ -1848,7 +1835,7 @@ export class TacticalScreen implements Screen {
     const face = this.#faces.get(s.id);
     if (!face) return;
     drawFace(this.#faceContext(list), s, face, x, y, {
-      highlight: this.#highlightOf(s),
+      highlight: faceHighlight(s, s.id === this.#hoveredSoldier),
       compatible: this.#compatibleFace(s),
       hatched: this.#faceHatched(s, inSm),
       deadPanelRunning: this.#animationRunning(s.id),
@@ -1924,7 +1911,7 @@ export class TacticalScreen implements Screen {
     const face = this.#faces.get(s.id);
     if (!face) return;
     drawFaceHighlights(this.#faceContext(list), face, x, y, {
-      highlight: this.#highlightOf(s),
+      highlight: faceHighlight(s, s.id === this.#hoveredSoldier),
       compatible,
       hatched: false,
       deadPanelRunning: false,
@@ -2006,7 +1993,7 @@ export class TacticalScreen implements Screen {
     const s = this.#smSoldier();
     if (!s) return;
     this.#drawPanelFace(list, s, rect.x, rect.y, true);
-    this.#drawHighlights(list, s, rect.x, rect.y, false);
+    this.#drawHighlights(list, s, rect.x, rect.y, this.#compatibleFace(s));
   }
 
   #smBody(list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView): void {

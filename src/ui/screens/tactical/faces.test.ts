@@ -3,7 +3,18 @@ import type { SoldierView } from '../../../protocol/view.ts';
 import { StaticImageCatalog } from '../../assets.ts';
 import { DrawList } from '../../draw-list.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
-import { drawFace, FaceAnimator, type FaceRecord, FaceShade, shadeOf } from './faces.ts';
+import {
+  drawFace,
+  FaceAnimator,
+  type FaceRecord,
+  FaceShade,
+  faceHighlight,
+  MOVING_HILIGHT,
+  NO_HILIGHT,
+  STEALTH_MOVING_HILIGHT,
+  shadeOf,
+  WHITE_HILIGHT,
+} from './faces.ts';
 
 const FACE = 'faces/33.sti';
 const ANIMATED_FACE_FRAMES = 8;
@@ -50,5 +61,52 @@ describe('the face in the team panel', () => {
     drawFace({ list, images, art: ART, fonts: { tiny: TINY_FONT }, inCombat: false }, soldier, face, 0, 0, NO_OVERLAYS);
     const digits = list.items.flatMap((i) => (i.kind === 'glyphs' ? i.glyphs.map((g) => g.index) : []));
     expect(digits).toEqual([1]);
+  });
+});
+
+describe('the portrait flash of a merc being hit (HandleAutoFaces)', () => {
+  const FLASH_STEP_MS = 150;
+
+  it('flashes once as the hit starts and holds through a long hit, showing his normal shade, until the hit is over', () => {
+    const images = catalog();
+    const face = new FaceAnimator(RECORD, 0, () => 0);
+    const hit = { id: 2, life: 60, ap: 5, gettingHit: true } as SoldierView;
+    const over = { ...hit, gettingHit: false };
+    const shades: FaceShade[] = [];
+    for (const [at, soldier] of [
+      [0, hit],
+      [FLASH_STEP_MS, hit],
+      [2 * FLASH_STEP_MS, hit],
+      [10 * FLASH_STEP_MS, hit],
+      [11 * FLASH_STEP_MS, over],
+      [12 * FLASH_STEP_MS, hit],
+    ] as const) {
+      face.update(at, soldier, null, images);
+      shades.push(face.shade(soldier, true));
+    }
+    expect(shades).toEqual([
+      FaceShade.STARTSHADE,
+      FaceShade.ENDSHADE,
+      FaceShade.NOSHADE,
+      FaceShade.NOSHADE,
+      FaceShade.NOSHADE,
+      FaceShade.STARTSHADE,
+    ]);
+  });
+});
+
+describe('the face highlight', () => {
+  const at = 1000;
+  const merc = { id: 2, life: 60, gridNo: at, destination: at } as SoldierView;
+
+  it('is white under the pointer, else blue while the merc has a destination to reach, yellow sneaking', () => {
+    expect(faceHighlight(merc, true)).toBe(WHITE_HILIGHT);
+    expect(faceHighlight(merc, false)).toBe(NO_HILIGHT);
+    expect(faceHighlight({ ...merc, destination: at + 1 }, false)).toBe(MOVING_HILIGHT);
+    expect(faceHighlight({ ...merc, destination: at + 1, stealth: true }, false)).toBe(STEALTH_MOVING_HILIGHT);
+  });
+
+  it('draws nothing for a merc below OKLIFE with a destination, not even the black box that clears it', () => {
+    expect(faceHighlight({ ...merc, life: 10, destination: at + 1 }, false)).toBeNull();
   });
 });

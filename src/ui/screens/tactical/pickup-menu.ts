@@ -8,8 +8,9 @@
 // @src not for ammo and keys), CalculateItemPickupMenuDimensions, RenderItemPickupMenu (the world tile graphic at shade 4
 // @src outlined yellow when chosen, the count, the attachment star, the short name or the money in BLOCKFONT2 centred in
 // @src ITEMPICK_TEXT_WIDTH, white for the row under the pointer, black with ITEMDESC_FONTSHADOW2 otherwise),
-// @src ItemPickupAll, ItemPickupOK, ItemPickupCancel, ItemPickMenuMouseMoveCallback, ItemPickMenuMouseClickCallback (a
-// @src click toggles a row, the wheel turns the pages), RemoveItemPickupMenu.
+// @src ItemPickupAll, ItemPickupOK, ItemPickupCancel, ItemPickMenuMouseMoveCallback (the compatible stuff of a row
+// @src checked once as the pointer enters it, kept while the wheel turns the page under it, 2026-11-03),
+// @src ItemPickMenuMouseClickCallback (a click toggles a row, the wheel turns the pages), RemoveItemPickupMenu.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -78,7 +79,7 @@ export interface PickupHooks {
   readonly tileImage: (item: CatalogueItem) => WorldTileImage | null;
   readonly pickUp: (soldier: number, gridNo: number, zLevel: number, items: readonly number[]) => void;
   readonly closed: () => void;
-  readonly hover: (item: ItemView | null) => void;
+  readonly hover: (index: number | null) => void;
 }
 
 export interface PickupFonts {
@@ -92,6 +93,7 @@ export class ItemPickupMenu {
   #selected: boolean[] = [];
   #page = 0;
   #current = -1;
+  #rowChecked = false;
   #allSelected = false;
   #x = 0;
   #y = 0;
@@ -119,6 +121,14 @@ export class ItemPickupMenu {
 
   get soldier(): number {
     return this.#soldier;
+  }
+
+  get gridNo(): number {
+    return this.#gridNo;
+  }
+
+  get zLevel(): number {
+    return this.#zLevel;
   }
 
   get selection(): readonly boolean[] {
@@ -151,6 +161,7 @@ export class ItemPickupMenu {
     this.#slots = Math.min(items.length, NUM_PICKUP_SLOTS);
     this.#allSelected = false;
     this.#current = -1;
+    this.#rowChecked = false;
     let height = 0;
     for (let i = 0; i < this.#slots; i++) height += this.#frame(i === 0 ? ROW_FIRST : ROW_OTHER).height;
     this.#bottom = height;
@@ -267,13 +278,16 @@ export class ItemPickupMenu {
     const at = row + this.#page * NUM_PICKUP_SLOTS;
     if (reason & MouseReason.LOST_MOUSE) {
       this.#current = -1;
+      this.#rowChecked = false;
       this.#hooks.hover(null);
       return;
     }
     if (reason & (MouseReason.MOVE | MouseReason.GAIN_MOUSE)) {
       if (at >= this.#items.length) return;
-      if (this.#current !== at) this.#hooks.hover(this.#items[at] ?? null);
       this.#current = at;
+      if (this.#rowChecked) return;
+      this.#rowChecked = true;
+      this.#hooks.hover(at);
     }
   }
 
@@ -314,6 +328,7 @@ export class ItemPickupMenu {
     this.#down = null;
     this.#items = [];
     this.#selected = [];
+    this.#rowChecked = false;
     this.#hooks.hover(null);
     this.#hooks.services.pauseGame?.(false);
     if (notify) this.#hooks.closed();

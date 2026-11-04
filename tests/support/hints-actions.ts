@@ -84,6 +84,10 @@ export function sampleInventoryHints(view: PlayerView, itemIndices: readonly num
       requests.push({ type: 'itemInfo', soldier: s.id, slot: item.slot, metric: true });
     }
     requests.push({ type: 'placements', soldier: s.id, slot: NUM_INV_SLOTS - 1 });
+    const piles = (view.items ?? []).filter((i) => i.level === s.level);
+    for (const pile of new Set(piles.map((i) => i.gridNo)))
+      for (let ground = 0; ground <= piles.filter((i) => i.gridNo === pile).length; ground++)
+        requests.push({ type: 'placements', soldier: s.id, gridNo: pile, ground });
   }
   for (const item of itemIndices) {
     requests.push({ type: 'itemInfo', item, metric: item % 2 === 0 });

@@ -5,7 +5,9 @@
 // @src y + INV_BAR_DY), HandleRenderInvSlots (nothing while a popup or the description box is up, the gold key when a key
 // @src is on the ring), HandleNewlyAddedItems and DegradeNewlyAddedItems (the 20-step colour cycle every 100 ms,
 // @src NEW_ITEM_CYCLES cycles of NEW_ITEM_CYCLE_COUNT steps, a click stops it), us16BPPItemCyclePlacedItemColors,
-// @src HandleCompatibleAmmoUI (white outlines after 100 ms over a slot), GetHelpTextForItem, RenderInvBodyPanel;
+// @src HandleCompatibleAmmoUI (white outlines after 100 ms over a slot), InternalHandleCompatibleAmmoUI from
+// @src ItemPickMenuMouseMoveCallback (the outlines for the pickup menu's row under the pointer, 2026-11-03),
+// @src GetHelpTextForItem, RenderInvBodyPanel;
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (CTRL cleans up the stack clicked, UIHandleItemPlacement
 // @src with the cursor's objects of the same item, A_CHANGE_TO_MOVE after a placement but not after a merge, 2026-11-02),
 // @src SMInvClickCallbackSecondary (the stack popup for a
@@ -91,6 +93,13 @@ export interface InventoryEnvironment {
   readonly text: TacticalEnvironment['text'];
 }
 
+export interface GroundRow {
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly zLevel: number;
+  readonly ground: number;
+}
+
 export interface InventoryHooks {
   readonly env: InventoryEnvironment;
   smSoldier(): SoldierView | null;
@@ -112,6 +121,7 @@ export class InventoryPanel {
   #pending = false;
   #hovered: { slot: number; since: number } | null = null;
   #highlight: { soldier: number; slots: ReadonlySet<number>; applyOnMerc: boolean } | null = null;
+  #groundRow: GroundRow | null = null;
   #bodyHover = false;
   #bodyHighlights: ReadonlySet<number> = new Set();
   readonly #glows = new Map<number, Map<number, NewItemGlow>>();
@@ -192,8 +202,24 @@ export class InventoryPanel {
     return new Set(this.placements()?.compatibleMercs ?? []);
   }
 
+  groundRowHover(row: GroundRow | null): void {
+    this.#groundRow = row;
+  }
+
+  #groundPlacements(): Placements | null {
+    const row = this.#groundRow;
+    if (!row) return null;
+    const reply = this.#env().client.hint({ type: 'placements', ...row });
+    return reply.state === 'ready' && reply.answer.ok ? (reply.answer.data as Placements) : null;
+  }
+
+  groundCompatibleMercs(): ReadonlySet<number> {
+    return new Set(this.#groundPlacements()?.compatibleMercs ?? []);
+  }
+
   applyHighlight(): boolean {
     if (this.#cursor) return this.placements()?.applyOnMerc === true;
+    if (this.#groundRow) return this.#groundPlacements()?.applyOnMerc === true;
     return this.#highlight?.applyOnMerc === true;
   }
 
@@ -204,6 +230,10 @@ export class InventoryPanel {
       const placement = this.placements();
       if (placement && this.#cursor.source.soldier === soldier.id && placement.slots[slot]?.highlight) return COMPATIBLE_OUTLINE;
       return null;
+    }
+    if (this.#groundRow) {
+      const lit = this.#groundRow.soldier === soldier.id && this.#groundPlacements()?.slots[slot]?.highlight === true;
+      return lit ? COMPATIBLE_OUTLINE : null;
     }
     if (this.#highlight?.soldier === soldier.id && this.#highlight.slots.has(slot)) return COMPATIBLE_OUTLINE;
     if (this.#bodyHover && this.#bodyHighlights.has(slot)) return COMPATIBLE_OUTLINE;

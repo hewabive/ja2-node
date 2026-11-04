@@ -7,6 +7,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
+import { InvSlot } from '../sim/tactical/inventory.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -76,9 +77,16 @@ async function expectAgreement(session: Session, items: readonly number[] = []) 
 }
 
 describe('action and inventory hints on stub scenarios, client against server', () => {
-  it('agree in the sandbox in real time, with items to place and a wounded merc to bandage', async () => {
+  it('agree in the sandbox in real time, with items to place, a pile to pick from and a wounded merc to bandage', async () => {
     const session = await sandbox(1);
     kitSquad(session);
+    const dropper = serialisedView(session).soldiers.find((s) => s.team === Team.OUR);
+    if (!dropper) throw new Error('no merc');
+    for (const slot of [InvSlot.SMALLPOCK1, InvSlot.SMALLPOCK3]) {
+      expect(session.dispatch({ type: 'drop', soldier: dropper.id, slot })).toEqual({ ok: true });
+      session.advance({ idle: true });
+    }
+    expect(serialisedView(session).items?.filter((i) => i.gridNo === dropper.gridNo)).toHaveLength(2);
     const report = await expectAgreement(session, itemSpread());
     expect(report.kinds.get('placements')).toBeGreaterThan(10);
     expect(report.kinds.get('compatibleMercs')).toBeGreaterThan(1);

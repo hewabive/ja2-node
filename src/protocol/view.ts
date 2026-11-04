@@ -88,6 +88,9 @@ export interface SoldierView {
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
   readonly climb?: ClimbView;
+  readonly enoughApToAttack?: boolean;
+  readonly destination?: number;
+  readonly gettingHit?: boolean;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
   readonly hint?: OwnHintInputs;
@@ -1139,6 +1142,9 @@ const SCALAR_SOLDIER_FIELDS = [
   'stance',
   'continueTo',
   'noApToFinishMove',
+  'enoughApToAttack',
+  'destination',
+  'gettingHit',
   'firstAid',
   'blinded',
   'hostile',

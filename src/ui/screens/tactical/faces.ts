@@ -6,8 +6,9 @@
 // @src done talking), fInvalidAnim (set by its owner, as the A.I.M. answering machine does), RenderAutoFace (the face
 // @src without a soldier: frame 0, the eyes and the mouth), SetFaceShade, HandleFaceHilights, DrawFaceRect,
 // @src HandleRenderFaceAdjustments (closed eyes, hatch, skull, enemy count, hatch for those who cannot act, the text over the
-// @src face, the right icons and the bottom-right icon), HandleAutoFaces (the portrait flash); src/game/Tactical/Gap.cc
-// @src PollAudioGap; src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
+// @src face, the right icons and the bottom-right icon), HandleAutoFaces (the portrait flash started and held by
+// @src fGettingHit, the moving highlight by sFinalDestination, 2026-11-03); src/game/Tactical/Gap.cc PollAudioGap;
+// @src src/game/Tactical/Interface.h FLASH_PORTRAIT_*.
 
 import { type AudioGap, inAudioGap } from '../../../content/formats/gap.ts';
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
@@ -100,7 +101,7 @@ export function faceRecordOf(soldier: SoldierView, profile: ProfilePresentation 
   };
 }
 
-export type FaceSubject = Pick<SoldierView, 'asleep' | 'life'>;
+export type FaceSubject = Pick<SoldierView, 'asleep' | 'life' | 'gettingHit'>;
 
 export interface FaceSpeech {
   readonly playing: boolean;
@@ -131,7 +132,6 @@ export class FaceAnimator {
   #flash: FlashState = FlashState.STOP;
   #flashFrame: FaceShade = FaceShade.STARTSHADE;
   #flashSince = 0;
-  #gettingHit = false;
   #frozen = false;
 
   constructor(record: FaceRecord, now: number, random: (range: number) => number) {
@@ -184,15 +184,6 @@ export class FaceAnimator {
     this.#animatingTalking = false;
   }
 
-  hit(now: number): void {
-    this.#gettingHit = true;
-    if (this.#flash === FlashState.STOP) this.#startFlash(now);
-  }
-
-  hitOver(): void {
-    this.#gettingHit = false;
-  }
-
   #startFlash(now: number): void {
     this.#flash = FlashState.START;
     this.#flashFrame = FaceShade.STARTSHADE;
@@ -200,24 +191,35 @@ export class FaceAnimator {
   }
 
   update(now: number, soldier: FaceSubject, speech: FaceSpeech | null, images: ImageCatalog): void {
-    this.#updateFlash(now);
+    this.#updateFlash(now, soldier.gettingHit === true);
     this.#updateTalking(now, speech);
     if (this.invalidAnim(images)) return;
     this.#blink(now, soldier);
     this.#mouth(now, speech);
   }
 
-  #updateFlash(now: number): void {
-    if (this.#flash === FlashState.START) {
-      while (now - this.#flashSince >= FLASH_PORTRAIT_DELAY_MS && this.#flash === FlashState.START) {
-        this.#flashSince += FLASH_PORTRAIT_DELAY_MS;
-        if (this.#flashFrame + 1 > FaceShade.ENDSHADE) {
-          this.#flashFrame = FaceShade.ENDSHADE;
-          this.#flash = this.#gettingHit ? FlashState.WAITING : FlashState.STOP;
-        } else this.#flashFrame = (this.#flashFrame + 1) as FaceShade;
-      }
+  #updateFlash(now: number, gettingHit: boolean): void {
+    switch (this.#flash) {
+      case FlashState.STOP:
+        if (gettingHit) this.#startFlash(now);
+        return;
+      case FlashState.START:
+        this.#stepFlash(now, gettingHit);
+        return;
+      case FlashState.WAITING:
+        if (!gettingHit) this.#flash = FlashState.STOP;
+        return;
     }
-    if (this.#flash === FlashState.WAITING && !this.#gettingHit) this.#flash = FlashState.STOP;
+  }
+
+  #stepFlash(now: number, gettingHit: boolean): void {
+    while (now - this.#flashSince >= FLASH_PORTRAIT_DELAY_MS && this.#flash === FlashState.START) {
+      this.#flashSince += FLASH_PORTRAIT_DELAY_MS;
+      if (this.#flashFrame + 1 > FaceShade.ENDSHADE) {
+        this.#flashFrame = FaceShade.ENDSHADE;
+        this.#flash = gettingHit ? FlashState.WAITING : FlashState.STOP;
+      } else this.#flashFrame = (this.#flashFrame + 1) as FaceShade;
+    }
   }
 
   #updateTalking(now: number, speech: FaceSpeech | null): void {
@@ -315,7 +317,7 @@ export class FaceAnimator {
   }
 
   shade(soldier: SoldierView, inCombat: boolean): FaceShade {
-    if (this.#flash === FlashState.START || this.#flash === FlashState.WAITING) return this.#flashFrame;
+    if (this.#flash === FlashState.START) return this.#flashFrame;
     if ((soldier.life ?? 0) < OKLIFE) return FaceShade.DARKSHADE;
     if (soldier.ap === 0 && inCombat) return FaceShade.LITESHADE;
     return FaceShade.NOSHADE;
@@ -431,6 +433,17 @@ export function drawFace(
     const s = iconSize(images, art.icons, icon);
     list.image(art.icons, icon, x + size.width - s.width - 1, y + size.height - s.height - 1);
   }
+}
+
+export function headsForDestination(s: Pick<SoldierView, 'gridNo' | 'destination'>): boolean {
+  return s.destination !== undefined && s.destination !== s.gridNo;
+}
+
+export function faceHighlight(s: SoldierView, underPointer: boolean): number | null {
+  if (underPointer) return WHITE_HILIGHT;
+  if (!headsForDestination(s)) return NO_HILIGHT;
+  if ((s.life ?? 0) < OKLIFE) return null;
+  return s.stealth ? STEALTH_MOVING_HILIGHT : MOVING_HILIGHT;
 }
 
 export function drawFaceHighlights(ctx: FaceDrawContext, face: FaceAnimator, x: number, y: number, overlays: FaceOverlays): void {

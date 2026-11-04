@@ -2,15 +2,18 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Items.cc the pickup into the item cursor, the hatch drawn on invalid slots except the
 // @src second hand, the blocked second hand under a two-handed weapon, the compatible outline (InternalHandleCompatibleAmmoUI),
-// @src HandleAnyMercInSquadHasCompatibleStuff; Interface_Panels.cc ReevaluateItemHatches.
+// @src HandleAnyMercInSquadHasCompatibleStuff; Interface_Panels.cc ReevaluateItemHatches; ItemPickMenuMouseMoveCallback
+// @src (the same outline and faces for the ground item of the pickup menu's row under the pointer, 2026-11-03).
 
 import { isTwoHanded, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';
-import { cloneObject, type ItemObject } from '../items/object.ts';
+import { isVisibleTile } from '../../content/world/grid.ts';
+import { cloneObject, emptyObject, type ItemObject } from '../items/object.ts';
 import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
-import { InvSlot, placeObject } from '../tactical/inventory.ts';
+import { type Inventory, InvSlot, placeObject } from '../tactical/inventory.ts';
 import { parseCount, parseSlot } from '../tactical/inventory-commands.ts';
 import { dryInventoryContext, takeObjects } from '../tactical/inventory-panel.ts';
+import { pickupCandidates, requestedZLevel } from '../tactical/item-actions.ts';
 import {
   compatibleItemForApplyingOnMerc,
   compatibleSlots,
@@ -18,7 +21,8 @@ import {
   soldierContainsAnyCompatibleStuff,
 } from '../tactical/item-compatibility.ts';
 import { validMerge } from '../tactical/item-merge.ts';
-import { Team } from '../tactical/soldier.ts';
+import { type Soldier, Team } from '../tactical/soldier.ts';
+import type { TacticalState } from '../tactical/state.ts';
 import { actingSoldier } from './soldier-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
@@ -45,14 +49,18 @@ export interface PlacementsRequest extends HintRequestBase {
   readonly slot?: unknown;
   readonly count?: unknown;
   readonly index?: unknown;
+  readonly gridNo?: unknown;
+  readonly zLevel?: unknown;
+  readonly ground?: unknown;
   readonly mapScreen?: unknown;
 }
 
-export function placements(world: KnowledgeWorld, req: PlacementsRequest): HintResult<Placements> {
-  const acting = actingSoldier(world, req.soldier);
-  if ('refusal' in acting) return acting.refusal;
-  const { state: t, soldier: s } = acting;
-  const items = t.content.items;
+interface Taken {
+  readonly inv: Inventory;
+  readonly cursor: ItemObject;
+}
+
+function takenFromSlot(t: TacticalState, s: Soldier, req: PlacementsRequest): Taken | HintResult<Placements> {
   const slot = parseSlot(req.slot);
   if (slot === null) return refuseHint('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
   const count = parseCount(req.count, 'all');
@@ -62,8 +70,40 @@ export function placements(world: KnowledgeWorld, req: PlacementsRequest): HintR
   const source = inv[slot] as ItemObject;
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, source.count))
     return refuseHint('badIndex', 'index must point to an object in the stack');
-  const cursor = source.item === NOTHING ? null : takeObjects(items, source, count, index);
+  const cursor = source.item === NOTHING ? null : takeObjects(t.content.items, source, count, index);
   if (!cursor) return refuseHint('emptySlot', 'that slot is empty');
+  return { inv, cursor };
+}
+
+function shownGroundObject(o: ItemObject): ItemObject {
+  return {
+    ...emptyObject(),
+    item: o.item,
+    count: o.count,
+    status: [...o.status],
+    money: o.money,
+    attachments: o.attachments.map((a) => ({ ...a })),
+  };
+}
+
+function takenFromGround(t: TacticalState, s: Soldier, req: PlacementsRequest): Taken | HintResult<Placements> {
+  const g = req.gridNo;
+  if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuseHint('badGridNo', 'gridNo must be a visible tile');
+  const candidates = pickupCandidates(t, s, g, requestedZLevel(t, s, g, req.zLevel));
+  const ground = req.ground;
+  const item = typeof ground === 'number' && Number.isInteger(ground) ? candidates[ground] : undefined;
+  if (!item) return refuseHint('badGround', `ground must be an index of the pickUp list there: 0..${candidates.length - 1}`);
+  return { inv: s.inv.map(cloneObject), cursor: shownGroundObject(item.object) };
+}
+
+export function placements(world: KnowledgeWorld, req: PlacementsRequest): HintResult<Placements> {
+  const acting = actingSoldier(world, req.soldier);
+  if ('refusal' in acting) return acting.refusal;
+  const { state: t, soldier: s } = acting;
+  const items = t.content.items;
+  const taken = req.ground === undefined ? takenFromSlot(t, s, req) : takenFromGround(t, s, req);
+  if ('ok' in taken) return taken;
+  const { inv, cursor } = taken;
   const invalid = invalidPlacementSlots(items, inv, cursor);
   const highlight = compatibleSlots(items, inv, cursor.item);
   const ctx = dryInventoryContext(items, t.inCombat, s);
