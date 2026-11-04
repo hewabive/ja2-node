@@ -38,6 +38,7 @@ import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
 import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
 import { stubMerc } from './stub-mercs.ts';
+import { tacticalPromptView } from './tactical-prompt-view.ts';
 
 export const ORIGINAL_SANDBOX_MAP = 'maps/a9.dat';
 export const STUB_SANDBOX_MAP = 'stubs/world/maps/village.dat';
@@ -145,7 +146,13 @@ export function tacticalPlayerView(
 ): PlayerView {
   const parts = tacticalViewParts(sim, presentation);
   const soldiers = nextFramesInViewTicks(parts.soldiers, sim.tick, tick, stepping);
-  return { tick, ...parts, soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers, voiceOf)) };
+  const prompt = tacticalPromptView(sim.state);
+  return {
+    tick,
+    ...parts,
+    soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers, voiceOf)),
+    ...(prompt ? { prompt } : {}),
+  };
 }
 
 function sectorOf(mapPath: string): { x: number; y: number } | null {

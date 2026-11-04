@@ -13,7 +13,8 @@
 // @src SetUIBusy (only orders lock our turn: the random idle animations of Soldier_Ani.cc code 491 do not, 2026-11-02);
 // @src Turn_Based_Input.cc HandleHandCursorClick and HandleMoveModeInteractiveClick (EPC_CANNOT_DO_THAT for a pickup or
 // @src search by an escort), Interface_Items.cc HandleItemPointerClick (no drop by an escort, the unconscious or a
-// @src swimmer in deep water, 2026-11-03).
+// @src swimmer in deep water, 2026-11-03); MessageBoxScreen.cc (the game stands while a box is up; its answer runs the
+// @src box's callback) and GameScreen.cc EndModalTactical (the stop-time quote's callback, 2026-11-04).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -23,6 +24,7 @@ import { isVisibleTile, pythSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../con
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { type PreRandom, Rng } from '../../core/rng.ts';
+import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { GunImprintEvent, SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -64,6 +66,7 @@ import {
   states,
 } from './animation.ts';
 import { handleExplosionQueue } from './bombs/bomb-queue.ts';
+import { answerDisarmTrap, boobyTrapDialogueCallBack } from './booby-traps.ts';
 import { generateBuildings } from './buildings.ts';
 import { enoughAmmo, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
@@ -96,6 +99,7 @@ import { InvSlot, itemIn } from './inventory.ts';
 import { dispatchInventoryCommand, INVENTORY_COMMANDS } from './inventory-commands.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import {
+  answerActivateSwitch,
   apsToPickupItem,
   dropsBeside,
   handlePendingPickupOnArrival,
@@ -129,6 +133,7 @@ import { handleCreatureTenseQuote } from './narrative/creature-tension.ts';
 import { npcDrawsFirstOnAttack } from './narrative/first-draw.ts';
 import { okControllableMerc } from './narrative/merc-quotes.ts';
 import { handlePickedOwnershipCheck } from './narrative/minor-offenses.ts';
+import { StopTimeCallback } from './narrative/port.ts';
 import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
 import { useStatueRemote } from './narrative/statue.ts';
@@ -144,6 +149,7 @@ import { invalidStanceRefusal } from './person-structure.ts';
 import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-orders.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
+import { promptOpenRefusal, TacticalPromptKind, takeYesNoAnswer } from './prompts.ts';
 import { randomAnimOpcode } from './random-anims.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
 import { cancelPendingRobotReload, handlePendingRobotReloadOnArrival, robotReloadOpcode } from './robot-reload.ts';
@@ -507,7 +513,7 @@ export class TacticalSim {
   }
 
   hasPendingDecision(): boolean {
-    return this.interruptOpen() && this.isIdle();
+    return this.state.prompt !== null || (this.interruptOpen() && this.isIdle());
   }
 
   actRefusal(s: Soldier): Refusal | null {
@@ -597,8 +603,32 @@ export class TacticalSim {
   }
 
   step(): void {
+    if (this.state.prompt) return;
     executeOverhead(this.state, this.hooks);
     this.state.tick++;
+  }
+
+  runClockAlone(): void {
+    this.state.clockMs += TICK_MS;
+  }
+
+  runStopTimeCallback(name: string): void {
+    if (name === StopTimeCallback.BOOBY_TRAP) boobyTrapDialogueCallBack(this.state);
+  }
+
+  #answer(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const answer = takeYesNoAnswer(t, cmd);
+    if ('ok' in answer) return answer;
+    switch (answer.prompt.kind) {
+      case TacticalPromptKind.DISARM_TRAP:
+        answerDisarmTrap(t, answer.yes);
+        break;
+      case TacticalPromptKind.ACTIVATE_SWITCH:
+        answerActivateSwitch(t, answer.prompt, answer.yes);
+        break;
+    }
+    return { ok: true };
   }
 
   drainEvents(): SimEvent[] {
@@ -623,6 +653,9 @@ export class TacticalSim {
   }
 
   dispatch(cmd: TacticalCommand): CommandResult {
+    if (cmd.type === 'answer') return this.#answer(cmd);
+    const prompt = promptOpenRefusal(this.state);
+    if (prompt) return prompt;
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     if (this.state.mercsWaiting) return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
     if (this.state.boxing.uiLocked) return refuse('boxingUiLock', 'the interface is locked while the boxers leave the ring');

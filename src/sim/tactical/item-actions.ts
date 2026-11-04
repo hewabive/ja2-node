@@ -14,7 +14,9 @@
 // @src Interface_Items.cc HandleItemPointerClick (a click next to the merc drops beside him on a tile that is no good
 // @src destination or one step away, else at his feet: DROP_ADJACENT_OBJECT turned towards it when standing, else at
 // @src once with NotifySoldiersToLookforItems), Soldier_Ani.cc code 763 (2026-11-03); PickPickupAnimation's turn to a
-// @src raised or openable structure on his own tile (2026-11-04).
+// @src raised or openable structure on his own tile (2026-11-04); SoldierGetItemFromWorld's ContinuePastBoobyTrap stop,
+// @src the ACTIVATE_SWITCH_PROMPT box for a SWITCH left on the ground and no GOTIT after the booby-trap quote,
+// @src SwitchMessageBoxCallBack (2026-11-04).
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type ItemTable, WEAPON_CLASSES } from '../../content/items/items.ts';
@@ -40,6 +42,9 @@ import {
   setSoldierDirection,
   soldierGotoStationaryStance,
 } from './animation.ts';
+import { frequencyOf } from './bombs/bomb-object.ts';
+import { setOffBombsByFrequency } from './bombs/bomb-queue.ts';
+import { continuePastBoobyTrap } from './booby-traps.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { findAdjacentGridEx } from './combat/melee-reach.ts';
 import { apsToMovePlusAction, giveItemOpcode } from './give.ts';
@@ -50,6 +55,7 @@ import { schedulePickedOwnershipCheck } from './narrative/minor-offenses.ts';
 import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding.ts';
 import { AP, deductPoints } from './points.ts';
 import { StatKind } from './profiles.ts';
+import { openTacticalPrompt, type TacticalPrompt, TacticalPromptKind } from './prompts.ts';
 import { type PendingPickup, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
 import { type TacticalState, whoIsThere } from './state.ts';
@@ -238,14 +244,37 @@ function foundHiddenItems(t: TacticalState, s: Soldier): void {
   t.narrative.sayQuote(s, MercQuote.SPOTTED_SOMETHING_ONE + t.narrative.cosmeticPick(SPOTTED_SOMETHING_QUOTES));
 }
 
+function askToActivateSwitch(t: TacticalState, s: Soldier, wi: WorldItem): void {
+  openTacticalPrompt(t, { kind: TacticalPromptKind.ACTIVATE_SWITCH, soldier: s, frequency: frequencyOf(wi.object) });
+}
+
+export function answerActivateSwitch(
+  t: TacticalState,
+  prompt: Extract<TacticalPrompt, { readonly kind: 'activateSwitch' }>,
+  yes: boolean,
+): void {
+  if (!yes) return;
+  t.events.push({ type: 'switchActivated', soldier: prompt.soldier.id });
+  setOffBombsByFrequency(t, prompt.soldier, prompt.frequency);
+}
+
 function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingPickup): void {
   const ctx = soldierInventoryContext(t, s);
   const selected = pending.selection ?? pickupCandidates(t, s, pending.gridNo, pending.zLevel);
+  const switchItem = t.content.items.byName.get('SWITCH')?.index;
   let dontCharge = false;
   let cool = false;
+  let saidBoobyTrapQuote = false;
   for (const wi of selected) {
     if (!t.worldItems.includes(wi) || !itemPoolOKForPickup(s, wi, pending.zLevel)) continue;
+    const trap = continuePastBoobyTrap(t, s, wi, pending.gridNo);
+    saidBoobyTrapQuote = trap === 'spotted';
+    if (trap !== 'continue') break;
     if (itemIsCool(t.content.items, wi.object)) cool = true;
+    if (wi.object.item === switchItem) {
+      askToActivateSwitch(t, s, wi);
+      continue;
+    }
     const copy = cloneObject(wi.object);
     if (autoPlaceObject(ctx, s, copy)) {
       removeWorldItem(t, wi);
@@ -254,7 +283,7 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
     Object.assign(wi.object, copy);
     if (s.team === Team.OUR) dontCharge = true;
   }
-  const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s));
+  const gotIt = s.team === Team.OUR && !(cool && saidFoundSomethingSpecial(t, s)) && !saidBoobyTrapQuote;
   if (s.team === Team.OUR && lookForHiddenItems(t, pending.gridNo, s.level)) foundHiddenItems(t, s);
   if (!dontCharge) deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
   t.events.push({ type: 'itemsPickedUp', soldier: s.id, gridNo: pending.gridNo, ...(gotIt ? { battleSound: 'GOTIT' as const } : {}) });

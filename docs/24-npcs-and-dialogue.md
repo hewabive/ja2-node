@@ -136,6 +136,16 @@ the queue. A sleeping merc whose line comes up wakes by the roster flag alone, w
 an event at the back of the queue puts him back to sleep. While a turn start bleeds a team (`logBleedMeToos`), the first
 bleeding warning is said as such and the next ones become ME_TOO.
 
+**Stop-time quotes.** The booby-trap and suspicious-ground lines of a merc of ours stop tactical while they play, as
+the original's modal tactical does (`Tactical/Dialogue_Control.cc:1560`, `GameScreen.cc:296`): the line's start marks
+its face modal (`TalkingFace.modal`, `TalkState.tacticalModal`); the next campaign step still runs a full tactical
+frame, then each step runs only the dialogue while the sector's clock and the world clock go on (`CampaignSim.step`,
+`talk-flow.ts`), and every command but `answer`, `skipLine` and `estimateAttack` is refused with `stopTimeQuote`, saving
+too (`29` §5). The face's end runs the callback its caller named (`TalkState.stopTimeCallback`, the original's
+`gModalDoneCallback`) through `CampaignSim.dialogueCallback`, which hands `tactical:` names to the loaded sector
+(`TacticalSim.runStopTimeCallback`). Tactical code asks for the line through `NarrativePort.sayStopTimeQuote`; without
+a dialogue queue (the sandbox, unit tests) the callback runs at once (deviation "Narrative port").
+
 **Prompts instead of boxes.** NPC requestors open an `npcRequest` prompt (deviation "NPC requestors"); a civilian line
 is a `civQuote` event, and an enemy's surrender offer opens its `surrender` prompt at once (deviations "Civilian quote
 boxes", "Surrender in tactical combat"). `openShop` is talk plus Buy/Sell in one command (deviation "Talking to
@@ -191,6 +201,9 @@ otherwise:
 | The end of a map screen line lifts whatever pause lock is on: a conversation engaged during the line loses its pause | `dialogue-queue.test.ts` |
 | An important line queues its wake and sleep events even when the merc may not say it | `dialogue-queue.test.ts` |
 | A boxing round decided at a team's turn start returns before the ME_TOO log closes, so later bleeding warnings keep turning into ME_TOO | `tactical/turns/turns.test.ts` |
+| A stop-time quote freezes tactical one full frame after its line starts | `dialogue-queue.test.ts` "quote %i of our merc makes tactical modal …", `src/server/stop-time-quote.test.ts` |
+| A stop-time line its merc cannot say leaves its callback waiting: nothing stops and nothing asks | `dialogue-queue.test.ts` "keeps its callback waiting …" |
+| A stop-time line that fails as it starts still freezes for a frame and then runs its callback | `dialogue-queue.test.ts` "still goes modal and runs the callback …" |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
 
 Not pinned yet:
@@ -228,5 +241,5 @@ Inferred from reading the source:
 - The likable-person line of a merc whose profile lies past the 75 entries of `QuoteExp_GenderCode` reads past the
   array in the original; ja2-node lets him speak of either sex. No such profile is on our team in the shipped data.
 
-Not ported: gaps "Dialogue queue conditions". Other deviations of this domain: "Lines and debug text in the talk panel",
+Deviations of this domain: "Lines and debug text in the talk panel",
 "Opinions of high profile ids", "Releasing an escort", "Key-advance speech".

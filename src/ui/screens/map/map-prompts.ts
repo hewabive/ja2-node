@@ -8,7 +8,8 @@
 // @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired, the text by the profile's sex),
 // @src HandleNotifyPlayerCanAffordInsurance
 // @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340);
-// @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBox, SurrenderMessageBoxCallBack (the tactical surrender). The
+// @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBox, SurrenderMessageBoxCallBack (the tactical surrender);
+// @src DoScreenIndependantMessageBox (the tactical item boxes on the map screen, 2026-11-04). The
 // @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
 
 import type { PromptView, StrategicView } from '../../../protocol/view.ts';
@@ -16,6 +17,7 @@ import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn } from '../../widgets/message-box.ts';
+import { type ItemPromptBox, itemPromptBox } from '../tactical/item-prompts.ts';
 import { surrenderChoice, surrenderQuestion } from '../talk/surrender-box.ts';
 import { mercById } from './character-list.ts';
 
@@ -90,7 +92,22 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
     case 'preBattle':
     case 'autoresolveDone':
       return null;
+    case 'disarmTrap':
+    case 'activateSwitch':
+    case 'removeBlueFlag':
+    case 'placeBlueFlag':
+    case 'bombSetting':
+    case 'remoteFrequency':
+      return itemBox(itemPromptBox(text, prompt));
   }
+}
+
+function itemBox(box: ItemPromptBox): PromptBox {
+  return {
+    text: box.text,
+    flags: box.buttons === 'numbered' ? MessageBoxFlag.FOUR_NUMBERED_BUTTONS : MessageBoxFlag.YESNO,
+    answer: box.answer,
+  };
 }
 
 export function departureBox(

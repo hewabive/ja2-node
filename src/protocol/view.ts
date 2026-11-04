@@ -407,7 +407,40 @@ export interface UninvolvedMercView {
   readonly departure?: number | null;
 }
 
+export type YesNoChoice = 'yes' | 'no';
+export type NumberedChoice = '1' | '2' | '3' | '4';
+
+export type TacticalPromptView =
+  | {
+      readonly id: string;
+      readonly kind: 'disarmTrap';
+      readonly soldier: number;
+      readonly gridNo: number;
+      readonly buried: boolean;
+      readonly item?: string;
+      readonly choices: readonly YesNoChoice[];
+    }
+  | { readonly id: string; readonly kind: 'activateSwitch'; readonly soldier?: number; readonly choices: readonly YesNoChoice[] }
+  | {
+      readonly id: string;
+      readonly kind: 'removeBlueFlag' | 'placeBlueFlag';
+      readonly soldier: number;
+      readonly gridNo: number;
+      readonly choices: readonly YesNoChoice[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'bombSetting';
+      readonly soldier: number;
+      readonly gridNo: number;
+      readonly item: string;
+      readonly detonator: 'timed' | 'remote';
+      readonly choices: readonly NumberedChoice[];
+    }
+  | { readonly id: string; readonly kind: 'remoteFrequency'; readonly soldier: number; readonly choices: readonly NumberedChoice[] };
+
 export type PromptView =
+  | TacticalPromptView
   | {
       readonly id: string;
       readonly kind: 'preBattle';

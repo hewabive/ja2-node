@@ -9,6 +9,7 @@ import { encounterName, PromptKind } from '../sim/strategic/forces/battle-state.
 import { getGroup } from '../sim/strategic/forces/groups.ts';
 import { healthCategory } from '../sim/tactical/health.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, SoldierClass } from '../sim/tactical/soldier.ts';
+import { tacticalPromptView } from './tactical-prompt-view.ts';
 
 const MS_PER_SECOND = 1000;
 
@@ -54,6 +55,10 @@ function preBattleView(campaign: CampaignSim, id: string, enemiesKnown: boolean)
 }
 
 export function promptView(campaign: CampaignSim): PromptView | null {
+  return battlePromptView(campaign) ?? tacticalPromptView(campaign.tactical?.state);
+}
+
+function battlePromptView(campaign: CampaignSim): PromptView | null {
   const prompt = campaign.state.battle.prompt;
   const flow = campaign.battle;
   if (!prompt || !flow) return null;

@@ -10,7 +10,9 @@
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member; the robot branch and
 // @src IsValidAmmoToReloadRobot's ROBOT_NEEDS_GIVEN_CALIBER_STR, 2026-11-01); Strategic/Assignments.cc UnEscortEPC
 // @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
-// @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01).
+// @src line short); Interface_Dialogue.cc InitTalkingMenu (SetCurrentSquad before the talker's selection, 2026-11-01);
+// @src Handle_Items.cc ContinuePastBoobyTrap (SetStopTimeQuoteCallback, then TacticalCharacterDialogue), GameScreen.cc
+// @src HandleModalTactical (HandleDialogue alone while the stop-time quote plays, 2026-11-04).
 
 import { NO_VOICE_LENGTHS, type VoiceLengths } from '../../content/audio/speech-lengths.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -58,9 +60,11 @@ import {
   delayedTacticalCharacterDialogue,
   dialogueTextKey,
   quietDialogueForLoad,
+  setStopTimeQuoteCallback,
   signalItemLocatorStart,
   soldierByProfile,
   tacticalCharacterDialogue,
+  tacticalFrameIsModal,
 } from '../narrative/dialogue-queue.ts';
 import { drunkTalkFace, elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.ts';
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
@@ -75,7 +79,13 @@ import {
   resetOncePerConvoRecordsForAllNpcsInLoadedSector,
 } from '../narrative/records.ts';
 import { calcDesireToTalk, calcThreateningEffectiveness } from '../narrative/select.ts';
-import { dialogueIdle, dialogueQueueIsEmptyAndNobodyIsTalking, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
+import {
+  dialogueIdle,
+  dialogueQueueIsEmptyAndNobodyIsTalking,
+  type SpokenLine,
+  TacticalModal,
+  type TalkState,
+} from '../narrative/talk-state.ts';
 import {
   CivType,
   getCivType,
@@ -589,6 +599,19 @@ export class TalkFlow {
     this.#syncScripted();
   }
 
+  tacticalFrameIsModal(): boolean {
+    return tacticalFrameIsModal(this.talk);
+  }
+
+  stopTimeQuotePlaying(): boolean {
+    return this.talk.tacticalModal !== TacticalModal.OFF;
+  }
+
+  afterModalTacticalStep(): void {
+    stepDialogue(this.host);
+    this.#syncScripted();
+  }
+
   requestOpen(): boolean {
     return this.npcActions.requestOpen();
   }
@@ -651,6 +674,11 @@ export class TalkFlow {
       cosmeticPick: (choices) => this.talk.fx.int(choices),
       logBleedMeToos: (on) => beginLoggingForBleedMeToos(this.talk, on),
       signalItemLocatorStart: (s, gridNo) => signalItemLocatorStart(host, s, gridNo),
+      sayStopTimeQuote: (s, quote, callback) => {
+        setStopTimeQuoteCallback(this.talk, callback);
+        tacticalCharacterDialogue(host, s, quote);
+        return true;
+      },
     };
   }
 

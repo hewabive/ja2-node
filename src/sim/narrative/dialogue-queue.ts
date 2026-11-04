@@ -16,7 +16,9 @@
 // @src HandleImportantMercQuote, CreateTalkingUI (the DIALOGUE_EXTERNAL_NPC_UI faces of Skyrider and the head miners)
 // @src and DialogueEvent::Execute returning true for a special event that waits (2026-11-01); SaveLoadGame.cc
 // @src LoadSavedGame (EmptyDialogueQueue and StopAnyCurrentlyTalkingSpeech, the silenced face ending at the next
-// @src HandleDialogue, 2026-11-04).
+// @src HandleDialogue, 2026-11-04); Dialogue_Control.cc gusStopTimeQuoteList, IsStopTimeQuote, CheckForStopTimeQuotes,
+// @src SetStopTimeQuoteCallback, HandleDialogue (FACE_MODAL), GameScreen.cc EnterModalTactical, EndModalTactical and
+// @src MainGameScreenHandle (one more full frame after the modal starts, then HandleModalTactical, 2026-11-04).
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -29,7 +31,7 @@ import type { NarrativeEventWithoutTick } from './events.ts';
 import type { NarrativeHost } from './host.ts';
 import { NarrativeProfile, ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
-import type { DialogueEvent, TalkState } from './talk-state.ts';
+import { type DialogueEvent, TacticalModal, type TalkState } from './talk-state.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
 export const TICKS_PER_CHARACTER = TEXT_DELAY_MODIFIER_MS / TICK_MS;
@@ -52,6 +54,7 @@ function talkingTicks(host: NarrativeHost, speaker: number, textKey: TextKey, ch
 const CONSCIOUSNESS = 10;
 const QUOTE_SPOTTED_SOMETHING_ONE = 11;
 const SPOTTED_SOMETHING_QUOTES = 2;
+const STOP_TIME_QUOTES: ReadonlySet<number> = new Set([MercQuote.BOOBYTRAP_ITEM, MercQuote.SUSPICIOUS_GROUND]);
 
 export interface DialogueHandlers {
   handlePendingInitConv(): void;
@@ -240,7 +243,7 @@ function lineEvent(host: NarrativeHost, speaker: number, quote: number, soldier:
 
 export function executeCharacterDialogue(host: NarrativeHost, speaker: number, quote: number, ui: LineUi): boolean {
   const tick = host.tick();
-  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null };
+  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null, modal: false };
   const s = playerTeamSoldier(host, speaker);
   if (!s && ui.fromSoldier) return false;
   if (s && speakerSilenced(host, s, quote)) return false;
@@ -249,7 +252,7 @@ export function executeCharacterDialogue(host: NarrativeHost, speaker: number, q
   if (chars === 0) return false;
   const skipped = host.skipsSpeech?.() ?? false;
   const busyUntil = skipped ? tick : tick + talkingTicks(host, speaker, key, chars);
-  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null };
+  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null, modal: false };
   const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
   const withRecord = ui.record !== null ? { record: ui.record } : {};
   const said = { ...withRecord, textKey: key, chars, ...(skipped ? { skipped } : {}) };
@@ -288,6 +291,33 @@ function endLinePause(host: NarrativeHost): void {
   host.pauseForLine?.(false);
 }
 
+export function setStopTimeQuoteCallback(talk: TalkState, callback: string): void {
+  talk.stopTimeCallback = callback;
+}
+
+function checkForStopTimeQuotes(host: NarrativeHost, speaker: number, quote: number): void {
+  const face = host.talk.face;
+  if (!STOP_TIME_QUOTES.has(quote) || !face || playerTeamSoldier(host, speaker) === null) return;
+  host.talk.tacticalModal = TacticalModal.ENTERED;
+  face.modal = true;
+}
+
+function endModalTactical(host: NarrativeHost, h: DialogueHandlers): void {
+  const talk = host.talk;
+  const callback = talk.stopTimeCallback;
+  talk.stopTimeCallback = null;
+  if (callback !== null) h.callback(callback, []);
+  talk.tacticalModal = TacticalModal.OFF;
+}
+
+export function tacticalFrameIsModal(talk: TalkState): boolean {
+  if (talk.tacticalModal === TacticalModal.ENTERED) {
+    talk.tacticalModal = TacticalModal.FROZEN;
+    return false;
+  }
+  return talk.tacticalModal === TacticalModal.FROZEN;
+}
+
 function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'quote' }>): boolean {
   if (e.alternate) {
     executeCharacterDialogue(host, e.speaker, e.quote, e);
@@ -300,6 +330,7 @@ function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'qu
   host.talk.lastQuoteSaid = e.quote;
   host.talk.lastQuoteProfile = e.speaker;
   executeCharacterDialogue(host, e.speaker, e.quote, e);
+  checkForStopTimeQuotes(host, e.speaker, e.quote);
   return false;
 }
 
@@ -381,6 +412,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
     talk.referenceCount--;
     h.triggerNpcRecord(face.pcTrigger.npc, face.pcTrigger.record);
   }
+  if (face.modal) endModalTactical(host, h);
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
   endLinePause(host);
@@ -390,6 +422,7 @@ export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean 
 function dropTalkingFace(host: NarrativeHost): void {
   const talk = host.talk;
   if (!talk.face) return;
+  if (talk.face.modal) talk.tacticalModal = TacticalModal.OFF;
   talk.face = null;
   talk.lastQuoteProfile = NO_PROFILE;
   endLinePause(host);

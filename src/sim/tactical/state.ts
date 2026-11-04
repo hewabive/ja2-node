@@ -41,6 +41,7 @@ import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import type { ProfileProgress } from './profiles.ts';
+import { type BoobyTrap, createBoobyTrap, type TacticalPrompt } from './prompts.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
 import { NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
@@ -312,6 +313,9 @@ export interface TacticalState {
   scheduleClock: ScheduleClock;
   engagedInConvFromActionMerc: number;
   readonly explosionQueue: ExplosionQueue;
+  prompt: TacticalPrompt | null;
+  promptSeq: number;
+  readonly boobyTrap: BoobyTrap;
   pickedOwnershipCheck: PickedOwnershipCheck | null;
 }
 
@@ -502,6 +506,9 @@ export function createTacticalState(
     scheduleClock: NO_SCHEDULE_CLOCK,
     engagedInConvFromActionMerc: NOBODY,
     explosionQueue: { entries: [], active: false, mayHaveChangedSight: false, person: null },
+    prompt: null,
+    promptSeq: 0,
+    boobyTrap: createBoobyTrap(),
     pickedOwnershipCheck: null,
   };
 }

@@ -272,6 +272,12 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     ]);
   });
 
+  it('prints STR_LATE_58 when a switch is activated', () => {
+    expect(messageEntriesOf([at({ type: 'switchActivated', soldier: 1 })], facts)).toEqual([
+      { tick: 40, kind: 'interface', colour: 145, table: 'gzLateLocalizedString', index: 57 },
+    ]);
+  });
+
   it('prints CANNOT_THROW_TO_DEST_STR for a toss that cannot get there', () => {
     const entry = refusalEntry(40, { type: 'toss', soldier: 0 }, refuse('badThrow', 'the item cannot get there'), facts);
     expect(entry).toEqual({ tick: 40, kind: 'uiFeedback', colour: 144, table: 'TacticalStr', index: 45 });

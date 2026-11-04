@@ -3,7 +3,8 @@
 // @src src/game/GameSettings.cc CanGameBeSaved, DoDeadIsDeadSaveIfNecessary; SaveLoadScreen.cc DoQuickSave, DoAutoSave,
 // @src DoDeadIsDeadSave; Tactical/Handle_UI.cc UIHandleEndTurn; Tactical/TeamTurns.cc StartPlayerTeamTurn, EndTurn;
 // @src Strategic/Meanwhile.cc BeginMeanwhile; Strategic/Map_Screen_Interface.cc HandleGroupAboutToArrive;
-// @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo.
+// @src Tactical/Turn_Based_Input.cc and Strategic/Map_Screen_Interface_Bottom.cc AllowedToExitFromMapscreenTo;
+// @src GameScreen.cc EnterModalTactical (no input reaches the save keys while a stop-time quote plays, 2026-11-04).
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -18,7 +19,15 @@ import { contractPromptView } from './contract-view.ts';
 import { TacticalSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 
-export const SAVE_REFUSALS = ['conversation', 'meanwhileStarting', 'promptOpen', 'shopOpen', 'ironMan', 'deadIsDead'] as const;
+export const SAVE_REFUSALS = [
+  'conversation',
+  'stopTimeQuote',
+  'meanwhileStarting',
+  'promptOpen',
+  'shopOpen',
+  'ironMan',
+  'deadIsDead',
+] as const;
 
 export type SaveRefusal = (typeof SAVE_REFUSALS)[number];
 
@@ -26,6 +35,7 @@ export type SaveRequestKind = 'player' | 'quick';
 
 export const SAVE_REFUSAL_MESSAGES: Readonly<Record<SaveRefusal, string>> = {
   conversation: 'a conversation is open, or someone has something to say outside tactical',
+  stopTimeQuote: 'the game stands while a merc warns of a trap',
   meanwhileStarting: 'a meanwhile scene is starting or playing',
   promptOpen: 'a decision prompt is open',
   shopOpen: 'a shop is open',
@@ -92,6 +102,7 @@ export function canGameBeSaved(sim: SessionSim): boolean {
 
 function modalRefusal(campaign: CampaignSim): SaveRefusal | null {
   if (conversationOpen(campaign)) return 'conversation';
+  if (campaign.talk?.stopTimeQuotePlaying()) return 'stopTimeQuote';
   if (meanwhileStarting(campaign)) return 'meanwhileStarting';
   if (promptOpen(campaign)) return 'promptOpen';
   if (campaign.shop?.isOpen()) return 'shopOpen';

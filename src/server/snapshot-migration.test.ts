@@ -2073,3 +2073,71 @@ describe('snapshot version 45 (the action item queue) migrates into the bomb que
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });
+
+const TACTICAL_PROMPT_KEYS = ['prompt', 'promptSeq', 'boobyTrap'] as const;
+const NO_BOOBY_TRAP = { soldier: null, item: null, gridNo: 0, level: 0, buried: false, difficulty: 0, justFound: false };
+const STOP_TIME_TALK_KEYS = ['stopTimeCallback', 'tacticalModal'];
+
+function withoutStopTimeQuoteState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutStopTimeQuoteState(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const record = value as JsonObject;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(record)) mapped[key] = withoutStopTimeQuoteState(v);
+  if (!('tacticalModal' in mapped)) return mapped;
+  const kept = Object.fromEntries(Object.entries(mapped).filter(([key]) => !STOP_TIME_TALK_KEYS.includes(key)));
+  const face = mapped.face;
+  if (typeof face !== 'object' || face === null) return kept;
+  const { modal, ...legacyFace } = face as JsonObject;
+  expect(modal).toBe(false);
+  return { ...kept, face: legacyFace };
+}
+
+function versionFortySix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    const quiet = withoutStopTimeQuoteState(value);
+    if (name !== 'tactical') return [name, quiet];
+    const tactical = object(quiet);
+    expect(TACTICAL_PROMPT_KEYS.map((key) => tactical[key])).toEqual([null, 0, NO_BOOBY_TRAP]);
+    return [
+      name,
+      Object.fromEntries(Object.entries(tactical).filter(([key]) => !(TACTICAL_PROMPT_KEYS as readonly string[]).includes(key))),
+    ];
+  });
+  return { ...snapshot, version: 46, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 46 (no tactical prompt, booby-trap globals or stop-time quote) migrates with none open and the talking face not modal', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const current = snapshotSession(sandbox);
+    const legacy = versionFortySix(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"boobyTrap"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+    const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+
+  it('a landed campaign with a merc talking', async () => {
+    const campaign = await createCampaignSession(kit.read, exists, 9);
+    const talk = campaign.campaign.talk?.talk;
+    if (!talk) throw new Error('the campaign has no talk flow');
+    talk.face = { speaker: 0, saidAt: 0, busyUntil: 100, pcTrigger: null, modal: false };
+    const current = snapshotSession(campaign);
+    const legacy = versionFortySix(current.sim);
+    expect(JSON.stringify(legacy)).not.toContain('"tacticalModal"');
+    expect(JSON.stringify(legacy)).not.toContain('"modal"');
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
+  });
+});

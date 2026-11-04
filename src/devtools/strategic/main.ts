@@ -365,6 +365,18 @@ function promptSummary(prompt: PromptView): string {
       return `pay $${prompt.cost} to train militia in ${prompt.sectors.join(', ')}? (balance $${prompt.balance})`;
     case 'militiaContinue':
       return `continue training militia in ${prompt.sector} for $${prompt.cost}? (balance $${prompt.balance})`;
+    case 'disarmTrap':
+      return `soldier ${prompt.soldier}: disarm the ${prompt.buried ? 'buried bomb' : (prompt.item ?? 'trap')} at ${prompt.gridNo}?`;
+    case 'activateSwitch':
+      return 'activate the switch?';
+    case 'removeBlueFlag':
+      return `remove the blue flag at ${prompt.gridNo}?`;
+    case 'placeBlueFlag':
+      return `place a blue flag at ${prompt.gridNo}?`;
+    case 'bombSetting':
+      return `soldier ${prompt.soldier}: ${prompt.detonator === 'timed' ? 'timer' : 'frequency'} for the ${prompt.item}?`;
+    case 'remoteFrequency':
+      return `soldier ${prompt.soldier}: which frequency to set off?`;
   }
 }
 

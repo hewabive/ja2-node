@@ -18,10 +18,13 @@ import {
   FINAL_TALKING_DELAY_TICKS,
   handleImportantMercQuote,
   quietDialogueForLoad,
+  setStopTimeQuoteCallback,
   signalItemLocatorStart,
   tacticalCharacterDialogue,
+  tacticalFrameIsModal,
 } from './dialogue-queue.ts';
 import { NarrativeProfile } from './narrative-ids.ts';
+import { TacticalModal } from './talk-state.ts';
 
 const MERC_PROFILE = 5;
 const OTHER_PROFILE = 6;
@@ -522,5 +525,103 @@ describe('a loaded game starts quiet (SaveLoadGame.cc LoadSavedGame: EmptyDialog
     runQueueToTheEnd(host);
     expect(mercQuotesSaid(host)).toEqual([MercQuote.HEADSHOT]);
     expect(ran).toEqual([]);
+  });
+});
+
+describe('stop-time quotes (Dialogue_Control.cc CheckForStopTimeQuotes, GameScreen.cc EnterModalTactical, EndModalTactical)', () => {
+  const CALLBACK = 'tactical:test';
+
+  function withCallbacks(host: FakeHost): string[] {
+    const ran: string[] = [];
+    Object.assign(host, {
+      dialogueCallback: (name: string) => {
+        ran.push(name);
+        return false;
+      },
+    });
+    return ran;
+  }
+
+  function modalFrames(host: FakeHost, frames: number): boolean[] {
+    return Array.from({ length: frames }, () => tacticalFrameIsModal(host.talk));
+  }
+
+  it.each([MercQuote.BOOBYTRAP_ITEM, MercQuote.SUSPICIOUS_GROUND])(
+    'quote %i of our merc makes tactical modal from its start: one more full frame, then frozen until the line ends',
+    (quote) => {
+      const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+      const host = fakeHost({ soldiers: [merc] });
+      const ran = withCallbacks(host);
+      setStopTimeQuoteCallback(host.talk, CALLBACK);
+      tacticalCharacterDialogue(host, merc, quote);
+      expect(host.talk.tacticalModal).toBe(TacticalModal.OFF);
+      stepDialogue(host);
+      expect(host.talk.face?.modal).toBe(true);
+      expect(host.talk.tacticalModal).toBe(TacticalModal.ENTERED);
+      expect(modalFrames(host, 3)).toEqual([false, true, true]);
+      host.advance(LINE_BUDGET);
+      stepDialogue(host);
+      expect(ran).toEqual([CALLBACK]);
+      expect(host.talk).toMatchObject({ face: null, tacticalModal: TacticalModal.OFF, stopTimeCallback: null });
+      expect(modalFrames(host, 1)).toEqual([false]);
+    },
+  );
+
+  it('leaves tactical running for any other line', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    const ran = withCallbacks(host);
+    setStopTimeQuoteCallback(host.talk, CALLBACK);
+    tacticalCharacterDialogue(host, merc, MercQuote.HEADSHOT);
+    runQueueToTheEnd(host);
+    expect(host.talk.tacticalModal).toBe(TacticalModal.OFF);
+    expect([ran, host.talk.stopTimeCallback]).toEqual([[], CALLBACK]);
+  });
+
+  it('leaves tactical running when the speaker is no merc of ours', () => {
+    const npc = testSoldier(0, Team.CIV, OTHER_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [npc] });
+    characterDialogue(host, OTHER_PROFILE, MercQuote.BOOBYTRAP_ITEM, false, false);
+    stepDialogue(host);
+    expect(host.talk.face?.modal).toBe(false);
+    expect(host.talk.tacticalModal).toBe(TacticalModal.OFF);
+  });
+
+  it('keeps its callback waiting when the merc cannot say the line, and nothing stops', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    merc.gassed = true;
+    const host = fakeHost({ soldiers: [merc] });
+    const ran = withCallbacks(host);
+    setStopTimeQuoteCallback(host.talk, CALLBACK);
+    expect(tacticalCharacterDialogue(host, merc, MercQuote.BOOBYTRAP_ITEM)).toBe(false);
+    runQueueToTheEnd(host);
+    expect([ran, host.talk.tacticalModal, host.talk.stopTimeCallback]).toEqual([[], TacticalModal.OFF, CALLBACK]);
+  });
+
+  it('still goes modal and runs the callback at the next frame when the line fails as it starts', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    const ran = withCallbacks(host);
+    setStopTimeQuoteCallback(host.talk, CALLBACK);
+    tacticalCharacterDialogue(host, merc, MercQuote.BOOBYTRAP_ITEM);
+    merc.gassed = true;
+    stepDialogue(host);
+    expect(mercQuotesSaid(host)).toEqual([]);
+    expect(host.talk.tacticalModal).toBe(TacticalModal.ENTERED);
+    host.advance();
+    stepDialogue(host);
+    expect(ran).toEqual([CALLBACK]);
+    expect(host.talk.tacticalModal).toBe(TacticalModal.OFF);
+  });
+
+  it('ends the modal with the line a player load silences, without its callback', () => {
+    const merc = testSoldier(0, Team.OUR, MERC_PROFILE, MERC_AT);
+    const host = fakeHost({ soldiers: [merc] });
+    const ran = withCallbacks(host);
+    setStopTimeQuoteCallback(host.talk, CALLBACK);
+    tacticalCharacterDialogue(host, merc, MercQuote.BOOBYTRAP_ITEM);
+    stepDialogue(host);
+    quietDialogueForLoad(host);
+    expect([ran, host.talk.tacticalModal]).toEqual([[], TacticalModal.OFF]);
   });
 });

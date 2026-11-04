@@ -32,6 +32,7 @@ Paths are under `src/sim/tactical/` unless stated.
 | `drugs.ts` | Adrenaline and alcohol courses, their effects, the regeneration boosters (§5) |
 | `world-items.ts`, `item-actions.ts`, `give.ts`, `toss.ts`, `item-pointer.ts` | World items: map load, pools, visibility; picking up, dropping (beside the merc too), giving, tossing, passing |
 | `bombs/bomb-object.ts`, `bombs/world-bombs.ts`, `bombs/mine-flags.ts`, `bombs/bomb-queue.ts`, `bombs/item-action.ts` | The bomb fields of an object and arming; the world bomb list; the mine flags of the tiles and the blue flags; the bomb queue, its set-off functions and the timers; the action items (§6) |
+| `booby-traps.ts`, `prompts.ts` | A pickup's booby trap and its disarm box; the tactical prompt and the globals its answers read (§6) |
 | `item-placement.ts`, `corpse-placement.ts`, `item-reachability.ts` | Where a dropped item or a loaded corpse lands; which items the sector inventory can reach |
 | `equipment.ts`, `creation.ts` | Enemy and militia equipment, droppability, the reduced gun list on placements |
 | `src/sim/campaign/map-inventory.ts`, `sector-loot.ts` | The map screen's sector inventory; items and corpses added to unloaded sectors |
@@ -250,7 +251,9 @@ step on a tile (`setOffBombsInGridNo`, from `handleAtNewGridNo` and the fence la
 (`setOffBombsByFrequency`, from a pressure switch underfoot and from a switch worked by hand,
 `activateSwitchInGridNo`), and the timers (`decayBombTimers`, at each real-time turn and at the end of each round,
 `10`); `bombs/item-action.ts` runs the action items, the quest ones through `narrative/quest-items.ts` (`25`). The
-queue runs in the overhead pass after the tile animations.
+queue runs in the overhead pass after the tile animations. `booby-traps.ts` checks an item's booby trap in the pickup
+(`item-actions.ts`), which also asks before working a switch; `prompts.ts` holds the tactical prompt and the globals
+the original's boxes read.
 
 **Design.**
 - The bomb fields stay in the union aliases of the object (deviation "Object union"), so map records, native saves,
@@ -274,6 +277,12 @@ queue runs in the overhead pass after the tile animations.
 - A dud that passes its second roll lies as a timed bomb (`34`); leaving the sector deletes every active timed bomb
   with its item before the sector's state is kept, and while one is on the map time compression is refused
   (`activeTimedBomb`).
+- The original's yes/no and numbered boxes of `Tactical/Handle_Items.cc` are prompts of the loaded sector
+  (`TacticalState.prompt`, decision prompts of `01` §3.8), so the sandbox has them too; the view shows them in
+  `prompt` beside the campaign's (`29` §8.1). As `DoMessageBox`, a prompt asked for while one is open is not shown. The
+  callbacks read the original's globals (`TacticalState.boobyTrap`: the soldier, item, tile, level and difficulty of the
+  last trap, whether it was just found), set by the pickup and read at the answer; a spotted trap's box waits for the
+  merc's stop-time quote (`24` §2).
 
 Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 
@@ -289,6 +298,13 @@ Quirks of the original the code keeps, pinned by tests in `src/sim/`:
 | Explosions during the queue keep sight off until the queue ends: an explosion turns sight back on only with the queue idle | `tactical/bombs/bomb-queue.test.ts` "keeps sight off from one blast to the next …" |
 | A bomb taken off the map after it was queued still goes off: an entry keeps its slot, the slot its last item | `tactical/bombs/bomb-queue.test.ts` "still sets off a bomb taken off the map …" |
 | The queue's end frees the soldier who set it off from any pending action, a pulled panic trigger too, with no animation test | `tactical/bombs/bomb-queue.test.ts` "frees the soldier who set it off …" |
+| A booby trap on a roof explodes at ground level | `tactical/booby-traps.test.ts` "explodes at ground level even when it lies on a roof …" |
+| A merc whose pickup set off a trap he missed still says GOTIT; one who spotted it does not | `tactical/booby-traps.test.ts` "goes off as a mini grenade …", "is spotted by a merc …" |
+| Only our team minds booby traps: another soldier picks a trapped item up with its trap | `tactical/booby-traps.test.ts` "leaves enemies untouched …" |
+| A pickup a trap stopped still costs its APs | `tactical/booby-traps.test.ts` "charges the pickup APs in combat …" |
+| The gain for finding a trap comes at the disarm box's answer, a no too, and a known trap asks with none | `tactical/booby-traps.test.ts` "gives the finding gain on a no too …", "asks at once …" |
+| Disarming a bomb one of our mercs planted gives no gain and no COOL1 | `tactical/booby-traps.test.ts` "gives no explosives gain and no COOL1 …" |
+| A known trap picked up in one go after a switch loses its box: the switch's box is up | `tactical/booby-traps.test.ts` "drops the disarm box of a known trap …" |
 
 Not checked against the native build: no oracle probe covers the bomb list, the flags, paths around mines, the queue's
 times and draws or the timers yet; the action item probes of `tools/oracle/README.md` "Give" check the queue with the
@@ -299,7 +315,7 @@ with a trap level, a pit or a blue flag; every loose switch's stored detonator a
 it, a switch over a switch structure and a pressure plate elsewhere (`tactical/bombs/map-bombs-original.test.ts`); the
 14 soldiers placed on roofs all stand on flat roofs, so the roof type test moves none of them.
 
-Not ported: gaps "Map items" (the pits), "Unbuilt item actions", "Booby-trapped items", "Auto-bandage",
+Not ported: gaps "Map items" (the pits), "Unbuilt item actions", "Auto-bandage",
 "Walking side effects" (water damage to items). Other deviations of this domain: "Object union", "Item cursor", "Key
 ring cursor", "Attachment AP", "Picking up items", "Structural damage of grenades", "Explosion timing", "Tile-animation
 pass", "Water ripple", "Vaporized corpses", "Gas and blast hit flags", "World clock for smoke and light", "Cosmetic

@@ -6,7 +6,9 @@
 // @src Strategic/Game_Clock.cc AdvanceClock (the reset of the player-knows-enemies flags),
 // @src ClearTacticalStuffDueToTimeCompression (only in map mode; the client clears its message log on the event);
 // @src TileEngine/Environment.cc EnvironmentController (the ambient light); GameScreen.cc LeaveTacticalScreen (a leave
-// @src for the map screen asked during a step happens once the step is done).
+// @src for the map screen asked during a step happens once the step is done); GameScreen.cc MainGameScreenHandle and
+// @src HandleModalTactical (while a stop-time quote plays only the dialogue runs, before the strategic turn, the overhead
+// @src and the meanwhile check, the full-screen region takes the input, and GameLoop.cc UpdateClock runs on, 2026-11-04).
 
 import { type Sector, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
@@ -64,6 +66,7 @@ import {
 } from '../strategic/time/world-clock.ts';
 import { activeTimedBombExists } from '../tactical/bombs/world-bombs.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
+import { STOP_TIME_CALLBACKS } from '../tactical/narrative/port.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { PLAYER_ORDERS } from '../tactical/player-orders.ts';
 import { refuse } from '../tactical/refusal.ts';
@@ -106,7 +109,10 @@ export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 export type SimConstruction = 'create' | 'createOnMapScreen' | 'restore';
 
 const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
+const STOP_TIME_QUOTE_TEXT = 'the game stands while a merc warns of a trap: advance until his line ends';
 const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
+const ACCEPTED_DURING_STOP_TIME_QUOTE: ReadonlySet<string> = new Set(['estimateAttack', 'answer', 'skipLine']);
+const ACCEPTED_WITH_TACTICAL_PROMPT: ReadonlySet<string> = new Set(['answer', 'skipLine']);
 const TACTICAL_SCREEN_ORDERS: ReadonlySet<string> = new Set([
   ...PLAYER_ORDERS,
   'move',
@@ -630,10 +636,13 @@ export class CampaignSim {
   step(): void {
     if (this.ended()) return;
     if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
+    if (this.#tacticalPromptOpen()) return;
     const s = this.state;
     s.session.tick++;
     syncInterfaceLockPause(this);
-    if (s.flow === 'tactical' && this.tactical) {
+    const modal = s.flow === 'tactical' && this.tactical !== null && this.talk?.tacticalFrameIsModal() === true;
+    if (modal) this.#stepModalTactical();
+    else if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();
       this.tactical.step();
@@ -648,8 +657,10 @@ export class CampaignSim {
       this.#updatePausedStatesDueToTimeCompression();
     }
     updateClock(this.#clock, s.realMs);
-    this.meanwhile.afterStep();
-    this.endgame.afterStep();
+    if (!modal) {
+      this.meanwhile.afterStep();
+      this.endgame.afterStep();
+    }
     if (s.flow === 'strategic') this.helicopter.afterStrategicStep();
     this.#collectEvents();
     this.battle?.afterStep();
@@ -658,6 +669,19 @@ export class CampaignSim {
     this.#reEvaluateNothingToDo();
     this.#collectEvents();
     this.#syncClockEvents();
+  }
+
+  #stepModalTactical(): void {
+    const tactical = this.tactical;
+    if (!tactical) return;
+    tactical.runClockAlone();
+    this.state.realMs = tactical.state.clockMs;
+    this.talk?.afterModalTacticalStep();
+    this.#events.push(...tactical.drainEvents());
+  }
+
+  #tacticalPromptOpen(): boolean {
+    return (this.tactical?.state.prompt ?? null) !== null;
   }
 
   #clearTacticalStuffDueToTimeCompression(): void {
@@ -698,6 +722,7 @@ export class CampaignSim {
 
   hasPendingDecision(): boolean {
     if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.talk?.hasPendingDecision()) return true;
+    if (this.#tacticalPromptOpen()) return true;
     return this.state.flow === 'tactical' && this.tactical !== null && this.tactical.hasPendingDecision();
   }
 
@@ -712,6 +737,9 @@ export class CampaignSim {
         return this.contracts?.dialogueCallback(name, args) ?? false;
       case SKYRIDER_CALLBACKS:
         this.helicopter.dialogueCallback(name, args);
+        return false;
+      case STOP_TIME_CALLBACKS:
+        this.tactical?.runStopTimeCallback(name);
         return false;
       default:
         this.endgame.dialogueCallback(name);
@@ -767,7 +795,24 @@ export class CampaignSim {
   }
 
   #promptOpen(): boolean {
-    return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true;
+    return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true || this.#tacticalPromptOpen();
+  }
+
+  #stopTimeQuoteRefusal(cmd: CampaignCommand): CommandResult | null {
+    if (!this.talk?.stopTimeQuotePlaying() || ACCEPTED_DURING_STOP_TIME_QUOTE.has(cmd.type)) return null;
+    return refuse('stopTimeQuote', STOP_TIME_QUOTE_TEXT);
+  }
+
+  #tacticalPromptRefusal(cmd: CampaignCommand): CommandResult | null {
+    if (!this.#tacticalPromptOpen() || ACCEPTED_WITH_TACTICAL_PROMPT.has(cmd.type)) return null;
+    return refuse('promptOpen', PROMPT_OPEN_REFUSAL);
+  }
+
+  #answersTacticalPrompt(cmd: CampaignCommand): boolean {
+    const prompt = this.tactical?.state.prompt;
+    if (cmd.type !== 'answer' || !prompt) return false;
+    if (cmd.prompt !== undefined) return cmd.prompt === prompt.id;
+    return this.battle?.hasPendingDecision() !== true && this.talk?.requestOpen() !== true;
   }
 
   #setOption(cmd: CampaignCommand): CommandResult {
@@ -784,8 +829,13 @@ export class CampaignSim {
     if (cmd.type === 'setOption') return this.#setOption(cmd);
     const story = storyRefusal(this, cmd);
     if (story) return story;
-    const locked = this.#boxingUiLockRefusal(cmd) ?? this.#offTacticalScreenRefusal(cmd);
+    const locked =
+      this.#boxingUiLockRefusal(cmd) ??
+      this.#offTacticalScreenRefusal(cmd) ??
+      this.#stopTimeQuoteRefusal(cmd) ??
+      this.#tacticalPromptRefusal(cmd);
     if (locked) return locked;
+    if (this.tactical && this.#answersTacticalPrompt(cmd)) return this.tactical.dispatch(cmd);
     const talk = this.talk?.dispatch(cmd);
     if (talk) return talk;
     const shop = this.shop?.dispatch(cmd);

@@ -6,7 +6,8 @@
 // @src soldiers; Dialogue_Control.cc ghDialogueQ, gpCurrentTalkingFace,
 // @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn, gubLogForMeTooBleeds, fWasPausedDuringDialogue;
 // @src TacticalAI/NPC.cc giNPCSpecialReferenceCount;
-// @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm.
+// @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm; GameScreen.cc gfTacticalIsModal, gModalDoneCallback;
+// @src Faces.h FACE_MODAL (2026-11-04).
 
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -55,7 +56,10 @@ export interface TalkingFace {
   readonly saidAt: number;
   readonly busyUntil: number;
   pcTrigger: { readonly npc: number; readonly record: number } | null;
+  modal: boolean;
 }
+
+export const TacticalModal = { OFF: 0, ENTERED: 1, FROZEN: 2 } as const;
 
 export interface PendingConversation {
   readonly dest: number;
@@ -89,6 +93,8 @@ export interface TalkState {
   meTooBleedLog: number;
   engagedSeen: boolean;
   pausedForLine: boolean;
+  stopTimeCallback: string | null;
+  tacticalModal: number;
   inPanel: boolean;
   charNum: number;
   initiatedBy: 'player' | 'npc';
@@ -115,6 +121,8 @@ export function createTalkState(seed = 0): TalkState {
     meTooBleedLog: 0,
     engagedSeen: false,
     pausedForLine: false,
+    stopTimeCallback: null,
+    tacticalModal: TacticalModal.OFF,
     inPanel: false,
     charNum: NO_PROFILE,
     initiatedBy: 'player',

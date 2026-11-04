@@ -52,6 +52,8 @@ export const MercQuote = {
   SPOTTED_BLOODCAT: 68,
   ENEMY_RETREATED: 70,
   ME_TOO: 73,
+  BOOBYTRAP_ITEM: 75,
+  SUSPICIOUS_GROUND: 76,
 } as const;
 
 export const QuoteSaidFlag = {

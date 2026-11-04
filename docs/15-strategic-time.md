@@ -17,6 +17,8 @@ CampaignSim.step: one 5 ms tick                           campaign/campaign-sim.
   the interface lock's pause, before and after the pass   campaign/interface-lock-pause.ts
   tactical flow: light change, the loaded sector's pass;  tactical/tactical-sim.ts, tactical/turns/turns.ts
     realMs = the sector's clockMs
+  tactical flow while a stop-time quote plays: the        campaign/talk-flow.ts (`24`)
+    sector's clockMs and the dialogue alone
   strategic flow: realMs += 5, dialogue, automatic pause
   updateClock(realMs)                                     time/world-clock.ts
     └ advanceClock → processPendingGameEvents             time/event-queue.ts

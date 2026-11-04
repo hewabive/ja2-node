@@ -87,7 +87,8 @@ in, the action-item queue, the boxers leaving the ring, a scripted sequence (`15
 ### 4.2 Decisions
 
 A decision is a choice the game waits for (`hasPendingDecision`): an interrupt in our favour with nobody of ours
-acting; an open prompt (`observe.prompt`, `observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
+acting; an open prompt (`observe.prompt`, which in the sandbox too holds the loaded sector's prompts of §8.1,
+`observe.contractPrompt`, `observe.npcRequest`); a conversation waiting for a
 choice, also one an NPC opened (`initiatedBy: npc`, deviation "Conversation prompt"); an open shop. A running `advance`
 stops with `decision` when one arises, and the real-time driver holds without running ticks; a new `advance` answers
 `decision` at once while a prompt is open and is refused while a conversation waits or a shop is open. Prompts are
@@ -264,6 +265,7 @@ the message list (§7), except for `exitSector`, whose lines the exit cursor pri
 | The endgame (§8.14) | `answer`, `skipLine` | `endgameInProgress` | plays the sequence, `ended` at `campaignWon` |
 | Won and over (flow `ended`) | nothing (`status` and `newSession` work) | `campaignOver`, also for the server-only queries | `ended` at once, no ticks |
 | Boxing UI lock (§8.6) | `estimateAttack`, `answer`, `skipLine` | `boxingUiLock` | runs the walk out of the ring |
+| Stop-time quote (§8.1) | `estimateAttack`, `answer`, `skipLine` | `stopTimeQuote` | runs the line to its end and its prompt |
 
 `setOption` is accepted in every state but an open prompt (`promptOpen`).
 
@@ -416,6 +418,19 @@ a round refuses `attack` with `noAmmo`, where the original shows the reload curs
 usable weapon who sees the merc may draw first on an `attack` made with a weapon in hand (`NPCFirstDraw`, `35`): nothing
 is fired, the order is refused with `npcDrewFirst`, and the NPC turns hostile or says his hostile line. Throwing a grenade needs no command
 of its own: move it to the hand, check with `estimateAttack`, `attack` the tile.
+
+**Booby traps and switches** (`12` §6). A pickup stops at a trapped item: a merc who does not notice the trap sets it
+off (`trapSetOff`, a mini grenade with nobody as its owner), one who notices it (`trapSpotted {kind: item}`) warns with
+his booby-trap line and the `disarmTrap` prompt opens once the line is said; a trap known before asks at once. `yes`
+takes his disarm check: the item comes untrapped into his pockets, or stays on the ground when they are full
+(`trapDisarmed`), or the trap goes off (`trapSetOff` with CURSE1); `no` leaves it. A switch is not picked up:
+`activateSwitch` asks, and `yes` fires its frequency (`switchActivated`, the original's line). The pickup's APs are paid
+all the same. These prompts belong to the loaded sector and come in `observe.prompt` of the sandbox too:
+`disarmTrap {id, soldier, gridNo, buried, item?, choices}` (`item` names a trap the merc can see) and `activateSwitch
+{id, soldier?, choices}` (`soldier` when he is ours), both with `yes` and `no`. As with the original's message boxes,
+one is open at a time and a second one asked for meanwhile is never shown. While the merc warns, the game stands as the
+original's does: one more tactical frame, then only the line and the clocks run until it ends, and commands are refused
+with `stopTimeQuote` (§5); in the sandbox, which has no dialogue, the prompt opens at once.
 
 ### 8.2 Doors, containers and remote triggers
 

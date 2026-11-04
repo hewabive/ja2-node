@@ -7,7 +7,8 @@
 // @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBoxIfActive, ShutDownQuoteBox (the surrender box once the offer's
 // @src quote box closes), SurrenderMessageBoxCallBack; src/game/Tactical/ShopKeeper_Interface.cc
 // @src EnterShopKeeperInterface (the SM panel of the selected merc), ShopKeeperScreenHandle (leaving once the farewell is
-// @src said, back through EnterTacticalScreen), InitShopKeeperSubTitledText (only with SUBTITLES).
+// @src said, back through EnterTacticalScreen), InitShopKeeperSubTitledText (only with SUBTITLES); Tactical/Handle_Items.cc
+// @src the item boxes (the switch, the booby trap, the blue flags and the bomb settings, 2026-11-04).
 
 import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
@@ -36,6 +37,7 @@ import { ShopPanel } from '../shop/shop-panel.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { type SpeechPlayback, type TacticalEnvironment, TacticalLayout } from '../tactical/environment.ts';
 import { helpTextForItem } from '../tactical/inventory.ts';
+import { itemPromptBox, tacticalItemPrompt } from '../tactical/item-prompts.ts';
 import type { TileDrawContext } from '../tactical/item-tile.ts';
 import { npcRequestBox, npcRequestChoice } from './npc-requests.ts';
 import { SpeechSurfaces, TACTICAL_SPEECH_CONTRACT, TACTICAL_SPEECH_SCREEN } from './speech-surfaces.ts';
@@ -48,6 +50,7 @@ const ESCAPE = 'Escape';
 const KEVLAR_VEST = 'LEATHER_JACKET_W_KEVLAR';
 const REQUEST_BOX_ID = 'npcRequestBox';
 const SURRENDER_BOX_ID = 'surrenderBox';
+const ITEM_BOX_ID = 'itemPromptBox';
 
 export interface DialogueHost {
   drawSoldierFace(list: DrawList, soldier: SoldierView, x: number, y: number): void;
@@ -80,6 +83,7 @@ export class DialogueLayer {
   #built = false;
   #askedRequest: string | null = null;
   #askedSurrender: string | null = null;
+  #askedItemPrompt: string | null = null;
 
   constructor(env: TacticalEnvironment, host: DialogueHost) {
     this.#env = env;
@@ -287,6 +291,7 @@ export class DialogueLayer {
     this.#syncTalkPanel(now);
     this.#syncRequest();
     this.#syncSurrender();
+    this.#syncItemPrompt();
     this.#syncShop(now);
     this.talk.update(now);
     this.shop.update(now);
@@ -317,6 +322,19 @@ export class DialogueLayer {
         if (result !== MessageBoxReturn.NONE)
           void this.#env.client.command({ type: 'answer', prompt: prompt.id, choice: surrenderChoice(result) });
       });
+  }
+
+  #syncItemPrompt(): void {
+    const prompt = tacticalItemPrompt(this.#view()?.prompt);
+    if (!prompt) this.#askedItemPrompt = null;
+    if (!prompt || prompt.id === this.#askedItemPrompt || this.presenter.busy) return;
+    this.#askedItemPrompt = prompt.id;
+    const box = itemPromptBox(this.#env.text, prompt);
+    const answeredElsewhere = () => this.#env.client.latestView?.prompt?.id !== prompt.id;
+    void this.#env.boxes.ask(box.text, box.buttons, { style: box.style, id: ITEM_BOX_ID, closeWhen: answeredElsewhere }).then((result) => {
+      const choice = box.answer(result);
+      if (choice !== null) void this.#env.client.command({ type: 'answer', prompt: prompt.id, choice });
+    });
   }
 
   #civQuoteShownOrComing(): boolean {

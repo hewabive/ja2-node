@@ -78,6 +78,7 @@ profiling demands it, which it has not (§4.5).
 | A merc's quote waits in the queue while his battle sound plays | `Tactical/Dialogue_Control.cc:485, 633` | Never in the simulation; the client holds the line (deviations "Speech", "Speech playback") |
 | Logic that waits for an empty quote queue: NPC hostility, the AI of Sergeant, Mike and Joe, notifications | `Tactical/OppList.cc:559`; `TacticalAI/AIMain.cc:281`; `Tactical/Overhead.cc:840, 6205` | The same queue, on ticks (`24`) |
 | Message boxes and dialogues with choices | UI screens | Decision prompts (D15); time stands still until an answer (deviations "Prompt time") |
+| Stop-time quotes: tactical stands while the line plays, the clocks run on | `GameScreen.cc:296-307`, `GameLoop.cc:220` | The sector's pass waits while its clock and the world clock run (`24`) |
 | Watchdogs at 15 and 25 s that break hangs | `TacticalAI/AIMain.cc:366-380`; `Tactical/Handle_UI.cc:405-419` | Not ported: a hang is a bug and fails the tests (deviations "Watchdogs") |
 | Idle animations draw on the shared generator and change soldier state | opcode 491 | Simulated with the same draws on `main`; the animals' idle sounds are the client's (deviation "Idle sounds of unseen animals") |
 | "Render visibility" `bLastRenderVisibleValue` and the soldier fade, 60 ms a shade step | `Tactical/Overhead.cc:544-634` | The same state on ticks (`src/sim/tactical/fade.ts`), from the simulation's own land shade (deviation "Soldier fade without merc lights") |

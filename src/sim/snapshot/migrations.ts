@@ -1294,6 +1294,52 @@ function actionItemsIntoExplosionQueue(snapshot: Readonly<Record<string, unknown
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PROMPT_KEY = 'prompt';
+const PROMPT_SEQ_KEY = 'promptSeq';
+const BOOBY_TRAP_KEY = 'boobyTrap';
+const NO_BOOBY_TRAP: Json = { soldier: null, item: null, gridNo: 0, level: 0, buried: false, difficulty: 0, justFound: false };
+const STOP_TIME_CALLBACK_KEY = 'stopTimeCallback';
+const TACTICAL_MODAL_KEY = 'tacticalModal';
+const TACTICAL_MODAL_OFF = 0;
+const FACE_KEY = 'face';
+const FACE_PC_TRIGGER_KEY = 'pcTrigger';
+const FACE_MODAL_KEY = 'modal';
+
+function withTacticalPrompt(tactical: JsonObject): JsonObject {
+  const prompt = insertAfter(tactical, EXPLOSION_QUEUE_KEY, PROMPT_KEY, null);
+  const seq = insertAfter(prompt, PROMPT_KEY, PROMPT_SEQ_KEY, 0);
+  return insertAfter(seq, PROMPT_SEQ_KEY, BOOBY_TRAP_KEY, NO_BOOBY_TRAP);
+}
+
+function withFaceModalFlag(face: Json | undefined): Json {
+  if (!isObject(face)) return face ?? null;
+  return insertAfter(face, FACE_PC_TRIGGER_KEY, FACE_MODAL_KEY, false);
+}
+
+function withStopTimeQuoteState(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withStopTimeQuoteState(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withStopTimeQuoteState(v);
+  if (!isTalkStateRecord(mapped)) return mapped;
+  const talk = insertAfter(
+    { ...mapped, [FACE_KEY]: withFaceModalFlag(mapped[FACE_KEY]) },
+    PAUSED_FOR_LINE_KEY,
+    STOP_TIME_CALLBACK_KEY,
+    null,
+  );
+  return insertAfter(talk, STOP_TIME_CALLBACK_KEY, TACTICAL_MODAL_KEY, TACTICAL_MODAL_OFF);
+}
+
+function addTacticalPromptsAndStopTimeQuotes(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const quoted = withStopTimeQuoteState(value);
+    return [name, name === 'tactical' && isObject(quoted) ? withTacticalPrompt(quoted) : quoted];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -1341,5 +1387,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     43: addDrugCourses,
     44: addWorldBombsAndMineFlags,
     45: actionItemsIntoExplosionQueue,
+    46: addTacticalPromptsAndStopTimeQuotes,
   };
 }

@@ -22,7 +22,8 @@
 // @src RemoveSoldierFromTacticalSector (2026-10-31); Strategic/Strategic_Mines.cc PlayerAttackedHeadMiner from
 // @src ProcessImplicationsOfPCAttack (2026-10-31); Strategic/Assignments.cc AnyDoctorWhoCanHealThisPatient from
 // @src Tactical/Soldier_Control.cc CheckBleeding, Tactical/Squads.cc IsSquadOnCurrentTacticalMap and FIRST_SQUAD
-// @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04).
+// @src (2026-11-01); Tactical/Soldier_Profile.cc SwapLarrysProfiles from Drugs_And_Alcohol.cc ApplyDrugs (2026-11-04);
+// @src Dialogue_Control.cc SetStopTimeQuoteCallback with TacticalCharacterDialogue (sayStopTimeQuote, 2026-11-04).
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -31,6 +32,10 @@ import type { SectorRef } from '../state.ts';
 
 const NO_INITIATING_TARGET = -1;
 const FIRST_SQUAD = 0;
+
+export const STOP_TIME_CALLBACKS = 'tactical';
+export const StopTimeCallback = { BOOBY_TRAP: `${STOP_TIME_CALLBACKS}:boobyTrap` } as const;
+export type StopTimeCallback = (typeof StopTimeCallback)[keyof typeof StopTimeCallback];
 
 export interface QuoteSaidRecord {
   quoteSaidFlags: number;
@@ -123,6 +128,7 @@ export interface NarrativePort {
   logBleedMeToos(on: boolean): void;
   signalItemLocatorStart(s: Soldier, gridNo: number): void;
   swapLarrysProfiles(s: Soldier): void;
+  sayStopTimeQuote(s: Soldier, quote: number, callback: StopTimeCallback): boolean;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -209,4 +215,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   logBleedMeToos: () => {},
   signalItemLocatorStart: () => {},
   swapLarrysProfiles: () => {},
+  sayStopTimeQuote: () => false,
 };

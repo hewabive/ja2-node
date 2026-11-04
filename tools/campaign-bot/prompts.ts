@@ -37,6 +37,15 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
     case 'militiaPayment':
     case 'militiaContinue':
       return prompt.cost <= balance ? ['yes', 'no'] : ['no'];
+    case 'disarmTrap':
+    case 'activateSwitch':
+    case 'removeBlueFlag':
+      return ['no'];
+    case 'placeBlueFlag':
+      return ['yes'];
+    case 'bombSetting':
+    case 'remoteFrequency':
+      return ['1'];
   }
 }
 
