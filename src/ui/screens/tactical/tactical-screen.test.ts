@@ -1098,6 +1098,14 @@ describe('the tactical screen in a stub campaign', () => {
     expect(f.screen.messageLines).toEqual([]);
   });
 
+  it('names the loaded sector with its town or land type beside the radar, as RenderTownIDString does', async () => {
+    const a10 = await campaignInA10(kit, 5);
+    const f = await tacticalUiTest(kit, ui, 5, a10.session);
+    f.t.frame();
+    const shown = f.widget('sectorName').text ?? '';
+    expect(shown).toMatch(/^A10: \S/);
+  });
+
   it('queues no message line while time is compressed, as TacticalScreenMsg does', async () => {
     const a10 = await campaignInA10(kit, 5);
     const f = await tacticalUiTest(kit, ui, 5, a10.session);

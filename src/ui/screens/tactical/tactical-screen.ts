@@ -36,6 +36,7 @@
 // @src INV_INTERFACE_START_Y); Interface_Panels.cc KeyRingSlotInvClickCallbackPrimary (a key off the ring into the
 // @src cursor, selecting its owner; only a key in the cursor goes onto the ring); GameScreen.cc
 // @src TacticalScreenLocateToSoldier (LocateSoldier(…, 10) at the first update after a sector entry, 2026-11-02);
+// @src Interface_Panels.cc RenderTownIDString (the detailed GetSectorIDString of the loaded sector, 2026-11-03);
 // @src Interface_Items.cc DrawItemTileCursor (the item's owner selected while the item is over the map, and located
 // @src once after BeginItemPointer, gbItemPointerLocateGood; not while the view scrolls, 2026-11-02); Turn_Based_Input.cc
 // @src GetTBMouseButtonInput and Real_Time_Input.cc GetRTMouseButtonInput (A_CHANGE_TO_MOVE once an item pointer click is
@@ -1074,7 +1075,7 @@ export class TacticalScreen implements Screen {
     this.#hud.model = {
       radarEnabled: !this.inventory.cursor && !this.stack.open && !this.keyRing.open && !this.pickup.open && !this.dialogue.shopOpen,
       radarShown: this.#radarShown,
-      sector: sectorOfMap(view?.mapPath ?? null),
+      sector: this.#townIdString(view),
       clock: hudClockText(text, view?.clock ?? null, paused),
       inCombat: inCombat(view),
       pauseHelp: pauseHelpText(text, paused),
@@ -1249,6 +1250,11 @@ export class TacticalScreen implements Screen {
       if (clearsMessageLog(frame)) this.#log.clear();
       for (const s of frame.changed) if (s.team === OUR_TEAM && s.inventory) this.#lastInventories.set(s.id, s.inventory);
     }
+  }
+
+  #townIdString(view: PlayerView | null): string {
+    const label = view?.strategic?.worldSector ?? sectorOfMap(view?.mapPath ?? null);
+    return label ? this.#sectorName(label) : '';
   }
 
   #sectorName(label: string): string {
